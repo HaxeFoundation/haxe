@@ -423,10 +423,8 @@ let compiler_error (err : Error.error) =
 
 		| _ ->
 			let stack = ref [] in
-			let depth = err.err_depth + 1 in
-
 			List.iter (fun err ->
-				Error.recurse_error ~depth (fun depth err ->
+				Error.recurse_error (fun depth err ->
 					(* TODO indent child errors depending on depth *)
 					stack := make_runtime_error (Error.error_msg err.err_message) err.err_pos :: !stack;
 				) err;

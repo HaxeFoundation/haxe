@@ -1257,7 +1257,7 @@ module Purity = struct
 					apply_to_class c
 				with Purity_conflict(impure,p) ->
 					Error.raise_typing_error_ext (Error.make_error (Custom "Impure field overrides/implements field which was explicitly marked as @:pure") ~sub:[
-						Error.make_error ~depth:1 (Custom (Error.compl_msg "Pure field is here")) p
+						Error.make_error (Custom (Error.compl_msg "Pure field is here")) p
 					] impure.pn_field.cf_pos)
 				end
 			| _ -> ()

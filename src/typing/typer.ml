@@ -1047,7 +1047,7 @@ and type_map_declaration ctx e1 el with_type p =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
 			raise_typing_error_ext (make_error (Custom "Duplicate key") ~sub:[
-				make_error ~depth:1 (Custom (compl_msg "Previously defined here")) p
+				make_error (Custom (compl_msg "Previously defined here")) p
 			] e_key.epos);
 		with Not_found ->
 			begin match e_key.eexpr with

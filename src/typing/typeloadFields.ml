@@ -313,7 +313,7 @@ let build_enum_abstract ctx c a fields p =
 					()
 				| VPublic(access,p2) | VPrivate(access,p2) ->
 					display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access))) ~sub:[
-						make_error ~depth:1 (Custom (compl_msg "Conflicts with this")) p2;
+						make_error (Custom (compl_msg "Conflicts with this")) p2;
 					] p1)
 			in
 			let rec loop visibility acc = match acc with
@@ -554,7 +554,7 @@ let create_typer_context_for_field ctx cctx fctx cff cf =
 			invalid_modifier_combination fctx ctx.com fctx "abstract" "inline" (pos cff.cff_name)
 		else if not (has_class_flag c CAbstract) then begin
 			display_error_ext ctx.com (make_error (Custom "This class should be declared abstract because it has at least one abstract field") ~sub:[
-				make_error ~depth:1 (Custom (compl_msg "First abstract field was here")) (pos cff.cff_name);
+				make_error (Custom (compl_msg "First abstract field was here")) (pos cff.cff_name);
 			] c.cl_name_pos);
 			add_class_flag c CAbstract;
 		end;
@@ -1415,7 +1415,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 					(match f2.cf_kind with
 						| Method MethMacro ->
 							display_error_ext ctx.com (make_error (Custom (f2.cf_name ^ ": Macro methods cannot be used as property accessor")) ~sub:[
-								make_error ~depth:1 (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
+								make_error (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
 							] p);
 						| _ -> ());
 					unify_raise t2 t f2.cf_pos;
@@ -1583,7 +1583,7 @@ let check_overload ctx f fs is_extern_class =
 			) fs
 		in
 		display_error_ext ctx.com (make_error (Custom ("Another overloaded field of same signature was already declared : " ^ f.cf_name)) ~sub:[
-			make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos;
+			make_error (Custom (compl_msg "The second field is declared here")) f2.cf_pos;
 		] f.cf_pos);
 		false
 	with Not_found -> try
@@ -1601,7 +1601,7 @@ let check_overload ctx f fs is_extern_class =
 			"Another overloaded field of similar signature was already declared : " ^
 			f.cf_name ^
 			"\nThe signatures are different in Haxe, but not in the target language"
-		)) ~sub:[make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos] f.cf_pos);
+		)) ~sub:[make_error (Custom (compl_msg "The second field is declared here")) f2.cf_pos] f.cf_pos);
 		false
 	with Not_found ->
 		true
@@ -1803,7 +1803,7 @@ let init_class ctx_c cctx c p herits fields =
 				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 			end else begin
 				display_error_ext com (make_error (Custom "This class has uninitialized final vars, which requires a constructor") ~sub:[
-					make_error ~depth:1 (Custom "Example of an uninitialized final var") cf.cf_name_pos;
+					make_error (Custom "Example of an uninitialized final var") cf.cf_name_pos;
 				] p);
 			end
 		| _ ->

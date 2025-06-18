@@ -28,30 +28,39 @@ and type_not_found_reason =
 type error = {
 	err_message : error_msg;
 	err_pos : pos;
-	(* TODO Should probably be deprecated at some point and be derived from err_sub *)
-	err_depth : int;
 	(* Reverse list of sub errors. Use Error.recurse_error to handle an error and its sub errors with depth. *)
 	err_sub : error list;
 	err_from_macro : bool;
 }
 
-let make_error ?(depth = 0) ?(from_macro = false) ?(sub = []) msg p = {
+type macro_error = {
+	msg : string;
+	pos : pos;
+	sub : macro_error list;
+}
+
+let make_error ?(from_macro = false) ?(sub = []) msg p = {
 	err_message = msg;
 	err_pos = p;
-	err_depth = depth;
 	err_from_macro = from_macro;
 	err_sub = sub;
 }
 
-let rec recurse_error ?(depth = 0) cb err =
-	let depth = if depth > 0 then depth else err.err_depth in
-	cb depth err;
-	List.iter (recurse_error ~depth:(depth+1) cb) (List.rev err.err_sub);
+let rec convert_error (err:macro_error) =
+	let sub = List.rev_map convert_error err.sub in
+	make_error ~sub (Custom err.msg) err.pos
+
+let recurse_error cb err =
+	let rec loop depth err =
+		cb depth err;
+		List.iter (loop (depth+1)) (List.rev err.err_sub)
+	in
+	loop 0 err
 
 exception Fatal_error of error
 exception Error of error
 
-let abort ?(depth = 0) msg p = raise (Fatal_error (make_error ~depth (Custom msg) p))
+let abort msg p = raise (Fatal_error (make_error (Custom msg) p))
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
@@ -320,10 +329,10 @@ and s_call_error = function
 
 (* Global error helpers *)
 let raise_error err = raise (Error err)
-let raise_error_msg ?(depth = 0) msg p = raise_error (make_error ~depth msg p)
-let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
+let raise_error_msg msg p = raise_error (make_error msg p)
+let raise_msg msg p = raise_error_msg (Custom msg) p
 
-let raise_typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
+let raise_typing_error msg p = raise_msg msg p
 let raise_typing_error_ext err = raise_error err
 
 let raise_std_not_found () =

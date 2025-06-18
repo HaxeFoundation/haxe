@@ -252,7 +252,7 @@ module Setup = struct
 				()
 		);
 		com.error_ext <- error_ext ctx;
-		com.error <- (fun ?(depth = 0) msg p -> com.error_ext (Error.make_error ~depth (Custom msg) p));
+		com.error <- (fun msg p -> com.error_ext (Error.make_error (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -447,7 +447,7 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			let sub = List.map (fun p -> Error.make_error ~depth:1 (Error.Custom (Error.compl_msg "referenced here")) p) pl in
+			let sub = List.map (fun p -> Error.make_error (Error.Custom (Error.compl_msg "referenced here")) p) pl in
 			error_ext ctx (Error.make_error (Error.Custom (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m))) ~sub p)
 		end
 	| Error.Error err ->

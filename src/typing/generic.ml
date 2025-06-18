@@ -358,7 +358,7 @@ let build_generic_class ctx c p tl =
 								begin match cf_old.cf_kind with
 									| Method _ when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) && not (has_class_field_flag cf_old CfAbstract) ->
 										display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name)) ~sub:([
-											(make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "While building %s" (s_type_path cg.cl_path)))) p)
+											(make_error (Custom (compl_msg (Printf.sprintf "While building %s" (s_type_path cg.cl_path)))) p)
 										]) cf_new.cf_pos);
 									| _ ->
 										()
@@ -459,10 +459,9 @@ let type_generic_function ctx fa fcc with_type p =
 	let params = extract_type_parameters monos in
 	let unify_existing_field tcf pcf = try
 		unify_raise tcf fc_type p
-	with Error ({ err_message = Unify _; err_depth = depth } as err) ->
+	with Error ({ err_message = Unify _ } as err) ->
 		raise (Error { err with err_sub = (make_error
-			~depth
-			~sub:[make_error ~depth:(depth+1) (Custom (compl_msg "Conflicting field was defined here")) pcf]
+			~sub:[make_error (Custom (compl_msg "Conflicting field was defined here")) pcf]
 			(Custom ("Cannot create field " ^ name ^ " due to type mismatch"))
 			p
 		) :: err.err_sub })
@@ -492,7 +491,7 @@ let type_generic_function ctx fa fcc with_type p =
 			let rec check e = match e.eexpr with
 				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 					display_error_ext ctx.com (make_error (Custom "Only generic type parameters can be constructed") ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg "While specializing this call")) p)
+						(make_error (Custom (compl_msg "While specializing this call")) p)
 					]) e.epos);
 				| _ ->
 					Type.iter check e
@@ -504,8 +503,8 @@ let type_generic_function ctx fa fcc with_type p =
 						Printf.sprintf "%s = %s" ttp.ttp_name (st t)
 					) cf.cf_params monos in
 					let sub = [
-						(Error.make_error ~depth:1 (Custom (Printf.sprintf "Mapping: %s" (String.concat ", " mappings))) p);
-						(Error.make_error ~depth:1 (Custom (Printf.sprintf "For function %s.%s" (s_type_path c.cl_path) cf.cf_name)) p);
+						(Error.make_error (Custom (Printf.sprintf "Mapping: %s" (String.concat ", " mappings))) p);
+						(Error.make_error (Custom (Printf.sprintf "For function %s.%s" (s_type_path c.cl_path) cf.cf_name)) p);
 					] in
 					display_error_ext ctx.com (Error.make_error ~sub (Custom "Recursive @:generic function") p); None;
 				| Some e ->

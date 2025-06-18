@@ -136,7 +136,7 @@ let copy_meta meta_src meta_target sl =
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		display_error_ext ctx.com (make_error (Custom ("Field " ^ child.cf_name ^ " has different @:native value than in superclass")) ~sub:([
-			(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) base_pos)
+			(make_error (Custom (compl_msg "Base field is defined here")) base_pos)
 		]) child_pos);
 	in
 	try
@@ -193,8 +193,8 @@ let check_override_field ctx p rctx =
 	with
 		Unify_error l ->
 			display_error_ext ctx.com (make_error (Custom ("Field " ^ i ^ " overrides parent class with different or incomplete type")) ~sub:([
-				(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
-				(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) rctx.cf_old.cf_name_pos);
+				(make_error (Custom (compl_msg (error_msg (Unify l)))) p);
+				(make_error (Custom (compl_msg "Base field is defined here")) rctx.cf_old.cf_name_pos);
 			]) p)
 
 let find_override_field ctx c_new cf_new c_old tl get_super_field is_overload p =
@@ -404,8 +404,8 @@ module Inheritance = struct
 						Unify_error l ->
 							if not ((has_class_flag c CExtern)) then begin
 								display_error_ext com (make_error (Custom ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path)) ~sub:([
-									(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
-									(make_error ~depth:1 (Custom (compl_msg "Interface field is defined here")) f.cf_name_pos);
+									(make_error (Custom (compl_msg (error_msg (Unify l)))) p);
+									(make_error (Custom (compl_msg "Interface field is defined here")) f.cf_name_pos);
 								]) p)
 							end
 				)
@@ -501,7 +501,7 @@ module Inheritance = struct
 					| t ->
 						s_type pctx t
 				in
-				make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
+				make_error (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
 			) !missing in
 			let singular = match l with [_] -> true | _ -> false in
 			let sub = [make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos] in
@@ -649,7 +649,7 @@ let check_final_vars ctx e =
 		if Hashtbl.length final_vars > 0 then begin
 			let sub = List.filter_map (fun (c,cf) ->
 				if Hashtbl.mem final_vars cf.cf_name then
-					Some (make_error ~depth:1 (Custom "Uninitialized field") cf.cf_name_pos)
+					Some (make_error (Custom "Uninitialized field") cf.cf_name_pos)
 				else
 					None
 			) (DynArray.to_list ordered_fields) in

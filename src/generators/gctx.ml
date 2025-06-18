@@ -9,7 +9,7 @@ type context_main = {
 }
 
 type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit
-type error_function = ?depth:int -> string -> pos -> unit
+type error_function = string -> pos -> unit
 
 type t = {
 	platform : platform;

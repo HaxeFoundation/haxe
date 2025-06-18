@@ -56,7 +56,7 @@ let check_field_access ctx cff =
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
 					display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access))) ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg "Previously defined here")) p2);
+						(make_error (Custom (compl_msg "Previously defined here")) p2);
 					]) p1);
 				end;
 				loop p1 acc l
@@ -65,7 +65,7 @@ let check_field_access ctx cff =
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
 						display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access))) ~sub:([
-							(make_error ~depth:1 (Custom (compl_msg "Conflicts with this")) p2);
+							(make_error (Custom (compl_msg "Conflicts with this")) p2);
 						]) p1);
 						loop p1 acc l
 					with Not_found ->
@@ -222,8 +222,8 @@ let is_redefined ctx cf1 fields p =
 		let st = s_type (print_context()) in
 		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
 			raise_typing_error_ext (make_error (Custom ("Cannot redefine field " ^ cf1.cf_name ^ " with different type")) ~sub:([
-				(make_error ~depth:1 (Custom (compl_msg ("Second type was " ^ (st cf2.cf_type)))) cf2.cf_pos);
-				(make_error ~depth:1 (Custom (compl_msg ("First type was " ^ (st cf1.cf_type)))) cf1.cf_pos);
+				(make_error (Custom (compl_msg ("Second type was " ^ (st cf2.cf_type)))) cf2.cf_pos);
+				(make_error (Custom (compl_msg ("First type was " ^ (st cf1.cf_type)))) cf1.cf_pos);
 			]) p)
 		end else
 			true
@@ -836,7 +836,7 @@ let init_core_api ctx c =
 					raise_typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 				| Unify_error l ->
 					display_error_ext ctx.com (make_error (Custom ("Type parameter " ^ ttp2.ttp_name ^ " has different constraint than in core type")) ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) c.cl_pos);
+						(make_error (Custom (compl_msg (error_msg (Unify l)))) c.cl_pos);
 					]) c.cl_pos);
 		) ccore.cl_params c.cl_params;
 	with Invalid_argument _ ->
@@ -851,7 +851,7 @@ let init_core_api ctx c =
 			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
 			display_error_ext ctx.com (make_error (Custom ("Field " ^ f.cf_name ^ " has different type than in core type")) ~sub:([
-				(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
+				(make_error (Custom (compl_msg (error_msg (Unify l)))) p);
 			]) p));
 		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then raise_typing_error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with

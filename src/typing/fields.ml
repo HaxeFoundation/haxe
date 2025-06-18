@@ -249,7 +249,7 @@ let field_access ctx mode f fh e pfield =
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> warning ctx WTemp "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" pfield | _ -> ());
 				if not (is_physical_field f) then begin
 					display_error_ext ctx.com (make_error (Custom "This field cannot be accessed because it is not a real variable") ~sub:[
-						make_error ~depth:1 (Custom "Add @:isVar here to enable it") f.cf_pos
+						make_error (Custom "Add @:isVar here to enable it") f.cf_pos
 					] pfield);
 				end;
 				normal false

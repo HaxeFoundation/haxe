@@ -2,6 +2,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open Error
 open PlatformConfig
 open DefineList
 open MetaList
@@ -65,14 +66,13 @@ type 'value compiler_api = {
 	decode_type : 'value -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
-	display_error : ?depth:int -> (string -> pos -> unit);
+	display_error : ?sub:macro_error list -> string -> pos -> unit;
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
 	get_hxb_writer_config : unit -> 'value;
 	set_hxb_writer_config : 'value -> unit;
 }
-
 
 type enum_type =
 	| IExpr
@@ -746,6 +746,15 @@ let decode_placed_name vp v =
 
 let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
+
+let decode_sub_errors sub =
+	let rec decode_sub o =
+		let msg = decode_string (field o "msg") in
+		let pos = decode_pos (field o "pos") in
+		let sub = decode_opt_array decode_sub (field o "sub") in
+		{msg; pos; sub}
+	in
+	decode_opt_array decode_sub sub
 
 (* Ast.placed_type_path *)
 let rec decode_ast_path t =
@@ -1800,24 +1809,24 @@ let macro_api ccom get_api =
 		"init_macros_done", vfun0 (fun () ->
 			vbool ((get_api()).init_macros_done ())
 		);
-		"error", vfun3 (fun msg p depth ->
+		"error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			let sub = decode_sub_errors sub in
+			(get_api()).display_error ~sub msg p;
 			raise Abort
 		);
-		"fatal_error", vfun3 (fun msg p depth ->
+		"fatal_error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
-			let p = decode_pos p in
-			let depth = decode_int depth in
-			raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
+			let pos = decode_pos p in
+			let sub = decode_sub_errors sub in
+			raise (Error.Fatal_error (Error.convert_error {msg; pos; sub}))
 		);
-		"report_error", vfun3 (fun msg p depth ->
+		"report_error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			let sub = decode_sub_errors sub in
+			(get_api()).display_error ~sub msg p;
 			vnull
 		);
 		"warning", vfun3 (fun msg p depth ->
