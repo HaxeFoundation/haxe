@@ -268,7 +268,7 @@ let destruction (com : Common.context) scom ectx detail_times main rename_locals
 		)
 	);
 
-	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
+	Common.run_callbacks com.error_ext com.callbacks#get_after_filters ();
 	Common.enter_stage com CFilteringDone
 
 let update_cache_dependencies ~close_monomorphs scom t =
@@ -511,7 +511,8 @@ let run com ectx main before_destruction =
 		)
 	);
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
-		com.callbacks#run com.error_ext com.callbacks#get_before_save;
+		Common.run_callbacks com.error_ext com.callbacks#get_before_save ();
+		Common.run_callbacks com.error_ext com.callbacks#get_before_save_only_new new_types;
 	);
 	Common.enter_stage com CSaveStart;
 	with_timer com.timer_ctx detail_times "save state" None (fun () ->
@@ -526,7 +527,8 @@ let run com ectx main before_destruction =
 	);
 	Common.enter_stage com CSaveDone;
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
-		com.callbacks#run com.error_ext com.callbacks#get_after_save;
+		Common.run_callbacks com.error_ext com.callbacks#get_after_save ();
+		Common.run_callbacks com.error_ext com.callbacks#get_after_save_only_new new_types;
 	);
 	before_destruction();
 	destruction com scom ectx detail_times main rename_locals_config com.types all_types_array

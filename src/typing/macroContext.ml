@@ -149,10 +149,15 @@ let make_macro_com_api com mcom p =
 				macro_timer com.timer_ctx timer_level ["afterTyping"] None f tl;
 			)
 		);
-		on_generate = (fun f b ->
-			(if b then com.callbacks#add_before_save else com.callbacks#add_after_save) (fun() ->
-				macro_timer com.timer_ctx timer_level ["onGenerate"] None f (List.map type_of_module_type com.types);
-			)
+		on_generate = (fun f persistent only_new ->
+			if only_new then
+				(if persistent then com.callbacks#add_before_save_only_new else com.callbacks#add_after_save_only_new) (fun tl ->
+					macro_timer com.timer_ctx timer_level ["onGenerate"] None f (List.map type_of_module_type tl);
+				)
+			else
+				(if persistent then com.callbacks#add_before_save else com.callbacks#add_after_save) (fun () ->
+					macro_timer com.timer_ctx timer_level ["onGenerate"] None f (List.map type_of_module_type com.types);
+				)
 		);
 		after_generate = (fun f ->
 			com.callbacks#add_after_generation (fun() ->

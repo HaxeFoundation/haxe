@@ -180,7 +180,7 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
+		Common.run_callbacks com.error_ext com.callbacks#get_before_typer_create ();
 		TyperEntry.create com macros
 
 	let executable_path() =
@@ -310,7 +310,7 @@ let do_type ctx mctx actx display_file_dot_path =
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
 	(try begin
-		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
+		Common.run_callbacks com.error_ext com.callbacks#get_after_init_macros ();
 		run_or_diagnose ctx (fun () ->
 			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 			List.iter (fun cpath ->
@@ -419,7 +419,7 @@ let compile ctx actx callbacks =
 		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
-	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
+	Common.run_callbacks com.error_ext com.callbacks#get_after_generation ();
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in

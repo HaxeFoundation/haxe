@@ -45,12 +45,23 @@ type stats = {
 	s_macros_called : int ref;
 }
 
+let rec run_callbacks handle_error r v =
+	match !r with
+	| [] ->
+		()
+	| l ->
+		r := [];
+		List.iter (fun f -> try f v with Error.Error err -> handle_error err) (List.rev l);
+		run_callbacks handle_error r v
+
 class compiler_callbacks = object(self)
 	val before_typer_create = ref [];
 	val after_init_macros = ref [];
 	val mutable after_typing = [];
 	val before_save = ref [];
 	val after_save = ref [];
+	val before_save_only_new = ref [];
+	val after_save_only_new = ref [];
 	val after_filters = ref [];
 	val after_generation = ref [];
 	val mutable null_safety_report = [];
@@ -70,6 +81,12 @@ class compiler_callbacks = object(self)
 	method add_after_save (f : unit -> unit) : unit =
 		after_save := f :: !after_save
 
+	method add_before_save_only_new (f : module_type list -> unit) : unit =
+		before_save_only_new := f :: !before_save_only_new
+
+	method add_after_save_only_new (f : module_type list -> unit) : unit =
+		after_save_only_new := f :: !after_save_only_new
+
 	method add_after_filters (f : unit -> unit) : unit =
 		after_filters := f :: !after_filters
 
@@ -79,20 +96,13 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
-	method run handle_error r =
-		match !r with
-		| [] ->
-			()
-		| l ->
-			r := [];
-			List.iter (fun f -> try f() with Error.Error err -> handle_error err) (List.rev l);
-			self#run handle_error r
-
 	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
 	method get_after_typing = after_typing
 	method get_before_save = before_save
 	method get_after_save = after_save
+	method get_before_save_only_new = before_save_only_new
+	method get_after_save_only_new = after_save_only_new
 	method get_after_filters = after_filters
 	method get_after_generation = after_generation
 	method get_null_safety_report = null_safety_report
