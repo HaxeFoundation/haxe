@@ -101,26 +101,31 @@ class TestSys extends TestCommandBase {
 		Assert.isTrue(haxe.io.Path.isAbsolute(p));
 		Assert.isTrue(sys.FileSystem.exists(p));
 
+		Assert.isTrue(StringTools.endsWith(p,
 		#if interp
-			Assert.isTrue(StringTools.endsWith(p, "Main.hx"));
+			"Main.hx"
 		#elseif neko
-			Assert.isTrue(StringTools.endsWith(p, "sys.n"));
+			 "sys.n"
 		#elseif cpp
-			switch (Sys.systemName()) {
-				case "Windows":
-					Assert.isTrue(StringTools.endsWith(p, "Main-debug.exe"));
-				case _:
-					Assert.isTrue(StringTools.endsWith(p, "Main-debug"));
-			}
+			"Main-debug" + (Sys.systemName() == "Windows" ? ".exe" : "")
 		#elseif jvm
-			Assert.isTrue(StringTools.endsWith(p, "sys.jar"));
+			"sys.jar"
 		#elseif python
-			Assert.isTrue(StringTools.endsWith(p, "sys.py"));
+			"sys.py"
 		#elseif php
-			Assert.isTrue(StringTools.endsWith(p, "index.php"));
+			"index.php"
 		#elseif lua
-			Assert.isTrue(StringTools.endsWith(p, "sys.lua"));
+			"sys.lua"
+		#elseif js
+			"sys.js"
+		#elseif hl
+			#if hlc
+				"sys.exe"
+			#else
+				"sys.hl"
+			#end
 		#end
+		));
 	}
 
 	function testGetCwd() {

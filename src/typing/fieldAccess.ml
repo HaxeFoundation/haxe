@@ -93,7 +93,7 @@ let get_field_expr fa mode =
 let find_accessor_for_field host cf t mode = match cf.cf_kind with
 	| Var v ->
 		begin match (match mode with MSet _ -> v.v_write | _ -> v.v_read) with
-			| AccCall ->
+			| AccCall | AccPrivateCall ->
 				let name = (match mode with MSet _ -> "set_" | _ -> "get_") ^ cf.cf_name in
 				let forward cf_acc new_host =
 					(cf_acc,new_host)

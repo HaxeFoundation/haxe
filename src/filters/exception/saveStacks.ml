@@ -111,7 +111,8 @@ let patch_constructors ectx =
 							}
 						| _ -> die "" __LOC__
 					)
-				| None -> die "" __LOC__
+				| None ->
+					raise_typing_error "Could not patch constructor on this function because there isn't one" cls.cl_name_pos
 				| _ -> ()
 				)
 			| _ -> ()

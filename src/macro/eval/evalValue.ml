@@ -214,6 +214,9 @@ and vinstance_kind =
 	| IMbedtlsSsl of Mbedtls.mbedtls_ssl_context
 	| IMbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
+	| IAtomicBool of bool Atomic.t
+	| IAtomicInt of int Atomic.t
+	| IAtomicObject of value Atomic.t
 
 and vinstance = {
 	(* The fields of this instance. *)
@@ -238,7 +241,7 @@ and venum_value = {
 	eindex : int;
 	eargs : value array;
 	epath : int;
-	enpos : pos option;
+	mutable enpos : pos option;
 }
 
 and vthread = {
@@ -347,6 +350,7 @@ let vfield_closure v f = VFieldClosure(v,f)
 let vobject o = VObject o
 let vint i = VInt32 (Int32.of_int i)
 let vint32 i = VInt32 i
+let vint64 i = VInt64 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 let vnative_string s = VNativeString s
@@ -356,3 +360,9 @@ let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.prin
 let rec vresolve v = match v with
 	| VLazy f -> vresolve (Lazy.force f)
 	| _ -> v
+
+let associate_enum_value_pos ve p = match ve with
+	| VEnumValue ve ->
+		ve.enpos <- Some p
+	| _ ->
+		()

@@ -16,3 +16,24 @@ let replace h k v =
 
 let find h k =
 	Mutex.protect h.mutex (fun () -> Hashtbl.find h.h) k
+
+let find_or_add h k f =
+	Mutex.lock h.mutex;
+	try
+		let r = Hashtbl.find h.h k in
+		Mutex.unlock h.mutex;
+		r
+	with Not_found ->
+		let r = f () in
+		Hashtbl.add h.h k r;
+		Mutex.unlock h.mutex;
+		r
+
+let mem h k =
+	Mutex.protect h.mutex (fun () -> Hashtbl.mem h.h) k
+
+let remove h k =
+	Mutex.protect h.mutex (fun () -> Hashtbl.remove h.h) k
+
+let fold f h acc =
+	Mutex.protect h.mutex (fun () -> Hashtbl.fold f h.h) acc

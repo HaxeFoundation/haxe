@@ -1718,7 +1718,7 @@ module Generator = struct
 			match cf.cf_kind with
 				| Var _ when not (is_physical_field cf) ->
 					()
-				| Var({v_read = AccCall}) ->
+				| Var({v_read = AccCall | AccPrivateCall}) ->
 					if Meta.has Meta.IsVar cf.cf_meta then
 						DynArray.add fields cf.cf_name
 					else
@@ -1922,7 +1922,7 @@ module Generator = struct
 			print ctx "    @staticmethod\n    def _hx_empty_init(_hx_o):";
 			let found_fields = ref false in
 			List.iter (fun cf -> match cf.cf_kind with
-					| Var ({v_read = AccCall}) ->
+					| Var ({v_read = AccCall | AccPrivateCall}) ->
 						()
 					| Var _ ->
 						found_fields := true;

@@ -252,7 +252,7 @@ module Setup = struct
 				()
 		);
 		com.error_ext <- error_ext ctx;
-		com.error <- (fun ?(depth = 0) msg p -> com.error_ext (Error.make_error ~depth (Custom msg) p));
+		com.error <- (fun msg p -> com.error_ext (Error.make_error (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
@@ -270,22 +270,21 @@ module Setup = struct
 end
 
 let check_defines com =
-	if is_next com then begin
-		PMap.iter (fun k v ->
-			try
-				let reason = Hashtbl.find Define.deprecation_lut k in
-				let p = fake_pos ("-D " ^ k) in
-				begin match reason with
-				| DueTo reason ->
-					com.warning WDeprecatedDefine [] reason p
-				| InFavorOf d ->
-					Define.raw_define_value com.defines d v;
-					com.warning WDeprecatedDefine [] (Printf.sprintf "-D %s has been deprecated in favor of -D %s" k d) p
-				end;
-			with Not_found ->
-				()
-		) com.defines.values
-	end
+	if defined com Define.EnableParallelism then Parallel.enable := true;
+	PMap.iter (fun k v ->
+		try
+			let reason = Hashtbl.find Define.deprecation_lut k in
+			let p = fake_pos ("-D " ^ k) in
+			begin match reason with
+			| DueTo reason ->
+				com.warning WDeprecatedDefine [] reason p
+			| InFavorOf d ->
+				Define.raw_define_value com.defines d v;
+				com.warning WDeprecatedDefine [] (Printf.sprintf "-D %s has been deprecated in favor of -D %s" k d) p
+			end;
+		with Not_found ->
+			()
+	) com.defines.values
 
 (** Creates the typer context and types [classes] into it. *)
 let do_type ctx mctx actx display_file_dot_path =
@@ -299,6 +298,7 @@ let do_type ctx mctx actx display_file_dot_path =
 		Some (MacroContext.call_init_macro ctx.com mctx path)
 	) mctx (List.rev actx.config_macros) in
 	enter_stage com CInitMacrosDone;
+	check_defines ctx.com;
 	update_platform_config com; (* make sure to adapt all flags changes defined during init macros *)
 	ServerMessage.compiler_stage com;
 
@@ -306,7 +306,6 @@ let do_type ctx mctx actx display_file_dot_path =
 	Setup.init_native_libs com actx.native_libs;
 	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
-	check_defines ctx.com;
 	DumpConfig.update_from_defines com.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
@@ -349,7 +348,6 @@ let finalize_typing ctx tctx =
 
 let filter ctx tctx ectx before_destruction =
 	Timer.time ctx.timer_ctx ["filters"] (fun () ->
-		DeprecationCheck.run ctx.com;
 		run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction)
 	) ()
 
@@ -449,7 +447,7 @@ with
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
-			let sub = List.map (fun p -> Error.make_error ~depth:1 (Error.Custom (Error.compl_msg "referenced here")) p) pl in
+			let sub = List.map (fun p -> Error.make_error (Error.Custom (Error.compl_msg "referenced here")) p) pl in
 			error_ext ctx (Error.make_error (Error.Custom (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m))) ~sub p)
 		end
 	| Error.Error err ->

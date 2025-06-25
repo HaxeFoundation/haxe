@@ -29,6 +29,9 @@ package haxe.ds;
 	parameter is not an enum value, `Reflect.compare` is used to compare them.
 **/
 class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements haxe.Constraints.IMap<K, V> {
+	var sortIndices = new Map<{}, Int>();
+	var sortIndicesCounter = 0;
+
 	override function compare(k1:EnumValue, k2:EnumValue):Int {
 		var d = k1.getIndex() - k2.getIndex();
 		if (d != 0)
@@ -66,13 +69,40 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 		return 0;
 	}
 
+	function getSortIndex(v:{}) {
+		if (sortIndices.exists(v)) {
+			return sortIndices[(v)];
+		}
+		var sort = sortIndicesCounter++;
+		sortIndices[v] = sort;
+		return sort;
+	}
+
 	function compareArg(v1:Dynamic, v2:Dynamic):Int {
-		return if (Reflect.isEnumValue(v1) && Reflect.isEnumValue(v2)) {
-			compare(v1, v2);
-		} else if (Std.isOfType(v1, Array) && Std.isOfType(v2, Array)) {
-			compareArgs(v1, v2);
-		} else {
-			Reflect.compare(v1, v2);
+		var vt1 = Type.typeof(v1);
+		var vt2 = Type.typeof(v1);
+		return switch [vt1, vt2] {
+			case [TNull, TNull]:
+				// null is always equal to itself
+				0;
+			case [TInt, TInt] | [TFloat, TFloat] | [TBool, TBool]:
+				// Basic types can be compared directly
+				Reflect.compare(v1, v2);
+			case [TClass(String), TClass(String)]:
+				// Strings as well
+				Reflect.compare(v1, v2);
+			case [TEnum(_), TEnum(_)]:
+				// For enum values we recurse
+				compare(v1, v2);
+			case [TObject, TObject] | [TClass(_), TClass(_)]:
+				// Objects get a sort index associated with them which defines the ordering
+				Reflect.compare(getSortIndex(v1), getSortIndex(v2));
+			case [TFunction, TFunction] | [TUnknown, TUnknown]:
+				// We cannot compare functions and the unknown
+				throw 'Unsupported comparison types: $vt1 $vt2';
+			case _:
+				// If the types differ, we sort by the ValueType index
+				Reflect.compare(vt1.getIndex(), vt2.getIndex());
 		}
 	}
 

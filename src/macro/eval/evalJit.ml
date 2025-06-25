@@ -495,16 +495,9 @@ and jit_expr jit return e =
 			| _ -> die "" __LOC__
 			end
 		| _ ->
-			match e1.eexpr,el with
-			| TIdent "$__mk_pos__",[file;min;max] ->
-				let exec1 = jit_expr jit false file in
-				let exec2 = jit_expr jit false min in
-				let exec3 = jit_expr jit false max in
-				emit_mk_pos exec1 exec2 exec3
-			| _ ->
-				let exec = jit_expr jit false e1 in
-				let execs = List.map (jit_expr jit false) el in
-				emit_call exec execs e.epos
+			let exec = jit_expr jit false e1 in
+			let execs = List.map (jit_expr jit false) el in
+			emit_call exec execs e.epos
 		end
 	| TNew({cl_path=[],"Array"},_,_) ->
 		emit_new_array
@@ -634,6 +627,8 @@ and jit_expr jit return e =
 	(* rewrites/skips *)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
+	| TIdent "$__mk_pos__" ->
+		emit_mk_pos e.epos
 	| TIdent s ->
 		Error.raise_typing_error ("Unknown identifier: " ^ s) e.epos
 	in

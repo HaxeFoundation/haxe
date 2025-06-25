@@ -28,6 +28,6 @@
   run: |
     # disable invalid Unicode filenames on APFS
     echo "" > sys/compile-fs.hxml
-    haxe RunCi.hxml
+    haxe RunCi.hxml -D include_legacy
   working-directory: ${{github.workspace}}/tests
   timeout-minutes: 60

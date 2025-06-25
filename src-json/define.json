@@ -20,6 +20,7 @@
 		"name": "AnalyzerTimes",
 		"define": "times.analyzer",
 		"deprecatedDefine": "analyzer-times",
+		"signatureNeutral": true,
 		"doc": "Record detailed timers for the analyzer",
 		"params": ["level: 0 | 1 | 2"]
 	},
@@ -60,6 +61,7 @@
 	{
 		"name": "DceDebug",
 		"define": "dce-debug",
+		"signatureNeutral": true,
 		"doc": "Show DCE log.",
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
@@ -71,12 +73,20 @@
 	{
 		"name": "DisableHxbCache",
 		"define": "disable-hxb-cache",
+		"signatureNeutral": true,
 		"doc": "Use in-memory cache instead of hxb powered cache."
 	},
 	{
 		"name": "DisableHxbOptimizations",
 		"define": "disable-hxb-optimizations",
+		"signatureNeutral": true,
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
+	},
+	{
+		"name": "EnableParallelism",
+		"define": "enable-parallelism",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the compiler."
 	},
 	{
 		"name": "DisableUnicodeStrings",
@@ -87,13 +97,22 @@
 	{
 		"name": "Display",
 		"define": "display",
+		"signatureNeutral": true,
 		"doc": "Activated during completion.",
 		"links": ["https://haxe.org/manual/cr-completion.html"]
 	},
 	{
 		"name": "DisplayStdin",
 		"define": "display-stdin",
+		"signatureNeutral": true,
 		"doc": "Read the contents of a file specified in `--display` from standard input."
+	},
+	{
+		"name": "DisplayDetails",
+		"define": "display-details",
+		"signatureNeutral": true,
+		"doc": "Not used anymore, but still sent by vshaxe.",
+		"deprecated": "This flag is no longer supported in Haxe 5"
 	},
 	{
 		"name": "DllExport",
@@ -109,12 +128,14 @@
 	{
 		"name": "Dump",
 		"define": "dump",
+		"signatureNeutral": true,
 		"doc": "Dump typed AST in dump subdirectory using specified mode or non-prettified default.",
 		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
 		"name": "DumpStage",
 		"define": "dump.stage",
+		"signatureNeutral": true,
 		"doc": "The compiler stage after which to generate the dump",
 		"params": ["stage: typing | casting | inlining | analyzing | dce"],
 		"default": "dce"
@@ -122,6 +143,7 @@
 	{
 		"name": "DumpPath",
 		"define": "dump-path",
+		"signatureNeutral": true,
 		"doc": "Path to generate dumps to (default: \"dump\").",
 		"default": "dump",
 		"params": ["path"]
@@ -129,11 +151,13 @@
 	{
 		"name": "DumpDependencies",
 		"define": "dump-dependencies",
+		"signatureNeutral": true,
 		"doc": "Dump the classes dependencies in a dump subdirectory."
 	},
 	{
 		"name": "DumpIgnoreVarIds",
 		"define": "dump-ignore-var-ids",
+		"signatureNeutral": true,
 		"doc": "Remove variable IDs from non-pretty dumps (helps with diff).",
 		"default": "1"
 	},
@@ -181,18 +205,21 @@
 		"name": "EvalTimes",
 		"define": "times.eval",
 		"deprecatedDefine": "eval-times",
+		"signatureNeutral": true,
 		"doc": "Record per-method execution times in macro/interp mode. Implies eval-stack.",
 		"platforms": ["eval"]
 	},
 	{
 		"name": "FailFast",
 		"define": "fail-fast",
+		"signatureNeutral": true,
 		"doc": "Abort compilation when first error occurs."
 	},
 	{
 		"name": "FilterTimes",
 		"define": "times.filter",
 		"deprecatedDefine": "filter-times",
+		"signatureNeutral": true,
 		"doc": "Record per-filter execution times upon --times."
 	},
 	{
@@ -311,7 +338,14 @@
 		"name": "HxbTimes",
 		"define": "times.hxb",
 		"deprecatedDefine": "hxb-times",
+		"signatureNeutral": true,
 		"doc": "Display hxb timing when used with `--times`."
+	},
+	{
+		"name": "HxbStats",
+		"define": "hxb.stats",
+		"signatureNeutral": true,
+		"doc": "Display some hxb related stats (only with compilation server)."
 	},
 	{
 		"name": "HxcppApiLevel",
@@ -550,6 +584,7 @@
 		"name": "MacroTimes",
 		"define": "times.macro",
 		"deprecatedDefine": "macro-times",
+		"signatureNeutral": true,
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
@@ -582,6 +617,7 @@
 	{
 		"name": "NoCompilation",
 		"define": "no-compilation",
+		"signatureNeutral": true,
 		"doc": "Disable final compilation.",
 		"platforms": ["cpp", "hl"]
 	},
@@ -843,6 +879,7 @@
 	{
 		"name": "MessageReporting",
 		"define": "message.reporting",
+		"signatureNeutral": true,
 		"doc": "Select message reporting mode for compiler output. (default: pretty)",
 		"default": "pretty",
 		"params": ["mode: classic | pretty | indent"]
@@ -850,21 +887,25 @@
 	{
 		"name": "MessageNoColor",
 		"define": "message.no-color",
+		"signatureNeutral": true,
 		"doc": "Disable ANSI color codes in message reporting."
 	},
 	{
 		"name": "MessageAbsolutePositions",
 		"define": "message.absolute-positions",
+		"signatureNeutral": true,
 		"doc": "Use absolute character positions instead of line/columns for message reporting."
 	},
 	{
 		"name": "MessageLogFile",
 		"define": "message.log-file",
+		"signatureNeutral": true,
 		"doc": "Path to a text file to write message reporting to, in addition to regular output."
 	},
 	{
 		"name": "MessageLogFormat",
 		"define": "message.log-format",
+		"signatureNeutral": true,
 		"doc": "Select message reporting mode for message log file. (default: indent)",
 		"default": "indent",
 		"params": ["format: classic | pretty | indent"]

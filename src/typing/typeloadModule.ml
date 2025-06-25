@@ -27,7 +27,6 @@ open DisplayTypes.DisplayMode
 open Common
 open Typeload
 open Error
-open Resolution
 
 let get_policy g mpath =
 	let sl1 = full_dot_path2 mpath mpath in
@@ -78,7 +77,7 @@ module ModuleLevel = struct
 			DeprecationCheck.check_is com ctx_m.m.curmod meta [] name meta p;
 			let error prev_pos =
 				raise_typing_error_ext (make_error (Custom ("Name " ^ name ^ " is already defined in this module")) ~sub:[
-					make_error ~depth:1 (Custom (compl_msg "Previous declaration here")) prev_pos
+					make_error (Custom (compl_msg "Previous declaration here")) prev_pos
 				] p);
 			in
 			DynArray.iter (fun t2 ->
@@ -141,7 +140,6 @@ module ModuleLevel = struct
 					has_declaration := true;
 					let priv = List.mem EPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
-					if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 					let e = {
 						(mk_enum m path p (pos d.d_name)) with
 						e_doc = d.d_doc;

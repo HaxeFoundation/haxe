@@ -156,10 +156,17 @@ let rec make pctx toplevel t e =
 	let display_mode () =
 		if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 	in
-	let catch_errors () =
+	let catch_errors p =
 		let old = ctx.com.error_ext in
 		let restore_report_mode = disable_report_mode ctx.com in
-		ctx.com.error_ext <- (fun _ -> raise Exit);
+		ctx.com.error_ext <- (fun err ->
+			let ep = err.err_pos in
+			(* The error might not actually come from here, let's check the position (issue #12098). *)
+			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then
+				old err
+			else
+				raise Exit
+		);
 		(fun () ->
 			restore_report_mode();
 			ctx.com.error_ext <- old
@@ -168,7 +175,7 @@ let rec make pctx toplevel t e =
 	let try_typing e =
 		let old = ctx.f.untyped in
 		ctx.f.untyped <- true;
-		let restore = catch_errors () in
+		let restore = catch_errors (pos e) in
 		let e = try
 			type_expr ctx e (WithType.with_type t)
 		with exc ->
@@ -190,7 +197,7 @@ let rec make pctx toplevel t e =
 			try_typing (EConst (Ident s),p)
 		with
 		| Exit | Bad_pattern _ ->
-			let restore = catch_errors () in
+			let restore = catch_errors p in
 			begin try
 				let mt = module_type_of_type t in
 				let e_mt = TyperBase.type_module_type ctx mt p in

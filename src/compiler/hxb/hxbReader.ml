@@ -993,6 +993,7 @@ class hxb_reader
 					let s = self#read_string in
 					let so = self#read_option (fun () -> self#read_string) in
 					AccRequire(s,so)
+				| 7 -> AccPrivateCall
 				| i ->
 					error (Printf.sprintf "Bad accessor kind: %i" i)
 			in

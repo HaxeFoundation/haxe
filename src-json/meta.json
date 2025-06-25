@@ -603,11 +603,6 @@
 		"internal": true
 	},
 	{
-		"name": "Macro",
-		"metadata": ":macro",
-		"doc": "(deprecated)"
-	},
-	{
 		"name": "MergeBlock",
 		"metadata": ":mergeBlock",
 		"doc": "Merge the annotated block into the current scope.",

@@ -268,7 +268,7 @@ let inline_config cls_opt cf call_args return_type =
 let inline_metadata e meta =
 	let inline_meta e meta = match meta with
 		| Meta.Pure,[EConst(Ident "inferredPure"),_],_ -> e
-		| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
+		| (Meta.Deprecated | Meta.Pure | Meta.NullSafety),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
 		| _ -> e
 	in
 	List.fold_left inline_meta e meta
@@ -873,7 +873,7 @@ let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(se
 	let tl = arg_types params f.tf_args in
 	let e = state#finalize e tl tret has_params map_type p in
 	begin match ictx.typer with
-		| Some ctx when Meta.has (Meta.Custom ":inlineDebug") ctx.f.meta ->
+		| Some ctx when Meta.has (Meta.Custom ":debug.inline") ctx.f.meta ->
 			let se t = s_expr_ast true t (s_type (print_context())) in
 			print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
 				cf.cf_name

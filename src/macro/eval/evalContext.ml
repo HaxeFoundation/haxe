@@ -109,6 +109,7 @@ type env = {
 and eval = {
 	mutable env : env option;
 	thread : vthread;
+	mutable exception_stack : (pos * env_kind) list;
 	(* The threads current debug state *)
 	mutable debug_state : debug_state;
 	(* The currently active breakpoint. Set to a dummy value initially. *)
@@ -285,9 +286,8 @@ and context = {
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
 	toplevel : value;
-	eval : eval;
-	mutable evals : eval IntMap.t;
-	mutable exception_stack : (pos * env_kind) list;
+	eval : eval Thread_local_storage.t;
+	evals : (int,eval) ThreadSafeHashtbl.t;
 	max_stack_depth : int;
 	max_print_depth : int;
 	print_indentation : string option;
@@ -321,14 +321,7 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-	let id = Thread.id (Thread.self()) in
-	if id = 0 then
-		ctx.eval
-	else
-		try
-			IntMap.find id ctx.evals
-		with Not_found ->
-			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
+	Thread_local_storage.get_exn ctx.eval
 
 let kind_name eval kind =
 	let rec loop kind env = match kind with

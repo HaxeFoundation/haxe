@@ -2,6 +2,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open Error
 open PlatformConfig
 open DefineList
 open MetaList
@@ -65,14 +66,13 @@ type 'value compiler_api = {
 	decode_type : 'value -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
-	display_error : ?depth:int -> (string -> pos -> unit);
+	display_error : ?sub:macro_error list -> string -> pos -> unit;
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
 	get_hxb_writer_config : unit -> 'value;
 	set_hxb_writer_config : 'value -> unit;
 }
-
 
 type enum_type =
 	| IExpr
@@ -174,6 +174,8 @@ module type InterpApi = sig
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 	val get_api_call_pos : unit -> pos
+
+	val associate_enum_value_pos : value -> pos -> unit
 end
 
 let s_type_path = Globals.s_type_path
@@ -745,6 +747,15 @@ let decode_placed_name vp v =
 let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
 
+let decode_sub_errors sub =
+	let rec decode_sub o =
+		let msg = decode_string (field o "msg") in
+		let pos = decode_pos (field o "pos") in
+		let sub = decode_opt_array decode_sub (field o "sub") in
+		{msg; pos; sub}
+	in
+	decode_opt_array decode_sub sub
+
 (* Ast.placed_type_path *)
 let rec decode_ast_path t =
 	let pack = List.map decode_string (decode_array (field t "pack"))
@@ -1121,9 +1132,10 @@ and encode_var_access a =
 		| AccNo -> 1, []
 		| AccNever -> 2, []
 		| AccCall -> 4, []
-		| AccInline	-> 5, []
-		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
-		| AccCtor -> 7, []
+		| AccPrivateCall -> 5, []
+		| AccInline	-> 6, []
+		| AccRequire (s,msg) -> 7, [encode_string s; null encode_string msg]
+		| AccCtor -> 8, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1447,9 +1459,10 @@ let decode_var_access v =
 	| 1, [] -> AccNo
 	| 2, [] -> AccNever
 	| 4, [] -> AccCall
-	| 5, [] -> AccInline
-	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
-	| 7, [] -> AccCtor
+	| 5, [] -> AccPrivateCall
+	| 6, [] -> AccInline
+	| 7, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
+	| 8, [] -> AccCtor
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =
@@ -1796,24 +1809,24 @@ let macro_api ccom get_api =
 		"init_macros_done", vfun0 (fun () ->
 			vbool ((get_api()).init_macros_done ())
 		);
-		"error", vfun3 (fun msg p depth ->
+		"error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			let sub = decode_sub_errors sub in
+			(get_api()).display_error ~sub msg p;
 			raise Abort
 		);
-		"fatal_error", vfun3 (fun msg p depth ->
+		"fatal_error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
-			let p = decode_pos p in
-			let depth = decode_int depth in
-			raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
+			let pos = decode_pos p in
+			let sub = decode_sub_errors sub in
+			raise (Error.Fatal_error (Error.convert_error {msg; pos; sub}))
 		);
-		"report_error", vfun3 (fun msg p depth ->
+		"report_error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			let sub = decode_sub_errors sub in
+			(get_api()).display_error ~sub msg p;
 			vnull
 		);
 		"warning", vfun3 (fun msg p depth ->
@@ -2435,6 +2448,11 @@ let macro_api ccom get_api =
 		"set_hxb_writer_config", vfun1 (fun v ->
 			(get_api()).set_hxb_writer_config v;
 			vnull
-		)
+		);
+		"associate_enum_value_pos",vfun2 (fun ve vp ->
+			let p = decode_pos vp in
+			associate_enum_value_pos ve p;
+			vnull;
+		);
 	]
 end

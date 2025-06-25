@@ -1,6 +1,5 @@
 open Globals
 open Common
-open DisplayPosition
 
 let default_config defines =
 	Parser.create_config defines false false DMNone false None

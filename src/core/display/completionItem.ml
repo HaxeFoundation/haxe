@@ -55,10 +55,6 @@ module CompletionModuleType = struct
 		| No
 		| Maybe
 
-	type module_type_source =
-		| Syntax of type_def (* TODO: do we really want to keep this? *)
-		| Typed of module_type
-
 	type t = {
 		pack : string list;
 		name : string;
@@ -73,7 +69,6 @@ module CompletionModuleType = struct
 		is_abstract : bool;
 		kind : CompletionModuleKind.t;
 		has_constructor : not_bool;
-		source : module_type_source;
 	}
 
 	let of_type_decl pack module_name (td,p) = match td with
@@ -101,7 +96,6 @@ module CompletionModuleType = struct
 				is_abstract = List.mem HAbstract d.d_flags;
 				kind = if List.mem HInterface d.d_flags then Interface else Class;
 				has_constructor = ctor;
-				source = Syntax td;
 			}
 		| EEnum d -> {
 				pack = pack;
@@ -117,7 +111,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = Enum;
 				has_constructor = No;
-				source = Syntax td;
 			}
 		| ETypedef d ->
 			let kind = match fst d.d_data with CTAnonymous _ -> Struct | _ -> TypeAlias in
@@ -135,7 +128,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = kind;
 				has_constructor = if kind = Struct then No else Maybe;
-				source = Syntax td;
 			}
 		| EAbstract d ->
 			let ctor =
@@ -159,7 +151,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract;
 				has_constructor = ctor;
-				source = Syntax td;
 			}
 		| EStatic d ->
 			{
@@ -176,7 +167,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = Static;
 				has_constructor = No;
-				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
 			raise Exit
@@ -243,7 +233,6 @@ module CompletionModuleType = struct
 			is_abstract = is_abstract;
 			kind = kind;
 			has_constructor = ctor;
-			source = Typed mt;
 		}
 
 	let get_path cm = (cm.pack,cm.name)

@@ -90,6 +90,10 @@ type typer_pass_tasks = {
 	mutable tasks : (unit -> unit) list;
 }
 
+type function_mode =
+	| FunFunction
+	| FunNotFunction
+
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
@@ -122,7 +126,7 @@ type typer_globals = {
    is shared by local TFunctions. *)
 and typer_expr = {
 	curfun : current_fun;
-	in_function : bool;
+	function_mode : function_mode;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
 	mutable monomorphs : (tmono * pos) list;
@@ -215,10 +219,10 @@ module TyperManager = struct
 			in_call_args = false;
 		}
 
-	let create_ctx_e curfun in_function =
+	let create_ctx_e curfun function_mode =
 		{
 			curfun;
-			in_function;
+			function_mode;
 			ret = t_dynamic;
 			opened = [];
 			monomorphs = [];
@@ -281,8 +285,14 @@ module TyperManager = struct
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
-		let e = create_ctx_e ctx.e.curfun false in
+		let e = create_ctx_e ctx.e.curfun FunNotFunction in
 		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
+
+	let is_function_context ctx = match ctx.e.function_mode with
+		| FunFunction ->
+			true
+		| FunNotFunction ->
+			false
 end
 
 type field_host =
@@ -374,8 +384,8 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
-let raise_with_type_error ?(depth = 0) msg p =
-	raise (WithTypeError (make_error ~depth (Custom msg) p))
+let raise_with_type_error msg p =
+	raise (WithTypeError (make_error (Custom msg) p))
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()
@@ -507,8 +517,12 @@ let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.com.doinline || is_forced_inline c cf)
 
 (** checks if we can access to a given class field using current context *)
-let can_access ctx c cf stat =
-	if (has_class_field_flag cf CfPublic) then
+let can_access ctx c cf ?(check_prop=false) ?(is_setter=false) stat =
+	let is_private_prop = check_prop && match cf.cf_kind with
+		| Var { v_read = AccPrivateCall } when not is_setter -> true
+		| Var { v_write = AccPrivateCall } when is_setter -> true
+		| _ -> false in
+	if (not is_private_prop && has_class_field_flag cf CfPublic) then
 		true
 	else if c == ctx.c.curclass then
 		true

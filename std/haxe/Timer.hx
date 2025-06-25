@@ -22,6 +22,7 @@
 
 package haxe;
 
+import haxe.Int64;
 #if (target.threaded && !cppia)
 import sys.thread.Thread;
 import sys.thread.EventLoop;
@@ -43,7 +44,7 @@ import sys.thread.EventLoop;
 
 	Notice for threaded targets:
 	`Timer` instances require threads they were created in to run with Haxe's event loops.
-	Main thread of a Haxe program always contains an event loop. For other cases use 
+	Main thread of a Haxe program always contains an event loop. For other cases use
 	`sys.thread.Thread.createWithEventLoop` and `sys.thread.Thread.runWithEventLoop` methods.
 **/
 class Timer {
@@ -193,6 +194,40 @@ class Timer {
 		return Sys.time();
 		#else
 		return 0;
+		#end
+	}
+
+	/**
+	 * Returns a monotonically increasing timestamp with millisecond resolution.
+	 *
+	 * The precision and epoch of the timer is platform defined.
+	 */
+	public static inline function milliseconds():Int64 {
+		#if flash
+		return flash.Lib.getTimer();
+		#elseif js
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] * 1000 + (hrtime[1] / 1000000i64);
+		#else
+		return Std.int(@:privateAccess HxOverrides.now());
+		#end
+		#elseif cpp
+		return untyped __global__.__time_stamp_ms();
+		#elseif python
+		#if (python_version >= 3.7)
+		return python.lib.Time.perf_counter_ns() / 1000000i64;
+		#else
+		return Std.int(stamp() * 1000);
+		#end
+		#elseif (hl && hl_ver >= version("1.16.0"))
+		return hl.Api.timestampMs();
+		#elseif jvm
+		return java.lang.System.nanoTime() / 1000000i64;
+		#elseif eval
+		return @:privateAccess Sys.timestamp_ms();
+		#else
+		return Int64.mul(Int64.fromFloat(stamp()), 1000);
 		#end
 	}
 }

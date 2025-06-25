@@ -18,11 +18,11 @@
  *)
 open Ast
 open Type
+open Error
 open Globals
 open Lookup
 open Define
 open NativeLibraries
-open Warning
 
 type package_rule =
 	| Forbidden
@@ -234,6 +234,34 @@ type parser_state = {
 	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
 }
 
+module LocalWrapper = struct
+	type t = <
+		captured_type : TType.t -> TType.t;
+		mk_init : tvar -> tvar -> pos -> texpr;
+		mk_ref : tvar -> texpr option -> pos -> texpr;
+		mk_ref_access : texpr -> tvar -> texpr
+	>
+
+	let null_wrapper = object
+		method captured_type =
+			(fun t -> t)
+
+		method mk_ref v ve p =
+			let ev = Texpr.Builder.make_local v p in
+			match ve with
+			| None ->
+				ev
+			| Some e ->
+				Texpr.Builder.binop OpAssign ev e ev.etype p
+
+		method mk_ref_access e v =
+			e
+
+		method mk_init av v p =
+			mk (TVar (av,Some (mk (TLocal v) v.v_type p))) t_dynamic p
+	end
+end
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -265,7 +293,7 @@ type context = {
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
 	mutable warning : Gctx.warning_function;
-	mutable warning_options : Warning.warning_option list list;
+	mutable warning_options : warning_option list list;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable run_command : string -> int;
@@ -277,6 +305,7 @@ type context = {
 	mutable user_defines : (string, Define.user_define) Hashtbl.t;
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
+	mutable local_wrapper : LocalWrapper.t;
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
@@ -307,8 +336,6 @@ type context = {
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
 	mutable hxb_libs : abstract_hxb_lib list;
-	mutable net_std : string list;
-	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
@@ -354,7 +381,7 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,options,msg,p));
 	com.warning w options msg p
 
 (* Defines *)
@@ -679,7 +706,8 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_avoid_wrapping = false
-			}
+			};
+			pf_supports_atomics = true;
 		}
 
 let memory_marker = [|Unix.time()|]
@@ -732,10 +760,8 @@ let create timer_ctx compilation_step cs version args display_mode =
 		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		net_std = [];
 		native_libs = create_native_libs();
 		hxb_libs = [];
-		net_path_map = Hashtbl.create 0;
 		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
@@ -744,10 +770,11 @@ let create timer_ctx compilation_step cs version args display_mode =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
+		local_wrapper = LocalWrapper.null_wrapper;
 		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
 		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
-		error = (fun ?depth _ _ -> die "" __LOC__);
+		error = (fun _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
@@ -805,47 +832,103 @@ let log com str =
 	if com.verbose then com.print (str ^ "\n")
 
 let clone com is_macro_context =
-	let t = com.basic in
-	{ com with
+	{
+		(* keeps *)
+		compilation_step = com.compilation_step;
+		cs = com.cs;
+		timer_ctx = com.timer_ctx;
+		version = com.version;
+		args = com.args;
+		shared = com.shared;
+		debug = com.debug;
+		display = com.display;
+		verbose = com.verbose;
+		foptimize = com.foptimize;
+		doinline = com.doinline;
+		platform = com.platform;
+		config = com.config;
+		print = com.print;
+		run_command = com.run_command;
+		run_command_args = com.run_command_args;
+		package_rules = com.package_rules;
+		file = com.file;
+		global_metadata = com.global_metadata;
+		flash_version = com.flash_version;
+		resources = com.resources;
+		native_libs = com.native_libs;
+		hxb_libs = com.hxb_libs;
+		neko_lib_paths = com.neko_lib_paths;
+		include_files = com.include_files;
+		js_gen = com.js_gen;
+		defines = {
+			values = com.defines.values;
+			defines_signature = com.defines.defines_signature;
+		};
+		user_defines = com.user_defines;
+		user_metas = com.user_metas;
+		get_macros = com.get_macros;
+		info = com.info;
+		warning = com.warning;
+		warning_options = com.warning_options;
+		error = com.error;
+		error_ext = com.error_ext;
+		get_messages = com.get_messages;
+		filter_messages = com.filter_messages;
+		pass_debug_messages = com.pass_debug_messages;
+		file_keys = com.file_keys;
+		stored_typed_exprs = com.stored_typed_exprs;
+		cached_macros = com.cached_macros;
+		memory_marker = com.memory_marker;
+		json_out = com.json_out;
+		has_error = com.has_error;
+		report_mode = com.report_mode;
+		hxb_writer_config = com.hxb_writer_config;
+		parser_state = com.parser_state;
+		dump_config = com.dump_config;
+		file_contents = com.file_contents;
+		(* reinits *)
 		cache = None;
 		stage = CCreated;
-		basic = { t with
+		display_information = {
+			unresolved_identifiers = [];
+			display_module_has_macro_defines = false;
+			module_diagnostics = [];
+		};
+		features = Hashtbl.create 0;
+		empty_class_path = new ClassPath.directory_class_path "" User;
+		class_paths = new ClassPaths.class_paths;
+		main = {
+			main_path = None;
+			main_file = None;
+			main_expr = None;
+		};
+		types = [];
+		callbacks = new compiler_callbacks;
+		modules = [];
+		module_lut = new module_lut;
+		module_nonexistent_lut = new hashtbl_lookup;
+		fake_modules = Hashtbl.create 0;
+		load_extern_type = []; (* ! *)
+		basic = {
 			tvoid = mk_mono();
 			tany = mk_mono();
 			tint = mk_mono();
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
+			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 		};
-		main = {
-			main_path = None;
-			main_file = None;
-			main_expr = None;
-		};
-		features = Hashtbl.create 0;
-		callbacks = new compiler_callbacks;
-		display_information = {
-			unresolved_identifiers = [];
-			display_module_has_macro_defines = false;
-			module_diagnostics = [];
-		};
-		defines = {
-			values = com.defines.values;
-			defines_signature = com.defines.defines_signature;
-		};
-		native_libs = create_native_libs();
-		is_macro_context = is_macro_context;
-		parser_cache = new hashtbl_lookup;
+		local_wrapper = LocalWrapper.null_wrapper;
+		std = null_class;
 		module_to_file = new hashtbl_lookup;
-		overload_cache = new hashtbl_lookup;
-		module_lut = new module_lut;
-		fake_modules = Hashtbl.create 0;
+		parser_cache = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup; (* ! *)
+		is_macro_context = is_macro_context;
+		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		std = null_class;
-		functional_interface_lut = new Lookup.hashtbl_lookup;
-		empty_class_path = new ClassPath.directory_class_path "" User;
-		class_paths = new ClassPaths.class_paths;
 	}
 
 let file_time file = Extc.filetime file
@@ -1010,8 +1093,8 @@ let display_error_ext com err =
 	end else
 		com.error_ext err
 
-let display_error com ?(depth = 0) msg p =
-	display_error_ext com (Error.make_error ~depth (Custom msg) p)
+let display_error com ?(sub:macro_error list = []) msg pos =
+	display_error_ext com (convert_error {msg; pos; sub})
 
 let adapt_defines_to_macro_context defines =
 	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in

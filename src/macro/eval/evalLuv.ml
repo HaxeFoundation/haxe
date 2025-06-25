@@ -566,7 +566,7 @@ let uv_error_fields = [
 						ExtLib.String.join "\n" (List.rev !messages)
 				| _ -> Printexc.to_string ex
 			in
-			let e = create_haxe_exception ~stack:(get_ctx()).exception_stack msg in
+			let e = create_haxe_exception ~stack:((get_eval (get_ctx()))).exception_stack msg in
 			ignore(cb [e])
 		);
 		vnull

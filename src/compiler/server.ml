@@ -481,8 +481,8 @@ let handle_cache_bound_objects com cbol =
 			Hashtbl.replace com.resources name data
 		| IncludeFile(file,position) ->
 			com.include_files <- (file,position) :: com.include_files
-		| Warning(w,msg,p) ->
-			com.warning w [] msg p
+		| Warning(w,options,msg,p) ->
+			com.warning w options msg p
 	) cbol
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
@@ -806,26 +806,6 @@ and wait_loop verbose accept =
 	let sctx = ServerCompilationContext.create verbose in
 	let cs = sctx.cs in
 	enable_cache_mode sctx;
-	let ring = Ring.create 10 0. in
-	let gc_heap_stats () =
-		let stats = Gc.quick_stat() in
-		stats.major_words,stats.heap_words
-	in
-	let heap_stats_start = ref (gc_heap_stats()) in
-	let update_heap () =
-		(* On every compilation: Track how many words were allocated for this compilation (working memory). *)
-		let heap_stats_now = gc_heap_stats() in
-		let words_allocated = (fst heap_stats_now) -. (fst !heap_stats_start) in
-		let heap_size = float_of_int (snd heap_stats_now) in
-		Ring.push ring words_allocated;
-		if Ring.is_filled ring then begin
-			Ring.reset_filled ring;
-			 (* Maximum working memory for the last X compilations. *)
-			let max = Ring.fold ring 0. (fun m i -> if i > m then i else m) in
-			cs#add_task (new Tasks.gc_task max heap_size)
-		end;
-		heap_stats_start := heap_stats_now;
-	in
 	(* Main loop: accept connections and process arguments *)
 	while true do
 		let support_nonblock, read, write, close = accept() in
@@ -871,7 +851,6 @@ and wait_loop verbose accept =
 		close();
 		current_stdin := None;
 		cleanup();
-		update_heap();
 		(* If our connection always blocks, we have to execute all pending tasks now. *)
 		if not support_nonblock then
 			while cs#has_task do cs#get_task#run done

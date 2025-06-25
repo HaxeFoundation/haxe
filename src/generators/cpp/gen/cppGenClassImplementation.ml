@@ -47,7 +47,7 @@ let gen_function ctx class_def class_name is_static func =
       (gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func.tcf_func code tail_code);
 
     output "\n\n";
-    
+
     (* generate dynamic version too ... *)
     if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
       let tcpp_args = List.map (fun (v, _) -> cpp_type_of v.v_type) func.tcf_func.tf_args in
@@ -85,7 +85,7 @@ let gen_function ctx class_def class_name is_static func =
             Printf.sprintf "(::cpp::Struct< %s >) a%i" (tcpp_to_string arg) idx
           | _ ->
             Printf.sprintf "a%i" idx in
-            
+
         tcpp_args
         |> ExtList.List.mapi cast_prefix
         |> String.concat ", "
@@ -120,7 +120,7 @@ let gen_dynamic_function ctx class_def class_name is_static is_for_static_var (f
   let ret = if is_void then "(void)" else "return " in
 
   ctx.ctx_real_this_ptr <- false;
-  Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output; 
+  Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output;
   Printf.sprintf "%s _hx_run(%s)" return_type_str (print_arg_list func.tcf_func.tf_args "__o_") |> output;
 
   gen_cpp_function_body ctx class_def is_static func_name func.tcf_func "" "" no_debug;
@@ -273,7 +273,7 @@ let generate_native_class base_ctx tcpp_class =
   output_cpp "\n";
 
   gen_dynamic_function_allocator ctx output_cpp tcpp_class;
-  
+
   generate_native_constructor ctx output_cpp class_def false;
   gen_boot_field ctx output_cpp tcpp_class;
 
@@ -394,13 +394,13 @@ let generate_managed_class base_ctx tcpp_class =
     let impl_name = cpp_class_name class_def in
 
     let fold_interface (glued, acc) interface =
-    
+
       let rec gen_interface_funcs interface =
 
         let fold_field (glued, acc) func =
           let cast      = cpp_tfun_signature false func.iff_args func.iff_return in
           let real_name = cpp_member_name_of func.iff_field in
-          
+
           (* C++ can't work out which function it needs to take the addrss of
               when the implementation is overloaded - currently the map-set functions.
               Change the castKey to force a glue function in this case (could double-cast the pointer, but it is ugly)
@@ -452,7 +452,7 @@ let generate_managed_class base_ctx tcpp_class =
       let call     = Printf.sprintf "static %s %s_%s = {\n%s\n};\n" (cpp_class_name interface.if_class) cname interface_name combined in
       (glued, call :: acc)
     in
-    
+
     let glued, calls =
       List.fold_left
         fold_interface
@@ -615,7 +615,7 @@ let generate_managed_class base_ctx tcpp_class =
     else
       acc
   in
-  
+
   let castable f =
     match cpp_type_of f.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
@@ -671,7 +671,7 @@ let generate_managed_class base_ctx tcpp_class =
           Printf.sprintf "%s = inValue.Cast< %s >(); return inValue;" var.tcv_name casted in
 
         match var.tcv_field.cf_kind with
-        | Var { v_write = AccCall } ->
+        | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); } else { %s }" prop_call setter casted default in
@@ -690,7 +690,7 @@ let generate_managed_class base_ctx tcpp_class =
         let casted  = castable var.tcv_field in
 
         match var.tcv_field.cf_kind with
-        | Var { v_write = AccCall } ->
+        | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); }" prop_call setter casted in
@@ -717,7 +717,7 @@ let generate_managed_class base_ctx tcpp_class =
         let casted = castable var.tcv_field in
 
         match var.tcv_field.cf_kind with
-        | Var { v_write = AccCall } ->
+        | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted var.tcv_name casted in
@@ -734,7 +734,7 @@ let generate_managed_class base_ctx tcpp_class =
     let fold_property (var:tcpp_class_variable) acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
         match var.tcv_field.cf_kind with
-        | Var { v_write = AccCall } ->
+        | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let casted    = castable var.tcv_field in
@@ -965,7 +965,7 @@ let generate_managed_class base_ctx tcpp_class =
           | _ -> [] in
         current_virtual_functions_rev cls initial
       in
-    
+
       flatten_tcpp_class_functions_rec tcpp_class |> List.rev
     in
 

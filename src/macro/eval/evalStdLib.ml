@@ -2709,6 +2709,8 @@ module StdSys = struct
 		)
 
 	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
+
+	let timestamp_ms = vfun0 (fun () -> EvalIntegers.encode_haxe_i64_direct (* TODO: use vint64 once that works *) (Extc.timestamp_ms()))
 end
 
 module StdThread = struct
@@ -2782,8 +2784,7 @@ module StdTls = struct
 	let get_value = vifun0 (fun vthis ->
 		let this = this vthis in
 		try
-			let id = Thread.id (Thread.self()) in
-			let eval = IntMap.find id (get_ctx()).evals in
+			let eval = get_eval (get_ctx()) in
 			IntMap.find this eval.thread.tstorage
 		with Not_found ->
 			vnull
@@ -3728,6 +3729,7 @@ let init_standard_library builtins =
 		"stdout",StdSys.stdout;
 		"systemName",StdSys.systemName;
 		"time",StdSys.time;
+		"timestamp_ms",StdSys.timestamp_ms;
 	] [];
 	init_fields builtins (["eval";"vm"],"NativeThread") [
 		"delay",StdThread.delay;
@@ -3850,4 +3852,7 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv";"_Prepare"], "Prepare_Impl_") EvalLuv.prepare_fields [];
 	init_fields builtins (["eval";"luv";"_Check"], "Check_Impl_") EvalLuv.check_fields [];
 	init_fields builtins (["eval";"luv"], "Version") EvalLuv.version_fields [];
-	EvalSsl.init_fields init_fields builtins
+	EvalSsl.init_fields init_fields builtins;
+	init_fields builtins (["haxe";"atomic"; "_AtomicBool"], "AtomicBool_Impl_") EvalAtomic.atomic_bool_fields [];
+	init_fields builtins (["haxe";"atomic"; "_AtomicInt"], "AtomicInt_Impl_") EvalAtomic.atomic_int_fields [];
+	init_fields builtins (["haxe";"atomic"; "_AtomicObject"], "AtomicObject_Impl_") EvalAtomic.atomic_object_fields [];
