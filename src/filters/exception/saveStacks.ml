@@ -9,7 +9,12 @@ open Exceptions
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
 *)
 let insert_save_stacks ectx scom =
-	let native_stack_trace_cls = ectx.haxe_native_stack_trace in
+	let native_stack_trace_cls () =
+		let cls = Lazy.force ectx.haxe_native_stack_trace in
+		add_dependency scom.curclass.cl_module cls.cl_module MDepFromTyping;
+		cls
+	in
+
 	let rec contains_insertion_points e =
 		match e.eexpr with
 		| TTry (e, catches) ->
@@ -21,7 +26,7 @@ let insert_save_stacks ectx scom =
 	in
 	let save_exception_stack catch_var =
 		let method_field =
-			try PMap.find "saveStack" native_stack_trace_cls.cl_statics
+			try PMap.find "saveStack" (native_stack_trace_cls ()).cl_statics
 			with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
 		in
 		let return_type =
@@ -30,10 +35,7 @@ let insert_save_stacks ectx scom =
 			| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
 		in
 		let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
-		begin
-			add_dependency scom.curclass.cl_module native_stack_trace_cls.cl_module MDepFromTyping;
-			make_static_call scom native_stack_trace_cls method_field [catch_local] return_type catch_var.v_pos
-		end
+		make_static_call scom (native_stack_trace_cls ()) method_field [catch_local] return_type catch_var.v_pos
 	in
 	let rec run e =
 		match e.eexpr with
@@ -67,7 +69,7 @@ let insert_save_stacks ectx scom =
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
 let patch_constructors ectx =
-	match ectx.haxe_exception_type with
+	match fst (Lazy.force ectx.haxe_exception) with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->
@@ -122,6 +124,6 @@ let patch_constructors ectx =
 let patch_constructors ectx scom =
 	match ectx with
 	| Some ctx ->
-		patch_constructors {ctx with scom = scom}
+		patch_constructors {ctx with scom}
 	| None ->
 		(fun _ -> ())

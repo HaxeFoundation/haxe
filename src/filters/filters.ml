@@ -432,7 +432,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 	let filters_before_analyzer = [
 		"reduce_expression",Optimizer.reduce_expression;
 		"inline_constructors",InlineConstructors.inline_constructors;
-		"Exceptions_filter",(fun _ -> Exceptions.filter ectx);
+		"Exceptions_filter",Exceptions.filter ectx;
 		"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
 	] in
 

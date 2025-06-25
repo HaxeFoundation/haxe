@@ -12,20 +12,38 @@ type context = {
 	base_throw_type : Type.t;
 	throws_anything : bool;
 	catches_anything : bool;
-	haxe_exception_class : tclass;
-	haxe_exception_type : Type.t;
-	haxe_native_stack_trace : tclass;
-	value_exception_type : Type.t;
-	value_exception_class : tclass;
+	haxe_exception : (Type.t * tclass) Lazy.t;
+	haxe_native_stack_trace : tclass Lazy.t;
+	value_exception : (Type.t * tclass) Lazy.t;
 	is_of_type : (tclass * tclass_field * Type.t);
 }
+
+let haxe_exception_class ctx =
+	let cls = snd (Lazy.force ctx.haxe_exception) in
+	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
+	cls
+
+let haxe_exception_type ctx =
+	let t,cls = Lazy.force ctx.haxe_exception in
+	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
+	t
+
+let value_exception_class ctx =
+	let cls = snd (Lazy.force ctx.value_exception) in
+	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
+	cls
+
+let value_exception_type ctx =
+	let t,cls = Lazy.force ctx.value_exception in
+	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
+	t
 
 (**
 	Generate `haxe.Exception.method_name(args)`
 *)
 let haxe_exception_static_call ctx method_name args p =
 	let method_field =
-		try PMap.find method_name ctx.haxe_exception_class.cl_statics
+		try PMap.find method_name (haxe_exception_class ctx).cl_statics
 		with Not_found -> raise_typing_error ("haxe.Exception has no field " ^ method_name) p
 	in
 	let return_type =
@@ -33,8 +51,7 @@ let haxe_exception_static_call ctx method_name args p =
 		| TFun(_,t) -> t
 		| _ -> raise_typing_error ("haxe.Exception." ^ method_name ^ " is not a function and cannot be called") p
 	in
-	add_dependency ctx.scom.curclass.cl_module ctx.haxe_exception_class.cl_module MDepFromTyping;
-	make_static_call ctx.scom ctx.haxe_exception_class method_field args return_type p
+	make_static_call ctx.scom (haxe_exception_class ctx) method_field args return_type p
 
 (**
 	Generate `haxe_exception.method_name(args)`
@@ -99,7 +116,7 @@ let is_native_catch ctx t =
 *)
 let is_haxe_wildcard_catch ctx t =
 	let t = Abstract.follow_with_abstracts t in
-	t == t_dynamic || fast_eq ctx.haxe_exception_type t
+	t == t_dynamic || fast_eq (haxe_exception_type ctx) t
 
 
 (**
@@ -179,7 +196,7 @@ class catch ctx catch_local catch_pos =
 			let v =
 				match hx_exception_var with
 				| None ->
-					let v = alloc_var VGenerated gen_local_prefix ctx.haxe_exception_type p in
+					let v = alloc_var VGenerated gen_local_prefix (haxe_exception_type ctx) p in
 					hx_exception_var <- Some v;
 					v
 				| Some v -> v
@@ -237,7 +254,7 @@ let catches_to_ifs ctx catches t p =
 					if is_haxe_exception current_t then
 						let condition =
 							(* catch(e:haxe.Exception) is a wildcard catch *)
-							if fast_eq ctx.haxe_exception_type current_t then
+							if fast_eq (haxe_exception_type ctx) current_t then
 								mk (TConst (TBool true)) ctx.basic.tbool v.v_pos
 							else
 								std_is ctx (catch#get_haxe_exception v.v_pos) v.v_type v.v_pos
@@ -358,7 +375,7 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 			| Some (catch_var, _) ->
 				catch_var
 			| None ->
-				let catch_var = alloc_var VGenerated gen_local_prefix ctx.value_exception_type first_v.v_pos in
+				let catch_var = alloc_var VGenerated gen_local_prefix (value_exception_type ctx) first_v.v_pos in
 				add_var_flag catch_var VCaught;
 				catch_var
 		in
@@ -368,10 +385,10 @@ let catches_as_value_exception ctx non_value_exception_catches value_exception_c
 		(* catch_local.value *)
 		let catch_local_value =
 			let cf =
-				try PMap.find "value" ctx.value_exception_class.cl_fields
+				try PMap.find "value" (value_exception_class ctx).cl_fields
 				with Not_found -> die "haxe.ValueException is missing field \"value\"" __LOC__
 			in
-			mk (TField (catch_local, FInstance (ctx.value_exception_class,[],cf))) cf.cf_type catch_local.epos
+			mk (TField (catch_local, FInstance (value_exception_class ctx,[],cf))) cf.cf_type catch_local.epos
 		in
 		let rec traverse catches final_else =
 			match catches with
@@ -451,7 +468,7 @@ let catch_native ctx catches t p =
 				catches_as_value_exception ctx handle_as_value_exception None t p
 				:: catches_to_ifs ctx catches t p
 			)
-		| (v,_) as current :: rest when ctx.catches_anything && fast_eq ctx.value_exception_type (Abstract.follow_with_abstracts v.v_type) ->
+		| (v,_) as current :: rest when ctx.catches_anything && fast_eq (value_exception_type ctx) (Abstract.follow_with_abstracts v.v_type) ->
 			catches_as_value_exception ctx handle_as_value_exception (Some current) t p
 			:: transform [] (Some (Option.default current value_exception_catch)) rest
 		(* Keep catches for native exceptions intact *)
@@ -481,10 +498,11 @@ let catch_native ctx catches t p =
 	Transform `throw` and `try..catch` expressions.
 	`rename_locals` is required to deal with the names of temp vars.
 *)
-let filter ectx =
+let filter ectx (scom:SafeCom.t) =
 	let stub e = e in
 	match ectx with
 	| Some ctx ->
+		let ctx = { ctx with scom } in
 		let rec run e =
 			match e.eexpr with
 			| TThrow e1 ->

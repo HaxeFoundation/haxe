@@ -28,19 +28,19 @@ let create_exception_context tctx =
 			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos LoadNormal in
 			if is_dynamic t then t_dynamic
 			else t
-		and haxe_exception_type, haxe_exception_class =
+		and haxe_exception = Lazy.from_fun (fun () ->
 			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
-			| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos
-		and value_exception_type, value_exception_class =
+			| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos)
+		and value_exception = Lazy.from_fun (fun () ->
 			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
-			| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos
-		and haxe_native_stack_trace =
+			| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos)
+		and haxe_native_stack_trace = Lazy.from_fun (fun () ->
 			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) -> cls
 			| TAbstract({ a_impl = Some cls },_) -> cls
-			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos
+			| _ -> raise_typing_error "haxe.NativeStackTrace is expected to be a class or an abstract" null_pos)
 		in
 		let is_path_of_dynamic (pack,name) =
 			name = "Dynamic" && (pack = [] || pack = ["StdTypes"])
@@ -66,11 +66,9 @@ let create_exception_context tctx =
 			base_throw_type = base_throw_type;
 			throws_anything = is_path_of_dynamic config.ec_base_throw && config.ec_avoid_wrapping;
 			catches_anything = is_path_of_dynamic config.ec_wildcard_catch && config.ec_avoid_wrapping;
-			haxe_exception_class = haxe_exception_class;
-			haxe_exception_type = haxe_exception_type;
+			haxe_exception = haxe_exception;
 			haxe_native_stack_trace = haxe_native_stack_trace;
-			value_exception_type = value_exception_type;
-			value_exception_class = value_exception_class;
+			value_exception = value_exception;
 			is_of_type = is_of_type;
 		} in
 		Some ctx
