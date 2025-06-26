@@ -9,11 +9,6 @@ open Exceptions
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
 *)
 let insert_save_stacks ectx scom =
-	let native_stack_trace_cls () =
-		let cls = Lazy.force ectx.haxe_native_stack_trace in
-		add_dependency scom.curclass.cl_module cls.cl_module MDepFromTyping;
-		cls
-	in
 
 	let rec contains_insertion_points e =
 		match e.eexpr with
@@ -25,8 +20,9 @@ let insert_save_stacks ectx scom =
 			check_expr contains_insertion_points e
 	in
 	let save_exception_stack catch_var =
+		let native_stack_trace_cls = Lazy.force ectx.haxe_native_stack_trace in
 		let method_field =
-			try PMap.find "saveStack" (native_stack_trace_cls ()).cl_statics
+			try PMap.find "saveStack" native_stack_trace_cls.cl_statics
 			with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
 		in
 		let return_type =
@@ -35,7 +31,7 @@ let insert_save_stacks ectx scom =
 			| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
 		in
 		let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
-		make_static_call scom (native_stack_trace_cls ()) method_field [catch_local] return_type catch_var.v_pos
+		make_static_call scom native_stack_trace_cls method_field [catch_local] return_type catch_var.v_pos
 	in
 	let rec run e =
 		match e.eexpr with
