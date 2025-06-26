@@ -540,6 +540,17 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	function test12289() {
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		vfs.putContent("StringTools.hx", sys.io.File.getContent(haxe.io.Path.join([Sys.getCwd(), "../../std/StringTools.hx"])));
+
+		var args = ["-main", "Empty", "-js", "out.js", "--no-output"];
+		runHaxe(args);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("StringTools.hx")});
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	function test11179() {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11179/Main.hx"));
 		var args = ["-main", "Main", "--macro", 'nullSafety("Main", Strict)', "--interp"];
