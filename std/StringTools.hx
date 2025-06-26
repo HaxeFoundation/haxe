@@ -464,7 +464,7 @@ class StringTools {
 		#elseif java
 		return (index < s.length) ? cast(_charAt(s, index), Int) : -1;
 		#elseif js
-		return (cast s).charCodeAt(index);
+		return js.lib.NativeStringTools.charCodeAt(s, index);
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl
@@ -501,7 +501,7 @@ class StringTools {
 		#elseif java
 		return cast(_charAt(s, index), Int);
 		#elseif js
-		return (cast s).charCodeAt(index);
+		return js.lib.NativeStringTools.charCodeAt(s, index);
 		#elseif python
 		return python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl
