@@ -42,6 +42,10 @@ class BigInt_ {
 	//-----------------------------------------------------------------------
 	// Public interface
 	//-----------------------------------------------------------------------
+	/**
+		Returns the absolute value of this `BigInt`.
+		@return A new `BigInt` with the absolute value.
+	**/
 	public inline function abs():BigInt_ {
 		if (this.sign() < 0) {
 			return BigInt_.negate1(this);
@@ -51,6 +55,11 @@ class BigInt_ {
 		return r;
 	}
 
+	/**
+		Calculates the greatest common divisor (GCD) of this and another `BigInt`.
+		@param b The other `BigInt`.
+		@return The GCD of the two numbers.
+	**/
 	public function gcd(b:BigInt_):BigInt_ {
 		var m:BigInt_ = this.abs();
 		b = b.abs();
@@ -64,7 +73,9 @@ class BigInt_ {
 	}
 
 	/**
-		Calculates the least common multiple of the specified big integer numbers.
+		Calculates the least common multiple (LCM) of the specified big integer numbers.
+		@param b The other `BigInt`.
+		@return The LCM of the two numbers.
 	**/
 	public function lcm(b:BigInt_):BigInt_ {
 		var m:BigInt_ = this.abs();
@@ -86,25 +97,42 @@ class BigInt_ {
 		return m_data.get(m_count - 1) < 0;
 	}
 
+	/**
+		Returns `true` if this big integer is greater than or equal to 0.
+		@return `true` if the value is non-negative.
+	**/
 	public function isPositive():Bool {
 		return m_data.get(m_count - 1) >= 0;
 	}
 
+	/**
+		Returns `true` if this big integer is an odd number.
+		@return `true` if the last bit is 1.
+	**/
 	public function isOdd():Bool {
 		return ((m_data.get(0) & 1) == 1);
 	}
 
+	/**
+		Returns `true` if this big integer is an even number.
+		@return `true` if the last bit is 0.
+	**/
 	public function isEven():Bool {
 		return ((m_data.get(0) & 1) == 0);
 	}
 
 	/**
-		Retrieve the sign value of this big integer; 0 if positive, -1 if negative.
+		Retrieve the sign value of this big integer.
+		@return 0 if positive or zero, -1 if negative.
 	**/
 	public inline function sign():Int {
 		return (m_data.get(m_count - 1) >> 31 != 0) ? -1 : 0;
 	}
 
+	/**
+		Gets the index of the lowest-set (rightmost) '1' bit.
+		@return The index of the rightmost set bit, or -1 if the number is zero.
+	**/
 	public function getLowestSetBit():Int {
 		if (this.isZero())
 			return -1;
@@ -119,12 +147,20 @@ class BigInt_ {
 		return result;
 	}
 
+	/**
+		Returns the number of bits in the minimal two's-complement representation.
+		@return The bit length of the number.
+	**/
 	public function bitLength():Int {
 		if (m_count <= 0)
 			return 0;
 		return (32 * m_count - BigIntHelper.nlz(m_data.get(m_count - 1) ^ sign()));
 	}
 
+	/**
+		Returns the number of bits set to 1 in the two's-complement representation.
+		@return The count of set bits (population count).
+	**/
 	public function bitCount():Int {
 		var totalBits:Int = 0;
 		var x:Int32;
@@ -140,6 +176,11 @@ class BigInt_ {
 		return totalBits;
 	}
 
+	/**
+		Tests whether the bit at the specified index is set.
+		@param n The index of the bit to test.
+		@return `true` if the bit is 1, otherwise `false`.
+	**/
 	public function testBit(n:Int):Bool {
 		if (n < 0)
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -149,14 +190,29 @@ class BigInt_ {
 		return ((m_data.get(chunk) & (1 << (n & 0x1f))) != 0);
 	}
 
+	/**
+		Returns a `BigInt` with the specified bit set (to 1).
+		@param n The index of the bit to set.
+		@return A new `BigInt` with the bit set, or `this` if it's already set.
+	**/
 	public function setBit(n:Int):BigInt_ {
 		return (testBit(n)) ? this : flipBit(n);
 	}
 
+	/**
+		Returns a `BigInt` with the specified bit cleared (to 0).
+		@param n The index of the bit to clear.
+		@return A new `BigInt` with the bit cleared, or `this` if it's already clear.
+	**/
 	public function clearBit(n:Int):BigInt_ {
 		return (testBit(n)) ? flipBit(n) : this;
 	}
 
+	/**
+		Returns a `BigInt` with the specified bit flipped.
+		@param n The index of the bit to flip.
+		@return A new `BigInt` with the bit at index `n` inverted.
+	**/
 	public function flipBit(n:Int):BigInt_ {
 		if (n < 0)
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -187,12 +243,21 @@ class BigInt_ {
 		return r;
 	}
 
+	/**
+		Returns a `BigInt` whose value is (2^exponent).
+		@param exponent The exponent to raise 2 to.
+		@return A new `BigInt` equal to 2 to the power of `exponent`.
+	**/
 	public static inline function getPowerOfTwo(exponent:Int):BigInt_ {
 		var num = BigInt_.fromInt(1);
 		var r = arithmeticShiftLeft2(num, exponent);
 		return r;
 	}
 
+	/**
+		Computes the hash code for this `BigInt`.
+		@return An integer hash code.
+	**/
 	public function hashCode():Int {
 		var hash:Int32 = 0;
 		for (n in 0...this.m_count) {
@@ -201,6 +266,11 @@ class BigInt_ {
 		return hash;
 	}
 
+	/**
+		Tests if this `BigInt` is probably prime, using the Miller-Rabin test.
+		@param tolerance The number of iterations. Higher values increase certainty.
+		@return `true` if the number is probably prime, `false` if it is definitely composite.
+	**/
 	public function isProbablePrime(tolerance:Int):Bool {
 		if (tolerance <= 0)
 			return true;
@@ -231,7 +301,8 @@ class BigInt_ {
 	}
 
 	/**
-		Returns the first integer greater than this BigInteger that is probably prime.
+		Returns the first integer greater than this `BigInt` that is probably prime.
+		@return A new `BigInt` representing the next probable prime.
 	**/
 	public function nextProbablePrime():BigInt_ {
 		var r = new MutableBigInt_();
@@ -247,6 +318,8 @@ class BigInt_ {
 
 	/**
 		Test for numeric equality between this big integer and another.
+		@param other The `BigInt` to compare with.
+		@return `true` if the values are equal, otherwise `false`.
 	**/
 	public function equals(other:BigInt_):Bool {
 		if (this.m_count != other.m_count) {
@@ -261,7 +334,9 @@ class BigInt_ {
 	}
 
 	/**
-		Test for numeric equality between this big integer and another.
+		Test for numeric equality between this big integer and a standard `Int`.
+		@param other The `Int` to compare with.
+		@return `true` if the values are equal, otherwise `false`.
 	**/
 	public function equalsInt(other:Int):Bool {
 		if (this.m_count != 1) {
@@ -270,21 +345,37 @@ class BigInt_ {
 		return m_data.get(0) == other;
 	}
 
+	/**
+		Returns the minimum of this and another `BigInt`.
+		@param other The `BigInt` to compare with.
+		@return The smaller of the two values.
+	**/
 	public function min(other:BigInt_):BigInt_ {
 		return (BigIntArithmetic.compare(this, other) < 0) ? this : other;
 	}
 
+	/**
+		Returns the maximum of this and another `BigInt`.
+		@param other The `BigInt` to compare with.
+		@return The larger of the two values.
+	**/
 	public function max(other:BigInt_):BigInt_ {
 		return (BigIntArithmetic.compare(this, other) > 0) ? this : other;
 	}
 
 	/**
 		Get the value in decimal form.
+		@return The string representation of the number in base 10.
 	**/
 	public inline function toString():String {
 		return MultiwordArithmetic.toDecimalSigned(m_data, m_count);
 	}
 	
+	/**
+		Get the value in a specified base.
+		@param radix The base for the string conversion.
+		@return The string representation of the number in the given `radix`.
+	**/
 	public inline function toBase(radix:Int):String 
 	{
 		return MultiwordArithmetic.toBaseString(m_data, m_count,radix);
@@ -292,6 +383,7 @@ class BigInt_ {
 
 	/**
 		Get the value in hexadecimal form.
+		@return The string representation of the number in base 16.
 	**/
 	public function toHex():String {
 		var sb = new StringBuf();
@@ -309,7 +401,8 @@ class BigInt_ {
 	}
 
 	/**
-		Get the value as bytes, big endian order.
+		Get the value as bytes, in big-endian order.
+		@return A `Bytes` object containing the two's-complement representation.
 	**/
 	public function toBytes():Bytes {
 		var result = Bytes.alloc(m_count << 2);
@@ -329,7 +422,8 @@ class BigInt_ {
 		Values go from less significant to more significant with
 		increasing index in the vector.
 
-		Returns the number of Ints required to store the value.
+		@param output The `Vector` to write the words into.
+		@return The number of `Int`s required to store the value.
 	**/
 	public function toInts(output:Vector<Int>):Int {
 		if (output != null) {
@@ -343,6 +437,8 @@ class BigInt_ {
 
 	/**
 		Creates a big integer with value `value`.
+		@param value The integer value.
+		@return A new `BigInt_` instance.
 	**/
 	public static function fromInt(value:Int):BigInt_ {
 		var c = getCachedValue(value);
@@ -353,7 +449,10 @@ class BigInt_ {
 	}
 
 	/**
-		Creates a big integer with the value represented by the decimal string `value`.
+		Creates a big integer with the value represented by the string `value`.
+		@param value The string to parse.
+		@param radix The base of the number in the string.
+		@return A new `BigInt_` instance.
 	**/
 	public static function fromString(value:String,radix:Int=10):BigInt_ {
 		var bi = new MutableBigInt_();
@@ -362,8 +461,9 @@ class BigInt_ {
 	}
 
 	/**
-		Creates a big integer with the signed value represented by
-		the hexadecimal string `value`.
+		Creates a big integer with the signed value represented by the hexadecimal string `value`.
+		@param value The hexadecimal string.
+		@return A new `BigInt_` instance.
 	**/
 	public static function fromHexSigned(value:String):BigInt_ {
 		var bi = new MutableBigInt_();
@@ -372,8 +472,9 @@ class BigInt_ {
 	}
 
 	/**
-		Creates a big integer with the unsigned value represented by
-		the hexadecimal string `value`.
+		Creates a big integer with the unsigned value represented by the hexadecimal string `value`.
+		@param value The hexadecimal string.
+		@return A new `BigInt_` instance.
 	**/
 	public static function fromHexUnsigned(value:String):BigInt_ {
 		var bi = new MutableBigInt_();
@@ -381,8 +482,13 @@ class BigInt_ {
 		return bi;
 	}
 
+
 	/**
-		Creates a big integer with the signed value represented by bytes
+		Creates a big integer from a `Bytes` sequence.
+		@param value The bytes to convert.
+		@param offset The starting offset in the bytes.
+		@param length The number of bytes to read.
+		@return A new `BigInt_` instance.
 	**/
 	public static function fromBytes(value:Bytes, offset:Int = 0, length:Int = 0):BigInt_ {
 		var bi = new MutableBigInt_();
@@ -392,6 +498,9 @@ class BigInt_ {
 
 	/**
 		Creates a big integer with the value represented by the integer vector `value`.
+		@param value The vector of integer words.
+		@param length The number of words to use from the vector.
+		@return A new `BigInt_` instance.
 	**/
 	public static function fromUnsignedInts(value:Vector<Int>, length:Int = 0):BigInt_ {
 		var bi = new MutableBigInt_();
@@ -399,12 +508,22 @@ class BigInt_ {
 		return bi;
 	}
 
+	/**
+		Calculates the square of this `BigInt`.
+		@return A new `BigInt` equal to `this * this`.
+	**/
 	public function square():BigInt_ {
 		var r:MutableBigInt_ = new MutableBigInt_();
 		BigIntArithmetic.multiply(r, this, this);
 		return r;
 	}
 
+	/**
+		Calculates `(this ^ exponent) mod modulus`.
+		@param exponent The exponent.
+		@param modulus The modulus.
+		@return The result of the modular exponentiation.
+	**/
 	#if neko
 	public function modPow(exponent:BigInt_, modulus:BigInt_):BigInt_ {
 		if (BigIntArithmetic.compareInt(exponent, 0) < 0)
@@ -451,6 +570,11 @@ class BigInt_ {
 	}
 	#end
 
+	/**
+		Calculates `this` raised to the power of `exponent`.
+		@param exponent The non-negative exponent.
+		@return A new `BigInt` result.
+	**/
 	public function pow(exponent:UInt):BigInt_ {
 		if (exponent < 0)
 			throw new BigIntException(BigIntError.NEGATIVE_EXPONENT);
@@ -469,7 +593,11 @@ class BigInt_ {
 		return r;
 	}
 
-	/* hac 14.61, pp. 608 */
+	/**
+		Calculates the modular multiplicative inverse of this `BigInt` modulo `modulus`.
+		@param modulus The modulus.
+		@return A new `BigInt` `x` such that `(this * x) % modulus == 1`.
+	**/
 	public function modInverse(modulus:BigInt_):BigInt_ {
 		if (modulus.sign() == -1 || modulus.isZero())
 			throw new BigIntException(BigIntError.NEGATIVE_MODULUS);
@@ -555,6 +683,12 @@ class BigInt_ {
 		return c;
 	}
 
+	/**
+		Generates a probable prime number with a specified bit-length.
+		@param bits The desired bit-length.
+		@param tolerance The certainty level for the primality test.
+		@return A probable prime `BigInt`.
+	**/
 	public static function randomPrime(bits:Int32, tolerance:Int):BigInt_ {
 		if (bits < 2)
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -580,6 +714,12 @@ class BigInt_ {
 		return r;
 	}
 
+	/**
+		Generates a pseudo-random `BigInt` within a given range.
+		@param min The inclusive minimum value.
+		@param max The inclusive maximum value.
+		@return A random `BigInt` between `min` and `max`.
+	**/
 	public static function randomInRange(min:BigInt_, max:BigInt_):BigInt_ {
 		min = min.abs();
 		max = max.abs();
@@ -599,6 +739,11 @@ class BigInt_ {
 		return add2(random(sub2(max, min).bitLength() - 1), min);
 	}
 
+	/**
+		Generates a pseudo-random `BigInt` with a specified number of bits.
+		@param bits The bit-length of the random number.
+		@return A new `BigInt` with a random value.
+	**/
 	public static function random(bits:Int32):BigInt_ {
 		if (bits <= 0)
 			return BigInt.ZERO;
@@ -608,6 +753,12 @@ class BigInt_ {
 		return r;
 	}
 
+	/**
+		Performs division, returning both quotient and remainder.
+		@param dividend The number to be divided.
+		@param divisor The number to divide by.
+		@return An object `{quotient: BigInt_, remainder: BigInt_}`.
+	**/
 	public static function divMod(dividend:BigInt_, divisor:BigInt_):{quotient:BigInt_, remainder:BigInt_} {
 		var q = new MutableBigInt_();
 		var r = new MutableBigInt_();

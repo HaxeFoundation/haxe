@@ -28,8 +28,18 @@ import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
+/**
+	A collection of static, low-level arithmetic functions that operate directly on
+	`Vector<Int>` representations of large numbers.
+**/
 @:allow(haxe.math.bigint)
 class MultiwordArithmetic {
+	/**
+		Checks if a multi-word integer is zero.
+		@param value The vector of integer words.
+		@param length The number of words in the value.
+		@return `true` if the value is zero.
+	**/
 	public static function isZero(value:Vector<Int>, length:Int):Bool {
 		if (length < 1) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -42,10 +52,22 @@ class MultiwordArithmetic {
 		return true;
 	}
 
+	/**
+		Checks if a multi-word integer is negative.
+		@param value The vector of integer words.
+		@param length The number of words in the value.
+		@return `true` if the most significant bit is set.
+	**/
 	public static inline function isNegative(value:Vector<Int>, length:Int):Bool {
 		return value.get(length - 1) < 0;
 	}
 
+	/**
+		Gets the effective length of an unsigned multi-word integer, ignoring leading zeros.
+		@param value The vector of integer words.
+		@param length The number of words in the value.
+		@return The minimal number of words needed to represent the value.
+	**/
 	public static function getLengthUnsigned(value:Vector<Int>, length:Int):Int {
 		if (length < 1) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -60,8 +82,11 @@ class MultiwordArithmetic {
 
 	/**
 		Perform unsigned (zero) extension of `input` into `result`.
-
 		`input` and `result` may refer to the same object.
+		@param result The destination vector.
+		@param resultLength The desired length of the result.
+		@param input The source vector.
+		@param inputLength The length of the input.
 	**/
 	public static function extendUnsigned(result:Vector<Int>, resultLength:Int, input:Vector<Int>, inputLength:Int):Void {
 		if (input == result) {
@@ -85,9 +110,10 @@ class MultiwordArithmetic {
 	/**
 		Perform the unary negation of big integer `operand` and put
 		the result into big integer `result`.
-
-		Returns `true` if the operation overflowed; `false`
-		otherwise.
+		@param result The vector to store the result.
+		@param operand The vector to negate.
+		@param length The number of words.
+		@return `true` if the operation overflowed; `false` otherwise.
 
 		Ok for `result` and `operand` to be the same object.
 	**/
@@ -223,6 +249,12 @@ class MultiwordArithmetic {
 		}
 	}
 
+	/**
+		Calculates the required length for the quotient of an unsigned division.
+		@param dividendLength The length of the dividend.
+		@param divisorLength The length of the divisor.
+		@return The length of the quotient.
+	**/
 	public static inline function getDivisionQuotientLengthUnsigned(dividendLength:Int, divisorLength:Int):Int {
 		var max:Int = dividendLength - divisorLength + 1;
 		return ((max > 1) ? max : 1);
@@ -574,6 +606,11 @@ class MultiwordArithmetic {
 		return 0;
 	}
 
+	/**
+		Fills a vector with zeros.
+		@param dest The destination vector.
+		@param length The number of words to zero out.
+	**/
 	public static function setZero(dest:Vector<Int>, length:Int):Void {
 		if (dest.length < length) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -583,6 +620,12 @@ class MultiwordArithmetic {
 		}
 	}
 
+	/**
+		Sets a multi-word integer from a single unsigned `Int`.
+		@param dest The destination vector.
+		@param length The total length of the destination.
+		@param value The integer value to set.
+	**/
 	public static function setFromIntUnsigned(dest:Vector<Int>, length:Int, value:Int):Void {
 		if (dest.length < length) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -593,6 +636,13 @@ class MultiwordArithmetic {
 		}
 	}
 
+	/**
+		Sets a multi-word integer from an unsigned hexadecimal string.
+		@param dest The destination vector.
+		@param length The length of the destination.
+		@param value The hexadecimal string.
+		@return `true` on success.
+	**/
 	public static function setFromHexUnsigned(dest:Vector<Int>, length:Int, value:String):Bool {
 		if ((value == null) || (dest == null)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -655,6 +705,12 @@ class MultiwordArithmetic {
 		return true;
 	}
 
+	/**
+		Converts a multi-word integer to a hexadecimal string.
+		@param input The source vector.
+		@param length The number of words.
+		@return The hexadecimal string representation.
+	**/
 	public static function toHex(input:Vector<Int>, length:Int):String {
 		var sb = new StringBuf();
 		while (--length >= 0) {
@@ -684,6 +740,13 @@ class MultiwordArithmetic {
 		return _toDecimal(sb, work, length);
 	}
 	
+	/**
+		Converts a signed multi-word integer to a string in the specified base.
+		@param value The source vector.
+		@param length The number of words.
+		@param radix The base for the conversion.
+		@return The string representation.
+	**/
 	public static function toBaseString(value : Vector<Int32>, length : Int, radix:Int) : String
 	{
 		var sb = new StringBuf();
@@ -710,6 +773,12 @@ class MultiwordArithmetic {
 		return _toDecimal(sb, work, length);
 	}
 
+	/**
+		Copies words from one vector to another.
+		@param dest The destination vector.
+		@param source The source vector.
+		@param length The number of words to copy.
+	**/
 	public static function copy(dest:Vector<Int>, source:Vector<Int>, length:Int):Void {
 		if (dest.length < length) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -717,6 +786,13 @@ class MultiwordArithmetic {
 		Vector.blit(source, 0, dest, 0, length);
 	}
 
+	/**
+		Gets the value of a single bit from a signed multi-word integer.
+		@param value The source vector.
+		@param length The number of words.
+		@param index The index of the bit to get.
+		@return 1 if the bit is set, 0 otherwise.
+	**/
 	public static function getBitSigned(value:Vector<Int>, length:Int, index:Int):Int {
 		var d:Int = index >> 5;
 		if (d >= length) {

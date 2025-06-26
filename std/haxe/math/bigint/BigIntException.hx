@@ -22,7 +22,16 @@
 
 package haxe.math.bigint;
 
+/**
+	An exception thrown for errors during `BigInt` operations.
+	It wraps a `BigIntError` value to provide specific details.
+**/
 class BigIntException extends haxe.Exception {
+	/**
+		Creates a new `BigIntException`.
+		@param error The specific `BigIntError` that occurred.
+		@param previous An optional previous exception in a chain.
+	**/
 	public function new(error:BigIntError, ?previous:haxe.Exception) {
 		super( error, previous);
 	}

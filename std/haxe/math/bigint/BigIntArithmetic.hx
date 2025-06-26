@@ -28,6 +28,10 @@ import haxe.math.bigint.BigIntHelper;
 import haxe.ds.Vector;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
+/**
+	A collection of static helper functions for performing arithmetic
+	on `BigInt_` objects.
+**/
 class BigIntArithmetic {
 	/**
 		Compare a big integer with an Int.
@@ -604,6 +608,10 @@ class BigIntArithmetic {
 		return operand1.m_data.get(0) & operand2;
 	}
 
+	/**
+		Returns the bitwise AND of two big integers.
+		@return A new `BigInt_` holding the result.
+	**/
 	public static inline function bitwiseAnd(operand1:BigInt_, operand2:BigInt_):BigInt_ {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		if ((operand1.m_count > operand2.m_count)) {
@@ -647,6 +655,10 @@ class BigIntArithmetic {
 		return result;
 	}
 
+	/**
+		Returns the bitwise XOR of two big integers.
+		@return A new `BigInt_` holding the result.
+	**/
 	public static inline function bitwiseXor(operand1:BigInt_, operand2:BigInt_):BigInt_ {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.m_count = (operand1.m_count > operand2.m_count) ? operand1.m_count : operand2.m_count;
@@ -666,6 +678,10 @@ class BigIntArithmetic {
 		return result;
 	}
 
+	/**
+		Returns the bitwise NOT (inversion) of a big integer.
+		@return A new `BigInt_` holding the result.
+	**/
 	public static inline function bitwiseNot(operand:BigInt_):BigInt_ {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.copyFrom(operand);
@@ -678,11 +694,19 @@ class BigIntArithmetic {
 
 	/**
 		Returns `floor(log2(input))`.
+		@param input The `BigInt_` operand.
+		@return The integer base-2 logarithm.
 	**/
 	public static function floorLog2(input:BigInt_):Int {
 		return (input.m_count << 5) - BigIntHelper.nlz(input.m_data.get(input.m_count - 1));
 	}
 
+	/**
+		Multiply two big integers using the Karatsuba algorithm for performance.
+		@param result The `MutableBigInt_` to store the product.
+		@param x The first operand.
+		@param y The second operand.
+	**/
 	public static function multiplyKaratsuba(result:MutableBigInt_, x:BigInt_, y:BigInt_):Void {
 		var n = (x.bitLength() > y.bitLength()) ? x.bitLength() : y.bitLength();
 		if (n < 2500) {

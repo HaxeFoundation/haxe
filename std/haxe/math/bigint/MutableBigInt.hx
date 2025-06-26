@@ -26,115 +26,234 @@ import haxe.ds.Vector;
 import haxe.io.Bytes;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
+/**
+	A mutable arbitrary-precision integer.
+	
+	This abstract type provides in-place modification of a `BigInt`'s value,
+	which can be more efficient for operations that involve many intermediate steps,
+	as it avoids repeated memory allocation.
+**/
 @:allow(haxe.math.bigint)
 abstract MutableBigInt(MutableBigInt_) {
 	//-----------------------------------------------------------------------
 	// Public interface
 	//-----------------------------------------------------------------------
+	/**
+		Returns the sign of this `MutableBigInt`.
+		@return -1 if negative, 1 if positive, 0 if zero.
+	**/
 	public inline function sign():Int {
 		return BigInt_.sign1(this);
 	}
 
+	/**
+		Checks if this `MutableBigInt` is equal to zero.
+		@return `true` if the value is 0, otherwise `false`.
+	**/
 	public inline function isZero():Bool {
 		return BigInt_.isZero1(this);
 	}
 
+	/**
+		Checks if this `MutableBigInt` is a negative number.
+		@return `true` if the value is less than 0, otherwise `false`.
+	**/
 	public inline function isNegative():Bool {
 		return BigInt_.isNegative1(this);
 	}
 
+	/**
+		Returns the string representation of this `MutableBigInt` in the specified base.
+		@param radix The base for the conversion (e.g., 10 for decimal).
+		@return The string representation of the number.
+	**/
 	public inline function toString(radix:Int=10):String {
 		return BigInt_.toString1(this,radix);
 	}
 
+	/**
+		Returns the hexadecimal string representation of this `MutableBigInt`.
+		@return The hexadecimal string.
+	**/
 	public inline function toHex():String {
 		return BigInt_.toHex1(this);
 	}
 
+	/**
+		Converts this `MutableBigInt` to a `Bytes` sequence.
+		@return A `Bytes` object representing the number.
+	**/
 	public inline function toBytes():Bytes {
 		return BigInt_.toBytes1(this);
 	}
 
+	/**
+		Converts this `MutableBigInt` to a `Vector` of `Int`s.
+		@param output The vector to write the integer words into.
+		@return The number of words written.
+	**/
 	public inline function toInts(output:Vector<Int>):Int {
 		return BigInt_.toInts1(this, output);
 	}
 
+	/**
+		Sets the value of this `MutableBigInt` from a standard `Int`.
+		@param value The new integer value.
+	**/
 	public inline function setFromInt(value:Int):Void {
 		var a:MutableBigInt_ = this;
 		a.setFromInt(value);
 	}
 
+	/**
+		Sets the value from a `Vector` of unsigned `Int` words.
+		@param value The vector of integer words.
+		@param length The number of words to use. If 0, uses the whole vector.
+	**/
 	public inline function setFromUnsignedInts(value:Vector<Int>, length:Int = 0):Void {
 		var a:MutableBigInt_ = this;
 		a.setFromUnsignedInts(value, length);
 	}
 	
+	/**
+		Sets the value from a portion of another `Vector` of `Int`s.
+		@param source The source vector.
+		@param sourcePosition The starting position in the source vector.
+		@param length The number of words to copy.
+	**/
 	public inline function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
 	{
 		var a:MutableBigInt_ = this;
 		a.setFromVector(source,sourcePosition, length);
 	}
 
+	/**
+		Sets the value from a `Bytes` sequence, interpreted as unsigned big-endian.
+		@param value The source `Bytes`.
+		@param offset The starting offset.
+		@param length The number of bytes to read.
+	**/
 	public inline function setFromBigEndianBytesUnsigned(value:Bytes, offset:Int = 0, length:Int = 0):Void {
 		var a:MutableBigInt_ = this;
 		a.setFromBigEndianBytesUnsigned(value, offset, length);
 	}
 
+	/**
+		Sets the value from a `Bytes` sequence, interpreted as unsigned little-endian.
+		@param value The source `Bytes`.
+		@param offset The starting offset.
+		@param length The number of bytes to read.
+	**/
 	public inline function setFromLittleEndianBytesUnsigned(value:Bytes, offset:Int = 0, length:Int = 0):Void {
 		var a:MutableBigInt_ = this;
 		a.setFromLittleEndianBytesUnsigned(value, offset, length);
 	}
 
+	/**
+		Resets the value of this `MutableBigInt` to zero.
+	**/
 	public inline function clear():Void {
 		var a:MutableBigInt_ = this;
 		a.clear();
 	}
 
+	/**
+		Copies the value from another `BigInt` into this one.
+		@param other The `BigInt` to copy from.
+	**/
 	public inline function copyFrom(other:BigInt):Void {
 		var a:MutableBigInt_ = this;
 		a.copyFrom(other);
 	}
 
+	/**
+		Gets the value of a single bit at the specified index.
+		@param index The index of the bit to get.
+		@return 1 if the bit is set, 0 otherwise.
+	**/
 	public inline function getBit(index:Int):Int {
 		return BigIntArithmetic.getBit(this, index);
 	}
 
+	/**
+		Creates a `MutableBigInt` from unsigned, big-endian bytes.
+		@param value The `Bytes` to convert.
+		@return A new `MutableBigInt` instance.
+	**/
 	public static function fromBigEndianBytesUnsigned(value:Bytes):MutableBigInt {
 		var r = new MutableBigInt_();
 		r.setFromBigEndianBytesUnsigned(value);
 		return new MutableBigInt(r);
 	}
 
+	/**
+		Creates a `MutableBigInt` from unsigned, little-endian bytes.
+		@param value The `Bytes` to convert.
+		@return A new `MutableBigInt` instance.
+	**/
 	public static function fromLittleEndianBytesUnsigned(value:Bytes):MutableBigInt {
 		var r = new MutableBigInt_();
 		r.setFromLittleEndianBytesUnsigned(value);
 		return new MutableBigInt(r);
 	}
 
+	/**
+		Converts this number to its absolute value, in place.
+		@return This `MutableBigInt` instance.
+	**/
 	public function abs():MutableBigInt {
 		return this.abs();
 	}
 
+	/**
+		Calculates the GCD of this and another `BigInt`.
+		@param b The other `BigInt`.
+		@return A new `MutableBigInt` holding the result.
+	**/
 	public function gcd(b:BigInt):MutableBigInt {
 		return this.gcd(b);
 	}
 
+	/**
+		Raises this number to the power of `exponent`.
+		@param exponent The non-negative exponent.
+		@return A new `MutableBigInt` holding the result.
+	**/
 	public function pow(exponent:UInt):MutableBigInt {
 		return this.pow(exponent);
 	}
 
+	/**
+		Calculates `(this ^ exponent) mod modulus`.
+		@param exponent The exponent.
+		@param modulus The modulus.
+		@return A new `MutableBigInt` holding the result.
+	**/
 	public function modPow(exponent:BigInt, modulus:BigInt):MutableBigInt {
 		return this.modPow(exponent, modulus);
 	}
 
+	/**
+		Tests if this number is probably prime.
+		@param tolerance Certainty level for the Miller-Rabin test.
+		@return `true` if probably prime.
+	**/
 	public function isProbablePrime(tolerance:UInt):Bool {
 		return this.isProbablePrime(tolerance);
 	}
 
+	/**
+		Gets the index of the lowest-set (rightmost) '1' bit.
+		@return The bit index, or -1 if zero.
+	**/
 	public function getLowestSetBit():Int {
 		return this.getLowestSetBit();
 	}
 
+	/**
+		Returns the number of bits
+		@return The bit length.
+	**/
 	public function bitLength():Int {
 		return this.bitLength();
 	}

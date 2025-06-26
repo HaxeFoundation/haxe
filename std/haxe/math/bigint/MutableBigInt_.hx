@@ -46,6 +46,7 @@ class MutableBigInt_ extends BigInt_ {
 
 	/**
 		Set the value of this big int with an integer of value `value`.
+		@param value The new integer value for this instance.
 	**/
 	public function setFromInt(value:Int):Void {
 		ensureCapacity(1, false);
@@ -56,6 +57,7 @@ class MutableBigInt_ extends BigInt_ {
 	/**
 		Set the value of this big integer with the signed value
 		represented by the hexadecimal string `value`.
+		@param value A string containing a hexadecimal number.
 	**/
 	public inline function setFromHexSigned(value:String):Void {
 		_setFromHex(value, true);
@@ -64,13 +66,16 @@ class MutableBigInt_ extends BigInt_ {
 	/**
 		Set the value of this big integer with the unsigned value
 		represented by the hexadecimal string `value`.
+		@param value A string containing a hexadecimal number.
 	**/
 	public inline function setFromHexUnsigned(value:String):Void {
 		_setFromHex(value, false);
 	}
 
 	/**
-		Set the value of this big integer with the value represented by the decimal string `value`.
+		Set the value of this big integer by parsing the given string.
+		@param value The string representation of the number.
+		@param radix The base of the number in the string (e.g., 10, 16).
 	**/
 	public function setFromString(value:String, radix:Int = 10):Void {
 		if ((value == null) || (value.length < 1)) {
@@ -127,8 +132,9 @@ class MutableBigInt_ extends BigInt_ {
 	}
 
 	/**
-		Set the value of this big integer with the unsigned value
-		represented by the integer vector `value`.
+		Set the value of this big integer from a vector of unsigned `Int`s.
+		@param value The `Vector` containing the integer words.
+		@param length The number of words to use from the vector.
 	**/
 	public function setFromUnsignedInts(value:Vector<Int>, length:Int = 0):Void {
 		if (length <= 0) {
@@ -142,6 +148,12 @@ class MutableBigInt_ extends BigInt_ {
 		compact();
 	}
 	
+	/**
+		Set the value from a portion of another `Vector` of `Int`s.
+		@param source The source vector.
+		@param sourcePosition The starting position in the source vector.
+		@param length The number of words to copy.
+	**/
 	public function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
 	{
 		ensureCapacity(length , false);
@@ -149,6 +161,12 @@ class MutableBigInt_ extends BigInt_ {
 		m_count = length;
 	}
 
+	/**
+		Set the value from a `Bytes` sequence, interpreted as signed big-endian.
+		@param value The source `Bytes`.
+		@param offset The starting offset in the bytes.
+		@param valueLength The number of bytes to read.
+	**/
 	public function setFromBigEndianBytesSigned(value:Bytes, offset:Int = 0, valueLength:Int = 0):Void {
 		if (value == null) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
@@ -183,6 +201,12 @@ class MutableBigInt_ extends BigInt_ {
 		compact();
 	}
 
+	/**
+		Set the value from a `Bytes` sequence, interpreted as unsigned big-endian.
+		@param value The source `Bytes`.
+		@param offset The starting offset in the bytes.
+		@param valueLength The number of bytes to read.
+	**/
 	public function setFromBigEndianBytesUnsigned(value:Bytes, offset:Int = 0, valueLength:Int = 0):Void {
 		if (valueLength <= 0) {
 			valueLength = value.length;
@@ -215,6 +239,12 @@ class MutableBigInt_ extends BigInt_ {
 		compact();
 	}
 
+	/**
+		Set the value from a `Bytes` sequence, interpreted as unsigned little-endian.
+		@param value The source `Bytes`.
+		@param offset The starting offset in the bytes.
+		@param valueLength The number of bytes to read.
+	**/
 	public function setFromLittleEndianBytesUnsigned(value:Bytes, offset:Int = 0, valueLength:Int = 0):Void {
 		if (valueLength <= 0) {
 			valueLength = value.length;
@@ -247,6 +277,9 @@ class MutableBigInt_ extends BigInt_ {
 		compact();
 	}
 
+	/**
+		Resets the value of this `MutableBigInt` to zero.
+	**/
 	public function clear():Void {
 		MultiwordArithmetic.setZero(m_data, m_data.length);
 		m_count = 1;

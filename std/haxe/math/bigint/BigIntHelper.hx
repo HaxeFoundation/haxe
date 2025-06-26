@@ -23,10 +23,15 @@
 package haxe.math.bigint;
 
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
+/**
+	A collection of low-level, static Int manipulation helper functions.
+**/
 class BigIntHelper {
 	/**
 		"Numbler of leading zeros" - return the number of leading
 		0-value bits in the binary representation of `x`.
+		@param x The integer to inspect.
+		@return The count of leading zeros.
 	**/
 	public static function nlz(x:Int):Int {
 		// From "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013. Figure 5-15, p. 102.
@@ -57,6 +62,11 @@ class BigIntHelper {
 		return n + 2 - m;
 	}
 	
+	/**
+		Calculates the bit length of a signed 32-bit integer.
+		@param x The integer value.
+		@return The number of bits required to represent `x`.
+	**/
 	public static function bitLen(x:Int):Int {
 		var sign:Int = (x<0)?-1:0;
 		return ( 32 - BigIntHelper.nlz(x^sign) );
