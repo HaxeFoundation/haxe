@@ -45,6 +45,11 @@ class ArrayImpl {
 		return new HaxeIterator(Syntax.callField(x, "__iter__"));
 	}
 
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "python.internal.ArrayImpl.keyValueIterator")
+	public static inline function keyValueIterator<T>(x:Array<T>) : KeyValueIterator<Int, T> {
+		return new haxe.iterators.ArrayKeyValueIterator(x);
+	}
+
 	@:ifFeature("dynamic_read.indexOf", "anon_optional_read.indexOf", "python.internal.ArrayImpl.indexOf")
 	public static function indexOf<T>(a:Array<T>, x:T, ?fromIndex:Int):Int {
 		var len = a.length;
@@ -106,6 +111,11 @@ class ArrayImpl {
 		} catch (e:Dynamic) {
 			return false;
 		}
+	}
+
+	@:ifFeature("dynamic_read.contains", "anon_optional_read.contains", "python.internal.ArrayImpl.contains")
+	public static inline function contains<T>(x:Array<T>,e : T) : Bool {
+		return Syntax.isIn(e, x);
 	}
 
 	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift", "python.internal.ArrayImpl.shift")

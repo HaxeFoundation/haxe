@@ -46,8 +46,9 @@ class DynamicAccessKeyValueIterator<T> {
 	/**
 		See `Iterator.next`
 	**/
+	@:nullSafety(Off)
 	public inline function next():{key:String, value:T} {
 		var key = keys[index++];
-		return {value: access[key], key: key};
+		return {value: (access[key] : T), key: key};
 	}
 }

@@ -1,0 +1,16 @@
+[ERROR] Main.hx
+
+   | Uncaught exception Stack overflow
+
+     8 |    log();
+       |    ^^^^^
+       | Called from here (17 times)
+
+    10 |   log();
+       |   ^^^^^
+       | Called from here
+
+     3 |   test();
+       |   ^^^^^^
+       | Called from here
+

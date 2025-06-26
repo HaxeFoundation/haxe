@@ -1,15 +1,11 @@
-import utest.Runner;
 import utest.ui.Report;
+import utest.Runner;
 
-class Main {
-	static function main() {
-		var runner = new Runner();
-		runner.addCases("cases");
-		runner.onTestStart.add(test -> Sys.println("[START] " + test.fixture.target));
-		runner.onTestComplete.add(test -> Sys.println("[STOP]  " + test.fixture.target));
-		var report = Report.create(runner);
-		report.displayHeader = AlwaysShowHeader;
-		report.displaySuccessResults = NeverShowSuccessResults;
-		runner.run();
-	}
+function main() {
+	var runner = new Runner();
+	var report = Report.create(runner);
+	report.displayHeader = AlwaysShowHeader;
+	report.displaySuccessResults = NeverShowSuccessResults;
+	runner.addCases('cases');
+	runner.run();
 }

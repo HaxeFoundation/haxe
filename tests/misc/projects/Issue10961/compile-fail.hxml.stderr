@@ -1,0 +1,3 @@
+Main.hx:7: characters 4-5 : Duplicate field in object declaration : a
+Main.hx:13: characters 4-5 : Duplicate field in object declaration : a
+Main.hx:18: characters 4-5 : Duplicate field in object declaration : a

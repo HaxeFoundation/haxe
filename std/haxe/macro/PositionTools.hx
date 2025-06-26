@@ -60,7 +60,7 @@ class PositionTools {
 		#end
 	}
 
-	#if (macro || display)
+	#if macro
 	/**
 		Converts a `haxe.macro.Position` to a `haxe.display.Position.Location`.
 
@@ -69,6 +69,16 @@ class PositionTools {
 	**/
 	public static function toLocation(p:Position):Location {
 		return Context.load("position_to_range", 1)(p);
+	}
+
+	/**
+		Returns a copy of a `haxe.macro.Position`, with `pmax` set to `pmin`.
+
+		This ensures that the resulting position will not enclose other positions that might be
+		looked at for display requests, which could lead to unexpected results.
+	**/
+	public static function toZeroRange(p:Position):Position {
+		return Context.load("position_to_zero_range", 1)(p);
 	}
 	#end
 }

@@ -30,6 +30,11 @@ typedef AnonAsStruct = {
 	?optional:String
 }
 
+typedef AnonDefaultNever = {
+	var name(default, never):String;
+	var version(default, never):String;
+}
+
 /** Test `@:nullSafety(Off)` is respected on fields */
 class UnsafeFields {
 	@:nullSafety(Off) var unsafeVar:String = null;
@@ -38,6 +43,12 @@ class UnsafeFields {
 	@:nullSafety(Off)
 	static function unsafeMethod() {
 		var s:String = null;
+	}
+
+	@:nullSafety(Off)
+	public static inline function unsafeCall():Int {
+		var n:Int = null;
+		return n;
 	}
 
 	static function unsafeExpr() {
@@ -78,6 +89,19 @@ private class TestWithoutConstructor {
 	@:shouldFail var notInitializedField:String;
 }
 
+class Issue9643 {
+	static var tmp:Null<()->Void>;
+
+	final field: String;
+
+	public function new() {
+		tmp = () -> @:nullSafety(Off) method();
+		field = 'hello';
+	}
+
+	function method() {}
+}
+
 class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 	var v:Int;
 
@@ -99,8 +123,9 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 @:build(Validator.checkFields())
 class TestStrict {
+	extern static final something:String;
+
 	public var field:Null<String>;
-	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
 	@:shouldFail var notInitializedProperty(default,null):Float;
 	@:shouldFail @:isVar var notInitializedIsVar(get,set):String;
@@ -119,9 +144,13 @@ class TestStrict {
 	function get_str() {
 		shouldFail(return (null:Null<String>));
 	}
-	function set_str(v) {
-		shouldFail(return (v:Null<String>));
+	function set_str(v:Null<String>) {
+		shouldFail(return v);
 	}
+
+	@:shouldFail static var badInit:Int;
+	static var init:Int;
+	@:shouldFail static var init2:Int = null;
 
 	/**
 	 *  Null safety should work in __init__ functions
@@ -129,9 +158,24 @@ class TestStrict {
 	static function __init__() {
 		var s:Null<String> = null;
 		shouldFail(s.length);
+
+		final v:Int = shouldFail(init);
+
+		if (true) init = 1;
+		else init = 1;
+		init2 = 1;
+
+		final v:Int = init;
+		final v:Int = shouldFail(badInit);
+
+		function name():Void {
+			shouldFail(badInit) = 1;
+		}
+		if (true) shouldFail(badInit) = 1;
 	}
 
-	static public function main() {
+	static public function main() { // not a real main
+		badInit = 1;
 	}
 
 	/**
@@ -185,12 +229,12 @@ class TestStrict {
 	}
 
 	static function call_onNullableValue_shouldFail() {
-		var fn:Null<Void->Void> = null;
+		var fn:Null<()->Void> = null;
 		shouldFail(fn());
 	}
 
 	static function call_onNotNullableValue_shouldPass() {
-		var fn:Void->Void = function() {}
+		var fn:()->Void = function() {}
 		fn();
 	}
 
@@ -222,6 +266,13 @@ class TestStrict {
 		var v:Null<String> = null;
 		shouldFail(var s:String = v);
 		shouldFail(var s:String = null);
+	}
+
+	static function unsafeNullableVar_assignedToNonNullablePlases_shouldPass() {
+		var @:nullSafety(Off) n:Null<String> = null;
+		var s:String = n;
+		function test(s:String) {}
+		test(n);
 	}
 
 	static function assign_nullableValueToNotNullable_shouldFail() {
@@ -265,6 +316,13 @@ class TestStrict {
 		var v:Null<String> = null;
 		var a:String;
 		shouldFail((true ? 'hello' : v).length);
+	}
+
+	static function inlineCallWithNullArg_shouldFail() {
+		inline function check(value: Int): Int {
+			return value;
+		}
+		shouldFail(check((null : Null<Int>)));
 	}
 
 	static function ternary_returnedFromInlinedFunction_shouldPass() {
@@ -581,6 +639,14 @@ class TestStrict {
 		shouldFail(a.value);
 	}
 
+	static function nullable_doWhile_shouldPass(?a:Int) {
+		do {
+			if (a == null) return;
+			a++;
+		} while (true);
+		a++;
+	}
+
 	static function throw_nullableValue_shouldFail() {
 		var s:Null<String> = null;
 		shouldFail(throw s);
@@ -633,10 +699,10 @@ class TestStrict {
 	}
 
 	static function objectDecl_passObjWithNullabelFieldToObjWithNotNullableField_shouldFail(?a:String) {
-		shouldFail(var o:{field:String} = {field:a});
+		var o:{field:String} = {field:shouldFail(a)};
 		shouldFail(o = new TestStrict('')); //Test has `field:Null<String>`
 		var arr = (['', a]:Array<Null<String>>);
-		shouldFail(var q:{field:Array<String>} = {field:arr});
+		var q:{field:Array<String>} = {field:shouldFail(arr)};
 		shouldFail(var v:{value:Array<String>} = new Generic(arr));
 	}
 
@@ -734,8 +800,8 @@ class TestStrict {
 	}
 
 	static function functionWithNullableReturnType_toVoidFunction_shouldPass() {
-		var n:Void->Null<String> = () -> null;
-		var f:Void->Void = n;
+		var n:()->Null<String> = () -> null;
+		var f:()->Void = n;
 	}
 
 	static public function tryBlock_couldNotBeDeadEndForOuterBlock() {
@@ -757,6 +823,12 @@ class TestStrict {
 				cb();
 			}
 		}
+		inline function cb2() {
+			if(foo != null) {
+				trace(foo);
+			}
+		}
+		cb2();
 	}
 
 	static public function closure_immediatelyExecuted_shouldInheritSafety(?s:String) {
@@ -804,7 +876,7 @@ class TestStrict {
 			recursive(() -> a.length);
 		}
 	}
-	static function recursive(cb:Void->Int) {
+	static function recursive(cb:()->Int) {
 		if(Std.random(10) == 0) {
 			recursive(cb);
 		} else {
@@ -824,11 +896,33 @@ class TestStrict {
 		a = b;
 	}
 
-	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+	function nonFinalField_immediatelyAfterCheck_shouldPass(o:{field:Null<String>}) {
 		if(o.field != null) {
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterLocalAssignment_shouldPass(o:{field:Null<String>}, b:{field:Null<String>}) {
+		if(o.field != null) {
+			b = {field:null};
+			var notNullable:String = o.field;
+		}
+	}
+
+	function nonFinalField_afterFieldAssignment_shouldFail(o:{field:Null<String>}, b:{o:{field:Null<String>}}) {
+		if(o.field != null) {
+			b.o = {field:null};
 			shouldFail(var notNullable:String = o.field);
 		}
 	}
+
+	function nonFinalField_afterSomeCall_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			someCall();
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+	function someCall() {}
 
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
@@ -876,10 +970,38 @@ class TestStrict {
 		}
 	}
 
+	static function fieldAccess_onBlockWithSafeVarDeclaredInside_shouldPass(?a:String) {
+		var fn = function() {
+			({
+				var value = a;
+				if(value == null)
+					'hello'
+				else
+					value;
+			}).length;
+		}
+	}
+
+	function safetyOffArgument_shouldPass(?a:String) {
+		staticSafetyOffArgument(a);
+		instanceSafetyOffArgument(a);
+		inline instanceSafetyOffArgument(a);
+	}
+	static function staticSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {}
+	function instanceSafetyOffArgument(@:nullSafety(Off) b:Dynamic) {
+		return staticSafetyOffArgument(b);
+	}
+
 	static function issue8122_abstractOnTopOfNullable() {
 		var x:NullFloat = null;
 		var y:Float = x.val();
 		x += x;
+	}
+
+	static function issue9649_nullCheckedAbstractShouldUnify_shouldPass() {
+		var x:NullFloat = null;
+		var y:Float = 0.0;
+		if(x!=null) y = x;
 	}
 
 	static function issue8443_nullPassedToInline_shouldPass() {
@@ -899,6 +1021,102 @@ class TestStrict {
 
 	@:shouldFail @:nullSafety(InvalidArgument)
 	static function invalidMetaArgument_shouldFail() {}
+
+	static function issue9474_becomesSafeInIf() {
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = null
+		else a = 'hello';
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hello'
+		else a = null;
+		shouldFail(var s:String = a);
+
+		var a:Null<String> = null;
+		if(a == null) a = 'hi';
+		var s:String = a;
+
+		var a:Null<String> = null;
+		if(Math.random() > 0.5) a = 'hi'
+		else a = 'hello';
+		var s:String = a;
+	}
+
+	/**
+	 * @see https://github.com/HaxeFoundation/haxe/pull/10428#issuecomment-951574457
+	 */
+	static function issue10428() {
+		final arr:Array<Int> = [
+			{
+				var tmp = (1 : Null<Int>);
+				if (tmp != null) tmp else 2;
+			}
+		];
+	}
+
+	static function issue9588_DynamicIsNullable_AnyIsNotNullable(?a:String) {
+		function dyn(v:Dynamic):Dynamic
+			return v;
+		var d:Dynamic = dyn(a);
+		// TODO: decide if 'dynamic to non-nullable' should fail since we allow 'nullable to dynamic now'.
+		//shouldFail(var s:String = d);
+
+		function any(v:Any):Any
+			return v;
+		shouldFail(any(a));
+		var s:String = any('');
+	}
+
+	static function issue10272_nullableConcatString_shouldPass(msg:Null<Dynamic>) {
+		trace("Message: " + msg);
+	}
+
+	static function inlineUnsafeCall_shouldPass(msg:Null<Dynamic>) {
+		final v = UnsafeFields.unsafeCall();
+		final obj = new haxe.DynamicAccess<String>();
+		for (v in obj) obj["foo"] = v;
+		for (i => v in obj) obj["foo"] = v;
+	}
+
+	public static function overloadNullableArgs_shouldPass(cmd:String, ?args:Array<String>):Int {
+		if (args == null)
+			return spawnSome(cmd, {shell: true, stdio: "inherit"}).status;
+		else
+			return spawnSome(cmd, args, {stdio: "inherit"}).status;
+	}
+
+	@:overload(function(command:String, args:Array<String>, ?options:{}):{status:Int} {})
+	static function spawnSome(command:String, ?options:{}):{status:Int} return {status: 0};
+}
+
+private class AnonFields {
+	var nullableStr:Null<String> = "";
+
+	final anon:AnonDefaultNever = {
+		name: "",
+		version: shouldFail(null)
+	};
+	final anon2:{name:String, version:String} = {
+		name: "",
+		version: shouldFail(null)
+	};
+
+	function reportNullableFieldValues():Null<AnonDefaultNever> {
+		final nullStr:Null<String> = null;
+		final object:{field:String} = {field: shouldFail(null)};
+		final object:{field:String} = {field: shouldFail(nullStr)};
+		final object:{field:String} = {field: shouldFail(nullableStr)};
+		final obj:AnonDefaultNever = {
+			name: "name",
+			version: shouldFail(null),
+		}
+		return {name: "foo", version: shouldFail(null)};
+	}
 }
 
 private class FinalNullableFields {
@@ -918,9 +1136,9 @@ typedef Recursive<T1> = {
 }
 
 // @see https://github.com/HaxeFoundation/haxe/issues/7733
-// class RecClass<T1> {
-// 	public function rec<T2>(a:Recursive<T1>):Recursive<T2> return a;
-// }
+class RecClass<T1> {
+	public function rec<T2>(a:Recursive<T1>):Recursive<T2> return a;
+}
 
 private class Parent {
 	public function new() {}
@@ -941,5 +1159,203 @@ abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
 
 	@:op(A + B) static inline function addOp1(lhs: NullFloat, rhs: Float): Float {
 		return lhs != null ? lhs.val() + rhs : rhs;
+	}
+}
+
+class BinopFlow {
+	function ifAndTrue_shoudPass(?a:Int):Void {
+		if (a == null) return;
+		if (a == 2 && true) {}
+		a++;
+	}
+
+	function ifOrTrue_shoudPass(?a:Int):Void {
+		if (a == null) return;
+		if (a == null || true) {}
+		a++;
+	}
+
+	function ifWithBlock_after_return_shouldPass(?a:Int):Void {
+		var safe = 0;
+		if (a == null) return;
+		if (a == 2 && {safe = a;true;}) {
+			safe = a;
+			return;
+		}
+		a++;
+	}
+
+	function ifWithNullableAssign_shouldFail(?a:Int):Void {
+		var safe = 0;
+		if (a == 2 || {shouldFail(safe = a);true;}) {}
+		if (a != 2 && {shouldFail(safe = a);true;}) {}
+		if (a == 2 && {safe = a;true;}) {}
+		shouldFail(safe = a);
+	}
+
+	function ifNonNullableCondition_shouldPass(?a:Int, ?b:Int):Void {
+		if (a != null && (b != null && true)) {
+			var sum:Int = a + b;
+		}
+
+		if (a != null && (b != null && a + b > 0)) {
+			final sum:Int = a + b;
+		}
+
+		if (a == null || (b != null && a + b > 0)) {}
+	}
+
+	function ifOrCondition_shouldFail(?a:Int, ?b:Int):Void {
+		if (a != null || (b != null && shouldFail(a + b) > 0)) {
+			final sum:Int = shouldFail(a + b);
+		}
+	}
+
+	function ifBlockNonNullableAssign_shouldPass(?a:Int, ?b:Int):Void {
+		var safe = 1;
+		if (a == null) {}
+		else safe = a;
+		if (a != null && ({safe = a; true;})) {
+			var sum:Int = a;
+		}
+	}
+
+	function ifBlockNullableAssign_shouldFail(?a:Int):Void {
+		if (a == null) return;
+		if (a == 2 && { a = null; false; }) return;
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifFirstBlockNullableAssign_shouldFail(?a:Int):Void {
+		if (a == null) return;
+		if (({ a = null; false; }) && false) return;
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifBlockNullableCall_shouldFail(?a:Int):Void {
+		inline function setNull():Void {
+			a = null;
+		}
+		if (a == null && { setNull(); false; }) return;
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifMutableFunction_with_return_shouldFail(?a:Int):Void {
+		function setNull():Void {
+			a = null;
+		}
+		if (a == null) return;
+		// fails in Strict
+		shouldFail(var safe:Int = a);
+	}
+
+	function ifBlockInlineNullableCall_with_return_shouldPass(?a:Int):Void {
+		inline function setNull():Void {
+			a = null;
+		}
+		if (a == null && { setNull(); false; }) return;
+		if (a == null) return;
+		var safe:Int = a;
+	}
+
+	function ifMultipleAssigns_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
+		if (c == null || d == null) return;
+		if (a == 2 || ({ a = 1; b = 1; c = null; d = null; false; })) return;
+		// `a` cannot be null here, but this is hard quest
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+	}
+
+	function ifMultipleAssigns2_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
+		if (c == null || d == null) return;
+		if (a == 2 && ({ a = 1; b = 1; c = null; d = null; false; })) return;
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+		if (a == 2 || ({ a = 1; b = 1; c = null; d = null; false; })) return;
+		shouldFail(var safe:Int = a);
+		shouldFail(var safe:Int = b);
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+	}
+
+	function ifMultipleAssigns3_shouldFail(?a:Int, ?b:Int, ?c:Int, ?d:Int):Void {
+		if (c == null || d == null) return;
+		if (({ a = 1; b = 1; c = null; d = null; false; }) && a == 2) return;
+		var safe:Int = a;
+		var safe:Int = b;
+		shouldFail(var safe:Int = c);
+		shouldFail(var safe:Int = d);
+	}
+
+	function nullable_ifAndTrue_shouldPass(?a:Int) {
+		while (a != null) {
+			a++;
+		}
+		if (a == null) return;
+		if (a == 2 && true) return;
+		while (a == 3) {}
+		a++;
+		while ({a = null; shouldFail(a++); false;}) {}
+		shouldFail(a++);
+	}
+
+	function nullableVar_after_while_shouldFail(?a:Int):Void {
+		if (a == null) return;
+		while (a != null) {
+			a = null;
+			break;
+		}
+		shouldFail(a++);
+	}
+
+	function if_nullableString_shouldFail(?s:String):Void {
+		if (true && s != null && true) {
+			s.length;
+		} else {
+			shouldFail(s.length);
+			if (s == null) return;
+			s.length;
+		}
+	}
+
+	function if_else_nullableVars_shouldFail(?a:Int) {
+		var b:Null<Int> = 1;
+		if (a != null && true) {
+			a++;
+			b++;
+		} else {
+			shouldFail(a++);
+			b++;
+		}
+		shouldFail(a++);
+		b++;
+	}
+
+	function if_assignNullable_shouldFail(?a:Int, ?b:Int):Void {
+		if (a != null && true) {
+			a++;
+		}
+		if (a != null && true && {a = b; true;}) {
+			shouldFail(a++);
+		}
+		if (a != null && {a = null; true;}) {
+			shouldFail(a++);
+		}
+		if (a != null && {a = b; true;}) {
+			shouldFail(a++);
+		}
+		if (a != null && {shouldFail(a += b); true;}) {
+			a++;
+		}
+	}
+
+	function if_orAssignBlock_shouldFail(?a:Int, ?b:Int):Void {
+		var safe = 1;
+		if (a == null || {safe = a; true;}) {}
+		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
 }

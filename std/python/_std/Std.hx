@@ -31,7 +31,7 @@ import python.Syntax;
 @:keepInit
 @:coreApi class Std {
 	@:access(python.Boot)
-	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		try {
 			return UBuiltins.isinstance(value, c) || (Inspect.isInterface(c) && Boot.implementsInterface(value, c)) ? cast value : null;
 		} catch (e:Dynamic) {
@@ -40,7 +40,7 @@ import python.Syntax;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 
@@ -49,9 +49,15 @@ import python.Syntax;
 		return Boot.isMetaType(v, t);
 	}
 
+	@:ifFeature("typed_cast")
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
 	@:access(python.Boot)
 	@:ifFeature("typed_cast")
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		if (v == null && t == null) {
 			return false;
 		}
@@ -124,33 +130,74 @@ import python.Syntax;
 		}
 	}
 
+	static inline function isSpaceChar(char:String):Bool
+		return Syntax.isIn(char, " \n\r\t\x0b\x0c");
+
+	static inline function isHexPrefix(cur:String, next:String):Bool
+		return cur == '0' && (next == 'x' || next == 'X');
+
+	static inline function isDecimalDigit(char:String):Bool
+		return Syntax.isIn(char, "0123456789");
+
+	static inline function isHexadecimalDigit(char:String):Bool
+		return Syntax.isIn(char, "0123456789abcdefABCDEF");
+
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
-		try {
-			return UBuiltins.int(x);
-		} catch (e:Dynamic) {
-			try {
-				var prefix = x.substr(0, 2).toLowerCase();
 
-				if (prefix == "0x") {
-					return UBuiltins.int(x, 16);
-				}
-				throw "fail";
-			} catch (e:Dynamic) {
-				var r = int(parseFloat(x));
+		final len = x.length;
+		var index = 0;
 
-				if (r == null) {
-					var r1 = shortenPossibleNumber(x);
-					if (r1 != x) {
-						return parseInt(r1);
-					} else {
-						return null;
-					}
-				}
-				return r;
-			}
+		inline function hasIndex(index:Int)
+			return index < len;
+
+		// skip whitespace
+		while (hasIndex(index)) {
+			if (!isSpaceChar(Syntax.arrayAccess(x, index)))
+				break;
+			++index;
 		}
+
+		// handle sign
+		final isNegative = hasIndex(index) && {
+			final sign = Syntax.arrayAccess(x, index);
+			if (sign == '-' || sign == '+') {
+				++index;
+			}
+			sign == '-';
+		}
+
+		// handle base
+		final isHexadecimal = hasIndex(index + 1) && isHexPrefix(Syntax.arrayAccess(x, index), Syntax.arrayAccess(x, index + 1));
+		if (isHexadecimal)
+			index += 2; // skip prefix
+
+		// handle digits
+		final firstInvalidIndex = {
+			var cur = index;
+			if (isHexadecimal) {
+				while (hasIndex(cur)) {
+					if (!isHexadecimalDigit(Syntax.arrayAccess(x, cur)))
+						break;
+					++cur;
+				}
+			} else {
+				while (hasIndex(cur)) {
+					if (!isDecimalDigit(Syntax.arrayAccess(x, cur)))
+						break;
+					++cur;
+				}
+			}
+			cur;
+		}
+
+		// no valid digits
+		if (index == firstInvalidIndex)
+			return null;
+
+		final result = python.internal.UBuiltins.int(x.substring(index, firstInvalidIndex), if (isHexadecimal) 16 else 10);
+		return if (isNegative) -result else result;
 	}
 
 	static function shortenPossibleNumber(x:String):String {

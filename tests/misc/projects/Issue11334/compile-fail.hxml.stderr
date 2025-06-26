@@ -1,0 +1,2 @@
+Main.hx:11: characters 4-5 : { d : Int, c : Int, b : () -> Void, a : () -> Void } has extra field d
+Main.hx:7: characters 4-5 : { d : Int, c : Int, b : () -> Void, a : () -> Void } has extra field b

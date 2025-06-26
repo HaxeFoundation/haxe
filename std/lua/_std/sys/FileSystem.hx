@@ -23,9 +23,6 @@
 package sys;
 
 import lua.Io;
-import lua.Os;
-import lua.Lib;
-import lua.Table;
 import haxe.io.Path;
 import lua.lib.luv.fs.FileSystem as LFileSystem;
 
@@ -40,7 +37,7 @@ class FileSystem {
 	}
 
 	public inline static function rename(path:String, newPath:String):Void {
-		var ret = Os.rename(path, newPath);
+		var ret = lua.Os.rename(path, newPath);
 		if (!ret.success) {
 			throw ret.message;
 		}

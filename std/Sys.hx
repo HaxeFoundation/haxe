@@ -43,8 +43,6 @@ extern class Sys {
 		This does not include the interpreter or the name of the program file.
 
 		(java)(eval) On Windows, non-ASCII Unicode arguments will not work correctly.
-
-		(cs) Non-ASCII Unicode arguments will not work correctly.
 	**/
 	static function args():Array<String>;
 
@@ -52,17 +50,29 @@ extern class Sys {
 		Returns the value of the given environment variable, or `null` if it
 		doesn't exist.
 	**/
-	static function getEnv(s:String):String;
+	static function getEnv(s:String):Null<String>;
 
 	/**
 		Sets the value of the given environment variable.
 
+		If `v` is `null`, the environment variable is removed.
+
 		(java) This functionality is not available on Java; calling this function will throw.
 	**/
-	static function putEnv(s:String, v:String):Void;
+	static function putEnv(s:String, v:Null<String>):Void;
 
 	/**
-		Returns all environment variables.
+		Returns a map of the current environment variables and their values
+		as of the invocation of the function.
+
+		(python) On Windows, the variable names are always in upper case.
+
+		(cpp)(hl)(neko) On Windows, the variable names match the last capitalization used when modifying
+		the variable if the variable has been modified, otherwise they match their capitalization at
+		the start of the process.
+
+		On Windows on remaining targets, variable name capitalization matches however they were capitalized
+		at the start of the process or at the moment of their creation.
 	**/
 	static function environment():Map<String, String>;
 
@@ -72,7 +82,7 @@ extern class Sys {
 	static function sleep(seconds:Float):Void;
 
 	/**
-		Changes the current time locale, which will affect `DateTools.format` date formating.
+		Changes the current time locale, which will affect `DateTools.format` date formatting.
 		Returns `true` if the locale was successfully changed.
 	**/
 	static function setTimeLocale(loc:String):Bool;
@@ -129,8 +139,10 @@ extern class Sys {
 	static function time():Float;
 
 	/**
-		Gives the most precise timestamp value available (in seconds),
-		but only accounts for the actual time spent running on the CPU for the current thread/process.
+    		Returns CPU time consumed by the current process or thread, measured in seconds.
+		This value only includes the actual time the CPU has actively spent executing 
+		instructions for the process/thread and excludes idle or sleep time. The precision 
+		and behavior may vary depending on the platform and underlying implementation.
 	**/
 	static function cpuTime():Float;
 

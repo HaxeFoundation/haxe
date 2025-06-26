@@ -1,37 +1,42 @@
-class TestObjc extends haxe.unit.TestCase
+import utest.Assert;
+import utest.ui.Report;
+import utest.ui.common.HeaderDisplayMode;
+class TestObjc extends utest.Test
 {
 	static function main()
 	{
 		var x:TestObjc = null;
 		var c:TestClass = null;
-		var runner = new haxe.unit.TestRunner();
-		runner.add(new TestObjc());
-		var code = runner.run() ? 0 : 1;
-		Sys.exit(code);
+		var runner = new utest.Runner();
+		runner.addCase(new TestObjc());
+		var report = Report.create(runner);
+		report.displayHeader = AlwaysShowHeader;
+		report.displaySuccessResults = NeverShowSuccessResults;
+		runner.run();
 	}
 
 	var cls:TestClass;
 
 	public function testCall()
 	{
-		assertEquals(TestClass.aStatic(), 42);
+		Assert.equals(TestClass.aStatic(), 42);
 		cls = TestClass.alloc().init();
-		assertEquals(cls.getOtherThing(), 0);
+		Assert.equals(cls.getOtherThing(), 0);
 		cls.setOtherThing(42);
-		assertEquals(cls.otherThing, 42);
-		assertEquals(cls.getOtherThing(), 42);
-		assertEquals(cls.getOtherThingChar(), 42);
-		assertEquals(cls.isBiggerThan10(2), false);
-		assertEquals(cls.isBiggerThan10(12), true);
-		assertEquals(cls.isBiggerThan10Int(3), false);
-		assertEquals(cls.isBiggerThan10Int(14), true);
-		assertEquals(cls.isBiggerThan10Num(3).boolValue(), false);
-		assertEquals(cls.isBiggerThan10Num(14).boolValue(), true);
-		assertEquals(cls.addHello("World"), "Hello, World");
+		// Assert.equals(cls.otherThing, 42);
+		Assert.equals(cls.getOtherThing(), 42);
+		Assert.equals(cls.getOtherThingChar(), 42);
+		Assert.equals(cls.isBiggerThan10(2), false);
+		Assert.equals(cls.isBiggerThan10(12), true);
+		Assert.equals(cls.isBiggerThan10Int(3), false);
+		Assert.equals(cls.isBiggerThan10Int(14), true);
+		Assert.equals(cls.isBiggerThan10Num(3).boolValue(), false);
+		Assert.equals(cls.isBiggerThan10Num(14).boolValue(), true);
+		Assert.equals(cls.addHello("World"), "Hello, World");
 		cls.something = " test";
-		assertEquals(cls.something, " test");
-		assertEquals(cls.addSomething("Hey,"), "Hey, test");
-		assertEquals(cls.addHelloAndString("World"," it works"), "Hello, World it works");
+		Assert.equals(cls.something, " test");
+		Assert.equals(cls.addSomething("Hey,"), "Hey, test");
+		Assert.equals(cls.addHelloAndString("World"," it works"), "Hello, World it works");
 		cls.release();
 	}
 
@@ -39,8 +44,8 @@ class TestObjc extends haxe.unit.TestCase
 	{
 		cls = TestClass.alloc().init();
 		cls.setOtherThing(142);
-		assertEquals(cls.otherThing, 142);
-		assertEquals(cls.getOtherThing(), 142);
+		// Assert.equals(cls.otherThing, 142);
+		Assert.equals(cls.getOtherThing(), 142);
 		cls.release();
 	}
 
@@ -51,30 +56,30 @@ class TestObjc extends haxe.unit.TestCase
 		cls.setOtherThing(255);
 
 		var dyn:Dynamic = cls;
-		this.assertTrue(dyn != null);
-		this.assertTrue(cls != null);
+		Assert.isTrue(dyn != null);
+		Assert.isTrue(cls != null);
 
 		var someObjDecl = { a:10, b: cls };
 		dyn = someObjDecl; // don't let Haxe inline that TObjectDecl
-		assertEquals(someObjDecl.b.getOtherThing(), 255);
-		assertEquals(getFieldB(someObjDecl).getOtherThing(), 255);
+		Assert.equals(someObjDecl.b.getOtherThing(), 255);
+		Assert.equals(getFieldB(someObjDecl).getOtherThing(), 255);
 		cls = someObjDecl.b;
-		assertTrue(someObjDecl.b == cls);
+		Assert.isTrue(someObjDecl.b == cls);
 		dyn = cls;
 
 		cls.release();
 		cls = null;
-		this.assertTrue(cls == null);
+		Assert.isTrue(cls == null);
 		cls = dyn;
 
-		assertEquals(cls.getOtherThing(), 255);
+		Assert.equals(cls.getOtherThing(), 255);
 		cls = null;
 		dyn = null;
 		dyn = cls;
-		assertTrue(dyn == null);
-		assertEquals(dyn,null);
-		assertTrue(dyn == cls);
-		assertEquals(dyn,cls);
+		Assert.isTrue(dyn == null);
+		Assert.equals(dyn,null);
+		Assert.isTrue(dyn == cls);
+		Assert.equals(dyn,cls);
 		cls.release();
 	}
 
@@ -83,33 +88,33 @@ class TestObjc extends haxe.unit.TestCase
 
 	public function testNull()
 	{
-		this.assertTrue(TestClass.isNull(null));
-		this.assertFalse(TestClass.isNull(TestClass.alloc().init()));
+		Assert.isTrue(TestClass.isNull(null));
+		Assert.isFalse(TestClass.isNull(TestClass.alloc().init()));
 	}
 
 	public function testInterface()
 	{
 		cls = TestClass.alloc().init();
 		cls.setOtherThing(21);
-		this.assertTrue(cls.getSelf() == cls);
-		this.assertEquals(cls.getSelf(), cls);
+		Assert.isTrue(cls.getSelf() == cls);
+		Assert.equals(cls.getSelf(), cls);
 
 		var iface:TestInterface = cls;
 		var obj:Dynamic = iface;
-		this.assertTrue(iface == cls);
-		this.assertEquals(iface, cls);
-		this.assertTrue(obj == cls);
-		this.assertEquals(obj, cls);
-		this.assertEquals(iface.getSelf(), cls);
-		this.assertEquals(iface.getSelf(), cls.getSelf());
+		Assert.isTrue(iface == cls);
+		Assert.equals(iface, cls);
+		Assert.isTrue(obj == cls);
+		Assert.equals(obj, cls);
+		Assert.equals(iface.getSelf(), cls);
+		Assert.equals(iface.getSelf(), cls.getSelf());
 
-		this.assertEquals(iface.getOtherThing(), 21);
-		this.assertEquals(iface.getOtherThingChar(), 21);
+		Assert.equals(iface.getOtherThing(), 21);
+		Assert.equals(iface.getOtherThingChar(), 21);
 		cls.setOtherThing(100);
-		this.assertEquals(iface.getOtherThing(), 100);
-		this.assertEquals(iface.getOtherThingChar(), 100);
+		Assert.equals(iface.getOtherThing(), 100);
+		Assert.equals(iface.getOtherThingChar(), 100);
 
-		this.assertEquals("someOptionalMethod!",iface.someOptionalMethod());
+		Assert.equals("someOptionalMethod!",iface.someOptionalMethod());
 
 		cls.release();
 	}

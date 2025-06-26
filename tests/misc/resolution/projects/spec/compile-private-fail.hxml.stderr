@@ -1,0 +1,2 @@
+PrivateImport.hx:1: characters 8-24 : Importing private declarations from a module is not allowed
+PrivateImport.hx:5: characters 9-10 : Unknown identifier : A

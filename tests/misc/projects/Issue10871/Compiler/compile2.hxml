@@ -1,0 +1,5 @@
+--main Main
+--macro Main.MacroClass.start()
+--js Output.js
+--no-output
+--debug

@@ -1,0 +1,3 @@
+-main Main
+-js bin/test.js
+--cmd node bin/test.js

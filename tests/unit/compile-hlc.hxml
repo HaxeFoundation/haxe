@@ -1,0 +1,7 @@
+compile-each.hxml
+--main unit.TestMain
+-hl bin/hlc/unit.c
+#-D interp
+-D hl-check
+-D hl-ver=1.16.0
+-D hlgen.makefile=ci

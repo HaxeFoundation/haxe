@@ -22,22 +22,20 @@
 
 package cpp;
 
-import haxe.extern.Rest;
-
 @:include("stdio.h")
 extern class Stdio {
 	@:native("printf")
-	public static function printf(format:ConstCharStar, rest:Rest<VarArg>):Void;
+	static function printf(format:ConstCharStar, rest:Rest<VarArg>):Void;
 
 	@:native("fopen")
-	public static function fopen(filename:ConstCharStar, mode:ConstCharStar):FILE;
+	static function fopen(filename:ConstCharStar, mode:ConstCharStar):FILE;
 
 	@:native("fwrite")
-	public static function fwrite<T>(data:RawPointer<T>, elemSize:SizeT, elemCount:SizeT, file:FILE):SizeT;
+	static function fwrite<T>(data:RawPointer<T>, elemSize:SizeT, elemCount:SizeT, file:FILE):SizeT;
 
 	@:native("fclose")
-	public static function fclose(file:FILE):Int;
+	static function fclose(file:FILE):Int;
 
 	@:native("fprintf")
-	public static function fprintf(file:FILE, format:ConstCharStar, rest:Rest<VarArg>):Void;
+	static function fprintf(file:FILE, format:ConstCharStar, rest:Rest<VarArg>):Void;
 }

@@ -1,8 +1,9 @@
 package unit.issues;
 
 @:callable
-abstract Example(Void->String) {
+abstract Example(()->String) {
 	public function new() {
+		this = null;
 		this = fun;
 	}
 

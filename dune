@@ -1,0 +1,2 @@
+(dirs src libs)
+(data_only_dirs src-json)

@@ -32,7 +32,7 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean")
@@ -45,7 +45,7 @@ enum ValueType {
 			return c;
 		}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if (cname == "null" || cname.substr(0, 8) == "builtin.")
@@ -59,7 +59,7 @@ enum ValueType {
 			return c;
 		}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>
 		untyped {
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if (cname == null || cname == "Object")
@@ -78,26 +78,21 @@ enum ValueType {
 				return "Float";
 			case "Boolean":
 				return "Bool";
-			#if as3
-			case "Object":
-				return "Dynamic";
-			#end
-			default:
+			case _:
+				var idx = str.lastIndexOf("::");
+				if (idx == -1) {
+					return str;
+				} else {
+					return str.substring(0, idx) + "." + str.substring(idx + 2);
+				}
 		}
-		var parts = str.split("::");
-		#if as3
-		if (parts[parts.length - 1] == "_Object") {
-			parts[parts.length - 1] = "Object";
-		}
-		#end
-		return parts.join(".");
 	}
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			var cl:Class<Dynamic>;
 			try {
@@ -111,10 +106,6 @@ enum ValueType {
 						return Int;
 					case "Float":
 						return Float;
-					#if as3
-					case "Dynamic":
-						return Dynamic;
-					#end
 				}
 				return null;
 			}
@@ -124,7 +115,7 @@ enum ValueType {
 			return cl;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			var e:Dynamic;
 			try {

@@ -320,6 +320,6 @@ abstract ExposingAbstract<S>(Array<S>) {
 #end
 
 enum abstract GADTEnumAbstract<T:haxe.Constraints.Function>(Int) {
-	var A:GADTEnumAbstract<Void->Void> = 1;
+	var A:GADTEnumAbstract<()->Void> = 1;
 	var B:GADTEnumAbstract<Int->Void> = 2;
 }

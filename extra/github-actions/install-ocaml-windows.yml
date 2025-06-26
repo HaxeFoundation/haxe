@@ -1,0 +1,16 @@
+- name: Setup ocaml
+# Lock to 3.2.19 to work around an issue with 32-bit libraries getting installed
+  uses: ocaml/setup-ocaml@3d85bf33a66e089149cd1e9c75da7b9cb6d9d3a7
+  with:
+    ocaml-compiler: ${{ env.OCAML_VERSION }}
+    opam-local-packages: |
+      haxe.opam
+
+- name: Install dependencies
+  shell: pwsh
+  env:
+    MBEDTLS_VERSION: 2.16.3
+  run: |
+    curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
+      https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
+    ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz

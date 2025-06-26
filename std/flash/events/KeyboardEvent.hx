@@ -7,7 +7,7 @@ extern class KeyboardEvent extends Event {
 	@:flash.property var keyCode(get,set) : UInt;
 	@:flash.property var keyLocation(get,set) : flash.ui.KeyLocation;
 	@:flash.property var shiftKey(get,set) : Bool;
-	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, charCodeValue : UInt = 0, keyCodeValue : UInt = 0, keyLocationValue : flash.ui.KeyLocation = 0, ctrlKeyValue : Bool = false, altKeyValue : Bool = false, shiftKeyValue : Bool = false) : Void;
+	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, charCodeValue : UInt = 0, keyCodeValue : UInt = 0, keyLocationValue : flash.ui.KeyLocation = flash.ui.KeyLocation.D_PAD, ctrlKeyValue : Bool = false, altKeyValue : Bool = false, shiftKeyValue : Bool = false) : Void;
 	private function get_altKey() : Bool;
 	private function get_charCode() : UInt;
 	private function get_ctrlKey() : Bool;

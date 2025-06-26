@@ -1,0 +1,2 @@
+Main.hx:3: characters 17-20 : Abstract<Foo> should be Enum<Unknown<0>>
+Main.hx:3: characters 17-20 : ... For function argument 'e'

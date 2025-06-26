@@ -1,0 +1,17 @@
+[
+  {
+    "metadata": ":foo",
+    "doc": "Some documentation for the @:foo metadata for cpp platform",
+    "platforms": ["cpp"]
+  },
+  {
+    "metadata": ":bar",
+    "doc": "Some documentation for the TClass metadata '@:bar'",
+    "targets": ["TClass"]
+  },
+  {
+    "metadata": ":foobar",
+    "doc": "Some documentation for @:foobar",
+    "platforms": ["cpp"]
+  }
+]

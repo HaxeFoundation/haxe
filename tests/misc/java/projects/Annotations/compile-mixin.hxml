@@ -1,0 +1,3 @@
+--main MainMixin
+--jvm mixin.jar
+--cmd java -jar mixin.jar

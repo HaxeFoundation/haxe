@@ -85,7 +85,7 @@ let write_opcode ch code =
     wr (Int32.logand (Int32.shift_right_logical i32 8) i320xFF);
     wr (Int32.logand i32 i320xFF);
   in
-  let rec loop code = match code with
+  match code with
     (* double *)
     | OpD2f -> w 0x90
     | OpD2i -> w 0x8e
@@ -302,7 +302,7 @@ let write_opcode ch code =
     | OpIinc(i,c) -> w 0x84; w i; w c (* TODO: signed? *)
     | OpLookupswitch(pad,def,pairs) ->
 		w 0xab;
-		if pad > 0 then for i = 0 to pad -1 do w 0 done;
+		if pad > 0 then for _ = 0 to pad -1 do w 0 done;
 		b4 !def;
 		b4 (Array.length pairs);
 		Array.iter (fun (i,offset) ->
@@ -311,7 +311,7 @@ let write_opcode ch code =
 		) pairs;
     | OpTableswitch(pad,def,low,high,offsets) ->
 		w 0xaa;
-		if pad > 0 then for i = 0 to pad -1 do w 0 done;
+		if pad > 0 then for _ = 0 to pad -1 do w 0 done;
 		b4 !def;
 		b4r low;
 		b4r high;
@@ -337,5 +337,3 @@ let write_opcode ch code =
 			| OpWLstore i -> w 0x37; bp i
 			| OpWDstore i -> w 0x39; bp i
 		end
-  in
-  loop code

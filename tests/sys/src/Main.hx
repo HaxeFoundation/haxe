@@ -10,17 +10,10 @@ class Main {
 		runner.addCase(new TestFileSystem());
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
+		#if !js
 		runner.addCase(new io.TestProcess());
-		#if php
-		switch (Sys.systemName()) {
-			case "Windows":
-				// pass
-			case _:
-				runner.addCase(new net.TestSocket());
-		}
-		#else
-			runner.addCase(new net.TestSocket());
 		#end
+		runner.addCase(new net.TestSocket());
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;

@@ -1,0 +1,12 @@
+AnnotationLib
+--jvm annotationLib.jar
+
+--next
+
+--main Main
+-lib format
+--jvm jvm.jar
+
+--next
+
+--cmd java -jar jvm.jar

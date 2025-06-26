@@ -27,5 +27,6 @@ package haxe.extern;
 	argument expressions are bound to a local variable.
 **/
 @:forward
+@:transitive
 @:semantics(variable)
 abstract AsVar<T>(T) from T to T {}

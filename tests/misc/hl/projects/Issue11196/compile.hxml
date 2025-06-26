@@ -1,0 +1,3 @@
+-m Issue11196
+-hl out/main.hl
+-dce no

@@ -33,7 +33,7 @@ class Certificate {
 	var __x:CertificatePtr;
 
 	@:allow(sys.ssl.Socket)
-	function new(x:CertificatePtr, ?h:Null<Certificate>) {
+	function new(x:CertificatePtr, ?h:Certificate) {
 		__x = x;
 		__h = h;
 	}

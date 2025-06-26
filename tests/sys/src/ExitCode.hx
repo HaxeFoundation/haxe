@@ -12,37 +12,27 @@ class ExitCode {
 	#elseif neko
 		"bin/neko/ExitCode.n";
 	#elseif hl
-		"bin/hl/ExitCode.hl";
+		#if hlc
+			"bin/hlc/exitCode/ExitCode.exe";
+		#else
+			"bin/hl/ExitCode.hl";
+		#end
 	#elseif cpp
 		#if debug
 			"bin/cpp/ExitCode-debug";
 		#else
 			"bin/cpp/ExitCode";
 		#end
-	#elseif cs
-		#if debug
-			"bin/cs/bin/ExitCode-Debug.exe";
-		#else
-			"bin/cs/bin/ExitCode.exe";
-		#end
-	#elseif (java && jvm)
-		#if debug
-			"bin/jvm/ExitCode-Debug.jar";
-		#else
-			"bin/jvm/ExitCode.jar";
-		#end
-	#elseif java
-		#if debug
-			"bin/java/ExitCode-Debug.jar";
-		#else
-			"bin/java/ExitCode.jar";
-		#end
+	#elseif jvm
+		"bin/jvm/ExitCode.jar";
 	#elseif python
 		"bin/python/ExitCode.py";
 	#elseif php
 		"bin/php/ExitCode/index.php";
 	#elseif lua
 		"bin/lua/ExitCode.lua";
+	#elseif js
+		"bin/js/ExitCode.js";
 	#else
 		null;
 	#end

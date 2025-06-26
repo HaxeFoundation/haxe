@@ -1,0 +1,10 @@
+[ERROR] Foo.hx:2: characters 1-18
+
+ 2 | typedef A = Float;
+   | ^^^^^^^^^^^^^^^^^
+   | Name A is already defined in this module
+
+    1 | typedef A = Int;
+      |         ^
+      | Previous declaration here
+

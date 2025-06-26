@@ -17,7 +17,7 @@ private abstract MyVector<T>(Array<T>) {
 	}
 
 	@:to public function toArray<T>():Array<T> {
-		return this;
+		return cast this;
 	}
 }
 

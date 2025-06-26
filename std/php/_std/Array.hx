@@ -21,11 +21,14 @@
  */
 
 import php.*;
+import php.ArrayIterator as NativeArrayIterator;
+
+import haxe.iterators.ArrayKeyValueIterator;
 
 using php.Global;
 
 @:coreApi
-final class Array<T> implements ArrayAccess<Int, T> {
+final class Array<T> implements ArrayAccess<Int, T> implements IteratorAggregate<T> implements Countable implements JsonSerializable<NativeIndexedArray<T>> {
 	public var length(default, null):Int;
 
 	var arr:NativeIndexedArray<T>;
@@ -51,6 +54,10 @@ final class Array<T> implements ArrayAccess<Int, T> {
 			}
 		}
 		return wrap(result);
+	}
+
+	public inline function contains(x:T):Bool {
+		return indexOf(x) != -1;
 	}
 
 	public function indexOf(x:T, ?fromIndex:Int):Int {
@@ -83,9 +90,14 @@ final class Array<T> implements ArrayAccess<Int, T> {
 		Global.array_splice(arr, pos, 0, Syntax.arrayDecl(x));
 	}
 
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
+	public inline function iterator():haxe.iterators.ArrayIterator<T> {
+		return new haxe.iterators.ArrayIterator(this);
+	}
+
 	@:keep
-	public function iterator():Iterator<T> {
-		return new ArrayIterator(this);
+	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function join(sep:String):String {
@@ -126,14 +138,14 @@ final class Array<T> implements ArrayAccess<Int, T> {
 
 	public function remove(x:T):Bool {
 		var result = false;
-		Syntax.foreach(arr, function(index:Int, value:T) {
-			if (value == x) {
+		for(index in 0...length) {
+			if (arr[index] == x) {
 				Global.array_splice(arr, index, 1);
 				length--;
 				result = true;
-				Syntax.code('break');
+				break;
 			}
-		});
+		}
 		return result;
 	}
 
@@ -194,21 +206,27 @@ final class Array<T> implements ArrayAccess<Int, T> {
 		length = len;
 	}
 
-	@:noCompletion
+	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetExists(offset:Int):Bool {
 		return offset < length;
 	}
 
-	@:noCompletion
+	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetGet(offset:Int):Ref<T> {
-		try {
-			return arr[offset];
-		} catch (e:Dynamic) {
-			return null;
+		if(offset < 0 || offset >= length) {
+			//This var is required in generated php code
+			//because only variables can be returned by reference.
+			final result = null;
+			Syntax.keepVar(result);
+			return result;
 		}
+		return arr[offset];
 	}
 
-	@:noCompletion
+	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetSet(offset:Int, value:T):Void {
 		if (length <= offset) {
 			for(i in length...offset + 1) {
@@ -220,12 +238,32 @@ final class Array<T> implements ArrayAccess<Int, T> {
 		Syntax.code("return {0}", value);
 	}
 
-	@:noCompletion
+	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
 	function offsetUnset(offset:Int):Void {
 		if (offset >= 0 && offset < length) {
 			Global.array_splice(arr, offset, 1);
 			--length;
 		}
+	}
+
+	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
+	private function getIterator():Traversable {
+		return new NativeArrayIterator(arr);
+	}
+
+	@:noCompletion @:keep
+	@:native('count') //to not interfere with `Lambda.count`
+	@:php.attribute('\\ReturnTypeWillChange')
+	private function _hx_count():Int {
+		return length;
+	}
+
+	@:noCompletion @:keep
+	@:php.attribute('\\ReturnTypeWillChange')
+	function jsonSerialize():NativeIndexedArray<T> {
+		return arr;
 	}
 
 	static function wrap<T>(arr:NativeIndexedArray<T>):Array<T> {
@@ -236,35 +274,9 @@ final class Array<T> implements ArrayAccess<Int, T> {
 	}
 }
 
-private class ArrayIterator<T> {
-	var idx:Int;
-	var arr:Array<T>;
-
-	public inline function new(arr:Array<T>) {
-		this.arr = arr;
-		idx = 0;
-	}
-
-	public inline function hasNext():Bool {
-		return idx < arr.length;
-	}
-
-	public inline function next():T {
-		return arr[idx++];
-	}
-
-	@:keep
-	@:phpMagic
-	function __get(method:String) {
-		return switch (method) {
-			case 'hasNext', 'next': Boot.closure(this, method);
-			case _: null;
-		}
-	}
-}
-
 /**
-	This one is required for `Array`
+	Following interfaces are required to make `Array` mimic native arrays for usage
+	from a 3rd party PHP code.
 **/
 @:native('ArrayAccess')
 private extern interface ArrayAccess<K, V> {
@@ -272,4 +284,20 @@ private extern interface ArrayAccess<K, V> {
 	private function offsetGet(offset:K):V;
 	private function offsetSet(offset:K, value:V):Void;
 	private function offsetUnset(offset:K):Void;
+}
+
+@:native('JsonSerializable')
+private extern interface JsonSerializable<T> {
+	private function jsonSerialize():T;
+}
+
+@:native('IteratorAggregate')
+private extern interface IteratorAggregate<T> extends Traversable {
+	private function getIterator():Traversable;
+}
+
+@:native('Countable')
+private extern interface Countable {
+	@:native('count') //to not interfere with `Lambda.count`
+	private function _hx_count():Int;
 }

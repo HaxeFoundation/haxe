@@ -37,21 +37,19 @@
 		o[cast field] = value;
 	}
 
-	public static function getProperty(o:Dynamic, field:String):Dynamic
-		untyped {
-			var tmp;
-			return if (o == null) __define_feature__("Reflect.getProperty",
-				null) else if (o.__properties__ && (tmp = o.__properties__["get_" + field])) o[tmp]() else o[field];
-		}
+	public static function getProperty(o:Dynamic, field:String):Dynamic untyped {
+		var tmp;
+		return if (o == null) __define_feature__("Reflect.getProperty",
+			null) else if (o.__properties__ && (tmp = o.__properties__["get_" + field])) o[tmp]() else o[field];
+	}
 
-	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void
-		untyped {
-			var tmp;
-			if (o.__properties__ && (tmp = o.__properties__["set_" + field]))
-				o[tmp](value)
-			else
-				o[field] = __define_feature__("Reflect.setProperty", value);
-		}
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void untyped {
+		var tmp;
+		if (o.__properties__ && (tmp = o.__properties__["set_" + field]))
+			o[tmp](value)
+		else
+			o[field] = __define_feature__("Reflect.setProperty", value);
+	}
 
 	public inline static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		return (cast func : js.lib.Function).apply(o, args);
@@ -59,14 +57,13 @@
 
 	public static function fields(o:Dynamic):Array<String> {
 		var a = [];
-		if (o != null)
-			untyped {
-				var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
-				__js__("for( var f in o ) {");
-				if (f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f))
-					a.push(f);
-				__js__("}");
-			}
+		if (o != null) untyped {
+			var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
+			js.Syntax.code("for( var f in o ) {");
+			if (f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f))
+				a.push(f);
+			js.Syntax.code("}");
+		}
 		return a;
 	}
 
@@ -79,12 +76,8 @@
 		return (a == b) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
 	}
 
-	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
-		if (f1 == f2)
-			return true;
-		if (!isFunction(f1) || !isFunction(f2))
-			return false;
-		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
+	public static inline function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
+		return f1 == f2;
 	}
 
 	@:access(js.Boot)
@@ -116,10 +109,9 @@
 		return o2;
 	}
 
-	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		return function() {
-			var a = untyped Array.prototype.slice.call(__js__("arguments"));
+			var a = untyped Array.prototype.slice.call(js.Syntax.code("arguments"));
 			return f(a);
 		};
 	}

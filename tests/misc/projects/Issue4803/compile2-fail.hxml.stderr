@@ -1,0 +1,2 @@
+Main2.hx:6: characters 3-20 : Int should be String
+Main2.hx:6: characters 3-20 : ... For function argument 'a'

@@ -152,19 +152,30 @@ class Socket {
 		throw haxe.io.Error.Custom('Error [$code]: $msg');
 	}
 
+
+	/**
+		Since PHP 8 sockets are represented as instances of class \Socket
+
+		TODO:
+			rewrite without `cast` after resolving https://github.com/HaxeFoundation/haxe/issues/9964
+	*/
+	static inline function getSocketId(s:Resource):Int {
+		return PHP_VERSION_ID < 80000 ? Syntax.int(s) : spl_object_id(cast s);
+	}
+
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		var map:Map<Int, Socket> = new Map();
 		inline function addSockets(sockets:Array<Socket>) {
 			if (sockets != null)
 				for (s in sockets)
-					map[Syntax.int(s.__s)] = s;
+					map[getSocketId(s.__s)] = s;
 		}
 		inline function getRaw(sockets:Array<Socket>):Array<Resource> {
 			return sockets == null ? [] : [for (s in sockets) s.__s];
 		}
 		inline function getOriginal(result:Array<Resource>) {
-			return [for (r in result) map[Syntax.int(r)]];
+			return [for (r in result) map[getSocketId(r)]];
 		}
 
 		addSockets(read);

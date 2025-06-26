@@ -1,29 +1,13 @@
-# unittest helpers
-
-# remoting
-compile-remoting.hxml
-
-# exe-runner
---next
-compile-exe-runner.hxml
-
-# java-runner
---next
-compile-java-runner.hxml
-
-
 # targets
 
---next compile-flash9.hxml
+--next compile-flash.hxml
 --next compile-js.hxml
 --next compile-hl.hxml
+--next compile-hlc.hxml
 --next compile-lua.hxml
 --next compile-neko.hxml
 --next compile-php.hxml
---next compile-as3.hxml
 --next compile-cpp.hxml
---next compile-java.hxml
---next compile-cs.hxml
+--next compile-jvm.hxml
 --next compile-python.hxml
 --next compile-macro.hxml
---next compile-cs-unsafe.hxml

@@ -1,1 +1,3 @@
+Main2.hx:4: characters 37-53 : Field access expression expected after @:bypassAccessor metadata
+Main2.hx:4: characters 20-36 : Field access expression expected after @:bypassAccessor metadata
 Main2.hx:4: characters 3-19 : Field access expression expected after @:bypassAccessor metadata

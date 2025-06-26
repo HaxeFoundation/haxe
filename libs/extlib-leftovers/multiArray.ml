@@ -77,7 +77,7 @@ let init len f =
 			len = len;
 			arr = imake 0 0;
 			darr = Some arr;
-		}		
+		}
 	end
 
 let make len e =
@@ -124,7 +124,7 @@ let set d idx v =
 	| None -> iset (iget d.arr (idx lsr nbits)) (idx land mask) v
 	| Some arr -> iset arr idx v
 
-let rec add d v =
+let add d v =
 	(match d.darr with
 	| None ->
 		let asize = ilen d.arr in
@@ -140,7 +140,7 @@ let rec add d v =
 	| Some arr ->
 		if d.len < ilen arr then begin
 			(* set *)
-			iset arr d.len v;			
+			iset arr d.len v;
 		end else if d.len lsl 1 >= Sys.max_array_length then begin
 			(* promote *)
 			let count = (d.len + size) lsr nbits in
@@ -180,7 +180,7 @@ let of_list src =
 	let c = create() in
 	List.iter (add c) src;
 	c
-	
+
 let iter f d = match d.darr with
 	| None ->
 	 	let max = ilen d.arr - 1 in

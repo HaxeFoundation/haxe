@@ -1,21 +1,28 @@
 // Taken from vshaxe... not ideal to copy it here
 
 private enum abstract ModuleSymbolKind(Int) {
-	var MClass = 1;
-	var MInterface = 2;
-	var MEnum = 3;
-	var MTypedef = 4;
-	var MAbstract = 5;
-	var MField = 6;
-	var MProperty = 7;
-	var MMethod = 8;
-	var MConstructor = 9;
-	var MFunction = 10;
-	var MVariable = 11;
+	var Class = 1;
+	var Interface;
+	var Enum;
+	var TypeAlias;
+	var Abstract;
+	var Field;
+	var Property;
+	var Method;
+	var Constructor;
+	var Function;
+	var Variable;
+	var Struct;
+	var EnumAbstract;
+	var Operator;
+	var EnumMember;
+	var Constant;
 }
 
 typedef ModuleSymbolEntry = {
 	var name:String;
 	var kind:ModuleSymbolKind;
+	// var range:Range;
 	var ?containerName:String;
+	var ?isDeprecated:Bool;
 }

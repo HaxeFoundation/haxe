@@ -33,7 +33,7 @@ import haxe.iterators.StringKeyValueIterator;
 		return Global.urldecode(s);
 	}
 
-	public inline static function htmlEscape(s:String, ?quotes:Bool):String {
+	public inline static function htmlEscape(s:String, quotes:Bool = false):String {
 		return Global.htmlspecialchars(s, (quotes ? Const.ENT_QUOTES | Const.ENT_HTML401 : Const.ENT_NOQUOTES));
 	}
 
@@ -121,6 +121,11 @@ import haxe.iterators.StringKeyValueIterator;
 		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
 		if (char == '')
 			return 0;
+		return Boot.unsafeOrd(char);
+	}
+
+	public static function unsafeCodeAt(s:String, index:Int):Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
 		return Boot.unsafeOrd(char);
 	}
 

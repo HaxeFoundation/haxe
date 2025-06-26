@@ -46,7 +46,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		untyped {
 			var ret = h[key];
 			if (ret == tnull) {
-				ret = null;
+				return null;
 			}
 			return ret;
 		}
@@ -100,7 +100,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(i);
@@ -109,7 +109,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 

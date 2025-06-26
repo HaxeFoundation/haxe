@@ -1,0 +1,4 @@
+-python bin/test.py
+-dce full
+--main Main
+--cmd python3 bin/test.py

@@ -50,7 +50,10 @@ private class SocketInput extends haxe.io.Input {
 		__s.handshake();
 		var r = @:privateAccess __s.ssl.recv(buf, pos, len);
 		if (r == -1)
-			throw haxe.io.Error.Blocked;
+			if (@:privateAccess __s.isBlocking)
+				return 0
+			else
+				throw haxe.io.Error.Blocked;
 		else if (r <= 0)
 			throw new haxe.io.Eof();
 		return r;
@@ -85,7 +88,10 @@ private class SocketOutput extends haxe.io.Output {
 		__s.handshake();
 		var r = @:privateAccess __s.ssl.send(buf, pos, len);
 		if (r == -1)
-			throw haxe.io.Error.Blocked;
+			if (@:privateAccess __s.isBlocking)
+				return 0
+			else
+				throw haxe.io.Error.Blocked;
 		else if (r < 0)
 			throw new haxe.io.Eof();
 		return r;
@@ -206,6 +212,8 @@ class Socket extends sys.net.Socket {
 
 	public override function accept():Socket {
 		var c = sys.net.Socket.socket_accept(__s);
+		if(c == null)
+			throw "Blocking";
 		var cssl = new Context(conf);
 		cssl.setSocket(c);
 

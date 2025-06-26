@@ -1,0 +1,6 @@
+hxtest.Init.init()
+[Init] Config correct: true
+[--macro] Target name: hxtest
+no output
+[Generate] Target name: hxtest
+[Generate] Config correct: true

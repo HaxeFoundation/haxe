@@ -22,6 +22,12 @@
 
 package haxe;
 
+import haxe.Int64;
+#if (target.threaded && !cppia)
+import sys.thread.Thread;
+import sys.thread.EventLoop;
+#end
+
 /**
 	The `Timer` class allows you to create asynchronous timers on platforms that
 	support events.
@@ -35,13 +41,18 @@ package haxe;
 
 	It is also possible to extend this class and override its `run()` method in
 	the child class.
+
+	Notice for threaded targets:
+	`Timer` instances require threads they were created in to run with Haxe's event loops.
+	Main thread of a Haxe program always contains an event loop. For other cases use
+	`sys.thread.Thread.createWithEventLoop` and `sys.thread.Thread.runWithEventLoop` methods.
 **/
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
-	#elseif java
-	private var timer:java.util.Timer;
-	private var task:java.util.TimerTask;
+	#elseif (target.threaded && !cppia)
+	var thread:Thread;
+	var eventHandler:EventHandler;
 	#else
 	private var event:MainLoop.MainEvent;
 	#end
@@ -66,9 +77,9 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
-		#elseif java
-		timer = new java.util.Timer();
-		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
+		#elseif (target.threaded && !cppia)
+		thread = Thread.current();
+		eventHandler = thread.events.repeat(() -> this.run(), time_ms);
 		#else
 		var dt = time_ms / 1000;
 		event = MainLoop.add(function() {
@@ -97,12 +108,8 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
-		#elseif java
-		if (timer != null) {
-			timer.cancel();
-			timer = null;
-		}
-		task = null;
+		#elseif (target.threaded && !cppia)
+		thread.events.cancel(eventHandler);
 		#else
 		if (event != null) {
 			event.stop();
@@ -121,7 +128,7 @@ class Timer {
 		var timer = new haxe.Timer(1000); // 1000ms delay
 		timer.run = function() { ... }
 		```
-		
+
 		Once bound, it can still be rebound to different functions until `this`
 		Timer is stopped through a call to `this.stop`.
 	**/
@@ -172,10 +179,13 @@ class Timer {
 	public static inline function stamp():Float {
 		#if flash
 		return flash.Lib.getTimer() / 1000;
-		#elseif (neko || php)
-		return Sys.time();
 		#elseif js
-		return js.lib.Date.now() / 1000;
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] + hrtime[1] / 1e9;
+		#else
+		return @:privateAccess HxOverrides.now() / 1000;
+		#end
 		#elseif cpp
 		return untyped __global__.__time_stamp();
 		#elseif python
@@ -186,20 +196,38 @@ class Timer {
 		return 0;
 		#end
 	}
-}
 
-#if java
-@:nativeGen
-private class TimerTask extends java.util.TimerTask {
-	var timer:Timer;
-
-	public function new(timer:Timer):Void {
-		super();
-		this.timer = timer;
+	/**
+	 * Returns a monotonically increasing timestamp with millisecond resolution.
+	 *
+	 * The precision and epoch of the timer is platform defined.
+	 */
+	public static inline function milliseconds():Int64 {
+		#if flash
+		return flash.Lib.getTimer();
+		#elseif js
+		#if nodejs
+		var hrtime = js.Syntax.code('process.hrtime()'); // [seconds, remaining nanoseconds]
+		return hrtime[0] * 1000 + (hrtime[1] / 1000000i64);
+		#else
+		return Std.int(@:privateAccess HxOverrides.now());
+		#end
+		#elseif cpp
+		return untyped __global__.__time_stamp_ms();
+		#elseif python
+		#if (python_version >= 3.7)
+		return python.lib.Time.perf_counter_ns() / 1000000i64;
+		#else
+		return Std.int(stamp() * 1000);
+		#end
+		#elseif (hl && hl_ver >= version("1.16.0"))
+		return hl.Api.timestampMs();
+		#elseif jvm
+		return java.lang.System.nanoTime() / 1000000i64;
+		#elseif eval
+		return @:privateAccess Sys.timestamp_ms();
+		#else
+		return Int64.mul(Int64.fromFloat(stamp()), 1000);
+		#end
 	}
-
-	@:overload override public function run():Void {
-		timer.run();
-	}
 }
-#end

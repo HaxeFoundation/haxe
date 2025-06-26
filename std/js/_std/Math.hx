@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import js.Syntax.code;
+
 // Can't enable @:coreApi because some fields are now inline getters
 // @:coreApi
 @:keepInit
@@ -27,17 +29,17 @@ extern class Math {
 
 	static var NEGATIVE_INFINITY(get, null):Float;
 	@:pure private static inline function get_NEGATIVE_INFINITY():Float {
-		return -(untyped __js__("Infinity"));
+		return -code("Infinity");
 	}
 
 	static var POSITIVE_INFINITY(get, null):Float;
 	@:pure private static inline function get_POSITIVE_INFINITY():Float {
-		return (untyped __js__("Infinity"));
+		return code("Infinity");
 	}
 
 	static var NaN(get, null):Float;
 	@:pure private static inline function get_NaN():Float {
-		return (untyped __js__("NaN"));
+		return code("NaN");
 	}
 
 	@:pure static function abs(v:Float):Float;
@@ -72,11 +74,11 @@ extern class Math {
 	}
 
 	@:pure static inline function isFinite(f:Float):Bool {
-		return (untyped __js__("isFinite"))(f);
+		return code("isFinite")(f);
 	}
 
 	@:pure static inline function isNaN(f:Float):Bool {
-		return (untyped __js__("isNaN"))(f);
+		return code("isNaN")(f);
 	}
 
 	static function __init__():Void {

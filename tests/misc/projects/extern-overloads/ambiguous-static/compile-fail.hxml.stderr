@@ -1,0 +1,2 @@
+Main.hx:2: characters 2-50 : Another overloaded field of same signature was already declared : f
+Main.hx:3: characters 2-50 : ... The second field is declared here

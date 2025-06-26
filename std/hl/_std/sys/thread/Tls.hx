@@ -25,8 +25,8 @@ package sys.thread;
 #if doc_gen
 @:coreApi
 extern class Tls<T> {
-	public var value(get, set):T;
-	public function new():Void;
+	var value(get, set):T;
+	function new():Void;
 }
 #else
 

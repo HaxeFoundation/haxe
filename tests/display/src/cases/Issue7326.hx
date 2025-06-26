@@ -16,7 +16,6 @@ class Issue7326 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		// sigEq(0, [["v:Int"]], signature(pos(1)));
 		sigEq(0, [["v:Int"]], signature(pos(1)));
 		sigEq(0, [["v:Unknown<0>"]], signature(pos(2)));
 	}

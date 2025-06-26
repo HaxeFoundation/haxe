@@ -31,12 +31,10 @@
 	to work with the actual value, it needs to be explicitly promoted
 	to another type.
 **/
-abstract Any(Dynamic) {
+@:forward.variance
+abstract Any(Dynamic) from Dynamic {
 	@:noCompletion @:to extern inline function __promote<T>():T
 		return this;
-
-	@:noCompletion @:from extern inline static function __cast<T>(value:T):Any
-		return cast value;
 
 	@:noCompletion extern inline function toString():String
 		return Std.string(this);

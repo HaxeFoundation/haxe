@@ -87,7 +87,7 @@ pos.len == 2;
 ~/a/g.replace("bab", "z") == "bzb";
 ~/a/g.replace("baba", "z") == "bzbz";
 
-#if !(hl && interp) // not allowed in local interpreter, still allowed in hl runtime
+#if !(hl && interp) // not allowed in local hl interpreter, still allowed in hl runtime
 // replace + $
 ~/href="(.*?)"/.replace('lead href="foo" trail',"$1") == "lead foo trail";
 //~/href="(.*?)"/.replace('lead href="foo" trail',"$2") == "lead $2 trail";
@@ -116,7 +116,24 @@ new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ 
 
 // #3430
 ~/(\d+)/g.replace("a1234b12","$1") == "a1234b12";
-#if !java
 ~/(\d+)/g.replace("a1234b12","\\$1") == "a\\1234b\\12";
-#end
 ~/(\d+)/g.replace("a1234b12","$$1") == "a$1b$1";
+
+// #10592 - null character
+#if !hl
+#if php
+// There is a bug in php < 8.2, see #10592
+if (php.Global.version_compare(php.Global.phpversion(), "8.2", ">=")) {
+#end
+var containingNull = new EReg("abc\x00def", "");
+f(containingNull.match("abc"));
+t(containingNull.match("abc\x00def"));
+f(containingNull.match("abc\x00fed"));
+var containingNull = ~/abc\x00def/;
+f(containingNull.match("abc"));
+t(containingNull.match("abc\x00def"));
+f(containingNull.match("abc\x00fed"));
+#if php
+}
+#end
+#end

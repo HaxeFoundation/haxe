@@ -39,10 +39,10 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T> {
+	public static function getClass<T>(o:T):Null<Class<T>> {
 		if (Global.is_object(o) && !Boot.isClass(o) && !Boot.isEnumValue(o)) {
 			var cls = Boot.getClass(Global.get_class(cast o));
-			return (cls == Boot.getHxAnon() ? null : cast cls);
+			return (Boot.isAnon(o) ? null : cast cls);
 		} else if (Global.is_string(o)) {
 			return cast String;
 		} else {
@@ -50,16 +50,20 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null)
 			return null;
 		return cast Boot.getClass(Global.get_class(cast o));
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		if (c == null)
 			return null;
-		var parentClass = Global.get_parent_class((cast c).phpClassName);
+		var parentClass = try {
+			Global.get_parent_class((cast c).phpClassName);
+		} catch(e) {
+			return null;
+		}
 		if (!parentClass)
 			return null;
 		return cast Boot.getClass(parentClass);
@@ -75,7 +79,7 @@ enum ValueType {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name == null)
 			return null;
 		switch (name) {
@@ -104,7 +108,7 @@ enum ValueType {
 		return cast hxClass;
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name == null)
 			return null;
 		if (name == 'Bool')
@@ -256,7 +260,7 @@ enum ValueType {
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		if (e == null)
 			return null;
-		return @:privateAccess Array.wrap(untyped e.__hx__list());
+		return @:privateAccess Array.wrap(Syntax.call(e, '__hx__list'));
 	}
 
 	public static function typeof(v:Dynamic):ValueType {
@@ -266,7 +270,7 @@ enum ValueType {
 		if (v.is_object()) {
 			if (Reflect.isFunction(v))
 				return TFunction;
-			if (Std.is(v, StdClass))
+			if (Std.isOfType(v, StdClass))
 				return TObject;
 			if (Boot.isClass(v))
 				return TObject;
@@ -290,36 +294,27 @@ enum ValueType {
 	}
 
 	public static function enumEq<T:EnumValue>(a:T, b:T):Bool {
-		if (a == b)
+		if (Syntax.strictEqual(a, b))
 			return true;
 		if (a == null || b == null)
 			return false;
 
 		try {
-			if (Global.get_class(cast a) != Global.get_class(cast b))
+			if (!Syntax.instanceof(a, (Global.get_class(cast b):String)))
 				return false;
 			if (enumIndex(a) != enumIndex(b))
 				return false;
 
-			var aParams:NativeIndexedArray<Dynamic> = untyped a.params;
-			var bParams:NativeIndexedArray<Dynamic> = untyped b.params;
+			var aParams:NativeIndexedArray<Dynamic> = Boot.castEnumValue(a).params;
+			var bParams:NativeIndexedArray<Dynamic> = Boot.castEnumValue(b).params;
 			for (i in 0...Global.count(aParams)) {
 				// enums
 				if (Boot.isEnumValue(aParams[i])) {
 					if (!enumEq(aParams[i], bParams[i])) {
 						return false;
 					}
-					continue;
-				}
-				// functions
-				if (Reflect.isFunction(aParams[i])) {
-					if (!Reflect.compareMethods(aParams[i], bParams[i])) {
-						return false;
-					}
-					continue;
-				}
 				// everything else
-				if (aParams[i] != bParams[i]) {
+				} else if (!inline Boot.equal(aParams[i], bParams[i])) {
 					return false;
 				}
 			}
@@ -330,16 +325,16 @@ enum ValueType {
 		}
 	}
 
-	public static function enumConstructor(e:EnumValue):String {
-		return untyped e.tag;
+	public inline static function enumConstructor(e:EnumValue):String {
+		return Boot.castEnumValue(e).tag;
 	}
 
 	public inline static function enumParameters(e:EnumValue):Array<Dynamic> {
-		return @:privateAccess Array.wrap(untyped e.params);
+		return @:privateAccess Array.wrap(Boot.castEnumValue(e).params);
 	}
 
 	public inline static function enumIndex(e:EnumValue):Int {
-		return untyped e.index;
+		return Boot.castEnumValue(e).index;
 	}
 
 	public static function allEnums<T>(e:Enum<T>):Array<T> {

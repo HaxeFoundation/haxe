@@ -218,7 +218,8 @@ extern class Float32Array implements ArrayBufferView implements ArrayAccess<Floa
 	@:overload(function(array:Uint32Array, ?offset:Int):Void {})
 	@:overload(function(array:Float32Array, ?offset:Int):Void {})
 	@:overload(function(array:Float64Array, ?offset:Int):Void {})
-	function set(array:Array<Int>, ?offset:Int):Void;
+	@:overload(function(array:Array<Int>, ?offset:Int):Void {})
+	function set(array:Array<Float>, ?offset:Int):Void;
 
 	/**
 		Extracts a section of an array and returns a new array.

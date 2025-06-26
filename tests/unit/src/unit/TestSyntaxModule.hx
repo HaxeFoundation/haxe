@@ -16,7 +16,9 @@ class TestSyntaxModule extends Test {
 		var result = Syntax.code('{0} + {1}', i1, i2);
 		eq(i1 + i2, result);
 	}
+#end
 
+#if (php || js || python)
 	function testField() {
 		var o = {field:'hello'};
 		var value = Syntax.field(o, 'field');
@@ -39,14 +41,21 @@ class TestSyntaxModule extends Test {
 			#elseif python "unit__TestSyntaxModule_Construct";
 			#end
 		var a:Construct = Syntax.construct(className, 10);
-		t(Std.is(a, Construct));
+		t(Std.isOfType(a, Construct));
 		eq(10, a.value);
 
 		var b = Syntax.construct(Construct, 10);
-		t(Std.is(b, Construct));
+		t(Std.isOfType(b, Construct));
 		eq(10, b.value);
 	}
 	#end
+#end
+
+#if js
+	function testPlainCode() {
+		var s = Syntax.plainCode('"{0}"');
+		eq('{0}', s);
+	}
 #end
 }
 

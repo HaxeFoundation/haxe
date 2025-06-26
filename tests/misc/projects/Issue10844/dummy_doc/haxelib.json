@@ -1,0 +1,16 @@
+{
+	"name": "dummy_doc",
+	"url" : "http://example.org",
+	"license": "GPL",
+	"description": "This is a dummy lib for test purposes",
+	"version": "1.0.0",
+	"releasenote": "Initial release, everything is working correctly",
+	"documentation": {
+		"metadata": "doc/meta.json",
+		"defines": "doc/define.json"
+	},
+	"contributors": ["haxe"],
+	"dependencies": {
+		"dummy_doc_dep": "*"
+	}
+}

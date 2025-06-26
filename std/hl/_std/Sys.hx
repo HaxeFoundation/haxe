@@ -79,14 +79,14 @@ class Sys {
 		return @:privateAccess new sys.io.FileOutput(file_stderr());
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		var v = get_env(getPath(s));
 		if (v == null)
 			return null;
 		return makePath(v);
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		if (!put_env(getPath(s), if (v == null) null else getPath(v)))
 			throw "putEnv() failure";
 	}

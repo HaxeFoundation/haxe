@@ -22,6 +22,68 @@
 
 package haxe.ds;
 
+#if (js_es >= 6)
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
+	private var m:js.lib.Map<Int, T>;
+
+	public inline function new():Void {
+		m = new js.lib.Map();
+	}
+
+	public inline function set(key:Int, value:T):Void {
+		m.set(key, value);
+	}
+
+	public inline function get(key:Int):Null<T> {
+		return m.get(key);
+	}
+
+	public inline function exists(key:Int):Bool {
+		return m.has(key);
+	}
+
+	public inline function remove(key:Int):Bool {
+		return m.delete(key);
+	}
+
+	public inline function keys():Iterator<Int> {
+		return new js.lib.HaxeIterator(m.keys());
+	}
+
+	public inline function iterator():Iterator<T> {
+		return m.iterator();
+	}
+
+	public inline function keyValueIterator():KeyValueIterator<Int, T> {
+		return m.keyValueIterator();
+	}
+
+	public inline function copy():IntMap<T> {
+		var copied = new IntMap();
+		copied.m = new js.lib.Map(m);
+		return copied;
+	}
+
+	public function toString():String {
+		var s = new StringBuf();
+		s.add("[");
+		var it = keyValueIterator();
+		for (i in it) {
+			s.add(i.key);
+			s.add(" => ");
+			s.add(Std.string(i.value));
+			if (it.hasNext())
+				s.add(", ");
+		}
+		s.add("]");
+		return s.toString();
+	}
+
+	public inline function clear():Void {
+		m.clear();
+	}
+}
+#else
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	private var h:Dynamic;
 
@@ -50,7 +112,7 @@ package haxe.ds;
 
 	public function keys():Iterator<Int> {
 		var a = [];
-		untyped __js__("for( var key in {0} ) {1}", h, if (h.hasOwnProperty(key)) a.push(key | 0));
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}.push(+key)", h, a);
 		return a.iterator();
 	}
 
@@ -81,7 +143,7 @@ package haxe.ds;
 
 	public function toString():String {
 		var s = new StringBuf();
-		s.add("{");
+		s.add("[");
 		var it = keys();
 		for (i in it) {
 			s.add(i);
@@ -90,7 +152,7 @@ package haxe.ds;
 			if (it.hasNext())
 				s.add(", ");
 		}
-		s.add("}");
+		s.add("]");
 		return s.toString();
 	}
 
@@ -98,3 +160,4 @@ package haxe.ds;
 		h = {};
 	}
 }
+#end

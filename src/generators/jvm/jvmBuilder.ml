@@ -18,7 +18,6 @@
  *)
 
 open JvmGlobals
-open JvmData
 open JvmSignature
 open JvmAttribute
 
@@ -29,6 +28,8 @@ type annotation_kind =
 	| ABool of bool
 	| AEnum of jsignature * string
 	| AArray of annotation_kind list
+	| AAnnotation of jsignature * annotation
+	| AClass of jsignature option
 
 and annotation = (string * annotation_kind) list
 
@@ -36,10 +37,45 @@ type export_config = {
 	export_debug : bool;
 }
 
+let convert_annotations pool annotations =
+	let rec process_annotation (jsig, l) =
+		let offset = pool#add_string (generate_signature false jsig) in
+		let l = List.map (fun (name,ak) ->
+			let offset = pool#add_string name in
+			let rec loop ak = match ak with
+				| AInt i32 ->
+					'I',ValConst(pool#add (ConstInt i32))
+				| ADouble f ->
+					'D',ValConst(pool#add (ConstDouble f))
+				| AString s ->
+					's',ValConst(pool#add_string s)
+				| ABool b ->
+					'Z',ValConst(pool#add (ConstInt (if b then Int32.one else Int32.zero)))
+				| AEnum(jsig,name) ->
+					'e',ValEnum(pool#add_string (generate_signature false jsig),pool#add_string name)
+				| AArray l ->
+					let l = List.map (fun ak -> loop ak) l in
+					'[',ValArray(Array.of_list l)
+				| AAnnotation (jsig, a) ->
+					let ann = process_annotation (jsig, a) in
+					'@',ValAnnotation(ann)
+				| AClass jsig ->
+					'c',ValClass(pool#add_string (Option.map_default (generate_signature false) "V" jsig))
+			in
+			offset,loop ak
+		) l in
+		{
+			ann_type = offset;
+			ann_elements = Array.of_list l;
+		}
+	in
+	Array.map process_annotation annotations
+
 class base_builder = object(self)
 	val mutable access_flags = 0
 	val attributes = DynArray.create ()
-	val annotations = DynArray.create ()
+	val runtime_visible_annotations = DynArray.create ()
+	val runtime_invisible_annotations = DynArray.create ()
 	val mutable was_exported = false
 
 	method add_access_flag i =
@@ -48,40 +84,19 @@ class base_builder = object(self)
 	method add_attribute (a : j_attribute) =
 		DynArray.add attributes a
 
-	method add_annotation (path : jpath) (a : annotation) =
-		DynArray.add annotations ((TObject(path,[])),a)
+	method add_annotation (path : jpath) (a : annotation) (is_runtime_visible : bool) =
+		DynArray.add (if is_runtime_visible then runtime_visible_annotations else runtime_invisible_annotations) ((TObject(path,[])),a)
 
 	method private commit_annotations pool =
-		if DynArray.length annotations > 0 then begin
+		if DynArray.length runtime_visible_annotations > 0 then begin
 			let open JvmAttribute in
-			let a = DynArray.to_array annotations in
-			let a = Array.map (fun (jsig,l) ->
-				let offset = pool#add_string (generate_signature false jsig) in
-				let l = List.map (fun (name,ak) ->
-					let offset = pool#add_string name in
-					let rec loop ak = match ak with
-						| AInt i32 ->
-							'I',ValConst(pool#add (ConstInt i32))
-						| ADouble f ->
-							'D',ValConst(pool#add (ConstDouble f))
-						| AString s ->
-							's',ValConst(pool#add_string s)
-						| ABool b ->
-							'Z',ValConst(pool#add (ConstInt (if b then Int32.one else Int32.zero)))
-						| AEnum(jsig,name) ->
-							'e',ValEnum(pool#add_string (generate_signature false jsig),pool#add_string name)
-						| AArray l ->
-							let l = List.map (fun ak -> loop ak) l in
-							'[',ValArray(Array.of_list l)
-					in
-					offset,loop ak
-				) l in
-				{
-					ann_type = offset;
-					ann_elements = Array.of_list l;
-				}
-			) a in
+			let a = convert_annotations pool (DynArray.to_array runtime_visible_annotations) in
 			self#add_attribute (AttributeRuntimeVisibleAnnotations a)
+		end;
+		if DynArray.length runtime_invisible_annotations > 0 then begin
+			let open JvmAttribute in
+			let a = convert_annotations pool (DynArray.to_array runtime_invisible_annotations) in
+			self#add_attribute (AttributeRuntimeInvisibleAnnotations a)
 		end
 
 	method export_attributes (pool : JvmConstantPool.constant_pool) =

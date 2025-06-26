@@ -1,0 +1,3 @@
+-python bin/main.py
+--no-output
+--main Test

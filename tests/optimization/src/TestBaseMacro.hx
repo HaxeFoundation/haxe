@@ -19,7 +19,12 @@ class TestBaseMacro {
 				acc.push(macro $i{field.name}());
 			}
 		}
-		acc.push(macro trace("Done " +numTests+ " tests (" +numFailures+ " failures)"));
+		acc.push(macro {
+			trace("Done " +numTests+ " tests (" +numFailures+ " failures)");
+			if(numFailures > 0) {
+				Sys.exit(1);
+			}
+		});
 		Context.onGenerate(check);
 		return macro $b{acc};
 	}

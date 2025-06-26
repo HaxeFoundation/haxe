@@ -1,0 +1,2 @@
+function C() {}
+class C {}

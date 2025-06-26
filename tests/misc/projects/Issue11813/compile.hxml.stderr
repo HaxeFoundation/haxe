@@ -1,0 +1,2 @@
+Main.hx:19: characters 6-22 : Warning : (WUnsafeEnumEquality) Equality operations on this enum might lead to unexpected results because some constructors have arguments
+Main.hx:20: characters 6-22 : Warning : (WUnsafeEnumEquality) Equality operations on this enum might lead to unexpected results because some constructors have arguments

@@ -1,0 +1,5 @@
+--main Main
+--dce full
+--js bin/test.js
+
+--cmd node bin/test.js

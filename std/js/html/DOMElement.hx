@@ -391,7 +391,6 @@ extern class DOMElement extends Node {
 		Inserts a given element node at a given position relative to the element it is invoked upon.
 		@throws DOMError
 	**/
-	@:pure
 	function insertAdjacentElement( where : String, element : Element ) : Element;
 	
 	/**
@@ -504,8 +503,8 @@ extern class DOMElement extends Node {
 		Asynchronously asks the browser to make the element full-screen.
 		@throws DOMError
 	**/
-	function requestFullscreen() : Void;
-	
+	function requestFullscreen(?options: FullscreenOptions) : js.lib.Promise<Void>;
+
 	/**
 		Allows to asynchronously ask for the pointer to be locked on the given element.
 	**/

@@ -111,6 +111,6 @@ class Basic extends DisplayTestCase {
 		}
 	**/
 	function testCtorClosureType() {
-		eq("(someName : Int) -> cases.Some", type(pos(1)));
+		eq("(someName : Int) -> Some", type(pos(1)));
 	}
 }

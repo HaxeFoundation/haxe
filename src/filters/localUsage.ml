@@ -47,12 +47,6 @@ let rec local_usage f e =
 		f (Function cc)
 	| TBlock l ->
 		f (Block (fun f -> List.iter (local_usage f) l))
-	| TFor (v,it,e) ->
-		local_usage f it;
-		f (Loop (fun f ->
-			f (Declare v);
-			local_usage f e;
-		))
 	| TWhile _ ->
 		f (Loop (fun f ->
 			iter (local_usage f) e

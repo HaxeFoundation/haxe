@@ -22,7 +22,7 @@ class Issue2688 extends Test {
 @:hxGen private class Child<A> extends NativeGen
 {
 	public var task:Array<A> -> Void;
-	public function new(tsk:Void->Void)
+	public function new(tsk:()->Void)
 	{
 		super();
 		task = function(x) {

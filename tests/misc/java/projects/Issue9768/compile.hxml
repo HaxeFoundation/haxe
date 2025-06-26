@@ -1,0 +1,3 @@
+-main Main
+--jvm whatever.jar
+--no-output

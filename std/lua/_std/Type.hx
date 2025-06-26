@@ -36,21 +36,21 @@ enum ValueType {
 }
 
 @:coreApi class Type {
-	public static function getClass<T>(o:T):Class<T>
+	public static function getClass<T>(o:T):Null<Class<T>>
 		untyped {
 			if (o == null)
 				return null;
 			return lua.Boot.getClass(o);
 		}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
 		untyped {
 			if (o == null)
 				return null;
 			return o.__enum__;
 		}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>
 		untyped {
 			return c.__super__;
 		}
@@ -65,7 +65,7 @@ enum ValueType {
 		return untyped e.__ename__;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var cl:Class<Dynamic> = _hxClasses[name];
@@ -75,7 +75,7 @@ enum ValueType {
 			return cl;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var e:Dynamic = _hxClasses[name];
@@ -121,8 +121,9 @@ enum ValueType {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var p:Dynamic = untyped c.prototype;
 		var a:Array<String> = [];
+
 		while (p != null) {
-			for (f in lua.Boot.fieldIterator(p)) {
+			for (f in Reflect.fields(p)) {
 				if (!Lambda.has(a, f))
 					a.push(f);
 			}

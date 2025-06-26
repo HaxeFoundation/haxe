@@ -1,0 +1,8 @@
+--cmd compc -source-path . -include-classes C -output bin/lib.swc
+
+--next
+
+-D message.reporting=classic
+--main Main
+--swf-lib bin/lib.swc
+--swf bin/test.swf

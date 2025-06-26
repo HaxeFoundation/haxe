@@ -9,7 +9,7 @@ private abstract E3<T1,T2>(Dynamic)
 from T1 from T2
 to T1 to T2
 {
-	@:from inline static public function _from2<T1, T2, _T1:E3<T1,T2>, _T2:E3<T1,T2>>(e:E3<_T1,_T2>):E3<T1,T2> {
+	@:from inline static public function _from2<T1, T2, _T1:E3<T1,T2>, _T2:E3<T1,T2>>(e:E3<_T1,_T2>):E3<T2,T1> {
 		return untyped e;
 	}
 }

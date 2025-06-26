@@ -37,9 +37,9 @@ typedef JSONEncoderOptions = {
 
 @:pythonImport("json", "JSONEncoder")
 extern class JSONEncoder {
-	public function new(?options:KwArgs<JSONEncoderOptions>):Void;
+	function new(?options:KwArgs<JSONEncoderOptions>):Void;
 
-	@:native("default") public function def(o:Dynamic):Dynamic;
+	@:native("default") function def(o:Dynamic):Dynamic;
 
-	public function encode(o:Dynamic):String;
+	function encode(o:Dynamic):String;
 }

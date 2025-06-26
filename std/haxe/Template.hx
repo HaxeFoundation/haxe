@@ -29,7 +29,7 @@ using StringTools;
 private enum TemplateExpr {
 	OpVar(v:String);
 	OpExpr(expr:Void->Dynamic);
-	OpIf(expr:Void->Dynamic, eif:TemplateExpr, eelse:TemplateExpr);
+	OpIf(expr:Void->Dynamic, eif:TemplateExpr, ?eelse:TemplateExpr);
 	OpStr(str:String);
 	OpBlock(l:List<TemplateExpr>);
 	OpForeach(expr:Void->Dynamic, loop:TemplateExpr);
@@ -121,11 +121,13 @@ class Template {
 	function resolve(v:String):Dynamic {
 		if (v == "__current__")
 			return context;
-		var value = Reflect.getProperty(context, v);
-		if (value != null || Reflect.hasField(context, v))
-			return value;
+		if (Reflect.isObject(context)) {
+			var value = Reflect.getProperty(context, v);
+			if (value != null || Reflect.hasField(context, v))
+				return value;
+		}
 		for (ctx in stack) {
-			value = Reflect.getProperty(ctx, v);
+			var value = Reflect.getProperty(ctx, v);
 			if (value != null || Reflect.hasField(ctx, v))
 				return value;
 		}

@@ -13,6 +13,7 @@ private abstract XX (String) {
 	}
 }
 
+@:transitive
 private abstract X2(X) to X {}
 
 private abstract XArr(Array<X>) to Array<X> {}

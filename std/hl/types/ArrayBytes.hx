@@ -22,22 +22,25 @@
 
 package hl.types;
 
+import haxe.iterators.ArrayIterator;
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:keep
 @:generic
-class BytesIterator<T> {
-	var pos:Int;
+class BytesIterator<T> extends ArrayIterator<T> {
 	var a:ArrayBytes<T>;
 
 	public function new(a) {
+		super((null:Dynamic));
 		this.a = a;
 	}
 
-	public function hasNext() {
-		return pos < a.length;
+	override public function hasNext() {
+		return current < a.length;
 	}
 
-	public function next():T {
-		return @:privateAccess a.bytes.get(pos++);
+	override public function next():T {
+		return @:privateAccess a.bytes.get(current++);
 	}
 }
 
@@ -75,7 +78,9 @@ class BytesIterator<T> {
 		if (length == 0)
 			return null;
 		length--;
-		return bytes[length];
+		var v = bytes[length];
+		bytes[length] = cast 0;
+		return v;
 	}
 
 	public function push(x:T):Int {
@@ -103,6 +108,7 @@ class BytesIterator<T> {
 		var v = bytes[0];
 		length--;
 		(bytes : Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
+		bytes[length] = cast 0;
 		return v;
 	}
 
@@ -168,6 +174,7 @@ class BytesIterator<T> {
 		ret.size = ret.length = len;
 		var end = pos + len;
 		(bytes : Bytes).blit(pos << bytes.sizeBits, bytes, end << bytes.sizeBits, (length - end) << bytes.sizeBits);
+		(bytes : Bytes).fill((length - len) << bytes.sizeBits, (len) << bytes.sizeBits, 0);
 		length -= len;
 		return ret;
 	}
@@ -206,6 +213,10 @@ class BytesIterator<T> {
 			length++;
 		(bytes : Bytes).blit((pos + 1) << bytes.sizeBits, bytes, pos << bytes.sizeBits, (length - pos - 1) << bytes.sizeBits);
 		bytes[pos] = x;
+	}
+
+	public function contains(x:T):Bool {
+		return indexOf(x) != -1;
 	}
 
 	public function remove(x:T):Bool {
@@ -253,8 +264,12 @@ class BytesIterator<T> {
 		return a;
 	}
 
-	public function iterator():Iterator<T> {
+	public function iterator():ArrayIterator<T> {
 		return new BytesIterator(this);
+	}
+
+	public function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator<T>(cast this);
 	}
 
 	public function map<S>(f:T->S):ArrayDyn@:privateAccess {
@@ -287,14 +302,14 @@ class BytesIterator<T> {
 
 	override function getDyn(pos:Int):Dynamic {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			return bytes.nullValue;
 		return bytes[pos];
 	}
 
 	override function setDyn(pos:Int, v:Dynamic) {
 		var pos:UInt = pos;
-		if (pos >= length)
+		if (pos >= (length : UInt))
 			__expand(pos);
 		bytes[pos] = v;
 	}
@@ -313,6 +328,9 @@ class BytesIterator<T> {
 
 	override function insertDyn(pos:Int, v:Dynamic)
 		insert(pos, v);
+
+	override function containsDyn(v:Dynamic)
+		return contains(v);
 
 	override function removeDyn(v:Dynamic)
 		return remove(v);
@@ -344,3 +362,6 @@ typedef ArrayI32 = ArrayBytes<Int>;
 typedef ArrayUI16 = ArrayBytes<UI16>;
 typedef ArrayF32 = ArrayBytes<F32>;
 typedef ArrayF64 = ArrayBytes<Float>;
+#if !hl_legacy32
+typedef ArrayI64 = ArrayBytes<I64>;
+#end

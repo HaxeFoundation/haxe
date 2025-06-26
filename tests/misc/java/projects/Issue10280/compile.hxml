@@ -1,0 +1,3 @@
+-main Main
+--jvm jvm.jar
+-cmd java -jar jvm.jar

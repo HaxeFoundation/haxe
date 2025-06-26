@@ -3,7 +3,7 @@ package cases;
 class StaticExtension extends DisplayTestCase {
 	/**
 
-		using cases.StaticExtension.MyStaticExtension;
+		using StaticExtension.MyStaticExtension;
 		class Something {
 			static function test() {
 				var map = ["a" => 1];
@@ -19,13 +19,13 @@ class StaticExtension extends DisplayTestCase {
 	**/
 	function test1() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "doSomething", "Void -> Void"));
-		eq(true, hasField(fields, "doSomethingElse", "Void -> Void"));
+		eq(true, hasField(fields, "doSomething", "() -> Void"));
+		eq(true, hasField(fields, "doSomethingElse", "() -> Void"));
 	}
 
 	/**
 
-		using cases.StaticExtension.MyStaticExtension;
+		using StaticExtension.MyStaticExtension;
 		class Something {
 			static function test() {
 				var map = new haxe.ds.StringMap();
@@ -41,12 +41,12 @@ class StaticExtension extends DisplayTestCase {
 	**/
 	function test2() {
 		var fields = fields(pos(1));
-		eq(true, hasField(fields, "doSomething", "Void -> Void"));
-		eq(true, hasField(fields, "doSomethingElse", "Void -> Void"));
+		eq(true, hasField(fields, "doSomething", "() -> Void"));
+		eq(true, hasField(fields, "doSomethingElse", "() -> Void"));
 	}
 
 	/**
-		using cases.StaticExtension;
+		using StaticExtension;
 
 		class Overload1 {
 			public static function test(o:String):Void { }

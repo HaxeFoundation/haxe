@@ -1,0 +1,12 @@
+[WARNING] external.txt:3: characters 5-8
+
+ 3 | 012345678
+   |     ^^^
+   | Correct line number
+
+[WARNING] ./external.txt:3: characters 5-8
+
+ 3 | 012345678
+   |     ^^^
+   | Correct line number
+

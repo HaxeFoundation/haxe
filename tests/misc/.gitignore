@@ -1,2 +1,4 @@
 pypy3-2.4.0*
 bin
+*.jar
+*.class

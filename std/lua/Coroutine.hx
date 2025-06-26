@@ -33,17 +33,17 @@ extern class Coroutine<T:Function> extends Thread {
 	/**
 		Creates a new coroutine, with body `f`. `f` must be a Lua function.
 	**/
-	public static function create<T:Function>(f:T):Coroutine<T>;
+	static function create<T:Function>(f:T):Coroutine<T>;
 
 	/**
 		Returns the running coroutine plus a boolean, true when the running coroutine is the main one.
 	**/
-	public static function running():CoroutineRunning;
+	static function running():CoroutineRunning;
 
 	/**
 		Returns the status of coroutine.
 	**/
-	public static function status(c:Coroutine<Dynamic>):CoroutineState;
+	static function status(c:Coroutine<Dynamic>):CoroutineState;
 
 	/**
 		Starts or continues the execution of coroutine.
@@ -57,14 +57,14 @@ extern class Coroutine<T:Function> extends Thread {
 		by the body function (if the coroutine terminates). If there is any error,
 		`resume` returns `false` plus the error message.
 	**/
-	public static function resume<A, B>(c:Coroutine<Dynamic>, args:Rest<A>):CoroutineResume<B>;
+	static function resume<A, B>(c:Coroutine<Dynamic>, args:Rest<A>):CoroutineResume<B>;
 
 	/**
 		Suspends the execution of the calling coroutine.
 		The coroutine cannot be running a C function, a metamethod, or an iterator.
 		Any arguments to `yield` are passed as extra results to `resume`.
 	**/
-	public static function yield<T>(args:Rest<Dynamic>):T;
+	static function yield<T>(args:Rest<Dynamic>):T;
 
 	/**
 		Creates a new coroutine, with body `f`.
@@ -73,7 +73,7 @@ extern class Coroutine<T:Function> extends Thread {
 		Returns the same values returned by `resume`, except the first boolean.
 		In case of error, propagates the error.
 	**/
-	public static function wrap<T:Function>(f:T):T;
+	static function wrap<T:Function>(f:T):T;
 }
 
 /**

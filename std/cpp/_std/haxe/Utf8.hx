@@ -29,7 +29,7 @@ using cpp.NativeString;
 class Utf8 {
 	var __s:Array<Int>;
 
-	public function new(?size:Null<Int>):Void {
+	public function new(?size:Int):Void {
 		__s = new Array<Int>();
 		if (size != null && size > 0)
 			cpp.NativeArray.reserve(__s, size);

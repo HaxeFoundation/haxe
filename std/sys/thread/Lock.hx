@@ -37,37 +37,37 @@ package sys.thread;
 
 	Usage example:
 
-	```
-		var lock = new Lock();
-		var elements = [1, 2, 3];
-		for (element in elements) {
-			// Create one thread per element
-			new Thread(function() {
-				trace(element);
-				Sys.sleep(1);
-				// Release once per thread = 3 times
-				lock.release();
-			});
-		}
-		for (_ in elements) {
-			// Wait 3 times
-			lock.wait();
-		}
-		trace("All threads finished");
+	```haxe
+	var lock = new Lock();
+	var elements = [1, 2, 3];
+	for (element in elements) {
+		// Create one thread per element
+		new Thread(function() {
+			trace(element);
+			Sys.sleep(1);
+			// Release once per thread = 3 times
+			lock.release();
+		});
+	}
+	for (_ in elements) {
+		// Wait 3 times
+		lock.wait();
+	}
+	trace("All threads finished");
 	```
 **/
 extern class Lock {
 	/**
 		Creates a new Lock which is initially locked.
 	**/
-	public function new():Void;
+	function new():Void;
 
 	/**
 		Waits for the lock to be released, or `timeout` (in seconds)
 		to expire. Returns `true` if the lock is released and `false`
 		if a time-out occurs.
 	**/
-	public function wait(?timeout:Float):Bool;
+	function wait(?timeout:Float):Bool;
 
 	/**
 		Releases the lock once.
@@ -76,5 +76,5 @@ extern class Lock {
 		it. Each call to `release` allows exactly one call to `wait`
 		to execute.
 	**/
-	public function release():Void;
+	function release():Void;
 }

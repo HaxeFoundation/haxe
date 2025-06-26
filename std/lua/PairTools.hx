@@ -36,13 +36,13 @@ class PairTools {
 
 	public static function ipairsMap<A, B>(table:Table<Dynamic, A>, func:Int->A->B):Table<Int, B> {
 		var ret:Table<Int, B> = Table.create();
-		untyped __lua__("for i,v in _G.ipairs(table) do ret[i] = func(i,v) end;");
+		untyped __lua__("for i,v in _G.ipairs(table) do ret[i] = func(i,v) end");
 		return ret;
 	}
 
 	public static function pairsMap<A, B, C>(table:Table<A, B>, func:A->B->C->C):Table<A, C> {
 		var ret:Table<A, C> = Table.create();
-		untyped __lua__("for k,v in _G.pairs(table) do ret[k] = func(k,v) end;");
+		untyped __lua__("for k,v in _G.pairs(table) do ret[k] = func(k,v) end");
 		return ret;
 	}
 

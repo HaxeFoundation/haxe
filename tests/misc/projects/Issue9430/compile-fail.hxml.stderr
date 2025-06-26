@@ -1,0 +1,6 @@
+[ERROR] Main.hx:7: characters 5-6
+
+ 7 |   A.A;
+   |     ^
+   | Cannot access private field A
+

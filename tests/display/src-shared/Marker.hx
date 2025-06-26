@@ -1,3 +1,6 @@
+import haxe.Exception;
+import haxe.display.Position;
+
 class Marker {
 	static var markerRe = ~/{-(\d+)-}/g;
 

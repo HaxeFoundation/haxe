@@ -24,11 +24,6 @@ package haxe.io;
 
 class StringInput extends BytesInput {
 	public function new(s:String) {
-		#if neko
-		// don't copy the string
-		super(neko.Lib.bytesReference(s));
-		#else
 		super(haxe.io.Bytes.ofString(s));
-		#end
 	}
 }

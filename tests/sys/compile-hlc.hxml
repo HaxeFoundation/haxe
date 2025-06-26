@@ -1,0 +1,22 @@
+compile-each.hxml
+--main Main
+-hl bin/hlc/sys/sys.c
+-D hlgen.makefile=ci
+
+--next
+compile-each.hxml
+--main TestArguments
+-hl bin/hlc/testArguments/TestArguments.c
+-D hlgen.makefile=ci
+
+--next
+compile-each.hxml
+--main ExitCode
+-hl bin/hlc/exitCode/ExitCode.c
+-D hlgen.makefile=ci
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-hl bin/hlc/utilityProcess/UtilityProcess.c
+-D hlgen.makefile=ci

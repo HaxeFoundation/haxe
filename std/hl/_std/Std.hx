@@ -49,7 +49,12 @@ class Std {
 		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		var t:hl.BaseType = t;
 		if (t == null)
 			return false;
@@ -74,10 +79,10 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
+	extern public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}
 

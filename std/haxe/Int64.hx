@@ -31,6 +31,7 @@ using haxe.Int64;
 #if flash
 @:notNull
 #end
+@:transitive
 abstract Int64(__Int64) from __Int64 to __Int64 {
 	private inline function new(x:__Int64)
 		this = x;
@@ -65,11 +66,16 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 	}
 
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	inline public static function is(val:Dynamic):Bool {
+		return isInt64(val);
+	}
+
 	/**
 		Returns whether the value `val` is of type `haxe.Int64`
 	**/
-	inline public static function is(val:Dynamic):Bool
-		return Std.is(val, __Int64);
+	inline public static function isInt64(val:Dynamic):Bool
+		return Std.isOfType(val, __Int64);
 
 	/**
 		Returns the high 32-bit word of `x`.
@@ -124,7 +130,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function toStr(x:Int64):String
 		return x.toString();
 
-	#if as3 public #else private #end function toString():String {
+	function toString():String {
 		var i:Int64 = cast this;
 		if (i == 0)
 			return "0";
@@ -159,7 +165,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	}
 
 	/**
-		Performs signed integer divison of `dividend` by `divisor`.
+		Performs signed integer division of `dividend` by `divisor`.
 		Returns `{ quotient : Int64, modulus : Int64 }`.
 	**/
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
@@ -433,7 +439,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	**/
 	@:op(A >>> B) public static inline function ushr(a:Int64, b:Int):Int64 {
 		b &= 63;
-		return if (b == 0) a.copy() else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, a.high >>> (b - 32));
+		return if (b == 0) a.copy() else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
 	}
 
 	public var high(get, never):Int32;
@@ -451,6 +457,29 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
+		
+	#if php
+	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
+	#end
+
+	#if !lua
+	inline
+	#end
+	static function clamp(x:Int):Int {
+		// force to-int conversion on platforms that require it
+		#if js
+		return x | 0;
+		#elseif php
+		// we might be on 64-bit php, so sign extend from 32-bit
+		return (x << extraBits) >> extraBits;
+		#elseif python
+		return (python.Syntax.code("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) : Int) - python.Syntax.opPow(2, 31);
+		#elseif lua
+		return lua.Boot.clampInt32(x);
+		#else
+		return x;
+		#end
+	}
 }
 
 /**

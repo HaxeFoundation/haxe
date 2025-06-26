@@ -1,3 +1,0 @@
--cp src
--main Main
---macro patchTypes("src/test.txt")

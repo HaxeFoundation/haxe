@@ -56,14 +56,14 @@ import haxe.SysTools;
 			return __global__.__get_args();
 		}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		var v = NativeSys.get_env(s);
 		if (v == null)
 			return null;
 		return v;
 	}
 
-	public static function putEnv(s:String, v:String):Void {
+	public static function putEnv(s:String, v:Null<String>):Void {
 		NativeSys.put_env(s, v);
 	}
 

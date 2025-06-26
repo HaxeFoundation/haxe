@@ -10,11 +10,11 @@ class Issue8493 extends unit.Test {
 	static var typeRef = (Vector.typeReference() : Class<Vector<Vector<Array<Int>>>>);
 
 	function test() {
-		t(Std.is(v, (Vector.typeReference() : Class<Vector<Vector<Array<Int>>>>)));
+		t(Std.isOfType(v, (Vector.typeReference() : Class<Vector<Vector<Array<Int>>>>)));
 		t(Std.downcast(v, (Vector.typeReference() : Class<Vector<Vector<Array<Int>>>>)) == v);
 		t(flash.Lib.as(v, (Vector.typeReference() : Class<Vector<Vector<Array<Int>>>>)) == v);
 
-		t(Std.is(v, typeRef));
+		t(Std.isOfType(v, typeRef));
 		t(Std.downcast(v, typeRef) == v);
 		t(flash.Lib.as(v, typeRef) == v);
 	}

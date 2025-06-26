@@ -1,21 +1,17 @@
 package unit;
 
 import python.KwArgs;
-import python.Syntax;
-import python.VarArgs;
-import sys.io.File;
-import sys.io.Process;
-
-// check compilation python classes
 import python.NativeArrayTools;
 import python.NativeStringTools;
-
+import python.Set;
+import python.Syntax;
+import python.Tuple;
+import python.VarArgs;
 import python.lib.Codecs;
 import python.lib.Functools;
 import python.lib.Glob;
 import python.lib.Inspect;
 import python.lib.Json;
-
 import python.lib.Math;
 import python.lib.Msvcrt;
 import python.lib.Os;
@@ -31,14 +27,10 @@ import python.lib.ThreadLowLevel;
 import python.lib.Time;
 import python.lib.Traceback;
 import python.lib.Tty;
-import python.Tuple;
-import python.Set;
-
 import python.lib.datetime.Datetime;
 import python.lib.datetime.Timedelta;
 import python.lib.datetime.Timezone;
 import python.lib.datetime.Tzinfo;
-
 import python.lib.io.BufferedIOBase;
 import python.lib.io.BufferedRWPair;
 import python.lib.io.BufferedRandom;
@@ -50,24 +42,27 @@ import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 import python.lib.io.StringIO;
 import python.lib.io.TextIOBase;
-
+import python.lib.json.JSONEncoder;
 import python.lib.socket.Address;
 import python.lib.socket.Socket;
-
 import python.lib.subprocess.Popen;
-
 import python.lib.threading.Thread;
-
 import python.lib.xml.etree.ElementTree;
+import sys.io.File;
+import sys.io.Process;
 
-import python.lib.json.JSONEncoder;
-
-
-
+// check compilation python classes
 
 private typedef T = {
 	var value:Int;
 	var ?maybeValue:Int;
+}
+
+private interface IA {}
+private class A implements IA {}
+
+private class B extends A {
+	public function new() {}
 }
 
 private enum MyEnum {
@@ -76,19 +71,10 @@ private enum MyEnum {
 	False;
 }
 
-private interface IA {}
-
-private class A implements IA { }
-
-private class B extends A {
-	public function new() {}
-}
-
 class TestPython extends Test {
-
-	public function testDoWhileAsExpression () {
+	public function testDoWhileAsExpression() {
 		var x = 1;
-		var z = function () return (do {
+		var z = function() return (do {
 			x++;
 		} while (x < 3));
 
@@ -97,7 +83,7 @@ class TestPython extends Test {
 		eq(3, x);
 	}
 
-	public function testKeywords () {
+	public function testKeywords() {
 		var list = new Array();
 		noAssert();
 	}
@@ -115,7 +101,6 @@ class TestPython extends Test {
 		var o:{function toLowerCase():String;} = "FOO";
 		eq("foo", o.toLowerCase());
 	}
-
 
 	public function testOptionalStructureFields() {
 		var v:T = haxe.Json.parse('{"value": 1 }');
@@ -158,7 +143,7 @@ class TestPython extends Test {
 	function testOptionalEnumArguments() {
 		var a1 = 1;
 		var a2 = null;
-		switch(A("foo")) {
+		switch (A("foo")) {
 			case A(i, b):
 				a1 = i;
 				a2 = b;
@@ -172,11 +157,11 @@ class TestPython extends Test {
 		function throwMe(arg:Dynamic) {
 			return try {
 				throw arg;
-			} catch(e:haxe.macro.Expr.ExprDef) {
+			} catch (e:haxe.macro.Expr.ExprDef) {
 				'ExprDef:$e';
-			} catch(s:String) {
+			} catch (s:String) {
 				'String:$s';
-			} catch(e:Dynamic) {
+			} catch (e:Dynamic) {
 				'Other:$e';
 			}
 		}
@@ -186,128 +171,127 @@ class TestPython extends Test {
 	}
 
 	/*
-	function testSys () {
+		function testSys () {
 
-		var p = new Process("/bin/ls", ["-l"]);
+			var p = new Process("/bin/ls", ["-l"]);
 
-		trace(p.stdout.readLine());
-		trace(p.stdout.readLine());
-	}
-	*/
-
-	function testUnderscoreAndReflection () {
-		var x = { __v : 5 };
+			trace(p.stdout.readLine());
+			trace(p.stdout.readLine());
+		}
+	 */
+	function testUnderscoreAndReflection() {
+		var x = {__v: 5};
 		eq(5, Reflect.field(x, "__v"));
 
-		var x = { ___b : 5 };
+		var x = {___b: 5};
 		eq(5, Reflect.field(x, "___b"));
 
-		var x = { __iter__ : 5 };
+		var x = {__iter__: 5};
 		eq(5, Reflect.field(x, "__iter__"));
 	}
 
-	function testKwArgsAfterVarArgs () {
-		function test (va:VarArgs<Dynamic>, kw:KwArgs<Dynamic>) {
+	function testKwArgsAfterVarArgs() {
+		function test(va:VarArgs<Dynamic>, kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
-			eq(1,a[0]);
-			eq(2,a[1]);
-			eq(1,kw.get("a", null));
+			eq(1, a[0]);
+			eq(2, a[1]);
+			eq(1, kw.get("a", null));
 		}
-		var a = python.Lib.anonToDict({ "a" : 1});
-		var x = [1,2];
-		test(x,a);
+		var a = python.Lib.anonToDict({"a": 1});
+		var x = [1, 2];
+		test(x, a);
 	}
 
-	function testSoftKeywords () {
-		function test (len:String, bytes:String) {
-			eq(len.length,bytes.length);
+	function testSoftKeywords() {
+		function test(len:String, bytes:String) {
+			eq(len.length, bytes.length);
 		}
 		test("x", "x");
 	}
 
-	function testKwArgsNativeNames () {
-		function test (?kw:KwArgs<{ @:native("default") var def:Int; }>) {
+	function testKwArgsNativeNames() {
+		function test(?kw:KwArgs<{@:native("default") var def:Int;}>) {
 			eq(1, kw.typed().def);
 		}
 
-		test({ def : 1});
+		test({def: 1});
 	}
 
-	function testOptionalVarArgs () {
-		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
+	function testOptionalVarArgs() {
+		function test(?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
-			eq(0,a.length);
+			eq(0, a.length);
 		}
 		test();
 	}
 
-	function testOptionalKwArgs () {
-		function test (?kw:KwArgs<Dynamic>) eq(0,kw.toDict().length);
+	function testOptionalKwArgs() {
+		function test(?kw:KwArgs<Dynamic>)
+			eq(0, kw.toDict().length);
 		test();
 	}
 
-	function testOptionalKwArgsAfterOptionalVarArgs () {
-		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
+	function testOptionalKwArgsAfterOptionalVarArgs() {
+		function test(?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
-			eq(1,a[0]);
-			eq(2,a[1]);
+			eq(1, a[0]);
+			eq(2, a[1]);
 
 			eq(0, kw.toDict().length);
 		}
-		var x = [1,2];
+		var x = [1, 2];
 		test(x);
 
-		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
+		function test(?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
-			eq(0,a.length);
-			eq(1, kw.get("a",null));
+			eq(0, a.length);
+			eq(1, kw.get("a", null));
 		}
 
-		var a = python.Lib.anonToDict({ "a" : 1});
+		var a = python.Lib.anonToDict({"a": 1});
 
 		test(a);
 	}
 
-	function testKwArgs () {
-		function x (args:KwArgs<Dynamic>) {
+	function testKwArgs() {
+		function x(args:KwArgs<Dynamic>) {
 			var a = args.get("a", 0);
 			var b = args.get("b", 0);
 			return a + b;
 		}
 
-		var a = python.Lib.anonToDict({ "a" : 1, "b" : 2});
-		var res = x( a );
+		var a = python.Lib.anonToDict({"a": 1, "b": 2});
+		var res = x(a);
 
 		eq(3, res);
 
-		var res2 = python.Syntax.callNamedUntyped(x, { a : 3, b : 5});
+		var res2 = python.Syntax.callNamedUntyped(x, {a: 3, b: 5});
 
 		eq(8, res2);
 	}
 
-	function testTypedKwArgs () {
-		function x (args:KwArgs<{ a : Int, b : Int}>) {
+	function testTypedKwArgs() {
+		function x(args:KwArgs<{a:Int, b:Int}>) {
 			var x = args.typed();
 
 			return x.a + x.b;
 		}
 
-		var a = { a : 1, b : 2};
-		var res = x( a );
+		var a = {a: 1, b: 2};
+		var res = x(a);
 
 		eq(3, res);
 
-		var res = x( { a : 1, b : 2} );
+		var res = x({a: 1, b: 2});
 
 		eq(3, res);
 	}
 
 	function testNonLocal() {
-		try { }
-		catch (e:Dynamic) {
+		try {} catch (e:Dynamic) {
 			e = 1;
 		}
 		noAssert();
@@ -319,10 +303,17 @@ class TestPython extends Test {
 	var s2(null, set):String;
 	var s3(get, set):String;
 
-	function get_s() return s;
-	function set_s2(s) return s2 = s;
-	function get_s3() return _s;
-	function set_s3(s) return _s = s;
+	function get_s()
+		return s;
+
+	function set_s2(s)
+		return s2 = s;
+
+	function get_s3()
+		return _s;
+
+	function set_s3(s)
+		return _s = s;
 
 	function testPropertyInit() {
 		s += "a";
@@ -337,23 +328,22 @@ class TestPython extends Test {
 		t((new B() is IA));
 	}
 
-
 	// Syntax Tests
 
-	function testPythonCodeStringInterpolation () {
+	function testPythonCodeStringInterpolation() {
 		var z = 1;
-		var a = (Syntax.code('[{0}, {1}]', z, 2):Array<Int>);
+		var a = (Syntax.code('[{0}, {1}]', z, 2) : Array<Int>);
 
 		eq(a[0], z);
 		eq(a[1], 2);
 
-		function test2 (x:Int) {
+		function test2(x:Int) {
 			x += 1;
-			return (Syntax.code("{0}", x):Int);
+			return (Syntax.code("{0}", x) : Int);
 		}
 
-		function test3 (x:Int) {
-			return (Syntax.code('[{0}]', x):Array<Int>);
+		function test3(x:Int) {
+			return (Syntax.code('[{0}]', x) : Array<Int>);
 		}
 
 		var x = 1;
@@ -364,13 +354,12 @@ class TestPython extends Test {
 
 		eq("foo1bar", Syntax.code("'foo' + str({0}) + 'bar'", x));
 
-
-		function test4a (x:Int) {
-			return (Syntax.code("[{0}][0]", x+x):Int);
+		function test4a(x:Int) {
+			return (Syntax.code("[{0}][0]", x + x) : Int);
 		}
 
-		function test4b (x:Int):String {
-			return Syntax.code('[{0}][0]', (function () return Std.string(x+x))() );
+		function test4b(x:Int):String {
+			return Syntax.code('[{0}][0]', (function() return Std.string(x + x))());
 		}
 
 		eq(2, test4a(1));
@@ -408,15 +397,14 @@ class TestPython extends Test {
 		eq(t._5, 5);
 		eq(t.length, 5);
 
-		var t = new Tuple([1,2,3]);
+		var t = new Tuple([1, 2, 3]);
 		eq(t[0], 1);
 		eq(t[1], 2);
 		eq(t[2], 3);
 		eq(t.length, 3);
 	}
 
-	function testVectorEquality()
-	{
+	function testVectorEquality() {
 		var v = new haxe.ds.Vector(1);
 		var v2 = v.copy();
 		eq(v == v2, false);

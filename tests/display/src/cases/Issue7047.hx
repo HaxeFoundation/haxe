@@ -3,7 +3,7 @@ package cases;
 class Issue7047 extends DisplayTestCase {
 	/**
 		class Main {
-			var f:Void->{-1-}
+			var f:()->{-1-}
 
 			static function main() {}
 		}

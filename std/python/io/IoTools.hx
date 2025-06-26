@@ -34,19 +34,19 @@ import python.lib.io.IOBase.SeekSet;
 
 class IoTools {
 	public static function createFileInputFromText(t:TextIOBase) {
-		return new FileInput(new FileTextInput(t));
+		return @:privateAccess new FileInput(new FileTextInput(t));
 	}
 
 	public static function createFileInputFromBytes(t:RawIOBase) {
-		return new FileInput(new FileBytesInput(t));
+		return @:privateAccess new FileInput(new FileBytesInput(t));
 	}
 
 	public static function createFileOutputFromText(t:TextIOBase) {
-		return new FileOutput(new FileTextOutput(t));
+		return @:privateAccess new FileOutput(new FileTextOutput(t));
 	}
 
 	public static function createFileOutputFromBytes(t:RawIOBase) {
-		return new FileOutput(new FileBytesOutput(t));
+		return @:privateAccess new FileOutput(new FileBytesOutput(t));
 	}
 
 	public static function seekInTextMode(stream:TextIOBase, tell:Void->Int, p:Int, pos:sys.io.FileSeek) {

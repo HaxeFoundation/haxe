@@ -21,16 +21,21 @@
  */
 @:coreApi class Std {
 	@:ifFeature("typed_cast")
-	public static function is(v:Dynamic, t:Dynamic):Bool {
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	public static inline function is(v:Dynamic, t:Dynamic):Bool {
+		return isOfType(v, t);
+	}
+
+	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
 		return untyped neko.Boot.__instanceof(v, t);
 	}
 
-	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
-		return Std.is(value, c) ? cast value : null;
+	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
+		return Std.isOfType(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	public static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return inline downcast(value, c);
 	}
 

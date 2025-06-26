@@ -23,7 +23,7 @@ class Issue7055 extends DisplayTestCase {
 		var results = toplevel(pos(1));
 		var i = 0;
 		function nextIs(name, ?pos) {
-			eq(results[i++].name, name, pos);
+			eq(true, isToplevel(results[i++], name), pos);
 		}
 		nextIs("Some");
 		nextIs("Random");

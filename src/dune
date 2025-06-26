@@ -1,0 +1,56 @@
+(include_subdirs unqualified)
+
+(env
+	(_
+		; 3 - Remove deprecation warnings
+		; 6 - Label omitted in function application
+		; 9 - Missing record field in a record pattern
+		; 23 - Useless record `with` clause (all fields already listed)
+		; 27 - Unused var (strict)
+		; 32 - Unused value declaration
+		; 36 - Unused `as super`
+		; 50 - Unexpected docstring
+		(flags (:standard -w -3 -w -6 -w -9 -w -23 -w -27 -w -32 -w -36 -w -50 -thread))
+	)
+)
+
+(library
+	(name haxe)
+	(libraries
+		extc extproc extlib_leftovers mbedtls neko objsize pcre2 camlp-streams swflib ziplib
+		json
+		unix ipaddr str bigarray threads dynlink
+		xml-light extlib sha terminal_size
+		luv
+		domainslib saturn thread-local-storage
+	)
+	(modules (:standard \ haxe prebuild))
+	(preprocess (per_module
+		((pps sedlex.ppx) json lexer)
+		((pps ppx_parser) grammar)
+	))
+	(wrapped false)
+)
+
+(executable
+	(name prebuild)
+	(libraries extlib json unix)
+	(modules prebuild)
+)
+
+(rule
+	(deps (env_var STATICLINK) (env_var LIB_PARAMS))
+	(targets libs.sexp)
+	(action (with-stdout-to libs.sexp (run ./prebuild.exe libparams %{system})))
+)
+
+(executable
+	(name haxe)
+	(public_name haxe)
+	(package haxe)
+	(libraries haxe)
+	(modules haxe)
+	(link_flags (:include libs.sexp))
+	; Uncomment to enable bytecode output for ocamldebug support
+	; (modes byte)
+)

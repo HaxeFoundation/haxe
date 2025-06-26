@@ -1,7 +1,0 @@
---main Mandelbrot
--java bin/java
-
---next
---main Mandelbrot
--java bin/java-anon
--D anon_objects

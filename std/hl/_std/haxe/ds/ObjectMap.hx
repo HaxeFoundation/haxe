@@ -69,7 +69,7 @@ class ObjectMap<K:{}, T> implements haxe.Constraints.IMap<K, T> {
 		var s = new StringBuf();
 		var keys = h.keysArray();
 		var values = h.valuesArray();
-		s.addChar('{'.code);
+		s.addChar("[".code);
 		for (i in 0...keys.length) {
 			if (i > 0)
 				s.add(", ");
@@ -77,7 +77,7 @@ class ObjectMap<K:{}, T> implements haxe.Constraints.IMap<K, T> {
 			s.add(" => ");
 			s.add(values[i]);
 		}
-		s.addChar('}'.code);
+		s.addChar("]".code);
 		return s.toString();
 	}
 

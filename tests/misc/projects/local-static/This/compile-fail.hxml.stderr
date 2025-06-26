@@ -1,0 +1,1 @@
+Main.hx:9: characters 18-19 : Accessing `this` in static initialization is not allowed

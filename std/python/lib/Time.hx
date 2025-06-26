@@ -26,8 +26,9 @@ import python.lib.time.StructTime;
 
 @:pythonImport("time")
 extern class Time {
-	public static function time():Float;
-	public static function clock():Float;
-	public static function sleep(t:Float):Void;
-	public static function mktime(s:StructTime):Float;
+	static function time():Float;
+	static function clock():Float;
+	static function sleep(t:Float):Void;
+	static function mktime(s:StructTime):Float;
+	static function perf_counter_ns():Int;
 }

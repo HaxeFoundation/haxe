@@ -100,4 +100,10 @@ class Lib {
 		str = str.split("\\").join("\\\\");
 		flash.external.ExternalInterface.call("console." + type, str);
 	}
+
+	public static var parseInt(get, never):(string:String, ?radix:Int) -> Float;
+
+	extern static inline function get_parseInt():(string:String, ?radix:Int) -> Float {
+		return untyped __global__["parseInt"];
+	}
 }

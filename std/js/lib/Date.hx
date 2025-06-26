@@ -246,6 +246,7 @@ extern class Date {
 	/**
 		Returns a string with a locality sensitive representation of the date portion of this date based on system settings.
 	**/
+	@:overload(function(?locales:Array<String>, ?options:Dynamic<Dynamic>):String {})
 	function toLocaleDateString(?locales:String, ?options:Dynamic<Dynamic>):String;
 
 	/**
@@ -256,11 +257,13 @@ extern class Date {
 	/**
 		Returns a string with a locality sensitive representation of this date. Overrides the Object.prototype.toLocaleString() method.
 	**/
+	@:overload(function(?locales:Array<String>, ?options:Dynamic<Dynamic>):String {})
 	function toLocaleString(?locales:String, ?options:Dynamic<Dynamic>):String;
 
 	/**
 		Returns a string with a locality sensitive representation of the time portion of this date based on system settings.
 	**/
+	@:overload(function(?locales:Array<String>, ?options:Dynamic<Dynamic>):String {})
 	function toLocaleTimeString(?locales:String, ?options:Dynamic<Dynamic>):String;
 
 	/**

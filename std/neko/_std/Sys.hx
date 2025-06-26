@@ -62,14 +62,14 @@ import haxe.SysTools;
 		return r;
 	}
 
-	public static function getEnv( s : String ) : String {
+	public static function getEnv( s : String ) : Null<String> {
 		var v = get_env(untyped s.__s);
 		if( v == null )
 			return null;
 		return new String(v);
 	}
 
-	public static function putEnv( s : String, v : String ) : Void {
+	public static function putEnv( s : String, v : Null<String> ) : Void {
 		untyped put_env(s.__s,if( v == null ) null else v.__s);
 	}
 

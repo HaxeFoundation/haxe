@@ -27,24 +27,28 @@ package sys.thread;
 #end
 
 /**
-	A Deque is a double-ended queue with a `pop` method that can block until
-	an element is available. It is commonly used to synchronize threads.
+	A Deque is an output-restricted double-ended queue with a `pop` method that can
+	block until an element is available. It is commonly used to synchronize threads.
  */
 @:coreApi extern class Deque<T> {
 	/**
 		Create a new Deque instance which is initially empty.
 	**/
-	public function new():Void;
+	function new():Void;
 
 	/**
 		Adds an element at the end of `this` Deque.
+
+		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
 	**/
-	public function add(i:T):Void;
+	function add(i:T):Void;
 
 	/**
 		Adds an element at the front of `this` Deque.
+
+		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
 	**/
-	public function push(i:T):Void;
+	function push(i:T):Void;
 
 	/**
 		Tries to retrieve an element from the front of `this` Deque.
@@ -55,5 +59,5 @@ package sys.thread;
 
 		Otherwise, execution blocks until an element is available and returns it.
 	**/
-	public function pop(block:Bool):Null<T>;
+	function pop(block:Bool):Null<T>;
 }

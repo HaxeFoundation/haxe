@@ -36,7 +36,7 @@ class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		Creates a new WeakMap.
 	**/
 	public function new():Void {
-		throw "Not implemented for this platform";
+		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
 	}
 
 	/**

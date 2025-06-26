@@ -177,7 +177,7 @@ let rec iter_aux proc s i =
 
 let iter proc s = iter_aux proc s 0
 
-let compare s1 s2 = Pervasives.compare s1 s2
+let compare s1 s2 = Stdlib.compare s1 s2
 
 exception Malformed_code
 

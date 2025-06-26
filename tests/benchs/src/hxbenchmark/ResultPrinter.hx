@@ -21,7 +21,7 @@ class ResultPrinter {
 				maxSampleLength = sampleLength;
 			}
 		}
-		var best = result.cases[0].numSamples;
+		var best = Lambda.fold(result.cases, (c, max) -> max > c.numSamples ? max : c.numSamples, 0);
 		var buf = new StringBuf();
 		buf.add("  Suite: " + result.name + "\n");
 		for (caseResult in result.cases) {

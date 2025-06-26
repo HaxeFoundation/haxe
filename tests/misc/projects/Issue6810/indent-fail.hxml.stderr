@@ -1,0 +1,6 @@
+Fail.hx:7: characters 8-12 : error: Void should be haxe.NotVoid
+  Fail.hx:7: characters 8-12 : have: (...) -> Void
+  Fail.hx:7: characters 8-12 : want: (...) -> haxe.NotVoid
+Fail.hx:8: characters 8-16 : error: FakeVoid should be haxe.NotVoid
+  Fail.hx:8: characters 8-16 : have: (...) -> FakeVoid
+  Fail.hx:8: characters 8-16 : want: (...) -> haxe.NotVoid

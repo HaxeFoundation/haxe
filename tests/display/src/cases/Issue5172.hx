@@ -4,8 +4,8 @@ class Issue5172 extends DisplayTestCase {
 	/**
 		class Main {
 			static function main() {
-				for ({-3-}i{-1-} in 0...10) {
-					{-4-}i{-2-};
+				for ({-3-}unique_identifier_5172{-1-} in 0...10) {
+					{-4-}unique_identifier_5172{-2-};
 				}
 			}
 		}

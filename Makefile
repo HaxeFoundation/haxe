@@ -21,6 +21,7 @@ PACKAGE_SRC_EXTENSION=.tar.gz
 MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
+DUNE_COMMAND=dune
 HAXE_OUTPUT=haxe
 HAXELIB_OUTPUT=haxelib
 PREBUILD_OUTPUT=prebuild
@@ -28,53 +29,24 @@ EXTENSION=
 LFLAGS=
 STATICLINK?=0
 
-# Configuration
-
-# Modules in these directories should only depend on modules that are in directories to the left
-HAXE_DIRECTORIES=core core/ds core/json core/display syntax context context/display codegen codegen/gencommon generators generators/jvm optimization filters macro macro/eval macro/eval/bytes typing compiler
-EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
-OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex.ppx xml-light extlib ptmap sha
-
-FINDLIB_LIBS=$(OCAML_LIBS)
-FINDLIB_LIBS+=$(OPAM_LIBS)
-
-# Includes, packages and compiler
-
-HAXE_INCLUDES=$(HAXE_DIRECTORIES:%=-I _build/src/%)
-EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
-ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
-FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
-CFLAGS=
-ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 -w -40 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
-
-MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
-
-ifeq ($(BYTECODE),1)
-	TARGET_FLAG = bytecode
-	COMPILER = ocamlfind ocamlc
-	LIB_EXT = cma
-	MODULE_EXT = cmo
-	NATIVE_LIB_FLAG = -custom
+SYSTEM_NAME=Unknown
+ifeq ($(OS),Windows_NT)
+	SYSTEM_NAME=Windows
 else
-	TARGET_FLAG = native
-	COMPILER = ocamlfind ocamlopt
-	LIB_EXT = cmxa
-	MODULE_EXT = cmx
-	OCAMLDEP_FLAGS = -native
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+		SYSTEM_NAME=Linux
+	endif
+	ifeq ($(UNAME_S),Darwin)
+		SYSTEM_NAME=Mac
+	endif
 endif
 
-CC_CMD = ($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
-
-# Meta information
-
-BUILD_DIRECTORIES := $(HAXE_DIRECTORIES:%=_build/src/%)
-HAXE_SRC := $(wildcard $(HAXE_DIRECTORIES:%=src/%/*.ml))
-BUILD_SRC := $(HAXE_SRC:%=_build/%)
+# Configuration
 
 ADD_REVISION?=0
 
-BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
+BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_SHA=$(shell git rev-parse --short HEAD)
 COMMIT_DATE=$(shell \
 	if [ "$$(uname)" = "Darwin" ]; then \
@@ -87,92 +59,24 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
-# using $(CURDIR) on Windows will not work since it might be a Cygwin path
-ifdef SYSTEMROOT
-	EXTENSION=.exe
-else
-	export HAXE_STD_PATH=$(CURDIR)/std
-endif
+NEKO_VERSION=2.4.1
+NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
+NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 
-# Native libraries
+all: haxe tools
 
-ifneq ($(STATICLINK),0)
-	LIB_PARAMS= -cclib '-Wl,-Bstatic -lpcre -lz -Wl,-Bdynamic '
-else
-	LIB_PARAMS?= -cclib -lpcre -cclib -lz
-endif
+haxe:
+	dune build --profile release src/haxe.exe
+	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
-NATIVE_LIBS=-thread -cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib libs/objsize/c_objsize.o -cclib libs/pcre/pcre_stubs.o -ccopt -L/usr/local/lib $(LIB_PARAMS)
-
-# Modules
-
--include Makefile.modules
-
-# Rules
-
-all: libs haxe tools
-
-libs:
-	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) $(TARGET_FLAG) &&) true
-
-_build/%:%
-	mkdir -p $(dir $@)
-	cp $< $@
-
-build_dirs:
-	@mkdir -p $(BUILD_DIRECTORIES)
-
-_build/src/syntax/grammar.ml:src/syntax/grammar.mly
-	camlp5o -impl $< -o $@
-
-_build/src/compiler/version.ml: FORCE
-ifneq ($(ADD_REVISION),0)
-	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > _build/src/compiler/version.ml
-else
-	echo let version_extra = None > _build/src/compiler/version.ml
-endif
-
-_build/src/core/defineList.ml: src-json/define.json prebuild
-	./$(PREBUILD_OUTPUT) define $< > $@
-
-_build/src/core/metaList.ml: src-json/meta.json prebuild
-	./$(PREBUILD_OUTPUT) meta $< > $@
-
-build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
-
-prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
-	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex.ppx -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
-
-haxe: build_src
-	$(MAKE) -f $(MAKEFILENAME) build_pass_1
-	$(MAKE) -f $(MAKEFILENAME) build_pass_2
-	$(MAKE) -f $(MAKEFILENAME) build_pass_3
-	$(MAKE) -f $(MAKEFILENAME) build_pass_4
-
-build_pass_1:
-	printf MODULES= > Makefile.modules
-	ls -1 $(HAXE_DIRECTORIES:%=_build/src/%/*.ml) | tr '\n' ' ' >> Makefile.modules
-
-build_pass_2:
-	printf MODULES= > Makefile.modules
-	ocamlfind ocamldep -sort -slash $(HAXE_INCLUDES) $(MODULES) | sed -e "s/\.ml//g" >> Makefile.modules
-
-build_pass_3:
-	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
-
-build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -safe-string -linkpkg -g -o $(HAXE_OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+plugin: haxe
+	$(DUNE_COMMAND) build --profile release plugins/$(PLUGIN)/$(PLUGIN).cmxs
+	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
+	cp -f _build/default/plugins/$(PLUGIN)/$(PLUGIN).cmxs plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)/plugin.cmxs
 
 kill_exe_win:
 ifdef SYSTEMROOT
 	-@taskkill /F /IM haxe.exe 2>/dev/null
-endif
-
-plugin:
-ifeq ($(BYTECODE),1)
-	$(CC_CMD) $(PLUGIN).ml
-else
-	$(COMPILER) $(ALL_CFLAGS) -shared -o $(PLUGIN).cmxs $(PLUGIN).ml
 endif
 
 # Only use if you have only changed gencpp.ml
@@ -188,9 +92,24 @@ copy_haxetoolkit: /cygdrive/c/HaxeToolkit/haxe/haxe.exe
 	cp $< $@
 endif
 
-haxelib:
-	(cd $(CURDIR)/extra/haxelib_src && $(CURDIR)/$(HAXE_OUTPUT) client.hxml && nekotools boot run.n)
-	mv extra/haxelib_src/run$(EXTENSION) $(HAXELIB_OUTPUT)
+ifeq ($(SYSTEM_NAME),Mac)
+# This assumes that haxelib and neko will both be installed into INSTALL_DIR,
+# which is the case when installing using the mac installer package
+HAXELIB_LFLAGS= -Wl,-rpath,$(INSTALL_DIR)/lib
+endif
+
+haxelib_unix:
+	cd $(CURDIR)/extra/haxelib_src && \
+	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
+	nekotools boot -c run.n
+	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LFLAGS)
+
+# haxelib should depends on haxe, but we don't want to do that...
+ifeq ($(SYSTEM_NAME),Windows)
+haxelib: haxelib_$(PLATFORM)
+else
+haxelib: haxelib_unix
+endif
 
 tools: haxelib
 
@@ -211,13 +130,15 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install $(OPAM_LIBS) camlp5 ocamlfind --yes
+	opam install ocamlfind dune --yes
 
-# Dependencies
-
--include Makefile.dependencies
+haxe_deps:
+	opam pin add haxe . --no-action
+	opam install haxe --deps-only --yes
 
 # Package
+
+package_env: opam_install haxe_deps
 
 package_src:
 	mkdir -p $(PACKAGE_OUT_DIR)
@@ -243,26 +164,34 @@ xmldoc:
 	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcpp  https://github.com/HaxeFoundation/hxcpp   && \
 	$(CURDIR)/$(HAXELIB_OUTPUT) git hxjava https://github.com/HaxeFoundation/hxjava  && \
-	$(CURDIR)/$(HAXELIB_OUTPUT) git hxcs   https://github.com/HaxeFoundation/hxcs    && \
 	PATH="$(CURDIR):$(PATH)" $(CURDIR)/$(HAXE_OUTPUT) doc.hxml
 
 $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
-$(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget -nv http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+# Can be 'universal', 'arm64', or 'x86_64'
+ifndef PACKAGE_INSTALLER_MAC_ARCH
+PACKAGE_INSTALLER_MAC_ARCH:=$(shell uname -m)
+endif
+
+$(INSTALLER_TMP_DIR)/neko-osx.tar.gz: $(INSTALLER_TMP_DIR)
+	NEKO_ARCH_SUFFIX=$$(if [ "$(PACKAGE_INSTALLER_MAC_ARCH)" = "x86_64" ]; then \
+		echo 64; \
+	else \
+		echo "-$(PACKAGE_INSTALLER_MAC_ARCH)"; \
+	fi); \
+	wget -nv https://github.com/HaxeFoundation/neko/releases/download/$(NEKO_VERSION_TAG)/neko-$(NEKO_VERSION)-osx$$NEKO_ARCH_SUFFIX.tar.gz -O installer/neko-osx.tar.gz
 
 # Installer
 
-package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
+package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	$(eval OUTFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.tar.gz)
 	$(eval PACKFILE := $(shell pwd)/$(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz)
 	$(eval VERSION := $(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1))
-	$(eval NEKOVER := $(shell neko -version 2>&1))
 	bash -c "rm -rf $(INSTALLER_TMP_DIR)/{resources,pkg,tgz,haxe.tar.gz}"
 	mkdir $(INSTALLER_TMP_DIR)/resources
 	# neko - unpack to change the dir name
-	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx64.tar.gz
+	cd $(INSTALLER_TMP_DIR)/resources && tar -zxvf ../neko-osx.tar.gz
 	mv $(INSTALLER_TMP_DIR)/resources/neko* $(INSTALLER_TMP_DIR)/resources/neko
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf neko.tar.gz neko
 	# haxe - unpack to change the dir name
@@ -271,6 +200,8 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf haxe.tar.gz haxe
 	# scripts
 	cp -rf extra/mac-installer/* $(INSTALLER_TMP_DIR)/resources
+	sed -i '' 's/%%NEKO_VERSION%%/$(NEKO_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
+	sed -i '' 's/%%NEKO_MAJOR_VERSION%%/$(NEKO_MAJOR_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf scripts.tar.gz scripts
 	# installer structure
 	mkdir -p $(INSTALLER_TMP_DIR)/pkg
@@ -286,12 +217,12 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 	sed -i '' 's/%%VERSION%%/$(VERSION)/g' PackageInfo ;\
 	sed -i '' 's/%%VERSTRING%%/$(VERSION)/g' PackageInfo ;\
 	sed -i '' 's/%%VERLONG%%/$(VERSION)/g' PackageInfo ;\
-	sed -i '' 's/%%NEKOVER%%/$(NEKOVER)/g' PackageInfo ;\
+	sed -i '' 's/%%NEKOVER%%/$(NEKO_VERSION)/g' PackageInfo ;\
 	cd .. ;\
 	sed -i '' 's/%%VERSION%%/$(VERSION)/g' Distribution ;\
 	sed -i '' 's/%%VERSTRING%%/$(VERSION)/g' Distribution ;\
 	sed -i '' 's/%%VERLONG%%/$(VERSION)/g' Distribution ;\
-	sed -i '' 's/%%NEKOVER%%/$(NEKOVER)/g' Distribution ;\
+	sed -i '' 's/%%NEKOVER%%/$(NEKO_VERSION)/g' Distribution ;\
 	sed -i '' 's/%%INSTKB%%/$$INSTKBH/g' Distribution"
 	# repackage
 	cd $(INSTALLER_TMP_DIR)/pkg; xar --compression none -cf ../$(PACKAGE_FILE_NAME).pkg *
@@ -300,10 +231,7 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz package_unix
 
 # Clean
 
-clean: clean_libs clean_haxe clean_tools clean_package
-
-clean_libs:
-	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) clean &&) true
+clean: clean_haxe clean_tools clean_package
 
 clean_haxe:
 	rm -f -r _build $(HAXE_OUTPUT) $(PREBUILD_OUTPUT)
@@ -324,4 +252,7 @@ FORCE:
 .ml.cmo:
 	$(CC_CMD)
 
-.PHONY: haxe libs haxelib
+.PHONY: haxe haxelib
+
+# our "all:" target doens't work in parallel mode
+.NOTPARALLEL:

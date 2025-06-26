@@ -1,0 +1,9 @@
+(include_subdirs no)
+
+(library
+	(name mbedtls)
+	(foreign_stubs
+		(language c)
+		(names mbedtls_stubs))
+	(wrapped false)
+)

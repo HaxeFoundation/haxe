@@ -45,30 +45,48 @@ let float_repres f =
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
 
+let is_whitespace code =
+	code > 8 && code < 14
+
 let parse_float s =
 	let rec loop sp i =
 		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
 		match String.unsafe_get s i with
 		| ' ' when sp = i -> loop (sp + 1) (i + 1)
+		| c when sp = i && is_whitespace (Char.code c) -> loop (sp + 1) (i + 1)
 		| '0'..'9' | '-' | '+' | 'e' | 'E' | '.' -> loop sp (i + 1)
 		| _ -> String.sub s sp (i - sp)
 	in
 	float_of_string (loop 0 0)
 
 let parse_int s =
-	let rec loop_hex i =
-		if i = String.length s then s else
-		match String.unsafe_get s i with
-		| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex (i + 1)
-		| _ -> String.sub s 0 i
+	let rec loop_hex sp i =
+		if i = String.length s then
+			String.sub s sp (i - sp)
+		else
+			match String.unsafe_get s i with
+			| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex sp (i + 1)
+			| _ -> String.sub s sp (i - sp)
 	in
-	let rec loop sp i =
+	let rec loop_dec sp i =
 		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
 		match String.unsafe_get s i with
-		| '0'..'9' -> loop sp (i + 1)
-		| ' ' when sp = i -> loop (sp + 1) (i + 1)
-		| '-' when i = 0 -> loop sp (i + 1)
-		| ('x' | 'X') when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
+		| '0'..'9' -> loop_dec sp (i + 1)
 		| _ -> String.sub s sp (i - sp)
 	in
-	Int32.of_string (loop 0 0)
+	let handle_digits sp i =
+		if i + 1 < String.length s && String.get s i = '0' &&
+			(String.get s (i + 1) = 'x' || String.get s (i + 1) = 'X')
+		then loop_hex sp (i + 2)
+		else loop_dec sp i
+	in
+	let rec loop sp =
+		if sp = String.length s then "" else
+		match String.unsafe_get s sp with
+		| ' ' -> loop (sp + 1)
+		| '+' -> handle_digits (sp + 1) (sp + 1)
+		| '-' -> handle_digits sp (sp + 1)
+		| c when is_whitespace (Char.code c) -> loop (sp + 1)
+		| _ -> handle_digits sp sp
+	in
+	Int32.of_string (loop 0)

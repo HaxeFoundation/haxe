@@ -27,56 +27,56 @@ import python.Tuple;
 
 @:pythonImport("os", "path")
 extern class Path {
-	public static var sep:String;
-	public static function exists(path:String):Bool;
+	static var sep:String;
+	static function exists(path:String):Bool;
 
-	public static function abspath(path:String):String;
+	static function abspath(path:String):String;
 
-	public static function basename(path:String):String;
+	static function basename(path:String):String;
 
-	public static function commonprefix(paths:Array<String>):String;
+	static function commonprefix(paths:Array<String>):String;
 
-	public static function lexists(path:String):Bool;
+	static function lexists(path:String):Bool;
 
-	public static function expanduser(path:String):String;
+	static function expanduser(path:String):String;
 
-	public static function expandvars(path:String):String;
+	static function expandvars(path:String):String;
 
-	public static function getmtime(path:String):Float;
+	static function getmtime(path:String):Float;
 
-	public static function getatime(path:String):Float;
+	static function getatime(path:String):Float;
 
-	public static function getctime(path:String):Float;
+	static function getctime(path:String):Float;
 
-	public static function getsize(path:String):Int;
+	static function getsize(path:String):Int;
 
-	public static function isabs(path:String):Bool;
+	static function isabs(path:String):Bool;
 
-	public static function isfile(path:String):Bool;
+	static function isfile(path:String):Bool;
 
-	public static function isdir(path:String):Bool;
+	static function isdir(path:String):Bool;
 
-	public static function dirname(path:String):String;
+	static function dirname(path:String):String;
 
-	public static function islink(path:String):Bool;
+	static function islink(path:String):Bool;
 
-	public static function ismount(path:String):Bool;
+	static function ismount(path:String):Bool;
 
-	public static function join(path:String, paths:Rest<String>):String;
+	static function join(path:String, paths:Rest<String>):String;
 
-	public static function normpath(path:String):String;
+	static function normpath(path:String):String;
 
-	public static function realpath(path:String):String;
+	static function realpath(path:String):String;
 
-	public static function relpath(path:String):String;
+	static function relpath(path:String):String;
 
-	public static function samefile(path1:String, path2:String):String;
+	static function samefile(path1:String, path2:String):String;
 
-	public static function split(path:String):Tuple2<String, String>;
+	static function split(path:String):Tuple2<String, String>;
 
-	public static function splitdrive(path:String):Tuple2<String, String>;
+	static function splitdrive(path:String):Tuple2<String, String>;
 
-	public static function splitext(path:String):Tuple2<String, String>;
+	static function splitext(path:String):Tuple2<String, String>;
 
-	public static function supports_unicode_filenames():Bool;
+	static function supports_unicode_filenames():Bool;
 }

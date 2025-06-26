@@ -8,8 +8,8 @@ private class C {
 class Issue4962 extends Test {
 	function test() {
 		var int:Dynamic = Int;
-		f(Std.is(new C(), int));
+		f(Std.isOfType(new C(), int));
 
-		f(Std.is(new C(), Int));
+		f(Std.isOfType(new C(), Int));
 	}
 }
