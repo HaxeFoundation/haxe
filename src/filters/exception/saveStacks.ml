@@ -23,12 +23,12 @@ let insert_save_stacks ectx scom =
 		let native_stack_trace_cls = Lazy.force ectx.haxe_native_stack_trace in
 		let method_field =
 			try PMap.find "saveStack" native_stack_trace_cls.cl_statics
-			with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") null_pos
+			with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") catch_var.v_pos
 		in
 		let return_type =
 			match follow method_field.cf_type with
 			| TFun(_,t) -> t
-			| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") null_pos
+			| _ -> raise_typing_error ("haxe.NativeStackTrace." ^ method_field.cf_name ^ " is not a function and cannot be called") catch_var.v_pos
 		in
 		let catch_local = mk (TLocal catch_var) catch_var.v_type catch_var.v_pos in
 		make_static_call scom native_stack_trace_cls method_field [catch_local] return_type catch_var.v_pos
