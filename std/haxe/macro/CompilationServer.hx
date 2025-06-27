@@ -45,7 +45,7 @@ enum abstract ModuleCheckPolicy(Int) {
 typedef CompilationStats = {
 	var filesParsed:Int;
 	var modulesTyped:Int;
-	var modulesRestored:Int;
+	var modulesRestoredFromHxb:Int;
 	var classesBuilt:Int;
 	var methodsTyped:Int;
 	var macrosCalled:Int;

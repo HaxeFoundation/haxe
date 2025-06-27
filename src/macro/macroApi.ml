@@ -2363,7 +2363,7 @@ let macro_api ccom get_api =
 			encode_obj [
 				"filesParsed", vint !(stats.s_files_parsed);
 				"modulesTyped", vint !(stats.s_modules_typed);
-				"modulesRestored", vint !(stats.s_modules_restored);
+				"modulesRestoredFromHxb", vint !(stats.s_modules_restored);
 				"classesBuilt", vint !(stats.s_classes_built);
 				"methodsTyped", vint !(stats.s_methods_typed);
 				"macrosCalled", vint !(stats.s_macros_called);
