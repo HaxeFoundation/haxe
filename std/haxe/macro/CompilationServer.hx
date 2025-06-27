@@ -96,6 +96,14 @@ class CompilationServer {
 		@:privateAccess Compiler.load("server_invalidate_files", 1)(filePaths);
 	}
 
+	/**
+		Get current compilation server stats counters.
+
+		Can be called at different compilation stages, or even in the middle of
+		a macro execution.
+
+		Counters are reset at the beginning of each request.
+	**/
 	static public function getStats():CompilationStats {
 		return @:privateAccess Compiler.load("server_stats", 0)();
 	}
