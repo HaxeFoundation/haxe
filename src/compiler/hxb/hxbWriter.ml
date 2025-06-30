@@ -1292,7 +1292,6 @@ module HxbWriter = struct
 				write_type_instance writer t
 
 	and write_types writer tl =
-		(* TODO (?): catch_unbound_ttp *)
 		Chunk.write_list writer.chunk tl (write_type_instance writer)
 
 	(* texpr *)
@@ -1694,7 +1693,6 @@ module HxbWriter = struct
 			let c = ttp.ttp_class in
 			write_metadata writer c.cl_meta;
 			write_types writer (get_constraints ttp);
-			(* TODO: catch_unbound_ttp *)
 			Chunk.write_option writer.chunk ttp.ttp_default (write_type_instance writer)
 		in
 		List.iter write_type_parameter_data ttps
@@ -1925,12 +1923,18 @@ module HxbWriter = struct
 			Chunk.write_u8 writer.chunk 0
 		else begin
 			Chunk.write_u8 writer.chunk 1;
-			(* TODO: catch_unbound_ttp *)
-			write_type_instance writer a.a_this;
+			catch_unbound_ttp (fun () ->
+				write_type_instance writer a.a_this
+			) (Printf.sprintf "underlying type for abstract `%s`" (s_type_path a.a_path)) (Some a.a_pos);
 		end;
-		(* TODO: catch_unbound_ttp *)
-		Chunk.write_list writer.chunk a.a_from (write_type_instance writer);
-		Chunk.write_list writer.chunk a.a_to (write_type_instance writer);
+		let write_from_to source t =
+			let t_path = try s_type_path (t_infos (module_type_of_type t)).mt_path with Exit -> let a = ref [] in s_type a t in
+			catch_unbound_ttp (fun () ->
+				write_type_instance writer t
+			) (Printf.sprintf "`%s` type `%s` for abstract `%s`" source t_path (s_type_path a.a_path)) (Some a.a_pos);
+		in
+		Chunk.write_list writer.chunk a.a_from (write_from_to "from");
+		Chunk.write_list writer.chunk a.a_to (write_from_to "to");
 		Chunk.write_bool writer.chunk a.a_extern;
 		Chunk.write_bool writer.chunk a.a_enum
 
@@ -1975,8 +1979,9 @@ module HxbWriter = struct
 	let write_typedef writer (td : tdef) =
 		select_type writer td.t_path;
 		write_common_module_type writer (Obj.magic td);
-		(* TODO: catch_unbound_ttp *)
-		write_type_instance writer td.t_type
+		catch_unbound_ttp (fun () ->
+			write_type_instance writer td.t_type
+		) (Printf.sprintf "typedef `%s`" (s_type_path td.t_path)) (Some td.t_pos)
 
 	(* Module *)
 
