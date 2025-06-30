@@ -18,8 +18,7 @@ class Issue11995 extends TestCase {
 
 			function doTest() {
 				runHaxeJsonCb(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)}, (res) -> {
-					// No error during hover
-					Assert.pass();
+					Assert.equals(":test", res?.item?.args?.meta?.pop()?.name);
 				}, () -> {
 					assertSuccess();
 					async.done();

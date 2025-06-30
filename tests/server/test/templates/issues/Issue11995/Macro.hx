@@ -8,7 +8,7 @@ class Macro {
 		switch fields.find(f -> f.name == "foo").kind {
 			case FFun(f):
 				f.expr = macro {
-					var baz:String = "hello";
+					var @:test baz:String = "hello";
 					${f.expr}
 				};
 
