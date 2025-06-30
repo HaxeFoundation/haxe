@@ -2336,13 +2336,24 @@ let create config warn anon_id =
 		field_stack = [];
 		wrote_local_type_param = false;
 		needs_local_context = false;
-		(* unbound_ttp = IdentityPool.create (); *)
+		unbound_ttp = Hashtbl.create 0;
 		unclosed_mono = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}
 
 let write_module writer m =
-	HxbWriter.write_module writer m
+	try_with (fun () -> HxbWriter.write_module writer m) () {
+		effc = (fun (type c) (eff : c Effect.t) ->
+			match eff with
+			| UnboundTTP ->
+				let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
+				Some (fun (k:(c,_) continuation) -> continue k ("module " ^ (s_type_path m.m_path), p))
+			| UnboundTTPWithoutPosition ->
+				let p = file_pos (Path.UniqueKey.lazy_path writer.current_module.m_extra.m_file) in
+				Some (fun (k:(c,_) continuation) -> continue k p)
+			| _ -> None
+		)
+	}
 
 let get_chunks writer =
 	List.map (fun chunk ->
