@@ -104,10 +104,8 @@ class FixedThreadPool implements IThreadPool {
 	**/
 	public function shutdown():Void {
 #if (target.atomics)
-		if(false == _isShutdown.compareExchange(false, true)) {
-			for(_ in pool) {
-				queue.add(shutdownTask);
-			}	
+		if(_isShutdown.compareExchange(false, true)) {
+			return;
 		}
 #else
 		_isShutdownMutex.acquire();
@@ -119,11 +117,11 @@ class FixedThreadPool implements IThreadPool {
 
 		_isShutdown = true;
 		_isShutdownMutex.release();
+#end
 
 		for(_ in pool) {
 			queue.add(shutdownTask);
 		}
-#end
 	}
 
 	static function shutdownTask():Void {

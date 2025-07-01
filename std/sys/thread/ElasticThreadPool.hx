@@ -42,8 +42,24 @@ class ElasticThreadPool implements IThreadPool {
 	public var maxThreadsCount:Int;
 	/** Indicates if `shutdown` method of this pool has been called. */
 	public var isShutdown(get,never):Bool;
+	function get_isShutdown():Bool {
+#if (target.atomics)
+		return _isShutdown.load();
+#else
+		_isShutdownMutex.acquire();
+		final current = _isShutdown;
+		_isShutdownMutex.release();
+		
+		return current;
+#end
+	}
+
+#if (target.atomics)
+	var _isShutdown = new haxe.atomic.AtomicBool(false);
+#else
 	var _isShutdown = false;
-	function get_isShutdown():Bool return _isShutdown;
+	var _isShutdownMutex = new sys.thread.Mutex();
+#end
 
 	final pool:Array<Worker> = [];
 	final queue = new Deque<()->Void>();
@@ -69,8 +85,17 @@ class ElasticThreadPool implements IThreadPool {
 		Throws an exception if the pool is shut down.
 	**/
 	public function run(task:()->Void):Void {
-		if(_isShutdown)
+#if (target.atomics)
+		if(_isShutdown.load()) {
+#else
+		_isShutdownMutex.acquire();
+		final current = _isShutdown;
+		_isShutdownMutex.release();
+
+		if (current) {
+#end
 			throw new ThreadPoolException('Task is rejected. Thread pool is shut down.');
+		}
 		if(task == null)
 			throw new ThreadPoolException('Task to run must not be null.');
 
@@ -109,9 +134,23 @@ class ElasticThreadPool implements IThreadPool {
 		Multiple calls to this method have no effect.
 	**/
 	public function shutdown():Void {
-		if(_isShutdown) return;
-		mutex.acquire();
+#if (target.atomics)
+		if(_isShutdown.compareExchange(false, true)) {
+			return;
+		}
+#else
+		_isShutdownMutex.acquire();
+		if (_isShutdown) {
+			_isShutdownMutex.release();
+
+			return;
+		}
+
 		_isShutdown = true;
+		_isShutdownMutex.release();
+#end
+
+		mutex.acquire();
 		for(worker in pool) {
 			worker.shutdown();
 		}
