@@ -1132,10 +1132,10 @@ and encode_var_access a =
 		| AccNo -> 1, []
 		| AccNever -> 2, []
 		| AccCall -> 4, []
-		| AccInline	-> 5, []
-		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
-		| AccCtor -> 7, []
-		| AccPrivateCall -> 8, []
+		| AccPrivateCall -> 5, []
+		| AccInline	-> 6, []
+		| AccRequire (s,msg) -> 7, [encode_string s; null encode_string msg]
+		| AccCtor -> 8, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1459,10 +1459,10 @@ let decode_var_access v =
 	| 1, [] -> AccNo
 	| 2, [] -> AccNever
 	| 4, [] -> AccCall
-	| 5, [] -> AccInline
-	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
-	| 7, [] -> AccCtor
-	| 8, [] -> AccPrivateCall
+	| 5, [] -> AccPrivateCall
+	| 6, [] -> AccInline
+	| 7, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
+	| 8, [] -> AccCtor
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =
@@ -2358,6 +2358,16 @@ let macro_api ccom get_api =
 				cs#remove_files s;
 			) (decode_array a);
 			vnull
+		);
+		"server_stats", vfun0 (fun () ->
+			encode_obj [
+				"filesParsed", vint !(stats.s_files_parsed);
+				"modulesTyped", vint !(stats.s_modules_typed);
+				"modulesRestoredFromHxb", vint !(stats.s_modules_restored);
+				"classesBuilt", vint !(stats.s_classes_built);
+				"methodsTyped", vint !(stats.s_methods_typed);
+				"macrosCalled", vint !(stats.s_macros_called);
+			]
 		);
 		"position_to_range", vfun1 (fun p ->
 			let p = decode_pos p in

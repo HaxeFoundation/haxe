@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2023 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,44 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.thread;
-
-#if (!target.threaded)
-#error "This class is not available on this target"
-#end
+package haxe.math.bigint;
 
 /**
-	A Deque is an output-restricted double-ended queue with a `pop` method that can
-	block until an element is available. It is commonly used to synchronize threads.
- */
-@:coreApi extern class Deque<T> {
+	An exception thrown for errors during `BigInt` operations.
+	It wraps a `BigIntError` value to provide specific details.
+**/
+class BigIntException extends haxe.Exception {
 	/**
-		Create a new Deque instance which is initially empty.
+		Creates a new `BigIntException`.
+		@param error The specific `BigIntError` that occurred.
+		@param previous An optional previous exception in a chain.
 	**/
-	function new():Void;
-
-	/**
-		Adds an element at the end of `this` Deque.
-
-		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
-	**/
-	function add(i:T):Void;
-
-	/**
-		Adds an element at the front of `this` Deque.
-
-		(Java,Jvm): throws `java.lang.NullPointerException` if `i` is `null`.
-	**/
-	function push(i:T):Void;
-
-	/**
-		Tries to retrieve an element from the front of `this` Deque.
-
-		If an element is available, it is removed from the queue and returned.
-
-		If no element is available and `block` is `false`, `null` is returned.
-
-		Otherwise, execution blocks until an element is available and returns it.
-	**/
-	function pop(block:Bool):Null<T>;
+	public function new(error:BigIntError, ?previous:haxe.Exception) {
+		super( error, previous);
+	}
 }

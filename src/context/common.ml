@@ -40,6 +40,8 @@ let const_type basic const default =
 
 type stats = {
 	s_files_parsed : int ref;
+	s_modules_typed : int ref;
+	s_modules_restored : int ref;
 	s_classes_built : int ref;
 	s_methods_typed : int ref;
 	s_macros_called : int ref;
@@ -477,6 +479,8 @@ let short_platform_name = function
 let stats =
 	{
 		s_files_parsed = ref 0;
+		s_modules_typed = ref 0;
+		s_modules_restored = ref 0;
 		s_classes_built = ref 0;
 		s_methods_typed = ref 0;
 		s_macros_called = ref 0;

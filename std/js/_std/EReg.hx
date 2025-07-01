@@ -84,7 +84,7 @@
 	}
 
 	public inline function replace(s:String, by:String):String {
-		return (cast s).replace(r, by);
+		return js.lib.NativeStringTools.replace(s, r, by);
 	}
 
 	public function map(s:String, f:EReg->String):String {
@@ -112,7 +112,7 @@
 	}
 
 	public static inline function escape(s:String):String {
-		return (cast s).replace(escapeRe, "\\$&");
+		return js.lib.NativeStringTools.replace(s, escapeRe, "\\$&");
 	}
 
 	static var escapeRe = new js.lib.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
