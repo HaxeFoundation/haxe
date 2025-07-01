@@ -34,14 +34,30 @@ import haxe.Exception;
 **/
 @:coreApi
 class FixedThreadPool implements IThreadPool {
+#if (target.atomics)
+	var _isShutdown = new haxe.atomic.AtomicBool(false);
+#else
+	var _isShutdown = false;
+	var _isShutdownMutex = new sys.thread.Mutex();
+#end
+
 	/* Amount of threads in this pool. */
 	public var threadsCount(get,null):Int;
 	function get_threadsCount():Int return threadsCount;
 
 	/** Indicates if `shutdown` method of this pool has been called. */
 	public var isShutdown(get,never):Bool;
-	var _isShutdown = false;
-	function get_isShutdown():Bool return _isShutdown;
+	function get_isShutdown():Bool {
+#if (target.atomics)
+		return _isShutdown.load();
+#else
+		_isShutdownMutex.acquire();
+		final current = _isShutdown;
+		_isShutdownMutex.release();
+		
+		return current;
+#end
+	}
 
 	final pool:Array<Worker>;
 	final poolMutex = new Mutex();
@@ -63,8 +79,17 @@ class FixedThreadPool implements IThreadPool {
 		Throws an exception if the pool is shut down.
 	**/
 	public function run(task:()->Void):Void {
-		if(_isShutdown)
+#if (target.atomics)
+		if(_isShutdown.load()) {
+#else
+		_isShutdownMutex.acquire();
+		final current = _isShutdown;
+		_isShutdownMutex.release();
+
+		if (current) {
+#end
 			throw new ThreadPoolException('Task is rejected. Thread pool is shut down.');
+		}
 		if(task == null)
 			throw new ThreadPoolException('Task to run must not be null.');
 		queue.add(task);
@@ -78,11 +103,27 @@ class FixedThreadPool implements IThreadPool {
 		Multiple calls to this method have no effect.
 	**/
 	public function shutdown():Void {
-		if(_isShutdown) return;
+#if (target.atomics)
+		if(false == _isShutdown.compareExchange(false, true)) {
+			for(_ in pool) {
+				queue.add(shutdownTask);
+			}	
+		}
+#else
+		_isShutdownMutex.acquire();
+		if (_isShutdown) {
+			_isShutdownMutex.release();
+
+			return;
+		}
+
 		_isShutdown = true;
+		_isShutdownMutex.release();
+
 		for(_ in pool) {
 			queue.add(shutdownTask);
 		}
+#end
 	}
 
 	static function shutdownTask():Void {
