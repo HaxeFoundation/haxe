@@ -885,10 +885,10 @@
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{
-		"name": "MessageNoColor",
-		"define": "message.no-color",
+		"name": "MessageColor",
+		"define": "message.color",
 		"signatureNeutral": true,
-		"doc": "Disable ANSI color codes in message reporting."
+		"doc": "Enable ANSI color codes in message reporting."
 	},
 	{
 		"name": "MessageAbsolutePositions",
