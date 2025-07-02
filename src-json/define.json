@@ -8,8 +8,7 @@
 		"name": "AdvancedTelemetry",
 		"define": "advanced-telemetry",
 		"doc": "Allow the SWF to be measured with Monocle tool.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "AnalyzerOptimize",
@@ -226,8 +225,7 @@
 		"name": "Fdb",
 		"define": "fdb",
 		"doc": "Enable full flash debug infos for FDB interactive debugging.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "FileExtension",
@@ -239,15 +237,13 @@
 		"name": "FlashStrict",
 		"define": "flash-strict",
 		"doc": "More strict typing for flash target.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "FlashUseStage",
 		"define": "flash-use-stage",
 		"doc": "Keep the SWF library initial stage.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "ForceNativeProperty",
@@ -265,8 +261,7 @@
 		"name": "HaxeBoot",
 		"define": "haxe-boot",
 		"doc": "Give the name 'haxe' to the flash boot class instead of a generated name.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "HaxeVer",
@@ -611,8 +606,7 @@
 		"name": "NetworkSandbox",
 		"define": "network-sandbox",
 		"doc": "Use local network sandbox instead of local file access one.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "NoCompilation",
@@ -636,8 +630,7 @@
 		"name": "NoFlashOverride",
 		"define": "no-flash-override",
 		"doc": "Change overrides on some basic classes into HX suffixed methods",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "NoOpt",
@@ -665,8 +658,7 @@
 		"name": "NoSwfCompress",
 		"define": "no-swf-compress",
 		"doc": "Disable SWF output compression.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "NoTraces",
@@ -764,82 +756,71 @@
 		"define": "swc",
 		"doc": "Output a SWC instead of a SWF.",
 		"platforms": ["flash"],
-		"reserved": true,
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"reserved": true
 	},
 	{
 		"name": "SwfCompressLevel",
 		"define": "swf-compress-level",
 		"doc": "Set the amount of compression for the SWF output.",
 		"platforms": ["flash"],
-		"params": ["level: 1-9"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["level: 1-9"]
 	},
 	{
 		"name": "SwfDebugPassword",
 		"define": "swf-debug-password",
 		"doc": "Set a password for debugging.",
 		"platforms": ["flash"],
-		"params": ["password"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["password"]
 	},
 	{
 		"name": "SwfDirectBlit",
 		"define": "swf-direct-blit",
 		"doc": "Use hardware acceleration to blit graphics.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfGpu",
 		"define": "swf-gpu",
 		"doc": "Use GPU compositing features when drawing graphics.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfHeader",
 		"define": "swf-header",
 		"doc": "define SWF header (width:height:fps:color)",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfMetadata",
 		"define": "swf-metadata",
 		"doc": "Include contents of the given file as metadata in the SWF.",
 		"platforms": ["flash"],
-		"params": ["file"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["file"]
 	},
 	{
 		"name": "SwfPreloaderFrame",
 		"define": "swf-preloader-frame",
 		"doc": "Insert empty first frame in SWF.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfProtected",
 		"define": "swf-protected",
 		"doc": "Compile Haxe `private` as `protected` in the SWF instead of `public`.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfScriptTimeout",
 		"define": "swf-script-timeout",
 		"doc": "Maximum ActionScript processing time before script stuck dialog box displays.",
 		"platforms": ["flash"],
-		"params": ["time in seconds"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["time in seconds"]
 	},
 	{
 		"name": "SwfUseDoAbc",
 		"define": "swf-use-doabc",
 		"doc": "Use `DoAbc` SWF-tag instead of `DoAbcDefine`.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "Sys",
