@@ -4,8 +4,8 @@ package haxe.atomic;
 #error "This target does not support atomic operations."
 #end
 
-#if (js || cpp)
-#error "JavaScript and Hxcpp do not support AtomicObject"
+#if js
+#error "JavaScript does not support AtomicObject"
 #end
 
 /**
