@@ -325,7 +325,7 @@ let parse_module com m p =
 										TPType (make_ptp_th_null (mk_type_path ([],fst tp.tp_name)))
 									) d.d_params
 								in
-								mk_type_path ~params (!remap,fst d.d_name)
+								mk_type_path ~params ~sub:(fst d.d_name) (!remap,snd m)
 						in
 						make_ptp_th_null tp
 					end
