@@ -13,5 +13,7 @@ class Issue160 extends utest.Test {
 		CoroRun.runScoped(_ -> {
 			foo(Bar);
 		});
+
+		Assert.pass('Should not result in a compilation error');
 	}
 }
