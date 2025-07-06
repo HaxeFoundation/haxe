@@ -198,7 +198,8 @@ module ContinuationClassBuilder = struct
 			let map_args =
 				List.map (fun (v, _) ->
 					let t = substitute_type_params coro_class.type_param_subst v.v_type in
-					Texpr.Builder.default_value t coro_class.name_pos
+
+					Texpr.Builder.default_value (Abstract.follow_with_abstracts t) coro_class.name_pos
 				)
 			in
 			match coro_class.coro_type with
