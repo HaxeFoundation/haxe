@@ -757,14 +757,16 @@ and gen_function ?(keyword="function") ctx f pos =
 			else begin
 				check_var_declaration v;
 				let non_rest_args = List.rev args_rev in
-				let args_decl = declare_rest_args_legacy ctx.com (List.length non_rest_args) v in
-				let body =
+				let body = if has_var_flag v VUsedByTyper then
+					let args_decl = declare_rest_args_legacy ctx.com (List.length non_rest_args) v in
 					let el =
 						match f.tf_expr.eexpr with
 						| TBlock el -> args_decl @ el
 						| _ -> args_decl @ [f.tf_expr]
 					in
 					mk (TBlock el) f.tf_expr.etype f.tf_expr.epos
+				else
+					f.tf_expr
 				in
 				{ f with tf_args = non_rest_args; tf_expr = body }, mk_non_rest_arg_names non_rest_args
 			end
