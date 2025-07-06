@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <installer-script minSpecVersion="1.000000" authoringTool="com.apple.PackageMaker" authoringToolVersion="3.0.6" authoringToolBuild="201">
     <title>Haxe Toolkit %%VERLONG%%</title>
-    <options customize="never" allow-external-scripts="no"/>
+    <options customize="never" allow-external-scripts="no" hostArchitectures="x86_64,arm64" />
     <domains enable_localSystem="true"/>
     <background file="background" alignment="bottomleft" scaling="none"/>
     <license file="License"/>
