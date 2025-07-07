@@ -327,7 +327,7 @@ let parse_module com m p =
 								in
 								mk_type_path ~params ~sub:(fst d.d_name) (!remap,snd m)
 						in
-						make_ptp_th_null tp
+						make_ptp_th tp (snd d.d_name)
 					end
 				},p) :: acc
 			in
