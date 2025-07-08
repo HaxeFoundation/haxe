@@ -2359,6 +2359,16 @@ let macro_api ccom get_api =
 			) (decode_array a);
 			vnull
 		);
+		"server_stats", vfun0 (fun () ->
+			encode_obj [
+				"filesParsed", vint !(stats.s_files_parsed);
+				"modulesTyped", vint !(stats.s_modules_typed);
+				"modulesRestoredFromHxb", vint !(stats.s_modules_restored);
+				"classesBuilt", vint !(stats.s_classes_built);
+				"methodsTyped", vint !(stats.s_methods_typed);
+				"macrosCalled", vint !(stats.s_macros_called);
+			]
+		);
 		"position_to_range", vfun1 (fun p ->
 			let p = decode_pos p in
 			let l1,c1,l2,c2 = Lexer.get_pos_coords p in

@@ -449,6 +449,7 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			if full_restore then ignore(f_next chunks EOM)
 			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
+			incr stats.s_modules_restored;
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -593,6 +594,7 @@ and type_module sctx com delay mpath p =
 					   our current display file if we're in display mode. *)
 					if full_restore then ignore(f_next chunks EOM)
 					else delay PConnectField (fun () -> ignore(f_next chunks EOF));
+					incr stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason

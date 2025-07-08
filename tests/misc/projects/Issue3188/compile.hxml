@@ -1,3 +1,2 @@
 --macro Main.init()
 -D message.reporting=pretty
--D message.no-color

@@ -1,3 +1,2 @@
 compile5-fail.hxml
 -D message.reporting=pretty
--D message.no-color

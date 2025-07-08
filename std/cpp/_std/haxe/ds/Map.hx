@@ -164,6 +164,13 @@ abstract Map<K, V>(IMap<K, V>) {
 		this.clear();
 	}
 
+	/**
+		Returns size of `this` Map.
+	**/
+	public inline function size():Int {
+		return this.size();
+	}
+
 	@:arrayAccess @:noCompletion public inline function arrayWrite(k:K, v:V):V {
 		this.set(k, v);
 		return v;

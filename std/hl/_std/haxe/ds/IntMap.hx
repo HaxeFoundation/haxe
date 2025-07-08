@@ -88,4 +88,12 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		h = new hl.types.IntMap();
 		#end
 	}
+	
+	public function size():Int {
+		#if (hl_ver >= version("1.12.0"))
+		return h.size();
+		#else
+		return h.keysArray().length;
+		#end
+	}
 }

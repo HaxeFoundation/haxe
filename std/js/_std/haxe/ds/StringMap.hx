@@ -86,6 +86,10 @@ import haxe.DynamicAccess;
 	public inline function clear():Void {
 		m.clear();
 	}
+
+	public inline function size():Int {
+		return m.size;
+	}
 }
 #elseif (js_es == 5)
 @:coreApi class StringMap<T> implements IMap<String, T> {
@@ -137,6 +141,12 @@ import haxe.DynamicAccess;
 
 	public inline function toString():String {
 		return stringify(h);
+	}
+
+	public inline function size():Int {
+		var s:Any = 0;
+		js.Syntax.code("for( var key in {0} ) {1}++", h, s);
+		return s;
 	}
 
 	// impl
@@ -342,6 +352,12 @@ private class StringMapIterator<T> {
 	public inline function clear():Void {
 		h = {};
 		rh = null;
+	}
+
+	public inline function size():Int {
+		var s:Any = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
+		return s;
 	}
 
 	static function __init__():Void {

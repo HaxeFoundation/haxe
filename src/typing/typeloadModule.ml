@@ -718,6 +718,7 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
 	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
+	incr stats.s_modules_typed;
 	m
 
 class hxb_reader_api_typeload
