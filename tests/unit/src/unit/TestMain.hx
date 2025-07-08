@@ -69,7 +69,9 @@ function main() {
 		#if (!php && !lua)
 		new TestHttps(),
 		#end
+		#if (hl || jvm)
 		new TestBigInt(),
+		#end
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
