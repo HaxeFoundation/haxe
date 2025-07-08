@@ -170,13 +170,13 @@ abstract BigInt(BigInt_) {
 	}
 
 	/**
-		Creates a `BigInt` from a hexadecimal string. Assumes signed representation.
-		This is a shorthand for `fromHexSigned(value)`.
+		Creates a `BigInt` from a hexadecimal string. Assumes unsigned representation.
+		This is a shorthand for `fromHexUnsigned(value)`.
 		@param value The hexadecimal string.
 		@return A new `BigInt` instance.
 	**/
 	public static inline function fromHex(value:String):BigInt {
-		return fromHexSigned(value);
+		return fromHexUnsigned(value);
 	}
 
 	/**
