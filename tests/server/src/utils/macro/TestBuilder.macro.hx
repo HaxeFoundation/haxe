@@ -27,7 +27,6 @@ class TestBuilder {
 						// TODO: support functions that define their own async arg (not named `_` or `async`)
 						var args = f.args.copy();
 						f.args = [];
-						makeAsyncTest(field);
 
 						// Ignore original field; generate variants instead
 						removedFields.push(field);
@@ -67,14 +66,16 @@ class TestBuilder {
 										args: [{name: "async", type: macro:utest.Async}]
 									};
 
-									newFields.push({
+									var f = {
 										pos: variant.pos,
 										name: field.name + name,
 										meta: field.meta.filter(m -> m.name != ":variant"),
 										kind: FFun(ff),
 										doc: field.doc,
 										access : field.access
-									});
+									};
+									makeAsyncTest(f);
+									newFields.push(f);
 
 								case _:
 							}

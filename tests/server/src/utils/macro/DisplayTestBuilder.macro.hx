@@ -15,7 +15,7 @@ private class BuilderException extends Exception {
 class DisplayTestBuilder {
 	static public function build(fields:Array<Field>):Array<Field> {
 		for (field in fields) {
-			if (field.name.startsWith('test')) {
+			if (field.name.startsWith('test') && field.doc != null) {
 				try {
 					patchExpr(field);
 				} catch (e) {

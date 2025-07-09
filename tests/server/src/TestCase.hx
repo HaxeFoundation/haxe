@@ -77,9 +77,14 @@ class TestCase implements ITest implements ITestCase {
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
-			async.done();
-		});
+
+		utest
+			.CoroutineHelpers
+			.promise(() -> {
+				runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {});
+
+				async.done();
+			});
 	}
 
 	public function teardown() {}
@@ -99,43 +104,55 @@ class TestCase implements ITest implements ITestCase {
 		}
 	}
 
-	function runHaxe(args:Array<String>, done:() -> Void) {
+	@:coroutine
+	function runHaxe(args:Array<String>) {
 		messages = [];
 		errorMessages = [];
-		server.rawRequest(args, null, function(result) {
-			handleResult(result);
-			if (result.hasError) {
-				sendErrorMessage(result.stderr);
-			}
-			done();
-		}, sendErrorMessage);
+
+		hxcoro.Coro.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				handleResult(result);
+				if (result.hasError) {
+					sendErrorMessage(result.stderr);
+				}
+				cont.resume(null, null);
+			}, err -> {
+				sendErrorMessage(err);
+				cont.resume(null, null);
+			});
+		});
 	}
 
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
+	@:coroutine
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
-		runHaxe(args, done);
+		runHaxe(args);
 	}
 
+	@:coroutine
 	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
+			callback:TResponse->Void, ?pos:PosInfos) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
-		server.rawRequest(args, null, function(result) {
-			handleResult(result);
-			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
 
-			if (json.result != null) {
-				callback(json.result?.result);
-			} else {
-				Assert.fail('Error: ' + json.error, pos);
-			}
-			done();
-		}, function(msg) {
-			sendErrorMessage(msg);
-			done();
+		hxcoro.Coro.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				handleResult(result);
+				var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
+
+				if (json.result != null) {
+					callback(json.result?.result);
+				} else {
+					Assert.fail('Error: ' + json.error, pos);
+				}
+				cont.resume(null, null);
+			}, function(msg) {
+				sendErrorMessage(msg);
+				cont.resume(null, null);
+			});
 		});
 	}
 
