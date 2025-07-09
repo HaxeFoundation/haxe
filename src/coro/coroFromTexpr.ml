@@ -63,7 +63,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
-		| TConst TThis ->
+		| TConst TThis | TBlock [] ->
 			Some (cb,e)
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
