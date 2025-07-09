@@ -1,3 +1,2 @@
 -main Main
--D message.no-color
 -D message.reporting=pretty

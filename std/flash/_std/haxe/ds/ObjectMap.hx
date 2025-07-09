@@ -80,6 +80,12 @@ class ObjectMap<K:{}, V> extends flash.utils.Dictionary implements haxe.Constrai
 		for (i in keys())
 			untyped __delete__(this, i);
 	}
+	
+	public function size():Int {
+		var s = 0;
+		for(_ in keys()) s++;
+		return s;
+	}
 }
 
 private class NativePropertyIterator {

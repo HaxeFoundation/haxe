@@ -142,7 +142,7 @@ let compiler_pretty_message_string defines ectx cm =
 
 		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
-		let no_color = Define.defined defines Define.MessageNoColor in
+		let no_color = not (Define.defined defines Define.MessageColor) in
 		let c_reset = if no_color then "" else "\x1b[0m" in
 		let c_bold = if no_color then "" else "\x1b[1m" in
 		let c_dim = if no_color then "" else "\x1b[2m" in

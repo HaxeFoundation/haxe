@@ -430,7 +430,7 @@ type hxb_writer = {
 	mutable field_stack : unit list;
 	mutable wrote_local_type_param : bool;
 	mutable needs_local_context : bool;
-	unbound_ttp : (string * pos, bool) Hashtbl.t;
+	unbound_ttp : (typed_type_param,unit) IdentityPool.t;
 	unclosed_mono : (tmono,unit) IdentityPool.t;
 	t_instance_chunk : Chunk.t;
 }
@@ -1091,10 +1091,12 @@ module HxbWriter = struct
 		end with Not_found ->
 			let (source, p) = perform UnboundTTP in
 			let msg = Printf.sprintf "Unbound type parameter %s while writing %s" (s_type_path ttp.ttp_class.cl_path) source in
-			if not (Hashtbl.mem writer.unbound_ttp (msg, p)) then begin
-				Hashtbl.add writer.unbound_ttp (msg, p) true;
+			(* if not (Hashtbl.mem writer.unbound_ttp (msg, p)) then begin *)
+			(* 	Hashtbl.add writer.unbound_ttp (msg, p) true; *)
+			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
+				ignore(IdentityPool.add writer.unbound_ttp ttp ());
 				writer.warn WUnboundTypeParameter msg p;
-			end;
+			end);
 			writer.wrote_local_type_param <- true;
 			Chunk.write_u8 writer.chunk 5;
 			write_path writer ttp.ttp_class.cl_path;
@@ -2340,7 +2342,7 @@ let create config warn anon_id =
 		field_stack = [];
 		wrote_local_type_param = false;
 		needs_local_context = false;
-		unbound_ttp = Hashtbl.create 0;
+		unbound_ttp = IdentityPool.create ();
 		unclosed_mono = IdentityPool.create ();
 		t_instance_chunk = Chunk.create EOM cp 32;
 	}

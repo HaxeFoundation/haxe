@@ -116,4 +116,10 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	public inline function clear():Void {
 		h = lua.Table.create();
 	}
+	
+	public function size():Int {
+		var s = 0;
+		untyped __lua__("for _ in pairs({0}) do s = s + 1 end", h);
+		return s;
+	}
 }
