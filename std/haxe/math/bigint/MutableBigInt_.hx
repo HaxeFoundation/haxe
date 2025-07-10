@@ -81,57 +81,43 @@ class MutableBigInt_ extends BigInt_ {
 		if ((value == null) || (value.length < 1)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
-
-		var negate = value.charCodeAt(0) == 0x2d; // '-' character
+		var negate = value.charCodeAt(0) == 0x2d;
 		var index = negate ? 1 : 0;
-
 		if (value.length <= index) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
-
-		if (value.charCodeAt(index) == 0x30) { // '0'
-			if (value.charCodeAt(index + 1) == 0x62) { // 'b' - binary
+		if ( value.charCodeAt(index) ==  0x30) {
+			if ( value.charCodeAt(index+1) ==  0x62 ) { // binary
 				radix = 2;
-				index += 2;
-			} else if (value.charCodeAt(index + 1) == 0x6F) { // 'o' - octal
+				index +=2;
+			} else if ( value.charCodeAt(index+1) ==  0x6F ) { //octal
 				radix = 8;
-				index += 2;
-			} else if (value.charCodeAt(index + 1) == 0x78) { // 'x' - hex
-				_setFromHex(value.substr(index + 2), false);
-				if (negate) {
-					BigIntArithmetic.negate(this, this);
-				}
+				index +=2;
+			} else if ( value.charCodeAt(index+1) ==  0x78 ) { // hex
+				setFromHexSigned((negate?"-":"")+value.substr(index+2));
 				return;
 			}
 		}
-
-		if (radix == 16) {
-			_setFromHex(value.substr(index), false);
-			if (negate) {
-				BigIntArithmetic.negate(this, this);
-			}
+		if (radix == 16) { 
+			setFromHexSigned(value);
 			return;
 		}
-
 		this.setFromInt(0);
 		var t = new MutableBigInt_();
 		var endDigit:Int = 57;
-		var extraEndDigit:Int = 0;
-
-		if (radix <= 10) {
-			endDigit = 48 + radix - 1;
+		var extraEndDigit:Int=0;
+		if (  radix <= 10 ) {
+			endDigit =  48 + radix-1;
 		} else {
-			extraEndDigit = radix - 11;
+			extraEndDigit =  radix-11;
 		}
-
 		for (i in index...value.length) {
 			var c = value.charCodeAt(i);
-			if (((48 <= c) && (c <= endDigit))
-				|| (radix > 10 && ((65 <= c && c <= (65 + extraEndDigit)) || (97 <= c && c <= (97 + extraEndDigit))))) {
+			if ( ((48 <= c) && (c <= endDigit)) || (radix > 10 && ( (65<=c && c<=(65+extraEndDigit)) || (97<=c && c<=(97+extraEndDigit)) ) ) ) {
 				BigIntArithmetic.multiplyInt(t, this, radix);
-				if (c <= endDigit) {
+				if ( c <= endDigit) {
 					BigIntArithmetic.addInt(this, t, c - 48);
-				} else if (c <= (65 + extraEndDigit)) {
+				} else if (c<=(65+extraEndDigit)) {
 					BigIntArithmetic.addInt(this, t, c - 55);
 				} else {
 					BigIntArithmetic.addInt(this, t, c - 87);
@@ -140,7 +126,6 @@ class MutableBigInt_ extends BigInt_ {
 				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}
 		}
-
 		if (negate) {
 			BigIntArithmetic.negate(this, this);
 		}
@@ -435,79 +420,46 @@ class MutableBigInt_ extends BigInt_ {
 		if (value == null) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
-
 		var index = value.length;
 		if (index <= 0) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
-
-		var wordsNeeded = (index + 7) >> 3;
-
 		var extra:Int = signed ? 0 : 1;
-		ensureCapacity(wordsNeeded + extra, false);
-
-		for (i in 0...wordsNeeded + extra) {
-			m_data.set(i, 0);
-		}
-
-		var pos = 0;
-		var bitPos:Int = 0;
-		var currentWord:Int = 0;
-
+		ensureCapacity(((index + 7) >> 3) + extra, false);
+		var pos = -1;
+		var bit:Int = 32;
+		var c:Int32 = 0;
 		while (index > 0) {
-			var c:Int = value.charCodeAt(--index);
-			var digit:Int;
-
-			if ((48 <= c) && (c <= 57)) { // '0'-'9'
-				digit = c - 48;
-			} else if ((65 <= c) && (c <= 70)) { // 'A'-'F'
-				digit = c - 55;
-			} else if ((97 <= c) && (c <= 102)) { // 'a'-'f'
-				digit = c - 87;
-			} else if (c == 32) { // space - skip
+			c = value.charCodeAt(--index);
+			if ((48 <= c) && (c <= 57)) {
+				c -= 48;
+			} else if ((65 <= c) && (c <= 70)) {
+				c -= 55;
+			} else if ((97 <= c) && (c <= 102)) {
+				c -= 87;
+			} else if (c == 32) {
 				continue;
 			} else {
 				throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 			}
-
-			currentWord |= (digit << bitPos);
-			bitPos += 4;
-
-			if (bitPos >= 32) {
-				m_data.set(pos++, currentWord);
-				currentWord = 0;
-				bitPos = 0;
+			if (bit >= 32) {
+				m_data.set(++pos, 0);
+				bit = 0;
 			}
+			m_data.set(pos, m_data.get(pos) | (c << bit));
+			bit += 4;
 		}
-
-		if (bitPos > 0) {
-			m_data.set(pos++, currentWord);
-		}
-
-		m_count = pos;
-
-		// Handle sign extension for signed interpretation
-		if (signed && pos > 0) {
-			var topWord = m_data.get(pos - 1);
-			var topBit = 31 - ((32 - bitPos) % 32);
-			if (bitPos > 0) {
-				topBit = bitPos - 1;
+		// Sign extend
+		m_count = pos + 1;
+		if (signed) {
+			c = ((c & 8) != 0) ? 15 : 0;
+			while (bit < 32) {
+				m_data.set(pos, m_data.get(pos) | (c << bit));
+				bit += 4;
 			}
-
-			if ((topWord & (1 << topBit)) != 0) {
-				var mask = ~((1 << (topBit + 1)) - 1);
-				m_data.set(pos - 1, topWord | mask);
-			}
+		} else if (m_data.get(pos) < 0) {
+			m_data.set(m_count++, 0);
 		}
-
-		if (!signed && pos > 0) {
-			var topWord = m_data.get(pos - 1);
-			if (topWord < 0) {
-				m_data.set(pos++, 0);
-				m_count = pos;
-			}
-		}
-
 		compact();
 	}
 
