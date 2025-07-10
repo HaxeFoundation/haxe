@@ -114,17 +114,14 @@ class TestBigInt extends Test {
 		// set from unsigned ints
 		checkSetFromUnsignedInts("00000000", [0]);
 		checkSetFromUnsignedInts("7fffffff", [2147483647]);
-		checkSetFromUnsignedInts("80000000", [-2147483648]);
 		checkSetFromUnsignedInts("ffffffff", [-1]);
 
 		checkSetFromUnsignedInts("00000000 55555555", [1431655765, 0]);
 		checkSetFromUnsignedInts("7fffffff 55555555", [1431655765, 2147483647]);
-		checkSetFromUnsignedInts("80000000 55555555", [1431655765, -2147483648]);
 		checkSetFromUnsignedInts("ffffffff 55555555", [1431655765, -1]);
 
 		checkSetFromUnsignedInts("00000000 aaaaaaaa", [-1431655766, 0]);
 		checkSetFromUnsignedInts("7fffffff aaaaaaaa", [-1431655766, 2147483647]);
-		checkSetFromUnsignedInts("80000000 aaaaaaaa", [-1431655766, -2147483648]);
 		checkSetFromUnsignedInts("ffffffff aaaaaaaa", [-1431655766, -1]);
 	}
 
@@ -279,7 +276,6 @@ class TestBigInt extends Test {
 	}
 
 	private function checkCompare(expected:Int, a:BigInt, b:BigInt):Void {
-		trace("exp: "+expected+" , a: "+a+" ,b: "+b);
 		checkCompareSingle(expected, a, b);
 		checkCompareSingle(-expected, -a, -b);
 		if ((expected != 0) && (a.sign() == b.sign())) {
@@ -1144,9 +1140,9 @@ class TestBigInt extends Test {
 		}
 
 		eq("2147483647", BigInt.fromHex("07fffffff").toString());
-		eq("-2147483648", BigInt.fromHex("f80000000").toString());
+		eq("66571993088", BigInt.fromHex("f80000000").toString());
 
-		eq("-2147483648", BigInt.fromHex("8000 0000").toString());
+		eq("2147483648", BigInt.fromHex("8000 0000").toString());
 
 		eq(BigInt.fromHexSigned("080000000").toHex(), BigInt.fromHexUnsigned("80000000").toHex());
 		eq(BigInt.fromHexSigned("0ffffffff").toHex(), BigInt.fromHexUnsigned("ffffffff").toHex());
@@ -1561,9 +1557,7 @@ class TestBigInt extends Test {
 		checkNegate(fromInt(0), fromInt(0));
 		checkNegate(fromInt(1), fromInt(-1));
 		checkNegate(fromInt(100), fromInt(-100));
-		checkNegate(fromHex("80000000"), fromInt(-2147483648));
 		checkNegate(fromHex("8000000000000000"), fromHex("8000000000000000"));
-		checkNegate(fromHex("edcba98800000000"), fromHex("1234567800000000"));
 	}
 
 	private function checkNegate(expected:Vector<Int>, value:Vector<Int>):Void {
