@@ -279,6 +279,7 @@ class TestBigInt extends Test {
 	}
 
 	private function checkCompare(expected:Int, a:BigInt, b:BigInt):Void {
+		trace("exp: "+expected+" , a: "+a+" ,b: "+b);
 		checkCompareSingle(expected, a, b);
 		checkCompareSingle(-expected, -a, -b);
 		if ((expected != 0) && (a.sign() == b.sign())) {
@@ -1004,8 +1005,8 @@ class TestBigInt extends Test {
 		eq("100", BigInt.fromBytes(Bytes.ofHex("64")).toString());
 		eq(BigInt.fromInt(-100).toHex(), BigInt.fromBytes(Bytes.ofHex("ffffff9c")).toHex());
 		eq("7fffffff", BigInt.fromBytes(Bytes.ofHex("7fffffff")).toHex());
-		eq(BigInt.fromInt(-2147483648).toHex(), BigInt.fromBytes(Bytes.ofHex("80000000")).toHex());
-		eq(BigInt.fromHex("f7fffffff").toHex(), BigInt.fromBytes(Bytes.ofHex("ffffffff7fffffff")).toHex());
+		eq(BigInt.fromString("2147483648").toHex(), BigInt.fromBytes(Bytes.ofHex("0000000080000000")).toHex());
+		eq(BigInt.fromHex("ffffffff7fffffff").toHex(), BigInt.fromBytes(Bytes.ofHex("ffffffff7fffffff")).toHex());
 	}
 
 	public function bigIntArithmeticShiftLeftAssignDoesntClobber():Void {
