@@ -22,6 +22,7 @@
 
 package hl;
 
+@:defaultValue(0)
 @:coreType @:notNull @:runtimeValue abstract I64 from Int {
 
 	/**
