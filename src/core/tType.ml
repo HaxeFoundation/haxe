@@ -398,6 +398,7 @@ and tabstract = {
 	mutable a_constructor : tclass_field option;
 	mutable a_extern : bool;
 	mutable a_enum : bool;
+	mutable a_default : texpr Lazy.t option;
 }
 
 and module_type =
