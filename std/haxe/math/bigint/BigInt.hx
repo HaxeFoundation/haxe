@@ -176,7 +176,7 @@ abstract BigInt(BigInt_) {
 		@return A new `BigInt` instance.
 	**/
 	public static inline function fromHex(value:String):BigInt {
-		return fromHexUnsigned(value);
+		return fromHexSigned(value);
 	}
 
 	/**
