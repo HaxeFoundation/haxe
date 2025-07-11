@@ -460,7 +460,7 @@ class MutableBigInt_ extends BigInt_ {
 		}
 
 		var wordIndex = 0;
-		var currentWord:Int = 0;
+		var currentWord:Int32 = 0;
 		var bitsInCurrentWord = 0;
 
 		var charIndex = index - 1;
@@ -498,7 +498,7 @@ class MutableBigInt_ extends BigInt_ {
 				var topBit = bitsInCurrentWord - 1;
 				if ((currentWord & (1 << topBit)) != 0) {
 					// Negative number - extend sign bits
-					var mask = ~((1 << bitsInCurrentWord) - 1);
+					var mask:Int32 = ~((1 << bitsInCurrentWord) - 1);
 					currentWord |= mask;
 				}
 			}
