@@ -368,12 +368,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-13]
-    runs-on: ${{ matrix.os }}
+        arch: [arm64, x86_64]
+    runs-on: macos-latest
     env:
-      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      PLATFORM: mac${{ matrix.arch == 'arm64' && '-arm64' || '' }}
       OPAMYES: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.13
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch == 'arm64' && 11.0 || 10.13 }}
     steps:
       - uses: actions/checkout@main
         with:
@@ -384,7 +384,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       @import install-neko-unix.yml
       @import build-mac.yml

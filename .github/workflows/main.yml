@@ -540,12 +540,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-13]
-    runs-on: ${{ matrix.os }}
+        arch: [arm64, x86_64]
+    runs-on: macos-latest
     env:
-      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      PLATFORM: mac${{ matrix.arch == 'arm64' && '-arm64' || '' }}
       OPAMYES: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.13
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch == 'arm64' && 11.0 || 10.13 }}
     steps:
       - uses: actions/checkout@main
         with:
@@ -556,7 +556,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -590,17 +590,22 @@ jobs:
           curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
           ./configure
-          sudo make && sudo make install
+          arch -arch ${{ matrix.arch }} make && sudo arch -arch ${{ matrix.arch }} make install
           cd ..
           curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
           cd mbedtls-$MBEDTLS_VERSION
-          sudo make && sudo make install
+          arch -arch ${{ matrix.arch }} make && sudo arch -arch ${{ matrix.arch }} make install
           cd ..
           curl -L https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
           cd pcre2-$PCRE2_VERSION
           ./configure --enable-unicode --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-jit
-          sudo make && sudo make install
+          arch -arch ${{ matrix.arch }} make && sudo arch -arch ${{ matrix.arch }} make install
           cd ..
+
+      - name: Install Opam
+        run: |
+          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-${{ matrix.arch }}-macos -o $RUNNER_TEMP/opam
+          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
@@ -623,22 +628,22 @@ jobs:
         run: |
           set -ex
           eval $(opam env)
-          opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix package_installer_mac
+          opam exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
+          opam exec -- make -s haxelib
+          opam exec -- make -s package_unix package_installer_mac
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
 
       - name: Upload artifact (x64)
-        if: runner.arch == 'X64'
+        if: matrix.arch == 'x86_64'
         uses: actions/upload-artifact@v4
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
-        if: runner.arch == 'ARM64'
+        if: matrix.arch == 'arm64'
         uses: actions/upload-artifact@v4
         with:
           name: macArmBinaries
