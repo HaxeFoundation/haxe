@@ -78,6 +78,7 @@ class MutableBigInt_ extends BigInt_ {
 		@param radix The base of the number in the string (e.g., 10, 16).
 	**/
 	public function setFromString(value:String, radix:Int = 10):Void {
+		var startTime = haxe.Timer.milliseconds();
 		if ((value == null) || (value.length < 1)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -144,6 +145,8 @@ class MutableBigInt_ extends BigInt_ {
 		if (negate) {
 			BigIntArithmetic.negate(this, this);
 		}
+		var finalTime = haxe.Timer.milliseconds() - startTime;
+		trace("Time: "+finalTime);
 	}
 
 	/**
