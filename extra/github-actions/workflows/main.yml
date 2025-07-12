@@ -450,19 +450,22 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-13
+    runs-on: ${{ matrix.os }}
     env:
-      PLATFORM: mac
+      PLATFORM: mac${{ matrix.os == 'macos-latest' && '-arm64' || '' }}
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        os: [macos-latest]
+        target: [macro, js, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
+            os: macos-13
             BREW_PACKAGES: ninja
+
     steps:
       - uses: actions/checkout@main
         with:
