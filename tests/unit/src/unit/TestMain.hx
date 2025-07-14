@@ -69,14 +69,8 @@ function main() {
 		#if (!php && !lua)
 		new TestHttps(),
 		#end
-		#if cpp
-			#if sys
-				if (Sys.systemName() != "Mac") {
-					new TestBigInt(),
-				}
-			#end
-		#elseif !lua
-			new TestBigInt(),
+		#if !lua || (cpp && Mac))
+		new TestBigInt(),
 		#end
 		#if !no_pattern_matching
 		new TestMatch(),
