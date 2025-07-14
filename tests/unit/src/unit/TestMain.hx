@@ -69,7 +69,7 @@ function main() {
 		#if (!php && !lua)
 		new TestHttps(),
 		#end
-		#if !lua || (cpp && Mac))
+		#if (!lua || (cpp && Mac))
 		new TestBigInt(),
 		#end
 		#if !no_pattern_matching
