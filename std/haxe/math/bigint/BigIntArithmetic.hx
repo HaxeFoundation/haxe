@@ -333,7 +333,7 @@ class BigIntArithmetic {
 		or `operand2`; however, `operand1` and `operand2` may be the
 		same object.
 	**/
-	public static function multiplyTraditional(result:MutableBigInt_, operand1:BigInt_, operand2:BigInt_):Void {
+	public static function multiply(result:MutableBigInt_, operand1:BigInt_, operand2:BigInt_):Void {
 		// Implements Figure 8-1 (p. 172) from "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013.
 
 		if ((operand1 == result) || (operand2 == result)) {
@@ -342,6 +342,11 @@ class BigIntArithmetic {
 
 		if (operand1.isZero() || operand2.isZero()) {
 			result.setFromInt(0);
+			return;
+		}
+
+		if ((operand1.bitLength() >= 2500) && (operand2.bitLength() >= 2500)) {
+			multiplyKaratsuba(result, operand1, operand2);
 			return;
 		}
 
@@ -696,6 +701,47 @@ class BigIntArithmetic {
 		return (input.m_count << 5) - BigIntHelper.nlz(input.m_data.get(input.m_count - 1));
 	}
 
+	/**
+		Multiply two big integers using the Karatsuba algorithm for performance.
+		@param result The `MutableBigInt_` to store the product.
+		@param x The first operand.
+		@param y The second operand.
+	**/
+	public static function multiplyKaratsuba(result:MutableBigInt_, x:BigInt_, y:BigInt_):Void {
+		var n = (x.bitLength() > y.bitLength()) ? x.bitLength() : y.bitLength();
+		if (n < 2500) {
+			multiply(result, x, y);
+			return;
+		}
+		n = (n + 1) >> 1;
+		var b = new MutableBigInt_();
+		arithmeticShiftRight(b, x, n);
+		var a = new MutableBigInt_();
+		arithmeticShiftLeft(a, b, n);
+		subtract(a, x, a);
+		var d = new MutableBigInt_();
+		arithmeticShiftRight(d, y, n);
+		var c = new MutableBigInt_();
+		arithmeticShiftLeft(c, d, n);
+		subtract(c, y, c);
+		var ac = new MutableBigInt_();
+		multiplyKaratsuba(ac, a, c);
+		var bd = new MutableBigInt_();
+		multiplyKaratsuba(bd, b, d);
+		var abcd = new MutableBigInt_();
+		add(a, a, b);
+		add(c, c, d);
+		multiplyKaratsuba(abcd, a, c);
+		var op1 = new MutableBigInt_();
+		arithmeticShiftLeft(op1, bd, 2 * n);
+		var op2 = new MutableBigInt_();
+		subtract(op2, abcd, ac);
+		subtract(op2, op2, bd);
+		arithmeticShiftLeft(op2, op2, n);
+		add(op2, ac, op2);
+		add(result, op1, op2);
+	}
+
 	//-----------------------------------------------------------------------
 	// Private helpers
 	//-----------------------------------------------------------------------
@@ -747,189 +793,5 @@ class BigIntArithmetic {
 		for (i in 0...length) {
 			output.set(outputOffset + i, input.get(inputOffset + i));
 		}
-	}
-	
-		private static function nextPowerOfTwo(value:Int):Int {
-		if (value <= 0)
-			return 1;
-		value--;
-		value |= value >> 1;
-		value |= value >> 2;
-		value |= value >> 4;
-		value |= value >> 8;
-		value |= value >> 16;
-		return value + 1;
-	}
-
-	private static function splitAtPowerOfTwo(value:BigInt_, splitBits:Int, high:MutableBigInt_, low:MutableBigInt_):Void {
-		if (splitBits <= 0) {
-			high.setFromInt(0);
-			low.copyFrom(value);
-			return;
-		}
-
-		var wordBoundary:Int = splitBits >> 5;
-		var bitOffset:Int = splitBits & 0x1f; // modulo 32
-
-		if (wordBoundary >= value.m_count) {
-			high.setFromInt(0);
-			low.copyFrom(value);
-			return;
-		}
-
-		low.ensureCapacity(wordBoundary + 1, false);
-
-		for (i in 0...wordBoundary) {
-			low.m_data.set(i, value.m_data.get(i));
-		}
-
-		if (bitOffset > 0 && wordBoundary < value.m_count) {
-			var mask:Int = (1 << bitOffset) - 1;
-			low.m_data.set(wordBoundary, value.m_data.get(wordBoundary) & mask);
-			low.m_count = wordBoundary + 1;
-		} else {
-			low.m_count = wordBoundary;
-		}
-		low.compact();
-
-		BigIntArithmetic.arithmeticShiftRight(high, value, splitBits);
-	}
-
-	private static function joinAtPowerOfTwo(result:MutableBigInt_, high:BigInt_, low:BigInt_, splitBits:Int):Void {
-		if (high.isZero()) {
-			result.copyFrom(low);
-			return;
-		}
-		var shiftedHigh = new MutableBigInt_();
-		BigIntArithmetic.arithmeticShiftLeft(shiftedHigh, high, splitBits);
-		BigIntArithmetic.add(result, shiftedHigh, low);
-	}
-
-	public static function multiply(result:MutableBigInt_, operand1:BigInt_, operand2:BigInt_):Void {
-		if ((operand1 == result) || (operand2 == result)) {
-			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
-		}
-
-		if (operand1.isZero() || operand2.isZero()) {
-			result.setFromInt(0);
-			return;
-		}
-
-		var bitLength1 = operand1.bitLength();
-		var bitLength2 = operand2.bitLength();
-
-		if (bitLength1 < 512 || bitLength2 < 512) {
-			BigIntArithmetic.multiplyTraditional(result, operand1, operand2);
-			return;
-		}
-
-		var maxBits = (bitLength1 > bitLength2) ? bitLength1 : bitLength2;
-		var splitBits = nextPowerOfTwo(maxBits >> 1);
-
-		if (splitBits < 256)
-			splitBits = 256;
-
-		multiplyKaratsuba(result, operand1, operand2, splitBits);
-	}
-
-	private static function multiplyKaratsuba(result:MutableBigInt_, x:BigInt_, y:BigInt_, splitBits:Int):Void {
-		if (x.bitLength() < 512 || y.bitLength() < 512) {
-			BigIntArithmetic.multiplyTraditional(result, x, y);
-			return;
-		}
-
-		var x1 = new MutableBigInt_();
-		var x0 = new MutableBigInt_();
-		splitAtPowerOfTwo(x, splitBits, x1, x0);
-
-		var y1 = new MutableBigInt_();
-		var y0 = new MutableBigInt_();
-		splitAtPowerOfTwo(y, splitBits, y1, y0);
-
-		var z2 = new MutableBigInt_(); // x1 * y1
-		var z0 = new MutableBigInt_(); // x0 * y0
-		var z1 = new MutableBigInt_(); // (x1 + x0) * (y1 + y0) - z2 - z0
-
-		//  z2 = x1 * y1
-		multiplyKaratsuba(z2, x1, y1, splitBits >> 1);
-
-		//  z0 = x0 * y0
-		multiplyKaratsuba(z0, x0, y0, splitBits >> 1);
-
-		//  z1 = (x1 + x0) * (y1 + y0) - z2 - z0
-		var sum_x = new MutableBigInt_();
-		var sum_y = new MutableBigInt_();
-		BigIntArithmetic.add(sum_x, x1, x0);
-		BigIntArithmetic.add(sum_y, y1, y0);
-
-		multiplyKaratsuba(z1, sum_x, sum_y, splitBits >> 1);
-		BigIntArithmetic.subtract(z1, z1, z2);
-		BigIntArithmetic.subtract(z1, z1, z0);
-
-		// result = z2 * 2^(2*splitBits) + z1 * 2^splitBits + z0
-		var temp1 = new MutableBigInt_();
-		var temp2 = new MutableBigInt_();
-
-		// z2 * 2^(2*splitBits)
-		BigIntArithmetic.arithmeticShiftLeft(temp1, z2, 2 * splitBits);
-
-		// z1 * 2^splitBits
-		BigIntArithmetic.arithmeticShiftLeft(temp2, z1, splitBits);
-
-		BigIntArithmetic.add(result, temp1, temp2);
-		BigIntArithmetic.add(result, result, z0);
-	}
-
-	/**
-		Squaring operation using power-of-two splitting.
-		@param result The output BigInt for the square
-		@param operand The operand to square
-	**/
-	public static function square(result:MutableBigInt_, operand:BigInt_):Void {
-		if (operand == result) {
-			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
-		}
-
-		if (operand.isZero()) {
-			result.setFromInt(0);
-			return;
-		}
-
-		var bitLength = operand.bitLength();
-
-		if (bitLength < 512) {
-			BigIntArithmetic.multiplyTraditional(result, operand, operand);
-			return;
-		}
-
-		var splitBits = nextPowerOfTwo(bitLength >> 1);
-		if (splitBits < 256)
-			splitBits = 256;
-
-		var high = new MutableBigInt_();
-		var low = new MutableBigInt_();
-		splitAtPowerOfTwo(operand, splitBits, high, low);
-
-		// Calculate (high + low)^2 = high^2 + 2*high*low + low^2
-		var highSquared = new MutableBigInt_();
-		var lowSquared = new MutableBigInt_();
-		var crossProduct = new MutableBigInt_();
-
-		square(highSquared, high);
-		square(lowSquared, low);
-
-		// Calculate 2 * high * low
-		multiplyKaratsuba(crossProduct, high, low, splitBits >> 1);
-		BigIntArithmetic.arithmeticShiftLeft(crossProduct, crossProduct, 1);
-
-		// Combine results: result = high^2 * 2^(2*splitBits) + 2*high*low * 2^splitBits + low^2
-		var temp1 = new MutableBigInt_();
-		var temp2 = new MutableBigInt_();
-
-		BigIntArithmetic.arithmeticShiftLeft(temp1, highSquared, 2 * splitBits);
-		BigIntArithmetic.arithmeticShiftLeft(temp2, crossProduct, splitBits);
-
-		BigIntArithmetic.add(result, temp1, temp2);
-		BigIntArithmetic.add(result, result, lowSquared);
 	}
 }

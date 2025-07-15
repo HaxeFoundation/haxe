@@ -514,7 +514,7 @@ class BigInt_ {
 	**/
 	public function square():BigInt_ {
 		var r:MutableBigInt_ = new MutableBigInt_();
-		BigIntArithmetic.square(r, this);
+		BigIntArithmetic.multiply(r, this, this);
 		return r;
 	}
 
