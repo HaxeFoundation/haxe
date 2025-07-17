@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-script minSpecVersion="1.000000" authoringTool="com.apple.PackageMaker" authoringToolVersion="3.0.6" authoringToolBuild="201">
+    <title>Haxe Toolkit %%VERLONG%%</title>
+    <options customize="never" allow-external-scripts="no" hostArchitectures="x86_64,arm64" />
+    <domains enable_localSystem="true"/>
+    <background file="background" alignment="bottomleft" scaling="none"/>
+    <license file="License"/>
+    <choices-outline>
+        <line choice="choice10"/>
+        <line choice="choice8"/>
+    </choices-outline>
+    <choice id="choice10" title="Haxe Toolkit Preflight" start_visible="false">
+        <pkg-ref id="org.haxe.haxeToolkit.preflight.pkg"/>
+    </choice>
+    <choice id="choice8" title="files">
+        <pkg-ref id="org.haxe.haxeToolkit.haxe.pkg"/>
+    </choice>
+    <pkg-ref id="org.haxe.haxeToolkit.preflight.pkg" installKBytes="0" version="1.0" auth="Root">#haxeToolkitPreflight.pkg</pkg-ref>
+    <pkg-ref id="org.haxe.haxeToolkit.haxe.pkg" installKBytes="%%INSTKB%%" version="%%VERSION%%" auth="Root">#files.pkg</pkg-ref>
+</installer-script>
