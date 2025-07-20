@@ -284,7 +284,7 @@ class TestBigInt extends Test {
 		checkCompareSingle(expected, a, b);
 		checkCompareSingle(-expected, -a, -b);
 		if ((expected != 0) && (a.sign() == b.sign())) {
-			var s:Int = (a.sign() << 1) + 1;
+			var s:Int = a.sign();
 			checkCompareSingle(-s, -a, b);
 			checkCompareSingle(s, a, -b);
 		}
@@ -1097,9 +1097,9 @@ class TestBigInt extends Test {
 
 	public function bigIntSign():Void {
 		eq(0, BigInt.ZERO.sign());
-		eq(0, BigInt.ONE.sign());
+		eq(1, BigInt.ONE.sign());
 		eq(-1, BigInt.MINUS_ONE.sign());
-		eq(0, BigInt.fromInt(2147483647).sign());
+		eq(1, BigInt.fromInt(2147483647).sign());
 		eq(-1, BigInt.fromInt(-2147483648).sign());
 	}
 

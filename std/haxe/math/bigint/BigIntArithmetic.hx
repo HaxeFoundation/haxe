@@ -42,7 +42,7 @@ class BigIntArithmetic {
 	**/
 	public static function compareInt(a:BigInt_, b:Int):Int {
 		if (a.m_count > 1) {
-			return (a.sign() << 1) + 1;
+			return a.sign();
 		}
 		var x:Int = a.m_data.get(0);
 		var lt:Int = (x - b) ^ ((x ^ b) & ((x - b) ^ x)); // "Hacker's Delight" p. 23
@@ -59,20 +59,20 @@ class BigIntArithmetic {
 	**/
 	public static function compare(a:BigInt_, b:BigInt_):Int {
 		if (a != b) {
-			var c:Int = (a.sign() & 2) + (b.sign() & 1);
+			var c:Int = (a.sign() & 7) + (b.sign() & 3);
 			switch (c) {
-				case 0: // a and b are positive
+				case 1, 2: // a and b are positive
 					if (a.m_count > b.m_count) {
 						return 1;
 					}
 					if (a.m_count < b.m_count) {
 						return -1;
 					}
-				case 1: // a is positive, b is negative
+				case 3, 4: // a is positive, b is negative
 					return 1;
-				case 2: // a is negative, b is positive
+				case 7, 8: // a is negative, b is positive
 					return -1;
-				case 3: // a and b are negative
+				case 10: // a and b are negative
 					if (a.m_count > b.m_count) {
 						return -1;
 					}
@@ -137,7 +137,7 @@ class BigIntArithmetic {
 			var o1 = (operand1.m_count > operand2.m_count) ? operand1 : operand2;
 			var o2 = (operand1.m_count > operand2.m_count) ? operand2 : operand1;
 			result.ensureCapacity(o1.m_count + 1, (result == operand1) || (result == operand2));
-			var s:Int = o2.sign();
+			var s:Int = (o2.sign() == -1) ? -1 : 0;
 			for (i in 0...o2.m_count) {
 				x = o1.m_data.get(i);
 				y = o2.m_data.get(i);
@@ -226,7 +226,7 @@ class BigIntArithmetic {
 		} else if (operand1.m_count > operand2.m_count) {
 			// operand1 is longer
 			result.ensureCapacity(operand1.m_count + 1, (result == operand1) || (result == operand2));
-			var s:Int = operand2.sign();
+			var s:Int = (operand2.sign() == -1) ? -1 : 0;
 			for (i in 0...operand2.m_count) {
 				x = operand1.m_data.get(i);
 				y = operand2.m_data.get(i);
@@ -245,7 +245,7 @@ class BigIntArithmetic {
 		} else {
 			// operand2 is longer
 			result.ensureCapacity(operand2.m_count + 1, (result == operand1) || (result == operand2));
-			var s:Int = operand1.sign();
+			var s:Int = (operand1.sign() == -1) ? -1 : 0;
 			for (i in 0...operand1.m_count) {
 				x = operand1.m_data.get(i);
 				y = operand2.m_data.get(i);
@@ -432,7 +432,17 @@ class BigIntArithmetic {
 	**/
 	public static function divide(dividend:BigInt_, divisor:BigInt_, quotientOut:MutableBigInt_, remainderOut:MutableBigInt_,
 			work:MutableBigInt_ = null):Void {
-		var c:Int = (dividend.sign() & 2) + (divisor.sign() & 1);
+		var dividendSign = dividend.sign();
+		var divisorSign = divisor.sign();
+
+		// Create a combined case value: 0 = both positive, 1 = dividend positive/divisor negative,
+		// 2 = dividend negative/divisor positive, 3 = both negative
+		var c:Int = 0;
+		if (dividendSign == -1)
+			c += 2;
+		if (divisorSign == -1)
+			c += 1;
+			
 		switch (c) {
 			case 0: // dividend positive, divisor positive
 				multiwordUnsignedDivide(dividend, divisor, quotientOut, remainderOut, work);
@@ -575,7 +585,7 @@ class BigIntArithmetic {
 		var whole:Int = operand2 >> 5; // whole digits portion
 		var n:Int = operand2 & 0x1f; // sub digit poortion
 		if (whole >= operand1.m_count) {
-			result.m_data.set(0, operand1.sign());
+			result.m_data.set(0, (operand1.sign() == -1) ? -1 : 0);
 			result.m_count = 1;
 		} else if (n > 0) {
 			MultiwordArithmetic._asr32(result.m_data, operand1.m_data, operand1.m_count, whole, n);
@@ -610,9 +620,9 @@ class BigIntArithmetic {
 	public static inline function bitwiseAnd(operand1:BigInt_, operand2:BigInt_):BigInt_ {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		if ((operand1.m_count > operand2.m_count)) {
-			result.m_count = (operand2.sign() == 0) ? operand2.m_count : operand1.m_count;
+			result.m_count = (operand2.sign() == 1) ? operand2.m_count : operand1.m_count;
 		} else {
-			result.m_count = (operand1.sign() == 0) ? operand1.m_count : operand2.m_count;
+			result.m_count = (operand1.sign() == 1) ? operand1.m_count : operand2.m_count;
 		}
 		result.ensureCapacity(result.m_count, false);
 		for (i in 0...result.m_count) {
@@ -635,8 +645,8 @@ class BigIntArithmetic {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.m_count = (operand1.m_count > operand2.m_count) ? operand1.m_count : operand2.m_count;
 		result.ensureCapacity(result.m_count, false);
-		var operand1Positive:Bool = operand1.sign() == 0;
-		var operand2Positive:Bool = operand2.sign() == 0;
+		var operand1Positive:Bool = operand1.sign() == 1;
+		var operand2Positive:Bool = operand2.sign() == 1;
 		for (i in 0...result.m_count) {
 			if (i > (operand1.m_count - 1)) {
 				result.m_data.set(i, (operand1Positive ? operand2.m_data.get(i) : 0xffffffff));
@@ -658,8 +668,8 @@ class BigIntArithmetic {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.m_count = (operand1.m_count > operand2.m_count) ? operand1.m_count : operand2.m_count;
 		result.ensureCapacity(result.m_count, false);
-		var operand1Positive:Bool = operand1.sign() == 0;
-		var operand2Positive:Bool = operand2.sign() == 0;
+		var operand1Positive:Bool = operand1.sign() == 1;
+		var operand2Positive:Bool = operand2.sign() == 1;
 		for (i in 0...result.m_count) {
 			if (i > (operand1.m_count - 1)) {
 				result.m_data.set(i, (operand1Positive ? operand2.m_data.get(i) : (operand2.m_data.get(i) ^ 0xffffffff)));
