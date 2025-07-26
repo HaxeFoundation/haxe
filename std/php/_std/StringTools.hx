@@ -116,6 +116,16 @@ import haxe.iterators.StringKeyValueIterator;
 			s = lpad(s, '0', digits);
 		return s.toUpperCase();
 	}
+	
+	public static function binary(n:Int, ?digits:Int):String {
+		var s = Global.decbin(n);
+		var len = 8;
+		if (Global.strlen(s) > (null == digits ? len : (len = digits > len ? digits : len)))
+			s = s.substr(-len);
+		else if (digits != null)
+			s = lpad(s, '0', digits);
+		return s.toUpperCase();
+	}
 
 	public static function fastCodeAt(s:String, index:Int):Int {
 		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
