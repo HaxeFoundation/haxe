@@ -119,7 +119,7 @@ import haxe.iterators.StringKeyValueIterator;
 	
 	public static function binary(n:Int, ?digits:Int):String {
 		var s = Global.decbin(n);
-		var len = 8;
+		var len = 32;
 		if (Global.strlen(s) > (null == digits ? len : (len = digits > len ? digits : len)))
 			s = s.substr(-len);
 		else if (digits != null)
