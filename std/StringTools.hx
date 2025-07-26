@@ -439,6 +439,38 @@ class StringTools {
 		#end
 		return s;
 	}
+	
+	/**
+		Encodes `n` into a binary representation.
+		If `digits` is specified, the resulting String is padded with "0" until
+		its `length` equals `digits`.
+	**/
+	public static function binary(n:Int, ?digits:Int) {
+		#if flash
+		var n:UInt = n;
+		var s:String = untyped n.toString(2);
+		s = s.toUpperCase();
+		#else
+		var s = "";
+		do {
+			s = ((n & 1) == 1 ? "1" : "0") + s;
+			n >>>= 1;
+		} while (n > 0);
+		#end
+		#if python
+		if (digits != null && s.length < digits) {
+			var diff = digits - s.length;
+			for (_ in 0...diff) {
+				s = "0" + s;
+			}
+		}
+		#else
+		if (digits != null)
+			while (s.length < digits)
+				s = "0" + s;
+		#end
+		return s;
+	}
 
 	/**
 		Returns the character code at position `index` of String `s`, or an
