@@ -123,10 +123,11 @@ class BigInt_ {
 
 	/**
 		Retrieve the sign value of this big integer.
-		@return 0 if positive or zero, -1 if negative.
+		@return 1 if positive , 0 if zero, -1 if negative.
 	**/
 	public inline function sign():Int {
-		return (m_data.get(m_count - 1) >> 31 != 0) ? -1 : 0;
+		if ( m_count == 1 && m_data.get(0) == 0) return 0;
+		return (m_data.get(m_count - 1) >> 31 != 0) ? -1 : 1;
 	}
 
 	/**
@@ -514,7 +515,7 @@ class BigInt_ {
 	**/
 	public function square():BigInt_ {
 		var r:MutableBigInt_ = new MutableBigInt_();
-		BigIntArithmetic.multiply(r, this, this);
+		BigIntArithmetic.square(r, this);
 		return r;
 	}
 

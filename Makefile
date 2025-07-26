@@ -200,13 +200,12 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf haxe.tar.gz haxe
 	# scripts
-	cp -rf extra/mac-installer/* $(INSTALLER_TMP_DIR)/resources
+	cp -rf extra/mac-installer/scripts $(INSTALLER_TMP_DIR)/resources
 	sed -i '' 's/%%NEKO_VERSION%%/$(NEKO_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	sed -i '' 's/%%NEKO_MAJOR_VERSION%%/$(NEKO_MAJOR_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf scripts.tar.gz scripts
 	# installer structure
-	mkdir -p $(INSTALLER_TMP_DIR)/pkg
-	cd $(INSTALLER_TMP_DIR)/pkg && xar -xf ../resources/installer-structure.pkg .
+	cp -rf extra/mac-installer/pkg $(INSTALLER_TMP_DIR)
 	mkdir $(INSTALLER_TMP_DIR)/tgz; mv $(INSTALLER_TMP_DIR)/resources/*.tar.gz $(INSTALLER_TMP_DIR)/tgz
 	cd $(INSTALLER_TMP_DIR)/tgz; find . | cpio -o --format odc | gzip -c > ../pkg/files.pkg/Payload
 	cd $(INSTALLER_TMP_DIR)/pkg/files.pkg && bash -c "INSTKB=$$(du -sk ../../tgz | awk '{print $$1;}'); \
