@@ -133,12 +133,6 @@ abstract Vector<T>(VectorData<T>) {
 		return python.internal.ArrayImpl.unsafeGet(this, index);
 		#elseif eval
 		return this[index];
-		#elseif js
-		try {
-			return this[index];
-		} catch(e) {
-			return null;
-		}
 		#else
 		return this[index];
 		#end
@@ -157,13 +151,6 @@ abstract Vector<T>(VectorData<T>) {
 		return python.internal.ArrayImpl.unsafeSet(this, index, val);
 		#elseif eval
 		return this[index] = val;
-		#elseif js
-		try {
-			return this[index] = val;
-		} catch(e) {
-			return null;
-		}
-		#else
 		#else
 		return this[index] = val;
 		#end
