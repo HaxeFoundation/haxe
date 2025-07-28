@@ -65,7 +65,9 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif neko
 		this = untyped __dollar__amake(length);
 		#elseif js
-		this = js.Syntax.construct(Array, length);
+		this = [for (_ in 0...length) null];
+
+		js.lib.Object.seal(this);
 		#elseif java
 		this = new java.NativeArray(length);
 		#elseif cpp
@@ -92,6 +94,7 @@ abstract Vector<T>(VectorData<T>) {
 	extern overload public inline function new(length:Int, defaultValue:T):Vector<T> {
 		#if js
 		this = [for (_ in 0...length) defaultValue];
+		js.lib.Object.seal(this);
 		#elseif python
 		this = python.Syntax.code("([{0}]*{1})", defaultValue, length);
 		#else
@@ -130,6 +133,12 @@ abstract Vector<T>(VectorData<T>) {
 		return python.internal.ArrayImpl.unsafeGet(this, index);
 		#elseif eval
 		return this[index];
+		#elseif js
+		try {
+			return this[index];
+		} catch(e) {
+			return null;
+		}
 		#else
 		return this[index];
 		#end
@@ -148,6 +157,13 @@ abstract Vector<T>(VectorData<T>) {
 		return python.internal.ArrayImpl.unsafeSet(this, index, val);
 		#elseif eval
 		return this[index] = val;
+		#elseif js
+		try {
+			return this[index] = val;
+		} catch(e) {
+			return null;
+		}
+		#else
 		#else
 		return this[index] = val;
 		#end
