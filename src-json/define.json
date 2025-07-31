@@ -303,14 +303,14 @@
 	},
 	{
 		"name": "HaxeOutputFile",
-		"define": "HAXE_OUTPUT_FILE",
+		"define": "HAXE-OUTPUT-FILE",
 		"doc": "Force the full output name of the executable/library without library prefix and debug suffix.",
 		"platforms": ["cpp"],
 		"params": ["name"]
 	},
 	{
 		"name": "HaxeOutputPart",
-		"define": "HAXE_OUTPUT_PART",
+		"define": "HAXE-OUTPUT-PART",
 		"doc": "Output name of the executable/library. (default: main class name)",
 		"platforms": ["cpp"],
 		"params": ["name"]
@@ -508,7 +508,7 @@
 	},
 	{
 		"name": "JsGlobal",
-		"define": "js_global",
+		"define": "js-global",
 		"doc": "Customizes the global object name.",
 		"platforms": ["js"]
 	},
