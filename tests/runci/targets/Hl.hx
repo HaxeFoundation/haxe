@@ -76,6 +76,7 @@ class Hl {
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 
 		if (systemName == "Windows") {
+			Sys.putEnv("HASHLINK", hlInstallDir);
 			Sys.putEnv("HASHLINK_SRC", hlSrc);
 			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
 		}
