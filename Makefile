@@ -95,14 +95,18 @@ endif
 ifeq ($(SYSTEM_NAME),Mac)
 # This assumes that haxelib and neko will both be installed into INSTALL_DIR,
 # which is the case when installing using the mac installer package
-HAXELIB_LFLAGS= -Wl,-rpath,$(INSTALL_DIR)/lib
+NEKO_LIB_PATH=$(INSTALL_DIR)/lib
+endif
+
+ifdef NEKO_LIB_PATH
+HAXELIB_LDFLAGS=-Wl,-rpath,$(NEKO_LIB_PATH)
 endif
 
 haxelib_unix:
 	cd $(CURDIR)/extra/haxelib_src && \
 	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
 	nekotools boot -c run.n
-	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LFLAGS)
+	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LDFLAGS)
 
 # haxelib should depends on haxe, but we don't want to do that...
 ifeq ($(SYSTEM_NAME),Windows)
