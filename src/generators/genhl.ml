@@ -26,6 +26,7 @@ open Type
 open Error
 open Gctx
 open Hlcode
+open Semver
 
 (* compiler *)
 
@@ -4168,9 +4169,10 @@ let create_context com =
 		| TAbstractDecl a -> a
 		| _ -> die "" __LOC__
 	in
+	let hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer in
 	let ctx = {
 		com = com;
-		hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer;
+		hl_ver = hl_ver;
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 		num_domains = Domain.recommended_domain_count ();
@@ -4198,7 +4200,13 @@ let create_context com =
 			ai32 = get_class "ArrayBytes_Int";
 			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
-			ai64 = if Gctx.raw_defined com "hl_legacy32" then None else Some (get_class "ArrayBytes_hl_I64");
+			ai64 =
+				if Gctx.raw_defined com "hl_legacy32"
+					|| hl_ver <> "" && (Semver.compare_version (Semver.parse_version hl_ver) (Semver.parse_version "1.13.0")) = -1
+				then
+					None
+				else
+					Some (get_class "ArrayBytes_hl_I64");
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";
