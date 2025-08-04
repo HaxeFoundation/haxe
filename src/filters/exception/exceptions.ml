@@ -13,9 +13,9 @@ type context = {
 	base_throw_type : Type.t;
 	throws_anything : bool;
 	catches_anything : bool;
-	haxe_exception : (Type.t * tclass) atomic_lazy;
-	haxe_native_stack_trace : tclass atomic_lazy;
-	value_exception : (Type.t * tclass) atomic_lazy;
+	haxe_exception : (Type.t * tclass) AtomicLazy.t;
+	haxe_native_stack_trace : tclass AtomicLazy.t;
+	value_exception : (Type.t * tclass) AtomicLazy.t;
 	is_of_type : (tclass * tclass_field * Type.t);
 }
 
