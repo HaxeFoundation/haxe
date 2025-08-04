@@ -32,17 +32,19 @@ type define_infos = {
 	d_links : string list;
 	d_deprecated : string option;
 	d_default : string option;
+	d_reserved : bool option;
 }
 
 let infos ?user_defines d =
 	let extract_infos (t, (doc, flags), origin) =
-		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None and default = ref None in
+		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None and default = ref None and reserved = ref None in
 		List.iter (function
 			| HasParam s -> params := s :: !params
 			| Platforms fl -> pfs := fl @ !pfs
 			| Link url -> links := url :: !links
 			| Deprecated s -> deprecated := Some s
 			| DefaultValue s -> default := Some s
+			| Reserved b -> reserved := Some b
 		) flags;
 		(t, {
 			d_doc = doc;
@@ -52,6 +54,7 @@ let infos ?user_defines d =
 			d_links = !links;
 			d_deprecated = !deprecated;
 			d_default = !default;
+			d_reserved = !reserved;
 		})
 	in
 

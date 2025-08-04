@@ -303,7 +303,8 @@ let handler =
 							| UserDefined (Some o) -> o
 						);
 						"deprecated", jopt jstring data.d_deprecated;
-						"links", jarray (List.map jstring data.d_links)
+						"links", jarray (List.map jstring data.d_links);
+						"reserved", jopt jbool data.d_reserved
 					] in
 
 					(jobject fields)
