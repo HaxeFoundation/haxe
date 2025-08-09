@@ -28,7 +28,7 @@ package haxe.io;
 	methods. See `File.write` and `String.write` for two ways of creating an
 	Output.
 **/
-class Output {
+abstract class Output {
 	/**
 		Endianness (word byte order) used when writing numbers.
 
