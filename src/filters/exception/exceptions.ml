@@ -3,6 +3,7 @@ open Type
 open PlatformConfig
 open Error
 open ExceptionFunctions
+open AtomicLazy
 
 type context = {
 	scom : SafeCom.t;
@@ -12,32 +13,32 @@ type context = {
 	base_throw_type : Type.t;
 	throws_anything : bool;
 	catches_anything : bool;
-	haxe_exception : (Type.t * tclass) Lazy.t;
-	haxe_native_stack_trace : tclass Lazy.t;
-	value_exception : (Type.t * tclass) Lazy.t;
+	haxe_exception : (Type.t * tclass) AtomicLazy.t;
+	haxe_native_stack_trace : tclass AtomicLazy.t;
+	value_exception : (Type.t * tclass) AtomicLazy.t;
 	is_of_type : (tclass * tclass_field * Type.t);
 }
 
 let haxe_exception_class ctx =
-	let cls = snd (Lazy.force ctx.haxe_exception) in
+	let cls = snd (AtomicLazy.force ctx.haxe_exception) in
 	assert (ctx.scom.curclass != null_class);
 	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
 	cls
 
 let haxe_exception_type ctx =
-	let t,cls = Lazy.force ctx.haxe_exception in
+	let t,cls = AtomicLazy.force ctx.haxe_exception in
 	assert (ctx.scom.curclass != null_class);
 	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
 	t
 
 let value_exception_class ctx =
-	let cls = snd (Lazy.force ctx.value_exception) in
+	let cls = snd (AtomicLazy.force ctx.value_exception) in
 	assert (ctx.scom.curclass != null_class);
 	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
 	cls
 
 let value_exception_type ctx =
-	let t,cls = Lazy.force ctx.value_exception in
+	let t,cls = AtomicLazy.force ctx.value_exception in
 	assert (ctx.scom.curclass != null_class);
 	add_dependency ctx.scom.curclass.cl_module cls.cl_module MDepFromTyping;
 	t

@@ -116,6 +116,7 @@ type parsed_define = {
 	d_deprecated_define : string option;
 	d_default : string option;
 	d_signature_neutral : bool option;
+	d_reserved : bool option;
 }
 let parse_define json =
 	let fields = match json with
@@ -133,6 +134,7 @@ let parse_define json =
 		d_deprecated_define = get_optional_field2 "deprecatedDefine" as_string fields;
 		d_default = get_optional_field2 "default" as_string fields;
 		d_signature_neutral = get_optional_field2 "signatureNeutral" as_bool fields;
+		d_reserved = get_optional_field2 "reserved" as_bool fields;
 	}
 
 let parse_meta json =
@@ -236,6 +238,12 @@ let gen_define_info defines =
 					DynArray.add default_values (Printf.sprintf "\t(%S,%S)" define x);
 					[Printf.sprintf "DefaultValue(%s)" quoted]
 			in
+			let reserved = match def.d_reserved with
+				| None ->
+					[]
+				| Some b ->
+					[Printf.sprintf "Reserved(%b)" b]
+			in
 			(match def.d_signature_neutral with
 				| Some true ->
 					DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define define));
@@ -244,7 +252,7 @@ let gen_define_info defines =
 					| Some s -> DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define s))
 					end
 				| _ -> ());
-			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated @ default)) ^ "])"
+			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated @ default @ reserved )) ^ "])"
 	) defines in
 	(
 		String.concat "\n" define_str,
@@ -326,6 +334,7 @@ type define_parameter =
 	| Link of string
 	| Deprecated of string
 	| DefaultValue of string
+	| Reserved of bool
 
 type define_deprecation =
 	| DueTo of string

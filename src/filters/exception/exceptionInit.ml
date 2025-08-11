@@ -6,6 +6,7 @@ open Exceptions
 open Type
 open Typecore
 open ExceptionFunctions
+open AtomicLazy
 
 let create_exception_context tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
@@ -28,15 +29,15 @@ let create_exception_context tctx =
 			let t = Typeload.load_instance tctx (tp config.ec_base_throw) ParamSpawnMonos LoadNormal in
 			if is_dynamic t then t_dynamic
 			else t
-		and haxe_exception = Lazy.from_fun (fun () ->
+		and haxe_exception = AtomicLazy.from_fun (fun () ->
 			match Typeload.load_instance tctx (tp haxe_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> raise_typing_error "haxe.Exception is expected to be a class" null_pos)
-		and value_exception = Lazy.from_fun (fun () ->
+		and value_exception = AtomicLazy.from_fun (fun () ->
 			match Typeload.load_instance tctx (tp value_exception_type_path) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) as t -> t,cls
 			| _ -> raise_typing_error "haxe.ValueException is expected to be a class" null_pos)
-		and haxe_native_stack_trace = Lazy.from_fun (fun () ->
+		and haxe_native_stack_trace = AtomicLazy.from_fun (fun () ->
 			match Typeload.load_instance tctx (tp (["haxe"],"NativeStackTrace")) ParamSpawnMonos LoadNormal with
 			| TInst(cls,_) -> cls
 			| TAbstract({ a_impl = Some cls },_) -> cls

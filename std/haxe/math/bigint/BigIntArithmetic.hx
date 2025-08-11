@@ -42,7 +42,7 @@ class BigIntArithmetic {
 	**/
 	public static function compareInt(a:BigInt_, b:Int):Int {
 		if (a.m_count > 1) {
-			return (a.sign() << 1) + 1;
+			return a.sign();
 		}
 		var x:Int = a.m_data.get(0);
 		var lt:Int = (x - b) ^ ((x ^ b) & ((x - b) ^ x)); // "Hacker's Delight" p. 23
@@ -59,20 +59,20 @@ class BigIntArithmetic {
 	**/
 	public static function compare(a:BigInt_, b:BigInt_):Int {
 		if (a != b) {
-			var c:Int = (a.sign() & 2) + (b.sign() & 1);
+			var c:Int = (a.sign() & 7) + (b.sign() & 3);
 			switch (c) {
-				case 0: // a and b are positive
+				case 1, 2: // a and b are positive
 					if (a.m_count > b.m_count) {
 						return 1;
 					}
 					if (a.m_count < b.m_count) {
 						return -1;
 					}
-				case 1: // a is positive, b is negative
+				case 3, 4: // a is positive, b is negative
 					return 1;
-				case 2: // a is negative, b is positive
+				case 7, 8: // a is negative, b is positive
 					return -1;
-				case 3: // a and b are negative
+				case 10: // a and b are negative
 					if (a.m_count > b.m_count) {
 						return -1;
 					}
@@ -137,7 +137,7 @@ class BigIntArithmetic {
 			var o1 = (operand1.m_count > operand2.m_count) ? operand1 : operand2;
 			var o2 = (operand1.m_count > operand2.m_count) ? operand2 : operand1;
 			result.ensureCapacity(o1.m_count + 1, (result == operand1) || (result == operand2));
-			var s:Int = o2.sign();
+			var s:Int = (o2.sign() == -1) ? -1 : 0;
 			for (i in 0...o2.m_count) {
 				x = o1.m_data.get(i);
 				y = o2.m_data.get(i);
@@ -226,7 +226,7 @@ class BigIntArithmetic {
 		} else if (operand1.m_count > operand2.m_count) {
 			// operand1 is longer
 			result.ensureCapacity(operand1.m_count + 1, (result == operand1) || (result == operand2));
-			var s:Int = operand2.sign();
+			var s:Int = (operand2.sign() == -1) ? -1 : 0;
 			for (i in 0...operand2.m_count) {
 				x = operand1.m_data.get(i);
 				y = operand2.m_data.get(i);
@@ -245,7 +245,7 @@ class BigIntArithmetic {
 		} else {
 			// operand2 is longer
 			result.ensureCapacity(operand2.m_count + 1, (result == operand1) || (result == operand2));
-			var s:Int = operand1.sign();
+			var s:Int = (operand1.sign() == -1) ? -1 : 0;
 			for (i in 0...operand1.m_count) {
 				x = operand1.m_data.get(i);
 				y = operand2.m_data.get(i);
@@ -333,7 +333,7 @@ class BigIntArithmetic {
 		or `operand2`; however, `operand1` and `operand2` may be the
 		same object.
 	**/
-	public static function multiply(result:MutableBigInt_, operand1:BigInt_, operand2:BigInt_):Void {
+	private static function multiplyTraditional(result:MutableBigInt_, operand1:BigInt_, operand2:BigInt_):Void {
 		// Implements Figure 8-1 (p. 172) from "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013.
 
 		if ((operand1 == result) || (operand2 == result)) {
@@ -342,11 +342,6 @@ class BigIntArithmetic {
 
 		if (operand1.isZero() || operand2.isZero()) {
 			result.setFromInt(0);
-			return;
-		}
-
-		if ((operand1.bitLength() >= 2500) && (operand2.bitLength() >= 2500)) {
-			multiplyKaratsuba(result, operand1, operand2);
 			return;
 		}
 
@@ -437,7 +432,17 @@ class BigIntArithmetic {
 	**/
 	public static function divide(dividend:BigInt_, divisor:BigInt_, quotientOut:MutableBigInt_, remainderOut:MutableBigInt_,
 			work:MutableBigInt_ = null):Void {
-		var c:Int = (dividend.sign() & 2) + (divisor.sign() & 1);
+		var dividendSign = dividend.sign();
+		var divisorSign = divisor.sign();
+
+		// Create a combined case value: 0 = both positive, 1 = dividend positive/divisor negative,
+		// 2 = dividend negative/divisor positive, 3 = both negative
+		var c:Int = 0;
+		if (dividendSign == -1)
+			c += 2;
+		if (divisorSign == -1)
+			c += 1;
+			
 		switch (c) {
 			case 0: // dividend positive, divisor positive
 				multiwordUnsignedDivide(dividend, divisor, quotientOut, remainderOut, work);
@@ -580,7 +585,7 @@ class BigIntArithmetic {
 		var whole:Int = operand2 >> 5; // whole digits portion
 		var n:Int = operand2 & 0x1f; // sub digit poortion
 		if (whole >= operand1.m_count) {
-			result.m_data.set(0, operand1.sign());
+			result.m_data.set(0, (operand1.sign() == -1) ? -1 : 0);
 			result.m_count = 1;
 		} else if (n > 0) {
 			MultiwordArithmetic._asr32(result.m_data, operand1.m_data, operand1.m_count, whole, n);
@@ -615,9 +620,9 @@ class BigIntArithmetic {
 	public static inline function bitwiseAnd(operand1:BigInt_, operand2:BigInt_):BigInt_ {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		if ((operand1.m_count > operand2.m_count)) {
-			result.m_count = (operand2.sign() == 0) ? operand2.m_count : operand1.m_count;
+			result.m_count = (operand2.sign() == 1) ? operand2.m_count : operand1.m_count;
 		} else {
-			result.m_count = (operand1.sign() == 0) ? operand1.m_count : operand2.m_count;
+			result.m_count = (operand1.sign() == 1) ? operand1.m_count : operand2.m_count;
 		}
 		result.ensureCapacity(result.m_count, false);
 		for (i in 0...result.m_count) {
@@ -640,8 +645,8 @@ class BigIntArithmetic {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.m_count = (operand1.m_count > operand2.m_count) ? operand1.m_count : operand2.m_count;
 		result.ensureCapacity(result.m_count, false);
-		var operand1Positive:Bool = operand1.sign() == 0;
-		var operand2Positive:Bool = operand2.sign() == 0;
+		var operand1Positive:Bool = operand1.sign() == 1;
+		var operand2Positive:Bool = operand2.sign() == 1;
 		for (i in 0...result.m_count) {
 			if (i > (operand1.m_count - 1)) {
 				result.m_data.set(i, (operand1Positive ? operand2.m_data.get(i) : 0xffffffff));
@@ -663,8 +668,8 @@ class BigIntArithmetic {
 		var result:MutableBigInt_ = new MutableBigInt_();
 		result.m_count = (operand1.m_count > operand2.m_count) ? operand1.m_count : operand2.m_count;
 		result.ensureCapacity(result.m_count, false);
-		var operand1Positive:Bool = operand1.sign() == 0;
-		var operand2Positive:Bool = operand2.sign() == 0;
+		var operand1Positive:Bool = operand1.sign() == 1;
+		var operand2Positive:Bool = operand2.sign() == 1;
 		for (i in 0...result.m_count) {
 			if (i > (operand1.m_count - 1)) {
 				result.m_data.set(i, (operand1Positive ? operand2.m_data.get(i) : (operand2.m_data.get(i) ^ 0xffffffff)));
@@ -699,47 +704,6 @@ class BigIntArithmetic {
 	**/
 	public static function floorLog2(input:BigInt_):Int {
 		return (input.m_count << 5) - BigIntHelper.nlz(input.m_data.get(input.m_count - 1));
-	}
-
-	/**
-		Multiply two big integers using the Karatsuba algorithm for performance.
-		@param result The `MutableBigInt_` to store the product.
-		@param x The first operand.
-		@param y The second operand.
-	**/
-	public static function multiplyKaratsuba(result:MutableBigInt_, x:BigInt_, y:BigInt_):Void {
-		var n = (x.bitLength() > y.bitLength()) ? x.bitLength() : y.bitLength();
-		if (n < 2500) {
-			multiply(result, x, y);
-			return;
-		}
-		n = (n + 1) >> 1;
-		var b = new MutableBigInt_();
-		arithmeticShiftRight(b, x, n);
-		var a = new MutableBigInt_();
-		arithmeticShiftLeft(a, b, n);
-		subtract(a, x, a);
-		var d = new MutableBigInt_();
-		arithmeticShiftRight(d, y, n);
-		var c = new MutableBigInt_();
-		arithmeticShiftLeft(c, d, n);
-		subtract(c, y, c);
-		var ac = new MutableBigInt_();
-		multiplyKaratsuba(ac, a, c);
-		var bd = new MutableBigInt_();
-		multiplyKaratsuba(bd, b, d);
-		var abcd = new MutableBigInt_();
-		add(a, a, b);
-		add(c, c, d);
-		multiplyKaratsuba(abcd, a, c);
-		var op1 = new MutableBigInt_();
-		arithmeticShiftLeft(op1, bd, 2 * n);
-		var op2 = new MutableBigInt_();
-		subtract(op2, abcd, ac);
-		subtract(op2, op2, bd);
-		arithmeticShiftLeft(op2, op2, n);
-		add(op2, ac, op2);
-		add(result, op1, op2);
 	}
 
 	//-----------------------------------------------------------------------
@@ -793,5 +757,189 @@ class BigIntArithmetic {
 		for (i in 0...length) {
 			output.set(outputOffset + i, input.get(inputOffset + i));
 		}
+	}
+	
+	private static function nextPowerOfTwo(value:Int):Int {
+		if (value <= 0)
+			return 1;
+		value--;
+		value |= value >> 1;
+		value |= value >> 2;
+		value |= value >> 4;
+		value |= value >> 8;
+		value |= value >> 16;
+		return value + 1;
+	}
+
+	private static function splitAtPowerOfTwo(value:BigInt_, splitBits:Int, high:MutableBigInt_, low:MutableBigInt_):Void {
+		if (splitBits <= 0) {
+			high.setFromInt(0);
+			low.copyFrom(value);
+			return;
+		}
+
+		var wordBoundary:Int = splitBits >> 5;
+		var bitOffset:Int = splitBits & 0x1f; // modulo 32
+
+		if (wordBoundary >= value.m_count) {
+			high.setFromInt(0);
+			low.copyFrom(value);
+			return;
+		}
+
+		low.ensureCapacity(wordBoundary + 1, false);
+
+		// Copy the lower words
+		for (i in 0...wordBoundary) {
+			low.m_data.set(i, value.m_data.get(i));
+		}
+
+		if (bitOffset > 0 && wordBoundary < value.m_count) {
+			var mask:Int = (1 << bitOffset) - 1;
+			low.m_data.set(wordBoundary, value.m_data.get(wordBoundary) & mask);
+			low.m_count = wordBoundary + 1;
+		} else {
+			low.m_count = wordBoundary;
+		}
+		
+		// Ensure low part is always treated as positive
+		// by adding a leading zero if the most significant bit is set
+		if (low.m_count > 0 && low.m_data.get(low.m_count - 1) < 0) {
+			low.ensureCapacity(low.m_count + 1, false);
+			low.m_data.set(low.m_count, 0);
+			low.m_count++;
+		}
+		
+		low.compact();
+
+		BigIntArithmetic.arithmeticShiftRight(high, value, splitBits);
+	}
+	
+	public static function multiply(result:MutableBigInt_, operand1:BigInt_, operand2:BigInt_):Void {
+		if ((operand1 == result) || (operand2 == result)) {
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
+		}
+
+		if (operand1.isZero() || operand2.isZero()) {
+			result.setFromInt(0);
+			return;
+		}
+
+		var bitLength1 = operand1.bitLength();
+		var bitLength2 = operand2.bitLength();
+
+		if (bitLength1 < 512 || bitLength2 < 512) {
+			BigIntArithmetic.multiplyTraditional(result, operand1, operand2);
+			return;
+		}
+
+		var maxBits = (bitLength1 > bitLength2) ? bitLength1 : bitLength2;
+		var splitBits = nextPowerOfTwo(maxBits >> 1);
+
+		if (splitBits < 256)
+			splitBits = 256;
+
+		multiplyKaratsuba(result, operand1, operand2, splitBits);
+	}
+	
+	private static function multiplyKaratsuba(result:MutableBigInt_, x:BigInt_, y:BigInt_, splitBits:Int):Void {
+		if (x.bitLength() < 512 || y.bitLength() < 512) {
+			BigIntArithmetic.multiplyTraditional(result, x, y);
+			return;
+		}
+
+		var x1 = new MutableBigInt_();
+		var x0 = new MutableBigInt_();
+		splitAtPowerOfTwo(x, splitBits, x1, x0);
+
+		var y1 = new MutableBigInt_();
+		var y0 = new MutableBigInt_();
+		splitAtPowerOfTwo(y, splitBits, y1, y0);
+
+		var z2 = new MutableBigInt_(); // x1 * y1
+		var z0 = new MutableBigInt_(); // x0 * y0
+		var z1 = new MutableBigInt_(); // (x1 + x0) * (y1 + y0) - z2 - z0
+
+		//  z2 = x1 * y1
+		multiplyKaratsuba(z2, x1, y1, splitBits >> 1);
+
+		//  z0 = x0 * y0
+		multiplyKaratsuba(z0, x0, y0, splitBits >> 1);
+
+		//  z1 = (x1 + x0) * (y1 + y0) - z2 - z0
+		var sum_x = new MutableBigInt_();
+		var sum_y = new MutableBigInt_();
+		BigIntArithmetic.add(sum_x, x1, x0);
+		BigIntArithmetic.add(sum_y, y1, y0);
+
+		multiplyKaratsuba(z1, sum_x, sum_y, splitBits >> 1);
+		BigIntArithmetic.subtract(z1, z1, z2);
+		BigIntArithmetic.subtract(z1, z1, z0);
+
+		// result = z2 * 2^(2*splitBits) + z1 * 2^splitBits + z0
+		var temp1 = new MutableBigInt_();
+		var temp2 = new MutableBigInt_();
+
+		// z2 * 2^(2*splitBits)
+		BigIntArithmetic.arithmeticShiftLeft(temp1, z2, 2 * splitBits);
+
+		// z1 * 2^splitBits
+		BigIntArithmetic.arithmeticShiftLeft(temp2, z1, splitBits);
+
+		BigIntArithmetic.add(result, temp1, temp2);
+		BigIntArithmetic.add(result, result, z0);
+	}
+	
+	/**
+		Squaring operation using power-of-two splitting.
+		@param result The output BigInt for the square
+		@param operand The operand to square
+	**/
+	public static function square(result:MutableBigInt_, operand:BigInt_):Void {
+		if (operand == result) {
+			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
+		}
+
+		if (operand.isZero()) {
+			result.setFromInt(0);
+			return;
+		}
+
+		var bitLength = operand.bitLength();
+
+		if (bitLength < 512) {
+			BigIntArithmetic.multiplyTraditional(result, operand, operand);
+			return;
+		}
+
+		var splitBits = nextPowerOfTwo(bitLength >> 1);
+		if (splitBits < 256)
+			splitBits = 256;
+
+		var high = new MutableBigInt_();
+		var low = new MutableBigInt_();
+		splitAtPowerOfTwo(operand, splitBits, high, low);
+
+		// Calculate (high + low)^2 = high^2 + 2*high*low + low^2
+		var highSquared = new MutableBigInt_();
+		var lowSquared = new MutableBigInt_();
+		var crossProduct = new MutableBigInt_();
+
+		square(highSquared, high);
+		square(lowSquared, low);
+
+		// Calculate 2 * high * low
+		multiplyKaratsuba(crossProduct, high, low, splitBits >> 1);
+		BigIntArithmetic.arithmeticShiftLeft(crossProduct, crossProduct, 1);
+
+		// Combine results: result = high^2 * 2^(2*splitBits) + 2*high*low * 2^splitBits + low^2
+		var temp1 = new MutableBigInt_();
+		var temp2 = new MutableBigInt_();
+
+		BigIntArithmetic.arithmeticShiftLeft(temp1, highSquared, 2 * splitBits);
+		BigIntArithmetic.arithmeticShiftLeft(temp2, crossProduct, splitBits);
+
+		BigIntArithmetic.add(result, temp1, temp2);
+		BigIntArithmetic.add(result, result, lowSquared);
 	}
 }

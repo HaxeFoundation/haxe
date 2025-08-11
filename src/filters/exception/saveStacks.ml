@@ -4,6 +4,7 @@ open Type
 open Error
 open ExceptionFunctions
 open Exceptions
+open AtomicLazy
 
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.
@@ -20,7 +21,7 @@ let insert_save_stacks ectx scom =
 			check_expr contains_insertion_points e
 	in
 	let save_exception_stack catch_var =
-		let native_stack_trace_cls = Lazy.force ectx.haxe_native_stack_trace in
+		let native_stack_trace_cls = AtomicLazy.force ectx.haxe_native_stack_trace in
 		let method_field =
 			try PMap.find "saveStack" native_stack_trace_cls.cl_statics
 			with Not_found -> raise_typing_error ("haxe.NativeStackTrace has no field saveStack") catch_var.v_pos
@@ -65,7 +66,7 @@ let insert_save_stacks ectx scom =
 	Adds `this.__shiftStack()` calls to constructors of classes which extend `haxe.Exception`
 *)
 let patch_constructors ectx =
-	match fst (Lazy.force ectx.haxe_exception) with
+	match fst (AtomicLazy.force ectx.haxe_exception) with
 	(* Add only if `__shiftStack` method exists *)
 	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
 		(fun mt ->

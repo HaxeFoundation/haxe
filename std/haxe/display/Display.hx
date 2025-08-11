@@ -322,6 +322,7 @@ typedef Define = {
 	var links:Array<String>;
 	var ?origin:String;
 	var ?deprecated:String;
+	var ?reserved:Bool;
 }
 
 typedef Keyword = {

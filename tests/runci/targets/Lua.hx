@@ -11,27 +11,32 @@ class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev"]);
-				runCommand("pip", ["install", "--user", "hererocks"]);
-				final pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
-				addToPATH(Path.join([pyUserBase, "bin"]));
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev", "pipx"]);
+				runCommand("pipx", ["ensurepath"]);
+				runCommand("pipx", ["install", "hererocks"]);
 			case "Mac": {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
 					runNetworkCommand("brew", ["install", "python3"]);
 
-				runCommand("pip3", ["install", "hererocks"]);
+				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("brew", ["install", "openssl"]);
+				runCommand("brew", ["install", "pipx"]);
+				runCommand("pipx", ["ensurepath"]);
+				runCommand("pipx", ["install", "hererocks"]);
 			}
 		}
 	}
 
 	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
-            final args = ["install", lib, version];
+			final args = ["install", lib, version];
 			if (systemName == "Mac") {
-				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
+				final opensslPath = commandResult("brew", ["--prefix", "openssl"]);
+				args.push('OPENSSL_DIR=${opensslPath.stdout.trim()}');
+				final pcrePath = commandResult("brew", ["--prefix", "pcre2"]);
+				args.push('PCRE2_DIR=${pcrePath.stdout.trim()}');
 			}
             if (server != null){
                 final server_arg = '--server=$server';
@@ -86,7 +91,7 @@ class Lua {
 				installLib("luautf8", "0.1.1-1");
 			}
 
-			installLib("hx-lua-simdjson", "0.0.1-1");
+			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
 			changeDirectory(unitDir);
 			final luaDefine = if (lv.startsWith("-l")) {

@@ -95,14 +95,18 @@ endif
 ifeq ($(SYSTEM_NAME),Mac)
 # This assumes that haxelib and neko will both be installed into INSTALL_DIR,
 # which is the case when installing using the mac installer package
-HAXELIB_LFLAGS= -Wl,-rpath,$(INSTALL_DIR)/lib
+NEKO_LIB_PATH=$(INSTALL_DIR)/lib
+endif
+
+ifdef NEKO_LIB_PATH
+HAXELIB_LDFLAGS=-Wl,-rpath,$(NEKO_LIB_PATH)
 endif
 
 haxelib_unix:
 	cd $(CURDIR)/extra/haxelib_src && \
 	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
 	nekotools boot -c run.n
-	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LFLAGS)
+	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LDFLAGS)
 
 # haxelib should depends on haxe, but we don't want to do that...
 ifeq ($(SYSTEM_NAME),Windows)
@@ -200,13 +204,12 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf haxe.tar.gz haxe
 	# scripts
-	cp -rf extra/mac-installer/* $(INSTALLER_TMP_DIR)/resources
+	cp -rf extra/mac-installer/scripts $(INSTALLER_TMP_DIR)/resources
 	sed -i '' 's/%%NEKO_VERSION%%/$(NEKO_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	sed -i '' 's/%%NEKO_MAJOR_VERSION%%/$(NEKO_MAJOR_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf scripts.tar.gz scripts
 	# installer structure
-	mkdir -p $(INSTALLER_TMP_DIR)/pkg
-	cd $(INSTALLER_TMP_DIR)/pkg && xar -xf ../resources/installer-structure.pkg .
+	cp -rf extra/mac-installer/pkg $(INSTALLER_TMP_DIR)
 	mkdir $(INSTALLER_TMP_DIR)/tgz; mv $(INSTALLER_TMP_DIR)/resources/*.tar.gz $(INSTALLER_TMP_DIR)/tgz
 	cd $(INSTALLER_TMP_DIR)/tgz; find . | cpio -o --format odc | gzip -c > ../pkg/files.pkg/Payload
 	cd $(INSTALLER_TMP_DIR)/pkg/files.pkg && bash -c "INSTKB=$$(du -sk ../../tgz | awk '{print $$1;}'); \

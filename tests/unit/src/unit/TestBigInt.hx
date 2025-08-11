@@ -160,10 +160,10 @@ class TestBigInt extends Test {
 		checkCompareInt(0, 2147483647, 2147483647);
 
 		// equality, multi-word
-		checkCompare(0, BigInt.fromHex("12345678 9abcdef0"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(0, BigInt.fromHex("f2345678 9abcdef0"), BigInt.fromHex("f2345678 9abcdef0"));
-		checkCompare(0, BigInt.fromHex("12345678 9abcdef0 12345678"), BigInt.fromHex("12345678 9abcdef0 12345678"));
-		checkCompare(0, BigInt.fromHex("f2345678 9abcdef0 12345678"), BigInt.fromHex("f2345678 9abcdef0 12345678"));
+		checkCompare(0, BigInt.fromHexSigned("12345678 9abcdef0"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(0, BigInt.fromHexSigned("f2345678 9abcdef0"), BigInt.fromHexSigned("f2345678 9abcdef0"));
+		checkCompare(0, BigInt.fromHexSigned("12345678 9abcdef0 12345678"), BigInt.fromHexSigned("12345678 9abcdef0 12345678"));
+		checkCompare(0, BigInt.fromHexSigned("f2345678 9abcdef0 12345678"), BigInt.fromHexSigned("f2345678 9abcdef0 12345678"));
 
 		// less than, single-word
 		checkCompareInt(-1, 0, 1);
@@ -179,17 +179,17 @@ class TestBigInt extends Test {
 		checkCompareInt(-1, -1, 2147483647);
 
 		// less than, multi-word, same length
-		checkCompare(-1, BigInt.fromHex("12345678 9abcdeef"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("12345677 9abcdef0"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("f2345678 9abcdef0"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("f2345678 9abcdeef"), BigInt.fromHex("f2345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("f2345677 9abcdef0"), BigInt.fromHex("f2345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("12345678 9abcdeef"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("12345677 9abcdef0"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("f2345678 9abcdef0"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("f2345678 9abcdeef"), BigInt.fromHexSigned("f2345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("f2345677 9abcdef0"), BigInt.fromHexSigned("f2345678 9abcdef0"));
 
 		// less than, multi-word, different length
-		checkCompare(-1, BigInt.fromHex("12345678 9abcdef0"), BigInt.fromHex("00000001 12345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("f2345678 9abcdef0"), BigInt.fromHex("00000001 12345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("fffffffe 12345678 9abcdef0"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(-1, BigInt.fromHex("fffffffe 12345678 9abcdef0"), BigInt.fromHex("f2345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("12345678 9abcdef0"), BigInt.fromHexSigned("00000001 12345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("f2345678 9abcdef0"), BigInt.fromHexSigned("00000001 12345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("fffffffe 12345678 9abcdef0"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(-1, BigInt.fromHexSigned("fffffffe 12345678 9abcdef0"), BigInt.fromHexSigned("f2345678 9abcdef0"));
 
 		// greater than, single-word
 		checkCompareInt(1, 1, 0);
@@ -200,19 +200,19 @@ class TestBigInt extends Test {
 		checkCompareInt(1, -2147483647, -2147483648);
 
 		// greater than, multi-word, same length
-		checkCompare(1, BigInt.fromHex("12345678 9abcdef1"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("12345679 9abcdef0"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("12345678 9abcdef0"), BigInt.fromHex("f2345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("f2345678 9abcdef1"), BigInt.fromHex("f2345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("f2345679 9abcdef0"), BigInt.fromHex("f2345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("12345678 9abcdef1"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("12345679 9abcdef0"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("12345678 9abcdef0"), BigInt.fromHexSigned("f2345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("f2345678 9abcdef1"), BigInt.fromHexSigned("f2345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("f2345679 9abcdef0"), BigInt.fromHexSigned("f2345678 9abcdef0"));
 
 		// greater than, multi-word, different length
-		checkCompare(1, BigInt.fromHex("00000001 12345678 9abcdef0"), BigInt.fromHex("12345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("00000001 12345678 9abcdef0"), BigInt.fromHex("f2345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("12345678 9abcdef0"), BigInt.fromHex("fffffffe 12345678 9abcdef0"));
-		checkCompare(1, BigInt.fromHex("f2345678 9abcdef0"), BigInt.fromHex("fffffffe 12345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("00000001 12345678 9abcdef0"), BigInt.fromHexSigned("12345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("00000001 12345678 9abcdef0"), BigInt.fromHexSigned("f2345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("12345678 9abcdef0"), BigInt.fromHexSigned("fffffffe 12345678 9abcdef0"));
+		checkCompare(1, BigInt.fromHexSigned("f2345678 9abcdef0"), BigInt.fromHexSigned("fffffffe 12345678 9abcdef0"));
 
-		checkCompare(1, BigInt.fromHex("00000001 ffffffff"), BigInt.fromHex("00000001 00000000"));
+		checkCompare(1, BigInt.fromHexSigned("00000001 ffffffff"), BigInt.fromHexSigned("00000001 00000000"));
 	}
 
 	private function checkCompareInt(expected:Int, a:Int, b:Int):Void {
@@ -284,7 +284,7 @@ class TestBigInt extends Test {
 		checkCompareSingle(expected, a, b);
 		checkCompareSingle(-expected, -a, -b);
 		if ((expected != 0) && (a.sign() == b.sign())) {
-			var s:Int = (a.sign() << 1) + 1;
+			var s:Int = a.sign();
 			checkCompareSingle(-s, -a, b);
 			checkCompareSingle(s, a, -b);
 		}
@@ -447,7 +447,7 @@ class TestBigInt extends Test {
 
 		// check quotient overlaps with dividend, special case 3
 		quotient = 11;
-		BigIntArithmetic.divide(quotient, BigInt.fromHex("1 00000000"), quotient, remainder);
+		BigIntArithmetic.divide(quotient, BigInt.fromHexSigned("1 00000000"), quotient, remainder);
 		eq("0", quotient.toString());
 		eq("11", remainder.toString());
 
@@ -476,7 +476,7 @@ class TestBigInt extends Test {
 		eq("0", remainder.toString());
 
 		// check quotient overlaps with divisor, special case 3
-		quotient = BigInt.fromHex("1 00000000");
+		quotient = BigInt.fromHexSigned("1 00000000");
 		BigIntArithmetic.divide(BigInt.fromInt(11), quotient, quotient, remainder);
 		eq("0", quotient.toString());
 		eq("11", remainder.toString());
@@ -507,7 +507,7 @@ class TestBigInt extends Test {
 
 		// check remainder overlaps with dividend, special case 3
 		remainder = 11;
-		BigIntArithmetic.divide(remainder, BigInt.fromHex("1 00000000"), quotient, remainder);
+		BigIntArithmetic.divide(remainder, BigInt.fromHexSigned("1 00000000"), quotient, remainder);
 		eq("0", quotient.toString());
 		eq("11", remainder.toString());
 
@@ -536,7 +536,7 @@ class TestBigInt extends Test {
 		eq("0", remainder.toString());
 
 		// check remainder overlaps with divisor, special case 3
-		remainder = BigInt.fromHex("1 00000000");
+		remainder = BigInt.fromHexSigned("1 00000000");
 		BigIntArithmetic.divide(BigInt.fromInt(11), remainder, quotient, remainder);
 		eq("0", quotient.toString());
 		eq("11", remainder.toString());
@@ -608,11 +608,11 @@ class TestBigInt extends Test {
 		checkLinearEqInt(BigInt.fromInt(5), 3, BigInt.fromInt(1), 2);
 		checkLinearEqInt(BigInt.fromInt(6), 3, BigInt.fromInt(2), 0);
 		checkLinearEqInt(BigInt.fromInt(6), 2, BigInt.fromInt(3), 0);
-		checkLinearEqInt(BigInt.fromHex("12A05F2001"), 81, BigInt.fromInt(987654321), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("12A05F2001"), 81, BigInt.fromInt(987654321), 0);
 
-		checkLinearEq(BigInt.fromHex("0 fffffffe 00000001"), BigInt.fromHex("0 ffffffff"), BigInt.fromHex("0 ffffffff"),
+		checkLinearEq(BigInt.fromHexSigned("0 fffffffe 00000001"), BigInt.fromHexSigned("0 ffffffff"), BigInt.fromHexSigned("0 ffffffff"),
 			BigInt.fromInt(0)); // exercises qhat = 65536
-		checkLinearEq(BigInt.fromHex("00003fff c0000000 7fff8000 00000000"), BigInt.fromHex("7fff8000 00000000"), BigInt.fromHex("00008000 00000001"),
+		checkLinearEq(BigInt.fromHexSigned("00003fff c0000000 7fff8000 00000000"), BigInt.fromHexSigned("7fff8000 00000000"), BigInt.fromHexSigned("00008000 00000001"),
 			BigInt.fromInt(0));
 
 		checkLinearEqInt(BigInt.fromInt(2147483647), 1, BigInt.fromInt(2147483647), 0);
@@ -628,59 +628,59 @@ class TestBigInt extends Test {
 
 		checkLinearEqInt(BigInt.fromInt(2147483647), 2147483647, BigInt.fromInt(1), 0); // exercises use of uninitialized quotient data
 
-		checkLinearEqInt(BigInt.fromHex("100000000"), 1, BigInt.fromHex("100000000"), 0);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 10, BigInt.fromInt(429496729), 6);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 100, BigInt.fromInt(42949672), 96);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 1000, BigInt.fromInt(4294967), 296);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 10000, BigInt.fromInt(429496), 7296);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 100000, BigInt.fromInt(42949), 67296); // exercises rhat >= 65536
-		checkLinearEqInt(BigInt.fromHex("100000000"), 1000000, BigInt.fromInt(4294), 967296);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 10000000, BigInt.fromInt(429), 4967296);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 100000000, BigInt.fromInt(42), 94967296);
-		checkLinearEqInt(BigInt.fromHex("100000000"), 1000000000, BigInt.fromInt(4), 294967296);
-		checkLinearEq(BigInt.fromHex("100000000"), BigInt.fromHex("2540BE400"), BigInt.fromInt(0), BigInt.fromHex("100000000"));
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 1, BigInt.fromHexSigned("100000000"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 10, BigInt.fromInt(429496729), 6);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 100, BigInt.fromInt(42949672), 96);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 1000, BigInt.fromInt(4294967), 296);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 10000, BigInt.fromInt(429496), 7296);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 100000, BigInt.fromInt(42949), 67296); // exercises rhat >= 65536
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 1000000, BigInt.fromInt(4294), 967296);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 10000000, BigInt.fromInt(429), 4967296);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 100000000, BigInt.fromInt(42), 94967296);
+		checkLinearEqInt(BigInt.fromHexSigned("100000000"), 1000000000, BigInt.fromInt(4), 294967296);
+		checkLinearEq(BigInt.fromHexSigned("100000000"), BigInt.fromHexSigned("2540BE400"), BigInt.fromInt(0), BigInt.fromHexSigned("100000000"));
 
-		checkLinearEqInt(BigInt.fromHex("08000"), 1, BigInt.fromHex("08000"), 0);
-		checkLinearEqInt(BigInt.fromHex("080000000"), 1, BigInt.fromHex("080000000"), 0);
-		checkLinearEqInt(BigInt.fromHex("0800000000000"), 1, BigInt.fromHex("0800000000000"), 0);
-		checkLinearEqInt(BigInt.fromHex("08000000000000000"), 1, BigInt.fromHex("08000000000000000"), 0);
-		checkLinearEqInt(BigInt.fromHex("10001"), 2, BigInt.fromHex("08000"), 1);
-		checkLinearEqInt(BigInt.fromHex("100000001"), 2, BigInt.fromHex("080000000"), 1);
-		checkLinearEqInt(BigInt.fromHex("1000000000001"), 2, BigInt.fromHex("0800000000000"), 1);
-		checkLinearEqInt(BigInt.fromHex("10000000000000001"), 2, BigInt.fromHex("08000000000000000"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("08000"), 1, BigInt.fromHexSigned("08000"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("080000000"), 1, BigInt.fromHexSigned("080000000"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("0800000000000"), 1, BigInt.fromHexSigned("0800000000000"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("08000000000000000"), 1, BigInt.fromHexSigned("08000000000000000"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("10001"), 2, BigInt.fromHexSigned("08000"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("100000001"), 2, BigInt.fromHexSigned("080000000"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("1000000000001"), 2, BigInt.fromHexSigned("0800000000000"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("10000000000000001"), 2, BigInt.fromHexSigned("08000000000000000"), 1);
 
-		checkLinearEqInt(BigInt.fromHex("0ffffffff"), 1, BigInt.fromHex("0ffffffff"), 0);
-		checkLinearEqInt(BigInt.fromHex("0ffffffffffffffff"), 1, BigInt.fromHex("0ffffffffffffffff"), 0);
-		checkLinearEqInt(BigInt.fromHex("0ffffffffffffffffffffffff"), 1, BigInt.fromHex("0ffffffffffffffffffffffff"), 0);
-		checkLinearEqInt(BigInt.fromHex("0ffffffff"), 2, BigInt.fromHex("07fffffff"), 1);
-		checkLinearEqInt(BigInt.fromHex("0ffffffffffffffff"), 2, BigInt.fromHex("07fffffffffffffff"), 1);
-		checkLinearEqInt(BigInt.fromHex("0ffffffffffffffffffffffff"), 2, BigInt.fromHex("07fffffffffffffffffffffff"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("0ffffffff"), 1, BigInt.fromHexSigned("0ffffffff"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("0ffffffffffffffff"), 1, BigInt.fromHexSigned("0ffffffffffffffff"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("0ffffffffffffffffffffffff"), 1, BigInt.fromHexSigned("0ffffffffffffffffffffffff"), 0);
+		checkLinearEqInt(BigInt.fromHexSigned("0ffffffff"), 2, BigInt.fromHexSigned("07fffffff"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("0ffffffffffffffff"), 2, BigInt.fromHexSigned("07fffffffffffffff"), 1);
+		checkLinearEqInt(BigInt.fromHexSigned("0ffffffffffffffffffffffff"), 2, BigInt.fromHexSigned("07fffffffffffffffffffffff"), 1);
 
 		// exercise quotient with high bit set when length of divisor == length of dividend and divisor >= 65536
-		checkLinearEq(BigInt.fromHex("4000000000000000"), BigInt.fromHex("080000000"), BigInt.fromHex("080000000"),
+		checkLinearEq(BigInt.fromHexSigned("4000000000000000"), BigInt.fromHexSigned("080000000"), BigInt.fromHexSigned("080000000"),
 			BigInt.fromInt(0)); // exercises uninitialized work data
-		checkLinearEq(BigInt.fromHex("4000000080000000"), BigInt.fromHex("080000001"), BigInt.fromHex("080000000"), BigInt.fromInt(0));
-		checkLinearEq(BigInt.fromHex("4000000100000000"), BigInt.fromHex("080000001"), BigInt.fromHex("080000000"), BigInt.fromHex("080000000"));
-		checkLinearEq(BigInt.fromHex("40000000ffffffff"), BigInt.fromHex("080000001"), BigInt.fromHex("080000000"), BigInt.fromHex("7fffffff"));
-		checkLinearEq(BigInt.fromHex("4000000100000001"), BigInt.fromHex("080000001"), BigInt.fromHex("080000001"), BigInt.fromInt(0));
+		checkLinearEq(BigInt.fromHexSigned("4000000080000000"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("080000000"), BigInt.fromInt(0));
+		checkLinearEq(BigInt.fromHexSigned("4000000100000000"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("080000000"), BigInt.fromHexSigned("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("40000000ffffffff"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("080000000"), BigInt.fromHexSigned("7fffffff"));
+		checkLinearEq(BigInt.fromHexSigned("4000000100000001"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("080000001"), BigInt.fromInt(0));
 
-		checkLinearEq(BigInt.fromHex("08000"), BigInt.fromHex("0800000001"), BigInt.fromHex("0"), BigInt.fromHex("08000"));
+		checkLinearEq(BigInt.fromHexSigned("08000"), BigInt.fromHexSigned("0800000001"), BigInt.fromHexSigned("0"), BigInt.fromHexSigned("08000"));
 		// these exercise the qhat reduction path
-		checkLinearEq(BigInt.fromHex("080000000"), BigInt.fromHex("080000001"), BigInt.fromHex("0"), BigInt.fromHex("080000000"));
-		checkLinearEq(BigInt.fromHex("0800080010000"), BigInt.fromHex("080000001"), BigInt.fromHex("10000"), BigInt.fromHex("080000000"));
-		checkLinearEq(BigInt.fromHex("0800100010001"), BigInt.fromHex("080000001"), BigInt.fromHex("10001"), BigInt.fromHex("080000000"));
-		checkLinearEq(BigInt.fromHex("08000000180000000"), BigInt.fromHex("080000001"), BigInt.fromHex("100000000"), BigInt.fromHex("080000000"));
-		checkLinearEq(BigInt.fromHex("08000000200000001"), BigInt.fromHex("080000001"), BigInt.fromHex("100000001"), BigInt.fromHex("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("080000000"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("0"), BigInt.fromHexSigned("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("0800080010000"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("10000"), BigInt.fromHexSigned("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("0800100010001"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("10001"), BigInt.fromHexSigned("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("08000000180000000"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("100000000"), BigInt.fromHexSigned("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("08000000200000001"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("100000001"), BigInt.fromHexSigned("080000000"));
 
 		// this exercises long division with a quotient with high bit set
-		checkLinearEq(BigInt.fromHex("08000000180000000"), BigInt.fromHex("100000000"), BigInt.fromHex("080000001"), BigInt.fromHex("080000000"));
+		checkLinearEq(BigInt.fromHexSigned("08000000180000000"), BigInt.fromHexSigned("100000000"), BigInt.fromHexSigned("080000001"), BigInt.fromHexSigned("080000000"));
 
 		// these exercise the "add back" path
-		checkLinearEq(BigInt.fromHex("7fff800000000000"), BigInt.fromHex("0800000000001"), BigInt.fromHex("0fffe"), BigInt.fromHex("7fffffff0002"));
-		checkLinearEq(BigInt.fromHex("7fffffff800000010000000000000000"), BigInt.fromHex("0800000008000000200000005"), BigInt.fromHex("0fffffffd"),
-			BigInt.fromHex("080000000800000010000000f"));
+		checkLinearEq(BigInt.fromHexSigned("7fff800000000000"), BigInt.fromHexSigned("0800000000001"), BigInt.fromHexSigned("0fffe"), BigInt.fromHexSigned("7fffffff0002"));
+		checkLinearEq(BigInt.fromHexSigned("7fffffff800000010000000000000000"), BigInt.fromHexSigned("0800000008000000200000005"), BigInt.fromHexSigned("0fffffffd"),
+			BigInt.fromHexSigned("080000000800000010000000f"));
 
-		checkLinearEq(BigInt.fromInt(1), BigInt.fromHex("100000000"), BigInt.fromInt(0), BigInt.fromInt(1));
+		checkLinearEq(BigInt.fromInt(1), BigInt.fromHexSigned("100000000"), BigInt.fromInt(0), BigInt.fromInt(1));
 	}
 
 	private function checkLinearEqInt(y:BigInt, a:Int, x:BigInt, b:Int):Void {
@@ -826,10 +826,10 @@ class TestBigInt extends Test {
 		checkEquality(BigInt.fromInt(1), BigInt.fromInt(1), true);
 		checkEquality(BigInt.fromInt(0x12345678), BigInt.fromInt(0x12345678), true);
 		checkEquality(BigInt.fromInt(0x12345678), BigInt.fromInt(0x12345670), false);
-		checkEquality(BigInt.fromHex("1234567800000000"), BigInt.fromInt(0), false);
-		checkEquality(BigInt.fromHex("1234567800000000"), BigInt.fromHex("1234567800000000"), true);
-		checkEquality(BigInt.fromHex("1234567800000000"), BigInt.fromHex("11234567800000000"), false);
-		checkEquality(BigInt.fromHex("1234567800000000"), BigInt.fromHex("123456780000000"), false);
+		checkEquality(BigInt.fromHexSigned("1234567800000000"), BigInt.fromInt(0), false);
+		checkEquality(BigInt.fromHexSigned("1234567800000000"), BigInt.fromHexSigned("1234567800000000"), true);
+		checkEquality(BigInt.fromHexSigned("1234567800000000"), BigInt.fromHexSigned("11234567800000000"), false);
+		checkEquality(BigInt.fromHexSigned("1234567800000000"), BigInt.fromHexSigned("123456780000000"), false);
 	}
 
 	private function checkEquality(a:BigInt, b:BigInt, expected:Bool):Void {
@@ -857,23 +857,23 @@ class TestBigInt extends Test {
 		checkAddInt(BigInt.fromInt(-1), 2, BigInt.fromInt(1));
 		checkAddInt(BigInt.fromInt(-1), -1, BigInt.fromInt(-2));
 
-		checkAddInt(BigInt.fromHex("000000000000000007fffffff"), 1, BigInt.fromHex("0000000000000000080000000"));
-		checkAddInt(BigInt.fromHex("0000000007fffffffffffffff"), 1, BigInt.fromHex("0000000008000000000000000"));
-		checkAddInt(BigInt.fromHex("07fffffffffffffffffffffff"), 1, BigInt.fromHex("0800000000000000000000000"));
-		checkAddInt(BigInt.fromHex("0ffffffffffffffffffffffff"), 1, BigInt.fromHex("1000000000000000000000000"));
-		checkAddInt(BigInt.fromHex("0fffffffffffffffeffffffff"), 1, BigInt.fromHex("0ffffffffffffffff00000000"));
+		checkAddInt(BigInt.fromHexSigned("000000000000000007fffffff"), 1, BigInt.fromHexSigned("0000000000000000080000000"));
+		checkAddInt(BigInt.fromHexSigned("0000000007fffffffffffffff"), 1, BigInt.fromHexSigned("0000000008000000000000000"));
+		checkAddInt(BigInt.fromHexSigned("07fffffffffffffffffffffff"), 1, BigInt.fromHexSigned("0800000000000000000000000"));
+		checkAddInt(BigInt.fromHexSigned("0ffffffffffffffffffffffff"), 1, BigInt.fromHexSigned("1000000000000000000000000"));
+		checkAddInt(BigInt.fromHexSigned("0fffffffffffffffeffffffff"), 1, BigInt.fromHexSigned("0ffffffffffffffff00000000"));
 
-		checkAdd(BigInt.fromHex("0ffffffffffffffff00000000"), BigInt.fromHex("100000000"), BigInt.fromHex("1000000000000000000000000"));
-		checkAdd(BigInt.fromHex("0ffffffff0000000000000000"), BigInt.fromHex("10000000000000000"), BigInt.fromHex("1000000000000000000000000"));
+		checkAdd(BigInt.fromHexSigned("0ffffffffffffffff00000000"), BigInt.fromHexSigned("100000000"), BigInt.fromHexSigned("1000000000000000000000000"));
+		checkAdd(BigInt.fromHexSigned("0ffffffff0000000000000000"), BigInt.fromHexSigned("10000000000000000"), BigInt.fromHexSigned("1000000000000000000000000"));
 
-		checkAdd(BigInt.fromHex("12345678"), BigInt.fromHex("11111111"), BigInt.fromHex("23456789"));
-		checkAdd(BigInt.fromHex("1234567812345678"), BigInt.fromHex("1111111111111111"), BigInt.fromHex("2345678923456789"));
-		checkAdd(BigInt.fromHex("123456781234567812345678"), BigInt.fromHex("111111111111111111111111"), BigInt.fromHex("234567892345678923456789"));
-		checkAdd(BigInt.fromHex("1234567812345678"), BigInt.fromHex("11111111"), BigInt.fromHex("1234567823456789"));
-		checkAdd(BigInt.fromHex("123456781234567812345678"), BigInt.fromHex("11111111"), BigInt.fromHex("123456781234567823456789"));
-		checkAdd(BigInt.fromHex("1234567812345678"), BigInt.fromHex("1111111100000000"), BigInt.fromHex("2345678912345678"));
-		checkAdd(BigInt.fromHex("123456781234567812345678"), BigInt.fromHex("111111110000000000000000"), BigInt.fromHex("234567891234567812345678"));
-		checkAdd(BigInt.fromHex("123456781234567812345678"), BigInt.fromHex("111111110000000011111111"), BigInt.fromHex("234567891234567823456789"));
+		checkAdd(BigInt.fromHexSigned("12345678"), BigInt.fromHexSigned("11111111"), BigInt.fromHexSigned("23456789"));
+		checkAdd(BigInt.fromHexSigned("1234567812345678"), BigInt.fromHexSigned("1111111111111111"), BigInt.fromHexSigned("2345678923456789"));
+		checkAdd(BigInt.fromHexSigned("123456781234567812345678"), BigInt.fromHexSigned("111111111111111111111111"), BigInt.fromHexSigned("234567892345678923456789"));
+		checkAdd(BigInt.fromHexSigned("1234567812345678"), BigInt.fromHexSigned("11111111"), BigInt.fromHexSigned("1234567823456789"));
+		checkAdd(BigInt.fromHexSigned("123456781234567812345678"), BigInt.fromHexSigned("11111111"), BigInt.fromHexSigned("123456781234567823456789"));
+		checkAdd(BigInt.fromHexSigned("1234567812345678"), BigInt.fromHexSigned("1111111100000000"), BigInt.fromHexSigned("2345678912345678"));
+		checkAdd(BigInt.fromHexSigned("123456781234567812345678"), BigInt.fromHexSigned("111111110000000000000000"), BigInt.fromHexSigned("234567891234567812345678"));
+		checkAdd(BigInt.fromHexSigned("123456781234567812345678"), BigInt.fromHexSigned("111111110000000011111111"), BigInt.fromHexSigned("234567891234567823456789"));
 	}
 
 	private function checkAddInt(a:BigInt, b:Int, expected:BigInt):Void {
@@ -942,11 +942,11 @@ class TestBigInt extends Test {
 		eq("1", (-BigInt.fromInt(-1)).toString());
 		eq(BigInt.fromInt(-100).toString(), (-BigInt.fromInt(100)).toString());
 		eq("100", (-BigInt.fromInt(-100)).toString());
-		eq(BigInt.fromHex("080000000").toHex(), (-BigInt.fromInt(-2147483648)).toHex());
-		eq(BigInt.fromInt(-2147483648).toHex(), (-BigInt.fromHex("080000000")).toHex());
-		eq(BigInt.fromHex("08000000000000000").toHex(), (-BigInt.fromHex("8000000000000000")).toHex());
-		eq(BigInt.fromHex("8000000000000000").toHex(), (-BigInt.fromHex("08000000000000000")).toHex());
-		eq(BigInt.fromHex("edcba98800000000").toHex(), (-BigInt.fromHex("1234567800000000")).toHex());
+		eq(BigInt.fromHexSigned("080000000").toHex(), (-BigInt.fromInt(-2147483648)).toHex());
+		eq(BigInt.fromInt(-2147483648).toHex(), (-BigInt.fromHexSigned("080000000")).toHex());
+		eq(BigInt.fromHexSigned("08000000000000000").toHex(), (-BigInt.fromHexSigned("8000000000000000")).toHex());
+		eq(BigInt.fromHexSigned("8000000000000000").toHex(), (-BigInt.fromHexSigned("08000000000000000")).toHex());
+		eq(BigInt.fromHexSigned("edcba98800000000").toHex(), (-BigInt.fromHexSigned("1234567800000000")).toHex());
 	}
 
 	public function bigIntFromString():Void {
@@ -985,8 +985,8 @@ class TestBigInt extends Test {
 		eq("7fffffff", BigInt.fromString("02147483647").toHex());
 		eq(BigInt.fromInt(-2147483648).toHex(), BigInt.fromString("-2147483648").toHex());
 		eq(BigInt.fromInt(-2147483648).toHex(), BigInt.fromString("-02147483648").toHex());
-		eq(BigInt.fromHex("080000000").toHex(), BigInt.fromString("2147483648").toHex());
-		eq(BigInt.fromHex("f7fffffff").toHex(), BigInt.fromString("-2147483649").toHex());
+		eq(BigInt.fromHexSigned("080000000").toHex(), BigInt.fromString("2147483648").toHex());
+		eq(BigInt.fromHexSigned("f7fffffff").toHex(), BigInt.fromString("-2147483649").toHex());
 
 		var a:MutableBigInt = 1;
 		for (i in 0...96) {
@@ -1010,7 +1010,7 @@ class TestBigInt extends Test {
 		eq(BigInt.fromInt(-100).toHex(), BigInt.fromBytes(Bytes.ofHex("ffffff9c")).toHex());
 		eq("7fffffff", BigInt.fromBytes(Bytes.ofHex("7fffffff")).toHex());
 		eq(BigInt.fromInt(-2147483648).toHex(), BigInt.fromBytes(Bytes.ofHex("80000000")).toHex());
-		eq(BigInt.fromHex("f7fffffff").toHex(), BigInt.fromBytes(Bytes.ofHex("ffffffff7fffffff")).toHex());
+		eq(BigInt.fromHexSigned("f7fffffff").toHex(), BigInt.fromBytes(Bytes.ofHex("ffffffff7fffffff")).toHex());
 	}
 
 	public function bigIntArithmeticShiftLeftAssignDoesntClobber():Void {
@@ -1053,23 +1053,23 @@ class TestBigInt extends Test {
 		}
 
 		asl(BigInt.ONE, 1, BigInt.fromInt(2));
-		asl(BigInt.ONE, 31, BigInt.fromHex("080000000"));
-		asl(BigInt.fromHex("080000000"), 1, BigInt.fromHex("100000000"));
+		asl(BigInt.ONE, 31, BigInt.fromHexSigned("080000000"));
+		asl(BigInt.fromHexSigned("080000000"), 1, BigInt.fromHexSigned("100000000"));
 
 		var sb = new StringBuf();
 		sb.add("1");
 		for (i in 0...100) {
-			asl(BigInt.ONE, i * 4, BigInt.fromHex(sb.toString()));
+			asl(BigInt.ONE, i * 4, BigInt.fromHexSigned(sb.toString()));
 			sb.add("0");
 		}
 		sb = new StringBuf();
 		sb.add("08");
 		for (i in 0...100) {
-			asl(BigInt.ONE, i * 4 + 3, BigInt.fromHex(sb.toString()));
+			asl(BigInt.ONE, i * 4 + 3, BigInt.fromHexSigned(sb.toString()));
 			sb.add("0");
 		}
 
-		asl(BigInt.fromHex("08000000180000000"), 15, BigInt.fromHex("40000000c00000000000"));
+		asl(BigInt.fromHexSigned("08000000180000000"), 15, BigInt.fromHexSigned("40000000c00000000000"));
 	}
 
 	private function asl(a:BigInt, b:Int, expected:BigInt):Void {
@@ -1097,14 +1097,14 @@ class TestBigInt extends Test {
 
 	public function bigIntSign():Void {
 		eq(0, BigInt.ZERO.sign());
-		eq(0, BigInt.ONE.sign());
+		eq(1, BigInt.ONE.sign());
 		eq(-1, BigInt.MINUS_ONE.sign());
-		eq(0, BigInt.fromInt(2147483647).sign());
+		eq(1, BigInt.fromInt(2147483647).sign());
 		eq(-1, BigInt.fromInt(-2147483648).sign());
 	}
 
 	public function bigIntSetFromIntWithLargeLength():Void {
-		var x:MutableBigInt = BigInt.fromHex("1 00000000");
+		var x:MutableBigInt = BigInt.fromHexSigned("1 00000000");
 		x <<= 1; // make it owned
 		var y:MutableBigInt_ = x;
 		y.setFromInt(11);
@@ -1116,22 +1116,22 @@ class TestBigInt extends Test {
 		eq("00000001", BigInt.ONE.toHex());
 		eq("ffffffff", BigInt.MINUS_ONE.toHex());
 
-		eq("0", BigInt.fromHex("0").toString());
-		eq("1", BigInt.fromHex("1").toString());
-		eq(BigInt.fromInt(-1).toHex(), BigInt.fromHex("f").toHex());
+		eq("0", BigInt.fromHexSigned("0").toString());
+		eq("1", BigInt.fromHexSigned("1").toString());
+		eq(BigInt.fromInt(-1).toHex(), BigInt.fromHexSigned("f").toHex());
 
 		try {
-			var x = BigInt.fromHex(null);
+			var x = BigInt.fromHexSigned(null);
 		} catch (e) {
 			eq(e.message, BigIntError.INVALID_ARGUMENT);
 		}
 		try {
-			var x = BigInt.fromHex("");
+			var x = BigInt.fromHexSigned("");
 		} catch (e) {
 			eq(e.message, BigIntError.INVALID_ARGUMENT);
 		}
 		try {
-			var x = BigInt.fromHex("0q0");
+			var x = BigInt.fromHexSigned("0q0");
 		} catch (e) {
 			eq(e.message, BigIntError.INVALID_ARGUMENT);
 		}
@@ -1147,10 +1147,10 @@ class TestBigInt extends Test {
 			checkHexString(sb.toString());
 		}
 
-		eq("2147483647", BigInt.fromHex("07fffffff").toString());
-		eq("-2147483648", BigInt.fromHex("f80000000").toString());
+		eq("2147483647", BigInt.fromHexSigned("07fffffff").toString());
+		eq("-2147483648", BigInt.fromHexSigned("f80000000").toString());
 
-		eq("-2147483648", BigInt.fromHex("8000 0000").toString());
+		eq("-2147483648", BigInt.fromHexSigned("8000 0000").toString());
 
 		eq(BigInt.fromHexSigned("080000000").toHex(), BigInt.fromHexUnsigned("80000000").toHex());
 		eq(BigInt.fromHexSigned("0ffffffff").toHex(), BigInt.fromHexUnsigned("ffffffff").toHex());
@@ -1158,7 +1158,7 @@ class TestBigInt extends Test {
 	}
 
 	private function checkHexString(value:String):Void {
-		var bi = BigInt.fromHex(value);
+		var bi = BigInt.fromHexSigned(value);
 		eq(value.toLowerCase(), bi.toHex().toLowerCase());
 		var by = bi.toBytes();
 		eq(by.toHex().toLowerCase(), bi.toHex().toLowerCase());
@@ -1187,7 +1187,7 @@ class TestBigInt extends Test {
 			s = s + "0";
 			checkDecString(s);
 		}
-		eq("1512366075204170929049582354406559215", BigInt.fromHex("01234567 89abcdef 01234567 89abcdef").toString());
+		eq("1512366075204170929049582354406559215", BigInt.fromHexSigned("01234567 89abcdef 01234567 89abcdef").toString());
 		#end
 	}
 
@@ -1201,7 +1201,7 @@ class TestBigInt extends Test {
 
 	public function testBigIntTools() {
 		// Test makes copy
-		var a:MutableBigInt = BigInt.fromHex("123456789abcdef0");
+		var a:MutableBigInt = BigInt.fromHexSigned("123456789abcdef0");
 		var b = BigIntTools.parseValueUnsigned(a);
 		eq("123456789abcdef0", b.toHex());
 		a.clear();
@@ -1233,9 +1233,9 @@ class TestBigInt extends Test {
 		t(BigIntTools.isBigInt(b1));
 
 		// Test parse
-		eq(BigInt.fromHex("123456789abcdef0").toHex(), BigIntTools.parseValueUnsigned("0x123456789abcdef0").toHex());
+		eq(BigInt.fromHexSigned("123456789abcdef0").toHex(), BigIntTools.parseValueUnsigned("0x123456789abcdef0").toHex());
 		eq(BigInt.fromString("12345678901234567890").toHex(), BigIntTools.parseValueUnsigned("12345678901234567890").toHex());
-		eq(BigInt.fromHex("080000000").toHex(), BigIntTools.parseValueUnsigned("0x80000000").toHex());
+		eq(BigInt.fromHexSigned("080000000").toHex(), BigIntTools.parseValueUnsigned("0x80000000").toHex());
 	}
 
 	public function testMultiwordArithmeticCompare():Void {
