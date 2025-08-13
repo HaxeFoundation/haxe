@@ -75,6 +75,11 @@ package hl;
 		return null;
 	}
 
+	@:hlNative("std", "copy_bytes")
+	static function copy(ptr:Bytes, len:Int):Bytes {
+		return null;
+	}
+
 	@:hlNative("std", "parse_int")
 	public function parseInt(pos:Int, size:Int):Null<Int> {
 		return null;

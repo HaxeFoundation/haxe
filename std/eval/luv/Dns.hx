@@ -48,7 +48,7 @@ typedef NameInfoOptions = {
 /**
 	DNS queries.
 
-	@see https://aantron.github.io/luv/luv/Luv/Dns
+	@see https://aantron.github.io/luv/luv/Luv/DNS
 **/
 extern class Dns {
 
