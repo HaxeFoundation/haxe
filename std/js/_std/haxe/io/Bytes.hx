@@ -136,39 +136,12 @@ class Bytes {
 			throw Error.OutsideBounds;
 		if (encoding == null)
 			encoding = UTF8;
-		var s = "";
-		var b = b;
-		var i = pos;
-		var max = pos + len;
-		switch (encoding) {
-			case UTF8:
-				var debug = pos > 0;
-				// utf8-decode and utf16-encode
-				while (i < max) {
-					var c = b[i++];
-					if (c < 0x80) {
-						if (c == 0)
-							break;
-						s += String.fromCharCode(c);
-					} else if (c < 0xE0)
-						s += String.fromCharCode(((c & 0x3F) << 6) | (b[i++] & 0x7F));
-					else if (c < 0xF0) {
-						var c2 = b[i++];
-						s += String.fromCharCode(((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F));
-					} else {
-						var c2 = b[i++];
-						var c3 = b[i++];
-						var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
-						s += String.fromCharCode(u);
-					}
-				}
-			case RawNative:
-				while (i < max) {
-					var c = b[i++] | (b[i++] << 8);
-					s += String.fromCharCode(c);
-				}
-		}
-		return s;
+
+		var dec = switch (encoding) {
+			case UTF8: new js.html.TextDecoder("utf-8");
+			case RawNative: new js.html.TextDecoder("utf-16");
+		};
+		return dec.decode(b.subarray(pos, pos + len));
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")
@@ -212,32 +185,10 @@ class Bytes {
 				buf[(i << 1) | 1] = c >> 8;
 			}
 			return new Bytes(buf.buffer);
+		} else {
+			var enc = new js.html.TextEncoder();
+			return new Bytes(enc.encode(s).buffer);
 		}
-		var a = new Array();
-		// utf16-decode and utf8-encode
-		var i = 0;
-		while (i < s.length) {
-			var c:Int = StringTools.fastCodeAt(s, i++);
-			// surrogate pair
-			if (0xD800 <= c && c <= 0xDBFF)
-				c = (c - 0xD7C0 << 10) | (StringTools.fastCodeAt(s, i++) & 0x3FF);
-			if (c <= 0x7F)
-				a.push(c);
-			else if (c <= 0x7FF) {
-				a.push(0xC0 | (c >> 6));
-				a.push(0x80 | (c & 63));
-			} else if (c <= 0xFFFF) {
-				a.push(0xE0 | (c >> 12));
-				a.push(0x80 | ((c >> 6) & 63));
-				a.push(0x80 | (c & 63));
-			} else {
-				a.push(0xF0 | (c >> 18));
-				a.push(0x80 | ((c >> 12) & 63));
-				a.push(0x80 | ((c >> 6) & 63));
-				a.push(0x80 | (c & 63));
-			}
-		}
-		return new Bytes(new js.lib.Uint8Array(a).buffer);
 	}
 
 	public static function ofData(b:BytesData):Bytes {
