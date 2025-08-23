@@ -593,6 +593,7 @@ module Printer = struct
 			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
 			"a_read",s_opt (fun cf -> cf.cf_name) a.a_read;
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
+			"a_default",s_opt (fun lazy_texpr -> lazy_texpr |> Lazy.force |> s_expr_ast true "" s_type) a.a_default;
 		]
 
 	let s_tvar_extra ve =

@@ -1583,6 +1583,10 @@ class hxb_reader
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
 		a.a_constructor <- self#read_option (fun () -> self#read_field_ref);
+		a.a_default <- self#read_option (fun () -> 
+			let fctx = self#start_texpr in
+			let e = self#read_texpr fctx in
+			Lazy.from_val e);
 
 		a.a_ops <- self#read_list (fun () ->
 			let i = read_byte ch in

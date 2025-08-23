@@ -22,7 +22,8 @@
 
 package hl;
 
-@:coreType @:notNull @:runtimeValue abstract I64 from Int {
+@:defaultValue(0)
+@:coreType @:notNull @:runtimeValue @:defaultValue(0) abstract I64 from Int {
 
 	/**
 		Destructively cast to Int
