@@ -29,7 +29,7 @@ package haxe.io;
 	All functions which read data throw `Eof` when the end of the stream
 	is reached.
 **/
-class Input {
+abstract class Input {
 	/**
 		Endianness (word byte order) used when reading numbers.
 
