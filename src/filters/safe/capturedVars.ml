@@ -38,7 +38,7 @@ open LocalUsage
 		funs.push(function(x) { function() return x[0]++; }(x));
 	}
 *)
-let captured_vars scom impl e =
+let captured_vars scom impl for_coro e =
 
 	let mk_var v used =
 		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in
@@ -137,6 +137,8 @@ let captured_vars scom impl e =
 				let vt = v.v_type in
 				v.v_type <- impl#captured_type vt;
 				add_var_flag v VCaptured;
+				if for_coro then
+					add_var_flag v VCoroCaptured;
 				vt
 			) used in
 			wrap used e
@@ -217,6 +219,8 @@ let captured_vars scom impl e =
 			incr depth;
 			f collect_vars;
 			decr depth;
+		| Declare v when not for_coro && has_var_flag v VCoroCaptured ->
+			()
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
 		| Use v ->
@@ -244,7 +248,7 @@ let captured_vars scom impl e =
 		local_usage collect_vars e;
 
 		(* mark all capture variables - also used in rename_local_vars at later stage *)
-		PMap.iter (fun _ v -> add_var_flag v VCaptured) !used;
+		PMap.iter (fun _ v -> add_var_flag v VCaptured; if for_coro then add_var_flag v VCoroCaptured) !used;
 
 		!assigned
 	in

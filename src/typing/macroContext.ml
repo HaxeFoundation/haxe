@@ -657,7 +657,7 @@ and flush_macro_context mint mctx =
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 			"local_statics",LocalStatic.run;
 			"Exceptions",Exceptions.filter ectx;
-			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper);
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper false);
 		] in
 		let type_filters = [
 			(fun _ -> FiltersCommon.remove_generic_base);

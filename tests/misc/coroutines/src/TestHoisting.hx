@@ -115,4 +115,19 @@ class TestHoisting extends utest.Test {
 
         }));
     }
+
+    function testLoopHoisting() {
+        final expected = [1, 2, 3];
+        final actual   = [];
+
+        CoroRun.runScoped(node -> {
+            for (x in expected) {
+                node.async(_ -> {
+                    actual.push(x);
+                });
+            }
+        });
+
+        Assert.same(expected, actual);
+    }
 }

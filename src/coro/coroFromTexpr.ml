@@ -2,6 +2,7 @@ open Globals
 open Type
 open CoroTypes
 open CoroFunctions
+open LocalUsage
 
 let e_no_value = Texpr.Builder.make_null t_dynamic null_pos
 
@@ -13,6 +14,13 @@ type coro_ret =
 	| RMapExpr of coro_ret * (texpr -> texpr)
 
 let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
+
+	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
+	let wrapper = ctx.typer.com.local_wrapper in
+	let scom = SafeCom.of_com ctx.typer.com in
+	let scom = { scom with platform_config = { scom.platform_config with pf_capture_policy = CPWrapRef } } in
+	let e = CapturedVars.captured_vars scom wrapper true e in
+
 	let make_block typepos =
 		make_block ctx typepos
 	in
@@ -42,7 +50,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 	in
 	let tmp_local cb t p =
 		let v = alloc_var VGenerated "tmp" t p in
-		add_expr cb (mk (TVar(v,None)) ctx.typer.t.tvoid p);
+		add_expr cb (mk (TVar(v, Some (Texpr.Builder.default_value (Abstract.follow_with_abstracts t) p))) ctx.typer.t.tvoid p);
 		v
 	in
 	let check_complex cb ret t p = match ret with
@@ -164,7 +172,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 			add_expr cb e;
 			Some (cb,e_no_value)
 		| TVar(v,Some e1) ->
-			add_expr cb {e with eexpr = TVar(v,None)};
+			add_expr cb {e with eexpr = TVar(v,Some (Texpr.Builder.default_value (Abstract.follow_with_abstracts e1.etype) e1.epos))};
 			let cb = loop_assign cb (RLocal v) e1 in
 			cb
 		(* calls *)
