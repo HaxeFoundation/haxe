@@ -27,7 +27,7 @@ class Issue130 extends utest.Test {
 
 		Assert.equals(count, actual.length);
 		for (time in actual) {
-			Assert.equals(time, 500i64);
+			Assert.isTrue(time == 500i64);
 		}
 	}
 }
