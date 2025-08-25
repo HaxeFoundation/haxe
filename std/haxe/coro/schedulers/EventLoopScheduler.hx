@@ -122,6 +122,8 @@ class EventLoopScheduler extends Scheduler {
 		final event = new ScheduledEvent(closeClosure, func, now() + ms);
 
 		futureMutex.acquire();
+
+		// Exit early checks around bounds.
 		if (first == null) {
 			first = event;
 			last = event;
@@ -129,46 +131,42 @@ class EventLoopScheduler extends Scheduler {
 			return event;
 		}
 
-		var currentLast = last;
-		var currentFirst = first;
-		while (true) {
-			if (event.runTime >= currentLast.runTime) {
-				final next = currentLast.next;
-				currentLast.next = event;
-				event.previous = currentLast;
-				if (next != null) {
-					event.next = next;
-					next.previous = event;
-				} else {
-					last = event;
-				}
-				futureMutex.release();
-				return event;
-			}
-			else if (event.runTime < currentFirst.runTime) {
-				final previous = currentFirst.previous;
-				currentFirst.previous = event;
-				event.next = currentFirst;
-				if (previous != null) {
-					event.previous = previous;
-					previous.next = event;
-				} else {
-					first = event;
-				}
-				futureMutex.release();
-				return event;
-			} else {
-				currentFirst = currentLast.next;
-				currentLast = currentLast.previous;
-				// if one of them is null, set to the other so the next iteration will definitely
-				// hit one of the two branches above
-				if (currentFirst == null) {
-					currentFirst = currentLast;
-				} else if (currentLast == null) {
-					currentLast = currentFirst;
-				}
-			}
+		if (event.runTime >= last.runTime) {
+			last.next = event;
+			event.previous = last;
+			last = event;
+
+			futureMutex.release();
+			return event;
 		}
+
+		if (event.runTime < first.runTime) {
+			first.previous = event;
+			event.next = first;
+			first = event;
+
+			futureMutex.release();
+			return event;
+		}
+
+		// Walk all events looking for the best time fit.
+		var currentFirst = first;
+		while (currentFirst != null) {
+			if (event.runTime >= currentFirst.runTime && currentFirst.next.runTime > event.runTime) {
+				event.next = currentFirst.next;
+				event.previous = currentFirst;
+				currentFirst.next.previous = event;
+				currentFirst.next = event;
+
+				futureMutex.release();
+
+				return event;
+			}
+
+			currentFirst = currentFirst.next;
+		}
+
+		throw new haxe.Exception('Failed to add event');
     }
 
 	public function scheduleObject(obj:IScheduleObject) {
