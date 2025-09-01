@@ -130,4 +130,18 @@ class TestHoisting extends utest.Test {
 
         Assert.same(expected, actual);
     }
+
+    function testUninitialisedVariable() {
+        Assert.equals(7, CoroRun.run(() -> {
+            var i;
+
+            yield();
+
+            i = 7;
+
+            yield();
+
+            return i;
+        }));
+    }
 }
