@@ -3055,6 +3055,7 @@ and eval_expr ctx e =
 					(* Std.isOfType(e, t) *)
 					| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) -> [ fst (get_global ctx mt e.epos) ]
 					| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) -> [ alloc_global ctx "$Dynamic" HDyn ]
+					| TMeta (_,e1) -> find_meta e1
 					| _ -> []
 					)
 				in
