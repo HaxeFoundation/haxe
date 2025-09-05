@@ -1128,6 +1128,12 @@
 		"internal": true
 	},
 	{
+		"name": "ExceptionTypeCheck",
+		"metadata": ":exceptionTypeCheck",
+		"doc": "Internally used for transformed exception type check wrt to `catch`.",
+		"internal": true
+	},
+	{
 		"name": "NativeArrayAccess",
 		"metadata": ":nativeArrayAccess",
 		"doc": "When used on an extern class which implements haxe.ArrayAccess native array access syntax will be generated",

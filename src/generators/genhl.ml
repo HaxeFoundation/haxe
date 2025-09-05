@@ -1087,31 +1087,33 @@ let before_break_continue ctx =
 	in
 	loop (ctx.m.mtrys - ctx.m.mloop_trys)
 
-let type_value ctx t p =
+let get_global ctx t p =
 	match t with
 	| TClassDecl c ->
-		let g, t = class_global ctx c in
-		let r = alloc_tmp ctx t in
-		op ctx (OGetGlobal (r, g));
-		r
+		class_global ctx c
 	| TAbstractDecl a ->
-		let r = alloc_tmp ctx (class_type ctx ctx.base_type [] false) in
-		(match a.a_path with
-		| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
-		| [], "Float" -> op ctx (OGetGlobal (r, alloc_global ctx "$Float" (rtype ctx r)))
-		| [], "Bool" -> op ctx (OGetGlobal (r, alloc_global ctx "$Bool" (rtype ctx r)))
-		| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
-		| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
-		| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
-		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p);
-		r
+		let rt = class_type ctx ctx.base_type [] false in
+		let g = (match a.a_path with
+		| [], "Int" -> alloc_global ctx "$Int" rt
+		| [], "Float" -> alloc_global ctx "$Float" rt
+		| [], "Bool" -> alloc_global ctx "$Bool" rt
+		| [], "Class" -> fst (class_global ctx ctx.base_class)
+		| [], "Enum" -> fst (class_global ctx ctx.base_enum)
+		| [], "Dynamic" -> alloc_global ctx "$Dynamic" rt
+		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p) in
+		g, rt
 	| TEnumDecl e ->
-		let r = alloc_tmp ctx (enum_class ctx e) in
-		let rt = rtype ctx r in
-		op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> die "" __LOC__) rt));
-		r
+		let rt = enum_class ctx e in
+		let g = alloc_global ctx (match rt with HObj o -> o.pname | _ -> die "" __LOC__) rt in
+		g, rt
 	| TTypeDecl _ ->
 		die "" __LOC__
+
+let type_value ctx t p =
+	let g, rt = get_global ctx t p in
+	let r = alloc_tmp ctx rt in
+	op ctx (OGetGlobal (r, g));
+	r
 
 let rec eval_to ctx e (t:ttype) =
 	match e.eexpr, t with
@@ -2212,9 +2214,9 @@ and eval_expr ctx e =
 			| AInstanceField (f, index, _) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
 			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
 			alloc_tmp ctx HVoid
-        | "$unsafecast", [value] ->
+		| "$unsafecast", [value] ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
-            op ctx (OUnsafeCast (r, eval_expr ctx value));
+			op ctx (OUnsafeCast (r, eval_expr ctx value));
 			r
 		| "$asm", [mode; value] ->
 			let mode = (match get_const mode with
@@ -3042,6 +3044,25 @@ and eval_expr ctx e =
 		let rtrap = alloc_tmp ctx HDyn in
 		op ctx (OTrap (rtrap,-1)); (* loop *)
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
+		if ctx.hl_ver >= "1.16" then begin
+			let extract_type_check (_, texpr) =
+				let rec find_meta e =
+					(match e.eexpr with
+					| TBlock el -> List.concat_map find_meta el
+					| TIf (e1,_,None) -> find_meta e1
+					| TIf (e1,_,Some eelse) -> find_meta e1 @ find_meta eelse
+					| TParenthesis e1 -> find_meta e1
+					(* Std.isOfType(e, t) *)
+					| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) -> [ fst (get_global ctx mt e.epos) ]
+					| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) -> [ alloc_global ctx "$Dynamic" HDyn ]
+					| _ -> []
+					)
+				in
+				find_meta texpr
+			in
+			let catched_types = List.concat_map extract_type_check catches in
+			List.iter (fun gt -> op ctx (OCatch gt)) catched_types;
+		end;
 		let tret = to_type ctx e.etype in
 		let result = alloc_tmp ctx tret in
 		let r = eval_expr ctx etry in

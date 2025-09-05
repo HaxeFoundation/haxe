@@ -1027,15 +1027,15 @@ let generate_function gctx ctx f =
 		| OGetMem (r,b,idx) ->
 			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
 		| OGetArray (r, arr, idx) ->
-            (match rtype arr with
-            | HAbstract _ ->
-                (match rtype r with
-                | HStruct _ | HObj _ ->
-			        sexpr "%s = ((%s)%s) + %s" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
-                | _ ->
-			        sexpr "%s = ((%s*)%s)[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
-            | _ ->
-			    sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
+			(match rtype arr with
+			| HAbstract _ ->
+				(match rtype r with
+				| HStruct _ | HObj _ ->
+					sexpr "%s = ((%s)%s) + %s" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
+				| _ ->
+					sexpr "%s = ((%s*)%s)[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
+			| _ ->
+				sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx))
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
@@ -1149,6 +1149,8 @@ let generate_function gctx ctx f =
 			sexpr "__hl_prefetch_m%d(%s)" mode expr
 		| OAsm _ ->
 			sexpr "UNSUPPORTED ASM OPCODE";
+		| OCatch _ ->
+			()
 	) f.code;
 	flush_options (Array.length f.code);
 	unblock();

@@ -170,12 +170,14 @@ let opcode_fx frw op =
 		()
 	| OPrefetch (r,_,_) ->
 		read r
-    | OAsm (_,_,r) ->
-        if r > 0 then begin
-            (* assume both *)
-            read (r - 1);
-            write (r - 1);
-        end
+	| OAsm (_,_,r) ->
+		if r > 0 then begin
+			(* assume both *)
+			read (r - 1);
+			write (r - 1);
+		end
+	| OCatch _ ->
+		()
 
 let opcode_eq a b =
 	match a, b with
@@ -452,6 +454,8 @@ let opcode_map read write op =
 	| OAsm (mode, value, r) ->
 		let r2 = read (r - 1) in
 		OAsm (mode, value, (write r2) + 1)
+	| OCatch _ ->
+		op
 
 (* build code graph *)
 
