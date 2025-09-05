@@ -3045,24 +3045,19 @@ and eval_expr ctx e =
 		op ctx (OTrap (rtrap,-1)); (* loop *)
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
 		if ctx.hl_ver >= "1.16" then begin
-			let extract_type_check (_, texpr) =
-				let rec find_meta e =
-					(match e.eexpr with
-					| TBlock el -> List.concat_map find_meta el
-					| TIf (e1,_,None) -> find_meta e1
-					| TIf (e1,_,Some eelse) -> find_meta e1 @ find_meta eelse
-					| TParenthesis e1 -> find_meta e1
-					(* Std.isOfType(e, t) *)
-					| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) -> [ fst (get_global ctx mt e.epos) ]
-					| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) -> [ alloc_global ctx "$Dynamic" HDyn ]
-					| TMeta (_,e1) -> find_meta e1
-					| _ -> []
-					)
-				in
-				find_meta texpr
+			let catched_types = ref [] in
+			let rec find_meta e =
+				(match e.eexpr with
+				(* Std.isOfType(e, t) *)
+				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) ->
+					catched_types := fst (get_global ctx mt e.epos) :: !catched_types
+				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) ->
+					catched_types := alloc_global ctx "$Dynamic" HDyn :: !catched_types
+				| _ -> Type.iter find_meta e
+				)
 			in
-			let catched_types = List.concat_map extract_type_check catches in
-			List.iter (fun gt -> op ctx (OCatch gt)) catched_types;
+			List.iter (fun (_,texpr) -> Type.iter find_meta texpr) catches;
+			List.iter (fun gt -> op ctx (OCatch gt)) (List.rev !catched_types);
 		end;
 		let tret = to_type ctx e.etype in
 		let result = alloc_tmp ctx tret in
