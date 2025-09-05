@@ -219,9 +219,10 @@ let optimize_unop e op flag esub =
 		| TAbstract({a_path = [],"Int"},_) -> true
 		| _ -> false
 	in
-	match op, esub.eexpr with
-		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
-		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
+	let rec transform esub =
+		match op, esub.eexpr with
+		| Not, TConst (TBool f) -> { e with eexpr = TConst (TBool (not f)) }
+		| Not, TBinop(op,e1,e2) ->
 			begin
 				let is_int = is_int e1.etype && is_int e2.etype in
 				try
@@ -247,4 +248,8 @@ let optimize_unop e op flag esub =
 				{ e with eexpr = TConst (TFloat vstr) }
 			else
 				e
+		| Not, TParenthesis(e1) -> transform e1
+		| _, TMeta(m, e1) -> { e with eexpr = TMeta (m, transform e1) }
 		| _ -> e
+	in
+	transform esub
