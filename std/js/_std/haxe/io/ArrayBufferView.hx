@@ -54,4 +54,12 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 	public static inline function fromData(a:ArrayBufferViewData):ArrayBufferView {
 		return cast a;
 	}
+
+	public static function fromBytes(bytes:haxe.io.Bytes, pos = 0, ?length:Int):ArrayBufferView {
+		if (length == null)
+			length = bytes.length - pos;
+		if (pos < 0 || length < 0 || pos + length > bytes.length)
+			throw haxe.io.Error.OutsideBounds;
+		return ArrayBufferView.fromData(haxe.io.UInt8Array.fromBytes(bytes, pos, length).getData());
+	}
 }
