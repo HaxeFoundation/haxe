@@ -1087,7 +1087,7 @@ let before_break_continue ctx =
 	in
 	loop (ctx.m.mtrys - ctx.m.mloop_trys)
 
-let get_global ctx t p =
+let type_global ctx t p =
 	match t with
 	| TClassDecl c ->
 		class_global ctx c
@@ -1110,7 +1110,7 @@ let get_global ctx t p =
 		die "" __LOC__
 
 let type_value ctx t p =
-	let g, rt = get_global ctx t p in
+	let g, rt = type_global ctx t p in
 	let r = alloc_tmp ctx rt in
 	op ctx (OGetGlobal (r, g));
 	r
@@ -3050,7 +3050,7 @@ and eval_expr ctx e =
 				(match e.eexpr with
 				(* Std.isOfType(e, t) *)
 				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) ->
-					catched_types := fst (get_global ctx mt e.epos) :: !catched_types
+					catched_types := fst (type_global ctx mt e.epos) :: !catched_types
 				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) ->
 					catched_types := alloc_global ctx "$Dynamic" HDyn :: !catched_types
 				| _ -> Type.iter find_meta e
