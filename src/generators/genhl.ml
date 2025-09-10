@@ -122,6 +122,9 @@ type context = {
 	mutable ct_depth : int;
 }
 
+let compare_version v1 v2 =
+	Semver.compare_version (Semver.parse_version v1) (Semver.parse_version v2)
+
 (* --- *)
 
 type access =
@@ -1122,11 +1125,11 @@ let rec eval_to ctx e (t:ttype) =
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
 		r
-	| TConst (TInt i), HF32 when ctx.hl_ver >= "1.15" ->
+	| TConst (TInt i), HF32 when compare_version ctx.hl_ver "1.15.0" >= 0 ->
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r, alloc_float ctx (Int32.to_float i)));
 		r
-	| TConst (TFloat f), HF32 when ctx.hl_ver >= "1.15" ->
+	| TConst (TFloat f), HF32 when compare_version ctx.hl_ver "1.15.0" >= 0 ->
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r, alloc_float ctx (float_of_string f)));
 		r
@@ -3045,7 +3048,7 @@ and eval_expr ctx e =
 		let rtrap = alloc_tmp ctx HDyn in
 		op ctx (OTrap (rtrap,-1)); (* loop *)
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
-		if ctx.hl_ver >= "1.16" then begin
+		if compare_version ctx.hl_ver "1.16.0" >= 0 then begin
 			let catched_types = ref [] in
 			let rec find_meta e =
 				(match e.eexpr with
@@ -3513,7 +3516,7 @@ let generate_static ctx c f =
 			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
 			| (Meta.HlNative,[(EConst(Float(ver,_)),_)] ,_ ) :: _ ->
-				if ctx.hl_ver < ver then
+				if compare_version ctx.hl_ver (ver ^ ".0") < 0 then
 					let gen_content() =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
@@ -4219,7 +4222,7 @@ let create_context com =
 			af64 = get_class "ArrayBytes_Float";
 			ai64 =
 				if Gctx.raw_defined com "hl_legacy32"
-					|| hl_ver <> "" && (Semver.compare_version (Semver.parse_version hl_ver) (Semver.parse_version "1.13.0")) = -1
+					|| hl_ver <> "" && compare_version hl_ver "1.13.0" < 0
 				then
 					None
 				else
