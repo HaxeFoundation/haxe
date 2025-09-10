@@ -2327,25 +2327,9 @@ and eval_expr ctx e =
 		(match !def_ret with
 		| None ->
 			let rt = to_type ctx e.etype in
-			let is_valid_method t =
-				match follow t with
-				| TFun (_,rt) ->
-					(match follow rt with
-					| TInst({ cl_kind = KTypeParameter ttp },_) ->
-						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
-						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) (get_constraints ttp))
-					| _ -> false)
-				| _ ->
-					false
-			in
-			(match ec.eexpr with
-			| TField (_, FInstance(_,_,{ cf_kind = Method (MethNormal|MethInline); cf_type = t })) when is_valid_method t ->
-				(* let's trust the compiler when it comes to casting the return value from a type parameter *)
-				unsafe_cast_to ctx ret rt e.epos
-			| _ ->
-				cast_to ~force:true ctx ret rt e.epos)
-		| Some r ->
-			r)
+			cast_to ~force:true ctx ret rt e.epos
+		| Some r -> r
+		)
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
 		let r = alloc_tmp ctx HI32 in
 		op ctx (OCall1 (r,alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", eval_null_check ctx ec));
