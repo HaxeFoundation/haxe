@@ -362,6 +362,6 @@ typedef ArrayI32 = ArrayBytes<Int>;
 typedef ArrayUI16 = ArrayBytes<UI16>;
 typedef ArrayF32 = ArrayBytes<F32>;
 typedef ArrayF64 = ArrayBytes<Float>;
-#if !hl_legacy32
+#if (hl_ver >= version("1.13.0") && !hl_legacy32)
 typedef ArrayI64 = ArrayBytes<I64>;
 #end

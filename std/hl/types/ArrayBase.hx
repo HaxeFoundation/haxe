@@ -149,7 +149,7 @@ class ArrayBase extends ArrayAccess {
 		return a;
 	}
 
-	#if !hl_legacy32
+	#if (hl_ver >= version("1.13.0") && !hl_legacy32)
 	public static function allocI64(bytes:BytesAccess<I64>, length:Int) @:privateAccess {
 		var a:ArrayBytes.ArrayI64 = untyped $new(ArrayBytes.ArrayI64);
 		a.length = length;

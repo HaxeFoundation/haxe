@@ -1480,7 +1480,7 @@ and type_if ctx e e1 e2 with_type is_ternary p =
 		| TConst TNull -> raise_typing_error "Cannot use null as ternary condition" e.epos
 		| _ -> ()
 	end;
-	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
+	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e e.epos in
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	match e2 with
 	| None ->
