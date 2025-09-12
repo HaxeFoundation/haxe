@@ -1,3 +1,2 @@
 --main Main
 --hl out/main.c
--D hlgen.makefile=vs2022

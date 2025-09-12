@@ -75,8 +75,8 @@ class Hl {
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 
+		Sys.putEnv("HASHLINK", hlInstallDir);
 		if (systemName == "Windows") {
-			Sys.putEnv("HASHLINK", hlInstallDir);
 			Sys.putEnv("HASHLINK_SRC", hlSrc);
 			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
 		}
@@ -168,6 +168,9 @@ class Hl {
 		buildAndRun("compile.hxml", "bin/reservedKeywords");
 
 		changeDirectory(miscHlDir);
-		runCommand("haxe", ["run.hxml"]);
+		runCommand("haxe", ["run.hxml"].concat([ "-D",
+			if (systemName == "Windows") "hlgen.makefile=vs2022"
+			else "hlgen.makefile=make"
+		]));
 	}
 }
