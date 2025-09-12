@@ -595,7 +595,7 @@ jobs:
           cmake --build build
           sudo cmake --install build
           cd ..
-          curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
+          curl -L https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-$MBEDTLS_VERSION/mbedtls-$MBEDTLS_VERSION.tar.bz2 | tar xz
           cd mbedtls-$MBEDTLS_VERSION
           cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
             -DENABLE_TESTING=OFF
