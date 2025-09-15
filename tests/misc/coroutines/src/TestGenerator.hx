@@ -7,28 +7,6 @@ import haxe.Exception;
 
 private typedef Yield<T> = Coroutine<T->Void>;
 
-class ImmediateScheduler extends Scheduler {
-	public function new() {
-		super();
-	}
-
-	public function schedule(ms:Int64, f:() -> Void) {
-		if (ms != 0) {
-			throw 'Only immediate scheduling is allowed in this scheduler';
-		}
-		f();
-		return null;
-	}
-
-	public function scheduleObject(obj:IScheduleObject) {
-		obj.onSchedule();
-	}
-
-	public function now() {
-		return 0i64;
-	}
-}
-
 private function sequence<T>(f:Coroutine<Yield<T>->Void>):Iterator<T> {
 	var hasValue = false;
 	var nextValue:T = null;

@@ -4,7 +4,7 @@ import haxe.coro.Coroutine;
 import haxe.coro.context.Context;
 import hxcoro.task.ICoroTask;
 import hxcoro.task.CoroTask;
-import hxcoro.ds.Channel;
+import hxcoro.ds.channels.Channel;
 import hxcoro.task.ICoroNode;
 
 using issues.aidan.Issue124.NumberProducer;
@@ -26,16 +26,16 @@ class CoroChannelTask<T> extends CoroTask<haxe.Unit> implements IReceiver<T> imp
 	}
 
 	@:coroutine public function receive() {
-		return channel.read();
+		return channel.reader.read();
 	}
 
 	@:coroutine public function send(v:T) {
-		return channel.write(v);
+		return channel.writer.write(v);
 	}
 }
 
 function produce<T>(context:Context, lambda:Coroutine<ISender<T>->Void>):IReceiver<T> {
-	final channel = new Channel(3);
+	final channel = Channel.createBounded({ size : 3 });
 	final task = new CoroChannelTask(context, channel);
 	final result = lambda(task, task);
 	switch result.state {

@@ -54,5 +54,13 @@ abstract AtomicIntImpl(AtomicIntData) {
 		this.mutex.release();
 		return value;
 	}
+
+	public function store(b:Int) {
+		this.mutex.acquire();
+		final value = this.value;
+		this.value = b;
+		this.mutex.release();
+		return value;
+	}
 }
 #end

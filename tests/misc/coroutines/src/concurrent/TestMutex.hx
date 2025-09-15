@@ -1,6 +1,6 @@
 package concurrent;
 
-import hxcoro.ds.Channel;
+import hxcoro.ds.channels.Channel;
 import haxe.exceptions.CancellationException;
 import hxcoro.concurrent.CoroSemaphore;
 import haxe.coro.schedulers.VirtualTimeScheduler;
@@ -214,7 +214,7 @@ class TestMutex extends utest.Test {
 			for (numTasks in [1, 2, 10, 100]) {
 				var scheduler = new VirtualTimeScheduler();
 				var semaphore = new CoroSemaphore(semaphoreSize);
-				var semaphoreHolders = new Channel();
+				var semaphoreHolders = Channel.createBounded({ size : 1 });
 				var hangingMutex = new CoroMutex();
 				final task = CoroRun.with(scheduler).create(node -> {
 					hangingMutex.acquire();
@@ -223,7 +223,7 @@ class TestMutex extends utest.Test {
 						node.async(node -> {
 							delay(Std.random(15));
 							semaphore.acquire();
-							semaphoreHolders.write(node);
+							semaphoreHolders.writer.write(node);
 							try {
 								hangingMutex.acquire(); // will never succeed
 							} catch(e:CancellationException) {
@@ -235,7 +235,7 @@ class TestMutex extends utest.Test {
 					}
 					delay(1);
 					while (numCompletedTasks != numTasks) {
-						var holder = semaphoreHolders.read();
+						var holder = semaphoreHolders.reader.read();
 						holder.cancel();
 						// this is weird, how do we wait here properly?
 						yield();
