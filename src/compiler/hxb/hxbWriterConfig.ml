@@ -5,7 +5,8 @@ type writer_target_config = {
 	mutable generate : bool;
 	mutable exclude : string list list;
 	mutable include' : string list list;
-	mutable hxb_version : int;
+	mutable hxb_major : int;
+	mutable hxb_minor : int;
 	mutable generate_docs : bool;
 }
 
@@ -19,7 +20,8 @@ let create_target_config () = {
 	generate = true;
 	exclude = [];
 	include'= [];
-	hxb_version = HxbData.hxb_version;
+	hxb_major = HxbData.hxb_major;
+	hxb_minor = HxbData.hxb_minor;
 	generate_docs = true;
 }
 
@@ -47,7 +49,12 @@ module WriterConfigReader (API : DataReaderApi.DataReaderApi) = struct
 					config.include'<- List.map (fun data -> ExtString.String.nsplit (API.read_string data) ".") l
 				)
 			| "hxbVersion" ->
-				config.hxb_version <- API.read_int data
+				config.hxb_major <- API.read_int data;
+				config.hxb_minor <- 0
+			| "hxbMajor" ->
+				config.hxb_major <- API.read_int data
+			| "hxbMinor" ->
+				config.hxb_minor <- API.read_int data
 			| "generateDocumentation" ->
 				config.generate_docs <- API.read_bool data
 			| s ->
@@ -80,7 +87,9 @@ module WriterConfigWriter (API : DataWriterApi.DataWriterApi) = struct
 			"generate",API.write_bool config.generate;
 			"exclude",API.write_array (List.map (fun sl -> API.write_string (String.concat "." sl)) config.exclude);
 			"include",API.write_array (List.map (fun sl -> API.write_string (String.concat "." sl)) config.include');
-			"hxbVersion",API.write_int config.hxb_version;
+			"hxbVersion",API.write_int config.hxb_major;
+			"hxbMajor",API.write_int config.hxb_major;
+			"hxbMinor",API.write_int config.hxb_minor;
 			"generateDocumentation",API.write_bool config.generate_docs;
 		]
 

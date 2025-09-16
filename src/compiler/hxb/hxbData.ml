@@ -122,11 +122,22 @@ let error (s : string) =
 	Printf.eprintf "[error] %s\n" s;
 	raise (HxbFailure s)
 
-let hxb_version = 1
+(*
+	With the exception of 1.0 => 2.x because we introduced minor version in 2.1,
+	major versions are incompatible with each other, while minor version mismatch
+	will be handled by the reader (for retro compatibility only)
+
+	When further bumping hxb major:
+	- code related to the 1.0 => 2.0 exception can be dropped (see `HxbReader.read`)
+	- all minor checks in hxb reader become obsolete and can be dropped too
+*)
+let hxb_major = 2
+let hxb_minor = 1
 
 let write_header ch =
 	IO.nwrite_string ch "hxb";
-	IO.write_byte ch hxb_version
+	IO.write_byte ch hxb_major;
+	IO.write_byte ch hxb_minor
 
 let write_chunk_prefix kind length ch =
 	IO.nwrite ch (Bytes.unsafe_of_string (string_of_chunk_kind kind));
