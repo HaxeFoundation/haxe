@@ -128,7 +128,7 @@ let error (s : string) =
 	will be handled by the reader (for retro compatibility only)
 
 	When further bumping hxb major:
-	- code related to the 1.0 => 2.0 exception can be dropped (see `HxbReader.read`)
+	- code related to the 1.0 => 2.0 exception can be dropped (`if major == 1 then 2 else major` in `HxbReader.read`)
 	- all minor checks in hxb reader become obsolete and can be dropped too
 *)
 let hxb_major = 2
