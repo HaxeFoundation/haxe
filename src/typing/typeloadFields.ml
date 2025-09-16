@@ -1797,5 +1797,5 @@ let init_class ctx_c cctx c p herits fields =
 	end;
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
-		if not com.config.pf_overload then TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p;
+		if not com.config.pf_overload then delay_late ctx_c.g PConnectField (fun() -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
 	finalize_class cctx
