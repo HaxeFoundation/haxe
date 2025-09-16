@@ -799,7 +799,7 @@ jobs:
     needs: mac-build-universal
     runs-on: macos-latest
     env:
-      PLATFORM: mac-arm64
+      PLATFORM: mac-universal
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
@@ -814,10 +814,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          # install the arm64-only binaries for HL to avoid issues with Rosetta
-          # the sys tests invoke Haxe, which invokes haxelib, which requires neko
-          # invoking the universal version of haxelib from an x86_64 process fails because neko is arm64-only
-          name: ${{ matrix.target == 'hl' && 'macArmBinaries' || 'macBinaries' }}
+          name: macBinaries
           path: macBinaries
 
       - name: Install Neko from S3
