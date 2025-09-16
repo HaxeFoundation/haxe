@@ -159,7 +159,7 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
    output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
    output_string buildfile build_extra;
-   if (Gctx.defined common_ctx Define.HxcppSmartStings) then
+   if (Gctx.defined common_ctx Define.HxcppSmartStrings) then
       output_string buildfile ("<error value=\"Hxcpp is out of date - please update, and/or rebuild your build tools\" unlessApi=\"" ^ api_string ^ "\" />\n");
    output_string buildfile "</xml>\n";
    close_out buildfile

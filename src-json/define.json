@@ -470,7 +470,7 @@
 		"platforms": ["cpp"]
 	},
 	{
-		"name": "HxcppSmartStings",
+		"name": "HxcppSmartStrings",
 		"define": "hxcpp-smart-strings",
 		"doc": "Use wide strings in hxcpp. (Turned on by default unless `-D disable-unicode-strings` is specified.)",
 		"platforms": ["cpp"]

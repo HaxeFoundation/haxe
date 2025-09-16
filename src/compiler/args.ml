@@ -354,8 +354,8 @@ let parse_args com =
 				end;
 			with Not_found ->
 				raise (Arg.Bad new_msg));
-		if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then begin
-			Define.define com.defines HxcppSmartStings;
+		if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStrings) then begin
+			Define.define com.defines HxcppSmartStrings;
 		end;
 		if Define.raw_defined com.defines "gen_hx_classes" then begin
 			(* TODO: this is something we're gonna remove once we have something nicer for generating flash externs *)
