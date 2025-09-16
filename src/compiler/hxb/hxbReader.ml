@@ -152,7 +152,7 @@ class hxb_reader
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable full_restore = true
-	val mutable hxb_minor = 0
+	val mutable hxb_minor = HxbData.hxb_minor
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
