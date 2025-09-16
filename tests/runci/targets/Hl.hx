@@ -168,9 +168,12 @@ class Hl {
 		buildAndRun("compile.hxml", "bin/reservedKeywords");
 
 		changeDirectory(miscHlDir);
-		runCommand("haxe", ["run.hxml"].concat([ "-D",
-			if (systemName == "Windows") "hlgen.makefile=vs2022"
-			else "hlgen.makefile=make"
-		]));
+		if (systemName == "Windows") {
+			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=vs2022"]);
+		} else if (systemName == "Mac") {
+			runCommand("arch", ["-x86_64", "haxe", "run.hxml", "-D", "hlgen.makefile=make"]);
+		} else {
+			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=make"]);
+		}
 	}
 }
