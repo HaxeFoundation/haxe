@@ -74,6 +74,9 @@ let haxe_exception_instance_call ctx haxe_exception method_name args p =
 		make_call ctx.scom efield args rt p
 	| _ -> raise_typing_error ((s_type (print_context()) haxe_exception.etype) ^ "." ^ method_name ^ " is expected to be an instance method") p
 
+let add_meta_exception_type_check e =
+	mk (TMeta((Meta.ExceptionTypeCheck,[],e.epos),e)) e.etype e.epos
+
 (**
 	Generate `Std.isOfType(e, t)`
 *)
@@ -81,7 +84,8 @@ let std_is ctx e t p =
 	let t = follow t in
 	let type_expr = TyperBase.type_module_type_simple (module_type_of_type t) p in
 	let (std_cls,isOfType_field,return_type) = ctx.is_of_type in
-	make_static_call ctx.scom std_cls isOfType_field [e; type_expr] return_type p
+	let e = make_static_call ctx.scom std_cls isOfType_field [e; type_expr] return_type p in
+	add_meta_exception_type_check e
 
 (**
 	Check if type path of `t` exists in `lst`
@@ -260,7 +264,7 @@ let catches_to_ifs ctx catches t p =
 						let condition =
 							(* catch(e:haxe.Exception) is a wildcard catch *)
 							if fast_eq (haxe_exception_type ctx) current_t then
-								mk (TConst (TBool true)) ctx.basic.tbool v.v_pos
+								add_meta_exception_type_check (mk (TConst (TBool true)) ctx.basic.tbool v.v_pos)
 							else
 								std_is ctx (catch#get_haxe_exception v.v_pos) v.v_type v.v_pos
 						in

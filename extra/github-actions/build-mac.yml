@@ -1,8 +1,8 @@
 - name: Install dependencies
   env:
-    # For compatibility with macOS 10.13
+    # Build from source for compatibility with macOS 10.13
     ZLIB_VERSION: 1.3.1
-    MBEDTLS_VERSION: 2.28.10
+    MBEDTLS_VERSION: 3.6.4
     PCRE2_VERSION: 10.45
     CMAKE_BUILD_TYPE: Release
     CMAKE_GENERATOR: Ninja
@@ -16,7 +16,7 @@
     cmake --build build
     sudo cmake --install build
     cd ..
-    curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
+    curl -L https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-$MBEDTLS_VERSION/mbedtls-$MBEDTLS_VERSION.tar.bz2 | tar xz
     cd mbedtls-$MBEDTLS_VERSION
     cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
       -DENABLE_TESTING=OFF

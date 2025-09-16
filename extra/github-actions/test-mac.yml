@@ -20,10 +20,6 @@
     mkdir ~/haxelib
     haxelib setup ~/haxelib
 
-- name: Install homebrew packages
-  if: matrix.BREW_PACKAGES
-  run: brew install ${{matrix.BREW_PACKAGES}}
-
 - name: Test
   run: |
     # disable invalid Unicode filenames on APFS

@@ -39,15 +39,17 @@ class Hl {
 			case "Linux":
 				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
-				runNetworkCommand("brew", ["update", '--auto-update']);
-				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
 			case "Windows":
 				//pass
 		}
 
 		FileSystem.createDirectory(hlBuild);
-		final generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
-		runCommand("cmake", generator.concat([
+		final args = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
+		if (systemName == "Mac") {
+			args.push("-DDOWNLOAD_DEPENDENCIES=ON");
+			args.push("-DCMAKE_OSX_ARCHITECTURES=x86_64");
+		}
+		runCommand("cmake", args.concat([
 			"-DBUILD_TESTING=OFF",
 			"-DWITH_DIRECTX=OFF",
 			"-DWITH_FMT=ON",
@@ -86,7 +88,11 @@ class Hl {
 			return;
 
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
-		final extraCompilerFlags = if (systemName == "Windows") ["-ldbghelp", "-municode"] else [];
+		final extraCompilerFlags = switch (systemName) {
+			case "Windows": ["-ldbghelp", "-municode"];
+			case "Mac": ["-arch", "x86_64"];
+			case _: [];
+		};
 
 		runCommand(compiler, [
 			"-o", '$dir/$filename.exe',

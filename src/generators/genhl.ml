@@ -26,6 +26,7 @@ open Type
 open Error
 open Gctx
 open Hlcode
+open Semver
 
 (* compiler *)
 
@@ -120,6 +121,9 @@ type context = {
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
 }
+
+let compare_version v1 v2 =
+	Semver.compare_version (Semver.parse_version v1) (Semver.parse_version v2)
 
 (* --- *)
 
@@ -1095,31 +1099,33 @@ let before_break_continue ctx =
 	in
 	loop (ctx.m.mtrys - ctx.m.mloop_trys)
 
-let type_value ctx t p =
+let type_global ctx t p =
 	match t with
 	| TClassDecl c ->
-		let g, t = class_global ctx c in
-		let r = alloc_tmp ctx t in
-		op ctx (OGetGlobal (r, g));
-		r
+		class_global ctx c
 	| TAbstractDecl a ->
-		let r = alloc_tmp ctx (class_type ctx ctx.base_type [] false) in
-		(match a.a_path with
-		| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
-		| [], "Float" -> op ctx (OGetGlobal (r, alloc_global ctx "$Float" (rtype ctx r)))
-		| [], "Bool" -> op ctx (OGetGlobal (r, alloc_global ctx "$Bool" (rtype ctx r)))
-		| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
-		| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
-		| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
-		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p);
-		r
+		let rt = class_type ctx ctx.base_type [] false in
+		let g = (match a.a_path with
+		| [], "Int" -> alloc_global ctx "$Int" rt
+		| [], "Float" -> alloc_global ctx "$Float" rt
+		| [], "Bool" -> alloc_global ctx "$Bool" rt
+		| [], "Class" -> fst (class_global ctx ctx.base_class)
+		| [], "Enum" -> fst (class_global ctx ctx.base_enum)
+		| [], "Dynamic" -> alloc_global ctx "$Dynamic" rt
+		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p) in
+		g, rt
 	| TEnumDecl e ->
-		let r = alloc_tmp ctx (enum_class ctx e) in
-		let rt = rtype ctx r in
-		op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> die "" __LOC__) rt));
-		r
+		let rt = enum_class ctx e in
+		let g = alloc_global ctx (match rt with HObj o -> o.pname | _ -> die "" __LOC__) rt in
+		g, rt
 	| TTypeDecl _ ->
 		die "" __LOC__
+
+let type_value ctx t p =
+	let g, rt = type_global ctx t p in
+	let r = alloc_tmp ctx rt in
+	op ctx (OGetGlobal (r, g));
+	r
 
 let rec eval_to ctx e (t:ttype) =
 	match e.eexpr, t with
@@ -1127,11 +1133,11 @@ let rec eval_to ctx e (t:ttype) =
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
 		r
-	| TConst (TInt i), HF32 when ctx.hl_ver >= "1.15" ->
+	| TConst (TInt i), HF32 when compare_version ctx.hl_ver "1.15.0" >= 0 ->
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r, alloc_float ctx (Int32.to_float i)));
 		r
-	| TConst (TFloat f), HF32 when ctx.hl_ver >= "1.15" ->
+	| TConst (TFloat f), HF32 when compare_version ctx.hl_ver "1.15.0" >= 0 ->
 		let r = alloc_tmp ctx t in
 		op ctx (OFloat (r, alloc_float ctx (float_of_string f)));
 		r
@@ -2220,9 +2226,9 @@ and eval_expr ctx e =
 			| AInstanceField (f, index, _) -> op ctx (OPrefetch (eval_expr ctx f, index + 1, mode))
 			| _ -> op ctx (OPrefetch (eval_expr ctx value, 0, mode)));
 			alloc_tmp ctx HVoid
-        | "$unsafecast", [value] ->
+		| "$unsafecast", [value] ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
-            op ctx (OUnsafeCast (r, eval_expr ctx value));
+			op ctx (OUnsafeCast (r, eval_expr ctx value));
 			r
 		| "$asm", [mode; value] ->
 			let mode = (match get_const mode with
@@ -3050,6 +3056,21 @@ and eval_expr ctx e =
 		let rtrap = alloc_tmp ctx HDyn in
 		op ctx (OTrap (rtrap,-1)); (* loop *)
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
+		if compare_version ctx.hl_ver "1.16.0" >= 0 then begin
+			let catched_types = ref [] in
+			let rec find_meta e =
+				(match e.eexpr with
+				(* Std.isOfType(e, t) *)
+				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) ->
+					catched_types := fst (type_global ctx mt e.epos) :: !catched_types
+				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) ->
+					catched_types := alloc_global ctx "$Dynamic" HDyn :: !catched_types
+				| _ -> Type.iter find_meta e
+				)
+			in
+			List.iter (fun (_,texpr) -> Type.iter find_meta texpr) catches;
+			List.iter (fun gt -> op ctx (OCatch gt)) (List.rev !catched_types);
+		end;
 		let tret = to_type ctx e.etype in
 		let result = alloc_tmp ctx tret in
 		let r = eval_expr ctx etry in
@@ -3503,7 +3524,7 @@ let generate_static ctx c f =
 			| (Meta.HlNative,[(EConst(String(lib,_)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
 			| (Meta.HlNative,[(EConst(Float(ver,_)),_)] ,_ ) :: _ ->
-				if ctx.hl_ver < ver then
+				if compare_version ctx.hl_ver (ver ^ ".0") < 0 then
 					let gen_content() =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
@@ -4176,9 +4197,10 @@ let create_context com =
 		| TAbstractDecl a -> a
 		| _ -> die "" __LOC__
 	in
+	let hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer in
 	let ctx = {
 		com = com;
-		hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer;
+		hl_ver = hl_ver;
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 		num_domains = Domain.recommended_domain_count ();
@@ -4206,7 +4228,13 @@ let create_context com =
 			ai32 = get_class "ArrayBytes_Int";
 			af32 = get_class "ArrayBytes_hl_F32";
 			af64 = get_class "ArrayBytes_Float";
-			ai64 = if Gctx.raw_defined com "hl_legacy32" then None else Some (get_class "ArrayBytes_hl_I64");
+			ai64 =
+				if Gctx.raw_defined com "hl_legacy32"
+					|| hl_ver <> "" && compare_version hl_ver "1.13.0" < 0
+				then
+					None
+				else
+					Some (get_class "ArrayBytes_hl_I64");
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";

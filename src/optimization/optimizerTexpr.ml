@@ -220,24 +220,30 @@ let optimize_unop e op flag esub =
 		| _ -> false
 	in
 	match op, esub.eexpr with
-		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
-		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
-			begin
-				let is_int = is_int e1.etype && is_int e2.etype in
-				try
-					let op = match is_int, op with
-						| true, OpGt -> OpLte
-						| true, OpGte -> OpLt
-						| true, OpLt -> OpGte
-						| true, OpLte -> OpGt
-						| _, OpEq -> OpNotEq
-						| _, OpNotEq -> OpEq
-						| _ -> raise Exit
-					in
-					{e with eexpr = TBinop(op,e1,e2)}
-				with Exit ->
-					e
-			end
+		| Not, _ ->
+			let rec transform e esub = match esub.eexpr with
+				| TConst (TBool f) -> { e with eexpr = TConst (TBool (not f)) }
+				| TBinop(op,e1,e2) ->
+					let is_int = is_int e1.etype && is_int e2.etype in
+					(try
+						let op = match is_int, op with
+							| true, OpGt -> OpLte
+							| true, OpGte -> OpLt
+							| true, OpLt -> OpGte
+							| true, OpLte -> OpGt
+							| _, OpEq -> OpNotEq
+							| _, OpNotEq -> OpEq
+							| _ -> raise Exit
+						in
+						{e with eexpr = TBinop(op,e1,e2)}
+					with Exit ->
+						e
+					)
+				| TParenthesis(e1) -> transform e e1
+				| TMeta(m, e1) -> { e with eexpr = TMeta (m, transform { e1 with eexpr = TUnop(op,flag,e1) } e1 ) }
+				| _ -> e
+			in
+			transform e esub
 		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
 		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
 		| Neg, TConst (TFloat f) ->
