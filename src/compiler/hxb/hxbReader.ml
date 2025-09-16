@@ -2117,10 +2117,11 @@ class hxb_reader
 			raise (HxbFailure "magic");
 
 		(* Note: as minor version was only added in 2.1, version "1" is now considered to be "2.0" *)
+		(* Still displaying it as "1.0" in version mismatch error, hence `major` vs `hxb_major` vars *)
 		let major = read_byte ch in
 		hxb_minor <- if major == 1 then 0 else read_byte ch;
-		let major = if major == 1 then 2 else major in
-		if major <> HxbData.hxb_major || hxb_minor > HxbData.hxb_minor then
+		let hxb_major = if major == 1 then 2 else major in
+		if hxb_major <> HxbData.hxb_major || hxb_minor > HxbData.hxb_minor then
 			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i.%i, reader version %i.%i" major hxb_minor HxbData.hxb_major HxbData.hxb_minor));
 
 		(fun end_chunk ->
