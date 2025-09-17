@@ -8,8 +8,6 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
 		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
 
-		runci.tests.CoroutineTests.run(["build-eval.hxml"]);
-
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");
 
@@ -65,7 +63,6 @@ class Macro {
 		changeDirectory(partyDir);
 		runCommand("git", ["clone", "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
 		changeDirectory("hxcoro");
-		runCommand("git", ["checkout", "setup-haxelib"]); // TODO: remove once merged
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["git", "utest", "https://github.com/Aidan63/utest.git", "coro"]);
 		runCommand("haxelib", ["dev", "hxcoro", "."]);

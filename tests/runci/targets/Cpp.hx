@@ -74,10 +74,6 @@ class Cpp {
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
-		runci.tests.CoroutineTests.run(["build-cpp.hxml"], args ->
-			runCpp("bin/cpp/Main-debug")
-		);
-
 		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);

@@ -76,8 +76,6 @@ class Js {
 		changeDirectory(getMiscSubDir("es6"));
 		runCommand("haxe", ["run.hxml"]);
 
-		runci.tests.CoroutineTests.run(["build-js.hxml"]);
-
 		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		final env = Sys.environment();
 		if (
@@ -125,6 +123,7 @@ class Js {
 
 		runci.targets.Jvm.getJavaDependencies(); // this is awkward
 		haxelibInstallGit("Simn", "haxeserver");
+		haxelibInstallGit("HaxeFoundation", "hxcoro");
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);

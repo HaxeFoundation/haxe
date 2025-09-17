@@ -1,5 +1,0 @@
---class-path src
---library utest
---main Main
---debug
--D UTEST-PRINT-TESTS

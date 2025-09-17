@@ -67,8 +67,6 @@ class Python {
 			runCommand(py, ["bin/unit34.py"]);
 		}
 
-		runci.tests.CoroutineTests.run(["build-python.hxml"]);
-
 		Display.maybeRunDisplayTests(Python);
 
 		changeDirectory(sysDir);

@@ -89,8 +89,6 @@ class Php {
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
 			runCommand("php", generateArgs(binDir + "/index.php"));
 
-			runci.tests.CoroutineTests.run(["build-php.hxml"]);
-
 			Display.maybeRunDisplayTests(Php);
 
 			changeDirectory(sysDir);

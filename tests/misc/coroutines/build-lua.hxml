@@ -1,3 +1,0 @@
-build-base.hxml
---lua bin/coro.lua
---cmd lua bin/coro.lua

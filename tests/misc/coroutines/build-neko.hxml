@@ -1,3 +1,0 @@
-build-base.hxml
---neko bin/coro.n
---cmd neko bin/coro.n
