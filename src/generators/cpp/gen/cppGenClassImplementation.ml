@@ -977,18 +977,20 @@ let generate_managed_class base_ctx tcpp_class =
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
 
       let dump_script is_static f acc =
-        let signature = generate_script_function is_static f.tcf_field ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
-        let superCall = if is_static then "0" else "__s_" ^ f.tcf_field.cf_name ^ "<true>" in
-        let named =
-          Printf.sprintf
-            "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", %s HXCPP_CPPIA_SUPER_ARG(%s))"
-            f.tcf_field.cf_name
-            f.tcf_field.cf_name
-            signature
-            (if is_static then "true" else "false")
-            superCall in
+        if f.tcf_name <> "toString" then
+          let signature = generate_script_function is_static f.tcf_field ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
+          let superCall = if is_static then "0" else "__s_" ^ f.tcf_field.cf_name ^ "<true>" in
+          let named =
+            Printf.sprintf
+              "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", %s HXCPP_CPPIA_SUPER_ARG(%s))"
+              f.tcf_field.cf_name
+              f.tcf_field.cf_name
+              signature
+              (if is_static then "true" else "false")
+              superCall in
 
-        named :: acc
+          named :: acc
+        else acc
       in
 
       let sigs =
