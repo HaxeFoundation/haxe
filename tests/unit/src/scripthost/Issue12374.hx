@@ -1,7 +1,7 @@
 package scripthost;
 
 #if cpp
-@:keep class HostParent {
+@:keep class HostParent12374 {
 	public function new() {}
 
 	function toString() {

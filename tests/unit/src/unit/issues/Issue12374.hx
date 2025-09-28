@@ -14,7 +14,7 @@ class Issue12374 extends Test {
 }
 
 #if cppia
-private class ScriptChild extends HostParent {
+private class ScriptChild extends HostParent12374 {
 	override function methodA() {
 		return 'ScriptChild.methodA()';
 	}
