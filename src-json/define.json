@@ -872,6 +872,13 @@
 		"doc": "Enable ANSI color codes in message reporting."
 	},
 	{
+		"name": "MessageNoColor",
+		"define": "message.no-color",
+		"signatureNeutral": true,
+		"doc": "Disable ANSI color codes in message reporting.",
+		"deprecated": "Color is now disabled by default; use -D message.color to enable ANSI coloring."
+	},
+	{
 		"name": "MessageAbsolutePositions",
 		"define": "message.absolute-positions",
 		"signatureNeutral": true,
