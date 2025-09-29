@@ -2332,7 +2332,9 @@ and eval_expr ctx e =
 		)
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
 		let r = alloc_tmp ctx HI32 in
-		op ctx (OCall1 (r,alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", eval_null_check ctx ec));
+		let a = eval_to ctx ec (class_type ctx ctx.array_impl.adyn [] false) in
+		op ctx (ONullCheck a);
+		op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", a));
 		r
 	| TField (ec,a) ->
 		let r = alloc_tmp ctx (to_type ctx (field_type ctx a e.epos)) in
