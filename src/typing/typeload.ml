@@ -237,8 +237,9 @@ let make_extension_type ctx tl =
 				if not (is_redefined ctx cf fields p) then PMap.add cf.cf_name cf fields
 				else fields
 			) a.a_fields fields
-		| _ ->
-			raise_typing_error "Can only extend structures" p
+		| t ->
+			display_error ctx.com "Can only extend structures" p;
+			PMap.empty
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
