@@ -54,12 +54,12 @@ class FileSystem {
 			rdev: l.rdev,
 			size: l.size,
 			nlink: l.nlink,
-			mtime: Date.fromTime(l.mtime.sec + l.mtime.nsec / 1000000),
+			mtime: Date.fromTime(l.mtime.sec * 1000 + l.mtime.nsec / 1000000),
 			mode: l.mode,
 			ino: l.ino,
 			dev: l.dev,
-			ctime: Date.fromTime(l.ctime.sec + l.ctime.nsec / 1000000),
-			atime: Date.fromTime(l.atime.sec + l.atime.nsec / 1000000)
+			ctime: Date.fromTime(l.ctime.sec * 1000 + l.ctime.nsec / 1000000),
+			atime: Date.fromTime(l.atime.sec * 1000 + l.atime.nsec / 1000000)
 		};
 	}
 
