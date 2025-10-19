@@ -62,6 +62,7 @@ private class NativeHaxeThread extends java.lang.Thread {
 	public function new(job) {
 		super();
 		this.job = job;
+		setDaemon(true);
 		start();
 	}
 
