@@ -22,30 +22,52 @@
 
 package sys.thread;
 
-/**
-	A thread pool interface.
-**/
-interface IThreadPool {
+import java.lang.Runnable;
+import java.lang.System;
+import java.lang.Thread as JavaThread;
+import java.util.Collections;
+import java.util.WeakHashMap;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
+import jvm.Int64 as Long;
 
-	/** Amount of alive threads in this pool. */
-	var threadsCount(get,never):Int;
+abstract ThreadImpl(JavaThread) {
 
-	/** Indicates if `shutdown` method of this pool has been called. */
-	var isShutdown(get,never):Bool;
+	function toNative() {
+		return this;
+	}
 
-	/**
-		Submit a task to run in a thread.
+	public static function current():ThreadImpl {
+		return cast JavaThread.currentThread();
+	}
 
-		Throws an exception if the pool is shut down.
-	**/
-	function run(task:()->Void):Void;
+	public static function create(job:() -> Void):ThreadImpl {
+		return cast new NativeHaxeThread(job);
+	}
 
-	/**
-		Initiates a shutdown.
-		All previously submitted tasks will be executed, but no new tasks will
-		be accepted.
+	public static function setName( t : ThreadImpl, name : String ) {
+		return t.toNative().setName(name);
+	}
 
-		Multiple calls to this method have no effect.
-	**/
-	function shutdown():Void;
+	public static function getName( t : ThreadImpl ) {
+		return t.toNative().getName();
+	}
+
 }
+
+private class NativeHaxeThread extends java.lang.Thread {
+
+	var job : Void -> Void;
+
+	public function new(job) {
+		super();
+		this.job = job;
+		start();
+	}
+
+	public overload override function run() {
+		job();
+	}
+
+}
+
