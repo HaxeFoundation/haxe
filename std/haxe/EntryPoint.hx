@@ -8,7 +8,7 @@ class EntryPoint {
 
 	@:keep public static function run() @:privateAccess {
 		#if js
-			var nextTick = processEvents();
+			var nextTick = haxe.EventLoop.main.getNextTick();
 			inline function setTimeoutNextTick() {
 				if (nextTick >= 0) {
 					(untyped setTimeout)(run, nextTick * 1000);
