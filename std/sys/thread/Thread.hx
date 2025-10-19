@@ -33,6 +33,7 @@ class Thread {
 	static var mainThread : Thread;
 
 	var impl : ThreadImpl;
+	var messages : Deque<Dynamic>;
 
 	/**
 		Event loop of this thread.
@@ -58,6 +59,25 @@ class Thread {
 		name = n;
 		if( impl != null ) ThreadImpl.setName(impl,name == null ? "" : name);
 		return n;
+	}
+	
+	public function sendMessage( msg : Dynamic ) {
+		if( messages == null ) {
+			mutex.acquire();
+			if( messages == null ) messages = new Deque();
+			mutex.release();
+		}
+		messages.add(msg);
+	}
+
+	public static function readMessage( blocking : Bool ) : Null<Dynamic> {
+		var t = current();
+		if( t.messages == null ) {
+			mutex.acquire();
+			if( t.messages == null ) t.messages = new Deque();
+			mutex.release();
+		}
+		return t.messages.pop(blocking);
 	}
 
 	/**
