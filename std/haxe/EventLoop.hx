@@ -145,7 +145,14 @@ class EventLoop {
 		unlock();
 		return e;
 	}
+	
+	@:deprecated @:noCompletion public function repeat( callb, delay : Int ) {
+		return addTimer(callb,delay/1000);
+	}
 
+	@:deprecated @:noCompletion public function cancel( e : Event ) {
+		e.stop();
+	}
 
 	/**
 		Add a function to be run once at next loop of the event loop.
