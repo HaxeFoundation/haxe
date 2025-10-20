@@ -60,7 +60,7 @@ class Thread {
 		if( impl != null ) ThreadImpl.setName(impl,name == null ? "" : name);
 		return n;
 	}
-	
+
 	public function sendMessage( msg : Dynamic ) {
 		if( messages == null ) {
 			mutex.acquire();
@@ -131,6 +131,7 @@ class Thread {
 			mutex.acquire();
 			threads.remove(t);
 			mutex.release();
+			@:privateAccess main().events.wakeup();
 			if( exception != null )
 				t.onAbort(exception);
 		});

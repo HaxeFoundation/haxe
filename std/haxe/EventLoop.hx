@@ -56,22 +56,39 @@ class EventLoop {
 	var hasPendingRemove : Bool;
 	#if target.threaded
 	var mutex : sys.thread.Mutex;
+	var lockTime : sys.thread.Lock;
 	#end
 
 	public function new() {
 		#if target.threaded
 		mutex = new sys.thread.Mutex();
+		lockTime = new sys.thread.Lock();
 		#end
 	}
 
 	public function loop() {
 		while( hasEvents(true) || (this == main && hasRunningThreads()) ) {
-			#if sys
 			var time = getNextTick();
-			if( time >= 0 ) Sys.sleep(time);
-			#end
+			if( time > 0 ) {
+				wait(time);
+				continue;
+			}
 			loopOnce();
 		}
+	}
+
+	inline function wakeup() {
+		#if target.threaded
+		lockTime.release();
+		#end
+	}
+
+	inline function wait( time : Float ) {
+		#if target.threaded
+		lockTime.wait(time);
+		#else
+		Sys.sleep(time);
+		#end
 	}
 
 	inline function lock() {
@@ -126,6 +143,7 @@ class EventLoop {
 			events.prev = e;
 		e.next = events;
 		events = e;
+		wakeup();
 		unlock();
 		return e;
 	}
@@ -142,10 +160,11 @@ class EventLoop {
 			events.prev = e;
 		e.next = events;
 		events = e;
+		wakeup();
 		unlock();
 		return e;
 	}
-	
+
 	@:deprecated @:noCompletion public function repeat( callb, delay : Int ) {
 		return addTimer(callb,delay/1000);
 	}
@@ -181,6 +200,7 @@ class EventLoop {
 			e.next = null;
 		}
 		e.prev = null;
+		wakeup();
 		unlock();
 	}
 
@@ -188,7 +208,7 @@ class EventLoop {
 		lock();
 		if( events == null ) {
 			unlock();
-			return -1;
+			return 1e9;
 		}
 		var now = haxe.Timer.stamp();
 		var e = events;
