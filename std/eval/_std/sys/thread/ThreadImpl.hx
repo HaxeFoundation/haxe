@@ -41,4 +41,16 @@ abstract ThreadImpl(NativeThread) {
 	public static function setName( t : ThreadImpl, name : String ) {
 	}
 
+	inline function id() {
+		return this.id();
+	}
+
+	@:op(A == B) static inline function eq( a : ThreadImpl, b : ThreadImpl ) {
+		return a.id() == b.id();
+	}
+
+	@:op(A != B) static inline function neq( a : ThreadImpl, b : ThreadImpl ) {
+		return a.id() != b.id();
+	}
+
 }
