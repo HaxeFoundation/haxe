@@ -43,7 +43,7 @@ let make_suspending_call basic cont call econtinuation =
 			die "Unexpected coroutine type" __LOC__
 	in
 	let efun = { call.cs_fun with etype = tfun } in
-	let args = call.cs_args @ [ econtinuation ] in
+	let args = econtinuation :: call.cs_args in
 	mk (TCall (efun, args)) (cont.suspension_result basic.tany) call.cs_pos
 
 let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =

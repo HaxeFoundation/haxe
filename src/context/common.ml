@@ -1152,7 +1152,7 @@ let get_entry_point com =
 	) com.main.main_path
 
 let expand_coro_type basic args ret =
-	let args = args @ [("_hx_continuation",false,Lazy.force basic.tcoro.continuation)] in
+	let args = ("_hx_continuation",false,Lazy.force basic.tcoro.continuation) :: args in
 	let ret = if ExtType.is_void (follow ret) then basic.tunit else ret in
 	let c = Lazy.force basic.tcoro.suspension_result_class in
 	(args,TInst(c,[ret]))
