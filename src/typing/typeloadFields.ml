@@ -1265,9 +1265,9 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	let t = if not is_coroutine then
 		TFun (targs,ret)
 	else if Meta.has Meta.CoroutineTransformed cf.cf_meta then begin
-		match List.rev targs with
+		match targs with
 			| _ :: targs ->
-				(* Ignore trailing continuation for actual signature *)
+				(* Ignore leading continuation for actual signature *)
 				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
 				die "" __LOC__
