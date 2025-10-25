@@ -146,6 +146,7 @@ class Thread {
 			t.onAbort = onAbort;
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
+			currentTLS.value = t;
 			var exception = null;
 			try {
 				job();
