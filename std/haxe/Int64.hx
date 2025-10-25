@@ -130,7 +130,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function toStr(x:Int64):String
 		return x.toString();
 
-	function toString():String {
+	public function toString():String {
 		var i:Int64 = cast this;
 		if (i == 0)
 			return "0";
@@ -457,7 +457,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
-		
+
 	#if php
 	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
 	#end

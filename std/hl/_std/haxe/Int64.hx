@@ -112,13 +112,13 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	}
 
 	public static inline function toStr(x:Int64):String
-		return '${x.val}';
+		return Std.string(x.val);
 
 	public static inline function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64}
 		return {quotient: dividend / divisor, modulus: dividend % divisor};
 
-	private inline function toString():String
-		return '$this';
+	public inline function toString():String
+		return Std.string(this);
 
 	public static function parseString(sParam:String):Int64 {
 		// can this be done?: return new Int64( java.lang.Long.LongClass.parseLong( sParam ) );
