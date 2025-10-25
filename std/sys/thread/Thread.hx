@@ -68,6 +68,10 @@ class Thread {
 		return n;
 	}
 
+	public function toString() {
+		return "Thread#"+(name ?? Std.string(impl));
+	}
+
 	public function sendMessage( msg : Dynamic ) {
 		if( messages == null ) {
 			mutex.acquire();
@@ -79,9 +83,15 @@ class Thread {
 
 	public function disposeNative() {
 		if( !isNative ) return;
+		dispose();
+	}
+
+
+	function dispose() {
 		mutex.acquire();
 		threads.remove(this);
 		mutex.release();
+		currentTLS.value = null;
 	}
 
 	public static function readMessage( blocking : Bool ) : Null<Dynamic> {
@@ -94,25 +104,24 @@ class Thread {
 		return t.messages.pop(blocking);
 	}
 
+	static var currentTLS : Tls<Thread>;
+
 	/**
 		Returns the current thread.
 		If you are calling this function from a native thread that is not the main thread and was not created by `Thread.create`, this will return you
 		a native thread with a `null` EvenLoop and `isNative` set to true. You need to call `disposeNative()` on such value on thread termination.
 	**/
 	public static function current():Thread {
+		var t = currentTLS.value;
+		if( t != null )
+			return t;
 		var impl = ThreadImpl.current();
-		if( impl == mainThread.impl )
-			return mainThread;
-		mutex.acquire();
-		for( t in threads )
-			if( t.impl == impl ) {
-				mutex.release();
-				return t;
-			}
 		var t = new Thread(impl);
 		t.isNative = true;
+		mutex.acquire();
 		threads.push(t);
 		mutex.release();
+		currentTLS.value = t;
 		return t;
 	}
 
@@ -144,9 +153,7 @@ class Thread {
 			} catch( e ) {
 				exception = e;
 			}
-			mutex.acquire();
-			threads.remove(t);
-			mutex.release();
+			t.dispose();
 			@:privateAccess main().events.wakeup();
 			if( exception != null )
 				t.onAbort(exception);
@@ -180,7 +187,10 @@ class Thread {
 		mutex = new Mutex();
 		threads = [];
 		mainThread = new Thread(ThreadImpl.current());
+		mainThread.name = "Main";
 		mainThread.events = haxe.EventLoop.main;
+		currentTLS = new Tls();
+		currentTLS.value = mainThread;
 	}
 
 }
