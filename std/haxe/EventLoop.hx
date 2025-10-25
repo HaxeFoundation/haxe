@@ -8,7 +8,13 @@ class Event {
 	var next : Event;
 	var events : EventLoop;
 	var callb : Void -> Void;
+	/**
+		The event priority. Events will be executed in order of priority (highest first).
+	**/
 	public var priority : Int;
+	/**
+		Tells if an event is blocking. It means the event loop won't return from `loop()` until this event has been stopped.
+	**/
 	public var isBlocking : Bool = true;
 	var toRemove : Bool;
 	var nextRun : Float = Math.NEGATIVE_INFINITY;
@@ -27,6 +33,9 @@ class Event {
 		nextRun = t == null ? Math.NEGATIVE_INFINITY : (fromLastRun && Math.isFinite(nextRun) ? nextRun : haxe.Timer.stamp()) + t;
 	}
 
+	/**
+		Stop this event from repeating.
+	**/
 	public function stop() {
 		@:privateAccess events.remove(this);
 	}
@@ -66,6 +75,10 @@ class EventLoop {
 		#end
 	}
 
+	/**
+		Runs until all the blocking events have been stopped.
+		If this is called on the main thread, also wait for all blocking threads to finish.
+	**/
 	public function loop() {
 		while( hasEvents(true) || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
@@ -103,6 +116,9 @@ class EventLoop {
 		#end
 	}
 
+	/**
+		Perform an update of pending events.
+	**/
 	public function loopOnce() {
 		lock();
 		sortEvents();
@@ -292,6 +308,9 @@ class EventLoop {
 		unlock();
 	}
 
+	/**
+		Tells if we currently have blocking unfinished threads.
+	**/
 	public static function hasRunningThreads() {
 		#if !target.threaded
 		return false;
@@ -301,9 +320,10 @@ class EventLoop {
 	}
 
 	/**
-		Tells if the event loop has remaining events
+		Tells if the event loop has remaining events.
+		If blocking is set to true, only check if it has remaining blocking events.
 	**/
-	public function hasEvents( blocking : Bool ) {
+	public function hasEvents( blocking : Bool = true ) {
 		if( !blocking )
 			return events != null;
 		lock();
@@ -319,6 +339,17 @@ class EventLoop {
 		return false;
 	}
 
+	/**
+		Add a task to be run either on another thread or as part of the main event loop if the
+		platform does not support threads.
+	**/
+	public static function addTask( f : Void -> Void, blocking = true ) {
+		#if target.threaded
+		sys.thread.Thread.create(f).isBlocking = blocking;
+		#else
+		main.add(f).isBlocking = blocking;
+		#end
+	}
 
 	static function get_current() {
 		#if target.threaded
