@@ -36,9 +36,10 @@ class Thread {
 	var messages : Deque<Dynamic>;
 
 	/**
-		Event loop of this thread.
+		The events loop of this thread.
+		If this is a native thread, the events will be null.
 	**/
-	public var events(default,null) : haxe.EventLoop;
+	public var events(default,null) : Null<haxe.EventLoop>;
 
 	/**
 		Tells if we needs to wait for the thread to terminate before we stop the main loop (default:true).
@@ -49,6 +50,12 @@ class Thread {
 		Allows to query or change the name of the thread. On some platforms this might allow debugger to identify threads.
 	**/
 	public var name(default,set) : Null<String>;
+
+	/**
+		Tells if a thread is a native thread that is not managed by Haxe.
+		See `Thread.current` for details.
+	**/
+	public var isNative(default,null) : Bool;
 
 	function new(impl) {
 		this.impl = impl;
@@ -70,6 +77,13 @@ class Thread {
 		messages.add(msg);
 	}
 
+	public function disposeNative() {
+		if( !isNative ) return;
+		mutex.acquire();
+		threads.remove(this);
+		mutex.release();
+	}
+
 	public static function readMessage( blocking : Bool ) : Null<Dynamic> {
 		var t = current();
 		if( t.messages == null ) {
@@ -82,6 +96,8 @@ class Thread {
 
 	/**
 		Returns the current thread.
+		If you are calling this function from a native thread that is not the main thread and was not created by `Thread.create`, this will return you
+		a native thread with a `null` EvenLoop and `isNative` set to true. You need to call `disposeNative()` on such value on thread termination.
 	**/
 	public static function current():Thread {
 		var impl = ThreadImpl.current();
@@ -94,7 +110,7 @@ class Thread {
 				return t;
 			}
 		var t = new Thread(impl);
-		// keep t.events = null because this is an unkown thread (not main and not created with create())
+		t.isNative = true;
 		threads.push(t);
 		mutex.release();
 		return t;
