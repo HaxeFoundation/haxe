@@ -322,7 +322,9 @@ class EventLoop {
 
 	static function get_current() {
 		#if target.threaded
-		return sys.thread.Thread.current().events;
+		var events = sys.thread.Thread.current().events;
+		if( events == null ) throw "The current thread doesn't have an event loop.";
+		return events;
 		#else
 		return main;
 		#end
