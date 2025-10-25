@@ -162,6 +162,18 @@ class Thread {
 	}
 
 	/**
+		Returns a list of all currently running threads.
+		This excludes native threads which were created without Thread.create and have not been
+		registered with a call to Thread.current().
+	**/
+	public static function getAll() {
+		mutex.acquire();
+		var tl = threads.copy();
+		mutex.release();
+		return tl;
+	}
+
+	/**
 		This function is called when an uncaught exception aborted a thread.
 		The error will be printed to stdout but this function can be redefined.
 	**/
@@ -172,10 +184,11 @@ class Thread {
 	}
 
 	static function hasBlocking() {
-		// let's check if we have blocking threads running
+		// let's check if we have blocking threads running other that our calling thread
+		var me = current();
 		mutex.acquire();
 		for( t in threads )
-			if( t.isBlocking ) {
+			if( t.impl != me.impl && t.isBlocking ) {
 				mutex.release();
 				return true;
 			}
@@ -185,10 +198,10 @@ class Thread {
 
 	static function __init__() {
 		mutex = new Mutex();
-		threads = [];
 		mainThread = new Thread(ThreadImpl.current());
 		mainThread.name = "Main";
 		mainThread.events = haxe.EventLoop.main;
+		threads = [mainThread];
 		currentTLS = new Tls();
 		currentTLS.value = mainThread;
 	}
