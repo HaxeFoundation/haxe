@@ -99,7 +99,7 @@ class EventLoop {
 	inline function wait( time : Float ) {
 		#if target.threaded
 		lockTime.wait(time);
-		#else
+		#elseif sys
 		Sys.sleep(time);
 		#end
 	}
