@@ -31,7 +31,9 @@ abstract ThreadImpl(NativeThread) {
 	}
 
 	public static function create(callb:Void->Void):ThreadImpl {
-		return cast new NativeThread({target:callb, daemon: true});
+		var t = new NativeThread({target:callb, daemon: true});
+		t.start();
+		return cast t;
 	}
 
 	public static function getName( t : ThreadImpl ) {
