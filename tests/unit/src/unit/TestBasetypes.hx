@@ -282,8 +282,8 @@ class TestBasetypes extends Test {
 		eq(k.join("#"), "-1#8546");
 
 		var k = Lambda.array({iterator: h.keys});
-		k.sort((k1,k2)->k1 > k2 ? 1 : -1);
-		eq(k.join("#"), "12884901893#-8589934597");
+		k.sort(Reflect.compare);
+		eq(k.join("#"), "-8589934597#12884901893");
 
 		t(h.exists(small));
 		t(h.exists(big));
