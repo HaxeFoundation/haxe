@@ -228,6 +228,16 @@ class ArrayDyn extends ArrayAccess {
 			allowReinterpret = false;
 			return arr;
 		}
+		if (t == Type.get((null : ArrayBytes.ArrayI64))) {
+			var a:BytesAccess<I64> = null;
+			a = new Bytes(array.length << a.sizeBits);
+			for (i in 0...array.length)
+				a[i] = array.getDyn(i);
+			var arr = ArrayBase.allocI64(a, array.length);
+			array = arr;
+			allowReinterpret = false;
+			return arr;
+		}
 		return null;
 	}
 
