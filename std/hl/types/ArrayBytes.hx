@@ -145,9 +145,16 @@ class BytesIterator<T> extends ArrayIterator<T> {
 	}
 
 	public function sort(f:T->T->Int):Void {
-		if (Type.get((cast null : T)) == Type.get(0))
+		var tid = Type.get((cast null : T));
+		if (tid == Type.get(0))
 			(bytes : Bytes).sortI32(0, length, cast f);
-		else
+		else if( tid == Type.get((0:hl.I64)) ) {
+			#if (hl_ver >= version("1.16.0"))
+			(bytes : Bytes).sortI64(0, length, cast f);
+			#else
+			throw "Array sort I64 requires -D hl-ver=1.16.0";
+			#end
+		} else
 			(bytes : Bytes).sortF64(0, length, cast f);
 	}
 
