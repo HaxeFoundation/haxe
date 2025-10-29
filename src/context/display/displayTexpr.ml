@@ -175,7 +175,7 @@ let check_display_file ctx cs =
 				ctx.com.module_lut#find path
 			with Not_found ->
 				begin match !TypeloadCacheHook.type_module_hook ctx.com (delay ctx.g) path null_pos with
-				| NoModule | BadModule _ -> raise Not_found
+				| NoModule | BadModule _ | BadBinaryModule _ -> raise Not_found
 				| BinaryModule mc ->
 					let api = (new TypeloadModule.hxb_reader_api_typeload ctx.com ctx.g TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
 					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats (if Common.defined ctx.com Define.HxbTimes then Some ctx.com.timer_ctx else None) in

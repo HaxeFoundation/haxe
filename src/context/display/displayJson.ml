@@ -123,12 +123,12 @@ class hxb_reader_api_com
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m;
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) (_:bool) =
 		let path = (pack,mname) in
 		let m = self#find_module path in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) =
+	method resolve_module (path : path) (_:bool) =
 		self#find_module path
 
 	method find_module (m_path : path) =

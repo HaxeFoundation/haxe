@@ -177,7 +177,7 @@ class hxb_reader
 
 	method resolve_type pack mname tname =
 		try
-			let mt = api#resolve_type pack mname tname in
+			let mt = api#resolve_type pack mname tname full_restore in
 			if not full_restore then begin
 				let mdep = (t_infos mt).mt_module in
 				if mdep != null_module && current_module.m_path != mdep.m_path then
@@ -1910,7 +1910,7 @@ class hxb_reader
 		let length = read_uleb128 ch in
 		for _ = 0 to length - 1 do
 			let path = self#read_path in
-			ignore(api#resolve_module path)
+			ignore(api#resolve_module path full_restore)
 		done
 
 	method read_mtf =

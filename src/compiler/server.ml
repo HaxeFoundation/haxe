@@ -390,7 +390,7 @@ let check_module sctx com m_path m_extra p =
 	end;
 	state
 
-let get_hxb_module com cc path =
+let get_hxb_module com cc path allow_recovery =
 	try
 		let mc = cc#get_hxb_module path in
 		if not (full_typing com mc.mc_extra) then begin
@@ -398,6 +398,7 @@ let get_hxb_module com cc path =
 			BinaryModule mc
 		end else
 			begin match mc.mc_extra.m_cache_state with
+				| MSBad reason when allow_recovery -> BadBinaryModule (mc, reason)
 				| MSBad reason -> BadModule reason
 				| _ -> BinaryModule mc
 			end
@@ -425,13 +426,13 @@ class hxb_reader_api_server
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) full_restore =
 		let path = (pack,mname) in
-		let m = self#resolve_module path in
+		let m = self#resolve_module path full_restore in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) =
-		match self#find_module path with
+	method resolve_module (path : path) full_restore =
+		match self#find_module path full_restore with
 		| GoodModule m ->
 			m
 		| BinaryModule mc ->
@@ -451,15 +452,36 @@ class hxb_reader_api_server
 			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
 			incr stats.s_modules_restored;
 			m
+		| BadBinaryModule (mc, reason) ->
+			(* TODO: warning *)
+			(* trace (Printf.sprintf "Recovering BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)); *)
+
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
+			let full_restore = full_typing com mc.mc_extra in
+			let f_next chunks until =
+				let macro = if com.is_macro_context then " (macro)" else "" in
+				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
+				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
+			in
+
+			let m,chunks = f_next mc.mc_chunks EOT in
+			m.m_extra.m_cache_state <- MSBad reason;
+
+			(* We try to avoid reading expressions as much as possible, so we only do this for
+				 our current display file if we're in display mode. *)
+			if full_restore then ignore(f_next chunks EOM)
+			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
+			incr stats.s_modules_restored;
+			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
-	method find_module (m_path : path) =
+	method find_module (m_path : path) full_restore =
 		try
 			GoodModule (com.module_lut#find m_path)
-		with Not_found -> get_hxb_module com cc m_path
+		with Not_found -> get_hxb_module com cc m_path (not full_restore)
 
 	method basic_types =
 		com.basic
@@ -491,7 +513,10 @@ let handle_cache_bound_objects com cbol =
 let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : pos) =
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
-		if m.m_extra.m_added < com.compilation_step then begin
+		if m.m_extra.m_cache_state <> MSGood then
+			(* TODO: warning? *)
+			com.module_lut#remove m.m_path
+		else if m.m_extra.m_added < com.compilation_step then begin
 			m.m_extra.m_added <- com.compilation_step;
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
@@ -512,19 +537,24 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
 						let m2 = try
-							com.module_lut#find mpath
+							Some (com.module_lut#find mpath)
 						with Not_found ->
 							match type_module sctx com delay mpath p with
 							| GoodModule m ->
-								m
+								Some m
 							| BinaryModule mc ->
 								failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
+							| BadBinaryModule (_, reason) | BadModule reason when (not full_restore) ->
+								(* TODO: warning? *)
+								None
+							| BadBinaryModule (_, reason) ->
+								failwith (Printf.sprintf "Unexpected bad hxb module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
 							| BadModule reason ->
 								failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
 						in
-						add_modules (tabs ^ "  ") m0 m2
+						Option.may (fun m2 -> add_modules (tabs ^ "  ") m0 m2) m2
 					end
 				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_display_deps)
 			)
@@ -555,7 +585,7 @@ and type_module sctx com delay mpath p =
 				| MSBad reason -> BadModule reason
 				| _ -> GoodModule m
 			end;
-		with Not_found -> get_hxb_module com cc m_path
+		with Not_found -> get_hxb_module com cc m_path false
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -599,6 +629,9 @@ and type_module sctx com delay mpath p =
 				| Some reason ->
 					skip mpath reason
 			end
+		| BadBinaryModule (_, reason) ->
+			(* A BadModule state here means that the module is already invalidated in the cache, e.g. from server/invalidate. *)
+			skip mpath reason
 		| BadModule reason ->
 			(* A BadModule state here means that the module is already invalidated in the cache, e.g. from server/invalidate. *)
 			skip mpath reason
