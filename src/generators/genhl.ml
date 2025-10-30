@@ -2325,8 +2325,22 @@ and eval_expr ctx e =
 		);
 		(match !def_ret with
 		| None ->
+			let is_map_get_method t =
+				match follow t with
+				| TFun (_,rt) ->
+					(match follow rt with
+					| TInst({ cl_kind = KTypeParameter ttp; cl_path=["haxe";"ds";("StringMap"|"ObjectMap"|"IntMap"|"Int64Map")],_ }, _) -> true
+					| _ -> false)
+				| _ ->
+					false
+			in
 			let rt = to_type ctx e.etype in
-			cast_to ~force:true ctx ret rt e.epos
+			(match ec.eexpr with
+			| TField (_, FInstance(_,_,{ cf_kind = Method (MethNormal|MethInline); cf_type = t })) when is_map_get_method t ->
+				(* let's trust the compiler on map.get type *)
+				unsafe_cast_to ctx ret rt e.epos
+			| _ ->
+				cast_to ~force:true ctx ret rt e.epos)
 		| Some r -> r
 		)
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
