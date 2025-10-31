@@ -18,6 +18,14 @@ let encode_haxe_i64 low high =
 	set_instance_field vi key_low (vint32 low);
 	vinstance vi
 
+let encode_haxe_i64_int64 value =
+	let high = Stdlib.Int64.to_int32 (Stdlib.Int64.shift_right_logical value 32) in
+	let low = Stdlib.Int64.to_int32 value in
+	let vi = create_instance key_haxe__Int64____Int64 in
+	set_instance_field vi key_high (vint32 high);
+	set_instance_field vi key_low (vint32 low);
+	vinstance vi
+
 let encode_haxe_i64_direct i64 =
 	let low = GInt64.to_int32 i64 in
 	let high = GInt64.to_int32 (GInt64.shift_right_logical i64 32) in

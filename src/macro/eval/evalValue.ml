@@ -75,6 +75,22 @@ module RuntimeIntHashtbl = struct
 	let size this = IntHashtbl.length this
 end
 
+module RuntimeInt64Hashtbl = struct
+	type 'value t = 'value Int64Hashtbl.t
+
+	let add this key v = Int64Hashtbl.replace this key v
+	let copy this = Int64Hashtbl.copy this
+	let create () = Int64Hashtbl.create 0
+	let find this key = Int64Hashtbl.find this key
+	let fold f this acc = Int64Hashtbl.fold f this acc
+	let is_empty this = Int64Hashtbl.length this = 0
+	let iter f this = Int64Hashtbl.iter f this
+	let mem this key = Int64Hashtbl.mem this key
+	let remove this key = Int64Hashtbl.remove this key
+	let clear this = Int64Hashtbl.clear this
+	let size this = Int64Hashtbl.length this
+end
+
 type vregex = {
 	r : Pcre2.regexp;
 	r_rex_string : vstring;
@@ -190,6 +206,7 @@ and vinstance_kind =
 	| IDate of float
 	| IStringMap of value RuntimeStringHashtbl.t
 	| IIntMap of value RuntimeIntHashtbl.t
+	| IInt64Map of value RuntimeInt64Hashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
 	| IOutput of Buffer.t (* BytesBuffer *)
 	| IBuffer of vstring_buffer(* StringBuf *)
