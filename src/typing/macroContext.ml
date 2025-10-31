@@ -716,7 +716,7 @@ let create_macro_context com =
 	com2.package_rules <- PMap.empty;
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-	com2.class_paths#lock_context "macro" false;
+	com2.class_paths#lock_context com2.custom_ext "macro" false;
 	let name = platform_name Eval in
 	let eval_std = ref None in
 	com2.class_paths#modify (fun cp -> match cp#scope with

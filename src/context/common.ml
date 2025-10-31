@@ -282,6 +282,7 @@ type context = {
 	mutable doinline : bool;
 	mutable platform : platform;
 	mutable config : PlatformConfig.platform_config;
+	mutable custom_ext : string option;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
 	main : Gctx.context_main;
@@ -746,6 +747,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		features = Hashtbl.create 0;
 		platform = Cross;
 		config = default_config;
+		custom_ext = None;
 		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
@@ -854,6 +856,7 @@ let clone com is_macro_context =
 		doinline = com.doinline;
 		platform = com.platform;
 		config = com.config;
+		custom_ext = com.custom_ext;
 		print = com.print;
 		run_command = com.run_command;
 		run_command_args = com.run_command_args;

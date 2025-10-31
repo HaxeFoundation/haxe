@@ -79,7 +79,7 @@ let run_command ctx cmd =
 module Setup = struct
 	let initialize_target ctx com actx =
 		init_platform com;
-		com.class_paths#lock_context (platform_name com.platform) false;
+		com.class_paths#lock_context com.custom_ext (platform_name com.platform) false;
 		let add_std dir =
 			com.class_paths#modify_inplace (fun cp -> match cp#scope with
 				| Std ->

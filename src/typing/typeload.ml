@@ -799,7 +799,7 @@ let load_core_class ctx c =
 			allow_package com2 "sys";
 			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
 			if ctx.com.is_macro_context then Common.define com2 Define.Macro;
-			com2.class_paths#lock_context (platform_name_macro ctx.com) true;
+			com2.class_paths#lock_context ctx.com.custom_ext (platform_name_macro ctx.com) true;
 			com2.class_paths#modify (fun cp -> match cp#scope with
 				| Std ->
 					[cp#clone]
