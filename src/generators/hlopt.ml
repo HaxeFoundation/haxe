@@ -71,7 +71,7 @@ let control = function
 		CLabel
 	| ORet _ ->
 		CRet
-	| OThrow _ | ORethrow _ ->
+	| OThrow _ | ORethrow _ | OAssert _ ->
 		CThrow
 	| OSwitch (_,cases,_) ->
 		CSwitch cases

@@ -42,9 +42,9 @@ class Main {
 		#end
 
 		haxe.EventLoop.addTask(function() {
-			var event : haxe.MainLoop.MainEvent = null;
+			var event = haxe.EventLoop.main.addAsync();
 			var count = 0;
-			event = haxe.MainLoop.add(function() {
+			event.start(function() {
 				trace(String.fromCharCode("A".code + count++));
 				if( count == 5 ) event.stop();
 			});

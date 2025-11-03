@@ -1570,6 +1570,70 @@ module StdIntMap = struct
 	)
 end
 
+module StdInt64Map = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IInt64Map h} -> h
+		| v -> unexpected_value v "int64 map"
+
+	let copy = vifun0 (fun vthis ->
+		let copied = RuntimeInt64Hashtbl.copy (this vthis) in
+		encode_int64_map_direct copied
+	)
+
+	let exists = vifun1 (fun vthis vkey ->
+		vbool (RuntimeInt64Hashtbl.mem (this vthis) (EvalIntegers.decode_haxe_i64 vkey))
+	)
+
+	let get = vifun1 (fun vthis vkey ->
+		try RuntimeInt64Hashtbl.find (this vthis) (EvalIntegers.decode_haxe_i64 vkey)
+		with Not_found -> vnull
+	)
+
+	let iterator = vifun0 (fun vthis ->
+		let keys = RuntimeInt64Hashtbl.fold (fun _ v acc -> v :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keys = vifun0 (fun vthis ->
+		let keys = RuntimeInt64Hashtbl.fold (fun k _ acc -> EvalIntegers.encode_haxe_i64_int64 k :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
+
+	let remove = vifun1 (fun vthis vkey ->
+		let this = this vthis in
+		let key = EvalIntegers.decode_haxe_i64 vkey in
+		let b = RuntimeInt64Hashtbl.mem this key in
+		RuntimeInt64Hashtbl.remove this key;
+		vbool b
+	)
+
+	let set = vifun2 (fun vthis vkey vvalue ->
+		RuntimeInt64Hashtbl.add (this vthis) (EvalIntegers.decode_haxe_i64 vkey) vvalue;
+		vnull
+	)
+
+	let toString = vifun0 (fun vthis ->
+		let this = this vthis in
+		let l = RuntimeInt64Hashtbl.fold (fun key vvalue acc ->
+			(join empty_string [create_ascii (Int64.to_string key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+		let s = join rcomma l in
+		let s = join empty_string [rbkopen;s;rbkclose] in
+		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		RuntimeInt64Hashtbl.clear (this vthis);
+		vnull
+	)
+
+	let size = vifun0 (fun vthis ->
+		vint (RuntimeInt64Hashtbl.size (this vthis))
+	)
+end
+
+
 module StdStringMap = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = IStringMap h} -> h
@@ -3229,6 +3293,19 @@ let init_maps builtins =
 		"clear",StdIntMap.clear;
 		"size",StdIntMap.size;
 	];
+	init_fields builtins (["haxe";"ds"],"Int64Map") [] [
+		"copy",StdInt64Map.copy;
+		"exists",StdInt64Map.exists;
+		"get",StdInt64Map.get;
+		"iterator",StdInt64Map.iterator;
+		"keys",StdInt64Map.keys;
+		"keyValueIterator",StdInt64Map.keyValueIterator;
+		"remove",StdInt64Map.remove;
+		"set",StdInt64Map.set;
+		"toString",StdInt64Map.toString;
+		"clear",StdInt64Map.clear;
+		"size",StdInt64Map.size;
+	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
 		"exists",StdObjectMap.exists;
@@ -3296,6 +3373,7 @@ let init_constructors builtins =
 		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (RuntimeStringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (RuntimeIntHashtbl.create ()));
+	add key_haxe_ds_Int64Map (fun _ -> encode_int64_map_direct (RuntimeInt64Hashtbl.create ()));
 	add key_haxe_ds_ObjectMap (fun _ -> encode_object_map_direct (Obj.magic (ValueHashtbl.create 0)));
 	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)));
 	add key_haxe_io_Bytes
@@ -3387,6 +3465,7 @@ let init_empty_constructors builtins =
 	IntHashtbl.add h key_String (fun () -> v_empty_string);
 	IntHashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (RuntimeStringHashtbl.create ())));
 	IntHashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (RuntimeIntHashtbl.create ())));
+	IntHashtbl.add h key_haxe_ds_Int64Map (fun () -> encode_instance key_haxe_ds_Int64Map ~kind:(IInt64Map (RuntimeInt64Hashtbl.create ())));
 	IntHashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
 	IntHashtbl.add h key_haxe_io_BytesBuffer (fun () -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)))
 

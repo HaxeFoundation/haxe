@@ -19,6 +19,15 @@ module IntHashtbl = Hashtbl.Make(struct
 	let hash = Int.hash
 end)
 
+module Int64Hashtbl = Hashtbl.Make(struct
+	type t = Signed.Int64.t
+
+	let equal =
+		Signed.Int64.equal
+
+	let hash = Hashtbl.hash
+end)
+
 module StringHashtbl = Hashtbl.Make(struct
 	type t = string
 

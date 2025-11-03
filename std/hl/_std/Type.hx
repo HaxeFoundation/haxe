@@ -45,7 +45,7 @@ class Type {
 		return true;
 	}
 
-	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class@:privateAccess {
+	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class @:privateAccess {
 		var c:hl.BaseType.Class = cast t.getGlobal();
 		if( c != null )
 			return c;
@@ -56,6 +56,23 @@ class Type {
 		register(name, c);
 		return c;
 	}
+
+	@:keep static function loadClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class @:privateAccess {
+		#if (hl_ver < version("1.16.0"))
+		throw "Resolving classes dynamicaly requires -D hl-ver=1.16.0";
+		#else
+		var c:hl.BaseType.Class = cast t.getGlobal();
+		if( c != null )
+			return c;
+		c = hl.Api.resolveTypeDyn(t,ct);
+		if( c == null )
+			throw "Imported type '"+name+"' could not be resolved";
+		t.setGlobal(c);
+		register(name, c);
+		return c;
+		#end
+	}
+
 
 	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum@:privateAccess {
 		var e:hl.BaseType.Enum = cast t.getGlobal();

@@ -19,9 +19,8 @@ class Event {
 	var toRemove : Bool;
 	var nextRun : Float = Math.NEGATIVE_INFINITY;
 
-	function new(events, callb, p) {
+	function new(events, p) {
 		this.events = events;
-		this.callb = callb;
 		this.priority = p;
 	}
 
@@ -37,7 +36,22 @@ class Event {
 		Stop this event from repeating.
 	**/
 	public function stop() {
-		@:privateAccess events.remove(this);
+		@:privateAccess events.stop(this);
+	}
+
+	/**
+		Stop this event from repeating.
+	**/
+	public function start( callb : Void -> Void ) {
+		this.callb = callb;
+		@:privateAccess events.start(this);
+	}
+
+	/**
+		Tells if the event has been stopped.
+	**/
+	public function isStopped() {
+		return toRemove || (prev == null && @:privateAccess events.events != this);
 	}
 
 }
@@ -142,7 +156,7 @@ class EventLoop {
 			var e = events;
 			while( e != null ) {
 				var n = e.next;
-				if( e.toRemove ) remove(e);
+				if( e.toRemove ) stop(e);
 				e = n;
 			}
 		}
@@ -153,31 +167,27 @@ class EventLoop {
 		Add a callback to be run at each loop of the event loop.
 	**/
 	public function add( callb : Void -> Void, priority = 0 ) : Event {
-		var e = new Event(this,callb,priority);
-		lock();
-		if( events != null )
-			events.prev = e;
-		e.next = events;
-		events = e;
-		wakeup();
-		unlock();
+		var e = new Event(this,priority);
+		e.start(callb);
 		return e;
+	}
+
+	/**
+		Similar to `add` but will return the Event before it's started.
+		This is useful if you wish to hold a reference of another thread Event loop
+		before it runs.
+	**/
+	public function addAsync( priority = 0 ) {
+		return new Event(this,priority);
 	}
 
 	/**
 		Add a callback to be run every `delay` seconds until stopped
 	**/
 	public function addTimer( callb : Void -> Void, delay : Float, priority = 0 ) : Event {
-		var e : Event = null;
-		e = new Event(this,function() { e.delay(delay,true); callb(); },priority);
+		var e : Event = new Event(this,priority);
 		e.delay(delay);
-		lock();
-		if( events != null )
-			events.prev = e;
-		e.next = events;
-		events = e;
-		wakeup();
-		unlock();
+		e.start(function() { e.delay(delay,true); callb(); });
 		return e;
 	}
 
@@ -198,12 +208,32 @@ class EventLoop {
 		return e;
 	}
 
-	function remove( e : Event ) {
+	function start( e : Event ) {
+		lock();
+		e.toRemove = false;
+		if( !e.isStopped() ) {
+			unlock();
+			return;
+		}
+		if( events != null )
+			events.prev = e;
+		e.next = events;
+		events = e;
+		wakeup();
+		unlock();
+	}
+
+	function stop( e : Event ) {
 		lock();
 		if( inLoop ) {
 			// prevent remove while in loopOnce()
 			e.toRemove = true;
 			hasPendingRemove = true;
+			unlock();
+			return;
+		}
+		e.toRemove = false;
+		if( e.isStopped() ) {
 			unlock();
 			return;
 		}

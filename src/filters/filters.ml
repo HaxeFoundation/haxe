@@ -181,7 +181,7 @@ open FilterContext
 let destruction_before_dce pool scom all_types_array =
 	let filters = [
 		FiltersCommon.remove_generic_base;
-		apply_macro_exclude;
+		(if scom.platform = Hl then (fun t -> ()) else apply_macro_exclude);
 		remove_extern_fields scom;
 		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 		check_remove_metadata;
