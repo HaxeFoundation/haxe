@@ -40,7 +40,7 @@ class Event {
 	}
 
 	/**
-		Stop this event from repeating.
+		Start the event with the given callback function.
 	**/
 	public function start( callb : Void -> Void ) {
 		this.callb = callb;
@@ -203,8 +203,8 @@ class EventLoop {
 		Add a function to be run once at next loop of the event loop.
 	**/
 	public function run( callb : Void -> Void, priority = 0 ) : Event {
-		var e : Event = null;
-		e = add(function() { e.stop(); callb(); }, priority);
+		var e : Event = new Event(this,priority);
+		e.start(function() { e.stop(); callb(); });
 		return e;
 	}
 
