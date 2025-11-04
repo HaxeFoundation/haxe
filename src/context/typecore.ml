@@ -850,9 +850,9 @@ let pending_passes ctx =
 	| [] -> ""
 	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,(i,_),_) -> i) l) ^ "]"
 
-let display_error com ?(depth=0) msg p =
+let display_error com ?(sub:macro_error list = []) msg p =
 	debug com [] ("ERROR " ^ msg);
-	display_error com ~depth msg p
+	display_error com ~sub msg p
 
 let display_error_ext com err =
 	debug com [] ("ERROR " ^ (error_msg err.err_message));
@@ -879,7 +879,7 @@ let make_pass ?inf ctx f =
 		t
 	)
 
-let rec flush_pass ctx p where =
+let (*rec*) flush_pass ctx p where =
 	let rec loop() =
 		match ctx.g.debug_delayed with
 		| (p2,l) :: rest when p2 <= p ->
