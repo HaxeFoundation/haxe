@@ -34,7 +34,7 @@ class Int64Map<T> implements haxe.Constraints.IMap<haxe.Int64, T> {
 	var m : Map<String,T>;
 
 	/**
-		Creates a new IntMap.
+		Creates a new Int64Map.
 	**/
 	public function new():Void {
 		m = new Map();
