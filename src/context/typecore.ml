@@ -456,27 +456,34 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let delay g (p : typer_pass) f =
+let delay' g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
 	tasks.tasks <- f :: tasks.tasks;
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
-let delay_late g (p : typer_pass) f =
+let delay ctx (p : typer_pass) f =
+	delay' ctx.g p f
+
+let delay_late' g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
 	tasks.tasks <- tasks.tasks @ [f];
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
+let delay_late ctx (p : typer_pass) f =
+	delay_late' ctx.g p f
+
 let delay_if_mono g p t f = match follow t with
 	| TMono _ ->
-		delay g p f
+		delay' g p f
 	| _ ->
 		f()
 
-let rec flush_pass g (p : typer_pass) where =
+let rec flush_pass ctx (p : typer_pass) where =
+	let g = ctx.g in
 	let rec loop i =
 		if i > (Obj.magic p) then
 			()
@@ -486,7 +493,7 @@ let rec flush_pass g (p : typer_pass) where =
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
-				flush_pass g p where
+				flush_pass ctx p where
 			| [] ->
 				(* Done with this pass (for now), update min index to next one *)
 				let i = i + 1 in
@@ -500,6 +507,11 @@ let make_pass ctx f = f
 
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
+
+let make_lazy' g t_proc f where =
+	let r = make_unforced_lazy t_proc f where in
+	delay' g PForce (fun () -> ignore(lazy_type r));
+	r
 
 let make_lazy ctx t_proc f where =
 	let r = make_unforced_lazy t_proc f where in

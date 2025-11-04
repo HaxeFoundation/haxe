@@ -64,7 +64,7 @@ let actually_check_display_field ctx c cff p =
 	let fctx = TypeloadFields.create_field_context ctx cctx cff true display_modifier in
 	let cf = TypeloadFields.create_class_field cctx cff in
 	TypeloadFields.init_field (ctx,cctx,fctx) cff cf;
-	flush_pass ctx.g PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
+	flush_pass ctx PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
 	ignore(follow cf.cf_type)
 
 let check_display_field ctx sc c cf =
@@ -174,7 +174,7 @@ let check_display_file ctx cs =
 			let m = try
 				ctx.com.module_lut#find path
 			with Not_found ->
-				begin match !TypeloadCacheHook.type_module_hook ctx.com (delay ctx.g) path null_pos with
+				begin match !TypeloadCacheHook.type_module_hook ctx.com (delay ctx) path null_pos with
 				| NoModule | BadModule _ -> raise Not_found
 				| BinaryModule mc ->
 					let api = (new TypeloadModule.hxb_reader_api_typeload ctx.com ctx.g TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in

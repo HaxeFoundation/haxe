@@ -121,7 +121,7 @@ let generic_substitute_expr gctx e =
 	in
 	let rec build_expr e =
 		let e = match e.eexpr with
-		| TField(e1, (FInstance({cl_kind = KGeneric} as c,tl,cf) as fa_orig)) 
+		| TField(e1, (FInstance({cl_kind = KGeneric} as c,tl,cf) as fa_orig))
 		| TField(e1, (FClosure(Some ({cl_kind = KGeneric} as c, tl), cf) as fa_orig)) ->
 			let info = gctx.ctx.g.get_build_info gctx.ctx (TClassDecl c) gctx.p in
 			let t = info.build_apply (List.map (generic_substitute_type' gctx true) tl) in
@@ -351,7 +351,7 @@ let build_generic_class ctx c p tl =
 					| None ->
 						(* There can be cases like #11152 where cf_expr isn't ready yet. It should be safe to delay this to the end
 						   of the PTypeField pass. *)
-						delay_late ctx.g PTypeField (fun () -> match cf_old.cf_expr with
+						delay_late ctx PTypeField (fun () -> match cf_old.cf_expr with
 							| Some e ->
 								update_expr e
 							| None ->
@@ -369,7 +369,7 @@ let build_generic_class ctx c p tl =
 				t
 			in
 			let t = spawn_monomorph ctx p in
-			let r = make_lazy ctx.g t (fun () ->
+			let r = make_lazy ctx t (fun () ->
 				let t0 = f() in
 				unify_raise t0 t p;
 				link_dynamic t0 t;

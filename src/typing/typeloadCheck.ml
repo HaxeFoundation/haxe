@@ -328,7 +328,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.com.global_metadata;
-	if ctx.m.is_display_file then delay ctx.g PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
+	if ctx.m.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 module Inheritance = struct
 	let is_basic_class_path path = match path with
@@ -440,7 +440,7 @@ module Inheritance = struct
 		| _ ->
 		List.iter (fun (intf,params) ->
 			let missing = DynArray.create () in
-			check_interface ctx.com ctx.g missing c intf params;
+			check_interface ctx.com ctx missing c intf params;
 			if DynArray.length missing > 0 then begin
 				let l = DynArray.to_list missing in
 				let diag = {
@@ -538,7 +538,7 @@ module Inheritance = struct
 					   we do want to check them at SOME point. So we use this pending list which was maybe designed for this
 					   purpose. However, we STILL have to delay the check because at the time pending is handled, the class
 					   is not built yet. See issue #10847. *)
-					pending := (fun () -> delay ctx.g PConnectField check_interfaces_or_delay) :: !pending
+					pending := (fun () -> delay ctx PConnectField check_interfaces_or_delay) :: !pending
 				| _ when ctx.com.display.dms_full_typing ->
 					check_interfaces ctx c
 				| _ ->
@@ -551,7 +551,7 @@ module Inheritance = struct
 					if not (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using a class (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
 					c.cl_implements <- (csup,params) :: c.cl_implements;
 					if not !has_interf then begin
-						if not is_lib then delay ctx.g PConnectField check_interfaces_or_delay;
+						if not is_lib then delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end
 				end else begin
@@ -573,7 +573,7 @@ module Inheritance = struct
 					if not (has_class_flag intf CInterface) then raise_typing_error "You can only implement an interface" p;
 					c.cl_implements <- (intf, params) :: c.cl_implements;
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-						delay ctx.g PConnectField check_interfaces_or_delay;
+						delay ctx PConnectField check_interfaces_or_delay;
 						has_interf := true;
 					end;
 					(fun () ->

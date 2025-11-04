@@ -64,7 +64,7 @@ let macro_timer timer_ctx level s identifier f arg =
 let typing_timer ctx need_type f =
 	let t = Timer.start_timer ctx.com.timer_ctx ["typing"] in
 	let ctx = if need_type && ctx.pass < PTypeField then begin
-		enter_field_typing_pass ctx.g ("typing_timer",[]);
+		enter_field_typing_pass ctx ("typing_timer",[]);
 		TyperManager.clone_for_expr ctx ctx.e.curfun FunFunction
 	end else
 		ctx
@@ -567,7 +567,7 @@ let make_macro_api ctx mctx p =
 				List.iter (fun path ->
 					ImportHandling.init_using ctx path null_pos
 				) usings;
-				flush_pass ctx.g PConnectField ("with_imports",[] (* TODO: ? *));
+				flush_pass ctx PConnectField ("with_imports",[] (* TODO: ? *));
 				f()
 			in
 			let restore () =
