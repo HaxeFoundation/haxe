@@ -14,7 +14,7 @@ let create_resolved_file file class_path = {
 type file_resolution_specificity =
 	| Specificity_Normal            (* Standard Module.hx file *)
 	| Specificity_PlatformSpecific  (* Module.[platform].hx file matching current platform *)
-	| Specificity_CustomExtension   (* Module.[custom].hx file matching --custom-ext config *)
+	| Specificity_CustomExtension   (* Module.[custom].hx file matching --custom-extension config *)
 	| Specificity_MacroSpecific     (* Module.macro.hx file while in macro context *)
 	| Specificity_CoreApi           (* Module.hx takes priority when loading @:coreApi types *)
 
@@ -87,7 +87,7 @@ class class_paths = object(self)
 			Each file is checked if it's specific for current platform
 			(e.g. ends with `.js.hx` while compiling for JS) or current
 			custom extension (e.g. ends with `.custom.hx` while compiling
-			with `--custom-ext custom`)
+			with `--custom-extension custom`)
 
 			The lookup cache will store the full file path which is the more
 			specific in current context (see `file_resolution_specificity` type)
