@@ -12,11 +12,11 @@ let create_resolved_file file class_path = {
 }
 
 type file_resolution_specificity =
-	| Specificity_Normal            (* Standard Module.hx file *)
-	| Specificity_PlatformSpecific  (* Module.[platform].hx file matching current platform *)
-	| Specificity_CustomExtension   (* Module.[custom].hx file matching --custom-extension config *)
-	| Specificity_MacroSpecific     (* Module.macro.hx file while in macro context *)
-	| Specificity_CoreApi           (* Module.hx takes priority when loading @:coreApi types *)
+	| SpecificityNormal            (* Standard Module.hx file *)
+	| SpecificityPlatformSpecific  (* Module.[platform].hx file matching current platform *)
+	| SpecificityCustomExtension   (* Module.[custom].hx file matching --custom-extension config *)
+	| SpecificityMacroSpecific     (* Module.macro.hx file while in macro context *)
+	| SpecificityCoreApi           (* Module.hx takes priority when loading @:coreApi types *)
 
 (* We need to clean-up absolute ("") vs. cwd ("."). *)
 let absolute_class_path = new directory_class_path "" User
@@ -99,21 +99,21 @@ class class_paths = object(self)
 			(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
 			let specificity,representation =
 				if is_loading_core_api then
-					Specificity_CoreApi,relative_to_classpath
+					SpecificityCoreApi,relative_to_classpath
 				else begin
 					let ext = extension relative_to_classpath in
 					let second_ext = extension (remove_extension relative_to_classpath) in
 					(* The file contains double extension and the secondary one matches current custom extension *)
 					if (Option.map_default (fun custom_ext -> custom_ext = second_ext) false custom_ext) then
-						Specificity_CustomExtension,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+						SpecificityCustomExtension,(remove_extension (remove_extension relative_to_classpath)) ^ ext
 					(* The file contains ".macro.hx" double extension and we are in macro context *)
 					else if platform_ext = second_ext && second_ext = ".macro" then
-						Specificity_MacroSpecific,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+						SpecificityMacroSpecific,(remove_extension (remove_extension relative_to_classpath)) ^ ext
 					(* The file contains double extension and the secondary one matches current platform *)
 					else if platform_ext = second_ext then
-						Specificity_PlatformSpecific,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+						SpecificityPlatformSpecific,(remove_extension (remove_extension relative_to_classpath)) ^ ext
 					else
-						Specificity_Normal,relative_to_classpath
+						SpecificityNormal,relative_to_classpath
 				end
 			in
 
@@ -138,7 +138,7 @@ class class_paths = object(self)
 		with
 		| Not_found when Path.is_absolute_path f ->
 			let r = if Sys.file_exists f then
-				Some (create_resolved_file f absolute_class_path, Specificity_Normal (* TODO? *))
+				Some (create_resolved_file f absolute_class_path, SpecificityNormal)
 			else
 				None
 			in
