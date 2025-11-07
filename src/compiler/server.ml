@@ -457,7 +457,7 @@ class hxb_reader_api_server
 			incr stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
-			(* TODO: warning *)
+			(* TODO: we might want to issue a warning here? *)
 			(* trace (Printf.sprintf "Recovering BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)); *)
 
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
@@ -519,7 +519,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_cache_state <> MSGood then
-			(* TODO: warning? *)
+			(* TODO: we might want to issue a warning here? *)
 			com.module_lut#remove m.m_path
 		else if m.m_extra.m_added < com.compilation_step then begin
 			m.m_extra.m_added <- com.compilation_step;
@@ -552,7 +552,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| BadBinaryModule (_, reason) | BadModule reason when typing_mode = AllowPartialTyping ->
-								(* TODO: warning? *)
+								(* TODO: we might want to issue a warning here? *)
 								None
 							| BadBinaryModule (_, reason) ->
 								failwith (Printf.sprintf "Unexpected bad hxb module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
