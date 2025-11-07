@@ -29,19 +29,23 @@ enum abstract LoopRunMode(Int) {
 }
 
 abstract Loop(hl.Abstract<"uv_loop">) {
-	@:hlNative("uv", "loop_close") public function close():Int {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "loop_close_wrap" #else "loop_close" #end)
+	public function close():Int {
 		return 0;
 	}
 
-	@:hlNative("uv", "run") public function run(mode:LoopRunMode):Int {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "run_wrap" #else "run" #end)
+	public function run(mode:LoopRunMode):Int {
 		return 0;
 	}
 
-	@:hlNative("uv", "loop_alive") public function alive():Int {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "loop_alive_wrap" #else "loop_alive" #end)
+	public function alive():Int {
 		return 0;
 	}
 
-	@:hlNative("uv", "stop") public function stop():Void {}
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "stop_wrap" #else "stop" #end)
+	public function stop():Void {}
 
 	public static function getDefault():Loop {
 		var def = default_loop();
@@ -56,7 +60,8 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 		return def;
 	}
 
-	@:hlNative("uv", "default_loop") static function default_loop():Loop {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "default_loop_wrap" #else "default_loop" #end)
+	static function default_loop():Loop {
 		return null;
 	}
 
