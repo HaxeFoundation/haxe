@@ -749,11 +749,11 @@ class hxb_reader_api_typeload
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) (_:bool) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) (_:HxbData.typing_mode) =
 		let m = load_module com g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) (_:bool) =
+	method resolve_module (path : path) (_:HxbData.typing_mode) =
 		load_module com g path p
 
 	method basic_types =

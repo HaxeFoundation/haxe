@@ -223,12 +223,14 @@ let get_changed_directories sctx com =
 let get_changed_directories sctx com =
 	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
 
-let full_typing com m_extra =
-	com.is_macro_context
-	|| com.display.dms_full_typing
-	|| Define.defined com.defines Define.DisableHxbCache
-	|| Define.defined com.defines Define.DisableHxbOptimizations
-	|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
+let get_typing_mode com m_extra =
+	let full_typing = com.is_macro_context
+		|| com.display.dms_full_typing
+		|| Define.defined com.defines Define.DisableHxbCache
+		|| Define.defined com.defines Define.DisableHxbOptimizations
+		|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
+	in
+	if full_typing then FullTyping else AllowPartialTyping
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
@@ -331,7 +333,7 @@ let check_module sctx com m_path m_extra p =
 			try
 				check_module_path();
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if full_typing com m_extra then check_dependencies();
+				if (get_typing_mode com m_extra) = FullTyping then check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -390,18 +392,19 @@ let check_module sctx com m_path m_extra p =
 	end;
 	state
 
-let get_hxb_module com cc path allow_recovery =
+let get_hxb_module com cc path typing_mode =
 	try
 		let mc = cc#get_hxb_module path in
-		if not (full_typing com mc.mc_extra) then begin
-			mc.mc_extra.m_cache_state <- MSGood;
-			BinaryModule mc
-		end else
-			begin match mc.mc_extra.m_cache_state with
-				| MSBad reason when allow_recovery -> BadBinaryModule (mc, reason)
-				| MSBad reason -> BadModule reason
-				| _ -> BinaryModule mc
-			end
+		match get_typing_mode com mc.mc_extra with
+			| AllowPartialTyping ->
+				mc.mc_extra.m_cache_state <- MSGood;
+				BinaryModule mc
+			| FullTyping ->
+				begin match mc.mc_extra.m_cache_state with
+					| MSBad reason when typing_mode = AllowPartialTyping -> BadBinaryModule (mc, reason)
+					| MSBad reason -> BadModule reason
+					| _ -> BinaryModule mc
+				end
 	with Not_found ->
 		NoModule
 
@@ -437,19 +440,20 @@ class hxb_reader_api_server
 			m
 		| BinaryModule mc ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			let full_restore = full_typing com mc.mc_extra in
+			let typing_mode = get_typing_mode com mc.mc_extra in
 			let f_next chunks until =
 				let macro = if com.is_macro_context then " (macro)" else "" in
 				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
-				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
+				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f typing_mode
 			in
 
 			let m,chunks = f_next mc.mc_chunks EOT in
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
-			if full_restore then ignore(f_next chunks EOM)
-			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
+			(match typing_mode with
+			| FullTyping -> ignore(f_next chunks EOM)
+			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 			incr stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
@@ -457,7 +461,7 @@ class hxb_reader_api_server
 			(* trace (Printf.sprintf "Recovering BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)); *)
 
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			let full_restore = full_typing com mc.mc_extra in
+			let typing_mode = get_typing_mode com mc.mc_extra in
 			let f_next chunks until =
 				let macro = if com.is_macro_context then " (macro)" else "" in
 				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
@@ -469,8 +473,9 @@ class hxb_reader_api_server
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
-			if full_restore then ignore(f_next chunks EOM)
-			else delay PConnectField (fun () -> ignore(f_next chunks EOF));
+			(match typing_mode with
+			| FullTyping -> ignore(f_next chunks EOM)
+			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 			incr stats.s_modules_restored;
 			m
 		| BadModule reason ->
@@ -478,10 +483,10 @@ class hxb_reader_api_server
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
-	method find_module (m_path : path) full_restore =
+	method find_module (m_path : path) typing_mode =
 		try
 			GoodModule (com.module_lut#find m_path)
-		with Not_found -> get_hxb_module com cc m_path (not full_restore)
+		with Not_found -> get_hxb_module com cc m_path typing_mode
 
 	method basic_types =
 		com.basic
@@ -532,7 +537,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				if not from_binary || m != m then
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
-				let full_restore = full_typing com m.m_extra in
+				let typing_mode = get_typing_mode com m.m_extra in
 				PMap.iter (fun _ mdep ->
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
@@ -546,7 +551,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 								failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
-							| BadBinaryModule (_, reason) | BadModule reason when (not full_restore) ->
+							| BadBinaryModule (_, reason) | BadModule reason when typing_mode = AllowPartialTyping ->
 								(* TODO: warning? *)
 								None
 							| BadBinaryModule (_, reason) ->
@@ -556,7 +561,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 						in
 						Option.may (fun m2 -> add_modules (tabs ^ "  ") m0 m2) m2
 					end
-				) (if full_restore then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_display_deps)
+				) (if typing_mode = FullTyping then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_display_deps)
 			)
 		end
 	in
@@ -585,7 +590,7 @@ and type_module sctx com delay mpath p =
 				| MSBad reason -> BadModule reason
 				| _ -> GoodModule m
 			end;
-		with Not_found -> get_hxb_module com cc m_path false
+		with Not_found -> get_hxb_module com cc m_path FullTyping
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -604,7 +609,7 @@ and type_module sctx com delay mpath p =
 			begin match check_module sctx mpath mc.mc_extra p with
 				| None ->
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-					let full_restore = full_typing com mc.mc_extra in
+					let typing_mode = get_typing_mode com mc.mc_extra in
 					let api = match com.hxb_reader_api with
 						| Some api ->
 							api
@@ -615,15 +620,16 @@ and type_module sctx com delay mpath p =
 					in
 					let f_next chunks until =
 						let macro = if com.is_macro_context then " (macro)" else "" in
-						Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) full_restore
+						Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) typing_mode
 					in
 
 					let m,chunks = f_next mc.mc_chunks EOT in
 
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
-					if full_restore then ignore(f_next chunks EOM)
-					else delay PConnectField (fun () -> ignore(f_next chunks EOF));
+					(match typing_mode with
+					| FullTyping -> ignore(f_next chunks EOM)
+					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 					incr stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->

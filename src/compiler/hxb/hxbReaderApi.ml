@@ -4,8 +4,8 @@ open Type
 class virtual hxb_reader_api = object(self)
 	method virtual make_module : path -> string -> module_def
 	method virtual add_module : module_def -> unit
-	method virtual resolve_type : string list -> string -> string -> bool -> module_type
-	method virtual resolve_module : path -> bool -> module_def
+	method virtual resolve_type : string list -> string -> string -> HxbData.typing_mode -> module_type
+	method virtual resolve_module : path -> HxbData.typing_mode -> module_def
 	method virtual basic_types : basic_types
 	method virtual get_var_id : int -> int
 	method virtual read_expression_eagerly : tclass_field -> bool
