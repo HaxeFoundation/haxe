@@ -194,7 +194,7 @@ let load_type_def' ctx pack mname tname p =
 	load a type or a subtype definition
 *)
 let load_type_def ctx p t =
-	if t = Parser.magic_type_path then
+	if t = Parser.magic_type_path && ctx.com.display.dms_kind = DMDefault then
 		raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
 	(* The type name is the module name or the module sub-type name *)
 	let tname = match t.tsub with None -> t.tname | Some n -> n in
