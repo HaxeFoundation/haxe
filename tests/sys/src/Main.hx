@@ -14,6 +14,9 @@ class Main {
 		runner.addCase(new io.TestProcess());
 		#end
 		runner.addCase(new net.TestSocket());
+		#if hl
+		runner.addCase(new net.TestAsyncSocket( #if (hl_ver < version("1.16.0")) false #end ));
+		#end
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;

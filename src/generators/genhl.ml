@@ -1026,9 +1026,9 @@ let common_type ctx e1 e2 for_eq p =
 	let t2 = to_type ctx e2.etype in
 	if t1 == t2 then t1 else
 	match t1, t2 with
-	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> common_type_number ctx t1 t2 p
-	| (HUI8|HUI16|HI32|HI64|HF32|HF64 as t1), (HNull t2)
-	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64 as t2)
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID), (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID) -> common_type_number ctx t1 t2 p
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID as t1), (HNull t2)
+	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID as t2)
 	| (HNull t1), (HNull t2)
 		-> if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
 	| HDyn, (HUI8|HUI16|HI32|HI64|HF32|HF64) -> HF64

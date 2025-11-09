@@ -81,11 +81,42 @@ class EventLoop {
 	var mutex : sys.thread.Mutex;
 	var lockTime : sys.thread.Lock;
 	#end
+	#if hl
+	var uvLoop : hl.uv.Loop;
+	var inUV : Bool;
+	#end
 
 	public function new() {
 		#if target.threaded
 		mutex = new sys.thread.Mutex();
 		lockTime = new sys.thread.Lock();
+		#end
+	}
+
+	#if hl
+	function getUVLoop() {
+		if( uvLoop == null ) {
+			if( this == main )
+				uvLoop = @:privateAccess hl.uv.Loop.default_loop();
+			else {
+				#if (hl_ver < version("1.16.0"))
+				throw "Using libUV multithread requires -D hl-ver=1.16.0";
+				#else
+				uvLoop = hl.uv.Loop.create();
+				#end
+			}
+		}
+		return uvLoop;
+	}
+	#end
+
+	/**
+		This should be called after you are finished with a custom event loop.
+		It is already automatically called for threads loops.
+	**/
+	public function dispose() {
+		#if hl
+		if( uvLoop != null && uvLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
 		#end
 	}
 
@@ -96,6 +127,11 @@ class EventLoop {
 	public function loop() {
 		while( hasEvents(true) || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
+			#if hl
+			// disable wait if we have our uvloop alive
+			if( uvLoop != null && time > 0 && uvLoop.alive() > 0 )
+				time = -1;
+			#end
 			if( time > 0 ) {
 				wait(time);
 				continue;
@@ -134,11 +170,23 @@ class EventLoop {
 		Perform an update of pending events.
 	**/
 	public function loopOnce() {
+		#if hl
+		if( inUV ) throw "You cannot callback EventLoop.loop() while in uv event callback";
+		#end
+
 		lock();
 		sortEvents();
 		var current = events; // protect from further add()
 		inLoop = true;
 		unlock();
+
+		#if hl
+		if( uvLoop != null ) {
+			inUV = true;
+			uvLoop.run(NoWait);
+			inUV = false;
+		}
+		#end
 
 		// if inLoop turns false, stop because we had reentrency
 		var time = haxe.Timer.stamp();
@@ -354,6 +402,10 @@ class EventLoop {
 		If blocking is set to true, only check if it has remaining blocking events.
 	**/
 	public function hasEvents( blocking : Bool = true ) {
+		#if hl
+		if( uvLoop != null && uvLoop.alive() > 0 )
+			return true;
+		#end
 		if( !blocking )
 			return events != null;
 		lock();
