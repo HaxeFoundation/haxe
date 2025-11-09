@@ -2183,4 +2183,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.posix-setuid.php
 	**/
 	static function posix_setuid(user_id: Int): Bool;
+	
+	/**
+		@see https://www.php.net/manual/en/function.date-sun-info.php
+	**/
+	public static function date_sun_info(timestamp:Int, latitude:Float, longitude:Float) :NativeArray;
 }

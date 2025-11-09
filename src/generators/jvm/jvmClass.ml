@@ -40,6 +40,7 @@ class builder path_this path_super = object(self)
 	val methods = DynArray.create ()
 	val method_sigs = Hashtbl.create 0
 	val inner_classes = Hashtbl.create 0
+	val typed_function_paths = Hashtbl.create 0
 	val closure_ids_per_name = Hashtbl.create 0
 	val mutable spawned_methods = []
 	val mutable static_init_method = None
@@ -116,6 +117,12 @@ class builder path_this path_super = object(self)
 			jc#set_source_file file
 		end;
 		jc
+
+	method add_typed_function (path : jpath) =
+		Hashtbl.add typed_function_paths path ()
+
+	method has_typed_function (path : jpath) =
+		Hashtbl.mem typed_function_paths path
 
 	method spawn_method (name : string) (jsig_method : jsignature) (flags : MethodAccessFlags.t list) =
 		let jm = new JvmMethod.builder self name jsig_method in

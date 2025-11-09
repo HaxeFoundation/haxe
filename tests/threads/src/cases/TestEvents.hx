@@ -27,25 +27,9 @@ class TestEvents extends utest.Test {
 		}, 100);
 	}
 
-	function testThreadRunWithEventLoop() {
-		var eventExecuted = false;
-		var lock = new sys.thread.Lock();
-		Thread.create(() -> {
-			var thread = Thread.current();
-			raises(
-				() -> thread.events.run(() -> {}),
-				sys.thread.NoEventLoopException
-			);
-			Thread.runWithEventLoop(() -> {
-				thread.events.run(lock.release);
-			});
-		});
-		isTrue(lock.wait(1.0));
-	}
-
 	function testRun(async:Async) {
 		var mainThread = Thread.current();
-		Thread.createWithEventLoop(() -> {
+		Thread.create(() -> {
 			var childThread = Thread.current();
 			isTrue(mainThread != childThread);
 			mainThread.events.run(() -> {
@@ -82,47 +66,12 @@ class TestEvents extends utest.Test {
 		//test in main thread
 		test(mainThread, () -> {
 			//now test in a child thread
-			Thread.createWithEventLoop(() -> {
+			Thread.create(() -> {
 				var childThread = Thread.current();
 				isTrue(childThread != mainThread);
-				test(childThread, mainThread.events.run.bind(() -> async.done()));
+				test(childThread, mainThread.events.run.bind(() -> async.done(),0));
 			});
 		});
 	}
 
-	@:depends(testRun)
-	function testPromisedEvents(async:Async) {
-		var mainThread = Thread.current();
-		mainThread.events.promise();
-		// this thread is expected to wait for promised events
-		Thread.createWithEventLoop(() -> {
-			var eventsExecuted = 0;
-			var testThread = Thread.current();
-			testThread.events.promise(); // 1 promised event
-			// this thread will deliver promised events to the testThread
-			Thread.createWithEventLoop(() -> {
-				Sys.sleep(0.2);
-				testThread.events.promise(); // 2 promised events
-				testThread.events.runPromised(() -> {
-					++eventsExecuted;
-					isTrue(testThread == Thread.current());
-				});
-				testThread.events.promise(); // 3 promised events
-				Sys.sleep(0.2);
-				testThread.events.runPromised(() -> {
-					++eventsExecuted;
-					isTrue(testThread == Thread.current());
-				});
-				Sys.sleep(0.2);
-				testThread.events.runPromised(() -> {
-					++eventsExecuted;
-					isTrue(testThread == Thread.current());
-					mainThread.events.runPromised(() -> {
-						equals(3, eventsExecuted);
-						async.done();
-					});
-				});
-			});
-		});
-	}
 }

@@ -43,7 +43,7 @@
 *)
 open Server
 
-let other = Timer.timer ["other"];;
+;;
 Sys.catch_break true;
 
 let args = List.tl (Array.to_list Sys.argv) in
@@ -51,4 +51,3 @@ set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 let sctx = ServerCompilationContext.create false in
 Server.process sctx (Communication.create_stdio ()) args;
-other()

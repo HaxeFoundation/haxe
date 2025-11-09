@@ -109,7 +109,7 @@ let optimize_binop e op e1 e2 =
 		| OpEq -> { e with eexpr = TConst (TBool false) }
 		| OpNotEq -> { e with eexpr = TConst (TBool true) }
 		| _ -> e)
-	| TConst (TInt a), TConst (TInt b) when is_numeric  e1.etype && is_numeric e2.etype ->
+	| TConst (TInt a), TConst (TInt b) ->
 		let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
 		let check_overflow f =
 			opt (fun a b ->
@@ -130,9 +130,9 @@ let optimize_binop e op e1 e2 =
 		| OpAnd -> opt Int32.logand
 		| OpOr -> opt Int32.logor
 		| OpXor -> opt Int32.logxor
-		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
-		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
-		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShl when is_numeric e.etype -> opt (fun a b -> Int32.shift_left a (Int32.to_int (Int32.logand b i32_31)))
+		| OpShr when is_numeric e.etype -> opt (fun a b -> Int32.shift_right a (Int32.to_int (Int32.logand b i32_31)))
+		| OpUShr when is_numeric e.etype -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int (Int32.logand b i32_31)))
 		| OpEq -> ebool (=)
 		| OpNotEq -> ebool (<>)
 		| OpGt -> ebool (>)
@@ -220,24 +220,30 @@ let optimize_unop e op flag esub =
 		| _ -> false
 	in
 	match op, esub.eexpr with
-		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
-		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
-			begin
-				let is_int = is_int e1.etype && is_int e2.etype in
-				try
-					let op = match is_int, op with
-						| true, OpGt -> OpLte
-						| true, OpGte -> OpLt
-						| true, OpLt -> OpGte
-						| true, OpLte -> OpGt
-						| _, OpEq -> OpNotEq
-						| _, OpNotEq -> OpEq
-						| _ -> raise Exit
-					in
-					{e with eexpr = TBinop(op,e1,e2)}
-				with Exit ->
-					e
-			end
+		| Not, _ ->
+			let rec transform e esub = match esub.eexpr with
+				| TConst (TBool f) -> { e with eexpr = TConst (TBool (not f)) }
+				| TBinop(op,e1,e2) ->
+					let is_int = is_int e1.etype && is_int e2.etype in
+					(try
+						let op = match is_int, op with
+							| true, OpGt -> OpLte
+							| true, OpGte -> OpLt
+							| true, OpLt -> OpGte
+							| true, OpLte -> OpGt
+							| _, OpEq -> OpNotEq
+							| _, OpNotEq -> OpEq
+							| _ -> raise Exit
+						in
+						{e with eexpr = TBinop(op,e1,e2)}
+					with Exit ->
+						e
+					)
+				| TParenthesis(e1) -> transform e e1
+				| TMeta(m, e1) -> { e with eexpr = TMeta (m, transform { e1 with eexpr = TUnop(op,flag,e1) } e1 ) }
+				| _ -> e
+			in
+			transform e esub
 		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
 		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
 		| Neg, TConst (TFloat f) ->

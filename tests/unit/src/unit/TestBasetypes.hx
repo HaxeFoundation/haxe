@@ -267,6 +267,45 @@ class TestBasetypes extends Test {
 		f( h.remove(1) );
 	}
 
+	function testInt64Map() {
+		var h = new haxe.ds.Int64Map<Null<Int>>();
+		var small = haxe.Int64.make(3, 5);
+		var big = haxe.Int64.make(-3, -5);
+		h.set(small, -1);
+		h.set(big, 8546);
+		eq(h.get(small), -1);
+		eq(h.get(big), 8546);
+		eq(h.get(456), null);
+
+		var k = Lambda.array(h);
+		k.sort(Reflect.compare);
+		eq(k.join("#"), "-1#8546");
+
+		var k = Lambda.array({iterator: h.keys});
+		k.sort(Reflect.compare);
+		eq(k.join("#"), "-8589934597#12884901893");
+
+		t(h.exists(small));
+		t(h.exists(big));
+		f(h.exists(456));
+		h.remove(big);
+		t(h.exists(small));
+		f(h.exists(big));
+		f(h.exists(456));
+		eq(h.get(big), null);
+
+		h.set(65, null);
+		t(h.exists(65));
+		t(h.remove(65));
+		f(h.remove(65));
+
+		var h = new haxe.ds.Int64Map();
+		h.set(1, ['a', 'b']);
+		t(h.exists(1));
+		t(h.remove(1));
+		f(h.remove(1));
+	}
+
 	function testMap() {
 		var i = new Map();
 		i[1] = 0;

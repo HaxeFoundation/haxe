@@ -242,6 +242,9 @@ let encode_bytes =
 let encode_int_map_direct =
 	create_cached_instance key_haxe_ds_IntMap (fun s -> IIntMap s)
 
+let encode_int64_map_direct =
+	create_cached_instance key_haxe_ds_Int64Map (fun s -> IInt64Map s)
+
 let encode_string_map_direct =
 	create_cached_instance key_haxe_ds_StringMap (fun s -> IStringMap s)
 
@@ -249,8 +252,8 @@ let encode_object_map_direct =
 	create_cached_instance key_haxe_ds_ObjectMap (fun (s : value ValueHashtbl.t) -> IObjectMap (Obj.magic s))
 
 let encode_string_map convert m =
-	let h = StringHashtbl.create () in
-	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
+	let h = RuntimeStringHashtbl.create () in
+	PMap.iter (fun key value -> RuntimeStringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
 let fake_proto path =

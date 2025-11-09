@@ -3,12 +3,13 @@ open Type
 open Warning
 
 type context_main = {
-	mutable main_class : path option;
+	mutable main_path : path option;
+	mutable main_file : string option;
 	mutable main_expr : texpr option;
 }
 
-type warning_function = ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit
-type error_function = ?depth:int -> string -> pos -> unit
+type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit
+type error_function = string -> pos -> unit
 
 type t = {
 	platform : platform;
@@ -31,6 +32,7 @@ type t = {
 	native_libs : NativeLibraries.native_library_base list;
 	include_files : (string * string) list;
 	std : tclass; (* TODO: I would prefer to not have this here, have to check default_cast *)
+	timer_ctx : Timer.timer_context;
 }
 
 let defined com s =
@@ -108,7 +110,7 @@ let get_entry_point gctx =
 		in
 		let e = Option.get gctx.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
-	) gctx.main.main_class
+	) gctx.main.main_path
 
 let get_es_version defines =
 	try int_of_string (Define.defined_value defines Define.JsEs) with _ -> 0

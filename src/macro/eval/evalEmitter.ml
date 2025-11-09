@@ -127,11 +127,8 @@ let emit_array_declaration execs env =
 
 let emit_type_expr proto env = proto
 
-let emit_mk_pos exec1 exec2 exec3 env =
-	let file = exec1 env in
-	let min = exec2 env in
-	let max = exec3 env in
-	encode_pos { pfile = decode_string file; pmin = decode_int min; pmax = decode_int max }
+let emit_mk_pos p env =
+	encode_pos p
 
 let emit_enum_construction key i execs p env =
 	encode_enum_value key i (Array.map (apply env) execs) p
@@ -219,10 +216,10 @@ let emit_try exec catches env =
 	let ctx = get_ctx() in
 	let eval = env.env_eval in
 	if ctx.debug.support_debugger then begin
-		List.iter (fun (_,path,_) -> Hashtbl.add eval.caught_types path true) catches
+		List.iter (fun (_,path,_) -> IntHashtbl.add eval.caught_types path true) catches
 	end;
 	let restore () =
-		List.iter (fun (_,path,_) -> Hashtbl.remove eval.caught_types path) catches
+		List.iter (fun (_,path,_) -> IntHashtbl.remove eval.caught_types path) catches
 	in
 	let v = try
 		let v = handle_stack_overflow eval (fun() -> exec env) in
@@ -231,7 +228,7 @@ let emit_try exec catches env =
 	with RunTimeException(v,_,_) as exc ->
 		eval.caught_exception <- vnull;
 		restore();
-		build_exception_stack ctx env;
+		build_exception_stack eval env;
 		let rec loop () = match eval.env with
 			| Some env' when env' != env ->
 				pop_environment ctx env';
@@ -762,33 +759,33 @@ let process_arguments fl vl env =
 
 let create_function_noret ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	process_arguments fl vl env;
-	let v = exec env in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		process_arguments fl vl env;
+		exec env
+	) ()
 
 let create_function ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		process_arguments fl vl env;
+		try exec env with Return v -> v
+	) ()
 
 let create_closure_noret ctx eci refs exec fl vl =
 	let env = push_environment ctx eci in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = exec env in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+		process_arguments fl vl env;
+		exec env
+	) ()
 
 let create_closure refs ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+		process_arguments fl vl env;
+		try exec env with Return v -> v
+	) ()
 
 let emit_closure ctx mapping eci hasret exec fl env =
 	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in

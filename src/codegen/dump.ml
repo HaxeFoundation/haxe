@@ -1,5 +1,6 @@
 open Globals
 open Common
+open DumpConfig
 open Type
 
 (*
@@ -13,13 +14,20 @@ let create_dumpfile acc l =
 		close_out ch)
 
 let create_dumpfile_from_path com path =
-	let buf,close = create_dumpfile [] ((dump_path com) :: (platform_name_macro com) :: fst path @ [snd path]) in
+	let buf,close = create_dumpfile [] (com.dump_config.dump_path :: (string_of_dump_stage com.dump_config.dump_stage) :: (platform_name_macro com) :: fst path @ [snd path]) in
 	buf,close
 
 let dump_types com pretty =
+	let restore =
+		if not pretty then
+			let old = !TPrinting.MonomorphPrinting.show_mono_ids in
+			TPrinting.MonomorphPrinting.show_mono_ids := com.dump_config.dump_print_ids;
+			fun () -> TPrinting.MonomorphPrinting.show_mono_ids := old
+		else fun () -> ()
+	in
 	let s_type = s_type (Type.print_context()) in
 	let s_expr,s_type_param = if not pretty then
-		(Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"),(Printer.s_type_param "")
+		(Type.s_expr_ast com.dump_config.dump_print_ids "\t"),(Printer.s_type_param "")
 	else
 		(Type.s_expr_pretty false "\t" true),(s_type_param s_type)
 	in
@@ -27,7 +35,7 @@ let dump_types com pretty =
 		| [] -> ""
 		| l -> Printf.sprintf "<%s>" (String.concat ", " (List.map s_type_param l))
 	in
-	List.iter (fun mt ->
+	let f mt =
 		let path = Type.t_path mt in
 		let buf,close = create_dumpfile_from_path com path in
 		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
@@ -117,11 +125,15 @@ let dump_types com pretty =
 			(String.concat " " (List.map (fun t -> " from " ^ s_type t) a.a_from))
 			(String.concat " " (List.map (fun t -> " to " ^ s_type t) a.a_to));
 		);
-		close();
-	) com.types
+		close()
+	in
+	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
+	);
+	restore()
 
 let dump_record com =
-	List.iter (fun mt ->
+	let f mt =
 		let buf,close = create_dumpfile_from_path com (t_path mt) in
 		let s = match mt with
 			| TClassDecl c -> Printer.s_tclass "" c
@@ -130,11 +142,14 @@ let dump_record com =
 			| TAbstractDecl a -> Printer.s_tabstract "" a
 		in
 		Buffer.add_string buf s;
-		close();
-	) com.types
+		close()
+	in
+	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
+	)
 
 let dump_position com =
-	List.iter (fun mt ->
+	let f mt =
 		match mt with
 			| TClassDecl c ->
 				let buf,close = create_dumpfile_from_path com (t_path mt) in
@@ -153,41 +168,48 @@ let dump_position com =
 				close();
 			| _ ->
 				()
-	) com.types
+	in
+	Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
+	)
 
 let dump_types com =
-	match Common.defined_value_safe com Define.Dump with
-		| "pretty" -> dump_types com true
-		| "record" -> dump_record com
-		| "position" -> dump_position com
-		| _ -> dump_types com false
+	match com.dump_config.dump_mode with
+		| NoDump -> ()
+		| Pretty -> dump_types com true
+		| Record -> dump_record com
+		| Position -> dump_position com
+		| Ast -> dump_types com false
 
 let dump_dependencies ?(target_override=None) com =
 	let target_name = match target_override with
 		| None -> platform_name_macro com
 		| Some s -> s
 	in
-	let dump_dependencies_path = [dump_path com;target_name;"dependencies"] in
+	let dump_dependencies_path = [com.dump_config.dump_path;target_name;"dependencies"] in
 	let buf,close = create_dumpfile [] dump_dependencies_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	let dep = Hashtbl.create 0 in
 	List.iter (fun m ->
 		print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		PMap.iter (fun _ mdep ->
-			let (ctx,m2) = match mdep.md_kind with
+			let com,ctx = match mdep.md_kind with
 				| MMacro when not com.is_macro_context ->
-					("[macro] ", (Option.get (com.get_macros())).module_lut#find mdep.md_path)
-				| _ ->
-					("", com.module_lut#find mdep.md_path)
+					Option.get (com.get_macros()), "[macro] "
+				| _ -> com, ""
 			in
-			let file = Path.UniqueKey.lazy_path m2.m_extra.m_file in
+			let mdep_extra =
+				try (com.module_lut#find mdep.md_path).m_extra
+				with Not_found -> (com.cs#get_context mdep.md_sign)#find_module_extra mdep.md_path
+			in
+			let file = Path.UniqueKey.lazy_path mdep_extra.m_file in
 			print "\t%s%s\n" ctx file;
 			let l = try Hashtbl.find dep file with Not_found -> [] in
 			Hashtbl.replace dep file (m :: l)
 		) m.m_extra.m_deps;
 	) com.Common.modules;
 	close();
-	let dump_dependants_path = [dump_path com;target_name;"dependants"] in
+	let dump_dependants_path = [com.dump_config.dump_path;target_name;"dependants"] in
 	let buf,close = create_dumpfile [] dump_dependants_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	Hashtbl.iter (fun n ml ->
@@ -197,3 +219,11 @@ let dump_dependencies ?(target_override=None) com =
 		) ml;
 	) dep;
 	close()
+
+let maybe_generate_dump com stage =
+	if com.Common.dump_config.dump_mode <> NoDump && com.dump_config.dump_stage = stage then begin
+		Timer.time com.timer_ctx ["generate";"dump"] (fun () ->
+			dump_types com;
+			Option.may dump_types (com.get_macros());
+		) ();
+	end

@@ -9,7 +9,7 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 
 	@:arrayAccess inline function get( index : Int ) : T return untyped this[index];
 
-	public inline function unsafeSet( index : Int, v : T ) return untyped this[index] = v;
+	public inline function unsafeSet( index : Int, v : T ) : T return untyped this[index] = v;
 
 	public static inline function alloc<T>( cl : Class<T>, size : Int ) : CArray<T> {
 		return cast alloc_carray( (cast cl:BaseType).__type__ , size );
@@ -19,6 +19,16 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 	static function alloc_carray( t : hl.Type, size : Int ) : CArray<Dynamic> {
 		return null;
 	}
+
+	#if (hl_ver >= version("1.16.0"))
+	public inline function blit( cl : Class<T>, pos : Int, src : CArray<T>, srcPos : Int, srcLen : Int ) : Void {
+		carray_blit( cast this, (cast cl:BaseType).__type__, pos, src, srcPos, srcLen );
+	}
+
+	@:hlNative("?std","carray_blit")
+	static function carray_blit( dst: CArray<Dynamic>, t : hl.Type, pos : Int, src : CArray<Dynamic>, srcPos : Int, srcLen : Int ) : Void {
+	}
+	#end
 
 }
 #end

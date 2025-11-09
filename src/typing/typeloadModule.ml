@@ -27,7 +27,6 @@ open DisplayTypes.DisplayMode
 open Common
 open Typeload
 open Error
-open Resolution
 
 let get_policy g mpath =
 	let sl1 = full_dot_path2 mpath mpath in
@@ -78,7 +77,7 @@ module ModuleLevel = struct
 			DeprecationCheck.check_is com ctx_m.m.curmod meta [] name meta p;
 			let error prev_pos =
 				raise_typing_error_ext (make_error (Custom ("Name " ^ name ^ " is already defined in this module")) ~sub:[
-					make_error ~depth:1 (Custom (compl_msg "Previous declaration here")) prev_pos
+					make_error (Custom (compl_msg "Previous declaration here")) prev_pos
 				] p);
 			in
 			DynArray.iter (fun t2 ->
@@ -141,7 +140,6 @@ module ModuleLevel = struct
 					has_declaration := true;
 					let priv = List.mem EPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
-					if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then raise_typing_error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 					let e = {
 						(mk_enum m path p (pos d.d_name)) with
 						e_doc = d.d_doc;
@@ -174,6 +172,19 @@ module ModuleLevel = struct
 					let priv = List.mem AbPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
 					let p_enum_meta = Meta.maybe_get_pos Meta.Enum d.d_meta in
+					let a_default = try
+						begin match Meta.get Meta.DefaultValue d.d_meta with
+						| (_,[e],_) ->
+							Some (Lazy.from_fun (fun () ->
+								let ctx = TyperManager.clone_for_expr ctx_m FunStatic FunNotFunction in
+								type_expr ctx e WithType.value
+							))
+						| _ ->
+							raise Not_found
+						end
+					with Not_found ->
+						None
+					in
 					let a = {
 						a_path = path;
 						a_private = priv;
@@ -200,6 +211,7 @@ module ModuleLevel = struct
 						a_constructor = None;
 						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
+						a_default;
 					} in
 					begin match p_enum_meta with
 						| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
@@ -294,7 +306,7 @@ module ModuleLevel = struct
 			with Not_found ->
 				if Sys.file_exists path then begin
 					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
-						| ParseSuccess(data,_,_) -> data
+						| ParseSuccess(data,_) -> data
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
@@ -686,10 +698,7 @@ module TypeLevel = struct
 end
 
 let make_curmod com g m =
-	let rl = new resolution_list ["import";s_type_path m.m_path] in
-	List.iter (fun mt ->
-		rl#add (module_type_resolution mt None null_pos))
-	(List.rev g.std_types.m_types);
+	let rl = g.root_typer.m.import_resolution#clone_as ["import";s_type_path m.m_path] in
 	{
 		curmod = m;
 		import_resolution = rl;
@@ -706,12 +715,6 @@ let make_curmod com g m =
 let type_types_into_module com g m tdecls p =
 	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
 	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
-	(* define the per-module context for the next pass *)
-	if ctx_m.g.std_types != null_module then begin
-		add_dependency m ctx_m.g.std_types MDepFromTyping;
-		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
-		ignore(load_instance ctx_m (make_ptp (mk_type_path (["std"],"String")) null_pos) ParamNormal LoadNormal)
-	end;
 	ModuleLevel.init_type_params ctx_m decls;
 	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
 	(* setup module types *)
@@ -729,11 +732,8 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
 	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
+	incr stats.s_modules_typed;
 	m
-
-(* let type_module ctx mpath file ?(is_extern=false) tdecls p =
-	let timer = Timer.timer ["typing";"type_module"] in
-	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
 
 class hxb_reader_api_typeload
 	(com : context)
@@ -762,8 +762,8 @@ class hxb_reader_api_typeload
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
 		let uid = fst alloc_var' in
-		incr uid;
-		!uid
+		Atomic.incr uid;
+		Atomic.get uid
 
 	method read_expression_eagerly (cf : tclass_field) =
 		com.is_macro_context || match cf.cf_kind with
@@ -778,10 +778,10 @@ class hxb_reader_api_typeload
 end
 
 let rec load_hxb_module com g path p =
-	let read file bytes string_pool =
+	let read file bytes =
 		try
 			let api = (new hxb_reader_api_typeload com g load_module' p :> HxbReaderApi.hxb_reader_api) in
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats string_pool (Common.defined com Define.HxbTimes) in
+			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let read = reader#read api bytes in
 			let m = read EOT in
 			delay g PConnectField (fun () ->
@@ -799,7 +799,7 @@ let rec load_hxb_module com g path p =
 		| hxb_lib :: l ->
 			begin match hxb_lib#get_bytes target path with
 				| Some bytes ->
-					read hxb_lib#get_file_path bytes (hxb_lib#get_string_pool target)
+					read hxb_lib#get_file_path bytes
 				| None ->
 					loop l
 			end
@@ -852,9 +852,5 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
 	m2
-
-(* let load_module ctx m p =
-	let timer = Timer.timer ["typing";"load_module"] in
-	Std.finally timer (load_module ctx m) p *)
 
 ;;

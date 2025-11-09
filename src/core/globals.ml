@@ -10,6 +10,34 @@ module IntMap = Map.Make(struct type t = int let compare i1 i2 = i2 - i1 end)
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 module Int32Map = Map.Make(struct type t = Int32.t let compare = Int32.compare end)
 
+module IntHashtbl = Hashtbl.Make(struct
+	type t = int
+
+	let equal =
+		Int.equal
+
+	let hash = Int.hash
+end)
+
+module Int64Hashtbl = Hashtbl.Make(struct
+	type t = Signed.Int64.t
+
+	let equal =
+		Signed.Int64.equal
+
+	let hash = Hashtbl.hash
+end)
+
+module StringHashtbl = Hashtbl.Make(struct
+	type t = string
+
+	let equal =
+		String.equal
+
+	let hash s =
+		Hashtbl.hash s
+end)
+
 type platform =
 	| Cross
 	| Js
@@ -37,7 +65,7 @@ let version = 5000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = Some "alpha.1"
+let version_pre = Some "preview.1"
 
 let file_pos file = { pfile = file; pmin = 0; pmax = 0 }
 let fake_pos p = { pfile = p; pmin = -1; pmax = -1 }
@@ -151,6 +179,8 @@ let s_version_full v =
 
 
 let patch_string_pos p s = { p with pmin = p.pmax - String.length s }
+
+let gen_local_prefix = "`"
 
 (* msg * backtrace *)
 exception Ice of string * string

@@ -44,28 +44,35 @@ import haxe.ds.List;
 **/
 class Serializer {
 	/**
-		If the values you are serializing can contain circular references or
-		objects repetitions, you should set `USE_CACHE` to true to prevent
-		infinite loops.
+		Enables object caching during serialization to handle circular references and
+		repeated objects.
 
-		This may also reduce the size of serialization Strings at the expense of
-		performance.
+		Set `USE_CACHE` to `true` if the values you are serializing may contain
+		circular references or repeated objects. This prevents infinite loops and
+		ensures that shared references are preserved in the serialized output.
 
-		This value can be changed for individual instances of `Serializer` by
-		setting their `useCache` field.
-	**/
+		Enabling this option may also reduce the size of the resulting serialized
+		string, but can have a minor performance impact.
+
+		This is a global default. You can override it per instance using the
+		`useCache` field on a `Serializer`.
+	 */
 	public static var USE_CACHE = false;
 
 	/**
-		Use constructor indexes for enums instead of names.
+		Serializes enum values using constructor indices instead of names.
 
-		This may reduce the size of serialization Strings, but makes them less
-		suited for long-term storage: If constructors are removed or added from
-		the enum, the indices may no longer match.
+		When `USE_ENUM_INDEX` is set to `true`, enum constructors are serialized by
+		their numeric index. This can reduce the size of the serialized data,
+		especially for enums with long or frequently used constructor names.
 
-		This value can be changed for individual instances of `Serializer` by
-		setting their `useEnumIndex` field.
-	**/
+		However, using indices makes serialized data more fragile for long-term
+		storage. If enum definitions change (e.g., by adding or removing constructors),
+		the indices may no longer match the intended constructors.
+
+		This is a global default. You can override it per instance using the
+		`useEnumIndex` field on a `Serializer`.
+	 */
 	public static var USE_ENUM_INDEX = false;
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
@@ -77,17 +84,24 @@ class Serializer {
 	var scount:Int;
 
 	/**
-		The individual cache setting for `this` Serializer instance.
+		Determines whether this `Serializer` instance uses object caching.
+
+		When enabled, repeated references to the same object are serialized using references
+		instead of duplicating data, reducing output size and preserving object identity.
 
 		See `USE_CACHE` for a complete description.
-	**/
+	 */
 	public var useCache:Bool;
 
 	/**
-		The individual enum index setting for `this` Serializer instance.
+		Determines whether this `Serializer` instance serializes enum values using their index
+		instead of their constructor name.
+
+		Using indexes can reduce the size of the serialized data but may be less readable and
+		more fragile if enum definitions change.
 
 		See `USE_ENUM_INDEX` for a complete description.
-	**/
+	 */
 	public var useEnumIndex:Bool;
 
 	/**
@@ -106,6 +120,19 @@ class Serializer {
 		useCache = USE_CACHE;
 		useEnumIndex = USE_ENUM_INDEX;
 		shash = new haxe.ds.StringMap();
+		scount = 0;
+	}
+
+	/**
+		Resets the internal state of the Serializer, allowing it to be reused.
+
+		This does not affect the `useCache` or `useEnumIndex` properties;
+		their values will remain unchanged after calling this method.
+	**/
+	public function reset() {
+		buf.clear();
+		cache.resize(0);
+		shash.clear();
 		scount = 0;
 	}
 
@@ -216,7 +243,8 @@ class Serializer {
 	
 		All haxe-defined values and objects with the exception of functions can
 		be serialized. Serialization of external/native objects is not
-		guaranteed to work.
+		guaranteed to work. This is also true for classes extending external/native
+		classes. On some targets, this might include exceptions, too.
 	
 		The values of `this.useCache` and `this.useEnumIndex` may affect
 		serialization output.

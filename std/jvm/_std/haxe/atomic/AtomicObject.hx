@@ -2,6 +2,20 @@ package haxe.atomic;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+#if doc_gen
+@:coreType
+abstract AtomicObject<T:{}> {
+	public function new(value:T):Void;
+
+	public function compareExchange(expected:T, replacement:T):T;
+
+	public function exchange(value:T):T;
+
+	public function load():T;
+
+	public function store(value:T):T;
+}
+#else
 abstract AtomicObject<T:{}>(AtomicReference<T>) {
 	public inline function new(value:T) {
 		this = new AtomicReference(value);
@@ -32,3 +46,4 @@ abstract AtomicObject<T:{}>(AtomicReference<T>) {
 		return value;
 	}
 }
+#end

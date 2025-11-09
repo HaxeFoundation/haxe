@@ -30,7 +30,7 @@ let s_module_type_kind = function
 
 
 module MonomorphPrinting = struct
-	let show_mono_ids = true
+	let show_mono_ids = ref true
 
 	let s_mono_constraint_kind s_type constr =
 		let rec loop = function
@@ -42,7 +42,7 @@ module MonomorphPrinting = struct
 		loop constr
 
 	let print_mono_name m id extra =
-		let s = if show_mono_ids then
+		let s = if !show_mono_ids then
 			Printf.sprintf "Unknown<%d>" id
 		else
 			"Unknown"
@@ -164,6 +164,7 @@ let s_access is_read = function
 	| AccNo -> "null"
 	| AccNever -> "never"
 	| AccCall -> if is_read then "get" else "set"
+	| AccPrivateCall -> if is_read then "private get" else "private set"
 	| AccInline	-> "inline"
 	| AccRequire (n,_) -> "require " ^ n
 	| AccCtor -> "ctor"
@@ -592,6 +593,7 @@ module Printer = struct
 			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
 			"a_read",s_opt (fun cf -> cf.cf_name) a.a_read;
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
+			"a_default",s_opt (fun lazy_texpr -> lazy_texpr |> Lazy.force |> s_expr_ast true "" s_type) a.a_default;
 		]
 
 	let s_tvar_extra ve =

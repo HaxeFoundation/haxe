@@ -7,7 +7,7 @@ class Main {
 			trace(count++);
 			if( count == 10 ) {
 				event.stop();
-				trace(haxe.MainLoop.hasEvents());
+				trace(haxe.EventLoop.main.hasEvents());
 			}
 		});
 
@@ -41,10 +41,10 @@ class Main {
 		Sys.sleep(0.3);
 		#end
 
-		haxe.MainLoop.addThread(function() {
-			var event : haxe.MainLoop.MainEvent = null;
+		haxe.EventLoop.addTask(function() {
+			var event = haxe.EventLoop.main.addAsync();
 			var count = 0;
-			event = haxe.MainLoop.add(function() {
+			event.start(function() {
 				trace(String.fromCharCode("A".code + count++));
 				if( count == 5 ) event.stop();
 			});

@@ -1474,7 +1474,7 @@ let get_id path ids =
   | None ->
     let new_id = make_id 0 in
     (new_id, ObjectIds.add path new_id ids)
-  
+
 let native_field_name_remap field =
   match get_meta_string field.cf_meta Meta.Native with
   | Some nativeImpl ->
@@ -1504,6 +1504,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     tcv_type = field.cf_type;
     tcv_default = None;
 
+    tcv_has_getter = (match field.cf_kind with | Var { v_read = AccCall | AccPrivateCall } -> true | _ -> false);
     tcv_is_stackonly = has_meta Meta.StackOnly field.cf_meta;
     tcv_is_reflective = reflective class_def field;
     tcv_is_gc_element = cpp_type_of with_promoted_value_type field.cf_type |> is_gc_element ctx;
@@ -1537,14 +1538,14 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
             (* We can't implement abstract functions as pure virtual due to cppia needing to construct the class *)
             let map_arg (name, _, t) =
               ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
-            let expr = 
+            let expr =
               match follow ret with
               | TAbstract ({ a_path = ([], "Void") }, _) ->
                 { eexpr = TReturn None; etype = ret; epos = null_pos }
               | _ ->
                 let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
                 { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
-            
+
             {
               tf_args = args |> List.map map_arg;
               tf_type = ret;
@@ -1581,7 +1582,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       | Var _, _ ->
         Some (create_variable field)
       (* Dynamic methods are implemented as a physical field holding a closure *)
-      | Method MethDynamic, Some { eexpr = TFunction func } -> 
+      | Method MethDynamic, Some { eexpr = TFunction func } ->
         Some (create_variable { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) })
       (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
       (* See Int32.hx as an example *)
@@ -1601,7 +1602,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       None in
 
   let id, ids = get_id class_def.cl_path ids in
-  
+
   let static_functions =
     class_def.cl_ordered_statics
     |> List.filter_map (filter_functions true) in
@@ -1620,7 +1621,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     |> List.filter (fun field -> field.cf_name <> "__meta__" && field.cf_name <> "__rtti")
     |> List.filter_map filter_properties in
 
-  let functions = 
+  let functions =
     class_def.cl_ordered_fields
     |> List.filter_map (filter_functions true) in
 

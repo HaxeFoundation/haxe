@@ -3,7 +3,7 @@ package unit.issues;
 import utest.Assert;
 
 class Issue12047 extends Test {
-	static function test() {
+	function test() {
 		try {
 			throwCatchWrap();
 		} catch (err:Issue12047) {

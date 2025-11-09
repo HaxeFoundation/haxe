@@ -231,13 +231,14 @@ let reify in_macro =
 		| Some p ->
 			p
 		| None ->
-		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
-		let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
-		let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
-		if in_macro then
-			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
-		else
-			to_obj [("file",file);("min",pmin);("max",pmax)] p
+			if in_macro then
+				(EUntyped (EConst (Ident "$__mk_pos__"),p),p)
+			else begin
+				let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
+				let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
+				let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
+				to_obj [("file",file);("min",pmin);("max",pmax)] p
+			end
 	and to_enc_pos p =
 		match !cur_pos with
 		| Some p -> p

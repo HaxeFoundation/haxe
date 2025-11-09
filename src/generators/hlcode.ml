@@ -203,7 +203,8 @@ type opcode =
 	| ORefOffset of reg * reg * reg
 	| ONop of string
 	| OPrefetch of reg * field index * int
-    | OAsm of int * int * reg
+	| OAsm of int * int * reg
+	| OCatch of global
 
 type fundecl = {
 	fpath : string * string;
@@ -213,6 +214,7 @@ type fundecl = {
 	code : opcode array;
 	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int) array;
+	need_opt : bool;
 }
 
 type code = {
@@ -601,7 +603,7 @@ let ostr fstr o =
 	| ONop s -> if s = "" then "nop" else "nop " ^ s
 	| OPrefetch (r,f,mode) -> Printf.sprintf "prefetch %d[%d] %d" r f mode
 	| OAsm (mode, value, reg) ->
-		match mode with
+		(match mode with
 		| 0 when reg = 0 ->
 			Printf.sprintf "asm %.2X" value
 		| 1 when reg = 0 ->
@@ -612,6 +614,8 @@ let ostr fstr o =
 			Printf.sprintf "asm %d := R%d" (reg - 1) value
 		| _ ->
 			Printf.sprintf "asm[%d] %d%s" mode value (if reg = 0 then "" else ", " ^ string_of_int (reg-1))
+		)
+	| OCatch g -> Printf.sprintf "catch %d" g
 
 let fundecl_name f = if snd f.fpath = "" then "fun$" ^ (string_of_int f.findex) else (fst f.fpath) ^ "." ^ (snd f.fpath)
 

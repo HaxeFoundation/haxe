@@ -313,7 +313,7 @@ let build_enum_abstract ctx c a fields p =
 					()
 				| VPublic(access,p2) | VPrivate(access,p2) ->
 					display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access))) ~sub:[
-						make_error ~depth:1 (Custom (compl_msg "Conflicts with this")) p2;
+						make_error (Custom (compl_msg "Conflicts with this")) p2;
 					] p1)
 			in
 			let rec loop visibility acc = match acc with
@@ -478,7 +478,6 @@ let create_typer_context_for_class ctx cctx p =
 	incr stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
-	if Meta.has Meta.Macro c.cl_meta then display_error ctx.com "Macro classes are no longer allowed in haxe 3" c.cl_pos;
 	TyperManager.clone_for_class ctx c
 
 let create_field_context ctx cctx cff is_display_file display_modifier =
@@ -555,7 +554,7 @@ let create_typer_context_for_field ctx cctx fctx cff cf =
 			invalid_modifier_combination fctx ctx.com fctx "abstract" "inline" (pos cff.cff_name)
 		else if not (has_class_flag c CAbstract) then begin
 			display_error_ext ctx.com (make_error (Custom "This class should be declared abstract because it has at least one abstract field") ~sub:[
-				make_error ~depth:1 (Custom (compl_msg "First abstract field was here")) (pos cff.cff_name);
+				make_error (Custom (compl_msg "First abstract field was here")) (pos cff.cff_name);
 			] c.cl_name_pos);
 			add_class_flag c CAbstract;
 		end;
@@ -735,7 +734,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let t = cf.cf_type in
 		let p = cf.cf_pos in
-		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) false in
+		let ctx = TyperManager.clone_for_expr ctx_f (if fctx.is_static then FunStatic else FunMember) FunNotFunction in
 		if (has_class_flag c CInterface) then unexpected_expression ctx.com fctx "Initialization on field of interface" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],mk_zero_range_pos cf.cf_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -754,14 +753,14 @@ module TypeBinding = struct
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
-				if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing field %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
+				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
 					| TConst _ | TLocal _ | TFunction _ -> e
 					| _ -> !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path cctx.tclass.cl_path) cf.cf_name) e
 				in
 				let require_constant_expression e msg =
-					match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+					match Optimizer.make_constant_expression (SafeCom.of_typer ctx) (maybe_run_analyzer e) with
 					| Some e -> e
 					| None -> display_error ctx.com msg p; e
 				in
@@ -793,7 +792,7 @@ module TypeBinding = struct
 						e
 					end in
 					e
-				| Var v when v.v_read = AccInline && (ctx.g.doinline || is_forced_inline (Some c) cf) ->
+				| Var v when v.v_read = AccInline && (ctx.com.doinline || is_forced_inline (Some c) cf) ->
 					let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 					begin match c.cl_kind with
 						| KAbstractImpl a when has_class_field_flag cf CfEnum && a.a_enum ->
@@ -826,12 +825,12 @@ module TypeBinding = struct
 		| Some e ->
 			bind_var_expression ctx cctx fctx cf e
 
-	let bind_method ctx_f cctx fctx fmode cf t args ret e p =
+	let bind_method ctx_f cctx fctx fmode cf t args ret e function_mode p =
 		let c = cctx.tclass in
-		let ctx = TyperManager.clone_for_expr ctx_f fmode true in
+		let ctx = TyperManager.clone_for_expr ctx_f fmode function_mode in
 		let bind () =
 			incr stats.s_methods_typed;
-			if (Meta.has (Meta.Custom ":debug.typing") (c.cl_meta @ cf.cf_meta)) then ctx.com.print (Printf.sprintf "Typing method %s.%s\n" (s_type_path c.cl_path) cf.cf_name);
+			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			begin match ctx.com.platform with
 				| Jvm when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
 					if e <> None then
@@ -1018,11 +1017,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		in
 		begin match follow t with
 			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
-				if a.a_read <> None then raise_typing_error "Multiple resolve-read methods are not supported" cf.cf_pos;
+				if a.a_read <> None then display_error ctx.com "Multiple resolve-read methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_read <- Some cf;
 			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
-				if a.a_write <> None then raise_typing_error "Multiple resolve-write methods are not supported" cf.cf_pos;
+				if a.a_write <> None then display_error ctx.com "Multiple resolve-write methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_write <- Some cf;
 			| _ ->
@@ -1143,7 +1142,8 @@ let setup_args_ret ctx cctx fctx name fd p =
 		let name = String.sub name 4 (String.length name - 4) in
 		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
 		match Lazy.force mk, cf.cf_kind with
-			| MKGetter, Var({v_read = AccCall}) | MKSetter, Var({v_write = AccCall}) -> cf.cf_type
+			| MKGetter, Var({v_read = AccCall | AccPrivateCall})
+			| MKSetter, Var({v_write = AccCall | AccPrivateCall}) -> cf.cf_type
 			| _ -> raise Not_found;
 	in
 	let maybe_use_property_type th check def =
@@ -1257,7 +1257,9 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
-	let t = TFun (args#for_type,ret) in
+	let function_mode = FunFunction in
+	let targs = args#for_type in
+	let t = TFun (targs,ret) in
 	cf.cf_type <- t;
 	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 	cf.cf_params <- params;
@@ -1328,18 +1330,18 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	in
 	init_meta_overloads ctx (Some c) cf;
 	if fctx.do_bind then
-		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr function_mode (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		if fctx.is_display_field then begin
 			delay ctx.g PTypeField (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-				let ctx = TyperManager.clone_for_expr ctx fmode true in
+				let ctx = TyperManager.clone_for_expr ctx fmode function_mode in
 				ignore(args#for_expr ctx)
 			);
 			check_field_display ctx fctx c cf;
 		end else
 			delay ctx.g PTypeField (fun () ->
-				let ctx = TyperManager.clone_for_expr ctx fmode true in
+				let ctx = TyperManager.clone_for_expr ctx fmode function_mode in
 				args#verify_extern ctx
 			);
 		if fd.f_expr <> None then begin
@@ -1399,7 +1401,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 					(match f2.cf_kind with
 						| Method MethMacro ->
 							display_error_ext ctx.com (make_error (Custom (f2.cf_name ^ ": Macro methods cannot be used as property accessor")) ~sub:[
-								make_error ~depth:1 (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
+								make_error (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
 							] p);
 						| _ -> ());
 					unify_raise t2 t f2.cf_pos;
@@ -1458,6 +1460,11 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
+		| "private get",pget ->
+			let get = "get_" ^ name in
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
+			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
+			AccPrivateCall
 		| _,pget ->
 			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
 			AccCall
@@ -1477,11 +1484,18 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
+		| "private set",pset ->
+			let set = "set_" ^ name in
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
+			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
+			AccPrivateCall
 		| _,pset ->
 			display_error ctx.com (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
-	if (set = AccNever && get = AccNever)  then raise_typing_error (name ^ ": Unsupported property combination") p;
+	if (set = AccNever && get = AccNever) then raise_typing_error (name ^ ": Unsupported property combination") p;
+	if (set = AccPrivateCall && get = AccPrivateCall && has_class_field_flag cf CfPublic) then
+		raise_typing_error (name ^ ": (private get, private set) property cannot be public") p;
 	cf.cf_kind <- Var { v_read = get; v_write = set };
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	if List.mem_assoc AEnum f.cff_access then add_class_field_flag cf CfEnum;
@@ -1555,7 +1569,7 @@ let check_overload ctx f fs is_extern_class =
 			) fs
 		in
 		display_error_ext ctx.com (make_error (Custom ("Another overloaded field of same signature was already declared : " ^ f.cf_name)) ~sub:[
-			make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos;
+			make_error (Custom (compl_msg "The second field is declared here")) f2.cf_pos;
 		] f.cf_pos);
 		false
 	with Not_found -> try
@@ -1573,7 +1587,7 @@ let check_overload ctx f fs is_extern_class =
 			"Another overloaded field of similar signature was already declared : " ^
 			f.cf_name ^
 			"\nThe signatures are different in Haxe, but not in the target language"
-		)) ~sub:[make_error ~depth:1 (Custom (compl_msg "The second field is declared here")) f2.cf_pos] f.cf_pos);
+		)) ~sub:[make_error (Custom (compl_msg "The second field is declared here")) f2.cf_pos] f.cf_pos);
 		false
 	with Not_found ->
 		true
@@ -1775,13 +1789,13 @@ let init_class ctx_c cctx c p herits fields =
 				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
 			end else begin
 				display_error_ext com (make_error (Custom "This class has uninitialized final vars, which requires a constructor") ~sub:[
-					make_error ~depth:1 (Custom "Example of an uninitialized final var") cf.cf_name_pos;
+					make_error (Custom "Example of an uninitialized final var") cf.cf_name_pos;
 				] p);
 			end
 		| _ ->
 			()
 	end;
-	if not has_struct_init && not (has_class_flag c CAbstract) then
+	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
-		if not com.config.pf_overload then TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p;
+		if not com.config.pf_overload then delay_late ctx_c.g PConnectField (fun() -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
 	finalize_class cctx

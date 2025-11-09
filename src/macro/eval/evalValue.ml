@@ -43,7 +43,7 @@ type vstring_buffer = {
 let vstring_equal s1 s2 =
 	s1 == s2 || s1.sstring = s2.sstring
 
-module StringHashtbl = struct
+module RuntimeStringHashtbl = struct
 	type 'value t = (vstring * 'value) StringMap.t ref
 
 	let add this key v = this := StringMap.add key.sstring (key,v) !this
@@ -56,21 +56,39 @@ module StringHashtbl = struct
 	let mem this key = StringMap.mem key.sstring !this
 	let remove this key = this := StringMap.remove key.sstring !this
 	let clear this = this := StringMap.empty
+	let size this = StringMap.cardinal !this
 end
 
-module IntHashtbl = struct
-	type 'value t = (int, 'value) Hashtbl.t
+module RuntimeIntHashtbl = struct
+	type 'value t = 'value IntHashtbl.t
 
-	let add this key v = Hashtbl.replace this key v
-	let copy this = Hashtbl.copy this
-	let create () = Hashtbl.create 0
-	let find this key = Hashtbl.find this key
-	let fold f this acc = Hashtbl.fold f this acc
-	let is_empty this = Hashtbl.length this = 0
-	let iter f this = Hashtbl.iter f this
-	let mem this key = Hashtbl.mem this key
-	let remove this key = Hashtbl.remove this key
-	let clear this = Hashtbl.clear this
+	let add this key v = IntHashtbl.replace this key v
+	let copy this = IntHashtbl.copy this
+	let create () = IntHashtbl.create 0
+	let find this key = IntHashtbl.find this key
+	let fold f this acc = IntHashtbl.fold f this acc
+	let is_empty this = IntHashtbl.length this = 0
+	let iter f this = IntHashtbl.iter f this
+	let mem this key = IntHashtbl.mem this key
+	let remove this key = IntHashtbl.remove this key
+	let clear this = IntHashtbl.clear this
+	let size this = IntHashtbl.length this
+end
+
+module RuntimeInt64Hashtbl = struct
+	type 'value t = 'value Int64Hashtbl.t
+
+	let add this key v = Int64Hashtbl.replace this key v
+	let copy this = Int64Hashtbl.copy this
+	let create () = Int64Hashtbl.create 0
+	let find this key = Int64Hashtbl.find this key
+	let fold f this acc = Int64Hashtbl.fold f this acc
+	let is_empty this = Int64Hashtbl.length this = 0
+	let iter f this = Int64Hashtbl.iter f this
+	let mem this key = Int64Hashtbl.mem this key
+	let remove this key = Int64Hashtbl.remove this key
+	let clear this = Int64Hashtbl.clear this
+	let size this = Int64Hashtbl.length this
 end
 
 type vregex = {
@@ -186,8 +204,9 @@ and vinstance_kind =
 	| IBytes of bytes
 	| IRegex of vregex
 	| IDate of float
-	| IStringMap of value StringHashtbl.t
-	| IIntMap of value IntHashtbl.t
+	| IStringMap of value RuntimeStringHashtbl.t
+	| IIntMap of value RuntimeIntHashtbl.t
+	| IInt64Map of value RuntimeInt64Hashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
 	| IOutput of Buffer.t (* BytesBuffer *)
 	| IBuffer of vstring_buffer(* StringBuf *)
@@ -214,6 +233,9 @@ and vinstance_kind =
 	| IMbedtlsSsl of Mbedtls.mbedtls_ssl_context
 	| IMbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
+	| IAtomicBool of bool Atomic.t
+	| IAtomicInt of int Atomic.t
+	| IAtomicObject of value Atomic.t
 
 and vinstance = {
 	(* The fields of this instance. *)
@@ -238,7 +260,7 @@ and venum_value = {
 	eindex : int;
 	eargs : value array;
 	epath : int;
-	enpos : pos option;
+	mutable enpos : pos option;
 }
 
 and vthread = {
@@ -347,6 +369,7 @@ let vfield_closure v f = VFieldClosure(v,f)
 let vobject o = VObject o
 let vint i = VInt32 (Int32.of_int i)
 let vint32 i = VInt32 i
+let vint64 i = VInt64 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 let vnative_string s = VNativeString s
@@ -356,3 +379,9 @@ let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.prin
 let rec vresolve v = match v with
 	| VLazy f -> vresolve (Lazy.force f)
 	| _ -> v
+
+let associate_enum_value_pos ve p = match ve with
+	| VEnumValue ve ->
+		ve.enpos <- Some p
+	| _ ->
+		()

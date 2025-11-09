@@ -421,13 +421,13 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 				let t_expected = BinopResult.get_type result in
 				begin try
 					unify_raise tret t_expected p
-				with Error { err_message = Unify _; err_depth = depth } ->
+				with Error { err_message = Unify _ } ->
 					match follow tret with
 						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
 							()
 						| _ ->
 							let st = s_type (print_context()) in
-							raise_typing_error ~depth (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
+							raise_typing_error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 				end;
 			end;
 			(*
@@ -451,7 +451,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
 	if is_eq_op then begin match follow e1.etype,follow e2.etype with
 		| TMono _,_ | _,TMono _ ->
-			Type.unify e1.etype e2.etype
+			(try Type.unify e1.etype e2.etype with Unify_error _ -> () (* this will fail later again *));
 		| _ ->
 			()
 	end;
@@ -638,8 +638,19 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	in
 	let e1 = type_expr ctx e1 wt in
 	let e1 = match wt with
-		| WithType.WithType(t,_) -> AbstractCast.cast_or_unify ctx t e1 e1.epos
-		| _ -> e1
+		| WithType.WithType(t,_) ->
+			let has_matching_op a =
+				List.exists (fun (o,_) -> o = op) a.a_ops
+			in
+			begin match follow e1.etype with
+				| TAbstract(a,tl) when has_matching_op a ->
+					(* The operator could be ambiguous, let's not cast (issue #12145). *)
+					e1
+				| _ ->
+					AbstractCast.cast_or_unify ctx t e1 e1.epos
+			end
+		| _ ->
+			e1
 	in
 	let result = if abstract_overload_only then begin
 		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
@@ -666,7 +677,8 @@ type 'a assign_op_api = {
 
 let handle_assign_op ctx api e1 e2 with_type p =
 	let field_rhs_by_name name ev with_type =
-		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
+		let field_pos = snd e1 in
+		let access_get = type_field_default_cfg ctx ev name field_pos MGet with_type in
 		let e_get = acc_get ctx access_get in
 		e_get,api.type_rhs e_get e2
 	in
@@ -720,7 +732,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let save = save_locals ctx in
 			let vr = new value_reference ctx in
-			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression ctx e with
+			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression (SafeCom.of_typer ctx) e with
 				| Some e -> e
 				| None -> vr#as_var name e
 			in
@@ -933,7 +945,8 @@ let type_unop ctx op flag e with_type p =
 				e_lhs,None
 		in
 		let read_on vr ef fa =
-			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+			let field_pos = snd e in
+			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 			let e_lhs = acc_get ctx access_get in
 			let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 			e_lhs,e_out
@@ -958,7 +971,8 @@ let type_unop ctx op flag e with_type p =
 			| AKField fa ->
 				let vr = new value_reference ctx in
 				let ef = vr#get_expr_part "fh" fa.fa_on in
-				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+				let field_pos = snd e in
+				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 				let e,e_out = match access_get with
 				| AKField _ ->
 					let e = FieldAccess.get_field_expr {fa with fa_on = ef} FGet in

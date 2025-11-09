@@ -151,7 +151,7 @@ class StringTools {
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
-	public static function htmlEscape(s:String, ?quotes:Bool):String {
+	public static function htmlEscape(s:String, quotes = false):String {
 		var buf = new StringBuf();
 		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {
@@ -464,7 +464,7 @@ class StringTools {
 		#elseif java
 		return (index < s.length) ? cast(_charAt(s, index), Int) : -1;
 		#elseif js
-		return (cast s).charCodeAt(index);
+		return js.lib.NativeStringTools.charCodeAt(s, index);
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl
@@ -501,7 +501,7 @@ class StringTools {
 		#elseif java
 		return cast(_charAt(s, index), Int);
 		#elseif js
-		return (cast s).charCodeAt(index);
+		return js.lib.NativeStringTools.charCodeAt(s, index);
 		#elseif python
 		return python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl

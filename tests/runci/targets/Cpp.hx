@@ -53,6 +53,8 @@ class Cpp {
 				'HXCPP_M32';
 			case 'Linux' if(Linux.arch == Arm64):
 				'HXCPP_LINUX_ARM64';
+			case 'Mac' if(commandResult('arch', []).stdout == "arm64"):
+				'HXCPP_ARM64';
 			case _:
 				'HXCPP_M64';
 		}
@@ -71,6 +73,8 @@ class Cpp {
 			if (!isLinuxArm64) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
+
+		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));

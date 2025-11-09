@@ -10,14 +10,14 @@ let make_stack envs =
 	List.iter (fun (pos,kind) ->
 		let file_pos s =
 			let line1,col1,_,_ = Lexer.get_pos_coords pos in
-			encode_enum_value key_haxe_StackItem 2 [|s;create_unknown pos.pfile;vint line1;vint col1|] None
+			encode_enum_value key_haxe_StackItem 2 [|s;create_unknown pos.pfile;vint line1;vint col1|] (Some pos)
 		in
 		match kind with
 		| EKLocalFunction i ->
-			let local_function = encode_enum_value key_haxe_StackItem 4 [|vint i|] None in
+			let local_function = encode_enum_value key_haxe_StackItem 4 [|vint i|] (Some pos) in
 			DynArray.add l (file_pos local_function);
 		| EKMethod(st,sf) ->
-			let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
+			let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] (Some pos) in
 			DynArray.add l (file_pos local_function);
 		| EKMacro(st,sf) ->
 			()
@@ -41,6 +41,6 @@ let getCallStack = vfun0 (fun () ->
 
 let getExceptionStack = vfun0 (fun () ->
 	let ctx = get_ctx() in
-	let envs = ctx.exception_stack in
+	let envs = (get_eval ctx).exception_stack in
 	make_stack (List.rev envs)
 )

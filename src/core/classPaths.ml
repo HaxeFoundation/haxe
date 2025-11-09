@@ -11,16 +11,25 @@ let create_resolved_file file class_path = {
 	class_path;
 }
 
+type file_resolution_specificity =
+	| SpecificityNormal            (* Standard Module.hx file *)
+	| SpecificityPlatformSpecific  (* Module.[platform].hx file matching current platform *)
+	| SpecificityCustomExtension   (* Module.[custom].hx file matching --custom-extension config *)
+	| SpecificityMacroSpecific     (* Module.macro.hx file while in macro context *)
+	| SpecificityCoreApi           (* Module.hx takes priority when loading @:coreApi types *)
+
 (* We need to clean-up absolute ("") vs. cwd ("."). *)
 let absolute_class_path = new directory_class_path "" User
 
 class class_paths = object(self)
 	val mutable l = []
 	val file_lookup_cache = new Lookup.hashtbl_lookup;
+	val mutable custom_ext = None
 	val mutable platform_ext = ""
 	val mutable is_loading_core_api = false
 
-	method lock_context (platform_name : string) (core_api : bool) : unit =
+	method lock_context (custom_extension : string option) (platform_name : string) (core_api : bool) : unit =
+		custom_ext <- Option.map (fun ext -> "." ^ ext) custom_extension;
 		platform_ext <- "." ^ platform_name;
 		is_loading_core_api <- core_api;
 		self#clear_cache
@@ -76,59 +85,60 @@ class class_paths = object(self)
 		(*
 			This function is invoked for each file in the `dir`.
 			Each file is checked if it's specific for current platform
-			(e.g. ends with `.js.hx` while compiling for JS).
-			If it's not platform-specific:
-				Check the lookup cache and if the file is not there store full file path in the cache.
-			If the file is platform-specific:
-				Store the full file path in the lookup cache probably replacing the cached path to a
-				non-platform-specific file.
+			(e.g. ends with `.js.hx` while compiling for JS) or current
+			custom extension (e.g. ends with `.custom.hx` while compiling
+			with `--custom-extension custom`)
+
+			The lookup cache will store the full file path which is the more
+			specific in current context (see `file_resolution_specificity` type)
 		*)
 		let found = ref None in
 		let f_dir = Filename.dirname f_search in
 		let prepare_file file_own_name =
 			let relative_to_classpath = if f_dir = "." then file_own_name else f_dir ^ "/" ^ file_own_name in
 			(* `representation` is how the file is referenced to. E.g. when it's deduced from a module path. *)
-			let is_platform_specific,representation =
-				(* Platform specific file extensions are not allowed for loading @:coreApi types. *)
+			let specificity,representation =
 				if is_loading_core_api then
-					false,relative_to_classpath
+					SpecificityCoreApi,relative_to_classpath
 				else begin
 					let ext = extension relative_to_classpath in
 					let second_ext = extension (remove_extension relative_to_classpath) in
+					(* The file contains double extension and the secondary one matches current custom extension *)
+					if (Option.map_default (fun custom_ext -> custom_ext = second_ext) false custom_ext) then
+						SpecificityCustomExtension,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+					(* The file contains ".macro.hx" double extension and we are in macro context *)
+					else if platform_ext = second_ext && second_ext = ".macro" then
+						SpecificityMacroSpecific,(remove_extension (remove_extension relative_to_classpath)) ^ ext
 					(* The file contains double extension and the secondary one matches current platform *)
-					if platform_ext = second_ext then
-						true,(remove_extension (remove_extension relative_to_classpath)) ^ ext
+					else if platform_ext = second_ext then
+						SpecificityPlatformSpecific,(remove_extension (remove_extension relative_to_classpath)) ^ ext
 					else
-						false,relative_to_classpath
+						SpecificityNormal,relative_to_classpath
 				end
 			in
-			(*
-				Store current full path for `representation` if
-				- we're loading @:coreApi
-				- or this is a platform-specific file for `representation`
-				- this `representation` was never found before
-			*)
-			if is_loading_core_api || is_platform_specific || not (file_lookup_cache#mem representation) then begin
-				let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
-				let full_path = Some(create_resolved_file full_path cp) in
-				file_lookup_cache#add representation full_path;
-				if representation = f_search then found := full_path
-			end
+
+			let full_path = if dir = "." then file_own_name else dir ^ "/" ^ file_own_name in
+			let full_path = Some(create_resolved_file full_path cp, specificity) in
+
+			match file_lookup_cache#find_opt representation with
+			| Some (Some (_, old_specificity)) when (old_specificity >= specificity)-> ()
+			| _ -> file_lookup_cache#add representation full_path;
+
+			if representation = f_search then
+				match !found with
+				| Some (_, old_specificity) when (old_specificity >= specificity) -> ()
+				| _ -> found := full_path;
 		in
 		Array.iter prepare_file dir_listing;
 		!found
 
 	method find_file_noraise (f : string) =
 		try
-			match file_lookup_cache#find f with
-			| None ->
-				None
-			| Some f ->
-				Some f
+			file_lookup_cache#find f
 		with
 		| Not_found when Path.is_absolute_path f ->
 			let r = if Sys.file_exists f then
-				Some (create_resolved_file f absolute_class_path)
+				Some (create_resolved_file f absolute_class_path, SpecificityNormal)
 			else
 				None
 			in
@@ -144,8 +154,8 @@ class class_paths = object(self)
 							loop l
 						| Some(dir,dir_listing) ->
 							match self#cache_directory cp dir f dir_listing with
-								| Some f ->
-									Some f
+								| Some (f, specificity) ->
+									Some (f, specificity)
 								| None ->
 									loop l
 					end
@@ -157,7 +167,7 @@ class class_paths = object(self)
 	method find_file (f : string) =
 		match self#find_file_noraise f with
 		| None -> raise Not_found
-		| Some f -> f
+		| Some (f, _) -> f
 
 	method relative_path file =
 		let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in

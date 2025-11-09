@@ -16,6 +16,7 @@ and var_access =
 	| AccNever          (* can't be accessed, even in subclasses *)
 	| AccCtor           (* can only be accessed from the constructor *)
 	| AccCall           (* perform a method call when accessed *)
+	| AccPrivateCall    (* perform a method call when accessed, but private like AccNo *)
 	| AccInline         (* similar to Normal but inline when accessed *)
 	| AccRequire of string * string option (* set when @:require(cond) fails *)
 
@@ -59,10 +60,19 @@ type type_param_host =
 	| TPHLocal
 	| TPHUnbound
 
+type warning_mode =
+	| WMEnable
+	| WMDisable
+
+type warning_option = {
+	wo_warning : WarningList.warning;
+	wo_mode : warning_mode;
+}
+
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
-	| Warning of WarningList.warning * string * pos
+	| Warning of WarningList.warning * (warning_option list list) * string * pos
 
 type t =
 	| TMono of tmono
@@ -388,6 +398,7 @@ and tabstract = {
 	mutable a_constructor : tclass_field option;
 	mutable a_extern : bool;
 	mutable a_enum : bool;
+	mutable a_default : texpr Lazy.t option;
 }
 
 and module_type =

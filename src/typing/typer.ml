@@ -143,127 +143,15 @@ let maybe_type_against_enum ctx f with_type iscall p =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
-let rec unify_min_raise ctx (el:texpr list) : t =
-	let basic = ctx.com.basic in
-	match el with
-	| [] -> spawn_monomorph ctx null_pos
-	| [e] -> e.etype
-	| _ ->
-		let rec chk_null e = is_null e.etype || is_explicit_null e.etype ||
-			match e.eexpr with
-			| TConst TNull -> true
-			| TBlock el ->
-				(match List.rev el with
-				| [] -> false
-				| e :: _ -> chk_null e)
-			| TParenthesis e | TMeta(_,e) -> chk_null e
-			| _ -> false
-		in
-		(* First pass: Try normal unification and find out if null is involved. *)
-		let rec loop t = function
-			| [] ->
-				false, t
-			| e :: el ->
-				let t = if chk_null e then basic.tnull t else t in
-				try
-					Type.unify e.etype t;
-					loop t el
-				with Unify_error _ -> try
-					Type.unify t e.etype;
-					loop (if is_null t then basic.tnull e.etype else e.etype) el
-				with Unify_error _ ->
-					true, t
-		in
-		let has_error, t = loop (spawn_monomorph ctx null_pos) el in
-		if not has_error then
-			t
-		else try
-			(* specific case for const anon : we don't want to hide fields but restrict their common type *)
-			let fcount = ref (-1) in
-			let field_count a =
-				PMap.fold (fun _ acc -> acc + 1) a.a_fields 0
-			in
-			let expr f = match f.cf_expr with None -> mk (TBlock []) f.cf_type f.cf_pos | Some e -> e in
-			let fields = List.fold_left (fun acc e ->
-				match follow e.etype with
-				| TAnon a when !(a.a_status) = Const ->
-					if !fcount = -1 then begin
-						fcount := field_count a;
-						PMap.map (fun f -> [expr f]) a.a_fields
-					end else begin
-						if !fcount <> field_count a then raise Not_found;
-						PMap.mapi (fun n el -> expr (PMap.find n a.a_fields) :: el) acc
-					end
-				| _ ->
-					raise Not_found
-			) PMap.empty el in
-			let fields = PMap.foldi (fun n el acc ->
-				let t = try unify_min_raise ctx el with Unify_error _ -> raise Not_found in
-				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
-			) fields PMap.empty in
-			mk_anon ~fields (ref Closed)
-		with Not_found -> try
-			(* specific case for TFun, see #9579 *)
-			let e0,el = match el with
-				| e0 :: el -> e0,el
-				| _ -> raise Exit
-			in
-			let args,tr0 = match follow e0.etype with
-				| TFun(tl,tr) ->
-					Array.of_list tl,tr
-				| _ ->
-					raise Exit
-			in
-			let arity = Array.length args in
-			let rets = List.map (fun e -> match follow e.etype with
-				| TFun(tl,tr) ->
-					let ta = Array.of_list tl in
-					if Array.length ta <> arity then raise Exit;
-					for i = 0 to arity - 1 do
-						let (_,_,tcur) = args.(i) in
-						let (_,_,tnew) as argnew = ta.(i) in
-						if Type.does_unify tnew tcur then
-							args.(i) <- argnew
-						else if not (Type.does_unify tcur tnew) then
-							raise Exit
-					done;
-					tr
-				| _ ->
-					raise Exit
-			) el in
-			let common_types = UnifyMinT.collect_base_types tr0 in
-			let tr = match UnifyMinT.unify_min' default_unification_context common_types rets with
-			| UnifyMinOk t ->
-				t
-			| UnifyMinError(l,index) ->
-				raise Exit
-			in
-			TFun(Array.to_list args,tr)
-		with Exit ->
-			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
-			   Then for each additional type filter all types that do not unify. *)
-			let common_types = UnifyMinT.collect_base_types t in
-			let dyn_types = List.fold_left (fun acc t ->
-				let rec loop c =
-					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
-				in
-				match t with
-				| TInst (c,params) when params <> [] && loop c ->
-					TInst (c,List.map (fun _ -> t_dynamic) params) :: acc
-				| _ -> acc
-			) [] common_types in
-			let common_types = (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
-			let el = List.tl el in
-			let tl = List.map (fun e -> e.etype) el in
-			begin match UnifyMinT.unify_min' default_unification_context common_types tl with
-			| UnifyMinOk t ->
-				t
-			| UnifyMinError(l,index) ->
-				raise_typing_error_ext (make_error (Unify l) (List.nth el index).epos)
-			end
+let unify_min_raise ctx el =
+	try
+		UnifyMin.unify_min_raise ctx.t el
+	with UnifyMin.NoValue ->
+		spawn_monomorph ctx null_pos
 
 let unify_min ctx el =
-	try unify_min_raise ctx el
+	try
+		unify_min_raise ctx el
 	with Error ({ err_message = Unify l } as err) ->
 		if not ctx.f.untyped then display_error_ext ctx.com err;
 		(List.hd el).etype
@@ -738,7 +626,7 @@ and type_vars ctx vl p =
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and format_string ctx s p =
-	FormatString.format_string ctx.com.defines s p (fun enext p ->
+	FormatString.format_string (ParserConfig.file_parser_config ctx.com p.pfile) s p (fun enext p ->
 		if ctx.f.in_display && DisplayPosition.display_position#enclosed_in p then
 			Display.preprocess_expr ctx.com (enext,p)
 		else
@@ -805,29 +693,35 @@ and type_object_decl ctx fl with_type p =
 		let fl = List.map (fun ((n,pn,qs),e) ->
 			let is_valid = Lexer.is_valid_identifier n in
 			if PMap.mem n !fields then raise_typing_error ("Duplicate field in object declaration : " ^ n) pn;
-			let is_final = ref false in
-			let e = try
-				let t = match !dynamic_parameter with
-					| Some t -> t
+			let e,cfo = try
+				let t,cfo = match !dynamic_parameter with
+					| Some t ->
+						t,None
 					| None ->
 						let cf = PMap.find n field_map in
-						if (has_class_field_flag cf CfFinal) then is_final := true;
 						if ctx.f.in_display && DisplayPosition.display_position#enclosed_in pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
-						cf.cf_type
+						cf.cf_type,Some cf
 				in
 				let e = type_expr ctx e (WithType.with_structure_field t n) in
 				let e = AbstractCast.cast_or_unify ctx t e e.epos in
 				let e = if is_null t && not (is_null e.etype) then mk (TCast(e,None)) (ctx.t.tnull e.etype) e.epos else e in
-				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
+				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos),cfo
 			with Not_found ->
 				if is_valid then
 					extra_fields := (n,pn) :: !extra_fields;
-				type_expr ctx e WithType.value
+				type_expr ctx e WithType.value,None
 			in
 			if is_valid then begin
 				if starts_with n '$' then raise_typing_error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
-				if !is_final then add_class_field_flag cf CfFinal;
+				begin match cfo with
+					| Some cf' ->
+						(* If we're assigning to an existing field, copy some of its characteristics *)
+						if has_class_field_flag cf' CfFinal then add_class_field_flag cf CfFinal;
+						cf.cf_kind <- cf'.cf_kind;
+					| None ->
+						()
+				end;
 				fields := PMap.add n cf !fields;
 			end;
 			((n,pn,qs),e)
@@ -1153,7 +1047,7 @@ and type_map_declaration ctx e1 el with_type p =
 		try
 			let p = Hashtbl.find keys e_key.eexpr in
 			raise_typing_error_ext (make_error (Custom "Duplicate key") ~sub:[
-				make_error ~depth:1 (Custom (compl_msg "Previously defined here")) p
+				make_error (Custom (compl_msg "Previously defined here")) p
 			] e_key.epos);
 		with Not_found ->
 			begin match e_key.eexpr with
@@ -1221,7 +1115,8 @@ and type_local_function ctx_from kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let ctx = TyperManager.clone_for_expr ctx_from curfun true in
+	let function_mode = FunFunction in
+	let ctx = TyperManager.clone_for_expr ctx_from curfun function_mode in
 	let vname,pname= match name with
 		| None ->
 			if params <> [] then begin
@@ -1585,7 +1480,7 @@ and type_if ctx e e1 e2 with_type is_ternary p =
 		| TConst TNull -> raise_typing_error "Cannot use null as ternary condition" e.epos
 		| _ -> ()
 	end;
-	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
+	let e = AbstractCast.cast_or_unify ctx ctx.t.tbool e e.epos in
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	match e2 with
 	| None ->
@@ -1962,7 +1857,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
-		if not ctx.e.in_function then begin
+		if not (TyperManager.is_function_context ctx) then begin
 			display_error ctx.com "Return outside function" p;
 			match e with
 			| None ->

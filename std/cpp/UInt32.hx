@@ -22,4 +22,4 @@
 
 package cpp;
 
-@:coreType @:notNull @:runtimeValue abstract UInt32 from Int to Int {}
+@:coreType @:notNull @:runtimeValue @:defaultValue(0) abstract UInt32 from Int to Int {}

@@ -148,16 +148,14 @@ let dump_stats name stats =
 class hxb_reader
 	(mpath : path)
 	(stats : hxb_reader_stats)
-	(string_pool : string array option)
-	(timers_enabled : bool)
+	(timer_ctx : Timer.timer_context option)
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable full_restore = true
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
-	val mutable has_string_pool = (string_pool <> None)
-	val mutable string_pool = (match string_pool with None -> Array.make 0 "" | Some pool -> pool)
+	val mutable string_pool = Array.make 0 ""
 	val mutable doc_pool = Array.make 0 ""
 
 	val mutable classes = Array.make 0 (Lazy.from_val null_class)
@@ -189,12 +187,6 @@ class hxb_reader
 		with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
-
-	method get_string_pool =
-		if has_string_pool then
-			Some (string_pool)
-		else
-			None
 
 	method make_lazy_type_dynamic f : Type.t =
 		api#make_lazy_type t_dynamic f
@@ -1001,6 +993,7 @@ class hxb_reader
 					let s = self#read_string in
 					let so = self#read_option (fun () -> self#read_string) in
 					AccRequire(s,so)
+				| 7 -> AccPrivateCall
 				| i ->
 					error (Printf.sprintf "Bad accessor kind: %i" i)
 			in
@@ -1590,6 +1583,10 @@ class hxb_reader
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
 		a.a_constructor <- self#read_option (fun () -> self#read_field_ref);
+		a.a_default <- self#read_option (fun () -> 
+			let fctx = self#start_texpr in
+			let e = self#read_texpr fctx in
+			Lazy.from_val e);
 
 		a.a_ops <- self#read_list (fun () ->
 			let i = read_byte ch in
@@ -2015,11 +2012,9 @@ class hxb_reader
 		match kind with
 		| STR ->
 			string_pool <- self#read_string_pool;
-			has_string_pool <- true;
 		| DOC ->
 			doc_pool <- self#read_string_pool;
 		| MDF ->
-			assert(has_string_pool);
 			current_module <- self#read_mdf;
 			incr stats.modules_partially_restored;
 			if not full_restore then current_module.m_extra.m_display_deps <- Some PMap.empty
@@ -2084,7 +2079,10 @@ class hxb_reader
 	method private read_chunk_data kind =
 		let path = String.concat "_" (ExtLib.String.nsplit (s_type_path mpath) ".") in
 		let id = ["hxb";"read";string_of_chunk_kind kind;path] in
-		let close = if timers_enabled then Timer.timer id else fun() -> () in
+		let close = match timer_ctx with
+			| Some timer_ctx -> Timer.start_timer timer_ctx id
+			| None -> (fun () -> ())
+		in
 		try
 			self#read_chunk_data' kind
 		with Invalid_argument msg -> begin

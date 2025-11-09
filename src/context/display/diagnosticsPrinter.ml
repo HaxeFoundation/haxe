@@ -183,9 +183,13 @@ let json_of_diagnostics com dctx =
 	(* non-append from here *)
 	begin match Warning.get_mode WDeprecated com.warning_options with
 	| WMEnable ->
-		Hashtbl.iter (fun _ (s,p) ->
-			let wobj = Warning.warning_obj WDeprecated in
-			add DKDeprecationWarning p MessageSeverity.Warning (Some wobj.w_name) (JString s);
+		Hashtbl.iter (fun _ (s,p,options) ->
+			begin match Warning.get_mode WDeprecated (com.warning_options @ options) with
+			| WMEnable ->
+				let wobj = Warning.warning_obj WDeprecated in
+				add DKDeprecationWarning p MessageSeverity.Warning (Some wobj.w_name) (JString s);
+			| WMDisable -> ()
+			end
 		) DeprecationCheck.warned_positions;
 	| WMDisable ->
 		()

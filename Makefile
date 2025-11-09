@@ -59,7 +59,7 @@ PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(CURDIR)/$(HAXE_OUTPUT) -version 2>&1 | awk '{print $$1;}')
 HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
-NEKO_VERSION=2.4.0-rc.1
+NEKO_VERSION=2.4.1
 NEKO_MAJOR_VERSION=$(shell echo "$(NEKO_VERSION)" | grep -oE "^[0-9]+")
 NEKO_VERSION_TAG=v$(shell echo "$(NEKO_VERSION)" | sed "s/\./-/g")
 
@@ -95,14 +95,18 @@ endif
 ifeq ($(SYSTEM_NAME),Mac)
 # This assumes that haxelib and neko will both be installed into INSTALL_DIR,
 # which is the case when installing using the mac installer package
-HAXELIB_LFLAGS= -Wl,-rpath,$(INSTALL_DIR)/lib
+NEKO_LIB_PATH=$(INSTALL_DIR)/lib
+endif
+
+ifdef NEKO_LIB_PATH
+HAXELIB_LDFLAGS=-Wl,-rpath,$(NEKO_LIB_PATH)
 endif
 
 haxelib_unix:
 	cd $(CURDIR)/extra/haxelib_src && \
 	HAXE_STD_PATH=$(CURDIR)/std $(CURDIR)/$(HAXE_OUTPUT) client.hxml && \
 	nekotools boot -c run.n
-	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LFLAGS)
+	$(CC) $(CURDIR)/extra/haxelib_src/run.c -o $(HAXELIB_OUTPUT) -lneko $(HAXELIB_LDFLAGS)
 
 # haxelib should depends on haxe, but we don't want to do that...
 ifeq ($(SYSTEM_NAME),Windows)
@@ -152,7 +156,8 @@ package_unix:
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
-	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
+	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
+	cp LICENSE $(PACKAGE_FILE_NAME)/LICENSE.txt
 	# archive
 	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
@@ -199,13 +204,12 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf haxe.tar.gz haxe
 	# scripts
-	cp -rf extra/mac-installer/* $(INSTALLER_TMP_DIR)/resources
+	cp -rf extra/mac-installer/scripts $(INSTALLER_TMP_DIR)/resources
 	sed -i '' 's/%%NEKO_VERSION%%/$(NEKO_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	sed -i '' 's/%%NEKO_MAJOR_VERSION%%/$(NEKO_MAJOR_VERSION)/g' $(INSTALLER_TMP_DIR)/resources/scripts/neko-postinstall.sh
 	cd $(INSTALLER_TMP_DIR)/resources && tar -zcvf scripts.tar.gz scripts
 	# installer structure
-	mkdir -p $(INSTALLER_TMP_DIR)/pkg
-	cd $(INSTALLER_TMP_DIR)/pkg && xar -xf ../resources/installer-structure.pkg .
+	cp -rf extra/mac-installer/pkg $(INSTALLER_TMP_DIR)
 	mkdir $(INSTALLER_TMP_DIR)/tgz; mv $(INSTALLER_TMP_DIR)/resources/*.tar.gz $(INSTALLER_TMP_DIR)/tgz
 	cd $(INSTALLER_TMP_DIR)/tgz; find . | cpio -o --format odc | gzip -c > ../pkg/files.pkg/Payload
 	cd $(INSTALLER_TMP_DIR)/pkg/files.pkg && bash -c "INSTKB=$$(du -sk ../../tgz | awk '{print $$1;}'); \

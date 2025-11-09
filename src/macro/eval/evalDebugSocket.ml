@@ -199,7 +199,7 @@ let output_threads ctx =
 			"name",JString (Printf.sprintf "Thread %i" (Thread.id eval.thread.tthread));
 		]) :: acc
 	in
-	let threads = IntMap.fold fold ctx.evals [] in
+	let threads = ThreadSafeHashtbl.fold fold ctx.evals [] in
 	JArray threads
 
 let is_simn = false
@@ -225,7 +225,7 @@ let output_scopes ctx env =
 		JObject fl
 	in
 	let scopes = List.fold_left (fun acc scope ->
-		if Hashtbl.length scope.local_infos <> 0 then
+		if IntHashtbl.length scope.local_infos <> 0 then
 			(mk_scope (ctx.debug.debug_context#add_scope scope env) "Locals" scope.pos) :: acc
 		else
 			acc
@@ -240,11 +240,11 @@ let output_scopes ctx env =
 		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
 	end in
 	let scopes = List.rev scopes in
-	let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope (ctx.debug.debug_context#add_capture_scope capture_infos env) "Captures" null_pos) :: scopes in
+	let scopes = if IntHashtbl.length capture_infos = 0 then scopes else (mk_scope (ctx.debug.debug_context#add_capture_scope capture_infos env) "Captures" null_pos) :: scopes in
 	JArray scopes
 
 let output_capture_vars infos env =
-	let vars = Hashtbl.fold (fun slot vi acc ->
+	let vars = IntHashtbl.fold (fun slot vi acc ->
 		let value = (env.env_captures.(slot)) in
 		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
@@ -259,7 +259,7 @@ let output_debug_scope dbg env =
 
 let output_scope_vars env scope =
 	let p = env.env_debug.debug_pos in
-	let vars = Hashtbl.fold (fun local_slot vi acc ->
+	let vars = IntHashtbl.fold (fun local_slot vi acc ->
 		if declared_before vi p then begin
 			let slot = local_slot + scope.local_offset in
 			let value = env.env_locals.(slot) in
@@ -312,7 +312,7 @@ let output_inner_vars v env =
 				n, v
 			) l
 		| VInstance {ikind = IStringMap h} ->
-			StringHashtbl.fold (fun s (_,v) acc ->
+			RuntimeStringHashtbl.fold (fun s (_,v) acc ->
 				(s,v) :: acc
 			) h []
 		| VInstance {ikind = IMutex mutex} ->
@@ -384,7 +384,7 @@ module ValueCompletion = struct
 		in
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
-		Hashtbl.iter (fun slot vi ->
+		IntHashtbl.iter (fun slot vi ->
 			add (hash vi.vi_name) "variable"
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
@@ -475,18 +475,18 @@ module ValueCompletion = struct
 	let get_completion ctx text column env =
 		let p = file_pos "" in
 		let save =
-			let old = !Parser.display_mode,DisplayPosition.display_position#get in
+			let old = DisplayPosition.display_position#get in
 			(fun () ->
-				Parser.display_mode := fst old;
-				DisplayPosition.display_position#set (snd old);
+				DisplayPosition.display_position#set old;
 			)
 		in
-		Parser.display_mode := DMDefault;
+		let com = (ctx.curapi.get_com()) in
+		let config = Parser.create_config com.Common.defines true true DMDefault com.parser_state.was_auto_triggered None in
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
-			let e = parse_expr ctx text p in
-			let e = ExprPreprocessing.find_before_pos DMDefault e in
+			let e = parse_expr ctx config text p in
+			let e = ExprPreprocessing.find_before_pos com.parser_state.was_auto_triggered DMDefault e in
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->
@@ -542,6 +542,9 @@ let expect_env hctx env = match env with
 	| None -> hctx.send_error "No frame found"
 
 let handler =
+	let parse_expr ctx p =
+		parse_expr ctx (ParserConfig.default_config (ctx.curapi.get_com()).Common.defines) p
+	in
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
 		let obj = j#get_object "breakpoint" jo in
@@ -563,7 +566,7 @@ let handler =
 	in
 	let select_thread hctx =
 		let id = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "threadId") 0 in
-		let eval = try IntMap.find id hctx.ctx.evals with Not_found -> hctx.send_error "Invalid thread id" in
+		let eval = try ThreadSafeHashtbl.find hctx.ctx.evals id with Not_found -> hctx.send_error "Invalid thread id" in
 		eval
 	in
 	let h = Hashtbl.create 0 in
@@ -644,17 +647,17 @@ let handler =
 			let hash = hash (Path.UniqueKey.to_string (hctx.ctx.file_keys#get (Common.find_file (hctx.ctx.curapi.get_com()) file))) in
 			let h =
 				try
-					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in
-					Hashtbl.clear h;
+					let h = IntHashtbl.find hctx.ctx.debug.breakpoints hash in
+					IntHashtbl.clear h;
 					h
 				with Not_found ->
-					let h = Hashtbl.create (List.length bps) in
-					Hashtbl.add hctx.ctx.debug.breakpoints hash h;
+					let h = IntHashtbl.create (List.length bps) in
+					IntHashtbl.add hctx.ctx.debug.breakpoints hash h;
 					h
 			in
 			let bps = List.map (fun (line,column,condition) ->
 				let bp = make_breakpoint hash line BPEnabled column condition in
-				Hashtbl.add h line bp;
+				IntHashtbl.add h line bp;
 				JObject ["id",JInt bp.bpid]
 			) bps in
 			JArray bps
@@ -685,10 +688,10 @@ let handler =
 		"removeBreakpoint",(fun hctx ->
 			let id = hctx.jsonrpc#get_int_param "id" in
 			begin try
-				Hashtbl.iter (fun _ h ->
+				IntHashtbl.iter (fun _ h ->
 					let to_delete = ref [] in
-					Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
-					List.iter (fun k -> Hashtbl.remove h k) !to_delete;
+					IntHashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
+					List.iter (fun k -> IntHashtbl.remove h k) !to_delete;
 				) hctx.ctx.debug.breakpoints;
 			with Not_found ->
 				hctx.send_error (Printf.sprintf "Unknown breakpoint: %d" id)
@@ -726,7 +729,7 @@ let handler =
 			| Scope(scope,env) ->
 				let value = get_value env in
 				let id = Hashtbl.find scope.local_ids name in
-				let slot = Hashtbl.find scope.locals id in
+				let slot = IntHashtbl.find scope.locals id in
 				env.env_locals.(slot + scope.local_offset) <- value;
 				var_to_json "" value None env
 			| CaptureScope(infos,env) ->
@@ -748,7 +751,7 @@ let handler =
 		);
 		"evaluate",(fun hctx ->
 			let ctx = hctx.ctx in
-			let env = try select_frame hctx with _ -> expect_env hctx ctx.eval.env in
+			let env = try select_frame hctx with _ -> expect_env hctx (Thread_local_storage.get_exn ctx.eval).env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
 				let e = parse_expr ctx s env.env_debug.debug_pos in
@@ -762,7 +765,7 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
-			let env = expect_env hctx hctx.ctx.eval.env in
+			let env = expect_env hctx (Thread_local_storage.get_exn hctx.ctx.eval).env in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try

@@ -39,15 +39,17 @@ class Hl {
 			case "Linux":
 				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
-				runNetworkCommand("brew", ["update", '--auto-update']);
-				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
 			case "Windows":
 				//pass
 		}
 
 		FileSystem.createDirectory(hlBuild);
-		final generator = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
-		runCommand("cmake", generator.concat([
+		final args = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
+		if (systemName == "Mac") {
+			args.push("-DDOWNLOAD_DEPENDENCIES=ON");
+			args.push("-DCMAKE_OSX_ARCHITECTURES=x86_64");
+		}
+		runCommand("cmake", args.concat([
 			"-DBUILD_TESTING=OFF",
 			"-DWITH_DIRECTX=OFF",
 			"-DWITH_FMT=ON",
@@ -72,6 +74,12 @@ class Hl {
 		runCommand(hlBinary, ["--version"]);
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
+
+		Sys.putEnv("HASHLINK", hlInstallDir);
+		if (systemName == "Windows") {
+			Sys.putEnv("HASHLINK_SRC", hlSrc);
+			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
+		}
 	}
 
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
@@ -81,7 +89,11 @@ class Hl {
 			return;
 
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
-		final extraCompilerFlags = if (systemName == "Windows") ["-ldbghelp", "-municode"] else [];
+		final extraCompilerFlags = switch (systemName) {
+			case "Windows": ["-ldbghelp", "-municode"];
+			case "Mac": ["-arch", "x86_64"];
+			case _: [];
+		};
 
 		runCommand(compiler, [
 			"-o", '$dir/$filename.exe',
@@ -97,6 +109,18 @@ class Hl {
 		].concat(extraCompilerFlags));
 
 		run('$dir/$filename.exe', []);
+
+		// Run with MSBuild
+		if (systemName == "Windows") {
+			runCommand("MSBuild.exe", [
+				'$dir/$filename.sln',
+				'-nologo', '-verbosity:minimal',
+				'-t:$filename',
+				'-property:Configuration=Release',
+				'-property:Platform=x64'
+			]);
+			run('$dir/x64/Release/$filename.exe', []);
+		}
 	}
 
 	static function buildAndRun(hxml:String, target:String, ?args:Array<String>) {
@@ -105,7 +129,7 @@ class Hl {
 		runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
 		runCommand(hlBinary, ['$target/hl-jit.hl']);
 
-		runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
+		runCommand("haxe", [hxml, "-hl", '$target/hlc.c', "-D", "hlgen.makefile=ci"].concat(args));
 		buildAndRunHlc(target, "hlc");
 	}
 
@@ -117,8 +141,15 @@ class Hl {
 		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
 		buildAndRunHlc("bin/hlc", "unit", runCommand);
 
+		runCommand("haxe", ["compile-hl.hxml", "--undefine", "analyzer-optimize"].concat(args));
+		runCommand(hlBinary, ['bin/unit.hl']);
+		runCommand("haxe", ["compile-hlc.hxml", "--undefine", "analyzer-optimize"].concat(args));
+		buildAndRunHlc("bin/hlc", "unit", runCommand);
+
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
+
+		Display.maybeRunDisplayTests(Hl);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-hl.hxml"].concat(args));
@@ -137,6 +168,12 @@ class Hl {
 		buildAndRun("compile.hxml", "bin/reservedKeywords");
 
 		changeDirectory(miscHlDir);
-		runCommand("haxe", ["run.hxml"]);
+		if (systemName == "Windows") {
+			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=vs2022"]);
+		} else if (systemName == "Mac") {
+			runCommand("arch", ["-x86_64", "haxe", "run.hxml", "-D", "hlgen.makefile=make"]);
+		} else {
+			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=make"]);
+		}
 	}
 }

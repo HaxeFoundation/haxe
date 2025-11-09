@@ -56,7 +56,7 @@ let check_field_access ctx cff =
 				let _,p2 = List.find (fun (access',_) -> access = access') acc in
 				if p1 <> null_pos && p2 <> null_pos then begin
 					display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access))) ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg "Previously defined here")) p2);
+						(make_error (Custom (compl_msg "Previously defined here")) p2);
 					]) p1);
 				end;
 				loop p1 acc l
@@ -65,7 +65,7 @@ let check_field_access ctx cff =
 					begin try
 						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
 						display_error_ext ctx.com (make_error (Custom (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access))) ~sub:([
-							(make_error ~depth:1 (Custom (compl_msg "Conflicts with this")) p2);
+							(make_error (Custom (compl_msg "Conflicts with this")) p2);
 						]) p1);
 						loop p1 acc l
 					with Not_found ->
@@ -206,10 +206,6 @@ let load_type_def ctx p t =
 	with Not_found ->
 		load_type_def' ctx t.tpackage t.tname tname p
 
-(* let load_type_def ctx p t =
-	let timer = Timer.timer ["typing";"load_type_def"] in
-	Std.finally timer (load_type_def ctx p) t *)
-
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
 	(match values with
@@ -226,8 +222,8 @@ let is_redefined ctx cf1 fields p =
 		let st = s_type (print_context()) in
 		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
 			raise_typing_error_ext (make_error (Custom ("Cannot redefine field " ^ cf1.cf_name ^ " with different type")) ~sub:([
-				(make_error ~depth:1 (Custom (compl_msg ("Second type was " ^ (st cf2.cf_type)))) cf2.cf_pos);
-				(make_error ~depth:1 (Custom (compl_msg ("First type was " ^ (st cf1.cf_type)))) cf1.cf_pos);
+				(make_error (Custom (compl_msg ("Second type was " ^ (st cf2.cf_type)))) cf2.cf_pos);
+				(make_error (Custom (compl_msg ("First type was " ^ (st cf1.cf_type)))) cf1.cf_pos);
 			]) p)
 		end else
 			true
@@ -241,8 +237,9 @@ let make_extension_type ctx tl =
 				if not (is_redefined ctx cf fields p) then PMap.add cf.cf_name cf fields
 				else fields
 			) a.a_fields fields
-		| _ ->
-			raise_typing_error "Can only extend structures" p
+		| t ->
+			display_error ctx.com "Can only extend structures" p;
+			PMap.empty
 	in
 	let fields = List.fold_left mk_extension PMap.empty tl in
 	let tl = List.map (fun (t,_) -> t) tl in
@@ -303,7 +300,7 @@ let rec load_params ctx info params p =
 	let is_rest = info.build_kind = BuildGenericBuild && (match info.build_params with [{ttp_name="Rest"}] -> true | _ -> false) in
 	let is_java_rest = ctx.com.platform = Jvm && info.build_extern in
 	let is_rest = is_rest || is_java_rest in
-	let load_param t =
+	let load_param t ttp =
 		match t with
 		| TPExpr e ->
 			let name = (match fst e with
@@ -318,6 +315,16 @@ let rec load_params ctx info params p =
 			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
+		| TPType (CTPath({ path = { tpackage = ["$"]; tname = "_hx_default" }}),p) ->
+			(match ttp with
+				| Some { ttp_default = Some def } -> def,p
+				| Some ttp ->
+					raise_typing_error (Printf.sprintf "Invalid default, type parameter %s has no default value" ttp.ttp_name) p
+				| None when is_rest ->
+					raise_typing_error "Cannot use default with rest type parameters" p
+				| None ->
+					raise_typing_error ("Too many type parameters for " ^ s_type_path info.build_path) p
+			)
 		| TPType t ->
 			load_complex_type ctx true LoadNormal t,pos t
 	in
@@ -325,7 +332,7 @@ let rec load_params ctx info params p =
 	let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 		| t :: tl1,ttp:: tl2 ->
 			let name = ttp.ttp_name in
-			let t,pt = load_param t in
+			let t,pt = load_param t (Some ttp) in
 			let check_const c =
 				let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
@@ -364,7 +371,7 @@ let rec load_params ctx info params p =
 					t :: loop [] tl is_rest
 			end
 		| t :: tl,[] ->
-			let t,pt = load_param t in
+			let t,pt = load_param t None in
 			if is_rest then
 				t :: loop tl [] true
 			else if ignore_error ctx.com then
@@ -443,6 +450,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display mode t
 	| CTPath { path = {tpackage = ["$"]; tname = "_hx_mono" }} -> spawn_monomorph ctx p
+	| CTPath { path = {tpackage = ["$"]; tname = "_hx_default" }} -> raise_typing_error "Invalid type : default" p
 	| CTPath ptp -> load_instance ~allow_display ctx ptp ParamNormal mode
 	| CTOptional _ -> raise_typing_error "Optional type not allowed here" p
 	| CTNamed _ -> raise_typing_error "Named type not allowed here" p
@@ -575,6 +583,8 @@ and load_complex_type' ctx allow_display mode (t,p) =
 						| "dynamic" -> AccCall
 						| "get" when get -> AccCall
 						| "set" when not get -> AccCall
+						| "private get" when get -> AccPrivateCall
+						| "private set" when not get -> AccPrivateCall
 						| x when get && x = "get_" ^ n -> AccCall
 						| x when not get && x = "set_" ^ n -> AccCall
 						| _ ->
@@ -786,9 +796,10 @@ let load_core_class ctx c =
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
+			allow_package com2 "sys";
 			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
 			if ctx.com.is_macro_context then Common.define com2 Define.Macro;
-			com2.class_paths#lock_context (platform_name_macro ctx.com) true;
+			com2.class_paths#lock_context ctx.com.custom_ext (platform_name_macro ctx.com) true;
 			com2.class_paths#modify (fun cp -> match cp#scope with
 				| Std ->
 					[cp#clone]
@@ -826,7 +837,7 @@ let init_core_api ctx c =
 					raise_typing_error "Type parameters must have the same number of constraints as core type" c.cl_pos
 				| Unify_error l ->
 					display_error_ext ctx.com (make_error (Custom ("Type parameter " ^ ttp2.ttp_name ^ " has different constraint than in core type")) ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) c.cl_pos);
+						(make_error (Custom (compl_msg (error_msg (Unify l)))) c.cl_pos);
 					]) c.cl_pos);
 		) ccore.cl_params c.cl_params;
 	with Invalid_argument _ ->
@@ -841,7 +852,7 @@ let init_core_api ctx c =
 			type_eq EqCoreType (apply_params ccore.cl_params (extract_param_types c.cl_params) f.cf_type) f2.cf_type
 		with Unify_error l ->
 			display_error_ext ctx.com (make_error (Custom ("Field " ^ f.cf_name ^ " has different type than in core type")) ~sub:([
-				(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
+				(make_error (Custom (compl_msg (error_msg (Unify l)))) p);
 			]) p));
 		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then raise_typing_error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with

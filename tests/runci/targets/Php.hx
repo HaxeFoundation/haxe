@@ -22,12 +22,14 @@ class Php {
 
 	static function generateArgs(file:String) {
 		if (systemName != "Windows")
-			return [file];
+			return ["-d","memory_limit=-1",file];
 		return [
 			"-c",
 			windowsPhpIni,
 			"-d",
 			'extension_dir=$windowsPhpExtPath',
+			"-d",
+			"memory_limit=-1",
 			file
 		];
 	}
@@ -86,6 +88,8 @@ class Php {
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
 			runCommand("php", generateArgs(binDir + "/index.php"));
+
+			Display.maybeRunDisplayTests(Php);
 
 			changeDirectory(sysDir);
 			if(isCi())

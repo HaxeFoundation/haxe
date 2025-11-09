@@ -487,11 +487,14 @@ CAMLprim value get_real_path( value path ) {
 #define TimeSpecToSeconds(ts) (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0
 #endif
 
+#ifdef WIN32
+static LARGE_INTEGER freq;
+static int freq_init = -1;
+#endif
+
 CAMLprim value sys_time() {
 #ifdef _WIN32
 #define EPOCH_DIFF	(134774*24*60*60.0)
-	static LARGE_INTEGER freq;
-	static int freq_init = -1;
 	LARGE_INTEGER counter;
 	if( freq_init == -1 )
 		freq_init = QueryPerformanceFrequency(&freq);
@@ -530,6 +533,26 @@ CAMLprim value sys_time() {
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	return caml_copy_double(TimeSpecToSeconds(t));
+#endif
+}
+
+CAMLprim value sys_timestamp_ms() {
+#ifdef _WIN32
+	if (-1 == freq_init) {
+		freq_init = QueryPerformanceFrequency(&freq);
+	}
+
+	LARGE_INTEGER time;
+	QueryPerformanceCounter(&time);
+
+	return caml_copy_int64(time.QuadPart * 1000LL / freq.QuadPart);
+#else
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
+		caml_failwith("Failed to get time from the monotonic clock");
+	}
+
+	return caml_copy_int64(ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
 #endif
 }
 

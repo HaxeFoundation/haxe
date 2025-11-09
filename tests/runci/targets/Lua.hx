@@ -11,27 +11,32 @@ class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev"]);
-				runCommand("pip", ["install", "--user", "hererocks"]);
-				final pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
-				addToPATH(Path.join([pyUserBase, "bin"]));
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev", "pipx"]);
+				runCommand("pipx", ["ensurepath"]);
+				runCommand("pipx", ["install", "hererocks"]);
 			case "Mac": {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
 					runNetworkCommand("brew", ["install", "python3"]);
 
-				runCommand("pip3", ["install", "hererocks"]);
+				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("brew", ["install", "openssl"]);
+				runCommand("brew", ["install", "pipx"]);
+				runCommand("pipx", ["ensurepath"]);
+				runCommand("pipx", ["install", "hererocks"]);
 			}
 		}
 	}
 
 	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
-            final args = ["install", lib, version];
+			final args = ["install", lib, version];
 			if (systemName == "Mac") {
-				args.push('OPENSSL_DIR=/usr/local/opt/openssl@3');
+				final opensslPath = commandResult("brew", ["--prefix", "openssl"]);
+				args.push('OPENSSL_DIR=${opensslPath.stdout.trim()}');
+				final pcrePath = commandResult("brew", ["--prefix", "pcre2"]);
+				args.push('PCRE2_DIR=${pcrePath.stdout.trim()}');
 			}
             if (server != null){
                 final server_arg = '--server=$server';
@@ -54,7 +59,7 @@ class Lua {
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
-			runCommand("hererocks", [envpath, lv, "-rlatest", "-i"]);
+			runCommand("hererocks", [envpath, lv, "-r@418d2ab34891b130cc317df32f65f978640febcf", "-i"]);
 			trace('path: ' + Sys.getEnv("PATH"));
 
 
@@ -78,16 +83,15 @@ class Lua {
 			if (lv == "-l5.1")
 				installLib("bit32", "5.2.2-1");
 
+			installLib("luv", "1.50.0-1");
 			if (lv == "-l5.4") {
 				installLib("bit32", "5.3.5.1-1");
-				installLib("luv", "1.44.2-1");
 				installLib("luautf8", "0.1.5-2");
 			} else {
-				installLib("luv", "1.36.0-0");
 				installLib("luautf8", "0.1.1-1");
 			}
 
-			installLib("hx-lua-simdjson", "0.0.1-1");
+			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
 			changeDirectory(unitDir);
 			final luaDefine = if (lv.startsWith("-l")) {
@@ -96,6 +100,8 @@ class Lua {
 			final luaVer = ["-D", luaDefine];
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
 			runCommand("lua", ["bin/unit.lua"]);
+
+			Display.maybeRunDisplayTests(Lua);
 
 			changeDirectory(sysDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));

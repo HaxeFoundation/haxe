@@ -36,7 +36,7 @@ enum ValueType {
 		return @:privateAccess js.Boot.getClass(o);
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
 		untyped {
 			if (o == null)
 				return null;
@@ -47,7 +47,7 @@ enum ValueType {
 			#end
 		}
 
-	public static inline function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static inline function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		return untyped __define_feature__("Type.getSuperClass", c.__super__);
 	}
 
@@ -60,7 +60,7 @@ enum ValueType {
 	}
 
 	#if js_enums_as_arrays
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			var cl:Class<Dynamic> = $hxClasses[name];
 			// ensure that this is a class
@@ -69,7 +69,7 @@ enum ValueType {
 			return cl;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			var e:Dynamic = $hxClasses[name];
 			// ensure that this is an enum
@@ -78,11 +78,11 @@ enum ValueType {
 			return e;
 		}
 	#else
-	public static inline function resolveClass(name:String):Class<Dynamic> {
+	public static inline function resolveClass(name:String):Null<Class<Dynamic>> {
 		return untyped __define_feature__("Type.resolveClass", $hxClasses[name]);
 	}
 
-	public static inline function resolveEnum(name:String):Enum<Dynamic> {
+	public static inline function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		return untyped __define_feature__("Type.resolveEnum", $hxEnums[name]);
 	}
 	#end

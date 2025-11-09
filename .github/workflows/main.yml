@@ -4,6 +4,13 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  OCAML_VERSION: 5.3.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows64-build:
     runs-on: windows-latest
@@ -46,9 +53,10 @@ jobs:
         run: neko -version 2>&1
 
       - name: Setup ocaml
-        uses: ocaml/setup-ocaml@v3
+      # Lock to 3.2.19 to work around an issue with 32-bit libraries getting installed
+        uses: ocaml/setup-ocaml@3d85bf33a66e089149cd1e9c75da7b9cb6d9d3a7
         with:
-          ocaml-compiler: 4
+          ocaml-compiler: ${{ env.OCAML_VERSION }}
           opam-local-packages: |
             haxe.opam
 
@@ -109,10 +117,6 @@ jobs:
     env:
       PLATFORM: linux64
       OPAMYES: 1
-    strategy:
-      fail-fast: false
-      matrix:
-        ocaml: ["4.08.1", "5.0.0"]
     steps:
       - uses: actions/checkout@main
         with:
@@ -123,7 +127,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ matrix.ocaml }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -157,9 +161,8 @@ jobs:
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init # --disable-sandboxing
+          opam init -c ${{ env.OCAML_VERSION }}
           opam update
-          opam switch create ${{ matrix.ocaml }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -187,7 +190,6 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Build xmldoc
-        if: matrix.ocaml == '4.08.1'
         run: |
           set -ex
           make -s xmldoc
@@ -201,12 +203,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
           path: out
 
       - name: Upload xmldoc artifact
         uses: actions/upload-artifact@v4
-        if: matrix.ocaml == '4.08.1'
         with:
           name: xmldoc
           path: extra/doc
@@ -222,7 +223,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml: ["4.08.1", "5.0.0"]
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         include:
           - target: hl
@@ -239,7 +239,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          name: linuxBinaries${{ (matrix.ocaml == '5.0.0' && '_ocaml5') || '' }}
+          name: linuxBinaries
           path: linuxBinaries
 
       - name: Install Neko from S3
@@ -295,8 +295,9 @@ jobs:
         run: export DISPLAY=:99.0
 
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   test-docgen:
     needs: linux-build
@@ -393,7 +394,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: arm-${{ runner.os }}-${{ hashFiles('./haxe.opam', './libs/') }}
+          key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -419,13 +420,13 @@ jobs:
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy ocaml-nox opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init
+          opam init -c ${{ env.OCAML_VERSION }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -531,20 +532,20 @@ jobs:
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
   mac-build:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-13]
-    runs-on: ${{ matrix.os }}
+        arch: [arm64, x86_64]
+    runs-on: macos-latest
     env:
-      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      PLATFORM: mac${{ matrix.arch == 'arm64' && '-arm64' || '' }}
       OPAMYES: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.13
-      OCAML_VERSION: 5.1.1
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch == 'arm64' && 11.0 || 10.13 }}
     steps:
       - uses: actions/checkout@main
         with:
@@ -555,7 +556,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - name: Install Neko from S3
         run: |
@@ -578,36 +579,50 @@ jobs:
 
       - name: Install dependencies
         env:
-          # For compatibility with macOS 10.13
+          # Build from source for compatibility with macOS 10.13
           ZLIB_VERSION: 1.3.1
-          MBEDTLS_VERSION: 2.28.5
-          PCRE2_VERSION: 10.42
+          MBEDTLS_VERSION: 3.6.4
+          PCRE2_VERSION: 10.45
+          CMAKE_BUILD_TYPE: Release
+          CMAKE_GENERATOR: Ninja
         run: |
           set -ex
           brew update
           brew bundle --file=tests/Brewfile --no-upgrade
           curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
-          ./configure
-          sudo make && sudo make install
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
+          cmake --build build
+          sudo cmake --install build
           cd ..
-          curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
+          curl -L https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-$MBEDTLS_VERSION/mbedtls-$MBEDTLS_VERSION.tar.bz2 | tar xz
           cd mbedtls-$MBEDTLS_VERSION
-          sudo make && sudo make install
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DENABLE_TESTING=OFF
+          cmake --build build
+          sudo cmake --install build
           cd ..
           curl -L https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
           cd pcre2-$PCRE2_VERSION
-          ./configure --enable-unicode --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-jit
-          sudo make && sudo make install
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DPCRE2_SUPPORT_JIT=ON \
+            -DPCRE2_BUILD_TESTS=OFF \
+            -DPCRE2_BUILD_PCRE2GREP=OFF
+          cmake --build build
+          sudo cmake --install build
           cd ..
+
+      - name: Install Opam
+        run: |
+          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-${{ matrix.arch }}-macos -o $RUNNER_TEMP/opam
+          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init # --disable-sandboxing
+          opam init -c ${{ env.OCAML_VERSION }}
           opam update
-          opam switch create ${{env.OCAML_VERSION}}
           eval $(opam env)
           opam env
           opam pin add haxe . --no-action
@@ -623,22 +638,22 @@ jobs:
         run: |
           set -ex
           eval $(opam env)
-          opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix package_installer_mac
+          opam exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
+          opam exec -- make -s haxelib
+          opam exec -- make -s package_unix package_installer_mac
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
 
       - name: Upload artifact (x64)
-        if: runner.arch == 'X64'
+        if: matrix.arch == 'x86_64'
         uses: actions/upload-artifact@v4
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
-        if: runner.arch == 'ARM64'
+        if: matrix.arch == 'arm64'
         uses: actions/upload-artifact@v4
         with:
           name: macArmBinaries
@@ -735,10 +750,16 @@ jobs:
           mkdir "$env:HAXELIB_ROOT"
           haxelib setup "$env:HAXELIB_ROOT"
 
+      - name: Add msbuild to PATH (hl/c)
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
       - name: Test
         shell: pwsh
-        run: haxe RunCi.hxml
+        run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 20
 
 
   mac-build-universal:
@@ -776,19 +797,17 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-13
+    runs-on: macos-latest
     env:
-      PLATFORM: mac
+      PLATFORM: mac-universal
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
-        include:
-          - target: hl
-            BREW_PACKAGES: ninja
+        target: [macro, js, cpp, jvm, php, python, lua, flash, neko, hl]
+
     steps:
       - uses: actions/checkout@main
         with:
@@ -839,16 +858,13 @@ jobs:
           mkdir ~/haxelib
           haxelib setup ~/haxelib
 
-      - name: Install homebrew packages
-        if: matrix.BREW_PACKAGES
-        run: brew install ${{matrix.BREW_PACKAGES}}
-
       - name: Test
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe RunCi.hxml
+          haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
+        timeout-minutes: 60
 
 
   deploy:

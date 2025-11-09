@@ -8,7 +8,7 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
-let maybe_load_main tctx = match tctx.com.main.main_class with
+let maybe_load_main tctx = match tctx.com.main.main_path with
 	| Some path ->
 		Some (Typeload.load_module tctx path null_pos)
 	| None ->
@@ -17,7 +17,8 @@ let maybe_load_main tctx = match tctx.com.main.main_class with
 
 let get_main ctx main_module types =
 	match main_module with
-	| None -> None
+	| None ->
+		None,None
 	| Some main_module ->
 		let p = null_pos in
 		let path = main_module.m_path in
@@ -65,25 +66,14 @@ let get_main ctx main_module types =
 				[main; call_static (["haxe"],"EntryPoint") "run"]
 			with Not_found ->
 				[main]
-		(* add calls for event loop *)
-		and add_event_loop main =
-			(try
-				[main; call_static (["sys";"thread";"_Thread"],"Thread_Impl_") "processEvents"]
-			with Not_found ->
-				[main]
-			)
 		in
 		let main =
-			(* Threaded targets run event loops per thread *)
-			let exprs =
-				if ctx.com.config.pf_supports_threads then add_event_loop main
-				else add_entry_point_run main
-			in
+			let exprs = add_entry_point_run main in
 			match exprs with
 			| [e] -> e
 			| _ -> mk (TBlock exprs) ctx.t.tvoid p
 		in
-		Some main
+		Some main,Some (Path.UniqueKey.lazy_path main_module.m_extra.m_file)
 
 let finalize ctx =
 	flush_pass ctx.g PFinal ("final",[]);
@@ -203,6 +193,6 @@ let sort_types com (modules : module_lut) =
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
-let generate ctx main_class =
+let generate ctx main_path =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in
-	get_main ctx main_class types,types,modules
+	get_main ctx main_path types,types,modules

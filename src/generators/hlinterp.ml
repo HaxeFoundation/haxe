@@ -1156,7 +1156,7 @@ let interp ctx f args =
 			| _ -> Globals.die "" __LOC__)
 		| OAsm _ ->
 			throw_msg ctx "Unsupported ASM"
-		| ONop _ | OPrefetch _ ->
+		| ONop _ | OPrefetch _ | OCatch _ ->
 			()
 		);
 		loop()
@@ -2448,7 +2448,7 @@ let check comerror code =
 				(match rtype a with HAbstract ("hl_carray",_) | HArray _ -> () | _ -> reg a (HArray HDyn));
 				reg i HI32;
 				ignore(rtype v);
-            | OUnsafeCast (a,b) | OSafeCast (a,b) ->
+			| OUnsafeCast (a,b) | OSafeCast (a,b) ->
 				ignore(rtype a);
 				ignore(rtype b);
 			| OArraySize (r,a) ->
@@ -2540,6 +2540,8 @@ let check comerror code =
 				if f = 0 then ignore(rtype r) else ignore(tfield r (f - 1) false)
 			| OAsm (_,_,r) ->
 				if r > 0 then ignore(rtype (r - 1))
+			| OCatch _ ->
+				()
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

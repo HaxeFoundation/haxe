@@ -548,6 +548,11 @@ typedef AbstractType = BaseType & {
 		The method used for resolving unknown field access, if available.
 	**/
 	var resolveWrite:Null<ClassField>;
+
+	/**
+		The expression given as a default value for this abstract, if available.
+	**/
+	var defaultValue:Null<Ref<TypedExpr>>;
 }
 
 /**
@@ -650,6 +655,11 @@ enum VarAccess {
 		Access through accessor function (`get`, `set`, `dynamic`).
 	**/
 	AccCall;
+
+	/**
+		Access through private accessor function (`private get`, `private set`).
+	**/
+	AccPrivateCall;
 
 	/**
 		Inline access (`inline`).

@@ -811,7 +811,7 @@ class script_writer ctx filename asciiOut =
     method wpos p =
       if debug then
         this#write
-          (this#fileText p.pfile ^ "\t"
+          (this#fileText (Path.get_full_path p.pfile) ^ "\t"
           ^ string_of_int (Lexer.get_error_line p)
           ^ indent)
 
@@ -1823,7 +1823,7 @@ let generate_script_class common_ctx script class_def =
           | AccNormal | AccCtor -> IaAccessNormal
           | AccNo -> IaAccessNot
           | AccNever -> IaAccessNot
-          | AccCall ->
+          | AccCall | AccPrivateCall ->
               if
                 Meta.has Meta.NativeProperty class_def.cl_meta
                 || Meta.has Meta.NativeProperty field.cf_meta
@@ -1914,7 +1914,7 @@ let generate_cppia ctx =
           () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
       | TClassDecl class_def ->
           let is_internal = is_internal_class class_def.cl_path in
-          if is_internal || Meta.has Meta.Macro class_def.cl_meta then (
+          if is_internal then (
             if debug >= 4 then
               print_endline
                 (" internal class " ^ join_class_path class_def.cl_path "."))

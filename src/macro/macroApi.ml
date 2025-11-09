@@ -2,6 +2,8 @@ open Ast
 open DisplayTypes.DisplayMode
 open Type
 open Common
+open Error
+open PlatformConfig
 open DefineList
 open MetaList
 open Globals
@@ -34,7 +36,7 @@ type 'value compiler_api = {
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
 	register_file_contents : string -> string -> unit;
-	parse : 'a . ((Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
+	parse : 'a . (Parser.parser_ctx -> (Ast.token * Globals.pos) Stream.t -> 'a) -> string -> 'a;
 	type_expr : Ast.expr -> Type.texpr;
 	resolve_type  : Ast.complex_type -> Globals.pos -> t;
 	resolve_complex_type : Ast.type_hint -> Ast.type_hint;
@@ -64,14 +66,13 @@ type 'value compiler_api = {
 	decode_type : 'value -> t;
 	info : ?depth:int -> string -> pos -> unit;
 	warning : ?depth:int -> Warning.warning -> string -> pos -> unit;
-	display_error : ?depth:int -> (string -> pos -> unit);
+	display_error : ?sub:macro_error list -> string -> pos -> unit;
 	with_imports : 'a . import list -> placed_name list list -> (unit -> 'a) -> 'a;
 	with_options : 'a . compiler_options -> (unit -> 'a) -> 'a;
 	exc_string : 'a . string -> 'a;
 	get_hxb_writer_config : unit -> 'value;
 	set_hxb_writer_config : 'value -> unit;
 }
-
 
 type enum_type =
 	| IExpr
@@ -173,6 +174,8 @@ module type InterpApi = sig
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 	val get_api_call_pos : unit -> pos
+
+	val associate_enum_value_pos : value -> pos -> unit
 end
 
 let s_type_path = Globals.s_type_path
@@ -744,6 +747,15 @@ let decode_placed_name vp v =
 let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
 
+let decode_sub_errors sub =
+	let rec decode_sub o =
+		let msg = decode_string (field o "msg") in
+		let pos = decode_pos (field o "pos") in
+		let sub = decode_opt_array decode_sub (field o "sub") in
+		{msg; pos; sub}
+	in
+	decode_opt_array decode_sub sub
+
 (* Ast.placed_type_path *)
 let rec decode_ast_path t =
 	let pack = List.map decode_string (decode_array (field t "pack"))
@@ -1071,7 +1083,8 @@ and encode_tabstract a =
 		"to", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
 		"array", encode_array (List.map encode_cfield a.a_array);
 		"resolve", (match a.a_read with None -> vnull | Some cf -> encode_cfref cf);
-		"resolveWrite", (match a.a_write with None -> vnull | Some cf -> encode_cfref cf)
+		"resolveWrite", (match a.a_write with None -> vnull | Some cf -> encode_cfref cf);
+		"defaultValue", (match a.a_default with None -> vnull | Some lazy_texpr -> encode_ref lazy_texpr (fun lazy_texpr -> lazy_texpr |> Lazy.force |> encode_texpr) (fun () -> "default value") )
 	]
 
 and encode_efield f =
@@ -1120,9 +1133,10 @@ and encode_var_access a =
 		| AccNo -> 1, []
 		| AccNever -> 2, []
 		| AccCall -> 4, []
-		| AccInline	-> 5, []
-		| AccRequire (s,msg) -> 6, [encode_string s; null encode_string msg]
-		| AccCtor -> 7, []
+		| AccPrivateCall -> 5, []
+		| AccInline	-> 6, []
+		| AccRequire (s,msg) -> 7, [encode_string s; null encode_string msg]
+		| AccCtor -> 8, []
 	) in
 	encode_enum IVarAccess tag pl
 
@@ -1446,9 +1460,10 @@ let decode_var_access v =
 	| 1, [] -> AccNo
 	| 2, [] -> AccNever
 	| 4, [] -> AccCall
-	| 5, [] -> AccInline
-	| 6, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
-	| 7, [] -> AccCtor
+	| 5, [] -> AccPrivateCall
+	| 6, [] -> AccInline
+	| 7, [s1;s2] -> AccRequire(decode_string s1, opt decode_string s2)
+	| 8, [] -> AccCtor
 	| _ -> raise Invalid_expr
 
 let decode_method_kind v =
@@ -1668,7 +1683,6 @@ let decode_path v =
 	(pack,name)
 
 let decode_platform_config v =
-	let open Common in
 	let capture_policy = match decode_enum (field v "capturePolicy") with
 		| 0, [] -> CPNone
 		| 1, [] -> CPWrapRef
@@ -1796,24 +1810,24 @@ let macro_api ccom get_api =
 		"init_macros_done", vfun0 (fun () ->
 			vbool ((get_api()).init_macros_done ())
 		);
-		"error", vfun3 (fun msg p depth ->
+		"error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			let sub = decode_sub_errors sub in
+			(get_api()).display_error ~sub msg p;
 			raise Abort
 		);
-		"fatal_error", vfun3 (fun msg p depth ->
+		"fatal_error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
-			let p = decode_pos p in
-			let depth = decode_int depth in
-			raise (Error.Fatal_error (Error.make_error ~depth (Custom msg) p))
+			let pos = decode_pos p in
+			let sub = decode_sub_errors sub in
+			raise (Error.Fatal_error (Error.convert_error {msg; pos; sub}))
 		);
-		"report_error", vfun3 (fun msg p depth ->
+		"report_error", vfun3 (fun msg p sub ->
 			let msg = decode_string msg in
 			let p = decode_pos p in
-			let depth = decode_int depth in
-			(get_api()).display_error ~depth msg p;
+			let sub = decode_sub_errors sub in
+			(get_api()).display_error ~sub msg p;
 			vnull
 		);
 		"warning", vfun3 (fun msg p depth ->
@@ -2233,7 +2247,7 @@ let macro_api ccom get_api =
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
 		);
 		"get_display_mode", vfun0 (fun() ->
-			encode_display_mode !Parser.display_mode
+			encode_display_mode (ccom()).display.dms_kind;
 		);
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
@@ -2246,7 +2260,7 @@ let macro_api ccom get_api =
 				"platform", encode_platform com.platform;
 				"platformConfig", encode_platform_config com.config;
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main.main_class with None -> vnull | Some path -> encode_path path);
+				"mainClass", (match com.main.main_path with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
 			]
 		);
@@ -2346,6 +2360,16 @@ let macro_api ccom get_api =
 			) (decode_array a);
 			vnull
 		);
+		"server_stats", vfun0 (fun () ->
+			encode_obj [
+				"filesParsed", vint !(stats.s_files_parsed);
+				"modulesTyped", vint !(stats.s_modules_typed);
+				"modulesRestoredFromHxb", vint !(stats.s_modules_restored);
+				"classesBuilt", vint !(stats.s_classes_built);
+				"methodsTyped", vint !(stats.s_methods_typed);
+				"macrosCalled", vint !(stats.s_macros_called);
+			]
+		);
 		"position_to_range", vfun1 (fun p ->
 			let p = decode_pos p in
 			let l1,c1,l2,c2 = Lexer.get_pos_coords p in
@@ -2382,8 +2406,10 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"timer", vfun1 (fun id ->
-			let full_id = (Option.default [] (Timer.current_id())) @ [decode_string id] in
-			let stop = Timer.timer full_id in
+			let com = ccom() in
+			let full_id = com.timer_ctx.current.id @ [decode_string id] in
+			(* TIMERTODO: Exposing this seems potentially dangerous... Have to at least document. *)
+			let stop = Timer.start_timer com.timer_ctx full_id in
 			vfun0 (fun() -> stop(); vnull)
 		);
 		"map_anon_ref", vfun2 (fun a_ref fn ->
@@ -2395,9 +2421,9 @@ let macro_api ccom get_api =
 		);
 		"with_imports", vfun3(fun imports usings f ->
 			let imports = List.map decode_string (decode_array imports) in
-			let imports = List.map ((get_api()).parse (fun s -> Grammar.parse_import' s Globals.null_pos)) imports in
+			let imports = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_import' pctx s Globals.null_pos)) imports in
 			let usings = List.map decode_string (decode_array usings) in
-			let usings = List.map ((get_api()).parse (fun s -> Grammar.parse_using' s Globals.null_pos)) usings in
+			let usings = List.map ((get_api()).parse (fun pctx s -> Grammar.parse_using' pctx s Globals.null_pos)) usings in
 			let f = prepare_callback f 0 in
 			(get_api()).with_imports imports usings (fun () -> f [])
 		);
@@ -2433,6 +2459,11 @@ let macro_api ccom get_api =
 		"set_hxb_writer_config", vfun1 (fun v ->
 			(get_api()).set_hxb_writer_config v;
 			vnull
-		)
+		);
+		"associate_enum_value_pos",vfun2 (fun ve vp ->
+			let p = decode_pos vp in
+			associate_enum_value_pos ve p;
+			vnull;
+		);
 	]
 end

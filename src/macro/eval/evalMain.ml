@@ -36,15 +36,14 @@ open Extlib_leftovers
 (* Create *)
 
 let create com api is_macro =
-	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr GlobalState.sid;
 	let builtins = match !GlobalState.stdlib with
 		| None ->
 			let builtins = {
 				static_builtins = IntMap.empty;
 				instance_builtins = IntMap.empty;
-				constructor_builtins = Hashtbl.create 0;
-				empty_constructor_builtins = Hashtbl.create 0;
+				constructor_builtins = IntHashtbl.create 0;
+				empty_constructor_builtins = IntHashtbl.create 0;
 			} in
 			EvalStdLib.init_standard_library builtins;
 			GlobalState.stdlib := Some builtins;
@@ -78,7 +77,7 @@ let create com api is_macro =
 					None
 			in
 			let debug' = {
-				breakpoints = Hashtbl.create 0;
+				breakpoints = IntHashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
 				debug_socket = socket;
@@ -98,7 +97,8 @@ let create com api is_macro =
 		tdeque = EvalThread.Deque.create();
 	} in
 	let eval = EvalThread.create_eval thread in
-	let evals = IntMap.singleton 0 eval in
+	let evals = ThreadSafeHashtbl.create 1 in
+	ThreadSafeHashtbl.add evals 0 eval;
 	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
@@ -123,14 +123,15 @@ let create com api is_macro =
 			ofields = [||];
 			oproto = OProto (fake_proto key_eval_toplevel);
 		};
-		eval = eval;
+		eval = Thread_local_storage.create ();
 		evals = evals;
-		exception_stack = [];
+		timer_ctx = com.timer_ctx;
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
 			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
+	Thread_local_storage.set ctx.eval eval;
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
 		   Note that configuration is shared between macro and interpreter contexts, which is why the check
@@ -154,14 +155,16 @@ let create com api is_macro =
 						Error.recurse_error (fun depth err ->
 							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
 						) err;
-						MessageReporting.format_messages com !messages
+						MessageReporting.format_messages com.defines !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
 			exit 2
 	);
-	t();
 	ctx
+
+let create com api is_macro =
+	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api) is_macro
 
 (* API for macroContext.ml *)
 
@@ -179,7 +182,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (Hashtbl.create 0) 0 0 in
+			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (IntHashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
@@ -276,7 +279,7 @@ let value_signature v =
 		| VInstance {ikind = IStringMap map} ->
 			cache v (fun() ->
 				addc 'b';
-				StringHashtbl.iter (fun s (_,value) ->
+				RuntimeStringHashtbl.iter (fun s (_,value) ->
 					adds s;
 					loop value
 				) map;
@@ -285,9 +288,19 @@ let value_signature v =
 		| VInstance {ikind = IIntMap map} ->
 			cache v (fun () ->
 				addc 'q';
-				IntHashtbl.iter (fun i value ->
+				RuntimeIntHashtbl.iter (fun i value ->
 					addc ':';
 					add (string_of_int i);
+					loop value
+				) map;
+				addc 'h'
+			)
+		| VInstance {ikind = IInt64Map map} ->
+			cache v (fun () ->
+				addc 'Q';
+				RuntimeInt64Hashtbl.iter (fun i value ->
+					addc ':';
+					add (Int64.to_string i);
 					loop value
 				) map;
 				addc 'h'
@@ -420,10 +433,8 @@ let compiler_error (err : Error.error) =
 
 		| _ ->
 			let stack = ref [] in
-			let depth = err.err_depth + 1 in
-
 			List.iter (fun err ->
-				Error.recurse_error ~depth (fun depth err ->
+				Error.recurse_error (fun depth err ->
 					(* TODO indent child errors depending on depth *)
 					stack := make_runtime_error (Error.error_msg err.err_message) err.err_pos :: !stack;
 				) err;
@@ -489,13 +500,19 @@ let rec value_to_expr v p =
 				(ECall (epath, args), p)
 		end
 	| VInstance {ikind = IIntMap m} ->
-		let el = IntHashtbl.fold (fun k v acc ->
+		let el = RuntimeIntHashtbl.fold (fun k v acc ->
 			let e_key = (EConst (Int (string_of_int k, None)),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in
 		(EArrayDecl el,p)
+	| VInstance {ikind = IInt64Map m} ->
+		let el = RuntimeInt64Hashtbl.fold (fun k v acc ->
+			let e_key = (EConst (Int (Int64.to_string k, Some "i64")),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
 	| VInstance {ikind = IStringMap m} ->
-		let el = StringHashtbl.fold (fun k (_,v) acc ->
+		let el = RuntimeStringHashtbl.fold (fun k (_,v) acc ->
 			let e_key = (EConst (String(k,SDoubleQuotes)),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in

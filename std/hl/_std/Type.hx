@@ -45,7 +45,7 @@ class Type {
 		return true;
 	}
 
-	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class@:privateAccess {
+	@:keep static function initClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class @:privateAccess {
 		var c:hl.BaseType.Class = cast t.getGlobal();
 		if( c != null )
 			return c;
@@ -56,6 +56,23 @@ class Type {
 		register(name, c);
 		return c;
 	}
+
+	@:keep static function loadClass(ct:hl.Type, t:hl.Type, name:hl.Bytes):hl.BaseType.Class @:privateAccess {
+		#if (hl_ver < version("1.16.0"))
+		throw "Resolving classes dynamicaly requires -D hl-ver=1.16.0";
+		#else
+		var c:hl.BaseType.Class = cast t.getGlobal();
+		if( c != null )
+			return c;
+		c = hl.Api.resolveTypeDyn(t,ct);
+		if( c == null )
+			throw "Imported type '"+name+"' could not be resolved";
+		t.setGlobal(c);
+		register(name, c);
+		return c;
+		#end
+	}
+
 
 	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum@:privateAccess {
 		var e:hl.BaseType.Enum = cast t.getGlobal();
@@ -93,14 +110,14 @@ class Type {
 		return null;
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		var t = hl.Type.getDynamic(o);
 		if (t.kind == HEnum)
 			return t.getGlobal();
 		return null;
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>@:privateAccess {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>@:privateAccess {
 		var c:hl.BaseType.Class = cast c;
 		var t = c.__type__.getSuper();
 		return t == hl.Type.void() ? null : t.getGlobal();
@@ -116,14 +133,14 @@ class Type {
 		return e.__ename__;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		var t:hl.BaseType = allTypes.get(@:privateAccess name.bytes);
 		if (t == null || !Std.isOfType(t, hl.BaseType.Class))
 			return null;
 		return cast t;
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		var t:hl.BaseType = allTypes.get(@:privateAccess name.bytes);
 		if (t == null || !Std.isOfType(t, hl.BaseType.Enum))
 			return null;
@@ -212,7 +229,7 @@ class Type {
 		switch (t.kind) {
 			case HVoid:
 				return TNull;
-			case HUI8, HUI16, HI32:
+			case HUI8, HUI16, HI32, HI64:
 				return TInt;
 			case HF32, HF64:
 				return (v : Int) == (v:Float) ? TInt : TFloat;

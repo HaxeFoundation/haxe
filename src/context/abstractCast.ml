@@ -7,6 +7,7 @@ open Error
 
 let cast_stack = new_rec_stack()
 
+
 let rec make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
@@ -110,7 +111,7 @@ and do_check_cast ctx uctx tleft eright p =
 
 and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
 	let uctx = match uctx with
-		| None -> default_unification_context
+		| None -> default_unification_context ()
 		| Some uctx -> uctx
 	in
 	try
@@ -199,34 +200,45 @@ let find_array_write_access ctx a tl e1 e2 p =
 		let s_type = s_type (print_context()) in
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
 
-let find_multitype_specialization' com a pl p =
-	let uctx = default_unification_context in
+(* TODO: This duplicates pretty much all the code from unifies_to_field. The only reason for that is
+   that we want the monos so we can apply them to the type. Surely we can design our data better here... *)
+let find_to_field uctx b ab tl =
+	let a = TAbstract(ab,tl) in
+	let check t cf = match follow cf.cf_type with
+		| TFun((_,_,ta) :: _,_) ->
+			let map = apply_params ab.a_params tl in
+			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+			let map t = map (apply_params cf.cf_params monos t) in
+			let uctx = get_abstract_context uctx a b ab in
+			let unify_func = get_abstract_unify_func uctx EqStrict in
+			let athis = map ab.a_this in
+			(* we cannot allow implicit casts when the this type is not completely known yet *)
+			if Meta.has Meta.MultiType ab.a_meta && has_mono athis then raise (Unify_error []);
+			with_variance uctx (type_eq_custom {uctx with equality_kind = EqStrict}) athis (map ta);
+			unify_func (map t) b;
+			t,cf,monos
+		| _ ->
+			die "" __LOC__
+	in
+	let rec loop cfl = match cfl with
+		| [] ->
+			raise Not_found
+		| (t,cf) :: cfl ->
+			begin try
+				check t cf
+			with Unify_error _ ->
+				loop cfl
+			end
+	in
+	loop ab.a_to_field
+
+let find_multitype_specialization' platform a pl p =
+	let uctx = default_unification_context () in
 	let m = mk_mono() in
 	let tl,definitive_types = Abstract.find_multitype_params a pl in
-	if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
-		| t1 :: _ ->
-			let stack = ref [] in
-			let rec loop t =
-				if List.exists (fun t2 -> fast_eq t t2) !stack then
-					t
-				else begin
-					stack := t :: !stack;
-					match follow t with
-					| TAbstract ({ a_path = [],"Class" },_) ->
-						raise_typing_error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable on JavaScript" (s_type (print_context()) t1)) p;
-					| TEnum(en,tl) ->
-						PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
-						Type.map loop t
-					| t ->
-						Type.map loop t
-				end
-			in
-			ignore(loop t1)
-		| _ -> die "" __LOC__
-	end;
-	let _,cf =
+	let _,cf,field_monos =
 		try
-			let t = Abstract.find_to uctx m a tl in
+			let t = find_to_field uctx m a tl in
 			if List.exists (fun t -> has_mono t) definitive_types then begin
 				let at = apply_params a.a_params pl a.a_this in
 				let st = s_type (print_context()) at in
@@ -241,13 +253,13 @@ let find_multitype_specialization' com a pl p =
 			else
 				raise_typing_error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 	in
-	cf,follow m,tl
+	cf,field_monos,follow m,tl
 
-let find_multitype_specialization com a pl p =
-	let cf,m,_ = find_multitype_specialization' com a pl p in
+let find_multitype_specialization platform a pl p =
+	let cf,field_monos,m,_ = find_multitype_specialization' platform a pl p in
 	(cf,m)
 
-let handle_abstract_casts ctx e =
+let handle_abstract_casts (scom : SafeCom.t) e =
 	let rec loop e = match e.eexpr with
 		| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
 			if not (Meta.has Meta.MultiType a.a_meta) then begin
@@ -258,24 +270,24 @@ let handle_abstract_casts ctx e =
 				| _ -> raise_typing_error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 			end else begin
 				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m,pl = find_multitype_specialization' ctx.com a pl e.epos in
-				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+				let cf,field_monos,m,pl = find_multitype_specialization' scom.platform a pl e.epos in
+				let e_this = Texpr.Builder.make_static_this c e.epos in
+				let ef = mk (TField(e_this,FStatic(c,cf))) (apply_params cf.cf_params field_monos cf.cf_type) e.epos in
+				let e = ExceptionFunctions.make_call scom ef ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
 		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 			begin match follow e1.etype with
-				| TAbstract({a_impl = Some c} as a,tl) ->
+				| TAbstract({a_impl = Some c},tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						let call() = make_static_call ctx c cf a tl [e1] ctx.t.tstring e.epos in
-						if not ctx.allow_transform then
-							{ e1 with etype = ctx.t.tstring; epos = e.epos }
-						else if not (is_nullable e1.etype) then
+						let call() = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
+						if not (is_nullable e1.etype) then
 							call()
 						else begin
 							let p = e.epos in
-							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) ctx.com.basic.tbool p in
-							mk (TIf (chk_null, mk (TConst (TString "null")) ctx.com.basic.tstring p, Some (call()))) ctx.com.basic.tstring p
+							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) scom.basic.tbool p in
+							mk (TIf (chk_null, mk (TConst (TString "null")) scom.basic.tstring p, Some (call()))) scom.basic.tstring p
 						end
 					with Not_found ->
 						e
@@ -343,14 +355,14 @@ let handle_abstract_casts ctx e =
 								else
 									el
 							in
-							let ecall = make_call ctx ef el tr e.epos in
+							let ecall = ExceptionFunctions.make_call scom ef el tr e.epos in
 							maybe_cast ecall e.etype e.epos
 						with Not_found ->
 							(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 							match follow m with
-							| TAbstract({a_impl = Some c} as a,pl) ->
+							| TAbstract({a_impl = Some c},pl) ->
 								let cf = PMap.find fname c.cl_statics in
-								make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
+								ExceptionFunctions.make_static_call scom c cf  (e2 :: el) e.etype e.epos
 							| _ -> raise Not_found
 						end
 					| _ ->

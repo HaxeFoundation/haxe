@@ -27,6 +27,10 @@
 	public var length(get, never):Int;
 
 	public function new():Void {
+		initialize();
+	}
+
+	inline function initialize():Void {
 		pos = 0;
 		size = 8; // ensure 4 bytes expand for addChar()
 		b = new hl.Bytes(size);
@@ -55,16 +59,16 @@
 
 	public function add<T>(x:T):Void {
 		var slen = 0;
-		var str = Std.downcast((x:Dynamic),String);
-		if( str != null ) {
-			__add(@:privateAccess str.bytes, 0, str.length<<1);
+		var str = Std.downcast((x : Dynamic), String);
+		if (str != null) {
+			__add(@:privateAccess str.bytes, 0, str.length << 1);
 			return;
 		}
 		var sbytes = hl.Bytes.fromValue(x, new hl.Ref(slen));
 		__add(sbytes, 0, slen << 1);
 	}
 
-	public function addSub(s:String, pos:Int, ?len:Int):Void@:privateAccess {
+	public function addSub(s:String, pos:Int, ?len:Int):Void @:privateAccess {
 		if (pos < 0)
 			pos = 0;
 		if (pos >= s.length)
@@ -99,6 +103,10 @@
 			pos += 4;
 		} else
 			throw "Invalid unicode char " + c;
+	}
+
+	public function clear():Void {
+		initialize();
 	}
 
 	public function toString():String {

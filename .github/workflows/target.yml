@@ -8,12 +8,13 @@ on:
       - edited
 jobs:
   check-branches:
+    if: github.repository == 'HaxeFoundation/haxe'
     runs-on: ubuntu-latest
     steps:
       - name: Check branches
         run: |
           if [ ${{ github.base_ref }} != "development" ]; then
-            echo "Merge requests should target `development`."
+            echo "Merge requests should target development."
             exit 1
           fi
 

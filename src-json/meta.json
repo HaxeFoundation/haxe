@@ -181,6 +181,13 @@
 		"platforms": ["cpp"]
 	},
 	{
+		"name": "DefaultValue",
+		"metadata": ":defaultValue",
+		"doc": "Default value for abstracts",
+		"targets": ["TAbstract"],
+		"internal": true
+	},
+	{
 		"name": "DefParam",
 		"metadata": ":defParam",
 		"doc": "Default function argument value loaded from the SWF and used for documentation in Genxml.",
@@ -601,11 +608,6 @@
 		"metadata": ":meta",
 		"doc": "Internally used to mark a class field as being the metadata field.",
 		"internal": true
-	},
-	{
-		"name": "Macro",
-		"metadata": ":macro",
-		"doc": "(deprecated)"
 	},
 	{
 		"name": "MergeBlock",
@@ -1150,6 +1152,12 @@
 		"name": "WrappedException",
 		"metadata": ":wrappedException",
 		"doc": "Internally used for exceptions wrapping in `throw` expressions.",
+		"internal": true
+	},
+	{
+		"name": "ExceptionTypeCheck",
+		"metadata": ":exceptionTypeCheck",
+		"doc": "Internally used for transformed exception type check wrt to `catch`.",
 		"internal": true
 	}
 ]

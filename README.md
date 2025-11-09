@@ -42,7 +42,7 @@ The Haxe project has several licenses, covering different parts of the projects.
  * The Haxe standard library is released under the MIT license.
  * The Neko virtual machine is released under the MIT license. Its bundled runtime libraries (ndll) and tools are released under open source licenses as described in https://github.com/HaxeFoundation/neko/blob/master/LICENSE
 
-For the complete Haxe licenses, please see https://haxe.org/foundation/open-source.html or [extra/LICENSE.txt](extra/LICENSE.txt).
+For the complete Haxe licenses, please see https://haxe.org/foundation/open-source.html or [./LICENSE](./LICENSE).
 
 ## Installing Haxe
 

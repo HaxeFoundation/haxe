@@ -22,7 +22,7 @@
 
 package cpp;
 
-@:coreType @:notNull @:runtimeValue abstract UInt64 from Int {
+@:coreType @:notNull @:runtimeValue @:defaultValue(0) abstract UInt64 from Int {
 
 	/**
 		Destructively cast to Int

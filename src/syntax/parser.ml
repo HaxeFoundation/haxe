@@ -19,7 +19,6 @@
 
 open Ast
 open Globals
-open DisplayTypes.DisplayMode
 open DisplayPosition
 
 type preprocessor_error =
@@ -67,9 +66,32 @@ type 'a sequence_parsing_result =
 	| End of pos
 	| Error of string
 
+type syntax_completion_on = syntax_completion * DisplayTypes.completion_subject
+
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
-exception SyntaxCompletion of syntax_completion * DisplayTypes.completion_subject
+exception SyntaxCompletion of syntax_completion_on
+
+type parser_config = {
+	defines : Define.define;
+	in_display : bool;
+	in_display_file : bool;
+	display_mode : DisplayTypes.DisplayMode.t;
+	was_auto_triggered : bool;
+	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t option;
+}
+
+type parser_ctx = {
+	lexer_ctx : Lexer.lexer_ctx;
+	mutable syntax_errors : (error_msg * pos) list;
+	mutable last_doc : (string * int) option;
+	in_macro : bool;
+	code : Sedlexing.lexbuf;
+	mutable had_resume : bool;
+	mutable delayed_syntax_completion : syntax_completion_on option;
+	cache : (token * pos) DynArray.t;
+	config : parser_config;
+}
 
 let error_msg = function
 	| Unexpected (Kwd k) -> "Unexpected keyword \""^(s_keyword k)^"\""
@@ -97,13 +119,35 @@ type parser_display_information = {
 	pd_errors : parse_error list;
 	pd_dead_blocks : (pos * expr) list;
 	pd_conditions : expr list;
+	pd_was_display_file : bool;
+	pd_had_resume : bool;
+	pd_delayed_syntax_completion : syntax_completion_on option;
 }
 
 type 'a parse_result =
-	(* Parsed non-display-file without errors. *)
-	| ParseSuccess of 'a * bool * parser_display_information
-	(* Parsed non-display file with errors *)
+	| ParseSuccess of 'a * parser_display_information
 	| ParseError of 'a * parse_error * parse_error list
+
+let create_context lexer_ctx config in_macro code = {
+	lexer_ctx;
+	syntax_errors = [];
+	last_doc = None;
+	in_macro;
+	code;
+	had_resume = false;
+	delayed_syntax_completion = None;
+	cache = DynArray.create ();
+	config;
+}
+
+let create_config defines in_display in_display_file display_mode was_auto_triggered special_identifier_files = {
+	defines;
+	in_display;
+	in_display_file;
+	display_mode;
+	was_auto_triggered;
+	special_identifier_files;
+}
 
 let s_decl_flag = function
 	| DPrivate -> "private"
@@ -121,96 +165,58 @@ let syntax_completion kind so p =
 
 let error m p = raise (Error (m,p))
 
-let special_identifier_files : (Path.UniqueKey.t,string) Hashtbl.t = Hashtbl.create 0
-
-module TokenCache = struct
-	let cache = ref (DynArray.create ())
-	let add (token : (token * pos)) = DynArray.add (!cache) token
-	let get index = DynArray.get (!cache) index
-	let clear () =
-		let old_cache = !cache in
-		cache := DynArray.create ();
-		(fun () -> cache := old_cache)
-end
-
-let last_token s =
+let last_token ctx s =
 	let n = Stream.count s in
-	TokenCache.get (if n = 0 then 0 else n - 1)
+	DynArray.get ctx.cache (if n = 0 then 0 else n - 1)
 
-let last_pos s = pos (last_token s)
+let last_pos ctx s = pos (last_token ctx s)
 
-let next_token s = match Stream.peek s with
+let next_token ctx s = match Stream.peek s with
 	| Some (Eof,p) ->
 		(Eof,p)
 	| Some tk -> tk
 	| None ->
-		let last_pos = pos (last_token s) in
+		let last_pos = pos (last_token ctx s) in
 		(Eof,last_pos)
 
-let next_pos s = pos (next_token s)
-
-(* Global state *)
-
-let in_display = ref false
-let was_auto_triggered = ref false
-let display_mode = ref DMNone
-let in_macro = ref false
-let had_resume = ref false
-let code_ref = ref (Sedlexing.Utf8.from_string "")
-let delayed_syntax_completion : (syntax_completion * DisplayTypes.completion_subject) option ref = ref None
-
-(* Per-file state *)
-
-let in_display_file = ref false
-let last_doc : (string * int) option ref = ref None
-let syntax_errors = ref []
+let next_pos ctx s = pos (next_token ctx s)
 
 let reset_state () =
-	in_display := false;
-	was_auto_triggered := false;
-	display_mode := DMNone;
-	display_position#reset;
-	in_macro := false;
-	had_resume := false;
-	code_ref := Sedlexing.Utf8.from_string "";
-	delayed_syntax_completion := None;
-	in_display_file := false;
-	last_doc := None;
-	syntax_errors := []
+	display_position#reset
 
-let syntax_error_with_pos error_msg p v =
+let syntax_error_with_pos ctx error_msg p v =
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
-	if not !in_display then error error_msg p;
-	syntax_errors := (error_msg,p) :: !syntax_errors;
+	if not ctx.config.in_display then error error_msg p;
+	ctx.syntax_errors <- (error_msg,p) :: ctx.syntax_errors;
 	v
 
-let syntax_error error_msg ?(pos=None) s v =
-	let p = (match pos with Some p -> p | None -> next_pos s) in
-	syntax_error_with_pos error_msg p v
+let syntax_error ctx error_msg ?(pos=None) s v =
+	let p = (match pos with Some p -> p | None -> next_pos ctx s) in
+	syntax_error_with_pos ctx error_msg p v
 
-let handle_stream_error msg s =
+let handle_stream_error ctx msg s =
 	let err,pos = if msg = "Parse error." then begin
-		let tk,pos = next_token s in
+		let tk,pos = next_token ctx s in
 		(Unexpected tk),Some pos
 	end else
 		(StreamError msg),None
 	in
-	syntax_error err ~pos s ()
+	syntax_error ctx err ~pos s ()
 
-let get_doc s =
+let get_doc ctx s =
 	(* do the peek first to make sure we fetch the doc *)
 	match Stream.peek s with
 	| None -> None
 	| Some (tk,p) ->
-		match !last_doc with
+		match ctx.last_doc with
 		| None -> None
 		| Some (d,pos) ->
-			last_doc := None;
+			ctx.last_doc <- None;
 			Some d
 
-let unsupported_decl_flag decl flag pos =
+let unsupported_decl_flag decl flag pos ctx =
 	let msg = (s_decl_flag flag) ^ " modifier is not supported for " ^ decl in
-	syntax_error_with_pos (Custom msg) pos None
+	syntax_error_with_pos ctx (Custom msg) pos None
 
 let unsupported_decl_flag_class = unsupported_decl_flag "classes"
 let unsupported_decl_flag_enum = unsupported_decl_flag "enums"
@@ -218,35 +224,35 @@ let unsupported_decl_flag_abstract = unsupported_decl_flag "abstracts"
 let unsupported_decl_flag_typedef = unsupported_decl_flag "typedefs"
 let unsupported_decl_flag_module_field = unsupported_decl_flag "module-level fields"
 
-let decl_flag_to_class_flag (flag,p) = match flag with
+let decl_flag_to_class_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some HPrivate
 	| DExtern -> Some HExtern
 	| DFinal -> Some HFinal
-	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p
+	| DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_class flag p ctx
 
-let decl_flag_to_enum_flag (flag,p) = match flag with
+let decl_flag_to_enum_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some EPrivate
 	| DExtern -> Some EExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_enum flag p ctx
 
-let decl_flag_to_abstract_flag (flag,p) = match flag with
+let decl_flag_to_abstract_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some AbPrivate
 	| DExtern -> Some AbExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_abstract flag p ctx
 
-let decl_flag_to_typedef_flag (flag,p) = match flag with
+let decl_flag_to_typedef_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some TDPrivate
 	| DExtern -> Some TDExtern
-	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p
+	| DFinal | DMacro | DDynamic | DInline | DPublic | DStatic | DOverload -> unsupported_decl_flag_typedef flag p ctx
 
-let decl_flag_to_module_field_flag (flag,p) = match flag with
+let decl_flag_to_module_field_flag ctx (flag,p) = match flag with
 	| DPrivate -> Some (APrivate,p)
 	| DMacro -> Some (AMacro,p)
 	| DDynamic -> Some (ADynamic,p)
 	| DInline -> Some (AInline,p)
 	| DOverload -> Some (AOverload,p)
 	| DExtern -> Some (AExtern,p)
-	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p
+	| DFinal | DPublic | DStatic -> unsupported_decl_flag_module_field flag p ctx
 
 let serror() = raise (Stream.Error "Parse error.")
 
@@ -257,15 +263,15 @@ let magic_type_ct p = make_ptp_ct magic_type_path p
 
 let magic_type_th p = magic_type_ct p,p
 
-let delay_syntax_completion kind so p =
-	delayed_syntax_completion := Some(kind,DisplayTypes.make_subject so p)
+let delay_syntax_completion ctx kind so p =
+	ctx.delayed_syntax_completion <- Some(kind,DisplayTypes.make_subject so p)
 
 let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
 	| _ -> raise (TypePath (List.rev sl,None,in_import,p))
 
-let would_skip_display_position p1 plus_one s =
-	if !in_display_file then match Stream.npeek 1 s with
+let would_skip_display_position ctx p1 plus_one s =
+	if ctx.config.in_display_file then match Stream.npeek 1 s with
 		| [ (_,p2) ] ->
 			let p2 = {p2 with pmin = p1.pmax + (if plus_one then 1 else 0)} in
 			display_position#enclosed_in p2
@@ -338,16 +344,16 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
 	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
-let handle_xml_literal p1 =
-	Lexer.reset();
-	let i = Lexer.lex_xml p1.pmin !code_ref in
-	let xml = Lexer.contents() in
+let handle_xml_literal ctx p1 =
+	Lexer.reset ctx.lexer_ctx;
+	let i = Lexer.lex_xml ctx.lexer_ctx p1.pmin ctx.code in
+	let xml = Lexer.contents ctx.lexer_ctx in
 	let e = EConst (String(xml,SDoubleQuotes)),{p1 with pmax = i} in (* STRINGTODO: distinct kind? *)
 	let e = make_meta Meta.Markup [] e p1 in
 	e
 
-let punion_next p1 s =
-	let _,p2 = next_token s in
+let punion_next ctx p1 s =
+	let _,p2 = next_token ctx s in
 	{
 		pfile = p1.pfile;
 		pmin = p1.pmin;
@@ -358,22 +364,22 @@ let mk_null_expr p = (EConst(Ident "null"),p)
 
 let mk_display_expr e dk = (EDisplay(e,dk),(pos e))
 
-let is_completion () =
-	!display_mode = DMDefault
+let is_completion ctx =
+	ctx.config.display_mode = DMDefault
 
-let is_signature_display () =
-	!display_mode = DMSignature
+let is_signature_display ctx =
+	ctx.config.display_mode = DMSignature
 
-let check_resume p fyes fno =
-	if is_completion () && !in_display_file && p.pmax = (display_position#get).pmin then begin
-		had_resume := true;
+let check_resume ctx p fyes fno =
+	if is_completion ctx && ctx.config.in_display_file && p.pmax = (display_position#get).pmin then begin
+		ctx.had_resume <- true;
 		fyes()
 	end else
 		fno()
 
-let check_resume_range p s fyes fno =
-	if is_completion () && !in_display_file then begin
-		let pnext = next_pos s in
+let check_resume_range ctx p s fyes fno =
+	if is_completion ctx && ctx.config.in_display_file then begin
+		let pnext = next_pos ctx s in
 		if p.pmin < (display_position#get).pmin && pnext.pmin >= (display_position#get).pmax then
 			fyes pnext
 		else
@@ -381,19 +387,19 @@ let check_resume_range p s fyes fno =
 	end else
 		fno()
 
-let check_completion p0 plus_one s =
+let check_completion ctx p0 plus_one s =
 	match Stream.peek s with
 	| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
 		Stream.junk s;
 		(Some(Some name,p))
 	| _ ->
-		if would_skip_display_position p0 plus_one s then
+		if would_skip_display_position ctx p0 plus_one s then
 			Some(None,DisplayPosition.display_position#with_pos p0)
 		else
 			None
 
-let check_type_decl_flag_completion mode flags s =
-	if not !in_display_file || not (is_completion()) then raise Stream.Failure;
+let check_type_decl_flag_completion ctx mode flags s =
+	if not ctx.config.in_display_file || not (is_completion ctx) then raise Stream.Failure;
 	let mode () = match flags with
 		| [] ->
 			SCTypeDecl mode
@@ -407,14 +413,14 @@ let check_type_decl_flag_completion mode flags s =
 			the parser would fail otherwise anyway. *)
 		| Some((Const(Ident name),p)) when display_position#enclosed_in p -> syntax_completion (mode()) (Some name) p
 		| _ -> match flags with
-			| (_,p) :: _ when would_skip_display_position p true s ->
+			| (_,p) :: _ when would_skip_display_position ctx p true s ->
 				let flags = List.map fst flags in
 				syntax_completion (SCAfterTypeFlag flags) None (DisplayPosition.display_position#with_pos p)
 			| _ ->
 				raise Stream.Failure
 
-let check_type_decl_completion mode pmax s =
-	if !in_display_file && is_completion() then begin
+let check_type_decl_completion ctx mode pmax s =
+	if ctx.config.in_display_file && is_completion ctx then begin
 		let pmin = match Stream.peek s with
 			| Some (Eof,_) | None -> max_int
 			| Some tk -> (pos tk).pmin
@@ -427,15 +433,15 @@ let check_type_decl_completion mode pmax s =
 			| Some(e,p) -> None,p
 			| _ -> None,p
 			in
-			delay_syntax_completion (SCTypeDecl mode) so p
+			delay_syntax_completion ctx (SCTypeDecl mode) so p
 		end
 	end
 
-let check_signature_mark e p1 p2 =
-	if not (is_signature_display()) then e
+let check_signature_mark ctx e p1 p2 =
+	if not (is_signature_display ctx) then e
 	else begin
 		let p = punion p1 p2 in
-		if true || not !was_auto_triggered then begin (* TODO: #6383 *)
+		if true || not ctx.config.was_auto_triggered then begin (* TODO: #6383 *)
 			if encloses_position_gt display_position#get p then (mk_display_expr e DKMarked)
 			else e
 		end else begin
@@ -444,8 +450,8 @@ let check_signature_mark e p1 p2 =
 		end
 	end
 
-let convert_abstract_flags flags =
-	ExtList.List.filter_map decl_flag_to_abstract_flag flags
+let convert_abstract_flags ctx flags =
+	ExtList.List.filter_map (decl_flag_to_abstract_flag ctx) flags
 
 let no_keyword what s =
 	match Stream.peek s with

@@ -71,7 +71,7 @@ let control = function
 		CLabel
 	| ORet _ ->
 		CRet
-	| OThrow _ | ORethrow _ ->
+	| OThrow _ | ORethrow _ | OAssert _ ->
 		CThrow
 	| OSwitch (_,cases,_) ->
 		CSwitch cases
@@ -170,12 +170,14 @@ let opcode_fx frw op =
 		()
 	| OPrefetch (r,_,_) ->
 		read r
-    | OAsm (_,_,r) ->
-        if r > 0 then begin
-            (* assume both *)
-            read (r - 1);
-            write (r - 1);
-        end
+	| OAsm (_,_,r) ->
+		if r > 0 then begin
+			(* assume both *)
+			read (r - 1);
+			write (r - 1);
+		end
+	| OCatch _ ->
+		()
 
 let opcode_eq a b =
 	match a, b with
@@ -452,6 +454,8 @@ let opcode_map read write op =
 	| OAsm (mode, value, r) ->
 		let r2 = read (r - 1) in
 		OAsm (mode, value, (write r2) + 1)
+	| OCatch _ ->
+		op
 
 (* build code graph *)
 
@@ -547,7 +551,8 @@ let remap_fun ctx f dump get_str old_code =
 	let nregs = Array.length f.regs in
 	let reg_remap = ctx.r_used_regs <> nregs in
 	let assigns = ref f.assigns in
-	let write str = match dump with None -> () | Some ch -> IO.nwrite ch (Bytes.unsafe_of_string (str ^ "\n")) in
+	let dump_buffer = if dump then Buffer.create 1024 else Buffer.create 0  in
+	let write str = if dump then Buffer.add_string dump_buffer (str ^ "\n") else () in
 	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> Globals.die "" __LOC__) in
 
 	let live_bits = ctx.r_live_bits in
@@ -620,7 +625,7 @@ let remap_fun ctx f dump get_str old_code =
 	end;
 
 	(* done *)
-	if dump <> None then begin
+	if dump then begin
 		let old_assigns = Hashtbl.create 0 in
 		let new_assigns = Hashtbl.create 0 in
 		Array.iter (fun (var,pos) -> if pos >= 0 then Hashtbl.replace old_assigns pos var) f.assigns;
@@ -672,7 +677,6 @@ let remap_fun ctx f dump get_str old_code =
 		loop 0 ctx.r_root;
 		write "";
 		write "";
-		(match dump with None -> () | Some ch -> IO.flush ch);
 	end;
 
 	let code = ref f.code in
@@ -739,7 +743,8 @@ let remap_fun ctx f dump get_str old_code =
 			regs := new_regs;
 		end;
 	end;
-	{ f with code = !code; regs = !regs; debug = !debug; assigns = !assigns }
+	let dump_str = Buffer.contents dump_buffer in
+	({ f with code = !code; regs = !regs; debug = !debug; assigns = !assigns }, dump_str)
 
 let _optimize (f:fundecl) =
 	let nregs = Array.length f.regs in
@@ -1059,8 +1064,8 @@ type cache_elt = {
 let opt_cache = ref PMap.empty
 let used_mark = ref 0
 
-let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
-	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
+let optimize dump get_str (f:fundecl) (hxf:string) =
+	let old_code = if dump then Array.copy f.code else f.code in
 	try
 		let c = PMap.find hxf (!opt_cache) in
 		c.c_last_used <- !used_mark;
@@ -1095,7 +1100,7 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 		let fopt = remap_fun rctx f dump get_str old_code in
 		Hashtbl.iter (fun _ b ->
 			b.bstate <- None;
-			if dump = None then begin
+			if not dump then begin
 				b.bneed <- ISet.empty;
 				b.bneed_all <- None;
 			end;
