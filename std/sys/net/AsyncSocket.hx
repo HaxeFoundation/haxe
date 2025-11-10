@@ -102,11 +102,11 @@ class AsyncSocket {
 	**/
 	public dynamic function onWrite( error : Bool ) {
 		if( error ) {
-			onDisconnected();
+			onDisconnect();
 			close();
 		}
 	}
-	
+
 	/**
 		Dispatched when a SSL error occurs. This can be when connecting to a host which fails to authentificate or when starting a server with invalid cert/key.
 		Authentification can be adjusted with `sys.ssl.Socket.DEFAULT_VERIFY_CERT`
