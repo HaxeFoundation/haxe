@@ -102,7 +102,7 @@ class AsyncSocket {
 	**/
 	public dynamic function onWrite( error : Bool ) {
 		if( error ) {
-			onDisconnected();
+			onDisconnect();
 			close();
 		}
 	}
