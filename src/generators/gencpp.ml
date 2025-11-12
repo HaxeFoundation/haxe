@@ -280,8 +280,8 @@ let generate_source ctx =
    } in
 
    let folder acc cur =
-      let no_reference_meta pos =
-         abort "CPP0001: Marshalling type extern must be annotated with reference semantics" pos
+      let no_semantics_meta pos =
+         abort "CPP0001: Marshalling type extern must be annotated with value semantics" pos
       in
 
       (if not (Gctx.defined common_ctx Define.Objc) then
@@ -291,11 +291,11 @@ let generate_source ctx =
          | _ -> ());
 
       match cur with
-      | TAbstractDecl abs when is_marshalling_native_enum abs && not (ExtType.has_reference_semantics (TAbstract (abs, []))) ->
-         no_reference_meta abs.a_pos
+      | TAbstractDecl abs when is_marshalling_native_enum abs && not (ExtType.has_value_semantics (TAbstract (abs, []))) ->
+         no_semantics_meta abs.a_pos
       | TClassDecl class_def when is_extern_class class_def ->
-         if (is_marshalling_native_value_class class_def || is_marshalling_native_pointer class_def) && not (ExtType.has_reference_semantics (TInst (class_def, []))) then
-            no_reference_meta class_def.cl_pos;
+         if (is_marshalling_native_value_class class_def || is_marshalling_native_pointer class_def) && not (ExtType.has_value_semantics (TInst (class_def, []))) then
+            no_semantics_meta class_def.cl_pos;
 
          if is_marshalling_native_pointer class_def && class_def.cl_constructor |> Option.is_some then
             abort "CPP0004: Pointer type cannot have a constructor" class_def.cl_pos;
