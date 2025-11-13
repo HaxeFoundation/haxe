@@ -102,7 +102,7 @@ and tcpp_closure = {
   close_args : (tcppvar * texpr option) list;
   close_expr : tcppexpr;
   close_id : int;
-  close_undeclared : tcppvar StringMap.t;
+  close_undeclared : tcppvar IntMap.t;
   close_this : tcppthis option;
 }
 

@@ -967,7 +967,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             separator := ","
         | _ -> ());
 
-        StringMap.iter
+        IntMap.iter
           (fun _ var ->
             let name = var.tcppv_name in
             out !separator;
@@ -1486,7 +1486,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
     | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
 
   and gen_closure closure =
-    let argc = StringMap.bindings closure.close_undeclared |> List.length in
+    let argc = IntMap.bindings closure.close_undeclared |> List.length in
     let size = string_of_int argc in
     if argc >= 62 then
       (* Limited by c++ macro size of 128 args *)
@@ -1499,11 +1499,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       (if closure.close_this != None then "::hx::LocalThisFunc,"
        else "::hx::LocalFunc,");
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
-    StringMap.iter
+    IntMap.iter
       (fun _ var ->
-        let name = var.tcppv_name in
         let str  = cpp_macro_var_type_of var in 
-        out ("," ^ str ^ "," ^ keyword_remap name))
+        out ("," ^ str ^ "," ^ var.tcppv_debug_name))
       closure.close_undeclared;
     out (") HXARGC(" ^ argsCount ^ ")\n");
 

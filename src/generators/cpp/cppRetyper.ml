@@ -224,9 +224,8 @@ type retyper_ctx = {
   closure_id : int;
   closures : tcpp_closure list;
   injection : bool;
-  declarations : unit StringMap.t;
-  undeclared : tcppvar StringMap.t;
-  generated_value_types : tcppvar IntMap.t;
+  declarations : tcppvar IntMap.t;
+  undeclared : tcppvar IntMap.t;
   uses_this : tcppthis option;
   this_real : tcppthis;
   gc_stack : bool;
@@ -270,9 +269,8 @@ let expression ctx request_type function_args function_type expression_tree forI
     closures = [];
     closure_id = 0;
     injection = forInjection;
-    undeclared = StringMap.empty;
-    declarations = function_args |> List.map (fun (v, _) -> v.tcppv_name, ()) |> string_map_of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
-    generated_value_types = IntMap.empty;
+    undeclared = IntMap.empty;
+    declarations = function_args |> List.map (fun (v, _) -> v.tcppv_var.v_id, v) |> int_map_of_list; (* '__trace' is at the top-level *)
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
     gc_stack = false;
@@ -503,20 +501,16 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* functions/vars will appear to be members of the virtual global object *)
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
-        let new_var =
-          match IntMap.find_opt tvar.v_id retyper_ctx.generated_value_types with
-          | Some found -> found
-          | None -> retype_tvar tvar
-        in
-
-        if StringMap.mem new_var.tcppv_name retyper_ctx.declarations then
-          (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
-        else (
-          let new_ctx = { retyper_ctx with undeclared = StringMap.add new_var.tcppv_name new_var retyper_ctx.undeclared } in
-          if has_var_flag tvar VCaptured then
-            (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
-          else
-            (new_ctx, CppExtern (new_var.tcppv_var.v_name, false), new_var.tcppv_type))
+          (match IntMap.find_opt tvar.v_id retyper_ctx.declarations with
+          | Some found -> 
+            (retyper_ctx, CppVar (VarLocal found), found.tcppv_type)
+          | None ->
+            let new_var = retype_tvar tvar in
+            let new_ctx = { retyper_ctx with undeclared = IntMap.add tvar.v_id new_var retyper_ctx.undeclared } in
+            if has_var_flag tvar VCaptured then
+              (new_ctx, CppVar (VarClosure new_var), new_var.tcppv_type)
+            else
+              (new_ctx, CppExtern (new_var.tcppv_var.v_name, false), new_var.tcppv_type))
       | TIdent name -> (retyper_ctx, CppExtern (name, false), return_type)
       | TBreak -> (
           if forCppia then
@@ -1011,8 +1005,8 @@ let expression ctx request_type function_args function_type expression_tree forI
 
         let new_ctx = {
           retyper_ctx with
-            declarations = func.tf_args |> List.map (fun (t, _) -> (retype_tvar t).tcppv_name, ()) |> string_map_of_list;
-            undeclared   = StringMap.empty;
+            declarations = func.tf_args |> List.map (fun (t, _) -> t.v_id, retype_tvar t) |> int_map_of_list;
+            undeclared   = IntMap.empty;
             this_real    = ThisFake;
             uses_this    = None;
             function_return_type = cpp_type_of_with with_promoted_value_type func.tf_type;
@@ -1029,9 +1023,9 @@ let expression ctx request_type function_args function_type expression_tree forI
             close_this = new_ctx.uses_this;
           }
         in
-        let folder acc (name, tvar) =
-          if not (StringMap.mem name retyper_ctx.declarations) then
-            StringMap.add name tvar acc
+        let folder acc (id, tcppvar) =
+          if not (IntMap.mem id retyper_ctx.declarations) then
+            IntMap.add id tcppvar acc
           else
             acc
           in
@@ -1039,7 +1033,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           List.fold_left
             folder
             retyper_ctx.undeclared
-            (StringMap.bindings new_ctx.undeclared)
+            (IntMap.bindings new_ctx.undeclared)
           in
 
         let retyper_ctx = {
@@ -1252,9 +1246,9 @@ let expression ctx request_type function_args function_type expression_tree forI
 
           (* Add back any undeclared variables *)
           (* Needed for tracking variables captured by variables *)
-          let folder acc (name, var) =
-            if not (StringMap.mem name retyper_ctx.declarations) then
-              StringMap.add name var acc
+          let folder acc (id, tcppvar) =
+            if not (IntMap.mem id retyper_ctx.declarations) then
+              IntMap.add id tcppvar acc
             else
               acc
             in
@@ -1262,7 +1256,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             List.fold_left
               folder
               retyper_ctx.undeclared
-              (StringMap.bindings new_ctx.undeclared)
+              (IntMap.bindings new_ctx.undeclared)
             in
 
           (
@@ -1312,8 +1306,7 @@ let expression ctx request_type function_args function_type expression_tree forI
         in
         let retyper_ctx, init = retype retyper_ctx (new_var.tcppv_type) eo |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
         let retyper_ctx = { retyper_ctx with
-          declarations = StringMap.add new_var.tcppv_name () retyper_ctx.declarations;
-          generated_value_types = IntMap.add v.v_id new_var retyper_ctx.generated_value_types;
+          declarations = IntMap.add v.v_id new_var retyper_ctx.declarations;
         } in
         (retyper_ctx, CppVarDecl (new_var, init), new_var.tcppv_type)
       | TVar (v, eo) ->
@@ -1323,7 +1316,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             | None -> retyper_ctx, None
             | Some e -> retype retyper_ctx new_var.tcppv_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr)
           in
-          let retyper_ctx = { retyper_ctx with declarations = StringMap.add new_var.tcppv_name () retyper_ctx.declarations } in
+          let retyper_ctx = { retyper_ctx with declarations = IntMap.add v.v_id new_var retyper_ctx.declarations } in
           (retyper_ctx, CppVarDecl (new_var, init), new_var.tcppv_type)
       | TIf (ec, e1, e2) ->
           let retyper_ctx, ec = retype retyper_ctx (TCppScalar "bool") ec in
@@ -1422,10 +1415,11 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyper_ctx, cppCatches =
             List.fold_left
               (fun (retyper_ctx, acc) (tvar, catch_block) ->
-                let retyper_ctx = { retyper_ctx with declarations = StringMap.add tvar.v_name () retyper_ctx.declarations } in
+                let retyped_tvar = retype_tvar tvar in
+                let retyper_ctx = { retyper_ctx with declarations = IntMap.add tvar.v_id retyped_tvar retyper_ctx.declarations } in
                 let retyper_ctx, cppCatchBlock = retype retyper_ctx TCppVoid catch_block in
-                let retyper_ctx = { retyper_ctx with declarations = StringMap.remove tvar.v_name retyper_ctx.declarations } in
-                retyper_ctx, (retype_tvar tvar, cppCatchBlock) :: acc)
+                let retyper_ctx = { retyper_ctx with declarations = IntMap.remove tvar.v_id retyper_ctx.declarations } in
+                retyper_ctx, (retyped_tvar, cppCatchBlock) :: acc)
               (retyper_ctx, [])
               catches
           in

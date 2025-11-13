@@ -9,6 +9,8 @@ let follow = Abstract.follow_with_abstracts
 
 let string_map_of_list bs = List.fold_left (fun m (k, v) -> StringMap.add k v m) StringMap.empty bs
 
+let int_map_of_list bs = List.fold_left (fun m (k, v) -> IntMap.add k v m) IntMap.empty bs
+
 (*
    A class_path is made from a package (array of strings) and a class name.
    Join these together, inclding a separator.  eg, "/" for includes : pack1/pack2/Name or "::"
