@@ -13,6 +13,22 @@ let with_promoted_value_type () = Promoted
 
 let with_stack_value_type () = Stack
 
+let is_lvalue_expr expr =
+  let rec checker expr =
+    match expr.eexpr with
+    | TLocal _ ->
+      true
+    | TField (_, FInstance (_, _, field)) when is_var_field field ->
+      true
+    | TField (_, FStatic (_, field)) when is_var_field field ->
+      true
+    | TCast (e, _) ->
+      checker e
+    | _ ->
+      false
+  in
+  checker expr
+
 let rec cpp_type_of stack value_type_handler haxe_type =
   if List.exists (fast_eq haxe_type) stack then
     TCppDynamic
@@ -210,6 +226,7 @@ type retyper_ctx = {
   injection : bool;
   declarations : unit StringMap.t;
   undeclared : tcppvar StringMap.t;
+  generated_value_types : tcppvar IntMap.t;
   uses_this : tcppthis option;
   this_real : tcppthis;
   gc_stack : bool;
@@ -255,6 +272,7 @@ let expression ctx request_type function_args function_type expression_tree forI
     injection = forInjection;
     undeclared = StringMap.empty;
     declarations = function_args |> List.map (fun (v, _) -> v.tcppv_name, ()) |> string_map_of_list |> StringMap.add "__trace" (); (* '__trace' is at the top-level *)
+    generated_value_types = IntMap.empty;
     uses_this = None;
     this_real = if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic;
     gc_stack = false;
@@ -485,7 +503,11 @@ let expression ctx request_type function_args function_type expression_tree forI
           (* functions/vars will appear to be members of the virtual global object *)
           (retyper_ctx, CppClassOf (([], ""), false), TCppGlobal)
       | TLocal tvar ->
-        let new_var = retype_tvar tvar in
+        let new_var =
+          match IntMap.find_opt tvar.v_id retyper_ctx.generated_value_types with
+          | Some found -> found
+          | None -> retype_tvar tvar
+        in
 
         if StringMap.mem new_var.tcppv_name retyper_ctx.declarations then
           (retyper_ctx, CppVar (VarLocal new_var), new_var.tcppv_type)
@@ -525,13 +547,21 @@ let expression ctx request_type function_args function_type expression_tree forI
             abort "CPP0002: Value types cannot have function closures created for them" expr.epos
           | FInstance (clazz, params, member)
           | FClosure (Some (clazz, params), member) -> (
-            let funcReturn = cpp_member_return_type member in
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
             (* Value types in haxe classes are always promoted, with value type externs treat them as stack types so the auto casting deals with conversion *)
             let handler  = if is_marshalling_native_value_class clazz then with_stack_value_type else with_promoted_value_type in
             let exprType = cpp_type_of_with handler member.cf_type in
             let is_objc  = is_cpp_objc_type retypedObj.cpptype in
+
+            (* TODO : See if this is the right way to deal with template / generic parameters *)
+            let funcReturn =
+              match member.cf_type with
+              | TFun (_, ret) when is_marshalling_native_value_class clazz || is_marshalling_native_pointer clazz ->
+                apply_params clazz.cl_params params ret |> cpp_type_of_with with_stack_value_type
+              | _ ->
+                cpp_return_type member.cf_type
+            in
 
             if retypedObj.cpptype = TCppNull then
               (retyper_ctx, CppNullAccess, TCppDynamic)
@@ -1265,6 +1295,27 @@ let expression ctx request_type function_args function_type expression_tree forI
           | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
       | TVar (v, None) when is_marshalling_native_value_class_tvar v ->
         abort "CPP0005: Marshalling value type extern cannot be used for a variable declaration with no expression" expr.epos
+      (* Even with value semantics the compiler will sometimes generate temporary variables e.g. long function call chains. *)
+      (* In these cases the generated variables should be value types, not references, so we're not dealing with c++ const& temporaries. *)
+      (* So if the RHS of the generated variable is not a lvalue make sure we assign it as a value type, not reference. *)
+      (* We then need to store this in the retyper context so locals get the correct marshalling state for these special variables. *)
+      (* TODO : Could this be handled in the cppFilterValueType filter? *)
+      | TVar ({ v_kind = VGenerated } as v, Some eo) when is_marshalling_native_value_class_tvar v && not (is_lvalue_expr eo) ->
+        let new_var =
+          let handler = if has_var_flag v VCaptured then with_promoted_value_type else with_stack_value_type in
+          {
+            tcppv_var        = v;
+            tcppv_type       = cpp_type_of_with handler v.v_type;
+            tcppv_name       = cpp_var_name_of v;
+            tcppv_debug_name = keyword_remap v.v_name;
+          }
+        in
+        let retyper_ctx, init = retype retyper_ctx (new_var.tcppv_type) eo |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
+        let retyper_ctx = { retyper_ctx with
+          declarations = StringMap.add new_var.tcppv_name () retyper_ctx.declarations;
+          generated_value_types = IntMap.add v.v_id new_var retyper_ctx.generated_value_types;
+        } in
+        (retyper_ctx, CppVarDecl (new_var, init), new_var.tcppv_type)
       | TVar (v, eo) ->
           let new_var  = retype_tvar v in
           let retyper_ctx, init =
