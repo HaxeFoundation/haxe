@@ -797,6 +797,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           out " + ";
           gen index
 
+        (* The reference wrappers use templated get and set functions instead of the subscript operator due to templated []operator being a bit of a pain in c++ *)
+        (* Treat is as the special case it is here. *)
+        | ArrayRawPointer ({ cpptype = TCppMarshalNativeType (_, Reference) } as arrayObj, index) ->
+          gen arrayObj;
+          out (Printf.sprintf ".get< %s >(" (tcpp_to_string expr.cpptype));
+          gen index;
+          out ")";
+
         | ArrayTyped (arrayObj, index, _) ->
             gen arrayObj;
             out "->__get(";
@@ -887,6 +895,16 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                 out ",";
                 gen rvalue;
                 out ")"
+
+            (* The reference wrappers use templated get and set functions instead of the subscript operator due to templated []operator being a bit of a pain in c++ *)
+            (* Treat is as the special case it is here. *)
+            | ArrayRawPointer ({ cpptype = TCppMarshalNativeType (_, Reference) } as arrayObj, index) ->
+                gen arrayObj;
+                out (Printf.sprintf ".set< %s >(" (tcpp_to_string rvalue.cpptype));
+                gen index;
+                out ",";
+                gen rvalue;
+                out ")";
             | ArrayObject (arrayObj, index, _)
             | ArrayTyped (arrayObj, index, _)
             | ArrayRawPointer (arrayObj, index) ->

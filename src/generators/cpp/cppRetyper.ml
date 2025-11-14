@@ -1046,10 +1046,10 @@ let expression ctx request_type function_args function_type expression_tree forI
 
         (retyper_ctx, CppClosure result, TCppDynamic)
       | TArray (e1, e2) ->
-          let retyper_ctx, arrayExpr, elemType =
+          let retyper_ctx, arrayExpr , elemType =
             match cpp_is_native_array_access (cpp_type_of e1.etype) with
             | true ->
-                let retyper_ctx, retypedObj = retype retyper_ctx TCppUnchanged e1 in
+                let retyper_ctx, retypedObj = retype retyper_ctx (cpp_type_of e1.etype) e1 in
                 let retyper_ctx, retypedIdx = retype retyper_ctx (TCppScalar "int") e2 in
                 ( retyper_ctx,
                   CppArray (ArrayRawPointer (retypedObj, retypedIdx)),
