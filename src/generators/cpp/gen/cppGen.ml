@@ -628,10 +628,15 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
               if expr.cpptype = TCppString || inst = InstStruct then "."
               else "->"
             in
+            let printer tcpp =
+              match tcpp with
+              | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
+              | other -> tcpp_to_string other
+            in
             let template =
               match template_types with
               | [] -> ""
-              | types -> types |> List.map (tcpp_to_string) |> String.concat ", " |> Printf.sprintf "< %s >" in
+              | types -> types |> List.map (printer) |> String.concat ", " |> Printf.sprintf "< %s >" in
             gen expr;
             out (operator ^ cpp_member_name_of field ^ template)
         | FuncInterface (expr, _, field) ->

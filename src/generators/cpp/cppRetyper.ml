@@ -588,9 +588,10 @@ let expression ctx request_type function_args function_type expression_tree forI
               let filter idx t =
                 match follow_lazy_and_mono t with
                 | TMono _ ->
-                  let param = List.nth member.cf_params idx in
-                  abort (Printf.sprintf "CPP0010: Unable to resolve parameter %s, consider adding a type hint." param.ttp_name) expr.epos;
-                | _ -> true in
+                  abort (Printf.sprintf "CPP0010: Unable to resolve parameter %s, consider adding a type hint." (List.nth member.cf_params idx).ttp_name) expr.epos;
+                | _ ->
+                  true
+              in
 
               ts |> List.filteri filter |> List.map cpp_type_of
             | None ->
