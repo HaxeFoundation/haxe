@@ -1408,7 +1408,7 @@ class script_writer ctx filename asciiOut =
                   this#write
                     (this#op IaCallThis ^ this#astType inst ^ " "
                    ^ this#stringText name ^ argN ^ this#commentOf name ^ "\n")
-              | FuncInstance (expr, _, field) | FuncInterface (expr, _, field)
+              | FuncInstance (expr, _, field, _) | FuncInterface (expr, _, field)
                 ->
                   this#write
                     (this#op IaCallMember ^ this#astType expr.cpptype ^ " "
@@ -1497,7 +1497,7 @@ class script_writer ctx filename asciiOut =
                         ^ "." ^ name)
                     ^ "\n");
                   gen_expression expr
-              | FuncInstance (expr, _, field) | FuncInterface (expr, _, field)
+              | FuncInstance (expr, _, field, _) | FuncInterface (expr, _, field)
                 ->
                   this#write
                     (this#op IaFName ^ this#astType expr.cpptype ^ " "

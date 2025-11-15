@@ -525,7 +525,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         match func with
         | FuncThis (field, _) ->
             out ("this->" ^ cpp_member_name_of field ^ "_dyn()")
-        | FuncInstance (expr, inst, field) ->
+        | FuncInstance (expr, inst, field, _) ->
             gen expr;
             out
               ((if expr.cpptype = TCppString || inst = InstStruct then "."
@@ -568,11 +568,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           args;
         out ")"
     | CppCall ((FuncStatic (_, true, field) as func), arg_list)
-    | CppCall ((FuncInstance (_, InstObjC, field) as func), arg_list) ->
+    | CppCall ((FuncInstance (_, InstObjC, field, _) as func), arg_list) ->
         out "[ ";
         (match func with
         | FuncStatic (cl, _, _) -> out (join_class_path_remap cl.cl_path "::")
-        | FuncInstance (expr, _, _) -> gen expr
+        | FuncInstance (expr, _, _, params) -> gen expr
         | _ -> ());
 
         let names = ExtString.String.nsplit field.cf_name ":" in
@@ -623,13 +623,17 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         let argsRef = ref args in
         (match func with
         | FuncThis (field, _) -> out ("this->" ^ cpp_member_name_of field)
-        | FuncInstance (expr, inst, field) ->
+        | FuncInstance (expr, inst, field, template_types) ->
             let operator =
               if expr.cpptype = TCppString || inst = InstStruct then "."
               else "->"
             in
+            let template =
+              match template_types with
+              | [] -> ""
+              | types -> types |> List.map (tcpp_to_string) |> String.concat ", " |> Printf.sprintf "< %s >" in
             gen expr;
-            out (operator ^ cpp_member_name_of field)
+            out (operator ^ cpp_member_name_of field ^ template)
         | FuncInterface (expr, _, field) ->
             gen expr;
             out ("->" ^ cpp_member_name_of field)

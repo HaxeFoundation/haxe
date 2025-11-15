@@ -7,6 +7,44 @@ open CppAst
 open CppAstTools
 open CppContext
 
+(* TODO : Not have this basically be a duplicated unify_cf *)
+let unify_cf2 map_type c cf el_args el_ret =
+	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+	match follow (apply_params cf.cf_params monos (map_type cf.cf_type)) with
+		| TFun(tl'',ret) as tf ->
+			Type.unify el_ret.etype ret;
+
+			let rec loop2 acc el tl = match el,tl with
+				| e :: el,(_,o,t) :: tl ->
+					begin try
+						Type.unify e.etype t;
+						loop2 (e :: acc) el tl
+					with _ ->
+						if Type.ExtType.is_rest (follow t) then
+							match follow t,tl with
+							| TAbstract({a_path=["haxe"],"Rest"},[t]),[] ->
+								begin try
+									let el = List.map (fun e -> unify t e.etype; e) el in
+									let fcc = FieldCallCandidate.make_field_call_candidate ((List.rev acc) @ el) ret monos tf cf (c,cf,monos) in
+									Some fcc
+								with _ ->
+									None
+								end
+							| _ ->
+								Globals.die "" __LOC__
+						else
+							None
+					end
+				| [],[] ->
+					let fcc = FieldCallCandidate.make_field_call_candidate (List.rev acc) ret monos tf cf (c,cf,monos) in
+					Some fcc
+				| _ ->
+					None
+			in
+			loop2 [] el_args tl''
+		| t ->
+			None
+
 let with_reference_value_type () = Reference
 
 let with_promoted_value_type () = Promoted
@@ -535,12 +573,37 @@ let expression ctx request_type function_args function_type expression_tree forI
       | TMeta (_, e) | TParenthesis e ->
           let retyper_ctx, cppType = retype retyper_ctx return_type e in
           (retyper_ctx, cppType.cppexpr, cppType.cpptype)
+
+      | TField (_, FClosure (Some (cls, _), _)) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
+        abort "CPP0002: Native marshalling types cannot have function closures created for them" expr.epos
+      | TField (obj, FInstance (cls, params, ({ cf_type = (TFun _) } as member))) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
+        (match apply_params cls.cl_params params expr.etype with
+        | TFun (args, ret) as t ->
+          let template_types =
+            let faked_exprs = args |> List.map (fun (_, _, t) -> t) |> List.map (fun t -> Builder.make_null t null_pos) in
+            let mapper      = apply_params cls.cl_params params in
+
+            match unify_cf2 mapper cls member faked_exprs (Builder.make_null ret null_pos) with
+            | Some { fc_data = (_, _, ts) } ->
+              List.map cpp_type_of ts
+            | None ->
+              abort "CPP0000: Failed to find parameter types" expr.epos
+          in
+
+          let clazzType = cpp_instance_type cls params with_reference_value_type in
+          let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
+          let handler     = if is_marshalling_native_value_class cls then with_stack_value_type else with_promoted_value_type in
+          let access      = if cpp_is_struct_access retypedObj.cpptype then InstStruct else InstPtr in
+          let func_return = cpp_type_of_with handler ret in
+          let exprType    = cpp_type_of_with handler t in
+          ( retyper_ctx, CppFunction (FuncInstance (retypedObj, access, member, template_types), func_return), exprType )
+        | _ ->
+          abort "CPP0000: Expected expression to be TFun" expr.epos)
       | TField (obj, field) -> (
           match field with
-          | FClosure (Some (cls, _), _) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
-            abort "CPP0002: Value types cannot have function closures created for them" expr.epos
           | FInstance (clazz, params, member)
           | FClosure (Some (clazz, params), member) -> (
+            let funcReturn = cpp_member_return_type member in
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
             (* Value types in haxe classes are always promoted, with value type externs treat them as stack types so the auto casting deals with conversion *)
@@ -548,21 +611,12 @@ let expression ctx request_type function_args function_type expression_tree forI
             let exprType = cpp_type_of_with handler member.cf_type in
             let is_objc  = is_cpp_objc_type retypedObj.cpptype in
 
-            (* TODO : See if this is the right way to deal with template / generic parameters *)
-            let funcReturn =
-              match member.cf_type with
-              | TFun (_, ret) when is_marshalling_native_value_class clazz || is_marshalling_native_pointer clazz ->
-                apply_params clazz.cl_params params ret |> cpp_type_of_with with_stack_value_type
-              | _ ->
-                cpp_return_type member.cf_type
-            in
-
             if retypedObj.cpptype = TCppNull then
               (retyper_ctx, CppNullAccess, TCppDynamic)
             else if retypedObj.cpptype = TCppDynamic && not (has_class_flag clazz CInterface) then
               if is_internal_member member.cf_name then
                 ( retyper_ctx,
-                  CppFunction (FuncInstance (retypedObj, InstPtr, member), funcReturn),
+                  CppFunction (FuncInstance (retypedObj, InstPtr, member, []), funcReturn),
                   exprType )
               else
                 (retyper_ctx, CppDynamicField (retypedObj, member.cf_name), TCppVariant)
@@ -581,7 +635,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                     exprType )
                 else
                   ( retyper_ctx,
-                    CppFunction ( FuncInstance (retypedObj, InstStruct, member), funcReturn ),
+                    CppFunction ( FuncInstance (retypedObj, InstStruct, member, []), funcReturn ),
                     exprType )
             else if is_var_field member then
               let exprType =
@@ -666,7 +720,8 @@ let expression ctx request_type function_args function_type expression_tree forI
                     ( FuncInstance
                       ( retypedObj,
                         (if is_objc then InstObjC else InstPtr),
-                        member ),
+                        member,
+                        [] ),
                       funcReturn ),
                   exprType ))
           | FStatic (_, ({ cf_name = "nativeFromStaticFunction" } as member)) ->
@@ -791,19 +846,19 @@ let expression ctx request_type function_args function_type expression_tree forI
             | CppEnumIndex _ ->
                 (* Not actually a TCall...*)
                 (retyper_ctx, retypedFunc.cppexpr, retypedFunc.cpptype)
-            | CppFunction (FuncInstance (obj, InstPtr, member), _)
+            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
               when (not forCppia) && return_type = TCppVoid && is_array_splice_call obj member ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 ( retyper_ctx,
-                  CppCall ( FuncInstance (obj, InstPtr, { member with cf_name = "removeRange" }), retypedArgs ),
+                  CppCall ( FuncInstance (obj, InstPtr, { member with cf_name = "removeRange" }, template_params), retypedArgs ),
                   TCppVoid )
-            | CppFunction (FuncInstance (obj, InstPtr, member), _)
+            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
               when is_array_concat_call obj member ->
                 let arg_types = List.map (fun _ -> obj.cpptype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 ( retyper_ctx,
-                  CppCall (FuncInstance (obj, InstPtr, member), retypedArgs),
+                  CppCall (FuncInstance (obj, InstPtr, member, template_params), retypedArgs),
                   return_type )
             | CppFunction (FuncStatic (obj, false, member), _)
               when member.cf_name = "::hx::AddressOf" ->
@@ -848,7 +903,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   abort
                     "First parameter of template function must be a Class"
                     retypedFunc.cpppos)
-            | CppFunction (FuncInstance (obj, InstPtr, member), _)
+            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
               when is_map_get_call obj member ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
@@ -871,7 +926,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   | _ -> ("get", TCppDynamic)
                 in
                 let func =
-                  FuncInstance (obj, InstPtr, { member with cf_name = fname })
+                  FuncInstance (obj, InstPtr, { member with cf_name = fname }, template_params)
                 in
                 (*
                   if  cpp_can_static_cast cppType return_type then begin
@@ -880,7 +935,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   end else
                   *)
                 (retyper_ctx, CppCall (func, retypedArgs), cppType)
-            | CppFunction (FuncInstance (obj, InstPtr, member), _)
+            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
               when forCppia && is_map_set_call obj member ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
@@ -894,10 +949,10 @@ let expression ctx request_type function_args function_type expression_tree forI
                   | [ _; { cpptype = TCppString } ] -> "setString"
                   | _ -> "set"
                 in
-                let func = FuncInstance (obj, InstPtr, { member with cf_name = fname }) in
+                let func = FuncInstance (obj, InstPtr, { member with cf_name = fname }, template_params) in
                 (retyper_ctx, CppCall (func, retypedArgs), cppType)
             | CppFunction
-                ((FuncInstance (obj, InstPtr, member) as func), returnType)
+                ((FuncInstance (obj, InstPtr, member, template_params) as func), returnType)
               when cpp_can_static_cast returnType cppType ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
@@ -912,7 +967,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               CppCall(func,retypedArgs), returnType
             *)
             (* Other functions ... *)
-            | CppFunction ( (FuncInstance (_, InstStruct, { cf_type = TFun (arg_types, _) }) as func), return_type ) ->
+            | CppFunction ( (FuncInstance (_, InstStruct, { cf_type = TFun (arg_types, _) }, template_params) as func), return_type ) ->
                 (* For struct access classes use the types of the arguments instead of the function argument types *)
                 (* In the case of generic extern classes a TFun arg type could be `MyClass.T` instead of the real type *)
                 let map_args func_arg passed_arg =
@@ -927,7 +982,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 (retyper_ctx, CppCall (func, retypedArgs), return_type)
-            | CppFunction ( (FuncInstance (_, _, { cf_type = TFun (arg_types, _) }) as func), returnType )
+            | CppFunction ( (FuncInstance (_, _, { cf_type = TFun (arg_types, _) }, _) as func), returnType )
             | CppFunction ( (FuncStatic (_, _, { cf_type = TFun (arg_types, _) }) as func), returnType )
             | CppFunction ( (FuncThis ({ cf_type = TFun (arg_types, _) }, _) as func), returnType ) ->
                 let arg_types =

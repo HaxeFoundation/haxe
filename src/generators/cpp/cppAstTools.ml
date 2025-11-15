@@ -306,7 +306,7 @@ let rec s_tcpp = function
   | CppEnumField _ -> "CppEnumField"
   | CppNullAccess -> "CppNullAccess"
   | CppCall (FuncThis _, _) -> "CppCallThis"
-  | CppCall (FuncInstance (obj, inst, field), _) ->
+  | CppCall (FuncInstance (obj, inst, field, _), _) ->
       (match inst with
       | InstObjC -> "CppCallObjCInstance("
       | InstPtr -> "CppCallInstance("

@@ -123,7 +123,7 @@ and tcppinst = InstPtr | InstObjC | InstStruct
 
 and tcppfuncloc =
   | FuncThis of tclass_field * tcpp
-  | FuncInstance of tcppexpr * tcppinst * tclass_field
+  | FuncInstance of tcppexpr * tcppinst * tclass_field * tcpp list
   | FuncStatic of tclass * bool * tclass_field
   | FuncTemplate of tclass * tclass_field * path * bool
   | FuncInterface of tcppexpr * tclass * tclass_field
