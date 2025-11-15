@@ -585,7 +585,14 @@ let expression ctx request_type function_args function_type expression_tree forI
 
             match unify_cf2 mapper cls member faked_exprs (Builder.make_null ret null_pos) with
             | Some { fc_data = (_, _, ts) } ->
-              List.map cpp_type_of ts
+              let filter idx t =
+                match follow_lazy_and_mono t with
+                | TMono _ ->
+                  let param = List.nth member.cf_params idx in
+                  abort (Printf.sprintf "CPP0010: Unable to resolve parameter %s, consider adding a type hint." param.ttp_name) expr.epos;
+                | _ -> true in
+
+              ts |> List.filteri filter |> List.map cpp_type_of
             | None ->
               abort "CPP0000: Failed to find parameter types" expr.epos
           in
