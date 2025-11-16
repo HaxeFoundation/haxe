@@ -374,7 +374,8 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppReference (TCppMarshalNativeType (value_type, _)) -> Printf.sprintf "%s&" (get_native_marshalled_type value_type)
   | TCppReference t -> tcpp_to_string t ^ " &"
   | TCppStar (TCppMarshalNativeType (value_type, _), const) ->
-    Printf.sprintf "%s%s*" (if const then "const " else "") (get_native_marshalled_type value_type)
+    let suffix = match value_type with Pointer _ -> "*" | _ -> "" in
+    Printf.sprintf "%s%s*%s" (if const then "const " else "") (get_native_marshalled_type value_type) suffix
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
   | TCppVoid -> "void"
@@ -389,11 +390,13 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
   | TCppPointer (ptrType, TCppMarshalNativeType (value_type, _)) ->
-    Printf.sprintf "::cpp::%s< %s >" ptrType (get_native_marshalled_type value_type)
+    let suffix = match value_type with Pointer _ -> "*" | _ -> "" in
+    Printf.sprintf "::cpp::%s< %s%s >" ptrType (get_native_marshalled_type value_type) suffix
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
   | TCppRawPointer (constName, TCppMarshalNativeType (value_type, _)) ->
-    Printf.sprintf "%s%s*" constName (get_native_marshalled_type value_type)
+    let suffix = match value_type with Pointer _ -> "*" | _ -> "" in
+    Printf.sprintf "%s%s*%s" constName (get_native_marshalled_type value_type) suffix
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
   | TCppFunction (argTypes, retType, abi) ->
@@ -515,6 +518,7 @@ and build_type path pos params meta target parameter_handler =
 and get_native_marshalled_type value_type =
   let marshal_type_parameter_to_string pos tcpp =
     match tcpp with
+    | TCppMarshalNativeType ((Pointer _) as value_type, _) -> get_native_marshalled_type value_type ^ "*"
     | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
     | TCppScalar _
     | TCppPointer _

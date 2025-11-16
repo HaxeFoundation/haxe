@@ -630,6 +630,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             in
             let printer tcpp =
               match tcpp with
+              | TCppMarshalNativeType ((Pointer _) as value_type, _) -> get_native_marshalled_type value_type ^ "*"
               | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
               | other -> tcpp_to_string other
             in
