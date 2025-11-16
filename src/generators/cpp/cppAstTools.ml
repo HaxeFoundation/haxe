@@ -313,7 +313,7 @@ let rec s_tcpp = function
       | _ -> "CppCallStruct(")
       ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
   | CppCall (FuncInterface _, _) -> "CppCallInterface"
-  | CppCall (FuncStatic (_, objC, _), _) ->
+  | CppCall (FuncStatic (_, objC, _, _), _) ->
       if objC then "CppCallStaticObjC" else "CppCallStatic"
   | CppCall (FuncTemplate _, _) -> "CppCallTemplate"
   | CppCall (FuncEnumConstruct _, _) -> "CppCallEnumConstruct"

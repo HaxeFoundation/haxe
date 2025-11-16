@@ -534,7 +534,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         | FuncInterface (expr, _, field) ->
             gen expr;
             out ("->__Field(" ^ strq field.cf_name ^ ", ::hx::paccDynamic)")
-        | FuncStatic (clazz, _, field) -> (
+        | FuncStatic (clazz, _, field, _) -> (
             match get_meta_string field.cf_meta Meta.Native with
             | Some n -> out n
             | None ->
@@ -567,11 +567,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             gen arg)
           args;
         out ")"
-    | CppCall ((FuncStatic (_, true, field) as func), arg_list)
+    | CppCall ((FuncStatic (_, true, field, _) as func), arg_list)
     | CppCall ((FuncInstance (_, InstObjC, field, _) as func), arg_list) ->
         out "[ ";
         (match func with
-        | FuncStatic (cl, _, _) -> out (join_class_path_remap cl.cl_path "::")
+        | FuncStatic (cl, _, _, _) -> out (join_class_path_remap cl.cl_path "::")
         | FuncInstance (expr, _, _, params) -> gen expr
         | _ -> ());
 
@@ -643,8 +643,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         | FuncInterface (expr, _, field) ->
             gen expr;
             out ("->" ^ cpp_member_name_of field)
-        | FuncStatic (clazz, false, field) when cpp_is_static_extension field
-          -> (
+        | FuncStatic (clazz, false, field, _) when cpp_is_static_extension field -> (
             match args with
             | fst :: remaining ->
                 argsRef := remaining;
@@ -653,14 +652,25 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
             | _ ->
                 abort "Native static extensions must have at least 1 argument"
                   expr.cpppos)
-        | FuncStatic (clazz, _, field) when is_marshalling_native_value_class clazz || is_marshalling_native_pointer clazz ->
+        | FuncStatic (clazz, _, field, template_types) when is_marshalling_native_value_class clazz || is_marshalling_native_pointer clazz ->
           let func_name =
             match get_meta_string field.cf_meta Meta.Native with
             | Some renamed -> renamed
             | None -> cpp_member_name_of field
           in
-          Printf.sprintf "%s::%s" (cpp_class_name clazz) func_name |> out
-        | FuncStatic (clazz, _, field) -> (
+          let printer tcpp =
+            match tcpp with
+            | TCppMarshalNativeType ((Pointer _) as value_type, _) -> get_native_marshalled_type value_type ^ "*"
+            | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
+            | other -> tcpp_to_string other
+          in
+          let template =
+            match template_types with
+            | [] -> ""
+            | types -> types |> List.map (printer) |> String.concat ", " |> Printf.sprintf "< %s >"
+          in
+          Printf.sprintf "%s::%s%s" (cpp_class_name clazz) func_name template |> out
+        | FuncStatic (clazz, _, field, _) -> (
             match get_meta_string field.cf_meta Meta.Native with
             | Some rename ->
                 (* This is the case if you use @:native('new foo').  c++ wil group the space undesirably *)

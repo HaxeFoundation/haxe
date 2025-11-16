@@ -124,7 +124,7 @@ and tcppinst = InstPtr | InstObjC | InstStruct
 and tcppfuncloc =
   | FuncThis of tclass_field * tcpp
   | FuncInstance of tcppexpr * tcppinst * tclass_field * tcpp list
-  | FuncStatic of tclass * bool * tclass_field
+  | FuncStatic of tclass * bool * tclass_field * tcpp list
   | FuncTemplate of tclass * tclass_field * path * bool
   | FuncInterface of tcppexpr * tclass * tclass_field
   | FuncEnumConstruct of tenum * tenum_field

@@ -1417,7 +1417,7 @@ class script_writer ctx filename asciiOut =
                     ^ this#commentOf field.cf_name
                     ^ "\n");
                   gen_expression expr
-              | FuncStatic (class_def, _, field) ->
+              | FuncStatic (class_def, _, field, _) ->
                   this#write
                     (this#op IaCallStatic ^ this#cppInstText class_def ^ " "
                     ^ this#stringText field.cf_name
@@ -1507,7 +1507,7 @@ class script_writer ctx filename asciiOut =
                         ^ "." ^ field.cf_name)
                     ^ "\n");
                   gen_expression expr
-              | FuncStatic (class_def, _, field) ->
+              | FuncStatic (class_def, _, field, _) ->
                   this#write
                     (this#op IaFStatic ^ this#cppInstText class_def ^ " "
                     ^ this#stringText field.cf_name
