@@ -47,7 +47,18 @@ final extern class Marshal {
 	 */
 	static overload function toWideCharView(s:String, buffer:View<Char16>):Int;
 
+	/**
+	 * Allocates a string from the provided utf8 characters.
+	 *
+	 * @param buffer Buffer to characters, does not need to be null terminated.
+	 */
 	static overload function toString(buffer:View<Char>):String;
+
+	/**
+	 * Allocates a string from the provided utf16 characters.
+	 *
+	 * @param buffer Buffer to characters, does not need to be null terminated.
+	 */
 	static overload function toString(buffer:View<Char16>):String;
 
 	static function read<T>(view:View<UInt8>):T;
