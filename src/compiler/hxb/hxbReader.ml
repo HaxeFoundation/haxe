@@ -152,6 +152,8 @@ class hxb_reader
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable full_restore = true
+	val mutable hxb_major = HxbData.hxb_major (* can be removed once we move to version 3.0 *)
+	val mutable hxb_minor = HxbData.hxb_minor
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
@@ -1583,10 +1585,13 @@ class hxb_reader
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
 		a.a_constructor <- self#read_option (fun () -> self#read_field_ref);
-		a.a_default <- self#read_option (fun () -> 
-			let fctx = self#start_texpr in
-			let e = self#read_texpr fctx in
-			Lazy.from_val e);
+		(* Note: this special case uses a hxb_major check, but all future checks should compare hxb_minor instead. *)
+		(* See https://github.com/HaxeFoundation/haxe/pull/12365 *)
+		if hxb_major >= 2 then
+			a.a_default <- self#read_option (fun () ->
+				let fctx = self#start_texpr in
+				let e = self#read_texpr fctx in
+				Lazy.from_val e);
 
 		a.a_ops <- self#read_list (fun () ->
 			let i = read_byte ch in
@@ -2113,9 +2118,16 @@ class hxb_reader
 		ch <- BytesWithPosition.create bytes;
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
-		let version = read_byte ch in
-		if version <> hxb_version then
-			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i, reader version %i" version hxb_version));
+
+		hxb_major <- read_byte ch;
+		hxb_minor <- if hxb_major == 1 then 0 else read_byte ch; (* minor version was only added in 2.0 *)
+
+		(* Disabled for retro compatibility with haxe 5.0-preview.1 *)
+		(* Must be uncommented when we move to hxb version 3.0 *)
+		(* See https://github.com/HaxeFoundation/haxe/pull/12365 *)
+		(* if hxb_major <> HxbData.hxb_major || hxb_minor > HxbData.hxb_minor then *)
+			(* raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i.%i, reader version %i.%i" major hxb_minor HxbData.hxb_major HxbData.hxb_minor)); *)
+
 		(fun end_chunk ->
 			let rec loop () =
 				let (name,size) = self#read_chunk_prefix in
