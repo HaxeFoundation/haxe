@@ -457,9 +457,6 @@ class hxb_reader_api_server
 			incr stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
-			(* TODO: we might want to issue a warning here? *)
-			(* trace (Printf.sprintf "Recovering BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)); *)
-
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let typing_mode = get_typing_mode com mc.mc_extra in
 			let f_next chunks until =
@@ -518,10 +515,16 @@ let handle_cache_bound_objects com cbol =
 let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : pos) =
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
-		if m.m_extra.m_cache_state <> MSGood then
-			(* TODO: we might want to issue a warning here? *)
+		if m.m_extra.m_cache_state <> MSGood then begin
+			(match m.m_extra.m_cache_state with
+				| MSBad reason when com.display.dms_full_typing ->
+					failwith (Printf.sprintf "Unexpected bad module %s (%s)" (s_type_path m.m_path) (Printer.s_module_skip_reason reason))
+				| MSBad reason ->
+					com.warning WIgnoredBadModule com.warning_options (Printf.sprintf "Ignored bad module %s (%s)" (s_type_path m.m_path) (Printer.s_module_skip_reason reason)) p
+				| _ -> ()
+			);
 			com.module_lut#remove m.m_path
-		else if m.m_extra.m_added < com.compilation_step then begin
+		end else if m.m_extra.m_added < com.compilation_step then begin
 			m.m_extra.m_added <- com.compilation_step;
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
@@ -552,7 +555,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| BadBinaryModule (_, reason) | BadModule reason when typing_mode = AllowPartialTyping ->
-								(* TODO: we might want to issue a warning here? *)
+								com.warning WIgnoredBadModule com.warning_options (Printf.sprintf "Ignored bad dependency %s (%s) of %s" (s_type_path m.m_path) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path)) p;
 								None
 							| BadBinaryModule (_, reason) ->
 								failwith (Printf.sprintf "Unexpected bad hxb module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
