@@ -82,6 +82,12 @@
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
 	},
 	{
+		"name": "ExperimentalCacheOptimizations",
+		"define": "experimental-cache-opt",
+		"signatureNeutral": true,
+		"doc": "Enable optimizations meant for hxb cache to run on non-hxb cache. Does nothing without -D disable-hxb-cache"
+	},
+	{
 		"name": "EnableParallelism",
 		"define": "enable-parallelism",
 		"signatureNeutral": true,
