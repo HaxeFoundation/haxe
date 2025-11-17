@@ -152,6 +152,7 @@ class hxb_reader
 = object(self)
 	val mutable api = Obj.magic ""
 	val mutable full_restore = true
+	val mutable hxb_major = HxbData.hxb_major (* can be removed once we move to version 3.0 *)
 	val mutable hxb_minor = HxbData.hxb_minor
 	val mutable current_module = null_module
 
@@ -1584,7 +1585,9 @@ class hxb_reader
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
 		a.a_constructor <- self#read_option (fun () -> self#read_field_ref);
-		if hxb_minor >= 1 then
+		(* Note: this special case uses a hxb_major check, but all future checks should compare hxb_minor instead. *)
+		(* See https://github.com/HaxeFoundation/haxe/pull/12365 *)
+		if hxb_major >= 2 then
 			a.a_default <- self#read_option (fun () ->
 				let fctx = self#start_texpr in
 				let e = self#read_texpr fctx in
@@ -2116,13 +2119,14 @@ class hxb_reader
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");
 
-		(* Note: as minor version was only added in 2.1, version "1" is now considered to be "2.0" *)
-		(* Still displaying it as "1.0" in version mismatch error, hence `major` vs `hxb_major` vars *)
-		let major = read_byte ch in
-		hxb_minor <- if major == 1 then 0 else read_byte ch;
-		let hxb_major = if major == 1 then 2 else major in
-		if hxb_major <> HxbData.hxb_major || hxb_minor > HxbData.hxb_minor then
-			raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i.%i, reader version %i.%i" major hxb_minor HxbData.hxb_major HxbData.hxb_minor));
+		hxb_major <- read_byte ch;
+		hxb_minor <- if hxb_major == 1 then 0 else read_byte ch; (* minor version was only added in 2.0 *)
+
+		(* Disabled for retro compatibility with haxe 5.0-preview.1 *)
+		(* Must be uncommented when we move to hxb version 3.0 *)
+		(* See https://github.com/HaxeFoundation/haxe/pull/12365 *)
+		(* if hxb_major <> HxbData.hxb_major || hxb_minor > HxbData.hxb_minor then *)
+			(* raise (HxbFailure (Printf.sprintf "version mismatch: hxb version %i.%i, reader version %i.%i" major hxb_minor HxbData.hxb_major HxbData.hxb_minor)); *)
 
 		(fun end_chunk ->
 			let rec loop () =

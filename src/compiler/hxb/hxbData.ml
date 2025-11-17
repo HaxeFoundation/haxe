@@ -123,16 +123,16 @@ let error (s : string) =
 	raise (HxbFailure s)
 
 (*
-	With the exception of 1.0 => 2.x because we introduced minor version in 2.1,
-	major versions are incompatible with each other, while minor version mismatch
+	Major versions are incompatible with each other, while minor version mismatch
 	will be handled by the reader (for retro compatibility only)
 
 	When further bumping hxb major:
-	- code related to the 1.0 => 2.0 exception can be dropped (`if major == 1 then 2 else major` in `HxbReader.read`)
-	- all minor checks in hxb reader become obsolete and can be dropped too
+	- all minor checks in hxb reader become obsolete and can be dropped
+	- (only when moving to 3.0) hxb_major checks in hxbReader can be removed
+	- (only when moving to 3.0) hxb_major check in HxbReader.read must be uncommented
 *)
 let hxb_major = 2
-let hxb_minor = 1
+let hxb_minor = 0
 
 let write_header ch =
 	IO.nwrite_string ch "hxb";
