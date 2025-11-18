@@ -1,5 +1,8 @@
 package cpp.marshal;
 
+import cpp.Pointer;
+import cpp.Star;
+import cpp.RawPointer;
 import cpp.Char;
 import cpp.UInt8;
 import cpp.NativeString;
@@ -14,6 +17,18 @@ import haxe.io.UInt8Array;
 import haxe.ds.Vector;
 
 final class ViewExtensions {
+	public static inline overload extern function asView<T>(source:Pointer<T>, length:Int):View<T> {
+		return new View(source, length);
+	}
+
+	public static inline overload extern function asView<T>(source:Star<T>, length:Int):View<T> {
+		return new View(Pointer.fromStar(source), length);
+	}
+
+	public static inline overload extern function asView<T>(source:RawPointer<T>, length:Int):View<T> {
+		return new View(Pointer.fromRaw(source), length);
+	}
+
 	public static inline overload extern function asView<T>(source:Array<T>):View<T> {
 		return new View(Pointer.ofArray(source), source.length);
 	}

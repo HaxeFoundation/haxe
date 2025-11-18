@@ -62,4 +62,6 @@ extern final class View<T> implements ArrayAccess<T> {
 	 * Return a view interpreting this views content as a different type.
 	 */
 	function reinterpret<K>():View<K>;
+
+	function compare(rhs:View<T>):Int;
 }
