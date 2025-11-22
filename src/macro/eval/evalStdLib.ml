@@ -3089,22 +3089,23 @@ module StdType = struct
 		let rec loop v = match v with
 			| VNull -> 0,[||]
 			| VInt32 _ -> 1,[||]
-			| VFloat _ -> 2,[||]
-			| VTrue | VFalse -> 3,[||]
-			| VInstance vi -> 6,[|get_static_prototype_as_value ctx vi.iproto.ppath null_pos|]
-			| VString _ -> 6,[|get_static_prototype_as_value ctx key_String null_pos|]
-			| VArray _ -> 6,[|get_static_prototype_as_value ctx key_Array null_pos|]
-			| VVector _ -> 6,[|get_static_prototype_as_value ctx key_eval_Vector null_pos|]
+			| VInt64 _ | VUInt64 _ -> 2,[||]
+			| VFloat _ -> 3,[||]
+			| VTrue | VFalse -> 4,[||]
+			| VInstance vi -> 7,[|get_static_prototype_as_value ctx vi.iproto.ppath null_pos|]
+			| VString _ -> 7,[|get_static_prototype_as_value ctx key_String null_pos|]
+			| VArray _ -> 7,[|get_static_prototype_as_value ctx key_Array null_pos|]
+			| VVector _ -> 7,[|get_static_prototype_as_value ctx key_eval_Vector null_pos|]
 			| VObject _ | VPrototype _ ->
-				4,[||]
+				5,[||]
 			| VFunction _
 			| VFieldClosure _ ->
-				5,[||]
+				6,[||]
 			| VEnumValue ve ->
-				7,[|get_static_prototype_as_value ctx ve.epath null_pos|]
+				8,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
 				loop (Lazy.force f)
-			| VInt64 _ | VUInt64 _ | VNativeString _ | VHandle _ -> 8,[||]
+			| VNativeString _ | VHandle _ -> 9,[||]
 		in
 		let i,vl = loop v in
 		encode_enum_value key_ValueType i vl None
