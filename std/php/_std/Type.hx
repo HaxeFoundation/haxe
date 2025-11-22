@@ -29,7 +29,7 @@ using php.Global;
 enum ValueType {
 	TNull;
 	TInt;
-	TIn64;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -279,6 +279,8 @@ enum ValueType {
 			var hxClass = Boot.getClass(Global.get_class(v));
 			if (Boot.isEnumValue(v))
 				return TEnum(cast hxClass);
+			if( (cast hxClass) == @:privateAccess haxe.Int64.IMPL )
+				return TInt64;
 			return TClass(cast hxClass);
 		}
 

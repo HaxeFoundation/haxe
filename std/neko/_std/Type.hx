@@ -182,7 +182,7 @@ enum ValueType {
 		case 5:
 			var c = v.__class__;
 			if( c != null )
-				TClass(c);
+				(c == @:privateAccess haxe.Int64.IMPL) ? TInt64 : TClass(c);
 			else {
 				var e = v.__enum__;
 				if( e != null )

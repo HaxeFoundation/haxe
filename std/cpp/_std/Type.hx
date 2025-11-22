@@ -139,6 +139,8 @@ enum ValueType {
 					return TObject;
 				case 7:
 					return TEnum(v.__GetClass());
+				case 9:
+					return TInt64;
 				default:
 					return untyped TClass(v.__GetClass());
 			}

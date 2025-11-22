@@ -266,11 +266,14 @@ class Type {
 		}
 		if (Jvm.instanceof(v, jvm.Function)) {
 			return TFunction;
-		}
+		}		
 		var c = (cast v : java.lang.Object).getClass();
 		// TODO: native enums?
 		if (isEnumValueClass(c)) {
 			return TEnum(c.getSuperclass().haxeEnum());
+		}
+		if (Jvm.instanceof(v, jvm.Int64)) {
+			return TInt64;
 		}
 		if (Jvm.instanceof(v, java.lang.Class)) {
 			return TObject;
