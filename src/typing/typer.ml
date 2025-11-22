@@ -1521,12 +1521,17 @@ and warn_assign_in_condition ctx cond =
 	let rec is_assign e =
 		let e = Texpr.skip e in
 		match e.eexpr with
-			| TBinop (OpAssign, _, rhs) ->
-				let t = follow rhs.etype in
-				let is_bool = ExtType.is_bool t in
-				let is_null = match (Texpr.skip rhs).eexpr with | TConst TNull -> true | _ -> false in
-				if is_bool || is_null then
-					warning ctx WConditionAssign "Using the result of an assignment as a condition" e.epos
+			| TBinop (OpAssign, lhs, rhs) ->
+				let lt = follow lhs.etype in
+				let is_bool = ExtType.is_bool lt in
+				if lt == t_dynamic || is_bool then
+					let rt = follow rhs.etype in
+					let is_rhs_bool = ExtType.is_bool rt in
+					let is_null = match (Texpr.skip rhs).eexpr with | TConst TNull -> true | _ -> false in
+					if is_rhs_bool && not is_null then
+						warning ctx WConditionAssignBool "Using the result of an bool assignment as a condition" e.epos
+					else
+						warning ctx WConditionAssign "Using the result of an assignment as a condition" e.epos
 			| TBinop ((OpBoolAnd | OpBoolOr), e1, e2) ->
 				is_assign e1;
 				is_assign e2;
@@ -1542,6 +1547,7 @@ and warn_assign_in_condition ctx cond =
 
 and type_if ctx e e1 e2 with_type is_ternary p =
 	let e = type_expr ctx e WithType.value in
+	warn_assign_in_condition ctx e;
 	if is_ternary then begin match e.eexpr with
 		| TConst TNull -> raise_typing_error "Cannot use null as ternary condition" e.epos
 		| _ -> ()
