@@ -1,14 +1,14 @@
 package unit.issues;
 
 class Issue8218 extends unit.Test {
-	#if flash
+	#if flash_test_swc
 	function test() {
 		new Child(this);
 	}
 	#end
 }
 
-#if flash
+#if flash_test_swc
 @:access(unit.Test)
 private class Child extends Lib2 {
 	public function new(test:unit.Test) {

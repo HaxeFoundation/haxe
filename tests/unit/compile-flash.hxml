@@ -7,3 +7,4 @@ compile-each.hxml
 -swf bin/unit.swf
 -swf-lib native_swf/lib.swc
 -D network-sandbox
+-D flash-test-swc
