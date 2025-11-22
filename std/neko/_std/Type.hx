@@ -176,7 +176,7 @@ enum ValueType {
 		return switch( __dollar__typeof(v) ) {
 		case 0: TNull;
 		case 1: TInt;
-		case 2: TFloat;
+		case 2: Std.int(v) == v ? TInt : TFloat;
 		case 3: TBool;
 		case 7: TFunction;
 		case 5:

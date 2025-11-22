@@ -185,7 +185,7 @@ enum ValueType {
 		} else if (UBuiltins.isinstance(v, UBuiltins.int)) {
 			return TInt;
 		} else if (UBuiltins.isinstance(v, UBuiltins.float)) {
-			return TFloat;
+			return Std.int(v) == v ? TInt : TFloat;
 		} else if (UBuiltins.isinstance(v, String)) {
 			return TClass(String);
 		} else if (UBuiltins.isinstance(v, Array)) {

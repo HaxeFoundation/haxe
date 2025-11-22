@@ -289,7 +289,7 @@ enum ValueType {
 		if (v.is_int())
 			return TInt;
 		if (v.is_float())
-			return TFloat;
+			return Std.int(v) == v ? TInt : TFloat;
 		if (v.is_string())
 			return TClass(String);
 
