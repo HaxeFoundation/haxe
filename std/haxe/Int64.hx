@@ -480,6 +480,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x;
 		#end
 	}
+	
+	static var IMPL = ___Int64;
 }
 
 /**

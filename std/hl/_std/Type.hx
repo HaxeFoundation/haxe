@@ -22,6 +22,7 @@
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -229,8 +230,10 @@ class Type {
 		switch (t.kind) {
 			case HVoid:
 				return TNull;
-			case HUI8, HUI16, HI32, HI64:
+			case HUI8, HUI16, HI32:
 				return TInt;
+			case HI64:
+				return TInt64;
 			case HF32, HF64:
 				return (v : Int) == (v:Float) ? TInt : TFloat;
 			case HBool:

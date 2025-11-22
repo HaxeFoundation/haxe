@@ -22,6 +22,7 @@
 enum ValueType {
 	TNull;
 	TInt;
+	TIn64;
 	TFloat;
 	TBool;
 	TObject;

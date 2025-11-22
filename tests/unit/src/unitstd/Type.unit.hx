@@ -121,7 +121,14 @@ Type.getEnumConstructs(E) == ["NoArgs", "OneArg", "RecArg", "MultipleArgs"];
 Type.getEnumConstructs(EnumFlagTest) == ["EA", "EB", "EC"];
 
 // typeof
-// not much to test here?
+Type.typeof(1.5) == TFloat;
+Type.typeof(-45) == TInt;
+Type.typeof(1.0) == TInt; 
+Type.typeof(1e10) == TFloat;
+var i0 = haxe.Int64.ofInt(0);
+Type.typeof(i0) == TInt64;
+var ibig = haxe.Int64.make(1,0);
+Type.typeof(ibig) == TInt64;
 
 // enumEq
 Type.enumEq(NoArgs, NoArgs) == true;
@@ -161,3 +168,4 @@ Type.enumIndex(EB) == 1;
 Type.allEnums(E) == [NoArgs];
 Type.allEnums(haxe.macro.Expr.ExprDef) == [EBreak, EContinue];
 Type.allEnums(EnumFlagTest) == [EA, EB, EC];
+

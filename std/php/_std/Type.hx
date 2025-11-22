@@ -29,6 +29,7 @@ using php.Global;
 enum ValueType {
 	TNull;
 	TInt;
+	TIn64;
 	TFloat;
 	TBool;
 	TObject;

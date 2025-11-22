@@ -177,6 +177,7 @@ class Serializer {
 		B : Enum<Dynamic>
 		M : haxe.ds.ObjectMap
 		C : custom
+		I : haxe.Int64
 	 */
 	function serializeString(s:String) {
 		var x = shash.get(s);
@@ -261,6 +262,10 @@ class Serializer {
 				}
 				buf.add("i");
 				buf.add(v);
+			case TInt64:
+				var v:haxe.Int64 = v;
+				buf.add("I");
+				buf.add(Std.string(v));
 			case TFloat:
 				var v:Float = v;
 				if (Math.isNaN(v))

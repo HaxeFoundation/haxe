@@ -9,6 +9,7 @@ using jvm.NativeTools.ObjectTools;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;

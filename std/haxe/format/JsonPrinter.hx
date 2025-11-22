@@ -86,7 +86,7 @@ class JsonPrinter {
 				add('"???"');
 			case TObject:
 				objString(v);
-			case TInt:
+			case TInt, TInt64:
 				add(#if (jvm || hl) Std.string(v) #else v #end);
 			case TFloat:
 				add(Math.isFinite(v) ? Std.string(v) : 'null');
