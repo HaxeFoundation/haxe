@@ -2,6 +2,7 @@
 (* functions in here operate on standard haxe ast types, not gencpp ast types *)
 
 open Type
+open CppMarshalling
 
 let follow = Abstract.follow_with_abstracts
 
@@ -62,25 +63,6 @@ let is_internal_class = function
       true
    | _ ->
       false
-
-let is_marshalling_managed_class cls =
-   has_class_flag cls CExtern && has_meta Meta.CppManagedType cls.cl_meta
-
-let is_marshalling_native_enum a =
-  a.a_enum && a.a_extern && has_meta Meta.CppValueType a.a_meta
-
-let is_marshalling_native_value_class cls =
-  has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
-
-let is_marshalling_native_pointer cls =
-  has_class_flag cls CExtern && has_meta Meta.CppPointerType cls.cl_meta
-
-let is_marshalling_native_value_class_tvar tvar =
-  match follow tvar.v_type with
-  | TInst (cls, _) ->
-   is_marshalling_native_value_class cls
-  | _ ->
-    false
 
 let is_native_class class_def =
    (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path) && not (is_marshalling_native_value_class class_def)

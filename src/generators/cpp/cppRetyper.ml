@@ -6,6 +6,7 @@ open CppTypeUtils
 open CppAst
 open CppAstTools
 open CppContext
+open CppMarshalling
 
 (* TODO : Not have this basically be a duplicated unify_cf *)
 let unify_cf2 map_type c cf el_args el_ret =
@@ -1719,7 +1720,11 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     if is_physical_field field then
       match (field.cf_kind, field.cf_expr) with
       | Var _, _ ->
-        Some (create_variable field)
+        (match follow field.cf_type with
+        | TInst (cls, _) when CppMarshalling.is_marshalling_native_value_class cls ->
+          abort "" field.cf_pos
+        | _ ->
+          Some (create_variable field))
       (* Dynamic methods are implemented as a physical field holding a closure *)
       | Method MethDynamic, Some { eexpr = TFunction func } ->
         Some (create_variable { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) })
@@ -1896,7 +1901,12 @@ and tcpp_interface_from_tclass ctx slots class_def =
   in
   let variable_filter field =
     match field.cf_kind with
-    | Var _ when is_physical_var_field field -> true
+    | Var _ when is_physical_var_field field ->
+      (match follow field.cf_type with
+      | TInst (cls, _) when CppMarshalling.is_marshalling_native_value_class cls ->
+        abort "" field.cf_pos
+      | _ ->
+        true)
     | _ -> false
   in
 
@@ -1935,9 +1945,18 @@ and tcpp_enum_from_tenum ctx ids enum_def =
 
   let self_id, ids = get_id enum_def.e_path ids in
   let strq = CppStrings.strq ctx.ctx_common in
-  let retype_args t =
+  let stack_only_checker t =
+    match follow t with
+    | TInst (cls, _) ->
+      CppMarshalling.is_stack_only_marshalling_native_value_class cls
+    | _ ->
+      false
+  in
+  let retype_args t pos =
     match t with
-    TFun (args, _) ->
+    | TFun (args, _) when List.exists (fun (_, _, t) -> stack_only_checker t) args ->
+      abort "" pos
+    | TFun (args, _) ->
       Some (List.map (retype_arg with_promoted_value_type) args)
     | _ ->
       None
@@ -1946,7 +1965,7 @@ and tcpp_enum_from_tenum ctx ids enum_def =
     enum_def.e_constrs
     |> pmap_values
     |> List.sort sort_constructors
-    |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name; tef_args = retype_args f.ef_type })
+    |> List.map (fun f -> { tef_field = f; tef_name = keyword_remap f.ef_name; tef_hash = strq f.ef_name; tef_args = retype_args f.ef_type f.ef_pos })
   in
   let enum = { te_enum = enum_def; te_id = self_id; te_constructors = constructors } in
 

@@ -4,6 +4,7 @@ open CppStrings
 open CppTypeUtils
 open CppAstTools
 open CppContext
+open CppMarshalling
 
 (*
    Get a list of all classes referred to by the class/enum definition

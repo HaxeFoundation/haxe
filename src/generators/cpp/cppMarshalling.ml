@@ -1,12 +1,47 @@
-open CppAst
-open CppAstTools
+open Type
+open Ast
+open Error
 
-let get_extern_value_type_boxed value_type =
-  let p = get_native_marshalled_type value_type in
-  let suffix =
-    match value_type with
-    | Pointer _ -> "*"
-    | _ -> ""
-  in
+let is_marshalling_managed_class cls =
+  has_class_flag cls CExtern && has_meta Meta.CppManagedType cls.cl_meta
 
-  Printf.sprintf "::cpp::marshal::Boxed< %s%s >" p suffix, Printf.sprintf "::cpp::marshal::Boxed_obj< %s%s >" p suffix
+let is_marshalling_native_enum a =
+  a.a_enum && a.a_extern && has_meta Meta.CppValueType a.a_meta
+
+let is_marshalling_native_value_class cls =
+  has_class_flag cls CExtern && has_meta Meta.CppValueType cls.cl_meta
+
+let is_stack_only_marshalling_native_value_class cls =
+  if is_marshalling_native_value_class cls then
+    let get_meta_field field =
+      match Meta.get Meta.CppValueType cls.cl_meta with
+      | _, [ (EObjectDecl decls, _) ], _ ->  
+        List.find_opt (fun ((n, _, _), _) -> n = field) decls
+      | _ ->
+        None
+    in
+    let flag_error pos =
+      abort "CPP0008: Flags field must be an array of identifiers" pos
+    in
+    let flags =
+      match get_meta_field "flags" with
+      | Some (_, (EArrayDecl decls, _) ) ->
+        decls |> List.filter_map (fun (e, pos) -> match e with | EConst (Ident c) -> Some c | _ -> flag_error pos)
+      | Some ((_, pos, _), _) ->
+        flag_error pos
+      | _ ->
+        []
+      in
+    List.exists (fun v -> v = "StackOnly") flags
+  else
+    false
+
+let is_marshalling_native_pointer cls =
+  has_class_flag cls CExtern && has_meta Meta.CppPointerType cls.cl_meta
+
+let is_marshalling_native_value_class_tvar tvar =
+  match follow tvar.v_type with
+  | TInst (cls, _) ->
+   is_marshalling_native_value_class cls
+  | _ ->
+    false

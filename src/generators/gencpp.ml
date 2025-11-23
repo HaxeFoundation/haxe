@@ -27,6 +27,7 @@ open CppTypeUtils
 open CppAstTools
 open CppSourceWriter
 open CppContext
+open CppMarshalling
 
 let make_base_directory dir =
    Path.mkdir_recursive "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) )

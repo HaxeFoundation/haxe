@@ -4,6 +4,7 @@ open Globals
 open Error
 open CppAst
 open CppTypeUtils
+open CppMarshalling
 
 let follow = Abstract.follow_with_abstracts
 
@@ -514,6 +515,16 @@ and build_type path pos params meta target parameter_handler =
   in
   
   Printf.sprintf "%s::%s" namespace t, flags
+
+and get_extern_value_type_boxed value_type =
+  let p = get_native_marshalled_type value_type in
+  let suffix =
+    match value_type with
+    | Pointer _ -> "*"
+    | _ -> ""
+  in
+
+  Printf.sprintf "::cpp::marshal::Boxed< %s%s >" p suffix, Printf.sprintf "::cpp::marshal::Boxed_obj< %s%s >" p suffix
 
 and get_native_marshalled_type value_type =
   let marshal_type_parameter_to_string pos tcpp =
