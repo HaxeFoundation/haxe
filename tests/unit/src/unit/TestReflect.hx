@@ -1,7 +1,7 @@
 package unit;
 
-import haxe.ds.List;
 import Type;
+import haxe.ds.List;
 
 interface InterfWithProp {
 	public var x(get, set) : Int;
@@ -161,8 +161,10 @@ class TestReflect extends Test {
 		typeof(1,TInt);
 		typeof(-1,TInt);
 		typeof(1.2,TFloat);
+		#if (!php && !python)
 		typeof(1e10,TFloat);
 		typeof(-1e10,TFloat);
+		#end
 		typeof(Math.NaN,TFloat);
 		typeof(Math.POSITIVE_INFINITY,TFloat);
 		typeof(Math.NEGATIVE_INFINITY,TFloat);

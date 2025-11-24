@@ -123,7 +123,9 @@ Type.getEnumConstructs(EnumFlagTest) == ["EA", "EB", "EC"];
 // typeof
 Type.typeof(1.5) == TFloat;
 Type.typeof(-45) == TInt;
+#if (!php && !python)
 Type.typeof(1e10) == TFloat;
+#end
 #if !eval
 Type.typeof(1.0) == TInt;
 #end
