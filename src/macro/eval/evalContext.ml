@@ -534,6 +534,7 @@ let is v path =
 		v <> vnull
 	else match v with
 	| VInt32 _ -> path = key_Int || path = key_Float
+	| VInt64 _ -> path = key_eval_integers_Int64
 	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
 	| VTrue | VFalse -> path = key_Bool
 	| VPrototype {pkind = PClass _} -> path = key_Class
