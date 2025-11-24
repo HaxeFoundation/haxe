@@ -88,7 +88,7 @@ class Type {
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
 		return switch e.native().getName() {
-			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s if (s.indexOf("haxe.root.") == 0): s.substr(10);
 			case s: s;
 		}
 	}
@@ -171,8 +171,7 @@ class Type {
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var annotation = (cl.native().getAnnotation((cast ClassReflectionInformation : java.lang.Class<ClassReflectionInformation>)));
 		if (annotation != null) {
-			return cl.native().getConstructor(emptyClass)
-				.newInstance(emptyArg);
+			return cl.native().getConstructor(emptyClass).newInstance(emptyArg);
 		} else {
 			return cl.native().newInstance();
 		}
@@ -252,6 +251,9 @@ class Type {
 			return TNull;
 		}
 		if (Jvm.instanceof(v, java.lang.Number)) {
+			if (Jvm.instanceof(v, java.lang.Long.LongClass)) {
+				return TInt64;
+			}
 			var v:java.lang.Number = cast v;
 			if (v.intValue() == v.doubleValue()) {
 				return TInt;
@@ -266,14 +268,11 @@ class Type {
 		}
 		if (Jvm.instanceof(v, jvm.Function)) {
 			return TFunction;
-		}		
+		}
 		var c = (cast v : java.lang.Object).getClass();
 		// TODO: native enums?
 		if (isEnumValueClass(c)) {
 			return TEnum(c.getSuperclass().haxeEnum());
-		}
-		if (Jvm.instanceof(v, jvm.Int64)) {
-			return TInt64;
 		}
 		if (Jvm.instanceof(v, java.lang.Class)) {
 			return TObject;
