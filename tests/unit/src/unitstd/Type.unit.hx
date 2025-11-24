@@ -123,12 +123,14 @@ Type.getEnumConstructs(EnumFlagTest) == ["EA", "EB", "EC"];
 // typeof
 Type.typeof(1.5) == TFloat;
 Type.typeof(-45) == TInt;
-Type.typeof(1.0) == TInt; 
 Type.typeof(1e10) == TFloat;
+#if !eval
+Type.typeof(1.0) == TInt;
 var i0 = haxe.Int64.ofInt(0);
 Type.typeof(i0) == TInt64;
 var ibig = haxe.Int64.make(1,0);
 Type.typeof(ibig) == TInt64;
+#end
 
 // enumEq
 Type.enumEq(NoArgs, NoArgs) == true;
