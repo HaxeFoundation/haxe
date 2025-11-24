@@ -31,7 +31,7 @@ class FPHelper {
 	// stored in helper
 	#elseif neko
 	static var i64tmp = new sys.thread.Tls<Int64>();
-	#elseif !(java || cpp)
+	#elseif !(java || cpp || eval)
 	static var i64tmp = Int64.ofInt(0);
 
 	static inline var LN2 = 0.6931471805599453; // Math.log(2)
@@ -157,6 +157,8 @@ class FPHelper {
 		#elseif js
 		helper.setInt32(0, i, true);
 		return helper.getFloat32(0, true);
+		#elseif eval
+		return 0;
 		#else
 		return _i32ToFloat(i);
 		#end
@@ -186,6 +188,8 @@ class FPHelper {
 		#elseif js
 		helper.setFloat32(0, f, true);
 		return helper.getInt32(0, true);
+		#elseif eval
+		return 0;
 		#else
 		return _floatToI32(f);
 		#end
@@ -227,6 +231,8 @@ class FPHelper {
 		helper.setInt32(0, low, true);
 		helper.setInt32(4, high, true);
 		return helper.getFloat64(0, true);
+		#elseif eval
+		return 0;
 		#else
 		return _i64ToDouble(low, high);
 		#end
@@ -287,6 +293,8 @@ class FPHelper {
 			i64.set_high(helper.getInt32(4, true));
 		}
 		return i64;
+		#elseif eval
+		return 0;
 		#else
 		return _doubleToI64(v);
 		#end

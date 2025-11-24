@@ -123,10 +123,13 @@ let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else if a > b t
 
 let icmp (a:int32) b = let l = Int32.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup
 
+let i64cmp (a:int64) b = let l = Int64.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup
+
 let rec compare a b =
 	match a, b with
 	| VNull,VNull -> CEq
 	| VInt32 a,VInt32 b -> icmp a b
+	| VInt64 a,VInt64 b -> i64cmp a b
 	| VFloat a,VFloat b -> fcmp a b
 	| VFloat a,VInt32 b -> fcmp a (Int32.to_float b)
 	| VInt32 a,VFloat b -> fcmp (Int32.to_float a) b
@@ -175,6 +178,7 @@ let rec arrays_equal cmp a1 a2 =
 and equals_structurally a b =
 	match a,b with
 	| VInt32 a,VInt32 b -> Int32.compare a b = 0
+	| VInt64 a,VInt64 b -> Int64.compare a b = 0
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
@@ -194,6 +198,11 @@ let is_true v = match v with
 
 let op_add p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
+	| VInt64 i1,VInt64 i2 -> vint64 (Int64.add i1 i2)
+	(* These two cases should technically not exist, but the analyzer emits code like this because
+	   our TConst only knows Int32 at the moment. *)
+	| VInt64 i1,VInt32 i2 -> vint64 (Int64.add i1 (Int64.of_int32 i2))
+	| VInt32 i1,VInt64 i2 -> vint64 (Int64.add (Int64.of_int32 i1) i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
 	| VNativeString s1,VNativeString s2 -> vnative_string (s1 ^ s2)
@@ -204,6 +213,7 @@ let op_add p v1 v2 = match v1,v2 with
 
 let op_mult p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)
+	| VInt64 i1,VInt64 i2 -> vint64 (Int64.mul i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 *. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) *. f)
 	| _ -> invalid_binop OpMult v1 v2 p
@@ -217,6 +227,10 @@ let op_div p v1 v2 = match v1,v2 with
 
 let op_sub p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.sub i1 i2)
+	| VInt64 i1,VInt64 i2 -> vint64 (Int64.sub i1 i2)
+	(* See op_add remark. *)
+	| VInt64 i1,VInt32 i2 -> vint64 (Int64.sub i1 (Int64.of_int32 i2))
+	| VInt32 i1,VInt64 i2 -> vint64 (Int64.sub (Int64.of_int32 i1) i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 -. f2)
 	| VInt32 i1,VFloat f2 -> vfloat ((Int32.to_float i1) -. f2)
 	| VFloat f1,VInt32 i2 -> vfloat (f1 -. (Int32.to_float i2))

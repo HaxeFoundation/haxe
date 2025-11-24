@@ -333,7 +333,7 @@ module StdBytes = struct
 		try
 			let low = read_i32 this pos in
 			let high = read_i32 this (pos + 4) in
-			EvalIntegers.encode_haxe_i64 low high;
+			vint64 (EvalIntegers.make_int64 high low)
 		with _ ->
 			outside_bounds()
 	)
@@ -500,9 +500,9 @@ module StdBytesBuffer = struct
 
 	let addInt64 = vifun1 (fun vthis v ->
 		let this = this vthis in
-		let v = decode_instance v in
-		let high = decode_i32 (instance_field v key_high) in
-		let low = decode_i32 (instance_field v key_low) in
+		let i64 = EvalIntegers.decode_i64 v in
+		let high = Int64.to_int32 (Int64.shift_right i64 32) in
+		let low = Int64.to_int32 i64 in
 		add_i32 this low;
 		add_i32 this high;
 		vnull;
@@ -1164,7 +1164,7 @@ module StdFPHelper = struct
 	let doubleToI64 = vfun1 (fun v ->
 		let f = num v in
 		let i64 = Int64.bits_of_float f in
-		EvalIntegers.encode_haxe_i64_direct i64
+		vint64 i64
 	)
 
 	let floatToI32 = vfun1 (fun f ->
@@ -1581,11 +1581,11 @@ module StdInt64Map = struct
 	)
 
 	let exists = vifun1 (fun vthis vkey ->
-		vbool (RuntimeInt64Hashtbl.mem (this vthis) (EvalIntegers.decode_haxe_i64 vkey))
+		vbool (RuntimeInt64Hashtbl.mem (this vthis) (EvalIntegers.decode_i64 vkey))
 	)
 
 	let get = vifun1 (fun vthis vkey ->
-		try RuntimeInt64Hashtbl.find (this vthis) (EvalIntegers.decode_haxe_i64 vkey)
+		try RuntimeInt64Hashtbl.find (this vthis) (EvalIntegers.decode_i64 vkey)
 		with Not_found -> vnull
 	)
 
@@ -1595,7 +1595,7 @@ module StdInt64Map = struct
 	)
 
 	let keys = vifun0 (fun vthis ->
-		let keys = RuntimeInt64Hashtbl.fold (fun k _ acc -> EvalIntegers.encode_haxe_i64_int64 k :: acc) (this vthis) [] in
+		let keys = RuntimeInt64Hashtbl.fold (fun k _ acc -> vint64 k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
 
@@ -1603,14 +1603,14 @@ module StdInt64Map = struct
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
-		let key = EvalIntegers.decode_haxe_i64 vkey in
+		let key = EvalIntegers.decode_i64 vkey in
 		let b = RuntimeInt64Hashtbl.mem this key in
 		RuntimeInt64Hashtbl.remove this key;
 		vbool b
 	)
 
 	let set = vifun2 (fun vthis vkey vvalue ->
-		RuntimeInt64Hashtbl.add (this vthis) (EvalIntegers.decode_haxe_i64 vkey) vvalue;
+		RuntimeInt64Hashtbl.add (this vthis) (EvalIntegers.decode_i64 vkey) vvalue;
 		vnull
 	)
 
@@ -2796,7 +2796,7 @@ module StdSys = struct
 
 	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
 
-	let timestamp_ms = vfun0 (fun () -> EvalIntegers.encode_haxe_i64_direct (* TODO: use vint64 once that works *) (Extc.timestamp_ms()))
+	let timestamp_ms = vfun0 (fun () -> vint64 (Extc.timestamp_ms()))
 end
 
 module StdThread = struct
