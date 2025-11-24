@@ -140,7 +140,7 @@ enum ValueType {
 				case 7:
 					return TEnum(v.__GetClass());
 				case 9:
-					return Std.int(v) == v ? TInt : TInt64;
+					return TInt64;
 				default:
 					return untyped TClass(v.__GetClass());
 			}
