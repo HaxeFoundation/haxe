@@ -151,7 +151,7 @@ class hxb_reader
 	(timer_ctx : Timer.timer_context option)
 = object(self)
 	val mutable api = Obj.magic ""
-	val mutable full_restore = true
+	val mutable typing_mode = FullTyping
 	val mutable current_module = null_module
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
@@ -176,15 +176,16 @@ class hxb_reader
 	val empty_anon = mk_anon (ref Closed)
 
 	method resolve_type pack mname tname =
-		try
-			let mt = api#resolve_type pack mname tname in
-			if not full_restore then begin
+		try begin
+			let mt = api#resolve_type pack mname tname typing_mode in
+			(match typing_mode with
+			| AllowPartialTyping ->
 				let mdep = (t_infos mt).mt_module in
 				if mdep != null_module && current_module.m_path != mdep.m_path then
 					current_module.m_extra.m_display_deps <- Some (PMap.add mdep.m_id (create_dependency mdep MDepFromTyping) (Option.get current_module.m_extra.m_display_deps))
-			end;
+			| FullTyping -> ());
 			mt
-		with Not_found ->
+		end with Not_found ->
 			dump_backtrace();
 			error (Printf.sprintf "[HXB] [%s] Cannot resolve type %s" (s_type_path current_module.m_path) (s_type_path ((pack @ [mname]),tname)))
 
@@ -1910,7 +1911,7 @@ class hxb_reader
 		let length = read_uleb128 ch in
 		for _ = 0 to length - 1 do
 			let path = self#read_path in
-			ignore(api#resolve_module path)
+			ignore(api#resolve_module path typing_mode)
 		done
 
 	method read_mtf =
@@ -2017,12 +2018,12 @@ class hxb_reader
 		| MDF ->
 			current_module <- self#read_mdf;
 			incr stats.modules_partially_restored;
-			if not full_restore then current_module.m_extra.m_display_deps <- Some PMap.empty
+			if typing_mode = AllowPartialTyping then current_module.m_extra.m_display_deps <- Some PMap.empty
 		| MTF ->
 			current_module.m_types <- self#read_mtf;
 			api#add_module current_module;
 		| IMP ->
-			if full_restore then self#read_imports;
+			if typing_mode = FullTyping then self#read_imports;
 		| CLR ->
 			self#read_clr;
 		| ENR ->
@@ -2092,11 +2093,11 @@ class hxb_reader
 		close()
 
 	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks EOM true)
+		fst (self#read_chunks_until new_api chunks EOM FullTyping)
 
-	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk full_restore' =
+	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk typing_mode' =
 		api <- new_api;
-		full_restore <- full_restore';
+		typing_mode <- typing_mode';
 		let rec loop = function
 			| (kind,data) :: chunks ->
 				ch <- BytesWithPosition.create data;
@@ -2109,7 +2110,7 @@ class hxb_reader
 
 	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
-		full_restore <- true;
+		typing_mode <- FullTyping;
 		ch <- BytesWithPosition.create bytes;
 		if (Bytes.to_string (read_bytes ch 3)) <> "hxb" then
 			raise (HxbFailure "magic");

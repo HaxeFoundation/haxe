@@ -306,6 +306,8 @@ let do_type ctx mctx actx display_file_dot_path =
 	Setup.init_native_libs com actx.native_libs;
 	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
+	(* Make sure display module is being typed *)
+	Option.may (fun cpath -> actx.classes <- cpath :: actx.classes) display_file_dot_path;
 	DumpConfig.update_from_defines com.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;

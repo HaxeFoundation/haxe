@@ -104,7 +104,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 end
 
 class hxb_reader_api_com
-	~(full_restore : bool)
+	~(typing_mode : HxbData.typing_mode)
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
 = object(self)
@@ -123,12 +123,12 @@ class hxb_reader_api_com
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m;
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) (_:HxbData.typing_mode) =
 		let path = (pack,mname) in
 		let m = self#find_module path in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) =
+	method resolve_module (path : path) (_:HxbData.typing_mode) =
 		self#find_module path
 
 	method find_module (m_path : path) =
@@ -139,7 +139,7 @@ class hxb_reader_api_com
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
 			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if full_restore then EOM else MTF) full_restore)
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if typing_mode = FullTyping then EOM else MTF) typing_mode)
 
 	method basic_types =
 		com.basic
@@ -154,8 +154,8 @@ class hxb_reader_api_com
 		TLazy (make_unforced_lazy t f "com-api")
 end
 
-let find_module ~(full_restore : bool) com cc path =
-	(new hxb_reader_api_com ~full_restore com cc)#find_module path
+let find_module ~(typing_mode : HxbData.typing_mode) com cc path =
+	(new hxb_reader_api_com ~typing_mode com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
@@ -350,13 +350,13 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
-			let full_restore = Define.defined hctx.com.defines Define.DisableHxbOptimizations in
+			let typing_mode:HxbData.typing_mode = if Define.defined hctx.com.defines Define.DisableHxbOptimizations then FullTyping else AllowPartialTyping in
 			let m = try
-				find_module ~full_restore hctx.com cc path
+				find_module ~typing_mode hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
-			hctx.send_result (generate_module (cc#get_hxb) (find_module ~full_restore hctx.com cc) m)
+			hctx.send_result (generate_module (cc#get_hxb) (find_module ~typing_mode hctx.com cc) m)
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -364,7 +364,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			let m = try
-				find_module ~full_restore:true hctx.com cc path
+				find_module ~typing_mode:FullTyping hctx.com cc path
 			with Not_found ->
 				hctx.send_error [jstring "No such module"]
 			in
