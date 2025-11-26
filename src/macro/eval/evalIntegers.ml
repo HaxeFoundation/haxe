@@ -2,12 +2,10 @@ module GInt64 = Int64
 module GInt32 = Int32
 
 open Globals
-open EvalContext
 open EvalExceptions
 open EvalValue
 open EvalEncode
 open EvalDecode
-open EvalHash
 open EvalMisc
 open Unsigned
 open Signed
