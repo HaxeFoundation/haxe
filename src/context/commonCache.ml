@@ -13,7 +13,7 @@ class lib_build_task cs file ftime lib = object(self)
 			if not (Hashtbl.mem h path) then begin
 				let p = file_pos (file ^ " @ " ^ Globals.s_type_path path) in
 				try begin match lib#build path p with
-				| Some r -> Hashtbl.add h path r
+				| Some r -> Hashtbl.replace h path r
 				| None -> ()
 				end with _ ->
 					()

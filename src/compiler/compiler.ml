@@ -666,7 +666,7 @@ module HighLevel = struct
 			| ("-L" | "--library" | "-lib") :: name :: args ->
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
-				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
+				List.iter (fun l -> Hashtbl.replace added_libs l ()) libs;
 				let lines = add_libs timer_ctx libs args server_api.cache has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "-jvm" as arg) :: dir :: args ->

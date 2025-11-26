@@ -215,7 +215,7 @@ let get_changed_directories sctx com =
 				shadowing checks anyway. *)
 			[]
 		in
-		Hashtbl.add sctx.changed_directories sign dirs;
+		Hashtbl.replace sctx.changed_directories sign dirs;
 		dirs
 	in
 	dirs
@@ -669,7 +669,7 @@ let after_target_init sctx ctx =
 			(cs#get_context sign)#set_initialized false;
 		end;
 	with Not_found ->
-		Hashtbl.add sctx.class_paths sign class_path_strings;
+		Hashtbl.replace sctx.class_paths sign class_path_strings;
 		()
 
 let after_save sctx ctx =

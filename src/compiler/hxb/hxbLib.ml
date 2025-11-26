@@ -22,7 +22,7 @@ class hxb_library timer_ctx file_path hxb_times = object(self)
 				| name :: pack ->
 					let name = String.sub name 0 (String.length name - 4) in
 					let pack = List.rev pack in
-					Hashtbl.add modules (pack,name) (filename,entry);
+					Hashtbl.replace modules (pack,name) (filename,entry);
 				end
 		| _ -> ()
 	) (Zip.entries (Lazy.force zip));

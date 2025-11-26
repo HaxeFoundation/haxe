@@ -67,7 +67,7 @@ module Pool = struct
 		assert (not pool.closed);
 		let index = DynArray.length pool.items in
 		DynArray.add pool.items value;
-		Hashtbl.add pool.lut key index;
+		Hashtbl.replace pool.lut key index;
 		index
 
 	let get pool (key : 'key) =
@@ -151,7 +151,7 @@ module HashedIdentityPool = struct
 		assert (not pool.closed);
 		let index = DynArray.length pool.items in
 		DynArray.add pool.items (key,value);
-		Hashtbl.add pool.lut hkey (key,index);
+		Hashtbl.replace pool.lut hkey (key,index);
 		index
 
 	let get pool (hkey : 'hkey) (key : 'key) =
@@ -1092,7 +1092,7 @@ module HxbWriter = struct
 			let (source, p) = perform UnboundTTP in
 			let msg = Printf.sprintf "Unbound type parameter %s while writing %s" (s_type_path ttp.ttp_class.cl_path) source in
 			(* if not (Hashtbl.mem writer.unbound_ttp (msg, p)) then begin *)
-			(* 	Hashtbl.add writer.unbound_ttp (msg, p) true; *)
+			(* 	Hashtbl.replace writer.unbound_ttp (msg, p) true; *)
 			(try ignore(IdentityPool.get writer.unbound_ttp ttp) with Not_found -> begin
 				ignore(IdentityPool.add writer.unbound_ttp ttp ());
 				writer.warn WUnboundTypeParameter msg p;

@@ -514,7 +514,7 @@ class immediate_execution =
 			with
 				| Not_found ->
 					let field_cache = Hashtbl.create 5 in
-					Hashtbl.add cache field field_cache;
+					Hashtbl.replace cache field field_cache;
 					field_cache
 		(**
 			Check if a lambda passed to `arg_num`th argument of the `callee` function will be executed immediately without
@@ -540,7 +540,7 @@ class immediate_execution =
 									if Hashtbl.mem cache arg_num then
 										Hashtbl.find cache arg_num
 									else begin
-										Hashtbl.add cache arg_num true;
+										Hashtbl.replace cache arg_num true;
 										let (arg_var, _) = List.nth fn.tf_args arg_num in
 										let result = not (self#is_stored arg_var fn.tf_expr) in
 										Hashtbl.replace cache arg_num result;
@@ -604,7 +604,7 @@ class safety_scope (mode:safety_mode) (scope_type:scope_type) (safe_locals:(safe
 		*)
 		method reset_to (state:(safety_subject,texpr) Hashtbl.t) =
 			Hashtbl.clear safe_locals;
-			Hashtbl.iter (Hashtbl.add safe_locals) state
+			Hashtbl.iter (Hashtbl.replace safe_locals) state
 		(**
 			Should be called for each local var declared
 		*)

@@ -9,7 +9,7 @@ let create size = {
 }
 
 let add h k v =
-	Mutex.protect h.mutex (fun () -> Hashtbl.add h.h k) v
+	Mutex.protect h.mutex (fun () -> Hashtbl.replace h.h k) v
 
 let replace h k v =
 	Mutex.protect h.mutex (fun () -> Hashtbl.replace h.h k) v
@@ -25,7 +25,7 @@ let find_or_add h k f =
 		r
 	with Not_found ->
 		let r = f () in
-		Hashtbl.add h.h k r;
+		Hashtbl.replace h.h k r;
 		Mutex.unlock h.mutex;
 		r
 

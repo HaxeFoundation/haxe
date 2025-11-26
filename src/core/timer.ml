@@ -33,7 +33,7 @@ let make_context root_timer =
 		measure_times = Maybe;
 		start_time = Extc.time();
 	} in
-	Hashtbl.add ctx.timer_lut root_timer.id root_timer;
+	Hashtbl.replace ctx.timer_lut root_timer.id root_timer;
 	ctx
 
 let update_timer timer start =
@@ -49,7 +49,7 @@ let start_timer ctx id =
 		Hashtbl.find ctx.timer_lut id
 	with Not_found ->
 		let timer = make id in
-		Hashtbl.add ctx.timer_lut id timer;
+		Hashtbl.replace ctx.timer_lut id timer;
 		timer
 	in
 	timer.calls <- timer.calls + 1;
@@ -136,7 +136,7 @@ let build_times_tree ctx =
 						num_calls = timer.calls;
 						children = [];
 					} in
-					Hashtbl.add nodes path node;
+					Hashtbl.replace nodes path node;
 					node
 				in
 				begin match sl with

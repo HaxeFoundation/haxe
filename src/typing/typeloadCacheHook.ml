@@ -26,7 +26,7 @@ let create_fake_module com file =
 			m_statics = None;
 			m_extra = module_extra file (Define.get_signature com.defines) (file_time file) MFake com.compilation_step [];
 		} in
-		Hashtbl.add fake_modules key mdep;
+		Hashtbl.replace fake_modules key mdep;
 		mdep
 	) in
 	com.module_lut#add mdep.m_path mdep;

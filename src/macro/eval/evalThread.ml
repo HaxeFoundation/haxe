@@ -87,7 +87,7 @@ let run ctx f thread =
 			()
 	in
 	let new_eval = create_eval thread in
-	ThreadSafeHashtbl.add ctx.evals id new_eval;
+	ThreadSafeHashtbl.replace ctx.evals id new_eval;
 	Thread_local_storage.set ctx.eval new_eval;
 	let close () =
 		ThreadSafeHashtbl.remove ctx.evals id;

@@ -76,7 +76,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 				let mc = Hashtbl.find binary_cache path in
 				let m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps } in
 				let mc = { mc with mc_extra = m_extra } in
-				Hashtbl.add tmp_binary_cache path mc;
+				Hashtbl.replace tmp_binary_cache path mc;
 				mc
 		)
 
@@ -95,7 +95,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method cache_hxb_module config warn anon_identification m =
 		match m.m_extra.m_kind with
 		| MImport ->
-			Hashtbl.add modules m.m_path m;
+			Hashtbl.replace modules m.m_path m;
 			None
 		| _ ->
 			Some (fun () ->
@@ -186,7 +186,7 @@ class cache = object(self)
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) sign in
 			context_list <- cache :: context_list;
-			Hashtbl.add contexts sign cache;
+			Hashtbl.replace contexts sign cache;
 			cache
 
 	method add_info sign desc platform (class_paths : ClassPaths.class_paths) defines =

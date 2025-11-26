@@ -108,7 +108,7 @@ class file_keys = object(self)
 			Hashtbl.find cache file
 		with Not_found ->
 			let key = Path.UniqueKey.create file in
-			Hashtbl.add cache file key;
+			Hashtbl.replace cache file key;
 			key
 
 	val virtual_counter = ref 0
@@ -1062,7 +1062,7 @@ let rec has_feature com f =
 			with Not_found ->
 				false
 			) in
-			Hashtbl.add com.features f r;
+			Hashtbl.replace com.features f r;
 			r
 
 let allow_package ctx s =
