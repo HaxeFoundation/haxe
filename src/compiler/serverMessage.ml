@@ -144,13 +144,11 @@ let stats stats time =
 let message s =
 	if config.print_message then print_endline ("> " ^ s)
 
-let gc_stats time stats_before did_compact space_overhead =
+let gc_stats time stats_before =
 	if config.print_stats || config.print_gc_stats then begin
 		let stats = Gc.quick_stat() in
-		print_endline (Printf.sprintf "GC %s done in %.2fs with space_overhead = %i\n\tbefore: %s\n\tafter: %s"
-			(if did_compact then "compaction" else "collection")
+		print_endline (Printf.sprintf "GC compaction done in %.2fs\n\tbefore: %s\n\tafter: %s"
 			time
-			space_overhead
 			(Memory.fmt_word (float_of_int stats_before.Gc.heap_words))
 			(Memory.fmt_word (float_of_int stats.heap_words))
 		)
