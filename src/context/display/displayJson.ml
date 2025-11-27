@@ -316,7 +316,6 @@ let handler =
 			supports_resolve := false;
 			DisplayException.reset();
 			ServerConfig.reset();
-			Gc.compact();
 			hctx.send_result (jobject [
 				"success", jbool true
 			]);
