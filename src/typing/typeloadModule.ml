@@ -213,6 +213,9 @@ module ModuleLevel = struct
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
 						a_default;
 					} in
+					delay ctx_m.g PBuildModule (fun () ->
+						match a.a_default with | None -> () | Some l -> ignore(Lazy.force l)
+					);
 					begin match p_enum_meta with
 						| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
 						| None -> ()
