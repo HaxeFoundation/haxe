@@ -37,6 +37,7 @@ class ServerMethods {
 	static inline var Invalidate = new HaxeRequestMethod<FileParams, Response<NoData>>("server/invalidate");
 	static inline var Contexts = new HaxeRequestMethod<NoData, Response<Array<HaxeServerContext>>>("server/contexts");
 	static inline var Memory = new HaxeRequestMethod<NoData, Response<HaxeMemoryResult>>("server/memory");
+	static inline var GcCompact = new HaxeRequestMethod<NoData, Response<GcCompactResult>>("server/gcCompact");
 	static inline var ContextMemory = new HaxeRequestMethod<ContextParams, Response<HaxeContextMemoryResult>>("server/memory/context");
 	static inline var ModuleMemory = new HaxeRequestMethod<ModuleParams, Response<HaxeModuleMemoryResult>>("server/memory/module");
 	static inline var Modules = new HaxeRequestMethod<ContextParams, Response<Array<String>>>("server/modules");
@@ -130,6 +131,12 @@ typedef HaxeMemoryResult = {
 		final nativeLibCache:Int;
 		final ?additionalSizes:Array<AdditionalSize>;
 	}
+}
+
+typedef GcCompactResult = {
+	final time:Float;
+	final before:Int;
+	final after:Int;
 }
 
 typedef HaxeContextMemoryResult = {

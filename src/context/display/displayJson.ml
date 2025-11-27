@@ -320,6 +320,17 @@ let handler =
 				"success", jbool true
 			]);
 		);
+		"server/gcCompact", (fun hctx ->
+			let t0 = Extc.time() in
+			let stats_before = Gc.stat() in
+			Gc.compact();
+			let stats = Gc.quick_stat() in
+			hctx.send_result (jobject [
+				"time", jfloat (Extc.time() -. t0);
+				"before", jint (stats_before.Gc.heap_words * Sys.word_size / 8);
+				"after", jint (stats.Gc.heap_words * Sys.word_size / 8);
+			]);
+		);
 		"server/readClassPaths", (fun hctx ->
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
