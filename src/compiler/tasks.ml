@@ -2,16 +2,6 @@
 open Type
 open CompilationCache
 
-class gc_task = object(self)
-	inherit server_task ["gc"] 100
-
-	method private execute =
-		let t0 = Extc.time() in
-		let stats = Gc.stat() in
-		Gc.compact();
-		ServerMessage.gc_stats (Extc.time() -. t0) stats
-end
-
 class class_maintenance_task (cs : CompilationCache.t) (c : tclass) = object(self)
 	inherit server_task ["module maintenance"] 70
 
