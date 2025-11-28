@@ -850,26 +850,13 @@ and wait_loop verbose accept =
 	let sctx = ServerCompilationContext.create verbose in
 	let cs = sctx.cs in
 	enable_cache_mode sctx;
-	let ring = Ring.create 100 None in
-	let gc_heap_stats () =
-		let stats = Gc.quick_stat() in
-		stats.major_words,stats.heap_words
-	in
-	let heap_stats_start = ref (gc_heap_stats()) in
-	let update_heap () =
-		(* On every compilation: Track how many words were allocated for this compilation (working memory). *)
-		let heap_stats_now = gc_heap_stats() in
-		let words_allocated = (fst heap_stats_now) -. (fst !heap_stats_start) in
-		let heap_size = float_of_int (snd heap_stats_now) in
-		Ring.push ring (Some words_allocated);
-		if sctx.was_compilation then for _ = 1 to 20 do Ring.push ring None done;
-		if Ring.is_filled ring then begin
-			Ring.reset_filled ring;
-			 (* Maximum working memory for the last X compilations. *)
-			let max = Ring.fold ring 0. (fun m v -> match v with None -> m | Some i -> if i > m then i else m) in
-			cs#add_task (new Tasks.gc_task max heap_size)
+	let count = ref 0 in
+	let maybe_compact_gc () =
+		if sctx.was_compilation then count := !count + 20 else incr count;
+		if !count >= 100 then begin
+			count := 0;
+			cs#add_task (new Tasks.gc_task)
 		end;
-		heap_stats_start := heap_stats_now;
 	in
 	(* Main loop: accept connections and process arguments *)
 	while true do
@@ -916,7 +903,7 @@ and wait_loop verbose accept =
 		close();
 		current_stdin := None;
 		cleanup();
-		update_heap();
+		maybe_compact_gc();
 		(* If our connection always blocks, we have to execute all pending tasks now. *)
 		if not support_nonblock then
 			while cs#has_task do cs#get_task#run done

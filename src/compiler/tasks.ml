@@ -2,7 +2,7 @@
 open Type
 open CompilationCache
 
-class gc_task (max_working_memory : float) (heap_size : float) = object(self)
+class gc_task = object(self)
 	inherit server_task ["gc"] 100
 
 	method private execute =
