@@ -850,14 +850,6 @@ and wait_loop verbose accept =
 	let sctx = ServerCompilationContext.create verbose in
 	let cs = sctx.cs in
 	enable_cache_mode sctx;
-	let count = ref 0 in
-	let maybe_compact_gc () =
-		if sctx.was_compilation then count := !count + 20 else incr count;
-		if !count >= 100 then begin
-			count := 0;
-			cs#add_task (new Tasks.gc_task)
-		end;
-	in
 	(* Main loop: accept connections and process arguments *)
 	while true do
 		let support_nonblock, read, write, close = accept() in
@@ -903,7 +895,6 @@ and wait_loop verbose accept =
 		close();
 		current_stdin := None;
 		cleanup();
-		maybe_compact_gc();
 		(* If our connection always blocks, we have to execute all pending tasks now. *)
 		if not support_nonblock then
 			while cs#has_task do cs#get_task#run done
