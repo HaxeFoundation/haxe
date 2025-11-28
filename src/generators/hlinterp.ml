@@ -120,11 +120,11 @@ type context = {
 }
 
 let default t =
-	match t with
-	| HUI8 | HUI16 | HI32 -> VInt Int32.zero
-	| HI64 -> VInt64 Int64.zero
-	| HF32 | HF64 -> VFloat 0.
-	| HBool -> VBool false
+	match get_group t with
+	| HNum (Int, (0 | 1 | 2), _) -> VInt Int32.zero
+	| HNum (Int, 3, _) -> VInt64 Int64.zero
+	| HNum (Float, _, _) -> VFloat 0.
+	| HBool _ -> VBool false
 	| _ -> if is_nullable t then VNull else VUndef
 
 let get_type = function
@@ -144,27 +144,27 @@ let v_dynamic = function
 	| _ -> false
 
 let rec is_compatible v t =
-	match v, t with
-	| VInt _, (HUI8 | HUI16 | HI32) -> true
-	| VInt64 _, HI64 -> true
-	| VFloat _, (HF32 | HF64) -> true
-	| VBool _, HBool -> true
-	| _, HVoid -> true
-	| VNull, t -> is_nullable t
-	| VObj o, HObj _ -> safe_cast (HObj o.oproto.pclass) t
-	| VClosure _, HFun _ -> safe_cast (match get_type v with None -> Globals.die "" __LOC__ | Some t -> t) t
-	| VBytes _, HBytes -> true
-	| VDyn (_,t1), HNull t2 -> tsame t1 t2
-	| v, HNull t -> is_compatible v t
-	| v, HDyn -> v_dynamic v
-	| VType _, HType -> true
-	| VArray _, HArray _ -> true
-	| VDynObj _, HDynObj -> true
-	| VVirtual v, HVirtual _ -> safe_cast (HVirtual v.vtype) t
-	| VRef (_,t1), HRef t2 -> tsame t1 t2
-	| VAbstract _, HAbstract _ -> true
-	| VEnum _, HEnum _ -> true
-	| VStruct v, HStruct _ -> safe_cast (HStruct v.oproto.pclass) t
+	match v, get_group t with
+	| VInt _, HNum (Int, (0 | 1 | 2), _) -> true
+	| VInt64 _, HNum (Int, 3, _) -> true
+	| VFloat _, HNum (Float, _, _) -> true
+	| VBool _, HBool _ -> true
+	| _, HOther HVoid -> true
+	| VNull, _ -> is_nullable t
+	| VObj o, HOther HObj _ -> safe_cast (HObj o.oproto.pclass) t
+	| VClosure _, HOther HFun _ -> safe_cast (match get_type v with None -> Globals.die "" __LOC__ | Some t -> t) t
+	| VBytes _, HOther HBytes -> true
+	| VDyn (_,t1), HNull (HNum (_, _, t2) | HBool t2) -> tsame t1 t2
+	| v, HNull (HNum (_, _, t) | HBool t) -> is_compatible v t
+	| v, HOther HDyn -> v_dynamic v
+	| VType _, HOther HType -> true
+	| VArray _, HOther HArray _ -> true
+	| VDynObj _, HOther HDynObj -> true
+	| VVirtual v, HOther HVirtual _ -> safe_cast (HVirtual v.vtype) t
+	| VRef (_,t1), HOther HRef t2 -> tsame t1 t2
+	| VAbstract _, HOther HAbstract _ -> true
+	| VEnum _, HOther HEnum _ -> true
+	| VStruct v, HOther HStruct _ -> safe_cast (HStruct v.oproto.pclass) t
 	| _ -> false
 
 type cast =
@@ -2212,18 +2212,18 @@ let check comerror code =
 			if not (safe_cast (rtype r) t) then error (reg_inf r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
 		in
 		let numeric r =
-			match rtype r with
-			| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> ()
+			match get_group (rtype r) with
+			| HNum _ -> ()
 			| _ -> error (reg_inf r ^ " should be numeric")
 		in
 		let int r =
-			match rtype r with
-			| HUI8 | HUI16 | HI32 | HI64 -> ()
+			match get_group (rtype r) with
+			| HNum (Int, _, _) -> ()
 			| _ -> error (reg_inf r ^ " should be integral")
 		in
 		let float r =
-			match rtype r with
-			| HF32 | HF64 -> ()
+			match get_group (rtype r) with
+			| HNum (Float, _, _) -> ()
 			| _ -> error (reg_inf r ^ " should be float")
 		in
 		let call f args r =
@@ -2433,7 +2433,7 @@ let check comerror code =
 				reg b HBytes;
 				reg p HI32;
 			| OGetMem (r,b,p) ->
-				(match rtype r with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
+				(match get_group (rtype r) with HNum (_, (2 | 3), _) -> () | _ -> error (reg_inf r ^ " should be numeric"));
 				reg b HBytes;
 				reg p HI32;
 			| OSetUI8 (r,p,v) | OSetUI16 (r,p,v) ->
@@ -2443,7 +2443,7 @@ let check comerror code =
 			| OSetMem (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
-				(match rtype v with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
+				(match get_group (rtype v) with HNum (_, (2 | 3), _) -> () | _ -> error (reg_inf r ^ " should be numeric"));
 			| OSetArray (a,i,v) ->
 				(match rtype a with HAbstract ("hl_carray",_) | HArray _ -> () | _ -> reg a (HArray HDyn));
 				reg i HI32;
