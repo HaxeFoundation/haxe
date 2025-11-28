@@ -91,13 +91,13 @@
 		"name": "EnableParallelAbstractCast",
 		"define": "enable-parallel-abstract-cast",
 		"signatureNeutral": true,
-		"doc": "Enable experimental uses of parallelism in the compiler (abstract cast filter)."
+		"doc": "Enable experimental uses of parallelism in the abstract cast filter (can trigger memory leaks)."
 	},
 	{
 		"name": "EnableParallelAnalyzer",
 		"define": "enable-parallel-analyzer",
 		"signatureNeutral": true,
-		"doc": "Enable experimental uses of parallelism in the compiler (analyzer)."
+		"doc": "Enable experimental uses of parallelism in the analyzer (can trigger memory leaks)."
 	},
 	{
 		"name": "DisableUnicodeStrings",
