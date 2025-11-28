@@ -48,8 +48,8 @@ Sys.catch_break true;
 
 DynamicGc.(setup_dynamic_tuning
   {
-    min_space_overhead = 60;
-    max_space_overhead = 80;
+    min_space_overhead = 100;
+    max_space_overhead = 120;
     heap_start_worrying_mb = 4_096;
     heap_really_worry_mb = 8_192;
   });
