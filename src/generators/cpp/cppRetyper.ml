@@ -289,10 +289,17 @@ let retype_tvar tvar =
     else
       with_reference_value_type
   in
+  let sanitise tcpp =
+    match tcpp with
+    | TCppMarshalNativeType (ValueClass (cls, _), Promoted) when is_stack_only_marshalling_native_value_class cls ->
+      cpp_abort PromotedStackOnlyValueType tvar.v_pos
+    | _ ->
+      tcpp
+    in
       
   {
     tcppv_var        = tvar;
-    tcppv_type       = cpp_type_of handler tvar.v_type;
+    tcppv_type       = cpp_type_of handler tvar.v_type |> sanitise;
     tcppv_name       = cpp_var_name_of tvar;
     tcppv_debug_name = keyword_remap tvar.v_name
   }

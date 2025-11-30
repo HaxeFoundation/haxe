@@ -3,7 +3,7 @@ open Error
 type cppError =
     | InternalError
     | MissingValueSemantics
-    | PromotedStackOnlyValueType
+    | NativeMarshallingFunctionClosures
     | InvalidMarshallingTypeParameter
     | PointerTypeConstructor
     | ValueTypeUndefined
@@ -12,7 +12,7 @@ type cppError =
     | InvalidFlagsField
     | ExtendingManagedType
     | UnresolvedTypeParameter of string
-    | NativeMarshallingFunctionClosures
+    | PromotedStackOnlyValueType
 
 let cpp_abort error pos =
     let print = Printf.sprintf "CPP%0*i: %s" 4 in

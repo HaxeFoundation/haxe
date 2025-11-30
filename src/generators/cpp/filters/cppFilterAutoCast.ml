@@ -2,6 +2,7 @@ open Type
 open CppTypeUtils
 open CppAst
 open CppAstTools
+open CppError
 
 let autocast_filter for_cppia return_type cppexpr =
   let object_expression =
@@ -165,6 +166,8 @@ let autocast_filter for_cppia return_type cppexpr =
 
     (* Ensure we wrap any access to the stack or promoted type in a reference object. *)
     (* TIdents are wrapped at retyping but array access and others won't be, so this will wrap them. *)
+    | TCppMarshalNativeType (ValueClass (cls, _), (Stack | Reference)), other when CppMarshalling.is_stack_only_marshalling_native_value_class cls && is_object_element other ->
+      cpp_abort PromotedStackOnlyValueType cppexpr.cpppos
     | TCppMarshalNativeType (value_type, Stack), (TCppPointer _)
     | TCppMarshalNativeType (value_type, Stack), (TCppRawPointer _)
     | TCppMarshalNativeType (value_type, Stack), (TCppStar _)
