@@ -5,6 +5,7 @@ open Error
 open CppAst
 open CppTypeUtils
 open CppMarshalling
+open CppError
 
 let follow = Abstract.follow_with_abstracts
 
@@ -480,10 +481,10 @@ and build_type path pos params meta target parameter_handler =
     | _ -> "< " ^ String.concat "," (List.map parameter_handler params) ^ " >"
   in
   let namespace_error pos =
-   abort "CPP0006: Namespace field must be an array declaration of string literals" pos
+    cpp_abort InvalidNamespaceField pos
   in
   let flag_error pos =
-    abort "CPP0008: Flags field must be an array of identifiers" pos
+    cpp_abort InvalidFlagsField pos
   in
   let namespace =
     match get_meta_field "namespace" with
@@ -501,7 +502,7 @@ and build_type path pos params meta target parameter_handler =
   | Some (_, (EConst (String (s, _)), _) ) ->
     s ^ typeParams
   | Some ((_, pos, _), _) ->
-    abort "CPP0007: Type field must be a string literal" pos
+    cpp_abort InvalidTypeField pos
   | _ ->
     snd path ^ typeParams
   in
@@ -539,7 +540,7 @@ and get_native_marshalled_type value_type =
     | TCppStruct _ ->
       tcpp_to_string_suffix "" tcpp
     | _ ->
-      abort "CPP0003: Invalid parameter for a marshalling type" pos
+      cpp_abort InvalidMarshallingTypeParameter pos
   in
 
   match value_type with

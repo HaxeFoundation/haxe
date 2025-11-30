@@ -1,6 +1,6 @@
 open Type
 open Ast
-open Error
+open CppError
 
 let is_marshalling_managed_class cls =
   has_class_flag cls CExtern && has_meta Meta.CppManagedType cls.cl_meta
@@ -21,7 +21,7 @@ let is_stack_only_marshalling_native_value_class cls =
         None
     in
     let flag_error pos =
-      abort "CPP0008: Flags field must be an array of identifiers" pos
+      cpp_abort InvalidFlagsField pos
     in
     let flags =
       match get_meta_field "flags" with

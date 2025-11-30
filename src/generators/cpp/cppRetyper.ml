@@ -7,6 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 open CppMarshalling
+open CppError
 
 (* TODO : Not have this basically be a duplicated unify_cf *)
 let unify_cf2 map_type c cf el_args el_ret =
@@ -577,7 +578,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyper_ctx, cppType.cppexpr, cppType.cpptype)
 
       | TField (_, FClosure (Some (cls, _), _)) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
-        abort "CPP0002: Native marshalling types cannot have function closures created for them" expr.epos
+        cpp_abort NativeMarshallingFunctionClosures expr.epos
       | TField (obj, FInstance (cls, params, ({ cf_type = (TFun _) } as member))) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
         (match apply_params cls.cl_params params expr.etype with
         | TFun (args, ret) as t ->
@@ -590,14 +591,14 @@ let expression ctx request_type function_args function_type expression_tree forI
               let filter idx t =
                 match follow_lazy_and_mono t with
                 | TMono _ ->
-                  abort (Printf.sprintf "CPP0010: Unable to resolve parameter %s, consider adding a type hint." (List.nth member.cf_params idx).ttp_name) expr.epos;
+                  cpp_abort (UnresolvedTypeParameter (List.nth member.cf_params idx).ttp_name) expr.epos;
                 | _ ->
                   true
               in
 
               ts |> List.filteri filter |> List.map cpp_type_of
             | None ->
-              abort "CPP0000: Failed to find parameter types" expr.epos
+              cpp_abort InternalError expr.epos
           in
 
           let clazzType = cpp_instance_type cls params with_reference_value_type in
@@ -608,7 +609,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           let exprType    = cpp_type_of_with handler t in
           ( retyper_ctx, CppFunction (FuncInstance (retypedObj, access, member, template_types), func_return), exprType )
         | _ ->
-          abort "CPP0000: Expected expression to be TFun" expr.epos)
+          cpp_abort InternalError expr.epos)
       | TField (_, FStatic (cls, ({ cf_type = (TFun _) } as member))) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
         (match expr.etype with
         | TFun (args, ret) as t ->
@@ -621,14 +622,14 @@ let expression ctx request_type function_args function_type expression_tree forI
               let filter idx t =
                 match follow_lazy_and_mono t with
                 | TMono _ ->
-                  abort (Printf.sprintf "CPP0010: Unable to resolve parameter %s, consider adding a type hint." (List.nth member.cf_params idx).ttp_name) expr.epos;
+                  cpp_abort (UnresolvedTypeParameter (List.nth member.cf_params idx).ttp_name) expr.epos;
                 | _ ->
                   true
               in
 
               ts |> List.filteri filter |> List.map cpp_type_of
             | None ->
-              abort "CPP0000: Failed to find parameter types" expr.epos
+              cpp_abort InternalError expr.epos
           in
 
           let func_return = cpp_type_of_with with_stack_value_type ret in
@@ -638,7 +639,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               CppFunction (FuncStatic (cls, false, member, template_types), func_return),
               exprType )
         | _ ->
-          abort "CPP0000: Expected expression to be TFun" expr.epos)
+          cpp_abort InternalError expr.epos)
       | TField (obj, field) -> (
           match field with
           | FInstance (clazz, params, member)
@@ -1383,7 +1384,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           | TCppVoid -> (retyper_ctx, CppObjectDecl (joined, false), TCppVoid)
           | _ -> (retyper_ctx, CppObjectDecl (joined, false), TCppDynamic))
       | TVar (v, None) when is_marshalling_native_value_class_tvar v ->
-        abort "CPP0005: Marshalling value type extern cannot be used for a variable declaration with no expression" expr.epos
+        cpp_abort ValueTypeUndefined expr.epos
       (* Even with value semantics the compiler will sometimes generate temporary variables e.g. long function call chains. *)
       (* In these cases the generated variables should be value types, not references, so we're not dealing with c++ const& temporaries. *)
       (* So if the RHS of the generated variable is not a lvalue make sure we assign it as a value type, not reference. *)
@@ -1721,8 +1722,8 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       match (field.cf_kind, field.cf_expr) with
       | Var _, _ ->
         (match follow field.cf_type with
-        | TInst (cls, _) when CppMarshalling.is_marshalling_native_value_class cls ->
-          abort "" field.cf_pos
+        | TInst (cls, _) when CppMarshalling.is_stack_only_marshalling_native_value_class cls ->
+          cpp_abort PromotedStackOnlyValueType field.cf_pos
         | _ ->
           Some (create_variable field))
       (* Dynamic methods are implemented as a physical field holding a closure *)
@@ -1807,7 +1808,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let (slots, ids, parent) =
     match class_def.cl_super with
     | Some (cls, _) when Meta.has Meta.CppManagedType cls.cl_meta ->
-      abort "CPP0009: Class cannot extend a managed type extern" class_def.cl_pos
+      cpp_abort ExtendingManagedType class_def.cl_pos
     | Some (cls, params) ->
       let slots, ids, parent = tcpp_class_from_tclass ctx ids slots cls params in
       (slots, ids, Some parent)
@@ -1903,8 +1904,8 @@ and tcpp_interface_from_tclass ctx slots class_def =
     match field.cf_kind with
     | Var _ when is_physical_var_field field ->
       (match follow field.cf_type with
-      | TInst (cls, _) when CppMarshalling.is_marshalling_native_value_class cls ->
-        abort "" field.cf_pos
+      | TInst (cls, _) when CppMarshalling.is_stack_only_marshalling_native_value_class cls ->
+        cpp_abort PromotedStackOnlyValueType field.cf_pos
       | _ ->
         true)
     | _ -> false
@@ -1955,7 +1956,7 @@ and tcpp_enum_from_tenum ctx ids enum_def =
   let retype_args t pos =
     match t with
     | TFun (args, _) when List.exists (fun (_, _, t) -> stack_only_checker t) args ->
-      abort "" pos
+      cpp_abort PromotedStackOnlyValueType pos
     | TFun (args, _) ->
       Some (List.map (retype_arg with_promoted_value_type) args)
     | _ ->

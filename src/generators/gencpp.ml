@@ -28,6 +28,7 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppMarshalling
+open CppError
 
 let make_base_directory dir =
    Path.mkdir_recursive "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) )
@@ -282,7 +283,7 @@ let generate_source ctx =
 
    let folder acc cur =
       let no_semantics_meta pos =
-         abort "CPP0001: Marshalling type extern must be annotated with value semantics" pos
+         cpp_abort MissingValueSemantics pos
       in
 
       (if not (Gctx.defined common_ctx Define.Objc) then
@@ -299,7 +300,7 @@ let generate_source ctx =
             no_semantics_meta class_def.cl_pos;
 
          if is_marshalling_native_pointer class_def && class_def.cl_constructor |> Option.is_some then
-            abort "CPP0004: Pointer type cannot have a constructor" class_def.cl_pos;
+            cpp_abort PointerTypeConstructor class_def.cl_pos;
 
          let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
          let acc_extern_src =
