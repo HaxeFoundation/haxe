@@ -1,12 +1,13 @@
 package cpp.marshal;
 
+import cpp.SizeT;
 import haxe.ds.Vector;
 import haxe.exceptions.ArgumentException;
 
 @:semantics(value)
-@:cpp.ValueType({ namespace:['cpp', 'marshal'] })
+@:cpp.ValueType({ namespace:['cpp', 'marshal'], flags: [ StackOnly ] })
 extern final class View<T> implements ArrayAccess<T> {
-    final length : Int;
+    final length : SizeT;
 	final ptr : Pointer<T>;
 
 	function new(ptr:Pointer<T>, length:Int):Void;
@@ -44,14 +45,14 @@ extern final class View<T> implements ArrayAccess<T> {
 	 * Create a slice of the current view which starts at the specified index.
 	 * @param start Zero based index to start the slice at.
 	 */
-	overload function slice(start:Int):View<T>;
+	overload function slice(start:SizeT):View<T>;
 
 	/**
 	 * Create a slice of the current view which starts at the specified index and runs for the specified length.
 	 * @param start Zero based index to start the slice at.
 	 * @param length Length of the slice.
 	 */
-	overload function slice(start:Int, length:Int):View<T>;
+	overload function slice(start:SizeT, length:SizeT):View<T>;
 
 	/**
 	 * Returns if the current view is empty.
