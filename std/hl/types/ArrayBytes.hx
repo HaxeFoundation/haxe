@@ -149,7 +149,7 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		if (tid == Type.get(0))
 			(bytes : Bytes).sortI32(0, length, cast f);
 		else if( tid == Type.get((0:hl.I64)) ) {
-			#if (hl_ver >= version("1.16.0"))
+			#if (hl_ver >= version("1.16.0") && !hl_legacy32)
 			(bytes : Bytes).sortI64(0, length, cast f);
 			#else
 			throw "Array sort I64 requires -D hl-ver=1.16.0";

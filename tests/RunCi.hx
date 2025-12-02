@@ -37,7 +37,7 @@ class RunCi {
 			infoMsg('test $test');
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("ncannasse", "utest", "dec118f248649b20abb6148d0e9960ef93556fda", "--always");
+				haxelibInstallGit("haxe-utest", "utest", "8e99ed92b7376f1979f967ad7a729bdde47dae8f", "--always");
 
 				var args = switch (ci) {
 					case null:
