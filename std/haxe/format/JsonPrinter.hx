@@ -52,6 +52,8 @@ class JsonPrinter {
 	var indent:String;
 	var pretty:Bool;
 	var nind:Int;
+	var stack : Map<{},Bool> = [];
+	var depth : Int = 0;
 
 	function new(replacer:Null<(key:Dynamic, value:Dynamic) -> Dynamic>, space:Null<String>) {
 		this.replacer = replacer;
@@ -118,10 +120,12 @@ class JsonPrinter {
 					addChar(']'.code);
 				} else if (c == haxe.ds.StringMap) {
 					var v:haxe.ds.StringMap<Dynamic> = v;
+					beginStack(v);
 					var o = {};
 					for (k in v.keys())
 						Reflect.setField(o, k, v.get(k));
 					objString(o);
+					endStack(v);
 				} else if (c == Date) {
 					var v:Date = v;
 					quote(v.toString());
@@ -161,8 +165,22 @@ class JsonPrinter {
 	inline function objString(v:Dynamic) {
 		fieldsString(v, Reflect.fields(v));
 	}
+	
+	inline function beginStack(v:Dynamic) {
+		depth++;
+		if( depth > 10 ) {
+			if( stack.exists(v) ) throw "Cannot stringify circular structure";
+			stack.set(v, true);
+		}
+	}
+	
+	inline function endStack(v:Dynamic) {
+		if( depth > 10 ) stack.remove(v);
+		depth--;
+	}
 
 	function fieldsString(v:Dynamic, fields:Array<String>) {
+		beginStack(v);
 		addChar('{'.code);
 		var len = fields.length;
 		var empty = true;
@@ -190,6 +208,7 @@ class JsonPrinter {
 			ipad();
 		}
 		addChar('}'.code);
+		endStack(v);
 	}
 
 	function quote(s:String) {

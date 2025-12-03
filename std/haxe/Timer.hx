@@ -203,7 +203,7 @@ class Timer {
 		#else
 		return Std.int(stamp() * 1000);
 		#end
-		#elseif (hl && hl_ver >= version("1.16.0"))
+		#elseif (hl && hl_ver >= version("1.16.0") && !hl_legacy32)
 		return hl.Api.timestampMs();
 		#elseif jvm
 		return java.lang.System.nanoTime() / 1000000i64;
