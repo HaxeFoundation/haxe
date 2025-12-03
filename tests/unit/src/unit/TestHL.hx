@@ -28,8 +28,6 @@ private class Numbers {
 	public var i32 : Int;
 	public var i64 : hl.I64;
 	public var guid : hl.GUID;
-	public var f32 : hl.F32;
-	public var f64 : hl.F64;
 	public function new() {
 	}
 	public function loadInt64( v : hl.I64 ) {
@@ -259,6 +257,10 @@ class TestHL extends Test {
 		t(a.ui8 * b.ui8 == 32);
 		t(a.ui8 << 1 == 480); // Int
 		t(a.ui8 >> 1 == 120);
+		t(a.ui8 % b.ui8 == 18);
+		t(a.ui8 & b.ui8 == 208);
+		t(a.ui8 | b.ui8 == 254);
+		t(a.ui8 ^ b.ui8 == 46);
 
 		t(a.ui16 + b.ui16 == (39886 : hl.UI16));
 		t(a.ui16 + b.ui16 == 39886);
@@ -266,6 +268,10 @@ class TestHL extends Test {
 		t(a.ui16 * b.ui16 == 37920);
 		t(a.ui16 << 1 == 114144); // Int
 		t(a.ui16 >> 1 == 28536);
+		t(a.ui16 % b.ui16 == 8722);
+		t(a.ui16 & b.ui16 == 40144);
+		t(a.ui16 | b.ui16 == 65278);
+		t(a.ui16 ^ b.ui16 == 25134);
 
 		t(a.ui8 + a.ui16 == 57312);
 		t(a.ui16 + a.ui8 == 57312);
@@ -281,6 +287,11 @@ class TestHL extends Test {
 		t(a.i64 >> 1 == a.i64 / 2i64);
 		t(a.i64 / b.i64 == -1i64); // hl.I64.div return I64
 		t(a.i64 % b.i64 == a.i64 + b.i64);
+		t(a.i64 & b.i64 == b.i64 & a.i64);
+		t(a.i64 | b.i64 == -993476380043837698i64);
+		t(a.i64 | b.i64 == b.i64 | a.i64);
+		t(a.i64 ^ b.i64 == -2150923818520649170i64);
+		t(a.i64 ^ b.i64 == b.i64 ^ a.i64);
 	}
 
 	private function numberFun( v : Numbers, ui8 : hl.UI8, ui16 : hl.UI16, i32 : Int, i64: hl.I64, guid : hl.GUID ) {
@@ -291,7 +302,7 @@ class TestHL extends Test {
 		t(v.guid == guid);
 	}
 
-	private function numberFun2( ?v : Numbers, ?ui8 : hl.UI8, ?ui16 : hl.UI16, ?i32 : Int, ?i64: hl.I64, ?guid : hl.GUID ) {
+	private function numberFunOpt( ?v : Numbers, ?ui8 : hl.UI8, ?ui16 : hl.UI16, ?i32 : Int, ?i64: hl.I64, ?guid : hl.GUID ) {
 		t(v?.ui8 == ui8);
 		t(v?.ui16 == ui16);
 		t(v?.i32 == i32);
@@ -299,7 +310,7 @@ class TestHL extends Test {
 		t(v?.guid == guid);
 	}
 
-	private function numberFun3( v : Numbers, ui8 : hl.UI8 = 1, ui16 : hl.UI16 = 1, i32 : Int = 1, i64: hl.I64 = 1, guid : hl.GUID = 1 ) {
+	private function numberFunDefault( v : Numbers, ui8 : hl.UI8 = 1, ui16 : hl.UI16 = 1, i32 : Int = 1, i64: hl.I64 = 1, guid : hl.GUID = 1 ) {
 		t(v.ui8 == ui8);
 		t(v.ui16 == ui16);
 		t(v.i32 == i32);
@@ -311,10 +322,10 @@ class TestHL extends Test {
 		var v = new Numbers();
 		v.loadInt64(0x123456789ABCDEF0i64);
 		numberFun(v, v.ui8, v.ui16, v.i32, v.i64, v.guid);
-		numberFun2(v, v.ui8, v.ui16, v.i32, v.i64, v.guid);
-		numberFun2();
+		numberFunOpt(v, v.ui8, v.ui16, v.i32, v.i64, v.guid);
+		numberFunOpt();
 		var v = new Numbers();
 		v.loadInt(1);
-		numberFun3(v);
+		numberFunDefault(v);
 	}
 }
