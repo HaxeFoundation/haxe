@@ -1,5 +1,6 @@
 package cpp.marshal;
 
+import cpp.Reference;
 import cpp.Pointer;
 import cpp.Star;
 import cpp.RawPointer;
@@ -67,6 +68,10 @@ final class ViewExtensions {
 
 	public static inline overload extern function asView(source:UInt8Array):View<cpp.UInt8> {
 		return asView(source.view).reinterpret();
+	}
+
+	public static inline extern function refAsView<T>(source:Reference<T>):View<T> {
+		return new View(Pointer.addressOf(source), 1);
 	}
 
 	public static inline extern function empty<T>():View<T> {
