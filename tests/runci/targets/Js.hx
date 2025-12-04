@@ -47,7 +47,7 @@ class Js {
 		getJSDependencies();
 
 		final jsOutputs = [
-			for (es_ver in    [[], ["-D", "js-es=3"], ["-D", "js-es=6"]])
+			for (es_ver in    [[], ["-D", "js-es=6"]])
 			for (unflatten in [[], ["-D", "js-unflatten"]])
 			for (classic in   [[], ["-D", "js-classic"]])
 			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
