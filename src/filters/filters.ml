@@ -422,6 +422,8 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 	let cv_wrapper_impl = com.Common.local_wrapper in
 	let filters_before_inlining = [
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
+	] in
+	let filters_before_inlining_parallel = [
 		"local_statics",LocalStatic.run;
 		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;
@@ -447,14 +449,20 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
 	] in
 
-	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining) new_types_array;
+	begin
+		let pool = if Common.defined com Define.EnableParallelAbstractCast then pool else None in
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining) new_types_array;
+	end;
+	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining_parallel) new_types_array;
 	Dump.maybe_generate_dump com AfterCasting;
 
 	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_analyzer) new_types_array;
 	Dump.maybe_generate_dump com AfterInlining;
 
 	Common.enter_stage com CAnalyzerStart;
-	if scom.platform <> Cross then Analyzer.Run.run_on_types scom pool all_types_array new_types_array;
+	if scom.platform <> Cross then
+		let pool = if Common.defined com Define.EnableParallelAnalyzer then pool else None in
+		Analyzer.Run.run_on_types scom pool all_types_array new_types_array;
 	Dump.maybe_generate_dump com AfterAnalyzing;
 	Common.enter_stage com CAnalyzerDone;
 
