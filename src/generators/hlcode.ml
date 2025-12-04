@@ -289,13 +289,13 @@ let get_group t =
 	| HF32 -> HNum (Float, 2, t)
 	| HF64 -> HNum (Float, 3, t)
 	| HBool -> HBool t
-	| HNull HUI8 -> HNull (HNum (Int, 8, HUI8))
-	| HNull HUI16 -> HNull (HNum (Int, 16, HUI16))
-	| HNull HI32 -> HNull (HNum (Int, 32, HI32))
-	| HNull HI64 -> HNull (HNum (Int, 64, HI64))
-	| HNull HGUID -> HNull (HNum (Int, 64, HGUID))
-	| HNull HF32 -> HNull (HNum (Float, 32, HF32))
-	| HNull HF64 -> HNull (HNum (Float, 64, HF64))
+	| HNull HUI8 -> HNull (HNum (Int, 0, HUI8))
+	| HNull HUI16 -> HNull (HNum (Int, 1, HUI16))
+	| HNull HI32 -> HNull (HNum (Int, 2, HI32))
+	| HNull HI64 -> HNull (HNum (Int, 3, HI64))
+	| HNull HGUID -> HNull (HNum (Int, 3, HGUID))
+	| HNull HF32 -> HNull (HNum (Float, 2, HF32))
+	| HNull HF64 -> HNull (HNum (Float, 3, HF64))
 	| HNull HBool -> HNull (HBool HBool)
 	| HNull _ -> Globals.die "" __LOC__
 	| _ -> HOther t
