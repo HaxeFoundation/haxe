@@ -232,7 +232,7 @@ module Setup = struct
 		let com = ctx.com in
 		ctx.com.print <- ctx.comm.write_out;
 		Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int version /. 1000.));
-		Common.define_value com Define.Haxe s_version;
+		Common.define_value com Define.Haxe (s_version_full ctx.com.version);
 		Common.raw_define com "true";
 		List.iter (fun (k,v) -> Define.raw_define_value com.defines k v) DefineList.default_values;
 		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
