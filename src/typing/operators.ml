@@ -811,12 +811,7 @@ let type_op_null_coal_assign ctx e1 e2 with_type p =
 				e1,None,ctx.t.tvoid
 			| _ ->
 				let e1 = vr#as_var "tmp" e1 in
-				let rec follow_null t =
-					match t with
-					| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
-					| _ -> t
-				in
-				let t = if is_nullable t2 then e1.etype else follow_null e1.etype in
+				let t = if is_nullable t2 then e1.etype else follow_without_type e1.etype in
 				e1,Some e1,t
 		in
 		let e_null = Texpr.Builder.make_null e1.etype e1.epos in

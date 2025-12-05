@@ -1755,16 +1755,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
 		let tmin,cast = get_if_then_else_operands ctx e1 e2 with_type in
 		let e2 = cast e2 in
-		let rec follow_null t =
-			match t with
-			| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
-			| _ -> t
-		in
 		let iftype = if DeadEnd.has_dead_end e2 then
-			follow_null e1.etype
+			follow_without_type e1.etype
 		else match e2.etype with
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
-			| _ -> follow_null tmin
+			| _ -> follow_without_type tmin
 		in
 		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
