@@ -72,17 +72,19 @@ let sanitize_expr scom e =
 	| TConst TNull ->
 		if scom.SafeCom.platform_config.pf_static && not (is_nullable e.etype) then begin
 			let rec loop t = match follow t with
-				| TMono _ -> () (* in these cases the null will cast to default value *)
-				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
+				| TMono _ -> e (* in these cases the null will cast to default value *)
+				| TFun _ -> e (* this is a bit a particular case, maybe flash-specific actually *)
+				| TAbstract(a,tl) when (Meta.has Meta.FromNull a.a_meta) ->
+					{ e with eexpr = TCast (e, Some (module_type_of_type t)) }
 				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
-				| _ when scom.platform == Cross -> ()
+				| _ when scom.platform == Cross -> e
 				| _ ->
-					SafeCom.add_warning scom WStaticPlatformBasicTypeNull (Printf.sprintf "On static platforms, `null` can't be used as basic type `%s`; using platform default value instead" (s_type (print_context()) e.etype)) e.epos
+					SafeCom.add_warning scom WStaticPlatformBasicTypeNull (Printf.sprintf "On static platforms, `null` can't be used as basic type `%s`; using platform default value instead" (s_type (print_context()) e.etype)) e.epos;
+					{ e with eexpr = TCast (e, Some (module_type_of_type t)) }
 			in
 			loop e.etype
-		end;
-		e
+		end else e
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
 			let p1, left1 = standard_precedence op1 in
