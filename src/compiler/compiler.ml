@@ -123,6 +123,8 @@ module Setup = struct
 				if es_version < 5 then
 					failwith "Invalid -D js-es value, minimal supported version is 5";
 
+				if es_version >= 5 then Common.raw_define com "js_es5"; (* backward-compatibility *)
+
 				add_std "js";
 				"js"
 			| Lua ->
