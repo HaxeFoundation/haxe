@@ -132,7 +132,7 @@ let reduce_control_flow scom e = match e.eexpr with
 let rec reduce_loop (scom : SafeCom.t) stack e =
 	let e = Type.map_expr (reduce_loop scom stack) e in
 	let reduce_expr = Sanitize.reduce_expr in
-	Sanitize.sanitize_expr scom.platform_config (match e.eexpr with
+	Sanitize.sanitize_expr scom (match e.eexpr with
 	| TCall(e1,el) ->
 		begin match Texpr.skip e1 with
 			| { eexpr = TFunction func } as ef ->
