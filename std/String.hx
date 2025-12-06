@@ -139,11 +139,19 @@ extern class String {
 		If `pos` is negative, its value is calculated from the end of `this`
 		String by `this.length + pos`. If this yields a negative value, 0 is
 		used instead.
+		```haxe
+		"abcde".substr(-2) // de
+		```
+
+		If `len` is negative, its value is calculated from the end of `this`
+		String by `this.length + len - pos`.
+		```haxe
+		"abcde".substr(0, -2) // abc
+		"abcde".substr(1, -2) // bc
+		```
 
 		If the calculated position + `len` exceeds `this.length`, the characters
 		from that position to the end of `this` String are returned.
-
-		If `len` is negative, the result is unspecified.
 	**/
 	function substr(pos:Int, ?len:Int):String;
 

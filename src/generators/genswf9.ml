@@ -367,6 +367,10 @@ let property ctx fa t =
 		| "charCodeAt" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| "charCodeAt" (* use Haxe version *) -> ident p, None, true
 		| "cca" -> as3 "charCodeAt", None, false
+
+		| "substr" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "substr" (* use Haxe version *) -> ident p, None, true
+		| "__substr__" -> as3 "substr", None, false
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"Date" },_) ->
 		(match p with
