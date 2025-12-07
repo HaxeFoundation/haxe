@@ -135,6 +135,9 @@ extern class String {
 
 		If `len` is omitted, all characters from position `pos` to the end of
 		`this` String are included.
+		```haxe
+		"abcde".substr(3) // de
+		```
 
 		If `pos` is negative, its value is calculated from the end of `this`
 		String by `this.length + pos`. If this yields a negative value, 0 is
@@ -143,8 +146,14 @@ extern class String {
 		"abcde".substr(-2) // de
 		```
 
-		If `len` is negative, its value is calculated from the end of `this`
-		String by `this.length + len - pos`.
+		If `len` is positive, up to `len` characters from the calculated position
+		to the end of `this` String are included.
+		```haxe
+		"abcde".substr(1, 2) // bc
+		```
+
+		If `len` is negative, all characters from the calculated position to the end
+		of `this` String, except the last `abs(len)` characters, are included.
 		```haxe
 		"abcde".substr(0, -2) // abc
 		"abcde".substr(1, -2) // bc
