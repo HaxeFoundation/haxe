@@ -1994,10 +1994,10 @@ let macro_api ccom get_api =
 		"register_define_impl", vfun2 (fun d src ->
 			let flags : define_parameter list = [] in
 
-			let platforms = decode_opt_array decode_string (field d "platforms") in
+			let platforms = decode_opt_array decode_platform (field d "platforms") in
 			let flags = match platforms with
 				| [] -> flags
-				| _ ->(Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+				| _ ->(Platforms (platforms)) :: flags
 			in
 
 			let params = decode_opt_array decode_string (field d "params") in
