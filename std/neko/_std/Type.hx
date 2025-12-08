@@ -23,6 +23,7 @@
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -175,13 +176,13 @@ enum ValueType {
 		return switch( __dollar__typeof(v) ) {
 		case 0: TNull;
 		case 1: TInt;
-		case 2: TFloat;
+		case 2: Std.int(v) == v ? TInt : TFloat;
 		case 3: TBool;
 		case 7: TFunction;
 		case 5:
 			var c = v.__class__;
 			if( c != null )
-				TClass(c);
+				(c == @:privateAccess haxe.Int64.IMPL) ? TInt64 : TClass(c);
 			else {
 				var e = v.__enum__;
 				if( e != null )

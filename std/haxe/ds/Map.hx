@@ -24,6 +24,7 @@ package haxe.ds;
 
 import haxe.ds.StringMap;
 import haxe.ds.IntMap;
+import haxe.ds.Int64Map;
 import haxe.ds.ObjectMap;
 import haxe.ds.EnumValueMap;
 import haxe.Constraints.IMap;
@@ -54,7 +55,7 @@ abstract Map<K, V>(IMap<K, V>) {
 		the output. The rules for that are as follows:
 
 		1. if `K` is a `String`, `haxe.ds.StringMap` is used
-		2. if `K` is an `Int`, `haxe.ds.IntMap` is used
+		2. if `K` is an `Int`, `haxe.ds.IntMap` is used (or `Int64` / `haxe.ds.Int64Map` respectively)
 		3. if `K` is an `EnumValue`, `haxe.ds.EnumValueMap` is used
 		4. if `K` is any other class or structure, `haxe.ds.ObjectMap` is used
 		5. if `K` is any other type, it causes a compile-time error
@@ -180,6 +181,10 @@ abstract Map<K, V>(IMap<K, V>) {
 		return new IntMap<V>();
 	}
 
+	@:to static inline function toInt64Map<K:Int64, V>(t:IMap<K, V>):Int64Map<V> {
+		return new Int64Map<V>();
+	}
+
 	@:to static inline function toEnumValueMapMap<K:EnumValue, V>(t:IMap<K, V>):EnumValueMap<K, V> {
 		return new EnumValueMap<K, V>();
 	}
@@ -193,6 +198,10 @@ abstract Map<K, V>(IMap<K, V>) {
 	}
 
 	@:from static inline function fromIntMap<V>(map:IntMap<V>):Map<Int, V> {
+		return cast map;
+	}
+
+	@:from static inline function fromInt64Map<V>(map:Int64Map<V>):Map<Int, V> {
 		return cast map;
 	}
 

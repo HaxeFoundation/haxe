@@ -6,7 +6,6 @@ open Exceptions
 open Type
 open Typecore
 open ExceptionFunctions
-open AtomicLazy
 
 let create_exception_context tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)

@@ -1,0 +1,5 @@
+-cp src
+--hxb-lib bin/hxb.zip
+-main Main
+MyException
+-hl bin/dummy.hl

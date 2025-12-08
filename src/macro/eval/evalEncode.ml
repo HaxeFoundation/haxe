@@ -242,6 +242,9 @@ let encode_bytes =
 let encode_int_map_direct =
 	create_cached_instance key_haxe_ds_IntMap (fun s -> IIntMap s)
 
+let encode_int64_map_direct =
+	create_cached_instance key_haxe_ds_Int64Map (fun s -> IInt64Map s)
+
 let encode_string_map_direct =
 	create_cached_instance key_haxe_ds_StringMap (fun s -> IStringMap s)
 

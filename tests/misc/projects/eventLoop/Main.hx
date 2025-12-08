@@ -7,7 +7,7 @@ class Main {
 			trace(count++);
 			if( count == 10 ) {
 				event.stop();
-				trace(haxe.MainLoop.hasEvents());
+				trace(haxe.EventLoop.main.hasEvents());
 			}
 		});
 
@@ -41,7 +41,7 @@ class Main {
 		Sys.sleep(0.3);
 		#end
 
-		haxe.MainLoop.addThread(function() {
+		haxe.EventLoop.addTask(function() {
 			var event : haxe.MainLoop.MainEvent = null;
 			var count = 0;
 			event = haxe.MainLoop.add(function() {

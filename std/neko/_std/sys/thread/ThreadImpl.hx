@@ -22,30 +22,29 @@
 
 package sys.thread;
 
-/**
-	A thread pool interface.
-**/
-interface IThreadPool {
+abstract ThreadImpl(Dynamic) {
 
-	/** Amount of alive threads in this pool. */
-	var threadsCount(get,never):Int;
+	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadImpl;
+	static var thread_current:()->ThreadImpl;
 
-	/** Indicates if `shutdown` method of this pool has been called. */
-	var isShutdown(get,never):Bool;
+	static function __init__() {
+		thread_create = neko.Lib.load("std", "thread_create", 2);
+		thread_current = neko.Lib.load("std", "thread_current", 0);
+	}
 
-	/**
-		Submit a task to run in a thread.
+	public static function current() {
+		return thread_current();
+	}
 
-		Throws an exception if the pool is shut down.
-	**/
-	function run(task:()->Void):Void;
+	public static function create( callb ) {
+		return thread_create((_) -> callb(),null);
+	}
 
-	/**
-		Initiates a shutdown.
-		All previously submitted tasks will be executed, but no new tasks will
-		be accepted.
+	public static function getName( t : ThreadImpl ) {
+		return null;
+	}
 
-		Multiple calls to this method have no effect.
-	**/
-	function shutdown():Void;
+	public static function setName( t : ThreadImpl, name : String ) {
+	}
+
 }

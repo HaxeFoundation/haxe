@@ -29,36 +29,41 @@ enum abstract LoopRunMode(Int) {
 }
 
 abstract Loop(hl.Abstract<"uv_loop">) {
-	@:hlNative("uv", "loop_close") public function close():Int {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "loop_close_wrap" #else "loop_close" #end)
+	public function close():Int {
 		return 0;
 	}
 
-	@:hlNative("uv", "run") public function run(mode:LoopRunMode):Int {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "run_wrap" #else "run" #end)
+	public function run(mode:LoopRunMode):Int {
 		return 0;
 	}
 
-	@:hlNative("uv", "loop_alive") public function alive():Int {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "loop_alive_wrap" #else "loop_alive" #end)
+	public function alive():Int {
 		return 0;
 	}
 
-	@:hlNative("uv", "stop") public function stop():Void {}
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "stop_wrap" #else "stop" #end)
+	public function stop():Void {}
+
+	public static function getCurrent():Loop {
+		return @:privateAccess haxe.EventLoop.current.getUVLoop();
+	}
 
 	public static function getDefault():Loop {
-		var def = default_loop();
-		if (loopEvent == null)
-			loopEvent = haxe.MainLoop.add(function() {
-				// if no more things to process, stop
-				if (def.run(NoWait) == 0) {
-					loopEvent.stop();
-					loopEvent = null;
-				}
-			});
-		return def;
+		return @:privateAccess haxe.EventLoop.main.getUVLoop();
 	}
 
-	@:hlNative("uv", "default_loop") static function default_loop():Loop {
+	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "default_loop_wrap" #else "default_loop" #end)
+	static function default_loop():Loop {
 		return null;
 	}
 
-	static var loopEvent:haxe.MainLoop.MainEvent;
+	#if (hl_ver >= version("1.16.0"))
+	@:hlNative("uv", "create_loop") public static function create():Loop {
+		return null;
+	}
+	#end
+
 }

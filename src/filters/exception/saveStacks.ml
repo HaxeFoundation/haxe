@@ -4,7 +4,6 @@ open Type
 open Error
 open ExceptionFunctions
 open Exceptions
-open AtomicLazy
 
 (**
 	Inserts `haxe.NativeStackTrace.saveStack(e)` in non-haxe.Exception catches.

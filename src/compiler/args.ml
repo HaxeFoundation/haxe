@@ -277,6 +277,9 @@ let parse_args com =
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
 		),"<package:target>","remap a package to another one");
+		("Compilation",["--custom-extension"],[],Arg.String (fun ext ->
+			com.custom_ext <- Some ext;
+		),"<extension>","custom extension used to shadow modules with Module.custom.hx files");
 		("Compilation",["--macro"],[], Arg.String (fun e ->
 			actx.force_typing <- true;
 			actx.config_macros <- e :: actx.config_macros

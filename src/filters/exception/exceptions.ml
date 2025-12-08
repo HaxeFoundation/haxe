@@ -3,7 +3,6 @@ open Type
 open PlatformConfig
 open Error
 open ExceptionFunctions
-open AtomicLazy
 
 type context = {
 	scom : SafeCom.t;

@@ -26,7 +26,6 @@ open Type
 open Error
 open Gctx
 open Hlcode
-open Semver
 
 (* compiler *)
 
@@ -366,6 +365,9 @@ let fake_tnull =
 		a_path = [],"Null";
 		a_params = [mk_type_param null_class TPHType None None];
 	}
+
+let is_excluded c =
+	has_class_flag c CExcluded
 
 let get_rec_cache ctx t none_callback not_found_callback =
 	try
@@ -1032,9 +1034,9 @@ let common_type ctx e1 e2 for_eq p =
 	let t2 = to_type ctx e2.etype in
 	if t1 == t2 then t1 else
 	match t1, t2 with
-	| (HUI8|HUI16|HI32|HI64|HF32|HF64), (HUI8|HUI16|HI32|HI64|HF32|HF64) -> common_type_number ctx t1 t2 p
-	| (HUI8|HUI16|HI32|HI64|HF32|HF64 as t1), (HNull t2)
-	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64 as t2)
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID), (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID) -> common_type_number ctx t1 t2 p
+	| (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID as t1), (HNull t2)
+	| (HNull t1), (HUI8|HUI16|HI32|HI64|HF32|HF64|HGUID as t2)
 	| (HNull t1), (HNull t2)
 		-> if for_eq then HNull (common_type_number ctx t1 t2 p) else common_type_number ctx t1 t2 p
 	| HDyn, (HUI8|HUI16|HI32|HI64|HF32|HF64) -> HF64
@@ -1192,7 +1194,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		tmp
-	| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), (HUI8 | HUI16 | HI32 | HI64) ->
+	| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HGUID), (HUI8 | HUI16 | HI32 | HI64 | HGUID) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		tmp
@@ -2334,29 +2336,29 @@ and eval_expr ctx e =
 		);
 		(match !def_ret with
 		| None ->
-			let rt = to_type ctx e.etype in
-			let is_valid_method t =
+			let is_map_get_method t =
 				match follow t with
 				| TFun (_,rt) ->
 					(match follow rt with
-					| TInst({ cl_kind = KTypeParameter ttp },_) ->
-						(* don't allow if we have a constraint virtual, see hxbit.Serializer.getRef *)
-						not (List.exists (fun t -> match to_type ctx t with HVirtual _ -> true | _ -> false) (get_constraints ttp))
+					| TInst({ cl_kind = KTypeParameter ttp; cl_path=["haxe";"ds";("StringMap"|"ObjectMap"|"IntMap"|"Int64Map")],_ }, _) -> true
 					| _ -> false)
 				| _ ->
 					false
 			in
+			let rt = to_type ctx e.etype in
 			(match ec.eexpr with
-			| TField (_, FInstance(_,_,{ cf_kind = Method (MethNormal|MethInline); cf_type = t })) when is_valid_method t ->
-				(* let's trust the compiler when it comes to casting the return value from a type parameter *)
+			| TField (_, FInstance(_,_,{ cf_kind = Method (MethNormal|MethInline); cf_type = t })) when is_map_get_method t ->
+				(* let's trust the compiler on map.get type *)
 				unsafe_cast_to ctx ret rt e.epos
 			| _ ->
 				cast_to ~force:true ctx ret rt e.epos)
-		| Some r ->
-			r)
+		| Some r -> r
+		)
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
 		let r = alloc_tmp ctx HI32 in
-		op ctx (OCall1 (r,alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", eval_null_check ctx ec));
+		let a = eval_to ctx ec (class_type ctx ctx.array_impl.adyn [] false) in
+		op ctx (ONullCheck a);
+		op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", a));
 		r
 	| TField (ec,a) ->
 		let r = alloc_tmp ctx (to_type ctx (field_type ctx a e.epos)) in
@@ -3462,32 +3464,33 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			op ctx (OSetEnumField (ctx.m.mcaptreg, index, alloc_var ctx v false)));
 	) f.tf_args;
 
-	(match gen_content with
-	| None -> ()
-	| Some f -> f());
-
-	ignore(eval_expr ctx f.tf_expr);
 	let tret = to_type ctx f.tf_type in
-	let rec has_final_jump e =
-		(* prevents a jump outside function bounds error *)
-		match e.eexpr with
-		| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> false)
-		| TParenthesis e -> has_final_jump e
-		| TReturn _ -> false
-		| _ -> true
-	in
-	set_curpos ctx (max_pos f.tf_expr);
-	if tret = HVoid then
-		op ctx (ORet (alloc_tmp ctx HVoid))
-	else if has_final_jump f.tf_expr then begin
-		let r = alloc_tmp ctx tret in
-		(match tret with
-		| HI32 | HUI8 | HUI16 | HI64 -> op ctx (OInt (r,alloc_i32 ctx 0l))
-		| HF32 | HF64 -> op ctx (OFloat (r,alloc_float ctx 0.))
-		| HBool -> op ctx (OBool (r,false))
-		| _ -> op ctx (ONull r));
-		op ctx (ORet r)
-	end;
+	(match gen_content with
+	| None ->
+		ignore(eval_expr ctx f.tf_expr);
+		let rec has_final_jump e =
+			(* prevents a jump outside function bounds error *)
+			match e.eexpr with
+			| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> false)
+			| TParenthesis e -> has_final_jump e
+			| TReturn _ -> false
+			| _ -> true
+		in
+		set_curpos ctx (max_pos f.tf_expr);
+		if tret = HVoid then
+			op ctx (ORet (alloc_tmp ctx HVoid))
+		else if has_final_jump f.tf_expr then begin
+			let r = alloc_tmp ctx tret in
+			(match tret with
+			| HI32 | HUI8 | HUI16 | HI64 -> op ctx (OInt (r,alloc_i32 ctx 0l))
+			| HF32 | HF64 -> op ctx (OFloat (r,alloc_float ctx 0.))
+			| HBool -> op ctx (OBool (r,false))
+			| _ -> op ctx (ONull r));
+			op ctx (ORet r)
+		end;
+	| Some f ->
+		f());
+
 	let fargs = (match tthis with None -> [] | Some t -> [t]) @ (match rcapt with None -> [] | Some r -> [rtype ctx r]) @ args in
 	let hlf = {
 		fpath = name;
@@ -3539,8 +3542,9 @@ let generate_static ctx c f =
 			| (Meta.HlNative,_ ,p) :: _ ->
 				abort "Invalid @:hlNative decl" p
 			| [] ->
+				let gen_content = if is_excluded c then Some (fun() -> op ctx (OAssert 0)) else None in
 				(match f.cf_expr with
-				| Some { eexpr = TFunction fn } -> ignore(make_fun ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
+				| Some { eexpr = TFunction fn } -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
 				| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
 			| _ :: l ->
 				loop l
@@ -3553,7 +3557,25 @@ let generate_member ctx c f =
 	| Var _ -> ()
 	| _ when is_extern_field f -> ()
 	| Method m ->
-		let gen_content = if f.cf_name <> "new" then None else Some (fun() ->
+		let ff = match f.cf_expr with
+			| Some { eexpr = TFunction f } -> f
+			| None when has_class_field_flag f CfAbstract ->
+				let tl,tr = match follow f.cf_type with
+					| TFun(tl,tr) -> tl,tr
+					| _ -> die "" __LOC__
+				in
+				let args = List.map (fun (n,_,t) ->
+					let v = Type.alloc_var VGenerated n t null_pos in
+					(v,None)
+				) tl in
+				{
+					tf_args = args;
+					tf_type = tr;
+					tf_expr = mk (TThrow (mk (TConst TNull) t_dynamic null_pos)) t_dynamic null_pos;
+				}
+			| _ -> abort "Missing function body" f.cf_pos
+		in
+		let gen_content = if is_excluded c then Some (fun() -> op ctx (OAssert 0)) else if f.cf_name <> "new" then None else Some (fun() ->
 
 			let o = (match class_type ctx c (extract_param_types c.cl_params) false with
 				| HObj o | HStruct o -> o
@@ -3574,25 +3596,9 @@ let generate_member ctx c f =
 					op ctx (OSetThis (fid,r));
 				| _ -> ()
 			) c.cl_ordered_fields;
+			ignore(eval_expr ctx ff.tf_expr);
+			op ctx (ORet (alloc_tmp ctx HVoid))
 		) in
-		let ff = match f.cf_expr with
-			| Some { eexpr = TFunction f } -> f
-			| None when has_class_field_flag f CfAbstract ->
-				let tl,tr = match follow f.cf_type with
-					| TFun(tl,tr) -> tl,tr
-					| _ -> die "" __LOC__
-				in
-				let args = List.map (fun (n,_,t) ->
-					let v = Type.alloc_var VGenerated n t null_pos in
-					(v,None)
-				) tl in
-				{
-					tf_args = args;
-					tf_type = tr;
-					tf_expr = mk (TThrow (mk (TConst TNull) t_dynamic null_pos)) t_dynamic null_pos;
-				}
-			| _ -> abort "Missing function body" f.cf_pos
-		in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = {f.cf_pos with pmax = f.cf_pos.pmin} in
@@ -3647,200 +3653,201 @@ let generate_type ctx t =
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
 
+let generate_static_content ctx types f =
+	let is_init = alloc_tmp ctx HBool in
+	op ctx (OCall0 (is_init, alloc_fun_path ctx ([],"Type") "init"));
+	hold ctx is_init;
+
+	(* init class values *)
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c when not (has_class_flag c CExtern) && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
+
+			let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
+
+			let g, ct = class_global ~resolve:false ctx c in
+			let ctype = if c == ctx.array_impl.abase then ctx.array_impl.aall else c in
+			let t = class_type ctx ctype (extract_param_types ctype.cl_params) false in
+
+			let index name =
+				match ct with
+				| HObj o ->
+					fst (try get_index name o with Not_found -> die "" __LOC__)
+				| _ ->
+					die "" __LOC__
+			in
+
+			let rc = (match t with
+			| HObj o when (match o.pclassglobal with None -> -1 | Some i -> i) <> g ->
+				(* manual registration for objects with prototype tricks (Array) *)
+
+				let rc = alloc_tmp ctx ct in
+				op ctx (ONew rc);
+				op ctx (OSetGlobal (g,rc));
+				hold ctx rc;
+
+				let rt = alloc_tmp ctx HType in
+				op ctx (OType (rt, t));
+				op ctx (OSetField (rc,index "__type__",rt));
+				op ctx (OSetField (rc,index "__name__",eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
+
+				let rname = alloc_tmp ctx HBytes in
+				op ctx (OString (rname, alloc_string ctx (s_type_path path)));
+				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
+				rc
+
+			| _ ->
+
+				let rct = alloc_tmp ctx HType in
+				op ctx (OType (rct, ct));
+				hold ctx rct;
+
+				let rt = alloc_tmp ctx HType in
+				op ctx (OType (rt, t));
+
+				let rname = alloc_tmp ctx HBytes in
+				op ctx (OString (rname, alloc_string ctx (s_type_path path)));
+
+				let rc = alloc_tmp ctx (class_type ctx ctx.base_class [] false) in
+				op ctx (OCall3 (rc, alloc_fun_path ctx ([],"Type") (if is_excluded c then "loadClass" else "initClass"), rct, rt, rname));
+				hold ctx rc;
+				free ctx rct;
+				rc
+			) in
+
+			let gather_implements() =
+				let classes = ref [] in
+				let rec lookup cv =
+					List.exists (fun (i,_) -> i == c || lookup i) cv.cl_implements
+				in
+				let check = function
+					| TClassDecl c when (has_class_flag c CInterface) = false && not (has_class_flag c CExtern) -> if lookup c then classes := c :: !classes
+					| _ -> ()
+				in
+				List.iter check ctx.com.types;
+				!classes
+			in
+			if (has_class_flag c CInterface) then begin
+				let l = gather_implements() in
+				let rt = alloc_tmp ctx HType in
+				op ctx (OType (rt, HType));
+				let ra = alloc_array ctx (reg_int ctx (List.length l)) HType in
+				list_iteri (fun i intf ->
+					op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
+					op ctx (OSetArray (ra, reg_int ctx i, rt));
+				) l;
+				op ctx (OSetField (rc,index "__implementedBy__",ra));
+
+				(* TODO : use a plain class for interface object since we don't allow statics *)
+				let rt = alloc_tmp ctx ct in
+				op ctx (OSafeCast (rt, rc));
+				op ctx (OSetGlobal (g, rt));
+			end;
+
+			(match Texpr.build_metadata ctx.com.basic (TClassDecl c) with
+			| None -> ()
+			| Some e ->
+				let r = eval_to ctx e HDyn in
+				op ctx (OSetField (rc,index "__meta__",r)));
+
+			free ctx rc;
+
+		| TEnumDecl e when not (has_enum_flag e EnExtern) ->
+
+			let et = enum_class ctx e in
+			let t = enum_type ctx e in
+
+			let ret = alloc_tmp ctx HType in
+			op ctx (OType (ret, et));
+			hold ctx ret;
+			let rt = alloc_tmp ctx HType in
+			op ctx (OType (rt, t));
+			let r = alloc_tmp ctx (class_type ctx ctx.base_enum [] false) in
+			let etr = alloc_tmp ctx et in
+			op ctx (OCall2 (r, alloc_fun_path ctx ([],"Type") "initEnum", ret, rt));
+			free ctx ret;
+			op ctx (OSafeCast (etr, r));
+
+			let index name =
+				match et with
+				| HObj o ->
+					fst (try get_index name o with Not_found -> die "" __LOC__)
+				| _ ->
+					die "" __LOC__
+			in
+
+			let avalues = alloc_tmp ctx (HArray t) in
+			op ctx (OField (avalues, r, index "__evalues__"));
+
+			List.iter (fun n ->
+				let f = PMap.find n e.e_constrs in
+				match follow f.ef_type with
+				| TFun _ -> ()
+				| _ ->
+					let g = alloc_global ctx (efield_name e f) t in
+					let r = alloc_tmp ctx t in
+					let rd = alloc_tmp ctx HDyn in
+					op ctx (OGetArray (rd,avalues, reg_int ctx f.ef_index));
+					op ctx (OSafeCast (r, rd));
+					op ctx (OSetGlobal (g,r));
+					op ctx (OSetField (etr, index f.ef_name ,r));
+			) e.e_names;
+
+			(match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
+			| None -> ()
+			| Some e -> op ctx (OSetField (r,index "__meta__",eval_to ctx e HDyn)));
+
+
+		| TAbstractDecl { a_path = [], name; a_pos = pos } ->
+			(match name with
+			| "Int" | "Float" | "Dynamic" | "Bool" ->
+				let is_bool = name = "Bool" in
+				let t = class_type ctx (if is_bool then ctx.core_enum else ctx.core_type) [] false in
+
+				let index name =
+					match t with
+					| HObj o ->
+						fst (try get_index name o with Not_found -> die "" __LOC__)
+					| _ ->
+						die "" __LOC__
+				in
+
+				let g = alloc_global ctx ("$" ^ name) t in
+				let r = alloc_tmp ctx t in
+				let rt = alloc_tmp ctx HType in
+				op ctx (ONew r);
+				op ctx (OType (rt,(match name with "Int" -> HI32 | "Float" -> HF64 | "Dynamic" -> HDyn | "Bool" -> HBool | _ -> die "" __LOC__)));
+				op ctx (OSetField (r,index "__type__",rt));
+				op ctx (OSetField (r,index (if is_bool then "__ename__" else "__name__"),make_string ctx name pos));
+				op ctx (OSetGlobal (g,r));
+
+				let bytes = alloc_tmp ctx HBytes in
+				op ctx (OString (bytes, alloc_string ctx name));
+				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",bytes,r));
+			| _ ->
+				())
+		| _ ->
+			()
+
+	) types;
+
+	let j = jump ctx (fun d -> OJTrue (is_init,d)) in
+	op ctx (ORet (alloc_tmp ctx HVoid));
+	j();
+	free ctx is_init;
+	ignore(eval_expr ctx f.tf_expr);
+	op ctx (ORet (alloc_tmp ctx HVoid))
+
 let generate_static_init ctx types main =
 	let exprs = ref [] in
 	let t_void = ctx.com.basic.tvoid in
 
-	let gen_content() =
-
-		let is_init = alloc_tmp ctx HBool in
-		op ctx (OCall0 (is_init, alloc_fun_path ctx ([],"Type") "init"));
-		hold ctx is_init;
-
-		(* init class values *)
-		List.iter (fun t ->
-			match t with
-			| TClassDecl c when not (has_class_flag c CExtern) && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
-
-				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
-
-				let g, ct = class_global ~resolve:false ctx c in
-				let ctype = if c == ctx.array_impl.abase then ctx.array_impl.aall else c in
-				let t = class_type ctx ctype (extract_param_types ctype.cl_params) false in
-
-				let index name =
-					match ct with
-					| HObj o ->
-						fst (try get_index name o with Not_found -> die "" __LOC__)
-					| _ ->
-						die "" __LOC__
-				in
-
-				let rc = (match t with
-				| HObj o when (match o.pclassglobal with None -> -1 | Some i -> i) <> g ->
-					(* manual registration for objects with prototype tricks (Array) *)
-
-					let rc = alloc_tmp ctx ct in
-					op ctx (ONew rc);
-					op ctx (OSetGlobal (g,rc));
-					hold ctx rc;
-
-					let rt = alloc_tmp ctx HType in
-					op ctx (OType (rt, t));
-					op ctx (OSetField (rc,index "__type__",rt));
-					op ctx (OSetField (rc,index "__name__",eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
-
-					let rname = alloc_tmp ctx HBytes in
-					op ctx (OString (rname, alloc_string ctx (s_type_path path)));
-					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
-					rc
-
-				| _ ->
-
-					let rct = alloc_tmp ctx HType in
-					op ctx (OType (rct, ct));
-					hold ctx rct;
-
-					let rt = alloc_tmp ctx HType in
-					op ctx (OType (rt, t));
-
-					let rname = alloc_tmp ctx HBytes in
-					op ctx (OString (rname, alloc_string ctx (s_type_path path)));
-
-					let rc = alloc_tmp ctx (class_type ctx ctx.base_class [] false) in
-					op ctx (OCall3 (rc, alloc_fun_path ctx ([],"Type") "initClass", rct, rt, rname));
-					hold ctx rc;
-					free ctx rct;
-					rc
-				) in
-
-				let gather_implements() =
-					let classes = ref [] in
-					let rec lookup cv =
-						List.exists (fun (i,_) -> i == c || lookup i) cv.cl_implements
-					in
-					let check = function
-						| TClassDecl c when (has_class_flag c CInterface) = false && not (has_class_flag c CExtern) -> if lookup c then classes := c :: !classes
-						| _ -> ()
-					in
-					List.iter check ctx.com.types;
-					!classes
-				in
-				if (has_class_flag c CInterface) then begin
-					let l = gather_implements() in
-					let rt = alloc_tmp ctx HType in
-					op ctx (OType (rt, HType));
-					let ra = alloc_array ctx (reg_int ctx (List.length l)) HType in
-					list_iteri (fun i intf ->
-						op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
-						op ctx (OSetArray (ra, reg_int ctx i, rt));
-					) l;
-					op ctx (OSetField (rc,index "__implementedBy__",ra));
-
-					(* TODO : use a plain class for interface object since we don't allow statics *)
-					let rt = alloc_tmp ctx ct in
-					op ctx (OSafeCast (rt, rc));
-					op ctx (OSetGlobal (g, rt));
-				end;
-
-				(match Texpr.build_metadata ctx.com.basic (TClassDecl c) with
-				| None -> ()
-				| Some e ->
-					let r = eval_to ctx e HDyn in
-					op ctx (OSetField (rc,index "__meta__",r)));
-
-				free ctx rc;
-
-			| TEnumDecl e when not (has_enum_flag e EnExtern) ->
-
-				let et = enum_class ctx e in
-				let t = enum_type ctx e in
-
-				let ret = alloc_tmp ctx HType in
-				op ctx (OType (ret, et));
-				hold ctx ret;
-				let rt = alloc_tmp ctx HType in
-				op ctx (OType (rt, t));
-				let r = alloc_tmp ctx (class_type ctx ctx.base_enum [] false) in
-				let etr = alloc_tmp ctx et in
-				op ctx (OCall2 (r, alloc_fun_path ctx ([],"Type") "initEnum", ret, rt));
-				free ctx ret;
-				op ctx (OSafeCast (etr, r));
-
-				let index name =
-					match et with
-					| HObj o ->
-						fst (try get_index name o with Not_found -> die "" __LOC__)
-					| _ ->
-						die "" __LOC__
-				in
-
-				let avalues = alloc_tmp ctx (HArray t) in
-				op ctx (OField (avalues, r, index "__evalues__"));
-
-				List.iter (fun n ->
-					let f = PMap.find n e.e_constrs in
-					match follow f.ef_type with
-					| TFun _ -> ()
-					| _ ->
-						let g = alloc_global ctx (efield_name e f) t in
-						let r = alloc_tmp ctx t in
-						let rd = alloc_tmp ctx HDyn in
-						op ctx (OGetArray (rd,avalues, reg_int ctx f.ef_index));
-						op ctx (OSafeCast (r, rd));
-						op ctx (OSetGlobal (g,r));
-						op ctx (OSetField (etr, index f.ef_name ,r));
-				) e.e_names;
-
-				(match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
-				| None -> ()
-				| Some e -> op ctx (OSetField (r,index "__meta__",eval_to ctx e HDyn)));
-
-
-			| TAbstractDecl { a_path = [], name; a_pos = pos } ->
-				(match name with
-				| "Int" | "Float" | "Dynamic" | "Bool" ->
-					let is_bool = name = "Bool" in
-					let t = class_type ctx (if is_bool then ctx.core_enum else ctx.core_type) [] false in
-
-					let index name =
-						match t with
-						| HObj o ->
-							fst (try get_index name o with Not_found -> die "" __LOC__)
-						| _ ->
-							die "" __LOC__
-					in
-
-					let g = alloc_global ctx ("$" ^ name) t in
-					let r = alloc_tmp ctx t in
-					let rt = alloc_tmp ctx HType in
-					op ctx (ONew r);
-					op ctx (OType (rt,(match name with "Int" -> HI32 | "Float" -> HF64 | "Dynamic" -> HDyn | "Bool" -> HBool | _ -> die "" __LOC__)));
-					op ctx (OSetField (r,index "__type__",rt));
-					op ctx (OSetField (r,index (if is_bool then "__ename__" else "__name__"),make_string ctx name pos));
-					op ctx (OSetGlobal (g,r));
-
-					let bytes = alloc_tmp ctx HBytes in
-					op ctx (OString (bytes, alloc_string ctx name));
-					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",bytes,r));
-				| _ ->
-					())
-			| _ ->
-				()
-
-		) types;
-
-		let j = jump ctx (fun d -> OJTrue (is_init,d)) in
-		op ctx (ORet (alloc_tmp ctx HVoid));
-		j();
-		free ctx is_init;
-	in
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl { cl_init = Some {cf_expr = Some e} } -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl ({ cl_init = Some {cf_expr = Some e} } as c) when not (is_excluded c) -> init_exprs := e :: !init_exprs | _ -> ());
 		match t with
-		| TClassDecl c when not (has_class_flag c CExtern) ->
+		| TClassDecl c when not (has_class_flag c CExtern) && not (is_excluded c) ->
 			List.iter (fun f ->
 				match f.cf_kind, f.cf_expr with
 				| Var _, Some e ->
@@ -3859,7 +3866,9 @@ let generate_static_init ctx types main =
 	let fid = lookup_alloc ctx.cfids () in
 	let exprs = List.rev !init_exprs @ List.rev !exprs in
 	let initpos = fake_pos "fun$init" in
-	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } None None);
+	let f = { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } in
+	let gen_content() = generate_static_content ctx types f in
+	ignore(make_fun ~gen_content ctx ("","") fid f None None);
 	fid
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
@@ -4269,7 +4278,22 @@ let add_types ctx types =
 				| _ ->
 					false
 			in
-			List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
+			let rec check_virtual_rec c =
+				has_meta (Meta.Custom ":virtual") c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> check_virtual_rec c)
+			in
+			if check_virtual_rec c then begin
+				(*
+					Assume all fields and superclass fields are overriden from this base class
+				*)
+				let rec loop_cl c =
+					List.iter (fun f -> ignore(loop (Some (c,[])) f)) c.cl_ordered_fields;
+					match c.cl_super with
+					| None -> ()
+					| Some (c,_) -> loop_cl c
+				in
+				loop_cl c
+			end else
+				List.iter (fun f -> if has_class_field_flag f CfOverride then ignore(loop c.cl_super f)) c.cl_ordered_fields;
 			List.iter (fun (m,args,p) ->
 				if m = Meta.HlNative then
 					let lib, prefix = (match args with

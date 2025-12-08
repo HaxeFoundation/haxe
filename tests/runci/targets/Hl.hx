@@ -37,7 +37,14 @@ class Hl {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
+				Linux.requireAptPackages([
+					"libpng-dev",
+					"libjpeg-turbo8-dev",
+					"libturbojpeg",
+					"zlib1g-dev",
+					"libvorbis-dev",
+					"libsqlite3-dev",
+					"libuv1-dev"]);
 			case "Mac":
 			case "Windows":
 				//pass
@@ -58,7 +65,7 @@ class Hl {
 			"-DWITH_SQLITE=ON",
 			"-DWITH_SSL=ON",
 			"-DWITH_UI=OFF",
-			"-DWITH_UV=OFF",
+			"-DWITH_UV=ON",
 			"-DWITH_VIDEO=OFF",
 			"-DCMAKE_INSTALL_PREFIX=" + hlInstallDir,
 			"-B" + hlBuild,
@@ -75,6 +82,7 @@ class Hl {
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 
+		Sys.putEnv("HASHLINK", hlInstallDir);
 		if (systemName == "Windows") {
 			Sys.putEnv("HASHLINK_SRC", hlSrc);
 			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
@@ -103,6 +111,7 @@ class Hl {
 			'$hlInstallLibDir/fmt.hdll',
 			'$hlInstallLibDir/ssl.hdll',
 			'$hlInstallLibDir/sqlite.hdll',
+			'$hlInstallLibDir/uv.hdll',
 			"-lm",
 			"-lhl"
 		].concat(extraCompilerFlags));
@@ -167,6 +176,12 @@ class Hl {
 		buildAndRun("compile.hxml", "bin/reservedKeywords");
 
 		changeDirectory(miscHlDir);
-		runCommand("haxe", ["run.hxml"]);
+		if (systemName == "Windows") {
+			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=vs2022"]);
+		} else if (systemName == "Mac") {
+			runCommand("arch", ["-x86_64", "haxe", "run.hxml", "-D", "hlgen.makefile=make"]);
+		} else {
+			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=make"]);
+		}
 	}
 }

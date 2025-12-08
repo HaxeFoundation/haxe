@@ -22,7 +22,7 @@
 		unix ipaddr str bigarray threads dynlink
 		xml-light extlib sha terminal_size
 		luv
-		domainslib saturn thread-local-storage
+		domainslib saturn thread-local-storage dynamic_gc
 	)
 	(modules (:standard \ haxe prebuild))
 	(preprocess (per_module

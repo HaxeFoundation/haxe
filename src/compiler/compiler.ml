@@ -79,7 +79,7 @@ let run_command ctx cmd =
 module Setup = struct
 	let initialize_target ctx com actx =
 		init_platform com;
-		com.class_paths#lock_context (platform_name com.platform) false;
+		com.class_paths#lock_context com.custom_ext (platform_name com.platform) false;
 		let add_std dir =
 			com.class_paths#modify_inplace (fun cp -> match cp#scope with
 				| Std ->
@@ -270,7 +270,7 @@ module Setup = struct
 end
 
 let check_defines com =
-	if defined com Define.EnableParallelism then Parallel.enable := true;
+	if defined com Define.DisableParallelism then Parallel.enable := false;
 	PMap.iter (fun k v ->
 		try
 			let reason = Hashtbl.find Define.deprecation_lut k in
@@ -306,6 +306,8 @@ let do_type ctx mctx actx display_file_dot_path =
 	Setup.init_native_libs com actx.native_libs;
 	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
+	(* Make sure display module is being typed *)
+	Option.may (fun cpath -> actx.classes <- cpath :: actx.classes) display_file_dot_path;
 	DumpConfig.update_from_defines com.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;

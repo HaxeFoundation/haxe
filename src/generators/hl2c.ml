@@ -1923,11 +1923,12 @@ let write_c com file (code:code) gnames num_domains =
 	let line = linec ctx and expr = exprc ctx and sline fmt = Printf.ksprintf (linec ctx) fmt and sexpr fmt = Printf.ksprintf (exprc ctx) fmt in
 	define ctx "#define HLC_BOOT";
 	define ctx "#include <hlc.h>";
-	line "#include <hlc_main.c>";
 	line "";
 	line "#ifndef HL_MAKE";
 	List.iter (sline "#  include <%s>") gctx.cfiles;
 	line "#endif";
+	line "";
+	line "#include <hlc_main.c>";
 	line "";
 	expr "void hl_init_hashes()";
 	expr "void hl_init_roots()";

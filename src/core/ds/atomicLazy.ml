@@ -1,5 +1,3 @@
-open Atomic
-
 type 'a t = {
 	mutable value: 'a option;
 	mutex: Mutex.t;

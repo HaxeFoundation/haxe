@@ -333,7 +333,7 @@ module StdBytes = struct
 		try
 			let low = read_i32 this pos in
 			let high = read_i32 this (pos + 4) in
-			EvalIntegers.encode_haxe_i64 low high;
+			vint64 (EvalIntegers.make_int64 high low)
 		with _ ->
 			outside_bounds()
 	)
@@ -500,9 +500,9 @@ module StdBytesBuffer = struct
 
 	let addInt64 = vifun1 (fun vthis v ->
 		let this = this vthis in
-		let v = decode_instance v in
-		let high = decode_i32 (instance_field v key_high) in
-		let low = decode_i32 (instance_field v key_low) in
+		let i64 = EvalIntegers.decode_i64 v in
+		let high = Int64.to_int32 (Int64.shift_right i64 32) in
+		let low = Int64.to_int32 i64 in
 		add_i32 this low;
 		add_i32 this high;
 		vnull;
@@ -1164,7 +1164,7 @@ module StdFPHelper = struct
 	let doubleToI64 = vfun1 (fun v ->
 		let f = num v in
 		let i64 = Int64.bits_of_float f in
-		EvalIntegers.encode_haxe_i64_direct i64
+		vint64 i64
 	)
 
 	let floatToI32 = vfun1 (fun f ->
@@ -1569,6 +1569,70 @@ module StdIntMap = struct
 		vint (RuntimeIntHashtbl.size (this vthis))
 	)
 end
+
+module StdInt64Map = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IInt64Map h} -> h
+		| v -> unexpected_value v "int64 map"
+
+	let copy = vifun0 (fun vthis ->
+		let copied = RuntimeInt64Hashtbl.copy (this vthis) in
+		encode_int64_map_direct copied
+	)
+
+	let exists = vifun1 (fun vthis vkey ->
+		vbool (RuntimeInt64Hashtbl.mem (this vthis) (EvalIntegers.decode_i64 vkey))
+	)
+
+	let get = vifun1 (fun vthis vkey ->
+		try RuntimeInt64Hashtbl.find (this vthis) (EvalIntegers.decode_i64 vkey)
+		with Not_found -> vnull
+	)
+
+	let iterator = vifun0 (fun vthis ->
+		let keys = RuntimeInt64Hashtbl.fold (fun _ v acc -> v :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keys = vifun0 (fun vthis ->
+		let keys = RuntimeInt64Hashtbl.fold (fun k _ acc -> vint64 k :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
+
+	let remove = vifun1 (fun vthis vkey ->
+		let this = this vthis in
+		let key = EvalIntegers.decode_i64 vkey in
+		let b = RuntimeInt64Hashtbl.mem this key in
+		RuntimeInt64Hashtbl.remove this key;
+		vbool b
+	)
+
+	let set = vifun2 (fun vthis vkey vvalue ->
+		RuntimeInt64Hashtbl.add (this vthis) (EvalIntegers.decode_i64 vkey) vvalue;
+		vnull
+	)
+
+	let toString = vifun0 (fun vthis ->
+		let this = this vthis in
+		let l = RuntimeInt64Hashtbl.fold (fun key vvalue acc ->
+			(join empty_string [create_ascii (Int64.to_string key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+		let s = join rcomma l in
+		let s = join empty_string [rbkopen;s;rbkclose] in
+		vstring s
+	)
+
+	let clear = vifun0 (fun vthis ->
+		RuntimeInt64Hashtbl.clear (this vthis);
+		vnull
+	)
+
+	let size = vifun0 (fun vthis ->
+		vint (RuntimeInt64Hashtbl.size (this vthis))
+	)
+end
+
 
 module StdStringMap = struct
 	let this vthis = match vthis with
@@ -2732,7 +2796,7 @@ module StdSys = struct
 
 	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
 
-	let timestamp_ms = vfun0 (fun () -> EvalIntegers.encode_haxe_i64_direct (* TODO: use vint64 once that works *) (Extc.timestamp_ms()))
+	let timestamp_ms = vfun0 (fun () -> vint64 (Extc.timestamp_ms()))
 end
 
 module StdThread = struct
@@ -3025,22 +3089,23 @@ module StdType = struct
 		let rec loop v = match v with
 			| VNull -> 0,[||]
 			| VInt32 _ -> 1,[||]
-			| VFloat _ -> 2,[||]
-			| VTrue | VFalse -> 3,[||]
-			| VInstance vi -> 6,[|get_static_prototype_as_value ctx vi.iproto.ppath null_pos|]
-			| VString _ -> 6,[|get_static_prototype_as_value ctx key_String null_pos|]
-			| VArray _ -> 6,[|get_static_prototype_as_value ctx key_Array null_pos|]
-			| VVector _ -> 6,[|get_static_prototype_as_value ctx key_eval_Vector null_pos|]
+			| VInt64 _ | VUInt64 _ -> 2,[||]
+			| VFloat _ -> 3,[||]
+			| VTrue | VFalse -> 4,[||]
+			| VInstance vi -> 7,[|get_static_prototype_as_value ctx vi.iproto.ppath null_pos|]
+			| VString _ -> 7,[|get_static_prototype_as_value ctx key_String null_pos|]
+			| VArray _ -> 7,[|get_static_prototype_as_value ctx key_Array null_pos|]
+			| VVector _ -> 7,[|get_static_prototype_as_value ctx key_eval_Vector null_pos|]
 			| VObject _ | VPrototype _ ->
-				4,[||]
+				5,[||]
 			| VFunction _
 			| VFieldClosure _ ->
-				5,[||]
+				6,[||]
 			| VEnumValue ve ->
-				7,[|get_static_prototype_as_value ctx ve.epath null_pos|]
+				8,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
 				loop (Lazy.force f)
-			| VInt64 _ | VUInt64 _ | VNativeString _ | VHandle _ -> 8,[||]
+			| VNativeString _ | VHandle _ -> 9,[||]
 		in
 		let i,vl = loop v in
 		encode_enum_value key_ValueType i vl None
@@ -3229,6 +3294,19 @@ let init_maps builtins =
 		"clear",StdIntMap.clear;
 		"size",StdIntMap.size;
 	];
+	init_fields builtins (["haxe";"ds"],"Int64Map") [] [
+		"copy",StdInt64Map.copy;
+		"exists",StdInt64Map.exists;
+		"get",StdInt64Map.get;
+		"iterator",StdInt64Map.iterator;
+		"keys",StdInt64Map.keys;
+		"keyValueIterator",StdInt64Map.keyValueIterator;
+		"remove",StdInt64Map.remove;
+		"set",StdInt64Map.set;
+		"toString",StdInt64Map.toString;
+		"clear",StdInt64Map.clear;
+		"size",StdInt64Map.size;
+	];
 	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
 		"copy",StdObjectMap.copy;
 		"exists",StdObjectMap.exists;
@@ -3296,6 +3374,7 @@ let init_constructors builtins =
 		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (RuntimeStringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (RuntimeIntHashtbl.create ()));
+	add key_haxe_ds_Int64Map (fun _ -> encode_int64_map_direct (RuntimeInt64Hashtbl.create ()));
 	add key_haxe_ds_ObjectMap (fun _ -> encode_object_map_direct (Obj.magic (ValueHashtbl.create 0)));
 	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)));
 	add key_haxe_io_Bytes
@@ -3387,6 +3466,7 @@ let init_empty_constructors builtins =
 	IntHashtbl.add h key_String (fun () -> v_empty_string);
 	IntHashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (RuntimeStringHashtbl.create ())));
 	IntHashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (RuntimeIntHashtbl.create ())));
+	IntHashtbl.add h key_haxe_ds_Int64Map (fun () -> encode_instance key_haxe_ds_Int64Map ~kind:(IInt64Map (RuntimeInt64Hashtbl.create ())));
 	IntHashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
 	IntHashtbl.add h key_haxe_io_BytesBuffer (fun () -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)))
 

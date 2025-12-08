@@ -69,6 +69,8 @@ abstract Context(ContextPtr) {
 
 	public function setSocket(socket:sys.net.Socket.SocketHandle):Void {}
 
+	public function setBio( ctx : Dynamic ) {}
+
 	public function setHostname(name:hl.Bytes):Void {}
 
 	@:hlNative("ssl", "ssl_new") static function ssl_new(conf:Config):ContextPtr {

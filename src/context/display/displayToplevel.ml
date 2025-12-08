@@ -89,7 +89,8 @@ class explore_class_path_task com checked recursive f_pack f_module dir pack = o
 									let name = String.sub file 0 (l - 3) in
 									try
 										let dot_pos = String.rindex name '.' in
-										if platform_str = String.sub file dot_pos (String.length name - dot_pos) then
+										let second_ext = String.sub file dot_pos (String.length name - dot_pos) in
+										if (Option.map_default (fun custom_ext -> custom_ext = second_ext) false com.custom_ext) || platform_str = second_ext then
 											String.sub file 0 dot_pos
 										else
 											raise Exit

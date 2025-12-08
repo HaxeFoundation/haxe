@@ -6,7 +6,7 @@ class Main2 {
 			trace(count++);
 			if( count == 10 ) {
 				event.stop();
-				trace(haxe.MainLoop.hasEvents());
+				trace(haxe.EventLoop.main.hasEvents());
 			}
 		});
 	}

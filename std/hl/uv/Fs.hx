@@ -31,7 +31,7 @@
 class Fs extends Handle {
 	public function new(?loop : Loop, path : String, onContentChanged : Event -> Void) {
 		if(loop == null)
-			loop = Loop.getDefault();
+			loop = Loop.getCurrent();
 		super(fs_start_wrap(loop, (e) -> onContentChanged(cast(e, Event)), @:privateAccess path.toUtf8()));
 	}
 

@@ -102,6 +102,8 @@ import lua.TableTools;
 			return -1
 		else if (b == null)
 			return 1
+		else if (haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(cast a, cast b);
 		else
 			return (cast a) > (cast b) ? 1 : -1;
 	}

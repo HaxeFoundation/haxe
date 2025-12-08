@@ -1,0 +1,4 @@
+-cp src
+-main Main
+-hl bin/dummy.hl
+--hxb bin/hxb.zip

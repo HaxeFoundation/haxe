@@ -37,4 +37,5 @@ depends: [
   "domainslib" {>= "0.5.2"}
   "saturn"
   "thread-local-storage"
+  "dynamic_gc"
 ]

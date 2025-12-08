@@ -66,20 +66,9 @@ let get_main ctx main_module types =
 				[main; call_static (["haxe"],"EntryPoint") "run"]
 			with Not_found ->
 				[main]
-		(* add calls for event loop *)
-		and add_event_loop main =
-			(try
-				[main; call_static (["sys";"thread";"_Thread"],"Thread_Impl_") "processEvents"]
-			with Not_found ->
-				[main]
-			)
 		in
 		let main =
-			(* Threaded targets run event loops per thread *)
-			let exprs =
-				if ctx.com.config.pf_supports_threads then add_event_loop main
-				else add_entry_point_run main
-			in
+			let exprs = add_entry_point_run main in
 			match exprs with
 			| [e] -> e
 			| _ -> mk (TBlock exprs) ctx.t.tvoid p

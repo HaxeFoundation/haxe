@@ -130,6 +130,11 @@
 		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
 	},
 	{
+		"name": "WIgnoredBadModule",
+		"doc": "An invalidated module has been ignored during a display request",
+		"parent": "WHxb"
+	},
+	{
 		"name": "WUnboundTypeParameter",
 		"doc": "Hxb (either --hxb output or haxe compiler cache) failed to link a type parameter to an actual type",
 		"parent": "WHxb"

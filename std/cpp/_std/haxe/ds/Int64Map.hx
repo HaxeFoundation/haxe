@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cpp;
+package haxe.ds;
 
 import haxe.Int64;
 

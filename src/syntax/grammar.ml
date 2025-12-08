@@ -1107,7 +1107,7 @@ and parse_constraint_param ctx s =
 
 and parse_type_path_or_resume ctx p1 s =
 	let check_resume exc =
-		if would_skip_display_position ctx p1 true s then begin
+		if is_completion ctx && would_skip_display_position ctx p1 true s then begin
 			let p = display_position#with_pos p1 in
 			make_ptp magic_type_path p,true
 		end else

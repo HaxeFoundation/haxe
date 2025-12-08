@@ -295,6 +295,16 @@ let value_signature v =
 				) map;
 				addc 'h'
 			)
+		| VInstance {ikind = IInt64Map map} ->
+			cache v (fun () ->
+				addc 'Q';
+				RuntimeInt64Hashtbl.iter (fun i value ->
+					addc ':';
+					add (Int64.to_string i);
+					loop value
+				) map;
+				addc 'h'
+			)
 		| VInstance {ikind = IObjectMap map} ->
 			cache v (fun() ->
 				addc 'M';
@@ -492,6 +502,12 @@ let rec value_to_expr v p =
 	| VInstance {ikind = IIntMap m} ->
 		let el = RuntimeIntHashtbl.fold (fun k v acc ->
 			let e_key = (EConst (Int (string_of_int k, None)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IInt64Map m} ->
+		let el = RuntimeInt64Hashtbl.fold (fun k v acc ->
+			let e_key = (EConst (Int (Int64.to_string k, Some "i64")),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in
 		(EArrayDecl el,p)

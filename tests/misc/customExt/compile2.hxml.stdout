@@ -1,0 +1,4 @@
+Foo.api.hx:3: Hello from Foo.hx
+Foo.macro.hx:3: Hello from macro
+Bar.api.hx:3: Hello from Bar.hx
+Bar.api.hx:7: Hello from Bar.hx macro

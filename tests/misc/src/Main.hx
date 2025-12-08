@@ -14,7 +14,7 @@ typedef Result = {
 
 class Main {
 	static public function main() {
-		var result:Result = compileProjects();
+		var result:Result = compileProjects(Sys.args());
 		Sys.println('Done running ${result.count} tests with ${result.failures} failures');
 		if(result.count > 20 && result.failures > 0) {
 			Sys.println('SUMMARY:');
@@ -23,7 +23,7 @@ class Main {
 		Sys.exit(result.failures);
 	}
 
-	static public function compileProjects():Result {
+	static public function compileProjects(args:Array<String>):Result {
 		var count = 0;
 		var failures = 0;
 		var failuresSummary = [];
@@ -47,7 +47,7 @@ class Main {
 					var expectFailure = file.endsWith("-fail.hxml");
 					var expectStdout = if (FileSystem.exists('$file.stdout')) prepareExpectedOutput(File.getContent('$file.stdout')) else null;
 					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
-					var result = runCommand("haxe", ["-D", "message.reporting=classic", file], expectFailure, expectStdout, expectStderr);
+					var result = runCommand("haxe", ["-D", "message.reporting=classic", file].concat(args), expectFailure, expectStdout, expectStderr);
 					++count;
 					if (!result.success) {
 						failures++;

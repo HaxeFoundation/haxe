@@ -109,7 +109,7 @@ let target_handles_unops com = match com.platform with
 let target_handles_assign_ops com e2 = match com.platform with
 	| Php -> not (has_side_effect e2)
 	| Lua -> false
-	| Cpp when not (Define.defined com.defines Define.Cppia) -> false
+	| Cpp when not (Define.defined com.defines Define.Cppia) -> not (has_side_effect e2)
 	| _ -> true
 
 let target_handles_side_effect_order com = match com.platform with

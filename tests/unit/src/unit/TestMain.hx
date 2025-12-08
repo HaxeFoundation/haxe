@@ -10,8 +10,7 @@ final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
 #if js
-@:expose("unit.TestMain.main")
-@:keep
+@:expose("unit.TestMain.main") @:keep
 #end
 function main() {
 	#if js
@@ -69,7 +68,7 @@ function main() {
 		#if (!php && !lua)
 		new TestHttps(),
 		#end
-		#if !lua 
+		#if (!lua && !interp)
 		new TestBigInt(),
 		#end
 		#if !no_pattern_matching
