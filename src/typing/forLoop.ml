@@ -57,12 +57,13 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 
 type unroll_parameters = {
 	expression_weight : int;
+	force_unroll : bool;
 }
 
 module IterationKind = struct
 	type t_kind =
 		| IteratorIntConst of texpr * texpr * bool (* ascending? *)
-		| IteratorIntUnroll of int * int * bool * unroll_parameters
+		| IteratorIntUnroll of int * int * bool
 		| IteratorInt of texpr * texpr
 		| IteratorArrayDecl of texpr list
 		| IteratorArray
@@ -177,6 +178,8 @@ module IterationKind = struct
 	let map_unroll_params ctx unroll_params i = match unroll_params with
 		| None ->
 			None
+		| Some {force_unroll = true} ->
+			unroll_params
 		| Some unroll_params ->
 			let cost = i * unroll_params.expression_weight in
 			let max_cost = try
@@ -208,6 +211,12 @@ module IterationKind = struct
 					| (TMono _ | TDynamic _) -> dynamic_iterator e1;
 					| _ -> (IteratorIterator,e1,pt)
 		in
+		let cannot_force () = match unroll_params with
+			| Some {force_unroll = true} ->
+				display_error ctx.com "Could not force inlining on this loop" p
+			| _ ->
+				()
+		in
 		let try_forward_array_iterator () =
 			match follow e.etype with
 			| TAbstract ({ a_this = (TInst ({ cl_path = [],"Array" }, [_]) as array_type)} as abstr, params) ->
@@ -232,11 +241,12 @@ module IterationKind = struct
 					let diff = Int32.to_int (Int32.sub a b) in
 					begin match map_unroll_params ctx unroll_params (abs diff) with
 					| Some unroll_params ->
-						IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0,unroll_params)
+						IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0)
 					| None ->
 						IteratorIntConst(efrom,eto,diff <= 0)
 					end
 				| _ ->
+					cannot_force();
 					let eto = match follow eto.etype with
 						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
 						| _ -> { eto with eexpr = TCast(eto, None); etype = ctx.t.tint }
@@ -252,8 +262,10 @@ module IterationKind = struct
 			(it,e,pt)
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
+			cannot_force();
 			IteratorArray,e,pt
 		| _,TAbstract({ a_impl = Some c },_) ->
+			cannot_force();
 			(try
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
@@ -272,13 +284,16 @@ module IterationKind = struct
 				with Not_found -> check_iterator ())
 			)
 		| _, TAbstract _ ->
+			cannot_force();
 			(try try_forward_array_iterator ()
 			with Not_found -> check_iterator ())
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
+			cannot_force();
 			IteratorGenericStack c,e,pt
 		| _,(TMono _ | TDynamic _) ->
 			dynamic_iterator e
 		| _ ->
+			cannot_force();
 			check_iterator ()
 		in
 		{
@@ -326,7 +341,7 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
-		| IteratorIntUnroll(offset,length,ascending,unroll_params) ->
+		| IteratorIntUnroll(offset,length,ascending) ->
 			if not ascending then raise_typing_error "Cannot iterate backwards" p;
 			let rec unroll acc i =
 				if i = length then
@@ -439,7 +454,7 @@ module IterationKind = struct
 			mk (TBlock []) t_void p
 end
 
-let get_unroll_params ctx e2 =
+let get_unroll_params ctx e2 force_unroll =
 	let num_expr = ref 0 in
 	let rec loop e = match fst e with
 		| EContinue | EBreak ->
@@ -453,24 +468,7 @@ let get_unroll_params ctx e2 =
 		ignore(loop e2);
 		Some {
 			expression_weight = !num_expr;
-		}
-	with Exit ->
-		None
-
-let get_unroll_params_t ctx e2 =
-	let num_expr = ref 0 in
-	let rec loop e = match e.eexpr with
-		| TContinue | TBreak ->
-			raise Exit
-		| _ ->
-			incr num_expr;
-			Type.map_expr loop e
-	in
-	try
-		if ctx.com.display.dms_kind <> DMNone then raise Exit;
-		ignore(loop e2);
-		Some {
-			expression_weight = !num_expr;
+			force_unroll;
 		}
 	with Exit ->
 		None
@@ -490,9 +488,10 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		| None -> ()
 		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk MGet (WithType.with_type i.v_type))
 	in
+	let force_unroll = Meta.has Meta.Inline ctx.f.meta in
 	match ik with
 	| IKNormal(i,pi,dko) ->
-		let iterator = IterationKind.of_texpr ctx e1 (get_unroll_params ctx e2) p in
+		let iterator = IterationKind.of_texpr ctx e1 (get_unroll_params ctx e2 force_unroll) p in
 		let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
 		let e2 = type_expr ctx e2 NoValue in
 		check_display (i,pi,dko);
@@ -503,7 +502,10 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		(match follow e1.etype with
 		| TDynamic _ | TMono _ ->
 			display_error ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
-		| _ -> ()
+		| _ ->
+			if force_unroll then
+				display_error ctx.com "Cannot force inlining on key => value loops" p;
+			()
 		);
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		let vtmp = gen_local ctx e1.etype e1.epos in
