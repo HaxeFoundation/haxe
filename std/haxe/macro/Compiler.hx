@@ -362,35 +362,7 @@ class Compiler {
 				doc: c.doc,
 				links: c.links,
 				params: c.parmas,
-				platforms: c.platforms != null ? [
-					for (platform in (c.platforms : Array<String>))
-						switch (platform) {
-							case "cross":
-								Cross;
-							case "js":
-								Js;
-							case "lua":
-								Lua;
-							case "neko":
-								Neko;
-							case "flash":
-								Flash;
-							case "php":
-								Php;
-							case "cpp":
-								Cpp;
-							case "jvm":
-								Jvm;
-							case "python":
-								Python;
-							case "hl":
-								Hl;
-							case "eval":
-								Eval;
-							default:
-								CustomTarget(platform);
-						}
-				] : null,
+				platforms: c.platforms != null ? stringToPlatforms(c.platforms) : null,
 				targets: c.targets
 			};
 
@@ -415,35 +387,7 @@ class Compiler {
 				doc: c.doc,
 				links: c.links,
 				params: c.params,
-				platforms: c.platforms != null ? [
-					for (platform in (c.platforms : Array<String>))
-						switch (platform) {
-							case "cross":
-								Cross;
-							case "js":
-								Js;
-							case "lua":
-								Lua;
-							case "neko":
-								Neko;
-							case "flash":
-								Flash;
-							case "php":
-								Php;
-							case "cpp":
-								Cpp;
-							case "jvm":
-								Jvm;
-							case "python":
-								Python;
-							case "hl":
-								Hl;
-							case "eval":
-								Eval;
-							default:
-								CustomTarget(platform);
-						}
-				] : null
+				platforms: c.platforms != null ? stringToPlatforms(c.platforms) : null
 			};
 
 			defines.push(define);
@@ -513,6 +457,41 @@ class Compiler {
 		load("set_hxb_writer_config", 1)(config);
 	}
 	#end
+
+	/**
+		Converts an array of `String`s into an array of `Platform`s.
+	**/
+	private static function stringToPlatforms(platforms:Array<String>) {
+		return [
+			for (platform in platforms)
+				switch (platform) {
+					case "cross":
+						Cross;
+					case "js":
+						Js;
+					case "lua":
+						Lua;
+					case "neko":
+						Neko;
+					case "flash":
+						Flash;
+					case "php":
+						Php;
+					case "cpp":
+						Cpp;
+					case "jvm":
+						Jvm;
+					case "python":
+						Python;
+					case "hl":
+						Hl;
+					case "eval":
+						Eval;
+					default:
+						CustomTarget(platform);
+				}
+		];
+	}
 
 	#if (js || lua || macro)
 	/**
