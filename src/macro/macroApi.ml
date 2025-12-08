@@ -1682,6 +1682,22 @@ let decode_path v =
 	and name = decode_string (field v "name") in
 	(pack,name)
 
+let decode_platform v =
+	match decode_enum v with
+	| 0, [] -> Cross
+	| 1, [] -> Js
+	| 2, [] -> Lua
+	| 3, [] -> Neko
+	| 4, [] -> Flash
+	| 5, [] -> Php
+	| 6, [] -> Cpp
+	| 7, [] -> Jvm
+	| 8, [] -> Python
+	| 9, [] -> Hl
+	| 10, [] -> Eval
+	| 11, [s] -> CustomTarget ((decode_string s))
+	| _ -> raise Invalid_expr
+
 let decode_platform_config v =
 	let capture_policy = match decode_enum (field v "capturePolicy") with
 		| 0, [] -> CPNone
@@ -2000,10 +2016,10 @@ let macro_api ccom get_api =
 		"register_metadata_impl", vfun2 (fun m src ->
 			let flags : meta_parameter list = [] in
 
-			let platforms = decode_opt_array decode_string (field m "platforms") in
+			let platforms = decode_opt_array decode_platform (field m "platforms") in
 			let flags =
 				if (List.length platforms) = 0 then flags
-				else (Platforms (List.map (fun p -> (Globals.parse_platform p)) platforms)) :: flags
+				else (Platforms (platforms)) :: flags
 			in
 
 			let targets = decode_opt_array decode_string (field m "targets") in
