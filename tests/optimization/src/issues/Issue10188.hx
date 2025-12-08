@@ -26,7 +26,7 @@ class Issue10188 {
 		issues_Issue10188.use(_g);
 	')
 	static function testKevin() {
-		use([for(v in [V1]) if(has(v)) v.toString()]);
+		use([inline for(v in [V1]) if(has(v)) v.toString()]);
 	}
 
 
