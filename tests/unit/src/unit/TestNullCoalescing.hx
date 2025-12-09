@@ -88,6 +88,13 @@ private abstract NullCoalAbstractResolve(NullCoalAbstractData) {
 	}
 }
 
+var screamOutput:String = null;
+
+abstract Message(String) from String {
+	public function scream()
+		screamOutput = this.toUpperCase();
+}
+
 @:nullSafety(StrictThreaded)
 class TestNullCoalescing extends Test {
 	final nullInt:Null<Int> = null;
@@ -213,7 +220,9 @@ class TestNullCoalescing extends Test {
 		a ??= 5;
 		eq(a, 5);
 		t(HelperMacros.isNullable(a ??= null));
+		t(HelperMacros.isNullable(a ??= a));
 		f(HelperMacros.isNullable(a ??= 5));
+		f(HelperMacros.isNullable(a ??= count));
 		var a:Null<Int> = null;
 		eq(a ??= 5, 5);
 		eq(a, 5);
@@ -328,6 +337,12 @@ class TestNullCoalescing extends Test {
 		eq(1, obj.getSetCounter());
 		eq("value", obj.field ?? "fail");
 		eq("value", value);
+
+		var m:Message = "foo";
+		(m ??= "bar").scream();
+		eq("FOO", screamOutput);
+		eq("unit.Message", HelperMacros.typeString(m ??= "bar"));
+		eq("foo", '$m');
 
 		// TODO: this fails at the moment with some "not enough arguments error"
 		// mutAssignLeft(obj.field) ??= "not value";

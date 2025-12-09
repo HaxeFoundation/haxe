@@ -386,5 +386,22 @@ class Boot extends flash.display.MovieClip {
 					return null;
 				return Std.int(x);
 			};
+			#if no_flash_override
+			String.prototype.substrHX = function(pos:Int, ?len:Int):String {
+			#else
+			String.prototype.substr = function(pos:Int, ?len:Int):String {
+			#end
+				var s:String = __this__;
+				if (len == null) len = s.length;
+				if (len < 0) {
+					if (pos < 0) {
+						pos = s.length + pos;
+						if (pos < 0)
+							pos = 0;
+					}
+					len = s.length + len - pos;
+				}
+				return s.__substr__(pos, len);
+			}
 	}
 }
