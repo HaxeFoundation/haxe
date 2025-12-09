@@ -972,36 +972,35 @@ let shl ctx idx v =
 	end
 
 let set_default ctx r =
-	match get_group (rtype ctx r) with
-	| HNum(Int, _, _) ->
+	let t = rtype ctx r in
+	match get_group t, t with
+	| GInt, _ ->
 		op ctx (OInt (r,alloc_i32 ctx 0l))
-	| HNum(Float, _, _) ->
+	| GFloat, _ ->
 		op ctx (OFloat (r,alloc_float ctx 0.))
-	| HBool _ ->
+	| GBool, _ ->
 		op ctx (OBool (r, false))
-	| HOther HType ->
+	| _, HType ->
 		op ctx (OType (r, HVoid))
 	| _ ->
 		op ctx (ONull r)
 
 let read_mem ctx rdst bytes index t =
 	match get_group t with
-	| HNum (Int, 0, _) ->
-		op ctx (OGetUI8 (rdst,bytes,index))
-	| HNum (Int, 1, _) ->
-		op ctx (OGetUI16 (rdst,bytes,index))
-	| HNum (_, (2 | 3), _) ->
+	| GInt | GFloat ->
+		let nb = type_size_bits t in
+		if nb == 0 then op ctx (OGetUI8 (rdst,bytes,index)) else
+		if nb == 1 then op ctx (OGetUI16 (rdst,bytes,index)) else
 		op ctx (OGetMem (rdst,bytes,index))
 	| _ ->
 		die "" __LOC__
 
 let write_mem ctx bytes index t r =
 	match get_group t with
-	| HNum (Int, 0, _) ->
-		op ctx (OSetUI8 (bytes,index,r))
-	| HNum (Int, 1, _) ->
-		op ctx (OSetUI16 (bytes,index,r))
-	| HNum (_, (2 | 3), _) ->
+	| GInt | GFloat ->
+		let nb = type_size_bits t in
+		if nb == 0 then op ctx (OSetUI8 (bytes,index,r)) else
+		if nb == 1 then op ctx (OSetUI16 (bytes,index,r)) else
 		op ctx (OSetMem (bytes,index,r))
 	| _ ->
 		die "" __LOC__
@@ -1010,22 +1009,22 @@ let common_type ctx e1 e2 for_eq p =
 	let t1 = to_type ctx e1.etype in
 	let t2 = to_type ctx e2.etype in
 	if t1 == t2 then t1 else
-	match get_group t1, get_group t2 with
-	| HNum _, HNum _ -> common_type_number t1 t2
-	| HNum (_,_,t1), HNull HNum (_,_,t2)
-	| HNull HNum (_,_,t1), HNum (_,_,t2)
-	| HNull HNum (_,_,t1), HNull HNum (_,_,t2)
-		-> if for_eq then HNull (common_type_number t1 t2) else common_type_number t1 t2
-	| HBool _, HNull HBool _ when for_eq -> t2
-	| HNull HBool _, HBool _ when for_eq -> t1
-	| HOther HDyn, HNum _ -> HF64
-	| HNum _, HOther HDyn -> HF64
-	| HOther HDyn, _ -> HDyn
-	| _, HOther HDyn -> HDyn
+	match get_group t1, get_group t2, t1, t2 with
+	| (GInt | GFloat), (GInt | GFloat), _, _ -> common_type_number t1 t2
+	| ((GInt | GFloat) | GNull (GInt | GFloat)), ((GInt | GFloat) | GNull (GInt | GFloat)), _, _ ->
+		let ti1 = get_inner_type t1 in
+		let ti2 = get_inner_type t2 in
+		if for_eq then HNull (common_type_number ti1 ti2) else common_type_number ti1 ti2
+	| GBool, GNull GBool, _, _ when for_eq -> t2
+	| GNull GBool, GBool, _, _ when for_eq -> t1
+	| _, (GInt | GFloat), HDyn, _ -> HF64
+	| (GInt | GFloat), _, _, HDyn -> HF64
+	| _, _, HDyn, _ -> HDyn
+	| _, _, _, HDyn -> HDyn
 	| _ when for_eq && safe_cast t1 t2 -> t2
 	| _ when for_eq && safe_cast t2 t1 -> t1
-	| HOther HObj _, HOther HVirtual _ | HOther HVirtual _, HOther HObj _ | HOther HVirtual _, HOther HVirtual _ -> HDyn
-	| HOther HFun _, HOther HFun _ -> HDyn
+	| _, _, HObj _, HVirtual _ | _, _, HVirtual _, HObj _ | _, _, HVirtual _, HVirtual _ -> HDyn
+	| _, _, HFun _, HFun _ -> HDyn
 	| _ ->
 		abort ("Can't find common type " ^ tstr t1 ^ " and " ^ tstr t2) p
 
@@ -1160,22 +1159,22 @@ and to_string ctx (r:reg) p =
 and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if safe_cast rt t then r else
-	match get_group rt, get_group t with
-	| _, HOther HVoid ->
+	match get_group rt, get_group t, rt, t with
+	| _, _, _, HVoid ->
 		alloc_tmp ctx HVoid
-	| HOther HVirtual _, HOther HVirtual _ ->
+	| _, _, HVirtual _, HVirtual _ ->
 		let tmp = alloc_tmp ctx HDyn in
 		op ctx (OMov (tmp,r));
 		cast_to ctx tmp t p
-	| HNum (_, _, _), HNum (Float, _, _) ->
+	| (GInt | GFloat), GFloat, _, _ ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		tmp
-	| HNum (_, _, _), HNum (Int, _, _) ->
+	| (GInt | GFloat), GInt, _, _ ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		tmp
-	| HOther HObj o, HOther HVirtual _ ->
+	| _, _, HObj o, HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		(try
 			let rec lookup_intf o =
@@ -1210,31 +1209,31 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 			(* not an interface *)
 			op ctx (OToVirtual (out,r)));
 		out
-	| HOther (HDynObj | HDyn) , HOther HVirtual _ ->
+	| _, _, (HDynObj | HDyn) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
 		out
-	| HOther HDyn, _ ->
+	| _, _, HDyn, _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HNull (HNum (_,_,rt) | HBool rt), (HNum (_,_,t) | HBool t) when t = rt ->
+	| _, _, HNull rt, _ when t = rt ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HOther HVoid, HOther HDyn ->
+	| _, _, HVoid, HDyn ->
 		let tmp = alloc_tmp ctx HDyn in
 		op ctx (ONull tmp);
 		tmp
-	| _ , HOther HDyn ->
+	| _, _, _ , HDyn ->
 		let tmp = alloc_tmp ctx HDyn in
 		op ctx (OToDyn (tmp, r));
 		tmp
-	| (HNum (_,_,rt) | HBool rt), HNull (HNum (_,_,t) | HBool t) when rt == t ->
-		let tmp = alloc_tmp ctx (HNull t) in
+	| _, _, _, HNull ti when rt = ti ->
+		let tmp = alloc_tmp ctx (HNull rt) in
 		op ctx (OToDyn (tmp, r));
 		tmp
-	| HNull (HNum (_,_,t1) | HBool t1), HNull (HNum (_,_,t2) | HBool t2) ->
+	| _, _, HNull t1, HNull _ ->
 		let j = jump ctx (fun n -> OJNull (r,n)) in
 		let rtmp = alloc_tmp ctx t1 in
 		op ctx (OSafeCast (rtmp,r));
@@ -1243,7 +1242,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
-	| HOther HRef t1, HNull t2 ->
+	| _, _, HRef t1, HNull _ ->
 		let j = jump ctx (fun n -> OJNull (r,n)) in
 		let rtmp = alloc_tmp ctx t1 in
 		op ctx (OUnref (rtmp,r));
@@ -1252,35 +1251,35 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
-	| HNum (_, _, _), HNull HNum (Float, _, t) ->
+	| (GInt | GFloat), GNull GFloat, _, HNull t ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| HNum (_, _, _), HNull HNum (Int, _, t) ->
+	| (GInt | GFloat), GNull GInt, _, HNull t ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| HNull HNum (_, _, it), HNum (Float, _, _) ->
+	| GNull (GInt | GFloat), GFloat, HNull it, _ ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, i));
 		tmp
-	| HNull HNum (Float, _, it), HNum (Int, _, _) ->
+	| GNull GFloat, GInt, HNull it, _ ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, i));
 		tmp
-	| HNull HNum (Int, _, _), HNum (Int, _, _) ->
+	| GNull GInt, GInt, _, _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HOther HFun (args1,ret1), HOther HFun (args2, ret2) when List.length args1 = List.length args2 ->
+	| _, _, HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
 		let fid = gen_method_wrapper ctx rt t p in
 		let fr = alloc_tmp ctx t in
 		op ctx (OJNotNull (r,2));
@@ -1288,11 +1287,11 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		op ctx (OJAlways 1);
 		op ctx (OInstanceClosure (fr,fid,r));
 		fr
-	| HOther HObj _, HOther HObj _ when is_array_type rt && is_array_type t ->
+	| _, _, HObj _, HObj _ when is_array_type rt && is_array_type t ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HNull _, HOther HRef t2 ->
+	| _, _, HNull _, HRef t2 ->
 		let out = alloc_tmp ctx t in
 		op ctx (OJNotNull (r,2));
 		op ctx (ONull out);
@@ -1304,7 +1303,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		op ctx (ORef (out,r2));
 		j();
 		out
-	| _, HOther HRef t2 ->
+	| _, _, _, HRef t2 ->
 		let r = cast_to ctx r t2 p in
 		let r2 = alloc_tmp ctx t2 in
 		op ctx (OMov (r2, r));
@@ -1462,8 +1461,8 @@ and get_access ctx e =
 		ANone
 
 and array_read ctx ra (at,vt) ridx p =
-	match get_group at with
-	| HNum (nt, nbits, _) ->
+	match get_group at, at with
+	| (GInt | GFloat as tg), _ ->
 		(* check bounds *)
 		hold ctx ridx;
 		let length = alloc_tmp ctx HI32 in
@@ -1471,20 +1470,21 @@ and array_read ctx ra (at,vt) ridx p =
 		op ctx (OField (length, ra, 0));
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
 		let r = alloc_tmp ctx (match at with HUI8 | HUI16 -> HI32 | _ -> at) in
-		(match nt with
-		| Int ->
+		(match tg with
+		| GInt ->
 			op ctx (OInt (r,alloc_i32 ctx 0l));
-		| Float ->
+		| GFloat ->
 			op ctx (OFloat (r,alloc_float ctx 0.));
-		);
+		| _ ->
+			die "" __LOC__);
 		let jend = jump ctx (fun i -> OJAlways i) in
 		j();
 		let hbytes = alloc_tmp ctx HBytes in
 		op ctx (OField (hbytes, ra, 1));
-		read_mem ctx r hbytes (shl ctx ridx nbits) at;
+		read_mem ctx r hbytes (shl ctx ridx (type_size_bits at)) at;
 		jend();
 		cast_to ctx r vt p
-	| HOther HDyn ->
+	| _, HDyn ->
 		(* call getDyn *)
 		let r = alloc_tmp ctx HDyn in
 		op ctx (OCallMethod (r,0,[ra;ridx]));
@@ -1545,11 +1545,11 @@ and jump_expr ctx e jcond =
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
 		(match get_group t1, get_group t2 with
-		| HNull HNum (_, _, ti1), HNum (_, _, ti2)
-		| HNum (_, _, ti1), HNull HNum (_, _, ti2)
-		| HNull HBool ti1, HBool ti2
-		| HBool ti1, HNull HBool ti2
+		| GNull _, (GInt | GFloat | GBool)
+		| (GInt | GFloat | GBool), GNull _
 			->
+			let ti1 = get_inner_type t1 in
+			let ti2 = get_inner_type t2 in
 			let t1,t2,e1,e2 = if is_nullt t2 then t2,t1,e2,e1 else t1,t2,e1,e2 in
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
@@ -1586,12 +1586,11 @@ and jump_expr ctx e jcond =
 				| OpLte -> if jcond then gte r2 r1 else lt r2 r1
 				| _ -> die "" __LOC__
 		) in
-		(match get_group t1, get_group t2 with
-		| HNum (_, _, ti1), HNum (_, _, ti2)
-		| HNull HNum (_, _, ti1), HNum (_, _, ti2)
-		| HNum (_, _, ti1), HNull (HNum (_, _, ti2))
-		| HNull HNum (_, _, ti1), HNull HNum (_, _, ti2)
+		(match get_group t1, get_group t2, t1, t2 with
+		| ((GInt | GFloat) | GNull (GInt | GFloat)), ((GInt | GFloat) | GNull (GInt | GFloat)), _, _
 			->
+			let ti1 = get_inner_type t1 in
+			let ti2 = get_inner_type t2 in
 			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then
 				ctx.com.warning WGenerator [] (Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
 			let r1 = eval_expr ctx e1 in
@@ -1610,9 +1609,9 @@ and jump_expr ctx e jcond =
 			let j = jumpcmp t a b in
 			if jcond then (jnull1(); jnull2(););
 			(fun() -> if not jcond then (jnull1(); jnull2();); j());
-		| HOther HObj { pname = "String" }, HOther HObj { pname = "String" }
-		| HOther HDyn, _
-		| _, HOther HDyn
+		| _, _, HObj { pname = "String" }, HObj { pname = "String" }
+		| _, _, HDyn, _
+		| _, _, _, HDyn
 			->
 			let t = common_type ctx e1 e2 false e.epos in
 			let a = eval_to ctx e1 t in
@@ -1879,7 +1878,7 @@ and eval_expr ctx e =
 			| TAbstract({a_path = ["hl"],"BytesAccess"},[t]) ->
 				let t = to_type ctx t in
 				reg_int ctx (match get_group t with
-				| HNum (_, nbits, _) -> nbits
+				| GInt | GFloat -> type_size_bits t
 				| _ -> abort ("Unsupported basic type " ^ tstr t) e.epos)
 			| _ ->
 				abort "Invalid BytesAccess" eb.epos);
@@ -1889,9 +1888,9 @@ and eval_expr ctx e =
 				let t = to_type ctx t in
 				let r = alloc_tmp ctx t in
 				(match get_group t with
-				| HNum (Int, _, _) ->
+				| GInt ->
 					op ctx (OInt (r,alloc_i32 ctx 0l))
-				| HNum (Float, _, _) ->
+				| GFloat ->
 					op ctx (OFloat (r, alloc_float ctx 0.))
 				| _ ->
 					abort ("Unsupported basic type " ^ tstr t) e.epos);
@@ -1907,17 +1906,11 @@ and eval_expr ctx e =
 				free ctx b;
 				let t = to_type ctx t in
 				(match get_group t with
-				| HNum (Int, 0, _) ->
-					let r = alloc_tmp ctx HI32 in
-					op ctx (OGetUI8 (r, b, pos));
-					r
-				| HNum (Int, 1, _) ->
-					let r = alloc_tmp ctx HI32 in
-					op ctx (OGetUI16 (r, b, shl ctx pos 1));
-					r
-				| HNum (_, ((2 | 3) as nbits), _) ->
-					let r = alloc_tmp ctx t in
-					op ctx (OGetMem (r, b, shl ctx pos nbits));
+				| GInt | GFloat ->
+					let nb = type_size_bits t in
+					let r = alloc_tmp ctx (if nb <= 1 then HI32 else t) in
+					let ridx = shl ctx pos nb in
+					read_mem ctx r b ridx t;
 					r
 				| _ ->
 					abort ("Unsupported basic type " ^ tstr t) e.epos)
@@ -1932,20 +1925,12 @@ and eval_expr ctx e =
 				hold ctx pos;
 				let t = to_type ctx t in
 				let v = (match get_group t with
-				| HNum (Int, 0, _) ->
-					let v = eval_to ctx value HI32 in
-					op ctx (OSetUI8 (b, pos, v));
-					v
-				| HNum (Int, 1, _) ->
-					let v = eval_to ctx value HI32 in
+				| (GInt | GFloat) ->
+					let nb = type_size_bits t in
+					let v = eval_to ctx value (if nb <= 1 then HI32 else t) in
 					hold ctx v;
-					op ctx (OSetUI16 (b, shl ctx pos 1, v));
-					free ctx v;
-					v
-				| HNum (_, ((2 | 3) as nbits), _) ->
-					let v = eval_to ctx value t in
-					hold ctx v;
-					op ctx (OSetMem (b, shl ctx pos nbits, v));
+					let ridx = shl ctx pos nb in
+					write_mem ctx b ridx t v;
 					free ctx v;
 					v
 				| _ ->
@@ -2441,33 +2426,33 @@ and eval_expr ctx e =
 				match bop with
 				| OpAdd ->
 					let t = rtype ctx r in
-					(match get_group t with
-					| HNum _ ->
+					(match get_group t, t with
+					| (GInt | GFloat), _ ->
 						op ctx (OAdd (r,a,b))
-					| HOther HObj { pname = "String" } ->
+					| _, HObj { pname = "String" } ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",to_string ctx a e1.epos,to_string ctx b e2.epos))
-					| HOther HDyn ->
+					| _, HDyn ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",a,b))
 					| _ ->
 						abort ("Cannot add " ^ tstr t) e.epos)
 				| OpSub | OpMult | OpMod | OpDiv ->
 					let t = rtype ctx r in
-					(match get_group t with
-					| HNum _ ->
+					(match get_group t, t with
+					| (GInt | GFloat), _ ->
 						(match bop with
 						| OpSub -> op ctx (OSub (r,a,b))
 						| OpMult -> op ctx (OMul (r,a,b))
 						| OpMod -> op ctx (if unsigned e1.etype then OUMod (r,a,b) else OSMod (r,a,b))
 						| OpDiv -> op ctx (OSDiv (r,a,b)) (* don't use UDiv since both operands are float already *)
 						| _ -> die "" __LOC__)
-					| HOther HDyn ->
+					| _, HDyn ->
 						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpSub -> 1 | OpMult -> 2 | OpMod -> 3 | OpDiv -> 4 | _ -> die "" __LOC__), a, b))
 					| _ ->
 						die "" __LOC__)
 				| OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
 					let t = rtype ctx r in
-					(match get_group t with
-					| HNum (Int, _, _) ->
+					(match get_group t, t with
+					| GInt, _ ->
 						(match bop with
 						| OpShl -> op ctx (OShl (r,a,b))
 						| OpShr -> op ctx (if unsigned e1.etype then OUShr (r,a,b) else OSShr (r,a,b))
@@ -2476,7 +2461,7 @@ and eval_expr ctx e =
 						| OpOr -> op ctx (OOr (r,a,b))
 						| OpXor -> op ctx (OXor (r,a,b))
 						| _ -> ())
-					| HOther HDyn ->
+					| _, HDyn ->
 						op ctx (OCall3 (r, alloc_std ctx "dyn_op" [HI32;HDyn;HDyn] HDyn, reg_int ctx (match bop with OpShl -> 5 | OpShr -> 6 | OpUShr -> 7 | OpAnd -> 8 | OpOr -> 9 | OpXor -> 10 | _ -> die "" __LOC__), a, b))
 					| _ ->
 						die "" __LOC__)
@@ -2563,10 +2548,10 @@ and eval_expr ctx e =
 					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 					j();
 					match get_group at with
-					| HNum (_, nbits, _) ->
+					| GInt | GFloat ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
-						write_mem ctx b (shl ctx ridx nbits) at v
+						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
 					| _ ->
 						let arr = alloc_tmp ctx (HArray vt) in
 						op ctx (OField (arr,ra,1));
@@ -2667,29 +2652,29 @@ and eval_expr ctx e =
 	| TUnop (Increment|Decrement as uop,fix,v) ->
 		let rec unop r =
 			let t = rtype ctx r in
-			match get_group t with
-			| HNum (Int, _, _) ->
+			match get_group t, t with
+			| GInt, _ ->
 				if uop = Increment then op ctx (OIncr r) else op ctx (ODecr r)
-			| HNum (Float, _, _) ->
+			| GFloat, _ ->
 				hold ctx r;
 				let tmp = alloc_tmp ctx t in
 				free ctx r;
 				op ctx (OFloat (tmp,alloc_float ctx 1.));
 				if uop = Increment then op ctx (OAdd (r,r,tmp)) else op ctx (OSub (r,r,tmp))
-			| HNull HNum (_, _, t) ->
+			| GNull (GInt | GFloat), HNull t ->
 				hold ctx r;
 				let tmp = alloc_tmp ctx t in
 				free ctx r;
 				op ctx (OSafeCast (tmp,r));
 				unop tmp;
 				op ctx (OToDyn (r,tmp));
-			| HOther HDyn when uop = Increment ->
+			| _, HDyn when uop = Increment ->
 				hold ctx r;
 				let tmp = alloc_tmp ctx HDyn in
 				free ctx r;
 				op ctx (OToDyn (tmp, reg_int ctx 1));
 				op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",r,tmp))
-			| HOther HDyn when uop = Decrement ->
+			| _, HDyn when uop = Decrement ->
 				let r2 = alloc_tmp ctx HF64 in
 				hold ctx r2;
 				let tmp = alloc_tmp ctx HF64 in
@@ -3169,10 +3154,10 @@ and gen_assign_op ctx acc e1 f =
 			op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 			j();
 			match get_group at with
-			| HNum (_, nbits, _) ->
+			| GInt | GFloat ->
 				let hbytes = alloc_tmp ctx HBytes in
 				op ctx (OField (hbytes, ra, 1));
-				let ridx = shl ctx ridx nbits in
+				let ridx = shl ctx ridx (type_size_bits at) in
 				hold ctx ridx;
 				hold ctx hbytes;
 				let r = alloc_tmp ctx at in
@@ -3358,17 +3343,17 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			let t = alloc_tmp ctx vt in
 			(match get_group vt with
-			| HNum (Int, _, _) ->
+			| GInt ->
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OInt (t,alloc_i32 ctx i))
 				| TConst (TFloat s) -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
 				| _ -> die "" __LOC__)
-			| HNum (Float, _, _) ->
+			| GFloat ->
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
 				| TConst (TFloat s) -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
 				| _ -> die "" __LOC__)
-			| HBool _ ->
+			| GBool ->
 				(match c.eexpr with
 				| TConst (TBool b) -> op ctx (OBool (t,b))
 				| _ -> die "" __LOC__)
@@ -3438,9 +3423,9 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		else if has_final_jump f.tf_expr then begin
 			let r = alloc_tmp ctx tret in
 			(match get_group tret with
-			| HNum (Int, _, _) -> op ctx (OInt (r,alloc_i32 ctx 0l))
-			| HNum (Float, _, _) -> op ctx (OFloat (r,alloc_float ctx 0.))
-			| HBool _ -> op ctx (OBool (r,false))
+			| GInt -> op ctx (OInt (r,alloc_i32 ctx 0l))
+			| GFloat -> op ctx (OFloat (r,alloc_float ctx 0.))
+			| GBool -> op ctx (OBool (r,false))
 			| _ -> op ctx (ONull r));
 			op ctx (ORet r)
 		end;

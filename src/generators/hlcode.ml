@@ -85,15 +85,12 @@ and virtual_proto = {
 	mutable vindex : (string, int) PMap.t;
 }
 
-type numtype =
-	| Int
-	| Float
-
 type tgroup =
-	| HNum of numtype * int * ttype
-	| HBool of ttype
-	| HNull of tgroup (* for HNum and HBool only *)
-	| HOther of ttype
+	| GInt
+	| GFloat
+	| GBool
+	| GNull of tgroup
+	| GOther
 
 type unused = int
 type field
@@ -278,56 +275,56 @@ let is_struct = function
 	| HStruct _ | HPacked _ -> true
 	| _ -> false
 
-(* simplify some numeric logic *)
 let get_group t =
 	match t with
-	| HUI8 -> HNum (Int, 0, t)
-	| HUI16 -> HNum (Int, 1, t)
-	| HI32 -> HNum (Int, 2, t)
-	| HI64 -> HNum (Int, 3, t)
-	| HGUID -> HNum (Int, 3, t)
-	| HF32 -> HNum (Float, 2, t)
-	| HF64 -> HNum (Float, 3, t)
-	| HBool -> HBool t
-	| HNull HUI8 -> HNull (HNum (Int, 0, HUI8))
-	| HNull HUI16 -> HNull (HNum (Int, 1, HUI16))
-	| HNull HI32 -> HNull (HNum (Int, 2, HI32))
-	| HNull HI64 -> HNull (HNum (Int, 3, HI64))
-	| HNull HGUID -> HNull (HNum (Int, 3, HGUID))
-	| HNull HF32 -> HNull (HNum (Float, 2, HF32))
-	| HNull HF64 -> HNull (HNum (Float, 3, HF64))
-	| HNull HBool -> HNull (HBool HBool)
+	| HUI8 | HUI16 | HI32 | HI64 | HGUID -> GInt
+	| HF32 | HF64 -> GFloat
+	| HBool -> GBool
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HGUID) -> GNull GInt
+	| HNull (HF32 | HF64) -> GNull GFloat
+	| HNull HBool -> GNull GBool
 	| HNull _ -> Globals.die "" __LOC__
-	| _ -> HOther t
+	| _ -> GOther
+
+let get_inner_type t =
+	match t with
+	| HNull t -> t
+	| _ -> t
+
+let type_size_bits = function
+	| HUI8 | HBool -> 0
+	| HUI16 -> 1
+	| HI32 | HF32 -> 2
+	| HI64 | HGUID | HF64 -> 3
+	| _ -> Globals.die "" __LOC__
 
 let common_type_number t1 t2 =
 	if t1 == t2 then t1 else
 	match get_group t1, get_group t2 with
-	| HNum (Int, n1, _), HNum (Int, n2, _ ) -> if n1 > n2 then t1 else t2
-	| HNum (Int, _, _), HNum (Float, _, _ ) -> t2 (* possible loss of precision *)
-	| HNum (Float, _, _), HNum (Int, _, _ ) -> t1
-	| HNum (Float, n1, _), HNum (Float, n2, _ ) -> if n1 > n2 then t1 else t2
-	| _ ->
-		Globals.die "" __LOC__
+	| GInt, GInt -> if type_size_bits t1 > type_size_bits t2 then t1 else t2
+	| GInt, GFloat -> t2 (* possible loss of precision *)
+	| GFloat, GInt -> t1
+	| GFloat, GFloat -> if type_size_bits t1 > type_size_bits t2 then t1 else t2
+	| _ -> Globals.die "" __LOC__
 
 let is_int t =
 	match get_group t with
-	| HNum (Int, _, _) -> true
+	| GInt -> true
 	| _ -> false
 
 let is_float t =
 	match get_group t with
-	| HNum (Float, _, _) -> true
+	| GFloat -> true
 	| _ -> false
 
 let is_number t =
 	match get_group t with
-	| HNum _ -> true
+	| GInt | GFloat -> true
 	| _ -> false
 
 let is_nullt t =
 	match get_group t with
-	| HNull t -> true
+	| GNull _ -> true
 	| _ -> false
 
 (*
@@ -365,8 +362,8 @@ let compatible_element_types t1 t2 =
 	if t1 == t2 then
 		true (* equal types are always compatible *)
 	else match get_group t1, get_group t2 with
-	| HNum (_, n1, _), HNum (_, n2, _) ->
-		n1 = n2 (* same size numbers are also compatible *)
+	| (GInt | GFloat), (GInt | GFloat) ->
+		type_size_bits t1 = type_size_bits t2 (* same size numbers are also compatible *)
 	| _ ->
 		(* no other number combinations are compatible, but everything else is *)
 		true
