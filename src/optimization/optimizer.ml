@@ -95,7 +95,7 @@ in
 			else
 				None
 
-let reduce_control_flow platform e = match e.eexpr with
+let reduce_control_flow scom e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
@@ -108,7 +108,7 @@ let reduce_control_flow platform e = match e.eexpr with
 		| None -> e
 		end
 	| TBinop (op,e1,e2) ->
-		optimize_binop e op e1 e2
+		optimize_binop scom e op e1 e2
 	| TUnop (op,flag,esub) ->
 		optimize_unop e op flag esub
 	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
@@ -120,7 +120,7 @@ let reduce_control_flow platform e = match e.eexpr with
 		(try List.nth el i with Failure _ -> e)
 	| TCast(e1,None) ->
 		(* TODO: figure out what's wrong with these targets *)
-		let require_cast = match platform with
+		let require_cast = match scom.platform with
 			| Cpp | Flash -> true
 			| Jvm -> true
 			| _ -> false
@@ -167,7 +167,7 @@ let rec reduce_loop (scom : SafeCom.t) stack e =
 				reduce_expr scom e
 		end
 	| _ ->
-		reduce_expr scom (reduce_control_flow scom.platform e))
+		reduce_expr scom (reduce_control_flow scom e))
 
 let reduce_expression scom e =
 	if scom.foptimize then begin
