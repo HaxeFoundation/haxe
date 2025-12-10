@@ -14,7 +14,7 @@ class Issue12435 extends Test {
 
 	function testPropagation() {
 		var Null:Null<Int> = null;
-		var i = Null;
+		var i:Int = Null;
 		#if static
 		t(i == 0);
 		t(i == Null);
