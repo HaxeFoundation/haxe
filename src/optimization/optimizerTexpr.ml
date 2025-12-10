@@ -185,7 +185,7 @@ let optimize_binop scom e op e1 e2 =
 		in
 		(match a, b with
 		| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
-		| TNull, (TInt _ | TFloat _ | TBool _) | (TInt _ | TFloat _ | TBool _), TNull  -> e
+		| TNull, (TInt _ | TFloat _ | TBool _) | (TInt _ | TFloat _ | TBool _), TNull when scom.SafeCom.platform_config.pf_static -> e
 		| _ -> ebool (a = b))
 	| TConst (TBool a), _ ->
 		(match op with
