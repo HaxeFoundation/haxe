@@ -90,11 +90,6 @@
 		"parent": "WTyper"
 	},
 	{
-		"name": "WStaticPlatformBasicTypeNull",
-		"doc": "Warns when the compiler replaces `null` with the default value for a basic type on static platforms.",
-		"parent": "WTyper"
-	},
-	{
 		"name": "WClosureCompare",
 		"doc": "Closures are being compared, which might be undefined",
 		"parent": "WTyper"

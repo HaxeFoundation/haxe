@@ -80,8 +80,7 @@ let sanitize_expr scom e =
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
 				| _ when scom.platform == Cross -> e
 				| _ ->
-					SafeCom.add_warning scom WStaticPlatformBasicTypeNull (Printf.sprintf "On static platforms, `null` can't be used as basic type `%s`; using platform default value instead" (s_type (print_context()) e.etype)) e.epos;
-					{ e with eexpr = TCast (e, Some (module_type_of_type t)) }
+					Error.raise_typing_error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
 			in
 			loop e.etype
 		end else e
