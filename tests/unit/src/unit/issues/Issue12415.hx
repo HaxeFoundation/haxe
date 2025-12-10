@@ -8,5 +8,6 @@ class Issue12415 extends Test {
 		eq(true, value == null);
 		eq(false, value != null);
 		eq(true, value.isNull());
+		eq(true, haxe.Int64.isZero((null:Issue12415Abstract)));
 	}
 }
