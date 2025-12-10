@@ -75,7 +75,7 @@ let sanitize_expr scom e =
 				| TMono _ -> e (* in these cases the null will cast to default value *)
 				| TFun _ -> e (* this is a bit a particular case, maybe flash-specific actually *)
 				| TAbstract(a,tl) when (Meta.has Meta.FromNull a.a_meta) ->
-					{ e with eexpr = TCast (e, Some (module_type_of_type t)) }
+					{ e with eexpr = TCast (e, None) }
 				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
 				| _ when scom.platform == Cross -> e
