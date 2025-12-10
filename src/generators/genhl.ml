@@ -1717,7 +1717,7 @@ and eval_expr ctx e =
 			0 (* first reg *)
 		| TNull ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
-			op ctx (ONull r);
+			set_default ctx r;
 			r)
 	| TVar (v,e) ->
 		(match e with
