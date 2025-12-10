@@ -23,4 +23,11 @@ class Issue12435 extends Test {
 		t(i == null);
 		#end
 	}
+
+	function testPropagationNullable() {
+		var Null:Null<Int> = null;
+		var i:Null<Int> = Null;
+		f(i == 0);
+		t(i == null);
+	}
 }

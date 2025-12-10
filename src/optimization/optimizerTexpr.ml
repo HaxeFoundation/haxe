@@ -183,21 +183,9 @@ let optimize_binop scom e op e1 e2 =
 		let ebool b =
 			{ e with eexpr = TConst (TBool (if op = OpEq then b else not b)) }
 		in
-		let null_vs_basic v = match v with
-			| TInt i32 when i32 = Int32.zero ->
-				ebool true
-			| TFloat "0"
-			| TBool false ->
-				ebool true
-			| _ ->
-				ebool false
-		in
 		(match a, b with
 		| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
-		| TNull, (TInt _ | TFloat _ | TBool _) when scom.SafeCom.platform_config.pf_static && not (is_nullable e2.etype) ->
-			null_vs_basic b
-		| (TInt _ | TFloat _ | TBool _), TNull when scom.SafeCom.platform_config.pf_static && not (is_nullable e1.etype) ->
-			null_vs_basic b
+		| TNull, (TInt _ | TFloat _ | TBool _) | (TInt _ | TFloat _ | TBool _), TNull  -> e
 		| _ -> ebool (a = b))
 	| TConst (TBool a), _ ->
 		(match op with
