@@ -367,6 +367,18 @@ class ServerTests extends TestCase {
 		});
 	}
 
+	function testReadClassPaths() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
+		assertSuccess();
+	}
+
+	function testReadClassPaths2() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, {wait: true});
+		assertSuccess();
+	}
+
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, {wait: true});

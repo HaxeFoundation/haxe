@@ -332,7 +332,7 @@ let handler =
 			]);
 		);
 		"server/readClassPaths", (fun hctx ->
-			let wait = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "wait") false in
+			let wait = hctx.jsonrpc#has_params && hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "wait") false in
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
 				cc#set_initialized true;
