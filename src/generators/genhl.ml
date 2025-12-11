@@ -80,6 +80,7 @@ type array_impl = {
 	af32 : tclass;
 	af64 : tclass;
 	ai64 : tclass option;
+	aguid : tclass option;
 }
 
 type constval =
@@ -157,7 +158,10 @@ let is_extern_field f =
 
 let is_array_class name =
 	match name with
-	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj" | "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" | "hl.types.ArrayBytes_hl_UI8" | "hl.types.ArrayBytes_hl_I64" -> true
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj"
+	| "hl.types.ArrayBytes_hl_F32" | "hl.types.ArrayBytes_hl_UI16" | "hl.types.ArrayBytes_hl_UI8" | "hl.types.ArrayBytes_hl_I64"
+	| "hl.types.ArrayBytes_hl_GUID"
+		-> true
 	| _ -> false
 
 let is_array_type t =
@@ -288,8 +292,13 @@ let array_class ctx t =
 		ctx.array_impl.af32
 	| HF64 ->
 		ctx.array_impl.af64
-	| HI64 | HGUID ->
+	| HI64 ->
 		begin match ctx.array_impl.ai64 with
+		| None -> die "" __LOC__
+		| Some c -> c
+		end
+	| HGUID ->
+		begin match ctx.array_impl.aguid with
 		| None -> die "" __LOC__
 		| Some c -> c
 		end
@@ -2830,7 +2839,7 @@ and eval_expr ctx e =
 		| HI64 ->
 			array_bytes 3 HI64 "I64" (fun b i r -> OSetMem (b,i,r))
 		| HGUID ->
-			array_bytes 3 HGUID "HGUID" (fun b i r -> OSetMem (b,i,r))
+			array_bytes 3 HGUID "GUID" (fun b i r -> OSetMem (b,i,r))
 		| _ ->
 			let at = if is_dynamic et then et else HDyn in
 			let size = reg_int ctx (List.length el) in
@@ -4186,6 +4195,13 @@ let create_context com =
 					None
 				else
 					Some (get_class "ArrayBytes_hl_I64");
+			aguid =
+				if Gctx.raw_defined com "hl_legacy32"
+					|| hl_ver <> "" && compare_version hl_ver "1.13.0" < 0
+				then
+					None
+				else
+					Some (get_class "ArrayBytes_hl_GUID");
 		};
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";

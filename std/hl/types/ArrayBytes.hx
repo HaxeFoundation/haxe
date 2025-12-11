@@ -372,5 +372,5 @@ typedef ArrayF32 = ArrayBytes<F32>;
 typedef ArrayF64 = ArrayBytes<Float>;
 #if (hl_ver >= version("1.13.0") && !hl_legacy32)
 typedef ArrayI64 = ArrayBytes<I64>;
-typedef ArrayGUID = ArrayBytes<I64>;
+typedef ArrayGUID = ArrayBytes<GUID>;
 #end

@@ -242,6 +242,16 @@ class TestHL extends Test {
 		t(arr[0] == i64);
 		t(arr[1] == guid);
 		t(arr[2] == 10);
+		eq("####-#2##-##&", Std.string(arr[0]));
+		eq("####-#9zz-zzz", Std.string(arr[1]));
+		eq("####-####-##8", Std.string(arr[2]));
+		eq("[####-#2##-##&,####-#9zz-zzz,####-####-##8]", Std.string(arr));
+		hl.Api.registerGUIDName(guid, "fooF");
+		eq("fooF", Std.string(arr[1]));
+		eq("[####-#2##-##&,fooF,####-####-##8]", Std.string(arr));
+		hl.Api.registerGUIDName(guid, null);
+		eq("####-#9zz-zzz", Std.string(arr[1]));
+		eq("[####-#2##-##&,####-#9zz-zzz,####-####-##8]", Std.string(arr));
 
 		var arr : Array<hl.I64> = [];
 		var i64 : hl.I64 = haxe.Int64.make(1, 1);
