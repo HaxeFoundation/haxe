@@ -1807,7 +1807,10 @@ let rec validate_macro_cond ctx s e = match fst e with
 	| _ -> syntax_error ctx (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
 and parse_macro_ident ctx t p s =
-	if t = "display" then Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files;
+	if t = "display" then begin
+		syntax_warning_with_pos ctx Warning.WIfDisplay p;
+		Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files
+	end;
 	(EConst (Ident t),p)
 
 let rec parse_macro_cond ctx s =
