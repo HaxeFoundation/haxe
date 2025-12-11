@@ -68,7 +68,7 @@ function main() {
 		#if (!php && !lua)
 		new TestHttps(),
 		#end
-		#if (!lua && !interp)
+		#if (!lua && !interp && !flash)
 		new TestBigInt(),
 		#end
 		#if !no_pattern_matching

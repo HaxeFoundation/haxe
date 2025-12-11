@@ -122,7 +122,7 @@ let s_comp = function
 let core_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray HDyn;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
+	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray HDyn;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HMethod ([],HVoid);HStruct null_proto]
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
@@ -174,15 +174,34 @@ let cast_fun s args t =
 	sprintf "((%s (*)(%s))%s)" (ctype t) (args_repr args) s
 
 let dyn_value_field t =
-	"->v." ^ match t with
+	"v." ^ match t with
 	| HUI8 -> "ui8"
 	| HUI16 -> "ui16"
 	| HI32 -> "i"
-	| HI64 -> "i64"
+	| HI64 | HGUID -> "i64"
 	| HF32 -> "f"
 	| HF64 -> "d"
 	| HBool -> "b"
 	| _ -> "ptr"
+
+let type_kind_info t =
+	(* type_kind_id, type_kind, wrap_char, dyn_prefix *)
+	match get_group t, t with
+	| _, HVoid ->
+		0, t, "v", "p"
+	| (GBool | GInt), _ ->
+		let nb = type_size_bits t in
+		if nb <= 2 then
+			1, HI32, "i", "i" (* same int representation *)
+		else
+			4, HI64, "i64", "i64"
+	| GFloat, _ ->
+		let nb = type_size_bits t in
+		if nb <= 2 then
+			2, HF32, "f", "f"
+		else
+			3, HF64, "d", "d"
+	| _	-> 5, HDyn, "p", "p"
 
 let type_id t =
 	match t with
@@ -393,19 +412,10 @@ let generate_reflection gctx ctx =
 
 	let funByArgs = Hashtbl.create 0 in
 	let type_kind t =
-		match t with
-		| HVoid | HF32 | HF64 | HI64 -> t
-		| HBool | HUI8 | HUI16 | HI32 -> HI32
-		| _ -> HDyn
+		let _, k, _, _ = type_kind_info t in k
 	in
 	let type_kind_id t =
-		match t with
-		| HVoid -> 0
-		| HBool | HUI8 | HUI16 | HI32 -> 1 (* same int representation *)
-		| HF32 -> 2
-		| HF64 -> 3
-		| HI64 -> 4
-		| _ -> 5
+		let tid, _, _, _ = type_kind_info t in tid
 	in
 	let add_fun args t =
 		let nargs = List.length args in
@@ -426,7 +436,7 @@ let generate_reflection gctx ctx =
 	) gctx.hlcode.functions;
 	Array.iter (fun f -> add_fun f.fe_args f.fe_ret) gctx.ftable;
 	let argsCounts = List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []) in
-	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id (type_kind t))) core_types));
+	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id t)) core_types));
 	line "";
 	line "void *hlc_static_call( void *fun, hl_type *t, void **args, vdynamic *out ) {";
 	block ctx;
@@ -461,8 +471,8 @@ let generate_reflection gctx ctx =
 				expr call;
 				expr "return NULL";
 			end else begin
-				sexpr "out%s = %s" (dyn_value_field t) call;
-				sexpr "return &out%s" (dyn_value_field t);
+				sexpr "out->%s = %s" (dyn_value_field t) call;
+				sexpr "return &out->%s" (dyn_value_field t);
 			end;
 			unblock ctx;
 		) (Hashtbl.find funByArgs nargs);
@@ -477,13 +487,8 @@ let generate_reflection gctx ctx =
 	unblock ctx;
 	line "}";
 	line "";
-	let wrap_char = function
-		| HVoid -> "v"
-		| HUI8 | HUI16 | HBool | HI32 -> "i"
-		| HF32 -> "f"
-		| HF64 -> "d"
-		| HI64 -> "i64"
-		| _ -> "p"
+	let wrap_char t =
+		let _, _, wchar, _ = type_kind_info t in wchar
 	in
 	let make_wrap_name args t =
 		String.concat "" (List.map wrap_char args) ^ "_" ^ wrap_char t
@@ -596,16 +601,12 @@ let generate_function gctx ctx f =
 	in
 
 
-	let dyn_prefix = function
-		| HUI8 | HUI16 | HI32 | HBool -> "i"
-		| HF32 -> "f"
-		| HF64 -> "d"
-		| HI64 -> "i64"
-		| _ -> "p"
+	let dyn_prefix t =
+		let _, _, _, dyn = type_kind_info t in dyn
 	in
 
 	let type_value_opt t =
-		match t with HF32 | HF64 | HI64 -> "" | _ -> "," ^ type_value ctx t
+		match t with HF32 | HF64 | HI64 | HGUID -> "" | _ -> "," ^ type_value ctx t
 	in
 
 	let dyn_call r f pl =
@@ -771,26 +772,27 @@ let generate_function gctx ctx f =
 				two ways (same type) for eq
 				one way for comparisons
 			*)
-			match rtype a, rtype b with
-			| (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64), (HUI8 | HUI16 | HI32 | HF32 | HF64 | HBool | HI64) ->
+			let ta = rtype a in
+			let tb = rtype b in
+			match get_group ta, get_group tb, ta, tb with
+			| (GInt | GFloat | GBool), (GInt | GFloat | GBool), _, _
+			| _, _, HBytes, HBytes | _, _, HArray _, HArray _ ->
 				phys_compare()
-			| HBytes, HBytes | HArray _,HArray _ ->
-				phys_compare()
-			| HType, HType ->
+			| _, _, HType, HType ->
 				sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_comp op) (label d)
-			| HNull t, HNull _ ->
+			| _, _, HNull t, HNull _ ->
 				let field = dyn_value_field t in
-				let pcompare = sprintf "(%s%s %s %s%s)" (reg a) field (s_comp op) (reg b) field in
+				let pcompare = sprintf "(%s->%s %s %s->%s)" (reg a) field (s_comp op) (reg b) field in
 				if op = CEq then
 					sexpr "if( %s == %s || (%s && %s && %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 				else if op = CNeq then
 					sexpr "if( %s != %s && (!%s || !%s || %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 				else
 					sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
-			| (HDyn | HFun _), _ | _, (HDyn | HFun _) ->
+			| _, _, (HDyn | HFun _), _ | _, _, _, (HDyn | HFun _) ->
 				let inv = if op = CGt || op = CGte then "&& i != hl_invalid_comparison " else "" in
 				sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 %s) goto %s; }" (reg a) (reg b) (s_comp op) inv (label d)
-			| HObj oa, HObj _ ->
+			| _, _, HObj oa, HObj _ ->
 				(try
 					let fid = PMap.find "__compare" oa.pfunctions in
 					if op = CEq then
@@ -801,27 +803,27 @@ let generate_function gctx ctx f =
 						sexpr "if( %s && %s && %s(%s,(vdynamic*)%s) %s 0 ) goto %s" (reg a) (reg b) (funname fid) (reg a) (reg b) (s_comp op) (label d)
 				with Not_found ->
 					phys_compare())
-			| HStruct _, HStruct _ ->
+			| _, _, HStruct _, HStruct _ ->
 				phys_compare()
-			| HVirtual _, HVirtual _ ->
+			| _, _, HVirtual _, HVirtual _ ->
 				if op = CEq then
 					sexpr "if( %s == %s || (%s && %s && %s->value && %s->value && %s->value == %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else if op = CNeq then
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					Globals.die "" __LOC__
-			| HEnum _, HEnum _ | HDynObj, HDynObj | HAbstract _, HAbstract _ ->
+			| _, _, HEnum _, HEnum _ | _, _, HDynObj, HDynObj | _, _, HAbstract _, HAbstract _ ->
 				phys_compare()
-			| HVirtual _, HObj _->
+			| _, _, HVirtual _, HObj _->
 				if op = CEq then
 					sexpr "if( %s ? (%s && %s->value == (vdynamic*)%s) : (%s == NULL) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (label d)
 				else if op = CNeq then
 					sexpr "if( %s ? (%s == NULL || %s->value != (vdynamic*)%s) : (%s != NULL) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (label d)
 				else
 					Globals.die "" __LOC__
-			| HObj _, HVirtual _ ->
+			| _, _, HObj _, HVirtual _ ->
 				compare_op op b a d
-			| ta, tb ->
+			| _ ->
 				failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb ^ " (hlc)")
 		in
 		match op with
@@ -855,34 +857,39 @@ let generate_function gctx ctx f =
 		| OMul (r,a,b) ->
 			sexpr "%s = %s * %s" (reg r) (reg a) (reg b)
 		| OSDiv (r,a,b) ->
-			(match rtype r with
-			| HUI8 | HUI16 | HI32 ->
+			(match get_group (rtype r) with
+			| GInt ->
 				sexpr "%s = (%s == 0 || %s == -1) ? %s * %s : %s / %s" (reg r) (reg b) (reg b) (reg a) (reg b) (reg a) (reg b)
 			| _ ->
 				sexpr "%s = %s / %s" (reg r) (reg a) (reg b))
 		| OUDiv (r,a,b) ->
 			sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) / ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
 		| OSMod (r,a,b) ->
-			(match rtype r with
-			| HUI8 | HUI16 | HI32 | HI64 ->
+			let rt = rtype r in
+			(match get_group rt with
+			| GInt ->
 				sexpr "%s = (%s == 0 || %s == -1) ? 0 : %s %% %s" (reg r) (reg b) (reg b) (reg a) (reg b)
-			| HF32 ->
-				sexpr "%s = fmodf(%s,%s)" (reg r) (reg a) (reg b)
-			| HF64 ->
-				sexpr "%s = fmod(%s,%s)" (reg r) (reg a) (reg b)
+			| GFloat ->
+				if type_size_bits rt <= 2 then
+					sexpr "%s = fmodf(%s,%s)" (reg r) (reg a) (reg b)
+				else
+					sexpr "%s = fmod(%s,%s)" (reg r) (reg a) (reg b)
 			| _ ->
 				Globals.die "" __LOC__)
 		| OUMod (r,a,b) ->
 			sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) %% ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
 		| OShl (r,a,b) ->
-			let size = (match rtype r with HUI8 -> 8 | HUI16 -> 16 | HI32 -> 32 | HI64 -> 64 |_ -> Globals.die "" __LOC__ ) in
+			let t = rtype r in
+			let size = (match get_group t with GInt -> Int.shift_left 8 (type_size_bits t) | _ -> Globals.die "" __LOC__ ) in
 			sexpr "%s = %s << (%s %% %d)" (reg r) (reg a) (reg b) size
 		| OSShr (r,a,b) ->
-			let size = (match rtype r with HUI8 -> 8 | HUI16 -> 16 | HI32 -> 32 | HI64 -> 64 |_ -> Globals.die "" __LOC__ ) in
+			let t = rtype r in
+			let size = (match get_group t with GInt -> Int.shift_left 8 (type_size_bits t) | _ -> Globals.die "" __LOC__ ) in
 			sexpr "%s = %s >> (%s %% %d)" (reg r) (reg a) (reg b) size
 		| OUShr (r,a,b) ->
-			let size = (match rtype r with HUI8 -> 8 | HUI16 -> 16 | HI32 -> 32 | HI64 -> 64 |_ -> Globals.die "" __LOC__ ) in
-			let prefix = (match rtype r with HI64 -> "uint64" | _ -> "unsigned") in
+			let t = rtype r in
+			let size = (match get_group t with GInt -> Int.shift_left 8 (type_size_bits t) | _ -> Globals.die "" __LOC__ ) in
+			let prefix = (match type_size_bits t with 3 -> "uint64" | _ -> "unsigned") in
 			sexpr "%s = ((%s)%s) >> (%s %% %d)" (reg r) prefix (reg a) (reg b) size
 		| OAnd (r,a,b) ->
 			sexpr "%s = %s & %s" (reg r) (reg a) (reg b)
@@ -981,17 +988,7 @@ let generate_function gctx ctx f =
 				block();
 			end;
 			sexpr "%s = hl_alloc_dynamic(%s)" (reg r) (type_value ctx (rtype v));
-			(match rtype v with
-			| HUI8 | HUI16 | HI32 | HBool ->
-				sexpr "%s->v.i = %s" (reg r) (reg v)
-			| HI64 ->
-				sexpr "%s->v.i64 = %s" (reg r) (reg v)
-			| HF32 ->
-				sexpr "%s->v.f = %s" (reg r) (reg v)
-			| HF64 ->
-				sexpr "%s->v.d = %s" (reg r) (reg v)
-			| _ ->
-				sexpr "%s->v.ptr = %s" (reg r) (reg v));
+			sexpr "%s->%s = %s" (reg r) (dyn_value_field (rtype v)) (reg v);
 			if is_ptr (rtype v) then begin
 				unblock();
 				line "}";
@@ -1052,7 +1049,7 @@ let generate_function gctx ctx f =
 			let tsrc = rtype v in
 			let t = rtype r in
 			if tsrc = HNull t then
-				sexpr "%s = %s ? %s%s : 0" (reg r) (reg v) (reg v) (dyn_value_field t)
+				sexpr "%s = %s ? %s->%s : 0" (reg r) (reg v) (reg v) (dyn_value_field t)
 			else
 				sexpr "%s = (%s)hl_dyn_cast%s(&%s,%s%s)" (reg r) (ctype t) (dyn_prefix t) (reg v) (type_value ctx (rtype v)) (type_value_opt t)
 		| OUnsafeCast (r,v) ->

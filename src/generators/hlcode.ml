@@ -85,6 +85,13 @@ and virtual_proto = {
 	mutable vindex : (string, int) PMap.t;
 }
 
+type tgroup =
+	| GInt
+	| GFloat
+	| GBool
+	| GNull of tgroup
+	| GOther
+
 type unused = int
 type field
 
@@ -268,20 +275,56 @@ let is_struct = function
 	| HStruct _ | HPacked _ -> true
 	| _ -> false
 
-let is_int = function
-	| HUI8 | HUI16 | HI32 | HI64 | HGUID -> true
+let get_group t =
+	match t with
+	| HUI8 | HUI16 | HI32 | HI64 | HGUID -> GInt
+	| HF32 | HF64 -> GFloat
+	| HBool -> GBool
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HGUID) -> GNull GInt
+	| HNull (HF32 | HF64) -> GNull GFloat
+	| HNull HBool -> GNull GBool
+	| HNull _ -> Globals.die "" __LOC__
+	| _ -> GOther
+
+let get_inner_type t =
+	match t with
+	| HNull t -> t
+	| _ -> t
+
+let type_size_bits = function
+	| HUI8 | HBool -> 0
+	| HUI16 -> 1
+	| HI32 | HF32 -> 2
+	| HI64 | HGUID | HF64 -> 3
+	| _ -> Globals.die "" __LOC__
+
+let common_type_number t1 t2 =
+	if t1 == t2 then t1 else
+	match get_group t1, get_group t2 with
+	| GInt, GInt -> if type_size_bits t1 > type_size_bits t2 then t1 else t2
+	| GInt, GFloat -> t2 (* possible loss of precision *)
+	| GFloat, GInt -> t1
+	| GFloat, GFloat -> if type_size_bits t1 > type_size_bits t2 then t1 else t2
+	| _ -> Globals.die "" __LOC__
+
+let is_int t =
+	match get_group t with
+	| GInt -> true
 	| _ -> false
 
-let is_float = function
-	| HF32 | HF64 -> true
+let is_float t =
+	match get_group t with
+	| GFloat -> true
 	| _ -> false
 
-let is_number = function
-	| HUI8 | HUI16 | HI32 | HI64 | HGUID | HF32 | HF64 -> true
+let is_number t =
+	match get_group t with
+	| GInt | GFloat -> true
 	| _ -> false
 
-let is_nullt = function
-	| HNull t -> not (is_nullable t)
+let is_nullt t =
+	match get_group t with
+	| GNull _ -> true
 	| _ -> false
 
 (*
@@ -318,13 +361,12 @@ let rec tsame t1 t2 =
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
 		true (* equal types are always compatible *)
-	else match t1,t2 with
-	| (HI32 | HF32),(HI32 | HF32)
-	| (HI64 | HF64),(HI64 | HF64) ->
-		true (* same size numbers are also compatible *)
+	else match get_group t1, get_group t2 with
+	| (GInt | GFloat), (GInt | GFloat) ->
+		type_size_bits t1 = type_size_bits t2 (* same size numbers are also compatible *)
 	| _ ->
 		(* no other number combinations are compatible, but everything else is *)
-		not (is_number t1) && not (is_number t2)
+		true
 
 (*
 	can we use a value of t1 as t2
@@ -434,7 +476,7 @@ let gather_types (code:code) =
 		| _ ->
 			()
 	in
-	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HGUID; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->

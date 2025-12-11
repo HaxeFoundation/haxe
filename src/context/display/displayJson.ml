@@ -332,10 +332,16 @@ let handler =
 			]);
 		);
 		"server/readClassPaths", (fun hctx ->
+			let wait = hctx.jsonrpc#has_params && hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "wait") false in
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
 				cc#set_initialized true;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
+				if wait then
+					hctx.display#get_cs#run_tasks true (fun task -> match task#get_id with
+						| "explore" :: _ -> true
+						| _ -> false
+					);
 				let files = hctx.display#get_cs#get_files in
 				hctx.send_result (jobject [
 					"files", jint (List.length files)
