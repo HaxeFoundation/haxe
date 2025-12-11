@@ -998,7 +998,11 @@ let generate_function gctx ctx f =
 		| OToUFloat (r,v) ->
 			sexpr "%s = (%s)(unsigned)%s" (reg r) (ctype (rtype r)) (reg v)
 		| OToInt (r,v) ->
-			sexpr "%s = (int)%s" (reg r) (reg v)
+			let rt = rtype r in
+			if type_size_bits rt <= 2 then
+				sexpr "%s = (int)%s" (reg r) (reg v)
+			else
+				sexpr "%s = (int64)%s" (reg r) (reg v)
 		| ONew r ->
 			(match rtype r with
 			| HObj o | HStruct o -> sexpr "%s = (%s)hl_alloc_obj(%s)" (reg r) (tname o.pname) (type_value ctx (rtype r))
