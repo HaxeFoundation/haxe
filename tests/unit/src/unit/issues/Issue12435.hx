@@ -4,10 +4,10 @@ class Issue12435 extends Test {
 	function testCast() {
 		var i:Int = cast null;
 		#if static
-		t(i == 0);
 		#if !cppia // TODO
-		t(i == cast null);
+		t(i == 0);
 		#end
+		t(i == cast null);
 		#else
 		f(i == 0);
 		t(i == null);
