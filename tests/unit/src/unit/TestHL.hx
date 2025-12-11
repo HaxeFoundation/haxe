@@ -177,6 +177,9 @@ class TestHL extends Test {
 		var v : hl.GUID = 0xF001;
 		eq("####-####-D#&", Std.string(v));
 
+		var v : hl.GUID = -0xF001;
+		eq("zzzz-zzzz-kzz", Std.string(v));
+
 		var v : hl.GUID = 0;
 		num.loadInt64(v);
 		eq("0", Std.string(v));
