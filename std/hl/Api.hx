@@ -54,8 +54,8 @@ extern class Api {
 	#end
 	#if (hl_ver >= version("1.15.0"))
 	@:hlNative("?std", "register_guid_name") private static function _registerGUIDName( guid : hl.I64, bytes : hl.Bytes ) : Void;
-	static inline function registerGUIDName( guid : GUID, name : String ) {
-		return _registerGUIDName(guid,@:privateAccess name.bytes);
+	static inline function registerGUIDName( guid : GUID, name : Null<String> ) {
+		_registerGUIDName(guid, @:privateAccess name?.bytes);
 	}
 	#end
 	#if (hl_ver >= version("1.16.0"))

@@ -403,8 +403,6 @@ let rec safe_cast t1 t2 =
 		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
 	| HArray t1,HArray t2 ->
 		compatible_element_types t1 t2
-	| (HI64|HGUID), (HI64|HGUID) ->
-		true
 	| _ ->
 		tsame t1 t2
 

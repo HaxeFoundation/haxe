@@ -22,4 +22,11 @@
 
 package hl;
 
-@:coreType @:notNull @:runtimeValue abstract GUID to I64 from I64 {}
+@:coreType @:notNull @:runtimeValue abstract GUID to I64 from I64 {
+	// Same as `Std.string`, but copied here to prevent Std.string(const TInt) optimization on GUID
+	public function toString() {
+		var len = 0;
+		var bytes = hl.Bytes.fromValue(this, new hl.Ref(len));
+		return @:privateAccess String.__alloc__(bytes, len);
+	}
+}

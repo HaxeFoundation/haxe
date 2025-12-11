@@ -149,6 +149,43 @@ class TestHL extends Test {
 		t(v == num.ui16);
 	}
 
+	public function testGuid() {
+		var num = new Numbers(); // prevent @:analyzer(ignore)
+		var v : hl.GUID = haxe.Int64.make(0xF, 1);
+		num.loadInt64(v);
+		t(num.guid == num.i64);
+		t(num.guid == v);
+		t(v == num.guid);
+		t(num.i64 == v);
+		t(v == num.i64);
+		eq("####-#w##-##&", Std.string(v));
+		eq("####-#w##-##&", Std.string(num.guid));
+		hl.Api.registerGUIDName(v, "fooF");
+		eq("fooF", Std.string(v));
+		eq("fooF", Std.string(num.guid));
+		hl.Api.registerGUIDName(v, null);
+		eq("####-#w##-##&", Std.string(v));
+		eq("####-#w##-##&", Std.string(num.guid));
+
+		var v : hl.GUID = haxe.Int64.make(0xF, 1);
+		eq("####-#w##-##&", Std.string(v));
+		hl.Api.registerGUIDName(v, "fooF");
+		eq("fooF", Std.string(v));
+		hl.Api.registerGUIDName(v, null);
+		eq("####-#w##-##&", Std.string(v));
+
+		var v : hl.GUID = 0xF001;
+		eq("####-####-D#&", Std.string(v));
+
+		var v : hl.GUID = 0;
+		num.loadInt64(v);
+		eq("0", Std.string(v));
+		eq("0", Std.string(num.guid));
+
+		var v : hl.GUID = 0;
+		eq("0", Std.string(v));
+	}
+
 	public function testNumbersNull() {
 		var num : NumbersNull = {};
 		t(cast(num.nui8, hl.UI16) == 0);
