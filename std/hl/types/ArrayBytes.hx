@@ -148,7 +148,7 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		var tid = Type.get((cast null : T));
 		if (tid == Type.get(0))
 			(bytes : Bytes).sortI32(0, length, cast f);
-		else if( tid == Type.get((0:hl.I64)) ) {
+		else if( tid == Type.get((0:hl.I64)) || tid == Type.get((0:hl.GUID)) ) {
 			#if (hl_ver >= version("1.16.0") && !hl_legacy32)
 			(bytes : Bytes).sortI64(0, length, cast f);
 			#else

@@ -252,6 +252,8 @@ class TestHL extends Test {
 		hl.Api.registerGUIDName(guid, null);
 		eq("####-#9zz-zzz", Std.string(arr[1]));
 		eq("[####-#2##-##&,####-#9zz-zzz,####-####-##8]", Std.string(arr));
+		arr.sort((a, b) -> a > b ? 1 : -1);
+		eq("[####-####-##8,####-#2##-##&,####-#9zz-zzz]", Std.string(arr));
 
 		var arr : Array<hl.I64> = [];
 		var i64 : hl.I64 = haxe.Int64.make(1, 1);

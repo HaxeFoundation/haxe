@@ -29,4 +29,12 @@ package hl;
 		var bytes = hl.Bytes.fromValue(this, new hl.Ref(len));
 		return @:privateAccess String.__alloc__(bytes, len);
 	}
+
+	#if (hl_ver >= version("1.12.0") && !hl_legacy32)
+	@:op(a==b) function eq(v:GUID) : Bool;
+	@:op(a>=b) function gte(v:GUID) : Bool;
+	@:op(a<=b) function lte(v:GUID) : Bool;
+	@:op(a>b) function gt(v:GUID) : Bool;
+	@:op(a<b) function lt(v:GUID) : Bool;
+	#end
 }
