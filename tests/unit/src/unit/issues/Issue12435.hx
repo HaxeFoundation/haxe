@@ -17,7 +17,7 @@ class Issue12435 extends Test {
 		var i:Int = Null;
 		#if static
 		t(i == 0);
-		t(i == Null);
+		f(i == Null);
 		#else
 		f(i == 0);
 		t(i == null);

@@ -429,8 +429,12 @@ module ConstPropagationImpl = struct
 			| TLocal v ->
 				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
-				else
-					get_cell ctx v.v_id
+				else begin match get_cell ctx v.v_id with
+					| Null _ when not (is_nullable v.v_type) ->
+						Bottom
+					| ct ->
+						ct
+				end
 			| TBinop(OpAssign,_,e2) ->
 				eval bb e2
 			| TBinop(op,e1,e2) ->
