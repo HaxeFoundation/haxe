@@ -1,4 +1,4 @@
-[WARNING] /git/haxe/tests/misc/projects/if-display/import.hx:1: characters 5-12
+[WARNING] $$normPath(::cwd::/import.hx):1: characters 5-12
 
   1 | #if display
     |     ^^^^^^^
