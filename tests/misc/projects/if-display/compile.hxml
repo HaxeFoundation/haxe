@@ -1,1 +1,2 @@
 -m Main
+-D message.reporting=pretty
