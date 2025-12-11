@@ -8,8 +8,13 @@ class Issue12415 extends Test {
 		eq(true, value == null);
 		eq(false, value != null);
 		eq(true, value.isNull());
+
 		#if static
+		eq(true, (cast value) == 0);
+
+		#if !flash
 		eq(true, haxe.Int64.isZero((null:Issue12415Abstract)));
+		#end
 		#end
 	}
 }
