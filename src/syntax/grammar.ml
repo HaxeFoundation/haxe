@@ -1794,11 +1794,11 @@ and secure_expr ctx = function%parser
 		)
 
 let rec validate_macro_cond ctx s e = match fst e with
-	| EConst (Ident _)
 	| EConst (String _)
 	| EConst (Int (_, _))
 	| EConst (Float (_, _))
 		-> e
+	| EConst (Ident t) -> parse_macro_ident ctx t (snd e) s
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond ctx s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond ctx s e1), (validate_macro_cond ctx s e2)), snd e)
 	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond ctx s e1), snd e)
@@ -1806,17 +1806,19 @@ let rec validate_macro_cond ctx s e = match fst e with
 	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond ctx s) args),snd e)
 	| _ -> syntax_error ctx (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
-let parse_macro_ident ctx t p s =
-	if t = "display" then Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files;
-	let e = (EConst (Ident t),p) in
-	None, e
+and parse_macro_ident ctx t p s =
+	if t = "display" then begin
+		syntax_warning_with_pos ctx Warning.WIfDisplay p;
+		Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files
+	end;
+	(EConst (Ident t),p)
 
 let rec parse_macro_cond ctx s =
 	parsing_macro_cond := true;
 	try
 		let cond = (match%parser s with
 			| [ (Const (Ident t),p) ] ->
-				parse_macro_ident ctx t p s
+				None, parse_macro_ident ctx t p s
 			| [ (Const (String(s,qs)),p) ] ->
 				None, (EConst (String(s,qs)),p)
 			| [ (Const (Int (i, s)),p) ] ->
@@ -1824,7 +1826,7 @@ let rec parse_macro_cond ctx s =
 			| [ (Const (Float (f, s)),p) ] ->
 				None, (EConst (Float (f, s)),p)
 			| [ (Kwd k,p) ] ->
-				parse_macro_ident ctx (s_keyword k) p s
+				None, parse_macro_ident ctx (s_keyword k) p s
 			| [ (Unop op,p); [%let tk, e = parse_macro_cond ctx] ] ->
 				tk, make_unop op e p
 			| [ (POpen,p1); [%let (e,p) = expr ctx]; (PClose,p2) ] ->

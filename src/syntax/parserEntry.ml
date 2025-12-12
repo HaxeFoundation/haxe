@@ -349,6 +349,7 @@ let parse config entry lctx code file =
 		let was_display_file = ctx.config.in_display_file in
 		let pdi = {
 			pd_errors = List.rev ctx.syntax_errors;
+			pd_warnings = List.rev ctx.syntax_warnings;
 			pd_dead_blocks = dbc#get_dead_blocks;
 			pd_conditions = conds#get_conditions;
 			pd_was_display_file = was_display_file;
