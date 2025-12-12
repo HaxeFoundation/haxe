@@ -479,12 +479,19 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 						let monos,t1,t2,tret = map_arguments() in
 						let make e1 e2 = make op_cf cf e1 e2 tret in
 						let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
+						let check_nullable e t =
+							if is_nullable e.etype <> is_nullable t then raise (Unify_error [])
+							in
 						let e1,e2 = if left || not left && swapped then begin
-							Type.type_eq EqStrict (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
-							e1,AbstractCast.cast_or_unify_raise ctx t2 e2 p
+							Type.type_eq EqDoNotFollowNull (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
+							let e2 = AbstractCast.cast_or_unify_raise ctx t2 e2 p in
+							check_nullable e2 t2;
+							e1,e2
 						end else begin
-							Type.type_eq EqStrict e2.etype t2;
-							AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
+							Type.type_eq EqDoNotFollowNull e2.etype t2;
+							let e1 = AbstractCast.cast_or_unify_raise ctx t1 e1 p in
+							check_nullable e1 t1;
+							e1,e2
 						end in
 						let check_null e t = if is_eq_op then match e.eexpr with
 							| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
