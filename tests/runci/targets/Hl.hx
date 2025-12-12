@@ -24,6 +24,7 @@ class Hl {
 		};
 
 	static final miscHlDir = getMiscSubDir('hl');
+	static final miscHlcDir = getMiscSubDir('hlc');
 
 	static public function getHlDependencies() {
 		if (!isCi() && FileSystem.exists(hlBinary)) {
@@ -172,16 +173,20 @@ class Hl {
 		changeDirectory(getMiscSubDir("eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");
 
-		changeDirectory(getMiscSubDir("hl/reservedKeywords"));
-		buildAndRun("compile.hxml", "bin/reservedKeywords");
-
 		changeDirectory(miscHlDir);
-		if (systemName == "Windows") {
-			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=vs2022"]);
-		} else if (systemName == "Mac") {
-			runCommand("arch", ["-x86_64", "haxe", "run.hxml", "-D", "hlgen.makefile=make"]);
+		runCommand("haxe", ["run.hxml"]);
+		final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
+		changeDirectory(getMiscSubDir("hlc/reservedKeywords"));
+		runCommand("haxe", ["compile.hxml", "-D", hlcTemplateDefine]);
+		buildAndRunHlc("bin", "reservedKeywords");
+
+		changeDirectory(miscHlcDir);
+		final buildArgs = ["run.hxml", "-D", hlcTemplateDefine];
+
+		if (systemName == "Mac") {
+			runCommand("arch", ["-x86_64", "haxe"].concat(buildArgs));
 		} else {
-			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=make"]);
+			runCommand("haxe", buildArgs);
 		}
 	}
 }
