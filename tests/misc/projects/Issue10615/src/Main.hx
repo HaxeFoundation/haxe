@@ -1,3 +1,8 @@
+import pixi.Pixi.PixiApp;
+import pixi.Pixi.PixiDef;
+import pixi.Pixi.Assets;
+import pixi.Pixi.Application;
+
 @:js.import(@star '../lib.js')
 extern class Lib {
 	@:native("default") static function default_():Bool;
@@ -48,6 +53,31 @@ class Main {
 
 		eq("default function", DefaultFun.default_());
 		eq("default static", DefaultClass.def());
+
+
+		var pixi_Application = untyped 0;
+		eq(pixi_Application, 0);
+
+		var app = new Application();
+		eq(app.test(), "test");
+		eq(Application.name(), "Application");
+
+		eq(PixiDef.name(), "default name");
+
+		var app = new PixiApp();
+		eq(app.test(), "test");
+		eq(PixiApp.name(), "Application");
+		new Main();
+	}
+
+	var pixi_Assets:Int = 0;
+
+	public function new() {
+		pixi_Assets++;
+		eq(pixi_Assets, 1);
+		var pixi_Assets = untyped 10;
+		eq(pixi_Assets, 10);
+		eq(Assets.load("url"), "url");
 	}
 
 	static function eq(a:Any, b:Any):Void {

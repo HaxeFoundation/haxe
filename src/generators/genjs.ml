@@ -1672,23 +1672,27 @@ let generate js_gen com =
 		List.iter (fun mt -> match mt with
 			| TClassDecl c when (has_class_flag c CExtern) && Meta.has Meta.JsImport c.cl_meta && is_directly_used ctx.com c.cl_meta ->
 				let _, args, mp = Meta.get Meta.JsImport c.cl_meta in
-				let id = s_path ctx (get_generated_class_path c) in
+				let id = snd c.cl_path in
+				let flat_path = Path.flat_path (get_generated_class_path c) in
+				let alias = try
+					fst (Native.get_native_name c.cl_meta)
+				with Not_found ->
+					c.cl_meta <- (Meta.Native,[EConst (String(flat_path,SDoubleQuotes)),null_pos],null_pos) :: c.cl_meta;
+					Native.apply_native_paths mt;
+					flat_path in
 				(match args with
 				(* @:js.import(@star "module") - namespace import *)
 				| [EMeta ((Meta.Custom "star",[],_),(EConst(String(module_name,_)),_)),_] ->
-					import_statements := (Printf.sprintf "import * as %s from \"%s\";" id module_name) :: !import_statements
+					import_statements := (Printf.sprintf "import * as %s from \"%s\";" alias module_name) :: !import_statements
 				(* @:js.import(@default "module") - default import *)
 				| [EMeta ((Meta.Custom "default",[],_),(EConst(String(module_name,_)),_)),_] ->
-					import_statements := (Printf.sprintf "import %s from \"%s\";" id module_name) :: !import_statements
+					import_statements := (Printf.sprintf "import %s from \"%s\";" alias module_name) :: !import_statements
 				(* @:js.import("module") - named import using class name *)
 				| [(EConst(String(module_name,_)),_)] ->
-					import_statements := (Printf.sprintf "import { %s } from \"%s\";" id module_name) :: !import_statements
+					import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" id alias module_name) :: !import_statements
 				(* @:js.import("module", "exportName") - named import with alias *)
 				| [(EConst(String(module_name,_)),_); (EConst(String(export_name,_)),_)] ->
-					if export_name = id then
-						import_statements := (Printf.sprintf "import { %s } from \"%s\";" id module_name) :: !import_statements
-					else
-						import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" export_name id module_name) :: !import_statements
+					import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" export_name alias module_name) :: !import_statements
 				| exprs ->
 					abort "Unsupported @:js.import format. Use: @:js.import('module'), @:js.import('module', 'name'), @:js.import(@default 'module'), or @:js.import(@star 'module')" mp
 				)

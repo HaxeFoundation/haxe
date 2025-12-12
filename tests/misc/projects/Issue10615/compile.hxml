@@ -1,5 +1,6 @@
 --main Main
 -dce full
 -D analyzer-optimize
+--class-path src
 --js bin/main.js
 --cmd node bin/main
