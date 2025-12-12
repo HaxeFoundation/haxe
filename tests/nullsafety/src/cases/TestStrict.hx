@@ -995,7 +995,7 @@ class TestStrict {
 	static function issue8122_abstractOnTopOfNullable() {
 		var x:NullFloat = null;
 		var y:Float = x.val();
-		x += x;
+		x += y;
 	}
 
 	static function issue9649_nullCheckedAbstractShouldUnify_shouldPass() {
