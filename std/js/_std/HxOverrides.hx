@@ -67,19 +67,13 @@ class HxOverrides {
 		if (len == null) {
 			len = s.length;
 		} else if (len < 0) {
-			if (pos == 0)
-				len = s.length + len;
-			else
-				return "";
+			if (pos < 0) {
+				pos = s.length + pos;
+				if (pos < 0)
+					pos = 0;
+			}
+			len = s.length + len - pos;
 		}
-
-		#if (js_es < 5)
-		if (pos < 0) {
-			pos = s.length + pos;
-			if (pos < 0)
-				pos = 0;
-		}
-		#end
 
 		return (cast s).substr(pos, len);
 	}

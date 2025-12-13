@@ -129,13 +129,8 @@ class Socket extends sys.net.Socket {
 		__s = sys.net.Socket.socket_new(false);
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
-		if (DEFAULT_VERIFY_CERT && DEFAULT_CA == null) {
-			try {
-				DEFAULT_CA = Certificate.loadDefaults();
-			} catch (e:Dynamic) {}
-		}
 		verifyCert = DEFAULT_VERIFY_CERT;
-		caCert = DEFAULT_CA;
+		caCert = getDefaultCA();
 	}
 
 	public override function connect(host:sys.net.Host, port:Int):Void {
@@ -258,4 +253,16 @@ class Socket extends sys.net.Socket {
 
 		return conf;
 	}
+
+	static function getDefaultCA() : Certificate {
+		if( !DEFAULT_VERIFY_CERT )
+			return null;
+		if (DEFAULT_CA == null) {
+			try {
+				DEFAULT_CA = Certificate.loadDefaults();
+			} catch (e:Dynamic) {}
+		}
+		return DEFAULT_CA;
+	}
+
 }

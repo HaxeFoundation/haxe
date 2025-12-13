@@ -165,4 +165,25 @@ class TestAsyncSocket extends utest.Test {
 			haxe.EventLoop.main.loopOnce();
 		Assert.pass();
 	}
+	
+	public function testSSL() {
+		var s = new sys.net.AsyncSocket();
+		var str = null, done = false;
+		s.onConnect = function() {
+			s.writeString("GET / HTTP/1.1\nHost: google.com\n\n");
+		};
+		s.onData = function(bytes,pos,len) {
+			str = bytes.getString(pos, len);
+			s.close();
+			done = true;
+		};
+		s.onDisconnect = function() {
+			done = true;
+		};
+		s.connect(new sys.net.Host("google.com"),443,true);
+		while( !done )
+			haxe.EventLoop.current.loopOnce();
+		Assert.isTrue(str != null && str.indexOf("Content-Type") > 0);
+	}
+	
 }

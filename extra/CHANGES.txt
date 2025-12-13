@@ -13,6 +13,7 @@
 
 	Breaking changes:
 
+	all : don't prioritize enum constructors over classes (#9197)
 	all : rework module resolution (#11168)
 	all : don't infer string on concat (#11318)
 	all : delay typer creation to after init macros (#11323)

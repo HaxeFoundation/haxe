@@ -6,21 +6,28 @@ class Event {
 
 	var prev : Event;
 	var next : Event;
-	var events : EventLoop;
 	var callb : Void -> Void;
+
+	/**
+		The EventLoop our event is part of.
+	**/
+	public var loop(default,null) : EventLoop;
+
 	/**
 		The event priority. Events will be executed in order of priority (highest first).
 	**/
 	public var priority : Int;
+
 	/**
 		Tells if an event is blocking. It means the event loop won't return from `loop()` until this event has been stopped.
 	**/
 	public var isBlocking : Bool = true;
+
 	var toRemove : Bool;
 	var nextRun : Float = Math.NEGATIVE_INFINITY;
 
-	function new(events, p) {
-		this.events = events;
+	function new(loop, p) {
+		this.loop = loop;
 		this.priority = p;
 	}
 
@@ -36,7 +43,7 @@ class Event {
 		Stop this event from repeating.
 	**/
 	public function stop() {
-		@:privateAccess events.stop(this);
+		@:privateAccess loop.stop(this);
 	}
 
 	/**
@@ -44,14 +51,14 @@ class Event {
 	**/
 	public function start( callb : Void -> Void ) {
 		this.callb = callb;
-		@:privateAccess events.start(this);
+		@:privateAccess loop.start(this);
 	}
 
 	/**
 		Tells if the event has been stopped.
 	**/
 	public function isStopped() {
-		return toRemove || (prev == null && @:privateAccess events.events != this);
+		return toRemove || (prev == null && @:privateAccess loop.events != this);
 	}
 
 }
@@ -77,9 +84,14 @@ class EventLoop {
 	var events : Event;
 	var inLoop : Bool;
 	var hasPendingRemove : Bool;
+	var promiseCount : Int = 0;
 	#if target.threaded
 	var mutex : sys.thread.Mutex;
 	var lockTime : sys.thread.Lock;
+	/**
+		The reference thread for this loop. If set, the loop can only be run within this thread.
+	**/
+	public var thread : sys.thread.Thread;
 	#end
 	#if hl
 	var uvLoop : hl.uv.Loop;
@@ -125,7 +137,8 @@ class EventLoop {
 		If this is called on the main thread, also wait for all blocking threads to finish.
 	**/
 	public function loop() {
-		while( hasEvents(true) || (this == main && hasRunningThreads()) ) {
+		checkThread();
+		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
 			#if hl
 			// disable wait if we have our uvloop alive
@@ -136,8 +149,32 @@ class EventLoop {
 				wait(time);
 				continue;
 			}
-			loopOnce();
+			loopOnce(false);
 		}
+	}
+
+	/**
+		Promise a possible future event addition. This will prevent the `loop()` from terminating until the matching number of `deliver()` calls have been made.
+	**/
+	public function promise() {
+		lock();
+		promiseCount++;
+		unlock();
+	}
+
+	/**
+		Deliver after a `promise()`. This will throw an exception if more `deliver()` calls has been made than corresponding `promise()` calls.
+	**/
+	public function deliver() {
+		lock();
+		if( promiseCount == 0 ) {
+			unlock();
+			throw "Too many calls to deliver()";
+		}
+		promiseCount--;
+		unlock();
+		if( promiseCount == 0 )
+			wakeup();
 	}
 
 	inline function wakeup() {
@@ -166,10 +203,20 @@ class EventLoop {
 		#end
 	}
 
+	function checkThread() {
+		#if target.threaded
+		if( thread != null && thread != sys.thread.Thread.current() ) throw "You can't run this loop from a different thread";
+		#end
+	}
+
 	/**
 		Perform an update of pending events.
+		By default, an event loop from a thread can only be triggered from this thread.
+		You can set `threadCheck` to false in the rare cases you might want otherwise.
 	**/
-	public function loopOnce() {
+	public function loopOnce( threadCheck = true ) {
+		if( threadCheck )
+			checkThread();
 		#if hl
 		if( inUV ) throw "You cannot callback EventLoop.loop() while in uv event callback";
 		#end

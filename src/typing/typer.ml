@@ -1356,6 +1356,7 @@ and type_array_comprehension ctx e with_type p =
 			| [] -> e,p
 			end
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
+		| EMeta(m,e2) -> (EMeta(m,map_compr e2), p)
 		| EBinop(OpArrow,a,b) ->
 			et := (ENew(make_ptp {tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None} null_pos,[]),comprehension_pos);
 			(ECall ((efield (e_ref,"set"),p),[a;b]),p)
@@ -1536,6 +1537,8 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
+			| EFor (it,e2) ->
+				ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
 			| _ ->
 				display_error ctx.com "Call or function expected after inline keyword" p;
 				e();
@@ -1755,16 +1758,11 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
 		let tmin,cast = get_if_then_else_operands ctx e1 e2 with_type in
 		let e2 = cast e2 in
-		let rec follow_null t =
-			match t with
-			| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
-			| _ -> t
-		in
 		let iftype = if DeadEnd.has_dead_end e2 then
-			follow_null e1.etype
+			follow_without_type e1.etype
 		else match e2.etype with
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
-			| _ -> follow_null tmin
+			| _ -> follow_without_type tmin
 		in
 		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
@@ -1805,6 +1803,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EObjectDecl fl ->
 		type_object_decl ctx fl with_type p
 	| EArrayDecl [(EFor _,_) | (EWhile _,_) as e] ->
+		type_array_comprehension ctx e with_type p
+	| EArrayDecl [EMeta((Meta.Inline,[],_),(EFor _,_)),_ as e] -> (* awkward... *)
 		type_array_comprehension ctx e with_type p
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		type_map_declaration ctx e1 el with_type p

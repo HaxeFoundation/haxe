@@ -344,6 +344,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
+		"name": "FromNull",
+		"metadata": ":fromNull",
+		"doc": "Allows implicit use of `null` as underlying value; static targets will convert it to the default value. For abstracts over basic types only.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "FunctionalInterface",
 		"metadata": ":functionalInterface",
 		"doc": "Mark an interface as a functional interface",

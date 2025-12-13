@@ -285,6 +285,7 @@ extern class Type {
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;

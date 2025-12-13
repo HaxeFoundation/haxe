@@ -1005,18 +1005,18 @@ module Fusion = struct
 end
 
 module Cleanup = struct
-	let apply com e =
+	let apply scom e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr,(Texpr.skip e3).eexpr with
 			| _,TReturn(Some b),TReturn(Some {eexpr = TConst (TBool false)}) ->
-				let binop = optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,b)} OpBoolAnd e1 b in
+				let binop = optimize_binop scom {e with eexpr = TBinop(OpBoolAnd,e1,b)} OpBoolAnd e1 b in
 				{e with eexpr = TReturn(Some binop)}
 			| TUnop(Not,Prefix,e1),TReturn(Some b),TReturn(Some {eexpr = TConst (TBool true)}) ->
-				let binop = optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,b)} OpBoolOr e1 b in
+				let binop = optimize_binop scom {e with eexpr = TBinop(OpBoolOr,e1,b)} OpBoolOr e1 b in
 				{e with eexpr = TReturn(Some binop)}
 			| TUnop(Not,Prefix,e1),_,TConst (TBool true) ->
-				optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
+				optimize_binop scom {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
 			| _,_,TConst (TBool false) ->
-				optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
+				optimize_binop scom {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,_,TBlock [] ->
 				{e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (Texpr.skip e2).eexpr with
@@ -1041,7 +1041,7 @@ module Cleanup = struct
 				let el = List.map (fun e ->
 					let e = loop e in
 					match e.eexpr with
-					| TIf _ -> {e with etype = com.basic.tvoid}
+					| TIf _ -> {e with etype = scom.basic.tvoid}
 					| _ -> e
 				) el in
 				{e with eexpr = TBlock el}
@@ -1076,7 +1076,7 @@ module Cleanup = struct
 						in
 						let rec loop2 el = match el with
 							| [{eexpr = TBreak}] when is_true_expr e1 && not has_continue ->
-								do_while := Some (Texpr.Builder.make_bool com.basic true e1.epos);
+								do_while := Some (Texpr.Builder.make_bool scom.basic true e1.epos);
 								[]
 							| [{eexpr = TIf(econd,{eexpr = TBlock[{eexpr = TBreak}]},None)}] when is_true_expr e1 && not (references_local econd) && not has_continue ->
 								do_while := Some econd;

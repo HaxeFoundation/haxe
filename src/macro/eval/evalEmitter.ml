@@ -531,7 +531,8 @@ let emit_vector_write exec1 p1 exec2 p2 exec3 p env =
 (* Read + write *)
 
 let do_incr v p = match v with
-	| VInt32 i32 -> vint32 (Int32.add i32 Int32.one)
+	| VInt32 i32 -> vint32 (Int32.succ i32)
+	| VInt64 i64 -> vint64 (Int64.succ i64)
 	| VFloat f -> vfloat (f +. 1.)
 	| v -> unexpected_value_p v "number" p
 
@@ -731,6 +732,7 @@ let emit_bool_or exec1 exec2 env =
 let emit_neg exec p env = match exec env with
 	| VFloat f -> vfloat (-.f)
 	| VInt32 i -> vint32 (Int32.neg i)
+	| VInt64 i -> vint64 (Int64.neg i)
 	| _ -> throw_string "Invalid operation" p
 
 (* Function *)

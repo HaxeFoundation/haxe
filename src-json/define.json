@@ -82,10 +82,22 @@
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
 	},
 	{
-		"name": "EnableParallelism",
-		"define": "enable-parallelism",
+		"name": "DisableParallelism",
+		"define": "disable-parallelism",
 		"signatureNeutral": true,
-		"doc": "Enable experimental uses of parallelism in the compiler."
+		"doc": "Disable experimental uses of parallelism in the compiler."
+	},
+	{
+		"name": "EnableParallelAbstractCast",
+		"define": "enable-parallel-abstract-cast",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the abstract cast filter (can trigger memory leaks)."
+	},
+	{
+		"name": "EnableParallelAnalyzer",
+		"define": "enable-parallel-analyzer",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the analyzer (can trigger memory leaks)."
 	},
 	{
 		"name": "DisableUnicodeStrings",

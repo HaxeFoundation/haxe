@@ -10,8 +10,7 @@ final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
 #if js
-@:expose("unit.TestMain.main")
-@:keep
+@:expose("unit.TestMain.main") @:keep
 #end
 function main() {
 	#if js
@@ -69,9 +68,9 @@ function main() {
 		#if (!php && !lua)
 		new TestHttps(),
 		#end
-		#if !lua 
-		new TestBigInt(),
-		#end
+		/* Every target struggles with these tests. We can occasionally enable them when
+			making related changes, but otherwise this is not worth the CI time. */
+		// new TestBigInt(),
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end

@@ -37,7 +37,14 @@ class Hl {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
+				Linux.requireAptPackages([
+					"libpng-dev",
+					"libjpeg-turbo8-dev",
+					"libturbojpeg",
+					"zlib1g-dev",
+					"libvorbis-dev",
+					"libsqlite3-dev",
+					"libuv1-dev"]);
 			case "Mac":
 			case "Windows":
 				//pass
@@ -58,7 +65,7 @@ class Hl {
 			"-DWITH_SQLITE=ON",
 			"-DWITH_SSL=ON",
 			"-DWITH_UI=OFF",
-			"-DWITH_UV=OFF",
+			"-DWITH_UV=ON",
 			"-DWITH_VIDEO=OFF",
 			"-DCMAKE_INSTALL_PREFIX=" + hlInstallDir,
 			"-B" + hlBuild,
@@ -104,6 +111,7 @@ class Hl {
 			'$hlInstallLibDir/fmt.hdll',
 			'$hlInstallLibDir/ssl.hdll',
 			'$hlInstallLibDir/sqlite.hdll',
+			'$hlInstallLibDir/uv.hdll',
 			"-lm",
 			"-lhl"
 		].concat(extraCompilerFlags));

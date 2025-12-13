@@ -281,10 +281,10 @@ let handle_parser_result com p result =
 				end;
 				PdiHandler.handle_pdi com pdi;
 			end;
-			data
+			data,pdi.pd_warnings
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;
-			data
+			data,[]
 
 let parse_module_file com file p =
 	handle_parser_result com p ((!parse_hook) com file p)
@@ -292,11 +292,11 @@ let parse_module_file com file p =
 let parse_module' com m p =
 	let remap = ref (fst m) in
 	let rfile = resolve_module_file com m remap p in
-	let pack,decls = parse_module_file com rfile p in
-	rfile,remap,pack,decls
+	let (pack,decls),warnings = parse_module_file com rfile p in
+	rfile,remap,pack,decls,warnings
 
 let parse_module com m p =
-	let rfile,remap,pack,decls = parse_module' com m p in
+	let rfile,remap,pack,decls,warnings = parse_module' com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
@@ -304,7 +304,7 @@ let parse_module com m p =
 		else
 			display_error com (spack pack ^ " in " ^ rfile.file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
 	end;
-	rfile, if !remap <> fst m then
+	rfile, (if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
 		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =
@@ -340,4 +340,4 @@ let parse_module com m p =
 			| EImport _ | EUsing _ -> acc
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else
-		decls
+		decls), warnings

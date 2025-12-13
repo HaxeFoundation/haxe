@@ -54,12 +54,14 @@ extern class Api {
 	#end
 	#if (hl_ver >= version("1.15.0"))
 	@:hlNative("?std", "register_guid_name") private static function _registerGUIDName( guid : hl.I64, bytes : hl.Bytes ) : Void;
-	static inline function registerGUIDName( guid : GUID, name : String ) {
-		return _registerGUIDName(guid,@:privateAccess name.bytes);
+	static inline function registerGUIDName( guid : GUID, name : Null<String> ) {
+		_registerGUIDName(guid, @:privateAccess name?.bytes);
 	}
 	#end
 	#if (hl_ver >= version("1.16.0"))
+	#if !hl_legacy32
 	@:hlNative("?std", "sys_timestamp_ms") static function timestampMs():haxe.Int64;
+	#end
 	@:hlNative("?std", "sys_resolve_type") static function resolveTypeDyn( t : hl.Type, gt : hl.Type ) : Dynamic;
 	@:hlNative("?std", "sys_load_plugin") private static function _loadPlugin( file : hl.Bytes ) : Bool;
 	static inline function loadPlugin( file : String ) : Bool { return _loadPlugin(@:privateAccess file.bytes); }

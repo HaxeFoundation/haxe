@@ -31,12 +31,13 @@ class ServerMethods {
 	/**
 		This request is sent from the client to Haxe to explore the class paths. This effectively creates a cache for toplevel completion.
 	**/
-	static inline var ReadClassPaths = new HaxeRequestMethod<NoData, Response<{?files:Int}>>("server/readClassPaths");
+	static inline var ReadClassPaths = new HaxeRequestMethod<ReadClassPathsParams, Response<{?files:Int}>>("server/readClassPaths");
 
 	static inline var Configure = new HaxeRequestMethod<ConfigureParams, Response<NoData>>("server/configure");
 	static inline var Invalidate = new HaxeRequestMethod<FileParams, Response<NoData>>("server/invalidate");
 	static inline var Contexts = new HaxeRequestMethod<NoData, Response<Array<HaxeServerContext>>>("server/contexts");
 	static inline var Memory = new HaxeRequestMethod<NoData, Response<HaxeMemoryResult>>("server/memory");
+	static inline var GcCompact = new HaxeRequestMethod<NoData, Response<GcCompactResult>>("server/gcCompact");
 	static inline var ContextMemory = new HaxeRequestMethod<ContextParams, Response<HaxeContextMemoryResult>>("server/memory/context");
 	static inline var ModuleMemory = new HaxeRequestMethod<ModuleParams, Response<HaxeModuleMemoryResult>>("server/memory/module");
 	static inline var Modules = new HaxeRequestMethod<ContextParams, Response<Array<String>>>("server/modules");
@@ -44,6 +45,12 @@ class ServerMethods {
 	static inline var Type = new HaxeRequestMethod<TypeParams, Response<JsonModuleType<Any>>>("server/type");
 	static inline var Files = new HaxeRequestMethod<ContextParams, Response<Array<JsonServerFile>>>("server/files");
 	static inline var ModuleCreated = new HaxeRequestMethod<FileParams, Response<NoData>>("server/moduleCreated");
+}
+
+/* ReadClassPaths */
+typedef ReadClassPathsParams = {
+	/** Explore classpaths during the request instead of delaying it to a server task **/
+	var ?wait:Bool;
 }
 
 /* Configure */
@@ -130,6 +137,12 @@ typedef HaxeMemoryResult = {
 		final nativeLibCache:Int;
 		final ?additionalSizes:Array<AdditionalSize>;
 	}
+}
+
+typedef GcCompactResult = {
+	final time:Float;
+	final before:Int;
+	final after:Int;
 }
 
 typedef HaxeContextMemoryResult = {

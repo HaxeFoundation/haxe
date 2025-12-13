@@ -48,8 +48,9 @@ class AsyncSocket {
 
 	/**
 		Connect to the given server host/port. Will onConnect if connection successful and onDisconnect if connection fails or if a later disconnection occurs.
+		If `ssl` is set, the socket will use SSL authentification and encryption. Certificate errors can generate an onSSLError callback.
 	**/
-	public function connect(host:Host, port:Int) {
+	public function connect(host:Host, port:Int, ssl = false) {
 	}
 
 	/**
@@ -62,7 +63,7 @@ class AsyncSocket {
 	/**
 		Bind the socket to the given host/port so it can afterwards listen for connections there.
 	**/
-	public function bind(host:Host, port:Int) {
+	public function bind(host:Host, port:Int, ?ssl : { hostname : String, cert : sys.ssl.Certificate, key : sys.ssl.Key } ) {
 	}
 
 	/**
@@ -96,15 +97,21 @@ class AsyncSocket {
 	public dynamic function onData( bytes : haxe.io.Bytes, pos : Int, len : Int ) {
 	}
 
-
 	/**
 		Dispatched when some data is written. Error is true if the data could not be written succesfully. The default behavior is to silently close the socket when such error occurs.
 	**/
 	public dynamic function onWrite( error : Bool ) {
 		if( error ) {
-			onDisconnected();
+			onDisconnect();
 			close();
 		}
+	}
+	
+	/**
+		Dispatched when a SSL error occurs. This can be when connecting to a host which fails to authentificate or when starting a server with invalid cert/key.
+		Authentification can be adjusted with `sys.ssl.Socket.DEFAULT_VERIFY_CERT`
+	**/
+	public dynamic function onSSLError( msg : String ) {
 	}
 
 	/**
@@ -120,7 +127,7 @@ class AsyncSocket {
 		Start a server on given host/port and callback `onClient` everytime a client connects.
 		Will also call `onClient(null)` in the rare case where the server connection is lost.
 	**/
-	public static function startServer( host, port, onClient ) {
+	public static function startServer( host, port, ?ssl, onClient ) {
 		var s = new AsyncSocket();
 		s.onDisconnect = function() {
 			onClient(null);
@@ -128,7 +135,7 @@ class AsyncSocket {
 		s.onConnect = function() {
 			onClient(s.accept());
 		};
-		s.bind(new Host(host), port);
+		s.bind(new Host(host), port, ssl);
 		s.listen(1);
 		return s;
 	}

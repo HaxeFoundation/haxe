@@ -6,7 +6,7 @@ class Issue8644 extends DisplayTestCase {
 	function test(_) {
 		vfs.putContent("HelloJvm.hx", getTemplate("HelloJvm.hx"));
 		var args = ["-cp", ".", "--interp"];
-		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
 		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloJvm.hx"), offset: 55, wasAutoTriggered: false});
 		var completion = parseCompletion();
 		assertHasNoCompletion(completion, module -> switch (module.kind) {

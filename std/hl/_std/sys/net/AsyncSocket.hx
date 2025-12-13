@@ -24,6 +24,7 @@ package sys.net;
 
 class AsyncSocket {
 
+	var loop : haxe.EventLoop;
 	var stream : hl.uv.Stream;
 	var tcp : hl.uv.Tcp;
 	var recv : haxe.io.Bytes;
@@ -31,10 +32,7 @@ class AsyncSocket {
 
 	public function new( ?loop : haxe.EventLoop ) {
 		if( loop == null ) loop = haxe.EventLoop.current;
-		tcp = new hl.uv.Tcp(@:privateAccess loop.uvLoop);
-		@:privateAccess loop.wakeup();
-		stream = tcp;
-		recv = haxe.io.Bytes.alloc(0);
+		this.loop = loop;
 	}
 
 	public function close() {
@@ -50,9 +48,28 @@ class AsyncSocket {
 		stream.write(bytes,onWriteCallb,pos,len);
 	}
 
-	public function connect(host:Host, port:Int) {
-		if( tcp == null ) throw new haxe.io.Eof();
-		tcp.connect(host,port,onConnectRaw);
+	function init(ssl) {
+		tcp = new hl.uv.Tcp(@:privateAccess loop.getUVLoop());
+		stream = tcp;
+		recv = haxe.io.Bytes.alloc(0);
+		@:privateAccess loop.wakeup();
+		if( ssl )
+			stream = new hl.uv.SSLStream(stream);
+	}
+
+	public function connect(host:Host, port:Int, ssl=false) {
+		if( tcp != null ) throw new haxe.io.Eof();
+		init(ssl);
+		tcp.connect(host,port,function(b) {
+			if( ssl )
+				Std.downcast(stream,hl.uv.SSLStream).handshake(function(err) {
+					if( err != null )
+						onSSLError(err);
+					onConnectRaw(err == null);
+				});
+			else
+				onConnectRaw(b);
+		});
 	}
 
 	function onConnectRaw(b : Bool) {
@@ -82,8 +99,9 @@ class AsyncSocket {
 		tcp.listen(connections,() -> onConnect());
 	}
 
-	public function bind(host:Host, port:Int) {
-		if( tcp == null ) throw new haxe.io.Eof();
+	public function bind(host:Host, port:Int, ?ssl : { hostname:String, key:sys.ssl.Key, cert:sys.ssl.Certificate } ) {
+		if( tcp != null ) throw new haxe.io.Eof();
+		init(ssl != null);
 		tcp.bind(host, port);
 	}
 
@@ -120,12 +138,16 @@ class AsyncSocket {
 		}
 	}
 
+	public dynamic function onSSLError( msg : String ) {
+		throw msg;
+	}
+
 	public function writeString( str : String ) {
 		var buf = haxe.io.Bytes.ofString(str);
 		write(buf, 0, buf.length);
 	}
 
-	public static function startServer( host, port, onClient ) {
+	public static function startServer( host, port, ?ssl, onClient ) {
 		var s = new AsyncSocket();
 		s.onDisconnect = function() {
 			onClient(null);
@@ -133,7 +155,7 @@ class AsyncSocket {
 		s.onConnect = function() {
 			onClient(s.accept());
 		};
-		s.bind(new Host(host), port);
+		s.bind(new Host(host), port, ssl);
 		s.listen(1);
 		return s;
 	}

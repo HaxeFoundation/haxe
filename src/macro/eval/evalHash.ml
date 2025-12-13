@@ -213,6 +213,8 @@ let key_address = hash "address"
 let key_netmask = hash "netmask"
 let key_previous = hash "previous"
 let key_current = hash "current"
-let key_haxe_atomic_AtomicBool = hash "haxe.atomic.AtomicBool" 
-let key_haxe_atomic_AtomicInt = hash "haxe.atomic.AtomicInt" 
-let key_haxe_atomic_AtomicObject = hash "haxe.atomic.AtomicObject" 
+let key_haxe_atomic_AtomicBool = hash "haxe.atomic.AtomicBool"
+let key_haxe_atomic_AtomicInt = hash "haxe.atomic.AtomicInt"
+let key_haxe_atomic_AtomicObject = hash "haxe.atomic.AtomicObject"
+
+let key_eval_integers_Int64 = hash "eval.integers._Int64.Int64_Impl_" (* TODO: wonky... *)
