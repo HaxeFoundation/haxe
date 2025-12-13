@@ -58,7 +58,6 @@ class Hl {
 		final args = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
 		if (systemName == "Mac") {
 			args.push("-DDOWNLOAD_DEPENDENCIES=ON");
-			args.push("-DCMAKE_OSX_ARCHITECTURES=x86_64");
 		}
 		runCommand("cmake", args.concat([
 			"-DBUILD_TESTING=OFF",
@@ -101,7 +100,6 @@ class Hl {
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
 		final extraCompilerFlags = switch (systemName) {
 			case "Windows": ["-ldbghelp", "-municode"];
-			case "Mac": ["-arch", "x86_64"];
 			case _: [];
 		};
 
@@ -198,13 +196,7 @@ class Hl {
 			buildAndRunHlc("bin", "reservedKeywords");
 
 			changeDirectory(miscHlcDir);
-			final buildArgs = ["run.hxml", "-D", hlcTemplateDefine];
-
-			if (systemName == "Mac") {
-				runCommand("arch", ["-x86_64", "haxe"].concat(buildArgs));
-			} else {
-				runCommand("haxe", buildArgs);
-			}
+			runCommand("haxe", ["run.hxml", "-D", hlcTemplateDefine]);
 		}
 	}
 }

@@ -800,13 +800,19 @@ jobs:
     runs-on: macos-latest
     env:
       PLATFORM: mac-universal
-      TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ~/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, lua, flash, neko, hl]
+        target: [macro, js, cpp, jvm, php, python, lua, flash, neko]
+        include:
+        - target: hl
+          arch: arm64
+          runci-args: --skip-hl-jit
+        - target: hl
+          arch: x86_64
+          haxe-invoke: arch -x86_64
 
     steps:
       - uses: actions/checkout@main
@@ -862,7 +868,7 @@ jobs:
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe RunCi.hxml -D include_legacy
+          ${{ matrix.haxe-invoke }} haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 
