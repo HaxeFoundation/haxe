@@ -17,7 +17,7 @@ class Hl {
 	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
 
 	static final hlBinary =
-		if (isCi() || !commandSucceed("hl", ["--version"])){
+		if (!commandSucceed("hl", ["--version"])){
 			Path.join([hlInstallBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
 		} else {
 			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
@@ -30,7 +30,7 @@ class Hl {
 	static var withHlcTests = true;
 
 	static public function getHlDependencies() {
-		if (!isCi() && FileSystem.exists(hlBinary)) {
+		if (FileSystem.exists(hlBinary)) {
 			infoMsg('hl has already been installed at $hlBinary.');
 			return;
 		}
