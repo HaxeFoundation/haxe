@@ -16,6 +16,7 @@ import haxe.io.UInt32Array;
 import haxe.io.UInt16Array;
 import haxe.io.UInt8Array;
 import haxe.ds.Vector;
+import haxe.exceptions.ArgumentException;
 
 final class ViewExtensions {
 	public static inline overload extern function asView<T>(source:Pointer<T>, length:Int):View<T> {
@@ -83,6 +84,10 @@ final class ViewExtensions {
 	}
 
 	@:unreflective @:generic public static function toArray<T>(source:View<T>):Array<T> {
+		if (source.length > 2147483647) {
+			throw new ArgumentException("source");
+		}
+
 		final output      = cpp.NativeArray.create(source.length);
 		final destination = asView(output);
 
@@ -92,6 +97,10 @@ final class ViewExtensions {
 	}
 
 	@:unreflective @:generic public static function toVector<T>(source:View<T>):Vector<T> {
+		if (source.length > 2147483647) {
+			throw new ArgumentException("source");
+		}
+
 		final output      = new Vector(source.length);
 		final destination = asView(output);
 
@@ -101,7 +110,12 @@ final class ViewExtensions {
 	}
 
 	@:unreflective @:generic public static function toBytes<T>(source:View<T>):Bytes {
-		final bytes       = asBytesView(source);
+		final bytes = asBytesView(source);
+		
+		if (bytes.length > 2147483647) {
+			throw new ArgumentException("source");
+		}
+
 		final output      = Bytes.alloc(bytes.length);
 		final destination = ViewExtensions.asView(output);
 
