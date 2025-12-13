@@ -43,7 +43,7 @@ let print_arg v default_val prefix =
 
 (* Generate prototype text, including allowing default values to be null *)
 let print_arg_name v default_val prefix =
-  type_arg_to_string v default_val prefix |> fst
+  type_arg_to_string v default_val prefix |> snd
 
 let print_arg_list arg_list prefix =
   String.concat ","
@@ -390,7 +390,7 @@ let find_class_implementation func tcpp_class =
   in
 
   match find tcpp_class with
-  | Some func -> 
+  | Some func ->
     print_arg_list func.tcf_args ""
   | _ ->
     ""
@@ -1539,7 +1539,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
     out ("_hx_Closure_" ^ string_of_int closure.close_id);
     IntMap.iter
       (fun _ var ->
-        let str  = cpp_macro_var_type_of var in 
+        let str  = cpp_macro_var_type_of var in
         out ("," ^ str ^ "," ^ var.tcppv_debug_name))
       closure.close_undeclared;
     out (") HXARGC(" ^ argsCount ^ ")\n");
@@ -1676,7 +1676,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes (slot
   if newScriptable then (
     output_boot "#include <hx/Scriptable.h>\n";
 
-    
+
 
     let funcs = StringMap.bindings slots.hash in
     let sorted = List.sort (fun (_, id1) (_, id2) -> id1 - id2) funcs in
@@ -1878,7 +1878,7 @@ let generate_constructor ctx out tcpp_class isHeader =
     if isHeader then
       match tcpp_class.tcl_constructor with
       | Some constructor ->
-        let cb no_debug = 
+        let cb no_debug =
           ctx.ctx_real_this_ptr <- false;
           gen_cpp_function_body ctx tcpp_class.tcl_class false "new" constructor "" "" no_debug;
           out "\n";
