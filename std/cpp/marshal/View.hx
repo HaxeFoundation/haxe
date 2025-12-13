@@ -1,6 +1,7 @@
 package cpp.marshal;
 
 import cpp.SizeT;
+import haxe.Int64;
 import haxe.ds.Vector;
 import haxe.exceptions.ArgumentException;
 
@@ -10,7 +11,7 @@ extern final class View<T> implements ArrayAccess<T> {
     final length : SizeT;
 	final ptr : Pointer<T>;
 
-	function new(ptr:Pointer<T>, length:Int):Void;
+	function new(ptr:Pointer<T>, length:SizeT):Void;
 
 	/**
 	 * Attempts to copy the data from the current view to the destination view.
@@ -45,14 +46,14 @@ extern final class View<T> implements ArrayAccess<T> {
 	 * Create a slice of the current view which starts at the specified index.
 	 * @param start Zero based index to start the slice at.
 	 */
-	overload function slice(start:SizeT):View<T>;
+	overload function slice(start:Int64):View<T>;
 
 	/**
 	 * Create a slice of the current view which starts at the specified index and runs for the specified length.
 	 * @param start Zero based index to start the slice at.
 	 * @param length Length of the slice.
 	 */
-	overload function slice(start:SizeT, length:SizeT):View<T>;
+	overload function slice(start:Int64, length:Int64):View<T>;
 
 	/**
 	 * Returns if the current view is empty.
