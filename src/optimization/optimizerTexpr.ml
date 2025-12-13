@@ -69,7 +69,7 @@ let create_affection_checker () =
 	in
 	might_be_affected,collect_modified_locals
 
-let optimize_binop e op e1 e2 =
+let optimize_binop scom e op e1 e2 =
 	let is_float t =
 		match follow t with
 		| TAbstract({ a_path = [],"Float" },_) -> true
@@ -185,6 +185,7 @@ let optimize_binop e op e1 e2 =
 		in
 		(match a, b with
 		| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
+		| TNull, (TInt _ | TFloat _ | TBool _) | (TInt _ | TFloat _ | TBool _), TNull when scom.SafeCom.platform_config.pf_static -> e
 		| _ -> ebool (a = b))
 	| TConst (TBool a), _ ->
 		(match op with

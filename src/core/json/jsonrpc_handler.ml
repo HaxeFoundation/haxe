@@ -14,6 +14,7 @@ class jsonrpc_handler (id,name,params) = object(self)
 
 	method get_id = id
 	method get_method_name = method_name
+	method has_params = match params with JNull -> false | _ -> true
 
 	method raise_haxe_json_error : 'a . haxe_json_error -> 'a = function
 		| MissingField(name,on) -> raise_custom id 1 (Printf.sprintf "Missing param \"%s\" on \"%s\"" name on)

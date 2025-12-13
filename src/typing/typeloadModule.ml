@@ -308,14 +308,15 @@ module ModuleLevel = struct
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
-					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
-						| ParseSuccess(data,_) -> data
+					let (_,r),warnings = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
+						| ParseSuccess(data,pdi) -> data,pdi.pd_warnings
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					let m_import = make_import_module path r in
 					add_module com m_import p;
 					add_dependency m m_import MDepFromImport;
+					List.iter (fun (w, p) -> module_warning com m WIfDisplay [] (Warning.warning_obj WIfDisplay).w_doc p) warnings;
 					r
 				end else begin
 					let r = [] in
@@ -829,10 +830,10 @@ and load_module' com g m p =
 			if com.module_nonexistent_lut#mem m then raise_not_found();
 			if g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
-			let file, decls = try
+			let file, decls, warnings = try
 				(* Try parsing *)
-				let rfile,decls = TypeloadParse.parse_module com m p in
-				rfile.file,decls
+				let rfile,decls,warnings = TypeloadParse.parse_module com m p in
+				rfile.file,decls,warnings
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
@@ -842,13 +843,15 @@ and load_module' com g m p =
 					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (_,a) -> file, a
+						| Some (_,a) -> file, a, []
 				in
 				is_extern := true;
 				loop com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			type_module com g m file ~is_extern decls p
+			let m = type_module com g m file ~is_extern decls p in
+			List.iter (fun (w, p) -> module_warning com m WIfDisplay [] (Warning.warning_obj WIfDisplay).w_doc p) warnings;
+			m
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in

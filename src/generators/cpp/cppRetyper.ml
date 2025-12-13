@@ -1316,6 +1316,8 @@ let expression ctx request_type function_args function_type expression_tree forI
             | TCppProtocol p -> (retyper_ctx, CppCastProtocol (baseCpp, p), return_type)
             | TCppDynamic when baseCpp.cpptype = TCppClass ->
                 (retyper_ctx, CppCast (baseCpp, TCppDynamic), TCppDynamic)
+			| TCppScalar _ when baseCpp.cpptype = TCppNull ->
+				(retyper_ctx, CppCast (baseCpp, return_type), return_type)
             | _ -> (retyper_ctx, baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *))
           )
       | TCast (base, Some t) -> (

@@ -544,7 +544,7 @@ jobs:
 
 
   deploy_apidoc:
-    if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
+    if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')
     needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
     runs-on: ubuntu-22.04
     steps:

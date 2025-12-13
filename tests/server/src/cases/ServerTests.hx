@@ -367,9 +367,21 @@ class ServerTests extends TestCase {
 		});
 	}
 
-	function testSyntaxCache() {
+	function testReadClassPaths() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
+		assertSuccess();
+	}
+
+	function testReadClassPaths2() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, {wait: true});
+		assertSuccess();
+	}
+
+	function testSyntaxCache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, {wait: true});
 		vfs.putContent("Empty.hx", "");
 		runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
@@ -401,7 +413,7 @@ class ServerTests extends TestCase {
 	function testSyntaxCache2() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-cp", ".", "--interp"];
-		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		runHaxeJson([] /* No args here because file watchers don't generally know */, ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
 		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});

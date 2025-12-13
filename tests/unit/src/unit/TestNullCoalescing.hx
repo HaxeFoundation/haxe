@@ -88,9 +88,11 @@ private abstract NullCoalAbstractResolve(NullCoalAbstractData) {
 	}
 }
 
+var screamOutput:String = null;
+
 abstract Message(String) from String {
 	public function scream()
-		trace(this.toUpperCase());
+		screamOutput = this.toUpperCase();
 }
 
 @:nullSafety(StrictThreaded)
@@ -338,6 +340,7 @@ class TestNullCoalescing extends Test {
 
 		var m:Message = "foo";
 		(m ??= "bar").scream();
+		eq("FOO", screamOutput);
 		eq("unit.Message", HelperMacros.typeString(m ??= "bar"));
 		eq("foo", '$m');
 

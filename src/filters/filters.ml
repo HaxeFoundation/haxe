@@ -439,7 +439,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 	] in
 
 	let filters_after_analyzer = [
-		"sanitize",(fun scom e -> Sanitize.sanitize scom.SafeCom.platform_config e);
+		"sanitize",(fun scom e -> Sanitize.sanitize scom e);
 		"add_final_return",(fun _ -> if scom.platform_config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
 		"RenameVars",(match scom.platform with
 			| Eval -> (fun _ e -> e)

@@ -1356,6 +1356,7 @@ and type_array_comprehension ctx e with_type p =
 			| [] -> e,p
 			end
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
+		| EMeta(m,e2) -> (EMeta(m,map_compr e2), p)
 		| EBinop(OpArrow,a,b) ->
 			et := (ENew(make_ptp {tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None} null_pos,[]),comprehension_pos);
 			(ECall ((efield (e_ref,"set"),p),[a;b]),p)
@@ -1536,6 +1537,8 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
+			| EFor (it,e2) ->
+				ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
 			| _ ->
 				display_error ctx.com "Call or function expected after inline keyword" p;
 				e();
@@ -1800,6 +1803,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EObjectDecl fl ->
 		type_object_decl ctx fl with_type p
 	| EArrayDecl [(EFor _,_) | (EWhile _,_) as e] ->
+		type_array_comprehension ctx e with_type p
+	| EArrayDecl [EMeta((Meta.Inline,[],_),(EFor _,_)),_ as e] -> (* awkward... *)
 		type_array_comprehension ctx e with_type p
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		type_map_declaration ctx e1 el with_type p

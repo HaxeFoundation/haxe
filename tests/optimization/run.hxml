@@ -1,6 +1,7 @@
 -p src
 -D analyzer-optimize
 -D analyzer-user-var-fusion
+-D loop-unroll-max-cost=0
 --each
 
 --main TestAnalyzer
