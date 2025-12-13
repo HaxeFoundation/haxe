@@ -233,7 +233,7 @@ jobs:
           haxelib git hxtemplo https://github.com/Simn/hxtemplo.git
           haxelib git hxargs https://github.com/Simn/hxargs.git
           haxelib git markdown https://github.com/dpeek/haxe-markdown.git
-          haxelib git hxcpp https://github.com/Aidan63/hxcpp.git valuetype-marshal
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
           cd $(haxelib libpath hxcpp)/tools/hxcpp
           haxe compile.hxml
           cd -
