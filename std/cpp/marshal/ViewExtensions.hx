@@ -1,6 +1,5 @@
 package cpp.marshal;
 
-import cpp.Reference;
 import cpp.Pointer;
 import cpp.Star;
 import cpp.RawPointer;
@@ -16,6 +15,7 @@ import haxe.io.UInt32Array;
 import haxe.io.UInt16Array;
 import haxe.io.UInt8Array;
 import haxe.ds.Vector;
+import haxe.extern.AsVar;
 import haxe.exceptions.ArgumentException;
 
 final class ViewExtensions {
@@ -71,7 +71,7 @@ final class ViewExtensions {
 		return asView(source.view).reinterpret();
 	}
 
-	public static inline extern function refAsView<T>(source:Reference<T>):View<T> {
+	public static inline extern function refAsView<T>(source:AsVar<T>):View<T> {
 		return new View(Pointer.addressOf(source), 1);
 	}
 
