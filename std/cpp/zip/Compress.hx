@@ -19,7 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package cpp.zip;
 
-typedef Compress = haxe.zip.Compress;
+import haxe.io.BytesData;
+import cpp.marshal.View;
+import cpp.UInt8;
+
+@:buildXml('<include name="${HXCPP}/src/hx/zip/Build.xml" />')
+@:include('hx/zip/Compress.hpp')
+@:cpp.ManagedType({ namespace : [ 'hx', 'zip' ], flags : [ StandardNaming ] })
+extern final class Compress {
+	static function create(level:Int):Compress;
+	static function run(src:View<UInt8>, level:Int):BytesData;
+
+	function execute(src:View<UInt8>, dst:View<UInt8>):Result;
+	function setFlushMode(mode:Flush):Void;
+	function close():Void;
+}
