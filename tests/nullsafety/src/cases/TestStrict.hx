@@ -441,6 +441,12 @@ class TestStrict {
 		shouldFail(final v:Int = test.a.b);
 	}
 
+	static function emptyObjTypeAssign_shouldPass():Void {
+		final other:{a:Int} = {a: 10};
+		final data:{} = other;
+		final anything:{} = {a: 10};
+	}
+
 	function objIterationAfterNullCheck_shouldPass(result:{?leaks:Array<String>}):Void {
 		if (result.leaks != null) {
 			for (leak in result.leaks) {

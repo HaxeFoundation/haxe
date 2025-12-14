@@ -1174,7 +1174,7 @@ class expr_checker mode immediate_execution report =
 						if not (self#can_pass_expr field_expr field_to_type.cf_type field_pos) then
 							self#error "Cannot assign nullable value here." [field_pos];
 						acc && true
-					with Not_found -> false) true fields
+					with Not_found -> true) true fields
 			in
 			match expr.eexpr, to_type with
 				| TLocal v, _ when contains_unsafe_meta v.v_meta -> true
