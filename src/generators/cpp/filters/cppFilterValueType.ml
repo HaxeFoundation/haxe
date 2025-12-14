@@ -1,5 +1,6 @@
 open CppAst
 open CppAstTools
+open CppError
 
 (* If we are constructing a value type of reference state, inspect the surrounding context and choose a more appropriate construction *)
 let filter_determine_construction return_type cppexpr =
@@ -8,6 +9,11 @@ let filter_determine_construction return_type cppexpr =
   in
 
   match cppexpr.cpptype, return_type, cppexpr.cppexpr with
+  (* Allocating a value type directly into a pointer type is ambiguous at best and UB C++ at worse, so forbid it entirely *)
+  | _, TCppStar (TCppMarshalNativeType ((ValueClass _ | ValueEnum _), _), _), CppCall ((FuncNew _), _)
+  | _, TCppPointer (_, TCppMarshalNativeType ((ValueClass _ | ValueEnum _), _)), CppCall ((FuncNew _), _)
+  | _, TCppRawPointer (_, TCppMarshalNativeType ((ValueClass _ | ValueEnum _), _)), CppCall ((FuncNew _), _) ->
+    cpp_abort HeapAllocationOfValueType cppexpr.cpppos
   | TCppMarshalNativeType (value_type, Reference), TCppMarshalNativeType (_, Stack), CppCall ((FuncNew _), args) ->
     let stack = TCppMarshalNativeType (value_type, Stack) in
     { cppexpr with cpptype = stack; cppexpr = CppCall ((FuncNew stack), args) }
