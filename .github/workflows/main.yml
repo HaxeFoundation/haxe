@@ -667,7 +667,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      # HXCPP_COMPILE_CACHE: ~/hxcache
       ARCH: 64
     strategy:
       fail-fast: false
