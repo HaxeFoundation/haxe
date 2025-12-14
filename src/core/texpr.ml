@@ -547,18 +547,6 @@ module Builder = struct
 	let index basic e index t p =
 		mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) basic.tint p)) t p
 
-	let rec default_value t p = match t with
-		| TAbstract({a_default = Some f},_) ->
-			{(Lazy.force f) with etype = t; epos = p}
-		| TInst _ | TEnum _ | TAbstract _ | TFun _ | TAnon _ | TDynamic _ | TMono {tm_type = None} ->
-			mk (TConst TNull) t p
-		| TLazy r ->
-			default_value (lazy_type r) p
-		| TMono {tm_type = Some t} ->
-			default_value t p
-		| TType(td,tl) ->
-			default_value (apply_typedef td tl) p
-
 	let resolve_and_make_static_call c name args p =
 		ignore(c.cl_build());
 		let cf = try

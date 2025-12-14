@@ -1953,13 +1953,6 @@ module HxbWriter = struct
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_constructor (write_field_ref writer c CfrStatic);
-		Chunk.write_option writer.chunk a.a_default (fun lazy_texpr ->
-			let texpr = Lazy.force lazy_texpr in
-			let fctx,close = start_texpr writer texpr.epos in
-			catch_unbound_ttp (fun () -> write_texpr writer fctx texpr) "default value" None;
-			let expr_pre_chunk,expr_chunk = close() in
-			Chunk.export_data expr_pre_chunk writer.chunk;
-			Chunk.export_data expr_chunk writer.chunk);
 
 		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
 			Chunk.write_u8 writer.chunk (binop_index op);
