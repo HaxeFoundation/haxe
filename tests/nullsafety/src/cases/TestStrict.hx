@@ -22,12 +22,22 @@ class Generic<T> {
 	}
 }
 
-typedef AnonAsClass = {
-	var ?optional:String;
+@:structInit
+class ClassWithNullableField {
+	public var field:Null<String> = null;
 }
 
-typedef AnonAsStruct = {
-	?optional:String
+@:structInit
+class ClassWithField {
+	public var field:String;
+}
+
+typedef ObjWithNullableField = {
+	?field:String
+}
+
+typedef ObjWithField = {
+	field:String
 }
 
 typedef AnonDefaultNever = {
@@ -390,6 +400,45 @@ class TestStrict {
 		var s:String = name;
 		var s2:String = name2;
 		return s;
+	}
+
+	static function call_objOptField_shouldFail():Void {
+		var a:{?a:Int} = {a: null};
+		shouldFail(var b:{a:Int} = a);
+
+		var foo:{a:{b:Null<Int>}} = {
+			a: {
+				b: null
+			}
+		};
+		objOptField_shouldPass(shouldFail(foo));
+
+		var bar:{a:{b:Int}};
+		shouldFail(bar = foo);
+
+		var a:ObjWithNullableField = {};
+		var b:ClassWithNullableField = {};
+		shouldFail(passSafeClass(a));
+		shouldFail(passSafeClass(b));
+	}
+
+	static function passSafeClass(obj:ObjWithField):Void {}
+
+	static function promise_then_nullableArg_shouldFail():Void {
+		showQuickPick(shouldFail((choice:Int) -> {}));
+		showQuickPick((choice:Null<Int>) -> {});
+	}
+
+	static function showQuickPick<T:Int>(callback:(choice:Null<T>) -> Void):Void {};
+
+	static function objOptField_shouldPass(test:{?a:{b:Int}}):Void {
+		if (test.a == null) return;
+		final v:Int = test.a.b;
+	}
+
+	static function objOptFieldNullable_shouldFail(test:{?a:{?b:Int}}):Void {
+		if (test.a == null) return;
+		shouldFail(final v:Int = test.a.b);
 	}
 
 	function objIterationAfterNullCheck_shouldPass(result:{?leaks:Array<String>}):Void {
@@ -821,10 +870,18 @@ class TestStrict {
 	}
 
 	static function anonymousObjects() {
-		var o:AnonAsClass = {};
-		shouldFail(var s:String = o.optional);
-		var o:AnonAsStruct = {};
-		shouldFail(var s:String = o.optional);
+		var nullableClass:ClassWithNullableField = {};
+		var basicClass:ClassWithField = {field: ""};
+		shouldFail(var s:String = nullableClass.field);
+		var nullableObj:ObjWithNullableField = {};
+		var basicObj:ObjWithField = {field: ""};
+		shouldFail(var s:String = nullableObj.field);
+
+		nullableObj = nullableClass;
+		nullableObj = basicClass;
+		basicObj = basicClass;
+		shouldFail(basicObj = nullableObj);
+		shouldFail(basicObj = nullableClass);
 	}
 
 	static function safetyInference_safeValueAssignedToNullable_shouldBecomeSafe(?a:String, ?b:String) {

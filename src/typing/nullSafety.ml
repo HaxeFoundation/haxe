@@ -1,6 +1,7 @@
 open Globals
 open Ast
 open Type
+open Error
 
 type safety_message = {
 	sm_msg : string;
@@ -1078,6 +1079,12 @@ class expr_checker mode immediate_execution report =
 				in
 				add_error report msg (get_first_valid_pos positions)
 			end
+
+		method error_unify (trace:unify_error list) p =
+			if not is_pretending then begin
+				let msg = (BetterErrors.better_error_message trace) in
+				add_error report msg p
+			end
 		(**
 			Check if `e` is nullable even if the type is reported not-nullable.
 			Haxe type system lies sometimes.
@@ -1131,16 +1138,32 @@ class expr_checker mode immediate_execution report =
 					false
 				else begin
 					let expr_type = unfold_null expr.etype in
-					try
-						new unificator#unify expr_type to_type;
+					let errors = ref [] in
+					self#check_anon_to_anon
+						(fun field_name expr_field_type to_field_type ->
+							errors := Invalid_field_type field_name :: !errors;
+							errors := Cannot_unify(expr_field_type, to_field_type) :: !errors
+						)
+						expr_type to_type;
+
+					if !errors <> [] then begin
+						self#error_unify (List.rev !errors) p;
+						(* returning `true` because error is already logged in the line above *)
 						true
-					with
-						| Safety_error err ->
-							self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
-							(* returning `true` because error is already logged in the line above *)
+					end
+					else begin
+						try
+							new unificator#unify expr_type to_type;
 							true
-						| e ->
-							fail ~msg:"Null safety unification failure" expr.epos __POS__
+						with
+							| Safety_error _ ->
+								let errors = [Cannot_unify(expr_type, to_type)] in
+								self#error_unify errors p;
+								(* returning `true` because error is already logged in the line above *)
+								true
+							| e ->
+								fail ~msg:"Null safety unification failure" expr.epos __POS__
+					end
 				end
 			in
 			let check_anon_fields fields to_type =
@@ -1166,6 +1189,31 @@ class expr_checker mode immediate_execution report =
 							| _ -> try_unify expr to_type
 					)
 				| _, _ -> try_unify expr to_type
+
+		method check_anon_to_anon report_error expr_type to_type =
+			let check_field anon name to_field =
+				try
+					let expr_field = PMap.find name anon.a_fields in
+					(* let field_path = if path = "" then name else path ^ "." ^ name in *)
+
+					if is_nullable_type expr_field.cf_type && not (is_nullable_type to_field.cf_type) then
+						report_error name expr_field.cf_type to_field.cf_type;
+
+					self#check_anon_to_anon report_error expr_field.cf_type to_field.cf_type
+				with Not_found -> ()
+			in
+			match unfold_null expr_type, unfold_null to_type with
+				| TAnon anon, TAnon to_anon ->
+					PMap.iter
+						(fun name to_field -> check_field anon name to_field)
+					to_anon.a_fields
+				| TAnon anon, TInst (cl, _) ->
+					PMap.iter
+						(fun name to_field -> check_field anon name to_field)
+					cl.cl_fields
+				| _ -> ()
+
+
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
 		*)
