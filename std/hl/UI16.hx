@@ -22,4 +22,4 @@
 
 package hl;
 
-@:coreType @:notNull @:runtimeValue @:defaultValue(0) abstract UI16 to Int from Int {}
+@:coreType @:notNull @:runtimeValue abstract UI16 to Int from Int {}

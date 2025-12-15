@@ -22,10 +22,6 @@
 
 package haxe.io;
 
-#if cpp
-using cpp.NativeArray;
-#end
-
 class Bytes {
 	public var length(default, null):Int;
 
@@ -47,8 +43,6 @@ class Bytes {
 		return untyped $sget(b, pos);
 		#elseif flash
 		return b[pos];
-		#elseif cpp
-		return untyped b[pos];
 		#elseif java
 		return untyped b[pos] & 0xFF;
 		#elseif python
@@ -66,8 +60,6 @@ class Bytes {
 		untyped $sset(b, pos, v);
 		#elseif flash
 		b[pos] = v;
-		#elseif cpp
-		untyped b[pos] = v;
 		#elseif java
 		b[pos] = cast v;
 		#elseif python
@@ -103,8 +95,6 @@ class Bytes {
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.code("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
-		#elseif cpp
-		b.blit(pos, src.b, srcpos, len);
 		#else
 		var b1 = b;
 		var b2 = src.b;
@@ -136,8 +126,6 @@ class Bytes {
 		pos += len & ~3;
 		for (i in 0...len & 3)
 			set(pos++, value);
-		#elseif cpp
-		untyped __global__.__hxcpp_memory_memset(b, pos, len, value);
 		#else
 		for (i in 0...len)
 			set(pos++, value);
@@ -212,9 +200,6 @@ class Bytes {
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
-		// TODO: memcmp if unsafe flag is on
-		#elseif cpp
-		return b.memcmp(other.b);
 		#else
 		var b1 = b;
 		var b2 = other.b;
@@ -231,7 +216,7 @@ class Bytes {
 		little-endian encoding). Result is unspecified if `pos` is outside the
 		bounds.
 	**/
-	#if (neko_v21 || (cpp && !cppia) || flash)
+	#if (neko_v21 || flash)
 	inline
 	#end
 	public function getDouble(pos:Int):Float {
@@ -240,10 +225,6 @@ class Bytes {
 		#elseif flash
 		b.position = pos;
 		return b.readDouble();
-		#elseif cpp
-		if (pos < 0 || pos + 8 > length)
-			throw Error.OutsideBounds;
-		return untyped __global__.__hxcpp_memory_get_double(b, pos);
 		#else
 		return FPHelper.i64ToDouble(getInt32(pos), getInt32(pos + 4));
 		#end
@@ -254,7 +235,7 @@ class Bytes {
 		little-endian encoding). Result is unspecified if `pos` is outside the
 		bounds.
 	**/
-	#if (neko_v21 || (cpp && !cppia) || flash)
+	#if (neko_v21 || flash)
 	inline
 	#end
 	public function getFloat(pos:Int):Float {
@@ -263,10 +244,6 @@ class Bytes {
 		#elseif flash
 		b.position = pos;
 		return b.readFloat();
-		#elseif cpp
-		if (pos < 0 || pos + 4 > length)
-			throw Error.OutsideBounds;
-		return untyped __global__.__hxcpp_memory_get_float(b, pos);
 		#else
 		return FPHelper.i32ToFloat(getInt32(pos));
 		#end
@@ -288,10 +265,6 @@ class Bytes {
 		#elseif flash
 		b.position = pos;
 		b.writeDouble(v);
-		#elseif cpp
-		if (pos < 0 || pos + 8 > length)
-			throw Error.OutsideBounds;
-		untyped __global__.__hxcpp_memory_set_double(b, pos, v);
 		#else
 		var i = FPHelper.doubleToI64(v);
 		setInt32(pos, i.low);
@@ -315,10 +288,6 @@ class Bytes {
 		#elseif flash
 		b.position = pos;
 		b.writeFloat(v);
-		#elseif cpp
-		if (pos < 0 || pos + 4 > length)
-			throw Error.OutsideBounds;
-		untyped __global__.__hxcpp_memory_set_float(b, pos, v);
 		#else
 		setInt32(pos, FPHelper.floatToI32(v));
 		#end
@@ -413,10 +382,6 @@ class Bytes {
 		#elseif flash
 		b.position = pos;
 		return encoding == RawNative ? b.readMultiByte(len, "unicode") : b.readUTFBytes(len);
-		#elseif cpp
-		var result:String = "";
-		untyped __global__.__hxcpp_string_of_bytes(b, result, pos, len);
-		return result;
 		#elseif java
 		try {
 			switch (encoding) {
@@ -533,11 +498,6 @@ class Bytes {
 		var b = new flash.utils.ByteArray();
 		b.length = length;
 		return new Bytes(length, b);
-		#elseif cpp
-		var a = new BytesData();
-		if (length > 0)
-			cpp.NativeArray.setSize(a, length);
-		return new Bytes(length, a);
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
@@ -565,10 +525,6 @@ class Bytes {
 		else
 			b.writeUTFBytes(s);
 		return new Bytes(b.length, b);
-		#elseif cpp
-		var a = new BytesData();
-		untyped __global__.__hxcpp_bytes_of_string(a, s);
-		return new Bytes(a.length, a);
 		#elseif java
 		try {
 			var b:BytesData = switch (encoding) {
@@ -664,8 +620,6 @@ class Bytes {
 		return untyped __dollar__sget(b, pos);
 		#elseif flash
 		return b[pos];
-		#elseif cpp
-		return untyped b.unsafeGet(pos);
 		#elseif java
 		return untyped b[pos] & 0xFF;
 		#else

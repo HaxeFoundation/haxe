@@ -22,4 +22,4 @@
 
 package cpp;
 
-@:coreType @:notNull @:runtimeValue @:defaultValue(0) abstract Char from Int to Int {}
+@:coreType @:notNull @:runtimeValue abstract Char from Int to Int {}

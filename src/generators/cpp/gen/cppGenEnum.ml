@@ -12,17 +12,17 @@ let constructor_arg_count constructor =
   | _ -> 0
 
 let gen_enum_constructor remap_class_name class_name output_cpp constructor =
-  match constructor.tef_field.ef_type with
-  | TFun (args, _) ->
-    Printf.sprintf "%s %s::%s(%s)\n" remap_class_name class_name constructor.tef_name (print_tfun_arg_list true args) |> output_cpp;
+  match constructor.tef_args with
+  | Some args ->
+    Printf.sprintf "%s %s::%s(%s)\n" remap_class_name class_name constructor.tef_name (print_retyped_tfun_arg_list true args) |> output_cpp;
     Printf.sprintf "{\n\treturn ::hx::CreateEnum<%s>(%s,%i,%i)" class_name constructor.tef_hash constructor.tef_field.ef_index (List.length args) |> output_cpp;
 
     args
-      |> List.mapi (fun i (arg, _, _) -> Printf.sprintf "->_hx_init(%i,%s)" i (keyword_remap arg))
+      |> List.mapi (fun i arg -> Printf.sprintf "->_hx_init(%i,%s)" i arg.tfa_name)
       |> List.iter output_cpp;
 
     output_cpp ";\n}\n\n"
-  | _ ->
+  | None ->
     output_cpp ( remap_class_name ^ " " ^ class_name ^ "::" ^ constructor.tef_name ^ ";\n\n" )
 
 let gen_static_reflection class_name output_cpp constructor =
@@ -133,10 +133,10 @@ let generate base_ctx tcpp_enum =
 
   List.iter
     (fun constructor ->
-      match constructor.tef_field.ef_type with
-      | TFun (_,_) ->
+      match constructor.tef_args with
+      | Some _ ->
         ()
-      | _ ->
+      | None ->
         Printf.sprintf "%s = ::hx::CreateConstEnum<%s>(%s, %i);\n" constructor.tef_name class_name constructor.tef_hash constructor.tef_field.ef_index |> output_cpp)
     tcpp_enum.te_constructors;
 
@@ -177,9 +177,9 @@ let generate base_ctx tcpp_enum =
   List.iter
     (fun constructor ->
       Printf.sprintf "\t\tstatic %s %s" remap_class_name constructor.tef_name |> output_h;
-      match constructor.tef_field.ef_type with
-      | TFun (args,_) ->
-        Printf.sprintf "(%s);\n" (print_tfun_arg_list true args) |> output_h;
+      match constructor.tef_args with
+      | Some args ->
+        Printf.sprintf "(%s);\n" (print_retyped_tfun_arg_list true args) |> output_h;
         Printf.sprintf "\t\tstatic ::Dynamic %s_dyn();\n" constructor.tef_name |> output_h;
       | _ ->
         output_h ";\n";

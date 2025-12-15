@@ -40,7 +40,17 @@ module InterfaceSlots = struct
     StringMap.find_opt name slots.hash
 end
 
-type tcpp =
+type marshal_type_state =
+  | Stack
+  | Promoted
+  | Reference
+
+and native_type = 
+  | ValueClass of tclass * tcpp list
+  | ValueEnum of tabstract
+  | Pointer of tclass * tcpp list
+
+and tcpp =
   | TCppDynamic
   | TCppUnchanged
   | TCppObject
@@ -58,6 +68,8 @@ type tcpp =
   | TCppRest of tcpp
   | TCppReference of tcpp
   | TCppStruct of tcpp
+  | TCppMarshalNativeType of native_type * marshal_type_state
+  | TCppMarshalManagedType of tclass * tcpp list
   | TCppStar of tcpp * bool
   | TCppVoidStar
   | TCppVarArg
@@ -78,12 +90,19 @@ type tcpp =
 
 and tcppexpr = { cppexpr : tcpp_expr_expr; cpptype : tcpp; cpppos : pos }
 
+and tcppvar = {
+  tcppv_type : tcpp;
+  tcppv_var : tvar;
+  tcppv_name : string;
+  tcppv_debug_name : string;
+}
+
 and tcpp_closure = {
   close_type : tcpp;
-  close_args : (tvar * texpr option) list;
+  close_args : (tcppvar * texpr option) list;
   close_expr : tcppexpr;
   close_id : int;
-  close_undeclared : tvar StringMap.t;
+  close_undeclared : tcppvar IntMap.t;
   close_this : tcppthis option;
 }
 
@@ -92,8 +111,8 @@ and tcppunop = CppNeg | CppNegBits | CppNot
 and tcppthis = ThisReal | ThisFake | ThisDynamic
 
 and tcppvarloc =
-  | VarLocal of tvar
-  | VarClosure of tvar
+  | VarLocal of tcppvar
+  | VarClosure of tcppvar
   | VarThis of tclass_field * tcpp
   | VarInstance of tcppexpr * tclass_field * string * string
   | VarInterface of tcppexpr * tclass_field
@@ -104,8 +123,8 @@ and tcppinst = InstPtr | InstObjC | InstStruct
 
 and tcppfuncloc =
   | FuncThis of tclass_field * tcpp
-  | FuncInstance of tcppexpr * tcppinst * tclass_field
-  | FuncStatic of tclass * bool * tclass_field
+  | FuncInstance of tcppexpr * tcppinst * tclass_field * tcpp list
+  | FuncStatic of tclass * bool * tclass_field * tcpp list
   | FuncTemplate of tclass * tclass_field * path * bool
   | FuncInterface of tcppexpr * tclass * tclass_field
   | FuncEnumConstruct of tenum * tenum_field
@@ -166,15 +185,15 @@ and tcpp_expr_expr =
   | CppPosition of string * int32 * string * string
   | CppArrayDecl of tcppexpr list
   | CppUnop of tcppunop * tcppexpr
-  | CppVarDecl of tvar * tcppexpr option
+  | CppVarDecl of tcppvar * tcppexpr option
   | CppBlock of tcppexpr list * tcpp_closure list * bool
-  | CppFor of tvar * tcppexpr * tcppexpr
+  | CppFor of tcppvar * tcppexpr * tcppexpr
   | CppIf of tcppexpr * tcppexpr * tcppexpr option
   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag * int
   | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
   | CppSwitch of
       tcppexpr * tcpp * (tcppexpr list * tcppexpr) list * tcppexpr option * int
-  | CppTry of tcppexpr * (tvar * tcppexpr) list
+  | CppTry of tcppexpr * (tcppvar * tcppexpr) list
   | CppBreak
   | CppContinue
   | CppClassOf of path * bool
@@ -211,6 +230,8 @@ and tcpp_class_function = {
   tcf_field : tclass_field;
   tcf_name : string;
   tcf_func : tfunc;
+  tcf_args : (tcppvar * texpr option) list;
+  tcf_return : tcpp;
 
   tcf_is_virtual : bool;
   tcf_is_reflective : bool;
@@ -240,6 +261,7 @@ and tcpp_class = {
   tcl_debug_level : int;
   tcl_super : tcpp_class option;
   tcl_container : tcpp_class_container option;
+  tcl_constructor : tcpp_class_function option;
 
   tcl_haxe_interfaces : tcpp_interface list;
   tcl_native_interfaces : tcpp_interface list;
@@ -262,8 +284,8 @@ and tcpp_class = {
 and tcpp_interface_function = {
   iff_field : tclass_field;
   iff_name : string;
-  iff_args : (string * bool * t) list;
-  iff_return : t;
+  iff_args : tcpp_tfun_arg list;
+  iff_return : tcpp;
   iff_script_slot : int option;
 }
 
@@ -280,9 +302,16 @@ and tcpp_interface = {
   if_scriptable : bool;
 }
 
+and tcpp_tfun_arg = {
+  tfa_name : string;
+  tfa_type : tcpp;
+  tfa_optional : bool;
+}
+
 and tcpp_enum_field = {
   tef_field : tenum_field;
   tef_name : string;
+  tef_args : tcpp_tfun_arg list option;
   tef_hash : string;
 }
 

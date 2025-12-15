@@ -679,12 +679,14 @@ and class_type ?(tref=None) ctx c pl statics =
 		if not statics then begin
 			(* add interfaces *)
 			List.iter (fun (i,pl) ->
-				let rid = ref (-1) in
-				rid := add_field "" (fun() ->
-					let t = to_type ctx (TInst (i,pl)) in
-					p.pinterfaces <- PMap.add t !rid p.pinterfaces;
-					t
-				);
+				if not (has_class_flag i CExtern) then begin
+					let rid = ref (-1) in
+					rid := add_field "" (fun() ->
+						let t = to_type ctx (TInst (i,pl)) in
+						p.pinterfaces <- PMap.add t !rid p.pinterfaces;
+						t
+					);
+				end;
 			) c.cl_implements;
 			(* check toString *)
 			(try
