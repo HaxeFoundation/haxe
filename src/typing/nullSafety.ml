@@ -24,12 +24,18 @@ type scope_type =
 	(* A closure which gets executed along the "normal" program flow without being delayed or stored somewhere *)
 	| STImmediateClosure
 
-type safety_unify_error =
-	| NullSafetyError
+type unificator_ctx =
+	| None
+	| Field of string
+	| Arg of int * int
+	| Return
 
-exception Safety_error of safety_unify_error
+exception Safety_unify_error of t * t * unificator_ctx
 
-let safety_error () : unit = raise (Safety_error NullSafetyError)
+(**
+	Shadow Type.error to avoid raising unification errors, which should not be raised from null-safety checks
+*)
+let safety_error a b (ctx : unificator_ctx) : unit = raise (Safety_unify_error (a, b, ctx))
 
 type safety_mode =
 	| SMOff
@@ -222,16 +228,24 @@ class unificator =
 			Check if it's possible to pass a value of type `a` to a place where a value of type `b` is expected.
 			Raises `Safety_error` exception if it's not.
 		*)
-		method unify a b =
+		method unify ?(uctx: unificator_ctx = None) a b =
 			if a == b then
 				()
 			else
 				match a, b with
+					(* if b (to_type) is nullable anon, we still need to check fields nullability *)
+					| TAbstract ({ a_path = ([],"Null") },[TAnon a_anon ]),
+						TAbstract ({ a_path = ([],"Null") },[TAnon b_anon ])
+					| TAnon a_anon, TAbstract ({ a_path = ([],"Null") },[TAnon b_anon ]) ->
+						self#unify_anon_to_anon a_anon b_anon
+					| TInst (a_cls, a_params), TAbstract ({ a_path = ([],"Null") },[TAnon b_anon ]) ->
+						self#unify_class_to_anon a_cls a_params b_anon
+
 					(* if `b` is nullable, no more checks needed *)
 					| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
 						()
 					| TAbstract ({ a_path = ([],"Null") },[t]), _ when not (is_nullable_type b) ->
-						safety_error()
+						safety_error a b uctx
 					| TInst (_, a_params), TInst(_, b_params) when (List.length a_params) = (List.length b_params) ->
 						List.iter2 self#unify a_params b_params
 					| TAnon a_anon, TAnon b_anon ->
@@ -285,7 +299,8 @@ class unificator =
 					in
 					match a_field with
 						| None -> ()
-						| Some a_field -> self#unify a_field.cf_type b_field.cf_type
+						| Some a_field ->
+							self#unify a_field.cf_type b_field.cf_type ~uctx: (Field name)
 				)
 				b.a_fields
 
@@ -300,7 +315,7 @@ class unificator =
 						| None -> ()
 						| Some a_field ->
 							let a_type = apply_params a.cl_params a_params a_field.cf_type in
-							self#unify a_type b_field.cf_type
+							self#unify a_type b_field.cf_type ~uctx: (Field name)
 				)
 				b.a_fields
 
@@ -308,17 +323,18 @@ class unificator =
 			(* check return type *)
 			(match b_result with
 				| TAbstract ({ a_path = ([], "Void") }, []) -> ()
-				| _ -> self#unify a_result b_result;
+				| _ -> self#unify a_result b_result ~uctx: Return;
 			);
+			let a_args_len = List.length a_args in
 			(* check arguments *)
-			let rec traverse a_args b_args =
+			let rec traverse i a_args b_args =
 				match a_args, b_args with
 					| [], _ | _, [] -> ()
 					| (_, _, a_arg) :: a_rest, (_, _, b_arg) :: b_rest ->
-						self#unify b_arg a_arg;
-						traverse a_rest b_rest
+						self#unify b_arg a_arg ~uctx: (Arg (i + 1, a_args_len));
+						traverse (i + 1) a_rest b_rest
 			in
-			traverse a_args b_args
+			traverse 0 a_args b_args
 	end
 
 (**
@@ -341,11 +357,6 @@ let rec unfold_null t =
 		| TLazy f -> unfold_null (lazy_type f)
 		| TType (t,tl) -> unfold_null (apply_typedef t tl)
 		| _ -> t
-
-(**
-	Shadow Type.error to avoid raising unification errors, which should not be raised from null-safety checks
-*)
-let safety_error () : unit = raise (Safety_error NullSafetyError)
 
 let accessed_field_name access =
 	match access with
@@ -1138,32 +1149,35 @@ class expr_checker mode immediate_execution report =
 					false
 				else begin
 					let expr_type = unfold_null expr.etype in
-					let errors = ref [] in
-					self#check_anon_to_anon
-						(fun field_name expr_field_type to_field_type ->
-							errors := Invalid_field_type field_name :: !errors;
-							errors := Cannot_unify(expr_field_type, to_field_type) :: !errors
-						)
-						expr_type to_type;
-
-					if !errors <> [] then begin
-						self#error_unify (List.rev !errors) p;
-						(* returning `true` because error is already logged in the line above *)
+					try
+						new unificator#unify expr_type to_type;
 						true
-					end
-					else begin
-						try
-							new unificator#unify expr_type to_type;
+					with
+						| Safety_unify_error (expr_type, to_type, ctx) ->
+							let errors = match ctx with
+								| None ->
+									[Cannot_unify(expr_type, to_type)]
+								| Field field ->
+									[
+										Invalid_field_type field;
+										Cannot_unify(expr_type, to_type)
+									]
+								| Arg (i, total) ->
+									[
+										Invalid_function_argument (i, total);
+										Cannot_unify(expr_type, to_type)
+									]
+								| Return ->
+									[
+										Invalid_return_type;
+										Cannot_unify(expr_type, to_type)
+									]
+							in
+							self#error_unify errors p;
+							(* returning `true` because error is already logged in the line above *)
 							true
-						with
-							| Safety_error _ ->
-								let errors = [Cannot_unify(expr_type, to_type)] in
-								self#error_unify errors p;
-								(* returning `true` because error is already logged in the line above *)
-								true
-							| e ->
-								fail ~msg:"Null safety unification failure" expr.epos __POS__
-					end
+						| e ->
+							fail ~msg:"Null safety unification failure" expr.epos __POS__
 				end
 			in
 			let check_anon_fields fields to_type =
@@ -1189,30 +1203,6 @@ class expr_checker mode immediate_execution report =
 							| _ -> try_unify expr to_type
 					)
 				| _, _ -> try_unify expr to_type
-
-		method check_anon_to_anon report_error expr_type to_type =
-			let check_field anon name to_field =
-				try
-					let expr_field = PMap.find name anon.a_fields in
-					(* let field_path = if path = "" then name else path ^ "." ^ name in *)
-
-					if is_nullable_type expr_field.cf_type && not (is_nullable_type to_field.cf_type) then
-						report_error name expr_field.cf_type to_field.cf_type;
-
-					self#check_anon_to_anon report_error expr_field.cf_type to_field.cf_type
-				with Not_found -> ()
-			in
-			match unfold_null expr_type, unfold_null to_type with
-				| TAnon anon, TAnon to_anon ->
-					PMap.iter
-						(fun name to_field -> check_field anon name to_field)
-					to_anon.a_fields
-				| TAnon anon, TInst (cl, _) ->
-					PMap.iter
-						(fun name to_field -> check_field anon name to_field)
-					cl.cl_fields
-				| _ -> ()
-
 
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
@@ -1589,7 +1579,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 	object (self)
 			val is_safe_class = (safety_enabled cls_meta)
 			val mutable checker = new expr_checker SMLoose immediate_execution report
-			val mutable mode = None
+			val mutable mode : safety_mode option = None
 		(**
 			Entry point for checking a class
 		*)
