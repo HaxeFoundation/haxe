@@ -1029,7 +1029,7 @@ let generate_managed_class base_ctx tcpp_class =
       in
 
       let sigs =
-        [ "\t::hx::ScriptNamedFunction(0,0,0)" ]
+        [ "\t::hx::ScriptNamedFunction()" ]
         |> List.fold_right (dump_script false) tcpp_class.tcl_functions
         |> List.fold_right (dump_script true) tcpp_class.tcl_static_functions
         |> String.concat ",\n"

@@ -230,7 +230,7 @@ let generate_managed_interface base_ctx tcpp_interface =
           s |> output_cpp;
       in
       List.iter dump_func sig_and_funcs;
-      output_cpp "\t::hx::ScriptNamedFunction(0,0,0) };\n");
+      output_cpp "\t::hx::ScriptNamedFunction() };\n");
 
     let mapper f = Printf.sprintf "\t%s&%s::%s" (cpp_tfun_signature true f.iff_args f.iff_return) script_name f.iff_name in
     let strings =
