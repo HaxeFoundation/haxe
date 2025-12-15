@@ -76,7 +76,6 @@ and tcpp =
   | TCppAutoCast
   | TCppDynamicArray
   | TCppObjectArray of tcpp
-  | TCppWrapped of tcpp
   | TCppScalarArray of tcpp
   | TCppObjC of tclass
   | TCppNativePointer of tclass

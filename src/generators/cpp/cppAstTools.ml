@@ -409,7 +409,6 @@ and tcpp_to_string_suffix suffix tcpp =
       tcpp_objc_block_struct argTypes retType ^ "::t"
   | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
   | TCppObjectArray _ -> "::Array" ^ suffix ^ "< ::Dynamic>"
-  | TCppWrapped _ -> " ::Dynamic"
   | TCppScalarArray value ->
       "::Array" ^ suffix ^ "< " ^ tcpp_to_string value ^ " >"
   | TCppObjC klass ->
@@ -792,7 +791,7 @@ let rec cpp_is_native_array_access t =
    | _ -> false
 
 let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
+   | TCppDynamic | TCppObject | TCppVariant | TCppGlobal | TCppNull
    | TCppInterface _
       -> true
    | _ -> false
@@ -813,7 +812,6 @@ let is_object_element member_type =
    | TCppFunction _
    | TCppDynamicArray
    | TCppObjectArray _
-   | TCppWrapped _
    | TCppScalarArray _
    | TCppClass
        -> true
@@ -834,7 +832,6 @@ let cpp_variant_type_of t = match t with
   | TCppDynamicArray
   | TCppObjectArray _
   | TCppScalarArray _
-  | TCppWrapped _
   | TCppObjC _
   | TCppObjCBlock _
   | TCppRest _
