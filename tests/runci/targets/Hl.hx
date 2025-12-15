@@ -185,10 +185,11 @@ class Hl {
 		changeDirectory(getMiscSubDir("eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");
 
-		if (Hl.withJitTests) {
-			changeDirectory(miscHlDir);
-			runCommand("haxe", ["run.hxml"]);
-		}
+		// these are generic tests for genhl which don't actually output .hl so don't require the jit runtime.
+		// so they are not skipped with --skip-hl-jit
+		changeDirectory(miscHlDir);
+		runCommand("haxe", ["run.hxml"]);
+
 		if (Hl.withHlcTests) {
 			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
 			changeDirectory(getMiscSubDir("hlc/reservedKeywords"));
