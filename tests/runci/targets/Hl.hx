@@ -185,7 +185,7 @@ class Hl {
 		changeDirectory(getMiscSubDir("eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");
 
-		// these are generic tests for genhl which don't actually output .hl so don't require the jit runtime.
+		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
 		// so they are not skipped with --skip-hl-jit
 		changeDirectory(miscHlDir);
 		runCommand("haxe", ["run.hxml"]);

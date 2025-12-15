@@ -1,4 +1,2 @@
 -cp ../src
 --run Main
-# ensure each test doesn't actually generate a .hl file, because these should test genhl and not require hl jit
---no-output
