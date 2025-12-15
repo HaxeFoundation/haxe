@@ -22,7 +22,6 @@
 
 package cpp;
 
-@:defaultValue(0)
 @:coreType @:notNull @:runtimeValue abstract Int64 from Int {
 
 	/**

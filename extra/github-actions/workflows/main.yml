@@ -118,7 +118,7 @@ jobs:
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       PLATFORM: linux64
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
     steps:
       - uses: actions/checkout@main
         with:
@@ -311,7 +311,7 @@ jobs:
     env:
       PLATFORM: linux-arm64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
@@ -396,7 +396,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       ARCH: 64
     strategy:
       fail-fast: false
@@ -454,7 +454,7 @@ jobs:
     env:
       PLATFORM: mac-universal
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false

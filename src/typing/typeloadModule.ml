@@ -172,19 +172,6 @@ module ModuleLevel = struct
 					let priv = List.mem AbPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
 					let p_enum_meta = Meta.maybe_get_pos Meta.Enum d.d_meta in
-					let a_default = try
-						begin match Meta.get Meta.DefaultValue d.d_meta with
-						| (_,[e],_) ->
-							Some (Lazy.from_fun (fun () ->
-								let ctx = TyperManager.clone_for_expr ctx_m FunStatic FunNotFunction in
-								type_expr ctx e WithType.value
-							))
-						| _ ->
-							raise Not_found
-						end
-					with Not_found ->
-						None
-					in
 					let a = {
 						a_path = path;
 						a_private = priv;
@@ -211,11 +198,7 @@ module ModuleLevel = struct
 						a_constructor = None;
 						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
-						a_default;
 					} in
-					delay ctx_m.g PBuildModule (fun () ->
-						match a.a_default with | None -> () | Some l -> ignore(Lazy.force l)
-					);
 					begin match p_enum_meta with
 						| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
 						| None -> ()

@@ -1764,7 +1764,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
 			| _ -> follow_without_type tmin
 		in
-		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
+		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
 			| None
 			(* TODO: why does this happen? *)

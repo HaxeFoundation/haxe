@@ -405,7 +405,9 @@ let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback
 			| TBinop (OpBoolAnd, left_expr, right_expr) when not positive ->
 				List.iter
 					(fun e ->
-						let _, not_nulls = process_condition mode left_expr is_nullable_expr callback in
+						let _, not_nulls =
+							process_condition mode left_expr is_nullable_expr callback
+						in
 						List.iter (add true) not_nulls
 					)
 					[left_expr; right_expr]
@@ -834,7 +836,9 @@ class local_safety (mode:safety_mode) =
 				| TWhile (condition, body, DoWhile) ->
 					let original_safe_locals = self#get_safe_locals_copy in
 					condition_callback condition;
-					let (_, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
+					let (_, not_nulls) =
+						process_condition mode condition is_nullable_expr (fun _ -> ())
+					in
 					body_callback
 						(fun () ->
 							List.iter
@@ -850,7 +854,9 @@ class local_safety (mode:safety_mode) =
 						body
 				| TWhile (condition, body, NormalWhile) ->
 					condition_callback condition;
-					let (nulls, not_nulls) = process_condition mode condition is_nullable_expr (fun _ -> ()) in
+					let (nulls, not_nulls) =
+						process_condition mode condition is_nullable_expr (fun _ -> ())
+					in
 					let original_safe = self#get_safe_locals_copy in
 					(** execute `body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
@@ -1105,10 +1111,6 @@ class expr_checker mode immediate_execution report =
 					let is_nullable = traverse exprs in
 					local_safety#scope_closed;
 					is_nullable
-					(* (match exprs with
-						| [] -> false
-						| _ -> self#is_nullable_expr (List.hd (List.rev exprs))
-					) *)
 				| TIf _ ->
 					let nullable = ref false in
 					let check body = nullable := !nullable || self#is_nullable_expr body in

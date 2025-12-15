@@ -1084,7 +1084,6 @@ and encode_tabstract a =
 		"array", encode_array (List.map encode_cfield a.a_array);
 		"resolve", (match a.a_read with None -> vnull | Some cf -> encode_cfref cf);
 		"resolveWrite", (match a.a_write with None -> vnull | Some cf -> encode_cfref cf);
-		"defaultValue", (match a.a_default with None -> vnull | Some lazy_texpr -> encode_ref lazy_texpr (fun lazy_texpr -> lazy_texpr |> Lazy.force |> encode_texpr) (fun () -> "default value") )
 	]
 
 and encode_efield f =
