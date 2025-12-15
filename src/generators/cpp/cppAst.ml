@@ -79,7 +79,7 @@ and tcpp =
   | TCppScalarArray of tcpp
   | TCppObjC of tclass
   | TCppNativePointer of tclass
-  | TCppVariant
+  | TCppVariant of tcpp option
   | TCppCode of tcpp
   | TCppInst of tclass * tcpp list
   | TCppInterface of tclass

@@ -106,7 +106,7 @@ let rec script_cpptype_string cppType =
   | TCppRest _ -> "vaarg_list"
   | TCppVarArg -> "vararg"
   | TCppAutoCast -> ".cpp.AutoCast"
-  | TCppVariant -> ".cpp.Variant"
+  | TCppVariant _ -> ".cpp.Variant"
   | TCppEnum enum -> join_class_path enum.e_path "."
   | TCppScalar scalar -> scalar
   | TCppString -> "String"

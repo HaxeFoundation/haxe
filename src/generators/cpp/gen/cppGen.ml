@@ -1453,7 +1453,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         out name
     | CppDynamicRef (expr, name) ->
         let objPtr =
-          match expr.cpptype with TCppVariant -> "getObject()" | _ -> ".mPtr"
+          match expr.cpptype with TCppVariant _ -> "getObject()" | _ -> ".mPtr"
         in
         out "::hx::FieldRef((";
         gen expr;

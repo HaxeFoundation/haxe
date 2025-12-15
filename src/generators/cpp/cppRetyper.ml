@@ -667,7 +667,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   CppFunction (FuncInstance (retypedObj, InstPtr, member, []), funcReturn),
                   exprType )
               else
-                (retyper_ctx, CppDynamicField (retypedObj, member.cf_name), TCppVariant)
+                (retyper_ctx, CppDynamicField (retypedObj, member.cf_name), TCppVariant (Some exprType))
             else if cpp_is_struct_access retypedObj.cpptype then
               match retypedObj.cppexpr with
               | CppThis ThisReal ->
@@ -709,7 +709,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                 | TCppInterface _, _ | TCppDynamic, _ ->
                   ( retyper_ctx,
                     CppDynamicField (retypedObj, member.cf_name),
-                    TCppVariant )
+                    TCppVariant (Some exprType))
                 | TCppObjC _, _ ->
                   ( retyper_ctx,
                     CppVar (VarInstance ( retypedObj, member, tcpp_to_string clazzType, "." )),
@@ -808,7 +808,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   CppFunction (FuncInternal (obj, fieldName, "->"), cppType),
                   cppType )
             else
-              (retyper_ctx, CppDynamicField (obj, field.cf_name), TCppVariant)
+              (retyper_ctx, CppDynamicField (obj, field.cf_name), TCppVariant None)
           | FDynamic fieldName ->
               let retyper_ctx, obj = retype retyper_ctx TCppDynamic obj in
               if obj.cpptype = TCppNull then (retyper_ctx, CppNullAccess, TCppDynamic)
@@ -844,7 +844,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   ( retyper_ctx,
                     CppVar (VarInternal (obj, "->", fieldName)),
                     cpp_type_of expr.etype )
-              else (retyper_ctx, CppDynamicField (obj, fieldName), TCppVariant)
+              else (retyper_ctx, CppDynamicField (obj, fieldName), TCppVariant None)
           | FEnum (enum, enum_field) ->
             (retyper_ctx, CppEnumField (enum, enum_field), TCppEnum enum))
       | TCall ({ eexpr = TIdent "__cpp__" }, arg_list) ->
@@ -1287,8 +1287,8 @@ let expression ctx request_type function_args function_type expression_tree forI
           in
           match (op, e1.cpptype, e2.cpptype) with
           (* Variant + Variant = Variant *)
-          | OpAdd, _, TCppVariant | OpAdd, TCppVariant, _ ->
-            (retyper_ctx, reference, TCppVariant)
+          | OpAdd, _, TCppVariant o | OpAdd, TCppVariant o, _ ->
+            (retyper_ctx, reference, TCppVariant o)
           | _, _, _ ->
             (retyper_ctx, reference, cpp_type_of expr.etype))
       | TUnop (op, pre, e1) ->

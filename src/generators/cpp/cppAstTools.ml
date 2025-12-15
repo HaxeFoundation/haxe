@@ -385,7 +385,8 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppRest _ -> "vaarg_list"
   | TCppVarArg -> "vararg"
   | TCppAutoCast -> "::cpp::AutoCast"
-  | TCppVariant -> "::cpp::Variant"
+  | TCppVariant None -> "::cpp::Variant"
+  | TCppVariant Some t -> Printf.sprintf "::cpp::Variant( %s )" (tcpp_to_string t)
   | TCppEnum enum -> " ::" ^ join_class_path_remap enum.e_path "::" ^ suffix
   | TCppScalar scalar -> scalar
   | TCppString -> "::String"
@@ -791,7 +792,7 @@ let rec cpp_is_native_array_access t =
    | _ -> false
 
 let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppGlobal | TCppNull
+   | TCppDynamic | TCppObject | TCppVariant _ | TCppGlobal | TCppNull
    | TCppInterface _
       -> true
    | _ -> false
@@ -858,7 +859,7 @@ let cpp_variant_type_of t = match t with
   | TCppScalar "double"
   | TCppScalar "float" -> TCppScalar("Float")
   | TCppScalar _  -> TCppScalar("int")
-  | TCppVariant -> TCppVariant
+  | TCppVariant v -> TCppVariant v
 
 let cpp_cast_variant_type_of t = match t with
   | TCppObjectArray _
