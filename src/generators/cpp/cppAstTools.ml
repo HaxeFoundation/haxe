@@ -311,7 +311,7 @@ let rec s_tcpp = function
   | CppCall (FuncInstance (obj, inst, field, _), _) ->
       (match inst with
       | InstObjC -> "CppCallObjCInstance("
-      | InstPtr -> "CppCallInstance("
+      | InstPtr _ -> "CppCallInstance("
       | _ -> "CppCallStruct(")
       ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
   | CppCall (FuncInterface _, _) -> "CppCallInterface"

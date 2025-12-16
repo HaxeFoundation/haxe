@@ -118,7 +118,10 @@ and tcppvarloc =
   | VarStatic of tclass * bool * tclass_field
   | VarInternal of tcppexpr * string * string
 
-and tcppinst = InstPtr | InstObjC | InstStruct
+and tcppinst =
+  | InstPtr of tcpp
+  | InstObjC
+  | InstStruct
 
 and tcppfuncloc =
   | FuncThis of tclass_field * tcpp

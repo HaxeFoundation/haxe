@@ -611,7 +611,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           let clazzType = cpp_instance_type cls params with_reference_value_type in
           let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
           let handler     = if is_marshalling_native_value_class cls then with_stack_value_type else with_promoted_value_type in
-          let access      = if cpp_is_struct_access retypedObj.cpptype then InstStruct else InstPtr in
+          let access      = if cpp_is_struct_access retypedObj.cpptype then InstStruct else InstPtr clazzType in
           let func_return = cpp_type_of_with handler ret in
           let exprType    = cpp_type_of_with handler t in
           ( retyper_ctx, CppFunction (FuncInstance (retypedObj, access, member, template_types), func_return), exprType )
@@ -664,7 +664,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             else if retypedObj.cpptype = TCppDynamic && not (has_class_flag clazz CInterface) then
               if is_internal_member member.cf_name then
                 ( retyper_ctx,
-                  CppFunction (FuncInstance (retypedObj, InstPtr, member, []), funcReturn),
+                  CppFunction (FuncInstance (retypedObj, InstPtr clazzType, member, []), funcReturn),
                   exprType )
               else
                 (retyper_ctx, CppDynamicField (retypedObj, member.cf_name), TCppVariant (Some exprType))
@@ -767,7 +767,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   CppFunction
                     ( FuncInstance
                       ( retypedObj,
-                        (if is_objc then InstObjC else InstPtr),
+                        (if is_objc then InstObjC else InstPtr clazzType),
                         member,
                         [] ),
                       funcReturn ),
@@ -894,19 +894,19 @@ let expression ctx request_type function_args function_type expression_tree forI
             | CppEnumIndex _ ->
                 (* Not actually a TCall...*)
                 (retyper_ctx, retypedFunc.cppexpr, retypedFunc.cpptype)
-            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
+            | CppFunction (FuncInstance (obj, InstPtr tcpp, member, template_params), _)
               when (not forCppia) && return_type = TCppVoid && is_array_splice_call obj member ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 ( retyper_ctx,
-                  CppCall ( FuncInstance (obj, InstPtr, { member with cf_name = "removeRange" }, template_params), retypedArgs ),
+                  CppCall ( FuncInstance (obj, InstPtr tcpp, { member with cf_name = "removeRange" }, template_params), retypedArgs ),
                   TCppVoid )
-            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
+            | CppFunction (FuncInstance (obj, InstPtr tcpp, member, template_params), _)
               when is_array_concat_call obj member ->
                 let arg_types = List.map (fun _ -> obj.cpptype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
                 ( retyper_ctx,
-                  CppCall (FuncInstance (obj, InstPtr, member, template_params), retypedArgs),
+                  CppCall (FuncInstance (obj, InstPtr tcpp, member, template_params), retypedArgs),
                   return_type )
             | CppFunction (FuncStatic (obj, false, member, _), _)
               when member.cf_name = "::hx::AddressOf" ->
@@ -951,7 +951,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   abort
                     "First parameter of template function must be a Class"
                     retypedFunc.cpppos)
-            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
+            | CppFunction (FuncInstance (obj, InstPtr tcpp, member, template_params), _)
               when is_map_get_call obj member ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
@@ -974,7 +974,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   | _ -> ("get", TCppDynamic)
                 in
                 let func =
-                  FuncInstance (obj, InstPtr, { member with cf_name = fname }, template_params)
+                  FuncInstance (obj, InstPtr tcpp, { member with cf_name = fname }, template_params)
                 in
                 (*
                   if  cpp_can_static_cast cppType return_type then begin
@@ -983,7 +983,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                   end else
                   *)
                 (retyper_ctx, CppCall (func, retypedArgs), cppType)
-            | CppFunction (FuncInstance (obj, InstPtr, member, template_params), _)
+            | CppFunction (FuncInstance (obj, InstPtr tcpp, member, template_params), _)
               when forCppia && is_map_set_call obj member ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
@@ -997,10 +997,10 @@ let expression ctx request_type function_args function_type expression_tree forI
                   | [ _; { cpptype = TCppString } ] -> "setString"
                   | _ -> "set"
                 in
-                let func = FuncInstance (obj, InstPtr, { member with cf_name = fname }, template_params) in
+                let func = FuncInstance (obj, InstPtr tcpp, { member with cf_name = fname }, template_params) in
                 (retyper_ctx, CppCall (func, retypedArgs), cppType)
             | CppFunction
-                ((FuncInstance (obj, InstPtr, member, template_params) as func), returnType)
+                ((FuncInstance (obj, InstPtr tcpp, member, template_params) as func), returnType)
               when cpp_can_static_cast returnType cppType ->
                 let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
                 let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
