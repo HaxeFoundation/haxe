@@ -98,8 +98,44 @@ let rec cpp_type_of stack value_type_handler haxe_type =
           | None -> TCppScalar (join_class_path a.a_path "::")
         else TCppDynamic)
     | TType (type_def, params) ->
-      cpp_type_from_path stack type_def.t_path params value_type_handler (fun () ->
-        cpp_type_of stack value_type_handler (apply_typedef type_def params))
+      (* Can't really remember why / what this is doing *)
+      (* I only have vague memories of nightmares about trying to stop recursive typedefs turning stuff dynamic *)
+      let rec find s t =
+        if List.exists (fast_eq t) s then begin
+          true
+        end else
+          let s = t :: s in
+          match t with
+          | TMono r ->
+            (match r.tm_type with
+            | None -> false
+            | Some t -> find s t)
+          | TEnum (_,tl) | TInst (_,tl) ->
+            List.exists (find s) tl
+          | TAbstract (abs,tl) ->
+            if not (Meta.has Meta.CoreType abs.a_meta) && (find s (Abstract.get_underlying_type ~return_first:true abs tl)) then
+              true
+            else
+              List.exists (find s) tl
+          | TType (tdef,tl) ->
+            find s (apply_typedef tdef tl)
+          | TFun (tl,r) ->
+            if (find s r) then
+              true
+            else begin
+              List.exists (fun (_,_,targ) -> (find s targ)) tl
+            end
+          | TLazy f ->
+            find s (lazy_type f)
+          | TDynamic (Some t2) ->
+            find s t2
+          | _ ->
+            false
+        in
+      if find [] haxe_type then
+        cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> TCppDynamic)
+      else
+        cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> cpp_type_of stack value_type_handler (apply_typedef type_def params))
     | TFun _ -> TCppObject
     | TAnon _ -> TCppObject
     | TDynamic _ -> TCppDynamic
