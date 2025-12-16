@@ -995,7 +995,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         else if path = "::Array" then out "::hx::ArrayBase::__mClass"
         else out ("::hx::ClassOf< " ^ path ^ " >()")
     | CppVar loc -> gen_val_loc loc
-    | CppClosure closure ->
+    | CppCallable closure ->
         out
           (" ::Dynamic(new _hx_Closure_" ^ string_of_int closure.close_id ^ "(");
         let separator = ref "" in

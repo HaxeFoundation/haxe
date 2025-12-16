@@ -1183,7 +1183,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             uses_this  = if new_ctx.uses_this != None then Some retyper_ctx.this_real else retyper_ctx.uses_this;
         } in
 
-        (retyper_ctx, CppClosure result, TCppDynamic)
+        (retyper_ctx, CppCallable result, TCppDynamic)
       | TArray (e1, e2) ->
           let retyper_ctx, arrayExpr , elemType =
             match cpp_is_native_array_access (cpp_type_of e1.etype) with

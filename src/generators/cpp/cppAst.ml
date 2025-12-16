@@ -164,7 +164,7 @@ and tcpp_expr_expr =
   | CppThis of tcppthis
   | CppSuper of tcppthis
   | CppCode of string * tcppexpr list
-  | CppClosure of tcpp_closure
+  | CppCallable of tcpp_closure
   | CppVar of tcppvarloc
   | CppExtern of string * bool
   | CppDynamicField of tcppexpr * string

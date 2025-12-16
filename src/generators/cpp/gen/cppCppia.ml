@@ -1583,7 +1583,7 @@ class script_writer ctx filename asciiOut =
                 ^ this#typeTextString "Dynamic"
                 ^ string_of_int index ^ "\n");
               gen_expression obj
-          | CppClosure closure ->
+          | CppCallable closure ->
               this#write
                 (this#op IaFun
                 ^ this#astType closure.close_type

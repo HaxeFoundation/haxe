@@ -291,7 +291,7 @@ let rec s_tcpp = function
   | CppThis _ -> "CppThis"
   | CppSuper _ -> "CppSuper"
   | CppCode _ -> "CppCode"
-  | CppClosure _ -> "CppClosure"
+  | CppCallable _ -> "CppCallable"
   | CppVar (VarLocal _) -> "CppVarLocal"
   | CppVar (VarClosure _) -> "CppVarClosure"
   | CppVar (VarThis _) -> "CppVarThis"
