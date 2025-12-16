@@ -62,6 +62,15 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| PurityState.ExpectPure p,PurityState.MaybePure -> f1.cf_meta <- (Meta.Pure,[EConst(Ident "expect"),p],null_pos) :: f1.cf_meta
 		| _ -> ()
 	end;
+	let get_arg_default_value cf arg_name =
+		let def_values = get_value_meta cf.cf_meta in
+		try
+			let arg = PMap.find arg_name def_values in
+			match (fst arg) with
+				| EConst ct -> Some (s_constant ct)
+				| _ -> None
+		with Not_found -> None
+	in
 	begin match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
 		begin match follow t1, follow t2 with
@@ -70,9 +79,17 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 			let i = ref 0 in
 			begin try
 				valid r1 r2;
-				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+				List.iter2 (fun (n,o1,a1) (n2,o2,a2) ->
 					incr i;
-					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
+					let def1 = get_arg_default_value f1 n in
+					let def2 = get_arg_default_value f2 n2 in
+					let is_def_diff = Option.is_none def1 != Option.is_none def2 in
+					(* If one function has default value and other is not, report it first *)
+					if (is_def_diff) then
+						raise (Unify_error [Cannot_unify(a2, a1); Not_matching_default_values (def2, def1, n)])
+					else if o1 <> o2 then
+						raise (Unify_error [Cannot_unify(a2, a1); Not_matching_optional (o2, o1, n)]);
+
 					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
 				) args1 args2;
 			with Unify_error l ->
