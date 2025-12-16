@@ -467,6 +467,12 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
 
+  | TCppCallable (arguments, return) ->
+    let return_str    = tcpp_to_string return in
+    let arguments_str = arguments |> List.map tcpp_to_string |> String.concat "," in
+
+    Printf.sprintf "::hx::Callable< %s (%s) >" return_str arguments_str
+
 and build_type path pos params meta target parameter_handler =
   let get_meta_field field =
     match Meta.get target meta with
@@ -791,9 +797,15 @@ let rec cpp_is_native_array_access t =
    | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true
    | _ -> false
 
-let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant _ | TCppGlobal | TCppNull
+let cpp_is_dynamic_type t =
+  match t with
+   | TCppDynamic
+   | TCppObject
+   | TCppVariant _
+   | TCppGlobal
+   | TCppNull
    | TCppInterface _
+   | TCppCallable _
       -> true
    | _ -> false
 
@@ -815,6 +827,7 @@ let is_object_element member_type =
    | TCppObjectArray _
    | TCppScalarArray _
    | TCppClass
+   | TCppCallable _
        -> true
    | _ -> false
 
@@ -843,7 +856,8 @@ let cpp_variant_type_of t = match t with
   | TCppClass
   | TCppGlobal
   | TCppNull
-  | TCppEnum _ -> TCppDynamic
+  | TCppEnum _
+  | TCppCallable _ -> TCppDynamic
   | TCppString -> TCppString
   | TCppFunction _
   | TCppNativePointer _

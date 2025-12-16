@@ -28,10 +28,11 @@ let gen_member_variable ctx is_static var =
       tcpp_str var.tcv_name tcpp_str get_ptr var.tcv_name |> output;)
 
 let gen_dynamic_function ctx class_def is_static func =
-  let output = ctx.ctx_output in
-  let prefix = if is_static then "\t\tstatic " else "\t\t" in
+  let output    = ctx.ctx_output in
+  let prefix    = if is_static then "\t\tstatic " else "\t\t" in
+  let signature = func_to_callable_string "::hx::Callable" func in
 
-  Printf.sprintf "%sinline ::Dynamic& %s_dyn() { return %s; }\n" prefix func.tcf_name func.tcf_name |> output
+  Printf.sprintf "%sinline %s& %s_dyn() { return %s; }\n" prefix signature func.tcf_name func.tcf_name |> output
 
 let gen_member_function ctx class_def is_static func =
   let output = ctx.ctx_output in
@@ -68,7 +69,9 @@ let gen_member_function ctx class_def is_static func =
   Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_args "") |> output;
 
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
-    Printf.sprintf "\t\t%s::Dynamic %s_dyn();\n" (if is_static then "static " else "") func.tcf_name |> output;
+    let prefix    = if is_static then "static " else "" in
+    let signature = func_to_callable_string "::hx::Callable" func in
+    Printf.sprintf "\t\t%s%s %s_dyn();\n" prefix signature func.tcf_name |> output;
 
   output "\n"
 

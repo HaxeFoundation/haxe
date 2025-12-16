@@ -136,7 +136,10 @@ let rec cpp_type_of stack value_type_handler haxe_type =
         cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> TCppDynamic)
       else
         cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> cpp_type_of stack value_type_handler (apply_typedef type_def params))
-    | TFun _ -> TCppObject
+    | TFun (arguments, return) ->
+      let retyped_arguments = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack o value_type_handler t) arguments in
+      let retyped_return    = cpp_type_of stack value_type_handler return in
+      TCppCallable (retyped_arguments, retyped_return)
     | TAnon _ -> TCppObject
     | TDynamic _ -> TCppDynamic
     | TLazy func -> cpp_type_of stack value_type_handler (lazy_type func)
@@ -207,7 +210,7 @@ and cpp_type_from_path stack path params value_type_handler default =
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
       | TCppEnum _ | TCppInst _ | TCppInterface _ | TCppProtocol _ | TCppClass
       | TCppDynamicArray | TCppObjectArray _ | TCppScalarArray _ | TCppMarshalNativeType _
-      | TCppMarshalManagedType  _ ->
+      | TCppMarshalManagedType _ | TCppCallable _ ->
         TCppObjectArray arrayOf
       | _ -> TCppScalarArray arrayOf)
   | ([], "Null"), [ p ] -> cpp_type_of_null stack value_type_handler p
@@ -226,10 +229,10 @@ and cpp_type_of_pointer stack value_type_handler p =
   | x -> cpp_type_of stack value_type_handler x
 
 (* Optional types are Dynamic if they norally could not be null *)
-and cpp_fun_arg_type_of stack tvar opt value_type_handler =
+and cpp_fun_arg_type_of tvar opt value_type_handler =
   match opt with
-  | Some _ -> cpp_type_of_null stack value_type_handler tvar.t_type
-  | _ -> cpp_type_of stack value_type_handler tvar.t_type
+  | Some _ -> cpp_type_of_null [] value_type_handler tvar.v_type
+  | _ -> cpp_type_of [] value_type_handler tvar.v_type
 
 and cpp_tfun_arg_type_of stack opt value_type_handler t =
   if opt then cpp_type_of_null stack value_type_handler t else cpp_type_of stack value_type_handler t
@@ -776,10 +779,16 @@ let expression ctx request_type function_args function_type expression_tree forI
               let funcReturn =
                 if isArrayObj then
                   match member.cf_name with
-                  | "map" -> TCppDynamicArray
+                  | "map" ->
+                    (match expr.etype with
+                    | TFun (_, return) ->
+                      cpp_type_of_with handler return
+                    | _ ->
+                      cpp_abort InternalError member.cf_pos)
                   | "splice" | "slice" | "concat" | "copy" | "filter" ->
                     retypedObj.cpptype
-                  | _ -> funcReturn
+                  | _ ->
+                    funcReturn
                 else
                   match (retypedObj.cpptype, funcReturn) with
                   | TCppPointer (_, t), TCppDynamic
@@ -907,6 +916,12 @@ let expression ctx request_type function_args function_type expression_tree forI
           | TCppObjCBlock (argTypes, retType) ->
             let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args argTypes in
             (retyper_ctx, CppCall (FuncExpression retypedFunc, retypedArgs), retType)
+          (* If the return type is variant of a callable make sure it gets property retyped as a callable *)
+          (* Otherwise dynamic calling will occur through the variant *)
+          | TCppVariant Some TCppCallable (argument_types, return_type) ->
+            let retyper_ctx, retyped_args = retype_function_args retyper_ctx args argument_types in
+            let retyper_ctx, retyped_call = retype retyper_ctx (TCppCallable (argument_types, return_type)) func in 
+            (retyper_ctx, CppCall (FuncExpression retyped_call, retyped_args), return_type)
           | _ -> (
             let cppType = cpp_type_of expr.etype in
             match retypedFunc.cppexpr with
@@ -1183,7 +1198,10 @@ let expression ctx request_type function_args function_type expression_tree forI
             uses_this  = if new_ctx.uses_this != None then Some retyper_ctx.this_real else retyper_ctx.uses_this;
         } in
 
-        (retyper_ctx, CppCallable result, TCppDynamic)
+        let args = result.close_args |> List.map fst |> List.map (fun v -> v.tcppv_type) in
+        let return = result.close_type in
+
+        (retyper_ctx, CppCallable result, TCppCallable (args, return) )
       | TArray (e1, e2) ->
           let retyper_ctx, arrayExpr , elemType =
             match cpp_is_native_array_access (cpp_type_of e1.etype) with
@@ -1880,6 +1898,20 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     gc_container variables parent Current
   in
 
+  (* Static functions can have their closure objects pre-allocated, do that in the boot section of the class *)
+  let wants_closures =
+    let needs_closures func =
+      match get_meta_string func.tcf_field.cf_meta Meta.Native with
+      | Some _ ->
+        false
+      | _ when (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective ->
+        true
+      | _ ->
+        false
+    in
+    List.exists needs_closures static_functions
+  in
+
   let flags = 0
     |> (fun f -> if scriptable && not class_def.cl_private then set_tcpp_class_flag f Scriptable else f)
     |> (fun f -> if can_quick_alloc class_def then set_tcpp_class_flag f QuickAlloc else f)
@@ -1889,7 +1921,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     |> (fun f -> if has_set_static_field class_def then set_tcpp_class_flag f StaticSet else f)
     |> (fun f -> if has_get_fields class_def then set_tcpp_class_flag f GetFields else f)
     |> (fun f -> if has_compare_field class_def then set_tcpp_class_flag f Compare else f)
-    |> (fun f -> if has_boot_field class_def then set_tcpp_class_flag f Boot else f)
+    |> (fun f -> if has_boot_field class_def || wants_closures then set_tcpp_class_flag f Boot else f)
   in
 
   let meta_field = List.find_opt (fun field -> field.cf_name = "__meta__") class_def.cl_ordered_statics |> Option.map (fun f -> Option.get f.cf_expr) in

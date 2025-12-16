@@ -70,6 +70,8 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCastVariant cppexpr) return_type
     | TCppDynamic when is_variant cppexpr.cpptype ->
       mk_cppexpr (CppCastVariant cppexpr) return_type
+    | TCppCallable _ when is_variant cppexpr.cpptype ->
+      mk_cppexpr (CppCast(cppexpr, return_type)) return_type
     | TCppStar (t, const) as ptr ->
       let ptr_type = TCppPointer ((if const then "ConstPointer" else "Pointer"), t) in
       let ptr_cast = mk_cppexpr (CppCast (cppexpr, ptr_type)) ptr_type in

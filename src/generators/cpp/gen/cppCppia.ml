@@ -96,7 +96,7 @@ let rec script_type_string haxe_type =
 
 let rec script_cpptype_string cppType =
   match cppType with
-  | TCppDynamic | TCppUnchanged | TCppObject | TCppMarshalManagedType _ -> "Dynamic"
+  | TCppDynamic | TCppUnchanged | TCppObject | TCppMarshalManagedType _ | TCppCallable _ -> "Dynamic"
   | TCppObjectPtr -> ".*.hx.Object*"
   | TCppReference t -> ".ref." ^ script_cpptype_string t
   | TCppStruct t -> ".struct." ^ script_cpptype_string t

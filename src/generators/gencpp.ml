@@ -315,19 +315,21 @@ let generate_source ctx =
 
       | TClassDecl class_def ->
          let native_gen       = Meta.has Meta.NativeGen class_def.cl_meta in
-         let decl, slots, ids =
+         let bootable, decl, slots, ids =
             match has_class_flag class_def CInterface with
             | true ->
                let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
-               if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, slots, acc.ids)
+               let bootable = has_boot_field class_def in
+               if native_gen then (bootable, NativeInterface iface, slots, acc.ids) else (bootable, ManagedInterface iface, slots, acc.ids)
             | false ->
                let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def [] in
-               if native_gen then (NativeClass cls, slots, ids) else (ManagedClass cls, slots, ids) in
+               let bootable = has_tcpp_class_flag cls Boot in
+               if native_gen then (bootable, NativeClass cls, slots, ids) else (bootable, ManagedClass cls, slots, ids) in
 
          let acc_decls           = decl :: acc.decls in
          let acc_build_xml       = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
          let acc_init_classes    = if has_init_field class_def then class_def.cl_path :: acc.init_classes else acc.init_classes in
-         let acc_boot_classes    = if has_boot_field class_def then class_def.cl_path :: acc.boot_classes else acc.boot_classes in
+         let acc_boot_classes    = if bootable then class_def.cl_path :: acc.boot_classes else acc.boot_classes in
          let acc_nonboot_classes = if Meta.has Meta.NativeGen class_def.cl_meta then acc.nonboot_classes else class_def.cl_path :: acc.nonboot_classes in
          let acc_exe_classes     =
             if (has_class_flag class_def CInterface) && (is_native_gen_class class_def) then

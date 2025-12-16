@@ -86,6 +86,7 @@ and tcpp =
   | TCppProtocol of tclass
   | TCppClass
   | TCppGlobal
+  | TCppCallable of tcpp list * tcpp
 
 and tcppexpr = { cppexpr : tcpp_expr_expr; cpptype : tcpp; cpppos : pos }
 
