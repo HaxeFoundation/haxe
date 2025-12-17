@@ -99,10 +99,7 @@ let gen_function ctx tcpp_class is_static func =
         callable_name |> output
 
 let gen_function_closures ctx tcpp_class is_static func =
-  match get_meta_string func.tcf_field.cf_meta Meta.Native with
-  | Some _ when is_static ->
-    ()
-  | _ when (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective ->
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     let output          = ctx.ctx_output in
     let return_type_str = type_to_string func.tcf_func.tf_type in
     let return_type     = cpp_type_of func.tcf_func.tf_type in
@@ -125,19 +122,12 @@ let gen_function_closures ctx tcpp_class is_static func =
     if is_static then
       let signature = func_to_callable_string "::hx::Callable" func in
       Printf.sprintf "%s _hx_alloc%s;\n\n" signature callable_name |> output
-  | _ ->
-    ()
 
 let gen_static_closure_alloc ctx tcpp_class func =
-  match get_meta_string func.tcf_field.cf_meta Meta.Native with
-  | Some _ ->
-    ()
-  | _ when (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective ->
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     let output = ctx.ctx_output in
     let callable_name = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
     Printf.sprintf "_hx_alloc%s = new (::hx::NewObjectType::NewObjConst) %s();\n\n" callable_name callable_name |> output
-  | _ ->
-    ()
 
 let gen_dynamic_function ctx tcpp_class is_static func =
   let output          = ctx.ctx_output in
