@@ -1173,7 +1173,7 @@ let expression ctx request_type function_args function_type expression_tree forI
 
         let new_ctx = {
           retyper_ctx with
-            declarations = func.tf_args |> List.map (fun (t, _) -> t.v_id, retype_tvar t) |> int_map_of_list;
+            declarations = func.tf_args |> List.map (fun (t, o) -> t.v_id, retype_func_arg t o) |> int_map_of_list;
             undeclared   = IntMap.empty;
             this_real    = ThisFake;
             uses_this    = None;
@@ -1187,7 +1187,7 @@ let expression ctx request_type function_args function_type expression_tree forI
             close_id = retyper_ctx.closure_id;
             close_undeclared = new_ctx.undeclared;
             close_type = new_ctx.function_return_type;
-            close_args = func.tf_args |> List.map (fun (t, e) -> retype_tvar t, e);
+            close_args = func.tf_args |> List.map (fun (t, o) -> retype_func_arg t o, o);
             close_this = new_ctx.uses_this;
           }
         in
