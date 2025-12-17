@@ -10,11 +10,10 @@ open CppContext
 open CppGen
 
 let gen_member_variable ctx is_static var =
-  let tcpp     = CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type var.tcv_type in
-  let tcpp_str = tcpp_to_string tcpp in
+  let tcpp_str = tcpp_to_string var.tcv_type in
 
   if not is_static && var.tcv_is_stackonly then
-    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" (Printer.s_type var.tcv_type)) var.tcv_field.cf_pos;
+    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" (Printer.s_type var.tcv_field.cf_type)) var.tcv_field.cf_pos;
 
   let output = ctx.ctx_output in
   let suffix = if is_static then "\t\tstatic " else "\t\t" in
@@ -22,7 +21,7 @@ let gen_member_variable ctx is_static var =
   Printf.sprintf "%s%s %s;\n" suffix tcpp_str var.tcv_name |> output;
 
   if not is_static && var.tcv_is_gc_element then (
-    let get_ptr = match tcpp with TCppString -> ".raw_ref()" | _ -> ".mPtr" in
+    let get_ptr = match var.tcv_type with TCppString -> ".raw_ref()" | _ -> ".mPtr" in
     Printf.sprintf
       "\t\tinline %s _hx_set_%s(::hx::StackContext* _hx_ctx, %s _hx_v) { HX_OBJ_WB(this, _hx_v%s) return %s = _hx_v; }\n"
       tcpp_str var.tcv_name tcpp_str get_ptr var.tcv_name |> output;)
@@ -58,9 +57,7 @@ let gen_member_function ctx class_def is_static func =
   in
 
   let return_type_str =
-    match cpp_type_of func.tcf_func.tf_type with
-    | TCppMarshalNativeType (value_type, (Reference | Promoted)) ->
-      TCppMarshalNativeType (value_type, Stack) |> tcpp_to_string
+    match func.tcf_return with
     | TCppVoid ->
       "void"
     | other ->

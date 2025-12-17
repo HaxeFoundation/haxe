@@ -133,7 +133,7 @@ let gen_dynamic_function ctx tcpp_class is_static func =
   let output          = ctx.ctx_output in
   let func_name       = "__default_" ^ func.tcf_name in
   let no_debug        = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
-  let return_type_str = CppRetyper.cpp_type_of CppRetyper.with_stack_value_type func.tcf_func.tf_type |> tcpp_to_string in
+  let return_type_str = func.tcf_return |> tcpp_to_string in
   let captures        = Some ((tcpp_class.tcl_class.cl_path |> fst |> List.map keyword_remap |> String.concat "::") ^ "::" ^ tcpp_class.tcl_name) in
 
   write_callable_header func_name captures func return_type_str "__o_" output;
@@ -146,7 +146,7 @@ let gen_dynamic_function ctx tcpp_class is_static func =
 
 let gen_static_variable ctx tcpp_class var =
   let output   = ctx.ctx_output in
-  let tcpp_str = var.tcv_type |> CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type |> tcpp_to_string in
+  let tcpp_str = var.tcv_type |> tcpp_to_string in
   Printf.sprintf "%s %s::%s;\n\n" tcpp_str tcpp_class.tcl_name var.tcv_name |> output
 
 let gen_dynamic_function_init ctx func =
@@ -660,8 +660,8 @@ let generate_managed_class base_ctx tcpp_class =
       acc
   in
 
-  let castable f =
-    match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type f.cf_type with
+  let castable var =
+    match var.tcv_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
       "cpp::Struct< " ^ tcpp_to_string inst ^ " > "
     | TCppStar (t, _) ->
@@ -708,9 +708,9 @@ let generate_managed_class base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class MemberSet then (
     Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
-    let fold_variable (var:tcpp_class_variable) acc =
+    let fold_variable var acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
-        let casted  = castable var.tcv_field in
+        let casted  = castable var in
         let default = if var.tcv_is_gc_element then
           Printf.sprintf "_hx_set_%s(HX_CTX_GET, inValue.Cast< %s >()); return inValue;" var.tcv_name casted
         else
@@ -731,9 +731,9 @@ let generate_managed_class base_ctx tcpp_class =
         acc
     in
 
-    let fold_property (var:tcpp_class_variable) acc =
+    let fold_property var acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
-        let casted  = castable var.tcv_field in
+        let casted  = castable var in
 
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall | AccPrivateCall } ->
@@ -760,7 +760,7 @@ let generate_managed_class base_ctx tcpp_class =
 
     let fold_variable (var:tcpp_class_variable) acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
-        let casted = castable var.tcv_field in
+        let casted = castable var in
 
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall | AccPrivateCall } ->
@@ -777,13 +777,13 @@ let generate_managed_class base_ctx tcpp_class =
         acc
     in
 
-    let fold_property (var:tcpp_class_variable) acc =
+    let fold_property var acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
-          let casted    = castable var.tcv_field in
+          let casted    = castable var in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
         | _ ->

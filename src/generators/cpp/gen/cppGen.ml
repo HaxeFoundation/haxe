@@ -109,7 +109,7 @@ let cpp_debug_var_visible ctx var = not (cpp_no_debug_synbol ctx (fst var))
 
 let cpp_callable_args arguments prefix =
   let make_arg (v, o) =
-    let return   = CppRetyper.cpp_fun_arg_type_of v.tcppv_var o CppRetyper.with_stack_value_type |> tcpp_to_string in
+    let return   = tcpp_to_string v.tcppv_type in
     let prefixed = match o with
     | Some {eexpr = TConst TNull} -> v.tcppv_name
     | Some _ -> prefix ^ v.tcppv_name
@@ -125,7 +125,7 @@ let cpp_callable_signaure closure =
 
 let func_to_callable_string wrapper func =
   let return_str    = tcpp_to_string func.tcf_return in
-  let arguments_str = func.tcf_args |> List.map (fun (v, o) -> CppRetyper.cpp_fun_arg_type_of v.tcppv_var o CppRetyper.with_stack_value_type) |> List.map tcpp_to_string |> String.concat "," in
+  let arguments_str = func.tcf_args |> List.map (fun (v, _) -> v.tcppv_type) |> List.map tcpp_to_string |> String.concat "," in
 
   Printf.sprintf "%s< %s (%s) >" wrapper return_str arguments_str
 
@@ -1586,7 +1586,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       captured |> out;
 
     Printf.sprintf
-      "%s _hx_run( %s )"
+      "%s HX_LOCAL_RUN( %s )"
       (tcpp_to_string closure.close_type)
       (cpp_callable_args closure.close_args "__o_") |> output_i;
 

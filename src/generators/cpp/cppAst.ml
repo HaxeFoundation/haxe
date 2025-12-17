@@ -246,7 +246,7 @@ and tcpp_class_function = {
 and tcpp_class_variable = {
   tcv_field : tclass_field;
   tcv_name : string;
-  tcv_type : t;
+  tcv_type : tcpp;
   tcv_default : texpr option;
 
   tcv_has_getter : bool;

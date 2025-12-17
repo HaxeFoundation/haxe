@@ -137,8 +137,8 @@ let rec cpp_type_of stack value_type_handler haxe_type =
       else
         cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> cpp_type_of stack value_type_handler (apply_typedef type_def params))
     | TFun (arguments, return) ->
-      let retyped_arguments = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack o value_type_handler t) arguments in
-      let retyped_return    = cpp_type_of stack value_type_handler return in
+      let retyped_arguments = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack o with_reference_value_type t) arguments in
+      let retyped_return    = cpp_type_of stack with_stack_value_type return in
       TCppCallable (retyped_arguments, retyped_return)
     | TAnon _ -> TCppObject
     | TDynamic _ -> TCppDynamic
@@ -314,6 +314,13 @@ type retyper_ctx = {
   loop_stack : (int * bool) list;
 }
 
+let sanitise_stack_only_type pos tcpp =
+  match tcpp with
+  | TCppMarshalNativeType (ValueClass (cls, _), Promoted) when is_stack_only_marshalling_native_value_class cls ->
+    cpp_abort PromotedStackOnlyValueType pos
+  | _ ->
+    tcpp
+
 let retype_tvar tvar =
   let copying_var =
     match tvar.v_kind with
@@ -328,17 +335,20 @@ let retype_tvar tvar =
     else
       with_reference_value_type
   in
-  let sanitise tcpp =
-    match tcpp with
-    | TCppMarshalNativeType (ValueClass (cls, _), Promoted) when is_stack_only_marshalling_native_value_class cls ->
-      cpp_abort PromotedStackOnlyValueType tvar.v_pos
-    | _ ->
-      tcpp
-    in
       
   {
     tcppv_var        = tvar;
-    tcppv_type       = cpp_type_of handler tvar.v_type |> sanitise;
+    tcppv_type       = cpp_type_of handler tvar.v_type |> sanitise_stack_only_type tvar.v_pos;
+    tcppv_name       = cpp_var_name_of tvar;
+    tcppv_debug_name = keyword_remap tvar.v_name
+  }
+
+let retype_func_arg tvar expr =
+  let handler = if has_var_flag tvar VCaptured then with_promoted_value_type else with_stack_value_type in
+  
+  {
+    tcppv_var        = tvar;
+    tcppv_type       = cpp_fun_arg_type_of tvar expr handler |> sanitise_stack_only_type tvar.v_pos;
     tcppv_name       = cpp_var_name_of tvar;
     tcppv_debug_name = keyword_remap tvar.v_name
   }
@@ -1689,36 +1699,56 @@ let native_field_name_remap field =
 let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable in
 
-  let create_function field handler func = {
+  let create_function field func = {
     tcf_field = field;
     tcf_name = native_field_name_remap field;
-    tcf_args = List.map (fun (v, i) -> retype_tvar v, i) func.tf_args;
+    tcf_args = List.map (fun (v, i) -> retype_func_arg v i, i) func.tf_args;
     tcf_func = func;
     tcf_is_virtual = not (has_meta Meta.NonVirtual field.cf_meta);
     tcf_is_reflective = reflective class_def field;
     tcf_is_external = not (is_internal_member field.cf_name);
     tcf_is_overriding = is_override field;
     tcf_is_scriptable = scriptable;
-    tcf_return = cpp_type_of handler func.tf_type
+    tcf_return = cpp_type_of with_stack_value_type func.tf_type
   } in
 
-  let create_variable field = {
-    tcv_field = field;
-    tcv_name = native_field_name_remap field;
-    tcv_type = field.cf_type;
-    tcv_default = None;
+  let create_variable field =
+    let tcpp = cpp_type_of with_promoted_value_type field.cf_type in
+    
+    {
+      tcv_field   = field;
+      tcv_name    = native_field_name_remap field;
+      tcv_type    = tcpp;
+      tcv_default = None;
 
-    tcv_has_getter = (match field.cf_kind with | Var { v_read = AccCall | AccPrivateCall } -> true | _ -> false);
-    tcv_is_stackonly = has_meta Meta.StackOnly field.cf_meta;
-    tcv_is_reflective = reflective class_def field;
-    tcv_is_gc_element = cpp_type_of with_promoted_value_type field.cf_type |> is_gc_element ctx;
-  } in
+      tcv_has_getter    = (match field.cf_kind with | Var { v_read = AccCall | AccPrivateCall } -> true | _ -> false);
+      tcv_is_stackonly  = has_meta Meta.StackOnly field.cf_meta;
+      tcv_is_reflective = reflective class_def field;
+      tcv_is_gc_element = is_gc_element ctx tcpp;
+    } in
+
+  let create_dynamic_func_variable field func =
+    let args = func.tf_args |> List.map (fun (v, i) -> retype_func_arg v i) |> List.map (fun v -> v.tcppv_type) in
+    let ret  = cpp_type_of with_stack_value_type func.tf_type in
+    let tcpp = TCppCallable (args, ret) in
+
+    {
+      tcv_field   = { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) };
+      tcv_name    = native_field_name_remap field;
+      tcv_type    = tcpp;
+      tcv_default = None;
+
+      tcv_has_getter    = false;
+      tcv_is_stackonly  = false;
+      tcv_is_reflective = reflective class_def field;
+      tcv_is_gc_element = true;
+    } in
 
   let filter_functions is_static field =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
       | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
-        Some (create_function field with_stack_value_type func)
+        Some (create_function field func)
       | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
         (* We need to fetch the default values for abstract functions from the @:Value meta *)
         let abstract_tfunc =
@@ -1759,7 +1789,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
             die "expected abstract field type to be TFun" __LOC__
         in
 
-        Some (create_function field with_stack_value_type abstract_tfunc)
+        Some (create_function field abstract_tfunc)
       | _ ->
         None
     else
@@ -1770,10 +1800,10 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
     if should_implement_field field then
       match (field.cf_kind, field.cf_expr) with
       | Method MethDynamic, Some { eexpr = TFunction func } ->
-        Some (create_function field with_promoted_value_type func)
+        Some (create_function field func)
       (* static variables with a default function value get a dynamic function generated as the implementation *)
       | Var _, Some { eexpr = TFunction func } when func_for_static_field ->
-        Some (create_function field with_promoted_value_type func)
+        Some (create_function field func)
       | _ ->
         None
     else
@@ -1791,7 +1821,8 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
           Some (create_variable field))
       (* Dynamic methods are implemented as a physical field holding a closure *)
       | Method MethDynamic, Some { eexpr = TFunction func } ->
-        Some (create_variable { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) })
+        Some (create_dynamic_func_variable field func)
+        (* Some (create_variable { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) }) *)
       (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
       (* See Int32.hx as an example *)
       | Method (MethNormal | MethInline), None when not (has_class_field_flag field CfAbstract) ->
@@ -1848,7 +1879,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let constructor =
     match class_def.cl_constructor with
     | Some ({ cf_expr = Some { eexpr = TFunction definition } } as field) ->
-      Some (create_function field with_stack_value_type definition)
+      Some (create_function field definition)
     | _ ->
       None
   in
@@ -1889,7 +1920,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       match cpp_type_of with_promoted_value_type t with TCppScalar _ -> true | _ -> false in
 
     let rec gc_container variables super v =
-      match List.exists (fun v -> not (type_cant_be_null v.tcv_type)) variables, super with
+      match List.exists (fun v -> not (type_cant_be_null v.tcv_field.cf_type)) variables, super with
       | true, _ -> Some v
       | false, Some super -> gc_container super.tcl_variables super.tcl_super Parent
       | false, None -> None
