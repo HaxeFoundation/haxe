@@ -344,7 +344,11 @@ let retype_tvar tvar =
   }
 
 let retype_func_arg tvar expr =
-  let handler = if has_var_flag tvar VCaptured then with_promoted_value_type else with_stack_value_type in
+  let handler =
+    match tvar.v_kind with
+    | VAbstractThis -> with_reference_value_type
+    | _ -> if has_var_flag tvar VCaptured then with_promoted_value_type else with_stack_value_type
+  in
   
   {
     tcppv_var        = tvar;
