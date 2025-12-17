@@ -454,6 +454,7 @@ let gather_types (code:code) =
 		(match t with
 		| HObj { psuper = Some p } -> get_type (HObj p)
 		| HStruct { psuper = Some p } -> get_type (HStruct p)
+		| HNull t | HRef t -> get_type t
 		| _ -> ());
 		if PMap.mem t !types then () else
 		let index = DynArray.length arr in
@@ -465,8 +466,6 @@ let gather_types (code:code) =
 			get_type ret
 		| HObj p | HStruct p ->
 			Array.iter (fun (_,n,t) -> get_type t) p.pfields
-		| HNull t | HRef t ->
-			get_type t
 		| HVirtual v ->
 			Array.iter (fun (_,_,t) -> get_type t) v.vfields
 		| HEnum e ->
@@ -474,7 +473,7 @@ let gather_types (code:code) =
 		| _ ->
 			()
 	in
-	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HGUID; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->

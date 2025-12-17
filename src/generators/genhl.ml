@@ -4199,7 +4199,7 @@ let create_context com =
 					Some (get_class "ArrayBytes_hl_I64");
 			aguid =
 				if Gctx.raw_defined com "hl_legacy32"
-					|| hl_ver <> "" && compare_version hl_ver "1.13.0" < 0
+					|| hl_ver <> "" && compare_version hl_ver "1.16.0" < 0
 				then
 					None
 				else

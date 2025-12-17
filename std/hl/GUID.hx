@@ -22,6 +22,7 @@
 
 package hl;
 
+#if (hl_ver >= version("1.16.0") && !hl_legacy32)
 @:coreType @:notNull @:runtimeValue abstract GUID to I64 from I64 {
 	// Same as `Std.string`, but copied here to prevent Std.string(const TInt) optimization on GUID
 	public function toString() {
@@ -30,11 +31,10 @@ package hl;
 		return @:privateAccess String.__alloc__(bytes, len);
 	}
 
-	#if (hl_ver >= version("1.12.0") && !hl_legacy32)
 	@:op(a==b) function eq(v:GUID) : Bool;
 	@:op(a>=b) function gte(v:GUID) : Bool;
 	@:op(a<=b) function lte(v:GUID) : Bool;
 	@:op(a>b) function gt(v:GUID) : Bool;
 	@:op(a<b) function lt(v:GUID) : Bool;
-	#end
 }
+#end
