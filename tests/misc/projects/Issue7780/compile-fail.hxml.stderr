@@ -1,7 +1,7 @@
 Main.hx:9: characters 7-26 : error: Cannot unify final and non-final fields
 Main.hx:9: characters 7-26 : ... have: { foo: Dynamic }
 Main.hx:9: characters 7-26 : ... want: { final foo: Int }
-Main.hx:20: characters 5-57 : error: Optional arguments can't be forced
+Main.hx:20: characters 5-57 : error: Optional attribute of argument infos differs
 Main.hx:20: characters 5-57 : ... have: (..., haxe.PosInfos) -> ...
 Main.hx:20: characters 5-57 : ... want: (..., ?haxe.PosInfos) -> ...
 Main.hx:22: characters 12-13 : Field a overrides parent class with different or incomplete type

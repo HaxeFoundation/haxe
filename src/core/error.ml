@@ -103,12 +103,10 @@ let unify_error_msg ctx err = match err with
 			"Field " ^ f ^ " is " ^ s_kind a ^ " but should be " ^ s_kind b)
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
-	| Not_matching_default_values (o1, o2, n) ->
+	| Not_matching_default_values (v1, v2, n) ->
 		"Presence of default value on argument " ^ n ^ " differs"
 	| Not_matching_optional (o1, o2, n) ->
 		"Optional attribute of argument " ^ n ^ " differs"
-	| Cant_force_optional ->
-		"Optional arguments can't be forced"
 	| Invariant_parameter _ ->
 		"Type parameters are invariant"
 	| Constraint_failure name ->
@@ -188,9 +186,6 @@ module BetterErrors = struct
 			| Cannot_unify(t1,t2) ->
 				!current_acc.acc_actual <- t1;
 				!current_acc.acc_expected <- t2;
-				add_message err
-			| Cant_force_optional ->
-				!current_acc.acc_actual_info.is_optional <- true;
 				add_message err
 			| Not_matching_optional (o1, o2, fname) ->
 				!current_acc.acc_actual_info.is_optional <- o1;

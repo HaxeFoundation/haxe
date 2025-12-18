@@ -15,7 +15,6 @@ type unify_error =
 	| Not_matching_default_values of string option * string option * string
 	(* optional acc_actual, optional acc_expected, field name *)
 	| Not_matching_optional of bool * bool * string
-	| Cant_force_optional
 	| Invariant_parameter of int
 	| Constraint_failure of string
 	| Missing_overload of tclass_field * t
@@ -833,8 +832,8 @@ let rec unify (uctx : unification_context) a b =
 			(match follow r2 with
 			| TAbstract ({a_path=[],"Void"},_) -> incr i
 			| _ -> unify uctx r1 r2; incr i);
-			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
-				if o1 && not o2 then error [Cannot_unify (t1, t2); Cant_force_optional];
+			List.iter2 (fun (n1,o1,t1) (_,o2,t2) ->
+				if o1 && not o2 then error [Cannot_unify (t1, t2); Not_matching_optional (o1, o2, n1)];
 				unify uctx t1 t2;
 				incr i
 			) l2 l1 (* contravariance *)
