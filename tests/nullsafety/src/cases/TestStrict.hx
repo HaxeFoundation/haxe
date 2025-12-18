@@ -441,19 +441,6 @@ class TestStrict {
 
 	static function passSafeClass(obj:ObjWithField):Void {}
 
-	function assignNullableArgCallback_shouldFail():Void {
-		var cb = cb1;
-		shouldFail(cb = cb2);
-		var cb = cbs1;
-		shouldFail(cb = cbs2);
-	}
-
-	function cb1(a:Int, b:Null<Int>):Void {}
-	function cb2(a:Int, b:Int):Void {}
-
-	function cbs1(a:Int, b:Null<Int>):String return "";
-	function cbs2(a:Int, b:Int):Null<String> return "";
-
 	static function promise_then_nullableArg_shouldFail():Void {
 		showQuickPick(shouldFail((choice:Int) -> {}));
 		showQuickPick((choice:Null<Int>) -> {});

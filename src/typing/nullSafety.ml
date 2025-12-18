@@ -24,18 +24,14 @@ type scope_type =
 	(* A closure which gets executed along the "normal" program flow without being delayed or stored somewhere *)
 	| STImmediateClosure
 
-type unificator_ctx =
-	| None
-	| Field of string
-	| Arg of int * int
-	| Return
+type access_kind = BetterErrors.access_kind
 
-exception Safety_unify_error of t * t * unificator_ctx
+exception Safety_unify_error of t * t * access_kind
 
 (**
 	Shadow Type.error to avoid raising unification errors, which should not be raised from null-safety checks
 *)
-let safety_error a b (ctx : unificator_ctx) : unit = raise (Safety_unify_error (a, b, ctx))
+let safety_error a b (ctx : access_kind) : unit = raise (Safety_unify_error (a, b, ctx))
 
 type safety_mode =
 	| SMOff
@@ -228,7 +224,7 @@ class unificator =
 			Check if it's possible to pass a value of type `a` to a place where a value of type `b` is expected.
 			Raises `Safety_error` exception if it's not.
 		*)
-		method unify ?(uctx: unificator_ctx = None) a b =
+		method unify ?(acc_kind: access_kind = Root) a b =
 			if a == b then
 				()
 			else
@@ -245,7 +241,7 @@ class unificator =
 					| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
 						()
 					| TAbstract ({ a_path = ([],"Null") },[t]), _ when not (is_nullable_type b) ->
-						safety_error a b uctx
+						safety_error a b acc_kind
 					| TInst (_, a_params), TInst(_, b_params) when (List.length a_params) = (List.length b_params) ->
 						List.iter2 self#unify a_params b_params
 					| TAnon a_anon, TAnon b_anon ->
@@ -300,7 +296,7 @@ class unificator =
 					match a_field with
 						| None -> ()
 						| Some a_field ->
-							self#unify a_field.cf_type b_field.cf_type ~uctx: (Field name)
+							self#unify a_field.cf_type b_field.cf_type ~acc_kind: (Field name)
 				)
 				b.a_fields
 
@@ -315,7 +311,7 @@ class unificator =
 						| None -> ()
 						| Some a_field ->
 							let a_type = apply_params a.cl_params a_params a_field.cf_type in
-							self#unify a_type b_field.cf_type ~uctx: (Field name)
+							self#unify a_type b_field.cf_type ~acc_kind: (Field name)
 				)
 				b.a_fields
 
@@ -323,7 +319,7 @@ class unificator =
 			(* check return type *)
 			(match b_result with
 				| TAbstract ({ a_path = ([], "Void") }, []) -> ()
-				| _ -> self#unify a_result b_result ~uctx: Return;
+				| _ -> self#unify a_result b_result ~acc_kind: FunctionReturn;
 			);
 			let a_args_len = List.length a_args in
 			(* check arguments *)
@@ -331,7 +327,7 @@ class unificator =
 				match a_args, b_args with
 					| [], _ | _, [] -> ()
 					| (_, _, a_arg) :: a_rest, (_, _, b_arg) :: b_rest ->
-						self#unify b_arg a_arg ~uctx: (Arg (i + 1, a_args_len));
+						self#unify b_arg a_arg ~acc_kind: (FunctionArgument (i + 1, a_args_len));
 						traverse (i + 1) a_rest b_rest
 			in
 			traverse 0 a_args b_args
@@ -1155,23 +1151,23 @@ class expr_checker mode immediate_execution report =
 					with
 						| Safety_unify_error (expr_type, to_type, ctx) ->
 							let errors = match ctx with
-								| None ->
-									[Cannot_unify(expr_type, to_type)]
 								| Field field ->
 									[
 										Invalid_field_type field;
 										Cannot_unify(expr_type, to_type)
 									]
-								| Arg (i, total) ->
+								| FunctionArgument (i, total) ->
 									[
 										Invalid_function_argument (i, total);
 										Cannot_unify(expr_type, to_type)
 									]
-								| Return ->
+								| FunctionReturn ->
 									[
 										Invalid_return_type;
 										Cannot_unify(expr_type, to_type)
 									]
+								| _ ->
+									[Cannot_unify(expr_type, to_type)]
 							in
 							self#error_unify errors p;
 							(* returning `true` because error is already logged in the line above *)
