@@ -1,0 +1,35 @@
+name: Setup neko
+runs:
+  using: composite
+  steps:
+  - name: Install Neko from S3
+    shell: pwsh
+    if: runner.os == 'Windows'
+    run: |
+      Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
+      Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
+      $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
+      echo "$NEKOPATH" >> $env:GITHUB_PATH
+      echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
+
+  - name: Install Neko from S3
+    shell: bash
+    if: runner.os != 'Windows'
+    run: |
+      set -ex
+
+      curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
+      tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
+      NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
+      sudo mkdir -p /usr/local/bin
+      sudo mkdir -p /usr/local/include
+      sudo mkdir -p /usr/local/lib/neko
+      sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+      sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+      sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
+      sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+      echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
+
+  - name: Print Neko version
+    shell: bash
+    run: neko -version 2>&1
