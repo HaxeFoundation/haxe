@@ -7,15 +7,22 @@ extern class Application {
 	static function name():String;
 }
 
-@:js.import(@default "../pixi.js")
-extern class PixiDef {
+@:js.import(pixijs_path, "Application")
+extern class Application2 {
+	function new();
+	function test():String;
 	static function name():String;
 }
 
 @:js.import("../pixi.js", "Application")
-extern class PixiApp {
+extern class Application3 {
 	function new();
 	function test():String;
+	static function name():String;
+}
+
+@:js.import(@default "../pixi.js")
+extern class PixiDef {
 	static function name():String;
 }
 

@@ -1,7 +1,8 @@
-import pixi.Pixi.PixiApp;
 import pixi.Pixi.PixiDef;
 import pixi.Pixi.Assets;
 import pixi.Pixi.Application;
+import pixi.Pixi.Application2;
+import pixi.Pixi.Application3;
 
 @:js.import(@star '../lib.js')
 extern class Lib {
@@ -62,11 +63,15 @@ class Main {
 		eq(app.test(), "test");
 		eq(Application.name(), "Application");
 
+		var app = new Application2();
+		eq(app.test(), "test");
+		eq(Application2.name(), "Application");
+
 		eq(PixiDef.name(), "default name");
 
-		var app = new PixiApp();
+		var app = new Application3();
 		eq(app.test(), "test");
-		eq(PixiApp.name(), "Application");
+		eq(Application3.name(), "Application");
 		new Main();
 	}
 
