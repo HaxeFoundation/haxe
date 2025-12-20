@@ -73,7 +73,7 @@ class Lua {
 			// Note: don't use a user config
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
-			installLib("luasec", "1.0.2-1");
+			installLib("luasec", "1.3.2-1");
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
 			installLib("luasocket", "3.0rc1-2");
