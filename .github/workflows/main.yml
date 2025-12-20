@@ -797,7 +797,6 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-latest
     env:
       PLATFORM: mac-universal
       HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
@@ -805,15 +804,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        arch: [arm64]
         include:
         - target: hl
           arch: arm64
           runci-args: --skip-hl-jit
         - target: hl
           arch: x86_64
-          haxe-invoke: arch -x86_64
+          runner: macos-15-intel
 
+    runs-on: ${{ matrix.runner || 'macos-latest' }}
     steps:
       - uses: actions/checkout@main
         with:
@@ -868,7 +869,7 @@ jobs:
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          ${{ matrix.haxe-invoke }} haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+          haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 

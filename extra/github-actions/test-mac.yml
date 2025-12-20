@@ -24,6 +24,6 @@
   run: |
     # disable invalid Unicode filenames on APFS
     echo "" > sys/compile-fs.hxml
-    ${{ matrix.haxe-invoke }} haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+    haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
   working-directory: ${{github.workspace}}/tests
   timeout-minutes: 60
