@@ -12,9 +12,7 @@ class Lua {
 		switch (systemName){
 			case "Linux":
 				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev", "pipx"]);
-				runCommand("pipx", ["ensurepath"]);
-				runCommand("pipx", ["install", "hererocks"]);
-			case "Mac": {
+			case "Mac":
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
@@ -23,10 +21,9 @@ class Lua {
 				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("brew", ["install", "openssl"]);
 				runCommand("brew", ["install", "pipx"]);
-				runCommand("pipx", ["ensurepath"]);
-				runCommand("pipx", ["install", "hererocks"]);
-			}
 		}
+		runCommand("pipx", ["ensurepath"]);
+		runCommand("pipx", ["install", "hererocks"]);
 	}
 
 	static function installLib(lib : String, version : String, ?server :String){
