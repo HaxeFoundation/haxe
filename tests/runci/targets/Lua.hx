@@ -77,6 +77,11 @@ class Lua {
 
 			runCommand("lua",["-v"]);
 
+			if (systemName == "Windows") {
+				// required for luv build, default is very old
+				runCommand("luarocks", ["config", "cmake_generator", "Visual Studio 17 2022"]);
+			}
+
 			runCommand("luarocks", ["config", "--lua-incdir"]);
 			runCommand("luarocks", ["config", "--lua-libdir"]);
 			runCommand("luarocks", ["config", "--lua-ver"]);
