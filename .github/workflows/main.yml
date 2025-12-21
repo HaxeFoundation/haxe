@@ -24,11 +24,11 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: ./.github/workflows/setup-nsis
+      - uses: ./.github/actions/setup-nsis
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
-      - uses: ./.github/workflows/setup-ocaml-windows
+      - uses: ./.github/actions/setup-ocaml-windows
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -73,7 +73,7 @@ jobs:
           path: ~/.opam/
           key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         run: |
@@ -168,7 +168,7 @@ jobs:
           name: linuxBinaries
           path: linuxBinaries
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -229,7 +229,7 @@ jobs:
           name: xmldoc
           path: xmldoc
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -286,7 +286,7 @@ jobs:
           path: ~/.opam/
           key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         run: |
@@ -357,7 +357,7 @@ jobs:
           name: linuxArm64Binaries
           path: linuxBinaries
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -414,7 +414,7 @@ jobs:
           path: ~/.opam/
           key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         env:
@@ -522,7 +522,7 @@ jobs:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - uses: actions/setup-node@v4
         with:
@@ -653,7 +653,7 @@ jobs:
           name: macBinaries
           path: macBinaries
 
-      - uses: ./.github/workflows/setup-neko
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
