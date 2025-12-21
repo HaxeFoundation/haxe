@@ -58,9 +58,13 @@ jobs:
 
 
   linux-build:
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+
+    runs-on: ubuntu-22.04${{ matrix.arch == 'arm64' && '-arm' || '' }}
     env:
-      PLATFORM: linux64
+      PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       OPAMYES: 1
     steps:
       - uses: actions/checkout@main
@@ -72,7 +76,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.opam/
-          key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - uses: ./.github/actions/setup-neko
 
@@ -80,16 +84,13 @@ jobs:
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy darcs bubblewrap ocaml-nox libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
-          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-x86_64-linux -o $RUNNER_TEMP/opam
-          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
+          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
           opam init -c ${{ env.OCAML_VERSION }}
-          opam update
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
@@ -116,7 +117,14 @@ jobs:
         shell: bash
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
+          path: out
+
       - name: Build xmldoc
+        if: matrix.arch == 'x86_64'
         run: |
           set -ex
           make -s xmldoc
@@ -127,13 +135,8 @@ jobs:
             }
           EOL
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linuxBinaries
-          path: out
-
       - name: Upload xmldoc artifact
+        if: matrix.arch == 'x86_64'
         uses: actions/upload-artifact@v4
         with:
           name: xmldoc
@@ -141,32 +144,41 @@ jobs:
 
   linux-test:
     needs: linux-build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04${{ matrix.arch == 'arm64' && '-arm' || '' }}
     env:
-      PLATFORM: linux64
-      TEST: ${{matrix.target}}
+      PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        arch: [x86, arm64]
         include:
           - target: hl
+            arch: x86
             APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: hl
+            arch: arm64
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+            runci-args: --skip-hl-jit
           - target: cpp
+            arch: x86
             APT_PACKAGES: gcc-multilib g++-multilib
           - target: lua
             APT_PACKAGES: ncurses-dev
           - target: flash
             APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
+        exclude:
+          - target: flash
+            arch: arm64
     steps:
       - uses: actions/checkout@main
         with:
           submodules: recursive
       - uses: actions/download-artifact@v4
         with:
-          name: linuxBinaries
+          name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: linuxBinaries
 
       - uses: ./.github/actions/setup-neko
@@ -204,7 +216,7 @@ jobs:
         run: export DISPLAY=:99.0
 
       - name: Test
-        run: haxe RunCi.hxml -D include_legacy
+        run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -269,129 +281,6 @@ jobs:
           cp ../../src-json/* resources
           cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -theme $(haxelib libpath dox)/themes/default
         working-directory: ${{github.workspace}}/tests/docgen
-
-  linux-arm64-build:
-    runs-on: ubuntu-22.04-arm
-    env:
-      PLATFORM: linux-arm64
-      OPAMYES: 1
-    steps:
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v4
-        with:
-          path: ~/.opam/
-          key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
-
-      - uses: ./.github/actions/setup-neko
-
-      - name: Install dependencies
-        run: |
-          set -ex
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
-
-      - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
-        run: |
-          set -ex
-          opam init -c ${{ env.OCAML_VERSION }}
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
-          opam list
-          ocamlopt -v
-
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
-      - name: Build Haxe
-        run: |
-          set -ex
-          eval $(opam env)
-          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix
-          ls -l out
-          ldd -v ./haxe
-          ldd -v ./haxelib
-
-      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
-      - name: Extract branch name
-        id: extract_branch
-        shell: bash
-        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linuxArm64Binaries
-          path: out
-
-  linux-arm64-test:
-    needs: linux-arm64-build
-    runs-on: ubuntu-22.04-arm
-    env:
-      PLATFORM: linux-arm64
-      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
-      HAXE_STD_PATH: /usr/local/share/haxe/std
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, neko]
-        include:
-          - target: lua
-            APT_PACKAGES: ncurses-dev
-          - target: hl
-            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
-            runci-args: --skip-hl-jit
-    steps:
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-      - uses: actions/download-artifact@v4
-        with:
-          name: linuxArm64Binaries
-          path: linuxBinaries
-
-      - uses: ./.github/actions/setup-neko
-
-      - name: Setup Haxe
-        run: |
-          sudo apt install -qqy libmbedtls-dev
-
-          set -ex
-          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
-          sudo mkdir -p /usr/local/bin/
-          sudo mkdir -p /usr/local/share/haxe/
-          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
-          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
-          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
-
-      - name: Print Haxe version
-        run: haxe -version
-
-      - name: Setup haxelib
-        run: |
-          set -ex
-          mkdir ~/haxelib
-          haxelib setup ~/haxelib
-
-      - name: Install apt packages
-        if: matrix.APT_PACKAGES
-        run: |
-          set -ex
-          sudo apt update -qqy
-          sudo apt install -qqy ${{matrix.APT_PACKAGES}}
-
-      - name: Test
-        run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
-        working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
 
   mac-build:
     strategy:
@@ -687,7 +576,7 @@ jobs:
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
+    needs: [linux-test, mac-test, windows64-test]
     runs-on: ubuntu-22.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
@@ -757,7 +646,7 @@ jobs:
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')
-    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
+    needs: [linux-test, mac-test, windows64-test]
     runs-on: ubuntu-22.04
     steps:
       - name: Install dependencies
