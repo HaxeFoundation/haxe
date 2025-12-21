@@ -22,7 +22,7 @@ class Lua {
 				runCommand("brew", ["install", "openssl"]);
 				runCommand("brew", ["install", "pipx"]);
 			case "Windows":
-				runCommand("vcpkg", ["install", "pcre2"]);
+				runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
 		}
 		runCommand("pipx", ["ensurepath"]);
 		runCommand("pipx", ["install", "hererocks"]);
@@ -43,7 +43,7 @@ class Lua {
 				if (vcpkgRoot == null) {
 					System.failMsg("VCPKG_INSTALLATION_ROOT missing, lua dependencies may fail to install");
 				} else {
-					final dir = Path.join([vcpkgRoot, "installed\\x64-windows"]);
+					final dir = Path.join([vcpkgRoot, "installed\\x64-windows-release"]);
 					args.push('PCRE2_DIR=$dir');
 				}
 			}
