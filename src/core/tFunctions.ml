@@ -302,7 +302,6 @@ let null_abstract = {
 	a_constructor = None;
 	a_extern = false;
 	a_enum = false;
-	a_default = None;
 }
 
 let create_dependency mdep origin =

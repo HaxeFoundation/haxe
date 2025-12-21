@@ -103,17 +103,17 @@ let unify_error_msg ctx err = match err with
 			"Field " ^ f ^ " is " ^ s_kind a ^ " but should be " ^ s_kind b)
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
-	| Not_matching_optional n ->
-		"Optional attribute of parameter " ^ n ^ " differs"
-	| Cant_force_optional ->
-		"Optional parameters can't be forced"
+	| Not_matching_default_values (v1, v2, n) ->
+		"Presence of default value on argument " ^ n ^ " differs"
+	| Not_matching_optional (o1, o2, n) ->
+		"Optional attribute of argument " ^ n ^ " differs"
 	| Invariant_parameter _ ->
 		"Type parameters are invariant"
 	| Constraint_failure name ->
 		"Constraint check failure for " ^ name
 	| Missing_overload (cf, t) ->
 		cf.cf_name ^ " has no overload for " ^ s_type ctx t
-	| FinalInvariance ->
+	| FinalInvariance (is_final, is_final2) ->
 		"Cannot unify final and non-final fields"
 	| Invalid_function_argument(i,_) ->
 		Printf.sprintf "Cannot unify argument %i" i
@@ -123,6 +123,11 @@ let unify_error_msg ctx err = match err with
 		msg
 
 module BetterErrors = struct
+	type access_kind_info = {
+		mutable is_optional : bool;
+		mutable value : string option;
+		mutable is_final : bool;
+	}
 	type access_kind =
 		| Field of string
 		| FunctionArgument of int * int
@@ -137,6 +142,8 @@ module BetterErrors = struct
 		mutable acc_messages : unify_error list;
 		mutable acc_extra : unify_error list;
 		mutable acc_next : access option;
+		acc_expected_info : access_kind_info;
+		acc_actual_info : access_kind_info;
 	}
 
 	let s_access_kind = function
@@ -147,6 +154,11 @@ module BetterErrors = struct
 		| Root -> "Root"
 
 	let get_access_chain ctx l =
+		let make_acc_info () = {
+			is_optional = false;
+			value = None;
+			is_final = false;
+		} in
 		let make_acc kind actual expected = {
 			acc_kind = kind;
 			acc_expected = expected;
@@ -154,6 +166,8 @@ module BetterErrors = struct
 			acc_messages = [];
 			acc_extra = [];
 			acc_next = None;
+			acc_expected_info = make_acc_info ();
+			acc_actual_info = make_acc_info ();
 		} in
 		let root_acc = make_acc Root t_dynamic t_dynamic in
 		let current_acc = ref root_acc in
@@ -173,8 +187,20 @@ module BetterErrors = struct
 				!current_acc.acc_actual <- t1;
 				!current_acc.acc_expected <- t2;
 				add_message err
+			| Not_matching_optional (o1, o2, fname) ->
+				!current_acc.acc_actual_info.is_optional <- o1;
+				!current_acc.acc_expected_info.is_optional <- o2;
+				add_message err
+			| Not_matching_default_values (v1, v2, fname) ->
+				!current_acc.acc_actual_info.value <- v1;
+				!current_acc.acc_expected_info.value <- v2;
+				add_message err
 			| Invalid_field_type s ->
 				add_access (Field s);
+			| FinalInvariance (is_final, is_final2) ->
+				!current_acc.acc_actual_info.is_final <- is_final;
+				!current_acc.acc_expected_info.is_final <- is_final2;
+				add_message err
 			| Invalid_function_argument(i,l) ->
 				add_access (FunctionArgument(i,l));
 			| Invalid_return_type ->
@@ -202,7 +228,11 @@ module BetterErrors = struct
 		| TType (t,tl) ->
 			s_type_path t.t_path ^ s_type_params ctx tl
 		| TAbstract (a,tl) ->
-			s_type_path a.a_path ^ s_type_params ctx tl
+			(* show next scope of type parameter instead of Null<...> *)
+			if a.a_path = ([],"Null") then
+				s_type_path a.a_path ^ s_type_params_expanded ctx tl
+			else
+				s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
 			"() -> ..."
 		| TFun (l,t) ->
@@ -237,6 +267,10 @@ module BetterErrors = struct
 		| [] -> ""
 		| l -> "<" ^ String.concat ", " (List.map (fun _ -> "...") l) ^ ">"
 
+	and s_type_params_expanded ctx = function
+		| [] -> ""
+		| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
 	let better_error_message l =
 		let ctx = print_context() in
 		let rec loop acc l = match l with
@@ -269,12 +303,23 @@ module BetterErrors = struct
 						| [] ->
 							()
 					end;
-					s_type ctx access.acc_actual,s_type ctx access.acc_expected
+					let s_type_with_info t info =
+						let prefix = if (info.is_optional) then "?" else "" in
+						let postfix = match info.value with Some s -> "=" ^ s | None -> "" in
+						(* remove Null<...> if optional *)
+						let t = if info.is_optional then follow_without_type t else t in
+						prefix ^ s_type ctx t ^ postfix
+					in
+					s_type_with_info access.acc_actual access.acc_actual_info,
+					s_type_with_info access.acc_expected access.acc_expected_info
 			in
 			begin match access.acc_kind with
 			| Field s ->
 				let s1,s2 = loop() in
-				Printf.sprintf "{ %s: %s }" s s1,Printf.sprintf "{ %s: %s }" s s2
+				let final_prefix1 = if access.acc_actual_info.is_final then "final " else "" in
+				let final_prefix2 = if access.acc_expected_info.is_final then "final " else "" in
+				Printf.sprintf "{ %s%s: %s }" final_prefix1 s s1,
+				Printf.sprintf "{ %s%s: %s }" final_prefix2 s s2
 			| FunctionArgument(i,l) ->
 				let s1,s2 = loop() in
 				let sl1 = fill s1 i [] 1 l in

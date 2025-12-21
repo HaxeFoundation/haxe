@@ -479,7 +479,11 @@ type iteration_kind =
 	| IKNormal of iteration_ident
 	| IKKeyValue of iteration_ident * iteration_ident
 
-let type_for_loop ctx handle_display ik e1 e2 p =
+type for_loop_unroll =
+	| NoForcedUnroll
+	| ForcedUnroll
+
+let type_for_loop ctx handle_display ik e1 e2 unroll p =
 	let old_loop = ctx.e.in_loop in
 	let old_locals = save_locals ctx in
 	ctx.e.in_loop <- true;
@@ -488,7 +492,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		| None -> ()
 		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk MGet (WithType.with_type i.v_type))
 	in
-	let force_unroll = Meta.has Meta.Inline ctx.f.meta in
+	let force_unroll = unroll = ForcedUnroll in
 	match ik with
 	| IKNormal(i,pi,dko) ->
 		let iterator = IterationKind.of_texpr ctx e1 (get_unroll_params ctx e2 force_unroll) p in
@@ -535,7 +539,7 @@ let type_for_loop ctx handle_display ik e1 e2 p =
 		old_locals();
 		e
 
-let type_for_loop ctx handle_display it e2 p =
+let type_for_loop ctx handle_display it e2 unroll p =
 	let rec loop_ident dko e1 = match e1 with
 		| EConst(Ident i),p -> i,p,dko
 		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
@@ -558,4 +562,4 @@ let type_for_loop ctx handle_display it e2 p =
 	in
 	let ik,e1 = loop None it in
 	let e1 = type_expr ctx e1 WithType.value in
-	type_for_loop ctx handle_display ik e1 e2 p
+	type_for_loop ctx handle_display ik e1 e2 unroll p

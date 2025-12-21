@@ -120,8 +120,8 @@ module Setup = struct
 						0
 				in
 
-				if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
-					failwith "Invalid -D js-es value";
+				if es_version < 5 then
+					failwith "Invalid -D js-es value, minimal supported version is 5";
 
 				if es_version >= 5 then Common.raw_define com "js_es5"; (* backward-compatibility *)
 

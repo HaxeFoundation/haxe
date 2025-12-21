@@ -19,53 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package haxe.zip;
 
-@:coreApi @:buildXml('<include name="${HXCPP}/src/hx/libs/zlib/Build.xml" />')
-class Compress {
-	var s:Dynamic;
+import haxe.io.Bytes;
+using cpp.marshal.ViewExtensions;
 
-	public function new(level:Int):Void {
-		s = _deflate_init(level);
+@:coreApi class Compress {
+	private final impl : cpp.zip.Compress;
+
+	public function new(level:Int) {
+		impl = cpp.zip.Compress.create(level);
 	}
 
 	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
-		return _deflate_buffer(s, src.getData(), srcPos, dst.getData(), dstPos);
+		final srcView = src.asView().slice(srcPos);
+		final dstView = dst.asView().slice(dstPos);
+		final result  = impl.execute(srcView, dstView);
+
+		return { write : result.write, read : result.read, done : result.done }
 	}
 
 	public function setFlushMode(f:FlushMode):Void {
-		_set_flush_mode(s, Std.string(f));
+		impl.setFlushMode(switch f {
+			case NO: cpp.zip.Flush.None;
+			case SYNC: cpp.zip.Flush.Sync;
+			case FULL: cpp.zip.Flush.Full;
+			case FINISH: cpp.zip.Flush.Finish;
+			case BLOCK: cpp.zip.Flush.Block;
+		});
 	}
 
 	public function close():Void {
-		_deflate_end(s);
+		impl.close();
 	}
 
 	public static function run(s:haxe.io.Bytes, level:Int):haxe.io.Bytes {
-		var c = new Compress(level);
-		c.setFlushMode(FlushMode.FINISH);
-		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s, s.length));
-		var r = c.execute(s, 0, out, 0);
-		c.close();
-		if (!r.done || r.read != s.length)
-			throw "Compression failed";
-		return out.sub(0, r.write);
+		return Bytes.ofData(cpp.zip.Compress.run(s.asView(), level));
 	}
-
-	@:native("_hx_deflate_init")
-	extern static function _deflate_init(level:Int):Dynamic;
-
-	@:native("_hx_deflate_bound")
-	extern static function _deflate_bound(handle:Dynamic, length:Int):Int;
-
-	@:native("_hx_deflate_buffer")
-	extern static function _deflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int, dest:haxe.io.BytesData,
-		destPos:Int):{done:Bool, read:Int, write:Int};
-
-	@:native("_hx_deflate_end")
-	extern static function _deflate_end(handle:Dynamic):Void;
-
-	@:native("_hx_zip_set_flush_mode")
-	extern static function _set_flush_mode(handle:Dynamic, flushMode:String):Void;
 }

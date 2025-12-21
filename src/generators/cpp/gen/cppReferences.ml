@@ -4,6 +4,7 @@ open CppStrings
 open CppTypeUtils
 open CppAstTools
 open CppContext
+open CppMarshalling
 
 (*
    Get a list of all classes referred to by the class/enum definition
@@ -70,6 +71,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
 
   let add_extern_class klass = add_extern_type (TClassDecl klass) in
   let add_extern_enum enum = add_extern_type (TEnumDecl enum) in
+  let add_extern_abstract abstract = add_extern_type (TAbstractDecl abstract) in
   let add_native_gen_class klass =
     let include_files =
       get_all_meta_string_path klass.cl_meta
@@ -87,9 +89,20 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
   in
   let visited = ref [] in
   let rec visit_type in_type =
+    let rec find_base t =
+      match TFunctions.follow t with
+      | TAbstract (a, _) as t when is_scalar_abstract a ->
+        t
+      | TAbstract ({ a_extern = true } as a, _) as t when is_marshalling_native_enum a ->
+        t
+      | TAbstract (a, tl) ->
+        find_base (Abstract.get_underlying_type a tl)
+      | other ->
+        follow other
+      in
     if not (List.exists (fun t2 -> Type.fast_eq in_type t2) !visited) then (
       visited := in_type :: !visited;
-      (match follow in_type with
+      (match find_base in_type with
       | TMono r -> ( match r.tm_type with None -> () | Some t -> visit_type t)
       | TEnum (enum, _) -> (
           match is_extern_enum enum with
@@ -116,8 +129,10 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
               match klass.cl_kind with
               | KTypeParameter _ -> ()
               | _ -> add_type klass.cl_path))
-      | TAbstract (a, params) when is_scalar_abstract a ->
-          add_extern_type (TAbstractDecl a)
+      | TAbstract (a, _) when is_scalar_abstract a ->
+          add_extern_abstract a
+      | TAbstract ({ a_extern = true } as a, _) when is_marshalling_native_enum a ->
+          add_extern_abstract a
       | TFun (args, haxe_type) ->
           visit_type haxe_type;
           List.iter (fun (_, _, t) -> visit_type t) args
@@ -171,7 +186,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
           | _ ->
               print_endline
                 ("TSuper : Odd etype ?"
-                ^ (CppRetyper.cpp_type_of expression.etype |> tcpp_to_string)))
+                ^ (CppRetyper.cpp_type_of CppRetyper.with_reference_value_type expression.etype |> tcpp_to_string)))
       | _ -> ());
       Type.iter visit_expression expression;
       visit_type (follow expression.etype)

@@ -304,7 +304,6 @@ let mk_abstract m path pos name_pos =
 		a_extern = false;
 		a_enum = false;
 		a_call = None;
-		a_default = None;
 	}
 
 module TClass = struct
