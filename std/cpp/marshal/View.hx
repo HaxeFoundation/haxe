@@ -1,6 +1,5 @@
 package cpp.marshal;
 
-import cpp.SizeT;
 import haxe.Int64;
 import haxe.ds.Vector;
 import haxe.exceptions.ArgumentException;
@@ -8,10 +7,10 @@ import haxe.exceptions.ArgumentException;
 @:semantics(value)
 @:cpp.ValueType({ namespace:['cpp', 'marshal'], flags: [ StackOnly ] })
 extern final class View<T> implements ArrayAccess<T> {
-    final length : SizeT;
+    final length : Int64;
 	final ptr : Pointer<T>;
 
-	function new(ptr:Pointer<T>, length:SizeT):Void;
+	function new(ptr:Pointer<T>, length:Int64):Void;
 
 	/**
 	 * Attempts to copy the data from the current view to the destination view.
