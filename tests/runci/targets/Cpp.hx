@@ -46,25 +46,14 @@ class Cpp {
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
 
-		final archFlag = switch systemName {
-			case 'Windows':
-				'HXCPP_M32';
-			case 'Linux' if(Linux.arch == Arm64):
-				'HXCPP_LINUX_ARM64';
-			case 'Mac' if(commandResult('arch', []).stdout == "arm64"):
-				'HXCPP_ARM64';
-			case _:
-				'HXCPP_M64';
-		}
-
 		if (testCompiled) {
 			runCommand("rm", ["-rf", "cpp"]);
-			runCommand("haxe", ["compile-cpp.hxml", "-D", archFlag].concat(args));
+			runCommand("haxe", ["compile-cpp.hxml"].concat(args));
 			runCpp("bin/cpp/TestMain-debug", []);
 		}
 
 		if (testCppia) {
-			runCommand("haxe", ["compile-cppia-host.hxml", "-D", archFlag].concat(args));
+			runCommand("haxe", ["compile-cppia-host.hxml"].concat(args));
 			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 			runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 
@@ -75,11 +64,11 @@ class Cpp {
 		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
+		runCommand("haxe", ["--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["-D", archFlag, "build.hxml", "-cpp", "export/cpp"]);
+		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
 		runCpp("export/cpp/Main");
 
 		changeDirectory(getMiscSubDir("eventLoop"));
@@ -89,7 +78,7 @@ class Cpp {
 
 		if (Sys.systemName() == "Mac") {
 			changeDirectory(getMiscSubDir("cppObjc"));
-			runCommand("haxe", ["-D", archFlag, "build.hxml"]);
+			runCommand("haxe", ["build.hxml"]);
 			runCpp("bin/TestObjc-debug");
 		}
 
