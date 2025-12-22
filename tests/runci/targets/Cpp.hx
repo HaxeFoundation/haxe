@@ -64,25 +64,25 @@ class Cpp {
 		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["--each", "compile-cpp.hxml"].concat(args));
+		runCommand("haxe", args.concat(["--each", "compile-cpp.hxml"]));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
+		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"].concat(args));
 		runCpp("export/cpp/Main");
 
 		changeDirectory(getMiscSubDir("eventLoop"));
-		runCommand("haxe", ["build-cpp.hxml"]);
+		runCommand("haxe", ["build-cpp.hxml"].concat(args));
 		// TODO: check output like misc tests do
 		runCpp("cpp/Main");
 
 		if (Sys.systemName() == "Mac") {
 			changeDirectory(getMiscSubDir("cppObjc"));
-			runCommand("haxe", ["build.hxml"]);
+			runCommand("haxe", ["build.hxml"].concat(args));
 			runCpp("bin/TestObjc-debug");
 		}
 
 		changeDirectory(miscCppDir);
-		runCommand("haxe", ["run.hxml"]);
+		runCommand("haxe", ["run.hxml"].concat(args));
 	}
 }
