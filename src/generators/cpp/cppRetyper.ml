@@ -118,6 +118,7 @@ and cpp_type_from_path stack path params value_type_handler default =
   | ([], "Single"), _ -> TCppScalar "float"
   | ([ "cpp" ], "Char"), _ -> TCppScalar "char"
   | ([ "cpp" ], "Char16"), _ -> TCppScalar "char16_t"
+  | ([ "cpp" ], "Char32"), _ -> TCppScalar "char32_t"
   | ([ "cpp" ], "Object"), _ -> TCppObjectPtr
   | ([ "cpp" ], "Float32"), _ -> TCppScalar "float"
   | ([ "cpp" ], "Float64"), _ -> TCppScalar "double"

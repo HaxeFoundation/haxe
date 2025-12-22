@@ -52,6 +52,7 @@ let is_internal_class = function
    | [ "cpp" ], "UInt8"
    | [ "cpp" ], "Char"
    | [ "cpp" ], "Char16"
+   | [ "cpp" ], "Char32"
    | [ "cpp" ], "Int16"
    | [ "cpp" ], "UInt16"
    | [ "cpp" ], "Int32"
@@ -155,6 +156,7 @@ let is_numeric t =
    | TAbstract({ a_path = ([], "Single") }, [])
    | TAbstract({ a_path = (["cpp"], "Char") }, [])
    | TAbstract({ a_path = (["cpp"], "Char16") }, [])
+   | TAbstract({ a_path = (["cpp"], "Char32") }, [])
    | TAbstract({ a_path = (["cpp"], "Float32") }, [])
    | TAbstract({ a_path = (["cpp"], "Float64") }, [])
    | TAbstract({ a_path = (["cpp"], "Int8") }, [])
