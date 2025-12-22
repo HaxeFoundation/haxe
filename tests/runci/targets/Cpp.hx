@@ -46,8 +46,6 @@ class Cpp {
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
 
-		final isLinuxArm64 = systemName == 'Linux' && Linux.arch == Arm64;
-
 		final archFlag = switch systemName {
 			case 'Windows':
 				'HXCPP_M32';
@@ -70,7 +68,7 @@ class Cpp {
 			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 			runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 
-			if (!isLinuxArm64) // FIXME
+			if (!(systemName == 'Linux' && Linux.arch == Arm64)) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
@@ -80,11 +78,9 @@ class Cpp {
 		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
-		if (!isLinuxArm64) { // FIXME
-			changeDirectory(threadsDir);
-			runCommand("haxe", ["-D", archFlag, "build.hxml", "-cpp", "export/cpp"]);
-			runCpp("export/cpp/Main");
-		}
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["-D", archFlag, "build.hxml", "-cpp", "export/cpp"]);
+		runCpp("export/cpp/Main");
 
 		changeDirectory(getMiscSubDir("eventLoop"));
 		runCommand("haxe", ["build-cpp.hxml"]);
