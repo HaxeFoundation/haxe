@@ -273,19 +273,19 @@ class TestUnicode extends utest.Test {
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
-				assertUEquals(runUtility(["stdin.readLine"], {stdin: str + endLine}).stdout, str + endLine);
+				assertUEquals(runUtility(["stdin.readLine"], str + endLine).stdout, str + endLine);
 			});
 
 		// stdin.readString
 		UnicodeSequences.normalBoth(str -> {
 				var byteLength = Bytes.ofString(str).length;
-				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, str + endLine);
+				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], '$str').stdout, str + endLine);
 			});
 
 		// stdin.readUntil
 		UnicodeSequences.normalBoth(str -> {
 				// make sure the 0x70 byte is not part of the test string
-				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, str + endLine);
+				assertUEquals(runUtility(["stdin.readUntil", "0x70"], str + "\x70" + str + "\x70").stdout, str + endLine);
 			});
 
 		UnicodeSequences.normalBothIndexed((str, i, nfc) -> {

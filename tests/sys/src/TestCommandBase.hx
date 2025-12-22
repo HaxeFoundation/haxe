@@ -18,7 +18,7 @@ class TestCommandBase extends utest.Test {
 
 		var exitCode =
 			#if (macro || interp)
-				run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+				run("haxe", ["--hxb-lib", bin, "--run", "TestArguments"].concat(args));
 			#elseif cpp
 				run(bin, args);
 			#elseif java
@@ -108,7 +108,7 @@ class TestCommandBase extends utest.Test {
 			var args = [Std.string(code)];
 			var exitCode =
 				#if (macro || interp)
-					run("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
+					run("haxe", ["--hxb-lib", bin, "--run", "ExitCode"].concat(args));
 				#elseif cpp
 					run(bin, args);
 				#elseif java
