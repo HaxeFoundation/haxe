@@ -19,7 +19,7 @@ import haxe.extern.AsVar;
 import haxe.exceptions.ArgumentException;
 
 final class ViewExtensions {
-	public static inline overload extern function asView<T>(source:Pointer<T>, length:Int):View<T> {
+	public static inline overload extern function asView<T>(source:Pointer<T>, length:Int64):View<T> {
 		return new View(source, length);
 	}
 
@@ -80,7 +80,7 @@ final class ViewExtensions {
 			throw new ArgumentException("source");
 		}
 
-		final output      = cpp.NativeArray.create(source.length);
+		final output      = cpp.NativeArray.create(cast source.length);
 		final destination = asView(output);
 
 		source.copyTo(destination);
@@ -93,7 +93,7 @@ final class ViewExtensions {
 			throw new ArgumentException("source");
 		}
 
-		final output      = new Vector(source.length);
+		final output      = new Vector(cast source.length);
 		final destination = asView(output);
 
 		source.copyTo(destination);
@@ -108,7 +108,7 @@ final class ViewExtensions {
 			throw new ArgumentException("source");
 		}
 
-		final output      = Bytes.alloc(bytes.length);
+		final output      = Bytes.alloc(cast bytes.length);
 		final destination = ViewExtensions.asView(output);
 
 		bytes.copyTo(destination);
