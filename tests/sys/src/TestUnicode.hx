@@ -270,6 +270,7 @@ class TestUnicode extends utest.Test {
 			});
 	}
 
+	#if !js // See #10436
 	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
 	#if github
 	function testIPC() {
@@ -318,6 +319,7 @@ class TestUnicode extends utest.Test {
 				});
 		}
 	}
+	#end
 	#end
 
 	function testIO() {
