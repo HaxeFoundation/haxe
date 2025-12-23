@@ -2,6 +2,7 @@ package cpp.encoding;
 
 import cpp.UInt8;
 import cpp.Char32;
+import cpp.Reference;
 import cpp.marshal.View;
 import haxe.Int64;
 import haxe.extern.AsVar;
@@ -64,5 +65,5 @@ extern class Utf8 {
      * @param codepoint The decoded codepoint is written to this variable.
      * @return Number of bytes read to decode the codepoint.
      */
-    static overload function decode(buffer:View<UInt8>, codepoint:AsVar<Char32>):Int;
+    static overload function decode(buffer:View<UInt8>, codepoint:Reference<Char32>):Int;
 }

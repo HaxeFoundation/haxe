@@ -136,11 +136,11 @@ final class ViewExtensions {
 	 * Reads UTF-8 characters from the view up to the first null character and decodes them into a string.
 	 */
 	public static inline overload extern function szToString(source:View<Char>):String {
-		final bytes = asBytesView(source);
+        final bytes = asBytesView(source);
 
         var count     = 0i64;
-        var codepoint = (0 : cpp.Char32);
-        while (bytes.isEmpty() == false) {
+		var codepoint = (0 : cpp.Char32);
+        while (count < bytes.length) {
             final read = cpp.encoding.Utf8.decode(bytes.slice(count), codepoint);
 
             if (0 == codepoint) {
@@ -157,11 +157,11 @@ final class ViewExtensions {
 	 * Reads UTF-16 characters from the view up to the first null character and decodes them into a string.
 	 */
 	public static inline overload extern function szToString(source:View<Char16>):String {
-		final bytes = asBytesView(source);
+        final bytes = asBytesView(source);
 
         var count     = 0i64;
-        var codepoint = (0 : cpp.Char32);
-        while (bytes.isEmpty() == false) {
+		var codepoint = (0 : cpp.Char32);
+        while (count < bytes.length) {
             final read = cpp.encoding.Utf16.decode(bytes.slice(count), codepoint);
 
             if (0 == codepoint) {
