@@ -1,9 +1,9 @@
 package cpp.encoding;
 
 import cpp.UInt8;
-import cpp.Int64;
 import cpp.Char32;
 import cpp.marshal.View;
+import haxe.Int64;
 import haxe.extern.AsVar;
 
 @:semantics(value)
@@ -11,6 +11,9 @@ import haxe.extern.AsVar;
 extern class Utf8 {
     static overload function getByteCount(codepoint:Char32):Int64;
     static overload function getByteCount(string:String):Int64;
+
+    static overload function getCharCount(codepoint:Char32):Int64;
+    static overload function getCharCount(string:String):Int64;
 
     static overload function encode(string:String, buffer:View<UInt8>):Int64;
     static overload function encode(codepoint:Char32, buffer:View<UInt8>):Int64;
