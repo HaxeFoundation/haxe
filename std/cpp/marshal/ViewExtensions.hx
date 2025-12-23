@@ -4,6 +4,7 @@ import cpp.Pointer;
 import cpp.Star;
 import cpp.RawPointer;
 import cpp.Char;
+import cpp.Char16;
 import cpp.UInt8;
 import cpp.NativeString;
 import haxe.io.Bytes;
@@ -75,6 +76,11 @@ final class ViewExtensions {
 		return source.reinterpret();
 	}
 
+	/**
+	 * Allocates a new `Array` instance and copies `source` into it.
+	 *
+	 * @throws ArgumentException If `source` represents a region of bytes greater than the max Int32 value.
+	 */
 	@:unreflective @:generic public static function toArray<T>(source:View<T>):Array<T> {
 		if (source.length > 2147483647) {
 			throw new ArgumentException("source");
@@ -88,6 +94,11 @@ final class ViewExtensions {
 		return output;
 	}
 
+	/**
+	 * Allocates a new `haxe.ds.Vector` instance and copies `source` into it.
+	 *
+	 * @throws ArgumentException If `source` represents a region of bytes greater than the max Int32 value.
+	 */
 	@:unreflective @:generic public static function toVector<T>(source:View<T>):Vector<T> {
 		if (source.length > 2147483647) {
 			throw new ArgumentException("source");
@@ -101,6 +112,11 @@ final class ViewExtensions {
 		return output;
 	}
 
+	/**
+	 * Allocates a new `haxe.io.Bytes` instance and copies `source` into it.
+	 *
+	 * @throws ArgumentException If `source` represents a region of bytes greater than the max Int32 value.
+	 */
 	@:unreflective @:generic public static function toBytes<T>(source:View<T>):Bytes {
 		final bytes = asBytesView(source);
 		
@@ -114,5 +130,47 @@ final class ViewExtensions {
 		bytes.copyTo(destination);
 
 		return output;
+	}
+
+	/**
+	 * Reads UTF-8 characters from the view up to the first null character and decodes them into a string.
+	 */
+	public static inline overload extern function szToString(source:View<Char>):String {
+		final bytes = asBytesView(source);
+
+        var count     = 0i64;
+        var codepoint = (0 : cpp.Char32);
+        while (bytes.isEmpty() == false) {
+            final read = cpp.encoding.Utf8.decode(bytes.slice(count), codepoint);
+
+            if (0 == codepoint) {
+                break;
+            } else {
+                count += read;
+            }
+        }
+
+        return cpp.encoding.Utf8.decode(bytes.slice(0, count));
+	}
+
+	/**
+	 * Reads UTF-16 characters from the view up to the first null character and decodes them into a string.
+	 */
+	public static inline overload extern function szToString(source:View<Char16>):String {
+		final bytes = asBytesView(source);
+
+        var count     = 0i64;
+        var codepoint = (0 : cpp.Char32);
+        while (bytes.isEmpty() == false) {
+            final read = cpp.encoding.Utf16.decode(bytes.slice(count), codepoint);
+
+            if (0 == codepoint) {
+                break;
+            } else {
+                count += read;
+            }
+        }
+
+        return cpp.encoding.Utf16.decode(bytes.slice(0, count));
 	}
 }

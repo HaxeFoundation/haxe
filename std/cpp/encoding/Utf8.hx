@@ -9,15 +9,60 @@ import haxe.extern.AsVar;
 @:semantics(value)
 @:cpp.PointerType({ namespace : [ "cpp", "encoding" ] })
 extern class Utf8 {
-    static overload function getByteCount(codepoint:Char32):Int64;
+    /**
+     * Calculates the number of bytes needed to encode the given codepoint.
+     */
+    static overload function getByteCount(codepoint:Char32):Int;
+
+    /**
+     * Calculates the number of bytes needed to encode the given string.
+     */
     static overload function getByteCount(string:String):Int64;
 
-    static overload function getCharCount(codepoint:Char32):Int64;
+    /**
+     * Calculates the number of characters needed to encode the given codepoint.
+     */
+    static overload function getCharCount(codepoint:Char32):Int;
+
+    /**
+     * Calculates the number of characters needed to encode the given string.
+     */
     static overload function getCharCount(string:String):Int64;
 
+    /**
+     * Encodes all characters in the string to UTF-8 bytes.
+     *
+     * If the provided buffer is too small to fit the encoded data an exception is thrown and no data is written.
+     *
+     * @param string String to encode.
+     * @param buffer Buffer bytes will be witten into.
+     * @return Number of bytes written into the buffer.
+     */
     static overload function encode(string:String, buffer:View<UInt8>):Int64;
-    static overload function encode(codepoint:Char32, buffer:View<UInt8>):Int64;
 
+    /**
+     * Encodes the given codepoint to UTF-8 bytes.
+     *
+     * If the provided buffer is too small to fit the encoded data an exception is thrown and no data is written.
+     *
+     * @param codepoint Unicode codepoint to encode.
+     * @param buffer Buffer bytes will be written into.
+     * @return Number of bytes written into the buffer.
+     */
+    static overload function encode(codepoint:Char32, buffer:View<UInt8>):Int;
+
+    /**
+     * Decodes all bytes in the buffer into a string. An empty string is returned if the buffer is empty.
+     */
     static overload function decode(buffer:View<UInt8>):String;
-    static overload function decode(buffer:View<UInt8>, codepoint:AsVar<Char32>):Int64;
+
+    /**
+     * Decodes a UTF-8 encoded codepoint from the buffer.
+     *
+     * If the provided buffer is too small for the codepoint an exception is raised.
+     *
+     * @param codepoint The decoded codepoint is written to this variable.
+     * @return Number of bytes read to decode the codepoint.
+     */
+    static overload function decode(buffer:View<UInt8>, codepoint:AsVar<Char32>):Int;
 }
