@@ -58,6 +58,12 @@ The latest stable release is available at [https://haxe.org/download/](https://h
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 
+*Note: If you are using [mise](https://github.com/jdx/mise) on Linux/MacOS/Windows, the polyglot tool version manager, you can install haxe binaries easily using a command like:*
+
+```shell
+mise use -g haxe@latest
+```
+
 ## Building from source
 
 See [extra/BUILDING.md](extra/BUILDING.md).
