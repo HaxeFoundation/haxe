@@ -12,7 +12,7 @@ class Neko {
 		runCommand("haxe", ["run-base.hxml", "--run", "Main", "neko"]);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-neko.hxml"].concat(args));
+		runCommand("haxe", args.concat(["compile-neko.hxml"]));
 		runSysTest("neko", ["bin/neko/sys.n"]);
 
 		changeDirectory(threadsDir);

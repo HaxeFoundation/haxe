@@ -154,7 +154,7 @@ class Lua {
 			}
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
+			runCommand("haxe", args.concat(["compile-lua.hxml"]));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
 			changeDirectory(getMiscSubDir("lua", "luaDeadCode", "stringReflection"));

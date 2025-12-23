@@ -35,7 +35,7 @@ class Jvm {
 		runCommand("haxe", ["run-base.hxml", "--run", "Main", "jvm"]);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-jvm.hxml"].concat(args));
+		runCommand("haxe", args.concat(["compile-jvm.hxml"]));
 		runSysTest("java", ["-jar", "bin/jvm/sys.jar"]);
 
 		changeDirectory(threadsDir);
