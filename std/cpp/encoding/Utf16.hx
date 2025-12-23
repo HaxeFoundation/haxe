@@ -60,7 +60,7 @@ extern class Utf16 {
     /**
      * Decodes all bytes in the buffer into a string. An empty string is returned if the buffer is empty.
      */
-    static overload function decode(buffer:View<UInt8>):String;
+    static function decode(buffer:View<UInt8>):String;
 
     /**
      * Decodes a UTF-16 encoded codepoint from the buffer. Characters are read in machine specific endianness.
@@ -70,5 +70,5 @@ extern class Utf16 {
      * @param codepoint The decoded codepoint is written to this variable.
      * @return Number of bytes read to decode the codepoint.
      */
-    static overload function decode(buffer:View<UInt8>, codepoint:Reference<Char32>):Int;
+    static function codepoint(buffer:View<UInt8>):Char32;
 }

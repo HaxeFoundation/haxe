@@ -138,15 +138,14 @@ final class ViewExtensions {
 	public static inline overload extern function szToString(source:View<Char>):String {
         final bytes = asBytesView(source);
 
-        var count     = 0i64;
-		var codepoint = (0 : cpp.Char32);
+        var count = 0i64;
         while (count < bytes.length) {
-            final read = cpp.encoding.Utf8.decode(bytes.slice(count), codepoint);
-
+			final codepoint = cpp.encoding.Utf8.codepoint(bytes.slice(count));
+			
             if (0 == codepoint) {
                 break;
             } else {
-                count += read;
+                count += cpp.encoding.Utf8.getByteCount(codepoint);
             }
         }
 
@@ -159,15 +158,14 @@ final class ViewExtensions {
 	public static inline overload extern function szToString(source:View<Char16>):String {
         final bytes = asBytesView(source);
 
-        var count     = 0i64;
-		var codepoint = (0 : cpp.Char32);
+        var count = 0i64;
         while (count < bytes.length) {
-            final read = cpp.encoding.Utf16.decode(bytes.slice(count), codepoint);
-
+			final codepoint = cpp.encoding.Utf16.codepoint(bytes.slice(count));
+			
             if (0 == codepoint) {
                 break;
             } else {
-                count += read;
+                count += cpp.encoding.Utf16.getByteCount(codepoint);
             }
         }
 
