@@ -16,68 +16,67 @@ class TestBuilder {
 				continue;
 			}
 			switch (field.kind) {
-				case FFun(f) if (field.meta.exists(m -> m.name == ":async")):
-					// Async is already manually handled, nothing to do
-
 				case FFun(f):
+					var isProcessed = field.meta.exists(m -> m.name == ":async");
 					var variants = field.meta.filter(m -> m.name == ":variant");
 					if (variants.length == 0) {
-						makeAsyncTest(f, field.pos);
-					} else {
-						// TODO: support functions that define their own async arg (not named `_` or `async`)
-						var args = f.args.copy();
-						f.args = [];
-						makeAsyncTest(f, field.pos);
+						if (!isProcessed) makeAsyncTest(f, field.pos);
+						continue;
+					}
 
-						// Ignore original field; generate variants instead
-						removedFields.push(field);
+					var args = f.args.copy();
+					f.args = [];
+					if (!isProcessed) makeAsyncTest(f, field.pos);
 
-						for (variant in variants) {
+					// Ignore original field; generate variants instead
+					removedFields.push(field);
+
+					for (variant in variants) {
+						if (variant.params.length == 0) {
+							Context.error('Unexpected amount of variant parameters.', variant.pos);
+						}
+
+						var nameParam = variant.params.shift();
+						var name:String = try haxe.macro.ExprTools.getValue(nameParam) catch(e) {
+							Context.error('Variant first parameter should be a String (variant name)', nameParam.pos);
+						};
+
+						var inits = [for (arg in args) {
+							var name = arg.name;
+							if (isProcessed && name == "async") continue;
+							var ct = arg.type;
+
 							if (variant.params.length == 0) {
 								Context.error('Unexpected amount of variant parameters.', variant.pos);
 							}
 
-							var nameParam = variant.params.shift();
-							var name:String = try haxe.macro.ExprTools.getValue(nameParam) catch(e) {
-								Context.error('Variant first parameter should be a String (variant name)', nameParam.pos);
-							};
+							var param = variant.params.shift();
+							macro @:pos(param.pos) var $name:$ct = (($name:$ct) -> $i{name})(${param});
+						}];
 
-							var inits = [for (arg in args) {
-								var name = arg.name;
-								var ct = arg.type;
+						if (variant.params.length > 0) {
+							Context.error('Unexpected amount of variant parameters.', variant.params[0].pos);
+						}
 
-								if (variant.params.length == 0) {
-									Context.error('Unexpected amount of variant parameters.', variant.pos);
-								}
+						switch (f.expr.expr) {
+							case EBlock(b):
+								var ff = {
+									ret: f.ret,
+									params: f.params,
+									expr: {pos: variant.pos, expr: EBlock(inits.concat(b))},
+									args: [{name: "async", type: macro:utest.Async}]
+								};
 
-								var param = variant.params.shift();
-								macro @:pos(param.pos) var $name:$ct = (($name:$ct) -> $i{name})(${param});
-							}];
+								newFields.push({
+									pos: variant.pos,
+									name: field.name + name,
+									meta: field.meta.filter(m -> m.name != ":variant"),
+									kind: FFun(ff),
+									doc: field.doc,
+									access : field.access
+								});
 
-							if (variant.params.length > 0) {
-								Context.error('Unexpected amount of variant parameters.', variant.params[0].pos);
-							}
-
-							switch (f.expr.expr) {
-								case EBlock(b):
-									var ff = {
-										ret: f.ret,
-										params: f.params,
-										expr: {pos: variant.pos, expr: EBlock(inits.concat(b))},
-										args: [{name: "async", type: macro:utest.Async}]
-									};
-
-									newFields.push({
-										pos: variant.pos,
-										name: field.name + name,
-										meta: field.meta.filter(m -> m.name != ":variant"),
-										kind: FFun(ff),
-										doc: field.doc,
-										access : field.access
-									});
-
-								case _:
-							}
+							case _:
 						}
 					}
 				case _:
