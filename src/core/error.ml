@@ -103,8 +103,6 @@ let unify_error_msg ctx err = match err with
 			"Field " ^ f ^ " is " ^ s_kind a ^ " but should be " ^ s_kind b)
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
-	| Not_matching_default_values (v1, v2, n) ->
-		"Presence of default value on argument " ^ n ^ " differs"
 	| Not_matching_optional (o1, o2, n) ->
 		"Optional attribute of argument " ^ n ^ " differs"
 	| Invariant_parameter _ ->
@@ -125,7 +123,6 @@ let unify_error_msg ctx err = match err with
 module BetterErrors = struct
 	type access_kind_info = {
 		mutable is_optional : bool;
-		mutable value : string option;
 		mutable is_final : bool;
 	}
 	type access_kind =
@@ -156,7 +153,6 @@ module BetterErrors = struct
 	let get_access_chain ctx l =
 		let make_acc_info () = {
 			is_optional = false;
-			value = None;
 			is_final = false;
 		} in
 		let make_acc kind actual expected = {
@@ -190,10 +186,6 @@ module BetterErrors = struct
 			| Not_matching_optional (o1, o2, fname) ->
 				!current_acc.acc_actual_info.is_optional <- o1;
 				!current_acc.acc_expected_info.is_optional <- o2;
-				add_message err
-			| Not_matching_default_values (v1, v2, fname) ->
-				!current_acc.acc_actual_info.value <- v1;
-				!current_acc.acc_expected_info.value <- v2;
 				add_message err
 			| Invalid_field_type s ->
 				add_access (Field s);
@@ -305,10 +297,9 @@ module BetterErrors = struct
 					end;
 					let s_type_with_info t info =
 						let prefix = if (info.is_optional) then "?" else "" in
-						let postfix = match info.value with Some s -> "=" ^ s | None -> "" in
 						(* remove Null<...> if optional *)
 						let t = if info.is_optional then follow_without_type t else t in
-						prefix ^ s_type ctx t ^ postfix
+						prefix ^ s_type ctx t
 					in
 					s_type_with_info access.acc_actual access.acc_actual_info,
 					s_type_with_info access.acc_expected access.acc_expected_info

@@ -11,8 +11,6 @@ type unify_error =
 	| Has_extra_field of t * string
 	| Invalid_kind of string * field_kind * field_kind
 	| Invalid_visibility of string
-	(* def value acc_actual, def value acc_expected, field name *)
-	| Not_matching_default_values of string option * string option * string
 	(* optional acc_actual, optional acc_expected, field name *)
 	| Not_matching_optional of bool * bool * string
 	| Invariant_parameter of int
