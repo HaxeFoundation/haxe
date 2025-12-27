@@ -69,17 +69,8 @@ let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds = Hashtbl.create 0
 
-let es3kwds = [
-	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
-	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-	"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-	"interface"; "long"; "native"; "new"; "null"; "package"; "private"; "protected";
-	"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-	"transient"; "true"; "try"; "typeof"; "var"; "void"; "volatile"; "while"; "with"
-]
-
 let es5kwds = [
-	"arguments"; "break"; "case"; "catch"; "class"; "const"; "continue";
+	"arguments"; "await"; "break"; "case"; "catch"; "class"; "const"; "continue";
 	"debugger"; "default"; "delete"; "do"; "else"; "enum"; "eval"; "export"; "extends"; "false";
 	"finally"; "for"; "function"; "if"; "implements"; "import"; "in"; "instanceof";
 	"interface"; "let"; "new"; "null"; "package"; "private"; "protected";
@@ -87,11 +78,9 @@ let es5kwds = [
 	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
 ]
 
-let setup_kwds com =
+let setup_kwds (com : Gctx.t) =
 	Hashtbl.reset kwds;
-	let es_version = Gctx.get_es_version com.defines in
-	let lst = if es_version >= 5 then es5kwds else es3kwds in
-	List.iter (fun s -> Hashtbl.add kwds s ()) lst
+	List.iter (fun s -> Hashtbl.add kwds s ()) es5kwds
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -1138,7 +1127,7 @@ let get_generated_class_path = function
 
 let is_abstract_impl c = match c.cl_kind with KAbstractImpl _ -> true | _ -> false
 
-let generate_class_es3 ctx c =
+let generate_class_es5 ctx c =
 	let cl_path = get_generated_class_path c in
 	let is_abstract_impl = is_abstract_impl c in
 
@@ -1437,7 +1426,7 @@ let generate_class ctx c =
 		if ctx.es_version >= 6 then
 			generate_class_es6 ctx c
 		else
-			generate_class_es3 ctx c
+			generate_class_es5 ctx c
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -1769,13 +1758,6 @@ let generate js_gen com =
 	else
 		closureArgs
 	in
-	(* Provide console for environments that may not have it. *)
-	let closureArgs = if ctx.es_version < 5 then
-		("console", typeof_join ["console"; "{log:function(){}}"]) :: closureArgs
-	else
-		closureArgs
-	in
-
 	if nodejs then
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
@@ -1811,15 +1793,8 @@ let generate js_gen com =
 		| _ -> ()
 	) include_files;
 
-	(* If ctx.js_modern, console is defined in closureArgs. *)
-	if (not ctx.js_modern) && (ctx.es_version < 5) then
-		add_feature ctx "js.Lib.global"; (* console polyfill will check console from $global *)
-
 	if (not ctx.js_modern) then
 		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
-
-	if (not ctx.js_modern) && (ctx.es_version < 5) then
-		spr ctx "var console = $global.console || {log:function(){}};\n";
 
 	let enums_as_objects = not (Gctx.defined com Define.JsEnumsAsArrays) in
 
@@ -1846,12 +1821,7 @@ let generate js_gen com =
 	if ctx.es_version < 6 && List.exists (function TClassDecl ({ cl_super = Some _ } as c) -> not (has_class_flag c CExtern) | _ -> false) com.types then begin
 		let extend_code =
 			"function $extend(from, fields) {\n" ^
-			(
-				if ctx.es_version < 5 then
-					"	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();\n"
-				else
-					"	var proto = Object.create(from);\n"
-			) ^
+			"	var proto = Object.create(from);\n" ^
 			"	for (var name in fields) proto[name] = fields[name];\n" ^
 			"	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;\n" ^
 			"	return proto;\n" ^
@@ -1899,11 +1869,7 @@ let generate js_gen com =
 			newline ctx;
 			has_dollar_underscore := true
 		end;
-		(if ctx.es_version < 5 then
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
-		else
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
-		);
+		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPush" then begin

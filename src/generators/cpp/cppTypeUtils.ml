@@ -2,6 +2,7 @@
 (* functions in here operate on standard haxe ast types, not gencpp ast types *)
 
 open Type
+open CppMarshalling
 
 let follow = Abstract.follow_with_abstracts
 
@@ -50,6 +51,7 @@ let is_internal_class = function
    | [ "cpp" ], "Int8"
    | [ "cpp" ], "UInt8"
    | [ "cpp" ], "Char"
+   | [ "cpp" ], "Char16"
    | [ "cpp" ], "Int16"
    | [ "cpp" ], "UInt16"
    | [ "cpp" ], "Int32"
@@ -63,7 +65,25 @@ let is_internal_class = function
       false
 
 let is_native_class class_def =
-   (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path)
+   (is_extern_class class_def || is_native_gen_class class_def) && not (is_internal_class class_def.cl_path) && not (is_marshalling_native_value_class class_def)
+
+let can_quick_alloc klass =
+   let rec implements_native_interface class_def =
+      List.exists
+        (fun (intf_def, _) -> is_native_gen_class intf_def || implements_native_interface intf_def) class_def.cl_implements ||
+      match class_def.cl_super with
+      | Some (i, _) -> implements_native_interface i
+      | _ -> false
+   in
+
+  (not (is_native_class klass)) && not (implements_native_interface klass) && not (is_marshalling_managed_class klass)
+
+let real_interfaces classes =
+   List.filter (function t, pl ->
+      (match (t, pl) with
+      | { cl_path = [ "cpp"; "rtti" ], _ }, [] -> false
+      | _ -> true))
+   classes
 
 let can_quick_alloc klass =
    let rec implements_native_interface class_def =
@@ -134,6 +154,7 @@ let is_numeric t =
    | TAbstract({ a_path = ([], "Float") }, [])
    | TAbstract({ a_path = ([], "Single") }, [])
    | TAbstract({ a_path = (["cpp"], "Char") }, [])
+   | TAbstract({ a_path = (["cpp"], "Char16") }, [])
    | TAbstract({ a_path = (["cpp"], "Float32") }, [])
    | TAbstract({ a_path = (["cpp"], "Float64") }, [])
    | TAbstract({ a_path = (["cpp"], "Int8") }, [])

@@ -42,7 +42,7 @@ let rec need_parent e =
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 
-let sanitize_expr config e =
+let sanitize_expr scom e =
 	let parent e =
 		match e.eexpr with
 		| TParenthesis _ -> e
@@ -70,19 +70,20 @@ let sanitize_expr config e =
 	in
 	match e.eexpr with
 	| TConst TNull ->
-		if config.PlatformConfig.pf_static && not (is_nullable e.etype) then begin
+		if scom.SafeCom.platform_config.pf_static && not (is_nullable e.etype) then begin
 			let rec loop t = match follow t with
-				| TMono _ -> () (* in these cases the null will cast to default value *)
-				| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
+				| TMono _ -> e (* in these cases the null will cast to default value *)
+				| TFun _ -> e (* this is a bit a particular case, maybe flash-specific actually *)
+				| TAbstract(a,tl) when (Meta.has Meta.FromNull a.a_meta) ->
+					{ e with eexpr = TCast (e, None) }
 				(* TODO: this should use get_underlying_type, but we do not have access to Codegen here.  *)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> loop (apply_params a.a_params tl a.a_this)
+				| _ when scom.platform == Cross -> e
 				| _ ->
-					if config != Common.default_config then (* This is atrocious *)
-						Error.raise_typing_error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
+					Error.raise_typing_error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos
 			in
 			loop e.etype
-		end;
-		e
+		end else e
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
 			let p1, left1 = standard_precedence op1 in
@@ -194,5 +195,5 @@ let reduce_expr com e =
 	| _ ->
 		e
 
-let rec sanitize config e =
-	sanitize_expr config (reduce_expr config (Type.map_expr (sanitize config) e))
+let rec sanitize scom e =
+	sanitize_expr scom (reduce_expr scom.SafeCom.platform_config (Type.map_expr (sanitize scom) e))

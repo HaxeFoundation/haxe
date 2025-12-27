@@ -125,6 +125,14 @@ class ArrayBase extends ArrayAccess {
 		return a;
 	}
 
+	public static function allocUI8(bytes:BytesAccess<UI8>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayUI8 = untyped $new(ArrayBytes.ArrayUI8);
+		a.length = length;
+		a.bytes = bytes;
+		a.size = length;
+		return a;
+	}
+
 	public static function allocUI16(bytes:BytesAccess<UI16>, length:Int) @:privateAccess {
 		var a:ArrayBytes.ArrayUI16 = untyped $new(ArrayBytes.ArrayUI16);
 		a.length = length;
@@ -152,6 +160,16 @@ class ArrayBase extends ArrayAccess {
 	#if (hl_ver >= version("1.13.0") && !hl_legacy32)
 	public static function allocI64(bytes:BytesAccess<I64>, length:Int) @:privateAccess {
 		var a:ArrayBytes.ArrayI64 = untyped $new(ArrayBytes.ArrayI64);
+		a.length = length;
+		a.bytes = bytes;
+		a.size = length;
+		return a;
+	}
+	#end
+
+	#if (hl_ver >= version("1.16.0") && !hl_legacy32)
+	public static function allocGUID(bytes:BytesAccess<GUID>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayGUID = untyped $new(ArrayBytes.ArrayGUID);
 		a.length = length;
 		a.bytes = bytes;
 		a.size = length;

@@ -42,7 +42,6 @@
 	@see https://haxe.org/manual/types-basic-types.html
 	@see https://haxe.org/manual/types-nullability.html
 **/
-@:defaultValue(0.0)
 @:coreType @:notNull @:runtimeValue abstract Float {}
 
 /**
@@ -58,7 +57,6 @@
 	@see https://haxe.org/manual/std-math-integer-math.html
 	@see https://haxe.org/manual/types-nullability.html
 **/
-@:defaultValue(0)
 @:coreType @:notNull @:runtimeValue abstract Int to Float {}
 
 #if (java || hl || cpp)
@@ -92,7 +90,6 @@ abstract Null<T> from T to T {}
 	@see https://haxe.org/manual/types-bool.html
 	@see https://haxe.org/manual/types-nullability.html
 **/
-@:defaultValue(false)
 @:coreType @:notNull @:runtimeValue abstract Bool {}
 
 /**

@@ -240,6 +240,18 @@ class ArrayDyn extends ArrayAccess {
 			return arr;
 		}
 		#end
+		#if (hl_ver >= version("1.16.0") && !hl_legacy32)
+		if (t == Type.get((null : ArrayBytes.ArrayGUID))) {
+			var a:BytesAccess<GUID> = null;
+			a = new Bytes(array.length << a.sizeBits);
+			for (i in 0...array.length)
+				a[i] = array.getDyn(i);
+			var arr = ArrayBase.allocGUID(a, array.length);
+			array = arr;
+			allowReinterpret = false;
+			return arr;
+		}
+		#end
 		return null;
 	}
 

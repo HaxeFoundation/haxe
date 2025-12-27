@@ -1553,7 +1553,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| EFor (it,e2) ->
-				ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
+				ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 ForcedUnroll p
 			| _ ->
 				display_error ctx.com "Call or function expected after inline keyword" p;
 				e();
@@ -1793,7 +1793,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
 			| _ -> follow_without_type tmin
 		in
-		let e1_null_t = if is_nullable e1.etype then e1.etype else ctx.t.tnull e1.etype in
+		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
 			| None
 			(* TODO: why does this happen? *)
@@ -1860,7 +1860,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EVars vl ->
 		type_vars ctx vl p
 	| EFor (it,e2) ->
-		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
+		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 NoForcedUnroll p
 	| ETernary (e1,e2,e3) ->
 		type_if ctx e1 e2 (Some e3) with_type true p
 	| EIf (e,e1,e2) ->

@@ -1,6 +1,5 @@
 package jvm;
 
-@:defaultValue(0)
 @:notNull @:runtimeValue @:coreType extern abstract Int64 from Int from Float {
 	@:op(A + B) public static function addI(lhs:Int64, rhs:Int):Int64;
 

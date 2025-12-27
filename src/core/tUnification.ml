@@ -11,12 +11,14 @@ type unify_error =
 	| Has_extra_field of t * string
 	| Invalid_kind of string * field_kind * field_kind
 	| Invalid_visibility of string
-	| Not_matching_optional of string
-	| Cant_force_optional
+	(* def value acc_actual, def value acc_expected, field name *)
+	| Not_matching_default_values of string option * string option * string
+	(* optional acc_actual, optional acc_expected, field name *)
+	| Not_matching_optional of bool * bool * string
 	| Invariant_parameter of int
 	| Constraint_failure of string
 	| Missing_overload of tclass_field * t
-	| FinalInvariance (* nice band name *)
+	| FinalInvariance of bool * bool (* nice band name *)
 	| Invalid_function_argument of int (* index *) * int (* total *)
 	| Invalid_return_type
 	| Unify_custom of string
@@ -642,7 +644,7 @@ let rec type_eq uctx a b =
 			List.iter2 (fun (n1,o1,t1) (n2,o2,t2) ->
 				incr i;
 				if not uctx.allow_arg_name_mismatch && n1 <> n2 then error [Unify_custom (Printf.sprintf "Arg name mismatch: %s should be %s" n2 n1)];
-				if o1 <> o2 then error [Not_matching_optional n1];
+				if o1 <> o2 then error [Not_matching_optional (o1, o2, n1)];
 				type_eq uctx t1 t2
 			) l1 l2
 		with
@@ -830,8 +832,8 @@ let rec unify (uctx : unification_context) a b =
 			(match follow r2 with
 			| TAbstract ({a_path=[],"Void"},_) -> incr i
 			| _ -> unify uctx r1 r2; incr i);
-			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
-				if o1 && not o2 then error [Cant_force_optional];
+			List.iter2 (fun (n1,o1,t1) (_,o2,t2) ->
+				if o1 && not o2 then error [Cannot_unify (t1, t2); Not_matching_optional (o1, o2, n1)];
 				unify uctx t1 t2;
 				incr i
 			) l2 l1 (* contravariance *)
@@ -1245,7 +1247,14 @@ and unify_with_access uctx f1 t1 f2 =
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify uctx f2.cf_type t1
 	(* read only *)
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
-		if (has_class_field_flag f1 CfFinal) <> (has_class_field_flag f2 CfFinal) then raise (Unify_error [FinalInvariance]);
+		let is_final = has_class_field_flag f1 CfFinal in
+		let is_final2 = has_class_field_flag f2 CfFinal in
+		if (is_final <> is_final2) then raise (
+			Unify_error [
+				Cannot_unify (f2.cf_type, f1.cf_type);
+				FinalInvariance (is_final2, is_final)
+			]
+		);
 		unify uctx t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance uctx (type_eq {uctx with equality_kind = EqBothDynamic}) t1 f2.cf_type

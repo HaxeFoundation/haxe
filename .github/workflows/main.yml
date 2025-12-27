@@ -1,4 +1,3 @@
-# DO NOT EDIT. Generated from /extra/github-actions
 # TODO: support skip ci (https://github.community/t/github-actions-does-not-respect-skip-ci/17325/8)
 
 name: CI
@@ -25,66 +24,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: choco install nsis
-        uses: nick-invision/retry@v3
-        with:
-          timeout_minutes: 10
-          max_attempts: 10
-          command: choco install --no-progress nsis.portable --version 3.09 -y
+      - uses: ./.github/actions/setup-nsis
 
-      - name: choco install things
-        shell: pwsh
-        run: choco install --no-progress curl wget 7zip.portable -y
+      - uses: ./.github/actions/setup-neko
 
-      - name: Prepend Chocolatey path
-        shell: pwsh
-        run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
-
-      - name: Install Neko from S3
-        shell: pwsh
-        run: |
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
-          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
-          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
-          echo "$NEKOPATH" >> $env:GITHUB_PATH
-          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
-      - name: Setup ocaml
-      # Lock to 3.2.19 to work around an issue with 32-bit libraries getting installed
-        uses: ocaml/setup-ocaml@3d85bf33a66e089149cd1e9c75da7b9cb6d9d3a7
-        with:
-          ocaml-compiler: ${{ env.OCAML_VERSION }}
-          opam-local-packages: |
-            haxe.opam
-
-      - name: Install dependencies
-        shell: pwsh
-        env:
-          MBEDTLS_VERSION: 2.16.3
-        run: |
-          curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
-            https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
-          ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
-
-      - name: Install OCaml libraries
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 10
-          max_attempts: 10
-          retry_on: timeout
-          shell: pwsh
-          command: |
-            Set-PSDebug -Trace 1
-            # stop after any command returns an error
-            $PSNativeCommandUseErrorActionPreference = $true
-            $ErrorActionPreference = 'Stop'
-            # see: https://github.com/aantron/luv/issues/162
-            $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
-            opam install haxe --deps-only
-            opam list
+      - uses: ./.github/actions/setup-ocaml-windows
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -129,25 +73,7 @@ jobs:
           path: ~/.opam/
           key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         run: |
@@ -218,7 +144,7 @@ jobs:
     env:
       PLATFORM: linux64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
@@ -240,25 +166,7 @@ jobs:
           name: linuxBinaries
           path: linuxBinaries
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -302,7 +210,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       PLATFORM: linux64
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
     steps:
       - uses: actions/checkout@main
         with:
@@ -319,25 +227,7 @@ jobs:
           name: xmldoc
           path: xmldoc
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -394,25 +284,7 @@ jobs:
           path: ~/.opam/
           key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         run: |
@@ -462,13 +334,18 @@ jobs:
     runs-on: ubuntu-22.04-arm
     env:
       PLATFORM: linux-arm64
-      TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, neko]
+        include:
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+          - target: hl
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+            runci-args: --skip-hl-jit
     steps:
       - uses: actions/checkout@main
         with:
@@ -478,25 +355,7 @@ jobs:
           name: linuxArm64Binaries
           path: linuxBinaries
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -527,7 +386,7 @@ jobs:
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
       - name: Test
-        run: haxe RunCi.hxml -D include_legacy
+        run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -553,24 +412,7 @@ jobs:
           path: ~/.opam/
           key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         env:
@@ -662,7 +504,7 @@ jobs:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       ARCH: 64
     strategy:
       fail-fast: false
@@ -678,17 +520,7 @@ jobs:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
 
-      - name: Install Neko from S3
-        shell: pwsh
-        run: |
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
-          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
-          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
-          echo "$NEKOPATH" >> $env:GITHUB_PATH
-          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
+      - uses: ./.github/actions/setup-neko
 
       - uses: actions/setup-node@v4
         with:
@@ -792,17 +624,24 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-latest
     env:
       PLATFORM: mac-universal
-      TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, lua, flash, neko, hl]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        arch: [arm64]
+        include:
+        - target: hl
+          arch: arm64
+          runci-args: --skip-hl-jit
+        - target: hl
+          arch: x86_64
+          runner: macos-15-intel
 
+    runs-on: ${{ matrix.runner || 'macos-latest' }}
     steps:
       - uses: actions/checkout@main
         with:
@@ -812,24 +651,7 @@ jobs:
           name: macBinaries
           path: macBinaries
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -857,7 +679,7 @@ jobs:
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe RunCi.hxml -D include_legacy
+          haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 
@@ -933,7 +755,7 @@ jobs:
 
 
   deploy_apidoc:
-    if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
+    if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')
     needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
     runs-on: ubuntu-22.04
     steps:

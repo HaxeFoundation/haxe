@@ -19,7 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package cpp.zip;
 
-typedef Uncompress = haxe.zip.Uncompress;
+import haxe.io.BytesData;
+import cpp.marshal.View;
+import cpp.UInt8;
+
+@:buildXml('<include name="${HXCPP}/src/hx/zip/Build.xml" />')
+@:include('hx/zip/Uncompress.hpp')
+@:cpp.ManagedType({ namespace : [ 'hx', 'zip' ], flags : [ StandardNaming ] })
+extern final class Uncompress {
+	static function create(windowSize:Int):Uncompress;
+	static function run(src:View<UInt8>, bufferSize:Int):BytesData;
+
+	function execute(src:View<UInt8>, dst:View<UInt8>):Result;
+	function setFlushMode(mode:Flush):Void;
+	function close():Void;
+}

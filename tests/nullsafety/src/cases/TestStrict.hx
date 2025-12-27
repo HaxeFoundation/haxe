@@ -315,14 +315,89 @@ class TestStrict {
 	static function ternary_nullableElse_assignToNotNullableValue_shouldFail() {
 		var v:Null<String> = null;
 		var a:String;
-		shouldFail((true ? 'hello' : v).length);
+		shouldFail((false ? 'hello' : v).length);
 	}
 
 	static function inlineCallWithNullArg_shouldFail() {
 		inline function check(value: Int): Int {
+			value++;
 			return value;
 		}
 		shouldFail(check((null : Null<Int>)));
+		var foo:Null<Int> = null;
+		shouldFail(check(foo));
+		final v:Int = shouldFail(check(foo));
+	}
+
+	static function fancyInlineCallWithNullArg_shouldFail() {
+		inline function check(value: Int): Int {
+			badInit = cast value;
+			return value;
+		}
+		shouldFail(check((null : Null<Int>)));
+		var foo:Null<Int> = null;
+		// different error range for some fancy reason
+		#if (js_es >= 6)
+		shouldFail(final v:Int = check(foo));
+		#else
+		final v:Int = shouldFail(check(foo));
+		#end
+		// don't know how to detect fancy inline yet
+		// shouldFail(check(foo));
+	}
+
+
+	static var anyNotNull:Any = "";
+
+	static function inlineCallWithNullArg2_shouldFail() {
+		anyNotNull = shouldFail(pathRelativeToRoot(null));
+	}
+
+	static inline function pathRelativeToRoot(uri:String):String {
+		return eatNotNulls(uri);
+	}
+
+	static function eatNotNulls(s:String):String {
+		return s;
+	}
+
+	static function nullCoal_onNull_shouldPass():Void {
+		var a:String = null ?? "";
+		var b = null ?? "";
+		var c:String = b;
+	}
+
+	static function constants_shouldPass():Void {
+		// var a:String = null == null ? "" : null;
+		// var b:Int = true ? 0 : null;
+		// var c:Int = (false) ? null : 0;
+	}
+
+	static function constants_shouldFail():Void {
+		shouldFail(var a:String = null == null ? null : "");
+		shouldFail(var b:Int = false ? 0 : null);
+		shouldFail(var c:Int = true ? null : 0);
+	}
+
+	static function nullCoal_onNullField_shouldPass():Void {
+		final object:{field:Null<String>} = {field: null};
+		final notOk:String = (Std.random(0) == 0 ? object.field : object.field) ?? "";
+	}
+
+	static function nullCoal_returnNull_shouldPass(?foo:String):Null<String> {
+		final name = foo ?? cast return null;
+		final name2 = foo ?? return null;
+		var s:String = name;
+		var s2:String = name2;
+		return s;
+	}
+
+	function objIterationAfterNullCheck_shouldPass(result:{?leaks:Array<String>}):Void {
+		if (result.leaks != null) {
+			for (leak in result.leaks) {
+				final v:String = leak;
+			}
+		}
 	}
 
 	static function ternary_returnedFromInlinedFunction_shouldPass() {
@@ -549,6 +624,12 @@ class TestStrict {
 		}
 		//function execution will continue only if `b` is not null
 		var s:String = b;
+	}
+
+	static function checkAgainstNull_deadEndTernary_shouldPass():Void {
+		var nullable:Null<Int> = null;
+		var a:Int = nullable == null ? return : nullable;
+		var b:Int = nullable;
 	}
 
 	static function checkAgainstNull_deadEndOfLoop_shouldPassAfterCheckedBlock(?a:String, ?b:String) {
@@ -1163,13 +1244,13 @@ abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
 }
 
 class BinopFlow {
-	function ifAndTrue_shoudPass(?a:Int):Void {
+	function ifAndTrue_shouldPass(?a:Int):Void {
 		if (a == null) return;
 		if (a == 2 && true) {}
 		a++;
 	}
 
-	function ifOrTrue_shoudPass(?a:Int):Void {
+	function ifOrTrue_shouldPass(?a:Int):Void {
 		if (a == null) return;
 		if (a == null || true) {}
 		a++;

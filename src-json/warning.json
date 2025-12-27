@@ -126,6 +126,11 @@
 		"enabled": false
 	},
 	{
+		"name": "WIfDisplay",
+		"doc": "Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined(\"display\")` instead.",
+		"parent": "WParser"
+	},
+	{
 		"name": "WHxb",
 		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
 	},

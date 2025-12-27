@@ -193,13 +193,6 @@
 		"platforms": ["cpp"]
 	},
 	{
-		"name": "DefaultValue",
-		"metadata": ":defaultValue",
-		"doc": "Default value for abstracts",
-		"targets": ["TAbstract"],
-		"internal": true
-	},
-	{
 		"name": "DefParam",
 		"metadata": ":defParam",
 		"doc": "Default function argument value loaded from the SWF and used for documentation in Genxml.",
@@ -354,6 +347,12 @@
 		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function.",
 		"targets": ["TAbstractField"],
 		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
+	},
+	{
+		"name": "FromNull",
+		"metadata": ":fromNull",
+		"doc": "Allows implicit use of `null` as underlying value; static targets will convert it to the default value. For abstracts over basic types only.",
+		"targets": ["TAbstract"]
 	},
 	{
 		"name": "FunctionalInterface",
@@ -1020,6 +1019,33 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "NativeArrayAccess",
+		"metadata": ":nativeArrayAccess",
+		"doc": "When used on an extern class which implements haxe.ArrayAccess native array access syntax will be generated",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "CppValueType",
+		"metadata": ":cpp.ValueType",
+		"doc": "Indicates that the externed type should be treated as a value type",
+		"platforms": ["cpp"],
+		"targets": [ "TClass", "TAbstract" ]
+	},
+	{
+		"name": "CppPointerType",
+		"metadata": ":cpp.PointerType",
+		"doc": "Indicates that the externed type should be treated as a pointer",
+		"platforms": ["cpp"],
+		"targets": [ "TClass" ]
+	},
+	{
+		"name": "CppManagedType",
+		"metadata": ":cpp.ManagedType",
+		"doc": "Indicates that the externed type is a sub class of ::hx::Object",
+		"platforms": ["cpp"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "StructInit",
 		"metadata": ":structInit",
 		"doc": "Allows one to initialize the class with a structure that matches constructor parameters.",
@@ -1144,11 +1170,5 @@
 		"metadata": ":exceptionTypeCheck",
 		"doc": "Internally used for transformed exception type check wrt to `catch`.",
 		"internal": true
-	},
-	{
-		"name": "NativeArrayAccess",
-		"metadata": ":nativeArrayAccess",
-		"doc": "When used on an extern class which implements haxe.ArrayAccess native array access syntax will be generated",
-		"platforms": ["cpp"]
 	}
 ]

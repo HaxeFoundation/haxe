@@ -20,7 +20,7 @@ class Issue8004 extends TestCase {
 		var args = output == null ? ["-main", "Empty", target] : ["-main", "Empty", '-$target', 'bin/$output', "--no-output"];
 
 		runHaxe(args);
-		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
 		runHaxe(args.concat(["--display", "?@0@workspace-symbols@uint"]));
 
 		var result:Array<SymbolReply> = Json.parse(lastResult.stderr);

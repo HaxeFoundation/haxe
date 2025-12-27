@@ -9,12 +9,12 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_member_variable ctx class_def is_static (var:tcpp_class_variable) =
-  let tcpp     = cpp_type_of var.tcv_type in
+let gen_member_variable ctx is_static var =
+  let tcpp     = CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type var.tcv_type in
   let tcpp_str = tcpp_to_string tcpp in
 
   if not is_static && var.tcv_is_stackonly then
-    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" tcpp_str) var.tcv_field.cf_pos;
+    abort (Printf.sprintf "%s is marked as stack only and therefor cannot be used as the type for a non static variable" (Printer.s_type var.tcv_type)) var.tcv_field.cf_pos;
 
   let output = ctx.ctx_output in
   let suffix = if is_static then "\t\tstatic " else "\t\t" in
@@ -56,9 +56,16 @@ let gen_member_function ctx class_def is_static func =
     |> String.concat " "
   in
 
-  let return_type     = type_to_string func.tcf_func.tf_type in
-  let return_type_str = if return_type = "Void" then "void" else return_type in
-  Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_func.tf_args "") |> output;
+  let return_type_str =
+    match cpp_type_of func.tcf_func.tf_type with
+    | TCppMarshalNativeType (value_type, (Reference | Promoted)) ->
+      TCppMarshalNativeType (value_type, Stack) |> tcpp_to_string
+    | TCppVoid ->
+      "void"
+    | other ->
+      tcpp_to_string other in
+
+  Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_args "") |> output;
 
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     Printf.sprintf "\t\t%s::Dynamic %s_dyn();\n" (if is_static then "static " else "") func.tcf_name |> output;
@@ -156,7 +163,7 @@ let generate_native_header base_ctx tcpp_class =
     match class_def.cl_super with
     | Some (klass, params) ->
         let name =
-          tcpp_to_string_suffix "_obj" (cpp_instance_type klass params)
+          tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type)
         in
         ( name, name )
     | None -> ("", "")
@@ -166,12 +173,12 @@ let generate_native_header base_ctx tcpp_class =
 
   gen_class_header ctx tcpp_class h_file scriptable (if super = "" then [] else [ (Printf.sprintf "public %s" parent) ]);
       
-  CppGen.generate_native_constructor ctx output_h class_def true;
+  CppGen.generate_native_constructor ctx output_h tcpp_class true;
 
   if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 
   tcpp_class.tcl_static_variables
-  |> List.iter (gen_member_variable ctx class_def true);
+  |> List.iter (gen_member_variable ctx true);
 
   tcpp_class.tcl_static_functions
   |> List.iter (gen_member_function ctx class_def true);
@@ -180,7 +187,7 @@ let generate_native_header base_ctx tcpp_class =
   |> List.iter (gen_dynamic_function ctx class_def true);
 
   tcpp_class.tcl_variables
-  |> List.iter (gen_member_variable ctx class_def false);
+  |> List.iter (gen_member_variable ctx false);
 
   tcpp_class.tcl_functions
   |> List.iter (gen_member_function ctx class_def false);
@@ -209,7 +216,7 @@ let generate_managed_header base_ctx tcpp_class =
   let gcName = gen_gc_name class_def.cl_path in
 
   let constructor_type_args =
-    tcpp_class.tcl_class
+    tcpp_class
       |> constructor_arg_var_list
       |> List.map (fun (t, a) -> Printf.sprintf "%s %s" t a)
       |> String.concat "," in
@@ -221,7 +228,7 @@ let generate_managed_header base_ctx tcpp_class =
   let parent, super =
     match tcpp_class.tcl_super with
     | Some super ->
-        let name = tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params) in
+        let name = tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params CppRetyper.with_stack_value_type) in
         ( name, name )
     | None -> ("::hx::Object", "::hx::Object")
   in
@@ -304,13 +311,13 @@ let generate_managed_header base_ctx tcpp_class =
     tcpp_class.tcl_native_interfaces
     |> CppGen.needed_interface_functions tcpp_class.tcl_functions
     |> List.iter (fun func ->
-      let retVal   = type_to_string func.iff_return in
+      let retVal   = tcpp_to_string func.iff_return in
       let ret      = if retVal = "void" then "" else "return " in
-      let argNames = List.map (fun (name, _, _) -> name) func.iff_args in
+      let argNames = print_arg_names func.iff_args in
       output_h
-        ("\t\t" ^ retVal ^ " " ^ func.iff_name ^ "( " ^ print_tfun_arg_list true func.iff_args ^ ") {\n");
+        ("\t\t" ^ retVal ^ " " ^ func.iff_name ^ "( " ^ print_retyped_tfun_arg_list true func.iff_args ^ ") {\n");
       output_h
-        ("\t\t\t" ^ ret ^ "super::" ^ func.iff_name ^ "( " ^ String.concat "," argNames ^ ");\n\t\t}\n"));
+        ("\t\t\t" ^ ret ^ "super::" ^ func.iff_name ^ "( " ^ argNames ^ ");\n\t\t}\n"));
 
     output_h "\n");
 
@@ -321,7 +328,7 @@ let generate_managed_header base_ctx tcpp_class =
     let alreadyGlued = Hashtbl.create 0 in
     List.iter
       (fun src ->
-        let rec check_interface (interface:tcpp_interface) =
+        let rec check_interface interface =
           let check_field func =
             let cast = cpp_tfun_signature false func.iff_args func.iff_return in
             let class_implementation = find_class_implementation func tcpp_class
@@ -341,8 +348,8 @@ let generate_managed_header base_ctx tcpp_class =
               let glue = Printf.sprintf "%s_%08lx" func.iff_field.cf_name (gen_hash32 0 cast) in
               if not (Hashtbl.mem alreadyGlued castKey) then (
                 Hashtbl.replace alreadyGlued castKey ();
-                let argList = print_tfun_arg_list true func.iff_args in
-                let returnType = type_to_string func.iff_return in
+                let argList = print_retyped_tfun_arg_list true func.iff_args in
+                let returnType = tcpp_to_string func.iff_return in
                 let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
                 output_h headerCode;
                 output_h "\n")
@@ -368,7 +375,7 @@ let generate_managed_header base_ctx tcpp_class =
   |> List.iter (gen_dynamic_function ctx class_def true);
 
   tcpp_class.tcl_static_variables
-  |> List.iter (gen_member_variable ctx class_def true);
+  |> List.iter (gen_member_variable ctx true);
 
   tcpp_class.tcl_functions
   |> List.iter (gen_member_function ctx class_def false);
@@ -377,7 +384,7 @@ let generate_managed_header base_ctx tcpp_class =
   |> List.iter (gen_dynamic_function ctx class_def false);
 
   tcpp_class.tcl_variables
-  |> List.iter (fun field -> gen_member_variable ctx class_def false field);
+  |> List.iter (fun field -> gen_member_variable ctx false field);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";

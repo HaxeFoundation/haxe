@@ -8,4 +8,14 @@ class TestStrictThreaded {
 			shouldFail(var notNullable:String = o.field);
 		}
 	}
+
+	function objIterationAfterNullCheck_shouldFail(result:{?leaks:Array<String>}):Void {
+		if (result.leaks != null) {
+			shouldFail(shouldFail(
+				for (leak in result.leaks) {
+					final v:String = leak;
+				}
+			));
+		}
+	}
 }

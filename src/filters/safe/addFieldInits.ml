@@ -54,7 +54,7 @@ let add_field_inits cl_path locals scom t =
 			| Some e ->
 				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
 				let e = RenameVars.run cl_path locals e in
-				let e = Sanitize.sanitize scom.platform_config e in
+				let e = Sanitize.sanitize scom e in
 				let e = if scom.platform_config.pf_add_final_return then AddFinalReturn.add_final_return e else e in
 				cf.cf_expr <- Some e
 			| _ ->

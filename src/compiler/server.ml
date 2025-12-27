@@ -242,8 +242,8 @@ let check_module sctx com m_path m_extra p =
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
-			let new_data = TypeloadParse.parse_module com m_path p in
-			cfile.c_decls <> snd new_data
+			let _,decls,_ = TypeloadParse.parse_module com m_path p in
+			cfile.c_decls <> decls
 		with Not_found ->
 			true
 	in
