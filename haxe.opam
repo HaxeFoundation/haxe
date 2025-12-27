@@ -19,7 +19,7 @@ build: [
 install: [make "install" "INSTALL_DIR=%{prefix}%"]
 remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
-  "ocaml"
+  "ocaml" {>= "5.0"}  # required by domainslib for multicore support
   "ocamlfind" {build}
   "dune" {>= "3.17"}
   "sedlex" {>= "2.0"}
