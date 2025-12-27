@@ -4,8 +4,6 @@ import cpp.UInt8;
 import cpp.Int64;
 import cpp.marshal.View;
 
-@:buildXml('<include name="${HXCPP}/src/cpp/encoding/Build.xml" />')
-@:include('cpp/encoding/Ascii.hpp')
 @:semantics(value)
 @:cpp.PointerType({ namespace : [ "cpp", "encoding" ] })
 extern class Ascii {

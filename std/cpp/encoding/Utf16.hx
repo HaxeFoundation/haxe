@@ -7,8 +7,6 @@ import cpp.marshal.View;
 import haxe.Int64;
 import haxe.extern.AsVar;
 
-@:buildXml('<include name="${HXCPP}/src/cpp/encoding/Build.xml" />')
-@:include('cpp/encoding/Utf16.hpp')
 @:semantics(value)
 @:cpp.PointerType({ namespace : [ "cpp", "encoding" ] })
 extern class Utf16 {
