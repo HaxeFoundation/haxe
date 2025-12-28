@@ -1012,32 +1012,29 @@ let generate_managed_class base_ctx tcpp_class =
     if List.length tcpp_class.tcl_functions > 0 || List.length tcpp_class.tcl_static_functions > 0 then (
 
       let dump_script is_static f acc =
-        if not f.tcf_is_overriding && f.tcf_name <> "toString" then (* toString implicitly overrides hx::Object::toString *)
-          let signature = generate_script_function is_static f ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
-          let superCall = if is_static then "0" else "__s_" ^ f.tcf_field.cf_name ^ "<true>" in
-          let named =
-            Printf.sprintf
-              "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", %s HXCPP_CPPIA_SUPER_ARG(%s))"
-              f.tcf_field.cf_name
-              f.tcf_field.cf_name
-              signature
-              (if is_static then "true" else "false")
-              superCall in
+        let signature = generate_script_function is_static f ("__s_" ^ f.tcf_field.cf_name) f.tcf_name in
+        let superCall = if is_static then "0" else "__s_" ^ f.tcf_field.cf_name ^ "<true>" in
+        let named =
+          Printf.sprintf
+            "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", %s, %s, %s)"
+            f.tcf_field.cf_name
+            f.tcf_field.cf_name
+            signature
+            (if is_static then "true" else "false")
+            superCall
+            (* toString implicitly overrides hx::Object::toString *)
+            (if f.tcf_is_overriding || f.tcf_name = "toString" then "true" else "false") in
 
-          named :: acc
-        else acc
+        named :: acc
       in
 
       let sigs =
-        [ "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) )" ]
+        [ "\t::hx::ScriptNamedFunction()" ]
         |> List.fold_right (dump_script false) tcpp_class.tcl_functions
         |> List.fold_right (dump_script true) tcpp_class.tcl_static_functions
         |> String.concat ",\n"
       in
 
-      output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
-      output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
-      output_cpp "#endif\n";
       Printf.sprintf "static ::hx::ScriptNamedFunction __scriptableFunctions[] = {\n%s\n};\n\n" sigs |> output_cpp)
     else
       output_cpp "static ::hx::ScriptNamedFunction *__scriptableFunctions = 0;\n");

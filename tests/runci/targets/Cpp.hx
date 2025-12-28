@@ -46,45 +46,30 @@ class Cpp {
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
 		getCppDependencies();
 
-		final isLinuxArm64 = systemName == 'Linux' && Linux.arch == Arm64;
-
-		final archFlag = switch systemName {
-			case 'Windows':
-				'HXCPP_M32';
-			case 'Linux' if(Linux.arch == Arm64):
-				'HXCPP_LINUX_ARM64';
-			case 'Mac' if(commandResult('arch', []).stdout == "arm64"):
-				'HXCPP_ARM64';
-			case _:
-				'HXCPP_M64';
-		}
-
 		if (testCompiled) {
 			runCommand("rm", ["-rf", "cpp"]);
-			runCommand("haxe", ["compile-cpp.hxml", "-D", archFlag].concat(args));
+			runCommand("haxe", ["compile-cpp.hxml"].concat(args));
 			runCpp("bin/cpp/TestMain-debug", []);
 		}
 
 		if (testCppia) {
-			runCommand("haxe", ["compile-cppia-host.hxml", "-D", archFlag].concat(args));
+			runCommand("haxe", ["compile-cppia-host.hxml"].concat(args));
 			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 			runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 
-			if (!isLinuxArm64) // FIXME
+			if (!(systemName == 'Linux' && Linux.arch == Arm64)) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
 		Display.maybeRunDisplayTests(Cpp);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["-D", archFlag, "--each", "compile-cpp.hxml"].concat(args));
+		runCommand("haxe", ["--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
-		if (!isLinuxArm64) { // FIXME
-			changeDirectory(threadsDir);
-			runCommand("haxe", ["-D", archFlag, "build.hxml", "-cpp", "export/cpp"]);
-			runCpp("export/cpp/Main");
-		}
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
+		runCpp("export/cpp/Main");
 
 		changeDirectory(getMiscSubDir("eventLoop"));
 		runCommand("haxe", ["build-cpp.hxml"]);
@@ -93,7 +78,7 @@ class Cpp {
 
 		if (Sys.systemName() == "Mac") {
 			changeDirectory(getMiscSubDir("cppObjc"));
-			runCommand("haxe", ["-D", archFlag, "build.hxml"]);
+			runCommand("haxe", ["build.hxml"]);
 			runCpp("bin/TestObjc-debug");
 		}
 

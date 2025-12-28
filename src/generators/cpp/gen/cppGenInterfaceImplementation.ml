@@ -221,19 +221,16 @@ let generate_managed_interface base_ctx tcpp_interface =
     | _ ->
       let sig_and_funcs = List.map generate_script_function all_functions in
 
-      output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
-      output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
-      output_cpp "#endif\n";
       output_cpp "static ::hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
       let dump_func (s, func) =
         Printf.sprintf
-          "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", false HXCPP_CPPIA_SUPER_ARG(0)),\n"
+          "\t::hx::ScriptNamedFunction(\"%s\", __s_%s, \"%s\", false),\n"
           func.iff_field.cf_name
           func.iff_field.cf_name
           s |> output_cpp;
       in
       List.iter dump_func sig_and_funcs;
-      output_cpp "\t::hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n");
+      output_cpp "\t::hx::ScriptNamedFunction() };\n");
 
     let mapper f = Printf.sprintf "\t%s&%s::%s" (cpp_tfun_signature true f.iff_args f.iff_return) script_name f.iff_name in
     let strings =
