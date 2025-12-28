@@ -104,7 +104,7 @@ let s_escape_lua ?(dec=true) s =
     done;
     Buffer.contents b
 
-(* TODO: are all these kwds necessary for field quotes *and* id escapes? *)
+(* Lua reserved keywords - used for both field quoting (obj["end"]) and identifier escaping (_end) *)
 let kwds =
     let h = Hashtbl.create 0 in
     List.iter (fun s -> Hashtbl.add h s ()) [
@@ -174,11 +174,8 @@ let basename path =
         String.sub path (idx + 1) (String.length path - idx - 1)
     with Not_found -> path
 
-(* TODO : is this necessary any more?*)
 let newprop ctx =
-    match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-    | '{' -> print ctx "\n%s" ctx.tabs
-    | _ -> print ctx "\n%s" ctx.tabs
+    print ctx "\n%s" ctx.tabs
 
 let semicolon ctx =
     match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -241,10 +238,8 @@ let is_dot_access e cf =
     | _ ->
         false
 
-(*
-	return index of a first element in the list for which `f` returns true
-	TODO: is there some standard function to do that?
- *)
+(* Return index of first element in the list for which `f` returns true.
+   Note: List.find_index was added in OCaml 5.1, keeping custom impl for compatibility. *)
 let index_of f l =
     let rec find lst idx =
         match lst with
@@ -471,7 +466,6 @@ and gen_call ctx e el =
               | [] -> ()
               | e :: _ -> gen_value ctx e)
      | TIdent "__resources__", [] ->
-         (* TODO: Array declaration helper *)
          spr ctx "_hx_tab_array({";
          let count = ref 0 in
          concat ctx "," (fun (name,data) ->
@@ -894,7 +888,7 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "end";
         ctx.iife_assign <- false;
     | TUnop ((Increment|Decrement) as op,unop_flag, e) ->
-        (* TODO: Refactor this mess *)
+        (* Uses IIFE to handle pre/post increment on arrays and fields correctly *)
         println ctx "(function() ";
         (match e.eexpr, unop_flag with
          | TArray(e1,e2), _ ->
@@ -986,7 +980,6 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "})";
         ctx.separator <- true
     | TTry (e,catchs) ->
-        (* TODO: add temp variables *)
         let old_in_loop_try = ctx.in_loop_try in
         if ctx.in_loop then
             ctx.in_loop_try <- true;
@@ -1099,8 +1092,11 @@ and gen_block_element ctx e  =
              | Increment -> print ctx " + 1;"
              | _ -> print ctx " - 1;"
             )
-        | TSwitch {switch_subject = e; switch_cases = [];switch_default = def} ->
-			(* TODO: this omits the subject which is not correct in the general case *)
+        | TSwitch {switch_subject = subj; switch_cases = [];switch_default = def} ->
+            (* Evaluate the subject for side effects even when there are no cases *)
+            newline ctx;
+            gen_expr ctx subj;
+            semicolon ctx;
             (match def with
              | None -> ()
              | Some e -> gen_block_element ctx e)
@@ -1387,7 +1383,7 @@ and gen_tbinop ctx op e1 e2 =
              spr ctx " end)()";
          end;
      | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
-         (* TODO: Figure out how to rewrite this expression more cleanly *)
+         (* IIFE ensures array index is evaluated once for compound assignment like arr[i] += 1 *)
          println ctx "(function() ";
          let idx = alloc_var VGenerated "idx" e4.etype e4.epos in
          let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
@@ -1405,7 +1401,7 @@ and gen_tbinop ctx op e1 e2 =
          spr ctx "return arr[idx]";
          spr ctx " end)()";
      | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
-         (* TODO: Figure out how to rewrite this expression more cleanly *)
+         (* IIFE ensures field target is evaluated once for compound assignment like obj.x += 1 *)
          println ctx "(function() ";
          let obj = alloc_var VGenerated "obj" e3.etype e3.epos in
          spr ctx "local fld = ";
@@ -1432,7 +1428,7 @@ and gen_tbinop ctx op e1 e2 =
          spr ctx "return obj[fld]";
          spr ctx " end)()";
      | Ast.OpAssignOp(op2),_,_ ->
-         (* TODO: Rewrite expression *)
+         (* IIFE for compound assignment to return the new value *)
          spr ctx "(function() "; gen_value ctx e1;
          spr ctx " = "; gen_tbinop ctx op2 e1 e2;
          spr ctx " return "; gen_value ctx e1;
@@ -1750,7 +1746,7 @@ let generate_enum ctx e =
     let p = s_path ctx e.e_path in
     let ename = List.map s_escape_lua (fst e.e_path @ [snd e.e_path]) in
 
-    (* TODO: Unify the _hxClasses declaration *)
+    (* Register enum in _hxClasses for reflection - different features need different metadata *)
     if has_feature ctx "Type.resolveEnum" then begin
         print ctx "_hxClasses[\"%s\"] = %s" (dot_path e.e_path) p; semicolon ctx; newline ctx;
     end;
@@ -1759,7 +1755,6 @@ let generate_enum ctx e =
         if has_feature ctx "lua.Boot.isEnum" then  begin
             print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ String.concat "." ename ^ "\"" else "true");
         end;
-        (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
         spr ctx " __constructs__ = _hx_tab_array({";
         if ((List.length e.e_names) > 0) then begin
             spr ctx "[0]=";
@@ -1783,7 +1778,7 @@ let generate_enum ctx e =
              let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
              print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
              if has_feature ctx "may_print_enum" then
-                 (* TODO: better namespacing for _estr *)
+                 (* _estr is the enum toString helper defined in the runtime *)
                  spr ctx " rawset(_x, 'toString', _estr);";
              spr ctx " return _x; end ";
              ctx.separator <- true;
