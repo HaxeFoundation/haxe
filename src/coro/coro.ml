@@ -186,6 +186,19 @@ module ContinuationClassBuilder = struct
 
 		field
 
+	let default_value t p = match follow_without_null t with
+		| TAbstract({a_path = ([],"Int")},[]) ->
+			mk (TConst (TInt (Int32.zero))) t p
+		| TAbstract({a_path = ([],"Float")},[]) ->
+			mk (TConst (TFloat "0.0")) t p
+		| TAbstract({a_path = ([],"Bool")},[]) ->
+			mk (TConst (TBool false)) t p
+		| _ ->
+			if is_nullable t then
+				mk (TConst TNull) t p
+			else
+				mk (TConst (TInt (Int32.zero))) t p (* I guess *)
+
 	let mk_invoke_resume ctx coro_class =
 		let basic     = ctx.typer.t in
 		let b         = ctx.builder in
@@ -199,7 +212,7 @@ module ContinuationClassBuilder = struct
 				List.map (fun (v, _) ->
 					let t = substitute_type_params coro_class.type_param_subst v.v_type in
 
-					Texpr.Builder.default_value (Abstract.follow_with_abstracts t) coro_class.name_pos
+					default_value (Abstract.follow_with_abstracts t) coro_class.name_pos
 				)
 			in
 			match coro_class.coro_type with
