@@ -3,7 +3,7 @@ package cases;
 import hxbenchmark.Suite;
 import hxcoro.Coro.*;
 import hxcoro.CoroRun;
-import hxcoro.ds.Channel;
+import hxcoro.ds.channels.Channel;
 
 // the results for each suite should be roughly linear, so 100%/10%/1%
 class Coro extends TestCase {
@@ -96,41 +96,41 @@ class Coro extends TestCase {
 	function measureChannel() {
 		var suite = new Suite("channel");
 		suite.add("100", CoroRun.runScoped(node -> {
-			var ch = new Channel();
+			var ch = Channel.createUnbounded({});
 			for (i in 0...100) {
 				node.async(_ -> {
-					ch.write(1);
+					ch.writer.write(1);
 				});
 			}
 			for (i in 0...100) {
 				node.async(_ -> {
-					ch.read();
+					ch.reader.read();
 				});
 			}
 		}));
 		suite.add("1000", CoroRun.runScoped(node -> {
-			var ch = new Channel();
+			var ch = Channel.createUnbounded({});
 			for (i in 0...1000) {
 				node.async(_ -> {
-					ch.write(1);
+					ch.writer.write(1);
 				});
 			}
 			for (i in 0...1000) {
 				node.async(_ -> {
-					ch.read();
+					ch.reader.read();
 				});
 			}
 		}));
 		suite.add("10000", CoroRun.runScoped(node -> {
-			var ch = new Channel();
+			var ch = Channel.createUnbounded({});
 			for (i in 0...10000) {
 				node.async(_ -> {
-					ch.write(1);
+					ch.writer.write(1);
 				});
 			}
 			for (i in 0...10000) {
 				node.async(_ -> {
-					ch.read();
+					ch.reader.read();
 				});
 			}
 		}));

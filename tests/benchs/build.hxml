@@ -1,5 +1,6 @@
 -cp src
 -main Main
+-lib hxcoro
 -D test=Coro
 -D analyzer-optimize
 -D analyzer-no-purity-inference
