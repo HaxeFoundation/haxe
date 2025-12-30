@@ -427,7 +427,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 		in
 		match el with
 			| [] ->
-				None
+				Some(cb,e_no_value)
 			| _ ->
 				aux' cb el
 	in
