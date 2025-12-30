@@ -13,6 +13,7 @@ end)
 
 type coro_state = {
 	cs_id : int;
+	cs_el_state_check : texpr option;
 	mutable cs_el : texpr list;
 	mutable cs_declarations : tvar list;
 
@@ -181,9 +182,8 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 				let local   = b#local v v.v_pos in
 				b#assign access local) in
 
-		let body = List.take ((List.length state.cs_el) - 1) state.cs_el in
-		let tail = [ List.nth state.cs_el ((List.length state.cs_el) - 1) ] in
-		state.cs_el <- restoring @ body @ saving @ tail)
+		let tail = state.cs_el_state_check |> Option.map (fun el -> [ el ]) |> Option.default [] in
+		state.cs_el <- restoring @ state.cs_el @ saving @ tail)
 		states;
 
 	fields
@@ -238,17 +238,18 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		[
 			stack_item_inserter call.cs_pos;
 			cororesult_var;
-			estate_switch;
-		]
+		],
+		estate_switch
 	in
 
 	let states = ref [] in
 
 	let init_state = cb.cb_id in
 
-	let make_state id el = {
+	let make_state id el el_state_checl = {
 		cs_id = id;
 		cs_el = el;
+		cs_el_state_check = el_state_checl;
 		cs_declarations = [];
 		cs_mapped_local = Hashtbl.create 0;
 		cs_reads = IntSet.empty;
@@ -288,7 +289,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 	let generate cb =
 		let el = get_block_exprs cb in
 
-		let add_state next_id extra_el =
+		let add_state next_id extra_el state_check =
 			let el = el in
 			let el = match next_id with
 				| None ->
@@ -302,7 +303,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				el
 			in
 			let el = el @ extra_el in
-			states := (make_state cb.cb_id el) :: !states;
+			states := (make_state cb.cb_id el state_check) :: !states;
 			begin match cb.cb_catch with
 				| None ->
 					()
@@ -314,28 +315,28 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		in
 		match cb.cb_next with
 		| NextSuspend (call, cb_next) ->
-			let ecallcoroutine = mk_suspending_call call in
-			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) ecallcoroutine;
+			let ecallcoroutine, estateswitch = mk_suspending_call call in
+			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) ecallcoroutine (Some estateswitch);
 		| NextUnknown ->
-			add_state (Some (-1)) [set_control CoroReturned; ereturn]
+			add_state (Some (-1)) [set_control CoroReturned; ereturn] None
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
-			add_state (Some cb_next.cb_id) []
+			add_state (Some cb_next.cb_id) [] None
 		| NextReturnVoid ->
-			add_state (Some (-1)) [ set_control CoroReturned; ereturn ]
+			add_state (Some (-1)) [ set_control CoroReturned; ereturn ] None
 		| NextReturn e ->
-			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ]
+			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ] None
 		| NextThrow e1 ->
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; b#break p ])
+			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some (b#break p))
 		| NextSub (cb_sub,cb_next) ->
-			add_state (Some cb_sub.cb_id) []
+			add_state (Some cb_sub.cb_id) [] None
 
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
-			add_state None [eif]
+			add_state None [eif] None
 
 		| NextIfThenElse (econd,cb_then,cb_else,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_else.cb_id) com.basic.tint in
-			add_state None [eif]
+			add_state None [eif] None
 
 		| NextSwitch(switch,cb_next) ->
 			let esubj = switch.cs_subject in
@@ -351,10 +352,10 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			let eswitch = mk_switch esubj ecases next_id true in
 			let eswitch = mk (TSwitch eswitch) com.basic.tvoid p in
 
-			add_state None [eswitch]
+			add_state None [eswitch] None
 
 		| NextWhile (e_cond,cb_body,cb_next) ->
-			add_state (Some cb_body.cb_id) []
+			add_state (Some cb_body.cb_id) [] None
 
 		| NextTry (cb_try,catch,cb_next) ->
 			let new_exc_state_id = catch.cc_cb.cb_id in
@@ -381,8 +382,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			else
 				[eif]
 			in
-			states := (make_state new_exc_state_id el) :: !states;
-			add_state (Some cb_try.cb_id) []
+			states := (make_state new_exc_state_id el None) :: !states;
+			add_state (Some cb_try.cb_id) [] None
 	in
 	let rec loop cb =
 		if not (has_block_flag cb CbGenerated) then begin
