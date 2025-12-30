@@ -64,7 +64,7 @@ class Macro {
 		runCommand("git", ["clone", "https://github.com/HaxeFoundation/hxcoro", "hxcoro" ]);
 		changeDirectory("hxcoro");
 		runCommand("haxelib", ["newrepo"]);
-		runCommand("haxelib", ["git", "utest", "https://github.com/Aidan63/utest.git", "coro"]);
+		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
 		runCommand("haxelib", ["dev", "hxcoro", "."]);
 		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml"]);
 		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml", "--hxb", "bin/test.hxb"]);
