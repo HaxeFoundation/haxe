@@ -123,7 +123,7 @@ class Js {
 
 		runci.targets.Jvm.getJavaDependencies(); // this is awkward
 		haxelibInstallGit("Simn", "haxeserver");
-		haxelibInstallGit("HaxeFoundation", "hxcoro", "leading-completion");
+		haxelibInstallGit("HaxeFoundation", "hxcoro");
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
