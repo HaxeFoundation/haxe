@@ -33,3 +33,16 @@ abstract class Foo {
 	abstract function c(?val:String):Void;
 	abstract function d(val:Int):Void;
 }
+
+class Main3 implements IMain {
+	public function foo(i:Int = 1):Void {}
+}
+
+class MainOk implements IMain {
+	// should pass
+	public function foo(?i:Int = 1):Void {}
+}
+
+interface IMain {
+	function foo(?i:Int):Void;
+}
