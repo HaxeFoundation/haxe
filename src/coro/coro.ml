@@ -186,13 +186,18 @@ module ContinuationClassBuilder = struct
 
 		field
 
-	let default_value t p = match follow_without_null t with
+	let default_value basic t p = match follow_without_null t with
 		| TAbstract({a_path = ([],"Int")},[]) ->
 			mk (TConst (TInt (Int32.zero))) t p
 		| TAbstract({a_path = ([],"Float")},[]) ->
 			mk (TConst (TFloat "0.0")) t p
 		| TAbstract({a_path = ([],"Bool")},[]) ->
 			mk (TConst (TBool false)) t p
+		| TMono r when not (is_nullable_mono r) ->
+			(* This might be inferred to anything later, so the best course of action
+			   is to make the mono nullable and use null. *)
+			Monomorph.add_modifier r (MNullable basic.tnull);
+			mk (TConst TNull) t p
 		| _ ->
 			if is_nullable t then
 				mk (TConst TNull) t p
@@ -212,7 +217,7 @@ module ContinuationClassBuilder = struct
 				List.map (fun (v, _) ->
 					let t = substitute_type_params coro_class.type_param_subst v.v_type in
 
-					default_value (Abstract.follow_with_abstracts t) coro_class.name_pos
+					default_value ctx.typer.t (Abstract.follow_with_abstracts t) coro_class.name_pos
 				)
 			in
 			match coro_class.coro_type with
