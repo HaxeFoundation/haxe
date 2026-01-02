@@ -245,7 +245,13 @@ let reify in_macro =
 		| None when in_macro -> to_pos p
 		| None -> (ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makePosition"),p),[to_pos p]),p)
 	and to_expr_array a p = match a with
-		| [EMeta ((Meta.Dollar "a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
+		| [EMeta ((Meta.Dollar "a",[],_),e1),_] ->
+			begin match fst e1 with
+				| EArrayDecl el when (match el with [(EFor _,_)] -> false | _ -> true) ->
+					to_expr_array el p
+				| _ ->
+					e1
+			end
 		| _ -> to_array to_expr a p
 	and to_expr e _ =
 		let p = snd e in

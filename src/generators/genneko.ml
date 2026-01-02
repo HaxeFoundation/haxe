@@ -235,9 +235,7 @@ and gen_expr ctx e =
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx p op e1 e2
 	| TField (e2,FClosure (_,f)) ->
-		(match follow e.etype with
-		| TFun (args,_) ->
-			let n = List.length args in
+		let emit n =
 			if n > 5 then Error.abort "Cannot create closure with more than 5 arguments" e.epos;
 			let tmp = ident p "@tmp" in
 			EBlock [
@@ -247,6 +245,14 @@ and gen_expr ctx e =
 				else
 					call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
 			] , p
+		in
+		(match follow_with_coro e.etype with
+		| NotCoro TFun (args,_) ->
+			let n = List.length args in
+			emit n
+		| Coro (args,_) ->
+			let n = List.length args in
+			emit (n + 1)
 		| _ -> die "" __LOC__)
 	| TEnumParameter (e,_,i) ->
 		EArray (field p (gen_expr ctx e) "args",int p i),p

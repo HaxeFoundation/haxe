@@ -13,6 +13,7 @@ type cppError =
     | ExtendingManagedType
     | UnresolvedTypeParameter of string
     | PromotedStackOnlyValueType
+    | HeapAllocationOfValueType
 
 let cpp_abort error pos =
     let print = Printf.sprintf "CPP%0*i: %s" 4 in
@@ -30,6 +31,7 @@ let cpp_abort error pos =
         | ExtendingManagedType -> print 9 "Class cannot extend a managed type extern"
         | UnresolvedTypeParameter s -> print 10 (Printf.sprintf "Unable to resolve parameter %s, consider adding a type hint" s)
         | PromotedStackOnlyValueType -> print 11 "Marshalling value type with the StackOnly flag cannot be promoted to the heap"
+        | HeapAllocationOfValueType -> print 12 "Value type cannot be allocated directly to a pointer"
     in
 
     abort str pos

@@ -148,12 +148,16 @@ class BytesIterator<T> extends ArrayIterator<T> {
 		var tid = Type.get((cast null : T));
 		if (tid == Type.get(0))
 			(bytes : Bytes).sortI32(0, length, cast f);
-		else if( tid == Type.get((0:hl.I64)) || tid == Type.get((0:hl.GUID)) ) {
+		else if( tid == Type.get((0:hl.I64)) ) {
 			#if (hl_ver >= version("1.16.0") && !hl_legacy32)
 			(bytes : Bytes).sortI64(0, length, cast f);
 			#else
 			throw "Array sort I64 requires -D hl-ver=1.16.0";
 			#end
+		#if (hl_ver >= version("1.16.0") && !hl_legacy32)
+		} else if( tid == Type.get((0:hl.GUID)) ) {
+			(bytes : Bytes).sortI64(0, length, cast f);
+		#end
 		} else
 			(bytes : Bytes).sortF64(0, length, cast f);
 	}
@@ -372,5 +376,7 @@ typedef ArrayF32 = ArrayBytes<F32>;
 typedef ArrayF64 = ArrayBytes<Float>;
 #if (hl_ver >= version("1.13.0") && !hl_legacy32)
 typedef ArrayI64 = ArrayBytes<I64>;
+#end
+#if (hl_ver >= version("1.16.0") && !hl_legacy32)
 typedef ArrayGUID = ArrayBytes<GUID>;
 #end

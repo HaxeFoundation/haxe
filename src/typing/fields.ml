@@ -462,8 +462,13 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					try
 						let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 						let cft = follow (apply_params cf.cf_params monos cf.cf_type) in
-						match cft with
-						| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_) ->
+						match follow_with_coro cft with
+						| NotCoro (TFun(t0 :: _,ret))
+						| Coro (t0 :: _,ret) ->
+							let t0 = match t0 with
+								| (_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]))) -> t0
+								| (_,_,t0) -> t0
+							in
 							if t == t_dynamic && follow t0 != t then
 								check()
 							else begin

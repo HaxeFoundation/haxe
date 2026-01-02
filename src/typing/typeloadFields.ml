@@ -869,7 +869,9 @@ module TypeBinding = struct
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> TClass.set_cl_init c e);
-					cf.cf_expr <- Some (mk (TFunction tf) t p);
+					let e = mk (TFunction tf) t p in
+					let e = if TyperManager.is_coroutine_context ctx && not (Meta.has Meta.CoroutineTransformed cf.cf_meta) then Coro.fun_to_coro (Coro.create_coro_context ctx cf.cf_meta) (ClassField(c, cf, tf, p)) else e in
+					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 					check_field_display ctx fctx c cf;
 			end;
@@ -1257,9 +1259,21 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 
 	ctx.type_params <- params @ ctx.type_params;
 	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
-	let function_mode = FunFunction in
+	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
+	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
 	let targs = args#for_type in
-	let t = TFun (targs,ret) in
+	let t = if not is_coroutine then
+		TFun (targs,ret)
+	else if Meta.has Meta.CoroutineTransformed cf.cf_meta then begin
+		match targs with
+			| _ :: targs ->
+				(* Ignore leading continuation for actual signature *)
+				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
+			| _ ->
+				die "" __LOC__
+	end else
+		(Lazy.force ctx.t.tcoro.tcoro) targs ret
+	in
 	cf.cf_type <- t;
 	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 	cf.cf_params <- params;

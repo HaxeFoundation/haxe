@@ -114,7 +114,8 @@ let load_unit ctx =
 		| TEnumDecl en ->
 			(match snd en.e_path with
 			| "Unit" ->
-				ctx.m.import_resolution#add (module_type_resolution mt None null_pos);
+				ctx.t.tunit <- TEnum(en,[]);
+				(* ctx.m.import_resolution#add (module_type_resolution mt None null_pos); *)
 			| _ -> ())
 		| _ -> ()
 	) m.m_types
@@ -184,6 +185,45 @@ let load_local_wrapper ctx =
 				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
 		end
 
+let load_coro ctx =
+	ctx.t.tcoro.tcoro <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Coroutine") null_pos in
+		ExtList.List.find_map_exn (function
+			| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
+				let mk_coro args ret =
+					TAbstract(a,[TFun(args,ret)])
+				in
+				Some mk_coro
+			| _ ->
+				None
+		) m.m_types;
+	end;
+	ctx.t.tcoro.continuation <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
+		ExtList.List.find_map_exn (function
+			| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
+				Some (TInst(cl, [ ctx.t.tany ]))
+			| _ ->
+				None
+		) m.m_types;
+	end;
+	ctx.t.tcoro.suspension_result_class <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionResult") null_pos in
+		ExtList.List.find_map_exn (function
+			| TClassDecl({ cl_path = (["haxe";"coro"], "SuspensionResult") } as cl) ->
+				Some cl
+			| _ ->
+				None;
+		) m.m_types;
+	end;
+	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
+	List.iter (function
+		| TClassDecl({ cl_path = (["haxe"], "Exception") } as cl) ->
+			ctx.t.texception <- TInst(cl, [])
+		| _ ->
+			()
+	) m.m_types
+
 let create com macros =
 	let rec ctx = {
 		com = com;
@@ -203,6 +243,7 @@ let create com macros =
 			return_partial_type = false;
 			build_count = 0;
 			t_dynamic_def = t_dynamic;
+			continuation_api = None;
 			do_macro = MacroContext.type_macro;
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
@@ -239,10 +280,10 @@ let create com macros =
 	load_string ctx;
 	load_std ctx;
 	load_any ctx;
-	(* load_unit ctx; *)
+	load_unit ctx;
 	load_array ctx;
 	load_enum_tools ctx;
-	ignore(TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos);
+	load_coro ctx;
 	ctx.com.local_wrapper <- load_local_wrapper ctx;
 	ctx.g.complete <- true;
 	ctx

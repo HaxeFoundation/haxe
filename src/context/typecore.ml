@@ -92,6 +92,7 @@ type typer_pass_tasks = {
 
 type function_mode =
 	| FunFunction
+	| FunCoroutine
 	| FunNotFunction
 
 type typer_globals = {
@@ -113,6 +114,7 @@ type typer_globals = {
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	root_typer : typer;
 	(* api *)
+	mutable continuation_api : ContTypes.continuation_api option;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : ?origin:module_dep_origin -> typer -> path -> pos -> module_def;
@@ -288,8 +290,11 @@ module TyperManager = struct
 		let e = create_ctx_e ctx.e.curfun FunNotFunction in
 		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
 
+	let is_coroutine_context ctx =
+		ctx.e.function_mode = FunCoroutine
+
 	let is_function_context ctx = match ctx.e.function_mode with
-		| FunFunction ->
+		| FunFunction | FunCoroutine ->
 			true
 		| FunNotFunction ->
 			false

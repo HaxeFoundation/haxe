@@ -12,7 +12,7 @@ class RunCi {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
 		var args = Sys.args();
-		var tests:Array<TestTarget> = switch (args.length==1 ? args[0] : Sys.getEnv("TEST")) {
+		var tests:Array<TestTarget> = switch (args.length >= 1 ? args[0] : Sys.getEnv("TEST")) {
 			case null:
 				[Macro];
 			case env:
@@ -37,7 +37,7 @@ class RunCi {
 			infoMsg('test $test');
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("haxe-utest", "utest", "--always");
+				haxelibInstallGit("haxe-utest", "utest");
 
 				var args = switch (ci) {
 					case null:
@@ -68,7 +68,9 @@ class RunCi {
 					case Flash:
 						runci.targets.Flash.run(args);
 					case Hl:
-						runci.targets.Hl.run(args);
+						final withJitTests = !Sys.args().contains("--skip-hl-jit");
+						final withHlcTests = !Sys.args().contains("--skip-hlc");
+						runci.targets.Hl.run(args, withJitTests, withHlcTests);
 					case t:
 						throw new Exception("unknown target: " + t);
 				}

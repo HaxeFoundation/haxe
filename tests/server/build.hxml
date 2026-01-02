@@ -4,6 +4,7 @@
 -js test.js
 -lib hxnodejs
 -lib utest
+-lib hxcoro
 -lib haxeserver
 -D analyzer-optimize
 -D UTEST-PRINT-TESTS

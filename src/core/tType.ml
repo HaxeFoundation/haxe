@@ -482,6 +482,12 @@ and build_state =
 
 exception Type_exception of t
 
+type coro_types = {
+	mutable tcoro : ((string * bool * t) list -> t -> t) Lazy.t;
+	mutable continuation : t Lazy.t;
+	mutable suspension_result_class : tclass Lazy.t;
+}
+
 type basic_types = {
 	mutable tvoid : t;
 	mutable tany : t;
@@ -491,7 +497,10 @@ type basic_types = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
-	mutable titerator : t -> t
+	mutable texception : t;
+	mutable titerator : t -> t;
+	mutable tunit : t;
+	mutable tcoro : coro_types;
 }
 
 type class_field_scope =
@@ -549,6 +558,7 @@ type flag_tvar =
 	| VStatic
 	| VUsedByTyper (* Set if the typer looked up this variable *)
 	| VHxb (* Flag used by hxb *)
+	| VCoroCaptured
 
 let flag_tvar_names = [
 	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"

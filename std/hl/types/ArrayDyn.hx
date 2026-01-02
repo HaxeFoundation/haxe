@@ -239,6 +239,8 @@ class ArrayDyn extends ArrayAccess {
 			allowReinterpret = false;
 			return arr;
 		}
+		#end
+		#if (hl_ver >= version("1.16.0") && !hl_legacy32)
 		if (t == Type.get((null : ArrayBytes.ArrayGUID))) {
 			var a:BytesAccess<GUID> = null;
 			a = new Bytes(array.length << a.sizeBits);

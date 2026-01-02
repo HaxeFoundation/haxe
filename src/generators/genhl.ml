@@ -481,6 +481,14 @@ let rec to_type ?tref ctx t =
 			| ["hl"], "GUID" -> HGUID
 			| ["hl"], "NativeArray" -> HArray (to_type ctx (List.hd pl))
 			| ["haxe";"macro"], "Position" -> HAbstract ("macro_pos", alloc_string ctx "macro_pos")
+			| ["haxe";"coro"], "Coroutine" ->
+				begin match pl with
+				| [TFun(args,ret)] ->
+					let args,ret = Common.expand_coro_type ctx.com.basic args ret in
+					to_type ctx (TFun(args,ret))
+				| _ ->
+					die "" __LOC__
+				end
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			get_rec_cache ctx t
@@ -3512,8 +3520,9 @@ let generate_member ctx c f =
 		let ff = match f.cf_expr with
 			| Some { eexpr = TFunction f } -> f
 			| None when has_class_field_flag f CfAbstract ->
-				let tl,tr = match follow f.cf_type with
-					| TFun(tl,tr) -> tl,tr
+				let tl,tr = match follow_with_coro f.cf_type with
+					| NotCoro TFun(tl,tr) -> tl,tr
+					| Coro(tl,tr) -> Common.expand_coro_type ctx.com.basic tl tr
 					| _ -> die "" __LOC__
 				in
 				let args = List.map (fun (n,_,t) ->
@@ -4199,7 +4208,7 @@ let create_context com =
 					Some (get_class "ArrayBytes_hl_I64");
 			aguid =
 				if Gctx.raw_defined com "hl_legacy32"
-					|| hl_ver <> "" && compare_version hl_ver "1.13.0" < 0
+					|| hl_ver <> "" && compare_version hl_ver "1.16.0" < 0
 				then
 					None
 				else

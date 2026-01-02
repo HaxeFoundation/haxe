@@ -410,9 +410,10 @@ let rec needs_temp_var expr =
 (**
 	@return (arguments_list, return_type)
 *)
-let get_function_signature (field:tclass_field) : (string * bool * Type.t) list * Type.t =
-	match follow field.cf_type with
-		| TFun (args, return_type) -> (args, return_type)
+let get_function_signature basic (field:tclass_field) : (string * bool * Type.t) list * Type.t =
+	match follow_with_coro field.cf_type with
+		| Coro (args, return_type) -> Common.expand_coro_type basic args return_type
+		| NotCoro TFun (args, return_type) -> args, return_type
 		| _ -> fail field.cf_pos __LOC__
 
 (**
@@ -598,9 +599,16 @@ let fix_tsignature_args args =
 (**
 	Inserts `null`s if there are missing optional args before empty rest arguments.
 *)
-let fix_call_args callee_type exprs =
-	match follow callee_type with
-	| TFun (args,_) ->
+let fix_call_args basic callee_type exprs =
+	let args =
+		match follow_with_coro callee_type with
+		| Coro (args, return_type) -> Some (Common.expand_coro_type basic args return_type |> fst)
+		| NotCoro TFun (args,_) -> Some args
+		| _ -> None
+	in
+	
+	match args with
+	| Some args ->
 		(match List.rev args with
 		| (_,_,t) :: args_rev when is_rest_type t && List.length args_rev > List.length exprs ->
 			let rec loop args exprs =
@@ -612,7 +620,7 @@ let fix_call_args callee_type exprs =
 			loop args exprs
 		| _ -> exprs
 		)
-	| _ -> exprs
+	| None -> exprs
 
 (**
 	Escapes all "$" chars and encloses `str` into double quotes
@@ -1490,8 +1498,15 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| current :: _ ->
 					match self#parent_expr with
 						| Some { eexpr = TCall (target, params) } when current != (reveal_expr target) ->
-							(match follow target.etype with
-								| TFun (args,_) ->
+							let args =
+								match follow_with_coro target.etype with
+								| Coro (args, return_type) -> Some (Common.expand_coro_type ctx.pgc_common.basic args return_type |> fst)
+								| NotCoro TFun (args,_) -> Some args
+								| _ -> None
+							in
+
+							(match args with
+								| Some args ->
 									let rec check args params =
 										match args, params with
 										| (_, _, t) :: _, param :: _ when current == (reveal_expr param) ->
@@ -2302,7 +2317,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				| FInstance (_, _, ({ cf_kind = Method _ } as field))
 				| FClosure (_, ({ cf_kind = Method _ } as field)) ->
 					self#write ((self#use hxstring_type_path) ^ "::" ^ (field_name field) ^ "(");
-					write_args self#write self#write_expr (fix_call_args field.cf_type (expr :: args));
+					write_args self#write self#write_expr (fix_call_args ctx.pgc_common.basic field.cf_type (expr :: args));
 					self#write ")"
 				| _ ->
 					let msg =
@@ -2651,7 +2666,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			if not !no_call then
 				begin
 					self#write "(";
-					write_args self#write self#write_expr (fix_call_args target_expr.etype args);
+					write_args self#write self#write_expr (fix_call_args ctx.pgc_common.basic target_expr.etype args);
 					self#write ")"
 				end
 		(**
@@ -2718,7 +2733,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			self#write ("new " ^ (self#use ~prefix:needs_php_prefix inst_class.cl_path) ^ "(");
 			let args =
 				match inst_class.cl_constructor with
-				| Some field -> fix_call_args field.cf_type args
+				| Some field -> fix_call_args ctx.pgc_common.basic field.cf_type args
 				| None -> args
 			in
 			write_args self#write self#write_expr args;
@@ -3455,8 +3470,15 @@ class class_builder ctx (cls:tclass) =
 				| Some (cls, _) ->
 					let fields = if is_static then cls.cl_statics else cls.cl_fields in
 					try
-						match (PMap.find name fields).cf_type with
-							| TFun (args,_) ->
+						let args =
+							match follow_with_coro (PMap.find name fields).cf_type with
+							| Coro (args, return_type) -> Some (Common.expand_coro_type ctx.pgc_common.basic args return_type |> fst)
+							| NotCoro TFun (args,_) -> Some args
+							| _ -> None
+						in
+
+						match args with
+							| Some args ->
 								let rec count args mandatory total =
 									match args with
 										| [] ->
@@ -3793,7 +3815,7 @@ class class_builder ctx (cls:tclass) =
 			self#validate_method_name field;
 			writer#reset;
 			writer#indent 1;
-			let (args, return_type) = get_function_signature field in
+			let (args, return_type) = get_function_signature ctx.pgc_common.basic field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
 			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
 			writer#write_indentation;
@@ -3820,13 +3842,14 @@ class class_builder ctx (cls:tclass) =
 			self#validate_method_name field;
 			writer#reset;
 			writer#indent 1;
-			let (args, return_type) = get_function_signature field in
+			let (args, return_type) = get_function_signature ctx.pgc_common.basic field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
 			self#write_doc (DocMethod (args, return_type, (gen_doc_text_opt field.cf_doc))) field.cf_meta;
 			let visibility_kwd = get_visibility field.cf_meta in
 			writer#write_with_indentation (visibility_kwd ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)
+					(* let args, _ = Common.expand_coro_type ctx.pgc_common.basic args return_type in *)
 					writer#write " (";
 					write_args writer#write (writer#write_arg true) (fix_tsignature_args args);
 					writer#write ");\n";

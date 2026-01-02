@@ -172,6 +172,16 @@ let get_this ctx p =
 	| FunMemberAbstract ->
 		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
+	| FunConstructor | FunMember when TyperManager.is_coroutine_context ctx ->
+		let v = match ctx.f.vthis with
+			| None ->
+				let v = add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p in
+				ctx.f.vthis <- Some v;
+				v
+			| Some v ->
+				v
+		in
+		mk (TLocal v) ctx.c.tthis p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.c.tthis p
 

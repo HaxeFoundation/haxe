@@ -102,41 +102,47 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
       in
     if not (List.exists (fun t2 -> Type.fast_eq in_type t2) !visited) then (
       visited := in_type :: !visited;
-      (match find_base in_type with
-      | TMono r -> ( match r.tm_type with None -> () | Some t -> visit_type t)
-      | TEnum (enum, _) -> (
-          match is_extern_enum enum with
-          | true -> add_extern_enum enum
-          | false -> add_type enum.e_path)
-      (* If a class has a template parameter, then we treat it as dynamic - except
-         for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
-      | TInst (klass, params) -> (
-          match klass.cl_path with
-          | [], "Array"
-          | [], "Class"
-          | [ "cpp" ], "FastIterator"
-          | [ "cpp" ], "Pointer"
-          | [ "cpp" ], "ConstPointer"
-          | [ "cpp" ], "Function"
-          | [ "cpp" ], "RawPointer"
-          | [ "cpp" ], "RawConstPointer" ->
-              List.iter visit_type params
-          | _ when is_native_gen_class klass -> add_native_gen_class klass
-          | _ when is_extern_class klass ->
-              add_extern_class klass;
-              List.iter visit_type params
-          | _ -> (
-              match klass.cl_kind with
-              | KTypeParameter _ -> ()
-              | _ -> add_type klass.cl_path))
-      | TAbstract (a, _) when is_scalar_abstract a ->
-          add_extern_abstract a
-      | TAbstract ({ a_extern = true } as a, _) when is_marshalling_native_enum a ->
-          add_extern_abstract a
-      | TFun (args, haxe_type) ->
-          visit_type haxe_type;
-          List.iter (fun (_, _, t) -> visit_type t) args
-      | _ -> ());
+      (match follow_with_coro in_type with
+      | Coro (args, return) ->
+        let args, return = Common.expand_coro_type ctx.ctx_common.basic args return in
+        visit_type return;
+        List.iter (fun (_, _, t) -> visit_type t) args
+      | NotCoro t ->
+        (match find_base in_type with
+        | TMono r -> ( match r.tm_type with None -> () | Some t -> visit_type t)
+        | TEnum (enum, _) -> (
+            match is_extern_enum enum with
+            | true -> add_extern_enum enum
+            | false -> add_type enum.e_path)
+        (* If a class has a template parameter, then we treat it as dynamic - except
+           for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
+        | TInst (klass, params) -> (
+            match klass.cl_path with
+            | [], "Array"
+            | [], "Class"
+            | [ "cpp" ], "FastIterator"
+            | [ "cpp" ], "Pointer"
+            | [ "cpp" ], "ConstPointer"
+            | [ "cpp" ], "Function"
+            | [ "cpp" ], "RawPointer"
+            | [ "cpp" ], "RawConstPointer" ->
+                List.iter visit_type params
+            | _ when is_native_gen_class klass -> add_native_gen_class klass
+            | _ when is_extern_class klass ->
+                add_extern_class klass;
+                List.iter visit_type params
+            | _ -> (
+                match klass.cl_kind with
+                | KTypeParameter _ -> ()
+                | _ -> add_type klass.cl_path))
+        | TAbstract (a, _) when is_scalar_abstract a ->
+            add_extern_abstract a
+        | TAbstract ({ a_extern = true } as a, _) when is_marshalling_native_enum a ->
+            add_extern_abstract a
+        | TFun (args, haxe_type) ->
+            visit_type haxe_type;
+            List.iter (fun (_, _, t) -> visit_type t) args
+        | _ -> ()));
       visited := List.tl !visited)
   in
   let visit_params expression =

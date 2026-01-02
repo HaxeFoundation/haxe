@@ -935,7 +935,7 @@ and type_new ctx ptp el with_type force_inline p =
 		| None ->
 			raise_typing_error_ext (make_error (No_constructor (TClassDecl c)) p)
 		| Some(tl,tr) ->
-			let el,_ = unify_call_args ctx el tl tr p false false false in
+			let el = unify_call_args ctx el tl tr p false false false in
 			mk (TNew (c,params,el)) t p
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
@@ -1106,7 +1106,7 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx_from kind f with_type p =
+and type_local_function ctx_from kind f with_type want_coroutine p =
 	let name,inline = match kind with FKNamed (name,inline) -> Some name,inline | _ -> None,false in
 	let params = TypeloadFunction.type_function_params ctx_from f TPHLocal (match name with None -> "localfun" | Some (n,_) -> n) in
 	let curfun = match ctx_from.e.curfun with
@@ -1115,11 +1115,21 @@ and type_local_function ctx_from kind f with_type p =
 		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let function_mode = FunFunction in
+	let is_coroutine = match name, with_type with
+		| None, WithType.WithType (texpected,_) when not (ExtType.is_mono (follow texpected)) ->
+			(match follow_with_coro texpected with
+			| Coro _ ->
+				true
+			| _ ->
+				false)
+		| _ ->
+			want_coroutine
+	in
+	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
 	let ctx = TyperManager.clone_for_expr ctx_from curfun function_mode in
 	let vname,pname= match name with
 		| None ->
-			if params <> [] then begin
+			if params <> [] || is_coroutine then begin
 				Some(gen_local_prefix,VGenerated),null_pos
 			end else
 				None,p
@@ -1153,8 +1163,9 @@ and type_local_function ctx_from kind f with_type p =
 		let m = new unification_matrix (arity + 1) in
 		let rec loop l = match l with
 			| t :: l ->
-				begin match follow t with
-				| TFun(args,ret) when List.length args = arity ->
+				begin match follow_with_coro t with
+				| NotCoro(TFun(args,ret))
+				| Coro(args,ret) when List.length args = arity ->
 					List.iteri (fun i (_,_,t) ->
 						(* We don't want to bind monomorphs because we want the widest type *)
 						let t = dynamify_monos t in
@@ -1187,14 +1198,15 @@ and type_local_function ctx_from kind f with_type p =
 	(match with_type with
 	| WithType.WithType(t,_) ->
 		let rec loop stack t =
-			(match follow t with
-			| TFun (args2,tr) when List.length args2 = List.length targs ->
+			(match follow_with_coro t with
+			| NotCoro (TFun (args2,tr))
+			| Coro(args2,tr) when List.length args2 = List.length targs ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->
 					maybe_unify_arg t1 t2
 				) targs args2;
 				(* unify for top-down inference unless we are expecting Void *)
 				maybe_unify_ret tr
-			| TAbstract(a,tl) ->
+			| NotCoro (TAbstract(a,tl)) ->
 				begin match get_abstract_froms ctx a tl with
 					| [(_,t2)] ->
 						if not (List.exists (shallow_eq t) stack) then loop (t :: stack) t2
@@ -1221,8 +1233,9 @@ and type_local_function ctx_from kind f with_type p =
 	| WithType.NoValue ->
 		if name = None then display_error ctx.com "Unnamed lvalue functions are not supported" p
 	| _ ->
-		());
-	let ft = TFun (targs,rt) in
+		()
+	);
+	let ft = if is_coroutine then (Lazy.force ctx.t.tcoro.tcoro) targs rt else TFun(targs,rt) in
 	let ft = match with_type with
 		| WithType.NoValue ->
 			ft
@@ -1245,8 +1258,10 @@ and type_local_function ctx_from kind f with_type p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
+	let e = if TyperManager.is_coroutine_context ctx then Coro.fun_to_coro (Coro.create_coro_context ctx ctx.f.meta) (LocalFunc(tf,Option.get v)) else e in
 	match v with
-	| None -> e
+	| None ->
+		e
 	| Some v ->
 		Typeload.generate_args_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
@@ -1538,7 +1553,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| EFor (it,e2) ->
-				ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
+				ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 ForcedUnroll p
 			| _ ->
 				display_error ctx.com "Call or function expected after inline keyword" p;
 				e();
@@ -1548,6 +1563,20 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
 			| _ -> e()
 			end
+		| (Meta.Coroutine,_,_) ->
+			let old = ctx.f.meta in
+			let rec loop e1 = match fst e1 with
+				| EMeta(m,e1) ->
+					ctx.f.meta <- m :: ctx.f.meta;
+					loop e1
+				| EFunction (kind, f) ->
+					type_local_function ctx kind f with_type true p
+				| _ ->
+					e ()
+			in
+			let e = loop e1 in
+			ctx.f.meta <- old;
+			e
 		(* Allow `${...}` reification because it's a noop and happens easily with macros *)
 		| (Meta.Dollar "",_,p) ->
 			e()
@@ -1831,7 +1860,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EVars vl ->
 		type_vars ctx vl p
 	| EFor (it,e2) ->
-		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 p
+		ForLoop.type_for_loop ctx TyperDisplay.handle_display it e2 NoForcedUnroll p
 	| ETernary (e1,e2,e3) ->
 		type_if ctx e1 e2 (Some e3) with_type true p
 	| EIf (e,e1,e2) ->
@@ -1892,7 +1921,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e with_type p
 	| EFunction (kind,f) ->
-		type_local_function ctx kind f with_type p
+		type_local_function ctx kind f with_type false p
 	| EUntyped e ->
 		let old = ctx.f.untyped in
 		ctx.f.untyped <- true;

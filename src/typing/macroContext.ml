@@ -657,7 +657,7 @@ and flush_macro_context mint mctx =
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 			"local_statics",LocalStatic.run;
 			"Exceptions",Exceptions.filter ectx;
-			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper);
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper false);
 		] in
 		let type_filters = [
 			(fun _ -> FiltersCommon.remove_generic_base);
@@ -950,7 +950,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index), None)),p)),p)
 		) el in
-		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
+		let elt = CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false in
 		List.map2 (fun ((n,_,t),mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -1024,7 +1024,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro mctx args margs call p =
-	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
+	let el = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
 let resolve_init_macro com e =

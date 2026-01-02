@@ -795,9 +795,16 @@ let create timer_ctx compilation_step cs version args display_mode =
 			tfloat = mk_mono();
 			tbool = mk_mono();
 			tstring = mk_mono();
+			texception = mk_mono();
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
+			tunit = mk_mono();
+			tcoro = {
+				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = lazy (mk_mono());
+				suspension_result_class = lazy null_class;
+			}
 		};
 		std = null_class;
 		file_keys = new file_keys;
@@ -929,6 +936,13 @@ let clone com is_macro_context =
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
+			texception = mk_mono();
+			tunit = mk_mono();
+			tcoro = {
+				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = lazy (mk_mono());
+				suspension_result_class = lazy null_class;
+			};
 		};
 		local_wrapper = LocalWrapper.null_wrapper;
 		std = null_class;
@@ -1139,6 +1153,12 @@ let get_entry_point com =
 		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main.main_path
+
+let expand_coro_type basic args ret =
+	let args = ("_hx_continuation",false,Lazy.force basic.tcoro.continuation) :: args in
+	let ret = if ExtType.is_void (follow ret) then basic.tunit else ret in
+	let c = Lazy.force basic.tcoro.suspension_result_class in
+	(args,TInst(c,[ret]))
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in

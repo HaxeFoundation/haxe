@@ -79,6 +79,8 @@ class System {
 		final exitCode = Sys.command(cmd, args);
 		final dt = Math.round(Timer.stamp() - t);
 
+		Sys.stderr().flush();
+
 		final msg = 'Command exited with $exitCode in ${dt}s: $displayed';
 		if (exitCode != 0)
 			failMsg(msg);

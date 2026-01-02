@@ -48,16 +48,26 @@ class Macro {
 
 		deleteDirectoryRecursively(partyDir);
 		runCommand("mkdir", [partyDir]);
-		changeDirectory(partyDir);
 		party();
 	}
 
 	static function party() {
+		changeDirectory(partyDir);
 		runCommand("git", ["clone", "https://github.com/haxetink/tink_core", "tink_core"]);
 		changeDirectory("tink_core");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
 		runCommand("haxelib", ["dev", "tink_core", "."]);
 		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
+
+		changeDirectory(partyDir);
+		runCommand("git", ["clone", "https://github.com/HaxeFoundation/hxcoro", "hxcoro" ]);
+		changeDirectory("hxcoro");
+		runCommand("haxelib", ["newrepo"]);
+		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
+		runCommand("haxelib", ["dev", "hxcoro", "."]);
+		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml"]);
+		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml", "--hxb", "bin/test.hxb"]);
+		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml", "--hxb-lib", "bin/test.hxb"]);
 	}
 }

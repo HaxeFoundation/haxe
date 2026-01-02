@@ -570,9 +570,15 @@ and load_complex_type' ctx allow_display mode (t,p) =
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
 					let args = List.map (fun ((name,_),o,_,t,e) -> no_expr e; name, o, topt LoadNormal t) fd.f_args in
-					let t = TFun (args,topt LoadReturn fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
+					let ret = topt LoadReturn fd.f_type in
+					let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
+					let t = if is_coroutine then
+						(Lazy.force ctx.t.tcoro.tcoro) args ret
+					else
+						TFun (args,ret)
+					in
 					ctx.type_params <- old;
-					t
+					t,Method (if !dyn then MethDynamic else MethNormal)
 				| FProp (i1,i2,t,e) ->
 					no_expr e;
 					let access (m,_) get =
@@ -865,8 +871,13 @@ let init_core_api ctx c =
 			| _ ->
 				raise_typing_error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
 		end;
-		(match follow f.cf_type, follow f2.cf_type with
-		| TFun (pl1,_), TFun (pl2,_) ->
+		(match follow_with_coro f.cf_type, follow_with_coro f2.cf_type with
+		| Coro _,NotCoro _ ->
+			raise_typing_error "Method should be coroutine" p
+		| NotCoro _,Coro _ ->
+			raise_typing_error "Method should not be coroutine" p;
+		| NotCoro (TFun (pl1,_)), NotCoro(TFun (pl2,_))
+		| Coro (pl1,_), Coro(pl2,_) ->
 			if List.length pl1 != List.length pl2 then raise_typing_error "Argument count mismatch" p;
 			List.iter2 (fun (n1,_,_) (n2,_,_) ->
 				if n1 <> n2 then raise_typing_error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;

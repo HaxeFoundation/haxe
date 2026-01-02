@@ -17,16 +17,20 @@ class Hl {
 	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
 
 	static final hlBinary =
-		if (isCi() || !commandSucceed("hl", ["--version"])){
+		if (!commandSucceed("hl", ["--version"])){
 			Path.join([hlInstallBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
 		} else {
 			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
 		};
 
 	static final miscHlDir = getMiscSubDir('hl');
+	static final miscHlcDir = getMiscSubDir('hlc');
+
+	static var withJitTests = true;
+	static var withHlcTests = true;
 
 	static public function getHlDependencies() {
-		if (!isCi() && FileSystem.exists(hlBinary)) {
+		if (FileSystem.exists(hlBinary)) {
 			infoMsg('hl has already been installed at $hlBinary.');
 			return;
 		}
@@ -54,7 +58,6 @@ class Hl {
 		final args = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
 		if (systemName == "Mac") {
 			args.push("-DDOWNLOAD_DEPENDENCIES=ON");
-			args.push("-DCMAKE_OSX_ARCHITECTURES=x86_64");
 		}
 		runCommand("cmake", args.concat([
 			"-DBUILD_TESTING=OFF",
@@ -78,7 +81,9 @@ class Hl {
 
 		addToPATH(hlInstallBinDir);
 		addToLIBPATH(hlInstallLibDir);
-		runCommand(hlBinary, ["--version"]);
+		if (withJitTests) {
+			runCommand(hlBinary, ["--version"]);
+		}
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 
@@ -92,13 +97,9 @@ class Hl {
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
 		if (run == null) run = runCommand;
 
-		if (!isCi())
-			return;
-
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
 		final extraCompilerFlags = switch (systemName) {
 			case "Windows": ["-ldbghelp", "-municode"];
-			case "Mac": ["-arch", "x86_64"];
 			case _: [];
 		};
 
@@ -134,25 +135,33 @@ class Hl {
 	static function buildAndRun(hxml:String, target:String, ?args:Array<String>) {
 		if (args == null) args = [];
 
-		runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
-		runCommand(hlBinary, ['$target/hl-jit.hl']);
+		if (withJitTests) {
+			runCommand("haxe", [hxml, "-hl", '$target/hl-jit.hl'].concat(args));
+			runCommand(hlBinary, ['$target/hl-jit.hl']);
+		}
 
-		runCommand("haxe", [hxml, "-hl", '$target/hlc.c', "-D", "hlgen.makefile=ci"].concat(args));
-		buildAndRunHlc(target, "hlc");
+		if (withHlcTests) {
+			runCommand("haxe", [hxml, "-hl", '$target/hlc.c', "-D", "hlgen.makefile=ci"].concat(args));
+			buildAndRunHlc(target, "hlc");
+		}
 	}
 
-	static public function run(args:Array<String>) {
+	static public function run(args:Array<String>, withJitTests:Bool, withHlcTests:Bool) {
+		Hl.withJitTests = withJitTests;
+		Hl.withHlcTests = withHlcTests;
+
 		getHlDependencies();
 
-		runCommand("haxe", ["compile-hl.hxml"].concat(args));
-		runCommand(hlBinary, ['bin/unit.hl']);
-		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
-		buildAndRunHlc("bin/hlc", "unit", runCommand);
-
-		runCommand("haxe", ["compile-hl.hxml", "--undefine", "analyzer-optimize"].concat(args));
-		runCommand(hlBinary, ['bin/unit.hl']);
-		runCommand("haxe", ["compile-hlc.hxml", "--undefine", "analyzer-optimize"].concat(args));
-		buildAndRunHlc("bin/hlc", "unit", runCommand);
+		for (extraArgs in [[], ["--undefine", "analyzer-optimize"]]) {
+			if (Hl.withJitTests) {
+				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(args));
+				runCommand(hlBinary, ['bin/unit.hl']);
+			}
+			if (Hl.withHlcTests) {
+				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(args));
+				buildAndRunHlc("bin/hlc", "unit", runCommand);
+			}
+		}
 
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
@@ -160,28 +169,35 @@ class Hl {
 		Display.maybeRunDisplayTests(Hl);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-hl.hxml"].concat(args));
-		runSysTest(hlBinary, ["bin/hl/sys.hl"]);
-		runCommand("haxe", ["compile-hlc.hxml"].concat(args));
-		function dontRun(cmd,?args) {}
-		buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
-		buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
-		buildAndRunHlc("bin/hlc/utilityProcess", "UtilityProcess", dontRun);
-		buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
+		if (Hl.withJitTests) {
+			runCommand("haxe", ["compile-hl.hxml"].concat(args));
+			runSysTest(hlBinary, ["bin/hl/sys.hl"]);
+		}
+		if (Hl.withHlcTests) {
+			runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+			function dontRun(cmd,?args) {}
+			buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
+			buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
+			buildAndRunHlc("bin/hlc/utilityProcess", "UtilityProcess", dontRun);
+			buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
+		}
 
 		changeDirectory(getMiscSubDir("eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");
 
-		changeDirectory(getMiscSubDir("hl/reservedKeywords"));
-		buildAndRun("compile.hxml", "bin/reservedKeywords");
-
+		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
+		// so they are not skipped with --skip-hl-jit
 		changeDirectory(miscHlDir);
-		if (systemName == "Windows") {
-			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=vs2022"]);
-		} else if (systemName == "Mac") {
-			runCommand("arch", ["-x86_64", "haxe", "run.hxml", "-D", "hlgen.makefile=make"]);
-		} else {
-			runCommand("haxe", ["run.hxml", "-D", "hlgen.makefile=make"]);
+		runCommand("haxe", ["run.hxml"]);
+
+		if (Hl.withHlcTests) {
+			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
+			changeDirectory(getMiscSubDir("hlc/reservedKeywords"));
+			runCommand("haxe", ["compile.hxml", "-D", hlcTemplateDefine]);
+			buildAndRunHlc("bin", "reservedKeywords");
+
+			changeDirectory(miscHlcDir);
+			runCommand("haxe", ["run.hxml", "-D", hlcTemplateDefine]);
 		}
 	}
 }

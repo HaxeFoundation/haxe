@@ -47,6 +47,32 @@ class TestLua extends Test {
 		untyped _hx_box_mr = old_hx_box_mr;
 	}
 
+	function testSwitchSubjectSideEffects() {
+		// Test that switch subject is evaluated for side effects even with empty cases.
+		// This was a bug where switch with only default (no explicit cases) would
+		// skip evaluating the subject expression entirely.
+		var counter = 0;
+		var getValue = function() {
+			counter++;
+			return 42;
+		};
+
+		// Switch with only default (empty cases array) - subject must still be evaluated
+		switch (getValue()) {
+			default:
+		}
+		eq(counter, 1);
+
+		// Switch with only default that has a body
+		counter = 0;
+		var result = 0;
+		switch (getValue()) {
+			default: result = 99;
+		}
+		eq(counter, 1);
+		eq(result, 99);
+	}
+
 	function testMetatablesAreShared() {
 
 		// New class instances get metatables assigned to them

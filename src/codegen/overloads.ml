@@ -37,8 +37,9 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	in
 	let compare_types () =
 		let t1 = follow (apply_params f1.cf_params (extract_param_types f2.cf_params) t1) in
-		match t1,follow t2 with
-		| TFun(tl1,_),TFun(tl2,_) ->
+		match follow_with_coro t1,follow_with_coro t2 with
+		| NotCoro TFun(tl1,_),NotCoro TFun(tl2,_)
+		| Coro (tl1,_),Coro(tl2,_) ->
 			compare_arguments tl1 tl2
 		| _ ->
 			false

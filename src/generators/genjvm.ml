@@ -168,6 +168,14 @@ let rec jsignature_of_type gctx stack t =
 					end
 				| [],"EnumValue" ->
 					java_enum_sig object_sig
+				| ["haxe";"coro"],"Coroutine" ->
+					begin match tl with
+					| [TFun(args,ret)] ->
+						let args,ret = Common.expand_coro_type gctx.gctx.basic args ret in
+						jsignature_of_type (TFun(args,ret))
+					| _ ->
+						die "" __LOC__
+					end
 				| _ ->
 					if Meta.has Meta.CoreType a.a_meta then
 						TObject(a.a_path,List.map jtype_argument_of_type tl)
@@ -197,11 +205,12 @@ let rec jsignature_of_type gctx stack t =
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
 	| TEnum(en,tl) ->
 		TObject(en.e_path,List.map jtype_argument_of_type tl)
-	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
-		let jsig = jsignature_of_type t in
-		let jsig = if o then get_boxed_type jsig else jsig in
-		jsig
-	) tl) (return_of_type gctx stack tr)
+	| TFun(tl,tr) ->
+		method_sig (List.map (fun (_,o,t) ->
+			let jsig = jsignature_of_type t in
+			let jsig = if o then get_boxed_type jsig else jsig in
+			jsig
+		) tl) (return_of_type gctx stack tr)
 	| TAnon an -> object_sig
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
@@ -765,8 +774,11 @@ class texpr_to_jvm
 
 	method read cast e1 fa =
 		let read_static_closure path cf =
-			let args,ret = match follow cf.cf_type with
-				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+			let args,ret = match follow_with_coro cf.cf_type with
+				| NotCoro TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+				| Coro (tl,tr) ->
+					let tl,tr = Common.expand_coro_type gctx.gctx.basic tl tr in
+					List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
 				| _ -> die "" __LOC__
 			in
 			self#read_static_closure path cf.cf_name args ret cf.cf_type
@@ -1558,9 +1570,12 @@ class texpr_to_jvm
 	(* calls *)
 
 	method call_arguments ?(cast=true) t el =
-		let tl,tr = match follow t with
-			| TFun(tl,tr) ->
+		let tl,tr = match follow_with_coro t with
+			| NotCoro (TFun(tl,tr)) ->
 				tl,return_of_type gctx tr
+			| Coro(args,ret) ->
+				let args,ret = Common.expand_coro_type gctx.gctx.basic args ret in
+				args,return_of_type gctx ret
 			| _ ->
 				List.map (fun e -> ("",false,e.etype)) el,Some (object_sig)
 		in
@@ -1963,7 +1978,8 @@ class texpr_to_jvm
 		if not jm#is_terminated then self#texpr' ret e
 
 	method texpr' ret e =
-		code#set_line (Lexer.get_error_line e.epos);
+		if e.epos.pmin >= 0 then
+			code#set_line (Lexer.get_error_line e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
 			self#texpr (rvalue_type gctx v.v_type (Some v.v_name)) e1;
@@ -2428,8 +2444,9 @@ class tclass_to_jvm gctx c = object(self)
 				maybe_make_bridge cf_impl.cf_name jsig_super jsig_impl
 		in
 		let find_overload map_type c cf =
-			let tl = match follow (map_type cf.cf_type) with
-				| TFun(tl,_) -> tl
+			let tl = match follow_with_coro (map_type cf.cf_type) with
+				| Coro (tl, _) -> tl
+				| NotCoro TFun(tl,_) -> tl
 				| _ -> die "" __LOC__
 			in
 			OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl)
@@ -2989,8 +3006,11 @@ let generate_anons gctx pool =
 			List.iter (fun cf ->
 				let jsig_cf = jsignature_of_type gctx cf.cf_type in
 				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
-				let tl,tr = match follow cf.cf_type with
-					| TFun(tl,tr) -> tl,tr
+				let tl,tr = match follow_with_coro cf.cf_type with
+					| NotCoro TFun(tl,tr) ->
+						tl,tr
+					| Coro(tl,tr) ->
+						Common.expand_coro_type gctx.gctx.basic tl tr
 					| _ -> die "" __LOC__
 				in
 				let locals = List.map (fun (n,_,t) ->

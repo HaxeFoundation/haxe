@@ -354,8 +354,22 @@ class Compiler {
 	**/
 	public static function registerMetadataDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
-		var content:Array<MetadataDescription> = haxe.Json.parse(f);
-		for (m in content)
+		var content:Array<Dynamic> = haxe.Json.parse(f);
+		var metas:Array<MetadataDescription> = [];
+		for (c in content) {
+			var meta:MetadataDescription = {
+				metadata: c.metadata,
+				doc: c.doc,
+				links: c.links,
+				params: c.parmas,
+				platforms: c.platforms != null ? stringToPlatforms(c.platforms) : null,
+				targets: c.targets
+			};
+
+			metas.push(meta);
+		}
+
+		for (m in metas)
 			registerCustomMetadata(m, source);
 	}
 
@@ -365,8 +379,21 @@ class Compiler {
 	**/
 	public static function registerDefinesDescriptionFile(path:String, ?source:String):Void {
 		var f = sys.io.File.getContent(path);
-		var content:Array<DefineDescription> = haxe.Json.parse(f);
-		for (d in content)
+		var content:Array<Dynamic> = haxe.Json.parse(f);
+		var defines:Array<DefineDescription> = [];
+		for (c in content) {
+			var define:DefineDescription = {
+				define: c.define,
+				doc: c.doc,
+				links: c.links,
+				params: c.params,
+				platforms: c.platforms != null ? stringToPlatforms(c.platforms) : null
+			};
+
+			defines.push(define);
+		}
+
+		for (d in defines)
 			registerCustomDefine(d, source);
 	}
 
@@ -430,6 +457,41 @@ class Compiler {
 		load("set_hxb_writer_config", 1)(config);
 	}
 	#end
+
+	/**
+		Converts an array of `String`s into an array of `Platform`s.
+	**/
+	private static function stringToPlatforms(platforms:Array<String>) {
+		return [
+			for (platform in platforms)
+				switch (platform) {
+					case "cross":
+						Cross;
+					case "js":
+						Js;
+					case "lua":
+						Lua;
+					case "neko":
+						Neko;
+					case "flash":
+						Flash;
+					case "php":
+						Php;
+					case "cpp":
+						Cpp;
+					case "jvm":
+						Jvm;
+					case "python":
+						Python;
+					case "hl":
+						Hl;
+					case "eval":
+						Eval;
+					default:
+						CustomTarget(platform);
+				}
+		];
+	}
 
 	#if (js || lua || macro)
 	/**
