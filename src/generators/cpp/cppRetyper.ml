@@ -351,11 +351,14 @@ let expression ctx request_type function_args function_type expression_tree forI
     new_ctx, resolver
   in
 
-  let cpp_return_type haxe_type =
-    match haxe_type with TFun (_, ret) -> cpp_type_of with_stack_value_type ret | _ -> TCppDynamic
+  let cpp_return_type ctx haxe_type =
+    match follow_with_coro haxe_type with
+    | Coro (args, ret) -> Common.expand_coro_type ctx.ctx_common.basic args ret |> snd |> cpp_type_of with_stack_value_type
+    | NotCoro TFun (_, ret) -> cpp_type_of with_stack_value_type ret
+    | _ -> TCppDynamic
   in
 
-  let cpp_member_return_type member = cpp_return_type member.cf_type in
+  let cpp_member_return_type ctx member = cpp_return_type ctx member.cf_type in
 
   let is_cpp_objc_type cpptype =
     match cpptype with TCppObjC _ -> true | _ -> false
@@ -651,7 +654,7 @@ let expression ctx request_type function_args function_type expression_tree forI
           match field with
           | FInstance (clazz, params, member)
           | FClosure (Some (clazz, params), member) -> (
-            let funcReturn = cpp_member_return_type member in
+            let funcReturn = cpp_member_return_type ctx member in
             let clazzType = cpp_instance_type clazz params with_reference_value_type in
             let retyper_ctx, retypedObj = retype retyper_ctx clazzType obj in
             (* Value types in haxe classes are always promoted, with value type externs treat them as stack types so the auto casting deals with conversion *)
@@ -773,7 +776,7 @@ let expression ctx request_type function_args function_type expression_tree forI
                       funcReturn ),
                   exprType ))
           | FStatic (_, ({ cf_name = "nativeFromStaticFunction" } as member)) ->
-            let funcReturn = cpp_member_return_type member in
+            let funcReturn = cpp_member_return_type ctx member in
             let exprType   = cpp_type_of member.cf_type in
             (retyper_ctx, CppFunction (FuncFromStaticFunction, funcReturn), exprType)
           | FStatic (({ cl_kind = KAbstractImpl abs }), member) when is_marshalling_native_enum abs ->
@@ -788,7 +791,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               (retyper_ctx, CppVar (VarStatic (clazz, objC, member)), exprType)
             else
               ( retyper_ctx,
-                CppFunction (FuncStatic (clazz, objC, member, []), cpp_member_return_type member),
+                CppFunction (FuncStatic (clazz, objC, member, []), cpp_member_return_type ctx member),
                 exprType )
           | FClosure (None, field)
           | FAnon field ->
@@ -798,7 +801,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               (retyper_ctx, CppExtern (fieldName, true), cpp_type_of expr.etype)
             else if obj.cpptype = TCppNull then (retyper_ctx, CppNullAccess, TCppDynamic)
             else if is_internal_member fieldName then
-              let cppType = cpp_return_type expr.etype in
+              let cppType = cpp_return_type ctx expr.etype in
               if obj.cpptype = TCppString then
                 ( retyper_ctx,
                   CppFunction (FuncInternal (obj, fieldName, "."), cppType),
@@ -823,7 +826,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               else if fieldName = "__Index" then
                 (retyper_ctx, CppEnumIndex obj, TCppScalar "int")
               else if is_internal_member fieldName || cpp_is_real_array obj then
-                let cppType = cpp_return_type expr.etype in
+                let cppType = cpp_return_type ctx expr.etype in
                 if obj.cpptype = TCppString then
                   ( retyper_ctx,
                     CppFunction (FuncInternal (obj, fieldName, "."), cppType),
@@ -1668,41 +1671,44 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
         (* We need to fetch the default values for abstract functions from the @:Value meta *)
         let abstract_tfunc =
-          match field.cf_type with
-          | TFun (args, ret) ->
-            let get_default_value name =
-              try
-                match Meta.get Meta.Value field.cf_meta with
-                | _, [ (EObjectDecl decls, _) ], _ ->
-                  Some
-                    (decls
-                      |> List.find (fun ((n, _, _), _) -> n = name)
-                      |> snd
-                      |> type_constant_value ctx.ctx_common.basic)
-                | _ -> None
-              with Not_found -> None
-            in
+          let args, ret =
+            match follow_with_coro field.cf_type with
+            | Coro (t, r) -> Common.expand_coro_type ctx.ctx_common.basic t r
+            | NotCoro TFun (t, r) -> t, r
+            | _ -> cpp_abort InternalError field.cf_pos
+          in
 
-            (* Generate a no op tfunc for our abstract *)
-            (* This allows it to go through the rest of the generator with no special cases *)
-            (* We can't implement abstract functions as pure virtual due to cppia needing to construct the class *)
-            let map_arg (name, _, t) =
-              ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
-            let expr =
-              match follow ret with
-              | TAbstract ({ a_path = ([], "Void") }, _) ->
-                { eexpr = TReturn None; etype = ret; epos = null_pos }
-              | _ ->
-                let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
-                { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
+          let get_default_value name =
+            try
+              match Meta.get Meta.Value field.cf_meta with
+              | _, [ (EObjectDecl decls, _) ], _ ->
+                Some
+                  (decls
+                    |> List.find (fun ((n, _, _), _) -> n = name)
+                    |> snd
+                    |> type_constant_value ctx.ctx_common.basic)
+              | _ -> None
+            with Not_found -> None
+          in
 
-            {
-              tf_args = args |> List.map map_arg;
-              tf_type = ret;
-              tf_expr = expr;
-            }
-          | _ ->
-            die "expected abstract field type to be TFun" __LOC__
+          (* Generate a no op tfunc for our abstract *)
+          (* This allows it to go through the rest of the generator with no special cases *)
+          (* We can't implement abstract functions as pure virtual due to cppia needing to construct the class *)
+          let map_arg (name, _, t) =
+            ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
+          let expr =
+            match follow ret with
+            | TAbstract ({ a_path = ([], "Void") }, _) ->
+              { eexpr = TReturn None; etype = ret; epos = null_pos }
+            | _ ->
+              let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
+              { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
+          
+          {
+            tf_args = args |> List.map map_arg;
+            tf_type = ret;
+            tf_expr = expr;
+          }
         in
 
         Some (create_function field with_stack_value_type abstract_tfunc)
