@@ -73,6 +73,20 @@ class TestLua extends Test {
 		eq(result, 99);
 	}
 
+	// Issue #11842: Non-function fields should not be wrapped with _hx_funcToField
+	function testNoFuncToFieldForNonFunctions() {
+		var a:Issue11842Slot = { data: 0, func: null };
+		var b:Issue11842Slot = { data: 42, func: function(x) return x * 2 };
+
+		// Non-function field assignment should work correctly
+		a.data = b.data;
+		eq(a.data, 42);
+
+		// Function field assignment should also work correctly
+		a.func = b.func;
+		eq(a.func(10), 20);
+	}
+
 	function testMetatablesAreShared() {
 
 		// New class instances get metatables assigned to them
@@ -113,3 +127,9 @@ class MultiCall {
 class TLA { private var foo: String; public function new() { this.foo = "A"; } }
 class TLAChild extends TLA { public function new() { super(); this.foo = "AChild"; } }
 class TLB { private var foo: String; public function new() { this.foo = "B"; } }
+
+// Issue #11842
+typedef Issue11842Slot = {
+	var data:Int;
+	var func:(Int) -> Int;
+}
