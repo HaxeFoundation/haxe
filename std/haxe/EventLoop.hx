@@ -93,7 +93,7 @@ class EventLoop {
 	**/
 	public var thread : sys.thread.Thread;
 	#end
-	#if hl
+	#if (hl && !hl_no_libuv)
 	var uvLoop : hl.uv.Loop;
 	var inUV : Bool;
 	#end
@@ -105,7 +105,7 @@ class EventLoop {
 		#end
 	}
 
-	#if hl
+	#if (hl && !hl_no_libuv)
 	function getUVLoop() {
 		if( uvLoop == null ) {
 			if( this == main )
@@ -127,7 +127,7 @@ class EventLoop {
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
-		#if hl
+		#if (hl && !hl_no_libuv)
 		if( uvLoop != null && uvLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
 		#end
 	}
@@ -140,7 +140,7 @@ class EventLoop {
 		checkThread();
 		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
-			#if hl
+			#if (hl && !hl_no_libuv)
 			// disable wait if we have our uvloop alive
 			if( uvLoop != null && time > 0 && uvLoop.alive() > 0 )
 				time = -1;
@@ -217,7 +217,7 @@ class EventLoop {
 	public function loopOnce( threadCheck = true ) {
 		if( threadCheck )
 			checkThread();
-		#if hl
+		#if (hl && !hl_no_libuv)
 		if( inUV ) throw "You cannot callback EventLoop.loop() while in uv event callback";
 		#end
 
@@ -227,7 +227,7 @@ class EventLoop {
 		inLoop = true;
 		unlock();
 
-		#if hl
+		#if (hl && !hl_no_libuv)
 		if( uvLoop != null ) {
 			inUV = true;
 			uvLoop.run(NoWait);
@@ -449,7 +449,7 @@ class EventLoop {
 		If blocking is set to true, only check if it has remaining blocking events.
 	**/
 	public function hasEvents( blocking : Bool = true ) {
-		#if hl
+		#if (hl && !hl_no_libuv)
 		if( uvLoop != null && uvLoop.alive() > 0 )
 			return true;
 		#end
