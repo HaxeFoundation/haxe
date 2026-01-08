@@ -27,6 +27,7 @@
 	var Change = 2;
 }
 
+#if !hl_no_libuv
 @:hlNative("uv")
 class Fs extends Handle {
 	public function new(?loop : Loop, path : String, onContentChanged : Event -> Void) {
@@ -49,3 +50,4 @@ class Fs extends Handle {
 		return false;
 	}
 }
+#end

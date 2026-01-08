@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+#if !hl_no_libuv
 @:hlNative("uv")
 class Handle {
 	public var handle:HandleData;
@@ -38,3 +39,4 @@ class Handle {
 
 	static function close_handle(h:HandleData, callb:Void->Void):Void {}
 }
+#end

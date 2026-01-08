@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+#if !hl_no_libuv
 @:hlNative("uv")
 class Stream extends Handle {
 	public function write(bytes:haxe.io.Bytes, ?onWrite:Bool->Void, pos = 0, len = -1) {
@@ -68,3 +69,4 @@ class Stream extends Handle {
 		return false;
 	}
 }
+#end

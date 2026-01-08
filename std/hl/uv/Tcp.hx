@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+#if !hl_no_libuv
 @:hlNative("uv")
 class Tcp extends Stream {
 	public function new(?loop:Loop) {
@@ -70,3 +71,4 @@ class Tcp extends Stream {
 
 	static function tcp_nodelay_wrap(h:HandleData, b:Bool):Void {}
 }
+#end

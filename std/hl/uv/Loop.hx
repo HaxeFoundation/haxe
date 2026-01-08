@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+#if !hl_no_libuv
 enum abstract LoopRunMode(Int) {
 	var Default = 0;
 	var Once = 1;
@@ -67,3 +68,4 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	#end
 
 }
+#end

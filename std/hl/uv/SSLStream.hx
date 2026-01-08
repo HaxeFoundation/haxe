@@ -22,6 +22,7 @@
 
 package hl.uv;
 
+#if !hl_no_libuv
 class SSLStream extends Stream {
 
 	var sub : Stream;
@@ -156,3 +157,4 @@ class SSLStream extends Stream {
 	}
 
 }
+#end

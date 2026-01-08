@@ -22,4 +22,6 @@
 
 package hl.uv;
 
+#if !hl_no_libuv
 typedef HandleData = hl.Abstract<"uv_handle">;
+#end
