@@ -82,6 +82,7 @@ class EventLoop {
 	public static var current(get,never) : EventLoop;
 
 	var events : Event;
+	var queue : Event;
 	var inLoop : Bool;
 	var hasPendingRemove : Bool;
 	var promiseCount : Int = 0;
@@ -310,10 +311,12 @@ class EventLoop {
 			unlock();
 			return;
 		}
-		if( events != null )
-			events.prev = e;
-		e.next = events;
-		events = e;
+		if( queue != null )
+			queue.next = e;
+		else
+			events = e;
+		e.prev = queue;
+		queue = e;
 		wakeup();
 		unlock();
 	}
@@ -340,6 +343,8 @@ class EventLoop {
 			e.next.prev = e.prev;
 			e.next = null;
 		}
+		if( queue == e )
+			queue = e.prev;
 		e.prev = null;
 		wakeup();
 		unlock();
@@ -380,7 +385,7 @@ class EventLoop {
 		}
 
 		var insize = 1, nmerges, psize = 0, qsize = 0;
-		var p, q, e, tail:Event;
+		var p, q, e, tail:Event = null;
 
 		while (true) {
 			p = list;
@@ -430,6 +435,7 @@ class EventLoop {
 		}
 		list.prev = null; // not cycling
 		events = list;
+		queue = tail;
 		unlock();
 	}
 

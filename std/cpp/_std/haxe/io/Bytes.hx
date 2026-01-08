@@ -24,6 +24,8 @@ package haxe.io;
 
 import cpp.NativeArray;
 import cpp.marshal.View;
+import cpp.encoding.Utf8;
+import cpp.encoding.Ascii;
 import haxe.iterators.StringIterator;
 
 using cpp.marshal.Marshal;
@@ -192,9 +194,7 @@ class Bytes {
 		interpreted with the given `encoding` (UTF-8 by default).
 	**/
 	public function getString(pos:Int, len:Int, ?encoding:Encoding):String {
-		final chars : View<cpp.Char> = this.asView().reinterpret();
-
-		return chars.slice(pos, len).toString();
+		return Utf8.decode(this.asView().slice(pos, len));
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")
@@ -249,9 +249,18 @@ class Bytes {
 	**/
 	@:pure
 	public static function ofString(s:String, ?encoding:Encoding):Bytes {
-		final chars = s.toCharView();
+		if (Ascii.isEncoded(s)) {
+			return s.asCharView().asBytesView().toBytes();
+		} else {
+			final count = Utf8.getByteCount(s);
+			final bytes = Bytes.alloc(Int64.toInt(count));
 
-		return chars.slice(0, chars.length - 1).asBytesView().toBytes();
+			if (Utf8.encode(s, bytes.asView()) != count) {
+				throw new haxe.Exception('Failed to encode string to UTF8');
+			} else {
+				return bytes;
+			}
+		}
 	}
 
 	/**

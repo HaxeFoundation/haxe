@@ -55,18 +55,23 @@ abstract AdjustableContext(ElementTree) {
 	}
 
 	/**
-		Adds or replaces `element` associated with `key`.
-	**/
-	public inline function add<T>(key:Key<T>, element:T) {
-		this[key.id] = element;
-		return abstract;
-	}
-
-	/**
 		@see `Context.get`
 	**/
 	public inline function get<T>(key:Key<T>):Null<T> {
 		return cast this[key.id];
+	}
+
+	/**
+		Adds or replaces `element` associated with `key`.
+	**/
+	public inline function set<T>(key:Key<T>, element:T) {
+		this[key.id] = element;
+		return abstract;
+	}
+
+	@:deprecated("Use `set` instead")
+	public inline function add<T>(key:Key<T>, element:T) {
+		return set(key, element);
 	}
 
 	/**
@@ -75,6 +80,16 @@ abstract AdjustableContext(ElementTree) {
 	public function with(...elements:IElement<Any>) {
 		for (element in elements) {
 			this[element.getKey().id] = element;
+		}
+		return abstract;
+	}
+
+	/**
+		Unsets all `keys` in `this` context.
+	**/
+	public function without(...keys:Key<Any>) {
+		for (key in keys) {
+			this[key.id] = null;
 		}
 		return abstract;
 	}

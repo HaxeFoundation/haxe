@@ -1,6 +1,5 @@
 package cpp.marshal;
 
-import cpp.SizeT;
 import haxe.Int64;
 import haxe.ds.Vector;
 import haxe.exceptions.ArgumentException;
@@ -8,10 +7,10 @@ import haxe.exceptions.ArgumentException;
 @:semantics(value)
 @:cpp.ValueType({ namespace:['cpp', 'marshal'], flags: [ StackOnly ] })
 extern final class View<T> implements ArrayAccess<T> {
-    final length : SizeT;
+    final length : Int64;
 	final ptr : Pointer<T>;
 
-	function new(ptr:Pointer<T>, length:SizeT):Void;
+	function new(ptr:Pointer<T>, length:Int64):Void;
 
 	/**
 	 * Attempts to copy the data from the current view to the destination view.
@@ -22,14 +21,10 @@ extern final class View<T> implements ArrayAccess<T> {
 
 	/**
 	 * Copies the the from the current view to the destination view.
+	 * If the destination is smaller than the current view this function raises an exception and no data is written to the destination.
 	 * @param destination Target of the copy operation
-	 * @throws ArgumentException If the destination is smaller than the current view.
 	 */
-	inline function copyTo(destination:View<T>) {
-		if (tryCopyTo(destination) == false) {
-			throw new ArgumentException("destination", "Not enough space in the destination view");
-		}
-	}
+	function copyTo(destination:View<T>):Void;
 
 	/**
 	 * Sets all items in the current view to their default value.
@@ -65,5 +60,12 @@ extern final class View<T> implements ArrayAccess<T> {
 	 */
 	function reinterpret<K>():View<K>;
 
-	function compare(rhs:View<T>):Int;
+	/**
+	 * Returns 0 if the contents of the two views are identical.
+	 * 
+	 * Returns a negative value if the length of this view is less than the length of other, or a positive value if the length of this view is greater than the length of other.
+	 *
+	 * In case of equal lengths, returns a negative value if the first different value in other is greater than the corresponding value in this view. Otherwise, returns a positive value.
+	 */
+	function compare(other:View<T>):Int;
 }
