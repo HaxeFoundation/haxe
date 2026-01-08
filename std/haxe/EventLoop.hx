@@ -63,6 +63,14 @@ class Event {
 
 }
 
+#if hl
+private typedef NativeEventLoop = {
+	function run():Void;
+	function close():Int;
+	function alive():Int;
+};
+#end
+
 
 /**
 	Handles async events for all threads
@@ -95,8 +103,8 @@ class EventLoop {
 	public var thread : sys.thread.Thread;
 	#end
 	#if hl
-	var uvLoop : hl.uv.Loop;
-	var inUV : Bool;
+	var nativeLoop : Null<NativeEventLoop>;
+	var inNative : Bool = false;
 	#end
 
 	public function new() {
@@ -106,30 +114,13 @@ class EventLoop {
 		#end
 	}
 
-	#if hl
-	function getUVLoop() {
-		if( uvLoop == null ) {
-			if( this == main )
-				uvLoop = @:privateAccess hl.uv.Loop.default_loop();
-			else {
-				#if (hl_ver < version("1.16.0"))
-				throw "Using libUV multithread requires -D hl-ver=1.16.0";
-				#else
-				uvLoop = hl.uv.Loop.create();
-				#end
-			}
-		}
-		return uvLoop;
-	}
-	#end
-
 	/**
 		This should be called after you are finished with a custom event loop.
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
 		#if hl
-		if( uvLoop != null && uvLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
+		if( nativeLoop != null && nativeLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
 		#end
 	}
 
@@ -142,8 +133,8 @@ class EventLoop {
 		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
 			#if hl
-			// disable wait if we have our uvloop alive
-			if( uvLoop != null && time > 0 && uvLoop.alive() > 0 )
+			// disable wait if we have our native loop alive
+			if( nativeLoop != null && time > 0 && nativeLoop.alive() > 0 )
 				time = -1;
 			#end
 			if( time > 0 ) {
@@ -219,7 +210,7 @@ class EventLoop {
 		if( threadCheck )
 			checkThread();
 		#if hl
-		if( inUV ) throw "You cannot callback EventLoop.loop() while in uv event callback";
+		if( inNative ) throw "You cannot callback EventLoop.loop() while in native event callback";
 		#end
 
 		lock();
@@ -229,10 +220,10 @@ class EventLoop {
 		unlock();
 
 		#if hl
-		if( uvLoop != null ) {
-			inUV = true;
-			uvLoop.run(NoWait);
-			inUV = false;
+		if( nativeLoop != null ) {
+			inNative = true;
+			nativeLoop.run();
+			inNative = false;
 		}
 		#end
 
@@ -456,7 +447,7 @@ class EventLoop {
 	**/
 	public function hasEvents( blocking : Bool = true ) {
 		#if hl
-		if( uvLoop != null && uvLoop.alive() > 0 )
+		if( nativeLoop != null && nativeLoop.alive() > 0 )
 			return true;
 		#end
 		if( !blocking )
