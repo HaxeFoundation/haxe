@@ -13,10 +13,10 @@ runs:
   - name: Install dependencies
     shell: pwsh
     env:
-      MBEDTLS_VERSION: 2.16.3
+      MBEDTLS_VERSION: 3.6.5
     run: |
       curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
-        https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
+        https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1-noarch.tar.xz
       ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
 
   - name: Install OCaml libraries
