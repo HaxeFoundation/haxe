@@ -45,8 +45,8 @@ jobs:
           opam exec -- make -s -f Makefile.win -j"$env:NUMBER_OF_PROCESSORS" haxe
           opam exec -- make -s -f Makefile.win haxelib
           opam exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco
-          cygcheck ./haxe.exe
-          cygcheck ./haxelib.exe
+          opam exec -- cygcheck ./haxe.exe
+          opam exec -- cygcheck ./haxelib.exe
           ls ./out
 
       - name: Upload artifact
