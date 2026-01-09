@@ -34,3 +34,6 @@ runs:
         $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
         opam install haxe --deps-only
         opam list
+    env:
+      # Work around default resolver installing 32-bit libraries
+      OPAMEXTERNALSOLVER: builtin-mccs+glpk
