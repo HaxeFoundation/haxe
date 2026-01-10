@@ -24,7 +24,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: ./.github/actions/setup-nsis
+      - uses: repolevedavaj/install-nsis@v1.1.0
+        with:
+          nsis-version: '3.10'
 
       - uses: ./.github/actions/setup-neko
 
