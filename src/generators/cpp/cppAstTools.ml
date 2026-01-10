@@ -527,22 +527,21 @@ and get_extern_value_type_boxed value_type =
 
   Printf.sprintf "::cpp::marshal::Boxed< %s%s >" p suffix, Printf.sprintf "::cpp::marshal::Boxed_obj< %s%s >" p suffix
 
-and get_native_marshalled_type value_type =
-  let marshal_type_parameter_to_string pos tcpp =
-    match tcpp with
-    | TCppMarshalNativeType ((Pointer _) as value_type, _) -> get_native_marshalled_type value_type ^ "*"
-    | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
-    | TCppScalar _
-    | TCppPointer _
-    | TCppRawPointer _
-    | TCppStar _
-    | TCppVoidStar
-    | TCppStruct _ ->
-      tcpp_to_string_suffix "" tcpp
-    | _ ->
-      cpp_abort InvalidMarshallingTypeParameter pos
-  in
+and marshal_type_parameter_to_string pos tcpp =
+  match tcpp with
+  | TCppMarshalNativeType ((Pointer _) as value_type, _) -> get_native_marshalled_type value_type ^ "*"
+  | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
+  | TCppScalar _
+  | TCppPointer _
+  | TCppRawPointer _
+  | TCppStar _
+  | TCppVoidStar
+  | TCppStruct _ ->
+    tcpp_to_string_suffix "" tcpp
+  | _ ->
+    cpp_abort InvalidMarshallingTypeParameter pos
 
+and get_native_marshalled_type value_type =
   match value_type with
   | ValueClass (cls, params) ->
     build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppValueType (marshal_type_parameter_to_string cls.cl_pos) |> fst

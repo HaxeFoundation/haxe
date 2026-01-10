@@ -588,6 +588,11 @@ let expression ctx request_type function_args function_type expression_tree forI
           let retyper_ctx, cppType = retype retyper_ctx return_type e in
           (retyper_ctx, cppType.cppexpr, cppType.cpptype)
 
+      | TField (obj, FStatic ({ cl_path = (["cpp";"marshal"],"Intrinsics") }, { cf_kind = Method _ })) ->
+        cpp_abort InvalidIntrinsicUse expr.epos
+
+      (* Marshal type functions, need to be able to resolve type parameters to a concrete type, hance the special handling *)
+        
       | TField (_, FClosure (Some (cls, _), _)) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
         cpp_abort NativeMarshallingFunctionClosures expr.epos
       | TField (obj, FInstance (cls, params, ({ cf_type = (TFun _) } as member))) when is_marshalling_native_value_class cls || is_marshalling_native_pointer cls ->
@@ -851,6 +856,16 @@ let expression ctx request_type function_args function_type expression_tree forI
               else (retyper_ctx, CppDynamicField (obj, fieldName), TCppVariant)
           | FEnum (enum, enum_field) ->
             (retyper_ctx, CppEnumField (enum, enum_field), TCppEnum enum))
+            
+      (* magic intrinsic functions *)
+
+      | TCall ({ epos; etype = TFun ([ (_, _, TAbstract (_, [ t ])) ], r); eexpr = TField (obj, FStatic ({ cl_path = (["cpp";"marshal"],"Intrinsics") }, { cf_name = ("sizeof" | "alignof") as name })) }, _) ->
+        let return = cpp_type_of r in
+        let arg    = cpp_type_of t |> marshal_type_parameter_to_string expr.epos in
+        let str    = Printf.sprintf "%s(%s)" name arg in
+
+        (retyper_ctx, CppCode (str, []), return)
+
       | TCall ({ eexpr = TIdent "__cpp__" }, arg_list) ->
         let retyper_ctx, cppExpr =
           match arg_list with
