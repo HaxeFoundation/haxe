@@ -19,8 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- 
+
 package sys.net;
+
+#if lua_vanilla
+
+class SocketInput extends haxe.io.Input {
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("SocketInput cannot be used with -D lua-vanilla because it requires luasocket");
+
+	public function new(tcp:Dynamic) notImplemented();
+	override public function readByte():Int return notImplemented();
+	override public function readBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int return notImplemented();
+}
+
+#else
 
 import lua.lib.luasocket.socket.TcpClient;
 import lua.*;
@@ -67,3 +80,5 @@ class SocketInput extends haxe.io.Input {
 	}
 
 }
+
+#end

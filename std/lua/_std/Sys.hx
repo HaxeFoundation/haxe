@@ -20,6 +20,44 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#if lua_vanilla
+
+import lua.Boot;
+import lua.Io;
+import lua.Lua;
+import sys.io.FileInput;
+import sys.io.FileOutput;
+
+@:coreApi
+class Sys {
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("Sys cannot be used with -D lua-vanilla because it requires luv");
+
+	public static inline function print(v:Dynamic):Void lua.Lib.print(v);
+	public static inline function println(v:Dynamic):Void lua.Lib.println(v);
+	public static inline function args():Array<String> return lua.Table.toArray(lua.PairTools.copy(Lua.arg));
+	public static function command(cmd:String, ?args:Array<String>):Int return notImplemented();
+	public static inline function cpuTime():Float return lua.Os.clock();
+	public static inline function exit(code:Int):Void lua.Os.exit(code);
+	public static inline function getChar(echo:Bool):Int return lua.Io.read().charCodeAt(0);
+	public static function systemName():String return lua.Boot.systemName();
+	public static function environment():Map<String, String> return notImplemented();
+	@:deprecated("Use programPath instead") public static function executablePath():String return notImplemented();
+	public static inline function programPath():String return haxe.io.Path.join([getCwd(), Lua.arg[0]]);
+	public static function getCwd():String return notImplemented();
+	public static function setCwd(s:String):Void notImplemented();
+	public static function getEnv(s:String):Null<String> return notImplemented();
+	public static function putEnv(s:String, v:Null<String>):Void notImplemented();
+	public static inline function setTimeLocale(loc:String):Bool return lua.Os.setlocale(loc) != null;
+	public static function sleep(seconds:Float):Void notImplemented();
+	public static inline function stderr():haxe.io.Output return @:privateAccess new FileOutput(Io.stderr);
+	public static inline function stdin():haxe.io.Input return @:privateAccess new FileInput(Io.stdin);
+	public static inline function stdout():haxe.io.Output return @:privateAccess new FileOutput(Io.stdout);
+	public static function time():Float return notImplemented();
+}
+
+#else
+
 import lua.Boot;
 import lua.Io;
 import lua.Lua;
@@ -126,3 +164,5 @@ class Sys {
 		return stamp.seconds + (stamp.microseconds / 1000000);
 	}
 }
+
+#end

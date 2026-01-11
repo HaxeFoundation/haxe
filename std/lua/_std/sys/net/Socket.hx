@@ -22,6 +22,36 @@
 
 package sys.net;
 
+#if lua_vanilla
+
+class Socket {
+	public var input(default, null):haxe.io.Input;
+	public var output(default, null):haxe.io.Output;
+
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("Socket cannot be used with -D lua-vanilla because it requires luasocket");
+
+	public function new():Void notImplemented();
+	public function close():Void notImplemented();
+	public function read():String return notImplemented();
+	public function write(content:String):Void notImplemented();
+	public function connect(host:Host, port:Int):Void notImplemented();
+	public function listen(connections:Int):Void notImplemented();
+	public function shutdown(read:Bool, write:Bool):Void notImplemented();
+	public function bind(host:Host, port:Int):Void notImplemented();
+	public function accept():Socket return notImplemented();
+	public function peer():{host:Host, port:Int} return notImplemented();
+	public function host():{host:Host, port:Int} return notImplemented();
+	public function setTimeout(timeout:Float):Void notImplemented();
+	public function waitForRead():Void notImplemented();
+	public function setBlocking(b:Bool):Void notImplemented();
+	public function setFastSend(b:Bool):Void notImplemented();
+	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
+			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} return notImplemented();
+}
+
+#else
+
 import lua.lib.luasocket.Socket as LuaSocket;
 import lua.lib.luasocket.socket.*;
 import lua.*;
@@ -160,3 +190,5 @@ class Socket {
 		return {read: read_arr, write: write_arr, others: []};
 	}
 }
+
+#end
