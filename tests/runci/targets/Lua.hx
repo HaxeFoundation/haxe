@@ -23,6 +23,7 @@ class Lua {
 				runCommand("brew", ["install", "pipx"]);
 			case "Windows":
 				runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
+				addToPATH(Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release/bin']));
 		}
 		runCommand("pipx", ["ensurepath"]);
 		runCommand("pipx", ["install", "hererocks"]);
