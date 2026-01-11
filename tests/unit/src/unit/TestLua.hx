@@ -108,6 +108,13 @@ class TestLua extends Test {
 		Assert.notEquals(lua.Lua.getmetatable(cast a), lua.Lua.getmetatable(cast b));
 		Assert.notEquals(lua.Lua.getmetatable(cast aChild), lua.Lua.getmetatable(cast b));
 	}
+
+	function testSelfCallMethod() {
+		// Create a callable object using Lua metatables
+		final callable:SelfCallable = untyped __lua__("setmetatable({value = 10}, {__call = function(self, x) return self.value + x end})");
+		// @:selfCall method should generate callable(5) instead of callable:call(5)
+		eq(callable.call(5), 15);
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -132,4 +139,9 @@ class TLB { private var foo: String; public function new() { this.foo = "B"; } }
 typedef Issue11842Slot = {
 	var data:Int;
 	var func:(Int) -> Int;
+}
+
+// Issue #9369
+extern class SelfCallable {
+	@:selfCall function call(x:Int):Int;
 }

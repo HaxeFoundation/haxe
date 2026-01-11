@@ -510,6 +510,10 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
+     | TField (field_owner, (FInstance(_,_,f) | FAnon(f))), el when Meta.has Meta.SelfCall f.cf_meta ->
+         (* @:selfCall methods - call the object directly *)
+         gen_value ctx field_owner;
+         gen_paren_arguments ctx el;
      | TField (field_owner, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
          if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
