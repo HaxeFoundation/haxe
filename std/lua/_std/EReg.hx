@@ -26,7 +26,7 @@
 @:coreApi
 class EReg {
 	static inline function notImplemented():Dynamic
-		throw new haxe.exceptions.NotImplementedException("EReg requires lrexlib-pcre2");
+		throw new haxe.exceptions.NotImplementedException("EReg cannot be used with -D lua-vanilla because it requires lrexlib-pcre2");
 
 	public function new(r:String, opt:String):Void notImplemented();
 	public function match(s:String):Bool return notImplemented();
