@@ -21,6 +21,8 @@ class Lua {
 				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("brew", ["install", "openssl"]);
 				runCommand("brew", ["install", "pipx"]);
+			case "Windows":
+				runCommand("vcpkg", ["install", "pcre2"]);
 		}
 		runCommand("pipx", ["ensurepath"]);
 		runCommand("pipx", ["install", "hererocks"]);
@@ -37,6 +39,13 @@ class Lua {
 			} else if (systemName == "Windows") {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL');
 				args.push('OPENSSL_LIBDIR=C:\\Program Files\\OpenSSL\\lib\\VC\\x64\\MD');
+				final vcpkgRoot = Sys.getEnv("VCPKG_INSTALLATION_ROOT");
+				if (vcpkgRoot == null) {
+					System.failMsg("VCPKG_INSTALLATION_ROOT missing, lua dependencies may fail to install");
+				} else {
+					final dir = Path.join([vcpkgRoot, "installed\\x64-windows"]);
+					args.push('PCRE2_DIR=$dir');
+				}
 			}
             if (server != null){
                 final server_arg = '--server=$server';
