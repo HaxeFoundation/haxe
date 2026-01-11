@@ -34,6 +34,9 @@ class Lua {
 				args.push('OPENSSL_DIR=${opensslPath.stdout.trim()}');
 				final pcrePath = commandResult("brew", ["--prefix", "pcre2"]);
 				args.push('PCRE2_DIR=${pcrePath.stdout.trim()}');
+			} else if (systemName == "Windows") {
+				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL');
+				args.push('OPENSSL_LIBDIR=C:\\Program Files\\OpenSSL\\lib\\VC\\x64\\MD');
 			}
             if (server != null){
                 final server_arg = '--server=$server';
