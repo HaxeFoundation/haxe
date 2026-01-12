@@ -73,6 +73,16 @@ class Socket {
 
 	public function new():Void {}
 
+	private function getTcpMaster():TcpMaster {
+		if (_socket == null) {
+			final res = LuaSocket.tcp();
+			if (res.message != null)
+				throw 'Socket Error : ${res.message}';
+			_socket = res.result;
+		}
+		return cast _socket;
+	}
+
 	public function close():Void {
 		_socket.close();
 	}
@@ -86,21 +96,17 @@ class Socket {
 	}
 
 	public function connect(host:Host, port:Int):Void {
-		var res = LuaSocket.connect(host.host, port);
-		if (res.message != null)
-			throw 'Socket Error : ${res.message}';
-		input = new SocketInput(res.result);
-		output = new SocketOutput(res.result);
-		_socket = res.result;
+		final master = getTcpMaster();
+		master.connect(host.host, port);
+		final client:TcpClient = cast _socket;
+		input = new SocketInput(client);
+		output = new SocketOutput(client);
 		_socket.settimeout(timeout);
 	}
 
 	public function listen(connections:Int):Void {
-		var res = LuaSocket.tcp();
-		if (res.message != null)
-			throw 'Socket Listen Error : ${res.message}';
-		res.result.listen(connections);
-		_socket = res.result;
+		final server:TcpMaster = getTcpMaster();
+		server.listen(connections);
 		_socket.settimeout(timeout);
 	}
 
@@ -119,10 +125,8 @@ class Socket {
 	}
 
 	public function bind(host:Host, port:Int):Void {
-		var res = LuaSocket.bind(host.host, port);
-		if (res.message != null)
-			throw 'Socket Bind Error : ${res.message}';
-		_socket = res.result;
+		final master = getTcpMaster();
+		master.bind(host.host, port);
 	}
 
 	public function accept():Socket {
