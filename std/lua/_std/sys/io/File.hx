@@ -53,7 +53,9 @@ class File {
 
 	public static function copy(srcPath:String, dstPath:String):Void {
 		var result = switch (Sys.systemName()) {
-			case "Windows": Os.execute('copy ${SysTools.quoteWinArg(srcPath, true)} ${SysTools.quoteWinArg(dstPath, true)}');
+			case "Windows":
+				inline function preparePath(path:String) return StringTools.replace(path, "/", "\\");
+				Os.execute('copy "${preparePath(srcPath)}" "${preparePath(dstPath)}"');
 			default: Os.execute('cp ${SysTools.quoteUnixArg(srcPath)} ${SysTools.quoteUnixArg(dstPath)}');
 		};
 		if (#if (lua_ver >= 5.2) !result.success #elseif (lua_ver < 5.2) result != 0 #else ((result : Dynamic) != true && (result : Dynamic) != 0) #end
