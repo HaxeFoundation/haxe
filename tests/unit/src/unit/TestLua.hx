@@ -115,6 +115,17 @@ class TestLua extends Test {
 		// @:selfCall method should generate callable(5) instead of callable:call(5)
 		eq(callable.call(5), 15);
 	}
+
+	// Issue #10089: Function callbacks passed via anonymous objects should work correctly
+	function testFunctionCallbackInAnonObject() {
+		var result:String = null;
+		var callback = function(arg:String) {
+			result = arg;
+		};
+		var callable = new Issue10089Callable({callback: callback});
+		callable.invoke();
+		eq(result, "Argument String");
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -124,7 +135,7 @@ class TestLua extends Test {
 
 class MultiCall {
 	public static function doit() : Dynamic {
-		return untyped __lua__("1,'hi'");	
+		return untyped __lua__("1,'hi'");
 	}
 	public static function acceptMr(m:Multi){
 		return lua.Lua.type(m) == "table";
@@ -144,4 +155,19 @@ typedef Issue11842Slot = {
 // Issue #9369
 extern class SelfCallable {
 	@:selfCall function call(x:Int):Int;
+}
+
+// Issue #10089
+typedef Issue10089CallableParams = {
+	var callback:String->Void;
+}
+
+class Issue10089Callable {
+	var callback:String->Void;
+	public function new(params:Issue10089CallableParams) {
+		callback = params.callback;
+	}
+	public function invoke() {
+		callback("Argument String");
+	}
 }

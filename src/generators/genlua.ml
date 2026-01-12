@@ -1342,7 +1342,7 @@ and gen_tbinop ctx op e1 e2 =
               gen_value ctx e1;
               spr ctx " = ";
               gen_value ctx e3;
-          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when is_function_type e2.etype ->
+          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _)) when is_function_type e2.etype ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1356,11 +1356,21 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when is_function_type e2.etype && not (is_dot_access e3 ci) ->
+          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _)) when is_function_type e2.etype && not (is_dot_access e3 ci) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
               spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance(_, _, icf) as ci)), TField(e4, FAnon _) when is_function_type e2.etype && (match icf.cf_kind with Var _ -> true | _ -> false) && is_dot_access e3 ci ->
+              (* Unwrap function from anon object when storing in Var field.
+                 Anon functions are wrapped with function(_,...) return f(...) end to work with colon syntax.
+                 Var fields are called with dot syntax, so we need to add a dummy self argument. *)
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_anonToField";
+              spr ctx "_hx_anonToField(";
               gen_value ctx e2;
               spr ctx ")";
           | TField(e3, (FInstance _ as ci)), TLocal t when ((is_function_type t.v_type) && (not (is_dot_access e3 ci))) ->
@@ -2119,7 +2129,7 @@ let generate com =
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)
-    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_anonToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
     println ctx "local _hx_pcall_default = {};";
     println ctx "local _hx_pcall_break = {};";
 
@@ -2163,6 +2173,10 @@ let generate com =
 
     if has_feature ctx "use._hx_funcToField" then begin
         print_file (find_file "lua/_lua/_hx_func_to_field.lua");
+    end;
+
+    if has_feature ctx "use._hx_anonToField" then begin
+        print_file (find_file "lua/_lua/_hx_anon_to_field.lua");
     end;
 
     if has_feature ctx "Math.random" then begin
