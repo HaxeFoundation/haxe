@@ -126,6 +126,29 @@ class TestLua extends Test {
 		callable.invoke();
 		eq(result, "Argument String");
 	}
+
+	// Issue #11901: Function from Dynamic object stored in class Var field
+	function testFunctionFromDynamicObject() {
+		var a = new Issue11901Test({
+			test: function(k:Dynamic, v:Dynamic) {
+				return Std.string(k) + "," + Std.string(v);
+			}
+		});
+		eq(a.func("a", 1), "a,1");
+		eq(a.call("b", 2), "b,2");
+	}
+
+	// Issue #7738: Nested function in typedef-based anonymous object
+	function testNestedFunctionInTypedef() {
+		var result:String = null;
+		Issue7738Helper.process({
+			time: 1000,
+			onComplete: function() {
+				result = "completed";
+			}
+		});
+		eq(result, "completed");
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -169,5 +192,30 @@ class Issue10089Callable {
 	}
 	public function invoke() {
 		callback("Argument String");
+	}
+}
+
+// Issue #11901
+class Issue11901Test {
+	public var func:(Dynamic, Dynamic) -> String;
+	public function new(obj:Dynamic) {
+		this.func = obj.test;
+	}
+	public function call(k:Dynamic, v:Dynamic):String {
+		return func(k, v);
+	}
+}
+
+// Issue #7738
+typedef Issue7738Args = {
+	?time:Int,
+	?onComplete:Void->Void
+}
+
+class Issue7738Helper {
+	public static function process(args:Issue7738Args) {
+		if (args.onComplete != null) {
+			args.onComplete();
+		}
 	}
 }
