@@ -65,32 +65,21 @@ class Process {
 	public var stderr(default, null):haxe.io.Input;
 	public var stdin(default, null):haxe.io.Output;
 
-	static var argQuote = Sys.systemName() == "Windows" ? function(x) return SysTools.quoteWinArg(x, true) : SysTools.quoteUnixArg;
 	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/sh';
 
 	/**
-		Sets the args for the shell, which will include the cmd to be executed
-		by the shell.
+		Returns the args for the shell, including the cmd to be executed.
 	**/
-	static function setArgs(cmd:String, ?args:Array<String>):Table<Int, String> {
+	static function getShellArgs(cmd:String):Table<Int, String> {
 		var pargs = lua.Table.create();
 		var idx = 1;
-		if (sys.FileSystem.exists(cmd))
-			cmd = '"$cmd"'; // escape simple paths
-		var all = [cmd];
-		if (args != null) {
-			for (a in args) {
-				all.push(argQuote(a));
-			}
-		}
-
 		if (Sys.systemName() == "Windows") {
 			pargs[idx++] = '/s';
 			pargs[idx++] = '/c';
-			pargs[idx++] = all.join(" ");
+			pargs[idx++] = cmd;
 		} else {
 			pargs[idx++] = "-c";
-			pargs[idx++] = all.join(" ");
+			pargs[idx++] = cmd;
 		}
 		return pargs;
 	}
@@ -107,9 +96,11 @@ class Process {
 		stdin = new ProcessOutput(_stdin);
 		var stdio = untyped __lua_table__([_stdin, _stdout, _stderr]);
 
-		var opt = {args: setArgs(cmd, args), stdio: stdio};
+		var file = args == null ? _shell : cmd;
+		var processArgs = args == null ? getShellArgs(cmd) : lua.Table.fromArray(args);
+		var opt = {args: processArgs, stdio: stdio};
 
-		var p = lua.lib.luv.Process.spawn(_shell, opt, function(code:Int, signal:Signal) {
+		var p = lua.lib.luv.Process.spawn(file, opt, function(code:Int, signal:Signal) {
 			_code = code;
 			if (!_handle.is_closing()){
 			    _handle.close();
