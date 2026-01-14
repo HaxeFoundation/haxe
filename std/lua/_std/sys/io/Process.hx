@@ -107,7 +107,7 @@ class Process {
 		stdin = new ProcessOutput(_stdin);
 		var stdio = untyped __lua_table__([_stdin, _stdout, _stderr]);
 
-		var opt = {args: setArgs(cmd, args), stdio: stdio, verbatim: true};
+		var opt = {args: setArgs(cmd, args), stdio: stdio};
 
 		var p = lua.lib.luv.Process.spawn(_shell, opt, function(code:Int, signal:Signal) {
 			_code = code;
