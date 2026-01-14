@@ -149,6 +149,46 @@ class TestLua extends Test {
 		});
 		eq(result, "completed");
 	}
+
+	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
+	function testClosureBreakInTryCatchLoop() {
+		// Test 1: Closure with try-catch inside loop should not generate pcall_break check
+		var closureCalled = false;
+		var outerLoopRan = false;
+		while (!outerLoopRan) {
+			outerLoopRan = true;
+			var f = function() {
+				try {
+					closureCalled = true;
+				} catch (e:Dynamic) {}
+			};
+			f();
+		}
+		t(closureCalled);
+
+		// Test 2: Break inside loop inside closure should use plain break
+		var afterInnerLoop = false;
+		var closureResult:String = null;
+		while (true) {
+			try {
+				var g = function() {
+					var i = 0;
+					while (true) {
+						i++;
+						if (i > 3) {
+							break; // should be plain break, not _G.error
+						}
+					}
+					afterInnerLoop = true;
+					return "done";
+				};
+				closureResult = g();
+			} catch (e:Dynamic) {}
+			break;
+		}
+		t(afterInnerLoop);
+		eq(closureResult, "done");
+	}
 }
 
 @:multiReturn extern class Multi {
