@@ -218,8 +218,9 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		let open ContTypes in
 		let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
+		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
 		let esuspended = b#void_block [
-			ereturn;
+			b#return (b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type)
 		] in
 		let eres = base_continuation_field_on ecororesult cont.result com.basic.tany in
 		let ereturned = match call.cs_result with
