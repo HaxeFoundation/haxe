@@ -161,6 +161,17 @@ class TestLua extends Test {
 		eq(result, "test");
 	}
 
+	// Issue #7539: Closure in conditional expression should capture correct parameter
+	function testClosureInConditionalExpression() {
+		var obj = new Issue7539Test();
+		var args:Array<String> = [];
+		args.push("bar");
+		obj.foo(args);
+		eq(args.length, 2);
+		eq(args[0], "bar");
+		eq(args[1], "added");
+	}
+
 	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
 	function testClosureBreakInTryCatchLoop() {
 		// Test 1: Closure with try-catch inside loop should not generate pcall_break check
@@ -283,5 +294,17 @@ class Issue10055Helper {
 		if (cb != null) {
 			cb("test");
 		}
+	}
+}
+
+// Issue #7539: Closure in conditional should not capture wrong variable
+class Issue7539Test {
+	public var foo:Array<String>->Void;
+
+	public function new(?foo:Array<String>->Void) {
+		this.foo = if (foo != null) foo else function(args) {
+			// 'args' here should be the function parameter, not 'this'
+			args.push("added");
+		};
 	}
 }
