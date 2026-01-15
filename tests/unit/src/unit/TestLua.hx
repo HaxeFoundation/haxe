@@ -150,6 +150,17 @@ class TestLua extends Test {
 		eq(result, "completed");
 	}
 
+	// Issue #10055: Function extracted from typedef anon object to local should be unwrapped
+	function testFunctionExtractedFromTypedefAnon() {
+		var result:String = null;
+		Issue10055Helper.take({
+			callback: function(arg:String) {
+				result = arg;
+			}
+		});
+		eq(result, "test");
+	}
+
 	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
 	function testClosureBreakInTryCatchLoop() {
 		// Test 1: Closure with try-catch inside loop should not generate pcall_break check
@@ -256,6 +267,21 @@ class Issue7738Helper {
 	public static function process(args:Issue7738Args) {
 		if (args.onComplete != null) {
 			args.onComplete();
+		}
+	}
+}
+
+// Issue #10055
+typedef Issue10055Params = {
+	?callback:(String)->Void
+}
+
+class Issue10055Helper {
+	public static function take(p:Issue10055Params) {
+		// Extract to local variable - this should unwrap the anon function
+		var cb = p.callback;
+		if (cb != null) {
+			cb("test");
 		}
 	}
 }

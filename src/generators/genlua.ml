@@ -865,6 +865,14 @@ and gen_expr ?(local=true) ctx e = begin
                         spr ctx "_hx_staticToInstance(";
                         gen_expr ctx e1;
                         spr ctx ")";
+                    | TField(_, FAnon f) when is_function_type f.cf_type ->
+                        (* Unwrap function from anon object when storing in local variable.
+                           Anon functions are wrapped with function(_,...) return f(...) end to work with colon syntax.
+                           Local variables are called with dot syntax, so we need to add a dummy self argument. *)
+                        add_feature ctx "use._hx_anonToField";
+                        spr ctx "_hx_anonToField(";
+                        gen_value ctx e;
+                        spr ctx ")";
                     | _ -> gen_value ctx e);
         end
     | TNew (c,_,el) ->
