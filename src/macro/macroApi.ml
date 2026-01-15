@@ -440,11 +440,12 @@ and encode_platform p =
 		| Flash -> 4, []
 		| Php -> 5, []
 		| Cpp -> 6, []
-		| Jvm -> 7, []
-		| Python -> 8, []
-		| Hl -> 9, []
-		| Eval -> 10, []
-		| CustomTarget s -> 11, [(encode_string s)]
+		| Cs -> 7, []
+		| Jvm -> 8, []
+		| Python -> 9, []
+		| Hl -> 10, []
+		| Eval -> 11, []
+		| CustomTarget s -> 12, [(encode_string s)]
 	in
 	encode_enum IPlatform tag pl
 

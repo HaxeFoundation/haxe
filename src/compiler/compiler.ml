@@ -144,6 +144,9 @@ module Setup = struct
 				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
+			| Cs ->
+				add_std "cs";
+				"cs"
 			| Python ->
 				add_std "python";
 				if not (Common.defined com Define.PythonVersion) then

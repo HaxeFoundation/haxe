@@ -9,7 +9,7 @@ open ExceptionFunctions
 
 let create_exception_context tctx =
 	match tctx.com.platform with (* TODO: implement for all targets *)
-	| Php | Js | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
+	| Php | Js | Cs | Jvm | Python | Lua | Eval | Neko | Flash | Hl | Cpp ->
 		let config = tctx.com.config.pf_exceptions in
 		let tp (pack,name) =
 			let tp = match List.rev pack with

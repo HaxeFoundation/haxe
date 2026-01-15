@@ -93,6 +93,9 @@ let parse_args com =
 			actx.jvm_flag <- true;
 			set_platform com Jvm dir;
 		),"<file>","generate JVM bytecode into target file");
+		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
+			set_platform com Cs dir;
+		),"<directory>","generate C# code into target directory");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			set_platform com Python dir;
 		),"<file>","generate Python code into target file");
