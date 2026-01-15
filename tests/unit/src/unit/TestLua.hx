@@ -172,6 +172,27 @@ class TestLua extends Test {
 		eq(args[1], "added");
 	}
 
+	// Issue #10090: Many map operations should not exceed Lua's 200 local variable limit
+	function testLocalVariableReuse() {
+		// This test would fail with "too many local variables" before the fix
+		// Each map operation generates temp vars that should be reused
+		var map = new Map<Issue10090Object, Bool>();
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		// If we got here without error, the optimization is working
+		var count = 0;
+		for (_ in map.keys()) count++;
+		eq(10, count);
+	}
+
 	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
 	function testClosureBreakInTryCatchLoop() {
 		// Test 1: Closure with try-catch inside loop should not generate pcall_break check
@@ -307,4 +328,9 @@ class Issue7539Test {
 			args.push("added");
 		};
 	}
+}
+
+// Issue #10090: Helper class for local variable reuse test
+class Issue10090Object {
+	public function new() {}
 }

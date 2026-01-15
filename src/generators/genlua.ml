@@ -64,6 +64,7 @@ type ctx = {
     mutable lua_jit : bool;
     mutable lua_vanilla : bool;
     mutable lua_ver : float;
+    mutable declared_locals : (string, unit) Hashtbl.t;
 }
 
 type object_store = {
@@ -231,8 +232,12 @@ let fun_block ctx f p =
 
 let open_block ctx =
     let oldt = ctx.tabs in
+    let old_declared_locals = ctx.declared_locals in
     ctx.tabs <- "  " ^ ctx.tabs;
-    (fun() -> ctx.tabs <- oldt)
+    ctx.declared_locals <- Hashtbl.create 0;
+    (fun() ->
+        ctx.tabs <- oldt;
+        ctx.declared_locals <- old_declared_locals)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
@@ -785,8 +790,10 @@ and gen_expr ?(local=true) ctx e = begin
     | TFunction f ->
         let old_in_value = ctx.in_value in
         let old_loop_ctx = ctx.loop_ctx in
+        let old_declared_locals = ctx.declared_locals in
         ctx.in_value <- None;
         ctx.loop_ctx <- default_loop_context;
+        ctx.declared_locals <- Hashtbl.create 0;
         print ctx "function(%s) " (String.concat "," (List.map lua_arg_name f.tf_args));
         let fblock = fun_block ctx f e.epos in
         (match fblock.eexpr with
@@ -799,6 +806,7 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "end";
         ctx.in_value <- old_in_value;
         ctx.loop_ctx <- old_loop_ctx;
+        ctx.declared_locals <- old_declared_locals;
         ctx.separator <- true
     | TCall (e,el) ->
         gen_call ctx e el;
@@ -816,18 +824,38 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx e;
         spr ctx ",0)";
     | TVar (v,eo) ->
+        (* Check if this variable name is already declared in current function scope.
+           If so, we can reuse it instead of declaring a new local, avoiding Lua's
+           200 local variable limit. See issue #10090.
+           Only apply this optimization to compiler-generated temps (VGenerated/VInlined)
+           to avoid incorrectly merging user variables that happen to have the same name. *)
+        let var_name = ident v.v_name in
+        let is_compiler_temp = match v.v_kind with
+            | VGenerated | VInlined | VInlinedConstructorVariable _ -> true
+            | VUser _ | VExtractorVariable | VAbstractThis -> false
+        in
+        let is_already_declared = is_compiler_temp && Hashtbl.mem ctx.declared_locals var_name in
+        let use_local = local && not is_already_declared in
+        if local && is_compiler_temp && not is_already_declared then
+            Hashtbl.add ctx.declared_locals var_name ();
         begin match eo with
             | None ->
+                (* Declaration without initialization - always use local keyword
+                   because bare variable reference is not valid Lua syntax *)
                 if local then
                     spr ctx "local ";
-                spr ctx (ident v.v_name);
+                spr ctx var_name
             | Some e ->
                 match e.eexpr with
                 | TBinop(OpAssign, e1, e2) ->
                     gen_tbinop ctx OpAssign e1 e2;
-                    if local then
-                        spr ctx " local ";
-                    spr ctx (ident v.v_name);
+                    if use_local then
+                        spr ctx " local "
+                    else begin
+                        semicolon ctx;
+                        newline ctx
+                    end;
+                    spr ctx var_name;
                     spr ctx " = ";
                     gen_value ctx e1;
 
@@ -836,7 +864,7 @@ and gen_expr ?(local=true) ctx e = begin
                     let id = temp ctx in
                     let temp_expr = (EConst(String(id,SDoubleQuotes)), Globals.null_pos) in
                     v.v_meta <- (Meta.Custom ":lua_mr_id", [temp_expr], v.v_pos) :: v.v_meta;
-                    let name = ident v.v_name in
+                    let name = var_name in
                     let names =
                         match follow v.v_type with
                         | TInst (c, _) ->
@@ -844,15 +872,16 @@ and gen_expr ?(local=true) ctx e = begin
                         | _ ->
                             Globals.die "" __LOC__
                     in
+                    (* For multi-return, we still need local for the unpacked vars *)
                     spr ctx "local ";
                     spr ctx (String.concat ", " names);
                     spr ctx " = ";
                     gen_value ctx e;
 
                 | _ ->
-                    if local then
+                    if use_local then
                         spr ctx "local ";
-                    spr ctx (ident v.v_name);
+                    spr ctx var_name;
                     spr ctx " = ";
 
                     (* if it was a multi-return var but it was used as a value itself, *)
@@ -1967,9 +1996,10 @@ let alloc_ctx com =
         found_expose = false;
         lua_jit = Gctx.defined com Define.LuaJit;
         lua_vanilla = Gctx.defined com Define.LuaVanilla;
-        lua_ver = try
+        lua_ver = (try
                 float_of_string (Gctx.defined_value com Define.LuaVer)
-            with | Not_found -> 5.2;
+            with | Not_found -> 5.2);
+        declared_locals = Hashtbl.create 0;
     } in
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
