@@ -20,42 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs;
+package haxe;
 
-@:keep
-class Boot {
-	public static function toString(obj:Dynamic):String {
-		if (obj == null) {
-			return "null";
-		}
-		// For now, just use basic string conversion
-		return untyped obj.ToString();
+class Log {
+	public static function formatOutput(v:Dynamic, infos:Null<PosInfos>):String {
+		var str = Std.string(v);
+		if (infos == null)
+			return str;
+		var pstr = infos.fileName + ":" + infos.lineNumber;
+		if (infos.customParams != null)
+			for (v in infos.customParams)
+				str += ", " + Std.string(v);
+		return pstr + ": " + str;
 	}
 
-	public static function parseInt(s:String, radix:Int):Int {
-		// Will be implemented via C# native call
-		return untyped __cs__("int.Parse({0}, {1} == 16 ? System.Globalization.NumberStyles.HexNumber : System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture)", s, radix);
-	}
-
-	public static function parseFloat(s:String):Float {
-		// Will be implemented via C# native call
-		return untyped __cs__("double.Parse({0}, System.Globalization.CultureInfo.InvariantCulture)", s);
-	}
-
-	public static function trace(v:Dynamic, ?infos:haxe.PosInfos):Void {
-		var str = toString(v);
-		if (infos != null) {
-			str = infos.fileName + ":" + infos.lineNumber + ": " + str;
-		}
+	public static dynamic function trace(v:Dynamic, ?infos:PosInfos):Void {
+		var str = formatOutput(v, infos);
 		untyped __cs__("System.Console.WriteLine({0})", str);
-	}
-
-	private static var _random:Dynamic = null;
-
-	public static function random():Float {
-		if (_random == null) {
-			_random = untyped __cs__("new System.Random()");
-		}
-		return untyped __cs__("{0}.NextDouble()", _random);
 	}
 }

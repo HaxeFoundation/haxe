@@ -120,23 +120,71 @@ let rec cs_expr_of_texpr ectx e =
 	match e.eexpr with
 	| TConst TThis -> CsThis
 	| TConst TSuper -> CsBase
-	| TConst TNull -> CsNull
+	| TConst TNull ->
+		(* For Null<T> types, generate default(Null<T>) instead of null *)
+		let cs_type = cs_type_of_type ectx.gctx e.etype in
+		begin match cs_type with
+		| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> CsDefault cs_type
+		| _ -> CsNull
+		end
 	| TConst c -> CsConst (cs_const_of_tconst c)
 	| TLocal v -> CsLocal (get_local_name ectx v)
 	| TArray (e1, e2) ->
-		CsArrayAccess (cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+		(* Check if this is array access on haxe.root.Array<T> - if so, access __a directly *)
+		let is_haxe_array = match follow e1.etype with
+			| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, _) -> true
+			| _ -> false
+		in
+		if is_haxe_array then
+			(* arr[i] -> arr.__a[i] for haxe Array *)
+			CsArrayAccess (CsField (cs_expr_of_texpr ectx e1, "__a"), cs_expr_of_texpr ectx e2)
+		else
+			CsArrayAccess (cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 	| TBinop (op, e1, e2) ->
-		CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+		(* Special handling for Null<T> comparisons with null *)
+		let is_null_type t = match cs_type_of_type ectx.gctx t with
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+			| _ -> false
+		in
+		let is_null_expr e = match e.eexpr with
+			| TConst TNull -> true
+			| _ -> false
+		in
+		begin match op with
+		| OpEq when is_null_type e1.etype && is_null_expr e2 ->
+			(* x == null  ->  !x.hasValue *)
+			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e1, "hasValue"))
+		| OpEq when is_null_expr e1 && is_null_type e2.etype ->
+			(* null == x  ->  !x.hasValue *)
+			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e2, "hasValue"))
+		| OpNotEq when is_null_type e1.etype && is_null_expr e2 ->
+			(* x != null  ->  x.hasValue *)
+			CsField (cs_expr_of_texpr ectx e1, "hasValue")
+		| OpNotEq when is_null_expr e1 && is_null_type e2.etype ->
+			(* null != x  ->  x.hasValue *)
+			CsField (cs_expr_of_texpr ectx e2, "hasValue")
+		| _ ->
+			CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+		end
 	| TUnop (op, Prefix, e) ->
 		CsUnop (cs_unop_of_unop op, false, cs_expr_of_texpr ectx e)
 	| TUnop (op, Postfix, e) ->
 		CsUnop (cs_unop_of_unop op, true, cs_expr_of_texpr ectx e)
+	| TField (e, FInstance ({ cl_path = (["cs"], "NativeArray") }, _, { cf_name = "length" })) ->
+		(* NativeArray.length -> array.Length *)
+		CsField (cs_expr_of_texpr ectx e, "Length")
+	| TField (e, FInstance (_, _, { cf_name = "length" })) when (match cs_type_of_type ectx.gctx e.etype with CsTypeString -> true | _ -> false) ->
+		(* String.length -> string.Length (C# uses uppercase) *)
+		CsField (cs_expr_of_texpr ectx e, "Length")
 	| TField (e, FInstance (_, _, cf))
 	| TField (e, FClosure (_, cf)) ->
 		CsField (cs_expr_of_texpr ectx e, escape_identifier cf.cf_name)
 	| TField (_, FStatic (c, cf)) ->
 		let path = cs_path_of_path c.cl_path in
-		CsStaticField (CsTypeClass (path, []), escape_identifier cf.cf_name)
+		(* For generic classes, we need type arguments even for static access in C# *)
+		(* Use 'object' as default type argument for each type parameter *)
+		let type_params = List.map (fun _ -> CsTypeObject) c.cl_params in
+		CsStaticField (CsTypeClass (path, type_params), escape_identifier cf.cf_name)
 	| TField (e, FAnon cf) ->
 		CsField (cs_expr_of_texpr ectx e, escape_identifier cf.cf_name)
 	| TField (e, FDynamic name) ->
@@ -151,12 +199,32 @@ let rec cs_expr_of_texpr ectx e =
 		CsCall (CsField (obj, escape_identifier cf.cf_name), args)
 	| TCall ({ eexpr = TField (_, FStatic (c, cf)) }, args) ->
 		let path = cs_path_of_path c.cl_path in
+		(* For generic classes, we need type arguments even for static calls in C# *)
+		let type_params = List.map (fun _ -> CsTypeObject) c.cl_params in
 		let args = List.map (cs_expr_of_texpr ectx) args in
-		CsStaticCall (CsTypeClass (path, []), escape_identifier cf.cf_name, args)
+		CsStaticCall (CsTypeClass (path, type_params), escape_identifier cf.cf_name, args)
+	| TCall ({ eexpr = TIdent "__cs__" }, args) ->
+		(* Inline C# code: untyped __cs__("code", arg1, arg2, ...) *)
+		begin match args with
+		| { eexpr = TConst (TString template) } :: rest ->
+			let cs_args = List.map (cs_expr_of_texpr ectx) rest in
+			CsInlineCode (template, cs_args)
+		| _ ->
+			CsRaw "/* invalid __cs__ call */"
+		end
+	| TCall ({ eexpr = TConst TSuper }, _) ->
+		(* super() calls should be extracted and converted to : base() initializer *)
+		(* If we get here, the super call is in an unexpected location *)
+		CsRaw "/* ERROR: super() call in unexpected location */"
 	| TCall (e, args) ->
 		let func = cs_expr_of_texpr ectx e in
 		let args = List.map (cs_expr_of_texpr ectx) args in
 		CsCall (func, args)
+	| TNew ({ cl_path = (["cs"], "NativeArray") }, [t], [size_expr]) ->
+		(* cs.NativeArray<T>(size) -> new T[size] *)
+		let elem_type = cs_type_of_type ectx.gctx t in
+		let size = cs_expr_of_texpr ectx size_expr in
+		CsNewArraySize (elem_type, size)
 	| TNew (c, _, args) ->
 		let path = cs_path_of_path c.cl_path in
 		let args = List.map (cs_expr_of_texpr ectx) args in
@@ -186,6 +254,12 @@ let rec cs_expr_of_texpr ectx e =
 		CsThrow (cs_expr_of_texpr ectx e)
 	| TMeta (_, e) ->
 		cs_expr_of_texpr ectx e
+	| TIf (cond, then_expr, Some else_expr) ->
+		(* Ternary expression: cond ? then : else *)
+		let cond = cs_expr_of_texpr ectx cond in
+		let then_e = cs_expr_of_texpr ectx then_expr in
+		let else_e = cs_expr_of_texpr ectx else_expr in
+		CsTernary (cond, then_e, else_e)
 	| TBlock _
 	| TIf _
 	| TWhile _
@@ -265,7 +339,7 @@ and cs_stmt_of_texpr ectx e =
 			| None -> sections
 			| Some e ->
 				let default_section = {
-					sw_labels = [CsDefault];
+					sw_labels = [CsCaseDefault];
 					sw_body = [cs_stmt_of_texpr ectx e; CsBreak]
 				} in
 				sections @ [default_section]
@@ -360,10 +434,17 @@ let generate_field gctx c cf is_static =
 			| _ -> [], cf.cf_type
 		in
 		let params = List.map (fun (n, opt, t) ->
+			let param_type = cs_type_of_type gctx t in
+			let default_val = if opt then
+				(* For haxe.lang.Null<T> (struct), must use default instead of null *)
+				Some (CsDefault param_type)
+			else
+				None
+			in
 			{
 				p_name = escape_identifier n;
-				p_type = Some (cs_type_of_type gctx t);
-				p_default = if opt then Some CsNull else None;
+				p_type = Some param_type;
+				p_default = default_val;
 				p_modifier = None;
 			}
 		) args in
@@ -388,32 +469,123 @@ let generate_field gctx c cf is_static =
 		(* Macro method - skip *)
 		None
 
-(* Generate constructor *)
+(* Extract super() call and remaining body from constructor expression *)
+(* Returns (Some super_args, rest) if super call found, (None, body) otherwise *)
+let rec extract_super_call e =
+	match e.eexpr with
+	| TCall ({ eexpr = TConst TSuper }, args) ->
+		(* Found super call - return args and empty body *)
+		(Some args, None)
+	| TBlock el ->
+		(* Look for super call in block - it should be the first statement *)
+		extract_super_from_block el
+	| TFunction tf ->
+		(* Unwrap TFunction and look inside *)
+		extract_super_call tf.tf_expr
+	| _ ->
+		(None, Some e)
+
+and extract_super_from_block el =
+	match el with
+	| [] -> (None, None)
+	| e :: rest ->
+		begin match e.eexpr with
+		| TCall ({ eexpr = TConst TSuper }, args) ->
+			(* Found super call - return args and remaining statements *)
+			let rest_expr = if rest = [] then None else Some { e with eexpr = TBlock rest } in
+			(Some args, rest_expr)
+		| TBlock inner ->
+			(* Nested block - look inside *)
+			let (super_args, inner_rest) = extract_super_from_block inner in
+			begin match super_args with
+			| Some args ->
+				let rest_block = match inner_rest with
+					| None -> rest
+					| Some r -> r :: rest
+				in
+				let rest_expr = if rest_block = [] then None else Some { e with eexpr = TBlock rest_block } in
+				(Some args, rest_expr)
+			| None ->
+				let rest_expr = Some { e with eexpr = TBlock el } in
+				(None, rest_expr)
+			end
+		| _ ->
+			(* Not a super call - return full block *)
+			(None, Some { e with eexpr = TBlock el })
+		end
+
+(* Generate constructor - follows legacy C# target pattern *)
+(* Constructor body goes directly in constructor, super() becomes : base() initializer *)
 let generate_constructor gctx c cf =
 	let args = match follow cf.cf_type with
 		| TFun (args, _) -> args
 		| _ -> []
 	in
-	let params = List.map (fun (n, opt, t) ->
+	(* Parameters for the constructor - use actual types *)
+	let ctor_params = List.map (fun (n, opt, t) ->
+		let param_type = cs_type_of_type gctx t in
+		let default_val = if opt then
+			(* For haxe.lang.Null<T> (struct), must use default instead of null *)
+			Some (CsDefault param_type)
+		else
+			None
+		in
 		{
 			p_name = escape_identifier n;
-			p_type = Some (cs_type_of_type gctx t);
-			p_default = if opt then Some CsNull else None;
+			p_type = Some param_type;
+			p_default = default_val;
 			p_modifier = None;
 		}
 	) args in
-	let body = match cf.cf_expr with
+	(* Extract super call and body from constructor expression *)
+	let (super_args, body_expr) = match cf.cf_expr with
+		| Some e -> extract_super_call e
+		| None -> (None, None)
+	in
+	(* Get base class constructor types for casting super args *)
+	let base_ctor_types = match c.cl_super with
+		| Some (sc, _) ->
+			begin match sc.cl_constructor with
+			| Some ctor_cf ->
+				begin match follow ctor_cf.cf_type with
+				| TFun (base_args, _) -> List.map (fun (_, _, t) -> cs_type_of_type gctx t) base_args
+				| _ -> []
+				end
+			| None -> []
+			end
+		| None -> []
+	in
+	(* Convert super args to base call, casting to expected types *)
+	let base_call = match super_args with
+		| Some args ->
+			let ectx = create_expr_context gctx in
+			let cs_args = List.mapi (fun i arg ->
+				let cs_arg = cs_expr_of_texpr ectx arg in
+				(* Cast to expected type if we know it *)
+				if i < List.length base_ctor_types then
+					let expected_type = List.nth base_ctor_types i in
+					CsCast (expected_type, CsParens cs_arg)
+				else
+					cs_arg
+			) args in
+			Some cs_args
+		| None -> None
+	in
+	(* Generate constructor body *)
+	let ctor_body = match body_expr with
 		| Some e -> generate_method_body gctx e
 		| None -> []
 	in
-	CsMemberConstructor {
-		ctor_access = AccessModifier.Public;
-		ctor_modifiers = [];
-		ctor_params = params;
-		ctor_base_call = None;
-		ctor_this_call = None;
-		ctor_body = body;
-	}
+	[
+		CsMemberConstructor {
+			ctor_access = AccessModifier.Public;
+			ctor_modifiers = [];
+			ctor_params = ctor_params;
+			ctor_base_call = base_call;
+			ctor_this_call = None;
+			ctor_body = ctor_body;
+		}
+	]
 
 (* Generate C# class from Haxe class *)
 let generate_class gctx c =
@@ -450,9 +622,9 @@ let generate_class gctx c =
 	(* Generate members *)
 	let members = ref [] in
 
-	(* Constructor *)
+	(* Constructor - returns a list of members (constructor + _hx_ctor method) *)
 	begin match c.cl_constructor with
-	| Some cf -> members := generate_constructor gctx c cf :: !members
+	| Some cf -> members := generate_constructor gctx c cf @ !members
 	| None -> ()
 	end;
 
@@ -470,11 +642,14 @@ let generate_class gctx c =
 		| None -> ()
 	) c.cl_ordered_statics;
 
+	(* Extract type parameter names *)
+	let type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
+
 	CsClassDef {
 		c_path = path;
 		c_access = AccessModifier.Public;
 		c_modifiers = modifiers;
-		c_type_params = [];  (* TODO: handle type parameters *)
+		c_type_params = type_params;
 		c_base = base_class;
 		c_interfaces = interfaces;
 		c_constraints = [];
@@ -521,11 +696,14 @@ let generate_interface gctx c =
 		| _ -> None
 	) c.cl_ordered_fields in
 
+	(* Extract type parameter names *)
+	let type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
+
 	CsInterfaceDef {
 		i_path = path;
 		i_access = AccessModifier.Public;
 		i_modifiers = [];
-		i_type_params = [];
+		i_type_params = type_params;
 		i_base = base_interfaces;
 		i_constraints = [];
 		i_members = members;
@@ -639,10 +817,16 @@ let generate_enum gctx (e : tenum) =
 (* Generate type *)
 let generate_type gctx mt =
 	match mt with
+	| TClassDecl c when has_class_flag c CExtern ->
+		(* Skip extern classes - they map to native types *)
+		None
 	| TClassDecl c when not (has_class_flag c CInterface) ->
 		Some (generate_class gctx c)
 	| TClassDecl c ->
 		Some (generate_interface gctx c)
+	| TEnumDecl e when has_enum_flag e EnExtern ->
+		(* Skip extern enums *)
+		None
 	| TEnumDecl e ->
 		Some (generate_enum gctx e)
 	| TTypeDecl _ | TAbstractDecl _ ->
@@ -721,4 +905,16 @@ public class Program
 		proj_target_framework = "net8.0";
 		proj_output_type = "Exe";
 	} in
-	write_file com.file "Project.csproj" (generate_csproj proj)
+	write_file com.file "Project.csproj" (generate_csproj proj);
+
+	(* Copy runtime support files from std/cs/_cs/ *)
+	let find_file f = (com.class_paths#find_file f).file in
+	let copy_runtime_file src_path dest_path =
+		let content = Std.input_file ~bin:true (find_file src_path) in
+		write_file com.file dest_path content
+	in
+	copy_runtime_file "cs/_cs/haxe/root/HaxeObject.cs" "haxe/root/HaxeObject.cs";
+	copy_runtime_file "cs/_cs/haxe/root/HaxeDynamicObject.cs" "haxe/root/HaxeDynamicObject.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/Null.cs" "haxe/lang/Null.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
+

@@ -97,6 +97,7 @@ type cs_expr =
 	| CsThrow of cs_expr
 	| CsInterpolatedString of cs_interpolated_part list
 	| CsRaw of string  (* raw C# code, escape hatch *)
+	| CsInlineCode of string * cs_expr list  (* template string with {0}, {1}, etc. and arguments *)
 
 and cs_param = {
 	p_name : string;
@@ -154,7 +155,7 @@ and cs_switch_label =
 	| CsCaseConst of cs_expr
 	| CsCasePattern of cs_type * string option  (* case Type name: *)
 	| CsCaseWhen of cs_type * string option * cs_expr  (* case Type name when expr: *)
-	| CsDefault
+	| CsCaseDefault  (* default: in switch *)
 
 and cs_catch = {
 	catch_type : cs_type option;

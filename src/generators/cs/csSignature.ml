@@ -64,6 +64,9 @@ module NativeTypes = struct
 	let haxe_closure_path = (["haxe"; "root"], "HaxeClosure")
 	let haxe_enum_path = (["haxe"; "root"], "HaxeEnum")
 	let haxe_exception_path = (["haxe"], "Exception")
+	let haxe_array_path = (["haxe"; "root"], "Array")
+	let haxe_null_path = (["haxe"; "lang"], "Null")
+	let haxe_runtime_path = (["haxe"; "lang"], "Runtime")
 end
 
 (* Check if a C# type is a primitive/value type *)
@@ -89,16 +92,15 @@ let is_dynamic_at_runtime = function
 	| _ ->
 		false
 
-(* Box a value type to its nullable wrapper *)
+(* Box a type to haxe.lang.Null<T> wrapper *)
 let get_boxed_type csig =
-	if is_value_type csig then
-		CsTypeNullable csig
-	else
-		csig
+	(* Use haxe.lang.Null<T> for all types - provides unified nullable semantics *)
+	CsTypeClass ((["haxe"; "lang"], "Null"), [csig])
 
 (* Unbox a nullable type to its underlying value type *)
 let get_unboxed_type = function
 	| CsTypeNullable t -> t
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
 	| t -> t
 
 (* Convert Haxe path to C# path *)
@@ -123,23 +125,27 @@ let rec cs_type_of_type gctx t =
 		CsTypeDouble
 	| TAbstract ({ a_path = ([], "Single") }, _) ->
 		CsTypeFloat
-	| TInst ({ cl_path = ([], "String") }, _) ->
+	| TInst ({ cl_path = pack, name }, _) when (pack = [] || pack = ["haxe"; "root"]) && (name = "String" || name = "string") ->
+		(* Due to @:native, the usual String path doesn't always match - also match lowercase "string" from @:native *)
 		CsTypeString
 	| TAbstract ({ a_path = ([], "Null") }, [t]) ->
-		(* Null<T> -> T? for value types, T for reference types *)
+		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics) *)
 		let inner = cs_type_of_type gctx t in
-		if is_value_type inner then
-			CsTypeNullable inner
-		else
-			inner
+		CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 	| TDynamic _ ->
-		CsTypeDynamic
+		(* Dynamic -> object (not dynamic, to avoid runtime dispatch overhead) *)
+		CsTypeObject
 	| TAnon _ ->
 		(* Anonymous objects -> dynamic or HaxeDynamicObject *)
 		CsTypeClass (NativeTypes.haxe_dynamic_object_path, [])
-	| TInst ({ cl_path = ([], "Array") }, [t]) ->
+	| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, [t]) ->
+		(* Array<T> stays as haxe.root.Array, not List<T> *)
 		let inner = cs_type_of_type gctx t in
-		CsTypeClass (NativeTypes.list_path, [inner])
+		CsTypeClass (NativeTypes.haxe_array_path, [inner])
+	| TInst ({ cl_path = (["cs"], "NativeArray") }, [t]) ->
+		(* cs.NativeArray<T> -> T[] *)
+		let inner = cs_type_of_type gctx t in
+		CsTypeArray (inner, None)
 	| TInst ({ cl_kind = KTypeParameter _ }, _) ->
 		(* Type parameter -> object at runtime *)
 		CsTypeObject
@@ -188,7 +194,7 @@ let rec cs_type_of_type gctx t =
 		cs_type_of_type gctx (lazy_type f)
 	| TMono r ->
 		begin match r.tm_type with
-		| None -> CsTypeDynamic
+		| None -> CsTypeObject  (* Unresolved monomorph -> object *)
 		| Some t -> cs_type_of_type gctx t
 		end
 

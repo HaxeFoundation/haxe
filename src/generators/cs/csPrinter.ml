@@ -328,6 +328,38 @@ and print_expr ctx = function
 		) parts;
 		print ctx "\""
 	| CsRaw s -> print ctx s
+	| CsInlineCode (template, args) ->
+		(* Replace {0}, {1}, etc. with the corresponding argument *)
+		let buf = Buffer.create (String.length template) in
+		let i = ref 0 in
+		let len = String.length template in
+		while !i < len do
+			if !i + 1 < len && template.[!i] = '{' then begin
+				let start = !i + 1 in
+				incr i;
+				while !i < len && template.[!i] >= '0' && template.[!i] <= '9' do
+					incr i
+				done;
+				if !i < len && template.[!i] = '}' then begin
+					let idx_str = String.sub template start (!i - start) in
+					let idx = int_of_string idx_str in
+					if idx < List.length args then begin
+						(* Print argument to a temp buffer *)
+						let arg_ctx = { ctx with buf = Buffer.create 64 } in
+						print_expr arg_ctx (List.nth args idx);
+						Buffer.add_buffer buf arg_ctx.buf
+					end else
+						Buffer.add_string buf ("{" ^ idx_str ^ "}")
+				end else begin
+					Buffer.add_char buf '{';
+					i := start
+				end
+			end else begin
+				Buffer.add_char buf template.[!i]
+			end;
+			incr i
+		done;
+		print ctx (Buffer.contents buf)
 
 and print_args ctx args =
 	let first = ref true in
@@ -573,7 +605,7 @@ and print_switch_label ctx = function
 		print ctx " when ";
 		print_expr ctx cond;
 		print ctx ":"
-	| CsDefault ->
+	| CsCaseDefault ->
 		print ctx "default:"
 
 and print_catch ctx c =
