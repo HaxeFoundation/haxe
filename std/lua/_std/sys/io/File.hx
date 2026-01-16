@@ -41,7 +41,7 @@ class File {
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		return @:privateAccess new FileOutput(Io.open(path, "a"));
+		return @:privateAccess new FileOutput(Io.open(path, binary ? "ab" : "a"));
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
