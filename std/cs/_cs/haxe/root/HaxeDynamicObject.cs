@@ -14,6 +14,20 @@ namespace haxe.root
             _hx_fields = new Dictionary<string, object>();
         }
 
+        // Factory method to create with initial field values
+        // Usage: _hx_create(["field1", value1, "field2", value2, ...])
+        public static HaxeDynamicObject _hx_create(Array<object> args)
+        {
+            var obj = new HaxeDynamicObject();
+            for (int i = 0; i < args.length; i += 2)
+            {
+                var name = (string)args.__a[i];
+                var value = args.__a[i + 1];
+                obj._hx_setField(name, value);
+            }
+            return obj;
+        }
+
         public override string ToString()
         {
             if (__hx_toString_depth >= 5)

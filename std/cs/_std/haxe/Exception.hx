@@ -23,25 +23,23 @@
 package haxe;
 
 @:coreApi
-class Exception {
+class Exception extends NativeException {
 	public var message(get, never):String;
 	public var stack(get, set):CallStack;
 	public var previous(get, never):Null<Exception>;
 	public var native(get, never):Any;
 
-	@:noCompletion var __exceptionMessage:String;
 	@:noCompletion var __exceptionStack:Null<CallStack>;
-	@:noCompletion var __nativeException:Dynamic;
+	@:noCompletion var __nativeException:NativeException;
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static function caught(value:Any):Exception {
 		if (Std.isOfType(value, Exception)) {
 			return cast value;
 		}
-		// Check if it's a native System.Exception
+		// Check if it's a native System.Exception - use inline C# to get message
 		if (untyped __cs__("{0} is System.Exception", value)) {
-			var native:Dynamic = value;
-			return new Exception(untyped __cs__("{0}.Message", native), null, native);
+			return new Exception(untyped __cs__("((System.Exception){0}).Message", value), null, value);
 		}
 		return new ValueException(value, null, value);
 	}
@@ -61,13 +59,11 @@ class Exception {
 	}
 
 	public function new(message:String, ?previous:Exception, ?native:Any) {
-		__exceptionMessage = message;
+		// Call base System.Exception constructor - uses special handling in generator
+		super(message);
 		__previousException = previous;
-		if (native != null) {
-			__nativeException = native;
-		} else {
-			__nativeException = this;
-		}
+		// native is Null<object> struct - check .hasValue and .value
+		__nativeException = untyped __cs__("(({0}.hasValue && {0}.value is System.Exception) ? (System.Exception){0}.value : (System.Exception)this)", native);
 	}
 
 	function unwrap():Any {
@@ -83,7 +79,7 @@ class Exception {
 	}
 
 	function get_message():String {
-		return __exceptionMessage;
+		return untyped __cs__("base.Message");
 	}
 
 	function get_previous():Null<Exception> {
@@ -105,4 +101,15 @@ class Exception {
 		__exceptionStack = stack;
 		return stack;
 	}
+}
+
+@:dox(hide)
+@:noCompletion
+@:native('System.Exception')
+private extern class NativeException {
+	@:noCompletion @:overload private function new(message:String):Void;
+	@:noCompletion @:overload private function new(message:String, innerException:NativeException):Void;
+	@:noCompletion @:skipReflection private var Message(default, null):String;
+	@:noCompletion @:skipReflection private var InnerException(default, null):NativeException;
+	@:noCompletion @:skipReflection private var StackTrace(default, null):String;
 }

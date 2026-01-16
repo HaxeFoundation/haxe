@@ -27,8 +27,8 @@ extern class String {
 
 	function new(string:String):Void;
 
-	function toUpperCase():String;
-	function toLowerCase():String;
+	@:native("ToUpper") function toUpperCase():String;
+	@:native("ToLower") function toLowerCase():String;
 
 	@:runtime inline function charAt(index:Int):String {
 		return cs.StringExt.charAt(this, index);

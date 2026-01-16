@@ -146,9 +146,9 @@ let rec cs_type_of_type gctx t =
 		(* cs.NativeArray<T> -> T[] *)
 		let inner = cs_type_of_type gctx t in
 		CsTypeArray (inner, None)
-	| TInst ({ cl_kind = KTypeParameter _ }, _) ->
-		(* Type parameter -> object at runtime *)
-		CsTypeObject
+	| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
+		(* Type parameter -> preserve as generic param for C# generics *)
+		CsTypeGenericParam ttp.ttp_name
 	| TInst (c, params) ->
 		let path = cs_path_of_path c.cl_path in
 		let params = List.map (cs_type_of_type gctx) params in
@@ -161,7 +161,18 @@ let rec cs_type_of_type gctx t =
 		(* Typedef - follow it *)
 		cs_type_of_type gctx (Type.apply_typedef td params)
 	| TFun (args, ret) ->
-		let arg_types = List.map (fun (_, _, t) -> cs_type_of_type gctx t) args in
+		(* For optional parameters in TFun:
+		   - Explicit type annotations like (Int, ?Int, Int)->Int have raw type + opt flag
+		   - Inferred types from lambdas already have Null<T> in the type itself
+		   We need to wrap in Null<T> only if opt=true AND type isn't already Null<T> *)
+		let arg_types = List.map (fun (_, opt, t) ->
+			let is_already_null = match t with
+				| Type.TAbstract ({ a_path = ([], "Null") }, _) -> true
+				| _ -> false
+			in
+			let csig = cs_type_of_type gctx t in
+			if opt && not is_already_null then get_boxed_type csig else csig
+		) args in
 		let ret_type = cs_type_of_type gctx ret in
 		begin match ret_type with
 		| CsTypeVoid ->

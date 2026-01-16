@@ -27,10 +27,17 @@ class Log {
 		var str = Std.string(v);
 		if (infos == null)
 			return str;
-		var pstr = infos.fileName + ":" + infos.lineNumber;
-		if (infos.customParams != null)
-			for (v in infos.customParams)
-				str += ", " + Std.string(v);
+		// Extract the actual HaxeDynamicObject from Null<T>.value
+		var dynInfos:Dynamic = untyped __cs__("{0}.value", infos);
+		var fileName:String = untyped __cs__("(string)((haxe.root.HaxeDynamicObject){0})._hx_getField(\"fileName\")", dynInfos);
+		var lineNumber:Dynamic = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", dynInfos);
+		var pstr = fileName + ":" + Std.string(lineNumber);
+		var customParams:Dynamic = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"customParams\")", dynInfos);
+		if (customParams != null) {
+			var arr:Array<Dynamic> = untyped __cs__("(haxe.root.Array<object>){0}", customParams);
+			for (item in arr)
+				str += ", " + Std.string(item);
+		}
 		return pstr + ": " + str;
 	}
 

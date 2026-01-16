@@ -20,28 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs;
+package sys.thread;
 
-/**
-	Represents a C# native array (`T[]`)
-**/
-@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
-	var length(default, null):Int;
+@:coreApi
+class Lock {
+	var _semaphore:Dynamic; // System.Threading.SemaphoreSlim
 
-	function new(size:Int):Void;
-
-	@:arrayAccess function get(index:Int):T;
-	@:arrayAccess function set(index:Int, value:T):T;
-
-	public static inline function ofArray<T>(arr:Array<T>):NativeArray<T> {
-		var ret = new NativeArray<T>(arr.length);
-		for (i in 0...arr.length) {
-			ret[i] = arr[i];
-		}
-		return ret;
+	public function new() {
+		// SemaphoreSlim with initial count 0 and max count Int32.MaxValue
+		_semaphore = untyped __cs__("new System.Threading.SemaphoreSlim(0, int.MaxValue)");
 	}
 
-	public static inline function arraycopy<T>(src:NativeArray<T>, srcPos:Int, dest:NativeArray<T>, destPos:Int, length:Int):Void {
-		untyped __cs__("System.Array.Copy({0}, {1}, {2}, {3}, {4})", src, srcPos, dest, destPos, length);
+	public function wait(?timeout:Float):Bool {
+		if (timeout == null) {
+			// Wait indefinitely
+			untyped __cs__("{0}.Wait()", _semaphore);
+			return true;
+		} else {
+			// Wait with timeout in milliseconds
+			var timeoutMs:Int = Std.int(timeout * 1000.0);
+			return untyped __cs__("{0}.Wait({1})", _semaphore, timeoutMs);
+		}
+	}
+
+	public function release():Void {
+		untyped __cs__("{0}.Release()", _semaphore);
 	}
 }

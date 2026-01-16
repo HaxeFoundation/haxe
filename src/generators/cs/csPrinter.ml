@@ -205,6 +205,30 @@ and print_expr ctx = function
 		print ctx "(";
 		print_args ctx args;
 		print ctx ")"
+	| CsStaticCallGeneric (t, name, type_args, args) ->
+		print_type ctx t;
+		print ctx ".";
+		print ctx (escape_identifier name);
+		print ctx "<";
+		let first = ref true in
+		List.iter (fun ta ->
+			if !first then first := false else print ctx ", ";
+			print_type ctx ta
+		) type_args;
+		print ctx ">(";
+		print_args ctx args;
+		print ctx ")"
+	| CsCallGeneric (e, type_args, args) ->
+		print_expr ctx e;
+		print ctx "<";
+		let first = ref true in
+		List.iter (fun ta ->
+			if !first then first := false else print ctx ", ";
+			print_type ctx ta
+		) type_args;
+		print ctx ">(";
+		print_args ctx args;
+		print ctx ")"
 	| CsNew (t, args) ->
 		print ctx "new ";
 		print_type ctx t;
@@ -226,9 +250,9 @@ and print_expr ctx = function
 	| CsCast (t, e) ->
 		print ctx "((";
 		print_type ctx t;
-		print ctx ")";
+		print ctx ")(";
 		print_expr ctx e;
-		print ctx ")"
+		print ctx "))"
 	| CsAs (e, t) ->
 		print ctx "(";
 		print_expr ctx e;
@@ -380,6 +404,9 @@ and print_stmt ctx = function
 		unindent ctx;
 		newline ctx;
 		print ctx "}"
+	| CsStmtList stmts ->
+		(* Multiple statements without braces - emit sequentially *)
+		List.iter (fun s -> print_stmt ctx s; newline ctx) stmts
 	| CsVarDecl (name, typ, value) ->
 		begin match typ with
 		| Some t -> print_type ctx t

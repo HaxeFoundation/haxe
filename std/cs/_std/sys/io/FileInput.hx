@@ -1,0 +1,82 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+package sys.io;
+
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Input;
+
+class FileInput extends Input {
+	var stream:Dynamic; // System.IO.FileStream
+	var _eof:Bool;
+
+	@:allow(sys.io.File)
+	function new(stream:Dynamic) {
+		this.stream = stream;
+		this._eof = false;
+	}
+
+	override public function close() {
+		try {
+			untyped __cs__("{0}.Close()", stream);
+		} catch (e:Dynamic) {
+			throw e;
+		}
+	}
+
+	override public function readByte():Int {
+		var b:Int = untyped __cs__("{0}.ReadByte()", stream);
+		if (b == -1) {
+			_eof = true;
+			throw new Eof();
+		}
+		return b;
+	}
+
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
+		var ret:Int = untyped __cs__("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
+		if (ret == 0) {
+			_eof = true;
+			throw new Eof();
+		}
+		return ret;
+	}
+
+	public function seek(p:Int, pos:FileSeek):Void {
+		_eof = false;
+		var origin:Int = switch (pos) {
+			case SeekBegin: 0; // System.IO.SeekOrigin.Begin
+			case SeekCur: 1; // System.IO.SeekOrigin.Current
+			case SeekEnd: 2; // System.IO.SeekOrigin.End
+		};
+		untyped __cs__("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
+	}
+
+	public function tell():Int {
+		return untyped __cs__("(int){0}.Position", stream);
+	}
+
+	public inline function eof():Bool {
+		return _eof;
+	}
+}

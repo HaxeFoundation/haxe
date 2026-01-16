@@ -20,28 +20,51 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs;
+package cs.io;
 
-/**
-	Represents a C# native array (`T[]`)
-**/
-@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
-	var length(default, null):Int;
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Output;
 
-	function new(size:Int):Void;
+class NativeOutput extends Output {
+	var stream:Dynamic; // System.IO.Stream
 
-	@:arrayAccess function get(index:Int):T;
-	@:arrayAccess function set(index:Int, value:T):T;
-
-	public static inline function ofArray<T>(arr:Array<T>):NativeArray<T> {
-		var ret = new NativeArray<T>(arr.length);
-		for (i in 0...arr.length) {
-			ret[i] = arr[i];
-		}
-		return ret;
+	public function new(stream:Dynamic) {
+		this.stream = stream;
 	}
 
-	public static inline function arraycopy<T>(src:NativeArray<T>, srcPos:Int, dest:NativeArray<T>, destPos:Int, length:Int):Void {
-		untyped __cs__("System.Array.Copy({0}, {1}, {2}, {3}, {4})", src, srcPos, dest, destPos, length);
+	override public function writeByte(c:Int):Void {
+		try {
+			untyped __cs__("{0}.WriteByte((byte){1})", stream, c);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
+		}
+	}
+
+	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
+		if (pos < 0 || len < 0 || pos + len > s.length)
+			throw haxe.io.Error.OutsideBounds;
+		try {
+			untyped __cs__("{0}.Write({1}, {2}, {3})", stream, s.getData(), pos, len);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
+		}
+		return len;
+	}
+
+	override public function close():Void {
+		try {
+			untyped __cs__("{0}.Close()", stream);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
+		}
+	}
+
+	override public function flush():Void {
+		try {
+			untyped __cs__("{0}.Flush()", stream);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
+		}
 	}
 }

@@ -20,28 +20,49 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs;
+package cs.io;
 
-/**
-	Represents a C# native array (`T[]`)
-**/
-@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
-	var length(default, null):Int;
+import haxe.io.Bytes;
+import haxe.io.Eof;
+import haxe.io.Input;
 
-	function new(size:Int):Void;
+class NativeInput extends Input {
+	var stream:Dynamic; // System.IO.Stream
 
-	@:arrayAccess function get(index:Int):T;
-	@:arrayAccess function set(index:Int, value:T):T;
+	public function new(stream:Dynamic) {
+		this.stream = stream;
+	}
 
-	public static inline function ofArray<T>(arr:Array<T>):NativeArray<T> {
-		var ret = new NativeArray<T>(arr.length);
-		for (i in 0...arr.length) {
-			ret[i] = arr[i];
+	override public function readByte():Int {
+		var ret:Int = 0;
+		try {
+			ret = untyped __cs__("{0}.ReadByte()", stream);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
 		}
+		if (ret == -1)
+			throw new Eof();
 		return ret;
 	}
 
-	public static inline function arraycopy<T>(src:NativeArray<T>, srcPos:Int, dest:NativeArray<T>, destPos:Int, length:Int):Void {
-		untyped __cs__("System.Array.Copy({0}, {1}, {2}, {3}, {4})", src, srcPos, dest, destPos, length);
+	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
+		var ret:Int = 0;
+		try {
+			ret = untyped __cs__("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
+		}
+
+		if (ret == 0)
+			throw new Eof();
+		return ret;
+	}
+
+	override public function close():Void {
+		try {
+			untyped __cs__("{0}.Close()", stream);
+		} catch (e:Dynamic) {
+			throw haxe.io.Error.Custom(e);
+		}
 	}
 }

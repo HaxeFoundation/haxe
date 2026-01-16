@@ -28,18 +28,58 @@ namespace haxe.lang
             {
                 return new haxe.lang.Null<T>(default(T), false);
             }
-            else if (typeof(T).Equals(typeof(double)))
+            // Handle case when obj is itself a Null<> struct (e.g., from default(Null<object>))
+            // AOT-safe: check common Null<> types directly without reflection
+            if (obj is Null<object> nullObj)
+            {
+                if (!nullObj.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                return _ofDynamic(nullObj.value);
+            }
+            if (obj is Null<int> nullInt)
+            {
+                if (!nullInt.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                return _ofDynamic(nullInt.value);
+            }
+            if (obj is Null<double> nullDouble)
+            {
+                if (!nullDouble.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                return _ofDynamic(nullDouble.value);
+            }
+            if (obj is Null<string> nullString)
+            {
+                if (!nullString.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                return _ofDynamic(nullString.value);
+            }
+            if (obj is Null<bool> nullBool)
+            {
+                if (!nullBool.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                return _ofDynamic(nullBool.value);
+            }
+            // Fallback: check if it's a Null<> type we don't handle directly
+            var objType = obj.GetType();
+            if (objType.IsGenericType && objType.GetGenericTypeDefinition() == typeof(Null<>))
+            {
+                // Use toDynamic() method which all Null<T> have
+                var toDynamicMethod = objType.GetMethod("toDynamic");
+                if (toDynamicMethod != null)
+                {
+                    object unwrapped = toDynamicMethod.Invoke(obj, null);
+                    if (unwrapped == null)
+                    {
+                        return new haxe.lang.Null<T>(default(T), false);
+                    }
+                    return _ofDynamic(unwrapped);
+                }
+            }
+            if (typeof(T).Equals(typeof(double)))
             {
                 return new haxe.lang.Null<T>((T)(object)haxe.lang.Runtime.toDouble(obj), true);
             }
-            else if (typeof(T).Equals(typeof(int)))
+            if (typeof(T).Equals(typeof(int)))
             {
                 return new haxe.lang.Null<T>((T)(object)haxe.lang.Runtime.toInt(obj), true);
             }
-            else
-            {
-                return new haxe.lang.Null<T>((T)obj, true);
-            }
+            return new haxe.lang.Null<T>((T)obj, true);
         }
 
         /// <summary>

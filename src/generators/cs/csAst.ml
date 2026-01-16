@@ -80,7 +80,9 @@ type cs_expr =
 	| CsStaticField of cs_type * string
 	| CsArrayAccess of cs_expr * cs_expr
 	| CsCall of cs_expr * cs_expr list
+	| CsCallGeneric of cs_expr * cs_type list * cs_expr list  (* generic method call: expr<T1,T2>(args) *)
 	| CsStaticCall of cs_type * string * cs_expr list
+	| CsStaticCallGeneric of cs_type * string * cs_type list * cs_expr list  (* Class.method<T1,T2>(args) *)
 	| CsNew of cs_type * cs_expr list
 	| CsNewArray of cs_type * cs_expr list  (* new T[] { ... } *)
 	| CsNewArraySize of cs_type * cs_expr  (* new T[size] *)
@@ -124,6 +126,7 @@ and cs_interpolated_part =
 and cs_stmt =
 	| CsExprStmt of cs_expr
 	| CsBlock of cs_stmt list
+	| CsStmtList of cs_stmt list  (* multiple statements without braces, emitted sequentially *)
 	| CsVarDecl of string * cs_type option * cs_expr option
 	| CsMultiVarDecl of (string * cs_expr option) list * cs_type
 	| CsIf of cs_expr * cs_stmt * cs_stmt option

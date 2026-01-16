@@ -20,28 +20,37 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs;
+package sys.thread;
 
-/**
-	Represents a C# native array (`T[]`)
-**/
-@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
-	var length(default, null):Int;
+abstract Thread(Dynamic) {
+	public var events(get, never):EventLoop;
 
-	function new(size:Int):Void;
-
-	@:arrayAccess function get(index:Int):T;
-	@:arrayAccess function set(index:Int, value:T):T;
-
-	public static inline function ofArray<T>(arr:Array<T>):NativeArray<T> {
-		var ret = new NativeArray<T>(arr.length);
-		for (i in 0...arr.length) {
-			ret[i] = arr[i];
-		}
-		return ret;
+	inline function get_events():EventLoop {
+		return null; // TODO: implement EventLoop
 	}
 
-	public static inline function arraycopy<T>(src:NativeArray<T>, srcPos:Int, dest:NativeArray<T>, destPos:Int, length:Int):Void {
-		untyped __cs__("System.Array.Copy({0}, {1}, {2}, {3}, {4})", src, srcPos, dest, destPos, length);
+	public static function create(job:() -> Void):Thread {
+		var thread:Dynamic = untyped __cs__("new System.Threading.Thread(() => {0}())", job);
+		untyped __cs__("{0}.IsBackground = true", thread);
+		untyped __cs__("{0}.Start()", thread);
+		return cast thread;
+	}
+
+	public static function current():Thread {
+		return cast untyped __cs__("System.Threading.Thread.CurrentThread");
+	}
+
+	public static function runWithEventLoop(job:() -> Void):Void {
+		// TODO: implement EventLoop
+		job();
+	}
+
+	public static function readMessage(block:Bool):Dynamic {
+		throw new haxe.exceptions.NotImplementedException();
+	}
+
+	@:ifFeature("has_threads")
+	public function sendMessage(msg:Dynamic):Void {
+		throw new haxe.exceptions.NotImplementedException();
 	}
 }

@@ -316,11 +316,11 @@ import haxe.iterators.ArrayKeyValueIterator;
 	}
 
 	public inline function iterator():haxe.iterators.ArrayIterator<T> {
-		return new haxe.iterators.ArrayIterator(this);
+		return new haxe.iterators.ArrayIterator<T>(this);
 	}
 
 	public inline function keyValueIterator():ArrayKeyValueIterator<T> {
-		return new ArrayKeyValueIterator(this);
+		return new ArrayKeyValueIterator<T>(this);
 	}
 
 	public function resize(len:Int):Void {

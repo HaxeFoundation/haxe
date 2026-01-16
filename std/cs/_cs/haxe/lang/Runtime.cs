@@ -45,5 +45,225 @@ namespace haxe.lang
             if (d is bool b) return b;
             return false;
         }
+
+        /// <summary>
+        /// Invoke a delegate dynamically with the given arguments.
+        /// Works with Func&lt;&gt;, Action, and other delegate types.
+        /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.
+        /// </summary>
+        public static object InvokeDelegate(object func, haxe.root.Array<object> args)
+        {
+            if (func == null) throw new NullReferenceException("Cannot invoke null delegate");
+
+            // If it's a HaxeFunction, use its invokeDynamic method
+            if (func is haxe.lang.Function hf)
+            {
+                return hf.invokeDynamic(args);
+            }
+
+            // Otherwise, it should be a Delegate
+            if (func is Delegate del)
+            {
+                var method = del.Method;
+                var parameters = method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+
+                // Unify arguments: handle missing args and type conversions
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    var param = parameters[i];
+                    object argValue = (args != null && i < args.length) ? args.__a[i] : null;
+
+                    if (argValue == null)
+                    {
+                        // Null handling for primitives and Null<T> - AOT-safe, no reflection
+                        invokeArgs[i] = CreateDefaultValue(param.ParameterType);
+                    }
+                    else
+                    {
+                        // Try to convert the argument to the parameter type
+                        invokeArgs[i] = ConvertArg(argValue, param.ParameterType);
+                    }
+                }
+
+                return del.DynamicInvoke(invokeArgs);
+            }
+
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Create a default value for the given type.
+        /// AOT-safe: handles Null&lt;T&gt; without reflection by checking common types directly.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
+            Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
+        private static object CreateDefaultValue(Type type)
+        {
+            // Handle Null<T> first - for null/missing args, default(Null<T>) has hasValue=false
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Null<>))
+            {
+                if (type == typeof(Null<int>)) return default(Null<int>);
+                if (type == typeof(Null<double>)) return default(Null<double>);
+                if (type == typeof(Null<float>)) return default(Null<float>);
+                if (type == typeof(Null<bool>)) return default(Null<bool>);
+                if (type == typeof(Null<long>)) return default(Null<long>);
+                if (type == typeof(Null<short>)) return default(Null<short>);
+                if (type == typeof(Null<byte>)) return default(Null<byte>);
+                if (type == typeof(Null<sbyte>)) return default(Null<sbyte>);
+                if (type == typeof(Null<uint>)) return default(Null<uint>);
+                if (type == typeof(Null<ulong>)) return default(Null<ulong>);
+                if (type == typeof(Null<ushort>)) return default(Null<ushort>);
+                if (type == typeof(Null<char>)) return default(Null<char>);
+                if (type == typeof(Null<string>)) return default(Null<string>);
+                if (type == typeof(Null<object>)) return default(Null<object>);
+                // For other Null<T> types (custom classes), use Activator.CreateInstance
+                // This works for structs in AOT because parameterless struct constructors are intrinsic
+                return Activator.CreateInstance(type);
+            }
+
+            // Primitive types
+            if (type == typeof(int)) return 0;
+            if (type == typeof(double)) return 0.0;
+            if (type == typeof(float)) return 0.0f;
+            if (type == typeof(bool)) return false;
+            if (type == typeof(long)) return 0L;
+            if (type == typeof(short)) return (short)0;
+            if (type == typeof(byte)) return (byte)0;
+            if (type == typeof(sbyte)) return (sbyte)0;
+            if (type == typeof(uint)) return 0u;
+            if (type == typeof(ulong)) return 0ul;
+            if (type == typeof(ushort)) return (ushort)0;
+            if (type == typeof(char)) return '\0';
+
+            // Reference types default to null
+            return null;
+        }
+
+        /// <summary>
+        /// Create a Null&lt;T&gt; from a dynamic value, AOT-safe.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
+            Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2090",
+            Justification = "Null<T> constructor with value parameter is always available")]
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "MakeGenericType for Null<T> works in AOT when the inner type is used elsewhere in the program")]
+        private static object CreateNullOfT(Type innerType, object value)
+        {
+            if (innerType == typeof(int)) return Null<int>._ofDynamic(value);
+            if (innerType == typeof(double)) return Null<double>._ofDynamic(value);
+            if (innerType == typeof(float)) return Null<float>._ofDynamic(value);
+            if (innerType == typeof(bool)) return Null<bool>._ofDynamic(value);
+            if (innerType == typeof(long)) return Null<long>._ofDynamic(value);
+            if (innerType == typeof(short)) return Null<short>._ofDynamic(value);
+            if (innerType == typeof(byte)) return Null<byte>._ofDynamic(value);
+            if (innerType == typeof(sbyte)) return Null<sbyte>._ofDynamic(value);
+            if (innerType == typeof(uint)) return Null<uint>._ofDynamic(value);
+            if (innerType == typeof(ulong)) return Null<ulong>._ofDynamic(value);
+            if (innerType == typeof(ushort)) return Null<ushort>._ofDynamic(value);
+            if (innerType == typeof(char)) return Null<char>._ofDynamic(value);
+            if (innerType == typeof(string)) return Null<string>._ofDynamic(value);
+            if (innerType == typeof(object)) return Null<object>._ofDynamic(value);
+            // Fallback for custom types: use the generic Null<T>.ofDynamic<D> method
+            // which handles the conversion properly. We need to call it via reflection.
+            var ofDynamicMethod = typeof(Null<>).MakeGenericType(innerType)
+                .GetMethod("_ofDynamic", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            return ofDynamicMethod.Invoke(null, new[] { value });
+        }
+
+        /// <summary>
+        /// Convert an argument value to the target type.
+        /// AOT-safe: does not use reflection for Null&lt;T&gt; creation.
+        /// </summary>
+        private static object ConvertArg(object value, Type targetType)
+        {
+            if (value == null) return CreateDefaultValue(targetType);
+
+            var valueType = value.GetType();
+            if (targetType.IsAssignableFrom(valueType)) return value;
+
+            // Handle Null<T> wrapper - AOT-safe using direct type checks
+            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Null<>))
+            {
+                var innerType = targetType.GetGenericArguments()[0];
+                return CreateNullOfT(innerType, value);
+            }
+
+            // Numeric conversions
+            if (targetType == typeof(int)) return toInt(value);
+            if (targetType == typeof(double)) return toDouble(value);
+            if (targetType == typeof(float)) return (float)toDouble(value);
+            if (targetType == typeof(bool)) return toBool(value);
+            if (targetType == typeof(long)) return (long)toDouble(value);
+            if (targetType == typeof(string)) return value?.ToString();
+
+            // Try explicit conversion
+            try
+            {
+                return Convert.ChangeType(value, targetType);
+            }
+            catch
+            {
+                return value;
+            }
+        }
+
+        /// <summary>
+        /// Get a field from an object using reflection.
+        /// </summary>
+        public static object GetField(object obj, string name)
+        {
+            if (obj == null) throw new NullReferenceException("Cannot get field from null");
+
+            var type = obj.GetType();
+
+            // Try field first
+            var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (field != null) return field.GetValue(obj);
+
+            // Try property
+            var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (prop != null) return prop.GetValue(obj);
+
+            return null;
+        }
+
+        /// <summary>
+        /// Set a field on an object using reflection.
+        /// </summary>
+        public static void SetField(object obj, string name, object value)
+        {
+            if (obj == null) throw new NullReferenceException("Cannot set field on null");
+
+            var type = obj.GetType();
+
+            // Try field first
+            var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(obj, value);
+                return;
+            }
+
+            // Try property
+            var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (prop != null)
+            {
+                prop.SetValue(obj, value);
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Check if an object is a function (HaxeFunction or C# delegate).
+        /// </summary>
+        public static bool IsFunction(object obj)
+        {
+            if (obj == null) return false;
+            if (obj is haxe.lang.Function) return true;
+            if (obj is Delegate) return true;
+            return false;
+        }
     }
 }

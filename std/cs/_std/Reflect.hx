@@ -42,7 +42,7 @@ class Reflect {
 
 	public static function getProperty(o:Dynamic, field:String):Dynamic {
 		// TODO: proper implementation
-		return field(o, field);
+		return Reflect.field(o, field);
 	}
 
 	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
@@ -61,8 +61,8 @@ class Reflect {
 	}
 
 	public static function isFunction(f:Dynamic):Bool {
-		// TODO: proper implementation
-		return false;
+		// Check if it's a haxe.lang.Function or a C# Delegate
+		return untyped __cs__("haxe.lang.Runtime.IsFunction({0})", f);
 	}
 
 	public static function compare<T>(a:T, b:T):Int {
@@ -105,7 +105,7 @@ class Reflect {
 		return o;
 	}
 
-	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
+	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		// TODO: proper implementation
 		throw new haxe.exceptions.NotImplementedException();
 	}

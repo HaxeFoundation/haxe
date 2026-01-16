@@ -28,11 +28,12 @@ class Std {
 	}
 
 	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
-		// TODO: Implement proper type checking
-		if (v == null || t == null) {
+		if (v == null) {
 			return false;
 		}
-		return true;
+		// t should be a System.Type (from typeof())
+		// Use C# reflection to check if v is an instance of that type
+		return untyped __cs__("{0} is System.Type typeObj && typeObj.IsInstanceOfType({1})", t, v);
 	}
 
 	public static function string(s:Dynamic):String {

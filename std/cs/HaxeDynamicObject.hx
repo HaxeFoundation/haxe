@@ -37,6 +37,20 @@ class HaxeDynamicObject extends HaxeObject {
 		_hx_fields = new StringMap();
 	}
 
+	// Factory method to create with initial field values
+	// Usage: _hx_create(["field1", value1, "field2", value2, ...])
+	public static function _hx_create(args:Array<Dynamic>):HaxeDynamicObject {
+		var obj = new HaxeDynamicObject();
+		var i = 0;
+		while (i < args.length) {
+			var name:String = args[i];
+			var value:Dynamic = args[i + 1];
+			obj._hx_setField(name, value);
+			i += 2;
+		}
+		return obj;
+	}
+
 	public function toString():String {
 		if (__hx_toString_depth >= 5) {
 			return "...";

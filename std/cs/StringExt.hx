@@ -69,15 +69,19 @@ class StringExt {
 	}
 
 	public static function split(me:String, delimiter:String):Array<String> {
-		var ret = [];
+		var ret = new Array<String>();
 		if (delimiter.length == 0) {
 			for (i in 0...me.length) {
 				ret.push(charAt(me, i));
 			}
 		} else {
-			var parts:Array<String> = untyped __cs__("{0}.Split(new string[] { {1} }, System.StringSplitOptions.None)", me, delimiter);
-			for (p in parts) {
-				ret.push(p);
+			// Split returns string[], wrap each element into the result array
+			var nativeParts:cs.NativeArray<String> = untyped __cs__("{0}.Split(new string[] { {1} }, System.StringSplitOptions.None)", me, delimiter);
+			var i = 0;
+			var len:Int = untyped __cs__("{0}.Length", nativeParts);
+			while (i < len) {
+				ret.push(untyped __cs__("{0}[{1}]", nativeParts, i));
+				i++;
 			}
 		}
 		return ret;

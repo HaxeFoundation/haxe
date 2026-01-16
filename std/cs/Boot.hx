@@ -28,8 +28,8 @@ class Boot {
 		if (obj == null) {
 			return "null";
 		}
-		// For now, just use basic string conversion
-		return untyped obj.ToString();
+		// Use __cs__ to call ToString directly since it exists on all C# objects
+		return untyped __cs__("{0}.ToString()", obj);
 	}
 
 	public static function parseInt(s:String, radix:Int):Int {
@@ -45,7 +45,9 @@ class Boot {
 	public static function trace(v:Dynamic, ?infos:haxe.PosInfos):Void {
 		var str = toString(v);
 		if (infos != null) {
-			str = infos.fileName + ":" + infos.lineNumber + ": " + str;
+			// Use _hx_getField for field access on anonymous objects (PosInfos is an anonymous type)
+			str = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
+				+ untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
 		}
 		untyped __cs__("System.Console.WriteLine({0})", str);
 	}
@@ -56,6 +58,6 @@ class Boot {
 		if (_random == null) {
 			_random = untyped __cs__("new System.Random()");
 		}
-		return untyped __cs__("{0}.NextDouble()", _random);
+		return untyped __cs__("((System.Random){0}).NextDouble()", _random);
 	}
 }

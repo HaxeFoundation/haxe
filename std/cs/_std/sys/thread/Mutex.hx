@@ -20,28 +20,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs;
+package sys.thread;
 
-/**
-	Represents a C# native array (`T[]`)
-**/
-@:nativeGen extern class NativeArray<T> implements ArrayAccess<T> {
-	var length(default, null):Int;
+@:coreApi
+class Mutex {
+	var _lock:Dynamic; // System.Threading.ReaderWriterLockSlim or object for Monitor
 
-	function new(size:Int):Void;
-
-	@:arrayAccess function get(index:Int):T;
-	@:arrayAccess function set(index:Int, value:T):T;
-
-	public static inline function ofArray<T>(arr:Array<T>):NativeArray<T> {
-		var ret = new NativeArray<T>(arr.length);
-		for (i in 0...arr.length) {
-			ret[i] = arr[i];
-		}
-		return ret;
+	public function new() {
+		_lock = untyped __cs__("new object()");
 	}
 
-	public static inline function arraycopy<T>(src:NativeArray<T>, srcPos:Int, dest:NativeArray<T>, destPos:Int, length:Int):Void {
-		untyped __cs__("System.Array.Copy({0}, {1}, {2}, {3}, {4})", src, srcPos, dest, destPos, length);
+	public function tryAcquire():Bool {
+		return untyped __cs__("System.Threading.Monitor.TryEnter({0})", _lock);
+	}
+
+	public function acquire():Void {
+		untyped __cs__("System.Threading.Monitor.Enter({0})", _lock);
+	}
+
+	public function release():Void {
+		untyped __cs__("System.Threading.Monitor.Exit({0})", _lock);
 	}
 }
