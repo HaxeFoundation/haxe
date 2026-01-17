@@ -25,9 +25,6 @@ package haxe.io;
 /**
 	Helper that converts between floating point and binary representation.
 	Always works in low-endian encoding.
-
-	Lua implementation uses native string.pack/unpack when available (Lua 5.3+),
-	with a pure-math fallback for Lua 5.1/5.2.
 **/
 class FPHelper {
 	static var i64tmp:Int64 = Int64.ofInt(0);

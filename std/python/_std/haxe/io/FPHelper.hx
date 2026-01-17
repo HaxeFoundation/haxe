@@ -27,8 +27,6 @@ import python.lib.Struct;
 /**
 	Helper that converts between floating point and binary representation.
 	Always works in low-endian encoding.
-
-	Python implementation uses native struct module.
 **/
 class FPHelper {
 	static var i64tmp:Int64 = Int64.ofInt(0);
