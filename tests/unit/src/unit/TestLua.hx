@@ -108,6 +108,131 @@ class TestLua extends Test {
 		Assert.notEquals(lua.Lua.getmetatable(cast a), lua.Lua.getmetatable(cast b));
 		Assert.notEquals(lua.Lua.getmetatable(cast aChild), lua.Lua.getmetatable(cast b));
 	}
+
+	function testSelfCallMethod() {
+		// Create a callable object using Lua metatables
+		final callable:SelfCallable = untyped __lua__("setmetatable({value = 10}, {__call = function(self, x) return self.value + x end})");
+		// @:selfCall method should generate callable(5) instead of callable:call(5)
+		eq(callable.call(5), 15);
+	}
+
+	// Issue #10089: Function callbacks passed via anonymous objects should work correctly
+	function testFunctionCallbackInAnonObject() {
+		var result:String = null;
+		var callback = function(arg:String) {
+			result = arg;
+		};
+		var callable = new Issue10089Callable({callback: callback});
+		callable.invoke();
+		eq(result, "Argument String");
+	}
+
+	// Issue #11901: Function from Dynamic object stored in class Var field
+	function testFunctionFromDynamicObject() {
+		var a = new Issue11901Test({
+			test: function(k:Dynamic, v:Dynamic) {
+				return Std.string(k) + "," + Std.string(v);
+			}
+		});
+		eq(a.func("a", 1), "a,1");
+		eq(a.call("b", 2), "b,2");
+	}
+
+	// Issue #7738: Nested function in typedef-based anonymous object
+	function testNestedFunctionInTypedef() {
+		var result:String = null;
+		Issue7738Helper.process({
+			time: 1000,
+			onComplete: function() {
+				result = "completed";
+			}
+		});
+		eq(result, "completed");
+	}
+
+	// Issue #10055: Function extracted from typedef anon object to local should be unwrapped
+	function testFunctionExtractedFromTypedefAnon() {
+		var result:String = null;
+		Issue10055Helper.take({
+			callback: function(arg:String) {
+				result = arg;
+			}
+		});
+		eq(result, "test");
+	}
+
+	// Issue #7539: Closure in conditional expression should capture correct parameter
+	function testClosureInConditionalExpression() {
+		var obj = new Issue7539Test();
+		var args:Array<String> = [];
+		args.push("bar");
+		obj.foo(args);
+		eq(args.length, 2);
+		eq(args[0], "bar");
+		eq(args[1], "added");
+	}
+
+	// Issue #10090: Many map operations should not exceed Lua's 200 local variable limit
+	function testLocalVariableReuse() {
+		// This test would fail with "too many local variables" before the fix
+		// Each map operation generates temp vars that should be reused
+		var map = new Map<Issue10090Object, Bool>();
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		map[new Issue10090Object()] = true;
+		// If we got here without error, the optimization is working
+		var count = 0;
+		for (_ in map.keys()) count++;
+		eq(10, count);
+	}
+
+
+	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
+	function testClosureBreakInTryCatchLoop() {
+		// Test 1: Closure with try-catch inside loop should not generate pcall_break check
+		var closureCalled = false;
+		var outerLoopRan = false;
+		while (!outerLoopRan) {
+			outerLoopRan = true;
+			var f = function() {
+				try {
+					closureCalled = true;
+				} catch (e:Dynamic) {}
+			};
+			f();
+		}
+		t(closureCalled);
+
+		// Test 2: Break inside loop inside closure should use plain break
+		var afterInnerLoop = false;
+		var closureResult:String = null;
+		while (true) {
+			try {
+				var g = function() {
+					var i = 0;
+					while (true) {
+						i++;
+						if (i > 3) {
+							break; // should be plain break, not _G.error
+						}
+					}
+					afterInnerLoop = true;
+					return "done";
+				};
+				closureResult = g();
+			} catch (e:Dynamic) {}
+			break;
+		}
+		t(afterInnerLoop);
+		eq(closureResult, "done");
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -117,7 +242,7 @@ class TestLua extends Test {
 
 class MultiCall {
 	public static function doit() : Dynamic {
-		return untyped __lua__("1,'hi'");	
+		return untyped __lua__("1,'hi'");
 	}
 	public static function acceptMr(m:Multi){
 		return lua.Lua.type(m) == "table";
@@ -132,4 +257,81 @@ class TLB { private var foo: String; public function new() { this.foo = "B"; } }
 typedef Issue11842Slot = {
 	var data:Int;
 	var func:(Int) -> Int;
+}
+
+// Issue #9369
+extern class SelfCallable {
+	@:selfCall function call(x:Int):Int;
+}
+
+// Issue #10089
+typedef Issue10089CallableParams = {
+	var callback:String->Void;
+}
+
+class Issue10089Callable {
+	var callback:String->Void;
+	public function new(params:Issue10089CallableParams) {
+		callback = params.callback;
+	}
+	public function invoke() {
+		callback("Argument String");
+	}
+}
+
+// Issue #11901
+class Issue11901Test {
+	public var func:(Dynamic, Dynamic) -> String;
+	public function new(obj:Dynamic) {
+		this.func = obj.test;
+	}
+	public function call(k:Dynamic, v:Dynamic):String {
+		return func(k, v);
+	}
+}
+
+// Issue #7738
+typedef Issue7738Args = {
+	?time:Int,
+	?onComplete:Void->Void
+}
+
+class Issue7738Helper {
+	public static function process(args:Issue7738Args) {
+		if (args.onComplete != null) {
+			args.onComplete();
+		}
+	}
+}
+
+// Issue #10055
+typedef Issue10055Params = {
+	?callback:(String)->Void
+}
+
+class Issue10055Helper {
+	public static function take(p:Issue10055Params) {
+		// Extract to local variable - this should unwrap the anon function
+		var cb = p.callback;
+		if (cb != null) {
+			cb("test");
+		}
+	}
+}
+
+// Issue #7539: Closure in conditional should not capture wrong variable
+class Issue7539Test {
+	public var foo:Array<String>->Void;
+
+	public function new(?foo:Array<String>->Void) {
+		this.foo = if (foo != null) foo else function(args) {
+			// 'args' here should be the function parameter, not 'this'
+			args.push("added");
+		};
+	}
+}
+
+// Issue #10090: Helper class for local variable reuse test
+class Issue10090Object {
+	public function new() {}
 }

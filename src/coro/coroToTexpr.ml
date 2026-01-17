@@ -13,7 +13,7 @@ end)
 
 type coro_state = {
 	cs_id : int;
-	cs_el_state_check : texpr option;
+	mutable cs_el_tail : texpr list option;
 	mutable cs_el : texpr list;
 	mutable cs_declarations : tvar list;
 
@@ -68,12 +68,13 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 				Option.may loop eo
 			| TLocal v when Hashtbl.mem var_usages v.v_id ->
 				let existing = Hashtbl.find var_usages v.v_id in
-				
+
 				Hashtbl.replace var_usages v.v_id (IntSet.add state.cs_id existing)
 			| _ ->
 				Type.iter loop e
 		in
-		List.iter loop state.cs_el
+		List.iter loop state.cs_el;
+		Option.may (List.iter loop) state.cs_el_tail
 	) states;
 
 	(*
@@ -126,7 +127,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 
 				Hashtbl.replace fields v.v_id field;
 				Hashtbl.replace state.cs_mapped_local v.v_id v;
-				
+
 				{ e with eexpr = TVar (v, Option.map mapper eo) }
 			| TBinop ((OpAssign | OpAssignOp _) as op, elhs, erhs) ->
 				(match Texpr.skip elhs with
@@ -158,7 +159,8 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 			| _ ->
 				Type.map_expr mapper e
 		in
-		state.cs_el <- List.map mapper state.cs_el
+		state.cs_el <- List.map mapper state.cs_el;
+		state.cs_el_tail <- Option.map (List.map mapper) state.cs_el_tail
 	) states;
 
 	List.iter (fun state ->
@@ -182,7 +184,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 				let local   = b#local v v.v_pos in
 				b#assign access local) in
 
-		let tail = state.cs_el_state_check |> Option.map (fun el -> [ el ]) |> Option.default [] in
+		let tail = state.cs_el_tail |> Option.default [] in
 		state.cs_el <- restoring @ state.cs_el @ saving @ tail)
 		states;
 
@@ -218,9 +220,9 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		let open ContTypes in
 		let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
+		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
 		let esuspended = b#void_block [
-			set_control CoroPending;
-			ereturn;
+			b#return (b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type)
 		] in
 		let eres = base_continuation_field_on ecororesult cont.result com.basic.tany in
 		let ereturned = match call.cs_result with
@@ -235,10 +237,9 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			b#break p;
 		] in
 		let estate_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
-		[
-			stack_item_inserter call.cs_pos;
-			cororesult_var;
-		],
+
+		stack_item_inserter call.cs_pos,
+		cororesult_var,
 		estate_switch
 	in
 
@@ -249,7 +250,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 	let make_state id el el_state_checl = {
 		cs_id = id;
 		cs_el = el;
-		cs_el_state_check = el_state_checl;
+		cs_el_tail = el_state_checl;
 		cs_declarations = [];
 		cs_mapped_local = Hashtbl.create 0;
 		cs_reads = IntSet.empty;
@@ -315,8 +316,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		in
 		match cb.cb_next with
 		| NextSuspend (call, cb_next) ->
-			let ecallcoroutine, estateswitch = mk_suspending_call call in
-			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) ecallcoroutine (Some estateswitch);
+			let estacktracker, ecallcoroutine, estateswitch = mk_suspending_call call in
+			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) [ estacktracker ] (Some [ ecallcoroutine; estateswitch ]);
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn] None
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
@@ -326,7 +327,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ] None
 		| NextThrow e1 ->
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some (b#break p))
+			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some [ (b#break p) ])
 		| NextSub (cb_sub,cb_next) ->
 			add_state (Some cb_sub.cb_id) [] None
 

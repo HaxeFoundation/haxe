@@ -32,6 +32,7 @@ let make_continuation_api ctx =
 	let cf_context    = PMap.find "context" base_continuation_class.cl_fields in
 	let cf_goto_label = PMap.find "gotoLabel" base_continuation_class.cl_fields in
 	let cf_recursing  = PMap.find "recursing" base_continuation_class.cl_fields in
+	let cf_suspended  = PMap.find "suspended" suspension_result_class.cl_statics in
 	let immediate_result,immediate_error =
 		let c = immediate_suspension_result_class in
 		let cf_result = PMap.find "withResult" c.cl_statics in
@@ -42,6 +43,6 @@ let make_continuation_api ctx =
 			CallUnification.make_static_call_better ctx c cf_error [] [e] (TInst(c,[t])) e.epos
 		)
 	in
-	let api = ContTypes.create_continuation_api base_continuation_class immediate_suspension_result_class suspension_state suspension_result_class (Lazy.force ctx.t.tcoro.continuation) immediate_result immediate_error cf_state cf_result cf_error cf_completion cf_context cf_goto_label cf_recursing in
+	let api = ContTypes.create_continuation_api base_continuation_class immediate_suspension_result_class suspension_state suspension_result_class (Lazy.force ctx.t.tcoro.continuation) immediate_result immediate_error cf_suspended cf_state cf_result cf_error cf_completion cf_context cf_goto_label cf_recursing in
 	ctx.g.continuation_api <- Some api;
 	api

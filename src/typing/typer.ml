@@ -1650,6 +1650,7 @@ and type_call_builtin ctx e el mode with_type p =
 		let infos = mk_infos ctx p params in
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e WithType.value in
+			if ExtType.is_void (follow e.etype) then raise_typing_error "Cannot use Void as value" e.epos;
 			let infos = type_expr ctx infos WithType.value in
 			let e = match follow e.etype with
 				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->

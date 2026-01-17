@@ -7,9 +7,9 @@ import haxe.Exception;
 **/
 class ImmediateSuspensionResult<T> extends SuspensionResult<T> {
 	function new(result:T, error:Exception) {
+		super(error == null ? Returned : Thrown);
 		this.result  = result;
 		this.error   = error;
-		this.state = error == null ? Returned : Thrown;
 	}
 
 	/**

@@ -9,6 +9,29 @@ package sys.thread;
 	Conditions variables can be used to block one or more threads at the same time,
 	until another thread modifies a shared variable (the condition)
 	and signals the condition variable.
+
+	# Example
+	```haxe
+	import sys.thread.Thread;
+	import sys.thread.Condition;
+
+	function main() {
+		var started = false;
+		final cond = new Condition();
+		Thread.create(() -> {
+			cond.acquire();
+			started = true;
+			cond.signal();
+			cond.release();
+		});
+		// Wait for the thread to start up
+		cond.acquire();
+		while(!started) {
+			cond.wait();
+		}
+		cond.release();
+	}
+	```
 **/
 @:coreApi extern class Condition {
 	/**
@@ -34,10 +57,17 @@ package sys.thread;
 	function release():Void;
 
 	/**
-		Atomically releases the mutex and blocks until the condition variable pointed is signaled by a call to
-		`signal` or to `broadcast`. When the calling thread becomes unblocked it
-		acquires the internal mutex.
-		The internal mutex should be locked before this function is called.
+		Blocks the current thread until this condition variable receives a notification or a spurious wakeup occurs.
+
+		The internal mutex is atomically released and the current thread blocked until the condition variable is signaled by a call to
+		`signal` or `broadcast`, or a spurious wakeup occurs.
+		When this function returns, the internal mutex will have been re-acquired.
+
+		This function is susceptible to spurious wakeups.
+		Condition variables should be associated with a boolean predicate,
+		and this function should be called in a loop that checks the predicate to protect against spurious wakeups.
+
+		The internal mutex must be locked before this function is called.
 	**/
 	function wait():Void;
 
@@ -45,6 +75,8 @@ package sys.thread;
 		Unblocks one of the threads that are blocked on the
 		condition variable at the time of the call. If no threads are blocked
 		on the condition variable at the time of the call, the function does nothing.
+
+		The internal mutex must be locked before this function is called.
 	**/
 	function signal():Void;
 
@@ -53,6 +85,8 @@ package sys.thread;
 		condition variable at the time of the call. If no threads are blocked
 		on the condition variable at the time of the call, the function does
 		nothing.
+
+		The internal mutex must be locked before this function is called.
 	**/
 	function broadcast():Void;
 }

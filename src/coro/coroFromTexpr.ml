@@ -48,14 +48,14 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 	let goto cb_from cb_to =
 		terminate cb_from (NextGoto cb_to) t_dynamic null_pos
 	in
-	let tmp_local cb t p =
+	let tmp_local cb t eo p =
 		let v = alloc_var VGenerated "tmp" t p in
-		add_expr cb (mk (TVar(v, None)) ctx.typer.t.tvoid p);
+		add_expr cb (mk (TVar(v, eo)) ctx.typer.t.tvoid p);
 		v
 	in
 	let check_complex cb ret t p = match ret with
 		| RValue ->
-			let v = tmp_local cb t p in
+			let v = tmp_local cb t None p in
 			let ev = Texpr.Builder.make_local v v.v_pos in
 			ev,RLocal v
 		| RLocal v ->
@@ -88,7 +88,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 					   because the result expression might reference local variables declared in
 					   that block (https://github.com/Aidan63/haxe/issues/79).
 					*)
-					let v = tmp_local cb e.etype e.epos in
+					let v = tmp_local cb e.etype None e.epos in
 					RLocal v
 				| _ ->
 					ret
@@ -188,7 +188,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 							add_block_flag cb CbSuspendState;
 							let eres,res = match ret with
 							| RValue ->
-								let v = tmp_local cb e.etype e.epos in
+								let v = tmp_local cb e.etype None e.epos in
 								let ev = Texpr.Builder.make_local v v.v_pos in
 								cb_next.cb_stack_value <- Some ev;
 								ev,SusResult
@@ -197,6 +197,19 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 							| RBlock ->
 								e_no_value,SusBlock
 							in
+							let might_be_affected,collect_modified_locals = OptimizerTexpr.create_affection_checker() in
+							(* Because of hoisting requirements, we want to temp var anything that has a side-effect
+							   or could be affected by one. *)
+							let el = List.map (fun e ->
+								let has_side_effect = has_side_effect e in
+								let might_be_affected = might_be_affected e in
+								if has_side_effect then collect_modified_locals e;
+								if has_side_effect || might_be_affected then begin
+									let v = tmp_local cb e.etype (Some e) e.epos in
+									Texpr.Builder.make_local v v.v_pos
+								end else
+									e
+							) el in
 							let suspend = {
 								cs_fun = e1;
 								cs_args = el;

@@ -1,12 +1,9 @@
 package cases;
 
-#if !neko
 import sys.thread.Condition;
 import sys.thread.Thread;
-#end
 
 class TestCondition extends utest.Test {
-	#if !neko
 	function test() {
 		final cond = new Condition();
 		cond.acquire();
@@ -19,5 +16,4 @@ class TestCondition extends utest.Test {
 		cond.release();
 		utest.Assert.pass();
 	}
-	#end
 }

@@ -5,7 +5,17 @@ import haxe.Exception;
 /**
 	`SuspensionResult` is the return type of coroutine calls.
 **/
-abstract class SuspensionResult<T> {
+class SuspensionResult<T> {
+
+	static public final suspended = new SuspensionResult(Pending);
+
+	/**
+		Creates a new instance with the given `state`.
+	**/
+	public function new(state:SuspensionState) {
+		this.state = state;
+	}
+
 	/**
 		The current state of the suspension.
 	**/

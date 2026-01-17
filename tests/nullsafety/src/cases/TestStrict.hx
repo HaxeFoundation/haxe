@@ -9,6 +9,10 @@ private enum DummyEnum {
 
 typedef TWrap<T> = T;
 
+class TestClassWithAnon {
+	public var a:Null<{b:Null<Int>}> = cast null;
+}
+
 abstract AWrap<T>(T) from T to T {
 	function abstracts_shouldBeChecked(?a:String) {
 		shouldFail(var s:String = a);
@@ -22,12 +26,22 @@ class Generic<T> {
 	}
 }
 
-typedef AnonAsClass = {
-	var ?optional:String;
+@:structInit
+class ClassWithNullableField {
+	public var field:Null<String> = null;
 }
 
-typedef AnonAsStruct = {
-	?optional:String
+@:structInit
+class ClassWithField {
+	public var field:String;
+}
+
+typedef ObjWithNullableField = {
+	?field:String
+}
+
+typedef ObjWithField = {
+	field:String
 }
 
 typedef AnonDefaultNever = {
@@ -390,6 +404,60 @@ class TestStrict {
 		var s:String = name;
 		var s2:String = name2;
 		return s;
+	}
+
+	static function call_objOptField_shouldFail():Void {
+		var a:{?a:Int} = {a: null};
+		shouldFail(var b:{a:Int} = a);
+
+		var foo:{a:{b:Null<Int>}} = {
+			a: {
+				b: null
+			}
+		};
+		objOptField_shouldPass(shouldFail(foo));
+
+		var a:{?a:{b:Null<Int>}} = cast null;
+		var b:{?a:{b:Int}} = cast null;
+		shouldFail(b = a);
+
+		var t:TestClassWithAnon = cast null;
+		var t2:Null<{a:{b:Int}}> = cast null;
+		shouldFail(t2 = t);
+
+		var bar:{a:{b:Int}};
+		shouldFail(bar = foo);
+
+		var a:ObjWithNullableField = {};
+		var b:ClassWithNullableField = {};
+		shouldFail(passSafeClass(a));
+		shouldFail(passSafeClass(b));
+	}
+
+	static function objOptField_shouldPass(test:{?a:{b:Int}}):Void {
+		if (test.a == null) return;
+		final v:Int = test.a.b;
+	}
+
+	static function passSafeClass(obj:ObjWithField):Void {}
+
+	static function promise_then_nullableArg_shouldFail():Void {
+		showQuickPick(shouldFail((choice:Int) -> {}));
+		showQuickPick((choice:Null<Int>) -> {});
+	}
+
+	static function showQuickPick<T:Int>(callback:(choice:Null<T>) -> Void):Void {};
+
+
+	static function objOptFieldNullable_shouldFail(test:{?a:{?b:Int}}):Void {
+		if (test.a == null) return;
+		shouldFail(final v:Int = test.a.b);
+	}
+
+	static function emptyObjTypeAssign_shouldPass():Void {
+		final other:{a:Int} = {a: 10};
+		final data:{} = other;
+		final anything:{} = {a: 10};
 	}
 
 	function objIterationAfterNullCheck_shouldPass(result:{?leaks:Array<String>}):Void {
@@ -821,10 +889,18 @@ class TestStrict {
 	}
 
 	static function anonymousObjects() {
-		var o:AnonAsClass = {};
-		shouldFail(var s:String = o.optional);
-		var o:AnonAsStruct = {};
-		shouldFail(var s:String = o.optional);
+		var nullableClass:ClassWithNullableField = {};
+		var basicClass:ClassWithField = {field: ""};
+		shouldFail(var s:String = nullableClass.field);
+		var nullableObj:ObjWithNullableField = {};
+		var basicObj:ObjWithField = {field: ""};
+		shouldFail(var s:String = nullableObj.field);
+
+		nullableObj = nullableClass;
+		nullableObj = basicClass;
+		basicObj = basicClass;
+		shouldFail(basicObj = nullableObj);
+		shouldFail(basicObj = nullableClass);
 	}
 
 	static function safetyInference_safeValueAssignedToNullable_shouldBecomeSafe(?a:String, ?b:String) {
