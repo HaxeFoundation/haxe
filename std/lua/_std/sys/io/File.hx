@@ -29,6 +29,10 @@ import lua.Os;
 import lua.FileHandle;
 import lua.Boot;
 
+#if !lua_vanilla
+import lua.lib.luv.fs.FileSystem as LFileSystem;
+#end
+
 @:coreApi
 class File {
 	public static function getContent(path:String):String {
@@ -51,8 +55,8 @@ class File {
 		return @:privateAccess new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
 	}
 
-	#if lua_vanilla
 	public static function copy(srcPath:String, dstPath:String):Void {
+		#if lua_vanilla
 		var result = switch (Sys.systemName()) {
 			case "Windows":
 				inline function preparePath(path:String) return StringTools.replace(path, "/", "\\");
@@ -63,15 +67,13 @@ class File {
 		) {
 			throw 'Failed to copy $srcPath to $dstPath';
 		}
-	}
-	#else
-	public static function copy(srcPath:String, dstPath:String):Void {
+		#else
 		final ret = LFileSystem.copyfile(srcPath, dstPath);
 		if (ret.result == null) {
 			throw 'Failed to copy $srcPath to $dstPath: ${ret.message}';
 		}
+		#end
 	}
-	#end
 
 	public static function getBytes(path:String):haxe.io.Bytes {
 		var finput = read(path, true);
