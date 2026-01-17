@@ -5,6 +5,7 @@ open TPrinting
 
 type unify_error =
 	| Cannot_unify of t * t
+	| Cannot_unify_implementation of t * t
 	| Invalid_field_type of string
 	| Has_no_field of t * string
 	| Has_no_runtime_field of t * string

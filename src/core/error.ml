@@ -80,6 +80,8 @@ let compl_msg s = "... " ^ s
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
+	| Cannot_unify_implementation (t_impl, t_parent) ->
+		s_type ctx t_impl ^ " should be " ^ s_type ctx t_parent
 	| Invalid_field_type s ->
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
@@ -179,7 +181,7 @@ module BetterErrors = struct
 			current_acc := acc;
 		in
 		List.iter (fun err -> match err with
-			| Cannot_unify(t1,t2) ->
+			| Cannot_unify(t1,t2) | Cannot_unify_implementation(t2,t1) ->
 				!current_acc.acc_actual <- t1;
 				!current_acc.acc_expected <- t2;
 				add_message err
