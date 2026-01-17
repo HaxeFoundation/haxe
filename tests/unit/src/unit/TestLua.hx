@@ -194,6 +194,22 @@ class TestLua extends Test {
 	}
 
 
+	// Issue #10909: Rest.of should handle arrays with null values correctly
+	function testRestOfWithNulls() {
+		var arr:Array<Any> = [1, 2, 3, null, 5];
+		var r:haxe.Rest<Any> = haxe.Rest.of(arr);
+		eq(r.length, 5);
+		eq(r[0], 1);
+		eq(r[1], 2);
+		eq(r[2], 3);
+		eq(r[3], null);
+		eq(r[4], 5);
+		// Also verify toArray/toString work correctly
+		var backToArray = r.toArray();
+		eq(backToArray.length, 5);
+		eq(backToArray[4], 5);
+	}
+
 	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
 	function testClosureBreakInTryCatchLoop() {
 		// Test 1: Closure with try-catch inside loop should not generate pcall_break check
