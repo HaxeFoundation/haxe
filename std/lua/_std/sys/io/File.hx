@@ -51,6 +51,7 @@ class File {
 		return @:privateAccess new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
 	}
 
+	#if lua_vanilla
 	public static function copy(srcPath:String, dstPath:String):Void {
 		var result = switch (Sys.systemName()) {
 			case "Windows":
@@ -63,6 +64,14 @@ class File {
 			throw 'Failed to copy $srcPath to $dstPath';
 		}
 	}
+	#else
+	public static function copy(srcPath:String, dstPath:String):Void {
+		final ret = LFileSystem.copyfile(srcPath, dstPath);
+		if (ret.result == null) {
+			throw 'Failed to copy $srcPath to $dstPath: ${ret.message}';
+		}
+	}
+	#end
 
 	public static function getBytes(path:String):haxe.io.Bytes {
 		var finput = read(path, true);
