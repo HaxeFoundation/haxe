@@ -193,6 +193,20 @@ class TestLua extends Test {
 		eq(10, count);
 	}
 
+	// Issue #10252: BytesBuffer.addDouble should produce correct IEEE 754 bytes
+	function testBytesBufferAddDouble() {
+		// 9007199254740991 is 2^53 - 1, the max safe integer
+		// Its IEEE 754 representation should have all 1s in the mantissa
+		final v:Float = 9007199254740991;
+		final buf = new haxe.io.BytesBuffer();
+		buf.addDouble(v);
+		final bytes = buf.getBytes();
+		// Expected little-endian bytes for this value
+		eq(bytes.toHex(), "ffffffffffff3f43");
+		// Verify roundtrip
+		final input = new haxe.io.BytesInput(bytes);
+		eq(input.readDouble(), v);
+	}
 
 	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
 	function testClosureBreakInTryCatchLoop() {
