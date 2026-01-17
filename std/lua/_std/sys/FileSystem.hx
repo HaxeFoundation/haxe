@@ -29,11 +29,21 @@ class FileSystem {
 		throw new haxe.exceptions.NotImplementedException("FileSystem cannot be used with -D lua-vanilla because it requires luv");
 
 	public static function exists(path:String):Bool return notImplemented();
-	public static function rename(path:String, newPath:String):Void notImplemented();
+	public static function rename(path:String, newPath:String):Void {
+		var ret = lua.Os.rename(path, newPath);
+		if (!ret.success) {
+			throw ret.message;
+		}
+	}
 	public static function stat(path:String):FileStat return notImplemented();
 	public static function fullPath(relPath:String):String return notImplemented();
 	public static function absolutePath(relPath:String):String return notImplemented();
-	public static function deleteFile(path:String):Void notImplemented();
+	public static function deleteFile(path:String):Void {
+		var ret = lua.Os.remove(path);
+		if (!ret.success) {
+			throw ret.message;
+		}
+	}
 	public static function readDirectory(path:String):Array<String> return notImplemented();
 	public static function isDirectory(path:String):Bool return notImplemented();
 	public static function deleteDirectory(path:String):Void notImplemented();
@@ -57,8 +67,8 @@ class FileSystem {
 	}
 
 	public inline static function rename(path:String, newPath:String):Void {
-		var ret = lua.Os.rename(path, newPath);
-		if (!ret.success) {
+		var ret = LFileSystem.rename(path, newPath);
+		if (ret.result == null) {
 			throw ret.message;
 		}
 	}
@@ -98,8 +108,8 @@ class FileSystem {
 	}
 
 	public inline static function deleteFile(path:String):Void {
-		var ret = lua.Os.remove(path);
-		if (!ret.success) {
+		var ret = LFileSystem.unlink(path);
+		if (ret.result == null) {
 			throw ret.message;
 		}
 	}
