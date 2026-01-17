@@ -25,18 +25,19 @@ package cs.io;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Input;
+import cs.system.io.Stream;
 
 class NativeInput extends Input {
-	var stream:Dynamic; // System.IO.Stream
+	public var stream:Stream;
 
-	public function new(stream:Dynamic) {
+	public function new(stream:Stream) {
 		this.stream = stream;
 	}
 
 	override public function readByte():Int {
 		var ret:Int = 0;
 		try {
-			ret = untyped __cs__("{0}.ReadByte()", stream);
+			ret = stream.ReadByte();
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}
@@ -46,13 +47,14 @@ class NativeInput extends Input {
 	}
 
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
+		if (pos < 0 || len < 0 || pos + len > s.length)
+			throw haxe.io.Error.OutsideBounds;
 		var ret:Int = 0;
 		try {
 			ret = untyped __cs__("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}
-
 		if (ret == 0)
 			throw new Eof();
 		return ret;
@@ -60,7 +62,7 @@ class NativeInput extends Input {
 
 	override public function close():Void {
 		try {
-			untyped __cs__("{0}.Close()", stream);
+			stream.Close();
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}

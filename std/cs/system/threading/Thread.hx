@@ -9,26 +9,14 @@ extern class Thread {
 	var ManagedThreadId(default, never):Int;
 	var IsAlive(default, never):Bool;
 
-	@:overload(function(start:ThreadStart):Void {})
-	function new(start:ParameterizedThreadStart):Void;
+	@:overload function new(start:ThreadStart):Void;
+	@:overload function new(start:ParameterizedThreadStart):Void;
 
-	function Start():Void;
-	@:overload(function(parameter:Dynamic):Void {})
-	function Start():Void;
+	@:overload function Start():Void;
+	@:overload function Start(parameter:Dynamic):Void;
 
-	function Join():Void;
-	@:overload(function(millisecondsTimeout:Int):Bool {})
-	function Join():Void;
+	@:overload function Join():Void;
+	@:overload function Join(millisecondsTimeout:Int):Bool;
 
 	static function Sleep(millisecondsTimeout:Int):Void;
-}
-
-@:native("System.Threading.ThreadStart")
-extern class ThreadStart {
-	function new(callback:() -> Void):Void;
-}
-
-@:native("System.Threading.ParameterizedThreadStart")
-extern class ParameterizedThreadStart {
-	function new(callback:(Dynamic) -> Void):Void;
 }

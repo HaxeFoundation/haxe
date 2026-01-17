@@ -475,6 +475,8 @@ class StringTools {
 		#else
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);
 		#end
+		#elseif cs
+		return (index < s.length) ? cast(cs.StringExt.cca(s, index), Int) : -1;
 		#else
 		return untyped s.cca(index);
 		#end
@@ -512,6 +514,8 @@ class StringTools {
 		#else
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);
 		#end
+		#elseif cs
+		return cast(cs.StringExt.cca(s, index), Int);
 		#else
 		return untyped s.cca(index);
 		#end

@@ -93,6 +93,8 @@ class Bytes {
 			b.writeBytes(src.b, srcpos, len);
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
+		#elseif cs
+		cs.NativeArray.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.code("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#else
@@ -151,6 +153,10 @@ class Bytes {
 		#elseif java
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
+		return new Bytes(len, newarr);
+		#elseif cs
+		var newarr = new cs.NativeArray<cs.UInt8>(len);
+		cs.NativeArray.arraycopy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos + len));
@@ -500,6 +506,8 @@ class Bytes {
 		return new Bytes(length, b);
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif cs
+		return new Bytes(length, new cs.NativeArray<cs.UInt8>(length));
 		#elseif python
 		return new Bytes(length, new python.Bytearray(length));
 		#else
@@ -540,6 +548,9 @@ class Bytes {
 		#elseif python
 		var b:BytesData = new python.Bytearray(s, "UTF-8");
 		return new Bytes(b.length, b);
+		#elseif cs
+		var bytes:cs.NativeArray<cs.UInt8> = untyped __cs__("System.Text.Encoding.UTF8.GetBytes({0})", s);
+		return new Bytes(bytes.length, bytes);
 		#elseif lua
 		var bytes = [
 			for (i in 0...lua.NativeStringTools.len(s)) {

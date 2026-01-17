@@ -20,24 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.thread;
+package cs;
 
-@:coreApi
-class Tls<T> {
-	var _tls:cs.system.threading.ThreadLocal<Dynamic>;
-
-	public var value(get, set):T;
-
-	public function new() {
-		_tls = new cs.system.threading.ThreadLocal<Dynamic>();
-	}
-
-	function get_value():T {
-		return cast _tls.Value;
-	}
-
-	function set_value(v:T):T {
-		_tls.Value = v;
-		return v;
-	}
-}
+/**
+ * Represents C#'s `byte` type (unsigned 8-bit integer).
+ * Used for BytesData to ensure it maps to `byte[]` in C#.
+ */
+@:notNull @:runtimeValue @:coreType extern abstract UInt8 from Int to Int {}

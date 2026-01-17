@@ -21,6 +21,12 @@
 
 open CsGlobals
 
+(* C# attribute - represents [AttributeName(arg1, arg2, ...)] *)
+type cs_attribute = {
+	attr_name : string;        (* Full type name e.g. "System.Obsolete" *)
+	attr_args : string list;   (* Arguments as raw C# expressions *)
+}
+
 (* C# type path: namespace parts and type name *)
 type cs_path = string list * string
 
@@ -46,6 +52,7 @@ type cs_type =
 	| CsTypeNullable of cs_type
 	| CsTypeArray of cs_type * int option  (* element type, optional rank *)
 	| CsTypeClass of cs_path * cs_type list  (* path, type arguments *)
+	| CsTypeNested of cs_type * string  (* parent type (with its type args), nested class name *)
 	| CsTypeGenericParam of string  (* T, K, etc. *)
 	| CsTypeFunc of cs_type list * cs_type  (* argument types, return type *)
 	| CsTypeAction of cs_type list  (* void-returning delegate *)
@@ -184,6 +191,7 @@ type cs_property_def = {
 	prop_getter : cs_accessor option;
 	prop_setter : cs_accessor option;
 	prop_init : cs_expr option;
+	prop_explicit_interface : cs_type option;  (* For explicit interface implementation: IInterface.Property *)
 }
 
 and cs_accessor = {
@@ -201,6 +209,7 @@ type cs_method_def = {
 	m_body : cs_stmt list option;  (* None = abstract/extern *)
 	m_constraints : (string * cs_type list) list;  (* where T : constraints *)
 	m_explicit_interface : cs_type option;  (* For explicit interface implementation: InterfaceType.MethodName *)
+	m_attributes : cs_attribute list;  (* C# attributes like [Obsolete], [DllImport], etc. *)
 }
 
 type cs_ctor_def = {
@@ -245,6 +254,7 @@ type cs_member =
 	| CsMemberProperty of cs_property_def
 	| CsMemberMethod of cs_method_def
 	| CsMemberConstructor of cs_ctor_def
+	| CsMemberStaticConstructor of cs_stmt list  (* static ClassName() { ... } *)
 	| CsMemberEvent of cs_event_def
 	| CsMemberIndexer of cs_indexer_def
 	| CsMemberOperator of cs_operator_def

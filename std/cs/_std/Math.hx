@@ -108,7 +108,7 @@ class Math {
 	}
 
 	public static inline function random():Float {
-		return cs.Boot.random();
+		return cs.Cs.random();
 	}
 
 	public static inline function isFinite(f:Float):Bool {

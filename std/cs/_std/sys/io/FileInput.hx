@@ -25,27 +25,28 @@ package sys.io;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Input;
+import cs.system.io.Stream;
 
 class FileInput extends Input {
-	var stream:Dynamic; // System.IO.FileStream
+	var stream:Stream;
 	var _eof:Bool;
 
 	@:allow(sys.io.File)
-	function new(stream:Dynamic) {
+	function new(stream:Stream) {
 		this.stream = stream;
 		this._eof = false;
 	}
 
 	override public function close() {
 		try {
-			untyped __cs__("{0}.Close()", stream);
+			stream.Close();
 		} catch (e:Dynamic) {
 			throw e;
 		}
 	}
 
 	override public function readByte():Int {
-		var b:Int = untyped __cs__("{0}.ReadByte()", stream);
+		var b:Int = stream.ReadByte();
 		if (b == -1) {
 			_eof = true;
 			throw new Eof();
@@ -64,10 +65,11 @@ class FileInput extends Input {
 
 	public function seek(p:Int, pos:FileSeek):Void {
 		_eof = false;
+		// Map Haxe FileSeek enum to C# SeekOrigin enum
 		var origin:Int = switch (pos) {
-			case SeekBegin: 0; // System.IO.SeekOrigin.Begin
-			case SeekCur: 1; // System.IO.SeekOrigin.Current
-			case SeekEnd: 2; // System.IO.SeekOrigin.End
+			case SeekBegin: 0; // SeekOrigin.Begin
+			case SeekCur: 1; // SeekOrigin.Current
+			case SeekEnd: 2; // SeekOrigin.End
 		};
 		untyped __cs__("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
 	}

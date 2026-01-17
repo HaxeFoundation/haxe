@@ -29,6 +29,8 @@ class BytesBuffer {
 	var b:flash.utils.ByteArray;
 	#elseif cpp
 	var b:BytesData;
+	#elseif cs
+	var b:Array<Int>;
 	#elseif java
 	var b:java.io.ByteArrayOutputStream;
 	#elseif python
@@ -203,6 +205,10 @@ class BytesBuffer {
 			var bytes = new Bytes(b.length, b);
 			#elseif js
 			var bytes = new Bytes(new js.lib.Uint8Array(b).buffer);
+			#elseif cs
+			var data = new cs.NativeArray<cs.UInt8>(b.length);
+			for (i in 0...b.length) data[i] = b[i];
+			var bytes = new Bytes(b.length, data);
 			#else
 			var bytes = new Bytes(b.length, b);
 			#end

@@ -34,7 +34,6 @@ class File {
 
 	public static function getBytes(path:String):haxe.io.Bytes {
 		var data:Dynamic = untyped __cs__("System.IO.File.ReadAllBytes({0})", path);
-		var length:Int = untyped __cs__("{0}.Length", data);
 		return haxe.io.Bytes.ofData(data);
 	}
 
@@ -43,26 +42,22 @@ class File {
 	}
 
 	public static function read(path:String, binary:Bool = true):FileInput {
-		// FileMode.Open, FileAccess.Read, FileShare.Read
-		var stream:Dynamic = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)", path);
+		var stream:cs.system.io.Stream = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)", path);
 		return @:privateAccess new FileInput(stream);
 	}
 
 	public static function write(path:String, binary:Bool = true):FileOutput {
-		// FileMode.Create, FileAccess.Write, FileShare.None
-		var stream:Dynamic = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None)", path);
+		var stream:cs.system.io.Stream = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None)", path);
 		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		// FileMode.Append, FileAccess.Write, FileShare.None
-		var stream:Dynamic = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.None)", path);
+		var stream:cs.system.io.Stream = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.None)", path);
 		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
-		// FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None
-		var stream:Dynamic = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None)", path);
+		var stream:cs.system.io.Stream = untyped __cs__("new System.IO.FileStream({0}, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None)", path);
 		return @:privateAccess new FileOutput(stream);
 	}
 

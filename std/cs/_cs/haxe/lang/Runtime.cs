@@ -241,13 +241,13 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Set a field on an object dynamically.
+        /// Set a field on an object dynamically (non-generic version for null values).
         /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
         [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
-        public static void SetField(object obj, string name, object value)
+        public static object SetField(object obj, string name, object value)
         {
             if (obj == null) throw new NullReferenceException("Cannot set field on null");
 
@@ -255,7 +255,7 @@ namespace haxe.lang
             if (obj is haxe.root.HaxeObject ho)
             {
                 ho._hx_setField(name, value);
-                return;
+                return value;
             }
 
             var type = obj.GetType();
@@ -265,7 +265,7 @@ namespace haxe.lang
             if (field != null)
             {
                 field.SetValue(obj, value);
-                return;
+                return value;
             }
 
             // Try property
@@ -273,8 +273,49 @@ namespace haxe.lang
             if (prop != null)
             {
                 prop.SetValue(obj, value);
-                return;
+                return value;
             }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Set a field on an object dynamically and return the value (for use in expression context).
+        /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
+        /// For other objects, uses reflection (may not work in AOT for all types).
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+            Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
+        public static T SetField<T>(object obj, string name, T value)
+        {
+            if (obj == null) throw new NullReferenceException("Cannot set field on null");
+
+            // For HaxeObject subclasses, use _hx_setField (AOT-safe)
+            if (obj is haxe.root.HaxeObject ho)
+            {
+                ho._hx_setField(name, value);
+                return value;
+            }
+
+            var type = obj.GetType();
+
+            // Try field first
+            var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(obj, value);
+                return value;
+            }
+
+            // Try property
+            var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (prop != null)
+            {
+                prop.SetValue(obj, value);
+                return value;
+            }
+
+            return value;
         }
 
         /// <summary>

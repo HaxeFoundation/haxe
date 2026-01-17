@@ -20,24 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.thread;
+package haxe.io;
 
-@:coreApi
-class Tls<T> {
-	var _tls:cs.system.threading.ThreadLocal<Dynamic>;
-
-	public var value(get, set):T;
-
-	public function new() {
-		_tls = new cs.system.threading.ThreadLocal<Dynamic>();
-	}
-
-	function get_value():T {
-		return cast _tls.Value;
-	}
-
-	function set_value(v:T):T {
-		_tls.Value = v;
-		return v;
-	}
-}
+/**
+ * BytesData for C# target.
+ * Maps to `byte[]` (System.Byte[]) for efficient I/O operations.
+ */
+typedef BytesData = cs.NativeArray<cs.UInt8>;

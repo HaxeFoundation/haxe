@@ -141,8 +141,10 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* Dynamic -> object (not dynamic, to avoid runtime dispatch overhead) *)
 		CsTypeObject
 	| TAnon _ ->
-		(* Anonymous objects -> dynamic or HaxeDynamicObject *)
-		CsTypeClass (NativeTypes.haxe_dynamic_object_path, [])
+		(* Anonymous objects / structural types -> object
+		   This allows any object to be passed where structural types are expected.
+		   Field access on these types uses runtime dispatch via Reflect or casts. *)
+		CsTypeObject
 	| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, [t]) ->
 		(* Array<T> stays as haxe.root.Array, not List<T> *)
 		let inner = cs_type_of_type_inner t in
@@ -214,13 +216,13 @@ let rec cs_type_of_type_inner gctx stack t =
 	| TAbstract (a, params) when Meta.has Meta.CoreType a.a_meta ->
 		(* Core type abstract - handle specially *)
 		begin match a.a_path with
-		| ([], "Int64") -> CsTypeLong
+		| ([], "Int64") | (["cs"], "Int64") -> CsTypeLong
 		| ([], "UInt") -> CsTypeUInt
-		| ([], "UInt64") -> CsTypeULong
-		| ([], "Int8") -> CsTypeSByte
-		| ([], "UInt8") -> CsTypeByte
-		| ([], "Int16") -> CsTypeShort
-		| ([], "UInt16") -> CsTypeUShort
+		| ([], "UInt64") | (["cs"], "UInt64") -> CsTypeULong
+		| ([], "Int8") | (["cs"], "Int8") -> CsTypeSByte
+		| ([], "UInt8") | (["cs"], "UInt8") -> CsTypeByte
+		| ([], "Int16") | (["cs"], "Int16") -> CsTypeShort
+		| ([], "UInt16") | (["cs"], "UInt16") -> CsTypeUShort
 		| ([], "Class") ->
 			(* Class<T> -> System.Type in C# *)
 			CsTypeClass ((["System"], "Type"), [])
@@ -304,6 +306,9 @@ let rec s_cs_type = function
 	| CsTypeClass ((pack, name), params) ->
 		(* Package with params - use global:: *)
 		"global::" ^ String.concat "." pack ^ "." ^ name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
+	| CsTypeNested (parent, nested_name) ->
+		(* Nested type: ParentType<T>.NestedClass *)
+		s_cs_type parent ^ "." ^ nested_name
 	| CsTypeGenericParam name -> name
 	| CsTypeFunc (args, ret) ->
 		(* In C#, void cannot be used as a type argument, so Func<..., void> is invalid.
@@ -391,3 +396,28 @@ let get_method_type_params param_types ret_type =
 	let acc = collect_type_params acc ret_type in
 	(* Reverse to maintain order of first appearance *)
 	List.rev acc
+
+(* Erase type parameters to object.
+   Used in typeof() expressions where type parameters are not in scope.
+   C# doesn't allow typeof(SomeGeneric<T>) unless T is defined in the current context.
+   We replace T with object: typeof(SomeGeneric<object>) *)
+let rec erase_type_params cstype =
+	match cstype with
+	| CsTypeGenericParam _ ->
+		(* Type parameter -> object *)
+		CsTypeObject
+	| CsTypeNullable t ->
+		CsTypeNullable (erase_type_params t)
+	| CsTypeArray (t, rank) ->
+		CsTypeArray (erase_type_params t, rank)
+	| CsTypeClass (path, params) ->
+		CsTypeClass (path, List.map erase_type_params params)
+	| CsTypeFunc (args, ret) ->
+		CsTypeFunc (List.map erase_type_params args, erase_type_params ret)
+	| CsTypeAction args ->
+		CsTypeAction (List.map erase_type_params args)
+	| CsTypeNested (parent, name) ->
+		CsTypeNested (erase_type_params parent, name)
+	| _ ->
+		(* Primitive types, object, string, etc. - no change *)
+		cstype

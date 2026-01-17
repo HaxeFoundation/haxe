@@ -88,9 +88,12 @@ class Process {
 		untyped __cs__("{0}.StartInfo.CreateNoWindow = true", proc);
 		untyped __cs__("{0}.Start()", proc);
 
-		stdout = new ProcessInput(untyped __cs__("{0}.StandardOutput.BaseStream", proc));
-		stderr = new ProcessInput(untyped __cs__("{0}.StandardError.BaseStream", proc));
-		stdin = new ProcessOutput(untyped __cs__("{0}.StandardInput.BaseStream", proc));
+		var stdoutStream:cs.system.io.Stream = untyped __cs__("{0}.StandardOutput.BaseStream", proc);
+		var stderrStream:cs.system.io.Stream = untyped __cs__("{0}.StandardError.BaseStream", proc);
+		var stdinStream:cs.system.io.Stream = untyped __cs__("{0}.StandardInput.BaseStream", proc);
+		stdout = new ProcessInput(stdoutStream);
+		stderr = new ProcessInput(stderrStream);
+		stdin = new ProcessOutput(stdinStream);
 	}
 
 	private static function escapeShellArg(arg:String):String {
@@ -129,10 +132,10 @@ class Process {
 }
 
 private class ProcessInput extends Input {
-	var stream:Dynamic;
+	var stream:cs.system.io.Stream;
 	var chained:BytesInput;
 
-	public function new(stream:Dynamic) {
+	public function new(stream:cs.system.io.Stream) {
 		this.stream = stream;
 		this.chained = null;
 	}
@@ -147,7 +150,7 @@ private class ProcessInput extends Input {
 	override public function readByte():Int {
 		if (chained != null)
 			return chained.readByte();
-		var ret:Int = untyped __cs__("{0}.ReadByte()", stream);
+		var ret:Int = stream.ReadByte();
 		if (ret == -1)
 			throw new Eof();
 		return ret;
@@ -166,19 +169,19 @@ private class ProcessInput extends Input {
 	override public function close():Void {
 		if (chained != null)
 			chained.close();
-		untyped __cs__("{0}.Close()", stream);
+		stream.Close();
 	}
 }
 
 private class ProcessOutput extends Output {
-	var stream:Dynamic;
+	var stream:cs.system.io.Stream;
 
-	public function new(stream:Dynamic) {
+	public function new(stream:cs.system.io.Stream) {
 		this.stream = stream;
 	}
 
 	override public function writeByte(c:Int):Void {
-		untyped __cs__("{0}.WriteByte((byte){1})", stream, c);
+		stream.WriteByte(c);
 	}
 
 	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
@@ -187,10 +190,10 @@ private class ProcessOutput extends Output {
 	}
 
 	override public function close():Void {
-		untyped __cs__("{0}.Close()", stream);
+		stream.Close();
 	}
 
 	override public function flush():Void {
-		untyped __cs__("{0}.Flush()", stream);
+		stream.Flush();
 	}
 }

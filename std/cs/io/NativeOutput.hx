@@ -25,11 +25,12 @@ package cs.io;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Output;
+import cs.system.io.Stream;
 
 class NativeOutput extends Output {
-	var stream:Dynamic; // System.IO.Stream
+	public var stream:Stream;
 
-	public function new(stream:Dynamic) {
+	public function new(stream:Stream) {
 		this.stream = stream;
 	}
 
@@ -54,7 +55,7 @@ class NativeOutput extends Output {
 
 	override public function close():Void {
 		try {
-			untyped __cs__("{0}.Close()", stream);
+			stream.Close();
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}
@@ -62,7 +63,7 @@ class NativeOutput extends Output {
 
 	override public function flush():Void {
 		try {
-			untyped __cs__("{0}.Flush()", stream);
+			stream.Flush();
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}

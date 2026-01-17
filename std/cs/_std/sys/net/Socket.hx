@@ -22,6 +22,9 @@
 
 package sys.net;
 
+import cs.system.net.sockets.NetworkStream;
+import cs.system.net.sockets.Socket as NativeSocket;
+
 @:coreApi
 class Socket {
 	public var input(default, null):haxe.io.Input;
@@ -29,8 +32,8 @@ class Socket {
 
 	public var custom:Dynamic;
 
-	private var _socket:Dynamic; // System.Net.Sockets.Socket
-	private var _server:Dynamic; // System.Net.Sockets.Socket (for listening)
+	private var _socket:NativeSocket;
+	private var _server:NativeSocket;
 	private var _boundHost:Host;
 	private var _boundPort:Int;
 
@@ -40,16 +43,16 @@ class Socket {
 
 	private function create():Void {
 		// Create TCP socket: AddressFamily.InterNetwork = 2, SocketType.Stream = 1, ProtocolType.Tcp = 6
-		_socket = untyped __cs__("new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp)");
+		_socket = untyped __cs__("new System.Net.Sockets.Socket((System.Net.Sockets.AddressFamily)2, (System.Net.Sockets.SocketType)1, (System.Net.Sockets.ProtocolType)6)");
 	}
 
 	public function close():Void {
 		try {
 			if (_socket != null) {
-				untyped __cs__("{0}.Close()", _socket);
+				_socket.Close();
 			}
 			if (_server != null) {
-				untyped __cs__("{0}.Close()", _server);
+				_server.Close();
 			}
 		} catch (e:Dynamic) {
 			throw e;
@@ -67,7 +70,7 @@ class Socket {
 	public function connect(host:Host, port:Int):Void {
 		try {
 			var ipStr:String = host.toString();
-			untyped __cs__("{0}.Connect({1}, {2})", _socket, ipStr, port);
+			_socket.Connect(ipStr, port);
 			setupStreams();
 		} catch (e:Dynamic) {
 			throw e;
@@ -75,7 +78,7 @@ class Socket {
 	}
 
 	private function setupStreams():Void {
-		var netStream:Dynamic = untyped __cs__("new System.Net.Sockets.NetworkStream({0})", _socket);
+		var netStream = new NetworkStream(_socket);
 		this.input = new cs.io.NativeInput(netStream);
 		this.output = new cs.io.NativeOutput(netStream);
 	}
@@ -85,7 +88,7 @@ class Socket {
 			throw "You must bind the Socket to an address!";
 		}
 		try {
-			untyped __cs__("{0}.Listen({1})", _server, connections);
+			_server.Listen(connections);
 		} catch (e:Dynamic) {
 			throw e;
 		}
@@ -94,11 +97,11 @@ class Socket {
 	public function shutdown(read:Bool, write:Bool):Void {
 		try {
 			if (read && write) {
-				untyped __cs__("{0}.Shutdown(System.Net.Sockets.SocketShutdown.Both)", _socket);
+				untyped __cs__("{0}.Shutdown((System.Net.Sockets.SocketShutdown)2)", _socket); // Both
 			} else if (read) {
-				untyped __cs__("{0}.Shutdown(System.Net.Sockets.SocketShutdown.Receive)", _socket);
+				untyped __cs__("{0}.Shutdown((System.Net.Sockets.SocketShutdown)0)", _socket); // Receive
 			} else if (write) {
-				untyped __cs__("{0}.Shutdown(System.Net.Sockets.SocketShutdown.Send)", _socket);
+				untyped __cs__("{0}.Shutdown((System.Net.Sockets.SocketShutdown)1)", _socket); // Send
 			}
 		} catch (e:Dynamic) {
 			throw e;
@@ -112,7 +115,7 @@ class Socket {
 		_boundHost = host;
 		_boundPort = port;
 		// Create server socket
-		_server = untyped __cs__("new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp)");
+		_server = untyped __cs__("new System.Net.Sockets.Socket((System.Net.Sockets.AddressFamily)2, (System.Net.Sockets.SocketType)1, (System.Net.Sockets.ProtocolType)6)");
 		try {
 			var ipStr:String = host.toString();
 			untyped __cs__("{0}.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Parse({1}), {2}))", _server, ipStr, port);
@@ -123,7 +126,7 @@ class Socket {
 
 	public function accept():Socket {
 		try {
-			var clientSocket:Dynamic = untyped __cs__("{0}.Accept()", _server);
+			var clientSocket:NativeSocket = _server.Accept();
 
 			var s = new Socket();
 			s._socket = clientSocket;
@@ -137,7 +140,7 @@ class Socket {
 
 	public function peer():{host:Host, port:Int} {
 		try {
-			var remoteEp:Dynamic = untyped __cs__("{0}.RemoteEndPoint as System.Net.IPEndPoint", _socket);
+			var remoteEp:Dynamic = _socket.RemoteEndPoint;
 			if (remoteEp == null) {
 				return null;
 			}
@@ -155,9 +158,9 @@ class Socket {
 		try {
 			var localEp:Dynamic;
 			if (_server != null) {
-				localEp = untyped __cs__("{0}.LocalEndPoint as System.Net.IPEndPoint", _server);
+				localEp = _server.LocalEndPoint;
 			} else {
-				localEp = untyped __cs__("{0}.LocalEndPoint as System.Net.IPEndPoint", _socket);
+				localEp = _socket.LocalEndPoint;
 			}
 
 			if (localEp == null) {
@@ -176,8 +179,8 @@ class Socket {
 	public function setTimeout(timeout:Float):Void {
 		try {
 			var timeoutMs:Int = Std.int(timeout * 1000);
-			untyped __cs__("{0}.ReceiveTimeout = {1}", _socket, timeoutMs);
-			untyped __cs__("{0}.SendTimeout = {1}", _socket, timeoutMs);
+			_socket.ReceiveTimeout = timeoutMs;
+			_socket.SendTimeout = timeoutMs;
 		} catch (e:Dynamic) {
 			throw e;
 		}
@@ -189,7 +192,7 @@ class Socket {
 
 	public function setBlocking(b:Bool):Void {
 		try {
-			untyped __cs__("{0}.Blocking = {1}", _socket, b);
+			_socket.Blocking = b;
 		} catch (e:Dynamic) {
 			throw e;
 		}
@@ -197,7 +200,7 @@ class Socket {
 
 	public function setFastSend(b:Bool):Void {
 		try {
-			untyped __cs__("{0}.NoDelay = {1}", _socket, b);
+			_socket.NoDelay = b;
 		} catch (e:Dynamic) {
 			throw e;
 		}

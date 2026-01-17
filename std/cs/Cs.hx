@@ -24,10 +24,16 @@ package cs;
 
 /**
  * Runtime helper for C# target.
- * Provides dynamic type conversions, field access, and function invocation.
+ * Provides dynamic type conversions, field access, function invocation,
+ * and other utility functions needed by generated code.
+ *
+ * This class is marked with @:keep to ensure DCE doesn't remove it
+ * when functions are called from inline C# code (__cs__).
+ *
+ * All runtime helper functions should be placed here, NOT in cs.Boot.
+ * cs.Boot is only for initialization code that runs at startup.
  */
 @:keep
-@:native("haxe.lang.Runtime")
 class Cs {
 	/**
 	 * Call a function dynamically with the given arguments.
@@ -125,5 +131,208 @@ class Cs {
 			return true;
 		// Check if it's a C# delegate
 		return untyped __cs__("{0} is System.Delegate", obj);
+	}
+
+	/**
+	 * Convert any object to string representation.
+	 */
+	public static function toString(obj:Dynamic):String {
+		if (obj == null) {
+			return "null";
+		}
+		return untyped __cs__("{0}.ToString()", obj);
+	}
+
+	/**
+	 * Parse a string to integer with the given radix.
+	 */
+	public static function parseInt(s:String, radix:Int):Int {
+		return untyped __cs__("int.Parse({0}, {1} == 16 ? System.Globalization.NumberStyles.HexNumber : System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture)", s, radix);
+	}
+
+	/**
+	 * Parse a string to floating point number.
+	 */
+	public static function parseFloat(s:String):Float {
+		return untyped __cs__("double.Parse({0}, System.Globalization.CultureInfo.InvariantCulture)", s);
+	}
+
+	/**
+	 * Output a trace message to the console.
+	 */
+	public static function trace(v:Dynamic, ?infos:haxe.PosInfos):Void {
+		var str = toString(v);
+		if (infos != null) {
+			str = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
+				+ untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
+		}
+		untyped __cs__("System.Console.WriteLine({0})", str);
+	}
+
+	private static var _random:Dynamic = null;
+
+	/**
+	 * Generate a random number between 0 and 1.
+	 */
+	public static function random():Float {
+		if (_random == null) {
+			_random = untyped __cs__("new System.Random()");
+		}
+		return untyped __cs__("((System.Random){0}).NextDouble()", _random);
+	}
+
+	// =====================================================================
+	// Dynamic Operations (for runtime dispatch when types are unknown)
+	// These mirror jvm.Jvm operations for consistency across targets
+	// =====================================================================
+
+	/**
+	 * Dynamic addition: handles string concatenation and numeric addition.
+	 */
+	public static function opAdd(a:Dynamic, b:Dynamic):Dynamic {
+		if (Std.isOfType(a, String) || Std.isOfType(b, String)) {
+			return toString(a) + toString(b);
+		}
+		if (Std.isOfType(a, Float) || Std.isOfType(b, Float)) {
+			return dynamicToDouble(a) + dynamicToDouble(b);
+		}
+		return dynamicToInt(a) + dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic subtraction.
+	 */
+	public static function opSub(a:Dynamic, b:Dynamic):Dynamic {
+		if (Std.isOfType(a, Float) || Std.isOfType(b, Float)) {
+			return dynamicToDouble(a) - dynamicToDouble(b);
+		}
+		return dynamicToInt(a) - dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic multiplication.
+	 */
+	public static function opMul(a:Dynamic, b:Dynamic):Dynamic {
+		if (Std.isOfType(a, Float) || Std.isOfType(b, Float)) {
+			return dynamicToDouble(a) * dynamicToDouble(b);
+		}
+		return dynamicToInt(a) * dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic division.
+	 */
+	public static function opDiv(a:Dynamic, b:Dynamic):Dynamic {
+		// Division always returns Float
+		return dynamicToDouble(a) / dynamicToDouble(b);
+	}
+
+	/**
+	 * Dynamic modulo.
+	 */
+	public static function opMod(a:Dynamic, b:Dynamic):Dynamic {
+		if (Std.isOfType(a, Float) || Std.isOfType(b, Float)) {
+			return dynamicToDouble(a) % dynamicToDouble(b);
+		}
+		return dynamicToInt(a) % dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic bitwise AND.
+	 */
+	public static function opAnd(a:Dynamic, b:Dynamic):Dynamic {
+		return dynamicToInt(a) & dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic bitwise OR.
+	 */
+	public static function opOr(a:Dynamic, b:Dynamic):Dynamic {
+		return dynamicToInt(a) | dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic bitwise XOR.
+	 */
+	public static function opXor(a:Dynamic, b:Dynamic):Dynamic {
+		return dynamicToInt(a) ^ dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic left shift.
+	 */
+	public static function opShl(a:Dynamic, b:Dynamic):Dynamic {
+		return dynamicToInt(a) << dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic right shift (arithmetic).
+	 */
+	public static function opShr(a:Dynamic, b:Dynamic):Dynamic {
+		return dynamicToInt(a) >> dynamicToInt(b);
+	}
+
+	/**
+	 * Dynamic unsigned right shift.
+	 */
+	public static function opUshr(a:Dynamic, b:Dynamic):Dynamic {
+		return untyped __cs__("(int)((uint){0} >> {1})", dynamicToInt(a), dynamicToInt(b));
+	}
+
+	/**
+	 * Dynamic negation.
+	 */
+	public static function opNeg(a:Dynamic):Dynamic {
+		if (Std.isOfType(a, Float)) {
+			return -dynamicToDouble(a);
+		}
+		return -dynamicToInt(a);
+	}
+
+	/**
+	 * Dynamic bitwise complement.
+	 */
+	public static function opNegBits(a:Dynamic):Dynamic {
+		return ~dynamicToInt(a);
+	}
+
+	/**
+	 * Dynamic increment.
+	 */
+	public static function opIncrement(a:Dynamic):Dynamic {
+		if (Std.isOfType(a, Float)) {
+			return dynamicToDouble(a) + 1.0;
+		}
+		return dynamicToInt(a) + 1;
+	}
+
+	/**
+	 * Dynamic decrement.
+	 */
+	public static function opDecrement(a:Dynamic):Dynamic {
+		if (Std.isOfType(a, Float)) {
+			return dynamicToDouble(a) - 1.0;
+		}
+		return dynamicToInt(a) - 1;
+	}
+
+	/**
+	 * String comparison (like Java's compareTo).
+	 */
+	public static function stringCompare(v1:String, v2:String):Int {
+		if (v1 == null) {
+			return v2 == null ? 0 : 1;
+		}
+		if (v2 == null) {
+			return -1;
+		}
+		return untyped __cs__("string.Compare({0}, {1}, System.StringComparison.Ordinal)", v1, v2);
+	}
+
+	/**
+	 * General comparison for dynamic values.
+	 */
+	public static function compare(a:Dynamic, b:Dynamic):Int {
+		return Reflect.compare(a, b);
 	}
 }

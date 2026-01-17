@@ -24,18 +24,19 @@ package sys.io;
 
 import haxe.io.Bytes;
 import haxe.io.Output;
+import cs.system.io.Stream;
 
 class FileOutput extends Output {
-	var stream:Dynamic; // System.IO.FileStream
+	var stream:Stream;
 
 	@:allow(sys.io.File)
-	function new(stream:Dynamic) {
+	function new(stream:Stream) {
 		this.stream = stream;
 	}
 
 	override public function close() {
 		try {
-			untyped __cs__("{0}.Close()", stream);
+			stream.Close();
 		} catch (e:Dynamic) {
 			throw e;
 		}
@@ -55,10 +56,11 @@ class FileOutput extends Output {
 	}
 
 	public function seek(p:Int, pos:FileSeek):Void {
+		// Map Haxe FileSeek enum to C# SeekOrigin enum
 		var origin:Int = switch (pos) {
-			case SeekBegin: 0; // System.IO.SeekOrigin.Begin
-			case SeekCur: 1; // System.IO.SeekOrigin.Current
-			case SeekEnd: 2; // System.IO.SeekOrigin.End
+			case SeekBegin: 0; // SeekOrigin.Begin
+			case SeekCur: 1; // SeekOrigin.Current
+			case SeekEnd: 2; // SeekOrigin.End
 		};
 		untyped __cs__("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
 	}
@@ -68,6 +70,6 @@ class FileOutput extends Output {
 	}
 
 	override public function flush():Void {
-		untyped __cs__("{0}.Flush()", stream);
+		stream.Flush();
 	}
 }

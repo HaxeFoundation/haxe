@@ -42,6 +42,11 @@ class StringExt {
 			return untyped __cs__("(int){0}[{1}]", me, index);
 	}
 
+	// Fast unchecked charCodeAt - used by StringTools.fastCodeAt
+	public static inline function cca(me:String, index:Int):Int {
+		return untyped __cs__("(int){0}[{1}]", me, index);
+	}
+
 	public static function indexOf(me:String, str:String, startIndex:Null<Int>):Int {
 		if (str.length == 0) {
 			var si = startIndex == null ? 0 : startIndex;

@@ -22,42 +22,16 @@
 
 package cs;
 
+/**
+ * Bootstrap class for C# target initialization.
+ *
+ * IMPORTANT: Do NOT add runtime helper functions here!
+ * Runtime functions that are called from generated code or standard library
+ * should be placed in cs.Cs instead, which has @:keep to ensure DCE doesn't
+ * remove it when methods are called via inline C# code.
+ */
 @:keep
 class Boot {
-	public static function toString(obj:Dynamic):String {
-		if (obj == null) {
-			return "null";
-		}
-		// Use __cs__ to call ToString directly since it exists on all C# objects
-		return untyped __cs__("{0}.ToString()", obj);
-	}
-
-	public static function parseInt(s:String, radix:Int):Int {
-		// Will be implemented via C# native call
-		return untyped __cs__("int.Parse({0}, {1} == 16 ? System.Globalization.NumberStyles.HexNumber : System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture)", s, radix);
-	}
-
-	public static function parseFloat(s:String):Float {
-		// Will be implemented via C# native call
-		return untyped __cs__("double.Parse({0}, System.Globalization.CultureInfo.InvariantCulture)", s);
-	}
-
-	public static function trace(v:Dynamic, ?infos:haxe.PosInfos):Void {
-		var str = toString(v);
-		if (infos != null) {
-			// Use _hx_getField for field access on anonymous objects (PosInfos is an anonymous type)
-			str = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
-				+ untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
-		}
-		untyped __cs__("System.Console.WriteLine({0})", str);
-	}
-
-	private static var _random:Dynamic = null;
-
-	public static function random():Float {
-		if (_random == null) {
-			_random = untyped __cs__("new System.Random()");
-		}
-		return untyped __cs__("((System.Random){0}).NextDouble()", _random);
-	}
+	// Currently empty - initialization code will be added here as needed.
+	// The generated C# code may call __hx_init__ for initialization.
 }

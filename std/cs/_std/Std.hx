@@ -40,7 +40,7 @@ class Std {
 		if (s == null) {
 			return "null";
 		}
-		return cs.Boot.toString(s);
+		return cs.Cs.toString(s);
 	}
 
 	public static function int(x:Float):Int {
@@ -101,7 +101,7 @@ class Std {
 		if (index == firstInvalidIndex)
 			return null;
 
-		var result = cs.Boot.parseInt(x.substring(index, firstInvalidIndex), isHexadecimal ? 16 : 10);
+		var result = cs.Cs.parseInt(x.substring(index, firstInvalidIndex), isHexadecimal ? 16 : 10);
 		return isNegative ? -result : result;
 	}
 
@@ -113,7 +113,7 @@ class Std {
 		if (x.length == 0) {
 			return Math.NaN;
 		}
-		return cs.Boot.parseFloat(x);
+		return cs.Cs.parseFloat(x);
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {

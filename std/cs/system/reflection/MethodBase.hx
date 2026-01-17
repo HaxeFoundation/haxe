@@ -1,9 +1,7 @@
 package cs.system.reflection;
 
 @:native("System.Reflection.MethodBase")
-extern class MethodBase {
-	var Name(default, never):String;
-	var DeclaringType(default, never):cs.system.Type;
+extern class MethodBase extends MemberInfo {
 	var IsStatic(default, never):Bool;
 	var IsPublic(default, never):Bool;
 	var IsPrivate(default, never):Bool;

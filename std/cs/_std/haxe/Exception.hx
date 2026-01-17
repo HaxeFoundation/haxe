@@ -92,7 +92,11 @@ class Exception extends NativeException {
 
 	function get_stack():CallStack {
 		if (__exceptionStack == null) {
-			__exceptionStack = NativeStackTrace.toHaxe(__nativeException);
+			// Create a StackTrace from the native exception - like JVM does with getStackTrace()
+			// Cast needed because __nativeException is typed as private NativeException class
+			var nativeEx:cs.system.Exception = cast __nativeException;
+			var stackTrace = new cs.system.diagnostics.StackTrace(nativeEx, true);
+			__exceptionStack = NativeStackTrace.toHaxe(stackTrace);
 		}
 		return __exceptionStack;
 	}

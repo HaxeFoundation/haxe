@@ -20,24 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.thread;
+package haxe.io;
 
-@:coreApi
-class Tls<T> {
-	var _tls:cs.system.threading.ThreadLocal<Dynamic>;
+import haxe.Int64;
 
-	public var value(get, set):T;
-
-	public function new() {
-		_tls = new cs.system.threading.ThreadLocal<Dynamic>();
+/**
+	Helper that converts between floating point and binary representation.
+	Always works in low-endian encoding.
+**/
+class FPHelper {
+	public static inline function i32ToFloat(i:Int):Float {
+		return cs.system.BitConverter.Int32BitsToSingle(i);
 	}
 
-	function get_value():T {
-		return cast _tls.Value;
+	public static inline function floatToI32(f:Float):Int {
+		return cs.system.BitConverter.SingleToInt32Bits(f);
 	}
 
-	function set_value(v:T):T {
-		_tls.Value = v;
-		return v;
+	public static inline function i64ToDouble(low:Int, high:Int):Float {
+		return cs.system.BitConverter.Int64BitsToDouble(Int64.make(high, low));
+	}
+
+	public static inline function doubleToI64(v:Float):Int64 {
+		return cs.system.BitConverter.DoubleToInt64Bits(v);
 	}
 }

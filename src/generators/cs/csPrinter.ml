@@ -709,11 +709,23 @@ let print_field ctx f =
 
 (* Print property *)
 let print_property ctx p =
-	print_access ctx p.prop_access;
-	print_modifiers ctx p.prop_modifiers;
-	print_type ctx p.prop_type;
-	print ctx " ";
-	print ctx (escape_identifier p.prop_name);
+	(* Explicit interface implementations have no access modifier and use Interface.Property syntax *)
+	begin match p.prop_explicit_interface with
+	| Some iface_type ->
+		(* Don't print access modifier for explicit interface implementation *)
+		print_modifiers ctx p.prop_modifiers;
+		print_type ctx p.prop_type;
+		print ctx " ";
+		print_type ctx iface_type;
+		print ctx ".";
+		print ctx p.prop_name  (* Don't escape - interface name is already part of the qualification *)
+	| None ->
+		print_access ctx p.prop_access;
+		print_modifiers ctx p.prop_modifiers;
+		print_type ctx p.prop_type;
+		print ctx " ";
+		print ctx (escape_identifier p.prop_name)
+	end;
 	print ctx " { ";
 	begin match p.prop_getter with
 	| None -> ()
@@ -765,8 +777,22 @@ let print_property ctx p =
 	| Some e -> print ctx " = "; print_expr ctx e; print ctx ";"
 	end
 
+(* Print C# attribute *)
+let print_attribute ctx attr =
+	print ctx "[";
+	print ctx attr.attr_name;
+	if attr.attr_args <> [] then begin
+		print ctx "(";
+		print ctx (String.concat ", " attr.attr_args);
+		print ctx ")"
+	end;
+	print ctx "]";
+	newline ctx
+
 (* Print method *)
 let print_method ctx m =
+	(* Print attributes first *)
+	List.iter (print_attribute ctx) m.m_attributes;
 	(* Explicit interface implementations have no access modifier and use Interface.Method syntax *)
 	begin match m.m_explicit_interface with
 	| None ->
@@ -832,6 +858,17 @@ and print_member ctx class_name = function
 	| CsMemberProperty p -> print_property ctx p
 	| CsMemberMethod m -> print_method ctx m
 	| CsMemberConstructor c -> print_constructor ctx class_name c
+	| CsMemberStaticConstructor stmts ->
+		print ctx "static ";
+		print ctx class_name;
+		print ctx "()";
+		newline ctx;
+		print ctx "{";
+		indent ctx;
+		List.iter (fun s -> newline ctx; print_stmt ctx s) stmts;
+		unindent ctx;
+		newline ctx;
+		print ctx "}"
 	| CsMemberEvent _ -> print ctx "// TODO: event"
 	| CsMemberIndexer _ -> print ctx "// TODO: indexer"
 	| CsMemberOperator _ -> print ctx "// TODO: operator"
@@ -952,6 +989,11 @@ let print_using ctx = function
 
 (* Print file *)
 let print_file ctx file =
+	(* Suppress common warnings in generated code:
+	   CA2200: Re-throwing caught exception changes stack information - Haxe exception handling intentionally re-throws *)
+	print ctx "#pragma warning disable CA2200";
+	newline ctx;
+	newline ctx;
 	List.iter (fun u ->
 		print_using ctx u;
 		newline ctx
@@ -996,6 +1038,8 @@ let generate_csproj proj =
 	Buffer.add_string b "    <ImplicitUsings>disable</ImplicitUsings>\n";
 	Buffer.add_string b "    <Nullable>disable</Nullable>\n";
 	Buffer.add_string b "    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n";
+	(* Suppress CA2200: Haxe exception handling intentionally re-throws exceptions *)
+	Buffer.add_string b "    <NoWarn>$(NoWarn);CA2200</NoWarn>\n";
 	Buffer.add_string b "  </PropertyGroup>\n";
 	Buffer.add_string b "</Project>\n";
 	Buffer.contents b
