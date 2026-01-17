@@ -159,7 +159,7 @@ extern class FileSystem {
 
 	@:native("fs_copyfile")
 	@:overload(function(path:String, newPath:String, flags:Null<CopyFlags>, cb:String->Bool->Void):Request {})
-	static function copyfile(path:String, newPath:String, ?flags:CopyFlags):Bool;
+	static function copyfile(path:String, newPath:String, ?flags:CopyFlags):Result<Bool>;
 
 	@:native("fs_statfs")
 	@:overload(function(path:String, cb:StatFs->Bool->Void):Request {})
