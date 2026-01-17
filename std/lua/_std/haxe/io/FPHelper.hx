@@ -29,33 +29,32 @@ package haxe.io;
 class FPHelper {
 	static var i64tmp:Int64 = Int64.ofInt(0);
 
-	// Check once at load time if string.pack is available
+	#if !(lua_ver >= 5.3)
 	static var hasStringPack:Bool = untyped __lua__("string.pack ~= nil");
-
-	static inline var LN2 = 0.6931471805599453;
+	#end
 
 	public static function i32ToFloat(i:Int):Float {
-		if (hasStringPack) {
-			return untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i);
-		} else {
-			return _i32ToFloat(i);
-		}
+		#if (lua_ver >= 5.3)
+		return untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i);
+		#else
+		return hasStringPack ? untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i) : _i32ToFloat(i);
+		#end
 	}
 
 	public static function floatToI32(f:Float):Int {
-		if (hasStringPack) {
-			return untyped __lua__("string.unpack('<i4', string.pack('<f', {0}))", f);
-		} else {
-			return _floatToI32(f);
-		}
+		#if (lua_ver >= 5.3)
+		return untyped __lua__("string.unpack('<i4', string.pack('<f', {0}))", f);
+		#else
+		return hasStringPack ? untyped __lua__("string.unpack('<i4', string.pack('<f', {0}))", f) : _floatToI32(f);
+		#end
 	}
 
 	public static function i64ToDouble(low:Int, high:Int):Float {
-		if (hasStringPack) {
-			return untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high);
-		} else {
-			return _i64ToDouble(low, high);
-		}
+		#if (lua_ver >= 5.3)
+		return untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high);
+		#else
+		return hasStringPack ? untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high) : _i64ToDouble(low, high);
+		#end
 	}
 
 	/**
@@ -64,14 +63,13 @@ class FPHelper {
 		We still ensure that this is safe to use in a multithread environment.
 	**/
 	public static function doubleToI64(v:Float):Int64 {
-		if (hasStringPack) {
-			return _doubleToI64_native(v);
-		} else {
-			return _doubleToI64_fallback(v);
-		}
+		#if (lua_ver >= 5.3)
+		return _doubleToI64_native(v);
+		#else
+		return hasStringPack ? _doubleToI64_native(v) : _doubleToI64_fallback(v);
+		#end
 	}
 
-	// Native implementation using string.pack/unpack (Lua 5.3+)
 	static function _doubleToI64_native(v:Float):Int64 @:privateAccess {
 		var low:Int = untyped __lua__("string.unpack('<i4', string.pack('<d', {0}))", v);
 		var high:Int = untyped __lua__("string.unpack('<i4', string.pack('<d', {0}), 5)", v);
@@ -80,11 +78,12 @@ class FPHelper {
 		return i64tmp;
 	}
 
-	// Pure-math fallback for Lua 5.1/5.2
+	#if !(lua_ver >= 5.3)
+	static inline var LN2 = 0.6931471805599453;
+
 	static function _doubleToI64_fallback(v:Float):Int64 @:privateAccess {
 		var i64 = i64tmp;
 		if (v == 0) {
-			// Check for negative zero
 			if (1.0 / v == Math.NEGATIVE_INFINITY) {
 				i64.set_low(0);
 				i64.set_high(untyped __lua__("0x80000000"));
@@ -94,7 +93,6 @@ class FPHelper {
 			}
 		} else if (!Math.isFinite(v)) {
 			if (Math.isNaN(v)) {
-				// NaN - set a standard quiet NaN representation
 				i64.set_low(0);
 				i64.set_high(untyped __lua__("0x7FF80000"));
 			} else {
@@ -114,13 +112,10 @@ class FPHelper {
 				} else {
 					av = av / Math.pow(2, exp) - 1.0;
 				}
-				// Calculate significand (52 bits)
 				var sig = av * 4503599627370496.; // 2^52
-				// Extract low and high 32-bit parts using modulo (works correctly for large numbers)
 				var sig_l:Int = untyped __lua__("math.floor({0} % 4294967296)", sig);
 				var sig_h:Int = untyped __lua__("math.floor({0} / 4294967296)", sig);
 				i64.set_low(sig_l);
-				// Combine sign bit, exponent, and high significand bits
 				var signBit:Int = v < 0 ? untyped __lua__("0x80000000") : 0;
 				var expBits:Int = (exp + 1023) << 20;
 				var high_bits:Int = untyped __lua__("{0} + {1} + {2}", signBit, expBits, sig_h);
@@ -130,7 +125,6 @@ class FPHelper {
 		return i64;
 	}
 
-	// Fallback: Convert 32-bit int representation to float
 	static function _i32ToFloat(i:Int):Float {
 		var sign = 1 - ((i >>> 31) << 1);
 		var e = (i >> 23) & 0xff;
@@ -142,7 +136,6 @@ class FPHelper {
 		return sign * m * Math.pow(2, e - 150);
 	}
 
-	// Fallback: Convert float to 32-bit int representation
 	static function _floatToI32(f:Float):Int {
 		if (f == 0) {
 			return 1.0 / f == Math.NEGATIVE_INFINITY ? untyped __lua__("0x80000000") : 0;
@@ -159,7 +152,7 @@ class FPHelper {
 		var mantissa:Float;
 		if (exp <= -127) {
 			exp = -127;
-			mantissa = af * 7.1362384635298e+44; // af * 0.5 * 0x800000 / Math.pow(2, -127)
+			mantissa = af * 7.1362384635298e+44;
 		} else {
 			mantissa = (af / Math.pow(2, exp) - 1.0) * 0x800000;
 		}
@@ -169,7 +162,6 @@ class FPHelper {
 		return untyped __lua__("{0} + {1} + {2}", sign, expBits, mantissaBits);
 	}
 
-	// Fallback: Convert two 32-bit ints to double
 	static function _i64ToDouble(lo:Int, hi:Int):Float {
 		var sign = 1 - ((hi >>> 31) << 1);
 		var e = (hi >> 20) & 0x7ff;
@@ -178,12 +170,11 @@ class FPHelper {
 			var hiMantissa = hi & 0xFFFFF;
 			return loIsZero && hiMantissa == 0 ? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY) : Math.NaN;
 		}
-		// Reconstruct mantissa from low and high parts
 		var hiMantissa:Float = hi & 0xFFFFF;
-		// Convert lo to unsigned if negative
 		var loUnsigned:Float = lo < 0 ? lo + 4294967296.0 : lo;
 		var m = 2.220446049250313e-16 * (hiMantissa * 4294967296. + loUnsigned);
 		m = e == 0 ? m * 2.0 : m + 1.0;
 		return sign * m * Math.pow(2, e - 1023);
 	}
+	#end
 }
