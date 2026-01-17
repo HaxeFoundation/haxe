@@ -1,6 +1,6 @@
 import haxe.PosInfos;
-import haxe.ds.Vector;
 import haxe.ds.StringMap;
+import haxe.ds.Vector;
 
 enum Color {
 	Red;
@@ -57,6 +57,9 @@ class Main {
 		testHigherOrderFunctions();
 		testLambdaAssignments();
 		testFunctionTypeVariations();
+		testReflectAndType();
+		testThreads();
+		testAtomics();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -493,15 +496,60 @@ class Main {
 		// add back two
 		map.set("two", 2);
 
-		// TODO: iteration tests need Iterator<T> type support
-		// for (k in map.keys()) { ... }
-		// for (v in map) { ... }
+		// Test keys() iteration
+		var keysCollected = new Array<String>();
+		var keysIter = map.keys();
+		while (keysIter.hasNext()) {
+			keysCollected.push(keysIter.next());
+		}
+		eq(3, keysCollected.length);
+		t(keysCollected.indexOf("one") >= 0);
+		t(keysCollected.indexOf("two") >= 0);
+		t(keysCollected.indexOf("three") >= 0);
+
+		// Test iterator() (values iteration)
+		var valuesCollected = new Array<Int>();
+		var valuesIter = map.iterator();
+		while (valuesIter.hasNext()) {
+			valuesCollected.push(valuesIter.next());
+		}
+		eq(3, valuesCollected.length);
+		t(valuesCollected.indexOf(100) >= 0); // "one" was set to 100
+		t(valuesCollected.indexOf(2) >= 0);
+		t(valuesCollected.indexOf(3) >= 0);
+
+		// Test copy()
+		var copied = map.copy();
+		eq(100, copied.get("one"));
+		eq(2, copied.get("two"));
+		eq(3, copied.get("three"));
+		// Modify original, copy should be unaffected
+		map.set("one", 999);
+		eq(100, copied.get("one")); // Copy still has old value
+
+		// Test toString()
+		var str = copied.toString();
+		t(str.indexOf("one") >= 0);
+		t(str.indexOf("=>") >= 0);
+
+		// Test size()
+		eq(3, copied.size());
+
+		// Test keyValueIterator()
+		var kvCount = 0;
+		var kvIter = map.keyValueIterator();
+		while (kvIter.hasNext()) {
+			var kv = kvIter.next();
+			kvCount++;
+		}
+		eq(3, kvCount);
 
 		// clear
 		map.clear();
 		f(map.exists("one"));
 		f(map.exists("three"));
 		f(map.exists("two"));
+		eq(0, map.size());
 	}
 
 	static function testLambdas() {
@@ -982,6 +1030,18 @@ class Main {
 		eq("Hello, stranger!", (greetDyn() : String));
 		eq("Hello, Bob!", (greetDyn(new Person("Bob")) : String));
 
+		// Test 9b: Optional class type with direct field access (no explicit unwrap)
+		var greetAltFn:(?Person) -> String = calc.greetOptionalPersonAlt;
+		eq("Hello, stranger!", greetAltFn());
+		eq("Hello, stranger!", greetAltFn(null));
+		eq("Hello, Charlie!", greetAltFn(new Person("Charlie")));
+
+		// Test 9c: Optional class type with Dynamic assignment and dynamic field access
+		var greetAlt2Fn:(?Person) -> String = calc.greetOptionalPersonAlt2;
+		eq("Hello, stranger!", greetAlt2Fn());
+		eq("Hello, stranger!", greetAlt2Fn(null));
+		eq("Hello, Dave!", greetAlt2Fn(new Person("Dave")));
+
 		// Test 10: Middle optional - typed reference (must provide all args)
 		var midOptFn:(Int, ?Int, Int) -> Int = calc.addWithMiddleOptional;
 		eq(6, midOptFn(1, 2, 3));
@@ -1239,6 +1299,314 @@ class Main {
 		var doubleAddOne = compose(addOne, double);  // addOne(double(x))
 		eq(11, doubleAddOne(5));  // double(5)=10, addOne(10)=11
 	}
+
+	static function testReflectAndType() {
+		// Test Reflect API and Type API
+
+		// Test 1: Reflect.field - read field from object
+		var person = new Person("Alice");
+		var nameValue = Reflect.field(person, "name");
+		eq("Alice", nameValue);
+
+		// Test 2: Reflect.setField - write field to object
+		Reflect.setField(person, "name", "Bob");
+		eq("Bob", person.name);
+
+		// Test 3: Reflect.fields - get list of fields
+		var fields = Reflect.fields(person);
+		t(fields.indexOf("name") >= 0);
+
+		// Test 4: Reflect.hasField
+		t(Reflect.hasField(person, "name"));
+		f(Reflect.hasField(person, "nonexistent"));
+
+		// Test 5: Reflect.isFunction
+		var fn = function():Void {};
+		t(Reflect.isFunction(fn));
+		f(Reflect.isFunction(person));
+		f(Reflect.isFunction(null));
+		f(Reflect.isFunction(42));
+		f(Reflect.isFunction("hello"));
+
+		// Test 6: Dynamic field access - read and write
+		var dynPerson:Dynamic = person;
+		var dynName:String = dynPerson.name;
+		eq("Bob", dynName);  // Bob from Test 2
+		dynPerson.name = "Charlie";
+		eq("Charlie", person.name);
+
+		// Test 7: Reflect.compare
+		eq(0, Reflect.compare(5, 5));
+		eq(-1, Reflect.compare(3, 5));
+		eq(1, Reflect.compare(7, 5));
+		eq(0, Reflect.compare("abc", "abc"));
+		eq(-1, Reflect.compare("abc", "def"));
+		eq(1, Reflect.compare("def", "abc"));
+
+		// Test 8: Type.getClass
+		var personClass = Type.getClass(person);
+		t(personClass != null);
+
+		// Test 9: Type.getClassName
+		var className = Type.getClassName(personClass);
+		eq("Person", className);
+
+		// Test 10: Type.createInstance
+		var newPerson:Person = Type.createInstance(personClass, ["Eve"]);
+		eq("Eve", newPerson.name);
+
+		// Test 11: Type.getInstanceFields
+		var instanceFields = Type.getInstanceFields(personClass);
+		t(instanceFields.indexOf("name") >= 0);
+		t(instanceFields.indexOf("greet") >= 0);
+
+		// Test 12: Type.typeof for Int
+		var intType = Type.typeof(42);
+		switch (intType) {
+			case TInt:
+				t(true);
+			default:
+				t(false);
+		}
+
+		// Test 13: Type.typeof for String
+		var strType = Type.typeof("hello");
+		switch (strType) {
+			case TClass(c):
+				eq("String", Type.getClassName(c));
+			default:
+				t(false);
+		}
+
+		// Test 14: Type.typeof for class instance
+		var personType = Type.typeof(person);
+		switch (personType) {
+			case TClass(c):
+				eq("Person", Type.getClassName(c));
+			default:
+				t(false);
+		}
+
+		// Test 15: Type.typeof for enum
+		var colorType = Type.typeof(Color.Red);
+		switch (colorType) {
+			case TEnum(e):
+				eq("Color", Type.getEnumName(e));
+			default:
+				t(false);
+		}
+
+		// Test 16: Type.enumConstructor
+		eq("Red", Type.enumConstructor(Color.Red));
+		eq("Rgb", Type.enumConstructor(Color.Rgb(255, 128, 0)));
+
+		// Test 17: Type.enumParameters
+		var rgbParams = Type.enumParameters(Color.Rgb(255, 128, 0));
+		eq(3, rgbParams.length);
+		eq(255, rgbParams[0]);
+		eq(128, rgbParams[1]);
+		eq(0, rgbParams[2]);
+
+		// Test 18: Type.enumIndex
+		eq(0, Type.enumIndex(Color.Red));
+		eq(1, Type.enumIndex(Color.Green));
+		eq(2, Type.enumIndex(Color.Blue));
+		eq(3, Type.enumIndex(Color.Rgb(1, 2, 3)));
+
+		// Test 19: Type.getEnumConstructs
+		var colorConstructs = Type.getEnumConstructs(Color);
+		eq(4, colorConstructs.length);
+		t(colorConstructs.indexOf("Red") >= 0);
+		t(colorConstructs.indexOf("Green") >= 0);
+		t(colorConstructs.indexOf("Blue") >= 0);
+		t(colorConstructs.indexOf("Rgb") >= 0);
+
+		// Test 20: Type.createEnum
+		var createdRed:Color = Type.createEnum(Color, "Red");
+		t(createdRed == Color.Red);
+		var createdRgb:Color = Type.createEnum(Color, "Rgb", [100, 200, 50]);
+		switch (createdRgb) {
+			case Rgb(r, g, b):
+				eq(100, r);
+				eq(200, g);
+				eq(50, b);
+			default:
+				t(false);
+		}
+
+		// Test 21: Type.enumEq
+		t(Type.enumEq(Color.Red, Color.Red));
+		f(Type.enumEq(Color.Red, Color.Blue));
+		t(Type.enumEq(Color.Rgb(1, 2, 3), Color.Rgb(1, 2, 3)));
+		f(Type.enumEq(Color.Rgb(1, 2, 3), Color.Rgb(1, 2, 4)));
+	}
+
+	static function testThreads() {
+		// Test basic threading functionality
+
+		// Test 1: Create a thread and wait for it
+		var result:Int = 0;
+		var thread = sys.thread.Thread.create(function() {
+			result = 42;
+		});
+		// Wait a bit for the thread to complete
+		Sys.sleep(0.1);
+		eq(42, result);
+
+		// Test 2: Thread with Lock for synchronization
+		var lock = new sys.thread.Lock();
+		var threadValue:Int = 0;
+		sys.thread.Thread.create(function() {
+			Sys.sleep(0.05);  // Small delay
+			threadValue = 123;
+			lock.release();
+		});
+		lock.wait();  // Wait for the thread to signal
+		eq(123, threadValue);
+
+		// Test 3: Mutex for mutual exclusion
+		ThreadTestHelper.sharedCounter = 0;
+		var iterations = 100;
+
+		// Create two threads that increment a shared counter
+		var lock1 = new sys.thread.Lock();
+		var lock2 = new sys.thread.Lock();
+
+		sys.thread.Thread.create(function() {
+			for (i in 0...iterations) {
+				ThreadTestHelper.mutex.acquire();
+				ThreadTestHelper.sharedCounter++;
+				ThreadTestHelper.mutex.release();
+			}
+			lock1.release();
+		});
+
+		sys.thread.Thread.create(function() {
+			for (i in 0...iterations) {
+				ThreadTestHelper.mutex.acquire();
+				ThreadTestHelper.sharedCounter++;
+				ThreadTestHelper.mutex.release();
+			}
+			lock2.release();
+		});
+
+		// Wait for both threads to complete
+		lock1.wait();
+		lock2.wait();
+
+		// Without mutex, this could be less than 200 due to race conditions
+		eq(200, ThreadTestHelper.sharedCounter);
+
+		// Test 4: Thread-local storage (Tls)
+		var tls = new sys.thread.Tls<Int>();
+		tls.value = 999;
+		eq(999, tls.value);
+
+		var tlsLock = new sys.thread.Lock();
+		var otherThreadValue:Int = 0;
+		sys.thread.Thread.create(function() {
+			// TLS should be separate for this thread
+			tls.value = 777;
+			otherThreadValue = tls.value;
+			tlsLock.release();
+		});
+		tlsLock.wait();
+
+		// Main thread TLS should still be 999
+		eq(999, tls.value);
+		// Other thread saw its own value
+		eq(777, otherThreadValue);
+
+		// Test 5: Semaphore
+		var sem = new sys.thread.Semaphore(2);  // Allow 2 concurrent accesses
+
+		// Acquire both permits
+		sem.acquire();
+		sem.acquire();
+
+		// Try to acquire without blocking (should fail)
+		f(sem.tryAcquire());
+
+		// Release one
+		sem.release();
+
+		// Now tryAcquire should succeed
+		t(sem.tryAcquire());
+	}
+
+	static function testAtomics() {
+		// Test atomic operations
+
+		// Test 1: AtomicInt basic operations
+		var atomicInt = new haxe.atomic.AtomicInt(10);
+		eq(10, atomicInt.load());
+
+		atomicInt.store(20);
+		eq(20, atomicInt.load());
+
+		// Test 2: AtomicInt exchange
+		var old = atomicInt.exchange(30);
+		eq(20, old);
+		eq(30, atomicInt.load());
+
+		// Test 3: AtomicInt compareExchange - success case
+		var prev = atomicInt.compareExchange(30, 40);
+		eq(30, prev);  // Returns old value
+		eq(40, atomicInt.load());  // Should be updated to 40
+
+		// Test 4: AtomicInt compareExchange - failure case
+		prev = atomicInt.compareExchange(30, 50);  // Expected is wrong
+		eq(40, prev);  // Returns current value (40)
+		eq(40, atomicInt.load());  // Should not have changed
+
+		// Test 5: AtomicInt add
+		atomicInt.store(100);
+		var oldVal = atomicInt.add(5);
+		eq(100, oldVal);  // Returns old value before add
+		eq(105, atomicInt.load());
+
+		// Test 6: AtomicInt sub
+		oldVal = atomicInt.sub(10);
+		eq(105, oldVal);  // Returns old value before sub
+		eq(95, atomicInt.load());
+
+		// Test 7: AtomicBool basic operations
+		var atomicBool = new haxe.atomic.AtomicBool(false);
+		eq(false, atomicBool.load());
+
+		atomicBool.store(true);
+		eq(true, atomicBool.load());
+
+		// Test 8: AtomicBool exchange
+		var oldBool = atomicBool.exchange(false);
+		eq(true, oldBool);
+		eq(false, atomicBool.load());
+
+		// Test 9: AtomicBool compareExchange
+		var prevBool = atomicBool.compareExchange(false, true);
+		eq(false, prevBool);
+		eq(true, atomicBool.load());
+
+		// Test 10: AtomicObject basic operations
+		var person1 = new Person("Alice");
+		var person2 = new Person("Bob");
+		var atomicPerson = new haxe.atomic.AtomicObject<Person>(person1);
+		eq("Alice", atomicPerson.load().name);
+
+		atomicPerson.store(person2);
+		eq("Bob", atomicPerson.load().name);
+
+		// Test 11: AtomicObject exchange
+		var person3 = new Person("Charlie");
+		var oldPerson = atomicPerson.exchange(person3);
+		eq("Bob", oldPerson.name);
+		eq("Charlie", atomicPerson.load().name);
+
+		// Test 12: AtomicObject compareExchange - success
+		var prevPerson = atomicPerson.compareExchange(person3, person1);
+		eq("Charlie", prevPerson.name);
+		eq("Alice", atomicPerson.load().name);
+	}
 }
 
 // Helper class for method reference tests
@@ -1286,6 +1654,22 @@ class Calculator {
 		return "Hello, " + p.name + "!";
 	}
 
+	// Method with optional class type - direct field access (should work without any cast/unwrap)
+	public function greetOptionalPersonAlt(?person:Person):String {
+		if (person == null) return "Hello, stranger!";
+		// Access name directly on person without explicit unwrap - THIS SHOULD WORK
+		return "Hello, " + person.name + "!";
+	}
+
+	// Method with optional class type - assign to Dynamic and access name dynamically
+	public function greetOptionalPersonAlt2(?person:Person):String {
+		if (person == null) return "Hello, stranger!";
+		// Assign an optional person to Dynamic and use dynamic field access
+		// (this makes sure unwrapping is working correctly when assigning to Dynamic)
+		var p:Dynamic = person;
+		return "Hello, " + p.name + "!";
+	}
+
 	// Static methods for static method reference tests
 	public static function staticAdd(a:Int, b:Int):Int {
 		return a + b;
@@ -1320,4 +1704,10 @@ class GenericCalculator<T> {
 	public function getOrDefault(?value:T):T {
 		return value == null ? defaultValue : value;
 	}
+}
+
+// Thread test helper class
+class ThreadTestHelper {
+	public static var sharedCounter:Int = 0;
+	public static var mutex:sys.thread.Mutex = new sys.thread.Mutex();
 }

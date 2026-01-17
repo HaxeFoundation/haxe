@@ -20,30 +20,37 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package sys.thread;
+package cs;
 
-@:coreApi
-class Semaphore {
-	var _semaphore:cs.system.threading.SemaphoreSlim;
+import haxe.extern.Rest;
 
-	public function new(value:Int):Void {
-		_semaphore = new cs.system.threading.SemaphoreSlim(value, 2147483647);
-	}
+/**
+	Generate C# syntax not directly supported by Haxe.
+	Use only at low-level when specific target-specific code-generation is required.
+**/
+@:noClosure
+extern class Syntax {
+	/**
+		Inject `code` directly into generated source.
 
-	public function acquire():Void {
-		_semaphore.Wait();
-	}
+		`code` must be a string constant.
 
-	public function tryAcquire(?timeout:Float):Bool {
-		if (timeout == null) {
-			return _semaphore.Wait(0);
-		} else {
-			var timeoutMs:Int = Std.int(timeout * 1000.0);
-			return _semaphore.Wait(timeoutMs);
-		}
-	}
+		Additional `args` are supported to provide code interpolation, for example:
+		```haxe
+		Syntax.code("Console.WriteLine({0}, {1})", "hi", 42);
+		```
+		will generate
+		```csharp
+		Console.WriteLine("hi", 42);
+		```
 
-	public function release():Void {
-		_semaphore.Release();
-	}
+		Emits a compilation error if the count of `args` does not match the count of placeholders in `code`.
+	**/
+	static function code<T>(code:String, args:Rest<Dynamic>):T;
+
+	/**
+		Inject `code` directly into generated source.
+		The same as `cs.Syntax.code` except this one does not provide code interpolation.
+	**/
+	static function plainCode<T>(code:String):T;
 }

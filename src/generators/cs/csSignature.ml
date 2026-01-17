@@ -111,9 +111,14 @@ let cs_path_of_path (pack, name) =
 	in
 	(List.map escape_identifier pack, escape_identifier name)
 
-(* Main type conversion: Haxe type to C# type *)
-let rec cs_type_of_type gctx t =
+(* Main type conversion: Haxe type to C# type
+   Uses a stack parameter to detect and break cycles, following JVM's approach *)
+let rec cs_type_of_type_inner gctx stack t =
 	let open Type in
+	(* Check for recursive types - if we've already seen this type, return object to break cycle *)
+	if List.exists (Type.fast_eq t) stack then CsTypeObject else
+	(* Shadow cs_type_of_type_inner to include current type in stack *)
+	let cs_type_of_type_inner = cs_type_of_type_inner gctx (t :: stack) in
 	match t with
 	| TAbstract ({ a_path = ([], "Void") }, _) ->
 		CsTypeVoid
@@ -130,7 +135,7 @@ let rec cs_type_of_type gctx t =
 		CsTypeString
 	| TAbstract ({ a_path = ([], "Null") }, [t]) ->
 		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics) *)
-		let inner = cs_type_of_type gctx t in
+		let inner = cs_type_of_type_inner t in
 		CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 	| TDynamic _ ->
 		(* Dynamic -> object (not dynamic, to avoid runtime dispatch overhead) *)
@@ -140,40 +145,63 @@ let rec cs_type_of_type gctx t =
 		CsTypeClass (NativeTypes.haxe_dynamic_object_path, [])
 	| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, [t]) ->
 		(* Array<T> stays as haxe.root.Array, not List<T> *)
-		let inner = cs_type_of_type gctx t in
+		let inner = cs_type_of_type_inner t in
 		CsTypeClass (NativeTypes.haxe_array_path, [inner])
 	| TInst ({ cl_path = (["cs"], "NativeArray") }, [t]) ->
 		(* cs.NativeArray<T> -> T[] *)
-		let inner = cs_type_of_type gctx t in
+		let inner = cs_type_of_type_inner t in
 		CsTypeArray (inner, None)
 	| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
 		(* Type parameter -> preserve as generic param for C# generics *)
 		CsTypeGenericParam ttp.ttp_name
 	| TInst (c, params) ->
 		let path = cs_path_of_path c.cl_path in
-		let params = List.map (cs_type_of_type gctx) params in
+		let params = List.map cs_type_of_type_inner params in
 		CsTypeClass (path, params)
 	| TEnum (e, params) ->
 		let path = cs_path_of_path e.e_path in
-		let params = List.map (cs_type_of_type gctx) params in
+		let params = List.map cs_type_of_type_inner params in
 		CsTypeClass (path, params)
 	| TType (td, params) ->
-		(* Typedef - follow it *)
-		cs_type_of_type gctx (Type.apply_typedef td params)
+		(* Check for well-known typedefs first *)
+		begin match td.t_path with
+		| ([], "Iterator") ->
+			(* Iterator<T> is a structural typedef - map to haxe.iterators.ArrayIterator for C# *)
+			let inner = cs_type_of_type_inner (List.hd params) in
+			CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), [inner])
+		| ([], "KeyValueIterator") ->
+			let k = cs_type_of_type_inner (List.hd params) in
+			let v = cs_type_of_type_inner (List.nth params 1) in
+			CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), [k; v])
+		| _ ->
+			(* Other typedef - follow it *)
+			cs_type_of_type_inner (Type.apply_typedef td params)
+		end
 	| TFun (args, ret) ->
 		(* For optional parameters in TFun:
 		   - Explicit type annotations like (Int, ?Int, Int)->Int have raw type + opt flag
 		   - Inferred types from lambdas already have Null<T> in the type itself
-		   We need to wrap in Null<T> only if opt=true AND type isn't already Null<T> *)
-		let arg_types = List.map (fun (_, opt, t) ->
-			let is_already_null = match t with
-				| Type.TAbstract ({ a_path = ([], "Null") }, _) -> true
+		   We need to wrap in Null<T> only if opt=true AND type isn't already Null<T>
+
+		   IMPORTANT: Filter out Void parameters - C# doesn't allow 'void' as a parameter type.
+		   In Haxe, Void as a parameter type can happen when a generic T is specialized to Void. *)
+		let arg_types = List.filter_map (fun (_, opt, t) ->
+			(* Check if this is a Void type - skip it if so *)
+			let is_void_type = match Type.follow t with
+				| Type.TAbstract ({ a_path = ([], "Void") }, _) -> true
 				| _ -> false
 			in
-			let csig = cs_type_of_type gctx t in
-			if opt && not is_already_null then get_boxed_type csig else csig
+			if is_void_type then None
+			else begin
+				let is_already_null = match t with
+					| Type.TAbstract ({ a_path = ([], "Null") }, _) -> true
+					| _ -> false
+				in
+				let csig = cs_type_of_type_inner t in
+				Some (if opt && not is_already_null then get_boxed_type csig else csig)
+			end
 		) args in
-		let ret_type = cs_type_of_type gctx ret in
+		let ret_type = cs_type_of_type_inner ret in
 		begin match ret_type with
 		| CsTypeVoid ->
 			if List.length arg_types = 0 then
@@ -193,21 +221,42 @@ let rec cs_type_of_type gctx t =
 		| ([], "UInt8") -> CsTypeByte
 		| ([], "Int16") -> CsTypeShort
 		| ([], "UInt16") -> CsTypeUShort
+		| ([], "Class") ->
+			(* Class<T> -> System.Type in C# *)
+			CsTypeClass ((["System"], "Type"), [])
+		| ([], "Enum") ->
+			(* Enum<T> -> System.Type in C# (enums are also represented as Type) *)
+			CsTypeClass ((["System"], "Type"), [])
+		| ([], "EnumValue") ->
+			(* EnumValue -> object in C# (any enum instance) *)
+			CsTypeObject
 		| _ ->
 			let path = cs_path_of_path a.a_path in
-			let params = List.map (cs_type_of_type gctx) params in
+			let params = List.map cs_type_of_type_inner params in
 			CsTypeClass (path, params)
 		end
 	| TAbstract (a, params) ->
-		(* Non-core abstract - follow underlying type *)
-		cs_type_of_type gctx (Abstract.get_underlying_type a params)
+		(* Non-core abstract - follow to underlying type using follow_with_abstracts
+		   to avoid infinite recursion with recursive abstracts *)
+		let t_followed = Abstract.follow_with_abstracts (Type.TAbstract (a, params)) in
+		(* If follow_with_abstracts didn't resolve (e.g., recursive abstract), use object *)
+		begin match t_followed with
+		| Type.TAbstract (a2, _) when a2 == a ->
+			(* Recursive abstract - map to object to break cycle *)
+			CsTypeObject
+		| _ ->
+			cs_type_of_type_inner t_followed
+		end
 	| TLazy f ->
-		cs_type_of_type gctx (lazy_type f)
+		cs_type_of_type_inner (lazy_type f)
 	| TMono r ->
 		begin match r.tm_type with
 		| None -> CsTypeObject  (* Unresolved monomorph -> object *)
-		| Some t -> cs_type_of_type gctx t
+		| Some t -> cs_type_of_type_inner t
 		end
+
+(* Public entry point with empty stack *)
+let cs_type_of_type gctx t = cs_type_of_type_inner gctx [] t
 
 (* Convert function signature *)
 let cs_method_sig gctx args ret =
@@ -245,12 +294,32 @@ let rec s_cs_type = function
 		s_cs_type t ^ "[" ^ String.make (rank - 1) ',' ^ "]"
 	| CsTypeClass (([], name), []) -> name
 	| CsTypeClass ((pack, name), []) ->
-		String.concat "." pack ^ "." ^ name
-	| CsTypeClass (path, params) ->
-		s_cs_path path ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
+		(* Use global:: prefix to avoid namespace conflicts.
+		   This ensures haxe.root.HaxeObject is always the global namespace path,
+		   not relative to the current namespace (e.g., unit.spec.haxe.root) *)
+		"global::" ^ String.concat "." pack ^ "." ^ name
+	| CsTypeClass (([], name), params) ->
+		(* No package, just type with params *)
+		name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
+	| CsTypeClass ((pack, name), params) ->
+		(* Package with params - use global:: *)
+		"global::" ^ String.concat "." pack ^ "." ^ name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
 	| CsTypeGenericParam name -> name
 	| CsTypeFunc (args, ret) ->
-		"Func<" ^ String.concat ", " (List.map s_cs_type args @ [s_cs_type ret]) ^ ">"
+		(* In C#, void cannot be used as a type argument, so Func<..., void> is invalid.
+		   Instead, use Action<...> for void-returning delegates. *)
+		begin match ret with
+		| CsTypeVoid ->
+			begin match args with
+			| [] -> "Action"
+			| _ -> "Action<" ^ String.concat ", " (List.map s_cs_type args) ^ ">"
+			end
+		| _ ->
+			begin match args with
+			| [] -> "Func<" ^ s_cs_type ret ^ ">"
+			| _ -> "Func<" ^ String.concat ", " (List.map s_cs_type args @ [s_cs_type ret]) ^ ">"
+			end
+		end
 	| CsTypeAction [] ->
 		"Action"
 	| CsTypeAction args ->
@@ -296,3 +365,29 @@ let rec cs_type_equals t1 t2 = match t1, t2 with
 		List.for_all2 cs_type_equals a1 a2
 	| _ ->
 		false
+
+(* Extract all generic type parameter names from a C# type.
+   This is used to detect type parameters used in method signatures
+   that need to become method-level type params in C# _Impl_ classes. *)
+let rec collect_type_params acc cstype =
+	match cstype with
+	| CsTypeGenericParam name ->
+		if List.mem name acc then acc else name :: acc
+	| CsTypeNullable t | CsTypeArray (t, _) ->
+		collect_type_params acc t
+	| CsTypeClass (_, params) ->
+		List.fold_left collect_type_params acc params
+	| CsTypeFunc (args, ret) ->
+		let acc = List.fold_left collect_type_params acc args in
+		collect_type_params acc ret
+	| CsTypeAction args ->
+		List.fold_left collect_type_params acc args
+	| _ ->
+		acc
+
+(* Get all type parameters used in a method signature *)
+let get_method_type_params param_types ret_type =
+	let acc = List.fold_left collect_type_params [] param_types in
+	let acc = collect_type_params acc ret_type in
+	(* Reverse to maintain order of first appearance *)
+	List.rev acc

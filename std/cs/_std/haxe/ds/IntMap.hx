@@ -51,9 +51,13 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 
 	public function keys():Iterator<Int> {
 		var keyArray = new Array<Int>();
-		var enumerator = dict.Keys.GetEnumerator();
-		while (enumerator.MoveNext()) {
-			keyArray.push(enumerator.Current);
+		var count:Int = untyped __cs__("{0}.Keys.Count", dict);
+		var keysArr = new cs.NativeArray<Int>(count);
+		untyped __cs__("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
+		var i = 0;
+		while (i < count) {
+			keyArray.push(keysArr[i]);
+			i++;
 		}
 		return keyArray.iterator();
 	}
@@ -64,18 +68,28 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 
 	public function iterator():Iterator<T> {
 		var valueArray = new Array<T>();
-		var enumerator = dict.Values.GetEnumerator();
-		while (enumerator.MoveNext()) {
-			valueArray.push(enumerator.Current);
+		var count:Int = untyped __cs__("{0}.Values.Count", dict);
+		var valuesArr = new cs.NativeArray<T>(count);
+		untyped __cs__("{0}.Values.CopyTo({1}, 0)", dict, valuesArr);
+		var i = 0;
+		while (i < count) {
+			valueArray.push(valuesArr[i]);
+			i++;
 		}
 		return valueArray.iterator();
 	}
 
 	public function copy():IntMap<T> {
 		var copied = new IntMap<T>();
-		var enumerator = dict.GetEnumerator();
-		while (enumerator.MoveNext()) {
-			untyped __cs__("{0}[{1}] = {2}", copied.dict, untyped __cs__("{0}.Current.Key", enumerator), untyped __cs__("{0}.Current.Value", enumerator));
+		var count:Int = untyped __cs__("{0}.Keys.Count", dict);
+		var keysArr = new cs.NativeArray<Int>(count);
+		untyped __cs__("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
+		var i = 0;
+		while (i < count) {
+			var key = keysArr[i];
+			var val:T = untyped __cs__("{0}[{1}]", dict, key);
+			untyped __cs__("{0}[{1}] = {2}", copied.dict, key, val);
+			i++;
 		}
 		return copied;
 	}
@@ -84,14 +98,20 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		var s = new StringBuf();
 		s.add("[");
 		var first = true;
-		var enumerator = dict.GetEnumerator();
-		while (enumerator.MoveNext()) {
+		var count:Int = untyped __cs__("{0}.Keys.Count", dict);
+		var keysArr = new cs.NativeArray<Int>(count);
+		untyped __cs__("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
+		var i = 0;
+		while (i < count) {
 			if (!first)
 				s.add(", ");
 			first = false;
-			s.add(Std.string(enumerator.Current.Key));
+			var key = keysArr[i];
+			var val:T = untyped __cs__("{0}[{1}]", dict, key);
+			s.add(Std.string(key));
 			s.add(" => ");
-			s.add(Std.string(enumerator.Current.Value));
+			s.add(Std.string(val));
+			i++;
 		}
 		s.add("]");
 		return s.toString();

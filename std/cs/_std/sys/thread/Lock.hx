@@ -24,26 +24,26 @@ package sys.thread;
 
 @:coreApi
 class Lock {
-	var _semaphore:Dynamic; // System.Threading.SemaphoreSlim
+	var _semaphore:cs.system.threading.SemaphoreSlim;
 
 	public function new() {
 		// SemaphoreSlim with initial count 0 and max count Int32.MaxValue
-		_semaphore = untyped __cs__("new System.Threading.SemaphoreSlim(0, int.MaxValue)");
+		_semaphore = new cs.system.threading.SemaphoreSlim(0, 2147483647);
 	}
 
 	public function wait(?timeout:Float):Bool {
 		if (timeout == null) {
 			// Wait indefinitely
-			untyped __cs__("{0}.Wait()", _semaphore);
+			_semaphore.Wait();
 			return true;
 		} else {
 			// Wait with timeout in milliseconds
 			var timeoutMs:Int = Std.int(timeout * 1000.0);
-			return untyped __cs__("{0}.Wait({1})", _semaphore, timeoutMs);
+			return _semaphore.Wait(timeoutMs);
 		}
 	}
 
 	public function release():Void {
-		untyped __cs__("{0}.Release()", _semaphore);
+		_semaphore.Release();
 	}
 }

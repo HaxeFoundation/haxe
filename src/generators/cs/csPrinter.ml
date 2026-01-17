@@ -767,11 +767,22 @@ let print_property ctx p =
 
 (* Print method *)
 let print_method ctx m =
-	print_access ctx m.m_access;
-	print_modifiers ctx m.m_modifiers;
-	print_type ctx m.m_return_type;
-	print ctx " ";
-	print ctx (escape_identifier m.m_name);
+	(* Explicit interface implementations have no access modifier and use Interface.Method syntax *)
+	begin match m.m_explicit_interface with
+	| None ->
+		print_access ctx m.m_access;
+		print_modifiers ctx m.m_modifiers;
+		print_type ctx m.m_return_type;
+		print ctx " ";
+		print ctx (escape_identifier m.m_name)
+	| Some iface_type ->
+		(* No access modifier for explicit interface implementation *)
+		print_type ctx m.m_return_type;
+		print ctx " ";
+		print_type ctx iface_type;
+		print ctx ".";
+		print ctx (escape_identifier m.m_name)
+	end;
 	print_type_params ctx m.m_type_params;
 	print_params ctx m.m_params;
 	print_constraints ctx m.m_constraints;

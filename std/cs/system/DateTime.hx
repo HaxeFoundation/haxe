@@ -15,11 +15,12 @@ extern class DateTime {
 	var Minute(default, never):Int;
 	var Second(default, never):Int;
 	var Millisecond(default, never):Int;
-	var DayOfWeek(default, never):Int;
+	var DayOfWeek(default, never):DayOfWeek;
 	var DayOfYear(default, never):Int;
 
 	@:overload(function(year:Int, month:Int, day:Int):Void {})
 	@:overload(function(year:Int, month:Int, day:Int, hour:Int, minute:Int, second:Int):Void {})
+	@:overload(function(year:Int, month:Int, day:Int, hour:Int, minute:Int, second:Int, kind:DateTimeKind):Void {})
 	function new(ticks:haxe.Int64):Void;
 
 	function AddDays(value:Float):DateTime;
@@ -30,6 +31,7 @@ extern class DateTime {
 	function AddSeconds(value:Float):DateTime;
 	function AddTicks(value:haxe.Int64):DateTime;
 	function AddYears(value:Int):DateTime;
+	function Subtract(value:DateTime):TimeSpan;
 	function ToUniversalTime():DateTime;
 	function ToLocalTime():DateTime;
 	function ToString():String;

@@ -210,12 +210,23 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Get a field from an object using reflection.
+        /// Get a field from an object dynamically.
+        /// For HaxeObject subclasses, uses _hx_getField (AOT-safe).
+        /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+            Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_getField")]
         public static object GetField(object obj, string name)
         {
             if (obj == null) throw new NullReferenceException("Cannot get field from null");
 
+            // For HaxeObject subclasses, use _hx_getField (AOT-safe)
+            if (obj is haxe.root.HaxeObject ho)
+            {
+                return ho._hx_getField(name);
+            }
+
+            // Fallback to reflection for non-Haxe objects
             var type = obj.GetType();
 
             // Try field first
@@ -230,11 +241,22 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Set a field on an object using reflection.
+        /// Set a field on an object dynamically.
+        /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
+        /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+            Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
         public static void SetField(object obj, string name, object value)
         {
             if (obj == null) throw new NullReferenceException("Cannot set field on null");
+
+            // For HaxeObject subclasses, use _hx_setField (AOT-safe)
+            if (obj is haxe.root.HaxeObject ho)
+            {
+                ho._hx_setField(name, value);
+                return;
+            }
 
             var type = obj.GetType();
 

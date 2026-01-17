@@ -200,6 +200,7 @@ type cs_method_def = {
 	m_params : cs_param list;
 	m_body : cs_stmt list option;  (* None = abstract/extern *)
 	m_constraints : (string * cs_type list) list;  (* where T : constraints *)
+	m_explicit_interface : cs_type option;  (* For explicit interface implementation: InterfaceType.MethodName *)
 }
 
 type cs_ctor_def = {

@@ -22,28 +22,27 @@
 
 package sys.thread;
 
-@:coreApi
-class Semaphore {
-	var _semaphore:cs.system.threading.SemaphoreSlim;
-
-	public function new(value:Int):Void {
-		_semaphore = new cs.system.threading.SemaphoreSlim(value, 2147483647);
+abstract ThreadImpl(cs.system.threading.Thread) {
+	inline function toNative():cs.system.threading.Thread {
+		return this;
 	}
 
-	public function acquire():Void {
-		_semaphore.Wait();
+	public static inline function current():ThreadImpl {
+		return cast cs.system.threading.Thread.CurrentThread;
 	}
 
-	public function tryAcquire(?timeout:Float):Bool {
-		if (timeout == null) {
-			return _semaphore.Wait(0);
-		} else {
-			var timeoutMs:Int = Std.int(timeout * 1000.0);
-			return _semaphore.Wait(timeoutMs);
-		}
+	public static function create(job:() -> Void):ThreadImpl {
+		var thread = new cs.system.threading.Thread(new cs.system.threading.ThreadStart(job));
+		thread.IsBackground = true;
+		thread.Start();
+		return cast thread;
 	}
 
-	public function release():Void {
-		_semaphore.Release();
+	public static inline function setName(t:ThreadImpl, name:String):Void {
+		t.toNative().Name = name;
+	}
+
+	public static inline function getName(t:ThreadImpl):Null<String> {
+		return t.toNative().Name;
 	}
 }

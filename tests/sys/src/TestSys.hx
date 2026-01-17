@@ -118,6 +118,8 @@ class TestSys extends TestCommandBase {
 			"sys.lua"
 		#elseif js
 			"sys.js"
+		#elseif cs
+			"Project" + (Sys.systemName() == "Windows" ? ".exe" : "")
 		#elseif hl
 			#if hlc
 				"sys.exe"

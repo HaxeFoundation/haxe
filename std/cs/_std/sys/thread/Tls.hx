@@ -22,35 +22,22 @@
 
 package sys.thread;
 
-abstract Thread(Dynamic) {
-	public var events(get, never):EventLoop;
+@:coreApi
+class Tls<T> {
+	var _tls:Dynamic; // System.Threading.ThreadLocal<object>
 
-	inline function get_events():EventLoop {
-		return null; // TODO: implement EventLoop
+	public var value(get, set):T;
+
+	public function new() {
+		_tls = untyped __cs__("new System.Threading.ThreadLocal<object>()");
 	}
 
-	public static function create(job:() -> Void):Thread {
-		var thread:Dynamic = untyped __cs__("new System.Threading.Thread(() => {0}())", job);
-		untyped __cs__("{0}.IsBackground = true", thread);
-		untyped __cs__("{0}.Start()", thread);
-		return cast thread;
+	inline function get_value():T {
+		return cast untyped __cs__("((System.Threading.ThreadLocal<object>){0}).Value", _tls);
 	}
 
-	public static function current():Thread {
-		return cast untyped __cs__("System.Threading.Thread.CurrentThread");
-	}
-
-	public static function runWithEventLoop(job:() -> Void):Void {
-		// TODO: implement EventLoop
-		job();
-	}
-
-	public static function readMessage(block:Bool):Dynamic {
-		throw new haxe.exceptions.NotImplementedException();
-	}
-
-	@:ifFeature("has_threads")
-	public function sendMessage(msg:Dynamic):Void {
-		throw new haxe.exceptions.NotImplementedException();
+	inline function set_value(v:T):T {
+		untyped __cs__("((System.Threading.ThreadLocal<object>){0}).Value = {1}", _tls, v);
+		return v;
 	}
 }

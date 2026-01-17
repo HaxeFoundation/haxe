@@ -38,6 +38,13 @@ let get_native_field_name cf =
 	else
 		escape_identifier cf.cf_name
 
+(* Get field name for a class, handling C# restriction where member names
+   cannot be the same as the enclosing type name. *)
+let get_cs_field_name c cf =
+	let class_name = snd c.cl_path in
+	let base_name = get_native_field_name cf in
+	if base_name = class_name then base_name ^ "_" else base_name
+
 (* Generation context *)
 type gen_context = {
 	com : Gctx.t;
@@ -205,6 +212,21 @@ let rec cs_expr_of_texpr ectx e =
 				CsCall (CsField (arr_cs, "__set"), [idx_cs; val_cs])
 			| _ -> CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 			end
+		| OpAssign ->
+			(* Check for dynamic field assignment: dynObj.field = value -> Runtime.SetField(obj, "field", value) *)
+			begin match e1.eexpr with
+			| TField (obj, FDynamic name) ->
+				let obj_expr = cs_expr_of_texpr ectx obj in
+				let raw_type = Type.follow_once obj.etype in
+				let obj_expr = match raw_type with
+					| TAbstract ({ a_path = ([], "Null") }, _) ->
+						CsField (obj_expr, "value")
+					| _ -> obj_expr
+				in
+				let val_cs = cs_expr_of_texpr ectx e2 in
+				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "SetField", [obj_expr; CsConst (CsConstString name); val_cs])
+			| _ -> CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+			end
 		| OpEq when is_null_type e1.etype && is_null_expr e2 ->
 			(* x == null  ->  !x.hasValue *)
 			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e1, "hasValue"))
@@ -226,6 +248,10 @@ let rec cs_expr_of_texpr ectx e =
 		| _ ->
 			CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 		end
+	| TUnop (Spread, _, e) ->
+		(* Spread operator: in C#, this is used for Rest/params arguments.
+		   The spread just unwraps the array - pass through the inner expression. *)
+		cs_expr_of_texpr ectx e
 	| TUnop (op, Prefix, e) ->
 		CsUnop (cs_unop_of_unop op, false, cs_expr_of_texpr ectx e)
 	| TUnop (op, Postfix, e) ->
@@ -236,15 +262,27 @@ let rec cs_expr_of_texpr ectx e =
 	| TField (e, FInstance (_, _, { cf_name = "length" })) when (match cs_type_of_type ectx.gctx e.etype with CsTypeString -> true | _ -> false) ->
 		(* String.length -> string.Length (C# uses uppercase) *)
 		CsField (cs_expr_of_texpr ectx e, "Length")
-	| TField (e, FInstance (c, tl, cf))
-	| TField (e, FClosure (Some (c, tl), cf)) ->
-		(* Check if expression type is Null<T> - if so, cast to unwrap *)
+	| TField (e, FInstance (c, tl, cf)) ->
+		(* Check if expression type is Null<T> - if so, access .value to unwrap *)
+		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
 		let obj_expr = cs_expr_of_texpr ectx e in
-		let obj_expr = match follow e.etype with
-			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-				(* Null<T> needs to be cast to T before field access *)
-				let inner_type = cs_type_of_type ectx.gctx inner in
-				CsCast (inner_type, obj_expr)
+		let raw_type = Type.follow_once e.etype in
+		let obj_expr = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, _) ->
+				(* Null<T> -> access .value to unwrap *)
+				CsField (obj_expr, "value")
+			| _ -> obj_expr
+		in
+		CsField (obj_expr, escape_identifier cf.cf_name)
+	| TField (e, FClosure (Some (c, tl), cf)) ->
+		(* Check if expression type is Null<T> - if so, access .value to unwrap *)
+		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
+		let obj_expr = cs_expr_of_texpr ectx e in
+		let raw_type = Type.follow_once e.etype in
+		let obj_expr = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, _) ->
+				(* Null<T> -> access .value to unwrap *)
+				CsField (obj_expr, "value")
 			| _ -> obj_expr
 		in
 		CsField (obj_expr, escape_identifier cf.cf_name)
@@ -263,52 +301,158 @@ let rec cs_expr_of_texpr ectx e =
 			| _ ->
 				List.map (fun _ -> CsTypeObject) c.cl_params
 		in
-		CsStaticField (CsTypeClass (path, type_params), escape_identifier cf.cf_name)
+		CsStaticField (CsTypeClass (path, type_params), get_cs_field_name c cf)
 	| TField (e, FAnon cf) ->
-		(* Anonymous object field access - use _hx_getField for runtime dispatch *)
+		(* Anonymous object field access *)
+		(* First, check if expression type is Null<T> - if so, unwrap via .value *)
+		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
 		let obj_expr = cs_expr_of_texpr ectx e in
-		(* Handle Null<T> wrapping - cast to unwrap first *)
-		let obj_expr = match e.etype with
-			| TAbstract ({ a_path = ([], "Null") }, [_]) ->
-				(* Null<T> needs to be cast to HaxeDynamicObject before field access *)
-				CsCast (CsTypeClass (NativeTypes.haxe_dynamic_object_path, []), obj_expr)
-			| _ -> obj_expr
+		let raw_type = Type.follow_once e.etype in
+		let inner_type, obj_expr = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+				(* Null<T> -> access .value to unwrap *)
+				(inner, CsField (obj_expr, "value"))
+			| _ -> (e.etype, obj_expr)
 		in
-		(* Use _hx_getField for dynamic field access on anonymous objects *)
-		(* Must cast result from object to expected type *)
-		let field_call = CsCall (CsField (obj_expr, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
-		let target_type = cs_type_of_type ectx.gctx cf.cf_type in
-		(* Don't cast if target is already object *)
-		begin match target_type with
-		| CsTypeObject -> field_call
-		| _ -> CsCast (target_type, field_call)
+		(* Check if the (unwrapped) C# type maps to a concrete class. If so, generate direct field access. *)
+		let cs_type = cs_type_of_type ectx.gctx inner_type in
+		begin match cs_type with
+		| CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), _)
+		| CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), _) ->
+			(* Known iterator class - generate direct field access *)
+			CsField (obj_expr, escape_identifier cf.cf_name)
+		| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) ->
+			(* Truly anonymous - use _hx_getField *)
+			let field_call = CsCall (CsField (obj_expr, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
+			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
+			begin match target_type with
+			| CsTypeObject -> field_call
+			| _ -> CsCast (target_type, field_call)
+			end
+		| CsTypeClass (_, _) ->
+			(* Some other concrete class - try direct access *)
+			CsField (obj_expr, escape_identifier cf.cf_name)
+		| _ ->
+			(* Fallback to dynamic dispatch *)
+			let field_call = CsCall (CsField (obj_expr, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
+			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
+			begin match target_type with
+			| CsTypeObject -> field_call
+			| _ -> CsCast (target_type, field_call)
+			end
 		end
 	| TField (e, FDynamic name) ->
-		(* Check if expression type is Null<T> - if so, cast to unwrap *)
+		(* Dynamic field access - need to use reflection since C# object doesn't have arbitrary fields *)
+		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
 		let obj_expr = cs_expr_of_texpr ectx e in
-		let obj_expr = match e.etype with
-			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-				let inner_type = cs_type_of_type ectx.gctx inner in
-				CsCast (inner_type, obj_expr)
+		let raw_type = Type.follow_once e.etype in
+		let obj_expr = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, _) ->
+				(* Null<T> -> access .value to unwrap *)
+				CsField (obj_expr, "value")
 			| _ -> obj_expr
 		in
-		CsField (obj_expr, escape_identifier name)
+		(* Use haxe.lang.Runtime.GetField for dynamic field access *)
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)])
 	| TField (_, FEnum (en, ef)) ->
 		let path = cs_path_of_path en.e_path in
-		CsStaticField (CsTypeClass (path, []), escape_identifier ef.ef_name)
+		(* Get type arguments from the expression type for generic enums like Option<T> *)
+		let type_args = match follow e.etype with
+			| TEnum (_, params) -> List.map (cs_type_of_type ectx.gctx) params
+			| _ -> []
+		in
+		(* For parameterless enum constructors, access via: new EnumType<T>.ConstructorName<T>()
+		   For generic enums, both the enum and inner class need type params *)
+		if type_args = [] && en.e_params = [] then
+			(* Non-generic enum - use static field if ef has no params *)
+			CsStaticField (CsTypeClass (path, []), escape_identifier ef.ef_name)
+		else begin
+			(* Generic enum - need to construct the value using new NestedClass<T>() *)
+			let ctor_name = escape_identifier ef.ef_name in
+			let nested_path = (fst path @ [snd path], ctor_name) in
+			CsNew (CsTypeClass (nested_path, type_args), [])
+		end
 	| TCall ({ eexpr = TField (_, FEnum (en, ef)) }, args) ->
-		(* Enum constructor with parameters -> new EnumType.ConstructorName(...) *)
+		(* Enum constructor with parameters -> new EnumType.ConstructorName<T>(...) *)
 		let enum_path = cs_path_of_path en.e_path in
 		let ctor_name = escape_identifier ef.ef_name in
 		(* Nested class path: EnumType.ConstructorName *)
 		let nested_path = (fst enum_path @ [snd enum_path], ctor_name) in
 		let args = List.map (cs_expr_of_texpr ectx) args in
-		CsNew (CsTypeClass (nested_path, []), args)
+		(* Get type arguments from the TCall's result type (e.etype) for generic enums *)
+		let type_args = match follow e.etype with
+			| TEnum (_, params) -> List.map (cs_type_of_type ectx.gctx) params
+			| _ -> []
+		in
+		CsNew (CsTypeClass (nested_path, type_args), args)
 	| TCall ({ eexpr = TField (e, FInstance (_, _, cf)) }, args)
 	| TCall ({ eexpr = TField (e, FClosure (_, cf)) }, args) ->
+		(* Check if expression type is Null<T> - if so, access .value to unwrap *)
+		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
 		let obj = cs_expr_of_texpr ectx e in
+		let raw_type = Type.follow_once e.etype in
+		let obj = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, _) ->
+				(* Null<T> -> access .value to unwrap *)
+				CsField (obj, "value")
+			| _ -> obj
+		in
 		let args = List.map (cs_expr_of_texpr ectx) args in
 		CsCall (CsField (obj, get_native_field_name cf), args)
+	| TCall ({ eexpr = TField (e, FAnon cf) }, args) ->
+		(* Method call on anonymous/structural type.
+		   First, check if expression type is Null<T> - if so, unwrap via .value *)
+		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
+		let obj = cs_expr_of_texpr ectx e in
+		let raw_type = Type.follow_once e.etype in
+		let inner_type, obj = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+				(* Null<T> -> access .value to unwrap *)
+				(inner, CsField (obj, "value"))
+			| _ -> (e.etype, obj)
+		in
+		let args = List.map (cs_expr_of_texpr ectx) args in
+		(* Check if the (unwrapped) C# type maps to a concrete class (like ArrayIterator).
+		   If so, we can generate direct method calls instead of dynamic dispatch. *)
+		let cs_type = cs_type_of_type ectx.gctx inner_type in
+		begin match cs_type with
+		| CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), _)
+		| CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), _) ->
+			(* Known iterator class - generate direct method call *)
+			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
+		| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) ->
+			(* Truly anonymous - use _hx_getField *)
+			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
+			let func_type = cs_type_of_type ectx.gctx cf.cf_type in
+			let casted = CsCast (func_type, field_call) in
+			CsCall (casted, args)
+		| CsTypeClass (path, _) ->
+			(* Some other concrete class - try direct call *)
+			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
+		| _ ->
+			(* Fallback to dynamic dispatch *)
+			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
+			let func_type = cs_type_of_type ectx.gctx cf.cf_type in
+			let casted = CsCast (func_type, field_call) in
+			CsCall (casted, args)
+		end
+	| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["cs"], "Syntax") }, cf)) }, args) ->
+		(* cs.Syntax.code or cs.Syntax.plainCode - inline C# code injection *)
+		begin match cf.cf_name, args with
+		| "code", { eexpr = TConst (TString template) } :: rest ->
+			(* cs.Syntax.code("template {0} {1}", arg0, arg1) - interpolated *)
+			let cs_args = List.map (cs_expr_of_texpr ectx) rest in
+			CsInlineCode (template, cs_args)
+		| "plainCode", [{ eexpr = TConst (TString code) }] ->
+			(* cs.Syntax.plainCode("raw code") - no interpolation *)
+			CsRaw code
+		| "code", _ ->
+			CsRaw "/* invalid cs.Syntax.code call - first arg must be string literal */"
+		| "plainCode", _ ->
+			CsRaw "/* invalid cs.Syntax.plainCode call - arg must be string literal */"
+		| meth, _ ->
+			CsRaw ("/* unknown cs.Syntax method: " ^ meth ^ " */")
+		end
 	| TCall ({ eexpr = TField (_, FStatic (c, cf)) }, args) ->
 		let return_type = e.etype in  (* Use the TCall's etype, not TField's *)
 		let path = cs_path_of_path c.cl_path in
@@ -321,12 +465,59 @@ let rec cs_expr_of_texpr ectx e =
 				(* Fallback: use object for each type parameter *)
 				List.map (fun _ -> CsTypeObject) c.cl_params
 		in
-		let args = List.map (cs_expr_of_texpr ectx) args in
+		(* Get expected parameter types for casting Dynamic args to expected types *)
+		let param_types = match follow cf.cf_type with
+			| TFun (params, _) -> List.map (fun (_, _, t) -> t) params
+			| _ -> []
+		in
+		let args = List.mapi (fun i arg ->
+			let cs_arg = cs_expr_of_texpr ectx arg in
+			(* Cast Dynamic args to expected parameter type if needed *)
+			if i < List.length param_types then
+				let arg_is_dynamic = match follow arg.etype with
+					| TDynamic _ -> true
+					| TInst ({ cl_path = ([], "Array") }, [elem_type]) ->
+						(* Array element access from Array<Dynamic> *)
+						begin match follow elem_type with
+						| TDynamic _ -> true
+						| _ -> false
+						end
+					| TAbstract ({ a_path = ([], "Dynamic") }, _) -> true
+					| _ -> false
+				in
+				let expected_type = List.nth param_types i in
+				let expected_is_basic = match follow expected_type with
+					| TAbstract ({ a_path = ([], ("Int" | "Float" | "Bool" | "Single")) }, _) -> true
+					| TInst ({ cl_path = ([], "String") }, _) -> true
+					| _ -> false
+				in
+				if arg_is_dynamic && expected_is_basic then
+					CsCast (cs_type_of_type ectx.gctx expected_type, cs_arg)
+				else
+					cs_arg
+			else
+				cs_arg
+		) args in
 		(* Check if method has its own type parameters *)
 		if cf.cf_params <> [] then begin
-			(* Method has type params - infer from return type *)
+			(* Method has type params - infer from return type or method signature *)
+			(* Check if the return type is a type parameter T (i.e., the method returns T directly) *)
+			let returns_type_param = match cf.cf_type with
+				| TFun (_, ret) ->
+					begin match follow ret with
+					| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+					| _ -> false
+					end
+				| _ -> false
+			in
 			let method_type_params = match follow return_type with
-				| TInst (_, ret_params) -> List.map (cs_type_of_type ectx.gctx) ret_params
+				| TInst (_, ret_params) when List.length ret_params = List.length cf.cf_params ->
+					(* Generic return type with matching arity - use its type params *)
+					List.map (cs_type_of_type ectx.gctx) ret_params
+				| TInst _ | TEnum _ when returns_type_param && List.length cf.cf_params = 1 ->
+					(* Method returns T directly (like createInstance<T>():T), and return type is concrete *)
+					(* Use the return type itself as the type argument *)
+					[cs_type_of_type ectx.gctx return_type]
 				| _ -> List.map (fun _ -> CsTypeObject) cf.cf_params
 			in
 			CsStaticCallGeneric (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, method_type_params, args)
@@ -487,11 +678,24 @@ let rec cs_expr_of_texpr ectx e =
 	| TMeta (_, e) ->
 		cs_expr_of_texpr ectx e
 	| TIf (cond, then_expr, Some else_expr) ->
-		(* Ternary expression: cond ? then : else *)
-		let cond = cs_expr_of_texpr ectx cond in
-		let then_e = cs_expr_of_texpr ectx then_expr in
-		let else_e = cs_expr_of_texpr ectx else_expr in
-		CsTernary (cond, then_e, else_e)
+		(* Check if this is a void expression - can't use ternary for void in C# *)
+		if ExtType.is_void (follow e.etype) then begin
+			(* Void if/else in expression context: wrap in immediately invoked Action *)
+			(* ((Action)(() => { if (cond) { then } else { else } }))() *)
+			let cond_cs = cs_expr_of_texpr ectx cond in
+			let then_stmt = cs_stmt_of_texpr ectx then_expr in
+			let else_stmt = cs_stmt_of_texpr ectx else_expr in
+			let if_stmt = CsIf (cond_cs, then_stmt, Some else_stmt) in
+			let lambda = CsLambda ([], CsLambdaBlock [if_stmt]) in
+			let action_type = CsTypeAction [] in
+			CsCall (CsCast (action_type, lambda), [])
+		end else begin
+			(* Ternary expression: cond ? then : else *)
+			let cond = cs_expr_of_texpr ectx cond in
+			let then_e = cs_expr_of_texpr ectx then_expr in
+			let else_e = cs_expr_of_texpr ectx else_expr in
+			CsTernary (cond, then_e, else_e)
+		end
 	| TBlock [] ->
 		(* Empty block as expression - return default value of expected type *)
 		CsDefault (cs_type_of_type ectx.gctx e.etype)
@@ -539,21 +743,31 @@ let rec cs_expr_of_texpr ectx e =
 		end
 	| TBlock exprs ->
 		cs_expr_of_texpr_block ectx e exprs
-	| TIf _
+	| TIf _  (* TIf without else, handled as statement-as-expression *)
 	| TWhile _
 	| TSwitch _
-	| TTry _
+	| TTry _ ->
+		(* Statement used as expression - wrap in immediately invoked lambda *)
+		(* ((Func<T>)(() => { <statement>; return <value>; }))() *)
+		cs_expr_of_stmt_as_expr ectx e
 	| TReturn _
 	| TBreak
 	| TContinue
 	| TVar _ ->
-		(* These need to be handled as statements, not expressions *)
-		(* Should not normally appear as expression values *)
-		CsRaw "/* TODO: statement as expression */"
+		(* These shouldn't appear as expression values in normal code *)
+		CsRaw (Printf.sprintf "/* Unsupported: %s as expression */" (match e.eexpr with
+			| TReturn _ -> "TReturn"
+			| TBreak -> "TBreak"
+			| TContinue -> "TContinue"
+			| TVar _ -> "TVar"
+			| _ -> "Unknown"
+		))
 	| TFunction tf ->
 		(* Lambda/closure *)
-		let params = List.map (fun (v, _) ->
-			{
+		(* Filter out Void parameters - C# doesn't allow 'void' as a parameter type *)
+		let params = List.filter_map (fun (v, _) ->
+			if ExtType.is_void (follow v.v_type) then None
+			else Some {
 				p_name = get_local_name ectx v;
 				p_type = Some (cs_type_of_type ectx.gctx v.v_type);
 				p_default = None;
@@ -588,6 +802,77 @@ let rec cs_expr_of_texpr ectx e =
 		CsField (cs_expr_of_texpr ectx e, "_hx_index")
 	| TIdent s ->
 		CsLocal (escape_identifier s)
+
+(* Helper to wrap a statement-as-expression in an immediately invoked lambda.
+   Used for TIf, TSwitch, TTry, TWhile when they appear in expression context.
+   Generates: ((Func<T>)(() => { <stmt as return>; }))() *)
+and cs_expr_of_stmt_as_expr ectx e =
+	let return_type = cs_type_of_type ectx.gctx e.etype in
+	let is_void = ExtType.is_void (follow e.etype) in
+	(* Convert the statement, but we need to extract the "value" from it.
+	   For TTry, TIf, TSwitch, etc., the value is the last expression in each branch. *)
+	let stmt_with_return = cs_stmt_with_return_inner ectx is_void e in
+	let lambda = CsLambda ([], CsLambdaBlock [stmt_with_return]) in
+	(* For void expressions, use Action instead of Func<void> *)
+	let func_type = if is_void then CsTypeAction [] else CsTypeFunc ([], return_type) in
+	CsCall (CsCast (func_type, lambda), [])
+
+(* Convert a statement to have explicit returns for expression-as-statement conversion.
+   This makes the last expression in each branch into a return statement.
+   is_void: if true, don't generate return statements with values (just emit the statement) *)
+and cs_stmt_with_return_inner ectx is_void e =
+	match e.eexpr with
+	| TTry (e1, catches) ->
+		let try_body = cs_stmt_with_return_inner ectx is_void e1 in
+		let catch_clauses = List.map (fun (v, catch_expr) ->
+			let catch_body = cs_stmt_with_return_inner ectx is_void catch_expr in
+			{
+				catch_type = Some (cs_type_of_type ectx.gctx v.v_type);
+				catch_name = Some (get_local_name ectx v);
+				catch_when = None;
+				catch_body = catch_body;
+			}
+		) catches in
+		CsTry (try_body, catch_clauses, None)
+	| TIf (cond, e_then, e_else_opt) ->
+		let cond_cs = cs_expr_of_texpr ectx cond in
+		let then_body = cs_stmt_with_return_inner ectx is_void e_then in
+		let else_body = Option.map (cs_stmt_with_return_inner ectx is_void) e_else_opt in
+		CsIf (cond_cs, then_body, else_body)
+	| TSwitch sw ->
+		let switch_expr = cs_expr_of_texpr ectx sw.switch_subject in
+		let cs_sections = List.map (fun case ->
+			let cs_labels = List.map (fun v -> CsCaseConst (cs_expr_of_texpr ectx v)) case.case_patterns in
+			let case_body_with_return = cs_stmt_with_return_inner ectx is_void case.case_expr in
+			{ sw_labels = cs_labels; sw_body = [case_body_with_return] }
+		) sw.switch_cases in
+		let cs_sections = match sw.switch_default with
+			| Some def_expr ->
+				let def_body = cs_stmt_with_return_inner ectx is_void def_expr in
+				cs_sections @ [{ sw_labels = [CsCaseDefault]; sw_body = [def_body] }]
+			| None -> cs_sections
+		in
+		CsSwitch (switch_expr, cs_sections)
+	| TBlock exprs ->
+		let (init_exprs, last_opt) = split_last exprs in
+		let init_stmts = List.map (cs_stmt_of_texpr ectx) init_exprs in
+		let final_stmt = match last_opt with
+			| Some last_expr -> cs_stmt_with_return_inner ectx is_void last_expr
+			| None -> if is_void then CsEmpty else CsReturn None
+		in
+		CsBlock (init_stmts @ [final_stmt])
+	| TWhile _ ->
+		(* While loops as expressions are unusual - just emit the loop *)
+		if is_void then
+			cs_stmt_of_texpr ectx e
+		else
+			CsBlock [cs_stmt_of_texpr ectx e; CsReturn (Some (CsDefault (cs_type_of_type ectx.gctx e.etype)))]
+	| _ ->
+		(* For simple expressions, return them (or just emit as statement if void) *)
+		if is_void then
+			CsExprStmt (cs_expr_of_texpr ectx e)
+		else
+			CsReturn (Some (cs_expr_of_texpr ectx e))
 
 (* Helper to split list into init elements and last element *)
 and split_last = function
@@ -652,12 +937,15 @@ and cs_stmt_of_texpr ectx e =
 			(* Use cs_expr_with_prefix to handle block expressions smartly *)
 			let result = cs_expr_with_prefix ectx init_expr in
 			let init_cs = result.er_expr in
-			(* If init expression is Dynamic but variable type is specific, add a cast *)
+			(* Handle type conversions *)
 			let init_type = cs_type_of_type ectx.gctx init_expr.etype in
 			let init_cs = match init_type, var_type with
 				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeFloat | CsTypeBool | CsTypeString | CsTypeClass _) ->
 					(* Dynamic -> specific type: need runtime cast *)
 					CsCast (var_type, init_cs)
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) ->
+					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value *)
+					CsField (init_cs, "value")
 				| _ -> init_cs
 			in
 			if result.er_stmts = [] then
@@ -745,14 +1033,28 @@ and cs_stmt_of_texpr ectx e =
 		CsExprStmt (cs_expr_of_texpr ectx e)
 
 (* Generate method body *)
-let generate_method_body gctx e =
+(* param_cs_names: optional list of C# parameter names (in order) from the method signature.
+   This ensures the body uses the same parameter names as the C# method signature.
+   Without this, abstract @this parameters may be named differently (e.g., "this1" in AST
+   but "@this" in the signature). The mapping is by position. *)
+let generate_method_body gctx ?(param_cs_names=[]) e =
 	let ectx = create_expr_context gctx in
 	match e.eexpr with
 	| TFunction tf ->
 		(* Unwrap TFunction - this happens for dynamic function assignments *)
-		(* Register parameter names in context *)
-		List.iter (fun (v, _) ->
-			ignore (get_local_name ectx v)
+		(* Register parameter names in context, using provided names when available (by position) *)
+		let param_cs_names_array = Array.of_list param_cs_names in
+		List.iteri (fun i (v, _) ->
+			(* Use the C# name from the signature if available at this position *)
+			let param_name =
+				if i < Array.length param_cs_names_array then
+					param_cs_names_array.(i)
+				else
+					escape_identifier v.v_name
+			in
+			(* Directly register this name for this variable id *)
+			ectx.local_vars <- (v.v_id, param_name) :: ectx.local_vars;
+			ectx.used_names <- param_name :: ectx.used_names
 		) tf.tf_args;
 		(* Generate the inner body *)
 		begin match tf.tf_expr.eexpr with
@@ -777,9 +1079,107 @@ let should_be_virtual c cf =
 	else if has_class_field_flag cf CfOverride then false
 	else true
 
+(* Find ALL interface methods that this field implements with different types.
+   Returns a list of (interface_type, interface_args, interface_return_type, method_type_params)
+   for each interface where the return type OR parameter types differ from the implementation.
+   This is needed because C# doesn't support:
+   - Covariant return types in interface implementations
+   - Contravariant parameter types in interface implementations
+   We need to generate explicit interface implementations for each such interface. *)
+let find_variant_interface_methods gctx c cf =
+	let rec check_interface acc map_parent (c_int, params) =
+		(* First apply any parent type mapping to the params.
+		   This is needed when traversing parent interfaces:
+		   e.g., B<T> extends A<T>, and C implements B<int>
+		   When checking A, params is [T] but we need [int]. *)
+		let params = List.map map_parent params in
+		let map_type = apply_params c_int.cl_params params in
+		let acc = try
+			let cf_int = PMap.find cf.cf_name c_int.cl_fields in
+			match cf_int.cf_kind with
+			| Method _ ->
+				(* Found interface method with same name *)
+				let int_type = map_type cf_int.cf_type in
+				begin match follow int_type, follow cf.cf_type with
+				| TFun (int_args, int_ret), TFun (impl_args, impl_ret) ->
+					(* Check if return types differ (covariant return) *)
+					let ret_differs = not (Type.type_iseq int_ret impl_ret) in
+					(* Check if any parameter types differ (contravariant params) *)
+					let args_differ =
+						try
+							List.exists2 (fun (_, _, int_t) (_, _, impl_t) ->
+								not (Type.type_iseq int_t impl_t)
+							) int_args impl_args
+						with Invalid_argument _ -> true (* Different arg counts *)
+					in
+					if ret_differs || args_differ then
+						(* Build the interface type with applied params *)
+						let iface_cs_type = cs_type_of_type gctx (TInst (c_int, params)) in
+						(* Get interface method's type parameters *)
+						let method_type_params = List.map (fun ttp -> ttp.ttp_name) cf_int.cf_params in
+						(iface_cs_type, int_args, int_ret, method_type_params) :: acc
+					else
+						acc
+				| _ -> acc
+				end
+			| _ -> acc
+		with Not_found -> acc
+		in
+		(* Also check parent interfaces - they may require explicit implementations too.
+		   Pass map_type so parent interface params get properly substituted. *)
+		List.fold_left (fun acc iface -> check_interface acc map_type iface) acc c_int.cl_implements
+	in
+	(* Check all implemented interfaces, starting with identity mapping *)
+	List.fold_left (fun acc iface -> check_interface acc (fun t -> t) iface) [] c.cl_implements
+
+(* Generate explicit interface implementations for variant return/param types.
+   For each interface method with different types, we generate:
+   ReturnType InterfaceName.MethodName(params) { return this.MethodName(params); }
+   This delegates to the actual implementation method. *)
+let generate_explicit_interface_impls gctx c cf =
+	match cf.cf_kind with
+	| Method MethNormal | Method MethInline ->
+		let variant_interfaces = find_variant_interface_methods gctx c cf in
+		List.map (fun (iface_type, int_args, int_ret, method_type_params) ->
+			(* Generate params for the explicit implementation (no defaults needed) *)
+			let params = List.filter_map (fun (n, _, t) ->
+				if ExtType.is_void (follow t) then None
+				else Some {
+					p_name = escape_identifier n;
+					p_type = Some (cs_type_of_type gctx t);
+					p_default = None;
+					p_modifier = None;
+				}
+			) int_args in
+			(* Body: call this.MethodName(args) *)
+			let arg_exprs = List.map (fun p -> CsLocal p.p_name) params in
+			let call_expr = CsCall (CsField (CsThis, escape_identifier cf.cf_name), arg_exprs) in
+			(* Use return for non-void, expression statement for void *)
+			let is_void = ExtType.is_void (follow int_ret) in
+			let body_stmt = if is_void then
+				CsExprStmt call_expr
+			else
+				CsReturn (Some call_expr)
+			in
+			CsMemberMethod {
+				m_name = escape_identifier cf.cf_name;
+				m_return_type = cs_type_of_type gctx int_ret;
+				m_access = AccessModifier.Public; (* ignored for explicit interface impl *)
+				m_modifiers = [];
+				m_type_params = method_type_params;
+				m_params = params;
+				m_body = Some [body_stmt];
+				m_constraints = [];
+				m_explicit_interface = Some iface_type;
+			}
+		) variant_interfaces
+	| _ -> []
+
 (* Generate class field as C# member *)
 let generate_field gctx c cf is_static =
-	let name = escape_identifier cf.cf_name in
+	(* Use get_cs_field_name which handles C# restriction where member names
+	   cannot be the same as the enclosing type name. *)
+	let name = get_cs_field_name c cf in
 	let cs_type = cs_type_of_type gctx cf.cf_type in
 	let modifiers = if is_static then [MemberModifier.Static] else [] in
 
@@ -800,8 +1200,14 @@ let generate_field gctx c cf is_static =
 			f_modifiers = modifiers;
 			f_value = value;
 		})
+	| Var { v_read = AccCall; _ } | Var { v_write = AccCall; _ } ->
+		(* Property with custom getter/setter - skip the property declaration.
+		   The getter/setter methods (get_xxx, set_xxx) are generated separately
+		   as methods. In C#, auto-properties reserve the get_/set_ method names,
+		   so we can't have both an auto-property AND explicit getter/setter methods. *)
+		None
 	| Var _ ->
-		(* Property *)
+		(* Simple property with no custom accessors *)
 		Some (CsMemberProperty {
 			prop_name = name;
 			prop_type = cs_type;
@@ -817,6 +1223,36 @@ let generate_field gctx c cf is_static =
 			| TFun (args, ret) -> args, ret
 			| _ -> [], cf.cf_type
 		in
+		(* For override methods, we need to use the parent's parameter types
+		   to ensure C# compatibility. C# requires exact type match for overrides. *)
+		let args, ret =
+			if not is_static && is_override cf then
+				let rec find_parent_types c_super tl =
+					let map_type = apply_params c_super.cl_params tl in
+					try
+						let cf_super = PMap.find cf.cf_name c_super.cl_fields in
+						match cf_super.cf_kind with
+						| Method _ ->
+							begin match follow (map_type cf_super.cf_type) with
+							| TFun (parent_args, parent_ret) -> Some (parent_args, parent_ret)
+							| _ -> None
+							end
+						| _ -> None
+					with Not_found ->
+						match c_super.cl_super with
+						| Some (grandparent, tl2) -> find_parent_types grandparent (List.map map_type tl2)
+						| None -> None
+				in
+				match c.cl_super with
+				| Some (c_super, tl) ->
+					begin match find_parent_types c_super tl with
+					| Some (parent_args, parent_ret) -> parent_args, parent_ret
+					| None -> args, ret
+					end
+				| None -> args, ret
+			else
+				args, ret
+		in
 		(* C# requires that all optional parameters come after all required ones.
 		   Mark which optional params can have defaults (only trailing optionals).
 		   If an optional param has a required param after it, it cannot have a default. *)
@@ -824,6 +1260,16 @@ let generate_field gctx c cf is_static =
 		let last_required_index = List.fold_left (fun acc (i, (_, opt, _)) ->
 			if not opt then i else acc
 		) (-1) args_with_index in
+		(* Filter out Void parameters - C# doesn't allow 'void' as a parameter type *)
+		let filtered_args = List.filter (fun (_, _, t) -> not (ExtType.is_void (follow t))) args in
+		(* Build list of C# parameter names in order.
+		   This is needed because abstract methods have @this parameters where the
+		   original name is "this" but gets escaped to "@this" in C#.
+		   The body expression may use a renamed variable (e.g., "this1") which
+		   needs to map to the escaped parameter name "@this". *)
+		let param_cs_names = List.map (fun (n, _, _) ->
+			escape_identifier n
+		) filtered_args in
 		let params = List.mapi (fun i (n, opt, t) ->
 			let param_type = cs_type_of_type gctx t in
 			(* Only add default for trailing optionals (after last required param) *)
@@ -839,17 +1285,37 @@ let generate_field gctx c cf is_static =
 				p_default = default_val;
 				p_modifier = None;
 			}
-		) args in
+		) filtered_args in
 		let body = match cf.cf_expr with
-			| Some e -> Some (generate_method_body gctx e)
+			| Some e -> Some (generate_method_body gctx ~param_cs_names e)
 			| None -> None
 		in
-		(* Extract method-level type parameters *)
-		let method_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
-		(* Add virtual/override modifiers for instance methods *)
+		(* Extract method-level type parameters from cf.cf_params *)
+		let explicit_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
+		(* Get class type parameters to exclude from method type params *)
+		let class_type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
+		(* Also collect type parameters used in the method signature.
+		   This is needed for _Impl_ classes where the abstract's type params
+		   become method-level params (like Rest<T>.append uses T but _Impl_ has no class params).
+		   However, we must exclude type params that belong to the enclosing class. *)
+		let return_cs_type = cs_type_of_type gctx ret in
+		let param_cs_types = List.map (fun p -> p.p_type) params in
+		let param_cs_types = List.filter_map (fun t -> t) param_cs_types in
+		let inferred_type_params = CsSignature.get_method_type_params param_cs_types return_cs_type in
+		(* Filter out class type params from inferred params *)
+		let inferred_type_params = List.filter (fun p ->
+			not (List.mem p class_type_params)
+		) inferred_type_params in
+		(* Combine explicit and inferred params, explicit first, avoiding duplicates *)
+		let method_type_params = explicit_type_params @ (List.filter (fun p ->
+			not (List.mem p explicit_type_params)
+		) inferred_type_params) in
+		(* Add virtual/override/abstract modifiers for instance methods *)
 		let method_modifiers =
 			if is_static then modifiers
 			else if is_override cf then modifiers @ [MemberModifier.Override]
+			(* Methods without a body should be abstract, not virtual *)
+			else if body = None then modifiers @ [MemberModifier.Abstract]
 			else if should_be_virtual c cf then modifiers @ [MemberModifier.Virtual]
 			else modifiers
 		in
@@ -862,6 +1328,7 @@ let generate_field gctx c cf is_static =
 			m_params = params;
 			m_body = body;
 			m_constraints = [];
+			m_explicit_interface = None;
 		})
 	| Method MethDynamic ->
 		(* Dynamic method - generate as delegate field
@@ -1009,6 +1476,132 @@ let generate_constructor gctx c cf =
 		}
 	]
 
+(* Check if a class inherits from HaxeObject (directly or through Haxe superclass chain) *)
+let rec extends_haxe_object c =
+	match c.cl_super with
+	| None -> true  (* No superclass means we add HaxeObject as base, so it inherits from HaxeObject *)
+	| Some (sc, _) ->
+		(* Check if the superclass is a native extern class or has @:native metadata *)
+		if has_class_flag sc CExtern then
+			false  (* Extern classes don't inherit from HaxeObject *)
+		else if Meta.has Meta.Native sc.cl_meta then
+			false  (* Classes with @:native map to native C# classes, not HaxeObject *)
+		else
+			extends_haxe_object sc  (* Check the superclass *)
+
+(* Generate _hx_getField, _hx_setField, _hx_getFields override methods for AOT compatibility *)
+let generate_field_accessors gctx c =
+	(* Only generate field accessors if the class inherits from HaxeObject *)
+	if not (extends_haxe_object c) then
+		[]
+	else
+		(* Get list of instance fields with their native names *)
+		let instance_fields = List.filter_map (fun cf ->
+			match cf.cf_kind with
+			| Var { v_read = AccNormal; v_write = AccNormal }
+			| Var { v_read = AccNormal; v_write = AccNever } ->
+				Some (get_native_field_name cf, cs_type_of_type gctx cf.cf_type)
+			| _ -> None
+		) c.cl_ordered_fields in
+
+		if instance_fields = [] then
+			[]  (* No fields, no need for accessors *)
+		else
+		let field_names = List.map fst instance_fields in
+
+		(* Generate _hx_getField override:
+		   public override object _hx_getField(string name) {
+		       switch (name) {
+		           case "field1": return this.field1;
+		           ...
+		           default: return base._hx_getField(name);
+		       }
+		   }
+		*)
+		let get_field_sections = List.map (fun (name, _) ->
+			{
+				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
+				sw_body = [CsReturn (Some (CsField (CsThis, name)))];
+			}
+		) instance_fields in
+		let get_field_default = {
+			sw_labels = [CsCaseDefault];
+			sw_body = [CsReturn (Some (CsCall (CsField (CsBase, "_hx_getField"), [CsLocal "name"])))];
+		} in
+		let get_field_method = CsMemberMethod {
+			m_name = "_hx_getField";
+			m_return_type = CsTypeObject;
+			m_access = AccessModifier.Public;
+			m_modifiers = [MemberModifier.Override];
+			m_type_params = [];
+			m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
+			m_body = Some [CsSwitch (CsLocal "name", get_field_sections @ [get_field_default])];
+			m_constraints = [];
+			m_explicit_interface = None;
+		} in
+
+		(* Generate _hx_setField override:
+		   public override void _hx_setField(string name, object value) {
+		       switch (name) {
+		           case "field1": this.field1 = (FieldType)value; return;
+		           ...
+		           default: base._hx_setField(name, value); return;
+		       }
+		   }
+		*)
+		let set_field_sections = List.map (fun (name, field_type) ->
+			{
+				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
+				sw_body = [
+					CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, name), CsCast (field_type, CsLocal "value")));
+					CsReturn None;
+				];
+			}
+		) instance_fields in
+		let set_field_default = {
+			sw_labels = [CsCaseDefault];
+			sw_body = [
+				CsExprStmt (CsCall (CsField (CsBase, "_hx_setField"), [CsLocal "name"; CsLocal "value"]));
+				CsReturn None;
+			];
+		} in
+		let set_field_method = CsMemberMethod {
+			m_name = "_hx_setField";
+			m_return_type = CsTypeVoid;
+			m_access = AccessModifier.Public;
+			m_modifiers = [MemberModifier.Override];
+			m_type_params = [];
+			m_params = [
+				{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None };
+				{ p_name = "value"; p_type = Some CsTypeObject; p_default = None; p_modifier = None };
+			];
+			m_body = Some [CsSwitch (CsLocal "name", set_field_sections @ [set_field_default])];
+			m_constraints = [];
+			m_explicit_interface = None;
+		} in
+
+		(* Generate _hx_getFields override:
+		   public override Array<string> _hx_getFields() {
+		       return new Array<string>(new string[] { "field1", "field2", ... });
+		   }
+		*)
+		let field_name_exprs = List.map (fun name -> CsConst (CsConstString name)) field_names in
+		let array_type = CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeString]) in
+		let get_fields_method = CsMemberMethod {
+			m_name = "_hx_getFields";
+			m_return_type = array_type;
+			m_access = AccessModifier.Public;
+			m_modifiers = [MemberModifier.Override];
+			m_type_params = [];
+			m_params = [];
+			(* Create Array<string> from native array: Array<string>.ofNative(new string[] {...}) *)
+			m_body = Some [CsReturn (Some (CsStaticCallGeneric (array_type, "ofNative", [CsTypeString], [CsNewArray (CsTypeString, field_name_exprs)])))];
+			m_constraints = [];
+			m_explicit_interface = None;
+		} in
+
+		[get_field_method; set_field_method; get_fields_method]
+
 (* Generate C# class from Haxe class *)
 let generate_class gctx c =
 	let path = cs_path_of_path c.cl_path in
@@ -1026,12 +1619,15 @@ let generate_class gctx c =
 	in
 
 	(* Generate base class reference *)
+	(* If no explicit superclass, use HaxeObject as the base class for dynamic field support *)
 	let base_class = match c.cl_super with
 		| Some (sc, params) ->
 			let path = cs_path_of_path sc.cl_path in
 			let params = List.map (cs_type_of_type gctx) params in
 			Some (CsTypeClass (path, params))
-		| None -> None
+		| None ->
+			(* All Haxe classes extend HaxeObject for _hx_getField support *)
+			Some (CsTypeClass ((["haxe"; "root"], "HaxeObject"), []))
 	in
 
 	(* Generate interface references *)
@@ -1053,7 +1649,10 @@ let generate_class gctx c =
 	(* Fields *)
 	List.iter (fun cf ->
 		match generate_field gctx c cf false with
-		| Some m -> members := m :: !members
+		| Some m ->
+			members := m :: !members;
+			(* Generate explicit interface implementations for covariant return types *)
+			members := generate_explicit_interface_impls gctx c cf @ !members
 		| None -> ()
 	) c.cl_ordered_fields;
 
@@ -1063,6 +1662,9 @@ let generate_class gctx c =
 		| Some m -> members := m :: !members
 		| None -> ()
 	) c.cl_ordered_statics;
+
+	(* Generate _hx_getField, _hx_setField, _hx_getFields for AOT-compatible dynamic field access *)
+	members := generate_field_accessors gctx c @ !members;
 
 	(* Extract type parameter names *)
 	let type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
@@ -1105,15 +1707,18 @@ let generate_interface gctx c =
 					p_modifier = None;
 				}
 			) args in
+			(* Get method-level type parameters *)
+			let method_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
 			Some (CsMemberMethod {
 				m_name = escape_identifier cf.cf_name;
 				m_return_type = cs_type_of_type gctx ret;
 				m_access = AccessModifier.Public;
 				m_modifiers = [];
-				m_type_params = [];
+				m_type_params = method_type_params;
 				m_params = params;
 				m_body = None;  (* Interface methods have no body *)
 				m_constraints = [];
+				m_explicit_interface = None;
 			})
 		| _ -> None
 	) c.cl_ordered_fields in
@@ -1135,8 +1740,13 @@ let generate_interface gctx c =
 let generate_enum gctx (e : tenum) =
 	let path = cs_path_of_path e.e_path in
 
-	(* Check if this is a simple enum (no constructors with parameters) *)
-	let is_simple = PMap.fold (fun ef acc ->
+	(* Extract type parameter names from the enum *)
+	let type_params = List.map (fun ttp -> ttp.ttp_name) e.e_params in
+	(* Create C# type references for the type params (used when inheriting from parent) *)
+	let type_param_refs = List.map (fun name -> CsTypeGenericParam name) type_params in
+
+	(* Check if this is a simple enum (no constructors with parameters AND no type params) *)
+	let is_simple = type_params = [] && PMap.fold (fun ef acc ->
 		acc && (match ef.ef_type with TFun _ -> false | _ -> true)
 	) e.e_constrs true in
 
@@ -1158,6 +1768,14 @@ let generate_enum gctx (e : tenum) =
 			| TFun (args, _) ->
 				(* Nested class for constructor with parameters *)
 				let class_name = escape_identifier ef.ef_name in
+				(* GADT support: constructor may have its own type parameters (ef.ef_params) *)
+				let ctor_type_params = List.map (fun ttp -> ttp.ttp_name) ef.ef_params in
+				(* Filter out constructor params that shadow parent params (same name) *)
+				let extra_type_params = List.filter (fun name ->
+					not (List.mem name type_params)
+				) ctor_type_params in
+				(* Combined type params: parent enum params + constructor's unique params *)
+				let nested_type_params = type_params @ extra_type_params in
 				let fields = List.mapi (fun i (name, _, t) ->
 					CsMemberField {
 						f_name = escape_identifier name;
@@ -1193,12 +1811,13 @@ let generate_enum gctx (e : tenum) =
 					ctor_this_call = None;
 					ctor_body = ctor_body;
 				} in
+				(* Nested class has parent's type params + constructor's own type params (GADT) *)
 				let nested_class = CsClassDef {
 					c_path = (fst path, class_name);
 					c_access = AccessModifier.Public;
 					c_modifiers = [];
-					c_type_params = [];
-					c_base = Some (CsTypeClass (path, []));
+					c_type_params = nested_type_params;  (* Parent + constructor's own type params *)
+					c_base = Some (CsTypeClass (path, type_param_refs));  (* Reference parent with parent's type params only *)
 					c_interfaces = [];
 					c_constraints = [];
 					c_members = fields @ [ctor];
@@ -1207,50 +1826,80 @@ let generate_enum gctx (e : tenum) =
 			| _ ->
 				(* Simple constructor (no parameters) - need a nested class with singleton instance *)
 				let class_name = escape_identifier ef.ef_name in
-				(* Suffix to avoid name collision between nested class and static field *)
-				let nested_class_name = class_name ^ "_Impl_" in
-				(* Constructor that sets _hx_index *)
-				let ctor_body = [
-					CsExprStmt (CsBinop (CsOpAssign,
-						CsField (CsThis, "_hx_index"),
-						CsConst (CsConstInt (Int32.of_int ef.ef_index))))
-				] in
-				let ctor = CsMemberConstructor {
-					ctor_access = AccessModifier.Public;
-					ctor_modifiers = [];
-					ctor_params = [];
-					ctor_base_call = None;
-					ctor_this_call = None;
-					ctor_body = ctor_body;
-				} in
-				(* Path for nested class: add parent class name to namespace *)
-				let nested_path = (fst path @ [snd path], nested_class_name) in
-				let instance = CsMemberField {
-					f_name = "Instance";
-					f_type = CsTypeClass (nested_path, []);
-					f_access = AccessModifier.Public;
-					f_modifiers = [MemberModifier.Static; MemberModifier.Readonly];
-					f_value = Some (CsNew (CsTypeClass (nested_path, []), []));
-				} in
-				let nested_class = CsClassDef {
-					c_path = (fst path, nested_class_name);  (* use short path for declaration *)
-					c_access = AccessModifier.Public;
-					c_modifiers = [];
-					c_type_params = [];
-					c_base = Some (CsTypeClass (path, []));
-					c_interfaces = [];
-					c_constraints = [];
-					c_members = [ctor; instance];
-				} in
-				(* Static field on parent that returns the instance *)
-				let field = CsMemberField {
-					f_name = class_name;
-					f_type = CsTypeClass (path, []);
-					f_access = AccessModifier.Public;
-					f_modifiers = [MemberModifier.Static; MemberModifier.Readonly];
-					f_value = Some (CsStaticField (CsTypeClass (nested_path, []), "Instance"));
-				} in
-				CsMemberNestedType nested_class :: field :: acc
+				(* For generic enums, simple constructors also need the type params *)
+				if type_params <> [] then begin
+					(* Generic enum - nested class inherits type params, no singleton possible *)
+					let ctor_body = [
+						CsExprStmt (CsBinop (CsOpAssign,
+							CsField (CsThis, "_hx_index"),
+							CsConst (CsConstInt (Int32.of_int ef.ef_index))))
+					] in
+					let ctor = CsMemberConstructor {
+						ctor_access = AccessModifier.Public;
+						ctor_modifiers = [];
+						ctor_params = [];
+						ctor_base_call = None;
+						ctor_this_call = None;
+						ctor_body = ctor_body;
+					} in
+					let nested_class = CsClassDef {
+						c_path = (fst path, class_name);
+						c_access = AccessModifier.Public;
+						c_modifiers = [];
+						c_type_params = type_params;  (* Inherit type params from parent *)
+						c_base = Some (CsTypeClass (path, type_param_refs));  (* Reference parent with type params *)
+						c_interfaces = [];
+						c_constraints = [];
+						c_members = [ctor];
+					} in
+					CsMemberNestedType nested_class :: acc
+				end else begin
+					(* Non-generic enum - use singleton pattern *)
+					(* Suffix to avoid name collision between nested class and static field *)
+					let nested_class_name = class_name ^ "_Impl_" in
+					(* Constructor that sets _hx_index *)
+					let ctor_body = [
+						CsExprStmt (CsBinop (CsOpAssign,
+							CsField (CsThis, "_hx_index"),
+							CsConst (CsConstInt (Int32.of_int ef.ef_index))))
+					] in
+					let ctor = CsMemberConstructor {
+						ctor_access = AccessModifier.Public;
+						ctor_modifiers = [];
+						ctor_params = [];
+						ctor_base_call = None;
+						ctor_this_call = None;
+						ctor_body = ctor_body;
+					} in
+					(* Path for nested class: add parent class name to namespace *)
+					let nested_path = (fst path @ [snd path], nested_class_name) in
+					let instance = CsMemberField {
+						f_name = "Instance";
+						f_type = CsTypeClass (nested_path, []);
+						f_access = AccessModifier.Public;
+						f_modifiers = [MemberModifier.Static; MemberModifier.Readonly];
+						f_value = Some (CsNew (CsTypeClass (nested_path, []), []));
+					} in
+					let nested_class = CsClassDef {
+						c_path = (fst path, nested_class_name);  (* use short path for declaration *)
+						c_access = AccessModifier.Public;
+						c_modifiers = [];
+						c_type_params = [];
+						c_base = Some (CsTypeClass (path, []));
+						c_interfaces = [];
+						c_constraints = [];
+						c_members = [ctor; instance];
+					} in
+					(* Static field on parent that returns the instance *)
+					let field = CsMemberField {
+						f_name = class_name;
+						f_type = CsTypeClass (path, []);
+						f_access = AccessModifier.Public;
+						f_modifiers = [MemberModifier.Static; MemberModifier.Readonly];
+						f_value = Some (CsStaticField (CsTypeClass (nested_path, []), "Instance"));
+					} in
+					CsMemberNestedType nested_class :: field :: acc
+				end
 		) e.e_constrs [] in
 
 		(* Add _hx_index field *)
@@ -1266,7 +1915,7 @@ let generate_enum gctx (e : tenum) =
 			c_path = path;
 			c_access = AccessModifier.Public;
 			c_modifiers = [TypeModifier.Abstract];
-			c_type_params = [];
+			c_type_params = type_params;  (* Add type params to parent class *)
 			c_base = None;
 			c_interfaces = [];
 			c_constraints = [];

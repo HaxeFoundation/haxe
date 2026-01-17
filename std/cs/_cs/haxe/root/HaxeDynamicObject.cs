@@ -67,12 +67,15 @@ namespace haxe.root
             return _hx_fields.Remove(name);
         }
 
-        public override string[] _hx_getFields()
+        public override Array<string> _hx_getFields()
         {
             _hx_initFields();
-            var keys = new string[_hx_fields.Count];
-            _hx_fields.Keys.CopyTo(keys, 0);
-            return keys;
+            var result = new Array<string>();
+            foreach (var key in _hx_fields.Keys)
+            {
+                result.push(key);
+            }
+            return result;
         }
 
         public override object _hx_getField(string name)
