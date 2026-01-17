@@ -45,7 +45,7 @@ extern class FileSystem {
 
 	@:native("fs_unlink")
 	@:overload(function(file:String, ?cb:String->Bool->Void):Request {})
-	static function unlink(file:String, content:String):Result<Bool>;
+	static function unlink(file:String):Result<Bool>;
 
 	@:native("fs_write")
 	@:overload(function(file:FileDescriptor, content:String, offset:Int, ?cb:String->Int->Void):Int {})
