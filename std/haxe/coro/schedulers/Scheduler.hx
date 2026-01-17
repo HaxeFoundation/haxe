@@ -23,12 +23,6 @@ abstract class Scheduler implements IElement<Scheduler> {
 	public abstract function schedule(ms:Int64, func:() -> Void):ISchedulerHandle;
 
 	/**
-		Schedules `obj` to run. Schedulers ensure that the order of execution follows
-		first-in-first-out.
-	**/
-	public abstract function scheduleObject(obj:IScheduleObject):Void;
-
-	/**
 		Returns the current time in millseconds.
 	**/
 	public abstract function now():Int64;

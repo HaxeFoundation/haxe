@@ -1,4 +1,4 @@
-package haxe.coro.schedulers;
+package haxe.coro.dispatchers;
 
 /**
 	Classes that implement this interface can be passed to instances of

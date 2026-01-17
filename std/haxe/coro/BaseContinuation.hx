@@ -3,8 +3,8 @@ package haxe.coro;
 import haxe.coro.context.Context;
 import haxe.coro.context.Key;
 import haxe.coro.context.IElement;
-import haxe.coro.schedulers.Scheduler;
-import haxe.coro.schedulers.IScheduleObject;
+import haxe.coro.dispatchers.Dispatcher;
+import haxe.coro.dispatchers.IScheduleObject;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
@@ -83,7 +83,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		recursing = false;
 		resumeResult = invokeResume();
 		if (resumeResult != SuspensionResult.suspended) {
-			context.get(Scheduler).scheduleObject(this);
+		    context.get(Dispatcher).dispatch(this);
 		}
     }
 
