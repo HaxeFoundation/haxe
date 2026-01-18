@@ -221,6 +221,18 @@ class Type {
 			if (!StringTools.startsWith(name, "_hx_"))
 				result.push(name);
 		}
+		// Get properties (C# auto-properties are generated for Haxe fields)
+		var properties:Dynamic = untyped __cs__("((System.Type){0}).GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", c);
+		var propCount:Int = untyped __cs__("((System.Reflection.PropertyInfo[]){0}).Length", properties);
+		for (i in 0...propCount) {
+			var prop:Dynamic = untyped __cs__("((System.Reflection.PropertyInfo[]){0})[{1}]", properties, i);
+			var name:String = untyped __cs__("((System.Reflection.PropertyInfo){0}).Name", prop);
+			// Skip internal properties
+			if (!StringTools.startsWith(name, "_hx_")) {
+				if (result.indexOf(name) == -1)
+					result.push(name);
+			}
+		}
 		// Get methods
 		var methods:Dynamic = untyped __cs__("((System.Type){0}).GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", c);
 		var methodCount:Int = untyped __cs__("((System.Reflection.MethodInfo[]){0}).Length", methods);
@@ -249,6 +261,18 @@ class Type {
 			var name:String = untyped __cs__("((System.Reflection.FieldInfo){0}).Name", field);
 			if (!StringTools.startsWith(name, "_hx_"))
 				result.push(name);
+		}
+		// Get static properties (C# auto-properties are generated for Haxe static fields)
+		var properties:Dynamic = untyped __cs__("((System.Type){0}).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
+		var propCount:Int = untyped __cs__("((System.Reflection.PropertyInfo[]){0}).Length", properties);
+		for (i in 0...propCount) {
+			var prop:Dynamic = untyped __cs__("((System.Reflection.PropertyInfo[]){0})[{1}]", properties, i);
+			var name:String = untyped __cs__("((System.Reflection.PropertyInfo){0}).Name", prop);
+			// Skip internal properties
+			if (!StringTools.startsWith(name, "_hx_")) {
+				if (result.indexOf(name) == -1)
+					result.push(name);
+			}
 		}
 		// Get static methods
 		var methods:Dynamic = untyped __cs__("((System.Type){0}).GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);

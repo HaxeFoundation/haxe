@@ -145,8 +145,8 @@ class Socket {
 				return null;
 			}
 
-			var ipStr:String = untyped __cs__("{0}.Address.ToString()", remoteEp);
-			var port:Int = untyped __cs__("{0}.Port", remoteEp);
+			var ipStr:String = untyped __cs__("((System.Net.IPEndPoint){0}).Address.ToString()", remoteEp);
+			var port:Int = untyped __cs__("((System.Net.IPEndPoint){0}).Port", remoteEp);
 			var host = new Host(ipStr);
 			return {host: host, port: port};
 		} catch (e:Dynamic) {
@@ -167,8 +167,8 @@ class Socket {
 				return null;
 			}
 
-			var ipStr:String = untyped __cs__("{0}.Address.ToString()", localEp);
-			var port:Int = untyped __cs__("{0}.Port", localEp);
+			var ipStr:String = untyped __cs__("((System.Net.IPEndPoint){0}).Address.ToString()", localEp);
+			var port:Int = untyped __cs__("((System.Net.IPEndPoint){0}).Port", localEp);
 			var host = new Host(ipStr);
 			return {host: host, port: port};
 		} catch (e:Dynamic) {

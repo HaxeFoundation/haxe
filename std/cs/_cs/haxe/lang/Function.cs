@@ -7,13 +7,16 @@ namespace haxe.lang
     /// Base class for all Haxe function types.
     /// Provides dynamic invocation capability for calling functions via reflection.
     /// </summary>
-    public abstract class Function
+    public class Function
     {
         /// <summary>
         /// Invoke this function dynamically with the given arguments.
         /// Subclasses (generated closures) override this to call the actual function.
         /// </summary>
-        public abstract object invokeDynamic(haxe.root.Array<object> args);
+        public virtual object invokeDynamic(haxe.root.Array<object> args)
+        {
+            throw new NotImplementedException("Function.invokeDynamic must be overridden");
+        }
 
         /// <summary>
         /// Invoke with 0 arguments.
@@ -26,7 +29,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 1 argument.
         /// </summary>
-        public virtual object invoke(object a0)
+        public virtual object invoke1(object a0)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -36,7 +39,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 2 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1)
+        public virtual object invoke2(object a0, object a1)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -47,7 +50,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 3 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1, object a2)
+        public virtual object invoke3(object a0, object a1, object a2)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -59,7 +62,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 4 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1, object a2, object a3)
+        public virtual object invoke4(object a0, object a1, object a2, object a3)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -72,7 +75,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 5 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1, object a2, object a3, object a4)
+        public virtual object invoke5(object a0, object a1, object a2, object a3, object a4)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -86,7 +89,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 6 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1, object a2, object a3, object a4, object a5)
+        public virtual object invoke6(object a0, object a1, object a2, object a3, object a4, object a5)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -101,7 +104,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 7 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
+        public virtual object invoke7(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);
@@ -117,7 +120,7 @@ namespace haxe.lang
         /// <summary>
         /// Invoke with 8 arguments.
         /// </summary>
-        public virtual object invoke(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
+        public virtual object invoke8(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
         {
             var args = new haxe.root.Array<object>();
             args.push(a0);

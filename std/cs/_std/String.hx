@@ -58,7 +58,7 @@ extern class String {
 		return cs.StringExt.substring(this, startIndex, endIndex);
 	}
 
-	function toString():String;
+	@:native("ToString") function toString():String;
 
 	@:runtime static inline function fromCharCode(code:Int):String {
 		return cs.StringExt.fromCharCode(code);

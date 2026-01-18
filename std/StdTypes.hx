@@ -59,7 +59,7 @@
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float {}
 
-#if (java || hl || cpp)
+#if (java || hl || cpp || cs)
 /**
 	Single-precision IEEE 32bit float (4-byte).
 **/

@@ -9,6 +9,13 @@ namespace haxe.lang
     public static class Runtime
     {
         /// <summary>
+        /// Sentinel value used in dual-slot invoke pattern to indicate "use the double slot".
+        /// When the object slot equals this value, the double slot contains the actual value.
+        /// This allows primitives to be passed without boxing.
+        /// </summary>
+        public static readonly object undefined = new object();
+
+        /// <summary>
         /// Converts a dynamic value to int, handling null and type conversions.
         /// </summary>
         public static int toInt(object d)

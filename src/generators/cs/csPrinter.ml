@@ -121,6 +121,16 @@ let print_type_params ctx = function
 		) params;
 		print ctx ">"
 
+(* Check if an expression is valid as a C# statement *)
+let rec is_valid_statement_expr = function
+	| CsCall _ | CsStaticCall _ | CsNew _ | CsCallGeneric _ | CsStaticCallGeneric _ -> true
+	| CsBinop (CsOpAssign, _, _) | CsBinop (CsOpAssignOp _, _, _) -> true
+	| CsUnop (CsOpIncrement, _, _) | CsUnop (CsOpDecrement, _, _) -> true
+	| CsParens e -> is_valid_statement_expr e
+	| CsAwait _ -> true
+	| CsRaw _ | CsInlineCode _ -> true  (* Raw code and inline code pass through as-is *)
+	| _ -> false
+
 (* Print parameter *)
 let rec print_param ctx p =
 	begin match p.p_modifier with
@@ -181,7 +191,16 @@ and print_expr ctx = function
 		print ctx " : ";
 		print_expr ctx e2
 	| CsField (e, name) ->
+		(* Wrap low-precedence expressions in parentheses for field access.
+		   Ternary (?:), binary ops, and lambdas need parens since they have lower
+		   precedence than member access (.) in C#. *)
+		let needs_parens = match e with
+			| CsTernary _ | CsBinop _ | CsLambda _ -> true
+			| _ -> false
+		in
+		if needs_parens then print ctx "(";
 		print_expr ctx e;
+		if needs_parens then print ctx ")";
 		print ctx ".";
 		print ctx (escape_identifier name)
 	| CsStaticField (t, name) ->
@@ -395,8 +414,15 @@ and print_args ctx args =
 (* Print statement *)
 and print_stmt ctx = function
 	| CsExprStmt e ->
-		print_expr ctx e;
-		print ctx ";"
+		(* Wrap invalid statement expressions with discard assignment *)
+		if is_valid_statement_expr e then begin
+			print_expr ctx e;
+			print ctx ";"
+		end else begin
+			print ctx "_ = ";
+			print_expr ctx e;
+			print ctx ";"
+		end
 	| CsBlock stmts ->
 		print ctx "{";
 		indent ctx;
@@ -1020,6 +1046,16 @@ let print_file ctx file =
 		unindent ctx;
 		newline ctx;
 		print ctx "}"
+	end;
+	(* Print top-level types (like closures) outside the namespace *)
+	if file.file_top_level_types <> [] then begin
+		newline ctx;
+		newline ctx;
+		List.iter (fun td ->
+			print_type_def ctx td;
+			newline ctx;
+			newline ctx
+		) file.file_top_level_types
 	end
 
 (* Generate C# source from file *)

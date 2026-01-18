@@ -429,6 +429,7 @@ class Main {
 		}
 		f(wrongType);
 		t(rightType);
+
 	}
 
 	static function testVector() {
@@ -1711,3 +1712,4 @@ class ThreadTestHelper {
 	public static var sharedCounter:Int = 0;
 	public static var mutex:sys.thread.Mutex = new sys.thread.Mutex();
 }
+

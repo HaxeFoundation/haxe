@@ -43,12 +43,12 @@ class Host {
 			// Not an IP address, resolve hostname
 			try {
 				var addresses:Dynamic = untyped __cs__("System.Net.Dns.GetHostAddresses({0})", name);
-				if (untyped __cs__("{0}.Length", addresses) > 0) {
+				if (untyped __cs__("((System.Net.IPAddress[]){0}).Length", addresses) > 0) {
 					// Get the first IPv4 address if available
-					var len:Int = untyped __cs__("{0}.Length", addresses);
+					var len:Int = untyped __cs__("((System.Net.IPAddress[]){0}).Length", addresses);
 					for (i in 0...len) {
-						var addr:Dynamic = untyped __cs__("{0}[{1}]", addresses, i);
-						var family:Int = untyped __cs__("(int){0}.AddressFamily", addr);
+						var addr:Dynamic = untyped __cs__("((System.Net.IPAddress[]){0})[{1}]", addresses, i);
+						var family:Int = untyped __cs__("(int)((System.Net.IPAddress){0}).AddressFamily", addr);
 						// AddressFamily.InterNetwork = 2 (IPv4)
 						if (family == 2) {
 							_ipAddress = addr;
@@ -57,7 +57,7 @@ class Host {
 						}
 					}
 					// Fall back to first address
-					_ipAddress = untyped __cs__("{0}[0]", addresses);
+					_ipAddress = untyped __cs__("((System.Net.IPAddress[]){0})[0]", addresses);
 					setIpFromAddress(_ipAddress);
 				} else {
 					throw "Could not resolve host: " + name;
@@ -69,14 +69,14 @@ class Host {
 	}
 
 	private function setIpFromAddress(addr:Dynamic):Void {
-		var bytes:Dynamic = untyped __cs__("{0}.GetAddressBytes()", addr);
-		var len:Int = untyped __cs__("{0}.Length", bytes);
+		var bytes:Dynamic = untyped __cs__("((System.Net.IPAddress){0}).GetAddressBytes()", addr);
+		var len:Int = untyped __cs__("((byte[]){0}).Length", bytes);
 		if (len >= 4) {
 			// network byte order (big endian)
-			var b0:Int = untyped __cs__("(int){0}[0]", bytes);
-			var b1:Int = untyped __cs__("(int){0}[1]", bytes);
-			var b2:Int = untyped __cs__("(int){0}[2]", bytes);
-			var b3:Int = untyped __cs__("(int){0}[3]", bytes);
+			var b0:Int = untyped __cs__("(int)((byte[]){0})[0]", bytes);
+			var b1:Int = untyped __cs__("(int)((byte[]){0})[1]", bytes);
+			var b2:Int = untyped __cs__("(int)((byte[]){0})[2]", bytes);
+			var b3:Int = untyped __cs__("(int)((byte[]){0})[3]", bytes);
 			this.ip = b3 | (b2 << 8) | (b1 << 16) | (b0 << 24);
 		}
 	}

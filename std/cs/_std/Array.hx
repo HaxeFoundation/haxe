@@ -365,7 +365,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 		return __a[idx];
 	}
 
-	private function __set(idx:Int, v:T):Void {
+	private function __set(idx:Int, v:T):T {
 		if (idx >= __a.length) {
 			var newl = idx + 1;
 			if (idx == __a.length)
@@ -378,6 +378,7 @@ import haxe.iterators.ArrayKeyValueIterator;
 		if (idx >= length)
 			length = idx + 1;
 		__a[idx] = v;
+		return v;
 	}
 
 	private inline function __unsafe_get(idx:Int):T {

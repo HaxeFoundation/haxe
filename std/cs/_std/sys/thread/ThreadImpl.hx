@@ -32,7 +32,10 @@ abstract ThreadImpl(cs.system.threading.Thread) {
 	}
 
 	public static function create(job:() -> Void):ThreadImpl {
-		var thread = new cs.system.threading.Thread(new cs.system.threading.ThreadStart(job));
+		// Wrap the haxe.lang.Function in a C# lambda that calls invoke()
+		// This is necessary because haxe.lang.Function is not a C# delegate
+		var start:cs.system.threading.ThreadStart = cs.Syntax.code("new System.Threading.ThreadStart(() => {0}.invoke())", job);
+		var thread = new cs.system.threading.Thread(start);
 		thread.IsBackground = true;
 		thread.Start();
 		return cast thread;

@@ -332,6 +332,7 @@ type cs_file = {
 	file_usings : cs_using list;
 	file_namespace : string list option;
 	file_types : cs_type_def list;
+	file_top_level_types : cs_type_def list;  (* Types outside the namespace, e.g. closures *)
 }
 
 (* A complete C# project *)

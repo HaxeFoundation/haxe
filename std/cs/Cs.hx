@@ -297,6 +297,13 @@ class Cs {
 	}
 
 	/**
+	 * Dynamic boolean NOT.
+	 */
+	public static function opNot(a:Dynamic):Dynamic {
+		return !dynamicToBool(a);
+	}
+
+	/**
 	 * Dynamic increment.
 	 */
 	public static function opIncrement(a:Dynamic):Dynamic {
@@ -334,5 +341,49 @@ class Cs {
 	 */
 	public static function compare(a:Dynamic, b:Dynamic):Int {
 		return Reflect.compare(a, b);
+	}
+
+	// =====================================================================
+	// Dynamic Array/Indexer Access
+	// =====================================================================
+
+	/**
+	 * Get element from a dynamic array or indexable object.
+	 */
+	public static function arrayGet(obj:Dynamic, index:Int):Dynamic {
+		if (obj == null) {
+			throw "Cannot index null";
+		}
+		// Try as native C# array first
+		if (untyped __cs__("{0} is System.Array", obj)) {
+			return untyped __cs__("((System.Array){0}).GetValue({1})", obj, index);
+		}
+		// Try as Haxe Array
+		if (Std.isOfType(obj, Array)) {
+			return (cast obj : Array<Dynamic>)[index];
+		}
+		// Fallback: throw - we can't handle other indexable types without reflection
+		throw "Cannot index object of type " + Type.getClassName(Type.getClass(obj));
+	}
+
+	/**
+	 * Set element in a dynamic array or indexable object.
+	 */
+	public static function arraySet(obj:Dynamic, index:Int, value:Dynamic):Dynamic {
+		if (obj == null) {
+			throw "Cannot index null";
+		}
+		// Try as native C# array first
+		if (untyped __cs__("{0} is System.Array", obj)) {
+			untyped __cs__("((System.Array){0}).SetValue({1}, {2})", obj, value, index);
+			return value;
+		}
+		// Try as Haxe Array
+		if (Std.isOfType(obj, Array)) {
+			(cast obj : Array<Dynamic>)[index] = value;
+			return value;
+		}
+		// Fallback: throw - we can't handle other indexable types without reflection
+		throw "Cannot set index on object of type " + Type.getClassName(Type.getClass(obj));
 	}
 }

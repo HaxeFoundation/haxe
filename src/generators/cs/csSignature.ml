@@ -60,7 +60,7 @@ module NativeTypes = struct
 	(* Haxe runtime types *)
 	let haxe_object_path = (["haxe"; "root"], "HaxeObject")
 	let haxe_dynamic_object_path = (["haxe"; "root"], "HaxeDynamicObject")
-	let haxe_function_path = (["haxe"; "root"], "HaxeFunction")
+	let haxe_function_path = (["haxe"; "lang"], "Function")
 	let haxe_closure_path = (["haxe"; "root"], "HaxeClosure")
 	let haxe_enum_path = (["haxe"; "root"], "HaxeEnum")
 	let haxe_exception_path = (["haxe"], "Exception")
@@ -134,9 +134,13 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* Due to @:native, the usual String path doesn't always match - also match lowercase "string" from @:native *)
 		CsTypeString
 	| TAbstract ({ a_path = ([], "Null") }, [t]) ->
-		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics) *)
+		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics)
+		   EXCEPT Null<Void> which becomes just 'object' since C# doesn't allow void as a type argument *)
 		let inner = cs_type_of_type_inner t in
-		CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
+		begin match inner with
+		| CsTypeVoid -> CsTypeObject
+		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
+		end
 	| TDynamic _ ->
 		(* Dynamic -> object (not dynamic, to avoid runtime dispatch overhead) *)
 		CsTypeObject
@@ -180,39 +184,21 @@ let rec cs_type_of_type_inner gctx stack t =
 			cs_type_of_type_inner (Type.apply_typedef td params)
 		end
 	| TFun (args, ret) ->
-		(* For optional parameters in TFun:
+		(* Function types map to haxe.lang.Function class.
+		   Following JVM's approach: all function types use the base Function class,
+		   not C#'s Func<>/Action<> delegates.
+		   This simplifies code generation and avoids delegate conversion issues.
+
+		   For optional parameters in TFun:
 		   - Explicit type annotations like (Int, ?Int, Int)->Int have raw type + opt flag
 		   - Inferred types from lambdas already have Null<T> in the type itself
 		   We need to wrap in Null<T> only if opt=true AND type isn't already Null<T>
+		   This information is preserved in closure generation but not in the type itself.
 
-		   IMPORTANT: Filter out Void parameters - C# doesn't allow 'void' as a parameter type.
-		   In Haxe, Void as a parameter type can happen when a generic T is specialized to Void. *)
-		let arg_types = List.filter_map (fun (_, opt, t) ->
-			(* Check if this is a Void type - skip it if so *)
-			let is_void_type = match Type.follow t with
-				| Type.TAbstract ({ a_path = ([], "Void") }, _) -> true
-				| _ -> false
-			in
-			if is_void_type then None
-			else begin
-				let is_already_null = match t with
-					| Type.TAbstract ({ a_path = ([], "Null") }, _) -> true
-					| _ -> false
-				in
-				let csig = cs_type_of_type_inner t in
-				Some (if opt && not is_already_null then get_boxed_type csig else csig)
-			end
-		) args in
-		let ret_type = cs_type_of_type_inner ret in
-		begin match ret_type with
-		| CsTypeVoid ->
-			if List.length arg_types = 0 then
-				CsTypeClass (NativeTypes.action_path, [])
-			else
-				CsTypeAction arg_types
-		| _ ->
-			CsTypeFunc (arg_types, ret_type)
-		end
+		   All function types become haxe.lang.Function - the actual signatures are
+		   preserved in the generated closure classes' invoke methods. *)
+		ignore args; ignore ret;
+		CsTypeClass (NativeTypes.haxe_function_path, [])
 	| TAbstract (a, params) when Meta.has Meta.CoreType a.a_meta ->
 		(* Core type abstract - handle specially *)
 		begin match a.a_path with
@@ -223,6 +209,9 @@ let rec cs_type_of_type_inner gctx stack t =
 		| ([], "UInt8") | (["cs"], "UInt8") -> CsTypeByte
 		| ([], "Int16") | (["cs"], "Int16") -> CsTypeShort
 		| ([], "UInt16") | (["cs"], "UInt16") -> CsTypeUShort
+		| ([], "Dynamic") ->
+			(* Dynamic -> object in C# *)
+			CsTypeObject
 		| ([], "Class") ->
 			(* Class<T> -> System.Type in C# *)
 			CsTypeClass ((["System"], "Type"), [])
@@ -238,10 +227,11 @@ let rec cs_type_of_type_inner gctx stack t =
 			CsTypeClass (path, params)
 		end
 	| TAbstract (a, params) ->
-		(* Non-core abstract - follow to underlying type using follow_with_abstracts
-		   to avoid infinite recursion with recursive abstracts *)
-		let t_followed = Abstract.follow_with_abstracts (Type.TAbstract (a, params)) in
-		(* If follow_with_abstracts didn't resolve (e.g., recursive abstract), use object *)
+		(* Non-core abstract - follow to underlying type using follow_with_abstracts_without_null
+		   to preserve Null<T> wrappers. This ensures that abstract types wrapping Null<Int> etc.
+		   keep the nullable semantics in C#. *)
+		let t_followed = Abstract.follow_with_abstracts_without_null (Type.TAbstract (a, params)) in
+		(* If follow didn't resolve (e.g., recursive abstract), use object *)
 		begin match t_followed with
 		| Type.TAbstract (a2, _) when a2 == a ->
 			(* Recursive abstract - map to object to break cycle *)
