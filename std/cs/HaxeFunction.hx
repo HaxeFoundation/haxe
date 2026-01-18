@@ -22,13 +22,15 @@
 
 package cs;
 
+import cs.Int64;
+
 /**
  * Base class for all Haxe function types in C#.
  * Provides dynamic invocation capability for calling functions via reflection.
  *
- * Dual-slot invoke pattern: Each argument has two slots - a double slot for primitives
- * (int, float, bool) and an object slot for references (and long for precision).
- * When object slot == Runtime.undefined, use the double slot.
+ * FunctionArg pattern: Each argument is passed as a FunctionArg struct that can hold
+ * either primitives (via prim field) or references (via obj field) without boxing.
+ * The hasValue field tracks whether the argument was provided (for optional parameters).
  */
 @:keep
 @:native("haxe.lang.Function")
@@ -43,86 +45,91 @@ class HaxeFunction {
 	}
 
 	// ============================================================
-	// Dual-slot invoke methods - these avoid boxing for primitives
-	// __hx_invokeN_o returns object, __hx_invokeN_f returns double
+	// FunctionArg-based invoke methods - zero allocation!
+	// __hx_invokeN_o returns object, __hx_invokeN_l returns long
 	// ============================================================
 
 	public function __hx_invoke0_o():Dynamic {
 		return invokeDynamic([]);
 	}
 
-	public function __hx_invoke0_f():Float {
+	public function __hx_invoke0_l():Int64 {
 		return __hx_invoke0_o();
 	}
 
-	public function __hx_invoke1_o(f1:Float, d1:Dynamic):Dynamic {
-		return invokeDynamic([d1]);
+	public function __hx_invoke1_o(a1:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic()]);
 	}
 
-	public function __hx_invoke1_f(f1:Float, d1:Dynamic):Float {
-		return __hx_invoke1_o(f1, d1);
+	public function __hx_invoke1_l(a1:FunctionArg):Int64 {
+		return __hx_invoke1_o(a1);
 	}
 
-	public function __hx_invoke2_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2]);
+	public function __hx_invoke2_o(a1:FunctionArg, a2:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic(), a2.ToDynamic()]);
 	}
 
-	public function __hx_invoke2_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic):Float {
-		return __hx_invoke2_o(f1, d1, f2, d2);
+	public function __hx_invoke2_l(a1:FunctionArg, a2:FunctionArg):Int64 {
+		return __hx_invoke2_o(a1, a2);
 	}
 
-	public function __hx_invoke3_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2, d3]);
+	public function __hx_invoke3_o(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic()]);
 	}
 
-	public function __hx_invoke3_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic):Float {
-		return __hx_invoke3_o(f1, d1, f2, d2, f3, d3);
+	public function __hx_invoke3_l(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg):Int64 {
+		return __hx_invoke3_o(a1, a2, a3);
 	}
 
-	public function __hx_invoke4_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2, d3, d4]);
+	public function __hx_invoke4_o(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic()]);
 	}
 
-	public function __hx_invoke4_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic):Float {
-		return __hx_invoke4_o(f1, d1, f2, d2, f3, d3, f4, d4);
+	public function __hx_invoke4_l(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg):Int64 {
+		return __hx_invoke4_o(a1, a2, a3, a4);
 	}
 
-	public function __hx_invoke5_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2, d3, d4, d5]);
+	public function __hx_invoke5_o(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic(), a5.ToDynamic()]);
 	}
 
-	public function __hx_invoke5_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic):Float {
-		return __hx_invoke5_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5);
+	public function __hx_invoke5_l(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg):Int64 {
+		return __hx_invoke5_o(a1, a2, a3, a4, a5);
 	}
 
-	public function __hx_invoke6_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic, f6:Float,
-			d6:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2, d3, d4, d5, d6]);
+	public function __hx_invoke6_o(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg, a6:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic(), a5.ToDynamic(), a6.ToDynamic()]);
 	}
 
-	public function __hx_invoke6_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic, f6:Float,
-			d6:Dynamic):Float {
-		return __hx_invoke6_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6);
+	public function __hx_invoke6_l(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg, a6:FunctionArg):Int64 {
+		return __hx_invoke6_o(a1, a2, a3, a4, a5, a6);
 	}
 
-	public function __hx_invoke7_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic, f6:Float,
-			d6:Dynamic, f7:Float, d7:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2, d3, d4, d5, d6, d7]);
+	public function __hx_invoke7_o(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg, a6:FunctionArg, a7:FunctionArg):Dynamic {
+		return invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic(), a5.ToDynamic(), a6.ToDynamic(), a7.ToDynamic()]);
 	}
 
-	public function __hx_invoke7_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic, f6:Float,
-			d6:Dynamic, f7:Float, d7:Dynamic):Float {
-		return __hx_invoke7_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6, f7, d7);
+	public function __hx_invoke7_l(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg, a6:FunctionArg, a7:FunctionArg):Int64 {
+		return __hx_invoke7_o(a1, a2, a3, a4, a5, a6, a7);
 	}
 
-	public function __hx_invoke8_o(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic, f6:Float,
-			d6:Dynamic, f7:Float, d7:Dynamic, f8:Float, d8:Dynamic):Dynamic {
-		return invokeDynamic([d1, d2, d3, d4, d5, d6, d7, d8]);
+	public function __hx_invoke8_o(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg, a6:FunctionArg, a7:FunctionArg,
+			a8:FunctionArg):Dynamic {
+		return invokeDynamic([
+			a1.ToDynamic(),
+			a2.ToDynamic(),
+			a3.ToDynamic(),
+			a4.ToDynamic(),
+			a5.ToDynamic(),
+			a6.ToDynamic(),
+			a7.ToDynamic(),
+			a8.ToDynamic()
+		]);
 	}
 
-	public function __hx_invoke8_f(f1:Float, d1:Dynamic, f2:Float, d2:Dynamic, f3:Float, d3:Dynamic, f4:Float, d4:Dynamic, f5:Float, d5:Dynamic, f6:Float,
-			d6:Dynamic, f7:Float, d7:Dynamic, f8:Float, d8:Dynamic):Float {
-		return __hx_invoke8_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6, f7, d7, f8, d8);
+	public function __hx_invoke8_l(a1:FunctionArg, a2:FunctionArg, a3:FunctionArg, a4:FunctionArg, a5:FunctionArg, a6:FunctionArg, a7:FunctionArg,
+			a8:FunctionArg):Int64 {
+		return __hx_invoke8_o(a1, a2, a3, a4, a5, a6, a7, a8);
 	}
 
 	// ============================================================
@@ -140,55 +147,59 @@ class HaxeFunction {
 	 * Invoke with 1 argument.
 	 */
 	public function invoke1(a0:Dynamic):Dynamic {
-		return __hx_invoke1_o(0.0, a0);
+		return __hx_invoke1_o(FunctionArg.FromObject(a0));
 	}
 
 	/**
 	 * Invoke with 2 arguments.
 	 */
 	public function invoke2(a0:Dynamic, a1:Dynamic):Dynamic {
-		return __hx_invoke2_o(0.0, a0, 0.0, a1);
+		return __hx_invoke2_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1));
 	}
 
 	/**
 	 * Invoke with 3 arguments.
 	 */
 	public function invoke3(a0:Dynamic, a1:Dynamic, a2:Dynamic):Dynamic {
-		return __hx_invoke3_o(0.0, a0, 0.0, a1, 0.0, a2);
+		return __hx_invoke3_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2));
 	}
 
 	/**
 	 * Invoke with 4 arguments.
 	 */
 	public function invoke4(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic):Dynamic {
-		return __hx_invoke4_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3);
+		return __hx_invoke4_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3));
 	}
 
 	/**
 	 * Invoke with 5 arguments.
 	 */
 	public function invoke5(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic):Dynamic {
-		return __hx_invoke5_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4);
+		return __hx_invoke5_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3),
+			FunctionArg.FromObject(a4));
 	}
 
 	/**
 	 * Invoke with 6 arguments.
 	 */
 	public function invoke6(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic):Dynamic {
-		return __hx_invoke6_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5);
+		return __hx_invoke6_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3),
+			FunctionArg.FromObject(a4), FunctionArg.FromObject(a5));
 	}
 
 	/**
 	 * Invoke with 7 arguments.
 	 */
 	public function invoke7(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic):Dynamic {
-		return __hx_invoke7_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5, 0.0, a6);
+		return __hx_invoke7_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3),
+			FunctionArg.FromObject(a4), FunctionArg.FromObject(a5), FunctionArg.FromObject(a6));
 	}
 
 	/**
 	 * Invoke with 8 arguments.
 	 */
 	public function invoke8(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic):Dynamic {
-		return __hx_invoke8_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5, 0.0, a6, 0.0, a7);
+		return __hx_invoke8_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3),
+			FunctionArg.FromObject(a4), FunctionArg.FromObject(a5), FunctionArg.FromObject(a6), FunctionArg.FromObject(a7));
 	}
 }

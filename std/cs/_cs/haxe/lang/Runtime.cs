@@ -54,6 +54,23 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Converts a dynamic value to long, handling null and type conversions.
+        /// Used for the _l suffix return methods in FunctionArg pattern.
+        /// Numeric types are stored as their bit representation in long.
+        /// </summary>
+        public static long toLong(object d)
+        {
+            if (d == null) return 0L;
+            if (d is long l) return l;
+            if (d is int i) return i;
+            if (d is double dbl) return BitConverter.DoubleToInt64Bits(dbl);
+            if (d is float f) return BitConverter.SingleToInt32Bits(f);
+            if (d is bool b) return b ? 1L : 0L;
+            if (d is IConvertible c) return c.ToInt64(null);
+            return 0L;
+        }
+
+        /// <summary>
         /// Invoke a delegate dynamically with the given arguments.
         /// Works with Func&lt;&gt;, Action, and other delegate types.
         /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.

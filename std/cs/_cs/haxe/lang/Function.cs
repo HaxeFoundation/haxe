@@ -7,9 +7,9 @@ namespace haxe.lang
     /// Base class for all Haxe function types.
     /// Provides dynamic invocation capability for calling functions via reflection.
     ///
-    /// Dual-slot invoke pattern: Each argument has two slots - a double slot for primitives
-    /// (int, float, bool) and an object slot for references (and long for precision).
-    /// When object slot == Runtime.undefined, use the double slot.
+    /// FunctionArg pattern: Each argument is passed as a FunctionArg struct that can hold
+    /// either primitives (via prim field) or references (via obj field) without boxing.
+    /// The hasValue field tracks whether the argument was provided (for optional parameters).
     /// </summary>
     public abstract class Function
     {
@@ -20,12 +20,12 @@ namespace haxe.lang
         public abstract object invokeDynamic(haxe.root.Array<object> args);
 
         // ============================================================
-        // Dual-slot invoke methods - these avoid boxing for primitives
-        // __hx_invokeN_o returns object, __hx_invokeN_f returns double
+        // FunctionArg-based invoke methods - zero allocation!
+        // __hx_invokeN_o returns object, __hx_invokeN_l returns long
         // ============================================================
 
         /// <summary>
-        /// Dual-slot invoke with 0 arguments, returns object.
+        /// FunctionArg invoke with 0 arguments, returns object.
         /// </summary>
         public virtual object __hx_invoke0_o()
         {
@@ -33,224 +33,188 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Dual-slot invoke with 0 arguments, returns double (for numeric returns).
+        /// FunctionArg invoke with 0 arguments, returns long (for numeric returns).
         /// </summary>
-        public virtual double __hx_invoke0_f()
+        public virtual long __hx_invoke0_l()
         {
-            return Runtime.toDouble(__hx_invoke0_o());
+            return Runtime.toLong(__hx_invoke0_o());
         }
 
         /// <summary>
-        /// Dual-slot invoke with 1 argument, returns object.
+        /// FunctionArg invoke with 1 argument, returns object.
         /// </summary>
-        public virtual object __hx_invoke1_o(double f1, object d1)
+        public virtual object __hx_invoke1_o(FunctionArg a1)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
+            args.push(a1.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 1 argument, returns double.
+        /// FunctionArg invoke with 1 argument, returns long.
         /// </summary>
-        public virtual double __hx_invoke1_f(double f1, object d1)
+        public virtual long __hx_invoke1_l(FunctionArg a1)
         {
-            return Runtime.toDouble(__hx_invoke1_o(f1, d1));
+            return Runtime.toLong(__hx_invoke1_o(a1));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 2 arguments, returns object.
+        /// FunctionArg invoke with 2 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke2_o(double f1, object d1, double f2, object d2)
+        public virtual object __hx_invoke2_o(FunctionArg a1, FunctionArg a2)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 2 arguments, returns double.
+        /// FunctionArg invoke with 2 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke2_f(double f1, object d1, double f2, object d2)
+        public virtual long __hx_invoke2_l(FunctionArg a1, FunctionArg a2)
         {
-            return Runtime.toDouble(__hx_invoke2_o(f1, d1, f2, d2));
+            return Runtime.toLong(__hx_invoke2_o(a1, a2));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 3 arguments, returns object.
+        /// FunctionArg invoke with 3 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke3_o(double f1, object d1, double f2, object d2, double f3, object d3)
+        public virtual object __hx_invoke3_o(FunctionArg a1, FunctionArg a2, FunctionArg a3)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
-            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
-            args.push(a2);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 3 arguments, returns double.
+        /// FunctionArg invoke with 3 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke3_f(double f1, object d1, double f2, object d2, double f3, object d3)
+        public virtual long __hx_invoke3_l(FunctionArg a1, FunctionArg a2, FunctionArg a3)
         {
-            return Runtime.toDouble(__hx_invoke3_o(f1, d1, f2, d2, f3, d3));
+            return Runtime.toLong(__hx_invoke3_o(a1, a2, a3));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 4 arguments, returns object.
+        /// FunctionArg invoke with 4 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke4_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4)
+        public virtual object __hx_invoke4_o(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
-            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
-            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
-            args.push(a2);
-            args.push(a3);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 4 arguments, returns double.
+        /// FunctionArg invoke with 4 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke4_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4)
+        public virtual long __hx_invoke4_l(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4)
         {
-            return Runtime.toDouble(__hx_invoke4_o(f1, d1, f2, d2, f3, d3, f4, d4));
+            return Runtime.toLong(__hx_invoke4_o(a1, a2, a3, a4));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 5 arguments, returns object.
+        /// FunctionArg invoke with 5 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke5_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5)
+        public virtual object __hx_invoke5_o(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
-            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
-            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
-            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
-            args.push(a2);
-            args.push(a3);
-            args.push(a4);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 5 arguments, returns double.
+        /// FunctionArg invoke with 5 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke5_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5)
+        public virtual long __hx_invoke5_l(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5)
         {
-            return Runtime.toDouble(__hx_invoke5_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5));
+            return Runtime.toLong(__hx_invoke5_o(a1, a2, a3, a4, a5));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 6 arguments, returns object.
+        /// FunctionArg invoke with 6 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke6_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6)
+        public virtual object __hx_invoke6_o(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5, FunctionArg a6)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
-            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
-            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
-            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
-            object a5 = (d6 == Runtime.undefined) ? (object)f6 : d6;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
-            args.push(a2);
-            args.push(a3);
-            args.push(a4);
-            args.push(a5);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 6 arguments, returns double.
+        /// FunctionArg invoke with 6 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke6_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6)
+        public virtual long __hx_invoke6_l(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5, FunctionArg a6)
         {
-            return Runtime.toDouble(__hx_invoke6_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6));
+            return Runtime.toLong(__hx_invoke6_o(a1, a2, a3, a4, a5, a6));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 7 arguments, returns object.
+        /// FunctionArg invoke with 7 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke7_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7)
+        public virtual object __hx_invoke7_o(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5, FunctionArg a6, FunctionArg a7)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
-            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
-            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
-            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
-            object a5 = (d6 == Runtime.undefined) ? (object)f6 : d6;
-            object a6 = (d7 == Runtime.undefined) ? (object)f7 : d7;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
-            args.push(a2);
-            args.push(a3);
-            args.push(a4);
-            args.push(a5);
-            args.push(a6);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            args.push(a7.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 7 arguments, returns double.
+        /// FunctionArg invoke with 7 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke7_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7)
+        public virtual long __hx_invoke7_l(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5, FunctionArg a6, FunctionArg a7)
         {
-            return Runtime.toDouble(__hx_invoke7_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6, f7, d7));
+            return Runtime.toLong(__hx_invoke7_o(a1, a2, a3, a4, a5, a6, a7));
         }
 
         /// <summary>
-        /// Dual-slot invoke with 8 arguments, returns object.
+        /// FunctionArg invoke with 8 arguments, returns object.
         /// </summary>
-        public virtual object __hx_invoke8_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7, double f8, object d8)
+        public virtual object __hx_invoke8_o(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5, FunctionArg a6, FunctionArg a7, FunctionArg a8)
         {
-            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
-            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
-            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
-            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
-            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
-            object a5 = (d6 == Runtime.undefined) ? (object)f6 : d6;
-            object a6 = (d7 == Runtime.undefined) ? (object)f7 : d7;
-            object a7 = (d8 == Runtime.undefined) ? (object)f8 : d8;
             var args = new haxe.root.Array<object>();
-            args.push(a0);
-            args.push(a1);
-            args.push(a2);
-            args.push(a3);
-            args.push(a4);
-            args.push(a5);
-            args.push(a6);
-            args.push(a7);
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            args.push(a7.ToDynamic());
+            args.push(a8.ToDynamic());
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Dual-slot invoke with 8 arguments, returns double.
+        /// FunctionArg invoke with 8 arguments, returns long.
         /// </summary>
-        public virtual double __hx_invoke8_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7, double f8, object d8)
+        public virtual long __hx_invoke8_l(FunctionArg a1, FunctionArg a2, FunctionArg a3, FunctionArg a4, FunctionArg a5, FunctionArg a6, FunctionArg a7, FunctionArg a8)
         {
-            return Runtime.toDouble(__hx_invoke8_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6, f7, d7, f8, d8));
+            return Runtime.toLong(__hx_invoke8_o(a1, a2, a3, a4, a5, a6, a7, a8));
         }
 
         // ============================================================
         // Convenience invoke methods - these box all arguments
-        // These call the dual-slot methods with all args in object slots
+        // These call the FunctionArg methods with all args wrapped
         // ============================================================
 
         /// <summary>
@@ -266,7 +230,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke1(object a0)
         {
-            return __hx_invoke1_o(0.0, a0);
+            return __hx_invoke1_o(FunctionArg.FromObject(a0));
         }
 
         /// <summary>
@@ -274,7 +238,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke2(object a0, object a1)
         {
-            return __hx_invoke2_o(0.0, a0, 0.0, a1);
+            return __hx_invoke2_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1));
         }
 
         /// <summary>
@@ -282,7 +246,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke3(object a0, object a1, object a2)
         {
-            return __hx_invoke3_o(0.0, a0, 0.0, a1, 0.0, a2);
+            return __hx_invoke3_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2));
         }
 
         /// <summary>
@@ -290,7 +254,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke4(object a0, object a1, object a2, object a3)
         {
-            return __hx_invoke4_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3);
+            return __hx_invoke4_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3));
         }
 
         /// <summary>
@@ -298,7 +262,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke5(object a0, object a1, object a2, object a3, object a4)
         {
-            return __hx_invoke5_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4);
+            return __hx_invoke5_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3), FunctionArg.FromObject(a4));
         }
 
         /// <summary>
@@ -306,7 +270,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke6(object a0, object a1, object a2, object a3, object a4, object a5)
         {
-            return __hx_invoke6_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5);
+            return __hx_invoke6_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3), FunctionArg.FromObject(a4), FunctionArg.FromObject(a5));
         }
 
         /// <summary>
@@ -314,7 +278,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke7(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
         {
-            return __hx_invoke7_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5, 0.0, a6);
+            return __hx_invoke7_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3), FunctionArg.FromObject(a4), FunctionArg.FromObject(a5), FunctionArg.FromObject(a6));
         }
 
         /// <summary>
@@ -322,7 +286,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke8(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
         {
-            return __hx_invoke8_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5, 0.0, a6, 0.0, a7);
+            return __hx_invoke8_o(FunctionArg.FromObject(a0), FunctionArg.FromObject(a1), FunctionArg.FromObject(a2), FunctionArg.FromObject(a3), FunctionArg.FromObject(a4), FunctionArg.FromObject(a5), FunctionArg.FromObject(a6), FunctionArg.FromObject(a7));
         }
     }
 }
