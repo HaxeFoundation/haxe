@@ -527,6 +527,15 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
+     | TField ({eexpr = TLocal v}, f), el when Meta.has Meta.MultiReturn v.v_meta ->
+         (* Call to a field of a multi-return local - the field is actually just a local variable *)
+         let (_, args, _) = Meta.get (Meta.Custom ":lua_mr_id") v.v_meta in
+         (match args with
+          | [(EConst(String(id,_)), _)] ->
+              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
+              gen_paren_arguments ctx el;
+          | _ ->
+              Globals.die "" __LOC__);
      | TField (field_owner, (FInstance(_,_,f) | FAnon(f))), el when Meta.has Meta.SelfCall f.cf_meta ->
          (* @:selfCall methods - call the object directly *)
          gen_value ctx field_owner;
