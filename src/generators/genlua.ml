@@ -427,6 +427,18 @@ and gen_call ctx e el =
          spr ctx ",";
          gen_argument ctx args;
          spr ctx ")";
+     | TField (_, FStatic( { cl_path = (["lua"],"Syntax") }, { cf_name = "code" })), code :: args ->
+         (match code.eexpr with
+          | TConst (TString s) ->
+              Codegen.interpolate_code ctx.com.error s args (spr ctx) (gen_expr ctx) code.epos
+          | _ ->
+              raise_typing_error "The code argument for lua.Syntax.code must be a string constant" code.epos)
+     | TField (_, FStatic( { cl_path = (["lua"],"Syntax") }, { cf_name = "plainCode" })), [code] ->
+         (match code.eexpr with
+          | TConst (TString s) ->
+              spr ctx (String.concat "\n" (ExtString.String.nsplit s "\r\n"))
+          | _ ->
+              raise_typing_error "The code argument for lua.Syntax.plainCode must be a string constant" code.epos)
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
          gen_paren_arguments ctx el;

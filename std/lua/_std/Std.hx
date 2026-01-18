@@ -59,7 +59,7 @@ import lua.NativeStringTools;
 		if (x == null)
 			return null;
 		untyped {
-			__lua__("local sign, numString = {0}", NativeStringTools.match(x, "^%s*([%-+]?)0[xX]([%da-fA-F]*)"));
+			lua.Syntax.code("local sign, numString = {0}", NativeStringTools.match(x, "^%s*([%-+]?)0[xX]([%da-fA-F]*)"));
 			if (numString != null)
 				return switch sign {
 					case '-': -lua.Lua.tonumber(numString, 16);

@@ -119,8 +119,6 @@ class ObjectMap<A, B> implements haxe.Constraints.IMap<A, B> {
 	}
 	
 	public function size():Int {
-		var s = 0;
-		untyped __lua__("for _ in pairs({0}) do s = s + 1 end", h);
-		return s;
+		return lua.Syntax.code("(function() local s = 0; for _ in pairs({0}) do s = s + 1 end; return s end)()", h);
 	}
 }

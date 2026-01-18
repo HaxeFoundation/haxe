@@ -149,7 +149,7 @@ import lua.TableTools;
 			- Recreate as dynamic array
 			- Return function called with this array
 		 */
-		return untyped __lua__("function(...)
+		return lua.Syntax.code("function(...)
 			local a = {...}
 			local b = {}
 			local l = 0
