@@ -42,94 +42,238 @@ namespace haxe.lang
         // ============================================================
         // Static factory methods for creating FunctionArg from values
         // ============================================================
+        //
+        // IMPORTANT: When storing primitives, we set obj = Runtime.undefined
+        // to distinguish from actual null references. This allows extraction
+        // methods to know whether to read from prim or obj field.
+        //
+        // - obj == Runtime.undefined => value is primitive, use prim field
+        // - obj == null => actual null reference was passed
+        // - obj != null && obj != Runtime.undefined => object reference
+        // ============================================================
 
         /// <summary>Create from int value</summary>
-        public static FunctionArg FromInt(int value) =>
-            new FunctionArg(null, value, true);
+        public static FunctionArg FromInt(int value)
+        {
+            return new FunctionArg(Runtime.undefined, value, true);
+        }
 
         /// <summary>Create from long/Int64 value - stored directly, no precision loss!</summary>
-        public static FunctionArg FromLong(long value) =>
-            new FunctionArg(null, value, true);
+        public static FunctionArg FromLong(long value)
+        {
+            return new FunctionArg(Runtime.undefined, value, true);
+        }
 
         /// <summary>Create from double - uses BitConverter for lossless storage</summary>
-        public static FunctionArg FromDouble(double value) =>
-            new FunctionArg(null, BitConverter.DoubleToInt64Bits(value), true);
+        public static FunctionArg FromDouble(double value)
+        {
+            return new FunctionArg(Runtime.undefined, BitConverter.DoubleToInt64Bits(value), true);
+        }
 
         /// <summary>Create from float - uses BitConverter for lossless storage</summary>
-        public static FunctionArg FromFloat(float value) =>
-            new FunctionArg(null, BitConverter.SingleToInt32Bits(value), true);
+        public static FunctionArg FromFloat(float value)
+        {
+            return new FunctionArg(Runtime.undefined, BitConverter.SingleToInt32Bits(value), true);
+        }
 
         /// <summary>Create from bool</summary>
-        public static FunctionArg FromBool(bool value) =>
-            new FunctionArg(null, value ? 1L : 0L, true);
+        public static FunctionArg FromBool(bool value)
+        {
+            return new FunctionArg(Runtime.undefined, value ? 1L : 0L, true);
+        }
 
         /// <summary>Create from object/reference type</summary>
-        public static FunctionArg FromObject(object value) =>
-            new FunctionArg(value, 0L, value != null);
+        public static FunctionArg FromObject(object value)
+        {
+            // For objects, we store in obj field (NOT Runtime.undefined)
+            // hasValue is true even for null - null is a valid value
+            return new FunctionArg(value, 0L, true);
+        }
 
         /// <summary>Create from Null&lt;int&gt; - no boxing!</summary>
-        public static FunctionArg FromNullInt(haxe.lang.Null<int> value) =>
-            new FunctionArg(null, value.value, value.hasValue);
+        public static FunctionArg FromNullInt(haxe.lang.Null<int> value)
+        {
+            // If hasValue, store as primitive; otherwise mark as missing
+            if (value.hasValue)
+                return new FunctionArg(Runtime.undefined, value.value, true);
+            else
+                return new FunctionArg(null, 0L, false);
+        }
 
         /// <summary>Create from Null&lt;long&gt; - no boxing!</summary>
-        public static FunctionArg FromNullLong(haxe.lang.Null<long> value) =>
-            new FunctionArg(null, value.value, value.hasValue);
+        public static FunctionArg FromNullLong(haxe.lang.Null<long> value)
+        {
+            if (value.hasValue)
+                return new FunctionArg(Runtime.undefined, value.value, true);
+            else
+                return new FunctionArg(null, 0L, false);
+        }
 
         /// <summary>Create from Null&lt;double&gt; - no boxing!</summary>
-        public static FunctionArg FromNullDouble(haxe.lang.Null<double> value) =>
-            new FunctionArg(null, BitConverter.DoubleToInt64Bits(value.value), value.hasValue);
+        public static FunctionArg FromNullDouble(haxe.lang.Null<double> value)
+        {
+            if (value.hasValue)
+                return new FunctionArg(Runtime.undefined, BitConverter.DoubleToInt64Bits(value.value), true);
+            else
+                return new FunctionArg(null, 0L, false);
+        }
 
         /// <summary>Create from Null&lt;float&gt; - no boxing!</summary>
-        public static FunctionArg FromNullFloat(haxe.lang.Null<float> value) =>
-            new FunctionArg(null, BitConverter.SingleToInt32Bits(value.value), value.hasValue);
+        public static FunctionArg FromNullFloat(haxe.lang.Null<float> value)
+        {
+            if (value.hasValue)
+                return new FunctionArg(Runtime.undefined, BitConverter.SingleToInt32Bits(value.value), true);
+            else
+                return new FunctionArg(null, 0L, false);
+        }
 
         /// <summary>Create from Null&lt;bool&gt; - no boxing!</summary>
-        public static FunctionArg FromNullBool(haxe.lang.Null<bool> value) =>
-            new FunctionArg(null, value.value ? 1L : 0L, value.hasValue);
+        public static FunctionArg FromNullBool(haxe.lang.Null<bool> value)
+        {
+            if (value.hasValue)
+                return new FunctionArg(Runtime.undefined, value.value ? 1L : 0L, true);
+            else
+                return new FunctionArg(null, 0L, false);
+        }
 
         /// <summary>Create from Null&lt;T&gt; for reference types</summary>
-        public static FunctionArg FromNullObject<T>(haxe.lang.Null<T> value) where T : class =>
-            new FunctionArg(value.value, 0L, value.hasValue);
+        public static FunctionArg FromNullObject<T>(haxe.lang.Null<T> value) where T : class
+        {
+            // For reference types, store in obj field (could be null)
+            if (value.hasValue)
+                return new FunctionArg(value.value, 0L, true);
+            else
+                return new FunctionArg(null, 0L, false);
+        }
 
         /// <summary>Create for missing/omitted optional parameter</summary>
-        public static FunctionArg Missing() =>
-            new FunctionArg(null, 0L, false);
+        public static FunctionArg Missing()
+        {
+            return new FunctionArg(null, 0L, false);
+        }
 
         // ============================================================
         // Extraction methods for reading values out
         // ============================================================
+        //
+        // These methods check obj == Runtime.undefined to determine
+        // whether to read from prim (primitives) or obj (references).
+        // ============================================================
 
-        public int ToInt() => (int)prim;
-        public long ToLong() => prim;
-        public double ToDouble() => BitConverter.Int64BitsToDouble(prim);
-        public float ToFloat() => BitConverter.Int32BitsToSingle((int)prim);
-        public bool ToBool() => prim != 0L;
-        public T ToObject<T>() where T : class => (T)obj;
-        public string ToStringValue() => (string)obj;
+        public int ToInt()
+        {
+            if (obj == Runtime.undefined)
+                return (int)prim;
+            else
+                return Runtime.toInt(obj);
+        }
+
+        public long ToLong()
+        {
+            if (obj == Runtime.undefined)
+                return prim;
+            else
+                return Runtime.toLong(obj);
+        }
+
+        public double ToDouble()
+        {
+            if (obj == Runtime.undefined)
+                return BitConverter.Int64BitsToDouble(prim);
+            else
+                return Runtime.toDouble(obj);
+        }
+
+        public float ToFloat()
+        {
+            if (obj == Runtime.undefined)
+                return BitConverter.Int32BitsToSingle((int)prim);
+            else
+                return (float)Runtime.toDouble(obj);
+        }
+
+        public bool ToBool()
+        {
+            if (obj == Runtime.undefined)
+                return prim != 0L;
+            else
+                return Runtime.toBool(obj);
+        }
+
+        public T ToObject<T>() where T : class
+        {
+            // For reference types, always use obj field
+            // (obj should never be Runtime.undefined for reference types)
+            return (T)obj;
+        }
+
+        public string ToStringValue()
+        {
+            // Strings are reference types, stored in obj
+            return (string)obj;
+        }
 
         /// <summary>Extract to Null&lt;int&gt; respecting hasValue</summary>
-        public haxe.lang.Null<int> ToNullInt() =>
-            new haxe.lang.Null<int>((int)prim, hasValue);
+        public haxe.lang.Null<int> ToNullInt()
+        {
+            if (!hasValue)
+                return new haxe.lang.Null<int>(0, false);
+            if (obj == Runtime.undefined)
+                return new haxe.lang.Null<int>((int)prim, true);
+            else
+                return new haxe.lang.Null<int>(Runtime.toInt(obj), true);
+        }
 
         /// <summary>Extract to Null&lt;long&gt; respecting hasValue</summary>
-        public haxe.lang.Null<long> ToNullLong() =>
-            new haxe.lang.Null<long>(prim, hasValue);
+        public haxe.lang.Null<long> ToNullLong()
+        {
+            if (!hasValue)
+                return new haxe.lang.Null<long>(0L, false);
+            if (obj == Runtime.undefined)
+                return new haxe.lang.Null<long>(prim, true);
+            else
+                return new haxe.lang.Null<long>(Runtime.toLong(obj), true);
+        }
 
         /// <summary>Extract to Null&lt;double&gt; respecting hasValue</summary>
-        public haxe.lang.Null<double> ToNullDouble() =>
-            new haxe.lang.Null<double>(BitConverter.Int64BitsToDouble(prim), hasValue);
+        public haxe.lang.Null<double> ToNullDouble()
+        {
+            if (!hasValue)
+                return new haxe.lang.Null<double>(0.0, false);
+            if (obj == Runtime.undefined)
+                return new haxe.lang.Null<double>(BitConverter.Int64BitsToDouble(prim), true);
+            else
+                return new haxe.lang.Null<double>(Runtime.toDouble(obj), true);
+        }
 
         /// <summary>Extract to Null&lt;float&gt; respecting hasValue</summary>
-        public haxe.lang.Null<float> ToNullFloat() =>
-            new haxe.lang.Null<float>(BitConverter.Int32BitsToSingle((int)prim), hasValue);
+        public haxe.lang.Null<float> ToNullFloat()
+        {
+            if (!hasValue)
+                return new haxe.lang.Null<float>(0.0f, false);
+            if (obj == Runtime.undefined)
+                return new haxe.lang.Null<float>(BitConverter.Int32BitsToSingle((int)prim), true);
+            else
+                return new haxe.lang.Null<float>((float)Runtime.toDouble(obj), true);
+        }
 
         /// <summary>Extract to Null&lt;bool&gt; respecting hasValue</summary>
-        public haxe.lang.Null<bool> ToNullBool() =>
-            new haxe.lang.Null<bool>(prim != 0L, hasValue);
+        public haxe.lang.Null<bool> ToNullBool()
+        {
+            if (!hasValue)
+                return new haxe.lang.Null<bool>(false, false);
+            if (obj == Runtime.undefined)
+                return new haxe.lang.Null<bool>(prim != 0L, true);
+            else
+                return new haxe.lang.Null<bool>(Runtime.toBool(obj), true);
+        }
 
         /// <summary>Extract to Null&lt;T&gt; for reference types</summary>
-        public haxe.lang.Null<T> ToNullObject<T>() where T : class =>
-            new haxe.lang.Null<T>((T)obj, hasValue);
+        public haxe.lang.Null<T> ToNullObject<T>() where T : class
+        {
+            // For reference types, obj should not be Runtime.undefined
+            return new haxe.lang.Null<T>((T)obj, hasValue);
+        }
 
         /// <summary>
         /// Convert to dynamic object for reflection/invokeDynamic.
@@ -139,9 +283,12 @@ namespace haxe.lang
         public object ToDynamic()
         {
             if (!hasValue) return null;
-            if (obj != null) return obj;
-            // Box the primitive - only happens when truly needed for reflection
-            return prim;
+            if (obj == Runtime.undefined)
+            {
+                // Box the primitive - only happens when truly needed for reflection
+                return prim;
+            }
+            return obj;
         }
 
         /// <summary>
@@ -151,17 +298,20 @@ namespace haxe.lang
         public object ToDynamic(Type expectedType)
         {
             if (!hasValue) return null;
-            if (obj != null) return obj;
 
-            // Convert primitive based on expected type
-            if (expectedType == typeof(int)) return (int)prim;
-            if (expectedType == typeof(long)) return prim;
-            if (expectedType == typeof(double)) return BitConverter.Int64BitsToDouble(prim);
-            if (expectedType == typeof(float)) return BitConverter.Int32BitsToSingle((int)prim);
-            if (expectedType == typeof(bool)) return prim != 0L;
+            if (obj == Runtime.undefined)
+            {
+                // Convert primitive based on expected type
+                if (expectedType == typeof(int)) return (int)prim;
+                if (expectedType == typeof(long)) return prim;
+                if (expectedType == typeof(double)) return BitConverter.Int64BitsToDouble(prim);
+                if (expectedType == typeof(float)) return BitConverter.Int32BitsToSingle((int)prim);
+                if (expectedType == typeof(bool)) return prim != 0L;
+                // Fallback to raw prim (boxed as long)
+                return prim;
+            }
 
-            // Fallback to raw prim (boxed as long)
-            return prim;
+            return obj;
         }
     }
 }

@@ -1003,11 +1003,11 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> CsCast (target_type, field_call)
 			end
 		end
-	| TField (e, FDynamic name) ->
+	| TField (e_obj, FDynamic name) ->
 		(* Dynamic field access - need to use reflection since C# object doesn't have arbitrary fields *)
 		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
-		let obj_expr = cs_expr_of_texpr ectx e in
-		let raw_type = Type.follow_once e.etype in
+		let obj_expr = cs_expr_of_texpr ectx e_obj in
+		let raw_type = Type.follow_once e_obj.etype in
 		let obj_expr = match raw_type with
 			| TAbstract ({ a_path = ([], "Null") }, _) ->
 				(* Null<T> -> access .value to unwrap *)
@@ -1015,7 +1015,14 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> obj_expr
 		in
 		(* Use haxe.lang.Runtime.GetField for dynamic field access *)
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)])
+		let field_call = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)]) in
+		(* Runtime.GetField returns object, but Haxe knows the actual type.
+		   Cast to the expected type if it's not Dynamic/object. *)
+		let result_cs_type = cs_type_of_type ectx.gctx e.etype in
+		begin match result_cs_type with
+		| CsTypeObject | CsTypeDynamic -> field_call
+		| _ -> CsCast (result_cs_type, field_call)
+		end
 	| TField (_, FEnum (en, ef)) ->
 		let path = cs_path_of_path en.e_path in
 		(* Get type arguments from the expression type for generic enums like Option<T> *)
@@ -1270,11 +1277,20 @@ let rec cs_expr_of_texpr ectx e =
 						end
 					| _ -> None
 				in
+				(* Helper to check if a type is Dynamic *)
+				let is_dynamic_type t = match follow t with TDynamic _ -> true | _ -> false in
 				List.map (fun ttp ->
+					(* Try to find the best type for this type param, preferring non-Dynamic types.
+					   We look through all param/arg pairs and prefer specific types over Dynamic. *)
 					let found_type = List.fold_left (fun acc (param_t, arg_t) ->
-						match acc with
-						| Some _ -> acc
-						| None -> find_type_param_in_type ttp.ttp_name param_t arg_t
+						let this_match = find_type_param_in_type ttp.ttp_name param_t arg_t in
+						match acc, this_match with
+						| None, _ -> this_match  (* First match *)
+						| Some prev, Some curr ->
+							(* Prefer non-Dynamic over Dynamic *)
+							if is_dynamic_type prev && not (is_dynamic_type curr) then Some curr
+							else acc
+						| _ -> acc
 					) None param_type_pairs in
 					match found_type with
 					| Some t -> t
@@ -1573,11 +1589,19 @@ let rec cs_expr_of_texpr ectx e =
 						end
 					| _ -> None
 				in
+				(* Helper to check if a type is Dynamic *)
+				let is_dynamic_type t = match follow t with TDynamic _ -> true | _ -> false in
 				List.map (fun ttp ->
+					(* Try to find the best type for this type param, preferring non-Dynamic types. *)
 					let found_type = List.fold_left (fun acc (param_t, arg_t) ->
-						match acc with
-						| Some _ -> acc
-						| None -> find_type_param_in_type ttp.ttp_name param_t arg_t
+						let this_match = find_type_param_in_type ttp.ttp_name param_t arg_t in
+						match acc, this_match with
+						| None, _ -> this_match  (* First match *)
+						| Some prev, Some curr ->
+							(* Prefer non-Dynamic over Dynamic *)
+							if is_dynamic_type prev && not (is_dynamic_type curr) then Some curr
+							else acc
+						| _ -> acc
 					) None param_type_pairs in
 					match found_type with
 					| Some t -> t
