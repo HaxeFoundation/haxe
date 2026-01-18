@@ -104,6 +104,37 @@ let invoke_method_name num_args =
 	if num_args = 0 then "invoke"
 	else "invoke" ^ string_of_int num_args
 
+(* Get the dual-slot invoke method name: __hx_invoke0_o, __hx_invoke1_o, etc. *)
+let dual_slot_invoke_method_name num_args =
+	"__hx_invoke" ^ string_of_int num_args ^ "_o"
+
+(* Generate dual-slot arguments for a call.
+   For each argument, generates (double_val, object_val) where:
+   - For int/float/bool: (value_as_double, Runtime.undefined)
+   - For long/references: (0.0, value)
+   Returns a flat list: [f1, d1, f2, d2, ...] *)
+let generate_dual_slot_args args arg_types =
+	let runtime_undefined = CsStaticField (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "undefined") in
+	let zero = CsConst (CsConstDouble 0.0) in
+	List.flatten (List.map2 (fun arg arg_type ->
+		match arg_type with
+		| CsTypeInt ->
+			(* int: pass via double slot *)
+			[CsCast (CsTypeDouble, arg); runtime_undefined]
+		| CsTypeDouble ->
+			(* double: pass via double slot *)
+			[arg; runtime_undefined]
+		| CsTypeFloat ->
+			(* float: pass via double slot *)
+			[CsCast (CsTypeDouble, arg); runtime_undefined]
+		| CsTypeBool ->
+			(* bool: pass via double slot as 1.0/0.0 *)
+			[CsTernary (arg, CsConst (CsConstDouble 1.0), zero); runtime_undefined]
+		| _ ->
+			(* long, references, Null<T>: pass via object slot *)
+			[zero; arg]
+	) args arg_types)
+
 (* Convert Haxe binop to C# binop *)
 let rec cs_binop_of_binop = function
 	| OpAdd -> CsOpAdd
@@ -1032,8 +1063,11 @@ let rec cs_expr_of_texpr ectx e =
 		let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 		(* Register this signature for typed invoke generation *)
 		register_invoke_signature ectx.gctx param_types_cs result_type;
-		let call_expr = CsCall (CsField (closure, invoke_method_name (List.length args_cs)), args_cs) in
-		(* The base class invokeN methods ALWAYS return object, so we need to cast
+		(* Use dual-slot invoke to avoid boxing primitives *)
+		let num_args = List.length args_cs in
+		let dual_slot_args = generate_dual_slot_args args_cs param_types_cs in
+		let call_expr = CsCall (CsField (closure, dual_slot_invoke_method_name num_args), dual_slot_args) in
+		(* The __hx_invokeN_o methods ALWAYS return object, so we need to cast
 		   to the expected return type unless it's void or object *)
 		begin match result_type with
 		| CsTypeVoid -> call_expr
@@ -1119,8 +1153,11 @@ let rec cs_expr_of_texpr ectx e =
 			let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 			(* Register this signature for typed invoke generation *)
 			register_invoke_signature ectx.gctx param_types_cs result_type;
-			let call_expr = CsCall (CsField (func_expr, invoke_method_name (List.length args_cs)), args_cs) in
-			(* The base class invokeN methods ALWAYS return object, so we need to cast
+			(* Use dual-slot invoke to avoid boxing primitives *)
+			let num_args = List.length args_cs in
+			let dual_slot_args = generate_dual_slot_args args_cs param_types_cs in
+			let call_expr = CsCall (CsField (func_expr, dual_slot_invoke_method_name num_args), dual_slot_args) in
+			(* The __hx_invokeN_o methods ALWAYS return object, so we need to cast
 			   to the expected return type unless it's void or object *)
 			begin match result_type with
 			| CsTypeVoid -> call_expr
@@ -1592,10 +1629,11 @@ let rec cs_expr_of_texpr ectx e =
 			let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 			(* Register this signature for later generation on Function class *)
 			register_invoke_signature ectx.gctx param_types_cs result_type;
-			(* Call the typed invoke method - all signatures use "invoke" name
-			   with different parameter types (C# method overloading) *)
-			let call_expr = CsCall (CsField (func, invoke_method_name (List.length args_cs)), args_cs) in
-			(* The base class invokeN methods ALWAYS return object, so we need to cast
+			(* Use dual-slot invoke to avoid boxing primitives *)
+			let num_args = List.length args_cs in
+			let dual_slot_args = generate_dual_slot_args args_cs param_types_cs in
+			let call_expr = CsCall (CsField (func, dual_slot_invoke_method_name num_args), dual_slot_args) in
+			(* The __hx_invokeN_o methods ALWAYS return object, so we need to cast
 			   to the expected return type unless it's void or object *)
 			begin match result_type with
 			| CsTypeVoid -> call_expr  (* No cast needed for void *)
@@ -2413,10 +2451,18 @@ let generate_closure_class ectx tf func_type =
 		| _ -> [cs_stmt_of_texpr closure_ectx tf.tf_expr]
 	in
 
-	(* If the invoke method has no parameters, it shadows the base class's invoke() method.
-	   Add the 'new' modifier to suppress CS0114 warning. *)
+	(* The typed invoke method may shadow the base class's invokeN(object...) method.
+	   For invoke() with 0 params, it matches exactly - add 'new' modifier.
+	   For invokeN with all object params, it also matches - add 'new' modifier.
+	   Otherwise, the parameter types differ so no 'new' needed. *)
 	let num_params = List.length invoke_params in
-	let invoke_modifiers = if num_params = 0 then [MemberModifier.New] else [] in
+	let all_params_are_object = List.for_all (fun p ->
+		match p.p_type with
+		| Some CsTypeObject | Some CsTypeDynamic -> true
+		| None -> true  (* untyped = object *)
+		| _ -> false
+	) invoke_params in
+	let invoke_modifiers = if num_params = 0 || all_params_are_object then [MemberModifier.New] else [] in
 	let invoke_method = CsMemberMethod {
 		m_name = invoke_method_name num_params;
 		m_return_type = return_type;
@@ -2502,6 +2548,98 @@ let generate_closure_class ectx tf func_type =
 		m_attributes = [];
 	} in
 
+	(* Build __hx_invokeN_o method - dual-slot invoke to avoid boxing.
+	   Each argument has two slots: double fN for primitives, object dN for references.
+	   If dN == Runtime.undefined, use fN; otherwise use dN.
+	   For int/float/bool, cast from double. For long/references, use object slot. *)
+	let dual_slot_invoke_method =
+		if num_params = 0 then
+			(* No params - just override __hx_invoke0_o to call invoke() *)
+			let body = if return_type = CsTypeVoid then
+				[CsExprStmt (CsCall (CsLocal "invoke", [])); CsReturn (Some CsNull)]
+			else
+				[CsReturn (Some (CsCall (CsLocal "invoke", [])))]
+			in
+			CsMemberMethod {
+				m_name = "__hx_invoke0_o";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Public;
+				m_modifiers = [MemberModifier.Override];
+				m_type_params = [];
+				m_params = [];
+				m_body = Some body;
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			}
+		else
+			(* Build dual-slot params: for each arg, (double fN, object dN) *)
+			let dual_slot_params = List.flatten (List.mapi (fun i _ ->
+				[
+					{ p_name = "f" ^ string_of_int (i + 1); p_type = Some CsTypeDouble; p_default = None; p_modifier = None };
+					{ p_name = "d" ^ string_of_int (i + 1); p_type = Some CsTypeObject; p_default = None; p_modifier = None };
+				]
+			) invoke_params) in
+			(* Build extraction expressions for each argument.
+			   Pattern: (dN == Runtime.undefined) ? (T)fN : (T)dN
+			   For int/float/bool: use fN slot (cast from double)
+			   For long/references: always use dN slot *)
+			let extract_args = List.mapi (fun i param ->
+				let f_var = CsLocal ("f" ^ string_of_int (i + 1)) in
+				let d_var = CsLocal ("d" ^ string_of_int (i + 1)) in
+				let undefined = CsStaticField (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "undefined") in
+				let is_undefined = CsBinop (CsOpEq, d_var, undefined) in
+				match param.p_type with
+				| Some CsTypeInt ->
+					(* int: use double slot, cast to int *)
+					CsTernary (is_undefined, CsCast (CsTypeInt, f_var), CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [d_var]))
+				| Some CsTypeDouble ->
+					(* double: use double slot directly *)
+					CsTernary (is_undefined, f_var, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [d_var]))
+				| Some CsTypeFloat ->
+					(* float (Single): use double slot, cast to float *)
+					CsTernary (is_undefined, CsCast (CsTypeFloat, f_var), CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [d_var])))
+				| Some CsTypeBool ->
+					(* bool: use double slot, != 0.0 *)
+					CsTernary (is_undefined, CsBinop (CsOpNotEq, f_var, CsConst (CsConstDouble 0.0)), CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [d_var]))
+				| Some (CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) as null_type) ->
+					(* Null<T>: need to handle specially - use _ofDynamic for proper wrapping *)
+					(* First extract the raw value, then wrap with Null<T>._ofDynamic *)
+					let raw_value = begin match inner with
+						| CsTypeInt -> CsTernary (is_undefined, CsCast (CsTypeObject, CsCast (CsTypeInt, f_var)), d_var)
+						| CsTypeDouble -> CsTernary (is_undefined, CsCast (CsTypeObject, f_var), d_var)
+						| CsTypeFloat -> CsTernary (is_undefined, CsCast (CsTypeObject, CsCast (CsTypeFloat, f_var)), d_var)
+						| CsTypeBool -> CsTernary (is_undefined, CsCast (CsTypeObject, CsBinop (CsOpNotEq, f_var, CsConst (CsConstDouble 0.0))), d_var)
+						| _ -> d_var  (* For reference types/long, always use object slot *)
+					end in
+					CsStaticCall (null_type, "_ofDynamic", [raw_value])
+				| Some t ->
+					(* Other types (long, references): always use object slot *)
+					CsCast (t, d_var)
+				| None ->
+					(* Untyped: use object slot directly *)
+					d_var
+			) invoke_params in
+			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
+			let body = if return_type = CsTypeVoid then
+				[CsExprStmt invoke_call; CsReturn (Some CsNull)]
+			else
+				[CsReturn (Some invoke_call)]
+			in
+			CsMemberMethod {
+				m_name = "__hx_invoke" ^ string_of_int num_params ^ "_o";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Public;
+				m_modifiers = [MemberModifier.Override];
+				m_type_params = [];
+				m_params = dual_slot_params;
+				m_body = Some body;
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			}
+	in
+
 	(* Build the closure class *)
 	let closure_class = CsClassDef {
 		c_path = closure_path;
@@ -2511,7 +2649,7 @@ let generate_closure_class ectx tf func_type =
 		c_base = Some (CsTypeClass ((["haxe"; "lang"], "Function"), []));
 		c_interfaces = [];
 		c_constraints = [];
-		c_members = capture_fields @ [ctor; invoke_method; invoke_dynamic_method];
+		c_members = capture_fields @ [ctor; invoke_method; invoke_dynamic_method; dual_slot_invoke_method];
 	} in
 
 	(* Add closure to the origin class's closure list *)
@@ -2682,10 +2820,18 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		[CsReturn (Some method_call)]
 	in
 
-	(* If the invoke method has no parameters, it shadows the base class's invoke() method.
-	   Add the 'new' modifier to suppress CS0114 warning. *)
+	(* The typed invoke method may shadow the base class's invokeN(object...) method.
+	   For invoke() with 0 params, it matches exactly - add 'new' modifier.
+	   For invokeN with all object params, it also matches - add 'new' modifier.
+	   Otherwise, the parameter types differ so no 'new' needed. *)
 	let num_params = List.length invoke_params in
-	let invoke_modifiers = if num_params = 0 then [MemberModifier.New] else [] in
+	let all_params_are_object = List.for_all (fun p ->
+		match p.p_type with
+		| Some CsTypeObject | Some CsTypeDynamic -> true
+		| None -> true  (* untyped = object *)
+		| _ -> false
+	) invoke_params in
+	let invoke_modifiers = if num_params = 0 || all_params_are_object then [MemberModifier.New] else [] in
 	let invoke_method = CsMemberMethod {
 		m_name = invoke_method_name num_params;
 		m_return_type = return_cs_type;
@@ -2756,8 +2902,83 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		m_attributes = [];
 	} in
 
+	(* Build __hx_invokeN_o method - dual-slot invoke to avoid boxing *)
+	let dual_slot_invoke_method =
+		if num_params = 0 then
+			let body = if return_cs_type = CsTypeVoid then
+				[CsExprStmt (CsCall (CsLocal "invoke", [])); CsReturn (Some CsNull)]
+			else
+				[CsReturn (Some (CsCall (CsLocal "invoke", [])))]
+			in
+			CsMemberMethod {
+				m_name = "__hx_invoke0_o";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Public;
+				m_modifiers = [Override];
+				m_type_params = [];
+				m_params = [];
+				m_body = Some body;
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			}
+		else
+			let dual_slot_params = List.flatten (List.mapi (fun i _ ->
+				[
+					{ p_name = "f" ^ string_of_int (i + 1); p_type = Some CsTypeDouble; p_default = None; p_modifier = None };
+					{ p_name = "d" ^ string_of_int (i + 1); p_type = Some CsTypeObject; p_default = None; p_modifier = None };
+				]
+			) invoke_params) in
+			let extract_args = List.mapi (fun i (param, _is_optional) ->
+				let f_var = CsLocal ("f" ^ string_of_int (i + 1)) in
+				let d_var = CsLocal ("d" ^ string_of_int (i + 1)) in
+				let undefined = CsStaticField (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "undefined") in
+				let is_undefined = CsBinop (CsOpEq, d_var, undefined) in
+				match param.p_type with
+				| Some CsTypeInt ->
+					CsTernary (is_undefined, CsCast (CsTypeInt, f_var), CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [d_var]))
+				| Some CsTypeDouble ->
+					CsTernary (is_undefined, f_var, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [d_var]))
+				| Some CsTypeFloat ->
+					CsTernary (is_undefined, CsCast (CsTypeFloat, f_var), CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [d_var])))
+				| Some CsTypeBool ->
+					CsTernary (is_undefined, CsBinop (CsOpNotEq, f_var, CsConst (CsConstDouble 0.0)), CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [d_var]))
+				| Some (CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) as null_type) ->
+					let raw_value = begin match inner with
+						| CsTypeInt -> CsTernary (is_undefined, CsCast (CsTypeObject, CsCast (CsTypeInt, f_var)), d_var)
+						| CsTypeDouble -> CsTernary (is_undefined, CsCast (CsTypeObject, f_var), d_var)
+						| CsTypeFloat -> CsTernary (is_undefined, CsCast (CsTypeObject, CsCast (CsTypeFloat, f_var)), d_var)
+						| CsTypeBool -> CsTernary (is_undefined, CsCast (CsTypeObject, CsBinop (CsOpNotEq, f_var, CsConst (CsConstDouble 0.0))), d_var)
+						| _ -> d_var
+					end in
+					CsStaticCall (null_type, "_ofDynamic", [raw_value])
+				| Some t ->
+					CsCast (t, d_var)
+				| None ->
+					d_var
+			) invoke_params_with_opt in
+			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
+			let body = if return_cs_type = CsTypeVoid then
+				[CsExprStmt invoke_call; CsReturn (Some CsNull)]
+			else
+				[CsReturn (Some invoke_call)]
+			in
+			CsMemberMethod {
+				m_name = "__hx_invoke" ^ string_of_int num_params ^ "_o";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Public;
+				m_modifiers = [Override];
+				m_type_params = [];
+				m_params = dual_slot_params;
+				m_body = Some body;
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			}
+	in
+
 	(* Build class definition *)
-	let members = capture_fields @ [ctor; invoke_method; invoke_dynamic] in
+	let members = capture_fields @ [ctor; invoke_method; invoke_dynamic; dual_slot_invoke_method] in
 	let closure_class = CsClassDef {
 		c_path = closure_path;
 		c_access = AccessModifier.Internal;

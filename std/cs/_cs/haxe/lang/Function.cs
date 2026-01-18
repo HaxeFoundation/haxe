@@ -6,41 +6,66 @@ namespace haxe.lang
     /// <summary>
     /// Base class for all Haxe function types.
     /// Provides dynamic invocation capability for calling functions via reflection.
+    ///
+    /// Dual-slot invoke pattern: Each argument has two slots - a double slot for primitives
+    /// (int, float, bool) and an object slot for references (and long for precision).
+    /// When object slot == Runtime.undefined, use the double slot.
     /// </summary>
-    public class Function
+    public abstract class Function
     {
         /// <summary>
         /// Invoke this function dynamically with the given arguments.
         /// Subclasses (generated closures) override this to call the actual function.
         /// </summary>
-        public virtual object invokeDynamic(haxe.root.Array<object> args)
-        {
-            throw new NotImplementedException("Function.invokeDynamic must be overridden");
-        }
+        public abstract object invokeDynamic(haxe.root.Array<object> args);
+
+        // ============================================================
+        // Dual-slot invoke methods - these avoid boxing for primitives
+        // __hx_invokeN_o returns object, __hx_invokeN_f returns double
+        // ============================================================
 
         /// <summary>
-        /// Invoke with 0 arguments.
+        /// Dual-slot invoke with 0 arguments, returns object.
         /// </summary>
-        public virtual object invoke()
+        public virtual object __hx_invoke0_o()
         {
             return invokeDynamic(new haxe.root.Array<object>());
         }
 
         /// <summary>
-        /// Invoke with 1 argument.
+        /// Dual-slot invoke with 0 arguments, returns double (for numeric returns).
         /// </summary>
-        public virtual object invoke1(object a0)
+        public virtual double __hx_invoke0_f()
         {
+            return Runtime.toDouble(__hx_invoke0_o());
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 1 argument, returns object.
+        /// </summary>
+        public virtual object __hx_invoke1_o(double f1, object d1)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             return invokeDynamic(args);
         }
 
         /// <summary>
-        /// Invoke with 2 arguments.
+        /// Dual-slot invoke with 1 argument, returns double.
         /// </summary>
-        public virtual object invoke2(object a0, object a1)
+        public virtual double __hx_invoke1_f(double f1, object d1)
         {
+            return Runtime.toDouble(__hx_invoke1_o(f1, d1));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 2 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke2_o(double f1, object d1, double f2, object d2)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -48,10 +73,21 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Invoke with 3 arguments.
+        /// Dual-slot invoke with 2 arguments, returns double.
         /// </summary>
-        public virtual object invoke3(object a0, object a1, object a2)
+        public virtual double __hx_invoke2_f(double f1, object d1, double f2, object d2)
         {
+            return Runtime.toDouble(__hx_invoke2_o(f1, d1, f2, d2));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 3 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke3_o(double f1, object d1, double f2, object d2, double f3, object d3)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
+            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -60,10 +96,22 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Invoke with 4 arguments.
+        /// Dual-slot invoke with 3 arguments, returns double.
         /// </summary>
-        public virtual object invoke4(object a0, object a1, object a2, object a3)
+        public virtual double __hx_invoke3_f(double f1, object d1, double f2, object d2, double f3, object d3)
         {
+            return Runtime.toDouble(__hx_invoke3_o(f1, d1, f2, d2, f3, d3));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 4 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke4_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
+            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
+            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -73,10 +121,23 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Invoke with 5 arguments.
+        /// Dual-slot invoke with 4 arguments, returns double.
         /// </summary>
-        public virtual object invoke5(object a0, object a1, object a2, object a3, object a4)
+        public virtual double __hx_invoke4_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4)
         {
+            return Runtime.toDouble(__hx_invoke4_o(f1, d1, f2, d2, f3, d3, f4, d4));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 5 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke5_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
+            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
+            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
+            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -87,10 +148,24 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Invoke with 6 arguments.
+        /// Dual-slot invoke with 5 arguments, returns double.
         /// </summary>
-        public virtual object invoke6(object a0, object a1, object a2, object a3, object a4, object a5)
+        public virtual double __hx_invoke5_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5)
         {
+            return Runtime.toDouble(__hx_invoke5_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 6 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke6_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
+            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
+            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
+            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
+            object a5 = (d6 == Runtime.undefined) ? (object)f6 : d6;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -102,10 +177,25 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Invoke with 7 arguments.
+        /// Dual-slot invoke with 6 arguments, returns double.
         /// </summary>
-        public virtual object invoke7(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
+        public virtual double __hx_invoke6_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6)
         {
+            return Runtime.toDouble(__hx_invoke6_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 7 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke7_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
+            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
+            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
+            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
+            object a5 = (d6 == Runtime.undefined) ? (object)f6 : d6;
+            object a6 = (d7 == Runtime.undefined) ? (object)f7 : d7;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -118,10 +208,26 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Invoke with 8 arguments.
+        /// Dual-slot invoke with 7 arguments, returns double.
         /// </summary>
-        public virtual object invoke8(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
+        public virtual double __hx_invoke7_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7)
         {
+            return Runtime.toDouble(__hx_invoke7_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6, f7, d7));
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 8 arguments, returns object.
+        /// </summary>
+        public virtual object __hx_invoke8_o(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7, double f8, object d8)
+        {
+            object a0 = (d1 == Runtime.undefined) ? (object)f1 : d1;
+            object a1 = (d2 == Runtime.undefined) ? (object)f2 : d2;
+            object a2 = (d3 == Runtime.undefined) ? (object)f3 : d3;
+            object a3 = (d4 == Runtime.undefined) ? (object)f4 : d4;
+            object a4 = (d5 == Runtime.undefined) ? (object)f5 : d5;
+            object a5 = (d6 == Runtime.undefined) ? (object)f6 : d6;
+            object a6 = (d7 == Runtime.undefined) ? (object)f7 : d7;
+            object a7 = (d8 == Runtime.undefined) ? (object)f8 : d8;
             var args = new haxe.root.Array<object>();
             args.push(a0);
             args.push(a1);
@@ -132,6 +238,91 @@ namespace haxe.lang
             args.push(a6);
             args.push(a7);
             return invokeDynamic(args);
+        }
+
+        /// <summary>
+        /// Dual-slot invoke with 8 arguments, returns double.
+        /// </summary>
+        public virtual double __hx_invoke8_f(double f1, object d1, double f2, object d2, double f3, object d3, double f4, object d4, double f5, object d5, double f6, object d6, double f7, object d7, double f8, object d8)
+        {
+            return Runtime.toDouble(__hx_invoke8_o(f1, d1, f2, d2, f3, d3, f4, d4, f5, d5, f6, d6, f7, d7, f8, d8));
+        }
+
+        // ============================================================
+        // Convenience invoke methods - these box all arguments
+        // These call the dual-slot methods with all args in object slots
+        // ============================================================
+
+        /// <summary>
+        /// Invoke with 0 arguments.
+        /// </summary>
+        public virtual object invoke()
+        {
+            return __hx_invoke0_o();
+        }
+
+        /// <summary>
+        /// Invoke with 1 argument.
+        /// </summary>
+        public virtual object invoke1(object a0)
+        {
+            return __hx_invoke1_o(0.0, a0);
+        }
+
+        /// <summary>
+        /// Invoke with 2 arguments.
+        /// </summary>
+        public virtual object invoke2(object a0, object a1)
+        {
+            return __hx_invoke2_o(0.0, a0, 0.0, a1);
+        }
+
+        /// <summary>
+        /// Invoke with 3 arguments.
+        /// </summary>
+        public virtual object invoke3(object a0, object a1, object a2)
+        {
+            return __hx_invoke3_o(0.0, a0, 0.0, a1, 0.0, a2);
+        }
+
+        /// <summary>
+        /// Invoke with 4 arguments.
+        /// </summary>
+        public virtual object invoke4(object a0, object a1, object a2, object a3)
+        {
+            return __hx_invoke4_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3);
+        }
+
+        /// <summary>
+        /// Invoke with 5 arguments.
+        /// </summary>
+        public virtual object invoke5(object a0, object a1, object a2, object a3, object a4)
+        {
+            return __hx_invoke5_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4);
+        }
+
+        /// <summary>
+        /// Invoke with 6 arguments.
+        /// </summary>
+        public virtual object invoke6(object a0, object a1, object a2, object a3, object a4, object a5)
+        {
+            return __hx_invoke6_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5);
+        }
+
+        /// <summary>
+        /// Invoke with 7 arguments.
+        /// </summary>
+        public virtual object invoke7(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
+        {
+            return __hx_invoke7_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5, 0.0, a6);
+        }
+
+        /// <summary>
+        /// Invoke with 8 arguments.
+        /// </summary>
+        public virtual object invoke8(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
+        {
+            return __hx_invoke8_o(0.0, a0, 0.0, a1, 0.0, a2, 0.0, a3, 0.0, a4, 0.0, a5, 0.0, a6, 0.0, a7);
         }
     }
 }
