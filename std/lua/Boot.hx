@@ -164,7 +164,7 @@ class Boot {
 				// Shift all numeric keys by -1 to convert from 1-indexed to 0-indexed.
 				// Cannot use table.remove as it doesn't work correctly for sparse tables.
 				var result:Table<Int, T> = Table.create();
-				untyped __lua__("for k, v in pairs(tab) do if type(k) == 'number' then result[k - 1] = v end end");
+				Syntax.code("for k, v in pairs({0}) do if type(k) == 'number' then {1}[k - 1] = v end end", tab, result);
 				return untyped _hx_tab_array(result, length);
 			} else {
 				return [];
