@@ -201,6 +201,7 @@ type expr_context = {
 	mutable origin_class_path : path option;  (* original class path for grouping closures in same file *)
 	mutable captured_vars : int list;  (* var IDs that are captured from outer scope (accessed via this.field) *)
 	mutable captures_this : bool;  (* true if 'this' from outer scope is captured as _hx_this *)
+	mutable type_params_in_scope : string list;  (* type parameter names that are in scope (class + method) *)
 }
 
 let create_expr_context gctx = {
@@ -214,6 +215,7 @@ let create_expr_context gctx = {
 	origin_class_path = None;
 	captured_vars = [];
 	captures_this = false;
+	type_params_in_scope = [];
 }
 
 (* Result type for expressions that may need prefix statements *)
@@ -504,6 +506,31 @@ let coerce_arg gctx cs_arg arg_type expected_type =
 	| CsTypeClass ((["haxe"; "lang"], "Null"), [target]), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [inner])])
 		when target = inner ->
 		cs_arg
+	(* Generic covariance: SomeClass<SpecificType> to SomeClass<object> where we're widening.
+	   C# generics are invariant, so we need to cast through object: (TargetType)(object)expr
+	   This handles cases like Array<int> to Array<object>, etc.
+	   IMPORTANT: Only apply when expected type params are MORE GENERAL (object/dynamic) than arg type params.
+	   Do NOT apply when going from general to specific (e.g., Either<object,object> to Either<int,int>).
+	   Also do NOT apply when arg has type params (they might be out of scope).
+	   Note: CsTypeClass is used for both classes and interfaces in our AST. *)
+	| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
+		when path1 = path2 && params1 <> params2 ->
+		(* Check if expected params are all object/dynamic - only then is it safe to widen *)
+		let is_general_type = function
+			| CsTypeObject | CsTypeDynamic -> true
+			| _ -> false
+		in
+		let is_type_param = function
+			| CsTypeGenericParam _ -> true
+			| _ -> false
+		in
+		let expected_is_general = List.for_all is_general_type params1 in
+		let arg_has_type_params = List.exists is_type_param params2 in
+		(* Only apply if expected is general AND arg has no type params (to avoid scope issues) *)
+		if expected_is_general && not arg_has_type_params then
+			CsCast (expected_cs_type, CsCast (CsTypeObject, cs_arg))
+		else
+			cs_arg
 	(* Don't cast object to arbitrary class types or generic params - they may not be in scope
 	   and the type system should handle covariance through proper interfaces *)
 	| _ -> cs_arg
@@ -1517,10 +1544,24 @@ let rec cs_expr_of_texpr ectx e =
 				) cf.cf_params
 			in
 			(* Get method type params as Haxe types for applying to param_types *)
-			let method_type_params_hx = match follow return_type with
-				| TInst (_, ret_params) when List.length ret_params = List.length cf.cf_params ->
-					ret_params
-				| _ -> infer_type_params_as_types ()
+			let method_type_params_hx =
+				(* Check if the method's return type in the signature IS a type parameter.
+				   For methods like copy<T>(v:T):T, the return type is T itself.
+				   In that case, the entire actual return type is the value of that type param. *)
+				let sig_return_is_type_param = match follow cf.cf_type with
+					| TFun (_, ret) -> begin match follow ret with
+						| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+						| _ -> false
+					end
+					| _ -> false
+				in
+				if sig_return_is_type_param && List.length cf.cf_params = 1 then
+					(* The whole return type is the type param value *)
+					[return_type]
+				else match follow return_type with
+					| TInst (_, ret_params) when List.length ret_params = List.length cf.cf_params ->
+						ret_params
+					| _ -> infer_type_params_as_types ()
 			in
 			(* Apply method type params to parameter types *)
 			let method_param_map = apply_params cf.cf_params method_type_params_hx in
@@ -1587,9 +1628,11 @@ let rec cs_expr_of_texpr ectx e =
 					CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
 				in
 				let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
-				(* Cast the result to the expected return type *)
+				(* Cast the result to the expected return type - erase out-of-scope type params *)
 				let result_type = match follow cf.cf_type with
-					| TFun (_, ret) -> cs_type_of_type ectx.gctx ret
+					| TFun (_, ret) ->
+						let t = cs_type_of_type ectx.gctx ret in
+						CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope t
 					| _ -> CsTypeObject
 				in
 				begin match result_type with
@@ -1616,9 +1659,11 @@ let rec cs_expr_of_texpr ectx e =
 				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
-			(* Cast the result to the expected return type - use cf.cf_type for the return type *)
+			(* Cast the result to the expected return type - erase out-of-scope type params *)
 			let result_type = match follow cf.cf_type with
-				| TFun (_, ret) -> cs_type_of_type ectx.gctx ret
+				| TFun (_, ret) ->
+					let t = cs_type_of_type ectx.gctx ret in
+					CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope t
 				| _ -> CsTypeObject
 			in
 			begin match result_type with
@@ -1636,9 +1681,11 @@ let rec cs_expr_of_texpr ectx e =
 				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
-			(* Cast the result to the expected return type *)
+			(* Cast the result to the expected return type - erase out-of-scope type params *)
 			let result_type = match follow cf.cf_type with
-				| TFun (_, ret) -> cs_type_of_type ectx.gctx ret
+				| TFun (_, ret) ->
+					let t = cs_type_of_type ectx.gctx ret in
+					CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope t
 				| _ -> CsTypeObject
 			in
 			begin match result_type with
@@ -1666,7 +1713,9 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [get_field; args_array]) in
 		(* Cast the result to the expected return type - use e.etype (the TCall's type), not e_obj.etype *)
+		(* Also erase out-of-scope type params *)
 		let result_type = cs_type_of_type ectx.gctx e.etype in
+		let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
 		| CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for Dynamic/object *)
 		| _ -> CsCast (result_type, call_expr)
@@ -1851,14 +1900,16 @@ let rec cs_expr_of_texpr ectx e =
 				) all_method_type_params
 			in
 			(* Get method type params as Haxe types for applying to param_types *)
-			let method_type_params_hx = match follow return_type with
-				| TInst (_, ret_params) when List.length ret_params = List.length all_method_type_params ->
-					(* Generic return type with matching arity - use its type params *)
-					ret_params
-				| TInst _ | TEnum _ when returns_type_param && List.length all_method_type_params = 1 ->
-					(* Method returns T directly (like createInstance<T>():T), and return type is concrete *)
+			let method_type_params_hx =
+				(* FIRST check if method returns T directly (like copy<T>():T) *)
+				if returns_type_param && List.length all_method_type_params = 1 then
+					(* Method returns T directly - the whole return type is the type param value *)
 					[return_type]
-				| _ -> infer_type_params_as_types ()
+				else match follow return_type with
+					| TInst (_, ret_params) when List.length ret_params = List.length all_method_type_params ->
+						(* Generic return type with matching arity - use its type params *)
+						ret_params
+					| _ -> infer_type_params_as_types ()
 			in
 			(* Apply method type params to parameter types - only for explicit params that have bindings *)
 			let method_param_map = apply_params cf.cf_params (ExtList.List.take (List.length cf.cf_params) method_type_params_hx) in
@@ -2078,6 +2129,11 @@ let rec cs_expr_of_texpr ectx e =
 			cs_expr_of_texpr ectx inner_e
 		else begin
 			let target_type_raw = cs_type_of_type ectx.gctx e.etype in
+			(* Erase type parameters that are not in scope - if we have type params from
+			   a called method's signature, they won't be valid in the current context.
+			   For example, calling a generic method via reflection returns T, but T
+			   is not defined in the calling context. Replace with object. *)
+			let target_type_raw = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope target_type_raw in
 			(* Function types map to haxe.lang.Function - no special handling needed. *)
 			(* Fix spurious Null<Null<T>> from safe cast pattern (e.g., Std.downcast).
 			   When target is Null<Null<T>> but inner type is NOT Null<T>, flatten to Null<T>.
@@ -2828,6 +2884,7 @@ let generate_closure_class ectx tf func_type =
 		origin_class_path = ectx.origin_class_path;  (* Inherit from parent for nested closures *)
 		captured_vars = List.map (fun v -> v.v_id) captured_vars;
 		captures_this = accesses_this;
+		type_params_in_scope = ectx.type_params_in_scope;  (* Inherit type params from parent *)
 	} in
 
 	(* Register function parameters as local vars *)
@@ -3157,9 +3214,10 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	(* For instance methods, we need to capture the object.
 	   We must erase type parameters from the captured type since the closure class
 	   doesn't have access to the enclosing class's type parameters.
+	   We also need to track the erased type to cast the capture expression when instantiating.
 	   Special case: String is a C# built-in type, not a class.
 	   Note: @:native("string") makes the path lowercase. *)
-	let captures = if is_static then [] else
+	let captures, erased_capture_type = if is_static then ([], None) else
 		match obj_expr with
 		| Some _ ->
 			let obj_cs_type = match class_path with
@@ -3167,9 +3225,9 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 				| ([], "string") | (["haxe"; "root"], "string") -> CsTypeString
 				| _ -> CsTypeClass (cs_path_of_path class_path, List.map (cs_type_of_type gctx) type_params)
 			in
-			let obj_cs_type = CsSignature.erase_type_params obj_cs_type in
-			[("_hx_this", obj_cs_type)]
-		| None -> []
+			let erased_type = CsSignature.erase_type_params obj_cs_type in
+			([("_hx_this", erased_type)], Some erased_type)
+		| None -> ([], None)
 	in
 
 	(* Build capture fields *)
@@ -3242,7 +3300,12 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		| Method _ -> false
 	in
 	let method_call = if is_static then
-		let static_type = CsTypeClass (cs_path_of_path class_path, List.map (cs_type_of_type gctx) type_params) in
+		(* Redirect String static methods to cs.StringExt *)
+		let actual_path = match class_path with
+			| ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) -> (["cs"], "StringExt")
+			| _ -> cs_path_of_path class_path
+		in
+		let static_type = CsTypeClass (actual_path, List.map (cs_type_of_type gctx) type_params) in
 		if is_stored_function then begin
 			(* Static function field - use Runtime.InvokeDelegate *)
 			let func_expr = CsStaticField (static_type, method_name) in
@@ -3457,8 +3520,12 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 
 	(* Build instantiation expression *)
 	let closure_type = CsTypeClass (closure_path, []) in
-	let capture_args = match obj_expr with
-		| Some expr when not is_static -> [expr]
+	let capture_args = match obj_expr, erased_capture_type with
+		| Some expr, Some erased_type when not is_static ->
+			(* Cast the capture expression to the erased type to handle generic covariance.
+			   e.g., TestHandler<T> needs to be cast to TestHandler<object> for the closure.
+			   C# doesn't allow direct cast between generic types, so cast through object first. *)
+			[CsCast (erased_type, CsCast (CsTypeObject, expr))]
 		| _ -> []
 	in
 	CsNew (closure_type, capture_args)
@@ -3473,13 +3540,15 @@ let () = generate_method_closure_ref := generate_method_closure
    but "@this" in the signature). The mapping is by position.
    return_type: optional return type for the method, used to cast Dynamic return values
    class_path: optional path of the enclosing class (for closure naming)
-   method_name: optional name of the enclosing method (for closure naming) *)
-let generate_method_body gctx ?(param_cs_names=[]) ?return_type ?class_path ?method_name e =
+   method_name: optional name of the enclosing method (for closure naming)
+   type_params_in_scope: type parameter names from class and method that are valid in this context *)
+let generate_method_body gctx ?(param_cs_names=[]) ?(type_params_in_scope=[]) ?return_type ?class_path ?method_name e =
 	let ectx = create_expr_context gctx in
 	ectx.return_type <- return_type;
 	ectx.current_class_path <- class_path;
 	ectx.current_method_name <- method_name;
 	ectx.origin_class_path <- class_path;  (* Set origin for closure grouping *)
+	ectx.type_params_in_scope <- type_params_in_scope;
 	match e.eexpr with
 	| TFunction tf ->
 		(* Unwrap TFunction - this happens for dynamic function assignments *)
@@ -3889,10 +3958,6 @@ let generate_field gctx c cf is_static =
 				p_modifier = None;
 			}
 		) filtered_args in
-		let body = match cf.cf_expr with
-			| Some e -> Some (generate_method_body gctx ~param_cs_names ~return_type:ret ~class_path:c.cl_path ~method_name:cf.cf_name e)
-			| None -> None
-		in
 		(* Extract method-level type parameters from cf.cf_params *)
 		let explicit_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
 		(* Get class type parameters to exclude from method type params *)
@@ -3913,6 +3978,12 @@ let generate_field gctx c cf is_static =
 		let method_type_params = explicit_type_params @ (List.filter (fun p ->
 			not (List.mem p explicit_type_params)
 		) inferred_type_params) in
+		(* All type params in scope = class params + method params *)
+		let all_type_params_in_scope = class_type_params @ method_type_params in
+		let body = match cf.cf_expr with
+			| Some e -> Some (generate_method_body gctx ~param_cs_names ~type_params_in_scope:all_type_params_in_scope ~return_type:ret ~class_path:c.cl_path ~method_name:cf.cf_name e)
+			| None -> None
+		in
 		(* Add virtual/override/abstract modifiers for instance methods *)
 		let method_modifiers =
 			if is_static then modifiers
@@ -4089,9 +4160,11 @@ let generate_constructor gctx c cf field_init_stmts =
 			Some cs_args
 		| None -> None
 	in
+	(* Get class type parameters for constructor scope *)
+	let class_type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
 	(* Generate constructor body - prepend field initializations that contain 'this' *)
 	let ctor_body = match body_expr with
-		| Some e -> field_init_stmts @ generate_method_body gctx ~class_path:c.cl_path ~method_name:"new" e
+		| Some e -> field_init_stmts @ generate_method_body gctx ~type_params_in_scope:class_type_params ~class_path:c.cl_path ~method_name:"new" e
 		| None -> field_init_stmts
 	in
 	[

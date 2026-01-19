@@ -414,3 +414,31 @@ let rec erase_type_params cstype =
 	| _ ->
 		(* Primitive types, object, string, etc. - no change *)
 		cstype
+
+(* Erase type parameters that are NOT in scope.
+   If a type parameter's name is in the in_scope list, it is kept.
+   Otherwise, it is replaced with object.
+   This is used when generating casts to avoid using type parameters
+   that are not defined in the current method/class context. *)
+let rec erase_out_of_scope_type_params in_scope cstype =
+	match cstype with
+	| CsTypeGenericParam name ->
+		(* Keep if in scope, otherwise erase to object *)
+		if List.mem name in_scope then cstype else CsTypeObject
+	| CsTypeNullable t ->
+		CsTypeNullable (erase_out_of_scope_type_params in_scope t)
+	| CsTypeArray (t, rank) ->
+		CsTypeArray (erase_out_of_scope_type_params in_scope t, rank)
+	| CsTypeClass (path, params) ->
+		CsTypeClass (path, List.map (erase_out_of_scope_type_params in_scope) params)
+	| CsTypeFunc (args, ret) ->
+		CsTypeFunc (List.map (erase_out_of_scope_type_params in_scope) args, erase_out_of_scope_type_params in_scope ret)
+	| CsTypeAction args ->
+		CsTypeAction (List.map (erase_out_of_scope_type_params in_scope) args)
+	| CsTypeNested (parent, name) ->
+		CsTypeNested (erase_out_of_scope_type_params in_scope parent, name)
+	| CsTypeNestedGeneric (parent, name, params) ->
+		CsTypeNestedGeneric (erase_out_of_scope_type_params in_scope parent, name, List.map (erase_out_of_scope_type_params in_scope) params)
+	| _ ->
+		(* Primitive types, object, string, etc. - no change *)
+		cstype

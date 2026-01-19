@@ -22,42 +22,42 @@ namespace haxe.lang
         /// Creates a Null&lt;T&gt; from a dynamic value with proper type conversion.
         /// This function is here to be used with Reflection, when the haxe.lang.Null type is known.
         /// </summary>
-        public static haxe.lang.Null<T> _ofDynamic(object obj)
+        public static global::haxe.lang.Null<T> _ofDynamic(object obj)
         {
             if (obj == null)
             {
-                return new haxe.lang.Null<T>(default(T), false);
+                return new global::haxe.lang.Null<T>(default(T), false);
             }
             // Handle case when obj is itself a Null<> struct (e.g., from default(Null<object>))
             // AOT-safe: check common Null<> types directly without reflection
-            if (obj is Null<object> nullObj)
+            if (obj is global::haxe.lang.Null<object> nullObj)
             {
-                if (!nullObj.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                if (!nullObj.hasValue) return new global::haxe.lang.Null<T>(default(T), false);
                 return _ofDynamic(nullObj.value);
             }
-            if (obj is Null<int> nullInt)
+            if (obj is global::haxe.lang.Null<int> nullInt)
             {
-                if (!nullInt.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                if (!nullInt.hasValue) return new global::haxe.lang.Null<T>(default(T), false);
                 return _ofDynamic(nullInt.value);
             }
-            if (obj is Null<double> nullDouble)
+            if (obj is global::haxe.lang.Null<double> nullDouble)
             {
-                if (!nullDouble.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                if (!nullDouble.hasValue) return new global::haxe.lang.Null<T>(default(T), false);
                 return _ofDynamic(nullDouble.value);
             }
-            if (obj is Null<string> nullString)
+            if (obj is global::haxe.lang.Null<string> nullString)
             {
-                if (!nullString.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                if (!nullString.hasValue) return new global::haxe.lang.Null<T>(default(T), false);
                 return _ofDynamic(nullString.value);
             }
-            if (obj is Null<bool> nullBool)
+            if (obj is global::haxe.lang.Null<bool> nullBool)
             {
-                if (!nullBool.hasValue) return new haxe.lang.Null<T>(default(T), false);
+                if (!nullBool.hasValue) return new global::haxe.lang.Null<T>(default(T), false);
                 return _ofDynamic(nullBool.value);
             }
             // Fallback: check if it's a Null<> type we don't handle directly
             var objType = obj.GetType();
-            if (objType.IsGenericType && objType.GetGenericTypeDefinition() == typeof(Null<>))
+            if (objType.IsGenericType && objType.GetGenericTypeDefinition() == typeof(global::haxe.lang.Null<>))
             {
                 // Use toDynamic() method which all Null<T> have
                 var toDynamicMethod = objType.GetMethod("toDynamic");
@@ -66,35 +66,35 @@ namespace haxe.lang
                     object unwrapped = toDynamicMethod.Invoke(obj, null);
                     if (unwrapped == null)
                     {
-                        return new haxe.lang.Null<T>(default(T), false);
+                        return new global::haxe.lang.Null<T>(default(T), false);
                     }
                     return _ofDynamic(unwrapped);
                 }
             }
             if (typeof(T).Equals(typeof(double)))
             {
-                return new haxe.lang.Null<T>((T)(object)haxe.lang.Runtime.toDouble(obj), true);
+                return new global::haxe.lang.Null<T>((T)(object)global::haxe.lang.Runtime.toDouble(obj), true);
             }
             if (typeof(T).Equals(typeof(int)))
             {
-                return new haxe.lang.Null<T>((T)(object)haxe.lang.Runtime.toInt(obj), true);
+                return new global::haxe.lang.Null<T>((T)(object)global::haxe.lang.Runtime.toInt(obj), true);
             }
-            return new haxe.lang.Null<T>((T)obj, true);
+            return new global::haxe.lang.Null<T>((T)obj, true);
         }
 
         /// <summary>
         /// Implicit conversion from T to Null&lt;T&gt; (wrapping).
         /// </summary>
-        public static implicit operator haxe.lang.Null<T>(T val)
+        public static implicit operator global::haxe.lang.Null<T>(T val)
         {
-            return new haxe.lang.Null<T>(val, true);
+            return new global::haxe.lang.Null<T>(val, true);
         }
 
         /// <summary>
         /// Implicit conversion from Null&lt;T&gt; to T (unwrapping).
         /// This is the KEY DIFFERENCE from C#'s Nullable&lt;T&gt;.
         /// </summary>
-        public static implicit operator T(haxe.lang.Null<T> n)
+        public static implicit operator T(global::haxe.lang.Null<T> n)
         {
             return n.value;
         }
@@ -102,9 +102,9 @@ namespace haxe.lang
         /// <summary>
         /// Implicit conversion from __NoValue__ to create a null value.
         /// </summary>
-        public static implicit operator Null<T>(__NoValue__ noValue)
+        public static implicit operator global::haxe.lang.Null<T>(__NoValue__ noValue)
         {
-            return new haxe.lang.Null<T>(default(T), false);
+            return new global::haxe.lang.Null<T>(default(T), false);
         }
 
         /// <summary>
@@ -124,14 +124,14 @@ namespace haxe.lang
         /// <summary>
         /// Equality operator - allows comparison between Null&lt;T&gt; values.
         /// </summary>
-        public static bool operator ==(Null<T> a, Null<T> b)
+        public static bool operator ==(global::haxe.lang.Null<T> a, global::haxe.lang.Null<T> b)
         {
             if (!a.hasValue && !b.hasValue) return true;
             if (!a.hasValue || !b.hasValue) return false;
-            return EqualityComparer<T>.Default.Equals(a.value, b.value);
+            return global::System.Collections.Generic.EqualityComparer<T>.Default.Equals(a.value, b.value);
         }
 
-        public static bool operator !=(Null<T> a, Null<T> b)
+        public static bool operator !=(global::haxe.lang.Null<T> a, global::haxe.lang.Null<T> b)
         {
             return !(a == b);
         }
@@ -139,8 +139,8 @@ namespace haxe.lang
         public override bool Equals(object obj)
         {
             if (obj == null) return !hasValue;
-            if (obj is Null<T> n) return this == n;
-            if (obj is T t) return hasValue && EqualityComparer<T>.Default.Equals(value, t);
+            if (obj is global::haxe.lang.Null<T> n) return this == n;
+            if (obj is T t) return hasValue && global::System.Collections.Generic.EqualityComparer<T>.Default.Equals(value, t);
             return false;
         }
 
@@ -171,19 +171,19 @@ namespace haxe.lang
         {
             if (obj == null)
             {
-                return new haxe.lang.Null<D>(default(D), false);
+                return new global::haxe.lang.Null<D>(default(D), false);
             }
             else if (typeof(D).Equals(typeof(double)))
             {
-                return new haxe.lang.Null<D>((D)(object)haxe.lang.Runtime.toDouble(obj), true);
+                return new global::haxe.lang.Null<D>((D)(object)global::haxe.lang.Runtime.toDouble(obj), true);
             }
             else if (typeof(D).Equals(typeof(int)))
             {
-                return new haxe.lang.Null<D>((D)(object)haxe.lang.Runtime.toInt(obj), true);
+                return new global::haxe.lang.Null<D>((D)(object)global::haxe.lang.Runtime.toInt(obj), true);
             }
             else
             {
-                return new haxe.lang.Null<D>((D)obj, true);
+                return new global::haxe.lang.Null<D>((D)obj, true);
             }
         }
 

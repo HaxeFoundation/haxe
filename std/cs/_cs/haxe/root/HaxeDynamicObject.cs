@@ -3,22 +3,22 @@ using System.Collections.Generic;
 
 namespace haxe.root
 {
-    public class HaxeDynamicObject : HaxeObject
+    public class HaxeDynamicObject : global::haxe.root.HaxeObject
     {
         private static int __hx_toString_depth = 0;
 
-        private Dictionary<string, object> _hx_fields;
+        private global::System.Collections.Generic.Dictionary<string, object> _hx_fields;
 
         public HaxeDynamicObject()
         {
-            _hx_fields = new Dictionary<string, object>();
+            _hx_fields = new global::System.Collections.Generic.Dictionary<string, object>();
         }
 
         // Factory method to create with initial field values
         // Usage: _hx_create(["field1", value1, "field2", value2, ...])
-        public static HaxeDynamicObject _hx_create(Array<object> args)
+        public static global::haxe.root.HaxeDynamicObject _hx_create(global::haxe.root.Array<object> args)
         {
-            var obj = new HaxeDynamicObject();
+            var obj = new global::haxe.root.HaxeDynamicObject();
             for (int i = 0; i < args.length; i += 2)
             {
                 var name = (string)args.__a[i];
@@ -51,7 +51,7 @@ namespace haxe.root
                     buf += _hx_fields[key];
                 }
             }
-            catch (System.Exception)
+            catch (global::System.Exception)
             {
                 --__hx_toString_depth;
                 throw;
@@ -67,10 +67,10 @@ namespace haxe.root
             return _hx_fields.Remove(name);
         }
 
-        public override Array<string> _hx_getFields()
+        public override global::haxe.root.Array<string> _hx_getFields()
         {
             _hx_initFields();
-            var result = new Array<string>();
+            var result = new global::haxe.root.Array<string>();
             foreach (var key in _hx_fields.Keys)
             {
                 result.push(key);
@@ -102,7 +102,7 @@ namespace haxe.root
         {
             if (_hx_fields == null)
             {
-                _hx_fields = new Dictionary<string, object>();
+                _hx_fields = new global::System.Collections.Generic.Dictionary<string, object>();
             }
         }
     }

@@ -8,6 +8,7 @@ namespace haxe.lang
     /// </summary>
     public static class Runtime
     {
+        #pragma warning disable CA2211
         /// <summary>
         /// Sentinel value used in dual-slot invoke pattern to indicate "use the double slot".
         /// When the object slot equals this value, the double slot contains the actual value.
@@ -75,18 +76,18 @@ namespace haxe.lang
         /// Works with Func&lt;&gt;, Action, and other delegate types.
         /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.
         /// </summary>
-        public static object InvokeDelegate(object func, haxe.root.Array<object> args)
+        public static object InvokeDelegate(object func, global::haxe.root.Array<object> args)
         {
-            if (func == null) throw new NullReferenceException("Cannot invoke null delegate");
+            if (func == null) throw new global::System.NullReferenceException("Cannot invoke null delegate");
 
             // If it's a HaxeFunction, use its invokeDynamic method
-            if (func is haxe.lang.Function hf)
+            if (func is global::haxe.lang.Function hf)
             {
                 return hf.invokeDynamic(args);
             }
 
             // Otherwise, it should be a Delegate
-            if (func is Delegate del)
+            if (func is global::System.Delegate del)
             {
                 var method = del.Method;
                 var parameters = method.GetParameters();
@@ -113,37 +114,37 @@ namespace haxe.lang
                 return del.DynamicInvoke(invokeArgs);
             }
 
-            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+            throw new global::System.InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
         }
 
         /// <summary>
         /// Create a default value for the given type.
         /// AOT-safe: handles Null&lt;T&gt; without reflection by checking common types directly.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
             Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
-        private static object CreateDefaultValue(Type type)
+        private static object CreateDefaultValue(global::System.Type type)
         {
             // Handle Null<T> first - for null/missing args, default(Null<T>) has hasValue=false
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Null<>))
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(global::haxe.lang.Null<>))
             {
-                if (type == typeof(Null<int>)) return default(Null<int>);
-                if (type == typeof(Null<double>)) return default(Null<double>);
-                if (type == typeof(Null<float>)) return default(Null<float>);
-                if (type == typeof(Null<bool>)) return default(Null<bool>);
-                if (type == typeof(Null<long>)) return default(Null<long>);
-                if (type == typeof(Null<short>)) return default(Null<short>);
-                if (type == typeof(Null<byte>)) return default(Null<byte>);
-                if (type == typeof(Null<sbyte>)) return default(Null<sbyte>);
-                if (type == typeof(Null<uint>)) return default(Null<uint>);
-                if (type == typeof(Null<ulong>)) return default(Null<ulong>);
-                if (type == typeof(Null<ushort>)) return default(Null<ushort>);
-                if (type == typeof(Null<char>)) return default(Null<char>);
-                if (type == typeof(Null<string>)) return default(Null<string>);
-                if (type == typeof(Null<object>)) return default(Null<object>);
+                if (type == typeof(global::haxe.lang.Null<int>)) return default(global::haxe.lang.Null<int>);
+                if (type == typeof(global::haxe.lang.Null<double>)) return default(global::haxe.lang.Null<double>);
+                if (type == typeof(global::haxe.lang.Null<float>)) return default(global::haxe.lang.Null<float>);
+                if (type == typeof(global::haxe.lang.Null<bool>)) return default(global::haxe.lang.Null<bool>);
+                if (type == typeof(global::haxe.lang.Null<long>)) return default(global::haxe.lang.Null<long>);
+                if (type == typeof(global::haxe.lang.Null<short>)) return default(global::haxe.lang.Null<short>);
+                if (type == typeof(global::haxe.lang.Null<byte>)) return default(global::haxe.lang.Null<byte>);
+                if (type == typeof(global::haxe.lang.Null<sbyte>)) return default(global::haxe.lang.Null<sbyte>);
+                if (type == typeof(global::haxe.lang.Null<uint>)) return default(global::haxe.lang.Null<uint>);
+                if (type == typeof(global::haxe.lang.Null<ulong>)) return default(global::haxe.lang.Null<ulong>);
+                if (type == typeof(global::haxe.lang.Null<ushort>)) return default(global::haxe.lang.Null<ushort>);
+                if (type == typeof(global::haxe.lang.Null<char>)) return default(global::haxe.lang.Null<char>);
+                if (type == typeof(global::haxe.lang.Null<string>)) return default(global::haxe.lang.Null<string>);
+                if (type == typeof(global::haxe.lang.Null<object>)) return default(global::haxe.lang.Null<object>);
                 // For other Null<T> types (custom classes), use Activator.CreateInstance
                 // This works for structs in AOT because parameterless struct constructors are intrinsic
-                return Activator.CreateInstance(type);
+                return global::System.Activator.CreateInstance(type);
             }
 
             // Primitive types
@@ -167,32 +168,32 @@ namespace haxe.lang
         /// <summary>
         /// Create a Null&lt;T&gt; from a dynamic value, AOT-safe.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
             Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2090",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2090",
             Justification = "Null<T> constructor with value parameter is always available")]
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "MakeGenericType for Null<T> works in AOT when the inner type is used elsewhere in the program")]
-        private static object CreateNullOfT(Type innerType, object value)
+        private static object CreateNullOfT(global::System.Type innerType, object value)
         {
-            if (innerType == typeof(int)) return Null<int>._ofDynamic(value);
-            if (innerType == typeof(double)) return Null<double>._ofDynamic(value);
-            if (innerType == typeof(float)) return Null<float>._ofDynamic(value);
-            if (innerType == typeof(bool)) return Null<bool>._ofDynamic(value);
-            if (innerType == typeof(long)) return Null<long>._ofDynamic(value);
-            if (innerType == typeof(short)) return Null<short>._ofDynamic(value);
-            if (innerType == typeof(byte)) return Null<byte>._ofDynamic(value);
-            if (innerType == typeof(sbyte)) return Null<sbyte>._ofDynamic(value);
-            if (innerType == typeof(uint)) return Null<uint>._ofDynamic(value);
-            if (innerType == typeof(ulong)) return Null<ulong>._ofDynamic(value);
-            if (innerType == typeof(ushort)) return Null<ushort>._ofDynamic(value);
-            if (innerType == typeof(char)) return Null<char>._ofDynamic(value);
-            if (innerType == typeof(string)) return Null<string>._ofDynamic(value);
-            if (innerType == typeof(object)) return Null<object>._ofDynamic(value);
+            if (innerType == typeof(int)) return global::haxe.lang.Null<int>._ofDynamic(value);
+            if (innerType == typeof(double)) return global::haxe.lang.Null<double>._ofDynamic(value);
+            if (innerType == typeof(float)) return global::haxe.lang.Null<float>._ofDynamic(value);
+            if (innerType == typeof(bool)) return global::haxe.lang.Null<bool>._ofDynamic(value);
+            if (innerType == typeof(long)) return global::haxe.lang.Null<long>._ofDynamic(value);
+            if (innerType == typeof(short)) return global::haxe.lang.Null<short>._ofDynamic(value);
+            if (innerType == typeof(byte)) return global::haxe.lang.Null<byte>._ofDynamic(value);
+            if (innerType == typeof(sbyte)) return global::haxe.lang.Null<sbyte>._ofDynamic(value);
+            if (innerType == typeof(uint)) return global::haxe.lang.Null<uint>._ofDynamic(value);
+            if (innerType == typeof(ulong)) return global::haxe.lang.Null<ulong>._ofDynamic(value);
+            if (innerType == typeof(ushort)) return global::haxe.lang.Null<ushort>._ofDynamic(value);
+            if (innerType == typeof(char)) return global::haxe.lang.Null<char>._ofDynamic(value);
+            if (innerType == typeof(string)) return global::haxe.lang.Null<string>._ofDynamic(value);
+            if (innerType == typeof(object)) return global::haxe.lang.Null<object>._ofDynamic(value);
             // Fallback for custom types: use the generic Null<T>.ofDynamic<D> method
             // which handles the conversion properly. We need to call it via reflection.
-            var ofDynamicMethod = typeof(Null<>).MakeGenericType(innerType)
-                .GetMethod("_ofDynamic", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            var ofDynamicMethod = typeof(global::haxe.lang.Null<>).MakeGenericType(innerType)
+                .GetMethod("_ofDynamic", global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static);
             return ofDynamicMethod.Invoke(null, new[] { value });
         }
 
@@ -200,7 +201,7 @@ namespace haxe.lang
         /// Convert an argument value to the target type.
         /// AOT-safe: does not use reflection for Null&lt;T&gt; creation.
         /// </summary>
-        private static object ConvertArg(object value, Type targetType)
+        private static object ConvertArg(object value, global::System.Type targetType)
         {
             if (value == null) return CreateDefaultValue(targetType);
 
@@ -208,7 +209,7 @@ namespace haxe.lang
             if (targetType.IsAssignableFrom(valueType)) return value;
 
             // Handle Null<T> wrapper - AOT-safe using direct type checks
-            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Null<>))
+            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(global::haxe.lang.Null<>))
             {
                 var innerType = targetType.GetGenericArguments()[0];
                 return CreateNullOfT(innerType, value);
@@ -225,7 +226,7 @@ namespace haxe.lang
             // Try explicit conversion
             try
             {
-                return Convert.ChangeType(value, targetType);
+                return global::System.Convert.ChangeType(value, targetType);
             }
             catch
             {
@@ -238,14 +239,14 @@ namespace haxe.lang
         /// For HaxeObject subclasses, uses _hx_getField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_getField")]
         public static object GetField(object obj, string name)
         {
-            if (obj == null) throw new NullReferenceException("Cannot get field from null");
+            if (obj == null) throw new global::System.NullReferenceException("Cannot get field from null");
 
             // For HaxeObject subclasses, use _hx_getField (AOT-safe)
-            if (obj is haxe.root.HaxeObject ho)
+            if (obj is global::haxe.root.HaxeObject ho)
             {
                 return ho._hx_getField(name);
             }
@@ -254,11 +255,11 @@ namespace haxe.lang
             var type = obj.GetType();
 
             // Try field first
-            var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var field = type.GetField(name, global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
             if (field != null) return field.GetValue(obj);
 
             // Try property
-            var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var prop = type.GetProperty(name, global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
             if (prop != null) return prop.GetValue(obj);
 
             return null;
@@ -269,14 +270,14 @@ namespace haxe.lang
         /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
         public static object SetField(object obj, string name, object value)
         {
-            if (obj == null) throw new NullReferenceException("Cannot set field on null");
+            if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
 
             // For HaxeObject subclasses, use _hx_setField (AOT-safe)
-            if (obj is haxe.root.HaxeObject ho)
+            if (obj is global::haxe.root.HaxeObject ho)
             {
                 ho._hx_setField(name, value);
                 return value;
@@ -285,7 +286,7 @@ namespace haxe.lang
             var type = obj.GetType();
 
             // Try field first
-            var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var field = type.GetField(name, global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
             if (field != null)
             {
                 field.SetValue(obj, value);
@@ -293,7 +294,7 @@ namespace haxe.lang
             }
 
             // Try property
-            var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var prop = type.GetProperty(name, global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
             if (prop != null)
             {
                 prop.SetValue(obj, value);
@@ -308,14 +309,14 @@ namespace haxe.lang
         /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
         public static T SetField<T>(object obj, string name, T value)
         {
-            if (obj == null) throw new NullReferenceException("Cannot set field on null");
+            if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
 
             // For HaxeObject subclasses, use _hx_setField (AOT-safe)
-            if (obj is haxe.root.HaxeObject ho)
+            if (obj is global::haxe.root.HaxeObject ho)
             {
                 ho._hx_setField(name, value);
                 return value;
@@ -324,7 +325,7 @@ namespace haxe.lang
             var type = obj.GetType();
 
             // Try field first
-            var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var field = type.GetField(name, global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
             if (field != null)
             {
                 field.SetValue(obj, value);
@@ -332,7 +333,7 @@ namespace haxe.lang
             }
 
             // Try property
-            var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var prop = type.GetProperty(name, global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
             if (prop != null)
             {
                 prop.SetValue(obj, value);
@@ -348,8 +349,8 @@ namespace haxe.lang
         public static bool IsFunction(object obj)
         {
             if (obj == null) return false;
-            if (obj is haxe.lang.Function) return true;
-            if (obj is Delegate) return true;
+            if (obj is global::haxe.lang.Function) return true;
+            if (obj is global::System.Delegate) return true;
             return false;
         }
     }
