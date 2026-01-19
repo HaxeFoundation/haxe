@@ -64,6 +64,7 @@ class Event {
 }
 
 private typedef NativeEventLoop = {
+	final allowsReentrancy:Bool;
 	function run():Void;
 	function close():Void;
 	function isAlive():Bool;
@@ -201,7 +202,7 @@ class EventLoop {
 	public function loopOnce( threadCheck = true ) {
 		if( threadCheck )
 			checkThread();
-		if( inNative ) throw "You cannot callback EventLoop.loop() while in native event callback";
+		if( inNative && !nativeLoop.allowsReentrancy ) throw "You cannot call EventLoop.loop() while in an event callback with a non-reentrant native loop";
 
 		lock();
 		sortEvents();

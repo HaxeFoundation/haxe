@@ -85,6 +85,7 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 }
 
 private class LoopWrapper {
+	public final allowsReentrancy = false;
 	final uvLoop:Loop;
 
 	public function new(loop:Loop) {
