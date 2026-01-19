@@ -53,6 +53,7 @@ type cs_type =
 	| CsTypeArray of cs_type * int option  (* element type, optional rank *)
 	| CsTypeClass of cs_path * cs_type list  (* path, type arguments *)
 	| CsTypeNested of cs_type * string  (* parent type (with its type args), nested class name *)
+	| CsTypeNestedGeneric of cs_type * string * cs_type list  (* parent type, nested class name, nested class type args *)
 	| CsTypeGenericParam of string  (* T, K, etc. *)
 	| CsTypeFunc of cs_type list * cs_type  (* argument types, return type *)
 	| CsTypeAction of cs_type list  (* void-returning delegate *)

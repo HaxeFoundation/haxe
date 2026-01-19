@@ -299,6 +299,9 @@ let rec s_cs_type = function
 	| CsTypeNested (parent, nested_name) ->
 		(* Nested type: ParentType<T>.NestedClass *)
 		s_cs_type parent ^ "." ^ nested_name
+	| CsTypeNestedGeneric (parent, nested_name, params) ->
+		(* Nested generic type: ParentType<T>.NestedClass<C> *)
+		s_cs_type parent ^ "." ^ nested_name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
 	| CsTypeGenericParam name -> name
 	| CsTypeFunc (args, ret) ->
 		(* In C#, void cannot be used as a type argument, so Func<..., void> is invalid.

@@ -386,4 +386,178 @@ class Cs {
 		// Fallback: throw - we can't handle other indexable types without reflection
 		throw "Cannot set index on object of type " + Type.getClassName(Type.getClass(obj));
 	}
+
+	// =====================================================================
+	// Dynamic Field Read-Modify-Write Operations
+	// These helpers perform increment/decrement/compound assignment on
+	// dynamic fields, handling the read-modify-write pattern that C# can't
+	// express with ((int)Reflect.field(obj, name))++
+	// =====================================================================
+
+	/**
+	 * Increment a dynamic field by 1 and return the OLD value (postfix ++).
+	 */
+	public static function fieldPostIncrement(obj:Dynamic, field:String):Dynamic {
+		var oldVal = Reflect.field(obj, field);
+		Reflect.setField(obj, field, opIncrement(oldVal));
+		return oldVal;
+	}
+
+	/**
+	 * Increment a dynamic field by 1 and return the NEW value (prefix ++).
+	 */
+	public static function fieldPreIncrement(obj:Dynamic, field:String):Dynamic {
+		var newVal = opIncrement(Reflect.field(obj, field));
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Decrement a dynamic field by 1 and return the OLD value (postfix --).
+	 */
+	public static function fieldPostDecrement(obj:Dynamic, field:String):Dynamic {
+		var oldVal = Reflect.field(obj, field);
+		Reflect.setField(obj, field, opDecrement(oldVal));
+		return oldVal;
+	}
+
+	/**
+	 * Decrement a dynamic field by 1 and return the NEW value (prefix --).
+	 */
+	public static function fieldPreDecrement(obj:Dynamic, field:String):Dynamic {
+		var newVal = opDecrement(Reflect.field(obj, field));
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound add-assign on a dynamic field: field += value.
+	 */
+	public static function fieldAddAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
+		var newVal = opAdd(Reflect.field(obj, field), value);
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound sub-assign on a dynamic field: field -= value.
+	 */
+	public static function fieldSubAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
+		var newVal = opSub(Reflect.field(obj, field), value);
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound mul-assign on a dynamic field: field *= value.
+	 */
+	public static function fieldMulAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
+		var newVal = opMul(Reflect.field(obj, field), value);
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound div-assign on a dynamic field: field /= value.
+	 */
+	public static function fieldDivAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
+		var newVal = opDiv(Reflect.field(obj, field), value);
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound mod-assign on a dynamic field: field %= value.
+	 */
+	public static function fieldModAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
+		var newVal = opMod(Reflect.field(obj, field), value);
+		Reflect.setField(obj, field, newVal);
+		return newVal;
+	}
+
+	// =====================================================================
+	// Dynamic Array Index Read-Modify-Write Operations
+	// Same pattern as field operations, but for array/indexer access.
+	// =====================================================================
+
+	/**
+	 * Increment array element by 1 and return the OLD value (postfix ++).
+	 */
+	public static function arrayPostIncrement(arr:Dynamic, index:Int):Dynamic {
+		var oldVal = arrayGet(arr, index);
+		arraySet(arr, index, opIncrement(oldVal));
+		return oldVal;
+	}
+
+	/**
+	 * Increment array element by 1 and return the NEW value (prefix ++).
+	 */
+	public static function arrayPreIncrement(arr:Dynamic, index:Int):Dynamic {
+		var newVal = opIncrement(arrayGet(arr, index));
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Decrement array element by 1 and return the OLD value (postfix --).
+	 */
+	public static function arrayPostDecrement(arr:Dynamic, index:Int):Dynamic {
+		var oldVal = arrayGet(arr, index);
+		arraySet(arr, index, opDecrement(oldVal));
+		return oldVal;
+	}
+
+	/**
+	 * Decrement array element by 1 and return the NEW value (prefix --).
+	 */
+	public static function arrayPreDecrement(arr:Dynamic, index:Int):Dynamic {
+		var newVal = opDecrement(arrayGet(arr, index));
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound add-assign on array element: arr[i] += value.
+	 */
+	public static function arrayAddAssign(arr:Dynamic, index:Int, value:Dynamic):Dynamic {
+		var newVal = opAdd(arrayGet(arr, index), value);
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound sub-assign on array element: arr[i] -= value.
+	 */
+	public static function arraySubAssign(arr:Dynamic, index:Int, value:Dynamic):Dynamic {
+		var newVal = opSub(arrayGet(arr, index), value);
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound mul-assign on array element: arr[i] *= value.
+	 */
+	public static function arrayMulAssign(arr:Dynamic, index:Int, value:Dynamic):Dynamic {
+		var newVal = opMul(arrayGet(arr, index), value);
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound div-assign on array element: arr[i] /= value.
+	 */
+	public static function arrayDivAssign(arr:Dynamic, index:Int, value:Dynamic):Dynamic {
+		var newVal = opDiv(arrayGet(arr, index), value);
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
+
+	/**
+	 * Compound mod-assign on array element: arr[i] %= value.
+	 */
+	public static function arrayModAssign(arr:Dynamic, index:Int, value:Dynamic):Dynamic {
+		var newVal = opMod(arrayGet(arr, index), value);
+		arraySet(arr, index, newVal);
+		return newVal;
+	}
 }
