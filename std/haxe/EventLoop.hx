@@ -63,13 +63,11 @@ class Event {
 
 }
 
-#if hl
 private typedef NativeEventLoop = {
 	function run():Void;
 	function close():Int;
 	function alive():Int;
 };
-#end
 
 
 /**
@@ -102,10 +100,8 @@ class EventLoop {
 	**/
 	public var thread : sys.thread.Thread;
 	#end
-	#if hl
 	var nativeLoop : Null<NativeEventLoop>;
 	var inNative : Bool = false;
-	#end
 
 	public function new() {
 		#if target.threaded
@@ -119,9 +115,7 @@ class EventLoop {
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
-		#if hl
 		if( nativeLoop != null && nativeLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
-		#end
 	}
 
 	/**
@@ -132,11 +126,9 @@ class EventLoop {
 		checkThread();
 		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
-			#if hl
 			// disable wait if we have our native loop alive
 			if( nativeLoop != null && time > 0 && nativeLoop.alive() > 0 )
 				time = -1;
-			#end
 			if( time > 0 ) {
 				wait(time);
 				continue;
@@ -209,9 +201,7 @@ class EventLoop {
 	public function loopOnce( threadCheck = true ) {
 		if( threadCheck )
 			checkThread();
-		#if hl
 		if( inNative ) throw "You cannot callback EventLoop.loop() while in native event callback";
-		#end
 
 		lock();
 		sortEvents();
@@ -219,13 +209,11 @@ class EventLoop {
 		inLoop = true;
 		unlock();
 
-		#if hl
 		if( nativeLoop != null ) {
 			inNative = true;
 			nativeLoop.run();
 			inNative = false;
 		}
-		#end
 
 		// if inLoop turns false, stop because we had reentrency
 		var time = haxe.Timer.stamp();
@@ -446,10 +434,8 @@ class EventLoop {
 		If blocking is set to true, only check if it has remaining blocking events.
 	**/
 	public function hasEvents( blocking : Bool = true ) {
-		#if hl
 		if( nativeLoop != null && nativeLoop.alive() > 0 )
 			return true;
-		#end
 		if( !blocking )
 			return events != null;
 		lock();
