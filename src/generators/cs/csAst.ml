@@ -157,6 +157,7 @@ and cs_stmt =
 	| CsEmpty
 	| CsComment of string
 	| CsRawStmt of string  (* raw C# code *)
+	| CsUncheckedStmt of cs_stmt  (* unchecked { stmt } - allow integer overflow *)
 
 and cs_switch_section = {
 	sw_labels : cs_switch_label list;

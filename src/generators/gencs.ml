@@ -65,6 +65,20 @@ let create_context com = {
 	preprocessor = Obj.magic ();  (* Initialized later after context is created *)
 }
 
+(* Check if expression needs unchecked context due to integer operations.
+   This follows the legacy C# target approach: wrap method bodies in unchecked
+   only when they contain non-zero integer constants that could overflow. *)
+let needs_unchecked e =
+	let rec loop e = match e.eexpr with
+	(* A non-zero integer constant means we want unchecked context *)
+	| TConst (TInt i) when i <> Int32.zero -> raise Exit
+	(* Don't recurse into explicit __checked__ blocks *)
+	| TCall ({ eexpr = TIdent "__checked__" }, _) -> ()
+	(* Otherwise recurse into subexpressions *)
+	| _ -> Type.iter loop e
+	in
+	try (loop e; false) with Exit -> true
+
 (* Add a closure to the list for its origin class *)
 let add_closure_for_class gctx origin_class_path closure_def =
 	let existing = try List.assoc origin_class_path gctx.closures_by_class with Not_found -> [] in
@@ -1227,14 +1241,7 @@ let rec cs_expr_of_texpr ectx e =
 						CsCast (CsTypeDouble, cs_e1), CsCast (CsTypeDouble, cs_e2)
 					| _ -> cs_e1, cs_e2
 				in
-				let result = CsBinop (cs_binop_of_binop op, cs_e1, cs_e2) in
-				(* For integer multiplication, wrap in unchecked to handle overflow correctly.
-				   Haxe expects multiplication overflow to wrap, but C# in checked mode fails. *)
-				let is_int_mult = match op with
-					| OpMult -> is_int_type e1.etype || is_int_type e2.etype
-					| _ -> false
-				in
-				if is_int_mult then CsUnchecked result else result
+				CsBinop (cs_binop_of_binop op, cs_e1, cs_e2)
 			end
 		end
 	| TUnop (Spread, _, e) ->
@@ -1834,7 +1841,10 @@ let rec cs_expr_of_texpr ectx e =
 		   1. Native methods (@:native) like toUpperCase/toLowerCase -> use C# native name
 		   2. Inline methods that redirect to StringExt -> should already be inlined, but handle fallback
 		   Check for @:native metadata first, then check if method exists in StringExt. *)
+		(* Check if expression type is Null<String> - if so, unwrap via .value *)
+		let needs_unwrap = find_null_in_expr e_obj in
 		let obj = cs_expr_of_texpr ectx e_obj in
+		let obj = if needs_unwrap then CsField (obj, "value") else obj in
 		let is_stringext_method = match cf.cf_name with
 			| "charAt" | "charCodeAt" | "indexOf" | "lastIndexOf"
 			| "split" | "substr" | "substring" -> true
@@ -3520,6 +3530,56 @@ and cs_stmt_of_texpr ectx e =
 		(* Expression statement *)
 		CsExprStmt (cs_expr_of_texpr ectx e)
 
+(* Transform void returns (CsReturn None) to null returns (CsReturn (Some CsNull)).
+   Used when a void-returning Haxe closure shadows a base class method that returns object. *)
+let rec transform_void_returns_to_null stmt =
+	match stmt with
+	| CsReturn None -> CsReturn (Some CsNull)
+	| CsBlock stmts -> CsBlock (List.map transform_void_returns_to_null stmts)
+	| CsStmtList stmts -> CsStmtList (List.map transform_void_returns_to_null stmts)
+	| CsIf (cond, then_stmt, else_opt) ->
+		CsIf (cond, transform_void_returns_to_null then_stmt,
+			Option.map transform_void_returns_to_null else_opt)
+	| CsSwitch (expr, sections) ->
+		let sections' = List.map (fun s ->
+			{ s with sw_body = List.map transform_void_returns_to_null s.sw_body }
+		) sections in
+		CsSwitch (expr, sections')
+	| CsWhile (cond, body) ->
+		CsWhile (cond, transform_void_returns_to_null body)
+	| CsDoWhile (body, cond) ->
+		CsDoWhile (transform_void_returns_to_null body, cond)
+	| CsFor (init, cond, iter, body) ->
+		CsFor (init, cond, iter, transform_void_returns_to_null body)
+	| CsForeach (t, name, expr, body) ->
+		CsForeach (t, name, expr, transform_void_returns_to_null body)
+	| CsTry (body, catches, finally_opt) ->
+		let catches' = List.map (fun c ->
+			{ c with catch_body = transform_void_returns_to_null c.catch_body }
+		) catches in
+		CsTry (transform_void_returns_to_null body, catches',
+			Option.map transform_void_returns_to_null finally_opt)
+	| CsUsing (decls, body) ->
+		CsUsing (decls, transform_void_returns_to_null body)
+	| CsLock (expr, body) ->
+		CsLock (expr, transform_void_returns_to_null body)
+	| _ -> stmt
+
+(* Check if a statement definitely returns (ends with a return statement) *)
+let rec stmt_has_return stmt =
+	match stmt with
+	| CsReturn _ -> true
+	| CsThrowStmt _ -> true
+	| CsBlock stmts -> (match List.rev stmts with [] -> false | last :: _ -> stmt_has_return last)
+	| CsStmtList stmts -> (match List.rev stmts with [] -> false | last :: _ -> stmt_has_return last)
+	| _ -> false
+
+(* Check if a statement list ends with a return *)
+let stmts_end_with_return stmts =
+	match List.rev stmts with
+	| [] -> false
+	| last :: _ -> stmt_has_return last
+
 (* Generate a closure class for a TFunction and return a CsNew expression to instantiate it.
    Following JVM's approach: every local function becomes a closure class with:
    - Fields for captured variables
@@ -3679,11 +3739,23 @@ let generate_closure_class ectx tf func_type =
 		| TBlock exprs -> List.map (cs_stmt_of_texpr closure_ectx) exprs
 		| _ -> [cs_stmt_of_texpr closure_ectx tf.tf_expr]
 	in
+	(* Wrap in unchecked if the expression contains non-zero integer constants *)
+	let invoke_body =
+		if needs_unchecked tf.tf_expr then
+			[CsUncheckedStmt (CsBlock invoke_body)]
+		else
+			invoke_body
+	in
 
 	(* The typed invoke method may shadow the base class's invokeN(object...) method.
 	   For invoke() with 0 params, it matches exactly - add 'new' modifier.
 	   For invokeN with all object params, it also matches - add 'new' modifier.
-	   Otherwise, the parameter types differ so no 'new' needed. *)
+	   Otherwise, the parameter types differ so no 'new' needed.
+
+	   IMPORTANT: When shadowing with 'new', the base class method returns 'object',
+	   so if our return_type is void, we must:
+	   1. Change return type to object to match the base signature
+	   2. Append "return null;" to the body since C# requires explicit return *)
 	let num_params = List.length invoke_params in
 	let all_params_are_object = List.for_all (fun p ->
 		match p.p_type with
@@ -3691,10 +3763,27 @@ let generate_closure_class ectx tf func_type =
 		| None -> true  (* untyped = object *)
 		| _ -> false
 	) invoke_params in
-	let invoke_modifiers = if num_params = 0 || all_params_are_object then [MemberModifier.New] else [] in
+	let shadows_base = num_params = 0 || all_params_are_object in
+	let invoke_modifiers = if shadows_base then [MemberModifier.New] else [] in
+	(* When shadowing with 'new' modifier and return_type is void, change to object
+	   since the base class invoke() returns object. *)
+	let invoke_return_type = if shadows_base && return_type = CsTypeVoid then CsTypeObject else return_type in
+	(* If the final return type is object (either because we changed from void, or it was already object),
+	   AND the body might contain "return;" (CsReturn None), transform those to "return null;".
+	   We only do this for object return type because CsReturn None is valid ONLY for void methods.
+	   Only append return null if the body doesn't already end with a return. *)
+	let invoke_body =
+		if invoke_return_type = CsTypeObject then
+			let transformed = List.map transform_void_returns_to_null invoke_body in
+			(* Only append return null if body doesn't already end with a return *)
+			if stmts_end_with_return transformed then transformed
+			else transformed @ [CsReturn (Some CsNull)]
+		else
+			invoke_body
+	in
 	let invoke_method = CsMemberMethod {
 		m_name = invoke_method_name num_params;
-		m_return_type = return_type;
+		m_return_type = invoke_return_type;
 		m_access = AccessModifier.Public;
 		m_modifiers = invoke_modifiers;
 		m_type_params = [];
@@ -4132,7 +4221,12 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	(* The typed invoke method may shadow the base class's invokeN(object...) method.
 	   For invoke() with 0 params, it matches exactly - add 'new' modifier.
 	   For invokeN with all object params, it also matches - add 'new' modifier.
-	   Otherwise, the parameter types differ so no 'new' needed. *)
+	   Otherwise, the parameter types differ so no 'new' needed.
+
+	   IMPORTANT: When shadowing with 'new', the base class method returns 'object',
+	   so if our return_type is void, we must:
+	   1. Change return type to object to match the base signature
+	   2. Append "return null;" to the body since C# requires explicit return *)
 	let num_params = List.length invoke_params in
 	let all_params_are_object = List.for_all (fun p ->
 		match p.p_type with
@@ -4140,10 +4234,27 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		| None -> true  (* untyped = object *)
 		| _ -> false
 	) invoke_params in
-	let invoke_modifiers = if num_params = 0 || all_params_are_object then [MemberModifier.New] else [] in
+	let shadows_base = num_params = 0 || all_params_are_object in
+	let invoke_modifiers = if shadows_base then [MemberModifier.New] else [] in
+	(* When shadowing with 'new' modifier and return_type is void, change to object
+	   since the base class invoke() returns object. *)
+	let invoke_return_type = if shadows_base && return_cs_type = CsTypeVoid then CsTypeObject else return_cs_type in
+	(* If the final return type is object (either because we changed from void, or it was already object),
+	   AND the body might contain "return;" (CsReturn None), transform those to "return null;".
+	   We only do this for object return type because CsReturn None is valid ONLY for void methods.
+	   Only append return null if the body doesn't already end with a return. *)
+	let invoke_body =
+		if invoke_return_type = CsTypeObject then
+			let transformed = List.map transform_void_returns_to_null invoke_body in
+			(* Only append return null if body doesn't already end with a return *)
+			if stmts_end_with_return transformed then transformed
+			else transformed @ [CsReturn (Some CsNull)]
+		else
+			invoke_body
+	in
 	let invoke_method = CsMemberMethod {
 		m_name = invoke_method_name num_params;
-		m_return_type = return_cs_type;
+		m_return_type = invoke_return_type;
 		m_access = AccessModifier.Public;
 		m_modifiers = invoke_modifiers;
 		m_type_params = [];
@@ -4802,7 +4913,13 @@ let generate_field gctx c cf is_static =
 		let method_constraints = extract_type_param_constraints gctx cf.cf_params in
 		let all_type_param_constraints = class_constraints @ method_constraints in
 		let body = match cf.cf_expr with
-			| Some e -> Some (generate_method_body gctx ~param_cs_names ~type_params_in_scope:all_type_params_in_scope ~type_param_constraints:all_type_param_constraints ~return_type:ret ~class_path:c.cl_path ~method_name:cf.cf_name e)
+			| Some e ->
+				let body_stmts = generate_method_body gctx ~param_cs_names ~type_params_in_scope:all_type_params_in_scope ~type_param_constraints:all_type_param_constraints ~return_type:ret ~class_path:c.cl_path ~method_name:cf.cf_name e in
+				(* Wrap in unchecked if the expression contains non-zero integer constants *)
+				if needs_unchecked e then
+					Some [CsUncheckedStmt (CsBlock body_stmts)]
+				else
+					Some body_stmts
 			| None -> None
 		in
 		(* Add virtual/override/abstract modifiers for instance methods *)
@@ -5065,6 +5182,11 @@ let generate_constructor gctx c cf field_init_stmts =
 			in
 			field_init_stmts @ base_new_call @ body_stmts
 		in
+		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
+		let hx_new_body = match cf.cf_expr with
+			| Some e when needs_unchecked e -> [CsUncheckedStmt (CsBlock hx_new_body)]
+			| _ -> hx_new_body
+		in
 		(* Always use virtual for _hx_new - different constructor signatures result in method overloading,
 		   not overriding. C# supports method overloading just like Java. *)
 		let hx_new_modifiers = [MemberModifier.Virtual] in
@@ -5131,6 +5253,11 @@ let generate_constructor gctx c cf field_init_stmts =
 		let ctor_body = match body_expr with
 			| Some e -> field_init_stmts @ extra_body_stmts @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e
 			| None -> field_init_stmts @ extra_body_stmts
+		in
+		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
+		let ctor_body = match cf.cf_expr with
+			| Some e when needs_unchecked e -> [CsUncheckedStmt (CsBlock ctor_body)]
+			| _ -> ctor_body
 		in
 		[
 			CsMemberConstructor {
@@ -5337,6 +5464,8 @@ let generate_class gctx c =
 			| TFun (args, _) -> [args]
 			| _ -> []
 		in
+		(* Check if parent needs two-phase construction *)
+		let parent_is_two_phase = parent_needs_two_phase_construction c in
 		let parent_ctor_signatures = match c.cl_super with
 			| Some (sc, _) ->
 				begin match sc.cl_constructor with
@@ -5371,15 +5500,33 @@ let generate_class gctx c =
 					p_modifier = None;
 				}
 			) parent_ctor_args in
-			let base_args = List.map (fun (n, _, _) -> CsLocal (escape_identifier n)) parent_ctor_args in
-			CsMemberConstructor {
-				ctor_access = AccessModifier.Public;
-				ctor_modifiers = [];
-				ctor_params = ctor_params;
-				ctor_base_call = Some base_args;
-				ctor_this_call = None;
-				ctor_body = field_init_stmts;
-			}
+			if parent_is_two_phase then begin
+				(* Parent needs two-phase: call empty ctor, then base._hx_new in body *)
+				let base_hx_new_args = List.map (fun (n, _, t) ->
+					let param_type = cs_type_of_type gctx t in
+					CsCast (param_type, CsParens (CsLocal (escape_identifier n)))
+				) parent_ctor_args in
+				let base_hx_new_call = CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), base_hx_new_args)) in
+				CsMemberConstructor {
+					ctor_access = AccessModifier.Public;
+					ctor_modifiers = [];
+					ctor_params = ctor_params;
+					ctor_base_call = Some [CsCast (empty_constructor_type, CsNull)];
+					ctor_this_call = None;
+					ctor_body = base_hx_new_call :: field_init_stmts;
+				}
+			end else begin
+				(* Normal case: just forward to parent's constructor *)
+				let base_args = List.map (fun (n, _, _) -> CsLocal (escape_identifier n)) parent_ctor_args in
+				CsMemberConstructor {
+					ctor_access = AccessModifier.Public;
+					ctor_modifiers = [];
+					ctor_params = ctor_params;
+					ctor_base_call = Some base_args;
+					ctor_this_call = None;
+					ctor_body = field_init_stmts;
+				}
+			end
 		) parent_ctor_signatures in
 		if generated_ctors <> [] then
 			members := generated_ctors @ !members
@@ -5825,11 +5972,18 @@ let generate com =
 	(* Initialize the preprocessor for this-before-super detection *)
 	gctx.preprocessor <- new preprocessor com.basic cs_type_of_type_for_preprocessor;
 
-	(* Preprocess all classes to detect this-before-super patterns *)
+	(* Preprocess all types following JVM pattern:
+	   - Classes: full preprocessing (this-before-super detection + optional param patching)
+	   - Interfaces: only patch optional params to wrap in Null<T> *)
 	List.iter (fun mt ->
 		match mt with
 		| TClassDecl c when not (has_class_flag c CInterface) ->
+			(* Full preprocessing for classes *)
 			gctx.preprocessor#preprocess_class c
+		| TClassDecl c ->
+			(* Interfaces: patch optional params only (same as JVM line 3130) *)
+			List.iter (fun cf -> patch_optional com.basic cf) c.cl_ordered_fields;
+			List.iter (fun cf -> patch_optional com.basic cf) c.cl_ordered_statics
 		| _ -> ()
 	) com.types;
 

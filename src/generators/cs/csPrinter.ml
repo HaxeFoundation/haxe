@@ -592,6 +592,9 @@ and print_stmt ctx = function
 		print ctx s
 	| CsRawStmt s ->
 		print ctx s
+	| CsUncheckedStmt body ->
+		print ctx "unchecked";
+		print_block_stmt ctx body
 
 and print_stmt_no_semi ctx = function
 	| CsVarDecl (name, typ, value) ->
