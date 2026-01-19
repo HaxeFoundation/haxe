@@ -325,6 +325,10 @@ and print_expr ctx = function
 		print ctx "(";
 		print_expr ctx e;
 		print ctx ")"
+	| CsUnchecked e ->
+		print ctx "unchecked(";
+		print_expr ctx e;
+		print ctx ")"
 	| CsNullConditionalField (e, name) ->
 		print_expr ctx e;
 		print ctx "?.";

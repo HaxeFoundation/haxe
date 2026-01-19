@@ -100,6 +100,7 @@ type cs_expr =
 	| CsIsPattern of cs_expr * cs_type * string option  (* expr is Type name *)
 	| CsLambda of cs_param list * cs_lambda_body
 	| CsParens of cs_expr
+	| CsUnchecked of cs_expr  (* unchecked(expr) - allow overflow *)
 	| CsNullConditionalField of cs_expr * string  (* expr?.field *)
 	| CsNullConditionalCall of cs_expr * cs_expr list  (* expr?.method() *)
 	| CsNullConditionalIndex of cs_expr * cs_expr  (* expr?[index] *)

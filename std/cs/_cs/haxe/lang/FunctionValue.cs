@@ -4,19 +4,27 @@ using System;
 namespace haxe.lang
 {
     /// <summary>
-    /// Lightweight argument wrapper for function invocation without boxing.
+    /// Lightweight 16-byte value wrapper for function arguments and return values without boxing.
     /// Stack-allocated struct that can hold primitives (via prim field) or
     /// references (via obj field) with optional parameter tracking.
     ///
     /// This struct enables zero-allocation function calls by:
     /// - Storing primitives directly in the 'prim' field (no boxing)
     /// - Storing reference types in the 'obj' field
-    /// - Tracking optional parameter presence via 'hasValue'
+    /// - Using sentinel objects to determine which field contains the value
+    ///
+    /// Sentinel logic (checked via reference equality):
+    /// - obj == NoValue: No value (missing optional argument, or void return)
+    /// - obj == PrimValue: Primitive value in prim field
+    /// - obj == anything else (including null): Object value in obj field
     /// </summary>
-    public struct FunctionArg
+    public struct FunctionValue
     {
-        #pragma warning disable CA2211
-        /// <summary>Object slot for reference types and boxed values</summary>
+        // Sentinel objects for discriminating value types
+        private static readonly object NoValue = new object();
+        private static readonly object PrimValue = new object();
+
+        /// <summary>Object slot for reference types, or sentinel for discrimination</summary>
         public object obj;
 
         /// <summary>
@@ -30,240 +38,230 @@ namespace haxe.lang
         /// </summary>
         public long prim;
 
-        /// <summary>Whether this argument was provided (for optional parameter support)</summary>
-        public bool hasValue;
-
-        public FunctionArg(object obj, long prim, bool hasValue)
+        public FunctionValue(object obj, long prim)
         {
             this.obj = obj;
             this.prim = prim;
-            this.hasValue = hasValue;
         }
 
         // ============================================================
-        // Static factory methods for creating FunctionArg from values
-        // ============================================================
-        //
-        // IMPORTANT: When storing primitives, we set obj = Runtime.undefined
-        // to distinguish from actual null references. This allows extraction
-        // methods to know whether to read from prim or obj field.
-        //
-        // - obj == Runtime.undefined => value is primitive, use prim field
-        // - obj == null => actual null reference was passed
-        // - obj != null && obj != Runtime.undefined => object reference
+        // Static factory methods for creating FunctionValue from values
         // ============================================================
 
         /// <summary>Create from int value</summary>
-        public static global::haxe.lang.FunctionArg FromInt(int value)
+        public static global::haxe.lang.FunctionValue FromInt(int value)
         {
-            return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, value, true);
+            return new global::haxe.lang.FunctionValue(PrimValue, value);
         }
 
         /// <summary>Create from long/Int64 value - stored directly, no precision loss!</summary>
-        public static global::haxe.lang.FunctionArg FromLong(long value)
+        public static global::haxe.lang.FunctionValue FromLong(long value)
         {
-            return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, value, true);
+            return new global::haxe.lang.FunctionValue(PrimValue, value);
         }
 
         /// <summary>Create from double - uses BitConverter for lossless storage</summary>
-        public static global::haxe.lang.FunctionArg FromDouble(double value)
+        public static global::haxe.lang.FunctionValue FromDouble(double value)
         {
-            return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, global::System.BitConverter.DoubleToInt64Bits(value), true);
+            return new global::haxe.lang.FunctionValue(PrimValue, global::System.BitConverter.DoubleToInt64Bits(value));
         }
 
         /// <summary>Create from float - uses BitConverter for lossless storage</summary>
-        public static global::haxe.lang.FunctionArg FromFloat(float value)
+        public static global::haxe.lang.FunctionValue FromFloat(float value)
         {
-            return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, global::System.BitConverter.SingleToInt32Bits(value), true);
+            return new global::haxe.lang.FunctionValue(PrimValue, global::System.BitConverter.SingleToInt32Bits(value));
         }
 
         /// <summary>Create from bool</summary>
-        public static global::haxe.lang.FunctionArg FromBool(bool value)
+        public static global::haxe.lang.FunctionValue FromBool(bool value)
         {
-            return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, value ? 1L : 0L, true);
+            return new global::haxe.lang.FunctionValue(PrimValue, value ? 1L : 0L);
         }
 
         /// <summary>Create from object/reference type</summary>
-        public static global::haxe.lang.FunctionArg FromObject(object value)
+        public static global::haxe.lang.FunctionValue FromObject(object value)
         {
-            // For objects, we store in obj field (NOT Runtime.undefined)
-            // hasValue is true even for null - null is a valid value
-            return new global::haxe.lang.FunctionArg(value, 0L, true);
+            return new global::haxe.lang.FunctionValue(value, 0L);
         }
 
         /// <summary>Create from Null&lt;int&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionArg FromNullInt(global::haxe.lang.Null<int> value)
+        public static global::haxe.lang.FunctionValue FromNullInt(global::haxe.lang.Null<int> value)
         {
-            // If hasValue, store as primitive; otherwise mark as missing
             if (value.hasValue)
-                return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, value.value, true);
+                return new global::haxe.lang.FunctionValue(PrimValue, value.value);
             else
-                return new global::haxe.lang.FunctionArg(null, 0L, false);
+                return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;long&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionArg FromNullLong(global::haxe.lang.Null<long> value)
+        public static global::haxe.lang.FunctionValue FromNullLong(global::haxe.lang.Null<long> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, value.value, true);
+                return new global::haxe.lang.FunctionValue(PrimValue, value.value);
             else
-                return new global::haxe.lang.FunctionArg(null, 0L, false);
+                return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;double&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionArg FromNullDouble(global::haxe.lang.Null<double> value)
+        public static global::haxe.lang.FunctionValue FromNullDouble(global::haxe.lang.Null<double> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, global::System.BitConverter.DoubleToInt64Bits(value.value), true);
+                return new global::haxe.lang.FunctionValue(PrimValue, global::System.BitConverter.DoubleToInt64Bits(value.value));
             else
-                return new global::haxe.lang.FunctionArg(null, 0L, false);
+                return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;float&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionArg FromNullFloat(global::haxe.lang.Null<float> value)
+        public static global::haxe.lang.FunctionValue FromNullFloat(global::haxe.lang.Null<float> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, global::System.BitConverter.SingleToInt32Bits(value.value), true);
+                return new global::haxe.lang.FunctionValue(PrimValue, global::System.BitConverter.SingleToInt32Bits(value.value));
             else
-                return new global::haxe.lang.FunctionArg(null, 0L, false);
+                return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;bool&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionArg FromNullBool(global::haxe.lang.Null<bool> value)
+        public static global::haxe.lang.FunctionValue FromNullBool(global::haxe.lang.Null<bool> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionArg(global::haxe.lang.Runtime.undefined, value.value ? 1L : 0L, true);
+                return new global::haxe.lang.FunctionValue(PrimValue, value.value ? 1L : 0L);
             else
-                return new global::haxe.lang.FunctionArg(null, 0L, false);
+                return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;T&gt; for reference types</summary>
-        public static global::haxe.lang.FunctionArg FromNullObject<T>(global::haxe.lang.Null<T> value) where T : class
+        public static global::haxe.lang.FunctionValue FromNullObject<T>(global::haxe.lang.Null<T> value) where T : class
         {
-            // For reference types, store in obj field (could be null)
             if (value.hasValue)
-                return new global::haxe.lang.FunctionArg(value.value, 0L, true);
+                return new global::haxe.lang.FunctionValue(value.value, 0L);
             else
-                return new global::haxe.lang.FunctionArg(null, 0L, false);
+                return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
-        /// <summary>Create for missing/omitted optional parameter</summary>
-        public static global::haxe.lang.FunctionArg Missing()
+        /// <summary>Create for missing/omitted optional parameter or void return</summary>
+        public static global::haxe.lang.FunctionValue Missing()
         {
-            return new global::haxe.lang.FunctionArg(null, 0L, false);
+            return new global::haxe.lang.FunctionValue(NoValue, 0L);
         }
 
         // ============================================================
         // Extraction methods for reading values out
         // ============================================================
-        //
-        // These methods check obj == Runtime.undefined to determine
-        // whether to read from prim (primitives) or obj (references).
-        // ============================================================
 
         public int ToInt()
         {
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return (int)prim;
+            else if (ReferenceEquals(obj, NoValue))
+                return 0;
             else
                 return global::haxe.lang.Runtime.toInt(obj);
         }
 
         public long ToLong()
         {
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return prim;
+            else if (ReferenceEquals(obj, NoValue))
+                return 0L;
             else
                 return global::haxe.lang.Runtime.toLong(obj);
         }
 
         public double ToDouble()
         {
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return global::System.BitConverter.Int64BitsToDouble(prim);
+            else if (ReferenceEquals(obj, NoValue))
+                return 0.0;
             else
                 return global::haxe.lang.Runtime.toDouble(obj);
         }
 
         public float ToFloat()
         {
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return global::System.BitConverter.Int32BitsToSingle((int)prim);
+            else if (ReferenceEquals(obj, NoValue))
+                return 0.0f;
             else
                 return (float)global::haxe.lang.Runtime.toDouble(obj);
         }
 
         public bool ToBool()
         {
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return prim != 0L;
+            else if (ReferenceEquals(obj, NoValue))
+                return false;
             else
                 return global::haxe.lang.Runtime.toBool(obj);
         }
 
         public T ToObject<T>() where T : class
         {
-            // For reference types, always use obj field
-            // (obj should never be Runtime.undefined for reference types)
+            if (ReferenceEquals(obj, NoValue) || ReferenceEquals(obj, PrimValue))
+                return null;
             return (T)obj;
         }
 
         public string ToStringValue()
         {
-            // Strings are reference types, stored in obj
+            if (ReferenceEquals(obj, NoValue) || ReferenceEquals(obj, PrimValue))
+                return null;
             return (string)obj;
         }
 
-        /// <summary>Extract to Null&lt;int&gt; respecting hasValue</summary>
+        /// <summary>Extract to Null&lt;int&gt; respecting value type</summary>
         public global::haxe.lang.Null<int> ToNullInt()
         {
-            if (!hasValue)
+            if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<int>(0, false);
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<int>((int)prim, true);
             else
                 return new global::haxe.lang.Null<int>(global::haxe.lang.Runtime.toInt(obj), true);
         }
 
-        /// <summary>Extract to Null&lt;long&gt; respecting hasValue</summary>
+        /// <summary>Extract to Null&lt;long&gt; respecting value type</summary>
         public global::haxe.lang.Null<long> ToNullLong()
         {
-            if (!hasValue)
+            if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<long>(0L, false);
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<long>(prim, true);
             else
                 return new global::haxe.lang.Null<long>(global::haxe.lang.Runtime.toLong(obj), true);
         }
 
-        /// <summary>Extract to Null&lt;double&gt; respecting hasValue</summary>
+        /// <summary>Extract to Null&lt;double&gt; respecting value type</summary>
         public global::haxe.lang.Null<double> ToNullDouble()
         {
-            if (!hasValue)
+            if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<double>(0.0, false);
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<double>(global::System.BitConverter.Int64BitsToDouble(prim), true);
             else
                 return new global::haxe.lang.Null<double>(global::haxe.lang.Runtime.toDouble(obj), true);
         }
 
-        /// <summary>Extract to Null&lt;float&gt; respecting hasValue</summary>
+        /// <summary>Extract to Null&lt;float&gt; respecting value type</summary>
         public global::haxe.lang.Null<float> ToNullFloat()
         {
-            if (!hasValue)
+            if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<float>(0.0f, false);
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<float>(global::System.BitConverter.Int32BitsToSingle((int)prim), true);
             else
                 return new global::haxe.lang.Null<float>((float)global::haxe.lang.Runtime.toDouble(obj), true);
         }
 
-        /// <summary>Extract to Null&lt;bool&gt; respecting hasValue</summary>
+        /// <summary>Extract to Null&lt;bool&gt; respecting value type</summary>
         public global::haxe.lang.Null<bool> ToNullBool()
         {
-            if (!hasValue)
+            if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<bool>(false, false);
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<bool>(prim != 0L, true);
             else
                 return new global::haxe.lang.Null<bool>(global::haxe.lang.Runtime.toBool(obj), true);
@@ -272,8 +270,11 @@ namespace haxe.lang
         /// <summary>Extract to Null&lt;T&gt; for reference types</summary>
         public global::haxe.lang.Null<T> ToNullObject<T>() where T : class
         {
-            // For reference types, obj should not be Runtime.undefined
-            return new global::haxe.lang.Null<T>((T)obj, hasValue);
+            if (ReferenceEquals(obj, NoValue))
+                return new global::haxe.lang.Null<T>(null, false);
+            if (ReferenceEquals(obj, PrimValue))
+                return new global::haxe.lang.Null<T>(null, false);
+            return new global::haxe.lang.Null<T>((T)obj, true);
         }
 
         /// <summary>
@@ -283,12 +284,10 @@ namespace haxe.lang
         /// </summary>
         public object ToDynamic()
         {
-            if (!hasValue) return null;
-            if (obj == global::haxe.lang.Runtime.undefined)
-            {
-                // Box the primitive - only happens when truly needed for reflection
-                return prim;
-            }
+            if (ReferenceEquals(obj, NoValue))
+                return null;
+            if (ReferenceEquals(obj, PrimValue))
+                return prim;  // Box primitive only when truly needed
             return obj;
         }
 
@@ -298,9 +297,10 @@ namespace haxe.lang
         /// </summary>
         public object ToDynamic(global::System.Type expectedType)
         {
-            if (!hasValue) return null;
+            if (ReferenceEquals(obj, NoValue))
+                return null;
 
-            if (obj == global::haxe.lang.Runtime.undefined)
+            if (ReferenceEquals(obj, PrimValue))
             {
                 // Convert primitive based on expected type
                 if (expectedType == typeof(int)) return (int)prim;
@@ -314,5 +314,8 @@ namespace haxe.lang
 
             return obj;
         }
+
+        /// <summary>Check if this FunctionValue contains a value (not NoValue)</summary>
+        public bool HasValue => !ReferenceEquals(obj, NoValue);
     }
 }

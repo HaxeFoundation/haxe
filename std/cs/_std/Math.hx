@@ -84,27 +84,27 @@ class Math {
 	}
 
 	public static inline function round(v:Float):Int {
-		return untyped __cs__("(int)System.Math.Round({0})", v);
+		return untyped __cs__("(int)System.Math.Round((double){0})", v);
 	}
 
 	public static inline function floor(v:Float):Int {
-		return untyped __cs__("(int)System.Math.Floor({0})", v);
+		return untyped __cs__("(int)System.Math.Floor((double){0})", v);
 	}
 
 	public static inline function ceil(v:Float):Int {
-		return untyped __cs__("(int)System.Math.Ceiling({0})", v);
+		return untyped __cs__("(int)System.Math.Ceiling((double){0})", v);
 	}
 
 	public static inline function fround(v:Float):Float {
-		return untyped __cs__("System.Math.Round({0})", v);
+		return untyped __cs__("System.Math.Round((double){0})", v);
 	}
 
 	public static inline function ffloor(v:Float):Float {
-		return untyped __cs__("System.Math.Floor({0})", v);
+		return untyped __cs__("System.Math.Floor((double){0})", v);
 	}
 
 	public static inline function fceil(v:Float):Float {
-		return untyped __cs__("System.Math.Ceiling({0})", v);
+		return untyped __cs__("System.Math.Ceiling((double){0})", v);
 	}
 
 	public static inline function random():Float {
