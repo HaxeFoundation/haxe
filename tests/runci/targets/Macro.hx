@@ -61,7 +61,7 @@ class Macro {
 		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 
 		changeDirectory(partyDir);
-		runCommand("git", ["clone", "https://github.com/HaxeFoundation/hxcoro", "hxcoro" ]);
+		runCommand("git", ["clone", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
 		changeDirectory("hxcoro");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
