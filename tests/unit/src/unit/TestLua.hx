@@ -193,6 +193,36 @@ class TestLua extends Test {
 		eq(10, count);
 	}
 
+	// Issue #10252: BytesBuffer.addDouble should produce correct IEEE 754 bytes
+	function testBytesBufferAddDouble() {
+		// 9007199254740991 is 2^53 - 1, the max safe integer
+		// Its IEEE 754 representation should have all 1s in the mantissa
+		final v:Float = 9007199254740991;
+		final buf = new haxe.io.BytesBuffer();
+		buf.addDouble(v);
+		final bytes = buf.getBytes();
+		// Expected little-endian bytes for this value
+		eq(bytes.toHex(), "ffffffffffff3f43");
+		// Verify roundtrip
+		final input = new haxe.io.BytesInput(bytes);
+		eq(input.readDouble(), v);
+	}
+
+	// Issue #10909: Rest.of should handle arrays with null values correctly
+	function testRestOfWithNulls() {
+		var arr:Array<Any> = [1, 2, 3, null, 5];
+		var r:haxe.Rest<Any> = haxe.Rest.of(arr);
+		eq(r.length, 5);
+		eq(r[0], 1);
+		eq(r[1], 2);
+		eq(r[2], 3);
+		eq(r[3], null);
+		eq(r[4], 5);
+		// Also verify toArray/toString work correctly
+		var backToArray = r.toArray();
+		eq(backToArray.length, 5);
+		eq(backToArray[4], 5);
+	}
 
 	// Issue #12192: Closure inside try-catch inside loop should not inherit loop context
 	function testClosureBreakInTryCatchLoop() {

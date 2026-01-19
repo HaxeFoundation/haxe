@@ -104,6 +104,29 @@ let generate_managed_interface base_ctx tcpp_interface =
   begin_namespace output_cpp class_path;
   output_cpp "\n";
 
+  let gen_function func =
+    let argList      = print_retyped_tfun_arg_list true func.iff_args in
+    let returnType   = tcpp_to_string func.iff_return in
+    let returnStr    = if returnType = "void" then "" else "return " in
+    let commaArgList = if argList = "" then argList else "," ^ argList in
+    let cast         = Printf.sprintf "::hx::interface_cast< %s *>" tcpp_interface.if_name in
+
+    Printf.sprintf "%s %s::%s( ::Dynamic _hx_%s ) {\n" returnType tcpp_interface.if_name func.iff_name commaArgList |> output_cpp;
+    output_cpp "#ifdef HXCPP_CHECK_POINTER\n";
+    output_cpp "\tif (::hx::IsNull(_hx_)) ::hx::NullReference(\"Object\", false);\n";
+    output_cpp "#ifdef HXCPP_GC_CHECK_POINTER\n";
+    output_cpp "\tGCCheckPointer(_hx_.mPtr);\n";
+    output_cpp "#endif\n";
+    output_cpp "#endif\n";
+    Printf.sprintf
+      "\t%s( _hx_.mPtr->*( %s(_hx_.mPtr->_hx_getInterface(%s)))->_hx_%s )(%s);\n}\n"
+      returnStr cast tcpp_interface.if_hash func.iff_name (print_arg_names func.iff_args) |> output_cpp
+  in
+
+  all_interface_functions tcpp_interface |> List.iter gen_function;
+
+  output_cpp "\n";
+
   output_cpp (get_class_code tcpp_interface.if_class Meta.CppNamespaceCode);
 
   output_cpp "\n";

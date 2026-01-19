@@ -37,21 +37,10 @@ let gen_function ctx interface func =
   | other ->
     tcpp_to_string other
   in
-  let returnStr    = if returnType = "void" then "" else "return " in
   let commaArgList = if argList = "" then argList else "," ^ argList in
-  let cast = Printf.sprintf "::hx::interface_cast< ::%s_obj *>" (join_class_path_remap interface.if_class.cl_path "::") in
 
   Printf.sprintf "\t\t%s (::hx::Object :: *_hx_%s)(%s);\n" returnType func.iff_name argList |> output;
-  Printf.sprintf "\t\tstatic inline %s %s( ::Dynamic _hx_%s ){\n" returnType func.iff_name commaArgList |> output;
-  output "\t\t\t#ifdef HXCPP_CHECK_POINTER\n";
-  output "\t\t\tif (::hx::IsNull(_hx_)) ::hx::NullReference(\"Object\", false);\n";
-  output "\t\t\t#ifdef HXCPP_GC_CHECK_POINTER\n";
-  output "\t\t\t\tGCCheckPointer(_hx_.mPtr);\n";
-  output "\t\t\t#endif\n";
-  output "\t\t\t#endif\n";
-  Printf.sprintf
-    "\t\t\t%s( _hx_.mPtr->*( %s(_hx_.mPtr->_hx_getInterface(%s)))->_hx_%s )(%s);\n\t\t}\n"
-    returnStr cast interface.if_hash func.iff_name (print_arg_names func.iff_args) |> output
+  Printf.sprintf "\t\tstatic %s %s( ::Dynamic _hx_%s );\n" returnType func.iff_name commaArgList |> output
 
 let gen_includes h_file interface_def =
   let add_class_includes cls =

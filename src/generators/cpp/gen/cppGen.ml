@@ -10,6 +10,7 @@ open CppAstTools
 open CppSourceWriter
 open CppContext
 open CppMarshalling
+open CppError
 
 type tinject = {
   inj_prologue : bool -> unit;
@@ -105,7 +106,28 @@ let cpp_no_debug_synbol ctx var =
       String.length name > 4 && String.sub name 0 4 = "_hx_"
 
 let cpp_debug_var_visible ctx var = not (cpp_no_debug_synbol ctx (fst var))
-(* let cpp_var_type_of var = tcpp_to_string (cpp_type_of var.v_type) *)
+
+let cpp_callable_args arguments prefix =
+  let make_arg (v, o) =
+    let return   = tcpp_to_string v.tcppv_type in
+    let prefixed = match o with
+    | Some {eexpr = TConst TNull} -> v.tcppv_name
+    | Some _ -> prefix ^ v.tcppv_name
+    | None -> v.tcppv_name in
+    return ^ " " ^ prefixed
+  in
+  arguments |> List.map make_arg |> String.concat ","
+
+let cpp_callable_signaure closure =
+  let return    = tcpp_to_string closure.close_type in
+  let arguments = cpp_callable_args closure.close_args "" in
+  Printf.sprintf "%s(%s)" return arguments
+
+let func_to_callable_string wrapper func =
+  let return_str    = tcpp_to_string func.tcf_return in
+  let arguments_str = func.tcf_args |> List.map (fun (v, _) -> v.tcppv_type) |> List.map tcpp_to_string |> String.concat "," in
+
+  Printf.sprintf "%s< %s (%s) >" wrapper return_str arguments_str
 
 let mk_injection prologue set_var tail =
   Some { inj_prologue = prologue; inj_setvar = set_var; inj_tail = tail }
@@ -521,16 +543,35 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           out ".StaticCast< ::hx::EnumBase >()";
         out "->_hx_getIndex()"
     | CppNullAccess -> out ("::hx::Throw(" ^ strq "Null access" ^ ")")
-    | CppFunction (func, _) -> (
+    | CppFunction (func, tcpp) -> (
         match func with
         | FuncThis (field, _) ->
             out ("this->" ^ cpp_member_name_of field ^ "_dyn()")
         | FuncInstance (expr, inst, field, _) ->
+          (* array map is a special case as it is implemented as a templated function *)
+          (* so we need to figure out the target array type of the map function to generate the template params *)
+          let template_extra =
+            if (field.cf_name="map") then
+              match inst with
+              | InstPtr (TCppObjectArray _)
+              | InstPtr (TCppScalarArray _)
+              | InstPtr TCppDynamicArray ->
+                (match tcpp with
+                | TCppObjectArray el
+                | TCppScalarArray el ->
+                  Printf.sprintf "< %s >" (tcpp_to_string el)
+                | TCppDynamicArray ->
+                  tcpp_to_string TCppDynamic
+                | _ ->
+                  cpp_abort InternalError expr.cpppos)
+              | _ ->
+                ""
+            else
+              ""
+            in
+            let access = if expr.cpptype = TCppString || inst = InstStruct then "." else "->" in
             gen expr;
-            out
-              ((if expr.cpptype = TCppString || inst = InstStruct then "."
-                else "->")
-              ^ cpp_member_name_of field ^ "_dyn()")
+            out (Printf.sprintf "%s%s_dyn%s()" access (cpp_member_name_of field) template_extra)
         | FuncInterface (expr, _, field) ->
             gen expr;
             out ("->__Field(" ^ strq field.cf_name ^ ", ::hx::paccDynamic)")
@@ -995,24 +1036,19 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         else if path = "::Array" then out "::hx::ArrayBase::__mClass"
         else out ("::hx::ClassOf< " ^ path ^ " >()")
     | CppVar loc -> gen_val_loc loc
-    | CppClosure closure ->
-        out
-          (" ::Dynamic(new _hx_Closure_" ^ string_of_int closure.close_id ^ "(");
-        let separator = ref "" in
-        (match closure.close_this with
-        | Some this ->
-            out (if this = ThisReal then "this" else "__this");
-            separator := ","
-        | _ -> ());
-
-        IntMap.iter
-          (fun _ var ->
-            let name = var.tcppv_name in
-            out !separator;
-            separator := ",";
-            out name)
-          closure.close_undeclared;
-        out "))"
+    | CppCallable closure ->
+      let captured =
+        closure.close_undeclared
+          |> IntMap.to_list
+          |> List.map snd
+          |> List.map (fun v -> v.tcppv_name)
+          |> String.concat ","
+        in
+      Printf.sprintf
+        "::hx::Callable< %s >(new _hx_Closure_%i(%s))"
+        (cpp_callable_signaure closure)
+        closure.close_id
+        captured |> out;
     | CppObjectDecl (values, isStruct) ->
         let length = List.length values in
         let lengthStr = string_of_int length in
@@ -1453,7 +1489,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         out name
     | CppDynamicRef (expr, name) ->
         let objPtr =
-          match expr.cpptype with TCppVariant -> "getObject()" | _ -> ".mPtr"
+          match expr.cpptype with TCppVariant _ -> "getObject()" | _ -> ".mPtr"
         in
         out "::hx::FieldRef((";
         gen expr;
@@ -1525,29 +1561,34 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
   and gen_closure closure =
     let argc = IntMap.bindings closure.close_undeclared |> List.length in
-    let size = string_of_int argc in
     if argc >= 62 then
       (* Limited by c++ macro size of 128 args *)
       abort "Too many capture variables" closure.close_expr.cpppos;
     if argc >= 20 || List.length closure.close_args >= 20 then
       writer#add_big_closures;
     let argsCount = list_num closure.close_args in
-    output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
-    out
-      (if closure.close_this != None then "::hx::LocalThisFunc,"
-       else "::hx::LocalFunc,");
-    out ("_hx_Closure_" ^ string_of_int closure.close_id);
-    IntMap.iter
-      (fun _ var ->
-        let str  = cpp_macro_var_type_of var in 
-        out ("," ^ str ^ "," ^ var.tcppv_debug_name))
-      closure.close_undeclared;
-    out (") HXARGC(" ^ argsCount ^ ")\n");
+    let signature = cpp_callable_signaure closure in
+    let captured  =
+      match closure.close_undeclared |> IntMap.to_list with
+      | [] -> ""
+      | some ->
+        ", " ^ (some
+          |> List.map snd
+          |> List.map (fun v -> Printf.sprintf "%s,%s" (cpp_macro_var_type_of v) v.tcppv_debug_name)
+          |> String.concat ",")
+        in
 
     Printf.sprintf
-      "%s _hx_run( %s )"
+      "HX_BEGIN_LOCAL_FUNC_S%i(::hx::AutoCallable_obj< %s >, _hx_Closure_%i%s)\n"
+      argc
+      signature
+      closure.close_id
+      captured |> out;
+
+    Printf.sprintf
+      "%s HX_LOCAL_RUN( %s )"
       (tcpp_to_string closure.close_type)
-      (print_arg_list closure.close_args "__o_") |> output_i;
+      (cpp_callable_args closure.close_args "__o_") |> output_i;
 
     let prologue = function
       | gc_stack ->
@@ -1556,19 +1597,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           hx_stack_push ctx output_i class_name func_name
             closure.close_expr.cpppos gc_stack;
           if ctx.ctx_debug_level >= 2 then (
-            if closure.close_this != None then
-              output_i "HX_STACK_THIS(__this.mPtr)\n";
-            List.iter
-              (fun (v, _) ->
-                output_i
-                  ("HX_STACK_ARG(" ^ v.tcppv_name ^ ",\"" ^ v.tcppv_debug_name ^ "\")\n"))
-              (List.filter (cpp_debug_var_visible ctx) closure.close_args);
+            closure.close_args
+            |> List.filter (cpp_debug_var_visible ctx)
+            |> List.iter (fun (v, _) -> output_i ("HX_STACK_ARG(" ^ v.tcppv_name ^ ",\"" ^ v.tcppv_debug_name ^ "\")\n"));
 
             let line = Lexer.get_error_line closure.close_expr.cpppos in
             let lineName = Printf.sprintf "%4d" line in
             out ("HXLINE(" ^ lineName ^ ")\n"))
     in
     gen_with_injection (mk_injection prologue "" "") closure.close_expr true;
+    output_i "int __Compare(const ::hx::Object* inRhs) const override {\n";
+    output_i (Printf.sprintf "\treturn dynamic_cast<const _hx_Closure_%i*>(inRhs) ? 0 : -1;\n" closure.close_id);
+    output_i "}\n";
 
     let return =
       match closure.close_type with TCppVoid -> "(void)" | _ -> "return"

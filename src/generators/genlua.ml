@@ -239,7 +239,7 @@ let open_block ctx =
         ctx.tabs <- oldt;
         ctx.declared_locals <- old_declared_locals)
 
-let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
+let this _ctx = "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
@@ -256,7 +256,7 @@ let is_dot_access e cf =
         false
 
 (* Return index of first element in the list for which `f` returns true.
-   Note: List.find_index was added in OCaml 5.1, keeping custom impl for compatibility. *)
+   Polyfill for List.find_index (added in OCaml 5.1). *)
 let index_of f l =
     let rec find lst idx =
         match lst with
@@ -527,6 +527,15 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
+     | TField ({eexpr = TLocal v}, f), el when Meta.has Meta.MultiReturn v.v_meta ->
+         (* Call to a field of a multi-return local - the field is actually just a local variable *)
+         let (_, args, _) = Meta.get (Meta.Custom ":lua_mr_id") v.v_meta in
+         (match args with
+          | [(EConst(String(id,_)), _)] ->
+              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
+              gen_paren_arguments ctx el;
+          | _ ->
+              Globals.die "" __LOC__);
      | TField (field_owner, (FInstance(_,_,f) | FAnon(f))), el when Meta.has Meta.SelfCall f.cf_meta ->
          (* @:selfCall methods - call the object directly *)
          gen_value ctx field_owner;
@@ -781,7 +790,7 @@ and gen_expr ?(local=true) ctx e = begin
         if ctx.loop_ctx.in_loop_try then
             print ctx "_G.error(\"_hx_pcall_break\", 0)"
         else
-            spr ctx "break" (*todo*)
+            spr ctx "break"
     | TBlock el ->
         let bend = open_block ctx in
         List.iter (gen_block_element ctx) el;
