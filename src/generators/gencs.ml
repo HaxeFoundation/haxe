@@ -46,6 +46,13 @@ let get_cs_field_name c cf =
 	let base_name = get_native_field_name cf in
 	if base_name = class_name then base_name ^ "_" else base_name
 
+(* Get enum constructor name, handling C# restriction where member names
+   cannot be the same as the enclosing type name. *)
+let get_cs_enum_ctor_name (en : tenum) (ef : tenum_field) =
+	let enum_name = snd en.e_path in
+	let base_name = escape_identifier ef.ef_name in
+	if base_name = enum_name then base_name ^ "_" else base_name
+
 (* Generation context *)
 type gen_context = {
 	com : Gctx.t;
@@ -296,6 +303,104 @@ let rec expr_contains_this e =
 (* Check if a constructor needs two-phase construction (has Meta.HxGen from this-before-super) *)
 let needs_two_phase_construction cf =
 	Meta.has Meta.HxGen cf.cf_meta
+
+(* Check if expression contains statements (TVar, TBlock, etc.) that can't appear in C# base() call.
+   In C#, the base() call in `: base(args)` can only contain expressions, not statements.
+   If super() args contain TVar declarations or blocks, we need two-phase construction. *)
+let rec expr_contains_statements e =
+	match e.eexpr with
+	| TVar _ -> true  (* Local var declaration is a statement *)
+	| TBlock (_ :: _) -> true  (* Non-empty block contains statements *)
+	| TWhile _ | TTry _ | TSwitch _ | TIf _ -> true  (* Control flow is statement-like *)
+	| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ -> false
+	| TArray (e1, e2) -> expr_contains_statements e1 || expr_contains_statements e2
+	| TBinop (_, e1, e2) -> expr_contains_statements e1 || expr_contains_statements e2
+	| TField (e1, _) | TParenthesis e1 | TMeta (_, e1) | TCast (e1, _) | TUnop (_, _, e1) ->
+		expr_contains_statements e1
+	| TCall (e1, args) -> expr_contains_statements e1 || List.exists expr_contains_statements args
+	| TNew (_, _, args) -> List.exists expr_contains_statements args
+	| TArrayDecl el -> List.exists expr_contains_statements el
+	| TEnumParameter (e1, _, _) -> expr_contains_statements e1
+	| TObjectDecl fields -> List.exists (fun (_, e1) -> expr_contains_statements e1) fields
+	| TFunction _ -> false  (* Lambda itself is just a value *)
+	| TThrow e1 -> expr_contains_statements e1
+	| TReturn (Some e1) -> expr_contains_statements e1
+	| TReturn None | TBreak | TContinue -> false
+	| TBlock [] -> false
+	| TEnumIndex e1 -> expr_contains_statements e1
+
+(* Collect all local variable IDs used in an expression *)
+let collect_locals_used exprs =
+	let ids = ref [] in
+	let rec loop e =
+		match e.eexpr with
+		| TLocal v -> ids := v.v_id :: !ids
+		| _ -> Type.iter loop e
+	in
+	List.iter loop exprs;
+	!ids
+
+(* Collect all local variable IDs defined in an expression (TVar declarations) *)
+let collect_locals_defined e =
+	let ids = ref [] in
+	let rec loop e =
+		match e.eexpr with
+		| TVar (v, _) -> ids := v.v_id :: !ids; Type.iter loop e
+		| _ -> Type.iter loop e
+	in
+	loop e;
+	!ids
+
+(* Check if super_args reference locals that are defined in body_expr.
+   This happens with map literals: super(["k" => v]) becomes:
+   TBlock [ TVar _g = new Map; _g.set("k", v); TCall(TSuper, [TLocal _g]) ]
+   The super_args is [TLocal _g], but _g is defined in the body. In C#, we can't
+   use `: base(_g)` because _g isn't defined yet at that point. *)
+let super_args_reference_body_locals super_args body_expr =
+	let locals_used_in_args = collect_locals_used super_args in
+	let locals_defined_in_body = match body_expr with
+		| Some body -> collect_locals_defined body
+		| None -> []
+	in
+	(* Check if any local used in args is defined in body *)
+	List.exists (fun id -> List.mem id locals_defined_in_body) locals_used_in_args
+
+(* Extract statements from body that are needed for a local variable.
+   Returns (dependency_stmts, remaining_body) where:
+   - dependency_stmts: statements that define/use the local before the arg value
+   - remaining_body: rest of body that should go in constructor *)
+let extract_local_dependencies body_expr local_ids =
+	(* For now, simple heuristic: take all statements from the body that reference
+	   any of the local IDs. A more precise analysis could trace data dependencies. *)
+	match body_expr with
+	| None -> ([], None)
+	| Some body ->
+		let stmts = match body.eexpr with
+			| TBlock el -> el
+			| _ -> [body]
+		in
+		(* Split into: statements that touch our locals, and the rest *)
+		let rec split_stmts touched remaining = function
+			| [] -> (List.rev touched, List.rev remaining)
+			| stmt :: rest ->
+				let stmt_locals_used = collect_locals_used [stmt] in
+				let stmt_locals_defined = collect_locals_defined stmt in
+				let touches_our_locals =
+					List.exists (fun id -> List.mem id local_ids) stmt_locals_used ||
+					List.exists (fun id -> List.mem id local_ids) stmt_locals_defined
+				in
+				if touches_our_locals then
+					split_stmts (stmt :: touched) remaining rest
+				else
+					split_stmts touched (stmt :: remaining) rest
+		in
+		let (dependency_stmts, remaining_stmts) = split_stmts [] [] stmts in
+		let remaining_body = match remaining_stmts with
+			| [] -> None
+			| [e] -> Some e
+			| el -> Some { body with eexpr = TBlock el }
+		in
+		(dependency_stmts, remaining_body)
 
 (* Check if an expression is "pure" (no side effects) and can be safely dropped
    when used as a statement. In C#, bare constants/locals can't be statements. *)
@@ -650,28 +755,24 @@ let coerce_arg gctx cs_arg arg_type expected_type =
 			CsTernary (has_value, true_branch, false_branch)
 		else
 			cs_arg
-	(* Generic covariance: SomeClass<SpecificType> to SomeClass<object> where we're widening.
+	(* Generic covariance/contravariance: SomeClass<A> to SomeClass<B> where A != B.
 	   C# generics are invariant, so we need to cast through object: (TargetType)(object)expr
-	   This handles cases like Array<int> to Array<object>, etc.
-	   IMPORTANT: Only apply when expected type params are MORE GENERAL (object/dynamic) than arg type params.
-	   Do NOT apply when going from general to specific (e.g., Either<object,object> to Either<int,int>).
-	   Also do NOT apply when arg has type params (they might be out of scope).
+	   This handles cases like:
+	   - Array<int> to Array<object> (widening)
+	   - Expr<C> to Expr<double> (GADT refinement where C is known to be double)
+	   - Binop<object, T> to Binop<object, object> (partial type param substitution)
+	   IMPORTANT: Only cast when the EXPECTED type params are NOT generic type params,
+	   because if they are, the type param might not be in scope in the current context.
 	   Note: CsTypeClass is used for both classes and interfaces in our AST. *)
 	| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
 		when path1 = path2 && params1 <> params2 ->
-		(* Check if expected params are all object/dynamic - only then is it safe to widen *)
-		let is_general_type = function
-			| CsTypeObject | CsTypeDynamic -> true
-			| _ -> false
-		in
 		let is_type_param = function
 			| CsTypeGenericParam _ -> true
 			| _ -> false
 		in
-		let expected_is_general = List.for_all is_general_type params1 in
-		let arg_has_type_params = List.exists is_type_param params2 in
-		(* Only apply if expected is general AND arg has no type params (to avoid scope issues) *)
-		if expected_is_general && not arg_has_type_params then
+		(* Only cast if expected type has no type params that might be out of scope *)
+		let expected_has_type_params = List.exists is_type_param params1 in
+		if not expected_has_type_params then
 			CsCast (expected_cs_type, CsCast (CsTypeObject, cs_arg))
 		else
 			cs_arg
@@ -679,39 +780,95 @@ let coerce_arg gctx cs_arg arg_type expected_type =
 	   and the type system should handle covariance through proper interfaces *)
 	| _ -> cs_arg
 
-(* Generate call arguments with type coercion based on expected parameter types *)
+(* Check if a type is Rest<T> and return the inner element type if so *)
+let get_rest_element_type t =
+	match Type.follow t with
+	| TAbstract ({ a_path = (["haxe"], "Rest") }, [elem_type]) -> Some elem_type
+	| _ -> None
+
+(* Generate a single argument with coercion based on expected type *)
+let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
+	let expected_cs_type = cs_type_of_type ectx.gctx expected_type in
+	(* Special case: null argument - generate the right default value directly based on expected type *)
+	let is_null_arg = match arg.eexpr with TConst TNull -> true | _ -> false in
+	if is_null_arg then begin
+		(* For null arguments, generate appropriate default value based on expected type *)
+		match expected_cs_type with
+		| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+			(* Null<T> expected - generate default(Null<T>) with type params erased *)
+			CsDefault (CsSignature.erase_type_params expected_cs_type)
+		| CsTypeInt | CsTypeDouble | CsTypeBool | CsTypeLong | CsTypeFloat
+		| CsTypeByte | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
+		| CsTypeUInt | CsTypeULong | CsTypeDecimal ->
+			(* Value type expected - generate default(T) *)
+			CsDefault expected_cs_type
+		| CsTypeGenericParam _ ->
+			(* Generic param - generate default(T) *)
+			CsDefault expected_cs_type
+		| _ ->
+			(* Reference type - generate null *)
+			CsNull
+	end
+	else begin
+		let cs_arg = cs_expr_of_texpr ectx arg in
+		coerce_arg ectx.gctx cs_arg arg.etype expected_type
+	end
+
+(* Generate call arguments with type coercion based on expected parameter types.
+   Handles Rest<T> parameters by wrapping remaining args into Array<T>. *)
 let generate_call_args ectx cs_expr_of_texpr args param_types =
-	List.mapi (fun i arg ->
-		if i < List.length param_types then
+	let num_params = List.length param_types in
+	(* Check if last param is Rest<T> *)
+	let last_param_rest = if num_params > 0 then
+		get_rest_element_type (List.nth param_types (num_params - 1))
+	else
+		None
+	in
+	match last_param_rest with
+	| Some rest_elem_type ->
+		(* Last param is Rest<T> - split args into regular and rest parts *)
+		let regular_param_count = num_params - 1 in
+		let regular_args = ExtList.List.take regular_param_count args in
+		let rest_args = ExtList.List.drop regular_param_count args in
+		(* Generate regular args *)
+		let regular_cs_args = List.mapi (fun i arg ->
 			let expected_type = List.nth param_types i in
-			let expected_cs_type = cs_type_of_type ectx.gctx expected_type in
-			(* Special case: null argument - generate the right default value directly based on expected type *)
-			let is_null_arg = match arg.eexpr with TConst TNull -> true | _ -> false in
-			if is_null_arg then begin
-				(* For null arguments, generate appropriate default value based on expected type *)
-				match expected_cs_type with
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
-					(* Null<T> expected - generate default(Null<T>) with type params erased *)
-					CsDefault (CsSignature.erase_type_params expected_cs_type)
-				| CsTypeInt | CsTypeDouble | CsTypeBool | CsTypeLong | CsTypeFloat
-				| CsTypeByte | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
-				| CsTypeUInt | CsTypeULong | CsTypeDecimal ->
-					(* Value type expected - generate default(T) *)
-					CsDefault expected_cs_type
-				| CsTypeGenericParam _ ->
-					(* Generic param - generate default(T) *)
-					CsDefault expected_cs_type
-				| _ ->
-					(* Reference type - generate null *)
-					CsNull
-			end
+			generate_single_arg ectx cs_expr_of_texpr arg expected_type
+		) regular_args in
+		(* Generate rest args - wrap into Array<T> *)
+		let rest_cs_arg =
+			if rest_args = [] then
+				(* No rest args - create empty Array<T> *)
+				let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
 			else begin
-				let cs_arg = cs_expr_of_texpr ectx arg in
-				coerce_arg ectx.gctx cs_arg arg.etype expected_type
+				(* Check if first rest arg is a spread expression *)
+				match (List.hd rest_args).eexpr with
+				| TUnop (Spread, _, spread_expr) ->
+					(* Spread operator: pass through the inner expression directly.
+					   The inner expression should already be Array<T>. *)
+					cs_expr_of_texpr ectx spread_expr
+				| _ ->
+					(* Multiple args to wrap into Array<T>.ofNative(new T[] { ... }) *)
+					let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+					let rest_cs_args = List.map (fun arg ->
+						let cs_arg = cs_expr_of_texpr ectx arg in
+						coerce_arg ectx.gctx cs_arg arg.etype rest_elem_type
+					) rest_args in
+					let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
+					CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
 			end
-		else
-			cs_expr_of_texpr ectx arg
-	) args
+		in
+		regular_cs_args @ [rest_cs_arg]
+	| None ->
+		(* No Rest parameter - process all args normally *)
+		List.mapi (fun i arg ->
+			if i < num_params then
+				let expected_type = List.nth param_types i in
+				generate_single_arg ectx cs_expr_of_texpr arg expected_type
+			else
+				cs_expr_of_texpr ectx arg
+		) args
 
 (* Generate a unique closure class name based on current context *)
 let generate_closure_name gctx ectx =
@@ -814,8 +971,35 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> false
 		in
 		if is_dynamic then begin
-			(* Dynamic array access: use runtime helper cs.Cs.arrayGet *)
-			let call = CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), "arrayGet", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]) in
+			(* Check if index is a string - use Reflect.field for field access.
+			   Note: The index expression might be a string constant wrapped in TCast to Dynamic,
+			   or the type might be Dynamic because of how __getField works (cast f).
+			   We need to look at the EXPRESSION type, not the followed type, and also
+			   check if it's a string constant. *)
+			let is_string_index =
+				(* Check if the expression itself is a string constant *)
+				match e2.eexpr with
+				| TConst (TString _) -> true
+				| TCast ({ eexpr = TConst (TString _) }, _) -> true
+				| _ ->
+					(* Check the expression type - might be String directly *)
+					match follow e2.etype with
+					| TInst ({ cl_path = ([], "String") | (["haxe"; "root"], "String") }, _) -> true
+					| TAbstract ({ a_path = ([], "String") }, _) -> true
+					| _ -> false
+			in
+			let call = if is_string_index then
+				(* String index on Dynamic means field access: Reflect.field(obj, name).
+				   If the index is a TCast(string_const, _), extract just the string constant. *)
+				let string_expr = match e2.eexpr with
+					| TCast ({ eexpr = TConst (TString _) } as inner, _) -> cs_expr_of_texpr ectx inner
+					| _ -> cs_expr_of_texpr ectx e2
+				in
+				CsStaticCall (CsTypeClass ((["haxe"; "root"], "Reflect"), []), "field", [cs_expr_of_texpr ectx e1; string_expr])
+			else
+				(* Int/numeric index: use runtime helper cs.Cs.arrayGet *)
+				CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), "arrayGet", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
+			in
 			(* Cast result to expected type if it's not Dynamic *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			match result_type with
@@ -891,10 +1075,25 @@ let rec cs_expr_of_texpr ectx e =
 			end
 	| TBinop (op, e1, e2) ->
 		(* Special handling for Null<T> comparisons with null and generic type param equality *)
-		(* NOTE: We exclude Null<object> because it behaves like Dynamic and should use == null directly *)
-		let is_null_type t = match cs_type_of_type ectx.gctx t with
+		(* NOTE: We exclude Null<object> because it behaves like Dynamic and should use == null directly.
+		   ALSO: We only use .hasValue for Null<T> where T is a VALUE TYPE (primitives).
+		   For Null<RefType> where RefType is a reference type (class, enum, interface),
+		   the underlying C# variable will be the reference type directly (not wrapped in Null<>),
+		   so we should use != null instead of .hasValue. *)
+		let is_null_type_for_hasvalue t =
+			match cs_type_of_type ectx.gctx t with
 			| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) -> false  (* Null<object> uses == null *)
-			| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+			| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
+				(* Only use .hasValue if inner is a value type (primitive).
+				   For reference types (classes), the variable will be the class type directly,
+				   not Null<ClassType>, so we use != null instead. *)
+				begin match inner with
+				| CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool
+				| CsTypeByte | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
+				| CsTypeUInt | CsTypeULong | CsTypeDecimal -> true  (* Value types - use .hasValue *)
+				| CsTypeGenericParam _ -> true  (* Type params might be value types - use .hasValue to be safe *)
+				| _ -> false  (* Reference types (classes, etc.) - use == null *)
+				end
 			| _ -> false
 		in
 		let is_generic_param t = match cs_type_of_type ectx.gctx t with
@@ -1023,16 +1222,16 @@ let rec cs_expr_of_texpr ectx e =
 				let val_cs = coerce_arg ectx.gctx val_cs e2.etype e1.etype in
 				CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
 			end
-		| OpEq when is_null_type e1.etype && is_null_expr e2 ->
+		| OpEq when is_null_type_for_hasvalue e1.etype && is_null_expr e2 ->
 			(* x == null  ->  !x.hasValue *)
 			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e1, "hasValue"))
-		| OpEq when is_null_expr e1 && is_null_type e2.etype ->
+		| OpEq when is_null_expr e1 && is_null_type_for_hasvalue e2.etype ->
 			(* null == x  ->  !x.hasValue *)
 			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e2, "hasValue"))
-		| OpNotEq when is_null_type e1.etype && is_null_expr e2 ->
+		| OpNotEq when is_null_type_for_hasvalue e1.etype && is_null_expr e2 ->
 			(* x != null  ->  x.hasValue *)
 			CsField (cs_expr_of_texpr ectx e1, "hasValue")
-		| OpNotEq when is_null_expr e1 && is_null_type e2.etype ->
+		| OpNotEq when is_null_expr e1 && is_null_type_for_hasvalue e2.etype ->
 			(* null != x  ->  x.hasValue *)
 			CsField (cs_expr_of_texpr ectx e2, "hasValue")
 		| OpEq when is_generic_param e1.etype || is_generic_param e2.etype ->
@@ -1231,15 +1430,33 @@ let rec cs_expr_of_texpr ectx e =
 					| TAbstract ({ a_path = ([], "Float") }, _) -> true
 					| _ -> false
 				in
+				(* Check if type is a type parameter (generic). In C#, arithmetic on type params isn't allowed. *)
+				let is_type_param t = match follow t with
+					| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+					| _ -> false
+				in
 				let cs_e1 = cs_expr_of_texpr ectx e1 in
 				let cs_e2 = cs_expr_of_texpr ectx e2 in
-				(* For integer division producing float (0/0 -> NaN), cast to double first.
-				   C# doesn't allow integer 0/0, but double 0.0/0.0 produces NaN. *)
-				let cs_e1, cs_e2 = match op with
-					| OpDiv when is_int_type e1.etype && is_int_type e2.etype && is_float_type e.etype ->
-						(* Cast both operands to double for float division semantics *)
-						CsCast (CsTypeDouble, cs_e1), CsCast (CsTypeDouble, cs_e2)
-					| _ -> cs_e1, cs_e2
+				(* For type parameters, cast through object to int for arithmetic operations.
+				   C# doesn't allow arithmetic on generic types even with constraints. *)
+				let is_arithmetic_op = match op with
+					| OpAdd | OpSub | OpMult | OpDiv | OpMod -> true
+					| _ -> false
+				in
+				let cs_e1, cs_e2 =
+					if is_arithmetic_op && (is_type_param e1.etype || is_type_param e2.etype) then
+						(* Cast type params to int via object for arithmetic *)
+						let cast_if_needed e cs_e =
+							if is_type_param e.etype then
+								CsCast (CsTypeInt, CsCast (CsTypeObject, cs_e))
+							else cs_e
+						in
+						(cast_if_needed e1 cs_e1, cast_if_needed e2 cs_e2)
+					else match op with
+						| OpDiv when is_int_type e1.etype && is_int_type e2.etype && is_float_type e.etype ->
+							(* Cast both operands to double for float division semantics *)
+							CsCast (CsTypeDouble, cs_e1), CsCast (CsTypeDouble, cs_e2)
+						| _ -> cs_e1, cs_e2
 				in
 				CsBinop (cs_binop_of_binop op, cs_e1, cs_e2)
 			end
@@ -1419,7 +1636,21 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> CsField (cs_expr_of_texpr ectx e, escape_identifier cf.cf_name)
 			end
 		| _ ->
-			CsField (cs_expr_of_texpr ectx e, escape_identifier cf.cf_name)
+			(* Field access on non-class-type expression (e.g., local variable with structural type).
+			   Check if the type is structural/anonymous and use Reflect.field for dynamic access. *)
+			let obj_expr = cs_expr_of_texpr ectx e in
+			let cs_type = cs_type_of_type ectx.gctx e.etype in
+			begin match cs_type with
+			| CsTypeObject ->
+				(* Object/anonymous type - use Reflect.field for dynamic access *)
+				let reflect_path = (["haxe"; "root"], "Reflect") in
+				let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+				(* Cast to haxe.lang.Function since this is a method closure context *)
+				CsCast (CsTypeClass ((["haxe"; "lang"], "Function"), []), field_call)
+			| _ ->
+				(* Known type - direct field access *)
+				CsField (obj_expr, escape_identifier cf.cf_name)
+			end
 		end
 	| TField ({ etype = field_type }, FStatic (c, cf)) ->
 		(* Check if this is a static method reference (not a call).
@@ -1673,10 +1904,10 @@ let rec cs_expr_of_texpr ectx e =
 		   For generic enums, nested class uses parent's type params (C# nested class inheritance) *)
 		else if type_args = [] && en.e_params = [] then
 			(* Non-generic enum - use static field if ef has no params *)
-			CsStaticField (CsTypeClass (path, []), escape_identifier ef.ef_name)
+			CsStaticField (CsTypeClass (path, []), get_cs_enum_ctor_name en ef)
 		else begin
 			(* Generic enum - nested class inherits type params from parent: Parent<T>.Nested *)
-			let ctor_name = escape_identifier ef.ef_name in
+			let ctor_name = get_cs_enum_ctor_name en ef in
 			let parent_type = CsTypeClass (path, type_args) in
 			let nested_type = CsTypeNested (parent_type, ctor_name) in
 			CsNew (nested_type, [])
@@ -2045,6 +2276,33 @@ let rec cs_expr_of_texpr ectx e =
 							| Some _ -> acc
 							| None -> find_type_param_in_type ttp_name tp1 tp2
 						) None tp1_list tp2_list
+					| TInst (c1, tp1_list), TInst (c2, _) when has_class_flag c1 CInterface && tp1_list <> [] ->
+						(* Interface with type params (like IReport<T>) matched with a class (like PlainTextReport).
+						   Check if the class implements this interface and extract the type params. *)
+						let rec find_interface_impl c =
+							(* Check direct interface implementations *)
+							let from_direct = List.fold_left (fun acc (iface, iface_params) ->
+								match acc with
+								| Some _ -> acc
+								| None when iface.cl_path = c1.cl_path && List.length iface_params = List.length tp1_list ->
+									(* Found matching interface - match type params *)
+									List.fold_left2 (fun acc tp1 tp2 ->
+										match acc with
+										| Some _ -> acc
+										| None -> find_type_param_in_type ttp_name tp1 tp2
+									) None tp1_list iface_params
+								| None -> None
+							) None c.cl_implements in
+							begin match from_direct with
+							| Some _ -> from_direct
+							| None ->
+								(* Check superclass *)
+								match c.cl_super with
+								| Some (sc, _) -> find_interface_impl sc
+								| None -> None
+							end
+						in
+						find_interface_impl c2
 					| TAbstract (a1, tp1_list), TAbstract (a2, tp2_list) when a1.a_path = a2.a_path && List.length tp1_list = List.length tp2_list ->
 						(* Generic abstract like Null<T> matched with Null<int> - look inside type params *)
 						List.fold_left2 (fun acc tp1 tp2 ->
@@ -2486,6 +2744,33 @@ let rec cs_expr_of_texpr ectx e =
 							| Some _ -> acc
 							| None -> find_type_param_in_type ttp_name tp1 tp2
 						) None tp1_list tp2_list
+					| TInst (c1, tp1_list), TInst (c2, _) when has_class_flag c1 CInterface && tp1_list <> [] ->
+						(* Interface with type params (like IReport<T>) matched with a class (like PlainTextReport).
+						   Check if the class implements this interface and extract the type params. *)
+						let rec find_interface_impl c =
+							(* Check direct interface implementations *)
+							let from_direct = List.fold_left (fun acc (iface, iface_params) ->
+								match acc with
+								| Some _ -> acc
+								| None when iface.cl_path = c1.cl_path && List.length iface_params = List.length tp1_list ->
+									(* Found matching interface - match type params *)
+									List.fold_left2 (fun acc tp1 tp2 ->
+										match acc with
+										| Some _ -> acc
+										| None -> find_type_param_in_type ttp_name tp1 tp2
+									) None tp1_list iface_params
+								| None -> None
+							) None c.cl_implements in
+							begin match from_direct with
+							| Some _ -> from_direct
+							| None ->
+								(* Check superclass *)
+								match c.cl_super with
+								| Some (sc, _) -> find_interface_impl sc
+								| None -> None
+							end
+						in
+						find_interface_impl c2
 					| TInst (c1, tp1_list), TAbstract (_, _) ->
 						(* param_t is a class like Array<T>, arg_t is an abstract - try matching underlying type *)
 						begin match arg_t_underlying with
@@ -2751,7 +3036,18 @@ let rec cs_expr_of_texpr ectx e =
 		| _ ->
 			let path = cs_path_of_path c.cl_path in
 			let type_params = List.map (cs_type_of_type ectx.gctx) params in
-			let cs_args = List.map (cs_expr_of_texpr ectx) args in
+			(* Get constructor parameter types for proper type coercion and Rest handling *)
+			let ctor_param_types = match c.cl_constructor with
+				| Some cf -> begin match follow cf.cf_type with
+					| TFun (ctor_params, _) ->
+						(* Apply class type parameters to resolve generic types *)
+						let map = apply_params c.cl_params params in
+						List.map (fun (_, _, t) -> map t) ctor_params
+					| _ -> []
+				end
+				| None -> []
+			in
+			let cs_args = generate_call_args ectx cs_expr_of_texpr args ctor_param_types in
 			(* Check if this class needs two-phase construction *)
 			let ctor_needs_two_phase = match c.cl_constructor with
 				| Some cf -> needs_two_phase_construction cf
@@ -2834,12 +3130,16 @@ let rec cs_expr_of_texpr ectx e =
 		CsTypeOf cs_type
 	| TParenthesis e ->
 		CsParens (cs_expr_of_texpr ectx e)
-	| TCast (inner_e, _) ->
+	| TCast (inner_e, mt_opt) ->
 		(* The target type is the outer expression's type (e.etype), not the inner expression's type *)
 		(* C# doesn't allow casting to void, so just emit the inner expression *)
 		if ExtType.is_void (follow e.etype) then
 			cs_expr_of_texpr ectx inner_e
 		else begin
+			(* For explicit unsafe cast (cast(expr, Type)), use Runtime.checkedCast to get
+			   proper runtime checking. This is needed because C# doesn't allow direct casts
+			   between unrelated types (like string to int). *)
+			let is_unsafe_cast = mt_opt <> None in
 			let target_type_raw = cs_type_of_type ectx.gctx e.etype in
 			(* Erase type parameters that are not in scope - if we have type params from
 			   a called method's signature, they won't be valid in the current context.
@@ -2913,7 +3213,26 @@ let rec cs_expr_of_texpr ectx e =
 							target_type <> inner_type
 						| _ -> false
 					in
-					if needs_double_cast then
+					(* For unsafe cast (Haxe's cast(expr, Type)), some casts are impossible
+					   in C# without going through object or using a runtime helper.
+					   String to Int, for example, requires Convert or throwing. *)
+					let is_impossible_cast = match target_type, inner_type with
+						| CsTypeInt, CsTypeString -> true  (* string to int *)
+						| CsTypeFloat, CsTypeString -> true  (* string to float *)
+						| CsTypeDouble, CsTypeString -> true  (* string to double *)
+						| CsTypeLong, CsTypeString -> true  (* string to long *)
+						| t1, t2 when is_primitive_type t1 && is_primitive_type t2 && t1 <> t2 ->
+							(* Primitive to different primitive - direct cast is fine in C# *)
+							false
+						| t, CsTypeString when is_primitive_type t -> true  (* string to any primitive *)
+						| _ -> false
+					in
+					if is_unsafe_cast && is_impossible_cast then
+						(* Use Runtime.genericCast<T> which throws for impossible casts.
+						   Generated as: haxe.lang.Runtime.genericCast<TargetType>(value) *)
+						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+						CsCallGeneric (CsStaticField (runtime_type, "genericCast"), [target_type], [inner_cs])
+					else if needs_double_cast then
 						CsCast (target_type, CsCast (CsTypeObject, inner_cs))
 					else
 						CsCast (target_type, inner_cs)
@@ -3109,27 +3428,17 @@ let rec cs_expr_of_texpr ectx e =
 		let cast_expr = CsCast (nested_type, obj) in
 		CsField (cast_expr, escape_identifier param_name)
 	| TEnumIndex e ->
-		(* For extern enums (C# native enums) or simple enums (generated as C# enums),
-		   cast to int; otherwise access _hx_index *)
+		(* For extern enums (C# native enums), cast to int; otherwise access _hx_index.
+		   NOTE: All Haxe enums (including simple ones) are now generated as classes
+		   to preserve null semantics, so only extern enums should cast to int. *)
 		(* Also check if expression is Null<EnumType> - need to unwrap via .value *)
 		let is_null_wrapper = find_null_in_expr e in
-		let is_simple_or_extern_enum = match follow e.etype with
-			| TEnum (en, _) ->
-				if has_enum_flag en EnExtern then true
-				else
-					(* Check if it's a "simple" enum - no type params and no constructors with params *)
-					en.e_params = [] && PMap.fold (fun ef acc ->
-						acc && (match ef.ef_type with TFun _ -> false | _ -> true)
-					) en.e_constrs true
+		let is_extern_enum = match follow e.etype with
+			| TEnum (en, _) -> has_enum_flag en EnExtern
 			| TAbstract ({ a_path = ([], "Null") }, [t]) ->
 				(* Null<EnumType> - check inner type *)
 				begin match follow t with
-				| TEnum (en, _) ->
-					if has_enum_flag en EnExtern then true
-					else
-						en.e_params = [] && PMap.fold (fun ef acc ->
-							acc && (match ef.ef_type with TFun _ -> false | _ -> true)
-						) en.e_constrs true
+				| TEnum (en, _) -> has_enum_flag en EnExtern
 				| _ -> false
 				end
 			| _ -> false
@@ -3137,7 +3446,7 @@ let rec cs_expr_of_texpr ectx e =
 		let obj = cs_expr_of_texpr ectx e in
 		(* Unwrap Null<T> to get the value before accessing enum index *)
 		let obj = if is_null_wrapper then CsField (obj, "value") else obj in
-		if is_simple_or_extern_enum then
+		if is_extern_enum then
 			CsCast (CsTypeInt, obj)
 		else
 			CsField (obj, "_hx_index")
@@ -4622,9 +4931,17 @@ let generate_explicit_interface_impls gctx c cf =
 					p_modifier = None;
 				}
 			) int_args in
-			(* Body: call this.MethodName(args) *)
+			(* Body: call this.MethodName<T, ...>(args) with explicit type args if generic *)
 			let arg_exprs = List.map (fun p -> CsLocal p.p_name) params in
-			let call_expr = CsCall (CsField (CsThis, escape_identifier cf.cf_name), arg_exprs) in
+			let callee = CsField (CsThis, escape_identifier cf.cf_name) in
+			let call_expr =
+				if method_type_params = [] then
+					CsCall (callee, arg_exprs)
+				else
+					(* Add explicit type arguments for generic methods *)
+					let type_args = List.map (fun tp_name -> CsTypeClass (([], tp_name), [])) method_type_params in
+					CsCallGeneric (callee, type_args, arg_exprs)
+			in
 			(* Use return for non-void, expression statement for void *)
 			let is_void = ExtType.is_void (follow int_ret) in
 			let body_stmt = if is_void then
@@ -4694,10 +5011,11 @@ let field_implements_interface_property c cf =
 			(* Look for a field with the same name in the interface *)
 			try
 				let iface_cf = PMap.find cf.cf_name iface.cl_fields in
-				(* Check if it's a property (var with AccNormal access) *)
+				(* Check if it's a property (var with AccNormal access) or dynamic method (becomes property) *)
 				match iface_cf.cf_kind with
 				| Type.Var { v_read = AccNormal; _ } -> true
 				| Type.Var { v_write = AccNormal; _ } -> true
+				| Type.Method MethDynamic -> true  (* Dynamic methods are properties in C# interfaces *)
 				| _ -> false
 			with Not_found -> false
 		) c.cl_implements
@@ -4962,7 +5280,7 @@ let generate_field gctx c cf is_static =
 			m_attributes = attributes;
 		})
 	| Method MethDynamic ->
-		(* Dynamic method - generate as haxe.lang.Function field
+		(* Dynamic method - generate as haxe.lang.Function field (or property if implementing interface)
 		   cs_type_of_type handles TFun -> haxe.lang.Function *)
 		(* C# field initializers cannot use 'this', so skip initializer if it contains 'this'.
 		   The initialization will be moved to the constructor by generate_cs_class. *)
@@ -4974,13 +5292,26 @@ let generate_field gctx c cf is_static =
 				Some (cs_expr_of_texpr ectx e)
 			| _ -> None
 		in
-		Some (CsMemberField {
-			f_name = name;
-			f_type = cs_type;  (* cs_type_of_type handles TFun -> delegate type *)
-			f_access = AccessModifier.Public;
-			f_modifiers = modifiers;
-			f_value = value;
-		})
+		if field_implements_interface_property c cf then
+			(* Generate as property to implement interface *)
+			Some (CsMemberProperty {
+				prop_name = name;
+				prop_type = cs_type;
+				prop_access = AccessModifier.Public;
+				prop_modifiers = modifiers;
+				prop_getter = Some { acc_access = None; acc_body = None };
+				prop_setter = Some { acc_access = None; acc_body = None };
+				prop_init = value;
+				prop_explicit_interface = None;
+			})
+		else
+			Some (CsMemberField {
+				f_name = name;
+				f_type = cs_type;  (* cs_type_of_type handles TFun -> delegate type *)
+				f_access = AccessModifier.Public;
+				f_modifiers = modifiers;
+				f_value = value;
+			})
 	| Method MethMacro ->
 		(* Macro method - skip *)
 		None
@@ -5082,22 +5413,37 @@ let generate_constructor gctx c cf field_init_stmts =
 		}
 	) args in
 
-	(* Check if this constructor needs two-phase construction (this-before-super pattern) *)
-	let is_two_phase = needs_two_phase_construction cf in
-	let parent_is_two_phase = parent_needs_two_phase_construction c in
-
 	(* Extract super call and body from constructor expression *)
 	let (super_args, body_expr) = match cf.cf_expr with
 		| Some e -> extract_super_call e
 		| None -> (None, None)
 	in
-	(* Get base class constructor types for casting super args *)
+
+	(* Check if this constructor needs two-phase construction (this-before-super pattern).
+	   Note: Super args referencing body locals is handled separately with IIFE lambdas. *)
+	let is_two_phase = needs_two_phase_construction cf in
+	let parent_is_two_phase = parent_needs_two_phase_construction c in
+	(* Get base class constructor types for casting super args.
+	   We need to apply type parameter substitution when extending generic classes. *)
 	let base_ctor_types = match c.cl_super with
-		| Some (sc, _) ->
+		| Some (sc, tl) ->
 			begin match sc.cl_constructor with
 			| Some ctor_cf ->
 				begin match follow ctor_cf.cf_type with
-				| TFun (base_args, _) -> List.map (fun (_, _, t) -> cs_type_of_type gctx t) base_args
+				| TFun (base_args, _) ->
+					(* Apply type parameter substitution: sc.cl_params -> tl *)
+					let param_map = List.map2 (fun ttp t -> (ttp.ttp_type, t)) sc.cl_params tl in
+					List.map (fun (_, _, t) ->
+						let substituted_t = List.fold_left (fun t (from_tp, to_t) ->
+							(* Replace type parameter with actual type *)
+							let rec subst t = match t with
+								| _ when Type.fast_eq t from_tp -> to_t
+								| _ -> Type.map subst t
+							in
+							subst t
+						) t param_map in
+						cs_type_of_type gctx substituted_t
+					) base_args
 				| _ -> []
 				end
 			| None -> []
@@ -5207,7 +5553,26 @@ let generate_constructor gctx c cf field_init_stmts =
 	end else begin
 		(* NORMAL CONSTRUCTION: no this-before-super issue *)
 
-		(* Convert super args to base call, casting to expected types *)
+		(* Check if super args reference body-defined locals - if so, we need special handling *)
+		let args_ref_body_locals = match super_args with
+			| Some args -> super_args_reference_body_locals args body_expr
+			| None -> false
+		in
+
+		(* If args reference body locals, extract those statements and adjust body_expr *)
+		let (dependency_stmts, adjusted_body_expr) =
+			if args_ref_body_locals then
+				match super_args with
+				| Some args ->
+					let local_ids = collect_locals_used args in
+					extract_local_dependencies body_expr local_ids
+				| None -> ([], body_expr)
+			else
+				([], body_expr)
+		in
+
+		(* Convert super args to base call, casting to expected types.
+		   If args reference body locals, wrap in IIFE to define locals first. *)
 		let base_call = match super_args with
 			| Some args when not parent_is_two_phase ->
 				(* Normal case: parent has regular constructor *)
@@ -5215,13 +5580,45 @@ let generate_constructor gctx c cf field_init_stmts =
 				ectx.current_class_path <- Some c.cl_path;
 				ectx.current_method_name <- Some "new";
 				let cs_args = List.mapi (fun i arg ->
-					let cs_arg = cs_expr_of_texpr ectx arg in
-					(* Cast to expected type if we know it *)
-					if i < List.length base_ctor_types then
-						let expected_type = List.nth base_ctor_types i in
-						CsCast (expected_type, CsParens cs_arg)
-					else
-						cs_arg
+					let arg_uses_body_locals =
+						let arg_local_ids = collect_locals_used [arg] in
+						let body_local_ids = match body_expr with
+							| Some body -> collect_locals_defined body
+							| None -> []
+						in
+						List.exists (fun id -> List.mem id body_local_ids) arg_local_ids
+					in
+					if arg_uses_body_locals && dependency_stmts <> [] then begin
+						(* This arg uses body-defined locals - wrap in IIFE:
+						   ((Func<T>)(() => { setup_stmts; return value; }))()
+						*)
+						let expected_type = if i < List.length base_ctor_types then
+							List.nth base_ctor_types i
+						else
+							cs_type_of_type gctx arg.etype
+						in
+						(* Generate the statements and return expression *)
+						let cs_stmts = List.map (fun stmt ->
+							cs_stmt_of_texpr ectx stmt
+						) dependency_stmts in
+						let cs_return_value = cs_expr_of_texpr ectx arg in
+						let cs_return = CsReturn (Some (CsCast (expected_type, CsParens cs_return_value))) in
+						let lambda_body = CsLambdaBlock (cs_stmts @ [cs_return]) in
+						(* Func<T> type for the lambda *)
+						let func_type = CsTypeClass ((["System"], "Func"), [expected_type]) in
+						(* Build: ((Func<T>)(() => { body }))() *)
+						let lambda = CsLambda ([], lambda_body) in
+						let cast_lambda = CsCast (func_type, CsParens lambda) in
+						CsCall (CsParens cast_lambda, [])
+					end else begin
+						let cs_arg = cs_expr_of_texpr ectx arg in
+						(* Cast to expected type if we know it *)
+						if i < List.length base_ctor_types then
+							let expected_type = List.nth base_ctor_types i in
+							CsCast (expected_type, CsParens cs_arg)
+						else
+							cs_arg
+					end
 				) args in
 				Some cs_args
 			| Some _ when parent_is_two_phase ->
@@ -5249,8 +5646,9 @@ let generate_constructor gctx c cf field_init_stmts =
 			| _ -> []
 		in
 
-		(* Generate constructor body - prepend field initializations that contain 'this' *)
-		let ctor_body = match body_expr with
+		(* Generate constructor body - prepend field initializations that contain 'this'.
+		   Use adjusted_body_expr which has dependency statements removed (they're in the IIFE). *)
+		let ctor_body = match adjusted_body_expr with
 			| Some e -> field_init_stmts @ extra_body_stmts @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e
 			| None -> field_init_stmts @ extra_body_stmts
 		in
@@ -5730,6 +6128,18 @@ let generate_interface gctx c =
 			(* Property with AccCall - getter/setter are methods, don't generate C# property.
 			   The methods (get_x, set_x) are generated separately as Method MethNormal entries. *)
 			None
+		| Method MethDynamic ->
+			(* Dynamic method is a variable holding a function - generate as property *)
+			Some (CsMemberProperty {
+				prop_name = escape_identifier cf.cf_name;
+				prop_type = CsTypeClass ((["haxe"; "lang"], "Function"), []);
+				prop_access = AccessModifier.Public;
+				prop_modifiers = [];
+				prop_getter = Some { acc_access = None; acc_body = None };
+				prop_setter = Some { acc_access = None; acc_body = None };
+				prop_init = None;
+				prop_explicit_interface = None;
+			})
 		| _ -> None
 	) c.cl_ordered_fields in
 
@@ -5749,35 +6159,35 @@ let generate_interface gctx c =
 (* Generate C# enum from Haxe enum *)
 let generate_enum gctx (e : tenum) =
 	let path = cs_path_of_path e.e_path in
+	let enum_name = snd path in
+	(* Helper: escape enum constructor name, adding suffix if it matches enum type name *)
+	let escape_ctor_name name =
+		let esc = escape_identifier name in
+		if esc = enum_name then esc ^ "_" else esc
+	in
 
 	(* Extract type parameter names from the enum *)
 	let type_params = List.map (fun ttp -> ttp.ttp_name) e.e_params in
 	(* Create C# type references for the type params (used when inheriting from parent) *)
 	let type_param_refs = List.map (fun name -> CsTypeGenericParam name) type_params in
 
-	(* Check if this is a simple enum (no constructors with parameters AND no type params) *)
-	let is_simple = type_params = [] && PMap.fold (fun ef acc ->
+	(* NOTE: We always generate Haxe enums as classes (not C# enums) to preserve
+	   null semantics. In Haxe, all enums are reference types and can be null.
+	   C# enums are value types and cannot be null.
+
+	   TODO: Consider generating C# enums for simple cases when @:native or
+	   similar metadata is present for explicit C# interop. *)
+	let _ (* is_simple *) = type_params = [] && PMap.fold (fun ef acc ->
 		acc && (match ef.ef_type with TFun _ -> false | _ -> true)
 	) e.e_constrs true in
 
-	if is_simple then
-		(* Generate as C# enum *)
-		let members = PMap.fold (fun ef acc ->
-			{ em_name = escape_identifier ef.ef_name; em_value = None } :: acc
-		) e.e_constrs [] in
-		CsEnumDef {
-			e_path = path;
-			e_access = AccessModifier.Public;
-			e_underlying = None;
-			e_members = List.rev members;
-		}
-	else
+	(* Always generate as abstract class with nested classes or static fields *)
 		(* Generate as abstract class with nested classes *)
 		let members = PMap.fold (fun ef acc ->
 			match ef.ef_type with
 			| TFun (args, _) ->
 				(* Nested class for constructor with parameters *)
-				let class_name = escape_identifier ef.ef_name in
+				let class_name = escape_ctor_name ef.ef_name in
 				(* GADT support: constructor may have its own type parameters (ef.ef_params) *)
 				let ctor_type_params = List.map (fun ttp -> ttp.ttp_name) ef.ef_params in
 				(* Filter out constructor params that shadow parent params (same name) *)
@@ -5836,7 +6246,7 @@ let generate_enum gctx (e : tenum) =
 				CsMemberNestedType nested_class :: acc
 			| _ ->
 				(* Simple constructor (no parameters) - need a nested class with singleton instance *)
-				let class_name = escape_identifier ef.ef_name in
+				let class_name = escape_ctor_name ef.ef_name in
 				(* For generic enums, simple constructors also need the type params *)
 				if type_params <> [] then begin
 					(* Generic enum - nested class inherits type params, no singleton possible *)

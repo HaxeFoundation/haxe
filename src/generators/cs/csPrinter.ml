@@ -261,11 +261,22 @@ and print_expr ctx = function
 		print_args ctx items;
 		print ctx " }"
 	| CsNewArraySize (t, size) ->
+		(* For jagged arrays like int[][], we need: new int[size][]
+		   not: new int[][size]
+		   So we extract the inner array dimensions and append them after the size. *)
+		let rec extract_array_dims dims t = match t with
+			| CsTypeArray (inner, rank) ->
+				let dim_str = "[" ^ (match rank with Some r -> String.make (r-1) ',' | None -> "") ^ "]" in
+				extract_array_dims (dim_str :: dims) inner
+			| _ -> (t, dims)
+		in
+		let (base_type, extra_dims) = extract_array_dims [] t in
 		print ctx "new ";
-		print_type ctx t;
+		print_type ctx base_type;
 		print ctx "[";
 		print_expr ctx size;
-		print ctx "]"
+		print ctx "]";
+		List.iter (print ctx) extra_dims
 	| CsCast (t, e) ->
 		print ctx "((";
 		print_type ctx t;

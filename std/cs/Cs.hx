@@ -23,15 +23,25 @@
 package cs;
 
 /**
- * Runtime helper for C# target.
- * Provides dynamic type conversions, field access, function invocation,
- * and other utility functions needed by generated code.
+ * High-level runtime helpers for Haxe semantic operations on Dynamic types.
+ *
+ * This class implements Haxe language behavior when operating on Dynamic values,
+ * written in Haxe for maintainability by Haxe developers.
+ *
+ * Responsibilities:
+ * - Dynamic arithmetic (opAdd, opSub, opMul, opDiv, opMod)
+ * - Bitwise and unary operations (opAnd, opOr, opXor, opShl, opShr, opUshr, opNeg, opNegBits, opNot)
+ * - Dynamic array/field access (arrayGet, arraySet)
+ * - Compound assignments (fieldAddAssign, arrayMulAssign, etc.)
+ * - Increment/decrement operations (fieldPostIncrement, arrayPreDecrement, etc.)
+ * - Comparison helpers (compare, stringCompare)
+ * - Utilities (trace, random, parseInt, parseFloat)
+ *
+ * For low-level C# runtime support (type conversions, AOT-safe reflection),
+ * see haxe.lang.Runtime which is written in C# for .NET compatibility.
  *
  * This class is marked with @:keep to ensure DCE doesn't remove it
  * when functions are called from inline C# code (__cs__).
- *
- * All runtime helper functions should be placed here, NOT in cs.Boot.
- * cs.Boot is only for initialization code that runs at startup.
  */
 @:keep
 class Cs {
@@ -55,6 +65,8 @@ class Cs {
 
 	/**
 	 * Convert a dynamic value to int. Returns 0 for null.
+	 * Note: Similar to haxe.lang.Runtime.toInt but callable from Haxe code.
+	 * Used internally by dynamic operations (opAdd, opMul, etc.).
 	 */
 	public static function dynamicToInt(d:Dynamic):Int {
 		if (d == null)
@@ -66,6 +78,8 @@ class Cs {
 
 	/**
 	 * Convert a dynamic value to float. Returns 0.0 for null.
+	 * Note: Similar to haxe.lang.Runtime.toDouble but callable from Haxe code.
+	 * Used internally by dynamic operations (opAdd, opMul, etc.).
 	 */
 	public static function dynamicToDouble(d:Dynamic):Float {
 		if (d == null)
@@ -77,6 +91,8 @@ class Cs {
 
 	/**
 	 * Convert a dynamic value to bool. Returns false for null.
+	 * Note: Similar to haxe.lang.Runtime.toBool but callable from Haxe code.
+	 * Used internally by dynamic operations and generated condition code.
 	 */
 	public static function dynamicToBool(d:Dynamic):Bool {
 		if (d == null)
@@ -84,53 +100,6 @@ class Cs {
 		if (Std.isOfType(d, Bool))
 			return cast d;
 		return untyped __cs__("System.Convert.ToBoolean({0})", d);
-	}
-
-	/**
-	 * Read a field from an object dynamically.
-	 */
-	public static function readField(obj:Dynamic, name:String):Dynamic {
-		if (obj == null) {
-			throw "Cannot read field from null";
-		}
-
-		// Try HaxeDynamicObject first
-		if (Std.isOfType(obj, HaxeDynamicObject)) {
-			return (cast obj : HaxeDynamicObject)._hx_getField(name);
-		}
-
-		// Use reflection for other objects
-		return untyped __cs__("haxe.lang.Runtime.GetField({0}, {1})", obj, name);
-	}
-
-	/**
-	 * Write a field to an object dynamically.
-	 */
-	public static function writeField(obj:Dynamic, name:String, value:Dynamic):Void {
-		if (obj == null) {
-			throw "Cannot write field to null";
-		}
-
-		// Try HaxeDynamicObject first
-		if (Std.isOfType(obj, HaxeDynamicObject)) {
-			(cast obj : HaxeDynamicObject)._hx_setField(name, value);
-			return;
-		}
-
-		// Use reflection for other objects
-		untyped __cs__("haxe.lang.Runtime.SetField({0}, {1}, {2})", obj, name, value);
-	}
-
-	/**
-	 * Check if an object is a function (HaxeFunction or C# delegate).
-	 */
-	public static function isFunction(obj:Dynamic):Bool {
-		if (obj == null)
-			return false;
-		if (Std.isOfType(obj, HaxeFunction))
-			return true;
-		// Check if it's a C# delegate
-		return untyped __cs__("{0} is System.Delegate", obj);
 	}
 
 	/**
