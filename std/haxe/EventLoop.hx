@@ -66,7 +66,7 @@ class Event {
 private typedef NativeEventLoop = {
 	function run():Void;
 	function close():Int;
-	function alive():Int;
+	function isAlive():Bool;
 };
 
 
@@ -127,7 +127,7 @@ class EventLoop {
 		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
 			var time = getNextTick();
 			// disable wait if we have our native loop alive
-			if( nativeLoop != null && time > 0 && nativeLoop.alive() > 0 )
+			if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
 				time = -1;
 			if( time > 0 ) {
 				wait(time);
@@ -434,7 +434,7 @@ class EventLoop {
 		If blocking is set to true, only check if it has remaining blocking events.
 	**/
 	public function hasEvents( blocking : Bool = true ) {
-		if( nativeLoop != null && nativeLoop.alive() > 0 )
+		if( nativeLoop != null && nativeLoop.isAlive() )
 			return true;
 		if( !blocking )
 			return events != null;

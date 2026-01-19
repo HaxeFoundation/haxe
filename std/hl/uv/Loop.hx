@@ -99,7 +99,7 @@ private class LoopWrapper {
 		return uvLoop.close();
 	}
 
-	public function alive() {
-		return uvLoop.alive();
+	public function isAlive() {
+		return uvLoop.alive() > 0;
 	}
 }
