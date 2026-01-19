@@ -582,6 +582,42 @@ let rec find_null_in_expr e =
 			end
 		| _ -> false
 
+(* Check if a binop expression with Null<T> operands produces a non-Null result in C#.
+   In C#, Null<T> has implicit conversion to T, so arithmetic like Null<int> + 1 produces int, not Null<int>.
+   This is important because Haxe type may still say Null<Int> but the C# expression is actually int.
+   Returns true if the expression is an arithmetic binop that will produce non-Null in C#. *)
+let is_binop_with_implicit_null_conversion e =
+	match e.eexpr with
+	| TBinop (op, e1, e2) ->
+		let is_arithmetic = match op with
+			| OpAdd | OpSub | OpMult | OpDiv | OpMod
+			| OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor -> true
+			| _ -> false
+		in
+		if is_arithmetic then
+			(* Check if either operand is Null<T> (with numeric inner type).
+			   Use follow_once to peel through TMono but not unwrap abstract Null<T>.
+			   Also check TLocal variable types since those preserve Null wrapper. *)
+			let rec is_null_numeric_type t = match t with
+				| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+					begin match follow inner with
+					| TAbstract ({ a_path = ([], ("Int" | "Float" | "Single")) }, _) -> true
+					| _ -> false
+					end
+				| TType (_, _) -> is_null_numeric_type (Type.follow_once t)
+				| TLazy f -> is_null_numeric_type (lazy_type f)
+				| TMono r -> (match r.tm_type with Some t -> is_null_numeric_type t | None -> false)
+				| _ -> false
+			in
+			let is_null_numeric_expr e = match e.eexpr with
+				| TLocal v -> is_null_numeric_type v.v_type
+				| _ -> is_null_numeric_type e.etype
+			in
+			is_null_numeric_expr e1 || is_null_numeric_expr e2
+		else
+			false
+	| _ -> false
+
 (* Helper to get the inner type from Null<T>, if the expression needs .value unwrapping.
    Returns Some(inner) if expression is Null-wrapped and needs unwrapping, None otherwise.
    CRITICAL: For TCast, check the TARGET type, not the inner type. *)
@@ -764,12 +800,12 @@ let coerce_arg gctx cs_arg arg_type expected_type =
 	   IMPORTANT: Only cast when the EXPECTED type params are NOT generic type params,
 	   because if they are, the type param might not be in scope in the current context.
 	   Note: CsTypeClass is used for both classes and interfaces in our AST. *)
+	(* Generic class type coercion - cast when same class with different type params.
+	   IMPORTANT: Only cast when the EXPECTED type params are NOT generic type params,
+	   because if they are, the type param might not be in scope in the current context. *)
 	| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
 		when path1 = path2 && params1 <> params2 ->
-		let is_type_param = function
-			| CsTypeGenericParam _ -> true
-			| _ -> false
-		in
+		let is_type_param = function CsTypeGenericParam _ -> true | _ -> false in
 		(* Only cast if expected type has no type params that might be out of scope *)
 		let expected_has_type_params = List.exists is_type_param params1 in
 		if not expected_has_type_params then
@@ -2098,9 +2134,11 @@ let rec cs_expr_of_texpr ectx e =
 		   This includes:
 		   - Var fields with function type (like `public var myFunc: Int->Void`)
 		   - Var fields with Dynamic type (like `public var fn: Dynamic` holding a function)
-		   - Method MethDynamic (like `public dynamic function onAbort(...)`) which are also stored functions *)
+		   - Method MethDynamic (like `public dynamic function onAbort(...)`) which are also stored functions
+		   - Generic fields where the actual type (with applied type params) is a function *)
+		let actual_field_type = apply_params c.cl_params tl cf.cf_type in
 		let is_stored_function_field = match cf.cf_kind with
-			| Var _ -> (match follow cf.cf_type with TFun _ | TDynamic _ -> true | _ -> false)
+			| Var _ -> (match follow actual_field_type with TFun _ | TDynamic _ -> true | _ -> false)
 			| Method MethDynamic -> true  (* dynamic methods are stored as function fields *)
 			| Method _ -> false
 		in
@@ -2594,9 +2632,20 @@ let rec cs_expr_of_texpr ectx e =
 	| TCall ({ eexpr = TField (_, FStatic (c, cf)) }, orig_args) ->
 		let return_type = e.etype in  (* Use the TCall's etype, not TField's *)
 		(* Check if this is a stored function field (dynamic method, var with function type, or Dynamic type).
-		   If so, we need to use Runtime.InvokeDelegate instead of direct call. *)
+		   If so, we need to use Runtime.InvokeDelegate instead of direct call.
+		   Also check for @:callable abstracts - they wrap a function type but follow() doesn't unwrap them. *)
+		let rec is_function_like_type t = match follow t with
+			| TFun _ | TDynamic _ -> true
+			| TAbstract (a, _) ->
+				(* Check if abstract has @:callable and wraps a function type *)
+				if Meta.has Meta.Callable a.a_meta then
+					is_function_like_type a.a_this
+				else
+					false
+			| _ -> false
+		in
 		let is_stored_function_field = match cf.cf_kind with
-			| Var _ -> (match follow cf.cf_type with TFun _ | TDynamic _ -> true | _ -> false)
+			| Var _ -> is_function_like_type cf.cf_type
 			| Method MethDynamic -> true
 			| Method _ -> false
 		in
@@ -2639,8 +2688,10 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		(* Get base parameter types from signature.
 		   IMPORTANT: Wrap optional params in Null<T> (opt=true means optional).
-		   BUT: Don't double-wrap if the type is already Null<T>. *)
-		let param_types_base = match follow cf.cf_type with
+		   BUT: Don't double-wrap if the type is already Null<T>.
+		   NOTE: Don't use follow() on cf.cf_type - it can break physical equality
+		   of type parameters that apply_params relies on. *)
+		let param_types_base = match cf.cf_type with
 			| TFun (params, _) ->
 				List.map (fun (_, opt, t) ->
 					let is_already_null = match follow t with
@@ -2649,6 +2700,19 @@ let rec cs_expr_of_texpr ectx e =
 					in
 					if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
 				) params
+			| TLazy f ->
+				(* Handle lazy types *)
+				begin match lazy_type f with
+				| TFun (params, _) ->
+					List.map (fun (_, opt, t) ->
+						let is_already_null = match follow t with
+							| TAbstract ({ a_path = ([], "Null") }, _) -> true
+							| _ -> false
+						in
+						if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
+					) params
+				| _ -> []
+				end
 			| _ -> []
 		in
 		(* Get ALL method type params, including those inferred from the method's OWN signature.
@@ -2865,7 +2929,42 @@ let rec cs_expr_of_texpr ectx e =
 			let method_type_params = List.map (fun t ->
 				if t = CsTypeVoid then CsTypeObject else t
 			) method_type_params in
-			CsStaticCallGeneric (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, method_type_params, args)
+			let call_expr = CsStaticCallGeneric (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, method_type_params, args) in
+			(* GADT type erasure fix: when Haxe return type is a type param T but the generated
+			   call uses object (due to type inference from erased arguments), we need to cast
+			   the result back to T. Otherwise C# sees "object" return but expects "T".
+
+			   Example: evalBinop<T,C>(...):T called as evalBinop<object,object>(...) returns object,
+			   but the Haxe expression type is T, so we need (T)evalBinop<object,object>(...) *)
+			let is_return_type_param = match follow return_type with
+				| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+				| _ -> false
+			in
+			if is_return_type_param then begin
+				(* Find which type param position corresponds to the return type *)
+				let ret_param_name = match follow return_type with
+					| TInst ({ cl_kind = KTypeParameter ttp }, _) -> ttp.ttp_name
+					| _ -> ""
+				in
+				(* Find the position of this type param in method params *)
+				let rec find_pos name idx = function
+					| [] -> -1
+					| ttp :: rest ->
+						if ttp.ttp_name = name then idx else find_pos name (idx + 1) rest
+				in
+				let pos = find_pos ret_param_name 0 cf.cf_params in
+				(* Check if that position was instantiated to object *)
+				let instantiated_to_object =
+					pos >= 0 && pos < List.length method_type_params &&
+					List.nth method_type_params pos = CsTypeObject
+				in
+				if instantiated_to_object then
+					(* Cast result from object to T *)
+					CsCast (CsTypeGenericParam ret_param_name, call_expr)
+				else
+					call_expr
+			end else
+				call_expr
 		end else begin
 			let args = generate_call_args ectx cs_expr_of_texpr orig_args param_types_base in
 			CsStaticCall (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, args)
@@ -3188,10 +3287,33 @@ let rec cs_expr_of_texpr ectx e =
 					| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeGenericParam _]), CsTypeGenericParam _ -> true
 					| _ -> false
 				in
+				let is_inner_null_wrapper = match inner_type with
+					| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+					| _ -> false
+				in
+				(* Check if the inner expression is an arithmetic binop on Null<T>.
+				   In C#, arithmetic on Null<T> uses implicit conversion and produces T, not Null<T>.
+				   So even though Haxe type is Null<T>, the C# expression is already T. *)
+				let is_already_unwrapped_by_arithmetic = is_binop_with_implicit_null_conversion inner_e in
 				if is_target_null_wrapper && is_wrapped_type_match then
 					(* Use implicit conversion - just return the inner expression as-is.
 					   C#'s implicit operator will handle the conversion. *)
 					inner_cs
+				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic then begin
+					(* Casting FROM Null<T> to non-Null type - use .value to unwrap, then cast if needed.
+					   This handles cases like (SomeInterface)(map.get(...)) where get returns Null<SomeInterface>.
+					   BUT: Don't add .value if the expression is arithmetic on Null<T>, because C#'s implicit
+					   conversion already produces T, not Null<T>. *)
+					let unwrapped = CsField (inner_cs, "value") in
+					let inner_unwrapped_type = match inner_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
+						| _ -> inner_type
+					in
+					if inner_unwrapped_type = target_type then
+						unwrapped
+					else
+						CsCast (target_type, CsCast (CsTypeObject, unwrapped))
+				end
 				else begin
 					(* C# doesn't allow direct casts between unrelated type parameters or
 				   primitives to type parameters. Cast through object: (Target)(object)source *)
@@ -3613,13 +3735,38 @@ and cs_stmt_of_texpr ectx e =
 			   all cases where the variable is typed as 'object'. *)
 			(* Handle type conversions *)
 			let init_type = cs_type_of_type ectx.gctx init_expr.etype in
+			let is_init_null_wrapper = match init_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+			in
+			let is_var_null_wrapper = match var_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+			in
+			(* Check if init expression is arithmetic on Null<T> - C# produces T, not Null<T> *)
+			let is_init_already_unwrapped = is_binop_with_implicit_null_conversion init_expr in
 			let init_cs = match init_type, var_type with
 				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) ->
 					(* Dynamic -> specific type: need runtime cast *)
 					CsCast (var_type, init_cs)
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) ->
-					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value *)
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped ->
+					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value
+					   BUT: Skip if arithmetic already unwrapped in C# *)
 					CsField (init_cs, "value")
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_t]), var_t when inner_t = var_t && not is_var_null_wrapper && not is_init_already_unwrapped ->
+					(* Null<T> -> T (exact match): use .value to unwrap
+					   BUT: Skip if arithmetic already unwrapped in C# *)
+					CsField (init_cs, "value")
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when not is_var_null_wrapper && not is_init_already_unwrapped ->
+					(* Null<T> -> SomeType (not Null<_>): unwrap via .value and cast if needed
+					   BUT: Skip if arithmetic already unwrapped in C# *)
+					let unwrapped = CsField (init_cs, "value") in
+					CsCast (var_type, CsCast (CsTypeObject, unwrapped))
+				| CsTypeClass (init_path, _), CsTypeClass (var_path, _) when init_path <> var_path && not is_init_null_wrapper ->
+					(* Different class types (not Null<T>) - need cast through object.
+					   This happens with structural typing: e.g., IntIterator -> ArrayIterator<T>
+					   where the Haxe type was Iterator<T> mapped to ArrayIterator<T>. *)
+					CsCast (var_type, CsCast (CsTypeObject, init_cs))
 				| _ -> init_cs
 			in
 			let decl_type = Some var_type in
@@ -3823,6 +3970,43 @@ and cs_stmt_of_texpr ectx e =
 					   Haxe knows T can be used as Float, but C# needs cast through object. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
 					CsCast (ret_cs, CsCast (CsTypeObject, cs_e))
+				| Some ret_t ->
+					(* Check for GADT covariance: returning SomeClass<ConcreteType> where method returns SomeClass<A>.
+					   C# generics are invariant, so we need to cast through object.
+					   Example: returning Option<int>.Some when method returns Option<A>. *)
+					let ret_cs = cs_type_of_type ectx.gctx ret_t in
+					let expr_cs = cs_type_of_type ectx.gctx e.etype in
+					let needs_gadt_cast = match ret_cs, expr_cs with
+						| CsTypeClass (ret_path, ret_params), CsTypeClass (expr_path, expr_params)
+							when ret_path = expr_path && ret_params <> expr_params ->
+							(* Same class but different type params - check if return has type params *)
+							let has_type_param = function CsTypeGenericParam _ -> true | _ -> false in
+							List.exists has_type_param ret_params
+						| _ -> false
+					in
+					if needs_gadt_cast then
+						CsCast (ret_cs, CsCast (CsTypeObject, cs_e))
+					else begin
+						(* Check for TObjectDecl -> class/interface coercion.
+						   Structural typing in Haxe allows { hasNext: ..., next: ... } to satisfy Iterator<T>,
+						   but C# requires explicit cast through object because we generate HaxeDynamicObject.
+						   Note: We check the expression kind, not the type, because type inference may have
+						   unified the anonymous type with the target class type.
+						   We also check the C# type, not the Haxe type, because typedefs like Iterator<T>
+						   are mapped to concrete classes like ArrayIterator<T> in C#. *)
+						let is_object_decl = match e.eexpr with TObjectDecl _ -> true | _ -> false in
+						let is_cs_class t = match cs_type_of_type ectx.gctx t with CsTypeClass _ -> true | _ -> false in
+						if is_object_decl && is_cs_class ret_t then
+							CsCast (ret_cs, CsCast (CsTypeObject, cs_e))
+						(* Check for object -> T coercion.
+						   When expression maps to object but return type is a type param T,
+						   we need to cast (T)expression. This happens with GADT method calls
+						   where type erasure produces object but we need T. *)
+						else if expr_cs = CsTypeObject && (match ret_cs with CsTypeGenericParam _ -> true | _ -> false) then
+							CsCast (ret_cs, cs_e)
+						else
+							cs_e
+					end
 				| _ ->
 					cs_e
 			in
@@ -4968,22 +5152,54 @@ let generate_explicit_interface_impls gctx c cf =
 			let name = escape_identifier cf.cf_name in
 			let int_cs_type = cs_type_of_type gctx int_type in
 			let impl_cs_type = cs_type_of_type gctx cf.cf_type in
-			(* Generate getter body: return (InterfaceType)this.PropertyName *)
+			(* Check for Null<T> wrapper on impl type *)
+			let impl_is_null = match impl_cs_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+			in
+			let int_is_null = match int_cs_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+			in
+			(* Generate getter body *)
 			let getter = if has_getter && (impl_read = AccNormal || impl_read = AccCall) then
+				let prop_access = CsField (CsThis, name) in
+				let return_expr = match impl_is_null, int_is_null with
+					| true, false ->
+						(* Impl is Null<T>, interface wants T - use .value to unwrap *)
+						CsField (prop_access, "value")
+					| false, true ->
+						(* Impl is T, interface wants Null<T> - implicit conversion works *)
+						prop_access
+					| _ ->
+						(* Same wrapper status - just cast *)
+						CsCast (int_cs_type, prop_access)
+				in
 				Some {
 					acc_access = None;
-					acc_body = Some [CsReturn (Some (CsCast (int_cs_type, CsField (CsThis, name))))];
+					acc_body = Some [CsReturn (Some return_expr)];
 				}
 			else
 				None
 			in
-			(* Generate setter body: this.PropertyName = (ImplType)value *)
+			(* Generate setter body *)
 			let setter = if has_setter && (impl_write = AccNormal || impl_write = AccCall) then
+				let value_expr = match impl_is_null, int_is_null with
+					| true, false ->
+						(* Impl is Null<T>, interface passes T - use new Null<T>(value, true) *)
+						CsNew (impl_cs_type, [CsLocal "value"; CsConst (CsConstBool true)])
+					| false, true ->
+						(* Impl is T, interface passes Null<T> - use .value to unwrap *)
+						CsField (CsLocal "value", "value")
+					| _ ->
+						(* Same wrapper status - just cast *)
+						CsCast (impl_cs_type, CsLocal "value")
+				in
 				Some {
 					acc_access = None;
 					acc_body = Some [CsExprStmt (CsBinop (CsOpAssign,
 						CsField (CsThis, name),
-						CsCast (impl_cs_type, CsLocal "value")))];
+						value_expr))];
 				}
 			else
 				None
