@@ -162,7 +162,22 @@ let rec cs_type_of_type_inner gctx stack t =
 		CsTypeGenericParam ttp.ttp_name
 	| TInst (c, params) ->
 		let path = cs_path_of_path c.cl_path in
-		let params = List.map cs_type_of_type_inner params in
+		(* Convert type params, respecting constraints.
+		   If a param maps to object but the class param has a constraint,
+		   use the constraint bound instead (C# requires type args satisfy constraints). *)
+		let params = List.map2 (fun hx_type ttp ->
+			let cs_type = cs_type_of_type_inner hx_type in
+			match cs_type with
+			| CsTypeObject ->
+				let constraints = TFunctions.get_constraints ttp in
+				begin match constraints with
+				| first_constraint :: _ ->
+					let constraint_cs = cs_type_of_type_inner first_constraint in
+					if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+				| [] -> cs_type
+				end
+			| _ -> cs_type
+		) params c.cl_params in
 		CsTypeClass (path, params)
 	| TEnum (e, params) ->
 		let path = cs_path_of_path e.e_path in
@@ -442,3 +457,51 @@ let rec erase_out_of_scope_type_params in_scope cstype =
 	| _ ->
 		(* Primitive types, object, string, etc. - no change *)
 		cstype
+
+(* Erase out-of-scope type parameters in an expression.
+   Recursively processes the expression tree and erases type params
+   in any types embedded in the expression (casts, new, generic calls, etc.). *)
+let rec erase_out_of_scope_type_params_in_expr in_scope expr =
+	let erase_type = erase_out_of_scope_type_params in_scope in
+	let erase_expr = erase_out_of_scope_type_params_in_expr in_scope in
+	let erase_lambda_body = function
+		| CsLambdaExpr e -> CsLambdaExpr (erase_expr e)
+		| CsLambdaBlock stmts -> CsLambdaBlock stmts  (* Don't recurse into statement blocks *)
+	in
+	match expr with
+	| CsCast (t, e) -> CsCast (erase_type t, erase_expr e)
+	| CsDefault t -> CsDefault (erase_type t)
+	| CsTypeOf t -> CsTypeOf (erase_type t)
+	| CsSizeOf t -> CsSizeOf (erase_type t)
+	| CsNew (t, args) -> CsNew (erase_type t, List.map erase_expr args)
+	| CsNewArray (t, args) -> CsNewArray (erase_type t, List.map erase_expr args)
+	| CsNewArraySize (t, e) -> CsNewArraySize (erase_type t, erase_expr e)
+	| CsCallGeneric (e, targs, args) -> CsCallGeneric (erase_expr e, List.map erase_type targs, List.map erase_expr args)
+	| CsStaticCallGeneric (t, name, targs, args) -> CsStaticCallGeneric (erase_type t, name, List.map erase_type targs, List.map erase_expr args)
+	| CsStaticField (t, name) -> CsStaticField (erase_type t, name)
+	| CsStaticCall (t, name, args) -> CsStaticCall (erase_type t, name, List.map erase_expr args)
+	| CsBinop (op, e1, e2) -> CsBinop (op, erase_expr e1, erase_expr e2)
+	| CsUnop (op, post, e) -> CsUnop (op, post, erase_expr e)
+	| CsTernary (cond, then_e, else_e) -> CsTernary (erase_expr cond, erase_expr then_e, erase_expr else_e)
+	| CsField (e, name) -> CsField (erase_expr e, name)
+	| CsArrayAccess (e1, e2) -> CsArrayAccess (erase_expr e1, erase_expr e2)
+	| CsCall (e, args) -> CsCall (erase_expr e, List.map erase_expr args)
+	| CsParens e -> CsParens (erase_expr e)
+	| CsAs (e, t) -> CsAs (erase_expr e, erase_type t)
+	| CsIs (e, t) -> CsIs (erase_expr e, erase_type t)
+	| CsIsPattern (e, t, name) -> CsIsPattern (erase_expr e, erase_type t, name)
+	| CsUnchecked e -> CsUnchecked (erase_expr e)
+	| CsAwait e -> CsAwait (erase_expr e)
+	| CsThrow e -> CsThrow (erase_expr e)
+	| CsLambda (params, body) -> CsLambda (params, erase_lambda_body body)
+	| CsNullConditionalField (e, name) -> CsNullConditionalField (erase_expr e, name)
+	| CsNullConditionalCall (e, args) -> CsNullConditionalCall (erase_expr e, List.map erase_expr args)
+	| CsNullConditionalIndex (e1, e2) -> CsNullConditionalIndex (erase_expr e1, erase_expr e2)
+	| CsInterpolatedString parts ->
+		CsInterpolatedString (List.map (function
+			| CsInterpLiteral s -> CsInterpLiteral s
+			| CsInterpExpr (e, fmt) -> CsInterpExpr (erase_expr e, fmt)
+		) parts)
+	| CsInlineCode (template, args) -> CsInlineCode (template, List.map erase_expr args)
+	(* Simple expressions that don't contain types or sub-expressions *)
+	| CsConst _ | CsLocal _ | CsThis | CsBase | CsNull | CsNameOf _ | CsRaw _ -> expr

@@ -674,10 +674,21 @@ let rec cs_expr_is_double_null cs_expr =
 		   so assume the Haxe type is accurate *)
 		true
 
-(* Generate a coerced argument expression - adds cast if needed for type mismatch *)
-let coerce_arg gctx cs_arg arg_type expected_type =
+(* Generate a coerced argument expression - adds cast if needed for type mismatch.
+   The optional in_scope parameter specifies which type parameters are valid in the
+   current context. If provided and the expected type is purely a generic param (like TBody),
+   out-of-scope type params are erased to object. *)
+let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 	let arg_cs_type = cs_type_of_type gctx arg_type in
-	let expected_cs_type = cs_type_of_type gctx expected_type in
+	let expected_cs_type_raw = cs_type_of_type gctx expected_type in
+	(* Only erase when the expected type is purely a generic param that's out of scope.
+	   For complex types like Expr<double>, we should NOT erase - the type params were
+	   correctly inferred. Erasing Expr<C> to Expr<object> would break valid code. *)
+	let expected_cs_type = match expected_cs_type_raw, in_scope with
+		| CsTypeGenericParam name, Some scope when not (List.mem name scope) ->
+			CsTypeObject  (* Erase out-of-scope bare generic param to object *)
+		| _ -> expected_cs_type_raw  (* Keep all other types as-is *)
+	in
 	(* Check for various type conversions *)
 	match expected_cs_type, arg_cs_type with
 	(* Numeric conversions *)
@@ -749,6 +760,9 @@ let coerce_arg gctx cs_arg arg_type expected_type =
 	(* object/Dynamic to native array (T[]) - need explicit cast *)
 	| CsTypeArray (_, _), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	| CsTypeArray (_, _), CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
+	(* Native array T[] to Haxe Array<T> - need Array<T>.ofNative(arr) *)
+	| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (_, _) ->
+		CsStaticCall (expected_cs_type, "ofNative", [cs_arg])
 	(* System.Type (Class<T>) from object needs explicit cast *)
 	| CsTypeClass ((["System"], "Type"), []), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	(* object/Dynamic to generic type param T - need explicit cast (T)value *)
@@ -875,12 +889,12 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 				if original_has_in_scope_type_params && expected_has_no_type_params then
 					CsCast (expected_cs_type, CsCast (CsTypeObject, cs_arg))
 				else
-					coerce_arg ectx.gctx cs_arg arg.etype expected_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
 			| _ ->
-				coerce_arg ectx.gctx cs_arg arg.etype expected_type
+				coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
 			end
 		| _ ->
-			coerce_arg ectx.gctx cs_arg arg.etype expected_type
+			coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
 	end
 
 (* Generate call arguments with type coercion based on expected parameter types.
@@ -922,7 +936,7 @@ let generate_call_args ectx cs_expr_of_texpr args param_types =
 					let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 					let rest_cs_args = List.map (fun arg ->
 						let cs_arg = cs_expr_of_texpr ectx arg in
-						coerce_arg ectx.gctx cs_arg arg.etype rest_elem_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
 					) rest_args in
 					let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
 					CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
@@ -1071,6 +1085,8 @@ let rec cs_expr_of_texpr ectx e =
 			in
 			(* Cast result to expected type if it's not Dynamic *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
+			(* Erase out-of-scope type params to avoid CS0246 errors *)
+			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			match result_type with
 			| CsTypeObject -> call  (* Already object, no cast needed *)
 			| _ -> CsCast (result_type, call)
@@ -1265,14 +1281,14 @@ let rec cs_expr_of_texpr ectx e =
 				(* Anonymous field assignment - check if it's a truly dynamic object or a known type *)
 				let obj_expr = cs_expr_of_texpr ectx obj in
 				let raw_type = Type.follow_once obj.etype in
-				let obj_expr = match raw_type with
-					| TAbstract ({ a_path = ([], "Null") }, _) ->
-						CsField (obj_expr, "value")
-					| _ -> obj_expr
+				let obj_expr, inner_type = match raw_type with
+					| TAbstract ({ a_path = ([], "Null") }, [inner_t]) ->
+						(CsField (obj_expr, "value"), inner_t)
+					| _ -> (obj_expr, obj.etype)
 				in
 				let val_cs = cs_expr_of_texpr ectx e2 in
-				(* Check if the C# type is HaxeDynamicObject or object *)
-				let cs_type = cs_type_of_type ectx.gctx obj.etype in
+				(* Check if the C# type is HaxeDynamicObject or object - use inner_type after Null unwrap *)
+				let cs_type = cs_type_of_type ectx.gctx inner_type in
 				begin match cs_type with
 				| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) ->
 					(* Dynamic object - use _hx_setField *)
@@ -1288,7 +1304,7 @@ let rec cs_expr_of_texpr ectx e =
 				let val_cs = cs_expr_of_texpr ectx e2 in
 				let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
 				(* Coerce value to target type - needed when assigning object/Dynamic to typed variable *)
-				let val_cs = coerce_arg ectx.gctx val_cs e2.etype e1.etype in
+				let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype e1.etype in
 				CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
 			end
 		| OpEq when is_null_type_for_hasvalue e1.etype && is_null_expr e2 ->
@@ -2016,17 +2032,70 @@ let rec cs_expr_of_texpr ectx e =
 					) params, ret
 				| _ -> [], ectx.gctx.com.basic.tvoid
 		in
-		let args_cs = List.mapi (fun i arg ->
-			let expected_hx_type = if i < List.length param_types_hx then
-				List.nth param_types_hx i
-			else
-				arg.etype
-			in
-			let cs_arg = cs_expr_of_texpr ectx arg in
-			coerce_arg ectx.gctx cs_arg arg.etype expected_hx_type
-		) args in
+		(* Handle Rest parameters - check if last param is Rest<T> *)
+		let num_params = List.length param_types_hx in
+		let last_param_rest = if num_params > 0 then
+			get_rest_element_type (List.nth param_types_hx (num_params - 1))
+		else
+			None
+		in
+		let args_cs, param_types_cs = match last_param_rest with
+			| Some rest_elem_type ->
+				(* Last param is Rest<T> - split args into regular and rest parts *)
+				let regular_param_count = num_params - 1 in
+				let regular_args = ExtList.List.take regular_param_count args in
+				let rest_args = ExtList.List.drop regular_param_count args in
+				(* Generate regular args *)
+				let regular_cs_args = List.mapi (fun i arg ->
+					let expected_type = List.nth param_types_hx i in
+					let cs_arg = cs_expr_of_texpr ectx arg in
+					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+				) regular_args in
+				(* Generate rest args - wrap into Array<T> *)
+				let rest_cs_arg =
+					if rest_args = [] then
+						(* No rest args - create empty Array<T> *)
+						let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+						CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+					else begin
+						(* Check if first rest arg is a spread expression *)
+						match (List.hd rest_args).eexpr with
+						| TUnop (Spread, _, spread_expr) ->
+							(* Spread operator: pass through the inner expression directly *)
+							cs_expr_of_texpr ectx spread_expr
+						| _ ->
+							(* Multiple args to wrap into Array<T>.ofNative(new T[] { ... }) *)
+							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+							let rest_cs_args = List.map (fun arg ->
+								let cs_arg = cs_expr_of_texpr ectx arg in
+								coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
+							) rest_args in
+							let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
+							CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+					end
+				in
+				let all_args = regular_cs_args @ [rest_cs_arg] in
+				(* For param types, use element type wrapped in Array for the rest param *)
+				let regular_param_types = ExtList.List.take regular_param_count param_types_hx in
+				let rest_array_type = ectx.gctx.com.basic.tarray rest_elem_type in
+				let all_param_types_hx = regular_param_types @ [rest_array_type] in
+				let param_types_cs = List.map (cs_type_of_type ectx.gctx) all_param_types_hx in
+				(all_args, param_types_cs)
+			| None ->
+				(* No Rest parameter - process all args normally *)
+				let args_cs = List.mapi (fun i arg ->
+					let expected_hx_type = if i < List.length param_types_hx then
+						List.nth param_types_hx i
+					else
+						arg.etype
+					in
+					let cs_arg = cs_expr_of_texpr ectx arg in
+					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+				) args in
+				let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
+				(args_cs, param_types_cs)
+		in
 		let result_type = cs_type_of_type ectx.gctx ret_type_hx in
-		let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 		(* Register this signature for typed invoke generation *)
 		register_invoke_signature ectx.gctx param_types_cs result_type;
 		(* Use FunctionValue-based invoke to avoid boxing primitives *)
@@ -2193,17 +2262,64 @@ let rec cs_expr_of_texpr ectx e =
 					) params, ret
 				| _ -> [], ectx.gctx.com.basic.tvoid
 			in
-			let args_cs = List.mapi (fun i arg ->
-				let expected_hx_type = if i < List.length param_types_hx then
-					List.nth param_types_hx i
-				else
-					arg.etype
-				in
-				let cs_arg = cs_expr_of_texpr ectx arg in
-				coerce_arg ectx.gctx cs_arg arg.etype expected_hx_type
-			) args in
+			(* Handle Rest parameters - check if last param is Rest<T> *)
+			let num_params = List.length param_types_hx in
+			let last_param_rest = if num_params > 0 then
+				get_rest_element_type (List.nth param_types_hx (num_params - 1))
+			else
+				None
+			in
+			let args_cs, param_types_cs = match last_param_rest with
+				| Some rest_elem_type ->
+					(* Last param is Rest<T> - split args into regular and rest parts *)
+					let regular_param_count = num_params - 1 in
+					let regular_args = ExtList.List.take regular_param_count args in
+					let rest_args = ExtList.List.drop regular_param_count args in
+					(* Generate regular args *)
+					let regular_cs_args = List.mapi (fun i arg ->
+						let expected_type = List.nth param_types_hx i in
+						let cs_arg = cs_expr_of_texpr ectx arg in
+						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+					) regular_args in
+					(* Generate rest args - wrap into Array<T> *)
+					let rest_cs_arg =
+						if rest_args = [] then
+							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+							CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+						else begin
+							match (List.hd rest_args).eexpr with
+							| TUnop (Spread, _, spread_expr) ->
+								cs_expr_of_texpr ectx spread_expr
+							| _ ->
+								let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+								let rest_cs_args = List.map (fun arg ->
+									let cs_arg = cs_expr_of_texpr ectx arg in
+									coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
+								) rest_args in
+								let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
+								CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+						end
+					in
+					let all_args = regular_cs_args @ [rest_cs_arg] in
+					let regular_param_types = ExtList.List.take regular_param_count param_types_hx in
+					let rest_array_type = ectx.gctx.com.basic.tarray rest_elem_type in
+					let all_param_types_hx = regular_param_types @ [rest_array_type] in
+					let param_types_cs = List.map (cs_type_of_type ectx.gctx) all_param_types_hx in
+					(all_args, param_types_cs)
+				| None ->
+					let args_cs = List.mapi (fun i arg ->
+						let expected_hx_type = if i < List.length param_types_hx then
+							List.nth param_types_hx i
+						else
+							arg.etype
+						in
+						let cs_arg = cs_expr_of_texpr ectx arg in
+						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+					) args in
+					let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
+					(args_cs, param_types_cs)
+			in
 			let result_type = cs_type_of_type ectx.gctx ret_type_hx in
-			let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 			(* Register this signature for typed invoke generation *)
 			register_invoke_signature ectx.gctx param_types_cs result_type;
 			(* Use FunctionValue-based invoke to avoid boxing primitives *)
@@ -2347,6 +2463,14 @@ let rec cs_expr_of_texpr ectx e =
 							| Some _ -> acc
 							| None -> find_type_param_in_type ttp_name tp1 tp2
 						) None tp1_list tp2_list
+					| TEnum (e1, tp1_list), TEnum (e2, tp2_list) when e1.e_path = e2.e_path && List.length tp1_list = List.length tp2_list ->
+						(* Generic enum like GADT<A> matched with GADT<Int> - look inside type params.
+						   This is critical for GADT inference where constructor's return type encodes the type param. *)
+						List.fold_left2 (fun acc tp1 tp2 ->
+							match acc with
+							| Some _ -> acc
+							| None -> find_type_param_in_type ttp_name tp1 tp2
+						) None tp1_list tp2_list
 					| TInst (c1, tp1_list), TInst (c2, _) when has_class_flag c1 CInterface && tp1_list <> [] ->
 						(* Interface with type params (like IReport<T>) matched with a class (like PlainTextReport).
 						   Check if the class implements this interface and extract the type params. *)
@@ -2484,13 +2608,30 @@ let rec cs_expr_of_texpr ectx e =
 			let method_param_map = apply_params cf.cf_params method_type_params_hx in
 			let param_types = List.map method_param_map param_types_base in
 			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types in
-			let method_type_params = List.map (cs_type_of_type ectx.gctx) method_type_params_hx in
-			(* C# can't use void as a type argument, so substitute void with object.
-			   This is safe because at runtime the type doesn't matter for these cases
-			   (e.g., makeVarArgs<T> where T is the return type of a function). *)
-			let method_type_params = List.map (fun t ->
-				if t = CsTypeVoid then CsTypeObject else t
-			) method_type_params in
+			(* Convert type params to C# types, respecting constraints.
+			   If the inferred type would be object but the type param has a constraint,
+			   use the constraint bound instead (C# requires type args satisfy constraints).
+			   Also substitute void with object (C# doesn't allow void as type arg). *)
+			let method_type_params = List.map2 (fun hx_type ttp ->
+				let cs_type = cs_type_of_type ectx.gctx hx_type in
+				match cs_type with
+				| CsTypeObject ->
+					(* Check if the type param has a constraint that object wouldn't satisfy *)
+					let constraints = TFunctions.get_constraints ttp in
+					begin match constraints with
+					| first_constraint :: _ ->
+						let constraint_cs = cs_type_of_type ectx.gctx first_constraint in
+						(* Use constraint if it's not object (otherwise keep object) *)
+						if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+					| [] -> cs_type
+					end
+				| CsTypeVoid -> CsTypeObject
+				| _ -> cs_type
+			) method_type_params_hx cf.cf_params in
+			(* Erase type params that are not in scope at the C# level.
+			   This handles GADT phantom types like C in EBinop<C> which are
+			   introduced during pattern matching but don't exist as C# generic params. *)
+			let method_type_params = List.map (CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params in
 			CsCallGeneric (CsField (obj, get_native_field_name cf), method_type_params, cs_args)
 		end else begin
 			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types_base in
@@ -2550,6 +2691,8 @@ let rec cs_expr_of_texpr ectx e =
 				   Use e.etype (the TCall's return type) which has type parameters resolved,
 				   rather than cf.cf_type which might have unresolved type params. *)
 				let result_type = cs_type_of_type ectx.gctx e.etype in
+				(* Erase out-of-scope type params to avoid CS0246 errors *)
+				let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 				begin match result_type with
 				| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
 				| _ -> CsCast (result_type, call_expr)
@@ -2577,6 +2720,8 @@ let rec cs_expr_of_texpr ectx e =
 			(* Cast the result to the expected return type.
 			   Use e.etype (the TCall's return type) which has type parameters resolved. *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
+			(* Erase out-of-scope type params to avoid CS0246 errors *)
+			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
 			| _ -> CsCast (result_type, call_expr)
@@ -2595,6 +2740,8 @@ let rec cs_expr_of_texpr ectx e =
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx e.etype in
+			(* Erase out-of-scope type params to avoid CS0246 errors *)
+			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
 			| _ -> CsCast (result_type, call_expr)
@@ -2613,6 +2760,8 @@ let rec cs_expr_of_texpr ectx e =
 			(* Cast the result to the expected return type.
 			   Use e.etype (the TCall's return type) which has type parameters resolved. *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
+			(* Erase out-of-scope type params to avoid CS0246 errors *)
+			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
 			| _ -> CsCast (result_type, call_expr)
@@ -2841,6 +2990,14 @@ let rec cs_expr_of_texpr ectx e =
 							| Some _ -> acc
 							| None -> find_type_param_in_type ttp_name tp1 tp2
 						) None tp1_list tp2_list
+					| TEnum (e1, tp1_list), TEnum (e2, tp2_list) when e1.e_path = e2.e_path && List.length tp1_list = List.length tp2_list ->
+						(* Generic enum like GADT<A> matched with GADT<Int> - look inside type params.
+						   This is critical for GADT inference where constructor's return type encodes the type param. *)
+						List.fold_left2 (fun acc tp1 tp2 ->
+							match acc with
+							| Some _ -> acc
+							| None -> find_type_param_in_type ttp_name tp1 tp2
+						) None tp1_list tp2_list
 					| TInst (c1, tp1_list), TInst (c2, _) when has_class_flag c1 CInterface && tp1_list <> [] ->
 						(* Interface with type params (like IReport<T>) matched with a class (like PlainTextReport).
 						   Check if the class implements this interface and extract the type params. *)
@@ -2955,13 +3112,34 @@ let rec cs_expr_of_texpr ectx e =
 			let method_param_map = apply_params cf.cf_params (ExtList.List.take (List.length cf.cf_params) method_type_params_hx) in
 			let param_types = List.map method_param_map param_types_base in
 			let args = generate_call_args ectx cs_expr_of_texpr orig_args param_types in
-			let method_type_params = List.map (cs_type_of_type ectx.gctx) method_type_params_hx in
-			(* C# can't use void as a type argument, so substitute void with object.
-			   This is safe because at runtime the type doesn't matter for these cases
-			   (e.g., makeVarArgs<T> where T is the return type of a function). *)
-			let method_type_params = List.map (fun t ->
-				if t = CsTypeVoid then CsTypeObject else t
-			) method_type_params in
+			(* Convert type params to C# types, respecting constraints.
+			   If the inferred type would be object but the type param has a constraint,
+			   use the constraint bound instead (C# requires type args satisfy constraints).
+			   Note: all_method_type_params is a list of names, so we look up ttp by name. *)
+			let method_type_params = List.map2 (fun hx_type param_name ->
+				let cs_type = cs_type_of_type ectx.gctx hx_type in
+				match cs_type with
+				| CsTypeObject ->
+					(* Look up the ttp record by name to get constraints *)
+					let ttp_opt = List.find_opt (fun ttp -> ttp.ttp_name = param_name) cf.cf_params in
+					begin match ttp_opt with
+					| Some ttp ->
+						let constraints = TFunctions.get_constraints ttp in
+						begin match constraints with
+						| first_constraint :: _ ->
+							let constraint_cs = cs_type_of_type ectx.gctx first_constraint in
+							if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+						| [] -> cs_type
+						end
+					| None -> cs_type  (* Not in cf.cf_params, might be inferred param *)
+					end
+				| CsTypeVoid -> CsTypeObject
+				| _ -> cs_type
+			) method_type_params_hx all_method_type_params in
+			(* Erase type params that are not in scope at the C# level.
+			   This handles GADT phantom types like C in EBinop<C> which are
+			   introduced during pattern matching but don't exist as C# generic params. *)
+			let method_type_params = List.map (CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params in
 			let call_expr = CsStaticCallGeneric (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, method_type_params, args) in
 			(* GADT type erasure fix: when Haxe return type is a type param T but the generated
 			   call uses object (due to type inference from erased arguments), we need to cast
@@ -3062,6 +3240,8 @@ let rec cs_expr_of_texpr ectx e =
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
 			(* Cast the result to the expected return type *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
+			(* Erase out-of-scope type params to avoid CS0246 errors *)
+			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for void/Dynamic/object *)
 			| _ -> CsCast (result_type, call_expr)
@@ -3095,14 +3275,16 @@ let rec cs_expr_of_texpr ectx e =
 					) params
 				| _ -> []
 			in
-			(* Convert args, handling null -> default(Null<T>) and type coercion *)
-			let args_cs = List.mapi (fun i arg ->
+			(* Handle Rest parameters - check if last param is Rest<T> *)
+			let num_params = List.length param_types_hx in
+			let last_param_rest = if num_params > 0 then
+				get_rest_element_type (List.nth param_types_hx (num_params - 1))
+			else
+				None
+			in
+			(* Helper to convert a single arg with null handling *)
+			let convert_arg arg expected_hx_type =
 				let is_null = match arg.eexpr with TConst TNull -> true | _ -> false in
-				let expected_hx_type = if i < List.length param_types_hx then
-					List.nth param_types_hx i
-				else
-					arg.etype
-				in
 				let expected_cs_type = cs_type_of_type ectx.gctx expected_hx_type in
 				if is_null then begin
 					(* Handle null specially *)
@@ -3112,12 +3294,59 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> CsNull
 				end else begin
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ectx.gctx cs_arg arg.etype expected_hx_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
 				end
-			) args in
+			in
+			(* Convert args, handling null -> default(Null<T>) and type coercion *)
+			let args_cs, param_types_cs = match last_param_rest with
+				| Some rest_elem_type ->
+					(* Last param is Rest<T> - split args into regular and rest parts *)
+					let regular_param_count = num_params - 1 in
+					let regular_args = ExtList.List.take regular_param_count args in
+					let rest_args = ExtList.List.drop regular_param_count args in
+					(* Generate regular args *)
+					let regular_cs_args = List.mapi (fun i arg ->
+						let expected_type = List.nth param_types_hx i in
+						convert_arg arg expected_type
+					) regular_args in
+					(* Generate rest args - wrap into Array<T> *)
+					let rest_cs_arg =
+						if rest_args = [] then
+							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+							CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+						else begin
+							match (List.hd rest_args).eexpr with
+							| TUnop (Spread, _, spread_expr) ->
+								cs_expr_of_texpr ectx spread_expr
+							| _ ->
+								let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
+								let rest_cs_args = List.map (fun arg ->
+									convert_arg arg rest_elem_type
+								) rest_args in
+								let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
+								CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+						end
+					in
+					let all_args = regular_cs_args @ [rest_cs_arg] in
+					let regular_param_types = ExtList.List.take regular_param_count param_types_hx in
+					let rest_array_type = ectx.gctx.com.basic.tarray rest_elem_type in
+					let all_param_types_hx = regular_param_types @ [rest_array_type] in
+					let param_types_cs = List.map (cs_type_of_type ectx.gctx) all_param_types_hx in
+					(all_args, param_types_cs)
+				| None ->
+					let args_cs = List.mapi (fun i arg ->
+						let expected_hx_type = if i < List.length param_types_hx then
+							List.nth param_types_hx i
+						else
+							arg.etype
+						in
+						convert_arg arg expected_hx_type
+					) args in
+					let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
+					(args_cs, param_types_cs)
+			in
 			(* Get the return type and register the typed invoke signature *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
-			let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 			(* Register this signature for later generation on Function class *)
 			register_invoke_signature ectx.gctx param_types_cs result_type;
 			(* Use FunctionValue-based invoke to avoid boxing primitives *)
@@ -3167,7 +3396,22 @@ let rec cs_expr_of_texpr ectx e =
 			end
 		| _ ->
 			let path = cs_path_of_path c.cl_path in
-			let type_params = List.map (cs_type_of_type ectx.gctx) params in
+			(* Convert type params to C# types, respecting constraints.
+			   If the inferred type would be object but the class type param has a constraint,
+			   use the constraint bound instead (C# requires type args satisfy constraints). *)
+			let type_params = List.map2 (fun hx_type ttp ->
+				let cs_type = cs_type_of_type ectx.gctx hx_type in
+				match cs_type with
+				| CsTypeObject ->
+					let constraints = TFunctions.get_constraints ttp in
+					begin match constraints with
+					| first_constraint :: _ ->
+						let constraint_cs = cs_type_of_type ectx.gctx first_constraint in
+						if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+					| [] -> cs_type
+					end
+				| _ -> cs_type
+			) params c.cl_params in
 			(* Get constructor parameter types for proper type coercion and Rest handling *)
 			let ctor_param_types = match c.cl_constructor with
 				| Some cf -> begin match follow cf.cf_type with
@@ -3354,6 +3598,11 @@ let rec cs_expr_of_texpr ectx e =
 						CsCast (target_type, CsCast (CsTypeObject, unwrapped))
 				end
 				else begin
+					(* Special case: native array T[] to Haxe Array<T> - use Array<T>.ofNative() *)
+					match target_type, inner_type with
+					| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (_, _) ->
+						CsStaticCall (target_type, "ofNative", [inner_cs])
+					| _ ->
 					(* C# doesn't allow direct casts between unrelated type parameters or
 				   primitives to type parameters. Cast through object: (Target)(object)source *)
 					let is_primitive_type = function
@@ -3362,9 +3611,12 @@ let rec cs_expr_of_texpr ectx e =
 						| CsTypeLong | CsTypeULong | CsTypeFloat | CsTypeDouble | CsTypeDecimal -> true
 						| _ -> false
 					in
+					(* Check if inner expression is TObjectDecl - generates HaxeDynamicObject but types as object *)
+					let is_object_decl = match inner_e.eexpr with TObjectDecl _ -> true | _ -> false in
 					let needs_double_cast = match target_type, inner_type with
 						| CsTypeGenericParam _, CsTypeGenericParam _ -> true  (* T to O *)
 						| CsTypeGenericParam _, CsTypeClass _ -> true  (* SomeClass to T - needs (T)(object)v *)
+						| CsTypeGenericParam _, CsTypeObject when is_object_decl -> true  (* {} to T - HaxeDynamicObject needs (T)(object)v *)
 						| CsTypeGenericParam _, t when is_primitive_type t -> true  (* double/int/etc to T - needs (T)(object)v *)
 						| CsTypeClass _, CsTypeGenericParam _ when not is_target_null_wrapper -> true  (* T to SomeClass - needs (SomeClass)(object)v, but not for Null<T> *)
 						| t, CsTypeGenericParam _ when is_primitive_type t -> true  (* T to double/int/etc - needs cast through object *)
@@ -3372,6 +3624,12 @@ let rec cs_expr_of_texpr ectx e =
 							(* Generic class to generic class - may need double cast if type args differ *)
 							(* Only if they're not the exact same type *)
 							target_type <> inner_type
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _), CsTypeClass (_, _) ->
+							(* Casting TO Null<T> from a different class type - need double cast.
+							   Example: (Null<IMyChild>)parent where parent is IMyParent.
+							   Direct cast fails because Null<T> is a struct and C# can't cast
+							   directly from reference type to unrelated struct. *)
+							true
 						| CsTypeClass (path1, _), CsTypeClass (path2, _) when is_unsafe_cast && path1 <> path2 ->
 							(* For explicit unsafe casts (Haxe's cast(expr, Type)) between different
 							   non-generic class types, C# requires casting through object.
@@ -3436,8 +3694,8 @@ let rec cs_expr_of_texpr ectx e =
 			let then_e = cs_expr_of_texpr ectx then_expr in
 			let else_e = cs_expr_of_texpr ectx else_expr in
 			(* Coerce branches to result type if types differ *)
-			let then_e = coerce_arg ectx.gctx then_e then_expr.etype result_type in
-			let else_e = coerce_arg ectx.gctx else_e else_expr.etype result_type in
+			let then_e = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx then_e then_expr.etype result_type in
+			let else_e = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx else_e else_expr.etype result_type in
 			(* Special case: if result type is a function type (TFun) and branches are closures,
 			   C# can't determine common type between closure classes. Cast both to haxe.lang.Function. *)
 			let then_e, else_e = match follow result_type with
@@ -3599,21 +3857,29 @@ let rec cs_expr_of_texpr ectx e =
 		   to preserve null semantics, so only extern enums should cast to int. *)
 		(* Also check if expression is Null<EnumType> - need to unwrap via .value *)
 		let is_null_wrapper = find_null_in_expr e in
-		let is_extern_enum = match follow e.etype with
-			| TEnum (en, _) -> has_enum_flag en EnExtern
+		let is_extern_enum, is_dynamic = match follow e.etype with
+			| TEnum (en, _) -> has_enum_flag en EnExtern, false
 			| TAbstract ({ a_path = ([], "Null") }, [t]) ->
 				(* Null<EnumType> - check inner type *)
 				begin match follow t with
-				| TEnum (en, _) -> has_enum_flag en EnExtern
-				| _ -> false
+				| TEnum (en, _) -> has_enum_flag en EnExtern, false
+				| TDynamic _ -> false, true
+				| _ -> false, false
 				end
-			| _ -> false
+			| TDynamic _ -> false, true
+			| _ -> false, false
 		in
 		let obj = cs_expr_of_texpr ectx e in
 		(* Unwrap Null<T> to get the value before accessing enum index *)
 		let obj = if is_null_wrapper then CsField (obj, "value") else obj in
 		if is_extern_enum then
 			CsCast (CsTypeInt, obj)
+		else if is_dynamic then
+			(* Dynamic type - use reflection to get _hx_index field.
+			   Generated as: (int)Reflect.field(obj, "_hx_index") *)
+			let reflect_path = (["haxe"; "root"], "Reflect") in
+			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString "_hx_index")]) in
+			CsCast (CsTypeInt, field_call)
 		else
 			CsField (obj, "_hx_index")
 	| TIdent s ->
@@ -4249,6 +4515,9 @@ let generate_closure_class ectx tf func_type =
 	(* Create a new expression context for the closure body *)
 	(* Captured variables will be accessed via this.fieldName *)
 	(* Inherit origin_class_path from parent context for nested closures to be grouped in same file *)
+	(* IMPORTANT: Add the closure's own type params to scope - they are class-level params
+	   like B in _hx_Closure<B>, which are valid inside the closure's methods. *)
+	let closure_type_params_in_scope = closure_type_params @ ectx.type_params_in_scope in
 	let closure_ectx = {
 		gctx = gctx;
 		local_vars = [];
@@ -4260,7 +4529,7 @@ let generate_closure_class ectx tf func_type =
 		origin_class_path = ectx.origin_class_path;  (* Inherit from parent for nested closures *)
 		captured_vars = List.map (fun v -> v.v_id) captured_vars;
 		captures_this = accesses_this;
-		type_params_in_scope = ectx.type_params_in_scope;  (* Inherit type params from parent *)
+		type_params_in_scope = closure_type_params_in_scope;  (* Closure's own params + inherited *)
 		type_param_constraints = ectx.type_param_constraints;  (* Inherit constraints from parent *)
 	} in
 
@@ -5314,7 +5583,7 @@ let generate_field gctx c cf is_static =
 				ectx.current_method_name <- Some cf.cf_name;
 				let init_cs = cs_expr_of_texpr ectx e in
 				(* Coerce initializer to field type - needed for lambda returns, object->typed conversions *)
-				let init_cs = coerce_arg gctx init_cs e.etype cf.cf_type in
+				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
 				Some init_cs
 			| _ -> None
 		in
@@ -5347,7 +5616,7 @@ let generate_field gctx c cf is_static =
 				ectx.current_method_name <- Some cf.cf_name;
 				let init_cs = cs_expr_of_texpr ectx e in
 				(* Coerce initializer to field type - needed for lambda returns, object->typed conversions *)
-				let init_cs = coerce_arg gctx init_cs e.etype cf.cf_type in
+				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
 				Some init_cs
 			| _ -> None
 		in
