@@ -96,7 +96,9 @@ private class LoopWrapper {
 	}
 
 	public function close() {
-		return uvLoop.close();
+		final result = uvLoop.close();
+		if (result != 0)
+			Sys.println("Some async handlers have not been closed");
 	}
 
 	public function isAlive() {

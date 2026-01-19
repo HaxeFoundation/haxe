@@ -65,7 +65,7 @@ class Event {
 
 private typedef NativeEventLoop = {
 	function run():Void;
-	function close():Int;
+	function close():Void;
 	function isAlive():Bool;
 };
 
@@ -115,7 +115,7 @@ class EventLoop {
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
-		if( nativeLoop != null && nativeLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
+		if( nativeLoop != null ) nativeLoop.close();
 	}
 
 	/**
