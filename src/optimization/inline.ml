@@ -358,6 +358,7 @@ object(self)
 				| TConst TThis (* not really, but should not be move inside a function body *)
 					-> raise Exit
 				| TObjectDecl _ | TArrayDecl _ -> raise Exit
+				| TFunction _
 				| TField (_,FEnum _)
 				| TTypeExpr _
 				| TConst _ -> ()

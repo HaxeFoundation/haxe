@@ -1,4 +1,8 @@
 Main.hx:11: characters 33-37 : Null safety: Cannot assign nullable value here.
-Main.hx:14: characters 3-32 : Null safety: Cannot unify { text : Null<String> } with HasAString
-Main.hx:17: characters 3-35 : Null safety: Cannot unify { text : Null<String> } with { text : String }
+Main.hx:14: characters 3-32 : Null safety: error: Null<String> should be String
+Main.hx:14: characters 3-32 : ... have: { text: Null<String> }
+Main.hx:14: characters 3-32 : ... want: { text: String }
+Main.hx:17: characters 3-35 : Null safety: error: Null<String> should be String
+Main.hx:17: characters 3-35 : ... have: { text: Null<String> }
+Main.hx:17: characters 3-35 : ... want: { text: String }
 Main.hx:20: characters 30-38 : Null safety: Cannot use nullable value of Null<String> as an item in Array<String>

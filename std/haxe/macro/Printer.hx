@@ -191,12 +191,12 @@ class Printer {
 			+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join('\n$tabs') + '\n$tabs' : "")
 			+ (field.access != null && field.access.length > 0 ? orderAccess(field.access).map(printAccess).join(" ") + " " : "")
 			+ switch (field.kind) {
-				case FVar(t,
-					eo): ((field.access != null && field.access.has(AFinal)) ? '' : 'var ')
-						+ '${field.name}'
-						+ opt(t, printComplexType, " : ")
-						+ opt(eo, printExpr, " = ");
-				case FProp(get, set, t, eo): 'var ${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
+				case FVar(t, eo):
+					final acc = field.access != null && field.access.has(AFinal) ? '' : 'var ';
+					acc + '${field.name}' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
+				case FProp(get, set, t, eo):
+					final acc = field.access != null && field.access.has(AFinal) ? '' : 'var ';
+					acc + '${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FFun(func): 'function ${field.name}' + printFunction(func);
 			}}
 
@@ -417,10 +417,13 @@ class Printer {
 				case TDField(kind, access):
 					tabs = old;
 					(access != null && access.length > 0 ? access.map(printAccess).join(" ") + " " : "") + switch (kind) {
-						case FVar(type,
-							eo): ((access != null && access.has(AFinal)) ? '' : 'var ') + '${t.name}' + opt(type, printComplexType, " : ")
-								+ opt(eo, printExpr, " = ") + ";";
-						case FProp(get, set, type, eo): 'var ${t.name}($get, $set)'
+						case FVar(type, eo):
+							final acc = access != null && access.has(AFinal) ? '' : 'var ';
+							acc + '${t.name}' + opt(type, printComplexType, " : ") + opt(eo, printExpr, " = ") + ";";
+						case FProp(get, set, type, eo):
+							final acc = access != null && access.has(AFinal) ? '' : 'var ';
+							acc
+							+ '${t.name}($get, $set)'
 							+ opt(type, printComplexType, " : ")
 							+ opt(eo, printExpr, " = ")
 							+ ";";

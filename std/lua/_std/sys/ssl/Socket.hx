@@ -20,19 +20,32 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
- package sys.ssl;
+package sys.ssl;
 
- import sys.net.Host;
- import sys.net.SocketInput;
- import sys.net.SocketOutput;
+#if lua_vanilla
 
- import lua.lib.luasocket.Socket as LuaSocket;
- import lua.lib.luasec.Ssl as LuaSecSsl;
- import lua.lib.luasec.SslTcpClient;
- 
- import haxe.io.Bytes;
- import haxe.io.Error;
- 
+class Socket extends sys.net.Socket {
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("sys.ssl.Socket cannot be used with -D lua-vanilla because it requires luasec");
+
+	public function handshake():Void notImplemented();
+	override public function connect(host:sys.net.Host, port:Int):Void notImplemented();
+	override public function close():Void notImplemented();
+}
+
+#else
+
+import sys.net.Host;
+import sys.net.SocketInput;
+import sys.net.SocketOutput;
+
+import lua.lib.luasocket.Socket as LuaSocket;
+import lua.lib.luasec.Ssl as LuaSecSsl;
+import lua.lib.luasec.SslTcpClient;
+
+import haxe.io.Bytes;
+import haxe.io.Error;
+
 class Socket extends sys.net.Socket { 
     var _sslSocket:SslTcpClient;
 
@@ -67,3 +80,5 @@ class Socket extends sys.net.Socket {
 		_sslSocket.close();
     }
 }
+
+#end

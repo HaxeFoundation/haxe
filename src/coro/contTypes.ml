@@ -16,9 +16,10 @@ type continuation_api = {
 	recursing : tclass_field;
 	immediate_result : texpr -> texpr;
 	immediate_error : texpr -> Type.t -> texpr;
+	suspended : tclass_field;
 }
 
-let create_continuation_api base_continuation_class immediate_suspension_result_class suspension_state suspension_result_class continuation immediate_result immediate_error state result error completion context goto_label recursing = {
+let create_continuation_api base_continuation_class immediate_suspension_result_class suspension_state suspension_result_class continuation immediate_result immediate_error suspended state result error completion context goto_label recursing = {
 	base_continuation_class;
 	immediate_suspension_result_class;
 	suspension_state;
@@ -27,6 +28,7 @@ let create_continuation_api base_continuation_class immediate_suspension_result_
 	continuation;
 	immediate_result;
 	immediate_error;
+	suspended;
 	state;
 	result;
 	error;

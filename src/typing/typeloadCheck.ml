@@ -80,7 +80,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 					if o1 <> o2 then
 						raise (Unify_error [Cannot_unify(a2, a1); Not_matching_optional (o2, o1, n)]);
 
-					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
+					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify_implementation(a1,a2)]))
 				) args1 args2;
 			with Unify_error l ->
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in

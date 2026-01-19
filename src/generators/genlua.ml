@@ -30,6 +30,21 @@ open JsSourcemap
 
 type pos = Globals.pos
 
+(* Loop-related context that gets reset when entering a function scope *)
+type loop_context = {
+    in_loop : bool;
+    in_loop_try : bool;
+    break_depth : int;
+    handle_continue : bool;
+}
+
+let default_loop_context = {
+    in_loop = false;
+    in_loop_try = false;
+    break_depth = 0;
+    handle_continue = false;
+}
+
 type ctx = {
     com : Gctx.t;
     buf : Buffer.t;
@@ -40,11 +55,8 @@ type ctx = {
     mutable inits : texpr list;
     mutable tabs : string;
     mutable in_value : tvar option;
-    mutable in_loop : bool;
-    mutable in_loop_try : bool;
+    mutable loop_ctx : loop_context;
     mutable iife_assign : bool;
-    mutable break_depth : int;
-    mutable handle_continue : bool;
     mutable id_counter : int;
     mutable type_accessor : module_type -> string;
     mutable separator : bool;
@@ -52,6 +64,7 @@ type ctx = {
     mutable lua_jit : bool;
     mutable lua_vanilla : bool;
     mutable lua_ver : float;
+    mutable declared_locals : (string, unit) Hashtbl.t;
 }
 
 type object_store = {
@@ -219,10 +232,14 @@ let fun_block ctx f p =
 
 let open_block ctx =
     let oldt = ctx.tabs in
+    let old_declared_locals = ctx.declared_locals in
     ctx.tabs <- "  " ^ ctx.tabs;
-    (fun() -> ctx.tabs <- oldt)
+    ctx.declared_locals <- Hashtbl.create 0;
+    (fun() ->
+        ctx.tabs <- oldt;
+        ctx.declared_locals <- old_declared_locals)
 
-let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
+let this _ctx = "self"
 
 let is_dot_access e cf =
     match follow(e.etype), cf with
@@ -239,7 +256,7 @@ let is_dot_access e cf =
         false
 
 (* Return index of first element in the list for which `f` returns true.
-   Note: List.find_index was added in OCaml 5.1, keeping custom impl for compatibility. *)
+   Polyfill for List.find_index (added in OCaml 5.1). *)
 let index_of f l =
     let rec find lst idx =
         match lst with
@@ -510,6 +527,19 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
+     | TField ({eexpr = TLocal v}, f), el when Meta.has Meta.MultiReturn v.v_meta ->
+         (* Call to a field of a multi-return local - the field is actually just a local variable *)
+         let (_, args, _) = Meta.get (Meta.Custom ":lua_mr_id") v.v_meta in
+         (match args with
+          | [(EConst(String(id,_)), _)] ->
+              spr ctx (id ^ "_" ^ (ident v.v_name) ^ "_" ^ (field_name f));
+              gen_paren_arguments ctx el;
+          | _ ->
+              Globals.die "" __LOC__);
+     | TField (field_owner, (FInstance(_,_,f) | FAnon(f))), el when Meta.has Meta.SelfCall f.cf_meta ->
+         (* @:selfCall methods - call the object directly *)
+         gen_value ctx field_owner;
+         gen_paren_arguments ctx el;
      | TField (field_owner, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
          if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
@@ -567,27 +597,28 @@ and gen_cond ctx cond =
     ctx.iife_assign <- false
 
 and gen_loop ctx cond do_while e =
-    let old_in_loop = ctx.in_loop in
-    let old_in_loop_try = ctx.in_loop_try in
-    ctx.in_loop <- true;
-    ctx.in_loop_try <- false;
-    let old_handle_continue = ctx.handle_continue in
+    let old_loop_ctx = ctx.loop_ctx in
     let will_continue = has_continue e in
-    ctx.handle_continue <- has_continue e;
-    ctx.break_depth <- ctx.break_depth + 1;
+    let new_break_depth = old_loop_ctx.break_depth + 1 in
+    ctx.loop_ctx <- {
+        in_loop = true;
+        in_loop_try = false;
+        break_depth = new_break_depth;
+        handle_continue = will_continue;
+    };
     if will_continue then
-        println ctx "local _hx_continue_%i = false;" ctx.break_depth;
+        println ctx "local _hx_continue_%i = false;" new_break_depth;
     if do_while then
-        println ctx "local _hx_do_first_%i = true;" ctx.break_depth;
+        println ctx "local _hx_do_first_%i = true;" new_break_depth;
     let b = open_block ctx in
     print ctx "while ";
     if do_while then
-        print ctx "_hx_do_first_%i or " ctx.break_depth;
+        print ctx "_hx_do_first_%i or " new_break_depth;
     gen_cond ctx cond;
     print ctx " do ";
     if do_while then begin
         newline ctx;
-        println ctx "_hx_do_first_%i = false;" ctx.break_depth;
+        println ctx "_hx_do_first_%i = false;" new_break_depth;
     end;
     if will_continue then print ctx "repeat ";
     gen_block_element ctx e;
@@ -595,9 +626,9 @@ and gen_loop ctx cond do_while e =
         if will_continue then begin
             println ctx "until true";
         end;
-        println ctx "if _hx_continue_%i then " ctx.break_depth;
-        println ctx "_hx_continue_%i = false;" ctx.break_depth;
-        if ctx.in_loop_try then
+        println ctx "if _hx_continue_%i then " new_break_depth;
+        println ctx "_hx_continue_%i = false;" new_break_depth;
+        if ctx.loop_ctx.in_loop_try then
             println ctx "_G.error(\"_hx_pcall_break\");"
         else
             println ctx "break;";
@@ -606,10 +637,7 @@ and gen_loop ctx cond do_while e =
     b();
     newline ctx;
     print ctx "end";
-    ctx.in_loop_try <- old_in_loop_try;
-    ctx.in_loop <- old_in_loop;
-    ctx.break_depth <- ctx.break_depth-1;
-    ctx.handle_continue <- old_handle_continue;
+    ctx.loop_ctx <- old_loop_ctx;
 
 
 and is_possible_string_field e field_name=
@@ -750,28 +778,31 @@ and gen_expr ?(local=true) ctx e = begin
         gen_expr ctx e
     | TReturn eo -> gen_return ctx e eo;
     | TBreak ->
-        if not ctx.in_loop then unsupported e.epos;
-        if ctx.handle_continue then
-            print ctx "_hx_continue_%i = true;" ctx.break_depth;
-        if ctx.in_loop_try then
+        if not ctx.loop_ctx.in_loop then unsupported e.epos;
+        if ctx.loop_ctx.handle_continue then
+            print ctx "_hx_continue_%i = true;" ctx.loop_ctx.break_depth;
+        if ctx.loop_ctx.in_loop_try then
             print ctx "_G.error(\"_hx_pcall_break\", 0)"
         else
             spr ctx "break"
     | TContinue ->
-        if not ctx.in_loop then unsupported e.epos;
-        if ctx.in_loop_try then
+        if not ctx.loop_ctx.in_loop then unsupported e.epos;
+        if ctx.loop_ctx.in_loop_try then
             print ctx "_G.error(\"_hx_pcall_break\", 0)"
         else
-            spr ctx "break" (*todo*)
+            spr ctx "break"
     | TBlock el ->
         let bend = open_block ctx in
         List.iter (gen_block_element ctx) el;
         bend();
         newline ctx;
     | TFunction f ->
-        let old = ctx.in_value, ctx.in_loop in
+        let old_in_value = ctx.in_value in
+        let old_loop_ctx = ctx.loop_ctx in
+        let old_declared_locals = ctx.declared_locals in
         ctx.in_value <- None;
-        ctx.in_loop <- false;
+        ctx.loop_ctx <- default_loop_context;
+        ctx.declared_locals <- Hashtbl.create 0;
         print ctx "function(%s) " (String.concat "," (List.map lua_arg_name f.tf_args));
         let fblock = fun_block ctx f e.epos in
         (match fblock.eexpr with
@@ -782,8 +813,9 @@ and gen_expr ?(local=true) ctx e = begin
              newline ctx;
          |_ -> ());
         spr ctx "end";
-        ctx.in_value <- fst old;
-        ctx.in_loop <- snd old;
+        ctx.in_value <- old_in_value;
+        ctx.loop_ctx <- old_loop_ctx;
+        ctx.declared_locals <- old_declared_locals;
         ctx.separator <- true
     | TCall (e,el) ->
         gen_call ctx e el;
@@ -801,18 +833,38 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx e;
         spr ctx ",0)";
     | TVar (v,eo) ->
+        (* Check if this variable name is already declared in current function scope.
+           If so, we can reuse it instead of declaring a new local, avoiding Lua's
+           200 local variable limit. See issue #10090.
+           Only apply this optimization to compiler-generated temps (VGenerated/VInlined)
+           to avoid incorrectly merging user variables that happen to have the same name. *)
+        let var_name = ident v.v_name in
+        let is_compiler_temp = match v.v_kind with
+            | VGenerated | VInlined | VInlinedConstructorVariable _ -> true
+            | VUser _ | VExtractorVariable | VAbstractThis -> false
+        in
+        let is_already_declared = is_compiler_temp && Hashtbl.mem ctx.declared_locals var_name in
+        let use_local = local && not is_already_declared in
+        if local && is_compiler_temp && not is_already_declared then
+            Hashtbl.add ctx.declared_locals var_name ();
         begin match eo with
             | None ->
+                (* Declaration without initialization - always use local keyword
+                   because bare variable reference is not valid Lua syntax *)
                 if local then
                     spr ctx "local ";
-                spr ctx (ident v.v_name);
+                spr ctx var_name
             | Some e ->
                 match e.eexpr with
                 | TBinop(OpAssign, e1, e2) ->
                     gen_tbinop ctx OpAssign e1 e2;
-                    if local then
-                        spr ctx " local ";
-                    spr ctx (ident v.v_name);
+                    if use_local then
+                        spr ctx " local "
+                    else begin
+                        semicolon ctx;
+                        newline ctx
+                    end;
+                    spr ctx var_name;
                     spr ctx " = ";
                     gen_value ctx e1;
 
@@ -821,7 +873,7 @@ and gen_expr ?(local=true) ctx e = begin
                     let id = temp ctx in
                     let temp_expr = (EConst(String(id,SDoubleQuotes)), Globals.null_pos) in
                     v.v_meta <- (Meta.Custom ":lua_mr_id", [temp_expr], v.v_pos) :: v.v_meta;
-                    let name = ident v.v_name in
+                    let name = var_name in
                     let names =
                         match follow v.v_type with
                         | TInst (c, _) ->
@@ -829,15 +881,16 @@ and gen_expr ?(local=true) ctx e = begin
                         | _ ->
                             Globals.die "" __LOC__
                     in
+                    (* For multi-return, we still need local for the unpacked vars *)
                     spr ctx "local ";
                     spr ctx (String.concat ", " names);
                     spr ctx " = ";
                     gen_value ctx e;
 
                 | _ ->
-                    if local then
+                    if use_local then
                         spr ctx "local ";
-                    spr ctx (ident v.v_name);
+                    spr ctx var_name;
                     spr ctx " = ";
 
                     (* if it was a multi-return var but it was used as a value itself, *)
@@ -849,6 +902,14 @@ and gen_expr ?(local=true) ctx e = begin
                         add_feature ctx "use._hx_staticToInstance";
                         spr ctx "_hx_staticToInstance(";
                         gen_expr ctx e1;
+                        spr ctx ")";
+                    | TField(_, FAnon f) when is_function_type f.cf_type ->
+                        (* Unwrap function from anon object when storing in local variable.
+                           Anon functions are wrapped with function(_,...) return f(...) end to work with colon syntax.
+                           Local variables are called with dot syntax, so we need to add a dummy self argument. *)
+                        add_feature ctx "use._hx_anonToField";
+                        spr ctx "_hx_anonToField(";
+                        gen_value ctx e;
                         spr ctx ")";
                     | _ -> gen_value ctx e);
         end
@@ -980,23 +1041,25 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "})";
         ctx.separator <- true
     | TTry (e,catchs) ->
-        let old_in_loop_try = ctx.in_loop_try in
-        if ctx.in_loop then
-            ctx.in_loop_try <- true;
+        let old_in_loop_try = ctx.loop_ctx.in_loop_try in
+        if ctx.loop_ctx.in_loop then
+            ctx.loop_ctx <- { ctx.loop_ctx with in_loop_try = true };
         println ctx "local _hx_status, _hx_result = pcall(function() ";
         let b = open_block ctx in
         gen_expr ctx e;
         b();
         println ctx "return _hx_pcall_default";
         println ctx "end)";
-        ctx.in_loop_try <- old_in_loop_try;
-        println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
-        if ctx.in_loop then
+        ctx.loop_ctx <- { ctx.loop_ctx with in_loop_try = old_in_loop_try };
+        if ctx.loop_ctx.in_loop then begin
+            println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
             if old_in_loop_try then
                 println ctx "  _G.error(_hx_result,0);"
             else
                 println ctx "  break";
-        println ctx "elseif not _hx_status then ";
+            println ctx "elseif not _hx_status then "
+        end else
+            println ctx "if not _hx_status then ";
         let bend = open_block ctx in
         (match catchs with
         | [v,e] ->
@@ -1132,9 +1195,10 @@ and is_const_null e =
 and gen_anon_value ctx e =
     match e with
     | { eexpr = TFunction f} ->
-        let old = ctx.in_value, ctx.in_loop in
+        let old_in_value = ctx.in_value in
+        let old_loop_ctx = ctx.loop_ctx in
         ctx.in_value <- None;
-        ctx.in_loop <- false;
+        ctx.loop_ctx <- default_loop_context;
         print ctx "function(%s) " (String.concat "," ("self" :: (List.map lua_arg_name f.tf_args)));
         let fblock = fun_block ctx f e.epos in
         (match fblock.eexpr with
@@ -1145,13 +1209,13 @@ and gen_anon_value ctx e =
              newline ctx;
          |_ -> ());
         spr ctx "end";
-        ctx.in_value <- fst old;
-        ctx.in_loop <- snd old;
+        ctx.in_value <- old_in_value;
+        ctx.loop_ctx <- old_loop_ctx;
         ctx.separator <- true
     | _ when (is_function_type e.etype) && not (is_const_null e) ->
-        spr ctx "function(_,...) return ";
+        spr ctx "function(_,...) return (";
         gen_value ctx e;
-        spr ctx "(...) end";
+        spr ctx ")(...) end";
     | _->
         gen_value ctx e
 
@@ -1164,11 +1228,12 @@ and gen_value ctx e =
                    )) e.etype e.epos
     in
     let value() =
-        let old = ctx.in_value, ctx.in_loop in
+        let old_in_value = ctx.in_value in
+        let old_loop_ctx = ctx.loop_ctx in
         let r_id = temp ctx in
         let r = alloc_var VGenerated r_id t_dynamic e.epos in
         ctx.in_value <- Some r;
-        ctx.in_loop <- false;
+        ctx.loop_ctx <- default_loop_context;
         spr ctx "(function() ";
         let b = open_block ctx in
         newline ctx;
@@ -1178,8 +1243,8 @@ and gen_value ctx e =
              spr ctx ("return " ^ r_id);
              b();
              newline ctx;
-             ctx.in_value <- fst old;
-             ctx.in_loop <- snd old;
+             ctx.in_value <- old_in_value;
+             ctx.loop_ctx <- old_loop_ctx;
              spr ctx "end )()"
         )
     in
@@ -1295,9 +1360,10 @@ and gen_value ctx e =
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
      | Ast.OpAssign, TField(e3, (FInstance _ as ci)), TFunction f ->
-         let old = ctx.in_value, ctx.in_loop in
+         let old_in_value = ctx.in_value in
+         let old_loop_ctx = ctx.loop_ctx in
          ctx.in_value <- None;
-         ctx.in_loop <- false;
+         ctx.loop_ctx <- default_loop_context;
          gen_expr ctx e1;
          spr ctx " = " ;
          let fn_args = List.map ident (List.map arg_name f.tf_args) in
@@ -1325,8 +1391,8 @@ and gen_tbinop ctx op e1 e2 =
               bend();
               newline ctx;
           | _ -> gen_value ctx e2);
-         ctx.in_value <- fst old;
-         ctx.in_loop <- snd old;
+         ctx.in_value <- old_in_value;
+         ctx.loop_ctx <- old_loop_ctx;
          spr ctx " end"
      | Ast.OpAssign, _, _ ->
          let iife_assign = ctx.iife_assign in
@@ -1338,7 +1404,7 @@ and gen_tbinop ctx op e1 e2 =
               gen_value ctx e1;
               spr ctx " = ";
               gen_value ctx e3;
-          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when is_function_type e2.etype ->
+          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _)) when is_function_type e2.etype ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1352,11 +1418,30 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _ | FAnon _)) when is_function_type e2.etype && not (is_dot_access e3 ci) ->
+          | TField(e3, (FInstance _ as ci)), TField(e4, (FClosure _ | FStatic _)) when is_function_type e2.etype && not (is_dot_access e3 ci) ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
               spr ctx "_hx_funcToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance(_, _, icf) as ci)), TField(e4, FAnon _) when is_function_type e2.etype && (match icf.cf_kind with Var _ -> true | _ -> false) && is_dot_access e3 ci ->
+              (* Unwrap function from anon object when storing in Var field.
+                 Anon functions are wrapped with function(_,...) return f(...) end to work with colon syntax.
+                 Var fields are called with dot syntax, so we need to add a dummy self argument. *)
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_anonToField";
+              spr ctx "_hx_anonToField(";
+              gen_value ctx e2;
+              spr ctx ")";
+          | TField(e3, (FInstance(_, _, icf) as ci)), TField(e4, FDynamic _) when is_function_type icf.cf_type && (match icf.cf_kind with Var _ -> true | _ -> false) && is_dot_access e3 ci ->
+              (* Unwrap function from dynamic object when storing in function-typed Var field.
+                 Dynamic fields may contain wrapped functions from anon objects. *)
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              add_feature ctx "use._hx_anonToField";
+              spr ctx "_hx_anonToField(";
               gen_value ctx e2;
               spr ctx ")";
           | TField(e3, (FInstance _ as ci)), TLocal t when ((is_function_type t.v_type) && (not (is_dot_access e3 ci))) ->
@@ -1592,9 +1677,10 @@ let gen_class_field ctx c f =
         ctx.id_counter <- 0;
         (match e.eexpr with
          | TFunction f2 ->
-             let old = ctx.in_value, ctx.in_loop in
+             let old_in_value = ctx.in_value in
+             let old_loop_ctx = ctx.loop_ctx in
              ctx.in_value <- None;
-             ctx.in_loop <- false;
+             ctx.loop_ctx <- default_loop_context;
              print ctx " = function";
              print ctx "(%s) " (String.concat "," ("self" ::(List.map lua_arg_name f2.tf_args)));
              let fblock = fun_block ctx f2 e.epos in
@@ -1618,8 +1704,8 @@ let gen_class_field ctx c f =
                   newline ctx;
               |_ -> ());
              println ctx "end";
-             ctx.in_value <- fst old;
-             ctx.in_loop <- snd old;
+             ctx.in_value <- old_in_value;
+             ctx.loop_ctx <- old_loop_ctx;
              ctx.separator <- true;
          | _ ->
              gen_value ctx e;
@@ -1652,9 +1738,10 @@ let generate_class ctx c =
           | Some { cf_expr = Some e } ->
               (match e.eexpr with
                | TFunction f ->
-                   let old = ctx.in_value, ctx.in_loop in
+                   let old_in_value = ctx.in_value in
+                   let old_loop_ctx = ctx.loop_ctx in
                    ctx.in_value <- None;
-                   ctx.in_loop <- false;
+                   ctx.loop_ctx <- default_loop_context;
                    print ctx "function(%s) " (String.concat "," (List.map lua_arg_name f.tf_args));
                    let fblock = fun_block ctx f e.epos in
                    (match fblock.eexpr with
@@ -1677,8 +1764,8 @@ let generate_class ctx c =
                         newline ctx;
                         spr ctx "end";
                     |_ -> ());
-                   ctx.in_value <- fst old;
-                   ctx.in_loop <- snd old;
+                   ctx.in_value <- old_in_value;
+                   ctx.loop_ctx <- old_loop_ctx;
                    ctx.separator <- true
                | _ -> gen_expr ctx e);
           | _ -> (print ctx "{}"); ctx.separator <- true)
@@ -1910,20 +1997,18 @@ let alloc_ctx com =
         current = null_class;
         tabs = "";
         in_value = None;
+        loop_ctx = default_loop_context;
         iife_assign = false;
-        in_loop = false;
-        in_loop_try = false;
-        break_depth = 0;
-        handle_continue = false;
         id_counter = 0;
         type_accessor = (fun _ -> Globals.die "" __LOC__);
         separator = false;
         found_expose = false;
         lua_jit = Gctx.defined com Define.LuaJit;
         lua_vanilla = Gctx.defined com Define.LuaVanilla;
-        lua_ver = try
+        lua_ver = (try
                 float_of_string (Gctx.defined_value com Define.LuaVer)
-            with | Not_found -> 5.2;
+            with | Not_found -> 5.2);
+        declared_locals = Hashtbl.create 0;
     } in
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
@@ -2115,7 +2200,7 @@ let generate com =
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)
-    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_anonToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
     println ctx "local _hx_pcall_default = {};";
     println ctx "local _hx_pcall_break = {};";
 
@@ -2159,6 +2244,10 @@ let generate com =
 
     if has_feature ctx "use._hx_funcToField" then begin
         print_file (find_file "lua/_lua/_hx_func_to_field.lua");
+    end;
+
+    if has_feature ctx "use._hx_anonToField" then begin
+        print_file (find_file "lua/_lua/_hx_anon_to_field.lua");
     end;
 
     if has_feature ctx "Math.random" then begin

@@ -210,6 +210,12 @@ let unify_typed_args ctx tmap args el_typed call_pos =
 	in
 	loop [] tmap args el_typed
 
+let ensure_coro_availability ctx =
+	(* In cases where we never actually built a coro state machine, the SuspensionResult structure might
+	   not have been initialized yet. This would normally be handled via the pass flushing in `load_module`,
+	   but because all coro data is loaded from a `build-module` pass, this doesn't trigger in time. *)
+	ignore ((Lazy.force ctx.com.basic.tcoro.suspension_result_class).cl_build())
+
 let unify_field_call ctx fa el_typed el p inline =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
@@ -307,6 +313,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		match follow_with_coro t with
 		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
 			let args, ret = expand_coro_type ctx.com.basic args ret in
+			ensure_coro_availability ctx;
 			make args ret false
 		| Coro(args,ret) ->
 			make args ret true
@@ -559,6 +566,7 @@ object(self)
 		let rec loop t = match follow_with_coro t with
 		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
 			let args, ret = expand_coro_type ctx.com.basic args ret in
+			ensure_coro_availability ctx;
 			make args ret
 		| Coro(args,ret) ->
 			make args ret

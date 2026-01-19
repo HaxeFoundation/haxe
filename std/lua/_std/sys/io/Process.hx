@@ -22,6 +22,26 @@
 
 package sys.io;
 
+#if lua_vanilla
+
+@:coreApi
+class Process {
+	public var stdout(default, null):haxe.io.Input;
+	public var stderr(default, null):haxe.io.Input;
+	public var stdin(default, null):haxe.io.Output;
+
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("Process cannot be used with -D lua-vanilla because it requires luv");
+
+	public function new(cmd:String, ?args:Array<String>, ?detached:Bool) notImplemented();
+	public function getPid():Int return notImplemented();
+	public function close():Void notImplemented();
+	public function exitCode(block:Bool = true):Null<Int> return notImplemented();
+	public function kill():Void notImplemented();
+}
+
+#else
+
 import lua.Io;
 import lua.lib.luv.Pipe;
 import lua.lib.luv.Signal;
@@ -226,3 +246,5 @@ private class ProcessOutput extends haxe.io.Output {
 		b.close();
 	}
 }
+
+#end

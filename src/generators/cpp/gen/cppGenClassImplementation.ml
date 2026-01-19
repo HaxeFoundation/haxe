@@ -9,7 +9,39 @@ open CppSourceWriter
 open CppContext
 open CppGen
 
-let gen_function ctx class_def class_name is_static func =
+let write_callable_header callable_name captures func return_type_str prefix output =
+  let signature = func_to_callable_string "::hx::AutoCallable_obj" func in
+
+  Printf.sprintf "struct %s final : public %s {\n" callable_name signature |> output;
+  (match captures with
+  | Some obj_name ->
+    Printf.sprintf "\t::hx::ObjectPtr<%s> __this;\n" obj_name |> output;
+    Printf.sprintf "\t%s(::hx::ObjectPtr<%s> obj = null()) : __this(obj) {} \n" callable_name obj_name |> output
+  | None ->
+    Printf.sprintf "\t%s() {} \n" callable_name |> output);
+  
+  output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
+  Printf.sprintf "\t\tauto casted = dynamic_cast<const %s*>(inRhs);\n" callable_name |> output;
+  output "\t\tif (!casted) { return -1; }\n";
+  if Option.is_some captures then
+    output "\t\tif (__this != casted->__this) return 1;\n";
+  output "\t\treturn 0;\n";
+  output "\t}\n";
+
+  Printf.sprintf "\t%s HX_LOCAL_RUN(%s) override {\n" return_type_str (cpp_callable_args func.tcf_args prefix) |> output
+
+let write_callable_trailer captures output =
+  output "\t}\n";
+  if Option.is_some captures then begin
+    output "\tvoid __Mark(hx::MarkContext* __inCtx) override { HX_MARK_MEMBER(__this); }\n";
+    output "#ifdef HXCPP_VISIT_ALLOCS\n";
+    output "\tvoid __Visit(hx::VisitContext* __inCtx) override { HX_VISIT_MEMBER(__this); }\n";
+    output "#endif\n";
+  end;
+
+  output "};\n\n"
+
+let gen_function ctx tcpp_class is_static func =
   let output      = ctx.ctx_output in
   let return_type = cpp_type_of func.tcf_func.tf_type in
 
@@ -19,22 +51,12 @@ let gen_function ctx class_def class_name is_static func =
       "(void)", true, "void"
     | other ->
       "return ", false, tcpp_to_string other in
-  let needsWrapper t =
-    match t with
-    | TCppStar _
-    | TCppMarshalNativeType (_, (Stack | Promoted)) -> true
-    | TCppInst (t, _) -> Meta.has Meta.StructAccess t.cl_meta
-    | _ -> false
-  in
 
   (* The actual function definition *)
   output return_type_str;
-  output (" " ^ class_name ^ "::" ^ func.tcf_name ^ "(");
+  output (" " ^ tcpp_class.tcl_name ^ "::" ^ func.tcf_name ^ "(");
   output (print_arg_list func.tcf_args "__o_");
   output ")";
-  ctx.ctx_real_this_ptr <- true;
-  let code = get_code func.tcf_field.cf_meta Meta.FunctionCode in
-  let tail_code = get_code func.tcf_field.cf_meta Meta.FunctionTailCode in
 
   begin match get_meta_string func.tcf_field.cf_meta Meta.Native with
   | Some nativeImpl when is_static ->
@@ -45,104 +67,89 @@ let gen_function ctx class_def class_name is_static func =
       ^ ");\n");
     output "}\n\n"
   | _ ->
+    ctx.ctx_real_this_ptr <- true;
+    let code = get_code func.tcf_field.cf_meta Meta.FunctionCode in
+    let tail_code = get_code func.tcf_field.cf_meta Meta.FunctionTailCode in
+
     with_debug
       ctx
       func.tcf_field.cf_meta
-      (gen_cpp_function_body ctx class_def is_static func.tcf_field.cf_name func code tail_code);
+      (gen_cpp_function_body ctx tcpp_class.tcl_class is_static func.tcf_field.cf_name func code tail_code);
   end;
 
   output "\n\n";
 
   (* generate dynamic version too ... *)
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
-    let tcpp_args = List.map (fun (v, _) -> CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type v.v_type) func.tcf_func.tf_args in
-    let wrap      = needsWrapper return_type || List.exists needsWrapper tcpp_args in
-
-    if wrap then (
-      let wrapName = "_hx_wrap" ^ class_name ^ "_" ^ func.tcf_name in
-      output ("static ::Dynamic " ^ wrapName ^ "( ");
-
-      let initial = if is_static then [] else [ "::hx::Object *obj" ] in
-
-      initial @ (List.init (List.length tcpp_args) (fun idx -> Printf.sprintf "const ::Dynamic &a%i" idx))
-      |> String.concat ","
-      |> output;
-
-      output ") {\n\t";
-      (if not is_void then
-          match return_type with
-          | TCppStar _ ->
-            output "return (cpp::Pointer<const void *>) "
-          | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
-            output ("return (cpp::Struct< " ^ tcpp_to_string return_type ^ " >) ")
-          | TCppMarshalNativeType (value_type, _) ->
-            TCppMarshalNativeType (value_type, Reference) |> tcpp_to_string |> Printf.sprintf "return (%s) " |> output
-          | _ ->
-            output "return ");
-
-      if is_static then
-        output (class_name ^ "::" ^ func.tcf_name ^ "(")
-      else
-        output ("reinterpret_cast< " ^ class_name ^ " *>(obj)->" ^ func.tcf_name ^ "(");
-
-      let cast_prefix idx arg =
-        match arg with
-        | TCppStar (t, const) ->
-          Printf.sprintf "(::cpp::%sPointer< %s >) a%i" (if const then "Const" else "") (tcpp_to_string t) idx
-        | TCppInst (t, _) when Meta.has Meta.StructAccess t.cl_meta ->
-          Printf.sprintf "(::cpp::Struct< %s >) a%i" (tcpp_to_string arg) idx
-        | TCppMarshalNativeType (value_type, _) ->
-          Printf.sprintf "(%s) a%i" (TCppMarshalNativeType (value_type, Reference) |> tcpp_to_string) idx
-        | _ ->
-          Printf.sprintf "a%i" idx in
-
-      tcpp_args
-      |> ExtList.List.mapi cast_prefix
-      |> String.concat ", "
-      |> output;
-
-      output ");\n";
-
-      if is_void then output "\treturn null();\n";
-      output "}\n";
-      let nName = string_of_int (List.length tcpp_args) in
-      output
-        ("::Dynamic " ^ class_name ^ "::" ^ func.tcf_name ^ "_dyn() {\n\treturn ");
-      if is_static then
-        output
-          ("::hx::CreateStaticFunction" ^ nName ^ "(\"" ^ func.tcf_name ^ "\"," ^ wrapName ^ ");")
-      else
-        output
-          ("::hx::CreateMemberFunction" ^ nName ^ "(\"" ^ func.tcf_name ^ "\",this," ^ wrapName ^ ");");
-      output "}\n")
+    let callable_name = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
+    let signature     = func_to_callable_string "::hx::Callable" func in
+    if is_static then
+      Printf.sprintf
+        "%s %s::%s_dyn() { return _hx_alloc%s; }\n\n"
+        signature
+        tcpp_class.tcl_name
+        func.tcf_name
+        callable_name |> output
     else
-      let prefix = if is_static then "STATIC_" else "" in
-      Printf.sprintf "%sHX_DEFINE_DYNAMIC_FUNC%i(%s, %s, %s)\n\n" prefix (List.length func.tcf_func.tf_args) class_name func.tcf_name ret |> output
+      Printf.sprintf
+        "%s %s::%s_dyn() { return new %s(this); }\n\n"
+        signature
+        tcpp_class.tcl_name
+        func.tcf_name
+        callable_name |> output
 
-let gen_dynamic_function ctx class_def class_name is_static is_for_static_var func =
-  let output = ctx.ctx_output in
-  let func_name = "__default_" ^ func.tcf_name in
-  let nargs = string_of_int (List.length func.tcf_func.tf_args) in
-  let return_type = CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type func.tcf_func.tf_type in
-  let no_debug = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
-  let is_void = return_type = TCppVoid in
-  let ret = if is_void then "(void)" else "return " in
+let gen_function_closures ctx tcpp_class is_static func =
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
+    let output          = ctx.ctx_output in
+    let return_type_str = type_to_string func.tcf_func.tf_type in
+    let return_type     = cpp_type_of func.tcf_func.tf_type in
+    let is_void         = return_type = TCppVoid in
+    let callable_name   = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
+    let full_name       = (tcpp_class.tcl_class.cl_path |> fst |> List.map keyword_remap |> String.concat "::") ^ "::" ^ tcpp_class.tcl_name in
+    let captures        = if is_static then None else Some full_name in
+
+    write_callable_header callable_name captures func return_type_str "" output;
+
+    let args_pass = func.tcf_args |> List.map fst |> List.map (fun v -> v.tcppv_name) |> String.concat ", " in
+    let prefix    = if is_void then "\t\t" else "\t\treturn " in
+    if is_static then
+      Printf.sprintf "%s%s::%s(%s);\n" prefix full_name func.tcf_name args_pass |> output
+    else
+      Printf.sprintf "%s__this->%s(%s);\n" prefix func.tcf_name args_pass |> output;
+
+    write_callable_trailer captures output;
+
+    if is_static then
+      let signature = func_to_callable_string "::hx::Callable" func in
+      Printf.sprintf "%s _hx_alloc%s;\n\n" signature callable_name |> output
+
+let gen_static_closure_alloc ctx tcpp_class func =
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
+    let output = ctx.ctx_output in
+    let callable_name = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
+    Printf.sprintf "_hx_alloc%s = new (::hx::NewObjectType::NewObjConst) %s();\n\n" callable_name callable_name |> output
+
+let gen_dynamic_function ctx tcpp_class is_static func =
+  let output          = ctx.ctx_output in
+  let func_name       = "__default_" ^ func.tcf_name in
+  let no_debug        = Meta.has Meta.NoDebug func.tcf_field.cf_meta in
+  let return_type_str = func.tcf_return |> tcpp_to_string in
+  let captures        = Some ((tcpp_class.tcl_class.cl_path |> fst |> List.map keyword_remap |> String.concat "::") ^ "::" ^ tcpp_class.tcl_name) in
+
+  write_callable_header func_name captures func return_type_str "__o_" output;
 
   ctx.ctx_real_this_ptr <- false;
-  Printf.sprintf "HX_BEGIN_DEFAULT_FUNC(%s, %s)\n" func_name class_name |> output;
-  Printf.sprintf "%s _hx_run(%s)" (tcpp_to_string return_type) (print_arg_list func.tcf_args "__o_") |> output;
 
-  gen_cpp_function_body ctx class_def is_static func_name func "" "" no_debug;
+  gen_cpp_function_body ctx tcpp_class.tcl_class is_static func_name func "" "" no_debug;
 
-  output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
-  output "HX_END_DEFAULT_FUNC\n\n"
+  write_callable_trailer captures output
 
-let gen_static_variable ctx class_def class_name var =
+let gen_static_variable ctx tcpp_class var =
   let output   = ctx.ctx_output in
-  let tcpp_str = var.tcv_type |> CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type |> tcpp_to_string in
-  Printf.sprintf "%s %s::%s;\n\n" tcpp_str class_name var.tcv_name |> output
+  let tcpp_str = var.tcv_type |> tcpp_to_string in
+  Printf.sprintf "%s %s::%s;\n\n" tcpp_str tcpp_class.tcl_name var.tcv_name |> output
 
-let gen_dynamic_function_init ctx class_def func =
+let gen_dynamic_function_init ctx func =
   match func.tcf_field.cf_expr with
   | Some { eexpr = TFunction function_def } ->
     Printf.sprintf "\t%s = new %s;\n\n" func.tcf_name ("__default_" ^ func.tcf_name) |> ctx.ctx_output
@@ -173,8 +180,12 @@ let gen_boot_field ctx output_cpp tcpp_class =
     | Some expr -> gen_cpp_init ctx dot_name "boot" "__mClass->__rtti__ = " expr
     | None -> ());
 
+    (* Allocating static function lambdas must be done first *)
+    (* Init functionality might depend on these being assigned *)
+    List.iter (gen_static_closure_alloc ctx tcpp_class) tcpp_class.tcl_static_functions;
+
     List.iter (gen_var_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_variables;
-    List.iter (gen_dynamic_function_init ctx tcpp_class.tcl_class) tcpp_class.tcl_static_dynamic_functions;
+    List.iter (gen_dynamic_function_init ctx) tcpp_class.tcl_static_dynamic_functions;
 
     output_cpp "}\n\n")
 
@@ -268,21 +279,27 @@ let generate_native_class base_ctx tcpp_class =
   let printer inc = output_cpp ("#include \"" ^ inc ^ "\"\n") in
   List.iter printer includes;
 
-  begin_namespace output_cpp class_path;
   output_cpp "\n";
+  output_cpp "namespace {\n\n";
+
+  List.iter (gen_dynamic_function ctx tcpp_class false) tcpp_class.tcl_dynamic_functions;
+  List.iter (gen_dynamic_function ctx tcpp_class true) tcpp_class.tcl_static_dynamic_functions;
+
+  List.iter (gen_function_closures ctx tcpp_class false) tcpp_class.tcl_functions;
+  List.iter (gen_function_closures ctx tcpp_class true) tcpp_class.tcl_static_functions;
+
+  output_cpp "}\n\n";
+
+  begin_namespace output_cpp class_path;
 
   output_cpp (get_class_code class_def Meta.CppNamespaceCode);
 
-  let class_name = tcpp_class.tcl_name in
-
   gen_init_function ctx output_cpp tcpp_class;
 
-  List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
+  List.iter (gen_function ctx tcpp_class false) tcpp_class.tcl_functions;
 
-  List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
-  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.tcl_static_variables;
+  List.iter (gen_function ctx tcpp_class true) tcpp_class.tcl_static_functions;
+  List.iter (gen_static_variable ctx tcpp_class) tcpp_class.tcl_static_variables;
 
   output_cpp "\n";
 
@@ -331,6 +348,17 @@ let generate_managed_class base_ctx tcpp_class =
   let printer inc = output_cpp ("#include \"" ^ inc ^ "\"\n") in
   List.iter printer includes;
 
+  output_cpp "\n";
+  output_cpp "namespace {\n\n";
+
+  List.iter (gen_function_closures ctx tcpp_class false) tcpp_class.tcl_functions;
+  List.iter (gen_function_closures ctx tcpp_class true) tcpp_class.tcl_static_functions;
+
+  List.iter (gen_dynamic_function ctx tcpp_class false) tcpp_class.tcl_dynamic_functions;
+  List.iter (gen_dynamic_function ctx tcpp_class true) tcpp_class.tcl_static_dynamic_functions;
+
+  output_cpp "}\n\n";
+
   begin_namespace output_cpp class_path;
   output_cpp "\n";
 
@@ -348,6 +376,9 @@ let generate_managed_class base_ctx tcpp_class =
     ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
   (match tcpp_class.tcl_constructor with
   | Some constructor ->
+    (* Ensure we reset this real this ptr flag, it may have been set to false in the above gen_dynamic_function *)
+    ctx.ctx_real_this_ptr <- true;
+
     let cb no_debug =
       gen_cpp_function_body ctx class_def false "new" constructor "" ""
       no_debug;
@@ -499,12 +530,10 @@ let generate_managed_class base_ctx tcpp_class =
 
   gen_init_function ctx output_cpp tcpp_class;
 
-  List.iter (gen_function ctx class_def class_name false) tcpp_class.tcl_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name false false) tcpp_class.tcl_dynamic_functions;
+  List.iter (gen_function ctx tcpp_class false) tcpp_class.tcl_functions;
 
-  List.iter (gen_function ctx class_def class_name true) tcpp_class.tcl_static_functions;
-  List.iter (gen_dynamic_function ctx class_def class_name true false) tcpp_class.tcl_static_dynamic_functions;
-  List.iter (gen_static_variable ctx class_def class_name) tcpp_class.tcl_static_variables;
+  List.iter (gen_function ctx tcpp_class true) tcpp_class.tcl_static_functions;
+  List.iter (gen_static_variable ctx tcpp_class) tcpp_class.tcl_static_variables;
 
   output_cpp "\n";
 
@@ -631,8 +660,8 @@ let generate_managed_class base_ctx tcpp_class =
       acc
   in
 
-  let castable f =
-    match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type f.cf_type with
+  let castable var =
+    match var.tcv_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
       "cpp::Struct< " ^ tcpp_to_string inst ^ " > "
     | TCppStar (t, _) ->
@@ -679,9 +708,9 @@ let generate_managed_class base_ctx tcpp_class =
   if has_tcpp_class_flag tcpp_class MemberSet then (
     Printf.sprintf "::hx::Val %s::__SetField(const ::String& inName, const ::hx::Val& inValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
 
-    let fold_variable (var:tcpp_class_variable) acc =
+    let fold_variable var acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
-        let casted  = castable var.tcv_field in
+        let casted  = castable var in
         let default = if var.tcv_is_gc_element then
           Printf.sprintf "_hx_set_%s(HX_CTX_GET, inValue.Cast< %s >()); return inValue;" var.tcv_name casted
         else
@@ -702,9 +731,9 @@ let generate_managed_class base_ctx tcpp_class =
         acc
     in
 
-    let fold_property (var:tcpp_class_variable) acc =
+    let fold_property var acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
-        let casted  = castable var.tcv_field in
+        let casted  = castable var in
 
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall | AccPrivateCall } ->
@@ -731,7 +760,7 @@ let generate_managed_class base_ctx tcpp_class =
 
     let fold_variable (var:tcpp_class_variable) acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
-        let casted = castable var.tcv_field in
+        let casted = castable var in
 
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall | AccPrivateCall } ->
@@ -748,13 +777,13 @@ let generate_managed_class base_ctx tcpp_class =
         acc
     in
 
-    let fold_property (var:tcpp_class_variable) acc =
+    let fold_property var acc =
       if var.tcv_is_reflective && not (is_abstract_impl class_def) then
         match var.tcv_field.cf_kind with
         | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
-          let casted    = castable var.tcv_field in
+          let casted    = castable var in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
         | _ ->

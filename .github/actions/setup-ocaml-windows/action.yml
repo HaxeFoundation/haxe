@@ -3,8 +3,7 @@ runs:
   using: composite
   steps:
   - name: Setup ocaml
-  # Lock to 3.2.19 to work around an issue with 32-bit libraries getting installed
-    uses: ocaml/setup-ocaml@3d85bf33a66e089149cd1e9c75da7b9cb6d9d3a7
+    uses: ocaml/setup-ocaml@v3
     with:
       ocaml-compiler: ${{ env.OCAML_VERSION }}
       opam-local-packages: |
@@ -13,10 +12,10 @@ runs:
   - name: Install dependencies
     shell: pwsh
     env:
-      MBEDTLS_VERSION: 2.16.3
+      MBEDTLS_VERSION: 3.6.5
     run: |
       curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
-        https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
+        https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1-noarch.tar.xz
       ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
 
   - name: Install OCaml libraries
@@ -35,3 +34,6 @@ runs:
         $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
         opam install haxe --deps-only
         opam list
+    env:
+      # Work around default resolver installing 32-bit libraries
+      OPAMEXTERNALSOLVER: builtin-mccs+glpk

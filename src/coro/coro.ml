@@ -198,6 +198,8 @@ module ContinuationClassBuilder = struct
 			   is to make the mono nullable and use null. *)
 			Monomorph.add_modifier r (MNullable basic.tnull);
 			mk (TConst TNull) t p
+		| TFun _ ->
+			mk (TConst TNull) t p
 		| _ ->
 			if is_nullable t then
 				mk (TConst TNull) t p
@@ -207,17 +209,20 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume ctx coro_class =
 		let basic     = ctx.typer.t in
 		let b         = ctx.builder in
-		let tret_invoke_resume = coro_class.inside.cls_t in
+		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.outside.result_type])) in
 		let ethis     = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let ecorocall =
 			let this_field cf =
 				b#instance_field ethis coro_class.cls coro_class.inside.param_types cf cf.cf_type
 			in
 			let map_args =
-				List.map (fun (v, _) ->
+				List.map (fun (v, eo) ->
 					let t = substitute_type_params coro_class.type_param_subst v.v_type in
-
-					default_value ctx.typer.t (Abstract.follow_with_abstracts t) coro_class.name_pos
+					let t = Abstract.follow_with_abstracts t in
+					if eo <> None then
+						mk (TConst TNull) (ctx.typer.t.tnull t) coro_class.name_pos
+					else
+						default_value ctx.typer.t t coro_class.name_pos
 				)
 			in
 			match coro_class.coro_type with

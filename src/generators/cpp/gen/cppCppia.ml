@@ -96,7 +96,7 @@ let rec script_type_string haxe_type =
 
 let rec script_cpptype_string cppType =
   match cppType with
-  | TCppDynamic | TCppUnchanged | TCppWrapped _ | TCppObject | TCppMarshalManagedType _ -> "Dynamic"
+  | TCppDynamic | TCppUnchanged | TCppObject | TCppMarshalManagedType _ | TCppCallable _ -> "Dynamic"
   | TCppObjectPtr -> ".*.hx.Object*"
   | TCppReference t -> ".ref." ^ script_cpptype_string t
   | TCppStruct t -> ".struct." ^ script_cpptype_string t
@@ -106,7 +106,7 @@ let rec script_cpptype_string cppType =
   | TCppRest _ -> "vaarg_list"
   | TCppVarArg -> "vararg"
   | TCppAutoCast -> ".cpp.AutoCast"
-  | TCppVariant -> ".cpp.Variant"
+  | TCppVariant _ -> ".cpp.Variant"
   | TCppEnum enum -> join_class_path enum.e_path "."
   | TCppScalar scalar -> scalar
   | TCppString -> "String"
@@ -1583,7 +1583,7 @@ class script_writer ctx filename asciiOut =
                 ^ this#typeTextString "Dynamic"
                 ^ string_of_int index ^ "\n");
               gen_expression obj
-          | CppClosure closure ->
+          | CppCallable closure ->
               this#write
                 (this#op IaFun
                 ^ this#astType closure.close_type
