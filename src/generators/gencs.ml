@@ -746,6 +746,9 @@ let coerce_arg gctx cs_arg arg_type expected_type =
 	(* Dynamic to class type (except Null) - need explicit cast *)
 	| CsTypeClass (path, params), CsTypeDynamic when path <> (["haxe"; "lang"], "Null") ->
 		CsCast (CsTypeClass (path, params), cs_arg)
+	(* object/Dynamic to native array (T[]) - need explicit cast *)
+	| CsTypeArray (_, _), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
+	| CsTypeArray (_, _), CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
 	(* System.Type (Class<T>) from object needs explicit cast *)
 	| CsTypeClass ((["System"], "Type"), []), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	(* object/Dynamic to generic type param T - need explicit cast (T)value *)
@@ -847,7 +850,37 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 	end
 	else begin
 		let cs_arg = cs_expr_of_texpr ectx arg in
-		coerce_arg ectx.gctx cs_arg arg.etype expected_type
+		(* GADT argument coercion: For TLocal variables, check if the ORIGINAL declared type
+		   (v.v_type) differs from the expected type. This handles GADT pattern matching where
+		   the Haxe typer refines arg.etype but the C# variable declaration uses v.v_type.
+		   Example: In evalBinop<T,C>(op:Binop<C,T>, e1:Expr<C>, e2:Expr<C>):T
+		   When matching OpAdd (Binop<Float,Float>), e1.etype becomes Expr<Float> (refined),
+		   but C# variable e1 is declared as Expr<C>. We need to cast Expr<C> -> Expr<double>. *)
+		match arg.eexpr with
+		| TLocal v ->
+			let var_cs_type = cs_type_of_type ectx.gctx v.v_type in
+			(* Check if original var type differs from expected and requires cast *)
+			begin match var_cs_type, expected_cs_type with
+			| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
+				when path1 = path2 && params1 <> params2 ->
+				let is_type_param = function CsTypeGenericParam _ -> true | _ -> false in
+				(* Cast if: original has type params that are in scope, but expected has concrete types.
+				   This is the GADT refinement case: Expr<C> -> Expr<double>. *)
+				let original_has_in_scope_type_params = List.exists (fun p ->
+					match p with
+					| CsTypeGenericParam name -> List.mem name ectx.type_params_in_scope
+					| _ -> false
+				) params1 in
+				let expected_has_no_type_params = not (List.exists is_type_param params2) in
+				if original_has_in_scope_type_params && expected_has_no_type_params then
+					CsCast (expected_cs_type, CsCast (CsTypeObject, cs_arg))
+				else
+					coerce_arg ectx.gctx cs_arg arg.etype expected_type
+			| _ ->
+				coerce_arg ectx.gctx cs_arg arg.etype expected_type
+			end
+		| _ ->
+			coerce_arg ectx.gctx cs_arg arg.etype expected_type
 	end
 
 (* Generate call arguments with type coercion based on expected parameter types.
@@ -3204,8 +3237,14 @@ let rec cs_expr_of_texpr ectx e =
 			CsStaticCall (CsTypeClass (NativeTypes.haxe_dynamic_object_path, []), "_hx_create", [haxe_array])
 		end
 	| TArrayDecl items ->
-		(* Array literal [] creates a haxe.root.Array<T>, not a native C# array *)
-		let array_type = cs_type_of_type ectx.gctx e.etype in
+		(* Array literal [] creates a haxe.root.Array<T>, not a native C# array.
+		   Note: e.etype may be Null<Array<T>> if the array literal is in a context
+		   expecting a nullable array. We need to unwrap Null to get the Array type. *)
+		let array_etype = match follow e.etype with
+			| TAbstract ({ a_path = (["haxe"; "lang"], "Null") }, [inner_t]) -> inner_t
+			| t -> t
+		in
+		let array_type = cs_type_of_type ectx.gctx array_etype in
 		if items = [] then
 			(* Empty array: new haxe.root.Array<T>() *)
 			CsNew (array_type, [])
@@ -3333,6 +3372,11 @@ let rec cs_expr_of_texpr ectx e =
 							(* Generic class to generic class - may need double cast if type args differ *)
 							(* Only if they're not the exact same type *)
 							target_type <> inner_type
+						| CsTypeClass (path1, _), CsTypeClass (path2, _) when is_unsafe_cast && path1 <> path2 ->
+							(* For explicit unsafe casts (Haxe's cast(expr, Type)) between different
+							   non-generic class types, C# requires casting through object.
+							   Direct cast (Object2)(new Object1()) fails at compile time. *)
+							true
 						| _ -> false
 					in
 					(* For unsafe cast (Haxe's cast(expr, Type)), some casts are impossible
@@ -3762,10 +3806,24 @@ and cs_stmt_of_texpr ectx e =
 					   BUT: Skip if arithmetic already unwrapped in C# *)
 					let unwrapped = CsField (init_cs, "value") in
 					CsCast (var_type, CsCast (CsTypeObject, unwrapped))
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_init]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
+					when inner_init <> inner_var ->
+					(* Null<A> -> Null<B> where A != B: need to convert inner value.
+					   Generate: init.hasValue ? new Null<B>((B)init.value, true) : new Null<B>(default(B), false) *)
+					let has_value = CsField (init_cs, "hasValue") in
+					let converted_value = CsCast (inner_var, CsField (init_cs, "value")) in
+					let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
+					let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
+					CsTernary (has_value, true_branch, false_branch)
 				| CsTypeClass (init_path, _), CsTypeClass (var_path, _) when init_path <> var_path && not is_init_null_wrapper ->
 					(* Different class types (not Null<T>) - need cast through object.
 					   This happens with structural typing: e.g., IntIterator -> ArrayIterator<T>
 					   where the Haxe type was Iterator<T> mapped to ArrayIterator<T>. *)
+					CsCast (var_type, CsCast (CsTypeObject, init_cs))
+				| CsTypeClass (init_path, init_params), CsTypeClass (var_path, var_params)
+					when init_path = var_path && init_params <> var_params && not is_init_null_wrapper ->
+					(* Same class type but different type params (e.g., Array<object> -> Array<int>).
+					   This can happen with abstract @:from casts that use generic type parameters. *)
 					CsCast (var_type, CsCast (CsTypeObject, init_cs))
 				| _ -> init_cs
 			in
