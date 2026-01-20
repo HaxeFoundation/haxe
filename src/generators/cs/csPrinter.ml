@@ -1034,8 +1034,11 @@ let print_using ctx = function
 (* Print file *)
 let print_file ctx file =
 	(* Suppress common warnings in generated code:
-	   CA2200: Re-throwing caught exception changes stack information - Haxe exception handling intentionally re-throws *)
-	print ctx "#pragma warning disable CA2200";
+	   CA2200: Re-throwing caught exception changes stack information - Haxe exception handling intentionally re-throws
+	   CS0168: Variable declared but never used - unavoidable in generated code
+	   CS0219: Variable assigned but never used - unavoidable in generated code
+	   CS1718: Comparison to same variable - intentional NaN checks (x != x) *)
+	print ctx "#pragma warning disable CA2200, CS0168, CS0219, CS1718";
 	newline ctx;
 	newline ctx;
 	List.iter (fun u ->

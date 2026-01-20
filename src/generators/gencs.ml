@@ -462,6 +462,51 @@ let rec is_pure_expr e =
 	| TEnumParameter (e1, _, _) -> is_pure_expr e1
 	| _ -> false
 
+(* Check if a C# statement terminates with a HARD terminator (return, throw).
+   Used to avoid generating unreachable 'break' statements after terminators in switch cases.
+   IMPORTANT: We only consider return/throw as terminators, NOT break/continue/goto,
+   because those only terminate local control flow (loops/switches) but not the enclosing case.
+   A nested switch with break doesn't terminate the outer case - it just exits the inner switch. *)
+let rec stmt_terminates stmt =
+	match stmt with
+	| CsReturn _ | CsThrowStmt _ -> true  (* Hard terminators *)
+	| CsBreak | CsContinue | CsGoto _ -> false  (* Local control flow - doesn't terminate enclosing context *)
+	| CsBlock stmts | CsStmtList stmts ->
+		(* A block terminates if its last statement terminates *)
+		begin match List.rev stmts with
+		| [] -> false
+		| last :: _ -> stmt_terminates last
+		end
+	| CsIf (_, then_branch, Some else_branch) ->
+		(* If-else terminates if BOTH branches terminate *)
+		stmt_terminates then_branch && stmt_terminates else_branch
+	| CsIf (_, _, None) ->
+		(* If without else doesn't guarantee termination *)
+		false
+	| CsSwitch (_, sections) ->
+		(* A nested switch only terminates the outer context if ALL cases return/throw.
+		   If any case uses break (to exit the inner switch), control continues in outer context. *)
+		List.for_all (fun section ->
+			match List.rev section.sw_body with
+			| [] -> false
+			| last :: _ -> stmt_terminates last
+		) sections
+	| CsTry (body, catches, finally) ->
+		(* Try-catch only terminates if BOTH:
+		   1. The try body terminates (returns/throws) - so normal completion doesn't happen
+		   2. All catch blocks terminate
+		   If try completes normally, control falls through even if catches throw.
+		   finally doesn't affect termination analysis. *)
+		let _ = finally in (* suppress unused warning *)
+		stmt_terminates body &&
+		List.for_all (fun c -> stmt_terminates c.catch_body) catches
+	| CsUncheckedStmt inner -> stmt_terminates inner
+	| CsWhile _ | CsDoWhile _ | CsFor _ | CsForeach _ ->
+		(* Loops don't terminate the enclosing context even if they have breaks/continues inside.
+		   A loop might complete normally after iterations, so we need a break after. *)
+		false
+	| _ -> false
+
 (* Check if a C# type is valid as a generic constraint.
    C# only allows: interfaces, non-sealed classes, type parameters.
    Primitives, sealed classes (like string, Array<T>), structs are NOT allowed. *)
@@ -4607,14 +4652,18 @@ and cs_stmt_of_texpr ectx e =
 				let labels = List.map (fun p ->
 					CsCaseConst (cs_expr_of_texpr ectx p)
 				) case.case_patterns in
-				let body_stmts = [cs_stmt_of_texpr ectx case.case_expr; CsBreak] in
+				let body_stmt = cs_stmt_of_texpr ectx case.case_expr in
+				(* Only add break if the body doesn't already terminate (return, throw, etc.)
+				   to avoid CS0162 unreachable code warnings *)
+				let body_stmts = if stmt_terminates body_stmt then [body_stmt] else [body_stmt; CsBreak] in
 				{ sw_labels = labels; sw_body = body_stmts }
 			) sw.switch_cases in
 			let sections = match sw.switch_default with
 				| Some e ->
+					let body_stmt = cs_stmt_of_texpr ectx e in
 					let default_section = {
 						sw_labels = [CsCaseDefault];
-						sw_body = [cs_stmt_of_texpr ectx e; CsBreak]
+						sw_body = if stmt_terminates body_stmt then [body_stmt] else [body_stmt; CsBreak]
 					} in
 					sections @ [default_section]
 				| None ->
