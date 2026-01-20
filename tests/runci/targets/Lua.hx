@@ -89,17 +89,13 @@ class Lua {
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
 			changeDirectory(unitDir);
-			final luaDefine = if (lv.startsWith("-l")) {
-				lv.replace("-l", "lua").replace(".", "_");
-			} else lv.replace("-j", "luajit").replace(".", "_");
-			final luaVer = ["-D", luaDefine];
-			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
+			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/unit.lua"]);
 
 			Display.maybeRunDisplayTests(Lua);
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
+			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
 			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));
