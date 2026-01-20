@@ -135,7 +135,11 @@ let rec cs_type_of_type_inner gctx stack t =
 		CsTypeString
 	| TAbstract ({ a_path = ([], "Null") }, [t]) ->
 		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics)
-		   EXCEPT Null<Void> which becomes just 'object' since C# doesn't allow void as a type argument *)
+		   EXCEPT Null<Void> which becomes just 'object' since C# doesn't allow void as a type argument.
+
+		   NOTE: Null<Null<T>> intentionally stays as Null<Null<T>> for accurate type representation
+		   at C# call sites. When we need to unwrap (e.g., passing to method expecting T),
+		   the coerce_arg function handles .value.value unwrapping explicitly. *)
 		let inner = cs_type_of_type_inner t in
 		begin match inner with
 		| CsTypeVoid -> CsTypeObject

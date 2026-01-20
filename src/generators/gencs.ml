@@ -839,6 +839,17 @@ let rec cs_expr_is_double_null cs_expr =
 		   so assume the Haxe type is accurate *)
 		true
 
+(* Flatten Null<Null<T>> to Null<T> for C# variable declarations and expressions.
+   This is needed because Haxe's type inference may produce Null<Null<T>> for conditional
+   expressions, but C# doesn't semantically distinguish between these and Null<T>.
+   The actual C# expressions we generate use flattened Null<T> types. *)
+let flatten_nested_null_type cs_type =
+	match cs_type with
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _) as inner]) ->
+		(* Null<Null<T>> -> Null<T> *)
+		inner
+	| _ -> cs_type
+
 (* Check if a C# expression is a ternary with mixed Null<T>/object branches.
    This pattern occurs with Haxe's ?? operator when one branch is Null<T> and
    the other is cast to object. C# cannot directly cast such ternaries to primitives.
@@ -940,18 +951,58 @@ let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 	| CsTypeLong, CsTypeDynamic -> CsCast (CsTypeLong, cs_arg)
 	| CsTypeByte, CsTypeDynamic -> CsCast (CsTypeByte, cs_arg)
 	| CsTypeString, CsTypeDynamic -> CsCast (CsTypeString, cs_arg)
-	(* Null<Null<object>> to basic types - double unwrap via .value.value then use Runtime conversion.
-	   This happens when ?? chain creates Null<Null<Dynamic>>. *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+	(* Null<Null<T>> to T - double unwrap via .value.value when expression actually produces double-wrapped.
+	   This happens when:
+	   - Generic container like Map<Null<Int>> has get() returning Null<Null<Int>>
+	   C# doesn't chain implicit conversions, so we need explicit double unwrap.
+	   IMPORTANT: Only apply double-unwrap when the expression actually produces double-wrapped. *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
+		CsField (CsField (cs_arg, "value"), "value")
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeDouble])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
+		CsField (CsField (cs_arg, "value"), "value")
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeBool])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
+		CsField (CsField (cs_arg, "value"), "value")
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
+		CsField (CsField (cs_arg, "value"), "value")
+	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeFloat])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
+		CsField (CsField (cs_arg, "value"), "value")
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeString])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
+		CsField (CsField (cs_arg, "value"), "value")
+	(* Null<Null<T>> to T - expression was flattened (e.g. ternary with flattened branches), so single unwrap *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsField (cs_arg, "value")
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeDouble])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsField (cs_arg, "value")
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeBool])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsField (cs_arg, "value")
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsField (cs_arg, "value")
+	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeFloat])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsField (cs_arg, "value")
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeString])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsField (cs_arg, "value")
+	(* Null<Null<object>> to basic types - double unwrap via .value.value then use Runtime conversion when expression is double-wrapped *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
 		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
 		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
 		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
 		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
 		CsCast (CsTypeString, CsField (CsField (cs_arg, "value"), "value"))
+	(* Null<Null<object>> to basic types - expression was flattened, single unwrap then Runtime conversion *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (cs_arg, "value")])
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")])
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (cs_arg, "value")])
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (cs_arg, "value")])
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsCast (CsTypeString, CsField (cs_arg, "value"))
 	(* Null<object> to basic types - unwrap .value then use Runtime conversion.
 	   BUT: Only if cs_arg is not already cast to object (can't access .value on object).
 	   Simple cast doesn't work for dynamic values - need Runtime.toInt/toDouble/etc. *)
@@ -4879,7 +4930,11 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		(* For control flow statements used as expressions, generate a result variable
 		   instead of wrapping in a lambda IIFE.
 		   Pattern: var _hx_result = default(T); if (...) _hx_result = x; else _hx_result = y; use _hx_result *)
-		let result_type = cs_type_of_type ectx.gctx e.etype in
+		(* Flatten Null<Null<T>> to Null<T> because:
+		   1. Haxe type inference may infer Null<Null<T>> for conditional expressions
+		   2. C# doesn't distinguish between Null<Null<T>> and Null<T> semantically
+		   3. The actual branch expressions we generate use flattened Null<T> *)
+		let result_type = flatten_nested_null_type (cs_type_of_type ectx.gctx e.etype) in
 		let is_void = ExtType.is_void (follow e.etype) in
 		(* Generate a unique temporary variable name *)
 		let result_var = fresh_temp ectx in
@@ -5257,9 +5312,26 @@ and cs_stmt_of_texpr ectx e =
 		CsContinue
 	| TThrow e ->
 		CsThrowStmt (cs_expr_of_texpr ectx e)
+	| TMeta (_, inner) ->
+		(* Unwrap TMeta and process the inner expression as a statement *)
+		cs_stmt_of_texpr ectx inner
+	| TParenthesis inner ->
+		(* Unwrap TParenthesis and process the inner expression as a statement *)
+		cs_stmt_of_texpr ectx inner
+	| TCast (inner, None) ->
+		(* Unwrap unnecessary casts and process the inner expression as a statement *)
+		cs_stmt_of_texpr ectx inner
 	| _ ->
-		(* Expression statement *)
-		CsExprStmt (cs_expr_of_texpr ectx e)
+		(* Expression statement - check if it's a void-typed control flow expression that can be emitted directly *)
+		let is_void = ExtType.is_void (follow e.etype) in
+		begin match e.eexpr with
+		| TIf _ | TSwitch _ | TTry _ when is_void ->
+			(* Void control flow - use cs_stmt_with_return_inner with void mode to emit direct statements *)
+			cs_stmt_with_return_inner ectx true CsTypeVoid e
+		| _ ->
+			(* Other expressions - wrap in CsExprStmt *)
+			CsExprStmt (cs_expr_of_texpr ectx e)
+		end
 
 (* Transform void returns (CsReturn None) to null returns (CsReturn (Some CsNull)).
    Used when a void-returning Haxe closure shadows a base class method that returns object. *)
@@ -7293,12 +7365,43 @@ let generate_field_accessors gctx c =
 		(* Get list of instance methods (MethNormal and MethInline only, not MethDynamic)
 		   IMPORTANT: Exclude generic methods (cf.cf_params <> []) because MethodClosure
 		   cannot handle type parameters - they're only known at the call site. *)
+
+		(* Helper to get parent method's return type for override methods.
+		   For overrides, C# requires the return type to match the parent exactly. *)
+		let get_parent_return_type cf =
+			if not (has_class_field_flag cf CfOverride) then None
+			else
+				let rec find_parent_type c_super =
+					try
+						let cf_super = PMap.find cf.cf_name c_super.cl_fields in
+						match cf_super.cf_kind with
+						| Method _ ->
+							begin match follow cf_super.cf_type with
+							| TFun (_, ret) -> Some ret
+							| _ -> None
+							end
+						| _ -> None
+					with Not_found ->
+						match c_super.cl_super with
+						| Some (grandparent, _) -> find_parent_type grandparent
+						| None -> None
+				in
+				match c.cl_super with
+				| Some (c_super, _) -> find_parent_type c_super
+				| None -> None
+		in
+
 		let instance_methods = List.filter_map (fun cf ->
 			match cf.cf_kind with
 			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] ->
 				let args, ret = match follow cf.cf_type with
 					| TFun (args, ret) -> args, ret
 					| _ -> [], t_dynamic
+				in
+				(* For override methods, use parent's return type to match the C# method signature *)
+				let ret = match get_parent_return_type cf with
+					| Some parent_ret -> parent_ret
+					| None -> ret
 				in
 				let arity = List.length args in
 				Some (cf.cf_name, get_native_field_name cf, arity, args, ret)
