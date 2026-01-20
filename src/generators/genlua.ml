@@ -735,7 +735,7 @@ and gen_expr ?(local=true) ctx e = begin
         ) else (
             spr ctx "__lua_lib_luautf8_Utf8.len(";
             gen_value ctx e;
-            spr ctx ")";
+            spr ctx ", nil, nil, true)";
         )
     | TField (e, ef) when is_possible_string_field e (field_name ef)  ->
         add_feature ctx "use._hx_wrap_if_string_field";
