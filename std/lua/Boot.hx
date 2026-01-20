@@ -290,7 +290,7 @@ class Boot {
 			os = untyped jit.os;
 			os = os.toLowerCase();
 		} else {
-			if (untyped __lua__("package.config:sub(1,1)") == "\\") {
+			if (Package.config.charAt(0) == "\\") {
 				return "Windows";
 			}
 
