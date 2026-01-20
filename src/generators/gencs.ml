@@ -28,6 +28,7 @@ open CsAst
 open CsSignature
 open CsPrinter
 open Genshared
+open CsNullableSynf
 
 (* Get the native name of a class field (respects @:native metadata) *)
 let get_native_field_name cf =
@@ -602,43 +603,14 @@ let is_null_wrapper_type t =
 		| _ -> false
 	in check t 0
 
-(* Helper to check if a type is Null<Null<T>> (double wrapped) *)
-let is_double_null_type t =
-	let rec check t depth =
-		if depth > 10 then false else
-		match t with
-		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-			(* Check if inner is also Null<_> *)
-			let rec check_inner it depth =
-				if depth > 10 then false else
-				match it with
-				| TAbstract ({ a_path = ([], "Null") }, _) -> true
-				| TType (_, _) -> check_inner (Type.follow_once it) (depth + 1)
-				| TLazy f -> check_inner (lazy_type f) (depth + 1)
-				| TMono r -> (match r.tm_type with Some t -> check_inner t (depth + 1) | None -> false)
-				| _ -> false
-			in
-			check_inner inner 0
-		| TType (_, _) -> check (Type.follow_once t) (depth + 1)
-		| TLazy f -> check (lazy_type f) (depth + 1)
-		| TMono r -> (match r.tm_type with Some t -> check t (depth + 1) | None -> false)
-		| _ -> false
-	in check t 0
-
 (* Helper to find if an expression involves a Null<T> wrapper - checks through TLocal, TCast, etc.
    Returns true if the GENERATED C# expression will have type Null<T> and needs .value unwrapping.
    CRITICAL: For TCast, we check the TARGET type (e.etype), not the inner expression type.
-   This is because TCast changes the C# type - if we cast to non-Null, no .value needed. *)
+   This is because TCast changes the C# type - if we cast to non-Null, no .value needed.
+   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level. *)
 let rec find_null_in_expr e =
-	if is_null_wrapper_type e.etype then begin
-		(* The expression type is Null<T>. But if this is a TCast with Null<Null<T>> target
-		   and non-Null inner, we've flattened it to Null<T>, so only one level of Null. *)
-		match e.eexpr with
-		| TCast (inner, None) when is_double_null_type e.etype && not (is_null_wrapper_type inner.etype) ->
-			(* Flattened from Null<Null<T>> to Null<T> - yes, it's a Null wrapper *)
-			true
-		| _ -> true
-	end
+	if is_null_wrapper_type e.etype then
+		true
 	else match e.eexpr with
 		| TLocal v -> is_null_wrapper_type v.v_type
 		| TCast (_, None) ->
@@ -803,53 +775,6 @@ let rec cs_expr_is_runtime_conversion cs_expr =
 	| CsCast (_, e) -> cs_expr_is_runtime_conversion e  (* Look through casts *)
 	| _ -> false
 
-(* Check if a C# expression actually produces Null<Null<T>> type.
-   Returns true only if the expression structure indicates double-Null wrapping.
-   This is needed because expressions like ternary, default, cast may have been
-   flattened to produce Null<T> even when the Haxe type says Null<Null<T>>. *)
-let rec cs_expr_is_double_null cs_expr =
-	match cs_expr with
-	| CsCast (CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _)]), _) ->
-		(* Cast to Null<Null<T>> - actually double-wrapped *)
-		true
-	| CsCast (CsTypeClass ((["haxe"; "lang"], "Null"), [_]), _) ->
-		(* Cast to Null<T> - flattened, not double-wrapped *)
-		false
-	| CsDefault (CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _)])) ->
-		(* default(Null<Null<T>>) - actually double-wrapped *)
-		true
-	| CsDefault (CsTypeClass ((["haxe"; "lang"], "Null"), [_])) ->
-		(* default(Null<T>) - not double-wrapped *)
-		false
-	| CsTernary (_, then_e, else_e) ->
-		(* For ternary, check if BOTH branches are double-wrapped *)
-		cs_expr_is_double_null then_e && cs_expr_is_double_null else_e
-	| CsParens e -> cs_expr_is_double_null e
-	| CsField (_, "value") ->
-		(* .value access unwraps one level, so even if inner was double-wrapped, result isn't *)
-		false
-	| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _)]), _) ->
-		(* new Null<Null<T>>(...) - actually double-wrapped *)
-		true
-	| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [_]), _) ->
-		(* new Null<T>(...) - single wrapped, not double *)
-		false
-	| _ ->
-		(* For other cases (locals, calls, etc.), we can't easily determine,
-		   so assume the Haxe type is accurate *)
-		true
-
-(* Flatten Null<Null<T>> to Null<T> for C# variable declarations and expressions.
-   This is needed because Haxe's type inference may produce Null<Null<T>> for conditional
-   expressions, but C# doesn't semantically distinguish between these and Null<T>.
-   The actual C# expressions we generate use flattened Null<T> types. *)
-let flatten_nested_null_type cs_type =
-	match cs_type with
-	| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _) as inner]) ->
-		(* Null<Null<T>> -> Null<T> *)
-		inner
-	| _ -> cs_type
-
 (* Check if a Haxe expression is null or a default value (for block expression optimization).
    This is used to detect patterns like { var x = null; call(args, x); } which can be
    optimized by inlining the null/default directly into the call. *)
@@ -904,7 +829,8 @@ let rec is_ternary_with_mixed_types cs_expr =
    out-of-scope type params are erased to object. *)
 (* Core coercion logic that works with C# types directly.
    This is the inner function used by coerce_arg and can also be called directly
-   when you already have C# types (e.g., after flattening Null<Null<T>>). *)
+   when you already have C# types.
+   NOTE: Null<Null<T>> flattening is handled by CsNullableSynf at the AST level. *)
 let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* Only erase when the expected type is purely a generic param that's out of scope.
 	   For complex types like Expr<double>, we should NOT erase - the type params were
@@ -964,58 +890,21 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| CsTypeLong, CsTypeDynamic -> CsCast (CsTypeLong, cs_arg)
 	| CsTypeByte, CsTypeDynamic -> CsCast (CsTypeByte, cs_arg)
 	| CsTypeString, CsTypeDynamic -> CsCast (CsTypeString, cs_arg)
-	(* Null<Null<T>> to T - double unwrap via .value.value when expression actually produces double-wrapped.
-	   This happens when:
-	   - Generic container like Map<Null<Int>> has get() returning Null<Null<Int>>
-	   C# doesn't chain implicit conversions, so we need explicit double unwrap.
-	   IMPORTANT: Only apply double-unwrap when the expression actually produces double-wrapped. *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeDouble])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeBool])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeFloat])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeString])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	(* Null<Null<T>> to T - expression was flattened (e.g. ternary with flattened branches), so single unwrap *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt])]) when not (cs_expr_is_object_cast cs_arg) ->
+	(* Null<T> to T (basic types) - unwrap via .value.
+	   The CsNullableSynf filter handles Null<Null<T>> flattening at the AST level,
+	   so we only need single-level unwrap here. *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeDouble])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeDouble]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeBool])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeBool]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeFloat])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeFloat]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeString])]) when not (cs_expr_is_object_cast cs_arg) ->
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeString]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	(* Null<Null<object>> to basic types - double unwrap via .value.value then use Runtime conversion when expression is double-wrapped *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (CsField (cs_arg, "value"), "value")])
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) && cs_expr_is_double_null cs_arg ->
-		CsCast (CsTypeString, CsField (CsField (cs_arg, "value"), "value"))
-	(* Null<Null<object>> to basic types - expression was flattened, single unwrap then Runtime conversion *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (cs_arg, "value")])
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")])
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (cs_arg, "value")])
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (cs_arg, "value")])
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsCast (CsTypeString, CsField (cs_arg, "value"))
 	(* Null<object> to basic types - unwrap .value then use Runtime conversion.
 	   BUT: Only if cs_arg is not already cast to object (can't access .value on object).
 	   Simple cast doesn't work for dynamic values - need Runtime.toInt/toDouble/etc. *)
@@ -1120,22 +1009,11 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* object/Dynamic to generic type param T - need explicit cast (T)value *)
 	| CsTypeGenericParam _, CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	| CsTypeGenericParam _, CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
-	(* Null<Null<T>> to T - need double unwrap via .value.value, but ONLY if expression actually has double-Null *)
-	| target, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [inner])])
-		when target = inner && cs_expr_is_double_null cs_arg ->
-		CsField (CsField (cs_arg, "value"), "value")
-	(* Null<Null<T>> to Null<T> - need single unwrap via .value, but ONLY if expression actually has double-Null *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), [target]), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [inner])])
-		when target = inner && cs_expr_is_double_null cs_arg ->
+	(* Null<T> to T (generic) - unwrap via .value.
+	   The CsNullableSynf filter handles Null<Null<T>> flattening, so this only handles single Null. *)
+	| target, CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
+		when target = inner && not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
-	(* Haxe type says Null<Null<T>> to T, but C# expression was flattened - just single unwrap *)
-	| target, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [inner])])
-		when target = inner ->
-		CsField (cs_arg, "value")
-	(* Haxe type says Null<Null<T>> to Null<T>, but C# expression was flattened - no unwrap needed *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), [target]), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [inner])])
-		when target = inner ->
-		cs_arg
 	(* Null<numeric1> to Null<numeric2> - need to convert the inner value.
 	   e.g., Null<int> to Null<double>: hasValue ? new Null<double>((double)value, true) : new Null<double>(0, false)
 	   We use a ternary to handle the hasValue check. *)
@@ -1387,12 +1265,10 @@ let rec cs_expr_of_texpr ectx e =
 	match e.eexpr with
 	| TConst TNull ->
 		(* For Null<T> types and generic type params, generate default(T) instead of null.
-		   However, avoid double-wrapping: if the C# type is already Null<Null<T>>, use the inner type. *)
+		   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level,
+		   so we only need to handle single-level Null<T> here. *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		begin match cs_type with
-		| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _) as inner]) ->
-			(* Null<Null<T>> - avoid double wrapping, use Null<T> instead *)
-			CsDefault inner
 		| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> CsDefault cs_type
 		| CsTypeGenericParam _ -> CsDefault cs_type  (* C# requires default(T) for generic params *)
 		| _ -> CsNull
@@ -4226,20 +4102,8 @@ let rec cs_expr_of_texpr ectx e =
 			   a called method's signature, they won't be valid in the current context.
 			   For example, calling a generic method via reflection returns T, but T
 			   is not defined in the calling context. Replace with object. *)
-			let target_type_raw = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope target_type_raw in
-			(* Function types map to haxe.lang.Function - no special handling needed. *)
-			(* Fix spurious Null<Null<T>> from safe cast pattern (e.g., Std.downcast).
-			   When target is Null<Null<T>> but inner type is NOT Null<T>, flatten to Null<T>.
-			   This happens because the Haxe type system infers an extra Null wrapper in ternaries
-			   where one branch is `cast value` and the other is `null`. *)
-			let inner_type_raw = cs_type_of_type ectx.gctx inner_e.etype in
-			let target_type = match target_type_raw, inner_type_raw with
-				| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [_]) as inner_null]),
-				  t when t <> inner_null && not (match t with CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true | _ -> false) ->
-					(* Target is Null<Null<T>>, inner is not a Null type - use just Null<T> *)
-					inner_null
-				| _ -> target_type_raw
-			in
+			let target_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope target_type_raw in
+			(* NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level. *)
 			(* Special case: casting null to a value type should use default(T), not (T)(null)
 			   This handles @:fromNull abstracts where null converts to the default value *)
 			let is_null_inner = match inner_e.eexpr with TConst TNull -> true | _ -> false in
@@ -4562,7 +4426,7 @@ let rec cs_expr_of_texpr ectx e =
 			   is T and other is Null<T> because both implicit conversions exist (T->Null<T> and Null<T>->T).
 			   Use new Null<T>(value, true) for explicit wrapping since explicit casts don't work
 			   for all types (e.g., interfaces can't be explicitly cast to Null<interface>).
-			   Also handle Null<Null<T>> - flatten to Null<T> since C# can't have double-wrapped Null.
+			   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level.
 			   IMPORTANT: Only wrap if the branch isn't already the target Null type. *)
 			let result_cs_type = cs_type_of_type ectx.gctx result_type in
 			let then_cs_type = cs_type_of_type ectx.gctx then_expr.etype in
@@ -4605,10 +4469,6 @@ let rec cs_expr_of_texpr ectx e =
 					CsNew (null_type, [expr; CsConst (CsConstBool true)])
 			in
 			let then_e, else_e = match result_cs_type with
-				| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _) as inner_null]) ->
-					(* Null<Null<T>> - flatten to Null<T> for ternary branches *)
-					wrap_in_null_if_needed inner_null then_cs_type then_e,
-					wrap_in_null_if_needed inner_null else_cs_type else_e
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) as null_type ->
 					(* Wrap both branches in Null<T> to ensure C# ternary type is unambiguous *)
 					wrap_in_null_if_needed null_type then_cs_type then_e,
@@ -4996,11 +4856,8 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		(* For control flow statements used as expressions, generate a result variable
 		   instead of wrapping in a lambda IIFE.
 		   Pattern: var _hx_result = default(T); if (...) _hx_result = x; else _hx_result = y; use _hx_result *)
-		(* Flatten Null<Null<T>> to Null<T> because:
-		   1. Haxe type inference may infer Null<Null<T>> for conditional expressions
-		   2. C# doesn't distinguish between Null<Null<T>> and Null<T> semantically
-		   3. The actual branch expressions we generate use flattened Null<T> *)
-		let result_type = flatten_nested_null_type (cs_type_of_type ectx.gctx e.etype) in
+		(* NOTE: CsNullableSynf filter handles Null<Null<T>> flattening at the AST level *)
+		let result_type = cs_type_of_type ectx.gctx e.etype in
 		let is_void = ExtType.is_void (follow e.etype) in
 		(* Generate a unique temporary variable name *)
 		let result_var = fresh_temp ectx in
@@ -5396,13 +5253,11 @@ and cs_stmt_of_texpr ectx e =
 			CsExprStmt (cs_expr_of_texpr ectx e)
 		else begin
 			(* RHS needed prefix statements - emit them, then the assignment.
-			   IMPORTANT: Use the flattened C# type for coercion, not the Haxe type.
-			   cs_expr_with_prefix flattens Null<Null<T>> to Null<T> when creating the result var,
-			   so we must use the flattened type to avoid incorrect double-unwrapping.
+			   NOTE: CsNullableSynf filter handles Null<Null<T>> flattening at the AST level.
 
 			   NOTE: We use cs_expr_of_texpr for LHS but delegate to the assignment handling
 			   in the general TBinop OpAssign case for correct field handling. *)
-			let arg_cs_type = flatten_nested_null_type (cs_type_of_type ectx.gctx e2.etype) in
+			let arg_cs_type = cs_type_of_type ectx.gctx e2.etype in
 			let expected_cs_type = cs_type_of_type ectx.gctx e1.etype in
 			let val_cs = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx result.er_expr arg_cs_type expected_cs_type in
 			(* Create a fake expression for just the LHS assignment with pre-computed RHS *)
@@ -6366,6 +6221,8 @@ let () = generate_method_closure_ref := generate_method_closure
    type_params_in_scope: type parameter names from class and method that are valid in this context
    type_param_constraints: constraints for type parameters (name -> C# constraint types) *)
 let generate_method_body gctx ?(param_cs_names=[]) ?(type_params_in_scope=[]) ?(type_param_constraints=[]) ?return_type ?class_path ?method_name e =
+	(* Apply Null<T> syntax filter to the expression first *)
+	let e = CsNullableSynf.filter gctx.com e in
 	let ectx = create_expr_context gctx in
 	ectx.return_type <- return_type;
 	ectx.current_class_path <- class_path;
