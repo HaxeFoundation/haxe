@@ -164,20 +164,28 @@ let rec cs_type_of_type_inner gctx stack t =
 		let path = cs_path_of_path c.cl_path in
 		(* Convert type params, respecting constraints.
 		   If a param maps to object but the class param has a constraint,
-		   use the constraint bound instead (C# requires type args satisfy constraints). *)
-		let params = List.map2 (fun hx_type ttp ->
-			let cs_type = cs_type_of_type_inner hx_type in
-			match cs_type with
-			| CsTypeObject ->
-				let constraints = TFunctions.get_constraints ttp in
-				begin match constraints with
-				| first_constraint :: _ ->
-					let constraint_cs = cs_type_of_type_inner first_constraint in
-					if constraint_cs <> CsTypeObject then constraint_cs else cs_type
-				| [] -> cs_type
-				end
-			| _ -> cs_type
-		) params c.cl_params in
+		   use the constraint bound instead (C# requires type args satisfy constraints).
+		   Note: params and c.cl_params may have different lengths (e.g., when type is
+		   erased or partially specified). Only apply constraint substitution when lengths match. *)
+		let params =
+			if List.length params = List.length c.cl_params then
+				List.map2 (fun hx_type ttp ->
+					let cs_type = cs_type_of_type_inner hx_type in
+					match cs_type with
+					| CsTypeObject ->
+						let constraints = TFunctions.get_constraints ttp in
+						begin match constraints with
+						| first_constraint :: _ ->
+							let constraint_cs = cs_type_of_type_inner first_constraint in
+							if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+						| [] -> cs_type
+						end
+					| _ -> cs_type
+				) params c.cl_params
+			else
+				(* Lengths don't match - just map the params without constraint substitution *)
+				List.map cs_type_of_type_inner params
+		in
 		CsTypeClass (path, params)
 	| TEnum (e, params) ->
 		let path = cs_path_of_path e.e_path in
@@ -187,15 +195,30 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* Check for well-known typedefs first *)
 		begin match td.t_path with
 		| ([], "Iterator") ->
-			(* Iterator<T> is a structural typedef - map to haxe.iterators.ArrayIterator for C# *)
-			let inner = cs_type_of_type_inner (List.hd params) in
-			CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), [inner])
+			(* Iterator<T> is a structural typedef.
+			   - If T is a concrete type (Int, String, class, etc.), map to ArrayIterator<T>
+			     to allow direct method calls instead of using Reflect.
+			   - If T is an anonymous type (e.g., {key:K, value:V} from KeyValueIterator),
+			     we can't use ArrayIterator because the actual implementation might be
+			     different (like MapKeyValueIterator). In this case, follow to object. *)
+			let inner_hx = List.hd params in
+			begin match Type.follow inner_hx with
+			| TAnon _ ->
+				(* Inner type is anonymous - can't assume ArrayIterator, use object *)
+				CsTypeObject
+			| _ ->
+				let inner = cs_type_of_type_inner inner_hx in
+				CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), [inner])
+			end
 		| ([], "KeyValueIterator") ->
-			let k = cs_type_of_type_inner (List.hd params) in
-			let v = cs_type_of_type_inner (List.nth params 1) in
-			CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), [k; v])
+			(* KeyValueIterator<K,V> is a structural typedef. Unlike Iterator, we can't
+			   map it to a specific class because implementations vary:
+			   - Map.keyValueIterator() returns MapKeyValueIterator
+			   - Array.iterator() on array of {key:K, value:V} returns ArrayIterator
+			   So we follow to the underlying anonymous type, which becomes object in C#. *)
+			cs_type_of_type_inner (Type.apply_typedef td params)
 		| _ ->
-			(* Other typedef - follow it *)
+			(* Other typedefs: follow to underlying type *)
 			cs_type_of_type_inner (Type.apply_typedef td params)
 		end
 	| TFun (args, ret) ->
@@ -454,6 +477,33 @@ let rec erase_out_of_scope_type_params in_scope cstype =
 		CsTypeNested (erase_out_of_scope_type_params in_scope parent, name)
 	| CsTypeNestedGeneric (parent, name, params) ->
 		CsTypeNestedGeneric (erase_out_of_scope_type_params in_scope parent, name, List.map (erase_out_of_scope_type_params in_scope) params)
+	| _ ->
+		(* Primitive types, object, string, etc. - no change *)
+		cstype
+
+(* Substitute type parameters using a name -> type mapping.
+   This is used to apply method type arguments to parameter types
+   when Haxe's apply_params doesn't work due to physical identity issues
+   with type param instances (common with abstract impl methods). *)
+let rec substitute_type_params subst cstype =
+	match cstype with
+	| CsTypeGenericParam name ->
+		(* Look up substitution by name *)
+		begin try List.assoc name subst with Not_found -> cstype end
+	| CsTypeNullable t ->
+		CsTypeNullable (substitute_type_params subst t)
+	| CsTypeArray (t, rank) ->
+		CsTypeArray (substitute_type_params subst t, rank)
+	| CsTypeClass (path, params) ->
+		CsTypeClass (path, List.map (substitute_type_params subst) params)
+	| CsTypeFunc (args, ret) ->
+		CsTypeFunc (List.map (substitute_type_params subst) args, substitute_type_params subst ret)
+	| CsTypeAction args ->
+		CsTypeAction (List.map (substitute_type_params subst) args)
+	| CsTypeNested (parent, name) ->
+		CsTypeNested (substitute_type_params subst parent, name)
+	| CsTypeNestedGeneric (parent, name, params) ->
+		CsTypeNestedGeneric (substitute_type_params subst parent, name, List.map (substitute_type_params subst) params)
 	| _ ->
 		(* Primitive types, object, string, etc. - no change *)
 		cstype
