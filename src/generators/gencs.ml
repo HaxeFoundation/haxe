@@ -902,9 +902,10 @@ let rec is_ternary_with_mixed_types cs_expr =
    The optional in_scope parameter specifies which type parameters are valid in the
    current context. If provided and the expected type is purely a generic param (like TBody),
    out-of-scope type params are erased to object. *)
-let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
-	let arg_cs_type = cs_type_of_type gctx arg_type in
-	let expected_cs_type_raw = cs_type_of_type gctx expected_type in
+(* Core coercion logic that works with C# types directly.
+   This is the inner function used by coerce_arg and can also be called directly
+   when you already have C# types (e.g., after flattening Null<Null<T>>). *)
+let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* Only erase when the expected type is purely a generic param that's out of scope.
 	   For complex types like Expr<double>, we should NOT erase - the type params were
 	   correctly inferred. Erasing Expr<C> to Expr<object> would break valid code. *)
@@ -1052,6 +1053,25 @@ let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])
 		when path <> (["haxe"; "lang"], "Null") ->
 		CsCast (CsTypeClass (path, params), cs_arg)
+	(* Null<SomeClass> to SomeClass - unwrap .value to get the inner class type.
+	   This handles cases like Null<G<Array<int>>> to G<Array<int>> from Std.downcast.
+	   BUT: Only if cs_arg is not already cast to object (can't access .value on object) *)
+	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass (inner_path, inner_params)])
+		when path = inner_path && path <> (["haxe"; "lang"], "Null") && not (cs_expr_is_object_cast cs_arg) ->
+		(* If params match exactly, just unwrap .value *)
+		if params = inner_params then
+			CsField (cs_arg, "value")
+		else
+			(* Params differ - need to cast through object after unwrap *)
+			CsCast (CsTypeClass (path, params), CsCast (CsTypeObject, CsField (cs_arg, "value")))
+	(* Null<NestedGeneric> to NestedGeneric - unwrap .value for nested generic types.
+	   This handles cases like Null<Parent.G<T>> to Parent.G<T> for nested classes. *)
+	| CsTypeNestedGeneric (parent, name, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeNestedGeneric (inner_parent, inner_name, inner_params)])
+		when parent = inner_parent && name = inner_name && not (cs_expr_is_object_cast cs_arg) ->
+		if params = inner_params then
+			CsField (cs_arg, "value")
+		else
+			CsCast (CsTypeNestedGeneric (parent, name, params), CsCast (CsTypeObject, CsField (cs_arg, "value")))
 	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally.
 	   If the object is null, create a Null with hasValue=false.
 	   If the object has a value, unbox it and create Null with hasValue=true.
@@ -1192,6 +1212,12 @@ let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 	(* Don't cast object to arbitrary class types or generic params - they may not be in scope
 	   and the type system should handle covariance through proper interfaces *)
 	| _ -> cs_arg
+
+(* Wrapper that converts Haxe types to C# types and calls coerce_cs_types *)
+let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
+	let arg_cs_type = cs_type_of_type gctx arg_type in
+	let expected_cs_type = cs_type_of_type gctx expected_type in
+	coerce_cs_types ?in_scope gctx cs_arg arg_cs_type expected_cs_type
 
 (* Check if a type is Rest<T> and return the inner element type if so *)
 let get_rest_element_type t =
@@ -5366,14 +5392,30 @@ and cs_stmt_of_texpr ectx e =
 		   This optimizes: `x = { ... do-while ... }` to use prefix statements instead of wrapping in lambda. *)
 		let result = cs_expr_with_prefix ectx e2 in
 		if result.er_stmts = [] then
-			(* Simple case - no prefix statements needed *)
+			(* Simple case - no prefix statements needed, fall through to general handler *)
 			CsExprStmt (cs_expr_of_texpr ectx e)
 		else begin
-			(* RHS needed prefix statements - emit them, then the assignment *)
-			let lhs_cs = cs_expr_of_texpr ectx e1 in
-			let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx result.er_expr e2.etype e1.etype in
-			let assign_stmt = CsExprStmt (CsBinop (CsOpAssign, lhs_cs, val_cs)) in
-			CsBlock (result.er_stmts @ [assign_stmt])
+			(* RHS needed prefix statements - emit them, then the assignment.
+			   IMPORTANT: Use the flattened C# type for coercion, not the Haxe type.
+			   cs_expr_with_prefix flattens Null<Null<T>> to Null<T> when creating the result var,
+			   so we must use the flattened type to avoid incorrect double-unwrapping.
+
+			   NOTE: We use cs_expr_of_texpr for LHS but delegate to the assignment handling
+			   in the general TBinop OpAssign case for correct field handling. *)
+			let arg_cs_type = flatten_nested_null_type (cs_type_of_type ectx.gctx e2.etype) in
+			let expected_cs_type = cs_type_of_type ectx.gctx e1.etype in
+			let val_cs = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx result.er_expr arg_cs_type expected_cs_type in
+			(* Create a fake expression for just the LHS assignment with pre-computed RHS *)
+			let lhs_expr = { e with eexpr = TBinop (OpAssign, e1, { e2 with eexpr = TConst TNull; etype = e1.etype }) } in
+			let lhs_assign_cs = cs_expr_of_texpr ectx lhs_expr in
+			(* Replace the null RHS with our actual value *)
+			let assign_cs = match lhs_assign_cs with
+				| CsBinop (CsOpAssign, lhs_cs, _) -> CsBinop (CsOpAssign, lhs_cs, val_cs)
+				| CsStaticCall (t, "SetField", [obj; name; _]) -> CsStaticCall (t, "SetField", [obj; name; val_cs])
+				| CsCall (CsField (obj, "_hx_setField"), [name; _]) -> CsCall (CsField (obj, "_hx_setField"), [name; val_cs])
+				| other -> other  (* Fallback - shouldn't happen *)
+			in
+			CsBlock (result.er_stmts @ [CsExprStmt assign_cs])
 		end
 	| _ ->
 		(* Expression statement - check if it's a void-typed control flow expression that can be emitted directly *)
