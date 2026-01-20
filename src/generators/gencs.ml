@@ -850,6 +850,18 @@ let flatten_nested_null_type cs_type =
 		inner
 	| _ -> cs_type
 
+(* Check if a Haxe expression is null or a default value (for block expression optimization).
+   This is used to detect patterns like { var x = null; call(args, x); } which can be
+   optimized by inlining the null/default directly into the call. *)
+let is_null_or_default_expr e =
+	match e.eexpr with
+	| TConst TNull -> true
+	| TConst (TInt 0l) -> true
+	| TConst (TFloat "0") -> true
+	| TConst (TFloat "0.0") -> true
+	| TConst (TBool false) -> true
+	| _ -> false
+
 (* Check if a C# expression is a ternary with mixed Null<T>/object branches.
    This pattern occurs with Haxe's ?? operator when one branch is Null<T> and
    the other is cast to object. C# cannot directly cast such ternaries to primitives.
@@ -4585,6 +4597,20 @@ let rec cs_expr_of_texpr ectx e =
 	| TBlock [single] ->
 		(* Single expression block - just unwrap *)
 		cs_expr_of_texpr ectx single
+	| TBlock [{ eexpr = TVar (v, Some init) }; call_expr] when is_null_or_default_expr init ->
+		(* Common pattern from optional parameters: { var startIndex = null; call(args, startIndex); }
+		   Optimize by inlining the default value directly into the call.
+		   This avoids creating a lambda IIFE for such simple patterns. *)
+		let rec substitute_var_with_default expr =
+			(* Substitute TLocal v with the default value expression *)
+			match expr.eexpr with
+			| TLocal v2 when v2.v_id = v.v_id ->
+				(* Replace the local with the init expression *)
+				init
+			| _ -> Type.map_expr substitute_var_with_default expr
+		in
+		let optimized_call = substitute_var_with_default call_expr in
+		cs_expr_of_texpr ectx optimized_call
 	| TBlock [first; { eexpr = TLocal v }] ->
 		(* Common pattern from inline abstract constructors: { temp = expr; temp; }
 		   Optimize to just the expression if first assigns to the same variable *)
@@ -4896,6 +4922,20 @@ and cs_stmt_with_result_assign ectx is_void result_var e =
 			| None -> CsEmpty
 		in
 		CsBlock (init_stmts @ [final_stmt])
+	| TWhile (cond, body, flag) ->
+		(* While loop as expression - the loop body's last expression assigns to result_var.
+		   For do-while loops that produce a value (like atomic operations), the result
+		   is typically assigned inside the loop body. *)
+		let body_with_assign = cs_stmt_with_result_assign ectx is_void result_var body in
+		let cond_cs = cs_expr_of_texpr ectx cond in
+		let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
+			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
+			| _ -> cond_cs
+		in
+		begin match flag with
+		| NormalWhile -> CsWhile (cond_cs, body_with_assign)
+		| DoWhile -> CsDoWhile (body_with_assign, cond_cs)
+		end
 	| TThrow throw_e ->
 		(* Throw doesn't assign - just emit throw statement *)
 		CsThrowStmt (cs_expr_of_texpr ectx throw_e)
@@ -4926,7 +4966,7 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		| None ->
 			{ er_stmts = init_stmts; er_expr = CsDefault (cs_type_of_type ectx.gctx e.etype) }
 		end
-	| TIf _ | TSwitch _ | TTry _ ->
+	| TIf _ | TSwitch _ | TTry _ | TWhile _ ->
 		(* For control flow statements used as expressions, generate a result variable
 		   instead of wrapping in a lambda IIFE.
 		   Pattern: var _hx_result = default(T); if (...) _hx_result = x; else _hx_result = y; use _hx_result *)
@@ -5321,6 +5361,20 @@ and cs_stmt_of_texpr ectx e =
 	| TCast (inner, None) ->
 		(* Unwrap unnecessary casts and process the inner expression as a statement *)
 		cs_stmt_of_texpr ectx inner
+	| TBinop (OpAssign, e1, e2) ->
+		(* Assignment statement - use prefix handling for RHS to avoid lambda IIFE.
+		   This optimizes: `x = { ... do-while ... }` to use prefix statements instead of wrapping in lambda. *)
+		let result = cs_expr_with_prefix ectx e2 in
+		if result.er_stmts = [] then
+			(* Simple case - no prefix statements needed *)
+			CsExprStmt (cs_expr_of_texpr ectx e)
+		else begin
+			(* RHS needed prefix statements - emit them, then the assignment *)
+			let lhs_cs = cs_expr_of_texpr ectx e1 in
+			let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx result.er_expr e2.etype e1.etype in
+			let assign_stmt = CsExprStmt (CsBinop (CsOpAssign, lhs_cs, val_cs)) in
+			CsBlock (result.er_stmts @ [assign_stmt])
+		end
 	| _ ->
 		(* Expression statement - check if it's a void-typed control flow expression that can be emitted directly *)
 		let is_void = ExtType.is_void (follow e.etype) in
