@@ -137,12 +137,15 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics)
 		   EXCEPT Null<Void> which becomes just 'object' since C# doesn't allow void as a type argument.
 
-		   NOTE: Null<Null<T>> intentionally stays as Null<Null<T>> for accurate type representation
-		   at C# call sites. When we need to unwrap (e.g., passing to method expecting T),
-		   the coerce_arg function handles .value.value unwrapping explicitly. *)
+		   Null<Null<T>> is flattened to Null<T> because:
+		   1. C# Null<T> struct cannot semantically nest - "nullable nullable int" = "nullable int"
+		   2. This avoids complex unwrapping logic in coerce_cs_types *)
 		let inner = cs_type_of_type_inner t in
 		begin match inner with
 		| CsTypeVoid -> CsTypeObject
+		(* Flatten nested Null<Null<T>> to Null<T> *)
+		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner]) ->
+			CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner])
 		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 		end
 	| TDynamic _ ->
@@ -161,6 +164,15 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* cs.NativeArray<T> -> T[] *)
 		let inner = cs_type_of_type_inner t in
 		CsTypeArray (inner, None)
+	| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, [t]) ->
+		(* haxe.lang.Null<T> class instance - same flattening rules as abstract Null *)
+		let inner = cs_type_of_type_inner t in
+		begin match inner with
+		| CsTypeVoid -> CsTypeObject
+		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner]) ->
+			CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner])
+		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
+		end
 	| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
 		(* Type parameter -> preserve as generic param for C# generics *)
 		CsTypeGenericParam ttp.ttp_name

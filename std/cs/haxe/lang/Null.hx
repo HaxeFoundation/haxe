@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package cs.internal;
+package haxe.lang;
 
 /**
 	Wrapper struct for nullable values that provides unified semantics
@@ -33,7 +33,6 @@ package cs.internal;
 	- Proper arithmetic behavior (Null<int> + int → int)
 **/
 @:include("haxe/lang/Null.cs")
-@:native("haxe.lang.Null")
 extern class Null<T> {
 	/**
 		The wrapped value. Returns `default(T)` if `hasValue` is false.

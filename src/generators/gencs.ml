@@ -679,6 +679,17 @@ let is_binop_with_implicit_null_conversion e =
 			false
 	| _ -> false
 
+(* Check if an expression has Haxe type Null<T> but generates NON-Null C# code.
+   These expressions should NOT have .value added.
+   Examples:
+   - Enum constructor field access (FEnum): Haxe type is Null<EnumType> but C# is EnumType
+   - Type.resolveClass result when cast: Haxe type is Null<Class<T>> but may generate System.Type *)
+let rec is_non_null_generating_expr e =
+	match e.eexpr with
+	| TField(_, FEnum _) -> true  (* Enum constructors don't generate Null in C# *)
+	| TParenthesis e1 | TMeta (_, e1) -> is_non_null_generating_expr e1
+	| _ -> false
+
 (* Helper to get the inner type from Null<T>, if the expression needs .value unwrapping.
    Returns Some(inner) if expression is Null-wrapped and needs unwrapping, None otherwise.
    CRITICAL: For TCast, check the TARGET type, not the inner type. *)
@@ -2109,20 +2120,33 @@ let rec cs_expr_of_texpr ectx e =
 		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
 		let obj_expr = cs_expr_of_texpr ectx e_obj in
 		let raw_type = Type.follow_once e_obj.etype in
-		let obj_expr = match raw_type with
-			| TAbstract ({ a_path = ([], "Null") }, _) ->
-				(* Null<T> -> access .value to unwrap *)
-				CsField (obj_expr, "value")
-			| _ -> obj_expr
+		(* Special case: accessing .value or .hasValue on Null<T> - use direct field access, not reflection.
+		   CsNullableSynf generates FDynamic "value"/"hasValue" for Null unwrapping. *)
+		let is_null_struct_field = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, _) -> name = "value" || name = "hasValue"
+			| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, _) -> name = "value" || name = "hasValue"
+			| _ -> false
 		in
-		(* Use haxe.lang.Runtime.GetField for dynamic field access *)
-		let field_call = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)]) in
-		(* Runtime.GetField returns object, but Haxe knows the actual type.
-		   Cast to the expected type if it's not Dynamic/object. *)
-		let result_cs_type = cs_type_of_type ectx.gctx e.etype in
-		begin match result_cs_type with
-		| CsTypeObject | CsTypeDynamic -> field_call
-		| _ -> CsCast (result_cs_type, field_call)
+		if is_null_struct_field then
+			(* Direct field access on Null<T> struct *)
+			CsField (obj_expr, name)
+		else begin
+			(* Regular dynamic field access via reflection *)
+			let obj_expr = match raw_type with
+				| TAbstract ({ a_path = ([], "Null") }, _) ->
+					(* Null<T> -> access .value to unwrap before dynamic field access *)
+					CsField (obj_expr, "value")
+				| _ -> obj_expr
+			in
+			(* Use haxe.lang.Runtime.GetField for dynamic field access *)
+			let field_call = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)]) in
+			(* Runtime.GetField returns object, but Haxe knows the actual type.
+			   Cast to the expected type if it's not Dynamic/object. *)
+			let result_cs_type = cs_type_of_type ectx.gctx e.etype in
+			begin match result_cs_type with
+			| CsTypeObject | CsTypeDynamic -> field_call
+			| _ -> CsCast (result_cs_type, field_call)
+			end
 		end
 	| TField (_, FEnum (en, ef)) ->
 		let path = cs_path_of_path en.e_path in
@@ -2848,15 +2872,10 @@ let rec cs_expr_of_texpr ectx e =
 				let rec find_type_param_in_type ttp_name param_t arg_t =
 					match follow param_t, follow arg_t with
 					| TInst ({ cl_kind = KTypeParameter ttp2 }, _), _ when ttp2.ttp_name = ttp_name ->
-						(* Direct type parameter match - unwrap Null<T> if present
-						   UNLESS the inner type is also Null (double-wrapped Null<Null<T>>),
-						   in which case keep the inner Null as it's the actual stored type *)
+						(* Direct type parameter match - unwrap Null<T> if present.
+						   Note: Null<Null<T>> is already flattened by csSignature.ml *)
 						let unwrapped = match follow arg_t with
-							| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-								begin match follow inner with
-								| TAbstract ({ a_path = ([], "Null") }, _) -> inner  (* Keep Null<X> when we have Null<Null<X>> *)
-								| _ -> inner  (* Unwrap single Null<X> to X *)
-								end
+							| TAbstract ({ a_path = ([], "Null") }, [inner]) -> inner
 							| t -> t
 						in
 						Some unwrapped
@@ -2990,14 +3009,9 @@ let rec cs_expr_of_texpr ectx e =
 					let return_type_once = Type.follow_once return_type in
 					match return_type_once with
 					| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-						(* For Null<T> return types, extract T from the actual return type Null<inner>.
-						   If inner is also Null<X>, extract X to avoid double-wrapping. *)
-						let inner_followed = follow inner in
-						let unwrapped_inner = match inner_followed with
-							| TAbstract ({ a_path = ([], "Null") }, [x]) -> x
-							| _ -> inner_followed
-						in
-						[unwrapped_inner]
+						(* For Null<T> return types, extract T.
+						   Note: Null<Null<T>> is already flattened by csSignature.ml *)
+						[follow inner]
 					| _ -> infer_type_params_as_types ()
 				else
 						(* For other cases, use follow for proper type resolution *)
@@ -3191,6 +3205,26 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
 			| _ -> CsCast (result_type, call_expr)
 			end
+		end
+	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) when name = "value" || name = "hasValue" ->
+		(* Special case: calling .value or .hasValue on Null<T> - this is csNullableSynf's unwrap pattern.
+		   Generate direct field access and invoke, not Runtime.GetField. *)
+		let obj = cs_expr_of_texpr ectx e_obj in
+		let func_expr = CsField (obj, name) in
+		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
+		let args_array = if args_exprs = [] then
+			CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+		else
+			let native_array = CsNewArray (CsTypeObject, args_exprs) in
+			CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+		in
+		let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
+		let result_type = cs_type_of_type ectx.gctx e.etype in
+		let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+		begin match result_type with
+		| CsTypeVoid -> call_expr  (* Don't cast void results *)
+		| CsTypeObject | CsTypeDynamic -> call_expr
+		| _ -> CsCast (result_type, call_expr)
 		end
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) ->
 		(* Dynamic method call: obj.dynamicMethod(args) -> Runtime.InvokeDelegate(Runtime.GetField(obj, "method"), args) *)
@@ -3571,14 +3605,9 @@ let rec cs_expr_of_texpr ectx e =
 					let return_type_once = Type.follow_once return_type in
 					match return_type_once with
 					| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-						(* For Null<T> return types, extract T from the actual return type Null<inner>.
-						   If inner is also Null<X>, extract X to avoid double-wrapping. *)
-						let inner_followed = follow inner in
-						let unwrapped_inner = match inner_followed with
-							| TAbstract ({ a_path = ([], "Null") }, [x]) -> x
-							| _ -> inner_followed
-						in
-						[unwrapped_inner]
+						(* For Null<T> return types, extract T.
+						   Note: Null<Null<T>> is already flattened by csSignature.ml *)
+						[follow inner]
 					| _ -> infer_type_params_as_types ()
 				else
 						(* For other cases, use follow for proper type resolution *)
@@ -3753,6 +3782,10 @@ let rec cs_expr_of_texpr ectx e =
 			CsStaticCall (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, args)
 		end
 		end  (* close is_stored_function_field else branch *)
+	| TCall ({ eexpr = TIdent "__default__" }, []) ->
+		(* Generated by CsNullableSynf for default(Null<T>) *)
+		let cs_type = cs_type_of_type ectx.gctx e.etype in
+		CsDefault cs_type
 	| TCall ({ eexpr = TIdent "__cs__" }, args) ->
 		(* Inline C# code: untyped __cs__("code", arg1, arg2, ...) *)
 		begin match args with
@@ -4298,13 +4331,14 @@ let rec cs_expr_of_texpr ectx e =
 					| CsTypeString -> CsCast (CsTypeString, inner_cs)
 					| _ -> CsCast (target_type, inner_cs)  (* Fallback for other types *)
 				end
-				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) then begin
+				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && not (is_non_null_generating_expr inner_e) then begin
 					(* Casting FROM Null<T> to non-Null type - use .value to unwrap, then cast if needed.
 					   This handles cases like (SomeInterface)(map.get(...)) where get returns Null<SomeInterface>.
 					   BUT: Don't add .value if:
 					   - Expression is arithmetic on Null<T> (C# implicit conversion produces T)
 					   - Expression is already cast to object (can't access .value on object type)
-					   - Expression is a Runtime.toInt/toDouble/etc. call (already returns primitive, not Null<T>) *)
+					   - Expression is a Runtime.toInt/toDouble/etc. call (already returns primitive, not Null<T>)
+					   - Expression is an enum constructor (generates EnumType, not Null<EnumType> in C#) *)
 					let unwrapped = CsField (inner_cs, "value") in
 					let inner_unwrapped_type = match inner_type with
 						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
@@ -4667,6 +4701,10 @@ let rec cs_expr_of_texpr ectx e =
 			CsCast (CsTypeInt, field_call)
 		else
 			CsField (obj, "_hx_index")
+	| TIdent "__default__" ->
+		(* Generated by CsNullableSynf for default(Null<T>) *)
+		let cs_type = cs_type_of_type ectx.gctx e.etype in
+		CsDefault cs_type
 	| TIdent s ->
 		CsLocal (escape_identifier s)
 
@@ -4942,25 +4980,28 @@ and cs_stmt_of_texpr ectx e =
 			let is_init_object_cast = cs_expr_is_object_cast init_cs in
 			(* Check if init_cs is a Runtime.toInt/toDouble/etc. call - returns primitive, not Null<primitive> *)
 			let is_init_runtime_conversion = cs_expr_is_runtime_conversion init_cs in
+			(* Check if init expr is a non-null generating expression (e.g., enum field access).
+			   These have Haxe type Null<T> but generate C# code that produces T directly. *)
+			let is_init_non_null_generating = is_non_null_generating_expr init_expr in
 			let init_cs = match init_type, var_type with
 				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) ->
 					(* Dynamic -> specific type: need runtime cast *)
 					CsCast (var_type, init_cs)
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion ->
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value
 					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					CsField (init_cs, "value")
-				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_t]), var_t when inner_t = var_t && not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion ->
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_t]), var_t when inner_t = var_t && not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<T> -> T (exact match): use .value to unwrap
 					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					CsField (init_cs, "value")
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion ->
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<T> -> SomeType (not Null<_>): unwrap via .value and cast if needed
 					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					let unwrapped = CsField (init_cs, "value") in
 					CsCast (var_type, CsCast (CsTypeObject, unwrapped))
 				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_init]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
-					when inner_init <> inner_var && not is_init_object_cast && not is_init_runtime_conversion ->
+					when inner_init <> inner_var && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<A> -> Null<B> where A != B: need to convert inner value.
 					   Generate: init.hasValue ? new Null<B>((B)init.value, true) : new Null<B>(default(B), false)
 					   BUT: Skip if init is already cast to object (can't access .hasValue/.value) or if Runtime conversion *)

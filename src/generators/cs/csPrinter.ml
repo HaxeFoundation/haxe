@@ -177,12 +177,20 @@ and print_expr ctx = function
 		print ctx " ";
 		print_expr ctx e2
 	| CsUnop (op, is_postfix, e) ->
+		(* Prefix unary operators need parens around binary ops and ternary to preserve precedence.
+		   E.g., !(a != b) should be "!(a != b)" not "!a != b" *)
+		let needs_parens = match e with
+			| CsBinop _ | CsTernary _ -> true
+			| _ -> false
+		in
 		if is_postfix then begin
 			print_expr ctx e;
 			print ctx (unop_to_string op)
 		end else begin
 			print ctx (unop_to_string op);
-			print_expr ctx e
+			if needs_parens then print ctx "(";
+			print_expr ctx e;
+			if needs_parens then print ctx ")"
 		end
 	| CsTernary (cond, e1, e2) ->
 		print_expr ctx cond;
