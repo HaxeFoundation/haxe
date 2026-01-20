@@ -4801,6 +4801,60 @@ and split_last = function
 	| [x] -> ([], Some x)
 	| x :: xs -> let (rest, last) = split_last xs in (x :: rest, last)
 
+(* Convert a statement to assign its result to a variable instead of returning.
+   Similar to cs_stmt_with_return_inner but uses assignment instead of return.
+   This avoids lambda IIFEs for control flow expressions like if/switch/try. *)
+and cs_stmt_with_result_assign ectx is_void result_var e =
+	match e.eexpr with
+	| TTry (e1, catches) ->
+		let try_body = cs_stmt_with_result_assign ectx is_void result_var e1 in
+		let catch_clauses = List.map (fun (v, catch_expr) ->
+			let catch_body = cs_stmt_with_result_assign ectx is_void result_var catch_expr in
+			{
+				catch_type = Some (cs_type_of_type ectx.gctx v.v_type);
+				catch_name = Some (get_local_name ectx v);
+				catch_when = None;
+				catch_body = catch_body;
+			}
+		) catches in
+		CsTry (try_body, catch_clauses, None)
+	| TIf (cond, e_then, e_else_opt) ->
+		let cond_cs = cs_expr_of_texpr ectx cond in
+		let then_body = cs_stmt_with_result_assign ectx is_void result_var e_then in
+		let else_body = Option.map (cs_stmt_with_result_assign ectx is_void result_var) e_else_opt in
+		CsIf (cond_cs, then_body, else_body)
+	| TSwitch sw ->
+		let switch_expr = cs_expr_of_texpr ectx sw.switch_subject in
+		let cs_sections = List.map (fun case ->
+			let cs_labels = List.map (fun v -> CsCaseConst (cs_expr_of_texpr ectx v)) case.case_patterns in
+			let case_body_with_assign = cs_stmt_with_result_assign ectx is_void result_var case.case_expr in
+			{ sw_labels = cs_labels; sw_body = [case_body_with_assign] }
+		) sw.switch_cases in
+		let cs_sections = match sw.switch_default with
+			| Some def_expr ->
+				let def_body = cs_stmt_with_result_assign ectx is_void result_var def_expr in
+				cs_sections @ [{ sw_labels = [CsCaseDefault]; sw_body = [def_body] }]
+			| None -> cs_sections
+		in
+		CsSwitch (switch_expr, cs_sections)
+	| TBlock exprs ->
+		let (init_exprs, last_opt) = split_last exprs in
+		let init_stmts = List.map (cs_stmt_of_texpr ectx) init_exprs in
+		let final_stmt = match last_opt with
+			| Some last_expr -> cs_stmt_with_result_assign ectx is_void result_var last_expr
+			| None -> CsEmpty
+		in
+		CsBlock (init_stmts @ [final_stmt])
+	| TThrow throw_e ->
+		(* Throw doesn't assign - just emit throw statement *)
+		CsThrowStmt (cs_expr_of_texpr ectx throw_e)
+	| _ ->
+		(* For simple expressions, assign them to the result variable (or just emit as statement if void) *)
+		if is_void then
+			CsExprStmt (cs_expr_of_texpr ectx e)
+		else
+			CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, cs_expr_of_texpr ectx e))
+
 (* Convert block expression to prefix statements + final expression value.
    This is used in statement contexts where we can emit: { stmts...; var x = finalExpr; }
    instead of wrapping in a lambda. *)
@@ -4821,6 +4875,19 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		| None ->
 			{ er_stmts = init_stmts; er_expr = CsDefault (cs_type_of_type ectx.gctx e.etype) }
 		end
+	| TIf _ | TSwitch _ | TTry _ ->
+		(* For control flow statements used as expressions, generate a result variable
+		   instead of wrapping in a lambda IIFE.
+		   Pattern: var _hx_result = default(T); if (...) _hx_result = x; else _hx_result = y; use _hx_result *)
+		let result_type = cs_type_of_type ectx.gctx e.etype in
+		let is_void = ExtType.is_void (follow e.etype) in
+		(* Generate a unique temporary variable name *)
+		let result_var = fresh_temp ectx in
+		(* Declare the result variable with default value *)
+		let decl_stmt = CsVarDecl (result_var, Some result_type, Some (CsDefault result_type)) in
+		(* Convert the statement to assign to the result variable *)
+		let assign_stmt = cs_stmt_with_result_assign ectx is_void result_var e in
+		{ er_stmts = [decl_stmt; assign_stmt]; er_expr = CsLocal result_var }
 	| _ ->
 		(* Not a block - just return the expression with no prefix statements *)
 		{ er_stmts = []; er_expr = cs_expr_of_texpr ectx e }
