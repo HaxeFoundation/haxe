@@ -733,6 +733,76 @@ let rec get_null_inner_if_needs_unwrap e =
 		| TMeta (_, inner) -> get_null_inner_if_needs_unwrap inner
 		| _ -> None
 
+(* Check if a C# expression produces an `object` type due to explicit cast.
+   This is important because even if the Haxe type is Null<Dynamic>, if the C# expression
+   is already cast to object, we shouldn't try to access .value on it.
+   Returns true if the expression is a cast to object/Dynamic. *)
+let rec cs_expr_is_object_cast cs_expr =
+	match cs_expr with
+	| CsCast ((CsTypeObject | CsTypeDynamic), _) -> true
+	| CsParens e -> cs_expr_is_object_cast e
+	| _ -> false
+
+(* Debug helper to print C# expression structure *)
+let rec debug_cs_expr_structure cs_expr =
+	match cs_expr with
+	| CsConst _ -> "CsConst"
+	| CsLocal name -> Printf.sprintf "CsLocal(%s)" name
+	| CsThis -> "CsThis"
+	| CsBase -> "CsBase"
+	| CsNull -> "CsNull"
+	| CsDefault _ -> "CsDefault"
+	| CsTypeOf _ -> "CsTypeOf"
+	| CsNameOf _ -> "CsNameOf"
+	| CsSizeOf _ -> "CsSizeOf"
+	| CsBinop _ -> "CsBinop"
+	| CsUnop _ -> "CsUnop"
+	| CsTernary _ -> "CsTernary"
+	| CsField (e, f) -> Printf.sprintf "CsField(%s, %s)" (debug_cs_expr_structure e) f
+	| CsStaticField (_, f) -> Printf.sprintf "CsStaticField(_, %s)" f
+	| CsArrayAccess _ -> "CsArrayAccess"
+	| CsCall (e, _) -> Printf.sprintf "CsCall(%s, _)" (debug_cs_expr_structure e)
+	| CsCallGeneric _ -> "CsCallGeneric"
+	| CsStaticCall (t, m, _) ->
+		let type_str = match t with
+			| CsTypeClass ((ns, name), _) -> Printf.sprintf "CsTypeClass((%s, %s))" (String.concat "." ns) name
+			| _ -> "other_type"
+		in
+		Printf.sprintf "CsStaticCall(%s, %s, _)" type_str m
+	| CsStaticCallGeneric _ -> "CsStaticCallGeneric"
+	| CsNew _ -> "CsNew"
+	| CsNewArray _ -> "CsNewArray"
+	| CsNewArraySize _ -> "CsNewArraySize"
+	| CsCast (_, e) -> Printf.sprintf "CsCast(_, %s)" (debug_cs_expr_structure e)
+	| CsAs _ -> "CsAs"
+	| CsIs _ -> "CsIs"
+	| CsIsPattern _ -> "CsIsPattern"
+	| CsParens e -> Printf.sprintf "CsParens(%s)" (debug_cs_expr_structure e)
+	| CsLambda _ -> "CsLambda"
+	| CsUnchecked _ -> "CsUnchecked"
+	| CsNullConditionalField _ -> "CsNullConditionalField"
+	| CsNullConditionalCall _ -> "CsNullConditionalCall"
+	| CsNullConditionalIndex _ -> "CsNullConditionalIndex"
+	| CsAwait _ -> "CsAwait"
+	| CsThrow _ -> "CsThrow"
+	| CsInterpolatedString _ -> "CsInterpolatedString"
+	| CsRaw _ -> "CsRaw"
+	| CsInlineCode _ -> "CsInlineCode"
+
+(* Check if a C# expression is a Runtime conversion call (toInt, toDouble, etc.)
+   that returns a primitive type, not Null<primitive>.
+   This is important because the Haxe type might be Null<Int> but the C# expression
+   returns int directly. *)
+let rec cs_expr_is_runtime_conversion cs_expr =
+	match cs_expr with
+	| CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), _), method_name, _)
+		when method_name = "toInt" || method_name = "toDouble" || method_name = "toLong"
+		  || method_name = "toFloat" || method_name = "toBool" ->
+		true
+	| CsParens e -> cs_expr_is_runtime_conversion e
+	| CsCast (_, e) -> cs_expr_is_runtime_conversion e  (* Look through casts *)
+	| _ -> false
+
 (* Check if a C# expression actually produces Null<Null<T>> type.
    Returns true only if the expression structure indicates double-Null wrapping.
    This is needed because expressions like ternary, default, cast may have been
@@ -758,10 +828,52 @@ let rec cs_expr_is_double_null cs_expr =
 	| CsField (_, "value") ->
 		(* .value access unwraps one level, so even if inner was double-wrapped, result isn't *)
 		false
+	| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _)]), _) ->
+		(* new Null<Null<T>>(...) - actually double-wrapped *)
+		true
+	| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [_]), _) ->
+		(* new Null<T>(...) - single wrapped, not double *)
+		false
 	| _ ->
 		(* For other cases (locals, calls, etc.), we can't easily determine,
 		   so assume the Haxe type is accurate *)
 		true
+
+(* Check if a C# expression is a ternary with mixed Null<T>/object branches.
+   This pattern occurs with Haxe's ?? operator when one branch is Null<T> and
+   the other is cast to object. C# cannot directly cast such ternaries to primitives.
+   Returns true if the expression is a ternary with branches of incompatible types. *)
+let rec is_ternary_with_mixed_types cs_expr =
+	let rec is_null_type = function
+		| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+		| _ -> false
+	in
+	let rec get_branch_type cs_expr = match cs_expr with
+		| CsLocal _ -> None  (* Can't determine type from local alone *)
+		| CsCast (t, _) -> Some t
+		| CsDefault t -> Some t
+		| CsNew (t, _) -> Some t
+		| CsParens e -> get_branch_type e
+		| _ -> None
+	in
+	match cs_expr with
+	| CsTernary (_, then_e, else_e) ->
+		let then_type = get_branch_type then_e in
+		let else_type = get_branch_type else_e in
+		begin match then_type, else_type with
+		| Some t1, Some t2 when is_null_type t1 <> is_null_type t2 ->
+			(* One branch is Null<T>, the other is not - mixed types *)
+			true
+		| _, _ ->
+			(* Also check if one branch is a local (Null<T> variable) and other is object cast *)
+			let then_is_local = match then_e with CsLocal _ -> true | _ -> false in
+			let else_is_object = match else_type with Some CsTypeObject -> true | _ -> false in
+			let else_is_local = match else_e with CsLocal _ -> true | _ -> false in
+			let then_is_object = match then_type with Some CsTypeObject -> true | _ -> false in
+			(then_is_local && else_is_object) || (else_is_local && then_is_object)
+		end
+	| CsParens e -> is_ternary_with_mixed_types e
+	| _ -> false
 
 (* Generate a coerced argument expression - adds cast if needed for type mismatch.
    The optional in_scope parameter specifies which type parameters are valid in the
@@ -778,6 +890,21 @@ let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 			CsTypeObject  (* Erase out-of-scope bare generic param to object *)
 		| _ -> expected_cs_type_raw  (* Keep all other types as-is *)
 	in
+	(* FIRST: Check for ternary with mixed Null<T>/object branches targeting primitive type.
+	   C# cannot cast such ternaries directly to int/double/etc. because the branches have
+	   incompatible types. We must use Runtime.toInt/toDouble/etc. instead.
+	   This handles the ?? operator pattern: (!obj.Equals(v, default)) ? v : (object)2 *)
+	if is_ternary_with_mixed_types cs_arg then
+		let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+		match expected_cs_type with
+		| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [CsCast (CsTypeObject, cs_arg)])
+		| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [CsCast (CsTypeObject, cs_arg)])
+		| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [CsCast (CsTypeObject, cs_arg)])
+		| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [CsCast (CsTypeObject, cs_arg)]))
+		| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [CsCast (CsTypeObject, cs_arg)])
+		| CsTypeString -> CsCast (CsTypeString, CsCast (CsTypeObject, cs_arg))
+		| _ -> cs_arg  (* Non-primitive target types can use normal flow *)
+	else
 	(* Check for various type conversions *)
 	match expected_cs_type, arg_cs_type with
 	(* Numeric conversions *)
@@ -813,23 +940,55 @@ let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 	| CsTypeLong, CsTypeDynamic -> CsCast (CsTypeLong, cs_arg)
 	| CsTypeByte, CsTypeDynamic -> CsCast (CsTypeByte, cs_arg)
 	| CsTypeString, CsTypeDynamic -> CsCast (CsTypeString, cs_arg)
-	(* Null<object> to basic types - unwrap .value then cast *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeInt, CsField (cs_arg, "value"))
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeDouble, CsField (cs_arg, "value"))
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeBool, CsField (cs_arg, "value"))
-	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeFloat, CsField (cs_arg, "value"))
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeLong, CsField (cs_arg, "value"))
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+	(* Null<Null<object>> to basic types - double unwrap via .value.value then use Runtime conversion.
+	   This happens when ?? chain creates Null<Null<Dynamic>>. *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (CsField (cs_arg, "value"), "value")])
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (CsField (cs_arg, "value"), "value")])
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (CsField (cs_arg, "value"), "value")])
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (CsField (cs_arg, "value"), "value")])
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsCast (CsTypeString, CsField (CsField (cs_arg, "value"), "value"))
+	(* Null<object> to basic types - unwrap .value then use Runtime conversion.
+	   BUT: Only if cs_arg is not already cast to object (can't access .value on object).
+	   Simple cast doesn't work for dynamic values - need Runtime.toInt/toDouble/etc. *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (cs_arg, "value")])
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")])
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (cs_arg, "value")])
+	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")]))
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (cs_arg, "value")])
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsCast (CsTypeString, CsField (cs_arg, "value"))
-	(* Null<object> to a class type - unwrap .value then cast *)
+	(* Null<object> to a class type - unwrap .value then cast
+	   BUT: Only if cs_arg is not already cast to object *)
+	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])
+		when path <> (["haxe"; "lang"], "Null") && not (cs_expr_is_object_cast cs_arg) ->
+		CsCast (CsTypeClass (path, params), CsField (cs_arg, "value"))
+	(* Null<object> to basic types - expression is already cast to object, use Runtime conversion.
+	   (These handle the cases where cs_expr_is_object_cast is true) *)
+	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [cs_arg])
+	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg])
+	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [cs_arg])
+	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+		CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg]))
+	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [cs_arg])
+	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
+		CsCast (CsTypeString, cs_arg)
 	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])
 		when path <> (["haxe"; "lang"], "Null") ->
-		CsCast (CsTypeClass (path, params), CsField (cs_arg, "value"))
+		CsCast (CsTypeClass (path, params), cs_arg)
 	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally.
 	   If the object is null, create a Null with hasValue=false.
 	   If the object has a value, unbox it and create Null with hasValue=true. *)
@@ -4014,6 +4173,32 @@ let rec cs_expr_of_texpr ectx e =
 					| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
 					| _ -> false
 				in
+				(* Check if inner is a ternary where one branch is Null<object> and the other is object.
+				   In this case, C# unifies to 'object', but Haxe type says Null<object>.
+				   We can't call .value on object, so we need to use Runtime.toInt/etc. directly. *)
+				(* DEBUG: what is inner_e.eexpr? *)
+				let _ = if is_inner_null_wrapper && not is_target_null_wrapper then
+					let tag = match inner_e.eexpr with
+						| TIf _ -> "TIf" | TLocal v -> "TLocal(" ^ v.v_name ^ ")" | TConst _ -> "TConst"
+						| TCast _ -> "TCast" | TBlock _ -> "TBlock" | TCall _ -> "TCall"
+						| TBinop _ -> "TBinop" | TField _ -> "TField" | TParenthesis _ -> "TParenthesis"
+						| TVar _ -> "TVar" | TMeta _ -> "TMeta" | TArray _ -> "TArray"
+						| _ -> "other"
+					in
+					Printf.eprintf "DEBUG TCast: inner_null=%b target_null=%b inner_expr=%s target_type=%s\n"
+						is_inner_null_wrapper is_target_null_wrapper tag
+						(match target_type with CsTypeInt -> "Int" | CsTypeObject -> "Object" | CsTypeClass _ -> "Class" | _ -> "other")
+				in
+				let is_ternary_with_mixed_null_branches = match inner_e.eexpr with
+					| TIf (_, then_e, Some else_e) ->
+						let then_cs_t = cs_type_of_type ectx.gctx then_e.etype in
+						let else_cs_t = cs_type_of_type ectx.gctx else_e.etype in
+						let is_null t = match t with CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true | _ -> false in
+						let is_obj t = match t with CsTypeObject -> true | _ -> false in
+						(is_null then_cs_t && is_obj else_cs_t) || (is_obj then_cs_t && is_null else_cs_t) ||
+						(is_null then_cs_t && is_null else_cs_t)  (* Both Null but C# might not see it that way *)
+					| _ -> false
+				in
 				(* Check if the inner expression is an arithmetic binop on Null<T>.
 				   In C#, arithmetic on Null<T> uses implicit conversion and produces T, not Null<T>.
 				   So even though Haxe type is Null<T>, the C# expression is already T. *)
@@ -4022,11 +4207,86 @@ let rec cs_expr_of_texpr ectx e =
 					(* Use implicit conversion - just return the inner expression as-is.
 					   C#'s implicit operator will handle the conversion. *)
 					inner_cs
-				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic then begin
+				else if is_target_null_wrapper && not is_inner_null_wrapper then begin
+					(* Casting TO Null<T> from a non-Null type that doesn't match T exactly.
+					   E.g., int to Null<double>, or SomeClass to Null<SomeInterface>.
+					   We need to convert to T first, then let C#'s implicit operator handle Null wrapping.
+					   IMPORTANT: Only do this when inner is NOT already Null<_> - the existing logic
+					   handles Null<A> to Null<B> conversions (line 4063+) *)
+					let wrapped_type = match target_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
+						| _ -> CsTypeObject  (* Shouldn't happen *)
+					in
+					(* Check if inner is a primitive being converted to a different primitive in Null wrapper.
+					   E.g., int to Null<double>. Direct cast (double)(-1) works in C#. *)
+					let is_inner_primitive = match inner_type with
+						| CsTypeBool | CsTypeByte | CsTypeSByte | CsTypeChar
+						| CsTypeShort | CsTypeUShort | CsTypeInt | CsTypeUInt
+						| CsTypeLong | CsTypeULong | CsTypeFloat | CsTypeDouble | CsTypeDecimal -> true
+						| _ -> false
+					in
+					let is_wrapped_primitive = match wrapped_type with
+						| CsTypeBool | CsTypeByte | CsTypeSByte | CsTypeChar
+						| CsTypeShort | CsTypeUShort | CsTypeInt | CsTypeUInt
+						| CsTypeLong | CsTypeULong | CsTypeFloat | CsTypeDouble | CsTypeDecimal -> true
+						| _ -> false
+					in
+					if is_inner_primitive && is_wrapped_primitive then
+						(* Primitive to primitive conversion - explicitly wrap in Null<T>.
+						   We can't rely on implicit conversion because the result might be
+						   used in expression context where .hasValue is called before any
+						   assignment would trigger the implicit conversion.
+						   E.g., ((1 : Null<Float>) ?? throw "").hasValue would fail without explicit wrap. *)
+						CsNew (target_type, [CsCast (wrapped_type, inner_cs); CsConst (CsConstBool true)])
+					else if inner_type = wrapped_type then
+						(* Types already match - explicitly wrap in Null<T>.
+						   Same reason as primitive-to-primitive: can't rely on implicit conversion
+						   in expression context. *)
+						CsNew (target_type, [inner_cs; CsConst (CsConstBool true)])
+					else if is_inner_primitive then
+						(* Inner is primitive but wrapped type is not - box then cast.
+						   This handles weird cases like int to Null<object>. *)
+						CsCast (wrapped_type, CsCast (CsTypeObject, inner_cs))
+					else if inner_type = CsTypeObject && is_wrapped_primitive then
+						(* Object to primitive Null wrapper - need runtime conversion.
+						   E.g., (object)(-1) to Null<double> - can't unbox int directly to double.
+						   Use Runtime.toDouble/toInt/etc. for proper conversion. *)
+						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+						let convert_call = match wrapped_type with
+							| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
+							| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
+							| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
+							| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
+							| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
+							| _ -> CsCast (wrapped_type, inner_cs)  (* Fallback for other types *)
+						in
+						convert_call
+					else
+						(* Reference type conversion - cast to wrapped type first, then implicit Null wrap.
+						   E.g., (IInterface)obj -> Null<IInterface> *)
+						CsCast (wrapped_type, CsCast (CsTypeObject, inner_cs))
+				end
+				else if is_inner_null_wrapper && not is_target_null_wrapper && is_ternary_with_mixed_null_branches then begin
+					(* Special case: ternary with mixed Null/object branches being cast to primitive.
+					   C# unifies the ternary type to 'object', so we can't call .value on it.
+					   Use Runtime.toInt/toDouble/etc. directly on the ternary result. *)
+					let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+					match target_type with
+					| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
+					| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
+					| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
+					| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
+					| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
+					| CsTypeString -> CsCast (CsTypeString, inner_cs)
+					| _ -> CsCast (target_type, inner_cs)  (* Fallback for other types *)
+				end
+				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) then begin
 					(* Casting FROM Null<T> to non-Null type - use .value to unwrap, then cast if needed.
 					   This handles cases like (SomeInterface)(map.get(...)) where get returns Null<SomeInterface>.
-					   BUT: Don't add .value if the expression is arithmetic on Null<T>, because C#'s implicit
-					   conversion already produces T, not Null<T>. *)
+					   BUT: Don't add .value if:
+					   - Expression is arithmetic on Null<T> (C# implicit conversion produces T)
+					   - Expression is already cast to object (can't access .value on object type)
+					   - Expression is a Runtime.toInt/toDouble/etc. call (already returns primitive, not Null<T>) *)
 					let unwrapped = CsField (inner_cs, "value") in
 					let inner_unwrapped_type = match inner_type with
 						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
@@ -4142,6 +4402,63 @@ let rec cs_expr_of_texpr ectx e =
 				| TFun _ ->
 					let func_type = CsTypeClass ((["haxe"; "lang"], "Function"), []) in
 					CsCast (func_type, then_e), CsCast (func_type, else_e)
+				| _ -> then_e, else_e
+			in
+			(* Special case: if result is Null<T>, C# can't determine ternary type when one branch
+			   is T and other is Null<T> because both implicit conversions exist (T->Null<T> and Null<T>->T).
+			   Use new Null<T>(value, true) for explicit wrapping since explicit casts don't work
+			   for all types (e.g., interfaces can't be explicitly cast to Null<interface>).
+			   Also handle Null<Null<T>> - flatten to Null<T> since C# can't have double-wrapped Null.
+			   IMPORTANT: Only wrap if the branch isn't already the target Null type. *)
+			let result_cs_type = cs_type_of_type ectx.gctx result_type in
+			let then_cs_type = cs_type_of_type ectx.gctx then_expr.etype in
+			let else_cs_type = cs_type_of_type ectx.gctx else_expr.etype in
+			let wrap_in_null_if_needed null_type branch_type expr =
+				(* Check if the C# expression actually produces a Null type.
+				   We can't rely on Haxe types alone because the C# expression might be
+				   a primitive constant even when Haxe type says Null<T>.
+				   E.g., Haxe `2 : Null<Dynamic>` generates `CsConst(2)`, not `new Null<object>(2)`. *)
+				let rec cs_expr_produces_null_type cs_expr = match cs_expr with
+					| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), _), _) -> true
+					| CsDefault (CsTypeClass ((["haxe"; "lang"], "Null"), _)) -> true
+					| CsLocal _ ->
+						(* For local variables, check if Haxe type is Null<T>.
+						   The variable was declared with correct Null type. *)
+						begin match branch_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+						| _ -> false
+						end
+					| CsField (_, "value") -> false  (* .value unwraps Null, so result is not Null *)
+					| CsTernary (_, then_e, else_e) ->
+						(* Ternary produces Null if BOTH branches produce Null *)
+						cs_expr_produces_null_type then_e && cs_expr_produces_null_type else_e
+					| CsParens e -> cs_expr_produces_null_type e
+					| CsCast (CsTypeClass ((["haxe"; "lang"], "Null"), _), _) -> true
+					(* Cast to Null's inner type (where Null<T> and branch says Null<T>) also counts as Null
+					   because coerce_arg may have already extracted .value *)
+					| CsCast _ ->
+						begin match branch_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> false  (* Cast but branch says Null - it's unwrapped *)
+						| _ -> false
+						end
+					| _ -> false
+				in
+				let expr_is_null_type = cs_expr_produces_null_type expr in
+				if expr_is_null_type then
+					expr  (* Already produces Null type in C# *)
+				else
+					(* Use new Null<T>(expr, true) instead of (Null<T>)expr to handle interfaces *)
+					CsNew (null_type, [expr; CsConst (CsConstBool true)])
+			in
+			let then_e, else_e = match result_cs_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass ((["haxe"; "lang"], "Null"), _) as inner_null]) ->
+					(* Null<Null<T>> - flatten to Null<T> for ternary branches *)
+					wrap_in_null_if_needed inner_null then_cs_type then_e,
+					wrap_in_null_if_needed inner_null else_cs_type else_e
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) as null_type ->
+					(* Wrap both branches in Null<T> to ensure C# ternary type is unambiguous *)
+					wrap_in_null_if_needed null_type then_cs_type then_e,
+					wrap_in_null_if_needed null_type else_cs_type else_e
 				| _ -> then_e, else_e
 			in
 			CsTernary (cond_cs, then_e, else_e)
@@ -4511,27 +4828,32 @@ and cs_stmt_of_texpr ectx e =
 			in
 			(* Check if init expression is arithmetic on Null<T> - C# produces T, not Null<T> *)
 			let is_init_already_unwrapped = is_binop_with_implicit_null_conversion init_expr in
+			(* Check if init_cs is already cast to object - can't access .value on object type *)
+			let is_init_object_cast = cs_expr_is_object_cast init_cs in
+			(* Check if init_cs is a Runtime.toInt/toDouble/etc. call - returns primitive, not Null<primitive> *)
+			let is_init_runtime_conversion = cs_expr_is_runtime_conversion init_cs in
 			let init_cs = match init_type, var_type with
 				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) ->
 					(* Dynamic -> specific type: need runtime cast *)
 					CsCast (var_type, init_cs)
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped ->
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion ->
 					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value
-					   BUT: Skip if arithmetic already unwrapped in C# *)
+					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					CsField (init_cs, "value")
-				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_t]), var_t when inner_t = var_t && not is_var_null_wrapper && not is_init_already_unwrapped ->
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_t]), var_t when inner_t = var_t && not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion ->
 					(* Null<T> -> T (exact match): use .value to unwrap
-					   BUT: Skip if arithmetic already unwrapped in C# *)
+					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					CsField (init_cs, "value")
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when not is_var_null_wrapper && not is_init_already_unwrapped ->
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion ->
 					(* Null<T> -> SomeType (not Null<_>): unwrap via .value and cast if needed
-					   BUT: Skip if arithmetic already unwrapped in C# *)
+					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					let unwrapped = CsField (init_cs, "value") in
 					CsCast (var_type, CsCast (CsTypeObject, unwrapped))
 				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_init]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
-					when inner_init <> inner_var ->
+					when inner_init <> inner_var && not is_init_object_cast && not is_init_runtime_conversion ->
 					(* Null<A> -> Null<B> where A != B: need to convert inner value.
-					   Generate: init.hasValue ? new Null<B>((B)init.value, true) : new Null<B>(default(B), false) *)
+					   Generate: init.hasValue ? new Null<B>((B)init.value, true) : new Null<B>(default(B), false)
+					   BUT: Skip if init is already cast to object (can't access .hasValue/.value) or if Runtime conversion *)
 					let has_value = CsField (init_cs, "hasValue") in
 					let converted_value = CsCast (inner_var, CsField (init_cs, "value")) in
 					let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
