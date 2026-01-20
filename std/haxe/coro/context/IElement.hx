@@ -1,7 +1,7 @@
 package haxe.coro.context;
 
 /**
-	Represents an element of `Context`. See `haxe.coro.schedulers.Scheduler` for a usage example.
+	Represents an element of `Context`. See `haxe.coro.dispatchers.Dispatcher` for a usage example.
 **/
 interface IElement<T> {
 	/**

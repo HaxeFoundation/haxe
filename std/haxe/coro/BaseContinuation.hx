@@ -4,7 +4,7 @@ import haxe.coro.context.Context;
 import haxe.coro.context.Key;
 import haxe.coro.context.IElement;
 import haxe.coro.dispatchers.Dispatcher;
-import haxe.coro.dispatchers.IScheduleObject;
+import haxe.coro.dispatchers.IDispatchObject;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
@@ -27,7 +27,7 @@ class StackTraceManager implements IElement<StackTraceManager> {
 	basic functionality for managing the internal coroutine state, most of which should be uninteresting to the
 	casual coroutine user.
 **/
-abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame implements IScheduleObject {
+abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame implements IDispatchObject {
     /**
 		The continuation to resume once `this` continuation completes.
 	**/
@@ -225,7 +225,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		return '[BaseContinuation ${state.toString()}, $result]';
 	}
 
-	public function onSchedule() {
+	public function onDispatch() {
 		switch (resumeResult.state) {
 			case Pending:
 				return;
