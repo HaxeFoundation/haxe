@@ -164,7 +164,7 @@ class Boot {
 				// Shift all numeric keys by -1 to convert from 1-indexed to 0-indexed.
 				// Cannot use table.remove as it doesn't work correctly for sparse tables.
 				var result:Table<Int, T> = Table.create();
-				Syntax.code("for k, v in pairs({0}) do if type(k) == 'number' then {1}[k - 1] = v end end", tab, result);
+				Syntax.code("for k, v in {0}({1}) do if {2}(k) == 'number' then {3}[k - 1] = v end end", Lua.pairs, tab, Lua.type, result);
 				return untyped _hx_tab_array(result, length);
 			} else {
 				return [];
@@ -296,9 +296,9 @@ class Boot {
 				return "Windows";
 			}
 
-			var popen_status:Bool = false;
-			var popen_result:lua.FileHandle = null;
-			Syntax.code("popen_status, popen_result = pcall(_G.io.popen, '')");
+			var result = Lua.pcall(Io.popen, "");
+			var popen_status = result.status;
+			var popen_result:lua.FileHandle = result.value;
 			if (popen_status) {
 				popen_result.close();
 				os = lua.Io.popen('uname -s', 'r').read('*l').toLowerCase();

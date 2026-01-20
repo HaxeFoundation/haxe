@@ -27,31 +27,31 @@ package lua;
 **/
 class PairTools {
 	public static function ipairsEach<T>(table:Table<Dynamic, T>, func:Int->T->Void):Void {
-		Syntax.code("for i,v in _G.ipairs({0}) do {1}(i,v) end", table, func);
+		Syntax.code("for i,v in {0}({1}) do {2}(i,v) end", Lua.ipairs, table, func);
 	}
 
 	public static function pairsEach<A, B>(table:Table<A, B>, func:A->B->Void):Void {
-		Syntax.code("for k,v in _G.pairs({0}) do {1}(k,v) end", table, func);
+		Syntax.code("for k,v in {0}({1}) do {2}(k,v) end", Lua.pairs, table, func);
 	}
 
 	public static function ipairsMap<A, B>(table:Table<Dynamic, A>, func:Int->A->B):Table<Int, B> {
 		var ret:Table<Int, B> = Table.create();
-		Syntax.code("for i,v in _G.ipairs({0}) do {1}[i] = {2}(i,v) end", table, ret, func);
+		Syntax.code("for i,v in {0}({1}) do {2}[i] = {3}(i,v) end", Lua.ipairs, table, ret, func);
 		return ret;
 	}
 
 	public static function pairsMap<A, B, C>(table:Table<A, B>, func:A->B->C->C):Table<A, C> {
 		var ret:Table<A, C> = Table.create();
-		Syntax.code("for k,v in _G.pairs({0}) do {1}[k] = {2}(k,v) end", table, ret, func);
+		Syntax.code("for k,v in {0}({1}) do {2}[k] = {3}(k,v) end", Lua.pairs, table, ret, func);
 		return ret;
 	}
 
 	public static function ipairsFold<A, B>(table:Table<Int, A>, func:Int->A->B->B, seed:B):B {
-		return Syntax.code("(function() local s = {2}; for i,v in _G.ipairs({0}) do s = {1}(i,v,s) end; return s end)()", table, func, seed);
+		return Syntax.code("(function() local s = {0}; for i,v in {1}({2}) do s = {3}(i,v,s) end; return s end)()", seed, Lua.ipairs, table, func);
 	}
 
 	public static function pairsFold<A, B, C>(table:Table<A, B>, func:A->B->C->C, seed:C):C {
-		return Syntax.code("(function() local s = {2}; for k,v in _G.pairs({0}) do s = {1}(k,v,s) end; return s end)()", table, func, seed);
+		return Syntax.code("(function() local s = {0}; for k,v in {1}({2}) do s = {3}(k,v,s) end; return s end)()", seed, Lua.pairs, table, func);
 	}
 
 	public static function ipairsConcat<T>(table1:Table<Int, T>, table2:Table<Int, T>) {
@@ -75,16 +75,16 @@ class PairTools {
 	}
 
 	public static function ipairsExist<T>(table:Table<Int, T>, func:Int->T->Bool) {
-		Syntax.code("for k,v in _G.ipairs({0}) do if {1}(k,v) then return true end end", table, func);
+		Syntax.code("for k,v in {0}({1}) do if {2}(k,v) then return true end end", Lua.ipairs, table, func);
 	}
 
 	public static function pairsExist<A, B>(table:Table<A, B>, func:A->B->Bool) {
-		Syntax.code("for k,v in _G.pairs({0}) do if {1}(k,v) then return true end end", table, func);
+		Syntax.code("for k,v in {0}({1}) do if {2}(k,v) then return true end end", Lua.pairs, table, func);
 	}
 
 	public static function copy<A, B>(table1:Table<A, B>):Table<A, B> {
 		var ret:Table<A, B> = Table.create();
-		Syntax.code("for k,v in _G.pairs({0}) do {1}[k] = v end", table1, ret);
+		Syntax.code("for k,v in {0}({1}) do {2}[k] = v end", Lua.pairs, table1, ret);
 		return ret;
 	}
 
