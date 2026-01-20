@@ -7202,7 +7202,13 @@ let rec extends_haxe_object c =
 		else
 			extends_haxe_object sc  (* Check the superclass *)
 
-(* Generate _hx_getField, _hx_setField, _hx_getFields override methods for AOT compatibility *)
+(* FunctionValue type for method closure dispatchers *)
+let function_value_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), [])
+
+(* MethodClosure type for method closures *)
+let method_closure_type = CsTypeClass ((["haxe"; "lang"], "MethodClosure"), [])
+
+(* Generate _hx_getField, _hx_setField, _hx_getFields, method closure infrastructure for AOT compatibility *)
 let generate_field_accessors gctx c =
 	(* Only generate field accessors if the class inherits from HaxeObject *)
 	if not (extends_haxe_object c) then
@@ -7217,15 +7223,95 @@ let generate_field_accessors gctx c =
 			| _ -> None
 		) c.cl_ordered_fields in
 
-		if instance_fields = [] then
-			[]  (* No fields, no need for accessors *)
-		else
+		(* Get list of instance methods (MethNormal and MethInline only, not MethDynamic)
+		   IMPORTANT: Exclude generic methods (cf.cf_params <> []) because MethodClosure
+		   cannot handle type parameters - they're only known at the call site. *)
+		let instance_methods = List.filter_map (fun cf ->
+			match cf.cf_kind with
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] ->
+				let args, ret = match follow cf.cf_type with
+					| TFun (args, ret) -> args, ret
+					| _ -> [], t_dynamic
+				in
+				let arity = List.length args in
+				Some (cf.cf_name, get_native_field_name cf, arity, args, ret)
+			| _ -> None
+		) c.cl_ordered_fields in
+
+		(* Assign sequential indexes to methods *)
+		let indexed_methods = List.mapi (fun idx (name, native_name, arity, args, ret) ->
+			(idx, name, native_name, arity, args, ret)
+		) instance_methods in
+
+		let method_count = List.length instance_methods in
 		let field_names = List.map fst instance_fields in
+
+		(* If no fields and no methods, return empty *)
+		if instance_fields = [] && instance_methods = [] then
+			[]
+		else
+
+		(* Generate _hx_closureCache field (nullable array of MethodClosure) *)
+		let closure_cache_members = if method_count = 0 then [] else [
+			CsMemberField {
+				f_name = "_hx_closureCache";
+				f_type = CsTypeArray (method_closure_type, None);
+				f_access = AccessModifier.Private;
+				f_modifiers = [];
+				f_value = None;
+			};
+		] in
+
+		(* Generate _hx_getMethodClosure helper method:
+		   private haxe.lang.MethodClosure _hx_getMethodClosure(int index) {
+		       if (_hx_closureCache == null)
+		           _hx_closureCache = new haxe.lang.MethodClosure[N];
+		       if (_hx_closureCache[index] == null)
+		           _hx_closureCache[index] = new haxe.lang.MethodClosure(this, index);
+		       return _hx_closureCache[index];
+		   }
+		*)
+		let get_method_closure_members = if method_count = 0 then [] else [
+			CsMemberMethod {
+				m_name = "_hx_getMethodClosure";
+				m_return_type = method_closure_type;
+				m_access = AccessModifier.Private;
+				m_modifiers = [];
+				m_type_params = [];
+				m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
+				m_body = Some [
+					(* if (_hx_closureCache == null) _hx_closureCache = new MethodClosure[method_count]; *)
+					CsIf (
+						CsBinop (CsOpEq, CsField (CsThis, "_hx_closureCache"), CsConst CsConstNull),
+						CsExprStmt (CsBinop (CsOpAssign,
+							CsField (CsThis, "_hx_closureCache"),
+							CsNewArray (method_closure_type, List.init method_count (fun _ -> CsConst CsConstNull))
+						)),
+						None
+					);
+					(* if (_hx_closureCache[index] == null) _hx_closureCache[index] = new MethodClosure(this, index); *)
+					CsIf (
+						CsBinop (CsOpEq, CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index"), CsConst CsConstNull),
+						CsExprStmt (CsBinop (CsOpAssign,
+							CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index"),
+							CsNew (method_closure_type, [CsThis; CsLocal "index"])
+						)),
+						None
+					);
+					(* return _hx_closureCache[index]; *)
+					CsReturn (Some (CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index")));
+				];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			};
+		] in
 
 		(* Generate _hx_getField override:
 		   public override object _hx_getField(string name) {
 		       switch (name) {
 		           case "field1": return this.field1;
+		           case "method1": return _hx_getMethodClosure(0);
 		           ...
 		           default: return base._hx_getField(name);
 		       }
@@ -7237,32 +7323,31 @@ let generate_field_accessors gctx c =
 				sw_body = [CsReturn (Some (CsField (CsThis, name)))];
 			}
 		) instance_fields in
+		let get_method_sections = List.map (fun (idx, name, _, _, _, _) ->
+			{
+				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
+				sw_body = [CsReturn (Some (CsCall (CsField (CsThis, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx))])))];
+			}
+		) indexed_methods in
 		let get_field_default = {
 			sw_labels = [CsCaseDefault];
 			sw_body = [CsReturn (Some (CsCall (CsField (CsBase, "_hx_getField"), [CsLocal "name"])))];
 		} in
-		let get_field_method = CsMemberMethod {
+		let all_get_sections = get_field_sections @ get_method_sections @ [get_field_default] in
+		let get_field_method = if all_get_sections = [get_field_default] then None else Some (CsMemberMethod {
 			m_name = "_hx_getField";
 			m_return_type = CsTypeObject;
 			m_access = AccessModifier.Public;
 			m_modifiers = [MemberModifier.Override];
 			m_type_params = [];
 			m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
-			m_body = Some [CsSwitch (CsLocal "name", get_field_sections @ [get_field_default])];
+			m_body = Some [CsSwitch (CsLocal "name", all_get_sections)];
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
-		} in
+		}) in
 
-		(* Generate _hx_setField override:
-		   public override void _hx_setField(string name, object value) {
-		       switch (name) {
-		           case "field1": this.field1 = (FieldType)value; return;
-		           ...
-		           default: base._hx_setField(name, value); return;
-		       }
-		   }
-		*)
+		(* Generate _hx_setField override - only for data fields, not methods *)
 		let set_field_sections = List.map (fun (name, field_type) ->
 			{
 				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
@@ -7279,7 +7364,7 @@ let generate_field_accessors gctx c =
 				CsReturn None;
 			];
 		} in
-		let set_field_method = CsMemberMethod {
+		let set_field_method = if instance_fields = [] then None else Some (CsMemberMethod {
 			m_name = "_hx_setField";
 			m_return_type = CsTypeVoid;
 			m_access = AccessModifier.Public;
@@ -7293,30 +7378,111 @@ let generate_field_accessors gctx c =
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
-		} in
+		}) in
 
-		(* Generate _hx_getFields override:
-		   public override Array<string> _hx_getFields() {
-		       return new Array<string>(new string[] { "field1", "field2", ... });
-		   }
-		*)
-		let field_name_exprs = List.map (fun name -> CsConst (CsConstString name)) field_names in
-		let array_type = CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeString]) in
-		let get_fields_method = CsMemberMethod {
-			m_name = "_hx_getFields";
-			m_return_type = array_type;
-			m_access = AccessModifier.Public;
-			m_modifiers = [MemberModifier.Override];
-			m_type_params = [];
-			m_params = [];
-			(* Create Array<string> from native array: Array<string>.ofNative(new string[] {...}) *)
-			m_body = Some [CsReturn (Some (CsStaticCallGeneric (array_type, "ofNative", [CsTypeString], [CsNewArray (CsTypeString, field_name_exprs)])))];
-			m_constraints = [];
-			m_explicit_interface = None;
-			m_attributes = [];
-		} in
+		(* Generate _hx_getFields override - only data fields, not methods *)
+		let get_fields_method = if field_names = [] then None else
+			let field_name_exprs = List.map (fun name -> CsConst (CsConstString name)) field_names in
+			let array_type = CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeString]) in
+			Some (CsMemberMethod {
+				m_name = "_hx_getFields";
+				m_return_type = array_type;
+				m_access = AccessModifier.Public;
+				m_modifiers = [MemberModifier.Override];
+				m_type_params = [];
+				m_params = [];
+				m_body = Some [CsReturn (Some (CsStaticCallGeneric (array_type, "ofNative", [CsTypeString], [CsNewArray (CsTypeString, field_name_exprs)])))];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			})
+		in
 
-		[get_field_method; set_field_method; get_fields_method]
+		(* Generate _hx_invokeMethodN dispatchers for each arity used by this class's methods *)
+		let methods_by_arity = Hashtbl.create 10 in
+		List.iter (fun (idx, name, native_name, arity, args, ret) ->
+			let current = try Hashtbl.find methods_by_arity arity with Not_found -> [] in
+			Hashtbl.replace methods_by_arity arity ((idx, name, native_name, args, ret) :: current)
+		) indexed_methods;
+
+		let invoke_method_dispatchers = Hashtbl.fold (fun arity methods acc ->
+			if arity > 9 then acc (* Methods with 10+ args use _hx_invokeMethodDynamic *)
+			else
+				let method_name = Printf.sprintf "_hx_invokeMethod%d" arity in
+				(* Build switch cases for each method of this arity *)
+				let cases = List.map (fun (idx, _, native_name, args, ret) ->
+					(* Generate the method call with proper argument extraction from FunctionValue *)
+					let call_args = List.mapi (fun i (arg_name, _, t) ->
+						let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
+						(* Extract value from FunctionValue based on type *)
+						let cs_arg_type = cs_type_of_type gctx t in
+						match cs_arg_type with
+						| CsTypeInt -> CsCall (CsField (fv_local, "ToInt"), [])
+						| CsTypeDouble -> CsCall (CsField (fv_local, "ToDouble"), [])
+						| CsTypeBool -> CsCall (CsField (fv_local, "ToBool"), [])
+						| CsTypeLong -> CsCall (CsField (fv_local, "ToLong"), [])
+						| CsTypeFloat -> CsCall (CsField (fv_local, "ToFloat"), [])
+						| _ -> CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), []))
+					) args in
+					let method_call = CsCall (CsField (CsThis, native_name), call_args) in
+					(* Wrap result in FunctionValue *)
+					let cs_ret_type = cs_type_of_type gctx ret in
+					let result_expr = match cs_ret_type with
+						| CsTypeVoid ->
+							(* void method - call it then return FunctionValue.Missing() *)
+							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (function_value_type, "Missing", [])))]
+						| CsTypeInt ->
+							[CsReturn (Some (CsStaticCall (function_value_type, "FromInt", [method_call])))]
+						| CsTypeDouble ->
+							[CsReturn (Some (CsStaticCall (function_value_type, "FromDouble", [method_call])))]
+						| CsTypeBool ->
+							[CsReturn (Some (CsStaticCall (function_value_type, "FromBool", [method_call])))]
+						| CsTypeLong ->
+							[CsReturn (Some (CsStaticCall (function_value_type, "FromLong", [method_call])))]
+						| CsTypeFloat ->
+							[CsReturn (Some (CsStaticCall (function_value_type, "FromFloat", [method_call])))]
+						| _ ->
+							[CsReturn (Some (CsStaticCall (function_value_type, "FromObject", [method_call])))]
+					in
+					{
+						sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
+						sw_body = result_expr;
+					}
+				) (List.rev methods) in (* Reverse to maintain original order *)
+				let default_case = {
+					sw_labels = [CsCaseDefault];
+					sw_body = [CsReturn (Some (CsCall (CsField (CsBase, method_name),
+						CsLocal "index" :: List.mapi (fun i _ -> CsLocal (Printf.sprintf "a%d" (i + 1))) (List.init arity (fun _ -> ()))
+					)))];
+				} in
+				(* Build parameter list: int index, FunctionValue a1, FunctionValue a2, ... *)
+				let params =
+					{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None } ::
+					List.mapi (fun i _ -> {
+						p_name = Printf.sprintf "a%d" (i + 1);
+						p_type = Some function_value_type;
+						p_default = None;
+						p_modifier = None;
+					}) (List.init arity (fun _ -> ()))
+				in
+				let dispatcher = CsMemberMethod {
+					m_name = method_name;
+					m_return_type = function_value_type;
+					m_access = AccessModifier.Public;
+					m_modifiers = [MemberModifier.Override];
+					m_type_params = [];
+					m_params = params;
+					m_body = Some [CsSwitch (CsLocal "index", cases @ [default_case])];
+					m_constraints = [];
+					m_explicit_interface = None;
+					m_attributes = [];
+				} in
+				dispatcher :: acc
+		) methods_by_arity [] in
+
+		(* Combine all generated members *)
+		let optional_members = List.filter_map (fun x -> x) [get_field_method; set_field_method; get_fields_method] in
+		closure_cache_members @ get_method_closure_members @ optional_members @ invoke_method_dispatchers
 
 (* Generate C# class from Haxe class *)
 let generate_class gctx c =
@@ -7997,6 +8163,7 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Function.cs" "haxe/lang/Function.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/FunctionValue.cs" "haxe/lang/FunctionValue.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/MethodClosure.cs" "haxe/lang/MethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
 

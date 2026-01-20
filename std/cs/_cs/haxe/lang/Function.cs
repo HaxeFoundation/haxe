@@ -140,6 +140,24 @@ namespace haxe.lang
             return global::haxe.lang.FunctionValue.FromObject(invokeDynamic(args));
         }
 
+        /// <summary>
+        /// FunctionValue invoke with 9 arguments.
+        /// </summary>
+        public virtual global::haxe.lang.FunctionValue __hx_invoke9(global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4, global::haxe.lang.FunctionValue a5, global::haxe.lang.FunctionValue a6, global::haxe.lang.FunctionValue a7, global::haxe.lang.FunctionValue a8, global::haxe.lang.FunctionValue a9)
+        {
+            var args = new global::haxe.root.Array<object>();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            args.push(a7.ToDynamic());
+            args.push(a8.ToDynamic());
+            args.push(a9.ToDynamic());
+            return global::haxe.lang.FunctionValue.FromObject(invokeDynamic(args));
+        }
+
         // ============================================================
         // Convenience invoke methods - these box all arguments
         // These call the FunctionValue methods with all args wrapped
@@ -216,6 +234,14 @@ namespace haxe.lang
         public virtual object invoke8(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
         {
             return __hx_invoke8(global::haxe.lang.FunctionValue.FromObject(a0), global::haxe.lang.FunctionValue.FromObject(a1), global::haxe.lang.FunctionValue.FromObject(a2), global::haxe.lang.FunctionValue.FromObject(a3), global::haxe.lang.FunctionValue.FromObject(a4), global::haxe.lang.FunctionValue.FromObject(a5), global::haxe.lang.FunctionValue.FromObject(a6), global::haxe.lang.FunctionValue.FromObject(a7)).ToDynamic();
+        }
+
+        /// <summary>
+        /// Invoke with 9 arguments.
+        /// </summary>
+        public virtual object invoke9(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7, object a8)
+        {
+            return __hx_invoke9(global::haxe.lang.FunctionValue.FromObject(a0), global::haxe.lang.FunctionValue.FromObject(a1), global::haxe.lang.FunctionValue.FromObject(a2), global::haxe.lang.FunctionValue.FromObject(a3), global::haxe.lang.FunctionValue.FromObject(a4), global::haxe.lang.FunctionValue.FromObject(a5), global::haxe.lang.FunctionValue.FromObject(a6), global::haxe.lang.FunctionValue.FromObject(a7), global::haxe.lang.FunctionValue.FromObject(a8)).ToDynamic();
         }
     }
 }

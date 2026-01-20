@@ -110,6 +110,21 @@ class HaxeFunction {
 		]));
 	}
 
+	public function __hx_invoke9(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue,
+			a7:FunctionValue, a8:FunctionValue, a9:FunctionValue):FunctionValue {
+		return FunctionValue.FromObject(invokeDynamic([
+			a1.ToDynamic(),
+			a2.ToDynamic(),
+			a3.ToDynamic(),
+			a4.ToDynamic(),
+			a5.ToDynamic(),
+			a6.ToDynamic(),
+			a7.ToDynamic(),
+			a8.ToDynamic(),
+			a9.ToDynamic()
+		]));
+	}
+
 	// ============================================================
 	// Convenience invoke methods - these box all arguments
 	// These call the FunctionValue methods with all args wrapped
@@ -185,6 +200,16 @@ class HaxeFunction {
 	public function invoke8(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic):Dynamic {
 		return __hx_invoke8(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
 			FunctionValue.FromObject(a4), FunctionValue.FromObject(a5), FunctionValue.FromObject(a6), FunctionValue.FromObject(a7))
+			.ToDynamic();
+	}
+
+	/**
+	 * Invoke with 9 arguments.
+	 */
+	public function invoke9(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic, a8:Dynamic):Dynamic {
+		return __hx_invoke9(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
+			FunctionValue.FromObject(a4), FunctionValue.FromObject(a5), FunctionValue.FromObject(a6), FunctionValue.FromObject(a7),
+			FunctionValue.FromObject(a8))
 			.ToDynamic();
 	}
 }

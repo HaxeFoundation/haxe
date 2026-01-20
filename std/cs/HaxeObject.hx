@@ -41,4 +41,51 @@ class HaxeObject {
 	public function _hx_getFields():Array<String> {
 		return [];
 	}
+
+	// Method invocation dispatchers for MethodClosure
+	// Override in subclasses to dispatch by method index
+
+	public function _hx_invokeMethod0(index:Int):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod1(index:Int, a1:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod2(index:Int, a1:FunctionValue, a2:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod3(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod4(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod5(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod6(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod7(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue, a7:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod8(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue, a7:FunctionValue, a8:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethod9(index:Int, a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue, a7:FunctionValue, a8:FunctionValue, a9:FunctionValue):FunctionValue {
+		throw "Method not found: index " + index;
+	}
+
+	public function _hx_invokeMethodDynamic(index:Int, args:Array<Dynamic>):Dynamic {
+		throw "Method not found: index " + index;
+	}
 }
