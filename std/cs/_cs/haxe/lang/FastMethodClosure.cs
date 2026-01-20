@@ -4,7 +4,7 @@ using System;
 namespace haxe.lang
 {
     /// <summary>
-    /// A closure that wraps a method on a HaxeObject instance.
+    /// Fast, AOT-safe method closure for non-generic methods on HaxeObject instances.
     /// Used by Reflect.field() to return callable method references.
     ///
     /// This class delegates all invoke calls to _hx_invokeMethodN on the target object,
@@ -14,13 +14,17 @@ namespace haxe.lang
     /// - Zero boxing: Uses FunctionValue struct for args/returns
     /// - Cached: Each instance is cached in the target object's _hx_closureCache
     /// - Fast dispatch: Integer switch on method index in generated dispatchers
+    /// - AOT-safe: No reflection required
+    ///
+    /// Note: Generic methods use a different, reflection-based MethodClosure (private class in Reflect.hx)
+    /// because type arguments are only known at the call site.
     /// </summary>
-    public sealed class MethodClosure : Function
+    public sealed class FastMethodClosure : Function
     {
         private readonly global::haxe.root.HaxeObject _obj;
         private readonly int _index;
 
-        public MethodClosure(global::haxe.root.HaxeObject obj, int index)
+        public FastMethodClosure(global::haxe.root.HaxeObject obj, int index)
         {
             _obj = obj;
             _index = index;

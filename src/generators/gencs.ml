@@ -7205,8 +7205,8 @@ let rec extends_haxe_object c =
 (* FunctionValue type for method closure dispatchers *)
 let function_value_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), [])
 
-(* MethodClosure type for method closures *)
-let method_closure_type = CsTypeClass ((["haxe"; "lang"], "MethodClosure"), [])
+(* FastMethodClosure type for AOT-safe method closures *)
+let fast_method_closure_type = CsTypeClass ((["haxe"; "lang"], "FastMethodClosure"), [])
 
 (* Generate _hx_getField, _hx_setField, _hx_getFields, method closure infrastructure for AOT compatibility *)
 let generate_field_accessors gctx c =
@@ -7251,11 +7251,11 @@ let generate_field_accessors gctx c =
 			[]
 		else
 
-		(* Generate _hx_closureCache field (nullable array of MethodClosure) *)
+		(* Generate _hx_closureCache field (nullable array of FastMethodClosure) *)
 		let closure_cache_members = if method_count = 0 then [] else [
 			CsMemberField {
 				f_name = "_hx_closureCache";
-				f_type = CsTypeArray (method_closure_type, None);
+				f_type = CsTypeArray (fast_method_closure_type, None);
 				f_access = AccessModifier.Private;
 				f_modifiers = [];
 				f_value = None;
@@ -7263,38 +7263,38 @@ let generate_field_accessors gctx c =
 		] in
 
 		(* Generate _hx_getMethodClosure helper method:
-		   private haxe.lang.MethodClosure _hx_getMethodClosure(int index) {
+		   private haxe.lang.FastMethodClosure _hx_getMethodClosure(int index) {
 		       if (_hx_closureCache == null)
-		           _hx_closureCache = new haxe.lang.MethodClosure[N];
+		           _hx_closureCache = new haxe.lang.FastMethodClosure[N];
 		       if (_hx_closureCache[index] == null)
-		           _hx_closureCache[index] = new haxe.lang.MethodClosure(this, index);
+		           _hx_closureCache[index] = new haxe.lang.FastMethodClosure(this, index);
 		       return _hx_closureCache[index];
 		   }
 		*)
 		let get_method_closure_members = if method_count = 0 then [] else [
 			CsMemberMethod {
 				m_name = "_hx_getMethodClosure";
-				m_return_type = method_closure_type;
+				m_return_type = fast_method_closure_type;
 				m_access = AccessModifier.Private;
 				m_modifiers = [];
 				m_type_params = [];
 				m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
 				m_body = Some [
-					(* if (_hx_closureCache == null) _hx_closureCache = new MethodClosure[method_count]; *)
+					(* if (_hx_closureCache == null) _hx_closureCache = new FastMethodClosure[method_count]; *)
 					CsIf (
 						CsBinop (CsOpEq, CsField (CsThis, "_hx_closureCache"), CsConst CsConstNull),
 						CsExprStmt (CsBinop (CsOpAssign,
 							CsField (CsThis, "_hx_closureCache"),
-							CsNewArray (method_closure_type, List.init method_count (fun _ -> CsConst CsConstNull))
+							CsNewArray (fast_method_closure_type, List.init method_count (fun _ -> CsConst CsConstNull))
 						)),
 						None
 					);
-					(* if (_hx_closureCache[index] == null) _hx_closureCache[index] = new MethodClosure(this, index); *)
+					(* if (_hx_closureCache[index] == null) _hx_closureCache[index] = new FastMethodClosure(this, index); *)
 					CsIf (
 						CsBinop (CsOpEq, CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index"), CsConst CsConstNull),
 						CsExprStmt (CsBinop (CsOpAssign,
 							CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index"),
-							CsNew (method_closure_type, [CsThis; CsLocal "index"])
+							CsNew (fast_method_closure_type, [CsThis; CsLocal "index"])
 						)),
 						None
 					);
@@ -8163,7 +8163,7 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Function.cs" "haxe/lang/Function.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/FunctionValue.cs" "haxe/lang/FunctionValue.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/MethodClosure.cs" "haxe/lang/MethodClosure.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/FastMethodClosure.cs" "haxe/lang/FastMethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
 
