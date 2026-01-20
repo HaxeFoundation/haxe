@@ -84,7 +84,7 @@ class Lua {
 				installLib("bit32", "5.3.5.1-1");
 
 			installLib("luv", "1.50.0-1");
-			installLib("luautf8", "0.2.0-1");
+			installLib("luautf8", "0.1.6-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
