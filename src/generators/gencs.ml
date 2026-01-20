@@ -991,11 +991,22 @@ let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
 		CsCast (CsTypeClass (path, params), cs_arg)
 	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally.
 	   If the object is null, create a Null with hasValue=false.
-	   If the object has a value, unbox it and create Null with hasValue=true. *)
+	   If the object has a value, unbox it and create Null with hasValue=true.
+	   IMPORTANT: For numeric types (double, float, long), use Runtime.toXxx because
+	   the boxed value might be a different numeric type (e.g., boxed int when double expected).
+	   C# cannot directly unbox int as double - need conversion. *)
 	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]), (CsTypeObject | CsTypeDynamic) ->
-		(* Generate: arg == null ? new Null<T>(default, false) : new Null<T>((T)arg, true) *)
+		(* Generate: arg == null ? new Null<T>(default, false) : new Null<T>(convert(arg), true) *)
 		let null_check = CsBinop (CsOpEq, cs_arg, CsNull) in
-		let cast_value = CsCast (inner, cs_arg) in
+		let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+		let cast_value = match inner with
+			| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_arg])
+			| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_arg]))
+			| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [cs_arg])
+			| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_arg])
+			| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [cs_arg])
+			| _ -> CsCast (inner, cs_arg)
+		in
 		let true_branch = CsNew (expected_cs_type, [CsDefault inner; CsConst (CsConstBool false)]) in
 		let false_branch = CsNew (expected_cs_type, [cast_value; CsConst (CsConstBool true)]) in
 		CsTernary (null_check, true_branch, false_branch)
@@ -4176,19 +4187,6 @@ let rec cs_expr_of_texpr ectx e =
 				(* Check if inner is a ternary where one branch is Null<object> and the other is object.
 				   In this case, C# unifies to 'object', but Haxe type says Null<object>.
 				   We can't call .value on object, so we need to use Runtime.toInt/etc. directly. *)
-				(* DEBUG: what is inner_e.eexpr? *)
-				let _ = if is_inner_null_wrapper && not is_target_null_wrapper then
-					let tag = match inner_e.eexpr with
-						| TIf _ -> "TIf" | TLocal v -> "TLocal(" ^ v.v_name ^ ")" | TConst _ -> "TConst"
-						| TCast _ -> "TCast" | TBlock _ -> "TBlock" | TCall _ -> "TCall"
-						| TBinop _ -> "TBinop" | TField _ -> "TField" | TParenthesis _ -> "TParenthesis"
-						| TVar _ -> "TVar" | TMeta _ -> "TMeta" | TArray _ -> "TArray"
-						| _ -> "other"
-					in
-					Printf.eprintf "DEBUG TCast: inner_null=%b target_null=%b inner_expr=%s target_type=%s\n"
-						is_inner_null_wrapper is_target_null_wrapper tag
-						(match target_type with CsTypeInt -> "Int" | CsTypeObject -> "Object" | CsTypeClass _ -> "Class" | _ -> "other")
-				in
 				let is_ternary_with_mixed_null_branches = match inner_e.eexpr with
 					| TIf (_, then_e, Some else_e) ->
 						let then_cs_t = cs_type_of_type ectx.gctx then_e.etype in
@@ -4203,16 +4201,82 @@ let rec cs_expr_of_texpr ectx e =
 				   In C#, arithmetic on Null<T> uses implicit conversion and produces T, not Null<T>.
 				   So even though Haxe type is Null<T>, the C# expression is already T. *)
 				let is_already_unwrapped_by_arithmetic = is_binop_with_implicit_null_conversion inner_e in
+				(* Debug removed *)
 				if is_target_null_wrapper && is_wrapped_type_match then
 					(* Use implicit conversion - just return the inner expression as-is.
 					   C#'s implicit operator will handle the conversion. *)
 					inner_cs
+				else if is_target_null_wrapper && is_inner_null_wrapper && not is_wrapped_type_match then begin
+					(* Casting from Null<A> to Null<B> where A != B.
+					   Need to convert the inner value and rewrap.
+					   E.g., Null<int> to Null<double>: hasValue ? new Null<double>((double)value, true) : default(Null<double>)
+
+					   IMPORTANT: The Haxe type says Null<A>, but the actual C# expression might just be
+					   a primitive if the inner TCast used implicit conversion (is_wrapped_type_match).
+					   In that case, we can't access .hasValue/.value on it - it's just a raw primitive.
+					   Check the C# expression structure, not just the Haxe type. *)
+					let inner_unwrapped = match inner_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
+						| _ -> CsTypeObject
+					in
+					let outer_unwrapped = match target_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
+						| _ -> CsTypeObject
+					in
+					(* Check if the generated C# expression is actually a Null<T> wrapper (CsNew/CsDefault/CsLocal of Null type)
+					   or if it's just a raw primitive value due to implicit conversion optimizations.
+					   A CsConst or a CsCast to primitive is NOT a Null wrapper. *)
+					let rec is_actual_null_wrapper cs_e = match cs_e with
+						| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), _), _) -> true
+						| CsDefault (CsTypeClass ((["haxe"; "lang"], "Null"), _)) -> true
+						| CsTernary (_, then_e, else_e) ->
+							(* Both branches must be Null wrappers *)
+							is_actual_null_wrapper then_e && is_actual_null_wrapper else_e
+						| CsLocal _ -> true  (* Assume locals are correctly typed *)
+						| CsField (_, _) -> true  (* Field access on Null type *)
+						| CsCall (_, _) -> true  (* Method call returning Null *)
+						| CsParens e -> is_actual_null_wrapper e
+						| CsConst _ -> false  (* Raw constant - not a Null wrapper *)
+						| CsCast (CsTypeClass ((["haxe"; "lang"], "Null"), _), _) -> true  (* Cast to Null is wrapper *)
+						| CsCast (_, _) -> false  (* Cast to other type - not a Null wrapper *)
+						| _ -> true  (* Default: assume it's a wrapper to be safe *)
+					in
+					let inner_is_null_wrapper = is_actual_null_wrapper inner_cs in
+					(* Check if we need numeric conversion *)
+					let is_numeric_conversion = match outer_unwrapped, inner_unwrapped with
+						| CsTypeDouble, CsTypeInt -> true
+						| CsTypeDouble, CsTypeFloat -> true
+						| CsTypeFloat, CsTypeInt -> true
+						| CsTypeLong, CsTypeInt -> true
+						| CsTypeInt, CsTypeLong -> true  (* narrowing *)
+						| CsTypeInt, CsTypeDouble -> true  (* narrowing *)
+						| _ -> false
+					in
+					if not inner_is_null_wrapper && is_numeric_conversion then
+						(* Inner is a raw primitive value (not actually wrapped) - just convert and wrap directly.
+						   E.g., -1 (typed as Null<int> but generated as just -1) -> Null<double>:
+						   new Null<double>((double)(-1), true) *)
+						let converted_value = CsCast (outer_unwrapped, inner_cs) in
+						CsNew (target_type, [converted_value; CsConst (CsConstBool true)])
+					else if is_numeric_conversion then
+						(* Inner is an actual Null<T> expression - use hasValue check.
+						   E.g., someNullInt -> Null<double>: hasValue ? new Null<double>((double)value, true) : default *)
+						let has_value = CsField (inner_cs, "hasValue") in
+						let converted_value = CsCast (outer_unwrapped, CsField (inner_cs, "value")) in
+						let true_branch = CsNew (target_type, [converted_value; CsConst (CsConstBool true)]) in
+						let false_branch = CsDefault target_type in
+						CsTernary (has_value, true_branch, false_branch)
+					else
+						(* For non-numeric conversion (e.g., Null<SomeClass<A>> to Null<SomeClass<B>>),
+						   cast through object *)
+						CsCast (target_type, CsCast (CsTypeObject, inner_cs))
+				end
 				else if is_target_null_wrapper && not is_inner_null_wrapper then begin
 					(* Casting TO Null<T> from a non-Null type that doesn't match T exactly.
 					   E.g., int to Null<double>, or SomeClass to Null<SomeInterface>.
 					   We need to convert to T first, then let C#'s implicit operator handle Null wrapping.
 					   IMPORTANT: Only do this when inner is NOT already Null<_> - the existing logic
-					   handles Null<A> to Null<B> conversions (line 4063+) *)
+					   handles Null<A> to Null<B> conversions above. *)
 					let wrapped_type = match target_type with
 						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
 						| _ -> CsTypeObject  (* Shouldn't happen *)
@@ -4248,9 +4312,9 @@ let rec cs_expr_of_texpr ectx e =
 						   This handles weird cases like int to Null<object>. *)
 						CsCast (wrapped_type, CsCast (CsTypeObject, inner_cs))
 					else if inner_type = CsTypeObject && is_wrapped_primitive then
-						(* Object to primitive Null wrapper - need runtime conversion.
+						(* Object to primitive Null wrapper - need runtime conversion + Null wrap.
 						   E.g., (object)(-1) to Null<double> - can't unbox int directly to double.
-						   Use Runtime.toDouble/toInt/etc. for proper conversion. *)
+						   Use Runtime.toDouble/toInt/etc. for proper conversion, then wrap in Null<T>. *)
 						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 						let convert_call = match wrapped_type with
 							| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
@@ -4260,7 +4324,8 @@ let rec cs_expr_of_texpr ectx e =
 							| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
 							| _ -> CsCast (wrapped_type, inner_cs)  (* Fallback for other types *)
 						in
-						convert_call
+						(* Wrap the converted value in Null<T> with hasValue=true *)
+						CsNew (target_type, [convert_call; CsConst (CsConstBool true)])
 					else
 						(* Reference type conversion - cast to wrapped type first, then implicit Null wrap.
 						   E.g., (IInterface)obj -> Null<IInterface> *)
