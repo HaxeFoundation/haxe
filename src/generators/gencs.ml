@@ -28,7 +28,7 @@ open CsAst
 open CsSignature
 open CsPrinter
 open Genshared
-open CsNullableSynf
+open CsNullable
 
 (* Get the native name of a class field (respects @:native metadata) *)
 let get_native_field_name cf =
@@ -615,7 +615,7 @@ let is_null_wrapper_type t =
    Returns true if the GENERATED C# expression will have type Null<T> and needs .value unwrapping.
    CRITICAL: For TCast, we check the TARGET type (e.etype), not the inner expression type.
    This is because TCast changes the C# type - if we cast to non-Null, no .value needed.
-   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level. *)
+   NOTE: CsNullable handles Null<Null<T>> flattening at the AST level. *)
 let rec find_null_in_expr e =
 	if is_null_wrapper_type e.etype then
 		true
@@ -878,7 +878,7 @@ let rec is_ternary_with_mixed_types cs_expr =
 (* Core coercion logic that works with C# types directly.
    This is the inner function used by coerce_arg and can also be called directly
    when you already have C# types.
-   NOTE: Null<Null<T>> flattening is handled by CsNullableSynf at the AST level. *)
+   NOTE: Null<Null<T>> flattening is handled by CsNullable at the AST level. *)
 let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* Only erase when the expected type is purely a generic param that's out of scope.
 	   For complex types like Expr<double>, we should NOT erase - the type params were
@@ -939,7 +939,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| CsTypeByte, CsTypeDynamic -> CsCast (CsTypeByte, cs_arg)
 	| CsTypeString, CsTypeDynamic -> CsCast (CsTypeString, cs_arg)
 	(* Null<T> to T (basic types) - unwrap via .value.
-	   The CsNullableSynf filter handles Null<Null<T>> flattening at the AST level,
+	   The CsNullable filter handles Null<Null<T>> flattening at the AST level,
 	   so we only need single-level unwrap here. *)
 	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) when not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
@@ -1018,14 +1018,14 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 			CsCast (CsTypeNestedGeneric (parent, name, params), CsCast (CsTypeObject, cs_arg))
 	(* FALLBACK: null literal to Null<T> - generate default(Null<T>) directly.
 	   This is a safety net for edge cases where:
-	   1. csNullableSynf strips Null<> from a null constant (correct for inherently nullable types)
+	   1. csNullable strips Null<> from a null constant (correct for inherently nullable types)
 	   2. But the target field IS declared as Null<T> (e.g., recursive abstracts due to cycle-breaking)
 
 	   Ideally, Null<> stripping should happen at the TYPE DEFINITION level in cs_type_of_type,
 	   so Null<InherentlyNullableType> becomes just InherentlyNullableType everywhere.
 	   Once that's implemented, this fallback should rarely (if ever) be triggered.
 
-	   See csNullableSynf.ml TConst TNull handling for the design principle. *)
+	   See csNullable.ml TConst TNull handling for the design principle. *)
 	| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when cs_arg = CsNull ->
 		CsDefault expected_cs_type
 	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally. *)
@@ -1079,7 +1079,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| CsTypeGenericParam _, CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	| CsTypeGenericParam _, CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
 	(* Null<T> to T (generic) - unwrap via .value.
-	   The CsNullableSynf filter handles Null<Null<T>> flattening, so this only handles single Null. *)
+	   The CsNullable filter handles Null<Null<T>> flattening, so this only handles single Null. *)
 	| target, CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 		when target = inner && not (cs_expr_is_object_cast cs_arg) ->
 		CsField (cs_arg, "value")
@@ -1338,7 +1338,7 @@ let rec cs_expr_of_texpr ectx e =
 	| TConst TNull ->
 		(* For Null<T> types, generic type params, and value types, generate default(T) instead of null.
 		   Value types (primitives) can't be null in C#, so we use default(T) which is 0/false/etc.
-		   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level,
+		   NOTE: CsNullable handles Null<Null<T>> flattening at the AST level,
 		   so we only need to handle single-level Null<T> here. *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		begin match cs_type with
@@ -2193,7 +2193,7 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> false
 		in
 		(* Special case: accessing .value or .hasValue on Null<T> - use direct field access, not reflection.
-		   CsNullableSynf generates FDynamic "value"/"hasValue" for Null unwrapping.
+		   CsNullable generates FDynamic "value"/"hasValue" for Null unwrapping.
 		   Only applies if the C# type is actually Null<T>. *)
 		let is_null_struct_field = is_cs_null_type && (name = "value" || name = "hasValue")
 		in
@@ -3283,7 +3283,7 @@ let rec cs_expr_of_texpr ectx e =
 			end
 		end
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) when name = "value" || name = "hasValue" ->
-		(* Special case: calling .value or .hasValue on Null<T> - this is csNullableSynf's unwrap pattern.
+		(* Special case: calling .value or .hasValue on Null<T> - this is csNullable's unwrap pattern.
 		   Generate direct field access and invoke, not Runtime.GetField. *)
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let func_expr = CsField (obj, name) in
@@ -3859,7 +3859,7 @@ let rec cs_expr_of_texpr ectx e =
 		end
 		end  (* close is_stored_function_field else branch *)
 	| TCall ({ eexpr = TIdent "__default__" }, []) ->
-		(* Generated by CsNullableSynf for default(Null<T>) *)
+		(* Generated by CsNullable for default(Null<T>) *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		CsDefault cs_type
 	| TCall ({ eexpr = TIdent "__cs__" }, args) ->
@@ -4215,7 +4215,7 @@ let rec cs_expr_of_texpr ectx e =
 			   For example, calling a generic method via reflection returns T, but T
 			   is not defined in the calling context. Replace with object. *)
 			let target_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope target_type_raw in
-			(* NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level. *)
+			(* NOTE: CsNullable handles Null<Null<T>> flattening at the AST level. *)
 			(* Special case: casting null to a value type should use default(T), not (T)(null)
 			   This handles @:fromNull abstracts where null converts to the default value *)
 			let is_null_inner = match inner_e.eexpr with TConst TNull -> true | _ -> false in
@@ -4541,7 +4541,7 @@ let rec cs_expr_of_texpr ectx e =
 			   is T and other is Null<T> because both implicit conversions exist (T->Null<T> and Null<T>->T).
 			   Use new Null<T>(value, true) for explicit wrapping since explicit casts don't work
 			   for all types (e.g., interfaces can't be explicitly cast to Null<interface>).
-			   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level.
+			   NOTE: CsNullable handles Null<Null<T>> flattening at the AST level.
 			   IMPORTANT: Only wrap if the branch isn't already the target Null type. *)
 			let result_cs_type = cs_type_of_type ectx.gctx result_type in
 			let then_cs_type = cs_type_of_type ectx.gctx then_expr.etype in
@@ -4783,7 +4783,7 @@ let rec cs_expr_of_texpr ectx e =
 		else
 			CsField (obj, "_hx_index")
 	| TIdent "__default__" ->
-		(* Generated by CsNullableSynf for default(Null<T>) *)
+		(* Generated by CsNullable for default(Null<T>) *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		CsDefault cs_type
 	| TIdent s ->
@@ -4981,7 +4981,7 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		(* For control flow statements used as expressions, generate a result variable
 		   instead of wrapping in a lambda IIFE.
 		   Pattern: var _hx_result = default(T); if (...) _hx_result = x; else _hx_result = y; use _hx_result *)
-		(* NOTE: CsNullableSynf filter handles Null<Null<T>> flattening at the AST level *)
+		(* NOTE: CsNullable filter handles Null<Null<T>> flattening at the AST level *)
 		let result_type = cs_type_of_type ectx.gctx e.etype in
 		let is_void = ExtType.is_void (follow e.etype) in
 		(* Generate a unique temporary variable name *)
@@ -5419,7 +5419,7 @@ and cs_stmt_of_texpr ectx e =
 			CsExprStmt (cs_expr_of_texpr ectx e)
 		else begin
 			(* RHS needed prefix statements - emit them, then the assignment.
-			   NOTE: CsNullableSynf filter handles Null<Null<T>> flattening at the AST level.
+			   NOTE: CsNullable filter handles Null<Null<T>> flattening at the AST level.
 
 			   NOTE: We use cs_expr_of_texpr for LHS but delegate to the assignment handling
 			   in the general TBinop OpAssign case for correct field handling. *)
@@ -6400,7 +6400,7 @@ let () = generate_method_closure_ref := generate_method_closure
    type_param_constraints: constraints for type parameters (name -> C# constraint types) *)
 let generate_method_body gctx ?(param_cs_names=[]) ?(type_params_in_scope=[]) ?(type_param_constraints=[]) ?return_type ?class_path ?method_name e =
 	(* Apply Null<T> syntax filter to the expression first *)
-	let e = CsNullableSynf.filter gctx.com e in
+	let e = CsNullable.filter gctx.com e in
 	let ectx = create_expr_context gctx in
 	ectx.return_type <- return_type;
 	ectx.current_class_path <- class_path;
