@@ -240,6 +240,24 @@ let run cfg e =
 			in
 			let null_et = is_null_t e.etype in    (* Target: is it Null<T>? *)
 			let null_vt = is_null_t v.etype in    (* Source: is it Null<T>? *)
+			(* Also check for method calls that return Null<TypeParam> - the C# method signature
+			   IS Null<T> even when T is instantiated to a reference type. In this case,
+			   is_null_t returns None (because reference types don't need Null wrapper),
+			   but the C# expression IS Null<T> and needs .value unwrap. *)
+			let is_method_with_null_type_param = match v.eexpr with
+				| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
+				| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
+				| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
+					begin match follow cf.cf_type with
+					| TFun (_, TAbstract ({ a_path = ([], "Null") }, [inner])) ->
+						begin match follow inner with
+						| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+						| _ -> false
+						end
+					| _ -> false
+					end
+				| _ -> false
+			in
 			begin match null_vt, null_et with
 			| Some inner_vt, None ->
 				(* Null<T> -> T: unwrap .value *)
@@ -257,6 +275,18 @@ let run cfg e =
 				| _ ->
 					handle_unwrap cfg e.etype (transform v)
 				end
+			| None, None when is_method_with_null_type_param ->
+				(* Method returns Null<TypeParam> - the C# expression IS Null<T>, needs unwrap.
+				   Even though is_null_t returns None (inner type is reference type), the C#
+				   method signature IS Null<T>, so we need .value to get the underlying value. *)
+				let inner_t = match v.etype with
+					| TAbstract ({ a_path = ([], "Null") }, [inner]) -> inner
+					| _ -> e.etype  (* Fallback *)
+				in
+				(* Generate .value access and cast to target type *)
+				let v_transformed = transform v in
+				let unwrapped = unwrap_null cfg v_transformed inner_t in
+				{ eexpr = TCast(unwrapped, None); etype = e.etype; epos = e.epos }
 			| None, Some inner_et ->
 				(* T -> Null<T>: wrap in constructor *)
 				handle_wrap cfg (transform v) inner_et
