@@ -51,13 +51,13 @@ namespace haxe.lang
 
         /// <summary>
         /// Converts a dynamic value to bool, handling null.
-        /// Also handles long values from FunctionValue.ToDynamic() which stores bools as 0L/1L.
+        /// Also handles long values from Value.ToDynamic() which stores bools as 0L/1L.
         /// </summary>
         public static bool toBool(object d)
         {
             if (d == null) return false;
             if (d is bool b) return b;
-            // FunctionValue.ToDynamic() returns bools as boxed longs (0L for false, 1L for true)
+            // Value.ToDynamic() returns bools as boxed longs (0L for false, 1L for true)
             if (d is long l) return l != 0L;
             return false;
         }

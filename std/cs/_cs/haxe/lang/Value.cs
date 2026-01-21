@@ -19,7 +19,7 @@ namespace haxe.lang
     /// - obj == PrimDoubleEncoded: double/float value encoded via BitConverter in prim field
     /// - obj == anything else (including null): Object value in obj field
     /// </summary>
-    public struct FunctionValue
+    public struct Value
     {
         // Sentinel objects for discriminating value types
         private static readonly object NoValue = new object();
@@ -40,110 +40,110 @@ namespace haxe.lang
         /// </summary>
         public long prim;
 
-        public FunctionValue(object obj, long prim)
+        public Value(object obj, long prim)
         {
             this.obj = obj;
             this.prim = prim;
         }
 
         // ============================================================
-        // Static factory methods for creating FunctionValue from values
+        // Static factory methods for creating Value from values
         // ============================================================
 
         /// <summary>Create from int value</summary>
-        public static global::haxe.lang.FunctionValue FromInt(int value)
+        public static global::haxe.lang.Value FromInt(int value)
         {
-            return new global::haxe.lang.FunctionValue(PrimValue, value);
+            return new global::haxe.lang.Value(PrimValue, value);
         }
 
         /// <summary>Create from long/Int64 value - stored directly, no precision loss!</summary>
-        public static global::haxe.lang.FunctionValue FromLong(long value)
+        public static global::haxe.lang.Value FromLong(long value)
         {
-            return new global::haxe.lang.FunctionValue(PrimValue, value);
+            return new global::haxe.lang.Value(PrimValue, value);
         }
 
         /// <summary>Create from double - uses BitConverter for lossless storage</summary>
-        public static global::haxe.lang.FunctionValue FromDouble(double value)
+        public static global::haxe.lang.Value FromDouble(double value)
         {
-            return new global::haxe.lang.FunctionValue(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits(value));
+            return new global::haxe.lang.Value(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits(value));
         }
 
         /// <summary>Create from float - cast to double first, then encode</summary>
-        public static global::haxe.lang.FunctionValue FromFloat(float value)
+        public static global::haxe.lang.Value FromFloat(float value)
         {
-            return new global::haxe.lang.FunctionValue(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits((double)value));
+            return new global::haxe.lang.Value(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits((double)value));
         }
 
         /// <summary>Create from bool</summary>
-        public static global::haxe.lang.FunctionValue FromBool(bool value)
+        public static global::haxe.lang.Value FromBool(bool value)
         {
-            return new global::haxe.lang.FunctionValue(PrimValue, value ? 1L : 0L);
+            return new global::haxe.lang.Value(PrimValue, value ? 1L : 0L);
         }
 
         /// <summary>Create from object/reference type</summary>
-        public static global::haxe.lang.FunctionValue FromObject(object value)
+        public static global::haxe.lang.Value FromObject(object value)
         {
-            return new global::haxe.lang.FunctionValue(value, 0L);
+            return new global::haxe.lang.Value(value, 0L);
         }
 
         /// <summary>Create from Null&lt;int&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionValue FromNullInt(global::haxe.lang.Null<int> value)
+        public static global::haxe.lang.Value FromNullInt(global::haxe.lang.Null<int> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionValue(PrimValue, value.value);
+                return new global::haxe.lang.Value(PrimValue, value.value);
             else
-                return new global::haxe.lang.FunctionValue(NoValue, 0L);
+                return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;long&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionValue FromNullLong(global::haxe.lang.Null<long> value)
+        public static global::haxe.lang.Value FromNullLong(global::haxe.lang.Null<long> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionValue(PrimValue, value.value);
+                return new global::haxe.lang.Value(PrimValue, value.value);
             else
-                return new global::haxe.lang.FunctionValue(NoValue, 0L);
+                return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;double&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionValue FromNullDouble(global::haxe.lang.Null<double> value)
+        public static global::haxe.lang.Value FromNullDouble(global::haxe.lang.Null<double> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionValue(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits(value.value));
+                return new global::haxe.lang.Value(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits(value.value));
             else
-                return new global::haxe.lang.FunctionValue(NoValue, 0L);
+                return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;float&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionValue FromNullFloat(global::haxe.lang.Null<float> value)
+        public static global::haxe.lang.Value FromNullFloat(global::haxe.lang.Null<float> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionValue(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits((double)value.value));
+                return new global::haxe.lang.Value(PrimDoubleEncoded, global::System.BitConverter.DoubleToInt64Bits((double)value.value));
             else
-                return new global::haxe.lang.FunctionValue(NoValue, 0L);
+                return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;bool&gt; - no boxing!</summary>
-        public static global::haxe.lang.FunctionValue FromNullBool(global::haxe.lang.Null<bool> value)
+        public static global::haxe.lang.Value FromNullBool(global::haxe.lang.Null<bool> value)
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionValue(PrimValue, value.value ? 1L : 0L);
+                return new global::haxe.lang.Value(PrimValue, value.value ? 1L : 0L);
             else
-                return new global::haxe.lang.FunctionValue(NoValue, 0L);
+                return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         /// <summary>Create from Null&lt;T&gt; for reference types</summary>
-        public static global::haxe.lang.FunctionValue FromNullObject<T>(global::haxe.lang.Null<T> value) where T : class
+        public static global::haxe.lang.Value FromNullObject<T>(global::haxe.lang.Null<T> value) where T : class
         {
             if (value.hasValue)
-                return new global::haxe.lang.FunctionValue(value.value, 0L);
+                return new global::haxe.lang.Value(value.value, 0L);
             else
-                return new global::haxe.lang.FunctionValue(NoValue, 0L);
+                return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         /// <summary>Create for missing/omitted optional parameter or void return</summary>
-        public static global::haxe.lang.FunctionValue Missing()
+        public static global::haxe.lang.Value Missing()
         {
-            return new global::haxe.lang.FunctionValue(NoValue, 0L);
+            return new global::haxe.lang.Value(NoValue, 0L);
         }
 
         // ============================================================
@@ -305,7 +305,7 @@ namespace haxe.lang
             return obj;
         }
 
-        /// <summary>Check if this FunctionValue contains a value (not NoValue)</summary>
+        /// <summary>Check if this Value contains a value (not NoValue)</summary>
         public bool HasValue => !ReferenceEquals(obj, NoValue);
     }
 }

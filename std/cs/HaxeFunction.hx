@@ -26,7 +26,7 @@ package cs;
  * Base class for all Haxe function types in C#.
  * Provides dynamic invocation capability for calling functions via reflection.
  *
- * FunctionValue pattern: Each argument and return value is passed as a FunctionValue struct
+ * Value pattern: Each argument and return value is passed as a Value struct
  * that can hold either primitives (via prim field) or references (via obj field) without boxing.
  * The kind field indicates which slot contains the value (0=none, 1=obj, 2=prim).
  */
@@ -43,37 +43,37 @@ class HaxeFunction {
 	}
 
 	// ============================================================
-	// FunctionValue-based invoke methods - zero allocation!
-	// Returns FunctionValue to avoid boxing return values too.
+	// Value-based invoke methods - zero allocation!
+	// Returns Value to avoid boxing return values too.
 	// ============================================================
 
-	public function __hx_invoke0():FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([]));
+	public function __hx_invoke0():Value {
+		return Value.FromObject(invokeDynamic([]));
 	}
 
-	public function __hx_invoke1(a1:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([a1.ToDynamic()]));
+	public function __hx_invoke1(a1:Value):Value {
+		return Value.FromObject(invokeDynamic([a1.ToDynamic()]));
 	}
 
-	public function __hx_invoke2(a1:FunctionValue, a2:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic()]));
+	public function __hx_invoke2(a1:Value, a2:Value):Value {
+		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic()]));
 	}
 
-	public function __hx_invoke3(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic()]));
+	public function __hx_invoke3(a1:Value, a2:Value, a3:Value):Value {
+		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic()]));
 	}
 
-	public function __hx_invoke4(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic()]));
+	public function __hx_invoke4(a1:Value, a2:Value, a3:Value, a4:Value):Value {
+		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic()]));
 	}
 
-	public function __hx_invoke5(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic(), a5.ToDynamic()]));
+	public function __hx_invoke5(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value):Value {
+		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic(), a5.ToDynamic()]));
 	}
 
-	public function __hx_invoke6(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue,
-			a6:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([
+	public function __hx_invoke6(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value,
+			a6:Value):Value {
+		return Value.FromObject(invokeDynamic([
 			a1.ToDynamic(),
 			a2.ToDynamic(),
 			a3.ToDynamic(),
@@ -83,9 +83,9 @@ class HaxeFunction {
 		]));
 	}
 
-	public function __hx_invoke7(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue,
-			a7:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([
+	public function __hx_invoke7(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value,
+			a7:Value):Value {
+		return Value.FromObject(invokeDynamic([
 			a1.ToDynamic(),
 			a2.ToDynamic(),
 			a3.ToDynamic(),
@@ -96,9 +96,9 @@ class HaxeFunction {
 		]));
 	}
 
-	public function __hx_invoke8(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue,
-			a7:FunctionValue, a8:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([
+	public function __hx_invoke8(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value,
+			a7:Value, a8:Value):Value {
+		return Value.FromObject(invokeDynamic([
 			a1.ToDynamic(),
 			a2.ToDynamic(),
 			a3.ToDynamic(),
@@ -110,9 +110,9 @@ class HaxeFunction {
 		]));
 	}
 
-	public function __hx_invoke9(a1:FunctionValue, a2:FunctionValue, a3:FunctionValue, a4:FunctionValue, a5:FunctionValue, a6:FunctionValue,
-			a7:FunctionValue, a8:FunctionValue, a9:FunctionValue):FunctionValue {
-		return FunctionValue.FromObject(invokeDynamic([
+	public function __hx_invoke9(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value,
+			a7:Value, a8:Value, a9:Value):Value {
+		return Value.FromObject(invokeDynamic([
 			a1.ToDynamic(),
 			a2.ToDynamic(),
 			a3.ToDynamic(),
@@ -127,7 +127,7 @@ class HaxeFunction {
 
 	// ============================================================
 	// Convenience invoke methods - these box all arguments
-	// These call the FunctionValue methods with all args wrapped
+	// These call the Value methods with all args wrapped
 	// Return object for compatibility with reflection/dynamic calls
 	// ============================================================
 
@@ -142,28 +142,28 @@ class HaxeFunction {
 	 * Invoke with 1 argument.
 	 */
 	public function invoke1(a0:Dynamic):Dynamic {
-		return __hx_invoke1(FunctionValue.FromObject(a0)).ToDynamic();
+		return __hx_invoke1(Value.FromObject(a0)).ToDynamic();
 	}
 
 	/**
 	 * Invoke with 2 arguments.
 	 */
 	public function invoke2(a0:Dynamic, a1:Dynamic):Dynamic {
-		return __hx_invoke2(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1)).ToDynamic();
+		return __hx_invoke2(Value.FromObject(a0), Value.FromObject(a1)).ToDynamic();
 	}
 
 	/**
 	 * Invoke with 3 arguments.
 	 */
 	public function invoke3(a0:Dynamic, a1:Dynamic, a2:Dynamic):Dynamic {
-		return __hx_invoke3(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2)).ToDynamic();
+		return __hx_invoke3(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2)).ToDynamic();
 	}
 
 	/**
 	 * Invoke with 4 arguments.
 	 */
 	public function invoke4(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic):Dynamic {
-		return __hx_invoke4(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3))
+		return __hx_invoke4(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3))
 			.ToDynamic();
 	}
 
@@ -171,8 +171,8 @@ class HaxeFunction {
 	 * Invoke with 5 arguments.
 	 */
 	public function invoke5(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic):Dynamic {
-		return __hx_invoke5(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
-			FunctionValue.FromObject(a4))
+		return __hx_invoke5(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
+			Value.FromObject(a4))
 			.ToDynamic();
 	}
 
@@ -180,8 +180,8 @@ class HaxeFunction {
 	 * Invoke with 6 arguments.
 	 */
 	public function invoke6(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic):Dynamic {
-		return __hx_invoke6(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
-			FunctionValue.FromObject(a4), FunctionValue.FromObject(a5))
+		return __hx_invoke6(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
+			Value.FromObject(a4), Value.FromObject(a5))
 			.ToDynamic();
 	}
 
@@ -189,8 +189,8 @@ class HaxeFunction {
 	 * Invoke with 7 arguments.
 	 */
 	public function invoke7(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic):Dynamic {
-		return __hx_invoke7(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
-			FunctionValue.FromObject(a4), FunctionValue.FromObject(a5), FunctionValue.FromObject(a6))
+		return __hx_invoke7(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
+			Value.FromObject(a4), Value.FromObject(a5), Value.FromObject(a6))
 			.ToDynamic();
 	}
 
@@ -198,8 +198,8 @@ class HaxeFunction {
 	 * Invoke with 8 arguments.
 	 */
 	public function invoke8(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic):Dynamic {
-		return __hx_invoke8(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
-			FunctionValue.FromObject(a4), FunctionValue.FromObject(a5), FunctionValue.FromObject(a6), FunctionValue.FromObject(a7))
+		return __hx_invoke8(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
+			Value.FromObject(a4), Value.FromObject(a5), Value.FromObject(a6), Value.FromObject(a7))
 			.ToDynamic();
 	}
 
@@ -207,9 +207,9 @@ class HaxeFunction {
 	 * Invoke with 9 arguments.
 	 */
 	public function invoke9(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic, a8:Dynamic):Dynamic {
-		return __hx_invoke9(FunctionValue.FromObject(a0), FunctionValue.FromObject(a1), FunctionValue.FromObject(a2), FunctionValue.FromObject(a3),
-			FunctionValue.FromObject(a4), FunctionValue.FromObject(a5), FunctionValue.FromObject(a6), FunctionValue.FromObject(a7),
-			FunctionValue.FromObject(a8))
+		return __hx_invoke9(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
+			Value.FromObject(a4), Value.FromObject(a5), Value.FromObject(a6), Value.FromObject(a7),
+			Value.FromObject(a8))
 			.ToDynamic();
 	}
 }

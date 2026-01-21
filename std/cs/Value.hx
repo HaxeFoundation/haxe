@@ -40,8 +40,8 @@ import cs.Int64;
  * - 2 = Primitive value in prim field (obj is null)
  */
 @:keep
-@:native("haxe.lang.FunctionValue")
-extern class FunctionValue {
+@:native("haxe.lang.Value")
+extern class Value {
 	/**
 	 * Object slot for reference types.
 	 */
@@ -60,13 +60,13 @@ extern class FunctionValue {
 	var kind:Int;
 
 	// Static factory methods
-	static function FromInt(value:Int):FunctionValue;
-	static function FromLong(value:Int64):FunctionValue;
-	static function FromDouble(value:Float):FunctionValue;
-	static function FromFloat(value:Single):FunctionValue;
-	static function FromBool(value:Bool):FunctionValue;
-	static function FromObject(value:Dynamic):FunctionValue;
-	static function Missing():FunctionValue;
+	static function FromInt(value:Int):Value;
+	static function FromLong(value:Int64):Value;
+	static function FromDouble(value:Float):Value;
+	static function FromFloat(value:Single):Value;
+	static function FromBool(value:Bool):Value;
+	static function FromObject(value:Dynamic):Value;
+	static function Missing():Value;
 
 	// Extraction methods
 	function ToInt():Int;
@@ -78,7 +78,7 @@ extern class FunctionValue {
 	function ToDynamic():Dynamic;
 
 	/**
-	 * Check if this FunctionValue contains a value (kind != 0)
+	 * Check if this Value contains a value (kind != 0)
 	 */
 	var HasValue(default, null):Bool;
 }

@@ -129,26 +129,26 @@ let invoke_method_name num_args =
 	if num_args = 0 then "invoke"
 	else "invoke" ^ string_of_int num_args
 
-(* Get the FunctionValue-based invoke method name: __hx_invoke0, __hx_invoke1, etc.
-   These methods return FunctionValue to avoid boxing on return values. *)
+(* Get the Value-based invoke method name: __hx_invoke0, __hx_invoke1, etc.
+   These methods return Value to avoid boxing on return values. *)
 let functionvalue_invoke_method_name num_args =
 	"__hx_invoke" ^ string_of_int num_args
 
-(* Generate FunctionValue arguments for closure/function invocation.
-   Returns a list of FunctionValue.FromXxx(...) calls for each argument.
+(* Generate Value arguments for closure/function invocation.
+   Returns a list of Value.FromXxx(...) calls for each argument.
    Each argument type maps to a specific factory method:
-   - int: FunctionValue.FromInt(arg)
-   - double: FunctionValue.FromDouble(arg)
-   - float: FunctionValue.FromFloat(arg)
-   - bool: FunctionValue.FromBool(arg)
-   - long: FunctionValue.FromLong(arg)
-   - Null<int>: FunctionValue.FromNullInt(arg)
-   - Null<double>: FunctionValue.FromNullDouble(arg)
-   - other: FunctionValue.FromObject(arg)
+   - int: Value.FromInt(arg)
+   - double: Value.FromDouble(arg)
+   - float: Value.FromFloat(arg)
+   - bool: Value.FromBool(arg)
+   - long: Value.FromLong(arg)
+   - Null<int>: Value.FromNullInt(arg)
+   - Null<double>: Value.FromNullDouble(arg)
+   - other: Value.FromObject(arg)
    Note: arg_types may be shorter than args (e.g., if type info is missing);
    we default to FromObject for any args without type info. *)
 let generate_functionvalue_args args arg_types =
-	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), []) in
+	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let num_types = List.length arg_types in
 	List.mapi (fun i arg ->
 		let arg_type = if i < num_types then List.nth arg_types i else CsTypeObject in
@@ -2345,12 +2345,12 @@ let rec cs_expr_of_texpr ectx e =
 				m_explicit_interface = None;
 				m_attributes = [];
 			} in
-			(* Build FunctionValue-based __hx_invokeN method *)
-			let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), []) in
+			(* Build Value-based __hx_invokeN method *)
+			let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 			let fv_params = List.mapi (fun i _ ->
 				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some functionvalue_type; p_default = None; p_modifier = None }
 			) param_types_cs in
-			(* Extract args from FunctionValue *)
+			(* Extract args from Value *)
 			let fv_extract_args = List.mapi (fun i cs_type ->
 				let a_var = CsLocal ("a" ^ string_of_int (i + 1)) in
 				match cs_type with
@@ -2509,13 +2509,13 @@ let rec cs_expr_of_texpr ectx e =
 		let result_type = cs_type_of_type ectx.gctx ret_type_hx in
 		(* Register this signature for typed invoke generation *)
 		register_invoke_signature ectx.gctx param_types_cs result_type;
-		(* Use FunctionValue-based invoke to avoid boxing primitives *)
+		(* Use Value-based invoke to avoid boxing primitives *)
 		let num_args = List.length args_cs in
 		let functionvalue_args = generate_functionvalue_args args_cs param_types_cs in
 		let call_expr = CsCall (CsField (closure, functionvalue_invoke_method_name num_args), functionvalue_args) in
-		(* Extract the return value from FunctionValue using the appropriate ToXxx method *)
+		(* Extract the return value from Value using the appropriate ToXxx method *)
 		begin match result_type with
-		| CsTypeVoid -> call_expr  (* FunctionValue.Missing() returned, ignored *)
+		| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
 		| CsTypeInt -> CsCall (CsField (call_expr, "ToInt"), [])
 		| CsTypeDouble -> CsCall (CsField (call_expr, "ToDouble"), [])
 		| CsTypeFloat -> CsCall (CsField (call_expr, "ToFloat"), [])
@@ -2869,13 +2869,13 @@ let rec cs_expr_of_texpr ectx e =
 			let result_type = cs_type_of_type ectx.gctx ret_type_hx in
 			(* Register this signature for typed invoke generation *)
 			register_invoke_signature ectx.gctx param_types_cs result_type;
-			(* Use FunctionValue-based invoke to avoid boxing primitives *)
+			(* Use Value-based invoke to avoid boxing primitives *)
 			let num_args = List.length args_cs in
 			let functionvalue_args = generate_functionvalue_args args_cs param_types_cs in
 			let call_expr = CsCall (CsField (func_expr, functionvalue_invoke_method_name num_args), functionvalue_args) in
-			(* Extract the return value from FunctionValue using the appropriate ToXxx method *)
+			(* Extract the return value from Value using the appropriate ToXxx method *)
 			begin match result_type with
-			| CsTypeVoid -> call_expr  (* FunctionValue.Missing() returned, ignored *)
+			| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
 			| CsTypeInt -> CsCall (CsField (call_expr, "ToInt"), [])
 			| CsTypeDouble -> CsCall (CsField (call_expr, "ToDouble"), [])
 			| CsTypeFloat -> CsCall (CsField (call_expr, "ToFloat"), [])
@@ -4113,13 +4113,13 @@ let rec cs_expr_of_texpr ectx e =
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Register this signature for later generation on Function class *)
 			register_invoke_signature ectx.gctx param_types_cs result_type;
-			(* Use FunctionValue-based invoke to avoid boxing primitives *)
+			(* Use Value-based invoke to avoid boxing primitives *)
 			let num_args = List.length args_cs in
 			let functionvalue_args = generate_functionvalue_args args_cs param_types_cs in
 			let call_expr = CsCall (CsField (func, functionvalue_invoke_method_name num_args), functionvalue_args) in
-			(* Extract the return value from FunctionValue using the appropriate ToXxx method *)
+			(* Extract the return value from Value using the appropriate ToXxx method *)
 			begin match result_type with
-			| CsTypeVoid -> call_expr  (* FunctionValue.Missing() returned, ignored *)
+			| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
 			| CsTypeInt -> CsCall (CsField (call_expr, "ToInt"), [])
 			| CsTypeDouble -> CsCall (CsField (call_expr, "ToDouble"), [])
 			| CsTypeFloat -> CsCall (CsField (call_expr, "ToFloat"), [])
@@ -5883,12 +5883,12 @@ let generate_closure_class ectx tf func_type =
 		m_attributes = [];
 	} in
 
-	(* Build __hx_invokeN method - FunctionValue-based invoke to avoid boxing.
-	   Each argument is passed as a FunctionValue struct that holds primitives in prim field
+	(* Build __hx_invokeN method - Value-based invoke to avoid boxing.
+	   Each argument is passed as a Value struct that holds primitives in prim field
 	   and references in obj field. The kind field indicates which slot contains the value.
 	   Extract values using ToInt(), ToDouble(), ToObject(), etc.
-	   Returns FunctionValue to avoid boxing on return values too. *)
-	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), []) in
+	   Returns Value to avoid boxing on return values too. *)
+	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let functionvalue_invoke_method =
 		if num_params = 0 then
 			(* No params - just override __hx_invoke0 to call invoke() and wrap result *)
@@ -5896,7 +5896,7 @@ let generate_closure_class ectx tf func_type =
 			let body = if return_type = CsTypeVoid then
 				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (functionvalue_type, "Missing", [])))]
 			else
-				(* Wrap return value with appropriate FunctionValue.FromXxx *)
+				(* Wrap return value with appropriate Value.FromXxx *)
 				let wrapped_result = match return_type with
 					| CsTypeInt -> CsStaticCall (functionvalue_type, "FromInt", [invoke_result])
 					| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromDouble", [invoke_result])
@@ -5920,7 +5920,7 @@ let generate_closure_class ectx tf func_type =
 				m_attributes = [];
 			}
 		else
-			(* Build FunctionValue params: for each arg, FunctionValue aN *)
+			(* Build Value params: for each arg, Value aN *)
 			let functionvalue_params = List.mapi (fun i _ ->
 				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some functionvalue_type; p_default = None; p_modifier = None }
 			) invoke_params in
@@ -5976,7 +5976,7 @@ let generate_closure_class ectx tf func_type =
 			let body = if return_type = CsTypeVoid then
 				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (functionvalue_type, "Missing", [])))]
 			else
-				(* Wrap return value with appropriate FunctionValue.FromXxx *)
+				(* Wrap return value with appropriate Value.FromXxx *)
 				let wrapped_result = match return_type with
 					| CsTypeInt -> CsStaticCall (functionvalue_type, "FromInt", [invoke_call])
 					| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromDouble", [invoke_call])
@@ -6344,9 +6344,9 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		m_attributes = [];
 	} in
 
-	(* Build __hx_invokeN method - FunctionValue-based invoke to avoid boxing.
-	   Returns FunctionValue to avoid boxing on return values too. *)
-	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), []) in
+	(* Build __hx_invokeN method - Value-based invoke to avoid boxing.
+	   Returns Value to avoid boxing on return values too. *)
+	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let functionvalue_invoke_method =
 		if num_params = 0 then
 			let invoke_result = CsCall (CsLocal "invoke", []) in
@@ -7589,8 +7589,8 @@ let rec extends_haxe_object c =
 		else
 			extends_haxe_object sc  (* Check the superclass *)
 
-(* FunctionValue type for method closure dispatchers *)
-let function_value_type = CsTypeClass ((["haxe"; "lang"], "FunctionValue"), [])
+(* Value type for method closure dispatchers *)
+let function_value_type = CsTypeClass ((["haxe"; "lang"], "Value"), [])
 
 (* FastMethodClosure type for AOT-safe method closures *)
 let fast_method_closure_type = CsTypeClass ((["haxe"; "lang"], "FastMethodClosure"), [])
@@ -7829,10 +7829,10 @@ let generate_field_accessors gctx c =
 				let method_name = Printf.sprintf "_hx_invokeMethod%d" arity in
 				(* Build switch cases for each method of this arity *)
 				let cases = List.map (fun (idx, _, native_name, args, ret) ->
-					(* Generate the method call with proper argument extraction from FunctionValue *)
+					(* Generate the method call with proper argument extraction from Value *)
 					let call_args = List.mapi (fun i (arg_name, _, t) ->
 						let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
-						(* Extract value from FunctionValue based on type *)
+						(* Extract value from Value based on type *)
 						let cs_arg_type = cs_type_of_type gctx t in
 						match cs_arg_type with
 						| CsTypeInt -> CsCall (CsField (fv_local, "ToInt"), [])
@@ -7843,11 +7843,11 @@ let generate_field_accessors gctx c =
 						| _ -> CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), []))
 					) args in
 					let method_call = CsCall (CsField (CsThis, native_name), call_args) in
-					(* Wrap result in FunctionValue *)
+					(* Wrap result in Value *)
 					let cs_ret_type = cs_type_of_type gctx ret in
 					let result_expr = match cs_ret_type with
 						| CsTypeVoid ->
-							(* void method - call it then return FunctionValue.Missing() *)
+							(* void method - call it then return Value.Missing() *)
 							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (function_value_type, "Missing", [])))]
 						| CsTypeInt ->
 							[CsReturn (Some (CsStaticCall (function_value_type, "FromInt", [method_call])))]
@@ -7873,7 +7873,7 @@ let generate_field_accessors gctx c =
 						CsLocal "index" :: List.mapi (fun i _ -> CsLocal (Printf.sprintf "a%d" (i + 1))) (List.init arity (fun _ -> ()))
 					)))];
 				} in
-				(* Build parameter list: int index, FunctionValue a1, FunctionValue a2, ... *)
+				(* Build parameter list: int index, Value a1, Value a2, ... *)
 				let params =
 					{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None } ::
 					List.mapi (fun i _ -> {
@@ -8582,7 +8582,7 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/Null.cs" "haxe/lang/Null.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Function.cs" "haxe/lang/Function.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/FunctionValue.cs" "haxe/lang/FunctionValue.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/Value.cs" "haxe/lang/Value.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/FastMethodClosure.cs" "haxe/lang/FastMethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";

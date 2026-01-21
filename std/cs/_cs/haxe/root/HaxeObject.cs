@@ -57,52 +57,52 @@ namespace haxe.root
         // Subclasses should override these to dispatch by method index
         // ============================================================
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod0(int index)
+        public virtual global::haxe.lang.Value _hx_invokeMethod0(int index)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod1(int index, global::haxe.lang.FunctionValue a1)
+        public virtual global::haxe.lang.Value _hx_invokeMethod1(int index, global::haxe.lang.Value a1)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod2(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2)
+        public virtual global::haxe.lang.Value _hx_invokeMethod2(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod3(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3)
+        public virtual global::haxe.lang.Value _hx_invokeMethod3(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod4(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4)
+        public virtual global::haxe.lang.Value _hx_invokeMethod4(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod5(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4, global::haxe.lang.FunctionValue a5)
+        public virtual global::haxe.lang.Value _hx_invokeMethod5(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod6(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4, global::haxe.lang.FunctionValue a5, global::haxe.lang.FunctionValue a6)
+        public virtual global::haxe.lang.Value _hx_invokeMethod6(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod7(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4, global::haxe.lang.FunctionValue a5, global::haxe.lang.FunctionValue a6, global::haxe.lang.FunctionValue a7)
+        public virtual global::haxe.lang.Value _hx_invokeMethod7(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod8(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4, global::haxe.lang.FunctionValue a5, global::haxe.lang.FunctionValue a6, global::haxe.lang.FunctionValue a7, global::haxe.lang.FunctionValue a8)
+        public virtual global::haxe.lang.Value _hx_invokeMethod8(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7, global::haxe.lang.Value a8)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
 
-        public virtual global::haxe.lang.FunctionValue _hx_invokeMethod9(int index, global::haxe.lang.FunctionValue a1, global::haxe.lang.FunctionValue a2, global::haxe.lang.FunctionValue a3, global::haxe.lang.FunctionValue a4, global::haxe.lang.FunctionValue a5, global::haxe.lang.FunctionValue a6, global::haxe.lang.FunctionValue a7, global::haxe.lang.FunctionValue a8, global::haxe.lang.FunctionValue a9)
+        public virtual global::haxe.lang.Value _hx_invokeMethod9(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7, global::haxe.lang.Value a8, global::haxe.lang.Value a9)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found");
         }
