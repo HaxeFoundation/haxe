@@ -43,33 +43,6 @@ type null_config = {
 	basic : basic_types;           (* Basic types from compiler context *)
 }
 
-(* Check if type is Null<T>, return inner type (with nested Null stripped).
-   IMPORTANT: Don't use follow() on the outer type - it may follow through abstract to inner type.
-   Only follow TType, TLazy, TMono like gencs.ml's is_null_wrapper_type does. *)
-let rec is_null_t t =
-	let rec take_off_null t =
-		match is_null_t t with
-		| None -> t
-		| Some inner -> take_off_null inner
-	in
-	(* Custom follow that doesn't unwrap abstracts *)
-	let rec shallow_follow t depth =
-		if depth > 10 then t else
-		match t with
-		| TType (_, _) -> shallow_follow (Type.follow_once t) (depth + 1)
-		| TLazy f -> shallow_follow (lazy_type f) (depth + 1)
-		| TMono r -> (match r.tm_type with Some t -> shallow_follow t (depth + 1) | None -> t)
-		| _ -> t
-	in
-	match shallow_follow t 0 with
-	| TInst({ cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
-		(* haxe.lang.Null<T> extern class *)
-		Some (take_off_null of_t)
-	| TAbstract({ a_path = ([], "Null") }, [of_t]) ->
-		(* Standard library Null<T> abstract *)
-		Some (take_off_null of_t)
-	| _ -> None
-
 (* Check if a type is a basic value type (int, float, bool, etc.) *)
 let is_cs_basic_type t =
 	match follow t with
@@ -94,9 +67,42 @@ let is_type_param t =
 	| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 	| _ -> false
 
-(* Check if a type should be wrapped in Null<> (basic types and type params need wrapping) *)
+(* Check if a type should be wrapped in Null<> (basic types and type params need wrapping).
+   Reference types (classes, enums, etc.) can be null directly in C# and don't need Null<T>. *)
 let needs_null_wrapper t =
 	is_cs_basic_type t || is_type_param t
+
+(* Check if type is Null<T>, return inner type (with nested Null stripped).
+   IMPORTANT: Only return Some when the inner type actually needs a Null wrapper in C#.
+   Reference types (classes, enums, abstracts over them) can be null directly in C#.
+
+   IMPORTANT: Don't use follow() on the outer type - it may follow through abstract to inner type.
+   Only follow TType, TLazy, TMono like gencs.ml's is_null_wrapper_type does. *)
+let rec is_null_t t =
+	let rec take_off_null t =
+		match is_null_t t with
+		| None -> t
+		| Some inner -> take_off_null inner
+	in
+	(* Custom follow that doesn't unwrap abstracts *)
+	let rec shallow_follow t depth =
+		if depth > 10 then t else
+		match t with
+		| TType (_, _) -> shallow_follow (Type.follow_once t) (depth + 1)
+		| TLazy f -> shallow_follow (lazy_type f) (depth + 1)
+		| TMono r -> (match r.tm_type with Some t -> shallow_follow t (depth + 1) | None -> t)
+		| _ -> t
+	in
+	match shallow_follow t 0 with
+	| TInst({ cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
+		(* haxe.lang.Null<T> extern class - only treat as Null if inner type needs wrapper *)
+		let inner = take_off_null of_t in
+		if needs_null_wrapper inner then Some inner else None
+	| TAbstract({ a_path = ([], "Null") }, [of_t]) ->
+		(* Standard library Null<T> abstract - only treat as Null if inner type needs wrapper *)
+		let inner = take_off_null of_t in
+		if needs_null_wrapper inner then Some inner else None
+	| _ -> None
 
 (* Check if an expression is an enum field access (FEnum).
    In C#, enum constructors don't generate Null-wrapped code even though
@@ -309,6 +315,13 @@ let run cfg e =
 						{ e with eexpr = TBinop(OpAssign, e1', wrapped) }
 					| _ -> die "" __LOC__
 					end
+				| Some inner_t, None when op = OpAssign ->
+					(* LHS is Null<T>, RHS is not Null - wrap RHS in Null constructor.
+					   This handles: nullVar = objectValue, where objectValue might be null at runtime. *)
+					let e1' = transform e1 in
+					let e2' = transform e2 in
+					let wrapped = handle_wrap cfg e2' inner_t in
+					{ e with eexpr = TBinop(OpAssign, e1', wrapped) }
 				| _ ->
 					(* Not both Null, normal processing *)
 					Type.map_expr transform e
@@ -369,6 +382,34 @@ let run cfg e =
 		(* TBlock: process contents and prepend any temp vars *)
 		| TBlock bl ->
 			{ e with eexpr = TBlock(List.map transform bl) }
+
+		(* TConst TNull with Null<Abstract>: change type to the underlying type.
+		   When the inner type of Null<T> is a non-core abstract (like Variant over VariantType),
+		   the C# variable is declared as the underlying type (VariantType), not Null<Variant>.
+		   So when comparing to null, we need the null constant to have the underlying type.
+
+		   BUT: Don't strip for direct classes/interfaces (like Null<Person>) - those are
+		   declared as Null<Person> in C# and need default(Null<Person>).
+
+		   IMPORTANT: Do NOT change this stripping behavior - it is correct for inherently
+		   nullable types. For field initializers where the field IS declared as Null<T>
+		   (e.g., recursive abstracts), gencs.ml handles the coercion at the assignment
+		   site by checking the target field type and generating default(...) there. *)
+		| TConst TNull ->
+			begin match e.etype with
+			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+				begin match follow inner with
+				| TAbstract (a, _) when not (Meta.has Meta.CoreType a.a_meta) ->
+					(* Null<NonCoreAbstract>: the C# variable follows through to underlying type.
+					   Strip Null wrapper so gencs.ml generates `null` not `default(Null<...>)`. *)
+					{ e with etype = inner }
+				| _ ->
+					(* Null<Class>, Null<Enum>, Null<CoreAbstract>: keep as-is.
+					   C# variable IS Null<T>, needs default(Null<T>). *)
+					e
+				end
+			| _ -> e
+			end
 
 		(* Default: recurse into children *)
 		| _ -> Type.map_expr transform e

@@ -690,6 +690,29 @@ let rec is_non_null_generating_expr e =
 	| TParenthesis e1 | TMeta (_, e1) -> is_non_null_generating_expr e1
 	| _ -> false
 
+(* Get the effective type of an expression for coercion purposes.
+   For expressions that have Haxe type Null<T> but generate non-Null C# code (like enum field access),
+   return the inner type T instead of Null<T>. This prevents incorrectly adding .value unwrapping. *)
+let get_effective_expr_type e =
+	if is_non_null_generating_expr e then
+		(* Strip Null wrapper if present *)
+		match is_null_wrapper_type e.etype with
+		| true ->
+			let rec get_inner t depth =
+				if depth > 10 then e.etype else
+				match t with
+				| TAbstract ({ a_path = ([], "Null") }, [inner]) -> inner
+				| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, [inner]) -> inner
+				| TType (_, _) -> get_inner (Type.follow_once t) (depth + 1)
+				| TLazy f -> get_inner (lazy_type f) (depth + 1)
+				| TMono r -> (match r.tm_type with Some t -> get_inner t (depth + 1) | None -> e.etype)
+				| _ -> e.etype
+			in
+			get_inner e.etype 0
+		| false -> e.etype
+	else
+		e.etype
+
 (* Helper to get the inner type from Null<T>, if the expression needs .value unwrapping.
    Returns Some(inner) if expression is Null-wrapped and needs unwrapping, None otherwise.
    CRITICAL: For TCast, check the TARGET type, not the inner type. *)
@@ -953,33 +976,48 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])
 		when path <> (["haxe"; "lang"], "Null") ->
 		CsCast (CsTypeClass (path, params), cs_arg)
-	(* Null<SomeClass> to SomeClass - unwrap .value to get the inner class type.
-	   This handles cases like Null<G<Array<int>>> to G<Array<int>> from Std.downcast.
-	   BUT: Only if cs_arg is not already cast to object (can't access .value on object) *)
+	(* Null<SomeClass> to SomeClass - for reference types (classes, enums, interfaces),
+	   the C# variable is declared as SomeClass directly (not Null<SomeClass>),
+	   so no .value unwrapping is needed - the expression already IS SomeClass.
+	   Only unwrap .value for cases where the C# variable would actually be Null<T>:
+	   - Value types inside Null<T>
+	   - Type parameters that might be value types at runtime
+	   NOTE: We removed the .value unwrapping here because reference types in C# are nullable
+	   by default. The Haxe Null<RefType> wrapper is just a type-level abstraction that
+	   doesn't generate actual Null<> struct wrapping for reference types. *)
 	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass (inner_path, inner_params)])
 		when path = inner_path && path <> (["haxe"; "lang"], "Null") && not (cs_expr_is_object_cast cs_arg) ->
-		(* If params match exactly, just unwrap .value *)
+		(* Reference types: C# variable is declared as the type directly, no .value needed.
+		   The expression already produces the correct type - just return it unchanged,
+		   casting through object if type params differ. *)
 		if params = inner_params then
-			CsField (cs_arg, "value")
+			cs_arg
 		else
-			(* Params differ - need to cast through object after unwrap *)
-			CsCast (CsTypeClass (path, params), CsCast (CsTypeObject, CsField (cs_arg, "value")))
-	(* Null<NestedGeneric> to NestedGeneric - unwrap .value for nested generic types.
-	   This handles cases like Null<Parent.G<T>> to Parent.G<T> for nested classes. *)
+			(* Params differ - need to cast through object but no .value unwrap *)
+			CsCast (CsTypeClass (path, params), CsCast (CsTypeObject, cs_arg))
+	(* Null<NestedGeneric> to NestedGeneric - same logic for nested generic reference types. *)
 	| CsTypeNestedGeneric (parent, name, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeNestedGeneric (inner_parent, inner_name, inner_params)])
 		when parent = inner_parent && name = inner_name && not (cs_expr_is_object_cast cs_arg) ->
 		if params = inner_params then
-			CsField (cs_arg, "value")
+			cs_arg
 		else
-			CsCast (CsTypeNestedGeneric (parent, name, params), CsCast (CsTypeObject, CsField (cs_arg, "value")))
-	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally.
-	   If the object is null, create a Null with hasValue=false.
-	   If the object has a value, unbox it and create Null with hasValue=true.
-	   IMPORTANT: For numeric types (double, float, long), use Runtime.toXxx because
-	   the boxed value might be a different numeric type (e.g., boxed int when double expected).
-	   C# cannot directly unbox int as double - need conversion. *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]), (CsTypeObject | CsTypeDynamic) ->
+			CsCast (CsTypeNestedGeneric (parent, name, params), CsCast (CsTypeObject, cs_arg))
+	(* null literal to Null<T> - generate default(Null<T>) directly.
+	   This handles field initializers like `field:Null<Rec> = null` where csNullableSynf
+	   strips the Null wrapper (making the null have type Rec/object) but the target
+	   field IS declared as Null<T>. The arg_cs_type might be Array, object, Dynamic, etc. *)
+	| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when cs_arg = CsNull ->
+		CsDefault expected_cs_type
+	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally. *)
+	| CsTypeClass ((["haxe"; "lang"], "Null"), inner), (CsTypeObject | CsTypeDynamic) ->
+		(* object/Dynamic to Null<T> - need to create Null wrapper conditionally.
+		   If the object is null, create a Null with hasValue=false.
+		   If the object has a value, unbox it and create Null with hasValue=true.
+		   IMPORTANT: For numeric types (double, float, long), use Runtime.toXxx because
+		   the boxed value might be a different numeric type (e.g., boxed int when double expected).
+		   C# cannot directly unbox int as double - need conversion. *)
 		(* Generate: arg == null ? new Null<T>(default, false) : new Null<T>(convert(arg), true) *)
+		let inner = match inner with [t] -> t | _ -> CsTypeObject in
 		let null_check = CsBinop (CsOpEq, cs_arg, CsNull) in
 		let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 		let cast_value = match inner with
@@ -1173,12 +1211,15 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 				if expected_all_in_scope then
 					CsCast (expected_cs_type, CsCast (CsTypeObject, cs_arg))
 				else
-					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+					(* Use effective type to handle non-null-generating expressions like enum field access *)
+					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type arg) expected_type
 			| _ ->
-				coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+				(* Use effective type to handle non-null-generating expressions like enum field access *)
+				coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type arg) expected_type
 			end
 		| _ ->
-			coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+			(* Use effective type to handle non-null-generating expressions like enum field access *)
+			coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type arg) expected_type
 	end
 
 (* Generate call arguments with type coercion based on expected parameter types.
@@ -1275,13 +1316,19 @@ let get_type_param_constraint t =
 let rec cs_expr_of_texpr ectx e =
 	match e.eexpr with
 	| TConst TNull ->
-		(* For Null<T> types and generic type params, generate default(T) instead of null.
+		(* For Null<T> types, generic type params, and value types, generate default(T) instead of null.
+		   Value types (primitives) can't be null in C#, so we use default(T) which is 0/false/etc.
 		   NOTE: CsNullableSynf handles Null<Null<T>> flattening at the AST level,
 		   so we only need to handle single-level Null<T> here. *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		begin match cs_type with
 		| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> CsDefault cs_type
 		| CsTypeGenericParam _ -> CsDefault cs_type  (* C# requires default(T) for generic params *)
+		| CsTypeBool | CsTypeByte | CsTypeSByte | CsTypeChar
+		| CsTypeShort | CsTypeUShort | CsTypeInt | CsTypeUInt
+		| CsTypeLong | CsTypeULong | CsTypeFloat | CsTypeDouble | CsTypeDecimal ->
+			(* Value types can't be null - use default(T) which gives 0/false/etc. *)
+			CsDefault cs_type
 		| _ -> CsNull
 		end
 	| TConst c ->
@@ -1442,25 +1489,25 @@ let rec cs_expr_of_texpr ectx e =
 			end
 	| TBinop (op, e1, e2) ->
 		(* Special handling for Null<T> comparisons with null and generic type param equality *)
-		(* NOTE: We exclude Null<object> because it behaves like Dynamic and should use == null directly.
-		   ALSO: We only use .hasValue for Null<T> where T is a VALUE TYPE (primitives).
-		   For Null<RefType> where RefType is a reference type (class, enum, interface),
-		   the underlying C# variable will be the reference type directly (not wrapped in Null<>),
-		   so we should use != null instead of .hasValue. *)
-		let is_null_type_for_hasvalue t =
-			match cs_type_of_type ectx.gctx t with
+		(* Check if a type is a Null<T> struct that needs .hasValue for null checks.
+		   C#'s Null<T> is a struct, so we can't compare it directly with 'null' -
+		   we must use .hasValue (or != default).
+
+		   NOTE: We exclude Null<object> because it behaves like Dynamic.
+		   NOTE: We also exclude Null<NonCoreAbstract> because the C# variable is declared
+		   as the underlying type (e.g., VariantType), not Null<VariantType>. *)
+		(* Check if an expression's C# representation is a Null<T> struct that needs .hasValue.
+		   For local variables, use the variable's actual type, not the expression type -
+		   the ?? operator wraps expressions in Null<> but the variable may not be Null<>. *)
+		let is_null_type_for_hasvalue_expr e =
+			(* Get the actual C# type - for locals, use the variable's declared type *)
+			let actual_type = match e.eexpr with
+				| TLocal v -> v.v_type
+				| _ -> e.etype
+			in
+			match cs_type_of_type ectx.gctx actual_type with
 			| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) -> false  (* Null<object> uses == null *)
-			| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-				(* Only use .hasValue if inner is a value type (primitive).
-				   For reference types (classes), the variable will be the class type directly,
-				   not Null<ClassType>, so we use != null instead. *)
-				begin match inner with
-				| CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool
-				| CsTypeByte | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
-				| CsTypeUInt | CsTypeULong | CsTypeDecimal -> true  (* Value types - use .hasValue *)
-				| CsTypeGenericParam _ -> true  (* Type params might be value types - use .hasValue to be safe *)
-				| _ -> false  (* Reference types (classes, etc.) - use == null *)
-				end
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true  (* All other Null<T> - use .hasValue *)
 			| _ -> false
 		in
 		let is_generic_param t = match cs_type_of_type ectx.gctx t with
@@ -1589,16 +1636,16 @@ let rec cs_expr_of_texpr ectx e =
 				let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype e1.etype in
 				CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
 			end
-		| OpEq when is_null_type_for_hasvalue e1.etype && is_null_expr e2 ->
+		| OpEq when is_null_type_for_hasvalue_expr e1 && is_null_expr e2 ->
 			(* x == null  ->  !x.hasValue *)
 			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e1, "hasValue"))
-		| OpEq when is_null_expr e1 && is_null_type_for_hasvalue e2.etype ->
+		| OpEq when is_null_expr e1 && is_null_type_for_hasvalue_expr e2 ->
 			(* null == x  ->  !x.hasValue *)
 			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e2, "hasValue"))
-		| OpNotEq when is_null_type_for_hasvalue e1.etype && is_null_expr e2 ->
+		| OpNotEq when is_null_type_for_hasvalue_expr e1 && is_null_expr e2 ->
 			(* x != null  ->  x.hasValue *)
 			CsField (cs_expr_of_texpr ectx e1, "hasValue")
-		| OpNotEq when is_null_expr e1 && is_null_type_for_hasvalue e2.etype ->
+		| OpNotEq when is_null_expr e1 && is_null_type_for_hasvalue_expr e2 ->
 			(* null != x  ->  x.hasValue *)
 			CsField (cs_expr_of_texpr ectx e2, "hasValue")
 		| OpEq when is_generic_param e1.etype || is_generic_param e2.etype ->
@@ -4313,9 +4360,11 @@ let rec cs_expr_of_texpr ectx e =
 						(* Wrap the converted value in Null<T> with hasValue=true *)
 						CsNew (target_type, [convert_call; CsConst (CsConstBool true)])
 					else
-						(* Reference type conversion - cast to wrapped type first, then implicit Null wrap.
-						   E.g., (IInterface)obj -> Null<IInterface> *)
-						CsCast (wrapped_type, CsCast (CsTypeObject, inner_cs))
+						(* Reference type conversion - explicitly wrap in Null<T> constructor.
+						   E.g., SomeClass to Null<SomeInterface> -> new Null<IInterface>((IInterface)(object)value, true)
+						   We can't rely on implicit conversion since haxe.lang.Null is an extern class. *)
+						let converted = CsCast (wrapped_type, CsCast (CsTypeObject, inner_cs)) in
+						CsNew (target_type, [converted; CsConst (CsConstBool true)])
 				end
 				else if is_inner_null_wrapper && not is_target_null_wrapper && is_ternary_with_mixed_null_branches then begin
 					(* Special case: ternary with mixed Null/object branches being cast to primitive.
@@ -4805,12 +4854,12 @@ and split_last = function
 (* Convert a statement to assign its result to a variable instead of returning.
    Similar to cs_stmt_with_return_inner but uses assignment instead of return.
    This avoids lambda IIFEs for control flow expressions like if/switch/try. *)
-and cs_stmt_with_result_assign ectx is_void result_var e =
+and cs_stmt_with_result_assign ectx is_void result_var result_type e =
 	match e.eexpr with
 	| TTry (e1, catches) ->
-		let try_body = cs_stmt_with_result_assign ectx is_void result_var e1 in
+		let try_body = cs_stmt_with_result_assign ectx is_void result_var result_type e1 in
 		let catch_clauses = List.map (fun (v, catch_expr) ->
-			let catch_body = cs_stmt_with_result_assign ectx is_void result_var catch_expr in
+			let catch_body = cs_stmt_with_result_assign ectx is_void result_var result_type catch_expr in
 			{
 				catch_type = Some (cs_type_of_type ectx.gctx v.v_type);
 				catch_name = Some (get_local_name ectx v);
@@ -4821,19 +4870,19 @@ and cs_stmt_with_result_assign ectx is_void result_var e =
 		CsTry (try_body, catch_clauses, None)
 	| TIf (cond, e_then, e_else_opt) ->
 		let cond_cs = cs_expr_of_texpr ectx cond in
-		let then_body = cs_stmt_with_result_assign ectx is_void result_var e_then in
-		let else_body = Option.map (cs_stmt_with_result_assign ectx is_void result_var) e_else_opt in
+		let then_body = cs_stmt_with_result_assign ectx is_void result_var result_type e_then in
+		let else_body = Option.map (cs_stmt_with_result_assign ectx is_void result_var result_type) e_else_opt in
 		CsIf (cond_cs, then_body, else_body)
 	| TSwitch sw ->
 		let switch_expr = cs_expr_of_texpr ectx sw.switch_subject in
 		let cs_sections = List.map (fun case ->
 			let cs_labels = List.map (fun v -> CsCaseConst (cs_expr_of_texpr ectx v)) case.case_patterns in
-			let case_body_with_assign = cs_stmt_with_result_assign ectx is_void result_var case.case_expr in
+			let case_body_with_assign = cs_stmt_with_result_assign ectx is_void result_var result_type case.case_expr in
 			{ sw_labels = cs_labels; sw_body = [case_body_with_assign] }
 		) sw.switch_cases in
 		let cs_sections = match sw.switch_default with
 			| Some def_expr ->
-				let def_body = cs_stmt_with_result_assign ectx is_void result_var def_expr in
+				let def_body = cs_stmt_with_result_assign ectx is_void result_var result_type def_expr in
 				cs_sections @ [{ sw_labels = [CsCaseDefault]; sw_body = [def_body] }]
 			| None -> cs_sections
 		in
@@ -4842,7 +4891,7 @@ and cs_stmt_with_result_assign ectx is_void result_var e =
 		let (init_exprs, last_opt) = split_last exprs in
 		let init_stmts = List.map (cs_stmt_of_texpr ectx) init_exprs in
 		let final_stmt = match last_opt with
-			| Some last_expr -> cs_stmt_with_result_assign ectx is_void result_var last_expr
+			| Some last_expr -> cs_stmt_with_result_assign ectx is_void result_var result_type last_expr
 			| None -> CsEmpty
 		in
 		CsBlock (init_stmts @ [final_stmt])
@@ -4850,7 +4899,7 @@ and cs_stmt_with_result_assign ectx is_void result_var e =
 		(* While loop as expression - the loop body's last expression assigns to result_var.
 		   For do-while loops that produce a value (like atomic operations), the result
 		   is typically assigned inside the loop body. *)
-		let body_with_assign = cs_stmt_with_result_assign ectx is_void result_var body in
+		let body_with_assign = cs_stmt_with_result_assign ectx is_void result_var result_type body in
 		let cond_cs = cs_expr_of_texpr ectx cond in
 		let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
 			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
@@ -4867,8 +4916,14 @@ and cs_stmt_with_result_assign ectx is_void result_var e =
 		(* For simple expressions, assign them to the result variable (or just emit as statement if void) *)
 		if is_void then
 			CsExprStmt (cs_expr_of_texpr ectx e)
-		else
-			CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, cs_expr_of_texpr ectx e))
+		else begin
+			(* Apply type coercion when assigning to the result variable.
+			   This handles cases like object/Dynamic -> Null<T> where we need to wrap the value. *)
+			let expr_cs = cs_expr_of_texpr ectx e in
+			let expr_type = cs_type_of_type ectx.gctx e.etype in
+			let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx expr_cs expr_type result_type in
+			CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, coerced))
+		end
 
 (* Convert block expression to prefix statements + final expression value.
    This is used in statement contexts where we can emit: { stmts...; var x = finalExpr; }
@@ -4902,7 +4957,7 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		(* Declare the result variable with default value *)
 		let decl_stmt = CsVarDecl (result_var, Some result_type, Some (CsDefault result_type)) in
 		(* Convert the statement to assign to the result variable *)
-		let assign_stmt = cs_stmt_with_result_assign ectx is_void result_var e in
+		let assign_stmt = cs_stmt_with_result_assign ectx is_void result_var result_type e in
 		{ er_stmts = [decl_stmt; assign_stmt]; er_expr = CsLocal result_var }
 	| _ ->
 		(* Not a block - just return the expression with no prefix statements *)
@@ -4983,9 +5038,22 @@ and cs_stmt_of_texpr ectx e =
 			(* Check if init expr is a non-null generating expression (e.g., enum field access).
 			   These have Haxe type Null<T> but generate C# code that produces T directly. *)
 			let is_init_non_null_generating = is_non_null_generating_expr init_expr in
+			let is_var_null_type = match var_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+			in
 			let init_cs = match init_type, var_type with
-				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) ->
-					(* Dynamic -> specific type: need runtime cast *)
+				| (CsTypeObject | CsTypeDynamic), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var]) ->
+					(* object/Dynamic -> Null<T>: wrap in Null<T> constructor with runtime check.
+					   Generate: val != null ? new Null<T>((T)val, true) : new Null<T>(default(T), false)
+					   This handles cases like safe cast `Std.downcast(obj, SomeClass)` which returns Null<T>. *)
+					let null_check = CsBinop (CsOpNotEq, init_cs, CsNull) in
+					let converted_value = CsCast (inner_var, init_cs) in
+					let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
+					let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
+					CsTernary (null_check, true_branch, false_branch)
+				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) when not is_var_null_type ->
+					(* Dynamic -> specific type (but NOT Null<T>): need runtime cast *)
 					CsCast (var_type, init_cs)
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value
@@ -5010,6 +5078,13 @@ and cs_stmt_of_texpr ectx e =
 					let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
 					let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
 					CsTernary (has_value, true_branch, false_branch)
+				| CsTypeClass (init_path, _), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var]) when init_path <> (["haxe"; "lang"], "Null") && not is_init_null_wrapper ->
+					(* SomeType -> Null<T>: wrap in Null<T> constructor.
+					   This happens with abstract types that can hold null values.
+					   E.g., Variant (abstract over VariantType) -> Null<VariantType>.
+					   We need to wrap explicitly since haxe.lang.Null doesn't have implicit conversion. *)
+					let converted = CsCast (inner_var, CsCast (CsTypeObject, init_cs)) in
+					CsNew (var_type, [converted; CsConst (CsConstBool true)])
 				| CsTypeClass (init_path, _), CsTypeClass (var_path, _) when init_path <> var_path && not is_init_null_wrapper ->
 					(* Different class types (not Null<T>) - need cast through object.
 					   This happens with structural typing: e.g., IntIterator -> ArrayIterator<T>
@@ -5201,7 +5276,25 @@ and cs_stmt_of_texpr ectx e =
 					end
 				| None -> false
 			in
+			(* Check if expression type is a primitive and return type is Null<primitive> - need explicit wrapping *)
+			let is_expr_primitive = match cs_type_of_type ectx.gctx e.etype with
+				| CsTypeBool | CsTypeByte | CsTypeSByte | CsTypeChar
+				| CsTypeShort | CsTypeUShort | CsTypeInt | CsTypeUInt
+				| CsTypeLong | CsTypeULong | CsTypeFloat | CsTypeDouble | CsTypeDecimal -> true
+				| _ -> false
+			in
 			let return_expr = match ectx.return_type with
+				| Some ret_t when is_expr_primitive && is_ret_null_wrapper ->
+					(* Primitive expression but return type is Null<T> - need explicit Null wrapper.
+					   E.g., returning double when method returns Null<int>.
+					   Generate: new Null<int>((int)v, true) *)
+					let ret_cs = cs_type_of_type ectx.gctx ret_t in
+					let inner_type = match ret_cs with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) -> inner
+						| _ -> CsTypeObject
+					in
+					let converted = CsCast (inner_type, cs_e) in
+					CsNew (ret_cs, [converted; CsConst (CsConstBool true)])
 				| Some ret_t when is_dynamic e.etype && not (is_dynamic ret_t) && not (ExtType.is_void (follow ret_t)) ->
 					(* Returning Dynamic but method returns a concrete type (non-void) - add cast *)
 					CsCast (cs_type_of_type ectx.gctx ret_t, cs_e)
@@ -6675,6 +6768,16 @@ let generate_field gctx c cf is_static =
 				let init_cs = cs_expr_of_texpr ectx e in
 				(* Coerce initializer to field type - needed for lambda returns, object->typed conversions *)
 				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
+				(* Fix: if result is CsNull but field type is Null<T>, use default(Null<T>) instead.
+				   This handles cases where the null constant's type doesn't match the field type due to abstracts. *)
+				let init_cs = match init_cs with
+					| CsNull ->
+						begin match cs_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> CsDefault cs_type
+						| _ -> init_cs
+						end
+					| _ -> init_cs
+				in
 				Some init_cs
 			| _ -> None
 		in
@@ -6708,6 +6811,15 @@ let generate_field gctx c cf is_static =
 				let init_cs = cs_expr_of_texpr ectx e in
 				(* Coerce initializer to field type - needed for lambda returns, object->typed conversions *)
 				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
+				(* Fix: if result is CsNull but field type is Null<T>, use default(Null<T>) instead *)
+				let init_cs = match init_cs with
+					| CsNull ->
+						begin match cs_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> CsDefault cs_type
+						| _ -> init_cs
+						end
+					| _ -> init_cs
+				in
 				Some init_cs
 			| _ -> None
 		in
