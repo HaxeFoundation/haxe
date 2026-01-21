@@ -53,4 +53,22 @@ extern class Syntax {
 		The same as `lua.Syntax.code` except this one does not provide code interpolation.
 	**/
 	static function plainCode(code:String):Dynamic;
+
+	/**
+		Create a plain Lua table from an anonymous struct without the `__fields__` metadata.
+
+		This is useful when passing tables to extern Lua functions that expect specific fields
+		and reject tables with additional fields.
+
+		Example:
+		```haxe
+		typedef Options = { baz:Int };
+		extern class Foo {
+		    static function bar(opts:Options):Void;
+		}
+		// Generates: { baz = 42 }
+		Foo.bar(Syntax.table({ baz: 42 }));
+		```
+	**/
+	static function table<T:{}>(obj:T):T;
 }

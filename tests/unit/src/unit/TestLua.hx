@@ -299,6 +299,36 @@ class TestLua extends Test {
 		t(afterInnerLoop);
 		eq(closureResult, "done");
 	}
+
+	// Issue #11805: Syntax.table creates plain Lua tables without __fields__
+	function testSyntaxTablePlain() {
+		// Create a plain table without __fields__ metadata
+		var opts:Issue11805Options = lua.Syntax.table({baz: 42});
+
+		// Verify the table has the expected field
+		eq(opts.baz, 42);
+
+		// Verify there's no __fields__ in the table
+		var hasFields = false;
+		lua.PairTools.pairsEach(cast opts, function(k:Dynamic, v:Dynamic) {
+			if (k == "__fields__") hasFields = true;
+		});
+		f(hasFields);
+
+		// Test empty table
+		var empty:{} = lua.Syntax.table({});
+		var emptyCount = 0;
+		lua.PairTools.pairsEach(cast empty, function(k:Dynamic, v:Dynamic) {
+			emptyCount++;
+		});
+		eq(emptyCount, 0);
+
+		// Test multiple fields
+		var multi = lua.Syntax.table({a: 1, b: "hello", c: true});
+		eq(multi.a, 1);
+		eq(multi.b, "hello");
+		eq(multi.c, true);
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -400,4 +430,9 @@ class Issue7539Test {
 // Issue #10090: Helper class for local variable reuse test
 class Issue10090Object {
 	public function new() {}
+}
+
+// Issue #11805: Syntax.table plain table test
+typedef Issue11805Options = {
+	baz:Int
 }
