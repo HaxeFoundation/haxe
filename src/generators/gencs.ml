@@ -131,7 +131,7 @@ let invoke_method_name num_args =
 
 (* Get the Value-based invoke method name: __hx_invoke0, __hx_invoke1, etc.
    These methods return Value to avoid boxing on return values. *)
-let functionvalue_invoke_method_name num_args =
+let hxvalue_invoke_method_name num_args =
 	"__hx_invoke" ^ string_of_int num_args
 
 (* Generate Value arguments for closure/function invocation.
@@ -147,35 +147,35 @@ let functionvalue_invoke_method_name num_args =
    - other: Value.FromObject(arg)
    Note: arg_types may be shorter than args (e.g., if type info is missing);
    we default to FromObject for any args without type info. *)
-let generate_functionvalue_args args arg_types =
-	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
+let generate_hxvalue_args args arg_types =
+	let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let num_types = List.length arg_types in
 	List.mapi (fun i arg ->
 		let arg_type = if i < num_types then List.nth arg_types i else CsTypeObject in
 		match arg_type with
 		| CsTypeInt ->
-			CsStaticCall (functionvalue_type, "FromInt", [arg])
+			CsStaticCall (hxvalue_type, "FromInt", [arg])
 		| CsTypeDouble ->
-			CsStaticCall (functionvalue_type, "FromDouble", [arg])
+			CsStaticCall (hxvalue_type, "FromDouble", [arg])
 		| CsTypeFloat ->
-			CsStaticCall (functionvalue_type, "FromFloat", [arg])
+			CsStaticCall (hxvalue_type, "FromFloat", [arg])
 		| CsTypeBool ->
-			CsStaticCall (functionvalue_type, "FromBool", [arg])
+			CsStaticCall (hxvalue_type, "FromBool", [arg])
 		| CsTypeLong ->
-			CsStaticCall (functionvalue_type, "FromLong", [arg])
+			CsStaticCall (hxvalue_type, "FromLong", [arg])
 		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
 			(* Null<T>: use FromNullXxx methods to avoid boxing *)
 			begin match inner with
-			| CsTypeInt -> CsStaticCall (functionvalue_type, "FromNullInt", [arg])
-			| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromNullDouble", [arg])
-			| CsTypeFloat -> CsStaticCall (functionvalue_type, "FromNullFloat", [arg])
-			| CsTypeBool -> CsStaticCall (functionvalue_type, "FromNullBool", [arg])
-			| CsTypeLong -> CsStaticCall (functionvalue_type, "FromNullLong", [arg])
-			| _ -> CsStaticCall (functionvalue_type, "FromObject", [arg])
+			| CsTypeInt -> CsStaticCall (hxvalue_type, "FromNullInt", [arg])
+			| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromNullDouble", [arg])
+			| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromNullFloat", [arg])
+			| CsTypeBool -> CsStaticCall (hxvalue_type, "FromNullBool", [arg])
+			| CsTypeLong -> CsStaticCall (hxvalue_type, "FromNullLong", [arg])
+			| _ -> CsStaticCall (hxvalue_type, "FromObject", [arg])
 			end
 		| _ ->
 			(* References, strings, etc.: use FromObject *)
-			CsStaticCall (functionvalue_type, "FromObject", [arg])
+			CsStaticCall (hxvalue_type, "FromObject", [arg])
 	) args
 
 (* Convert Haxe binop to C# binop *)
@@ -2346,9 +2346,9 @@ let rec cs_expr_of_texpr ectx e =
 				m_attributes = [];
 			} in
 			(* Build Value-based __hx_invokeN method *)
-			let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
+			let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 			let fv_params = List.mapi (fun i _ ->
-				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some functionvalue_type; p_default = None; p_modifier = None }
+				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some hxvalue_type; p_default = None; p_modifier = None }
 			) param_types_cs in
 			(* Extract args from Value *)
 			let fv_extract_args = List.mapi (fun i cs_type ->
@@ -2363,10 +2363,10 @@ let rec cs_expr_of_texpr ectx e =
 				| _ -> CsCast (cs_type, CsCall (CsField (a_var, "ToDynamic"), []))
 			) param_types_cs in
 			let fv_invoke_call = CsCall (CsLocal (invoke_method_name num_params), fv_extract_args) in
-			let fv_return = CsStaticCall (functionvalue_type, "FromObject", [fv_invoke_call]) in
+			let fv_return = CsStaticCall (hxvalue_type, "FromObject", [fv_invoke_call]) in
 			let fv_invoke_method = CsMemberMethod {
-				m_name = functionvalue_invoke_method_name num_params;
-				m_return_type = functionvalue_type;
+				m_name = hxvalue_invoke_method_name num_params;
+				m_return_type = hxvalue_type;
 				m_access = AccessModifier.Public;
 				m_modifiers = [MemberModifier.Override];
 				m_type_params = [];
@@ -2511,8 +2511,8 @@ let rec cs_expr_of_texpr ectx e =
 		register_invoke_signature ectx.gctx param_types_cs result_type;
 		(* Use Value-based invoke to avoid boxing primitives *)
 		let num_args = List.length args_cs in
-		let functionvalue_args = generate_functionvalue_args args_cs param_types_cs in
-		let call_expr = CsCall (CsField (closure, functionvalue_invoke_method_name num_args), functionvalue_args) in
+		let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
+		let call_expr = CsCall (CsField (closure, hxvalue_invoke_method_name num_args), hxvalue_args) in
 		(* Extract the return value from Value using the appropriate ToXxx method *)
 		begin match result_type with
 		| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
@@ -2871,8 +2871,8 @@ let rec cs_expr_of_texpr ectx e =
 			register_invoke_signature ectx.gctx param_types_cs result_type;
 			(* Use Value-based invoke to avoid boxing primitives *)
 			let num_args = List.length args_cs in
-			let functionvalue_args = generate_functionvalue_args args_cs param_types_cs in
-			let call_expr = CsCall (CsField (func_expr, functionvalue_invoke_method_name num_args), functionvalue_args) in
+			let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
+			let call_expr = CsCall (CsField (func_expr, hxvalue_invoke_method_name num_args), hxvalue_args) in
 			(* Extract the return value from Value using the appropriate ToXxx method *)
 			begin match result_type with
 			| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
@@ -4115,8 +4115,8 @@ let rec cs_expr_of_texpr ectx e =
 			register_invoke_signature ectx.gctx param_types_cs result_type;
 			(* Use Value-based invoke to avoid boxing primitives *)
 			let num_args = List.length args_cs in
-			let functionvalue_args = generate_functionvalue_args args_cs param_types_cs in
-			let call_expr = CsCall (CsField (func, functionvalue_invoke_method_name num_args), functionvalue_args) in
+			let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
+			let call_expr = CsCall (CsField (func, hxvalue_invoke_method_name num_args), hxvalue_args) in
 			(* Extract the return value from Value using the appropriate ToXxx method *)
 			begin match result_type with
 			| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
@@ -5888,28 +5888,28 @@ let generate_closure_class ectx tf func_type =
 	   and references in obj field. The kind field indicates which slot contains the value.
 	   Extract values using ToInt(), ToDouble(), ToObject(), etc.
 	   Returns Value to avoid boxing on return values too. *)
-	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
-	let functionvalue_invoke_method =
+	let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
+	let hxvalue_invoke_method =
 		if num_params = 0 then
 			(* No params - just override __hx_invoke0 to call invoke() and wrap result *)
 			let invoke_result = CsCall (CsLocal "invoke", []) in
 			let body = if return_type = CsTypeVoid then
-				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (functionvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
 				(* Wrap return value with appropriate Value.FromXxx *)
 				let wrapped_result = match return_type with
-					| CsTypeInt -> CsStaticCall (functionvalue_type, "FromInt", [invoke_result])
-					| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromDouble", [invoke_result])
-					| CsTypeFloat -> CsStaticCall (functionvalue_type, "FromFloat", [invoke_result])
-					| CsTypeBool -> CsStaticCall (functionvalue_type, "FromBool", [invoke_result])
-					| CsTypeLong -> CsStaticCall (functionvalue_type, "FromLong", [invoke_result])
-					| _ -> CsStaticCall (functionvalue_type, "FromObject", [invoke_result])
+					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_result])
+					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_result])
+					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_result])
+					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_result])
+					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_result])
+					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_result])
 				in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
 				m_name = "__hx_invoke0";
-				m_return_type = functionvalue_type;
+				m_return_type = hxvalue_type;
 				m_access = AccessModifier.Public;
 				m_modifiers = [MemberModifier.Override];
 				m_type_params = [];
@@ -5921,8 +5921,8 @@ let generate_closure_class ectx tf func_type =
 			}
 		else
 			(* Build Value params: for each arg, Value aN *)
-			let functionvalue_params = List.mapi (fun i _ ->
-				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some functionvalue_type; p_default = None; p_modifier = None }
+			let hxvalue_params = List.mapi (fun i _ ->
+				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some hxvalue_type; p_default = None; p_modifier = None }
 			) invoke_params in
 			(* Build extraction expressions for each argument.
 			   Pattern: aN.ToInt(), aN.ToDouble(), aN.ToObject<T>(), etc.
@@ -5974,26 +5974,26 @@ let generate_closure_class ectx tf func_type =
 			) invoke_params in
 			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
 			let body = if return_type = CsTypeVoid then
-				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (functionvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
 				(* Wrap return value with appropriate Value.FromXxx *)
 				let wrapped_result = match return_type with
-					| CsTypeInt -> CsStaticCall (functionvalue_type, "FromInt", [invoke_call])
-					| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromDouble", [invoke_call])
-					| CsTypeFloat -> CsStaticCall (functionvalue_type, "FromFloat", [invoke_call])
-					| CsTypeBool -> CsStaticCall (functionvalue_type, "FromBool", [invoke_call])
-					| CsTypeLong -> CsStaticCall (functionvalue_type, "FromLong", [invoke_call])
-					| _ -> CsStaticCall (functionvalue_type, "FromObject", [invoke_call])
+					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_call])
+					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_call])
+					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_call])
+					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_call])
+					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_call])
+					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_call])
 				in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
 				m_name = "__hx_invoke" ^ string_of_int num_params;
-				m_return_type = functionvalue_type;
+				m_return_type = hxvalue_type;
 				m_access = AccessModifier.Public;
 				m_modifiers = [MemberModifier.Override];
 				m_type_params = [];
-				m_params = functionvalue_params;
+				m_params = hxvalue_params;
 				m_body = Some body;
 				m_constraints = [];
 				m_explicit_interface = None;
@@ -6015,7 +6015,7 @@ let generate_closure_class ectx tf func_type =
 		c_base = Some (CsTypeClass ((["haxe"; "lang"], "Function"), []));
 		c_interfaces = [];
 		c_constraints = closure_constraints;
-		c_members = capture_fields @ [ctor; invoke_method; invoke_dynamic_method; functionvalue_invoke_method];
+		c_members = capture_fields @ [ctor; invoke_method; invoke_dynamic_method; hxvalue_invoke_method];
 	} in
 
 	(* Add closure to the origin class's closure list *)
@@ -6346,26 +6346,26 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 
 	(* Build __hx_invokeN method - Value-based invoke to avoid boxing.
 	   Returns Value to avoid boxing on return values too. *)
-	let functionvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
-	let functionvalue_invoke_method =
+	let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
+	let hxvalue_invoke_method =
 		if num_params = 0 then
 			let invoke_result = CsCall (CsLocal "invoke", []) in
 			let body = if return_cs_type = CsTypeVoid then
-				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (functionvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
 				let wrapped_result = match return_cs_type with
-					| CsTypeInt -> CsStaticCall (functionvalue_type, "FromInt", [invoke_result])
-					| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromDouble", [invoke_result])
-					| CsTypeFloat -> CsStaticCall (functionvalue_type, "FromFloat", [invoke_result])
-					| CsTypeBool -> CsStaticCall (functionvalue_type, "FromBool", [invoke_result])
-					| CsTypeLong -> CsStaticCall (functionvalue_type, "FromLong", [invoke_result])
-					| _ -> CsStaticCall (functionvalue_type, "FromObject", [invoke_result])
+					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_result])
+					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_result])
+					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_result])
+					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_result])
+					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_result])
+					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_result])
 				in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
 				m_name = "__hx_invoke0";
-				m_return_type = functionvalue_type;
+				m_return_type = hxvalue_type;
 				m_access = AccessModifier.Public;
 				m_modifiers = [Override];
 				m_type_params = [];
@@ -6376,8 +6376,8 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 				m_attributes = [];
 			}
 		else
-			let functionvalue_params = List.mapi (fun i _ ->
-				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some functionvalue_type; p_default = None; p_modifier = None }
+			let hxvalue_params = List.mapi (fun i _ ->
+				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some hxvalue_type; p_default = None; p_modifier = None }
 			) invoke_params in
 			let extract_args = List.mapi (fun i (param, _is_optional) ->
 				let a_var = CsLocal ("a" ^ string_of_int (i + 1)) in
@@ -6415,25 +6415,25 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 			) invoke_params_with_opt in
 			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
 			let body = if return_cs_type = CsTypeVoid then
-				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (functionvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
 				let wrapped_result = match return_cs_type with
-					| CsTypeInt -> CsStaticCall (functionvalue_type, "FromInt", [invoke_call])
-					| CsTypeDouble -> CsStaticCall (functionvalue_type, "FromDouble", [invoke_call])
-					| CsTypeFloat -> CsStaticCall (functionvalue_type, "FromFloat", [invoke_call])
-					| CsTypeBool -> CsStaticCall (functionvalue_type, "FromBool", [invoke_call])
-					| CsTypeLong -> CsStaticCall (functionvalue_type, "FromLong", [invoke_call])
-					| _ -> CsStaticCall (functionvalue_type, "FromObject", [invoke_call])
+					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_call])
+					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_call])
+					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_call])
+					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_call])
+					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_call])
+					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_call])
 				in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
 				m_name = "__hx_invoke" ^ string_of_int num_params;
-				m_return_type = functionvalue_type;
+				m_return_type = hxvalue_type;
 				m_access = AccessModifier.Public;
 				m_modifiers = [Override];
 				m_type_params = [];
-				m_params = functionvalue_params;
+				m_params = hxvalue_params;
 				m_body = Some body;
 				m_constraints = [];
 				m_explicit_interface = None;
@@ -6442,7 +6442,7 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	in
 
 	(* Build class definition *)
-	let members = capture_fields @ [ctor; invoke_method; invoke_dynamic; functionvalue_invoke_method] in
+	let members = capture_fields @ [ctor; invoke_method; invoke_dynamic; hxvalue_invoke_method] in
 	let closure_class = CsClassDef {
 		c_path = closure_path;
 		c_access = AccessModifier.Internal;
