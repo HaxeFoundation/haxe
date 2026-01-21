@@ -225,12 +225,18 @@ let rec cs_type_of_type_inner gctx stack t =
 					let cs_type = cs_type_of_type_inner hx_type in
 					match cs_type with
 					| CsTypeObject ->
-						let constraints = TFunctions.get_constraints ttp in
-						begin match constraints with
-						| first_constraint :: _ ->
-							let constraint_cs = cs_type_of_type_inner first_constraint in
-							if constraint_cs <> CsTypeObject then constraint_cs else cs_type
-						| [] -> cs_type
+						(* Don't apply constraint substitution for explicit Dynamic types.
+						   The user wants 'object', not the constraint bound. *)
+						begin match Type.follow hx_type with
+						| TDynamic _ -> cs_type  (* Keep as object *)
+						| _ ->
+							let constraints = TFunctions.get_constraints ttp in
+							begin match constraints with
+							| first_constraint :: _ ->
+								let constraint_cs = cs_type_of_type_inner first_constraint in
+								if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+							| [] -> cs_type
+							end
 						end
 					| _ -> cs_type
 				) params c.cl_params
