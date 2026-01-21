@@ -218,33 +218,56 @@ let rec cs_type_of_type_inner gctx stack t =
 		   If a param maps to object but the class param has a constraint,
 		   use the constraint bound instead (C# requires type args satisfy constraints).
 		   Note: params and c.cl_params may have different lengths (e.g., when type is
-		   erased or partially specified). Only apply constraint substitution when lengths match. *)
-		let params =
+		   erased or partially specified). Only apply constraint substitution when lengths match.
+
+		   IMPORTANT: If ANY param is Dynamic with constraints, we erase the entire type to object.
+		   This is because C# generics are invariant - GenericType<ConcreteT> cannot be assigned to
+		   GenericType<object> even if the members would allow it. When Haxe code uses Dynamic
+		   for a constrained type parameter (e.g., IReport<Dynamic> where T:IReport<T>), the intent
+		   is runtime flexibility that C# invariant generics cannot express.
+		   Field access on the erased type uses Reflect.field/SetField for runtime dispatch. *)
+		let has_dynamic_with_constraints =
 			if List.length params = List.length c.cl_params then
-				List.map2 (fun hx_type ttp ->
-					let cs_type = cs_type_of_type_inner hx_type in
-					match cs_type with
-					| CsTypeObject ->
-						(* Don't apply constraint substitution for explicit Dynamic types.
-						   The user wants 'object', not the constraint bound. *)
-						begin match Type.follow hx_type with
-						| TDynamic _ -> cs_type  (* Keep as object *)
-						| _ ->
-							let constraints = TFunctions.get_constraints ttp in
-							begin match constraints with
-							| first_constraint :: _ ->
-								let constraint_cs = cs_type_of_type_inner first_constraint in
-								if constraint_cs <> CsTypeObject then constraint_cs else cs_type
-							| [] -> cs_type
-							end
-						end
-					| _ -> cs_type
+				List.exists2 (fun hx_type ttp ->
+					match Type.follow hx_type with
+					| TDynamic _ ->
+						let constraints = TFunctions.get_constraints ttp in
+						constraints <> []
+					| _ -> false
 				) params c.cl_params
 			else
-				(* Lengths don't match - just map the params without constraint substitution *)
-				List.map cs_type_of_type_inner params
+				false
 		in
-		CsTypeClass (path, params)
+		if has_dynamic_with_constraints then
+			(* Erase to object when Dynamic is used with constrained type parameters *)
+			CsTypeObject
+		else
+			let params =
+				if List.length params = List.length c.cl_params then
+					List.map2 (fun hx_type ttp ->
+						let cs_type = cs_type_of_type_inner hx_type in
+						match cs_type with
+						| CsTypeObject ->
+							(* Don't apply constraint substitution for explicit Dynamic types.
+							   The user wants 'object', not the constraint bound. *)
+							begin match Type.follow hx_type with
+							| TDynamic _ -> cs_type  (* Keep as object *)
+							| _ ->
+								let constraints = TFunctions.get_constraints ttp in
+								begin match constraints with
+								| first_constraint :: _ ->
+									let constraint_cs = cs_type_of_type_inner first_constraint in
+									if constraint_cs <> CsTypeObject then constraint_cs else cs_type
+								| [] -> cs_type
+								end
+							end
+						| _ -> cs_type
+					) params c.cl_params
+				else
+					(* Lengths don't match - just map the params without constraint substitution *)
+					List.map cs_type_of_type_inner params
+			in
+			CsTypeClass (path, params)
 	| TEnum (e, params) ->
 		let path = cs_path_of_path e.e_path in
 		let params = List.map cs_type_of_type_inner params in

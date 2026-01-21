@@ -67,8 +67,20 @@ class StringExt {
 			if (si > me.length) si = me.length;
 			return si;
 		}
-		if (startIndex == null || startIndex > me.length - 1 || startIndex < 0) {
+		if (startIndex == null || startIndex > me.length - 1) {
 			startIndex = me.length - 1;
+		} else if (startIndex < 0) {
+			startIndex = 0;
+		}
+		// C#'s LastIndexOf searches backward from startIndex.
+		// If startIndex is smaller than the needle length - 1, the only
+		// possible match position is 0. Check manually instead.
+		if (startIndex < str.length - 1) {
+			if (me.length >= str.length) {
+				var prefix:String = untyped __cs__("{0}.Substring(0, {1})", me, str.length);
+				if (prefix == str) return 0;
+			}
+			return -1;
 		}
 		return untyped __cs__("{0}.LastIndexOf({1}, {2})", me, str, startIndex);
 	}

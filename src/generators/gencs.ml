@@ -1695,6 +1695,22 @@ let rec cs_expr_of_texpr ectx e =
 					(* Known anonymous type - generate direct field assignment *)
 					CsBinop (CsOpAssign, CsField (obj_expr, escape_identifier cf.cf_name), val_cs)
 				end
+			| TField (obj, FInstance (_, _, cf)) ->
+				(* Instance field assignment - check if object type is erased to object due to
+				   generic interface with Dynamic type parameter. If so, use Runtime.SetField. *)
+				let obj_expr = cs_expr_of_texpr ectx obj in
+				let cs_type = cs_type_of_type ectx.gctx obj.etype in
+				let val_cs = cs_expr_of_texpr ectx e2 in
+				begin match cs_type with
+				| CsTypeObject ->
+					(* Type was erased to object - use Runtime.SetField *)
+					CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
+				| _ ->
+					(* Normal field assignment *)
+					let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
+					let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype e1.etype in
+					CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
+				end
 			| _ ->
 				let val_cs = cs_expr_of_texpr ectx e2 in
 				let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
@@ -2060,22 +2076,37 @@ let rec cs_expr_of_texpr ectx e =
 		let needs_unwrap = find_null_in_expr e in
 		let obj_expr = cs_expr_of_texpr ectx e in
 		let obj_expr = if needs_unwrap then CsField (obj_expr, "value") else obj_expr in
-		(* Check if the object is a type parameter - may need to cast to constraint type for field access.
-		   This handles cases where C# can't express the constraint (e.g., T:String where String is sealed). *)
-		let obj_expr, field_name = match get_type_param_constraint e.etype with
-			| Some constraint_type ->
-				(* Cast through object to constraint type for field access *)
-				let cs_constraint = cs_type_of_type ectx.gctx constraint_type in
-				let casted = CsCast (cs_constraint, CsCast (CsTypeObject, obj_expr)) in
-				(* Translate field names for specific C# types (e.g., length -> Length for string) *)
-				let field = match cs_constraint, cf.cf_name with
-					| CsTypeString, "length" -> "Length"
-					| _ -> escape_identifier cf.cf_name
-				in
-				(casted, field)
-			| None -> (obj_expr, escape_identifier cf.cf_name)
-		in
-		CsField (obj_expr, field_name)
+		(* Check if the C# type is object (due to erasure of generic interface with Dynamic).
+		   In that case, we can't do direct field access - use Reflect.field/setField. *)
+		let cs_type = cs_type_of_type ectx.gctx e.etype in
+		begin match cs_type with
+		| CsTypeObject ->
+			(* Type was erased to object - use Reflect for field access *)
+			let reflect_path = (["haxe"; "root"], "Reflect") in
+			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
+			begin match target_type with
+			| CsTypeObject -> field_call
+			| _ -> CsCast (target_type, field_call)
+			end
+		| _ ->
+			(* Check if the object is a type parameter - may need to cast to constraint type for field access.
+			   This handles cases where C# can't express the constraint (e.g., T:String where String is sealed). *)
+			let obj_expr, field_name = match get_type_param_constraint e.etype with
+				| Some constraint_type ->
+					(* Cast through object to constraint type for field access *)
+					let cs_constraint = cs_type_of_type ectx.gctx constraint_type in
+					let casted = CsCast (cs_constraint, CsCast (CsTypeObject, obj_expr)) in
+					(* Translate field names for specific C# types (e.g., length -> Length for string) *)
+					let field = match cs_constraint, cf.cf_name with
+						| CsTypeString, "length" -> "Length"
+						| _ -> escape_identifier cf.cf_name
+					in
+					(casted, field)
+				| None -> (obj_expr, escape_identifier cf.cf_name)
+			in
+			CsField (obj_expr, field_name)
+		end
 	| TField (e, FClosure (Some (c, tl), cf)) ->
 		(* Check if this is a MethDynamic field - those are actually variable fields holding
 		   functions, not real methods. They should be treated as field access, not closure generation.
@@ -2911,6 +2942,28 @@ let rec cs_expr_of_texpr ectx e =
 		let needs_unwrap = find_null_in_expr e_obj in
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let obj = if needs_unwrap then CsField (obj, "value") else obj in
+		(* Check if the C# type is object (due to erasure of generic interface with Dynamic).
+		   In that case, we can't do direct method calls - use Reflect.field + Runtime.InvokeDelegate. *)
+		let obj_cs_type = cs_type_of_type ectx.gctx e_obj.etype in
+		if obj_cs_type = CsTypeObject then begin
+			(* Type was erased to object - use reflection for method call *)
+			let reflect_path = (["haxe"; "root"], "Reflect") in
+			let runtime_path = (["haxe"; "lang"], "Runtime") in
+			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString cf.cf_name)]) in
+			(* Build args array *)
+			let cs_args = List.map (cs_expr_of_texpr ectx) args in
+			let args_array = CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative",
+				[CsNewArray (CsTypeObject, cs_args)]) in
+			(* Call Runtime.InvokeDelegate(method, args) *)
+			let invoke_call = CsStaticCall (CsTypeClass (runtime_path, []), "InvokeDelegate", [field_call; args_array]) in
+			(* Cast result to expected type *)
+			let result_type = cs_type_of_type ectx.gctx e.etype in
+			begin match result_type with
+			| CsTypeVoid -> invoke_call
+			| CsTypeObject -> invoke_call
+			| _ -> CsCast (result_type, invoke_call)
+			end
+		end else begin
 		(* Get parameter types for argument coercion.
 		   Apply class type params to get concrete types for generic methods like Array<T>.push(T).
 		   IMPORTANT: When a parameter is optional (opt=true), wrap its type in Null<T>.
@@ -3198,6 +3251,7 @@ let rec cs_expr_of_texpr ectx e =
 			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types_base in
 			CsCall (CsField (obj, get_native_field_name cf), cs_args)
 		end
+		end  (* close the obj_cs_type check *)
 		end  (* close the is_var_with_func_type else branch *)
 	| TCall ({ eexpr = TField (e_obj, FAnon cf) }, args) ->
 		(* Method call on anonymous/structural type.
