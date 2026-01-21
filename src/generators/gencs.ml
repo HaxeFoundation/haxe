@@ -6877,6 +6877,8 @@ let generate_field gctx c cf is_static =
 		   Otherwise generate as plain field for performance. *)
 		let init = match cf.cf_expr with
 			| Some e when not (expr_contains_this e) ->
+				(* Apply Null<T> syntax filter to field initializer *)
+				let e = CsNullable.filter gctx.com e in
 				let ectx = create_expr_context gctx in
 				ectx.current_class_path <- Some c.cl_path;
 				ectx.current_method_name <- Some cf.cf_name;
@@ -6920,6 +6922,8 @@ let generate_field gctx c cf is_static =
 		   Generate as property if implementing an interface, otherwise as plain field. *)
 		let init = match cf.cf_expr with
 			| Some e when not (expr_contains_this e) ->
+				(* Apply Null<T> syntax filter to field initializer *)
+				let e = CsNullable.filter gctx.com e in
 				let ectx = create_expr_context gctx in
 				ectx.current_class_path <- Some c.cl_path;
 				ectx.current_method_name <- Some cf.cf_name;
@@ -6969,6 +6973,8 @@ let generate_field gctx c cf is_static =
 			   The initialization will be moved to the constructor by generate_class. *)
 			let value = match cf.cf_expr with
 				| Some e when not (expr_contains_this e) ->
+					(* Apply Null<T> syntax filter to field initializer *)
+					let e = CsNullable.filter gctx.com e in
 					let ectx = create_expr_context gctx in
 					ectx.current_class_path <- Some c.cl_path;
 					ectx.current_method_name <- Some cf.cf_name;
@@ -7166,6 +7172,8 @@ let generate_field gctx c cf is_static =
 		   The initialization will be moved to the constructor by generate_cs_class. *)
 		let value = match cf.cf_expr with
 			| Some e when not (expr_contains_this e) ->
+				(* Apply Null<T> syntax filter to field initializer *)
+				let e = CsNullable.filter gctx.com e in
 				let ectx = create_expr_context gctx in
 				ectx.current_class_path <- Some c.cl_path;
 				ectx.current_method_name <- Some cf.cf_name;
@@ -7914,6 +7922,8 @@ let generate_class gctx c =
 		| Method MethDynamic ->
 			begin match cf.cf_expr with
 			| Some e when expr_contains_this e ->
+				(* Apply Null<T> syntax filter to field initializer *)
+				let e = CsNullable.filter gctx.com e in
 				let ectx = create_expr_context gctx in
 				ectx.current_class_path <- Some c.cl_path;
 				ectx.current_method_name <- Some cf.cf_name;

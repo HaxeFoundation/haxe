@@ -96,12 +96,84 @@ namespace haxe.lang
         }
 
         // ============================================================
-        // Fallback for 10+ arguments (uses object[] allocation)
+        // Dynamic invocation - dispatches by argument count
         // ============================================================
 
         public override object invokeDynamic(global::haxe.root.Array<object> args)
         {
-            return _obj._hx_invokeMethodDynamic(_index, args);
+            int len = (args != null) ? args.length : 0;
+
+            // Dispatch based on argument count to the appropriate fast path
+            switch (len)
+            {
+                case 0:
+                    return __hx_invoke0().ToDynamic();
+                case 1:
+                    return __hx_invoke1(FunctionValue.FromObject(args.__a[0])).ToDynamic();
+                case 2:
+                    return __hx_invoke2(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1])).ToDynamic();
+                case 3:
+                    return __hx_invoke3(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2])).ToDynamic();
+                case 4:
+                    return __hx_invoke4(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2]),
+                        FunctionValue.FromObject(args.__a[3])).ToDynamic();
+                case 5:
+                    return __hx_invoke5(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2]),
+                        FunctionValue.FromObject(args.__a[3]),
+                        FunctionValue.FromObject(args.__a[4])).ToDynamic();
+                case 6:
+                    return __hx_invoke6(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2]),
+                        FunctionValue.FromObject(args.__a[3]),
+                        FunctionValue.FromObject(args.__a[4]),
+                        FunctionValue.FromObject(args.__a[5])).ToDynamic();
+                case 7:
+                    return __hx_invoke7(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2]),
+                        FunctionValue.FromObject(args.__a[3]),
+                        FunctionValue.FromObject(args.__a[4]),
+                        FunctionValue.FromObject(args.__a[5]),
+                        FunctionValue.FromObject(args.__a[6])).ToDynamic();
+                case 8:
+                    return __hx_invoke8(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2]),
+                        FunctionValue.FromObject(args.__a[3]),
+                        FunctionValue.FromObject(args.__a[4]),
+                        FunctionValue.FromObject(args.__a[5]),
+                        FunctionValue.FromObject(args.__a[6]),
+                        FunctionValue.FromObject(args.__a[7])).ToDynamic();
+                case 9:
+                    return __hx_invoke9(
+                        FunctionValue.FromObject(args.__a[0]),
+                        FunctionValue.FromObject(args.__a[1]),
+                        FunctionValue.FromObject(args.__a[2]),
+                        FunctionValue.FromObject(args.__a[3]),
+                        FunctionValue.FromObject(args.__a[4]),
+                        FunctionValue.FromObject(args.__a[5]),
+                        FunctionValue.FromObject(args.__a[6]),
+                        FunctionValue.FromObject(args.__a[7]),
+                        FunctionValue.FromObject(args.__a[8])).ToDynamic();
+                default:
+                    // 10+ arguments: use the dynamic fallback
+                    return _obj._hx_invokeMethodDynamic(_index, args);
+            }
         }
     }
 }

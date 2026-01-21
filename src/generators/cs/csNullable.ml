@@ -138,6 +138,25 @@ let rec is_enum_field_access e =
 let is_non_null_generating_expr e =
 	is_enum_field_access e
 
+(* Check if a method call returns Null<TypeParam> in its uninstantiated signature.
+   The C# method signature IS Null<T> even when T is instantiated to a reference type.
+   In this case, is_null_t returns None (because reference types don't need Null wrapper),
+   but the C# expression IS Null<T> and needs .value unwrap. *)
+let is_method_call_returning_null_type_param e =
+	match e.eexpr with
+	| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
+	| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
+	| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
+		begin match follow cf.cf_type with
+		| TFun (_, TAbstract ({ a_path = ([], "Null") }, [inner])) ->
+			begin match follow inner with
+			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+			| _ -> false
+			end
+		| _ -> false
+		end
+	| _ -> false
+
 (* Generate: expr.value field access.
    Uses FDynamic if null_class not available - gencs.ml handles this correctly. *)
 let unwrap_null cfg expr inner_type =
@@ -240,24 +259,8 @@ let run cfg e =
 			in
 			let null_et = is_null_t e.etype in    (* Target: is it Null<T>? *)
 			let null_vt = is_null_t v.etype in    (* Source: is it Null<T>? *)
-			(* Also check for method calls that return Null<TypeParam> - the C# method signature
-			   IS Null<T> even when T is instantiated to a reference type. In this case,
-			   is_null_t returns None (because reference types don't need Null wrapper),
-			   but the C# expression IS Null<T> and needs .value unwrap. *)
-			let is_method_with_null_type_param = match v.eexpr with
-				| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
-				| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
-				| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
-					begin match follow cf.cf_type with
-					| TFun (_, TAbstract ({ a_path = ([], "Null") }, [inner])) ->
-						begin match follow inner with
-						| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-						| _ -> false
-						end
-					| _ -> false
-					end
-				| _ -> false
-			in
+			(* Check for method calls that return Null<TypeParam> - use top-level helper *)
+			let is_method_with_null_type_param = is_method_call_returning_null_type_param v in
 			begin match null_vt, null_et with
 			| Some inner_vt, None ->
 				(* Null<T> -> T: unwrap .value *)
@@ -291,20 +294,39 @@ let run cfg e =
 				(* T -> Null<T>: wrap in constructor *)
 				handle_wrap cfg (transform v) inner_et
 			| Some inner_vt, Some inner_et when not (type_iseq (follow inner_vt) (follow inner_et)) ->
-				(* Null<A> -> Null<B>: check hasValue, unwrap, convert, rewrap *)
+				(* Null<A> -> Null<B>: convert inner value and rewrap.
+				   IMPORTANT: If source is a constant expression, don't use hasValue check -
+				   constants aren't Null<T> structs even if typed as such. Just convert directly. *)
 				let v_transformed = transform v in
-				(* Generate: v.hasValue ? new Null<B>((B)v.value, true) : new Null<B>(default, false) *)
-				let has_val = has_value cfg v_transformed in
-				let unwrapped = unwrap_null cfg v_transformed inner_vt in
-				let converted = { eexpr = TCast(unwrapped, None); etype = inner_et; epos = e.epos } in
-				let wrapped_true = wrap_null cfg converted inner_et true in
-				let default_val = { eexpr = TConst TNull; etype = inner_et; epos = e.epos } in
-				let wrapped_false = wrap_null cfg default_val inner_et false in
-				{
-					eexpr = TIf(has_val, wrapped_true, Some wrapped_false);
-					etype = e.etype;
-					epos = e.epos
-				}
+				(* Check if source is a constant expression (TConst, -const, (const), or cast(const)) *)
+				let rec is_const_expr e = match e.eexpr with
+					| TConst _ -> true
+					| TUnop (_, _, e1) -> is_const_expr e1  (* Handles -1, !true, etc. *)
+					| TParenthesis e1 | TMeta (_, e1) | TCast (e1, _) -> is_const_expr e1
+					| _ -> false
+				in
+				let is_const = is_const_expr v in
+				if is_const then begin
+					(* Constant: just convert and wrap directly.
+					   E.g., -1 typed as Null<Int> to Null<Float>: new Null<Float>((Float)-1, true) *)
+					let converted = { eexpr = TCast(v_transformed, None); etype = inner_et; epos = e.epos } in
+					wrap_null cfg converted inner_et true
+				end
+				else begin
+					(* Non-constant Null<A> -> Null<B>: check hasValue, unwrap, convert, rewrap *)
+					(* Generate: v.hasValue ? new Null<B>((B)v.value, true) : new Null<B>(default, false) *)
+					let has_val = has_value cfg v_transformed in
+					let unwrapped = unwrap_null cfg v_transformed inner_vt in
+					let converted = { eexpr = TCast(unwrapped, None); etype = inner_et; epos = e.epos } in
+					let wrapped_true = wrap_null cfg converted inner_et true in
+					let default_val = { eexpr = TConst TNull; etype = inner_et; epos = e.epos } in
+					let wrapped_false = wrap_null cfg default_val inner_et false in
+					{
+						eexpr = TIf(has_val, wrapped_true, Some wrapped_false);
+						etype = e.etype;
+						epos = e.epos
+					}
+				end
 			| _ ->
 				(* Same types or no Null involved, keep cast *)
 				{ e with eexpr = TCast(transform v, md) }
