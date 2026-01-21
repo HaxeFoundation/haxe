@@ -591,12 +591,20 @@ let cs_const_of_tconst = function
 	| TThis -> failwith "TThis is not a constant"
 	| TSuper -> failwith "TSuper is not a constant"
 
-(* Helper to check if a type is Null<T> wrapper - handles TMono, TType, TLazy *)
+(* Helper to check if a type is Null<T> wrapper that maps to haxe.lang.Null<T> in C#.
+   Returns false for Null<T> where T is inherently nullable in C# (classes, arrays, etc.)
+   because those get stripped to just T at the type level in cs_type_of_type.
+   Handles TMono, TType, TLazy. *)
 let is_null_wrapper_type t =
 	let rec check t depth =
 		if depth > 10 then false else
 		match t with
-		| TAbstract ({ a_path = ([], "Null") }, _) -> true
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+			(* Check if the inner type maps to an inherently nullable C# type.
+			   If so, the Null<> wrapper is stripped at the type level and we don't need .value *)
+			let inner_cs = CsSignature.cs_type_of_type_without_gctx inner in
+			not (CsSignature.is_inherently_nullable inner_cs)
+		| TAbstract ({ a_path = ([], "Null") }, _) -> true  (* Null with no/multiple params - treat as nullable *)
 		| TType (_, _) -> check (Type.follow_once t) (depth + 1)
 		| TLazy f -> check (lazy_type f) (depth + 1)
 		| TMono r -> (match r.tm_type with Some t -> check t (depth + 1) | None -> false)
@@ -715,13 +723,19 @@ let get_effective_expr_type e =
 
 (* Helper to get the inner type from Null<T>, if the expression needs .value unwrapping.
    Returns Some(inner) if expression is Null-wrapped and needs unwrapping, None otherwise.
-   CRITICAL: For TCast, check the TARGET type, not the inner type. *)
+   CRITICAL: For TCast, check the TARGET type, not the inner type.
+   NOTE: Only returns Some when the inner type is NOT inherently nullable in C#
+   (since inherently nullable types have Null<> stripped at the type level). *)
 let rec get_null_inner_if_needs_unwrap e =
 	let get_inner t =
 		let rec check t depth =
 			if depth > 10 then None else
 			match t with
-			| TAbstract ({ a_path = ([], "Null") }, [inner]) -> Some inner
+			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+				(* Only return Some if inner is NOT inherently nullable in C# *)
+				let inner_cs = CsSignature.cs_type_of_type_without_gctx inner in
+				if CsSignature.is_inherently_nullable inner_cs then None
+				else Some inner
 			| TType (_, _) -> check (Type.follow_once t) (depth + 1)
 			| TLazy f -> check (lazy_type f) (depth + 1)
 			| TMono r -> (match r.tm_type with Some t -> check t (depth + 1) | None -> None)
@@ -1002,10 +1016,16 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 			cs_arg
 		else
 			CsCast (CsTypeNestedGeneric (parent, name, params), CsCast (CsTypeObject, cs_arg))
-	(* null literal to Null<T> - generate default(Null<T>) directly.
-	   This handles field initializers like `field:Null<Rec> = null` where csNullableSynf
-	   strips the Null wrapper (making the null have type Rec/object) but the target
-	   field IS declared as Null<T>. The arg_cs_type might be Array, object, Dynamic, etc. *)
+	(* FALLBACK: null literal to Null<T> - generate default(Null<T>) directly.
+	   This is a safety net for edge cases where:
+	   1. csNullableSynf strips Null<> from a null constant (correct for inherently nullable types)
+	   2. But the target field IS declared as Null<T> (e.g., recursive abstracts due to cycle-breaking)
+
+	   Ideally, Null<> stripping should happen at the TYPE DEFINITION level in cs_type_of_type,
+	   so Null<InherentlyNullableType> becomes just InherentlyNullableType everywhere.
+	   Once that's implemented, this fallback should rarely (if ever) be triggered.
+
+	   See csNullableSynf.ml TConst TNull handling for the design principle. *)
 	| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when cs_arg = CsNull ->
 		CsDefault expected_cs_type
 	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally. *)
@@ -2164,26 +2184,29 @@ let rec cs_expr_of_texpr ectx e =
 		end
 	| TField (e_obj, FDynamic name) ->
 		(* Dynamic field access - need to use reflection since C# object doesn't have arbitrary fields *)
-		(* NOTE: Use follow_once to peel through TMono but not unwrap Null<T> *)
 		let obj_expr = cs_expr_of_texpr ectx e_obj in
-		let raw_type = Type.follow_once e_obj.etype in
-		(* Special case: accessing .value or .hasValue on Null<T> - use direct field access, not reflection.
-		   CsNullableSynf generates FDynamic "value"/"hasValue" for Null unwrapping. *)
-		let is_null_struct_field = match raw_type with
-			| TAbstract ({ a_path = ([], "Null") }, _) -> name = "value" || name = "hasValue"
-			| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, _) -> name = "value" || name = "hasValue"
+		(* Check if the C# type is actually Null<T> (with type-level stripping, some Null<T>
+		   become just T when the inner type is inherently nullable) *)
+		let cs_type = cs_type_of_type ectx.gctx e_obj.etype in
+		let is_cs_null_type = match cs_type with
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
 			| _ -> false
+		in
+		(* Special case: accessing .value or .hasValue on Null<T> - use direct field access, not reflection.
+		   CsNullableSynf generates FDynamic "value"/"hasValue" for Null unwrapping.
+		   Only applies if the C# type is actually Null<T>. *)
+		let is_null_struct_field = is_cs_null_type && (name = "value" || name = "hasValue")
 		in
 		if is_null_struct_field then
 			(* Direct field access on Null<T> struct *)
 			CsField (obj_expr, name)
 		else begin
 			(* Regular dynamic field access via reflection *)
-			let obj_expr = match raw_type with
-				| TAbstract ({ a_path = ([], "Null") }, _) ->
-					(* Null<T> -> access .value to unwrap before dynamic field access *)
-					CsField (obj_expr, "value")
-				| _ -> obj_expr
+			(* Only unwrap via .value if the C# type is actually Null<T> *)
+			let obj_expr = if is_cs_null_type then
+				CsField (obj_expr, "value")
+			else
+				obj_expr
 			in
 			(* Use haxe.lang.Runtime.GetField for dynamic field access *)
 			let field_call = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)]) in
@@ -2461,6 +2484,9 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
 			| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
 			| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
+			| _ when CsSignature.is_inherently_nullable inner ->
+				(* Inner type is inherently nullable - just cast from dynamic *)
+				CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
 			| _ ->
 				let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
 				CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (call_expr, "ToDynamic"), [])])
@@ -2818,6 +2844,9 @@ let rec cs_expr_of_texpr ectx e =
 				| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
 				| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
 				| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
+				| _ when CsSignature.is_inherently_nullable inner ->
+					(* Inner type is inherently nullable - just cast from dynamic *)
+					CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
 				| _ ->
 					let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
 					CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (call_expr, "ToDynamic"), [])])
@@ -4022,6 +4051,9 @@ let rec cs_expr_of_texpr ectx e =
 				| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
 				| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
 				| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
+				| _ when CsSignature.is_inherently_nullable inner ->
+					(* Inner type is inherently nullable - just cast from dynamic *)
+					CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
 				| _ ->
 					let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
 					CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (call_expr, "ToDynamic"), [])])
@@ -5561,12 +5593,16 @@ let generate_closure_class ectx tf func_type =
 		if ExtType.is_void (follow v.v_type) then None
 		else
 			let base_type = cs_type_of_type gctx v.v_type in
-			(* If parameter has default value, wrap with Null<T> unless already wrapped *)
+			(* If parameter has default value, wrap with Null<T> unless already wrapped
+			   or unless the type is inherently nullable (classes, arrays, etc.) *)
 			let param_type = match default_opt with
 				| Some _ ->
 					begin match base_type with
 					| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 						(* Already Null<T>, don't double-wrap *)
+						base_type
+					| _ when CsSignature.is_inherently_nullable base_type ->
+						(* Type is inherently nullable (class, array, etc.) - no wrapper needed *)
 						base_type
 					| _ ->
 						(* Wrap with Null<T> *)
@@ -5830,6 +5866,9 @@ let generate_closure_class ectx tf func_type =
 						| CsTypeFloat -> CsCall (CsField (a_var, "ToNullFloat"), [])
 						| CsTypeBool -> CsCall (CsField (a_var, "ToNullBool"), [])
 						| CsTypeLong -> CsCall (CsField (a_var, "ToNullLong"), [])
+						| _ when CsSignature.is_inherently_nullable inner ->
+							(* Inner type is inherently nullable - just cast from dynamic *)
+							CsCast (inner, CsCall (CsField (a_var, "ToDynamic"), []))
 						| _ ->
 							(* For reference types, use ToNullObject<T>() - but C# needs explicit type *)
 							(* We use ToDynamic() and wrap with Null<T>._ofDynamic for simplicity *)
@@ -6040,10 +6079,12 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 			let base_type = cs_type_of_type gctx t in
 			(* Erase method type parameters to object *)
 			let base_type = if has_method_type_params then CsSignature.erase_type_params base_type else base_type in
-			(* If parameter is optional, wrap with Null<T> unless already wrapped *)
+			(* If parameter is optional, wrap with Null<T> unless already wrapped
+			   or unless the type is inherently nullable (classes, arrays, etc.) *)
 			let param_type = if opt then
 				match base_type with
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> base_type
+				| _ when CsSignature.is_inherently_nullable base_type -> base_type
 				| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [base_type])
 			else base_type
 			in
@@ -6270,6 +6311,9 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 						| CsTypeFloat -> CsCall (CsField (a_var, "ToNullFloat"), [])
 						| CsTypeBool -> CsCall (CsField (a_var, "ToNullBool"), [])
 						| CsTypeLong -> CsCall (CsField (a_var, "ToNullLong"), [])
+						| _ when CsSignature.is_inherently_nullable inner ->
+							(* Inner type is inherently nullable - just cast from dynamic *)
+							CsCast (inner, CsCall (CsField (a_var, "ToDynamic"), []))
 						| _ ->
 							let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
 							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])

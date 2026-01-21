@@ -383,24 +383,32 @@ let run cfg e =
 		| TBlock bl ->
 			{ e with eexpr = TBlock(List.map transform bl) }
 
-		(* TConst TNull with Null<Abstract>: change type to the underlying type.
-		   When the inner type of Null<T> is a non-core abstract (like Variant over VariantType),
-		   the C# variable is declared as the underlying type (VariantType), not Null<Variant>.
-		   So when comparing to null, we need the null constant to have the underlying type.
+		(* TConst TNull with Null<Abstract>: strip Null wrapper for inherently nullable types.
 
-		   BUT: Don't strip for direct classes/interfaces (like Null<Person>) - those are
-		   declared as Null<Person> in C# and need default(Null<Person>).
+		   DESIGN PRINCIPLE: When Null<T> wraps a type that is already nullable in C#,
+		   the Null<> wrapper should be stripped. Ideally this stripping happens at the
+		   TYPE DEFINITION level (when determining how Null<SomeAbstract> maps to C#),
+		   so it applies consistently everywhere that type is used.
 
-		   IMPORTANT: Do NOT change this stripping behavior - it is correct for inherently
-		   nullable types. For field initializers where the field IS declared as Null<T>
-		   (e.g., recursive abstracts), gencs.ml handles the coercion at the assignment
-		   site by checking the target field type and generating default(...) there. *)
+		   Current behavior: Strip Null<NonCoreAbstract> because for most abstracts,
+		   the C# variable is declared as the underlying type (e.g., VariantType), not
+		   Null<VariantType>. The underlying type is typically a class/interface which
+		   is inherently nullable in C#, so the Null<> struct wrapper is unnecessary.
+
+		   IMPORTANT: Do NOT remove this stripping - it is correct for inherently nullable
+		   types. Edge cases where the field IS declared as Null<T> (e.g., recursive
+		   abstracts due to cycle-breaking) are handled by gencs.ml's coerce_cs_types
+		   fallback pattern which generates default(Null<T>) when assigning CsNull to Null<T>.
+
+		   FUTURE: Move nullability decision to cs_type_of_type so Null<> is stripped from
+		   the type itself when the underlying type is inherently nullable. This would make
+		   the gencs.ml fallback unnecessary. *)
 		| TConst TNull ->
 			begin match e.etype with
 			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
 				begin match follow inner with
 				| TAbstract (a, _) when not (Meta.has Meta.CoreType a.a_meta) ->
-					(* Null<NonCoreAbstract>: the C# variable follows through to underlying type.
+					(* Null<NonCoreAbstract>: underlying type is typically nullable (class/interface).
 					   Strip Null wrapper so gencs.ml generates `null` not `default(Null<...>)`. *)
 					{ e with etype = inner }
 				| _ ->

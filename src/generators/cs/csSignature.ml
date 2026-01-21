@@ -92,10 +92,38 @@ let is_dynamic_at_runtime = function
 	| _ ->
 		false
 
-(* Box a type to haxe.lang.Null<T> wrapper *)
+(* Check if a C# type is inherently nullable (reference type that can hold null).
+   These types don't need the Null<T> struct wrapper because they can represent null natively.
+   This is used to strip redundant Null<T> wrappers at the type level. *)
+let is_inherently_nullable = function
+	(* Reference types - can hold null *)
+	| CsTypeObject | CsTypeDynamic | CsTypeString -> true
+	| CsTypeArray _ -> true  (* Arrays are reference types *)
+	(* Classes are reference types (except structs, but we don't distinguish here)
+	   EXCEPT: haxe.lang.Null itself is a struct, don't strip Null<Null<T>> here
+	   (that's handled separately by flattening). Also exclude value-like types. *)
+	| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> false  (* Null<T> struct - not inherently nullable *)
+	| CsTypeClass ((["System"], "DateTime"), _) -> false  (* struct *)
+	| CsTypeClass ((["System"], "TimeSpan"), _) -> false  (* struct *)
+	| CsTypeClass ((["System"], "Guid"), _) -> false  (* struct *)
+	| CsTypeClass _ -> true  (* Other classes are reference types *)
+	(* Primitives are NOT nullable - they need Null<T> wrapper *)
+	| CsTypeBool | CsTypeByte | CsTypeSByte
+	| CsTypeChar | CsTypeShort | CsTypeUShort
+	| CsTypeInt | CsTypeUInt | CsTypeLong | CsTypeULong
+	| CsTypeFloat | CsTypeDouble | CsTypeDecimal -> false
+	(* Other types - assume not nullable to be safe *)
+	| CsTypeVoid | CsTypeVar | CsTypeNullable _ | CsTypeNested _ | CsTypeNestedGeneric _
+	| CsTypeFunc _ | CsTypeAction _ | CsTypeGenericParam _ -> false
+
+(* Box a type to haxe.lang.Null<T> wrapper, unless it's already inherently nullable.
+   Reference types (classes, arrays, strings) can represent null natively in C#
+   and don't need the Null<T> struct wrapper. *)
 let get_boxed_type csig =
-	(* Use haxe.lang.Null<T> for all types - provides unified nullable semantics *)
-	CsTypeClass ((["haxe"; "lang"], "Null"), [csig])
+	if is_inherently_nullable csig then
+		csig  (* Already nullable, no wrapper needed *)
+	else
+		CsTypeClass ((["haxe"; "lang"], "Null"), [csig])
 
 (* Unbox a nullable type to its underlying value type *)
 let get_unboxed_type = function
@@ -134,18 +162,25 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* Due to @:native, the usual String path doesn't always match - also match lowercase "string" from @:native *)
 		CsTypeString
 	| TAbstract ({ a_path = ([], "Null") }, [t]) ->
-		(* Null<T> -> haxe.lang.Null<T> for ALL types (unified nullable semantics)
-		   EXCEPT Null<Void> which becomes just 'object' since C# doesn't allow void as a type argument.
+		(* Null<T> handling with smart stripping for inherently nullable types.
 
-		   Null<Null<T>> is flattened to Null<T> because:
-		   1. C# Null<T> struct cannot semantically nest - "nullable nullable int" = "nullable int"
-		   2. This avoids complex unwrapping logic in coerce_cs_types *)
+		   DESIGN PRINCIPLE: If the underlying C# type can already represent null
+		   (reference types like classes, arrays, strings), then the Null<T> struct
+		   wrapper is redundant and should be stripped at the TYPE level.
+
+		   This ensures consistent handling everywhere the type is used, rather than
+		   special-casing at each usage site (assignments, comparisons, etc.).
+
+		   Null<Null<T>> is also flattened to Null<T> - "nullable nullable int" = "nullable int". *)
 		let inner = cs_type_of_type_inner t in
 		begin match inner with
-		| CsTypeVoid -> CsTypeObject
+		| CsTypeVoid -> CsTypeObject  (* Null<Void> -> object (void not allowed as type arg) *)
 		(* Flatten nested Null<Null<T>> to Null<T> *)
 		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner]) ->
 			CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner])
+		(* Strip Null<T> when T is inherently nullable in C# (reference types) *)
+		| _ when is_inherently_nullable inner -> inner
+		(* Keep Null<T> for value types (int, double, bool, etc.) *)
 		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 		end
 	| TDynamic _ ->
@@ -165,12 +200,13 @@ let rec cs_type_of_type_inner gctx stack t =
 		let inner = cs_type_of_type_inner t in
 		CsTypeArray (inner, None)
 	| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, [t]) ->
-		(* haxe.lang.Null<T> class instance - same flattening rules as abstract Null *)
+		(* haxe.lang.Null<T> class instance - same stripping/flattening rules as abstract Null *)
 		let inner = cs_type_of_type_inner t in
 		begin match inner with
 		| CsTypeVoid -> CsTypeObject
 		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner]) ->
 			CsTypeClass ((["haxe"; "lang"], "Null"), [inner_inner])
+		| _ when is_inherently_nullable inner -> inner
 		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 		end
 	| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
@@ -303,6 +339,11 @@ let rec cs_type_of_type_inner gctx stack t =
 
 (* Public entry point with empty stack *)
 let cs_type_of_type gctx t = cs_type_of_type_inner gctx [] t
+
+(* Entry point that doesn't require gctx - for use in places where we just need
+   to check what C# type a Haxe type maps to (e.g., is_null_wrapper_type).
+   gctx is not actually used in the type conversion logic. *)
+let cs_type_of_type_without_gctx t = cs_type_of_type_inner () [] t
 
 (* Convert function signature *)
 let cs_method_sig gctx args ret =
