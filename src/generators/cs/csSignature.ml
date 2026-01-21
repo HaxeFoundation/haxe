@@ -247,21 +247,13 @@ let rec cs_type_of_type_inner gctx stack t =
 		(* Check for well-known typedefs first *)
 		begin match td.t_path with
 		| ([], "Iterator") ->
-			(* Iterator<T> is a structural typedef.
-			   - If T is a concrete type (Int, String, class, etc.), map to ArrayIterator<T>
-			     to allow direct method calls instead of using Reflect.
-			   - If T is an anonymous type (e.g., {key:K, value:V} from KeyValueIterator),
-			     we can't use ArrayIterator because the actual implementation might be
-			     different (like MapKeyValueIterator). In this case, follow to object. *)
-			let inner_hx = List.hd params in
-			begin match Type.follow inner_hx with
-			| TAnon _ ->
-				(* Inner type is anonymous - can't assume ArrayIterator, use object *)
-				CsTypeObject
-			| _ ->
-				let inner = cs_type_of_type_inner inner_hx in
-				CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), [inner])
-			end
+			(* Iterator<T> is a structural typedef - any object with hasNext()/next() methods.
+			   Map to object and use Reflect.field + Runtime.InvokeDelegate for method calls.
+			   This works for all iterator implementations (ArrayIterator, MapIterator, custom, etc.).
+			   NOTE: We use object instead of HaxeObject because the for-loop desugaring creates
+			   variables with the same name for iterator and loop element, and mapping to a specific
+			   class type causes assignment type conflicts in the generated C# code. *)
+			CsTypeObject
 		| ([], "KeyValueIterator") ->
 			(* KeyValueIterator<K,V> is a structural typedef. Unlike Iterator, we can't
 			   map it to a specific class because implementations vary:

@@ -3284,13 +3284,21 @@ let rec cs_expr_of_texpr ectx e =
 				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
-			(* Cast the result to the expected return type.
+			(* Convert the result to the expected return type using Runtime helpers.
+			   Use Runtime.toInt/toDouble/toBool for primitives (handles boxing/unboxing properly),
+			   and direct cast for reference types.
 			   Use e.etype (the TCall's return type) which has type parameters resolved. *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let runtime_path = (["haxe"; "lang"], "Runtime") in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
+			| CsTypeInt -> CsStaticCall (CsTypeClass (runtime_path, []), "toInt", [call_expr])
+			| CsTypeLong -> CsStaticCall (CsTypeClass (runtime_path, []), "toLong", [call_expr])
+			| CsTypeFloat | CsTypeDouble -> CsStaticCall (CsTypeClass (runtime_path, []), "toDouble", [call_expr])
+			| CsTypeBool -> CsStaticCall (CsTypeClass (runtime_path, []), "toBool", [call_expr])
+			| CsTypeString -> CsCast (CsTypeString, call_expr)
 			| _ -> CsCast (result_type, call_expr)
 			end
 		| CsTypeGenericParam _ ->
@@ -3309,8 +3317,14 @@ let rec cs_expr_of_texpr ectx e =
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let runtime_path = (["haxe"; "lang"], "Runtime") in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
+			| CsTypeInt -> CsStaticCall (CsTypeClass (runtime_path, []), "toInt", [call_expr])
+			| CsTypeLong -> CsStaticCall (CsTypeClass (runtime_path, []), "toLong", [call_expr])
+			| CsTypeFloat | CsTypeDouble -> CsStaticCall (CsTypeClass (runtime_path, []), "toDouble", [call_expr])
+			| CsTypeBool -> CsStaticCall (CsTypeClass (runtime_path, []), "toBool", [call_expr])
+			| CsTypeString -> CsCast (CsTypeString, call_expr)
 			| _ -> CsCast (result_type, call_expr)
 			end
 		| _ ->
@@ -3324,13 +3338,18 @@ let rec cs_expr_of_texpr ectx e =
 				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
-			(* Cast the result to the expected return type.
-			   Use e.etype (the TCall's return type) which has type parameters resolved. *)
+			(* Convert the result using Runtime helpers for proper type conversion *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let runtime_path = (["haxe"; "lang"], "Runtime") in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
+			| CsTypeInt -> CsStaticCall (CsTypeClass (runtime_path, []), "toInt", [call_expr])
+			| CsTypeLong -> CsStaticCall (CsTypeClass (runtime_path, []), "toLong", [call_expr])
+			| CsTypeFloat | CsTypeDouble -> CsStaticCall (CsTypeClass (runtime_path, []), "toDouble", [call_expr])
+			| CsTypeBool -> CsStaticCall (CsTypeClass (runtime_path, []), "toBool", [call_expr])
+			| CsTypeString -> CsCast (CsTypeString, call_expr)
 			| _ -> CsCast (result_type, call_expr)
 			end
 		end
