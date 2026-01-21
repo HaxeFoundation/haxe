@@ -611,6 +611,23 @@ let is_null_wrapper_type t =
 		| _ -> false
 	in check t 0
 
+(* Check if a method's DECLARED return type (before type param substitution) is Null<TypeParam>.
+   This is needed because C# generates `Null<T> get(...)` for generic methods, so the return value
+   is always Null<T> even when T is instantiated to a reference type like CTest.
+   The cf_type contains the uninstantiated type with type parameters. *)
+let method_declared_returns_null_type_param cf_type =
+	match follow cf_type with
+	| TFun (_, ret) ->
+		begin match ret with
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+			begin match follow inner with
+			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+			| _ -> false
+			end
+		| _ -> false
+		end
+	| _ -> false
+
 (* Helper to find if an expression involves a Null<T> wrapper - checks through TLocal, TCast, etc.
    Returns true if the GENERATED C# expression will have type Null<T> and needs .value unwrapping.
    CRITICAL: For TCast, we check the TARGET type (e.etype), not the inner expression type.
@@ -627,6 +644,16 @@ let rec find_null_in_expr e =
 			false
 		| TParenthesis inner -> find_null_in_expr inner
 		| TMeta (_, inner) -> find_null_in_expr inner
+		| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
+		| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
+		| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
+			(* For method calls, check if the method's DECLARED return type (uninstantiated)
+			   is Null<TypeParam>. If so, the C# method signature uses `Null<T>`, so the
+			   return value needs .value unwrap even when T is instantiated to a reference type.
+			   CRITICAL: This handles cases like IntMap<CTest>.get() returning Null<CTest>,
+			   where CTest is a class but the C# return type is still Null<CTest> because
+			   the method was generated with Null<T>. *)
+			method_declared_returns_null_type_param cf.cf_type
 		| TArray (arr, _) ->
 			(* For array access, check the element type of the array.
 			   Due to @:forward on Null<T>, e.etype might be T instead of Null<T>,
@@ -1630,9 +1657,16 @@ let rec cs_expr_of_texpr ectx e =
 				(* Anonymous field assignment - check if it's a truly dynamic object or a known type *)
 				let obj_expr = cs_expr_of_texpr ectx obj in
 				let raw_type = Type.follow_once obj.etype in
+				(* Only unwrap .value if the inner type actually needs the Null wrapper in C#.
+				   For reference types (classes, anonymous types/object), Null<T> is stripped to T,
+				   so there's no .value to access - the variable holds the value directly. *)
 				let obj_expr, inner_type = match raw_type with
 					| TAbstract ({ a_path = ([], "Null") }, [inner_t]) ->
-						(CsField (obj_expr, "value"), inner_t)
+						let inner_cs = cs_type_of_type ectx.gctx inner_t in
+						if CsSignature.is_inherently_nullable inner_cs then
+							(obj_expr, inner_t)  (* No .value - Null<T> stripped to T in C# *)
+						else
+							(CsField (obj_expr, "value"), inner_t)
 					| _ -> (obj_expr, obj.etype)
 				in
 				let val_cs = cs_expr_of_texpr ectx e2 in
@@ -3160,10 +3194,16 @@ let rec cs_expr_of_texpr ectx e =
 		(* NOTE: e_obj is the object expression, e is the whole TCall expression (outer match var) *)
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let raw_type = Type.follow_once e_obj.etype in
+		(* Only unwrap .value if the inner type actually needs the Null wrapper in C#.
+		   For reference types (classes, anonymous types/object), Null<T> is stripped to T,
+		   so there's no .value to access - the variable holds the value directly. *)
 		let inner_type, obj = match raw_type with
 			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-				(* Null<T> -> access .value to unwrap *)
-				(inner, CsField (obj, "value"))
+				let inner_cs = cs_type_of_type ectx.gctx inner in
+				if CsSignature.is_inherently_nullable inner_cs then
+					(inner, obj)  (* No .value - Null<T> stripped to T in C# *)
+				else
+					(inner, CsField (obj, "value"))  (* Null<T> -> access .value to unwrap *)
 			| _ -> (e_obj.etype, obj)
 		in
 		(* Get parameter types from field type for proper null handling.
@@ -3306,9 +3346,18 @@ let rec cs_expr_of_texpr ectx e =
 		(* Dynamic method call: obj.dynamicMethod(args) -> Runtime.InvokeDelegate(Runtime.GetField(obj, "method"), args) *)
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let raw_type = Type.follow_once e_obj.etype in
+		(* Only unwrap .value if the inner type actually needs the Null wrapper in C#.
+		   For reference types (classes, anonymous types/object), Null<T> is stripped to T,
+		   so there's no .value to access - the variable holds the value directly. *)
 		let obj = match raw_type with
+			| TAbstract ({ a_path = ([], "Null") }, [inner_t]) ->
+				let inner_cs = cs_type_of_type ectx.gctx inner_t in
+				if CsSignature.is_inherently_nullable inner_cs then
+					obj  (* No .value - Null<T> stripped to T in C# *)
+				else
+					CsField (obj, "value")
 			| TAbstract ({ a_path = ([], "Null") }, _) ->
-				CsField (obj, "value")
+				CsField (obj, "value")  (* Null with no/multiple params - treat as nullable *)
 			| _ -> obj
 		in
 		let get_field = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj; CsConst (CsConstString name)]) in
@@ -3934,13 +3983,16 @@ let rec cs_expr_of_texpr ectx e =
 			   For now, we always use the dynamic dispatch path.
 			   See plan: "CRITICAL: Typed Closure Variables and Direct invoke() Calls" *)
 			let raw_func = cs_expr_of_texpr ectx e_callee in
-			(* Check if callee is Null<Function> - if so, access .value to unwrap *)
-			let callee_type = Type.follow_once e_callee.etype in
-			let func = match callee_type with
-				| TAbstract ({ a_path = ([], "Null") }, [TFun _]) ->
-					(* Null<Function> -> access .value to unwrap *)
-					CsField (raw_func, "value")
-				| _ -> raw_func
+			(* Check if callee is Null<T> that needs .value unwrap in C#.
+			   Use find_null_in_expr which handles:
+			   - Direct Null<T> types where T needs wrapper (value types, type params)
+			   - Method calls that return Null<TypeParam> (like Array<Function>.pop() returning Null<T>)
+			   CRITICAL: Even though Function is a reference type, Array<T>.pop() declares Null<T>
+			   as its return type, so the C# method signature IS Null<Function> and needs .value. *)
+			let func = if find_null_in_expr e_callee then
+				CsField (raw_func, "value")
+			else
+				raw_func
 			in
 			(* Get expected parameter types from the function type to handle coercion.
 			   IMPORTANT: Wrap optional params in Null<T> (opt=true means optional).

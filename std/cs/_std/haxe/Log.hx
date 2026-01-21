@@ -27,8 +27,10 @@ class Log {
 		var str = Std.string(v);
 		if (infos == null)
 			return str;
-		// Extract the actual HaxeDynamicObject from Null<T>.value
-		var dynInfos:Dynamic = untyped __cs__("{0}.value", infos);
+		// PosInfos is a typedef mapping to an anonymous type, which becomes 'object' in C#.
+		// Null<object> is stripped to just 'object' since object is inherently nullable.
+		// So 'infos' is directly the HaxeDynamicObject, no .value unwrapping needed.
+		var dynInfos:Dynamic = infos;
 		var fileName:String = untyped __cs__("(string)((haxe.root.HaxeDynamicObject){0})._hx_getField(\"fileName\")", dynInfos);
 		var lineNumber:Dynamic = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", dynInfos);
 		var pstr = fileName + ":" + Std.string(lineNumber);

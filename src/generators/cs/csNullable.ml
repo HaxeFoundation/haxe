@@ -72,9 +72,37 @@ let is_type_param t =
 let needs_null_wrapper t =
 	is_cs_basic_type t || is_type_param t
 
+(* Custom follow that doesn't unwrap abstracts - only follows TType, TLazy, TMono *)
+let rec shallow_follow t depth =
+	if depth > 10 then t else
+	match t with
+	| TType (_, _) -> shallow_follow (Type.follow_once t) (depth + 1)
+	| TLazy f -> shallow_follow (lazy_type f) (depth + 1)
+	| TMono r -> (match r.tm_type with Some t -> shallow_follow t (depth + 1) | None -> t)
+	| _ -> t
+
+(* Check if type is Null<T> wrapper, return inner type WITHOUT filtering by needs_null_wrapper.
+   This is used for field/call/array access where we need to add .value regardless of
+   whether the inner type is a value type or reference type, because the C# expression
+   type IS Null<T> (e.g., from a generic method like IntMap<T>.get() returning Null<T>). *)
+let rec is_null_wrapper_type t =
+	let rec take_off_null t =
+		match is_null_wrapper_type t with
+		| None -> t
+		| Some inner -> take_off_null inner
+	in
+	match shallow_follow t 0 with
+	| TInst({ cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
+		Some (take_off_null of_t)
+	| TAbstract({ a_path = ([], "Null") }, [of_t]) ->
+		Some (take_off_null of_t)
+	| _ -> None
+
 (* Check if type is Null<T>, return inner type (with nested Null stripped).
    IMPORTANT: Only return Some when the inner type actually needs a Null wrapper in C#.
    Reference types (classes, enums, abstracts over them) can be null directly in C#.
+
+   This is used for TCast and TBinop where we only want to wrap/unwrap when necessary.
 
    IMPORTANT: Don't use follow() on the outer type - it may follow through abstract to inner type.
    Only follow TType, TLazy, TMono like gencs.ml's is_null_wrapper_type does. *)
@@ -83,15 +111,6 @@ let rec is_null_t t =
 		match is_null_t t with
 		| None -> t
 		| Some inner -> take_off_null inner
-	in
-	(* Custom follow that doesn't unwrap abstracts *)
-	let rec shallow_follow t depth =
-		if depth > 10 then t else
-		match t with
-		| TType (_, _) -> shallow_follow (Type.follow_once t) (depth + 1)
-		| TLazy f -> shallow_follow (lazy_type f) (depth + 1)
-		| TMono r -> (match r.tm_type with Some t -> shallow_follow t (depth + 1) | None -> t)
-		| _ -> t
 	in
 	match shallow_follow t 0 with
 	| TInst({ cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
@@ -273,19 +292,25 @@ let run cfg e =
 				{ e with eexpr = TField(transform ef, FEnum(en, ef_field)) }
 			end
 
-		(* TField on Null<T>: auto-unwrap before field access *)
+		(* TField on Null<T>: auto-unwrap before field access.
+		   CRITICAL: Only unwrap when inner type NEEDS the Null wrapper (value types, type params).
+		   For reference types (classes, interfaces, enums), the C# variable is declared as
+		   just T (not Null<T>), so there is no .value to unwrap - the variable can hold null directly.
+		   Uses is_null_t which filters by needs_null_wrapper. *)
 		| TField(ef, field) when Option.is_some (is_null_t ef.etype) ->
 			let inner_t = Option.get (is_null_t ef.etype) in
 			let unwrapped = handle_unwrap cfg inner_t (transform ef) in
 			{ e with eexpr = TField(unwrapped, field) }
 
-		(* TCall on Null<T>: auto-unwrap before call *)
+		(* TCall on Null<T>: auto-unwrap before call.
+		   CRITICAL: Same as TField - only unwrap for value types/type params. *)
 		| TCall(ecall, params) when Option.is_some (is_null_t ecall.etype) ->
 			let inner_t = Option.get (is_null_t ecall.etype) in
 			let unwrapped = handle_unwrap cfg inner_t (transform ecall) in
 			{ e with eexpr = TCall(unwrapped, List.map transform params) }
 
-		(* TArray on Null<T>: auto-unwrap before array access *)
+		(* TArray on Null<T>: auto-unwrap before array access.
+		   CRITICAL: Same as TField - only unwrap for value types/type params. *)
 		| TArray(earray, idx) when Option.is_some (is_null_t earray.etype) ->
 			let inner_t = Option.get (is_null_t earray.etype) in
 			let unwrapped = handle_unwrap cfg inner_t (transform earray) in
