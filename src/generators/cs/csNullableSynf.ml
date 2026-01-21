@@ -400,22 +400,21 @@ let run cfg e =
 		   abstracts due to cycle-breaking) are handled by gencs.ml's coerce_cs_types
 		   fallback pattern which generates default(Null<T>) when assigning CsNull to Null<T>.
 
-		   FUTURE: Move nullability decision to cs_type_of_type so Null<> is stripped from
+		   FUTURE: Maybe, move nullability decision to cs_type_of_type so Null<> is stripped from
 		   the type itself when the underlying type is inherently nullable. This would make
 		   the gencs.ml fallback unnecessary. *)
 		| TConst TNull ->
 			begin match e.etype with
 			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-				begin match follow inner with
-				| TAbstract (a, _) when not (Meta.has Meta.CoreType a.a_meta) ->
-					(* Null<NonCoreAbstract>: underlying type is typically nullable (class/interface).
-					   Strip Null wrapper so gencs.ml generates `null` not `default(Null<...>)`. *)
-					{ e with etype = inner }
-				| _ ->
-					(* Null<Class>, Null<Enum>, Null<CoreAbstract>: keep as-is.
-					   C# variable IS Null<T>, needs default(Null<T>). *)
+				(* Check if the inner type needs a Null wrapper in C#.
+				   If it does (value types), keep the Null wrapper.
+				   If it doesn't (reference types), strip it. *)
+				if needs_null_wrapper inner then
+					(* Value type or type param - C# variable IS Null<T>, needs default(Null<T>) *)
 					e
-				end
+				else
+					(* Reference type - C# variable is just the type, use plain null *)
+					{ e with etype = inner }
 			| _ -> e
 			end
 

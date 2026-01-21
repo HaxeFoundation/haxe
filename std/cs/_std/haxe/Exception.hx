@@ -62,8 +62,8 @@ class Exception extends NativeException {
 		// Call base System.Exception constructor - uses special handling in generator
 		super(message);
 		__previousException = previous;
-		// native is Null<object> struct - check .hasValue and .value
-		__nativeException = untyped __cs__("(({0}.hasValue && {0}.value is System.Exception) ? (System.Exception){0}.value : (System.Exception)this)", native);
+		// native is object (nullable) - check for null and System.Exception
+		__nativeException = untyped __cs__("(({0} is System.Exception) ? (System.Exception){0} : (System.Exception)this)", native);
 	}
 
 	function unwrap():Any {
