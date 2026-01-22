@@ -2211,8 +2211,40 @@ let rec cs_expr_of_texpr ectx e =
 						(* arr.__objectArray[i] = result *)
 						CsBinop (CsOpAssign, array_access, op_result)
 					| None ->
-						(* Non-dynamic compound assignment - use normal operator *)
-						CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+						(* Check if e1 is a field access with erased type param - also can't do compound assignment on cast *)
+						let rec find_erased_field_for_assign expr = match expr.eexpr with
+							| TField (obj_expr, FInstance (cl, tl, cf)) ->
+								if is_erased_type_param cf.cf_type then
+									Some (obj_expr, cl, tl, cf, expr.etype)
+								else
+									None
+							| TParenthesis inner -> find_erased_field_for_assign inner
+							| TCast (inner, _) -> find_erased_field_for_assign inner
+							| _ -> None
+						in
+						begin match find_erased_field_for_assign e1 with
+						| Some (obj_expr, _cl, _tl, cf, expr_type) ->
+							(* Expand: ((T)obj.field) += v  ->  (T)(obj.field = (object)(((T)obj.field) + v)) *)
+							let obj_cs = cs_expr_of_texpr ectx obj_expr in
+							let obj_cs = if find_null_in_expr obj_expr then CsField (obj_cs, "value") else obj_cs in
+							let field_name = escape_identifier cf.cf_name in
+							let field_access = CsField (obj_cs, field_name) in
+							let cast_type = cs_type_of_type ectx.gctx expr_type in
+							let e2_cs = cs_expr_of_texpr ectx e2 in
+							(* (T)obj.field *)
+							let casted_read = CsCast (cast_type, field_access) in
+							(* (T)obj.field op v *)
+							let op_result = CsBinop (cs_binop_of_binop inner_op, casted_read, e2_cs) in
+							(* (object)(op_result) for boxing *)
+							let boxed = CsCast (CsTypeObject, op_result) in
+							(* obj.field = boxed *)
+							let assignment = CsBinop (CsOpAssign, field_access, boxed) in
+							(* (T)(assignment) - return the result *)
+							CsCast (cast_type, assignment)
+						| None ->
+							(* Non-dynamic compound assignment - use normal operator *)
+							CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+						end
 					end
 				end
 			| _ ->
@@ -2352,7 +2384,59 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> CsCast (expected_cs_type, call_expr)
 				end
 			else
-				CsUnop (cs_unop_of_unop op, is_postfix, cs_expr_of_texpr ectx unop_operand)
+				(* Check if the operand is a cast of a field access where the field is object-typed.
+				   In C#, you can't do ++/-- on an unboxing cast result (CS0445).
+				   Expand: ((int)obj.field)++  ->  (int)(obj.field = (object)((int)obj.field + 1)) - 1
+				   Expand: ++((int)obj.field)  ->  (int)(obj.field = (object)((int)obj.field + 1)) *)
+				let needs_expansion = match op with
+					| Increment | Decrement ->
+						(* Check if operand is a field access where the field is object-typed due to erasure.
+						   In gencs, such fields get cast to their substituted type, but C# doesn't
+						   allow ++/-- on an unboxing cast result. We need to detect this BEFORE
+						   the cs_expr_of_texpr call adds the cast. *)
+						let rec find_erased_field expr = match expr.eexpr with
+							| TField (obj_expr, FInstance (cl, tl, cf)) ->
+								(* Check if field is an erased type param - these get casted during codegen *)
+								if is_erased_type_param cf.cf_type then
+									Some (obj_expr, cl, tl, cf, expr.etype)
+								else
+									None
+							| TParenthesis inner -> find_erased_field inner
+							| TCast (inner, _) -> find_erased_field inner
+							| _ -> None
+						in
+						find_erased_field unop_operand
+					| _ -> None
+				in
+				begin match needs_expansion with
+				| Some (obj_expr, _cl, _tl, cf, cast_to_type) ->
+					(* Expand the increment/decrement operation on a cast of an object-typed field *)
+					let is_postfix = pos = Postfix in
+					let obj_cs = cs_expr_of_texpr ectx obj_expr in
+					(* Handle Null<T> unwrapping *)
+					let obj_cs = if find_null_in_expr obj_expr then CsField (obj_cs, "value") else obj_cs in
+					let field_name = escape_identifier cf.cf_name in
+					let field_access = CsField (obj_cs, field_name) in
+					let cast_type = cs_type_of_type ectx.gctx cast_to_type in
+					(* (cast_type)obj.field *)
+					let casted_read = CsCast (cast_type, field_access) in
+					(* (cast_type)obj.field + 1 or - 1 *)
+					let delta = if op = Increment then CsConst (CsConstInt 1l) else CsConst (CsConstInt (-1l)) in
+					let new_value = CsBinop (CsOpAdd, casted_read, delta) in
+					(* (object)new_value - box for storage *)
+					let boxed_value = CsCast (CsTypeObject, new_value) in
+					(* obj.field = boxed_value *)
+					let assignment = CsBinop (CsOpAssign, field_access, boxed_value) in
+					if is_postfix then
+						(* For postfix: (cast_type)(assignment) - 1  (return old value) *)
+						let result_minus_delta = CsBinop (CsOpSub, CsCast (cast_type, assignment), delta) in
+						result_minus_delta
+					else
+						(* For prefix: (cast_type)(assignment)  (return new value) *)
+						CsCast (cast_type, assignment)
+				| None ->
+					CsUnop (cs_unop_of_unop op, is_postfix, cs_expr_of_texpr ectx unop_operand)
+				end
 		end
 	| TField (e, FInstance ({ cl_path = (["cs"], "NativeArray") }, _, { cf_name = "length" })) ->
 		(* NativeArray.length -> array.Length *)
