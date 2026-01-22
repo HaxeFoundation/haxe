@@ -69,10 +69,19 @@ module NativeTypes = struct
 	let haxe_runtime_path = (["haxe"; "lang"], "Runtime")
 end
 
-(* Type parameters to erase to object for the current class being generated.
-   This is set by gencs.ml when generating classes that have erased type parameters
-   (like Array, which is non-generic in C# output). *)
-let erased_type_params : string list ref = ref []
+(* Check if a class path refers to a C# native type that should keep its type parameters.
+   Haxe generic classes are erased (no type params), but C# native types keep their generics.
+   This includes:
+   - System.* namespaces (C# BCL)
+   - cs.* namespaces (Haxe externs for C#)
+   - haxe.lang.Null (C# struct wrapper for nullable values)
+   All other classes are Haxe classes and should have type params erased. *)
+let is_cs_native_generic_class path =
+	match path with
+	| (("System" :: _), _) -> true  (* System.Collections.Generic.Dictionary, etc. *)
+	| (("cs" :: _), _) -> true  (* cs.NativeArray, cs.system.*, etc. *)
+	| ((["haxe"; "lang"], "Null")) -> true  (* Null<T> struct *)
+	| _ -> false
 
 (* Check if a C# type is a primitive/value type *)
 let is_value_type = function
@@ -215,74 +224,32 @@ let rec cs_type_of_type_inner gctx stack t =
 		| _ when is_inherently_nullable inner -> inner
 		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 		end
-	| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
-		(* Type parameter -> check if it should be erased to object.
-		   For classes like Array that are non-generic in C# output, type params
-		   are erased to object. This is controlled by erased_type_params ref. *)
-		if List.mem ttp.ttp_name !erased_type_params then
-			CsTypeObject
-		else
-			CsTypeGenericParam ttp.ttp_name
+	| TInst ({ cl_kind = KTypeParameter _ }, _) ->
+		(* Type parameter -> ALWAYS erase to object.
+		   ALL Haxe generic classes become non-generic in C# output.
+		   This is the universal type erasure strategy - like Java's type erasure.
+		   The type parameter only exists at Haxe compile-time for type checking.
+
+		   Exception: haxe.lang.Null<T> and cs.NativeArray<T> keep their type params
+		   because they are C# runtime types, not Haxe generics. These are handled
+		   in separate match cases above/below. *)
+		CsTypeObject
 	| TInst (c, params) ->
 		let path = cs_path_of_path c.cl_path in
-		(* Convert type params, respecting constraints.
-		   If a param maps to object but the class param has a constraint,
-		   use the constraint bound instead (C# requires type args satisfy constraints).
-		   Note: params and c.cl_params may have different lengths (e.g., when type is
-		   erased or partially specified). Only apply constraint substitution when lengths match.
-
-		   IMPORTANT: If ANY param is Dynamic with constraints, we erase the entire type to object.
-		   This is because C# generics are invariant - GenericType<ConcreteT> cannot be assigned to
-		   GenericType<object> even if the members would allow it. When Haxe code uses Dynamic
-		   for a constrained type parameter (e.g., IReport<Dynamic> where T:IReport<T>), the intent
-		   is runtime flexibility that C# invariant generics cannot express.
-		   Field access on the erased type uses Reflect.field/SetField for runtime dispatch. *)
-		let has_dynamic_with_constraints =
-			if List.length params = List.length c.cl_params then
-				List.exists2 (fun hx_type ttp ->
-					match Type.follow hx_type with
-					| TDynamic _ ->
-						let constraints = TFunctions.get_constraints ttp in
-						constraints <> []
-					| _ -> false
-				) params c.cl_params
-			else
-				false
-		in
-		if has_dynamic_with_constraints then
-			(* Erase to object when Dynamic is used with constrained type parameters *)
-			CsTypeObject
+		(* Type erasure: Haxe generic classes become non-generic in C#.
+		   C# native types (System.*, cs.*, haxe.lang.Null) keep their type params. *)
+		if is_cs_native_generic_class c.cl_path then
+			(* C# native type - keep type parameters *)
+			let cs_params = List.map cs_type_of_type_inner params in
+			CsTypeClass (path, cs_params)
 		else
-			let params =
-				if List.length params = List.length c.cl_params then
-					List.map2 (fun hx_type ttp ->
-						let cs_type = cs_type_of_type_inner hx_type in
-						match cs_type with
-						| CsTypeObject ->
-							(* Don't apply constraint substitution for explicit Dynamic types.
-							   The user wants 'object', not the constraint bound. *)
-							begin match Type.follow hx_type with
-							| TDynamic _ -> cs_type  (* Keep as object *)
-							| _ ->
-								let constraints = TFunctions.get_constraints ttp in
-								begin match constraints with
-								| first_constraint :: _ ->
-									let constraint_cs = cs_type_of_type_inner first_constraint in
-									if constraint_cs <> CsTypeObject then constraint_cs else cs_type
-								| [] -> cs_type
-								end
-							end
-						| _ -> cs_type
-					) params c.cl_params
-				else
-					(* Lengths don't match - just map the params without constraint substitution *)
-					List.map cs_type_of_type_inner params
-			in
-			CsTypeClass (path, params)
+			(* Haxe class - erase type parameters (class is non-generic in C#) *)
+			CsTypeClass (path, [])
 	| TEnum (e, params) ->
 		let path = cs_path_of_path e.e_path in
-		let params = List.map cs_type_of_type_inner params in
-		CsTypeClass (path, params)
+		(* Erase type parameters - Haxe enums become non-generic in C# *)
+		ignore params;
+		CsTypeClass (path, [])
 	| TType (td, params) ->
 		(* Check for well-known typedefs first *)
 		begin match td.t_path with
@@ -417,6 +384,9 @@ let rec s_cs_type = function
 		   This ensures haxe.root.HaxeObject is always the global namespace path,
 		   not relative to the current namespace (e.g., unit.spec.haxe.root) *)
 		"global::" ^ String.concat "." pack ^ "." ^ name
+	| CsTypeClass ((["haxe"; "root"], "Array"), _) ->
+		(* Haxe Array is non-generic in C# - always output without type parameters *)
+		"global::haxe.root.Array"
 	| CsTypeClass (([], name), params) ->
 		(* No package, just type with params *)
 		name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"

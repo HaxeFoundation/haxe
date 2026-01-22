@@ -132,11 +132,45 @@ let rec is_enum_field_access e =
 	| TParenthesis e1 | TMeta (_, e1) | TCast(e1, _) -> is_enum_field_access e1
 	| _ -> false
 
+(* Check if a method call's DECLARED return type involves a type parameter that gets erased.
+   This covers two cases:
+   1. Null<T> where T is a type parameter - erased to just `object` (not `Null<object>`)
+   2. T where T is a type parameter - erased to `object`
+   In both cases, the C# method returns `object`, not the instantiated type. *)
+let method_call_returns_erased_type_param e =
+	match e.eexpr with
+	| TCall (callee, _) ->
+		let get_declared_return_type () = match callee.eexpr with
+			| TField (_, FInstance (_, _, cf)) | TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
+				begin match follow cf.cf_type with
+				| TFun (_, ret) -> Some ret
+				| _ -> None
+				end
+			| _ -> None
+		in
+		(* Check if type is a type parameter or Null<TypeParam> *)
+		let rec is_erased_type_param t =
+			match t with
+			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+				begin match follow inner with
+				| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+				| _ -> false
+				end
+			| TType (_, _) | TLazy _ -> is_erased_type_param (follow t)
+			| _ -> false
+		in
+		begin match get_declared_return_type () with
+		| Some ret -> is_erased_type_param ret
+		| None -> false
+		end
+	| _ -> false
+
 (* Check if an expression generates C# code that is NOT Null-wrapped,
    even though its Haxe type might be Null<T>.
    These expressions should NOT have .value added. *)
 let is_non_null_generating_expr e =
-	is_enum_field_access e
+	is_enum_field_access e || method_call_returns_erased_type_param e
 
 (* Check if a method call returns Null<TypeParam> in its uninstantiated signature.
    The C# method signature IS Null<T> even when T is instantiated to a reference type.
@@ -423,14 +457,15 @@ let run cfg e =
 						hv
 				| _ when Option.is_some e1_null_t || Option.is_some e2_null_t ->
 					(* Comparing Null types with non-null values: unwrap Null operands and compare directly.
-					   This generates simple C# equality like: a.value == 5 *)
+					   This generates simple C# equality like: a.value == 5
+					   SKIP unwrap for non-null-generating expressions (e.g., method calls returning erased Null<TypeParam>) *)
 					let e1' = match e1_null_t with
-						| Some inner -> handle_unwrap cfg inner (transform e1)
-						| None -> transform e1
+						| Some inner when not (is_non_null_generating_expr e1) -> handle_unwrap cfg inner (transform e1)
+						| _ -> transform e1
 					in
 					let e2' = match e2_null_t with
-						| Some inner -> handle_unwrap cfg inner (transform e2)
-						| None -> transform e2
+						| Some inner when not (is_non_null_generating_expr e2) -> handle_unwrap cfg inner (transform e2)
+						| _ -> transform e2
 					in
 					{ e with eexpr = TBinop(op, e1', e2') }
 				| _ ->
@@ -441,12 +476,12 @@ let run cfg e =
 			(* Other binary operators: unwrap Null operands *)
 			| _ ->
 				let e1' = match e1_null_t with
-					| Some inner -> handle_unwrap cfg inner (transform e1)
-					| None -> transform e1
+					| Some inner when not (is_non_null_generating_expr e1) -> handle_unwrap cfg inner (transform e1)
+					| _ -> transform e1
 				in
 				let e2' = match e2_null_t with
-					| Some inner -> handle_unwrap cfg inner (transform e2)
-					| None -> transform e2
+					| Some inner when not (is_non_null_generating_expr e2) -> handle_unwrap cfg inner (transform e2)
+					| _ -> transform e2
 				in
 				(* If result type is Null<T>, rewrap the result *)
 				let result = { e with eexpr = TBinop(op, e1', e2') } in

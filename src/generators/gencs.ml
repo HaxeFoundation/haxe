@@ -234,7 +234,11 @@ type array_storage_type =
 	| ArrayDynamic  (* dynamic dispatch via __getDyn/__setDyn *)
 
 (* Classify the element type of an Array<T> to determine storage type.
-   Takes the full array type (e.g., Array<Int>) and returns the storage classification. *)
+   Takes the full array type (e.g., Array<Int>) and returns the storage classification.
+
+   IMPORTANT: Nullable types like Null<Int>, Null<Float>, Null<Bool> MUST use ArrayObject
+   because primitive arrays (int[], double[], bool[]) cannot hold null values.
+   We use follow_without_null to preserve the Null<> wrapper and detect this case. *)
 let classify_array_element_type t =
 	let rec get_array_elem_type t =
 		match follow t with
@@ -248,8 +252,21 @@ let classify_array_element_type t =
 	match get_array_elem_type t with
 	| None -> ArrayObject  (* Not an array, default to object *)
 	| Some elem ->
-		match follow elem with
-		(* Primitive types get dedicated backing arrays *)
+		(* Use follow_without_null to preserve Null<> wrappers.
+		   Null<Int>, Null<Float>, Null<Bool> must use __objectArray because they can hold null. *)
+		match Type.follow_without_null elem with
+		(* Check for Null<primitive> FIRST - these must use object storage *)
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+			(match follow inner with
+			| TAbstract ({ a_path = ([], "Int") }, _)
+			| TAbstract ({ a_path = ([], "Float") }, _)
+			| TAbstract ({ a_path = ([], "Bool") }, _) ->
+				(* Nullable primitive - must use object storage to hold null values *)
+				ArrayObject
+			| _ ->
+				(* Null<SomeClass> - still use object storage *)
+				ArrayObject)
+		(* Non-nullable primitive types get dedicated backing arrays *)
 		| TAbstract ({ a_path = ([], "Int") }, _) -> ArrayInt
 		| TAbstract ({ a_path = ([], "Float") }, _) -> ArrayFloat
 		| TAbstract ({ a_path = ([], "Bool") }, _) -> ArrayBool
@@ -709,23 +726,6 @@ let is_null_wrapper_type t =
 		| _ -> false
 	in check t 0
 
-(* Check if a method's DECLARED return type (before type param substitution) is Null<TypeParam>.
-   This is needed because C# generates `Null<T> get(...)` for generic methods, so the return value
-   is always Null<T> even when T is instantiated to a reference type like CTest.
-   The cf_type contains the uninstantiated type with type parameters. *)
-let method_declared_returns_null_type_param cf_type =
-	match follow cf_type with
-	| TFun (_, ret) ->
-		begin match ret with
-		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-			begin match follow inner with
-			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-			| _ -> false
-			end
-		| _ -> false
-		end
-	| _ -> false
-
 (* Helper to find if an expression involves a Null<T> wrapper - checks through TLocal, TCast, etc.
    Returns true if the GENERATED C# expression will have type Null<T> and needs .value unwrapping.
    CRITICAL: For TCast, we check the TARGET type (e.etype), not the inner expression type.
@@ -742,16 +742,7 @@ let rec find_null_in_expr e =
 			false
 		| TParenthesis inner -> find_null_in_expr inner
 		| TMeta (_, inner) -> find_null_in_expr inner
-		| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
-		| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
-		| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
-			(* For method calls, check if the method's DECLARED return type (uninstantiated)
-			   is Null<TypeParam>. If so, the C# method signature uses `Null<T>`, so the
-			   return value needs .value unwrap even when T is instantiated to a reference type.
-			   CRITICAL: This handles cases like IntMap<CTest>.get() returning Null<CTest>,
-			   where CTest is a class but the C# return type is still Null<CTest> because
-			   the method was generated with Null<T>. *)
-			method_declared_returns_null_type_param cf.cf_type
+		| TCall (_, _) -> false  (* Rely on is_null_wrapper_type e.etype check above *)
 		| TArray (arr, _) ->
 			(* For array access, check the element type of the array.
 			   Due to @:forward on Null<T>, e.etype might be T instead of Null<T>,
@@ -812,22 +803,76 @@ let is_binop_with_implicit_null_conversion e =
 			false
 	| _ -> false
 
+(* Check if type is a type parameter or Null<TypeParam> that gets erased to object *)
+let rec is_erased_type_param t =
+	match t with
+	| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+	| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+		begin match follow inner with
+		| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+		| _ -> false
+		end
+	| TType (_, _) | TLazy _ -> is_erased_type_param (follow t)
+	| _ -> false
+
+(* Check if a method call's DECLARED return type involves a type parameter that gets erased.
+   This covers two cases:
+   1. Null<T> where T is a type parameter - erased to just `object` (not `Null<object>`)
+   2. T where T is a type parameter - erased to `object`
+   In both cases, the C# method returns `object`, not the instantiated type. *)
+let method_call_returns_erased_type_param e =
+	match e.eexpr with
+	| TCall (callee, _) ->
+		let get_declared_return_type () = match callee.eexpr with
+			| TField (_, FInstance (_, _, cf)) | TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
+				begin match follow cf.cf_type with
+				| TFun (_, ret) -> Some ret
+				| _ -> None
+				end
+			| _ -> None
+		in
+		begin match get_declared_return_type () with
+		| Some ret -> is_erased_type_param ret
+		| None -> false
+		end
+	| _ -> false
+
+(* Check if a field access returns an erased type parameter.
+   When a class field is declared as type T (a type parameter), it becomes object in C#. *)
+let field_access_returns_erased_type_param e =
+	match e.eexpr with
+	| TField (_, FInstance (_, _, cf)) | TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
+		(* Field type - if it's a type parameter, it gets erased to object *)
+		is_erased_type_param cf.cf_type
+	| _ -> false
+
+(* Check if an expression returns an erased type parameter (method call or field access) *)
+let expr_returns_erased_type_param e =
+	method_call_returns_erased_type_param e || field_access_returns_erased_type_param e
+
 (* Check if an expression has Haxe type Null<T> but generates NON-Null C# code.
    These expressions should NOT have .value added.
    Examples:
    - Enum constructor field access (FEnum): Haxe type is Null<EnumType> but C# is EnumType
-   - Type.resolveClass result when cast: Haxe type is Null<Class<T>> but may generate System.Type *)
+   - Type.resolveClass result when cast: Haxe type is Null<Class<T>> but may generate System.Type
+   - Method calls returning Null<TypeParam> where TypeParam is erased to object in C# *)
 let rec is_non_null_generating_expr e =
 	match e.eexpr with
 	| TField(_, FEnum _) -> true  (* Enum constructors don't generate Null in C# *)
+	| TCall (_, _) -> method_call_returns_erased_type_param e  (* Method with erased type param return *)
 	| TParenthesis e1 | TMeta (_, e1) -> is_non_null_generating_expr e1
 	| _ -> false
 
 (* Get the effective type of an expression for coercion purposes.
    For expressions that have Haxe type Null<T> but generate non-Null C# code (like enum field access),
-   return the inner type T instead of Null<T>. This prevents incorrectly adding .value unwrapping. *)
+   return the inner type T instead of Null<T>. This prevents incorrectly adding .value unwrapping.
+   For method calls with erased Null<TypeParam>, return Dynamic (maps to object in C#). *)
 let get_effective_expr_type e =
-	if is_non_null_generating_expr e then
+	(* Special case: method call or field access with erased type param returns object in C# *)
+	if expr_returns_erased_type_param e then
+		(* Return an unbound monomorph - this will map to object in C#, which is what the expression actually returns *)
+		mk_mono ()
+	else if is_non_null_generating_expr e then
 		(* Strip Null wrapper if present *)
 		match is_null_wrapper_type e.etype with
 		| true ->
@@ -1665,16 +1710,11 @@ let rec cs_expr_of_texpr ectx e =
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true  (* All other Null<T> - use .hasValue *)
 				| _ -> false
 			in
-			if is_direct_null then true
-			else
-				(* Check for method calls that return Null<TypeParam> - the C# method signature IS Null<T>
-				   even when T is instantiated to a reference type. *)
-				match e.eexpr with
-				| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
-				| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
-				| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
-					method_declared_returns_null_type_param cf.cf_type
-				| _ -> false
+			(* With type erasure, the C# type for method returns is determined by the actual
+			   instantiated type, not the declared type. If the declared return is Null<T> and
+			   T is instantiated to a reference type, the C# return type is just the reference
+			   type (not wrapped). The cs_type_of_type check above handles this correctly. *)
+			is_direct_null
 		in
 		let is_generic_param t = match cs_type_of_type ectx.gctx t with
 			| CsTypeGenericParam _ -> true
@@ -1741,18 +1781,22 @@ let rec cs_expr_of_texpr ectx e =
 				(* Use typed setter methods that handle backing array initialization.
 				   Direct backing array access (arr.__intArray[i] = v) would fail with
 				   NullReferenceException if the array was created with "new Array()" and
-				   the backing array wasn't allocated yet. The typed setters handle this. *)
+				   the backing array wasn't allocated yet. The typed setters handle this.
+				   NOTE: Coerce the value to the expected type to handle erased type params. *)
 				let storage_type = classify_array_element_type arr.etype in
 				begin match storage_type with
 				| ArrayInt ->
 					(* arr.__setInt(i, v) - handles initialization and returns the value *)
-					CsCall (CsField (arr_cs, "__setInt"), [idx_cs; val_cs])
+					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type e2) e2.etype in
+					CsCall (CsField (arr_cs, "__setInt"), [idx_cs; coerced_val])
 				| ArrayFloat ->
 					(* arr.__setFloat(i, v) - handles initialization and returns the value *)
-					CsCall (CsField (arr_cs, "__setFloat"), [idx_cs; val_cs])
+					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type e2) e2.etype in
+					CsCall (CsField (arr_cs, "__setFloat"), [idx_cs; coerced_val])
 				| ArrayBool ->
 					(* arr.__setBool(i, v) - handles initialization and returns the value *)
-					CsCall (CsField (arr_cs, "__setBool"), [idx_cs; val_cs])
+					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type e2) e2.etype in
+					CsCall (CsField (arr_cs, "__setBool"), [idx_cs; coerced_val])
 				| ArrayDynamic ->
 					(* arr.__setDyn(i, v) - runtime dispatch method *)
 					CsCall (CsField (arr_cs, "__setDyn"), [idx_cs; val_cs])
@@ -1824,7 +1868,7 @@ let rec cs_expr_of_texpr ectx e =
 					(* Known anonymous type - generate direct field assignment *)
 					CsBinop (CsOpAssign, CsField (obj_expr, escape_identifier cf.cf_name), val_cs)
 				end
-			| TField (obj, FInstance (_, _, cf)) ->
+			| TField (obj, FInstance (c, tl, cf)) ->
 				(* Instance field assignment - check if object type is erased to object due to
 				   generic interface with Dynamic type parameter. If so, use Runtime.SetField. *)
 				let obj_expr = cs_expr_of_texpr ectx obj in
@@ -1835,10 +1879,27 @@ let rec cs_expr_of_texpr ectx e =
 					(* Type was erased to object - use Runtime.SetField *)
 					CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
 				| _ ->
-					(* Normal field assignment *)
+					(* Normal field assignment - generate field access WITHOUT the read-cast
+					   that would be added by the general TField handler. The read-cast is for
+					   when reading from an erased type param field; for writing, we don't need it. *)
 					let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
 					let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype e1.etype in
-					CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
+					(* Generate field access directly, handling Null<T> unwrap but NOT the read-cast *)
+					let needs_unwrap = find_null_in_expr obj in
+					let obj_expr_for_field = if needs_unwrap then CsField (obj_expr, "value") else obj_expr in
+					(* Handle type param constraint casting if needed *)
+					let obj_expr_for_field, field_name = match get_type_param_constraint obj.etype with
+						| Some constraint_type ->
+							let cs_constraint = cs_type_of_type ectx.gctx constraint_type in
+							let casted = CsCast (cs_constraint, CsCast (CsTypeObject, obj_expr_for_field)) in
+							let field = match cs_constraint, cf.cf_name with
+								| CsTypeString, "length" -> "Length"
+								| _ -> escape_identifier cf.cf_name
+							in
+							(casted, field)
+						| None -> (obj_expr_for_field, escape_identifier cf.cf_name)
+					in
+					CsBinop (cs_binop_of_binop op, CsField (obj_expr_for_field, field_name), val_cs)
 				end
 			| _ ->
 				let val_cs = cs_expr_of_texpr ectx e2 in
@@ -2234,7 +2295,18 @@ let rec cs_expr_of_texpr ectx e =
 					(casted, field)
 				| None -> (obj_expr, escape_identifier cf.cf_name)
 			in
-			CsField (obj_expr, field_name)
+			let field_access = CsField (obj_expr, field_name) in
+			(* Check if the field's declared type is an erased type param.
+			   If so, the C# expression returns object, but we need to cast to the
+			   substituted type for subsequent field/method access to work. *)
+			if is_erased_type_param cf.cf_type then
+				(* Apply type params to get the actual Haxe type after substitution *)
+				let map_type = apply_params c.cl_params tl in
+				let substituted_type = map_type cf.cf_type in
+				let target_cs_type = cs_type_of_type ectx.gctx substituted_type in
+				CsCast (target_cs_type, field_access)
+			else
+				field_access
 		end
 	| TField (e, FClosure (Some (c, tl), cf)) ->
 		(* Check if this is a MethDynamic field - those are actually variable fields holding
@@ -3384,14 +3456,27 @@ let rec cs_expr_of_texpr ectx e =
 			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types_base in
 			(* For Array methods, use typed accessor methods when the element type is known.
 			   This avoids boxing/unboxing overhead. Methods like pop(), shift() become
-			   __popInt(), __shiftInt() etc. based on element type. *)
+			   __popInt(), __shiftInt() etc. based on element type.
+
+			   IMPORTANT: Nullable types like Null<Int> must use ArrayObject because
+			   primitive arrays cannot hold null values. *)
 			begin match c.cl_path with
 			| ([], "Array") | (["haxe"; "root"], "Array") ->
 				(* Get the element type from the Array type parameters.
-				   tl contains the applied type params, e.g., [Int] for Array<Int>. *)
+				   tl contains the applied type params, e.g., [Int] for Array<Int>.
+				   Use follow_without_null to preserve Null<> wrappers. *)
 				let storage_type = match tl with
 					| [elem] ->
-						begin match follow elem with
+						begin match Type.follow_without_null elem with
+						(* Nullable primitives must use object storage *)
+						| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+							begin match follow inner with
+							| TAbstract ({ a_path = ([], "Int") }, _)
+							| TAbstract ({ a_path = ([], "Float") }, _)
+							| TAbstract ({ a_path = ([], "Bool") }, _) -> ArrayObject
+							| _ -> ArrayObject
+							end
+						(* Non-nullable primitives get typed storage *)
 						| TAbstract ({ a_path = ([], "Int") }, _) -> ArrayInt
 						| TAbstract ({ a_path = ([], "Float") }, _) -> ArrayFloat
 						| TAbstract ({ a_path = ([], "Bool") }, _) -> ArrayBool
@@ -3704,8 +3789,9 @@ let rec cs_expr_of_texpr ectx e =
 		if is_stored_function_field then begin
 			(* Stored function field - use Runtime.InvokeDelegate *)
 			let path = cs_path_of_path c.cl_path in
-			let class_type_params = List.map (fun _ -> CsTypeObject) c.cl_params in
-			let func_expr = CsStaticField (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name) in
+			(* Haxe classes are non-generic in C#, so no type params *)
+			ignore c.cl_params;
+			let func_expr = CsStaticField (CsTypeClass (path, []), escape_identifier cf.cf_name) in
 			let args_exprs = List.map (cs_expr_of_texpr ectx) orig_args in
 			let args_array = if args_exprs = [] then
 				CsNew (haxe_array_type, [])
@@ -3730,16 +3816,9 @@ let rec cs_expr_of_texpr ectx e =
 			(cs_path_of_path c.cl_path, [])
 		| _ ->
 			let path = cs_path_of_path c.cl_path in
-			(* For generic classes, infer type arguments from return type if possible *)
-			let class_type_params = match follow return_type with
-				| TInst (_, ret_params) when List.length ret_params = List.length c.cl_params ->
-					(* Return type is same generic class - use its type params *)
-					List.map (cs_type_of_type ectx.gctx) ret_params
-				| _ ->
-					(* Fallback: use object for each type parameter *)
-					List.map (fun _ -> CsTypeObject) c.cl_params
-			in
-			(path, class_type_params)
+			(* Haxe classes are non-generic in C#, so no type params *)
+			ignore c.cl_params;
+			(path, [])
 		in
 		(* Get base parameter types from signature.
 		   IMPORTANT: Wrap optional params in Null<T> (opt=true means optional).
@@ -4425,25 +4504,12 @@ let rec cs_expr_of_texpr ectx e =
 			let cs_args = List.map (cs_expr_of_texpr ectx) args in
 			CsNew (haxe_array_type, cs_args)
 		| _ ->
-			let path = cs_path_of_path c.cl_path in
-			(* Use type params from AST - we handle type mismatches in coerce_arg *)
+			(* Use cs_type_of_type to properly handle type parameters:
+			   C# native types (System, cs namespaces) keep type params.
+			   Haxe classes have type params erased. *)
+			let class_type = cs_type_of_type ectx.gctx (TInst (c, params)) in
 			let actual_params = params in
-			(* Convert type params to C# types, respecting constraints.
-			   If the inferred type would be object but the class type param has a constraint,
-			   use the constraint bound instead (C# requires type args satisfy constraints). *)
-			let type_params = List.map2 (fun hx_type ttp ->
-				let cs_type = cs_type_of_type ectx.gctx hx_type in
-				match cs_type with
-				| CsTypeObject ->
-					let constraints = TFunctions.get_constraints ttp in
-					begin match constraints with
-					| first_constraint :: _ ->
-						let constraint_cs = cs_type_of_type ectx.gctx first_constraint in
-						if constraint_cs <> CsTypeObject then constraint_cs else cs_type
-					| [] -> cs_type
-					end
-				| _ -> cs_type
-			) actual_params c.cl_params in
+			ignore c.cl_params;
 			(* Get constructor parameter types for proper type coercion and Rest handling *)
 			let ctor_param_types = match c.cl_constructor with
 				| Some cf -> begin match follow cf.cf_type with
@@ -4468,7 +4534,6 @@ let rec cs_expr_of_texpr ectx e =
 				   Actually, we generate: (() => { var tmp = new C((EmptyConstructor)null); tmp._hx_new(args); return tmp; })()
 				   But that's ugly. Instead, let's use the HaxeNewHelper approach or just inline the code.
 				   For now, generate a helper call that we can handle specially. *)
-				let class_type = CsTypeClass (path, type_params) in
 				(* Generate: global::haxe.lang.Runtime.createInstance<T>(new T((EmptyConstructor)null), args...)
 				   where createInstance calls _hx_new on the instance.
 				   Actually, simpler: we can use object initializer with a factory method,
@@ -4492,7 +4557,7 @@ let rec cs_expr_of_texpr ectx e =
 				let func_type = CsTypeClass ((["System"], "Func"), [class_type]) in
 				CsCall (CsParens (CsCast (func_type, lambda)), [])
 			else
-				CsNew (CsTypeClass (path, type_params), cs_args)
+				CsNew (class_type, cs_args)
 		end
 	| TObjectDecl fields ->
 		(* Create HaxeDynamicObject with initial field values using _hx_create *)
@@ -5066,7 +5131,8 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> failwith "TEnumParameter on non-enum type"
 		in
 		let enum_path = cs_path_of_path en.e_path in
-		let enum_type_params = List.map (cs_type_of_type ectx.gctx) enum_params in
+		(* Haxe enums are non-generic in C#, so no type params *)
+		ignore enum_params;
 		let ctor_name = escape_identifier ef.ef_name in
 		(* For GADT constructors with their own type params, we need to infer the nested class's
 		   type arguments. The nested class only has EXTRA params (not in parent enum). *)
@@ -5109,7 +5175,7 @@ let rec cs_expr_of_texpr ectx e =
 			) extra_ctor_params
 		end in
 		(* Create the nested type with appropriate type args *)
-		let parent_type = CsTypeClass (enum_path, enum_type_params) in
+		let parent_type = CsTypeClass (enum_path, []) in
 		let nested_type = if ctor_type_args = [] then
 			CsTypeNested (parent_type, ctor_name)
 		else
@@ -5424,8 +5490,11 @@ and cs_stmt_of_texpr ectx e =
 			   just at the initialization point. Use Cs.* runtime helpers (arrayGet,
 			   readField, etc.) for dynamic access instead - this works uniformly for
 			   all cases where the variable is typed as 'object'. *)
-			(* Handle type conversions *)
-			let init_type = cs_type_of_type ectx.gctx init_expr.etype in
+			(* Handle type conversions.
+			   Use get_effective_expr_type to handle erased type params - when a method
+			   returns a type parameter, the Haxe type is the substituted type, but the
+			   C# expression actually produces object due to type erasure. *)
+			let init_type = cs_type_of_type ectx.gctx (get_effective_expr_type init_expr) in
 			let is_init_null_wrapper = match init_type with
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
 				| _ -> false
@@ -6417,9 +6486,7 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	let closure_path = ([], closure_name) in
 
 	(* For instance methods, we need to capture the object.
-	   We must erase type parameters from the captured type since the closure class
-	   doesn't have access to the enclosing class's type parameters.
-	   We also need to track the erased type to cast the capture expression when instantiating.
+	   Since all Haxe classes are now non-generic in C#, we don't need type params.
 	   Special case: String is a C# built-in type, not a class.
 	   Note: @:native("string") makes the path lowercase. *)
 	let captures, erased_capture_type = if is_static then ([], None) else
@@ -6428,10 +6495,12 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 			let obj_cs_type = match class_path with
 				| ([], "String") | (["haxe"; "root"], "String")
 				| ([], "string") | (["haxe"; "root"], "string") -> CsTypeString
-				| _ -> CsTypeClass (cs_path_of_path class_path, List.map (cs_type_of_type gctx) type_params)
+				| _ ->
+					(* Haxe classes are non-generic in C#, so no type params *)
+					ignore type_params;
+					CsTypeClass (cs_path_of_path class_path, [])
 			in
-			let erased_type = CsSignature.erase_type_params obj_cs_type in
-			([("_hx_this", erased_type)], Some erased_type)
+			([("_hx_this", obj_cs_type)], Some obj_cs_type)
 		| None -> ([], None)
 	in
 
@@ -8209,20 +8278,141 @@ let generate_field_accessors gctx c =
 		let optional_members = List.filter_map (fun x -> x) [get_field_method; set_field_method; get_fields_method] in
 		closure_cache_members @ get_method_closure_members @ optional_members @ invoke_method_dispatchers
 
+(* =============================================================================
+   Specialized Map Explicit Interface Implementations
+   =============================================================================
+   StringMap, IntMap, ObjectMap have typed public APIs (e.g., get(string key))
+   but implement the non-generic IMap interface which has object parameters.
+   We generate explicit interface implementations as bridge methods.
+   Only methods that exist in IMap (after DCE) get bridge implementations.
+   ============================================================================= *)
+
+(* Returns the C# key type if this is a specialized map that needs explicit IMap implementations *)
+let get_imap_key_type_for_class path =
+	match path with
+	| (["haxe"; "ds"], "StringMap") -> Some CsTypeString
+	| (["haxe"; "ds"], "IntMap") -> Some CsTypeInt
+	| (["haxe"; "ds"], "ObjectMap") -> Some CsTypeObject
+	| _ -> None
+
+(* Get the IMap interface from the class's implements list, if present *)
+let get_imap_interface c =
+	List.find_map (fun (iface, _) ->
+		if iface.cl_path = (["haxe"], "IMap") || iface.cl_path = (["haxe"; "Constraints"], "IMap") then
+			Some iface
+		else
+			None
+	) c.cl_implements
+
+(* Check if the IMap interface has a method with the given name *)
+let imap_has_method imap method_name =
+	try
+		let cf = PMap.find method_name imap.cl_fields in
+		match cf.cf_kind with Method _ -> true | _ -> false
+	with Not_found -> false
+
+(* Generate explicit IMap interface implementations for specialized maps.
+   These bridge methods cast the object parameter to the typed key and delegate.
+   Only generates bridges for methods that exist in the IMap interface (after DCE). *)
+let generate_explicit_imap_implementations key_type imap =
+	let imap_type = CsTypeClass ((["haxe"], "IMap"), []) in
+	(* Cast expression for key - identity if key_type is object *)
+	let cast_key expr =
+		if key_type = CsTypeObject then expr
+		else CsCast (key_type, expr)
+	in
+	(* Define all possible bridge methods *)
+	let all_bridges = [
+		(* object IMap.get(object k) => this.get((KeyType)k) *)
+		("get", CsMemberMethod {
+			m_name = "get";
+			m_return_type = CsTypeObject;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [{ p_name = "k"; p_type = Some CsTypeObject; p_default = None; p_modifier = None }];
+			m_body = Some [CsReturn (Some (CsCall (CsField (CsThis, "get"), [cast_key (CsLocal "k")])))];
+			m_constraints = [];
+			m_explicit_interface = Some imap_type;
+			m_attributes = [];
+		});
+		(* void IMap.set(object k, object v) => this.set((KeyType)k, v) *)
+		("set", CsMemberMethod {
+			m_name = "set";
+			m_return_type = CsTypeVoid;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [
+				{ p_name = "k"; p_type = Some CsTypeObject; p_default = None; p_modifier = None };
+				{ p_name = "v"; p_type = Some CsTypeObject; p_default = None; p_modifier = None }
+			];
+			m_body = Some [CsExprStmt (CsCall (CsField (CsThis, "set"), [cast_key (CsLocal "k"); CsLocal "v"]))];
+			m_constraints = [];
+			m_explicit_interface = Some imap_type;
+			m_attributes = [];
+		});
+		(* bool IMap.exists(object k) => this.exists((KeyType)k) *)
+		("exists", CsMemberMethod {
+			m_name = "exists";
+			m_return_type = CsTypeBool;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [{ p_name = "k"; p_type = Some CsTypeObject; p_default = None; p_modifier = None }];
+			m_body = Some [CsReturn (Some (CsCall (CsField (CsThis, "exists"), [cast_key (CsLocal "k")])))];
+			m_constraints = [];
+			m_explicit_interface = Some imap_type;
+			m_attributes = [];
+		});
+		(* bool IMap.remove(object k) => this.remove((KeyType)k) *)
+		("remove", CsMemberMethod {
+			m_name = "remove";
+			m_return_type = CsTypeBool;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [{ p_name = "k"; p_type = Some CsTypeObject; p_default = None; p_modifier = None }];
+			m_body = Some [CsReturn (Some (CsCall (CsField (CsThis, "remove"), [cast_key (CsLocal "k")])))];
+			m_constraints = [];
+			m_explicit_interface = Some imap_type;
+			m_attributes = [];
+		});
+		(* object IMap.keys() => this.keys() *)
+		("keys", CsMemberMethod {
+			m_name = "keys";
+			m_return_type = CsTypeObject;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [];
+			m_body = Some [CsReturn (Some (CsCall (CsField (CsThis, "keys"), [])))];
+			m_constraints = [];
+			m_explicit_interface = Some imap_type;
+			m_attributes = [];
+		});
+		(* object IMap.iterator() => this.iterator() *)
+		("iterator", CsMemberMethod {
+			m_name = "iterator";
+			m_return_type = CsTypeObject;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [];
+			m_body = Some [CsReturn (Some (CsCall (CsField (CsThis, "iterator"), [])))];
+			m_constraints = [];
+			m_explicit_interface = Some imap_type;
+			m_attributes = [];
+		});
+	] in
+	(* Filter to only methods that exist in IMap interface *)
+	List.filter_map (fun (name, member) ->
+		if imap_has_method imap name then Some member else None
+	) all_bridges
+
 (* Generate C# class from Haxe class *)
 let generate_class gctx c =
 	let path = cs_path_of_path c.cl_path in
-
-	(* For Array class, erase type parameters to object.
-	   Array is non-generic in C# output to enable covariant casts (Array<Int> -> Array<Dynamic>).
-	   Set erased_type_params for this class's type params so cs_type_of_type maps T -> object. *)
-	let prev_erased_type_params = !erased_type_params in
-	begin match c.cl_path with
-	| ([], "Array") | (["haxe"; "root"], "Array") ->
-		erased_type_params := List.map (fun ttp -> ttp.ttp_name) c.cl_params
-	| _ ->
-		erased_type_params := []
-	end;
 
 	(* Determine modifiers *)
 	let modifiers =
@@ -8232,21 +8422,19 @@ let generate_class gctx c =
 
 	(* Generate base class reference *)
 	(* If no explicit superclass, use HaxeObject as the base class for dynamic field support *)
+	(* Use cs_type_of_type on reconstructed TInst to get proper type parameter erasure *)
 	let base_class = match c.cl_super with
 		| Some (sc, params) ->
-			let path = cs_path_of_path sc.cl_path in
-			let params = List.map (cs_type_of_type gctx) params in
-			Some (CsTypeClass (path, params))
+			Some (cs_type_of_type gctx (TInst (sc, params)))
 		| None ->
 			(* All Haxe classes extend HaxeObject for _hx_getField support *)
 			Some (CsTypeClass ((["haxe"; "root"], "HaxeObject"), []))
 	in
 
 	(* Generate interface references *)
+	(* Use cs_type_of_type on reconstructed TInst to get proper type parameter erasure *)
 	let interfaces = List.map (fun (i, params) ->
-		let path = cs_path_of_path i.cl_path in
-		let params = List.map (cs_type_of_type gctx) params in
-		CsTypeClass (path, params)
+		cs_type_of_type gctx (TInst (i, params))
 	) c.cl_implements in
 
 	(* Generate members *)
@@ -8387,6 +8575,14 @@ let generate_class gctx c =
 	(* Generate _hx_getField, _hx_setField, _hx_getFields for AOT-compatible dynamic field access *)
 	members := generate_field_accessors gctx c @ !members;
 
+	(* Generate explicit IMap interface implementations for specialized maps (StringMap, IntMap, ObjectMap).
+	   These maps have typed public APIs but implement the non-generic IMap interface. *)
+	begin match get_imap_key_type_for_class c.cl_path, get_imap_interface c with
+	| Some key_type, Some imap ->
+		members := generate_explicit_imap_implementations key_type imap @ !members
+	| _ -> ()
+	end;
+
 	(* Generate static constructor if class has __init__ *)
 	begin match TClass.get_cl_init c with
 	| Some e ->
@@ -8409,64 +8605,13 @@ let generate_class gctx c =
 	| None -> ()
 	end;
 
-	(* Extract type parameter names.
-	   Special case: Array is non-generic in C# output to enable covariance (Array<Int> -> Array<Dynamic>).
-	   The type parameter T only affects how gencs.ml generates access code, not the runtime class. *)
-	let type_params = match c.cl_path with
-		| ([], "Array") | (["haxe"; "root"], "Array") -> []  (* Non-generic Array *)
-		| _ -> List.map (fun ttp -> ttp.ttp_name) c.cl_params
-	in
-
-	(* Extract type parameter constraints.
-	   Haxe constraints like T:SomeClass become C# where T : SomeClass.
-	   C# constraints can only be: interfaces, non-sealed classes, or type parameters.
-	   We filter out invalid constraints like value types, sealed classes, etc.
-	   For Array (non-generic in C#), skip constraints entirely. *)
-	let type_constraints = if type_params = [] then [] else List.filter_map (fun ttp ->
-		let constraints = TFunctions.get_constraints ttp in
-		if constraints = [] then None
-		else begin
-			(* Convert Haxe constraint types to C# types, filtering out unusable ones *)
-			let cs_constraints = List.filter_map (fun t ->
-				match follow t with
-				| TInst ({ cl_kind = KTypeParameter _ }, _) ->
-					(* Another type parameter as constraint - skip for now (C# handles differently) *)
-					None
-				| TAnon _ ->
-					(* Anonymous structural constraint - can't express in C# generics *)
-					None
-				| TDynamic _ ->
-					(* Dynamic has no meaning as constraint *)
-					None
-				| TInst (c, params) ->
-					(* Check if class is sealed - sealed classes can't be constraints in C# *)
-					if has_class_flag c CFinal then None
-					else begin
-						let cs_t = cs_type_of_type gctx t in
-						(* Also filter out special types that C# doesn't allow as constraints *)
-						match cs_t with
-						| CsTypeObject -> None  (* object can't be a constraint *)
-						| CsTypeString -> None  (* string is sealed *)
-						| _ -> Some cs_t
-					end
-				| TAbstract ({ a_path = ([], ("Int" | "Float" | "Single" | "Bool")) }, _) ->
-					(* Value types can't be constraints *)
-					None
-				| _ ->
-					let cs_t = cs_type_of_type gctx t in
-					(* Filter out value types and special types *)
-					match cs_t with
-					| CsTypeObject | CsTypeString -> None
-					| CsTypeInt | CsTypeUInt | CsTypeLong | CsTypeULong -> None
-					| CsTypeByte | CsTypeSByte | CsTypeShort | CsTypeUShort -> None
-					| CsTypeFloat | CsTypeDouble | CsTypeDecimal -> None
-					| CsTypeBool | CsTypeChar -> None
-					| _ -> Some cs_t
-			) constraints in
-			if cs_constraints = [] then None
-			else Some (ttp.ttp_name, cs_constraints)
-		end
-	) c.cl_params in
+	(* Type parameter erasure: ALL Haxe generic classes become non-generic in C# output.
+	   This is the universal type erasure strategy (like Java's type erasure).
+	   Type parameters only exist at Haxe compile-time for type checking.
+	   In C#, fields/parameters of type T become object, and casts are inserted when needed. *)
+	let type_params = [] in
+	let type_constraints = [] in
+	ignore c.cl_params; (* Suppress unused warning - params are intentionally erased *)
 
 	CsClassDef {
 		c_path = path;
@@ -8575,8 +8720,10 @@ let generate_interface gctx c =
 		| _ -> None
 	) c.cl_ordered_fields in
 
-	(* Extract type parameter names *)
-	let type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
+	(* Type parameter erasure: ALL Haxe generic interfaces become non-generic in C# output.
+	   This is the universal type erasure strategy (like Java's type erasure). *)
+	let type_params = [] in
+	ignore c.cl_params; (* Suppress unused warning - params are intentionally erased *)
 
 	CsInterfaceDef {
 		i_path = path;
@@ -8598,10 +8745,11 @@ let generate_enum gctx (e : tenum) =
 		if esc = enum_name then esc ^ "_" else esc
 	in
 
-	(* Extract type parameter names from the enum *)
-	let type_params = List.map (fun ttp -> ttp.ttp_name) e.e_params in
-	(* Create C# type references for the type params (used when inheriting from parent) *)
-	let type_param_refs = List.map (fun name -> CsTypeGenericParam name) type_params in
+	(* Type parameter erasure: ALL Haxe generic enums become non-generic in C# output.
+	   This is the universal type erasure strategy (like Java's type erasure). *)
+	let type_params = [] in
+	let type_param_refs = [] in
+	ignore e.e_params; (* Suppress unused warning - params are intentionally erased *)
 
 	(* NOTE: We always generate Haxe enums as classes (not C# enums) to preserve
 	   null semantics. In Haxe, all enums are reference types and can be null.
@@ -8609,7 +8757,7 @@ let generate_enum gctx (e : tenum) =
 
 	   TODO: Consider generating C# enums for simple cases when @:native or
 	   similar metadata is present for explicit C# interop. *)
-	let _ (* is_simple *) = type_params = [] && PMap.fold (fun ef acc ->
+	let _ (* is_simple *) = PMap.fold (fun ef acc ->
 		acc && (match ef.ef_type with TFun _ -> false | _ -> true)
 	) e.e_constrs true in
 
@@ -8620,15 +8768,10 @@ let generate_enum gctx (e : tenum) =
 			| TFun (args, _) ->
 				(* Nested class for constructor with parameters *)
 				let class_name = escape_ctor_name ef.ef_name in
-				(* GADT support: constructor may have its own type parameters (ef.ef_params) *)
-				let ctor_type_params = List.map (fun ttp -> ttp.ttp_name) ef.ef_params in
-				(* Filter out constructor params that shadow parent params (same name) *)
-				let extra_type_params = List.filter (fun name ->
-					not (List.mem name type_params)
-				) ctor_type_params in
-				(* Nested class type params: only constructor's EXTRA params (not parent's params,
-				   since nested classes in C# can access outer class type params directly) *)
-				let nested_type_params = extra_type_params in
+				(* GADT support: constructor may have its own type parameters (ef.ef_params)
+				   With type erasure, these also become non-generic. *)
+				let nested_type_params = [] in
+				ignore ef.ef_params; (* Suppress unused warning - params are intentionally erased *)
 				let fields = List.mapi (fun i (name, _, t) ->
 					CsMemberField {
 						f_name = escape_identifier name;
