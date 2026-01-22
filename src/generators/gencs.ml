@@ -60,6 +60,7 @@ type gen_context = {
 	mutable generated_types : cs_type_def list;
 	mutable closures_by_class : (path * cs_type_def list) list;  (* closures grouped by origin class path *)
 	mutable closure_count : int;  (* counter for unique closure names *)
+	mutable temp_count : int;  (* counter for unique temp variable names *)
 	invoke_signatures : (cs_type list * cs_type, unit) Hashtbl.t;  (* Track typed invoke signatures: (args, ret) *)
 	mutable preprocessor : cs_type preprocessor;  (* Preprocessor for this-before-super detection *)
 }
@@ -69,6 +70,7 @@ let create_context com = {
 	generated_types = [];
 	closures_by_class = [];
 	closure_count = 0;
+	temp_count = 0;
 	invoke_signatures = Hashtbl.create 32;
 	preprocessor = Obj.magic ();  (* Initialized later after context is created *)
 }
@@ -578,6 +580,20 @@ let rec is_pure_expr e =
 	| TEnumParameter (e1, _, _) -> is_pure_expr e1
 	| _ -> false
 
+(* Check if a CS expression has side effects and should not be evaluated multiple times.
+   Returns true for method calls, new expressions, assignments, etc. *)
+let rec cs_expr_has_side_effects cs_e =
+	match cs_e with
+	| CsCall _ | CsStaticCall _ | CsCallGeneric _ | CsStaticCallGeneric _ -> true
+	| CsNew _ | CsNewArray _ | CsNewArraySize _ -> true
+	| CsBinop (CsOpAssign, _, _) -> true
+	| CsUnop (CsOpIncrement, _, _) | CsUnop (CsOpDecrement, _, _) -> true
+	| CsCast (_, inner) | CsAs (inner, _) | CsParens inner | CsUnchecked inner -> cs_expr_has_side_effects inner
+	| CsTernary (c, t, e) -> cs_expr_has_side_effects c || cs_expr_has_side_effects t || cs_expr_has_side_effects e
+	| CsField (obj, _) -> cs_expr_has_side_effects obj
+	| CsArrayAccess (arr, idx) -> cs_expr_has_side_effects arr || cs_expr_has_side_effects idx
+	| _ -> false
+
 (* Check if a C# statement terminates with a HARD terminator (return, throw).
    Used to avoid generating unreachable 'break' statements after terminators in switch cases.
    IMPORTANT: We only consider return/throw as terminators, NOT break/continue/goto,
@@ -824,7 +840,16 @@ let method_call_returns_erased_type_param e =
 	match e.eexpr with
 	| TCall (callee, _) ->
 		let get_declared_return_type () = match callee.eexpr with
-			| TField (_, FInstance (_, _, cf)) | TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
+			| TField (_, FInstance (c, _, cf)) ->
+				(* Array<T> becomes non-generic haxe.root.Array in C#, so its methods
+				   like __popInt() return concrete types, not erased type params. *)
+				begin match c.cl_path with
+				| ([], "Array") | (["haxe"; "root"], "Array") -> None
+				| _ -> match follow cf.cf_type with
+					| TFun (_, ret) -> Some ret
+					| _ -> None
+				end
+			| TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
 				begin match follow cf.cf_type with
 				| TFun (_, ret) -> Some ret
 				| _ -> None
@@ -5516,16 +5541,38 @@ and cs_stmt_of_texpr ectx e =
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
 				| _ -> false
 			in
+			(* Track additional prefix statements for cases where we need temp vars *)
+			let extra_prefix_stmts = ref [] in
 			let init_cs = match init_type, var_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_init]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
+					when inner_init = inner_var ->
+					(* Null<T> -> Null<T> with exact same inner type: no conversion needed *)
+					init_cs
 				| (CsTypeObject | CsTypeDynamic), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var]) ->
 					(* object/Dynamic -> Null<T>: wrap in Null<T> constructor with runtime check.
 					   Generate: val != null ? new Null<T>((T)val, true) : new Null<T>(default(T), false)
-					   This handles cases like safe cast `Std.downcast(obj, SomeClass)` which returns Null<T>. *)
-					let null_check = CsBinop (CsOpNotEq, init_cs, CsNull) in
-					let converted_value = CsCast (inner_var, init_cs) in
-					let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
-					let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
-					CsTernary (null_check, true_branch, false_branch)
+					   This handles cases like safe cast `Std.downcast(obj, SomeClass)` which returns Null<T>.
+					   IMPORTANT: If init_cs has side effects (e.g., method call), we must use a temp var
+					   to avoid evaluating it twice in the ternary expression. *)
+					if cs_expr_has_side_effects init_cs then begin
+						(* Generate: object _tmp = init_cs; _tmp != null ? new Null<T>((T)_tmp, true) : ... *)
+						let tmp_name = "_tmp_" ^ (string_of_int ectx.gctx.temp_count) in
+						ectx.gctx.temp_count <- ectx.gctx.temp_count + 1;
+						extra_prefix_stmts := [CsVarDecl (tmp_name, Some CsTypeObject, Some init_cs)];
+						let tmp_ref = CsLocal tmp_name in
+						let null_check = CsBinop (CsOpNotEq, tmp_ref, CsNull) in
+						let converted_value = CsCast (inner_var, tmp_ref) in
+						let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
+						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
+						CsTernary (null_check, true_branch, false_branch)
+					end
+					else begin
+						let null_check = CsBinop (CsOpNotEq, init_cs, CsNull) in
+						let converted_value = CsCast (inner_var, init_cs) in
+						let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
+						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
+						CsTernary (null_check, true_branch, false_branch)
+					end
 				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) when not is_var_null_type ->
 					(* Dynamic -> specific type (but NOT Null<T>): need runtime cast *)
 					CsCast (var_type, init_cs)
@@ -5572,7 +5619,8 @@ and cs_stmt_of_texpr ectx e =
 				| _ -> init_cs
 			in
 			let decl_type = Some var_type in
-			if result.er_stmts = [] then
+			let all_prefix_stmts = result.er_stmts @ !extra_prefix_stmts in
+			if all_prefix_stmts = [] then
 				(* No prefix statements - just emit the variable declaration *)
 				CsVarDecl (name, decl_type, Some init_cs)
 			else
@@ -5585,7 +5633,7 @@ and cs_stmt_of_texpr ectx e =
 				   This ensures the variable is accessible after the block. *)
 				CsStmtList [
 					CsVarDecl (name, Some var_type, None);
-					CsBlock (result.er_stmts @ [CsExprStmt (CsBinop (CsOpAssign, CsLocal name, init_cs))])
+					CsBlock (all_prefix_stmts @ [CsExprStmt (CsBinop (CsOpAssign, CsLocal name, init_cs))])
 				]
 		end
 	| TIf (cond, then_expr, else_expr) ->
