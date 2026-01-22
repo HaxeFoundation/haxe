@@ -2415,18 +2415,24 @@ let rec cs_expr_of_texpr ectx e =
 				(cs_path_of_path c.cl_path, [])
 			| _ ->
 				let path = cs_path_of_path c.cl_path in
-				(* For generic classes, try to infer type arguments from field type *)
-				let type_params = match follow field_type with
-					| TFun (_, ret) -> begin match follow ret with
-						| TInst (ret_class, ret_params) when ret_class.cl_path = c.cl_path ->
-							List.map (cs_type_of_type ectx.gctx) ret_params
+				(* Type erasure: Haxe generic classes become non-generic in C#.
+				   Only C# native types keep their type parameters. *)
+				if CsSignature.is_cs_native_generic_class c.cl_path then begin
+					(* C# native class - keep type parameters, try to infer from field type *)
+					let type_params = match follow field_type with
+						| TFun (_, ret) -> begin match follow ret with
+							| TInst (ret_class, ret_params) when ret_class.cl_path = c.cl_path ->
+								List.map (cs_type_of_type ectx.gctx) ret_params
+							| _ ->
+								List.map (fun _ -> CsTypeObject) c.cl_params
+						end
 						| _ ->
 							List.map (fun _ -> CsTypeObject) c.cl_params
-					end
-					| _ ->
-						List.map (fun _ -> CsTypeObject) c.cl_params
-				in
-				(path, type_params)
+					in
+					(path, type_params)
+				end else
+					(* Haxe class - erase type parameters (class is non-generic in C#) *)
+					(path, [])
 			in
 			CsStaticField (CsTypeClass (actual_path, actual_params), get_cs_field_name c cf)
 		end
@@ -4990,13 +4996,13 @@ let rec cs_expr_of_texpr ectx e =
 				| None -> CsTypeObject  (* Fallback to object if inference fails *)
 			) extra_ctor_params
 		end in
-		(* Create the nested type with appropriate type args *)
+		(* Create the nested type.
+		   Type erasure: ALL Haxe enums (including GADT constructors) are non-generic in C#.
+		   The GADT extra type params only existed at Haxe compile-time for type checking.
+		   The C# nested class for the constructor has no type parameters. *)
 		let parent_type = CsTypeClass (enum_path, []) in
-		let nested_type = if ctor_type_args = [] then
-			CsTypeNested (parent_type, ctor_name)
-		else
-			CsTypeNestedGeneric (parent_type, ctor_name, ctor_type_args)
-		in
+		let nested_type = CsTypeNested (parent_type, ctor_name) in
+		ignore ctor_type_args;  (* Type params erased - not used in C# *)
 		let cast_expr = CsCast (nested_type, obj) in
 		CsField (cast_expr, escape_identifier param_name)
 	| TEnumIndex e ->

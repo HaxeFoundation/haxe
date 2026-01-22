@@ -36,7 +36,7 @@ class Log {
 		var pstr = fileName + ":" + Std.string(lineNumber);
 		var customParams:Dynamic = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"customParams\")", dynInfos);
 		if (customParams != null) {
-			var arr:Array<Dynamic> = untyped __cs__("(haxe.root.Array<object>){0}", customParams);
+			var arr:Array<Dynamic> = untyped __cs__("(haxe.root.Array){0}", customParams);
 			for (item in arr)
 				str += ", " + Std.string(item);
 		}
