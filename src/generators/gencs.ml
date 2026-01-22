@@ -3050,10 +3050,9 @@ let rec cs_expr_of_texpr ectx e =
 					) params
 				| _ -> []
 		in
-		(* For generic methods, we need to provide explicit type arguments since C#
-		   can't always infer them (especially with Null<T> implicit conversions).
-		   Also, apply method type params to parameter types for proper argument generation. *)
-		if cf.cf_params <> [] then begin
+		(* For generic methods on C# native classes, we need to provide explicit type arguments.
+		   For Haxe classes, method type params are erased, so we don't need generic calls. *)
+		if cf.cf_params <> [] && CsSignature.is_cs_native_generic_class c.cl_path then begin
 			(* Method has type params - infer from return type or arguments *)
 			let return_type = e.etype in
 			let infer_type_params_as_types () =
@@ -3686,8 +3685,9 @@ let rec cs_expr_of_texpr ectx e =
 		) all_signature_type_params in
 		(* Combine explicit and inferred params *)
 		let all_method_type_params = explicit_type_params @ inferred_type_params in
-		(* Check if method has any type parameters (explicit or inferred) *)
-		if all_method_type_params <> [] then begin
+		(* Check if method has any type parameters (explicit or inferred).
+		   For Haxe classes, method type params are erased, so we don't need generic calls. *)
+		if all_method_type_params <> [] && CsSignature.is_cs_native_generic_class c.cl_path then begin
 			(* Method has type params - infer from return type, arguments, or method signature *)
 			(* Check if the return type is a type parameter T (i.e., the method returns T directly).
 			   IMPORTANT: Don't use follow() here - it unwraps Null<T> to T via abstract semantics.
@@ -7340,31 +7340,34 @@ let generate_field gctx c cf is_static =
 				p_modifier = None;
 			}
 		) filtered_args in
-		(* Extract method-level type parameters from cf.cf_params *)
-		let explicit_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
-		(* Get class type parameters to exclude from method type params *)
+		(* Get class type parameters *)
 		let class_type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
-		(* Also collect type parameters used in the method signature.
-		   This is needed for _Impl_ classes where the abstract's type params
-		   become method-level params (like Rest<T>.append uses T but _Impl_ has no class params).
-		   However, we must exclude type params that belong to the enclosing class. *)
-		let return_cs_type = cs_type_of_type gctx ret in
-		let param_cs_types = List.map (fun p -> p.p_type) params in
-		let param_cs_types = List.filter_map (fun t -> t) param_cs_types in
-		let inferred_type_params = CsSignature.get_method_type_params param_cs_types return_cs_type in
-		(* Filter out class type params from inferred params *)
-		let inferred_type_params = List.filter (fun p ->
-			not (List.mem p class_type_params)
-		) inferred_type_params in
-		(* Combine explicit and inferred params, explicit first, avoiding duplicates *)
-		let method_type_params = explicit_type_params @ (List.filter (fun p ->
-			not (List.mem p explicit_type_params)
-		) inferred_type_params) in
+		(* Method type parameters: For Haxe classes, type params are erased to object,
+		   so don't include them in C# output. Only C# native classes keep type params. *)
+		let method_type_params =
+			if CsSignature.is_cs_native_generic_class c.cl_path then begin
+				(* C# native class - keep method type params *)
+				let explicit_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
+				let return_cs_type = cs_type_of_type gctx ret in
+				let param_cs_types = List.map (fun p -> p.p_type) params in
+				let param_cs_types = List.filter_map (fun t -> t) param_cs_types in
+				let inferred_type_params = CsSignature.get_method_type_params param_cs_types return_cs_type in
+				let inferred_type_params = List.filter (fun p ->
+					not (List.mem p class_type_params)
+				) inferred_type_params in
+				explicit_type_params @ (List.filter (fun p ->
+					not (List.mem p explicit_type_params)
+				) inferred_type_params)
+			end else
+				(* Haxe class - erase method type params (they become object) *)
+				[]
+		in
 		(* All type params in scope = class params + method params *)
 		let all_type_params_in_scope = class_type_params @ method_type_params in
-		(* Extract constraints from class and method type params *)
+		(* Extract constraints from class and method type params.
+		   For Haxe classes, method type params are erased, so no constraints. *)
 		let class_constraints = extract_type_param_constraints gctx c.cl_params in
-		let method_constraints = extract_type_param_constraints gctx cf.cf_params in
+		let method_constraints = if method_type_params = [] then [] else extract_type_param_constraints gctx cf.cf_params in
 		let all_type_param_constraints = class_constraints @ method_constraints in
 		(* Check for contravariant override - if so, generate a bridge that calls the overload *)
 		let is_contravariant_override = match get_contravariant_override_info gctx c cf with
@@ -8520,8 +8523,14 @@ let generate_interface gctx c =
 					p_modifier = None;
 				}
 			) args in
-			(* Get method-level type parameters *)
-			let method_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
+			(* Get method-level type parameters - only for C# native interfaces.
+			   For Haxe interfaces, method type params are erased. *)
+			let method_type_params =
+				if CsSignature.is_cs_native_generic_class c.cl_path then
+					List.map (fun ttp -> ttp.ttp_name) cf.cf_params
+				else
+					[]
+			in
 			Some (CsMemberMethod {
 				m_name = escape_identifier cf.cf_name;
 				m_return_type = cs_type_of_type gctx ret;

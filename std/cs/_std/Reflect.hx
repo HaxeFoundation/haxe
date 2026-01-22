@@ -227,7 +227,14 @@ class Reflect {
 		return untyped __cs__("{0} is System.Delegate", f);
 	}
 
+	// Note: Uses Dynamic instead of generic T for type erasure compatibility.
+	// With type erasure, T would become object anyway, and C# can't infer
+	// generic type parameters from object-typed arguments.
 	public static function compare<T>(a:T, b:T):Int {
+		return compareImpl(a, b);
+	}
+
+	private static function compareImpl(a:Dynamic, b:Dynamic):Int {
 		if (a == b)
 			return 0;
 		if (a == null)
