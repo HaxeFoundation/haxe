@@ -2526,18 +2526,9 @@ let rec cs_expr_of_texpr ectx e =
 		end
 	| TField (_, FEnum (en, ef)) ->
 		let path = cs_path_of_path en.e_path in
-		(* Get type arguments from the expression type for generic enums like Option<T> *)
-		let type_args = match follow e.etype with
-			| TEnum (_, params) -> List.map (cs_type_of_type ectx.gctx) params
-			| TFun (_, ret) ->
-				(* When an enum constructor with params is accessed as a value, e.etype is TFun.
-				   Get type args from the return type (the enum type). *)
-				begin match follow ret with
-				| TEnum (_, params) -> List.map (cs_type_of_type ectx.gctx) params
-				| _ -> []
-				end
-			| _ -> []
-		in
+		(* Enums are non-generic in C# after type erasure - no type arguments *)
+		let type_args = [] in
+		ignore (match follow e.etype with | _ -> ());
 		(* Check if this enum constructor takes parameters - if so, it's a function *)
 		let has_params = match ef.ef_type with TFun (args, _) when args <> [] -> true | _ -> false in
 		if has_params then begin
@@ -2655,18 +2646,10 @@ let rec cs_expr_of_texpr ectx e =
 			(* Return instantiation of the closure *)
 			CsNew (CsTypeClass (closure_path, []), [])
 		end
-		(* For parameterless enum constructors, access via: new EnumType<T>.ConstructorName()
-		   For generic enums, nested class uses parent's type params (C# nested class inheritance) *)
-		else if type_args = [] && en.e_params = [] then
-			(* Non-generic enum - use static field if ef has no params *)
+		(* For parameterless enum constructors, access via static field.
+		   After type erasure, all enums are non-generic in C#, so always use static field. *)
+		else
 			CsStaticField (CsTypeClass (path, []), get_cs_enum_ctor_name en ef)
-		else begin
-			(* Generic enum - nested class inherits type params from parent: Parent<T>.Nested *)
-			let ctor_name = get_cs_enum_ctor_name en ef in
-			let parent_type = CsTypeClass (path, type_args) in
-			let nested_type = CsTypeNested (parent_type, ctor_name) in
-			CsNew (nested_type, [])
-		end
 	| TCall (e_callee, args) when (
 		(* Check if callee is a TFunction, possibly wrapped in TParenthesis *)
 		let rec is_function e = match e.eexpr with
@@ -2803,213 +2786,19 @@ let rec cs_expr_of_texpr ectx e =
 			CsCast (result_type, CsField (call_expr, "obj"))
 		end
 	| TCall ({ eexpr = TField (_, FEnum (en, ef)) }, orig_args) ->
-		(* Enum constructor with parameters -> new EnumType<T>.ConstructorName<C>(...) *)
+		(* Enum constructor with parameters -> new EnumType.ConstructorName(...)
+		   After type erasure, both parent enum and constructor nested classes are non-generic.
+		   Constructor parameters types are erased to object. *)
 		let enum_path = cs_path_of_path en.e_path in
 		let ctor_name = escape_identifier ef.ef_name in
-		(* Get type arguments from the TCall's result type (e.etype) for generic enums *)
-		let enum_type_args = match follow e.etype with
-			| TEnum (_, params) -> List.map (cs_type_of_type ectx.gctx) params
-			| _ -> []
-		in
-		(* Check if constructor has its own type parameters (like EBinop<C>).
-		   If so, we need to infer them from the arguments.
-		   IMPORTANT: The generated nested class only has EXTRA type params - those that
-		   don't shadow the parent enum's type params. So we filter ef.ef_params to match. *)
-		let parent_type_param_names = List.map (fun ttp -> ttp.ttp_name) en.e_params in
-		let extra_ctor_params = List.filter (fun ttp ->
-			not (List.mem ttp.ttp_name parent_type_param_names)
-		) ef.ef_params in
-		let ctor_type_args = if extra_ctor_params = [] then [] else begin
-			(* Get parameter types from constructor signature *)
-			let param_types = match follow ef.ef_type with
-				| TFun (params, _) -> List.map (fun (_, _, t) -> t) params
-				| _ -> []
-			in
-			(* Match parameter types with argument types to infer constructor type params *)
-			let param_type_pairs = if List.length param_types <= List.length orig_args then
-				List.combine param_types (List.map (fun a -> a.etype) (ExtList.List.take (List.length param_types) orig_args))
-			else []
-			in
-			(* For each EXTRA constructor type param, find its value from argument types *)
-			List.map (fun ttp ->
-				let rec find_type_param_in_type param_t arg_t =
-					match follow param_t, follow arg_t with
-					| TInst ({ cl_kind = KTypeParameter ttp2 }, _), _ when ttp2.ttp_name = ttp.ttp_name ->
-						Some arg_t
-					| TInst (c1, tp1_list), TInst (c2, tp2_list) when c1.cl_path = c2.cl_path && List.length tp1_list = List.length tp2_list ->
-						List.fold_left2 (fun acc tp1 tp2 ->
-							match acc with Some _ -> acc | None -> find_type_param_in_type tp1 tp2
-						) None tp1_list tp2_list
-					| TEnum (e1, tp1_list), TEnum (e2, tp2_list) when e1.e_path = e2.e_path && List.length tp1_list = List.length tp2_list ->
-						List.fold_left2 (fun acc tp1 tp2 ->
-							match acc with Some _ -> acc | None -> find_type_param_in_type tp1 tp2
-						) None tp1_list tp2_list
-					| TAbstract (a1, tp1_list), TAbstract (a2, tp2_list) when a1.a_path = a2.a_path && List.length tp1_list = List.length tp2_list ->
-						List.fold_left2 (fun acc tp1 tp2 ->
-							match acc with Some _ -> acc | None -> find_type_param_in_type tp1 tp2
-						) None tp1_list tp2_list
-					| _ -> None
-				in
-				let found = List.fold_left (fun acc (param_t, arg_t) ->
-					match acc with Some _ -> acc | None -> find_type_param_in_type param_t arg_t
-				) None param_type_pairs in
-				match found with
-				| Some t -> cs_type_of_type ectx.gctx t
-				| None -> CsTypeObject  (* Fallback to object if not found *)
-			) extra_ctor_params
-		end in
-		(* Nested class: Parent<T>.Nested or Parent<T>.Nested<C> *)
-		let parent_type = CsTypeClass (enum_path, enum_type_args) in
-		let nested_type = if ctor_type_args = [] then
-			CsTypeNested (parent_type, ctor_name)
-		else
-			CsTypeNestedGeneric (parent_type, ctor_name, ctor_type_args)
-		in
-		(* Generate args with proper type coercion based on enum constructor's param types.
-		   The param types need to be mapped through the enum's type params (e.g., T -> int for Option<int>).
-
-		   GADT handling: When a constructor has type params that SHADOW the parent enum's
-		   type params (like Cons<X, L> in Stack<L>), we need to also map those.
-		   We infer the shadowing type params from the result type. *)
-		let enum_hx_params = match follow e.etype with
-			| TEnum (_, params) -> params
-			| _ -> []
-		in
-		let map_enum_type = apply_params en.e_params enum_hx_params in
-
-		(* Build mapping for constructor's type params (including shadowing ones).
-		   For GADT constructors like Cons<X, L>(x:X, xs:Stack<L>):Stack<TCons<X, L>>,
-		   we infer X and L from the result type Stack<TCons<Y, S>> -> X=Y, L=S *)
-		let ctor_type_param_map =
-			let result_type_from_ctor = match follow ef.ef_type with
-				| TFun (_, ret) -> ret
-				| _ -> e.etype
-			in
-			(* Match the constructor's declared return type against the actual result type
-			   to build substitutions for the constructor's type params *)
-			let rec extract_type_params declared actual acc =
-				match follow declared, follow actual with
-				| TInst ({ cl_kind = KTypeParameter ttp }, _), actual_t ->
-					(* Found a type param in declared - map it to actual *)
-					(ttp.ttp_name, actual_t) :: acc
-				| TEnum (d_en, d_params), TEnum (a_en, a_params)
-					when d_en.e_path = a_en.e_path && List.length d_params = List.length a_params ->
-					List.fold_left2 (fun acc d a -> extract_type_params d a acc) acc d_params a_params
-				| TInst (d_c, d_params), TInst (a_c, a_params)
-					when d_c.cl_path = a_c.cl_path && List.length d_params = List.length a_params ->
-					List.fold_left2 (fun acc d a -> extract_type_params d a acc) acc d_params a_params
-				| TAbstract (d_a, d_params), TAbstract (a_a, a_params)
-					when d_a.a_path = a_a.a_path && List.length d_params = List.length a_params ->
-					List.fold_left2 (fun acc d a -> extract_type_params d a acc) acc d_params a_params
-				| _ -> acc
-			in
-			extract_type_params result_type_from_ctor e.etype []
-		in
-
-		(* Apply both enum type params and constructor type params *)
-		let map_full_type t =
-			let t = map_enum_type t in
-			(* Apply constructor's type param substitutions *)
-			List.fold_left (fun t (name, subst) ->
-				let rec substitute_in_type t = match follow t with
-					| TInst ({ cl_kind = KTypeParameter ttp }, _) when ttp.ttp_name = name ->
-						subst
-					| TInst (c, params) ->
-						TInst (c, List.map substitute_in_type params)
-					| TEnum (en, params) ->
-						TEnum (en, List.map substitute_in_type params)
-					| TAbstract (a, params) ->
-						TAbstract (a, List.map substitute_in_type params)
-					| _ -> t
-				in
-				substitute_in_type t
-			) t ctor_type_param_map
-		in
-
+		let parent_type = CsTypeClass (enum_path, []) in
+		let nested_type = CsTypeNested (parent_type, ctor_name) in
+		(* Get erased parameter types - with type erasure, type params become object *)
 		let param_types = match follow ef.ef_type with
-			| TFun (params, _) -> List.map (fun (_, _, t) -> map_full_type t) params
+			| TFun (params, _) -> List.map (fun (_, _, t) -> t) params
 			| _ -> []
 		in
-
-		(* GADT handling for C# nested class constructors:
-
-		   In C#, nested classes like `Stack<L>.Cons<X>` use the PARENT's type param L.
-		   When a constructor has a type param that SHADOWS the parent (same name),
-		   the C# class still uses the parent's version.
-
-		   Example: Haxe `Cons<X, L>(x:X, xs:Stack<L>):Stack<TCons<X,L>>` in `Stack<L>`
-		   - Constructor's L shadows parent's L
-		   - In C#: `Stack<TCons<Y,S>>.Cons<Y>.xs` has type `Stack<TCons<Y,S>>` (parent's L)
-		   - But Haxe infers `xs` should be `Stack<S>` (constructor's L = S from context)
-
-		   For NON-shadowing params like `C` in `EBinop<C>(e1:Expr<C>)`, C# correctly
-		   uses `C`, so no special handling needed.
-
-		   Solution: Identify shadowing type params and substitute with parent's instantiation
-		   when computing the C# expected types. *)
 		let args = generate_call_args ectx cs_expr_of_texpr orig_args param_types in
-
-		(* Find which constructor type params SHADOW parent type params (same name) *)
-		let shadowing_param_names = List.filter (fun ttp ->
-			List.mem ttp.ttp_name parent_type_param_names
-		) ef.ef_params |> List.map (fun ttp -> ttp.ttp_name) in
-
-		(* Build the C# expected types. For shadowing params, substitute with parent's type arg.
-		   For non-shadowing params, substitute with the inferred instantiation from ctor_type_param_map. *)
-		let parent_type_param_mapping =
-			List.combine parent_type_param_names enum_hx_params
-		in
-		(* Also need mapping for non-shadowing constructor type params (like X in Cons<X, L>) *)
-		let extra_ctor_param_mapping =
-			List.filter_map (fun ttp ->
-				if List.mem ttp.ttp_name parent_type_param_names then None
-				else
-					(* Find the inferred type from ctor_type_param_map *)
-					try Some (ttp.ttp_name, List.assoc ttp.ttp_name ctor_type_param_map)
-					with Not_found -> None
-			) ef.ef_params
-		in
-		let cs_ctor_expected = match follow ef.ef_type with
-			| TFun (params, _) ->
-				List.map (fun (_, _, t) ->
-					(* First apply non-shadowing substitutions (parent's type params that
-					   aren't shadowed, plus constructor's non-shadowing params) *)
-					let mapped_t = map_enum_type t in
-					(* Substitute ALL constructor type params:
-					   - Shadowing params (like L in Cons<X,L>) -> parent's instantiation
-					   - Non-shadowing params (like X in Cons<X,L>) -> inferred instantiation *)
-					let rec substitute_ctor_params t = match follow t with
-						| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
-							if List.mem ttp.ttp_name shadowing_param_names then
-								(* Shadowing param - substitute with parent's value *)
-								begin try List.assoc ttp.ttp_name parent_type_param_mapping
-								with Not_found -> t end
-							else
-								(* Non-shadowing param - substitute with inferred value *)
-								begin try List.assoc ttp.ttp_name extra_ctor_param_mapping
-								with Not_found -> t end
-						| TEnum (en2, tps) -> TEnum (en2, List.map substitute_ctor_params tps)
-						| TInst (c, tps) -> TInst (c, List.map substitute_ctor_params tps)
-						| TAbstract (a, tps) -> TAbstract (a, List.map substitute_ctor_params tps)
-						| _ -> t
-					in
-					let fully_mapped = substitute_ctor_params mapped_t in
-					cs_type_of_type ectx.gctx fully_mapped
-				) params
-			| _ -> []
-		in
-
-		(* If an arg's inferred type differs from the C# expected type, cast through object *)
-		let args = if List.length args = List.length cs_ctor_expected && List.length args = List.length param_types then
-			List.map2 (fun arg (hx_inferred_type, cs_expected) ->
-				let cs_inferred = cs_type_of_type ectx.gctx hx_inferred_type in
-				if cs_inferred <> cs_expected then
-					(* Type mismatch due to GADT - cast through object *)
-					CsCast (cs_expected, CsCast (CsTypeObject, arg))
-				else
-					arg
-			) args (List.combine param_types cs_ctor_expected)
-		else args in
 		CsNew (nested_type, args)
 	| TCall ({ eexpr = TField (e_obj, FInstance (c, _, cf)) }, args)
 		when (match c.cl_path with ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) -> true | _ -> false) ->
@@ -3201,10 +2990,12 @@ let rec cs_expr_of_texpr ectx e =
 		   We need to wrap it for C# where optional params use Null<T>.
 		   BUT: Don't double-wrap if the type is already Null<T>.
 
-		   CRITICAL: For override methods, use the PARENT's parameter types to match the
-		   generated C# method signature. C# override methods must have exact type match,
-		   so we use parent types (e.g., K instead of EnumValue) in the signature.
-		   The call coercion must use the same types. *)
+		   CRITICAL: For override methods, use the PARENT's DECLARED parameter types (unmapped)
+		   to match the generated C# method signature. With type erasure, type parameters
+		   become object in C#. If we map K→String before converting to C# type, we get
+		   string instead of object, causing signature mismatch.
+		   Example: Parent<K>.put(K) → C# put(object); Child2 extends Parent<String>
+		   should override with put(object), not put(string). *)
 		let get_parent_param_types c_class tl_class cf_method =
 			let rec find_parent_types c_super tl =
 				let map_type = apply_params c_super.cl_params tl in
@@ -3212,7 +3003,8 @@ let rec cs_expr_of_texpr ectx e =
 					let cf_super = PMap.find cf_method.cf_name c_super.cl_fields in
 					match cf_super.cf_kind with
 					| Method _ ->
-						begin match follow (map_type cf_super.cf_type) with
+						(* Use DECLARED type without mapping - type params will be erased to object *)
+						begin match follow cf_super.cf_type with
 						| TFun (parent_params, _) -> Some parent_params
 						| _ -> None
 						end
@@ -3234,10 +3026,9 @@ let rec cs_expr_of_texpr ectx e =
 			let parent_params = if use_parent_types then get_parent_param_types c tl cf else None in
 			match parent_params with
 			| Some params ->
-				(* Use parent's param types - apply class type params mapping *)
-				let map_type = apply_params c.cl_params tl in
+				(* Use parent's DECLARED param types directly - don't map type params.
+				   Type params will be erased to object by cs_type_of_type. *)
 				List.map (fun (_, opt, t) ->
-					let t = map_type t in
 					let is_already_null = match follow t with
 						| TAbstract ({ a_path = ([], "Null") }, _) -> true
 						| _ -> false
@@ -7011,49 +6802,67 @@ let should_be_virtual c cf =
    This is needed because C# doesn't support:
    - Covariant return types in interface implementations
    - Contravariant parameter types in interface implementations
-   We need to generate explicit interface implementations for each such interface. *)
+   We need to generate explicit interface implementations for each such interface.
+
+   IMPORTANT: With type erasure, we compare C# types (not Haxe types) because:
+   - Interface method with param type T becomes object in C#
+   - Implementation with param type Int becomes int in C#
+   - These don't match even though Haxe sees both as "Int" after type substitution *)
 let find_variant_interface_methods gctx c cf =
+	(* Track seen interfaces to avoid duplicates when same interface is reached
+	   via multiple paths (e.g., C implements A and B, where B extends A) *)
+	let seen = ref [] in
 	let rec check_interface acc map_parent (c_int, params) =
-		(* First apply any parent type mapping to the params.
-		   This is needed when traversing parent interfaces:
-		   e.g., B<T> extends A<T>, and C implements B<int>
-		   When checking A, params is [T] but we need [int]. *)
-		let params = List.map map_parent params in
-		let map_type = apply_params c_int.cl_params params in
-		let acc = try
-			let cf_int = PMap.find cf.cf_name c_int.cl_fields in
-			match cf_int.cf_kind with
-			| Method _ ->
-				(* Found interface method with same name *)
-				let int_type = map_type cf_int.cf_type in
-				begin match follow int_type, follow cf.cf_type with
-				| TFun (int_args, int_ret), TFun (impl_args, impl_ret) ->
-					(* Check if return types differ (covariant return) *)
-					let ret_differs = not (Type.type_iseq int_ret impl_ret) in
-					(* Check if any parameter types differ (contravariant params) *)
-					let args_differ =
-						try
-							List.exists2 (fun (_, _, int_t) (_, _, impl_t) ->
-								not (Type.type_iseq int_t impl_t)
-							) int_args impl_args
-						with Invalid_argument _ -> true (* Different arg counts *)
-					in
-					if ret_differs || args_differ then
-						(* Build the interface type with applied params *)
-						let iface_cs_type = cs_type_of_type gctx (TInst (c_int, params)) in
-						(* Get interface method's type parameters *)
-						let method_type_params = List.map (fun ttp -> ttp.ttp_name) cf_int.cf_params in
-						(iface_cs_type, int_args, int_ret, method_type_params) :: acc
-					else
-						acc
+		(* Skip if we've already processed this interface *)
+		if List.mem c_int.cl_path !seen then acc
+		else begin
+			seen := c_int.cl_path :: !seen;
+			(* First apply any parent type mapping to the params.
+			   This is needed when traversing parent interfaces:
+			   e.g., B<T> extends A<T>, and C implements B<int>
+			   When checking A, params is [T] but we need [int]. *)
+			let params = List.map map_parent params in
+			let map_type = apply_params c_int.cl_params params in
+			let acc = try
+				let cf_int = PMap.find cf.cf_name c_int.cl_fields in
+				match cf_int.cf_kind with
+				| Method _ ->
+					(* Found interface method with same name.
+					   Use the DECLARED interface method type (cf_int.cf_type) for C# signature,
+					   because type parameters get erased to object in C#. *)
+					begin match follow cf_int.cf_type, follow cf.cf_type with
+					| TFun (int_args, int_ret), TFun (impl_args, impl_ret) ->
+						(* Compare C# types, not Haxe types.
+						   Interface uses declared types (type params → object).
+						   Implementation uses concrete types (Int → int). *)
+						let int_ret_cs = cs_type_of_type gctx int_ret in
+						let impl_ret_cs = cs_type_of_type gctx impl_ret in
+						let ret_differs = int_ret_cs <> impl_ret_cs in
+						let args_differ =
+							try
+								List.exists2 (fun (_, _, int_t) (_, _, impl_t) ->
+									cs_type_of_type gctx int_t <> cs_type_of_type gctx impl_t
+								) int_args impl_args
+							with Invalid_argument _ -> true (* Different arg counts *)
+						in
+						if ret_differs || args_differ then
+							(* Build the interface type with applied params *)
+							let iface_cs_type = cs_type_of_type gctx (TInst (c_int, params)) in
+							(* Get interface method's type parameters *)
+							let method_type_params = List.map (fun ttp -> ttp.ttp_name) cf_int.cf_params in
+							(* Use declared interface args/ret for explicit implementation signature *)
+							(iface_cs_type, int_args, int_ret, method_type_params) :: acc
+						else
+							acc
+					| _ -> acc
+					end
 				| _ -> acc
-				end
-			| _ -> acc
-		with Not_found -> acc
-		in
-		(* Also check parent interfaces - they may require explicit implementations too.
-		   Pass map_type so parent interface params get properly substituted. *)
-		List.fold_left (fun acc iface -> check_interface acc map_type iface) acc c_int.cl_implements
+			with Not_found -> acc
+			in
+			(* Also check parent interfaces - they may require explicit implementations too.
+			   Pass map_type so parent interface params get properly substituted. *)
+			List.fold_left (fun acc iface -> check_interface acc map_type iface) acc c_int.cl_implements
+		end
 	in
 	(* Check all implemented interfaces, starting with identity mapping *)
 	List.fold_left (fun acc iface -> check_interface acc (fun t -> t) iface) [] c.cl_implements
@@ -7103,8 +6912,13 @@ let generate_explicit_interface_impls gctx c cf =
 	match cf.cf_kind with
 	| Method MethNormal | Method MethInline ->
 		let variant_interfaces = find_variant_interface_methods gctx c cf in
+		(* Get implementation argument types for casting *)
+		let impl_args = match follow cf.cf_type with
+			| TFun (args, _) -> args
+			| _ -> []
+		in
 		List.map (fun (iface_type, int_args, int_ret, method_type_params) ->
-			(* Generate params for the explicit implementation (no defaults needed) *)
+			(* Generate params for the explicit implementation using interface's erased types *)
 			let params = List.filter_map (fun (n, _, t) ->
 				if ExtType.is_void (follow t) then None
 				else Some {
@@ -7114,8 +6928,18 @@ let generate_explicit_interface_impls gctx c cf =
 					p_modifier = None;
 				}
 			) int_args in
-			(* Body: call this.MethodName<T, ...>(args) with explicit type args if generic *)
-			let arg_exprs = List.map (fun p -> CsLocal p.p_name) params in
+			(* Generate argument expressions with casts from interface type to impl type.
+			   Interface params use erased types (object), impl uses concrete types (string, int).
+			   We need to cast: (ImplType)interfaceParam *)
+			let arg_exprs = List.map2 (fun (int_n, _, int_t) (_, _, impl_t) ->
+				let int_cs_type = cs_type_of_type gctx int_t in
+				let impl_cs_type = cs_type_of_type gctx impl_t in
+				let arg_ref = CsLocal (escape_identifier int_n) in
+				if int_cs_type = impl_cs_type then
+					arg_ref  (* Same type, no cast needed *)
+				else
+					CsCast (impl_cs_type, arg_ref)  (* Cast from interface type to impl type *)
+			) int_args impl_args in
 			let callee = CsField (CsThis, escape_identifier cf.cf_name) in
 			let call_expr =
 				if method_type_params = [] then
@@ -7450,8 +7274,10 @@ let generate_field gctx c cf is_static =
 			| TFun (args, ret) -> args, ret
 			| _ -> [], cf.cf_type
 		in
-		(* For override methods, we need to use the parent's parameter types
-		   to ensure C# compatibility. C# requires exact type match for overrides. *)
+		(* For override methods, we need to use the parent's DECLARED parameter types
+		   (unmapped) to ensure C# compatibility. With type erasure, type parameters
+		   become object in C#. If we map K→String before converting to C# type, we get
+		   string instead of object, causing signature mismatch with the parent's method. *)
 		let args, ret =
 			if not is_static && is_override cf then
 				let rec find_parent_types c_super tl =
@@ -7460,7 +7286,8 @@ let generate_field gctx c cf is_static =
 						let cf_super = PMap.find cf.cf_name c_super.cl_fields in
 						match cf_super.cf_kind with
 						| Method _ ->
-							begin match follow (map_type cf_super.cf_type) with
+							(* Use DECLARED type without mapping - type params get erased to object *)
+							begin match follow cf_super.cf_type with
 							| TFun (parent_args, parent_ret) -> Some (parent_args, parent_ret)
 							| _ -> None
 							end
@@ -8623,13 +8450,9 @@ let generate_class gctx c =
 	(* Generate _hx_getField, _hx_setField, _hx_getFields for AOT-compatible dynamic field access *)
 	members := generate_field_accessors gctx c @ !members;
 
-	(* Generate explicit IMap interface implementations for specialized maps (StringMap, IntMap, ObjectMap).
-	   These maps have typed public APIs but implement the non-generic IMap interface. *)
-	begin match get_imap_key_type_for_class c.cl_path, get_imap_interface c with
-	| Some key_type, Some imap ->
-		members := generate_explicit_imap_implementations key_type imap @ !members
-	| _ -> ()
-	end;
+	(* NOTE: Explicit IMap implementations for specialized maps (StringMap, IntMap, ObjectMap)
+	   are now generated by the general find_variant_interface_methods / generate_explicit_interface_impls
+	   mechanism, which handles all interface method signature mismatches uniformly. *)
 
 	(* Generate static constructor if class has __init__ *)
 	begin match TClass.get_cl_init c with
@@ -8676,11 +8499,9 @@ let generate_class gctx c =
 let generate_interface gctx c =
 	let path = cs_path_of_path c.cl_path in
 
-	(* Generate base interfaces *)
+	(* Generate base interfaces - use cs_type_of_type which handles type erasure correctly *)
 	let base_interfaces = List.map (fun (i, params) ->
-		let path = cs_path_of_path i.cl_path in
-		let params = List.map (cs_type_of_type gctx) params in
-		CsTypeClass (path, params)
+		cs_type_of_type gctx (TInst (i, params))
 	) c.cl_implements in
 
 	(* Generate members *)
