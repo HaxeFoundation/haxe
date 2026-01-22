@@ -839,26 +839,52 @@ let rec is_erased_type_param t =
 let method_call_returns_erased_type_param e =
 	match e.eexpr with
 	| TCall (callee, _) ->
-		let get_declared_return_type () = match callee.eexpr with
-			| TField (_, FInstance (c, _, cf)) ->
-				(* Array<T> becomes non-generic haxe.root.Array in C#, so its methods
-				   like __popInt() return concrete types, not erased type params. *)
-				begin match c.cl_path with
-				| ([], "Array") | (["haxe"; "root"], "Array") -> None
-				| _ -> match follow cf.cf_type with
-					| TFun (_, ret) -> Some ret
-					| _ -> None
+		let check_method c cf =
+			(* Method returns erased type param if:
+			   1. It's NOT a C# native generic class (those keep type params), AND
+			   2. The method has type parameters (cf.cf_params <> []) OR
+			      the return type is a type parameter from the class *)
+			let is_native = CsSignature.is_cs_native_generic_class c.cl_path in
+			if is_native then false
+			else begin
+				(* Check if method has its own type parameters - those get erased *)
+				if cf.cf_params <> [] then true
+				else begin
+					(* Check if return type involves a class type parameter *)
+					match cf.cf_type with
+					| TFun (_, ret) -> is_erased_type_param ret
+					| TLazy f -> begin match lazy_type f with
+						| TFun (_, ret) -> is_erased_type_param ret
+						| _ -> false
+						end
+					| _ -> false
 				end
-			| TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
-				begin match follow cf.cf_type with
-				| TFun (_, ret) -> Some ret
-				| _ -> None
-				end
-			| _ -> None
+			end
 		in
-		begin match get_declared_return_type () with
-		| Some ret -> is_erased_type_param ret
-		| None -> false
+		begin match callee.eexpr with
+		| TField (_, FInstance (c, _, cf)) ->
+			(* Array<T> becomes non-generic haxe.root.Array in C#, so its methods
+			   like __popInt() return concrete types, not erased type params. *)
+			begin match c.cl_path with
+			| ([], "Array") | (["haxe"; "root"], "Array") -> false
+			| _ -> check_method c cf
+			end
+		| TField (_, FStatic (c, cf)) ->
+			check_method c cf
+		| TField (_, FClosure (Some (c, _), cf)) ->
+			check_method c cf
+		| TField (_, FClosure (None, cf)) | TField (_, FAnon cf) ->
+			(* No class context - check if method has type params *)
+			cf.cf_params <> [] || begin
+				match cf.cf_type with
+				| TFun (_, ret) -> is_erased_type_param ret
+				| TLazy f -> begin match lazy_type f with
+					| TFun (_, ret) -> is_erased_type_param ret
+					| _ -> false
+					end
+				| _ -> false
+			end
+		| _ -> false
 		end
 	| _ -> false
 
@@ -2297,9 +2323,11 @@ let rec cs_expr_of_texpr ectx e =
 		let needs_unwrap = find_null_in_expr e in
 		let obj_expr = cs_expr_of_texpr ectx e in
 		let obj_expr = if needs_unwrap then CsField (obj_expr, "value") else obj_expr in
-		(* Check if the C# type is object (due to erasure of generic interface with Dynamic).
-		   In that case, we can't do direct field access - use Reflect.field/setField. *)
+		(* Check if the C# type is object (due to erasure of generic interface with Dynamic),
+		   OR if the expression is a method/field access that returns an erased type param.
+		   In both cases, we can't do direct field access - use Reflect.field/setField. *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
+		let expr_is_erased = expr_returns_erased_type_param e in
 		begin match cs_type with
 		| CsTypeObject ->
 			(* Type was erased to object - use Reflect for field access *)
@@ -2310,6 +2338,21 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeObject -> field_call
 			| _ -> CsCast (target_type, field_call)
 			end
+		| _ when expr_is_erased ->
+			(* Expression returns erased type param (e.g., Type.createInstance returns object in C#) *)
+			(* Need to cast the object to the expected type, then access the field *)
+			let target_cs_type = cs_type_of_type ectx.gctx e.etype in
+			let casted_obj = CsCast (target_cs_type, obj_expr) in
+			let field_name = escape_identifier cf.cf_name in
+			let field_access = CsField (casted_obj, field_name) in
+			(* If the field itself returns an erased type param, cast the result too *)
+			if is_erased_type_param cf.cf_type then
+				let map_type = apply_params c.cl_params tl in
+				let substituted_type = map_type cf.cf_type in
+				let result_cs_type = cs_type_of_type ectx.gctx substituted_type in
+				CsCast (result_cs_type, field_access)
+			else
+				field_access
 		| _ ->
 			(* Check if the object is a type parameter - may need to cast to constraint type for field access.
 			   This handles cases where C# can't express the constraint (e.g., T:String where String is sealed). *)
@@ -2857,6 +2900,11 @@ let rec cs_expr_of_texpr ectx e =
 			let needs_unwrap = find_null_in_expr e_obj in
 			let obj = cs_expr_of_texpr ectx e_obj in
 			let obj = if needs_unwrap then CsField (obj, "value") else obj in
+			(* Check if the object expression returns an erased type param (e.g., Type.createInstance) *)
+			let obj = if expr_returns_erased_type_param e_obj then
+				let target_cs_type = cs_type_of_type ectx.gctx e_obj.etype in
+				CsCast (target_cs_type, obj)
+			else obj in
 			let func_expr = CsField (obj, get_native_field_name cf) in
 			(* Get parameter and return types for typed invoke *)
 			let param_types_hx, ret_type_hx = match follow cf.cf_type with
@@ -5458,7 +5506,19 @@ and cs_stmt_of_texpr ectx e =
 					(* Same class type but different type params (e.g., Array<object> -> Array<int>).
 					   This can happen with abstract @:from casts that use generic type parameters. *)
 					CsCast (var_type, CsCast (CsTypeObject, init_cs))
-				| _ -> init_cs
+				| _ ->
+					(* Check if init_expr is a cs.Syntax.code call - inline C# code may return object
+					   even when the Haxe type is concrete (e.g., when accessing erased generic fields).
+					   In such cases, add a cast to ensure type safety. *)
+					let is_cs_syntax_code_call = match init_expr.eexpr with
+						| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["cs"], "Syntax") }, cf)) }, _)
+							when cf.cf_name = "code" || cf.cf_name = "plainCode" -> true
+						| _ -> false
+					in
+					if is_cs_syntax_code_call && var_type <> CsTypeObject && var_type <> CsTypeDynamic then
+						CsCast (var_type, init_cs)
+					else
+						init_cs
 			in
 			let decl_type = Some var_type in
 			let all_prefix_stmts = result.er_stmts @ !extra_prefix_stmts in
@@ -7321,7 +7381,7 @@ let generate_field gctx c cf is_static =
 		})
 	| Method MethNormal | Method MethInline ->
 		(* Regular method *)
-		let args, ret = match follow cf.cf_type with
+		let haxe_args, haxe_ret = match follow cf.cf_type with
 			| TFun (args, ret) -> args, ret
 			| _ -> [], cf.cf_type
 		in
@@ -7329,7 +7389,7 @@ let generate_field gctx c cf is_static =
 		   (unmapped) to ensure C# compatibility. With type erasure, type parameters
 		   become object in C#. If we map K→String before converting to C# type, we get
 		   string instead of object, causing signature mismatch with the parent's method. *)
-		let args, ret =
+		let args, ret, override_param_casts =
 			if not is_static && is_override cf then
 				let rec find_parent_types c_super tl =
 					let map_type = apply_params c_super.cl_params tl in
@@ -7351,12 +7411,30 @@ let generate_field gctx c cf is_static =
 				match c.cl_super with
 				| Some (c_super, tl) ->
 					begin match find_parent_types c_super tl with
-					| Some (parent_args, parent_ret) -> parent_args, parent_ret
-					| None -> args, ret
+					| Some (parent_args, parent_ret) ->
+						(* Generate casts for parameters where parent type (erased) differs from child type.
+						   This happens when parent has type param T that becomes object, but child has concrete type. *)
+						let casts =
+							let pairs = try List.combine parent_args haxe_args with Invalid_argument _ -> [] in
+							List.filter_map (fun ((pname, _, ptype), (_, _, htype)) ->
+								let parent_cs = cs_type_of_type gctx ptype in
+								let haxe_cs = cs_type_of_type gctx htype in
+								(* If parent type is object but haxe type is not, need a cast *)
+								match parent_cs, haxe_cs with
+								| CsTypeObject, t when t <> CsTypeObject && t <> CsTypeDynamic ->
+									(* Generate: var _hx_pname = (HaxeType)pname; *)
+									let param_name = escape_identifier pname in
+									let shadow_name = "_hx_" ^ param_name in
+									Some (shadow_name, param_name, haxe_cs)
+								| _ -> None
+							) pairs
+						in
+						(parent_args, parent_ret, casts)
+					| None -> (haxe_args, haxe_ret, [])
 					end
-				| None -> args, ret
+				| None -> (haxe_args, haxe_ret, [])
 			else
-				args, ret
+				(haxe_args, haxe_ret, [])
 		in
 		(* C# requires that all optional parameters come after all required ones.
 		   Mark which optional params can have defaults (only trailing optionals).
@@ -7440,12 +7518,25 @@ let generate_field gctx c cf is_static =
 			end else begin
 				match cf.cf_expr with
 				| Some e ->
-					let body_stmts = generate_method_body gctx ~param_cs_names ~type_params_in_scope:all_type_params_in_scope ~type_param_constraints:all_type_param_constraints ~return_type:ret ~class_path:c.cl_path ~method_name:cf.cf_name e in
+					(* For override methods with erased parameters, we need to:
+					   1. Use shadow names in the body (so TLocal accesses the casted variable)
+					   2. Prepend cast statements: var _hx_param = (HaxeType)param; *)
+					let param_cs_names_with_shadows = List.map (fun name ->
+						(* Check if this param needs shadowing *)
+						match List.find_opt (fun (shadow, orig, _) -> orig = name) override_param_casts with
+						| Some (shadow, _, _) -> shadow
+						| None -> name
+					) param_cs_names in
+					let cast_stmts = List.map (fun (shadow_name, param_name, haxe_cs) ->
+						CsVarDecl (shadow_name, Some haxe_cs, Some (CsCast (haxe_cs, CsLocal param_name)))
+					) override_param_casts in
+					let body_stmts = generate_method_body gctx ~param_cs_names:param_cs_names_with_shadows ~type_params_in_scope:all_type_params_in_scope ~type_param_constraints:all_type_param_constraints ~return_type:ret ~class_path:c.cl_path ~method_name:cf.cf_name e in
+					let all_stmts = cast_stmts @ body_stmts in
 					(* Wrap in unchecked if the expression contains non-zero integer constants *)
 					if needs_unchecked e then
-						Some [CsUncheckedStmt (CsBlock body_stmts)]
+						Some [CsUncheckedStmt (CsBlock all_stmts)]
 					else
-						Some body_stmts
+						Some all_stmts
 				| None -> None
 			end
 		in
