@@ -84,7 +84,7 @@ namespace haxe.lang
         /// Works with Func&lt;&gt;, Action, and other delegate types.
         /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.
         /// </summary>
-        public static object InvokeDelegate(object func, global::haxe.root.Array<object> args)
+        public static object InvokeDelegate(object func, global::haxe.root.Array args)
         {
             if (func == null) throw new global::System.NullReferenceException("Cannot invoke null delegate");
 
@@ -105,7 +105,8 @@ namespace haxe.lang
                 for (int i = 0; i < parameters.Length; i++)
                 {
                     var param = parameters[i];
-                    object argValue = (args != null && i < args.length) ? args.__a[i] : null;
+                    // Use __getDyn() for array access since storage type is not known
+                    object argValue = (args != null && i < args.length) ? args.__getDyn(i) : null;
 
                     if (argValue == null)
                     {

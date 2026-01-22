@@ -215,6 +215,104 @@ let cs_unop_of_unop = function
 	| NegBits -> CsOpBitNot
 	| Spread -> failwith "Spread operator not supported"
 
+(* Array storage type classification for typed backing arrays.
+   The C# Array class uses multiple backing arrays (int[], double[], bool[], object[])
+   for performance. This function classifies the element type to determine which
+   backing array and access pattern to use.
+
+   Returns:
+   - `ArrayInt` for Array<Int>: uses __intArray directly
+   - `ArrayFloat` for Array<Float>: uses __floatArray directly
+   - `ArrayBool` for Array<Bool>: uses __boolArray directly
+   - `ArrayDynamic` for Array<Dynamic>/Array<Any>: uses __getDyn/__setDyn (runtime dispatch)
+   - `ArrayObject` for everything else: uses __objectArray with element cast *)
+type array_storage_type =
+	| ArrayInt      (* int[] backing, direct access *)
+	| ArrayFloat    (* double[] backing, direct access *)
+	| ArrayBool     (* bool[] backing, direct access *)
+	| ArrayObject   (* object[] backing, cast elements on read *)
+	| ArrayDynamic  (* dynamic dispatch via __getDyn/__setDyn *)
+
+(* Classify the element type of an Array<T> to determine storage type.
+   Takes the full array type (e.g., Array<Int>) and returns the storage classification. *)
+let classify_array_element_type t =
+	let rec get_array_elem_type t =
+		match follow t with
+		| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, [elem]) -> Some elem
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) -> get_array_elem_type inner
+		| TAbstract (a, tl) when a.a_path <> ([], "Null") ->
+			let underlying = Abstract.get_underlying_type a tl in
+			get_array_elem_type underlying
+		| _ -> None
+	in
+	match get_array_elem_type t with
+	| None -> ArrayObject  (* Not an array, default to object *)
+	| Some elem ->
+		match follow elem with
+		(* Primitive types get dedicated backing arrays *)
+		| TAbstract ({ a_path = ([], "Int") }, _) -> ArrayInt
+		| TAbstract ({ a_path = ([], "Float") }, _) -> ArrayFloat
+		| TAbstract ({ a_path = ([], "Bool") }, _) -> ArrayBool
+		(* Dynamic/Any types use runtime dispatch *)
+		| TDynamic _ -> ArrayDynamic
+		| TAbstract ({ a_path = ([], "Any") }, _) -> ArrayDynamic
+		(* Type parameters should be treated as Dynamic for flexibility *)
+		| TInst ({ cl_kind = KTypeParameter _ }, _) -> ArrayDynamic
+		(* Everything else (String, classes, enums, etc.) uses object array *)
+		| _ -> ArrayObject
+
+(* Get the backing array field name for a storage type *)
+let backing_array_field = function
+	| ArrayInt -> "__intArray"
+	| ArrayFloat -> "__floatArray"
+	| ArrayBool -> "__boolArray"
+	| ArrayObject -> "__objectArray"
+	| ArrayDynamic -> "__objectArray"  (* Dynamic uses object storage but with dispatch methods *)
+
+(* Get the __cast() type code for locking the array to a specific storage type *)
+let array_cast_type_code = function
+	| ArrayInt -> 1
+	| ArrayFloat -> 2
+	| ArrayBool -> 3
+	| ArrayObject -> 4
+	| ArrayDynamic -> 0  (* Dynamic arrays don't get locked *)
+
+(* Get the factory method name for creating an array from a native array.
+   Uses typed factory methods to avoid C# generic type inference issues.
+   Returns (method_name, needs_cast) where needs_cast indicates the result needs
+   to be cast to the target array type. *)
+let array_factory_method = function
+	| ArrayInt -> ("__ofIntLiteral", false)
+	| ArrayFloat -> ("__ofFloatLiteral", false)
+	| ArrayBool -> ("__ofBoolLiteral", false)
+	| ArrayObject -> ("__ofObjectLiteral", true)  (* Returns Array<Dynamic>, needs cast *)
+	| ArrayDynamic -> ("__ofDynLiteral", false)
+
+(* Classify an array element type from C# type to determine storage type.
+   This is similar to classify_array_element_type but works with C# types
+   instead of Haxe types. Used in type conversion code. *)
+let classify_cs_array_element_type elem_cs_type =
+	match elem_cs_type with
+	| CsTypeInt -> ArrayInt
+	| CsTypeDouble -> ArrayFloat
+	| CsTypeBool -> ArrayBool
+	| CsTypeDynamic -> ArrayDynamic
+	| CsTypeObject -> ArrayDynamic  (* object param treated as Dynamic *)
+	| CsTypeGenericParam _ -> ArrayDynamic  (* Type params use dynamic *)
+	| _ -> ArrayObject  (* Everything else uses object storage *)
+
+(* Non-generic Array type - used for all Array references in C# *)
+let haxe_array_type = CsTypeClass (NativeTypes.haxe_array_path, [])
+
+(* Generate an Array factory call from a native array expression.
+   Uses the appropriate factory method based on storage type.
+   Returns the CS expression that creates the Haxe Array.
+   Note: Array is non-generic in C#, so no casts are needed. *)
+let make_array_from_native storage_type native_array_expr _target_cs_type =
+	let method_name, _needs_cast = array_factory_method storage_type in
+	(* Array is non-generic, so just call the factory method directly *)
+	CsStaticCall (haxe_array_type, method_name, [native_array_expr])
+
 (* Expression generation context *)
 type expr_context = {
 	gctx : gen_context;
@@ -1097,9 +1195,11 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* object/Dynamic to native array (T[]) - need explicit cast *)
 	| CsTypeArray (_, _), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	| CsTypeArray (_, _), CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
-	(* Native array T[] to Haxe Array<T> - need Array<T>.ofNative(arr) *)
-	| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (_, _) ->
-		CsStaticCall (expected_cs_type, "ofNative", [cs_arg])
+	(* Native array T[] to Haxe Array - use appropriate factory method.
+	   Array is non-generic in C# output, so we use the actual array element type. *)
+	| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (elem_type, _) ->
+		let storage_type = classify_cs_array_element_type elem_type in
+		make_array_from_native storage_type cs_arg expected_cs_type
 	(* System.Type (Class<T>) from object needs explicit cast *)
 	| CsTypeClass ((["System"], "Type"), []), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	(* object/Dynamic to generic type param T - need explicit cast (T)value *)
@@ -1293,25 +1393,25 @@ let generate_call_args ectx cs_expr_of_texpr args param_types =
 		(* Generate rest args - wrap into Array<T> *)
 		let rest_cs_arg =
 			if rest_args = [] then
-				(* No rest args - create empty Array<T> *)
-				let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+				(* No rest args - create empty Array (non-generic) *)
+				CsNew (haxe_array_type, [])
 			else begin
 				(* Check if first rest arg is a spread expression *)
 				match (List.hd rest_args).eexpr with
 				| TUnop (Spread, _, spread_expr) ->
 					(* Spread operator: pass through the inner expression directly.
-					   The inner expression should already be Array<T>. *)
+					   The inner expression should already be Array. *)
 					cs_expr_of_texpr ectx spread_expr
 				| _ ->
-					(* Multiple args to wrap into Array<T>.ofNative(new T[] { ... }) *)
+					(* Multiple args to wrap into Array using appropriate factory method *)
 					let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 					let rest_cs_args = List.map (fun arg ->
 						let cs_arg = cs_expr_of_texpr ectx arg in
 						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
 					) rest_args in
 					let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
-					CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+					let storage_type = classify_cs_array_element_type elem_cs_type in
+					make_array_from_native storage_type native_array haxe_array_type
 			end
 		in
 		regular_cs_args @ [rest_cs_arg]
@@ -1394,7 +1494,7 @@ let rec cs_expr_of_texpr ectx e =
 		else
 			CsLocal (get_local_name ectx v)
 	| TArray (e1, e2) ->
-		(* Check if this is array access on haxe.root.Array<T> - if so, access __a directly *)
+		(* Check if this is array access on haxe.root.Array<T> - if so, access __objectArray directly *)
 		(* Also check for Null<Array<T>> - need to unwrap via .value first *)
 		let rec is_haxe_array_type t =
 			match follow t with
@@ -1471,66 +1571,73 @@ let rec cs_expr_of_texpr ectx e =
 			let is_haxe_array = is_haxe_array_type e1.etype in
 			let is_null_wrapper = find_null_in_expr e1 in
 			if is_haxe_array then begin
-				(* arr[i] -> arr.__a[i] or arr.value.__a[i] for haxe Array *)
+				(* Array access using typed backing arrays based on element type classification.
+				   - ArrayInt/Float/Bool: direct access to typed backing array
+				   - ArrayObject: access __objectArray with element cast
+				   - ArrayDynamic: use __getDyn() method for runtime dispatch *)
 				let arr_expr = cs_expr_of_texpr ectx e1 in
 				let arr_expr = if is_null_wrapper then CsField (arr_expr, "value") else arr_expr in
-				let access = CsArrayAccess (CsField (arr_expr, "__a"), cs_expr_of_texpr ectx e2) in
-				(* If the expected element type differs from what C# infers (e.g., after casting to Array<object>),
-				   cast the result to the expected type. e.etype tells us the Haxe-level element type.
-
-				   The challenge: C# might have Array<object> due to anonymous type dispatch,
-				   even when Haxe says Array<Int>. We detect this by:
-				   1. Checking if e1 has a TCast that might widen types
-				   2. Checking if the inner array expression is from a FAnon field call *)
-				let expected_cs = cs_type_of_type ectx.gctx e.etype in
-				begin match expected_cs with
-				| CsTypeObject | CsTypeDynamic -> access  (* No cast needed for object/dynamic *)
-				| _ ->
-					(* Check if e1 contains a cast from something that returns object-typed arrays.
-					   This includes TCast from anonymous type method returns. *)
-					let rec has_widening_cast e = match e.eexpr with
-						| TCast (inner, _) ->
-							(* Check if inner is a call on anonymous type (returns object-parameterized types) *)
-							begin match inner.eexpr with
-							| TCall ({ eexpr = TField (_, FAnon _) }, _) -> true
-							| _ -> has_widening_cast inner
-							end
-						| TParenthesis e1 | TMeta (_, e1) -> has_widening_cast e1
-						| _ -> false
-					in
-					(* Also check for direct FAnon call without cast wrapper *)
-					let is_fanon_call e = match e.eexpr with
-						| TCall ({ eexpr = TField (_, FAnon _) }, _) -> true
-						| _ -> false
-					in
-					if has_widening_cast e1 || is_fanon_call e1 then
-						CsCast (expected_cs, access)
-					else
-						(* Get the C#-level array element type from e1's type *)
-						let arr_cs_type = cs_type_of_type ectx.gctx e1.etype in
-						let arr_element_type = match arr_cs_type with
-							| CsTypeClass ((["haxe"; "root"], "Array"), [elem]) -> elem
-							| CsTypeClass (([], "Array"), [elem]) -> elem
-							| _ -> CsTypeObject
+				let storage_type = classify_array_element_type e1.etype in
+				let idx_expr = cs_expr_of_texpr ectx e2 in
+				match storage_type with
+				| ArrayInt ->
+					(* arr.__intArray[i] - direct access, no cast needed *)
+					CsArrayAccess (CsField (arr_expr, "__intArray"), idx_expr)
+				| ArrayFloat ->
+					(* arr.__floatArray[i] - direct access, no cast needed *)
+					CsArrayAccess (CsField (arr_expr, "__floatArray"), idx_expr)
+				| ArrayBool ->
+					(* arr.__boolArray[i] - direct access, no cast needed *)
+					CsArrayAccess (CsField (arr_expr, "__boolArray"), idx_expr)
+				| ArrayDynamic ->
+					(* arr.__getDyn(i) - runtime dispatch method *)
+					let access = CsCall (CsField (arr_expr, "__getDyn"), [idx_expr]) in
+					(* Cast result to expected type if not Dynamic *)
+					let expected_cs = cs_type_of_type ectx.gctx e.etype in
+					begin match expected_cs with
+					| CsTypeObject | CsTypeDynamic -> access
+					| _ -> CsCast (expected_cs, access)
+					end
+				| ArrayObject ->
+					(* arr.__objectArray[i] with element cast *)
+					let access = CsArrayAccess (CsField (arr_expr, "__objectArray"), idx_expr) in
+					let expected_cs = cs_type_of_type ectx.gctx e.etype in
+					begin match expected_cs with
+					| CsTypeObject | CsTypeDynamic -> access  (* No cast needed for object/dynamic *)
+					| _ ->
+						(* Check if e1 contains a cast from something that returns object-typed arrays.
+						   This includes TCast from anonymous type method returns. *)
+						let rec has_widening_cast e = match e.eexpr with
+							| TCast (inner, _) ->
+								begin match inner.eexpr with
+								| TCall ({ eexpr = TField (_, FAnon _) }, _) -> true
+								| _ -> has_widening_cast inner
+								end
+							| TParenthesis e1 | TMeta (_, e1) -> has_widening_cast e1
+							| _ -> false
 						in
-						(* Cast if element type is object but we expect something more specific *)
-						if arr_element_type = CsTypeObject && expected_cs <> CsTypeObject then
+						let is_fanon_call e = match e.eexpr with
+							| TCall ({ eexpr = TField (_, FAnon _) }, _) -> true
+							| _ -> false
+						in
+						(* Always cast for object array reads to non-object type *)
+						if has_widening_cast e1 || is_fanon_call e1 then
 							CsCast (expected_cs, access)
 						else
-							access
-				end
+							(* Cast element from object[] to expected type *)
+							CsCast (expected_cs, access)
+					end
 			end
 			else begin
 				(* Check if e1 is a type parameter with Array<T> constraint.
-				   If so, cast to Array<T> before accessing - C# doesn't know about Haxe constraints. *)
+				   If so, cast to Array before accessing - C# doesn't know about Haxe constraints.
+				   Array is non-generic in C# output. *)
 				match get_array_constraint_elem_type e1.etype with
-				| Some elem_type ->
-					(* Cast type param to Array<T> through object: ((Array<T>)(object)b)[idx] *)
-					let elem_cs = cs_type_of_type ectx.gctx elem_type in
-					let array_cs_type = CsTypeClass ((["haxe"; "root"], "Array"), [elem_cs]) in
-					let arr_cast = CsCast (array_cs_type, CsCast (CsTypeObject, cs_expr_of_texpr ectx e1)) in
-					(* Access __a field of the cast array *)
-					CsArrayAccess (CsField (arr_cast, "__a"), cs_expr_of_texpr ectx e2)
+				| Some _ ->
+					(* Cast type param to Array through object: ((Array)(object)b)[idx] *)
+					let arr_cast = CsCast (haxe_array_type, CsCast (CsTypeObject, cs_expr_of_texpr ectx e1)) in
+					(* Access __objectArray field of the cast array *)
+					CsArrayAccess (CsField (arr_cast, "__objectArray"), cs_expr_of_texpr ectx e2)
 				| None ->
 					CsArrayAccess (cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 			end
@@ -1621,16 +1728,38 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 			end
 		| OpAssign when is_haxe_array_assign ->
-			(* Haxe Array assignment: arr[i] = v  ->  arr.__set(i, v) with return value v *)
+			(* Haxe Array assignment using typed backing arrays based on element type classification.
+			   - ArrayInt/Float/Bool: direct assignment to typed backing array
+			   - ArrayObject: direct assignment to __objectArray
+			   - ArrayDynamic: use __setDyn() method for runtime dispatch *)
 			begin match e1.eexpr with
 			| TArray (arr, idx) ->
-				(* __set doesn't return a value, but assignment should evaluate to v *)
-				(* We generate: (arr.__set(i, v), v) if we need the value, but for now just the call *)
 				let arr_cs = cs_expr_of_texpr ectx arr in
 				let arr_cs = if arr_needs_unwrap then CsField (arr_cs, "value") else arr_cs in
 				let idx_cs = cs_expr_of_texpr ectx idx in
 				let val_cs = cs_expr_of_texpr ectx e2 in
-				CsCall (CsField (arr_cs, "__set"), [idx_cs; val_cs])
+				(* Use typed setter methods that handle backing array initialization.
+				   Direct backing array access (arr.__intArray[i] = v) would fail with
+				   NullReferenceException if the array was created with "new Array()" and
+				   the backing array wasn't allocated yet. The typed setters handle this. *)
+				let storage_type = classify_array_element_type arr.etype in
+				begin match storage_type with
+				| ArrayInt ->
+					(* arr.__setInt(i, v) - handles initialization and returns the value *)
+					CsCall (CsField (arr_cs, "__setInt"), [idx_cs; val_cs])
+				| ArrayFloat ->
+					(* arr.__setFloat(i, v) - handles initialization and returns the value *)
+					CsCall (CsField (arr_cs, "__setFloat"), [idx_cs; val_cs])
+				| ArrayBool ->
+					(* arr.__setBool(i, v) - handles initialization and returns the value *)
+					CsCall (CsField (arr_cs, "__setBool"), [idx_cs; val_cs])
+				| ArrayDynamic ->
+					(* arr.__setDyn(i, v) - runtime dispatch method *)
+					CsCall (CsField (arr_cs, "__setDyn"), [idx_cs; val_cs])
+				| ArrayObject ->
+					(* arr.__setObject(i, v) - handles object storage initialization *)
+					CsCall (CsField (arr_cs, "__setObject"), [idx_cs; val_cs])
+				end
 			| _ -> CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 			end
 		| OpAssign ->
@@ -2179,11 +2308,14 @@ let rec cs_expr_of_texpr ectx e =
 			!generate_method_closure_ref ectx None true c.cl_path [] cf cf.cf_type
 		else begin
 			(* Static field access - normal field reference *)
-			(* Special handling for String static methods - redirect to StringExt *)
+			(* Special handling for String and Array *)
 			let actual_path, actual_params = match c.cl_path with
 			| ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) ->
 				(* String static methods like fromCharCode are in cs.StringExt *)
 				((["cs"], "StringExt"), [])
+			| ([], "Array") | (["haxe"; "root"], "Array") ->
+				(* Array is non-generic in C# output *)
+				(cs_path_of_path c.cl_path, [])
 			| _ ->
 				let path = cs_path_of_path c.cl_path in
 				(* For generic classes, try to infer type arguments from field type *)
@@ -2355,9 +2487,8 @@ let rec cs_expr_of_texpr ectx e =
 				m_explicit_interface = None;
 				m_attributes = [];
 			} in
-			(* Build invokeDynamic method *)
-			let haxe_array_object = CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeObject]) in
-			let args_array = CsField (CsLocal "args", "__a") in
+			(* Build invokeDynamic method - Array is non-generic in C# output *)
+			let args_array = CsField (CsLocal "args", "__objectArray") in
 			let invoke_dynamic_args = List.mapi (fun i cs_type ->
 				let idx_const = CsConst (CsConstInt (Int32.of_int i)) in
 				let arg_access = CsArrayAccess (args_array, idx_const) in
@@ -2370,7 +2501,7 @@ let rec cs_expr_of_texpr ectx e =
 				m_access = AccessModifier.Public;
 				m_modifiers = [MemberModifier.Override];
 				m_type_params = [];
-				m_params = [{ p_name = "args"; p_type = Some haxe_array_object; p_default = None; p_modifier = None }];
+				m_params = [{ p_name = "args"; p_type = Some haxe_array_type; p_default = None; p_modifier = None }];
 				m_body = Some [CsReturn (Some invoke_call_dyn)];
 				m_constraints = [];
 				m_explicit_interface = None;
@@ -2496,9 +2627,8 @@ let rec cs_expr_of_texpr ectx e =
 				(* Generate rest args - wrap into Array<T> *)
 				let rest_cs_arg =
 					if rest_args = [] then
-						(* No rest args - create empty Array<T> *)
-						let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
-						CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+						(* No rest args - create empty Array *)
+						CsNew (haxe_array_type, [])
 					else begin
 						(* Check if first rest arg is a spread expression *)
 						match (List.hd rest_args).eexpr with
@@ -2506,14 +2636,16 @@ let rec cs_expr_of_texpr ectx e =
 							(* Spread operator: pass through the inner expression directly *)
 							cs_expr_of_texpr ectx spread_expr
 						| _ ->
-							(* Multiple args to wrap into Array<T>.ofNative(new T[] { ... }) *)
+							(* Multiple args to wrap into Array<T> using appropriate factory method *)
 							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 							let rest_cs_args = List.map (fun arg ->
 								let cs_arg = cs_expr_of_texpr ectx arg in
 								coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
 							) rest_args in
 							let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
-							CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+							let storage_type = classify_cs_array_element_type elem_cs_type in
+							let target_array_type = haxe_array_type in
+							make_array_from_native storage_type native_array target_array_type
 					end
 				in
 				let all_args = regular_cs_args @ [rest_cs_arg] in
@@ -2859,11 +2991,10 @@ let rec cs_expr_of_texpr ectx e =
 						let cs_arg = cs_expr_of_texpr ectx arg in
 						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
 					) regular_args in
-					(* Generate rest args - wrap into Array<T> *)
+					(* Generate rest args - wrap into Array *)
 					let rest_cs_arg =
 						if rest_args = [] then
-							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
-							CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+							CsNew (haxe_array_type, [])
 						else begin
 							match (List.hd rest_args).eexpr with
 							| TUnop (Spread, _, spread_expr) ->
@@ -2875,7 +3006,9 @@ let rec cs_expr_of_texpr ectx e =
 									coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
 								) rest_args in
 								let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
-								CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+								let storage_type = classify_cs_array_element_type elem_cs_type in
+								let target_array_type = haxe_array_type in
+								make_array_from_native storage_type native_array target_array_type
 						end
 					in
 					let all_args = regular_cs_args @ [rest_cs_arg] in
@@ -2952,8 +3085,8 @@ let rec cs_expr_of_texpr ectx e =
 			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString cf.cf_name)]) in
 			(* Build args array *)
 			let cs_args = List.map (cs_expr_of_texpr ectx) args in
-			let args_array = CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative",
-				[CsNewArray (CsTypeObject, cs_args)]) in
+			let native_array = CsNewArray (CsTypeObject, cs_args) in
+			let args_array = make_array_from_native ArrayDynamic native_array (haxe_array_type) in
 			(* Call Runtime.InvokeDelegate(method, args) *)
 			let invoke_call = CsStaticCall (CsTypeClass (runtime_path, []), "InvokeDelegate", [field_call; args_array]) in
 			(* Cast result to expected type *)
@@ -3249,7 +3382,75 @@ let rec cs_expr_of_texpr ectx e =
 			CsCallGeneric (CsField (obj, get_native_field_name cf), method_type_params, cs_args)
 		end else begin
 			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types_base in
-			CsCall (CsField (obj, get_native_field_name cf), cs_args)
+			(* For Array methods, use typed accessor methods when the element type is known.
+			   This avoids boxing/unboxing overhead. Methods like pop(), shift() become
+			   __popInt(), __shiftInt() etc. based on element type. *)
+			begin match c.cl_path with
+			| ([], "Array") | (["haxe"; "root"], "Array") ->
+				(* Get the element type from the Array type parameters.
+				   tl contains the applied type params, e.g., [Int] for Array<Int>. *)
+				let storage_type = match tl with
+					| [elem] ->
+						begin match follow elem with
+						| TAbstract ({ a_path = ([], "Int") }, _) -> ArrayInt
+						| TAbstract ({ a_path = ([], "Float") }, _) -> ArrayFloat
+						| TAbstract ({ a_path = ([], "Bool") }, _) -> ArrayBool
+						| TDynamic _ -> ArrayDynamic
+						| TAbstract ({ a_path = ([], "Any") }, _) -> ArrayDynamic
+						| TInst ({ cl_kind = KTypeParameter _ }, _) -> ArrayDynamic
+						| _ -> ArrayObject
+						end
+					| _ -> ArrayDynamic
+				in
+				let method_name = get_native_field_name cf in
+				(* Check if this method has a typed variant *)
+				let typed_method_name = match method_name, storage_type with
+					| "pop", ArrayInt -> Some "__popInt"
+					| "pop", ArrayFloat -> Some "__popFloat"
+					| "pop", ArrayBool -> Some "__popBool"
+					| "shift", ArrayInt -> Some "__shiftInt"
+					| "shift", ArrayFloat -> Some "__shiftFloat"
+					| "shift", ArrayBool -> Some "__shiftBool"
+					| "push", ArrayInt -> Some "__pushInt"
+					| "push", ArrayFloat -> Some "__pushFloat"
+					| "push", ArrayBool -> Some "__pushBool"
+					| "push", ArrayDynamic -> Some "__pushDyn"
+					| "unshift", ArrayInt -> Some "__unshiftInt"
+					| "unshift", ArrayFloat -> Some "__unshiftFloat"
+					| "unshift", ArrayBool -> Some "__unshiftBool"
+					| "unshift", ArrayDynamic -> Some "__unshiftDyn"
+					| "insert", ArrayInt -> Some "__insertInt"
+					| "insert", ArrayFloat -> Some "__insertFloat"
+					| "insert", ArrayBool -> Some "__insertBool"
+					| "insert", ArrayDynamic -> Some "__insertDyn"
+					| _ -> None
+				in
+				begin match typed_method_name with
+				| Some typed_name ->
+					(* Use typed method - no conversion needed *)
+					CsCall (CsField (obj, typed_name), cs_args)
+				| None ->
+					(* Fall back to generic method with conversion if needed *)
+					let call_expr = CsCall (CsField (obj, method_name), cs_args) in
+					let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
+					begin match expected_cs_type with
+					| CsTypeObject | CsTypeDynamic | CsTypeVoid ->
+						(* No conversion needed *)
+						call_expr
+					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsSignature.is_inherently_nullable inner) ->
+						(* Null<T> where T is a value type - use Null<T>._ofDynamic(result) *)
+						CsStaticCall (expected_cs_type, "_ofDynamic", [call_expr])
+					| _ when CsSignature.is_inherently_nullable expected_cs_type ->
+						(* Reference type - simple cast *)
+						CsCast (expected_cs_type, call_expr)
+					| _ ->
+						(* Value type - cast through object *)
+						CsCast (expected_cs_type, call_expr)
+					end
+				end
+			| _ ->
+				CsCall (CsField (obj, get_native_field_name cf), cs_args)
+			end
 		end
 		end  (* close the obj_cs_type check *)
 		end  (* close the is_var_with_func_type else branch *)
@@ -3300,12 +3501,12 @@ let rec cs_expr_of_texpr ectx e =
 			let is_function = match follow cf.cf_type with TFun _ -> true | _ -> false in
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			if is_function then begin
-				(* Build an array of arguments: Array<object>.ofNative(new object[] { ... }) *)
+				(* Build an array of arguments using appropriate factory method *)
 				let args_array = if args = [] then
-					CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+					CsNew (haxe_array_type, [])
 				else
 					let native_array = CsNewArray (CsTypeObject, args) in
-					CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+					make_array_from_native ArrayDynamic native_array (haxe_array_type)
 				in
 				let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
 				(* Cast the result to the expected return type.
@@ -3330,12 +3531,12 @@ let rec cs_expr_of_texpr ectx e =
 			(* Object type (from TAnon/structural type) - use Reflect.field then Runtime.InvokeDelegate *)
 			let reflect_path = (["haxe"; "root"], "Reflect") in
 			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString cf.cf_name)]) in
-			(* Build an array of arguments: Array<object>.ofNative(new object[] { ... }) *)
+			(* Build an array of arguments using appropriate factory method *)
 			let args_array = if args = [] then
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+				CsNew (haxe_array_type, [])
 			else
 				let native_array = CsNewArray (CsTypeObject, args) in
-				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
 			(* Convert the result to the expected return type using Runtime helpers.
@@ -3360,12 +3561,12 @@ let rec cs_expr_of_texpr ectx e =
 			let haxe_object_type = CsTypeClass ((["haxe"; "root"], "HaxeObject"), []) in
 			let casted_obj = CsCast (haxe_object_type, CsCast (CsTypeObject, obj)) in
 			let field_call = CsCall (CsField (casted_obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
-			(* Build an array of arguments: Array<object>.ofNative(new object[] { ... }) *)
+			(* Build an array of arguments using appropriate factory method *)
 			let args_array = if args = [] then
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+				CsNew (haxe_array_type, [])
 			else
 				let native_array = CsNewArray (CsTypeObject, args) in
-				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx e.etype in
@@ -3384,12 +3585,12 @@ let rec cs_expr_of_texpr ectx e =
 		| _ ->
 			(* Fallback to dynamic dispatch via _hx_getField -> Runtime.InvokeDelegate *)
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
-			(* Build an array of arguments: Array<object>.ofNative(new object[] { ... }) *)
+			(* Build an array of arguments using appropriate factory method *)
 			let args_array = if args = [] then
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+				CsNew (haxe_array_type, [])
 			else
 				let native_array = CsNewArray (CsTypeObject, args) in
-				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
 			(* Convert the result using Runtime helpers for proper type conversion *)
@@ -3414,10 +3615,10 @@ let rec cs_expr_of_texpr ectx e =
 		let func_expr = CsField (obj, name) in
 		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
 		let args_array = if args_exprs = [] then
-			CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+			CsNew (haxe_array_type, [])
 		else
 			let native_array = CsNewArray (CsTypeObject, args_exprs) in
-			CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+			make_array_from_native ArrayDynamic native_array (haxe_array_type)
 		in
 		let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
 		let result_type = cs_type_of_type ectx.gctx e.etype in
@@ -3447,12 +3648,12 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		let get_field = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj; CsConst (CsConstString name)]) in
 		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
-		(* Build an array of arguments: Array<object>.ofNative(new object[] { ... }) *)
+		(* Build an array of arguments using appropriate factory method *)
 		let args_array = if args_exprs = [] then
-			CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+			CsNew (haxe_array_type, [])
 		else
 			let native_array = CsNewArray (CsTypeObject, args_exprs) in
-			CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+			make_array_from_native ArrayDynamic native_array (haxe_array_type)
 		in
 		let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [get_field; args_array]) in
 		(* Cast the result to the expected return type - use e.etype (the TCall's type), not e_obj.etype *)
@@ -3507,10 +3708,10 @@ let rec cs_expr_of_texpr ectx e =
 			let func_expr = CsStaticField (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name) in
 			let args_exprs = List.map (cs_expr_of_texpr ectx) orig_args in
 			let args_array = if args_exprs = [] then
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+				CsNew (haxe_array_type, [])
 			else
 				let native_array = CsNewArray (CsTypeObject, args_exprs) in
-				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx return_type in
@@ -3524,6 +3725,9 @@ let rec cs_expr_of_texpr ectx e =
 		| ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) ->
 			(* String static methods like fromCharCode are in cs.StringExt *)
 			((["cs"], "StringExt"), [])
+		| ([], "Array") | (["haxe"; "root"], "Array") ->
+			(* Array is non-generic in C# output *)
+			(cs_path_of_path c.cl_path, [])
 		| _ ->
 			let path = cs_path_of_path c.cl_path in
 			(* For generic classes, infer type arguments from return type if possible *)
@@ -4045,12 +4249,12 @@ let rec cs_expr_of_texpr ectx e =
 				| TConst TNull -> CsNull  (* Use actual null for dynamic call args *)
 				| _ -> cs_expr_of_texpr ectx arg
 			) args in
-			(* Build an array of arguments: new haxe.root.Array<object>(new object[] { ... }) *)
+			(* Build an array of arguments using appropriate factory method *)
 			let args_array = if args_exprs = [] then
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+				CsNew (haxe_array_type, [])
 			else
 				let native_array = CsNewArray (CsTypeObject, args_exprs) in
-				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
 			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
 			(* Cast the result to the expected return type *)
@@ -4127,11 +4331,10 @@ let rec cs_expr_of_texpr ectx e =
 						let expected_type = List.nth param_types_hx i in
 						convert_arg arg expected_type
 					) regular_args in
-					(* Generate rest args - wrap into Array<T> *)
+					(* Generate rest args - wrap into Array *)
 					let rest_cs_arg =
 						if rest_args = [] then
-							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
-							CsNew (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), [])
+							CsNew (haxe_array_type, [])
 						else begin
 							match (List.hd rest_args).eexpr with
 							| TUnop (Spread, _, spread_expr) ->
@@ -4142,7 +4345,9 @@ let rec cs_expr_of_texpr ectx e =
 									convert_arg arg rest_elem_type
 								) rest_args in
 								let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
-								CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [elem_cs_type]), "ofNative", [native_array])
+								let storage_type = classify_cs_array_element_type elem_cs_type in
+								let target_array_type = haxe_array_type in
+								make_array_from_native storage_type native_array target_array_type
 						end
 					in
 					let all_args = regular_cs_args @ [rest_cs_arg] in
@@ -4215,6 +4420,10 @@ let rec cs_expr_of_texpr ectx e =
 			| [arg] -> cs_expr_of_texpr ectx arg
 			| _ -> CsRaw "/* ERROR: String constructor with unexpected args */"
 			end
+		| ([], "Array") | (["haxe"; "root"], "Array") ->
+			(* Array is non-generic in C# output - just new haxe.root.Array() *)
+			let cs_args = List.map (cs_expr_of_texpr ectx) args in
+			CsNew (haxe_array_type, cs_args)
 		| _ ->
 			let path = cs_path_of_path c.cl_path in
 			(* Use type params from AST - we handle type mismatches in coerce_arg *)
@@ -4300,8 +4509,8 @@ let rec cs_expr_of_texpr ectx e =
 			let field_args = List.rev field_args in
 			(* Create native object array with the field name/value pairs *)
 			let array_expr = CsNewArray (CsTypeObject, field_args) in
-			(* Wrap in haxe.root.Array<object>.ofNative for the Haxe Array type *)
-			let haxe_array = CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [array_expr]) in
+			(* Wrap in haxe.root.Array<object> using appropriate factory method *)
+			let haxe_array = make_array_from_native ArrayDynamic array_expr (haxe_array_type) in
 			CsStaticCall (CsTypeClass (NativeTypes.haxe_dynamic_object_path, []), "_hx_create", [haxe_array])
 		end
 	| TArrayDecl items ->
@@ -4317,14 +4526,17 @@ let rec cs_expr_of_texpr ectx e =
 			(* Empty array: new haxe.root.Array<T>() *)
 			CsNew (array_type, [])
 		else begin
-			(* Non-empty array: new haxe.root.Array<T>(new T[] { ... }) or use ofNative *)
-			let elem_type = match follow e.etype with
-				| TInst (_, [t]) -> cs_type_of_type ectx.gctx t
-				| _ -> CsTypeObject
+			(* Non-empty array: use appropriate factory method based on element type *)
+			let elem_hx_type = match follow e.etype with
+				| TInst (_, [t]) -> t
+				| TAbstract ({ a_path = ([], "Null") }, [TInst (_, [t])]) -> t
+				| _ -> mk_mono()
 			in
+			let elem_cs_type = cs_type_of_type ectx.gctx elem_hx_type in
 			let cs_items = List.map (cs_expr_of_texpr ectx) items in
-			(* Create native array and wrap with ofNative *)
-			CsStaticCall (array_type, "ofNative", [CsNewArray (elem_type, cs_items)])
+			let native_array = CsNewArray (elem_cs_type, cs_items) in
+			let storage_type = classify_cs_array_element_type elem_cs_type in
+			make_array_from_native storage_type native_array array_type
 		end
 	| TTypeExpr mt ->
 		(* Convert module type to Haxe type, then to C# type *)
@@ -4568,10 +4780,27 @@ let rec cs_expr_of_texpr ectx e =
 						CsCast (target_type, CsCast (CsTypeObject, unwrapped))
 				end
 				else begin
-					(* Special case: native array T[] to Haxe Array<T> - use Array<T>.ofNative() *)
+					(* Special case: native array T[] to Haxe Array - use appropriate factory method.
+				   Array is non-generic in C# output, so we use the actual array element type. *)
 					match target_type, inner_type with
-					| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (_, _) ->
-						CsStaticCall (target_type, "ofNative", [inner_cs])
+					| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (elem_type, _) ->
+						let storage_type = classify_cs_array_element_type elem_type in
+						make_array_from_native storage_type inner_cs target_type
+					| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeClass ((["haxe"; "root"], "Array"), _) ->
+						(* Array to Array cast - may need to call __cast() to migrate storage.
+						   Check Haxe types (not C# types) to determine source and target storage. *)
+						let target_storage = classify_array_element_type e.etype in
+						let source_storage = classify_array_element_type inner_e.etype in
+						let type_code = array_cast_type_code target_storage in
+						if type_code = 0 then
+							(* Target is Dynamic - no __cast needed, just return inner *)
+							inner_cs
+						else if target_storage = source_storage then
+							(* Same storage type - no migration needed *)
+							inner_cs
+						else
+							(* Different storage types - call __cast(type_code) to migrate *)
+							CsCall (CsField (inner_cs, "__cast"), [CsConst (CsConstInt (Int32.of_int type_code))])
 					| _ ->
 					(* C# doesn't allow direct casts between unrelated type parameters or
 				   primitives to type parameters. Cast through object: (Target)(object)source *)
@@ -5471,8 +5700,30 @@ and cs_stmt_of_texpr ectx e =
 					in
 					let converted = CsCast (inner_type, cs_e) in
 					CsNew (ret_cs, [converted; CsConst (CsConstBool true)])
+				| Some ret_t when is_dynamic e.etype && is_ret_null_wrapper ->
+					(* Returning Dynamic but method returns Null<T> - need to construct Null wrapper.
+					   Generate: v == null ? default(Null<T>) : new Null<T>((T)v, true)
+					   We use Runtime.toInt/toDouble/toBool for proper numeric conversion. *)
+					let ret_cs = cs_type_of_type ectx.gctx ret_t in
+					let inner_type = match ret_cs with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) -> inner
+						| _ -> CsTypeObject
+					in
+					let null_check = CsBinop (CsOpEq, cs_e, CsNull) in
+					let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+					let converted_value = match inner_type with
+						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_e])
+						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_e])
+						| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_e]))
+						| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [cs_e])
+						| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [cs_e])
+						| _ -> CsCast (inner_type, cs_e)
+					in
+					let true_branch = CsDefault ret_cs in
+					let false_branch = CsNew (ret_cs, [converted_value; CsConst (CsConstBool true)]) in
+					CsTernary (null_check, true_branch, false_branch)
 				| Some ret_t when is_dynamic e.etype && not (is_dynamic ret_t) && not (ExtType.is_void (follow ret_t)) ->
-					(* Returning Dynamic but method returns a concrete type (non-void) - add cast *)
+					(* Returning Dynamic but method returns a concrete type (non-void, non-Null) - add cast *)
 					CsCast (cs_type_of_type ectx.gctx ret_t, cs_e)
 				| Some ret_t when is_type_param e.etype && is_ret_null_wrapper ->
 					(* Expression is T (type param) and return is Null<T> - use implicit conversion, don't cast *)
@@ -5870,13 +6121,13 @@ let generate_closure_class ectx tf func_type =
 	(* For optional parameters, check if the argument was provided before accessing.
 	   tf.tf_args has (var, default_opt) pairs where Some(_) means optional. *)
 	let invoke_dynamic_body =
-		(* Generate: return invoke((T0)args.__a[0], (T1)args.__a[1], ...);
-		   But for optional parameters, use: args.length > i ? (T)args.__a[i] : default(Null<T>)
+		(* Generate: return invoke((T0)args.__objectArray[0], (T1)args.__objectArray[1], ...);
+		   But for optional parameters, use: args.length > i ? (T)args.__objectArray[i] : default(Null<T>)
 		   IMPORTANT: For Null<T> types, we need special handling:
 		   - If arg is null, use default(Null<T>) which has hasValue=false
 		   - If arg is present, cast to inner T and let implicit conversion make Null<T>
 		   This prevents InvalidCastException when casting null to a value type. *)
-		let args_array = CsField (CsLocal "args", "__a") in
+		let args_array = CsField (CsLocal "args", "__objectArray") in
 		let args_length = CsField (CsLocal "args", "length") in
 		(* Build list with (param, is_optional) *)
 		let params_with_opt = List.filter_map (fun (v, default_opt) ->
@@ -5893,10 +6144,10 @@ let generate_closure_class ectx tf func_type =
 				   1. null → Null<T> with hasValue=false
 				   2. boxed Null<T> with hasValue=false → Null<T> with hasValue=false
 				   3. value → Null<T> with the value
-				   Generate: Null<inner_type>._ofDynamic(args.__a[i])
-				   For optional params: args.length > i ? Null<T>._ofDynamic(args.__a[i]) : default(Null<T>) *)
+				   Generate: Null<inner_type>._ofDynamic(args.__objectArray[i])
+				   For optional params: args.length > i ? Null<T>._ofDynamic(args.__objectArray[i]) : default(Null<T>) *)
 				let default_val = CsDefault null_type in
-				(* Call Null<T>._ofDynamic(args.__a[i]) - static method on the Null<T> type *)
+				(* Call Null<T>._ofDynamic(args.__objectArray[i]) - static method on the Null<T> type *)
 				let of_dynamic_call = CsStaticCall (null_type, "_ofDynamic", [arg_access]) in
 				if is_optional then
 					let length_check = CsBinop (CsOpGt, args_length, idx_const) in
@@ -5923,14 +6174,14 @@ let generate_closure_class ectx tf func_type =
 		else
 			[CsReturn (Some invoke_call)]
 	in
-	let haxe_array_object = CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeObject]) in
+	(* Array is non-generic in C# output *)
 	let invoke_dynamic_method = CsMemberMethod {
 		m_name = "invokeDynamic";
 		m_return_type = CsTypeObject;
 		m_access = AccessModifier.Public;
 		m_modifiers = [MemberModifier.Override];
 		m_type_params = [];
-		m_params = [{ p_name = "args"; p_type = Some haxe_array_object; p_default = None; p_modifier = None }];
+		m_params = [{ p_name = "args"; p_type = Some haxe_array_type; p_default = None; p_modifier = None }];
 		m_body = Some invoke_dynamic_body;
 		m_constraints = [];
 		m_explicit_interface = None;
@@ -6266,10 +6517,10 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 			(* Static function field - use Runtime.InvokeDelegate *)
 			let func_expr = CsStaticField (static_type, method_name) in
 			let args_array = if call_args = [] then
-				CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+				CsNew (haxe_array_type, [])
 			else
 				let native_array = CsNewArray (CsTypeObject, call_args) in
-				CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
 			CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array])
 		end else
@@ -6279,10 +6530,10 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		let obj = CsField (CsThis, "_hx_this") in
 		let func_expr = CsField (obj, method_name) in
 		let args_array = if call_args = [] then
-			CsNew (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), [])
+			CsNew (haxe_array_type, [])
 		else
 			let native_array = CsNewArray (CsTypeObject, call_args) in
-			CsStaticCall (CsTypeClass (NativeTypes.haxe_array_path, [CsTypeObject]), "ofNative", [native_array])
+			make_array_from_native ArrayDynamic native_array (haxe_array_type)
 		in
 		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array])
 	end else
@@ -6349,7 +6600,7 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	     3. value → Null<T> with the value
 	   For optional parameters, check bounds before accessing. *)
 	let invoke_dynamic_body =
-		let args_array = CsField (CsLocal "args", "__a") in
+		let args_array = CsField (CsLocal "args", "__objectArray") in
 		let args_length = CsField (CsLocal "args", "length") in
 		let dyn_call_args = List.mapi (fun i (param, is_optional) ->
 			let idx_const = CsConst (CsConstInt (Int32.of_int i)) in
@@ -6385,13 +6636,14 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 			[CsReturn (Some invoke_call)]
 	in
 
+	(* Array is non-generic in C# output *)
 	let invoke_dynamic = CsMemberMethod {
 		m_name = "invokeDynamic";
 		m_return_type = CsTypeObject;
 		m_access = AccessModifier.Public;
 		m_modifiers = [Override];
 		m_type_params = [];
-		m_params = [{ p_name = "args"; p_type = Some (CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeObject])); p_default = None; p_modifier = None }];
+		m_params = [{ p_name = "args"; p_type = Some haxe_array_type; p_default = None; p_modifier = None }];
 		m_body = Some invoke_dynamic_body;
 		m_constraints = [];
 		m_explicit_interface = None;
@@ -7855,15 +8107,16 @@ let generate_field_accessors gctx c =
 		(* Generate _hx_getFields override - only data fields, not methods *)
 		let get_fields_method = if field_names = [] then None else
 			let field_name_exprs = List.map (fun name -> CsConst (CsConstString name)) field_names in
-			let array_type = CsTypeClass ((["haxe"; "root"], "Array"), [CsTypeString]) in
+			let native_array = CsNewArray (CsTypeObject, field_name_exprs) in
+			let array_expr = make_array_from_native ArrayObject native_array haxe_array_type in
 			Some (CsMemberMethod {
 				m_name = "_hx_getFields";
-				m_return_type = array_type;
+				m_return_type = haxe_array_type;
 				m_access = AccessModifier.Public;
 				m_modifiers = [MemberModifier.Override];
 				m_type_params = [];
 				m_params = [];
-				m_body = Some [CsReturn (Some (CsStaticCallGeneric (array_type, "ofNative", [CsTypeString], [CsNewArray (CsTypeString, field_name_exprs)])))];
+				m_body = Some [CsReturn (Some array_expr)];
 				m_constraints = [];
 				m_explicit_interface = None;
 				m_attributes = [];
@@ -7959,6 +8212,17 @@ let generate_field_accessors gctx c =
 (* Generate C# class from Haxe class *)
 let generate_class gctx c =
 	let path = cs_path_of_path c.cl_path in
+
+	(* For Array class, erase type parameters to object.
+	   Array is non-generic in C# output to enable covariant casts (Array<Int> -> Array<Dynamic>).
+	   Set erased_type_params for this class's type params so cs_type_of_type maps T -> object. *)
+	let prev_erased_type_params = !erased_type_params in
+	begin match c.cl_path with
+	| ([], "Array") | (["haxe"; "root"], "Array") ->
+		erased_type_params := List.map (fun ttp -> ttp.ttp_name) c.cl_params
+	| _ ->
+		erased_type_params := []
+	end;
 
 	(* Determine modifiers *)
 	let modifiers =
@@ -8145,14 +8409,20 @@ let generate_class gctx c =
 	| None -> ()
 	end;
 
-	(* Extract type parameter names *)
-	let type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
+	(* Extract type parameter names.
+	   Special case: Array is non-generic in C# output to enable covariance (Array<Int> -> Array<Dynamic>).
+	   The type parameter T only affects how gencs.ml generates access code, not the runtime class. *)
+	let type_params = match c.cl_path with
+		| ([], "Array") | (["haxe"; "root"], "Array") -> []  (* Non-generic Array *)
+		| _ -> List.map (fun ttp -> ttp.ttp_name) c.cl_params
+	in
 
 	(* Extract type parameter constraints.
 	   Haxe constraints like T:SomeClass become C# where T : SomeClass.
 	   C# constraints can only be: interfaces, non-sealed classes, or type parameters.
-	   We filter out invalid constraints like value types, sealed classes, etc. *)
-	let type_constraints = List.filter_map (fun ttp ->
+	   We filter out invalid constraints like value types, sealed classes, etc.
+	   For Array (non-generic in C#), skip constraints entirely. *)
+	let type_constraints = if type_params = [] then [] else List.filter_map (fun ttp ->
 		let constraints = TFunctions.get_constraints ttp in
 		if constraints = [] then None
 		else begin

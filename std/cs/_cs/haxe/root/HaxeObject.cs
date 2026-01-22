@@ -47,9 +47,9 @@ namespace haxe.root
             return false;
         }
 
-        public virtual global::haxe.root.Array<string> _hx_getFields()
+        public virtual global::haxe.root.Array _hx_getFields()
         {
-            return new global::haxe.root.Array<string>();
+            return new global::haxe.root.Array();
         }
 
         // ============================================================
@@ -110,7 +110,7 @@ namespace haxe.root
         /// <summary>
         /// Fallback for methods with 10+ arguments. Uses object[] allocation.
         /// </summary>
-        public virtual object _hx_invokeMethodDynamic(int index, global::haxe.root.Array<object> args)
+        public virtual object _hx_invokeMethodDynamic(int index, global::haxe.root.Array args)
         {
             throw new global::System.NotImplementedException($"Method index {index} not found (dynamic)");
         }

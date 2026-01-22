@@ -69,6 +69,11 @@ module NativeTypes = struct
 	let haxe_runtime_path = (["haxe"; "lang"], "Runtime")
 end
 
+(* Type parameters to erase to object for the current class being generated.
+   This is set by gencs.ml when generating classes that have erased type parameters
+   (like Array, which is non-generic in C# output). *)
+let erased_type_params : string list ref = ref []
+
 (* Check if a C# type is a primitive/value type *)
 let is_value_type = function
 	| CsTypeBool | CsTypeByte | CsTypeSByte
@@ -191,10 +196,11 @@ let rec cs_type_of_type_inner gctx stack t =
 		   This allows any object to be passed where structural types are expected.
 		   Field access on these types uses runtime dispatch via Reflect or casts. *)
 		CsTypeObject
-	| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, [t]) ->
-		(* Array<T> stays as haxe.root.Array, not List<T> *)
-		let inner = cs_type_of_type_inner t in
-		CsTypeClass (NativeTypes.haxe_array_path, [inner])
+	| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, _) ->
+		(* Array<T> becomes non-generic haxe.root.Array in C#.
+		   The type parameter T only affects how gencs.ml generates access code.
+		   This enables casts between Array<Int> and Array<Dynamic> etc. *)
+		CsTypeClass (NativeTypes.haxe_array_path, [])
 	| TInst ({ cl_path = (["cs"], "NativeArray") }, [t]) ->
 		(* cs.NativeArray<T> -> T[] *)
 		let inner = cs_type_of_type_inner t in
@@ -210,8 +216,13 @@ let rec cs_type_of_type_inner gctx stack t =
 		| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
 		end
 	| TInst ({ cl_kind = KTypeParameter ttp }, _) ->
-		(* Type parameter -> preserve as generic param for C# generics *)
-		CsTypeGenericParam ttp.ttp_name
+		(* Type parameter -> check if it should be erased to object.
+		   For classes like Array that are non-generic in C# output, type params
+		   are erased to object. This is controlled by erased_type_params ref. *)
+		if List.mem ttp.ttp_name !erased_type_params then
+			CsTypeObject
+		else
+			CsTypeGenericParam ttp.ttp_name
 	| TInst (c, params) ->
 		let path = cs_path_of_path c.cl_path in
 		(* Convert type params, respecting constraints.

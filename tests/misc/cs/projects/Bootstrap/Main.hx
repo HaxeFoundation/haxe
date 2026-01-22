@@ -60,6 +60,7 @@ class Main {
 		testReflectAndType();
 		testThreads();
 		testAtomics();
+		testDynamicArrays();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -609,6 +610,60 @@ class Main {
 		var combined = arr.concat(arr2);
 		eq(7, combined.length);
 		eq(10, combined[5]);
+	}
+
+	static function testDynamicArrays() {
+		// Test 1: Cast Array<Int> to Array<Dynamic>
+		var intArr:Array<Int> = [1, 2, 3, 4, 5];
+		eq(5, intArr.length);
+		eq(3, intArr[2]);
+
+		// Cast to Dynamic - should work since Array is non-generic at runtime
+		var dynArr:Array<Dynamic> = cast intArr;
+		eq(5, dynArr.length);
+		eq(3, dynArr[2]);
+
+		// Modifying through Dynamic reference should work
+		dynArr.push(6);
+		eq(6, dynArr.length);
+		eq(6, intArr.length); // Same underlying array
+
+		// Test 2: Cast Array<Dynamic> (with only ints) to Array<Int>
+		var dynArr2:Array<Dynamic> = [];
+		dynArr2.push(10);
+		dynArr2.push(20);
+		dynArr2.push(30);
+		eq(3, dynArr2.length);
+
+		// Cast to Int array - should work since it only contains ints
+		var intArr2:Array<Int> = cast dynArr2;
+		eq(3, intArr2.length);
+		eq(10, intArr2[0]);
+		eq(20, intArr2[1]);
+		eq(30, intArr2[2]);
+
+		// Sum through typed array
+		var sum = 0;
+		for (v in intArr2) {
+			sum += v;
+		}
+		eq(60, sum);
+
+		// Test 3: Array operations preserve type after cast
+		intArr2.push(40);
+		eq(4, intArr2.length);
+		eq(4, dynArr2.length); // Same underlying array
+		eq(40, dynArr2[3]);
+
+		// Test 4: String array casting
+		var strArr:Array<String> = ["a", "b", "c"];
+		var dynStrArr:Array<Dynamic> = cast strArr;
+		eq(3, dynStrArr.length);
+		eq("b", dynStrArr[1]);
+
+		// Cast back
+		var strArr2:Array<String> = cast dynStrArr;
+		eq("c", strArr2[2]);
 	}
 
 	static function testEnums() {

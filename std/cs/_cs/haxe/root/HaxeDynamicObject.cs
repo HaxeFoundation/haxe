@@ -16,13 +16,13 @@ namespace haxe.root
 
         // Factory method to create with initial field values
         // Usage: _hx_create(["field1", value1, "field2", value2, ...])
-        public static global::haxe.root.HaxeDynamicObject _hx_create(global::haxe.root.Array<object> args)
+        public static global::haxe.root.HaxeDynamicObject _hx_create(global::haxe.root.Array args)
         {
             var obj = new global::haxe.root.HaxeDynamicObject();
             for (int i = 0; i < args.length; i += 2)
             {
-                var name = (string)args.__a[i];
-                var value = args.__a[i + 1];
+                var name = (string)args.__objectArray[i];
+                var value = args.__objectArray[i + 1];
                 obj._hx_setField(name, value);
             }
             return obj;
@@ -67,10 +67,10 @@ namespace haxe.root
             return _hx_fields.Remove(name);
         }
 
-        public override global::haxe.root.Array<string> _hx_getFields()
+        public override global::haxe.root.Array _hx_getFields()
         {
             _hx_initFields();
-            var result = new global::haxe.root.Array<string>();
+            var result = new global::haxe.root.Array();
             foreach (var key in _hx_fields.Keys)
             {
                 result.push(key);
