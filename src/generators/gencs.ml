@@ -2160,8 +2160,60 @@ let rec cs_expr_of_texpr ectx e =
 						let op_result = CsStaticCall (CsTypeClass (cs_path, []), helper, [e1_cs; e2_cs]) in
 						CsBinop (CsOpAssign, e1_cs, op_result)
 				| `None ->
-					(* Non-dynamic compound assignment - use normal operator *)
-					CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+					(* Check if e1 is a Haxe Array element access with object storage that needs a cast.
+					   In C#, you can't do compound assignment on a cast expression:
+					     ((string)(arr.__objectArray[i])) += "x"  // Invalid!
+					   Expand to: arr.__objectArray[i] = ((string)(arr.__objectArray[i])) + "x" *)
+					let rec is_haxe_array_type t =
+						match follow t with
+						| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, _) -> true
+						| TAbstract ({ a_path = ([], "Null") }, [inner]) -> is_haxe_array_type inner
+						| TAbstract (a, tl) when a.a_path <> ([], "Null") ->
+							let underlying = Abstract.get_underlying_type a tl in
+							is_haxe_array_type underlying
+						| _ -> false
+					in
+					let is_null_wrapper e =
+						match follow e.etype with
+						| TAbstract ({ a_path = ([], "Null") }, _) -> true
+						| _ -> false
+					in
+					let haxe_array_element_access = match inner_e1.eexpr with
+						| TArray (arr_expr, idx_expr) when is_haxe_array_type arr_expr.etype ->
+							let storage = classify_array_element_type arr_expr.etype in
+							(* Only handle ArrayObject storage where we cast the element *)
+							begin match storage with
+							| ArrayObject ->
+								let expected_cs = cs_type_of_type ectx.gctx e1.etype in
+								(* Only needs special handling if we're casting to non-object *)
+								begin match expected_cs with
+								| CsTypeObject | CsTypeDynamic -> None
+								| _ -> Some (arr_expr, idx_expr, expected_cs)
+								end
+							| _ -> None
+							end
+						| _ -> None
+					in
+					begin match haxe_array_element_access with
+					| Some (arr_expr, idx_expr, elem_cs_type) ->
+						(* Expand: arr[i] += v  ->  arr.__objectArray[i] = (cast)(arr.__objectArray[i]) op v
+						   The cast is applied to the read, and the result goes back as object *)
+						let arr_cs = cs_expr_of_texpr ectx arr_expr in
+						let arr_cs = if is_null_wrapper arr_expr then CsField (arr_cs, "value") else arr_cs in
+						let idx_cs = cs_expr_of_texpr ectx idx_expr in
+						let e2_cs = cs_expr_of_texpr ectx e2 in
+						(* arr.__objectArray[i] *)
+						let array_access = CsArrayAccess (CsField (arr_cs, "__objectArray"), idx_cs) in
+						(* (T)(arr.__objectArray[i]) *)
+						let casted_read = CsCast (elem_cs_type, array_access) in
+						(* (T)(arr.__objectArray[i]) op v *)
+						let op_result = CsBinop (cs_binop_of_binop inner_op, casted_read, e2_cs) in
+						(* arr.__objectArray[i] = result *)
+						CsBinop (CsOpAssign, array_access, op_result)
+					| None ->
+						(* Non-dynamic compound assignment - use normal operator *)
+						CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+					end
 				end
 			| _ ->
 				(* Handle special cases for arithmetic operations *)
