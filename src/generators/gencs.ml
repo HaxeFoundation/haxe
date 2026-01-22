@@ -831,6 +831,22 @@ let rec is_erased_type_param t =
 	| TType (_, _) | TLazy _ -> is_erased_type_param (follow t)
 	| _ -> false
 
+(* DEBUG: Temporary debug function to trace type structure - REMOVE AFTER DEBUGGING *)
+let debug_type_structure prefix t =
+	let type_str = match t with
+		| TInst (c, _) -> Printf.sprintf "TInst(%s, kind=%s)" (s_type_path c.cl_path)
+			(match c.cl_kind with KTypeParameter _ -> "KTypeParameter" | KNormal -> "KNormal" | _ -> "other")
+		| TAbstract (a, _) -> Printf.sprintf "TAbstract(%s)" (s_type_path a.a_path)
+		| TFun _ -> "TFun"
+		| TDynamic _ -> "TDynamic"
+		| TAnon _ -> "TAnon"
+		| TType (td, _) -> Printf.sprintf "TType(%s)" (s_type_path td.t_path)
+		| TLazy _ -> "TLazy"
+		| TEnum (e, _) -> Printf.sprintf "TEnum(%s)" (s_type_path e.e_path)
+		| TMono _ -> "TMono"
+	in
+	Printf.eprintf "[DEBUG] %s: %s\n%!" prefix type_str
+
 (* Check if a method call's DECLARED return type involves a type parameter that gets erased.
    This covers two cases:
    1. Null<T> where T is a type parameter - erased to just `object` (not `Null<object>`)
@@ -2455,6 +2471,13 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		CsField (obj_expr, "Length")
 	| TField (e, FInstance (c, tl, cf)) ->
+		(* DEBUG: Trace all field accesses for specific fields - REMOVE AFTER DEBUGGING *)
+		let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
+			Printf.eprintf "[DEBUG] TField FInstance ENTRY for '%s' in class '%s'\n%!" cf.cf_name (s_type_path c.cl_path);
+			debug_type_structure (Printf.sprintf "  e.etype") e.etype;
+			debug_type_structure (Printf.sprintf "  cf.cf_type") cf.cf_type
+		end in
+		(* END DEBUG *)
 		(* Check if expression type is Null<T> - if so, access .value to unwrap *)
 		let needs_unwrap = find_null_in_expr e in
 		let obj_expr = cs_expr_of_texpr ectx e in
@@ -2464,6 +2487,12 @@ let rec cs_expr_of_texpr ectx e =
 		   In both cases, we can't do direct field access - use Reflect.field/setField. *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		let expr_is_erased = expr_returns_erased_type_param e in
+		(* DEBUG: Show which branch we take - REMOVE AFTER DEBUGGING *)
+		let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
+			Printf.eprintf "[DEBUG]   cs_type is CsTypeObject: %b\n%!" (match cs_type with CsTypeObject -> true | _ -> false);
+			Printf.eprintf "[DEBUG]   expr_is_erased: %b\n%!" expr_is_erased
+		end in
+		(* END DEBUG *)
 		begin match cs_type with
 		| CsTypeObject ->
 			(* Type was erased to object - use Reflect for field access *)
@@ -2509,6 +2538,13 @@ let rec cs_expr_of_texpr ectx e =
 			(* Check if the field's declared type is an erased type param.
 			   If so, the C# expression returns object, but we need to cast to the
 			   substituted type for subsequent field/method access to work. *)
+			(* DEBUG: Trace field type for debugging - REMOVE AFTER DEBUGGING *)
+			let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
+				debug_type_structure (Printf.sprintf "TField FInstance cf.cf_type for '%s' in '%s'" cf.cf_name (s_type_path c.cl_path)) cf.cf_type;
+				Printf.eprintf "[DEBUG] is_erased_type_param result: %b\n%!" (is_erased_type_param cf.cf_type);
+				Printf.eprintf "[DEBUG] c.cl_params length: %d\n%!" (List.length c.cl_params)
+			end in
+			(* END DEBUG *)
 			if is_erased_type_param cf.cf_type then
 				(* Apply type params to get the actual Haxe type after substitution *)
 				let map_type = apply_params c.cl_params tl in
@@ -2622,6 +2658,13 @@ let rec cs_expr_of_texpr ectx e =
 			CsStaticField (CsTypeClass (actual_path, actual_params), get_cs_field_name c cf)
 		end
 	| TField (e, FAnon cf) ->
+		(* DEBUG: Trace FAnon field accesses - REMOVE AFTER DEBUGGING *)
+		let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
+			Printf.eprintf "[DEBUG] TField FAnon ENTRY for '%s'\n%!" cf.cf_name;
+			debug_type_structure "  e.etype" e.etype;
+			debug_type_structure "  cf.cf_type" cf.cf_type
+		end in
+		(* END DEBUG *)
 		(* Anonymous object field access *)
 		(* First, check if expression type is Null<T> - if so, unwrap via .value.
 		   Use get_null_inner_if_needs_unwrap which correctly handles TCast expressions. *)
@@ -2680,6 +2723,12 @@ let rec cs_expr_of_texpr ectx e =
 			end
 		end
 	| TField (e_obj, FDynamic name) ->
+		(* DEBUG: Trace FDynamic field accesses - REMOVE AFTER DEBUGGING *)
+		let _ = if name = "dispatch" || name = "v" then begin
+			Printf.eprintf "[DEBUG] TField FDynamic ENTRY for '%s'\n%!" name;
+			debug_type_structure "  e_obj.etype" e_obj.etype
+		end in
+		(* END DEBUG *)
 		(* Dynamic field access - need to use reflection since C# object doesn't have arbitrary fields *)
 		let obj_expr = cs_expr_of_texpr ectx e_obj in
 		(* Check if the C# type is actually Null<T> (with type-level stripping, some Null<T>
@@ -3042,8 +3091,14 @@ let rec cs_expr_of_texpr ectx e =
 				CsCast (target_cs_type, obj)
 			else obj in
 			let func_expr = CsField (obj, get_native_field_name cf) in
-			(* Get parameter and return types for typed invoke *)
-			let param_types_hx, ret_type_hx = match follow cf.cf_type with
+			(* If the field's declared type is an erased type param, the field returns object in C#.
+			   But we need to call __hx_invoke on it, so cast to haxe.lang.Function. *)
+			let func_expr = if is_erased_type_param cf.cf_type then
+				CsCast (CsTypeClass ((["haxe"; "lang"], "Function"), []), func_expr)
+			else func_expr in
+			(* Get parameter and return types for typed invoke.
+			   Use actual_field_type (with type params substituted) to get concrete types. *)
+			let param_types_hx, ret_type_hx = match follow actual_field_type with
 				| TFun (params, ret) ->
 					List.map (fun (_, opt, t) ->
 						let is_already_null = match follow t with
@@ -5158,11 +5213,11 @@ let rec cs_expr_of_texpr ectx e =
 		(* Generate closure class and return instantiation expression *)
 		(* Following JVM's approach: every local function becomes a closure class *)
 		!generate_closure_class_ref ectx tf e.etype
-	| TEnumParameter (e, ef, i) ->
+	| TEnumParameter (enum_expr, ef, i) ->
 		(* Access enum constructor parameter - need to cast to the proper subclass *)
 		(* Check if expression is Null<EnumType> - need to unwrap via .value *)
-		let is_null_wrapper = find_null_in_expr e in
-		let obj = cs_expr_of_texpr ectx e in
+		let is_null_wrapper = find_null_in_expr enum_expr in
+		let obj = cs_expr_of_texpr ectx enum_expr in
 		(* Unwrap Null<T> to get the value before accessing enum parameter *)
 		let obj = if is_null_wrapper then CsField (obj, "value") else obj in
 		let param_name = match ef.ef_type with
@@ -5172,7 +5227,7 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> Printf.sprintf "_hx_p%d" i
 		in
 		(* Get the enum and its info from the expression type *)
-		let en, enum_params = match follow e.etype with
+		let en, enum_params = match follow enum_expr.etype with
 			| TEnum (en, params) -> en, params
 			| TAbstract ({ a_path = ([], "Null") }, [t]) ->
 				begin match follow t with
@@ -5220,7 +5275,7 @@ let rec cs_expr_of_texpr ectx e =
 				| _ -> None
 			in
 			List.map (fun ttp ->
-				match find_type_param_in_type ttp.ttp_name return_type e.etype with
+				match find_type_param_in_type ttp.ttp_name return_type enum_expr.etype with
 				| Some t -> cs_type_of_type ectx.gctx t
 				| None -> CsTypeObject  (* Fallback to object if inference fails *)
 			) extra_ctor_params
@@ -5233,7 +5288,30 @@ let rec cs_expr_of_texpr ectx e =
 		let nested_type = CsTypeNested (parent_type, ctor_name) in
 		ignore ctor_type_args;  (* Type params erased - not used in C# *)
 		let cast_expr = CsCast (nested_type, obj) in
-		CsField (cast_expr, escape_identifier param_name)
+		let field_access = CsField (cast_expr, escape_identifier param_name) in
+		(* DEBUG: Trace TEnumParameter - REMOVE AFTER DEBUGGING *)
+		let _ = Printf.eprintf "[DEBUG] TEnumParameter for '%s' param %d\n%!" ef.ef_name i in
+		let _ = debug_type_structure "  e.etype (whole expr type)" e.etype in
+		(* END DEBUG *)
+		(* The enum constructor field is typed as 'object' in C# due to type erasure.
+		   But the Haxe expression type is the substituted type (e.g., Int).
+		   Cast the field access to the expected type if needed. *)
+		let param_type = match ef.ef_type with
+			| TFun (args, _) when i < List.length args ->
+				let (_, _, t) = List.nth args i in
+				(* Substitute enum type params with actual type arguments *)
+				let map_type = apply_params en.e_params enum_params in
+				map_type t
+			| _ -> e.etype
+		in
+		(* DEBUG: Trace substituted param type - REMOVE AFTER DEBUGGING *)
+		let _ = debug_type_structure "  param_type (after substitution)" param_type in
+		(* END DEBUG *)
+		let field_cs_type = cs_type_of_type ectx.gctx param_type in
+		begin match field_cs_type with
+		| CsTypeObject | CsTypeDynamic -> field_access
+		| _ -> CsCast (field_cs_type, field_access)
+		end
 	| TEnumIndex e ->
 		(* For extern enums (C# native enums), cast to int; otherwise access _hx_index.
 		   NOTE: All Haxe enums (including simple ones) are now generated as classes
