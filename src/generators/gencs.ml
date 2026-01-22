@@ -829,6 +829,8 @@ let rec is_erased_type_param t =
 		| _ -> false
 		end
 	| TType (_, _) | TLazy _ -> is_erased_type_param (follow t)
+	| TMono { tm_type = Some inner } -> is_erased_type_param inner
+	| TMono { tm_type = None } -> false  (* Unresolved mono - not a type param *)
 	| _ -> false
 
 (* DEBUG: Temporary debug function to trace type structure - REMOVE AFTER DEBUGGING *)
@@ -3554,6 +3556,18 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> ArrayDynamic
 				in
 				let method_name = get_native_field_name cf in
+				(* DEBUG: Trace Array method calls - REMOVE AFTER DEBUGGING *)
+				let _ = if method_name = "pop" then begin
+					Printf.eprintf "[DEBUG] Array.pop call: storage_type=%s\n%!"
+						(match storage_type with ArrayInt -> "ArrayInt" | ArrayFloat -> "ArrayFloat"
+						| ArrayBool -> "ArrayBool" | ArrayObject -> "ArrayObject" | ArrayDynamic -> "ArrayDynamic");
+					Printf.eprintf "[DEBUG]   e.etype: %s\n%!" (match cs_type_of_type ectx.gctx e.etype with
+						| CsTypeObject -> "object" | CsTypeInt -> "int"
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) -> "Null<int>"
+						| CsTypeClass (path, _) -> Printf.sprintf "Class(%s)" (String.concat "." (fst path) ^ "." ^ snd path)
+						| _ -> "other")
+				end in
+				(* END DEBUG *)
 				(* Check if this method has a typed variant *)
 				let typed_method_name = match method_name, storage_type with
 					| "pop", ArrayInt -> Some "__popInt"
@@ -4378,7 +4392,31 @@ let rec cs_expr_of_texpr ectx e =
 				call_expr
 		end else begin
 			let args = generate_call_args ectx cs_expr_of_texpr orig_args param_types_base in
-			CsStaticCall (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, args)
+			let call_expr = CsStaticCall (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, args) in
+			(* Check if the method's return type is an erased type param.
+			   If so, the C# method returns object but call site expects a concrete type. *)
+			let method_ret_type = match cf.cf_type with
+				| TFun (_, ret) -> ret
+				| _ -> return_type
+			in
+			(* DEBUG: Trace static method return type casting - REMOVE AFTER DEBUGGING *)
+			let _ = if cf.cf_name = "evaluate" then begin
+				Printf.eprintf "[DEBUG] TCall FStatic for '%s' in '%s'\n%!" cf.cf_name (s_type_path c.cl_path);
+				debug_type_structure "  method_ret_type" method_ret_type;
+				debug_type_structure "  method_ret_type (followed)" (follow method_ret_type);
+				debug_type_structure "  return_type (e.etype)" return_type;
+				debug_type_structure "  return_type (followed)" (follow return_type);
+				Printf.eprintf "[DEBUG]   is_erased_type_param: %b\n%!" (is_erased_type_param method_ret_type)
+			end in
+			(* END DEBUG *)
+			if is_erased_type_param method_ret_type then
+				let result_cs_type = cs_type_of_type ectx.gctx return_type in
+				begin match result_cs_type with
+				| CsTypeObject | CsTypeDynamic -> call_expr
+				| _ -> CsCast (result_cs_type, call_expr)
+				end
+			else
+				call_expr
 		end
 		end  (* close is_stored_function_field else branch *)
 	| TCall ({ eexpr = TIdent "__default__" }, []) ->
@@ -4705,8 +4743,19 @@ let rec cs_expr_of_texpr ectx e =
 			in
 			let elem_cs_type = cs_type_of_type ectx.gctx elem_hx_type in
 			let cs_items = List.map (cs_expr_of_texpr ectx) items in
-			let native_array = CsNewArray (elem_cs_type, cs_items) in
 			let storage_type = classify_cs_array_element_type elem_cs_type in
+			(* When using ArrayObject storage (which uses __ofObjectLiteral expecting object[]),
+			   we need to create object[] if the element type is a value type (like Null<int>).
+			   C# value type arrays are not covariant with object[]. *)
+			let native_array_type, native_array_items = match storage_type with
+				| ArrayObject when not (CsSignature.is_inherently_nullable elem_cs_type) ->
+					(* Value type - create object[] and box elements *)
+					(CsTypeObject, cs_items)
+				| _ ->
+					(* Reference type or typed storage - use actual element type *)
+					(elem_cs_type, cs_items)
+			in
+			let native_array = CsNewArray (native_array_type, native_array_items) in
 			make_array_from_native storage_type native_array array_type
 		end
 	| TTypeExpr mt ->
@@ -6774,8 +6823,19 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	in
 	let invoke_body = if return_cs_type = CsTypeVoid then
 		[CsExprStmt method_call]
-	else
-		[CsReturn (Some method_call)]
+	else begin
+		(* For type-erased classes like Array, methods return object in C# but the
+		   closure's typed invoke() should return the expected type.
+		   Add conversion when return type is Null<T> where T is a value type. *)
+		let return_value = match return_cs_type with
+			| CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
+				when not (CsSignature.is_cs_native_generic_class class_path)
+				  && not (CsSignature.is_inherently_nullable inner) ->
+				CsStaticCall (return_cs_type, "_ofDynamic", [method_call])
+			| _ -> method_call
+		in
+		[CsReturn (Some return_value)]
+	end
 	in
 
 	(* The typed invoke method may shadow the base class's invokeN(object...) method.
