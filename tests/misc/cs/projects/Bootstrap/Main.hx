@@ -61,6 +61,7 @@ class Main {
 		testThreads();
 		testAtomics();
 		testDynamicArrays();
+		testGenericMetadata();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -1590,6 +1591,42 @@ class Main {
 		t(sem.tryAcquire());
 	}
 
+	static function testGenericMetadata() {
+		// Test @:generic metadata - creates specialized C# generic classes
+
+		// Test 1: Box<Int> - specialized for Int
+		var intBox = new Box<Int>(42);
+		eq(42, intBox.get());
+		intBox.set(100);
+		eq(100, intBox.get());
+		eq(100, intBox.value);
+
+		// Test 2: Box<String> - specialized for String
+		var strBox = new Box<String>("hello");
+		eq("hello", strBox.get());
+		strBox.set("world");
+		eq("world", strBox.get());
+		eq("world", strBox.value);
+
+		// Test 3: Verify they are truly separate specializations
+		// (In C#, Box<int> and Box<string> are different types)
+		var intBox2 = new Box<Int>(999);
+		eq(999, intBox2.get());
+		eq(100, intBox.get()); // intBox should still have its value
+
+		// Test 4: Box<Float>
+		var floatBox = new Box<Float>(3.14);
+		eq(3.14, floatBox.get());
+		floatBox.set(2.71);
+		eq(2.71, floatBox.get());
+
+		// Test 5: Box with class type
+		var personBox = new Box<Person>(new Person("Alice"));
+		eq("Hello, I am Alice", personBox.get().greet());
+		personBox.set(new Person("Bob"));
+		eq("Hello, I am Bob", personBox.get().greet());
+	}
+
 	static function testAtomics() {
 		// Test atomic operations
 
@@ -1766,5 +1803,24 @@ class GenericCalculator<T> {
 class ThreadTestHelper {
 	public static var sharedCounter:Int = 0;
 	public static var mutex:sys.thread.Mutex = new sys.thread.Mutex();
+}
+
+// Generic class for testing @:generic metadata
+// This creates specialized C# generic classes (Box<int>, Box<string>) instead of erased versions
+@:generic
+class Box<T> {
+	public var value:T;
+
+	public function new(value:T) {
+		this.value = value;
+	}
+
+	public function get():T {
+		return value;
+	}
+
+	public function set(newValue:T):Void {
+		value = newValue;
+	}
 }
 
