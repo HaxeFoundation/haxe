@@ -346,6 +346,8 @@ type expr_context = {
 	mutable captures_this : bool;  (* true if 'this' from outer scope is captured as _hx_this *)
 	mutable type_params_in_scope : string list;  (* type parameter names that are in scope (class + method) *)
 	mutable type_param_constraints : (string * cs_type list) list;  (* type param name -> C# constraint types *)
+	mutable in_switch : bool;  (* true when inside a switch statement *)
+	mutable loop_break_label : string option;  (* label to goto for break when inside switch in loop *)
 }
 
 let create_expr_context gctx = {
@@ -361,6 +363,8 @@ let create_expr_context gctx = {
 	captures_this = false;
 	type_params_in_scope = [];
 	type_param_constraints = [];
+	in_switch = false;
+	loop_break_label = None;
 }
 
 (* Result type for expressions that may need prefix statements *)
@@ -639,6 +643,50 @@ let rec stmt_terminates stmt =
 		false
 	| _ -> false
 
+(* Check if a C# statement exits a switch case (prevents fallthrough).
+   Unlike stmt_terminates, this returns true for break/continue/goto since those
+   prevent switch fallthrough even though they don't terminate the method context. *)
+let rec stmt_exits_case stmt =
+	match stmt with
+	| CsReturn _ | CsThrowStmt _ | CsBreak | CsContinue | CsGoto _ -> true
+	| CsBlock stmts | CsStmtList stmts ->
+		begin match List.rev stmts with
+		| [] -> false
+		| last :: _ -> stmt_exits_case last
+		end
+	| CsIf (_, then_branch, Some else_branch) ->
+		stmt_exits_case then_branch && stmt_exits_case else_branch
+	| CsIf (_, _, None) -> false
+	| CsUncheckedStmt inner -> stmt_exits_case inner
+	| _ -> false
+
+(* Check if a Haxe expression contains a TBreak that's inside a TSwitch but not inside a nested loop.
+   This helps determine if we need a break label for the enclosing loop. *)
+let rec has_break_in_switch ?(in_switch=false) e =
+	match e.eexpr with
+	| TBreak -> in_switch  (* Found break - return true only if we're inside a switch *)
+	| TSwitch sw ->
+		(* Enter switch context - any break in here is "in switch" *)
+		let in_cases = List.exists (fun c -> has_break_in_switch ~in_switch:true c.case_expr) sw.switch_cases in
+		let in_default = match sw.switch_default with
+			| Some d -> has_break_in_switch ~in_switch:true d
+			| None -> false
+		in
+		in_cases || in_default
+	| TWhile _ ->
+		(* Nested loop - don't look inside, breaks there are for that loop *)
+		false
+	| TFunction _ ->
+		(* Don't look inside nested functions *)
+		false
+	| _ ->
+		(* Recurse into sub-expressions *)
+		let found = ref false in
+		Type.iter (fun sub ->
+			if has_break_in_switch ~in_switch sub then found := true
+		) e;
+		!found
+
 (* Check if a C# type is valid as a generic constraint.
    C# only allows: interfaces, non-sealed classes, type parameters.
    Primitives, sealed classes (like string, Array<T>), structs are NOT allowed. *)
@@ -832,22 +880,6 @@ let rec is_erased_type_param t =
 	| TMono { tm_type = Some inner } -> is_erased_type_param inner
 	| TMono { tm_type = None } -> false  (* Unresolved mono - not a type param *)
 	| _ -> false
-
-(* DEBUG: Temporary debug function to trace type structure - REMOVE AFTER DEBUGGING *)
-let debug_type_structure prefix t =
-	let type_str = match t with
-		| TInst (c, _) -> Printf.sprintf "TInst(%s, kind=%s)" (s_type_path c.cl_path)
-			(match c.cl_kind with KTypeParameter _ -> "KTypeParameter" | KNormal -> "KNormal" | _ -> "other")
-		| TAbstract (a, _) -> Printf.sprintf "TAbstract(%s)" (s_type_path a.a_path)
-		| TFun _ -> "TFun"
-		| TDynamic _ -> "TDynamic"
-		| TAnon _ -> "TAnon"
-		| TType (td, _) -> Printf.sprintf "TType(%s)" (s_type_path td.t_path)
-		| TLazy _ -> "TLazy"
-		| TEnum (e, _) -> Printf.sprintf "TEnum(%s)" (s_type_path e.e_path)
-		| TMono _ -> "TMono"
-	in
-	Printf.eprintf "[DEBUG] %s: %s\n%!" prefix type_str
 
 (* Check if a method call's DECLARED return type involves a type parameter that gets erased.
    This covers two cases:
@@ -2473,13 +2505,6 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		CsField (obj_expr, "Length")
 	| TField (e, FInstance (c, tl, cf)) ->
-		(* DEBUG: Trace all field accesses for specific fields - REMOVE AFTER DEBUGGING *)
-		let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
-			Printf.eprintf "[DEBUG] TField FInstance ENTRY for '%s' in class '%s'\n%!" cf.cf_name (s_type_path c.cl_path);
-			debug_type_structure (Printf.sprintf "  e.etype") e.etype;
-			debug_type_structure (Printf.sprintf "  cf.cf_type") cf.cf_type
-		end in
-		(* END DEBUG *)
 		(* Check if expression type is Null<T> - if so, access .value to unwrap *)
 		let needs_unwrap = find_null_in_expr e in
 		let obj_expr = cs_expr_of_texpr ectx e in
@@ -2489,12 +2514,6 @@ let rec cs_expr_of_texpr ectx e =
 		   In both cases, we can't do direct field access - use Reflect.field/setField. *)
 		let cs_type = cs_type_of_type ectx.gctx e.etype in
 		let expr_is_erased = expr_returns_erased_type_param e in
-		(* DEBUG: Show which branch we take - REMOVE AFTER DEBUGGING *)
-		let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
-			Printf.eprintf "[DEBUG]   cs_type is CsTypeObject: %b\n%!" (match cs_type with CsTypeObject -> true | _ -> false);
-			Printf.eprintf "[DEBUG]   expr_is_erased: %b\n%!" expr_is_erased
-		end in
-		(* END DEBUG *)
 		begin match cs_type with
 		| CsTypeObject ->
 			(* Type was erased to object - use Reflect for field access *)
@@ -2540,14 +2559,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Check if the field's declared type is an erased type param.
 			   If so, the C# expression returns object, but we need to cast to the
 			   substituted type for subsequent field/method access to work. *)
-			(* DEBUG: Trace field type for debugging - REMOVE AFTER DEBUGGING *)
-			let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
-				debug_type_structure (Printf.sprintf "TField FInstance cf.cf_type for '%s' in '%s'" cf.cf_name (s_type_path c.cl_path)) cf.cf_type;
-				Printf.eprintf "[DEBUG] is_erased_type_param result: %b\n%!" (is_erased_type_param cf.cf_type);
-				Printf.eprintf "[DEBUG] c.cl_params length: %d\n%!" (List.length c.cl_params)
-			end in
-			(* END DEBUG *)
-			if is_erased_type_param cf.cf_type then
+				if is_erased_type_param cf.cf_type then
 				(* Apply type params to get the actual Haxe type after substitution *)
 				let map_type = apply_params c.cl_params tl in
 				let substituted_type = map_type cf.cf_type in
@@ -2660,13 +2672,6 @@ let rec cs_expr_of_texpr ectx e =
 			CsStaticField (CsTypeClass (actual_path, actual_params), get_cs_field_name c cf)
 		end
 	| TField (e, FAnon cf) ->
-		(* DEBUG: Trace FAnon field accesses - REMOVE AFTER DEBUGGING *)
-		let _ = if cf.cf_name = "dispatch" || cf.cf_name = "v" then begin
-			Printf.eprintf "[DEBUG] TField FAnon ENTRY for '%s'\n%!" cf.cf_name;
-			debug_type_structure "  e.etype" e.etype;
-			debug_type_structure "  cf.cf_type" cf.cf_type
-		end in
-		(* END DEBUG *)
 		(* Anonymous object field access *)
 		(* First, check if expression type is Null<T> - if so, unwrap via .value.
 		   Use get_null_inner_if_needs_unwrap which correctly handles TCast expressions. *)
@@ -2725,12 +2730,6 @@ let rec cs_expr_of_texpr ectx e =
 			end
 		end
 	| TField (e_obj, FDynamic name) ->
-		(* DEBUG: Trace FDynamic field accesses - REMOVE AFTER DEBUGGING *)
-		let _ = if name = "dispatch" || name = "v" then begin
-			Printf.eprintf "[DEBUG] TField FDynamic ENTRY for '%s'\n%!" name;
-			debug_type_structure "  e_obj.etype" e_obj.etype
-		end in
-		(* END DEBUG *)
 		(* Dynamic field access - need to use reflection since C# object doesn't have arbitrary fields *)
 		let obj_expr = cs_expr_of_texpr ectx e_obj in
 		(* Check if the C# type is actually Null<T> (with type-level stripping, some Null<T>
@@ -3556,18 +3555,6 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> ArrayDynamic
 				in
 				let method_name = get_native_field_name cf in
-				(* DEBUG: Trace Array method calls - REMOVE AFTER DEBUGGING *)
-				let _ = if method_name = "pop" then begin
-					Printf.eprintf "[DEBUG] Array.pop call: storage_type=%s\n%!"
-						(match storage_type with ArrayInt -> "ArrayInt" | ArrayFloat -> "ArrayFloat"
-						| ArrayBool -> "ArrayBool" | ArrayObject -> "ArrayObject" | ArrayDynamic -> "ArrayDynamic");
-					Printf.eprintf "[DEBUG]   e.etype: %s\n%!" (match cs_type_of_type ectx.gctx e.etype with
-						| CsTypeObject -> "object" | CsTypeInt -> "int"
-						| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) -> "Null<int>"
-						| CsTypeClass (path, _) -> Printf.sprintf "Class(%s)" (String.concat "." (fst path) ^ "." ^ snd path)
-						| _ -> "other")
-				end in
-				(* END DEBUG *)
 				(* Check if this method has a typed variant *)
 				let typed_method_name = match method_name, storage_type with
 					| "pop", ArrayInt -> Some "__popInt"
@@ -4399,16 +4386,6 @@ let rec cs_expr_of_texpr ectx e =
 				| TFun (_, ret) -> ret
 				| _ -> return_type
 			in
-			(* DEBUG: Trace static method return type casting - REMOVE AFTER DEBUGGING *)
-			let _ = if cf.cf_name = "evaluate" then begin
-				Printf.eprintf "[DEBUG] TCall FStatic for '%s' in '%s'\n%!" cf.cf_name (s_type_path c.cl_path);
-				debug_type_structure "  method_ret_type" method_ret_type;
-				debug_type_structure "  method_ret_type (followed)" (follow method_ret_type);
-				debug_type_structure "  return_type (e.etype)" return_type;
-				debug_type_structure "  return_type (followed)" (follow return_type);
-				Printf.eprintf "[DEBUG]   is_erased_type_param: %b\n%!" (is_erased_type_param method_ret_type)
-			end in
-			(* END DEBUG *)
 			if is_erased_type_param method_ret_type then
 				let result_cs_type = cs_type_of_type ectx.gctx return_type in
 				begin match result_cs_type with
@@ -5338,10 +5315,6 @@ let rec cs_expr_of_texpr ectx e =
 		ignore ctor_type_args;  (* Type params erased - not used in C# *)
 		let cast_expr = CsCast (nested_type, obj) in
 		let field_access = CsField (cast_expr, escape_identifier param_name) in
-		(* DEBUG: Trace TEnumParameter - REMOVE AFTER DEBUGGING *)
-		let _ = Printf.eprintf "[DEBUG] TEnumParameter for '%s' param %d\n%!" ef.ef_name i in
-		let _ = debug_type_structure "  e.etype (whole expr type)" e.etype in
-		(* END DEBUG *)
 		(* The enum constructor field is typed as 'object' in C# due to type erasure.
 		   But the Haxe expression type is the substituted type (e.g., Int).
 		   Cast the field access to the expected type if needed. *)
@@ -5353,9 +5326,6 @@ let rec cs_expr_of_texpr ectx e =
 				map_type t
 			| _ -> e.etype
 		in
-		(* DEBUG: Trace substituted param type - REMOVE AFTER DEBUGGING *)
-		let _ = debug_type_structure "  param_type (after substitution)" param_type in
-		(* END DEBUG *)
 		let field_cs_type = cs_type_of_type ectx.gctx param_type in
 		begin match field_cs_type with
 		| CsTypeObject | CsTypeDynamic -> field_access
@@ -5818,8 +5788,22 @@ and cs_stmt_of_texpr ectx e =
 			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
 			| _ -> cond_cs
 		in
-		let body = cs_stmt_of_texpr ectx body in
-		CsWhile (cond_cs, body)
+		(* Check if we need a break label for break-in-switch-in-loop pattern.
+		   In Haxe, 'break' always breaks the loop. In C#, 'break' in a switch only breaks the switch.
+		   We generate goto to a label after the loop when a break is inside a switch inside this loop. *)
+		let needs_break_label = has_break_in_switch body in
+		if needs_break_label then begin
+			let break_label = Printf.sprintf "_hx_break_%d" ectx.temp_count in
+			ectx.temp_count <- ectx.temp_count + 1;
+			let old_loop_break_label = ectx.loop_break_label in
+			ectx.loop_break_label <- Some break_label;
+			let body_cs = cs_stmt_of_texpr ectx body in
+			ectx.loop_break_label <- old_loop_break_label;
+			CsStmtList [CsWhile (cond_cs, body_cs); CsLabel break_label]
+		end else begin
+			let body_cs = cs_stmt_of_texpr ectx body in
+			CsWhile (cond_cs, body_cs)
+		end
 	| TWhile (cond, body, DoWhile) ->
 		(* In C#, do-while condition must be bool. If it's object/Dynamic, cast to bool. *)
 		let cond_cs = cs_expr_of_texpr ectx cond in
@@ -5827,8 +5811,20 @@ and cs_stmt_of_texpr ectx e =
 			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
 			| _ -> cond_cs
 		in
-		let body = cs_stmt_of_texpr ectx body in
-		CsDoWhile (body, cond_cs)
+		(* Check if we need a break label for break-in-switch-in-loop pattern *)
+		let needs_break_label = has_break_in_switch body in
+		if needs_break_label then begin
+			let break_label = Printf.sprintf "_hx_break_%d" ectx.temp_count in
+			ectx.temp_count <- ectx.temp_count + 1;
+			let old_loop_break_label = ectx.loop_break_label in
+			ectx.loop_break_label <- Some break_label;
+			let body_cs = cs_stmt_of_texpr ectx body in
+			ectx.loop_break_label <- old_loop_break_label;
+			CsStmtList [CsDoWhile (body_cs, cond_cs); CsLabel break_label]
+		end else begin
+			let body_cs = cs_stmt_of_texpr ectx body in
+			CsDoWhile (body_cs, cond_cs)
+		end
 	| TSwitch sw ->
 		(* Check if any case patterns are non-constant expressions - these can't be used in C# switch cases
 		   Non-constant includes: typeof, static field access on non-enum classes, etc. *)
@@ -5883,14 +5879,18 @@ and cs_stmt_of_texpr ectx e =
 			build_if_chain sw.switch_cases
 		end else begin
 			let cond = cs_expr_of_texpr ectx sw.switch_subject in
+			(* Set in_switch = true so TBreak knows to generate goto instead of break *)
+			let old_in_switch = ectx.in_switch in
+			ectx.in_switch <- true;
 			let sections = List.map (fun case ->
 				let labels = List.map (fun p ->
 					CsCaseConst (cs_expr_of_texpr ectx p)
 				) case.case_patterns in
 				let body_stmt = cs_stmt_of_texpr ectx case.case_expr in
-				(* Only add break if the body doesn't already terminate (return, throw, etc.)
-				   to avoid CS0162 unreachable code warnings *)
-				let body_stmts = if stmt_terminates body_stmt then [body_stmt] else [body_stmt; CsBreak] in
+				(* Only add break if the body doesn't already exit the case (return, throw, break, goto, etc.)
+				   to avoid CS0162 unreachable code warnings. Use stmt_exits_case which also checks for
+				   break/goto (unlike stmt_terminates which only checks return/throw). *)
+				let body_stmts = if stmt_exits_case body_stmt then [body_stmt] else [body_stmt; CsBreak] in
 				{ sw_labels = labels; sw_body = body_stmts }
 			) sw.switch_cases in
 			let sections = match sw.switch_default with
@@ -5898,7 +5898,7 @@ and cs_stmt_of_texpr ectx e =
 					let body_stmt = cs_stmt_of_texpr ectx e in
 					let default_section = {
 						sw_labels = [CsCaseDefault];
-						sw_body = if stmt_terminates body_stmt then [body_stmt] else [body_stmt; CsBreak]
+						sw_body = if stmt_exits_case body_stmt then [body_stmt] else [body_stmt; CsBreak]
 					} in
 					sections @ [default_section]
 				| None ->
@@ -5911,6 +5911,7 @@ and cs_stmt_of_texpr ectx e =
 					} in
 					sections @ [default_section]
 			in
+			ectx.in_switch <- old_in_switch;
 			CsSwitch (cond, sections)
 		end
 	| TTry (body, catches) ->
@@ -6073,7 +6074,13 @@ and cs_stmt_of_texpr ectx e =
 		end
 		end  (* close begin match for TThrow check *)
 	| TBreak ->
-		CsBreak
+		(* In Haxe, 'break' always breaks the enclosing loop.
+		   In C#, 'break' inside a switch only breaks the switch, not the enclosing loop.
+		   When we're inside a switch that's inside a loop, generate goto to the loop's break label. *)
+		begin match ectx.in_switch, ectx.loop_break_label with
+		| true, Some label -> CsGoto label
+		| _ -> CsBreak
+		end
 	| TContinue ->
 		CsContinue
 	| TThrow e ->
@@ -6315,6 +6322,8 @@ let generate_closure_class ectx tf func_type =
 		captures_this = accesses_this;
 		type_params_in_scope = closure_type_params_in_scope;  (* Closure's own params + inherited *)
 		type_param_constraints = ectx.type_param_constraints;  (* Inherit constraints from parent *)
+		in_switch = false;
+		loop_break_label = None;
 	} in
 
 	(* Register function parameters as local vars *)
