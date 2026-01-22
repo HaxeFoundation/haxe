@@ -1823,11 +1823,17 @@ let rec cs_expr_of_texpr ectx e =
 					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type e2) e2.etype in
 					CsCall (CsField (arr_cs, "__setBool"), [idx_cs; coerced_val])
 				| ArrayDynamic ->
-					(* arr.__setDyn(i, v) - runtime dispatch method *)
+					(* arr.__setDyn(i, v) - runtime dispatch method, returns Dynamic/object *)
 					CsCall (CsField (arr_cs, "__setDyn"), [idx_cs; val_cs])
 				| ArrayObject ->
-					(* arr.__setObject(i, v) - handles object storage initialization *)
-					CsCall (CsField (arr_cs, "__setObject"), [idx_cs; val_cs])
+					(* arr.__setObject(i, v) - returns Dynamic/object but Haxe assignment has element type.
+					   Cast the result to the expected element type for type safety when the result is used. *)
+					let call = CsCall (CsField (arr_cs, "__setObject"), [idx_cs; val_cs]) in
+					let expected_type = cs_type_of_type ectx.gctx e2.etype in
+					if expected_type <> CsTypeObject && expected_type <> CsTypeDynamic then
+						CsCast (expected_type, call)
+					else
+						call
 				end
 			| _ -> CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
 			end
@@ -3355,7 +3361,46 @@ let rec cs_expr_of_texpr ectx e =
 					end
 				end
 			| _ ->
-				CsCall (CsField (obj, get_native_field_name cf), cs_args)
+				(* Generic Haxe class method call.
+				   With type erasure, methods that return type parameters (like IntMap<T>.get():T)
+				   now return object in C#, but Haxe expects the specific type.
+				   Check if the method's declared return type involves type parameters and cast if needed. *)
+				let call_expr = CsCall (CsField (obj, get_native_field_name cf), cs_args) in
+				let method_returns_type_param = match follow cf.cf_type with
+					| TFun (_, ret) ->
+						(* Check if return type involves type parameters, tracking visited types to avoid cycles *)
+						let visited = ref [] in
+						let rec involves_type_param t =
+							let t = follow t in
+							(* Check if we've seen this type before (cycle detection) *)
+							if List.memq t !visited then false
+							else begin
+								visited := t :: !visited;
+								match t with
+								| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+								| TInst (_, tl) | TEnum (_, tl) | TAbstract (_, tl) | TType (_, tl) ->
+									List.exists involves_type_param tl
+								| TFun (args, ret) ->
+									involves_type_param ret || List.exists (fun (_, _, t) -> involves_type_param t) args
+								| TAnon a ->
+									PMap.fold (fun f acc -> acc || involves_type_param f.cf_type) a.a_fields false
+								| _ -> false
+							end
+						in
+						involves_type_param ret
+					| _ -> false
+				in
+				if method_returns_type_param && not (CsSignature.is_cs_native_generic_class c.cl_path) then begin
+					(* Method returns a type param that got erased to object - cast to expected type *)
+					let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
+					match expected_cs_type with
+					| CsTypeObject | CsTypeDynamic | CsTypeVoid -> call_expr
+					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsSignature.is_inherently_nullable inner) ->
+						(* Null<T> where T is a value type - use Null<T>._ofDynamic(result) *)
+						CsStaticCall (expected_cs_type, "_ofDynamic", [call_expr])
+					| _ -> CsCast (expected_cs_type, call_expr)
+				end else
+					call_expr
 			end
 		end
 		end  (* close the obj_cs_type check *)
