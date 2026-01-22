@@ -1299,29 +1299,14 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	   See csNullable.ml TConst TNull handling for the design principle. *)
 	| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when cs_arg = CsNull ->
 		CsDefault expected_cs_type
-	(* object/Dynamic to Null<T> - need to create Null wrapper conditionally. *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), inner), (CsTypeObject | CsTypeDynamic) ->
-		(* object/Dynamic to Null<T> - need to create Null wrapper conditionally.
-		   If the object is null, create a Null with hasValue=false.
-		   If the object has a value, unbox it and create Null with hasValue=true.
-		   IMPORTANT: For numeric types (double, float, long), use Runtime.toXxx because
-		   the boxed value might be a different numeric type (e.g., boxed int when double expected).
-		   C# cannot directly unbox int as double - need conversion. *)
-		(* Generate: arg == null ? new Null<T>(default, false) : new Null<T>(convert(arg), true) *)
-		let inner = match inner with [t] -> t | _ -> CsTypeObject in
-		let null_check = CsBinop (CsOpEq, cs_arg, CsNull) in
-		let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
-		let cast_value = match inner with
-			| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_arg])
-			| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_arg]))
-			| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [cs_arg])
-			| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_arg])
-			| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [cs_arg])
-			| _ -> CsCast (inner, cs_arg)
-		in
-		let true_branch = CsNew (expected_cs_type, [CsDefault inner; CsConst (CsConstBool false)]) in
-		let false_branch = CsNew (expected_cs_type, [cast_value; CsConst (CsConstBool true)]) in
-		CsTernary (null_check, true_branch, false_branch)
+	(* object/Dynamic to Null<T> - use _ofDynamic for proper conversion. *)
+	| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) ->
+		(* object/Dynamic to Null<T> - use Null<T>._ofDynamic(obj) which handles:
+		   - null -> Null<T> with hasValue=false
+		   - value -> Null<T> wrapping the converted value
+		   - nested Null<> types -> proper unwrapping
+		   - numeric type conversions via Runtime.toXxx *)
+		CsStaticCall (expected_cs_type, "_ofDynamic", [cs_arg])
 	(* SomeClass<A> to Null<SomeClass<B>> where A and B have compatible structures but different type params.
 	   This handles cases like Node<Int> to Null<Node<Null<Int>>> or Node<Null<Int>> to Null<Node<Int>>
 	   where Haxe's type inference uses one type param but the parameter expects a different one.
@@ -2693,6 +2678,9 @@ let rec cs_expr_of_texpr ectx e =
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+				(* Object to Null<T> - use _ofDynamic for proper null handling *)
+				CsStaticCall (target_type, "_ofDynamic", [field_call])
 			| _ -> CsCast (target_type, field_call)
 			end
 		| CsTypeString when cf.cf_name = "length" ->
@@ -2708,6 +2696,9 @@ let rec cs_expr_of_texpr ectx e =
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+				(* Object to Null<T> - use _ofDynamic for proper null handling *)
+				CsStaticCall (target_type, "_ofDynamic", [field_call])
 			| _ -> CsCast (target_type, field_call)
 			end
 		| CsTypeGenericParam _ ->
@@ -2718,6 +2709,9 @@ let rec cs_expr_of_texpr ectx e =
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+				(* Object to Null<T> - use _ofDynamic for proper null handling *)
+				CsStaticCall (target_type, "_ofDynamic", [field_call])
 			| _ -> CsCast (target_type, field_call)
 			end
 		| _ ->
@@ -2726,6 +2720,9 @@ let rec cs_expr_of_texpr ectx e =
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+				(* Object to Null<T> - use _ofDynamic for proper null handling *)
+				CsStaticCall (target_type, "_ofDynamic", [field_call])
 			| _ -> CsCast (target_type, field_call)
 			end
 		end
@@ -2762,6 +2759,9 @@ let rec cs_expr_of_texpr ectx e =
 			let result_cs_type = cs_type_of_type ectx.gctx e.etype in
 			begin match result_cs_type with
 			| CsTypeObject | CsTypeDynamic -> field_call
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+				(* Object to Null<T> - use _ofDynamic for proper null handling *)
+				CsStaticCall (result_cs_type, "_ofDynamic", [field_call])
 			| _ -> CsCast (result_cs_type, field_call)
 			end
 		end
@@ -4690,6 +4690,13 @@ let rec cs_expr_of_texpr ectx e =
 			let field_args = List.fold_left (fun acc ((name, _, _), e) ->
 				let name_expr = CsConst (CsConstString name) in
 				let val_expr = cs_expr_of_texpr ectx e in
+				(* If the value is Null<T>, use toDynamic() to convert to object properly.
+				   This ensures hasValue=false becomes null, not default(T). *)
+				let val_expr = match cs_type_of_type ectx.gctx e.etype with
+					| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+						CsCall (CsField (val_expr, "toDynamic"), [])
+					| _ -> val_expr
+				in
 				val_expr :: name_expr :: acc
 			) [] fields in
 			let field_args = List.rev field_args in
@@ -4922,21 +4929,13 @@ let rec cs_expr_of_texpr ectx e =
 						(* Inner is primitive but wrapped type is not - box then cast.
 						   This handles weird cases like int to Null<object>. *)
 						CsCast (wrapped_type, CsCast (CsTypeObject, inner_cs))
-					else if inner_type = CsTypeObject && is_wrapped_primitive then
-						(* Object to primitive Null wrapper - need runtime conversion + Null wrap.
-						   E.g., (object)(-1) to Null<double> - can't unbox int directly to double.
-						   Use Runtime.toDouble/toInt/etc. for proper conversion, then wrap in Null<T>. *)
-						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
-						let convert_call = match wrapped_type with
-							| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
-							| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
-							| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
-							| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
-							| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
-							| _ -> CsCast (wrapped_type, inner_cs)  (* Fallback for other types *)
-						in
-						(* Wrap the converted value in Null<T> with hasValue=true *)
-						CsNew (target_type, [convert_call; CsConst (CsConstBool true)])
+					else if (inner_type = CsTypeObject || inner_type = CsTypeDynamic) then
+						(* Object/Dynamic to Null<T> - use _ofDynamic for proper handling.
+						   This correctly handles:
+						   - null object → Null<T> with hasValue=false
+						   - primitive value → Null<T> with proper Runtime.toXxx conversion
+						   - nested Null<> types → unwrap and rewrap *)
+						CsStaticCall (target_type, "_ofDynamic", [inner_cs])
 					else
 						(* Reference type conversion - explicitly wrap in Null<T> constructor.
 						   E.g., SomeClass to Null<SomeInterface> -> new Null<IInterface>((IInterface)(object)value, true)
@@ -5700,9 +5699,10 @@ and cs_stmt_of_texpr ectx e =
 					(* Dynamic -> specific type (but NOT Null<T>): need runtime cast *)
 					CsCast (var_type, init_cs)
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
-					(* Null<T> -> object/Dynamic: unwrap via .value to get the inner value
+					(* Null<T> -> object/Dynamic: use toDynamic() to get boxed value or null
+					   This correctly returns null if hasValue=false, avoiding storing default(T) in object.
 					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
-					CsField (init_cs, "value")
+					CsCall (CsField (init_cs, "toDynamic"), [])
 				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_t]), var_t when inner_t = var_t && not is_var_null_wrapper && not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<T> -> T (exact match): use .value to unwrap
 					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
