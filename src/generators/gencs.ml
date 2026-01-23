@@ -1177,6 +1177,263 @@ let dynamic_binop_helpers = [
 	(OpShl, "opShl"); (OpShr, "opShr"); (OpUShr, "opUshr")
 ]
 
+(* ============================================================
+   Type predicate helpers for coerce_cs_types refactoring
+   ============================================================ *)
+
+(* Common type constant for Runtime class *)
+let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), [])
+
+(* Check if C# type is object or Dynamic *)
+let is_cs_object_or_dynamic = function
+	| CsTypeObject | CsTypeDynamic -> true
+	| _ -> false
+
+(* Check if C# type is a Null<T> wrapper *)
+let is_cs_null_wrapper = function
+	| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+	| _ -> false
+
+(* Get inner type from Null<T>, if it's a Null wrapper *)
+let get_cs_null_inner = function
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) -> Some inner
+	| _ -> None
+
+(* Check if C# type is a basic numeric type *)
+let is_cs_numeric_type = function
+	| CsTypeInt | CsTypeDouble | CsTypeFloat | CsTypeLong | CsTypeByte -> true
+	| _ -> false
+
+(* Check if C# type is a primitive (numeric or bool) *)
+let is_cs_primitive_type = function
+	| CsTypeInt | CsTypeDouble | CsTypeFloat | CsTypeLong | CsTypeByte
+	| CsTypeBool | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
+	| CsTypeUInt | CsTypeULong | CsTypeDecimal -> true
+	| _ -> false
+
+(* ============================================================
+   Coercion helper functions for coerce_cs_types refactoring
+   Each returns Some(result) if it handles the conversion,
+   or None if the conversion doesn't apply.
+   ============================================================ *)
+
+(* Handle simple numeric conversions: int↔float↔double↔long↔byte *)
+let coerce_numeric cs_arg arg_type expected_type =
+	match expected_type, arg_type with
+	| CsTypeFloat, CsTypeDouble -> Some (CsCast (CsTypeFloat, cs_arg))
+	| CsTypeFloat, CsTypeInt -> Some (CsCast (CsTypeFloat, cs_arg))
+	| CsTypeDouble, CsTypeInt -> Some (CsCast (CsTypeDouble, cs_arg))
+	| CsTypeByte, CsTypeInt -> Some (CsCast (CsTypeByte, cs_arg))
+	| CsTypeInt, CsTypeDouble -> Some (CsCast (CsTypeInt, cs_arg))
+	| _ -> None
+
+(* Handle object/Dynamic to primitive with _ofDynamic awareness.
+   Uses Runtime.toXxx for proper boxed type conversion. *)
+let coerce_object_to_primitive cs_arg arg_type expected_type =
+	if not (is_cs_object_or_dynamic arg_type) then None
+	else match expected_type with
+	| CsTypeInt ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeInt -> Some (CsField (cs_arg, "value"))
+		| Some _ -> Some (CsStaticCall (runtime_type, "toInt", [CsField (cs_arg, "value")]))
+		| None -> Some (CsStaticCall (runtime_type, "toInt", [cs_arg]))
+		end
+	| CsTypeDouble ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeDouble -> Some (CsField (cs_arg, "value"))
+		| Some _ -> Some (CsStaticCall (runtime_type, "toDouble", [CsField (cs_arg, "value")]))
+		| None -> Some (CsStaticCall (runtime_type, "toDouble", [cs_arg]))
+		end
+	| CsTypeBool ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeBool -> Some (CsField (cs_arg, "value"))
+		| Some _ -> Some (CsStaticCall (runtime_type, "toBool", [CsField (cs_arg, "value")]))
+		| None -> Some (CsStaticCall (runtime_type, "toBool", [cs_arg]))
+		end
+	| CsTypeFloat ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeFloat -> Some (CsField (cs_arg, "value"))
+		| Some _ -> Some (CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [CsField (cs_arg, "value")])))
+		| None -> Some (CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_arg])))
+		end
+	| CsTypeLong ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeLong -> Some (CsField (cs_arg, "value"))
+		| Some _ -> Some (CsStaticCall (runtime_type, "toLong", [CsField (cs_arg, "value")]))
+		| None -> Some (CsStaticCall (runtime_type, "toLong", [cs_arg]))
+		end
+	| CsTypeByte -> Some (CsCast (CsTypeByte, cs_arg))
+	| CsTypeString -> Some (CsCast (CsTypeString, cs_arg))
+	| _ -> None
+
+(* Handle Null<T> to T unwrapping for exact type match.
+   Returns Some if it's a simple unwrap case, None for more complex conversions. *)
+let coerce_null_unwrap_exact cs_arg arg_type expected_type =
+	if cs_expr_is_object_cast cs_arg then None  (* Can't unwrap object cast *)
+	else match get_cs_null_inner arg_type with
+	| None -> None  (* arg is not Null<T> *)
+	| Some inner_type ->
+		if inner_type = expected_type then
+			(* Exact match: Null<int> → int, just unwrap *)
+			Some (CsField (cs_arg, "value"))
+		else
+			None  (* Not an exact match, need more complex handling *)
+
+(* Handle Null<object> to primitive with Runtime conversion.
+   These need Runtime.toXxx after unwrapping .value. *)
+let coerce_null_object_to_primitive cs_arg arg_type expected_type =
+	match get_cs_null_inner arg_type with
+	| Some CsTypeObject when not (cs_expr_is_object_cast cs_arg) ->
+		begin match expected_type with
+		| CsTypeInt -> Some (CsStaticCall (runtime_type, "toInt", [CsField (cs_arg, "value")]))
+		| CsTypeDouble -> Some (CsStaticCall (runtime_type, "toDouble", [CsField (cs_arg, "value")]))
+		| CsTypeBool -> Some (CsStaticCall (runtime_type, "toBool", [CsField (cs_arg, "value")]))
+		| CsTypeFloat -> Some (CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [CsField (cs_arg, "value")])))
+		| CsTypeLong -> Some (CsStaticCall (runtime_type, "toLong", [CsField (cs_arg, "value")]))
+		| CsTypeString -> Some (CsCast (CsTypeString, CsField (cs_arg, "value")))
+		| CsTypeClass (path, params) when path <> (["haxe"; "lang"], "Null") ->
+			Some (CsCast (CsTypeClass (path, params), CsField (cs_arg, "value")))
+		| _ -> None
+		end
+	| Some CsTypeObject (* when cs_expr_is_object_cast cs_arg *) ->
+		(* Expression is already cast to object - use Runtime conversion directly *)
+		begin match expected_type with
+		| CsTypeInt -> Some (CsStaticCall (runtime_type, "toInt", [cs_arg]))
+		| CsTypeDouble -> Some (CsStaticCall (runtime_type, "toDouble", [cs_arg]))
+		| CsTypeBool -> Some (CsStaticCall (runtime_type, "toBool", [cs_arg]))
+		| CsTypeFloat -> Some (CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_arg])))
+		| CsTypeLong -> Some (CsStaticCall (runtime_type, "toLong", [cs_arg]))
+		| CsTypeString -> Some (CsCast (CsTypeString, cs_arg))
+		| CsTypeClass (path, params) when path <> (["haxe"; "lang"], "Null") ->
+			Some (CsCast (CsTypeClass (path, params), cs_arg))
+		| _ -> None
+		end
+	| _ -> None
+
+(* Handle Null<SomeClass> to SomeClass for reference types.
+   Reference types don't need .value unwrap - C# variable is declared as the type directly. *)
+let coerce_null_ref_to_ref cs_arg arg_type expected_type =
+	if cs_expr_is_object_cast cs_arg then None
+	else match arg_type, expected_type with
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass (inner_path, inner_params)]),
+	  CsTypeClass (path, params)
+		when path = inner_path && path <> (["haxe"; "lang"], "Null") ->
+		if params = inner_params then Some cs_arg
+		else Some (CsCast (CsTypeClass (path, params), cs_arg))
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeNestedGeneric (inner_parent, inner_name, inner_params)]),
+	  CsTypeNestedGeneric (parent, name, params)
+		when parent = inner_parent && name = inner_name ->
+		if params = inner_params then Some cs_arg
+		else Some (CsCast (CsTypeNestedGeneric (parent, name, params), cs_arg))
+	| _ -> None
+
+(* Handle conversions TO Null<T>: null literal, object/Dynamic to Null<T> *)
+let coerce_to_null cs_arg arg_type expected_type =
+	match get_cs_null_inner expected_type with
+	| None -> None  (* target is not Null<T> *)
+	| Some _inner_expected ->
+		if cs_arg = CsNull then
+			(* null literal → Null<T>: generate default *)
+			Some (CsDefault expected_type)
+		else if is_cs_object_or_dynamic arg_type then
+			(* object/Dynamic → Null<T>: use _ofDynamic *)
+			Some (CsStaticCall (expected_type, "_ofDynamic", [cs_arg]))
+		else
+			None  (* More complex conversion needed *)
+
+(* Handle SomeClass<A> to Null<SomeClass<B>> with generic coercion *)
+let coerce_class_to_null_class cs_arg arg_type expected_type =
+	match expected_type, arg_type with
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass (inner_path, inner_params)]),
+	  CsTypeClass (arg_path, arg_params)
+		when inner_path = arg_path && inner_params <> arg_params && arg_path <> (["haxe"; "lang"], "Null") ->
+		let inner_type = CsTypeClass (inner_path, inner_params) in
+		let casted = CsCast (inner_type, cs_arg) in
+		Some (CsNew (expected_type, [casted; CsConst (CsConstBool true)]))
+	| _ -> None
+
+(* Handle object/Dynamic to class/array types with explicit cast *)
+let coerce_object_to_class cs_arg arg_type expected_type =
+	if not (is_cs_object_or_dynamic arg_type) then None
+	else match expected_type with
+	| CsTypeClass (path, params) when path <> (["haxe"; "lang"], "Null") ->
+		Some (CsCast (CsTypeClass (path, params), cs_arg))
+	| CsTypeArray (_, _) ->
+		Some (CsCast (expected_type, cs_arg))
+	| CsTypeGenericParam _ ->
+		Some (CsCast (expected_type, cs_arg))
+	| _ -> None
+
+(* Handle Null<T> to T (generic) with exact inner match *)
+let coerce_null_to_inner cs_arg arg_type expected_type =
+	if cs_expr_is_object_cast cs_arg then None
+	else match get_cs_null_inner arg_type with
+	| Some inner when inner = expected_type -> Some (CsField (cs_arg, "value"))
+	| _ -> None
+
+(* Handle Null<A> to Null<B> conversions (numeric or generic) *)
+let coerce_null_to_null cs_arg arg_type expected_type =
+	match get_cs_null_inner arg_type, get_cs_null_inner expected_type with
+	| Some inner_arg, Some inner_expected when inner_arg <> inner_expected ->
+		(* Check if numeric conversion needed *)
+		let needs_numeric = match inner_expected, inner_arg with
+			| CsTypeDouble, CsTypeInt -> true
+			| CsTypeDouble, CsTypeFloat -> true
+			| CsTypeFloat, CsTypeInt -> true
+			| CsTypeLong, CsTypeInt -> true
+			| CsTypeInt, CsTypeLong -> true
+			| CsTypeInt, CsTypeDouble -> true
+			| _ -> false
+		in
+		(* Check if generic coercion needed *)
+		let needs_generic = match inner_expected, inner_arg with
+			| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
+				when path1 = path2 && params1 <> params2 ->
+				let is_type_param = function CsTypeGenericParam _ -> true | _ -> false in
+				not (List.exists is_type_param params1)
+			| _ -> false
+		in
+		if needs_numeric then begin
+			let has_value = CsField (cs_arg, "hasValue") in
+			let converted_value = CsCast (inner_expected, CsField (cs_arg, "value")) in
+			let true_branch = CsNew (expected_type, [converted_value; CsConst (CsConstBool true)]) in
+			let false_branch = CsNew (expected_type, [CsDefault inner_expected; CsConst (CsConstBool false)]) in
+			Some (CsTernary (has_value, true_branch, false_branch))
+		end
+		else if needs_generic then
+			Some (CsCast (expected_type, cs_arg))
+		else
+			None
+	| _ -> None
+
+(* Handle generic class coercion: same class with different type params.
+   Only casts if expected type params are in scope. *)
+let coerce_generic_class ?in_scope cs_arg arg_type expected_type =
+	match arg_type, expected_type with
+	| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
+		when path1 = path2 && params1 <> params2 ->
+		(* Check if any type param in expected type is out of scope *)
+		let rec has_out_of_scope_param in_scope_opt cs_type = match cs_type with
+			| CsTypeGenericParam name ->
+				begin match in_scope_opt with
+				| Some scope -> not (List.mem name scope)
+				| None -> true
+				end
+			| CsTypeClass (_, inner_params) | CsTypeNestedGeneric (_, _, inner_params) ->
+				List.exists (has_out_of_scope_param in_scope_opt) inner_params
+			| CsTypeNested (parent, _) ->
+				has_out_of_scope_param in_scope_opt parent
+			| CsTypeArray (elem, _) ->
+				has_out_of_scope_param in_scope_opt elem
+			| _ -> false
+		in
+		let expected_has_out_of_scope = List.exists (has_out_of_scope_param in_scope) params2 in
+		if not expected_has_out_of_scope then
+			Some (CsCast (expected_type, cs_arg))
+		else
+			Some cs_arg  (* Can't cast to out-of-scope params *)
+	| _ -> None
+
 (* Generate a coerced argument expression - adds cast if needed for type mismatch.
    The optional in_scope parameter specifies which type parameters are valid in the
    current context. If provided and the expected type is purely a generic param (like TBody),
@@ -1206,179 +1463,52 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 		| CsTypeString -> CsCast (CsTypeString, cs_arg)
 		| _ -> cs_arg  (* Non-primitive target types can use normal flow *)
 	else
+	(* Try numeric conversions first *)
+	match coerce_numeric cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try object/Dynamic to primitive conversions *)
+	match coerce_object_to_primitive cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try Null<T> to T exact match unwrap *)
+	match coerce_null_unwrap_exact cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try Null<object> to primitive/class conversions *)
+	match coerce_null_object_to_primitive cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try Null<SomeClass> to SomeClass for reference types *)
+	match coerce_null_ref_to_ref cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try conversions TO Null<T> (null literal, object/Dynamic) *)
+	match coerce_to_null cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try SomeClass<A> to Null<SomeClass<B>> generic coercion *)
+	match coerce_class_to_null_class cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try object/Dynamic to class/array conversions *)
+	match coerce_object_to_class cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try Null<T> to T generic unwrap *)
+	match coerce_null_to_inner cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try Null<A> to Null<B> conversions (numeric or generic) *)
+	match coerce_null_to_null cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try generic class coercion (same class, different type params) *)
+	match coerce_generic_class ?in_scope cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
 	(* Check for various type conversions *)
 	match expected_cs_type, arg_cs_type with
-	(* Numeric conversions *)
-	| CsTypeFloat, CsTypeDouble ->
-		(* double -> float (Single) needs explicit cast *)
-		CsCast (CsTypeFloat, cs_arg)
-	| CsTypeFloat, CsTypeInt ->
-		(* int -> float needs explicit cast *)
-		CsCast (CsTypeFloat, cs_arg)
-	| CsTypeDouble, CsTypeInt ->
-		(* int -> double: while implicit in C#, explicit cast avoids ambiguity
-		   with methods like Math.Floor(decimal) vs Math.Floor(double) *)
-		CsCast (CsTypeDouble, cs_arg)
-	| CsTypeByte, CsTypeInt ->
-		(* int -> byte needs explicit cast *)
-		CsCast (CsTypeByte, cs_arg)
-	| CsTypeInt, CsTypeDouble ->
-		(* double -> int needs explicit cast *)
-		CsCast (CsTypeInt, cs_arg)
-	(* object/Dynamic to basic types - handle boxed type mismatches.
-	   BUT FIRST: Check if cs_arg is a Null<T>._ofDynamic call - if so, the actual type
-	   is Null<T>, not object, and we should use .value to unwrap.
-	   Direct cast like (double)obj fails when obj is a boxed int, even though int -> double is valid.
-	   Runtime.toDouble/toInt/etc. handle these conversions properly using Convert.ToXxx. *)
-	| CsTypeInt, (CsTypeObject | CsTypeDynamic) ->
-		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
-		| Some CsTypeInt -> CsField (cs_arg, "value")  (* Null<int>._ofDynamic(...).value *)
-		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (cs_arg, "value")])
-		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [cs_arg])
-		end
-	| CsTypeDouble, (CsTypeObject | CsTypeDynamic) ->
-		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
-		| Some CsTypeDouble -> CsField (cs_arg, "value")
-		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")])
-		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg])
-		end
-	| CsTypeBool, (CsTypeObject | CsTypeDynamic) ->
-		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
-		| Some CsTypeBool -> CsField (cs_arg, "value")
-		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (cs_arg, "value")])
-		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [cs_arg])
-		end
-	| CsTypeFloat, (CsTypeObject | CsTypeDynamic) ->
-		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
-		| Some CsTypeFloat -> CsField (cs_arg, "value")
-		| Some _ -> CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")]))
-		| None -> CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg]))
-		end
-	| CsTypeLong, (CsTypeObject | CsTypeDynamic) ->
-		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
-		| Some CsTypeLong -> CsField (cs_arg, "value")
-		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (cs_arg, "value")])
-		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [cs_arg])
-		end
-	| CsTypeByte, (CsTypeObject | CsTypeDynamic) -> CsCast (CsTypeByte, cs_arg)
-	| CsTypeString, (CsTypeObject | CsTypeDynamic) -> CsCast (CsTypeString, cs_arg)
-	(* Null<T> to T (basic types) - unwrap via .value.
-	   The CsNullable filter handles Null<Null<T>> flattening at the AST level,
-	   so we only need single-level unwrap here. *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeDouble]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeBool]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeFloat]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeString]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	(* Null<object> to basic types - unwrap .value then use Runtime conversion.
-	   BUT: Only if cs_arg is not already cast to object (can't access .value on object).
-	   Simple cast doesn't work for dynamic values - need Runtime.toInt/toDouble/etc. *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (cs_arg, "value")])
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")])
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (cs_arg, "value")])
-	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")]))
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (cs_arg, "value")])
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) when not (cs_expr_is_object_cast cs_arg) ->
-		CsCast (CsTypeString, CsField (cs_arg, "value"))
-	(* Null<object> to a class type - unwrap .value then cast
-	   BUT: Only if cs_arg is not already cast to object *)
-	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])
-		when path <> (["haxe"; "lang"], "Null") && not (cs_expr_is_object_cast cs_arg) ->
-		CsCast (CsTypeClass (path, params), CsField (cs_arg, "value"))
-	(* Null<object> to basic types - expression is already cast to object, use Runtime conversion.
-	   (These handle the cases where cs_expr_is_object_cast is true) *)
-	| CsTypeInt, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [cs_arg])
-	| CsTypeDouble, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg])
-	| CsTypeBool, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [cs_arg])
-	| CsTypeFloat, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg]))
-	| CsTypeLong, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [cs_arg])
-	| CsTypeString, CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) ->
-		CsCast (CsTypeString, cs_arg)
-	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject])
-		when path <> (["haxe"; "lang"], "Null") ->
-		CsCast (CsTypeClass (path, params), cs_arg)
-	(* Null<SomeClass> to SomeClass - for reference types (classes, enums, interfaces),
-	   the C# variable is declared as SomeClass directly (not Null<SomeClass>),
-	   so no .value unwrapping is needed - the expression already IS SomeClass.
-	   Only unwrap .value for cases where the C# variable would actually be Null<T>:
-	   - Value types inside Null<T>
-	   - Type parameters that might be value types at runtime
-	   NOTE: We removed the .value unwrapping here because reference types in C# are nullable
-	   by default. The Haxe Null<RefType> wrapper is just a type-level abstraction that
-	   doesn't generate actual Null<> struct wrapping for reference types. *)
-	| CsTypeClass (path, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass (inner_path, inner_params)])
-		when path = inner_path && path <> (["haxe"; "lang"], "Null") && not (cs_expr_is_object_cast cs_arg) ->
-		(* Reference types: C# variable is declared as the type directly, no .value needed.
-		   The expression already produces the correct type - just return it unchanged,
-		   casting through object if type params differ. *)
-		if params = inner_params then
-			cs_arg
-		else
-			(* Params differ - need cast *)
-			CsCast (CsTypeClass (path, params), cs_arg)
-	(* Null<NestedGeneric> to NestedGeneric - same logic for nested generic reference types. *)
-	| CsTypeNestedGeneric (parent, name, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeNestedGeneric (inner_parent, inner_name, inner_params)])
-		when parent = inner_parent && name = inner_name && not (cs_expr_is_object_cast cs_arg) ->
-		if params = inner_params then
-			cs_arg
-		else
-			CsCast (CsTypeNestedGeneric (parent, name, params), cs_arg)
-	(* FALLBACK: null literal to Null<T> - generate default(Null<T>) directly.
-	   This is a safety net for edge cases where:
-	   1. csNullable strips Null<> from a null constant (correct for inherently nullable types)
-	   2. But the target field IS declared as Null<T> (e.g., recursive abstracts due to cycle-breaking)
-
-	   Ideally, Null<> stripping should happen at the TYPE DEFINITION level in cs_type_of_type,
-	   so Null<InherentlyNullableType> becomes just InherentlyNullableType everywhere.
-	   Once that's implemented, this fallback should rarely (if ever) be triggered.
-
-	   See csNullable.ml TConst TNull handling for the design principle. *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), _), _ when cs_arg = CsNull ->
-		CsDefault expected_cs_type
-	(* object/Dynamic to Null<T> - use _ofDynamic for proper conversion. *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) ->
-		(* object/Dynamic to Null<T> - use Null<T>._ofDynamic(obj) which handles:
-		   - null -> Null<T> with hasValue=false
-		   - value -> Null<T> wrapping the converted value
-		   - nested Null<> types -> proper unwrapping
-		   - numeric type conversions via Runtime.toXxx *)
-		CsStaticCall (expected_cs_type, "_ofDynamic", [cs_arg])
-	(* SomeClass<A> to Null<SomeClass<B>> where A and B have compatible structures but different type params.
-	   This handles cases like Node<Int> to Null<Node<Null<Int>>> or Node<Null<Int>> to Null<Node<Int>>
-	   where Haxe's type inference uses one type param but the parameter expects a different one.
-	   We cast through object to handle the generic invariance, then wrap in Null. *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeClass (inner_path, inner_params)]), CsTypeClass (arg_path, arg_params)
-		when inner_path = arg_path && inner_params <> arg_params && arg_path <> (["haxe"; "lang"], "Null") ->
-		(* Cast arg to the expected inner type through object, then wrap in Null *)
-		let inner_type = CsTypeClass (inner_path, inner_params) in
-		let casted = CsCast (inner_type, cs_arg) in
-		CsNew (expected_cs_type, [casted; CsConst (CsConstBool true)])
-	(* object to class type (except Null) - need explicit cast *)
-	| CsTypeClass (path, params), CsTypeObject when path <> (["haxe"; "lang"], "Null") ->
-		CsCast (CsTypeClass (path, params), cs_arg)
-	(* Dynamic to class type (except Null) - need explicit cast *)
-	| CsTypeClass (path, params), CsTypeDynamic when path <> (["haxe"; "lang"], "Null") ->
-		CsCast (CsTypeClass (path, params), cs_arg)
-	(* object/Dynamic to native array (T[]) - need explicit cast *)
-	| CsTypeArray (_, _), CsTypeObject -> CsCast (expected_cs_type, cs_arg)
-	| CsTypeArray (_, _), CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
 	(* Native array T[] to Haxe Array - use appropriate factory method.
 	   Array is non-generic in C# output, so we use the actual array element type. *)
 	| CsTypeClass ((["haxe"; "root"], "Array"), _), CsTypeArray (elem_type, _) ->
@@ -1389,84 +1519,6 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* object/Dynamic to generic type param T - need explicit cast (T)value *)
 	| CsTypeGenericParam _, CsTypeObject -> CsCast (expected_cs_type, cs_arg)
 	| CsTypeGenericParam _, CsTypeDynamic -> CsCast (expected_cs_type, cs_arg)
-	(* Null<T> to T (generic) - unwrap via .value.
-	   The CsNullable filter handles Null<Null<T>> flattening, so this only handles single Null. *)
-	| target, CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
-		when target = inner && not (cs_expr_is_object_cast cs_arg) ->
-		CsField (cs_arg, "value")
-	(* Null<numeric1> to Null<numeric2> - need to convert the inner value.
-	   e.g., Null<int> to Null<double>: hasValue ? new Null<double>((double)value, true) : new Null<double>(0, false)
-	   We use a ternary to handle the hasValue check. *)
-	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_expected]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_arg])
-		when inner_expected <> inner_arg ->
-		(* Check if we need numeric conversion *)
-		let needs_numeric_conversion = match inner_expected, inner_arg with
-			| CsTypeDouble, CsTypeInt -> true
-			| CsTypeDouble, CsTypeFloat -> true
-			| CsTypeFloat, CsTypeInt -> true
-			| CsTypeLong, CsTypeInt -> true
-			| CsTypeInt, CsTypeLong -> true  (* narrowing *)
-			| CsTypeInt, CsTypeDouble -> true  (* narrowing *)
-			| _ -> false
-		in
-		(* Check if we need generic class coercion - same class path but different type params *)
-		let needs_generic_coercion = match inner_expected, inner_arg with
-			| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
-				when path1 = path2 && params1 <> params2 ->
-				(* Only coerce if expected has no out-of-scope type params *)
-				let is_type_param = function CsTypeGenericParam _ -> true | _ -> false in
-				not (List.exists is_type_param params1)
-			| _ -> false
-		in
-		if needs_numeric_conversion then
-			(* Generate: arg.hasValue ? new Null<T>((T)arg.value, true) : new Null<T>(default(T), false) *)
-			let has_value = CsField (cs_arg, "hasValue") in
-			let converted_value = CsCast (inner_expected, CsField (cs_arg, "value")) in
-			let true_branch = CsNew (expected_cs_type, [converted_value; CsConst (CsConstBool true)]) in
-			let false_branch = CsNew (expected_cs_type, [CsDefault inner_expected; CsConst (CsConstBool false)]) in
-			CsTernary (has_value, true_branch, false_branch)
-		else if needs_generic_coercion then
-			(* Cast Null<SomeClass<A>> to Null<SomeClass<B>>.
-			   Generate: (Null<Target>)arg *)
-			CsCast (expected_cs_type, cs_arg)
-		else
-			cs_arg
-	(* Generic covariance/contravariance: SomeClass<A> to SomeClass<B> where A != B.
-	   C# generics are invariant, so we need to cast through object: (TargetType)(object)expr
-	   This handles cases like:
-	   - Array<int> to Array<object> (widening)
-	   - Expr<C> to Expr<double> (GADT refinement where C is known to be double)
-	   - Binop<object, T> to Binop<object, object> (partial type param substitution)
-	   IMPORTANT: Only cast when the EXPECTED type params are NOT generic type params,
-	   because if they are, the type param might not be in scope in the current context.
-	   Note: CsTypeClass is used for both classes and interfaces in our AST. *)
-	(* Generic class type coercion - cast when same class with different type params.
-	   IMPORTANT: Only cast when the EXPECTED type params are NOT out-of-scope generic type params,
-	   because if they are, the cast would fail with CS0246 (type not found).
-	   Type params that ARE in scope (passed via in_scope parameter) are safe to cast to. *)
-	| CsTypeClass (path1, params1), CsTypeClass (path2, params2)
-		when path1 = path2 && params1 <> params2 ->
-		(* Check if any type param in expected type is out of scope *)
-		let rec has_out_of_scope_param in_scope cs_type = match cs_type with
-			| CsTypeGenericParam name ->
-				begin match in_scope with
-				| Some scope -> not (List.mem name scope)  (* Out of scope if not in the scope list *)
-				| None -> true  (* Conservative: assume out of scope if no scope info *)
-				end
-			| CsTypeClass (_, inner_params) | CsTypeNestedGeneric (_, _, inner_params) ->
-				List.exists (has_out_of_scope_param in_scope) inner_params
-			| CsTypeNested (parent, _) ->
-				has_out_of_scope_param in_scope parent
-			| CsTypeArray (elem, _) ->
-				has_out_of_scope_param in_scope elem
-			| _ -> false
-		in
-		(* Only cast if expected type has no out-of-scope type params *)
-		let expected_has_out_of_scope = List.exists (has_out_of_scope_param in_scope) params1 in
-		if not expected_has_out_of_scope then
-			CsCast (expected_cs_type, cs_arg)
-		else
-			cs_arg
 	(* Don't cast object to arbitrary class types or generic params - they may not be in scope
 	   and the type system should handle covariance through proper interfaces *)
 	| _ -> cs_arg
