@@ -343,3 +343,54 @@ let rec stmt_exits_case stmt =
 	| CsIf (_, _, None) -> false
 	| CsUncheckedStmt inner -> stmt_exits_case inner
 	| _ -> false
+
+(* Check if a statement definitely returns (ends with a return statement).
+   This is a simpler check than stmt_terminates - only looks for explicit returns. *)
+let rec stmt_has_return stmt =
+	match stmt with
+	| CsReturn _ -> true
+	| CsThrowStmt _ -> true
+	| CsBlock stmts -> (match List.rev stmts with [] -> false | last :: _ -> stmt_has_return last)
+	| CsStmtList stmts -> (match List.rev stmts with [] -> false | last :: _ -> stmt_has_return last)
+	| _ -> false
+
+(* Check if a statement list ends with a return *)
+let stmts_end_with_return stmts =
+	match List.rev stmts with
+	| [] -> false
+	| last :: _ -> stmt_has_return last
+
+(* Transform void returns (CsReturn None) to null returns (CsReturn (Some CsNull)).
+   Used when a void-returning Haxe closure shadows a base class method that returns object. *)
+let rec transform_void_returns_to_null stmt =
+	match stmt with
+	| CsReturn None -> CsReturn (Some CsNull)
+	| CsBlock stmts -> CsBlock (List.map transform_void_returns_to_null stmts)
+	| CsStmtList stmts -> CsStmtList (List.map transform_void_returns_to_null stmts)
+	| CsIf (cond, then_stmt, else_opt) ->
+		CsIf (cond, transform_void_returns_to_null then_stmt,
+			Option.map transform_void_returns_to_null else_opt)
+	| CsSwitch (expr, sections) ->
+		let sections' = List.map (fun s ->
+			{ s with sw_body = List.map transform_void_returns_to_null s.sw_body }
+		) sections in
+		CsSwitch (expr, sections')
+	| CsWhile (cond, body) ->
+		CsWhile (cond, transform_void_returns_to_null body)
+	| CsDoWhile (body, cond) ->
+		CsDoWhile (transform_void_returns_to_null body, cond)
+	| CsFor (init, cond, iter, body) ->
+		CsFor (init, cond, iter, transform_void_returns_to_null body)
+	| CsForeach (t, name, expr, body) ->
+		CsForeach (t, name, expr, transform_void_returns_to_null body)
+	| CsTry (body, catches, finally_opt) ->
+		let catches' = List.map (fun c ->
+			{ c with catch_body = transform_void_returns_to_null c.catch_body }
+		) catches in
+		CsTry (transform_void_returns_to_null body, catches',
+			Option.map transform_void_returns_to_null finally_opt)
+	| CsUsing (decls, body) ->
+		CsUsing (decls, transform_void_returns_to_null body)
+	| CsLock (expr, body) ->
+		CsLock (expr, transform_void_returns_to_null body)
+	| _ -> stmt
