@@ -1094,6 +1094,16 @@ let rec cs_expr_is_runtime_conversion cs_expr =
 	| CsCast (_, e) -> cs_expr_is_runtime_conversion e  (* Look through casts *)
 	| _ -> false
 
+(* If cs_expr is a Null<T>._ofDynamic(...) call, return Some(inner_type) where T is inner_type.
+   This detects when earlier code added _ofDynamic, meaning the actual result type is
+   Null<T> (not object as arg_cs_type might indicate). Used to avoid double conversion. *)
+let rec get_null_inner_type_if_of_dynamic_call cs_expr =
+	match cs_expr with
+	| CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Null"), [inner_type]), "_ofDynamic", _) ->
+		Some inner_type
+	| CsParens e -> get_null_inner_type_if_of_dynamic_call e
+	| _ -> None
+
 (* Check if a Haxe expression is null or a default value (for block expression optimization).
    This is used to detect patterns like { var x = null; call(args, x); } which can be
    optimized by inlining the null/default directly into the call. *)
@@ -1193,22 +1203,43 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| CsTypeInt, CsTypeDouble ->
 		(* double -> int needs explicit cast *)
 		CsCast (CsTypeInt, cs_arg)
-	(* object to basic types - need explicit cast *)
-	| CsTypeInt, CsTypeObject -> CsCast (CsTypeInt, cs_arg)
-	| CsTypeDouble, CsTypeObject -> CsCast (CsTypeDouble, cs_arg)
-	| CsTypeBool, CsTypeObject -> CsCast (CsTypeBool, cs_arg)
-	| CsTypeFloat, CsTypeObject -> CsCast (CsTypeFloat, cs_arg)
-	| CsTypeLong, CsTypeObject -> CsCast (CsTypeLong, cs_arg)
-	| CsTypeByte, CsTypeObject -> CsCast (CsTypeByte, cs_arg)
-	| CsTypeString, CsTypeObject -> CsCast (CsTypeString, cs_arg)
-	(* Dynamic to basic types - need explicit cast (Dynamic is object in disguise) *)
-	| CsTypeInt, CsTypeDynamic -> CsCast (CsTypeInt, cs_arg)
-	| CsTypeDouble, CsTypeDynamic -> CsCast (CsTypeDouble, cs_arg)
-	| CsTypeBool, CsTypeDynamic -> CsCast (CsTypeBool, cs_arg)
-	| CsTypeFloat, CsTypeDynamic -> CsCast (CsTypeFloat, cs_arg)
-	| CsTypeLong, CsTypeDynamic -> CsCast (CsTypeLong, cs_arg)
-	| CsTypeByte, CsTypeDynamic -> CsCast (CsTypeByte, cs_arg)
-	| CsTypeString, CsTypeDynamic -> CsCast (CsTypeString, cs_arg)
+	(* object/Dynamic to basic types - handle boxed type mismatches.
+	   BUT FIRST: Check if cs_arg is a Null<T>._ofDynamic call - if so, the actual type
+	   is Null<T>, not object, and we should use .value to unwrap.
+	   Direct cast like (double)obj fails when obj is a boxed int, even though int -> double is valid.
+	   Runtime.toDouble/toInt/etc. handle these conversions properly using Convert.ToXxx. *)
+	| CsTypeInt, (CsTypeObject | CsTypeDynamic) ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeInt -> CsField (cs_arg, "value")  (* Null<int>._ofDynamic(...).value *)
+		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [CsField (cs_arg, "value")])
+		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toInt", [cs_arg])
+		end
+	| CsTypeDouble, (CsTypeObject | CsTypeDynamic) ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeDouble -> CsField (cs_arg, "value")
+		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")])
+		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg])
+		end
+	| CsTypeBool, (CsTypeObject | CsTypeDynamic) ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeBool -> CsField (cs_arg, "value")
+		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [CsField (cs_arg, "value")])
+		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toBool", [cs_arg])
+		end
+	| CsTypeFloat, (CsTypeObject | CsTypeDynamic) ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeFloat -> CsField (cs_arg, "value")
+		| Some _ -> CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [CsField (cs_arg, "value")]))
+		| None -> CsCast (CsTypeFloat, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toDouble", [cs_arg]))
+		end
+	| CsTypeLong, (CsTypeObject | CsTypeDynamic) ->
+		begin match get_null_inner_type_if_of_dynamic_call cs_arg with
+		| Some CsTypeLong -> CsField (cs_arg, "value")
+		| Some _ -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [CsField (cs_arg, "value")])
+		| None -> CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toLong", [cs_arg])
+		end
+	| CsTypeByte, (CsTypeObject | CsTypeDynamic) -> CsCast (CsTypeByte, cs_arg)
+	| CsTypeString, (CsTypeObject | CsTypeDynamic) -> CsCast (CsTypeString, cs_arg)
 	(* Null<T> to T (basic types) - unwrap via .value.
 	   The CsNullable filter handles Null<Null<T>> flattening at the AST level,
 	   so we only need single-level unwrap here. *)
