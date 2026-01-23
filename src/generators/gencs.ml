@@ -1166,12 +1166,6 @@ let cast_object_to_type target_cs_type object_expr =
 	| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [object_expr]))
 	| _ -> CsCast (target_cs_type, object_expr)
 
-(* Cast through object: (Target)(object)expr
-   Used when C# generics invariance requires explicit casting through object.
-   This is a common pattern for type covariance/contravariance. *)
-let cast_through_object target_cs_type expr =
-	CsCast (target_cs_type, CsCast (CsTypeObject, expr))
-
 (* Check if a Haxe type is Dynamic (after following aliases) *)
 let is_haxe_dynamic_type t = match Type.follow t with TDynamic _ -> true | _ -> false
 
@@ -1209,7 +1203,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 		| CsTypeInt | CsTypeDouble | CsTypeBool | CsTypeFloat | CsTypeLong ->
 			(* Use cast_object_to_type for primitives - handles Runtime.toXxx *)
 			cast_object_to_type expected_cs_type (CsCast (CsTypeObject, cs_arg))
-		| CsTypeString -> cast_through_object CsTypeString cs_arg
+		| CsTypeString -> CsCast (CsTypeString, cs_arg)
 		| _ -> cs_arg  (* Non-primitive target types can use normal flow *)
 	else
 	(* Check for various type conversions *)
@@ -1337,15 +1331,15 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 		if params = inner_params then
 			cs_arg
 		else
-			(* Params differ - need to cast through object but no .value unwrap *)
-			cast_through_object (CsTypeClass (path, params)) cs_arg
+			(* Params differ - need cast *)
+			CsCast (CsTypeClass (path, params), cs_arg)
 	(* Null<NestedGeneric> to NestedGeneric - same logic for nested generic reference types. *)
 	| CsTypeNestedGeneric (parent, name, params), CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeNestedGeneric (inner_parent, inner_name, inner_params)])
 		when parent = inner_parent && name = inner_name && not (cs_expr_is_object_cast cs_arg) ->
 		if params = inner_params then
 			cs_arg
 		else
-			cast_through_object (CsTypeNestedGeneric (parent, name, params)) cs_arg
+			CsCast (CsTypeNestedGeneric (parent, name, params), cs_arg)
 	(* FALLBACK: null literal to Null<T> - generate default(Null<T>) directly.
 	   This is a safety net for edge cases where:
 	   1. csNullable strips Null<> from a null constant (correct for inherently nullable types)
@@ -1374,7 +1368,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 		when inner_path = arg_path && inner_params <> arg_params && arg_path <> (["haxe"; "lang"], "Null") ->
 		(* Cast arg to the expected inner type through object, then wrap in Null *)
 		let inner_type = CsTypeClass (inner_path, inner_params) in
-		let casted = cast_through_object inner_type cs_arg in
+		let casted = CsCast (inner_type, cs_arg) in
 		CsNew (expected_cs_type, [casted; CsConst (CsConstBool true)])
 	(* object to class type (except Null) - need explicit cast *)
 	| CsTypeClass (path, params), CsTypeObject when path <> (["haxe"; "lang"], "Null") ->
@@ -1432,9 +1426,9 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 			let false_branch = CsNew (expected_cs_type, [CsDefault inner_expected; CsConst (CsConstBool false)]) in
 			CsTernary (has_value, true_branch, false_branch)
 		else if needs_generic_coercion then
-			(* Cast Null<SomeClass<A>> to Null<SomeClass<B>> through object.
-			   Generate: (Null<Target>)(object)arg *)
-			cast_through_object expected_cs_type cs_arg
+			(* Cast Null<SomeClass<A>> to Null<SomeClass<B>>.
+			   Generate: (Null<Target>)arg *)
+			CsCast (expected_cs_type, cs_arg)
 		else
 			cs_arg
 	(* Generic covariance/contravariance: SomeClass<A> to SomeClass<B> where A != B.
@@ -1470,7 +1464,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 		(* Only cast if expected type has no out-of-scope type params *)
 		let expected_has_out_of_scope = List.exists (has_out_of_scope_param in_scope) params1 in
 		if not expected_has_out_of_scope then
-			cast_through_object expected_cs_type cs_arg
+			CsCast (expected_cs_type, cs_arg)
 		else
 			cs_arg
 	(* Don't cast object to arbitrary class types or generic params - they may not be in scope
@@ -1546,7 +1540,7 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 				   1. GADT refinement: Expr<C> -> Expr<double> (expected has no type params)
 				   2. Phantom types: Stack<S> -> Stack<TCons<Y, S>> (expected has in-scope type params) *)
 				if expected_all_in_scope then
-					cast_through_object expected_cs_type cs_arg
+					CsCast (expected_cs_type, cs_arg)
 				else
 					(* Use effective type to handle non-null-generating expressions like enum field access *)
 					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type arg) expected_type
@@ -1823,8 +1817,8 @@ let rec cs_expr_of_texpr ectx e =
 				   Array is non-generic in C# output. *)
 				match get_array_constraint_elem_type e1.etype with
 				| Some _ ->
-					(* Cast type param to Array through object: ((Array)(object)b)[idx] *)
-					let arr_cast = cast_through_object haxe_array_type (cs_expr_of_texpr ectx e1) in
+					(* Cast type param to Array: ((Array)b)[idx] *)
+					let arr_cast = CsCast (haxe_array_type, cs_expr_of_texpr ectx e1) in
 					(* Access __objectArray field of the cast array *)
 					CsArrayAccess (CsField (arr_cast, "__objectArray"), cs_expr_of_texpr ectx e2)
 				| None ->
@@ -2041,7 +2035,7 @@ let rec cs_expr_of_texpr ectx e =
 					let obj_expr_for_field, field_name = match get_type_param_constraint obj.etype with
 						| Some constraint_type ->
 							let cs_constraint = cs_type_of_type ectx.gctx constraint_type in
-							let casted = cast_through_object cs_constraint obj_expr_for_field in
+							let casted = CsCast (cs_constraint, obj_expr_for_field) in
 							let field = match cs_constraint, cf.cf_name with
 								| CsTypeString, "length" -> "Length"
 								| _ -> escape_identifier cf.cf_name
@@ -2338,10 +2332,10 @@ let rec cs_expr_of_texpr ectx e =
 				in
 				let cs_e1, cs_e2 =
 					if is_arithmetic_op && (is_type_param e1.etype || is_type_param e2.etype) then
-						(* Cast type params to int via object for arithmetic *)
+						(* Cast type params to int for arithmetic *)
 						let cast_if_needed e cs_e =
 							if is_type_param e.etype then
-								cast_through_object CsTypeInt cs_e
+								CsCast (CsTypeInt, cs_e)
 							else cs_e
 						in
 						(cast_if_needed e1 cs_e1, cast_if_needed e2 cs_e2)
@@ -2552,9 +2546,9 @@ let rec cs_expr_of_texpr ectx e =
 			   This handles cases where C# can't express the constraint (e.g., T:String where String is sealed). *)
 			let obj_expr, field_name = match get_type_param_constraint e.etype with
 				| Some constraint_type ->
-					(* Cast through object to constraint type for field access *)
+					(* Cast to constraint type for field access *)
 					let cs_constraint = cs_type_of_type ectx.gctx constraint_type in
-					let casted = cast_through_object cs_constraint obj_expr in
+					let casted = CsCast (cs_constraint, obj_expr) in
 					(* Translate field names for specific C# types (e.g., length -> Length for string) *)
 					let field = match cs_constraint, cf.cf_name with
 						| CsTypeString, "length" -> "Length"
@@ -2725,9 +2719,9 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> CsCast (target_type, field_call)
 			end
 		| CsTypeGenericParam _ ->
-			(* Type parameter - cast through object to HaxeObject to call _hx_getField *)
+			(* Type parameter - cast to HaxeObject to call _hx_getField *)
 			let haxe_object_type = CsTypeClass ((["haxe"; "root"], "HaxeObject"), []) in
-			let casted_obj = cast_through_object haxe_object_type obj_expr in
+			let casted_obj = CsCast (haxe_object_type, obj_expr) in
 			let field_call = CsCall (CsField (casted_obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
@@ -3769,9 +3763,9 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> CsCast (result_type, call_expr)
 			end
 		| CsTypeGenericParam _ ->
-			(* Type parameter - cast through object to HaxeObject to call _hx_getField *)
+			(* Type parameter - cast to HaxeObject to call _hx_getField *)
 			let haxe_object_type = CsTypeClass ((["haxe"; "root"], "HaxeObject"), []) in
-			let casted_obj = cast_through_object haxe_object_type obj in
+			let casted_obj = CsCast (haxe_object_type, obj) in
 			let field_call = CsCall (CsField (casted_obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			(* Build an array of arguments using appropriate factory method *)
 			let args_array = if args = [] then
@@ -4337,7 +4331,7 @@ let rec cs_expr_of_texpr ectx e =
 							) params1 in
 							let expected_has_no_type_params = not (List.exists is_type_param params2) in
 							if original_has_in_scope_type_params && expected_has_no_type_params then
-								cast_through_object expected_cs_type cs_arg
+								CsCast (expected_cs_type, cs_arg)
 							else
 								coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
 						| _ ->
@@ -4905,8 +4899,8 @@ let rec cs_expr_of_texpr ectx e =
 						CsTernary (has_value, true_branch, false_branch)
 					else
 						(* For non-numeric conversion (e.g., Null<SomeClass<A>> to Null<SomeClass<B>>),
-						   cast through object *)
-						cast_through_object target_type inner_cs
+						   direct cast *)
+						CsCast (target_type, inner_cs)
 				end
 				else if is_target_null_wrapper && not is_inner_null_wrapper then begin
 					(* Casting TO Null<T> from a non-Null type that doesn't match T exactly.
@@ -4945,9 +4939,9 @@ let rec cs_expr_of_texpr ectx e =
 						   in expression context. *)
 						CsNew (target_type, [inner_cs; CsConst (CsConstBool true)])
 					else if is_inner_primitive then
-						(* Inner is primitive but wrapped type is not - box then cast.
+						(* Inner is primitive but wrapped type is not - cast directly.
 						   This handles weird cases like int to Null<object>. *)
-						cast_through_object wrapped_type inner_cs
+						CsCast (wrapped_type, inner_cs)
 					else if (inner_type = CsTypeObject || inner_type = CsTypeDynamic) then
 						(* Object/Dynamic to Null<T> - use _ofDynamic for proper handling.
 						   This correctly handles:
@@ -4957,9 +4951,9 @@ let rec cs_expr_of_texpr ectx e =
 						CsStaticCall (target_type, "_ofDynamic", [inner_cs])
 					else
 						(* Reference type conversion - explicitly wrap in Null<T> constructor.
-						   E.g., SomeClass to Null<SomeInterface> -> new Null<IInterface>((IInterface)(object)value, true)
+						   E.g., SomeClass to Null<SomeInterface> -> new Null<IInterface>((IInterface)value, true)
 						   We can't rely on implicit conversion since haxe.lang.Null is an extern class. *)
-						let converted = cast_through_object wrapped_type inner_cs in
+						let converted = CsCast (wrapped_type, inner_cs) in
 						CsNew (target_type, [converted; CsConst (CsConstBool true)])
 				end
 				else if is_inner_null_wrapper && not is_target_null_wrapper && is_ternary_with_mixed_null_branches then begin
@@ -4992,7 +4986,7 @@ let rec cs_expr_of_texpr ectx e =
 					if inner_unwrapped_type = target_type then
 						unwrapped
 					else
-						cast_through_object target_type unwrapped
+						CsCast (target_type, unwrapped)
 				end
 				else begin
 					(* Special case: native array T[] to Haxe Array - use appropriate factory method.
@@ -5087,7 +5081,9 @@ let rec cs_expr_of_texpr ectx e =
 						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 						CsCallGeneric (CsStaticField (runtime_type, "genericCast"), [target_type], [inner_cs])
 					else if needs_double_cast then
-						cast_through_object target_type inner_cs
+						(* Cast through object: (Target)(object)source
+						   Needed for: unrelated class types, type parameter casts, generic coercion *)
+						CsCast (target_type, CsCast (CsTypeObject, inner_cs))
 					else
 						CsCast (target_type, inner_cs)
 				end
@@ -5746,7 +5742,7 @@ and cs_stmt_of_texpr ectx e =
 					(* Null<T> -> SomeType (not Null<_>): unwrap via .value and cast if needed
 					   BUT: Skip if arithmetic already unwrapped in C#, or if already cast to object, or if Runtime conversion *)
 					let unwrapped = CsField (init_cs, "value") in
-					cast_through_object var_type unwrapped
+					CsCast (var_type, unwrapped)
 				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_init]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
 					when inner_init <> inner_var && not is_init_object_cast && not is_init_runtime_conversion && not is_init_non_null_generating ->
 					(* Null<A> -> Null<B> where A != B: need to convert inner value.
@@ -5762,18 +5758,18 @@ and cs_stmt_of_texpr ectx e =
 					   This happens with abstract types that can hold null values.
 					   E.g., Variant (abstract over VariantType) -> Null<VariantType>.
 					   We need to wrap explicitly since haxe.lang.Null doesn't have implicit conversion. *)
-					let converted = cast_through_object inner_var init_cs in
+					let converted = CsCast (inner_var, init_cs) in
 					CsNew (var_type, [converted; CsConst (CsConstBool true)])
 				| CsTypeClass (init_path, _), CsTypeClass (var_path, _) when init_path <> var_path && not is_init_null_wrapper ->
-					(* Different class types (not Null<T>) - need cast through object.
+					(* Different class types (not Null<T>) - need cast.
 					   This happens with structural typing: e.g., IntIterator -> ArrayIterator<T>
 					   where the Haxe type was Iterator<T> mapped to ArrayIterator<T>. *)
-					cast_through_object var_type init_cs
+					CsCast (var_type, init_cs)
 				| CsTypeClass (init_path, init_params), CsTypeClass (var_path, var_params)
 					when init_path = var_path && init_params <> var_params && not is_init_null_wrapper ->
 					(* Same class type but different type params (e.g., Array<object> -> Array<int>).
 					   This can happen with abstract @:from casts that use generic type parameters. *)
-					cast_through_object var_type init_cs
+					CsCast (var_type, init_cs)
 				| _ ->
 					(* Check if init_expr is a cs.Syntax.code call - inline C# code may return object
 					   even when the Haxe type is concrete (e.g., when accessing erased generic fields).
@@ -6056,24 +6052,24 @@ and cs_stmt_of_texpr ectx e =
 					(* Expression is T (type param) and return is Null<T> - use implicit conversion, don't cast *)
 					cs_e
 				| Some ret_t when is_type_param e.etype && is_type_param ret_t ->
-					(* Both are type parameters but may be different (e.g., O vs T) - cast through object *)
+					(* Both are type parameters but may be different (e.g., O vs T) - direct cast *)
 					let expr_cs = cs_type_of_type ectx.gctx e.etype in
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
 					if expr_cs <> ret_cs then
-						(* Different type params - cast O to object then to T *)
-						cast_through_object ret_cs cs_e
+						(* Different type params - cast O to T *)
+						CsCast (ret_cs, cs_e)
 					else
 						cs_e
 				| Some ret_t when is_type_param ret_t && not (is_type_param e.etype) ->
 					(* GADT pattern: returning concrete type (string, int, etc.) but method returns T.
-					   Haxe typer knows the type is correct, but C# needs explicit cast through object. *)
+					   Haxe typer knows the type is correct, but C# needs explicit cast. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
-					cast_through_object ret_cs cs_e
+					CsCast (ret_cs, cs_e)
 				| Some ret_t when is_type_param e.etype && not (is_type_param ret_t) && not (is_haxe_dynamic_type ret_t) ->
 					(* Constrained type param: expression is T but return type is concrete (e.g., T:(Float) -> Float).
-					   Haxe knows T can be used as Float, but C# needs cast through object. *)
+					   Haxe knows T can be used as Float, but C# needs cast. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
-					cast_through_object ret_cs cs_e
+					CsCast (ret_cs, cs_e)
 				| Some ret_t ->
 					(* Check for GADT covariance: returning SomeClass<ConcreteType> where method returns SomeClass<A>.
 					   C# generics are invariant, so we need to cast through object.
@@ -6089,7 +6085,7 @@ and cs_stmt_of_texpr ectx e =
 						| _ -> false
 					in
 					if needs_gadt_cast then
-						cast_through_object ret_cs cs_e
+						CsCast (ret_cs, cs_e)
 					else begin
 						(* Check for TObjectDecl -> class/interface coercion.
 						   Structural typing in Haxe allows { hasNext: ..., next: ... } to satisfy Iterator<T>,
@@ -6101,7 +6097,7 @@ and cs_stmt_of_texpr ectx e =
 						let is_object_decl = match e.eexpr with TObjectDecl _ -> true | _ -> false in
 						let is_cs_class t = match cs_type_of_type ectx.gctx t with CsTypeClass _ -> true | _ -> false in
 						if is_object_decl && is_cs_class ret_t then
-							cast_through_object ret_cs cs_e
+							CsCast (ret_cs, cs_e)
 						(* Check for object -> T coercion.
 						   When expression maps to object but return type is a type param T,
 						   we need to cast (T)expression. This happens with GADT method calls
@@ -7120,9 +7116,8 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	let capture_args = match obj_expr, erased_capture_type with
 		| Some expr, Some erased_type when not is_static ->
 			(* Cast the capture expression to the erased type to handle generic covariance.
-			   e.g., TestHandler<T> needs to be cast to TestHandler<object> for the closure.
-			   C# doesn't allow direct cast between generic types, so cast through object first. *)
-			[cast_through_object erased_type expr]
+			   e.g., TestHandler<T> needs to be cast to TestHandler<object> for the closure. *)
+			[CsCast (erased_type, expr)]
 		| _ -> []
 	in
 	CsNew (closure_type, capture_args)
