@@ -19,6 +19,10 @@
 
 (* C# code generator global types and utilities *)
 
+open Ast
+open Type
+open Globals
+
 (* Access modifiers for C# *)
 module AccessModifier = struct
 	type t =
@@ -146,6 +150,43 @@ let unop_to_string = function
 	| CsOpIncrement -> "++"
 	| CsOpDecrement -> "--"
 
+(* Convert Haxe binary operator to C# binary operator *)
+let rec cs_binop_of_binop = function
+	| OpAdd -> CsOpAdd
+	| OpSub -> CsOpSub
+	| OpMult -> CsOpMul
+	| OpDiv -> CsOpDiv
+	| OpMod -> CsOpMod
+	| OpAnd -> CsOpAnd
+	| OpOr -> CsOpOr
+	| OpXor -> CsOpXor
+	| OpShl -> CsOpShl
+	| OpShr -> CsOpShr
+	| OpUShr -> CsOpShr  (* C# doesn't have unsigned shift, handle separately *)
+	| OpEq -> CsOpEq
+	| OpNotEq -> CsOpNotEq
+	| OpLt -> CsOpLt
+	| OpLte -> CsOpLte
+	| OpGt -> CsOpGt
+	| OpGte -> CsOpGte
+	| OpAssign -> CsOpAssign
+	| OpBoolAnd -> CsOpBoolAnd
+	| OpBoolOr -> CsOpBoolOr
+	| OpInterval -> failwith "Interval operator not supported"
+	| OpArrow -> failwith "Arrow operator not supported"
+	| OpIn -> failwith "In operator not supported"
+	| OpNullCoal -> CsOpNullCoalesce
+	| OpAssignOp op -> CsOpAssignOp (cs_binop_of_binop op)
+
+(* Convert Haxe unary operator to C# unary operator *)
+let cs_unop_of_unop = function
+	| Increment -> CsOpIncrement
+	| Decrement -> CsOpDecrement
+	| Not -> CsOpNot
+	| Neg -> CsOpNeg
+	| NegBits -> CsOpBitNot
+	| Spread -> failwith "Spread operator not supported"
+
 (* Error helper *)
 let cs_error s =
 	failwith s
@@ -186,3 +227,27 @@ let s_cs_path (pack, name) =
 
 (* Maximum function arity for invoke overloads (like JVM) *)
 let max_arity = 8
+
+(* Get the native name of a class field (respects @:native metadata) *)
+let get_native_field_name cf =
+	if Meta.has Meta.Native cf.cf_meta then
+		let _, args, _ = Meta.get Meta.Native cf.cf_meta in
+		match args with
+		| [(EConst (String (s, _)), _)] -> s
+		| _ -> escape_identifier cf.cf_name
+	else
+		escape_identifier cf.cf_name
+
+(* Get field name for a class, handling C# restriction where member names
+   cannot be the same as the enclosing type name. *)
+let get_cs_field_name c cf =
+	let class_name = snd c.cl_path in
+	let base_name = get_native_field_name cf in
+	if base_name = class_name then base_name ^ "_" else base_name
+
+(* Get enum constructor name, handling C# restriction where member names
+   cannot be the same as the enclosing type name. *)
+let get_cs_enum_ctor_name (en : tenum) (ef : tenum_field) =
+	let enum_name = snd en.e_path in
+	let base_name = escape_identifier ef.ef_name in
+	if base_name = enum_name then base_name ^ "_" else base_name

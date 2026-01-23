@@ -67,7 +67,122 @@ module NativeTypes = struct
 	let haxe_array_path = (["haxe"; "root"], "Array")
 	let haxe_null_path = (["haxe"; "lang"], "Null")
 	let haxe_runtime_path = (["haxe"; "lang"], "Runtime")
+	let haxe_value_path = (["haxe"; "lang"], "Value")
+	let haxe_reflect_path = (["haxe"; "root"], "Reflect")
 end
+
+(* Common type constants for frequently used Haxe runtime types.
+   These are cs_type values constructed from the paths above. *)
+let hxvalue_type = CsTypeClass (NativeTypes.haxe_value_path, [])
+let runtime_type = CsTypeClass (NativeTypes.haxe_runtime_path, [])
+let haxe_object_type = CsTypeClass (NativeTypes.haxe_object_path, [])
+let reflect_type = CsTypeClass (NativeTypes.haxe_reflect_path, [])
+let haxe_array_type = CsTypeClass (NativeTypes.haxe_array_path, [])
+
+(* Array storage type classification for typed backing arrays.
+   The C# Array class uses multiple backing arrays (int[], double[], bool[], object[])
+   for performance. This type classifies the element type to determine which
+   backing array and access pattern to use. *)
+type array_storage_type =
+	| ArrayInt      (* int[] backing, direct access *)
+	| ArrayFloat    (* double[] backing, direct access *)
+	| ArrayBool     (* bool[] backing, direct access *)
+	| ArrayObject   (* object[] backing, cast elements on read *)
+	| ArrayDynamic  (* dynamic dispatch via __getDyn/__setDyn *)
+
+(* Classify the element type of an Array<T> to determine storage type.
+   Takes the full array type (e.g., Array<Int>) and returns the storage classification.
+
+   IMPORTANT: Nullable types like Null<Int>, Null<Float>, Null<Bool> MUST use ArrayObject
+   because primitive arrays (int[], double[], bool[]) cannot hold null values.
+   We use follow_without_null to preserve the Null<> wrapper and detect this case. *)
+let classify_array_element_type t =
+	let rec get_array_elem_type t =
+		match Type.follow t with
+		| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, [elem]) -> Some elem
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) -> get_array_elem_type inner
+		| TAbstract (a, tl) when a.a_path <> ([], "Null") ->
+			let underlying = Abstract.get_underlying_type a tl in
+			get_array_elem_type underlying
+		| _ -> None
+	in
+	match get_array_elem_type t with
+	| None -> ArrayObject  (* Not an array, default to object *)
+	| Some elem ->
+		(* Use follow_without_null to preserve Null<> wrappers.
+		   Null<Int>, Null<Float>, Null<Bool> must use __objectArray because they can hold null. *)
+		match Type.follow_without_null elem with
+		(* Check for Null<primitive> FIRST - these must use object storage *)
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+			(match Type.follow inner with
+			| TAbstract ({ a_path = ([], "Int") }, _)
+			| TAbstract ({ a_path = ([], "Float") }, _)
+			| TAbstract ({ a_path = ([], "Bool") }, _) ->
+				(* Nullable primitive - must use object storage to hold null values *)
+				ArrayObject
+			| _ ->
+				(* Null<SomeClass> - still use object storage *)
+				ArrayObject)
+		(* Non-nullable primitive types get dedicated backing arrays *)
+		| TAbstract ({ a_path = ([], "Int") }, _) -> ArrayInt
+		| TAbstract ({ a_path = ([], "Float") }, _) -> ArrayFloat
+		| TAbstract ({ a_path = ([], "Bool") }, _) -> ArrayBool
+		(* Dynamic/Any types use runtime dispatch *)
+		| TDynamic _ -> ArrayDynamic
+		| TAbstract ({ a_path = ([], "Any") }, _) -> ArrayDynamic
+		(* Type parameters should be treated as Dynamic for flexibility *)
+		| TInst ({ cl_kind = KTypeParameter _ }, _) -> ArrayDynamic
+		(* Everything else (String, classes, enums, etc.) uses object array *)
+		| _ -> ArrayObject
+
+(* Get the backing array field name for a storage type *)
+let backing_array_field = function
+	| ArrayInt -> "__intArray"
+	| ArrayFloat -> "__floatArray"
+	| ArrayBool -> "__boolArray"
+	| ArrayObject -> "__objectArray"
+	| ArrayDynamic -> "__objectArray"  (* Dynamic uses object storage but with dispatch methods *)
+
+(* Get the __cast() type code for locking the array to a specific storage type *)
+let array_cast_type_code = function
+	| ArrayInt -> 1
+	| ArrayFloat -> 2
+	| ArrayBool -> 3
+	| ArrayObject -> 4
+	| ArrayDynamic -> 0  (* Dynamic arrays don't get locked *)
+
+(* Get the factory method name for creating an array from a native array.
+   Uses typed factory methods to avoid C# generic type inference issues.
+   Returns (method_name, needs_cast) where needs_cast indicates the result needs
+   to be cast to the target array type. *)
+let array_factory_method = function
+	| ArrayInt -> ("__ofIntLiteral", false)
+	| ArrayFloat -> ("__ofFloatLiteral", false)
+	| ArrayBool -> ("__ofBoolLiteral", false)
+	| ArrayObject -> ("__ofObjectLiteral", true)  (* Returns Array<Dynamic>, needs cast *)
+	| ArrayDynamic -> ("__ofDynLiteral", false)
+
+(* Classify an array element type from C# type to determine storage type.
+   This is similar to classify_array_element_type but works with C# types
+   instead of Haxe types. Used in type conversion code. *)
+let classify_cs_array_element_type elem_cs_type =
+	match elem_cs_type with
+	| CsTypeInt -> ArrayInt
+	| CsTypeDouble -> ArrayFloat
+	| CsTypeBool -> ArrayBool
+	| CsTypeDynamic -> ArrayDynamic
+	| CsTypeObject -> ArrayDynamic  (* object param treated as Dynamic *)
+	| CsTypeGenericParam _ -> ArrayDynamic  (* Type params use dynamic *)
+	| _ -> ArrayObject  (* Everything else uses object storage *)
+
+(* Generate an Array factory call from a native array expression.
+   Uses the appropriate factory method based on storage type.
+   Returns the CS expression that creates the Haxe Array.
+   Note: Array is non-generic in C#, so no casts are needed. *)
+let make_array_from_native storage_type native_array_expr _target_cs_type =
+	let method_name, _needs_cast = array_factory_method storage_type in
+	(* Array is non-generic, so just call the factory method directly *)
+	CsStaticCall (haxe_array_type, method_name, [native_array_expr])
 
 (* Check if a class path refers to a C# native type that should keep its type parameters.
    Haxe generic classes are erased (no type params), but C# native types keep their generics.
