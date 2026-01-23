@@ -31,7 +31,7 @@
 
 open Type
 open CsAst
-open CsSignature
+open CsTypeMapping
 
 (* ============================================================
    Type classification predicates

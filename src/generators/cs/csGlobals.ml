@@ -17,7 +17,19 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-(* C# code generator global types and utilities *)
+(* C# code generator global types and utilities.
+   This module provides foundational types and helper functions used
+   across all C# generator modules.
+
+   Contents:
+   - Access modifiers (public, private, protected, etc.)
+   - Member modifiers (static, virtual, override, sealed, etc.)
+   - Type modifiers (abstract, sealed, partial)
+   - C# binary/unary operators and their string representations
+   - C# keyword list and identifier escaping
+   - Path and naming utilities for C# code generation
+
+   Usage: Imported by all other cs*.ml modules as a foundation. *)
 
 open Ast
 open Type

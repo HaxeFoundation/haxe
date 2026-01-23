@@ -17,11 +17,21 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-(* C# AST to source code printer *)
+(* C# AST to source code printer.
+   Converts the intermediate C# AST (cs_expr, cs_stmt, cs_type_def) into
+   formatted C# source code strings.
+
+   Main functions:
+   - print_type_def: Converts a complete type definition to C# source
+   - print_expr: Converts expressions to C# code
+   - print_stmt: Converts statements to C# code
+   - print_type: Converts type references to C# type syntax
+
+   The printer handles indentation, operator precedence, and C# syntax rules. *)
 
 open CsAst
 open CsGlobals
-open CsSignature
+open CsTypeMapping
 
 (* Printer context *)
 type printer_ctx = {
@@ -104,6 +114,72 @@ let print_const ctx = function
 			print ctx ".0"
 	| CsConstString s -> print ctx (escape_string s)
 	| CsConstChar c -> print ctx (escape_char c)
+
+(* Type to string for generated C# code *)
+let rec s_cs_type = function
+	| CsTypeVoid -> "void"
+	| CsTypeBool -> "bool"
+	| CsTypeByte -> "byte"
+	| CsTypeSByte -> "sbyte"
+	| CsTypeChar -> "char"
+	| CsTypeShort -> "short"
+	| CsTypeUShort -> "ushort"
+	| CsTypeInt -> "int"
+	| CsTypeUInt -> "uint"
+	| CsTypeLong -> "long"
+	| CsTypeULong -> "ulong"
+	| CsTypeFloat -> "float"
+	| CsTypeDouble -> "double"
+	| CsTypeDecimal -> "decimal"
+	| CsTypeString -> "string"
+	| CsTypeObject -> "object"
+	| CsTypeDynamic -> "dynamic"
+	| CsTypeNullable t -> s_cs_type t ^ "?"
+	| CsTypeArray (t, None) -> s_cs_type t ^ "[]"
+	| CsTypeArray (t, Some rank) ->
+		s_cs_type t ^ "[" ^ String.make (rank - 1) ',' ^ "]"
+	| CsTypeClass (([], name), []) -> name
+	| CsTypeClass ((pack, name), []) ->
+		(* Use global:: prefix to avoid namespace conflicts.
+		   This ensures haxe.root.HaxeObject is always the global namespace path,
+		   not relative to the current namespace (e.g., unit.spec.haxe.root) *)
+		"global::" ^ String.concat "." pack ^ "." ^ name
+	| CsTypeClass ((["haxe"; "root"], "Array"), _) ->
+		(* Haxe Array is non-generic in C# - always output without type parameters *)
+		"global::haxe.root.Array"
+	| CsTypeClass (([], name), params) ->
+		(* No package, just type with params *)
+		name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
+	| CsTypeClass ((pack, name), params) ->
+		(* Package with params - use global:: *)
+		"global::" ^ String.concat "." pack ^ "." ^ name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
+	| CsTypeNested (parent, nested_name) ->
+		(* Nested type: ParentType<T>.NestedClass *)
+		s_cs_type parent ^ "." ^ nested_name
+	| CsTypeNestedGeneric (parent, nested_name, params) ->
+		(* Nested generic type: ParentType<T>.NestedClass<C> *)
+		s_cs_type parent ^ "." ^ nested_name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
+	| CsTypeGenericParam name -> name
+	| CsTypeFunc (args, ret) ->
+		(* In C#, void cannot be used as a type argument, so Func<..., void> is invalid.
+		   Instead, use Action<...> for void-returning delegates. *)
+		begin match ret with
+		| CsTypeVoid ->
+			begin match args with
+			| [] -> "Action"
+			| _ -> "Action<" ^ String.concat ", " (List.map s_cs_type args) ^ ">"
+			end
+		| _ ->
+			begin match args with
+			| [] -> "Func<" ^ s_cs_type ret ^ ">"
+			| _ -> "Func<" ^ String.concat ", " (List.map s_cs_type args @ [s_cs_type ret]) ^ ">"
+			end
+		end
+	| CsTypeAction [] ->
+		"Action"
+	| CsTypeAction args ->
+		"Action<" ^ String.concat ", " (List.map s_cs_type args) ^ ">"
+	| CsTypeVar -> "var"
 
 (* Print type *)
 let print_type ctx t =

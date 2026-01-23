@@ -17,7 +17,18 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-(* Haxe type to C# type conversion *)
+(* Haxe type to C# type conversion.
+   This module handles the mapping from Haxe's type system to C# types.
+
+   Main functions:
+   - cs_type_of_type: Convert Haxe Type.t to cs_type
+   - cs_path_of_path: Convert Haxe path to C# namespace path
+
+   Also provides:
+   - NativeTypes module with common C# type paths and constants
+   - Array type handling (native vs haxe arrays)
+   - Type parameter constraint extraction
+   - Runtime type constants (hxvalue_type, runtime_type, etc.) *)
 
 open CsAst
 open CsGlobals
@@ -469,72 +480,6 @@ let cs_method_sig gctx args ret =
 	) args in
 	let ret_type = cs_type_of_type gctx ret in
 	(arg_types, ret_type)
-
-(* Type to string for generated C# code *)
-let rec s_cs_type = function
-	| CsTypeVoid -> "void"
-	| CsTypeBool -> "bool"
-	| CsTypeByte -> "byte"
-	| CsTypeSByte -> "sbyte"
-	| CsTypeChar -> "char"
-	| CsTypeShort -> "short"
-	| CsTypeUShort -> "ushort"
-	| CsTypeInt -> "int"
-	| CsTypeUInt -> "uint"
-	| CsTypeLong -> "long"
-	| CsTypeULong -> "ulong"
-	| CsTypeFloat -> "float"
-	| CsTypeDouble -> "double"
-	| CsTypeDecimal -> "decimal"
-	| CsTypeString -> "string"
-	| CsTypeObject -> "object"
-	| CsTypeDynamic -> "dynamic"
-	| CsTypeNullable t -> s_cs_type t ^ "?"
-	| CsTypeArray (t, None) -> s_cs_type t ^ "[]"
-	| CsTypeArray (t, Some rank) ->
-		s_cs_type t ^ "[" ^ String.make (rank - 1) ',' ^ "]"
-	| CsTypeClass (([], name), []) -> name
-	| CsTypeClass ((pack, name), []) ->
-		(* Use global:: prefix to avoid namespace conflicts.
-		   This ensures haxe.root.HaxeObject is always the global namespace path,
-		   not relative to the current namespace (e.g., unit.spec.haxe.root) *)
-		"global::" ^ String.concat "." pack ^ "." ^ name
-	| CsTypeClass ((["haxe"; "root"], "Array"), _) ->
-		(* Haxe Array is non-generic in C# - always output without type parameters *)
-		"global::haxe.root.Array"
-	| CsTypeClass (([], name), params) ->
-		(* No package, just type with params *)
-		name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
-	| CsTypeClass ((pack, name), params) ->
-		(* Package with params - use global:: *)
-		"global::" ^ String.concat "." pack ^ "." ^ name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
-	| CsTypeNested (parent, nested_name) ->
-		(* Nested type: ParentType<T>.NestedClass *)
-		s_cs_type parent ^ "." ^ nested_name
-	| CsTypeNestedGeneric (parent, nested_name, params) ->
-		(* Nested generic type: ParentType<T>.NestedClass<C> *)
-		s_cs_type parent ^ "." ^ nested_name ^ "<" ^ String.concat ", " (List.map s_cs_type params) ^ ">"
-	| CsTypeGenericParam name -> name
-	| CsTypeFunc (args, ret) ->
-		(* In C#, void cannot be used as a type argument, so Func<..., void> is invalid.
-		   Instead, use Action<...> for void-returning delegates. *)
-		begin match ret with
-		| CsTypeVoid ->
-			begin match args with
-			| [] -> "Action"
-			| _ -> "Action<" ^ String.concat ", " (List.map s_cs_type args) ^ ">"
-			end
-		| _ ->
-			begin match args with
-			| [] -> "Func<" ^ s_cs_type ret ^ ">"
-			| _ -> "Func<" ^ String.concat ", " (List.map s_cs_type args @ [s_cs_type ret]) ^ ">"
-			end
-		end
-	| CsTypeAction [] ->
-		"Action"
-	| CsTypeAction args ->
-		"Action<" ^ String.concat ", " (List.map s_cs_type args) ^ ">"
-	| CsTypeVar -> "var"
 
 (* Comparison for types *)
 let rec cs_type_equals t1 t2 = match t1, t2 with

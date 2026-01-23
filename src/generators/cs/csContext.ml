@@ -18,11 +18,19 @@
  *)
 
 (* Context types for C# code generation.
-   These types are shared across multiple generator modules. *)
+   These record types hold state during the code generation pass and are
+   shared across multiple generator modules.
+
+   Main types:
+   - gen_context: Global state for the entire generation pass
+   - expr_context: Local state for expression translation
+   - cs_expr_result: Expression result with optional prefix statements
+
+   Also provides context creation and utility functions. *)
 
 open Globals
 open CsAst
-open CsSignature
+open CsTypeMapping
 open Genshared
 
 (* Generation context - holds state for the entire code generation pass *)

@@ -17,7 +17,20 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-(* C# Abstract Syntax Tree types *)
+(* C# Abstract Syntax Tree type definitions.
+   This module defines the intermediate representation used between
+   Haxe AST translation and C# source code generation.
+
+   Main types:
+   - cs_expr: C# expressions (literals, operators, calls, etc.)
+   - cs_stmt: C# statements (blocks, returns, variable declarations, etc.)
+   - cs_type: C# type references (primitives, classes, arrays, etc.)
+   - cs_member: Class members (fields, properties, methods, constructors)
+   - cs_type_def: Top-level type definitions (classes, interfaces, enums)
+
+   Usage:
+   - gencs.ml translates Haxe AST to these types
+   - csPrinter.ml converts these types to C# source code *)
 
 open CsGlobals
 

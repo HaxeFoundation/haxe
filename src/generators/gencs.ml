@@ -33,7 +33,7 @@
 	- csContext.ml      - Context types [gen_context, expr_context] shared across modules
 
 	TYPE SYSTEM:
-	- csSignature.ml    - Haxe->C# type conversion, array helpers, NativeTypes module
+	- csTypeMapping.ml  - Haxe->C# type conversion, array helpers, NativeTypes module
 	- csTypeCoercion.ml - Type coercion [coerce_cs_types, coerce_arg], type predicates
 
 	ANALYSIS:
@@ -41,7 +41,6 @@
 	- csNullable.ml     - Null<T> pre-transform pass [AST rewriting before code gen]
 
 	CODE GENERATION:
-	- csInvokeSystem.ml - Function invoke[] signatures and dispatch helpers
 	- csPrinter.ml      - C# AST -> source code string output
 
 	CORE [this file]:
@@ -53,13 +52,13 @@
 
 	C# AST types                      -> csAst.ml
 	Context types [gen/expr_context]  -> csContext.ml
-	Haxe type -> C# type conversion   -> csSignature.ml [cs_type_of_type]
+	Haxe type -> C# type conversion   -> csTypeMapping.ml [cs_type_of_type]
 	Type coercion/casting             -> csTypeCoercion.ml [coerce_cs_types]
 	Type predicates                   -> csTypeCoercion.ml [is_cs_null_wrapper, ...]
 	Null<T> wrapper handling          -> csNullable.ml, csTypeCoercion.ml
 	Expression side-effect analysis   -> csExprAnalysis.ml
 	Control flow termination          -> csExprAnalysis.ml [stmt_terminates]
-	Function invoke methods           -> csInvokeSystem.ml
+	Function invoke methods           -> gencs.ml [invoke system section]
 	Closure/lambda generation         -> gencs.ml [generate_closure_class]
 	Constructor generation            -> gencs.ml [generate_constructor]
 	Field/method generation           -> gencs.ml [generate_field]
@@ -82,23 +81,121 @@ open Type
 open Gctx
 open CsGlobals
 open CsAst
-open CsSignature
+open CsTypeMapping
 open CsPrinter
 open Genshared
 open CsNullable
 open CsExprAnalysis
 open CsTypeCoercion
-open CsInvokeSystem
 open CsContext
 
 (* Common path tuples for pattern matching.
-   Type constants (hxvalue_type, runtime_type, etc.) are defined in CsSignature. *)
+   Type constants (hxvalue_type, runtime_type, etc.) are defined in CsTypeMapping. *)
 let null_path = NativeTypes.haxe_null_path
 let runtime_path = NativeTypes.haxe_runtime_path
 let haxeobject_path = NativeTypes.haxe_object_path
 
 (* Context types gen_context, expr_context, cs_expr_result are defined in CsContext.ml *)
 (* Also: create_context, create_expr_context, add_closure_for_class, get_closures_for_class, fresh_temp, generate_closure_name *)
+
+(* ====== Invoke system ====== *)
+
+(* Classify a type for invoke signature matching.
+   Primitives stay as-is for typed dispatch, everything else becomes object.
+   This approach mirrors the JVM generator's signature classification:
+   - Primitives (int, double, bool, etc.) stay as-is
+   - Null<T> stays as-is (important for optional params)
+   - Everything else becomes object *)
+let rec classify_for_invoke t =
+	match t with
+	| CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool
+	| CsTypeByte | CsTypeChar | CsTypeShort -> t
+	| CsTypeString -> CsTypeObject  (* String is a reference type, use object *)
+	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
+		(* Keep Null<T> but classify inner type *)
+		CsTypeClass ((["haxe"; "lang"], "Null"), [classify_for_invoke inner])
+	| CsTypeVoid -> CsTypeVoid
+	| _ -> CsTypeObject  (* All other types become object *)
+
+(* Get the invoke method name for the given arity.
+   invoke() for 0 args, invoke1 for 1 arg, invoke2 for 2 args, etc. *)
+let invoke_method_name num_args =
+	if num_args = 0 then "invoke"
+	else "invoke" ^ string_of_int num_args
+
+(* Get the Value-based invoke method name: __hx_invoke0, __hx_invoke1, etc.
+   These methods return Value to avoid boxing on return values. *)
+let hxvalue_invoke_method_name num_args =
+	"__hx_invoke" ^ string_of_int num_args
+
+(* Generate Value arguments for closure/function invocation.
+   Returns a list of Value.FromXxx(...) calls for each argument.
+   Each argument type maps to a specific factory method:
+   - int: Value.FromInt(arg)
+   - double: Value.FromDouble(arg)
+   - float: Value.FromFloat(arg)
+   - bool: Value.FromBool(arg)
+   - long: Value.FromLong(arg)
+   - Null<int>: Value.FromNullInt(arg)
+   - Null<double>: Value.FromNullDouble(arg)
+   - other: Value.FromObject(arg)
+   Note: arg_types may be shorter than args (e.g., if type info is missing);
+   we default to FromObject for any args without type info. *)
+let generate_hxvalue_args args arg_types =
+	let num_types = List.length arg_types in
+	List.mapi (fun i arg ->
+		let arg_type = if i < num_types then List.nth arg_types i else CsTypeObject in
+		match arg_type with
+		| CsTypeInt ->
+			CsStaticCall (hxvalue_type, "FromInt", [arg])
+		| CsTypeDouble ->
+			CsStaticCall (hxvalue_type, "FromDouble", [arg])
+		| CsTypeFloat ->
+			CsStaticCall (hxvalue_type, "FromFloat", [arg])
+		| CsTypeBool ->
+			CsStaticCall (hxvalue_type, "FromBool", [arg])
+		| CsTypeLong ->
+			CsStaticCall (hxvalue_type, "FromLong", [arg])
+		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
+			(* Null<T>: use FromNullXxx methods to avoid boxing *)
+			begin match inner with
+			| CsTypeInt -> CsStaticCall (hxvalue_type, "FromNullInt", [arg])
+			| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromNullDouble", [arg])
+			| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromNullFloat", [arg])
+			| CsTypeBool -> CsStaticCall (hxvalue_type, "FromNullBool", [arg])
+			| CsTypeLong -> CsStaticCall (hxvalue_type, "FromNullLong", [arg])
+			| _ -> CsStaticCall (hxvalue_type, "FromObject", [arg])
+			end
+		| _ ->
+			(* References, strings, etc.: use FromObject *)
+			CsStaticCall (hxvalue_type, "FromObject", [arg])
+	) args
+
+(* Build an args array for InvokeDelegate calls.
+   If args list is empty, creates an empty haxe.root.Array.
+   Otherwise, wraps the args in a native object[] and converts to haxe.root.Array. *)
+let make_invoke_args_array args =
+	if args = [] then
+		CsNew (haxe_array_type, [])
+	else
+		let native_array = CsNewArray (CsTypeObject, args) in
+		make_array_from_native ArrayDynamic native_array haxe_array_type
+
+(* Cast InvokeDelegate result to expected type.
+   For primitives, uses Runtime.toXxx to handle boxed type mismatches.
+   For void/object/dynamic, returns expression unchanged.
+   For other types, uses direct C# cast. *)
+let cast_invoke_result result_type call_expr =
+	match result_type with
+	| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
+	| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [call_expr])
+	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [call_expr])
+	| CsTypeFloat | CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [call_expr])
+	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [call_expr])
+	| CsTypeString -> CsCast (CsTypeString, call_expr)
+	| _ -> CsCast (result_type, call_expr)
+
+(* ====== Helper utilities ====== *)
 
 (* Check if expression needs unchecked context due to integer operations.
    This follows the legacy C# target approach: wrap method bodies in unchecked
@@ -204,6 +301,8 @@ let fresh_temp ectx =
 	ectx.temp_count <- ectx.temp_count + 1;
 	Printf.sprintf "_hx_tmp%d" ectx.temp_count
 
+(* ====== Null & type wrapper detection ====== *)
+
 (* Convert Haxe constant to C# constant *)
 let cs_const_of_tconst = function
 	| TInt i -> CsConstInt i
@@ -225,8 +324,8 @@ let is_null_wrapper_type t =
 		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
 			(* Check if the inner type maps to an inherently nullable C# type.
 			   If so, the Null<> wrapper is stripped at the type level and we don't need .value *)
-			let inner_cs = CsSignature.cs_type_of_type_without_gctx inner in
-			not (CsSignature.is_inherently_nullable inner_cs)
+			let inner_cs = CsTypeMapping.cs_type_of_type_without_gctx inner in
+			not (CsTypeMapping.is_inherently_nullable inner_cs)
 		| TAbstract ({ a_path = ([], "Null") }, _) -> true  (* Null with no/multiple params - treat as nullable *)
 		| TType (_, _) -> check (Type.follow_once t) (depth + 1)
 		| TLazy f -> check (lazy_type f) (depth + 1)
@@ -338,7 +437,7 @@ let method_call_returns_erased_type_param e =
 			   1. It's NOT a C# native generic class (those keep type params), AND
 			   2. The method has type parameters (cf.cf_params <> []) OR
 			      the return type is a type parameter from the class *)
-			let is_native = CsSignature.is_cs_native_generic_class c.cl_path in
+			let is_native = CsTypeMapping.is_cs_native_generic_class c.cl_path in
 			if is_native then false
 			else begin
 				(* Check if method has its own type parameters - those get erased *)
@@ -448,8 +547,8 @@ let rec get_null_inner_if_needs_unwrap e =
 			match t with
 			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
 				(* Only return Some if inner is NOT inherently nullable in C# *)
-				let inner_cs = CsSignature.cs_type_of_type_without_gctx inner in
-				if CsSignature.is_inherently_nullable inner_cs then None
+				let inner_cs = CsTypeMapping.cs_type_of_type_without_gctx inner in
+				if CsTypeMapping.is_inherently_nullable inner_cs then None
 				else Some inner
 			| TType (_, _) -> check (Type.follow_once t) (depth + 1)
 			| TLazy f -> check (lazy_type f) (depth + 1)
@@ -540,6 +639,8 @@ let get_rest_element_type t =
 	| TAbstract ({ a_path = (["haxe"], "Rest") }, [elem_type]) -> Some elem_type
 	| _ -> None
 
+(* ====== Call argument generation ====== *)
+
 (* Generate a single argument with coercion based on expected type *)
 let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 	let expected_cs_type = cs_type_of_type ectx.gctx expected_type in
@@ -553,7 +654,7 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 			   The expected type already has concrete type params from the method signature,
 			   so we should NOT erase them. Only erase out-of-scope type params that would
 			   cause CS0246 errors. *)
-			let erased_expected = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope expected_cs_type in
+			let erased_expected = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope expected_cs_type in
 			CsDefault erased_expected
 		| CsTypeInt | CsTypeDouble | CsTypeBool | CsTypeLong | CsTypeFloat
 		| CsTypeByte | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
@@ -666,6 +767,8 @@ let generate_call_args ectx cs_expr_of_texpr args param_types =
 				cs_expr_of_texpr ectx arg
 		) args
 
+(* ====== Closure infrastructure ====== *)
+
 (* Generate a unique closure class name based on current context *)
 let generate_closure_name gctx ectx =
 	let count = gctx.closure_count in
@@ -699,6 +802,8 @@ let get_type_param_constraint t =
 			| _ -> None
 		) constraints
 	| _ -> None
+
+(* ====== Expression translation ====== *)
 
 (* Convert Haxe expression to C# expression - mutually recursive with cs_stmt_of_texpr *)
 let rec cs_expr_of_texpr ectx e =
@@ -804,7 +909,7 @@ let rec cs_expr_of_texpr ectx e =
 			   Use Runtime.toXxx for primitives to handle boxed type mismatches. *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
-			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			cast_object_to_type result_type call
 		end
 		else
@@ -1049,7 +1154,7 @@ let rec cs_expr_of_texpr ectx e =
 				let obj_expr, inner_type = match raw_type with
 					| TAbstract ({ a_path = ([], "Null") }, [inner_t]) ->
 						let inner_cs = cs_type_of_type ectx.gctx inner_t in
-						if CsSignature.is_inherently_nullable inner_cs then
+						if CsTypeMapping.is_inherently_nullable inner_cs then
 							(obj_expr, inner_t)  (* No .value - Null<T> stripped to T in C# *)
 						else
 							(CsField (obj_expr, "value"), inner_t)
@@ -1661,7 +1766,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Other module type - fallback to field access (shouldn't happen for methods) *)
 			let t = type_of_module_type mt in
 			let cs_type = cs_type_of_type ectx.gctx t in
-			let cs_type = CsSignature.erase_type_params cs_type in
+			let cs_type = CsTypeMapping.erase_type_params cs_type in
 			begin match cs_type with
 			| CsTypeClass (path, params) -> CsStaticField (CsTypeClass (path, params), escape_identifier cf.cf_name)
 			| _ -> CsField (cs_expr_of_texpr ectx e, escape_identifier cf.cf_name)
@@ -1711,7 +1816,7 @@ let rec cs_expr_of_texpr ectx e =
 				let path = cs_path_of_path c.cl_path in
 				(* Type erasure: Haxe generic classes become non-generic in C#.
 				   Only C# native types keep their type parameters. *)
-				if CsSignature.is_cs_native_generic_class c.cl_path then begin
+				if CsTypeMapping.is_cs_native_generic_class c.cl_path then begin
 					(* C# native class - keep type parameters, try to infer from field type *)
 					let type_params = match follow field_type with
 						| TFun (_, ret) -> begin match follow ret with
@@ -2087,7 +2192,7 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
 			| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
 			| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
-			| _ when CsSignature.is_inherently_nullable inner ->
+			| _ when CsTypeMapping.is_inherently_nullable inner ->
 				(* Inner type is inherently nullable - just cast from dynamic *)
 				CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
 			| _ ->
@@ -2265,7 +2370,7 @@ let rec cs_expr_of_texpr ectx e =
 				| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
 				| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
 				| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
-				| _ when CsSignature.is_inherently_nullable inner ->
+				| _ when CsTypeMapping.is_inherently_nullable inner ->
 					(* Inner type is inherently nullable - just cast from dynamic *)
 					CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
 				| _ ->
@@ -2375,7 +2480,7 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		(* For generic methods on C# native classes, we need to provide explicit type arguments.
 		   For Haxe classes, method type params are erased, so we don't need generic calls. *)
-		if cf.cf_params <> [] && CsSignature.is_cs_native_generic_class c.cl_path then begin
+		if cf.cf_params <> [] && CsTypeMapping.is_cs_native_generic_class c.cl_path then begin
 			(* Method has type params - infer from return type or arguments *)
 			let return_type = e.etype in
 			let infer_type_params_as_types () =
@@ -2586,7 +2691,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Erase type params that are not in scope at the C# level.
 			   This handles GADT phantom types like C in EBinop<C> which are
 			   introduced during pattern matching but don't exist as C# generic params. *)
-			let method_type_params = List.map (CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params in
+			let method_type_params = List.map (CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params in
 			CsCallGeneric (CsField (obj, get_native_field_name cf), method_type_params, cs_args)
 		end else begin
 			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types_base in
@@ -2658,10 +2763,10 @@ let rec cs_expr_of_texpr ectx e =
 					| CsTypeObject | CsTypeDynamic | CsTypeVoid ->
 						(* No conversion needed *)
 						call_expr
-					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsSignature.is_inherently_nullable inner) ->
+					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsTypeMapping.is_inherently_nullable inner) ->
 						(* Null<T> where T is a value type - use Null<T>._ofDynamic(result) *)
 						CsStaticCall (expected_cs_type, "_ofDynamic", [call_expr])
-					| _ when CsSignature.is_inherently_nullable expected_cs_type ->
+					| _ when CsTypeMapping.is_inherently_nullable expected_cs_type ->
 						(* Reference type - simple cast *)
 						CsCast (expected_cs_type, call_expr)
 					| _ ->
@@ -2699,12 +2804,12 @@ let rec cs_expr_of_texpr ectx e =
 						involves_type_param ret
 					| _ -> false
 				in
-				if method_returns_type_param && not (CsSignature.is_cs_native_generic_class c.cl_path) then begin
+				if method_returns_type_param && not (CsTypeMapping.is_cs_native_generic_class c.cl_path) then begin
 					(* Method returns a type param that got erased to object - cast to expected type *)
 					let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
 					match expected_cs_type with
 					| CsTypeObject | CsTypeDynamic | CsTypeVoid -> call_expr
-					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsSignature.is_inherently_nullable inner) ->
+					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsTypeMapping.is_inherently_nullable inner) ->
 						(* Null<T> where T is a value type - use Null<T>._ofDynamic(result) *)
 						CsStaticCall (expected_cs_type, "_ofDynamic", [call_expr])
 					| _ -> CsCast (expected_cs_type, call_expr)
@@ -2727,7 +2832,7 @@ let rec cs_expr_of_texpr ectx e =
 		let inner_type, obj = match raw_type with
 			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
 				let inner_cs = cs_type_of_type ectx.gctx inner in
-				if CsSignature.is_inherently_nullable inner_cs then
+				if CsTypeMapping.is_inherently_nullable inner_cs then
 					(inner, obj)  (* No .value - Null<T> stripped to T in C# *)
 				else
 					(inner, CsField (obj, "value"))  (* Null<T> -> access .value to unwrap *)
@@ -2768,14 +2873,14 @@ let rec cs_expr_of_texpr ectx e =
 				   rather than cf.cf_type which might have unresolved type params. *)
 				let result_type = cs_type_of_type ectx.gctx e.etype in
 				(* Erase out-of-scope type params to avoid CS0246 errors *)
-				let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+				let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 				begin match result_type with
 				| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
 				| _ -> CsCast (result_type, call_expr)
 				end
 			end else begin
 				(* Non-function field - just get and cast *)
-				let func_type = CsSignature.erase_type_params (cs_type_of_type ectx.gctx cf.cf_type) in
+				let func_type = CsTypeMapping.erase_type_params (cs_type_of_type ectx.gctx cf.cf_type) in
 				CsCast (func_type, field_call)
 			end
 		| CsTypeClass (path, _) ->
@@ -2792,7 +2897,7 @@ let rec cs_expr_of_texpr ectx e =
 			   Use e.etype (the TCall's return type) which has type parameters resolved. *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
-			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			cast_invoke_result result_type call_expr
 		| CsTypeGenericParam _ ->
 			(* Type parameter - cast to HaxeObject to call _hx_getField *)
@@ -2802,7 +2907,7 @@ let rec cs_expr_of_texpr ectx e =
 			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
-			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			cast_invoke_result result_type call_expr
 		| _ ->
 			(* Fallback to dynamic dispatch via _hx_getField -> Runtime.InvokeDelegate *)
@@ -2812,7 +2917,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Convert the result using Runtime helpers for proper type conversion *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
-			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			cast_invoke_result result_type call_expr
 		end
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) when name = "value" || name = "hasValue" ->
@@ -2824,7 +2929,7 @@ let rec cs_expr_of_texpr ectx e =
 		let args_array = make_invoke_args_array args_exprs in
 		let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
 		let result_type = cs_type_of_type ectx.gctx e.etype in
-		let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+		let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
 		| CsTypeVoid -> call_expr  (* Don't cast void results *)
 		| CsTypeObject | CsTypeDynamic -> call_expr
@@ -2840,7 +2945,7 @@ let rec cs_expr_of_texpr ectx e =
 		let obj = match raw_type with
 			| TAbstract ({ a_path = ([], "Null") }, [inner_t]) ->
 				let inner_cs = cs_type_of_type ectx.gctx inner_t in
-				if CsSignature.is_inherently_nullable inner_cs then
+				if CsTypeMapping.is_inherently_nullable inner_cs then
 					obj  (* No .value - Null<T> stripped to T in C# *)
 				else
 					CsField (obj, "value")
@@ -2855,7 +2960,7 @@ let rec cs_expr_of_texpr ectx e =
 		(* Cast the result to the expected return type - use e.etype (the TCall's type), not e_obj.etype *)
 		(* Also erase out-of-scope type params *)
 		let result_type = cs_type_of_type ectx.gctx e.etype in
-		let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+		let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
 		| CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for Dynamic/object *)
 		| _ -> CsCast (result_type, call_expr)
@@ -2968,7 +3073,7 @@ let rec cs_expr_of_texpr ectx e =
 				cs_type_of_type ectx.gctx ret
 			| _ -> [], CsTypeObject
 		in
-		let all_signature_type_params = CsSignature.get_method_type_params orig_param_types orig_ret_type in
+		let all_signature_type_params = CsTypeMapping.get_method_type_params orig_param_types orig_ret_type in
 		(* Filter out class type params from inferred params *)
 		let class_type_param_names = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
 		let inferred_type_params = List.filter (fun p ->
@@ -2978,7 +3083,7 @@ let rec cs_expr_of_texpr ectx e =
 		let all_method_type_params = explicit_type_params @ inferred_type_params in
 		(* Check if method has any type parameters (explicit or inferred).
 		   For Haxe classes, method type params are erased, so we don't need generic calls. *)
-		if all_method_type_params <> [] && CsSignature.is_cs_native_generic_class c.cl_path then begin
+		if all_method_type_params <> [] && CsTypeMapping.is_cs_native_generic_class c.cl_path then begin
 			(* Method has type params - infer from return type, arguments, or method signature *)
 			(* Check if the return type is a type parameter T (i.e., the method returns T directly).
 			   IMPORTANT: Don't use follow() here - it unwraps Null<T> to T via abstract semantics.
@@ -3276,7 +3381,7 @@ let rec cs_expr_of_texpr ectx e =
 			   that weren't substituted by apply_params due to physical identity issues *)
 			let param_types_cs = List.map (fun t ->
 				let cs_t = cs_type_of_type ectx.gctx t in
-				CsSignature.substitute_type_params cs_subst cs_t
+				CsTypeMapping.substitute_type_params cs_subst cs_t
 			) param_types in
 			(* Generate args using a custom version of generate_single_arg that uses the C#-substituted types.
 			   We need to handle null args specially because the substituted C# type may differ from
@@ -3287,7 +3392,7 @@ let rec cs_expr_of_texpr ectx e =
 					(* For null args, use the substituted C# type directly *)
 					match expected_cs_type with
 					| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
-						let erased = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope expected_cs_type in
+						let erased = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope expected_cs_type in
 						CsDefault erased
 					| CsTypeInt | CsTypeDouble | CsTypeBool | CsTypeLong | CsTypeFloat
 					| CsTypeByte | CsTypeSByte | CsTypeChar | CsTypeShort | CsTypeUShort
@@ -3338,7 +3443,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Erase type params that are not in scope at the C# level.
 			   This handles GADT phantom types like C in EBinop<C> which are
 			   introduced during pattern matching but don't exist as C# generic params. *)
-			let method_type_params = List.map (CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params_cs in
+			let method_type_params = List.map (CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params_cs in
 			let call_expr = CsStaticCallGeneric (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, method_type_params, args) in
 			(* GADT type erasure fix: when Haxe return type is a type param T but the generated
 			   call uses object (due to type inference from erased arguments), we need to cast
@@ -3452,7 +3557,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Cast the result to the expected return type *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
-			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for void/Dynamic/object *)
 			| _ -> CsCast (result_type, call_expr)
@@ -3585,7 +3690,7 @@ let rec cs_expr_of_texpr ectx e =
 				| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
 				| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
 				| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
-				| _ when CsSignature.is_inherently_nullable inner ->
+				| _ when CsTypeMapping.is_inherently_nullable inner ->
 					(* Inner type is inherently nullable - just cast from dynamic *)
 					CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
 				| _ ->
@@ -3724,7 +3829,7 @@ let rec cs_expr_of_texpr ectx e =
 			   we need to create object[] if the element type is a value type (like Null<int>).
 			   C# value type arrays are not covariant with object[]. *)
 			let native_array_type, native_array_items = match storage_type with
-				| ArrayObject when not (CsSignature.is_inherently_nullable elem_cs_type) ->
+				| ArrayObject when not (CsTypeMapping.is_inherently_nullable elem_cs_type) ->
 					(* Value type - create object[] and box elements *)
 					(CsTypeObject, cs_items)
 				| _ ->
@@ -3740,7 +3845,7 @@ let rec cs_expr_of_texpr ectx e =
 		let cs_type = cs_type_of_type ectx.gctx t in
 		(* Erase type parameters to object - C# doesn't allow typeof(SomeType<T>)
 		   unless T is in scope. We convert to typeof(SomeType<object>) *)
-		let cs_type = CsSignature.erase_type_params cs_type in
+		let cs_type = CsTypeMapping.erase_type_params cs_type in
 		CsTypeOf cs_type
 	| TParenthesis e ->
 		CsParens (cs_expr_of_texpr ectx e)
@@ -3759,7 +3864,7 @@ let rec cs_expr_of_texpr ectx e =
 			   a called method's signature, they won't be valid in the current context.
 			   For example, calling a generic method via reflection returns T, but T
 			   is not defined in the calling context. Replace with object. *)
-			let target_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope target_type_raw in
+			let target_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope target_type_raw in
 			(* NOTE: CsNullable handles Null<Null<T>> flattening at the AST level. *)
 			(* Special case: casting null to a value type should use default(T), not (T)(null)
 			   This handles @:fromNull abstracts where null converts to the default value *)
@@ -4607,6 +4712,8 @@ and cs_expr_of_texpr_block ectx e exprs =
 	let func_type = CsTypeFunc ([], return_type) in
 	CsCall (CsCast (func_type, lambda), [])
 
+(* ====== Statement translation ====== *)
+
 (* Convert Haxe expression to C# statement - mutually recursive with cs_expr_of_texpr *)
 and cs_stmt_of_texpr ectx e =
 	match e.eexpr with
@@ -4622,7 +4729,7 @@ and cs_stmt_of_texpr ectx e =
 		let name = get_local_name ectx v in
 		let var_type_raw = cs_type_of_type ectx.gctx v.v_type in
 		(* Erase out-of-scope type params to avoid CS0246 errors *)
-		let var_type_raw = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope var_type_raw in
+		let var_type_raw = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope var_type_raw in
 		begin match init with
 		| None -> CsVarDecl (name, Some var_type_raw, None)
 		| Some init_expr ->
@@ -5148,6 +5255,8 @@ and cs_stmt_of_texpr ectx e =
 			CsExprStmt (cs_expr_of_texpr ectx e)
 		end
 
+(* ====== Closure class generation ====== *)
+
 (* Generate a closure class for a TFunction and return a CsNew expression to instantiate it.
    Following JVM's approach: every local function becomes a closure class with:
    - Fields for captured variables
@@ -5202,7 +5311,7 @@ let generate_closure_class ectx tf func_type =
 	) tf.tf_args in
 	let return_cs_type = cs_type_of_type gctx tf.tf_type in
 	let all_types = captured_types @ param_types @ [return_cs_type] in
-	let closure_type_params = List.fold_left CsSignature.collect_type_params [] all_types in
+	let closure_type_params = List.fold_left CsTypeMapping.collect_type_params [] all_types in
 	(* Reverse to maintain order of first appearance *)
 	let closure_type_params = List.rev closure_type_params in
 
@@ -5249,7 +5358,7 @@ let generate_closure_class ectx tf func_type =
 					| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 						(* Already Null<T>, don't double-wrap *)
 						base_type
-					| _ when CsSignature.is_inherently_nullable base_type ->
+					| _ when CsTypeMapping.is_inherently_nullable base_type ->
 						(* Type is inherently nullable (class, array, etc.) - no wrapper needed *)
 						base_type
 					| _ ->
@@ -5515,7 +5624,7 @@ let generate_closure_class ectx tf func_type =
 						| CsTypeFloat -> CsCall (CsField (a_var, "ToNullFloat"), [])
 						| CsTypeBool -> CsCall (CsField (a_var, "ToNullBool"), [])
 						| CsTypeLong -> CsCall (CsField (a_var, "ToNullLong"), [])
-						| _ when CsSignature.is_inherently_nullable inner ->
+						| _ when CsTypeMapping.is_inherently_nullable inner ->
 							(* Inner type is inherently nullable - just cast from dynamic *)
 							CsCast (inner, CsCall (CsField (a_var, "ToDynamic"), []))
 						| _ ->
@@ -5616,7 +5725,7 @@ let generate_closure_class ectx tf func_type =
 	   any type parameters that aren't from captured variables need erasure. *)
 	let closure_type_params_set = closure_type_params in
 	let captured_var_type_params = List.fold_left (fun acc (_, cs_type) ->
-		CsSignature.collect_type_params acc cs_type
+		CsTypeMapping.collect_type_params acc cs_type
 	) [] var_captures in
 	(* Type params available in the instantiation context are those from captured variables *)
 	let available_type_params = List.rev captured_var_type_params in
@@ -5727,13 +5836,13 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		else begin
 			let base_type = cs_type_of_type gctx t in
 			(* Erase method type parameters to object *)
-			let base_type = if has_method_type_params then CsSignature.erase_type_params base_type else base_type in
+			let base_type = if has_method_type_params then CsTypeMapping.erase_type_params base_type else base_type in
 			(* If parameter is optional, wrap with Null<T> unless already wrapped
 			   or unless the type is inherently nullable (classes, arrays, etc.) *)
 			let param_type = if opt then
 				match base_type with
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> base_type
-				| _ when CsSignature.is_inherently_nullable base_type -> base_type
+				| _ when CsTypeMapping.is_inherently_nullable base_type -> base_type
 				| _ -> CsTypeClass ((["haxe"; "lang"], "Null"), [base_type])
 			else base_type
 			in
@@ -5748,7 +5857,7 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 	let invoke_params = List.map fst invoke_params_with_opt in
 	let return_cs_type = cs_type_of_type gctx return_type in
 	(* Erase method type parameters from return type too *)
-	let return_cs_type = if has_method_type_params then CsSignature.erase_type_params return_cs_type else return_cs_type in
+	let return_cs_type = if has_method_type_params then CsTypeMapping.erase_type_params return_cs_type else return_cs_type in
 
 	(* Build invoke method body - call the actual method *)
 	let call_args = List.map (fun param -> CsLocal param.p_name) invoke_params in
@@ -5801,8 +5910,8 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 		   Add conversion when return type is Null<T> where T is a value type. *)
 		let return_value = match return_cs_type with
 			| CsTypeClass ((["haxe"; "lang"], "Null"), [inner])
-				when not (CsSignature.is_cs_native_generic_class class_path)
-				  && not (CsSignature.is_inherently_nullable inner) ->
+				when not (CsTypeMapping.is_cs_native_generic_class class_path)
+				  && not (CsTypeMapping.is_inherently_nullable inner) ->
 				CsStaticCall (return_cs_type, "_ofDynamic", [method_call])
 			| _ -> method_call
 		in
@@ -5971,7 +6080,7 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 						| CsTypeFloat -> CsCall (CsField (a_var, "ToNullFloat"), [])
 						| CsTypeBool -> CsCall (CsField (a_var, "ToNullBool"), [])
 						| CsTypeLong -> CsCall (CsField (a_var, "ToNullLong"), [])
-						| _ when CsSignature.is_inherently_nullable inner ->
+						| _ when CsTypeMapping.is_inherently_nullable inner ->
 							(* Inner type is inherently nullable - just cast from dynamic *)
 							CsCast (inner, CsCall (CsField (a_var, "ToDynamic"), []))
 						| _ ->
@@ -6048,6 +6157,8 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 let () = generate_method_closure_ref := generate_method_closure
 
 (* Generate method body *)
+(* ====== Method body & override handling ====== *)
+
 (* param_cs_names: optional list of C# parameter names (in order) from the method signature.
    This ensures the body uses the same parameter names as the C# method signature.
    Without this, abstract @this parameters may be named differently (e.g., "this1" in AST
@@ -6483,6 +6594,8 @@ let field_implements_interface_property c cf =
 			with Not_found -> false
 		) c.cl_implements
 
+(* ====== Field & property generation ====== *)
+
 (* Generate class field as C# member *)
 let generate_field gctx c cf is_static =
 	(* Use get_cs_field_name which handles C# restriction where member names
@@ -6718,13 +6831,13 @@ let generate_field gctx c cf is_static =
 		(* Method type parameters: For Haxe classes, type params are erased to object,
 		   so don't include them in C# output. Only C# native classes keep type params. *)
 		let method_type_params =
-			if CsSignature.is_cs_native_generic_class c.cl_path then begin
+			if CsTypeMapping.is_cs_native_generic_class c.cl_path then begin
 				(* C# native class - keep method type params *)
 				let explicit_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
 				let return_cs_type = cs_type_of_type gctx ret in
 				let param_cs_types = List.map (fun p -> p.p_type) params in
 				let param_cs_types = List.filter_map (fun t -> t) param_cs_types in
-				let inferred_type_params = CsSignature.get_method_type_params param_cs_types return_cs_type in
+				let inferred_type_params = CsTypeMapping.get_method_type_params param_cs_types return_cs_type in
 				let inferred_type_params = List.filter (fun p ->
 					not (List.mem p class_type_params)
 				) inferred_type_params in
@@ -6861,6 +6974,8 @@ let generate_field gctx c cf is_static =
 	| Method MethMacro ->
 		(* Macro method - skip *)
 		None
+
+(* ====== Constructor generation ====== *)
 
 (* Extract super() call and remaining body from constructor expression *)
 (* Returns (Some super_args, rest) if super call found, (None, body) otherwise *)
@@ -7214,6 +7329,8 @@ let generate_constructor gctx c cf field_init_stmts =
 			}
 		]
 	end
+
+(* ====== Reflection & AOT accessors ====== *)
 
 (* Check if a class inherits from HaxeObject (directly or through Haxe superclass chain) *)
 let rec extends_haxe_object c =
@@ -7684,6 +7801,8 @@ let generate_explicit_imap_implementations key_type imap =
 		if imap_has_method imap name then Some member else None
 	) all_bridges
 
+(* ====== Type generation ====== *)
+
 (* Generate C# class from Haxe class *)
 let generate_class gctx c =
 	let path = cs_path_of_path c.cl_path in
@@ -7922,7 +8041,7 @@ let generate_interface gctx c =
 			(* Get method-level type parameters - only for C# native interfaces.
 			   For Haxe interfaces, method type params are erased. *)
 			let method_type_params =
-				if CsSignature.is_cs_native_generic_class c.cl_path then
+				if CsTypeMapping.is_cs_native_generic_class c.cl_path then
 					List.map (fun ttp -> ttp.ttp_name) cf.cf_params
 				else
 					[]
@@ -8210,6 +8329,8 @@ let generate_type gctx mt =
 		Some (generate_enum gctx e)
 	| TTypeDecl _ | TAbstractDecl _ ->
 		None
+
+(* ====== Output & main entry point ====== *)
 
 (* Write file to disk *)
 let write_file base_path rel_path content =
