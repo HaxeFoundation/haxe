@@ -166,11 +166,29 @@ let method_call_returns_erased_type_param e =
 		end
 	| _ -> false
 
+(* Check if a local variable's declared type is erased (type param or Null<TypeParam>).
+   Such variables become `object` in C#, not Null<T>. *)
+let local_var_is_erased e =
+	let rec is_erased_decl_type t =
+		match t with
+		| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+			begin match follow inner with
+			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+			| _ -> false
+			end
+		| TType (_, _) | TLazy _ -> is_erased_decl_type (follow t)
+		| _ -> false
+	in
+	match e.eexpr with
+	| TLocal v -> is_erased_decl_type v.v_type
+	| _ -> false
+
 (* Check if an expression generates C# code that is NOT Null-wrapped,
    even though its Haxe type might be Null<T>.
    These expressions should NOT have .value added. *)
 let is_non_null_generating_expr e =
-	is_enum_field_access e || method_call_returns_erased_type_param e
+	is_enum_field_access e || method_call_returns_erased_type_param e || local_var_is_erased e
 
 (* Check if a method call returns Null<TypeParam> in its uninstantiated signature.
    The C# method signature IS Null<T> even when T is instantiated to a reference type.
