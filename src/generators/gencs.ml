@@ -30,6 +30,7 @@
 	FOUNDATION:
 	- csGlobals.ml      - Operators, modifiers, C# keywords, naming helpers
 	- csAst.ml          - C# AST type definitions [cs_expr, cs_stmt, cs_member, ...]
+	- csContext.ml      - Context types [gen_context, expr_context] shared across modules
 
 	TYPE SYSTEM:
 	- csSignature.ml    - Haxe->C# type conversion, array helpers, NativeTypes module
@@ -51,6 +52,7 @@
 	---------------
 
 	C# AST types                      -> csAst.ml
+	Context types [gen/expr_context]  -> csContext.ml
 	Haxe type -> C# type conversion   -> csSignature.ml [cs_type_of_type]
 	Type coercion/casting             -> csTypeCoercion.ml [coerce_cs_types]
 	Type predicates                   -> csTypeCoercion.ml [is_cs_null_wrapper, ...]
@@ -87,6 +89,7 @@ open CsNullable
 open CsExprAnalysis
 open CsTypeCoercion
 open CsInvokeSystem
+open CsContext
 
 (* Common path tuples for pattern matching.
    Type constants (hxvalue_type, runtime_type, etc.) are defined in CsSignature. *)
@@ -94,26 +97,8 @@ let null_path = NativeTypes.haxe_null_path
 let runtime_path = NativeTypes.haxe_runtime_path
 let haxeobject_path = NativeTypes.haxe_object_path
 
-(* Generation context *)
-type gen_context = {
-	com : Gctx.t;
-	mutable generated_types : cs_type_def list;
-	mutable closures_by_class : (path * cs_type_def list) list;  (* closures grouped by origin class path *)
-	mutable closure_count : int;  (* counter for unique closure names *)
-	mutable temp_count : int;  (* counter for unique temp variable names *)
-	invoke_signatures : (cs_type list * cs_type, unit) Hashtbl.t;  (* Track typed invoke signatures: (args, ret) *)
-	mutable preprocessor : cs_type preprocessor;  (* Preprocessor for this-before-super detection *)
-}
-
-let create_context com = {
-	com = com;
-	generated_types = [];
-	closures_by_class = [];
-	closure_count = 0;
-	temp_count = 0;
-	invoke_signatures = Hashtbl.create 32;
-	preprocessor = Obj.magic ();  (* Initialized later after context is created *)
-}
+(* Context types gen_context, expr_context, cs_expr_result are defined in CsContext.ml *)
+(* Also: create_context, create_expr_context, add_closure_for_class, get_closures_for_class, fresh_temp, generate_closure_name *)
 
 (* Check if expression needs unchecked context due to integer operations.
    This follows the legacy C# target approach: wrap method bodies in unchecked
@@ -129,16 +114,6 @@ let needs_unchecked e =
 	in
 	try (loop e; false) with Exit -> true
 
-(* Add a closure to the list for its origin class *)
-let add_closure_for_class gctx origin_class_path closure_def =
-	let existing = try List.assoc origin_class_path gctx.closures_by_class with Not_found -> [] in
-	gctx.closures_by_class <- (origin_class_path, closure_def :: existing) ::
-		List.filter (fun (p, _) -> p <> origin_class_path) gctx.closures_by_class
-
-(* Get closures for a specific class path *)
-let get_closures_for_class gctx class_path =
-	try List.assoc class_path gctx.closures_by_class with Not_found -> []
-
 (* Register an invoke signature for later generation on Function class.
    Uses classify_for_invoke from CsInvokeSystem to normalize the signature. *)
 let register_invoke_signature gctx arg_types ret_type =
@@ -148,47 +123,6 @@ let register_invoke_signature gctx arg_types ret_type =
 	let key = (classified_args, classified_ret) in
 	if not (Hashtbl.mem gctx.invoke_signatures key) then
 		Hashtbl.add gctx.invoke_signatures key ()
-
-(* Expression generation context *)
-type expr_context = {
-	gctx : gen_context;
-	mutable local_vars : (int * string) list;  (* tvar.v_id -> generated name *)
-	mutable used_names : string list;  (* names already used in current scope *)
-	mutable temp_count : int;
-	mutable return_type : Type.t option;  (* expected return type for the current method *)
-	mutable current_class_path : path option;  (* current class path for closure naming *)
-	mutable current_method_name : string option;  (* current method name for closure naming *)
-	mutable origin_class_path : path option;  (* original class path for grouping closures in same file *)
-	mutable captured_vars : int list;  (* var IDs that are captured from outer scope (accessed via this.field) *)
-	mutable captures_this : bool;  (* true if 'this' from outer scope is captured as _hx_this *)
-	mutable type_params_in_scope : string list;  (* type parameter names that are in scope (class + method) *)
-	mutable type_param_constraints : (string * cs_type list) list;  (* type param name -> C# constraint types *)
-	mutable in_switch : bool;  (* true when inside a switch statement *)
-	mutable loop_break_label : string option;  (* label to goto for break when inside switch in loop *)
-}
-
-let create_expr_context gctx = {
-	gctx = gctx;
-	local_vars = [];
-	used_names = [];
-	temp_count = 0;
-	return_type = None;
-	current_class_path = None;
-	current_method_name = None;
-	origin_class_path = None;
-	captured_vars = [];
-	captures_this = false;
-	type_params_in_scope = [];
-	type_param_constraints = [];
-	in_switch = false;
-	loop_break_label = None;
-}
-
-(* Result type for expressions that may need prefix statements *)
-type cs_expr_result = {
-	er_stmts : cs_stmt list;  (* prefix statements to emit before the expression *)
-	er_expr : cs_expr;        (* the actual expression value *)
-}
 
 (* Check if an expression contains a reference to 'this'.
    Used to determine if field initializers need to be moved to the constructor
