@@ -8519,6 +8519,16 @@ let generate_field_accessors gctx c =
 						| CsTypeBool -> CsCall (CsField (fv_local, "ToBool"), [])
 						| CsTypeLong -> CsCall (CsField (fv_local, "ToLong"), [])
 						| CsTypeFloat -> CsCall (CsField (fv_local, "ToFloat"), [])
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
+							(* Null<T> - use ToNullXxx() methods for primitives *)
+							begin match inner with
+							| CsTypeInt -> CsCall (CsField (fv_local, "ToNullInt"), [])
+							| CsTypeLong -> CsCall (CsField (fv_local, "ToNullLong"), [])
+							| CsTypeDouble -> CsCall (CsField (fv_local, "ToNullDouble"), [])
+							| CsTypeFloat -> CsCall (CsField (fv_local, "ToNullFloat"), [])
+							| CsTypeBool -> CsCall (CsField (fv_local, "ToNullBool"), [])
+							| _ -> CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), []))
+							end
 						| _ -> CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), []))
 					) args in
 					let method_call = CsCall (CsField (CsThis, native_name), call_args) in
