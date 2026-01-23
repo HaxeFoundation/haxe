@@ -1152,6 +1152,20 @@ let rec is_ternary_with_mixed_types cs_expr =
 	| CsParens e -> is_ternary_with_mixed_types e
 	| _ -> false
 
+(* Cast object/Dynamic to target C# type, using Runtime.toXxx for primitives.
+   This handles boxed type mismatches (e.g., boxed int to double).
+   Used when dynamic operation results need to be cast to specific types. *)
+let cast_object_to_type target_cs_type object_expr =
+	let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+	match target_cs_type with
+	| CsTypeObject | CsTypeDynamic -> object_expr
+	| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [object_expr])
+	| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [object_expr])
+	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [object_expr])
+	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [object_expr])
+	| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [object_expr]))
+	| _ -> CsCast (target_cs_type, object_expr)
+
 (* Generate a coerced argument expression - adds cast if needed for type mismatch.
    The optional in_scope parameter specifies which type parameters are valid in the
    current context. If provided and the expected type is purely a generic param (like TBody),
@@ -1721,13 +1735,12 @@ let rec cs_expr_of_texpr ectx e =
 				(* Int/numeric index: use runtime helper cs.Cs.arrayGet *)
 				CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), "arrayGet", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
 			in
-			(* Cast result to expected type if it's not Dynamic *)
+			(* Cast result to expected type if it's not Dynamic.
+			   Use Runtime.toXxx for primitives to handle boxed type mismatches. *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
-			match result_type with
-			| CsTypeObject -> call  (* Already object, no cast needed *)
-			| _ -> CsCast (result_type, call)
+			cast_object_to_type result_type call
 		end
 		else
 			let is_haxe_array = is_haxe_array_type e1.etype in
@@ -2063,12 +2076,10 @@ let rec cs_expr_of_texpr ectx e =
 				| CsTypeString -> true
 				| _ -> false
 			in
-			(* Helper: cast dynamic operation result to expected type if needed *)
+			(* Helper: cast dynamic operation result to expected type if needed. *)
 			let cast_dynamic_result call_expr =
 				let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-				match expected_cs_type with
-				| CsTypeObject | CsTypeDynamic -> call_expr
-				| _ -> CsCast (expected_cs_type, call_expr)
+				cast_object_to_type expected_cs_type call_expr
 			in
 			begin match op with
 			(* Arithmetic operators on Dynamic need runtime dispatch - use either_dynamic for most *)
@@ -2172,14 +2183,11 @@ let rec cs_expr_of_texpr ectx e =
 					in
 					begin match field_helper with
 					| Some helper_name ->
-						(* These helpers return object, but the expression may have a specific type. Cast if needed. *)
+						(* These helpers return object, but the expression may have a specific type. *)
 						let call_expr = CsStaticCall (CsTypeClass (cs_path, []), helper_name,
 							[cs_expr_of_texpr ectx obj_expr; CsConst (CsConstString field_name); cs_expr_of_texpr ectx e2]) in
 						let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-						begin match expected_cs_type with
-						| CsTypeObject | CsTypeDynamic -> call_expr
-						| _ -> CsCast (expected_cs_type, call_expr)
-						end
+						cast_object_to_type expected_cs_type call_expr
 					| None ->
 						(* Unsupported compound op on dynamic field - fall back to regular handling *)
 						let e1_cs = cs_expr_of_texpr ectx e1 in
@@ -2196,14 +2204,11 @@ let rec cs_expr_of_texpr ectx e =
 					in
 					begin match array_helper with
 					| Some helper_name ->
-						(* These helpers return object, but the expression may have a specific type. Cast if needed. *)
+						(* These helpers return object, but the expression may have a specific type. *)
 						let call_expr = CsStaticCall (CsTypeClass (cs_path, []), helper_name,
 							[cs_expr_of_texpr ectx arr_expr; cs_expr_of_texpr ectx idx_expr; cs_expr_of_texpr ectx e2]) in
 						let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-						begin match expected_cs_type with
-						| CsTypeObject | CsTypeDynamic -> call_expr
-						| _ -> CsCast (expected_cs_type, call_expr)
-						end
+						cast_object_to_type expected_cs_type call_expr
 					| None ->
 						(* Unsupported compound op on dynamic array - fall back to regular handling *)
 						let e1_cs = cs_expr_of_texpr ectx e1 in
@@ -2402,21 +2407,15 @@ let rec cs_expr_of_texpr ectx e =
 		| Some (obj_expr, field_name), Increment ->
 			let helper_name = if is_postfix then "fieldPostIncrement" else "fieldPreIncrement" in
 			let call_expr = CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), helper_name, [cs_expr_of_texpr ectx obj_expr; CsConst (CsConstString field_name)]) in
-			(* The helper returns object, but the Haxe expression has a specific type. Cast to it. *)
+			(* The helper returns object, cast to expected type. *)
 			let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-			begin match expected_cs_type with
-			| CsTypeObject | CsTypeDynamic -> call_expr
-			| _ -> CsCast (expected_cs_type, call_expr)
-			end
+			cast_object_to_type expected_cs_type call_expr
 		| Some (obj_expr, field_name), Decrement ->
 			let helper_name = if is_postfix then "fieldPostDecrement" else "fieldPreDecrement" in
 			let call_expr = CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), helper_name, [cs_expr_of_texpr ectx obj_expr; CsConst (CsConstString field_name)]) in
-			(* The helper returns object, but the Haxe expression has a specific type. Cast to it. *)
+			(* The helper returns object, cast to expected type. *)
 			let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-			begin match expected_cs_type with
-			| CsTypeObject | CsTypeDynamic -> call_expr
-			| _ -> CsCast (expected_cs_type, call_expr)
-			end
+			cast_object_to_type expected_cs_type call_expr
 		| _ ->
 			(* Use dynamic helpers if either the outer type is Dynamic OR
 			   the inner expression (under casts) is Dynamic and we're doing increment/decrement *)
@@ -2443,11 +2442,9 @@ let rec cs_expr_of_texpr ectx e =
 						cs_expr_of_texpr ectx unop_operand
 					in
 					let call_expr = CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), helper_name, [arg_expr]) in
-					(* Cast the result to expected type if it's not Dynamic - use outer expression type *)
+					(* Cast the result to expected type if it's not Dynamic *)
 					let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-					match expected_cs_type with
-					| CsTypeObject | CsTypeDynamic -> call_expr
-					| _ -> CsCast (expected_cs_type, call_expr)
+					cast_object_to_type expected_cs_type call_expr
 				end
 			else
 				(* Check if the operand is a cast of a field access where the field is object-typed.
@@ -5077,7 +5074,23 @@ let rec cs_expr_of_texpr ectx e =
 						| t, CsTypeString when is_primitive_type t -> true  (* string to any primitive *)
 						| _ -> false
 					in
-					if is_unsafe_cast && is_impossible_cast then
+					(* When casting from object/Dynamic to primitive, use Runtime.toXxx to handle
+					   boxed type mismatches. Direct cast (double)(object)v fails if v is boxed int. *)
+					let is_object_to_primitive = match target_type, inner_type with
+						| t, (CsTypeObject | CsTypeDynamic) when is_primitive_type t -> true
+						| _ -> false
+					in
+					if is_object_to_primitive then begin
+						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+						match target_type with
+						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
+						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
+						| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
+						| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
+						| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
+						| _ -> CsCast (target_type, inner_cs)
+					end
+					else if is_unsafe_cast && is_impossible_cast then
 						(* Use Runtime.genericCast<T> which throws for impossible casts.
 						   Generated as: haxe.lang.Runtime.genericCast<TargetType>(value) *)
 						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
@@ -6037,8 +6050,18 @@ and cs_stmt_of_texpr ectx e =
 					let false_branch = CsNew (ret_cs, [converted_value; CsConst (CsConstBool true)]) in
 					CsTernary (null_check, true_branch, false_branch)
 				| Some ret_t when is_dynamic e.etype && not (is_dynamic ret_t) && not (ExtType.is_void (follow ret_t)) ->
-					(* Returning Dynamic but method returns a concrete type (non-void, non-Null) - add cast *)
-					CsCast (cs_type_of_type ectx.gctx ret_t, cs_e)
+					(* Returning Dynamic but method returns a concrete type (non-void, non-Null).
+					   For primitives, use Runtime.toXxx to handle boxed type mismatches. *)
+					let ret_cs = cs_type_of_type ectx.gctx ret_t in
+					let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
+					begin match ret_cs with
+					| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_e])
+					| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_e])
+					| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [cs_e])
+					| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [cs_e])
+					| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_e]))
+					| _ -> CsCast (ret_cs, cs_e)
+					end
 				| Some ret_t when is_type_param e.etype && is_ret_null_wrapper ->
 					(* Expression is T (type param) and return is Null<T> - use implicit conversion, don't cast *)
 					cs_e
