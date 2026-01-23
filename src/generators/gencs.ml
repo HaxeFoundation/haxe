@@ -30,6 +30,20 @@ open CsPrinter
 open Genshared
 open CsNullable
 
+(* ============================================================
+   Common type constants for frequently used Haxe runtime types.
+   Defined early so they can be used throughout the file.
+   ============================================================ *)
+let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), [])
+let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), [])
+let haxe_object_type = CsTypeClass ((["haxe"; "root"], "HaxeObject"), [])
+let reflect_type = CsTypeClass ((["haxe"; "root"], "Reflect"), [])
+
+(* Common path tuples for pattern matching *)
+let null_path = (["haxe"; "lang"], "Null")
+let runtime_path = (["haxe"; "lang"], "Runtime")
+let haxeobject_path = (["haxe"; "root"], "HaxeObject")
+
 (* Get the native name of a class field (respects @:native metadata) *)
 let get_native_field_name cf =
 	if Meta.has Meta.Native cf.cf_meta then
@@ -150,7 +164,6 @@ let hxvalue_invoke_method_name num_args =
    Note: arg_types may be shorter than args (e.g., if type info is missing);
    we default to FromObject for any args without type info. *)
 let generate_hxvalue_args args arg_types =
-	let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let num_types = List.length arg_types in
 	List.mapi (fun i arg ->
 		let arg_type = if i < num_types then List.nth arg_types i else CsTypeObject in
@@ -331,6 +344,30 @@ let make_array_from_native storage_type native_array_expr _target_cs_type =
 	let method_name, _needs_cast = array_factory_method storage_type in
 	(* Array is non-generic, so just call the factory method directly *)
 	CsStaticCall (haxe_array_type, method_name, [native_array_expr])
+
+(* Build an args array for InvokeDelegate calls.
+   If args list is empty, creates an empty haxe.root.Array.
+   Otherwise, wraps the args in a native object[] and converts to haxe.root.Array. *)
+let make_invoke_args_array args =
+	if args = [] then
+		CsNew (haxe_array_type, [])
+	else
+		let native_array = CsNewArray (CsTypeObject, args) in
+		make_array_from_native ArrayDynamic native_array haxe_array_type
+
+(* Cast InvokeDelegate result to expected type.
+   For primitives, uses Runtime.toXxx to handle boxed type mismatches.
+   For void/object/dynamic, returns expression unchanged.
+   For other types, uses direct C# cast. *)
+let cast_invoke_result result_type call_expr =
+	match result_type with
+	| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
+	| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [call_expr])
+	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [call_expr])
+	| CsTypeFloat | CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [call_expr])
+	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [call_expr])
+	| CsTypeString -> CsCast (CsTypeString, call_expr)
+	| _ -> CsCast (result_type, call_expr)
 
 (* Expression generation context *)
 type expr_context = {
@@ -1156,7 +1193,6 @@ let rec is_ternary_with_mixed_types cs_expr =
    This handles boxed type mismatches (e.g., boxed int to double).
    Used when dynamic operation results need to be cast to specific types. *)
 let cast_object_to_type target_cs_type object_expr =
-	let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 	match target_cs_type with
 	| CsTypeObject | CsTypeDynamic -> object_expr
 	| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [object_expr])
@@ -1180,9 +1216,6 @@ let dynamic_binop_helpers = [
 (* ============================================================
    Type predicate helpers for coerce_cs_types refactoring
    ============================================================ *)
-
-(* Common type constant for Runtime class *)
-let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), [])
 
 (* Check if C# type is object or Dynamic *)
 let is_cs_object_or_dynamic = function
@@ -2906,7 +2939,6 @@ let rec cs_expr_of_texpr ectx e =
 				m_attributes = [];
 			} in
 			(* Build Value-based __hx_invokeN method *)
-			let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 			let fv_params = List.mapi (fun i _ ->
 				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some hxvalue_type; p_default = None; p_modifier = None }
 			) param_types_cs in
@@ -3287,15 +3319,13 @@ let rec cs_expr_of_texpr ectx e =
 		let obj_cs_type = cs_type_of_type ectx.gctx e_obj.etype in
 		if obj_cs_type = CsTypeObject then begin
 			(* Type was erased to object - use reflection for method call *)
-			let reflect_path = (["haxe"; "root"], "Reflect") in
-			let runtime_path = (["haxe"; "lang"], "Runtime") in
-			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString cf.cf_name)]) in
+			let field_call = CsStaticCall (reflect_type, "field", [obj; CsConst (CsConstString cf.cf_name)]) in
 			(* Build args array *)
 			let cs_args = List.map (cs_expr_of_texpr ectx) args in
 			let native_array = CsNewArray (CsTypeObject, cs_args) in
 			let args_array = make_array_from_native ArrayDynamic native_array (haxe_array_type) in
 			(* Call Runtime.InvokeDelegate(method, args) *)
-			let invoke_call = CsStaticCall (CsTypeClass (runtime_path, []), "InvokeDelegate", [field_call; args_array]) in
+			let invoke_call = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
 			(* Cast result to expected type *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			begin match result_type with
@@ -3759,14 +3789,8 @@ let rec cs_expr_of_texpr ectx e =
 			let is_function = match follow cf.cf_type with TFun _ -> true | _ -> false in
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			if is_function then begin
-				(* Build an array of arguments using appropriate factory method *)
-				let args_array = if args = [] then
-					CsNew (haxe_array_type, [])
-				else
-					let native_array = CsNewArray (CsTypeObject, args) in
-					make_array_from_native ArrayDynamic native_array (haxe_array_type)
-				in
-				let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
+				let args_array = make_invoke_args_array args in
+				let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
 				(* Cast the result to the expected return type.
 				   Use e.etype (the TCall's return type) which has type parameters resolved,
 				   rather than cf.cf_type which might have unresolved type params. *)
@@ -3787,16 +3811,9 @@ let rec cs_expr_of_texpr ectx e =
 			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
 		| CsTypeObject ->
 			(* Object type (from TAnon/structural type) - use Reflect.field then Runtime.InvokeDelegate *)
-			let reflect_path = (["haxe"; "root"], "Reflect") in
-			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString cf.cf_name)]) in
-			(* Build an array of arguments using appropriate factory method *)
-			let args_array = if args = [] then
-				CsNew (haxe_array_type, [])
-			else
-				let native_array = CsNewArray (CsTypeObject, args) in
-				make_array_from_native ArrayDynamic native_array (haxe_array_type)
-			in
-			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
+			let field_call = CsStaticCall (reflect_type, "field", [obj; CsConst (CsConstString cf.cf_name)]) in
+			let args_array = make_invoke_args_array args in
+			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
 			(* Convert the result to the expected return type using Runtime helpers.
 			   Use Runtime.toInt/toDouble/toBool for primitives (handles boxing/unboxing properly),
 			   and direct cast for reference types.
@@ -3804,67 +3821,27 @@ let rec cs_expr_of_texpr ectx e =
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
-			let runtime_path = (["haxe"; "lang"], "Runtime") in
-			begin match result_type with
-			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-			| CsTypeInt -> CsStaticCall (CsTypeClass (runtime_path, []), "toInt", [call_expr])
-			| CsTypeLong -> CsStaticCall (CsTypeClass (runtime_path, []), "toLong", [call_expr])
-			| CsTypeFloat | CsTypeDouble -> CsStaticCall (CsTypeClass (runtime_path, []), "toDouble", [call_expr])
-			| CsTypeBool -> CsStaticCall (CsTypeClass (runtime_path, []), "toBool", [call_expr])
-			| CsTypeString -> CsCast (CsTypeString, call_expr)
-			| _ -> CsCast (result_type, call_expr)
-			end
+			cast_invoke_result result_type call_expr
 		| CsTypeGenericParam _ ->
 			(* Type parameter - cast to HaxeObject to call _hx_getField *)
-			let haxe_object_type = CsTypeClass ((["haxe"; "root"], "HaxeObject"), []) in
 			let casted_obj = CsCast (haxe_object_type, obj) in
 			let field_call = CsCall (CsField (casted_obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
-			(* Build an array of arguments using appropriate factory method *)
-			let args_array = if args = [] then
-				CsNew (haxe_array_type, [])
-			else
-				let native_array = CsNewArray (CsTypeObject, args) in
-				make_array_from_native ArrayDynamic native_array (haxe_array_type)
-			in
-			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
+			let args_array = make_invoke_args_array args in
+			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
-			let runtime_path = (["haxe"; "lang"], "Runtime") in
-			begin match result_type with
-			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-			| CsTypeInt -> CsStaticCall (CsTypeClass (runtime_path, []), "toInt", [call_expr])
-			| CsTypeLong -> CsStaticCall (CsTypeClass (runtime_path, []), "toLong", [call_expr])
-			| CsTypeFloat | CsTypeDouble -> CsStaticCall (CsTypeClass (runtime_path, []), "toDouble", [call_expr])
-			| CsTypeBool -> CsStaticCall (CsTypeClass (runtime_path, []), "toBool", [call_expr])
-			| CsTypeString -> CsCast (CsTypeString, call_expr)
-			| _ -> CsCast (result_type, call_expr)
-			end
+			cast_invoke_result result_type call_expr
 		| _ ->
 			(* Fallback to dynamic dispatch via _hx_getField -> Runtime.InvokeDelegate *)
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
-			(* Build an array of arguments using appropriate factory method *)
-			let args_array = if args = [] then
-				CsNew (haxe_array_type, [])
-			else
-				let native_array = CsNewArray (CsTypeObject, args) in
-				make_array_from_native ArrayDynamic native_array (haxe_array_type)
-			in
-			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [field_call; args_array]) in
+			let args_array = make_invoke_args_array args in
+			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
 			(* Convert the result using Runtime helpers for proper type conversion *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
-			let runtime_path = (["haxe"; "lang"], "Runtime") in
-			begin match result_type with
-			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-			| CsTypeInt -> CsStaticCall (CsTypeClass (runtime_path, []), "toInt", [call_expr])
-			| CsTypeLong -> CsStaticCall (CsTypeClass (runtime_path, []), "toLong", [call_expr])
-			| CsTypeFloat | CsTypeDouble -> CsStaticCall (CsTypeClass (runtime_path, []), "toDouble", [call_expr])
-			| CsTypeBool -> CsStaticCall (CsTypeClass (runtime_path, []), "toBool", [call_expr])
-			| CsTypeString -> CsCast (CsTypeString, call_expr)
-			| _ -> CsCast (result_type, call_expr)
-			end
+			cast_invoke_result result_type call_expr
 		end
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) when name = "value" || name = "hasValue" ->
 		(* Special case: calling .value or .hasValue on Null<T> - this is csNullable's unwrap pattern.
@@ -3872,13 +3849,8 @@ let rec cs_expr_of_texpr ectx e =
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let func_expr = CsField (obj, name) in
 		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
-		let args_array = if args_exprs = [] then
-			CsNew (haxe_array_type, [])
-		else
-			let native_array = CsNewArray (CsTypeObject, args_exprs) in
-			make_array_from_native ArrayDynamic native_array (haxe_array_type)
-		in
-		let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
+		let args_array = make_invoke_args_array args_exprs in
+		let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
 		let result_type = cs_type_of_type ectx.gctx e.etype in
 		let result_type = CsSignature.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
@@ -3904,16 +3876,10 @@ let rec cs_expr_of_texpr ectx e =
 				CsField (obj, "value")  (* Null with no/multiple params - treat as nullable *)
 			| _ -> obj
 		in
-		let get_field = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj; CsConst (CsConstString name)]) in
+		let get_field = CsStaticCall (runtime_type, "GetField", [obj; CsConst (CsConstString name)]) in
 		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
-		(* Build an array of arguments using appropriate factory method *)
-		let args_array = if args_exprs = [] then
-			CsNew (haxe_array_type, [])
-		else
-			let native_array = CsNewArray (CsTypeObject, args_exprs) in
-			make_array_from_native ArrayDynamic native_array (haxe_array_type)
-		in
-		let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [get_field; args_array]) in
+		let args_array = make_invoke_args_array args_exprs in
+		let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [get_field; args_array]) in
 		(* Cast the result to the expected return type - use e.etype (the TCall's type), not e_obj.etype *)
 		(* Also erase out-of-scope type params *)
 		let result_type = cs_type_of_type ectx.gctx e.etype in
@@ -3966,13 +3932,8 @@ let rec cs_expr_of_texpr ectx e =
 			ignore c.cl_params;
 			let func_expr = CsStaticField (CsTypeClass (path, []), escape_identifier cf.cf_name) in
 			let args_exprs = List.map (cs_expr_of_texpr ectx) orig_args in
-			let args_array = if args_exprs = [] then
-				CsNew (haxe_array_type, [])
-			else
-				let native_array = CsNewArray (CsTypeObject, args_exprs) in
-				make_array_from_native ArrayDynamic native_array (haxe_array_type)
-			in
-			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
+			let args_array = make_invoke_args_array args_exprs in
+			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx return_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
@@ -4514,14 +4475,8 @@ let rec cs_expr_of_texpr ectx e =
 				| TConst TNull -> CsNull  (* Use actual null for dynamic call args *)
 				| _ -> cs_expr_of_texpr ectx arg
 			) args in
-			(* Build an array of arguments using appropriate factory method *)
-			let args_array = if args_exprs = [] then
-				CsNew (haxe_array_type, [])
-			else
-				let native_array = CsNewArray (CsTypeObject, args_exprs) in
-				make_array_from_native ArrayDynamic native_array (haxe_array_type)
-			in
-			let call_expr = CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array]) in
+			let args_array = make_invoke_args_array args_exprs in
+			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
 			(* Cast the result to the expected return type *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
@@ -5012,7 +4967,6 @@ let rec cs_expr_of_texpr ectx e =
 					(* Special case: ternary with mixed Null/object branches being cast to primitive.
 					   C# unifies the ternary type to 'object', so we can't call .value on it.
 					   Use Runtime.toInt/toDouble/etc. directly on the ternary result. *)
-					let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 					match target_type with
 					| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
 					| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
@@ -5118,7 +5072,6 @@ let rec cs_expr_of_texpr ectx e =
 						| _ -> false
 					in
 					if is_object_to_primitive then begin
-						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 						match target_type with
 						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
 						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
@@ -5130,7 +5083,6 @@ let rec cs_expr_of_texpr ectx e =
 					else if is_unsafe_cast && is_impossible_cast then
 						(* Use Runtime.genericCast<T> which throws for impossible casts.
 						   Generated as: haxe.lang.Runtime.genericCast<TargetType>(value) *)
-						let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 						CsCallGeneric (CsStaticField (runtime_type, "genericCast"), [target_type], [inner_cs])
 					else if needs_double_cast then
 						(* Cast through object: (Target)(object)source
@@ -6075,7 +6027,6 @@ and cs_stmt_of_texpr ectx e =
 						| _ -> CsTypeObject
 					in
 					let null_check = CsBinop (CsOpEq, cs_e, CsNull) in
-					let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 					let converted_value = match inner_type with
 						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_e])
 						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_e])
@@ -6091,7 +6042,6 @@ and cs_stmt_of_texpr ectx e =
 					(* Returning Dynamic but method returns a concrete type (non-void, non-Null).
 					   For primitives, use Runtime.toXxx to handle boxed type mismatches. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
-					let runtime_type = CsTypeClass ((["haxe"; "lang"], "Runtime"), []) in
 					begin match ret_cs with
 					| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_e])
 					| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_e])
@@ -6576,7 +6526,6 @@ let generate_closure_class ectx tf func_type =
 	   and references in obj field. The kind field indicates which slot contains the value.
 	   Extract values using ToInt(), ToDouble(), ToObject(), etc.
 	   Returns Value to avoid boxing on return values too. *)
-	let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let hxvalue_invoke_method =
 		if num_params = 0 then
 			(* No params - just override __hx_invoke0 to call invoke() and wrap result *)
@@ -7046,7 +6995,6 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 
 	(* Build __hx_invokeN method - Value-based invoke to avoid boxing.
 	   Returns Value to avoid boxing on return values too. *)
-	let hxvalue_type = CsTypeClass ((["haxe"; "lang"], "Value"), []) in
 	let hxvalue_invoke_method =
 		if num_params = 0 then
 			let invoke_result = CsCall (CsLocal "invoke", []) in
