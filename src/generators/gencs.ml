@@ -4974,8 +4974,23 @@ and cs_stmt_of_texpr ectx e =
 				| [] ->
 					begin match sw.switch_default with
 					| Some e -> cs_stmt_of_texpr ectx e
-					| None -> CsThrowStmt (CsNew (CsTypeClass ((["System"], "InvalidOperationException"), []),
-						[CsConst (CsConstString "Unexpected value")]))
+					| None ->
+						(* No explicit default. Check if:
+						   1. The enclosing function returns void (or is a constructor with no return_type)
+						   2. All branches terminate (return/throw)
+						   If both are true, this is a partial switch where execution should continue after.
+						   Otherwise, throw for definite assignment protection or value return. *)
+						let enclosing_returns_void = match ectx.return_type with
+							| None -> true  (* Constructor or unset - treat as void *)
+							| Some t -> ExtType.is_void (follow t)
+						in
+						let all_terminate = List.for_all (fun case ->
+							let body = cs_stmt_of_texpr ectx case.case_expr in
+							stmt_terminates body
+						) sw.switch_cases in
+						if enclosing_returns_void && all_terminate then CsBlock []
+						else CsThrowStmt (CsNew (CsTypeClass ((["System"], "InvalidOperationException"), []),
+							[CsConst (CsConstString "Match failure")]))
 					end
 				| case :: rest ->
 					(* Build condition: cond == pattern1 || cond == pattern2 || ... *)
@@ -5016,12 +5031,25 @@ and cs_stmt_of_texpr ectx e =
 					} in
 					sections @ [default_section]
 				| None ->
-					(* Even for exhaustive switches, C# needs a default case for definite assignment.
-					   Throw an exception to satisfy the compiler while preserving safety. *)
+					(* No explicit default case. Check if:
+					   1. The enclosing function returns void (or is a constructor with no return_type)
+					   2. All branches terminate (return/throw)
+					   If both are true, this is a partial switch where execution should continue after.
+					   Otherwise, throw for definite assignment protection or value return. *)
+					let enclosing_returns_void = match ectx.return_type with
+						| None -> true  (* Constructor or unset - treat as void *)
+						| Some t -> ExtType.is_void (follow t)
+					in
+					let all_terminate = List.for_all (fun section ->
+						match List.rev section.sw_body with
+						| [] -> false
+						| last :: _ -> stmt_terminates last
+					) sections in
 					let default_section = {
 						sw_labels = [CsCaseDefault];
-						sw_body = [CsThrowStmt (CsNew (CsTypeClass ((["System"], "InvalidOperationException"), []),
-							[CsConst (CsConstString "Unexpected value")]))]
+						sw_body = if enclosing_returns_void && all_terminate then [CsBreak]
+						          else [CsThrowStmt (CsNew (CsTypeClass ((["System"], "InvalidOperationException"), []),
+							[CsConst (CsConstString "Match failure")]))]
 					} in
 					sections @ [default_section]
 			in
