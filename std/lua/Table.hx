@@ -85,6 +85,42 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 		return Boot.defArray(PairTools.copy(tbl), length);
     }
 
+	/**
+		Returns an iterator over the values in the table.
+		Enables `for (v in table)` syntax.
+	**/
+	inline function iterator():Iterator<B> {
+		var tbl:Table<A, B> = this;
+		var cur:A = Lua.next(tbl, null).index;
+		return {
+			hasNext: function() return cur != null,
+			next: function() {
+				var key = cur;
+				var val = tbl[untyped key];
+				cur = Lua.next(tbl, key).index;
+				return val;
+			}
+		};
+	}
+
+	/**
+		Returns an iterator over the key-value pairs in the table.
+		Enables `for (k => v in table)` syntax.
+	**/
+	inline function keyValueIterator():KeyValueIterator<A, B> {
+		var tbl:Table<A, B> = this;
+		var cur:A = Lua.next(tbl, null).index;
+		return {
+			hasNext: function() return cur != null,
+			next: function() {
+				var key = cur;
+				var val = tbl[untyped key];
+				cur = Lua.next(tbl, key).index;
+				return {key: key, value: val};
+			}
+		};
+	}
+
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
 	static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;
 
