@@ -8200,6 +8200,45 @@ let generate_enum gctx (e : tenum) =
 					ctor_this_call = None;
 					ctor_body = ctor_body;
 				} in
+				(* Generate ToString() method for proper enum string representation *)
+				let tostring_method =
+					(* Build: return "ConstructorName(" + Std.string(param1) + ", " + Std.string(param2) + ... + ")" *)
+					let std_path = (["haxe"; "root"], "Std") in
+					let param_names = List.map (fun (name, _, _) -> escape_identifier name) args in
+					let tostring_body = match param_names with
+						| [] ->
+							(* No params: return "ConstructorName" *)
+							[CsReturn (Some (CsConst (CsConstString ef.ef_name)))]
+						| _ ->
+							(* With params: return "ConstructorName(param1, param2, ...)" *)
+							let param_strings = List.map (fun pname ->
+								CsStaticCall (CsTypeClass (std_path, []), "string", [CsField (CsThis, pname)])
+							) param_names in
+							(* Join with "," *)
+							let joined = List.fold_left (fun acc ps ->
+								CsBinop (CsOpAdd, CsBinop (CsOpAdd, acc, CsConst (CsConstString ",")), ps)
+							) (List.hd param_strings) (List.tl param_strings) in
+							(* Wrap with constructor name and parentheses *)
+							let result = CsBinop (CsOpAdd,
+								CsBinop (CsOpAdd,
+									CsConst (CsConstString (ef.ef_name ^ "(")),
+									joined),
+								CsConst (CsConstString ")")) in
+							[CsReturn (Some result)]
+					in
+					CsMemberMethod {
+						m_name = "ToString";
+						m_return_type = CsTypeString;
+						m_access = AccessModifier.Public;
+						m_modifiers = [MemberModifier.Override];
+						m_type_params = [];
+						m_params = [];
+						m_body = Some tostring_body;
+						m_constraints = [];
+						m_explicit_interface = None;
+						m_attributes = [];
+					}
+				in
 				(* Nested class has parent's type params + constructor's own type params (GADT) *)
 				let nested_class = CsClassDef {
 					c_path = (fst path, class_name);
@@ -8209,7 +8248,7 @@ let generate_enum gctx (e : tenum) =
 					c_base = Some (CsTypeClass (path, type_param_refs));  (* Reference parent with parent's type params only *)
 					c_interfaces = [];
 					c_constraints = [];
-					c_members = fields @ [ctor];
+					c_members = fields @ [ctor; tostring_method];
 				} in
 				CsMemberNestedType nested_class :: acc
 			| _ ->
@@ -8231,6 +8270,19 @@ let generate_enum gctx (e : tenum) =
 						ctor_this_call = None;
 						ctor_body = ctor_body;
 					} in
+					(* Generate ToString() method for proper enum string representation *)
+					let tostring_method = CsMemberMethod {
+						m_name = "ToString";
+						m_return_type = CsTypeString;
+						m_access = AccessModifier.Public;
+						m_modifiers = [MemberModifier.Override];
+						m_type_params = [];
+						m_params = [];
+						m_body = Some [CsReturn (Some (CsConst (CsConstString ef.ef_name)))];
+						m_constraints = [];
+						m_explicit_interface = None;
+						m_attributes = [];
+					} in
 					(* Nested class in C# can access outer class type params directly - don't re-declare *)
 					let nested_class = CsClassDef {
 						c_path = (fst path, class_name);
@@ -8240,7 +8292,7 @@ let generate_enum gctx (e : tenum) =
 						c_base = Some (CsTypeClass (path, type_param_refs));  (* Reference parent with type params *)
 						c_interfaces = [];
 						c_constraints = [];
-						c_members = [ctor];
+						c_members = [ctor; tostring_method];
 					} in
 					CsMemberNestedType nested_class :: acc
 				end else begin
@@ -8270,6 +8322,19 @@ let generate_enum gctx (e : tenum) =
 						f_modifiers = [MemberModifier.Static; MemberModifier.Readonly];
 						f_value = Some (CsNew (CsTypeClass (nested_path, []), []));
 					} in
+					(* Generate ToString() method for proper enum string representation *)
+					let tostring_method = CsMemberMethod {
+						m_name = "ToString";
+						m_return_type = CsTypeString;
+						m_access = AccessModifier.Public;
+						m_modifiers = [MemberModifier.Override];
+						m_type_params = [];
+						m_params = [];
+						m_body = Some [CsReturn (Some (CsConst (CsConstString ef.ef_name)))];
+						m_constraints = [];
+						m_explicit_interface = None;
+						m_attributes = [];
+					} in
 					let nested_class = CsClassDef {
 						c_path = (fst path, nested_class_name);  (* use short path for declaration *)
 						c_access = AccessModifier.Public;
@@ -8278,7 +8343,7 @@ let generate_enum gctx (e : tenum) =
 						c_base = Some (CsTypeClass (path, []));
 						c_interfaces = [];
 						c_constraints = [];
-						c_members = [ctor; instance];
+						c_members = [ctor; instance; tostring_method];
 					} in
 					(* Static field on parent that returns the instance *)
 					let field = CsMemberField {
