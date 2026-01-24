@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace cs
+namespace haxe.lang
 {
     /// <summary>
     /// Registry for static field accessors.
@@ -55,6 +55,20 @@ namespace cs
                 return acc.checker(name);
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns the array of static field names for a type, or null if not registered.
+        /// Used by Type.getClassFields() for AOT-safe field enumeration.
+        /// </summary>
+        public static string[] getFieldNames(System.Type type)
+        {
+            StaticAccessors acc;
+            if (registry.TryGetValue(type.Name, out acc))
+            {
+                return acc.fieldNames;
+            }
+            return null;
         }
     }
 }

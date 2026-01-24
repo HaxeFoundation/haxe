@@ -46,7 +46,7 @@ class Reflect {
 		var isType:Bool = untyped __cs__("{0} is System.Type", o);
 		if (isType) {
 			// AOT-safe: Use registered static field accessor
-			return untyped __cs__("global::cs.HaxeStaticFields.hasField((System.Type){0}, {1})", o, field);
+			return untyped __cs__("global::haxe.lang.HaxeStaticFields.hasField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects
@@ -79,7 +79,7 @@ class Reflect {
 		var isType:Bool = untyped __cs__("{0} is System.Type", o);
 		if (isType) {
 			// AOT-safe: Use registered static field accessor
-			return untyped __cs__("global::cs.HaxeStaticFields.getField((System.Type){0}, {1})", o, field);
+			return untyped __cs__("global::haxe.lang.HaxeStaticFields.getField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects

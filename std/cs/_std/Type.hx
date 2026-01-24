@@ -252,6 +252,18 @@ class Type {
 	public static function getClassFields(c:Class<Dynamic>):Array<String> {
 		if (c == null)
 			return [];
+
+		// Try AOT-safe registry first
+		var fieldNames:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getFieldNames((System.Type){0})", c);
+		if (fieldNames != null) {
+			var result:Array<String> = [];
+			for (i in 0...fieldNames.length) {
+				result.push(fieldNames[i]);
+			}
+			return result;
+		}
+
+		// Fallback to reflection (works in JIT, may fail in AOT)
 		var result:Array<String> = [];
 		// c is System.Type - get static fields directly
 		var fields:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);

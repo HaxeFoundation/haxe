@@ -7721,11 +7721,11 @@ let generate_field_accessors gctx c =
 (* Type for FastStaticMethodClosure *)
 let fast_static_method_closure_type = CsTypeClass ((["haxe"; "lang"], "FastStaticMethodClosure"), [])
 
-(* Type for cs.HaxeStaticFields *)
-let haxe_static_fields_type = CsTypeClass ((["cs"], "HaxeStaticFields"), [])
+(* Type for haxe.lang.HaxeStaticFields *)
+let haxe_static_fields_type = CsTypeClass ((["haxe"; "lang"], "HaxeStaticFields"), [])
 
-(* Type for cs.StaticAccessors *)
-let static_accessors_type = CsTypeClass ((["cs"], "StaticAccessors"), [])
+(* Type for haxe.lang.StaticAccessors *)
+let static_accessors_type = CsTypeClass ((["haxe"; "lang"], "StaticAccessors"), [])
 
 (* Generate static field accessors for AOT-compatible static field/method access.
    This includes:
@@ -8021,13 +8021,14 @@ let generate_static_field_accessors gctx c =
 	(* Generate _hx_bind method for HaxeStaticFields registration.
 	   This is called from Program.cs before main() to ensure all static accessors are registered.
 	   public static void _hx_bind() {
-	       var acc = cs.HaxeStaticFields.getOrCreate(typeof(MyClass).Name);
+	       var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).Name);
 	       acc.getter = _hx_getStaticField;
 	       acc.checker = _hx_hasStaticField;
+	       acc.fieldNames = new string[] { ... };
 	   }
 	*)
 	let bind_body =
-		(* var acc = cs.HaxeStaticFields.getOrCreate(typeof(MyClass).Name); *)
+		(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).Name); *)
 		let get_or_create = CsVarDecl (
 			"acc",
 			Some static_accessors_type,
@@ -8045,7 +8046,13 @@ let generate_static_field_accessors gctx c =
 			CsField (CsLocal "acc", "checker"),
 			CsStaticField (cs_class_type, "_hx_hasStaticField")
 		)) in
-		[get_or_create; set_getter; set_checker]
+		(* acc.fieldNames = new string[] { ... }; *)
+		let set_field_names = CsExprStmt (CsBinop (CsOpAssign,
+			CsField (CsLocal "acc", "fieldNames"),
+			CsNewArray (CsTypeString,
+				List.map (fun name -> CsConst (CsConstString name)) (all_field_names @ all_method_names))
+		)) in
+		[get_or_create; set_getter; set_checker; set_field_names]
 	in
 	let bind_method = CsMemberMethod {
 		m_name = "_hx_bind";
@@ -8921,7 +8928,7 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/FastMethodClosure.cs" "haxe/lang/FastMethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/FastStaticMethodClosure.cs" "haxe/lang/FastStaticMethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
-	copy_runtime_file "cs/_cs/cs/StaticAccessors.cs" "cs/StaticAccessors.cs";
-	copy_runtime_file "cs/_cs/cs/HaxeStaticFields.cs" "cs/HaxeStaticFields.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/StaticAccessors.cs" "haxe/lang/StaticAccessors.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/HaxeStaticFields.cs" "haxe/lang/HaxeStaticFields.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
 
