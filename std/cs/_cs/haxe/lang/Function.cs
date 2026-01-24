@@ -243,5 +243,7 @@ namespace haxe.lang
         {
             return __hx_invoke9(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3), global::haxe.lang.Value.FromObject(a4), global::haxe.lang.Value.FromObject(a5), global::haxe.lang.Value.FromObject(a6), global::haxe.lang.Value.FromObject(a7), global::haxe.lang.Value.FromObject(a8)).ToDynamic();
         }
+
+        public static void _hx_bind() { }
     }
 }

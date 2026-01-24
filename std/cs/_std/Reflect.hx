@@ -42,6 +42,13 @@ class Reflect {
 			return fields.indexOf(field) >= 0;
 		}
 
+		// Check if o is a System.Type (for static field access)
+		var isType:Bool = untyped __cs__("{0} is System.Type", o);
+		if (isType) {
+			// AOT-safe: Use registered static field accessor
+			return untyped __cs__("global::cs.HaxeStaticFields.hasField((System.Type){0}, {1})", o, field);
+		}
+
 		// Use reflection for other objects
 		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
 		var fieldInfo:Dynamic = untyped __cs__("((System.Type){0}).GetField({1})", nativeType, field);
@@ -66,6 +73,13 @@ class Reflect {
 		// Check HaxeObject
 		if (Std.isOfType(o, HaxeObject)) {
 			return (cast o : HaxeObject)._hx_getField(field);
+		}
+
+		// Check if o is a System.Type (for static field access)
+		var isType:Bool = untyped __cs__("{0} is System.Type", o);
+		if (isType) {
+			// AOT-safe: Use registered static field accessor
+			return untyped __cs__("global::cs.HaxeStaticFields.getField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects

@@ -42,6 +42,7 @@ type gen_context = {
 	mutable temp_count : int;
 	invoke_signatures : (cs_type list * cs_type, unit) Hashtbl.t;
 	mutable preprocessor : cs_type preprocessor;
+	mutable all_haxe_classes : path list;  (* ALL classes that need _hx_bind() call in Program.cs *)
 }
 
 (* Expression generation context - holds state for translating expressions *)
@@ -77,6 +78,7 @@ let create_context com = {
 	temp_count = 0;
 	invoke_signatures = Hashtbl.create 32;
 	preprocessor = Obj.magic ();
+	all_haxe_classes = [];
 }
 
 (* Create a new expression context *)

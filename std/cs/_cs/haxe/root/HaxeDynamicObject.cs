@@ -105,5 +105,7 @@ namespace haxe.root
                 _hx_fields = new global::System.Collections.Generic.Dictionary<string, object>();
             }
         }
+
+        public static new void _hx_bind() { }
     }
 }

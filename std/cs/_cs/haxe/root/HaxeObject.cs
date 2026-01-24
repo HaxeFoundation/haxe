@@ -114,5 +114,7 @@ namespace haxe.root
         {
             throw new global::System.NotImplementedException($"Method index {index} not found (dynamic)");
         }
+
+        public static void _hx_bind() { }
     }
 }
