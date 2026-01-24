@@ -1,0 +1,145 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+import cs.system.text.regularexpressions.Group;
+import cs.system.text.regularexpressions.Regex;
+import cs.system.text.regularexpressions.Match;
+import cs.system.text.regularexpressions.RegexOptions;
+
+@:coreApi
+class EReg {
+	private var regex:Regex;
+	private var m:Match;
+	private var isGlobal:Bool;
+	private var cur:String;
+
+	public function new(r:String, opt:String):Void {
+		var opts:RegexOptions = RegexOptions.CultureInvariant;
+		for (i in 0...opt.length) {
+			var c = StringTools.fastCodeAt(opt, i);
+			if (c == 'i'.code) {
+				opts = opts | RegexOptions.IgnoreCase;
+			} else if (c == 'g'.code) {
+				isGlobal = true;
+			} else if (c == 'm'.code) {
+				opts = opts | RegexOptions.Multiline;
+			} else if (c == 's'.code) {
+				opts = opts | RegexOptions.Singleline;
+			}
+		}
+		this.regex = new Regex(r, untyped __cs__("(System.Text.RegularExpressions.RegexOptions){0}", opts));
+	}
+
+	public function match(s:String):Bool {
+		m = regex.Match(s);
+		cur = s;
+		return m.Success;
+	}
+
+	public function matched(n:Int):String {
+		if (m == null || n < 0 || n >= m.Groups.Count)
+			throw "EReg::matched";
+		var group:Group = untyped m.Groups[n];
+		if (!group.Success)
+			return null;
+		return group.Value;
+	}
+
+	public function matchedLeft():String {
+		return cur.substr(0, m.Index);
+	}
+
+	public function matchedRight():String {
+		return cur.substr(m.Index + m.Length);
+	}
+
+	public function matchedPos():{pos:Int, len:Int} {
+		return {pos: m.Index, len: m.Length};
+	}
+
+	public function matchedNum():Int {
+		if (m == null)
+			throw "EReg::matchedNum";
+		return m.Groups.Count;
+	}
+
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
+		m = if (len < 0) regex.Match(s, pos) else regex.Match(s, pos, len);
+		cur = s;
+		return m.Success;
+	}
+
+	public function split(s:String):Array<String> {
+		if (isGlobal) {
+			var arr = regex.Split(s);
+			var result = new Array<String>();
+			for (i in 0...arr.length) {
+				result.push(arr[i]);
+			}
+			return result;
+		}
+		var m = regex.Match(s);
+		if (!m.Success)
+			return [s];
+		return [s.substr(0, m.Index), s.substr(m.Index + m.Length)];
+	}
+
+	inline function start(group:Int):Int {
+		return untyped m.Groups[group].Index;
+	}
+
+	inline function len(group:Int):Int {
+		return untyped m.Groups[group].Length;
+	}
+
+	public function replace(s:String, by:String):String {
+		return if (isGlobal) regex.Replace(s, by) else regex.Replace(s, by, 1);
+	}
+
+	public function map(s:String, f:EReg->String):String {
+		var offset = 0;
+		var buf = new StringBuf();
+		do {
+			if (offset >= s.length)
+				break;
+			else if (!matchSub(s, offset)) {
+				buf.add(s.substr(offset));
+				break;
+			}
+			var p = matchedPos();
+			buf.add(s.substr(offset, p.pos - offset));
+			buf.add(f(this));
+			if (p.len == 0) {
+				buf.add(s.substr(p.pos, 1));
+				offset = p.pos + 1;
+			} else
+				offset = p.pos + p.len;
+		} while (isGlobal);
+		if (!isGlobal && offset > 0 && offset < s.length)
+			buf.add(s.substr(offset));
+		return buf.toString();
+	}
+
+	public static inline function escape(s:String):String {
+		return Regex.Escape(s);
+	}
+}
