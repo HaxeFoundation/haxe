@@ -7834,17 +7834,89 @@ let generate_static_field_accessors gctx c =
 		};
 	] in
 
-	(* Generate _hx_getStaticMethodClosure helper method:
+	(* Generate _hx_getStaticMethodClosure helper method with direct lambdas:
 	   private static haxe.lang.FastStaticMethodClosure _hx_getStaticMethodClosure(int index) {
 	       if (_hx_staticClosureCache == null)
 	           _hx_staticClosureCache = new haxe.lang.FastStaticMethodClosure[N];
-	       if (_hx_staticClosureCache[index] == null)
-	           _hx_staticClosureCache[index] = new haxe.lang.FastStaticMethodClosure(typeof(MyClass).Name, index);
+	       if (_hx_staticClosureCache[index] == null) {
+	           switch (index) {
+	               case 0: _hx_staticClosureCache[0] = new FastStaticMethodClosure(() => Value.FromInt(method0())); break;
+	               case 1: _hx_staticClosureCache[1] = new FastStaticMethodClosure((a1, a2) => Value.FromObject(method1(...))); break;
+	               ...
+	           }
+	       }
 	       return _hx_staticClosureCache[index];
 	   }
 	*)
-	let get_static_method_closure_members = if method_count = 0 then [] else [
-		CsMemberMethod {
+	let get_static_method_closure_members = if method_count = 0 then [] else
+		(* Build switch cases for closure creation - one case per method *)
+		let creation_cases = List.map (fun (idx, _, native_name, arity, args, ret) ->
+			(* Generate lambda parameters: a1, a2, ... (all of type Value) *)
+			let lambda_params = List.mapi (fun i _ -> {
+				p_name = Printf.sprintf "a%d" (i + 1);
+				p_type = None;  (* Inferred *)
+				p_default = None;
+				p_modifier = None;
+			}) (List.init arity (fun _ -> ())) in
+			(* Generate argument extraction and method call *)
+			let call_args = List.filter_map (fun (i, (_, _, t)) ->
+				let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
+				let cs_arg_type = cs_type_of_type gctx t in
+				match cs_arg_type with
+				| CsTypeVoid -> None
+				| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToInt"), []))
+				| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToDouble"), []))
+				| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToBool"), []))
+				| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToLong"), []))
+				| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToFloat"), []))
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
+					begin match inner with
+					| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToNullInt"), []))
+					| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToNullLong"), []))
+					| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToNullDouble"), []))
+					| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToNullFloat"), []))
+					| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToNullBool"), []))
+					| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
+					end
+				| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
+			) (List.mapi (fun i arg -> (i, arg)) args) in
+			let method_call = CsCall (CsStaticField (cs_class_type, native_name), call_args) in
+			(* Wrap result in Value *)
+			let cs_ret_type = cs_type_of_type gctx ret in
+			let result_expr = match cs_ret_type with
+				| CsTypeVoid ->
+					(* void method - call it then return Value.Missing() *)
+					CsCall (CsStaticField (function_value_type, "Missing"), [])
+				| CsTypeInt ->
+					CsStaticCall (function_value_type, "FromInt", [method_call])
+				| CsTypeDouble ->
+					CsStaticCall (function_value_type, "FromDouble", [method_call])
+				| CsTypeBool ->
+					CsStaticCall (function_value_type, "FromBool", [method_call])
+				| CsTypeLong ->
+					CsStaticCall (function_value_type, "FromLong", [method_call])
+				| CsTypeFloat ->
+					CsStaticCall (function_value_type, "FromFloat", [method_call])
+				| _ ->
+					CsStaticCall (function_value_type, "FromObject", [method_call])
+			in
+			(* For void methods, we need a block lambda that calls the method then returns *)
+			let lambda_body = match cs_ret_type with
+				| CsTypeVoid -> CsLambdaBlock [CsExprStmt method_call; CsReturn (Some result_expr)]
+				| _ -> CsLambdaExpr result_expr
+			in
+			let lambda = CsLambda (lambda_params, lambda_body) in
+			(* Create the closure assignment *)
+			let closure_creation = CsExprStmt (CsBinop (CsOpAssign,
+				CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsConst (CsConstInt (Int32.of_int idx))),
+				CsNew (fast_static_method_closure_type, [lambda])
+			)) in
+			{
+				sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
+				sw_body = [closure_creation; CsBreak];
+			}
+		) indexed_methods in
+		[CsMemberMethod {
 			m_name = "_hx_getStaticMethodClosure";
 			m_return_type = fast_static_method_closure_type;
 			m_access = AccessModifier.Private;
@@ -7861,16 +7933,10 @@ let generate_static_field_accessors gctx c =
 					)),
 					None
 				);
-				(* if (_hx_staticClosureCache[index] == null) _hx_staticClosureCache[index] = new FastStaticMethodClosure(typeof(MyClass).Name, index); *)
+				(* if (_hx_staticClosureCache[index] == null) { switch ... } *)
 				CsIf (
 					CsBinop (CsOpEq, CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsLocal "index"), CsConst CsConstNull),
-					CsExprStmt (CsBinop (CsOpAssign,
-						CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsLocal "index"),
-						CsNew (fast_static_method_closure_type, [
-							CsField (CsTypeOf cs_class_type, "Name");
-							CsLocal "index"
-						])
-					)),
+					CsSwitch (CsLocal "index", creation_cases),
 					None
 				);
 				(* return _hx_staticClosureCache[index]; *)
@@ -7879,8 +7945,8 @@ let generate_static_field_accessors gctx c =
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
-		};
-	] in
+		}]
+	in
 
 	(* Generate _hx_getStaticField:
 	   public static object _hx_getStaticField(string name) {
@@ -7952,148 +8018,12 @@ let generate_static_field_accessors gctx c =
 		m_attributes = [];
 	} in
 
-	(* Generate _hx_invokeStaticMethodN dispatchers for each arity used by this class's methods *)
-	let methods_by_arity = Hashtbl.create 10 in
-	List.iter (fun (idx, name, native_name, arity, args, ret) ->
-		let current = try Hashtbl.find methods_by_arity arity with Not_found -> [] in
-		Hashtbl.replace methods_by_arity arity ((idx, name, native_name, args, ret) :: current)
-	) indexed_methods;
-
-	let invoke_method_dispatchers = Hashtbl.fold (fun arity methods acc ->
-		if arity > 9 then acc (* Methods with 10+ args use _hx_invokeStaticMethodDynamic *)
-		else
-			let method_name = Printf.sprintf "_hx_invokeStaticMethod%d" arity in
-			(* Build switch cases for each method of this arity *)
-			let cases = List.map (fun (idx, _, native_name, args, ret) ->
-				(* Generate the method call with proper argument extraction from Value *)
-				let call_args = List.filter_map (fun (i, (arg_name, _, t)) ->
-					let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
-					(* Extract value from Value based on type *)
-					let cs_arg_type = cs_type_of_type gctx t in
-					match cs_arg_type with
-					| CsTypeVoid -> None  (* Void arguments are skipped *)
-					| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToInt"), []))
-					| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToDouble"), []))
-					| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToBool"), []))
-					| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToLong"), []))
-					| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToFloat"), []))
-					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-						(* Null<T> - use ToNullXxx() methods for primitives *)
-						begin match inner with
-						| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToNullInt"), []))
-						| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToNullLong"), []))
-						| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToNullDouble"), []))
-						| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToNullFloat"), []))
-						| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToNullBool"), []))
-						| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
-						end
-					| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
-				) (List.mapi (fun i arg -> (i, arg)) args) in
-				let method_call = CsCall (CsStaticField (cs_class_type, native_name), call_args) in
-				(* Wrap result in Value *)
-				let cs_ret_type = cs_type_of_type gctx ret in
-				let result_expr = match cs_ret_type with
-					| CsTypeVoid ->
-						(* void method - call it then return Value.Missing() *)
-						[CsExprStmt method_call; CsReturn (Some (CsStaticCall (function_value_type, "Missing", [])))]
-					| CsTypeInt ->
-						[CsReturn (Some (CsStaticCall (function_value_type, "FromInt", [method_call])))]
-					| CsTypeDouble ->
-						[CsReturn (Some (CsStaticCall (function_value_type, "FromDouble", [method_call])))]
-					| CsTypeBool ->
-						[CsReturn (Some (CsStaticCall (function_value_type, "FromBool", [method_call])))]
-					| CsTypeLong ->
-						[CsReturn (Some (CsStaticCall (function_value_type, "FromLong", [method_call])))]
-					| CsTypeFloat ->
-						[CsReturn (Some (CsStaticCall (function_value_type, "FromFloat", [method_call])))]
-					| _ ->
-						[CsReturn (Some (CsStaticCall (function_value_type, "FromObject", [method_call])))]
-				in
-				{
-					sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
-					sw_body = result_expr;
-				}
-			) (List.rev methods) in (* Reverse to maintain original order *)
-			let default_case = {
-				sw_labels = [CsCaseDefault];
-				sw_body = [CsReturn (Some (CsDefault function_value_type))];
-			} in
-			(* Build parameter list: int index, Value a1, Value a2, ... *)
-			let params =
-				{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None } ::
-				List.mapi (fun i _ -> {
-					p_name = Printf.sprintf "a%d" (i + 1);
-					p_type = Some function_value_type;
-					p_default = None;
-					p_modifier = None;
-				}) (List.init arity (fun _ -> ()))
-			in
-			let dispatcher = CsMemberMethod {
-				m_name = method_name;
-				m_return_type = function_value_type;
-				m_access = AccessModifier.Public;
-				m_modifiers = static_accessor_modifiers;
-				m_type_params = [];
-				m_params = params;
-				m_body = Some [CsSwitch (CsLocal "index", cases @ [default_case])];
-				m_constraints = [];
-				m_explicit_interface = None;
-				m_attributes = [];
-			} in
-			dispatcher :: acc
-	) methods_by_arity [] in
-
-	(* Generate _hx_invokeStaticMethodDynamic for 10+ arg methods *)
-	let has_dynamic_methods = List.exists (fun (_, _, _, arity, _, _) -> arity > 9) indexed_methods in
-	let invoke_dynamic_dispatcher = if not has_dynamic_methods then [] else
-		let dynamic_cases = List.filter_map (fun (idx, _, native_name, arity, args, ret) ->
-			if arity <= 9 then None else
-			let call_args = List.mapi (fun i (_, _, t) ->
-				let cs_arg_type = cs_type_of_type gctx t in
-				let arg_access = CsArrayAccess (CsLocal "args", CsConst (CsConstInt (Int32.of_int i))) in
-				CsCast (cs_arg_type, arg_access)
-			) args in
-			let method_call = CsCall (CsStaticField (cs_class_type, native_name), call_args) in
-			let cs_ret_type = cs_type_of_type gctx ret in
-			let result_expr = match cs_ret_type with
-				| CsTypeVoid -> [CsExprStmt method_call; CsReturn (Some (CsConst CsConstNull))]
-				| _ -> [CsReturn (Some method_call)]
-			in
-			Some {
-				sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
-				sw_body = result_expr;
-			}
-		) indexed_methods in
-		if dynamic_cases = [] then [] else
-		let default_case = {
-			sw_labels = [CsCaseDefault];
-			sw_body = [CsReturn (Some (CsConst CsConstNull))];
-		} in
-		[CsMemberMethod {
-			m_name = "_hx_invokeStaticMethodDynamic";
-			m_return_type = CsTypeObject;
-			m_access = AccessModifier.Public;
-			m_modifiers = static_accessor_modifiers;
-			m_type_params = [];
-			m_params = [
-				{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None };
-				{ p_name = "args"; p_type = Some (CsTypeArray (CsTypeObject, None)); p_default = None; p_modifier = None };
-			];
-			m_body = Some [CsSwitch (CsLocal "index", dynamic_cases @ [default_case])];
-			m_constraints = [];
-			m_explicit_interface = None;
-			m_attributes = [];
-		}]
-	in
-
 	(* Generate _hx_bind method for HaxeStaticFields registration.
 	   This is called from Program.cs before main() to ensure all static accessors are registered.
 	   public static void _hx_bind() {
 	       var acc = cs.HaxeStaticFields.getOrCreate(typeof(MyClass).Name);
 	       acc.getter = _hx_getStaticField;
 	       acc.checker = _hx_hasStaticField;
-	       acc.invoker0 = _hx_invokeStaticMethod0;  // if arity 0 methods exist
-	       ...
 	   }
 	*)
 	let bind_body =
@@ -8115,24 +8045,7 @@ let generate_static_field_accessors gctx c =
 			CsField (CsLocal "acc", "checker"),
 			CsStaticField (cs_class_type, "_hx_hasStaticField")
 		)) in
-		(* Set invokers for each arity used *)
-		let arities_used = Hashtbl.fold (fun arity _ acc -> arity :: acc) methods_by_arity [] in
-		let set_invokers = List.map (fun arity ->
-			let invoker_name = Printf.sprintf "invoker%d" arity in
-			let method_name = Printf.sprintf "_hx_invokeStaticMethod%d" arity in
-			CsExprStmt (CsBinop (CsOpAssign,
-				CsField (CsLocal "acc", invoker_name),
-				CsStaticField (cs_class_type, method_name)
-			))
-		) arities_used in
-		(* Set invokerDynamic if we have 10+ arg methods *)
-		let set_dynamic_invoker = if not has_dynamic_methods then [] else [
-			CsExprStmt (CsBinop (CsOpAssign,
-				CsField (CsLocal "acc", "invokerDynamic"),
-				CsStaticField (cs_class_type, "_hx_invokeStaticMethodDynamic")
-			))
-		] in
-		[get_or_create; set_getter; set_checker] @ set_invokers @ set_dynamic_invoker
+		[get_or_create; set_getter; set_checker]
 	in
 	let bind_method = CsMemberMethod {
 		m_name = "_hx_bind";
@@ -8149,8 +8062,7 @@ let generate_static_field_accessors gctx c =
 
 	(* Combine all generated members *)
 	let members = closure_cache_members @ get_static_method_closure_members @
-		[get_static_field_method; has_static_field_method; bind_method] @
-		invoke_method_dispatchers @ invoke_dynamic_dispatcher in
+		[get_static_field_method; has_static_field_method; bind_method] in
 	members
 
 (* =============================================================================

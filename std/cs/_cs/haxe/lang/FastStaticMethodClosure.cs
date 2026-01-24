@@ -7,89 +7,225 @@ namespace haxe.lang
     /// Fast, AOT-safe method closure for static methods on Haxe classes.
     /// Used by Reflect.field() to return callable static method references.
     ///
-    /// This class delegates all invoke calls to HaxeStaticFields.invokeStaticMethodN,
-    /// which dispatches by type name and method index to the actual static method.
+    /// Each closure stores the invoke delegate directly (passed at construction),
+    /// avoiding dictionary lookup on every call.
     ///
     /// Performance characteristics:
-    /// - Uses Value struct for args/returns
+    /// - Uses Value struct for args/returns (zero boxing for primitives)
     /// - Cached: Each instance is cached in the class's _hx_staticClosureCache
-    /// - Fast dispatch: Integer switch on method index in generated dispatchers
+    /// - Direct delegate call: No dictionary lookup at invocation time
     /// - AOT-safe: No reflection required
     /// </summary>
     public sealed class FastStaticMethodClosure : Function
     {
-        private readonly string _typeName;
-        private readonly int _index;
+        private readonly int _arity;
+        private readonly Func<Value> _invoke0;
+        private readonly Func<Value, Value> _invoke1;
+        private readonly Func<Value, Value, Value> _invoke2;
+        private readonly Func<Value, Value, Value, Value> _invoke3;
+        private readonly Func<Value, Value, Value, Value, Value> _invoke4;
+        private readonly Func<Value, Value, Value, Value, Value, Value> _invoke5;
+        private readonly Func<Value, Value, Value, Value, Value, Value, Value> _invoke6;
+        private readonly Func<Value, Value, Value, Value, Value, Value, Value, Value> _invoke7;
+        private readonly Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> _invoke8;
+        private readonly Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> _invoke9;
+        private readonly Func<global::haxe.root.Array, object> _invokeDynamic;
 
-        public FastStaticMethodClosure(string typeName, int index)
+        // Constructor for arity 0
+        public FastStaticMethodClosure(Func<Value> invoke)
         {
-            _typeName = typeName;
-            _index = index;
+            _arity = 0;
+            _invoke0 = invoke;
         }
 
-        /// <summary>
-        /// Gets the type name this closure is bound to.
-        /// </summary>
-        public string TypeName { get { return _typeName; } }
+        // Constructor for arity 1
+        public FastStaticMethodClosure(Func<Value, Value> invoke)
+        {
+            _arity = 1;
+            _invoke1 = invoke;
+        }
 
-        /// <summary>
-        /// Gets the method index within the type.
-        /// </summary>
-        public int MethodIndex { get { return _index; } }
+        // Constructor for arity 2
+        public FastStaticMethodClosure(Func<Value, Value, Value> invoke)
+        {
+            _arity = 2;
+            _invoke2 = invoke;
+        }
+
+        // Constructor for arity 3
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value> invoke)
+        {
+            _arity = 3;
+            _invoke3 = invoke;
+        }
+
+        // Constructor for arity 4
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value> invoke)
+        {
+            _arity = 4;
+            _invoke4 = invoke;
+        }
+
+        // Constructor for arity 5
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value> invoke)
+        {
+            _arity = 5;
+            _invoke5 = invoke;
+        }
+
+        // Constructor for arity 6
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value> invoke)
+        {
+            _arity = 6;
+            _invoke6 = invoke;
+        }
+
+        // Constructor for arity 7
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value> invoke)
+        {
+            _arity = 7;
+            _invoke7 = invoke;
+        }
+
+        // Constructor for arity 8
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
+        {
+            _arity = 8;
+            _invoke8 = invoke;
+        }
+
+        // Constructor for arity 9
+        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
+        {
+            _arity = 9;
+            _invoke9 = invoke;
+        }
+
+        // Constructor for dynamic (10+ args)
+        public FastStaticMethodClosure(Func<global::haxe.root.Array, object> invoke)
+        {
+            _arity = -1; // Dynamic
+            _invokeDynamic = invoke;
+        }
 
         // ============================================================
         // Zero-allocation fast paths (0-9 args)
-        // Delegate to HaxeStaticFields.invokeStaticMethodN
+        // Direct delegate calls - no dictionary lookup!
         // ============================================================
 
         public override Value __hx_invoke0()
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod0(_typeName, _index);
+            if (_invoke0 != null) return _invoke0();
+            // Fallback for wrong arity - call with empty args via dynamic
+            return Value.FromObject(invokeDynamic(new global::haxe.root.Array()));
         }
 
         public override Value __hx_invoke1(Value a1)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod1(_typeName, _index, a1);
+            if (_invoke1 != null) return _invoke1(a1);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke2(Value a1, Value a2)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod2(_typeName, _index, a1, a2);
+            if (_invoke2 != null) return _invoke2(a1, a2);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke3(Value a1, Value a2, Value a3)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod3(_typeName, _index, a1, a2, a3);
+            if (_invoke3 != null) return _invoke3(a1, a2, a3);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke4(Value a1, Value a2, Value a3, Value a4)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod4(_typeName, _index, a1, a2, a3, a4);
+            if (_invoke4 != null) return _invoke4(a1, a2, a3, a4);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke5(Value a1, Value a2, Value a3, Value a4, Value a5)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod5(_typeName, _index, a1, a2, a3, a4, a5);
+            if (_invoke5 != null) return _invoke5(a1, a2, a3, a4, a5);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke6(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod6(_typeName, _index, a1, a2, a3, a4, a5, a6);
+            if (_invoke6 != null) return _invoke6(a1, a2, a3, a4, a5, a6);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke7(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod7(_typeName, _index, a1, a2, a3, a4, a5, a6, a7);
+            if (_invoke7 != null) return _invoke7(a1, a2, a3, a4, a5, a6, a7);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            args.push(a7.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke8(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7, Value a8)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod8(_typeName, _index, a1, a2, a3, a4, a5, a6, a7, a8);
+            if (_invoke8 != null) return _invoke8(a1, a2, a3, a4, a5, a6, a7, a8);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            args.push(a7.ToDynamic());
+            args.push(a8.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke9(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7, Value a8, Value a9)
         {
-            return global::cs.HaxeStaticFields.invokeStaticMethod9(_typeName, _index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+            if (_invoke9 != null) return _invoke9(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+            var args = new global::haxe.root.Array();
+            args.push(a1.ToDynamic());
+            args.push(a2.ToDynamic());
+            args.push(a3.ToDynamic());
+            args.push(a4.ToDynamic());
+            args.push(a5.ToDynamic());
+            args.push(a6.ToDynamic());
+            args.push(a7.ToDynamic());
+            args.push(a8.ToDynamic());
+            args.push(a9.ToDynamic());
+            return Value.FromObject(invokeDynamic(args));
         }
 
         // ============================================================
@@ -100,45 +236,52 @@ namespace haxe.lang
         {
             int len = (args != null) ? args.length : 0;
 
-            // Dispatch based on argument count to the appropriate fast path
+            // Use direct delegate if available for the arity
             switch (len)
             {
                 case 0:
-                    return __hx_invoke0().ToDynamic();
+                    if (_invoke0 != null) return _invoke0().ToDynamic();
+                    break;
                 case 1:
-                    return __hx_invoke1(Value.FromObject(args.__getDyn(0))).ToDynamic();
+                    if (_invoke1 != null) return _invoke1(Value.FromObject(args.__getDyn(0))).ToDynamic();
+                    break;
                 case 2:
-                    return __hx_invoke2(
+                    if (_invoke2 != null) return _invoke2(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1))).ToDynamic();
+                    break;
                 case 3:
-                    return __hx_invoke3(
+                    if (_invoke3 != null) return _invoke3(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2))).ToDynamic();
+                    break;
                 case 4:
-                    return __hx_invoke4(
+                    if (_invoke4 != null) return _invoke4(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2)),
                         Value.FromObject(args.__getDyn(3))).ToDynamic();
+                    break;
                 case 5:
-                    return __hx_invoke5(
+                    if (_invoke5 != null) return _invoke5(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2)),
                         Value.FromObject(args.__getDyn(3)),
                         Value.FromObject(args.__getDyn(4))).ToDynamic();
+                    break;
                 case 6:
-                    return __hx_invoke6(
+                    if (_invoke6 != null) return _invoke6(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2)),
                         Value.FromObject(args.__getDyn(3)),
                         Value.FromObject(args.__getDyn(4)),
                         Value.FromObject(args.__getDyn(5))).ToDynamic();
+                    break;
                 case 7:
-                    return __hx_invoke7(
+                    if (_invoke7 != null) return _invoke7(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2)),
@@ -146,8 +289,9 @@ namespace haxe.lang
                         Value.FromObject(args.__getDyn(4)),
                         Value.FromObject(args.__getDyn(5)),
                         Value.FromObject(args.__getDyn(6))).ToDynamic();
+                    break;
                 case 8:
-                    return __hx_invoke8(
+                    if (_invoke8 != null) return _invoke8(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2)),
@@ -156,8 +300,9 @@ namespace haxe.lang
                         Value.FromObject(args.__getDyn(5)),
                         Value.FromObject(args.__getDyn(6)),
                         Value.FromObject(args.__getDyn(7))).ToDynamic();
+                    break;
                 case 9:
-                    return __hx_invoke9(
+                    if (_invoke9 != null) return _invoke9(
                         Value.FromObject(args.__getDyn(0)),
                         Value.FromObject(args.__getDyn(1)),
                         Value.FromObject(args.__getDyn(2)),
@@ -167,10 +312,18 @@ namespace haxe.lang
                         Value.FromObject(args.__getDyn(6)),
                         Value.FromObject(args.__getDyn(7)),
                         Value.FromObject(args.__getDyn(8))).ToDynamic();
-                default:
-                    // 10+ arguments: use the dynamic fallback
-                    return global::cs.HaxeStaticFields.invokeStaticMethodDynamic(_typeName, _index, args);
+                    break;
             }
+
+            // Fallback to dynamic invoker for 10+ args
+            if (_invokeDynamic != null)
+            {
+                return _invokeDynamic(args);
+            }
+
+            throw new InvalidOperationException("No suitable invoker for argument count: " + len);
         }
+
+        public static void _hx_bind() { }
     }
 }
