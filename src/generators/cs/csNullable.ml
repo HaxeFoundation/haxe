@@ -21,27 +21,34 @@
 	Null<T> syntax filter for C# target.
 	Based on Haxe4's HardNullableSynf from gencommon.
 
-	Transforms the AST before code generation to:
-	1. Flatten Null<Null<T>> to Null<T>
-	2. Insert explicit .value unwrap calls
-	3. Insert explicit Null<T> constructor wrap calls
-	4. Handle == null comparisons via .hasValue property access
-
 	This module handles Null<T> types for languages that use stack-allocated
 	structs for nullable types. On C#, Null<T> is a struct with a value field
 	and hasValue property for null checking.
+
+	IMPORTANT ARCHITECTURAL NOTE:
+	This module does NOT add .value/.hasValue accesses. Those decisions are made
+	in gencs.ml where we have access to actual C# type information via cs_type_of_type.
+
+	Why? Because Haxe type Null<T> doesn't always map to C# Null<T>:
+	- Method returning Null<TypeParam> → C# returns `object` (type param erased)
+	- Local var with Null<TypeParam> → C# declares as `object`
+	- Enum field access → C# generates plain EnumType, not Null<EnumType>
+
+	This module only:
+	1. Flattens Null<Null<T>> to Null<T> (via is_null_t recursion)
+	2. Strips Null from enum field access (FEnum) - C# generates plain EnumType
+	3. Strips Null from TConst TNull when inner type is inherently nullable (reference types)
+
+	gencs.ml handles (via expr_produces_csharp_null_type helper):
+	- Deciding when to add .value (checks actual C# type)
+	- Deciding when to use .hasValue vs == null
+	- All coercion logic that knows the actual C# types
 *)
 
-open Ast
 open Type
-open Globals
-open Gctx
 
-(* Configuration context for the filter *)
-type null_config = {
-	null_class : tclass option;    (* haxe.lang.Null class, if found *)
-	basic : basic_types;           (* Basic types from compiler context *)
-}
+(* NOTE: No configuration needed anymore. All .value/.hasValue decisions
+   are made by gencs.ml which has access to actual C# type information. *)
 
 (* Check if a type is a basic value type (int, float, bool, etc.) *)
 let is_cs_basic_type t =
@@ -123,445 +130,70 @@ let rec is_null_t t =
 		if needs_null_wrapper inner then Some inner else None
 	| _ -> None
 
-(* Check if an expression is an enum field access (FEnum).
-   In C#, enum constructors don't generate Null-wrapped code even though
-   their Haxe type is Null<EnumType>. *)
-let rec is_enum_field_access e =
-	match e.eexpr with
-	| TField(_, FEnum _) -> true
-	| TParenthesis e1 | TMeta (_, e1) | TCast(e1, _) -> is_enum_field_access e1
-	| _ -> false
-
-(* Check if a method call's DECLARED return type involves a type parameter that gets erased.
-   This covers two cases:
-   1. Null<T> where T is a type parameter - erased to just `object` (not `Null<object>`)
-   2. T where T is a type parameter - erased to `object`
-   In both cases, the C# method returns `object`, not the instantiated type. *)
-let method_call_returns_erased_type_param e =
-	match e.eexpr with
-	| TCall (callee, _) ->
-		let get_declared_return_type () = match callee.eexpr with
-			| TField (_, FInstance (_, _, cf)) | TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
-				begin match follow cf.cf_type with
-				| TFun (_, ret) -> Some ret
-				| _ -> None
-				end
-			| _ -> None
-		in
-		(* Check if type is a type parameter or Null<TypeParam> *)
-		let rec is_erased_type_param t =
-			match t with
-			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-				begin match follow inner with
-				| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-				| _ -> false
-				end
-			| TType (_, _) | TLazy _ -> is_erased_type_param (follow t)
-			| _ -> false
-		in
-		begin match get_declared_return_type () with
-		| Some ret -> is_erased_type_param ret
-		| None -> false
-		end
-	| _ -> false
-
-(* Check if a local variable's declared type is erased (type param or Null<TypeParam>).
-   Such variables become `object` in C#, not Null<T>. *)
-let local_var_is_erased e =
-	let rec is_erased_decl_type t =
-		match t with
-		| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-			begin match follow inner with
-			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-			| _ -> false
-			end
-		| TType (_, _) | TLazy _ -> is_erased_decl_type (follow t)
-		| _ -> false
-	in
-	match e.eexpr with
-	| TLocal v -> is_erased_decl_type v.v_type
-	| _ -> false
-
-(* Check if an expression generates C# code that is NOT Null-wrapped,
-   even though its Haxe type might be Null<T>.
-   These expressions should NOT have .value added. *)
-let is_non_null_generating_expr e =
-	is_enum_field_access e || method_call_returns_erased_type_param e || local_var_is_erased e
-
-(* Check if a method call returns Null<TypeParam> in its uninstantiated signature.
-   The C# method signature IS Null<T> even when T is instantiated to a reference type.
-   In this case, is_null_t returns None (because reference types don't need Null wrapper),
-   but the C# expression IS Null<T> and needs .value unwrap. *)
-let is_method_call_returning_null_type_param e =
-	match e.eexpr with
-	| TCall ({ eexpr = TField (_, FInstance (_, _, cf)) }, _)
-	| TCall ({ eexpr = TField (_, FClosure (Some (_, _), cf)) }, _)
-	| TCall ({ eexpr = TField (_, FStatic (_, cf)) }, _) ->
-		begin match follow cf.cf_type with
-		| TFun (_, TAbstract ({ a_path = ([], "Null") }, [inner])) ->
-			begin match follow inner with
-			| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-			| _ -> false
-			end
-		| _ -> false
-		end
-	| _ -> false
-
-(* Generate: expr.value field access.
-   Uses FDynamic if null_class not available - gencs.ml handles this correctly. *)
-let unwrap_null cfg expr inner_type =
-	match cfg.null_class with
-	| Some null_class ->
-		(* Find the 'value' field in Null class *)
-		let value_field = try
-			PMap.find "value" null_class.cl_fields
-		with Not_found ->
-			(* Fallback: create a synthetic field *)
-			let cf = {
-				(mk_field "value" inner_type expr.epos null_pos) with
-				cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
-			} in
-			cf
-		in
-		{
-			eexpr = TField(expr, FInstance(null_class, [inner_type], value_field));
-			etype = inner_type;
-			epos = expr.epos
-		}
-	| None ->
-		(* No null_class found - use FDynamic which gencs.ml will handle *)
-		{
-			eexpr = TField(expr, FDynamic "value");
-			etype = inner_type;
-			epos = expr.epos
-		}
-
-(* Generate: new Null<T>(value, hasValue) constructor call *)
-let wrap_null cfg expr inner_type has_value =
-	match cfg.null_class with
-	| Some null_class ->
-		let null_type = TInst(null_class, [inner_type]) in
-		let bool_expr = { eexpr = TConst(TBool has_value); etype = cfg.basic.tbool; epos = expr.epos } in
-		{
-			eexpr = TNew(null_class, [inner_type], [expr; bool_expr]);
-			etype = null_type;
-			epos = expr.epos
-		}
-	| None ->
-		(* No null_class - can't generate proper TNew, return expr unchanged.
-		   This is a fallback that shouldn't happen in practice. *)
-		expr
-
-(* Generate: access to hasValue property on Null<T> struct.
-   We generate a TField with special marker name "__cs_hasValue__" that gencs.ml
-   will recognize and convert to the actual .hasValue property access. *)
-let has_value cfg expr =
-	{
-		eexpr = TField(expr, FDynamic "__cs_hasValue__");
-		etype = cfg.basic.tbool;
-		epos = expr.epos
-	}
-
-(* Handle unwrapping from Null<T> to target type *)
-let handle_unwrap cfg to_t e =
-	match is_null_t e.etype with
-	| Some inner_t ->
-		(* Unwrap .value, then cast if needed *)
-		let unwrapped = unwrap_null cfg e inner_t in
-		(* If target type differs from inner type, add cast.
-		   BUT: Don't add cast to Void - C# doesn't allow (void) casts. *)
-		let is_void_target = ExtType.is_void (follow to_t) in
-		if not is_void_target && not (type_iseq (follow to_t) (follow inner_t)) then
-			{ eexpr = TCast(unwrapped, None); etype = to_t; epos = e.epos }
-		else
-			{ unwrapped with etype = to_t }
-	| None ->
-		(* Not a Null type, just cast *)
-		{ eexpr = TCast(e, None); etype = to_t; epos = e.epos }
-
-(* Handle wrapping value into Null<T> *)
-let handle_wrap cfg e inner_type =
-	match e.eexpr with
-	| TConst TNull ->
-		(* Wrapping null - hasValue = false *)
-		wrap_null cfg { e with etype = inner_type } inner_type false
-	| _ ->
-		(* Wrapping a value - hasValue = true *)
-		wrap_null cfg e inner_type true
-
 (* Main transformation function *)
-let run cfg e =
-	let rec transform e =
-		match e.eexpr with
-		(* TCast: detect Null<T> conversions *)
-		| TCast(v, md) ->
-			(* For TLocal, use v_type to get the declared type *)
-			let v = match v.eexpr with
-				| TLocal l -> { v with etype = l.v_type }
-				| _ -> v
-			in
-			let null_et = is_null_t e.etype in    (* Target: is it Null<T>? *)
-			let null_vt = is_null_t v.etype in    (* Source: is it Null<T>? *)
-			(* Check for method calls that return Null<TypeParam> - use top-level helper *)
-			let is_method_with_null_type_param = is_method_call_returning_null_type_param v in
-			begin match null_vt, null_et with
-			| Some inner_vt, None ->
-				(* Null<T> -> T: unwrap .value *)
-				(* BUT: Skip unwrap if the source expression doesn't actually generate
-				   Null-wrapped C# code (e.g., enum constructors have Haxe type Null<Enum>
-				   but generate plain Enum in C#) *)
-				let is_non_null = is_non_null_generating_expr v in
-				if is_non_null then
-					(* Just transform and cast, no .value unwrap *)
-					{ e with eexpr = TCast(transform v, md) }
-				else begin match v.eexpr with
-				| TCast(v2, _) ->
-					(* Unnecessary nested cast to Nullable, skip *)
-					transform { v with etype = e.etype }
-				| _ ->
-					handle_unwrap cfg e.etype (transform v)
-				end
-			| None, None when is_method_with_null_type_param ->
-				(* Method returns Null<TypeParam> - the C# expression IS Null<T>, needs unwrap.
-				   Even though is_null_t returns None (inner type is reference type), the C#
-				   method signature IS Null<T>, so we need .value to get the underlying value. *)
-				let inner_t = match v.etype with
-					| TAbstract ({ a_path = ([], "Null") }, [inner]) -> inner
-					| _ -> e.etype  (* Fallback *)
-				in
-				(* Generate .value access and cast to target type *)
-				let v_transformed = transform v in
-				let unwrapped = unwrap_null cfg v_transformed inner_t in
-				{ eexpr = TCast(unwrapped, None); etype = e.etype; epos = e.epos }
-			| None, Some inner_et ->
-				(* T -> Null<T>: wrap in constructor *)
-				handle_wrap cfg (transform v) inner_et
-			| Some inner_vt, Some inner_et when not (type_iseq (follow inner_vt) (follow inner_et)) ->
-				(* Null<A> -> Null<B>: convert inner value and rewrap.
-				   IMPORTANT: If source is a constant expression, don't use hasValue check -
-				   constants aren't Null<T> structs even if typed as such. Just convert directly. *)
-				let v_transformed = transform v in
-				(* Check if source is a constant expression (TConst, -const, (const), or cast(const)) *)
-				let rec is_const_expr e = match e.eexpr with
-					| TConst _ -> true
-					| TUnop (_, _, e1) -> is_const_expr e1  (* Handles -1, !true, etc. *)
-					| TParenthesis e1 | TMeta (_, e1) | TCast (e1, _) -> is_const_expr e1
-					| _ -> false
-				in
-				let is_const = is_const_expr v in
-				if is_const then begin
-					(* Constant: just convert and wrap directly.
-					   E.g., -1 typed as Null<Int> to Null<Float>: new Null<Float>((Float)-1, true) *)
-					let converted = { eexpr = TCast(v_transformed, None); etype = inner_et; epos = e.epos } in
-					wrap_null cfg converted inner_et true
-				end
-				else begin
-					(* Non-constant Null<A> -> Null<B>: check hasValue, unwrap, convert, rewrap *)
-					(* Generate: v.hasValue ? new Null<B>((B)v.value, true) : new Null<B>(default, false) *)
-					let has_val = has_value cfg v_transformed in
-					let unwrapped = unwrap_null cfg v_transformed inner_vt in
-					let converted = { eexpr = TCast(unwrapped, None); etype = inner_et; epos = e.epos } in
-					let wrapped_true = wrap_null cfg converted inner_et true in
-					let default_val = { eexpr = TConst TNull; etype = inner_et; epos = e.epos } in
-					let wrapped_false = wrap_null cfg default_val inner_et false in
-					{
-						eexpr = TIf(has_val, wrapped_true, Some wrapped_false);
-						etype = e.etype;
-						epos = e.epos
-					}
-				end
-			| _ ->
-				(* Same types or no Null involved, keep cast *)
-				{ e with eexpr = TCast(transform v, md) }
-			end
+let rec transform e =
+	match e.eexpr with
+	(* TCast: gencs.ml handles all Null<T> conversions based on actual C# types.
+	   We just transform recursively here. The coerce_cs_types function in gencs.ml
+	   will add .value unwrap or Null<T> constructor wrap as needed based on C# types. *)
+	| TCast(v, md) ->
+		{ e with eexpr = TCast(transform v, md) }
 
-		(* TField with FEnum: enum constructors don't generate Null<> in C#, so strip the Null from etype.
-		   This ensures downstream coercion doesn't think this is a Null-wrapped value. *)
-		| TField(ef, FEnum(en, ef_field)) ->
-			begin match is_null_t e.etype with
-			| Some inner_t ->
-				(* Strip the Null<> wrapper from the type - the C# code generates plain EnumType, not Null<EnumType> *)
-				{ e with eexpr = TField(transform ef, FEnum(en, ef_field)); etype = inner_t }
-			| None ->
-				(* Not Null-wrapped, transform normally *)
-				{ e with eexpr = TField(transform ef, FEnum(en, ef_field)) }
-			end
+	(* TField with FEnum: enum constructors don't generate Null<> in C#, so strip the Null from etype.
+	   This ensures downstream coercion doesn't think this is a Null-wrapped value. *)
+	| TField(ef, FEnum(en, ef_field)) ->
+		begin match is_null_t e.etype with
+		| Some inner_t ->
+			(* Strip the Null<> wrapper from the type - the C# code generates plain EnumType, not Null<EnumType> *)
+			{ e with eexpr = TField(transform ef, FEnum(en, ef_field)); etype = inner_t }
+		| None ->
+			(* Not Null-wrapped, transform normally *)
+			{ e with eexpr = TField(transform ef, FEnum(en, ef_field)) }
+		end
 
-		(* TField on Null<T>: auto-unwrap before field access.
-		   CRITICAL: Only unwrap when inner type NEEDS the Null wrapper (value types, type params).
-		   For reference types (classes, interfaces, enums), the C# variable is declared as
-		   just T (not Null<T>), so there is no .value to unwrap - the variable can hold null directly.
-		   Uses is_null_t which filters by needs_null_wrapper. *)
-		| TField(ef, field) when Option.is_some (is_null_t ef.etype) ->
-			let inner_t = Option.get (is_null_t ef.etype) in
-			let unwrapped = handle_unwrap cfg inner_t (transform ef) in
-			{ e with eexpr = TField(unwrapped, field) }
+	(* NOTE: TField/TCall/TArray/TBinop on Null<T> do NOT auto-unwrap here.
+	   gencs.ml handles all .value/.hasValue decisions based on actual C# types
+	   via expr_produces_csharp_null_type. These cases fall through to the default handler. *)
 
-		(* TCall on Null<T>: auto-unwrap before call.
-		   CRITICAL: Same as TField - only unwrap for value types/type params. *)
-		| TCall(ecall, params) when Option.is_some (is_null_t ecall.etype) ->
-			let inner_t = Option.get (is_null_t ecall.etype) in
-			let unwrapped = handle_unwrap cfg inner_t (transform ecall) in
-			{ e with eexpr = TCall(unwrapped, List.map transform params) }
+	(* TBlock: process contents *)
+	| TBlock bl ->
+		{ e with eexpr = TBlock(List.map transform bl) }
 
-		(* TArray on Null<T>: auto-unwrap before array access.
-		   CRITICAL: Same as TField - only unwrap for value types/type params. *)
-		| TArray(earray, idx) when Option.is_some (is_null_t earray.etype) ->
-			let inner_t = Option.get (is_null_t earray.etype) in
-			let unwrapped = handle_unwrap cfg inner_t (transform earray) in
-			{ e with eexpr = TArray(unwrapped, transform idx) }
+	(* TConst TNull with Null<Abstract>: strip Null wrapper for inherently nullable types.
 
-		(* TBinop: special handling for equality and arithmetic *)
-		| TBinop(op, e1, e2) ->
-			let e1_null_t = is_null_t e1.etype in
-			let e2_null_t = is_null_t e2.etype in
-			begin match op with
-			(* Assignment operators *)
-			| OpAssign | OpAssignOp _ ->
-				begin match e1_null_t, e2_null_t with
-				| Some t1, Some t2 ->
-					begin match op with
-					| OpAssign ->
-						(* Simple assignment between Null types - transform both sides *)
-						Type.map_expr transform e
-					| OpAssignOp binop ->
-						(* Compound assignment: x += y becomes x = wrap(unwrap(x) + unwrap(y)) *)
-						let e1' = transform e1 in
-						let e2' = transform e2 in
-						let unwrapped1 = unwrap_null cfg e1' t1 in
-						let unwrapped2 = unwrap_null cfg e2' t2 in
-						let result = { e with eexpr = TBinop(binop, unwrapped1, unwrapped2); etype = t1 } in
-						let wrapped = wrap_null cfg result t1 true in
-						{ e with eexpr = TBinop(OpAssign, e1', wrapped) }
-					| _ -> die "" __LOC__
-					end
-				| Some inner_t, None when op = OpAssign ->
-					(* LHS is Null<T>, RHS is not Null - wrap RHS in Null constructor.
-					   This handles: nullVar = objectValue, where objectValue might be null at runtime. *)
-					let e1' = transform e1 in
-					let e2' = transform e2 in
-					let wrapped = handle_wrap cfg e2' inner_t in
-					{ e with eexpr = TBinop(OpAssign, e1', wrapped) }
-				| _ ->
-					(* Not both Null, normal processing *)
-					Type.map_expr transform e
-				end
+	   DESIGN PRINCIPLE: When Null<T> wraps a type that is already nullable in C#,
+	   the Null<> wrapper should be stripped. Ideally this stripping happens at the
+	   TYPE DEFINITION level (when determining how Null<SomeAbstract> maps to C#),
+	   so it applies consistently everywhere that type is used.
 
-			(* Equality comparison *)
-			| OpEq | OpNotEq ->
-				begin match e1.eexpr, e2.eexpr with
-				| TConst TNull, _ when Option.is_some e2_null_t ->
-					(* null == Null<T> becomes !hasValue *)
-					let hv = has_value cfg (transform e2) in
-					if op = OpEq then
-						{ hv with eexpr = TUnop(Not, Prefix, hv) }
-					else
-						hv
-				| _, TConst TNull when Option.is_some e1_null_t ->
-					(* Null<T> == null becomes !hasValue *)
-					let hv = has_value cfg (transform e1) in
-					if op = OpEq then
-						{ hv with eexpr = TUnop(Not, Prefix, hv) }
-					else
-						hv
-				| _ when Option.is_some e1_null_t || Option.is_some e2_null_t ->
-					(* Comparing Null types with non-null values: unwrap Null operands and compare directly.
-					   This generates simple C# equality like: a.value == 5
-					   SKIP unwrap for non-null-generating expressions (e.g., method calls returning erased Null<TypeParam>) *)
-					let e1' = match e1_null_t with
-						| Some inner when not (is_non_null_generating_expr e1) -> handle_unwrap cfg inner (transform e1)
-						| _ -> transform e1
-					in
-					let e2' = match e2_null_t with
-						| Some inner when not (is_non_null_generating_expr e2) -> handle_unwrap cfg inner (transform e2)
-						| _ -> transform e2
-					in
-					{ e with eexpr = TBinop(op, e1', e2') }
-				| _ ->
-					(* No Null types involved *)
-					Type.map_expr transform e
-				end
+	   Current behavior: Strip Null<NonCoreAbstract> because for most abstracts,
+	   the C# variable is declared as the underlying type (e.g., VariantType), not
+	   Null<VariantType>. The underlying type is typically a class/interface which
+	   is inherently nullable in C#, so the Null<> struct wrapper is unnecessary.
 
-			(* Other binary operators: unwrap Null operands *)
-			| _ ->
-				let e1' = match e1_null_t with
-					| Some inner when not (is_non_null_generating_expr e1) -> handle_unwrap cfg inner (transform e1)
-					| _ -> transform e1
-				in
-				let e2' = match e2_null_t with
-					| Some inner when not (is_non_null_generating_expr e2) -> handle_unwrap cfg inner (transform e2)
-					| _ -> transform e2
-				in
-				(* If result type is Null<T>, rewrap the result *)
-				let result = { e with eexpr = TBinop(op, e1', e2') } in
-				begin match is_null_t e.etype with
-				| Some inner -> wrap_null cfg { result with etype = inner } inner true
-				| None -> result
-				end
-			end
+	   IMPORTANT: Do NOT remove this stripping - it is correct for inherently nullable
+	   types. Edge cases where the field IS declared as Null<T> (e.g., recursive
+	   abstracts due to cycle-breaking) are handled by gencs.ml's coerce_cs_types
+	   fallback pattern which generates default(Null<T>) when assigning CsNull to Null<T>. *)
+	| TConst TNull ->
+		begin match e.etype with
+		| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
+			(* Check if the inner type needs a Null wrapper in C#.
+			   If it does (value types), keep the Null wrapper.
+			   If it doesn't (reference types), strip it. *)
+			if needs_null_wrapper inner then
+				(* Value type or type param - C# variable IS Null<T>, needs default(Null<T>) *)
+				e
+			else
+				(* Reference type - C# variable is just the type, use plain null *)
+				{ e with etype = inner }
+		| _ -> e
+		end
 
-		(* TBlock: process contents and prepend any temp vars *)
-		| TBlock bl ->
-			{ e with eexpr = TBlock(List.map transform bl) }
+	(* Default: recurse into children *)
+	| _ -> Type.map_expr transform e
 
-		(* TConst TNull with Null<Abstract>: strip Null wrapper for inherently nullable types.
-
-		   DESIGN PRINCIPLE: When Null<T> wraps a type that is already nullable in C#,
-		   the Null<> wrapper should be stripped. Ideally this stripping happens at the
-		   TYPE DEFINITION level (when determining how Null<SomeAbstract> maps to C#),
-		   so it applies consistently everywhere that type is used.
-
-		   Current behavior: Strip Null<NonCoreAbstract> because for most abstracts,
-		   the C# variable is declared as the underlying type (e.g., VariantType), not
-		   Null<VariantType>. The underlying type is typically a class/interface which
-		   is inherently nullable in C#, so the Null<> struct wrapper is unnecessary.
-
-		   IMPORTANT: Do NOT remove this stripping - it is correct for inherently nullable
-		   types. Edge cases where the field IS declared as Null<T> (e.g., recursive
-		   abstracts due to cycle-breaking) are handled by gencs.ml's coerce_cs_types
-		   fallback pattern which generates default(Null<T>) when assigning CsNull to Null<T>.
-
-		   FUTURE: Maybe, move nullability decision to cs_type_of_type so Null<> is stripped from
-		   the type itself when the underlying type is inherently nullable. This would make
-		   the gencs.ml fallback unnecessary. *)
-		| TConst TNull ->
-			begin match e.etype with
-			| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
-				(* Check if the inner type needs a Null wrapper in C#.
-				   If it does (value types), keep the Null wrapper.
-				   If it doesn't (reference types), strip it. *)
-				if needs_null_wrapper inner then
-					(* Value type or type param - C# variable IS Null<T>, needs default(Null<T>) *)
-					e
-				else
-					(* Reference type - C# variable is just the type, use plain null *)
-					{ e with etype = inner }
-			| _ -> e
-			end
-
-		(* Default: recurse into children *)
-		| _ -> Type.map_expr transform e
-	in
+(* Entry point: run the filter on an expression.
+   Note: com parameter kept for API compatibility but not used. *)
+let filter _com e =
 	transform e
-
-(* Create configuration from compilation context.
-   Note: We always create a config now - if the Null class isn't in com.types,
-   we use a None placeholder and generate FDynamic field access instead. *)
-let create_config com =
-	(* Try to find haxe.lang.Null class from types *)
-	let null_class = ref None in
-	List.iter (fun t ->
-		match t with
-		| TClassDecl c when c.cl_path = (["haxe"; "lang"], "Null") ->
-			null_class := Some c
-		| _ -> ()
-	) com.types;
-	(* Return config - null_class may be None, which is handled in unwrap_null *)
-	{ null_class = !null_class; basic = com.basic }
-
-(* Entry point: run the filter on an expression *)
-let filter com e =
-	let cfg = create_config com in
-	run cfg e
