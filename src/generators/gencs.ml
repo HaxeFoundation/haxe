@@ -1480,8 +1480,34 @@ let rec cs_expr_of_texpr ectx e =
 							(* (T)(assignment) - return the result *)
 							CsCast (cast_type, assignment)
 						| None ->
-							(* Non-dynamic compound assignment - use normal operator *)
-							CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+							(* Non-dynamic compound assignment - handle special cases *)
+							begin match inner_op with
+							| OpUShr ->
+								(* Compound unsigned right shift: n >>>= k -> n = (int)((uint)n >> k) *)
+								let e1_cs = cs_expr_of_texpr ectx e1 in
+								let e2_cs = cs_expr_of_texpr ectx e2 in
+								let inner_type = cs_type_of_type ectx.gctx e1.etype in
+								let e1_as_unsigned =
+									match inner_type with
+									| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) ->
+										CsCast (CsTypeUInt, CsCast (CsTypeInt, e1_cs))
+									| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong]) ->
+										CsCast (CsTypeULong, CsCast (CsTypeLong, e1_cs))
+									| CsTypeLong ->
+										CsCast (CsTypeULong, e1_cs)
+									| _ ->
+										CsCast (CsTypeUInt, e1_cs)
+								in
+								let result_type = match inner_type with
+									| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong]) | CsTypeLong -> CsTypeLong
+									| _ -> CsTypeInt
+								in
+								let shifted = CsCast (result_type, CsBinop (CsOpShr, e1_as_unsigned, e2_cs)) in
+								CsBinop (CsOpAssign, e1_cs, shifted)
+							| _ ->
+								(* Other compound ops - use normal operator *)
+								CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, cs_expr_of_texpr ectx e2)
+							end
 						end
 					end
 				end
@@ -1537,7 +1563,37 @@ let rec cs_expr_of_texpr ectx e =
 							CsCast (CsTypeDouble, cs_e1), CsCast (CsTypeDouble, cs_e2)
 						| _ -> cs_e1, cs_e2
 				in
-				CsBinop (cs_binop_of_binop op, cs_e1, cs_e2)
+				(* Special case for unsigned right shift (>>>).
+				   C# uses signed >> for int, so we need: (int)((uint)e1 >> e2)
+				   This casts to unsigned, shifts, then casts back to signed.
+				   If e1 is Null<int>, we need to first convert to int (via implicit conversion)
+				   before casting to uint, since C# can't cast Null<T> directly to uint. *)
+				begin match op with
+				| OpUShr ->
+					let inner_type = cs_type_of_type ectx.gctx e1.etype in
+					let e1_as_unsigned =
+						match inner_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeInt]) ->
+							(* Null<int> -> int (implicit) -> uint *)
+							CsCast (CsTypeUInt, CsCast (CsTypeInt, cs_e1))
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong]) ->
+							(* Null<long> -> long (implicit) -> ulong *)
+							CsCast (CsTypeULong, CsCast (CsTypeLong, cs_e1))
+						| CsTypeLong ->
+							(* long -> ulong *)
+							CsCast (CsTypeULong, cs_e1)
+						| _ ->
+							(* int or other -> uint *)
+							CsCast (CsTypeUInt, cs_e1)
+					in
+					let result_type = match inner_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeLong]) | CsTypeLong -> CsTypeLong
+						| _ -> CsTypeInt
+					in
+					CsCast (result_type, CsBinop (CsOpShr, e1_as_unsigned, cs_e2))
+				| _ ->
+					CsBinop (cs_binop_of_binop op, cs_e1, cs_e2)
+				end
 			end
 		end
 	| TUnop (Spread, _, e) ->
