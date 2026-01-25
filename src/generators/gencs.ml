@@ -2532,12 +2532,12 @@ let rec cs_expr_of_texpr ectx e =
 			let args_array = make_array_from_native ArrayDynamic native_array (haxe_array_type) in
 			(* Call Runtime.InvokeDelegate(method, args) *)
 			let invoke_call = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
-			(* Cast result to expected type *)
+			(* Cast result to expected type - use cast_object_to_type for proper unboxing *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			begin match result_type with
 			| CsTypeVoid -> invoke_call
 			| CsTypeObject -> invoke_call
-			| _ -> CsCast (result_type, invoke_call)
+			| _ -> cast_object_to_type result_type invoke_call
 			end
 		end else begin
 		(* Get parameter types for argument coercion.
@@ -2899,8 +2899,8 @@ let rec cs_expr_of_texpr ectx e =
 						(* Reference type - simple cast *)
 						CsCast (expected_cs_type, call_expr)
 					| _ ->
-						(* Value type - cast through object *)
-						CsCast (expected_cs_type, call_expr)
+						(* Value type - use cast_object_to_type for proper unboxing *)
+						cast_object_to_type expected_cs_type call_expr
 					end
 				end
 			| _ ->
@@ -3005,7 +3005,8 @@ let rec cs_expr_of_texpr ectx e =
 				let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 				begin match result_type with
 				| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-				| _ -> CsCast (result_type, call_expr)
+				(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+				| _ -> cast_object_to_type result_type call_expr
 				end
 			end else begin
 				(* Non-function field - just get and cast *)
@@ -3062,7 +3063,8 @@ let rec cs_expr_of_texpr ectx e =
 		begin match result_type with
 		| CsTypeVoid -> call_expr  (* Don't cast void results *)
 		| CsTypeObject | CsTypeDynamic -> call_expr
-		| _ -> CsCast (result_type, call_expr)
+		(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+		| _ -> cast_object_to_type result_type call_expr
 		end
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) ->
 		(* Dynamic method call: obj.dynamicMethod(args) -> Runtime.InvokeDelegate(Runtime.GetField(obj, "method"), args) *)
@@ -3092,7 +3094,8 @@ let rec cs_expr_of_texpr ectx e =
 		let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
 		| CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for Dynamic/object *)
-		| _ -> CsCast (result_type, call_expr)
+		(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+		| _ -> cast_object_to_type result_type call_expr
 		end
 	| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["cs"], "Syntax") }, cf)) }, args) ->
 		(* cs.Syntax.code or cs.Syntax.plainCode - inline C# code injection *)
@@ -3143,7 +3146,8 @@ let rec cs_expr_of_texpr ectx e =
 			let result_type = cs_type_of_type ectx.gctx return_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-			| _ -> CsCast (result_type, call_expr)
+			(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+			| _ -> cast_object_to_type result_type call_expr
 			end
 		end else begin
 		(* Special handling for String static methods - redirect to StringExt *)
@@ -3689,7 +3693,8 @@ let rec cs_expr_of_texpr ectx e =
 			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for void/Dynamic/object *)
-			| _ -> CsCast (result_type, call_expr)
+			(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+			| _ -> cast_object_to_type result_type call_expr
 			end
 		end else begin
 			(* NOTE: Future optimization opportunity - if we could track which TLocal variables
