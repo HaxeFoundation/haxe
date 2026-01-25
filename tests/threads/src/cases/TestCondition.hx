@@ -32,10 +32,12 @@ class TestCondition extends utest.Test {
 		cond.acquire();
 		Thread.create(() -> {
 			cond.acquire();
+			cond.signal();
 			cond.wait();
 			cond.release();
 		});
-		cond.release();
+		// wait for signal from thread
+		cond.wait();
 
 		#if cpp
 		cpp.vm.Gc.run(true);
@@ -47,7 +49,6 @@ class TestCondition extends utest.Test {
 		neko.vm.Gc.run(true);
 		#end
 
-		cond.acquire();
 		cond.signal();
 		cond.release();
 
