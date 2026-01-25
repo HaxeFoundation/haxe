@@ -1010,8 +1010,9 @@ let rec cs_expr_of_texpr ectx e =
 						   Direct cast would fail with "Specified cast is not valid". *)
 						CsStaticCall (expected_cs, "_ofDynamic", [access])
 					| _ ->
-						(* Cast element from object[] to expected type *)
-						CsCast (expected_cs, access)
+						(* Cast element from object[] to expected type.
+						   Use cast_object_to_type for proper primitive unboxing. *)
+						cast_object_to_type expected_cs access
 					end
 			end
 			else begin
@@ -1439,8 +1440,8 @@ let rec cs_expr_of_texpr ectx e =
 						let array_access = CsArrayAccess (CsField (arr_cs, backing_field), idx_cs) in
 						if needs_cast then begin
 							let elem_cs_type = cs_type_of_type ectx.gctx e1.etype in
-							(* (T)(arr.__objectArray[i]) op v *)
-							let casted_read = CsCast (elem_cs_type, array_access) in
+							(* (T)(arr.__objectArray[i]) op v - use cast_object_to_type for proper unboxing *)
+							let casted_read = cast_object_to_type elem_cs_type array_access in
 							let op_result = CsBinop (cs_binop_of_binop inner_op, casted_read, e2_cs) in
 							(* arr.__objectArray[i] = result *)
 							CsBinop (CsOpAssign, array_access, op_result)
@@ -1828,7 +1829,8 @@ let rec cs_expr_of_texpr ectx e =
 				let map_type = apply_params c.cl_params tl in
 				let substituted_type = map_type cf.cf_type in
 				let result_cs_type = cs_type_of_type ectx.gctx substituted_type in
-				CsCast (result_cs_type, field_access)
+				(* Use cast_object_to_type for proper unboxing when field returns object *)
+				cast_object_to_type result_cs_type field_access
 			else
 				field_access
 		| _ ->
@@ -1856,7 +1858,8 @@ let rec cs_expr_of_texpr ectx e =
 				let map_type = apply_params c.cl_params tl in
 				let substituted_type = map_type cf.cf_type in
 				let target_cs_type = cs_type_of_type ectx.gctx substituted_type in
-				CsCast (target_cs_type, field_access)
+				(* Use cast_object_to_type for proper unboxing when field returns object *)
+				cast_object_to_type target_cs_type field_access
 			else
 				field_access
 		end
@@ -1988,7 +1991,8 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 				(* Object to Null<T> - use _ofDynamic for proper null handling *)
 				CsStaticCall (target_type, "_ofDynamic", [field_call])
-			| _ -> CsCast (target_type, field_call)
+			(* Use cast_object_to_type for proper unboxing of primitives *)
+			| _ -> cast_object_to_type target_type field_call
 			end
 		| CsTypeString when cf.cf_name = "length" ->
 			(* String.length -> string.Length (C# uses uppercase) *)
@@ -2006,7 +2010,8 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 				(* Object to Null<T> - use _ofDynamic for proper null handling *)
 				CsStaticCall (target_type, "_ofDynamic", [field_call])
-			| _ -> CsCast (target_type, field_call)
+			(* Use cast_object_to_type for proper unboxing of primitives *)
+			| _ -> cast_object_to_type target_type field_call
 			end
 		| CsTypeGenericParam _ ->
 			(* Type parameter - cast to HaxeObject to call _hx_getField *)
@@ -2019,7 +2024,8 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 				(* Object to Null<T> - use _ofDynamic for proper null handling *)
 				CsStaticCall (target_type, "_ofDynamic", [field_call])
-			| _ -> CsCast (target_type, field_call)
+			(* Use cast_object_to_type for proper unboxing of primitives *)
+			| _ -> cast_object_to_type target_type field_call
 			end
 		| _ ->
 			(* Fallback to dynamic dispatch via _hx_getField *)
@@ -2030,7 +2036,8 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 				(* Object to Null<T> - use _ofDynamic for proper null handling *)
 				CsStaticCall (target_type, "_ofDynamic", [field_call])
-			| _ -> CsCast (target_type, field_call)
+			(* Use cast_object_to_type for proper unboxing of primitives *)
+			| _ -> cast_object_to_type target_type field_call
 			end
 		end
 	| TField (e_obj, FDynamic name) ->
@@ -2054,14 +2061,15 @@ let rec cs_expr_of_texpr ectx e =
 				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)])
 			in
 			(* Runtime.GetField returns object, but Haxe knows the actual type.
-			   Cast to the expected type if it's not Dynamic/object. *)
+			   Cast to the expected type if it's not Dynamic/object.
+			   Use cast_object_to_type for proper unboxing of primitives. *)
 			let result_cs_type = cs_type_of_type ectx.gctx e.etype in
 			begin match result_cs_type with
 			| CsTypeObject | CsTypeDynamic -> field_call
 			| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 				(* Object to Null<T> - use _ofDynamic for proper null handling *)
 				CsStaticCall (result_cs_type, "_ofDynamic", [field_call])
-			| _ -> CsCast (result_cs_type, field_call)
+			| _ -> cast_object_to_type result_cs_type field_call
 			end
 		end
 	| TField (_, FEnum (en, ef)) ->
@@ -2120,7 +2128,8 @@ let rec cs_expr_of_texpr ectx e =
 			let invoke_dynamic_args = List.mapi (fun i cs_type ->
 				let idx_const = CsConst (CsConstInt (Int32.of_int i)) in
 				let arg_access = CsArrayAccess (args_array, idx_const) in
-				CsCast (cs_type, arg_access)
+				(* Use cast_object_to_type for proper unboxing of primitives *)
+				cast_object_to_type cs_type arg_access
 			) param_types_cs in
 			let invoke_call_dyn = CsCall (CsLocal (invoke_method_name num_params), invoke_dynamic_args) in
 			let invoke_dynamic_method = CsMemberMethod {
@@ -4311,7 +4320,9 @@ let rec cs_expr_of_texpr ectx e =
 			let cond_cs = cs_expr_of_texpr ectx cond in
 			(* In C#, ternary condition must be bool. If it's object/Dynamic, cast to bool. *)
 			let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
-				| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
+				| CsTypeObject | CsTypeDynamic ->
+					(* Use Runtime.toBool for proper unboxing from object *)
+					CsStaticCall (runtime_type, "toBool", [cond_cs])
 				| _ -> cond_cs
 			in
 			let result_type = e.etype in
@@ -4557,7 +4568,8 @@ let rec cs_expr_of_texpr ectx e =
 		let field_cs_type = cs_type_of_type ectx.gctx param_type in
 		begin match field_cs_type with
 		| CsTypeObject | CsTypeDynamic -> field_access
-		| _ -> CsCast (field_cs_type, field_access)
+		(* Use cast_object_to_type for proper unboxing of enum fields *)
+		| _ -> cast_object_to_type field_cs_type field_access
 		end
 	| TEnumIndex e ->
 		(* For extern enums (C# native enums), cast to int; otherwise access _hx_index.
@@ -4590,10 +4602,10 @@ let rec cs_expr_of_texpr ectx e =
 				CsCast (CsTypeInt, obj)
 			else if is_dynamic then
 				(* Dynamic type - use reflection to get _hx_index field.
-				   Generated as: (int)Reflect.field(obj, "_hx_index") *)
+				   Use Runtime.toInt for proper unboxing of the returned object. *)
 				let reflect_path = (["haxe"; "root"], "Reflect") in
 				let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString "_hx_index")]) in
-				CsCast (CsTypeInt, field_call)
+				cast_object_to_type CsTypeInt field_call
 			else
 				CsField (obj, "_hx_index")
 		end
@@ -4749,7 +4761,9 @@ and cs_stmt_with_result_assign ectx is_void result_var result_type e =
 		let body_with_assign = cs_stmt_with_result_assign ectx is_void result_var result_type body in
 		let cond_cs = cs_expr_of_texpr ectx cond in
 		let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
-			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
+			| CsTypeObject | CsTypeDynamic ->
+					(* Use Runtime.toBool for proper unboxing from object *)
+					CsStaticCall (runtime_type, "toBool", [cond_cs])
 			| _ -> cond_cs
 		in
 		begin match flag with
@@ -5007,7 +5021,9 @@ and cs_stmt_of_texpr ectx e =
 		(* In C#, if condition must be bool. If it's object/Dynamic, cast to bool. *)
 		let cond_cs = cs_expr_of_texpr ectx cond in
 		let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
-			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
+			| CsTypeObject | CsTypeDynamic ->
+					(* Use Runtime.toBool for proper unboxing from object *)
+					CsStaticCall (runtime_type, "toBool", [cond_cs])
 			| _ -> cond_cs
 		in
 		let then_stmt = cs_stmt_of_texpr ectx then_expr in
@@ -5017,7 +5033,9 @@ and cs_stmt_of_texpr ectx e =
 		(* In C#, while condition must be bool. If it's object/Dynamic, cast to bool. *)
 		let cond_cs = cs_expr_of_texpr ectx cond in
 		let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
-			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
+			| CsTypeObject | CsTypeDynamic ->
+					(* Use Runtime.toBool for proper unboxing from object *)
+					CsStaticCall (runtime_type, "toBool", [cond_cs])
 			| _ -> cond_cs
 		in
 		(* Check if we need a break label for break-in-switch-in-loop pattern.
@@ -5040,7 +5058,9 @@ and cs_stmt_of_texpr ectx e =
 		(* In C#, do-while condition must be bool. If it's object/Dynamic, cast to bool. *)
 		let cond_cs = cs_expr_of_texpr ectx cond in
 		let cond_cs = match cs_type_of_type ectx.gctx cond.etype with
-			| CsTypeObject | CsTypeDynamic -> CsCast (CsTypeBool, cond_cs)
+			| CsTypeObject | CsTypeDynamic ->
+					(* Use Runtime.toBool for proper unboxing from object *)
+					CsStaticCall (runtime_type, "toBool", [cond_cs])
 			| _ -> cond_cs
 		in
 		(* Check if we need a break label for break-in-switch-in-loop pattern *)

@@ -163,6 +163,9 @@ let cast_object_to_type target_cs_type object_expr =
 	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [object_expr])
 	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [object_expr])
 	| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [object_expr]))
+	| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+		(* Object to Null<T> - use _ofDynamic for proper handling of null and boxed values *)
+		CsStaticCall (target_cs_type, "_ofDynamic", [object_expr])
 	| _ -> CsCast (target_cs_type, object_expr)
 
 (* ============================================================
