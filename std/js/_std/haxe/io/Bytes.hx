@@ -169,7 +169,7 @@ class Bytes {
 	}
 
 	public inline function getData():BytesData {
-		return untyped b.bufferValue;
+		return untyped b.bufferValue.slice(0, length);
 	}
 
 	public static inline function alloc(length:Int):Bytes {
