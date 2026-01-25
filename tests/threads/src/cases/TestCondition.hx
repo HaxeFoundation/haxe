@@ -29,17 +29,14 @@ class TestCondition extends utest.Test {
 	function testGCDuringWait() {
 		final cond = new Condition();
 
-		var threadRunning = false;
+		cond.acquire();
 		Thread.create(() -> {
-			threadRunning = true;
 			cond.acquire();
 			cond.wait();
 			cond.release();
 		});
+		cond.release();
 
-		while (!threadRunning) {
-			Sys.sleep(0.001);
-		}
 		#if cpp
 		cpp.vm.Gc.run(true);
 		#elseif hl
