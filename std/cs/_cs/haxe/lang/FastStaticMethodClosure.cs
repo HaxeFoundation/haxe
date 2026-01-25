@@ -18,7 +18,6 @@ namespace haxe.lang
     /// </summary>
     public sealed class FastStaticMethodClosure : Function
     {
-        private readonly int _arity;
         private readonly Func<Value> _invoke0;
         private readonly Func<Value, Value> _invoke1;
         private readonly Func<Value, Value, Value> _invoke2;
@@ -34,77 +33,66 @@ namespace haxe.lang
         // Constructor for arity 0
         public FastStaticMethodClosure(Func<Value> invoke)
         {
-            _arity = 0;
             _invoke0 = invoke;
         }
 
         // Constructor for arity 1
         public FastStaticMethodClosure(Func<Value, Value> invoke)
         {
-            _arity = 1;
             _invoke1 = invoke;
         }
 
         // Constructor for arity 2
         public FastStaticMethodClosure(Func<Value, Value, Value> invoke)
         {
-            _arity = 2;
             _invoke2 = invoke;
         }
 
         // Constructor for arity 3
         public FastStaticMethodClosure(Func<Value, Value, Value, Value> invoke)
         {
-            _arity = 3;
             _invoke3 = invoke;
         }
 
         // Constructor for arity 4
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value> invoke)
         {
-            _arity = 4;
             _invoke4 = invoke;
         }
 
         // Constructor for arity 5
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value> invoke)
         {
-            _arity = 5;
             _invoke5 = invoke;
         }
 
         // Constructor for arity 6
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value> invoke)
         {
-            _arity = 6;
             _invoke6 = invoke;
         }
 
         // Constructor for arity 7
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
-            _arity = 7;
             _invoke7 = invoke;
         }
 
         // Constructor for arity 8
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
-            _arity = 8;
             _invoke8 = invoke;
         }
 
         // Constructor for arity 9
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
-            _arity = 9;
             _invoke9 = invoke;
         }
 
         // Constructor for dynamic (10+ args)
         public FastStaticMethodClosure(Func<global::haxe.root.Array, object> invoke)
         {
-            _arity = -1; // Dynamic
             _invokeDynamic = invoke;
         }
 
@@ -324,6 +312,6 @@ namespace haxe.lang
             throw new InvalidOperationException("No suitable invoker for argument count: " + len);
         }
 
-        public static void _hx_bind() { }
+        public new static void _hx_bind() { }
     }
 }

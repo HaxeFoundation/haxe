@@ -7778,16 +7778,14 @@ let generate_static_field_accessors gctx c =
 	(* Record this class for Program.cs _hx_bind() calls *)
 	gctx.all_haxe_classes <- cs_path :: gctx.all_haxe_classes;
 
-	(* Check if any superclass is a Haxe class (not extern/native).
-	   We always generate _hx_bind on all Haxe classes, so we need 'new' if superclass is a Haxe class. *)
-	let rec super_is_haxe_class c =
-		match c.cl_super with
-		| None -> false
-		| Some (super_class, _) ->
-			(* A superclass is a Haxe class if it's not extern/native *)
-			not (has_class_flag super_class CExtern) || super_is_haxe_class super_class
+	(* Determine if we need 'new' modifier on _hx_bind:
+	   - Classes without explicit superclass get HaxeObject as base (which defines _hx_bind) -> need 'new'
+	   - Classes with explicit Haxe superclass also have _hx_bind in the chain -> need 'new'
+	   - Classes with native/extern superclass (like System.Exception) don't have _hx_bind -> no 'new' *)
+	let bind_needs_new = match c.cl_super with
+		| None -> true  (* No explicit parent -> gets HaxeObject as base *)
+		| Some (super_class, _) -> not (has_class_flag super_class CExtern)  (* Extern parent has no _hx_bind *)
 	in
-	let bind_needs_new = super_is_haxe_class c in
 	let bind_modifiers = if bind_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
 	(* If no static fields and no static methods, just generate empty _hx_bind *)
