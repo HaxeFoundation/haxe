@@ -926,16 +926,16 @@ let rec cs_expr_of_texpr ectx e =
 				let idx_expr = cs_expr_of_texpr ectx e2 in
 				match storage_type with
 				| ArrayInt ->
-					(* arr.__intArray[i] - direct access, no cast needed *)
-					CsArrayAccess (CsField (arr_expr, "__intArray"), idx_expr)
+					(* arr.__getInt(i) - bounds-checked access, returns 0 for out-of-bounds *)
+					CsCall (CsField (arr_expr, "__getInt"), [idx_expr])
 				| ArrayFloat ->
-					(* arr.__floatArray[i] - direct access, no cast needed *)
-					CsArrayAccess (CsField (arr_expr, "__floatArray"), idx_expr)
+					(* arr.__getFloat(i) - bounds-checked access, returns 0.0 for out-of-bounds *)
+					CsCall (CsField (arr_expr, "__getFloat"), [idx_expr])
 				| ArrayBool ->
-					(* arr.__boolArray[i] - direct access, no cast needed *)
-					CsArrayAccess (CsField (arr_expr, "__boolArray"), idx_expr)
+					(* arr.__getBool(i) - bounds-checked access, returns false for out-of-bounds *)
+					CsCall (CsField (arr_expr, "__getBool"), [idx_expr])
 				| ArrayDynamic ->
-					(* arr.__getDyn(i) - runtime dispatch method *)
+					(* arr.__getDyn(i) - runtime dispatch method with bounds checking *)
 					let access = CsCall (CsField (arr_expr, "__getDyn"), [idx_expr]) in
 					(* Cast result to expected type if not Dynamic *)
 					let expected_cs = cs_type_of_type ectx.gctx e.etype in
@@ -944,8 +944,8 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> CsCast (expected_cs, access)
 					end
 				| ArrayObject ->
-					(* arr.__objectArray[i] with element cast *)
-					let access = CsArrayAccess (CsField (arr_expr, "__objectArray"), idx_expr) in
+					(* arr.__get(i) - bounds-checked access, returns null for out-of-bounds *)
+					let access = CsCall (CsField (arr_expr, "__get"), [idx_expr]) in
 					let expected_cs = cs_type_of_type ectx.gctx e.etype in
 					begin match expected_cs with
 					| CsTypeObject | CsTypeDynamic -> access  (* No cast needed for object/dynamic *)
@@ -955,27 +955,8 @@ let rec cs_expr_of_texpr ectx e =
 						   Direct cast would fail with "Specified cast is not valid". *)
 						CsStaticCall (expected_cs, "_ofDynamic", [access])
 					| _ ->
-						(* Check if e1 contains a cast from something that returns object-typed arrays.
-						   This includes TCast from anonymous type method returns. *)
-						let rec has_widening_cast e = match e.eexpr with
-							| TCast (inner, _) ->
-								begin match inner.eexpr with
-								| TCall ({ eexpr = TField (_, FAnon _) }, _) -> true
-								| _ -> has_widening_cast inner
-								end
-							| TParenthesis e1 | TMeta (_, e1) -> has_widening_cast e1
-							| _ -> false
-						in
-						let is_fanon_call e = match e.eexpr with
-							| TCall ({ eexpr = TField (_, FAnon _) }, _) -> true
-							| _ -> false
-						in
-						(* Always cast for object array reads to non-object type *)
-						if has_widening_cast e1 || is_fanon_call e1 then
-							CsCast (expected_cs, access)
-						else
-							(* Cast element from object[] to expected type *)
-							CsCast (expected_cs, access)
+						(* Cast element from object[] to expected type *)
+						CsCast (expected_cs, access)
 					end
 			end
 			else begin
@@ -1408,35 +1389,36 @@ let rec cs_expr_of_texpr ectx e =
 					let haxe_array_element_access = match inner_e1.eexpr with
 						| TArray (arr_expr, idx_expr) when is_haxe_array_type arr_expr.etype ->
 							let storage = classify_array_element_type arr_expr.etype in
-							(* Only handle ArrayObject storage where we cast the element *)
-							begin match storage with
-							| ArrayObject ->
-								let expected_cs = cs_type_of_type ectx.gctx e1.etype in
-								(* Only needs special handling if we're casting to non-object *)
-								begin match expected_cs with
-								| CsTypeObject | CsTypeDynamic -> None
-								| _ -> Some (arr_expr, idx_expr, expected_cs)
-								end
-							| _ -> None
-							end
+							Some (arr_expr, idx_expr, storage)
 						| _ -> None
 					in
 					begin match haxe_array_element_access with
-					| Some (arr_expr, idx_expr, elem_cs_type) ->
-						(* Expand: arr[i] += v  ->  arr.__objectArray[i] = (cast)(arr.__objectArray[i]) op v
-						   The cast is applied to the read, and the result goes back as object *)
+					| Some (arr_expr, idx_expr, storage) ->
+						(* Expand compound assignment on Haxe array elements.
+						   We can't use method call results as lvalues in C#.
+						   arr[i] += v  ->  arr.__backing[i] = arr.__backing[i] op v *)
 						let arr_cs = cs_expr_of_texpr ectx arr_expr in
 						let arr_cs = if is_null_wrapper arr_expr then CsField (arr_cs, "value") else arr_cs in
 						let idx_cs = cs_expr_of_texpr ectx idx_expr in
 						let e2_cs = cs_expr_of_texpr ectx e2 in
-						(* arr.__objectArray[i] *)
-						let array_access = CsArrayAccess (CsField (arr_cs, "__objectArray"), idx_cs) in
-						(* (T)(arr.__objectArray[i]) *)
-						let casted_read = CsCast (elem_cs_type, array_access) in
-						(* (T)(arr.__objectArray[i]) op v *)
-						let op_result = CsBinop (cs_binop_of_binop inner_op, casted_read, e2_cs) in
-						(* arr.__objectArray[i] = result *)
-						CsBinop (CsOpAssign, array_access, op_result)
+						let backing_field, needs_cast = match storage with
+							| ArrayInt -> "__intArray", false
+							| ArrayFloat -> "__floatArray", false
+							| ArrayBool -> "__boolArray", false
+							| ArrayObject | ArrayDynamic -> "__objectArray", true
+						in
+						let array_access = CsArrayAccess (CsField (arr_cs, backing_field), idx_cs) in
+						if needs_cast then begin
+							let elem_cs_type = cs_type_of_type ectx.gctx e1.etype in
+							(* (T)(arr.__objectArray[i]) op v *)
+							let casted_read = CsCast (elem_cs_type, array_access) in
+							let op_result = CsBinop (cs_binop_of_binop inner_op, casted_read, e2_cs) in
+							(* arr.__objectArray[i] = result *)
+							CsBinop (CsOpAssign, array_access, op_result)
+						end else begin
+							(* arr.__intArray[i] op= v directly - no cast needed *)
+							CsBinop (cs_binop_of_binop op, array_access, e2_cs)
+						end
 					| None ->
 						(* Check if e1 is a field access with erased type param - also can't do compound assignment on cast *)
 						let rec find_erased_field_for_assign expr = match expr.eexpr with
@@ -1552,6 +1534,47 @@ let rec cs_expr_of_texpr ectx e =
 			| TDynamic _ -> true
 			| _ -> false
 		in
+		(* Check if the inner expression is an array element access on a Haxe Array.
+		   For ++/--, we need direct backing array access (not method call) to have an lvalue. *)
+		let is_haxe_array_element = match op with
+			| Increment | Decrement ->
+				let rec find_array_access expr = match expr.eexpr with
+					| TArray (arr_expr, idx_expr) ->
+						let is_haxe_array = match follow arr_expr.etype with
+							| TInst ({ cl_path = ([], "Array") | (["haxe"; "root"], "Array") }, _) -> true
+							| _ -> false
+						in
+						if is_haxe_array then Some (arr_expr, idx_expr, unop_operand.etype) else None
+					| TParenthesis inner | TCast (inner, _) -> find_array_access inner
+					| _ -> None
+				in
+				find_array_access inner_expr
+			| _ -> None
+		in
+		(* Handle array element increment/decrement with direct backing array access *)
+		begin match is_haxe_array_element with
+		| Some (arr_expr, idx_expr, elem_type) ->
+			let arr_cs = cs_expr_of_texpr ectx arr_expr in
+			let idx_cs = cs_expr_of_texpr ectx idx_expr in
+			let storage_type = CsTypeMapping.classify_array_element_type arr_expr.etype in
+			let backing_access = match storage_type with
+				| CsTypeMapping.ArrayInt -> CsArrayAccess (CsField (arr_cs, "__intArray"), idx_cs)
+				| CsTypeMapping.ArrayFloat -> CsArrayAccess (CsField (arr_cs, "__floatArray"), idx_cs)
+				| CsTypeMapping.ArrayBool -> CsArrayAccess (CsField (arr_cs, "__boolArray"), idx_cs)
+				| CsTypeMapping.ArrayObject | CsTypeMapping.ArrayDynamic ->
+					CsArrayAccess (CsField (arr_cs, "__objectArray"), idx_cs)
+			in
+			let cs_op = if op = Increment then CsOpIncrement else CsOpDecrement in
+			let is_postfix = pos = Postfix in
+			let unop_result = CsUnop (cs_op, is_postfix, backing_access) in
+			(* Cast result to expected type if needed (for object arrays) *)
+			let expected_cs = cs_type_of_type ectx.gctx elem_type in
+			begin match storage_type with
+			| CsTypeMapping.ArrayObject | CsTypeMapping.ArrayDynamic ->
+				CsCast (expected_cs, unop_result)
+			| _ -> unop_result
+			end
+		| None ->
 		(* Check if the inner expression is an anonymous field access, dynamic field access, or Reflect.field call *)
 		let is_dynamic_field = match inner_expr.eexpr with
 			| TField (obj_expr, FAnon cf) ->
@@ -1670,6 +1693,7 @@ let rec cs_expr_of_texpr ectx e =
 				| None ->
 					CsUnop (cs_unop_of_unop op, is_postfix, cs_expr_of_texpr ectx unop_operand)
 				end
+		end
 		end
 	| TField (e, FInstance ({ cl_path = (["cs"], "NativeArray") }, _, { cf_name = "length" })) ->
 		(* NativeArray.length -> array.Length *)
