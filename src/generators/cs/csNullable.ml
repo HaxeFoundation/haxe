@@ -25,11 +25,11 @@
 	1. Flatten Null<Null<T>> to Null<T>
 	2. Insert explicit .value unwrap calls
 	3. Insert explicit Null<T> constructor wrap calls
-	4. Handle == null comparisons via != default check
+	4. Handle == null comparisons via .hasValue property access
 
 	This module handles Null<T> types for languages that use stack-allocated
 	structs for nullable types. On C#, Null<T> is a struct with a value field
-	and implicit hasValue semantics (checked via != default).
+	and hasValue property for null checking.
 *)
 
 open Ast
@@ -254,19 +254,12 @@ let wrap_null cfg expr inner_type has_value =
 		   This is a fallback that shouldn't happen in practice. *)
 		expr
 
-(* Generate: expr != default(Null<T>) - checks if Null struct has a value *)
+(* Generate: access to hasValue property on Null<T> struct.
+   We generate a TField with special marker name "__cs_hasValue__" that gencs.ml
+   will recognize and convert to the actual .hasValue property access. *)
 let has_value cfg expr =
-	let null_type = expr.etype in
-	let default_expr = {
-		eexpr = TCall(
-			{ eexpr = TIdent "__default__"; etype = TFun([], null_type); epos = expr.epos },
-			[]
-		);
-		etype = null_type;
-		epos = expr.epos
-	} in
 	{
-		eexpr = TBinop(OpNotEq, expr, default_expr);
+		eexpr = TField(expr, FDynamic "__cs_hasValue__");
 		etype = cfg.basic.tbool;
 		epos = expr.epos
 	}

@@ -62,6 +62,7 @@ class Main {
 		testAtomics();
 		testDynamicArrays();
 		testGenericMetadata();
+		testNullEquality();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -1700,6 +1701,122 @@ class Main {
 		eq("Charlie", prevPerson.name);
 		eq("Alice", atomicPerson.load().name);
 	}
+
+	static function testNullEquality() {
+		// Test Null<T> equality comparisons
+		// These should use .hasValue for null checks, not boxing
+
+		// ============================================
+		// Test 1: Null<Int> == null  (left side Null<T>)
+		// ============================================
+		var nullInt:Null<Int> = null;
+		t(nullInt == null);   // Should generate: !nullInt.hasValue
+
+		var someInt:Null<Int> = 42;
+		f(someInt == null);   // Should generate: !someInt.hasValue
+
+		// ============================================
+		// Test 2: null == Null<Int>  (right side Null<T>)
+		// ============================================
+		t(null == nullInt);   // Should generate: !nullInt.hasValue
+		f(null == someInt);   // Should generate: !someInt.hasValue
+
+		// ============================================
+		// Test 3: Null<Int> != null  (left side Null<T>)
+		// ============================================
+		f(nullInt != null);   // Should generate: nullInt.hasValue
+		t(someInt != null);   // Should generate: someInt.hasValue
+
+		// ============================================
+		// Test 4: null != Null<Int>  (right side Null<T>)
+		// ============================================
+		f(null != nullInt);   // Should generate: nullInt.hasValue
+		t(null != someInt);   // Should generate: someInt.hasValue
+
+		// ============================================
+		// Test 5: Null<Int> == Null<Int>  (struct equality)
+		// ============================================
+		var nullInt2:Null<Int> = null;
+		var someInt2:Null<Int> = 42;
+		var someInt3:Null<Int> = 99;
+
+		t(nullInt == nullInt2);   // Both null -> equal
+		t(someInt == someInt2);   // Both 42 -> equal
+		f(someInt == someInt3);   // 42 != 99
+		f(nullInt == someInt);    // null != 42
+		f(someInt == nullInt);    // 42 != null
+
+		// ============================================
+		// Test 6: Null<Int> != Null<Int>  (struct inequality)
+		// ============================================
+		f(nullInt != nullInt2);   // Both null -> equal, so != is false
+		f(someInt != someInt2);   // Both 42 -> equal, so != is false
+		t(someInt != someInt3);   // 42 != 99
+		t(nullInt != someInt);    // null != 42
+		t(someInt != nullInt);    // 42 != null
+
+		// ============================================
+		// Test 7: Null<String> (reference type) == null
+		// ============================================
+		var nullStr:Null<String> = null;
+		var someStr:Null<String> = "hello";
+
+		t(nullStr == null);
+		f(someStr == null);
+		t(null == nullStr);
+		f(null == someStr);
+
+		// ============================================
+		// Test 8: Null<String> != null
+		// ============================================
+		f(nullStr != null);
+		t(someStr != null);
+		f(null != nullStr);
+		t(null != someStr);
+
+		// ============================================
+		// Test 9: Null<T> from method return
+		// ============================================
+		t(NullEqualityHelper.getNullInt() == null);
+		f(NullEqualityHelper.getSomeInt(5) == null);
+		t(NullEqualityHelper.getNullString() == null);
+		f(NullEqualityHelper.getSomeString("x") == null);
+
+		// ============================================
+		// Test 10: Null<T> passed to eq() method (boxing scenario)
+		// This tests the .toDynamic() coercion we implemented
+		// ============================================
+		eq(null, nullInt);       // Should work: nullInt.toDynamic() returns null
+		eq(42, someInt);         // Should work: someInt.toDynamic() returns boxed 42
+		eq(null, nullStr);       // Should work: nullStr.toDynamic() returns null
+		eq("hello", someStr);    // Should work: someStr.toDynamic() returns "hello"
+
+		// ============================================
+		// Test 11: Null<Bool> equality
+		// ============================================
+		var nullBool:Null<Bool> = null;
+		var trueBool:Null<Bool> = true;
+		var falseBool:Null<Bool> = false;
+
+		t(nullBool == null);
+		f(trueBool == null);
+		f(falseBool == null);
+
+		t(trueBool != falseBool);  // true != false
+		f(trueBool == falseBool);  // true == false is false
+
+		// ============================================
+		// Test 12: Null<Float> equality
+		// ============================================
+		var nullFloat:Null<Float> = null;
+		var someFloat:Null<Float> = 3.14;
+
+		t(nullFloat == null);
+		f(someFloat == null);
+
+		eq(null, nullFloat);
+		eq(3.14, someFloat);
+	}
 }
 
 // Helper class for method reference tests
@@ -1803,6 +1920,29 @@ class GenericCalculator<T> {
 class ThreadTestHelper {
 	public static var sharedCounter:Int = 0;
 	public static var mutex:sys.thread.Mutex = new sys.thread.Mutex();
+}
+
+// Helper class for Null<T> equality tests
+class NullEqualityHelper {
+	// Returns Null<Int> with no value (hasValue=false)
+	public static function getNullInt():Null<Int> {
+		return null;
+	}
+
+	// Returns Null<Int> with value (hasValue=true)
+	public static function getSomeInt(v:Int):Null<Int> {
+		return v;
+	}
+
+	// Returns Null<String> with no value
+	public static function getNullString():Null<String> {
+		return null;
+	}
+
+	// Returns Null<String> with value
+	public static function getSomeString(v:String):Null<String> {
+		return v;
+	}
 }
 
 // Generic class for testing @:generic metadata

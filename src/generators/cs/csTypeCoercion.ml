@@ -295,6 +295,47 @@ let coerce_to_null cs_arg arg_type expected_type =
 		else
 			None  (* More complex conversion needed *)
 
+(* Check if a C# expression is a call to an abstract implementation method.
+   These return the underlying type, not Null<T>, even when Haxe type says Null<T>. *)
+let rec is_abstract_impl_call cs_expr =
+	match cs_expr with
+	| CsStaticCall (CsTypeClass (path, _), _, _) ->
+		let class_name = snd path in
+		String.length class_name >= 6 &&
+		String.sub class_name (String.length class_name - 6) 6 = "_Impl_"
+	| CsParens e -> is_abstract_impl_call e
+	| _ -> false
+
+(* Check if a C# expression is a cast to Null<T> type *)
+let rec is_cast_to_null_type cs_expr =
+	match cs_expr with
+	| CsCast (CsTypeClass ((["haxe"; "lang"], "Null"), _), _) -> true
+	| CsParens e -> is_cast_to_null_type e
+	| _ -> false
+
+(* Handle Null<T> -> object/Dynamic: use toDynamic() to get boxed value or null.
+   Excludes expressions that return primitives:
+   - Runtime conversions (toInt, toDouble, etc.)
+   - Abstract implementation methods (*_Impl_.*) when not explicitly wrapped in Null<T> *)
+let coerce_null_to_object cs_arg arg_type expected_type =
+	if not (is_cs_object_or_dynamic expected_type) then None
+	else if cs_expr_is_runtime_conversion cs_arg then None
+	else
+		(* Check if the C# expression is explicitly a Null<T> struct *)
+		let is_null_from_expr = get_null_inner_type_if_of_dynamic_call cs_arg <> None in
+		let is_null_from_cast = is_cast_to_null_type cs_arg in
+		if is_null_from_expr || is_null_from_cast then
+			Some (CsCall (CsField (cs_arg, "toDynamic"), []))
+		(* For _Impl_ calls without explicit Null wrapper, don't trust Haxe type
+		   because it may include implicit conversions not in C# code *)
+		else if is_abstract_impl_call cs_arg then
+			None
+		(* For non-_Impl_ calls, trust the Haxe type *)
+		else if get_cs_null_inner arg_type <> None then
+			Some (CsCall (CsField (cs_arg, "toDynamic"), []))
+		else
+			None
+
 (* Handle SomeClass<A> to Null<SomeClass<B>> with generic coercion *)
 let coerce_class_to_null_class cs_arg arg_type expected_type =
 	match expected_type, arg_type with
@@ -431,6 +472,10 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| None ->
 	(* Try Null<object> to primitive/class conversions *)
 	match coerce_null_object_to_primitive cs_arg arg_cs_type expected_cs_type with
+	| Some result -> result
+	| None ->
+	(* Try Null<T> -> object/Dynamic conversion *)
+	match coerce_null_to_object cs_arg arg_cs_type expected_cs_type with
 	| Some result -> result
 	| None ->
 	(* Try Null<SomeClass> to SomeClass for reference types *)

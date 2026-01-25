@@ -1917,12 +1917,14 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		(* Special case: accessing .value or .hasValue on Null<T> - use direct field access, not reflection.
 		   CsNullable generates FDynamic "value"/"hasValue" for Null unwrapping.
+		   CsNullable also generates "__cs_hasValue__" marker for null equality checks.
 		   Only applies if the C# type is actually Null<T>. *)
-		let is_null_struct_field = is_cs_null_type && (name = "value" || name = "hasValue")
+		let is_null_struct_field = is_cs_null_type && (name = "value" || name = "hasValue" || name = "__cs_hasValue__")
 		in
 		if is_null_struct_field then
-			(* Direct field access on Null<T> struct *)
-			CsField (obj_expr, name)
+			(* Direct field access on Null<T> struct - convert marker to actual field name *)
+			let field_name = if name = "__cs_hasValue__" then "hasValue" else name in
+			CsField (obj_expr, field_name)
 		else begin
 			(* Regular dynamic field access via reflection *)
 			(* Only unwrap via .value if the C# type is actually Null<T> *)
