@@ -5665,7 +5665,10 @@ let generate_closure_class ectx tf func_type =
 				else
 					of_dynamic_call
 			| Some t ->
-				let casted = CsCast (t, arg_access) in
+				(* Use cast_object_to_type to handle boxed type mismatches.
+				   E.g., when args.__objectArray[i] contains boxed long but we need int,
+				   Runtime.toInt() handles the conversion correctly. *)
+				let casted = cast_object_to_type t arg_access in
 				if is_optional then
 					let length_check = CsBinop (CsOpGt, args_length, idx_const) in
 					CsTernary (length_check, casted, CsDefault t)
@@ -6136,7 +6139,10 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 				else
 					of_dynamic_call
 			| Some t ->
-				let casted = CsCast (t, arg_access) in
+				(* Use cast_object_to_type to handle boxed type mismatches.
+				   E.g., when args.__objectArray[i] contains boxed long but we need int,
+				   Runtime.toInt() handles the conversion correctly. *)
+				let casted = cast_object_to_type t arg_access in
 				if is_optional then
 					let length_check = CsBinop (CsOpGt, args_length, idx_const) in
 					CsTernary (length_check, casted, CsDefault t)
