@@ -59,6 +59,8 @@ namespace haxe.lang
             if (d is bool b) return b;
             // Value.ToDynamic() returns bools as boxed longs (0L for false, 1L for true)
             if (d is long l) return l != 0L;
+            if (d is int i) return i != 0;
+            if (d is float f) return f != 0f;
             return false;
         }
 
@@ -72,8 +74,8 @@ namespace haxe.lang
             if (d == null) return 0L;
             if (d is long l) return l;
             if (d is int i) return i;
-            if (d is double dbl) return BitConverter.DoubleToInt64Bits(dbl);
-            if (d is float f) return BitConverter.SingleToInt32Bits(f);
+            if (d is double dbl) return (long)dbl;
+            if (d is float f) return (long)f;
             if (d is bool b) return b ? 1L : 0L;
             if (d is IConvertible c) return c.ToInt64(null);
             return 0L;
