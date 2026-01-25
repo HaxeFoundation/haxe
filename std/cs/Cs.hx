@@ -104,10 +104,28 @@ class Cs {
 
 	/**
 	 * Convert any object to string representation.
+	 * Uses invariant culture for floats/doubles to ensure consistent decimal separator.
+	 * For HaxeObject instances, calls the virtual toString() method.
 	 */
 	public static function toString(obj:Dynamic):String {
 		if (obj == null) {
 			return "null";
+		}
+		// Handle bool specially for Haxe compatibility (lowercase "true"/"false")
+		if (untyped __cs__("{0} is bool", obj)) {
+			return untyped __cs__("((bool){0}) ? \"true\" : \"false\"", obj);
+		}
+		// Handle floats/doubles with invariant culture to ensure '.' decimal separator
+		if (untyped __cs__("{0} is double", obj)) {
+			return untyped __cs__("((double){0}).ToString(System.Globalization.CultureInfo.InvariantCulture)", obj);
+		}
+		if (untyped __cs__("{0} is float", obj)) {
+			return untyped __cs__("((float){0}).ToString(System.Globalization.CultureInfo.InvariantCulture)", obj);
+		}
+		// For HaxeObject instances, call the virtual toString() method directly
+		// This handles Array, custom classes with toString(), etc. via dynamic dispatch
+		if (untyped __cs__("{0} is global::haxe.root.HaxeObject hxObj", obj)) {
+			return untyped __cs__("hxObj.toString()");
 		}
 		return untyped __cs__("{0}.ToString()", obj);
 	}

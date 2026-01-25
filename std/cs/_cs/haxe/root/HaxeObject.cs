@@ -116,5 +116,14 @@ namespace haxe.root
         }
 
         public static void _hx_bind() { }
+
+        /// <summary>
+        /// Default toString implementation. Subclasses with a Haxe toString() method will override this.
+        /// Returns the type name by default.
+        /// </summary>
+        public virtual string toString()
+        {
+            return this.GetType().FullName;
+        }
     }
 }

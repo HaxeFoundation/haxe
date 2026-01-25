@@ -949,6 +949,11 @@ let rec cs_expr_of_texpr ectx e =
 					let expected_cs = cs_type_of_type ectx.gctx e.etype in
 					begin match expected_cs with
 					| CsTypeObject | CsTypeDynamic -> access  (* No cast needed for object/dynamic *)
+					| CsTypeClass ((["haxe"; "lang"], "Null"), [_inner_type]) ->
+						(* For Null<T> element types, use Null<T>._ofDynamic(value) instead of direct cast.
+						   The object[] stores boxed values (e.g., boxed int), not Null<T> structs.
+						   Direct cast would fail with "Specified cast is not valid". *)
+						CsStaticCall (expected_cs, "_ofDynamic", [access])
 					| _ ->
 						(* Check if e1 contains a cast from something that returns object-typed arrays.
 						   This includes TCast from anonymous type method returns. *)
@@ -1477,6 +1482,7 @@ let rec cs_expr_of_texpr ectx e =
 				in
 				let is_float_type t = match follow t with
 					| TAbstract ({ a_path = ([], "Float") }, _) -> true
+					| TAbstract ({ a_path = ([], "Single") }, _) -> true
 					| _ -> false
 				in
 				(* Check if type is a type parameter (generic). In C#, arithmetic on type params isn't allowed. *)
@@ -1484,8 +1490,21 @@ let rec cs_expr_of_texpr ectx e =
 					| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
 					| _ -> false
 				in
+				(* String concatenation with floats/doubles needs invariant culture to ensure '.' decimal separator.
+				   C#'s implicit ToString() for string + float uses current culture, which may use comma. *)
+				let is_string_concat = op = OpAdd && is_string e.etype in
+				let needs_invariant_float_to_string e =
+					is_string_concat && is_float_type e.etype
+				in
 				let cs_e1 = cs_expr_of_texpr ectx e1 in
 				let cs_e2 = cs_expr_of_texpr ectx e2 in
+				(* Wrap float operands with cs.Cs.toString() for string concatenation to ensure invariant culture *)
+				let cs_e1 = if needs_invariant_float_to_string e1 then
+					CsStaticCall (CsTypeClass (cs_path, []), "toString", [cs_e1])
+				else cs_e1 in
+				let cs_e2 = if needs_invariant_float_to_string e2 then
+					CsStaticCall (CsTypeClass (cs_path, []), "toString", [cs_e2])
+				else cs_e2 in
 				(* For type parameters, cast through object to int for arithmetic operations.
 				   C# doesn't allow arithmetic on generic types even with constraints. *)
 				let is_arithmetic_op = match op with
@@ -6948,9 +6967,18 @@ let generate_field gctx c cf is_static =
 			end
 		in
 		(* Add virtual/override/abstract modifiers for instance methods *)
+		(* toString method needs override because HaxeObject defines a virtual toString().
+		   But only for classes that inherit from HaxeObject (not native C# classes like Exception). *)
+		let inherits_from_haxe_object =
+			(* If no explicit superclass, it inherits from HaxeObject implicitly *)
+			match c.cl_super with
+			| None -> not (has_class_flag c CExtern)
+			| Some (super_class, _) -> not (has_class_flag super_class CExtern)
+		in
+		let is_tostring_override = cf.cf_name = "toString" && not is_static && inherits_from_haxe_object in
 		let method_modifiers =
 			if is_static then modifiers
-			else if is_override cf then modifiers @ [MemberModifier.Override]
+			else if is_override cf || is_tostring_override then modifiers @ [MemberModifier.Override]
 			(* Methods without a body should be abstract, not virtual *)
 			else if body = None then modifiers @ [MemberModifier.Abstract]
 			else if should_be_virtual c cf then modifiers @ [MemberModifier.Virtual]
