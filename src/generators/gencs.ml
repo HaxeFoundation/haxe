@@ -192,7 +192,10 @@ let cast_invoke_result result_type call_expr =
 	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [call_expr])
 	| CsTypeFloat | CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [call_expr])
 	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [call_expr])
-	| CsTypeString -> CsCast (CsTypeString, call_expr)
+	| CsTypeString -> CsStaticCall (runtime_type, "toStr", [call_expr])
+	| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+		(* Object to Null<T> - use _ofDynamic for proper handling of null and boxed values *)
+		CsStaticCall (result_type, "_ofDynamic", [call_expr])
 	| _ -> CsCast (result_type, call_expr)
 
 (* ====== Helper utilities ====== *)
@@ -1470,16 +1473,16 @@ let rec cs_expr_of_texpr ectx e =
 							let field_access = CsField (obj_cs, field_name) in
 							let cast_type = cs_type_of_type ectx.gctx expr_type in
 							let e2_cs = cs_expr_of_texpr ectx e2 in
-							(* (T)obj.field *)
-							let casted_read = CsCast (cast_type, field_access) in
+							(* Cast obj.field to T - use cast_object_to_type for proper unboxing *)
+							let casted_read = cast_object_to_type cast_type field_access in
 							(* (T)obj.field op v *)
 							let op_result = CsBinop (cs_binop_of_binop inner_op, casted_read, e2_cs) in
 							(* (object)(op_result) for boxing *)
 							let boxed = CsCast (CsTypeObject, op_result) in
 							(* obj.field = boxed *)
 							let assignment = CsBinop (CsOpAssign, field_access, boxed) in
-							(* (T)(assignment) - return the result *)
-							CsCast (cast_type, assignment)
+							(* Cast assignment result to T - use cast_object_to_type for proper unboxing *)
+							cast_object_to_type cast_type assignment
 						| None ->
 							(* Non-dynamic compound assignment - handle special cases *)
 							begin match inner_op with
@@ -1760,8 +1763,8 @@ let rec cs_expr_of_texpr ectx e =
 					let field_name = escape_identifier cf.cf_name in
 					let field_access = CsField (obj_cs, field_name) in
 					let cast_type = cs_type_of_type ectx.gctx cast_to_type in
-					(* (cast_type)obj.field *)
-					let casted_read = CsCast (cast_type, field_access) in
+					(* Cast obj.field to cast_type - use cast_object_to_type for proper unboxing *)
+					let casted_read = cast_object_to_type cast_type field_access in
 					(* (cast_type)obj.field + 1 or - 1 *)
 					let delta = if op = Increment then CsConst (CsConstInt 1l) else CsConst (CsConstInt (-1l)) in
 					let new_value = CsBinop (CsOpAdd, casted_read, delta) in
@@ -1770,12 +1773,12 @@ let rec cs_expr_of_texpr ectx e =
 					(* obj.field = boxed_value *)
 					let assignment = CsBinop (CsOpAssign, field_access, boxed_value) in
 					if is_postfix then
-						(* For postfix: (cast_type)(assignment) - 1  (return old value) *)
-						let result_minus_delta = CsBinop (CsOpSub, CsCast (cast_type, assignment), delta) in
+						(* For postfix: cast(assignment) - 1  (return old value) *)
+						let result_minus_delta = CsBinop (CsOpSub, cast_object_to_type cast_type assignment, delta) in
 						result_minus_delta
 					else
-						(* For prefix: (cast_type)(assignment)  (return new value) *)
-						CsCast (cast_type, assignment)
+						(* For prefix: cast(assignment)  (return new value) *)
+						cast_object_to_type cast_type assignment
 				| None ->
 					CsUnop (cs_unop_of_unop op, is_postfix, cs_expr_of_texpr ectx unop_operand)
 				end
@@ -2330,8 +2333,8 @@ let rec cs_expr_of_texpr ectx e =
 			end
 		| CsTypeObject | CsTypeDynamic -> CsCall (CsField (call_expr, "ToDynamic"), [])
 		| _ ->
-			(* For other reference types, get obj field and cast *)
-			CsCast (result_type, CsField (call_expr, "obj"))
+			(* For other reference types, use ToDynamic() then cast *)
+			CsCast (result_type, CsCall (CsField (call_expr, "ToDynamic"), []))
 		end
 	| TCall ({ eexpr = TField (_, FEnum (en, ef)) }, orig_args) ->
 		(* Enum constructor with parameters -> new EnumType.ConstructorName(...)
@@ -2508,8 +2511,8 @@ let rec cs_expr_of_texpr ectx e =
 				end
 			| CsTypeObject | CsTypeDynamic -> CsCall (CsField (call_expr, "ToDynamic"), [])
 			| _ ->
-				(* For other reference types, get obj field and cast *)
-				CsCast (result_type, CsField (call_expr, "obj"))
+				(* For other reference types, use ToDynamic() then cast *)
+				CsCast (result_type, CsCall (CsField (call_expr, "ToDynamic"), []))
 			end
 		end else begin
 		(* Check if expression type is Null<T> - if so, access .value to unwrap.
@@ -2934,14 +2937,15 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> false
 				in
 				if method_returns_type_param && not (CsTypeMapping.is_cs_native_generic_class c.cl_path) then begin
-					(* Method returns a type param that got erased to object - cast to expected type *)
+					(* Method returns a type param that got erased to object - cast to expected type.
+					   Use cast_object_to_type for primitives to handle boxed type mismatches. *)
 					let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
 					match expected_cs_type with
 					| CsTypeObject | CsTypeDynamic | CsTypeVoid -> call_expr
 					| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) when not (CsTypeMapping.is_inherently_nullable inner) ->
 						(* Null<T> where T is a value type - use Null<T>._ofDynamic(result) *)
 						CsStaticCall (expected_cs_type, "_ofDynamic", [call_expr])
-					| _ -> CsCast (expected_cs_type, call_expr)
+					| _ -> cast_object_to_type expected_cs_type call_expr
 				end else
 					call_expr
 			end
@@ -3626,7 +3630,7 @@ let rec cs_expr_of_texpr ectx e =
 				let result_cs_type = cs_type_of_type ectx.gctx return_type in
 				begin match result_cs_type with
 				| CsTypeObject | CsTypeDynamic -> call_expr
-				| _ -> CsCast (result_cs_type, call_expr)
+				| _ -> cast_object_to_type result_cs_type call_expr
 				end
 			else
 				call_expr
@@ -3833,8 +3837,8 @@ let rec cs_expr_of_texpr ectx e =
 				end
 			| CsTypeObject | CsTypeDynamic -> CsCall (CsField (call_expr, "ToDynamic"), [])
 			| _ ->
-				(* For other reference types, get obj field and cast *)
-				CsCast (result_type, CsField (call_expr, "obj"))
+				(* For other reference types, use ToDynamic() then cast *)
+				CsCast (result_type, CsCall (CsField (call_expr, "ToDynamic"), []))
 			end
 		end
 	| TNew ({ cl_path = (["cs"], "NativeArray") }, [t], [size_expr]) ->
@@ -4184,7 +4188,7 @@ let rec cs_expr_of_texpr ectx e =
 					| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
 					| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
 					| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
-					| CsTypeString -> CsCast (CsTypeString, inner_cs)
+					| CsTypeString -> CsStaticCall (runtime_type, "toStr", [inner_cs])
 					| _ -> CsCast (target_type, inner_cs)  (* Fallback for other types *)
 				end
 				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
@@ -4273,13 +4277,22 @@ let rec cs_expr_of_texpr ectx e =
 						| t, CsTypeString when is_primitive_type t -> true  (* string to any primitive *)
 						| _ -> false
 					in
-					(* When casting from object/Dynamic to primitive, use Runtime.toXxx to handle
-					   boxed type mismatches. Direct cast (double)(object)v fails if v is boxed int. *)
+					(* When casting from object/Dynamic/type-param to primitive, use Runtime.toXxx to handle
+					   boxed type mismatches. Direct cast (double)(object)v fails if v is boxed int.
+					   Type parameters are erased to object at runtime, so same issue applies. *)
 					let is_object_to_primitive = match target_type, inner_type with
-						| t, (CsTypeObject | CsTypeDynamic) when is_primitive_type t -> true
+						| t, (CsTypeObject | CsTypeDynamic | CsTypeGenericParam _) when is_primitive_type t -> true
 						| _ -> false
 					in
-					if is_object_to_primitive then begin
+					(* When casting from object/Dynamic/type-param to String, use Runtime.toStr to handle
+					   boxed primitives. Direct cast (string)(object)v fails if v is a boxed int/bool/etc. *)
+					let is_object_to_string = match target_type, inner_type with
+						| CsTypeString, (CsTypeObject | CsTypeDynamic | CsTypeGenericParam _) -> true
+						| _ -> false
+					in
+					if is_object_to_string then
+						CsStaticCall (runtime_type, "toStr", [inner_cs])
+					else if is_object_to_primitive then begin
 						match target_type with
 						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
 						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
@@ -5319,9 +5332,9 @@ and cs_stmt_of_texpr ectx e =
 					CsCast (ret_cs, cs_e)
 				| Some ret_t when is_type_param e.etype && not (is_type_param ret_t) && not (is_haxe_dynamic_type ret_t) ->
 					(* Constrained type param: expression is T but return type is concrete (e.g., T:(Float) -> Float).
-					   Haxe knows T can be used as Float, but C# needs cast. *)
+					   Haxe knows T can be used as Float, but C# needs proper unboxing for primitives. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
-					CsCast (ret_cs, cs_e)
+					cast_object_to_type ret_cs cs_e
 				| Some ret_t ->
 					(* Check for GADT covariance: returning SomeClass<ConcreteType> where method returns SomeClass<A>.
 					   C# generics are invariant, so we need to cast through object.
@@ -5808,8 +5821,8 @@ let generate_closure_class ectx tf func_type =
 							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])
 					end
 				| Some t ->
-					(* Other types (references): use obj field directly and cast *)
-					CsCast (t, CsField (a_var, "obj"))
+					(* Other types (references): use ToDynamic() then cast *)
+					CsCast (t, CsCall (CsField (a_var, "ToDynamic"), []))
 				| None ->
 					(* Untyped: use ToDynamic() *)
 					CsCall (CsField (a_var, "ToDynamic"), [])
@@ -6265,7 +6278,8 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])
 					end
 				| Some t ->
-					CsCast (t, CsField (a_var, "obj"))
+					(* Use ToDynamic() then cast - obj may contain sentinel for primitives *)
+					CsCast (t, CsCall (CsField (a_var, "ToDynamic"), []))
 				| None ->
 					CsCall (CsField (a_var, "ToDynamic"), [])
 			) invoke_params_with_opt in
@@ -7732,7 +7746,8 @@ let generate_field_accessors gctx c =
 			{
 				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
 				sw_body = [
-					CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, name), CsCast (field_type, CsLocal "value")));
+					(* Use cast_object_to_type for proper handling of primitives (Runtime.toInt, etc.) *)
+					CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, name), cast_object_to_type field_type (CsLocal "value")));
 					CsReturn None;
 				];
 			}

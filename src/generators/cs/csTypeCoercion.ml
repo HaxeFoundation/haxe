@@ -152,6 +152,13 @@ let rec is_ternary_with_mixed_types cs_expr =
    Type casting helpers
    ============================================================ *)
 
+(* Convert object to string safely - handles boxed primitives.
+   Direct cast (string)obj fails when obj is a boxed int/long/bool.
+   This generates: Runtime.toStr(obj)
+   The Runtime.toStr method handles null, strings, and calls ToString() for other types. *)
+let object_to_string object_expr =
+	CsStaticCall (runtime_type, "toStr", [object_expr])
+
 (* Cast object/Dynamic to target C# type, using Runtime.toXxx for primitives.
    This handles boxed type mismatches (e.g., boxed int to double).
    Used when dynamic operation results need to be cast to specific types. *)
@@ -163,6 +170,7 @@ let cast_object_to_type target_cs_type object_expr =
 	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [object_expr])
 	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [object_expr])
 	| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [object_expr]))
+	| CsTypeString -> object_to_string object_expr
 	| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 		(* Object to Null<T> - use _ofDynamic for proper handling of null and boxed values *)
 		CsStaticCall (target_cs_type, "_ofDynamic", [object_expr])
@@ -220,7 +228,7 @@ let coerce_object_to_primitive cs_arg arg_type expected_type =
 		| None -> Some (CsStaticCall (runtime_type, "toLong", [cs_arg]))
 		end
 	| CsTypeByte -> Some (CsCast (CsTypeByte, cs_arg))
-	| CsTypeString -> Some (CsCast (CsTypeString, cs_arg))
+	| CsTypeString -> Some (object_to_string cs_arg)
 	| _ -> None
 
 (* Handle Null<T> to T unwrapping for exact type match.
@@ -247,7 +255,7 @@ let coerce_null_object_to_primitive cs_arg arg_type expected_type =
 		| CsTypeBool -> Some (CsStaticCall (runtime_type, "toBool", [CsField (cs_arg, "value")]))
 		| CsTypeFloat -> Some (CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [CsField (cs_arg, "value")])))
 		| CsTypeLong -> Some (CsStaticCall (runtime_type, "toLong", [CsField (cs_arg, "value")]))
-		| CsTypeString -> Some (CsCast (CsTypeString, CsField (cs_arg, "value")))
+		| CsTypeString -> Some (object_to_string (CsField (cs_arg, "value")))
 		| CsTypeClass (path, params) when path <> (["haxe"; "lang"], "Null") ->
 			Some (CsCast (CsTypeClass (path, params), CsField (cs_arg, "value")))
 		| _ -> None
@@ -260,7 +268,7 @@ let coerce_null_object_to_primitive cs_arg arg_type expected_type =
 		| CsTypeBool -> Some (CsStaticCall (runtime_type, "toBool", [cs_arg]))
 		| CsTypeFloat -> Some (CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_arg])))
 		| CsTypeLong -> Some (CsStaticCall (runtime_type, "toLong", [cs_arg]))
-		| CsTypeString -> Some (CsCast (CsTypeString, cs_arg))
+		| CsTypeString -> Some (object_to_string cs_arg)
 		| CsTypeClass (path, params) when path <> (["haxe"; "lang"], "Null") ->
 			Some (CsCast (CsTypeClass (path, params), cs_arg))
 		| _ -> None
@@ -458,7 +466,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 		| CsTypeInt | CsTypeDouble | CsTypeBool | CsTypeFloat | CsTypeLong ->
 			(* Use cast_object_to_type for primitives - handles Runtime.toXxx *)
 			cast_object_to_type expected_cs_type (CsCast (CsTypeObject, cs_arg))
-		| CsTypeString -> CsCast (CsTypeString, cs_arg)
+		| CsTypeString -> object_to_string cs_arg
 		| _ -> cs_arg  (* Non-primitive target types can use normal flow *)
 	else
 	(* Try numeric conversions first *)

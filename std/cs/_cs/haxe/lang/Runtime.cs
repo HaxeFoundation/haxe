@@ -82,6 +82,19 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Converts a dynamic value to string, handling null and boxed primitives.
+        /// Direct cast (string)obj fails when obj is a boxed int/long/bool.
+        /// This method handles all cases: null returns null, strings pass through,
+        /// other types use ToString().
+        /// </summary>
+        public static string toStr(object d)
+        {
+            if (d == null) return null;
+            if (d is string s) return s;
+            return d.ToString();
+        }
+
+        /// <summary>
         /// Invoke a delegate dynamically with the given arguments.
         /// Works with Func&lt;&gt;, Action, and other delegate types.
         /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.
