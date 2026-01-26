@@ -275,9 +275,13 @@ class Reflect {
 			return result < 0 ? -1 : (result > 0 ? 1 : 0);
 		}
 
-		// Try IComparable
-		var result:Int = untyped __cs__("((System.IComparable){0}).CompareTo({1})", a, b);
-		return result;
+		// Try IComparable - use safe pattern matching to avoid cast exception
+		// (Null<T> should never be boxed in object; if it is, fix the code generator)
+		if (untyped __cs__("{0} is System.IComparable", a)) {
+			var result:Int = untyped __cs__("((System.IComparable){0}).CompareTo({1})", a, b);
+			return result;
+		}
+		return 0;
 	}
 
 	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {

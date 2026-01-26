@@ -18,6 +18,12 @@ namespace haxe.lang
     ///
     /// For high-level Haxe semantic operations (dynamic arithmetic, array access),
     /// see cs.Cs which is written in Haxe for maintainability.
+    ///
+    /// INVARIANT: haxe.lang.Null&lt;T&gt; values must NEVER be boxed into object.
+    /// The code generator (gencs.ml) ensures all Null&lt;T&gt; to object transitions
+    /// use .toDynamic(), which produces a properly boxed T value (or null).
+    /// If a boxed Null&lt;T&gt; reaches these conversion functions, it indicates
+    /// a bug in the OCaml code generator that must be fixed there.
     /// </summary>
     public static class Runtime
     {

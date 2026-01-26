@@ -4191,8 +4191,15 @@ let rec cs_expr_of_texpr ectx e =
 					| CsTypeString -> CsStaticCall (runtime_type, "toStr", [inner_cs])
 					| _ -> CsCast (target_type, inner_cs)  (* Fallback for other types *)
 				end
+				else if is_inner_null_wrapper && not is_target_null_wrapper && (target_type = CsTypeObject || target_type = CsTypeDynamic) && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
+					(* Casting FROM Null<T> to object/Dynamic: use toDynamic() to preserve null semantics.
+					   Unlike .value which returns default(T) when hasValue=false, toDynamic() returns null.
+					   This ensures Null<T> is never boxed as-is into object (which would cause issues
+					   with IConvertible, IComparable, etc.). *)
+					CsCall (CsField (inner_cs, "toDynamic"), [])
+				end
 				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
-					(* Casting FROM Null<T> to non-Null type - use .value to unwrap, then cast if needed.
+					(* Casting FROM Null<T> to non-Null concrete type - use .value to unwrap, then cast if needed.
 					   This handles cases like (SomeInterface)(map.get(...)) where get returns Null<SomeInterface>.
 					   Uses expr_produces_csharp_null_type (SINGLE SOURCE OF TRUTH) to verify C# actually has Null<T>.
 					   Also skip if arithmetic already unwrapped, or if cast/runtime conversion already handled it. *)
@@ -5335,6 +5342,12 @@ and cs_stmt_of_texpr ectx e =
 					   Haxe knows T can be used as Float, but C# needs proper unboxing for primitives. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
 					cast_object_to_type ret_cs cs_e
+				| Some ret_t when (match cs_type_of_type ectx.gctx ret_t with CsTypeObject | CsTypeDynamic -> true | _ -> false)
+						&& expr_produces_csharp_null_type ectx.gctx e ->
+					(* Returning Null<T> to object/Dynamic: call toDynamic() to properly box.
+					   Null<T> is a custom struct that does NOT unwrap when boxed (unlike C#'s Nullable<T>),
+					   so we must explicitly call toDynamic() to get a boxed T value or null. *)
+					CsCall (CsField (cs_e, "toDynamic"), [])
 				| Some ret_t ->
 					(* Check for GADT covariance: returning SomeClass<ConcreteType> where method returns SomeClass<A>.
 					   C# generics are invariant, so we need to cast through object.
@@ -5821,8 +5834,8 @@ let generate_closure_class ectx tf func_type =
 							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])
 					end
 				| Some t ->
-					(* Other types (references): use ToDynamic() then cast *)
-					CsCast (t, CsCall (CsField (a_var, "ToDynamic"), []))
+					(* Other types: use ToDynamic() then cast_object_to_type for proper handling *)
+					cast_object_to_type t (CsCall (CsField (a_var, "ToDynamic"), []))
 				| None ->
 					(* Untyped: use ToDynamic() *)
 					CsCall (CsField (a_var, "ToDynamic"), [])
@@ -6278,8 +6291,8 @@ let generate_method_closure ectx obj_expr is_static class_path type_params cf me
 							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])
 					end
 				| Some t ->
-					(* Use ToDynamic() then cast - obj may contain sentinel for primitives *)
-					CsCast (t, CsCall (CsField (a_var, "ToDynamic"), []))
+					(* Use ToDynamic() then cast_object_to_type for proper handling *)
+					cast_object_to_type t (CsCall (CsField (a_var, "ToDynamic"), []))
 				| None ->
 					CsCall (CsField (a_var, "ToDynamic"), [])
 			) invoke_params_with_opt in

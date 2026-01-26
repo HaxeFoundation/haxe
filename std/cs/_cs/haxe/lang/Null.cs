@@ -15,6 +15,13 @@ namespace haxe.lang
     /// - Unified API using .hasValue and .value for any type
     /// - Implicit conversion to/from T
     /// - Proper arithmetic behavior (Null&lt;int&gt; + int -> int)
+    ///
+    /// IMPORTANT: Unlike C#'s native Nullable&lt;T&gt;, boxing Null&lt;T&gt; to object
+    /// does NOT unwrap to T — it stays as Null&lt;T&gt;. This means boxed Null&lt;T&gt;
+    /// won't implement IConvertible, IComparable, etc. The OCaml code generator
+    /// (gencs.ml) must ensure that Null&lt;T&gt; is NEVER implicitly boxed to object.
+    /// Use .toDynamic() to convert Null&lt;T&gt; to object (returns boxed T or null).
+    /// If you encounter a boxed Null&lt;T&gt; at runtime, fix the code generator.
     /// </summary>
     public struct Null<T>
     {
