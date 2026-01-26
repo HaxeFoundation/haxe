@@ -1245,6 +1245,94 @@ let rec cs_expr_of_texpr ectx e =
 		| OpNotEq when is_null_expr e1 && expr_produces_csharp_null_type ectx.gctx e2 ->
 			(* null != x  ->  x.hasValue *)
 			CsField (cs_expr_of_texpr ectx e2, "hasValue")
+		(* Null<T> comparison operators:
+		   When either operand is Null<T> and the other is a non-null value,
+		   the comparison should return false if the Null<T> has no value.
+		   When both are Null<T>, check both have values before comparing.
+		   This prevents the implicit conversion to T (which uses default value 0/0.0)
+		   from producing wrong results for null comparisons. *)
+		| (OpGt | OpGte | OpLt | OpLte) when expr_produces_csharp_null_type ectx.gctx e1 && not (is_null_expr e2) && not (expr_produces_csharp_null_type ectx.gctx e2) ->
+			(* Null<T> op value → nullExpr.hasValue && (nullExpr.value op value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolAnd,
+				CsField (cs_e1, "hasValue"),
+				CsBinop (cs_binop_of_binop op, CsField (cs_e1, "value"), cs_e2))
+		| (OpGt | OpGte | OpLt | OpLte) when not (is_null_expr e1) && not (expr_produces_csharp_null_type ectx.gctx e1) && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* value op Null<T> → nullExpr.hasValue && (value op nullExpr.value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolAnd,
+				CsField (cs_e2, "hasValue"),
+				CsBinop (cs_binop_of_binop op, cs_e1, CsField (cs_e2, "value")))
+		| (OpGt | OpLt) when expr_produces_csharp_null_type ectx.gctx e1 && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* Null<T> op Null<T> for > and < → a.hasValue && b.hasValue && a.value op b.value *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolAnd,
+				CsBinop (CsOpBoolAnd,
+					CsField (cs_e1, "hasValue"),
+					CsField (cs_e2, "hasValue")),
+				CsBinop (cs_binop_of_binop op, CsField (cs_e1, "value"), CsField (cs_e2, "value")))
+		| (OpGte | OpLte) when expr_produces_csharp_null_type ectx.gctx e1 && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* Null<T> op Null<T> for >= and <= → (!a.hasValue && !b.hasValue) || (a.hasValue && b.hasValue && a.value op b.value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolOr,
+				CsBinop (CsOpBoolAnd,
+					CsUnop (CsOpNot, false, CsField (cs_e1, "hasValue")),
+					CsUnop (CsOpNot, false, CsField (cs_e2, "hasValue"))),
+				CsBinop (CsOpBoolAnd,
+					CsBinop (CsOpBoolAnd,
+						CsField (cs_e1, "hasValue"),
+						CsField (cs_e2, "hasValue")),
+					CsBinop (cs_binop_of_binop op, CsField (cs_e1, "value"), CsField (cs_e2, "value"))))
+		| OpEq when expr_produces_csharp_null_type ectx.gctx e1 && not (is_null_expr e2) && not (expr_produces_csharp_null_type ectx.gctx e2) ->
+			(* Null<T> == value → nullExpr.hasValue && (nullExpr.value == value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolAnd,
+				CsField (cs_e1, "hasValue"),
+				CsBinop (CsOpEq, CsField (cs_e1, "value"), cs_e2))
+		| OpEq when not (is_null_expr e1) && not (expr_produces_csharp_null_type ectx.gctx e1) && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* value == Null<T> → nullExpr.hasValue && (value == nullExpr.value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolAnd,
+				CsField (cs_e2, "hasValue"),
+				CsBinop (CsOpEq, cs_e1, CsField (cs_e2, "value")))
+		| OpEq when expr_produces_csharp_null_type ectx.gctx e1 && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* Null<T> == Null<T> → (a.hasValue == b.hasValue) && (!a.hasValue || a.value == b.value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolAnd,
+				CsBinop (CsOpEq, CsField (cs_e1, "hasValue"), CsField (cs_e2, "hasValue")),
+				CsParens (CsBinop (CsOpBoolOr,
+					CsUnop (CsOpNot, false, CsField (cs_e1, "hasValue")),
+					CsBinop (CsOpEq, CsField (cs_e1, "value"), CsField (cs_e2, "value")))))
+		| OpNotEq when expr_produces_csharp_null_type ectx.gctx e1 && not (is_null_expr e2) && not (expr_produces_csharp_null_type ectx.gctx e2) ->
+			(* Null<T> != value → !nullExpr.hasValue || (nullExpr.value != value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolOr,
+				CsUnop (CsOpNot, false, CsField (cs_e1, "hasValue")),
+				CsBinop (CsOpNotEq, CsField (cs_e1, "value"), cs_e2))
+		| OpNotEq when not (is_null_expr e1) && not (expr_produces_csharp_null_type ectx.gctx e1) && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* value != Null<T> → !nullExpr.hasValue || (value != nullExpr.value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolOr,
+				CsUnop (CsOpNot, false, CsField (cs_e2, "hasValue")),
+				CsBinop (CsOpNotEq, cs_e1, CsField (cs_e2, "value")))
+		| OpNotEq when expr_produces_csharp_null_type ectx.gctx e1 && expr_produces_csharp_null_type ectx.gctx e2 ->
+			(* Null<T> != Null<T> → (a.hasValue != b.hasValue) || (a.hasValue && a.value != b.value) *)
+			let cs_e1 = cs_expr_of_texpr ectx e1 in
+			let cs_e2 = cs_expr_of_texpr ectx e2 in
+			CsBinop (CsOpBoolOr,
+				CsBinop (CsOpNotEq, CsField (cs_e1, "hasValue"), CsField (cs_e2, "hasValue")),
+				CsBinop (CsOpBoolAnd,
+					CsField (cs_e1, "hasValue"),
+					CsBinop (CsOpNotEq, CsField (cs_e1, "value"), CsField (cs_e2, "value"))))
 		| OpEq when is_generic_param e1.etype || is_generic_param e2.etype ->
 			(* T == T  ->  Runtime.valEq(a, b) for generic type params *)
 			CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
