@@ -297,9 +297,8 @@ class Boot {
 			}
 
 			var result = Lua.pcall(Io.popen, "");
-			var popen_status = result.status;
 			var popen_result:lua.FileHandle = result.value;
-			if (popen_status) {
+			if (result.status) {
 				popen_result.close();
 				os = lua.Io.popen('uname -s', 'r').read('*l').toLowerCase();
 			} else {
