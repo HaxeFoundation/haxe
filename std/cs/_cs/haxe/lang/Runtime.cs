@@ -97,19 +97,30 @@ namespace haxe.lang
         {
             if (d == null) return null;
             if (d is string s) return s;
+            if (d is double dbl) return dbl.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+            if (d is float flt) return flt.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             return d.ToString();
         }
 
         /// <summary>
         /// Value-based equality for Dynamic/boxed values.
         /// Unlike object.Equals(), handles cross-type numeric equality
-        /// (e.g., boxed int 0 == boxed double 0.0 returns true).
+        /// (e.g., boxed int 0 == boxed double 0.0 returns true)
+        /// and preserves IEEE 754 NaN semantics (NaN != NaN).
         /// Used by gencs.ml for == with Dynamic or generic type parameters.
         /// </summary>
         public static bool valEq(object a, object b)
         {
-            if (object.ReferenceEquals(a, b)) return true;
+            if (a == null && b == null) return true;
             if (a == null || b == null) return false;
+            // IEEE 754: NaN != anything (including NaN)
+            // Must check BEFORE ReferenceEquals (two NaN boxes could share identity)
+            // and BEFORE a.Equals(b) (double.Equals/float.Equals treat NaN as equal)
+            if (a is double da && double.IsNaN(da)) return false;
+            if (b is double db && double.IsNaN(db)) return false;
+            if (a is float fa && float.IsNaN(fa)) return false;
+            if (b is float fb && float.IsNaN(fb)) return false;
+            if (object.ReferenceEquals(a, b)) return true;
             if (a.GetType() == b.GetType()) return a.Equals(b);
             // Cross-type numeric: convert both to double
             if (IsNumeric(a) && IsNumeric(b))

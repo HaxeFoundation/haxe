@@ -125,7 +125,9 @@ namespace haxe.lang
         public override string ToString()
         {
             if (!hasValue) return "null";
-            else return value.ToString();
+            if (value is double d) return d.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+            if (value is float f) return f.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+            return value.ToString();
         }
 
         /// <summary>

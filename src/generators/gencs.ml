@@ -6980,7 +6980,27 @@ let generate_field gctx c cf is_static =
 		else
 			None
 	| Var _ ->
-		(* Simple property with no custom accessors *)
+		(* Simple property with no custom accessors.
+		   Includes initializer if present (e.g., Math.NaN = 0.0 / 0.0) *)
+		let init = match cf.cf_expr with
+			| Some e when not (expr_contains_this e) ->
+				let e = CsNullable.filter gctx.com e in
+				let ectx = create_expr_context gctx in
+				ectx.current_class_path <- Some c.cl_path;
+				ectx.current_method_name <- Some cf.cf_name;
+				let init_cs = cs_expr_of_texpr ectx e in
+				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
+				let init_cs = match init_cs with
+					| CsNull ->
+						begin match cs_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> CsDefault cs_type
+						| _ -> init_cs
+						end
+					| _ -> init_cs
+				in
+				Some init_cs
+			| _ -> None
+		in
 		Some (CsMemberProperty {
 			prop_name = name;
 			prop_type = cs_type;
@@ -6988,7 +7008,7 @@ let generate_field gctx c cf is_static =
 			prop_modifiers = modifiers;
 			prop_getter = Some { acc_access = None; acc_body = None };
 			prop_setter = Some { acc_access = None; acc_body = None };
-			prop_init = None;
+			prop_init = init;
 			prop_explicit_interface = None;
 		})
 	| Method MethNormal | Method MethInline ->

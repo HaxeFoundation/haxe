@@ -84,7 +84,7 @@ class Math {
 	}
 
 	public static inline function round(v:Float):Int {
-		return untyped __cs__("(int)System.Math.Round((double){0})", v);
+		return untyped __cs__("(int)System.Math.Floor((double){0} + 0.5)", v);
 	}
 
 	public static inline function floor(v:Float):Int {
@@ -96,7 +96,7 @@ class Math {
 	}
 
 	public static inline function fround(v:Float):Float {
-		return untyped __cs__("System.Math.Round((double){0})", v);
+		return untyped __cs__("System.Math.Floor((double){0} + 0.5)", v);
 	}
 
 	public static inline function ffloor(v:Float):Float {
