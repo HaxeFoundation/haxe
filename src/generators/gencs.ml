@@ -8189,6 +8189,17 @@ let generate_static_field_accessors gctx c =
 		| _ -> None
 	) c.cl_ordered_statics in
 
+	(* Get list of static physical property fields (only those with backing fields, i.e. @:isVar).
+	   Excludes AccNormal vars which are already in static_fields. *)
+	let static_property_fields = List.filter_map (fun cf ->
+		match cf.cf_kind with
+		| Var { v_read = AccNormal; v_write = AccNormal }
+		| Var { v_read = AccNormal; v_write = AccNever } -> None (* already in static_fields *)
+		| Var _ when is_physical_var_field cf ->
+			Some (cf.cf_name, get_cs_field_name c cf, cs_type_of_type gctx cf.cf_type)
+		| _ -> None
+	) c.cl_ordered_statics in
+
 	(* Get list of static methods (MethNormal and MethInline only)
 	   Exclude generic methods since they can't be invoked dynamically. *)
 	let static_methods = List.filter_map (fun cf ->
@@ -8209,8 +8220,32 @@ let generate_static_field_accessors gctx c =
 	) static_methods in
 
 	let method_count = List.length static_methods in
-	let all_field_names = List.map (fun (name, _, _) -> name) static_fields in
+	let all_data_field_names = List.map (fun (name, _, _) -> name) static_fields in
+	let all_property_field_names = List.map (fun (name, _, _) -> name) static_property_fields in
 	let all_method_names = List.map (fun (name, _, _, _, _) -> name) static_methods in
+
+	(* Compute instance field names for Type.getInstanceFields() registry *)
+	let all_instance_field_names =
+		let instance_data_names = List.filter_map (fun cf ->
+			match cf.cf_kind with
+			| Var { v_read = AccNormal; v_write = AccNormal }
+			| Var { v_read = AccNormal; v_write = AccNever } -> Some cf.cf_name
+			| _ -> None
+		) c.cl_ordered_fields in
+		let instance_property_names = List.filter_map (fun cf ->
+			match cf.cf_kind with
+			| Var { v_read = AccNormal; v_write = AccNormal }
+			| Var { v_read = AccNormal; v_write = AccNever } -> None (* already in data_names *)
+			| Var _ when is_physical_var_field cf -> Some cf.cf_name
+			| _ -> None
+		) c.cl_ordered_fields in
+		let instance_method_names = List.filter_map (fun cf ->
+			match cf.cf_kind with
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] -> Some cf.cf_name
+			| _ -> None
+		) c.cl_ordered_fields in
+		instance_data_names @ instance_property_names @ instance_method_names
+	in
 
 	(* Get C# path and type for this class *)
 	let cs_path = cs_path_of_path c.cl_path in
@@ -8229,8 +8264,32 @@ let generate_static_field_accessors gctx c =
 	in
 	let bind_modifiers = if bind_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
-	(* If no static fields and no static methods, just generate empty _hx_bind *)
+	(* If no static data fields and no static methods,
+	   generate a minimal _hx_bind that only registers field name arrays (no getter/checker) *)
 	if static_fields = [] && static_methods = [] then
+		let bind_body =
+			(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).Name); *)
+			let get_or_create = CsVarDecl (
+				"acc",
+				Some static_accessors_type,
+				Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
+					CsField (CsTypeOf cs_class_type, "Name")
+				]))
+			) in
+			(* acc.classFieldNames = new string[] { ... }; (property names only, no data fields/methods) *)
+			let set_class_field_names = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "classFieldNames"),
+				CsNewArray (CsTypeString,
+					List.map (fun name -> CsConst (CsConstString name)) all_property_field_names)
+			)) in
+			(* acc.instanceFieldNames = new string[] { ... }; *)
+			let set_instance_field_names = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "instanceFieldNames"),
+				CsNewArray (CsTypeString,
+					List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
+			)) in
+			[get_or_create; set_class_field_names; set_instance_field_names]
+		in
 		[CsMemberMethod {
 			m_name = "_hx_bind";
 			m_return_type = CsTypeVoid;
@@ -8238,7 +8297,7 @@ let generate_static_field_accessors gctx c =
 			m_modifiers = bind_modifiers;
 			m_type_params = [];
 			m_params = [];
-			m_body = Some [];  (* Empty method body *)
+			m_body = Some bind_body;
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
@@ -8437,7 +8496,7 @@ let generate_static_field_accessors gctx c =
 	       }
 	   }
 	*)
-	let all_names = all_field_names @ all_method_names in
+	let all_names = all_data_field_names @ all_method_names in
 	let has_field_sections = if all_names = [] then [] else [{
 		sw_labels = List.map (fun name -> CsCaseConst (CsConst (CsConstString name))) all_names;
 		sw_body = [CsReturn (Some (CsConst (CsConstBool true)))];
@@ -8487,13 +8546,19 @@ let generate_static_field_accessors gctx c =
 			CsField (CsLocal "acc", "checker"),
 			CsStaticField (cs_class_type, "_hx_hasStaticField")
 		)) in
-		(* acc.fieldNames = new string[] { ... }; *)
-		let set_field_names = CsExprStmt (CsBinop (CsOpAssign,
-			CsField (CsLocal "acc", "fieldNames"),
+		(* acc.classFieldNames = new string[] { ... }; *)
+		let set_class_field_names = CsExprStmt (CsBinop (CsOpAssign,
+			CsField (CsLocal "acc", "classFieldNames"),
 			CsNewArray (CsTypeString,
-				List.map (fun name -> CsConst (CsConstString name)) (all_field_names @ all_method_names))
+				List.map (fun name -> CsConst (CsConstString name)) (all_data_field_names @ all_property_field_names @ all_method_names))
 		)) in
-		[get_or_create; set_getter; set_checker; set_field_names]
+		(* acc.instanceFieldNames = new string[] { ... }; *)
+		let set_instance_field_names = CsExprStmt (CsBinop (CsOpAssign,
+			CsField (CsLocal "acc", "instanceFieldNames"),
+			CsNewArray (CsTypeString,
+				List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
+		)) in
+		[get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names]
 	in
 	let bind_method = CsMemberMethod {
 		m_name = "_hx_bind";

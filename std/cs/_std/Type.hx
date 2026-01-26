@@ -211,40 +211,18 @@ class Type {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		if (c == null)
 			return [];
+		// Walk up the class hierarchy collecting instance field names from the registry
 		var result:Array<String> = [];
-		// c is System.Type - get fields directly
-		var fields:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", c);
-		var fieldCount:Int = untyped __cs__("((System.Reflection.FieldInfo[]){0}).Length", fields);
-		for (i in 0...fieldCount) {
-			var field:Dynamic = untyped __cs__("((System.Reflection.FieldInfo[]){0})[{1}]", fields, i);
-			var name:String = untyped __cs__("((System.Reflection.FieldInfo){0}).Name", field);
-			if (!StringTools.startsWith(name, "_hx_"))
-				result.push(name);
-		}
-		// Get properties (C# auto-properties are generated for Haxe fields)
-		var properties:Dynamic = untyped __cs__("((System.Type){0}).GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", c);
-		var propCount:Int = untyped __cs__("((System.Reflection.PropertyInfo[]){0}).Length", properties);
-		for (i in 0...propCount) {
-			var prop:Dynamic = untyped __cs__("((System.Reflection.PropertyInfo[]){0})[{1}]", properties, i);
-			var name:String = untyped __cs__("((System.Reflection.PropertyInfo){0}).Name", prop);
-			// Skip internal properties
-			if (!StringTools.startsWith(name, "_hx_")) {
-				if (result.indexOf(name) == -1)
-					result.push(name);
+		var current = c;
+		while (current != null) {
+			var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getInstanceFieldNames((System.Type){0})", current);
+			if (names != null) {
+				for (i in 0...names.length) {
+					if (result.indexOf(names[i]) == -1)
+						result.push(names[i]);
+				}
 			}
-		}
-		// Get methods
-		var methods:Dynamic = untyped __cs__("((System.Type){0}).GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", c);
-		var methodCount:Int = untyped __cs__("((System.Reflection.MethodInfo[]){0}).Length", methods);
-		for (i in 0...methodCount) {
-			var method:Dynamic = untyped __cs__("((System.Reflection.MethodInfo[]){0})[{1}]", methods, i);
-			var name:String = untyped __cs__("((System.Reflection.MethodInfo){0}).Name", method);
-			// Skip special methods and inherited Object methods
-			if (!StringTools.startsWith(name, "_hx_") && !StringTools.startsWith(name, "get_") && !StringTools.startsWith(name, "set_") && name != "GetType"
-				&& name != "ToString" && name != "Equals" && name != "GetHashCode") {
-				if (result.indexOf(name) == -1)
-					result.push(name);
-			}
+			current = getSuperClass(current);
 		}
 		return result;
 	}
@@ -254,7 +232,7 @@ class Type {
 			return [];
 
 		// Try AOT-safe registry first
-		var fieldNames:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getFieldNames((System.Type){0})", c);
+		var fieldNames:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getClassFieldNames((System.Type){0})", c);
 		if (fieldNames != null) {
 			var result:Array<String> = [];
 			for (i in 0...fieldNames.length) {
@@ -292,7 +270,7 @@ class Type {
 		for (i in 0...methodCount) {
 			var method:Dynamic = untyped __cs__("((System.Reflection.MethodInfo[]){0})[{1}]", methods, i);
 			var name:String = untyped __cs__("((System.Reflection.MethodInfo){0}).Name", method);
-			if (!StringTools.startsWith(name, "_hx_") && !StringTools.startsWith(name, "get_") && !StringTools.startsWith(name, "set_")) {
+			if (!StringTools.startsWith(name, "_hx_")) {
 				if (result.indexOf(name) == -1)
 					result.push(name);
 			}

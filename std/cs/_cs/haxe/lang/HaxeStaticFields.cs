@@ -58,15 +58,29 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Returns the array of static field names for a type, or null if not registered.
+        /// Returns the array of static (class) field names for a type, or null if not registered.
         /// Used by Type.getClassFields() for AOT-safe field enumeration.
         /// </summary>
-        public static string[] getFieldNames(System.Type type)
+        public static string[] getClassFieldNames(System.Type type)
         {
             StaticAccessors acc;
             if (registry.TryGetValue(type.Name, out acc))
             {
-                return acc.fieldNames;
+                return acc.classFieldNames;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the array of instance field names for a type, or null if not registered.
+        /// Used by Type.getInstanceFields() for AOT-safe field enumeration.
+        /// </summary>
+        public static string[] getInstanceFieldNames(System.Type type)
+        {
+            StaticAccessors acc;
+            if (registry.TryGetValue(type.Name, out acc))
+            {
+                return acc.instanceFieldNames;
             }
             return null;
         }

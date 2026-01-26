@@ -21,6 +21,7 @@ namespace haxe.lang
     {
         public StaticFieldGetter getter;
         public StaticFieldChecker checker;
-        public string[] fieldNames;
+        public string[] classFieldNames;
+        public string[] instanceFieldNames;
     }
 }
