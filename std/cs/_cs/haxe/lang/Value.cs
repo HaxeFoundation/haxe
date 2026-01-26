@@ -15,9 +15,22 @@ namespace haxe.lang
     ///
     /// Sentinel logic (checked via reference equality):
     /// - obj == NoValue: No value (missing optional argument, or void return)
-    /// - obj == PrimValue: Primitive value in prim field (int, long, bool stored directly)
+    /// - obj == PrimValue: int/long/bool value in prim field
     /// - obj == PrimDoubleEncoded: double/float value encoded via BitConverter in prim field
     /// - obj == anything else (including null): Object value in obj field
+    ///
+    /// DESIGN NOTE: We intentionally use only a single PrimValue sentinel for all
+    /// primitive types (int, long, bool). We do NOT distinguish between them at
+    /// the Value level. This means ToDynamic() always boxes the long field as Int64.
+    ///
+    /// This is fine because:
+    /// - The typed extraction methods (ToInt, ToBool, etc.) work directly on the
+    ///   prim field without boxing — no sentinel discrimination needed
+    /// - When boxing IS needed (ToDynamic for reflection/dynamic calls), the
+    ///   consumer should use Runtime.toInt() / Runtime.toBool() / Runtime.toLong()
+    ///   which handle cross-type unboxing (e.g., Int64 → Int32) correctly
+    /// - Adding more sentinels would increase struct size and branch complexity
+    ///   for minimal benefit, since the typed paths don't need them
     /// </summary>
     public struct Value
     {
@@ -293,15 +306,17 @@ namespace haxe.lang
         /// Convert to dynamic object for reflection/invokeDynamic.
         /// This is the ONLY place where boxing may occur - when converting
         /// to fully dynamic representation for reflection APIs.
+        /// Always boxes the prim field as Int64 (see DESIGN NOTE above).
+        /// Consumers should use Runtime.toInt/toBool/toLong for proper unboxing.
         /// </summary>
         public object ToDynamic()
         {
             if (ReferenceEquals(obj, NoValue))
                 return null;
             if (ReferenceEquals(obj, PrimDoubleEncoded))
-                return global::System.BitConverter.Int64BitsToDouble(prim);  // Decode and box as double
+                return global::System.BitConverter.Int64BitsToDouble(prim);  // Box as Double
             if (ReferenceEquals(obj, PrimValue))
-                return prim;  // Box primitive as long (works for int, bool)
+                return prim;  // Box as Int64 — use Runtime.toInt/toBool/toLong for unboxing
             return obj;
         }
 

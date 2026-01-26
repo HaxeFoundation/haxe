@@ -29,71 +29,83 @@ namespace haxe.lang
         private readonly Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> _invoke8;
         private readonly Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> _invoke9;
         private readonly Func<global::haxe.root.Array, object> _invokeDynamic;
+        private readonly int _arity;
 
         // Constructor for arity 0
         public FastStaticMethodClosure(Func<Value> invoke)
         {
             _invoke0 = invoke;
+            _arity = 0;
         }
 
         // Constructor for arity 1
         public FastStaticMethodClosure(Func<Value, Value> invoke)
         {
             _invoke1 = invoke;
+            _arity = 1;
         }
 
         // Constructor for arity 2
         public FastStaticMethodClosure(Func<Value, Value, Value> invoke)
         {
             _invoke2 = invoke;
+            _arity = 2;
         }
 
         // Constructor for arity 3
         public FastStaticMethodClosure(Func<Value, Value, Value, Value> invoke)
         {
             _invoke3 = invoke;
+            _arity = 3;
         }
 
         // Constructor for arity 4
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value> invoke)
         {
             _invoke4 = invoke;
+            _arity = 4;
         }
 
         // Constructor for arity 5
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke5 = invoke;
+            _arity = 5;
         }
 
         // Constructor for arity 6
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke6 = invoke;
+            _arity = 6;
         }
 
         // Constructor for arity 7
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke7 = invoke;
+            _arity = 7;
         }
 
         // Constructor for arity 8
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke8 = invoke;
+            _arity = 8;
         }
 
         // Constructor for arity 9
         public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke9 = invoke;
+            _arity = 9;
         }
 
         // Constructor for dynamic (10+ args)
         public FastStaticMethodClosure(Func<global::haxe.root.Array, object> invoke)
         {
             _invokeDynamic = invoke;
+            _arity = -1;
         }
 
         // ============================================================
@@ -216,90 +228,101 @@ namespace haxe.lang
             return Value.FromObject(invokeDynamic(args));
         }
 
+        /// <summary>
+        /// Get the i-th argument from the array, or Value.Missing() if beyond the passed arg count.
+        /// </summary>
+        private static Value ArgOrMissing(global::haxe.root.Array args, int len, int i)
+        {
+            return i < len ? Value.FromObject(args.__getDyn(i)) : Value.Missing();
+        }
+
         // ============================================================
-        // Dynamic invocation - dispatches by argument count
+        // Dynamic invocation - dispatches by declared arity
+        // When fewer args are passed than declared, pads with Missing()
         // ============================================================
 
         public override object invokeDynamic(global::haxe.root.Array args)
         {
             int len = (args != null) ? args.length : 0;
+            int dispatchArity = Math.Max(len, _arity);
 
-            // Use direct delegate if available for the arity
-            switch (len)
+            // Dispatch based on declared arity (or actual arg count if higher)
+            switch (dispatchArity)
             {
                 case 0:
                     if (_invoke0 != null) return _invoke0().ToDynamic();
                     break;
                 case 1:
-                    if (_invoke1 != null) return _invoke1(Value.FromObject(args.__getDyn(0))).ToDynamic();
+                    if (_invoke1 != null) return _invoke1(
+                        ArgOrMissing(args, len, 0)).ToDynamic();
                     break;
                 case 2:
                     if (_invoke2 != null) return _invoke2(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1)).ToDynamic();
                     break;
                 case 3:
                     if (_invoke3 != null) return _invoke3(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2)).ToDynamic();
                     break;
                 case 4:
                     if (_invoke4 != null) return _invoke4(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3)).ToDynamic();
                     break;
                 case 5:
                     if (_invoke5 != null) return _invoke5(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4)).ToDynamic();
                     break;
                 case 6:
                     if (_invoke6 != null) return _invoke6(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5)).ToDynamic();
                     break;
                 case 7:
                     if (_invoke7 != null) return _invoke7(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5)),
-                        Value.FromObject(args.__getDyn(6))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5),
+                        ArgOrMissing(args, len, 6)).ToDynamic();
                     break;
                 case 8:
                     if (_invoke8 != null) return _invoke8(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5)),
-                        Value.FromObject(args.__getDyn(6)),
-                        Value.FromObject(args.__getDyn(7))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5),
+                        ArgOrMissing(args, len, 6),
+                        ArgOrMissing(args, len, 7)).ToDynamic();
                     break;
                 case 9:
                     if (_invoke9 != null) return _invoke9(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5)),
-                        Value.FromObject(args.__getDyn(6)),
-                        Value.FromObject(args.__getDyn(7)),
-                        Value.FromObject(args.__getDyn(8))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5),
+                        ArgOrMissing(args, len, 6),
+                        ArgOrMissing(args, len, 7),
+                        ArgOrMissing(args, len, 8)).ToDynamic();
                     break;
             }
 
@@ -309,7 +332,7 @@ namespace haxe.lang
                 return _invokeDynamic(args);
             }
 
-            throw new InvalidOperationException("No suitable invoker for argument count: " + len);
+            throw new InvalidOperationException("No suitable invoker for argument count: " + dispatchArity);
         }
 
         public new static void _hx_bind() { }

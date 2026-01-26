@@ -843,9 +843,9 @@ let generate_closure_name gctx ectx =
 let generate_closure_class_ref : (expr_context -> tfunc -> Type.t -> cs_expr) ref = ref (fun _ _ _ -> failwith "Not initialized")
 
 (* Forward declaration for method closure generation - implemented below *)
-(* Parameters: ectx, obj_expr (CsThis or CsLocal), is_static, class_path, type_params, class_field, method_type *)
-let generate_method_closure_ref : (expr_context -> cs_expr option -> bool -> path -> Type.t list -> tclass_field -> Type.t -> cs_expr) ref =
-	ref (fun _ _ _ _ _ _ _ -> failwith "Not initialized")
+(* Parameters: ectx, obj_expr (CsThis or CsLocal), is_static, tclass option, class_path, type_params, class_field, method_type *)
+let generate_method_closure_ref : (expr_context -> cs_expr option -> bool -> tclass option -> path -> Type.t list -> tclass_field -> Type.t -> cs_expr) ref =
+	ref (fun _ _ _ _ _ _ _ _ -> failwith "Not initialized")
 
 (* Get the first valid class/interface constraint for a type parameter.
    Returns Some(constraint_type) if found, None otherwise.
@@ -1975,7 +1975,7 @@ let rec cs_expr_of_texpr ectx e =
 			let map_type = apply_params c.cl_params tl in
 			let method_type = map_type cf.cf_type in
 			(* Generate closure class that captures 'this' and calls the method *)
-			!generate_method_closure_ref ectx (Some obj_expr) false c.cl_path tl cf method_type
+			!generate_method_closure_ref ectx (Some obj_expr) false (Some c) c.cl_path tl cf method_type
 		end
 	| TField (e, FClosure (None, cf)) ->
 		(* Static method closure - generate a closure class that wraps the static method call.
@@ -1983,7 +1983,7 @@ let rec cs_expr_of_texpr ectx e =
 		begin match e.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(* Static closure - generate closure class with no captures *)
-			!generate_method_closure_ref ectx None true c.cl_path [] cf cf.cf_type
+			!generate_method_closure_ref ectx None true (Some c) c.cl_path [] cf cf.cf_type
 		| TTypeExpr mt ->
 			(* Other module type - fallback to field access (shouldn't happen for methods) *)
 			let t = type_of_module_type mt in
@@ -2023,7 +2023,7 @@ let rec cs_expr_of_texpr ectx e =
 		in
 		if is_real_method then
 			(* Static method reference - generate closure class *)
-			!generate_method_closure_ref ectx None true c.cl_path [] cf cf.cf_type
+			!generate_method_closure_ref ectx None true (Some c) c.cl_path [] cf cf.cf_type
 		else begin
 			(* Static field access - normal field reference *)
 			(* Special handling for String and Array *)
@@ -5042,20 +5042,23 @@ and cs_stmt_of_texpr ectx e =
 						extra_prefix_stmts := [CsVarDecl (tmp_name, Some CsTypeObject, Some init_cs)];
 						let tmp_ref = CsLocal tmp_name in
 						let null_check = CsBinop (CsOpNotEq, tmp_ref, CsNull) in
-						let converted_value = CsCast (inner_var, tmp_ref) in
+						let converted_value = cast_object_to_type inner_var tmp_ref in
 						let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
 						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
 						CsTernary (null_check, true_branch, false_branch)
 					end
 					else begin
 						let null_check = CsBinop (CsOpNotEq, init_cs, CsNull) in
-						let converted_value = CsCast (inner_var, init_cs) in
+						let converted_value = cast_object_to_type inner_var init_cs in
 						let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
 						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
 						CsTernary (null_check, true_branch, false_branch)
 					end
-				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool | CsTypeString | CsTypeClass _) when not is_var_null_type ->
-					(* Dynamic -> specific type (but NOT Null<T>): need runtime cast *)
+				| (CsTypeObject | CsTypeDynamic), (CsTypeInt | CsTypeLong | CsTypeFloat | CsTypeDouble | CsTypeBool) when not is_var_null_type ->
+					(* Dynamic -> primitive: use Runtime.toXxx for proper unboxing *)
+					cast_object_to_type var_type init_cs
+				| (CsTypeObject | CsTypeDynamic), (CsTypeString | CsTypeClass _) when not is_var_null_type ->
+					(* Dynamic -> string/reference type: direct cast is fine *)
 					CsCast (var_type, init_cs)
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _), (CsTypeObject | CsTypeDynamic) when not is_init_already_unwrapped && not is_init_object_cast && not is_init_runtime_conversion && is_init_produces_null ->
 					(* Null<T> -> object/Dynamic: use toDynamic() to get boxed value or null
@@ -6069,6 +6072,52 @@ let generate_closure_class ectx tf func_type =
 (* Initialize the forward reference *)
 let () = generate_closure_class_ref := generate_closure_class
 
+(* Compute the total number of indexable instance methods across all ancestor classes.
+   Used to offset method indices so they don't collide in the inheritance hierarchy.
+   Each class's method indices start after the parent's highest index, ensuring that
+   virtual dispatch of _hx_invokeMethodN never hits the wrong class's case. *)
+let rec compute_ancestor_method_count c =
+	match c.cl_super with
+	| None -> 0
+	| Some (parent, _) ->
+		let parent_methods = List.filter (fun cf ->
+			match cf.cf_kind with
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] -> true
+			| _ -> false
+		) parent.cl_ordered_fields in
+		List.length parent_methods + compute_ancestor_method_count parent
+
+(* Compute the method index for an instance method within its class.
+   Returns a hierarchically-unique index (offset by ancestor method count)
+   so indices don't collide across the inheritance chain.
+   Returns Some(index) if the method is indexable, None for generic/non-indexable methods. *)
+let compute_instance_method_index c cf =
+	let ancestor_count = compute_ancestor_method_count c in
+	let methods = List.filter (fun cf2 ->
+		match cf2.cf_kind with
+		| Method (MethNormal | MethInline) when not (has_class_field_flag cf2 CfStatic) && cf2.cf_params = [] -> true
+		| _ -> false
+	) c.cl_ordered_fields in
+	let rec find i = function
+		| [] -> None
+		| cf2 :: rest -> if cf2.cf_name = cf.cf_name then Some (i + ancestor_count) else find (i + 1) rest
+	in
+	find 0 methods
+
+(* Compute the static method index for a static method within its class.
+   Mirrors the filtering logic in generate_static_field_accessors (line 8076). *)
+let compute_static_method_index c cf =
+	let methods = List.filter (fun cf2 ->
+		match cf2.cf_kind with
+		| Method (MethNormal | MethInline) when cf2.cf_params = [] -> true
+		| _ -> false
+	) c.cl_ordered_statics in
+	let rec find i = function
+		| [] -> None
+		| cf2 :: rest -> if cf2.cf_name = cf.cf_name then Some i else find (i + 1) rest
+	in
+	find 0 methods
+
 (* Generate a closure class for a method reference (FClosure) and return a CsNew expression.
    This is used when a method is referenced but not called, e.g., `this.add` or `Calculator.staticAdd`.
    C# doesn't allow converting method groups to haxe.lang.Function directly, so we generate a wrapper class.
@@ -6077,12 +6126,39 @@ let () = generate_closure_class_ref := generate_closure_class
    - ectx: expression context
    - obj_expr: Optional CsExpr for the object (None for static methods)
    - is_static: true for static methods
+   - c_opt: optional tclass for cached closure fast path
    - class_path: path of the class containing the method
    - type_params: type parameters applied to the class
    - cf: the class field (method) being referenced
    - method_type: the type of the method (TFun)
 *)
-let generate_method_closure ectx obj_expr is_static class_path type_params cf method_type =
+let rec generate_method_closure ectx obj_expr is_static c_opt class_path type_params cf method_type =
+	(* Fast path: use cached FastMethodClosure/FastStaticMethodClosure when possible.
+	   This reuses the same infrastructure as _hx_getField, ensuring that method closures
+	   for the same method on the same object are reference-equal (important for == checks).
+	   Only available for concrete Haxe classes (not interfaces, not externs). *)
+	match c_opt with
+	| Some c when not is_static && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
+		begin match compute_instance_method_index c cf with
+		| Some idx ->
+			let arity = match follow cf.cf_type with TFun(args, _) -> List.length args | _ -> 0 in
+			let obj = match obj_expr with Some e -> e | None -> CsThis in
+			CsCall (CsField (obj, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx)); CsConst (CsConstInt (Int32.of_int arity))])
+		| None ->
+			generate_method_closure_fallback ectx obj_expr is_static class_path type_params cf method_type
+		end
+	| Some c when is_static && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
+		begin match compute_static_method_index c cf with
+		| Some idx ->
+			let cs_type = CsTypeClass (cs_path_of_path class_path, []) in
+			CsCall (CsStaticField (cs_type, "_hx_getStaticMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx))])
+		| None ->
+			generate_method_closure_fallback ectx obj_expr is_static class_path type_params cf method_type
+		end
+	| _ ->
+		generate_method_closure_fallback ectx obj_expr is_static class_path type_params cf method_type
+
+and generate_method_closure_fallback ectx obj_expr is_static class_path type_params cf method_type =
 	let gctx = ectx.gctx in
 
 	(* Extract parameter and return types from method_type *)
@@ -7446,6 +7522,13 @@ let generate_constructor gctx c cf field_init_stmts =
 		}
 	) args in
 
+	(* Extract tf_args for optional parameter defaults.
+	   Must be done before extract_super_call strips the TFunction wrapper. *)
+	let tf_args = match cf.cf_expr with
+		| Some { eexpr = TFunction tf } -> tf.tf_args
+		| _ -> []
+	in
+
 	(* Extract super call and body from constructor expression *)
 	let (super_args, body_expr) = match cf.cf_expr with
 		| Some e -> extract_super_call e
@@ -7559,7 +7642,19 @@ let generate_constructor gctx c cf field_init_stmts =
 				| Some e -> generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"_hx_new" e
 				| None -> []
 			in
-			field_init_stmts @ base_new_call @ body_stmts
+			(* Generate preamble for optional parameters with default values *)
+			let default_preamble = if tf_args = [] then [] else begin
+				let ectx = create_expr_context gctx in
+				ectx.current_class_path <- Some c.cl_path;
+				ectx.current_method_name <- Some "_hx_new";
+				List.iter (fun (v, _) ->
+					let param_name = escape_identifier v.v_name in
+					ectx.local_vars <- (v.v_id, param_name) :: ectx.local_vars;
+					ectx.used_names <- param_name :: ectx.used_names
+				) tf_args;
+				generate_optional_param_defaults ectx gctx tf_args
+			end in
+			field_init_stmts @ base_new_call @ default_preamble @ body_stmts
 		in
 		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
 		let hx_new_body = match cf.cf_expr with
@@ -7679,11 +7774,24 @@ let generate_constructor gctx c cf field_init_stmts =
 			| _ -> []
 		in
 
+		(* Generate preamble for optional parameters with default values *)
+		let default_preamble = if tf_args = [] then [] else begin
+			let ectx = create_expr_context gctx in
+			ectx.current_class_path <- Some c.cl_path;
+			ectx.current_method_name <- Some "new";
+			List.iter (fun (v, _) ->
+				let param_name = escape_identifier v.v_name in
+				ectx.local_vars <- (v.v_id, param_name) :: ectx.local_vars;
+				ectx.used_names <- param_name :: ectx.used_names
+			) tf_args;
+			generate_optional_param_defaults ectx gctx tf_args
+		end in
+
 		(* Generate constructor body - prepend field initializations that contain 'this'.
 		   Use adjusted_body_expr which has dependency statements removed (they're in the IIFE). *)
 		let ctor_body = match adjusted_body_expr with
-			| Some e -> field_init_stmts @ extra_body_stmts @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e
-			| None -> field_init_stmts @ extra_body_stmts
+			| Some e -> field_init_stmts @ extra_body_stmts @ default_preamble @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e
+			| None -> field_init_stmts @ extra_body_stmts @ default_preamble
 		in
 		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
 		let ctor_body = match cf.cf_expr with
@@ -7784,9 +7892,14 @@ let generate_field_accessors gctx c =
 			| _ -> None
 		) c.cl_ordered_fields in
 
-		(* Assign sequential indexes to methods *)
+		(* Compute ancestor method count for hierarchical index offset.
+		   Each class's method indices start after all ancestor indices,
+		   preventing collisions when FastMethodClosure uses virtual _hx_invokeMethodN dispatch. *)
+		let ancestor_method_count = compute_ancestor_method_count c in
+
+		(* Assign sequential indexes to methods, offset by ancestor method count *)
 		let indexed_methods = List.mapi (fun idx (name, native_name, arity, args, ret) ->
-			(idx, name, native_name, arity, args, ret)
+			(idx + ancestor_method_count, name, native_name, arity, args, ret)
 		) instance_methods in
 
 		let method_count = List.length instance_methods in
@@ -7808,23 +7921,28 @@ let generate_field_accessors gctx c =
 			};
 		] in
 
-		(* Generate _hx_getMethodClosure helper method:
-		   private haxe.lang.FastMethodClosure _hx_getMethodClosure(int index) {
-		       if (_hx_closureCache == null)
-		           _hx_closureCache = new haxe.lang.FastMethodClosure[N];
-		       if (_hx_closureCache[index] == null)
-		           _hx_closureCache[index] = new haxe.lang.FastMethodClosure(this, index);
-		       return _hx_closureCache[index];
-		   }
-		*)
+		(* Generate _hx_getMethodClosure helper method.
+		   Cache uses local indices (0..method_count-1) but FastMethodClosure stores the
+		   global index (offset by ancestor_method_count) for _hx_invokeMethodN dispatch. *)
+
+		(* Expression to convert global index to local cache index *)
+		let cache_index_expr = if ancestor_method_count = 0 then
+			CsLocal "index"
+		else
+			CsBinop (CsOpSub, CsLocal "index", CsConst (CsConstInt (Int32.of_int ancestor_method_count)))
+		in
+
 		let get_method_closure_members = if method_count = 0 then [] else [
 			CsMemberMethod {
 				m_name = "_hx_getMethodClosure";
 				m_return_type = fast_method_closure_type;
-				m_access = AccessModifier.Private;
+				m_access = AccessModifier.Internal;
 				m_modifiers = [];
 				m_type_params = [];
-				m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
+				m_params = [
+					{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None };
+					{ p_name = "arity"; p_type = Some CsTypeInt; p_default = None; p_modifier = None };
+				];
 				m_body = Some [
 					(* if (_hx_closureCache == null) _hx_closureCache = new FastMethodClosure[method_count]; *)
 					CsIf (
@@ -7835,17 +7953,17 @@ let generate_field_accessors gctx c =
 						)),
 						None
 					);
-					(* if (_hx_closureCache[index] == null) _hx_closureCache[index] = new FastMethodClosure(this, index); *)
+					(* if (_hx_closureCache[localIdx] == null) _hx_closureCache[localIdx] = new FastMethodClosure(this, index, arity); *)
 					CsIf (
-						CsBinop (CsOpEq, CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index"), CsConst CsConstNull),
+						CsBinop (CsOpEq, CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr), CsConst CsConstNull),
 						CsExprStmt (CsBinop (CsOpAssign,
-							CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index"),
-							CsNew (fast_method_closure_type, [CsThis; CsLocal "index"])
+							CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr),
+							CsNew (fast_method_closure_type, [CsThis; CsLocal "index"; CsLocal "arity"])
 						)),
 						None
 					);
-					(* return _hx_closureCache[index]; *)
-					CsReturn (Some (CsArrayAccess (CsField (CsThis, "_hx_closureCache"), CsLocal "index")));
+					(* return _hx_closureCache[localIdx]; *)
+					CsReturn (Some (CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr)));
 				];
 				m_constraints = [];
 				m_explicit_interface = None;
@@ -7869,10 +7987,10 @@ let generate_field_accessors gctx c =
 				sw_body = [CsReturn (Some (CsField (CsThis, name)))];
 			}
 		) instance_fields in
-		let get_method_sections = List.map (fun (idx, name, _, _, _, _) ->
+		let get_method_sections = List.map (fun (idx, name, _, arity, _, _) ->
 			{
 				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
-				sw_body = [CsReturn (Some (CsCall (CsField (CsThis, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx))])))];
+				sw_body = [CsReturn (Some (CsCall (CsField (CsThis, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx)); CsConst (CsConstInt (Int32.of_int arity))])))];
 			}
 		) indexed_methods in
 		let get_field_default = {
@@ -8242,7 +8360,7 @@ let generate_static_field_accessors gctx c =
 		[CsMemberMethod {
 			m_name = "_hx_getStaticMethodClosure";
 			m_return_type = fast_static_method_closure_type;
-			m_access = AccessModifier.Private;
+			m_access = AccessModifier.Internal;
 			m_modifiers = [MemberModifier.Static];
 			m_type_params = [];
 			m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];

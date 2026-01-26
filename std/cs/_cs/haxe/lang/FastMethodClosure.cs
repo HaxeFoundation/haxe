@@ -23,11 +23,13 @@ namespace haxe.lang
     {
         private readonly global::haxe.root.HaxeObject _obj;
         private readonly int _index;
+        private readonly int _arity;
 
-        public FastMethodClosure(global::haxe.root.HaxeObject obj, int index)
+        public FastMethodClosure(global::haxe.root.HaxeObject obj, int index, int arity)
         {
             _obj = obj;
             _index = index;
+            _arity = arity;
         }
 
         /// <summary>
@@ -39,6 +41,11 @@ namespace haxe.lang
         /// Gets the method index within the target object.
         /// </summary>
         public int MethodIndex => _index;
+
+        /// <summary>
+        /// Gets the declared arity (number of parameters) of the method.
+        /// </summary>
+        public int Arity => _arity;
 
         // ============================================================
         // Zero-allocation fast paths (0-9 args)
@@ -95,82 +102,93 @@ namespace haxe.lang
             return _obj._hx_invokeMethod9(_index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
         }
 
+        /// <summary>
+        /// Get the i-th argument from the array, or Value.Missing() if beyond the passed arg count.
+        /// This ensures optional parameters receive proper "missing" values when fewer args are passed.
+        /// </summary>
+        private static Value ArgOrMissing(global::haxe.root.Array args, int len, int i)
+        {
+            return i < len ? Value.FromObject(args.__getDyn(i)) : Value.Missing();
+        }
+
         // ============================================================
-        // Dynamic invocation - dispatches by argument count
+        // Dynamic invocation - dispatches by declared arity
+        // When fewer args are passed than declared, pads with Missing()
         // ============================================================
 
         public override object invokeDynamic(global::haxe.root.Array args)
         {
             int len = (args != null) ? args.length : 0;
+            int dispatchArity = Math.Max(len, _arity);
 
-            // Dispatch based on argument count to the appropriate fast path
-            // Use __getDyn() for array access since storage type is not known
-            switch (len)
+            // Dispatch based on declared arity (or actual arg count if higher)
+            switch (dispatchArity)
             {
                 case 0:
                     return __hx_invoke0().ToDynamic();
                 case 1:
-                    return __hx_invoke1(Value.FromObject(args.__getDyn(0))).ToDynamic();
+                    return __hx_invoke1(
+                        ArgOrMissing(args, len, 0)).ToDynamic();
                 case 2:
                     return __hx_invoke2(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1)).ToDynamic();
                 case 3:
                     return __hx_invoke3(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2)).ToDynamic();
                 case 4:
                     return __hx_invoke4(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3)).ToDynamic();
                 case 5:
                     return __hx_invoke5(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4)).ToDynamic();
                 case 6:
                     return __hx_invoke6(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5)).ToDynamic();
                 case 7:
                     return __hx_invoke7(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5)),
-                        Value.FromObject(args.__getDyn(6))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5),
+                        ArgOrMissing(args, len, 6)).ToDynamic();
                 case 8:
                     return __hx_invoke8(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5)),
-                        Value.FromObject(args.__getDyn(6)),
-                        Value.FromObject(args.__getDyn(7))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5),
+                        ArgOrMissing(args, len, 6),
+                        ArgOrMissing(args, len, 7)).ToDynamic();
                 case 9:
                     return __hx_invoke9(
-                        Value.FromObject(args.__getDyn(0)),
-                        Value.FromObject(args.__getDyn(1)),
-                        Value.FromObject(args.__getDyn(2)),
-                        Value.FromObject(args.__getDyn(3)),
-                        Value.FromObject(args.__getDyn(4)),
-                        Value.FromObject(args.__getDyn(5)),
-                        Value.FromObject(args.__getDyn(6)),
-                        Value.FromObject(args.__getDyn(7)),
-                        Value.FromObject(args.__getDyn(8))).ToDynamic();
+                        ArgOrMissing(args, len, 0),
+                        ArgOrMissing(args, len, 1),
+                        ArgOrMissing(args, len, 2),
+                        ArgOrMissing(args, len, 3),
+                        ArgOrMissing(args, len, 4),
+                        ArgOrMissing(args, len, 5),
+                        ArgOrMissing(args, len, 6),
+                        ArgOrMissing(args, len, 7),
+                        ArgOrMissing(args, len, 8)).ToDynamic();
                 default:
                     // 10+ arguments: use the dynamic fallback
                     return _obj._hx_invokeMethodDynamic(_index, args);
