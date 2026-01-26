@@ -1,9 +1,7 @@
 package unit.issues;
 
-#if lua
-import utest.Assert;
-
 class Issue12530 extends unit.Test {
+#if lua
 	// Table.iterator() and Table.keyValueIterator() for native for-loop syntax
 	function testTableValueIterator() {
 		var tbl:lua.Table<String, Int> = lua.Table.create();
@@ -35,12 +33,12 @@ class Issue12530 extends unit.Test {
 		eq(keys.length, 3);
 		eq(values.length, 3);
 		// Order is undefined, so check that all values are present
-		Assert.isTrue(keys.contains("a"));
-		Assert.isTrue(keys.contains("b"));
-		Assert.isTrue(keys.contains("c"));
-		Assert.isTrue(values.contains(1));
-		Assert.isTrue(values.contains(2));
-		Assert.isTrue(values.contains(3));
+		t(keys.contains("a"));
+		t(keys.contains("b"));
+		t(keys.contains("c"));
+		t(values.contains(1));
+		t(values.contains(2));
+		t(values.contains(3));
 	}
 
 	function testTableEmptyIteration() {
@@ -51,5 +49,5 @@ class Issue12530 extends unit.Test {
 		}
 		eq(emptyCount, 0);
 	}
-}
 #end
+}
