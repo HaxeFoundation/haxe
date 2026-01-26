@@ -101,6 +101,36 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Value-based equality for Dynamic/boxed values.
+        /// Unlike object.Equals(), handles cross-type numeric equality
+        /// (e.g., boxed int 0 == boxed double 0.0 returns true).
+        /// Used by gencs.ml for == with Dynamic or generic type parameters.
+        /// </summary>
+        public static bool valEq(object a, object b)
+        {
+            if (object.ReferenceEquals(a, b)) return true;
+            if (a == null || b == null) return false;
+            if (a.GetType() == b.GetType()) return a.Equals(b);
+            // Cross-type numeric: convert both to double
+            if (IsNumeric(a) && IsNumeric(b))
+            {
+                return global::System.Convert.ToDouble(a) == global::System.Convert.ToDouble(b);
+            }
+            return object.Equals(a, b);
+        }
+
+        /// <summary>
+        /// Check if a boxed value is a numeric primitive type.
+        /// AOT-safe: uses explicit type checks, no reflection.
+        /// </summary>
+        private static bool IsNumeric(object obj)
+        {
+            return obj is int || obj is double || obj is float || obj is long
+                || obj is short || obj is byte || obj is sbyte
+                || obj is uint || obj is ulong || obj is ushort;
+        }
+
+        /// <summary>
         /// Invoke a delegate dynamically with the given arguments.
         /// Works with Func&lt;&gt;, Action, and other delegate types.
         /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.

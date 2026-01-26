@@ -1246,11 +1246,11 @@ let rec cs_expr_of_texpr ectx e =
 			(* null != x  ->  x.hasValue *)
 			CsField (cs_expr_of_texpr ectx e2, "hasValue")
 		| OpEq when is_generic_param e1.etype || is_generic_param e2.etype ->
-			(* T == T  ->  object.Equals(a, b) for generic type params *)
-			CsStaticCall (CsTypeObject, "Equals", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
+			(* T == T  ->  Runtime.valEq(a, b) for generic type params *)
+			CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
 		| OpNotEq when is_generic_param e1.etype || is_generic_param e2.etype ->
-			(* T != T  ->  !object.Equals(a, b) for generic type params *)
-			CsUnop (CsOpNot, false, CsStaticCall (CsTypeObject, "Equals", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
+			(* T != T  ->  !Runtime.valEq(a, b) for generic type params *)
+			CsUnop (CsOpNot, false, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
 		| _ ->
 			(* Check if either operand is Dynamic - if so, use runtime helpers for non-comparison ops *)
 			let is_dynamic t = match cs_type_of_type ectx.gctx (follow t) with
@@ -1284,11 +1284,11 @@ let rec cs_expr_of_texpr ectx e =
 				CsBinop (CsOpLte, CsStaticCall (CsTypeClass (cs_path, []), "compare", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]), CsConst (CsConstInt 0l))
 			| OpGte when either_dynamic ->
 				CsBinop (CsOpGte, CsStaticCall (CsTypeClass (cs_path, []), "compare", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]), CsConst (CsConstInt 0l))
-			(* Equality comparisons with Dynamic - use object.Equals *)
+			(* Equality comparisons with Dynamic - use Runtime.valEq for value-based equality *)
 			| OpEq when either_dynamic ->
-				CsStaticCall (CsTypeObject, "Equals", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
+				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
 			| OpNotEq when either_dynamic ->
-				CsUnop (CsOpNot, false, CsStaticCall (CsTypeObject, "Equals", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
+				CsUnop (CsOpNot, false, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
 			(* String comparison: use stringCompare for < > operators *)
 			| OpLt when is_string e1.etype && is_string e2.etype ->
 				CsBinop (CsOpLt, CsStaticCall (CsTypeClass (cs_path, []), "stringCompare", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]), CsConst (CsConstInt 0l))
@@ -5452,6 +5452,33 @@ and cs_stmt_of_texpr ectx e =
 			CsExprStmt (cs_expr_of_texpr ectx e)
 		end
 
+(* Generate preamble statements for optional parameters with default values.
+   In Haxe, optional parameters have default values (e.g., function f(a = 2, b = 4.25)).
+   In C#, Null<T> parameters use default(Null<T>) which has hasValue=false.
+   This generates: if (!param.hasValue) param = <default>;  for Null<T> types
+                   if (param == null) param = <default>;     for reference types *)
+let generate_optional_param_defaults ectx gctx tf_args =
+	List.filter_map (fun (v, default_opt) ->
+		match default_opt with
+		| None -> None
+		| Some default_expr ->
+			(match default_expr.eexpr with
+			| TConst TNull -> None
+			| _ ->
+				let param_name = get_local_name ectx v in
+				let param_cs_type = cs_type_of_type gctx v.v_type in
+				let cs_default = cs_expr_of_texpr ectx default_expr in
+				(match param_cs_type with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+					let condition = CsUnop (CsOpNot, false, CsField (CsLocal param_name, "hasValue")) in
+					let assign = CsExprStmt (CsBinop (CsOpAssign, CsLocal param_name, cs_default)) in
+					Some (CsIf (condition, assign, None))
+				| _ ->
+					let condition = CsBinop (CsOpEq, CsLocal param_name, CsNull) in
+					let assign = CsExprStmt (CsBinop (CsOpAssign, CsLocal param_name, cs_default)) in
+					Some (CsIf (condition, assign, None))))
+	) tf_args
+
 (* ====== Closure class generation ====== *)
 
 (* Generate a closure class for a TFunction and return a CsNew expression to instantiate it.
@@ -5617,10 +5644,11 @@ let generate_closure_class ectx tf func_type =
 		closure_ectx.local_vars <- (v.v_id, field_name) :: closure_ectx.local_vars
 	) captured_vars;
 
-	(* Generate invoke method body *)
+	(* Generate invoke method body with optional parameter default preamble *)
+	let default_preamble = generate_optional_param_defaults closure_ectx gctx tf.tf_args in
 	let invoke_body = match tf.tf_expr.eexpr with
-		| TBlock exprs -> List.map (cs_stmt_of_texpr closure_ectx) exprs
-		| _ -> [cs_stmt_of_texpr closure_ectx tf.tf_expr]
+		| TBlock exprs -> default_preamble @ List.map (cs_stmt_of_texpr closure_ectx) exprs
+		| _ -> default_preamble @ [cs_stmt_of_texpr closure_ectx tf.tf_expr]
 	in
 	(* Wrap in unchecked if the expression contains non-zero integer constants *)
 	let invoke_body =
@@ -6401,11 +6429,14 @@ let generate_method_body gctx ?(param_cs_names=[]) ?(type_params_in_scope=[]) ?(
 		) tf.tf_args;
 		(* Set return type from TFunction if not provided *)
 		if ectx.return_type = None then ectx.return_type <- Some tf.tf_type;
+		(* Generate preamble for optional parameters with default values *)
+		let default_preamble = generate_optional_param_defaults ectx gctx tf.tf_args in
 		(* Generate the inner body *)
-		begin match tf.tf_expr.eexpr with
-		| TBlock exprs -> List.map (cs_stmt_of_texpr ectx) exprs
-		| _ -> [cs_stmt_of_texpr ectx tf.tf_expr]
-		end
+		let body_stmts = match tf.tf_expr.eexpr with
+			| TBlock exprs -> List.map (cs_stmt_of_texpr ectx) exprs
+			| _ -> [cs_stmt_of_texpr ectx tf.tf_expr]
+		in
+		default_preamble @ body_stmts
 	| TBlock exprs ->
 		List.map (cs_stmt_of_texpr ectx) exprs
 	| _ ->
