@@ -22,18 +22,39 @@
 
 package lua;
 
-import lua.AnyTable;
-
 /**
-	This library is an extern for a polyfill library of common lua table
-    methods.
+	A plain Lua table with typed field access.
+
+	Unlike Haxe anonymous structs, this creates tables without `__fields__` metadata,
+	making them suitable for passing to Lua APIs that expect plain tables.
+
+	Example:
+	```haxe
+	var opts = TableStruct.create({baz: 42, qux: "hello"});
+	opts.baz;  // 42 - typed field access works
+	opts.qux;  // "hello"
+
+	// Can be passed to APIs expecting AnyTable
+	function process(t:AnyTable):Void {}
+	process(opts);  // works via implicit conversion
+	```
+
+	Note: Haxe reflection (`Reflect.fields`, etc.) will not work on `TableStruct` values
+	since they lack the `__fields__` metadata that Haxe uses for reflection.
 **/
-@:native("_hx_table")
-extern class TableTools {
-	static function pack<T>(args:haxe.extern.Rest<T>):Table<Int, T>;
-	static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
-	static function maxn(t:AnyTable):Int;
-	static function __init__():Void {
-		untyped __define_feature__("use._hx_table", null);
+@:forward
+abstract TableStruct<T:{}>(T) {
+	inline function new(v:T) {
+		this = v;
+	}
+
+	/**
+		Creates a plain Lua table from an anonymous struct.
+
+		The resulting table will not have `__fields__` metadata, making it
+		compatible with Lua APIs that reject tables with extra fields.
+	**/
+	public static inline function create<T:{}>(obj:T):TableStruct<T> {
+		return new TableStruct(untyped __lua_table__(obj));
 	}
 }

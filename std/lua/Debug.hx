@@ -26,7 +26,7 @@ package lua;
 	Externs for the "debug" class for Haxe lua
 **/
 import haxe.Constraints.Function;
-import lua.Table.AnyTable;
+import lua.AnyTable;
 
 @:native("debug")
 extern class Debug {

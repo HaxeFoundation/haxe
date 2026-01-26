@@ -300,12 +300,12 @@ class TestLua extends Test {
 		eq(closureResult, "done");
 	}
 
-	// Issue #11805: Syntax.table creates plain Lua tables without __fields__
-	function testSyntaxTablePlain() {
+	// Issue #11805: TableStruct creates plain Lua tables without __fields__
+	function testTableStructPlain() {
 		// Create a plain table without __fields__ metadata
-		var opts:Issue11805Options = lua.Syntax.table({baz: 42});
+		var opts = lua.TableStruct.create({baz: 42});
 
-		// Verify the table has the expected field
+		// Verify the table has the expected field via @:forward
 		eq(opts.baz, 42);
 
 		// Verify there's no __fields__ in the table
@@ -316,7 +316,7 @@ class TestLua extends Test {
 		f(hasFields);
 
 		// Test empty table
-		var empty:{} = lua.Syntax.table({});
+		var empty = lua.TableStruct.create({});
 		var emptyCount = 0;
 		lua.PairTools.pairsEach(cast empty, function(k:Dynamic, v:Dynamic) {
 			emptyCount++;
@@ -324,10 +324,14 @@ class TestLua extends Test {
 		eq(emptyCount, 0);
 
 		// Test multiple fields
-		var multi = lua.Syntax.table({a: 1, b: "hello", c: true});
+		var multi = lua.TableStruct.create({a: 1, b: "hello", c: true});
 		eq(multi.a, 1);
 		eq(multi.b, "hello");
 		eq(multi.c, true);
+
+		// Test conversion to AnyTable
+		var anyTable:lua.AnyTable = opts;
+		t(anyTable != null);
 	}
 }
 
@@ -432,7 +436,7 @@ class Issue10090Object {
 	public function new() {}
 }
 
-// Issue #11805: Syntax.table plain table test
+// Issue #11805: TableStruct plain table test
 typedef Issue11805Options = {
 	baz:Int
 }

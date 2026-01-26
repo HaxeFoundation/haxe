@@ -22,18 +22,29 @@
 
 package lua;
 
-import lua.AnyTable;
-
 /**
-	This library is an extern for a polyfill library of common lua table
-    methods.
+	Represents any Lua table, providing a common type for both `Table<A,B>` and `TableStruct<T>`.
+
+	Use this as a parameter type when a function accepts any kind of Lua table.
 **/
-@:native("_hx_table")
-extern class TableTools {
-	static function pack<T>(args:haxe.extern.Rest<T>):Table<Int, T>;
-	static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
-	static function maxn(t:AnyTable):Int;
-	static function __init__():Void {
-		untyped __define_feature__("use._hx_table", null);
+abstract AnyTable(Table<Dynamic, Dynamic>) from Table<Dynamic, Dynamic> {
+	@:from
+	public static inline function fromTable<A, B>(t:Table<A, B>):AnyTable {
+		return cast t;
+	}
+
+	@:from
+	public static inline function fromTableStruct<T:{}>(t:TableStruct<T>):AnyTable {
+		return cast t;
+	}
+
+	@:arrayAccess
+	public inline function get(key:Dynamic):Dynamic {
+		return this[key];
+	}
+
+	@:arrayAccess
+	public inline function set(key:Dynamic, value:Dynamic):Void {
+		this[key] = value;
 	}
 }
