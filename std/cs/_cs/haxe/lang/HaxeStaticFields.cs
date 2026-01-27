@@ -84,5 +84,58 @@ namespace haxe.lang
             }
             return null;
         }
+
+        /// <summary>
+        /// Creates an empty (uninitialized) instance of a Haxe class.
+        /// Uses the registered emptyFactory Function from _hx_bind().
+        /// </summary>
+        public static object createEmpty(System.Type type)
+        {
+            StaticAccessors acc;
+            if (registry.TryGetValue(type.FullName, out acc) && acc.emptyFactory != null)
+            {
+                return ((ConstructorFunction)acc.emptyFactory).create(System.Array.Empty<object>());
+            }
+            // Fallback for non-registered types (native C# classes)
+            try
+            {
+                return System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Creates an initialized instance of a Haxe class by calling its constructor.
+        /// Uses the registered factory Function from _hx_bind().
+        /// </summary>
+        public static object create(System.Type type, object[] args)
+        {
+            StaticAccessors acc;
+            if (registry.TryGetValue(type.FullName, out acc) && acc.factory != null)
+            {
+                return ((ConstructorFunction)acc.factory).create(args);
+            }
+            // Special case: String has no String(string) constructor in C#
+            if (type == typeof(string))
+            {
+                if (args.Length > 0 && args[0] is string s)
+                    return s;
+                return "";
+            }
+            // Fallback: try Activator (works in JIT, may fail in AOT for non-Haxe types)
+            try
+            {
+                if (args.Length == 0)
+                    return System.Activator.CreateInstance(type);
+                return System.Activator.CreateInstance(type, args);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

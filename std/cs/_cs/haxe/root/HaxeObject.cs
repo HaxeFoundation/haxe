@@ -6,6 +6,7 @@ namespace haxe.root
     public class HaxeObject
     {
         public HaxeObject() { _hx_ctor(); }
+        protected HaxeObject(global::haxe.lang.EmptyConstructor _) { }  // No initialization — for createEmptyInstance
 
         public virtual void _hx_ctor() { }
 

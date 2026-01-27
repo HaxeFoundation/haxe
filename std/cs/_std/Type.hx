@@ -138,31 +138,29 @@ class Type {
 		for (i in 0...argLen) {
 			untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 		}
-		// Find constructor with matching parameter count
-		var constructors:Dynamic = untyped __cs__("((System.Type){0}).GetConstructors()", cl);
-		var ctorCount:Int = untyped __cs__("((System.Reflection.ConstructorInfo[]){0}).Length", constructors);
-		for (i in 0...ctorCount) {
-			var ctor:Dynamic = untyped __cs__("((System.Reflection.ConstructorInfo[]){0})[{1}]", constructors, i);
-			var ctorParams:Dynamic = untyped __cs__("((System.Reflection.ConstructorInfo){0}).GetParameters()", ctor);
-			var paramCount:Int = untyped __cs__("((System.Reflection.ParameterInfo[]){0}).Length", ctorParams);
-			if (paramCount == argLen) {
-				return cast untyped __cs__("((System.Reflection.ConstructorInfo){0}).Invoke((object[]){1})", ctor, nativeArgs);
-			}
-		}
-		// No matching constructor — result is unspecified per Haxe docs
-		return null;
+		// Use AOT-safe registry-based factory (falls back to Activator for non-Haxe types)
+		return cast untyped __cs__("global::haxe.lang.HaxeStaticFields.create((System.Type){0}, (object[]){1})", cl, nativeArgs);
 	}
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		if (cl == null)
 			return null;
-		return cast untyped __cs__("System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject((System.Type){0})", cl);
+		// Use AOT-safe registry-based factory (falls back to GetUninitializedObject for non-Haxe types)
+		return cast untyped __cs__("global::haxe.lang.HaxeStaticFields.createEmpty((System.Type){0})", cl);
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		if (e == null)
 			return null;
-		// e is System.Type - get the nested type for this constructor
+		if (params == null || params.length == 0) {
+			// For parameterless constructors, try the parent enum type's static field first.
+			// This is more AOT-friendly: public static fields are preserved by the trimmer.
+			var parentField:Dynamic = untyped __cs__("((System.Type){0}).GetField({1}, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)", e, constr);
+			if (parentField != null) {
+				return cast untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue(null)", parentField);
+			}
+		}
+		// Fall through to nested type approach for parameterized constructors or if parent field not found
 		var nestedTypes:Dynamic = untyped __cs__("((System.Type){0}).GetNestedTypes()", e);
 		var nestedCount:Int = untyped __cs__("((System.Type[]){0}).Length", nestedTypes);
 		for (i in 0...nestedCount) {
@@ -175,12 +173,16 @@ class Type {
 			}
 			if (matchedName == constr) {
 				if (params == null || params.length == 0) {
-					// Try to get singleton instance
+					// Try to get singleton instance from nested type
 					var instanceField:Dynamic = untyped __cs__("((System.Type){0}).GetField(\"Instance\", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)", nested);
 					if (instanceField != null) {
 						return cast untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue(null)", instanceField);
 					}
-					return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0})", nested);
+					try {
+						return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0})", nested);
+					} catch (d:Dynamic) {
+						return null;
+					}
 				} else {
 					// Extract the actual array from the optional parameter to avoid Null<Array> issues
 					var paramsArray:Array<Dynamic> = params;
@@ -188,7 +190,11 @@ class Type {
 					for (j in 0...paramsArray.length) {
 						untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, j, paramsArray[j]);
 					}
-					return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0}, (object[]){1})", nested, nativeArgs);
+					try {
+						return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0}, (object[]){1})", nested, nativeArgs);
+					} catch (d:Dynamic) {
+						return null;
+					}
 				}
 			}
 		}

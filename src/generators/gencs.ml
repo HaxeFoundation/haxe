@@ -8264,6 +8264,98 @@ let generate_static_field_accessors gctx c =
 	in
 	let bind_modifiers = if bind_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
+	(* --- Factory ConstructorFunctions for AOT-safe Type.createInstance / Type.createEmptyInstance --- *)
+	let constructor_function_type = CsTypeClass ((["haxe"; "lang"], "ConstructorFunction"), []) in
+	let is_haxe_object = extends_haxe_object c in
+	let is_abstract_class = has_class_flag c CAbstract in
+	(* Get constructor args and two-phase status.
+	   If the class has its own constructor, use that.
+	   If not, check the parent constructor (for forwarding constructors). *)
+	let ctor_args, ctor_is_two_phase = match c.cl_constructor with
+		| Some cf ->
+			let args = (match follow cf.cf_type with TFun (args, _) -> args | _ -> []) in
+			let is_two_phase = needs_two_phase_construction cf in
+			(args, is_two_phase)
+		| None ->
+			(* No explicit constructor — check parent for forwarding constructor args *)
+			let parent_args = match c.cl_super with
+				| Some (sc, _) ->
+					begin match sc.cl_constructor with
+					| Some ctor_cf -> (match follow ctor_cf.cf_type with TFun (args, _) -> args | _ -> [])
+					| None -> []
+					end
+				| None -> []
+			in
+			(parent_args, false)  (* Forwarding ctors are never two-phase from the factory's perspective *)
+	in
+	let factory_methods, factory_bind_stmts =
+		if not is_haxe_object || is_abstract_class then ([], [])
+		else
+			let args_param = { p_name = "args"; p_type = Some (CsTypeArray (CsTypeObject, None)); p_default = None; p_modifier = None } in
+			(* _hx_emptyFactory: return new MyClass((EmptyConstructor)null); *)
+			let empty_factory_method = CsMemberMethod {
+				m_name = "_hx_emptyFactory";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Private;
+				m_modifiers = [MemberModifier.Static];
+				m_type_params = [];
+				m_params = [args_param];
+				m_body = Some [CsReturn (Some (CsNew (cs_class_type, [CsCast (empty_constructor_type, CsNull)])))];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			} in
+			(* _hx_factory body depends on constructor args and two-phase status.
+			   Arg casts use cast_object_to_type from csTypeCoercion.ml which handles:
+			   - Numeric boxing mismatches via Runtime.toInt/toDouble/toLong/toBool
+			   - Null<T> via _ofDynamic (handles null + boxing correctly)
+			   - String via Runtime.toStr
+			   - Other types via direct cast *)
+			let factory_body =
+				if ctor_is_two_phase then
+					(* Two-phase: create empty, call _hx_new, return *)
+					let cast_args = List.mapi (fun i (_, _, t) ->
+						let arg_type = cs_type_of_type gctx t in
+						cast_object_to_type arg_type (CsArrayAccess (CsLocal "args", CsConst (CsConstInt (Int32.of_int i))))
+					) ctor_args in
+					[
+						CsVarDecl ("_hx_tmp", Some cs_class_type,
+							Some (CsNew (cs_class_type, [CsCast (empty_constructor_type, CsNull)])));
+						CsExprStmt (CsCall (CsField (CsLocal "_hx_tmp", "_hx_new"), cast_args));
+						CsReturn (Some (CsLocal "_hx_tmp"))
+					]
+				else
+					(* Normal: return new MyClass((Type1)args[0], ...); *)
+					let cast_args = List.mapi (fun i (_, _, t) ->
+						let arg_type = cs_type_of_type gctx t in
+						cast_object_to_type arg_type (CsArrayAccess (CsLocal "args", CsConst (CsConstInt (Int32.of_int i))))
+					) ctor_args in
+					[CsReturn (Some (CsNew (cs_class_type, cast_args)))]
+			in
+			let factory_method = CsMemberMethod {
+				m_name = "_hx_factory";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Private;
+				m_modifiers = [MemberModifier.Static];
+				m_type_params = [];
+				m_params = [args_param];
+				m_body = Some factory_body;
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			} in
+			(* Bind statements: acc.emptyFactory = new ConstructorFunction(_hx_emptyFactory); etc. *)
+			let set_empty_factory = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "emptyFactory"),
+				CsNew (constructor_function_type, [CsStaticField (cs_class_type, "_hx_emptyFactory")])
+			)) in
+			let set_factory = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "factory"),
+				CsNew (constructor_function_type, [CsStaticField (cs_class_type, "_hx_factory")])
+			)) in
+			([empty_factory_method; factory_method], [set_empty_factory; set_factory])
+	in
+
 	(* If no static data fields and no static methods,
 	   generate a minimal _hx_bind that only registers field name arrays (no getter/checker) *)
 	if static_fields = [] && static_methods = [] then
@@ -8288,8 +8380,9 @@ let generate_static_field_accessors gctx c =
 				CsNewArray (CsTypeString,
 					List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
 			)) in
-			[get_or_create; set_class_field_names; set_instance_field_names]
+			[get_or_create; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
 		in
+		factory_methods @
 		[CsMemberMethod {
 			m_name = "_hx_bind";
 			m_return_type = CsTypeVoid;
@@ -8558,7 +8651,7 @@ let generate_static_field_accessors gctx c =
 			CsNewArray (CsTypeString,
 				List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
 		)) in
-		[get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names]
+		[get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
 	in
 	let bind_method = CsMemberMethod {
 		m_name = "_hx_bind";
@@ -8575,7 +8668,7 @@ let generate_static_field_accessors gctx c =
 
 	(* Combine all generated members *)
 	let members = closure_cache_members @ get_static_method_closure_members @
-		[get_static_field_method; has_static_field_method; bind_method] in
+		[get_static_field_method; has_static_field_method; bind_method] @ factory_methods in
 	members
 
 (* =============================================================================
@@ -8842,8 +8935,11 @@ let generate_class gctx c =
 		) parent_ctor_signatures in
 		if generated_ctors <> [] then
 			members := generated_ctors @ !members
-		(* Also generate a default parameterless constructor if there are field initializations *)
-		else if field_init_stmts <> [] then begin
+		else begin
+			(* No forwarding ctors from parent. Generate a default parameterless constructor.
+			   This is always needed because we also generate an EmptyConstructor which
+			   prevents C# from creating an implicit parameterless constructor.
+			   field_init_stmts may be empty, in which case the body is just []. *)
 			members := [CsMemberConstructor {
 				ctor_access = AccessModifier.Public;
 				ctor_modifiers = [];
@@ -8853,6 +8949,37 @@ let generate_class gctx c =
 				ctor_body = field_init_stmts;
 			}] @ !members
 		end
+	end;
+
+	(* Add EmptyConstructor for AOT factory support (createEmptyInstance / createInstance).
+	   Two-phase classes already have an EmptyConstructor, so skip those. *)
+	let ctor_is_two_phase = match c.cl_constructor with
+		| Some cf -> needs_two_phase_construction cf
+		| None -> false
+	in
+	if extends_haxe_object c && not ctor_is_two_phase then begin
+		let empty_ctor_param = {
+			p_name = "_";
+			p_type = Some empty_constructor_type;
+			p_default = None;
+			p_modifier = None;
+		} in
+		let empty_base_call =
+			if c.cl_super <> None then
+				Some [CsCast (empty_constructor_type, CsNull)]
+			else
+				None
+		in
+		(* Use Private for sealed classes to avoid CS0628 warning *)
+		let empty_ctor_access = if has_class_flag c CFinal then AccessModifier.Private else AccessModifier.Protected in
+		members := CsMemberConstructor {
+			ctor_access = empty_ctor_access;
+			ctor_modifiers = [];
+			ctor_params = [empty_ctor_param];
+			ctor_base_call = empty_base_call;
+			ctor_this_call = None;
+			ctor_body = [];
+		} :: !members
 	end;
 
 	(* Fields *)
@@ -9456,6 +9583,7 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/FastMethodClosure.cs" "haxe/lang/FastMethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/FastStaticMethodClosure.cs" "haxe/lang/FastStaticMethodClosure.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/ConstructorFunction.cs" "haxe/lang/ConstructorFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/StaticAccessors.cs" "haxe/lang/StaticAccessors.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeStaticFields.cs" "haxe/lang/HaxeStaticFields.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
