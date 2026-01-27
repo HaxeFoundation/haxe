@@ -145,30 +145,7 @@ let generate_hxvalue_args args arg_types =
 	let num_types = List.length arg_types in
 	List.mapi (fun i arg ->
 		let arg_type = if i < num_types then List.nth arg_types i else CsTypeObject in
-		match arg_type with
-		| CsTypeInt ->
-			CsStaticCall (hxvalue_type, "FromInt", [arg])
-		| CsTypeDouble ->
-			CsStaticCall (hxvalue_type, "FromDouble", [arg])
-		| CsTypeFloat ->
-			CsStaticCall (hxvalue_type, "FromFloat", [arg])
-		| CsTypeBool ->
-			CsStaticCall (hxvalue_type, "FromBool", [arg])
-		| CsTypeLong ->
-			CsStaticCall (hxvalue_type, "FromLong", [arg])
-		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-			(* Null<T>: use FromNullXxx methods to avoid boxing *)
-			begin match inner with
-			| CsTypeInt -> CsStaticCall (hxvalue_type, "FromNullInt", [arg])
-			| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromNullDouble", [arg])
-			| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromNullFloat", [arg])
-			| CsTypeBool -> CsStaticCall (hxvalue_type, "FromNullBool", [arg])
-			| CsTypeLong -> CsStaticCall (hxvalue_type, "FromNullLong", [arg])
-			| _ -> CsStaticCall (hxvalue_type, "FromObject", [arg])
-			end
-		| _ ->
-			(* References, strings, etc.: use FromObject *)
-			CsStaticCall (hxvalue_type, "FromObject", [arg])
+		cast_type_to_value arg_type arg
 	) args
 
 (* Build an args array for InvokeDelegate calls.
@@ -182,21 +159,12 @@ let make_invoke_args_array args =
 		make_array_from_native ArrayDynamic native_array haxe_array_type
 
 (* Cast InvokeDelegate result to expected type.
-   For primitives, uses Runtime.toXxx to handle boxed type mismatches.
-   For void/object/dynamic, returns expression unchanged.
-   For other types, uses direct C# cast. *)
+   Delegates to cast_object_to_type for the actual conversion;
+   adds Void pass-through since InvokeDelegate always returns object. *)
 let cast_invoke_result result_type call_expr =
 	match result_type with
-	| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-	| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [call_expr])
-	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [call_expr])
-	| CsTypeFloat | CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [call_expr])
-	| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [call_expr])
-	| CsTypeString -> CsStaticCall (runtime_type, "toStr", [call_expr])
-	| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
-		(* Object to Null<T> - use _ofDynamic for proper handling of null and boxed values *)
-		CsStaticCall (result_type, "_ofDynamic", [call_expr])
-	| _ -> CsCast (result_type, call_expr)
+	| CsTypeVoid -> call_expr
+	| _ -> cast_object_to_type result_type call_expr
 
 (* ====== Helper utilities ====== *)
 
@@ -2242,14 +2210,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Extract args from Value *)
 			let fv_extract_args = List.mapi (fun i cs_type ->
 				let a_var = CsLocal ("a" ^ string_of_int (i + 1)) in
-				match cs_type with
-				| CsTypeInt -> CsCall (CsField (a_var, "ToInt"), [])
-				| CsTypeDouble -> CsCall (CsField (a_var, "ToDouble"), [])
-				| CsTypeFloat -> CsCall (CsField (a_var, "ToFloat"), [])
-				| CsTypeBool -> CsCall (CsField (a_var, "ToBool"), [])
-				| CsTypeLong -> CsCall (CsField (a_var, "ToLong"), [])
-				| CsTypeString -> CsCall (CsField (a_var, "ToStringValue"), [])
-				| _ -> CsCast (cs_type, CsCall (CsField (a_var, "ToDynamic"), []))
+				cast_value_to_type cs_type a_var
 			) param_types_cs in
 			let fv_invoke_call = CsCall (CsLocal (invoke_method_name num_params), fv_extract_args) in
 			let fv_return = CsStaticCall (hxvalue_type, "FromObject", [fv_invoke_call]) in
@@ -2395,35 +2356,8 @@ let rec cs_expr_of_texpr ectx e =
 		let num_args = List.length args_cs in
 		let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
 		let call_expr = CsCall (CsField (closure, hxvalue_invoke_method_name num_args), hxvalue_args) in
-		(* Extract the return value from Value using the appropriate ToXxx method *)
-		begin match result_type with
-		| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
-		| CsTypeInt -> CsCall (CsField (call_expr, "ToInt"), [])
-		| CsTypeDouble -> CsCall (CsField (call_expr, "ToDouble"), [])
-		| CsTypeFloat -> CsCall (CsField (call_expr, "ToFloat"), [])
-		| CsTypeBool -> CsCall (CsField (call_expr, "ToBool"), [])
-		| CsTypeLong -> CsCall (CsField (call_expr, "ToLong"), [])
-		| CsTypeString -> CsCall (CsField (call_expr, "ToStringValue"), [])
-		| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-			(* Null<T>: use ToNullXxx() methods *)
-			begin match inner with
-			| CsTypeInt -> CsCall (CsField (call_expr, "ToNullInt"), [])
-			| CsTypeDouble -> CsCall (CsField (call_expr, "ToNullDouble"), [])
-			| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
-			| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
-			| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
-			| _ when CsTypeMapping.is_inherently_nullable inner ->
-				(* Inner type is inherently nullable - just cast from dynamic *)
-				CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
-			| _ ->
-				let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
-				CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (call_expr, "ToDynamic"), [])])
-			end
-		| CsTypeObject | CsTypeDynamic -> CsCall (CsField (call_expr, "ToDynamic"), [])
-		| _ ->
-			(* For other reference types, use ToDynamic() then cast *)
-			CsCast (result_type, CsCall (CsField (call_expr, "ToDynamic"), []))
-		end
+		(* Extract the return value from Value *)
+		cast_value_to_type result_type call_expr
 	| TCall ({ eexpr = TField (_, FEnum (en, ef)) }, orig_args) ->
 		(* Enum constructor with parameters -> new EnumType.ConstructorName(...)
 		   After type erasure, both parent enum and constructor nested classes are non-generic.
@@ -2573,35 +2507,8 @@ let rec cs_expr_of_texpr ectx e =
 			let num_args = List.length args_cs in
 			let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
 			let call_expr = CsCall (CsField (func_expr, hxvalue_invoke_method_name num_args), hxvalue_args) in
-			(* Extract the return value from Value using the appropriate ToXxx method *)
-			begin match result_type with
-			| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
-			| CsTypeInt -> CsCall (CsField (call_expr, "ToInt"), [])
-			| CsTypeDouble -> CsCall (CsField (call_expr, "ToDouble"), [])
-			| CsTypeFloat -> CsCall (CsField (call_expr, "ToFloat"), [])
-			| CsTypeBool -> CsCall (CsField (call_expr, "ToBool"), [])
-			| CsTypeLong -> CsCall (CsField (call_expr, "ToLong"), [])
-			| CsTypeString -> CsCall (CsField (call_expr, "ToStringValue"), [])
-			| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-				(* Null<T>: use ToNullXxx() methods *)
-				begin match inner with
-				| CsTypeInt -> CsCall (CsField (call_expr, "ToNullInt"), [])
-				| CsTypeDouble -> CsCall (CsField (call_expr, "ToNullDouble"), [])
-				| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
-				| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
-				| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
-				| _ when CsTypeMapping.is_inherently_nullable inner ->
-					(* Inner type is inherently nullable - just cast from dynamic *)
-					CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
-				| _ ->
-					let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
-					CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (call_expr, "ToDynamic"), [])])
-				end
-			| CsTypeObject | CsTypeDynamic -> CsCall (CsField (call_expr, "ToDynamic"), [])
-			| _ ->
-				(* For other reference types, use ToDynamic() then cast *)
-				CsCast (result_type, CsCall (CsField (call_expr, "ToDynamic"), []))
-			end
+			(* Extract the return value from Value *)
+			cast_value_to_type result_type call_expr
 		end else begin
 		(* Check if expression type is Null<T> - if so, access .value to unwrap.
 		   Note: @:forward on Null<T> sets e.etype to the underlying type (after forward),
@@ -3899,35 +3806,8 @@ let rec cs_expr_of_texpr ectx e =
 			let num_args = List.length args_cs in
 			let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
 			let call_expr = CsCall (CsField (func, hxvalue_invoke_method_name num_args), hxvalue_args) in
-			(* Extract the return value from Value using the appropriate ToXxx method *)
-			begin match result_type with
-			| CsTypeVoid -> call_expr  (* Value.Missing() returned, ignored *)
-			| CsTypeInt -> CsCall (CsField (call_expr, "ToInt"), [])
-			| CsTypeDouble -> CsCall (CsField (call_expr, "ToDouble"), [])
-			| CsTypeFloat -> CsCall (CsField (call_expr, "ToFloat"), [])
-			| CsTypeBool -> CsCall (CsField (call_expr, "ToBool"), [])
-			| CsTypeLong -> CsCall (CsField (call_expr, "ToLong"), [])
-			| CsTypeString -> CsCall (CsField (call_expr, "ToStringValue"), [])
-			| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-				(* Null<T>: use ToNullXxx() methods *)
-				begin match inner with
-				| CsTypeInt -> CsCall (CsField (call_expr, "ToNullInt"), [])
-				| CsTypeDouble -> CsCall (CsField (call_expr, "ToNullDouble"), [])
-				| CsTypeFloat -> CsCall (CsField (call_expr, "ToNullFloat"), [])
-				| CsTypeBool -> CsCall (CsField (call_expr, "ToNullBool"), [])
-				| CsTypeLong -> CsCall (CsField (call_expr, "ToNullLong"), [])
-				| _ when CsTypeMapping.is_inherently_nullable inner ->
-					(* Inner type is inherently nullable - just cast from dynamic *)
-					CsCast (inner, CsCall (CsField (call_expr, "ToDynamic"), []))
-				| _ ->
-					let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
-					CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (call_expr, "ToDynamic"), [])])
-				end
-			| CsTypeObject | CsTypeDynamic -> CsCall (CsField (call_expr, "ToDynamic"), [])
-			| _ ->
-				(* For other reference types, use ToDynamic() then cast *)
-				CsCast (result_type, CsCall (CsField (call_expr, "ToDynamic"), []))
-			end
+			(* Extract the return value from Value *)
+			cast_value_to_type result_type call_expr
 		end
 	| TNew ({ cl_path = (["cs"], "NativeArray") }, [t], [size_expr]) ->
 		(* cs.NativeArray<T>(size) -> new T[size] *)
@@ -4270,14 +4150,7 @@ let rec cs_expr_of_texpr ectx e =
 					(* Special case: ternary with mixed Null/object branches being cast to primitive.
 					   C# unifies the ternary type to 'object', so we can't call .value on it.
 					   Use Runtime.toInt/toDouble/etc. directly on the ternary result. *)
-					match target_type with
-					| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
-					| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
-					| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
-					| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
-					| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
-					| CsTypeString -> CsStaticCall (runtime_type, "toStr", [inner_cs])
-					| _ -> CsCast (target_type, inner_cs)  (* Fallback for other types *)
+					cast_object_to_type target_type inner_cs
 				end
 				else if is_inner_null_wrapper && not is_target_null_wrapper && (target_type = CsTypeObject || target_type = CsTypeDynamic) && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
 					(* Casting FROM Null<T> to object/Dynamic: use toDynamic() to preserve null semantics.
@@ -4385,17 +4258,8 @@ let rec cs_expr_of_texpr ectx e =
 						| CsTypeString, (CsTypeObject | CsTypeDynamic | CsTypeGenericParam _) -> true
 						| _ -> false
 					in
-					if is_object_to_string then
-						CsStaticCall (runtime_type, "toStr", [inner_cs])
-					else if is_object_to_primitive then begin
-						match target_type with
-						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [inner_cs])
-						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [inner_cs])
-						| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [inner_cs])
-						| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [inner_cs])
-						| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [inner_cs]))
-						| _ -> CsCast (target_type, inner_cs)
-					end
+					if is_object_to_string || is_object_to_primitive then
+						cast_object_to_type target_type inner_cs
 					else if is_unsafe_cast && is_impossible_cast then
 						(* Use Runtime.genericCast<T> which throws for impossible casts.
 						   Generated as: haxe.lang.Runtime.genericCast<TargetType>(value) *)
@@ -5388,14 +5252,7 @@ and cs_stmt_of_texpr ectx e =
 						| _ -> CsTypeObject
 					in
 					let null_check = CsBinop (CsOpEq, cs_e, CsNull) in
-					let converted_value = match inner_type with
-						| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_e])
-						| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_e])
-						| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_e]))
-						| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [cs_e])
-						| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [cs_e])
-						| _ -> CsCast (inner_type, cs_e)
-					in
+					let converted_value = cast_object_to_type inner_type cs_e in
 					let true_branch = CsDefault ret_cs in
 					let false_branch = CsNew (ret_cs, [converted_value; CsConst (CsConstBool true)]) in
 					CsTernary (null_check, true_branch, false_branch)
@@ -5403,14 +5260,7 @@ and cs_stmt_of_texpr ectx e =
 					(* Returning Dynamic but method returns a concrete type (non-void, non-Null).
 					   For primitives, use Runtime.toXxx to handle boxed type mismatches. *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
-					begin match ret_cs with
-					| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [cs_e])
-					| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [cs_e])
-					| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [cs_e])
-					| CsTypeBool -> CsStaticCall (runtime_type, "toBool", [cs_e])
-					| CsTypeFloat -> CsCast (CsTypeFloat, CsStaticCall (runtime_type, "toDouble", [cs_e]))
-					| _ -> CsCast (ret_cs, cs_e)
-					end
+					cast_object_to_type ret_cs cs_e
 				| Some ret_t when is_type_param e.etype && is_ret_null_wrapper ->
 					(* Expression is T (type param) and return is Null<T> - use implicit conversion, don't cast *)
 					cs_e
@@ -5911,67 +5761,18 @@ let generate_closure_class ectx tf func_type =
 			let hxvalue_params = List.mapi (fun i _ ->
 				{ p_name = "a" ^ string_of_int (i + 1); p_type = Some hxvalue_type; p_default = None; p_modifier = None }
 			) invoke_params in
-			(* Build extraction expressions for each argument.
-			   Pattern: aN.ToInt(), aN.ToDouble(), aN.ToObject<T>(), etc.
-			   For Null<T>: use aN.ToNullInt(), aN.ToNullDouble(), etc. *)
+			(* Extract typed values from Value params using cast_value_to_type *)
 			let extract_args = List.mapi (fun i param ->
 				let a_var = CsLocal ("a" ^ string_of_int (i + 1)) in
-				match param.p_type with
-				| Some CsTypeInt ->
-					(* int: use ToInt() *)
-					CsCall (CsField (a_var, "ToInt"), [])
-				| Some CsTypeDouble ->
-					(* double: use ToDouble() *)
-					CsCall (CsField (a_var, "ToDouble"), [])
-				| Some CsTypeFloat ->
-					(* float (Single): use ToFloat() *)
-					CsCall (CsField (a_var, "ToFloat"), [])
-				| Some CsTypeBool ->
-					(* bool: use ToBool() *)
-					CsCall (CsField (a_var, "ToBool"), [])
-				| Some CsTypeLong ->
-					(* long: use ToLong() *)
-					CsCall (CsField (a_var, "ToLong"), [])
-				| Some CsTypeString ->
-					(* string: use ToStringValue() *)
-					CsCall (CsField (a_var, "ToStringValue"), [])
-				| Some (CsTypeClass ((["haxe"; "lang"], "Null"), [inner])) ->
-					(* Null<T>: use ToNullInt(), ToNullDouble(), etc. *)
-					begin match inner with
-						| CsTypeInt -> CsCall (CsField (a_var, "ToNullInt"), [])
-						| CsTypeDouble -> CsCall (CsField (a_var, "ToNullDouble"), [])
-						| CsTypeFloat -> CsCall (CsField (a_var, "ToNullFloat"), [])
-						| CsTypeBool -> CsCall (CsField (a_var, "ToNullBool"), [])
-						| CsTypeLong -> CsCall (CsField (a_var, "ToNullLong"), [])
-						| _ when CsTypeMapping.is_inherently_nullable inner ->
-							(* Inner type is inherently nullable - just cast from dynamic *)
-							CsCast (inner, CsCall (CsField (a_var, "ToDynamic"), []))
-						| _ ->
-							(* For reference types, use ToNullObject<T>() - but C# needs explicit type *)
-							(* We use ToDynamic() and wrap with Null<T>._ofDynamic for simplicity *)
-							let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
-							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])
-					end
-				| Some t ->
-					(* Other types: use ToDynamic() then cast_object_to_type for proper handling *)
-					cast_object_to_type t (CsCall (CsField (a_var, "ToDynamic"), []))
-				| None ->
-					(* Untyped: use ToDynamic() *)
-					CsCall (CsField (a_var, "ToDynamic"), [])
+				let t = match param.p_type with Some t -> t | None -> CsTypeDynamic in
+				cast_value_to_type t a_var
 			) invoke_params in
 			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
 			let body = if return_type = CsTypeVoid then
 				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
 				(* Wrap return value with appropriate Value.FromXxx *)
-				let wrapped_result = match return_type with
-					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_call])
-					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_call])
-					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_call])
-					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_call])
-					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_call])
-					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_call])
-				in
+				let wrapped_result = cast_type_to_value return_type invoke_call in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
@@ -6455,51 +6256,14 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 			) invoke_params in
 			let extract_args = List.mapi (fun i (param, _is_optional) ->
 				let a_var = CsLocal ("a" ^ string_of_int (i + 1)) in
-				match param.p_type with
-				| Some CsTypeInt ->
-					CsCall (CsField (a_var, "ToInt"), [])
-				| Some CsTypeDouble ->
-					CsCall (CsField (a_var, "ToDouble"), [])
-				| Some CsTypeFloat ->
-					CsCall (CsField (a_var, "ToFloat"), [])
-				| Some CsTypeBool ->
-					CsCall (CsField (a_var, "ToBool"), [])
-				| Some CsTypeLong ->
-					CsCall (CsField (a_var, "ToLong"), [])
-				| Some CsTypeString ->
-					CsCall (CsField (a_var, "ToStringValue"), [])
-				| Some (CsTypeClass ((["haxe"; "lang"], "Null"), [inner])) ->
-					begin match inner with
-						| CsTypeInt -> CsCall (CsField (a_var, "ToNullInt"), [])
-						| CsTypeDouble -> CsCall (CsField (a_var, "ToNullDouble"), [])
-						| CsTypeFloat -> CsCall (CsField (a_var, "ToNullFloat"), [])
-						| CsTypeBool -> CsCall (CsField (a_var, "ToNullBool"), [])
-						| CsTypeLong -> CsCall (CsField (a_var, "ToNullLong"), [])
-						| _ when CsTypeMapping.is_inherently_nullable inner ->
-							(* Inner type is inherently nullable - just cast from dynamic *)
-							CsCast (inner, CsCall (CsField (a_var, "ToDynamic"), []))
-						| _ ->
-							let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
-							CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (a_var, "ToDynamic"), [])])
-					end
-				| Some t ->
-					(* Use ToDynamic() then cast_object_to_type for proper handling *)
-					cast_object_to_type t (CsCall (CsField (a_var, "ToDynamic"), []))
-				| None ->
-					CsCall (CsField (a_var, "ToDynamic"), [])
+				let t = match param.p_type with Some t -> t | None -> CsTypeDynamic in
+				cast_value_to_type t a_var
 			) invoke_params_with_opt in
 			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
 			let body = if return_cs_type = CsTypeVoid then
 				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
-				let wrapped_result = match return_cs_type with
-					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_call])
-					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_call])
-					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_call])
-					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_call])
-					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_call])
-					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_call])
-				in
+				let wrapped_result = cast_type_to_value return_cs_type invoke_call in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
@@ -8080,46 +7844,19 @@ let generate_field_accessors gctx c =
 					(* Generate the method call with proper argument extraction from Value *)
 					let call_args = List.filter_map (fun (i, (arg_name, _, t)) ->
 						let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
-						(* Extract value from Value based on type *)
 						let cs_arg_type = cs_type_of_type gctx t in
 						match cs_arg_type with
-						| CsTypeVoid -> None  (* Void arguments are skipped *)
-						| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToInt"), []))
-						| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToDouble"), []))
-						| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToBool"), []))
-						| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToLong"), []))
-						| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToFloat"), []))
-						| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-							(* Null<T> - use ToNullXxx() methods for primitives *)
-							begin match inner with
-							| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToNullInt"), []))
-							| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToNullLong"), []))
-							| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToNullDouble"), []))
-							| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToNullFloat"), []))
-							| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToNullBool"), []))
-							| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
-							end
-						| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
+						| CsTypeVoid -> None
+						| _ -> Some (cast_value_to_type cs_arg_type fv_local)
 					) (List.mapi (fun i arg -> (i, arg)) args) in
 					let method_call = CsCall (CsField (CsThis, native_name), call_args) in
 					(* Wrap result in Value *)
 					let cs_ret_type = cs_type_of_type gctx ret in
 					let result_expr = match cs_ret_type with
 						| CsTypeVoid ->
-							(* void method - call it then return Value.Missing() *)
 							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (function_value_type, "Missing", [])))]
-						| CsTypeInt ->
-							[CsReturn (Some (CsStaticCall (function_value_type, "FromInt", [method_call])))]
-						| CsTypeDouble ->
-							[CsReturn (Some (CsStaticCall (function_value_type, "FromDouble", [method_call])))]
-						| CsTypeBool ->
-							[CsReturn (Some (CsStaticCall (function_value_type, "FromBool", [method_call])))]
-						| CsTypeLong ->
-							[CsReturn (Some (CsStaticCall (function_value_type, "FromLong", [method_call])))]
-						| CsTypeFloat ->
-							[CsReturn (Some (CsStaticCall (function_value_type, "FromFloat", [method_call])))]
 						| _ ->
-							[CsReturn (Some (CsStaticCall (function_value_type, "FromObject", [method_call])))]
+							[CsReturn (Some (cast_type_to_value cs_ret_type method_call))]
 					in
 					{
 						sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
@@ -8457,41 +8194,16 @@ let generate_static_field_accessors gctx c =
 				let cs_arg_type = cs_type_of_type gctx t in
 				match cs_arg_type with
 				| CsTypeVoid -> None
-				| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToInt"), []))
-				| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToDouble"), []))
-				| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToBool"), []))
-				| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToLong"), []))
-				| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToFloat"), []))
-				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
-					begin match inner with
-					| CsTypeInt -> Some (CsCall (CsField (fv_local, "ToNullInt"), []))
-					| CsTypeLong -> Some (CsCall (CsField (fv_local, "ToNullLong"), []))
-					| CsTypeDouble -> Some (CsCall (CsField (fv_local, "ToNullDouble"), []))
-					| CsTypeFloat -> Some (CsCall (CsField (fv_local, "ToNullFloat"), []))
-					| CsTypeBool -> Some (CsCall (CsField (fv_local, "ToNullBool"), []))
-					| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
-					end
-				| _ -> Some (CsCast (cs_arg_type, CsCall (CsField (fv_local, "ToDynamic"), [])))
+				| _ -> Some (cast_value_to_type cs_arg_type fv_local)
 			) (List.mapi (fun i arg -> (i, arg)) args) in
 			let method_call = CsCall (CsStaticField (cs_class_type, native_name), call_args) in
 			(* Wrap result in Value *)
 			let cs_ret_type = cs_type_of_type gctx ret in
 			let result_expr = match cs_ret_type with
 				| CsTypeVoid ->
-					(* void method - call it then return Value.Missing() *)
 					CsCall (CsStaticField (function_value_type, "Missing"), [])
-				| CsTypeInt ->
-					CsStaticCall (function_value_type, "FromInt", [method_call])
-				| CsTypeDouble ->
-					CsStaticCall (function_value_type, "FromDouble", [method_call])
-				| CsTypeBool ->
-					CsStaticCall (function_value_type, "FromBool", [method_call])
-				| CsTypeLong ->
-					CsStaticCall (function_value_type, "FromLong", [method_call])
-				| CsTypeFloat ->
-					CsStaticCall (function_value_type, "FromFloat", [method_call])
 				| _ ->
-					CsStaticCall (function_value_type, "FromObject", [method_call])
+					cast_type_to_value cs_ret_type method_call
 			in
 			(* For void methods, we need a block lambda that calls the method then returns *)
 			let lambda_body = match cs_ret_type with
