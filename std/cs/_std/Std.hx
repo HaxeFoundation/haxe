@@ -31,6 +31,12 @@ class Std {
 		if (v == null) {
 			return false;
 		}
+		// Special case: Haxe says Int is also Float
+		var isFloat:Bool = untyped __cs__("{0} is System.Type typeObj2 && typeObj2 == typeof(double)", t);
+		if (isFloat) {
+			var isNum:Bool = untyped __cs__("{0} is int || {0} is double || {0} is float || {0} is long", v);
+			if (isNum) return true;
+		}
 		// t should be a System.Type (from typeof())
 		// Use C# reflection to check if v is an instance of that type
 		return untyped __cs__("{0} is System.Type typeObj && typeObj.IsInstanceOfType({1})", t, v);

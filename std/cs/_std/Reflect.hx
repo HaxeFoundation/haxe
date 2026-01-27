@@ -152,8 +152,11 @@ class Reflect {
 
 		// Try to call getter first
 		var getter = Reflect.field(o, "get_" + field);
-		if (getter != null && Std.isOfType(getter, HaxeFunction)) {
-			return (cast getter : HaxeFunction).invoke();
+		if (getter != null) {
+			var isFunc:Bool = untyped __cs__("{0} is haxe.lang.Function", getter);
+			if (isFunc) {
+				return untyped __cs__("((haxe.lang.Function){0}).invokeDynamic(new haxe.root.Array())", getter);
+			}
 		}
 
 		// Fall back to field access
@@ -172,9 +175,12 @@ class Reflect {
 
 		// Try to call setter first
 		var setter = Reflect.field(o, "set_" + field);
-		if (setter != null && Std.isOfType(setter, HaxeFunction)) {
-			(cast setter : HaxeFunction).invoke1(value);
-			return;
+		if (setter != null) {
+			var isFunc:Bool = untyped __cs__("{0} is haxe.lang.Function", setter);
+			if (isFunc) {
+				untyped __cs__("((haxe.lang.Function){0}).invokeDynamic(haxe.root.Array.__ofDynLiteral(new object[] { {1} }))", setter, value);
+				return;
+			}
 		}
 
 		// Fall back to field access

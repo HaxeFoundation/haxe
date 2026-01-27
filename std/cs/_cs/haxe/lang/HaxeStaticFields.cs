@@ -11,7 +11,7 @@ namespace haxe.lang
     /// </summary>
     public static class HaxeStaticFields
     {
-        // Dictionary keyed by typeof(X).Name (string)
+        // Dictionary keyed by typeof(X).FullName (string)
         private static readonly Dictionary<string, StaticAccessors> registry = new Dictionary<string, StaticAccessors>();
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace haxe.lang
         public static object getField(System.Type type, string name)
         {
             StaticAccessors acc;
-            if (registry.TryGetValue(type.Name, out acc) && acc.getter != null)
+            if (registry.TryGetValue(type.FullName, out acc) && acc.getter != null)
             {
                 return acc.getter(name);
             }
@@ -50,7 +50,7 @@ namespace haxe.lang
         public static bool hasField(System.Type type, string name)
         {
             StaticAccessors acc;
-            if (registry.TryGetValue(type.Name, out acc) && acc.checker != null)
+            if (registry.TryGetValue(type.FullName, out acc) && acc.checker != null)
             {
                 return acc.checker(name);
             }
@@ -64,7 +64,7 @@ namespace haxe.lang
         public static string[] getClassFieldNames(System.Type type)
         {
             StaticAccessors acc;
-            if (registry.TryGetValue(type.Name, out acc))
+            if (registry.TryGetValue(type.FullName, out acc))
             {
                 return acc.classFieldNames;
             }
@@ -78,7 +78,7 @@ namespace haxe.lang
         public static string[] getInstanceFieldNames(System.Type type)
         {
             StaticAccessors acc;
-            if (registry.TryGetValue(type.Name, out acc))
+            if (registry.TryGetValue(type.FullName, out acc))
             {
                 return acc.instanceFieldNames;
             }

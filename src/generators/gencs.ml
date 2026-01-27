@@ -8268,12 +8268,12 @@ let generate_static_field_accessors gctx c =
 	   generate a minimal _hx_bind that only registers field name arrays (no getter/checker) *)
 	if static_fields = [] && static_methods = [] then
 		let bind_body =
-			(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).Name); *)
+			(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).FullName); *)
 			let get_or_create = CsVarDecl (
 				"acc",
 				Some static_accessors_type,
 				Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
-					CsField (CsTypeOf cs_class_type, "Name")
+					CsField (CsTypeOf cs_class_type, "FullName")
 				]))
 			) in
 			(* acc.classFieldNames = new string[] { ... }; (property names only, no data fields/methods) *)
@@ -8521,19 +8521,19 @@ let generate_static_field_accessors gctx c =
 	(* Generate _hx_bind method for HaxeStaticFields registration.
 	   This is called from Program.cs before main() to ensure all static accessors are registered.
 	   public static void _hx_bind() {
-	       var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).Name);
+	       var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).FullName);
 	       acc.getter = _hx_getStaticField;
 	       acc.checker = _hx_hasStaticField;
 	       acc.fieldNames = new string[] { ... };
 	   }
 	*)
 	let bind_body =
-		(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).Name); *)
+		(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).FullName); *)
 		let get_or_create = CsVarDecl (
 			"acc",
 			Some static_accessors_type,
 			Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
-				CsField (CsTypeOf cs_class_type, "Name")
+				CsField (CsTypeOf cs_class_type, "FullName")
 			]))
 		) in
 		(* acc.getter = _hx_getStaticField; *)
@@ -9410,7 +9410,7 @@ let generate com =
 		(* Generate interface field name registrations (interfaces can't have _hx_bind) *)
 		let interface_registrations = List.rev_map (fun (ipath, field_names) ->
 			let field_names_str = String.concat ", " (List.map (Printf.sprintf "\"%s\"") field_names) in
-			Printf.sprintf "        {\n            var acc = global::haxe.lang.HaxeStaticFields.getOrCreate(typeof(global::%s).Name);\n            acc.instanceFieldNames = new string[] { %s };\n        }" (s_cs_path ipath) field_names_str
+			Printf.sprintf "        {\n            var acc = global::haxe.lang.HaxeStaticFields.getOrCreate(typeof(global::%s).FullName);\n            acc.instanceFieldNames = new string[] { %s };\n        }" (s_cs_path ipath) field_names_str
 		) gctx.all_haxe_interfaces in
 		let interface_registrations_str = String.concat "\n" interface_registrations in
 		let program_content = Printf.sprintf

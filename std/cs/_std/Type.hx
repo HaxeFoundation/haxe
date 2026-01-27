@@ -132,37 +132,31 @@ class Type {
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		if (cl == null)
 			return null;
-		// cl is System.Type - use directly
-		// Use Activator.CreateInstance for parameterless constructor
-		if (args == null || args.length == 0) {
-			return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0})", cl);
-		}
-		// Build arguments array for constructor call
-		var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", args.length);
-		for (i in 0...args.length) {
+		var argLen = (args == null) ? 0 : args.length;
+		// Build native args array
+		var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", argLen);
+		for (i in 0...argLen) {
 			untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 		}
-		// Find constructor with matching parameter count (more AOT-friendly)
+		// Find constructor with matching parameter count
 		var constructors:Dynamic = untyped __cs__("((System.Type){0}).GetConstructors()", cl);
 		var ctorCount:Int = untyped __cs__("((System.Reflection.ConstructorInfo[]){0}).Length", constructors);
 		for (i in 0...ctorCount) {
 			var ctor:Dynamic = untyped __cs__("((System.Reflection.ConstructorInfo[]){0})[{1}]", constructors, i);
 			var ctorParams:Dynamic = untyped __cs__("((System.Reflection.ConstructorInfo){0}).GetParameters()", ctor);
 			var paramCount:Int = untyped __cs__("((System.Reflection.ParameterInfo[]){0}).Length", ctorParams);
-			if (paramCount == args.length) {
-				// Found a constructor with matching parameter count - try to invoke it
+			if (paramCount == argLen) {
 				return cast untyped __cs__("((System.Reflection.ConstructorInfo){0}).Invoke((object[]){1})", ctor, nativeArgs);
 			}
 		}
-		// Fallback: try Activator with params (may fail in AOT)
-		return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0}, (object[]){1})", cl, nativeArgs);
+		// No matching constructor — result is unspecified per Haxe docs
+		return null;
 	}
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		if (cl == null)
 			return null;
-		// Use FormatterServices to create without calling constructor
-		return cast untyped __cs__("System.Runtime.Serialization.FormatterServices.GetUninitializedObject((System.Type){0})", cl);
+		return cast untyped __cs__("System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject((System.Type){0})", cl);
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
