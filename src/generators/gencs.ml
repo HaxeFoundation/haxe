@@ -5934,7 +5934,7 @@ let compute_static_method_index c cf =
    - method_type: the type of the method (TFun)
 *)
 let rec generate_method_closure ectx obj_expr is_static c_opt class_path type_params cf method_type =
-	(* Fast path: use cached FastMethodClosure/FastStaticMethodClosure when possible.
+	(* Fast path: use cached InstanceMethodFunction/ClassMethodFunction when possible.
 	   This reuses the same infrastructure as _hx_getField, ensuring that method closures
 	   for the same method on the same object are reference-equal (important for == checks).
 	   Only available for concrete Haxe classes (not interfaces, not externs). *)
@@ -7592,8 +7592,8 @@ let rec extends_haxe_object c =
 (* Value type for method closure dispatchers *)
 let function_value_type = CsTypeClass ((["haxe"; "lang"], "Value"), [])
 
-(* FastMethodClosure type for AOT-safe method closures *)
-let fast_method_closure_type = CsTypeClass ((["haxe"; "lang"], "FastMethodClosure"), [])
+(* InstanceMethodFunction type for AOT-safe method closures *)
+let instance_method_func_type = CsTypeClass ((["haxe"; "lang"], "InstanceMethodFunction"), [])
 
 (* Generate _hx_getField, _hx_setField, _hx_getFields, method closure infrastructure for AOT compatibility *)
 let generate_field_accessors gctx c =
@@ -7658,7 +7658,7 @@ let generate_field_accessors gctx c =
 
 		(* Compute ancestor method count for hierarchical index offset.
 		   Each class's method indices start after all ancestor indices,
-		   preventing collisions when FastMethodClosure uses virtual _hx_invokeMethodN dispatch. *)
+		   preventing collisions when InstanceMethodFunction uses virtual _hx_invokeMethodN dispatch. *)
 		let ancestor_method_count = compute_ancestor_method_count c in
 
 		(* Assign sequential indexes to methods, offset by ancestor method count *)
@@ -7674,11 +7674,11 @@ let generate_field_accessors gctx c =
 			[]
 		else
 
-		(* Generate _hx_closureCache field (nullable array of FastMethodClosure) *)
+		(* Generate _hx_closureCache field (nullable array of InstanceMethodFunction) *)
 		let closure_cache_members = if method_count = 0 then [] else [
 			CsMemberField {
 				f_name = "_hx_closureCache";
-				f_type = CsTypeArray (fast_method_closure_type, None);
+				f_type = CsTypeArray (instance_method_func_type, None);
 				f_access = AccessModifier.Private;
 				f_modifiers = [];
 				f_value = None;
@@ -7686,7 +7686,7 @@ let generate_field_accessors gctx c =
 		] in
 
 		(* Generate _hx_getMethodClosure helper method.
-		   Cache uses local indices (0..method_count-1) but FastMethodClosure stores the
+		   Cache uses local indices (0..method_count-1) but InstanceMethodFunction stores the
 		   global index (offset by ancestor_method_count) for _hx_invokeMethodN dispatch. *)
 
 		(* Expression to convert global index to local cache index *)
@@ -7699,7 +7699,7 @@ let generate_field_accessors gctx c =
 		let get_method_closure_members = if method_count = 0 then [] else [
 			CsMemberMethod {
 				m_name = "_hx_getMethodClosure";
-				m_return_type = fast_method_closure_type;
+				m_return_type = instance_method_func_type;
 				m_access = AccessModifier.Internal;
 				m_modifiers = [];
 				m_type_params = [];
@@ -7708,21 +7708,21 @@ let generate_field_accessors gctx c =
 					{ p_name = "arity"; p_type = Some CsTypeInt; p_default = None; p_modifier = None };
 				];
 				m_body = Some [
-					(* if (_hx_closureCache == null) _hx_closureCache = new FastMethodClosure[method_count]; *)
+					(* if (_hx_closureCache == null) _hx_closureCache = new InstanceMethodFunction[method_count]; *)
 					CsIf (
 						CsBinop (CsOpEq, CsField (CsThis, "_hx_closureCache"), CsConst CsConstNull),
 						CsExprStmt (CsBinop (CsOpAssign,
 							CsField (CsThis, "_hx_closureCache"),
-							CsNewArray (fast_method_closure_type, List.init method_count (fun _ -> CsConst CsConstNull))
+							CsNewArray (instance_method_func_type, List.init method_count (fun _ -> CsConst CsConstNull))
 						)),
 						None
 					);
-					(* if (_hx_closureCache[localIdx] == null) _hx_closureCache[localIdx] = new FastMethodClosure(this, index, arity); *)
+					(* if (_hx_closureCache[localIdx] == null) _hx_closureCache[localIdx] = new InstanceMethodFunction(this, index, arity); *)
 					CsIf (
 						CsBinop (CsOpEq, CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr), CsConst CsConstNull),
 						CsExprStmt (CsBinop (CsOpAssign,
 							CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr),
-							CsNew (fast_method_closure_type, [CsThis; CsLocal "index"; CsLocal "arity"])
+							CsNew (instance_method_func_type, [CsThis; CsLocal "index"; CsLocal "arity"])
 						)),
 						None
 					);
@@ -7898,8 +7898,8 @@ let generate_field_accessors gctx c =
 		let optional_members = List.filter_map (fun x -> x) [get_field_method; set_field_method; get_fields_method] in
 		closure_cache_members @ get_method_closure_members @ optional_members @ invoke_method_dispatchers
 
-(* Type for FastStaticMethodClosure *)
-let fast_static_method_closure_type = CsTypeClass ((["haxe"; "lang"], "FastStaticMethodClosure"), [])
+(* Type for ClassMethodFunction *)
+let class_method_func_type = CsTypeClass ((["haxe"; "lang"], "ClassMethodFunction"), [])
 
 (* Type for haxe.lang.HaxeStaticFields *)
 let haxe_static_fields_type = CsTypeClass ((["haxe"; "lang"], "HaxeStaticFields"), [])
@@ -8153,11 +8153,11 @@ let generate_static_field_accessors gctx c =
 	let accessor_needs_new = super_has_static_fields c in
 	let static_accessor_modifiers = if accessor_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
-	(* Generate _hx_staticClosureCache field (nullable array of FastStaticMethodClosure) *)
+	(* Generate _hx_staticClosureCache field (nullable array of ClassMethodFunction) *)
 	let closure_cache_members = if method_count = 0 then [] else [
 		CsMemberField {
 			f_name = "_hx_staticClosureCache";
-			f_type = CsTypeArray (fast_static_method_closure_type, None);
+			f_type = CsTypeArray (class_method_func_type, None);
 			f_access = AccessModifier.Private;
 			f_modifiers = [MemberModifier.Static];
 			f_value = None;
@@ -8165,13 +8165,13 @@ let generate_static_field_accessors gctx c =
 	] in
 
 	(* Generate _hx_getStaticMethodClosure helper method with direct lambdas:
-	   private static haxe.lang.FastStaticMethodClosure _hx_getStaticMethodClosure(int index) {
+	   private static haxe.lang.ClassMethodFunction _hx_getStaticMethodClosure(int index) {
 	       if (_hx_staticClosureCache == null)
-	           _hx_staticClosureCache = new haxe.lang.FastStaticMethodClosure[N];
+	           _hx_staticClosureCache = new haxe.lang.ClassMethodFunction[N];
 	       if (_hx_staticClosureCache[index] == null) {
 	           switch (index) {
-	               case 0: _hx_staticClosureCache[0] = new FastStaticMethodClosure(() => Value.FromInt(method0())); break;
-	               case 1: _hx_staticClosureCache[1] = new FastStaticMethodClosure((a1, a2) => Value.FromObject(method1(...))); break;
+	               case 0: _hx_staticClosureCache[0] = new ClassMethodFunction(() => Value.FromInt(method0())); break;
+	               case 1: _hx_staticClosureCache[1] = new ClassMethodFunction((a1, a2) => Value.FromObject(method1(...))); break;
 	               ...
 	           }
 	       }
@@ -8214,7 +8214,7 @@ let generate_static_field_accessors gctx c =
 			(* Create the closure assignment *)
 			let closure_creation = CsExprStmt (CsBinop (CsOpAssign,
 				CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsConst (CsConstInt (Int32.of_int idx))),
-				CsNew (fast_static_method_closure_type, [lambda])
+				CsNew (class_method_func_type, [lambda])
 			)) in
 			{
 				sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
@@ -8223,18 +8223,18 @@ let generate_static_field_accessors gctx c =
 		) indexed_methods in
 		[CsMemberMethod {
 			m_name = "_hx_getStaticMethodClosure";
-			m_return_type = fast_static_method_closure_type;
+			m_return_type = class_method_func_type;
 			m_access = AccessModifier.Internal;
 			m_modifiers = [MemberModifier.Static];
 			m_type_params = [];
 			m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
 			m_body = Some [
-				(* if (_hx_staticClosureCache == null) _hx_staticClosureCache = new FastStaticMethodClosure[method_count]; *)
+				(* if (_hx_staticClosureCache == null) _hx_staticClosureCache = new ClassMethodFunction[method_count]; *)
 				CsIf (
 					CsBinop (CsOpEq, CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsConst CsConstNull),
 					CsExprStmt (CsBinop (CsOpAssign,
 						CsStaticField (cs_class_type, "_hx_staticClosureCache"),
-						CsNewArray (fast_static_method_closure_type, List.init method_count (fun _ -> CsConst CsConstNull))
+						CsNewArray (class_method_func_type, List.init method_count (fun _ -> CsConst CsConstNull))
 					)),
 					None
 				);
@@ -9292,8 +9292,8 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Function.cs" "haxe/lang/Function.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Value.cs" "haxe/lang/Value.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/FastMethodClosure.cs" "haxe/lang/FastMethodClosure.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/FastStaticMethodClosure.cs" "haxe/lang/FastStaticMethodClosure.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/InstanceMethodFunction.cs" "haxe/lang/InstanceMethodFunction.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/ClassMethodFunction.cs" "haxe/lang/ClassMethodFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/ConstructorFunction.cs" "haxe/lang/ConstructorFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/StaticAccessors.cs" "haxe/lang/StaticAccessors.cs";

@@ -19,13 +19,13 @@ namespace haxe.lang
     /// Note: Generic methods use a different, reflection-based MethodClosure (private class in Reflect.hx)
     /// because type arguments are only known at the call site.
     /// </summary>
-    public sealed class FastMethodClosure : Function
+    public sealed class InstanceMethodFunction : Function
     {
         private readonly global::haxe.root.HaxeObject _obj;
         private readonly int _index;
         private readonly int _arity;
 
-        public FastMethodClosure(global::haxe.root.HaxeObject obj, int index, int arity)
+        public InstanceMethodFunction(global::haxe.root.HaxeObject obj, int index, int arity)
         {
             _obj = obj;
             _index = index;

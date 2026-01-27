@@ -16,7 +16,7 @@ namespace haxe.lang
     /// - Direct delegate call: No dictionary lookup at invocation time
     /// - AOT-safe: No reflection required
     /// </summary>
-    public sealed class FastStaticMethodClosure : Function
+    public sealed class ClassMethodFunction : Function
     {
         private readonly Func<Value> _invoke0;
         private readonly Func<Value, Value> _invoke1;
@@ -32,77 +32,77 @@ namespace haxe.lang
         private readonly int _arity;
 
         // Constructor for arity 0
-        public FastStaticMethodClosure(Func<Value> invoke)
+        public ClassMethodFunction(Func<Value> invoke)
         {
             _invoke0 = invoke;
             _arity = 0;
         }
 
         // Constructor for arity 1
-        public FastStaticMethodClosure(Func<Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value> invoke)
         {
             _invoke1 = invoke;
             _arity = 1;
         }
 
         // Constructor for arity 2
-        public FastStaticMethodClosure(Func<Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value> invoke)
         {
             _invoke2 = invoke;
             _arity = 2;
         }
 
         // Constructor for arity 3
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value> invoke)
         {
             _invoke3 = invoke;
             _arity = 3;
         }
 
         // Constructor for arity 4
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value, Value> invoke)
         {
             _invoke4 = invoke;
             _arity = 4;
         }
 
         // Constructor for arity 5
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke5 = invoke;
             _arity = 5;
         }
 
         // Constructor for arity 6
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke6 = invoke;
             _arity = 6;
         }
 
         // Constructor for arity 7
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke7 = invoke;
             _arity = 7;
         }
 
         // Constructor for arity 8
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke8 = invoke;
             _arity = 8;
         }
 
         // Constructor for arity 9
-        public FastStaticMethodClosure(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
+        public ClassMethodFunction(Func<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value> invoke)
         {
             _invoke9 = invoke;
             _arity = 9;
         }
 
         // Constructor for dynamic (10+ args)
-        public FastStaticMethodClosure(Func<global::haxe.root.Array, object> invoke)
+        public ClassMethodFunction(Func<global::haxe.root.Array, object> invoke)
         {
             _invokeDynamic = invoke;
             _arity = -1;
