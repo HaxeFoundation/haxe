@@ -4347,7 +4347,7 @@ let rec cs_expr_of_texpr ectx e =
 			let result_cs_type = cs_type_of_type ectx.gctx result_type in
 			let then_cs_type = cs_type_of_type ectx.gctx then_expr.etype in
 			let else_cs_type = cs_type_of_type ectx.gctx else_expr.etype in
-			let wrap_in_null_if_needed null_type branch_type expr =
+			let wrap_in_null_if_needed null_type branch_type haxe_expr expr =
 				(* Check if the C# expression actually produces a Null type.
 				   We can't rely on Haxe types alone because the C# expression might be
 				   a primitive constant even when Haxe type says Null<T>.
@@ -4377,8 +4377,30 @@ let rec cs_expr_of_texpr ectx e =
 						end
 					| _ -> false
 				in
+				(* Check if the Haxe expression is "natively" Null<T> (not cast to Null<T>).
+				   - TCast to Null<T> means the inner expression is NOT Null, needs wrapping
+				   - Field access to a Null<T> field IS natively Null
+				   - Local variable of Null<T> type IS natively Null *)
+				let rec haxe_expr_is_native_null e = match e.eexpr with
+					| TCast (_, None) ->
+						(* Explicit cast to Null<T> - the inner is NOT natively Null *)
+						false
+					| TParenthesis inner | TMeta (_, inner) ->
+						haxe_expr_is_native_null inner
+					| TLocal _ | TField _ ->
+						(* Locals and fields: check if C# type is Null<T> *)
+						begin match branch_type with
+						| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+						| _ -> false
+						end
+					| TConst TNull ->
+						(* Null constant generates CsDefault, which is already recognized *)
+						true
+					| _ -> false
+				in
 				let expr_is_null_type = cs_expr_produces_null_type expr in
-				if expr_is_null_type then
+				let haxe_is_native_null = haxe_expr_is_native_null haxe_expr in
+				if expr_is_null_type || haxe_is_native_null then
 					expr  (* Already produces Null type in C# *)
 				else
 					(* Use new Null<T>(expr, true) instead of (Null<T>)expr to handle interfaces *)
@@ -4387,8 +4409,8 @@ let rec cs_expr_of_texpr ectx e =
 			let then_e, else_e = match result_cs_type with
 				| CsTypeClass ((["haxe"; "lang"], "Null"), _) as null_type ->
 					(* Wrap both branches in Null<T> to ensure C# ternary type is unambiguous *)
-					wrap_in_null_if_needed null_type then_cs_type then_e,
-					wrap_in_null_if_needed null_type else_cs_type else_e
+					wrap_in_null_if_needed null_type then_cs_type then_expr then_e,
+					wrap_in_null_if_needed null_type else_cs_type else_expr else_e
 				| _ -> then_e, else_e
 			in
 			CsTernary (cond_cs, then_e, else_e)
