@@ -86,6 +86,21 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Returns the array of enum constructor names for a type, or null if not registered.
+        /// Used by Type.getEnumConstructs() for AOT-safe enum constructor enumeration.
+        /// Constructor names are stored in declaration order (by _hx_index).
+        /// </summary>
+        public static string[] getEnumConstructs(System.Type type)
+        {
+            StaticAccessors acc;
+            if (registry.TryGetValue(type.FullName, out acc))
+            {
+                return acc.enumConstructs;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Creates an empty (uninitialized) instance of a Haxe class.
         /// Uses the registered emptyFactory Function from _hx_bind().
         /// </summary>

@@ -281,8 +281,18 @@ class Type {
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
 		if (e == null)
 			return [];
+
+		// Try registry first (AOT-safe, correct declaration order)
+		var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getEnumConstructs((System.Type){0})", e);
+		if (names != null) {
+			var result = new Array<String>();
+			for (i in 0...names.length)
+				result.push(names[i]);
+			return result;
+		}
+
+		// Fallback: reflection (may not preserve declaration order in AOT)
 		var result:Array<String> = [];
-		// e is System.Type - get nested types (enum constructors are nested classes)
 		var nestedTypes:Dynamic = untyped __cs__("((System.Type){0}).GetNestedTypes()", e);
 		var nestedCount:Int = untyped __cs__("((System.Type[]){0}).Length", nestedTypes);
 		for (i in 0...nestedCount) {
@@ -397,9 +407,15 @@ class Type {
 	public static function enumIndex(e:EnumValue):Int {
 		if (e == null)
 			return -1;
-		// Read _hx_index field
+		// Use IHaxeEnum interface for AOT-safe enum index access
+		if (untyped __cs__("{0} is global::haxe.lang.IHaxeEnum", e)) {
+			return untyped __cs__("((global::haxe.lang.IHaxeEnum){0})._hx_getIndex()", e);
+		}
+		// Fallback: reflection for non-Haxe enums
 		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", e);
-		var indexField:Dynamic = untyped __cs__("((System.Type){0}).GetField(\"_hx_index\")", nativeType);
+		var indexField:Dynamic = untyped __cs__(
+			"((System.Type){0}).GetField(\"_hx_index\", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)",
+			nativeType);
 		if (indexField != null) {
 			return untyped __cs__("(int)((System.Reflection.FieldInfo){0}).GetValue({1})", indexField, e);
 		}

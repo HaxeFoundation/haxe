@@ -103,6 +103,20 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Converts object to string for Haxe string concatenation.
+        /// Unlike toStr, this returns the literal string "null" for null inputs,
+        /// matching Haxe semantics where "hello" + null produces "hellonull".
+        /// </summary>
+        public static string toStrConcat(object d)
+        {
+            if (d == null) return "null";
+            if (d is string s) return s;
+            if (d is double dbl) return dbl.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+            if (d is float flt) return flt.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+            return d.ToString();
+        }
+
+        /// <summary>
         /// Value-based equality for Dynamic/boxed values.
         /// Unlike object.Equals(), handles cross-type numeric equality
         /// (e.g., boxed int 0 == boxed double 0.0 returns true)
@@ -148,7 +162,9 @@ namespace haxe.lang
         /// </summary>
         public static object InvokeDelegate(object func, global::haxe.root.Array args)
         {
-            if (func == null) throw new global::System.NullReferenceException("Cannot invoke null delegate");
+            // Return null for null delegates instead of throwing - matches Haxe semantics
+            // where calling a null function field on an anonymous object should return null
+            if (func == null) return null;
 
             // If it's a HaxeFunction, use its invokeDynamic method
             if (func is global::haxe.lang.Function hf)

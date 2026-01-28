@@ -23,6 +23,7 @@ namespace haxe.lang
         public StaticFieldChecker checker;
         public string[] classFieldNames;
         public string[] instanceFieldNames;
+        public string[] enumConstructs;
         public Function emptyFactory;
         public Function factory;
     }

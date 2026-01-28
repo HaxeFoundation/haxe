@@ -1130,7 +1130,7 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> obj_expr
 				in
 				let val_cs = cs_expr_of_texpr ectx e2 in
-				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "SetField", [obj_expr; CsConst (CsConstString name); val_cs])
+				CsStaticCall (runtime_type, "SetField", [obj_expr; CsConst (CsConstString name); val_cs])
 			| TField (obj, FAnon cf) ->
 				(* Anonymous field assignment - check if it's a truly dynamic object or a known type *)
 				let obj_expr = cs_expr_of_texpr ectx obj in
@@ -1156,7 +1156,7 @@ let rec cs_expr_of_texpr ectx e =
 					CsCall (CsField (obj_expr, "_hx_setField"), [CsConst (CsConstString cf.cf_name); val_cs])
 				| CsTypeObject ->
 					(* Object type - use Runtime.SetField *)
-					CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
+					CsStaticCall (runtime_type, "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
 				| _ ->
 					(* Known anonymous type - generate direct field assignment *)
 					CsBinop (CsOpAssign, CsField (obj_expr, escape_identifier cf.cf_name), val_cs)
@@ -1170,7 +1170,7 @@ let rec cs_expr_of_texpr ectx e =
 				begin match cs_type with
 				| CsTypeObject ->
 					(* Type was erased to object - use Runtime.SetField *)
-					CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
+					CsStaticCall (runtime_type, "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
 				| _ ->
 					(* Normal field assignment - generate field access WITHOUT the read-cast
 					   that would be added by the general TField handler. The read-cast is for
@@ -1303,10 +1303,10 @@ let rec cs_expr_of_texpr ectx e =
 					CsBinop (CsOpNotEq, CsField (cs_e1, "value"), CsField (cs_e2, "value"))))
 		| OpEq when is_generic_param e1.etype || is_generic_param e2.etype ->
 			(* T == T  ->  Runtime.valEq(a, b) for generic type params *)
-			CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
+			CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
 		| OpNotEq when is_generic_param e1.etype || is_generic_param e2.etype ->
 			(* T != T  ->  !Runtime.valEq(a, b) for generic type params *)
-			CsUnop (CsOpNot, false, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
+			CsUnop (CsOpNot, false, CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
 		| _ ->
 			(* Check if either operand is Dynamic - if so, use runtime helpers for non-comparison ops *)
 			let is_dynamic t = match cs_type_of_type ectx.gctx (follow t) with
@@ -1342,9 +1342,9 @@ let rec cs_expr_of_texpr ectx e =
 				CsBinop (CsOpGte, CsStaticCall (CsTypeClass (cs_path, []), "compare", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]), CsConst (CsConstInt 0l))
 			(* Equality comparisons with Dynamic - use Runtime.valEq for value-based equality *)
 			| OpEq when either_dynamic ->
-				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
+				CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
 			| OpNotEq when either_dynamic ->
-				CsUnop (CsOpNot, false, CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
+				CsUnop (CsOpNot, false, CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
 			(* String comparison: use stringCompare for < > operators *)
 			| OpLt when is_string e1.etype && is_string e2.etype ->
 				CsBinop (CsOpLt, CsStaticCall (CsTypeClass (cs_path, []), "stringCompare", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]), CsConst (CsConstInt 0l))
@@ -1582,26 +1582,48 @@ let rec cs_expr_of_texpr ectx e =
 					| TAbstract ({ a_path = ([], "Single") }, _) -> true
 					| _ -> false
 				in
+				let is_bool_type t = match follow t with
+					| TAbstract ({ a_path = ([], "Bool") }, _) -> true
+					| _ -> false
+				in
 				(* Check if type is a type parameter (generic). In C#, arithmetic on type params isn't allowed. *)
 				let is_type_param t = match follow t with
 					| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
 					| _ -> false
 				in
 				(* String concatenation with floats/doubles needs invariant culture to ensure '.' decimal separator.
-				   C#'s implicit ToString() for string + float uses current culture, which may use comma. *)
+				   C#'s implicit ToString() for string + float uses current culture, which may use comma.
+				   Also: C# drops null in string concatenation, but Haxe expects null to become "null" string.
+				   We use Runtime.toStr() for non-string operands that could be null to fix both issues. *)
 				let is_string_concat = op = OpAdd && is_string e.etype in
 				let needs_invariant_float_to_string e =
 					is_string_concat && is_float_type e.etype
 				in
+				(* Check if an operand could be null at runtime and needs conversion to "null" string.
+				   This covers: Object, Dynamic, class types, Null<T>, and explicitly nullable types.
+				   Primitives (int, bool, float) cannot be null and don't need this. *)
+				let could_be_null_reference e =
+					if not is_string_concat then false
+					else if is_string e.etype then false  (* Strings handled by + operator *)
+					else if is_int_type e.etype then false
+					else if is_float_type e.etype then false
+					else if is_bool_type e.etype then false
+					else true  (* Object, Dynamic, class types, Null<T> - all could be null *)
+				in
 				let cs_e1 = cs_expr_of_texpr ectx e1 in
 				let cs_e2 = cs_expr_of_texpr ectx e2 in
-				(* Wrap float operands with cs.Cs.toString() for string concatenation to ensure invariant culture *)
-				let cs_e1 = if needs_invariant_float_to_string e1 then
-					CsStaticCall (CsTypeClass (cs_path, []), "toString", [cs_e1])
-				else cs_e1 in
-				let cs_e2 = if needs_invariant_float_to_string e2 then
-					CsStaticCall (CsTypeClass (cs_path, []), "toString", [cs_e2])
-				else cs_e2 in
+				(* Wrap operands for string concatenation:
+				   - float: cs.Cs.toString() for invariant culture
+				   - nullable types: Runtime.toStrConcat() to convert null to "null" string *)
+				let wrap_for_string_concat e cs_e =
+					if needs_invariant_float_to_string e then
+						CsStaticCall (CsTypeClass (cs_path, []), "toString", [cs_e])
+					else if could_be_null_reference e then
+						object_to_string_for_concat cs_e
+					else cs_e
+				in
+				let cs_e1 = wrap_for_string_concat e1 cs_e1 in
+				let cs_e2 = wrap_for_string_concat e2 cs_e2 in
 				(* For type parameters, cast through object to int for arithmetic operations.
 				   C# doesn't allow arithmetic on generic types even with constraints. *)
 				let is_arithmetic_op = match op with
@@ -2117,7 +2139,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Regular dynamic field access via reflection *)
 			(* Use haxe.lang.Runtime.GetField for dynamic field access *)
 			let field_call =
-				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [obj_expr; CsConst (CsConstString name)])
+				CsStaticCall (runtime_type, "GetField", [obj_expr; CsConst (CsConstString name)])
 			in
 			(* Runtime.GetField returns object, but Haxe knows the actual type.
 			   Cast to the expected type if it's not Dynamic/object.
@@ -6078,7 +6100,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 				let native_array = CsNewArray (CsTypeObject, call_args) in
 				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
-			CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array])
+			CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array])
 		end else
 			CsStaticCall (static_type, method_name, call_args)
 	else if is_stored_function then begin
@@ -6091,7 +6113,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 			let native_array = CsNewArray (CsTypeObject, call_args) in
 			make_array_from_native ArrayDynamic native_array (haxe_array_type)
 		in
-		CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "InvokeDelegate", [func_expr; args_array])
+		CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array])
 	end else
 		CsCall (CsField (CsField (CsThis, "_hx_this"), method_name), call_args)
 	in
@@ -9133,15 +9155,78 @@ let generate_enum gctx (e : tenum) =
 			f_value = None;
 		} in
 
+		(* Record this enum for Program.cs _hx_bind() calls *)
+		gctx.all_haxe_classes <- path :: gctx.all_haxe_classes;
+
+		(* Get enum constructor names sorted by ef_index for correct declaration order *)
+		let sorted_constrs = List.sort (fun ef1 ef2 -> compare ef1.ef_index ef2.ef_index)
+			(PMap.fold (fun ef acc -> ef :: acc) e.e_constrs []) in
+		let constr_names = List.map (fun ef -> ef.ef_name) sorted_constrs in
+
+		(* Generate _hx_bind method for HaxeStaticFields registration.
+		   This registers the enum constructor names in declaration order.
+		   public static void _hx_bind() {
+		       var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyEnum).FullName);
+		       acc.enumConstructs = new string[] { "A", "B", "C" };
+		   }
+		*)
+		let cs_enum_type = CsTypeClass (path, []) in
+		let bind_body =
+			(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyEnum).FullName); *)
+			let get_or_create = CsVarDecl (
+				"acc",
+				Some static_accessors_type,
+				Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
+					CsField (CsTypeOf cs_enum_type, "FullName")
+				]))
+			) in
+			(* acc.enumConstructs = new string[] { "A", "B", "C" }; *)
+			let set_enum_constructs = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "enumConstructs"),
+				CsNewArray (CsTypeString,
+					List.map (fun name -> CsConst (CsConstString name)) constr_names)
+			)) in
+			[get_or_create; set_enum_constructs]
+		in
+		let bind_method = CsMemberMethod {
+			m_name = "_hx_bind";
+			m_return_type = CsTypeVoid;
+			m_access = AccessModifier.Public;
+			m_modifiers = [MemberModifier.Static];
+			m_type_params = [];
+			m_params = [];
+			m_body = Some bind_body;
+			m_constraints = [];
+			m_explicit_interface = None;
+			m_attributes = [];
+		} in
+
+		(* Generate _hx_getIndex() method for IHaxeEnum interface - AOT-safe enum index access *)
+		let get_index_method = CsMemberMethod {
+			m_name = "_hx_getIndex";
+			m_return_type = CsTypeInt;
+			m_access = AccessModifier.Public;
+			m_modifiers = [];
+			m_type_params = [];
+			m_params = [];
+			m_body = Some [CsReturn (Some (CsField (CsThis, "_hx_index")))];
+			m_constraints = [];
+			m_explicit_interface = None;
+			m_attributes = [];
+		} in
+
+		(* IHaxeEnum interface type *)
+		let ihaxe_enum_type = CsTypeClass ((["haxe"; "lang"], "IHaxeEnum"), []) in
+
 		CsClassDef {
 			c_path = path;
 			c_access = AccessModifier.Public;
 			c_modifiers = [TypeModifier.Abstract];
 			c_type_params = type_params;  (* Add type params to parent class *)
 			c_base = None;
-			c_interfaces = [];
+			c_interfaces = [ihaxe_enum_type];
 			c_constraints = [];
-			c_members = index_field :: List.rev members;
+			c_members = index_field :: get_index_method :: bind_method :: List.rev members;
 		}
 
 (* Generate type *)
@@ -9298,5 +9383,6 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/ConstructorFunction.cs" "haxe/lang/ConstructorFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/StaticAccessors.cs" "haxe/lang/StaticAccessors.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeStaticFields.cs" "haxe/lang/HaxeStaticFields.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/IHaxeEnum.cs" "haxe/lang/IHaxeEnum.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
 

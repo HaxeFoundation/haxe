@@ -366,7 +366,23 @@ class Reflect {
 
 		// For other objects, do shallow copy via reflection
 		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
-		var dst:Dynamic = untyped __cs__("System.Activator.CreateInstance((System.Type){0})", nativeType);
+
+		// Try AOT-safe HaxeStaticFields.createEmpty first (works for Haxe classes)
+		var dst:Dynamic = untyped __cs__("global::haxe.lang.HaxeStaticFields.createEmpty((System.Type){0})", nativeType);
+
+		// Fallback to Activator for native C# classes
+		if (dst == null) {
+			try {
+				dst = untyped __cs__("System.Activator.CreateInstance((System.Type){0})", nativeType);
+			} catch (e:Dynamic) {
+				// CreateInstance failed (can happen in AOT), return null
+				return null;
+			}
+		}
+
+		// Safety check: if we couldn't create an instance, return null
+		if (dst == null)
+			return null;
 
 		var fieldInfos:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", nativeType);
 		var fieldCount:Int = untyped __cs__("((System.Reflection.FieldInfo[]){0}).Length", fieldInfos);

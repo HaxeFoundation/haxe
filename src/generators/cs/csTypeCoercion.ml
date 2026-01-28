@@ -159,6 +159,13 @@ let rec is_ternary_with_mixed_types cs_expr =
 let object_to_string object_expr =
 	CsStaticCall (runtime_type, "toStr", [object_expr])
 
+(* Convert object to string for Haxe string concatenation.
+   Unlike object_to_string, this returns the literal string "null" for null inputs,
+   matching Haxe semantics where "hello" + null produces "hellonull".
+   This generates: Runtime.toStrConcat(obj) *)
+let object_to_string_for_concat object_expr =
+	CsStaticCall (runtime_type, "toStrConcat", [object_expr])
+
 (* Cast object/Dynamic to target C# type, using Runtime.toXxx for primitives.
    This handles boxed type mismatches (e.g., boxed int to double).
    Used when dynamic operation results need to be cast to specific types. *)
