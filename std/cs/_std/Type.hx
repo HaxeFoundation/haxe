@@ -336,6 +336,9 @@ class Type {
 		var c = getClass(v);
 		if (c != null)
 			return TClass(c);
+		// Check if v is a System.Type (class or enum type object)
+		if (untyped __cs__("{0} is System.Type", v))
+			return TObject;
 		return TUnknown;
 	}
 
@@ -387,29 +390,25 @@ class Type {
 	public static function enumParameters(e:EnumValue):Array<Dynamic> {
 		if (e == null)
 			return [];
-		var result:Array<Dynamic> = [];
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", e);
-		// Get public instance fields (these are the parameters)
-		var fields:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", nativeType);
-		var fieldCount:Int = untyped __cs__("((System.Reflection.FieldInfo[]){0}).Length", fields);
-		for (i in 0...fieldCount) {
-			var field:Dynamic = untyped __cs__("((System.Reflection.FieldInfo[]){0})[{1}]", fields, i);
-			var name:String = untyped __cs__("((System.Reflection.FieldInfo){0}).Name", field);
-			// Skip internal fields
-			if (name != "_hx_index") {
-				var value:Dynamic = untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue({1})", field, e);
-				result.push(value);
+		// Use HaxeEnum base class for AOT-safe parameter access
+		if (untyped __cs__("{0} is global::haxe.lang.HaxeEnum", e)) {
+			var params:cs.NativeArray<Dynamic> = untyped __cs__("((global::haxe.lang.HaxeEnum){0})._hx_getParameters()", e);
+			var result:Array<Dynamic> = [];
+			for (i in 0...params.length) {
+				result.push(params[i]);
 			}
+			return result;
 		}
-		return result;
+		// Fallback: non-Haxe enums
+		return [];
 	}
 
 	public static function enumIndex(e:EnumValue):Int {
 		if (e == null)
 			return -1;
-		// Use IHaxeEnum interface for AOT-safe enum index access
-		if (untyped __cs__("{0} is global::haxe.lang.IHaxeEnum", e)) {
-			return untyped __cs__("((global::haxe.lang.IHaxeEnum){0})._hx_getIndex()", e);
+		// Use HaxeEnum base class for AOT-safe enum index access
+		if (untyped __cs__("{0} is global::haxe.lang.HaxeEnum", e)) {
+			return untyped __cs__("((global::haxe.lang.HaxeEnum){0})._hx_getIndex()", e);
 		}
 		// Fallback: reflection for non-Haxe enums
 		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", e);

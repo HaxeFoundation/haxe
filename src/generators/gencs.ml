@@ -8976,16 +8976,12 @@ let generate_enum gctx (e : tenum) =
 					CsExprStmt (CsBinop (CsOpAssign,
 						CsField (CsThis, esc_name),
 						CsLocal esc_name))
-				) args @ [
-					CsExprStmt (CsBinop (CsOpAssign,
-						CsField (CsThis, "_hx_index"),
-						CsConst (CsConstInt (Int32.of_int ef.ef_index))))
-				] in
+				) args in
 				let ctor = CsMemberConstructor {
 					ctor_access = AccessModifier.Public;
 					ctor_modifiers = [];
 					ctor_params = ctor_params;
-					ctor_base_call = None;
+					ctor_base_call = Some [CsConst (CsConstInt (Int32.of_int ef.ef_index))];
 					ctor_this_call = None;
 					ctor_body = ctor_body;
 				} in
@@ -9028,6 +9024,25 @@ let generate_enum gctx (e : tenum) =
 						m_attributes = [];
 					}
 				in
+				(* Generate _hx_getParameters() override - AOT-safe parameter access *)
+				let get_params_method =
+					let param_names = List.map (fun (name, _, _) -> escape_identifier name) args in
+					let param_exprs = List.map (fun pname ->
+						CsCast (CsTypeObject, CsField (CsThis, pname))
+					) param_names in
+					CsMemberMethod {
+						m_name = "_hx_getParameters";
+						m_return_type = CsTypeArray (CsTypeObject, None);
+						m_access = AccessModifier.Public;
+						m_modifiers = [MemberModifier.Override];
+						m_type_params = [];
+						m_params = [];
+						m_body = Some [CsReturn (Some (CsNewArray (CsTypeObject, param_exprs)))];
+						m_constraints = [];
+						m_explicit_interface = None;
+						m_attributes = [];
+					}
+				in
 				(* Nested class has parent's type params + constructor's own type params (GADT) *)
 				let nested_class = CsClassDef {
 					c_path = (fst path, class_name);
@@ -9037,7 +9052,7 @@ let generate_enum gctx (e : tenum) =
 					c_base = Some (CsTypeClass (path, type_param_refs));  (* Reference parent with parent's type params only *)
 					c_interfaces = [];
 					c_constraints = [];
-					c_members = fields @ [ctor; tostring_method];
+					c_members = fields @ [ctor; tostring_method; get_params_method];
 				} in
 				CsMemberNestedType nested_class :: acc
 			| _ ->
@@ -9046,18 +9061,13 @@ let generate_enum gctx (e : tenum) =
 				(* For generic enums, simple constructors also need the type params *)
 				if type_params <> [] then begin
 					(* Generic enum - nested class inherits type params, no singleton possible *)
-					let ctor_body = [
-						CsExprStmt (CsBinop (CsOpAssign,
-							CsField (CsThis, "_hx_index"),
-							CsConst (CsConstInt (Int32.of_int ef.ef_index))))
-					] in
 					let ctor = CsMemberConstructor {
 						ctor_access = AccessModifier.Public;
 						ctor_modifiers = [];
 						ctor_params = [];
-						ctor_base_call = None;
+						ctor_base_call = Some [CsConst (CsConstInt (Int32.of_int ef.ef_index))];
 						ctor_this_call = None;
-						ctor_body = ctor_body;
+						ctor_body = [];
 					} in
 					(* Generate ToString() method for proper enum string representation *)
 					let tostring_method = CsMemberMethod {
@@ -9088,19 +9098,14 @@ let generate_enum gctx (e : tenum) =
 					(* Non-generic enum - use singleton pattern *)
 					(* Suffix to avoid name collision between nested class and static field *)
 					let nested_class_name = class_name ^ "_Impl_" in
-					(* Constructor that sets _hx_index *)
-					let ctor_body = [
-						CsExprStmt (CsBinop (CsOpAssign,
-							CsField (CsThis, "_hx_index"),
-							CsConst (CsConstInt (Int32.of_int ef.ef_index))))
-					] in
+					(* Constructor that calls base with index *)
 					let ctor = CsMemberConstructor {
 						ctor_access = AccessModifier.Public;
 						ctor_modifiers = [];
 						ctor_params = [];
-						ctor_base_call = None;
+						ctor_base_call = Some [CsConst (CsConstInt (Int32.of_int ef.ef_index))];
 						ctor_this_call = None;
-						ctor_body = ctor_body;
+						ctor_body = [];
 					} in
 					(* Path for nested class: add parent class name to namespace *)
 					let nested_path = (fst path @ [snd path], nested_class_name) in
@@ -9145,15 +9150,6 @@ let generate_enum gctx (e : tenum) =
 					CsMemberNestedType nested_class :: field :: acc
 				end
 		) e.e_constrs [] in
-
-		(* Add _hx_index field *)
-		let index_field = CsMemberField {
-			f_name = "_hx_index";
-			f_type = CsTypeInt;
-			f_access = AccessModifier.Public;
-			f_modifiers = [];
-			f_value = None;
-		} in
 
 		(* Record this enum for Program.cs _hx_bind() calls *)
 		gctx.all_haxe_classes <- path :: gctx.all_haxe_classes;
@@ -9201,32 +9197,28 @@ let generate_enum gctx (e : tenum) =
 			m_attributes = [];
 		} in
 
-		(* Generate _hx_getIndex() method for IHaxeEnum interface - AOT-safe enum index access *)
-		let get_index_method = CsMemberMethod {
-			m_name = "_hx_getIndex";
-			m_return_type = CsTypeInt;
-			m_access = AccessModifier.Public;
-			m_modifiers = [];
-			m_type_params = [];
-			m_params = [];
-			m_body = Some [CsReturn (Some (CsField (CsThis, "_hx_index")))];
-			m_constraints = [];
-			m_explicit_interface = None;
-			m_attributes = [];
-		} in
+		(* HaxeEnum base class type *)
+		let haxe_enum_type = CsTypeClass ((["haxe"; "lang"], "HaxeEnum"), []) in
 
-		(* IHaxeEnum interface type *)
-		let ihaxe_enum_type = CsTypeClass ((["haxe"; "lang"], "IHaxeEnum"), []) in
+		(* Protected constructor that forwards index to HaxeEnum base class *)
+		let enum_ctor = CsMemberConstructor {
+			ctor_access = AccessModifier.Protected;
+			ctor_modifiers = [];
+			ctor_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
+			ctor_base_call = Some [CsLocal "index"];
+			ctor_this_call = None;
+			ctor_body = [];
+		} in
 
 		CsClassDef {
 			c_path = path;
 			c_access = AccessModifier.Public;
 			c_modifiers = [TypeModifier.Abstract];
 			c_type_params = type_params;  (* Add type params to parent class *)
-			c_base = None;
-			c_interfaces = [ihaxe_enum_type];
+			c_base = Some haxe_enum_type;
+			c_interfaces = [];
 			c_constraints = [];
-			c_members = index_field :: get_index_method :: bind_method :: List.rev members;
+			c_members = enum_ctor :: bind_method :: List.rev members;
 		}
 
 (* Generate type *)
@@ -9383,6 +9375,6 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/ConstructorFunction.cs" "haxe/lang/ConstructorFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/StaticAccessors.cs" "haxe/lang/StaticAccessors.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeStaticFields.cs" "haxe/lang/HaxeStaticFields.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/IHaxeEnum.cs" "haxe/lang/IHaxeEnum.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/HaxeEnum.cs" "haxe/lang/HaxeEnum.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
 
