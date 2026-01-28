@@ -152,53 +152,38 @@ class Type {
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		if (e == null)
 			return null;
+
+		// Use AOT-safe registry: _hx_getEnumConstructor returns either:
+		// - The singleton enum value directly (for parameterless constructors)
+		// - A ConstructorFunction (for parametric constructors)
+		var constructorOrValue:Dynamic = untyped __cs__("global::haxe.lang.HaxeReflection.getField((System.Type){0}, {1})", e, constr);
+		if (constructorOrValue == null)
+			throw "Invalid constructor " + constr;
+
 		if (params == null || params.length == 0) {
-			// For parameterless constructors, try the parent enum type's static field first.
-			// This is more AOT-friendly: public static fields are preserved by the trimmer.
-			var parentField:Dynamic = untyped __cs__("((System.Type){0}).GetField({1}, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)", e, constr);
-			if (parentField != null) {
-				return cast untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue(null)", parentField);
+			// For parameterless constructors, the result is the singleton value directly
+			// Check if it's already an enum value (not a ConstructorFunction)
+			if (isEnumValue(constructorOrValue)) {
+				return cast constructorOrValue;
 			}
+			// It's a ConstructorFunction for a parametric constructor called with no args - error
+			throw "Invalid number of arguments for " + constr;
+		} else {
+			// For parametric constructors, get the ConstructorFunction and call create()
+			// Check if result is a ConstructorFunction
+			var isCtorFunc:Bool = untyped __cs__("{0} is global::haxe.lang.ConstructorFunction", constructorOrValue);
+			if (!isCtorFunc) {
+				// Parameterless constructor was called with params - this is an error
+				throw "Invalid number of arguments for " + constr;
+			}
+			// Build native args array
+			var paramsArray:Array<Dynamic> = params;
+			var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", paramsArray.length);
+			for (i in 0...paramsArray.length) {
+				untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, paramsArray[i]);
+			}
+			return cast untyped __cs__("((global::haxe.lang.ConstructorFunction){0}).create((object[]){1})", constructorOrValue, nativeArgs);
 		}
-		// Fall through to nested type approach for parameterized constructors or if parent field not found
-		var nestedTypes:Dynamic = untyped __cs__("((System.Type){0}).GetNestedTypes()", e);
-		var nestedCount:Int = untyped __cs__("((System.Type[]){0}).Length", nestedTypes);
-		for (i in 0...nestedCount) {
-			var nested:Dynamic = untyped __cs__("((System.Type[]){0})[{1}]", nestedTypes, i);
-			var nestedName:String = untyped __cs__("((System.Type){0}).Name", nested);
-			// Match both "Name" and "Name_Impl_" for singleton enum constructors
-			var matchedName = nestedName;
-			if (StringTools.endsWith(nestedName, "_Impl_")) {
-				matchedName = nestedName.substr(0, nestedName.length - 6);
-			}
-			if (matchedName == constr) {
-				if (params == null || params.length == 0) {
-					// Try to get singleton instance from nested type
-					var instanceField:Dynamic = untyped __cs__("((System.Type){0}).GetField(\"Instance\", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)", nested);
-					if (instanceField != null) {
-						return cast untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue(null)", instanceField);
-					}
-					try {
-						return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0})", nested);
-					} catch (d:Dynamic) {
-						return null;
-					}
-				} else {
-					// Extract the actual array from the optional parameter to avoid Null<Array> issues
-					var paramsArray:Array<Dynamic> = params;
-					var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", paramsArray.length);
-					for (j in 0...paramsArray.length) {
-						untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, j, paramsArray[j]);
-					}
-					try {
-						return cast untyped __cs__("System.Activator.CreateInstance((System.Type){0}, (object[]){1})", nested, nativeArgs);
-					} catch (d:Dynamic) {
-						return null;
-					}
-				}
-			}
-		}
-		return null;
 	}
 
 	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {

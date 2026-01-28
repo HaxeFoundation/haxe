@@ -9181,14 +9181,159 @@ let generate_enum gctx (e : tenum) =
 			(PMap.fold (fun ef acc -> ef :: acc) e.e_constrs []) in
 		let constr_names = List.map (fun ef -> ef.ef_name) sorted_constrs in
 
+		let cs_enum_type = CsTypeClass (path, []) in
+		let constructor_function_type = CsTypeClass ((["haxe"; "lang"], "ConstructorFunction"), []) in
+
+		(* Separate parametric (has args) and simple (no args) constructors for caching *)
+		let parametric_constrs = List.filter (fun ef ->
+			match ef.ef_type with TFun _ -> true | _ -> false
+		) sorted_constrs in
+		let parametric_count = List.length parametric_constrs in
+
+		(* Index parametric constructors for cache array *)
+		let parametric_with_index = List.mapi (fun i ef -> (i, ef)) parametric_constrs in
+
+		(* Generate _hx_constructorCache field (only if there are parametric constructors) *)
+		let cache_field = if parametric_count = 0 then [] else [
+			CsMemberField {
+				f_name = "_hx_constructorCache";
+				f_type = CsTypeArray (constructor_function_type, None);
+				f_access = AccessModifier.Private;
+				f_modifiers = [MemberModifier.Static];
+				f_value = None;
+			}
+		] in
+
+		(* Generate _hx_getEnumConstructor(string name) method:
+		   - Simple constructors: return static field directly (singleton)
+		   - Parametric constructors: return cached ConstructorFunction
+		   public static object _hx_getEnumConstructor(string name) {
+		       switch (name) {
+		           case "None": return MyEnum.None;  // Simple - return singleton
+		           case "Some":  // Parametric - return cached ConstructorFunction
+		               if (_hx_constructorCache == null)
+		                   _hx_constructorCache = new ConstructorFunction[N];
+		               if (_hx_constructorCache[0] == null)
+		                   _hx_constructorCache[0] = new ConstructorFunction(args => new MyEnum.Some((Type)args[0]));
+		               return _hx_constructorCache[0];
+		           default: return null;
+		       }
+		   }
+		*)
+		let get_enum_constructor_cases = List.map (fun ef ->
+			let ctor_name = ef.ef_name in
+			let esc_name = escape_ctor_name ctor_name in
+			match ef.ef_type with
+			| TFun (args, _) ->
+				(* Parametric constructor - return cached ConstructorFunction *)
+				let cache_idx = List.assoc ef.ef_index (List.map (fun (i, ef) -> (ef.ef_index, i)) parametric_with_index) in
+				(* Build: new MyEnum.NestedClass((Type1)args[0], (Type2)args[1], ...) *)
+				let nested_class_type = CsTypeClass ((fst path @ [snd path], esc_name), []) in
+				let cast_args = List.mapi (fun i (_, _, t) ->
+					let arg_type = cs_type_of_type gctx t in
+					cast_object_to_type arg_type (CsArrayAccess (CsLocal "args", CsConst (CsConstInt (Int32.of_int i))))
+				) args in
+				let new_instance = CsNew (nested_class_type, cast_args) in
+				(* Lambda: args => new MyEnum.NestedClass(...) *)
+				let lambda = CsLambda (
+					[{ p_name = "args"; p_type = None; p_default = None; p_modifier = None }],
+					CsLambdaExpr new_instance
+				) in
+				let cache_access = CsArrayAccess (CsStaticField (cs_enum_type, "_hx_constructorCache"), CsConst (CsConstInt (Int32.of_int cache_idx))) in
+				{
+					sw_labels = [CsCaseConst (CsConst (CsConstString ctor_name))];
+					sw_body = [
+						(* if (_hx_constructorCache == null) _hx_constructorCache = new ConstructorFunction[N]; *)
+						CsIf (
+							CsBinop (CsOpEq, CsStaticField (cs_enum_type, "_hx_constructorCache"), CsConst CsConstNull),
+							CsExprStmt (CsBinop (CsOpAssign,
+								CsStaticField (cs_enum_type, "_hx_constructorCache"),
+								CsNewArray (constructor_function_type, List.init parametric_count (fun _ -> CsConst CsConstNull))
+							)),
+							None
+						);
+						(* if (_hx_constructorCache[idx] == null) _hx_constructorCache[idx] = new ConstructorFunction(lambda); *)
+						CsIf (
+							CsBinop (CsOpEq, cache_access, CsConst CsConstNull),
+							CsExprStmt (CsBinop (CsOpAssign, cache_access, CsNew (constructor_function_type, [lambda]))),
+							None
+						);
+						(* return _hx_constructorCache[idx]; *)
+						CsReturn (Some cache_access);
+					];
+				}
+			| _ ->
+				(* Simple constructor - return static field directly *)
+				{
+					sw_labels = [CsCaseConst (CsConst (CsConstString ctor_name))];
+					sw_body = [CsReturn (Some (CsStaticField (cs_enum_type, esc_name)))];
+				}
+		) sorted_constrs in
+		let get_enum_constructor_default = {
+			sw_labels = [CsCaseDefault];
+			sw_body = [CsReturn (Some (CsConst CsConstNull))];
+		} in
+		let get_enum_constructor_method = CsMemberMethod {
+			m_name = "_hx_getEnumConstructor";
+			m_return_type = CsTypeObject;
+			m_access = AccessModifier.Public;
+			m_modifiers = [MemberModifier.Static];
+			m_type_params = [];
+			m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
+			m_body = Some [CsSwitch (CsLocal "name", get_enum_constructor_cases @ [get_enum_constructor_default])];
+			m_constraints = [];
+			m_explicit_interface = None;
+			m_attributes = [];
+		} in
+
+		(* Generate _hx_hasEnumConstructor(string name) method:
+		   public static bool _hx_hasEnumConstructor(string name) {
+		       switch (name) {
+		           case "A": case "B": case "C": return true;
+		           default: return false;
+		       }
+		   }
+		*)
+		let has_switch_cases =
+			(* Only include the "return true" case if there are constructors *)
+			if constr_names = [] then
+				(* No constructors - just default case *)
+				[{
+					sw_labels = [CsCaseDefault];
+					sw_body = [CsReturn (Some (CsConst (CsConstBool false)))];
+				}]
+			else
+				(* Has constructors - include true case and default *)
+				[{
+					sw_labels = List.map (fun name -> CsCaseConst (CsConst (CsConstString name))) constr_names;
+					sw_body = [CsReturn (Some (CsConst (CsConstBool true)))];
+				}; {
+					sw_labels = [CsCaseDefault];
+					sw_body = [CsReturn (Some (CsConst (CsConstBool false)))];
+				}]
+		in
+		let has_enum_constructor_method = CsMemberMethod {
+			m_name = "_hx_hasEnumConstructor";
+			m_return_type = CsTypeBool;
+			m_access = AccessModifier.Public;
+			m_modifiers = [MemberModifier.Static];
+			m_type_params = [];
+			m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
+			m_body = Some [CsSwitch (CsLocal "name", has_switch_cases)];
+			m_constraints = [];
+			m_explicit_interface = None;
+			m_attributes = [];
+		} in
+
 		(* Generate _hx_bind method for HaxeReflection registration.
-		   This registers the enum constructor names in declaration order.
+		   This registers enum constructor names and the getter/checker.
 		   public static void _hx_bind() {
 		       var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyEnum).FullName);
 		       acc.enumConstructs = new string[] { "A", "B", "C" };
+		       acc.getter = MyEnum._hx_getEnumConstructor;
+		       acc.checker = MyEnum._hx_hasEnumConstructor;
 		   }
 		*)
-		let cs_enum_type = CsTypeClass (path, []) in
 		let bind_body =
 			(* var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyEnum).FullName); *)
 			let get_or_create = CsVarDecl (
@@ -9204,7 +9349,17 @@ let generate_enum gctx (e : tenum) =
 				CsNewArray (CsTypeString,
 					List.map (fun name -> CsConst (CsConstString name)) constr_names)
 			)) in
-			[get_or_create; set_enum_constructs]
+			(* acc.getter = MyEnum._hx_getEnumConstructor; *)
+			let set_getter = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "getter"),
+				CsStaticField (cs_enum_type, "_hx_getEnumConstructor")
+			)) in
+			(* acc.checker = MyEnum._hx_hasEnumConstructor; *)
+			let set_checker = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "checker"),
+				CsStaticField (cs_enum_type, "_hx_hasEnumConstructor")
+			)) in
+			[get_or_create; set_enum_constructs; set_getter; set_checker]
 		in
 		let bind_method = CsMemberMethod {
 			m_name = "_hx_bind";
@@ -9240,7 +9395,7 @@ let generate_enum gctx (e : tenum) =
 			c_base = Some haxe_enum_type;
 			c_interfaces = [];
 			c_constraints = [];
-			c_members = enum_ctor :: bind_method :: List.rev members;
+			c_members = cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method; bind_method] @ List.rev members;
 		}
 
 (* Generate type *)
