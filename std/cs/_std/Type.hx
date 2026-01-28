@@ -139,14 +139,14 @@ class Type {
 			untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 		}
 		// Use AOT-safe registry-based factory (falls back to Activator for non-Haxe types)
-		return cast untyped __cs__("global::haxe.lang.HaxeStaticFields.create((System.Type){0}, (object[]){1})", cl, nativeArgs);
+		return cast untyped __cs__("global::haxe.lang.HaxeReflection.create((System.Type){0}, (object[]){1})", cl, nativeArgs);
 	}
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		if (cl == null)
 			return null;
 		// Use AOT-safe registry-based factory (falls back to GetUninitializedObject for non-Haxe types)
-		return cast untyped __cs__("global::haxe.lang.HaxeStaticFields.createEmpty((System.Type){0})", cl);
+		return cast untyped __cs__("global::haxe.lang.HaxeReflection.createEmpty((System.Type){0})", cl);
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
@@ -215,7 +215,7 @@ class Type {
 		var result:Array<String> = [];
 		var current = c;
 		while (current != null) {
-			var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getInstanceFieldNames((System.Type){0})", current);
+			var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeReflection.getInstanceFieldNames((System.Type){0})", current);
 			if (names != null) {
 				for (i in 0...names.length) {
 					if (result.indexOf(names[i]) == -1)
@@ -232,7 +232,7 @@ class Type {
 			return [];
 
 		// Try AOT-safe registry first
-		var fieldNames:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getClassFieldNames((System.Type){0})", c);
+		var fieldNames:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeReflection.getClassFieldNames((System.Type){0})", c);
 		if (fieldNames != null) {
 			var result:Array<String> = [];
 			for (i in 0...fieldNames.length) {
@@ -283,7 +283,7 @@ class Type {
 			return [];
 
 		// Try registry first (AOT-safe, correct declaration order)
-		var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeStaticFields.getEnumConstructs((System.Type){0})", e);
+		var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeReflection.getEnumConstructs((System.Type){0})", e);
 		if (names != null) {
 			var result = new Array<String>();
 			for (i in 0...names.length)

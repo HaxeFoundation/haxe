@@ -46,7 +46,7 @@ class Reflect {
 		var isType:Bool = untyped __cs__("{0} is System.Type", o);
 		if (isType) {
 			// AOT-safe: Use registered static field accessor
-			return untyped __cs__("global::haxe.lang.HaxeStaticFields.hasField((System.Type){0}, {1})", o, field);
+			return untyped __cs__("global::haxe.lang.HaxeReflection.hasField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects
@@ -79,7 +79,7 @@ class Reflect {
 		var isType:Bool = untyped __cs__("{0} is System.Type", o);
 		if (isType) {
 			// AOT-safe: Use registered static field accessor
-			return untyped __cs__("global::haxe.lang.HaxeStaticFields.getField((System.Type){0}, {1})", o, field);
+			return untyped __cs__("global::haxe.lang.HaxeReflection.getField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects
@@ -367,8 +367,8 @@ class Reflect {
 		// For other objects, do shallow copy via reflection
 		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
 
-		// Try AOT-safe HaxeStaticFields.createEmpty first (works for Haxe classes)
-		var dst:Dynamic = untyped __cs__("global::haxe.lang.HaxeStaticFields.createEmpty((System.Type){0})", nativeType);
+		// Try AOT-safe HaxeReflection.createEmpty first (works for Haxe classes)
+		var dst:Dynamic = untyped __cs__("global::haxe.lang.HaxeReflection.createEmpty((System.Type){0})", nativeType);
 
 		// Fallback to Activator for native C# classes
 		if (dst == null) {

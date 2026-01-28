@@ -5,11 +5,11 @@ using System.Collections.Generic;
 namespace haxe.lang
 {
     /// <summary>
-    /// Registry for static field accessors.
-    /// Provides AOT-safe static field access by using a dictionary keyed by type name.
-    /// Each Haxe class calls _hx_bind() from Program.cs which registers its static accessors.
+    /// Registry for reflection metadata.
+    /// Provides AOT-safe reflection access by using a dictionary keyed by type name.
+    /// Each Haxe class calls _hx_bind() from Program.cs which registers its metadata.
     /// </summary>
-    public static class HaxeStaticFields
+    public static class HaxeReflection
     {
         // Dictionary keyed by typeof(X).FullName (string)
         private static readonly Dictionary<string, StaticAccessors> registry = new Dictionary<string, StaticAccessors>();

@@ -7645,12 +7645,12 @@ let generate_field_accessors gctx c =
 	if not (extends_haxe_object c) then
 		[]
 	else
-		(* Get list of instance fields with their native names *)
+		(* Get list of instance fields with their Haxe and native names *)
 		let instance_fields = List.filter_map (fun cf ->
 			match cf.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal }
 			| Var { v_read = AccNormal; v_write = AccNever } ->
-				Some (get_native_field_name cf, cs_type_of_type gctx cf.cf_type)
+				Some (cf.cf_name, get_native_field_name cf, cs_type_of_type gctx cf.cf_type)
 			| _ -> None
 		) c.cl_ordered_fields in
 
@@ -7711,7 +7711,7 @@ let generate_field_accessors gctx c =
 		) instance_methods in
 
 		let method_count = List.length instance_methods in
-		let field_names = List.map fst instance_fields in
+		let field_names = List.map (fun (haxe_name, _, _) -> haxe_name) instance_fields in
 
 		(* If no fields and no methods, return empty *)
 		if instance_fields = [] && instance_methods = [] then
@@ -7789,10 +7789,10 @@ let generate_field_accessors gctx c =
 		       }
 		   }
 		*)
-		let get_field_sections = List.map (fun (name, _) ->
+		let get_field_sections = List.map (fun (haxe_name, native_name, _) ->
 			{
-				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
-				sw_body = [CsReturn (Some (CsField (CsThis, name)))];
+				sw_labels = [CsCaseConst (CsConst (CsConstString haxe_name))];
+				sw_body = [CsReturn (Some (CsField (CsThis, native_name)))];
 			}
 		) instance_fields in
 		let get_method_sections = List.map (fun (idx, name, _, arity, _, _) ->
@@ -7820,12 +7820,12 @@ let generate_field_accessors gctx c =
 		}) in
 
 		(* Generate _hx_setField override - only for data fields, not methods *)
-		let set_field_sections = List.map (fun (name, field_type) ->
+		let set_field_sections = List.map (fun (haxe_name, native_name, field_type) ->
 			{
-				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
+				sw_labels = [CsCaseConst (CsConst (CsConstString haxe_name))];
 				sw_body = [
 					(* Use cast_object_to_type for proper handling of primitives (Runtime.toInt, etc.) *)
-					CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, name), cast_object_to_type field_type (CsLocal "value")));
+					CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, native_name), cast_object_to_type field_type (CsLocal "value")));
 					CsReturn None;
 				];
 			}
@@ -7945,15 +7945,15 @@ let generate_field_accessors gctx c =
 (* Type for ClassMethodFunction *)
 let class_method_func_type = CsTypeClass ((["haxe"; "lang"], "ClassMethodFunction"), [])
 
-(* Type for haxe.lang.HaxeStaticFields *)
-let haxe_static_fields_type = CsTypeClass ((["haxe"; "lang"], "HaxeStaticFields"), [])
+(* Type for haxe.lang.HaxeReflection *)
+let haxe_static_fields_type = CsTypeClass ((["haxe"; "lang"], "HaxeReflection"), [])
 
 (* Type for haxe.lang.StaticAccessors *)
 let static_accessors_type = CsTypeClass ((["haxe"; "lang"], "StaticAccessors"), [])
 
 (* Generate static field accessors for AOT-compatible static field/method access.
    This includes:
-   - _hx_bind: registers static field accessors with HaxeStaticFields (called from Program.cs)
+   - _hx_bind: registers static field accessors with HaxeReflection (called from Program.cs)
    - _hx_getStaticField: returns static field/method by name
    - _hx_hasStaticField: checks if static field/method exists
    - _hx_staticClosureCache: array cache for static method closures
@@ -8141,7 +8141,7 @@ let generate_static_field_accessors gctx c =
 	   generate a minimal _hx_bind that only registers field name arrays (no getter/checker) *)
 	if static_fields = [] && static_methods = [] then
 		let bind_body =
-			(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).FullName); *)
+			(* var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyClass).FullName); *)
 			let get_or_create = CsVarDecl (
 				"acc",
 				Some static_accessors_type,
@@ -8367,17 +8367,17 @@ let generate_static_field_accessors gctx c =
 		m_attributes = [];
 	} in
 
-	(* Generate _hx_bind method for HaxeStaticFields registration.
+	(* Generate _hx_bind method for HaxeReflection registration.
 	   This is called from Program.cs before main() to ensure all static accessors are registered.
 	   public static void _hx_bind() {
-	       var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).FullName);
+	       var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyClass).FullName);
 	       acc.getter = _hx_getStaticField;
 	       acc.checker = _hx_hasStaticField;
 	       acc.fieldNames = new string[] { ... };
 	   }
 	*)
 	let bind_body =
-		(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyClass).FullName); *)
+		(* var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyClass).FullName); *)
 		let get_or_create = CsVarDecl (
 			"acc",
 			Some static_accessors_type,
@@ -8914,7 +8914,7 @@ let generate_interface gctx c =
 	let type_params = [] in
 	ignore c.cl_params; (* Suppress unused warning - params are intentionally erased *)
 
-	(* Collect interface instance field names for the HaxeStaticFields registry.
+	(* Collect interface instance field names for the HaxeReflection registry.
 	   Since C# interfaces can't have static methods, we can't add _hx_bind() directly.
 	   Instead, we store the names here and emit registration code in Program.cs. *)
 	let interface_field_names = List.filter_map (fun cf ->
@@ -9181,16 +9181,16 @@ let generate_enum gctx (e : tenum) =
 			(PMap.fold (fun ef acc -> ef :: acc) e.e_constrs []) in
 		let constr_names = List.map (fun ef -> ef.ef_name) sorted_constrs in
 
-		(* Generate _hx_bind method for HaxeStaticFields registration.
+		(* Generate _hx_bind method for HaxeReflection registration.
 		   This registers the enum constructor names in declaration order.
 		   public static void _hx_bind() {
-		       var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyEnum).FullName);
+		       var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyEnum).FullName);
 		       acc.enumConstructs = new string[] { "A", "B", "C" };
 		   }
 		*)
 		let cs_enum_type = CsTypeClass (path, []) in
 		let bind_body =
-			(* var acc = haxe.lang.HaxeStaticFields.getOrCreate(typeof(MyEnum).FullName); *)
+			(* var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyEnum).FullName); *)
 			let get_or_create = CsVarDecl (
 				"acc",
 				Some static_accessors_type,
@@ -9348,7 +9348,7 @@ let generate com =
 		(* Generate interface field name registrations (interfaces can't have _hx_bind) *)
 		let interface_registrations = List.rev_map (fun (ipath, field_names) ->
 			let field_names_str = String.concat ", " (List.map (Printf.sprintf "\"%s\"") field_names) in
-			Printf.sprintf "        {\n            var acc = global::haxe.lang.HaxeStaticFields.getOrCreate(typeof(global::%s).FullName);\n            acc.instanceFieldNames = new string[] { %s };\n        }" (s_cs_path ipath) field_names_str
+			Printf.sprintf "        {\n            var acc = global::haxe.lang.HaxeReflection.getOrCreate(typeof(global::%s).FullName);\n            acc.instanceFieldNames = new string[] { %s };\n        }" (s_cs_path ipath) field_names_str
 		) gctx.all_haxe_interfaces in
 		let interface_registrations_str = String.concat "\n" interface_registrations in
 		let program_content = Printf.sprintf
@@ -9396,7 +9396,7 @@ public class Program
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/ConstructorFunction.cs" "haxe/lang/ConstructorFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/StaticAccessors.cs" "haxe/lang/StaticAccessors.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/HaxeStaticFields.cs" "haxe/lang/HaxeStaticFields.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/HaxeReflection.cs" "haxe/lang/HaxeReflection.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeEnum.cs" "haxe/lang/HaxeEnum.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
 
