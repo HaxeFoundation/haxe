@@ -282,6 +282,35 @@ let rec cs_expr_has_side_effects cs_e =
 	| CsArrayAccess (arr, idx) -> cs_expr_has_side_effects arr || cs_expr_has_side_effects idx
 	| _ -> false
 
+(* Check if expression is trivial enough to safely duplicate without performance concerns.
+   More conservative than cs_expr_has_side_effects - returns true only for truly cheap operations.
+   Used when we need to use an expression multiple times and want to avoid redundant computation. *)
+let rec cs_expr_is_trivial = function
+	| CsLocal _ -> true           (* Variable lookup - trivial *)
+	| CsConst _ -> true           (* Constant value - trivial *)
+	| CsThis | CsBase -> true     (* Keywords - trivial *)
+	| CsNull -> true              (* null literal - trivial *)
+	| CsDefault _ -> true         (* default(T) - trivial *)
+	| CsStaticField _ -> true     (* Static field read - cheap *)
+	| CsParens e -> cs_expr_is_trivial e
+	| _ -> false                  (* Everything else: calls, field chains, casts, etc. - may be expensive *)
+
+(* Detect single-arg lambda IIFE pattern: ((Func<T,R>)(param => body))(arg)
+   Returns Some (prefix_stmts, simplified_expr) if optimizable, None otherwise.
+   This avoids lambda allocation overhead in statement contexts by converting to:
+   var param = arg; then use body directly. *)
+let optimize_single_arg_iife cs_expr =
+	match cs_expr with
+	| CsCall (CsCast (CsTypeFunc ([param_type], _), CsLambda ([param], CsLambdaExpr body)), [arg]) ->
+		(* Convert to: var param = arg; then use body directly *)
+		let prefix_stmt = CsVarDecl (param.p_name, Some param_type, Some arg) in
+		Some ([prefix_stmt], body)
+	| CsCall (CsParens (CsCast (CsTypeFunc ([param_type], _), CsLambda ([param], CsLambdaExpr body))), [arg]) ->
+		(* Same with extra parens *)
+		let prefix_stmt = CsVarDecl (param.p_name, Some param_type, Some arg) in
+		Some ([prefix_stmt], body)
+	| _ -> None
+
 (* Check if a C# statement terminates with a HARD terminator (return, throw).
    Used to avoid generating unreachable 'break' statements after terminators in switch cases.
    IMPORTANT: We only consider return/throw as terminators, NOT break/continue/goto,

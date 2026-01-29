@@ -5002,12 +5002,26 @@ and cs_stmt_of_texpr ectx e =
 					when inner_init <> inner_var && not is_init_object_cast && not is_init_runtime_conversion && is_init_produces_null ->
 					(* Null<A> -> Null<B> where A != B: need to convert inner value.
 					   Generate: init.hasValue ? new Null<B>((B)init.value, true) : new Null<B>(default(B), false)
-					   BUT: Skip if init is already cast to object (can't access .hasValue/.value) or if Runtime conversion *)
-					let has_value = CsField (init_cs, "hasValue") in
-					let converted_value = CsCast (inner_var, CsField (init_cs, "value")) in
-					let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
-					let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
-					CsTernary (has_value, true_branch, false_branch)
+					   BUT: Skip if init is already cast to object (can't access .hasValue/.value) or if Runtime conversion
+					   IMPORTANT: If init_cs is non-trivial or has side effects, use temp var to avoid duplicate evaluation. *)
+					let can_duplicate = cs_expr_is_trivial init_cs && not (cs_expr_has_side_effects init_cs) in
+					if can_duplicate then begin
+						let has_value = CsField (init_cs, "hasValue") in
+						let converted_value = CsCast (inner_var, CsField (init_cs, "value")) in
+						let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
+						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
+						CsTernary (has_value, true_branch, false_branch)
+					end else begin
+						let tmp_name = "_tmp_" ^ (string_of_int ectx.gctx.temp_count) in
+						ectx.gctx.temp_count <- ectx.gctx.temp_count + 1;
+						extra_prefix_stmts := [CsVarDecl (tmp_name, Some init_type, Some init_cs)];
+						let tmp_ref = CsLocal tmp_name in
+						let has_value = CsField (tmp_ref, "hasValue") in
+						let converted_value = CsCast (inner_var, CsField (tmp_ref, "value")) in
+						let true_branch = CsNew (var_type, [converted_value; CsConst (CsConstBool true)]) in
+						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
+						CsTernary (has_value, true_branch, false_branch)
+					end
 				| CsTypeClass (init_path, _), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var]) when init_path <> (["haxe"; "lang"], "Null") && not is_init_null_wrapper ->
 					(* SomeType -> Null<T>: wrap in Null<T> constructor.
 					   This happens with abstract types that can hold null values.
@@ -5039,8 +5053,13 @@ and cs_stmt_of_texpr ectx e =
 					else
 						init_cs
 			in
+			(* Optimize IIFE patterns from coercion to use temp vars instead of lambdas *)
+			let (extra_iife_stmts, init_cs) = match optimize_single_arg_iife init_cs with
+				| Some (stmts, expr) -> (stmts, expr)
+				| None -> ([], init_cs)
+			in
 			let decl_type = Some var_type in
-			let all_prefix_stmts = result.er_stmts @ !extra_prefix_stmts in
+			let all_prefix_stmts = result.er_stmts @ !extra_prefix_stmts @ extra_iife_stmts in
 			if all_prefix_stmts = [] then
 				(* No prefix statements - just emit the variable declaration *)
 				CsVarDecl (name, decl_type, Some init_cs)
@@ -5417,10 +5436,24 @@ and cs_stmt_of_texpr ectx e =
 		(* Assignment statement - use prefix handling for RHS to avoid lambda IIFE.
 		   This optimizes: `x = { ... do-while ... }` to use prefix statements instead of wrapping in lambda. *)
 		let result = cs_expr_with_prefix ectx e2 in
-		if result.er_stmts = [] then
-			(* Simple case - no prefix statements needed, fall through to general handler *)
-			CsExprStmt (cs_expr_of_texpr ectx e)
-		else begin
+		if result.er_stmts = [] then begin
+			(* Simple case - no prefix statements from RHS. Use cs_expr_of_texpr for full handling,
+			   but apply IIFE optimization for cases like `b = getValue()` where coercion produces an IIFE *)
+			let full_cs = cs_expr_of_texpr ectx e in
+			(* Check if the result is an assignment with an IIFE on the RHS *)
+			let (iife_stmts, full_cs) = match full_cs with
+				| CsBinop (CsOpAssign, lhs, rhs) ->
+					begin match optimize_single_arg_iife rhs with
+					| Some (stmts, expr) -> (stmts, CsBinop (CsOpAssign, lhs, expr))
+					| None -> ([], full_cs)
+					end
+				| _ -> ([], full_cs)
+			in
+			if iife_stmts = [] then
+				CsExprStmt full_cs
+			else
+				CsBlock (iife_stmts @ [CsExprStmt full_cs])
+		end else begin
 			(* RHS needed prefix statements - emit them, then the assignment.
 			   NOTE: CsNullable filter handles Null<Null<T>> flattening at the AST level.
 
@@ -5429,6 +5462,11 @@ and cs_stmt_of_texpr ectx e =
 			let arg_cs_type = cs_type_of_type ectx.gctx e2.etype in
 			let expected_cs_type = cs_type_of_type ectx.gctx e1.etype in
 			let val_cs = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx result.er_expr arg_cs_type expected_cs_type in
+			(* Optimize IIFE patterns from coercion to avoid lambda overhead *)
+			let (iife_stmts, val_cs) = match optimize_single_arg_iife val_cs with
+				| Some (stmts, expr) -> (stmts, expr)
+				| None -> ([], val_cs)
+			in
 			(* Create a fake expression for just the LHS assignment with pre-computed RHS *)
 			let lhs_expr = { e with eexpr = TBinop (OpAssign, e1, { e2 with eexpr = TConst TNull; etype = e1.etype }) } in
 			let lhs_assign_cs = cs_expr_of_texpr ectx lhs_expr in
@@ -5439,7 +5477,7 @@ and cs_stmt_of_texpr ectx e =
 				| CsCall (CsField (obj, "_hx_setField"), [name; _]) -> CsCall (CsField (obj, "_hx_setField"), [name; val_cs])
 				| other -> other  (* Fallback - shouldn't happen *)
 			in
-			CsBlock (result.er_stmts @ [CsExprStmt assign_cs])
+			CsBlock (result.er_stmts @ iife_stmts @ [CsExprStmt assign_cs])
 		end
 	| _ ->
 		(* Expression statement - check if it's a void-typed control flow expression that can be emitted directly *)

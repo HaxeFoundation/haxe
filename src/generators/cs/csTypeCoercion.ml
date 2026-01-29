@@ -32,6 +32,7 @@
 open Type
 open CsAst
 open CsTypeMapping
+open CsExprAnalysis
 
 (* ============================================================
    Type classification predicates
@@ -458,11 +459,33 @@ let coerce_null_to_null cs_arg arg_type expected_type =
 			| _ -> false
 		in
 		if needs_numeric then begin
-			let has_value = CsField (cs_arg, "hasValue") in
-			let converted_value = CsCast (inner_expected, CsField (cs_arg, "value")) in
-			let true_branch = CsNew (expected_type, [converted_value; CsConst (CsConstBool true)]) in
-			let false_branch = CsNew (expected_type, [CsDefault inner_expected; CsConst (CsConstBool false)]) in
-			Some (CsTernary (has_value, true_branch, false_branch))
+			(* Only skip temp variable if expression is BOTH trivial AND has no side effects *)
+			let can_duplicate = cs_expr_is_trivial cs_arg &&
+			                    not (cs_expr_has_side_effects cs_arg) in
+			if can_duplicate then begin
+				(* Trivial expression with no side effects - safe to duplicate *)
+				let has_value = CsField (cs_arg, "hasValue") in
+				let converted_value = CsCast (inner_expected, CsField (cs_arg, "value")) in
+				let true_branch = CsNew (expected_type, [converted_value; CsConst (CsConstBool true)]) in
+				let false_branch = CsNew (expected_type, [CsDefault inner_expected; CsConst (CsConstBool false)]) in
+				Some (CsTernary (has_value, true_branch, false_branch))
+			end else begin
+				(* Non-trivial or has side effects - wrap in lambda IIFE to evaluate once:
+				   ((Func<Null<int>, Null<double>>)((_hx_tmp) => _hx_tmp.hasValue ? new Null<double>((double)_hx_tmp.value, true) : default(Null<double>)))(expr)
+				*)
+				let tmp_name = "_hx_tmp" in
+				let tmp_param = { p_name = tmp_name; p_type = Some arg_type; p_default = None; p_modifier = None } in
+				let tmp_local = CsLocal tmp_name in
+				let has_value = CsField (tmp_local, "hasValue") in
+				let converted_value = CsCast (inner_expected, CsField (tmp_local, "value")) in
+				let true_branch = CsNew (expected_type, [converted_value; CsConst (CsConstBool true)]) in
+				let false_branch = CsDefault expected_type in
+				let lambda_body = CsTernary (has_value, true_branch, false_branch) in
+				let func_type = CsTypeFunc ([arg_type], expected_type) in
+				let lambda = CsLambda ([tmp_param], CsLambdaExpr lambda_body) in
+				let cast_lambda = CsCast (func_type, lambda) in
+				Some (CsCall (cast_lambda, [cs_arg]))
+			end
 		end
 		else if needs_generic then
 			Some (CsCast (expected_type, cs_arg))
