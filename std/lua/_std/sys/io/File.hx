@@ -37,7 +37,7 @@ import lua.lib.luv.fs.FileSystem as LFileSystem;
 class File {
 	#if lua.windows_utf8_io
 	private static function __init__():Void {
-		if (lua.Package.config.charAt(0) == "\\") {
+		if (untyped __lua__("package.config:sub(1,1)") == "\\") {
 			lua.Os.setlocale(".UTF8", Ctype);
 		}
 	}
