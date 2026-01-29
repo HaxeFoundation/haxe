@@ -743,14 +743,14 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 					CsCast (expected_cs_type, cs_arg)
 				else
 					(* Use effective type to handle non-null-generating expressions like enum field access *)
-					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
 			| _ ->
 				(* Use effective type to handle non-null-generating expressions like enum field access *)
-				coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
+				coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
 			end
 		| _ ->
 			(* Use effective type to handle non-null-generating expressions like enum field access *)
-			coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
+			coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
 		in
 		(* Optimize IIFE patterns from coercion to use temp vars instead of lambdas *)
 		match optimize_single_arg_iife coerced with
@@ -799,7 +799,7 @@ let generate_call_args ectx cs_expr_of_texpr args param_types =
 					let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 					let rest_cs_args = List.map (fun arg ->
 						let cs_arg = cs_expr_of_texpr ectx arg in
-						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype rest_elem_type
 					) rest_args in
 					let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
 					let storage_type = classify_cs_array_element_type elem_cs_type in
@@ -837,6 +837,24 @@ let wrap_call_with_prefix prefix_stmts result_type expr =
 		let func_type = CsTypeClass ((["System"], "Func"), [result_type]) in
 		CsCall (CsParens (CsCast (func_type, lambda)), [])
 	end
+
+(* Detect and extract lambda IIFE pattern from wrap_call_with_prefix.
+   Pattern: ((Func<T>)(() => { stmts; return expr; }))()
+   Returns Some (prefix_stmts, final_expr) if pattern matches, None otherwise. *)
+let extract_wrapped_call_prefix cs_expr =
+	match cs_expr with
+	| CsCall (CsParens (CsCast (CsTypeClass ((["System"], "Func"), _), CsLambda ([], CsLambdaBlock stmts))), []) ->
+		(* Extract prefix statements and final expression from the lambda body *)
+		let rec split_return stmts = match stmts with
+			| [] -> None
+			| [CsReturn (Some expr)] -> Some ([], expr)
+			| stmt :: rest ->
+				match split_return rest with
+				| Some (prefix, expr) -> Some (stmt :: prefix, expr)
+				| None -> None
+		in
+		split_return stmts
+	| _ -> None
 
 (* ====== Closure infrastructure ====== *)
 
@@ -1119,15 +1137,15 @@ let rec cs_expr_of_texpr ectx e =
 				begin match storage_type with
 				| ArrayInt ->
 					(* arr.__setInt(i, v) - handles initialization and returns the value *)
-					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type ectx.gctx e2) e2.etype in
+					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs (get_effective_expr_type ectx.gctx e2) e2.etype in
 					CsCall (CsField (arr_cs, "__setInt"), [idx_cs; coerced_val])
 				| ArrayFloat ->
 					(* arr.__setFloat(i, v) - handles initialization and returns the value *)
-					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type ectx.gctx e2) e2.etype in
+					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs (get_effective_expr_type ectx.gctx e2) e2.etype in
 					CsCall (CsField (arr_cs, "__setFloat"), [idx_cs; coerced_val])
 				| ArrayBool ->
 					(* arr.__setBool(i, v) - handles initialization and returns the value *)
-					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs (get_effective_expr_type ectx.gctx e2) e2.etype in
+					let coerced_val = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs (get_effective_expr_type ectx.gctx e2) e2.etype in
 					CsCall (CsField (arr_cs, "__setBool"), [idx_cs; coerced_val])
 				| ArrayDynamic ->
 					(* arr.__setDyn(i, v) - runtime dispatch method, returns Dynamic/object *)
@@ -1225,7 +1243,7 @@ let rec cs_expr_of_texpr ectx e =
 					   (e.g., by @:structInit), so cf.cf_type is patched to Null<T> but e1.etype in
 					   the AST still has the original type. Use cf.cf_type to get the correct type. *)
 					let target_type = if Meta.has Meta.Optional cf.cf_meta then cf.cf_type else e1.etype in
-					let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype target_type in
+					let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs e2.etype target_type in
 					(* Generate field access directly, handling Null<T> unwrap but NOT the read-cast *)
 					let needs_unwrap = find_null_in_expr obj in
 					let obj_expr_for_field = if needs_unwrap then CsField (obj_expr, "value") else obj_expr in
@@ -1247,7 +1265,7 @@ let rec cs_expr_of_texpr ectx e =
 				let val_cs = cs_expr_of_texpr ectx e2 in
 				let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
 				(* Coerce value to target type - needed when assigning object/Dynamic to typed variable *)
-				let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype e1.etype in
+				let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs e2.etype e1.etype in
 				CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
 			end
 		| OpEq when expr_produces_csharp_null_type ectx.gctx e1 && is_null_expr e2 ->
@@ -2373,7 +2391,7 @@ let rec cs_expr_of_texpr ectx e =
 				let regular_cs_args = List.mapi (fun i arg ->
 					let expected_type = List.nth param_types_hx i in
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_type
 				) regular_args in
 				(* Generate rest args - wrap into Array<T> *)
 				let rest_cs_arg =
@@ -2391,7 +2409,7 @@ let rec cs_expr_of_texpr ectx e =
 							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 							let rest_cs_args = List.map (fun arg ->
 								let cs_arg = cs_expr_of_texpr ectx arg in
-								coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
+								coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype rest_elem_type
 							) rest_args in
 							let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
 							let storage_type = classify_cs_array_element_type elem_cs_type in
@@ -2415,7 +2433,7 @@ let rec cs_expr_of_texpr ectx e =
 						arg.etype
 					in
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
 				) args in
 				let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 				(args_cs, param_types_cs)
@@ -2531,7 +2549,7 @@ let rec cs_expr_of_texpr ectx e =
 					let regular_cs_args = List.mapi (fun i arg ->
 						let expected_type = List.nth param_types_hx i in
 						let cs_arg = cs_expr_of_texpr ectx arg in
-						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_type
 					) regular_args in
 					(* Generate rest args - wrap into Array *)
 					let rest_cs_arg =
@@ -2545,7 +2563,7 @@ let rec cs_expr_of_texpr ectx e =
 								let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 								let rest_cs_args = List.map (fun arg ->
 									let cs_arg = cs_expr_of_texpr ectx arg in
-									coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype rest_elem_type
+									coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype rest_elem_type
 								) rest_args in
 								let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
 								let storage_type = classify_cs_array_element_type elem_cs_type in
@@ -2567,7 +2585,7 @@ let rec cs_expr_of_texpr ectx e =
 							arg.etype
 						in
 						let cs_arg = cs_expr_of_texpr ectx arg in
-						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
 					) args in
 					let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 					(args_cs, param_types_cs)
@@ -3633,12 +3651,12 @@ let rec cs_expr_of_texpr ectx e =
 							if original_has_in_scope_type_params && expected_has_no_type_params then
 								CsCast (expected_cs_type, cs_arg)
 							else
-								coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+								coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
 						| _ ->
-							coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+							coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
 						end
 					| _ ->
-						coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
 				end
 			in
 			let args = List.mapi (fun i arg ->
@@ -3827,7 +3845,7 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> CsNull
 				end else begin
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg arg.etype expected_hx_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
 				end
 			in
 			(* Convert args, handling null -> default(Null<T>) and type coercion *)
@@ -4389,8 +4407,8 @@ let rec cs_expr_of_texpr ectx e =
 			let then_e = cs_expr_of_texpr ectx then_expr in
 			let else_e = cs_expr_of_texpr ectx else_expr in
 			(* Coerce branches to result type if types differ *)
-			let then_e = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx then_e then_expr.etype result_type in
-			let else_e = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx else_e else_expr.etype result_type in
+			let then_e = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx then_e then_expr.etype result_type in
+			let else_e = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx else_e else_expr.etype result_type in
 			(* Special case: if result type is a function type (TFun) and branches are closures,
 			   C# can't determine common type between closure classes. Cast both to haxe.lang.Function. *)
 			let then_e, else_e = match follow result_type with
@@ -4864,7 +4882,7 @@ and cs_stmt_with_result_assign ectx is_void result_var result_type e =
 			   This handles cases like object/Dynamic -> Null<T> where we need to wrap the value. *)
 			let expr_cs = cs_expr_of_texpr ectx e in
 			let expr_type = cs_type_of_type ectx.gctx e.etype in
-			let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx expr_cs expr_type result_type in
+			let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx expr_cs expr_type result_type in
 			CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, coerced))
 		end
 
@@ -5103,8 +5121,13 @@ and cs_stmt_of_texpr ectx e =
 				| Some (stmts, expr) -> (stmts, expr)
 				| None -> ([], init_cs)
 			in
+			(* Also extract lambda IIFE patterns from wrap_call_with_prefix (function call arguments) *)
+			let (extra_call_stmts, init_cs) = match extract_wrapped_call_prefix init_cs with
+				| Some (stmts, expr) -> (stmts, expr)
+				| None -> ([], init_cs)
+			in
 			let decl_type = Some var_type in
-			let all_prefix_stmts = result.er_stmts @ !extra_prefix_stmts @ extra_iife_stmts in
+			let all_prefix_stmts = result.er_stmts @ !extra_prefix_stmts @ extra_iife_stmts @ extra_call_stmts in
 			if all_prefix_stmts = [] then
 				(* No prefix statements - just emit the variable declaration *)
 				CsVarDecl (name, decl_type, Some init_cs)
@@ -5419,7 +5442,7 @@ and cs_stmt_of_texpr ectx e =
 					let expr_cs = cs_type_of_type ectx.gctx e.etype in
 					(* Apply type coercion for Null<A> -> Null<B> conversions.
 					   This may generate a lambda IIFE which we'll optimize later. *)
-					let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx cs_e expr_cs ret_cs in
+					let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_e expr_cs ret_cs in
 					(* If coercion produced a different expression (e.g., for Null conversion),
 					   use it directly. Otherwise check for GADT and other special casts. *)
 					if coerced <> cs_e then
@@ -5522,7 +5545,7 @@ and cs_stmt_of_texpr ectx e =
 			   in the general TBinop OpAssign case for correct field handling. *)
 			let arg_cs_type = cs_type_of_type ectx.gctx e2.etype in
 			let expected_cs_type = cs_type_of_type ectx.gctx e1.etype in
-			let val_cs = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx result.er_expr arg_cs_type expected_cs_type in
+			let val_cs = coerce_cs_types ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx result.er_expr arg_cs_type expected_cs_type in
 			(* Optimize IIFE patterns from coercion to avoid lambda overhead *)
 			let (iife_stmts, val_cs) = match optimize_single_arg_iife val_cs with
 				| Some (stmts, expr) -> (stmts, expr)
@@ -6960,7 +6983,7 @@ let generate_field gctx c cf is_static =
 				ectx.current_method_name <- Some cf.cf_name;
 				let init_cs = cs_expr_of_texpr ectx e in
 				(* Coerce initializer to field type - needed for lambda returns, object->typed conversions *)
-				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
+				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) gctx init_cs e.etype cf.cf_type in
 				(* Fix: if result is CsNull but field type is Null<T>, use default(Null<T>) instead.
 				   This handles cases where the null constant's type doesn't match the field type due to abstracts. *)
 				let init_cs = match init_cs with
@@ -7005,7 +7028,7 @@ let generate_field gctx c cf is_static =
 				ectx.current_method_name <- Some cf.cf_name;
 				let init_cs = cs_expr_of_texpr ectx e in
 				(* Coerce initializer to field type - needed for lambda returns, object->typed conversions *)
-				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
+				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) gctx init_cs e.etype cf.cf_type in
 				(* Fix: if result is CsNull but field type is Null<T>, use default(Null<T>) instead *)
 				let init_cs = match init_cs with
 					| CsNull ->
@@ -7076,7 +7099,7 @@ let generate_field gctx c cf is_static =
 				ectx.current_class_path <- Some c.cl_path;
 				ectx.current_method_name <- Some cf.cf_name;
 				let init_cs = cs_expr_of_texpr ectx e in
-				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope gctx init_cs e.etype cf.cf_type in
+				let init_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) gctx init_cs e.etype cf.cf_type in
 				let init_cs = match init_cs with
 					| CsNull ->
 						begin match cs_type with

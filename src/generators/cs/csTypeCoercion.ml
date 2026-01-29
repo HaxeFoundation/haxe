@@ -34,13 +34,6 @@ open CsAst
 open CsTypeMapping
 open CsExprAnalysis
 
-(* Counter for generating unique temp variable names in coercion IIFEs *)
-let temp_counter = ref 0
-
-let fresh_coercion_temp () =
-	incr temp_counter;
-	Printf.sprintf "_hx_tmp%d" !temp_counter
-
 (* ============================================================
    Type classification predicates
    ============================================================ *)
@@ -460,7 +453,7 @@ let coerce_null_to_inner cs_arg arg_type expected_type =
 	| _ -> None
 
 (* Handle Null<A> to Null<B> conversions (numeric or generic) *)
-let coerce_null_to_null cs_arg arg_type expected_type =
+let coerce_null_to_null ~fresh_temp cs_arg arg_type expected_type =
 	match get_cs_null_inner arg_type, get_cs_null_inner expected_type with
 	| Some inner_arg, Some inner_expected when inner_arg <> inner_expected ->
 		(* Check if numeric conversion needed *)
@@ -495,9 +488,9 @@ let coerce_null_to_null cs_arg arg_type expected_type =
 			end else begin
 				(* Non-trivial or has side effects - wrap in lambda IIFE to evaluate once:
 				   ((Func<Null<int>, Null<double>>)((_hx_tmp) => _hx_tmp.hasValue ? new Null<double>((double)_hx_tmp.value, true) : default(Null<double>)))(expr)
-				   Note: We use fresh_coercion_temp() to generate unique names so that when multiple
+				   Note: We use fresh_temp() to generate unique names so that when multiple
 				   IIFEs are extracted into the same scope, there are no naming conflicts. *)
-				let tmp_name = fresh_coercion_temp () in
+				let tmp_name = fresh_temp () in
 				let tmp_param = { p_name = tmp_name; p_type = Some arg_type; p_default = None; p_modifier = None } in
 				let tmp_local = CsLocal tmp_name in
 				let has_value = CsField (tmp_local, "hasValue") in
@@ -552,8 +545,9 @@ let coerce_generic_class ?in_scope cs_arg arg_type expected_type =
 (* Core coercion logic that works with C# types directly.
    This is the inner function used by coerce_arg and can also be called directly
    when you already have C# types.
-   NOTE: Null<Null<T>> flattening is handled by CsNullable at the AST level. *)
-let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
+   NOTE: Null<Null<T>> flattening is handled by CsNullable at the AST level.
+   fresh_temp: function to generate unique temp variable names for IIFEs *)
+let coerce_cs_types ?in_scope ~fresh_temp _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	(* Only erase when the expected type is purely a generic param that's out of scope.
 	   For complex types like Expr<double>, we should NOT erase - the type params were
 	   correctly inferred. Erasing Expr<C> to Expr<object> would break valid code. *)
@@ -615,7 +609,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| Some result -> result
 	| None ->
 	(* Try Null<A> to Null<B> conversions (numeric or generic) *)
-	match coerce_null_to_null cs_arg arg_cs_type expected_cs_type with
+	match coerce_null_to_null ~fresh_temp cs_arg arg_cs_type expected_cs_type with
 	| Some result -> result
 	| None ->
 	(* Try generic class coercion (same class, different type params) *)
@@ -639,7 +633,7 @@ let coerce_cs_types ?in_scope _gctx cs_arg arg_cs_type expected_cs_type_raw =
 	| _ -> cs_arg
 
 (* Wrapper that converts Haxe types to C# types and calls coerce_cs_types *)
-let coerce_arg ?in_scope gctx cs_arg arg_type expected_type =
+let coerce_arg ?in_scope ~fresh_temp gctx cs_arg arg_type expected_type =
 	let arg_cs_type = cs_type_of_type gctx arg_type in
 	let expected_cs_type = cs_type_of_type gctx expected_type in
-	coerce_cs_types ?in_scope gctx cs_arg arg_cs_type expected_cs_type
+	coerce_cs_types ?in_scope ~fresh_temp gctx cs_arg arg_cs_type expected_cs_type
