@@ -34,6 +34,13 @@ open CsAst
 open CsTypeMapping
 open CsExprAnalysis
 
+(* Counter for generating unique temp variable names in coercion IIFEs *)
+let temp_counter = ref 0
+
+let fresh_coercion_temp () =
+	incr temp_counter;
+	Printf.sprintf "_hx_tmp%d" !temp_counter
+
 (* ============================================================
    Type classification predicates
    ============================================================ *)
@@ -290,10 +297,26 @@ let coerce_object_to_primitive cs_arg arg_type expected_type =
 	| CsTypeString -> Some (object_to_string cs_arg)
 	| _ -> None
 
+(* Check if a C# expression is a primitive constant (int, double, bool, etc.)
+   After Haxe inlining, Null<Int> typed expressions may actually be primitive literals.
+   We shouldn't add .value to these. *)
+let rec cs_expr_is_primitive_const cs_expr =
+	match cs_expr with
+	| CsConst (CsConstInt _ | CsConstLong _ | CsConstFloat _ | CsConstDouble _
+			 | CsConstBool _ | CsConstChar _) -> true
+	| CsParens e -> cs_expr_is_primitive_const e
+	| CsUnchecked e -> cs_expr_is_primitive_const e
+	| _ -> false
+
 (* Handle Null<T> to T unwrapping for exact type match.
    Returns Some if it's a simple unwrap case, None for more complex conversions. *)
 let coerce_null_unwrap_exact cs_arg arg_type expected_type =
 	if cs_expr_is_object_cast cs_arg then None  (* Can't unwrap object cast *)
+	else if cs_expr_is_primitive_const cs_arg then
+		(* Expression is already a primitive constant (e.g. after Haxe inlining).
+		   The Haxe type says Null<T> but the actual C# expr is just a literal.
+		   No .value needed - return the expression unchanged. *)
+		Some cs_arg
 	else match get_cs_null_inner arg_type with
 	| None -> None  (* arg is not Null<T> *)
 	| Some inner_type ->
@@ -472,8 +495,9 @@ let coerce_null_to_null cs_arg arg_type expected_type =
 			end else begin
 				(* Non-trivial or has side effects - wrap in lambda IIFE to evaluate once:
 				   ((Func<Null<int>, Null<double>>)((_hx_tmp) => _hx_tmp.hasValue ? new Null<double>((double)_hx_tmp.value, true) : default(Null<double>)))(expr)
-				*)
-				let tmp_name = "_hx_tmp" in
+				   Note: We use fresh_coercion_temp() to generate unique names so that when multiple
+				   IIFEs are extracted into the same scope, there are no naming conflicts. *)
+				let tmp_name = fresh_coercion_temp () in
 				let tmp_param = { p_name = tmp_name; p_type = Some arg_type; p_default = None; p_modifier = None } in
 				let tmp_local = CsLocal tmp_name in
 				let has_value = CsField (tmp_local, "hasValue") in

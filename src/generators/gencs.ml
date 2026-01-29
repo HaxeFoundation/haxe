@@ -679,14 +679,16 @@ let get_rest_element_type t =
 
 (* ====== Call argument generation ====== *)
 
-(* Generate a single argument with coercion based on expected type *)
+(* Generate a single argument with coercion based on expected type.
+   Returns (prefix_stmts, expr) where prefix_stmts are IIFE extractions. *)
 let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 	let expected_cs_type = cs_type_of_type ectx.gctx expected_type in
 	(* Special case: null argument - generate the right default value directly based on expected type *)
 	let is_null_arg = match arg.eexpr with TConst TNull -> true | _ -> false in
 	if is_null_arg then begin
-		(* For null arguments, generate appropriate default value based on expected type *)
-		match expected_cs_type with
+		(* For null arguments, generate appropriate default value based on expected type.
+		   No IIFE possible here, so always return empty prefix statements. *)
+		let expr = match expected_cs_type with
 		| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
 			(* Null<T> expected - generate default(Null<T>) using the expected type.
 			   The expected type already has concrete type params from the method signature,
@@ -705,6 +707,8 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 		| _ ->
 			(* Reference type - generate null *)
 			CsNull
+		in
+		([], expr)
 	end
 	else begin
 		let cs_arg = cs_expr_of_texpr ectx arg in
@@ -714,7 +718,7 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 		   Example: In evalBinop<T,C>(op:Binop<C,T>, e1:Expr<C>, e2:Expr<C>):T
 		   When matching OpAdd (Binop<Float,Float>), e1.etype becomes Expr<Float> (refined),
 		   but C# variable e1 is declared as Expr<C>. We need to cast Expr<C> -> Expr<double>. *)
-		match arg.eexpr with
+		let coerced = match arg.eexpr with
 		| TLocal v ->
 			let var_cs_type = cs_type_of_type ectx.gctx v.v_type in
 			(* Check if original var type differs from expected and requires cast *)
@@ -747,10 +751,16 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 		| _ ->
 			(* Use effective type to handle non-null-generating expressions like enum field access *)
 			coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
+		in
+		(* Optimize IIFE patterns from coercion to use temp vars instead of lambdas *)
+		match optimize_single_arg_iife coerced with
+		| Some (stmts, expr) -> (stmts, expr)
+		| None -> ([], coerced)
 	end
 
 (* Generate call arguments with type coercion based on expected parameter types.
-   Handles Rest<T> parameters by wrapping remaining args into Array<T>. *)
+   Handles Rest<T> parameters by wrapping remaining args into Array<T>.
+   Returns (all_prefix_stmts, cs_args) where prefix_stmts are IIFE extractions. *)
 let generate_call_args ectx cs_expr_of_texpr args param_types =
 	let num_params = List.length param_types in
 	(* Check if last param is Rest<T> *)
@@ -765,11 +775,13 @@ let generate_call_args ectx cs_expr_of_texpr args param_types =
 		let regular_param_count = num_params - 1 in
 		let regular_args = ExtList.List.take regular_param_count args in
 		let rest_args = ExtList.List.drop regular_param_count args in
-		(* Generate regular args *)
-		let regular_cs_args = List.mapi (fun i arg ->
+		(* Generate regular args - collect prefix statements *)
+		let regular_results = List.mapi (fun i arg ->
 			let expected_type = List.nth param_types i in
 			generate_single_arg ectx cs_expr_of_texpr arg expected_type
 		) regular_args in
+		let regular_stmts = List.concat (List.map fst regular_results) in
+		let regular_cs_args = List.map snd regular_results in
 		(* Generate rest args - wrap into Array<T> *)
 		let rest_cs_arg =
 			if rest_args = [] then
@@ -794,16 +806,37 @@ let generate_call_args ectx cs_expr_of_texpr args param_types =
 					make_array_from_native storage_type native_array haxe_array_type
 			end
 		in
-		regular_cs_args @ [rest_cs_arg]
+		(regular_stmts, regular_cs_args @ [rest_cs_arg])
 	| None ->
 		(* No Rest parameter - process all args normally *)
-		List.mapi (fun i arg ->
+		let results = List.mapi (fun i arg ->
 			if i < num_params then
 				let expected_type = List.nth param_types i in
 				generate_single_arg ectx cs_expr_of_texpr arg expected_type
 			else
-				cs_expr_of_texpr ectx arg
-		) args
+				([], cs_expr_of_texpr ectx arg)
+		) args in
+		let all_stmts = List.concat (List.map fst results) in
+		let all_args = List.map snd results in
+		(all_stmts, all_args)
+
+(* Helper: wrap a call expression with prefix statements if any exist.
+   If prefix_stmts is empty, returns the expr directly.
+   If prefix_stmts is non-empty, generates a lambda IIFE that executes the statements
+   and returns the expression. This maintains correct semantics while we work on
+   proper statement propagation.
+   Note: This is a fallback for expression contexts where we can't easily emit statements. *)
+let wrap_call_with_prefix prefix_stmts result_type expr =
+	if prefix_stmts = [] then
+		expr
+	else begin
+		(* Generate: ((Func<T>)(() => { stmt1; stmt2; return expr; }))() *)
+		let return_stmt = CsReturn (Some expr) in
+		let lambda_body = CsLambdaBlock (prefix_stmts @ [return_stmt]) in
+		let lambda = CsLambda ([], lambda_body) in
+		let func_type = CsTypeClass ((["System"], "Func"), [result_type]) in
+		CsCall (CsParens (CsCast (func_type, lambda)), [])
+	end
 
 (* ====== Closure infrastructure ====== *)
 
@@ -2409,8 +2442,9 @@ let rec cs_expr_of_texpr ectx e =
 			| TFun (params, _) -> List.map (fun (_, _, t) -> t) params
 			| _ -> []
 		in
-		let args = generate_call_args ectx cs_expr_of_texpr orig_args param_types in
-		CsNew (nested_type, args)
+		let (prefix_stmts, args) = generate_call_args ectx cs_expr_of_texpr orig_args param_types in
+		let new_expr = CsNew (nested_type, args) in
+		wrap_call_with_prefix prefix_stmts nested_type new_expr
 	| TCall ({ eexpr = TField (e_obj, FInstance (c, _, cf)) }, args)
 		when (match c.cl_path with ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) -> true | _ -> false) ->
 		(* String methods can be:
@@ -2811,7 +2845,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Apply method type params to parameter types *)
 			let method_param_map = apply_params cf.cf_params method_type_params_hx in
 			let param_types = List.map method_param_map param_types_base in
-			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types in
+			let (prefix_stmts, cs_args) = generate_call_args ectx cs_expr_of_texpr args param_types in
 			(* Convert type params to C# types, respecting constraints.
 			   If the inferred type would be object but the type param has a constraint,
 			   use the constraint bound instead (C# requires type args satisfy constraints).
@@ -2857,16 +2891,18 @@ let rec cs_expr_of_texpr ectx e =
 			   This handles GADT phantom types like C in EBinop<C> which are
 			   introduced during pattern matching but don't exist as C# generic params. *)
 			let method_type_params = List.map (CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope) method_type_params in
-			CsCallGeneric (CsField (obj, get_native_field_name cf), method_type_params, cs_args)
+			let call_expr = CsCallGeneric (CsField (obj, get_native_field_name cf), method_type_params, cs_args) in
+			let result_type = cs_type_of_type ectx.gctx e.etype in
+			wrap_call_with_prefix prefix_stmts result_type call_expr
 		end else begin
-			let cs_args = generate_call_args ectx cs_expr_of_texpr args param_types_base in
+			let (prefix_stmts, cs_args) = generate_call_args ectx cs_expr_of_texpr args param_types_base in
 			(* For Array methods, use typed accessor methods when the element type is known.
 			   This avoids boxing/unboxing overhead. Methods like pop(), shift() become
 			   __popInt(), __shiftInt() etc. based on element type.
 
 			   IMPORTANT: Nullable types like Null<Int> must use ArrayObject because
 			   primitive arrays cannot hold null values. *)
-			begin match c.cl_path with
+			let result_expr = begin match c.cl_path with
 			| ([], "Array") | (["haxe"; "root"], "Array") ->
 				(* Get the element type from the Array type parameters.
 				   tl contains the applied type params, e.g., [Int] for Array<Int>.
@@ -2981,7 +3017,9 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> cast_object_to_type expected_cs_type call_expr
 				end else
 					call_expr
-			end
+			end in
+			let result_type = cs_type_of_type ectx.gctx e.etype in
+			wrap_call_with_prefix prefix_stmts result_type result_expr
 		end
 		end  (* close the obj_cs_type check *)
 		end  (* close the is_var_with_func_type else branch *)
@@ -3018,11 +3056,11 @@ let rec cs_expr_of_texpr ectx e =
 				) params
 			| _ -> []
 		in
-		let args = generate_call_args ectx cs_expr_of_texpr args param_types in
+		let (prefix_stmts, args) = generate_call_args ectx cs_expr_of_texpr args param_types in
 		(* Check if the (unwrapped) C# type maps to a concrete class (like ArrayIterator).
 		   If so, we can generate direct method calls instead of dynamic dispatch. *)
 		let cs_type = cs_type_of_type ectx.gctx inner_type in
-		begin match cs_type with
+		let result_expr = begin match cs_type with
 		| CsTypeClass ((["haxe"; "iterators"], "ArrayIterator"), _)
 		| CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), _) ->
 			(* Known iterator class - generate direct method call *)
@@ -3086,7 +3124,9 @@ let rec cs_expr_of_texpr ectx e =
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			cast_invoke_result result_type call_expr
-		end
+		end in
+		let final_result_type = cs_type_of_type ectx.gctx e.etype in
+		wrap_call_with_prefix prefix_stmts final_result_type result_expr
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) when name = "value" || name = "hasValue" ->
 		(* Special case: calling .value or .hasValue on Null<T> - this is csNullable's unwrap pattern.
 		   Generate direct field access and invoke, not Runtime.GetField. *)
@@ -3651,7 +3691,7 @@ let rec cs_expr_of_texpr ectx e =
 			end else
 				call_expr
 		end else begin
-			let args = generate_call_args ectx cs_expr_of_texpr orig_args param_types_base in
+			let (prefix_stmts, args) = generate_call_args ectx cs_expr_of_texpr orig_args param_types_base in
 			let call_expr = CsStaticCall (CsTypeClass (path, class_type_params), escape_identifier cf.cf_name, args) in
 			(* Check if the method's return type is an erased type param.
 			   If so, the C# method returns object but call site expects a concrete type. *)
@@ -3659,7 +3699,7 @@ let rec cs_expr_of_texpr ectx e =
 				| TFun (_, ret) -> ret
 				| _ -> return_type
 			in
-			if is_erased_type_param method_ret_type then
+			let result_expr = if is_erased_type_param method_ret_type then
 				let result_cs_type = cs_type_of_type ectx.gctx return_type in
 				begin match result_cs_type with
 				| CsTypeObject | CsTypeDynamic -> call_expr
@@ -3667,6 +3707,9 @@ let rec cs_expr_of_texpr ectx e =
 				end
 			else
 				call_expr
+			in
+			let result_type = cs_type_of_type ectx.gctx return_type in
+			wrap_call_with_prefix prefix_stmts result_type result_expr
 		end
 		end  (* close is_stored_function_field else branch *)
 	| TCall ({ eexpr = TIdent "__default__" }, []) ->
@@ -3884,13 +3927,13 @@ let rec cs_expr_of_texpr ectx e =
 				end
 				| None -> []
 			in
-			let cs_args = generate_call_args ectx cs_expr_of_texpr args ctor_param_types in
+			let (prefix_stmts, cs_args) = generate_call_args ectx cs_expr_of_texpr args ctor_param_types in
 			(* Check if this class needs two-phase construction *)
 			let ctor_needs_two_phase = match c.cl_constructor with
 				| Some cf -> needs_two_phase_construction cf
 				| None -> false
 			in
-			if ctor_needs_two_phase then
+			let result_expr = if ctor_needs_two_phase then
 				(* Two-phase: (new ClassName((EmptyConstructor)null))._hx_new_inline(args)
 				   We need to use an inline pattern since C# expressions can't have statements.
 				   Actually, we generate: (() => { var tmp = new C((EmptyConstructor)null); tmp._hx_new(args); return tmp; })()
@@ -3920,6 +3963,8 @@ let rec cs_expr_of_texpr ectx e =
 				CsCall (CsParens (CsCast (func_type, lambda)), [])
 			else
 				CsNew (class_type, cs_args)
+			in
+			wrap_call_with_prefix prefix_stmts class_type result_expr
 		end
 	| TObjectDecl fields ->
 		(* Create HaxeDynamicObject with initial field values using _hx_create *)
@@ -5369,46 +5414,62 @@ and cs_stmt_of_texpr ectx e =
 					   so we must explicitly call toDynamic() to get a boxed T value or null. *)
 					CsCall (CsField (cs_e, "toDynamic"), [])
 				| Some ret_t ->
-					(* Check for GADT covariance: returning SomeClass<ConcreteType> where method returns SomeClass<A>.
-					   C# generics are invariant, so we need to cast through object.
-					   Example: returning Option<int>.Some when method returns Option<A>. *)
+					(* General case: apply coercion and check for GADT/other casts *)
 					let ret_cs = cs_type_of_type ectx.gctx ret_t in
 					let expr_cs = cs_type_of_type ectx.gctx e.etype in
-					let needs_gadt_cast = match ret_cs, expr_cs with
-						| CsTypeClass (ret_path, ret_params), CsTypeClass (expr_path, expr_params)
-							when ret_path = expr_path && ret_params <> expr_params ->
-							(* Same class but different type params - check if return has type params *)
-							let has_type_param = function CsTypeGenericParam _ -> true | _ -> false in
-							List.exists has_type_param ret_params
-						| _ -> false
-					in
-					if needs_gadt_cast then
-						CsCast (ret_cs, cs_e)
+					(* Apply type coercion for Null<A> -> Null<B> conversions.
+					   This may generate a lambda IIFE which we'll optimize later. *)
+					let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ectx.gctx cs_e expr_cs ret_cs in
+					(* If coercion produced a different expression (e.g., for Null conversion),
+					   use it directly. Otherwise check for GADT and other special casts. *)
+					if coerced <> cs_e then
+						coerced
 					else begin
-						(* Check for TObjectDecl -> class/interface coercion.
-						   Structural typing in Haxe allows { hasNext: ..., next: ... } to satisfy Iterator<T>,
-						   but C# requires explicit cast through object because we generate HaxeDynamicObject.
-						   Note: We check the expression kind, not the type, because type inference may have
-						   unified the anonymous type with the target class type.
-						   We also check the C# type, not the Haxe type, because typedefs like Iterator<T>
-						   are mapped to concrete classes like ArrayIterator<T> in C#. *)
-						let is_object_decl = match e.eexpr with TObjectDecl _ -> true | _ -> false in
-						let is_cs_class t = match cs_type_of_type ectx.gctx t with CsTypeClass _ -> true | _ -> false in
-						if is_object_decl && is_cs_class ret_t then
+						(* Check for GADT covariance: returning SomeClass<ConcreteType> where method returns SomeClass<A>.
+						   C# generics are invariant, so we need to cast through object.
+						   Example: returning Option<int>.Some when method returns Option<A>. *)
+						let needs_gadt_cast = match ret_cs, expr_cs with
+							| CsTypeClass (ret_path, ret_params), CsTypeClass (expr_path, expr_params)
+								when ret_path = expr_path && ret_params <> expr_params ->
+								(* Same class but different type params - check if return has type params *)
+								let has_type_param = function CsTypeGenericParam _ -> true | _ -> false in
+								List.exists has_type_param ret_params
+							| _ -> false
+						in
+						if needs_gadt_cast then
 							CsCast (ret_cs, cs_e)
-						(* Check for object -> T coercion.
-						   When expression maps to object but return type is a type param T,
-						   we need to cast (T)expression. This happens with GADT method calls
-						   where type erasure produces object but we need T. *)
-						else if expr_cs = CsTypeObject && (match ret_cs with CsTypeGenericParam _ -> true | _ -> false) then
-							CsCast (ret_cs, cs_e)
-						else
-							cs_e
+						else begin
+							(* Check for TObjectDecl -> class/interface coercion.
+							   Structural typing in Haxe allows { hasNext: ..., next: ... } to satisfy Iterator<T>,
+							   but C# requires explicit cast through object because we generate HaxeDynamicObject.
+							   Note: We check the expression kind, not the type, because type inference may have
+							   unified the anonymous type with the target class type.
+							   We also check the C# type, not the Haxe type, because typedefs like Iterator<T>
+							   are mapped to concrete classes like ArrayIterator<T> in C#. *)
+							let is_object_decl = match e.eexpr with TObjectDecl _ -> true | _ -> false in
+							let is_cs_class t = match cs_type_of_type ectx.gctx t with CsTypeClass _ -> true | _ -> false in
+							if is_object_decl && is_cs_class ret_t then
+								CsCast (ret_cs, cs_e)
+							(* Check for object -> T coercion.
+							   When expression maps to object but return type is a type param T,
+							   we need to cast (T)expression. This happens with GADT method calls
+							   where type erasure produces object but we need T. *)
+							else if expr_cs = CsTypeObject && (match ret_cs with CsTypeGenericParam _ -> true | _ -> false) then
+								CsCast (ret_cs, cs_e)
+							else
+								cs_e
+						end
 					end
 				| _ ->
 					cs_e
 			in
-			CsReturn (Some return_expr)
+			(* Optimize IIFE patterns in return expression.
+			   Since we're in statement context, we can emit prefix statements before the return. *)
+			match optimize_single_arg_iife return_expr with
+			| Some (prefix_stmts, optimized_expr) ->
+				CsStmtList (prefix_stmts @ [CsReturn (Some optimized_expr)])
+			| None ->
+				CsReturn (Some return_expr)
 		end
 		end  (* close begin match for TThrow check *)
 	| TBreak ->
