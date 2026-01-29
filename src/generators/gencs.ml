@@ -7665,7 +7665,8 @@ let generate_field_accessors gctx c =
 		let instance_fields = List.filter_map (fun cf ->
 			match cf.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal }
-			| Var { v_read = AccNormal; v_write = AccNever } ->
+			| Var { v_read = AccNormal; v_write = AccNever }
+			| Var { v_read = AccNormal; v_write = AccNo } ->
 				Some (cf.cf_name, get_native_field_name cf, cs_type_of_type gctx cf.cf_type)
 			| _ -> None
 		) c.cl_ordered_fields in
