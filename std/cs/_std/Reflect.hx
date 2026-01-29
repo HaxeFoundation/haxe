@@ -75,6 +75,13 @@ class Reflect {
 			return (cast o : HaxeObject)._hx_getField(field);
 		}
 
+		// Special handling for strings (native System.String)
+		if (Std.isOfType(o, String)) {
+			var str:String = cast o;
+			if (field == "length") return str.length;
+			return null;
+		}
+
 		// Check if o is a System.Type (for static field access)
 		var isType:Bool = untyped __cs__("{0} is System.Type", o);
 		if (isType) {
