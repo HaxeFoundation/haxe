@@ -110,7 +110,7 @@ let field_access ctx mode f fh e pfield =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
 	let bypass_accessor () = if ctx.e.bypass_accessor > 0 then (ctx.e.bypass_accessor <- ctx.e.bypass_accessor - 1; true) else false in
-	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
+	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull ~field_pos:pfield in
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in

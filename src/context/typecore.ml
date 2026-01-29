@@ -319,6 +319,8 @@ type field_access = {
 	fa_inline : bool;
 	(* The position of the field access expression in syntax. *)
 	fa_pos    : pos;
+	(* The position of the field name accessed on `fa_on`. *)
+	fa_field_pos : pos option;
 }
 
 type static_extension_access = {

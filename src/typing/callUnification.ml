@@ -7,7 +7,7 @@ open Error
 open FieldAccess
 open FieldCallCandidate
 
-let unify_call_args ctx el args r callp inline force_inline in_overload =
+let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
 	let arg_error e name opt =
@@ -126,7 +126,7 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 					die "" __LOC__
 			end
 		| [],(_,false,_) :: _ ->
-			call_error (Not_enough_arguments args) callp
+			call_error (Not_enough_arguments args) call_field_p
 		| [],(name,true,t) :: args ->
 			if not ctx.allow_transform then begin
 				ignore(loop [] args);
@@ -296,7 +296,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			let args_typed,args = unify_typed_args ctx tmap args el_typed p in
 			let el =
 				try
-					unify_call_args ctx el args ret p inline is_forced_inline in_overload
+					unify_call_args ctx el args ret ?call_field_p:fa.fa_field_pos p inline is_forced_inline in_overload
 				with DisplayException.DisplayException de ->
 					raise_augmented_display_exception cf de;
 			in
