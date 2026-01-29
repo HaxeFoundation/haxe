@@ -25,7 +25,7 @@ package cs;
 @:keep
 class StringExt {
 	public static function fromCharCode(code:Int):String {
-		return untyped __cs__("((char){0}).ToString()", code);
+		return untyped __cs__("System.Char.ConvertFromUtf32({0})", code);
 	}
 
 	public static function charAt(me:String, index:Int):String {
