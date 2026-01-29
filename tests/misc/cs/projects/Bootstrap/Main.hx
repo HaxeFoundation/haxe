@@ -63,6 +63,7 @@ class Main {
 		testDynamicArrays();
 		testGenericMetadata();
 		testNullEquality();
+		testIifeOptimization();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -96,6 +97,28 @@ class Main {
 	static var falseValue:Bool;
 	static var staticVar:Int;
 	static var staticNullVar:Null<Int>;
+
+	// IIFE optimization test helpers
+	static var iifeCounter:Int = 0;
+
+	static function getNullIntWithSideEffect():Null<Int> {
+		iifeCounter++;
+		return 42;
+	}
+
+	static function acceptNullFloat(x:Null<Float>):Float {
+		return x != null ? x : 0.0;
+	}
+
+	static function acceptTwoNullFloats(x:Null<Float>, y:Null<Float>):Float {
+		var xv:Float = x != null ? x : 0.0;
+		var yv:Float = y != null ? y : 0.0;
+		return xv + yv;
+	}
+
+	static function returnNullFloatFromInt():Null<Float> {
+		return getNullIntWithSideEffect();
+	}
 
 	var localVar:Int;
 	var localNullVar:Null<Int>;
@@ -1816,6 +1839,48 @@ class Main {
 
 		eq(null, nullFloat);
 		eq(3.14, someFloat);
+	}
+
+	static function testIifeOptimization() {
+		// Test IIFE (Immediately Invoked Function Expression) optimization
+		// When converting Null<Int> -> Null<Float>, side effects should only happen once
+
+		// Test 1: Variable declaration - Null<Int> -> Null<Float>
+		iifeCounter = 0;
+		var a:Null<Float> = getNullIntWithSideEffect();
+		eq(1, iifeCounter);
+		eq(42.0, a);
+
+		// Test 2: Assignment - Null<Int> -> Null<Float>
+		iifeCounter = 0;
+		var b:Null<Float> = 0;
+		b = getNullIntWithSideEffect();
+		eq(1, iifeCounter);
+		eq(42.0, b);
+
+		// Test 3: Function argument - Null<Int> -> Null<Float>
+		iifeCounter = 0;
+		var r1 = acceptNullFloat(getNullIntWithSideEffect());
+		eq(1, iifeCounter);
+		eq(42.0, r1);
+
+		// Test 4: Multiple function arguments - each evaluated once
+		iifeCounter = 0;
+		var r2 = acceptTwoNullFloats(getNullIntWithSideEffect(), getNullIntWithSideEffect());
+		eq(2, iifeCounter);
+		eq(84.0, r2);
+
+		// Test 5: Nested call - inner result passed to outer
+		iifeCounter = 0;
+		var r3 = acceptNullFloat(getNullIntWithSideEffect());
+		var r4:Null<Float> = r3;
+		eq(1, iifeCounter);
+
+		// Test 6: Return statement - Null<Int> -> Null<Float> in return
+		iifeCounter = 0;
+		var r5 = returnNullFloatFromInt();
+		eq(1, iifeCounter);
+		eq(42.0, r5);
 	}
 }
 
