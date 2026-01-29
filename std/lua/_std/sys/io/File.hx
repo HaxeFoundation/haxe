@@ -35,6 +35,14 @@ import lua.lib.luv.fs.FileSystem as LFileSystem;
 
 @:coreApi
 class File {
+	#if lua.windows_utf8_io
+	private static function __init__():Void {
+		if (lua.Package.config.charAt(0) == "\\") {
+			lua.Os.setlocale(".UTF8", Ctype);
+		}
+	}
+	#end
+
 	public static function getContent(path:String):String {
 		var f = Io.open(path, "r");
 		if (f == null)

@@ -1,5 +1,6 @@
 
 compile-each.hxml
+-D lua.windows_utf8_io
 --main Main
 -lua bin/lua/sys.lua
 
