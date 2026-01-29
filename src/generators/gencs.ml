@@ -5915,15 +5915,9 @@ let generate_closure_class ectx tf func_type =
 			let body = if return_type = CsTypeVoid then
 				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 			else
-				(* Wrap return value with appropriate Value.FromXxx *)
-				let wrapped_result = match return_type with
-					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_result])
-					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_result])
-					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_result])
-					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_result])
-					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_result])
-					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_result])
-				in
+				(* Wrap return value with appropriate Value.FromXxx using cast_type_to_value
+			   which handles Null<T> types correctly (FromNullInt, etc.) *)
+				let wrapped_result = cast_type_to_value return_type invoke_result in
 				[CsReturn (Some wrapped_result)]
 			in
 			CsMemberMethod {
