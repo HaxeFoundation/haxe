@@ -98,6 +98,18 @@ let haxeobject_path = NativeTypes.haxe_object_path
 (* Context types gen_context, expr_context, cs_expr_result are defined in CsContext.ml *)
 (* Also: create_context, create_expr_context, add_closure_for_class, get_closures_for_class, fresh_temp, generate_closure_name *)
 
+(* C#-specific: Patch @:optional field TYPE to use Null<T>.
+   Unlike JVM which uses 0 for optional primitives, C# needs Null<T> to preserve null state.
+   This patches the Haxe type before C# code generation, so field declarations get Null<T>.
+   Called during preprocessing, before field generation. *)
+let patch_optional_field_type basic cf =
+	if Meta.has Meta.Optional cf.cf_meta then
+		match follow cf.cf_type with
+		| TFun _ -> ()  (* Function types already handled by genshared.patch_optional *)
+		| _ when not (is_nullable cf.cf_type) ->
+			cf.cf_type <- basic.tnull cf.cf_type
+		| _ -> ()
+
 (* ====== Invoke system ====== *)
 
 (* Classify a type for invoke signature matching.
@@ -1176,7 +1188,11 @@ let rec cs_expr_of_texpr ectx e =
 					   that would be added by the general TField handler. The read-cast is for
 					   when reading from an erased type param field; for writing, we don't need it. *)
 					let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
-					let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype e1.etype in
+					(* For @:optional fields: patch_optional_field_type runs AFTER the AST is created
+					   (e.g., by @:structInit), so cf.cf_type is patched to Null<T> but e1.etype in
+					   the AST still has the original type. Use cf.cf_type to get the correct type. *)
+					let target_type = if Meta.has Meta.Optional cf.cf_meta then cf.cf_type else e1.etype in
+					let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ectx.gctx val_cs e2.etype target_type in
 					(* Generate field access directly, handling Null<T> unwrap but NOT the read-cast *)
 					let needs_unwrap = find_null_in_expr obj in
 					let obj_expr_for_field = if needs_unwrap then CsField (obj_expr, "value") else obj_expr in
@@ -9445,11 +9461,15 @@ let generate com =
 		match mt with
 		| TClassDecl c when not (has_class_flag c CInterface) ->
 			(* Full preprocessing for classes *)
-			gctx.preprocessor#preprocess_class c
+			gctx.preprocessor#preprocess_class c;
+			(* C#-specific: Patch @:optional field types to use Null<T> *)
+			List.iter (patch_optional_field_type com.basic) c.cl_ordered_fields
 		| TClassDecl c ->
 			(* Interfaces: patch optional params only (same as JVM line 3130) *)
 			List.iter (fun cf -> patch_optional com.basic cf) c.cl_ordered_fields;
-			List.iter (fun cf -> patch_optional com.basic cf) c.cl_ordered_statics
+			List.iter (fun cf -> patch_optional com.basic cf) c.cl_ordered_statics;
+			(* C#-specific: Also patch @:optional field types for interfaces *)
+			List.iter (patch_optional_field_type com.basic) c.cl_ordered_fields
 		| _ -> ()
 	) com.types;
 
