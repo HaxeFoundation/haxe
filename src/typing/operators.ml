@@ -835,6 +835,7 @@ let type_op_null_coal_assign ctx e1 e2 with_type p =
 		);
 		assign = (fun vr e_lhs e_rhs ->
 			let assign e_rhs =
+				check_assign ctx e_lhs;
 				let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
 				mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
 			in

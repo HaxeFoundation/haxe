@@ -47,12 +47,28 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "stop_wrap" #else "stop" #end)
 	public function stop():Void {}
 
+	public static function getFromEventLoop(loop:haxe.EventLoop):Loop {
+		if (@:privateAccess loop.nativeLoop == null) {
+			if (loop == haxe.EventLoop.main)
+				@:privateAccess loop.nativeLoop = new LoopWrapper(default_loop());
+			else {
+				#if (hl_ver < version("1.16.0"))
+				throw "Using libUV multithread requires -D hl-ver=1.16.0";
+				#else
+				@:privateAccess loop.nativeLoop = new LoopWrapper(create());
+				#end
+			}
+		}
+		final wrapped:LoopWrapper = cast @:privateAccess loop.nativeLoop;
+		return @:privateAccess wrapped.uvLoop;
+	}
+
 	public static function getCurrent():Loop {
-		return @:privateAccess haxe.EventLoop.current.getUVLoop();
+		return getFromEventLoop(haxe.EventLoop.current);
 	}
 
 	public static function getDefault():Loop {
-		return @:privateAccess haxe.EventLoop.main.getUVLoop();
+		return getFromEventLoop(haxe.EventLoop.main);
 	}
 
 	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "default_loop_wrap" #else "default_loop" #end)
@@ -66,4 +82,27 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	}
 	#end
 
+}
+
+private class LoopWrapper {
+	public final allowsReentrancy = false;
+	final uvLoop:Loop;
+
+	public function new(loop:Loop) {
+		this.uvLoop = loop;
+	}
+
+	public function run() {
+		uvLoop.run(NoWait);
+	}
+
+	public function close() {
+		final result = uvLoop.close();
+		if (result != 0)
+			Sys.println("Some async handlers have not been closed");
+	}
+
+	public function isAlive() {
+		return uvLoop.alive() > 0;
+	}
 }

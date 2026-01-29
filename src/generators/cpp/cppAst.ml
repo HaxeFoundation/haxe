@@ -76,17 +76,17 @@ and tcpp =
   | TCppAutoCast
   | TCppDynamicArray
   | TCppObjectArray of tcpp
-  | TCppWrapped of tcpp
   | TCppScalarArray of tcpp
   | TCppObjC of tclass
   | TCppNativePointer of tclass
-  | TCppVariant
+  | TCppVariant of tcpp option
   | TCppCode of tcpp
   | TCppInst of tclass * tcpp list
   | TCppInterface of tclass
   | TCppProtocol of tclass
   | TCppClass
   | TCppGlobal
+  | TCppCallable of tcpp list * tcpp
 
 and tcppexpr = { cppexpr : tcpp_expr_expr; cpptype : tcpp; cpppos : pos }
 
@@ -119,7 +119,10 @@ and tcppvarloc =
   | VarStatic of tclass * bool * tclass_field
   | VarInternal of tcppexpr * string * string
 
-and tcppinst = InstPtr | InstObjC | InstStruct
+and tcppinst =
+  | InstPtr of tcpp
+  | InstObjC
+  | InstStruct
 
 and tcppfuncloc =
   | FuncThis of tclass_field * tcpp
@@ -162,7 +165,7 @@ and tcpp_expr_expr =
   | CppThis of tcppthis
   | CppSuper of tcppthis
   | CppCode of string * tcppexpr list
-  | CppClosure of tcpp_closure
+  | CppCallable of tcpp_closure
   | CppVar of tcppvarloc
   | CppExtern of string * bool
   | CppDynamicField of tcppexpr * string
@@ -243,7 +246,7 @@ and tcpp_class_function = {
 and tcpp_class_variable = {
   tcv_field : tclass_field;
   tcv_name : string;
-  tcv_type : t;
+  tcv_type : tcpp;
   tcv_default : texpr option;
 
   tcv_has_getter : bool;

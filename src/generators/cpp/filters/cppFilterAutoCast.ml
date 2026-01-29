@@ -7,7 +7,7 @@ open CppError
 let autocast_filter for_cppia return_type cppexpr =
   let object_expression =
     match cppexpr.cpptype with
-    | TCppVariant
+    | TCppVariant _
     | TCppDynamic
     | TCppObject -> true
     | _ -> false
@@ -34,6 +34,12 @@ let autocast_filter for_cppia return_type cppexpr =
   in
 
   let cast_from_object () =
+    let is_variant t =
+      match t with
+      | TCppVariant _ -> true
+      | _ -> false
+    in
+
     match return_type with
     | TCppUnchanged ->
       cppexpr
@@ -60,10 +66,12 @@ let autocast_filter for_cppia return_type cppexpr =
       mk_cppexpr (CppCastScalar (cppexpr, scalar)) return_type
     | TCppString ->
       mk_cppexpr (CppCastScalar (cppexpr, "::String")) return_type
-    | TCppInterface _ when cppexpr.cpptype = TCppVariant ->
+    | TCppInterface _ when is_variant cppexpr.cpptype ->
       mk_cppexpr (CppCastVariant cppexpr) return_type
-    | TCppDynamic when cppexpr.cpptype = TCppVariant ->
+    | TCppDynamic when is_variant cppexpr.cpptype ->
       mk_cppexpr (CppCastVariant cppexpr) return_type
+    | TCppCallable _ when is_variant cppexpr.cpptype ->
+      mk_cppexpr (CppCast(cppexpr, return_type)) return_type
     | TCppStar (t, const) as ptr ->
       let ptr_type = TCppPointer ((if const then "ConstPointer" else "Pointer"), t) in
       let ptr_cast = mk_cppexpr (CppCast (cppexpr, ptr_type)) ptr_type in
@@ -182,7 +190,7 @@ let autocast_filter for_cppia return_type cppexpr =
     | TCppMarshalNativeType (_, Promoted), TCppMarshalNativeType (value_type, (Stack)) ->
       let reference = TCppMarshalNativeType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
-    | TCppMarshalNativeType (value_type, (Stack | Promoted)), (TCppMarshalNativeType (_, Reference) | TCppDynamic | TCppVariant) ->
+    | TCppMarshalNativeType (value_type, (Stack | Promoted)), (TCppMarshalNativeType (_, Reference) | TCppDynamic | TCppVariant _) ->
       let reference = TCppMarshalNativeType(value_type, Reference) in
       mk_cppexpr (CppCast (cppexpr, reference)) reference
     | _ -> cppexpr

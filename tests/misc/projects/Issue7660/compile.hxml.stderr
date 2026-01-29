@@ -1,0 +1,1 @@
+Main.hx:5: characters 3-13 : Warning : (WConstructorInliningCancelled) Constructor inlining cancelled because of use of uninitialized member field i

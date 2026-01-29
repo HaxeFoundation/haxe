@@ -25,7 +25,7 @@ private typedef WithKey<K> = {
 }
 
 /**
-	Represents the key of a `Context` element. See `haxe.coro.schedulers.Scheduler` for a usage example.
+	Represents the key of a `Context` element. See `haxe.coro.dispatchers.Dispatcher` for a usage example.
 **/
 @:forward
 @:forward.statics

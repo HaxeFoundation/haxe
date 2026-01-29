@@ -3,8 +3,8 @@ package haxe.coro;
 import haxe.coro.context.Context;
 import haxe.coro.context.Key;
 import haxe.coro.context.IElement;
-import haxe.coro.schedulers.Scheduler;
-import haxe.coro.schedulers.IScheduleObject;
+import haxe.coro.dispatchers.Dispatcher;
+import haxe.coro.dispatchers.IDispatchObject;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 
@@ -27,7 +27,7 @@ class StackTraceManager implements IElement<StackTraceManager> {
 	basic functionality for managing the internal coroutine state, most of which should be uninteresting to the
 	casual coroutine user.
 **/
-abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame implements IScheduleObject {
+abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame implements IDispatchObject {
     /**
 		The continuation to resume once `this` continuation completes.
 	**/
@@ -78,12 +78,17 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		@see `IContinuation.resume`
 	**/
     public final function resume(result:Any, error:Exception):Void {
-        this.result = result;
-        this.error  = error;
+		this.result = result;
+		this.error = error;
 		recursing = false;
-		resumeResult = invokeResume();
+		// In a threaded environment, we have to assume that `invokeResume` might
+		// go into this `resume` function before we're even done here. We can only
+		// make assumptions about its return value if it's not the `suspended` marker,
+		// because in that case it must be a final state of the coroutine.
+		final resumeResult = invokeResume();
 		if (resumeResult != SuspensionResult.suspended) {
-			context.get(Scheduler).scheduleObject(this);
+			this.resumeResult = resumeResult;
+		    context.get(Dispatcher).dispatch(this);
 		}
     }
 
@@ -225,10 +230,10 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		return '[BaseContinuation ${state.toString()}, $result]';
 	}
 
-	public function onSchedule() {
+	public function onDispatch() {
 		switch (resumeResult.state) {
 			case Pending:
-				return;
+				completion.resume(null, new Exception('Invalid dispatch call on suspended coroutine'));
 			case Returned:
 				completion.resume(resumeResult.result, null);
 			case Thrown:

@@ -78,8 +78,7 @@ class TestCase implements ITest implements ITestCase {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
 
-		utest
-			.CoroutineHelpers
+		hxcoro.CoroRun
 			.promise(() -> {
 				runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {});
 

@@ -1268,6 +1268,12 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		match targs with
 			| _ :: targs ->
 				(* Ignore leading continuation for actual signature *)
+				let ret = match follow ret with
+				| TInst({cl_path = (["haxe";"coro"],"SuspensionResult")},[ret]) ->
+					ret
+				| t ->
+					raise_typing_error (Printf.sprintf "Return type of @:coroutine.transformed functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
+				in
 				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
 				die "" __LOC__

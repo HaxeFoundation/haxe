@@ -111,4 +111,14 @@ class Gc {
 		return 0;
 	}
 	#end
+
+	#if (hl_ver >= version("1.16.0"))
+	@:hlNative("std", "gc_safepoint")
+	#end
+	public static function safepoint() {
+		#if (hl_ver < version("1.16.0"))
+		blocking(true);
+		blocking(false);
+		#end
+	}
 }

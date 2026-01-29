@@ -1,11 +1,8 @@
 package cases;
 
-#if !neko
 import sys.thread.Semaphore;
-#end
 
 class TestSemaphore extends utest.Test {
-	#if !neko
 	function test() {
 		var m = new Semaphore(3);
 		m.acquire();
@@ -17,5 +14,4 @@ class TestSemaphore extends utest.Test {
 		m.release();
 		m.release();
 	}
-	#end
 }

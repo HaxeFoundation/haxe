@@ -1666,6 +1666,71 @@ let generate js_gen com =
 
 	let ctx = alloc_ctx com es_version in
 	Gctx.map_source_header com.defines (fun s -> print ctx "// %s\n" s);
+
+	let import_statements = ref [] in
+	List.iter (fun mt -> match mt with
+		| TClassDecl c when (has_class_flag c CExtern) && Meta.has Meta.JsImport c.cl_meta && is_directly_used ctx.com c.cl_meta ->
+			let _, args, mp = Meta.get Meta.JsImport c.cl_meta in
+			let id = snd c.cl_path in
+			let flat_path = Path.flat_path (get_generated_class_path c) in
+			let alias = try
+				fst (Native.get_native_name c.cl_meta)
+			with Not_found ->
+				c.cl_meta <- (Meta.Native,[EConst (String(flat_path,SDoubleQuotes)),null_pos],null_pos) :: c.cl_meta;
+				Native.apply_native_paths mt;
+				flat_path
+			in
+			let err () =
+				abort ("Unsupported @:js.import format. Use:\n" ^
+				"	@:js.import('mylib.js')\n" ^
+				"	@:js.import('mylib.js', 'name')\n" ^
+				"	@:js.import(@default 'mylib.js')\n" ^
+				"	@:js.import(@star 'mylib.js')\n" ^
+				"'mylib.js' can also be replaced with mylibjs_path custom define,\nif you set it as -D mylibjs_path=\"mylib.js\"")
+				mp
+			in
+			let get_module_name expr =
+				match expr with
+					| EConst(String(module_name,_)),_ -> module_name
+					| EConst(Ident(define)),_ ->
+						begin try
+							let s = Define.raw_defined_value com.defines define in
+							Helper.unquote s
+						with Not_found ->
+							abort ("Define " ^ define ^ " with js library path is not specified") mp;
+						end
+					| _ -> err()
+			in
+			(match args with
+				(* @:js.import(@star "module") - namespace import *)
+				| [EMeta ((Meta.Custom "star",[],_),ename),_] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import * as %s from \"%s\";" alias module_name) :: !import_statements
+				(* @:js.import(@default "module") - default import *)
+				| [EMeta ((Meta.Custom "default",[],_),ename),_] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import %s from \"%s\";" alias module_name) :: !import_statements
+				(* @:js.import("module") - named import using class name *)
+				| [ename] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" id alias module_name) :: !import_statements
+				(* @:js.import("module", "exportName") - named import with alias *)
+				| [ename; (EConst(String(export_name,_)),_)] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" export_name alias module_name) :: !import_statements
+				| exprs ->
+					err ()
+			)
+		| _ -> ()
+	) com.types;
+	(match !import_statements with
+		| [] -> ()
+		| lines ->
+			List.iter (fun line ->
+				print ctx "%s\n" line
+			) (List.rev lines)
+	);
+
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 

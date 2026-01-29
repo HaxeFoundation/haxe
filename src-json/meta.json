@@ -562,6 +562,13 @@
 		"links": ["https://haxe.org/manual/target-javascript-require.html"]
 	},
 	{
+		"name": "JsImport",
+		"metadata": ":js.import",
+		"doc": "Generate ES module import statement for given extern. Produces import lines at the top of the generated JS output.",
+		"platforms": ["js"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "LuaRequire",
 		"metadata": ":luaRequire",
 		"doc": "Generate Lua module require expression for given extern.",

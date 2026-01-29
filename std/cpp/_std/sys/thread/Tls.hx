@@ -24,7 +24,7 @@ package sys.thread;
 
 @:coreApi
 class Tls<T> {
-	static var sFreeSlot = 0;
+	static var sFreeSlot:Int;
 
 	var mTLSID:Int;
 
@@ -41,5 +41,9 @@ class Tls<T> {
 	function set_value(v:T):T {
 		untyped __global__.__hxcpp_tls_set(mTLSID, v);
 		return v;
+	}
+
+	static function __init__ ():Void {
+		sFreeSlot = 0;
 	}
 }

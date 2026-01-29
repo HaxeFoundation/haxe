@@ -154,16 +154,18 @@ class Boot {
 
 
 	/**
-		Define an array from the given table
+		Define an array from the given table.
+		Converts from 1-indexed Lua table to 0-indexed Haxe array.
 	**/
 	public inline static function defArray<T>(tab:Table<Int, T>, ?length:Int):Array<T> {
 		if (length == null) {
 			length = TableTools.maxn(tab);
 			if (length > 0) {
-				var head = tab[1];
-				Table.remove(tab, 1);
-				tab[0] = head;
-				return untyped _hx_tab_array(tab, length);
+				// Shift all numeric keys by -1 to convert from 1-indexed to 0-indexed.
+				// Cannot use table.remove as it doesn't work correctly for sparse tables.
+				var result:Table<Int, T> = Table.create();
+				untyped __lua__("for k, v in pairs(tab) do if type(k) == 'number' then result[k - 1] = v end end");
+				return untyped _hx_tab_array(result, length);
 			} else {
 				return [];
 			}

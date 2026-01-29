@@ -96,32 +96,23 @@ class Lua {
 			installLib("lrexlib-pcre2", "2.9.1-1");
 			installLib("luasocket", "3.0rc1-2");
 
-			//Install bit32 for lua 5.1
-			if (lv == "-l5.1")
-				installLib("bit32", "5.2.2-1");
+			//Install bit32 for lua 5.1 and 5.4
+			if (lv == "-l5.1" || lv == "-l5.4")
+				installLib("bit32", "5.3.5.1-1");
 
 			installLib("luv", "1.50.0-1");
-			if (lv == "-l5.4") {
-				installLib("bit32", "5.3.5.1-1");
-				installLib("luautf8", "0.1.5-2");
-			} else {
-				installLib("luautf8", "0.1.1-1");
-			}
+			installLib("luautf8", "0.1.6-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
 			changeDirectory(unitDir);
-			final luaDefine = if (lv.startsWith("-l")) {
-				lv.replace("-l", "lua").replace(".", "_");
-			} else lv.replace("-j", "luajit").replace(".", "_");
-			final luaVer = ["-D", luaDefine];
-			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
+			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/unit.lua"]);
 
 			Display.maybeRunDisplayTests(Lua);
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(luaVer));
+			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
 			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));

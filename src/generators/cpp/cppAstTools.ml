@@ -291,7 +291,7 @@ let rec s_tcpp = function
   | CppThis _ -> "CppThis"
   | CppSuper _ -> "CppSuper"
   | CppCode _ -> "CppCode"
-  | CppClosure _ -> "CppClosure"
+  | CppCallable _ -> "CppCallable"
   | CppVar (VarLocal _) -> "CppVarLocal"
   | CppVar (VarClosure _) -> "CppVarClosure"
   | CppVar (VarThis _) -> "CppVarThis"
@@ -311,7 +311,7 @@ let rec s_tcpp = function
   | CppCall (FuncInstance (obj, inst, field, _), _) ->
       (match inst with
       | InstObjC -> "CppCallObjCInstance("
-      | InstPtr -> "CppCallInstance("
+      | InstPtr _ -> "CppCallInstance("
       | _ -> "CppCallStruct(")
       ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
   | CppCall (FuncInterface _, _) -> "CppCallInterface"
@@ -385,7 +385,8 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppRest _ -> "vaarg_list"
   | TCppVarArg -> "vararg"
   | TCppAutoCast -> "::cpp::AutoCast"
-  | TCppVariant -> "::cpp::Variant"
+  | TCppVariant None -> "::cpp::Variant"
+  | TCppVariant Some t -> Printf.sprintf "::cpp::Variant( %s )" (tcpp_to_string t)
   | TCppEnum enum -> " ::" ^ join_class_path_remap enum.e_path "::" ^ suffix
   | TCppScalar scalar -> scalar
   | TCppString -> "::String"
@@ -409,7 +410,6 @@ and tcpp_to_string_suffix suffix tcpp =
       tcpp_objc_block_struct argTypes retType ^ "::t"
   | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
   | TCppObjectArray _ -> "::Array" ^ suffix ^ "< ::Dynamic>"
-  | TCppWrapped _ -> " ::Dynamic"
   | TCppScalarArray value ->
       "::Array" ^ suffix ^ "< " ^ tcpp_to_string value ^ " >"
   | TCppObjC klass ->
@@ -466,6 +466,12 @@ and tcpp_to_string_suffix suffix tcpp =
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
   | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
     get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
+
+  | TCppCallable (arguments, return) ->
+    let return_str    = tcpp_to_string return in
+    let arguments_str = arguments |> List.map tcpp_to_string |> String.concat "," in
+
+    Printf.sprintf "::hx::Callable< %s (%s) >" return_str arguments_str
 
 and build_type path pos params meta target parameter_handler =
   let get_meta_field field =
@@ -790,9 +796,15 @@ let rec cpp_is_native_array_access t =
    | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true
    | _ -> false
 
-let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
+let cpp_is_dynamic_type t =
+  match t with
+   | TCppDynamic
+   | TCppObject
+   | TCppVariant _
+   | TCppGlobal
+   | TCppNull
    | TCppInterface _
+   | TCppCallable _
       -> true
    | _ -> false
 
@@ -812,9 +824,9 @@ let is_object_element member_type =
    | TCppFunction _
    | TCppDynamicArray
    | TCppObjectArray _
-   | TCppWrapped _
    | TCppScalarArray _
    | TCppClass
+   | TCppCallable _
        -> true
    | _ -> false
 
@@ -833,7 +845,6 @@ let cpp_variant_type_of t = match t with
   | TCppDynamicArray
   | TCppObjectArray _
   | TCppScalarArray _
-  | TCppWrapped _
   | TCppObjC _
   | TCppObjCBlock _
   | TCppRest _
@@ -844,7 +855,8 @@ let cpp_variant_type_of t = match t with
   | TCppClass
   | TCppGlobal
   | TCppNull
-  | TCppEnum _ -> TCppDynamic
+  | TCppEnum _
+  | TCppCallable _ -> TCppDynamic
   | TCppString -> TCppString
   | TCppFunction _
   | TCppNativePointer _
@@ -860,7 +872,7 @@ let cpp_variant_type_of t = match t with
   | TCppScalar "double"
   | TCppScalar "float" -> TCppScalar("Float")
   | TCppScalar _  -> TCppScalar("int")
-  | TCppVariant -> TCppVariant
+  | TCppVariant v -> TCppVariant v
 
 let cpp_cast_variant_type_of t = match t with
   | TCppObjectArray _
