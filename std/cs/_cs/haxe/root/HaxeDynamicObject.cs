@@ -61,6 +61,23 @@ namespace haxe.root
             return buf;
         }
 
+        /// <summary>
+        /// Haxe toString() method - checks for custom toString field first.
+        /// This is called by Cs.toString() for string conversion.
+        /// </summary>
+        public override string toString()
+        {
+            // Check if there's a toString field that is a function
+            object toStringField = _hx_getField("toString");
+            if (toStringField is global::haxe.lang.Function f)
+            {
+                var result = f.__hx_invoke0().ToDynamic();
+                return global::haxe.lang.Runtime.toStr(result);
+            }
+            // Fallback to default ToString() which formats as {field: value, ...}
+            return ToString();
+        }
+
         public override bool _hx_deleteField(string name)
         {
             _hx_initFields();
