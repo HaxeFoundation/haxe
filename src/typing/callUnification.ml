@@ -126,7 +126,8 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 					die "" __LOC__
 			end
 		| [],(_,false,_) :: _ ->
-			call_error (Not_enough_arguments args) call_field_p
+			let tail_p = { callp with pmin = call_field_p.pmin } in
+			call_error (Not_enough_arguments args) tail_p
 		| [],(name,true,t) :: args ->
 			if not ctx.allow_transform then begin
 				ignore(loop [] args);
