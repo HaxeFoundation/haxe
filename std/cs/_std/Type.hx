@@ -301,6 +301,9 @@ class Type {
 		// Check for int
 		if (Std.isOfType(v, Int))
 			return TInt;
+		// Check for Int64 (before Float, since Float's isOfType returns true for long)
+		if (untyped __cs__("{0} is long", v))
+			return TInt64;
 		// Check for float
 		if (Std.isOfType(v, Float))
 			return TFloat;
