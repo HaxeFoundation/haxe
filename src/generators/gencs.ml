@@ -7778,10 +7778,10 @@ let generate_field_accessors gctx c =
 		[]
 	else
 		(* Get list of instance fields with their Haxe and native names.
-		   Include any field with direct read access (AccNormal), regardless of write accessor. *)
+		   Include any physical variable field (AccNormal read/write or @:isVar properties). *)
 		let instance_fields = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Var { v_read = AccNormal; _ } ->
+			| Var _ when is_physical_var_field cf ->
 				Some (cf.cf_name, get_native_field_name cf, cs_type_of_type gctx cf.cf_type)
 			| _ -> None
 		) c.cl_ordered_fields in
