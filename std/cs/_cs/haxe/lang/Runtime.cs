@@ -332,6 +332,12 @@ namespace haxe.lang
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot get field from null");
 
+            // Check for Type object (static field access via Dynamic)
+            if (obj is global::System.Type t)
+            {
+                return global::haxe.lang.HaxeReflection.getField(t, name);
+            }
+
             // For HaxeObject subclasses, use _hx_getField (AOT-safe)
             if (obj is global::haxe.root.HaxeObject ho)
             {
