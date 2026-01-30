@@ -557,7 +557,7 @@ class StringTools {
 		return c != c; // fast NaN
 		#elseif (neko || lua || eval)
 		return c == null;
-		#elseif (java || python)
+		#elseif (cs || java || python)
 		return c == -1;
 		#else
 		return false;
