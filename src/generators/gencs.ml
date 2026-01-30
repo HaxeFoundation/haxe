@@ -1725,8 +1725,11 @@ let rec cs_expr_of_texpr ectx e =
 						in
 						(cast_if_needed e1 cs_e1, cast_if_needed e2 cs_e2)
 					else match op with
-						| OpDiv when is_int_type e1.etype && is_int_type e2.etype && is_float_type e.etype ->
-							(* Cast both operands to double for float division semantics *)
+						| OpDiv when is_float_type e.etype ->
+							(* Cast both operands to double for float division semantics.
+							   In Haxe, division always returns Float, even for Int / Int.
+							   After inlining, operand etypes might not reflect actual C# types,
+							   so we check the result type instead and always cast to double. *)
 							CsCast (CsTypeDouble, cs_e1), CsCast (CsTypeDouble, cs_e2)
 						| _ -> cs_e1, cs_e2
 				in
