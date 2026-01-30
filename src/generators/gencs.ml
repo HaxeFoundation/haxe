@@ -7476,7 +7476,8 @@ let generate_constructor gctx c cf field_init_stmts =
 	in
 
 	(* Check if this constructor needs two-phase construction (this-before-super pattern).
-	   Note: Super args referencing body locals is handled separately with IIFE lambdas. *)
+	   Note: super args using optional params with defaults is handled separately by
+	   applying defaults inline in the base() call expression. *)
 	let is_two_phase = needs_two_phase_construction cf in
 	let parent_is_two_phase = parent_needs_two_phase_construction c in
 	(* Get base class constructor types for casting super args.
@@ -7594,7 +7595,7 @@ let generate_constructor gctx c cf field_init_stmts =
 				) tf_args;
 				generate_optional_param_defaults ectx gctx tf_args
 			end in
-			field_init_stmts @ base_new_call @ default_preamble @ body_stmts
+			field_init_stmts @ default_preamble @ base_new_call @ body_stmts
 		in
 		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
 		let hx_new_body = match cf.cf_expr with
@@ -7680,12 +7681,53 @@ let generate_constructor gctx c cf field_init_stmts =
 						CsCall (CsParens cast_lambda, [])
 					end else begin
 						let cs_arg = cs_expr_of_texpr ectx arg in
+						(* Check if this arg is a TLocal referencing an optional param with a default.
+						   If so, apply the default inline to ensure it's evaluated BEFORE base() call.
+						   This fixes the issue where: super(s, i) with defaults s="test2", i=-6
+						   would pass null/default to parent because C# `: base(...)` executes before body. *)
+						let cs_arg_with_default = match arg.eexpr with
+							| TLocal v ->
+								let default_expr_opt = List.fold_left (fun acc (pv, default_opt) ->
+									match acc with
+									| Some _ -> acc
+									| None when pv.v_id = v.v_id ->
+										begin match default_opt with
+										| Some { eexpr = TConst TNull } -> None  (* null default doesn't count *)
+										| Some default_expr -> Some default_expr
+										| None -> None
+										end
+									| None -> None
+								) None tf_args in
+								begin match default_expr_opt with
+								| Some default_expr ->
+									(* Apply default inline. For String: s ?? "default"
+									   For Null<T>: !i.hasValue ? -6 : i.value (ternary that preserves value)
+									   Actually simpler: use null coalescing for both since
+									   Null<T> supports ?? operator in C# *)
+									let cs_type = cs_type_of_type gctx arg.etype in
+									let cs_default = cs_expr_of_texpr ectx default_expr in
+									begin match cs_type with
+									| CsTypeNullable _ | CsTypeString ->
+										(* String and Null<T> support ?? operator *)
+										CsBinop (CsOpNullCoalesce, cs_arg, cs_default)
+									| _ ->
+										(* For plain types, check == null (which works for boxed values) *)
+										CsTernary (
+											CsBinop (CsOpEq, cs_arg, CsNull),
+											cs_default,
+											cs_arg
+										)
+									end
+								| None -> cs_arg
+								end
+							| _ -> cs_arg
+						in
 						(* Cast to expected type if we know it *)
 						if i < List.length base_ctor_types then
 							let expected_type = List.nth base_ctor_types i in
-							CsCast (expected_type, CsParens cs_arg)
+							CsCast (expected_type, CsParens cs_arg_with_default)
 						else
-							cs_arg
+							cs_arg_with_default
 					end
 				) args in
 				Some cs_args
