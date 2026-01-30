@@ -8136,19 +8136,19 @@ let static_accessors_type = CsTypeClass ((["haxe"; "lang"], "StaticAccessors"), 
    Also records the class path in gctx.all_haxe_classes for Program.cs bind calls. *)
 let generate_static_field_accessors gctx c =
 	(* Get list of static fields with their C# names (handles class/member name conflicts).
-	   Include any field with direct read access (AccNormal), regardless of write accessor. *)
+	   Include any field with direct read access (AccNormal or AccInline), regardless of write accessor. *)
 	let static_fields = List.filter_map (fun cf ->
 		match cf.cf_kind with
-		| Var { v_read = AccNormal; _ } ->
+		| Var { v_read = (AccNormal | AccInline); _ } ->
 			Some (cf.cf_name, get_cs_field_name c cf, cs_type_of_type gctx cf.cf_type)
 		| _ -> None
 	) c.cl_ordered_statics in
 
 	(* Get list of static physical property fields (only those with backing fields, i.e. @:isVar).
-	   Excludes AccNormal read vars which are already in static_fields. *)
+	   Excludes AccNormal/AccInline read vars which are already in static_fields. *)
 	let static_property_fields = List.filter_map (fun cf ->
 		match cf.cf_kind with
-		| Var { v_read = AccNormal; _ } -> None (* already in static_fields *)
+		| Var { v_read = (AccNormal | AccInline); _ } -> None (* already in static_fields *)
 		| Var _ when is_physical_var_field cf ->
 			Some (cf.cf_name, get_cs_field_name c cf, cs_type_of_type gctx cf.cf_type)
 		| _ -> None
