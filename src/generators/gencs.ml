@@ -1268,6 +1268,18 @@ let rec cs_expr_of_texpr ectx e =
 				let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs e2.etype e1.etype in
 				CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
 			end
+		(* Special case: null typed as a value type (from inline function with abstract like UInt).
+		   When inlining isNull<T>(maybeNull:Null<T>) with T=UInt, the comparison becomes
+		   "value == null" where null has type Int (the underlying type).
+		   Since value types can never be null in C#, this comparison is always false/true. *)
+		| OpEq when is_null_expr e2 && not (is_null_expr e1) && CsTypeMapping.is_value_type (cs_type_of_type ectx.gctx e2.etype) ->
+			CsConst (CsConstBool false)
+		| OpEq when is_null_expr e1 && not (is_null_expr e2) && CsTypeMapping.is_value_type (cs_type_of_type ectx.gctx e1.etype) ->
+			CsConst (CsConstBool false)
+		| OpNotEq when is_null_expr e2 && not (is_null_expr e1) && CsTypeMapping.is_value_type (cs_type_of_type ectx.gctx e2.etype) ->
+			CsConst (CsConstBool true)
+		| OpNotEq when is_null_expr e1 && not (is_null_expr e2) && CsTypeMapping.is_value_type (cs_type_of_type ectx.gctx e1.etype) ->
+			CsConst (CsConstBool true)
 		| OpEq when expr_produces_csharp_null_type ectx.gctx e1 && is_null_expr e2 ->
 			(* x == null  ->  !x.hasValue *)
 			CsUnop (CsOpNot, false, CsField (cs_expr_of_texpr ectx e1, "hasValue"))
