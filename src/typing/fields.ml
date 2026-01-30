@@ -284,7 +284,7 @@ let class_field ctx c tl name p =
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 (* Note: if mode = MCall, with_type (if known) refers to the return type *)
 let type_field cfg ctx e i p mode (with_type : WithType.t) =
-	let pfield = if e.epos = p then p else { p with pmin = p.pmax - (String.length i) } in
+	let pfield = if e.epos = p then p else patch_string_pos p i in
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let field_access e f fmode = field_access ctx mode f fmode e pfield in
 	let class_field_with_access e c tl =

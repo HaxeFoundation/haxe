@@ -553,8 +553,14 @@ object(self)
 				t_dynamic
 			else if ctx.f.untyped then
 				mk_mono()
-			else
-				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+			else (
+				let pos = match e.eexpr with
+					| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
+						patch_string_pos e.epos cf.cf_name
+					| _ -> e.epos
+				in
+				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") pos
+			)
 			in
 			mk (TCall (e,el)) t p
 		in

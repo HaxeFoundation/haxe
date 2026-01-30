@@ -3,4 +3,6 @@ function main() {
 		// some long function
 		return char;
 	}).join();
+
+	final word = ["foo"].join("").length();
 }
