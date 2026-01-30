@@ -137,13 +137,15 @@ class Thread {
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
 	**/
-	public static function create(?name:String,job:()->Void,?onAbort):Thread {
+	public static function create(?name:String, job:()->Void, ?onExit:() -> Void, ?onAbort:haxe.Exception -> Void):Thread {
 		mutex.acquire();
 		var t = new Thread(null);
 		t.events = new haxe.EventLoop();
 		t.events.thread = t;
 		threads.push(t);
 		mutex.release();
+		if ( onExit != null )
+			t.onExit = onExit;
 		if( onAbort != null )
 			t.onAbort = onAbort;
 		t.impl = ThreadImpl.create(function() {
@@ -160,10 +162,11 @@ class Thread {
 			} catch( e ) {
 				exception = e;
 			}
-			t.dispose();
 			if( exception != null )
 				t.onAbort(exception);
 			@:privateAccess main().events.wakeup();
+			t.onExit();
+			t.dispose();
 		});
 		if( name != null ) t.name = name;
 		return t;
@@ -190,6 +193,15 @@ class Thread {
 		if( name == null ) name = "" else name = " "+name;
 		Sys.println("THREAD"+name+" ABORTED : "+e.message+haxe.CallStack.toString(e.stack));
 	}
+
+	/**
+		This function is called when the thread is exiting. In the case of an exception, it is called
+		after `onAbort`.
+
+		It is not guaranteed to be called if the thread is killed in a way that does not lead to
+		normal termination.
+	**/
+	public dynamic function onExit() {}
 
 	static function hasBlocking() {
 		// let's check if we have blocking threads running other that our calling thread
