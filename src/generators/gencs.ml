@@ -4722,11 +4722,12 @@ let rec cs_expr_of_texpr ectx e =
 			if is_extern_enum then
 				CsCast (CsTypeInt, obj)
 			else if is_dynamic then
-				(* Dynamic type - use reflection to get _hx_index field.
-				   Use Runtime.toInt for proper unboxing of the returned object. *)
-				let reflect_path = (["haxe"; "root"], "Reflect") in
-				let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj; CsConst (CsConstString "_hx_index")]) in
-				cast_object_to_type CsTypeInt field_call
+				(* Dynamic type - cast to HaxeEnum and access _hx_index directly.
+				   This avoids Reflect.field which doesn't work for HaxeEnum types
+				   because HaxeEnum doesn't extend HaxeObject. *)
+				let haxe_enum_type = CsTypeClass ((["haxe"; "lang"], "HaxeEnum"), []) in
+				let cast_to_enum = CsCast (haxe_enum_type, obj) in
+				CsField (cast_to_enum, "_hx_index")
 			else
 				CsField (obj, "_hx_index")
 		end
