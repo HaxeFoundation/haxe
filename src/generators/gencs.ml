@@ -1693,13 +1693,19 @@ let rec cs_expr_of_texpr ectx e =
 				let cs_e2 = cs_expr_of_texpr ectx e2 in
 				(* Wrap operands for string concatenation:
 				   - float: cs.Cs.toString() for invariant culture
-				   - nullable types: Runtime.toStrConcat() to convert null to "null" string *)
+				   - nullable types: Runtime.toStrConcat() to convert null to "null" string
+				   - toStr() calls: replace with toStrConcat() for proper null→"null" handling *)
 				let wrap_for_string_concat e cs_e =
 					if needs_invariant_float_to_string e then
 						CsStaticCall (CsTypeClass (cs_path, []), "toString", [cs_e])
-					else if could_be_null_reference e then
+					else match cs_e with
+					| CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), _), "toStr", [inner]) when is_string_concat ->
+						(* Expression was coerced to string via toStr - replace with toStrConcat for proper null handling.
+						   This happens when accessing fields with erased type parameters (e.g., T=String → object in C#). *)
+						CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toStrConcat", [inner])
+					| _ when could_be_null_reference e ->
 						object_to_string_for_concat cs_e
-					else cs_e
+					| _ -> cs_e
 				in
 				let cs_e1 = wrap_for_string_concat e1 cs_e1 in
 				let cs_e2 = wrap_for_string_concat e2 cs_e2 in
