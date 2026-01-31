@@ -75,23 +75,9 @@ class Reflect {
 			return (cast o : HaxeObject)._hx_getField(field);
 		}
 
-		// Special handling for strings (native System.String)
+		// Special handling for strings - delegate to Runtime.GetStringField
 		if (Std.isOfType(o, String)) {
-			var str:String = cast o;
-			return switch (field) {
-				case "length": str.length;
-				case "charAt": getStringMethodClosure(str, 0);
-				case "charCodeAt": getStringMethodClosure(str, 1);
-				case "indexOf": getStringMethodClosure(str, 2);
-				case "lastIndexOf": getStringMethodClosure(str, 3);
-				case "split": getStringMethodClosure(str, 4);
-				case "substr": getStringMethodClosure(str, 5);
-				case "substring": getStringMethodClosure(str, 6);
-				case "toLowerCase": getStringMethodClosure(str, 7);
-				case "toUpperCase": getStringMethodClosure(str, 8);
-				case "toString": getStringMethodClosure(str, 9);
-				default: null;
-			};
+			return untyped __cs__("global::haxe.lang.Runtime.GetStringField((string){0}, {1})", o, field);
 		}
 
 		// Check if o is a System.Type (for static field access)
@@ -417,36 +403,6 @@ class Reflect {
 	private static function createMethodClosure(obj:Dynamic, methodInfo:Dynamic):Dynamic {
 		return new MethodClosure(obj, methodInfo);
 	}
-
-	// String method closure cache: ConditionalWeakTable<string, Function[]>
-	// Caches StringMethodFunction instances per string to avoid allocation on each Reflect.field() call
-	static var stringMethodCache:Dynamic = untyped __cs__("new System.Runtime.CompilerServices.ConditionalWeakTable<string, haxe.lang.Function[]>()");
-
-	private static function getStringMethodClosure(str:String, methodIndex:Int):Dynamic {
-		// Type alias for readability
-		var cwt:Dynamic = stringMethodCache;
-
-		// Try to get existing cache entry
-		var cache:Dynamic = null;
-		var found:Bool = untyped __cs__("((System.Runtime.CompilerServices.ConditionalWeakTable<string, haxe.lang.Function[]>){0}).TryGetValue({1}, out haxe.lang.Function[] arr)", cwt, str);
-		if (found) {
-			cache = untyped __cs__("arr");
-		} else {
-			// Create new array and add to cache
-			cache = untyped __cs__("new haxe.lang.Function[10]");
-			untyped __cs__("((System.Runtime.CompilerServices.ConditionalWeakTable<string, haxe.lang.Function[]>){0}).Add({1}, (haxe.lang.Function[]){2})", cwt, str, cache);
-		}
-
-		// Check if this method is already cached
-		var existing:Dynamic = untyped __cs__("((haxe.lang.Function[]){0})[{1}]", cache, methodIndex);
-		if (existing != null)
-			return existing;
-
-		// Create and cache
-		var closure = new StringMethodFunction(str, methodIndex);
-		untyped __cs__("((haxe.lang.Function[]){0})[{1}] = {2}", cache, methodIndex, closure);
-		return closure;
-	}
 }
 
 private class VarArgsFunction extends HaxeFunction {
@@ -476,32 +432,5 @@ private class MethodClosure extends HaxeFunction {
 			untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 		}
 		return untyped __cs__("((System.Reflection.MethodInfo){0}).Invoke({1}, (object[]){2})", methodInfo, obj, nativeArgs);
-	}
-}
-
-private class StringMethodFunction extends HaxeFunction {
-	var str:String;
-	var methodIndex:Int;
-
-	public function new(str:String, methodIndex:Int) {
-		this.str = str;
-		this.methodIndex = methodIndex;
-	}
-
-	override public function invokeDynamic(args:Array<Dynamic>):Dynamic {
-		var len = args != null ? args.length : 0;
-		return switch (methodIndex) {
-			case 0: cs.StringExt.charAt(str, args != null ? args[0] : 0);
-			case 1: cs.StringExt.charCodeAt(str, args != null ? args[0] : 0);
-			case 2: cs.StringExt.indexOf(str, args != null ? args[0] : "", len > 1 ? args[1] : null);
-			case 3: cs.StringExt.lastIndexOf(str, args != null ? args[0] : "", len > 1 ? args[1] : null);
-			case 4: cs.StringExt.split(str, args != null ? args[0] : "");
-			case 5: cs.StringExt.substr(str, args != null ? args[0] : 0, len > 1 ? args[1] : null);
-			case 6: cs.StringExt.substring(str, args != null ? args[0] : 0, len > 1 ? args[1] : null);
-			case 7: untyped __cs__("{0}.ToLower()", str);
-			case 8: untyped __cs__("{0}.ToUpper()", str);
-			case 9: str;
-			default: null;
-		};
 	}
 }

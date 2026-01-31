@@ -983,13 +983,14 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> false
 			in
 			let call = if is_string_index then
-				(* String index on Dynamic means field access: Reflect.field(obj, name).
+				(* String index on Dynamic means field access: Runtime.GetField(obj, name).
+				   Use Runtime.GetField instead of Reflect.field because it throws on null.
 				   If the index is a TCast(string_const, _), extract just the string constant. *)
 				let string_expr = match e2.eexpr with
 					| TCast ({ eexpr = TConst (TString _) } as inner, _) -> cs_expr_of_texpr ectx inner
 					| _ -> cs_expr_of_texpr ectx e2
 				in
-				CsStaticCall (CsTypeClass ((["haxe"; "root"], "Reflect"), []), "field", [cs_expr_of_texpr ectx e1; string_expr])
+				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [cs_expr_of_texpr ectx e1; string_expr])
 			else
 				(* Int/numeric index: use runtime helper cs.Cs.arrayGet *)
 				CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), "arrayGet", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
@@ -2078,9 +2079,10 @@ let rec cs_expr_of_texpr ectx e =
 			let cs_type = cs_type_of_type ectx.gctx e.etype in
 			begin match cs_type with
 			| CsTypeObject ->
-				(* Object/anonymous type - use Reflect.field for dynamic access *)
-				let reflect_path = (["haxe"; "root"], "Reflect") in
-				let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+				(* Object/anonymous type - use Runtime.GetField for dynamic access.
+				   Runtime.GetField throws NullReferenceException for null objects. *)
+				let runtime_path = (["haxe"; "lang"], "Runtime") in
+				let field_call = CsStaticCall (CsTypeClass (runtime_path, []), "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 				(* Cast to haxe.lang.Function since this is a method closure context *)
 				CsCast (CsTypeClass ((["haxe"; "lang"], "Function"), []), field_call)
 			| _ ->
@@ -2181,9 +2183,11 @@ let rec cs_expr_of_texpr ectx e =
 			(* Some other concrete class - try direct access *)
 			CsField (obj_expr, escape_identifier cf.cf_name)
 		| CsTypeObject ->
-			(* Object type (from TAnon/structural type) - use Reflect.field for dynamic access *)
-			let reflect_path = (["haxe"; "root"], "Reflect") in
-			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+			(* Object type (from TAnon/structural type) - use Runtime.GetField for dynamic access.
+			   Runtime.GetField throws NullReferenceException for null objects, matching
+			   Haxe's field access semantics. Reflect.field returns null for null objects. *)
+			let runtime_path = (["haxe"; "lang"], "Runtime") in
+			let field_call = CsStaticCall (CsTypeClass (runtime_path, []), "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call

@@ -344,6 +344,12 @@ namespace haxe.lang
                 return ho._hx_getField(name);
             }
 
+            // Special handling for strings (native System.String)
+            if (obj is string str)
+            {
+                return GetStringField(str, name);
+            }
+
             // Fallback to reflection for non-Haxe objects
             var type = obj.GetType();
 
@@ -447,6 +453,47 @@ namespace haxe.lang
             return false;
         }
 
+        // String method closure cache: caches StringMethodFunction instances per string
+        // to avoid allocation on each field access.
+        private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<string, global::haxe.lang.Function[]> stringMethodCache
+            = new global::System.Runtime.CompilerServices.ConditionalWeakTable<string, global::haxe.lang.Function[]>();
+
+        /// <summary>
+        /// Get a field from a string, with caching for method closures.
+        /// This is the single source of truth for string field access.
+        /// </summary>
+        public static object GetStringField(string str, string name)
+        {
+            switch (name)
+            {
+                case "length": return str.Length;
+                case "charAt": return GetStringMethodClosure(str, 0);
+                case "charCodeAt": return GetStringMethodClosure(str, 1);
+                case "indexOf": return GetStringMethodClosure(str, 2);
+                case "lastIndexOf": return GetStringMethodClosure(str, 3);
+                case "split": return GetStringMethodClosure(str, 4);
+                case "substr": return GetStringMethodClosure(str, 5);
+                case "substring": return GetStringMethodClosure(str, 6);
+                case "toLowerCase": return GetStringMethodClosure(str, 7);
+                case "toUpperCase": return GetStringMethodClosure(str, 8);
+                case "toString": return GetStringMethodClosure(str, 9);
+                default: return null;
+            }
+        }
+
+        private static object GetStringMethodClosure(string str, int methodIndex)
+        {
+            global::haxe.lang.Function[] cache;
+            if (!stringMethodCache.TryGetValue(str, out cache))
+            {
+                cache = new global::haxe.lang.Function[10];
+                stringMethodCache.Add(str, cache);
+            }
+            if (cache[methodIndex] == null)
+                cache[methodIndex] = new StringMethodFunction(str, methodIndex);
+            return cache[methodIndex];
+        }
+
         /// <summary>
         /// Perform a checked cast, throwing if the cast is invalid.
         /// This is used for Haxe's cast(expr, Type) syntax.
@@ -489,6 +536,41 @@ namespace haxe.lang
 
             // If we get here, cast is not possible
             throw new global::System.InvalidCastException("Cannot cast " + value.GetType().Name + " to " + typeof(T).Name);
+        }
+    }
+
+    /// <summary>
+    /// Function closure for string instance methods.
+    /// Cached per-string to avoid allocation on each field access.
+    /// </summary>
+    internal class StringMethodFunction : global::haxe.lang.Function
+    {
+        private readonly string str;
+        private readonly int methodIndex;
+
+        public StringMethodFunction(string str, int methodIndex)
+        {
+            this.str = str;
+            this.methodIndex = methodIndex;
+        }
+
+        public override object invokeDynamic(global::haxe.root.Array args)
+        {
+            int len = args != null ? args.length : 0;
+            switch (methodIndex)
+            {
+                case 0: return global::cs.StringExt.charAt(str, len > 0 ? Runtime.toInt(args.__getDyn(0)) : 0);
+                case 1: return global::cs.StringExt.charCodeAt(str, len > 0 ? Runtime.toInt(args.__getDyn(0)) : 0).toDynamic();
+                case 2: return global::cs.StringExt.indexOf(str, len > 0 ? (string)args.__getDyn(0) : "", len > 1 ? global::haxe.lang.Null<int>._ofDynamic(args.__getDyn(1)) : new global::haxe.lang.Null<int>());
+                case 3: return global::cs.StringExt.lastIndexOf(str, len > 0 ? (string)args.__getDyn(0) : "", len > 1 ? global::haxe.lang.Null<int>._ofDynamic(args.__getDyn(1)) : new global::haxe.lang.Null<int>());
+                case 4: return global::cs.StringExt.split(str, len > 0 ? (string)args.__getDyn(0) : "");
+                case 5: return global::cs.StringExt.substr(str, len > 0 ? Runtime.toInt(args.__getDyn(0)) : 0, len > 1 ? global::haxe.lang.Null<int>._ofDynamic(args.__getDyn(1)) : new global::haxe.lang.Null<int>());
+                case 6: return global::cs.StringExt.substring(str, len > 0 ? Runtime.toInt(args.__getDyn(0)) : 0, len > 1 ? global::haxe.lang.Null<int>._ofDynamic(args.__getDyn(1)) : new global::haxe.lang.Null<int>());
+                case 7: return str.ToLower();
+                case 8: return str.ToUpper();
+                case 9: return str;
+                default: return null;
+            }
         }
     }
 }
