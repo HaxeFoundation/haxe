@@ -1175,33 +1175,80 @@ private enum abstract ArrayType(Int) {
 	}
 
 	private function __setDyn(idx:Int, v:Dynamic):Dynamic {
-		// Dynamic set always upgrades to object if needed
-		if (__arrayType != TObject) {
-			if (__arrayType == Unknown) {
-				__initObjectArray(idx);
-				__arrayType = TObject;
-			} else {
-				__upgradeToObject();
+		// If locked, we must write to the existing typed array (no upgrade allowed)
+		// This preserves the shared storage for arrays created via __ofIntLiteral etc.
+		if (__locked) {
+			switch (__arrayType) {
+				case TInt:
+					__ensureIntCapacity(idx);
+					__intArray[idx] = untyped __cs__("haxe.lang.Runtime.toInt({0})", v);
+				case TFloat:
+					__ensureFloatCapacity(idx);
+					__floatArray[idx] = untyped __cs__("haxe.lang.Runtime.toDouble({0})", v);
+				case TBool:
+					__ensureBoolCapacity(idx);
+					__boolArray[idx] = untyped __cs__("haxe.lang.Runtime.toBool({0})", v);
+				case TObject:
+					__ensureObjectCapacity(idx);
+					__objectArray[idx] = v;
+				case Unknown:
+					// Shouldn't happen for locked arrays, but handle it
+					__initObjectArray(idx);
+					__arrayType = TObject;
+					__objectArray[idx] = v;
 			}
+		} else {
+			// Not locked - upgrade to object (existing behavior)
+			if (__arrayType != TObject) {
+				if (__arrayType == Unknown) {
+					__initObjectArray(idx);
+					__arrayType = TObject;
+				} else {
+					__upgradeToObject();
+				}
+			}
+			__ensureObjectCapacity(idx);
+			__objectArray[idx] = v;
 		}
-		__ensureObjectCapacity(idx);
-		__objectArray[idx] = v;
 		if (idx >= length)
 			length = idx + 1;
 		return v;
 	}
 
 	private function __pushDyn(v:Dynamic):Int {
-		if (__arrayType != TObject) {
-			if (__arrayType == Unknown) {
-				__initObjectArray(length);
-				__arrayType = TObject;
-			} else {
-				__upgradeToObject();
+		// If locked, we must write to the existing typed array (no upgrade allowed)
+		if (__locked) {
+			switch (__arrayType) {
+				case TInt:
+					__ensureIntCapacity(length);
+					__intArray[length] = untyped __cs__("haxe.lang.Runtime.toInt({0})", v);
+				case TFloat:
+					__ensureFloatCapacity(length);
+					__floatArray[length] = untyped __cs__("haxe.lang.Runtime.toDouble({0})", v);
+				case TBool:
+					__ensureBoolCapacity(length);
+					__boolArray[length] = untyped __cs__("haxe.lang.Runtime.toBool({0})", v);
+				case TObject:
+					__ensureObjectCapacity(length);
+					__objectArray[length] = v;
+				case Unknown:
+					__initObjectArray(length);
+					__arrayType = TObject;
+					__objectArray[length] = v;
 			}
+		} else {
+			// Not locked - upgrade to object (existing behavior)
+			if (__arrayType != TObject) {
+				if (__arrayType == Unknown) {
+					__initObjectArray(length);
+					__arrayType = TObject;
+				} else {
+					__upgradeToObject();
+				}
+			}
+			__ensureObjectCapacity(length);
+			__objectArray[length] = v;
 		}
-		__ensureObjectCapacity(length);
-		__objectArray[length] = v;
 		return ++length;
 	}
 
