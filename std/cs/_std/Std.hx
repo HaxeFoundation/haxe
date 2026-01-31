@@ -138,14 +138,50 @@ class Std {
 	}
 
 	public static function parseFloat(x:String):Float {
-		if (x == null) {
+		if (x == null)
 			return Math.NaN;
-		}
 		x = StringTools.ltrim(x);
-		if (x.length == 0) {
+		if (x.length == 0)
 			return Math.NaN;
+		var found = false,
+			hasDot = false,
+			hasSign = false,
+			hasE = false,
+			hasESign = false,
+			hasEData = false;
+		var i = -1;
+		while (++i < x.length) {
+			var chr = StringTools.fastCodeAt(x, i);
+			if (chr >= '0'.code && chr <= '9'.code) {
+				if (hasE) {
+					hasEData = true;
+				}
+				found = true;
+			} else
+				switch (chr) {
+					case 'e'.code | 'E'.code if (!hasE):
+						hasE = true;
+					case '.'.code if (!hasDot):
+						hasDot = true;
+					case '-'.code, '+'.code if (!found && !hasSign):
+						hasSign = true;
+					case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
+						hasESign = true;
+					case _:
+						break;
+				}
 		}
-		return cs.Cs.parseFloat(x);
+		if (hasE && !hasEData) {
+			i--;
+			if (hasESign)
+				i--;
+		}
+		if (i != x.length) {
+			x = x.substr(0, i);
+		}
+		if (x.length == 0)
+			return Math.NaN;
+		return untyped __cs__("double.TryParse({0}, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result) ? result : double.NaN", x);
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
