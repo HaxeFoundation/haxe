@@ -56,8 +56,13 @@ class StringExt {
 		}
 		if (startIndex == null)
 			return untyped __cs__("{0}.IndexOf({1})", me, str);
-		else
-			return untyped __cs__("{0}.IndexOf({1}, {2})", me, str, startIndex);
+		else {
+			var sIndex:Int = startIndex;
+			if (sIndex < 0) sIndex = 0;
+			if (sIndex >= me.length)
+				return -1;
+			return untyped __cs__("{0}.IndexOf({1}, {2})", me, str, sIndex);
+		}
 	}
 
 	public static function lastIndexOf(me:String, str:String, ?startIndex:Int):Int {
