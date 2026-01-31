@@ -1679,15 +1679,15 @@ let rec cs_expr_of_texpr ectx e =
 					is_string_concat && is_float_type e.etype
 				in
 				(* Check if an operand could be null at runtime and needs conversion to "null" string.
-				   This covers: Object, Dynamic, class types, Null<T>, and explicitly nullable types.
-				   Primitives (int, bool, float) cannot be null and don't need this. *)
+				   This covers: Object, Dynamic, String, class types, Null<T>, and explicitly nullable types.
+				   Primitives (int, bool, float) cannot be null and don't need this.
+				   Strings CAN be null and C# treats null as empty in concat, but Haxe expects "null". *)
 				let could_be_null_reference e =
 					if not is_string_concat then false
-					else if is_string e.etype then false  (* Strings handled by + operator *)
 					else if is_int_type e.etype then false
 					else if is_float_type e.etype then false
 					else if is_bool_type e.etype then false
-					else true  (* Object, Dynamic, class types, Null<T> - all could be null *)
+					else true  (* Object, Dynamic, String, class types, Null<T> - all could be null *)
 				in
 				let cs_e1 = cs_expr_of_texpr ectx e1 in
 				let cs_e2 = cs_expr_of_texpr ectx e2 in
