@@ -31,6 +31,14 @@ class Std {
 		if (v == null) {
 			return false;
 		}
+		if (t == null) {
+			return false;
+		}
+		// Dynamic (typeof(object)) - everything matches
+		var isDynamic:Bool = untyped __cs__("{0} is System.Type typeObj1 && typeObj1 == typeof(object)", t);
+		if (isDynamic) {
+			return true;
+		}
 		// Special case: Haxe says Int is also Float (any numeric is a Float)
 		var isFloat:Bool = untyped __cs__("{0} is System.Type typeObj2 && typeObj2 == typeof(double)", t);
 		if (isFloat) {
@@ -49,6 +57,11 @@ class Std {
 			// Check if float value is a whole number within Int32 range
 			var isIntegralFloat:Bool = untyped __cs__("{0} is float f && f >= int.MinValue && f <= int.MaxValue && f == (int)f", v);
 			if (isIntegralFloat) return true;
+		}
+		// Class (typeof(System.Type)) - check if v is a class reference
+		var isClassType:Bool = untyped __cs__("{0} is System.Type typeObj4 && typeObj4 == typeof(System.Type)", t);
+		if (isClassType) {
+			return untyped __cs__("{0} is System.Type", v);
 		}
 		// t should be a System.Type (from typeof())
 		// Use C# reflection to check if v is an instance of that type
