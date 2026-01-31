@@ -77,7 +77,10 @@ let escape_string s =
 		| '\r' -> Buffer.add_string b "\\r"
 		| '\t' -> Buffer.add_string b "\\t"
 		| c when Char.code c < 32 ->
-			Buffer.add_string b (Printf.sprintf "\\x%02x" (Char.code c))
+			(* Use \uXXXX format (exactly 4 hex digits) instead of \xXX because
+			   C#'s \x escape is greedy and can consume up to 4 hex digits,
+			   causing issues when followed by hex characters (e.g., \x05B -> 0x5B) *)
+			Buffer.add_string b (Printf.sprintf "\\u%04x" (Char.code c))
 		| c -> Buffer.add_char b c
 	) s;
 	Buffer.add_char b '"';
@@ -91,7 +94,8 @@ let escape_char c =
 	| '\r' -> "'\\r'"
 	| '\t' -> "'\\t'"
 	| c when Char.code c < 32 ->
-		Printf.sprintf "'\\x%02x'" (Char.code c)
+		(* Use \uXXXX for char literals too for consistency *)
+		Printf.sprintf "'\\u%04x'" (Char.code c)
 	| c -> Printf.sprintf "'%c'" c
 
 (* Print constant *)
