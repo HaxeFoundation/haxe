@@ -332,10 +332,8 @@ class Reflect {
 	public static function isEnumValue(v:Dynamic):Bool {
 		if (v == null)
 			return false;
-		// Check if the object has _hx_index field (all enum values have it)
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", v);
-		var indexField:Dynamic = untyped __cs__("((System.Type){0}).GetField(\"_hx_index\")", nativeType);
-		return indexField != null;
+		// AOT-safe: check if object is an instance of HaxeEnum base class
+		return untyped __cs__("{0} is global::haxe.lang.HaxeEnum", v);
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool {
