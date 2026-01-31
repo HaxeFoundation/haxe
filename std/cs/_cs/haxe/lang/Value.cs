@@ -237,10 +237,15 @@ namespace haxe.lang
         {
             if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<int>(0, false);
+            if (obj == null)
+                return new global::haxe.lang.Null<int>(0, false);
             if (ReferenceEquals(obj, PrimDoubleEncoded))
                 return new global::haxe.lang.Null<int>((int)global::System.BitConverter.Int64BitsToDouble(prim), true);
             if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<int>((int)prim, true);
+            // Handle boxed Null<int> from reflection calls
+            if (obj is global::haxe.lang.Null<int> nullInt)
+                return nullInt;
             return new global::haxe.lang.Null<int>(global::haxe.lang.Runtime.toInt(obj), true);
         }
 
@@ -249,10 +254,15 @@ namespace haxe.lang
         {
             if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<long>(0L, false);
+            if (obj == null)
+                return new global::haxe.lang.Null<long>(0L, false);
             if (ReferenceEquals(obj, PrimDoubleEncoded))
                 return new global::haxe.lang.Null<long>((long)global::System.BitConverter.Int64BitsToDouble(prim), true);
             if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<long>(prim, true);
+            // Handle boxed Null<long> from reflection calls
+            if (obj is global::haxe.lang.Null<long> nullLong)
+                return nullLong;
             return new global::haxe.lang.Null<long>(global::haxe.lang.Runtime.toLong(obj), true);
         }
 
@@ -261,10 +271,15 @@ namespace haxe.lang
         {
             if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<double>(0.0, false);
+            if (obj == null)
+                return new global::haxe.lang.Null<double>(0.0, false);
             if (ReferenceEquals(obj, PrimDoubleEncoded))
                 return new global::haxe.lang.Null<double>(global::System.BitConverter.Int64BitsToDouble(prim), true);
             if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<double>((double)prim, true);
+            // Handle boxed Null<double> from reflection calls
+            if (obj is global::haxe.lang.Null<double> nullDouble)
+                return nullDouble;
             return new global::haxe.lang.Null<double>(global::haxe.lang.Runtime.toDouble(obj), true);
         }
 
@@ -273,10 +288,15 @@ namespace haxe.lang
         {
             if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<float>(0.0f, false);
+            if (obj == null)
+                return new global::haxe.lang.Null<float>(0.0f, false);
             if (ReferenceEquals(obj, PrimDoubleEncoded))
                 return new global::haxe.lang.Null<float>((float)global::System.BitConverter.Int64BitsToDouble(prim), true);
             if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<float>((float)prim, true);
+            // Handle boxed Null<float> from reflection calls
+            if (obj is global::haxe.lang.Null<float> nullFloat)
+                return nullFloat;
             return new global::haxe.lang.Null<float>((float)global::haxe.lang.Runtime.toDouble(obj), true);
         }
 
@@ -285,10 +305,15 @@ namespace haxe.lang
         {
             if (ReferenceEquals(obj, NoValue))
                 return new global::haxe.lang.Null<bool>(false, false);
+            if (obj == null)
+                return new global::haxe.lang.Null<bool>(false, false);
             if (ReferenceEquals(obj, PrimDoubleEncoded))
                 return new global::haxe.lang.Null<bool>(global::System.BitConverter.Int64BitsToDouble(prim) != 0.0, true);
             if (ReferenceEquals(obj, PrimValue))
                 return new global::haxe.lang.Null<bool>(prim != 0L, true);
+            // Handle boxed Null<bool> from reflection calls
+            if (obj is global::haxe.lang.Null<bool> nullBool)
+                return nullBool;
             return new global::haxe.lang.Null<bool>(global::haxe.lang.Runtime.toBool(obj), true);
         }
 
