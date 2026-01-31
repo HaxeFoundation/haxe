@@ -77,8 +77,8 @@ class EReg {
 	}
 
 	public function matchedNum():Int {
-		if (m == null)
-			throw "EReg::matchedNum";
+		if (m == null || !m.Success)
+			return 0;
 		return m.Groups.Count;
 	}
 
