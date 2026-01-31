@@ -61,28 +61,44 @@ class StringExt {
 	}
 
 	public static function lastIndexOf(me:String, str:String, ?startIndex:Int):Int {
+		// Empty string search - ECMAScript clamps negative indices to 0
 		if (str.length == 0) {
 			var si = startIndex == null ? me.length : startIndex;
 			if (si < 0) si = 0;
 			if (si > me.length) si = me.length;
 			return si;
 		}
-		if (startIndex == null || startIndex > me.length - 1) {
-			startIndex = me.length - 1;
-		} else if (startIndex < 0) {
-			startIndex = 0;
-		}
-		// C#'s LastIndexOf searches backward from startIndex.
-		// If startIndex is smaller than the needle length - 1, the only
-		// possible match position is 0. Check manually instead.
-		if (startIndex < str.length - 1) {
-			if (me.length >= str.length) {
-				var prefix:String = untyped __cs__("{0}.Substring(0, {1})", me, str.length);
-				if (prefix == str) return 0;
+
+		var sIndex:Int = startIndex == null ? me.length - 1 : startIndex;
+		if (sIndex >= me.length)
+			sIndex = me.length - 1;
+		else if (sIndex < 0)
+			return -1;
+
+		// C#'s LastIndexOf has incompatible semantics with Haxe when startIndex is specified.
+		// Use manual search instead (from legacy Haxe 4 C# target - TestBaseTypes.hx@133 fix).
+		if (startIndex != null) {
+			// Shift sIndex left if it would cause OOB access
+			var d = me.length - sIndex - str.length;
+			if (d < 0) sIndex += d;
+
+			// Manual search from sIndex down to 0
+			var i = sIndex + 1;
+			while (i-- > 0) {
+				var found = true;
+				for (j in 0...str.length) {
+					if (cca(me, i + j) != cca(str, j)) {
+						found = false;
+						break;
+					}
+				}
+				if (found) return i;
 			}
 			return -1;
+		} else {
+			// Only use native LastIndexOf when no startIndex is provided
+			return untyped __cs__("{0}.LastIndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
 		}
-		return untyped __cs__("{0}.LastIndexOf({1}, {2})", me, str, startIndex);
 	}
 
 	public static function split(me:String, delimiter:String):Array<String> {
