@@ -124,9 +124,15 @@ class Type {
 	}
 
 	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
-		// Same as resolveClass but returns as Enum
 		var c = resolveClass(name);
-		return cast c;
+		if (c == null)
+			return null;
+		// Check if it's a Haxe enum (inherits from HaxeEnum) or native C# enum
+		var isHaxeEnum:Bool = untyped __cs__("typeof(global::haxe.lang.HaxeEnum).IsAssignableFrom((System.Type){0})", c);
+		var isNativeEnum:Bool = untyped __cs__("((System.Type){0}).IsEnum", c);
+		if (isHaxeEnum || isNativeEnum)
+			return cast c;
+		return null;
 	}
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
