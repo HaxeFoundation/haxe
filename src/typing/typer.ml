@@ -947,7 +947,9 @@ and type_new ctx ptp el with_type force_inline p =
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		raise_typing_error (s_type (print_context()) t ^ " cannot be constructed") p
-	end with Error ({ err_message = No_constructor _ } as err) when ctx.com.display.dms_kind <> DMNone ->
+	end with Error ({ err_message = No_constructor _ } as err) ->
+		if Diagnostics.error_in_diagnostics_run ctx.com p then
+			DisplayFields.handle_missing_field_raise ctx t "new" (MCall el) with_type p;
 		display_error_ext ctx.com err;
 		mk (TConst TNull) t p
 

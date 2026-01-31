@@ -18,9 +18,9 @@ class Issue10713 extends DisplayTestCase {
 		var d = diagnostics();
 		var range = diagnosticsRange(pos(1), pos(2));
 		final item = d.find(d -> d.kind == MissingFields && utest.Assert.same(d.range, range));
-		utest.Assert.isTrue(item != null);
+		assert(item != null);
 		final args:MissingFieldDiagnostics = item.args;
 		final field:MissingField = args.entries[0].fields[0];
-		utest.Assert.isTrue(field.type.args.path.typeName == "Int");
+		eq("Int", field.type.args.path.typeName);
 	}
 }
