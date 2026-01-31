@@ -281,16 +281,12 @@ class Reflect {
 		if (b == null)
 			return 1;
 
-		// Numeric comparison - use __cs__ to avoid generic type cast issues
-		if (Std.isOfType(a, Int) && Std.isOfType(b, Int)) {
-			var ai:Int = untyped __cs__("(int)(object){0}", a);
-			var bi:Int = untyped __cs__("(int)(object){0}", b);
-			return ai < bi ? -1 : (ai > bi ? 1 : 0);
-		}
-
+		// Numeric comparison - check Float BEFORE Int because Std.isOfType(2.0, Int)
+		// returns true for integral doubles, but we can't directly unbox a boxed double as int.
+		// Using Convert.ToDouble handles all numeric types safely.
 		if (Std.isOfType(a, Float) && Std.isOfType(b, Float)) {
-			var af:Float = untyped __cs__("(double)(object){0}", a);
-			var bf:Float = untyped __cs__("(double)(object){0}", b);
+			var af:Float = untyped __cs__("System.Convert.ToDouble({0})", a);
+			var bf:Float = untyped __cs__("System.Convert.ToDouble({0})", b);
 			return af < bf ? -1 : (af > bf ? 1 : 0);
 		}
 

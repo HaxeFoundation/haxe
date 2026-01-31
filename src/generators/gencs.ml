@@ -2099,10 +2099,21 @@ let rec cs_expr_of_texpr ectx e =
 			| Method MethDynamic -> false  (* dynamic methods are variable fields *)
 			| _ -> false
 		in
-		if is_real_method then
-			(* Static method reference - generate closure class *)
-			!generate_method_closure_ref ectx None true (Some c) c.cl_path [] cf cf.cf_type
-		else begin
+		if is_real_method then begin
+			(* Static method reference - check for special cases with caching infrastructure *)
+			match c.cl_path with
+			| ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) ->
+				(* String static methods use cached closures from cs.StringExt.
+				   This ensures reference equality for methods like String.fromCharCode. *)
+				let string_ext_path = (["cs"], "StringExt") in
+				let function_type = CsTypeClass ((["haxe"; "lang"], "Function"), []) in
+				CsCast (function_type,
+					CsStaticCall (CsTypeClass (string_ext_path, []), "_hx_getStaticField",
+						[CsConst (CsConstString cf.cf_name)]))
+			| _ ->
+				(* Generate closure class for other static methods *)
+				!generate_method_closure_ref ectx None true (Some c) c.cl_path [] cf cf.cf_type
+		end else begin
 			(* Static field access - normal field reference *)
 			(* Special handling for String and Array *)
 			let actual_path, actual_params = match c.cl_path with

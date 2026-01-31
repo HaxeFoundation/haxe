@@ -31,11 +31,24 @@ class Std {
 		if (v == null) {
 			return false;
 		}
-		// Special case: Haxe says Int is also Float
+		// Special case: Haxe says Int is also Float (any numeric is a Float)
 		var isFloat:Bool = untyped __cs__("{0} is System.Type typeObj2 && typeObj2 == typeof(double)", t);
 		if (isFloat) {
 			var isNum:Bool = untyped __cs__("{0} is int || {0} is double || {0} is float || {0} is long", v);
 			if (isNum) return true;
+		}
+		// Special case: Int - a double/float that represents a whole number is also an Int
+		var isInt:Bool = untyped __cs__("{0} is System.Type typeObj3 && typeObj3 == typeof(int)", t);
+		if (isInt) {
+			// Native int/uint types are always Int
+			var isNativeInt:Bool = untyped __cs__("{0} is int || {0} is uint", v);
+			if (isNativeInt) return true;
+			// Check if double value is a whole number within Int32 range
+			var isIntegralDouble:Bool = untyped __cs__("{0} is double d && d >= int.MinValue && d <= int.MaxValue && d == (int)d", v);
+			if (isIntegralDouble) return true;
+			// Check if float value is a whole number within Int32 range
+			var isIntegralFloat:Bool = untyped __cs__("{0} is float f && f >= int.MinValue && f <= int.MaxValue && f == (int)f", v);
+			if (isIntegralFloat) return true;
 		}
 		// t should be a System.Type (from typeof())
 		// Use C# reflection to check if v is an instance of that type
