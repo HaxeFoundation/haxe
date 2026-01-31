@@ -412,15 +412,15 @@ class Type {
 	public static function allEnums<T>(e:Enum<T>):Array<T> {
 		if (e == null)
 			return [];
-		var result:Array<T> = [];
-		var constructs = getEnumConstructs(e);
-		for (name in constructs) {
-			var v:Dynamic = createEnum(e, name);
-			// Only include parameterless constructors (singleton instances)
-			if (v != null)
-				result.push(v);
+		var ctors = getEnumConstructs(e);
+		var ret:Array<T> = [];
+		for (ctor in ctors) {
+			var v:Dynamic = Reflect.field(e, ctor);
+			// Parametric constructors return functions, not enum instances
+			if (Std.isOfType(v, e))
+				ret.push(v);
 		}
-		return result;
+		return ret;
 	}
 
 	private static function isEnumValue(v:Dynamic):Bool {
