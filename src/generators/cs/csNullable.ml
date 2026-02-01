@@ -132,14 +132,35 @@ let rec is_null_t t =
 		if needs_null_wrapper inner then Some inner else None
 	| _ -> None
 
+(* Patch optional parameter types to use Null<T> for primitive types.
+   In C#, optional parameters with primitive types need Null<T> to distinguish
+   "not provided" from "provided as zero/false". This patches the tvar type
+   so that downstream code (expr_produces_csharp_null_type, coercion, etc.)
+   correctly recognizes these as Null<T>. *)
+let patch_optional_param_types tnull tf_args =
+	List.iter (fun (v, default_opt) ->
+		match default_opt with
+		| Some _ when needs_null_wrapper v.v_type && is_null_wrapper_type v.v_type = None ->
+			(* Parameter has default value, is a primitive, and not already Null<T> - wrap it *)
+			v.v_type <- tnull v.v_type
+		| _ -> ()
+	) tf_args
+
 (* Main transformation function *)
-let rec transform e =
+let rec transform tnull e =
 	match e.eexpr with
+	(* TFunction: patch optional parameter types to use Null<T> for primitives.
+	   This ensures that when the parameter is used (TLocal), expr_produces_csharp_null_type
+	   sees the correct Null<T> type and coercion works properly. *)
+	| TFunction tf ->
+		patch_optional_param_types tnull tf.tf_args;
+		{ e with eexpr = TFunction { tf with tf_expr = transform tnull tf.tf_expr } }
+
 	(* TCast: gencs.ml handles all Null<T> conversions based on actual C# types.
 	   We just transform recursively here. The coerce_cs_types function in gencs.ml
 	   will add .value unwrap or Null<T> constructor wrap as needed based on C# types. *)
 	| TCast(v, md) ->
-		{ e with eexpr = TCast(transform v, md) }
+		{ e with eexpr = TCast(transform tnull v, md) }
 
 	(* TField with FEnum: enum constructors don't generate Null<> in C#, so strip the Null from etype.
 	   This ensures downstream coercion doesn't think this is a Null-wrapped value. *)
@@ -147,10 +168,10 @@ let rec transform e =
 		begin match is_null_t e.etype with
 		| Some inner_t ->
 			(* Strip the Null<> wrapper from the type - the C# code generates plain EnumType, not Null<EnumType> *)
-			{ e with eexpr = TField(transform ef, FEnum(en, ef_field)); etype = inner_t }
+			{ e with eexpr = TField(transform tnull ef, FEnum(en, ef_field)); etype = inner_t }
 		| None ->
 			(* Not Null-wrapped, transform normally *)
-			{ e with eexpr = TField(transform ef, FEnum(en, ef_field)) }
+			{ e with eexpr = TField(transform tnull ef, FEnum(en, ef_field)) }
 		end
 
 	(* NOTE: TField/TCall/TArray/TBinop on Null<T> do NOT auto-unwrap here.
@@ -159,7 +180,7 @@ let rec transform e =
 
 	(* TBlock: process contents *)
 	| TBlock bl ->
-		{ e with eexpr = TBlock(List.map transform bl) }
+		{ e with eexpr = TBlock(List.map (transform tnull) bl) }
 
 	(* TConst TNull with Null<Abstract>: strip Null wrapper for inherently nullable types.
 
@@ -193,9 +214,9 @@ let rec transform e =
 		end
 
 	(* Default: recurse into children *)
-	| _ -> Type.map_expr transform e
+	| _ -> Type.map_expr (transform tnull) e
 
 (* Entry point: run the filter on an expression.
-   Note: com parameter kept for API compatibility but not used. *)
-let filter _com e =
-	transform e
+   Uses com.basic.tnull to wrap optional parameter types with Null<T>. *)
+let filter (com : Gctx.t) e =
+	transform com.basic.tnull e

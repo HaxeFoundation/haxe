@@ -382,7 +382,8 @@ let coerce_to_null cs_arg arg_type expected_type =
 			None  (* More complex conversion needed *)
 
 (* Check if a C# expression is a call to an abstract implementation method.
-   These return the underlying type, not Null<T>, even when Haxe type says Null<T>. *)
+   These return the underlying type, not Null<T>, even when Haxe type says Null<T>.
+   Also looks inside Null<T> wrappers (CsNew) to find the inner _Impl_ call. *)
 let rec is_abstract_impl_call cs_expr =
 	match cs_expr with
 	| CsStaticCall (CsTypeClass (path, _), _, _) ->
@@ -390,6 +391,9 @@ let rec is_abstract_impl_call cs_expr =
 		String.length class_name >= 6 &&
 		String.sub class_name (String.length class_name - 6) 6 = "_Impl_"
 	| CsParens e -> is_abstract_impl_call e
+	| CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), _), (inner :: _)) ->
+		(* Look inside new Null<T>(inner, true) to find _Impl_ calls *)
+		is_abstract_impl_call inner
 	| _ -> false
 
 (* Check if a C# expression is a cast to Null<T> type *)
@@ -412,11 +416,16 @@ let coerce_null_to_object cs_arg arg_type expected_type =
 		let is_null_from_cast = is_cast_to_null_type cs_arg in
 		if is_null_from_expr || is_null_from_cast then
 			Some (CsCall (CsField (cs_arg, "toDynamic"), []))
-		(* For _Impl_ calls without explicit Null wrapper, don't trust Haxe type
-		   because it may include implicit conversions not in C# code *)
+		(* For _Impl_ calls, check if arg_type is Null<T>.
+		   arg_type comes from get_effective_expr_type which uses expr_produces_csharp_null_type
+		   to determine the actual C# return type. If it returns Null<T>, we need .toDynamic().
+		   This handles Issue2767 where A_Impl_.get() actually returns Null<int>. *)
 		else if is_abstract_impl_call cs_arg then
-			None
-		(* For non-_Impl_ calls, trust the Haxe type *)
+			if get_cs_null_inner arg_type <> None then
+				Some (CsCall (CsField (cs_arg, "toDynamic"), []))
+			else
+				None
+		(* For non-_Impl_ calls, trust the type *)
 		else if get_cs_null_inner arg_type <> None then
 			Some (CsCall (CsField (cs_arg, "toDynamic"), []))
 		else

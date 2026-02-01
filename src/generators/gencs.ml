@@ -525,12 +525,109 @@ let rec expr_produces_csharp_null_type gctx e =
 	| TParenthesis e1 | TMeta (_, e1) ->
 		(* Unwrap parentheses/meta and check inner *)
 		expr_produces_csharp_null_type gctx e1
+	| TCast (inner, _) ->
+		(* For TCast, the C# output type depends on the target type.
+		   - If target is Null<T> and inner produces Null<T>: result is Null<T>
+		   - If target is Null<T> and inner doesn't produce Null<T>:
+		     - If types match (e.g., int to Null<int>): uses implicit conversion, C# is just inner (not Null struct)
+		     - Otherwise: explicitly wraps in Null<T> (C# IS a Null struct)
+		   - If target is not Null<T>: C# converts/unwraps to produce target type (not Null<T>) *)
+		let target_cs = CsTypeMapping.cs_type_of_type gctx e.etype in
+		let inner_produces_null = expr_produces_csharp_null_type gctx inner in
+		begin match target_cs with
+		| CsTypeClass ((["haxe"; "lang"], "Null"), [wrapped_type]) ->
+			if inner_produces_null then
+				(* Inner produces Null<T>, result is Null<T> (possibly converted) *)
+				true
+			else begin
+				(* Inner doesn't produce Null<T>. Check if implicit conversion will be used.
+				   For matching types (e.g., int to Null<int>), implicit conversion is used
+				   and no Null wrapper is created.
+				   We need to determine the inner's actual C# type. For _Impl_ calls,
+				   inner.etype may be Null<T> due to Haxe conversions, but the actual C#
+				   return type is the function's declared return type.
+				   Inline the logic from get_effective_expr_type to avoid forward reference. *)
+				let rec get_inner_effective_type expr =
+					match expr.eexpr with
+					| TCall (e_func, _) ->
+						begin match e_func.etype with
+						| TFun (_, ret) -> CsTypeMapping.cs_type_of_type gctx ret
+						| _ -> CsTypeMapping.cs_type_of_type gctx expr.etype
+						end
+					| TParenthesis e | TMeta (_, e) -> get_inner_effective_type e
+					| _ -> CsTypeMapping.cs_type_of_type gctx expr.etype
+				in
+				let inner_type = get_inner_effective_type inner in
+				if inner_type = wrapped_type then
+					false  (* Implicit conversion - no Null struct created *)
+				else
+					true  (* Explicit wrap via CsNew - Null struct IS created *)
+			end
+		| _ ->
+			(* Target is not Null<T>. The TCast will convert to the target type,
+			   which is not Null<T>, so the result doesn't produce Null<T>. *)
+			false
+		end
 	| TLocal v ->
 		(* For locals, use the variable's declared type *)
 		begin match CsTypeMapping.cs_type_of_type gctx v.v_type with
 		| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) -> false  (* Null<object> uses == null *)
 		| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true  (* All other Null<T> *)
 		| _ -> false
+		end
+	| TCall (e_func, _) ->
+		(* For calls, check if it's to an _Impl_ method.
+		   _Impl_ methods may have expression type Null<T> (from Haxe implicit conversions)
+		   but the actual C# method may return a different type.
+		   Use the FUNCTION's declared return type, not e.etype. *)
+		let func_return_type = match e_func.etype with
+			| TFun (_, ret) -> Some ret
+			| _ -> None
+		in
+		(* Check if this is a call to an _Impl_ class method.
+		   This handles abstract method calls which the typer resolves to _Impl_ classes.
+		   For such calls, we use the function's declared return type to determine if
+		   the C# method actually returns Null<T>, not the expression type which may
+		   include Haxe implicit conversions. *)
+		let is_impl_class c =
+			(match c.cl_kind with Type.KAbstractImpl _ -> true | _ -> false) ||
+			let class_name = snd c.cl_path in
+			String.length class_name >= 6 &&
+			String.sub class_name (String.length class_name - 6) 6 = "_Impl_"
+		in
+		let is_impl_call = match e_func.eexpr with
+			| TField (_, FStatic (c, _)) | TField (_, FInstance (c, _, _)) | TField (_, FClosure (Some (c, _), _)) ->
+				is_impl_class c
+			| TField (_, FAnon cf) ->
+				(* For anonymous field access, check if the field belongs to an _Impl_ class.
+				   This can happen when calling abstract methods through anonymous/dynamic access. *)
+				begin match follow cf.cf_type with
+				| TFun _ ->
+					(* Check if any of the field's overloads belong to an _Impl_ class *)
+					begin match cf.cf_params with
+					| _ -> false  (* Can't easily determine the class for FAnon *)
+					end
+				| _ -> false
+				end
+			| _ -> false
+		in
+		if is_impl_call then begin
+			(* For _Impl_ calls, use the function's declared return type *)
+			match func_return_type with
+			| Some ret ->
+				begin match CsTypeMapping.cs_type_of_type gctx ret with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) -> false
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+				end
+			| None -> false
+		end
+		else begin
+			(* For non-_Impl_ calls, use expression type as usual *)
+			match CsTypeMapping.cs_type_of_type gctx e.etype with
+			| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) -> false
+			| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+			| _ -> false
 		end
 	| _ ->
 		(* For other expressions, check the expression's type *)
@@ -553,25 +650,54 @@ let get_effective_expr_type gctx e =
 		if expr_returns_erased_type_param e then
 			(* Erased type param returns object in C# *)
 			mk_mono ()
-		else if is_null_wrapper_type e.etype then
-			(* Strip Null wrapper - C# doesn't have Null<> here *)
-			let rec get_inner t depth =
-				if depth > 10 then e.etype else
-				match t with
-				| TAbstract ({ a_path = ([], "Null") }, [inner]) -> inner
-				| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, [inner]) -> inner
-				| TType (_, _) -> get_inner (Type.follow_once t) (depth + 1)
-				| TLazy f -> get_inner (lazy_type f) (depth + 1)
-				| TMono r -> (match r.tm_type with Some t -> get_inner t (depth + 1) | None -> e.etype)
-				| _ -> e.etype
+		else begin
+			(* For TCall, use the function's return type instead of e.etype.
+			   This handles _Impl_ calls where e.etype includes Haxe implicit conversions
+			   (like abstract @:from) that don't exist in C# code.
+			   Example: A_Impl_.fromArr returns A (→int), but e.etype may be M<A> (→Null<int>).
+
+			   IMPORTANT: Unwrap TParenthesis/TMeta/TCast first, as expr_produces_csharp_null_type does.
+			   Otherwise we'd miss the TCall case and fall through to using e.etype.
+			   For TCast, we look inside because the inner TCall's return type is what matters
+			   for the actual C# expression type, not the cast's target type. *)
+			let rec find_tcall_return_type expr =
+				match expr.eexpr with
+				| TCall (e_func, _) ->
+					begin match e_func.etype with
+					| TFun (_, ret) -> Some ret
+					| _ -> None
+					end
+				| TParenthesis inner | TMeta (_, inner) | TCast (inner, _) -> find_tcall_return_type inner
+				| _ -> None
 			in
-			get_inner e.etype 0
-		else
-			e.etype
+			let effective_type = match find_tcall_return_type e with
+				| Some ret -> ret
+				| None -> e.etype
+			in
+			if is_null_wrapper_type effective_type then
+				(* Strip Null wrapper - C# doesn't have Null<> here *)
+				let rec get_inner t depth =
+					if depth > 10 then effective_type else
+					match t with
+					| TAbstract ({ a_path = ([], "Null") }, [inner]) -> inner
+					| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, [inner]) -> inner
+					| TType (_, _) -> get_inner (Type.follow_once t) (depth + 1)
+					| TLazy f -> get_inner (lazy_type f) (depth + 1)
+					| TMono r -> (match r.tm_type with Some t -> get_inner t (depth + 1) | None -> effective_type)
+					| _ -> effective_type
+				in
+				get_inner effective_type 0
+			else
+				effective_type
+		end
 	end
 	else
-		(* Expression produces Null<T> in C# - use the Haxe type as-is *)
-		e.etype
+		(* Expression produces Null<T> in C# - use the appropriate type.
+		   For TLocal, use v.v_type which may have been patched by csNullable.ml
+		   to include Null<T> wrapper for optional parameters. *)
+		match e.eexpr with
+		| TLocal v -> v.v_type
+		| _ -> e.etype
 
 (* Helper to get the inner type from Null<T>, if the expression needs .value unwrapping.
    Returns Some(inner) if expression is Null-wrapped and needs unwrapping, None otherwise.
@@ -2427,7 +2553,7 @@ let rec cs_expr_of_texpr ectx e =
 				let regular_cs_args = List.mapi (fun i arg ->
 					let expected_type = List.nth param_types_hx i in
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
 				) regular_args in
 				(* Generate rest args - wrap into Array<T> *)
 				let rest_cs_arg =
@@ -2445,7 +2571,7 @@ let rec cs_expr_of_texpr ectx e =
 							let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 							let rest_cs_args = List.map (fun arg ->
 								let cs_arg = cs_expr_of_texpr ectx arg in
-								coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype rest_elem_type
+								coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) rest_elem_type
 							) rest_args in
 							let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
 							let storage_type = classify_cs_array_element_type elem_cs_type in
@@ -2469,7 +2595,7 @@ let rec cs_expr_of_texpr ectx e =
 						arg.etype
 					in
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_hx_type
 				) args in
 				let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 				(args_cs, param_types_cs)
@@ -2585,7 +2711,7 @@ let rec cs_expr_of_texpr ectx e =
 					let regular_cs_args = List.mapi (fun i arg ->
 						let expected_type = List.nth param_types_hx i in
 						let cs_arg = cs_expr_of_texpr ectx arg in
-						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_type
 					) regular_args in
 					(* Generate rest args - wrap into Array *)
 					let rest_cs_arg =
@@ -2599,7 +2725,7 @@ let rec cs_expr_of_texpr ectx e =
 								let elem_cs_type = cs_type_of_type ectx.gctx rest_elem_type in
 								let rest_cs_args = List.map (fun arg ->
 									let cs_arg = cs_expr_of_texpr ectx arg in
-									coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype rest_elem_type
+									coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) rest_elem_type
 								) rest_args in
 								let native_array = CsNewArray (elem_cs_type, rest_cs_args) in
 								let storage_type = classify_cs_array_element_type elem_cs_type in
@@ -2621,7 +2747,7 @@ let rec cs_expr_of_texpr ectx e =
 							arg.etype
 						in
 						let cs_arg = cs_expr_of_texpr ectx arg in
-						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_hx_type
 					) args in
 					let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
 					(args_cs, param_types_cs)
@@ -3687,12 +3813,12 @@ let rec cs_expr_of_texpr ectx e =
 							if original_has_in_scope_type_params && expected_has_no_type_params then
 								CsCast (expected_cs_type, cs_arg)
 							else
-								coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
+								coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_hx_type
 						| _ ->
-							coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
+							coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_hx_type
 						end
 					| _ ->
-						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
+						coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_hx_type
 				end
 			in
 			let args = List.mapi (fun i arg ->
@@ -3881,7 +4007,7 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> CsNull
 				end else begin
 					let cs_arg = cs_expr_of_texpr ectx arg in
-					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg arg.etype expected_hx_type
+					coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_arg (get_effective_expr_type ectx.gctx arg) expected_hx_type
 				end
 			in
 			(* Convert args, handling null -> default(Null<T>) and type coercion *)
@@ -4124,7 +4250,10 @@ let rec cs_expr_of_texpr ectx e =
 				CsDefault target_type
 			else begin
 				let inner_cs = cs_expr_of_texpr ectx inner_e in
-				let inner_type = cs_type_of_type ectx.gctx inner_e.etype in
+				(* Use get_effective_expr_type instead of inner_e.etype to get the actual C# return type.
+				   For _Impl_ calls, e.etype may include Haxe implicit conversions (like M<A> = Null<Int>)
+				   but the actual C# code returns the function's declared type (like int). *)
+				let inner_type = cs_type_of_type ectx.gctx (get_effective_expr_type ectx.gctx inner_e) in
 				(* Special case: casting to Null<T> should use implicit conversion, not explicit cast.
 				   Null<T> has an implicit conversion operator from T, so no cast needed.
 				   Explicit cast through object fails for value types at runtime. *)
@@ -4289,18 +4418,20 @@ let rec cs_expr_of_texpr ectx e =
 					   Use Runtime.toInt/toDouble/etc. directly on the ternary result. *)
 					cast_object_to_type target_type inner_cs
 				end
-				else if is_inner_null_wrapper && not is_target_null_wrapper && (target_type = CsTypeObject || target_type = CsTypeDynamic) && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
+				else if is_inner_null_wrapper && not is_target_null_wrapper && (target_type = CsTypeObject || target_type = CsTypeDynamic) && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && not (CsTypeCoercion.is_abstract_impl_call inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
 					(* Casting FROM Null<T> to object/Dynamic: use toDynamic() to preserve null semantics.
 					   Unlike .value which returns default(T) when hasValue=false, toDynamic() returns null.
 					   This ensures Null<T> is never boxed as-is into object (which would cause issues
-					   with IConvertible, IComparable, etc.). *)
+					   with IConvertible, IComparable, etc.).
+					   NOTE: Skip _Impl_ calls - they return primitives that don't have toDynamic(). *)
 					CsCall (CsField (inner_cs, "toDynamic"), [])
 				end
-				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
+				else if is_inner_null_wrapper && not is_target_null_wrapper && not is_already_unwrapped_by_arithmetic && not (cs_expr_is_object_cast inner_cs) && not (cs_expr_is_runtime_conversion inner_cs) && not (CsTypeCoercion.is_abstract_impl_call inner_cs) && expr_produces_csharp_null_type ectx.gctx inner_e then begin
 					(* Casting FROM Null<T> to non-Null concrete type - use .value to unwrap, then cast if needed.
 					   This handles cases like (SomeInterface)(map.get(...)) where get returns Null<SomeInterface>.
 					   Uses expr_produces_csharp_null_type (SINGLE SOURCE OF TRUTH) to verify C# actually has Null<T>.
-					   Also skip if arithmetic already unwrapped, or if cast/runtime conversion already handled it. *)
+					   Also skip if arithmetic already unwrapped, or if cast/runtime conversion already handled it.
+					   NOTE: Skip _Impl_ calls - they return primitives that don't have .value. *)
 					let unwrapped = CsField (inner_cs, "value") in
 					let inner_unwrapped_type = match inner_type with
 						| CsTypeClass ((["haxe"; "lang"], "Null"), [t]) -> t
