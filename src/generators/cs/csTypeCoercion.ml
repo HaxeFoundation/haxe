@@ -314,8 +314,14 @@ let coerce_null_unwrap_exact cs_arg arg_type expected_type =
 	| None -> None  (* arg is not Null<T> *)
 	| Some inner_type ->
 		if inner_type = expected_type then
-			(* Exact match: Null<int> → int, just unwrap *)
-			Some (CsField (cs_arg, "value"))
+			(* Exact match: Null<int> → int, just unwrap.
+			   For CsUnop (prefix ops like ++a), wrap in parens to get (++a).value not ++a.value.
+			   For CsBinop, also wrap for proper precedence. *)
+			let wrapped = match cs_arg with
+				| CsUnop _ | CsBinop _ -> CsParens cs_arg
+				| _ -> cs_arg
+			in
+			Some (CsField (wrapped, "value"))
 		else
 			None  (* Not an exact match, need more complex handling *)
 
@@ -411,23 +417,28 @@ let coerce_null_to_object cs_arg arg_type expected_type =
 	if not (is_cs_object_or_dynamic expected_type) then None
 	else if cs_expr_is_runtime_conversion cs_arg then None
 	else
+		(* Helper to wrap in parens for proper precedence with .toDynamic() *)
+		let wrap_for_member_access expr = match expr with
+			| CsUnop _ | CsBinop _ -> CsParens expr
+			| _ -> expr
+		in
 		(* Check if the C# expression is explicitly a Null<T> struct *)
 		let is_null_from_expr = get_null_inner_type_if_of_dynamic_call cs_arg <> None in
 		let is_null_from_cast = is_cast_to_null_type cs_arg in
 		if is_null_from_expr || is_null_from_cast then
-			Some (CsCall (CsField (cs_arg, "toDynamic"), []))
+			Some (CsCall (CsField (wrap_for_member_access cs_arg, "toDynamic"), []))
 		(* For _Impl_ calls, check if arg_type is Null<T>.
 		   arg_type comes from get_effective_expr_type which uses expr_produces_csharp_null_type
 		   to determine the actual C# return type. If it returns Null<T>, we need .toDynamic().
 		   This handles Issue2767 where A_Impl_.get() actually returns Null<int>. *)
 		else if is_abstract_impl_call cs_arg then
 			if get_cs_null_inner arg_type <> None then
-				Some (CsCall (CsField (cs_arg, "toDynamic"), []))
+				Some (CsCall (CsField (wrap_for_member_access cs_arg, "toDynamic"), []))
 			else
 				None
 		(* For non-_Impl_ calls, trust the type *)
 		else if get_cs_null_inner arg_type <> None then
-			Some (CsCall (CsField (cs_arg, "toDynamic"), []))
+			Some (CsCall (CsField (wrap_for_member_access cs_arg, "toDynamic"), []))
 		else
 			None
 

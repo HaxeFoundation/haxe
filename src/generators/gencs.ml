@@ -518,10 +518,18 @@ let rec expr_produces_csharp_null_type gctx e =
 			| _ -> false
 			end
 		end
-	| TUnop _ ->
-		(* Unary operations (!, -, ~, ++, --) use implicit conversion and produce primitives.
-		   E.g., !Null<bool> produces bool, not Null<bool>. *)
-		false
+	| TUnop (op, _, e1) ->
+		(* Increment/decrement on Null<T> return Null<T> (the struct itself).
+		   Other unary ops (!, -, ~) use implicit conversion to primitive first. *)
+		begin match op with
+		| Ast.Increment | Ast.Decrement ->
+			(* ++/-- on Null<T> returns Null<T>, check if operand produces Null<T> in C#.
+			   Use recursive check since operand might be complex (field access, etc.) *)
+			expr_produces_csharp_null_type gctx e1
+		| _ ->
+			(* !, -, ~ use implicit conversion and produce primitives *)
+			false
+		end
 	| TParenthesis e1 | TMeta (_, e1) ->
 		(* Unwrap parentheses/meta and check inner *)
 		expr_produces_csharp_null_type gctx e1
@@ -629,6 +637,35 @@ let rec expr_produces_csharp_null_type gctx e =
 			| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
 			| _ -> false
 		end
+	| TField (_, FInstance (_, _, cf)) | TField (_, FStatic (_, cf)) | TField (_, FClosure (_, cf)) | TField (_, FAnon cf) ->
+		(* For field access, check if the field's DECLARED type is Null<T>.
+		   Important: If the field's declared type involves a type parameter that gets erased
+		   to object, we should return false because the C# field type is object, not Null<T>.
+		   The Haxe type (e.etype) might say Null<Int> due to inference, but C# has object. *)
+		if is_erased_type_param cf.cf_type then
+			false  (* Erased type param -> object in C# *)
+		else begin
+			(* Check if field type involves Null<T> where T is a type param (also erased) *)
+			let is_null_of_type_param = match follow cf.cf_type with
+				| TAbstract ({ a_path = ([], "Null") }, [inner]) -> is_erased_type_param inner
+				| TInst ({ cl_path = (["haxe"; "lang"], "Null") }, [inner]) -> is_erased_type_param inner
+				| _ -> false
+			in
+			if is_null_of_type_param then
+				false  (* Null<TypeParam> -> object in C# *)
+			else begin
+				match CsTypeMapping.cs_type_of_type gctx e.etype with
+				| CsTypeClass ((["haxe"; "lang"], "Null"), [CsTypeObject]) -> false
+				| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+				| _ -> false
+			end
+		end
+	| TField (_, FEnum _) ->
+		(* Enum field access - never produces Null<T> *)
+		false
+	| TField (_, FDynamic _) ->
+		(* Dynamic field access - returns object, not Null<T> *)
+		false
 	| _ ->
 		(* For other expressions, check the expression's type *)
 		begin match CsTypeMapping.cs_type_of_type gctx e.etype with
@@ -694,9 +731,12 @@ let get_effective_expr_type gctx e =
 	else
 		(* Expression produces Null<T> in C# - use the appropriate type.
 		   For TLocal, use v.v_type which may have been patched by csNullable.ml
-		   to include Null<T> wrapper for optional parameters. *)
+		   to include Null<T> wrapper for optional parameters.
+		   For TUnop (++/--) on Null<T>, use the operand's type since C# returns Null<T>
+		   even though Haxe's e.etype is T (due to implicit conversion semantics). *)
 		match e.eexpr with
 		| TLocal v -> v.v_type
+		| TUnop ((Ast.Increment | Ast.Decrement), _, e1) -> e1.etype
 		| _ -> e.etype
 
 (* Helper to get the inner type from Null<T>, if the expression needs .value unwrapping.
