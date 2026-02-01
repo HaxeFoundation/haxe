@@ -9512,6 +9512,22 @@ let generate_enum gctx (e : tenum) =
 				end
 		) e.e_constrs [] in
 
+		(* Generate __meta__ field for enums with metadata (RTTI support).
+		   This mirrors what JVM does at genjvm.ml:2942-2950.
+		   Without this, haxe.rtti.Meta.getType(SomeEnum) returns null. *)
+		let meta_field = match Texpr.build_metadata gctx.com.basic (TEnumDecl e) with
+			| None -> []
+			| Some meta_expr ->
+				let ectx = create_expr_context gctx in
+				[CsMemberField {
+					f_name = "__meta__";
+					f_type = CsTypeObject;
+					f_access = AccessModifier.Public;
+					f_modifiers = [MemberModifier.Static];
+					f_value = Some (cs_expr_of_texpr ectx meta_expr);
+				}]
+		in
+
 		(* Record this enum for Program.cs _hx_bind() calls *)
 		gctx.all_haxe_classes <- path :: gctx.all_haxe_classes;
 
@@ -9734,7 +9750,7 @@ let generate_enum gctx (e : tenum) =
 			c_base = Some haxe_enum_type;
 			c_interfaces = [];
 			c_constraints = [];
-			c_members = cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method; bind_method] @ List.rev members;
+			c_members = meta_field @ cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method; bind_method] @ List.rev members;
 		}
 
 (* Generate type *)
