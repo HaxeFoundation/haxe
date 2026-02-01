@@ -9680,6 +9680,61 @@ let generate_enum gctx (e : tenum) =
 			m_attributes = [];
 		} in
 
+		(* Generate _hx_getStaticField and _hx_hasStaticField methods when enum has __meta__.
+		   These wrap the enum constructor accessors to also handle __meta__ lookup.
+		   Without this, haxe.rtti.Meta.getType(SomeEnum) returns null because the registry
+		   getter only knows about enum constructors, not the __meta__ static field. *)
+		let has_meta = meta_field <> [] in
+		let static_field_methods = if not has_meta then [] else
+			let get_static_field_method = CsMemberMethod {
+				m_name = "_hx_getStaticField";
+				m_return_type = CsTypeObject;
+				m_access = AccessModifier.Public;
+				m_modifiers = [MemberModifier.Static];
+				m_type_params = [];
+				m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
+				m_body = Some [CsSwitch (CsLocal "name", [
+					(* case "__meta__": return __meta__; *)
+					{
+						sw_labels = [CsCaseConst (CsConst (CsConstString "__meta__"))];
+						sw_body = [CsReturn (Some (CsStaticField (cs_enum_type, "__meta__")))];
+					};
+					(* default: return _hx_getEnumConstructor(name); *)
+					{
+						sw_labels = [CsCaseDefault];
+						sw_body = [CsReturn (Some (CsStaticCall (cs_enum_type, "_hx_getEnumConstructor", [CsLocal "name"])))];
+					}
+				])];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			} in
+			let has_static_field_method = CsMemberMethod {
+				m_name = "_hx_hasStaticField";
+				m_return_type = CsTypeBool;
+				m_access = AccessModifier.Public;
+				m_modifiers = [MemberModifier.Static];
+				m_type_params = [];
+				m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
+				m_body = Some [CsSwitch (CsLocal "name", [
+					(* case "__meta__": return true; *)
+					{
+						sw_labels = [CsCaseConst (CsConst (CsConstString "__meta__"))];
+						sw_body = [CsReturn (Some (CsConst (CsConstBool true)))];
+					};
+					(* default: return _hx_hasEnumConstructor(name); *)
+					{
+						sw_labels = [CsCaseDefault];
+						sw_body = [CsReturn (Some (CsStaticCall (cs_enum_type, "_hx_hasEnumConstructor", [CsLocal "name"])))];
+					}
+				])];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			} in
+			[get_static_field_method; has_static_field_method]
+		in
+
 		(* Generate _hx_bind method for HaxeReflection registration.
 		   This registers enum constructor names and the getter/checker.
 		   public static void _hx_bind() {
@@ -9704,15 +9759,17 @@ let generate_enum gctx (e : tenum) =
 				CsNewArray (CsTypeString,
 					List.map (fun name -> CsConst (CsConstString name)) constr_names)
 			)) in
-			(* acc.getter = MyEnum._hx_getEnumConstructor; *)
+			(* acc.getter = MyEnum._hx_getStaticField or _hx_getEnumConstructor; *)
+			let getter_name = if has_meta then "_hx_getStaticField" else "_hx_getEnumConstructor" in
 			let set_getter = CsExprStmt (CsBinop (CsOpAssign,
 				CsField (CsLocal "acc", "getter"),
-				CsStaticField (cs_enum_type, "_hx_getEnumConstructor")
+				CsStaticField (cs_enum_type, getter_name)
 			)) in
-			(* acc.checker = MyEnum._hx_hasEnumConstructor; *)
+			(* acc.checker = MyEnum._hx_hasStaticField or _hx_hasEnumConstructor; *)
+			let checker_name = if has_meta then "_hx_hasStaticField" else "_hx_hasEnumConstructor" in
 			let set_checker = CsExprStmt (CsBinop (CsOpAssign,
 				CsField (CsLocal "acc", "checker"),
-				CsStaticField (cs_enum_type, "_hx_hasEnumConstructor")
+				CsStaticField (cs_enum_type, checker_name)
 			)) in
 			[get_or_create; set_enum_constructs; set_getter; set_checker]
 		in
@@ -9750,7 +9807,7 @@ let generate_enum gctx (e : tenum) =
 			c_base = Some haxe_enum_type;
 			c_interfaces = [];
 			c_constraints = [];
-			c_members = meta_field @ cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method; bind_method] @ List.rev members;
+			c_members = meta_field @ cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method] @ static_field_methods @ [bind_method] @ List.rev members;
 		}
 
 (* Generate type *)
