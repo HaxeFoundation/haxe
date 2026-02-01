@@ -5235,6 +5235,12 @@ and cs_stmt_of_texpr ectx e =
 					when inner_init = inner_var ->
 					(* Null<T> -> Null<T> with exact same inner type: no conversion needed *)
 					init_cs
+				| (CsTypeObject | CsTypeDynamic), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
+					when CsTypeCoercion.get_null_inner_type_if_of_dynamic_call init_cs = Some inner_var ->
+					(* init_cs is already _ofDynamic returning the exact Null<T> we need - use directly.
+					   This avoids incorrectly boxing the Null<T> struct to object and checking != null
+					   (which would always be true since boxed structs are never null). *)
+					init_cs
 				| (CsTypeObject | CsTypeDynamic), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var]) ->
 					(* object/Dynamic -> Null<T>: wrap in Null<T> constructor with runtime check.
 					   Generate: val != null ? new Null<T>((T)val, true) : new Null<T>(default(T), false)
