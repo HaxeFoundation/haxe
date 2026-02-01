@@ -4142,7 +4142,18 @@ let rec cs_expr_of_texpr ectx e =
 						(* Apply class type parameters to resolve generic types.
 						   Use actual_params (from e.etype) for correct constructor param types. *)
 						let map = apply_params c.cl_params actual_params in
-						List.map (fun (_, _, t) -> map t) ctor_params
+						List.map (fun (_, _, t) ->
+							let hx_type = map t in
+							(* Check if the original param type was a type parameter.
+							   If so, C# erases it to object, so use Dynamic to ensure
+							   proper coercion like .toDynamic() for Null<T>. *)
+							let is_type_param_based = match follow t with
+								| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
+								| _ -> false
+							in
+							if is_type_param_based then mk_mono ()
+							else hx_type
+						) ctor_params
 					| _ -> []
 				end
 				| None -> []
