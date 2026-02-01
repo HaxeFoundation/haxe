@@ -207,9 +207,16 @@ let register_invoke_signature gctx arg_types ret_type =
 (* Check if an expression contains a reference to 'this'.
    Used to determine if field initializers need to be moved to the constructor
    since C# field initializers cannot use 'this'. *)
-(* Check if a constructor needs two-phase construction (has Meta.HxGen from this-before-super) *)
+(* Check if a constructor needs two-phase construction.
+   Two-phase is needed when:
+   1. Meta.HxGen is set (this-before-super pattern detected by type system)
+   2. Issue3596: Constructor calls virtual methods on 'this', which means child classes
+      may override those methods and need their fields initialized first. *)
 let needs_two_phase_construction cf =
-	Meta.has Meta.HxGen cf.cf_meta
+	Meta.has Meta.HxGen cf.cf_meta ||
+	(match cf.cf_expr with
+	| Some { eexpr = TFunction tf } -> expr_calls_virtual_method_on_this tf.tf_expr
+	| _ -> false)
 
 (* Check if a C# type is valid as a generic constraint.
    C# only allows: interfaces, non-sealed classes, type parameters.
@@ -7700,11 +7707,31 @@ let generate_constructor gctx c cf field_init_stmts =
 		| None -> (None, None)
 	in
 
-	(* Check if this constructor needs two-phase construction (this-before-super pattern).
+	(* Check if this constructor needs two-phase construction.
+	   See needs_two_phase_construction for the conditions.
 	   Note: super args using optional params with defaults is handled separately by
 	   applying defaults inline in the base() call expression. *)
-	let is_two_phase = needs_two_phase_construction cf in
 	let parent_is_two_phase = parent_needs_two_phase_construction c in
+	(* Check if child class has field initializers *)
+	let class_has_field_initializers =
+		List.exists (fun cf ->
+			match cf.cf_kind with
+			| Var _ -> cf.cf_expr <> None
+			| _ -> false
+		) c.cl_ordered_fields
+	in
+	(* Check if child class has overridden methods *)
+	let class_has_overridden_methods =
+		List.exists (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields
+	in
+	(* Child should use two-phase if:
+	   1. Its own constructor needs it (calls virtual methods on this), OR
+	   2. Parent is two-phase AND child has field inits AND child has overrides
+	      (Issue3596: parent's virtual method call would dispatch to child's override
+	       before child's field inits run in normal C# construction order) *)
+	let is_two_phase = needs_two_phase_construction cf ||
+		(parent_is_two_phase && class_has_field_initializers && class_has_overridden_methods)
+	in
 	(* Get base class constructor types for casting super args.
 	   We need to apply type parameter substitution when extending generic classes. *)
 	let base_ctor_types = match c.cl_super with
@@ -7749,12 +7776,36 @@ let generate_constructor gctx c cf field_init_stmts =
 			p_default = None;
 			p_modifier = None;
 		} in
-		(* Base call for empty ctor: pass null cast to EmptyConstructor *)
-		let empty_base_call =
-			if c.cl_super <> None then
+		(* Base call for empty ctor:
+		   - If parent needs two-phase: call parent's EmptyConstructor
+		   - If parent doesn't need two-phase: call parent's regular constructor with super args
+		     (super args are evaluated before any code runs in C# base() call) *)
+		let empty_base_call = match c.cl_super with
+			| None -> None
+			| Some _ when parent_is_two_phase ->
+				(* Parent is two-phase: chain to parent's EmptyConstructor *)
 				Some [CsCast (empty_constructor_type, CsNull)]
-			else
-				None
+			| Some _ ->
+				(* Parent is NOT two-phase: call parent's regular constructor.
+				   Pass the super args so parent ctor runs normally. *)
+				begin match super_args with
+				| Some args ->
+					let ectx = create_expr_context gctx in
+					ectx.current_class_path <- Some c.cl_path;
+					ectx.current_method_name <- Some "new";
+					let cs_args = List.mapi (fun i arg ->
+						let cs_arg = cs_expr_of_texpr ectx arg in
+						if i < List.length base_ctor_types then
+							let expected_type = List.nth base_ctor_types i in
+							CsCast (expected_type, CsParens cs_arg)
+						else
+							cs_arg
+					) args in
+					Some cs_args
+				| None ->
+					(* No explicit super call - parent has parameterless ctor, just call it *)
+					Some []
+				end
 		in
 		let empty_ctor = CsMemberConstructor {
 			ctor_access = AccessModifier.Public;
@@ -7783,24 +7834,11 @@ let generate_constructor gctx c cf field_init_stmts =
 							cs_arg
 					) args in
 					[CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), cs_args))]
-				| Some args ->
-					(* Parent doesn't need two-phase, but we do - need to call parent's regular constructor
-					   This is tricky - in this case, the super() call args can use 'this'.
-					   Since C# doesn't allow this, we need to call parent's empty ctor in the empty ctor above,
-					   and here call parent's _hx_new if it exists, otherwise this is an error case.
-					   For now, just call base._hx_new and hope parent has it. If parent is native, this will fail. *)
-					let ectx = create_expr_context gctx in
-					ectx.current_class_path <- Some c.cl_path;
-					ectx.current_method_name <- Some "_hx_new";
-					let cs_args = List.mapi (fun i arg ->
-						let cs_arg = cs_expr_of_texpr ectx arg in
-						if i < List.length base_ctor_types then
-							let expected_type = List.nth base_ctor_types i in
-							CsCast (expected_type, CsParens cs_arg)
-						else
-							cs_arg
-					) args in
-					[CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), cs_args))]
+				| Some _ ->
+					(* Parent doesn't need two-phase, but we do.
+					   Parent's ctor was already called via the empty ctor's base() call,
+					   so no need to call base._hx_new() here. *)
+					[]
 				| None -> []
 			in
 			(* Rest of constructor body *)
@@ -7960,11 +7998,18 @@ let generate_constructor gctx c cf field_init_stmts =
 				(* Parent needs two-phase but we don't use this before super.
 				   We need to call parent's empty constructor and then call _hx_new in body. *)
 				Some [CsCast (empty_constructor_type, CsNull)]
+			| None when parent_is_two_phase && c.cl_super <> None ->
+				(* No explicit super() call, but parent needs two-phase.
+				   Child has implicit constructor - still need to call parent's EmptyConstructor. *)
+				Some [CsCast (empty_constructor_type, CsNull)]
 			| _ -> None
 		in
 
-		(* If parent needs two-phase, add base._hx_new call to body *)
-		let extra_body_stmts = match super_args with
+		(* If parent needs two-phase, add base._hx_new call to body.
+		   - If there's an explicit super() call: put base._hx_new() where super was (before body)
+		   - If there's no explicit super() call: put base._hx_new() at the END of body
+		     so child field inits run before parent's constructor (Issue3596) *)
+		let (extra_before_stmts, extra_after_stmts) = match super_args with
 			| Some args when parent_is_two_phase ->
 				let ectx = create_expr_context gctx in
 				ectx.current_class_path <- Some c.cl_path;
@@ -7977,8 +8022,12 @@ let generate_constructor gctx c cf field_init_stmts =
 					else
 						cs_arg
 				) args in
-				[CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), cs_args))]
-			| _ -> []
+				([CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), cs_args))], [])
+			| None when parent_is_two_phase && c.cl_super <> None ->
+				(* No explicit super() call, but parent needs two-phase.
+				   Call base._hx_new() AFTER body so child field inits run first (Issue3596). *)
+				([], [CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), []))])
+			| _ -> ([], [])
 		in
 
 		(* Generate preamble for optional parameters with default values *)
@@ -7995,10 +8044,11 @@ let generate_constructor gctx c cf field_init_stmts =
 		end in
 
 		(* Generate constructor body - prepend field initializations that contain 'this'.
-		   Use adjusted_body_expr which has dependency statements removed (they're in the IIFE). *)
+		   Use adjusted_body_expr which has dependency statements removed (they're in the IIFE).
+		   Order: field_init_stmts, extra_before_stmts (explicit super), default_preamble, body, extra_after_stmts (implicit super) *)
 		let ctor_body = match adjusted_body_expr with
-			| Some e -> field_init_stmts @ extra_body_stmts @ default_preamble @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e
-			| None -> field_init_stmts @ extra_body_stmts @ default_preamble
+			| Some e -> field_init_stmts @ extra_before_stmts @ default_preamble @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e @ extra_after_stmts
+			| None -> field_init_stmts @ extra_before_stmts @ default_preamble @ extra_after_stmts
 		in
 		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
 		let ctor_body = match cf.cf_expr with
@@ -9021,7 +9071,9 @@ let generate_class gctx c =
 			| TFun (args, _) -> [args]
 			| _ -> []
 		in
-		(* Check if parent needs two-phase construction *)
+		(* Check if parent needs two-phase construction.
+		   This now also covers Issue3596: if parent's constructor calls virtual methods,
+		   it will be marked two-phase, and we inherit that here. *)
 		let parent_is_two_phase = parent_needs_two_phase_construction c in
 		let parent_ctor_signatures = match c.cl_super with
 			| Some (sc, _) ->
@@ -9058,7 +9110,10 @@ let generate_class gctx c =
 				}
 			) parent_ctor_args in
 			if parent_is_two_phase then begin
-				(* Parent needs two-phase: call empty ctor, then base._hx_new in body *)
+				(* Parent needs two-phase: call empty ctor, then base._hx_new in body.
+				   IMPORTANT: Child field inits must run BEFORE base._hx_new() because
+				   parent's constructor may call virtual methods that dispatch to child's
+				   overrides, which may reference child's initialized fields (Issue3596). *)
 				let base_hx_new_args = List.map (fun (n, _, t) ->
 					let param_type = cs_type_of_type gctx t in
 					CsCast (param_type, CsParens (CsLocal (escape_identifier n)))
@@ -9070,7 +9125,7 @@ let generate_class gctx c =
 					ctor_params = ctor_params;
 					ctor_base_call = Some [CsCast (empty_constructor_type, CsNull)];
 					ctor_this_call = None;
-					ctor_body = base_hx_new_call :: field_init_stmts;
+					ctor_body = field_init_stmts @ [base_hx_new_call];
 				}
 			end else begin
 				(* Normal case: just forward to parent's constructor *)

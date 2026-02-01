@@ -22,6 +22,7 @@
    purposes like detecting `this` usage, finding return types, checking
    for side effects, and analyzing control flow. *)
 
+open Globals
 open Type
 open CsAst
 open CsGlobals
@@ -236,6 +237,28 @@ let rec is_pure_expr e =
 	| TEnumIndex e1 -> is_pure_expr e1
 	| TEnumParameter (e1, _, _) -> is_pure_expr e1
 	| _ -> false
+
+(* Check if a Haxe expression contains a call to a virtual method on 'this'.
+   A virtual method is: not static, not final. This is used to detect constructors
+   that may call overridable methods, which affects field initialization order in C#. *)
+let rec expr_calls_virtual_method_on_this e =
+	match e.eexpr with
+	| TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, cf)) }, _) ->
+		(* Check if the method is virtual (can be overridden) *)
+		begin match cf.cf_kind with
+		| Method (MethNormal | MethInline) ->
+			(* Virtual if not final *)
+			not (has_class_field_flag cf CfFinal)
+		| _ -> false
+		end
+	| TFunction _ ->
+		(* Don't recurse into nested functions - they have their own 'this' *)
+		false
+	| _ ->
+		(* Recursively check subexpressions *)
+		let found = ref false in
+		Type.iter (fun sub -> if expr_calls_virtual_method_on_this sub then found := true) e;
+		!found
 
 (* Check if a Haxe expression contains a TBreak that's inside a TSwitch but not inside a nested loop.
    This helps determine if we need a break label for the enclosing loop. *)
