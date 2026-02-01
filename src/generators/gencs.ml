@@ -1665,15 +1665,30 @@ let rec cs_expr_of_texpr ectx e =
 						(* These helpers return object, but the expression may have a specific type.
 						   IMPORTANT: Pass the original field value BEFORE the RHS to ensure correct
 						   evaluation order (Issue5477). The RHS may have side effects that modify
-						   the field, so we must read the original value first. *)
+						   the field, so we must read the original value first.
+						   ALSO: If obj_expr has side effects, cache it to avoid evaluating twice (Issue8930). *)
 						let reflect_type = CsTypeClass ((["haxe"; "root"], "Reflect"), []) in
 						let obj_cs = cs_expr_of_texpr ectx obj_expr in
-						let original_value = CsStaticCall (reflect_type, "field",
-							[obj_cs; CsConst (CsConstString field_name)]) in
-						let call_expr = CsStaticCall (CsTypeClass (cs_path, []), helper_name,
-							[obj_cs; CsConst (CsConstString field_name); original_value; cs_expr_of_texpr ectx e2]) in
 						let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
-						cast_object_to_type expected_cs_type call_expr
+						if is_pure_expr obj_expr then begin
+							(* Pure expression - can be used directly multiple times *)
+							let original_value = CsStaticCall (reflect_type, "field",
+								[obj_cs; CsConst (CsConstString field_name)]) in
+							let call_expr = CsStaticCall (CsTypeClass (cs_path, []), helper_name,
+								[obj_cs; CsConst (CsConstString field_name); original_value; cs_expr_of_texpr ectx e2]) in
+							cast_object_to_type expected_cs_type call_expr
+						end else begin
+							(* Expression has side effects - cache in temp var via IIFE *)
+							let temp_name = fresh_temp ectx in
+							let temp_local = CsLocal temp_name in
+							let var_decl = CsVarDecl (temp_name, Some CsTypeObject, Some obj_cs) in
+							let original_value = CsStaticCall (reflect_type, "field",
+								[temp_local; CsConst (CsConstString field_name)]) in
+							let helper_call = CsStaticCall (CsTypeClass (cs_path, []), helper_name,
+								[temp_local; CsConst (CsConstString field_name); original_value; cs_expr_of_texpr ectx e2]) in
+							let result = cast_object_to_type expected_cs_type helper_call in
+							wrap_call_with_prefix [var_decl] expected_cs_type result
+						end
 					| None ->
 						(* Unsupported compound op on dynamic field - fall back to regular handling *)
 						let e1_cs = cs_expr_of_texpr ectx e1 in
@@ -5810,8 +5825,15 @@ and cs_stmt_of_texpr ectx e =
 			(* Void control flow - use cs_stmt_with_return_inner with void mode to emit direct statements *)
 			cs_stmt_with_return_inner ectx true CsTypeVoid e
 		| _ ->
-			(* Other expressions - wrap in CsExprStmt *)
-			CsExprStmt (cs_expr_of_texpr ectx e)
+			(* Other expressions - wrap in CsExprStmt, optimizing any IIFE patterns *)
+			let cs_e = cs_expr_of_texpr ectx e in
+			begin match extract_wrapped_call_prefix cs_e with
+			| Some (prefix_stmts, inner_expr) ->
+				(* IIFE detected - hoist prefix statements and emit inner as expression *)
+				CsBlock (prefix_stmts @ [CsExprStmt inner_expr])
+			| None ->
+				CsExprStmt cs_e
+			end
 		end
 
 (* Generate preamble statements for optional parameters with default values.
