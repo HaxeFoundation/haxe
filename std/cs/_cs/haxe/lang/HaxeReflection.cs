@@ -36,9 +36,15 @@ namespace haxe.lang
         public static object getField(System.Type type, string name)
         {
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc) && acc.getter != null)
+            if (registry.TryGetValue(type.FullName, out acc))
             {
-                return acc.getter(name);
+                // For __meta__ field, return stored meta directly (used by interfaces
+                // which cannot have static fields, so we store their metadata here)
+                if (name == "__meta__" && acc.meta != null)
+                    return acc.meta;
+                // Otherwise use the getter
+                if (acc.getter != null)
+                    return acc.getter(name);
             }
             return null;
         }

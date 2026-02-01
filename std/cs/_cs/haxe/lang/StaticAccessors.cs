@@ -26,5 +26,9 @@ namespace haxe.lang
         public string[] enumConstructs;
         public Function emptyFactory;
         public Function factory;
+        /// <summary>
+        /// Stores __meta__ object for interfaces (which cannot have static fields).
+        /// </summary>
+        public object meta;
     }
 }

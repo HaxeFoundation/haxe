@@ -44,6 +44,7 @@ type gen_context = {
 	mutable preprocessor : cs_type preprocessor;
 	mutable all_haxe_classes : path list;  (* ALL classes that need _hx_bind() call in Program.cs *)
 	mutable all_haxe_interfaces : (path * string list) list;  (* Interfaces with their instance field names for registry *)
+	mutable interface_metadata : (path * Type.texpr) list;  (* Interfaces with metadata for RTTI registry *)
 }
 
 (* Expression generation context - holds state for translating expressions *)
@@ -81,6 +82,7 @@ let create_context com = {
 	preprocessor = Obj.magic ();
 	all_haxe_classes = [];
 	all_haxe_interfaces = [];
+	interface_metadata = [];
 }
 
 (* Create a new expression context *)
