@@ -419,45 +419,51 @@ class Cs {
 
 	/**
 	 * Compound add-assign on a dynamic field: field += value.
+	 * The originalValue parameter ensures correct evaluation order - it must be
+	 * read BEFORE the addend is evaluated (which may have side effects).
 	 */
-	public static function fieldAddAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
-		var newVal = opAdd(Reflect.field(obj, field), value);
+	public static function fieldAddAssign(obj:Dynamic, field:String, originalValue:Dynamic, addend:Dynamic):Dynamic {
+		var newVal = opAdd(originalValue, addend);
 		Reflect.setField(obj, field, newVal);
 		return newVal;
 	}
 
 	/**
 	 * Compound sub-assign on a dynamic field: field -= value.
+	 * The originalValue parameter ensures correct evaluation order.
 	 */
-	public static function fieldSubAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
-		var newVal = opSub(Reflect.field(obj, field), value);
+	public static function fieldSubAssign(obj:Dynamic, field:String, originalValue:Dynamic, subtrahend:Dynamic):Dynamic {
+		var newVal = opSub(originalValue, subtrahend);
 		Reflect.setField(obj, field, newVal);
 		return newVal;
 	}
 
 	/**
 	 * Compound mul-assign on a dynamic field: field *= value.
+	 * The originalValue parameter ensures correct evaluation order.
 	 */
-	public static function fieldMulAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
-		var newVal = opMul(Reflect.field(obj, field), value);
+	public static function fieldMulAssign(obj:Dynamic, field:String, originalValue:Dynamic, multiplier:Dynamic):Dynamic {
+		var newVal = opMul(originalValue, multiplier);
 		Reflect.setField(obj, field, newVal);
 		return newVal;
 	}
 
 	/**
 	 * Compound div-assign on a dynamic field: field /= value.
+	 * The originalValue parameter ensures correct evaluation order.
 	 */
-	public static function fieldDivAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
-		var newVal = opDiv(Reflect.field(obj, field), value);
+	public static function fieldDivAssign(obj:Dynamic, field:String, originalValue:Dynamic, divisor:Dynamic):Dynamic {
+		var newVal = opDiv(originalValue, divisor);
 		Reflect.setField(obj, field, newVal);
 		return newVal;
 	}
 
 	/**
 	 * Compound mod-assign on a dynamic field: field %= value.
+	 * The originalValue parameter ensures correct evaluation order.
 	 */
-	public static function fieldModAssign(obj:Dynamic, field:String, value:Dynamic):Dynamic {
-		var newVal = opMod(Reflect.field(obj, field), value);
+	public static function fieldModAssign(obj:Dynamic, field:String, originalValue:Dynamic, divisor:Dynamic):Dynamic {
+		var newVal = opMod(originalValue, divisor);
 		Reflect.setField(obj, field, newVal);
 		return newVal;
 	}

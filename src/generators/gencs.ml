@@ -1662,9 +1662,16 @@ let rec cs_expr_of_texpr ectx e =
 					in
 					begin match field_helper with
 					| Some helper_name ->
-						(* These helpers return object, but the expression may have a specific type. *)
+						(* These helpers return object, but the expression may have a specific type.
+						   IMPORTANT: Pass the original field value BEFORE the RHS to ensure correct
+						   evaluation order (Issue5477). The RHS may have side effects that modify
+						   the field, so we must read the original value first. *)
+						let reflect_type = CsTypeClass ((["haxe"; "root"], "Reflect"), []) in
+						let obj_cs = cs_expr_of_texpr ectx obj_expr in
+						let original_value = CsStaticCall (reflect_type, "field",
+							[obj_cs; CsConst (CsConstString field_name)]) in
 						let call_expr = CsStaticCall (CsTypeClass (cs_path, []), helper_name,
-							[cs_expr_of_texpr ectx obj_expr; CsConst (CsConstString field_name); cs_expr_of_texpr ectx e2]) in
+							[obj_cs; CsConst (CsConstString field_name); original_value; cs_expr_of_texpr ectx e2]) in
 						let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
 						cast_object_to_type expected_cs_type call_expr
 					| None ->
