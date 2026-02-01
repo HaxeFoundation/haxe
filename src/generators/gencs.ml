@@ -8323,10 +8323,10 @@ let generate_static_field_accessors gctx c =
 	) c.cl_ordered_statics in
 
 	(* Get list of static methods (MethNormal and MethInline only)
-	   Exclude generic methods since they can't be invoked dynamically. *)
+	   Generic methods are included since C# erases type params to object. *)
 	let static_methods = List.filter_map (fun cf ->
 		match cf.cf_kind with
-		| Method (MethNormal | MethInline) when cf.cf_params = [] ->
+		| Method (MethNormal | MethInline) ->
 			let args, ret = match follow cf.cf_type with
 				| TFun (args, ret) -> args, ret
 				| _ -> [], t_dynamic
@@ -8528,7 +8528,7 @@ let generate_static_field_accessors gctx c =
 				match cf.cf_kind with
 				| Var { v_read = AccNormal; v_write = AccNormal }
 				| Var { v_read = AccNormal; v_write = AccNever } -> true
-				| Method (MethNormal | MethInline) when cf.cf_params = [] -> true
+				| Method (MethNormal | MethInline) -> true
 				| _ -> false
 			) super_class.cl_ordered_statics in
 			super_has || super_has_static_fields super_class
