@@ -193,6 +193,42 @@ class TestLua extends Test {
 		eq(10, count);
 	}
 
+	// PairTools inline: function literals must be bracketed in Syntax.code to avoid Lua syntax errors
+	function testPairToolsInlineCall() {
+		var t:lua.Table<Int, Int> = lua.Table.create();
+		t[1] = 10;
+		t[2] = 20;
+		t[3] = 30;
+
+		// inline ipairsEach with function literal
+		var sum = 0;
+		inline lua.PairTools.ipairsEach(t, function(_, v) {
+			sum += v;
+		});
+		eq(sum, 60);
+
+		// inline pairsEach with function literal
+		sum = 0;
+		inline lua.PairTools.pairsEach(t, function(_, v) {
+			sum += v;
+		});
+		eq(sum, 60);
+
+		// inline ipairsFold with function literal
+		var total:Int = inline lua.PairTools.ipairsFold(t, function(_, v, acc) {
+			return acc + v;
+		}, 0);
+		eq(total, 60);
+
+		// inline ipairsMap with function literal
+		var mapped = inline lua.PairTools.ipairsMap(t, function(_, v) {
+			return v * 2;
+		});
+		eq(mapped[1], 20);
+		eq(mapped[2], 40);
+		eq(mapped[3], 60);
+	}
+
 	// Issue #10252: BytesBuffer.addDouble should produce correct IEEE 754 bytes
 	function testBytesBufferAddDouble() {
 		// 9007199254740991 is 2^53 - 1, the max safe integer
