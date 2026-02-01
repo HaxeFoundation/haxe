@@ -105,6 +105,10 @@ class FileSystem {
 	}
 
 	public static function deleteFile(path:String):Void {
+		// C#'s File.Delete() silently does nothing if file doesn't exist
+		// Haxe expects an exception to be thrown
+		if (!untyped __cs__("System.IO.File.Exists({0})", path))
+			throw "Cannot delete file " + path + " (file not found)";
 		try {
 			untyped __cs__("System.IO.File.Delete({0})", path);
 		} catch (e:Dynamic) {
