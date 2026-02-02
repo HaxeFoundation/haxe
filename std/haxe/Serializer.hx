@@ -521,7 +521,7 @@ class Serializer {
 						#end
 					}
 				}
-				#elseif (java || python || hl || eval)
+				#elseif (java || python || hl || eval || cs)
 				if (useEnumIndex) {
 					buf.add(":");
 					buf.add(Type.enumIndex(v));
