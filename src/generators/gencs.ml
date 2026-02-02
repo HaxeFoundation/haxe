@@ -8225,9 +8225,11 @@ let generate_field_accessors gctx c =
 				| None -> None
 		in
 
+		(* Get list of instance methods (MethNormal and MethInline only)
+		   Generic methods are included since C# erases type params to object. *)
 		let instance_methods = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] ->
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) ->
 				let args, ret = match follow cf.cf_type with
 					| TFun (args, ret) -> args, ret
 					| _ -> [], t_dynamic
@@ -8561,7 +8563,7 @@ let generate_static_field_accessors gctx c =
 		) c.cl_ordered_fields in
 		let instance_method_names = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] -> Some cf.cf_name
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) -> Some cf.cf_name
 			| _ -> None
 		) c.cl_ordered_fields in
 		instance_data_names @ instance_property_names @ instance_method_names
