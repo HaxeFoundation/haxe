@@ -565,7 +565,17 @@ and print_stmt ctx = function
 		print ctx "if (";
 		print_expr ctx cond;
 		print ctx ")";
-		print_block_or_stmt ctx then_stmt;
+		(* When there's an else clause and the then-branch is itself an if statement,
+		   we must wrap the then-branch in braces to avoid the "dangling else" problem.
+		   In C#, "if (A) if (B) X; else Y" binds the else to the inner if, not the outer one.
+		   By wrapping: "if (A) { if (B) X; } else Y" the else correctly binds to the outer if. *)
+		begin match else_stmt, then_stmt with
+		| Some _, CsIf _ ->
+			(* Force braces around then-branch to prevent dangling else *)
+			print_block_stmt ctx then_stmt
+		| _ ->
+			print_block_or_stmt ctx then_stmt
+		end;
 		begin match else_stmt with
 		| None -> ()
 		| Some s ->

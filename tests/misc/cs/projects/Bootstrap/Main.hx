@@ -64,6 +64,7 @@ class Main {
 		testGenericMetadata();
 		testNullEquality();
 		testIifeOptimization();
+		testSerialization();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -1881,6 +1882,38 @@ class Main {
 		var r5 = returnNullFloatFromInt();
 		eq(1, iifeCounter);
 		eq(42.0, r5);
+	}
+
+	static function testSerialization() {
+		// Test 1: Simple ASCII string
+		var s1 = new haxe.Serializer();
+		s1.serialize("test");
+		eq("y4:test", s1.toString());
+
+		// Test 2: Unicode string
+		var s2 = new haxe.Serializer();
+		s2.serialize("éあ");
+		eq("y15:%C3%A9%E3%81%82", s2.toString());
+
+		// Test 3: Static Serializer.run
+		eq("y4:test", haxe.Serializer.run("test"));
+
+		// Test 4: Static Serializer.run with Unicode
+		eq("y15:%C3%A9%E3%81%82", haxe.Serializer.run("éあ"));
+
+		// Test 5: Serialize integer
+		var s5 = new haxe.Serializer();
+		s5.serialize(42);
+		eq("i42", s5.toString());
+
+		// Test 6: Serialize null
+		var s6 = new haxe.Serializer();
+		s6.serialize(null);
+		eq("n", s6.toString());
+
+		// Test 7: Serialize bool
+		eq("t", haxe.Serializer.run(true));
+		eq("f", haxe.Serializer.run(false));
 	}
 }
 
