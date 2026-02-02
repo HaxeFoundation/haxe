@@ -7677,6 +7677,37 @@ and extract_super_from_block el =
 	| Some (args, body) -> (Some args, body)
 	| None -> (None, if el = [] then None else Some { (List.hd el) with eexpr = TBlock el })
 
+(* Extract field initializations from the beginning of a constructor body.
+   Field inits look like: this.fieldName = value
+   where fieldName is a field on the class.
+   Returns (field_inits, rest_of_body) where field_inits are texpr list.
+   Issue11010: Used to move field inits before base._hx_new() in two-phase construction. *)
+let extract_field_inits_from_body c body_expr =
+	let is_field_init e =
+		match e.eexpr with
+		| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, cf)) }, _) ->
+			(* Check if this field belongs to our class *)
+			PMap.mem cf.cf_name c.cl_fields
+		| _ -> false
+	in
+	match body_expr with
+	| None -> ([], None)
+	| Some { eexpr = TBlock el } ->
+		(* Extract consecutive field inits from the start of the block *)
+		let rec extract acc = function
+			| e :: rest when is_field_init e -> extract (e :: acc) rest
+			| rest -> (List.rev acc, rest)
+		in
+		let (field_inits, rest) = extract [] el in
+		let rest_body = if rest = [] then None else Some { (List.hd el) with eexpr = TBlock rest } in
+		(field_inits, rest_body)
+	| Some e when is_field_init e ->
+		(* Single expression that is a field init *)
+		([e], None)
+	| body ->
+		(* Not a block or not a field init - return as-is *)
+		([], body)
+
 (* Check if a parent class constructor needs two-phase construction *)
 let parent_needs_two_phase_construction c =
 	match c.cl_super with
@@ -7741,6 +7772,14 @@ let generate_constructor gctx c cf field_init_stmts =
 	   Note: super args using optional params with defaults is handled separately by
 	   applying defaults inline in the base() call expression. *)
 	let parent_is_two_phase = parent_needs_two_phase_construction c in
+	(* Check if parent is an abstract class - abstract classes typically call abstract methods
+	   in their constructor (e.g., this.value = v where value has an abstract setter).
+	   Issue11010: This case isn't detected by expr_calls_virtual_method_on_this because
+	   property setter access looks like field assignment in the AST. *)
+	let parent_is_abstract = match c.cl_super with
+		| Some (sc, _) -> has_class_flag sc CAbstract
+		| None -> false
+	in
 	(* Check if child class has field initializers *)
 	let class_has_field_initializers =
 		List.exists (fun cf ->
@@ -7755,11 +7794,11 @@ let generate_constructor gctx c cf field_init_stmts =
 	in
 	(* Child should use two-phase if:
 	   1. Its own constructor needs it (calls virtual methods on this), OR
-	   2. Parent is two-phase AND child has field inits AND child has overrides
-	      (Issue3596: parent's virtual method call would dispatch to child's override
+	   2. Parent is two-phase OR abstract AND child has field inits AND child has overrides
+	      (Issue3596/Issue11010: parent's virtual method call would dispatch to child's override
 	       before child's field inits run in normal C# construction order) *)
 	let is_two_phase = needs_two_phase_construction cf ||
-		(parent_is_two_phase && class_has_field_initializers && class_has_overridden_methods)
+		((parent_is_two_phase || parent_is_abstract) && class_has_field_initializers && class_has_overridden_methods)
 	in
 	(* Get base class constructor types for casting super args.
 	   We need to apply type parameter substitution when extending generic classes. *)
@@ -8072,12 +8111,37 @@ let generate_constructor gctx c cf field_init_stmts =
 			generate_optional_param_defaults ectx gctx tf_args
 		end in
 
+		(* Issue11010: When parent might call virtual methods (two-phase or abstract) and child
+		   has overridden methods, field inits in the constructor body must run BEFORE base._hx_new().
+		   Extract field inits from the body and move them before extra_before_stmts. *)
+		let need_reorder_field_inits = (parent_is_two_phase || parent_is_abstract) && class_has_overridden_methods in
+		let (body_field_inits, adjusted_body_expr_without_field_inits) =
+			if need_reorder_field_inits then
+				extract_field_inits_from_body c adjusted_body_expr
+			else
+				([], adjusted_body_expr)
+		in
+		let body_field_init_stmts =
+			if body_field_inits = [] then []
+			else begin
+				let ectx = create_expr_context gctx in
+				ectx.current_class_path <- Some c.cl_path;
+				ectx.current_method_name <- Some "new";
+				List.iter (fun (v, _) ->
+					let param_name = escape_identifier v.v_name in
+					ectx.local_vars <- (v.v_id, param_name) :: ectx.local_vars;
+					ectx.used_names <- param_name :: ectx.used_names
+				) tf_args;
+				List.map (cs_stmt_of_texpr ectx) body_field_inits
+			end
+		in
+
 		(* Generate constructor body - prepend field initializations that contain 'this'.
 		   Use adjusted_body_expr which has dependency statements removed (they're in the IIFE).
-		   Order: field_init_stmts, extra_before_stmts (explicit super), default_preamble, body, extra_after_stmts (implicit super) *)
-		let ctor_body = match adjusted_body_expr with
-			| Some e -> field_init_stmts @ extra_before_stmts @ default_preamble @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e @ extra_after_stmts
-			| None -> field_init_stmts @ extra_before_stmts @ default_preamble @ extra_after_stmts
+		   Order: field_init_stmts, body_field_init_stmts (Issue11010), extra_before_stmts (explicit super), default_preamble, body, extra_after_stmts (implicit super) *)
+		let ctor_body = match adjusted_body_expr_without_field_inits with
+			| Some e -> field_init_stmts @ body_field_init_stmts @ extra_before_stmts @ default_preamble @ generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"new" e @ extra_after_stmts
+			| None -> field_init_stmts @ body_field_init_stmts @ extra_before_stmts @ default_preamble @ extra_after_stmts
 		in
 		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
 		let ctor_body = match cf.cf_expr with
@@ -9066,13 +9130,32 @@ let generate_class gctx c =
 	(* Generate members *)
 	let members = ref [] in
 
-	(* Collect field initializations that contain 'this' - these must go in constructor *)
+	(* Collect field initializations that contain 'this' - these must go in constructor.
+	   Also collect ALL field inits when parent might call virtual methods that child overrides,
+	   since parent's virtual call dispatches to child before field inits run (Issue11010).
+	   This happens when:
+	   1. Parent is two-phase (detected via HxGen meta or expr_calls_virtual_method_on_this), OR
+	   2. Parent is an abstract class (abstract classes typically call abstract methods in their
+	      constructor, e.g., this.value = v where value has an abstract setter)
+	   AND the child has overridden/implemented methods. *)
+	let parent_is_two_phase = parent_needs_two_phase_construction c in
+	let parent_is_abstract = match c.cl_super with
+		| Some (sc, _) -> has_class_flag sc CAbstract
+		| None -> false
+	in
+	let class_has_overridden_methods =
+		List.exists (fun cf ->
+			has_class_field_flag cf CfOverride
+		) c.cl_ordered_fields
+	in
+	let need_all_field_inits = (parent_is_two_phase || parent_is_abstract) && class_has_overridden_methods in
+
 	let field_init_stmts = List.filter_map (fun cf ->
 		match cf.cf_kind with
-		| Var { v_read = AccNormal; _ } | Var { v_write = AccNormal; _ }
-		| Method MethDynamic ->
+		| Var _ | Method MethDynamic ->
+			(* Check all Var kinds, not just AccNormal - final fields use AccCtor/AccNever *)
 			begin match cf.cf_expr with
-			| Some e when expr_contains_this e ->
+			| Some e when expr_contains_this e || need_all_field_inits ->
 				(* Apply Null<T> syntax filter to field initializer *)
 				let e = CsNullable.filter gctx.com e in
 				let ectx = create_expr_context gctx in
