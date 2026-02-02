@@ -32,6 +32,7 @@ class Socket {
 
 	public var custom:Dynamic;
 
+	@:allow(cs.net.SslSocket)
 	private var _socket:NativeSocket;
 
 	public function new():Void {
