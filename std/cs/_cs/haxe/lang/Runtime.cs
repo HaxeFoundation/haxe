@@ -164,9 +164,8 @@ namespace haxe.lang
         /// </summary>
         public static object InvokeDelegate(object func, global::haxe.root.Array args)
         {
-            // Return null for null delegates instead of throwing - matches Haxe semantics
-            // where calling a null function field on an anonymous object should return null
-            if (func == null) return null;
+            // Throw when func is null - calling a null function in Haxe raises an exception
+            if (func == null) throw new global::System.NullReferenceException("Cannot call null function");
 
             // If it's a HaxeFunction, use its invokeDynamic method
             if (func is global::haxe.lang.Function hf)
