@@ -30,6 +30,7 @@ class Exception extends NativeException {
 	public var native(get, never):Any;
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
+	@:noCompletion var __nativeStack:cs.system.diagnostics.StackTrace;
 	@:noCompletion var __nativeException:NativeException;
 	@:noCompletion var __previousException:Null<Exception>;
 
@@ -62,8 +63,22 @@ class Exception extends NativeException {
 		// Call base System.Exception constructor - uses special handling in generator
 		super(message);
 		__previousException = previous;
-		// native is object (nullable) - check for null and System.Exception
-		__nativeException = untyped __cs__("(({0} is System.Exception) ? (System.Exception){0} : (System.Exception)this)", native);
+		// Capture stack trace and native exception like Haxe4 does
+		if (native != null && untyped __cs__("{0} is System.Exception", native)) {
+			__nativeException = untyped __cs__("(System.Exception){0}", native);
+			// Check if the native exception has a stack trace
+			var hasStack:Bool = untyped __cs__("((System.Exception){0}).StackTrace != null", native);
+			if (hasStack) {
+				__nativeStack = new cs.system.diagnostics.StackTrace(cast __nativeException, true);
+			} else {
+				// Exception has no stack trace, capture current call stack (skip 1 frame for constructor)
+				__nativeStack = untyped __cs__("new System.Diagnostics.StackTrace(1, true)");
+			}
+		} else {
+			__nativeException = cast this;
+			// Capture current call stack (skip 1 frame for constructor)
+			__nativeStack = untyped __cs__("new System.Diagnostics.StackTrace(1, true)");
+		}
 	}
 
 	function unwrap():Any {
@@ -92,11 +107,8 @@ class Exception extends NativeException {
 
 	function get_stack():CallStack {
 		if (__exceptionStack == null) {
-			// Create a StackTrace from the native exception - like JVM does with getStackTrace()
-			// Cast needed because __nativeException is typed as private NativeException class
-			var nativeEx:cs.system.Exception = cast __nativeException;
-			var stackTrace = new cs.system.diagnostics.StackTrace(nativeEx, true);
-			__exceptionStack = NativeStackTrace.toHaxe(stackTrace);
+			// Use the stack trace captured in the constructor
+			__exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
 		}
 		return __exceptionStack;
 	}

@@ -40,7 +40,7 @@ class NativeStackTrace {
 			if (frame == null) continue;
 
 			var method = frame.GetMethod();
-			var className = method != null && method.DeclaringType != null ? method.DeclaringType.FullName : "Unknown";
+			var className:String = method != null ? untyped __cs__("{0}.ReflectedType?.ToString() ?? \"Unknown\"", method) : "Unknown";
 			var methodName = method != null ? method.Name : "Unknown";
 			var fileName = frame.GetFileName();
 			var lineNumber = frame.GetFileLineNumber();
