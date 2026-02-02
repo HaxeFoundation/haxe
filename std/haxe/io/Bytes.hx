@@ -399,6 +399,13 @@ class Bytes {
 		} catch (e:Dynamic) {
 			throw e;
 		}
+		#elseif cs
+		switch (encoding) {
+			case UTF8 | null:
+				return untyped __cs__("System.Text.Encoding.UTF8.GetString({0}, {1}, {2})", b, pos, len);
+			case RawNative:
+				return untyped __cs__("System.Text.Encoding.Unicode.GetString({0}, {1}, {2})", b, pos, len);
+		}
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
@@ -549,7 +556,12 @@ class Bytes {
 		var b:BytesData = new python.Bytearray(s, "UTF-8");
 		return new Bytes(b.length, b);
 		#elseif cs
-		var bytes:cs.NativeArray<cs.UInt8> = untyped __cs__("System.Text.Encoding.UTF8.GetBytes({0})", s);
+		var bytes:cs.NativeArray<cs.UInt8> = switch (encoding) {
+			case UTF8 | null:
+				untyped __cs__("System.Text.Encoding.UTF8.GetBytes({0})", s);
+			case RawNative:
+				untyped __cs__("System.Text.Encoding.Unicode.GetBytes({0})", s); // UTF-16LE
+		};
 		return new Bytes(bytes.length, bytes);
 		#elseif lua
 		var bytes = [
