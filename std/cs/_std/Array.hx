@@ -1397,7 +1397,7 @@ private enum abstract ArrayType(Int) {
 				pos = 0;
 		}
 		if (pos >= length) {
-			__setInt(pos, v);
+			__pushInt(v);  // Append at end, don't create sparse array
 			return;
 		} else if (pos == 0) {
 			__unshiftInt(v);
@@ -1452,7 +1452,7 @@ private enum abstract ArrayType(Int) {
 				pos = 0;
 		}
 		if (pos >= length) {
-			__setFloat(pos, v);
+			__pushFloat(v);
 			return;
 		} else if (pos == 0) {
 			__unshiftFloat(v);
@@ -1508,7 +1508,7 @@ private enum abstract ArrayType(Int) {
 				pos = 0;
 		}
 		if (pos >= length) {
-			__setBool(pos, v);
+			__pushBool(v);
 			return;
 		} else if (pos == 0) {
 			__unshiftBool(v);
@@ -1549,7 +1549,7 @@ private enum abstract ArrayType(Int) {
 				pos = 0;
 		}
 		if (pos >= length) {
-			__setDyn(pos, v);
+			__pushDyn(v);
 			return;
 		} else if (pos == 0) {
 			__unshiftDyn(v);
