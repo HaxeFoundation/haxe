@@ -5507,20 +5507,14 @@ and cs_stmt_of_texpr ectx e =
 					begin match sw.switch_default with
 					| Some e -> cs_stmt_of_texpr ectx e
 					| None ->
-						(* No explicit default. Check if:
-						   1. The enclosing function returns void (or is a constructor with no return_type)
-						   2. All branches terminate (return/throw)
-						   If both are true, this is a partial switch where execution should continue after.
-						   Otherwise, throw for definite assignment protection or value return. *)
+						(* No explicit default. Non-exhaustive switches in void context get fallthrough (break).
+						   Exhaustive switches get throw - the default is unreachable anyway, and this satisfies
+						   C# definite assignment for any result variables. *)
 						let enclosing_returns_void = match ectx.return_type with
 							| None -> true  (* Constructor or unset - treat as void *)
 							| Some t -> ExtType.is_void (follow t)
 						in
-						let all_terminate = List.for_all (fun case ->
-							let body = cs_stmt_of_texpr ectx case.case_expr in
-							stmt_terminates body
-						) sw.switch_cases in
-						if enclosing_returns_void && all_terminate then CsBlock []
+						if (not sw.switch_exhaustive) && enclosing_returns_void then CsBlock []
 						else CsThrowStmt (CsNew (CsTypeClass ((["System"], "InvalidOperationException"), []),
 							[CsConst (CsConstString "Match failure")]))
 					end
@@ -5563,23 +5557,16 @@ and cs_stmt_of_texpr ectx e =
 					} in
 					sections @ [default_section]
 				| None ->
-					(* No explicit default case. Check if:
-					   1. The enclosing function returns void (or is a constructor with no return_type)
-					   2. All branches terminate (return/throw)
-					   If both are true, this is a partial switch where execution should continue after.
-					   Otherwise, throw for definite assignment protection or value return. *)
+					(* No explicit default case. Non-exhaustive switches in void context get fallthrough (break).
+					   Exhaustive switches get throw - the default is unreachable anyway, and this satisfies
+					   C# definite assignment for any result variables. *)
 					let enclosing_returns_void = match ectx.return_type with
 						| None -> true  (* Constructor or unset - treat as void *)
 						| Some t -> ExtType.is_void (follow t)
 					in
-					let all_terminate = List.for_all (fun section ->
-						match List.rev section.sw_body with
-						| [] -> false
-						| last :: _ -> stmt_terminates last
-					) sections in
 					let default_section = {
 						sw_labels = [CsCaseDefault];
-						sw_body = if enclosing_returns_void && all_terminate then [CsBreak]
+						sw_body = if (not sw.switch_exhaustive) && enclosing_returns_void then [CsBreak]
 						          else [CsThrowStmt (CsNew (CsTypeClass ((["System"], "InvalidOperationException"), []),
 							[CsConst (CsConstString "Match failure")]))]
 					} in
