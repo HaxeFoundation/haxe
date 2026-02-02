@@ -3974,6 +3974,19 @@ let rec cs_expr_of_texpr ectx e =
 		| _ ->
 			CsRaw "/* invalid __cs__ call */"
 		end
+	| TCall ({ eexpr = TIdent "__resources__" }, []) ->
+		(* Generate __resources__ builtin - array of {name, data, str} HaxeDynamicObjects *)
+		let resources = Hashtbl.fold (fun name data acc -> (name, data) :: acc) ectx.gctx.com.resources [] in
+		if List.length resources = 0 then
+			CsRaw "global::haxe.root.Array.__ofDynLiteral(new object[0])"
+		else
+			let items = List.map (fun (name, data) ->
+				let encoded = Codegen.bytes_serialize data in
+				(* HaxeDynamicObject._hx_create takes Array of alternating keys/values *)
+				Printf.sprintf "global::haxe.root.HaxeDynamicObject._hx_create(global::haxe.root.Array.__ofDynLiteral(new object[] { \"name\", %S, \"data\", %S, \"str\", null }))"
+					name encoded
+			) resources in
+			CsRaw (Printf.sprintf "global::haxe.root.Array.__ofDynLiteral(new object[] { %s })" (String.concat ", " items))
 	| TCall ({ eexpr = TConst TSuper }, _) ->
 		(* super() calls should be extracted and converted to : base() initializer *)
 		(* If we get here, the super call is in an unexpected location *)
