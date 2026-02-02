@@ -2471,7 +2471,7 @@ let rec cs_expr_of_texpr ectx e =
 				| _ -> e.etype
 			in
 			(* Build the nested type for the constructor *)
-			let ctor_name = escape_identifier ef.ef_name in
+			let ctor_name = escape_enum_ctor_name ef.ef_name in
 			let parent_type = CsTypeClass (path, type_args) in
 			let nested_type = CsTypeNested (parent_type, ctor_name) in
 			(* Generate a closure class inline that wraps the enum constructor *)
@@ -2683,7 +2683,7 @@ let rec cs_expr_of_texpr ectx e =
 		   After type erasure, both parent enum and constructor nested classes are non-generic.
 		   Constructor parameters types are erased to object. *)
 		let enum_path = cs_path_of_path en.e_path in
-		let ctor_name = escape_identifier ef.ef_name in
+		let ctor_name = escape_enum_ctor_name ef.ef_name in
 		let parent_type = CsTypeClass (enum_path, []) in
 		let nested_type = CsTypeNested (parent_type, ctor_name) in
 		(* Get erased parameter types - with type erasure, type params become object *)
@@ -4864,7 +4864,7 @@ let rec cs_expr_of_texpr ectx e =
 		let enum_path = cs_path_of_path en.e_path in
 		(* Haxe enums are non-generic in C#, so no type params *)
 		ignore enum_params;
-		let ctor_name = escape_identifier ef.ef_name in
+		let ctor_name = escape_enum_ctor_name ef.ef_name in
 		(* For GADT constructors with their own type params, we need to infer the nested class's
 		   type arguments. The nested class only has EXTRA params (not in parent enum). *)
 		let parent_type_param_names = List.map (fun ttp -> ttp.ttp_name) en.e_params in
@@ -7934,8 +7934,15 @@ let generate_constructor gctx c cf field_init_stmts =
 			| _ -> hx_new_body
 		in
 		(* Always use virtual for _hx_new - different constructor signatures result in method overloading,
-		   not overriding. C# supports method overloading just like Java. *)
-		let hx_new_modifiers = [MemberModifier.Virtual] in
+		   not overriding. C# supports method overloading just like Java.
+		   CS0114: If parent is also two-phase and has same signature, we need 'new virtual' to avoid hiding warning. *)
+		let current_ctor_types = List.map (fun (_, _, t) -> cs_type_of_type gctx t) args in
+		let hides_parent_hx_new = parent_is_two_phase && base_ctor_types = current_ctor_types in
+		let hx_new_modifiers = if hides_parent_hx_new then
+			[MemberModifier.New; MemberModifier.Virtual]
+		else
+			[MemberModifier.Virtual]
+		in
 		let hx_new_method = CsMemberMethod {
 			m_name = "_hx_new";
 			m_access = AccessModifier.Public;
@@ -9478,8 +9485,8 @@ let generate_enum gctx (e : tenum) =
 	let enum_name = snd path in
 	(* Helper: escape enum constructor name, adding suffix if it matches enum type name *)
 	let escape_ctor_name name =
-		let esc = escape_identifier name in
-		if esc = enum_name then esc ^ "_" else esc
+		let capitalized = escape_enum_ctor_name name in
+		if capitalized = enum_name then capitalized ^ "_" else capitalized
 	in
 
 	(* Type parameter erasure: ALL Haxe generic enums become non-generic in C# output.

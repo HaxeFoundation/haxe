@@ -394,6 +394,25 @@ let rec stmt_exits_case stmt =
 		stmt_exits_case then_branch && stmt_exits_case else_branch
 	| CsIf (_, _, None) -> false
 	| CsUncheckedStmt inner -> stmt_exits_case inner
+	| CsSwitch (_, sections) ->
+		(* A switch exits the case only if ALL sections exit with return/throw/continue/goto,
+		   NOT with break (which only exits the inner switch, not the outer case).
+		   Must also have a default case to cover all paths. *)
+		let has_default = List.exists (fun s -> List.exists (function CsCaseDefault -> true | _ -> false) s.sw_labels) sections in
+		let rec exits_function stmt = match stmt with
+			| CsReturn _ | CsThrowStmt _ | CsContinue | CsGoto _ -> true
+			| CsBlock stmts | CsStmtList stmts ->
+				(match List.rev stmts with [] -> false | last :: _ -> exits_function last)
+			| CsIf (_, then_b, Some else_b) -> exits_function then_b && exits_function else_b
+			| CsUncheckedStmt inner -> exits_function inner
+			| CsBreak -> false  (* break only exits the inner switch, not the outer case *)
+			| _ -> false
+		in
+		has_default && List.for_all (fun s ->
+			match List.rev s.sw_body with
+			| [] -> false
+			| last :: _ -> exits_function last
+		) sections
 	| _ -> false
 
 (* Check if a statement definitely returns (ends with a return statement).
@@ -404,6 +423,14 @@ let rec stmt_has_return stmt =
 	| CsThrowStmt _ -> true
 	| CsBlock stmts -> (match List.rev stmts with [] -> false | last :: _ -> stmt_has_return last)
 	| CsStmtList stmts -> (match List.rev stmts with [] -> false | last :: _ -> stmt_has_return last)
+	| CsTry (try_block, catches, finally_opt) ->
+		(* Try-catch returns if try returns AND all catch blocks return.
+		   Finally block doesn't affect this - it runs regardless but doesn't change return behavior. *)
+		stmt_has_return try_block &&
+		List.for_all (fun c -> stmt_has_return c.catch_body) catches
+	| CsUncheckedStmt inner -> stmt_has_return inner
+	| CsIf (_, then_branch, Some else_branch) ->
+		stmt_has_return then_branch && stmt_has_return else_branch
 	| _ -> false
 
 (* Check if a statement list ends with a return *)

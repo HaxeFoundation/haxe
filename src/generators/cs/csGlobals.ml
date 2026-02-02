@@ -225,6 +225,17 @@ let is_cs_keyword s =
 let escape_identifier s =
 	if is_cs_keyword s then "@" ^ s else s
 
+(* Capitalize first letter of a string *)
+let capitalize_first s =
+	if String.length s > 0 then
+		String.uppercase_ascii (String.sub s 0 1) ^ String.sub s 1 (String.length s - 1)
+	else s
+
+(* Escape and capitalize enum constructor name.
+   Capitalizes first letter to avoid CS8981 warning (all-lowercase names may become reserved). *)
+let escape_enum_ctor_name s =
+	capitalize_first (escape_identifier s)
+
 (* Convert Haxe path to C# namespace *)
 let path_to_cs (pack, name) =
 	let pack = List.map escape_identifier pack in
