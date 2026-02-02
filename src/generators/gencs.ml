@@ -6320,7 +6320,7 @@ let rec compute_ancestor_method_count c =
 	| Some (parent, _) ->
 		let parent_methods = List.filter (fun cf ->
 			match cf.cf_kind with
-			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) && cf.cf_params = [] -> true
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) -> true
 			| _ -> false
 		) parent.cl_ordered_fields in
 		List.length parent_methods + compute_ancestor_method_count parent
@@ -6328,12 +6328,12 @@ let rec compute_ancestor_method_count c =
 (* Compute the method index for an instance method within its class.
    Returns a hierarchically-unique index (offset by ancestor method count)
    so indices don't collide across the inheritance chain.
-   Returns Some(index) if the method is indexable, None for generic/non-indexable methods. *)
+   Generic methods are included since C# erases type params to object. *)
 let compute_instance_method_index c cf =
 	let ancestor_count = compute_ancestor_method_count c in
 	let methods = List.filter (fun cf2 ->
 		match cf2.cf_kind with
-		| Method (MethNormal | MethInline) when not (has_class_field_flag cf2 CfStatic) && cf2.cf_params = [] -> true
+		| Method (MethNormal | MethInline) when not (has_class_field_flag cf2 CfStatic) -> true
 		| _ -> false
 	) c.cl_ordered_fields in
 	let rec find i = function
@@ -6343,11 +6343,11 @@ let compute_instance_method_index c cf =
 	find 0 methods
 
 (* Compute the static method index for a static method within its class.
-   Mirrors the filtering logic in generate_static_field_accessors (line 8076). *)
+   Generic methods are included since C# erases type params to object. *)
 let compute_static_method_index c cf =
 	let methods = List.filter (fun cf2 ->
 		match cf2.cf_kind with
-		| Method (MethNormal | MethInline) when cf2.cf_params = [] -> true
+		| Method (MethNormal | MethInline) -> true
 		| _ -> false
 	) c.cl_ordered_statics in
 	let rec find i = function
@@ -9489,7 +9489,7 @@ let generate_interface gctx c =
 		| Var { v_read = AccNormal; v_write = AccNo } -> Some cf.cf_name
 		| Var { v_read = AccNo | AccNever; v_write = AccNormal } -> Some cf.cf_name
 		| Method MethDynamic -> Some cf.cf_name
-		| Method (MethNormal | MethInline) when cf.cf_params = [] -> Some cf.cf_name
+		| Method (MethNormal | MethInline) -> Some cf.cf_name
 		| _ -> None
 	) c.cl_ordered_fields in
 	gctx.all_haxe_interfaces <- (path, interface_field_names) :: gctx.all_haxe_interfaces;
