@@ -97,6 +97,7 @@ namespace haxe.lang
         {
             if (d == null) return null;
             if (d is string s) return s;
+            if (d is bool b) return b ? "true" : "false";  // Lowercase for Haxe/JSON compatibility
             if (d is double dbl) return dbl.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             if (d is float flt) return flt.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             return d.ToString();
@@ -111,6 +112,7 @@ namespace haxe.lang
         {
             if (d == null) return "null";
             if (d is string s) return s;
+            if (d is bool b) return b ? "true" : "false";  // Lowercase for Haxe/JSON compatibility
             if (d is double dbl) return dbl.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             if (d is float flt) return flt.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             return d.ToString();
