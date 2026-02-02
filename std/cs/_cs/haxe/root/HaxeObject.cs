@@ -10,6 +10,37 @@ namespace haxe.root
 
         public virtual void _hx_ctor() { }
 
+        // ============================================================
+        // Method closure caching infrastructure
+        // ============================================================
+
+        /// <summary>
+        /// Cache for method closures. Single array in base class, sized by _hx_methodCount.
+        /// Subclasses override _hx_methodCount to return their total method count.
+        /// </summary>
+        protected global::haxe.lang.InstanceMethodFunction[] _hx_closureCache;
+
+        /// <summary>
+        /// Returns the total number of indexable methods for this class (own + all ancestors).
+        /// Subclasses with instance methods override this to return their total count.
+        /// </summary>
+        protected virtual int _hx_methodCount
+        {
+            get { return 0; }
+        }
+
+        /// <summary>
+        /// Gets or creates a cached method closure for the given method index.
+        /// </summary>
+        public global::haxe.lang.InstanceMethodFunction _hx_getMethodClosure(int index, int arity)
+        {
+            if (_hx_closureCache == null)
+                _hx_closureCache = new global::haxe.lang.InstanceMethodFunction[_hx_methodCount];
+            if (_hx_closureCache[index] == null)
+                _hx_closureCache[index] = new global::haxe.lang.InstanceMethodFunction(this, index, arity);
+            return _hx_closureCache[index];
+        }
+
         /// <summary>
         /// Get a field by name. Subclasses should override this with a switch statement for AOT compatibility.
         /// Default implementation uses reflection as fallback.

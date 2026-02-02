@@ -8262,64 +8262,25 @@ let generate_field_accessors gctx c =
 			[]
 		else
 
-		(* Generate _hx_closureCache field (nullable array of InstanceMethodFunction) *)
-		let closure_cache_members = if method_count = 0 then [] else [
-			CsMemberField {
-				f_name = "_hx_closureCache";
-				f_type = CsTypeArray (instance_method_func_type, None);
-				f_access = AccessModifier.Private;
-				f_modifiers = [];
-				f_value = None;
-			};
-		] in
+		(* Total method count for this class (own + ancestors) - used for _hx_methodCount property *)
+		let total_method_count = ancestor_method_count + method_count in
 
-		(* Generate _hx_getMethodClosure helper method.
-		   Cache uses local indices (0..method_count-1) but InstanceMethodFunction stores the
-		   global index (offset by ancestor_method_count) for _hx_invokeMethodN dispatch. *)
-
-		(* Expression to convert global index to local cache index *)
-		let cache_index_expr = if ancestor_method_count = 0 then
-			CsLocal "index"
-		else
-			CsBinop (CsOpSub, CsLocal "index", CsConst (CsConstInt (Int32.of_int ancestor_method_count)))
-		in
-
-		let get_method_closure_members = if method_count = 0 then [] else [
-			CsMemberMethod {
-				m_name = "_hx_getMethodClosure";
-				m_return_type = instance_method_func_type;
-				m_access = AccessModifier.Internal;
-				m_modifiers = [];
-				m_type_params = [];
-				m_params = [
-					{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None };
-					{ p_name = "arity"; p_type = Some CsTypeInt; p_default = None; p_modifier = None };
-				];
-				m_body = Some [
-					(* if (_hx_closureCache == null) _hx_closureCache = new InstanceMethodFunction[method_count]; *)
-					CsIf (
-						CsBinop (CsOpEq, CsField (CsThis, "_hx_closureCache"), CsConst CsConstNull),
-						CsExprStmt (CsBinop (CsOpAssign,
-							CsField (CsThis, "_hx_closureCache"),
-							CsNewArray (instance_method_func_type, List.init method_count (fun _ -> CsConst CsConstNull))
-						)),
-						None
-					);
-					(* if (_hx_closureCache[localIdx] == null) _hx_closureCache[localIdx] = new InstanceMethodFunction(this, index, arity); *)
-					CsIf (
-						CsBinop (CsOpEq, CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr), CsConst CsConstNull),
-						CsExprStmt (CsBinop (CsOpAssign,
-							CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr),
-							CsNew (instance_method_func_type, [CsThis; CsLocal "index"; CsLocal "arity"])
-						)),
-						None
-					);
-					(* return _hx_closureCache[localIdx]; *)
-					CsReturn (Some (CsArrayAccess (CsField (CsThis, "_hx_closureCache"), cache_index_expr)));
-				];
-				m_constraints = [];
-				m_explicit_interface = None;
-				m_attributes = [];
+		(* Generate _hx_methodCount property override if this class has any methods in hierarchy.
+		   The base HaxeObject has _hx_closureCache field and _hx_getMethodClosure method.
+		   Subclasses just override _hx_methodCount to return their total count. *)
+		let method_count_property = if total_method_count = 0 then [] else [
+			CsMemberProperty {
+				prop_name = "_hx_methodCount";
+				prop_type = CsTypeInt;
+				prop_access = AccessModifier.Protected;
+				prop_modifiers = [MemberModifier.Override];
+				prop_getter = Some {
+					acc_access = None;
+					acc_body = Some [CsReturn (Some (CsConst (CsConstInt (Int32.of_int total_method_count))))];
+				};
+				prop_setter = None;
+				prop_init = None;
+				prop_explicit_interface = None;
 			};
 		] in
 
@@ -8484,7 +8445,7 @@ let generate_field_accessors gctx c =
 
 		(* Combine all generated members *)
 		let optional_members = List.filter_map (fun x -> x) [get_field_method; set_field_method; get_fields_method] in
-		closure_cache_members @ get_method_closure_members @ optional_members @ invoke_method_dispatchers
+		method_count_property @ optional_members @ invoke_method_dispatchers
 
 (* Type for ClassMethodFunction *)
 let class_method_func_type = CsTypeClass ((["haxe"; "lang"], "ClassMethodFunction"), [])
