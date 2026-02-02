@@ -25,7 +25,19 @@ package cs;
 @:keep
 class StringExt {
 	public static function fromCharCode(code:Int):String {
-		return untyped __cs__("System.Char.ConvertFromUtf32({0})", code);
+		if (code < 0x10000) {
+			// BMP character - single UTF-16 code unit (direct char cast)
+			return untyped __cs__("((char){0}).ToString()", code);
+		} else if (code < 0x110000) {
+			// Non-BMP character - create surrogate pair
+			var adjusted = code - 0x10000;
+			var high = (adjusted >> 10) + 0xD800;
+			var low = (adjusted & 0x3FF) + 0xDC00;
+			return untyped __cs__("new string(new char[] { (char){0}, (char){1} })", high, low);
+		} else {
+			// Invalid code point - return replacement character
+			return untyped __cs__("\"\\uFFFD\"");
+		}
 	}
 
 	public static function charAt(me:String, index:Int):String {
@@ -55,13 +67,13 @@ class StringExt {
 			return si;
 		}
 		if (startIndex == null)
-			return untyped __cs__("{0}.IndexOf({1})", me, str);
+			return untyped __cs__("{0}.IndexOf({1}, System.StringComparison.Ordinal)", me, str);
 		else {
 			var sIndex:Int = startIndex;
 			if (sIndex < 0) sIndex = 0;
 			if (sIndex >= me.length)
 				return -1;
-			return untyped __cs__("{0}.IndexOf({1}, {2})", me, str, sIndex);
+			return untyped __cs__("{0}.IndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
 		}
 	}
 
