@@ -117,7 +117,7 @@ class Lua {
 
 			//Install bit32 for lua 5.1 and 5.4
 			if (lv == "-l5.1" || lv == "-l5.4")
-				installLib("bit32", "5.3.5.1-1");
+				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
 			installLib("luv", "1.50.0-1");
 			installLib("luautf8", "0.1.6-1");
