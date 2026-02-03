@@ -9,18 +9,6 @@ class Cs {
 	static public function run(args:Array<String>) {
 		deleteDirectoryRecursively("bin/cs");
 
-		// Ensure we use the locally built haxe, not the system one.
-		// This is critical because the new C# target is only available in the local build
-		// if host computer is using an older haxe/haxelib expecing legacy C# target and hxcs lib.
-		addToPATH(repoDir);
-		Sys.putEnv("HAXE_STD_PATH", repoDir + "std");
-
-		// Use local haxelib repository if it exists
-		var haxelibPath = repoDir + ".haxelib";
-		if (sys.FileSystem.exists(haxelibPath)) {
-			Sys.putEnv("HAXELIB_PATH", haxelibPath);
-		}
-
 		runCommand("dotnet", ["--version"]);
 
 		runCommand("haxe", ["compile-cs.hxml"].concat(args));
