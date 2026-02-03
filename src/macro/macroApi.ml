@@ -1691,11 +1691,12 @@ let decode_platform v =
 	| 4, [] -> Flash
 	| 5, [] -> Php
 	| 6, [] -> Cpp
-	| 7, [] -> Jvm
-	| 8, [] -> Python
-	| 9, [] -> Hl
-	| 10, [] -> Eval
-	| 11, [s] -> CustomTarget ((decode_string s))
+	| 7, [] -> Cs
+	| 8, [] -> Jvm
+	| 9, [] -> Python
+	| 10, [] -> Hl
+	| 11, [] -> Eval
+	| 12, [s] -> CustomTarget ((decode_string s))
 	| _ -> raise Invalid_expr
 
 let decode_platform_config v =
