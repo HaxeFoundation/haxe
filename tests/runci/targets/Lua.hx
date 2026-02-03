@@ -14,7 +14,7 @@ class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev", "pipx"]);
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libuv1-dev", "libreadline-dev", "pipx"]);
 			case "Mac":
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
@@ -23,6 +23,7 @@ class Lua {
 
 				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("brew", ["install", "openssl"]);
+				runCommand("brew", ["install", "libuv"]);
 				runCommand("brew", ["install", "pipx"]);
 			case "Windows":
 				if (sys.FileSystem.exists(msys2Path)) {
@@ -37,12 +38,14 @@ class Lua {
 							"--overwrite",
 							"mingw-w64-ucrt-x86_64-gcc",
 							"mingw-w64-ucrt-x86_64-openssl",
-							"mingw-w64-ucrt-x86_64-pcre2"
+							"mingw-w64-ucrt-x86_64-pcre2",
+							"mingw-w64-ucrt-x86_64-libuv"
 						]
 					);
 				} else if(Sys.getEnv("VCPKG_INSTALLATION_ROOT") != null) {
 					useWindowsVcpkg = true;
 					runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
+					runCommand("vcpkg", ["install", "libuv:x64-windows-release"]);
 					addToPATH(Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release/bin']));
 				} else {
 					failMsg("Running on windows requires msys2 or vcpkg environment");
@@ -56,6 +59,7 @@ class Lua {
 	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
 			final args = ["install", lib, version];
+			args.push('WITH_SHARED_LIBUV=ON');
 			if (systemName == "Windows" && useWindowsVcpkg) {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL');
 				args.push('OPENSSL_LIBDIR=C:\\Program Files\\OpenSSL\\lib\\VC\\x64\\MD');
@@ -119,7 +123,7 @@ class Lua {
 			if (lv == "-l5.1" || lv == "-l5.4")
 				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
-			installLib("luv", "1.50.0-1");
+			installLib("https://raw.githubusercontent.com/tobil4sk/lua-luv/refs/heads/feature/rockspec-shared-libuv/luv-scm-0.rockspec", "");
 			installLib("luautf8", "0.1.6-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
