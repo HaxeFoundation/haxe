@@ -156,7 +156,9 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
-				onJobStart();
+				if (onJobStart != null) {
+					onJobStart();
+				}
 				job();
 				t.onJobDone();
 			} catch( e ) {

@@ -510,15 +510,15 @@ class EventLoop {
 		threadsToEventLoops.set(mainEvents.thread.id, mainEvents);
 
 		// Set up onJobStart
-		final onCreate = sys.thread.Thread.onJobStart;
+		final onJobStart = sys.thread.Thread.onJobStart;
 		sys.thread.Thread.onJobStart = function() {
 			final thread = sys.thread.Thread.current();
 			final events = new EventLoop();
 			events.thread = thread;
 			eventsTls.value = events;
 			threadsToEventLoops.set(thread.id, events);
-			if (onCreate != null) {
-				onCreate();
+			if (onJobStart != null) {
+				onJobStart();
 			}
 
 			// Set up onJobDone
