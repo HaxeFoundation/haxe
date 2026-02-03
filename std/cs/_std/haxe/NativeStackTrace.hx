@@ -16,8 +16,8 @@ class NativeStackTrace {
 		exception = e;
 	}
 
-	static public function callStack():cs.system.diagnostics.StackTrace {
-		return new cs.system.diagnostics.StackTrace(true);
+	static public inline function callStack():cs.system.diagnostics.StackTrace {
+		return untyped __cs__("new System.Diagnostics.StackTrace(1, true)");
 	}
 
 	static public function exceptionStack():Null<cs.system.diagnostics.StackTrace> {
@@ -31,28 +31,68 @@ class NativeStackTrace {
 		var stack:Array<StackItem> = [];
 		if (native == null) return stack;
 
-		var frameCount = native.FrameCount;
+		var frameCount:Int = untyped __cs__("{0}?.FrameCount ?? 0", native);
+		if (frameCount == 0) return stack;
+
+		var cnt = 0;
+
+		// First pass: check if we have any non-constructor frames
+		var hasNonCtorFrame = false;
 		for (i in 0...frameCount) {
-			if (skip > i) {
+			try {
+				var frame = native.GetFrame(i);
+				if (frame == null) continue;
+				var m = frame.GetMethod();
+				if (m == null) continue;
+				if (skip > cnt++) continue;
+
+				var methodName:String = untyped __cs__("{0}?.Name ?? \"\"", m);
+				var className:String = untyped __cs__("{0}?.ReflectedType?.ToString() ?? \"Unknown\"", m);
+				var isHaxeException:Bool = untyped __cs__("{0}?.StartsWith(\"haxe.Exception\") ?? false", className);
+
+				if (methodName != ".ctor" && !(methodName == "thrown" && isHaxeException)) {
+					hasNonCtorFrame = true;
+					break;
+				}
+			} catch (e:Dynamic) {
 				continue;
 			}
-			var frame = native.GetFrame(i);
-			if (frame == null) continue;
+		}
 
-			var method = frame.GetMethod();
-			var className:String = method != null ? untyped __cs__("{0}.ReflectedType?.ToString() ?? \"Unknown\"", method) : "Unknown";
-			var methodName = method != null ? method.Name : "Unknown";
+		// Second pass: build stack, only filter ctors if we have non-ctor frames
+		var passedLeadingCtors = !hasNonCtorFrame; // If no non-ctor frames, don't filter at all
+		cnt = 0;
 
-			// Skip internal NativeStackTrace frames (appear in JIT but not AOT)
-			if (className == "haxe.NativeStackTrace") continue;
-			var fileName = frame.GetFileName();
-			var lineNumber = frame.GetFileLineNumber();
+		for (i in 0...frameCount) {
+			try {
+				var frame = native.GetFrame(i);
+				if (frame == null) continue;
+				var m = frame.GetMethod();
+				if (m == null) continue;
+				if (skip > cnt++) continue;
 
-			var stackMethod = Method(className, methodName);
-			if (fileName != null || lineNumber > 0) {
-				stack.push(FilePos(stackMethod, fileName, lineNumber));
-			} else {
-				stack.push(stackMethod);
+				var className:String = untyped __cs__("{0}?.ReflectedType?.ToString() ?? \"Unknown\"", m);
+				var methodName:String = untyped __cs__("{0}?.Name ?? \"\"", m);
+
+				// Skip leading constructor and thrown frames only if we have non-ctor frames
+				if (!passedLeadingCtors) {
+					if (methodName == ".ctor") continue;
+					var isHaxeException:Bool = untyped __cs__("{0}?.StartsWith(\"haxe.Exception\") ?? false", className);
+					if (methodName == "thrown" && isHaxeException) continue;
+					passedLeadingCtors = true;
+				}
+
+				var method = StackItem.Method(className, methodName);
+
+				var fileName:String = untyped __cs__("{0}?.GetFileName()", frame);
+				var lineNumber:Int = untyped __cs__("{0}?.GetFileLineNumber() ?? 0", frame);
+
+				if (fileName != null || lineNumber >= 0)
+					stack.push(FilePos(method, fileName, lineNumber));
+				else
+					stack.push(method);
+			} catch (e:Dynamic) {
+				continue;
 			}
 		}
 		return stack;

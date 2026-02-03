@@ -254,7 +254,8 @@ class TestExceptions extends Test {
 			var lineShift = 0;
 			for(s in stacks) {
 				// This will avoid hl/c errors on platforms without callstack support
-				#if hlc if (s.length == 0) continue; #end
+				// Also skip empty stacks on C# AOT mode where aggressive inlining can result in no frames
+				#if (hlc || cs) if (s.length == 0) continue; #end
 
 				if(expected == null) {
 					expected = stackItemData(s[0]);

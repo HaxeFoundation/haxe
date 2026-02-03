@@ -31,12 +31,15 @@ class Exception extends NativeException {
 
 	@:noCompletion var __exceptionStack:Null<CallStack>;
 	@:noCompletion var __nativeStack:cs.system.diagnostics.StackTrace;
+	@:noCompletion var __ownStack:Bool;
+	@:noCompletion var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:NativeException;
 	@:noCompletion var __previousException:Null<Exception>;
 
 	static function caught(value:Any):Exception {
-		if (Std.isOfType(value, Exception)) {
-			return cast value;
+		// Use direct C# is check for AOT compatibility
+		if (untyped __cs__("{0} is haxe.Exception", value)) {
+			return untyped __cs__("(haxe.Exception){0}", value);
 		}
 		// Check if it's a native System.Exception - use inline C# to get message
 		if (untyped __cs__("{0} is System.Exception", value)) {
@@ -46,16 +49,15 @@ class Exception extends NativeException {
 	}
 
 	static function thrown(value:Any):Any {
-		if (Std.isOfType(value, Exception)) {
-			var native = (cast value : Exception).__nativeException;
-			if (untyped __cs__("{0} is System.Exception", native)) {
-				return native;
-			}
-			return value;
+		// Use direct C# is check for AOT compatibility
+		if (untyped __cs__("{0} is haxe.Exception", value)) {
+			return untyped __cs__("((haxe.Exception){0}).__nativeException", value);
 		}
 		if (untyped __cs__("{0} is System.Exception", value)) {
 			return value;
 		}
+		// Note: Don't call __shiftStack() here - the leading constructor filtering
+		// in NativeStackTrace.toHaxe handles skipping the thrown() frame
 		return new ValueException(value);
 	}
 
@@ -63,6 +65,7 @@ class Exception extends NativeException {
 		// Call base System.Exception constructor - uses special handling in generator
 		super(message);
 		__previousException = previous;
+
 		// Capture stack trace and native exception like Haxe4 does
 		if (native != null && untyped __cs__("{0} is System.Exception", native)) {
 			__nativeException = untyped __cs__("(System.Exception){0}", native);
@@ -70,14 +73,17 @@ class Exception extends NativeException {
 			var hasStack:Bool = untyped __cs__("((System.Exception){0}).StackTrace != null", native);
 			if (hasStack) {
 				__nativeStack = new cs.system.diagnostics.StackTrace(cast __nativeException, true);
+				__ownStack = false;
 			} else {
-				// Exception has no stack trace, capture current call stack (skip 1 frame for constructor)
+				// Exception has no stack trace, capture current call stack (skip 1 for constructor)
 				__nativeStack = untyped __cs__("new System.Diagnostics.StackTrace(1, true)");
+				__ownStack = true;
 			}
 		} else {
 			__nativeException = cast this;
-			// Capture current call stack (skip 1 frame for constructor)
+			// Capture current call stack (skip 1 for constructor)
 			__nativeStack = untyped __cs__("new System.Diagnostics.StackTrace(1, true)");
+			__ownStack = true;
 		}
 	}
 
@@ -91,6 +97,11 @@ class Exception extends NativeException {
 
 	public function details():String {
 		return CallStack.exceptionToString(this);
+	}
+
+	@:noCompletion
+	inline function __shiftStack():Void {
+		if (__ownStack) __skipStack++;
 	}
 
 	function get_message():String {
@@ -107,8 +118,16 @@ class Exception extends NativeException {
 
 	function get_stack():CallStack {
 		if (__exceptionStack == null) {
-			// Use the stack trace captured in the constructor
-			__exceptionStack = NativeStackTrace.toHaxe(__nativeStack);
+			try {
+				if (__nativeStack != null) {
+					__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
+				}
+			} catch (e:Dynamic) {
+				// Fallback to empty stack on any error
+			}
+			if (__exceptionStack == null) {
+				__exceptionStack = [];
+			}
 		}
 		return __exceptionStack;
 	}
