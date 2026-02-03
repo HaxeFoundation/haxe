@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#if cs
 package cs.net;
 
 import sys.net.Host;
@@ -45,3 +46,4 @@ class SslSocket extends sys.net.Socket {
 		this.output = new cs.io.NativeOutput(sslStream);
 	}
 }
+#end
