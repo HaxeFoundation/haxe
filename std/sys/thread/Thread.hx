@@ -33,6 +33,11 @@ class Thread {
 	static var mainThread : Thread;
 	static var idCounter : Int; // TODO: Should probably be an AtomicInt
 
+	/**
+		This function is called when a thread is about to start executing its job.
+	**/
+	static public var onJobStart:Null<() -> Void>;
+
 	public final id : Int;
 	var impl : ThreadImpl;
 	var messages : Deque<Dynamic>;
@@ -177,11 +182,6 @@ class Thread {
 		mutex.release();
 		return tl;
 	}
-
-	/**
-		This function is called when a thread is about to start executing its job.
-	**/
-	static public dynamic function onJobStart() { }
 
 	/**
 		This function is called once the thread has completed executing its job successfully.
