@@ -35,6 +35,9 @@ class Thread {
 
 	/**
 		This function is called when a thread is about to start executing its job.
+
+		It is generally good practice to call any previously existing callback
+		from functions assigned to this.
 	**/
 	static public var onJobStart:Null<() -> Void>;
 
@@ -188,6 +191,9 @@ class Thread {
 	/**
 		This function is called once the thread has completed executing its job successfully.
 		It is not called if the thread has thrown an exception.
+
+		It is generally good practice to call any previously existing callback
+		from functions assigned to this.
 	**/
 	public dynamic function onJobDone() {}
 
@@ -195,6 +201,9 @@ class Thread {
 	/**
 		This function is called when an uncaught exception aborted a thread.
 		The error will be printed to stdout but this function can be redefined.
+
+		It is generally good practice to call any previously existing callback
+		from functions assigned to this.
 	**/
 	public dynamic function onAbort(e:haxe.Exception) {
 		var name = this.name;
@@ -207,7 +216,10 @@ class Thread {
 		after `onAbort`.
 
 		It is not guaranteed to be called if the thread is killed in a way that does not lead to
-		normal termination.
+		normal termination. Any callback assigned to this should not throw an exception.
+
+		It is generally good practice to call any previously existing callback
+		from functions assigned to this.
 	**/
 	public dynamic function onExit() {}
 
