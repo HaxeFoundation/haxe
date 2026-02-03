@@ -113,12 +113,16 @@ class Cs {
 		Display.maybeRunDisplayTests(Cs);
 
 		// === Misc Tests (Bootstrap) ===
+		infoMsg("=== Running Bootstrap Tests (JIT) ===");
 		changeDirectory(miscCsDir);
-		runCommand("haxe", ["run.hxml"]);
+		deleteDirectoryRecursively("projects/Bootstrap/bin");
+		changeDirectory("projects/Bootstrap");
+		runCommand("haxe", ["compile.hxml"].concat(args));
+		changeDirectory("bin");
+		runCommand("dotnet", ["run"]);
 
-		// AOT for bootstrap - need to find the output directory
+		// AOT for bootstrap
 		infoMsg("=== Running Bootstrap Tests (AOT) ===");
-		changeDirectory("projects/Bootstrap/bin");
 		runAotTest();
 
 		// === Sys Tests ===
