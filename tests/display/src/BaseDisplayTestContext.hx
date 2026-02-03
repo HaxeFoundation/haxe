@@ -66,6 +66,7 @@ class BaseDisplayTestContext {
 			case Flash: ["--swf", "out.swf"].concat(args);
 			case Php: ["--php", "php-out"].concat(args);
 			case Cpp: ["--cpp", "cpp-out"].concat(args);
+			case Cs: ["-cs", "cs-out"].concat(args);
 			case Jvm: ["--jvm", "out.jar"].concat(args);
 			case Python: ["--python", "out.py"].concat(args);
 			case Hl: ["--hl", "out.hl"].concat(args);
