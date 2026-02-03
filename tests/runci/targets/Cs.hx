@@ -33,9 +33,9 @@ class Cs {
 	}
 
 	// Get AOT binary path
-	static function getAotBinaryPath(rid:String):String {
+	static function getAotBinaryPath():String {
 		var ext = if (Sys.systemName() == "Windows") ".exe" else "";
-		return 'bin/Release/net8.0/$rid/publish/Project.aot$ext';
+		return 'bin/aot/Project.aot$ext';
 	}
 
 	// Create Project.aot.csproj file for AOT compilation
@@ -49,8 +49,6 @@ class Cs {
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>true</PublishAot>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
-    <BaseOutputPath>bin</BaseOutputPath>
-    <BaseIntermediateOutputPath>obj</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>');
 	}
@@ -61,9 +59,9 @@ class Cs {
 
 		var rid = getRuntimeId();
 		infoMsg('Publishing AOT binary for $rid...');
-		runCommand("dotnet", ["publish", "Project.aot.csproj", "-c", "Release"]);
+		runCommand("dotnet", ["publish", "Project.aot.csproj", "-c", "Release", "-o", "bin/aot"]);
 
-		var aotBinary = getAotBinaryPath(rid);
+		var aotBinary = getAotBinaryPath();
 		if (!sys.FileSystem.exists(aotBinary)) {
 			throw 'AOT binary not found at $aotBinary';
 		}
@@ -80,9 +78,9 @@ class Cs {
 
 		var rid = getRuntimeId();
 		infoMsg('Publishing AOT binary for $rid...');
-		runCommand("dotnet", ["publish", "Project.aot.csproj", "-c", "Release"]);
+		runCommand("dotnet", ["publish", "Project.aot.csproj", "-c", "Release", "-o", "bin/aot"]);
 
-		var aotBinary = getAotBinaryPath(rid);
+		var aotBinary = getAotBinaryPath();
 		if (!sys.FileSystem.exists(aotBinary)) {
 			throw 'AOT binary not found at $aotBinary';
 		}
