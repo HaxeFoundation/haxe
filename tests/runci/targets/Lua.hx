@@ -56,16 +56,9 @@ class Lua {
 	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
 			final args = ["install", lib, version];
-			if (systemName == "Mac") {
-				final opensslPath = commandResult("brew", ["--prefix", "openssl"]);
-				args.push('OPENSSL_DIR=${opensslPath.stdout.trim()}');
-				final pcrePath = commandResult("brew", ["--prefix", "pcre2"]);
-				args.push('PCRE2_DIR=${pcrePath.stdout.trim()}');
-			} else if (systemName == "Windows" && useWindowsVcpkg) {
+			if (systemName == "Windows" && useWindowsVcpkg) {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL');
 				args.push('OPENSSL_LIBDIR=C:\\Program Files\\OpenSSL\\lib\\VC\\x64\\MD');
-				final dir = Path.join([vcpkgRoot, "installed\\x64-windows-release"]);
-				args.push('PCRE2_DIR=$dir');
 			}
             if (server != null){
                 final server_arg = '--server=$server';
@@ -96,9 +89,16 @@ class Lua {
 
 			runCommand("lua",["-v"]);
 
-			if (systemName == "Windows" && useWindowsVcpkg) {
-				// required for luv build, default is very old
-				runCommand("luarocks", ["config", "cmake_generator", "Visual Studio 17 2022"]);
+			if (systemName == "Windows") {
+				if (useWindowsVcpkg) {
+					// required for luv build, default is very old
+					runCommand("luarocks", ["config", "cmake_generator", "Visual Studio 17 2022"]);
+					runCommand("luarocks", ["config", "external_deps_dirs[0]", Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release'])]);
+				} else {
+					runCommand("luarocks", ["config", "external_deps_dirs[0]", Path.join([msys2Path, "ucrt64"])]);
+				}
+			} else if (systemName == "Mac") {
+				runCommand("luarocks", ["config", "external_deps_dirs[0]", commandResult("brew", ["--prefix"]).stdout.trim()]);
 			}
 
 			runCommand("luarocks", ["config", "--lua-incdir"]);
