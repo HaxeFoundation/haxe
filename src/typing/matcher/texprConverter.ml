@@ -261,10 +261,8 @@ let to_texpr ctx t_switch with_type dt =
 						| (con1 :: _),con2 :: _ -> Constructor.compare con1 con2
 						| _ -> -1
 					) cases in
-					let e_default = match unmatched,finiteness,default.dt_t with
-						| [],RunTimeFinite,Fail ->
-							(* Only discard default if it's truly a Fail node (exhaustive match).
-							   Preserve explicit defaults like false from .match() expressions. *)
+					let e_default = match unmatched,finiteness with
+						| [],RunTimeFinite ->
 							None
 						| _ ->
 							loop params default
