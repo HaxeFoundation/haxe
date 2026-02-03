@@ -1133,10 +1133,15 @@ let print_using ctx = function
 let print_file ctx file =
 	(* Suppress common warnings in generated code:
 	   CA2200: Re-throwing caught exception changes stack information - Haxe exception handling intentionally re-throws
+	   CS0108: Member hides inherited member - legitimate Haxe patterns (interface covariance, field hiding)
+	   CS0162: Unreachable code detected - constant folding dead code from compile-time evaluation
 	   CS0168: Variable declared but never used - unavoidable in generated code
 	   CS0219: Variable assigned but never used - unavoidable in generated code
-	   CS1718: Comparison to same variable - intentional NaN checks (x != x) *)
-	print ctx "#pragma warning disable CA2200, CS0168, CS0219, CS1718";
+	   CS1717: Assignment to same variable - Int32 clamp inlining on platforms with native 32-bit int
+	   CS1718: Comparison to same variable - intentional NaN checks (x != x)
+	   IL2057: Type.GetType with runtime string - inherent to Type.resolveClass reflection
+	   IL2072: Activator.CreateInstance trimming - inherent to Reflect.copy reflection *)
+	print ctx "#pragma warning disable CA2200, CS0108, CS0162, CS0168, CS0219, CS1717, CS1718, IL2057, IL2072";
 	newline ctx;
 	newline ctx;
 	List.iter (fun u ->

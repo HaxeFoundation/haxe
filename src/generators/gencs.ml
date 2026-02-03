@@ -8778,7 +8778,7 @@ let generate_static_field_accessors gctx c =
 			m_name = "_hx_getStaticMethodClosure";
 			m_return_type = class_method_func_type;
 			m_access = AccessModifier.Internal;
-			m_modifiers = [MemberModifier.Static];
+			m_modifiers = static_accessor_modifiers;
 			m_type_params = [];
 			m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
 			m_body = Some [
