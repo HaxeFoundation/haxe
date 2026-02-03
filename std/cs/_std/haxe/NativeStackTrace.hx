@@ -42,6 +42,9 @@ class NativeStackTrace {
 			var method = frame.GetMethod();
 			var className:String = method != null ? untyped __cs__("{0}.ReflectedType?.ToString() ?? \"Unknown\"", method) : "Unknown";
 			var methodName = method != null ? method.Name : "Unknown";
+
+			// Skip internal NativeStackTrace frames (appear in JIT but not AOT)
+			if (className == "haxe.NativeStackTrace") continue;
 			var fileName = frame.GetFileName();
 			var lineNumber = frame.GetFileLineNumber();
 
