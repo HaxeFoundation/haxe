@@ -89,8 +89,10 @@ class EventLoop {
 	**/
 	public static var current(get,never) : EventLoop;
 
+	#if target.threaded
 	static var eventsTls:sys.thread.Tls<EventLoop>;
 	static var threadsToEventLoops:IntMap<EventLoop>;
+	#end
 
 	var events : Event;
 	var queue : Event;
@@ -468,6 +470,7 @@ class EventLoop {
 		#end
 	}
 
+	#if target.threaded
 
 	/**
 		Returns the instance of `EventLoop` associated with `thread`, or `null` if no such
@@ -476,6 +479,8 @@ class EventLoop {
 	static public function getThreadLoop(thread:sys.thread.Thread) {
 		return threadsToEventLoops.get(thread.id);
 	}
+
+	#end
 
 	static function get_current() {
 		#if target.threaded
@@ -491,6 +496,8 @@ class EventLoop {
 		if( main == null ) main = new EventLoop();
 		return main;
 	}
+
+	#if target.threaded
 
 	static function __init__() {
 		eventsTls = new sys.thread.Tls();
@@ -535,4 +542,6 @@ class EventLoop {
 			}
 		}
 	}
+
+	#end
 }
