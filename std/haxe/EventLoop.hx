@@ -517,8 +517,7 @@ class EventLoop {
 		threadsToEventLoopsMutex.release();
 
 		// Set up onJobStart
-		final onJobStart = sys.thread.Thread.onJobStart;
-		sys.thread.Thread.onJobStart = function() {
+		sys.thread.Thread.onJobStart(() -> {
 			final thread = sys.thread.Thread.current();
 			final events = new EventLoop();
 			events.thread = thread;
@@ -526,30 +525,19 @@ class EventLoop {
 			threadsToEventLoopsMutex.acquire();
 			threadsToEventLoops.set(thread.id, events);
 			threadsToEventLoopsMutex.release();
-			if (onJobStart != null) {
-				onJobStart();
-			}
 
 			// Set up onJobDone
-			final onJobDone = thread.onJobDone;
-			thread.onJobDone = function() {
+			thread.onJobDone(() -> {
 				events.loop();
-				if (onJobDone != null) {
-					onJobDone();
-				}
-			}
+			});
 
 			// Set up onExit
-			final onExit = thread.onExit;
-			thread.onExit = function() {
+			thread.onExit(() -> {
 				events.dispose();
 				mainEvents.wakeup();
 				eventsTls.value = null;
-				if (onExit != null) {
-					onExit();
-				}
-			}
-		}
+			});
+		});
 	}
 
 	#end

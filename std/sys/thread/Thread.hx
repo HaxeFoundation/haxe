@@ -32,18 +32,13 @@ class Thread {
 	static var mutex : Mutex;
 	static var mainThread : Thread;
 	static var idCounter : Int; // TODO: Should probably be an AtomicInt
-
-	/**
-		This function is called when a thread is about to start executing its job.
-
-		It is generally good practice to call any previously existing callback
-		from functions assigned to this.
-	**/
-	static public var onJobStart:Null<() -> Void>;
+	static var onJobStartCallback : Null<() -> Void>;
 
 	public final id : Int;
 	var impl : ThreadImpl;
 	var messages : Deque<Dynamic>;
+	var onExitCallback : Null<() -> Void>;
+	var onJobDoneCallback : Null<() -> Void>;
 
 	/**
 		Tells if we needs to wait for the thread to terminate before we stop the main loop (default:true).
@@ -147,7 +142,7 @@ class Thread {
 		threads.push(t);
 		mutex.release();
 		if ( onExit != null )
-			t.onExit = onExit;
+			t.onExitCallback = onExit;
 		if( onAbort != null )
 			t.onAbort = onAbort;
 		t.impl = ThreadImpl.create(function() {
@@ -159,17 +154,21 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
-				if (onJobStart != null) {
-					onJobStart();
+				if (onJobStartCallback != null) {
+					onJobStartCallback();
 				}
 				job();
-				t.onJobDone();
+				if (t.onJobDoneCallback != null) {
+					t.onJobDoneCallback();
+				}
 			} catch( e ) {
 				exception = e;
 			}
 			if( exception != null )
 				t.onAbort(exception);
-			t.onExit();
+			if (t.onExitCallback != null) {
+				t.onExitCallback();
+			}
 			t.dispose();
 		});
 		if( name != null ) t.name = name;
@@ -189,13 +188,32 @@ class Thread {
 	}
 
 	/**
-		This function is called once the thread has completed executing its job successfully.
-		It is not called if the thread has thrown an exception.
-
-		It is generally good practice to call any previously existing callback
-		from functions assigned to this.
+		Registers `f` to be called when a thread is about to start executing its job.
 	**/
-	public dynamic function onJobDone() {}
+	static public function onJobStart(f:() -> Void) {
+		final onJobStart = onJobStartCallback;
+		onJobStartCallback = function() {
+			f();
+			if (onJobStart != null) {
+				onJobStart();
+			}
+		}
+	}
+
+
+	/**
+		Registers `f` to be called once the thread has completed executing its job
+		successfully. It is not called if the thread has thrown an exception.
+	**/
+	public function onJobDone(f:() -> Void) {
+		final onJobDone = onJobDoneCallback;
+		onJobDoneCallback = function() {
+			f();
+			if (onJobDone != null) {
+				onJobDone();
+			}
+		}
+	}
 
 
 	/**
@@ -212,16 +230,21 @@ class Thread {
 	}
 
 	/**
-		This function is called when the thread is exiting. In the case of an exception, it is called
-		after `onAbort`.
+		Registers `f` to be called when the thread is exiting. In the case of an exception,
+		it is called after `onAbort`.
 
 		It is not guaranteed to be called if the thread is killed in a way that does not lead to
 		normal termination. Any callback assigned to this should not throw an exception.
-
-		It is generally good practice to call any previously existing callback
-		from functions assigned to this.
 	**/
-	public dynamic function onExit() {}
+	public function onExit(f:() -> Void) {
+		final onExit = onExitCallback;
+		onExitCallback = function() {
+			f();
+			if (onExit != null) {
+				onExit();
+			}
+		}
+	}
 
 	static function hasBlocking() {
 		// let's check if we have blocking threads running other that our calling thread
