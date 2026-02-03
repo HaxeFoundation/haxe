@@ -31,15 +31,11 @@ class Thread {
 	static var threads : Array<Thread>;
 	static var mutex : Mutex;
 	static var mainThread : Thread;
+	static var idCounter = 1; // TODO: Should probably be an AtomicInt
 
+	public final id : Int;
 	var impl : ThreadImpl;
 	var messages : Deque<Dynamic>;
-
-	/**
-		The events loop of this thread.
-		If this is a native thread, the events will be null.
-	**/
-	public var events(default,null) : Null<haxe.EventLoop>;
 
 	/**
 		Tells if we needs to wait for the thread to terminate before we stop the main loop (default:true).
@@ -58,6 +54,7 @@ class Thread {
 	public var isNative(default,null) : Bool;
 
 	function new(impl) {
+		this.id = idCounter++;
 		this.impl = impl;
 		if( impl != null ) this.name = ThreadImpl.getName(impl);
 	}
@@ -92,7 +89,6 @@ class Thread {
 		threads.remove(this);
 		mutex.release();
 		currentTLS.value = null;
-		events.dispose();
 	}
 
 	public static function readMessage( blocking : Bool ) : Null<Dynamic> {
@@ -140,8 +136,6 @@ class Thread {
 	public static function create(?name:String, job:()->Void, ?onExit:() -> Void, ?onAbort:haxe.Exception -> Void):Thread {
 		mutex.acquire();
 		var t = new Thread(null);
-		t.events = new haxe.EventLoop();
-		t.events.thread = t;
 		threads.push(t);
 		mutex.release();
 		if ( onExit != null )
@@ -157,8 +151,9 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
+				onJobStart();
 				job();
-				t.events.loop();
+				t.onJobDone();
 			} catch( e ) {
 				exception = e;
 			}
@@ -166,7 +161,6 @@ class Thread {
 				t.onAbort(exception);
 			t.onExit();
 			t.dispose();
-			@:privateAccess main().events.wakeup();
 		});
 		if( name != null ) t.name = name;
 		return t;
@@ -183,6 +177,18 @@ class Thread {
 		mutex.release();
 		return tl;
 	}
+
+	/**
+		This function is called when a thread is about to start executing its job.
+	**/
+	static public dynamic function onJobStart() { }
+
+	/**
+		This function is called once the thread has completed executing its job successfully.
+		It is not called if the thread has thrown an exception.
+	**/
+	public dynamic function onJobDone() {}
+
 
 	/**
 		This function is called when an uncaught exception aborted a thread.
@@ -220,8 +226,6 @@ class Thread {
 		mutex = new Mutex();
 		mainThread = new Thread(ThreadImpl.current());
 		mainThread.name = "Main";
-		mainThread.events = haxe.EventLoop.main;
-		mainThread.events.thread = mainThread;
 		threads = [mainThread];
 		currentTLS = new Tls();
 		currentTLS.value = mainThread;

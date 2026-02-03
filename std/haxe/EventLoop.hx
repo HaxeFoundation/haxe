@@ -1,5 +1,6 @@
 package haxe;
 
+import haxe.ds.IntMap;
 import haxe.EntryPoint;
 
 class Event {
@@ -87,6 +88,9 @@ class EventLoop {
 		it is the same as `main`.
 	**/
 	public static var current(get,never) : EventLoop;
+
+	static var eventsTls:sys.thread.Tls<EventLoop>;
+	static var threadsToEventLoops:IntMap<EventLoop>;
 
 	var events : Event;
 	var queue : Event;
@@ -464,9 +468,18 @@ class EventLoop {
 		#end
 	}
 
+
+	/**
+		Returns the instance of `EventLoop` associated with `thread`, or `null` if no such
+		instance exists for the given thread.
+	**/
+	static public function getThreadLoop(thread:sys.thread.Thread) {
+		return threadsToEventLoops.get(thread.id);
+	}
+
 	static function get_current() {
 		#if target.threaded
-		var events = sys.thread.Thread.current().events;
+		var events = eventsTls.value;
 		if( events == null ) throw "The current thread doesn't have an event loop.";
 		return events;
 		#else
@@ -479,5 +492,47 @@ class EventLoop {
 		return main;
 	}
 
+	static function __init__() {
+		eventsTls = new sys.thread.Tls();
+		threadsToEventLoops = new IntMap();
 
+		// Set up main EventLoop
+		final mainEvents = main;
+		mainEvents.thread = sys.thread.Thread.main();
+		eventsTls.value = mainEvents;
+		threadsToEventLoops.set(mainEvents.thread.id, mainEvents);
+
+		// Set up onJobStart
+		final onCreate = sys.thread.Thread.onJobStart;
+		sys.thread.Thread.onJobStart = function() {
+			final thread = sys.thread.Thread.current();
+			final events = new EventLoop();
+			events.thread = thread;
+			eventsTls.value = events;
+			threadsToEventLoops.set(thread.id, events);
+			if (onCreate != null) {
+				onCreate();
+			}
+
+			// Set up onJobDone
+			final onJobDone = thread.onJobDone;
+			thread.onJobDone = function() {
+				events.loop();
+				if (onJobDone != null) {
+					onJobDone();
+				}
+			}
+
+			// Set up onExit
+			final onExit = thread.onExit;
+			thread.onExit = function() {
+				events.dispose();
+				mainEvents.wakeup();
+				eventsTls.value = null;
+				if (onExit != null) {
+					onExit();
+				}
+			}
+		}
+	}
 }

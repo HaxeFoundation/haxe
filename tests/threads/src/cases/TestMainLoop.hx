@@ -1,6 +1,7 @@
 package cases;
 
 import haxe.MainLoop;
+import haxe.EventLoop;
 
 @:timeout(10000)
 @:depends(cases.TestEvents)
@@ -21,13 +22,13 @@ class TestMainLoop extends utest.Test {
 				async.done();
 			} else if(checkAttempts > 0) {
 				checkAttempts--;
-				mainThread.events.run(check);
+				EventLoop.getThreadLoop(mainThread).run(check);
 			} else {
 				fail();
 				async.done();
 			}
 		}
-		mainThread.events.run(check);
+		EventLoop.current.run(check);
 	}
 
 	function testNewAction_immediately(async:Async) {

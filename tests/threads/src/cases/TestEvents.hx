@@ -1,10 +1,12 @@
 package cases;
 
+import haxe.EventLoop;
+
 @:timeout(2000)
 class TestEvents extends utest.Test {
 
 	function testIssue10567_runEventsInOrderByTime(async:Async) {
-		var events = Thread.current().events;
+		var events = EventLoop.current;
 		var checks = [];
 		var e3 = null;
 		var e2 = null;
@@ -32,11 +34,11 @@ class TestEvents extends utest.Test {
 		Thread.create(() -> {
 			var childThread = Thread.current();
 			isTrue(mainThread != childThread);
-			mainThread.events.run(() -> {
+			EventLoop.getThreadLoop(mainThread).run(() -> {
 				isTrue(mainThread == Thread.current());
-				childThread.events.run(() -> {
+				EventLoop.getThreadLoop(childThread).run(() -> {
 					isTrue(childThread == Thread.current());
-					mainThread.events.run(() -> {
+					EventLoop.getThreadLoop(mainThread).run(() -> {
 						isTrue(mainThread == Thread.current());
 						async.done();
 					});
@@ -52,7 +54,7 @@ class TestEvents extends utest.Test {
 		function test(thread:Thread, done:()->Void) {
 			var timesExecuted = 0;
 			var eventHandler = null;
-			eventHandler = thread.events.addTimer(() -> {
+			eventHandler = EventLoop.getThreadLoop(thread).addTimer(() -> {
 				++timesExecuted;
 				isTrue(thread == Thread.current());
 				if(timesExecuted >= 3) {
@@ -69,7 +71,7 @@ class TestEvents extends utest.Test {
 			Thread.create(() -> {
 				var childThread = Thread.current();
 				isTrue(childThread != mainThread);
-				test(childThread, mainThread.events.run.bind(() -> async.done(),0));
+				test(childThread, EventLoop.getThreadLoop(mainThread).run.bind(() -> async.done(),0));
 			});
 		});
 	}
