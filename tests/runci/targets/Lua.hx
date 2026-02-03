@@ -82,7 +82,7 @@ class Lua {
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
 
-			final targetFlags = if (systemName == "Windows") ["--target", "vs"] else [];
+			final targetFlags = if (systemName == "Windows") ["--target", if (useWindowsVcpkg) "vs" else "mingw"] else [];
 			runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
 			trace('path: ' + Sys.getEnv("PATH"));
 
