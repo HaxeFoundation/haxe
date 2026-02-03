@@ -8,6 +8,9 @@ using StringTools;
 class Lua {
 	static final miscLuaDir = getMiscSubDir('lua');
 
+	static var useWindowsVcpkg = false;
+	static var msys2Path = Sys.getEnv("MSYS2_LOCATION") ?? "C:\\msys64";
+
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
@@ -22,8 +25,29 @@ class Lua {
 				runCommand("brew", ["install", "openssl"]);
 				runCommand("brew", ["install", "pipx"]);
 			case "Windows":
-				runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
-				addToPATH(Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release/bin']));
+				if (sys.FileSystem.exists(msys2Path)) {
+					addToPATH('$msys2Path\\usr\\bin');
+					addToPATH('$msys2Path\\ucrt64\\bin');
+					runCommand(
+						"pacman",
+						[
+							"--noconfirm",
+							"-S",
+							"--needed",
+							"--overwrite",
+							"mingw-w64-ucrt-x86_64-gcc",
+							"mingw-w64-ucrt-x86_64-openssl",
+							"mingw-w64-ucrt-x86_64-pcre2"
+						]
+					);
+				} else if(Sys.getEnv("VCPKG_INSTALLATION_ROOT") != null) {
+					useWindowsVcpkg = true;
+					runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
+					addToPATH(Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release/bin']));
+				} else {
+					failMsg("Running on windows requires msys2 or vcpkg environment");
+				}
+
 		}
 		runCommand("pipx", ["ensurepath"]);
 		runCommand("pipx", ["install", "hererocks"]);
@@ -37,16 +61,11 @@ class Lua {
 				args.push('OPENSSL_DIR=${opensslPath.stdout.trim()}');
 				final pcrePath = commandResult("brew", ["--prefix", "pcre2"]);
 				args.push('PCRE2_DIR=${pcrePath.stdout.trim()}');
-			} else if (systemName == "Windows") {
+			} else if (systemName == "Windows" && useWindowsVcpkg) {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL');
 				args.push('OPENSSL_LIBDIR=C:\\Program Files\\OpenSSL\\lib\\VC\\x64\\MD');
-				final vcpkgRoot = Sys.getEnv("VCPKG_INSTALLATION_ROOT");
-				if (vcpkgRoot == null) {
-					System.failMsg("VCPKG_INSTALLATION_ROOT missing, lua dependencies may fail to install");
-				} else {
-					final dir = Path.join([vcpkgRoot, "installed\\x64-windows-release"]);
-					args.push('PCRE2_DIR=$dir');
-				}
+				final dir = Path.join([vcpkgRoot, "installed\\x64-windows-release"]);
+				args.push('PCRE2_DIR=$dir');
 			}
             if (server != null){
                 final server_arg = '--server=$server';
@@ -77,7 +96,7 @@ class Lua {
 
 			runCommand("lua",["-v"]);
 
-			if (systemName == "Windows") {
+			if (systemName == "Windows" && useWindowsVcpkg) {
 				// required for luv build, default is very old
 				runCommand("luarocks", ["config", "cmake_generator", "Visual Studio 17 2022"]);
 			}
@@ -91,10 +110,10 @@ class Lua {
 			// Note: don't use a user config
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
+			installLib("luasocket", "3.0rc1-2");
 			installLib("luasec", "1.3.2-1");
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
-			installLib("luasocket", "3.0rc1-2");
 
 			//Install bit32 for lua 5.1 and 5.4
 			if (lv == "-l5.1" || lv == "-l5.4")
