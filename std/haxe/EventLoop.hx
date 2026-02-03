@@ -92,6 +92,7 @@ class EventLoop {
 	#if target.threaded
 	static var eventsTls:sys.thread.Tls<EventLoop>;
 	static var threadsToEventLoops:IntMap<EventLoop>;
+	static var threadsToEventLoopsMutex:sys.thread.Mutex;
 	#end
 
 	var events : Event;
@@ -477,7 +478,10 @@ class EventLoop {
 		instance exists for the given thread.
 	**/
 	static public function getThreadLoop(thread:sys.thread.Thread) {
-		return threadsToEventLoops.get(thread.id);
+		threadsToEventLoopsMutex.acquire();
+		final events = threadsToEventLoops.get(thread.id);
+		threadsToEventLoopsMutex.release();
+		return events;
 	}
 
 	#end
@@ -502,12 +506,15 @@ class EventLoop {
 	static function __init__() {
 		eventsTls = new sys.thread.Tls();
 		threadsToEventLoops = new IntMap();
+		threadsToEventLoopsMutex = new sys.thread.Mutex();
 
 		// Set up main EventLoop
 		final mainEvents = main;
 		mainEvents.thread = sys.thread.Thread.main();
 		eventsTls.value = mainEvents;
+		threadsToEventLoopsMutex.acquire(); // probably not necessary but let's play it safe
 		threadsToEventLoops.set(mainEvents.thread.id, mainEvents);
+		threadsToEventLoopsMutex.release();
 
 		// Set up onJobStart
 		final onJobStart = sys.thread.Thread.onJobStart;
@@ -516,7 +523,9 @@ class EventLoop {
 			final events = new EventLoop();
 			events.thread = thread;
 			eventsTls.value = events;
+			threadsToEventLoopsMutex.acquire();
 			threadsToEventLoops.set(thread.id, events);
+			threadsToEventLoopsMutex.release();
 			if (onJobStart != null) {
 				onJobStart();
 			}
