@@ -107,6 +107,7 @@ class Type {
 		return name;
 	}
 
+	@:csAttribute("System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"AOT\", \"IL2057\", Justification = \"Inherent to dynamic type resolution\")")
 	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name == null)
 			return null;

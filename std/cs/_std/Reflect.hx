@@ -349,6 +349,7 @@ class Reflect {
 		return false;
 	}
 
+	@:csAttribute("System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"AOT\", \"IL2072\", Justification = \"Fallback for non-Haxe types - createEmpty used for Haxe classes\")")
 	public static function copy<T>(o:Null<T>):Null<T> {
 		if (o == null)
 			return null;
