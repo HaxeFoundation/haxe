@@ -31,7 +31,7 @@ class Thread {
 	static var threads : Array<Thread>;
 	static var mutex : Mutex;
 	static var mainThread : Thread;
-	static var idCounter = 1; // TODO: Should probably be an AtomicInt
+	static var idCounter : Int; // TODO: Should probably be an AtomicInt
 
 	public final id : Int;
 	var impl : ThreadImpl;
@@ -224,6 +224,7 @@ class Thread {
 
 	static function __init__() {
 		mutex = new Mutex();
+		idCounter = 1;
 		mainThread = new Thread(ThreadImpl.current());
 		mainThread.name = "Main";
 		threads = [mainThread];
