@@ -83,6 +83,7 @@
 	js : clean up ES5 implementation of StringMap.keys() (#11895)
 	js : add new WebGLPolygonMode extension (#12026)
 	js : add js.lib.NativeStringTools (#12127)
+	lua : add lua.Syntax extern for typed raw Lua code injection (#12520)
 	php : add externs for some POSIX functions (#11769)
 	macro : delay typer creation to after init macros (#11323)
 	macro : added Context.resolveComplexType
