@@ -34,6 +34,13 @@ class Thread {
 	static var idCounter : Int; // TODO: Should probably be an AtomicInt
 	static var onJobStartCallback : Null<() -> Void>;
 
+	@:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead")
+	public var events(get, null):Null<haxe.EventLoop>;
+
+	inline function get_events() {
+		return haxe.EventLoop.getThreadLoop(this);
+	}
+
 	public final id : Int;
 	var impl : ThreadImpl;
 	var messages : Deque<Dynamic>;
