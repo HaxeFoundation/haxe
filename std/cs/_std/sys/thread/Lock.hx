@@ -22,28 +22,36 @@
 
 package sys.thread;
 
+/**
+ * Lock implementation using BlockingCollection (like JVM uses LinkedBlockingDeque).
+ * This provides reliable cross-thread signaling for EventLoop.
+ */
 @:coreApi
 class Lock {
-	var _semaphore:cs.system.threading.SemaphoreSlim;
+	var _queue:Dynamic; // BlockingCollection<int>
 
 	public function new() {
-		// SemaphoreSlim with initial count 0 and max count Int32.MaxValue
-		_semaphore = new cs.system.threading.SemaphoreSlim(0, 2147483647);
+		_queue = untyped __cs__("new System.Collections.Concurrent.BlockingCollection<int>()");
 	}
 
 	public function wait(?timeout:Float):Bool {
 		if (timeout == null) {
-			// Wait indefinitely
-			_semaphore.Wait();
+			// Wait indefinitely - Take blocks until an item is available
+			untyped __cs__("((System.Collections.Concurrent.BlockingCollection<int>){0}).Take()", _queue);
 			return true;
 		} else {
 			// Wait with timeout in milliseconds
-			var timeoutMs:Int = Std.int(timeout * 1000.0);
-			return _semaphore.Wait(timeoutMs);
+			// Cap timeout to avoid integer overflow (max ~24 days in ms)
+			var timeoutMs:Int = timeout > 2147483.0 ? 2147483647 : Std.int(timeout * 1000.0);
+			if (timeoutMs < 0)
+				timeoutMs = 0;
+			// TryTake with out parameter - use inline declaration
+			var result:Bool = untyped __cs__("((System.Collections.Concurrent.BlockingCollection<int>){0}).TryTake(out _, {1})", _queue, timeoutMs);
+			return result;
 		}
 	}
 
 	public function release():Void {
-		_semaphore.Release();
+		untyped __cs__("((System.Collections.Concurrent.BlockingCollection<int>){0}).Add(0)", _queue);
 	}
 }
