@@ -526,6 +526,7 @@ jobs:
       - uses: ./.github/actions/setup-neko
 
       - uses: actions/setup-node@v4
+        if: matrix.target == 'js'
         with:
           node-version: 18.17.1
 
