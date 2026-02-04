@@ -113,11 +113,20 @@ let add_closure_for_class gctx origin_class_path closure_def =
 let get_closures_for_class gctx class_path =
 	try List.assoc class_path gctx.closures_by_class with Not_found -> []
 
-(* Generate a fresh temporary variable name *)
+(* Generate a fresh temporary variable name, avoiding collisions with used names *)
 let fresh_temp ectx =
-	let n = ectx.temp_count in
-	ectx.temp_count <- n + 1;
-	Printf.sprintf "_hx_tmp%d" n
+	let rec find_available () =
+		let n = ectx.temp_count in
+		ectx.temp_count <- n + 1;
+		let name = Printf.sprintf "_hx_tmp%d" n in
+		if List.mem name ectx.used_names then
+			find_available ()
+		else begin
+			ectx.used_names <- name :: ectx.used_names;
+			name
+		end
+	in
+	find_available ()
 
 (* Generate a unique closure class name based on current context *)
 let generate_closure_name gctx ectx =

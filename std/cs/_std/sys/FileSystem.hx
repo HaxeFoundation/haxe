@@ -22,120 +22,117 @@
 
 package sys;
 
-import haxe.io.Path;
+import cs.system.io.DirectoryInfo;
+import cs.system.io.File;
+import cs.system.io.Directory;
+import cs.system.io.FileInfo;
 
 @:coreApi
 class FileSystem {
 	public static function exists(path:String):Bool {
-		return untyped __cs__("System.IO.File.Exists({0}) || System.IO.Directory.Exists({0})", path);
+		return (File.Exists(path) || Directory.Exists(path));
 	}
 
 	public static function rename(path:String, newPath:String):Void {
-		try {
-			if (isDirectory(path)) {
-				untyped __cs__("System.IO.Directory.Move({0}, {1})", path, newPath);
-			} else {
-				untyped __cs__("System.IO.File.Move({0}, {1})", path, newPath);
-			}
-		} catch (e:Dynamic) {
-			throw "Cannot rename " + path + " to " + newPath;
+		if (isDirectory(path)) {
+			Directory.Move(path, newPath);
+		} else {
+			File.Move(path, newPath);
 		}
 	}
 
 	public static function stat(path:String):FileStat {
-		if (!exists(path))
-			throw "Path " + path + " doesn't exist";
-
-		var isDir = isDirectory(path);
-		var size:Int = 0;
-		var ctime:Float = 0;
-		var atime:Float = 0;
-		var mtime:Float = 0;
-
-		if (isDir) {
-			var dirInfo = untyped __cs__("new System.IO.DirectoryInfo({0})", path);
-			ctime = untyped __cs__("(double)((System.DateTimeOffset){0}.CreationTimeUtc).ToUnixTimeMilliseconds()", dirInfo);
-			atime = untyped __cs__("(double)((System.DateTimeOffset){0}.LastAccessTimeUtc).ToUnixTimeMilliseconds()", dirInfo);
-			mtime = untyped __cs__("(double)((System.DateTimeOffset){0}.LastWriteTimeUtc).ToUnixTimeMilliseconds()", dirInfo);
+		if (File.Exists(path)) {
+			var fi = new FileInfo(path);
+			return {
+				gid: 0,
+				uid: 0,
+				atime: dateFromNative(fi.LastAccessTime),
+				mtime: dateFromNative(fi.LastWriteTime),
+				ctime: dateFromNative(fi.CreationTime),
+				size: cast(fi.Length, Int),
+				dev: 0,
+				ino: 0,
+				nlink: 0,
+				rdev: 0,
+				mode: 0
+			};
+		} else if (Directory.Exists(path)) {
+			var fi = new DirectoryInfo(path);
+			return {
+				gid: 0,
+				uid: 0,
+				atime: dateFromNative(fi.LastAccessTime),
+				mtime: dateFromNative(fi.LastWriteTime),
+				ctime: dateFromNative(fi.CreationTime),
+				size: 0,
+				dev: 0,
+				ino: 0,
+				nlink: 0,
+				rdev: 0,
+				mode: 0
+			};
 		} else {
-			var fileInfo = untyped __cs__("new System.IO.FileInfo({0})", path);
-			size = untyped __cs__("(int){0}.Length", fileInfo);
-			ctime = untyped __cs__("(double)((System.DateTimeOffset){0}.CreationTimeUtc).ToUnixTimeMilliseconds()", fileInfo);
-			atime = untyped __cs__("(double)((System.DateTimeOffset){0}.LastAccessTimeUtc).ToUnixTimeMilliseconds()", fileInfo);
-			mtime = untyped __cs__("(double)((System.DateTimeOffset){0}.LastWriteTimeUtc).ToUnixTimeMilliseconds()", fileInfo);
+			throw "Path '" + path + "' doesn't exist";
 		}
+	}
 
-		return {
-			gid: 0,
-			uid: 0,
-			atime: Date.fromTime(atime),
-			mtime: Date.fromTime(mtime),
-			ctime: Date.fromTime(ctime),
-			size: size,
-			dev: 0,
-			ino: 0,
-			nlink: 0,
-			rdev: 0,
-			mode: 0
-		};
+	private static function dateFromNative(native:cs.system.DateTime):Date {
+		// Convert .NET DateTime to Haxe Date via Unix timestamp
+		var ticks:haxe.Int64 = untyped __cs__("{0}.ToUniversalTime().Ticks", native);
+		// .NET ticks are 100-nanosecond intervals since 0001-01-01
+		// Unix epoch is 1970-01-01, difference is 621355968000000000 ticks
+		var unixTicks:haxe.Int64 = haxe.Int64.sub(ticks, haxe.Int64.make(0x89F7FF5F, 0x7B58000));
+		// Convert to milliseconds
+		var ms:Float = haxe.Int64.toInt(haxe.Int64.div(unixTicks, haxe.Int64.ofInt(10000)));
+		return Date.fromTime(ms);
 	}
 
 	public static function fullPath(relPath:String):String {
-		return untyped __cs__("System.IO.Path.GetFullPath({0})", relPath);
+		return new FileInfo(relPath).FullName;
 	}
 
 	public static function absolutePath(relPath:String):String {
-		if (Path.isAbsolute(relPath))
+		if (haxe.io.Path.isAbsolute(relPath))
 			return relPath;
-		return Path.join([Sys.getCwd(), relPath]);
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
 	}
 
 	public static function isDirectory(path:String):Bool {
-		if (!exists(path))
-			throw "Path " + path + " doesn't exist";
-		return untyped __cs__("System.IO.Directory.Exists({0})", path);
+		var isdir = Directory.Exists(path);
+		if (isdir != File.Exists(path))
+			return isdir;
+		throw "Path '" + path + "' doesn't exist";
 	}
 
 	public static function createDirectory(path:String):Void {
-		try {
-			untyped __cs__("System.IO.Directory.CreateDirectory({0})", path);
-		} catch (e:Dynamic) {
-			throw "Cannot create dir " + path;
-		}
+		Directory.CreateDirectory(path);
 	}
 
 	public static function deleteFile(path:String):Void {
-		// C#'s File.Delete() silently does nothing if file doesn't exist
-		// Haxe expects an exception to be thrown
-		if (!untyped __cs__("System.IO.File.Exists({0})", path))
-			throw "Cannot delete file " + path + " (file not found)";
-		try {
-			untyped __cs__("System.IO.File.Delete({0})", path);
-		} catch (e:Dynamic) {
-			throw "Cannot delete file " + path;
-		}
+		if (!File.Exists(path))
+			throw "Path '" + path + "' doesn't exist";
+		File.Delete(path);
 	}
 
 	public static function deleteDirectory(path:String):Void {
-		try {
-			untyped __cs__("System.IO.Directory.Delete({0})", path);
-		} catch (e:Dynamic) {
-			throw "Cannot delete directory " + path;
-		}
+		if (!Directory.Exists(path))
+			throw "Path '" + path + "' doesn't exist";
+		Directory.Delete(path);
 	}
 
 	public static function readDirectory(path:String):Array<String> {
-		if (!exists(path))
-			throw "Path " + path + " doesn't exist";
-
+		var native = Directory.GetFileSystemEntries(path);
 		var result = new Array<String>();
-		var entries:Dynamic = untyped __cs__("System.IO.Directory.GetFileSystemEntries({0})", path);
-		var length:Int = untyped __cs__("{0}.Length", entries);
-		for (i in 0...length) {
-			var entry:String = untyped __cs__("{0}[{1}]", entries, i);
-			// Get just the file/directory name, not the full path
-			var name:String = untyped __cs__("System.IO.Path.GetFileName({0})", entry);
-			result.push(name);
+		if (native.length > 0) {
+			var fst = native[0];
+			var sep = "/";
+			if (fst.lastIndexOf(sep) < fst.lastIndexOf("\\"))
+				sep = "\\";
+			for (i in 0...native.length) {
+				var p = native[i];
+				result.push(p.substr(p.lastIndexOf(sep) + 1));
+			}
 		}
 		return result;
 	}

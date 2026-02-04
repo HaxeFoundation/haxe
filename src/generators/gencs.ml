@@ -286,10 +286,19 @@ let get_local_name ectx v =
 		ectx.used_names <- name :: ectx.used_names;
 		name
 
-(* Generate fresh temp variable name *)
+(* Generate fresh temp variable name, avoiding collisions with used names *)
 let fresh_temp ectx =
-	ectx.temp_count <- ectx.temp_count + 1;
-	Printf.sprintf "_hx_tmp%d" ectx.temp_count
+	let rec find_available () =
+		ectx.temp_count <- ectx.temp_count + 1;
+		let name = Printf.sprintf "_hx_tmp%d" ectx.temp_count in
+		if List.mem name ectx.used_names then
+			find_available ()
+		else begin
+			ectx.used_names <- name :: ectx.used_names;
+			name
+		end
+	in
+	find_available ()
 
 (* ====== Null & type wrapper detection ====== *)
 
@@ -5291,8 +5300,7 @@ and cs_stmt_of_texpr ectx e =
 					   to avoid evaluating it twice in the ternary expression. *)
 					if cs_expr_has_side_effects init_cs then begin
 						(* Generate: object _tmp = init_cs; _tmp != null ? new Null<T>((T)_tmp, true) : ... *)
-						let tmp_name = "_tmp_" ^ (string_of_int ectx.gctx.temp_count) in
-						ectx.gctx.temp_count <- ectx.gctx.temp_count + 1;
+						let tmp_name = fresh_temp ectx in
 						extra_prefix_stmts := [CsVarDecl (tmp_name, Some CsTypeObject, Some init_cs)];
 						let tmp_ref = CsLocal tmp_name in
 						let null_check = CsBinop (CsOpNotEq, tmp_ref, CsNull) in
@@ -5342,8 +5350,7 @@ and cs_stmt_of_texpr ectx e =
 						let false_branch = CsNew (var_type, [CsDefault inner_var; CsConst (CsConstBool false)]) in
 						CsTernary (has_value, true_branch, false_branch)
 					end else begin
-						let tmp_name = "_tmp_" ^ (string_of_int ectx.gctx.temp_count) in
-						ectx.gctx.temp_count <- ectx.gctx.temp_count + 1;
+						let tmp_name = fresh_temp ectx in
 						extra_prefix_stmts := [CsVarDecl (tmp_name, Some init_type, Some init_cs)];
 						let tmp_ref = CsLocal tmp_name in
 						let has_value = CsField (tmp_ref, "hasValue") in
@@ -7801,28 +7808,42 @@ let generate_constructor gctx c cf field_init_stmts =
 		((parent_is_two_phase || parent_is_abstract) && class_has_field_initializers && class_has_overridden_methods)
 	in
 	(* Get base class constructor types for casting super args.
-	   We need to apply type parameter substitution when extending generic classes. *)
+	   We need to apply type parameter substitution when extending generic classes.
+	   If parent doesn't have an explicit constructor, look up the inheritance chain
+	   to find the actual constructor being forwarded. *)
+	let rec find_ctor_with_params cls tl =
+		match cls.cl_constructor with
+		| Some ctor_cf ->
+			begin match follow ctor_cf.cf_type with
+			| TFun (base_args, _) ->
+				(* Apply type parameter substitution: cls.cl_params -> tl *)
+				let param_map = if List.length cls.cl_params = List.length tl then
+					List.map2 (fun ttp t -> (ttp.ttp_type, t)) cls.cl_params tl
+				else
+					[]
+				in
+				Some (List.map (fun (_, _, t) ->
+					let substituted_t = List.fold_left (fun t (from_tp, to_t) ->
+						let rec subst t = match t with
+							| _ when Type.fast_eq t from_tp -> to_t
+							| _ -> Type.map subst t
+						in
+						subst t
+					) t param_map in
+					cs_type_of_type gctx substituted_t
+				) base_args)
+			| _ -> None
+			end
+		| None ->
+			begin match cls.cl_super with
+			| Some (parent, parent_tl) -> find_ctor_with_params parent parent_tl
+			| None -> None
+			end
+	in
 	let base_ctor_types = match c.cl_super with
 		| Some (sc, tl) ->
-			begin match sc.cl_constructor with
-			| Some ctor_cf ->
-				begin match follow ctor_cf.cf_type with
-				| TFun (base_args, _) ->
-					(* Apply type parameter substitution: sc.cl_params -> tl *)
-					let param_map = List.map2 (fun ttp t -> (ttp.ttp_type, t)) sc.cl_params tl in
-					List.map (fun (_, _, t) ->
-						let substituted_t = List.fold_left (fun t (from_tp, to_t) ->
-							(* Replace type parameter with actual type *)
-							let rec subst t = match t with
-								| _ when Type.fast_eq t from_tp -> to_t
-								| _ -> Type.map subst t
-							in
-							subst t
-						) t param_map in
-						cs_type_of_type gctx substituted_t
-					) base_args
-				| _ -> []
-				end
+			begin match find_ctor_with_params sc tl with
+			| Some types -> types
 			| None -> []
 			end
 		| None -> []
@@ -7871,8 +7892,11 @@ let generate_constructor gctx c cf field_init_stmts =
 					) args in
 					Some cs_args
 				| None ->
-					(* No explicit super call - parent has parameterless ctor, just call it *)
-					Some []
+					(* No explicit super call - check if parent has required params *)
+					if base_ctor_types <> [] then
+						Some (List.map (fun t -> CsDefault t) base_ctor_types)
+					else
+						Some []
 				end
 		in
 		let empty_ctor = CsMemberConstructor {
@@ -8077,6 +8101,13 @@ let generate_constructor gctx c cf field_init_stmts =
 				(* No explicit super() call, but parent needs two-phase.
 				   Child has implicit constructor - still need to call parent's EmptyConstructor. *)
 				Some [CsCast (empty_constructor_type, CsNull)]
+			| None ->
+				(* No explicit super() call and parent is not two-phase.
+				   Use base_ctor_types which already looked up the inheritance chain. *)
+				if base_ctor_types <> [] then
+					Some (List.map (fun t -> CsDefault t) base_ctor_types)
+				else
+					None
 			| _ -> None
 		in
 
@@ -8100,8 +8131,10 @@ let generate_constructor gctx c cf field_init_stmts =
 				([CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), cs_args))], [])
 			| None when parent_is_two_phase && c.cl_super <> None ->
 				(* No explicit super() call, but parent needs two-phase.
-				   Call base._hx_new() AFTER body so child field inits run first (Issue3596). *)
-				([], [CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), []))])
+				   Call base._hx_new() AFTER body so child field inits run first (Issue3596).
+				   Pass default values if parent has required params. *)
+				let default_args = List.map (fun t -> CsDefault t) base_ctor_types in
+				([], [CsExprStmt (CsCall (CsField (CsBase, "_hx_new"), default_args))])
 			| _ -> ([], [])
 		in
 
@@ -9228,12 +9261,41 @@ let generate_class gctx c =
 			(* No forwarding ctors from parent. Generate a default parameterless constructor.
 			   This is always needed because we also generate an EmptyConstructor which
 			   prevents C# from creating an implicit parameterless constructor.
-			   field_init_stmts may be empty, in which case the body is just []. *)
+			   field_init_stmts may be empty, in which case the body is just [].
+			   IMPORTANT: If parent has a constructor with required parameters, we must call
+			   it with default values, otherwise C# will fail to compile.
+			   Note: If parent doesn't have an explicit constructor, look up the chain. *)
+			let rec find_ctor_args cls =
+				match cls.cl_constructor with
+				| Some ctor_cf ->
+					begin match follow ctor_cf.cf_type with
+					| TFun (args, _) -> Some args
+					| _ -> None
+					end
+				| None ->
+					begin match cls.cl_super with
+					| Some (parent, _) -> find_ctor_args parent
+					| None -> None
+					end
+			in
+			let base_call = match c.cl_super with
+				| Some (sc, _) ->
+					begin match find_ctor_args sc with
+					| Some base_args when base_args <> [] ->
+						(* Parent (or ancestor) has constructor with arguments - call with defaults *)
+						let default_args = List.map (fun (_, _, t) ->
+							CsDefault (cs_type_of_type gctx t)
+						) base_args in
+						Some default_args
+					| _ -> None
+					end
+				| None -> None
+			in
 			members := [CsMemberConstructor {
 				ctor_access = AccessModifier.Public;
 				ctor_modifiers = [];
 				ctor_params = [];
-				ctor_base_call = None;
+				ctor_base_call = base_call;
 				ctor_this_call = None;
 				ctor_body = field_init_stmts;
 			}] @ !members

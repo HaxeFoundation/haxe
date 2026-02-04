@@ -22,178 +22,103 @@
 
 package sys.io;
 
-import haxe.SysTools;
-import haxe.io.Bytes;
-import haxe.io.BytesInput;
-import haxe.io.Eof;
-import haxe.io.Input;
-import haxe.io.Output;
+import cs.system.diagnostics.Process as NativeProcess;
+import cs.system.diagnostics.ProcessStartInfo as NativeStartInfo;
 
 @:coreApi
 class Process {
-	public var stdout(default, null):Input;
-	public var stderr(default, null):Input;
-	public var stdin(default, null):Output;
+	public var stdout(default, null):haxe.io.Input;
+	public var stderr(default, null):haxe.io.Input;
+	public var stdin(default, null):haxe.io.Output;
 
-	private var proc:Dynamic; // System.Diagnostics.Process
+	private var native:NativeProcess;
 
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
 		if (detached)
 			throw "Detached process is not supported on this platform";
+		this.native = createNativeProcess(cmd, args);
+		native.Start();
 
-		var sysName = Sys.systemName();
-		var fileName:String;
-		var arguments:String;
-
-		if (args == null) {
-			// Shell mode - interpret cmd as a shell command
-			if (sysName == "Windows") {
-				var comspec = Sys.getEnv("COMSPEC");
-				fileName = comspec != null ? comspec : "cmd.exe";
-				arguments = '/C "' + cmd + '"';
-			} else {
-				fileName = "/bin/sh";
-				arguments = "-c " + escapeShellArg(cmd);
-			}
-		} else {
-			// Direct mode - cmd is the executable, args are arguments
-			if (sysName == "Windows") {
-				fileName = cmd;
-				var sb = new StringBuf();
-				for (i in 0...args.length) {
-					if (i > 0)
-						sb.add(" ");
-					sb.add(SysTools.quoteWinArg(args[i], false));
-				}
-				arguments = sb.toString();
-			} else {
-				fileName = cmd;
-				var sb = new StringBuf();
-				for (i in 0...args.length) {
-					if (i > 0)
-						sb.add(" ");
-					sb.add(escapeShellArg(args[i]));
-				}
-				arguments = sb.toString();
-			}
-		}
-
-		proc = untyped __cs__("new System.Diagnostics.Process()");
-		untyped __cs__("{0}.StartInfo.FileName = {1}", proc, fileName);
-		untyped __cs__("{0}.StartInfo.Arguments = {1}", proc, arguments);
-		untyped __cs__("{0}.StartInfo.UseShellExecute = false", proc);
-		untyped __cs__("{0}.StartInfo.RedirectStandardInput = true", proc);
-		untyped __cs__("{0}.StartInfo.RedirectStandardOutput = true", proc);
-		untyped __cs__("{0}.StartInfo.RedirectStandardError = true", proc);
-		untyped __cs__("{0}.StartInfo.CreateNoWindow = true", proc);
-		untyped __cs__("{0}.Start()", proc);
-
-		var stdoutStream:cs.system.io.Stream = untyped __cs__("{0}.StandardOutput.BaseStream", proc);
-		var stderrStream:cs.system.io.Stream = untyped __cs__("{0}.StandardError.BaseStream", proc);
-		var stdinStream:cs.system.io.Stream = untyped __cs__("{0}.StandardInput.BaseStream", proc);
-		stdout = new ProcessInput(stdoutStream);
-		stderr = new ProcessInput(stderrStream);
-		stdin = new ProcessOutput(stdinStream);
+		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
+		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
+		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
 	}
 
-	private static function escapeShellArg(arg:String):String {
-		// Simple escaping for Unix shells
-		if (arg.indexOf(" ") >= 0 || arg.indexOf("'") >= 0 || arg.indexOf('"') >= 0) {
-			return "'" + StringTools.replace(arg, "'", "'\\''") + "'";
+	@:allow(Sys)
+	private static function createNativeProcess(cmd:String, ?args:Array<String>):NativeProcess {
+		var native = new NativeProcess();
+		native.StartInfo.CreateNoWindow = true;
+		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
+		if (args != null) {
+			// mono 4.2.1 on Windows doesn't support relative path correctly
+			if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
+				cmd = sys.FileSystem.fullPath(cmd);
+			native.StartInfo.FileName = cmd;
+			native.StartInfo.UseShellExecute = false;
+			native.StartInfo.Arguments = buildArgumentsString(args);
+		} else {
+			switch (Sys.systemName()) {
+				case "Windows":
+					native.StartInfo.FileName = switch (Sys.getEnv("COMSPEC")) {
+						case null: "cmd.exe";
+						case comspec: comspec;
+					}
+					native.StartInfo.Arguments = '/C "$cmd"';
+				case _:
+					native.StartInfo.FileName = "/bin/sh";
+					native.StartInfo.Arguments = buildArgumentsString(["-c", cmd]);
+			}
+			native.StartInfo.UseShellExecute = false;
 		}
-		return arg;
+		return native;
+	}
+
+	private static function buildArgumentsString(args:Array<String>):String {
+		return switch (Sys.systemName()) {
+			case "Windows":
+				[
+					for (a in args)
+						haxe.SysTools.quoteWinArg(a, false)
+				].join(" ");
+			case _:
+				// mono uses a slightly different quoting/escaping rule...
+				// https://bugzilla.xamarin.com/show_bug.cgi?id=19296
+				[
+					for (arg in args) {
+						var b = new StringBuf();
+						b.add('"');
+						for (i in 0...arg.length) {
+							var c = arg.charCodeAt(i);
+							switch (c) {
+								case '"'.code | '\\'.code:
+									b.addChar('\\'.code);
+								case _: // pass
+							}
+							b.addChar(c);
+						}
+						b.add('"');
+						b.toString();
+					}
+				].join(" ");
+		};
 	}
 
 	public function getPid():Int {
-		return untyped __cs__("{0}.Id", proc);
+		return native.Id;
 	}
 
 	public function exitCode(block:Bool = true):Null<Int> {
-		if (!block) {
-			var hasExited:Bool = untyped __cs__("{0}.HasExited", proc);
-			if (!hasExited)
-				return null;
-			return untyped __cs__("{0}.ExitCode", proc);
-		}
-
-		cast(stdout, ProcessInput).bufferContents();
-		cast(stderr, ProcessInput).bufferContents();
-		untyped __cs__("{0}.WaitForExit()", proc);
-		return untyped __cs__("{0}.ExitCode", proc);
+		if (block == false && !native.HasExited)
+			return null;
+		native.WaitForExit();
+		return native.ExitCode;
 	}
 
 	public function close():Void {
-		untyped __cs__("{0}.Close()", proc);
+		native.Close();
 	}
 
 	public function kill():Void {
-		untyped __cs__("{0}.Kill()", proc);
-	}
-}
-
-private class ProcessInput extends Input {
-	var stream:cs.system.io.Stream;
-	var chained:BytesInput;
-
-	public function new(stream:cs.system.io.Stream) {
-		this.stream = stream;
-		this.chained = null;
-	}
-
-	public function bufferContents():Void {
-		if (chained != null)
-			return;
-		var b = this.readAll();
-		chained = new BytesInput(b);
-	}
-
-	override public function readByte():Int {
-		if (chained != null)
-			return chained.readByte();
-		var ret:Int = stream.ReadByte();
-		if (ret == -1)
-			throw new Eof();
-		return ret;
-	}
-
-	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
-		if (chained != null)
-			return chained.readBytes(s, pos, len);
-
-		var ret:Int = untyped __cs__("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
-		if (ret == 0)
-			throw new Eof();
-		return ret;
-	}
-
-	override public function close():Void {
-		if (chained != null)
-			chained.close();
-		stream.Close();
-	}
-}
-
-private class ProcessOutput extends Output {
-	var stream:cs.system.io.Stream;
-
-	public function new(stream:cs.system.io.Stream) {
-		this.stream = stream;
-	}
-
-	override public function writeByte(c:Int):Void {
-		stream.WriteByte(c);
-	}
-
-	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
-		untyped __cs__("{0}.Write({1}, {2}, {3})", stream, s.getData(), pos, len);
-		return len;
-	}
-
-	override public function close():Void {
-		stream.Close();
-	}
-
-	override public function flush():Void {
-		stream.Flush();
+		native.Kill();
 	}
 }
