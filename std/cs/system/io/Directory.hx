@@ -7,4 +7,6 @@ extern class Directory {
 	static function CreateDirectory(path:String):DirectoryInfo;
 	static function Delete(path:String):Void;
 	static function GetFileSystemEntries(path:String):cs.NativeArray<String>;
+	static function GetCurrentDirectory():String;
+	static function SetCurrentDirectory(path:String):Void;
 }

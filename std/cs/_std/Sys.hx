@@ -20,48 +20,59 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import cs.system.Console;
+import cs.system.Environment;
+import cs.system.io.Directory;
+import cs.system.threading.Thread;
+import cs.system.DateTime;
+import cs.system.TimeSpan;
+import cs.system.diagnostics.Process;
+import cs.system.reflection.Assembly;
+
 @:coreApi class Sys {
 	private static var _args:Array<String>;
-	private static var _env:haxe.ds.StringMap<String>;
 	private static var _sysName:String;
 
 	public static function print(v:Dynamic):Void {
-		untyped __cs__("System.Console.Write({0})", Std.string(v));
+		Console.Write(Std.string(v));
 	}
 
 	public static function println(v:Dynamic):Void {
-		untyped __cs__("System.Console.WriteLine({0})", Std.string(v));
+		Console.WriteLine(Std.string(v));
 	}
 
 	public static function args():Array<String> {
-		if (_args == null)
-			return [];
+		if (_args == null) {
+			var nativeArgs = Environment.GetCommandLineArgs();
+			_args = new Array<String>();
+			// Skip first arg (executable path)
+			for (i in 1...nativeArgs.length) {
+				_args.push(nativeArgs[i]);
+			}
+		}
 		return _args.copy();
 	}
 
 	public static function getEnv(s:String):Null<String> {
-		return untyped __cs__("System.Environment.GetEnvironmentVariable({0})", s);
+		return Environment.GetEnvironmentVariable(s);
 	}
 
 	public static function putEnv(s:String, v:Null<String>):Void {
-		untyped __cs__("System.Environment.SetEnvironmentVariable({0}, {1})", s, v);
+		Environment.SetEnvironmentVariable(s, v);
 	}
 
 	public static function environment():Map<String, String> {
-		if (_env == null) {
-			_env = new haxe.ds.StringMap();
-			var dict:Dynamic = untyped __cs__("System.Environment.GetEnvironmentVariables()");
-			var enumerator:Dynamic = untyped dict.GetEnumerator();
-			while (untyped enumerator.MoveNext()) {
-				var entry:Dynamic = untyped enumerator.Current;
-				_env.set(untyped entry.Key, untyped entry.Value);
-			}
+		var env = new haxe.ds.StringMap<String>();
+		var dict = Environment.GetEnvironmentVariables();
+		var enumerator = dict.GetEnumerator();
+		while (enumerator.MoveNext()) {
+			env.set(enumerator.Key, enumerator.Value);
 		}
-		return _env.copy();
+		return env;
 	}
 
 	public static function sleep(seconds:Float):Void {
-		untyped __cs__("System.Threading.Thread.Sleep((int)({0} * 1000))", seconds);
+		Thread.Sleep(Std.int(seconds * 1000));
 	}
 
 	public static function setTimeLocale(loc:String):Bool {
@@ -69,59 +80,82 @@
 	}
 
 	public static function getCwd():String {
-		return untyped __cs__("System.IO.Directory.GetCurrentDirectory()");
+		return haxe.io.Path.addTrailingSlash(Directory.GetCurrentDirectory());
 	}
 
 	public static function setCwd(s:String):Void {
-		untyped __cs__("System.IO.Directory.SetCurrentDirectory({0})", s);
+		Directory.SetCurrentDirectory(s);
 	}
 
 	public static function systemName():String {
 		if (_sysName != null)
 			return _sysName;
-		var platform:Dynamic = untyped __cs__("System.Environment.OSVersion.Platform");
-		var platformId:Int = untyped __cs__("(int){0}", platform);
-		// PlatformID enum: Win32NT=2, Unix=4, MacOSX=6
-		if (platformId == 2)
-			return _sysName = "Windows";
-		if (platformId == 6)
-			return _sysName = "Mac";
-		if (platformId == 4)
+		var platform = Environment.OSVersion.Platform;
+		// Use string comparison since enum values might not match across .NET versions
+		var platformStr = Std.string(platform);
+		if (platformStr == "Unix")
 			return _sysName = "Linux";
-		return _sysName = "Unknown";
+		if (platformStr == "MacOSX")
+			return _sysName = "Mac";
+		if (platformStr == "Xbox")
+			return _sysName = "Xbox";
+		// For numeric comparison (PlatformID: Win32NT=2, Unix=4, MacOSX=6)
+		var platformId:Int = untyped __cs__("(int){0}", platform);
+		if (platformId == 4 || platformId == 6 || platformId == 128)
+			return _sysName = "Linux";
+		return _sysName = "Windows";
 	}
 
 	public static function command(cmd:String, ?args:Array<String>):Int {
-		var process:Dynamic = untyped __cs__("new System.Diagnostics.Process()");
-		untyped process.StartInfo.FileName = cmd;
+		var process = new Process();
+		process.StartInfo.FileName = cmd;
 		if (args != null) {
-			untyped process.StartInfo.Arguments = args.join(" ");
+			process.StartInfo.Arguments = args.join(" ");
 		}
-		untyped process.StartInfo.UseShellExecute = false;
-		untyped process.StartInfo.RedirectStandardOutput = true;
-		untyped process.StartInfo.RedirectStandardError = true;
-		untyped process.Start();
-		untyped process.WaitForExit();
-		return untyped process.ExitCode;
+		process.StartInfo.UseShellExecute = false;
+		process.StartInfo.RedirectStandardOutput = true;
+		process.StartInfo.RedirectStandardError = true;
+		process.Start();
+		// Read output streams before WaitForExit to avoid deadlock
+		var stdoutStream = process.StandardOutput.BaseStream;
+		var stderrStream = process.StandardError.BaseStream;
+		var stdoutWrapper = new cs.io.NativeInput(stdoutStream);
+		var stderrWrapper = new cs.io.NativeInput(stderrStream);
+		// Read and print stdout
+		try {
+			while (true) {
+				var line = stdoutWrapper.readLine();
+				println(line);
+			}
+		} catch (e:haxe.io.Eof) {}
+		// Read and print stderr to stderr
+		var stderrOutput = stderr();
+		try {
+			while (true) {
+				var line = stderrWrapper.readLine();
+				stderrOutput.writeString(line + "\n");
+			}
+		} catch (e:haxe.io.Eof) {}
+		process.WaitForExit();
+		return process.ExitCode;
 	}
 
 	public static function exit(code:Int):Void {
-		untyped __cs__("System.Environment.Exit({0})", code);
+		Environment.Exit(code);
 	}
 
+	@:readOnly static var epochTicks:haxe.Int64 = new DateTime(1970, 1, 1).Ticks;
+
 	public static function time():Float {
-		var ticks:Float = untyped __cs__("(double)System.DateTime.UtcNow.Ticks");
-		// Ticks are 100-nanosecond intervals since Jan 1, 0001
-		// Convert to seconds since Unix epoch (Jan 1, 1970)
-		var ticksPerSecond:Float = 10000000.0;
-		var epochTicks:Float = untyped __cs__("(double)new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc).Ticks");
-		return (ticks - epochTicks) / ticksPerSecond;
+		// Use __cs__ for reliable Int64 to Float conversion
+		var ticks:Float = untyped __cs__("(double){0}", DateTime.UtcNow.Ticks);
+		var epoch:Float = untyped __cs__("(double){0}", epochTicks);
+		var ticksPerSecond:Float = untyped __cs__("(double){0}", TimeSpan.TicksPerSecond);
+		return (ticks - epoch) / ticksPerSecond;
 	}
 
 	public static function cpuTime():Float {
-		var ticks:Float = untyped __cs__("(double)System.Diagnostics.Stopwatch.GetTimestamp()");
-		var freq:Float = untyped __cs__("(double)System.Diagnostics.Stopwatch.Frequency");
-		return ticks / freq;
+		return Environment.TickCount / 1000.0;
 	}
 
 	@:deprecated("Use programPath instead")
@@ -130,26 +164,23 @@
 	}
 
 	public static function programPath():String {
-		return untyped __cs__("System.Reflection.Assembly.GetExecutingAssembly().Location");
+		return Assembly.GetExecutingAssembly().Location;
 	}
 
 	public static function getChar(echo:Bool):Int {
-		var key:Dynamic = untyped __cs__("System.Console.ReadKey({0})", !echo);
-		return untyped __cs__("(int){0}.KeyChar", key);
+		var keyInfo = Console.ReadKey(!echo);
+		return keyInfo.KeyChar;
 	}
 
 	public static function stdin():haxe.io.Input {
-		// TODO: implement properly
-		throw new haxe.exceptions.NotImplementedException();
+		return new cs.io.NativeInput(Console.OpenStandardInput());
 	}
 
 	public static function stdout():haxe.io.Output {
-		// TODO: implement properly
-		throw new haxe.exceptions.NotImplementedException();
+		return new cs.io.NativeOutput(Console.OpenStandardOutput());
 	}
 
 	public static function stderr():haxe.io.Output {
-		// TODO: implement properly
-		throw new haxe.exceptions.NotImplementedException();
+		return new cs.io.NativeOutput(Console.OpenStandardError());
 	}
 }
