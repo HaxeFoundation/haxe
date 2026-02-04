@@ -63,7 +63,7 @@ class UtilityProcess {
 #elseif js
 		"UtilityProcess.js";
 #elseif cs
-		"Project.aot";
+		"Project";
 #else
 		null;
 #end

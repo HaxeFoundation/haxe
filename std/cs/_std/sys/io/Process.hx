@@ -49,14 +49,18 @@ class Process {
 		var native = new NativeProcess();
 		native.StartInfo.CreateNoWindow = true;
 		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
+		native.StartInfo.UseShellExecute = false;
 		if (args != null) {
-			// mono 4.2.1 on Windows doesn't support relative path correctly
+			// Use ArgumentList collection (like JVM/Python) - no escaping needed
 			if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
 				cmd = sys.FileSystem.fullPath(cmd);
 			native.StartInfo.FileName = cmd;
-			native.StartInfo.UseShellExecute = false;
-			native.StartInfo.Arguments = buildArgumentsString(args);
+			var startInfo = native.StartInfo;
+			for (arg in args) {
+				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, arg);
+			}
 		} else {
+			// Shell command - use /bin/sh -c (or cmd.exe /C on Windows)
 			switch (Sys.systemName()) {
 				case "Windows":
 					native.StartInfo.FileName = switch (Sys.getEnv("COMSPEC")) {
@@ -66,61 +70,12 @@ class Process {
 					native.StartInfo.Arguments = '/C "$cmd"';
 				case _:
 					native.StartInfo.FileName = "/bin/sh";
-					native.StartInfo.Arguments = buildArgumentsString(["-c", cmd]);
+					var startInfo = native.StartInfo;
+					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "-c");
+					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
 			}
-			native.StartInfo.UseShellExecute = false;
 		}
 		return native;
-	}
-
-	private static function buildArgumentsString(args:Array<String>):String {
-		return switch (Sys.systemName()) {
-			case "Windows":
-				[
-					for (a in args)
-						haxe.SysTools.quoteWinArg(a, false)
-				].join(" ");
-			case _:
-				// .NET on Unix uses Windows-like argument parsing for ProcessStartInfo.Arguments
-				// Wrap in double quotes, escape " as \" and \ only when followed by " or at end
-				[
-					for (arg in args) {
-						var b = new StringBuf();
-						b.add('"');
-						var i = 0;
-						while (i < arg.length) {
-							var c = arg.charCodeAt(i);
-							if (c == '\\'.code) {
-								// Count consecutive backslashes
-								var numSlashes = 0;
-								while (i < arg.length && arg.charCodeAt(i) == '\\'.code) {
-									numSlashes++;
-									i++;
-								}
-								// Check if followed by quote or end of string
-								if (i >= arg.length || arg.charCodeAt(i) == '"'.code) {
-									// Double the backslashes (they'll be halved by parser)
-									for (_ in 0...numSlashes * 2)
-										b.addChar('\\'.code);
-								} else {
-									// Keep backslashes as-is
-									for (_ in 0...numSlashes)
-										b.addChar('\\'.code);
-								}
-							} else if (c == '"'.code) {
-								b.addChar('\\'.code);
-								b.addChar('"'.code);
-								i++;
-							} else {
-								b.addChar(c);
-								i++;
-							}
-						}
-						b.add('"');
-						b.toString();
-					}
-				].join(" ");
-		};
 	}
 
 	public function getPid():Int {

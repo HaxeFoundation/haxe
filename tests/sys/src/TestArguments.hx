@@ -94,7 +94,7 @@ class TestArguments extends utest.Test {
 	#elseif js
 		"bin/js/TestArguments.js";
 	#elseif cs
-		"../cs-args/bin/aot/Project.aot";
+		"../cs-args/bin/aot/Project";
 	#else
 		null;
 	#end

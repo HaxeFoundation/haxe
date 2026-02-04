@@ -119,7 +119,7 @@ class TestSys extends TestCommandBase {
 		#elseif js
 			"sys.js"
 		#elseif cs
-			"Project.aot"
+			"Project"
 		#elseif hl
 			#if hlc
 				"sys.exe"
