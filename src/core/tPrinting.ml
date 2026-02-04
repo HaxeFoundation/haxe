@@ -598,17 +598,6 @@ module Printer = struct
 	let s_tvar_extra ve =
 		Printf.sprintf "Some(%s, %s)" (s_type_params "" ve.v_params) (s_opt (s_expr_ast true "" s_type) ve.v_expr)
 
-	let s_tvar v =
-		s_record_fields "" [
-			"v_id",string_of_int v.v_id;
-			"v_name",v.v_name;
-			"v_type",s_type v.v_type;
-			"v_capture",string_of_bool (has_var_flag v VCaptured);
-			"v_extra",s_opt s_tvar_extra v.v_extra;
-			"v_meta",s_metadata v.v_meta;
-			"v_pos",s_pos v.v_pos;
-		]
-
 	let s_tvar_kind v_kind = match v_kind with
 		| VUser tvar_origin -> "VUser(" ^ (match tvar_origin with
 			| TVOLocalVariable -> "TVOLocalVariable"
@@ -622,6 +611,18 @@ module Printer = struct
 		| VInlinedConstructorVariable sl -> "VInlinedConstructorVariable" ^ "(" ^ (String.concat ", " sl) ^ ")"
 		| VExtractorVariable -> "VExtractorVariable"
 		| VAbstractThis -> "VAbstractThis"
+
+	let s_tvar v =
+		s_record_fields "" [
+			"v_id",string_of_int v.v_id;
+			"v_name",v.v_name;
+			"v_type",s_type v.v_type;
+			"v_kind",s_tvar_kind v.v_kind;
+			"v_capture",string_of_bool (has_var_flag v VCaptured);
+			"v_extra",s_opt s_tvar_extra v.v_extra;
+			"v_meta",s_metadata v.v_meta;
+			"v_pos",s_pos v.v_pos;
+		]
 
 	let s_module_kind = function
 		| MCode -> "MCode"

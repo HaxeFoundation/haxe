@@ -150,6 +150,16 @@ let is_unbound_call_that_might_have_side_effects s el = match s,el with
 	| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> false
 	| _ -> true
 
+let maybe_inherit_var_name v v_alias =
+	if v.v_name <> v_alias.v_name then match v_alias.v_kind,v.v_kind with
+	| VUser _,VUser _ ->
+		()
+	| VUser _,_ ->
+		(* If we go from a user variable to something else, we probably want to inherit the name. *)
+		v.v_name <- v_alias.v_name
+	| _ ->
+		()
+
 let type_change_ok com t1 t2 =
 	if t1 == t2 then
 		true

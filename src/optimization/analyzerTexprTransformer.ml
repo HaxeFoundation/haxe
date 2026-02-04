@@ -758,6 +758,7 @@ and func ctx i =
 		| TVar(v,eo) ->
 			let eo = Option.map loop eo in
 			let v' = get_var_origin ctx.graph v in
+			maybe_inherit_var_name v' v;
 			{e with eexpr = TVar(v',eo)}
 		| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) when target_handles_assign_ops ctx.com e3 ->
 			let e1 = loop e1 in
