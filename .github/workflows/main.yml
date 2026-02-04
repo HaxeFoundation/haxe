@@ -566,6 +566,18 @@ jobs:
           choco install wget
           wget --version
 
+      - uses: msys2/setup-msys2@v2
+        if: matrix.target == 'lua'
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-pcre2
+            mingw-w64-ucrt-x86_64-libuv
+
       - name: Setup haxelib
         shell: pwsh
         run: |
@@ -582,6 +594,8 @@ jobs:
         run: haxe RunCi.hxml -D include_legacy
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
+        env:
+          MSYS2_LOCATION: ${{ matrix.target == 'lua' && steps.msys2.outputs.msys2-location || '' }}
 
 
   mac-build-universal:

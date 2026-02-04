@@ -8,10 +8,13 @@ using StringTools;
 class Lua {
 	static final miscLuaDir = getMiscSubDir('lua');
 
+	static var useWindowsVcpkg = false;
+	static var msys2Path = Sys.getEnv("MSYS2_LOCATION") ?? "C:\\msys64";
+
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev", "pipx"]);
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libuv1-dev", "libreadline-dev", "pipx"]);
 			case "Mac":
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
@@ -20,10 +23,34 @@ class Lua {
 
 				attemptCommand("brew", ["install", "pcre2"]);
 				runCommand("brew", ["install", "openssl"]);
+				runCommand("brew", ["install", "libuv"]);
 				runCommand("brew", ["install", "pipx"]);
 			case "Windows":
-				runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
-				addToPATH(Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release/bin']));
+				if (sys.FileSystem.exists(msys2Path)) {
+					addToPATH('$msys2Path\\usr\\bin');
+					addToPATH('$msys2Path\\ucrt64\\bin');
+					runCommand(
+						"pacman",
+						[
+							"--noconfirm",
+							"-S",
+							"--needed",
+							"--overwrite",
+							"mingw-w64-ucrt-x86_64-gcc",
+							"mingw-w64-ucrt-x86_64-openssl",
+							"mingw-w64-ucrt-x86_64-pcre2",
+							"mingw-w64-ucrt-x86_64-libuv"
+						]
+					);
+				} else if(Sys.getEnv("VCPKG_INSTALLATION_ROOT") != null) {
+					useWindowsVcpkg = true;
+					runCommand("vcpkg", ["install", "pcre2:x64-windows-release"]);
+					runCommand("vcpkg", ["install", "libuv:x64-windows-release"]);
+					addToPATH(Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release/bin']));
+				} else {
+					failMsg("Running on windows requires msys2 or vcpkg environment");
+				}
+
 		}
 		runCommand("pipx", ["ensurepath"]);
 		runCommand("pipx", ["install", "hererocks"]);
@@ -32,21 +59,10 @@ class Lua {
 	static function installLib(lib : String, version : String, ?server :String){
 		if (!commandSucceed("luarocks", ["show", lib, version])) {
 			final args = ["install", lib, version];
-			if (systemName == "Mac") {
-				final opensslPath = commandResult("brew", ["--prefix", "openssl"]);
-				args.push('OPENSSL_DIR=${opensslPath.stdout.trim()}');
-				final pcrePath = commandResult("brew", ["--prefix", "pcre2"]);
-				args.push('PCRE2_DIR=${pcrePath.stdout.trim()}');
-			} else if (systemName == "Windows") {
+			args.push('WITH_SHARED_LIBUV=ON');
+			if (systemName == "Windows" && useWindowsVcpkg) {
 				args.push('OPENSSL_DIR=C:\\Program Files\\OpenSSL');
 				args.push('OPENSSL_LIBDIR=C:\\Program Files\\OpenSSL\\lib\\VC\\x64\\MD');
-				final vcpkgRoot = Sys.getEnv("VCPKG_INSTALLATION_ROOT");
-				if (vcpkgRoot == null) {
-					System.failMsg("VCPKG_INSTALLATION_ROOT missing, lua dependencies may fail to install");
-				} else {
-					final dir = Path.join([vcpkgRoot, "installed\\x64-windows-release"]);
-					args.push('PCRE2_DIR=$dir');
-				}
 			}
             if (server != null){
                 final server_arg = '--server=$server';
@@ -70,16 +86,23 @@ class Lua {
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
 
-			final targetFlags = if (systemName == "Windows") ["--target", "vs"] else [];
-			runCommand("hererocks", [envpath, lv, "-r@418d2ab34891b130cc317df32f65f978640febcf", "-i"].concat(targetFlags));
+			final targetFlags = if (systemName == "Windows") ["--target", if (useWindowsVcpkg) "vs" else "mingw"] else [];
+			runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
 			trace('path: ' + Sys.getEnv("PATH"));
 
 
 			runCommand("lua",["-v"]);
 
 			if (systemName == "Windows") {
-				// required for luv build, default is very old
-				runCommand("luarocks", ["config", "cmake_generator", "Visual Studio 17 2022"]);
+				if (useWindowsVcpkg) {
+					// required for luv build, default is very old
+					runCommand("luarocks", ["config", "cmake_generator", "Visual Studio 17 2022"]);
+					runCommand("luarocks", ["config", "external_deps_dirs[0]", Path.join([Sys.getEnv("VCPKG_INSTALLATION_ROOT"), 'installed/x64-windows-release'])]);
+				} else {
+					runCommand("luarocks", ["config", "external_deps_dirs[0]", Path.join([msys2Path, "ucrt64"])]);
+				}
+			} else if (systemName == "Mac") {
+				runCommand("luarocks", ["config", "external_deps_dirs[0]", commandResult("brew", ["--prefix"]).stdout.trim()]);
 			}
 
 			runCommand("luarocks", ["config", "--lua-incdir"]);
@@ -91,16 +114,16 @@ class Lua {
 			// Note: don't use a user config
 			// attemptCommand("luarocks", ["config", "--user-config"]);
 
+			installLib("luasocket", "3.1.0-1");
 			installLib("luasec", "1.3.2-1");
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
-			installLib("luasocket", "3.0rc1-2");
 
 			//Install bit32 for lua 5.1 and 5.4
 			if (lv == "-l5.1" || lv == "-l5.4")
-				installLib("bit32", "5.3.5.1-1");
+				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
-			installLib("luv", "1.50.0-1");
+			installLib("https://raw.githubusercontent.com/tobil4sk/lua-luv/refs/heads/feature/rockspec-shared-libuv/luv-scm-0.rockspec", "");
 			installLib("luautf8", "0.1.6-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");

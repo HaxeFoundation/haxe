@@ -201,7 +201,6 @@ class TestUnicode extends utest.Test {
 		assertNormalEither(FileSystem.exists, 'test-res/b', 'expected exists == false');
 
 		// fullPath
-#if !lua // Lua disabled temporarily (#8215)
 		if (Sys.systemName() != "Windows") {
 			// symlinks behave strangely on Windows
 			pathBoth(path -> {
@@ -211,7 +210,6 @@ class TestUnicode extends utest.Test {
 						);
 				}, "test-res");
 		}
-#end
 
 		// isDirectory
 		assertNormalEither(FileSystem.isDirectory, 'test-res/a', 'expected isDirectory == true');
