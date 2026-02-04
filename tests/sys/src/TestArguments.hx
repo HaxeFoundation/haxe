@@ -93,6 +93,8 @@ class TestArguments extends utest.Test {
 		"bin/lua/TestArguments.lua";
 	#elseif js
 		"bin/js/TestArguments.js";
+	#elseif cs
+		"bin/cs-args/bin/aot/Project.aot";
 	#else
 		null;
 	#end

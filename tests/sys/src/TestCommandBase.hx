@@ -39,6 +39,8 @@ class TestCommandBase extends utest.Test {
 				run("lua", [bin].concat(args));
 			#elseif js
 				run("node", [bin].concat(args));
+			#elseif cs
+				run(bin, args);
 			#else
 				-1;
 			#end
@@ -129,6 +131,8 @@ class TestCommandBase extends utest.Test {
 					run("lua", [bin].concat(args));
 				#elseif js
 					run("node", [bin].concat(args));
+				#elseif cs
+					run(bin, args);
 				#else
 					-1;
 				#end

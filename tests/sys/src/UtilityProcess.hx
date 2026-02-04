@@ -30,6 +30,8 @@ class UtilityProcess {
 		Path.join(["src"]);
 #elseif js
 		Path.join(["bin", "js"]);
+#elseif cs
+		Path.join(["bin", "cs-utility", "bin", "aot"]);
 #else
 		null;
 #end
@@ -60,6 +62,8 @@ class UtilityProcess {
 		"UtilityProcess.hx";
 #elseif js
 		"UtilityProcess.js";
+#elseif cs
+		"Project.aot";
 #else
 		null;
 #end
@@ -94,6 +98,8 @@ class UtilityProcess {
 		new Process(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
 		#elseif lua
 		new Process("lua", [execFull].concat(args));
+		#elseif cs
+		new Process(execFull, args);
 		#else
 		null;
 		#end
@@ -141,6 +147,8 @@ class UtilityProcess {
 		Sys.command("lua", [execFull].concat(args));
 		#elseif js
 		Sys.command("node", [execFull].concat(args));
+		#elseif cs
+		Sys.command(execFull, args);
 		#else
 		1;
 		#end

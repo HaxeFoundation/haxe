@@ -33,6 +33,8 @@ class ExitCode {
 		"bin/lua/ExitCode.lua";
 	#elseif js
 		"bin/js/ExitCode.js";
+	#elseif cs
+		"bin/cs-exit/bin/aot/Project.aot";
 	#else
 		null;
 	#end
