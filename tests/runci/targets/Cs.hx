@@ -141,17 +141,17 @@ class Cs {
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cs.hxml"].concat(args));
 
+		// Build utility binaries to AOT (needed by both JIT and AOT tests)
+		buildUtilityAot("bin/cs-args");
+		buildUtilityAot("bin/cs-exit");
+		buildUtilityAot("bin/cs-utility");
+
 		// JIT
 		infoMsg("=== Running Sys Tests (JIT) ===");
 		runSysTest("dotnet", ["run", "--project", "bin/cs/Project.csproj"]);
 
 		// AOT
 		infoMsg("=== Running Sys Tests (AOT) ===");
-		// Build utility binaries to AOT first
-		buildUtilityAot("bin/cs-args");
-		buildUtilityAot("bin/cs-exit");
-		buildUtilityAot("bin/cs-utility");
-		// Now run the main AOT test
 		changeDirectory("bin/cs");
 		runAotSysTest();
 
