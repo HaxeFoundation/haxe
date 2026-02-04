@@ -81,20 +81,40 @@ class Process {
 						haxe.SysTools.quoteWinArg(a, false)
 				].join(" ");
 			case _:
-				// mono uses a slightly different quoting/escaping rule...
-				// https://bugzilla.xamarin.com/show_bug.cgi?id=19296
+				// .NET on Unix uses Windows-like argument parsing for ProcessStartInfo.Arguments
+				// Wrap in double quotes, escape " as \" and \ only when followed by " or at end
 				[
 					for (arg in args) {
 						var b = new StringBuf();
 						b.add('"');
-						for (i in 0...arg.length) {
+						var i = 0;
+						while (i < arg.length) {
 							var c = arg.charCodeAt(i);
-							switch (c) {
-								case '"'.code | '\\'.code:
-									b.addChar('\\'.code);
-								case _: // pass
+							if (c == '\\'.code) {
+								// Count consecutive backslashes
+								var numSlashes = 0;
+								while (i < arg.length && arg.charCodeAt(i) == '\\'.code) {
+									numSlashes++;
+									i++;
+								}
+								// Check if followed by quote or end of string
+								if (i >= arg.length || arg.charCodeAt(i) == '"'.code) {
+									// Double the backslashes (they'll be halved by parser)
+									for (_ in 0...numSlashes * 2)
+										b.addChar('\\'.code);
+								} else {
+									// Keep backslashes as-is
+									for (_ in 0...numSlashes)
+										b.addChar('\\'.code);
+								}
+							} else if (c == '"'.code) {
+								b.addChar('\\'.code);
+								b.addChar('"'.code);
+								i++;
+							} else {
+								b.addChar(c);
+								i++;
 							}
-							b.addChar(c);
 						}
 						b.add('"');
 						b.toString();

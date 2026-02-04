@@ -110,7 +110,7 @@ import cs.system.reflection.Assembly;
 		var process = new Process();
 		process.StartInfo.FileName = cmd;
 		if (args != null) {
-			process.StartInfo.Arguments = args.join(" ");
+			process.StartInfo.Arguments = buildArgumentsString(args);
 		}
 		process.StartInfo.UseShellExecute = false;
 		process.StartInfo.RedirectStandardOutput = true;
@@ -186,5 +186,55 @@ import cs.system.reflection.Assembly;
 
 	public static function stderr():haxe.io.Output {
 		return new cs.io.NativeOutput(Console.OpenStandardError());
+	}
+
+	private static function buildArgumentsString(args:Array<String>):String {
+		return switch (systemName()) {
+			case "Windows":
+				[
+					for (a in args)
+						haxe.SysTools.quoteWinArg(a, false)
+				].join(" ");
+			case _:
+				// .NET on Unix uses Windows-like argument parsing for ProcessStartInfo.Arguments
+				// Wrap in double quotes, escape " as \" and \ only when followed by " or at end
+				[
+					for (arg in args) {
+						var b = new StringBuf();
+						b.add('"');
+						var i = 0;
+						while (i < arg.length) {
+							var c = arg.charCodeAt(i);
+							if (c == '\\'.code) {
+								// Count consecutive backslashes
+								var numSlashes = 0;
+								while (i < arg.length && arg.charCodeAt(i) == '\\'.code) {
+									numSlashes++;
+									i++;
+								}
+								// Check if followed by quote or end of string
+								if (i >= arg.length || arg.charCodeAt(i) == '"'.code) {
+									// Double the backslashes (they'll be halved by parser)
+									for (_ in 0...numSlashes * 2)
+										b.addChar('\\'.code);
+								} else {
+									// Keep backslashes as-is
+									for (_ in 0...numSlashes)
+										b.addChar('\\'.code);
+								}
+							} else if (c == '"'.code) {
+								b.addChar('\\'.code);
+								b.addChar('"'.code);
+								i++;
+							} else {
+								b.addChar(c);
+								i++;
+							}
+						}
+						b.add('"');
+						b.toString();
+					}
+				].join(" ");
+		};
 	}
 }
