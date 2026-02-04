@@ -173,6 +173,17 @@ class TestCase implements ITest implements ITestCase {
 		return sys.io.File.getContent("test/templates/" + templateName);
 	}
 
+	function getTemplateWithMarkers(templateName:String) {
+		var content = sys.io.File.getContent("test/templates/" + templateName);
+		return Marker.extractMarkers(content);
+	}
+
+	function storeAndParseTemplate(templatePath:String, asPath:String) {
+		var tpl = getTemplateWithMarkers(templatePath);
+		vfs.putContent(asPath, tpl.source);
+		return tpl;
+	}
+
 	function hasMessage<T>(msg:String) {
 		for (message in messages) {
 			if (message.endsWith(msg)) {
