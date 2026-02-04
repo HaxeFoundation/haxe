@@ -23,41 +23,34 @@
 package sys.thread;
 
 @:coreApi
-class Deque<T> {
-	var _queue:Dynamic; // System.Collections.Concurrent.ConcurrentQueue<object>
-	var _semaphore:cs.system.threading.SemaphoreSlim;
+class Condition {
+	var _lock:Dynamic;
 
 	public function new() {
-		_queue = untyped __cs__("new System.Collections.Concurrent.ConcurrentQueue<object>()");
-		_semaphore = new cs.system.threading.SemaphoreSlim(0, 2147483647);
+		_lock = untyped __cs__("new object()");
 	}
 
-	public function add(i:T):Void {
-		untyped __cs__("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).Enqueue({1})", _queue, i);
-		_semaphore.Release();
+	public function acquire():Void {
+		untyped __cs__("System.Threading.Monitor.Enter({0})", _lock);
 	}
 
-	public function push(i:T):Void {
-		// ConcurrentQueue doesn't have push to front, so we use a different approach
-		// For now, just add to end (same as add)
-		add(i);
+	public function tryAcquire():Bool {
+		return untyped __cs__("System.Threading.Monitor.TryEnter({0})", _lock);
 	}
 
-	public function pop(block:Bool):Null<T> {
-		if (block) {
-			// Wait for an item
-			_semaphore.Wait();
-			var result:Dynamic = null;
-			untyped __cs__("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).TryDequeue(out {1})", _queue, result);
-			return cast result;
-		} else {
-			// Try to get without blocking
-			if (_semaphore.Wait(0)) {
-				var result:Dynamic = null;
-				untyped __cs__("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).TryDequeue(out {1})", _queue, result);
-				return cast result;
-			}
-			return null;
-		}
+	public function release():Void {
+		untyped __cs__("System.Threading.Monitor.Exit({0})", _lock);
+	}
+
+	public function wait():Void {
+		untyped __cs__("System.Threading.Monitor.Wait({0})", _lock);
+	}
+
+	public function signal():Void {
+		untyped __cs__("System.Threading.Monitor.Pulse({0})", _lock);
+	}
+
+	public function broadcast():Void {
+		untyped __cs__("System.Threading.Monitor.PulseAll({0})", _lock);
 	}
 }

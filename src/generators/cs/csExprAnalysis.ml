@@ -472,4 +472,6 @@ let rec transform_void_returns_to_null stmt =
 		CsUsing (decls, transform_void_returns_to_null body)
 	| CsLock (expr, body) ->
 		CsLock (expr, transform_void_returns_to_null body)
+	| CsUncheckedStmt body ->
+		CsUncheckedStmt (transform_void_returns_to_null body)
 	| _ -> stmt
