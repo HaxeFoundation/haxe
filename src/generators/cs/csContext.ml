@@ -129,10 +129,18 @@ let fresh_temp ectx =
 	find_available ()
 
 (* Generate a unique closure class name based on current context *)
+(* Use origin_class_path when available to avoid nested closures having
+   double _hx_Closure_ prefix (since current_class_path would be the parent closure's path) *)
 let generate_closure_name gctx ectx =
 	let count = gctx.closure_count in
 	gctx.closure_count <- count + 1;
-	let base_name = match ectx.current_class_path, ectx.current_method_name with
+	(* Prefer origin_class_path for naming to use the original Haxe class,
+	   not the parent closure's generated class path *)
+	let class_path = match ectx.origin_class_path with
+		| Some p -> Some p
+		| None -> ectx.current_class_path
+	in
+	let base_name = match class_path, ectx.current_method_name with
 		| Some (_, cname), Some mname -> Printf.sprintf "%s_%s" cname mname
 		| Some (_, cname), None -> cname
 		| None, Some mname -> mname
