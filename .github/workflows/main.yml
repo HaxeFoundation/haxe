@@ -14,7 +14,6 @@ jobs:
   windows64-build:
     runs-on: windows-latest
     env:
-      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       ARCH: 64
       MINGW_ARCH: x86_64
@@ -505,7 +504,6 @@ jobs:
     needs: windows64-build
     runs-on: windows-latest
     env:
-      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
       HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
@@ -543,9 +541,9 @@ jobs:
           $DOWNLOADDIR="./win$($env:ARCH)Binaries"
           Expand-Archive $DOWNLOADDIR/*_bin.zip -DestinationPath $DOWNLOADDIR
           Set-PSDebug -Trace 1
-          $HAXEPATH = Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory
-          Write-Host "::add-path::$HAXEPATH"
-          Write-Host "::set-env name=HAXELIB_ROOT::$HAXEPATH\lib"
+          $HAXEPATH = (Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory).FullName
+          echo $HAXEPATH >> $env:GITHUB_PATH
+          echo "HAXELIB_ROOT=$HAXEPATH\lib" >> $env:GITHUB_ENV
 
       - name: Print Haxe version
         shell: pwsh
