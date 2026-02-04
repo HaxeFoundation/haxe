@@ -558,13 +558,6 @@ jobs:
           cmd /c mklink $py3path $pypath
           python3 -V
 
-      - name: Install wget
-        if: matrix.target == 'flash'
-        shell: cmd
-        run: |
-          choco install wget
-          wget --version
-
       - uses: msys2/setup-msys2@v2
         if: matrix.target == 'lua'
         id: msys2
