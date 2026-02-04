@@ -154,7 +154,19 @@ class Cs {
 		// AOT
 		infoMsg("=== Running Sys Tests (AOT) ===");
 		changeDirectory("bin/cs");
-		runAotSysTest();
+		// Build AOT binary in bin/cs
+		createAotProjectFile();
+		infoMsg('Publishing AOT binary...');
+		runCommand("dotnet", ["publish", "Project.aot.csproj", "-c", "Release", "-o", "bin/aot"]);
+		var aotBinary = getAotBinaryPath();
+		if (!sys.FileSystem.exists(aotBinary)) {
+			throw 'AOT binary not found at $aotBinary';
+		}
+		// Return to sysDir to run test with correct working directory
+		changeDirectory(sysDir);
+		var fullPath = sys.FileSystem.fullPath('bin/cs/$aotBinary');
+		infoMsg('Running AOT binary (sys test)...');
+		runSysTest(fullPath, []);
 
 		// === Thread Tests ===
 		changeDirectory(threadsDir);
