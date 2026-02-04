@@ -72,6 +72,18 @@ class Cs {
 		runCommand(fullPath, []);
 	}
 
+	// Build utility binary to AOT (for sys tests)
+	static function buildUtilityAot(utilDir:String):Void {
+		if (!sys.FileSystem.exists('$utilDir/Project.csproj'))
+			return;
+
+		infoMsg('Building $utilDir to AOT...');
+		changeDirectory(utilDir);
+		createAotProjectFile();
+		runCommand("dotnet", ["publish", "Project.aot.csproj", "-c", "Release", "-o", "bin/aot"]);
+		changeDirectory("../..");
+	}
+
 	// Run AOT sys test (with EXISTS=1 environment variable)
 	static function runAotSysTest():Void {
 		createAotProjectFile();
@@ -135,6 +147,11 @@ class Cs {
 
 		// AOT
 		infoMsg("=== Running Sys Tests (AOT) ===");
+		// Build utility binaries to AOT first
+		buildUtilityAot("bin/cs-args");
+		buildUtilityAot("bin/cs-exit");
+		buildUtilityAot("bin/cs-utility");
+		// Now run the main AOT test
 		changeDirectory("bin/cs");
 		runAotSysTest();
 
