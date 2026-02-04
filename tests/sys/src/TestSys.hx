@@ -119,7 +119,7 @@ class TestSys extends TestCommandBase {
 		#elseif js
 			"sys.js"
 		#elseif cs
-			"Project" + (Sys.systemName() == "Windows" ? ".exe" : "")
+			"Project.aot"
 		#elseif hl
 			#if hlc
 				"sys.exe"
