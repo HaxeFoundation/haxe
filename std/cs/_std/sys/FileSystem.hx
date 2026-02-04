@@ -88,7 +88,16 @@ class FileSystem {
 	}
 
 	public static function fullPath(relPath:String):String {
-		return new FileInfo(relPath).FullName;
+		var fileInfo = new FileInfo(relPath);
+		var fullName = fileInfo.FullName;
+		// Resolve symlinks if the path is a symlink
+		var linkTarget:String = untyped __cs__("System.IO.File.ResolveLinkTarget({0}, true)?.FullName", fullName);
+		if (linkTarget != null)
+			return linkTarget;
+		var dirLinkTarget:String = untyped __cs__("System.IO.Directory.ResolveLinkTarget({0}, true)?.FullName", fullName);
+		if (dirLinkTarget != null)
+			return dirLinkTarget;
+		return fullName;
 	}
 
 	public static function absolutePath(relPath:String):String {

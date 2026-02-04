@@ -34,7 +34,7 @@ class ExitCode {
 	#elseif js
 		"bin/js/ExitCode.js";
 	#elseif cs
-		"../cs-exit/bin/aot/Project";
+		"bin/cs-exit/bin/aot/Project";
 	#else
 		null;
 	#end

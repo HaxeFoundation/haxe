@@ -108,15 +108,32 @@ import cs.system.reflection.Assembly;
 
 	public static function command(cmd:String, ?args:Array<String>):Int {
 		var process = new Process();
-		process.StartInfo.FileName = cmd;
 		process.StartInfo.UseShellExecute = false;
 		process.StartInfo.RedirectStandardOutput = true;
 		process.StartInfo.RedirectStandardError = true;
 		if (args != null) {
 			// Use ArgumentList collection (like JVM/Python) - no escaping needed
+			process.StartInfo.FileName = cmd;
 			var startInfo = process.StartInfo;
 			for (arg in args) {
 				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, arg);
+			}
+		} else {
+			// Shell command - use /bin/sh -c (or cmd.exe /C on Windows)
+			switch (systemName()) {
+				case "Windows":
+					process.StartInfo.FileName = switch (getEnv("COMSPEC")) {
+						case null: "cmd.exe";
+						case comspec: comspec;
+					};
+					var startInfo = process.StartInfo;
+					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "/C");
+					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
+				case _:
+					process.StartInfo.FileName = "/bin/sh";
+					var startInfo = process.StartInfo;
+					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "-c");
+					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
 			}
 		}
 		process.Start();
@@ -168,10 +185,17 @@ import cs.system.reflection.Assembly;
 	}
 
 	public static function programPath():String {
-		// Environment.ProcessPath works in AOT mode, Assembly.Location doesn't
+		// Try multiple approaches for AOT compatibility
+		// 1. Environment.ProcessPath (works in most AOT scenarios)
 		var path:String = untyped __cs__("System.Environment.ProcessPath");
-		if (path == null || path == "")
+		if (path == null || path == "") {
+			// 2. Process.MainModule.FileName (more reliable for AOT)
+			path = untyped __cs__("System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName");
+		}
+		if (path == null || path == "") {
+			// 3. Assembly.Location (fallback for non-AOT)
 			path = Assembly.GetExecutingAssembly().Location;
+		}
 		return path;
 	}
 

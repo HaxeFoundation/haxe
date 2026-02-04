@@ -31,7 +31,7 @@ class UtilityProcess {
 #elseif js
 		Path.join(["bin", "js"]);
 #elseif cs
-		Path.join(["..", "cs-utility", "bin", "aot"]);
+		Path.join(["bin", "cs-utility", "bin", "aot"]);
 #else
 		null;
 #end

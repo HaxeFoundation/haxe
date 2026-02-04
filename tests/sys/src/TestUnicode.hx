@@ -36,6 +36,8 @@ class TestUnicode extends utest.Test {
 		"bin-eval";
 #elseif js
 		"bin-js";
+#elseif cs
+		"bin-cs";
 #else
 		null;
 #end
