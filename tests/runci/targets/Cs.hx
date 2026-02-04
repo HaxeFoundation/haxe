@@ -35,7 +35,7 @@ class Cs {
 	// Get AOT binary path
 	static function getAotBinaryPath():String {
 		var ext = if (Sys.systemName() == "Windows") ".exe" else "";
-		return 'bin/aot/Project.aot$ext';
+		return 'bin/aot/Project$ext';
 	}
 
 	// Create Project.aot.csproj file for AOT compilation
@@ -44,6 +44,7 @@ class Cs {
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Project</AssemblyName>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
