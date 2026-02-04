@@ -64,10 +64,10 @@ import cs.system.reflection.Assembly;
 	public static function environment():Map<String, String> {
 		var env = new haxe.ds.StringMap<String>();
 		var dict = Environment.GetEnvironmentVariables();
-		var enumerator = dict.GetEnumerator();
-		while (enumerator.MoveNext()) {
-			env.set(enumerator.Key, enumerator.Value);
-		}
+		// Use __cs__ foreach to avoid Dynamic property access issues with IDictionaryEnumerator
+		untyped __cs__("foreach (System.Collections.DictionaryEntry entry in {0}) {
+			{1}.set((string)entry.Key, (string)entry.Value);
+		}", dict, env);
 		return env;
 	}
 
@@ -144,7 +144,7 @@ import cs.system.reflection.Assembly;
 		Environment.Exit(code);
 	}
 
-	@:readOnly static var epochTicks:haxe.Int64 = new DateTime(1970, 1, 1).Ticks;
+	static var epochTicks:haxe.Int64 = new DateTime(1970, 1, 1).Ticks;
 
 	public static function time():Float {
 		// Use __cs__ for reliable Int64 to Float conversion
@@ -164,7 +164,11 @@ import cs.system.reflection.Assembly;
 	}
 
 	public static function programPath():String {
-		return Assembly.GetExecutingAssembly().Location;
+		// Environment.ProcessPath works in AOT mode, Assembly.Location doesn't
+		var path:String = untyped __cs__("System.Environment.ProcessPath");
+		if (path == null || path == "")
+			path = Assembly.GetExecutingAssembly().Location;
+		return path;
 	}
 
 	public static function getChar(echo:Bool):Int {

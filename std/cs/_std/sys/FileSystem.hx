@@ -22,6 +22,8 @@
 
 package sys;
 
+import cs.system.DateTime;
+import cs.system.DateTimeKind;
 import cs.system.io.DirectoryInfo;
 import cs.system.io.File;
 import cs.system.io.Directory;
@@ -29,6 +31,8 @@ import cs.system.io.FileInfo;
 
 @:coreApi
 class FileSystem {
+	static var unixEpoch:DateTime = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
 	public static function exists(path:String):Bool {
 		return (File.Exists(path) || Directory.Exists(path));
 	}
@@ -77,15 +81,10 @@ class FileSystem {
 		}
 	}
 
-	private static function dateFromNative(native:cs.system.DateTime):Date {
-		// Convert .NET DateTime to Haxe Date via Unix timestamp
-		var ticks:haxe.Int64 = untyped __cs__("{0}.ToUniversalTime().Ticks", native);
-		// .NET ticks are 100-nanosecond intervals since 0001-01-01
-		// Unix epoch is 1970-01-01, difference is 621355968000000000 ticks
-		var unixTicks:haxe.Int64 = haxe.Int64.sub(ticks, haxe.Int64.make(0x89F7FF5F, 0x7B58000));
-		// Convert to milliseconds
-		var ms:Float = haxe.Int64.toInt(haxe.Int64.div(unixTicks, haxe.Int64.ofInt(10000)));
-		return Date.fromTime(ms);
+	private static function dateFromNative(native:DateTime):Date {
+		var utc = native.ToUniversalTime();
+		var span = utc.Subtract(unixEpoch);
+		return Date.fromTime(span.TotalMilliseconds);
 	}
 
 	public static function fullPath(relPath:String):String {
@@ -93,6 +92,8 @@ class FileSystem {
 	}
 
 	public static function absolutePath(relPath:String):String {
+		if (relPath == null)
+			return null;
 		if (haxe.io.Path.isAbsolute(relPath))
 			return relPath;
 		return haxe.io.Path.join([Sys.getCwd(), relPath]);
@@ -124,15 +125,10 @@ class FileSystem {
 	public static function readDirectory(path:String):Array<String> {
 		var native = Directory.GetFileSystemEntries(path);
 		var result = new Array<String>();
-		if (native.length > 0) {
-			var fst = native[0];
-			var sep = "/";
-			if (fst.lastIndexOf(sep) < fst.lastIndexOf("\\"))
-				sep = "\\";
-			for (i in 0...native.length) {
-				var p = native[i];
-				result.push(p.substr(p.lastIndexOf(sep) + 1));
-			}
+		for (i in 0...native.length) {
+			var p = native[i];
+			// Use System.IO.Path.GetFileName for reliable basename extraction
+			result.push(untyped __cs__("System.IO.Path.GetFileName({0})", p));
 		}
 		return result;
 	}
