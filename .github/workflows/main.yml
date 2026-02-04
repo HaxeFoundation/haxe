@@ -467,6 +467,7 @@ jobs:
 
       - name: Add msbuild to PATH (hl/c)
         uses: microsoft/setup-msbuild@v2
+        if: matrix.target == 'hl'
         with:
           msbuild-architecture: x64
 
