@@ -350,7 +350,7 @@ let finalize_typing ctx tctx =
 
 let filter ctx tctx ectx before_destruction =
 	Timer.time ctx.timer_ctx ["filters"] (fun () ->
-		run_or_diagnose ctx (fun () -> Filters.run tctx ectx ctx.com.main.main_expr before_destruction)
+		run_or_diagnose ctx (fun () -> Filters.run tctx ectx before_destruction)
 	) ()
 
 let compile ctx actx callbacks =

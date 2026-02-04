@@ -6,7 +6,8 @@ package haxe;
 **/
 class EntryPoint {
 
-	@:keep public static function run() @:privateAccess {
+	@:ifFeature("haxe.EventLoop.*")
+	public static function run() @:privateAccess {
 		#if js
 			var nextTick = haxe.EventLoop.main.getNextTick();
 			inline function setTimeoutNextTick() {

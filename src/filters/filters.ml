@@ -218,7 +218,7 @@ let destruction_on_com scom com types =
 	(* These aren't actually safe. The logic works fine regardless, we just can't parallelize this at the moment. *)
 	SafeCom.run_type_filters_safe scom filters types
 
-let destruction (com : Common.context) scom ectx detail_times main rename_locals_config all_types all_types_array =
+let destruction (com : Common.context) scom ectx detail_times rename_locals_config all_types all_types_array =
 	let all_types = Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
 			SafeCom.run_with_scom com scom (fun () ->
@@ -238,10 +238,13 @@ let destruction (com : Common.context) scom ectx detail_times main rename_locals
 			in
 			let std_paths = com.class_paths#get_std_paths in
 			let mscom = Option.map of_com (com.get_macros()) in
+			let main = com.main.main_expr in
 			let types = Dce.run pool scom mscom main dce_mode std_paths all_types in
 			types
 		) in
 		Common.enter_stage com CDceDone;
+
+		Finalization.maybe_add_entrypoint com;
 
 		(* This has to run after DCE, or otherwise its condition always holds. *)
 		begin match ectx with
@@ -469,7 +472,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_after_analyzer) new_types_array;
 	Dump.maybe_generate_dump com AfterSanitizing
 
-let run com ectx main before_destruction =
+let run com ectx before_destruction =
 	let scom = SafeCom.of_com com in
 	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
 	let new_types = List.filter (fun t ->
@@ -537,4 +540,4 @@ let run com ectx main before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction com scom ectx detail_times main rename_locals_config com.types all_types_array
+	destruction com scom ectx detail_times rename_locals_config com.types all_types_array
