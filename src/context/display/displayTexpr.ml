@@ -187,10 +187,12 @@ let check_display_file ctx cs =
 			in
 			check_display_module ctx cfile.c_decls m
 		with Not_found ->
-			let fkey = DisplayPosition.display_position#get_file_key in
-			(* force parsing again : if the completion point have been changed *)
-			cs#remove_files fkey;
-			cs#taint_modules fkey CheckDisplayFile;
+			if Define.defined ctx.com.defines DisableHxbCache then begin
+				let fkey = DisplayPosition.display_position#get_file_key in
+				(* force parsing again : if the completion point have been changed *)
+				cs#remove_files fkey;
+				cs#taint_modules fkey CheckDisplayFile
+			end
 		end
 	| None ->
 		()
