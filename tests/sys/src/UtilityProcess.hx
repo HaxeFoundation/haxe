@@ -99,7 +99,7 @@ class UtilityProcess {
 		#elseif lua
 		new Process("lua", [execFull].concat(args));
 		#elseif cs
-		new Process(execFull, args);
+		new Process(Sys.systemName() == "Windows" ? execFull + ".exe" : execFull, args);
 		#else
 		null;
 		#end
@@ -148,7 +148,7 @@ class UtilityProcess {
 		#elseif js
 		Sys.command("node", [execFull].concat(args));
 		#elseif cs
-		Sys.command(execFull, args);
+		Sys.command(Sys.systemName() == "Windows" ? execFull + ".exe" : execFull, args);
 		#else
 		1;
 		#end

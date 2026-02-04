@@ -40,7 +40,7 @@ class TestCommandBase extends utest.Test {
 			#elseif js
 				run("node", [bin].concat(args));
 			#elseif cs
-				run(bin, args);
+				run(Sys.systemName() == "Windows" ? bin + ".exe" : bin, args);
 			#else
 				-1;
 			#end
@@ -132,7 +132,7 @@ class TestCommandBase extends utest.Test {
 				#elseif js
 					run("node", [bin].concat(args));
 				#elseif cs
-					run(bin, args);
+					run(Sys.systemName() == "Windows" ? bin + ".exe" : bin, args);
 				#else
 					-1;
 				#end

@@ -42,7 +42,7 @@ class ExitCode {
 	static public function getNative():String {
 		// For C#, just return the cs-exit AOT binary (it's already compiled)
 		#if cs
-		return bin;
+		return (Sys.systemName() == "Windows") ? bin + ".exe" : bin;
 		#else
 		// This is just a script that behaves like ExitCode.hx,
 		// which exits with the code same as the first given argument.
