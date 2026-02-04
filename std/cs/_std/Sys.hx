@@ -32,6 +32,7 @@ import cs.system.reflection.Assembly;
 @:coreApi class Sys {
 	private static var _args:Array<String>;
 	private static var _sysName:String;
+	private static var _removedEnvVars:haxe.ds.StringMap<Bool>;
 
 	public static function print(v:Dynamic):Void {
 		Console.Write(Std.string(v));
@@ -59,6 +60,19 @@ import cs.system.reflection.Assembly;
 
 	public static function putEnv(s:String, v:Null<String>):Void {
 		Environment.SetEnvironmentVariable(s, v);
+		// Track removed variables for subprocess environment inheritance in AOT
+		if (v == null) {
+			if (_removedEnvVars == null)
+				_removedEnvVars = new haxe.ds.StringMap<Bool>();
+			_removedEnvVars.set(s, true);
+		} else if (_removedEnvVars != null) {
+			_removedEnvVars.remove(s);
+		}
+	}
+
+	@:allow(sys.io.Process)
+	private static function getRemovedEnvVars():Null<haxe.ds.StringMap<Bool>> {
+		return _removedEnvVars;
 	}
 
 	public static function environment():Map<String, String> {

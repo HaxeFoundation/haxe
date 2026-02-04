@@ -50,7 +50,38 @@ class Process {
 		native.StartInfo.CreateNoWindow = true;
 		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
 		native.StartInfo.UseShellExecute = false;
-		if (args != null) {
+		// Check if we need to unset any environment variables
+		// In .NET AOT, ProcessStartInfo.Environment modifications don't work reliably,
+		// so we use `env -u VAR` to unset variables before running the command
+		var removedVars = Sys.getRemovedEnvVars();
+		// Check if there are actually any removed vars
+		var hasRemovedVars = false;
+		if (removedVars != null) {
+			for (_ in removedVars.keys()) {
+				hasRemovedVars = true;
+				break;
+			}
+		}
+		var needsEnvWrapper = hasRemovedVars && Sys.systemName() != "Windows";
+		if (needsEnvWrapper && args != null) {
+			// Use /usr/bin/env -u VAR to unset environment variables
+			// This avoids shell escaping issues by passing arguments directly via ArgumentList
+			native.StartInfo.FileName = "/usr/bin/env";
+			var startInfo = native.StartInfo;
+			// Add -u for each removed var
+			for (key in removedVars.keys()) {
+				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "-u");
+				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, key);
+			}
+			// Add the command - resolve path if needed
+			if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
+				cmd = sys.FileSystem.fullPath(cmd);
+			untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
+			// Add all arguments
+			for (arg in args) {
+				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, arg);
+			}
+		} else if (args != null) {
 			// Use ArgumentList collection (like JVM/Python) - no escaping needed
 			if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
 				cmd = sys.FileSystem.fullPath(cmd);

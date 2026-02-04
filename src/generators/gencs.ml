@@ -4254,18 +4254,16 @@ let rec cs_expr_of_texpr ectx e =
 			(* Empty object: just new HaxeDynamicObject() *)
 			CsNew (CsTypeClass (NativeTypes.haxe_dynamic_object_path, []), [])
 		else begin
-			(* Non-empty: HaxeDynamicObject._hx_create(new object[] { "name1", val1, ... }) *)
+			(* Non-empty: HaxeDynamicObject._hx_create(Array with object[] { "name1", val1, ... }) *)
 			let field_args = List.fold_left (fun acc ((name, _, _), e) ->
 				let name_expr = CsConst (CsConstString name) in
 				let val_expr = cs_expr_of_texpr ectx e in
+				let val_cs_type = cs_type_of_type ectx.gctx e.etype in
 				(* Values get boxed to object when placed in object[]. For Null<T> structs,
-				   this would box the struct, not convert hasValue=false to null.
-				   The coercion logic in cs_expr_of_texpr handles Null<T> → object via toDynamic
-				   when the target type expects object, so we don't need to add it here.
-				   The values will be properly coerced during the expression generation. *)
-				(* Note: Previously tried adding .toDynamic() here for Null<T>, but this caused
-				   issues when the Haxe type is Null<T> but C# produces bare T (e.g., bool ops). *)
-				val_expr :: name_expr :: acc
+				   we must call coerce_cs_types to invoke .toDynamic(), otherwise the struct
+				   itself gets boxed instead of the underlying value (or null). *)
+				let coerced_val = CsTypeCoercion.coerce_cs_types ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_expr val_cs_type CsTypeObject in
+				coerced_val :: name_expr :: acc
 			) [] fields in
 			let field_args = List.rev field_args in
 			(* Create native object array with the field name/value pairs *)
@@ -4298,11 +4296,15 @@ let rec cs_expr_of_texpr ectx e =
 			let storage_type = classify_cs_array_element_type elem_cs_type in
 			(* When using ArrayObject storage (which uses __ofObjectLiteral expecting object[]),
 			   we need to create object[] if the element type is a value type (like Null<int>).
-			   C# value type arrays are not covariant with object[]. *)
+			   C# value type arrays are not covariant with object[].
+			   For Null<T> elements, we must call coerce_cs_types to invoke .toDynamic(). *)
 			let native_array_type, native_array_items = match storage_type with
 				| ArrayObject when not (CsTypeMapping.is_inherently_nullable elem_cs_type) ->
-					(* Value type - create object[] and box elements *)
-					(CsTypeObject, cs_items)
+					(* Value type - create object[] and coerce elements (Null<T> → .toDynamic()) *)
+					let coerced_items = List.map (fun cs_item ->
+						CsTypeCoercion.coerce_cs_types ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx cs_item elem_cs_type CsTypeObject
+					) cs_items in
+					(CsTypeObject, coerced_items)
 				| _ ->
 					(* Reference type or typed storage - use actual element type *)
 					(elem_cs_type, cs_items)
