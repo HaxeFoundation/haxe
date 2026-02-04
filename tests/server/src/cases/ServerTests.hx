@@ -144,10 +144,7 @@ class ServerTests extends TestCase {
 
 		runHaxe(args);
 
-		if (inMemory)
-			assertSkipping("HelloWorld", Tainted("check_display_file"));
-		else
-			assertSkipping("HelloWorld", Tainted("server/invalidate"));
+		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 	}
 
 	function testMutuallyDependent() {
