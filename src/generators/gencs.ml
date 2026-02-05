@@ -8214,12 +8214,6 @@ let rec extends_haxe_object c =
 		else
 			extends_haxe_object sc  (* Check the superclass *)
 
-(* Value type for method closure dispatchers *)
-let function_value_type = CsTypeClass ((["haxe"; "lang"], "Value"), [])
-
-(* InstanceMethodFunction type for AOT-safe method closures *)
-let instance_method_func_type = CsTypeClass ((["haxe"; "lang"], "InstanceMethodFunction"), [])
-
 (* Generate _hx_getField, _hx_setField, _hx_getFields, method closure infrastructure for AOT compatibility *)
 let generate_field_accessors gctx c =
 	(* Only generate field accessors if the class inherits from HaxeObject *)
@@ -8442,7 +8436,7 @@ let generate_field_accessors gctx c =
 					let cs_ret_type = cs_type_of_type gctx ret in
 					let result_expr = match cs_ret_type with
 						| CsTypeVoid ->
-							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (function_value_type, "Missing", [])))]
+							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
 						| _ ->
 							[CsReturn (Some (cast_type_to_value cs_ret_type method_call))]
 					in
@@ -8462,14 +8456,14 @@ let generate_field_accessors gctx c =
 					{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None } ::
 					List.mapi (fun i _ -> {
 						p_name = Printf.sprintf "a%d" (i + 1);
-						p_type = Some function_value_type;
+						p_type = Some hxvalue_type;
 						p_default = None;
 						p_modifier = None;
 					}) (List.init arity (fun _ -> ()))
 				in
 				let dispatcher = CsMemberMethod {
 					m_name = method_name;
-					m_return_type = function_value_type;
+					m_return_type = hxvalue_type;
 					m_access = AccessModifier.Public;
 					m_modifiers = [MemberModifier.Override];
 					m_type_params = [];
@@ -8485,15 +8479,6 @@ let generate_field_accessors gctx c =
 		(* Combine all generated members *)
 		let optional_members = List.filter_map (fun x -> x) [get_field_method; set_field_method; get_fields_method] in
 		method_count_property @ optional_members @ invoke_method_dispatchers
-
-(* Type for ClassMethodFunction *)
-let class_method_func_type = CsTypeClass ((["haxe"; "lang"], "ClassMethodFunction"), [])
-
-(* Type for haxe.lang.HaxeReflection *)
-let haxe_static_fields_type = CsTypeClass ((["haxe"; "lang"], "HaxeReflection"), [])
-
-(* Type for haxe.lang.StaticAccessors *)
-let static_accessors_type = CsTypeClass ((["haxe"; "lang"], "StaticAccessors"), [])
 
 (* Generate static field accessors for AOT-compatible static field/method access.
    This includes:
@@ -8685,7 +8670,7 @@ let generate_static_field_accessors gctx c =
 			let get_or_create = CsVarDecl (
 				"acc",
 				Some static_accessors_type,
-				Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
+				Some (CsStaticCall (haxe_reflection_type, "getOrCreate", [
 					CsField (CsTypeOf cs_class_type, "FullName")
 				]))
 			) in
@@ -8785,7 +8770,7 @@ let generate_static_field_accessors gctx c =
 			let cs_ret_type = cs_type_of_type gctx ret in
 			let result_expr = match cs_ret_type with
 				| CsTypeVoid ->
-					CsCall (CsStaticField (function_value_type, "Missing"), [])
+					CsCall (CsStaticField (hxvalue_type, "Missing"), [])
 				| _ ->
 					cast_type_to_value cs_ret_type method_call
 			in
@@ -8921,7 +8906,7 @@ let generate_static_field_accessors gctx c =
 		let get_or_create = CsVarDecl (
 			"acc",
 			Some static_accessors_type,
-			Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
+			Some (CsStaticCall (haxe_reflection_type, "getOrCreate", [
 				CsField (CsTypeOf cs_class_type, "FullName")
 			]))
 		) in
@@ -10009,7 +9994,7 @@ let generate_enum gctx (e : tenum) =
 			let get_or_create = CsVarDecl (
 				"acc",
 				Some static_accessors_type,
-				Some (CsStaticCall (haxe_static_fields_type, "getOrCreate", [
+				Some (CsStaticCall (haxe_reflection_type, "getOrCreate", [
 					CsField (CsTypeOf cs_enum_type, "FullName")
 				]))
 			) in

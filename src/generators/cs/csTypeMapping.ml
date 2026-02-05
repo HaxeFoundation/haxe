@@ -83,6 +83,9 @@ module NativeTypes = struct
 	let haxe_empty_constructor_path = (["haxe"; "lang"], "EmptyConstructor")
 	let haxe_constructor_function_path = (["haxe"; "lang"], "ConstructorFunction")
 	let haxe_imap_path = (["haxe"], "IMap")
+	let haxe_class_method_function_path = (["haxe"; "lang"], "ClassMethodFunction")
+	let haxe_reflection_path = (["haxe"; "lang"], "HaxeReflection")
+	let haxe_static_accessors_path = (["haxe"; "lang"], "StaticAccessors")
 end
 
 (* Common type constants for frequently used Haxe runtime types.
@@ -97,6 +100,9 @@ let haxe_enum_type = CsTypeClass (NativeTypes.haxe_enum_path, [])
 let empty_constructor_type = CsTypeClass (NativeTypes.haxe_empty_constructor_path, [])
 let constructor_function_type = CsTypeClass (NativeTypes.haxe_constructor_function_path, [])
 let imap_type = CsTypeClass (NativeTypes.haxe_imap_path, [])
+let class_method_func_type = CsTypeClass (NativeTypes.haxe_class_method_function_path, [])
+let haxe_reflection_type = CsTypeClass (NativeTypes.haxe_reflection_path, [])
+let static_accessors_type = CsTypeClass (NativeTypes.haxe_static_accessors_path, [])
 
 (* Array storage type classification for typed backing arrays.
    The C# Array class uses multiple backing arrays (int[], double[], bool[], object[])
