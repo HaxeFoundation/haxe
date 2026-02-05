@@ -8074,20 +8074,18 @@ let generate_constructor gctx c cf field_init_stmts =
 										(* String supports ?? operator directly *)
 										CsBinop (CsOpNullCoalesce, cs_arg, cs_default)
 									| _ ->
-										(* For value types: check == null (works via __NoValue__ implicit conversion in Null<T>)
-										   For C# 8 compatibility: if expected type is Null<T>, wrap default
-										   in new Null<T>(value, true) to give both ternary branches the same type *)
-										let wrapped_default = match expected_type_opt with
+										(* For Null<T>: use explicit !hasValue check and wrap default in new Null<T>(value, true)
+										   For other types: use == null check *)
+										let wrapped_default, condition = match expected_type_opt with
 											| Some (CsTypeClass ((["haxe"; "lang"], "Null"), [inner_type])) ->
-												(* Wrap in new Null<T>(value, true) for explicit type *)
-												CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [inner_type]), [cs_default; CsConst (CsConstBool true)])
-											| _ -> cs_default
+												(* Wrap default and use explicit !hasValue check *)
+												let wrapped = CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [inner_type]), [cs_default; CsConst (CsConstBool true)]) in
+												let cond = CsUnop (CsOpNot, false, CsField (cs_arg, "hasValue")) in
+												(wrapped, cond)
+											| _ ->
+												(cs_default, CsBinop (CsOpEq, cs_arg, CsNull))
 										in
-										CsTernary (
-											CsBinop (CsOpEq, cs_arg, CsNull),
-											wrapped_default,
-											cs_arg
-										)
+										CsTernary (condition, wrapped_default, cs_arg)
 									end
 								| None -> cs_arg
 								end
