@@ -495,7 +495,7 @@ let fun_to_coro ctx coro_type =
 	let etmp_result = b#local vtmp_result coro_class.name_pos in
 	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
 	let etmp_error = b#local vtmp_error coro_class.name_pos in
-	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" basic.tany coro_class.name_pos) in
+	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
 	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
 
 	let expr, args, name =
