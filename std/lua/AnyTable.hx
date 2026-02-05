@@ -27,24 +27,4 @@ package lua;
 
 	Use this as a parameter type when a function accepts any kind of Lua table.
 **/
-abstract AnyTable(Table<Dynamic, Dynamic>) from Table<Dynamic, Dynamic> {
-	@:from
-	public static inline function fromTable<A, B>(t:Table<A, B>):AnyTable {
-		return cast t;
-	}
-
-	@:from
-	public static inline function fromTableStruct<T:{}>(t:TableStruct<T>):AnyTable {
-		return cast t;
-	}
-
-	@:arrayAccess
-	public inline function get(key:Dynamic):Dynamic {
-		return this[key];
-	}
-
-	@:arrayAccess
-	public inline function set(key:Dynamic, value:Dynamic):Void {
-		this[key] = value;
-	}
-}
+typedef AnyTable = Table<Dynamic, Dynamic>;

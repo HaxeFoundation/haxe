@@ -439,19 +439,6 @@ and gen_call ctx e el =
               spr ctx (String.concat "\n" (ExtString.String.nsplit s "\r\n"))
           | _ ->
               raise_typing_error "The code argument for lua.Syntax.plainCode must be a string constant" code.epos)
-     | TField (_, FStatic( { cl_path = (["lua"],"Syntax") }, { cf_name = "table" })), [obj] ->
-         (match (Texpr.skip obj).eexpr with
-          | TObjectDecl [] ->
-              spr ctx "{}"
-          | TObjectDecl fields ->
-              spr ctx "{";
-              concat ctx ", " (fun ((f,_,_),e) ->
-                  print ctx "%s = " (anon_field f);
-                  gen_value ctx e
-              ) fields;
-              spr ctx "}"
-          | _ ->
-              raise_typing_error "lua.Syntax.table only accepts anonymous object literals" obj.epos)
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
          gen_paren_arguments ctx el;

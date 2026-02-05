@@ -57,4 +57,20 @@ abstract TableStruct<T:{}>(T) {
 	public static inline function create<T:{}>(obj:T):TableStruct<T> {
 		return new TableStruct(untyped __lua_table__(obj));
 	}
+
+	/**
+		Converts to `AnyTable` for use with APIs that accept any table type.
+	**/
+	@:to
+	public inline function toAnyTable():AnyTable {
+		return cast this;
+	}
+
+	/**
+		Converts to `Table<String, Any>` for use with generic table APIs.
+	**/
+	@:to
+	public inline function toTable():Table<String, Any> {
+		return cast this;
+	}
 }
