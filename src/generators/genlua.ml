@@ -2035,72 +2035,75 @@ let alloc_ctx com =
 
 let transform_multireturn ctx = function
     | TClassDecl c ->
+        let is_multireturn t =
+            match follow t with
+            | TInst (c, _) when Meta.has Meta.MultiReturn c.cl_meta -> true
+            | _ -> false
+        in
+        let rec loop e =
+            match e.eexpr with
+            (*
+                if we found a var declaration initialized by a multi-return call, mark it with @:multiReturn meta,
+                so it will later be generated as multiple locals unpacking the value
+            *)
+            | TVar (v, Some ({ eexpr = TCall _ } as ecall)) when is_multireturn v.v_type ->
+                v.v_meta <- (Meta.MultiReturn,[],v.v_pos) :: v.v_meta;
+                let ecall = Type.map_expr loop ecall in
+                { e with eexpr = TVar (v, Some ecall) }
+
+            (* if we found a field access for the multi-return call, generate select call *)
+            | TField ({ eexpr = TCall _ } as ecall, f) when is_multireturn ecall.etype ->
+                let ecall = Type.map_expr loop ecall in
+                mk_mr_select ctx.com.basic e ecall (field_name f)
+
+            (* if we found a multi-return call used as a value, box it *)
+            | TCall _ when is_multireturn e.etype ->
+                let e = Type.map_expr loop e in
+                mk_mr_box ctx e
+
+            (* Don't bother wrapping multireturn function results if we don't use the return values *)
+            | TBlock el ->
+                let el2 = List.map (fun x ->
+                    match x.eexpr with
+                    | TCall (e2, el) when is_multireturn x.etype ->
+                        mk (TCall (e2, List.map(fun x-> Type.map_expr loop x) el)) x.etype x.epos
+                    | _ -> loop x) el in
+                mk (TBlock el2) e.etype e.epos;
+
+
+                (* if we found a field access for a multi-return local - that's fine, because it'll be generated as a local var *)
+            | TField ({ eexpr = TLocal v}, _) when Meta.has Meta.MultiReturn v.v_meta ->
+                e
+            | TReturn Some(e2) ->
+                if is_multireturn e2.etype then
+                    raise_typing_error "You cannot return a multireturn type from a haxe function" e2.epos
+                else
+                    Type.map_expr loop e;
+            (*
+                if we found usage of local var we previously marked with @:multiReturn as a value itself,
+                remove the @:multiReturn meta and add "box me" meta so it'll be boxed on var initialization
+            *)
+            | TLocal v when Meta.has Meta.MultiReturn v.v_meta ->
+                v.v_meta <- List.filter (fun (m,_,_) -> m <> Meta.MultiReturn) v.v_meta;
+                v.v_meta <- (Meta.Custom ":lua_mr_box", [], v.v_pos) :: v.v_meta;
+                e
+
+            | _ ->
+                Type.map_expr loop e
+        in
         let transform_field f =
             check_multireturn_param ctx f.cf_type f.cf_pos;
             match f.cf_expr with
-            | Some e ->
-                let is_multireturn t =
-                    match follow t with
-                    | TInst (c, _) when Meta.has Meta.MultiReturn c.cl_meta -> true
-                    | _ -> false
-                in
-                let rec loop e =
-                    match e.eexpr with
-                    (*
-                        if we found a var declaration initialized by a multi-return call, mark it with @:multiReturn meta,
-                        so it will later be generated as multiple locals unpacking the value
-                    *)
-                    | TVar (v, Some ({ eexpr = TCall _ } as ecall)) when is_multireturn v.v_type ->
-                        v.v_meta <- (Meta.MultiReturn,[],v.v_pos) :: v.v_meta;
-                        let ecall = Type.map_expr loop ecall in
-                        { e with eexpr = TVar (v, Some ecall) }
-
-                    (* if we found a field access for the multi-return call, generate select call *)
-                    | TField ({ eexpr = TCall _ } as ecall, f) when is_multireturn ecall.etype ->
-                        let ecall = Type.map_expr loop ecall in
-                        mk_mr_select ctx.com.basic e ecall (field_name f)
-
-                    (* if we found a multi-return call used as a value, box it *)
-                    | TCall _ when is_multireturn e.etype ->
-                        let e = Type.map_expr loop e in
-                        mk_mr_box ctx e
-
-                    (* Don't bother wrapping multireturn function results if we don't use the return values *)
-                    | TBlock el ->
-                        let el2 = List.map (fun x ->
-                            match x.eexpr with
-                            | TCall (e2, el) when is_multireturn x.etype ->
-                                mk (TCall (e2, List.map(fun x-> Type.map_expr loop x) el)) x.etype x.epos
-                            | _ -> loop x) el in
-                        mk (TBlock el2) e.etype e.epos;
-
-
-                        (* if we found a field access for a multi-return local - that's fine, because it'll be generated as a local var *)
-                    | TField ({ eexpr = TLocal v}, _) when Meta.has Meta.MultiReturn v.v_meta ->
-                        e
-                    | TReturn Some(e2) ->
-                        if is_multireturn e2.etype then
-                            raise_typing_error "You cannot return a multireturn type from a haxe function" e2.epos
-                        else
-                            Type.map_expr loop e;
-     (*
-						if we found usage of local var we previously marked with @:multiReturn as a value itself,
-						remove the @:multiReturn meta and add "box me" meta so it'll be boxed on var initialization
-					*)
-                    | TLocal v when Meta.has Meta.MultiReturn v.v_meta ->
-                        v.v_meta <- List.filter (fun (m,_,_) -> m <> Meta.MultiReturn) v.v_meta;
-                        v.v_meta <- (Meta.Custom ":lua_mr_box", [], v.v_pos) :: v.v_meta;
-                        e
-
-                    | _ ->
-                        Type.map_expr loop e
-                in
-                f.cf_expr <- Some (loop e);
+            | Some e -> f.cf_expr <- Some (loop e);
             | _ -> ()
         in
         List.iter transform_field c.cl_ordered_fields;
         List.iter transform_field c.cl_ordered_statics;
         Option.may transform_field c.cl_constructor;
+        (* Also transform __init__ expressions *)
+        (match TClass.get_cl_init c with
+         | Some e -> TClass.set_cl_init c (loop e)
+         | None -> ());
     | _ -> ()
 
 let generate com =
