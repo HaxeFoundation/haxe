@@ -48,80 +48,80 @@ class HaxeFunction {
 	// ============================================================
 
 	public function __hx_invoke0():Value {
-		return Value.FromObject(invokeDynamic([]));
+		return Value.fromObject(invokeDynamic([]));
 	}
 
 	public function __hx_invoke1(a1:Value):Value {
-		return Value.FromObject(invokeDynamic([a1.ToDynamic()]));
+		return Value.fromObject(invokeDynamic([a1.toDynamic()]));
 	}
 
 	public function __hx_invoke2(a1:Value, a2:Value):Value {
-		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic()]));
+		return Value.fromObject(invokeDynamic([a1.toDynamic(), a2.toDynamic()]));
 	}
 
 	public function __hx_invoke3(a1:Value, a2:Value, a3:Value):Value {
-		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic()]));
+		return Value.fromObject(invokeDynamic([a1.toDynamic(), a2.toDynamic(), a3.toDynamic()]));
 	}
 
 	public function __hx_invoke4(a1:Value, a2:Value, a3:Value, a4:Value):Value {
-		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic()]));
+		return Value.fromObject(invokeDynamic([a1.toDynamic(), a2.toDynamic(), a3.toDynamic(), a4.toDynamic()]));
 	}
 
 	public function __hx_invoke5(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value):Value {
-		return Value.FromObject(invokeDynamic([a1.ToDynamic(), a2.ToDynamic(), a3.ToDynamic(), a4.ToDynamic(), a5.ToDynamic()]));
+		return Value.fromObject(invokeDynamic([a1.toDynamic(), a2.toDynamic(), a3.toDynamic(), a4.toDynamic(), a5.toDynamic()]));
 	}
 
 	public function __hx_invoke6(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value,
 			a6:Value):Value {
-		return Value.FromObject(invokeDynamic([
-			a1.ToDynamic(),
-			a2.ToDynamic(),
-			a3.ToDynamic(),
-			a4.ToDynamic(),
-			a5.ToDynamic(),
-			a6.ToDynamic()
+		return Value.fromObject(invokeDynamic([
+			a1.toDynamic(),
+			a2.toDynamic(),
+			a3.toDynamic(),
+			a4.toDynamic(),
+			a5.toDynamic(),
+			a6.toDynamic()
 		]));
 	}
 
 	public function __hx_invoke7(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value,
 			a7:Value):Value {
-		return Value.FromObject(invokeDynamic([
-			a1.ToDynamic(),
-			a2.ToDynamic(),
-			a3.ToDynamic(),
-			a4.ToDynamic(),
-			a5.ToDynamic(),
-			a6.ToDynamic(),
-			a7.ToDynamic()
+		return Value.fromObject(invokeDynamic([
+			a1.toDynamic(),
+			a2.toDynamic(),
+			a3.toDynamic(),
+			a4.toDynamic(),
+			a5.toDynamic(),
+			a6.toDynamic(),
+			a7.toDynamic()
 		]));
 	}
 
 	public function __hx_invoke8(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value,
 			a7:Value, a8:Value):Value {
-		return Value.FromObject(invokeDynamic([
-			a1.ToDynamic(),
-			a2.ToDynamic(),
-			a3.ToDynamic(),
-			a4.ToDynamic(),
-			a5.ToDynamic(),
-			a6.ToDynamic(),
-			a7.ToDynamic(),
-			a8.ToDynamic()
+		return Value.fromObject(invokeDynamic([
+			a1.toDynamic(),
+			a2.toDynamic(),
+			a3.toDynamic(),
+			a4.toDynamic(),
+			a5.toDynamic(),
+			a6.toDynamic(),
+			a7.toDynamic(),
+			a8.toDynamic()
 		]));
 	}
 
 	public function __hx_invoke9(a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value,
 			a7:Value, a8:Value, a9:Value):Value {
-		return Value.FromObject(invokeDynamic([
-			a1.ToDynamic(),
-			a2.ToDynamic(),
-			a3.ToDynamic(),
-			a4.ToDynamic(),
-			a5.ToDynamic(),
-			a6.ToDynamic(),
-			a7.ToDynamic(),
-			a8.ToDynamic(),
-			a9.ToDynamic()
+		return Value.fromObject(invokeDynamic([
+			a1.toDynamic(),
+			a2.toDynamic(),
+			a3.toDynamic(),
+			a4.toDynamic(),
+			a5.toDynamic(),
+			a6.toDynamic(),
+			a7.toDynamic(),
+			a8.toDynamic(),
+			a9.toDynamic()
 		]));
 	}
 
@@ -135,81 +135,81 @@ class HaxeFunction {
 	 * Invoke with 0 arguments.
 	 */
 	public function invoke():Dynamic {
-		return __hx_invoke0().ToDynamic();
+		return __hx_invoke0().toDynamic();
 	}
 
 	/**
 	 * Invoke with 1 argument.
 	 */
 	public function invoke1(a0:Dynamic):Dynamic {
-		return __hx_invoke1(Value.FromObject(a0)).ToDynamic();
+		return __hx_invoke1(Value.fromObject(a0)).toDynamic();
 	}
 
 	/**
 	 * Invoke with 2 arguments.
 	 */
 	public function invoke2(a0:Dynamic, a1:Dynamic):Dynamic {
-		return __hx_invoke2(Value.FromObject(a0), Value.FromObject(a1)).ToDynamic();
+		return __hx_invoke2(Value.fromObject(a0), Value.fromObject(a1)).toDynamic();
 	}
 
 	/**
 	 * Invoke with 3 arguments.
 	 */
 	public function invoke3(a0:Dynamic, a1:Dynamic, a2:Dynamic):Dynamic {
-		return __hx_invoke3(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2)).ToDynamic();
+		return __hx_invoke3(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2)).toDynamic();
 	}
 
 	/**
 	 * Invoke with 4 arguments.
 	 */
 	public function invoke4(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic):Dynamic {
-		return __hx_invoke4(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3))
-			.ToDynamic();
+		return __hx_invoke4(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2), Value.fromObject(a3))
+			.toDynamic();
 	}
 
 	/**
 	 * Invoke with 5 arguments.
 	 */
 	public function invoke5(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic):Dynamic {
-		return __hx_invoke5(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
-			Value.FromObject(a4))
-			.ToDynamic();
+		return __hx_invoke5(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2), Value.fromObject(a3),
+			Value.fromObject(a4))
+			.toDynamic();
 	}
 
 	/**
 	 * Invoke with 6 arguments.
 	 */
 	public function invoke6(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic):Dynamic {
-		return __hx_invoke6(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
-			Value.FromObject(a4), Value.FromObject(a5))
-			.ToDynamic();
+		return __hx_invoke6(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2), Value.fromObject(a3),
+			Value.fromObject(a4), Value.fromObject(a5))
+			.toDynamic();
 	}
 
 	/**
 	 * Invoke with 7 arguments.
 	 */
 	public function invoke7(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic):Dynamic {
-		return __hx_invoke7(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
-			Value.FromObject(a4), Value.FromObject(a5), Value.FromObject(a6))
-			.ToDynamic();
+		return __hx_invoke7(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2), Value.fromObject(a3),
+			Value.fromObject(a4), Value.fromObject(a5), Value.fromObject(a6))
+			.toDynamic();
 	}
 
 	/**
 	 * Invoke with 8 arguments.
 	 */
 	public function invoke8(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic):Dynamic {
-		return __hx_invoke8(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
-			Value.FromObject(a4), Value.FromObject(a5), Value.FromObject(a6), Value.FromObject(a7))
-			.ToDynamic();
+		return __hx_invoke8(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2), Value.fromObject(a3),
+			Value.fromObject(a4), Value.fromObject(a5), Value.fromObject(a6), Value.fromObject(a7))
+			.toDynamic();
 	}
 
 	/**
 	 * Invoke with 9 arguments.
 	 */
 	public function invoke9(a0:Dynamic, a1:Dynamic, a2:Dynamic, a3:Dynamic, a4:Dynamic, a5:Dynamic, a6:Dynamic, a7:Dynamic, a8:Dynamic):Dynamic {
-		return __hx_invoke9(Value.FromObject(a0), Value.FromObject(a1), Value.FromObject(a2), Value.FromObject(a3),
-			Value.FromObject(a4), Value.FromObject(a5), Value.FromObject(a6), Value.FromObject(a7),
-			Value.FromObject(a8))
-			.ToDynamic();
+		return __hx_invoke9(Value.fromObject(a0), Value.fromObject(a1), Value.fromObject(a2), Value.fromObject(a3),
+			Value.fromObject(a4), Value.fromObject(a5), Value.fromObject(a6), Value.fromObject(a7),
+			Value.fromObject(a8))
+			.toDynamic();
 	}
 }

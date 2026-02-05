@@ -29,7 +29,7 @@ namespace haxe.lang
         /// </summary>
         public virtual global::haxe.lang.Value __hx_invoke0()
         {
-            return global::haxe.lang.Value.FromObject(invokeDynamic(new global::haxe.root.Array()));
+            return global::haxe.lang.Value.fromObject(invokeDynamic(new global::haxe.root.Array()));
         }
 
         /// <summary>
@@ -38,8 +38,8 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke1(global::haxe.lang.Value a1)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -48,9 +48,9 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke2(global::haxe.lang.Value a1, global::haxe.lang.Value a2)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -59,10 +59,10 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke3(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -71,11 +71,11 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke4(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -84,12 +84,12 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke5(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -98,13 +98,13 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke6(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -113,14 +113,14 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke7(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            args.push(a7.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            args.push(a7.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -129,15 +129,15 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke8(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7, global::haxe.lang.Value a8)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            args.push(a7.ToDynamic());
-            args.push(a8.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            args.push(a7.toDynamic());
+            args.push(a8.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
@@ -146,16 +146,16 @@ namespace haxe.lang
         public virtual global::haxe.lang.Value __hx_invoke9(global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7, global::haxe.lang.Value a8, global::haxe.lang.Value a9)
         {
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            args.push(a7.ToDynamic());
-            args.push(a8.ToDynamic());
-            args.push(a9.ToDynamic());
-            return global::haxe.lang.Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            args.push(a7.toDynamic());
+            args.push(a8.toDynamic());
+            args.push(a9.toDynamic());
+            return global::haxe.lang.Value.fromObject(invokeDynamic(args));
         }
 
         // ============================================================
@@ -169,7 +169,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke()
         {
-            return __hx_invoke0().ToDynamic();
+            return __hx_invoke0().toDynamic();
         }
 
         /// <summary>
@@ -177,7 +177,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke1(object a0)
         {
-            return __hx_invoke1(global::haxe.lang.Value.FromObject(a0)).ToDynamic();
+            return __hx_invoke1(global::haxe.lang.Value.fromObject(a0)).toDynamic();
         }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke2(object a0, object a1)
         {
-            return __hx_invoke2(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1)).ToDynamic();
+            return __hx_invoke2(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1)).toDynamic();
         }
 
         /// <summary>
@@ -193,7 +193,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke3(object a0, object a1, object a2)
         {
-            return __hx_invoke3(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2)).ToDynamic();
+            return __hx_invoke3(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2)).toDynamic();
         }
 
         /// <summary>
@@ -201,7 +201,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke4(object a0, object a1, object a2, object a3)
         {
-            return __hx_invoke4(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3)).ToDynamic();
+            return __hx_invoke4(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2), global::haxe.lang.Value.fromObject(a3)).toDynamic();
         }
 
         /// <summary>
@@ -209,7 +209,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke5(object a0, object a1, object a2, object a3, object a4)
         {
-            return __hx_invoke5(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3), global::haxe.lang.Value.FromObject(a4)).ToDynamic();
+            return __hx_invoke5(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2), global::haxe.lang.Value.fromObject(a3), global::haxe.lang.Value.fromObject(a4)).toDynamic();
         }
 
         /// <summary>
@@ -217,7 +217,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke6(object a0, object a1, object a2, object a3, object a4, object a5)
         {
-            return __hx_invoke6(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3), global::haxe.lang.Value.FromObject(a4), global::haxe.lang.Value.FromObject(a5)).ToDynamic();
+            return __hx_invoke6(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2), global::haxe.lang.Value.fromObject(a3), global::haxe.lang.Value.fromObject(a4), global::haxe.lang.Value.fromObject(a5)).toDynamic();
         }
 
         /// <summary>
@@ -225,7 +225,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke7(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
         {
-            return __hx_invoke7(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3), global::haxe.lang.Value.FromObject(a4), global::haxe.lang.Value.FromObject(a5), global::haxe.lang.Value.FromObject(a6)).ToDynamic();
+            return __hx_invoke7(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2), global::haxe.lang.Value.fromObject(a3), global::haxe.lang.Value.fromObject(a4), global::haxe.lang.Value.fromObject(a5), global::haxe.lang.Value.fromObject(a6)).toDynamic();
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke8(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
         {
-            return __hx_invoke8(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3), global::haxe.lang.Value.FromObject(a4), global::haxe.lang.Value.FromObject(a5), global::haxe.lang.Value.FromObject(a6), global::haxe.lang.Value.FromObject(a7)).ToDynamic();
+            return __hx_invoke8(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2), global::haxe.lang.Value.fromObject(a3), global::haxe.lang.Value.fromObject(a4), global::haxe.lang.Value.fromObject(a5), global::haxe.lang.Value.fromObject(a6), global::haxe.lang.Value.fromObject(a7)).toDynamic();
         }
 
         /// <summary>
@@ -241,7 +241,7 @@ namespace haxe.lang
         /// </summary>
         public virtual object invoke9(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7, object a8)
         {
-            return __hx_invoke9(global::haxe.lang.Value.FromObject(a0), global::haxe.lang.Value.FromObject(a1), global::haxe.lang.Value.FromObject(a2), global::haxe.lang.Value.FromObject(a3), global::haxe.lang.Value.FromObject(a4), global::haxe.lang.Value.FromObject(a5), global::haxe.lang.Value.FromObject(a6), global::haxe.lang.Value.FromObject(a7), global::haxe.lang.Value.FromObject(a8)).ToDynamic();
+            return __hx_invoke9(global::haxe.lang.Value.fromObject(a0), global::haxe.lang.Value.fromObject(a1), global::haxe.lang.Value.fromObject(a2), global::haxe.lang.Value.fromObject(a3), global::haxe.lang.Value.fromObject(a4), global::haxe.lang.Value.fromObject(a5), global::haxe.lang.Value.fromObject(a6), global::haxe.lang.Value.fromObject(a7), global::haxe.lang.Value.fromObject(a8)).toDynamic();
         }
 
         public static void _hx_bind() { }

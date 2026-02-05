@@ -103,12 +103,12 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Get the i-th argument from the array, or Value.Missing() if beyond the passed arg count.
+        /// Get the i-th argument from the array, or Value.missing() if beyond the passed arg count.
         /// This ensures optional parameters receive proper "missing" values when fewer args are passed.
         /// </summary>
         private static Value ArgOrMissing(global::haxe.root.Array args, int len, int i)
         {
-            return i < len ? Value.FromObject(args.__getDyn(i)) : Value.Missing();
+            return i < len ? Value.fromObject(args.__getDyn(i)) : Value.missing();
         }
 
         // ============================================================
@@ -125,32 +125,32 @@ namespace haxe.lang
             switch (dispatchArity)
             {
                 case 0:
-                    return __hx_invoke0().ToDynamic();
+                    return __hx_invoke0().toDynamic();
                 case 1:
                     return __hx_invoke1(
-                        ArgOrMissing(args, len, 0)).ToDynamic();
+                        ArgOrMissing(args, len, 0)).toDynamic();
                 case 2:
                     return __hx_invoke2(
                         ArgOrMissing(args, len, 0),
-                        ArgOrMissing(args, len, 1)).ToDynamic();
+                        ArgOrMissing(args, len, 1)).toDynamic();
                 case 3:
                     return __hx_invoke3(
                         ArgOrMissing(args, len, 0),
                         ArgOrMissing(args, len, 1),
-                        ArgOrMissing(args, len, 2)).ToDynamic();
+                        ArgOrMissing(args, len, 2)).toDynamic();
                 case 4:
                     return __hx_invoke4(
                         ArgOrMissing(args, len, 0),
                         ArgOrMissing(args, len, 1),
                         ArgOrMissing(args, len, 2),
-                        ArgOrMissing(args, len, 3)).ToDynamic();
+                        ArgOrMissing(args, len, 3)).toDynamic();
                 case 5:
                     return __hx_invoke5(
                         ArgOrMissing(args, len, 0),
                         ArgOrMissing(args, len, 1),
                         ArgOrMissing(args, len, 2),
                         ArgOrMissing(args, len, 3),
-                        ArgOrMissing(args, len, 4)).ToDynamic();
+                        ArgOrMissing(args, len, 4)).toDynamic();
                 case 6:
                     return __hx_invoke6(
                         ArgOrMissing(args, len, 0),
@@ -158,7 +158,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 2),
                         ArgOrMissing(args, len, 3),
                         ArgOrMissing(args, len, 4),
-                        ArgOrMissing(args, len, 5)).ToDynamic();
+                        ArgOrMissing(args, len, 5)).toDynamic();
                 case 7:
                     return __hx_invoke7(
                         ArgOrMissing(args, len, 0),
@@ -167,7 +167,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 3),
                         ArgOrMissing(args, len, 4),
                         ArgOrMissing(args, len, 5),
-                        ArgOrMissing(args, len, 6)).ToDynamic();
+                        ArgOrMissing(args, len, 6)).toDynamic();
                 case 8:
                     return __hx_invoke8(
                         ArgOrMissing(args, len, 0),
@@ -177,7 +177,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 4),
                         ArgOrMissing(args, len, 5),
                         ArgOrMissing(args, len, 6),
-                        ArgOrMissing(args, len, 7)).ToDynamic();
+                        ArgOrMissing(args, len, 7)).toDynamic();
                 case 9:
                     return __hx_invoke9(
                         ArgOrMissing(args, len, 0),
@@ -188,7 +188,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 5),
                         ArgOrMissing(args, len, 6),
                         ArgOrMissing(args, len, 7),
-                        ArgOrMissing(args, len, 8)).ToDynamic();
+                        ArgOrMissing(args, len, 8)).toDynamic();
                 default:
                     // 10+ arguments: use the dynamic fallback
                     return _obj._hx_invokeMethodDynamic(_index, args);

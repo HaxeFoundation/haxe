@@ -160,7 +160,7 @@ class Reflect {
 		if (getter != null) {
 			var isFunc:Bool = untyped __cs__("{0} is haxe.lang.Function", getter);
 			if (isFunc) {
-				return untyped __cs__("((haxe.lang.Function){0}).__hx_invoke0().ToDynamic()", getter);
+				return untyped __cs__("((haxe.lang.Function){0}).__hx_invoke0().toDynamic()", getter);
 			}
 		}
 
@@ -183,7 +183,7 @@ class Reflect {
 		if (setter != null) {
 			var isFunc:Bool = untyped __cs__("{0} is haxe.lang.Function", setter);
 			if (isFunc) {
-				untyped __cs__("((haxe.lang.Function){0}).__hx_invoke1(haxe.lang.Value.FromObject({1}))", setter, value);
+				untyped __cs__("((haxe.lang.Function){0}).__hx_invoke1(haxe.lang.Value.fromObject({1}))", setter, value);
 				return;
 			}
 		}

@@ -143,16 +143,16 @@ let hxvalue_invoke_method_name num_args =
 (* Generate Value arguments for closure/function invocation.
    Returns a list of Value.FromXxx(...) calls for each argument.
    Each argument type maps to a specific factory method:
-   - int: Value.FromInt(arg)
-   - double: Value.FromDouble(arg)
-   - float: Value.FromFloat(arg)
-   - bool: Value.FromBool(arg)
-   - long: Value.FromLong(arg)
-   - Null<int>: Value.FromNullInt(arg)
-   - Null<double>: Value.FromNullDouble(arg)
-   - other: Value.FromObject(arg)
+   - int: Value.fromInt(arg)
+   - double: Value.fromDouble(arg)
+   - float: Value.fromFloat(arg)
+   - bool: Value.fromBool(arg)
+   - long: Value.fromLong(arg)
+   - Null<int>: Value.fromNullInt(arg)
+   - Null<double>: Value.fromNullDouble(arg)
+   - other: Value.fromObject(arg)
    Note: arg_types may be shorter than args (e.g., if type info is missing);
-   we default to FromObject for any args without type info. *)
+   we default to fromObject for any args without type info. *)
 let generate_hxvalue_args args arg_types =
 	let num_types = List.length arg_types in
 	List.mapi (fun i arg ->
@@ -2544,7 +2544,7 @@ let rec cs_expr_of_texpr ectx e =
 				cast_value_to_type cs_type a_var
 			) param_types_cs in
 			let fv_invoke_call = CsCall (CsLocal (invoke_method_name num_params), fv_extract_args) in
-			let fv_return = CsStaticCall (hxvalue_type, "FromObject", [fv_invoke_call]) in
+			let fv_return = CsStaticCall (hxvalue_type, "fromObject", [fv_invoke_call]) in
 			let fv_invoke_method = CsMemberMethod {
 				m_name = hxvalue_invoke_method_name num_params;
 				m_return_type = hxvalue_type;
@@ -6183,10 +6183,10 @@ let generate_closure_class ectx tf func_type =
 			(* No params - just override __hx_invoke0 to call invoke() and wrap result *)
 			let invoke_result = CsCall (CsLocal "invoke", []) in
 			let body = if return_type = CsTypeVoid then
-				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "missing", [])))]
 			else
-				(* Wrap return value with appropriate Value.FromXxx using cast_type_to_value
-			   which handles Null<T> types correctly (FromNullInt, etc.) *)
+				(* Wrap return value with appropriate Value.fromXxx using cast_type_to_value
+			   which handles Null<T> types correctly (fromNullInt, etc.) *)
 				let wrapped_result = cast_type_to_value return_type invoke_result in
 				[CsReturn (Some wrapped_result)]
 			in
@@ -6215,9 +6215,9 @@ let generate_closure_class ectx tf func_type =
 			) invoke_params in
 			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
 			let body = if return_type = CsTypeVoid then
-				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "missing", [])))]
 			else
-				(* Wrap return value with appropriate Value.FromXxx *)
+				(* Wrap return value with appropriate Value.fromXxx *)
 				let wrapped_result = cast_type_to_value return_type invoke_call in
 				[CsReturn (Some wrapped_result)]
 			in
@@ -6672,15 +6672,15 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 		if num_params = 0 then
 			let invoke_result = CsCall (CsLocal "invoke", []) in
 			let body = if return_cs_type = CsTypeVoid then
-				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_result; CsReturn (Some (CsStaticCall (hxvalue_type, "missing", [])))]
 			else
 				let wrapped_result = match return_cs_type with
-					| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [invoke_result])
-					| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [invoke_result])
-					| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [invoke_result])
-					| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [invoke_result])
-					| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [invoke_result])
-					| _ -> CsStaticCall (hxvalue_type, "FromObject", [invoke_result])
+					| CsTypeInt -> CsStaticCall (hxvalue_type, "fromInt", [invoke_result])
+					| CsTypeDouble -> CsStaticCall (hxvalue_type, "fromDouble", [invoke_result])
+					| CsTypeFloat -> CsStaticCall (hxvalue_type, "fromFloat", [invoke_result])
+					| CsTypeBool -> CsStaticCall (hxvalue_type, "fromBool", [invoke_result])
+					| CsTypeLong -> CsStaticCall (hxvalue_type, "fromLong", [invoke_result])
+					| _ -> CsStaticCall (hxvalue_type, "fromObject", [invoke_result])
 				in
 				[CsReturn (Some wrapped_result)]
 			in
@@ -6707,7 +6707,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 			) invoke_params_with_opt in
 			let invoke_call = CsCall (CsLocal (invoke_method_name num_params), extract_args) in
 			let body = if return_cs_type = CsTypeVoid then
-				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
+				[CsExprStmt invoke_call; CsReturn (Some (CsStaticCall (hxvalue_type, "missing", [])))]
 			else
 				let wrapped_result = cast_type_to_value return_cs_type invoke_call in
 				[CsReturn (Some wrapped_result)]
@@ -8436,7 +8436,7 @@ let generate_field_accessors gctx c =
 					let cs_ret_type = cs_type_of_type gctx ret in
 					let result_expr = match cs_ret_type with
 						| CsTypeVoid ->
-							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (hxvalue_type, "Missing", [])))]
+							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (hxvalue_type, "missing", [])))]
 						| _ ->
 							[CsReturn (Some (cast_type_to_value cs_ret_type method_call))]
 					in
@@ -8739,8 +8739,8 @@ let generate_static_field_accessors gctx c =
 	           _hx_staticClosureCache = new haxe.lang.ClassMethodFunction[N];
 	       if (_hx_staticClosureCache[index] == null) {
 	           switch (index) {
-	               case 0: _hx_staticClosureCache[0] = new ClassMethodFunction(() => Value.FromInt(method0())); break;
-	               case 1: _hx_staticClosureCache[1] = new ClassMethodFunction((a1, a2) => Value.FromObject(method1(...))); break;
+	               case 0: _hx_staticClosureCache[0] = new ClassMethodFunction(() => Value.fromInt(method0())); break;
+	               case 1: _hx_staticClosureCache[1] = new ClassMethodFunction((a1, a2) => Value.fromObject(method1(...))); break;
 	               ...
 	           }
 	       }
@@ -8770,7 +8770,7 @@ let generate_static_field_accessors gctx c =
 			let cs_ret_type = cs_type_of_type gctx ret in
 			let result_expr = match cs_ret_type with
 				| CsTypeVoid ->
-					CsCall (CsStaticField (hxvalue_type, "Missing"), [])
+					CsCall (CsStaticField (hxvalue_type, "missing"), [])
 				| _ ->
 					cast_type_to_value cs_ret_type method_call
 			in

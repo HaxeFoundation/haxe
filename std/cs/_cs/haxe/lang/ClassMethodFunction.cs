@@ -117,123 +117,123 @@ namespace haxe.lang
         {
             if (_invoke0 != null) return _invoke0();
             // Fallback for wrong arity - call with empty args via dynamic
-            return Value.FromObject(invokeDynamic(new global::haxe.root.Array()));
+            return Value.fromObject(invokeDynamic(new global::haxe.root.Array()));
         }
 
         public override Value __hx_invoke1(Value a1)
         {
             if (_invoke1 != null) return _invoke1(a1);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke2(Value a1, Value a2)
         {
             if (_invoke2 != null) return _invoke2(a1, a2);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke3(Value a1, Value a2, Value a3)
         {
             if (_invoke3 != null) return _invoke3(a1, a2, a3);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke4(Value a1, Value a2, Value a3, Value a4)
         {
             if (_invoke4 != null) return _invoke4(a1, a2, a3, a4);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke5(Value a1, Value a2, Value a3, Value a4, Value a5)
         {
             if (_invoke5 != null) return _invoke5(a1, a2, a3, a4, a5);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke6(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6)
         {
             if (_invoke6 != null) return _invoke6(a1, a2, a3, a4, a5, a6);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke7(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7)
         {
             if (_invoke7 != null) return _invoke7(a1, a2, a3, a4, a5, a6, a7);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            args.push(a7.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            args.push(a7.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke8(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7, Value a8)
         {
             if (_invoke8 != null) return _invoke8(a1, a2, a3, a4, a5, a6, a7, a8);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            args.push(a7.ToDynamic());
-            args.push(a8.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            args.push(a7.toDynamic());
+            args.push(a8.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         public override Value __hx_invoke9(Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7, Value a8, Value a9)
         {
             if (_invoke9 != null) return _invoke9(a1, a2, a3, a4, a5, a6, a7, a8, a9);
             var args = new global::haxe.root.Array();
-            args.push(a1.ToDynamic());
-            args.push(a2.ToDynamic());
-            args.push(a3.ToDynamic());
-            args.push(a4.ToDynamic());
-            args.push(a5.ToDynamic());
-            args.push(a6.ToDynamic());
-            args.push(a7.ToDynamic());
-            args.push(a8.ToDynamic());
-            args.push(a9.ToDynamic());
-            return Value.FromObject(invokeDynamic(args));
+            args.push(a1.toDynamic());
+            args.push(a2.toDynamic());
+            args.push(a3.toDynamic());
+            args.push(a4.toDynamic());
+            args.push(a5.toDynamic());
+            args.push(a6.toDynamic());
+            args.push(a7.toDynamic());
+            args.push(a8.toDynamic());
+            args.push(a9.toDynamic());
+            return Value.fromObject(invokeDynamic(args));
         }
 
         /// <summary>
-        /// Get the i-th argument from the array, or Value.Missing() if beyond the passed arg count.
+        /// Get the i-th argument from the array, or Value.missing() if beyond the passed arg count.
         /// </summary>
         private static Value ArgOrMissing(global::haxe.root.Array args, int len, int i)
         {
-            return i < len ? Value.FromObject(args.__getDyn(i)) : Value.Missing();
+            return i < len ? Value.fromObject(args.__getDyn(i)) : Value.missing();
         }
 
         // ============================================================
@@ -250,29 +250,29 @@ namespace haxe.lang
             switch (dispatchArity)
             {
                 case 0:
-                    if (_invoke0 != null) return _invoke0().ToDynamic();
+                    if (_invoke0 != null) return _invoke0().toDynamic();
                     break;
                 case 1:
                     if (_invoke1 != null) return _invoke1(
-                        ArgOrMissing(args, len, 0)).ToDynamic();
+                        ArgOrMissing(args, len, 0)).toDynamic();
                     break;
                 case 2:
                     if (_invoke2 != null) return _invoke2(
                         ArgOrMissing(args, len, 0),
-                        ArgOrMissing(args, len, 1)).ToDynamic();
+                        ArgOrMissing(args, len, 1)).toDynamic();
                     break;
                 case 3:
                     if (_invoke3 != null) return _invoke3(
                         ArgOrMissing(args, len, 0),
                         ArgOrMissing(args, len, 1),
-                        ArgOrMissing(args, len, 2)).ToDynamic();
+                        ArgOrMissing(args, len, 2)).toDynamic();
                     break;
                 case 4:
                     if (_invoke4 != null) return _invoke4(
                         ArgOrMissing(args, len, 0),
                         ArgOrMissing(args, len, 1),
                         ArgOrMissing(args, len, 2),
-                        ArgOrMissing(args, len, 3)).ToDynamic();
+                        ArgOrMissing(args, len, 3)).toDynamic();
                     break;
                 case 5:
                     if (_invoke5 != null) return _invoke5(
@@ -280,7 +280,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 1),
                         ArgOrMissing(args, len, 2),
                         ArgOrMissing(args, len, 3),
-                        ArgOrMissing(args, len, 4)).ToDynamic();
+                        ArgOrMissing(args, len, 4)).toDynamic();
                     break;
                 case 6:
                     if (_invoke6 != null) return _invoke6(
@@ -289,7 +289,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 2),
                         ArgOrMissing(args, len, 3),
                         ArgOrMissing(args, len, 4),
-                        ArgOrMissing(args, len, 5)).ToDynamic();
+                        ArgOrMissing(args, len, 5)).toDynamic();
                     break;
                 case 7:
                     if (_invoke7 != null) return _invoke7(
@@ -299,7 +299,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 3),
                         ArgOrMissing(args, len, 4),
                         ArgOrMissing(args, len, 5),
-                        ArgOrMissing(args, len, 6)).ToDynamic();
+                        ArgOrMissing(args, len, 6)).toDynamic();
                     break;
                 case 8:
                     if (_invoke8 != null) return _invoke8(
@@ -310,7 +310,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 4),
                         ArgOrMissing(args, len, 5),
                         ArgOrMissing(args, len, 6),
-                        ArgOrMissing(args, len, 7)).ToDynamic();
+                        ArgOrMissing(args, len, 7)).toDynamic();
                     break;
                 case 9:
                     if (_invoke9 != null) return _invoke9(
@@ -322,7 +322,7 @@ namespace haxe.lang
                         ArgOrMissing(args, len, 5),
                         ArgOrMissing(args, len, 6),
                         ArgOrMissing(args, len, 7),
-                        ArgOrMissing(args, len, 8)).ToDynamic();
+                        ArgOrMissing(args, len, 8)).toDynamic();
                     break;
             }
 

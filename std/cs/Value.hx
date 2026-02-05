@@ -60,25 +60,25 @@ extern class Value {
 	var kind:Int;
 
 	// Static factory methods
-	static function FromInt(value:Int):Value;
-	static function FromLong(value:Int64):Value;
-	static function FromDouble(value:Float):Value;
-	static function FromFloat(value:Single):Value;
-	static function FromBool(value:Bool):Value;
-	static function FromObject(value:Dynamic):Value;
-	static function Missing():Value;
+	static function fromInt(value:Int):Value;
+	static function fromLong(value:Int64):Value;
+	static function fromDouble(value:Float):Value;
+	static function fromFloat(value:Single):Value;
+	static function fromBool(value:Bool):Value;
+	static function fromObject(value:Dynamic):Value;
+	static function missing():Value;
 
 	// Extraction methods
-	function ToInt():Int;
-	function ToLong():Int64;
-	function ToDouble():Float;
-	function ToFloat():Single;
-	function ToBool():Bool;
-	function ToStringValue():String;
-	function ToDynamic():Dynamic;
+	function toInt():Int;
+	function toLong():Int64;
+	function toDouble():Float;
+	function toFloat():Single;
+	function toBool():Bool;
+	function toStringValue():String;
+	function toDynamic():Dynamic;
 
 	/**
 	 * Check if this Value contains a value (kind != 0)
 	 */
-	var HasValue(default, null):Bool;
+	var hasValue(default, null):Bool;
 }

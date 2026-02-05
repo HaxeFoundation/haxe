@@ -42,6 +42,42 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Just an overload to make sure that calling toInt on int
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static int toInt(int i)
+        {
+            return i;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toInt on long
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static int toInt(long l)
+        {
+            return (int)l;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toInt on double
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static int toInt(double d)
+        {
+            return (int)d;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toInt on float
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static int toInt(float f)
+        {
+            return (int)f;
+        }
+
+        /// <summary>
         /// Converts a dynamic value to double, handling null and type conversions.
         /// </summary>
         public static double toDouble(object d)
@@ -93,17 +129,21 @@ namespace haxe.lang
 
         /// <summary>
         /// Converts a dynamic value to bool, handling null.
-        /// Also handles long values from Value.ToDynamic() which stores bools as 0L/1L.
         /// </summary>
         public static bool toBool(object d)
         {
             if (d == null) return false;
             if (d is bool b) return b;
-            // Value.ToDynamic() returns bools as boxed longs (0L for false, 1L for true)
-            if (d is long l) return l != 0L;
-            if (d is int i) return i != 0;
-            if (d is float f) return f != 0f;
             return false;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toBool on bool
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static bool toBool(bool b)
+        {
+            return b;
         }
 
         /// <summary>
@@ -121,6 +161,42 @@ namespace haxe.lang
             if (d is bool b) return b ? 1L : 0L;
             if (d is IConvertible c) return c.ToInt64(null);
             return 0L;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toLong on long
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static long toLong(long l)
+        {
+            return l;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toLong on int
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static long toLong(int i)
+        {
+            return i;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toLong on double
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static long toLong(double d)
+        {
+            return (long)d;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toLong on float
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static long toLong(float f)
+        {
+            return (long)f;
         }
 
         /// <summary>

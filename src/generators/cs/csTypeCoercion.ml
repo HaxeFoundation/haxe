@@ -185,55 +185,55 @@ let cast_object_to_type target_cs_type object_expr =
 	| _ -> CsCast (target_cs_type, object_expr)
 
 (* Cast haxe.lang.Value → typed C# expression.
-   Primitives: expr.ToInt(), expr.ToDouble(), etc.
-   Null<T>: expr.ToNullInt(), expr.ToNullDouble(), etc.
-   Other: falls through to cast_object_to_type via expr.ToDynamic(). *)
+   Primitives: expr.toInt(), expr.toDouble(), etc.
+   Null<T>: expr.toNullInt(), expr.toNullDouble(), etc.
+   Other: falls through to cast_object_to_type via expr.toDynamic(). *)
 let cast_value_to_type target_cs_type value_expr =
 	match target_cs_type with
-	| CsTypeInt -> CsCall (CsField (value_expr, "ToInt"), [])
-	| CsTypeDouble -> CsCall (CsField (value_expr, "ToDouble"), [])
-	| CsTypeFloat -> CsCall (CsField (value_expr, "ToFloat"), [])
-	| CsTypeBool -> CsCall (CsField (value_expr, "ToBool"), [])
-	| CsTypeLong -> CsCall (CsField (value_expr, "ToLong"), [])
-	| CsTypeString -> CsCall (CsField (value_expr, "ToStringValue"), [])
+	| CsTypeInt -> CsCall (CsField (value_expr, "toInt"), [])
+	| CsTypeDouble -> CsCall (CsField (value_expr, "toDouble"), [])
+	| CsTypeFloat -> CsCall (CsField (value_expr, "toFloat"), [])
+	| CsTypeBool -> CsCall (CsField (value_expr, "toBool"), [])
+	| CsTypeLong -> CsCall (CsField (value_expr, "toLong"), [])
+	| CsTypeString -> CsCall (CsField (value_expr, "toStringValue"), [])
 	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
 		begin match inner with
-		| CsTypeInt -> CsCall (CsField (value_expr, "ToNullInt"), [])
-		| CsTypeDouble -> CsCall (CsField (value_expr, "ToNullDouble"), [])
-		| CsTypeFloat -> CsCall (CsField (value_expr, "ToNullFloat"), [])
-		| CsTypeBool -> CsCall (CsField (value_expr, "ToNullBool"), [])
-		| CsTypeLong -> CsCall (CsField (value_expr, "ToNullLong"), [])
+		| CsTypeInt -> CsCall (CsField (value_expr, "toNullInt"), [])
+		| CsTypeDouble -> CsCall (CsField (value_expr, "toNullDouble"), [])
+		| CsTypeFloat -> CsCall (CsField (value_expr, "toNullFloat"), [])
+		| CsTypeBool -> CsCall (CsField (value_expr, "toNullBool"), [])
+		| CsTypeLong -> CsCall (CsField (value_expr, "toNullLong"), [])
 		| _ when CsTypeMapping.is_inherently_nullable inner ->
-			CsCast (inner, CsCall (CsField (value_expr, "ToDynamic"), []))
+			CsCast (inner, CsCall (CsField (value_expr, "toDynamic"), []))
 		| _ ->
 			let null_type = CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) in
-			CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (value_expr, "ToDynamic"), [])])
+			CsStaticCall (null_type, "_ofDynamic", [CsCall (CsField (value_expr, "toDynamic"), [])])
 		end
 	| CsTypeVoid -> value_expr
-	| CsTypeObject | CsTypeDynamic -> CsCall (CsField (value_expr, "ToDynamic"), [])
-	| _ -> cast_object_to_type target_cs_type (CsCall (CsField (value_expr, "ToDynamic"), []))
+	| CsTypeObject | CsTypeDynamic -> CsCall (CsField (value_expr, "toDynamic"), [])
+	| _ -> cast_object_to_type target_cs_type (CsCall (CsField (value_expr, "toDynamic"), []))
 
 (* Cast typed C# expression → haxe.lang.Value.
-   Primitives: Value.FromInt(expr), Value.FromDouble(expr), etc.
-   Null<T>: Value.FromNullInt(expr), Value.FromNullDouble(expr), etc.
-   Other: Value.FromObject(expr). *)
+   Primitives: Value.fromInt(expr), Value.fromDouble(expr), etc.
+   Null<T>: Value.fromNullInt(expr), Value.fromNullDouble(expr), etc.
+   Other: Value.fromObject(expr). *)
 let cast_type_to_value source_cs_type expr =
 	match source_cs_type with
-	| CsTypeInt -> CsStaticCall (hxvalue_type, "FromInt", [expr])
-	| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromDouble", [expr])
-	| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromFloat", [expr])
-	| CsTypeBool -> CsStaticCall (hxvalue_type, "FromBool", [expr])
-	| CsTypeLong -> CsStaticCall (hxvalue_type, "FromLong", [expr])
+	| CsTypeInt -> CsStaticCall (hxvalue_type, "fromInt", [expr])
+	| CsTypeDouble -> CsStaticCall (hxvalue_type, "fromDouble", [expr])
+	| CsTypeFloat -> CsStaticCall (hxvalue_type, "fromFloat", [expr])
+	| CsTypeBool -> CsStaticCall (hxvalue_type, "fromBool", [expr])
+	| CsTypeLong -> CsStaticCall (hxvalue_type, "fromLong", [expr])
 	| CsTypeClass ((["haxe"; "lang"], "Null"), [inner]) ->
 		begin match inner with
-		| CsTypeInt -> CsStaticCall (hxvalue_type, "FromNullInt", [expr])
-		| CsTypeDouble -> CsStaticCall (hxvalue_type, "FromNullDouble", [expr])
-		| CsTypeFloat -> CsStaticCall (hxvalue_type, "FromNullFloat", [expr])
-		| CsTypeBool -> CsStaticCall (hxvalue_type, "FromNullBool", [expr])
-		| CsTypeLong -> CsStaticCall (hxvalue_type, "FromNullLong", [expr])
-		| _ -> CsStaticCall (hxvalue_type, "FromObject", [expr])
+		| CsTypeInt -> CsStaticCall (hxvalue_type, "fromNullInt", [expr])
+		| CsTypeDouble -> CsStaticCall (hxvalue_type, "fromNullDouble", [expr])
+		| CsTypeFloat -> CsStaticCall (hxvalue_type, "fromNullFloat", [expr])
+		| CsTypeBool -> CsStaticCall (hxvalue_type, "fromNullBool", [expr])
+		| CsTypeLong -> CsStaticCall (hxvalue_type, "fromNullLong", [expr])
+		| _ -> CsStaticCall (hxvalue_type, "fromObject", [expr])
 		end
-	| _ -> CsStaticCall (hxvalue_type, "FromObject", [expr])
+	| _ -> CsStaticCall (hxvalue_type, "fromObject", [expr])
 
 (* ============================================================
    Coercion helper functions

@@ -71,7 +71,7 @@ namespace haxe.lang
             object toStringField = _hx_getField("toString");
             if (toStringField is global::haxe.lang.Function f)
             {
-                var result = f.__hx_invoke0().ToDynamic();
+                var result = f.__hx_invoke0().toDynamic();
                 return global::haxe.lang.Runtime.toStr(result);
             }
             // Fallback to default ToString() which formats as {field: value, ...}
