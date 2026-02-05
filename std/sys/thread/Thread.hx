@@ -272,6 +272,13 @@ class Thread {
 	}
 
 	/**
+		Registers `f` to be called when the current thread exits.
+	**/
+	static public function onCurrentExit(f:() -> Void) {
+		current().callbacks.onExit(f);
+	}
+
+	/**
 		This function is called when an uncaught exception aborted a thread.
 		The error will be printed to stdout but this function can be redefined.
 
