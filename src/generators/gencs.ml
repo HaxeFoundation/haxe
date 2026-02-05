@@ -5847,8 +5847,8 @@ and cs_stmt_of_texpr ectx e =
 
 (* Generate preamble statements for optional parameters with default values.
    In Haxe, optional parameters have default values (e.g., function f(a = 2, b = 4.25)).
-   In C#, Null<T> parameters use default(Null<T>) which has hasValue=false.
-   This generates: if (!param.hasValue) param = <default>;  for Null<T> types
+   In C#, value type parameters with defaults become Null<T> with default(Null<T>) having hasValue=false.
+   This generates: if (!param.hasValue) param = <default>;  for value types (wrapped as Null<T>)
                    if (param == null) param = <default>;     for reference types *)
 let generate_optional_param_defaults ectx gctx tf_args =
 	List.filter_map (fun (v, default_opt) ->
@@ -5861,15 +5861,20 @@ let generate_optional_param_defaults ectx gctx tf_args =
 				let param_name = get_local_name ectx v in
 				let param_cs_type = cs_type_of_type gctx v.v_type in
 				let cs_default = cs_expr_of_texpr ectx default_expr in
-				(match param_cs_type with
-				| CsTypeClass ((["haxe"; "lang"], "Null"), _) ->
+				(* Check if this is a value type that becomes Null<T> in C#, or already Null<T> *)
+				let use_hasValue = match param_cs_type with
+					| CsTypeClass ((["haxe"; "lang"], "Null"), _) -> true
+					| _ -> not (CsTypeMapping.is_inherently_nullable param_cs_type)
+				in
+				if use_hasValue then begin
 					let condition = CsUnop (CsOpNot, false, CsField (CsLocal param_name, "hasValue")) in
 					let assign = CsExprStmt (CsBinop (CsOpAssign, CsLocal param_name, cs_default)) in
 					Some (CsIf (condition, assign, None))
-				| _ ->
+				end else begin
 					let condition = CsBinop (CsOpEq, CsLocal param_name, CsNull) in
 					let assign = CsExprStmt (CsBinop (CsOpAssign, CsLocal param_name, cs_default)) in
-					Some (CsIf (condition, assign, None))))
+					Some (CsIf (condition, assign, None))
+				end)
 	) tf_args
 
 (* ====== Closure class generation ====== *)
