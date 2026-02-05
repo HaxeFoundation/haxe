@@ -8062,26 +8062,25 @@ let generate_constructor gctx c cf field_init_stmts =
 								begin match default_expr_opt with
 								| Some default_expr ->
 									(* Apply default inline. For String: s ?? "default"
-									   For Null<T>: !i.hasValue ? -6 : i.value (ternary that preserves value)
-									   Actually simpler: use null coalescing for both since
-									   Null<T> supports ?? operator in C# *)
+									   For value types wrapped as Null<T>: i == null ? new Null<T>(-6, true) : i
+									   The == null comparison works via the __NoValue__ implicit conversion trick. *)
 									let cs_type = cs_type_of_type gctx arg.etype in
 									let cs_default = cs_expr_of_texpr ectx default_expr in
 									(* Get expected type from parent constructor for C# 8 compatibility *)
 									let expected_type_opt = if i < List.length base_ctor_types then
 										Some (List.nth base_ctor_types i) else None in
 									begin match cs_type with
-									| CsTypeNullable _ | CsTypeString ->
-										(* String and Null<T> support ?? operator *)
+									| CsTypeString ->
+										(* String supports ?? operator directly *)
 										CsBinop (CsOpNullCoalesce, cs_arg, cs_default)
 									| _ ->
-										(* For plain types, check == null (which works for boxed values) *)
-										(* For C# 8 compatibility: if expected type is Null<T>, wrap default
-										   to avoid target-typed conditional issues *)
+										(* For value types: check == null (works via __NoValue__ implicit conversion in Null<T>)
+										   For C# 8 compatibility: if expected type is Null<T>, wrap default
+										   in new Null<T>(value, true) to give both ternary branches the same type *)
 										let wrapped_default = match expected_type_opt with
-											| Some (CsTypeNullable inner_type) ->
+											| Some (CsTypeClass ((["haxe"; "lang"], "Null"), [inner_type])) ->
 												(* Wrap in new Null<T>(value, true) for explicit type *)
-												CsNew (CsTypeNullable inner_type, [cs_default; CsConst (CsConstBool true)])
+												CsNew (CsTypeClass ((["haxe"; "lang"], "Null"), [inner_type]), [cs_default; CsConst (CsConstBool true)])
 											| _ -> cs_default
 										in
 										CsTernary (
