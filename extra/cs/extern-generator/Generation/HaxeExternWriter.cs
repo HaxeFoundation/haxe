@@ -297,34 +297,46 @@ public class HaxeExternWriter
 
     private void WriteEnum(HaxeCodeBuilder builder, TypeInfo type, string className)
     {
-        // Determine underlying type
-        string underlyingType = type.BaseType switch
-        {
-            "System.Byte" => "cs.UInt8",
-            "System.SByte" => "cs.Int8",
-            "System.Int16" => "cs.Int16",
-            "System.UInt16" => "cs.UInt16",
-            "System.Int32" => "Int",
-            "System.UInt32" => "cs.UInt",
-            "System.Int64" => "haxe.Int64",
-            "System.UInt64" => "cs.UInt64",
-            _ => "Int"
-        };
-
-        builder.WriteEnumAbstract(className, underlyingType);
-
-        foreach (var field in type.Fields.Where(f => f.IsStatic && f.IsConst).OrderBy(f => f.Name))
-        {
-            builder.WriteEnumValue(field.Name, field.ConstValue?.ToString());
-        }
-
-        // Add bitwise operator overloads for [Flags] enums
+        // [Flags] enums need enum abstract to support bitwise operators
+        // Regular enums use plain extern enum for proper type preservation
         if (type.IsFlags)
         {
+            // Determine underlying type for flags enum
+            string underlyingType = type.BaseType switch
+            {
+                "System.Byte" => "cs.UInt8",
+                "System.SByte" => "cs.Int8",
+                "System.Int16" => "cs.Int16",
+                "System.UInt16" => "cs.UInt16",
+                "System.Int32" => "Int",
+                "System.UInt32" => "cs.UInt",
+                "System.Int64" => "haxe.Int64",
+                "System.UInt64" => "cs.UInt64",
+                _ => "Int"
+            };
+
+            builder.WriteEnumAbstract(className, underlyingType);
+
+            foreach (var field in type.Fields.Where(f => f.IsStatic && f.IsConst).OrderBy(f => f.Name))
+            {
+                builder.WriteEnumAbstractValue(field.Name, field.ConstValue?.ToString());
+            }
+
+            // Add bitwise operator overloads for [Flags] enums
             builder.AppendRawLine($"\t@:op(A | B) static function or(lhs:{className}, rhs:{className}):{className};");
             builder.AppendRawLine($"\t@:op(A & B) static function and(lhs:{className}, rhs:{className}):{className};");
             builder.AppendRawLine($"\t@:op(A ^ B) static function xor(lhs:{className}, rhs:{className}):{className};");
             builder.AppendRawLine($"\t@:op(~A) static function complement(value:{className}):{className};");
+        }
+        else
+        {
+            // Regular enums use plain extern enum for proper type preservation in C#
+            builder.WriteEnum(className);
+
+            foreach (var field in type.Fields.Where(f => f.IsStatic && f.IsConst).OrderBy(f => f.Name))
+            {
+                builder.WriteEnumValue(field.Name);
+            }
         }
 
         builder.CloseBlock();

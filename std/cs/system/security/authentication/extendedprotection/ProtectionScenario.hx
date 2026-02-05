@@ -2,7 +2,7 @@ package cs.system.security.authentication.extendedprotection;
 
 /** The  enumeration specifies the protection scenario enforced by the policy. */
 @:native("System.Security.Authentication.ExtendedProtection.ProtectionScenario")
-extern enum abstract ProtectionScenario(Int) {
-	var TransportSelected = 0;
-	var TrustedProxy = 1;
+extern enum ProtectionScenario {
+	TransportSelected;
+	TrustedProxy;
 }

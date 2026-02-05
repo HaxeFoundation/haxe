@@ -242,7 +242,17 @@ public class HaxeCodeBuilder
     }
 
     /// <summary>
-    /// Writes an enum abstract declaration.
+    /// Writes an extern enum declaration.
+    /// </summary>
+    public HaxeCodeBuilder WriteEnum(string name)
+    {
+        AppendLine($"extern enum {name} {{");
+        Indent();
+        return this;
+    }
+
+    /// <summary>
+    /// Writes an extern enum abstract declaration (for [Flags] enums that need operators).
     /// </summary>
     public HaxeCodeBuilder WriteEnumAbstract(string name, string underlyingType = "Int")
     {
@@ -252,14 +262,23 @@ public class HaxeCodeBuilder
     }
 
     /// <summary>
-    /// Writes an enum value.
+    /// Writes an enum abstract value (with var keyword and optional value).
     /// </summary>
-    public HaxeCodeBuilder WriteEnumValue(string name, string? value = null)
+    public HaxeCodeBuilder WriteEnumAbstractValue(string name, string? value = null)
     {
         if (value != null)
             AppendLine($"var {name} = {value};");
         else
             AppendLine($"var {name};");
+        return this;
+    }
+
+    /// <summary>
+    /// Writes a plain extern enum value (just the name, no var keyword).
+    /// </summary>
+    public HaxeCodeBuilder WriteEnumValue(string name)
+    {
+        AppendLine($"{name};");
         return this;
     }
 

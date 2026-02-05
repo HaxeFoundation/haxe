@@ -2,34 +2,34 @@ package cs.system.reflection.emit;
 
 /** Describes how values are pushed onto a stack or popped off a stack. */
 @:native("System.Reflection.Emit.StackBehaviour")
-extern enum abstract StackBehaviour(Int) {
-	var Pop0 = 0;
-	var Pop1 = 1;
-	var Pop1_pop1 = 2;
-	var Popi = 3;
-	var Popi_pop1 = 4;
-	var Popi_popi = 5;
-	var Popi_popi_popi = 7;
-	var Popi_popi8 = 6;
-	var Popi_popr4 = 8;
-	var Popi_popr8 = 9;
-	var Popref = 10;
-	var Popref_pop1 = 11;
-	var Popref_popi = 12;
-	var Popref_popi_pop1 = 28;
-	var Popref_popi_popi = 13;
-	var Popref_popi_popi8 = 14;
-	var Popref_popi_popr4 = 15;
-	var Popref_popi_popr8 = 16;
-	var Popref_popi_popref = 17;
-	var Push0 = 18;
-	var Push1 = 19;
-	var Push1_push1 = 20;
-	var Pushi = 21;
-	var Pushi8 = 22;
-	var Pushr4 = 23;
-	var Pushr8 = 24;
-	var Pushref = 25;
-	var Varpop = 26;
-	var Varpush = 27;
+extern enum StackBehaviour {
+	Pop0;
+	Pop1;
+	Pop1_pop1;
+	Popi;
+	Popi_pop1;
+	Popi_popi;
+	Popi_popi_popi;
+	Popi_popi8;
+	Popi_popr4;
+	Popi_popr8;
+	Popref;
+	Popref_pop1;
+	Popref_popi;
+	Popref_popi_pop1;
+	Popref_popi_popi;
+	Popref_popi_popi8;
+	Popref_popi_popr4;
+	Popref_popi_popr8;
+	Popref_popi_popref;
+	Push0;
+	Push1;
+	Push1_push1;
+	Pushi;
+	Pushi8;
+	Pushr4;
+	Pushr8;
+	Pushref;
+	Varpop;
+	Varpush;
 }

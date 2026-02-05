@@ -2,7 +2,7 @@ package cs.system.data.common;
 
 /** Indicates the position of the catalog name in a qualified table name in a text command. */
 @:native("System.Data.Common.CatalogLocation")
-extern enum abstract CatalogLocation(Int) {
-	var End = 2;
-	var Start = 1;
+extern enum CatalogLocation {
+	End;
+	Start;
 }
