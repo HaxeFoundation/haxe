@@ -144,7 +144,7 @@ class Exception extends NativeException {
 private extern class NativeException {
 	@:noCompletion @:overload private function new(message:String):Void;
 	@:noCompletion @:overload private function new(message:String, innerException:NativeException):Void;
-	@:noCompletion @:skipReflection private var Message(default, null):String;
-	@:noCompletion @:skipReflection private var InnerException(default, null):NativeException;
-	@:noCompletion @:skipReflection private var StackTrace(default, null):String;
+	@:noCompletion @:unreflective private var Message(default, null):String;
+	@:noCompletion @:unreflective private var InnerException(default, null):NativeException;
+	@:noCompletion @:unreflective private var StackTrace(default, null):String;
 }

@@ -61,13 +61,13 @@ private enum abstract ArrayType(Int) {
 
 	// Typed backing arrays - only ONE is active at a time
 	// __objectArray is used when __arrayType == TObject or Unknown
-	@:skipReflection private var __intArray:cs.NativeArray<Int>;
-	@:skipReflection private var __floatArray:cs.NativeArray<Float>;
-	@:skipReflection private var __boolArray:cs.NativeArray<Bool>;
-	@:skipReflection private var __objectArray:cs.NativeArray<Dynamic>;
+	@:unreflective private var __intArray:cs.NativeArray<Int>;
+	@:unreflective private var __floatArray:cs.NativeArray<Float>;
+	@:unreflective private var __boolArray:cs.NativeArray<Bool>;
+	@:unreflective private var __objectArray:cs.NativeArray<Dynamic>;
 
-	@:skipReflection static var __hx_toString_depth = 0;
-	@:skipReflection static inline final __hx_defaultCapacity = 4;
+	@:unreflective static var __hx_toString_depth = 0;
+	@:unreflective static inline final __hx_defaultCapacity = 4;
 
 	// =========================================================================
 	// Constructors and Factory Methods

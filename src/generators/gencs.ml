@@ -8232,12 +8232,16 @@ let generate_field_accessors gctx c =
 	(* Only generate field accessors if the class inherits from HaxeObject *)
 	if not (extends_haxe_object c) then
 		[]
+	(* Skip reflection generation for classes marked @:unreflective *)
+	else if Meta.has Meta.Unreflective c.cl_meta then
+		[]
 	else
 		(* Get list of instance fields with their Haxe and native names.
-		   Include any physical variable field (AccNormal read/write or @:isVar properties). *)
+		   Include any physical variable field (AccNormal read/write or @:isVar properties).
+		   Exclude fields marked @:unreflective. *)
 		let instance_fields = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Var _ when is_physical_var_field cf ->
+			| Var _ when is_physical_var_field cf && not (Meta.has Meta.Unreflective cf.cf_meta) ->
 				Some (cf.cf_name, get_native_field_name cf, cs_type_of_type gctx cf.cf_type)
 			| _ -> None
 		) c.cl_ordered_fields in
@@ -8272,10 +8276,12 @@ let generate_field_accessors gctx c =
 		in
 
 		(* Get list of instance methods (MethNormal and MethInline only)
-		   Generic methods are included since C# erases type params to object. *)
+		   Generic methods are included since C# erases type params to object.
+		   Exclude methods marked @:unreflective. *)
 		let instance_methods = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) ->
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic)
+			                                     && not (Meta.has Meta.Unreflective cf.cf_meta) ->
 				let args, ret = match follow cf.cf_type with
 					| TFun (args, ret) -> args, ret
 					| _ -> [], t_dynamic
@@ -8503,30 +8509,37 @@ let generate_field_accessors gctx c =
    Returns list of members to add to the class.
    Also records the class path in gctx.all_haxe_classes for Program.cs bind calls. *)
 let generate_static_field_accessors gctx c =
+	(* Skip static reflection generation for classes marked @:unreflective *)
+	if Meta.has Meta.Unreflective c.cl_meta then
+		[]
+	else
 	(* Get list of static fields with their C# names (handles class/member name conflicts).
-	   Include any field with direct read access (AccNormal or AccInline), regardless of write accessor. *)
+	   Include any field with direct read access (AccNormal or AccInline), regardless of write accessor.
+	   Exclude fields marked @:unreflective. *)
 	let static_fields = List.filter_map (fun cf ->
 		match cf.cf_kind with
-		| Var { v_read = (AccNormal | AccInline); _ } ->
+		| Var { v_read = (AccNormal | AccInline); _ } when not (Meta.has Meta.Unreflective cf.cf_meta) ->
 			Some (cf.cf_name, get_cs_field_name c cf, cs_type_of_type gctx cf.cf_type)
 		| _ -> None
 	) c.cl_ordered_statics in
 
 	(* Get list of static physical property fields (only those with backing fields, i.e. @:isVar).
-	   Excludes AccNormal/AccInline read vars which are already in static_fields. *)
+	   Excludes AccNormal/AccInline read vars which are already in static_fields.
+	   Exclude fields marked @:unreflective. *)
 	let static_property_fields = List.filter_map (fun cf ->
 		match cf.cf_kind with
 		| Var { v_read = (AccNormal | AccInline); _ } -> None (* already in static_fields *)
-		| Var _ when is_physical_var_field cf ->
+		| Var _ when is_physical_var_field cf && not (Meta.has Meta.Unreflective cf.cf_meta) ->
 			Some (cf.cf_name, get_cs_field_name c cf, cs_type_of_type gctx cf.cf_type)
 		| _ -> None
 	) c.cl_ordered_statics in
 
 	(* Get list of static methods (MethNormal and MethInline only)
-	   Generic methods are included since C# erases type params to object. *)
+	   Generic methods are included since C# erases type params to object.
+	   Exclude methods marked @:unreflective. *)
 	let static_methods = List.filter_map (fun cf ->
 		match cf.cf_kind with
-		| Method (MethNormal | MethInline) ->
+		| Method (MethNormal | MethInline) when not (Meta.has Meta.Unreflective cf.cf_meta) ->
 			let args, ret = match follow cf.cf_type with
 				| TFun (args, ret) -> args, ret
 				| _ -> [], t_dynamic
@@ -8546,22 +8559,24 @@ let generate_static_field_accessors gctx c =
 	let all_property_field_names = List.map (fun (name, _, _) -> name) static_property_fields in
 	let all_method_names = List.map (fun (name, _, _, _, _) -> name) static_methods in
 
-	(* Compute instance field names for Type.getInstanceFields() registry *)
+	(* Compute instance field names for Type.getInstanceFields() registry.
+	   Exclude fields marked @:unreflective. *)
 	let all_instance_field_names =
 		let instance_data_names = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Var { v_read = AccNormal; _ } -> Some cf.cf_name
+			| Var { v_read = AccNormal; _ } when not (Meta.has Meta.Unreflective cf.cf_meta) -> Some cf.cf_name
 			| _ -> None
 		) c.cl_ordered_fields in
 		let instance_property_names = List.filter_map (fun cf ->
 			match cf.cf_kind with
 			| Var { v_read = AccNormal; _ } -> None (* already in data_names *)
-			| Var _ when is_physical_var_field cf -> Some cf.cf_name
+			| Var _ when is_physical_var_field cf && not (Meta.has Meta.Unreflective cf.cf_meta) -> Some cf.cf_name
 			| _ -> None
 		) c.cl_ordered_fields in
 		let instance_method_names = List.filter_map (fun cf ->
 			match cf.cf_kind with
-			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic) -> Some cf.cf_name
+			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic)
+			                                     && not (Meta.has Meta.Unreflective cf.cf_meta) -> Some cf.cf_name
 			| _ -> None
 		) c.cl_ordered_fields in
 		instance_data_names @ instance_property_names @ instance_method_names

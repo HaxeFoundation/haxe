@@ -1118,8 +1118,8 @@
 	{
 		"name": "Unreflective",
 		"metadata": ":unreflective",
-		"doc": "",
-		"platforms": ["cpp"]
+		"doc": "Excludes a field or type from Haxe reflection.",
+		"platforms": ["cpp", "cs"]
 	},
 	{
 		"name": "Used",

@@ -45,6 +45,7 @@ let as_platforms = function
 			| JString "flash" -> "Flash"
 			| JString "php" -> "Php"
 			| JString "cpp" -> "Cpp"
+			| JString "cs" -> "Cs"
 			| JString "jvm" -> "Jvm"
 			| JString "python" -> "Python"
 			| JString "hl" -> "Hl"
