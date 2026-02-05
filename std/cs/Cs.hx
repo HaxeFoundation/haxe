@@ -60,7 +60,7 @@ class Cs {
 		}
 
 		// Otherwise, try to use C# reflection to invoke the delegate
-		return untyped __cs__("haxe.lang.Runtime.InvokeDelegate({0}, {1})", func, args);
+		return untyped __cs__("haxe.lang.Runtime.invokeFunction({0}, {1})", func, args);
 	}
 
 	/**

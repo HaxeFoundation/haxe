@@ -160,7 +160,7 @@ let generate_hxvalue_args args arg_types =
 		cast_type_to_value arg_type arg
 	) args
 
-(* Build an args array for InvokeDelegate calls.
+(* Build an args array for invokeFunction calls.
    If args list is empty, creates an empty haxe.root.Array.
    Otherwise, wraps the args in a native object[] and converts to haxe.root.Array. *)
 let make_invoke_args_array args =
@@ -170,9 +170,9 @@ let make_invoke_args_array args =
 		let native_array = CsNewArray (CsTypeObject, args) in
 		make_array_from_native ArrayDynamic native_array haxe_array_type
 
-(* Cast InvokeDelegate result to expected type.
+(* Cast invokeFunction result to expected type.
    Delegates to cast_object_to_type for the actual conversion;
-   adds Void pass-through since InvokeDelegate always returns object. *)
+   adds Void pass-through since invokeFunction always returns object. *)
 let cast_invoke_result result_type call_expr =
 	match result_type with
 	| CsTypeVoid -> call_expr
@@ -1173,14 +1173,14 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> false
 			in
 			let call = if is_string_index then
-				(* String index on Dynamic means field access: Runtime.GetField(obj, name).
-				   Use Runtime.GetField instead of Reflect.field because it throws on null.
+				(* String index on Dynamic means field access: Runtime.getField(obj, name).
+				   Use Runtime.getField instead of Reflect.field because it throws on null.
 				   If the index is a TCast(string_const, _), extract just the string constant. *)
 				let string_expr = match e2.eexpr with
 					| TCast ({ eexpr = TConst (TString _) } as inner, _) -> cs_expr_of_texpr ectx inner
 					| _ -> cs_expr_of_texpr ectx e2
 				in
-				CsStaticCall (runtime_type, "GetField", [cs_expr_of_texpr ectx e1; string_expr])
+				CsStaticCall (runtime_type, "getField", [cs_expr_of_texpr ectx e1; string_expr])
 			else
 				(* Int/numeric index: use runtime helper cs.Cs.arrayGet *)
 				CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), "arrayGet", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
@@ -1373,7 +1373,7 @@ let rec cs_expr_of_texpr ectx e =
 					end
 				| _ -> false
 			in
-			(* Check for dynamic/anon field assignment: dynObj.field = value -> Runtime.SetField or _hx_setField *)
+			(* Check for dynamic/anon field assignment: dynObj.field = value -> Runtime.setField or _hx_setField *)
 			begin match e1.eexpr with
 			| TField (obj, FDynamic name) ->
 				let obj_expr = cs_expr_of_texpr ectx obj in
@@ -1384,7 +1384,7 @@ let rec cs_expr_of_texpr ectx e =
 					| _ -> obj_expr
 				in
 				let val_cs = cs_expr_of_texpr ectx e2 in
-				CsStaticCall (runtime_type, "SetField", [obj_expr; CsConst (CsConstString name); val_cs])
+				CsStaticCall (runtime_type, "setField", [obj_expr; CsConst (CsConstString name); val_cs])
 			| TField (obj, FAnon cf) ->
 				(* Anonymous field assignment - check if it's a truly dynamic object or a known type *)
 				let obj_expr = cs_expr_of_texpr ectx obj in
@@ -1409,22 +1409,22 @@ let rec cs_expr_of_texpr ectx e =
 					(* Dynamic object - use _hx_setField *)
 					CsCall (CsField (obj_expr, "_hx_setField"), [CsConst (CsConstString cf.cf_name); val_cs])
 				| CsTypeObject ->
-					(* Object type - use Runtime.SetField *)
-					CsStaticCall (runtime_type, "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
+					(* Object type - use Runtime.setField *)
+					CsStaticCall (runtime_type, "setField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
 				| _ ->
 					(* Known anonymous type - generate direct field assignment *)
 					CsBinop (CsOpAssign, CsField (obj_expr, escape_identifier cf.cf_name), val_cs)
 				end
 			| TField (obj, FInstance (c, tl, cf)) ->
 				(* Instance field assignment - check if object type is erased to object due to
-				   generic interface with Dynamic type parameter. If so, use Runtime.SetField. *)
+				   generic interface with Dynamic type parameter. If so, use Runtime.setField. *)
 				let obj_expr = cs_expr_of_texpr ectx obj in
 				let cs_type = cs_type_of_type ectx.gctx obj.etype in
 				let val_cs = cs_expr_of_texpr ectx e2 in
 				begin match cs_type with
 				| CsTypeObject ->
-					(* Type was erased to object - use Runtime.SetField *)
-					CsStaticCall (runtime_type, "SetField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
+					(* Type was erased to object - use Runtime.setField *)
+					CsStaticCall (runtime_type, "setField", [obj_expr; CsConst (CsConstString cf.cf_name); val_cs])
 				| _ ->
 					(* Normal field assignment - generate field access WITHOUT the read-cast
 					   that would be added by the general TField handler. The read-cast is for
@@ -2289,9 +2289,9 @@ let rec cs_expr_of_texpr ectx e =
 			let cs_type = cs_type_of_type ectx.gctx e.etype in
 			begin match cs_type with
 			| CsTypeObject ->
-				(* Object/anonymous type - use Runtime.GetField for dynamic access.
-				   Runtime.GetField throws NullReferenceException for null objects. *)
-				let field_call = CsStaticCall (runtime_type, "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+				(* Object/anonymous type - use Runtime.getField for dynamic access.
+				   Runtime.getField throws NullReferenceException for null objects. *)
+				let field_call = CsStaticCall (runtime_type, "getField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 				(* Cast to haxe.lang.Function since this is a method closure context *)
 				CsCast (function_type, field_call)
 			| _ ->
@@ -2391,10 +2391,10 @@ let rec cs_expr_of_texpr ectx e =
 			(* Some other concrete class - try direct access *)
 			CsField (obj_expr, escape_identifier cf.cf_name)
 		| CsTypeObject ->
-			(* Object type (from TAnon/structural type) - use Runtime.GetField for dynamic access.
-			   Runtime.GetField throws NullReferenceException for null objects, matching
+			(* Object type (from TAnon/structural type) - use Runtime.getField for dynamic access.
+			   Runtime.getField throws NullReferenceException for null objects, matching
 			   Haxe's field access semantics. Reflect.field returns null for null objects. *)
-			let field_call = CsStaticCall (runtime_type, "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+			let field_call = CsStaticCall (runtime_type, "getField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
@@ -2446,11 +2446,11 @@ let rec cs_expr_of_texpr ectx e =
 			CsField (obj_expr, name)
 		else begin
 			(* Regular dynamic field access via reflection *)
-			(* Use haxe.lang.Runtime.GetField for dynamic field access *)
+			(* Use haxe.lang.Runtime.getField for dynamic field access *)
 			let field_call =
-				CsStaticCall (runtime_type, "GetField", [obj_expr; CsConst (CsConstString name)])
+				CsStaticCall (runtime_type, "getField", [obj_expr; CsConst (CsConstString name)])
 			in
-			(* Runtime.GetField returns object, but Haxe knows the actual type.
+			(* Runtime.getField returns object, but Haxe knows the actual type.
 			   Cast to the expected type if it's not Dynamic/object.
 			   Use cast_object_to_type for proper unboxing of primitives. *)
 			let result_cs_type = cs_type_of_type ectx.gctx e.etype in
@@ -2851,7 +2851,7 @@ let rec cs_expr_of_texpr ectx e =
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let obj = if needs_unwrap then CsField (obj, "value") else obj in
 		(* Check if the C# type is object (due to erasure of generic interface with Dynamic).
-		   In that case, we can't do direct method calls - use Reflect.field + Runtime.InvokeDelegate. *)
+		   In that case, we can't do direct method calls - use Reflect.field + Runtime.invokeFunction. *)
 		let obj_cs_type = cs_type_of_type ectx.gctx e_obj.etype in
 		if obj_cs_type = CsTypeObject then begin
 			(* Type was erased to object - use reflection for method call *)
@@ -2860,8 +2860,8 @@ let rec cs_expr_of_texpr ectx e =
 			let cs_args = List.map (cs_expr_of_texpr ectx) args in
 			let native_array = CsNewArray (CsTypeObject, cs_args) in
 			let args_array = make_array_from_native ArrayDynamic native_array (haxe_array_type) in
-			(* Call Runtime.InvokeDelegate(method, args) *)
-			let invoke_call = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
+			(* Call Runtime.invokeFunction(method, args) *)
+			let invoke_call = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
 			(* Cast result to expected type - use cast_object_to_type for proper unboxing *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			begin match result_type with
@@ -3326,12 +3326,12 @@ let rec cs_expr_of_texpr ectx e =
 			(* Known iterator class - generate direct method call *)
 			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
 		| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) ->
-			(* Truly anonymous - use _hx_getField -> Runtime.InvokeDelegate for function fields *)
+			(* Truly anonymous - use _hx_getField -> Runtime.invokeFunction for function fields *)
 			let is_function = match follow cf.cf_type with TFun _ -> true | _ -> false in
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			if is_function then begin
 				let args_array = make_invoke_args_array args in
-				let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
+				let call_expr = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
 				(* Cast the result to the expected return type.
 				   Use e.etype (the TCall's return type) which has type parameters resolved,
 				   rather than cf.cf_type which might have unresolved type params. *)
@@ -3340,7 +3340,7 @@ let rec cs_expr_of_texpr ectx e =
 				let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 				begin match result_type with
 				| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-				(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+				(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
 				| _ -> cast_object_to_type result_type call_expr
 				end
 			end else begin
@@ -3352,10 +3352,10 @@ let rec cs_expr_of_texpr ectx e =
 			(* Some other concrete class - try direct call *)
 			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
 		| CsTypeObject ->
-			(* Object type (from TAnon/structural type) - use Reflect.field then Runtime.InvokeDelegate *)
+			(* Object type (from TAnon/structural type) - use Reflect.field then Runtime.invokeFunction *)
 			let field_call = CsStaticCall (reflect_type, "field", [obj; CsConst (CsConstString cf.cf_name)]) in
 			let args_array = make_invoke_args_array args in
-			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
+			let call_expr = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
 			(* Convert the result to the expected return type using Runtime helpers.
 			   Use Runtime.toInt/toDouble/toBool for primitives (handles boxing/unboxing properly),
 			   and direct cast for reference types.
@@ -3369,16 +3369,16 @@ let rec cs_expr_of_texpr ectx e =
 			let casted_obj = CsCast (haxe_object_type, obj) in
 			let field_call = CsCall (CsField (casted_obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			let args_array = make_invoke_args_array args in
-			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
+			let call_expr = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			cast_invoke_result result_type call_expr
 		| _ ->
-			(* Fallback to dynamic dispatch via _hx_getField -> Runtime.InvokeDelegate *)
+			(* Fallback to dynamic dispatch via _hx_getField -> Runtime.invokeFunction *)
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			let args_array = make_invoke_args_array args in
-			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [field_call; args_array]) in
+			let call_expr = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
 			(* Convert the result using Runtime helpers for proper type conversion *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
@@ -3389,22 +3389,22 @@ let rec cs_expr_of_texpr ectx e =
 		wrap_call_with_prefix prefix_stmts final_result_type result_expr
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) when name = "value" || name = "hasValue" ->
 		(* Special case: calling .value or .hasValue on Null<T> - this is csNullable's unwrap pattern.
-		   Generate direct field access and invoke, not Runtime.GetField. *)
+		   Generate direct field access and invoke, not Runtime.getField. *)
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let func_expr = CsField (obj, name) in
 		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
 		let args_array = make_invoke_args_array args_exprs in
-		let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
+		let call_expr = CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array]) in
 		let result_type = cs_type_of_type ectx.gctx e.etype in
 		let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
 		| CsTypeVoid -> call_expr  (* Don't cast void results *)
 		| CsTypeObject | CsTypeDynamic -> call_expr
-		(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+		(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
 		| _ -> cast_object_to_type result_type call_expr
 		end
 	| TCall ({ eexpr = TField (e_obj, FDynamic name) }, args) ->
-		(* Dynamic method call: obj.dynamicMethod(args) -> Runtime.InvokeDelegate(Runtime.GetField(obj, "method"), args) *)
+		(* Dynamic method call: obj.dynamicMethod(args) -> Runtime.invokeFunction(Runtime.getField(obj, "method"), args) *)
 		let obj = cs_expr_of_texpr ectx e_obj in
 		let raw_type = Type.follow_once e_obj.etype in
 		(* Only unwrap .value if the inner type actually needs the Null wrapper in C#.
@@ -3421,17 +3421,17 @@ let rec cs_expr_of_texpr ectx e =
 				CsField (obj, "value")  (* Null with no/multiple params - treat as nullable *)
 			| _ -> obj
 		in
-		let get_field = CsStaticCall (runtime_type, "GetField", [obj; CsConst (CsConstString name)]) in
+		let get_field = CsStaticCall (runtime_type, "getField", [obj; CsConst (CsConstString name)]) in
 		let args_exprs = List.map (cs_expr_of_texpr ectx) args in
 		let args_array = make_invoke_args_array args_exprs in
-		let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [get_field; args_array]) in
+		let call_expr = CsStaticCall (runtime_type, "invokeFunction", [get_field; args_array]) in
 		(* Cast the result to the expected return type - use e.etype (the TCall's type), not e_obj.etype *)
 		(* Also erase out-of-scope type params *)
 		let result_type = cs_type_of_type ectx.gctx e.etype in
 		let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 		begin match result_type with
 		| CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for Dynamic/object *)
-		(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+		(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
 		| _ -> cast_object_to_type result_type call_expr
 		end
 	| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["cs"], "Syntax") }, cf)) }, args) ->
@@ -3454,7 +3454,7 @@ let rec cs_expr_of_texpr ectx e =
 	| TCall ({ eexpr = TField (_, FStatic (c, cf)) }, orig_args) ->
 		let return_type = e.etype in  (* Use the TCall's etype, not TField's *)
 		(* Check if this is a stored function field (dynamic method, var with function type, or Dynamic type).
-		   If so, we need to use Runtime.InvokeDelegate instead of direct call.
+		   If so, we need to use Runtime.invokeFunction instead of direct call.
 		   Also check for @:callable abstracts - they wrap a function type but follow() doesn't unwrap them. *)
 		let rec is_function_like_type t = match follow t with
 			| TFun _ | TDynamic _ -> true
@@ -3472,18 +3472,18 @@ let rec cs_expr_of_texpr ectx e =
 			| Method _ -> false
 		in
 		if is_stored_function_field then begin
-			(* Stored function field - use Runtime.InvokeDelegate *)
+			(* Stored function field - use Runtime.invokeFunction *)
 			let path = cs_path_of_path c.cl_path in
 			(* Haxe classes are non-generic in C#, so no type params *)
 			ignore c.cl_params;
 			let func_expr = CsStaticField (CsTypeClass (path, []), escape_identifier cf.cf_name) in
 			let args_exprs = List.map (cs_expr_of_texpr ectx) orig_args in
 			let args_array = make_invoke_args_array args_exprs in
-			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
+			let call_expr = CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array]) in
 			let result_type = cs_type_of_type ectx.gctx return_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-			(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+			(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
 			| _ -> cast_object_to_type result_type call_expr
 			end
 		end else begin
@@ -4027,7 +4027,7 @@ let rec cs_expr_of_texpr ectx e =
 			| _ -> is_dynamic_type e_callee.etype
 		in
 		if is_dynamic_call then begin
-			(* Dynamic call: use haxe.lang.Runtime.InvokeDelegate(func, args) *)
+			(* Dynamic call: use haxe.lang.Runtime.invokeFunction(func, args) *)
 			let func_expr = cs_expr_of_texpr ectx e_callee in
 			(* For dynamic calls, convert arguments but use actual null for TConst TNull.
 			   This ensures that invokeDynamic can detect null args with == null check.
@@ -4039,14 +4039,14 @@ let rec cs_expr_of_texpr ectx e =
 				| _ -> cs_expr_of_texpr ectx arg
 			) args in
 			let args_array = make_invoke_args_array args_exprs in
-			let call_expr = CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array]) in
+			let call_expr = CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array]) in
 			(* Cast the result to the expected return type *)
 			let result_type = cs_type_of_type ectx.gctx e.etype in
 			(* Erase out-of-scope type params to avoid CS0246 errors *)
 			let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
 			begin match result_type with
 			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr  (* No cast needed for void/Dynamic/object *)
-			(* Use cast_object_to_type for proper unboxing of InvokeDelegate results *)
+			(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
 			| _ -> cast_object_to_type result_type call_expr
 			end
 		end else begin
@@ -5820,7 +5820,7 @@ and cs_stmt_of_texpr ectx e =
 			(* Replace the null RHS with our actual value *)
 			let assign_cs = match lhs_assign_cs with
 				| CsBinop (CsOpAssign, lhs_cs, _) -> CsBinop (CsOpAssign, lhs_cs, val_cs)
-				| CsStaticCall (t, "SetField", [obj; name; _]) -> CsStaticCall (t, "SetField", [obj; name; val_cs])
+				| CsStaticCall (t, "setField", [obj; name; _]) -> CsStaticCall (t, "setField", [obj; name; val_cs])
 				| CsCall (CsField (obj, "_hx_setField"), [name; _]) -> CsCall (CsField (obj, "_hx_setField"), [name; val_cs])
 				| other -> other  (* Fallback - shouldn't happen *)
 			in
@@ -6502,7 +6502,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 	let call_args = List.map (fun param -> CsLocal param.p_name) invoke_params in
 	let method_name = escape_identifier cf.cf_name in
 	(* Check if this is a stored function field (dynamic method or var with function type).
-	   If so, we need to use Runtime.InvokeDelegate instead of direct call. *)
+	   If so, we need to use Runtime.invokeFunction instead of direct call. *)
 	let is_stored_function = match cf.cf_kind with
 		| Var _ -> (match follow cf.cf_type with TFun _ -> true | _ -> false)
 		| Method MethDynamic -> true
@@ -6516,7 +6516,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 		in
 		let static_type = CsTypeClass (actual_path, List.map (cs_type_of_type gctx) type_params) in
 		if is_stored_function then begin
-			(* Static function field - use Runtime.InvokeDelegate *)
+			(* Static function field - use Runtime.invokeFunction *)
 			let func_expr = CsStaticField (static_type, method_name) in
 			let args_array = if call_args = [] then
 				CsNew (haxe_array_type, [])
@@ -6524,11 +6524,11 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 				let native_array = CsNewArray (CsTypeObject, call_args) in
 				make_array_from_native ArrayDynamic native_array (haxe_array_type)
 			in
-			CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array])
+			CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array])
 		end else
 			CsStaticCall (static_type, method_name, call_args)
 	else if is_stored_function then begin
-		(* Instance function field - use Runtime.InvokeDelegate *)
+		(* Instance function field - use Runtime.invokeFunction *)
 		let obj = CsField (CsThis, "_hx_this") in
 		let func_expr = CsField (obj, method_name) in
 		let args_array = if call_args = [] then
@@ -6537,7 +6537,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 			let native_array = CsNewArray (CsTypeObject, call_args) in
 			make_array_from_native ArrayDynamic native_array (haxe_array_type)
 		in
-		CsStaticCall (runtime_type, "InvokeDelegate", [func_expr; args_array])
+		CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array])
 	end else
 		CsCall (CsField (CsField (CsThis, "_hx_this"), method_name), call_args)
 	in

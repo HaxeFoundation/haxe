@@ -75,9 +75,9 @@ class Reflect {
 			return (cast o : HaxeObject)._hx_getField(field);
 		}
 
-		// Special handling for strings - delegate to Runtime.GetStringField
+		// Special handling for strings - delegate to Runtime.getStringField
 		if (Std.isOfType(o, String)) {
-			return untyped __cs__("global::haxe.lang.Runtime.GetStringField((string){0}, {1})", o, field);
+			return untyped __cs__("global::haxe.lang.Runtime.getStringField((string){0}, {1})", o, field);
 		}
 
 		// Check if o is a System.Type (for static field access)

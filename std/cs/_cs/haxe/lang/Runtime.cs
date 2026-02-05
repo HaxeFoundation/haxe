@@ -11,9 +11,9 @@ namespace haxe.lang
     ///
     /// Responsibilities:
     /// - Type conversions (toInt, toDouble, toBool, toLong)
-    /// - AOT-safe field access (GetField, SetField)
-    /// - Function invocation with argument handling (InvokeDelegate)
-    /// - Null&lt;T&gt; creation helpers for AOT (CreateDefaultValue, CreateNullOfT)
+    /// - AOT-safe field access (getField, setField)
+    /// - Function invocation with argument handling (invokeFunction)
+    /// - Null&lt;T&gt; creation helpers for AOT (createDefaultValue, createNullOfT)
     /// - Checked cast implementation (genericCast&lt;T&gt;)
     ///
     /// For high-level Haxe semantic operations (dynamic arithmetic, array access),
@@ -274,7 +274,7 @@ namespace haxe.lang
         /// Works with Func&lt;&gt;, Action, and other delegate types.
         /// AOT-compatible: does not use GetMethod or Activator.CreateInstance.
         /// </summary>
-        public static object InvokeDelegate(object func, global::haxe.root.Array args)
+        public static object invokeFunction(object func, global::haxe.root.Array args)
         {
             // Throw when func is null - calling a null function in Haxe raises an exception
             if (func == null) throw new global::System.NullReferenceException("Cannot call null function");
@@ -302,7 +302,7 @@ namespace haxe.lang
                     if (argValue == null)
                     {
                         // Null handling for primitives and Null<T> - AOT-safe, no reflection
-                        invokeArgs[i] = CreateDefaultValue(param.ParameterType);
+                        invokeArgs[i] = createDefaultValue(param.ParameterType);
                     }
                     else
                     {
@@ -325,7 +325,7 @@ namespace haxe.lang
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
             Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
 #endif
-        private static object CreateDefaultValue(global::System.Type type)
+        private static object createDefaultValue(global::System.Type type)
         {
             // Handle Null<T> first - for null/missing args, default(Null<T>) has hasValue=false
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(global::haxe.lang.Null<>))
@@ -378,7 +378,7 @@ namespace haxe.lang
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "MakeGenericType for Null<T> works in AOT when the inner type is used elsewhere in the program")]
 #endif
-        private static object CreateNullOfT(global::System.Type innerType, object value)
+        private static object createNullOfT(global::System.Type innerType, object value)
         {
             if (innerType == typeof(int)) return global::haxe.lang.Null<int>._ofDynamic(value);
             if (innerType == typeof(double)) return global::haxe.lang.Null<double>._ofDynamic(value);
@@ -407,7 +407,7 @@ namespace haxe.lang
         /// </summary>
         private static object ConvertArg(object value, global::System.Type targetType)
         {
-            if (value == null) return CreateDefaultValue(targetType);
+            if (value == null) return createDefaultValue(targetType);
 
             var valueType = value.GetType();
             if (targetType.IsAssignableFrom(valueType)) return value;
@@ -416,7 +416,7 @@ namespace haxe.lang
             if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(global::haxe.lang.Null<>))
             {
                 var innerType = targetType.GetGenericArguments()[0];
-                return CreateNullOfT(innerType, value);
+                return createNullOfT(innerType, value);
             }
 
             // Numeric conversions
@@ -447,7 +447,7 @@ namespace haxe.lang
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_getField")]
 #endif
-        public static object GetField(object obj, string name)
+        public static object getField(object obj, string name)
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot get field from null");
 
@@ -466,7 +466,7 @@ namespace haxe.lang
             // Special handling for strings (native System.String)
             if (obj is string str)
             {
-                return GetStringField(str, name);
+                return getStringField(str, name);
             }
 
             // Fallback to reflection for non-Haxe objects
@@ -492,7 +492,7 @@ namespace haxe.lang
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
 #endif
-        public static object SetField(object obj, string name, object value)
+        public static object setField(object obj, string name, object value)
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
 
@@ -533,7 +533,7 @@ namespace haxe.lang
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
 #endif
-        public static T SetField<T>(object obj, string name, T value)
+        public static T setField<T>(object obj, string name, T value)
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
 
@@ -568,7 +568,7 @@ namespace haxe.lang
         /// <summary>
         /// Check if an object is a function (HaxeFunction or C# delegate).
         /// </summary>
-        public static bool IsFunction(object obj)
+        public static bool isFunction(object obj)
         {
             if (obj == null) return false;
             if (obj is global::haxe.lang.Function) return true;
@@ -585,7 +585,7 @@ namespace haxe.lang
         /// Get a field from a string, with caching for method closures.
         /// This is the single source of truth for string field access.
         /// </summary>
-        public static object GetStringField(string str, string name)
+        public static object getStringField(string str, string name)
         {
             switch (name)
             {
