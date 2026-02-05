@@ -124,7 +124,7 @@ class Cs {
 		}
 		// For HaxeObject instances, call the virtual toString() method directly
 		// This handles Array, custom classes with toString(), etc. via dynamic dispatch
-		if (untyped __cs__("{0} is global::haxe.root.HaxeObject hxObj", obj)) {
+		if (untyped __cs__("{0} is global::haxe.lang.HaxeObject hxObj", obj)) {
 			return untyped __cs__("hxObj.toString()");
 		}
 		return untyped __cs__("{0}.ToString()", obj);
@@ -150,8 +150,8 @@ class Cs {
 	public static function trace(v:Dynamic, ?infos:haxe.PosInfos):Void {
 		var str = toString(v);
 		if (infos != null) {
-			str = untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
-				+ untyped __cs__("((haxe.root.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
+			str = untyped __cs__("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
+				+ untyped __cs__("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
 		}
 		untyped __cs__("System.Console.WriteLine({0})", str);
 	}

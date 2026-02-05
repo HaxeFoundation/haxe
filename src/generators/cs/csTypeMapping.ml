@@ -69,17 +69,20 @@ module NativeTypes = struct
 	let field_info_path = (["System"; "Reflection"], "FieldInfo")
 
 	(* Haxe runtime types *)
-	let haxe_object_path = (["haxe"; "root"], "HaxeObject")
-	let haxe_dynamic_object_path = (["haxe"; "root"], "HaxeDynamicObject")
+	let haxe_object_path = (["haxe"; "lang"], "HaxeObject")
+	let haxe_dynamic_object_path = (["haxe"; "lang"], "HaxeDynamicObject")
 	let haxe_function_path = (["haxe"; "lang"], "Function")
 	let haxe_closure_path = (["haxe"; "root"], "HaxeClosure")
-	let haxe_enum_path = (["haxe"; "root"], "HaxeEnum")
+	let haxe_enum_path = (["haxe"; "lang"], "HaxeEnum")
 	let haxe_exception_path = (["haxe"], "Exception")
 	let haxe_array_path = (["haxe"; "root"], "Array")
 	let haxe_null_path = (["haxe"; "lang"], "Null")
 	let haxe_runtime_path = (["haxe"; "lang"], "Runtime")
 	let haxe_value_path = (["haxe"; "lang"], "Value")
 	let haxe_reflect_path = (["haxe"; "root"], "Reflect")
+	let haxe_empty_constructor_path = (["haxe"; "lang"], "EmptyConstructor")
+	let haxe_constructor_function_path = (["haxe"; "lang"], "ConstructorFunction")
+	let haxe_imap_path = (["haxe"], "IMap")
 end
 
 (* Common type constants for frequently used Haxe runtime types.
@@ -89,6 +92,11 @@ let runtime_type = CsTypeClass (NativeTypes.haxe_runtime_path, [])
 let haxe_object_type = CsTypeClass (NativeTypes.haxe_object_path, [])
 let reflect_type = CsTypeClass (NativeTypes.haxe_reflect_path, [])
 let haxe_array_type = CsTypeClass (NativeTypes.haxe_array_path, [])
+let function_type = CsTypeClass (NativeTypes.haxe_function_path, [])
+let haxe_enum_type = CsTypeClass (NativeTypes.haxe_enum_path, [])
+let empty_constructor_type = CsTypeClass (NativeTypes.haxe_empty_constructor_path, [])
+let constructor_function_type = CsTypeClass (NativeTypes.haxe_constructor_function_path, [])
+let imap_type = CsTypeClass (NativeTypes.haxe_imap_path, [])
 
 (* Array storage type classification for typed backing arrays.
    The C# Array class uses multiple backing arrays (int[], double[], bool[], object[])
@@ -413,7 +421,7 @@ let rec cs_type_of_type_inner gctx stack t =
 		   All function types become haxe.lang.Function - the actual signatures are
 		   preserved in the generated closure classes' invoke methods. *)
 		ignore args; ignore ret;
-		CsTypeClass (NativeTypes.haxe_function_path, [])
+		function_type
 	| TAbstract (a, params) when Meta.has Meta.CoreType a.a_meta ->
 		(* Core type abstract - handle specially *)
 		begin match a.a_path with

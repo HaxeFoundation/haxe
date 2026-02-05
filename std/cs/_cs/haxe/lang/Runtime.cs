@@ -56,6 +56,42 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Just an overload to make sure that calling toDouble on double
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static double toDouble(double d)
+        {
+            return d;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toDouble on int
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static double toDouble(float f)
+        {
+            return (double)f;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toDouble on long
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static double toDouble(long l)
+        {
+            return (double)l;
+        }
+
+        /// <summary>
+        /// Just an overload to make sure that calling toDouble on float
+        /// won't cause any unexpected boxing.
+        /// </summary>
+        public static double toDouble(int i)
+        {
+            return (double)i;
+        }
+
+        /// <summary>
         /// Converts a dynamic value to bool, handling null.
         /// Also handles long values from Value.ToDynamic() which stores bools as 0L/1L.
         /// </summary>
@@ -340,7 +376,7 @@ namespace haxe.lang
             }
 
             // For HaxeObject subclasses, use _hx_getField (AOT-safe)
-            if (obj is global::haxe.root.HaxeObject ho)
+            if (obj is global::haxe.lang.HaxeObject ho)
             {
                 return ho._hx_getField(name);
             }
@@ -377,7 +413,7 @@ namespace haxe.lang
             if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
 
             // For HaxeObject subclasses, use _hx_setField (AOT-safe)
-            if (obj is global::haxe.root.HaxeObject ho)
+            if (obj is global::haxe.lang.HaxeObject ho)
             {
                 ho._hx_setField(name, value);
                 return value;
@@ -416,7 +452,7 @@ namespace haxe.lang
             if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
 
             // For HaxeObject subclasses, use _hx_setField (AOT-safe)
-            if (obj is global::haxe.root.HaxeObject ho)
+            if (obj is global::haxe.lang.HaxeObject ho)
             {
                 ho._hx_setField(name, value);
                 return value;

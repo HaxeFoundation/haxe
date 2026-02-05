@@ -23,7 +23,7 @@
 package cs;
 
 @:keep
-@:native('haxe.root.HaxeObject')
+@:native('haxe.lang.HaxeObject')
 @:nativeGen
 class HaxeObject {
 	public function new() {}

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace haxe.root
+namespace haxe.lang
 {
     public class HaxeObject
     {

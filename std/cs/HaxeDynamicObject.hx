@@ -25,7 +25,7 @@ package cs;
 import haxe.ds.StringMap;
 
 @:keep
-@:native('haxe.root.HaxeDynamicObject')
+@:native('haxe.lang.HaxeDynamicObject')
 @:nativeGen
 class HaxeDynamicObject extends HaxeObject {
 	private static var __hx_toString_depth:Int = 0;

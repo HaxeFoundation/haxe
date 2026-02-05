@@ -145,8 +145,8 @@ let rec s_cs_type = function
 	| CsTypeClass (([], name), []) -> name
 	| CsTypeClass ((pack, name), []) ->
 		(* Use global:: prefix to avoid namespace conflicts.
-		   This ensures haxe.root.HaxeObject is always the global namespace path,
-		   not relative to the current namespace (e.g., unit.spec.haxe.root) *)
+		   This ensures haxe.lang.HaxeObject is always the global namespace path,
+		   not relative to the current namespace (e.g., unit.spec.haxe.lang) *)
 		"global::" ^ String.concat "." pack ^ "." ^ name
 	| CsTypeClass ((["haxe"; "root"], "Array"), _) ->
 		(* Haxe Array is non-generic in C# - always output without type parameters *)

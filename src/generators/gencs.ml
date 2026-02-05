@@ -1180,7 +1180,7 @@ let rec cs_expr_of_texpr ectx e =
 					| TCast ({ eexpr = TConst (TString _) } as inner, _) -> cs_expr_of_texpr ectx inner
 					| _ -> cs_expr_of_texpr ectx e2
 				in
-				CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "GetField", [cs_expr_of_texpr ectx e1; string_expr])
+				CsStaticCall (runtime_type, "GetField", [cs_expr_of_texpr ectx e1; string_expr])
 			else
 				(* Int/numeric index: use runtime helper cs.Cs.arrayGet *)
 				CsStaticCall (CsTypeClass ((["cs"], "Cs"), []), "arrayGet", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
@@ -1405,7 +1405,7 @@ let rec cs_expr_of_texpr ectx e =
 				(* Check if the C# type is HaxeDynamicObject or object - use inner_type after Null unwrap *)
 				let cs_type = cs_type_of_type ectx.gctx inner_type in
 				begin match cs_type with
-				| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) ->
+				| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) ->
 					(* Dynamic object - use _hx_setField *)
 					CsCall (CsField (obj_expr, "_hx_setField"), [CsConst (CsConstString cf.cf_name); val_cs])
 				| CsTypeObject ->
@@ -1582,7 +1582,7 @@ let rec cs_expr_of_texpr ectx e =
 			let is_dynamic t = match cs_type_of_type ectx.gctx (follow t) with
 				| CsTypeObject -> true
 				(* Also treat HaxeDynamicObject as dynamic for operator purposes *)
-				| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) -> true
+				| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) -> true
 				| _ -> false
 			in
 			let either_dynamic = is_dynamic e1.etype || is_dynamic e2.etype in
@@ -1684,7 +1684,6 @@ let rec cs_expr_of_texpr ectx e =
 						   evaluation order (Issue5477). The RHS may have side effects that modify
 						   the field, so we must read the original value first.
 						   ALSO: If obj_expr has side effects, cache it to avoid evaluating twice (Issue8930). *)
-						let reflect_type = CsTypeClass ((["haxe"; "root"], "Reflect"), []) in
 						let obj_cs = cs_expr_of_texpr ectx obj_expr in
 						let expected_cs_type = cs_type_of_type ectx.gctx e.etype in
 						if is_pure_expr obj_expr then begin
@@ -1915,7 +1914,7 @@ let rec cs_expr_of_texpr ectx e =
 					| CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), _), "toStr", [inner]) when is_string_concat ->
 						(* Expression was coerced to string via toStr - replace with toStrConcat for proper null handling.
 						   This happens when accessing fields with erased type parameters (e.g., T=String → object in C#). *)
-						CsStaticCall (CsTypeClass ((["haxe"; "lang"], "Runtime"), []), "toStrConcat", [inner])
+						CsStaticCall (runtime_type, "toStrConcat", [inner])
 					| _ when could_be_null_reference e ->
 						object_to_string_for_concat cs_e
 					| _ -> cs_e
@@ -2192,8 +2191,7 @@ let rec cs_expr_of_texpr ectx e =
 		begin match cs_type with
 		| CsTypeObject ->
 			(* Type was erased to object - use Reflect for field access *)
-			let reflect_path = (["haxe"; "root"], "Reflect") in
-			let field_call = CsStaticCall (CsTypeClass (reflect_path, []), "field", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+			let field_call = CsStaticCall (reflect_type, "field", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
@@ -2293,10 +2291,9 @@ let rec cs_expr_of_texpr ectx e =
 			| CsTypeObject ->
 				(* Object/anonymous type - use Runtime.GetField for dynamic access.
 				   Runtime.GetField throws NullReferenceException for null objects. *)
-				let runtime_path = (["haxe"; "lang"], "Runtime") in
-				let field_call = CsStaticCall (CsTypeClass (runtime_path, []), "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+				let field_call = CsStaticCall (runtime_type, "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 				(* Cast to haxe.lang.Function since this is a method closure context *)
-				CsCast (CsTypeClass ((["haxe"; "lang"], "Function"), []), field_call)
+				CsCast (function_type, field_call)
 			| _ ->
 				(* Known type - direct field access *)
 				CsField (obj_expr, escape_identifier cf.cf_name)
@@ -2320,7 +2317,6 @@ let rec cs_expr_of_texpr ectx e =
 				(* String static methods use cached closures from cs.StringExt.
 				   This ensures reference equality for methods like String.fromCharCode. *)
 				let string_ext_path = (["cs"], "StringExt") in
-				let function_type = CsTypeClass ((["haxe"; "lang"], "Function"), []) in
 				CsCast (function_type,
 					CsStaticCall (CsTypeClass (string_ext_path, []), "_hx_getStaticField",
 						[CsConst (CsConstString cf.cf_name)]))
@@ -2376,7 +2372,7 @@ let rec cs_expr_of_texpr ectx e =
 		| CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), _) ->
 			(* Known iterator class - generate direct field access *)
 			CsField (obj_expr, escape_identifier cf.cf_name)
-		| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) ->
+		| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) ->
 			(* Truly anonymous - use _hx_getField *)
 			let field_call = CsCall (CsField (obj_expr, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
@@ -2398,8 +2394,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* Object type (from TAnon/structural type) - use Runtime.GetField for dynamic access.
 			   Runtime.GetField throws NullReferenceException for null objects, matching
 			   Haxe's field access semantics. Reflect.field returns null for null objects. *)
-			let runtime_path = (["haxe"; "lang"], "Runtime") in
-			let field_call = CsStaticCall (CsTypeClass (runtime_path, []), "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
+			let field_call = CsStaticCall (runtime_type, "GetField", [obj_expr; CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
 			begin match target_type with
 			| CsTypeObject -> field_call
@@ -2411,7 +2406,6 @@ let rec cs_expr_of_texpr ectx e =
 			end
 		| CsTypeGenericParam _ ->
 			(* Type parameter - cast to HaxeObject to call _hx_getField *)
-			let haxe_object_type = CsTypeClass ((["haxe"; "root"], "HaxeObject"), []) in
 			let casted_obj = CsCast (haxe_object_type, obj_expr) in
 			let field_call = CsCall (CsField (casted_obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			let target_type = cs_type_of_type ectx.gctx cf.cf_type in
@@ -2569,7 +2563,7 @@ let rec cs_expr_of_texpr ectx e =
 				c_access = AccessModifier.Internal;
 				c_modifiers = [TypeModifier.Sealed];
 				c_type_params = [];
-				c_base = Some (CsTypeClass ((["haxe"; "lang"], "Function"), []));
+				c_base = Some (function_type);
 				c_interfaces = [];
 				c_constraints = [];
 				c_members = [invoke_method; invoke_dynamic_method; fv_invoke_method];
@@ -2765,7 +2759,7 @@ let rec cs_expr_of_texpr ectx e =
 			(* If the field's declared type is an erased type param, the field returns object in C#.
 			   But we need to call __hx_invoke on it, so cast to haxe.lang.Function. *)
 			let func_expr = if is_erased_type_param cf.cf_type then
-				CsCast (CsTypeClass ((["haxe"; "lang"], "Function"), []), func_expr)
+				CsCast (function_type, func_expr)
 			else func_expr in
 			(* Get parameter and return types for typed invoke.
 			   Use actual_field_type (with type params substituted) to get concrete types. *)
@@ -3331,7 +3325,7 @@ let rec cs_expr_of_texpr ectx e =
 		| CsTypeClass ((["haxe"; "iterators"], "MapKeyValueIterator"), _) ->
 			(* Known iterator class - generate direct method call *)
 			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
-		| CsTypeClass ((["haxe"; "root"], "HaxeDynamicObject"), _) ->
+		| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) ->
 			(* Truly anonymous - use _hx_getField -> Runtime.InvokeDelegate for function fields *)
 			let is_function = match follow cf.cf_type with TFun _ -> true | _ -> false in
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
@@ -4000,7 +3994,7 @@ let rec cs_expr_of_texpr ectx e =
 			let items = List.map (fun (name, data) ->
 				let encoded = Codegen.bytes_serialize data in
 				(* HaxeDynamicObject._hx_create takes Array of alternating keys/values *)
-				Printf.sprintf "global::haxe.root.HaxeDynamicObject._hx_create(global::haxe.root.Array.__ofDynLiteral(new object[] { \"name\", %S, \"data\", %S, \"str\", null }))"
+				Printf.sprintf "global::haxe.lang.HaxeDynamicObject._hx_create(global::haxe.root.Array.__ofDynLiteral(new object[] { \"name\", %S, \"data\", %S, \"str\", null }))"
 					name encoded
 			) resources in
 			CsRaw (Printf.sprintf "global::haxe.root.Array.__ofDynLiteral(new object[] { %s })" (String.concat ", " items))
@@ -4237,8 +4231,7 @@ let rec cs_expr_of_texpr ectx e =
 				   For expression context, we need a lambda or helper.
 				   Let's generate: ((Func<ClassName>)(() => { var t = new ClassName((EmptyConstructor)null); t._hx_new(args); return t; }))()
 				*)
-				let empty_ctor_type = CsTypeClass ((["haxe"; "lang"], "EmptyConstructor"), []) in
-				let new_expr = CsNew (class_type, [CsCast (empty_ctor_type, CsNull)]) in
+				let new_expr = CsNew (class_type, [CsCast (empty_constructor_type, CsNull)]) in
 				(* Create a lambda that creates the object and calls _hx_new *)
 				let hx_new_call = CsCall (CsField (CsLocal "_hx_tmp", "_hx_new"), cs_args) in
 				let return_stmt = CsReturn (Some (CsLocal "_hx_tmp")) in
@@ -4692,7 +4685,7 @@ let rec cs_expr_of_texpr ectx e =
 			   C# can't determine common type between closure classes. Cast both to haxe.lang.Function. *)
 			let then_e, else_e = match follow result_type with
 				| TFun _ ->
-					let func_type = CsTypeClass ((["haxe"; "lang"], "Function"), []) in
+					let func_type = function_type in
 					CsCast (func_type, then_e), CsCast (func_type, else_e)
 				| _ -> then_e, else_e
 			in
@@ -4983,7 +4976,6 @@ let rec cs_expr_of_texpr ectx e =
 				(* Dynamic type - cast to HaxeEnum and access _hx_index directly.
 				   This avoids Reflect.field which doesn't work for HaxeEnum types
 				   because HaxeEnum doesn't extend HaxeObject. *)
-				let haxe_enum_type = CsTypeClass ((["haxe"; "lang"], "HaxeEnum"), []) in
 				let cast_to_enum = CsCast (haxe_enum_type, obj) in
 				CsField (cast_to_enum, "_hx_index")
 			else
@@ -6254,7 +6246,7 @@ let generate_closure_class ectx tf func_type =
 		c_access = AccessModifier.Internal;
 		c_modifiers = [TypeModifier.Sealed];
 		c_type_params = closure_type_params;
-		c_base = Some (CsTypeClass ((["haxe"; "lang"], "Function"), []));
+		c_base = Some (function_type);
 		c_interfaces = [];
 		c_constraints = closure_constraints;
 		c_members = capture_fields @ [ctor; invoke_method; invoke_dynamic_method; hxvalue_invoke_method];
@@ -6741,7 +6733,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 		c_access = AccessModifier.Internal;
 		c_modifiers = [Sealed];
 		c_type_params = [];
-		c_base = Some (CsTypeClass ((["haxe"; "lang"], "Function"), []));
+		c_base = Some (function_type);
 		c_interfaces = [];
 		c_members = members;
 		c_constraints = [];
@@ -7735,9 +7727,6 @@ let parent_needs_two_phase_construction c =
 		end
 	| None -> false
 
-(* EmptyConstructor type for two-phase construction marker *)
-let empty_constructor_type = CsTypeClass ((["haxe"; "lang"], "EmptyConstructor"), [])
-
 (* Generate constructor - follows legacy C# target pattern *)
 (* Constructor body goes directly in constructor, super() becomes : base() initializer *)
 (* field_init_stmts: additional statements to prepend to constructor body,
@@ -8598,7 +8587,6 @@ let generate_static_field_accessors gctx c =
 	let bind_modifiers = if bind_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
 	(* --- Factory ConstructorFunctions for AOT-safe Type.createInstance / Type.createEmptyInstance --- *)
-	let constructor_function_type = CsTypeClass ((["haxe"; "lang"], "ConstructorFunction"), []) in
 	let is_haxe_object = extends_haxe_object c in
 	let is_abstract_class = has_class_flag c CAbstract in
 	(* Get constructor args and two-phase status.
@@ -9016,7 +9004,6 @@ let imap_has_method imap method_name =
    These bridge methods cast the object parameter to the typed key and delegate.
    Only generates bridges for methods that exist in the IMap interface (after DCE). *)
 let generate_explicit_imap_implementations key_type imap =
-	let imap_type = CsTypeClass ((["haxe"], "IMap"), []) in
 	(* Cast expression for key - identity if key_type is object *)
 	let cast_key expr =
 		if key_type = CsTypeObject then expr
@@ -9131,7 +9118,7 @@ let generate_class gctx c =
 			Some (cs_type_of_type gctx (TInst (sc, params)))
 		| None ->
 			(* All Haxe classes extend HaxeObject for _hx_getField support *)
-			Some (CsTypeClass ((["haxe"; "root"], "HaxeObject"), []))
+			Some haxe_object_type
 	in
 
 	(* Generate interface references *)
@@ -9504,7 +9491,7 @@ let generate_interface gctx c =
 			(* Dynamic method is a variable holding a function - generate as property *)
 			Some (CsMemberProperty {
 				prop_name = escape_identifier cf.cf_name;
-				prop_type = CsTypeClass ((["haxe"; "lang"], "Function"), []);
+				prop_type = function_type;
 				prop_access = AccessModifier.Public;
 				prop_modifiers = [];
 				prop_getter = Some { acc_access = None; acc_body = None };
@@ -9811,7 +9798,6 @@ let generate_enum gctx (e : tenum) =
 		let constr_names = List.map (fun ef -> ef.ef_name) sorted_constrs in
 
 		let cs_enum_type = CsTypeClass (path, []) in
-		let constructor_function_type = CsTypeClass ((["haxe"; "lang"], "ConstructorFunction"), []) in
 
 		(* Separate parametric (has args) and simple (no args) constructors for caching *)
 		let parametric_constrs = List.filter (fun ef ->
@@ -10060,9 +10046,6 @@ let generate_enum gctx (e : tenum) =
 			m_attributes = [];
 		} in
 
-		(* HaxeEnum base class type *)
-		let haxe_enum_type = CsTypeClass ((["haxe"; "lang"], "HaxeEnum"), []) in
-
 		(* Protected constructor that forwards index to HaxeEnum base class *)
 		let enum_ctor = CsMemberConstructor {
 			ctor_access = AccessModifier.Protected;
@@ -10252,8 +10235,8 @@ public class Program
 		let content = Std.input_file ~bin:true (find_file src_path) in
 		write_file com.file dest_path content
 	in
-	copy_runtime_file "cs/_cs/haxe/root/HaxeObject.cs" "haxe/root/HaxeObject.cs";
-	copy_runtime_file "cs/_cs/haxe/root/HaxeDynamicObject.cs" "haxe/root/HaxeDynamicObject.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/HaxeObject.cs" "haxe/lang/HaxeObject.cs";
+	copy_runtime_file "cs/_cs/haxe/lang/HaxeDynamicObject.cs" "haxe/lang/HaxeDynamicObject.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Null.cs" "haxe/lang/Null.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Function.cs" "haxe/lang/Function.cs";

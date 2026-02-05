@@ -21,11 +21,11 @@ namespace haxe.lang
     /// </summary>
     public sealed class InstanceMethodFunction : Function
     {
-        private readonly global::haxe.root.HaxeObject _obj;
+        private readonly global::haxe.lang.HaxeObject _obj;
         private readonly int _index;
         private readonly int _arity;
 
-        public InstanceMethodFunction(global::haxe.root.HaxeObject obj, int index, int arity)
+        public InstanceMethodFunction(global::haxe.lang.HaxeObject obj, int index, int arity)
         {
             _obj = obj;
             _index = index;
@@ -35,7 +35,7 @@ namespace haxe.lang
         /// <summary>
         /// Gets the target object this closure is bound to.
         /// </summary>
-        public global::haxe.root.HaxeObject Target => _obj;
+        public global::haxe.lang.HaxeObject Target => _obj;
 
         /// <summary>
         /// Gets the method index within the target object.

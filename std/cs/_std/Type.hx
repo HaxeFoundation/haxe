@@ -77,7 +77,7 @@ class Type {
 			return null;
 		// Don't return System.Object as superclass
 		var baseTypeName:String = untyped __cs__("((System.Type){0}).FullName", baseType);
-		if (baseTypeName == "System.Object" || baseTypeName == "haxe.root.HaxeObject")
+		if (baseTypeName == "System.Object" || baseTypeName == "haxe.lang.HaxeObject")
 			return null;
 		return baseType;
 	}

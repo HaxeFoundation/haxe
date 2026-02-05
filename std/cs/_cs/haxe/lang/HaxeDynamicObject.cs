@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace haxe.root
+namespace haxe.lang
 {
-    public class HaxeDynamicObject : global::haxe.root.HaxeObject
+    public class HaxeDynamicObject : global::haxe.lang.HaxeObject
     {
         private static int __hx_toString_depth = 0;
 
@@ -16,9 +16,9 @@ namespace haxe.root
 
         // Factory method to create with initial field values
         // Usage: _hx_create(["field1", value1, "field2", value2, ...])
-        public static global::haxe.root.HaxeDynamicObject _hx_create(global::haxe.root.Array args)
+        public static global::haxe.lang.HaxeDynamicObject _hx_create(global::haxe.root.Array args)
         {
-            var obj = new global::haxe.root.HaxeDynamicObject();
+            var obj = new global::haxe.lang.HaxeDynamicObject();
             for (int i = 0; i < args.length; i += 2)
             {
                 var name = (string)args.__objectArray[i];
