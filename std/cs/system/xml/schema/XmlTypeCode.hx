@@ -1,0 +1,61 @@
+package cs.system.xml.schema;
+
+/** Represents the W3C XML Schema Definition Language (XSD) schema types. */
+@:native("System.Xml.Schema.XmlTypeCode")
+extern enum abstract XmlTypeCode(Int) {
+	var AnyAtomicType = 10;
+	var AnyUri = 28;
+	var Attribute = 5;
+	var Base64Binary = 27;
+	var Boolean = 13;
+	var Byte = 46;
+	var Comment = 8;
+	var Date = 20;
+	var DateTime = 18;
+	var DayTimeDuration = 54;
+	var Decimal = 14;
+	var Document = 3;
+	var Double = 16;
+	var Duration = 17;
+	var Element = 4;
+	var Entity = 39;
+	var Float = 15;
+	var GDay = 24;
+	var GMonth = 25;
+	var GMonthDay = 23;
+	var GYear = 22;
+	var GYearMonth = 21;
+	var HexBinary = 26;
+	var Id = 37;
+	var Idref = 38;
+	var Int = 44;
+	var Integer = 40;
+	var Item = 1;
+	var Language = 33;
+	var Long = 43;
+	var Name = 35;
+	var Namespace = 6;
+	var NCName = 36;
+	var NegativeInteger = 42;
+	var NmToken = 34;
+	var Node = 2;
+	var None = 0;
+	var NonNegativeInteger = 47;
+	var NonPositiveInteger = 41;
+	var NormalizedString = 31;
+	var Notation = 30;
+	var PositiveInteger = 52;
+	var ProcessingInstruction = 7;
+	var QName = 29;
+	var Short = 45;
+	var String = 12;
+	var Text = 9;
+	var Time = 19;
+	var Token = 32;
+	var UnsignedByte = 51;
+	var UnsignedInt = 49;
+	var UnsignedLong = 48;
+	var UnsignedShort = 50;
+	var UntypedAtomic = 11;
+	var YearMonthDuration = 53;
+}

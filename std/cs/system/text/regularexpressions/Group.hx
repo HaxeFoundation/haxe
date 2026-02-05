@@ -1,31 +1,31 @@
-/*
- * Copyright (C)2005-2019 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
-
 package cs.system.text.regularexpressions;
 
+/** Represents the results from a single capturing group. */
 @:native("System.Text.RegularExpressions.Group")
-extern class Group {
+extern class Group extends cs.system.text.regularexpressions.Capture {
+	/**
+	 * Gets a collection of all the captures matched by the capturing group, in
+	 * innermost-leftmost-first order (or innermost-rightmost-first order if the
+	 * regular expression is modified with the  option). The collection may have zero
+	 * or more items.
+	 * @return The collection of substrings matched by the group.
+	 */
+	var Captures(default, never):cs.system.text.regularexpressions.CaptureCollection;
+	/**
+	 * Returns the name of the capturing group represented by the current instance.
+	 * @return The name of the capturing group represented by the current instance.
+	 */
+	var Name(default, never):String;
+	/**
+	 * Gets a value indicating whether the match is successful.
+	 * @return if the match is successful; otherwise, .
+	 */
 	var Success(default, never):Bool;
-	var Value(default, never):String;
-	var Index(default, never):Int;
-	var Length(default, never):Int;
+	/**
+	 * Returns a  object equivalent to the one supplied that is safe to share between
+	 * multiple threads.
+	 * @param inner The input  object.
+	 * @return A regular expression  object.
+	 */
+	static function Synchronized(inner:cs.system.text.regularexpressions.Group):cs.system.text.regularexpressions.Group;
 }

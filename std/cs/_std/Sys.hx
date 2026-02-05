@@ -104,7 +104,8 @@ import cs.system.reflection.Assembly;
 	public static function systemName():String {
 		if (_sysName != null)
 			return _sysName;
-		var platform = Environment.OSVersion.Platform;
+		// Use Dynamic to prevent Haxe from inferring Int type from extern enum abstract
+		var platform:Dynamic = Environment.OSVersion.Platform;
 		// Use string comparison since enum values might not match across .NET versions
 		var platformStr = Std.string(platform);
 		if (platformStr == "Unix")
