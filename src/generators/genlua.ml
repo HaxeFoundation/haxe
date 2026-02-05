@@ -2028,7 +2028,7 @@ let alloc_ctx com =
         | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
         | TEnumDecl e when has_enum_flag e EnExtern
-            -> s_path ctx p
+            -> dot_path p
         | _ -> s_path ctx p);
     ctx
 
