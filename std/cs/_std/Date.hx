@@ -29,16 +29,20 @@ package;
 	private var dateLocal:cs.system.DateTime;
 	private var dateUTC:cs.system.DateTime;
 
+	// Unix epoch in ticks (100-nanosecond intervals since 0001-01-01)
+	private static var epochTicks:haxe.Int64 = new cs.system.DateTime(1970, 1, 1, 0, 0, 0, cs.system.DateTimeKind.Utc).Ticks;
+
 	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void {
 		dateLocal = new cs.system.DateTime(year, month + 1, day, hour, min, sec, cs.system.DateTimeKind.Local);
 		dateUTC = dateLocal.ToUniversalTime();
 	}
 
 	public function getTime():Float {
-		// Unix epoch is January 1, 1970
-		var epoch = new cs.system.DateTime(1970, 1, 1, 0, 0, 0, cs.system.DateTimeKind.Utc);
-		var span = dateUTC.Subtract(epoch);
-		return span.TotalMilliseconds;
+		// Use Ticks (Int64) for precise millisecond calculation
+		// TicksPerMillisecond = 10,000 (100-nanosecond intervals per ms)
+		var ticksSinceEpoch:haxe.Int64 = dateUTC.Ticks - epochTicks;
+		var milliseconds:haxe.Int64 = ticksSinceEpoch / cs.system.TimeSpan.TicksPerMillisecond;
+		return cast(milliseconds, Float);
 	}
 
 	public function getHours():Int {
@@ -122,8 +126,10 @@ package;
 
 	static public function fromTime(t:Float):Date {
 		var d = new Date(1970, 0, 1, 0, 0, 0);
+		// Convert milliseconds to ticks (Int64) for precision using epoch + AddTicks
+		var ticksFromEpoch:haxe.Int64 = haxe.Int64.fromFloat(t) * cs.system.TimeSpan.TicksPerMillisecond;
 		var epoch = new cs.system.DateTime(1970, 1, 1, 0, 0, 0, cs.system.DateTimeKind.Utc);
-		d.dateUTC = epoch.AddMilliseconds(t);
+		d.dateUTC = epoch.AddTicks(ticksFromEpoch);
 		d.dateLocal = d.dateUTC.ToLocalTime();
 		return d;
 	}
