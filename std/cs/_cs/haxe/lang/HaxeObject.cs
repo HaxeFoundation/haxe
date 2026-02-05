@@ -45,8 +45,10 @@ namespace haxe.lang
         /// Get a field by name. Subclasses should override this with a switch statement for AOT compatibility.
         /// Default implementation uses reflection as fallback.
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection - subclasses should override for AOT")]
+#endif
         public virtual object _hx_getField(string name)
         {
             // Default: use reflection (works in JIT, may fail in AOT for some types)
@@ -62,8 +64,10 @@ namespace haxe.lang
         /// Set a field by name. Subclasses should override this with a switch statement for AOT compatibility.
         /// Default implementation uses reflection as fallback.
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection - subclasses should override for AOT")]
+#endif
         public virtual void _hx_setField(string name, object value)
         {
             // Default: use reflection (works in JIT, may fail in AOT for some types)

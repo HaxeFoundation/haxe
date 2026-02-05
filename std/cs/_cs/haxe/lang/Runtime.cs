@@ -321,8 +321,10 @@ namespace haxe.lang
         /// Create a default value for the given type.
         /// AOT-safe: handles Null&lt;T&gt; without reflection by checking common types directly.
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
             Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
+#endif
         private static object CreateDefaultValue(global::System.Type type)
         {
             // Handle Null<T> first - for null/missing args, default(Null<T>) has hasValue=false
@@ -368,12 +370,14 @@ namespace haxe.lang
         /// <summary>
         /// Create a Null&lt;T&gt; from a dynamic value, AOT-safe.
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2067",
             Justification = "Null<T> is a struct; parameterless struct constructors are intrinsic and always available")]
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2090",
             Justification = "Null<T> constructor with value parameter is always available")]
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "MakeGenericType for Null<T> works in AOT when the inner type is used elsewhere in the program")]
+#endif
         private static object CreateNullOfT(global::System.Type innerType, object value)
         {
             if (innerType == typeof(int)) return global::haxe.lang.Null<int>._ofDynamic(value);
@@ -439,8 +443,10 @@ namespace haxe.lang
         /// For HaxeObject subclasses, uses _hx_getField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_getField")]
+#endif
         public static object GetField(object obj, string name)
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot get field from null");
@@ -482,8 +488,10 @@ namespace haxe.lang
         /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
+#endif
         public static object SetField(object obj, string name, object value)
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");
@@ -521,8 +529,10 @@ namespace haxe.lang
         /// For HaxeObject subclasses, uses _hx_setField (AOT-safe).
         /// For other objects, uses reflection (may not work in AOT for all types).
         /// </summary>
+#if !NETSTANDARD
         [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
             Justification = "Fallback reflection for non-Haxe objects; Haxe objects use _hx_setField")]
+#endif
         public static T SetField<T>(object obj, string name, T value)
         {
             if (obj == null) throw new global::System.NullReferenceException("Cannot set field on null");

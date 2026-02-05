@@ -200,8 +200,14 @@ import cs.system.reflection.Assembly;
 
 	public static function programPath():String {
 		// Try multiple approaches for AOT compatibility
-		// 1. Environment.ProcessPath (works in most AOT scenarios)
-		var path:String = untyped __cs__("System.Environment.ProcessPath");
+		// 1. Environment.ProcessPath (.NET 6+ only, not in .NET Standard 2.1)
+		var path:String = untyped __cs__("
+#if !NETSTANDARD
+			System.Environment.ProcessPath
+#else
+			null
+#endif
+		");
 		if (path == null || path == "") {
 			// 2. Process.MainModule.FileName (more reliable for AOT)
 			path = untyped __cs__("System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName");

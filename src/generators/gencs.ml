@@ -8067,15 +8067,26 @@ let generate_constructor gctx c cf field_init_stmts =
 									   Null<T> supports ?? operator in C# *)
 									let cs_type = cs_type_of_type gctx arg.etype in
 									let cs_default = cs_expr_of_texpr ectx default_expr in
+									(* Get expected type from parent constructor for C# 8 compatibility *)
+									let expected_type_opt = if i < List.length base_ctor_types then
+										Some (List.nth base_ctor_types i) else None in
 									begin match cs_type with
 									| CsTypeNullable _ | CsTypeString ->
 										(* String and Null<T> support ?? operator *)
 										CsBinop (CsOpNullCoalesce, cs_arg, cs_default)
 									| _ ->
 										(* For plain types, check == null (which works for boxed values) *)
+										(* For C# 8 compatibility: if expected type is Null<T>, wrap default
+										   to avoid target-typed conditional issues *)
+										let wrapped_default = match expected_type_opt with
+											| Some (CsTypeNullable inner_type) ->
+												(* Wrap in new Null<T>(value, true) for explicit type *)
+												CsNew (CsTypeNullable inner_type, [cs_default; CsConst (CsConstBool true)])
+											| _ -> cs_default
+										in
 										CsTernary (
 											CsBinop (CsOpEq, cs_arg, CsNull),
-											cs_default,
+											wrapped_default,
 											cs_arg
 										)
 									end
