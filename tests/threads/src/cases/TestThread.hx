@@ -11,13 +11,13 @@ class TestThread extends utest.Test {
 		cond.acquire();
 		final thread = Thread.create(() -> {
 			throw "error";
-		}, function(error) {
+		}, { onAbort: function(error) {
 			exc = error;
 			failingThread = Thread.current();
 			cond.acquire();
 			cond.signal();
 			cond.release();
-		});
+		}});
 		cond.wait();
 		cond.release();
 
@@ -31,12 +31,12 @@ class TestThread extends utest.Test {
 		cond.acquire();
 		final thread = Thread.create(() -> {
 			throw "error";
-		}, function() {
+		}, { onExit: function() {
 			exitingThread = Thread.current();
 			cond.acquire();
 			cond.signal();
 			cond.release();
-		});
+		}});
 		cond.wait();
 		cond.release();
 
@@ -52,17 +52,17 @@ class TestThread extends utest.Test {
 		cond.acquire();
 		final thread = Thread.create(() -> {
 			throw "error";
-		}, function() {
+		}, { onExit: function() {
 			acc.push("onExit");
 			exitingThread = Thread.current();
 			cond.acquire();
 			cond.signal();
 			cond.release();
-		}, function(error) {
+		}, onAbort: function(error) {
 			acc.push("onError");
 			exc = error;
 			failingThread = Thread.current();
-		});
+		}});
 		cond.wait();
 		cond.release();
 

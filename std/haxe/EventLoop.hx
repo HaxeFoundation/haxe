@@ -517,7 +517,7 @@ class EventLoop {
 		threadsToEventLoopsMutex.release();
 
 		// Set up onJobStart
-		sys.thread.Thread.onJobStart(() -> {
+		sys.thread.Thread.onJobStart(callbacks -> {
 			final thread = sys.thread.Thread.current();
 			final events = new EventLoop();
 			events.thread = thread;
@@ -527,12 +527,12 @@ class EventLoop {
 			threadsToEventLoopsMutex.release();
 
 			// Set up onJobDone
-			thread.onJobDone(() -> {
+			callbacks.onJobDone(() -> {
 				events.loop();
 			});
 
 			// Set up onExit
-			thread.onExit(() -> {
+			callbacks.onExit(() -> {
 				events.dispose();
 				mainEvents.wakeup();
 				eventsTls.value = null;
