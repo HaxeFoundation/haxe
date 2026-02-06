@@ -9,9 +9,6 @@ final asyncWaits = new Array<haxe.PosInfos>();
 final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
-#if js
-@:expose("unit.TestMain.main") @:keep
-#end
 function main() {
 	#if js
 	if (js.Browser.supported) {

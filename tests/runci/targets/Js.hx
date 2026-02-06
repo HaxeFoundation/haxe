@@ -67,7 +67,7 @@ class Js {
 
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
+				runCommand("node", [output]);
 				output;
 			}
 		];
