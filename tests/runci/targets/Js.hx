@@ -73,7 +73,7 @@ class Js {
 		];
 
 		// also test running with hxnodejs api for sys tests
-		haxelibInstallGit("HaxeFoundation", "hxnodejs");
+		haxelibInstallGit("tobil4sk", "hxnodejs", "fix/file-system-bugs");
 
 		runCommand("haxe", ["compile-js.hxml", "--library", "hxnodejs"].concat(args));
 		runCommand("node", ["bin/unit.js"]);
