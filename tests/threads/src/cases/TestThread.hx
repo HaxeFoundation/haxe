@@ -1,5 +1,6 @@
 package cases;
 
+import sys.thread.Semaphore;
 import utest.Assert;
 import sys.thread.Condition;
 
@@ -70,5 +71,105 @@ class TestThread extends utest.Test {
 		Assert.isTrue(thread == exitingThread);
 		Assert.equals("error", exc.message);
 		Assert.same(["onError", "onExit"], acc);
+	}
+
+	function executeSync(f:() -> Void) {
+		final sem = new Semaphore(0);
+		final cond = new Condition();
+		cond.acquire();
+		final thread = Thread.create(() -> {
+			cond.acquire();
+			f();
+			cond.release();
+		}, {onExit :() -> {
+			sem.release();
+		}});
+		cond.signal();
+		cond.release();
+		sem.acquire();
+		return thread;
+	}
+
+	function testOnJobStart() {
+		final stack = [];
+
+		// register
+		final handle = Thread.onJobStart(callbacks -> {
+			stack.push(Thread.current());
+		});
+
+		// spawn thread to check if we have it
+		final thread = executeSync(() -> {});
+		Assert.isTrue(thread == stack.pop());
+
+		// close handle and try again
+		handle.close();
+
+		final thread = executeSync(() -> {});
+		Assert.equals(0, stack.length);
+	}
+
+	function testOnCurrentExit() {
+		var threadVars = [];
+
+		// 1 active onExit
+		final thread = executeSync(() -> {
+			Thread.onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+		});
+		Assert.isTrue(thread == threadVars[0]);
+
+		// 1 onExit that gets closed
+		final thread = executeSync(() -> {
+			final handle = Thread.onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			handle.close();
+		});
+		Assert.isFalse(thread == threadVars[0]);
+
+		// 2 onExit, first closed
+		final thread = executeSync(() -> {
+			final handle1 = Thread.onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			final handle2 = Thread.onCurrentExit(() -> {
+				threadVars[1] = Thread.current();
+			});
+			handle1.close();
+		});
+		Assert.isFalse(thread == threadVars[0]);
+		Assert.isTrue(thread == threadVars[1]);
+
+		// 2 onExit, second closed
+		final thread = executeSync(() -> {
+			final handle1 = Thread.onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			final handle2 = Thread.onCurrentExit(() -> {
+				threadVars[1] = Thread.current();
+			});
+			handle2.close();
+		});
+		Assert.isTrue(thread == threadVars[0]);
+		Assert.isFalse(thread == threadVars[1]);
+
+		// 3 onExit, second closed
+		final thread = executeSync(() -> {
+			final handle1 = Thread.onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			final handle2 = Thread.onCurrentExit(() -> {
+				threadVars[1] = Thread.current();
+			});
+			final handle3 = Thread.onCurrentExit(() -> {
+				threadVars[2] = Thread.current();
+			});
+			handle2.close();
+		});
+		Assert.isTrue(thread == threadVars[0]);
+		Assert.isFalse(thread == threadVars[1]);
+		Assert.isTrue(thread == threadVars[2]);
 	}
 }

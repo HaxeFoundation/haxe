@@ -26,60 +26,12 @@ package sys.thread;
 #error "This class is not available on this target"
 #end
 
-private typedef ThreadCallbacks = {
+import sys.thread.ThreadCallback;
+
+private typedef ThreadCreateCallbacks = {
 	?onJobDone:() -> Void,
 	?onAbort:haxe.Exception -> Void,
 	?onExit:() -> Void
-}
-
-class ThreadCallbackManager {
-	var onJobDoneCallback:Null<() -> Void>;
-	var onExitCallback:Null<() -> Void>;
-
-	public function new() {}
-
-	public function callOnJobDone() {
-		if (onJobDoneCallback != null) {
-			onJobDoneCallback();
-		}
-	}
-
-	public function callOnExit() {
-		if (onExitCallback != null) {
-			onExitCallback();
-		}
-	}
-
-	/**
-		Registers `f` to be called once the thread has completed executing its job
-		successfully. It is not called if the thread has thrown an exception.
-	**/
-	public function onJobDone(f:() -> Void) {
-		final onJobDone = onJobDoneCallback;
-		onJobDoneCallback = function() {
-			f();
-			if (onJobDone != null) {
-				onJobDone();
-			}
-		}
-	}
-
-	/**
-		Registers `f` to be called when the thread is exiting. In the case of an exception,
-		it is called after `onAbort`.
-
-		It is not guaranteed to be called if the thread is killed in a way that does not lead to
-		normal termination. Any callback assigned to this should not throw an exception.
-	**/
-	public function onExit(f:() -> Void) {
-		final onExit = onExitCallback;
-		onExitCallback = function() {
-			f();
-			if (onExit != null) {
-				onExit();
-			}
-		}
-	}
 }
 
 class Thread {
@@ -88,7 +40,7 @@ class Thread {
 	static var mutex : Mutex;
 	static var mainThread : Thread;
 	static var idCounter : Int; // TODO: Should probably be an AtomicInt
-	static var onJobStartCallback : Null<ThreadCallbackManager -> Void>;
+	static var onJobStartCallback : ThreadCallbacks<ThreadInstanceCallbacks -> Void>;
 
 	@:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead")
 	public var events(get, null):Null<haxe.EventLoop>;
@@ -100,7 +52,7 @@ class Thread {
 	public final id : Int;
 	var impl : ThreadImpl;
 	var messages : Deque<Dynamic>;
-	final callbacks : ThreadCallbackManager;
+	final callbacks : ThreadInstanceCallbacks;
 
 	/**
 		Tells if we needs to wait for the thread to terminate before we stop the main loop (default:true).
@@ -122,7 +74,7 @@ class Thread {
 		this.id = idCounter++;
 		this.impl = impl;
 		if( impl != null ) this.name = ThreadImpl.getName(impl);
-		callbacks = new ThreadCallbackManager();
+		callbacks = new ThreadInstanceCallbacks();
 	}
 
 	function set_name(n) {
@@ -195,7 +147,7 @@ class Thread {
 		return mainThread;
 	}
 
-	function installCallbacks(callbacks:ThreadCallbacks) {
+	function installCallbacks(callbacks:ThreadCreateCallbacks) {
 		if (callbacks.onJobDone != null) {
 			this.callbacks.onJobDone(callbacks.onJobDone);
 		}
@@ -212,7 +164,7 @@ class Thread {
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
 	**/
-	public static function create(?name:String, job:()->Void, ?callbacks:ThreadCallbacks):Thread {
+	public static function create(?name:String, job:()->Void, ?callbacks:ThreadCreateCallbacks):Thread {
 		mutex.acquire();
 		var t = new Thread(null);
 		threads.push(t);
@@ -230,16 +182,16 @@ class Thread {
 				hl.Api.setErrorHandler(null);
 				#end
 				if (onJobStartCallback != null) {
-					onJobStartCallback(t.callbacks);
+					onJobStartCallback.foreach(f -> f(t.callbacks));
 				}
 				job();
-				t.callbacks.callOnJobDone();
+				@:privateAccess t.callbacks.callOnJobDone();
 			} catch( e ) {
 				exception = e;
 			}
 			if( exception != null )
 				t.onAbort(exception);
-			t.callbacks.callOnExit();
+			@:privateAccess t.callbacks.callOnExit();
 			t.dispose();
 		});
 		if( name != null ) t.name = name;
@@ -261,21 +213,16 @@ class Thread {
 	/**
 		Registers `f` to be called when a thread is about to start executing its job.
 	**/
-	static public function onJobStart(f:ThreadCallbackManager -> Void) {
-		final onJobStart = onJobStartCallback;
-		onJobStartCallback = function(callbacks:ThreadCallbackManager) {
-			f(callbacks);
-			if (onJobStart != null) {
-				onJobStart(callbacks);
-			}
-		}
+	static public function onJobStart(f:ThreadInstanceCallbacks -> Void):IThreadCallbackHandle {
+		onJobStartCallback ??= new ThreadCallbacks();
+		return onJobStartCallback.add(f);
 	}
 
 	/**
 		Registers `f` to be called when the current thread exits.
 	**/
 	static public function onCurrentExit(f:() -> Void) {
-		current().callbacks.onExit(f);
+		return current().callbacks.onExit(f);
 	}
 
 	/**
@@ -285,7 +232,7 @@ class Thread {
 		It is generally good practice to call any previously existing callback
 		from functions assigned to this.
 	**/
-	public dynamic function onAbort(e:haxe.Exception) {
+	dynamic function onAbort(e:haxe.Exception) {
 		var name = this.name;
 		if( name == null ) name = "" else name = " "+name;
 		Sys.println("THREAD"+name+" ABORTED : "+e.message+haxe.CallStack.toString(e.stack));
