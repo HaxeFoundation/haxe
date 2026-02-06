@@ -35,11 +35,23 @@ import cs.system.reflection.Assembly;
 	private static var _removedEnvVars:haxe.ds.StringMap<Bool>;
 
 	public static function print(v:Dynamic):Void {
-		Console.Write(Std.string(v));
+		var str = Std.string(v);
+		// On Windows, Console.Write doesn't translate embedded \n to \r\n,
+		// causing staircase output in some terminals. Normalize to Environment.NewLine.
+		var nl:String = untyped __cs__("System.Environment.NewLine");
+		if (nl != "\n") {
+			str = untyped __cs__("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
+		}
+		Console.Write(str);
 	}
 
 	public static function println(v:Dynamic):Void {
-		Console.WriteLine(Std.string(v));
+		var str = Std.string(v);
+		var nl:String = untyped __cs__("System.Environment.NewLine");
+		if (nl != "\n") {
+			str = untyped __cs__("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
+		}
+		Console.WriteLine(str);
 	}
 
 	public static function args():Array<String> {

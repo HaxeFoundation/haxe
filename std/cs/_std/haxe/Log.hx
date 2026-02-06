@@ -45,6 +45,6 @@ class Log {
 
 	public static dynamic function trace(v:Dynamic, ?infos:PosInfos):Void {
 		var str = formatOutput(v, infos);
-		untyped __cs__("System.Console.WriteLine({0})", str);
+		Sys.println(str);
 	}
 }
