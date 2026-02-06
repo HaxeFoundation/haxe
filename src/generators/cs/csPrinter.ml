@@ -688,7 +688,7 @@ and print_stmt ctx = function
 		unindent ctx;
 		newline ctx;
 		print ctx name;
-		print ctx ":";
+		print ctx ": ;";
 		indent ctx
 	| CsGoto name ->
 		print ctx "goto ";

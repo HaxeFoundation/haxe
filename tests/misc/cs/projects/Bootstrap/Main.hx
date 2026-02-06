@@ -65,6 +65,7 @@ class Main {
 		testNullEquality();
 		testIifeOptimization();
 		testSerialization();
+		testBreakInSwitchInLoop();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -1914,6 +1915,21 @@ class Main {
 		// Test 7: Serialize bool
 		eq("t", haxe.Serializer.run(true));
 		eq("f", haxe.Serializer.run(false));
+	}
+
+	static function testBreakInSwitchInLoop() {
+		// Test break in switch inside loop (generates goto label in C#)
+		while (true) {
+			switch (Std.random(10)) {
+				case 0:
+					break;
+				case 1:
+					t(true);
+				case _:
+			}
+			break;
+		}
+		t(true);
 	}
 }
 
