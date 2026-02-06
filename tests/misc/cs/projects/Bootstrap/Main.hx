@@ -1920,6 +1920,8 @@ class Main {
 
 	static function testBreakInSwitchInLoop() {
 		// Test break in switch inside loop (generates goto label in C#)
+		// Assert before loop so the label is the last thing in the block
+		t(true);
 		while (true) {
 			switch (Std.random(10)) {
 				case 0:
@@ -1930,7 +1932,6 @@ class Main {
 			}
 			break;
 		}
-		t(true);
 	}
 
 	static function testVoidTypeParam() {
