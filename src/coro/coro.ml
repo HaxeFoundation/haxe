@@ -236,7 +236,7 @@ module ContinuationClassBuilder = struct
 				let args      = ethis :: (f.tf_args |> map_args) in
 				let captured  = coro_class.captured |> Option.get in
 				let ecapturedfield = this_field captured in
-				let efunction      = b#instance_field ecapturedfield cls [] (* TODO: check *) field field.cf_type in
+				let efunction      = b#instance_field ecapturedfield cls coro_class.outside.param_types field field.cf_type in
 				b#call efunction args tret_invoke_resume
 			| LocalFunc(f,_) ->
 				let args      = ethis :: (f.tf_args |> map_args) in
@@ -481,7 +481,7 @@ let fun_to_coro ctx coro_type =
 	let econtinuation = b#local vcontinuation coro_class.name_pos in
 
 	let continuation_field c cf t =
-		b#instance_field econtinuation c coro_class.outside.param_types cf t
+		b#instance_field econtinuation c [basic.tany] cf t
 	in
 
 	let estate = continuation_field cont.suspension_result_class cont.state cont.suspension_state in
@@ -489,7 +489,7 @@ let fun_to_coro ctx coro_type =
 	let eerror = continuation_field cont.suspension_result_class cont.error basic.texception in
 
 	let continuation_field cf t =
-		b#instance_field econtinuation cont.base_continuation_class coro_class.outside.param_types cf t
+		b#instance_field econtinuation cont.base_continuation_class [basic.tany] cf t
 	in
 
 	let egoto  = continuation_field cont.goto_label basic.tint in
