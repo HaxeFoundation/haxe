@@ -136,7 +136,7 @@ function main() {
 		};
 		#end
 	});
-	#if sys
+	#if (sys || nodejs)
 	if (verbose)
 		runner.onTestStart.add(function(test) {
 			Sys.println(' $test...'); // TODO: need utest success state for this

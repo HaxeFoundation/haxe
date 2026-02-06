@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue5742 extends Test {
-#if sys
+#if (sys || nodejs)
 	function test(){
 		try {
             sys.FileSystem.deleteFile('nonexistent.file');

@@ -61,7 +61,7 @@ class TestHttps extends Test {
 		req.request();
 	});
 
-	#if sys
+	#if (sys || nodejs)
 	@:timeout(3000)
 	public function testCustomRequestWithSocket(async:Async) run(async, () -> {
 		final url = 'http://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz';
