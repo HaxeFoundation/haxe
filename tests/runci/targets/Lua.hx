@@ -123,7 +123,7 @@ class Lua {
 			if (lv == "-l5.1" || lv == "-l5.4")
 				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
-			installLib("https://raw.githubusercontent.com/tobil4sk/lua-luv/refs/heads/feature/rockspec-shared-libuv/luv-scm-0.rockspec", "");
+			installLib("https://raw.githubusercontent.com/luvit/luv/refs/heads/master/luv-scm-0.rockspec", "");
 			installLib("luautf8", "0.1.6-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
