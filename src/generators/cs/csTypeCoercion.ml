@@ -172,7 +172,7 @@ let object_to_string_for_concat object_expr =
    Used when dynamic operation results need to be cast to specific types. *)
 let cast_object_to_type target_cs_type object_expr =
 	match target_cs_type with
-	| CsTypeObject | CsTypeDynamic -> object_expr
+	| CsTypeObject | CsTypeDynamic | CsTypeVoid -> object_expr
 	| CsTypeInt -> CsStaticCall (runtime_type, "toInt", [object_expr])
 	| CsTypeDouble -> CsStaticCall (runtime_type, "toDouble", [object_expr])
 	| CsTypeLong -> CsStaticCall (runtime_type, "toLong", [object_expr])

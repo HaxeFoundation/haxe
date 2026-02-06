@@ -66,6 +66,7 @@ class Main {
 		testIifeOptimization();
 		testSerialization();
 		testBreakInSwitchInLoop();
+		testVoidTypeParam();
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
@@ -1930,6 +1931,16 @@ class Main {
 			break;
 		}
 		t(true);
+	}
+
+	static function testVoidTypeParam() {
+		// Test that generic functions with Void type param generate valid C#
+		runFunc(() -> {});
+		t(true);
+	}
+
+	static function runFunc<T>(f:() -> T):T {
+		return f();
 	}
 }
 
