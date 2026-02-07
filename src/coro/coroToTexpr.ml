@@ -47,7 +47,7 @@ let make_suspending_call basic cont call econtinuation =
 	let args = econtinuation :: call.cs_args in
 	mk (TCall (efun, args)) (cont.suspension_result basic.tany) call.cs_pos
 
-let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
+let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 	let fst_state     = List.hd states in
 	let arg_state_set = IntSet.of_list [ fst_state.cs_id ] in
 
@@ -172,7 +172,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 			else
 				let v       = Hashtbl.find state.cs_mapped_local id in
 				let field   = Hashtbl.find fields id in
-				let access  = b#instance_field econtinuation cls [] field field.cf_type in
+				let access  = b#instance_field econtinuation cls params field field.cf_type in
 				Some (b#var_init v access)
 		) in
 
@@ -180,7 +180,7 @@ let handle_locals ctx b cls states tf_args forbidden_vars econtinuation =
 			state.cs_writes |> IntSet.to_list |> List.map (fun id ->
 				let v       = Hashtbl.find state.cs_mapped_local id in
 				let field   = Hashtbl.find fields id in
-				let access  = b#instance_field econtinuation cls [] field field.cf_type in
+				let access  = b#instance_field econtinuation cls params field field.cf_type in
 				let local   = b#local v v.v_pos in
 				b#assign access local) in
 
@@ -398,7 +398,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 	let states = !states in
 	let states = states |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
 
-	let fields_and_decls = handle_locals ctx b cls states tf_args forbidden_vars econtinuation in
+	let fields_and_decls = handle_locals b cls params states tf_args forbidden_vars econtinuation in
 
 	let ethrow = b#void_block [
 		b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
@@ -448,7 +448,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		) exc_state_map;
 		let el =
 			let field         = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
-			let eaccess       = b#instance_field econtinuation cont.base_continuation_class params field field.cf_type in
+			let eaccess       = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] field field.cf_type in
 			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
 			[
 				b#assign eerror etmp_error;

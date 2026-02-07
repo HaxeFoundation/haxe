@@ -2028,7 +2028,7 @@ let alloc_ctx com =
         | TClassDecl c when (has_class_flag c CExtern) &&  not (Meta.has Meta.LuaRequire c.cl_meta)
             -> dot_path p
         | TEnumDecl e when has_enum_flag e EnExtern
-            -> s_path ctx p
+            -> dot_path p
         | _ -> s_path ctx p);
     ctx
 
@@ -2231,8 +2231,9 @@ let generate com =
     println ctx "_hx_array_mt.__index = Array.prototype";
     newline ctx;
 
-    (* Functions to support auto-run of libuv loop *)
-    print_file (find_file "lua/_lua/_hx_luv.lua");
+    (* Functions to support auto-run of libuv loop - skip in vanilla mode *)
+    if not ctx.lua_vanilla then
+        print_file (find_file "lua/_lua/_hx_luv.lua");
 
     let b = open_block ctx in
     (* Localize init variables inside a do-block *)
@@ -2297,15 +2298,20 @@ let generate com =
 
     Option.may (fun e ->
         spr ctx "local success, err = _G.xpcall(";
-            let luv_run =
-                (* Runs libuv loop if needed *)
-                mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
+            let main_block =
+                if ctx.lua_vanilla then [e]
+                else
+                    let luv_run =
+                        (* Runs libuv loop if needed *)
+                        mk_lua_code ctx.com.basic "_hx_luv.run()" [] ctx.com.basic.tvoid Globals.null_pos
+                    in
+                    [e;luv_run]
             in
             let fn =
                 {
                     tf_args = [];
                     tf_type = com.basic.tvoid;
-                    tf_expr = mk (TBlock [e;luv_run]) com.basic.tvoid e.epos;
+                    tf_expr = mk (TBlock main_block) com.basic.tvoid e.epos;
                 }
             in
             gen_value ctx { e with eexpr = TFunction fn; etype = TFun ([],com.basic.tvoid) };
