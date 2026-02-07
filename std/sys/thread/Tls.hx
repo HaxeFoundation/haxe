@@ -30,7 +30,7 @@ package sys.thread;
 	A thread-local storage to store per-thread values.
 **/
 extern class Tls<T> {
-	var value(get, set):T;
+	var value(get, set):Null<T>;
 
 	/**
 		Creates thread local storage. This is placeholder that can store

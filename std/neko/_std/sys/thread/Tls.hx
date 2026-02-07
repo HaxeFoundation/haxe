@@ -26,13 +26,13 @@ package sys.thread;
 class Tls<T> {
 	var t:Dynamic;
 
-	public var value(get, set):T;
+	public var value(get, set):Null<T>;
 
 	public function new() {
 		t = tls_create();
 	}
 
-	function get_value():T {
+	function get_value():Null<T> {
 		return tls_get(t);
 	}
 

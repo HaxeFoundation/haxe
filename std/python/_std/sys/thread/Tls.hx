@@ -26,5 +26,5 @@ package sys.thread;
 @:native("local")
 extern class Tls<T> {
 	function new():Void;
-	var value(default, default):T;
+	var value(default, default):Null<T>;
 }

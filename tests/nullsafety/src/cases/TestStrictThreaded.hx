@@ -18,4 +18,13 @@ class TestStrictThreaded {
 			));
 		}
 	}
+
+	#if target.threaded
+
+	function tls() {
+		final tls = new sys.thread.Tls<String>();
+		tls.value = null;
+	}
+
+	#end
 }

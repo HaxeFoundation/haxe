@@ -28,13 +28,13 @@ class Tls<T> {
 
 	var mTLSID:Int;
 
-	public var value(get, set):T;
+	public var value(get, set):Null<T>;
 
 	public function new() {
 		mTLSID = sFreeSlot++;
 	}
 
-	function get_value():T {
+	function get_value():Null<T> {
 		return untyped __global__.__hxcpp_tls_get(mTLSID);
 	}
 
