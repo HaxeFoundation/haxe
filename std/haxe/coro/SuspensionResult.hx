@@ -7,7 +7,7 @@ import haxe.Exception;
 **/
 class SuspensionResult<T> {
 
-	static public final suspended = new SuspensionResult(Pending);
+	static public final suspended = new SuspensionResult<Any>(Pending);
 
 	/**
 		Creates a new instance with the given `state`.
