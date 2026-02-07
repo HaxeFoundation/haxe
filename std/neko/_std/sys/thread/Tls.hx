@@ -36,7 +36,7 @@ class Tls<T> {
 		return tls_get(t);
 	}
 
-	function set_value(v:T):T {
+	function set_value(v:Null<T>):Null<T> {
 		tls_set(t, v);
 		return v;
 	}

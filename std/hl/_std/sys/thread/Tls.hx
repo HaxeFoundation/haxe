@@ -42,7 +42,7 @@ abstract Tls<T>(hl.Abstract<"hl_tls">) {
 		return tls_get(this);
 	}
 
-	function set_value(v:T) {
+	function set_value(v:Null<T>) {
 		tls_set(this, v);
 		return v;
 	}

@@ -24,7 +24,7 @@ package sys.thread;
 
 @:coreApi
 @:native('haxe.java.vm.Tls') class Tls<T> {
-	var t:java.lang.ThreadLocal<T>;
+	var t:java.lang.ThreadLocal<Null<T>>;
 
 	public var value(get, set):Null<T>;
 
@@ -36,7 +36,7 @@ package sys.thread;
 		return t.get();
 	}
 
-	inline private function set_value(v:T):T {
+	inline private function set_value(v:Null<T>):Null<T> {
 		t.set(v);
 		return v;
 	}
