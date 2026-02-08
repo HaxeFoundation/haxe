@@ -25,24 +25,24 @@ package sys.thread;
 #if doc_gen
 @:coreApi
 extern class Tls<T> {
-	var value(get, set):T;
+	var value(get, set):Null<T>;
 	function new():Void;
 }
 #else
 
 @:hlNative("std")
 abstract Tls<T>(hl.Abstract<"hl_tls">) {
-	public var value(get, set):T;
+	public var value(get, set):Null<T>;
 
 	public function new() {
 		this = tls_alloc(true);
 	}
 
-	function get_value():T {
+	function get_value():Null<T> {
 		return tls_get(this);
 	}
 
-	function set_value(v:T) {
+	function set_value(v:Null<T>) {
 		tls_set(this, v);
 		return v;
 	}
