@@ -450,6 +450,11 @@ let rec cs_type_of_type_inner gctx stack t =
 		| ([], "EnumValue") ->
 			(* EnumValue -> object in C# (any enum instance) *)
 			CsTypeObject
+		| (["haxe";"coro"], "Coroutine") ->
+			(* Coroutine<TFun(args,ret)> is a function type — maps to haxe.lang.Function
+			   like all other TFun types. The actual signature expansion happens in gencs.ml
+			   when generating method declarations via follow_with_coro + expand_coro_type. *)
+			function_type
 		| _ ->
 			let path = cs_path_of_path a.a_path in
 			let params = List.map cs_type_of_type_inner params in

@@ -98,6 +98,25 @@ let haxeobject_path = NativeTypes.haxe_object_path
 (* Context types gen_context, expr_context, cs_expr_result are defined in CsContext.ml *)
 (* Also: create_context, create_expr_context, add_closure_for_class, get_closures_for_class, fresh_temp, generate_closure_name *)
 
+(* Deduplicate parameter names — C# doesn't allow duplicate parameter names.
+   This can happen with coroutine continuations where multiple unused params are named "_".
+   Since "_" is escaped to "__" by escape_identifier and these params are unused,
+   we simply suffix each occurrence with its parameter index. *)
+let deduplicate_param_names params =
+	List.mapi (fun i p ->
+		if p.p_name = "__" then { p with p_name = Printf.sprintf "__%d" i }
+		else p
+	) params
+
+(* Extract function args and return type from a type that may be Coroutine<TFun>.
+   For coroutine types, expands with _hx_continuation param and SuspensionResult return.
+   Returns Some (args, ret) if the type is a function (or coroutine function), None otherwise. *)
+let follow_tfun_with_coro basic t =
+	match TFunctions.follow_with_coro t with
+	| TFunctions.Coro (args, ret) -> Some (Common.expand_coro_type basic args ret)
+	| TFunctions.NotCoro (TFun (args, ret)) -> Some (args, ret)
+	| _ -> None
+
 (* C#-specific: Patch @:optional field TYPE to use Null<T>.
    Unlike JVM which uses 0 for optional primitives, C# needs Null<T> to preserve null state.
    This patches the Haxe type before C# code generation, so field declarations get Null<T>.
@@ -574,9 +593,9 @@ let rec expr_produces_csharp_null_type gctx e =
 				let rec get_inner_effective_type expr =
 					match expr.eexpr with
 					| TCall (e_func, _) ->
-						begin match e_func.etype with
-						| TFun (_, ret) -> CsTypeMapping.cs_type_of_type gctx ret
-						| _ -> CsTypeMapping.cs_type_of_type gctx expr.etype
+						begin match follow_tfun_with_coro gctx.com.basic e_func.etype with
+						| Some (_, ret) -> CsTypeMapping.cs_type_of_type gctx ret
+						| None -> CsTypeMapping.cs_type_of_type gctx expr.etype
 						end
 					| TParenthesis e | TMeta (_, e) -> get_inner_effective_type e
 					| _ -> CsTypeMapping.cs_type_of_type gctx expr.etype
@@ -604,9 +623,9 @@ let rec expr_produces_csharp_null_type gctx e =
 		   _Impl_ methods may have expression type Null<T> (from Haxe implicit conversions)
 		   but the actual C# method may return a different type.
 		   Use the FUNCTION's declared return type, not e.etype. *)
-		let func_return_type = match e_func.etype with
-			| TFun (_, ret) -> Some ret
-			| _ -> None
+		let func_return_type = match follow_tfun_with_coro gctx.com.basic e_func.etype with
+			| Some (_, ret) -> Some ret
+			| None -> None
 		in
 		(* Check if this is a call to an _Impl_ class method.
 		   This handles abstract method calls which the typer resolves to _Impl_ classes.
@@ -625,13 +644,13 @@ let rec expr_produces_csharp_null_type gctx e =
 			| TField (_, FAnon cf) ->
 				(* For anonymous field access, check if the field belongs to an _Impl_ class.
 				   This can happen when calling abstract methods through anonymous/dynamic access. *)
-				begin match follow cf.cf_type with
-				| TFun _ ->
+				begin match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+				| Some _ ->
 					(* Check if any of the field's overloads belong to an _Impl_ class *)
 					begin match cf.cf_params with
 					| _ -> false  (* Can't easily determine the class for FAnon *)
 					end
-				| _ -> false
+				| None -> false
 				end
 			| _ -> false
 		in
@@ -716,9 +735,9 @@ let get_effective_expr_type gctx e =
 			let rec find_tcall_return_type expr =
 				match expr.eexpr with
 				| TCall (e_func, _) ->
-					begin match e_func.etype with
-					| TFun (_, ret) -> Some ret
-					| _ -> None
+					begin match follow_tfun_with_coro gctx.com.basic e_func.etype with
+					| Some (_, ret) -> Some ret
+					| None -> None
 					end
 				| TParenthesis inner | TMeta (_, inner) | TCast (inner, _) -> find_tcall_return_type inner
 				| _ -> None
@@ -901,6 +920,11 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 		   When matching OpAdd (Binop<Float,Float>), e1.etype becomes Expr<Float> (refined),
 		   but C# variable e1 is declared as Expr<C>. We need to cast Expr<C> -> Expr<double>. *)
 		let coerced = match arg.eexpr with
+		| TCall ({ eexpr = TIdent "__cs__" }, _) ->
+			(* Inline C# code from __cs__() — already has the correct C# type.
+			   Skip coercion to avoid wrapping with Runtime.toInt/etc. which would
+			   change the type (e.g., RegexOptions → int via Runtime.toInt). *)
+			cs_arg
 		| TLocal v ->
 			let var_cs_type = cs_type_of_type ectx.gctx v.v_type in
 			(* Check if original var type differs from expected and requires cast *)
@@ -1116,8 +1140,9 @@ let rec cs_expr_of_texpr ectx e =
 		if List.mem v.v_id ectx.captured_vars then
 			let name = get_local_name ectx v in
 			CsField (CsThis, name)
-		else
+		else begin
 			CsLocal (get_local_name ectx v)
+		end
 	| TArray (e1, e2) ->
 		(* Check if this is array access on haxe.root.Array<T> - if so, access __objectArray directly *)
 		(* Also check for Null<Array<T>> - need to unwrap via .value first *)
@@ -1457,7 +1482,8 @@ let rec cs_expr_of_texpr ectx e =
 				let val_cs = if need_byte_cast then CsCast (CsTypeByte, val_cs) else val_cs in
 				(* Coerce value to target type - needed when assigning object/Dynamic to typed variable *)
 				let val_cs = coerce_arg ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx val_cs e2.etype e1.etype in
-				CsBinop (cs_binop_of_binop op, cs_expr_of_texpr ectx e1, val_cs)
+				let lhs_cs = cs_expr_of_texpr ectx e1 in
+				CsBinop (cs_binop_of_binop op, lhs_cs, val_cs)
 			end
 		(* Special case: null typed as a value type (from inline function with abstract like UInt).
 		   When inlining isNull<T>(maybeNull:Null<T>) with T=UInt, the comparison becomes
@@ -1983,10 +2009,13 @@ let rec cs_expr_of_texpr ectx e =
 		   The spread just unwraps the array - pass through the inner expression. *)
 		cs_expr_of_texpr ectx e
 	| TUnop (op, pos, unop_operand) ->
-		(* Check if operand type is truly Dynamic (TDynamic) - only these need runtime helpers *)
+		(* Check if operand type is truly Dynamic (TDynamic) or maps to object in C# (e.g. Any).
+		   These need runtime helpers since C# doesn't allow operators on 'object'. *)
 		let is_truly_dynamic = match follow unop_operand.etype with
 			| TDynamic _ -> true
-			| _ -> false
+			| _ -> match cs_type_of_type ectx.gctx (follow unop_operand.etype) with
+				| CsTypeObject -> true
+				| _ -> false
 		in
 		(* Check for TCast from Dynamic - this pattern appears when doing x++ where x is a dynamic
 		   field access cast to a specific type. We need to detect this and use runtime helpers
@@ -2209,7 +2238,6 @@ let rec cs_expr_of_texpr ectx e =
 				let map_type = apply_params c.cl_params tl in
 				let substituted_type = map_type cf.cf_type in
 				let result_cs_type = cs_type_of_type ectx.gctx substituted_type in
-				(* Use cast_object_to_type for proper unboxing when field returns object *)
 				cast_object_to_type result_cs_type field_access
 			else
 				field_access
@@ -2234,11 +2262,9 @@ let rec cs_expr_of_texpr ectx e =
 			   If so, the C# expression returns object, but we need to cast to the
 			   substituted type for subsequent field/method access to work. *)
 				if is_erased_type_param cf.cf_type then
-				(* Apply type params to get the actual Haxe type after substitution *)
 				let map_type = apply_params c.cl_params tl in
 				let substituted_type = map_type cf.cf_type in
 				let target_cs_type = cs_type_of_type ectx.gctx substituted_type in
-				(* Use cast_object_to_type for proper unboxing when field returns object *)
 				cast_object_to_type target_cs_type field_access
 			else
 				field_access
@@ -2609,12 +2635,12 @@ let rec cs_expr_of_texpr ectx e =
 				) tf.tf_args, tf.tf_type
 			| None ->
 				(* Fallback to TFun type *)
-				match follow e_callee.etype with
-				| TFun (params, ret) ->
+				match follow_tfun_with_coro ectx.gctx.com.basic e_callee.etype with
+				| Some (params, ret) ->
 					List.map (fun (_, opt, t) ->
 						if opt then ectx.gctx.com.basic.tnull t else t
 					) params, ret
-				| _ -> [], ectx.gctx.com.basic.tvoid
+				| None -> [], ectx.gctx.com.basic.tvoid
 		in
 		(* Handle Rest parameters - check if last param is Rest<T> *)
 		let num_params = List.length param_types_hx in
@@ -2741,7 +2767,7 @@ let rec cs_expr_of_texpr ectx e =
 		   - Generic fields where the actual type (with applied type params) is a function *)
 		let actual_field_type = apply_params c.cl_params tl cf.cf_type in
 		let is_stored_function_field = match cf.cf_kind with
-			| Var _ -> (match follow actual_field_type with TFun _ | TDynamic _ -> true | _ -> false)
+			| Var _ -> (match follow_tfun_with_coro ectx.gctx.com.basic actual_field_type with Some _ -> true | None -> match follow actual_field_type with TDynamic _ -> true | _ -> false)
 			| Method MethDynamic -> true  (* dynamic methods are stored as function fields *)
 			| Method _ -> false
 		in
@@ -2763,8 +2789,8 @@ let rec cs_expr_of_texpr ectx e =
 			else func_expr in
 			(* Get parameter and return types for typed invoke.
 			   Use actual_field_type (with type params substituted) to get concrete types. *)
-			let param_types_hx, ret_type_hx = match follow actual_field_type with
-				| TFun (params, ret) ->
+			let param_types_hx, ret_type_hx = match follow_tfun_with_coro ectx.gctx.com.basic actual_field_type with
+				| Some (params, ret) ->
 					List.map (fun (_, opt, t) ->
 						let is_already_null = match follow t with
 							| TAbstract ({ a_path = ([], "Null") }, _) -> true
@@ -2772,7 +2798,7 @@ let rec cs_expr_of_texpr ectx e =
 						in
 						if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
 					) params, ret
-				| _ -> [], ectx.gctx.com.basic.tvoid
+				| None -> [], ectx.gctx.com.basic.tvoid
 			in
 			(* Handle Rest parameters - check if last param is Rest<T> *)
 			let num_params = List.length param_types_hx in
@@ -2891,9 +2917,9 @@ let rec cs_expr_of_texpr ectx e =
 					match cf_super.cf_kind with
 					| Method _ ->
 						(* Use DECLARED type without mapping - type params will be erased to object *)
-						begin match follow cf_super.cf_type with
-						| TFun (parent_params, _) -> Some parent_params
-						| _ -> None
+						begin match follow_tfun_with_coro ectx.gctx.com.basic cf_super.cf_type with
+						| Some (parent_params, _) -> Some parent_params
+						| None -> None
 						end
 					| _ -> None
 				with Not_found ->
@@ -2924,8 +2950,8 @@ let rec cs_expr_of_texpr ectx e =
 				) params
 			| None ->
 				(* Not an override or parent not found - use method's own type *)
-				match follow cf.cf_type with
-				| TFun (params, _) ->
+				match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+				| Some (params, _) ->
 					let map_type = apply_params c.cl_params tl in
 					List.map (fun (_, opt, t) ->
 						let t = map_type t in
@@ -2935,7 +2961,7 @@ let rec cs_expr_of_texpr ectx e =
 						in
 						if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
 					) params
-				| _ -> []
+				| None -> []
 		in
 		(* For generic methods on C# native classes, we need to provide explicit type arguments.
 		   For Haxe classes, method type params are erased, so we don't need generic calls. *)
@@ -2945,14 +2971,19 @@ let rec cs_expr_of_texpr ectx e =
 			let infer_type_params_as_types () =
 				(* Try to infer from arguments - match param types to arg types.
 				   Returns Haxe Type.t list, not C# types, so we can apply them to param_types *)
-				let param_type_pairs = match follow cf.cf_type with
-					| TFun (params, _) when List.length params <= List.length args ->
+				let param_type_pairs = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (params, _) when List.length params <= List.length args ->
 						List.combine (List.map (fun (_, _, t) -> t) params) (List.map (fun a -> a.etype) (ExtList.List.take (List.length params) args))
 					| _ -> []
 				in
 				(* Helper to recursively find matching type params inside generic types like Array<T> *)
 				let rec find_type_param_in_type ttp_name param_t arg_t =
-					match follow param_t, follow arg_t with
+					(* Unwrap Coroutine<TFun> to TFun for type param matching *)
+					let unwrap_coro t = match TFunctions.follow_with_coro t with
+						| TFunctions.Coro (args, ret) -> TFun (Common.expand_coro_type ectx.gctx.com.basic args ret)
+						| TFunctions.NotCoro t -> t
+					in
+					match unwrap_coro param_t, unwrap_coro arg_t with
 					| TInst ({ cl_kind = KTypeParameter ttp2 }, _), _ when ttp2.ttp_name = ttp_name ->
 						(* Direct type parameter match - unwrap Null<T> if present.
 						   Note: Null<Null<T>> is already flattened by csSignature.ml *)
@@ -3048,8 +3079,8 @@ let rec cs_expr_of_texpr ectx e =
 				   In that case, the entire actual return type is the value of that type param.
 				   IMPORTANT: Don't use follow() on ret - it unwraps Null<T> to T via abstract semantics.
 				   We only want to return true if the signature literally has T as return, not Null<T>. *)
-				let sig_return_is_type_param = match follow cf.cf_type with
-					| TFun (_, ret) -> begin match ret with
+				let sig_return_is_type_param = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (_, ret) -> begin match ret with
 						| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
 						| TMono { tm_type = Some t } ->
 							begin match t with
@@ -3058,12 +3089,12 @@ let rec cs_expr_of_texpr ectx e =
 							end
 						| _ -> false
 					end
-					| _ -> false
+					| None -> false
 				in
 				(* Check if method's signature is Null<T> where T is directly a type param.
 				   This is different from Null<Class<T>> where the inner type wraps the param. *)
-				let method_returns_null_of_type_param = match cf.cf_type with
-					| TFun (_, ret) ->
+				let method_returns_null_of_type_param = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (_, ret) ->
 						begin match ret with
 						| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
 							begin match inner with
@@ -3077,7 +3108,7 @@ let rec cs_expr_of_texpr ectx e =
 							end
 						| _ -> false
 						end
-					| _ -> false
+					| None -> false
 				in
 				if sig_return_is_type_param && List.length cf.cf_params = 1 then
 					(* The whole return type is the type param value *)
@@ -3241,8 +3272,8 @@ let rec cs_expr_of_texpr ectx e =
 				   now return object in C#, but Haxe expects the specific type.
 				   Check if the method's declared return type involves type parameters and cast if needed. *)
 				let call_expr = CsCall (CsField (obj, get_native_field_name cf), cs_args) in
-				let method_returns_type_param = match follow cf.cf_type with
-					| TFun (_, ret) ->
+				let method_returns_type_param = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (_, ret) ->
 						(* Check if return type involves type parameters, tracking visited types to avoid cycles *)
 						let visited = ref [] in
 						let rec involves_type_param t =
@@ -3263,7 +3294,7 @@ let rec cs_expr_of_texpr ectx e =
 							end
 						in
 						involves_type_param ret
-					| _ -> false
+					| None -> false
 				in
 				if method_returns_type_param && not (CsTypeMapping.is_cs_native_generic_class c.cl_path) then begin
 					(* Method returns a type param that got erased to object - cast to expected type.
@@ -3305,8 +3336,8 @@ let rec cs_expr_of_texpr ectx e =
 		(* Get parameter types from field type for proper null handling.
 		   IMPORTANT: Wrap optional params in Null<T> (opt=true means optional).
 		   BUT: Don't double-wrap if the type is already Null<T>. *)
-		let param_types = match follow cf.cf_type with
-			| TFun (params, _) ->
+		let param_types = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+			| Some (params, _) ->
 				List.map (fun (_, opt, t) ->
 					let is_already_null = match follow t with
 						| TAbstract ({ a_path = ([], "Null") }, _) -> true
@@ -3314,7 +3345,7 @@ let rec cs_expr_of_texpr ectx e =
 					in
 					if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
 				) params
-			| _ -> []
+			| None -> []
 		in
 		let (prefix_stmts, args) = generate_call_args ectx cs_expr_of_texpr args param_types in
 		(* Check if the (unwrapped) C# type maps to a concrete class (like ArrayIterator).
@@ -3327,7 +3358,7 @@ let rec cs_expr_of_texpr ectx e =
 			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
 		| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) ->
 			(* Truly anonymous - use _hx_getField -> Runtime.invokeFunction for function fields *)
-			let is_function = match follow cf.cf_type with TFun _ -> true | _ -> false in
+			let is_function = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with Some _ -> true | None -> false in
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			if is_function then begin
 				let args_array = make_invoke_args_array args in
@@ -3456,8 +3487,10 @@ let rec cs_expr_of_texpr ectx e =
 		(* Check if this is a stored function field (dynamic method, var with function type, or Dynamic type).
 		   If so, we need to use Runtime.invokeFunction instead of direct call.
 		   Also check for @:callable abstracts - they wrap a function type but follow() doesn't unwrap them. *)
-		let rec is_function_like_type t = match follow t with
-			| TFun _ | TDynamic _ -> true
+		let rec is_function_like_type t = match follow_tfun_with_coro ectx.gctx.com.basic t with
+			| Some _ -> true
+			| None -> match follow t with
+			| TDynamic _ -> true
 			| TAbstract (a, _) ->
 				(* Check if abstract has @:callable and wraps a function type *)
 				if Meta.has Meta.Callable a.a_meta then
@@ -3506,29 +3539,27 @@ let rec cs_expr_of_texpr ectx e =
 		   BUT: Don't double-wrap if the type is already Null<T>.
 		   NOTE: Don't use follow() on cf.cf_type - it can break physical equality
 		   of type parameters that apply_params relies on. *)
+		let wrap_optional_params params =
+			List.map (fun (_, opt, t) ->
+				let is_already_null = match follow t with
+					| TAbstract ({ a_path = ([], "Null") }, _) -> true
+					| _ -> false
+				in
+				if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
+			) params
+		in
 		let param_types_base = match cf.cf_type with
-			| TFun (params, _) ->
-				List.map (fun (_, opt, t) ->
-					let is_already_null = match follow t with
-						| TAbstract ({ a_path = ([], "Null") }, _) -> true
-						| _ -> false
-					in
-					if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
-				) params
+			| TFun (params, _) -> wrap_optional_params params
 			| TLazy f ->
-				(* Handle lazy types *)
 				begin match lazy_type f with
-				| TFun (params, _) ->
-					List.map (fun (_, opt, t) ->
-						let is_already_null = match follow t with
-							| TAbstract ({ a_path = ([], "Null") }, _) -> true
-							| _ -> false
-						in
-						if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
-					) params
+				| TFun (params, _) -> wrap_optional_params params
 				| _ -> []
 				end
-			| _ -> []
+			| _ ->
+				(* Handle Coroutine<TFun> and other wrapped types *)
+				match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+				| Some (params, _) -> wrap_optional_params params
+				| None -> []
 		in
 		(* Get ALL method type params, including those inferred from the method's OWN signature.
 		   For abstract _Impl_ classes, the abstract's type params become method-level params
@@ -3537,11 +3568,11 @@ let rec cs_expr_of_texpr ectx e =
 		   to avoid picking up type params from enclosing scopes. *)
 		let explicit_type_params = List.map (fun ttp -> ttp.ttp_name) cf.cf_params in
 		(* Get the method's own signature types (not instantiated) for inferring additional params *)
-		let orig_param_types, orig_ret_type = match follow cf.cf_type with
-			| TFun (params, ret) ->
+		let orig_param_types, orig_ret_type = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+			| Some (params, ret) ->
 				List.map (fun (_, _, t) -> cs_type_of_type ectx.gctx t) params,
 				cs_type_of_type ectx.gctx ret
-			| _ -> [], CsTypeObject
+			| None -> [], CsTypeObject
 		in
 		let all_signature_type_params = CsTypeMapping.get_method_type_params orig_param_types orig_ret_type in
 		(* Filter out class type params from inferred params *)
@@ -3558,8 +3589,15 @@ let rec cs_expr_of_texpr ectx e =
 			(* Check if the return type is a type parameter T (i.e., the method returns T directly).
 			   IMPORTANT: Don't use follow() here - it unwraps Null<T> to T via abstract semantics.
 			   We only want to return true if the signature literally has T as return, not Null<T>. *)
-			let returns_type_param = match cf.cf_type with
-				| TFun (_, ret) ->
+			let get_ret_from_cf_type () =
+				match cf.cf_type with
+				| TFun (_, ret) -> Some ret
+				| _ -> match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (_, ret) -> Some ret
+					| None -> None
+			in
+			let returns_type_param = match get_ret_from_cf_type () with
+				| Some ret ->
 					begin match ret with
 					| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
 					| TMono { tm_type = Some t } ->
@@ -3569,12 +3607,12 @@ let rec cs_expr_of_texpr ectx e =
 						end
 					| _ -> false
 					end
-				| _ -> false
+				| None -> false
 			in
 			(* Check if method's signature is Null<T> where T is directly a type param.
 			   This is different from Null<Class<T>> where the inner type wraps the param. *)
-			let method_returns_null_of_type_param = match cf.cf_type with
-				| TFun (_, ret) ->
+			let method_returns_null_of_type_param = match get_ret_from_cf_type () with
+				| Some ret ->
 					begin match ret with
 					| TAbstract ({ a_path = ([], "Null") }, [inner]) ->
 						begin match inner with
@@ -3588,23 +3626,28 @@ let rec cs_expr_of_texpr ectx e =
 						end
 					| _ -> false
 					end
-				| _ -> false
+				| None -> false
 			in
 			(* Try to infer method type params from arguments - returns Haxe Type.t for applying to params *)
 			let infer_type_params_as_types () =
 				(* For each method type parameter, try to find it in the parameter list and get the type from corresponding arg *)
-				let param_type_pairs = match follow cf.cf_type with
-					| TFun (params, _) when List.length params <= List.length orig_args ->
+				let param_type_pairs = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (params, _) when List.length params <= List.length orig_args ->
 						List.combine (List.map (fun (_, _, t) -> t) params) (List.map (fun a -> a.etype) (ExtList.List.take (List.length params) orig_args))
 					| _ -> []
 				in
 				(* Helper to recursively find matching type params inside generic types *)
 				let rec find_type_param_in_type ttp_name param_t arg_t =
+					(* Unwrap Coroutine<TFun> to TFun for type param matching *)
+					let unwrap_coro t = match TFunctions.follow_with_coro t with
+						| TFunctions.Coro (args, ret) -> TFun (Common.expand_coro_type ectx.gctx.com.basic args ret)
+						| TFunctions.NotCoro t -> t
+					in
 					(* Use follow_without_null for param_t to preserve Null<> wrappers.
 					   The standard `follow` unwraps Null<T> to T, which breaks matching.
 					   For arg_t, use regular follow since we want to match the actual argument type. *)
-					let param_t_f = Type.follow_without_null param_t in
-					let arg_t_f = follow arg_t in
+					let param_t_f = Type.follow_without_null (unwrap_coro param_t) in
+					let arg_t_f = follow (unwrap_coro arg_t) in
 					(* Also get the argument type with abstracts followed (for matching param like Array<T> with abstract wrapping Array) *)
 					let arg_t_underlying = Abstract.follow_with_abstracts arg_t in
 					match param_t_f, arg_t_f with
@@ -3957,7 +4000,9 @@ let rec cs_expr_of_texpr ectx e =
 			   If so, the C# method returns object but call site expects a concrete type. *)
 			let method_ret_type = match cf.cf_type with
 				| TFun (_, ret) -> ret
-				| _ -> return_type
+				| _ -> match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (_, ret) -> ret
+					| None -> return_type
 			in
 			let result_expr = if is_erased_type_param method_ret_type then
 				let result_cs_type = cs_type_of_type ectx.gctx return_type in
@@ -4021,9 +4066,10 @@ let rec cs_expr_of_texpr ectx e =
 			| TConst TNull -> true
 			| _ -> false
 		in
-		let is_dynamic_call = is_null_callee || match follow e_callee.etype with
+		let is_dynamic_call = is_null_callee || match follow_tfun_with_coro ectx.gctx.com.basic e_callee.etype with
+			| Some _ -> false  (* Typed function (or coroutine) - will use invoke* method *)
+			| None -> match follow e_callee.etype with
 			| TDynamic _ -> true
-			| TFun _ -> false  (* Typed function - will use invoke* method *)
 			| _ -> is_dynamic_type e_callee.etype
 		in
 		if is_dynamic_call then begin
@@ -4070,8 +4116,8 @@ let rec cs_expr_of_texpr ectx e =
 			(* Get expected parameter types from the function type to handle coercion.
 			   IMPORTANT: Wrap optional params in Null<T> (opt=true means optional).
 			   BUT: Don't double-wrap if the type is already Null<T>. *)
-			let param_types_hx = match follow e_callee.etype with
-				| TFun (params, _) ->
+			let param_types_hx = match follow_tfun_with_coro ectx.gctx.com.basic e_callee.etype with
+				| Some (params, _) ->
 					List.map (fun (_, opt, t) ->
 						let is_already_null = match follow t with
 							| TAbstract ({ a_path = ([], "Null") }, _) -> true
@@ -4079,7 +4125,7 @@ let rec cs_expr_of_texpr ectx e =
 						in
 						if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
 					) params
-				| _ -> []
+				| None -> []
 			in
 			(* Handle Rest parameters - check if last param is Rest<T> *)
 			let num_params = List.length param_types_hx in
@@ -4190,8 +4236,8 @@ let rec cs_expr_of_texpr ectx e =
 			ignore c.cl_params;
 			(* Get constructor parameter types for proper type coercion and Rest handling *)
 			let ctor_param_types = match c.cl_constructor with
-				| Some cf -> begin match follow cf.cf_type with
-					| TFun (ctor_params, _) ->
+				| Some cf -> begin match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (ctor_params, _) ->
 						(* Apply class type parameters to resolve generic types.
 						   Use actual_params (from e.etype) for correct constructor param types. *)
 						let map = apply_params c.cl_params actual_params in
@@ -4207,7 +4253,7 @@ let rec cs_expr_of_texpr ectx e =
 							if is_type_param_based then mk_mono ()
 							else hx_type
 						) ctor_params
-					| _ -> []
+					| None -> []
 				end
 				| None -> []
 			in
@@ -5220,6 +5266,16 @@ and cs_expr_of_texpr_block ectx e exprs =
 (* Convert Haxe expression to C# statement - mutually recursive with cs_expr_of_texpr *)
 and cs_stmt_of_texpr ectx e =
 	match e.eexpr with
+	| TBinop (Ast.OpAssign, lhs, rhs) when (let rec unwrap e = match e.eexpr with
+		| TLocal v -> v.v_name = "_"
+		| TCast (inner, _) | TParenthesis inner | TMeta (_, inner) -> unwrap inner
+		| _ -> false
+		in unwrap lhs) ->
+		(* Discard assignment to _ - in Haxe, _ is a wildcard/discard name.
+		   In C#, _ may have been declared with a specific type (e.g., int from a for loop
+		   or ICoroNode from a lambda parameter), so assigning a different type causes errors.
+		   Just evaluate the RHS for its side effects. *)
+		CsExprStmt (cs_expr_of_texpr ectx rhs)
 	| TBlock exprs ->
 		(* Filter out pure expressions that would become invalid C# statements.
 		   In C#, bare constants/locals can't be statements (CS0201 error). *)
@@ -5283,6 +5339,23 @@ and cs_stmt_of_texpr ectx e =
 			in
 			(* Track additional prefix statements for cases where we need temp vars *)
 			let extra_prefix_stmts = ref [] in
+			(* When both init_type and var_type are object/Dynamic, strip any intermediate
+			   casts or Runtime.toXxx conversions from init_cs. These casts were added by
+			   the TField handler for erased type params (e.g., casting _hx_continuation.result
+			   from object to the substituted type), but since the variable is object anyway,
+			   the cast is pointless and can fail at runtime — e.g., in coroutine state machines
+			   where the result field holds different types across suspension points. *)
+			let init_cs = match init_type, var_type with
+				| (CsTypeObject | CsTypeDynamic), (CsTypeObject | CsTypeDynamic) ->
+					let rec strip_object_cast cs = match cs with
+						| CsCast (_, inner) -> strip_object_cast inner
+						| CsStaticCall (_, ("toInt" | "toDouble" | "toFloat" | "toLong" | "toBool" | "toStr" | "_ofDynamic"), [inner]) -> strip_object_cast inner
+						| CsParens inner -> CsParens (strip_object_cast inner)
+						| _ -> cs
+					in
+					strip_object_cast init_cs
+				| _ -> init_cs
+			in
 			let init_cs = match init_type, var_type with
 				| CsTypeClass ((["haxe"; "lang"], "Null"), [inner_init]), CsTypeClass ((["haxe"; "lang"], "Null"), [inner_var])
 					when inner_init = inner_var ->
@@ -6030,7 +6103,9 @@ let generate_closure_class ectx tf func_type =
 		end
 	) tf.tf_args;
 
-	(* Register captured variables - they're accessed via this.fieldName in the closure *)
+	(* Register captured variables - they're accessed via this.fieldName in the closure.
+	   IMPORTANT: Also add to used_names so that other locals (e.g., coroutine state machine
+	   variables like _hx_result) get unique names and don't shadow the captured field. *)
 	List.iter (fun v ->
 		(* Use same naming as var_captures - raw name with _hx_ prefix *)
 		let raw_name = v.v_name in
@@ -6039,7 +6114,8 @@ let generate_closure_class ectx tf func_type =
 		else raw_name
 		in
 		let field_name = "_hx_" ^ safe_name in
-		closure_ectx.local_vars <- (v.v_id, field_name) :: closure_ectx.local_vars
+		closure_ectx.local_vars <- (v.v_id, field_name) :: closure_ectx.local_vars;
+		closure_ectx.used_names <- field_name :: closure_ectx.used_names
 	) captured_vars;
 
 	(* Generate invoke method body with optional parameter default preamble *)
@@ -6274,12 +6350,17 @@ let generate_closure_class ectx tf func_type =
 	let closure_type = CsTypeClass (closure_path, closure_type_args) in
 	let capture_args =
 		(if accesses_this then [CsThis] else []) @
-		List.map (fun v ->
+		List.map2 (fun v (_field_name, expected_cs_type) ->
 			(* Use original local name from parent context *)
-			match List.assoc_opt v.v_id ectx.local_vars with
-			| Some name -> CsLocal name
-			| None -> CsLocal (escape_identifier v.v_name)
-		) captured_vars
+			let local_cs = match List.assoc_opt v.v_id ectx.local_vars with
+				| Some name -> CsLocal name
+				| None -> CsLocal (escape_identifier v.v_name)
+			in
+			(* Cast captured variable to expected type — needed when the C# variable has a
+			   more general type than the Haxe type (e.g., _hx_result is 'object' due to
+			   type erasure of SuspensionResult.result, but the closure field type is Array). *)
+			CsCast (expected_cs_type, local_cs)
+		) captured_vars var_captures
 	in
 
 	(* Check if the expected type or closure type uses type parameters that aren't in scope.
@@ -6393,7 +6474,7 @@ let rec generate_method_closure ectx obj_expr is_static c_opt class_path type_pa
 	| Some c when not is_static && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 		begin match compute_instance_method_index c cf with
 		| Some idx ->
-			let arity = match follow cf.cf_type with TFun(args, _) -> List.length args | _ -> 0 in
+			let arity = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with Some(args, _) -> List.length args | None -> 0 in
 			let obj = match obj_expr with Some e -> e | None -> CsThis in
 			CsCall (CsField (obj, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx)); CsConst (CsConstInt (Int32.of_int arity))])
 		| None ->
@@ -6414,9 +6495,9 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 	let gctx = ectx.gctx in
 
 	(* Extract parameter and return types from method_type *)
-	let param_info, return_type = match follow method_type with
-		| TFun (args, ret) -> args, ret
-		| _ -> [], t_dynamic
+	let param_info, return_type = match follow_tfun_with_coro gctx.com.basic method_type with
+		| Some (args, ret) -> args, ret
+		| None -> [], t_dynamic
 	in
 
 	(* Generate unique class name *)
@@ -6509,7 +6590,7 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 	(* Check if this is a stored function field (dynamic method or var with function type).
 	   If so, we need to use Runtime.invokeFunction instead of direct call. *)
 	let is_stored_function = match cf.cf_kind with
-		| Var _ -> (match follow cf.cf_type with TFun _ -> true | _ -> false)
+		| Var _ -> (match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with Some _ -> true | None -> false)
 		| Method MethDynamic -> true
 		| Method _ -> false
 	in
@@ -6831,9 +6912,9 @@ let is_override cf =
 let get_contravariant_override_info gctx c cf =
 	if not (is_override cf) then None
 	else
-		let args, _ = match follow cf.cf_type with
-			| TFun (args, ret) -> args, ret
-			| _ -> [], t_dynamic
+		let args, _ = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+			| Some (args, ret) -> args, ret
+			| None -> [], t_dynamic
 		in
 		let rec find_parent_types c_super tl =
 			let map_type = apply_params c_super.cl_params tl in
@@ -6841,9 +6922,9 @@ let get_contravariant_override_info gctx c cf =
 				let cf_super = PMap.find cf.cf_name c_super.cl_fields in
 				match cf_super.cf_kind with
 				| Method _ ->
-					begin match follow (map_type cf_super.cf_type) with
-					| TFun (parent_args, _) -> Some parent_args
-					| _ -> None
+					begin match follow_tfun_with_coro gctx.com.basic (map_type cf_super.cf_type) with
+					| Some (parent_args, _) -> Some parent_args
+					| None -> None
 					end
 				| _ -> None
 			with Not_found ->
@@ -6910,8 +6991,8 @@ let find_variant_interface_methods gctx c cf =
 					(* Found interface method with same name.
 					   Use the DECLARED interface method type (cf_int.cf_type) for C# signature,
 					   because type parameters get erased to object in C#. *)
-					begin match follow cf_int.cf_type, follow cf.cf_type with
-					| TFun (int_args, int_ret), TFun (impl_args, impl_ret) ->
+					begin match follow_tfun_with_coro gctx.com.basic cf_int.cf_type, follow_tfun_with_coro gctx.com.basic cf.cf_type with
+					| Some (int_args, int_ret), Some (impl_args, impl_ret) ->
 						(* Compare C# types, not Haxe types.
 						   Interface uses declared types (type params → object).
 						   Implementation uses concrete types (Int → int). *)
@@ -6993,9 +7074,9 @@ let generate_explicit_interface_impls gctx c cf =
 	| Method MethNormal | Method MethInline ->
 		let variant_interfaces = find_variant_interface_methods gctx c cf in
 		(* Get implementation argument types for casting *)
-		let impl_args = match follow cf.cf_type with
-			| TFun (args, _) -> args
-			| _ -> []
+		let impl_args = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+			| Some (args, _) -> args
+			| None -> []
 		in
 		List.map (fun (iface_type, int_args, int_ret, method_type_params) ->
 			(* Generate params for the explicit implementation using interface's erased types *)
@@ -7134,9 +7215,9 @@ let generate_explicit_interface_impls gctx c cf =
 let generate_contravariant_override_overload gctx c cf =
 	match cf.cf_kind with
 	| Method MethNormal | Method MethInline when not (has_class_field_flag cf CfStatic) && is_override cf ->
-		let haxe_args, haxe_ret = match follow cf.cf_type with
-			| TFun (args, ret) -> args, ret
-			| _ -> [], t_dynamic
+		let haxe_args, haxe_ret = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+			| Some (args, ret) -> args, ret
+			| None -> [], t_dynamic
 		in
 		begin match get_contravariant_override_info gctx c cf with
 		| Some (_, parent_args) ->
@@ -7392,9 +7473,9 @@ let generate_field gctx c cf is_static =
 		})
 	| Method MethNormal | Method MethInline ->
 		(* Regular method *)
-		let haxe_args, haxe_ret = match follow cf.cf_type with
-			| TFun (args, ret) -> args, ret
-			| _ -> [], cf.cf_type
+		let haxe_args, haxe_ret = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+			| Some (args, ret) -> args, ret
+			| None -> [], cf.cf_type
 		in
 		(* For override methods, we need to use the parent's DECLARED parameter types
 		   (unmapped) to ensure C# compatibility. With type erasure, type parameters
@@ -7409,10 +7490,7 @@ let generate_field gctx c cf is_static =
 						match cf_super.cf_kind with
 						| Method _ ->
 							(* Use DECLARED type without mapping - type params get erased to object *)
-							begin match follow cf_super.cf_type with
-							| TFun (parent_args, parent_ret) -> Some (parent_args, parent_ret)
-							| _ -> None
-							end
+							follow_tfun_with_coro gctx.com.basic cf_super.cf_type
 						| _ -> None
 					with Not_found ->
 						match c_super.cl_super with
@@ -7480,6 +7558,9 @@ let generate_field gctx c cf is_static =
 				p_modifier = None;
 			}
 		) filtered_args in
+		(* Deduplicate parameter names — C# doesn't allow duplicate param names.
+		   This happens with coroutine continuations where multiple unused params are named "_". *)
+		let params = deduplicate_param_names params in
 		(* Get class type parameters *)
 		let class_type_params = List.map (fun ttp -> ttp.ttp_name) c.cl_params in
 		(* Method type parameters: For Haxe classes, type params are erased to object,
@@ -7641,24 +7722,30 @@ let generate_field gctx c cf is_static =
 (* ====== Constructor generation ====== *)
 
 (* Extract super() call and remaining body from constructor expression *)
-(* Returns (Some super_args, rest) if super call found, (None, body) otherwise *)
+(* Returns (Some super_args, pre_super_body, post_super_body) if super call found,
+   (None, None, body) otherwise.
+   Pre-super body contains statements BEFORE the super() call.
+   Post-super body contains statements AFTER the super() call.
+   This distinction is critical for two-phase construction where pre-super
+   statements must execute before base._hx_new(). *)
 let rec extract_super_call e =
 	match e.eexpr with
 	| TCall ({ eexpr = TConst TSuper }, args) ->
-		(* Found super call - return args and empty body *)
-		(Some args, None)
+		(* Found super call - no pre or post body *)
+		(Some args, None, None)
 	| TBlock el ->
-		(* Look for super call in block - it should be the first statement *)
+		(* Look for super call in block *)
 		extract_super_from_block el
 	| TFunction tf ->
 		(* Unwrap TFunction and look inside *)
 		extract_super_call tf.tf_expr
 	| _ ->
-		(None, Some e)
+		(None, None, Some e)
 
 (* Search through block for super() call - it may not be the first statement.
-   Returns (Some super_args, Some body_with_all_stmts) where body includes
-   statements before super (which must be executed after base() in C#). *)
+   Returns (Some super_args, pre_super_body, post_super_body) where:
+   - pre_super_body: statements before the super() call (or None)
+   - post_super_body: statements after the super() call (or None) *)
 and extract_super_from_block el =
 	(* Helper to find super call anywhere in the list *)
 	let rec find_super before = function
@@ -7666,19 +7753,22 @@ and extract_super_from_block el =
 		| e :: rest ->
 			begin match e.eexpr with
 			| TCall ({ eexpr = TConst TSuper }, args) ->
-				(* Found super - before statements + rest statements become the body *)
-				let body_stmts = List.rev before @ rest in
-				let body_expr = if body_stmts = [] then None else Some { e with eexpr = TBlock body_stmts } in
-				Some (args, body_expr)
+				(* Found super - split into before and after *)
+				let pre_stmts = List.rev before in
+				let pre_body = if pre_stmts = [] then None else Some { e with eexpr = TBlock pre_stmts } in
+				let post_body = if rest = [] then None else Some { e with eexpr = TBlock rest } in
+				Some (args, pre_body, post_body)
 			| TBlock inner ->
 				(* Check inside nested block *)
 				begin match extract_super_from_block inner with
-				| (Some args, inner_body) ->
+				| (Some args, inner_pre, inner_post) ->
 					(* Super found in nested block - combine with outer statements *)
-					let body_stmts = List.rev before @ (match inner_body with Some b -> [b] | None -> []) @ rest in
-					let body_expr = if body_stmts = [] then None else Some { e with eexpr = TBlock body_stmts } in
-					Some (args, body_expr)
-				| (None, _) ->
+					let pre_stmts = List.rev before @ (match inner_pre with Some { eexpr = TBlock el } -> el | Some e -> [e] | None -> []) in
+					let post_stmts = (match inner_post with Some { eexpr = TBlock el } -> el | Some e -> [e] | None -> []) @ rest in
+					let pre_body = if pre_stmts = [] then None else Some { e with eexpr = TBlock pre_stmts } in
+					let post_body = if post_stmts = [] then None else Some { e with eexpr = TBlock post_stmts } in
+					Some (args, pre_body, post_body)
+				| (None, _, _) ->
 					(* No super in nested block - continue searching *)
 					find_super (e :: before) rest
 				end
@@ -7688,8 +7778,8 @@ and extract_super_from_block el =
 			end
 	in
 	match find_super [] el with
-	| Some (args, body) -> (Some args, body)
-	| None -> (None, if el = [] then None else Some { (List.hd el) with eexpr = TBlock el })
+	| Some (args, pre, post) -> (Some args, pre, post)
+	| None -> (None, None, if el = [] then None else Some { (List.hd el) with eexpr = TBlock el })
 
 (* Extract field initializations from the beginning of a constructor body.
    Field inits look like: this.fieldName = value
@@ -7721,6 +7811,22 @@ let extract_field_inits_from_body c body_expr =
 	| body ->
 		(* Not a block or not a field init - return as-is *)
 		([], body)
+
+(* Collect assignments to INHERITED fields (fields NOT declared in this class) from a body.
+   Used to duplicate inherited field assignments after base._hx_new() so they override
+   the parent's field initialization. *)
+let collect_inherited_field_assigns c body_expr =
+	let is_inherited_field_assign e =
+		match e.eexpr with
+		| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, cf)) }, _) ->
+			not (PMap.mem cf.cf_name c.cl_fields)
+		| _ -> false
+	in
+	match body_expr with
+	| None -> []
+	| Some { eexpr = TBlock el } -> List.filter is_inherited_field_assign el
+	| Some e when is_inherited_field_assign e -> [e]
+	| _ -> []
 
 (* Check if a parent class constructor needs two-phase construction *)
 let parent_needs_two_phase_construction c =
@@ -7772,10 +7878,21 @@ let generate_constructor gctx c cf field_init_stmts =
 		| _ -> []
 	in
 
-	(* Extract super call and body from constructor expression *)
-	let (super_args, body_expr) = match cf.cf_expr with
+	(* Extract super call and body from constructor expression.
+	   pre_super_body_expr: statements before super() call
+	   post_super_body_expr: statements after super() call *)
+	let (super_args, pre_super_body_expr, post_super_body_expr) = match cf.cf_expr with
 		| Some e -> extract_super_call e
-		| None -> (None, None)
+		| None -> (None, None, None)
+	in
+	(* Merge pre+post for uses that don't need the distinction (normal construction path).
+	   Two-phase construction handles them separately. *)
+	let body_expr = match (pre_super_body_expr, post_super_body_expr) with
+		| (None, x) | (x, None) -> x
+		| (Some pre, Some post) ->
+			let pre_stmts = match pre.eexpr with TBlock el -> el | _ -> [pre] in
+			let post_stmts = match post.eexpr with TBlock el -> el | _ -> [post] in
+			Some { pre with eexpr = TBlock (pre_stmts @ post_stmts) }
 	in
 
 	(* Check if this constructor needs two-phase construction.
@@ -7913,8 +8030,48 @@ let generate_constructor gctx c cf field_init_stmts =
 		} in
 
 		(* 2. _hx_new method - contains actual constructor logic
-		   Super call becomes base._hx_new(args) call in the body *)
+		   Super call becomes base._hx_new(args) call in the body.
+		   IMPORTANT: Pre-super statements must execute BEFORE base._hx_new() because
+		   the parent constructor may call virtual methods that access fields set by
+		   pre-super code (e.g., CoroBaseTask sets this.context before super()). *)
 		let hx_new_body =
+			(* Extract dependency statements from pre-super body: locals that are
+			   referenced by super args need to be defined before base._hx_new(). *)
+			let (dependency_stmts, adjusted_pre_super_body_expr) = match super_args with
+				| Some args when super_args_reference_body_locals args pre_super_body_expr ->
+					let local_ids = collect_locals_used args in
+					extract_local_dependencies pre_super_body_expr local_ids
+				| _ -> ([], pre_super_body_expr)
+			in
+			(* ALL pre-super stmts go before base._hx_new() so the parent constructor
+			   can access fields set by the child via virtual dispatch. *)
+			let pre_super_cs_stmts = match adjusted_pre_super_body_expr with
+				| Some e -> generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"_hx_new" e
+				| None -> []
+			in
+			(* Assignments to INHERITED fields (not declared in this class) must also be
+			   duplicated AFTER base._hx_new() to override the parent's field initialization.
+			   Own-field assignments don't need this since the parent won't touch them. *)
+			let inherited_reassign_cs_stmts =
+				let inherited_assigns = collect_inherited_field_assigns c adjusted_pre_super_body_expr in
+				match inherited_assigns with
+				| [] -> []
+				| (first :: _) as assigns ->
+					generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"_hx_new" { first with eexpr = TBlock assigns }
+			in
+			let dependency_cs_stmts = match dependency_stmts with
+				| [] -> []
+				| stmts ->
+					let ectx = create_expr_context gctx in
+					ectx.current_class_path <- Some c.cl_path;
+					ectx.current_method_name <- Some "_hx_new";
+					List.iter (fun (v, _) ->
+						let param_name = escape_identifier v.v_name in
+						ectx.local_vars <- (v.v_id, param_name) :: ectx.local_vars;
+						ectx.used_names <- param_name :: ectx.used_names
+					) tf_args;
+					List.map (cs_stmt_of_texpr ectx) stmts
+			in
 			(* Generate base._hx_new(args) call if there was a super call *)
 			let base_new_call = match super_args with
 				| Some args when parent_is_two_phase ->
@@ -7937,8 +8094,8 @@ let generate_constructor gctx c cf field_init_stmts =
 					[]
 				| None -> []
 			in
-			(* Rest of constructor body *)
-			let body_stmts = match body_expr with
+			(* Post-super body (statements after the super call) *)
+			let post_super_stmts = match post_super_body_expr with
 				| Some e -> generate_method_body gctx ~type_params_in_scope:class_type_params ~type_param_constraints:class_constraints ~class_path:c.cl_path ~method_name:"_hx_new" e
 				| None -> []
 			in
@@ -7954,7 +8111,8 @@ let generate_constructor gctx c cf field_init_stmts =
 				) tf_args;
 				generate_optional_param_defaults ectx gctx tf_args
 			end in
-			field_init_stmts @ default_preamble @ base_new_call @ body_stmts
+			(* Order: field_inits, defaults, pre-super body, dependency stmts, base._hx_new(), inherited field reassigns, post-super *)
+			field_init_stmts @ default_preamble @ pre_super_cs_stmts @ dependency_cs_stmts @ base_new_call @ inherited_reassign_cs_stmts @ post_super_stmts
 		in
 		(* Wrap in unchecked if the constructor expression contains non-zero integer constants *)
 		let hx_new_body = match cf.cf_expr with
@@ -8260,9 +8418,9 @@ let generate_field_accessors gctx c =
 						let cf_super = PMap.find cf.cf_name c_super.cl_fields in
 						match cf_super.cf_kind with
 						| Method _ ->
-							begin match follow cf_super.cf_type with
-							| TFun (_, ret) -> Some ret
-							| _ -> None
+							begin match follow_tfun_with_coro gctx.com.basic cf_super.cf_type with
+							| Some (_, ret) -> Some ret
+							| None -> None
 							end
 						| _ -> None
 					with Not_found ->
@@ -8282,9 +8440,9 @@ let generate_field_accessors gctx c =
 			match cf.cf_kind with
 			| Method (MethNormal | MethInline) when not (has_class_field_flag cf CfStatic)
 			                                     && not (Meta.has Meta.Unreflective cf.cf_meta) ->
-				let args, ret = match follow cf.cf_type with
-					| TFun (args, ret) -> args, ret
-					| _ -> [], t_dynamic
+				let args, ret = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+					| Some (args, ret) -> args, ret
+					| None -> [], t_dynamic
 				in
 				(* For override methods, use parent's return type to match the C# method signature *)
 				let ret = match get_parent_return_type cf with
@@ -8540,9 +8698,9 @@ let generate_static_field_accessors gctx c =
 	let static_methods = List.filter_map (fun cf ->
 		match cf.cf_kind with
 		| Method (MethNormal | MethInline) when not (Meta.has Meta.Unreflective cf.cf_meta) ->
-			let args, ret = match follow cf.cf_type with
-				| TFun (args, ret) -> args, ret
-				| _ -> [], t_dynamic
+			let args, ret = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+				| Some (args, ret) -> args, ret
+				| None -> [], t_dynamic
 			in
 			let arity = List.length args in
 			Some (cf.cf_name, get_cs_field_name c cf, arity, args, ret)
@@ -8607,7 +8765,7 @@ let generate_static_field_accessors gctx c =
 	   If not, check the parent constructor (for forwarding constructors). *)
 	let ctor_args, ctor_is_two_phase = match c.cl_constructor with
 		| Some cf ->
-			let args = (match follow cf.cf_type with TFun (args, _) -> args | _ -> []) in
+			let args = (match follow_tfun_with_coro gctx.com.basic cf.cf_type with Some (args, _) -> args | None -> []) in
 			let is_two_phase = needs_two_phase_construction cf in
 			(args, is_two_phase)
 		| None ->
@@ -8615,7 +8773,7 @@ let generate_static_field_accessors gctx c =
 			let parent_args = match c.cl_super with
 				| Some (sc, _) ->
 					begin match sc.cl_constructor with
-					| Some ctor_cf -> (match follow ctor_cf.cf_type with TFun (args, _) -> args | _ -> [])
+					| Some ctor_cf -> (match follow_tfun_with_coro gctx.com.basic ctor_cf.cf_type with Some (args, _) -> args | None -> [])
 					| None -> []
 					end
 				| None -> []
@@ -9428,9 +9586,9 @@ let generate_interface gctx c =
 	let members = List.filter_map (fun cf ->
 		match cf.cf_kind with
 		| Method MethNormal ->
-			let args, ret = match follow cf.cf_type with
-				| TFun (args, ret) -> args, ret
-				| _ -> [], cf.cf_type
+			let args, ret = match follow_tfun_with_coro gctx.com.basic cf.cf_type with
+				| Some (args, ret) -> args, ret
+				| None -> [], cf.cf_type
 			in
 			let params = List.map (fun (n, _, t) ->
 				{

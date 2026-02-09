@@ -180,5 +180,30 @@ class Cs {
 		// AOT
 		infoMsg("=== Running Thread Tests (AOT) ===");
 		runAotTest();
+
+		// === Coroutine Tests (hxcoro) ===
+		changeDirectory(partyDir);
+		if (!sys.FileSystem.exists("hxcoro")) {
+			runCommand("git", ["clone", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
+		}
+		changeDirectory("hxcoro");
+		// Patch Setup.hx to add cs target support (until hxcoro upstream adds it)
+		var setupPath = "src/hxcoro/run/Setup.hx";
+		var content = sys.io.File.getContent(setupPath);
+		content = StringTools.replace(content, "#elseif (jvm || cpp || hl)", "#elseif (jvm || cpp || hl || cs)");
+		sys.io.File.saveContent(setupPath, content);
+		runCommand("haxelib", ["newrepo"]);
+		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
+		runCommand("haxelib", ["dev", "hxcoro", "."]);
+		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs"]);
+		changeDirectory("tests/bin/cs");
+
+		// JIT
+		infoMsg("=== Running Coroutine Tests (JIT) ===");
+		runCommand("dotnet", ["run"]);
+
+		// AOT
+		infoMsg("=== Running Coroutine Tests (AOT) ===");
+		runAotTest();
 	}
 }

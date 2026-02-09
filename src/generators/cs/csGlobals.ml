@@ -221,9 +221,10 @@ let cs_keywords = [
 let is_cs_keyword s =
 	List.mem s cs_keywords
 
-(* Escape identifier if it's a C# keyword *)
+(* Escape identifier if it's a C# keyword or the discard pattern _ *)
 let escape_identifier s =
-	if is_cs_keyword s then "@" ^ s else s
+	if s = "_" then "__"
+	else if is_cs_keyword s then "@" ^ s else s
 
 (* Capitalize first letter of a string *)
 let capitalize_first s =
