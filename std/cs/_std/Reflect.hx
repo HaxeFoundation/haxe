@@ -43,21 +43,21 @@ class Reflect {
 		}
 
 		// Check if o is a System.Type (for static field access)
-		var isType:Bool = untyped __cs__("{0} is System.Type", o);
+		var isType:Bool = cs.Syntax.code("{0} is System.Type", o);
 		if (isType) {
 			// AOT-safe: Use registered static field accessor
-			return untyped __cs__("global::haxe.lang.HaxeReflection.hasField((System.Type){0}, {1})", o, field);
+			return cs.Syntax.code("global::haxe.lang.HaxeReflection.hasField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
-		var fieldInfo:Dynamic = untyped __cs__("((System.Type){0}).GetField({1})", nativeType, field);
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", o);
+		var fieldInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetField({1})", nativeType, field);
 		if (fieldInfo != null)
 			return true;
-		var propInfo:Dynamic = untyped __cs__("((System.Type){0}).GetProperty({1})", nativeType, field);
+		var propInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetProperty({1})", nativeType, field);
 		if (propInfo != null)
 			return true;
-		var methodInfo:Dynamic = untyped __cs__("((System.Type){0}).GetMethod({1})", nativeType, field);
+		var methodInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetMethod({1})", nativeType, field);
 		return methodInfo != null;
 	}
 
@@ -77,33 +77,33 @@ class Reflect {
 
 		// Special handling for strings - delegate to Runtime.getStringField
 		if (Std.isOfType(o, String)) {
-			return untyped __cs__("global::haxe.lang.Runtime.getStringField((string){0}, {1})", o, field);
+			return cs.Syntax.code("global::haxe.lang.Runtime.getStringField((string){0}, {1})", o, field);
 		}
 
 		// Check if o is a System.Type (for static field access)
-		var isType:Bool = untyped __cs__("{0} is System.Type", o);
+		var isType:Bool = cs.Syntax.code("{0} is System.Type", o);
 		if (isType) {
 			// AOT-safe: Use registered static field accessor
-			return untyped __cs__("global::haxe.lang.HaxeReflection.getField((System.Type){0}, {1})", o, field);
+			return cs.Syntax.code("global::haxe.lang.HaxeReflection.getField((System.Type){0}, {1})", o, field);
 		}
 
 		// Use reflection for other objects
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", o);
 
 		// Try field first
-		var fieldInfo:Dynamic = untyped __cs__("((System.Type){0}).GetField({1})", nativeType, field);
+		var fieldInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetField({1})", nativeType, field);
 		if (fieldInfo != null) {
-			return untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue({1})", fieldInfo, o);
+			return cs.Syntax.code("((System.Reflection.FieldInfo){0}).GetValue({1})", fieldInfo, o);
 		}
 
 		// Try property
-		var propInfo:Dynamic = untyped __cs__("((System.Type){0}).GetProperty({1})", nativeType, field);
+		var propInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetProperty({1})", nativeType, field);
 		if (propInfo != null) {
-			return untyped __cs__("((System.Reflection.PropertyInfo){0}).GetValue({1})", propInfo, o);
+			return cs.Syntax.code("((System.Reflection.PropertyInfo){0}).GetValue({1})", propInfo, o);
 		}
 
 		// Try method (return as closure)
-		var methodInfo:Dynamic = untyped __cs__("((System.Type){0}).GetMethod({1})", nativeType, field);
+		var methodInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetMethod({1})", nativeType, field);
 		if (methodInfo != null) {
 			// Create a wrapper function for the method
 			return createMethodClosure(o, methodInfo);
@@ -129,19 +129,19 @@ class Reflect {
 		}
 
 		// Use reflection for other objects
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", o);
 
 		// Try field first
-		var fieldInfo:Dynamic = untyped __cs__("((System.Type){0}).GetField({1})", nativeType, field);
+		var fieldInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetField({1})", nativeType, field);
 		if (fieldInfo != null) {
-			untyped __cs__("((System.Reflection.FieldInfo){0}).SetValue({1}, {2})", fieldInfo, o, value);
+			cs.Syntax.code("((System.Reflection.FieldInfo){0}).SetValue({1}, {2})", fieldInfo, o, value);
 			return;
 		}
 
 		// Try property
-		var propInfo:Dynamic = untyped __cs__("((System.Type){0}).GetProperty({1})", nativeType, field);
+		var propInfo:Dynamic = cs.Syntax.code("((System.Type){0}).GetProperty({1})", nativeType, field);
 		if (propInfo != null) {
-			untyped __cs__("((System.Reflection.PropertyInfo){0}).SetValue({1}, {2})", propInfo, o, value);
+			cs.Syntax.code("((System.Reflection.PropertyInfo){0}).SetValue({1}, {2})", propInfo, o, value);
 			return;
 		}
 	}
@@ -158,9 +158,9 @@ class Reflect {
 		// Try to call getter first
 		var getter = Reflect.field(o, "get_" + field);
 		if (getter != null) {
-			var isFunc:Bool = untyped __cs__("{0} is haxe.lang.Function", getter);
+			var isFunc:Bool = cs.Syntax.code("{0} is haxe.lang.Function", getter);
 			if (isFunc) {
-				return untyped __cs__("((haxe.lang.Function){0}).__hx_invoke0().toDynamic()", getter);
+				return cs.Syntax.code("((haxe.lang.Function){0}).__hx_invoke0().toDynamic()", getter);
 			}
 		}
 
@@ -181,9 +181,9 @@ class Reflect {
 		// Try to call setter first
 		var setter = Reflect.field(o, "set_" + field);
 		if (setter != null) {
-			var isFunc:Bool = untyped __cs__("{0} is haxe.lang.Function", setter);
+			var isFunc:Bool = cs.Syntax.code("{0} is haxe.lang.Function", setter);
 			if (isFunc) {
-				untyped __cs__("((haxe.lang.Function){0}).__hx_invoke1(haxe.lang.Value.fromObject({1}))", setter, value);
+				cs.Syntax.code("((haxe.lang.Function){0}).__hx_invoke1(haxe.lang.Value.fromObject({1}))", setter, value);
 				return;
 			}
 		}
@@ -202,12 +202,12 @@ class Reflect {
 		}
 
 		// If it's a native delegate, invoke it
-		if (untyped __cs__("{0} is System.Delegate", func)) {
-			var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", args.length);
+		if (cs.Syntax.code("{0} is System.Delegate", func)) {
+			var nativeArgs:Dynamic = cs.Syntax.code("new object[{0}]", args.length);
 			for (i in 0...args.length) {
-				untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
+				cs.Syntax.code("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 			}
-			return untyped __cs__("((System.Delegate){0}).DynamicInvoke((object[]){1})", func, nativeArgs);
+			return cs.Syntax.code("((System.Delegate){0}).DynamicInvoke((object[]){1})", func, nativeArgs);
 		}
 
 		return null;
@@ -229,14 +229,14 @@ class Reflect {
 
 		// Use reflection for other objects
 		var result:Array<String> = [];
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", o);
 
 		// Get fields
-		var fieldInfos:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", nativeType);
-		var fieldCount:Int = untyped __cs__("((System.Reflection.FieldInfo[]){0}).Length", fieldInfos);
+		var fieldInfos:Dynamic = cs.Syntax.code("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", nativeType);
+		var fieldCount:Int = cs.Syntax.code("((System.Reflection.FieldInfo[]){0}).Length", fieldInfos);
 		for (i in 0...fieldCount) {
-			var fieldInfo:Dynamic = untyped __cs__("((System.Reflection.FieldInfo[]){0})[{1}]", fieldInfos, i);
-			var name:String = untyped __cs__("((System.Reflection.FieldInfo){0}).Name", fieldInfo);
+			var fieldInfo:Dynamic = cs.Syntax.code("((System.Reflection.FieldInfo[]){0})[{1}]", fieldInfos, i);
+			var name:String = cs.Syntax.code("((System.Reflection.FieldInfo){0}).Name", fieldInfo);
 			if (!StringTools.startsWith(name, "_hx_"))
 				result.push(name);
 		}
@@ -249,7 +249,7 @@ class Reflect {
 			return false;
 		if (Std.isOfType(f, HaxeFunction))
 			return true;
-		return untyped __cs__("{0} is System.Delegate", f);
+		return cs.Syntax.code("{0} is System.Delegate", f);
 	}
 
 	// Note: Uses Dynamic instead of generic T for type erasure compatibility.
@@ -271,21 +271,21 @@ class Reflect {
 		// returns true for integral doubles, but we can't directly unbox a boxed double as int.
 		// Using Convert.ToDouble handles all numeric types safely.
 		if (Std.isOfType(a, Float) && Std.isOfType(b, Float)) {
-			var af:Float = untyped __cs__("System.Convert.ToDouble({0})", a);
-			var bf:Float = untyped __cs__("System.Convert.ToDouble({0})", b);
+			var af:Float = cs.Syntax.code("System.Convert.ToDouble({0})", a);
+			var bf:Float = cs.Syntax.code("System.Convert.ToDouble({0})", b);
 			return af < bf ? -1 : (af > bf ? 1 : 0);
 		}
 
 		// String comparison - use String.CompareOrdinal for proper comparison
 		if (Std.isOfType(a, String) && Std.isOfType(b, String)) {
-			var result:Int = untyped __cs__("string.CompareOrdinal((string)(object){0}, (string)(object){1})", a, b);
+			var result:Int = cs.Syntax.code("string.CompareOrdinal((string)(object){0}, (string)(object){1})", a, b);
 			return result < 0 ? -1 : (result > 0 ? 1 : 0);
 		}
 
 		// Try IComparable - use safe pattern matching to avoid cast exception
 		// (Null<T> should never be boxed in object; if it is, fix the code generator)
-		if (untyped __cs__("{0} is System.IComparable", a)) {
-			var result:Int = untyped __cs__("((System.IComparable){0}).CompareTo({1})", a, b);
+		if (cs.Syntax.code("{0} is System.IComparable", a)) {
+			var result:Int = cs.Syntax.code("((System.IComparable){0}).CompareTo({1})", a, b);
 			return result;
 		}
 		return 0;
@@ -303,8 +303,8 @@ class Reflect {
 		}
 
 		// Compare delegates
-		if (untyped __cs__("{0} is System.Delegate", f1) && untyped __cs__("{0} is System.Delegate", f2)) {
-			return untyped __cs__("object.Equals({0}, {1})", f1, f2);
+		if (cs.Syntax.code("{0} is System.Delegate", f1) && cs.Syntax.code("{0} is System.Delegate", f2)) {
+			return cs.Syntax.code("object.Equals({0}, {1})", f1, f2);
 		}
 
 		return false;
@@ -333,7 +333,7 @@ class Reflect {
 		if (v == null)
 			return false;
 		// AOT-safe: check if object is an instance of HaxeEnum base class
-		return untyped __cs__("{0} is global::haxe.lang.HaxeEnum", v);
+		return cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", v);
 	}
 
 	public static function deleteField(o:Dynamic, field:String):Bool {
@@ -365,15 +365,15 @@ class Reflect {
 		}
 
 		// For other objects, do shallow copy via reflection
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", o);
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", o);
 
 		// Try AOT-safe HaxeReflection.createEmpty first (works for Haxe classes)
-		var dst:Dynamic = untyped __cs__("global::haxe.lang.HaxeReflection.createEmpty((System.Type){0})", nativeType);
+		var dst:Dynamic = cs.Syntax.code("global::haxe.lang.HaxeReflection.createEmpty((System.Type){0})", nativeType);
 
 		// Fallback to Activator for native C# classes
 		if (dst == null) {
 			try {
-				dst = untyped __cs__("System.Activator.CreateInstance((System.Type){0})", nativeType);
+				dst = cs.Syntax.code("System.Activator.CreateInstance((System.Type){0})", nativeType);
 			} catch (e:Dynamic) {
 				// CreateInstance failed (can happen in AOT), return null
 				return null;
@@ -384,12 +384,12 @@ class Reflect {
 		if (dst == null)
 			return null;
 
-		var fieldInfos:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", nativeType);
-		var fieldCount:Int = untyped __cs__("((System.Reflection.FieldInfo[]){0}).Length", fieldInfos);
+		var fieldInfos:Dynamic = cs.Syntax.code("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)", nativeType);
+		var fieldCount:Int = cs.Syntax.code("((System.Reflection.FieldInfo[]){0}).Length", fieldInfos);
 		for (i in 0...fieldCount) {
-			var fieldInfo:Dynamic = untyped __cs__("((System.Reflection.FieldInfo[]){0})[{1}]", fieldInfos, i);
-			var value:Dynamic = untyped __cs__("((System.Reflection.FieldInfo){0}).GetValue({1})", fieldInfo, o);
-			untyped __cs__("((System.Reflection.FieldInfo){0}).SetValue({1}, {2})", fieldInfo, dst, value);
+			var fieldInfo:Dynamic = cs.Syntax.code("((System.Reflection.FieldInfo[]){0})[{1}]", fieldInfos, i);
+			var value:Dynamic = cs.Syntax.code("((System.Reflection.FieldInfo){0}).GetValue({1})", fieldInfo, o);
+			cs.Syntax.code("((System.Reflection.FieldInfo){0}).SetValue({1}, {2})", fieldInfo, dst, value);
 		}
 
 		return cast dst;
@@ -426,10 +426,10 @@ private class MethodClosure extends HaxeFunction {
 	}
 
 	override public function invokeDynamic(args:Array<Dynamic>):Dynamic {
-		var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", args.length);
+		var nativeArgs:Dynamic = cs.Syntax.code("new object[{0}]", args.length);
 		for (i in 0...args.length) {
-			untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
+			cs.Syntax.code("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 		}
-		return untyped __cs__("((System.Reflection.MethodInfo){0}).Invoke({1}, (object[]){2})", methodInfo, obj, nativeArgs);
+		return cs.Syntax.code("((System.Reflection.MethodInfo){0}).Invoke({1}, (object[]){2})", methodInfo, obj, nativeArgs);
 	}
 }

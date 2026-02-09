@@ -17,7 +17,7 @@ class NativeStackTrace {
 	}
 
 	static public inline function callStack():cs.system.diagnostics.StackTrace {
-		return untyped __cs__("new System.Diagnostics.StackTrace(1, true)");
+		return cs.Syntax.code("new System.Diagnostics.StackTrace(1, true)");
 	}
 
 	static public function exceptionStack():Null<cs.system.diagnostics.StackTrace> {
@@ -31,7 +31,7 @@ class NativeStackTrace {
 		var stack:Array<StackItem> = [];
 		if (native == null) return stack;
 
-		var frameCount:Int = untyped __cs__("{0}?.FrameCount ?? 0", native);
+		var frameCount:Int = cs.Syntax.code("{0}?.FrameCount ?? 0", native);
 		if (frameCount == 0) return stack;
 
 		var cnt = 0;
@@ -46,9 +46,9 @@ class NativeStackTrace {
 				if (m == null) continue;
 				if (skip > cnt++) continue;
 
-				var methodName:String = untyped __cs__("{0}?.Name ?? \"\"", m);
-				var className:String = untyped __cs__("{0}?.ReflectedType?.ToString() ?? \"Unknown\"", m);
-				var isHaxeException:Bool = untyped __cs__("{0}?.StartsWith(\"haxe.Exception\") ?? false", className);
+				var methodName:String = cs.Syntax.code("{0}?.Name ?? \"\"", m);
+				var className:String = cs.Syntax.code("{0}?.ReflectedType?.ToString() ?? \"Unknown\"", m);
+				var isHaxeException:Bool = cs.Syntax.code("{0}?.StartsWith(\"haxe.Exception\") ?? false", className);
 
 				if (methodName != ".ctor" && !(methodName == "thrown" && isHaxeException)) {
 					hasNonCtorFrame = true;
@@ -71,21 +71,21 @@ class NativeStackTrace {
 				if (m == null) continue;
 				if (skip > cnt++) continue;
 
-				var className:String = untyped __cs__("{0}?.ReflectedType?.ToString() ?? \"Unknown\"", m);
-				var methodName:String = untyped __cs__("{0}?.Name ?? \"\"", m);
+				var className:String = cs.Syntax.code("{0}?.ReflectedType?.ToString() ?? \"Unknown\"", m);
+				var methodName:String = cs.Syntax.code("{0}?.Name ?? \"\"", m);
 
 				// Skip leading constructor and thrown frames only if we have non-ctor frames
 				if (!passedLeadingCtors) {
 					if (methodName == ".ctor") continue;
-					var isHaxeException:Bool = untyped __cs__("{0}?.StartsWith(\"haxe.Exception\") ?? false", className);
+					var isHaxeException:Bool = cs.Syntax.code("{0}?.StartsWith(\"haxe.Exception\") ?? false", className);
 					if (methodName == "thrown" && isHaxeException) continue;
 					passedLeadingCtors = true;
 				}
 
 				var method = StackItem.Method(className, methodName);
 
-				var fileName:String = untyped __cs__("{0}?.GetFileName()", frame);
-				var lineNumber:Int = untyped __cs__("{0}?.GetFileLineNumber() ?? 0", frame);
+				var fileName:String = cs.Syntax.code("{0}?.GetFileName()", frame);
+				var lineNumber:Int = cs.Syntax.code("{0}?.GetFileLineNumber() ?? 0", frame);
 
 				if (fileName != null || lineNumber >= 0)
 					stack.push(FilePos(method, fileName, lineNumber));

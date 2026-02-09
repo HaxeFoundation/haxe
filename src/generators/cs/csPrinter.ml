@@ -490,9 +490,11 @@ and print_expr ctx = function
 					let idx_str = String.sub template start (!i - start) in
 					let idx = int_of_string idx_str in
 					if idx < List.length args then begin
-						(* Print argument to a temp buffer *)
+						(* Print argument to a temp buffer, wrapped in parens for safe precedence *)
 						let arg_ctx = { ctx with buf = Buffer.create 64 } in
+						print arg_ctx "(";
 						print_expr arg_ctx (List.nth args idx);
+						print arg_ctx ")";
 						Buffer.add_buffer buf arg_ctx.buf
 					end else
 						Buffer.add_string buf ("{" ^ idx_str ^ "}")

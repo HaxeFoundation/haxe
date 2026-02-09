@@ -41,7 +41,7 @@ class Socket {
 
 	private function init():Void {
 		// Create TCP socket: AddressFamily.InterNetwork = 2, SocketType.Stream = 1, ProtocolType.Tcp = 6
-		_socket = untyped __cs__("new System.Net.Sockets.Socket((System.Net.Sockets.AddressFamily)2, (System.Net.Sockets.SocketType)1, (System.Net.Sockets.ProtocolType)6)");
+		_socket = cs.Syntax.code("new System.Net.Sockets.Socket((System.Net.Sockets.AddressFamily)2, (System.Net.Sockets.SocketType)1, (System.Net.Sockets.ProtocolType)6)");
 		_socket.Blocking = true;
 	}
 
@@ -62,7 +62,7 @@ class Socket {
 	public function connect(host:Host, port:Int):Void {
 		var ipStr:String = host.toString();
 		_socket.Connect(ipStr, port);
-		var connected:Bool = untyped __cs__("{0}.Connected", _socket);
+		var connected:Bool = cs.Syntax.code("{0}.Connected", _socket);
 		if (connected) {
 			var netStream = new NetworkStream(_socket);
 			this.input = new cs.io.NativeInput(netStream);
@@ -78,23 +78,23 @@ class Socket {
 
 	public function shutdown(read:Bool, write:Bool):Void {
 		if (read && write) {
-			untyped __cs__("{0}.Shutdown((System.Net.Sockets.SocketShutdown)2)", _socket); // Both
+			cs.Syntax.code("{0}.Shutdown((System.Net.Sockets.SocketShutdown)2)", _socket); // Both
 			input = null;
 			output = null;
 		} else if (read) {
-			untyped __cs__("{0}.Shutdown((System.Net.Sockets.SocketShutdown)0)", _socket); // Receive
+			cs.Syntax.code("{0}.Shutdown((System.Net.Sockets.SocketShutdown)0)", _socket); // Receive
 			input = null;
 		} else if (write) {
-			untyped __cs__("{0}.Shutdown((System.Net.Sockets.SocketShutdown)1)", _socket); // Send
+			cs.Syntax.code("{0}.Shutdown((System.Net.Sockets.SocketShutdown)1)", _socket); // Send
 			output = null;
 		}
 	}
 
 	public function bind(host:Host, port:Int):Void {
 		// Create a new socket for binding (like Haxe4 does)
-		_socket = untyped __cs__("new System.Net.Sockets.Socket((System.Net.Sockets.AddressFamily)2, (System.Net.Sockets.SocketType)1, (System.Net.Sockets.ProtocolType)6)");
+		_socket = cs.Syntax.code("new System.Net.Sockets.Socket((System.Net.Sockets.AddressFamily)2, (System.Net.Sockets.SocketType)1, (System.Net.Sockets.ProtocolType)6)");
 		var ipStr:String = host.toString();
-		untyped __cs__("{0}.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Parse({1}), {2}))", _socket, ipStr, port);
+		cs.Syntax.code("{0}.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Parse({1}), {2}))", _socket, ipStr, port);
 	}
 
 	public function accept():Socket {
@@ -112,8 +112,8 @@ class Socket {
 		if (remoteEp == null) {
 			return null;
 		}
-		var ipStr:String = untyped __cs__("((System.Net.IPEndPoint){0}).Address.ToString()", remoteEp);
-		var port:Int = untyped __cs__("((System.Net.IPEndPoint){0}).Port", remoteEp);
+		var ipStr:String = cs.Syntax.code("((System.Net.IPEndPoint){0}).Address.ToString()", remoteEp);
+		var port:Int = cs.Syntax.code("((System.Net.IPEndPoint){0}).Port", remoteEp);
 		var host = new Host(ipStr);
 		return {host: host, port: port};
 	}
@@ -123,8 +123,8 @@ class Socket {
 		if (localEp == null) {
 			return null;
 		}
-		var ipStr:String = untyped __cs__("((System.Net.IPEndPoint){0}).Address.ToString()", localEp);
-		var port:Int = untyped __cs__("((System.Net.IPEndPoint){0}).Port", localEp);
+		var ipStr:String = cs.Syntax.code("((System.Net.IPEndPoint){0}).Address.ToString()", localEp);
+		var port:Int = cs.Syntax.code("((System.Net.IPEndPoint){0}).Port", localEp);
 		var host = new Host(ipStr);
 		return {host: host, port: port};
 	}
@@ -136,12 +136,12 @@ class Socket {
 	}
 
 	public function waitForRead():Void {
-		var timeout:Int = untyped __cs__("{0}.ReceiveTimeout", _socket);
+		var timeout:Int = cs.Syntax.code("{0}.ReceiveTimeout", _socket);
 		var end = Date.now().getTime() + ((timeout <= 0) ? Math.POSITIVE_INFINITY : timeout);
-		var available:Int = untyped __cs__("{0}.Available", _socket);
+		var available:Int = cs.Syntax.code("{0}.Available", _socket);
 		while (available == 0 && Date.now().getTime() < end) {
-			untyped __cs__("System.Threading.Thread.Sleep(5)");
-			available = untyped __cs__("{0}.Available", _socket);
+			cs.Syntax.code("System.Threading.Thread.Sleep(5)");
+			available = cs.Syntax.code("{0}.Available", _socket);
 		}
 	}
 
@@ -160,47 +160,47 @@ class Socket {
 		// Build handle-to-socket mapping
 		if (read != null)
 			for (s in read) {
-				var handle:Int = untyped __cs__("{0}.Handle.ToInt32()", s._socket);
+				var handle:Int = cs.Syntax.code("{0}.Handle.ToInt32()", s._socket);
 				map[handle] = s;
 			}
 		if (write != null)
 			for (s in write) {
-				var handle:Int = untyped __cs__("{0}.Handle.ToInt32()", s._socket);
+				var handle:Int = cs.Syntax.code("{0}.Handle.ToInt32()", s._socket);
 				map[handle] = s;
 			}
 		if (others != null)
 			for (s in others) {
-				var handle:Int = untyped __cs__("{0}.Handle.ToInt32()", s._socket);
+				var handle:Int = cs.Syntax.code("{0}.Handle.ToInt32()", s._socket);
 				map[handle] = s;
 			}
 
 		// Create ArrayLists with native sockets
-		var rawRead:Dynamic = untyped __cs__("new System.Collections.ArrayList()");
-		var rawWrite:Dynamic = untyped __cs__("new System.Collections.ArrayList()");
-		var rawOthers:Dynamic = untyped __cs__("new System.Collections.ArrayList()");
+		var rawRead:Dynamic = cs.Syntax.code("new System.Collections.ArrayList()");
+		var rawWrite:Dynamic = cs.Syntax.code("new System.Collections.ArrayList()");
+		var rawOthers:Dynamic = cs.Syntax.code("new System.Collections.ArrayList()");
 
 		if (read != null)
 			for (s in read)
-				untyped __cs__("((System.Collections.ArrayList){0}).Add({1})", rawRead, s._socket);
+				cs.Syntax.code("((System.Collections.ArrayList){0}).Add({1})", rawRead, s._socket);
 		if (write != null)
 			for (s in write)
-				untyped __cs__("((System.Collections.ArrayList){0}).Add({1})", rawWrite, s._socket);
+				cs.Syntax.code("((System.Collections.ArrayList){0}).Add({1})", rawWrite, s._socket);
 		if (others != null)
 			for (s in others)
-				untyped __cs__("((System.Collections.ArrayList){0}).Add({1})", rawOthers, s._socket);
+				cs.Syntax.code("((System.Collections.ArrayList){0}).Add({1})", rawOthers, s._socket);
 
 		var microsec = timeout == null ? -1 : Std.int(timeout * 1000000);
 
 		// Call native Socket.Select
-		untyped __cs__("System.Net.Sockets.Socket.Select((System.Collections.IList){0}, (System.Collections.IList){1}, (System.Collections.IList){2}, {3})", rawRead, rawWrite, rawOthers, microsec);
+		cs.Syntax.code("System.Net.Sockets.Socket.Select((System.Collections.IList){0}, (System.Collections.IList){1}, (System.Collections.IList){2}, {3})", rawRead, rawWrite, rawOthers, microsec);
 
 		// Convert results back to Socket arrays
 		inline function getOriginal(resultList:Dynamic):Array<Socket> {
 			var a:Array<Socket> = [];
-			var count:Int = untyped __cs__("((System.Collections.ArrayList){0}).Count", resultList);
+			var count:Int = cs.Syntax.code("((System.Collections.ArrayList){0}).Count", resultList);
 			for (i in 0...count) {
 				// ArrayList returns object, must cast to Socket before accessing Handle
-				var handle:Int = untyped __cs__("((System.Net.Sockets.Socket)((System.Collections.ArrayList){0})[{1}]).Handle.ToInt32()", resultList, i);
+				var handle:Int = cs.Syntax.code("((System.Net.Sockets.Socket)((System.Collections.ArrayList){0})[{1}]).Handle.ToInt32()", resultList, i);
 				if (map.exists(handle))
 					a.push(map[handle]);
 			}

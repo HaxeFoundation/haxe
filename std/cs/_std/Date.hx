@@ -127,7 +127,7 @@ package;
 	static public function fromTime(t:Float):Date {
 		var d = new Date(1970, 0, 1, 0, 0, 0);
 		// Use native C# cast for precision (haxe.Int64.fromFloat has precision issues)
-		var milliseconds:haxe.Int64 = untyped __cs__("(long){0}", t);
+		var milliseconds:haxe.Int64 = cs.Syntax.code("(long){0}", t);
 		var ticksFromEpoch:haxe.Int64 = milliseconds * cs.system.TimeSpan.TicksPerMillisecond;
 		var epoch = new cs.system.DateTime(1970, 1, 1, 0, 0, 0, cs.system.DateTimeKind.Utc);
 		d.dateUTC = epoch.AddTicks(ticksFromEpoch);

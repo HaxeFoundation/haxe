@@ -49,9 +49,9 @@ class StringBuf {
 			// Non-BMP character - create surrogate pair
 			var high = (c >> 10) + 0xD7C0;
 			var low = (c & 0x3FF) + 0xDC00;
-			untyped __cs__("{0}.Append((char){1}).Append((char){2})", b, high, low);
+			cs.Syntax.code("{0}.Append((char){1}).Append((char){2})", b, high, low);
 		} else {
-			untyped __cs__("{0}.Append((char){1})", b, c);
+			cs.Syntax.code("{0}.Append((char){1})", b, c);
 		}
 	}
 

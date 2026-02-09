@@ -31,13 +31,13 @@ class Lock {
 	var _queue:Dynamic; // BlockingCollection<int>
 
 	public function new() {
-		_queue = untyped __cs__("new System.Collections.Concurrent.BlockingCollection<int>()");
+		_queue = cs.Syntax.code("new System.Collections.Concurrent.BlockingCollection<int>()");
 	}
 
 	public function wait(?timeout:Float):Bool {
 		if (timeout == null) {
 			// Wait indefinitely - Take blocks until an item is available
-			untyped __cs__("((System.Collections.Concurrent.BlockingCollection<int>){0}).Take()", _queue);
+			cs.Syntax.code("((System.Collections.Concurrent.BlockingCollection<int>){0}).Take()", _queue);
 			return true;
 		} else {
 			// Wait with timeout in milliseconds
@@ -46,12 +46,12 @@ class Lock {
 			if (timeoutMs < 0)
 				timeoutMs = 0;
 			// TryTake with out parameter - use inline declaration
-			var result:Bool = untyped __cs__("((System.Collections.Concurrent.BlockingCollection<int>){0}).TryTake(out _, {1})", _queue, timeoutMs);
+			var result:Bool = cs.Syntax.code("((System.Collections.Concurrent.BlockingCollection<int>){0}).TryTake(out _, {1})", _queue, timeoutMs);
 			return result;
 		}
 	}
 
 	public function release():Void {
-		untyped __cs__("((System.Collections.Concurrent.BlockingCollection<int>){0}).Add(0)", _queue);
+		cs.Syntax.code("((System.Collections.Concurrent.BlockingCollection<int>){0}).Add(0)", _queue);
 	}
 }

@@ -70,16 +70,16 @@ class Process {
 			var startInfo = native.StartInfo;
 			// Add -u for each removed var
 			for (key in removedVars.keys()) {
-				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "-u");
-				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, key);
+				cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, "-u");
+				cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, key);
 			}
 			// Add the command - resolve path if needed
 			if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
 				cmd = sys.FileSystem.fullPath(cmd);
-			untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
+			cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, cmd);
 			// Add all arguments
 			for (arg in args) {
-				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, arg);
+				cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, arg);
 			}
 		} else if (args != null) {
 			// Use ArgumentList collection (like JVM/Python) - no escaping needed
@@ -88,7 +88,7 @@ class Process {
 			native.StartInfo.FileName = cmd;
 			var startInfo = native.StartInfo;
 			for (arg in args) {
-				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, arg);
+				cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, arg);
 			}
 		} else {
 			// Shell command - use /bin/sh -c (or cmd.exe /C on Windows)
@@ -102,8 +102,8 @@ class Process {
 				case _:
 					native.StartInfo.FileName = "/bin/sh";
 					var startInfo = native.StartInfo;
-					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "-c");
-					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
+					cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, "-c");
+					cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, cmd);
 			}
 		}
 		return native;

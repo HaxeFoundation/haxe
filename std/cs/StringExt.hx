@@ -27,16 +27,16 @@ class StringExt {
 	public static function fromCharCode(code:Int):String {
 		if (code < 0x10000) {
 			// BMP character - single UTF-16 code unit (direct char cast)
-			return untyped __cs__("((char){0}).ToString()", code);
+			return cs.Syntax.code("((char){0}).ToString()", code);
 		} else if (code < 0x110000) {
 			// Non-BMP character - create surrogate pair
 			var adjusted = code - 0x10000;
 			var high = (adjusted >> 10) + 0xD800;
 			var low = (adjusted & 0x3FF) + 0xDC00;
-			return untyped __cs__("new string(new char[] { (char){0}, (char){1} })", high, low);
+			return cs.Syntax.code("new string(new char[] { (char){0}, (char){1} })", high, low);
 		} else {
 			// Invalid code point - return replacement character
-			return untyped __cs__("\"\\uFFFD\"");
+			return cs.Syntax.code("\"\\uFFFD\"");
 		}
 	}
 
@@ -44,19 +44,19 @@ class StringExt {
 		if (index >= me.length || index < 0)
 			return "";
 		else
-			return untyped __cs__("{0}[{1}].ToString()", me, index);
+			return cs.Syntax.code("{0}[{1}].ToString()", me, index);
 	}
 
 	public static function charCodeAt(me:String, index:Int):Null<Int> {
 		if (index >= me.length || index < 0)
 			return null;
 		else
-			return untyped __cs__("(int){0}[{1}]", me, index);
+			return cs.Syntax.code("(int){0}[{1}]", me, index);
 	}
 
 	// Fast unchecked charCodeAt - used by StringTools.fastCodeAt
 	public static inline function cca(me:String, index:Int):Int {
-		return untyped __cs__("(int){0}[{1}]", me, index);
+		return cs.Syntax.code("(int){0}[{1}]", me, index);
 	}
 
 	public static function indexOf(me:String, str:String, startIndex:Null<Int>):Int {
@@ -67,13 +67,13 @@ class StringExt {
 			return si;
 		}
 		if (startIndex == null)
-			return untyped __cs__("{0}.IndexOf({1}, System.StringComparison.Ordinal)", me, str);
+			return cs.Syntax.code("{0}.IndexOf({1}, System.StringComparison.Ordinal)", me, str);
 		else {
 			var sIndex:Int = startIndex;
 			if (sIndex < 0) sIndex = 0;
 			if (sIndex >= me.length)
 				return -1;
-			return untyped __cs__("{0}.IndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
+			return cs.Syntax.code("{0}.IndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
 		}
 	}
 
@@ -114,7 +114,7 @@ class StringExt {
 			return -1;
 		} else {
 			// Only use native LastIndexOf when no startIndex is provided
-			return untyped __cs__("{0}.LastIndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
+			return cs.Syntax.code("{0}.LastIndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
 		}
 	}
 
@@ -126,11 +126,11 @@ class StringExt {
 			}
 		} else {
 			// Split returns string[], wrap each element into the result array
-			var nativeParts:cs.NativeArray<String> = untyped __cs__("{0}.Split(new string[] { {1} }, System.StringSplitOptions.None)", me, delimiter);
+			var nativeParts:cs.NativeArray<String> = cs.Syntax.code("{0}.Split(new string[] { {1} }, System.StringSplitOptions.None)", me, delimiter);
 			var i = 0;
-			var len:Int = untyped __cs__("{0}.Length", nativeParts);
+			var len:Int = cs.Syntax.code("{0}.Length", nativeParts);
 			while (i < len) {
-				ret.push(untyped __cs__("{0}[{1}]", nativeParts, i));
+				ret.push(cs.Syntax.code("{0}[{1}]", nativeParts, i));
 				i++;
 			}
 		}
@@ -154,7 +154,7 @@ class StringExt {
 		if (pos < 0 || length <= 0) {
 			return "";
 		}
-		return untyped __cs__("{0}.Substring({1}, {2})", me, pos, length);
+		return cs.Syntax.code("{0}.Substring({1}, {2})", me, pos, length);
 	}
 
 	public static function substring(me:String, startIndex:Int, ?endIndex:Int):String {
@@ -175,6 +175,6 @@ class StringExt {
 			startIndex = end;
 			end = tmp;
 		}
-		return untyped __cs__("{0}.Substring({1}, {2})", me, startIndex, end - startIndex);
+		return cs.Syntax.code("{0}.Substring({1}, {2})", me, startIndex, end - startIndex);
 	}
 }

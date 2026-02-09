@@ -32,14 +32,14 @@ class SslSocket extends sys.net.Socket {
 
 		// Connect the underlying TCP socket
 		_socket.Connect(ipStr, port);
-		var connected:Bool = untyped __cs__("{0}.Connected", _socket);
+		var connected:Bool = cs.Syntax.code("{0}.Connected", _socket);
 		if (!connected) {
 			throw "Connection failed.";
 		}
 
 		// Wrap with NetworkStream, then SslStream, authenticate, and return as Stream
 		// Using lambda to get proper typing in generated C#
-		var sslStream:cs.system.io.Stream = untyped __cs__("((System.Func<System.IO.Stream>)(() => { var ns = new System.Net.Sockets.NetworkStream({0}); var ssl = new System.Net.Security.SslStream(ns, false); ssl.AuthenticateAsClient({1}); return ssl; }))()", _socket, hostName);
+		var sslStream:cs.system.io.Stream = cs.Syntax.code("((System.Func<System.IO.Stream>)(() => { var ns = new System.Net.Sockets.NetworkStream({0}); var ssl = new System.Net.Security.SslStream(ns, false); ssl.AuthenticateAsClient({1}); return ssl; }))()", _socket, hostName);
 
 		// Create Haxe I/O from the SSL stream
 		this.input = new cs.io.NativeInput(sslStream);

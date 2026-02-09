@@ -36,7 +36,7 @@ class NativeOutput extends Output {
 
 	override public function writeByte(c:Int):Void {
 		try {
-			untyped __cs__("{0}.WriteByte((byte){1})", stream, c);
+			cs.Syntax.code("{0}.WriteByte((byte){1})", stream, c);
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}
@@ -46,7 +46,7 @@ class NativeOutput extends Output {
 		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw haxe.io.Error.OutsideBounds;
 		try {
-			untyped __cs__("{0}.Write({1}, {2}, {3})", stream, s.getData(), pos, len);
+			cs.Syntax.code("{0}.Write({1}, {2}, {3})", stream, s.getData(), pos, len);
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}

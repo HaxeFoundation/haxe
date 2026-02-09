@@ -28,7 +28,7 @@ class Person implements IGreeter {
 @:analyzer(ignore)
 class Main {
 	static function main() {
-		untyped __cs__("System.Console.WriteLine({0})", "Main.main()");
+		cs.Syntax.code("System.Console.WriteLine({0})", "Main.main()");
 
 		trueValue = true;
 		falseValue = false;
@@ -71,7 +71,7 @@ class Main {
 		CoroutineTests.run();
 		#end
 
-		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
+		cs.Syntax.code("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
 
 	public static var numTests:Int = 0;
@@ -82,7 +82,7 @@ class Main {
 		if (expected != actual) {
 			numFailures++;
 			var line = p != null ? p.lineNumber : 0;
-			untyped __cs__("System.Console.WriteLine({0})", 'FAIL at line $line: expected $expected, got $actual');
+			cs.Syntax.code("System.Console.WriteLine({0})", 'FAIL at line $line: expected $expected, got $actual');
 		}
 	}
 
@@ -2100,7 +2100,7 @@ class CoroutineTests {
 		if (expected != actual) {
 			Main.numFailures++;
 			var line = p != null ? p.lineNumber : 0;
-			untyped __cs__("System.Console.WriteLine({0})", 'FAIL at line $line: expected $expected, got $actual');
+			cs.Syntax.code("System.Console.WriteLine({0})", 'FAIL at line $line: expected $expected, got $actual');
 		}
 	}
 

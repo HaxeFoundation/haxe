@@ -27,18 +27,18 @@ class Mutex {
 	var _lock:Dynamic; // System.Threading.ReaderWriterLockSlim or object for Monitor
 
 	public function new() {
-		_lock = untyped __cs__("new object()");
+		_lock = cs.Syntax.code("new object()");
 	}
 
 	public function tryAcquire():Bool {
-		return untyped __cs__("System.Threading.Monitor.TryEnter({0})", _lock);
+		return cs.Syntax.code("System.Threading.Monitor.TryEnter({0})", _lock);
 	}
 
 	public function acquire():Void {
-		untyped __cs__("System.Threading.Monitor.Enter({0})", _lock);
+		cs.Syntax.code("System.Threading.Monitor.Enter({0})", _lock);
 	}
 
 	public function release():Void {
-		untyped __cs__("System.Threading.Monitor.Exit({0})", _lock);
+		cs.Syntax.code("System.Threading.Monitor.Exit({0})", _lock);
 	}
 }

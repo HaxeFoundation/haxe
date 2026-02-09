@@ -52,7 +52,7 @@ class Type {
 		if (isEnumValue(o))
 			return null;
 		// Return the class - GetType() returns System.Type which is Class<T> in Haxe
-		return untyped __cs__("((object){0}).GetType()", o);
+		return cs.Syntax.code("((object){0}).GetType()", o);
 	}
 
 	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
@@ -62,7 +62,7 @@ class Type {
 		if (!isEnumValue(o))
 			return null;
 		// Get the base type (the enum type is the superclass)
-		return untyped __cs__("((object){0}).GetType().BaseType", o);
+		return cs.Syntax.code("((object){0}).GetType().BaseType", o);
 	}
 
 	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
@@ -72,11 +72,11 @@ class Type {
 		if (c == cast String)
 			return null;
 		// c is System.Type - access BaseType directly
-		var baseType:Class<Dynamic> = untyped __cs__("((System.Type){0}).BaseType", c);
+		var baseType:Class<Dynamic> = cs.Syntax.code("((System.Type){0}).BaseType", c);
 		if (baseType == null)
 			return null;
 		// Don't return System.Object as superclass
-		var baseTypeName:String = untyped __cs__("((System.Type){0}).FullName", baseType);
+		var baseTypeName:String = cs.Syntax.code("((System.Type){0}).FullName", baseType);
 		if (baseTypeName == "System.Object" || baseTypeName == "haxe.lang.HaxeObject")
 			return null;
 		return baseType;
@@ -86,7 +86,7 @@ class Type {
 		if (c == null)
 			return null;
 		// c is already System.Type in C# - access FullName directly
-		var name:String = untyped __cs__("((System.Type){0}).FullName", c);
+		var name:String = cs.Syntax.code("((System.Type){0}).FullName", c);
 		// Remove haxe.root. prefix
 		if (name.indexOf("haxe.root.") == 0)
 			return name.substr(10);
@@ -100,7 +100,7 @@ class Type {
 		if (e == null)
 			return null;
 		// e is already System.Type in C# - access FullName directly
-		var name:String = untyped __cs__("((System.Type){0}).FullName", e);
+		var name:String = cs.Syntax.code("((System.Type){0}).FullName", e);
 		// Remove haxe.root. prefix
 		if (name.indexOf("haxe.root.") == 0)
 			return name.substr(10);
@@ -116,11 +116,11 @@ class Type {
 			return cast String;
 		// Try with haxe.root prefix
 		var fullName = name.indexOf(".") == -1 ? "haxe.root." + name : name;
-		var nativeType:Class<Dynamic> = untyped __cs__("System.Type.GetType({0})", fullName);
+		var nativeType:Class<Dynamic> = cs.Syntax.code("System.Type.GetType({0})", fullName);
 		if (nativeType != null)
 			return nativeType;
 		// Try without prefix
-		nativeType = untyped __cs__("System.Type.GetType({0})", name);
+		nativeType = cs.Syntax.code("System.Type.GetType({0})", name);
 		return nativeType;
 	}
 
@@ -129,8 +129,8 @@ class Type {
 		if (c == null)
 			return null;
 		// Check if it's a Haxe enum (inherits from HaxeEnum) or native C# enum
-		var isHaxeEnum:Bool = untyped __cs__("typeof(global::haxe.lang.HaxeEnum).IsAssignableFrom((System.Type){0})", c);
-		var isNativeEnum:Bool = untyped __cs__("((System.Type){0}).IsEnum", c);
+		var isHaxeEnum:Bool = cs.Syntax.code("typeof(global::haxe.lang.HaxeEnum).IsAssignableFrom((System.Type){0})", c);
+		var isNativeEnum:Bool = cs.Syntax.code("((System.Type){0}).IsEnum", c);
 		if (isHaxeEnum || isNativeEnum)
 			return cast c;
 		return null;
@@ -141,19 +141,19 @@ class Type {
 			return null;
 		var argLen = (args == null) ? 0 : args.length;
 		// Build native args array
-		var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", argLen);
+		var nativeArgs:Dynamic = cs.Syntax.code("new object[{0}]", argLen);
 		for (i in 0...argLen) {
-			untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
+			cs.Syntax.code("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
 		}
 		// Use AOT-safe registry-based factory (falls back to Activator for non-Haxe types)
-		return cast untyped __cs__("global::haxe.lang.HaxeReflection.create((System.Type){0}, (object[]){1})", cl, nativeArgs);
+		return cast cs.Syntax.code("global::haxe.lang.HaxeReflection.create((System.Type){0}, (object[]){1})", cl, nativeArgs);
 	}
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		if (cl == null)
 			return null;
 		// Use AOT-safe registry-based factory (falls back to GetUninitializedObject for non-Haxe types)
-		return cast untyped __cs__("global::haxe.lang.HaxeReflection.createEmpty((System.Type){0})", cl);
+		return cast cs.Syntax.code("global::haxe.lang.HaxeReflection.createEmpty((System.Type){0})", cl);
 	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
@@ -163,7 +163,7 @@ class Type {
 		// Use AOT-safe registry: _hx_getEnumConstructor returns either:
 		// - The singleton enum value directly (for parameterless constructors)
 		// - A ConstructorFunction (for parametric constructors)
-		var constructorOrValue:Dynamic = untyped __cs__("global::haxe.lang.HaxeReflection.getField((System.Type){0}, {1})", e, constr);
+		var constructorOrValue:Dynamic = cs.Syntax.code("global::haxe.lang.HaxeReflection.getField((System.Type){0}, {1})", e, constr);
 		if (constructorOrValue == null)
 			throw "Invalid constructor " + constr;
 
@@ -178,18 +178,18 @@ class Type {
 		} else {
 			// For parametric constructors, get the ConstructorFunction and call create()
 			// Check if result is a ConstructorFunction
-			var isCtorFunc:Bool = untyped __cs__("{0} is global::haxe.lang.ConstructorFunction", constructorOrValue);
+			var isCtorFunc:Bool = cs.Syntax.code("{0} is global::haxe.lang.ConstructorFunction", constructorOrValue);
 			if (!isCtorFunc) {
 				// Parameterless constructor was called with params - this is an error
 				throw "Invalid number of arguments for " + constr;
 			}
 			// Build native args array
 			var paramsArray:Array<Dynamic> = params;
-			var nativeArgs:Dynamic = untyped __cs__("new object[{0}]", paramsArray.length);
+			var nativeArgs:Dynamic = cs.Syntax.code("new object[{0}]", paramsArray.length);
 			for (i in 0...paramsArray.length) {
-				untyped __cs__("((object[]){0})[{1}] = {2}", nativeArgs, i, paramsArray[i]);
+				cs.Syntax.code("((object[]){0})[{1}] = {2}", nativeArgs, i, paramsArray[i]);
 			}
-			return cast untyped __cs__("((global::haxe.lang.ConstructorFunction){0}).create((object[]){1})", constructorOrValue, nativeArgs);
+			return cast cs.Syntax.code("((global::haxe.lang.ConstructorFunction){0}).create((object[]){1})", constructorOrValue, nativeArgs);
 		}
 	}
 
@@ -207,7 +207,7 @@ class Type {
 		var result:Array<String> = [];
 		var current = c;
 		while (current != null) {
-			var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeReflection.getInstanceFieldNames((System.Type){0})", current);
+			var names:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getInstanceFieldNames((System.Type){0})", current);
 			if (names != null) {
 				for (i in 0...names.length) {
 					if (result.indexOf(names[i]) == -1)
@@ -224,7 +224,7 @@ class Type {
 			return [];
 
 		// Try AOT-safe registry first
-		var fieldNames:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeReflection.getClassFieldNames((System.Type){0})", c);
+		var fieldNames:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getClassFieldNames((System.Type){0})", c);
 		if (fieldNames != null) {
 			var result:Array<String> = [];
 			for (i in 0...fieldNames.length) {
@@ -236,20 +236,20 @@ class Type {
 		// Fallback to reflection (works in JIT, may fail in AOT)
 		var result:Array<String> = [];
 		// c is System.Type - get static fields directly
-		var fields:Dynamic = untyped __cs__("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
-		var fieldCount:Int = untyped __cs__("((System.Reflection.FieldInfo[]){0}).Length", fields);
+		var fields:Dynamic = cs.Syntax.code("((System.Type){0}).GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
+		var fieldCount:Int = cs.Syntax.code("((System.Reflection.FieldInfo[]){0}).Length", fields);
 		for (i in 0...fieldCount) {
-			var field:Dynamic = untyped __cs__("((System.Reflection.FieldInfo[]){0})[{1}]", fields, i);
-			var name:String = untyped __cs__("((System.Reflection.FieldInfo){0}).Name", field);
+			var field:Dynamic = cs.Syntax.code("((System.Reflection.FieldInfo[]){0})[{1}]", fields, i);
+			var name:String = cs.Syntax.code("((System.Reflection.FieldInfo){0}).Name", field);
 			if (!StringTools.startsWith(name, "_hx_"))
 				result.push(name);
 		}
 		// Get static properties (C# auto-properties are generated for Haxe static fields)
-		var properties:Dynamic = untyped __cs__("((System.Type){0}).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
-		var propCount:Int = untyped __cs__("((System.Reflection.PropertyInfo[]){0}).Length", properties);
+		var properties:Dynamic = cs.Syntax.code("((System.Type){0}).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
+		var propCount:Int = cs.Syntax.code("((System.Reflection.PropertyInfo[]){0}).Length", properties);
 		for (i in 0...propCount) {
-			var prop:Dynamic = untyped __cs__("((System.Reflection.PropertyInfo[]){0})[{1}]", properties, i);
-			var name:String = untyped __cs__("((System.Reflection.PropertyInfo){0}).Name", prop);
+			var prop:Dynamic = cs.Syntax.code("((System.Reflection.PropertyInfo[]){0})[{1}]", properties, i);
+			var name:String = cs.Syntax.code("((System.Reflection.PropertyInfo){0}).Name", prop);
 			// Skip internal properties
 			if (!StringTools.startsWith(name, "_hx_")) {
 				if (result.indexOf(name) == -1)
@@ -257,11 +257,11 @@ class Type {
 			}
 		}
 		// Get static methods
-		var methods:Dynamic = untyped __cs__("((System.Type){0}).GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
-		var methodCount:Int = untyped __cs__("((System.Reflection.MethodInfo[]){0}).Length", methods);
+		var methods:Dynamic = cs.Syntax.code("((System.Type){0}).GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)", c);
+		var methodCount:Int = cs.Syntax.code("((System.Reflection.MethodInfo[]){0}).Length", methods);
 		for (i in 0...methodCount) {
-			var method:Dynamic = untyped __cs__("((System.Reflection.MethodInfo[]){0})[{1}]", methods, i);
-			var name:String = untyped __cs__("((System.Reflection.MethodInfo){0}).Name", method);
+			var method:Dynamic = cs.Syntax.code("((System.Reflection.MethodInfo[]){0})[{1}]", methods, i);
+			var name:String = cs.Syntax.code("((System.Reflection.MethodInfo){0}).Name", method);
 			if (!StringTools.startsWith(name, "_hx_")) {
 				if (result.indexOf(name) == -1)
 					result.push(name);
@@ -275,7 +275,7 @@ class Type {
 			return [];
 
 		// Try registry first (AOT-safe, correct declaration order)
-		var names:cs.NativeArray<String> = untyped __cs__("global::haxe.lang.HaxeReflection.getEnumConstructs((System.Type){0})", e);
+		var names:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getEnumConstructs((System.Type){0})", e);
 		if (names != null) {
 			var result = new Array<String>();
 			for (i in 0...names.length)
@@ -285,11 +285,11 @@ class Type {
 
 		// Fallback: reflection (may not preserve declaration order in AOT)
 		var result:Array<String> = [];
-		var nestedTypes:Dynamic = untyped __cs__("((System.Type){0}).GetNestedTypes()", e);
-		var nestedCount:Int = untyped __cs__("((System.Type[]){0}).Length", nestedTypes);
+		var nestedTypes:Dynamic = cs.Syntax.code("((System.Type){0}).GetNestedTypes()", e);
+		var nestedCount:Int = cs.Syntax.code("((System.Type[]){0}).Length", nestedTypes);
 		for (i in 0...nestedCount) {
-			var nested:Dynamic = untyped __cs__("((System.Type[]){0})[{1}]", nestedTypes, i);
-			var name:String = untyped __cs__("((System.Type){0}).Name", nested);
+			var nested:Dynamic = cs.Syntax.code("((System.Type[]){0})[{1}]", nestedTypes, i);
+			var name:String = cs.Syntax.code("((System.Type){0}).Name", nested);
 			// Strip _Impl_ suffix for singleton enum constructors
 			if (StringTools.endsWith(name, "_Impl_")) {
 				name = name.substr(0, name.length - 6);
@@ -309,7 +309,7 @@ class Type {
 		if (Std.isOfType(v, Int))
 			return TInt;
 		// Check for Int64 (before Float, since Float's isOfType returns true for long)
-		if (untyped __cs__("{0} is long", v))
+		if (cs.Syntax.code("{0} is long", v))
 			return TInt64;
 		// Check for float
 		if (Std.isOfType(v, Float))
@@ -317,7 +317,7 @@ class Type {
 		// Check for functions
 		if (Std.isOfType(v, HaxeFunction))
 			return TFunction;
-		if (untyped __cs__("{0} is System.Delegate", v))
+		if (cs.Syntax.code("{0} is System.Delegate", v))
 			return TFunction;
 		// Check for dynamic objects (anonymous)
 		if (Std.isOfType(v, HaxeDynamicObject))
@@ -332,7 +332,7 @@ class Type {
 		if (c != null)
 			return TClass(c);
 		// Check if v is a System.Type (class or enum type object)
-		if (untyped __cs__("{0} is System.Type", v))
+		if (cs.Syntax.code("{0} is System.Type", v))
 			return TObject;
 		return TUnknown;
 	}
@@ -367,14 +367,14 @@ class Type {
 		if (isEnumValue(a) && isEnumValue(b))
 			return enumEq(cast a, cast b);
 		// Use Equals for value comparison (== on boxed primitives does reference comparison)
-		return untyped __cs__("System.Object.Equals({0}, {1})", a, b);
+		return cs.Syntax.code("System.Object.Equals({0}, {1})", a, b);
 	}
 
 	public static function enumConstructor(e:EnumValue):String {
 		if (e == null)
 			return null;
 		// Get the class name which is the constructor name
-		var name:String = untyped __cs__("((object){0}).GetType().Name", e);
+		var name:String = cs.Syntax.code("((object){0}).GetType().Name", e);
 		// Strip _Impl_ suffix for singleton enum constructors
 		if (StringTools.endsWith(name, "_Impl_")) {
 			return name.substr(0, name.length - 6);
@@ -386,8 +386,8 @@ class Type {
 		if (e == null)
 			return [];
 		// Use HaxeEnum base class for AOT-safe parameter access
-		if (untyped __cs__("{0} is global::haxe.lang.HaxeEnum", e)) {
-			var params:cs.NativeArray<Dynamic> = untyped __cs__("((global::haxe.lang.HaxeEnum){0})._hx_getParameters()", e);
+		if (cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", e)) {
+			var params:cs.NativeArray<Dynamic> = cs.Syntax.code("((global::haxe.lang.HaxeEnum){0})._hx_getParameters()", e);
 			var result:Array<Dynamic> = [];
 			for (i in 0...params.length) {
 				result.push(params[i]);
@@ -402,16 +402,16 @@ class Type {
 		if (e == null)
 			return -1;
 		// Use HaxeEnum base class for AOT-safe enum index access
-		if (untyped __cs__("{0} is global::haxe.lang.HaxeEnum", e)) {
-			return untyped __cs__("((global::haxe.lang.HaxeEnum){0})._hx_getIndex()", e);
+		if (cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", e)) {
+			return cs.Syntax.code("((global::haxe.lang.HaxeEnum){0})._hx_getIndex()", e);
 		}
 		// Fallback: reflection for non-Haxe enums
-		var nativeType:Dynamic = untyped __cs__("((object){0}).GetType()", e);
-		var indexField:Dynamic = untyped __cs__(
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", e);
+		var indexField:Dynamic = cs.Syntax.code(
 			"((System.Type){0}).GetField(\"_hx_index\", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)",
 			nativeType);
 		if (indexField != null) {
-			return untyped __cs__("(int)((System.Reflection.FieldInfo){0}).GetValue({1})", indexField, e);
+			return cs.Syntax.code("(int)((System.Reflection.FieldInfo){0}).GetValue({1})", indexField, e);
 		}
 		return 0;
 	}
@@ -434,6 +434,6 @@ class Type {
 		if (v == null)
 			return false;
 		// AOT-safe: check if object is an instance of HaxeEnum base class
-		return untyped __cs__("{0} is global::haxe.lang.HaxeEnum", v);
+		return cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", v);
 	}
 }

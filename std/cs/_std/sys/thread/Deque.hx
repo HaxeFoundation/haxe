@@ -28,12 +28,12 @@ class Deque<T> {
 	var _semaphore:cs.system.threading.SemaphoreSlim;
 
 	public function new() {
-		_queue = untyped __cs__("new System.Collections.Concurrent.ConcurrentQueue<object>()");
+		_queue = cs.Syntax.code("new System.Collections.Concurrent.ConcurrentQueue<object>()");
 		_semaphore = new cs.system.threading.SemaphoreSlim(0, 2147483647);
 	}
 
 	public function add(i:T):Void {
-		untyped __cs__("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).Enqueue({1})", _queue, i);
+		cs.Syntax.code("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).Enqueue({1})", _queue, i);
 		_semaphore.Release();
 	}
 
@@ -48,13 +48,13 @@ class Deque<T> {
 			// Wait for an item
 			_semaphore.Wait();
 			var result:Dynamic = null;
-			untyped __cs__("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).TryDequeue(out {1})", _queue, result);
+			cs.Syntax.code("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).TryDequeue(out {1})", _queue, result);
 			return cast result;
 		} else {
 			// Try to get without blocking
 			if (_semaphore.Wait(0)) {
 				var result:Dynamic = null;
-				untyped __cs__("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).TryDequeue(out {1})", _queue, result);
+				cs.Syntax.code("((System.Collections.Concurrent.ConcurrentQueue<object>){0}).TryDequeue(out {1})", _queue, result);
 				return cast result;
 			}
 			return null;

@@ -32,7 +32,7 @@ private typedef __Int64 = cs.Int64;
 @:transitive
 abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function make(high:Int32, low:Int32):Int64
-		return new Int64(untyped __cs__("((long)((long){0} << 32 | (long)(uint){1}))", high, low));
+		return new Int64(cs.Syntax.code("((long)((long){0} << 32 | (long)(uint){1}))", high, low));
 
 	private inline function new(x:__Int64)
 		this = x;
@@ -63,10 +63,10 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool
-		return untyped __cs__("{0} is long", val);
+		return cs.Syntax.code("{0} is long", val);
 
 	inline public static function isInt64(val:Dynamic):Bool
-		return untyped __cs__("{0} is long", val);
+		return cs.Syntax.code("{0} is long", val);
 
 	public static inline function toInt(x:Int64):Int {
 		if (x.val < cast(-0x80000000 : Int) || x.val > 0x7FFFFFFF)

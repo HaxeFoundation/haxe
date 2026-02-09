@@ -43,15 +43,15 @@ class FileOutput extends Output {
 	}
 
 	override public function writeByte(c:Int):Void {
-		untyped __cs__("{0}.WriteByte((byte){1})", stream, c);
+		cs.Syntax.code("{0}.WriteByte((byte){1})", stream, c);
 	}
 
 	override public function write(s:Bytes):Void {
-		untyped __cs__("{0}.Write({1}, 0, {2})", stream, s.getData(), s.length);
+		cs.Syntax.code("{0}.Write({1}, 0, {2})", stream, s.getData(), s.length);
 	}
 
 	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
-		untyped __cs__("{0}.Write({1}, {2}, {3})", stream, s.getData(), pos, len);
+		cs.Syntax.code("{0}.Write({1}, {2}, {3})", stream, s.getData(), pos, len);
 		return len;
 	}
 
@@ -62,11 +62,11 @@ class FileOutput extends Output {
 			case SeekCur: 1; // SeekOrigin.Current
 			case SeekEnd: 2; // SeekOrigin.End
 		};
-		untyped __cs__("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
+		cs.Syntax.code("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
 	}
 
 	public function tell():Int {
-		return untyped __cs__("(int){0}.Position", stream);
+		return cs.Syntax.code("(int){0}.Position", stream);
 	}
 
 	override public function flush():Void {

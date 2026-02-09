@@ -38,18 +38,18 @@ import cs.system.reflection.Assembly;
 		var str = Std.string(v);
 		// On Windows, Console.Write doesn't translate embedded \n to \r\n,
 		// causing staircase output in some terminals. Normalize to Environment.NewLine.
-		var nl:String = untyped __cs__("System.Environment.NewLine");
+		var nl:String = cs.Syntax.code("System.Environment.NewLine");
 		if (nl != "\n") {
-			str = untyped __cs__("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
+			str = cs.Syntax.code("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
 		}
 		Console.Write(str);
 	}
 
 	public static function println(v:Dynamic):Void {
 		var str = Std.string(v);
-		var nl:String = untyped __cs__("System.Environment.NewLine");
+		var nl:String = cs.Syntax.code("System.Environment.NewLine");
 		if (nl != "\n") {
-			str = untyped __cs__("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
+			str = cs.Syntax.code("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
 		}
 		Console.WriteLine(str);
 	}
@@ -91,7 +91,7 @@ import cs.system.reflection.Assembly;
 		var env = new haxe.ds.StringMap<String>();
 		var dict = Environment.GetEnvironmentVariables();
 		// Use __cs__ foreach to avoid Dynamic property access issues with IDictionaryEnumerator
-		untyped __cs__("foreach (System.Collections.DictionaryEntry entry in {0}) {
+		cs.Syntax.code("foreach (System.Collections.DictionaryEntry entry in {0}) {
 			{1}.set((string)entry.Key, (string)entry.Value);
 		}", dict, env);
 		return env;
@@ -127,7 +127,7 @@ import cs.system.reflection.Assembly;
 		if (platformStr == "Xbox")
 			return _sysName = "Xbox";
 		// For numeric comparison (PlatformID: Win32NT=2, Unix=4, MacOSX=6)
-		var platformId:Int = untyped __cs__("(int){0}", platform);
+		var platformId:Int = cs.Syntax.code("(int){0}", platform);
 		if (platformId == 4 || platformId == 6 || platformId == 128)
 			return _sysName = "Linux";
 		return _sysName = "Windows";
@@ -143,7 +143,7 @@ import cs.system.reflection.Assembly;
 			process.StartInfo.FileName = cmd;
 			var startInfo = process.StartInfo;
 			for (arg in args) {
-				untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, arg);
+				cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, arg);
 			}
 		} else {
 			// Shell command - use /bin/sh -c (or cmd.exe /C on Windows)
@@ -154,13 +154,13 @@ import cs.system.reflection.Assembly;
 						case comspec: comspec;
 					};
 					var startInfo = process.StartInfo;
-					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "/C");
-					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
+					cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, "/C");
+					cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, cmd);
 				case _:
 					process.StartInfo.FileName = "/bin/sh";
 					var startInfo = process.StartInfo;
-					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, "-c");
-					untyped __cs__("{0}.ArgumentList.Add({1})", startInfo, cmd);
+					cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, "-c");
+					cs.Syntax.code("{0}.ArgumentList.Add({1})", startInfo, cmd);
 			}
 		}
 		process.Start();
@@ -196,9 +196,9 @@ import cs.system.reflection.Assembly;
 
 	public static function time():Float {
 		// Use __cs__ for reliable Int64 to Float conversion
-		var ticks:Float = untyped __cs__("(double){0}", DateTime.UtcNow.Ticks);
-		var epoch:Float = untyped __cs__("(double){0}", epochTicks);
-		var ticksPerSecond:Float = untyped __cs__("(double){0}", TimeSpan.TicksPerSecond);
+		var ticks:Float = cs.Syntax.code("(double){0}", DateTime.UtcNow.Ticks);
+		var epoch:Float = cs.Syntax.code("(double){0}", epochTicks);
+		var ticksPerSecond:Float = cs.Syntax.code("(double){0}", TimeSpan.TicksPerSecond);
 		return (ticks - epoch) / ticksPerSecond;
 	}
 
@@ -214,7 +214,7 @@ import cs.system.reflection.Assembly;
 	public static function programPath():String {
 		// Try multiple approaches for AOT compatibility
 		// 1. Environment.ProcessPath (.NET 6+ only, not in .NET Standard 2.1)
-		var path:String = untyped __cs__("
+		var path:String = cs.Syntax.code("
 #if !NETSTANDARD
 			System.Environment.ProcessPath
 #else
@@ -223,7 +223,7 @@ import cs.system.reflection.Assembly;
 		");
 		if (path == null || path == "") {
 			// 2. Process.MainModule.FileName (more reliable for AOT)
-			path = untyped __cs__("System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName");
+			path = cs.Syntax.code("System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName");
 		}
 		if (path == null || path == "") {
 			// 3. Assembly.Location (fallback for non-AOT)

@@ -35,37 +35,37 @@ class Std {
 			return false;
 		}
 		// Dynamic (typeof(object)) - everything matches
-		var isDynamic:Bool = untyped __cs__("{0} is System.Type typeObj1 && typeObj1 == typeof(object)", t);
+		var isDynamic:Bool = cs.Syntax.code("{0} is System.Type typeObj1 && typeObj1 == typeof(object)", t);
 		if (isDynamic) {
 			return true;
 		}
 		// Special case: Haxe says Int is also Float (any numeric is a Float)
-		var isFloat:Bool = untyped __cs__("{0} is System.Type typeObj2 && typeObj2 == typeof(double)", t);
+		var isFloat:Bool = cs.Syntax.code("{0} is System.Type typeObj2 && typeObj2 == typeof(double)", t);
 		if (isFloat) {
-			var isNum:Bool = untyped __cs__("{0} is int || {0} is double || {0} is float || {0} is long", v);
+			var isNum:Bool = cs.Syntax.code("{0} is int || {0} is double || {0} is float || {0} is long", v);
 			if (isNum) return true;
 		}
 		// Special case: Int - a double/float that represents a whole number is also an Int
-		var isInt:Bool = untyped __cs__("{0} is System.Type typeObj3 && typeObj3 == typeof(int)", t);
+		var isInt:Bool = cs.Syntax.code("{0} is System.Type typeObj3 && typeObj3 == typeof(int)", t);
 		if (isInt) {
 			// Native int/uint types are always Int
-			var isNativeInt:Bool = untyped __cs__("{0} is int || {0} is uint", v);
+			var isNativeInt:Bool = cs.Syntax.code("{0} is int || {0} is uint", v);
 			if (isNativeInt) return true;
 			// Check if double value is a whole number within Int32 range
-			var isIntegralDouble:Bool = untyped __cs__("{0} is double d && d >= int.MinValue && d <= int.MaxValue && d == (int)d", v);
+			var isIntegralDouble:Bool = cs.Syntax.code("{0} is double d && d >= int.MinValue && d <= int.MaxValue && d == (int)d", v);
 			if (isIntegralDouble) return true;
 			// Check if float value is a whole number within Int32 range
-			var isIntegralFloat:Bool = untyped __cs__("{0} is float f && f >= int.MinValue && f <= int.MaxValue && f == (int)f", v);
+			var isIntegralFloat:Bool = cs.Syntax.code("{0} is float f && f >= int.MinValue && f <= int.MaxValue && f == (int)f", v);
 			if (isIntegralFloat) return true;
 		}
 		// Class (typeof(System.Type)) - check if v is a class reference
-		var isClassType:Bool = untyped __cs__("{0} is System.Type typeObj4 && typeObj4 == typeof(System.Type)", t);
+		var isClassType:Bool = cs.Syntax.code("{0} is System.Type typeObj4 && typeObj4 == typeof(System.Type)", t);
 		if (isClassType) {
-			return untyped __cs__("{0} is System.Type", v);
+			return cs.Syntax.code("{0} is System.Type", v);
 		}
 		// t should be a System.Type (from typeof())
 		// Use C# reflection to check if v is an instance of that type
-		return untyped __cs__("{0} is System.Type typeObj && typeObj.IsInstanceOfType({1})", t, v);
+		return cs.Syntax.code("{0} is System.Type typeObj && typeObj.IsInstanceOfType({1})", t, v);
 	}
 
 	public static function string(s:Dynamic):String {
@@ -181,7 +181,7 @@ class Std {
 		}
 		if (x.length == 0)
 			return Math.NaN;
-		return untyped __cs__("double.TryParse({0}, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result) ? result : double.NaN", x);
+		return cs.Syntax.code("double.TryParse({0}, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result) ? result : double.NaN", x);
 	}
 
 	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {

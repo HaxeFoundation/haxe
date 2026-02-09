@@ -60,7 +60,7 @@ class Cs {
 		}
 
 		// Otherwise, try to use C# reflection to invoke the delegate
-		return untyped __cs__("haxe.lang.Runtime.invokeFunction({0}, {1})", func, args);
+		return cs.Syntax.code("haxe.lang.Runtime.invokeFunction({0}, {1})", func, args);
 	}
 
 	/**
@@ -73,7 +73,7 @@ class Cs {
 			return 0;
 		if (Std.isOfType(d, Int))
 			return cast d;
-		return untyped __cs__("System.Convert.ToInt32({0})", d);
+		return cs.Syntax.code("System.Convert.ToInt32({0})", d);
 	}
 
 	/**
@@ -86,7 +86,7 @@ class Cs {
 			return 0.0;
 		if (Std.isOfType(d, Float))
 			return cast d;
-		return untyped __cs__("System.Convert.ToDouble({0})", d);
+		return cs.Syntax.code("System.Convert.ToDouble({0})", d);
 	}
 
 	/**
@@ -99,7 +99,7 @@ class Cs {
 			return false;
 		if (Std.isOfType(d, Bool))
 			return cast d;
-		return untyped __cs__("System.Convert.ToBoolean({0})", d);
+		return cs.Syntax.code("System.Convert.ToBoolean({0})", d);
 	}
 
 	/**
@@ -112,36 +112,36 @@ class Cs {
 			return "null";
 		}
 		// Handle bool specially for Haxe compatibility (lowercase "true"/"false")
-		if (untyped __cs__("{0} is bool", obj)) {
-			return untyped __cs__("((bool){0}) ? \"true\" : \"false\"", obj);
+		if (cs.Syntax.code("{0} is bool", obj)) {
+			return cs.Syntax.code("((bool){0}) ? \"true\" : \"false\"", obj);
 		}
 		// Handle floats/doubles with invariant culture to ensure '.' decimal separator
-		if (untyped __cs__("{0} is double", obj)) {
-			return untyped __cs__("((double){0}).ToString(System.Globalization.CultureInfo.InvariantCulture)", obj);
+		if (cs.Syntax.code("{0} is double", obj)) {
+			return cs.Syntax.code("((double){0}).ToString(System.Globalization.CultureInfo.InvariantCulture)", obj);
 		}
-		if (untyped __cs__("{0} is float", obj)) {
-			return untyped __cs__("((float){0}).ToString(System.Globalization.CultureInfo.InvariantCulture)", obj);
+		if (cs.Syntax.code("{0} is float", obj)) {
+			return cs.Syntax.code("((float){0}).ToString(System.Globalization.CultureInfo.InvariantCulture)", obj);
 		}
 		// For HaxeObject instances, call the virtual toString() method directly
 		// This handles Array, custom classes with toString(), etc. via dynamic dispatch
-		if (untyped __cs__("{0} is global::haxe.lang.HaxeObject hxObj", obj)) {
-			return untyped __cs__("hxObj.toString()");
+		if (cs.Syntax.code("{0} is global::haxe.lang.HaxeObject hxObj", obj)) {
+			return cs.Syntax.code("hxObj.toString()");
 		}
-		return untyped __cs__("{0}.ToString()", obj);
+		return cs.Syntax.code("{0}.ToString()", obj);
 	}
 
 	/**
 	 * Parse a string to integer with the given radix.
 	 */
 	public static function parseInt(s:String, radix:Int):Int {
-		return untyped __cs__("int.Parse({0}, {1} == 16 ? System.Globalization.NumberStyles.HexNumber : System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture)", s, radix);
+		return cs.Syntax.code("int.Parse({0}, {1} == 16 ? System.Globalization.NumberStyles.HexNumber : System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture)", s, radix);
 	}
 
 	/**
 	 * Parse a string to floating point number.
 	 */
 	public static function parseFloat(s:String):Float {
-		return untyped __cs__("double.Parse({0}, System.Globalization.CultureInfo.InvariantCulture)", s);
+		return cs.Syntax.code("double.Parse({0}, System.Globalization.CultureInfo.InvariantCulture)", s);
 	}
 
 	/**
@@ -150,10 +150,10 @@ class Cs {
 	public static function trace(v:Dynamic, ?infos:haxe.PosInfos):Void {
 		var str = toString(v);
 		if (infos != null) {
-			str = untyped __cs__("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
-				+ untyped __cs__("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
+			str = cs.Syntax.code("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"fileName\")", infos) + ":"
+				+ cs.Syntax.code("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", infos) + ": " + str;
 		}
-		untyped __cs__("System.Console.WriteLine({0})", str);
+		cs.Syntax.code("System.Console.WriteLine({0})", str);
 	}
 
 	private static var _random:Dynamic = null;
@@ -163,9 +163,9 @@ class Cs {
 	 */
 	public static function random():Float {
 		if (_random == null) {
-			_random = untyped __cs__("new System.Random()");
+			_random = cs.Syntax.code("new System.Random()");
 		}
-		return untyped __cs__("((System.Random){0}).NextDouble()", _random);
+		return cs.Syntax.code("((System.Random){0}).NextDouble()", _random);
 	}
 
 	// =====================================================================
@@ -263,7 +263,7 @@ class Cs {
 	 * Dynamic unsigned right shift.
 	 */
 	public static function opUshr(a:Dynamic, b:Dynamic):Dynamic {
-		return untyped __cs__("(int)((uint){0} >> {1})", dynamicToInt(a), dynamicToInt(b));
+		return cs.Syntax.code("(int)((uint){0} >> {1})", dynamicToInt(a), dynamicToInt(b));
 	}
 
 	/**
@@ -320,7 +320,7 @@ class Cs {
 		if (v2 == null) {
 			return -1;
 		}
-		return untyped __cs__("string.Compare({0}, {1}, System.StringComparison.Ordinal)", v1, v2);
+		return cs.Syntax.code("string.Compare({0}, {1}, System.StringComparison.Ordinal)", v1, v2);
 	}
 
 	/**
@@ -342,8 +342,8 @@ class Cs {
 			throw "Cannot index null";
 		}
 		// Try as native C# array first
-		if (untyped __cs__("{0} is System.Array", obj)) {
-			return untyped __cs__("((System.Array){0}).GetValue({1})", obj, index);
+		if (cs.Syntax.code("{0} is System.Array", obj)) {
+			return cs.Syntax.code("((System.Array){0}).GetValue({1})", obj, index);
 		}
 		// Try as Haxe Array
 		if (Std.isOfType(obj, Array)) {
@@ -361,8 +361,8 @@ class Cs {
 			throw "Cannot index null";
 		}
 		// Try as native C# array first
-		if (untyped __cs__("{0} is System.Array", obj)) {
-			untyped __cs__("((System.Array){0}).SetValue({1}, {2})", obj, value, index);
+		if (cs.Syntax.code("{0} is System.Array", obj)) {
+			cs.Syntax.code("((System.Array){0}).SetValue({1}, {2})", obj, value, index);
 			return value;
 		}
 		// Try as Haxe Array

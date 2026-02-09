@@ -941,6 +941,11 @@ let generate_single_arg ectx cs_expr_of_texpr arg expected_type =
 			   Skip coercion to avoid wrapping with Runtime.toInt/etc. which would
 			   change the type (e.g., RegexOptions → int via Runtime.toInt). *)
 			cs_arg
+		| TCall ({ eexpr = TField (_, FStatic ({ cl_path = (["cs"], "Syntax") }, cf)) }, _)
+			when cf.cf_name = "code" || cf.cf_name = "plainCode" ->
+			(* Same as __cs__: inline C# code from cs.Syntax.code()/plainCode() already
+			   has the correct C# type. Skip coercion. *)
+			cs_arg
 		| TLocal v ->
 			let var_cs_type = cs_type_of_type ectx.gctx v.v_type in
 			(* Check if original var type differs from expected and requires cast *)

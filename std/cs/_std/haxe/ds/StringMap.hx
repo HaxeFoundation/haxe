@@ -31,12 +31,12 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	}
 
 	public function set(key:String, value:T):Void {
-		untyped __cs__("{0}[{1}] = {2}", dict, key, value);
+		cs.Syntax.code("{0}[{1}] = {2}", dict, key, value);
 	}
 
 	public function get(key:String):Null<T> {
-		if (untyped __cs__("{0}.TryGetValue({1}, out var _hx_tmp)", dict, key)) {
-			return untyped __cs__("_hx_tmp");
+		if (cs.Syntax.code("{0}.TryGetValue({1}, out var _hx_tmp)", dict, key)) {
+			return cs.Syntax.code("_hx_tmp");
 		}
 		return null;
 	}
@@ -51,9 +51,9 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public function keys():Iterator<String> {
 		var keyArray = new Array<String>();
-		var count:Int = untyped __cs__("{0}.Keys.Count", dict);
+		var count:Int = cs.Syntax.code("{0}.Keys.Count", dict);
 		var keysArr = new cs.NativeArray<String>(count);
-		untyped __cs__("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
+		cs.Syntax.code("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
 		var i = 0;
 		while (i < count) {
 			keyArray.push(keysArr[i]);
@@ -68,9 +68,9 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public function iterator():Iterator<T> {
 		var valueArray = new Array<T>();
-		var count:Int = untyped __cs__("{0}.Values.Count", dict);
+		var count:Int = cs.Syntax.code("{0}.Values.Count", dict);
 		var valuesArr = new cs.NativeArray<T>(count);
-		untyped __cs__("{0}.Values.CopyTo({1}, 0)", dict, valuesArr);
+		cs.Syntax.code("{0}.Values.CopyTo({1}, 0)", dict, valuesArr);
 		var i = 0;
 		while (i < count) {
 			valueArray.push(valuesArr[i]);
@@ -81,14 +81,14 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 
 	public function copy():StringMap<T> {
 		var copied = new StringMap<T>();
-		var count:Int = untyped __cs__("{0}.Keys.Count", dict);
+		var count:Int = cs.Syntax.code("{0}.Keys.Count", dict);
 		var keysArr = new cs.NativeArray<String>(count);
-		untyped __cs__("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
+		cs.Syntax.code("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
 		var i = 0;
 		while (i < count) {
 			var key = keysArr[i];
-			var val:T = untyped __cs__("{0}[{1}]", dict, key);
-			untyped __cs__("{0}[{1}] = {2}", copied.dict, key, val);
+			var val:T = cs.Syntax.code("{0}[{1}]", dict, key);
+			cs.Syntax.code("{0}[{1}] = {2}", copied.dict, key, val);
 			i++;
 		}
 		return copied;
@@ -98,16 +98,16 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		var s = new StringBuf();
 		s.add("[");
 		var first = true;
-		var count:Int = untyped __cs__("{0}.Keys.Count", dict);
+		var count:Int = cs.Syntax.code("{0}.Keys.Count", dict);
 		var keysArr = new cs.NativeArray<String>(count);
-		untyped __cs__("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
+		cs.Syntax.code("{0}.Keys.CopyTo({1}, 0)", dict, keysArr);
 		var i = 0;
 		while (i < count) {
 			if (!first)
 				s.add(", ");
 			first = false;
 			var key = keysArr[i];
-			var val:T = untyped __cs__("{0}[{1}]", dict, key);
+			var val:T = cs.Syntax.code("{0}[{1}]", dict, key);
 			s.add(key);
 			s.add(" => ");
 			s.add(Std.string(val));

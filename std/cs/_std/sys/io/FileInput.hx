@@ -55,7 +55,7 @@ class FileInput extends Input {
 	}
 
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
-		var ret:Int = untyped __cs__("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
+		var ret:Int = cs.Syntax.code("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
 		if (ret == 0) {
 			_eof = true;
 			throw new Eof();
@@ -71,11 +71,11 @@ class FileInput extends Input {
 			case SeekCur: 1; // SeekOrigin.Current
 			case SeekEnd: 2; // SeekOrigin.End
 		};
-		untyped __cs__("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
+		cs.Syntax.code("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
 	}
 
 	public function tell():Int {
-		return untyped __cs__("(int){0}.Position", stream);
+		return cs.Syntax.code("(int){0}.Position", stream);
 	}
 
 	public inline function eof():Bool {

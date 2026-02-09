@@ -31,12 +31,12 @@ class Log {
 		// Null<object> is stripped to just 'object' since object is inherently nullable.
 		// So 'infos' is directly the HaxeDynamicObject, no .value unwrapping needed.
 		var dynInfos:Dynamic = infos;
-		var fileName:String = untyped __cs__("(string)((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"fileName\")", dynInfos);
-		var lineNumber:Dynamic = untyped __cs__("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", dynInfos);
+		var fileName:String = cs.Syntax.code("(string)((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"fileName\")", dynInfos);
+		var lineNumber:Dynamic = cs.Syntax.code("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"lineNumber\")", dynInfos);
 		var pstr = fileName + ":" + Std.string(lineNumber);
-		var customParams:Dynamic = untyped __cs__("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"customParams\")", dynInfos);
+		var customParams:Dynamic = cs.Syntax.code("((haxe.lang.HaxeDynamicObject){0})._hx_getField(\"customParams\")", dynInfos);
 		if (customParams != null) {
-			var arr:Array<Dynamic> = untyped __cs__("(haxe.root.Array){0}", customParams);
+			var arr:Array<Dynamic> = cs.Syntax.code("(haxe.root.Array){0}", customParams);
 			for (item in arr)
 				str += ", " + Std.string(item);
 		}

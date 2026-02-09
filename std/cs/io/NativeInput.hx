@@ -51,7 +51,7 @@ class NativeInput extends Input {
 			throw haxe.io.Error.OutsideBounds;
 		var ret:Int = 0;
 		try {
-			ret = untyped __cs__("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
+			ret = cs.Syntax.code("{0}.Read({1}, {2}, {3})", stream, s.getData(), pos, len);
 		} catch (e:Dynamic) {
 			throw haxe.io.Error.Custom(e);
 		}

@@ -1181,13 +1181,13 @@ private enum abstract ArrayType(Int) {
 			switch (__arrayType) {
 				case TInt:
 					__ensureIntCapacity(idx);
-					__intArray[idx] = untyped __cs__("haxe.lang.Runtime.toInt({0})", v);
+					__intArray[idx] = cs.Syntax.code("haxe.lang.Runtime.toInt({0})", v);
 				case TFloat:
 					__ensureFloatCapacity(idx);
-					__floatArray[idx] = untyped __cs__("haxe.lang.Runtime.toDouble({0})", v);
+					__floatArray[idx] = cs.Syntax.code("haxe.lang.Runtime.toDouble({0})", v);
 				case TBool:
 					__ensureBoolCapacity(idx);
-					__boolArray[idx] = untyped __cs__("haxe.lang.Runtime.toBool({0})", v);
+					__boolArray[idx] = cs.Syntax.code("haxe.lang.Runtime.toBool({0})", v);
 				case TObject:
 					__ensureObjectCapacity(idx);
 					__objectArray[idx] = v;
@@ -1221,13 +1221,13 @@ private enum abstract ArrayType(Int) {
 			switch (__arrayType) {
 				case TInt:
 					__ensureIntCapacity(length);
-					__intArray[length] = untyped __cs__("haxe.lang.Runtime.toInt({0})", v);
+					__intArray[length] = cs.Syntax.code("haxe.lang.Runtime.toInt({0})", v);
 				case TFloat:
 					__ensureFloatCapacity(length);
-					__floatArray[length] = untyped __cs__("haxe.lang.Runtime.toDouble({0})", v);
+					__floatArray[length] = cs.Syntax.code("haxe.lang.Runtime.toDouble({0})", v);
 				case TBool:
 					__ensureBoolCapacity(length);
-					__boolArray[length] = untyped __cs__("haxe.lang.Runtime.toBool({0})", v);
+					__boolArray[length] = cs.Syntax.code("haxe.lang.Runtime.toBool({0})", v);
 				case TObject:
 					__ensureObjectCapacity(length);
 					__objectArray[length] = v;
