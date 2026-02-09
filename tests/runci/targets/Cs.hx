@@ -182,6 +182,8 @@ class Cs {
 		runAotTest();
 
 		// === Coroutine Tests (hxcoro) ===
+		if (!sys.FileSystem.exists(partyDir))
+			sys.FileSystem.createDirectory(partyDir);
 		changeDirectory(partyDir);
 		if (!sys.FileSystem.exists("hxcoro")) {
 			runCommand("git", ["clone", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);

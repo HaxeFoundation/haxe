@@ -7109,7 +7109,7 @@ let generate_explicit_interface_impls gctx c cf =
 				if int_cs_type = impl_cs_type then
 					arg_ref  (* Same type, no cast needed *)
 				else
-					CsCast (impl_cs_type, arg_ref)  (* Cast from interface type to impl type *)
+					cast_object_to_type impl_cs_type arg_ref  (* Cast from interface type to impl type *)
 			) int_args impl_args in
 			let callee = CsField (CsThis, escape_identifier cf.cf_name) in
 			let call_expr =
@@ -7179,15 +7179,12 @@ let generate_explicit_interface_impls gctx c cf =
 			(* Generate setter body *)
 			let setter = if has_setter && (impl_write = AccNormal || impl_write = AccCall) then
 				let value_expr = match impl_is_null, int_is_null with
-					| true, false ->
-						(* Impl is Null<T>, interface passes T - use new Null<T>(value, true) *)
-						CsNew (impl_cs_type, [CsLocal "value"; CsConst (CsConstBool true)])
 					| false, true ->
 						(* Impl is T, interface passes Null<T> - use .value to unwrap *)
 						CsField (CsLocal "value", "value")
 					| _ ->
-						(* Same wrapper status - just cast *)
-						CsCast (impl_cs_type, CsLocal "value")
+						(* Cast from interface type to impl type *)
+						cast_object_to_type impl_cs_type (CsLocal "value")
 				in
 				Some {
 					acc_access = None;
