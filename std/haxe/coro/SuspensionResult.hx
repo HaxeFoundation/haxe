@@ -7,7 +7,7 @@ import haxe.Exception;
 **/
 class SuspensionResult<T> {
 
-	static public final suspended = new SuspensionResult(Pending);
+	static public final suspended = new SuspensionResult<Any>(Pending);
 
 	/**
 		Creates a new instance with the given `state`.
@@ -24,12 +24,12 @@ class SuspensionResult<T> {
 	/**
 		The result value of the coroutine, if any.
 	**/
-	public var result:T;
+	public var result:Null<T>;
 
 	/**
 		The error value of the coroutine, is any.
 	**/
-	public var error:Exception;
+	public var error:Null<Exception>;
 
 	public function toString() {
 		return '[SuspensionResult ${state.toString()}, $result]';

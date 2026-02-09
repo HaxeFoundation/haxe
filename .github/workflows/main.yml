@@ -578,7 +578,7 @@ jobs:
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
     needs: [linux-test, mac-test, windows64-test]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
@@ -589,11 +589,12 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
 
-      - name: Install awscli
+      - name: Install rclone
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy awscli
+          sudo apt-get install -qqy rclone
+          rclone config touch
 
       # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
       - name: Extract branch name
@@ -604,46 +605,72 @@ jobs:
       - name: Upload binaries
         shell: bash
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
-          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
-          AWS_EC2_METADATA_DISABLED: true
+          RCLONE_CONFIG_S3_TYPE: "s3"
+          RCLONE_CONFIG_S3_PROVIDER: "AWS"
+          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_TYPE: "s3"
+          RCLONE_CONFIG_R2_PROVIDER: "Cloudflare"
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+          RCLONE_CONFIG_R2_ACL: "private"
         run: |
           set -ex
           COMMIT_HASH_SHORT=${GITHUB_SHA:0:7}
           COMMIT_DATE=`TZ=UTC git show --quiet --date='format-local:%Y-%m-%d' --format="%cd"`
           FILE_NAME=haxe_${COMMIT_DATE}_${{ steps.extract_branch.outputs.branch }}_${COMMIT_HASH_SHORT}
-          aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/${FILE_NAME}.tar.gz
-          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/${FILE_NAME}.tar.gz
-          aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/${FILE_NAME}.tar.gz
-          aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/${FILE_NAME}.tar.gz
-          aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
-          aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/${FILE_NAME}.zip
-          aws s3 cp win64Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows64-choco/
+
+          rclone copyto linuxBinaries/*_bin.tar.gz      r2:hxbuilds-hjtpx7fj/builds/haxe/linux64/${FILE_NAME}.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz r2:hxbuilds-hjtpx7fj/builds/haxe/linux-arm64/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        r2:hxbuilds-hjtpx7fj/builds/haxe/mac/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  r2:hxbuilds-hjtpx7fj/builds/haxe/mac-installer/${FILE_NAME}.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         r2:hxbuilds-hjtpx7fj/builds/haxe/windows64/${FILE_NAME}.zip
+          rclone copyto win64Binaries/*_installer.zip   r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-installer/${FILE_NAME}.zip
+          rclone copy win64Binaries/*.nupkg             r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-choco/
+
+          rclone copyto linuxBinaries/*_bin.tar.gz      s3:hxbuilds/builds/haxe/linux64/${FILE_NAME}.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz s3:hxbuilds/builds/haxe/linux-arm64/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        s3:hxbuilds/builds/haxe/mac/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  s3:hxbuilds/builds/haxe/mac-installer/${FILE_NAME}.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         s3:hxbuilds/builds/haxe/windows64/${FILE_NAME}.zip
+          rclone copyto win64Binaries/*_installer.zip   s3:hxbuilds/builds/haxe/windows64-installer/${FILE_NAME}.zip
+          rclone copy win64Binaries/*.nupkg             s3:hxbuilds/builds/haxe/windows64-choco/
 
       - name: Update "latest"
         if: github.ref == 'refs/heads/development'
         shell: bash
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
-          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
-          AWS_EC2_METADATA_DISABLED: true
+          RCLONE_CONFIG_S3_TYPE: "s3"
+          RCLONE_CONFIG_S3_PROVIDER: "AWS"
+          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_TYPE: "s3"
+          RCLONE_CONFIG_R2_PROVIDER: "Cloudflare"
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+          RCLONE_CONFIG_R2_ACL: "private"
         run: |
           set -ex
-          aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
-          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/haxe_latest.tar.gz
-          aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/haxe_latest.tar.gz
-          aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
-          aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
-          aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/haxe_latest.zip
 
-          # Chocolatey packages have to be named with version number,
-          # so let's use web redirection to keep the original file name.
-          [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
-          [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
-          aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
+          rclone copyto linuxBinaries/*_bin.tar.gz      r2:hxbuilds-hjtpx7fj/builds/haxe/linux64/haxe_latest.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz r2:hxbuilds-hjtpx7fj/builds/haxe/linux-arm64/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        r2:hxbuilds-hjtpx7fj/builds/haxe/mac/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  r2:hxbuilds-hjtpx7fj/builds/haxe/mac-installer/haxe_latest.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         r2:hxbuilds-hjtpx7fj/builds/haxe/windows64/haxe_latest.zip
+          rclone copyto win64Binaries/*_installer.zip   r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-installer/haxe_latest.zip
+          rclone copyto win64Binaries/*.nupkg           r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-choco/haxe_latest.nupkg
 
+          rclone copyto linuxBinaries/*_bin.tar.gz      s3:hxbuilds/builds/haxe/linux64/haxe_latest.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz s3:hxbuilds/builds/haxe/linux-arm64/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        s3:hxbuilds/builds/haxe/mac/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  s3:hxbuilds/builds/haxe/mac-installer/haxe_latest.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         s3:hxbuilds/builds/haxe/windows64/haxe_latest.zip
+          rclone copyto win64Binaries/*_installer.zip   s3:hxbuilds/builds/haxe/windows64-installer/haxe_latest.zip
+          rclone copyto win64Binaries/*.nupkg           s3:hxbuilds/builds/haxe/windows64-choco/haxe_latest.nupkg
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')

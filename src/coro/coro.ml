@@ -281,7 +281,6 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		TClass.add_field coro_class.cls cf
 	) fields;
 	create_continuation_class ctx cont coro_class initial_state;
-	let continuation_var = b#var_init_null vcontinuation in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic coro_class.name_pos in
@@ -311,10 +310,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let erecursingcheck = b#op_eq erecursingfield (b#bool false coro_class.name_pos) in
 			b#op_bool_and estdis erecursingcheck
 		in
-		let tif       = b#assign econtinuation ecastedcompletion in
+		let tif       = ecastedcompletion in
 		let tif       = b#void_block [tif] in
 		let ctor_args = prefix_arg @ [ ecompletion ] in
-		let telse = b#assign econtinuation (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
+		let telse = (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
 		b#if_then_else tcond tif telse basic.tvoid
 	in
 
@@ -322,8 +321,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		b#instance_field econtinuation coro_class.cls coro_class.outside.param_types cf t
 	in
 	let el = [
-		continuation_var;
-		continuation_assign;
+		b#var_init vcontinuation continuation_assign;
 		b#assign
 			(continuation_field cont.recursing basic.tbool)
 			(b#bool true coro_class.name_pos);
@@ -337,7 +335,6 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	in
 	let el = el @ [
 		eloop;
-		b#return (b#null basic.tany coro_class.name_pos);
 	] in
 	b#void_block el
 
@@ -485,8 +482,8 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let estate = continuation_field cont.suspension_result_class cont.state cont.suspension_state in
-	let eresult = continuation_field cont.suspension_result_class cont.result basic.tany in
-	let eerror = continuation_field cont.suspension_result_class cont.error basic.texception in
+	let eresult = continuation_field cont.suspension_result_class cont.result (basic.tnull basic.tany) in
+	let eerror = continuation_field cont.suspension_result_class cont.error (basic.tnull basic.texception) in
 
 	let continuation_field cf t =
 		b#instance_field econtinuation cont.base_continuation_class [basic.tany] cf t
@@ -494,11 +491,11 @@ let fun_to_coro ctx coro_type =
 
 	let egoto  = continuation_field cont.goto_label basic.tint in
 
-	let vtmp_result = alloc_var VGenerated "_hx_result" basic.tany coro_class.name_pos in
+	let vtmp_result = alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos in
 	let etmp_result = b#local vtmp_result coro_class.name_pos in
-	let vtmp_error = alloc_var VGenerated "_hx_error" basic.texception coro_class.name_pos in
+	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
 	let etmp_error = b#local vtmp_error coro_class.name_pos in
-	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" basic.tany coro_class.name_pos) in
+	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
 	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
 
 	let expr, args, name =
