@@ -67,12 +67,15 @@ class Main {
 		testSerialization();
 		testBreakInSwitchInLoop();
 		testVoidTypeParam();
+		#if hxcoro
+		CoroutineTests.run();
+		#end
 
 		untyped __cs__("System.Console.WriteLine({0})", 'Done $numTests tests with $numFailures failures');
 	}
 
-	static var numTests:Int = 0;
-	static var numFailures:Int = 0;
+	public static var numTests:Int = 0;
+	public static var numFailures:Int = 0;
 
 	@:generic static function eq<T>(expected:T, actual:T, ?p:PosInfos) {
 		numTests++;
@@ -2090,3 +2093,29 @@ class Box<T> {
 	}
 }
 
+#if hxcoro
+class CoroutineTests {
+	static function eq<T>(expected:T, actual:T, ?p:haxe.PosInfos) {
+		Main.numTests++;
+		if (expected != actual) {
+			Main.numFailures++;
+			var line = p != null ? p.lineNumber : 0;
+			untyped __cs__("System.Console.WriteLine({0})", 'FAIL at line $line: expected $expected, got $actual');
+		}
+	}
+
+	public static function run() {
+		// Test async coroutine with timer delay — validates suspension,
+		// resumption, and the event loop on C# target.
+		var result = hxcoro.CoroRun.run(delayTest);
+		eq(true, result);
+	}
+
+	@:coroutine static function delayTest():Bool {
+		var start = haxe.Timer.stamp();
+		hxcoro.Coro.delay(50); // suspend for 50ms
+		var elapsed = haxe.Timer.stamp() - start;
+		return elapsed >= 0.04; // generous margin to avoid CI flakiness
+	}
+}
+#end
