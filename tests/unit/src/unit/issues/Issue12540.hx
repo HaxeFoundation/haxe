@@ -37,6 +37,8 @@ class Issue12540 extends Test {
 		var v:MRValue = untyped MRHelper.getValue();
 		eq(v.a, 10);
 		eq(v.b, 15);
+		#else
+		noAssert();
 		#end
 	}
 }
