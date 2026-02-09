@@ -106,3 +106,5 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	static function unpack<Int, V>(args:lua.Table<Int, V>, ?min:Int, ?max:Int):Dynamic;
 	#end
 }
+
+typedef AnyTable = Table<Dynamic, Dynamic>;

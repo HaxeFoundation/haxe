@@ -330,7 +330,7 @@ class TestLua extends Test {
 		eq(multi.c, true);
 
 		// Test conversion to AnyTable
-		var anyTable:lua.AnyTable = opts;
+		var anyTable:lua.Table.AnyTable = opts;
 		t(anyTable != null);
 	}
 }

@@ -22,6 +22,8 @@
 
 package lua;
 
+import lua.Table.AnyTable;
+
 /**
 	A plain Lua table with typed field access.
 

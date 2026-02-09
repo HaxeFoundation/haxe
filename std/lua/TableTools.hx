@@ -22,7 +22,7 @@
 
 package lua;
 
-import lua.AnyTable;
+import lua.Table.AnyTable;
 
 /**
 	This library is an extern for a polyfill library of common lua table
