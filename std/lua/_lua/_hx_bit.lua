@@ -13,7 +13,7 @@ if _G.bit32 or pcall(require, 'bit32') then
 elseif _G.bit or pcall(require, 'bit') then
   --If we do not have bit32, fallback to 'bit', default on luajit
   _hx_bit_raw = _G.bit or require('bit')
-  _hx_bit = setmetatable({}, { __index = _hx_bit_raw })
+  _hx_bit = _hx_bit_raw
 else
   error("Failed to load bit or bit32")
 end
