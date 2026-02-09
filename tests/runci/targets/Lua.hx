@@ -52,8 +52,12 @@ class Lua {
 				}
 
 		}
-		runCommand("pipx", ["ensurepath"]);
-		runCommand("pipx", ["install", "hererocks"]);
+		if (commandSucceed("hererocks", ["--version"])) {
+			infoMsg('hererocks has already been installed.');
+		} else {
+			runCommand("pipx", ["ensurepath"]);
+			runCommand("pipx", ["install", "hererocks"]);
+		}
 	}
 
 	static function installLib(lib : String, version : String, ?server :String){
