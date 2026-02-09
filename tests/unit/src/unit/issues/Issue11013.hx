@@ -15,6 +15,8 @@ class Issue11013 extends Test {
 		// Multiplication overflow
 		var large:haxe.Int32 = 0x10000;
 		eq((large * large : Int), 0); // 2^32 wraps to 0
+		#else
+		noAssert();
 		#end
 	}
 }
