@@ -318,6 +318,354 @@ namespace haxe.lang
         }
 
         /// <summary>
+        /// Invoke a function dynamically with 0 arguments, using Value to avoid boxing.
+        /// Fast path for Function; slow path for Delegate.
+        /// </summary>
+        public static Value invokeFunction0(object func)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 0)
+                    return Value.fromObject(hf.invokeDynamic(null));
+                return hf.__hx_invoke0();
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                for (int i = 0; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 1 argument, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction1(object func, Value a1)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 1)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke1(a1);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                for (int i = 1; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 2 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction2(object func, Value a1, Value a2)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 2)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke2(a1, a2);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                for (int i = 2; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 3 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction3(object func, Value a1, Value a2, Value a3)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 3)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke3(a1, a2, a3);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                for (int i = 3; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 4 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction4(object func, Value a1, Value a2, Value a3, Value a4)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 4)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    arr.push(a4.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke4(a1, a2, a3, a4);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                if (parameters.Length > 3) invokeArgs[3] = ConvertArg(a4.toDynamic(), parameters[3].ParameterType);
+                for (int i = 4; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 5 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction5(object func, Value a1, Value a2, Value a3, Value a4, Value a5)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 5)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    arr.push(a4.toDynamic());
+                    arr.push(a5.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke5(a1, a2, a3, a4, a5);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                if (parameters.Length > 3) invokeArgs[3] = ConvertArg(a4.toDynamic(), parameters[3].ParameterType);
+                if (parameters.Length > 4) invokeArgs[4] = ConvertArg(a5.toDynamic(), parameters[4].ParameterType);
+                for (int i = 5; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 6 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction6(object func, Value a1, Value a2, Value a3, Value a4, Value a5, Value a6)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 6)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    arr.push(a4.toDynamic());
+                    arr.push(a5.toDynamic());
+                    arr.push(a6.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke6(a1, a2, a3, a4, a5, a6);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                if (parameters.Length > 3) invokeArgs[3] = ConvertArg(a4.toDynamic(), parameters[3].ParameterType);
+                if (parameters.Length > 4) invokeArgs[4] = ConvertArg(a5.toDynamic(), parameters[4].ParameterType);
+                if (parameters.Length > 5) invokeArgs[5] = ConvertArg(a6.toDynamic(), parameters[5].ParameterType);
+                for (int i = 6; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 7 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction7(object func, Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 7)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    arr.push(a4.toDynamic());
+                    arr.push(a5.toDynamic());
+                    arr.push(a6.toDynamic());
+                    arr.push(a7.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke7(a1, a2, a3, a4, a5, a6, a7);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                if (parameters.Length > 3) invokeArgs[3] = ConvertArg(a4.toDynamic(), parameters[3].ParameterType);
+                if (parameters.Length > 4) invokeArgs[4] = ConvertArg(a5.toDynamic(), parameters[4].ParameterType);
+                if (parameters.Length > 5) invokeArgs[5] = ConvertArg(a6.toDynamic(), parameters[5].ParameterType);
+                if (parameters.Length > 6) invokeArgs[6] = ConvertArg(a7.toDynamic(), parameters[6].ParameterType);
+                for (int i = 7; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 8 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction8(object func, Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7, Value a8)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 8)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    arr.push(a4.toDynamic());
+                    arr.push(a5.toDynamic());
+                    arr.push(a6.toDynamic());
+                    arr.push(a7.toDynamic());
+                    arr.push(a8.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke8(a1, a2, a3, a4, a5, a6, a7, a8);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                if (parameters.Length > 3) invokeArgs[3] = ConvertArg(a4.toDynamic(), parameters[3].ParameterType);
+                if (parameters.Length > 4) invokeArgs[4] = ConvertArg(a5.toDynamic(), parameters[4].ParameterType);
+                if (parameters.Length > 5) invokeArgs[5] = ConvertArg(a6.toDynamic(), parameters[5].ParameterType);
+                if (parameters.Length > 6) invokeArgs[6] = ConvertArg(a7.toDynamic(), parameters[6].ParameterType);
+                if (parameters.Length > 7) invokeArgs[7] = ConvertArg(a8.toDynamic(), parameters[7].ParameterType);
+                for (int i = 8; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
+        /// Invoke a function dynamically with 9 arguments, using Value to avoid boxing.
+        /// </summary>
+        public static Value invokeFunction9(object func, Value a1, Value a2, Value a3, Value a4, Value a5, Value a6, Value a7, Value a8, Value a9)
+        {
+            if (func is Function hf)
+            {
+                if (hf is InstanceMethodFunction imf && imf.Arity != 9)
+                {
+                    var arr = new global::haxe.root.Array();
+                    arr.push(a1.toDynamic());
+                    arr.push(a2.toDynamic());
+                    arr.push(a3.toDynamic());
+                    arr.push(a4.toDynamic());
+                    arr.push(a5.toDynamic());
+                    arr.push(a6.toDynamic());
+                    arr.push(a7.toDynamic());
+                    arr.push(a8.toDynamic());
+                    arr.push(a9.toDynamic());
+                    return Value.fromObject(hf.invokeDynamic(arr));
+                }
+                return hf.__hx_invoke9(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+            }
+            if (func == null) throw new NullReferenceException("Cannot call null function");
+            if (func is Delegate del)
+            {
+                var parameters = del.Method.GetParameters();
+                var invokeArgs = new object[parameters.Length];
+                if (parameters.Length > 0) invokeArgs[0] = ConvertArg(a1.toDynamic(), parameters[0].ParameterType);
+                if (parameters.Length > 1) invokeArgs[1] = ConvertArg(a2.toDynamic(), parameters[1].ParameterType);
+                if (parameters.Length > 2) invokeArgs[2] = ConvertArg(a3.toDynamic(), parameters[2].ParameterType);
+                if (parameters.Length > 3) invokeArgs[3] = ConvertArg(a4.toDynamic(), parameters[3].ParameterType);
+                if (parameters.Length > 4) invokeArgs[4] = ConvertArg(a5.toDynamic(), parameters[4].ParameterType);
+                if (parameters.Length > 5) invokeArgs[5] = ConvertArg(a6.toDynamic(), parameters[5].ParameterType);
+                if (parameters.Length > 6) invokeArgs[6] = ConvertArg(a7.toDynamic(), parameters[6].ParameterType);
+                if (parameters.Length > 7) invokeArgs[7] = ConvertArg(a8.toDynamic(), parameters[7].ParameterType);
+                if (parameters.Length > 8) invokeArgs[8] = ConvertArg(a9.toDynamic(), parameters[8].ParameterType);
+                for (int i = 9; i < parameters.Length; i++)
+                    invokeArgs[i] = createDefaultValue(parameters[i].ParameterType);
+                return Value.fromObject(del.DynamicInvoke(invokeArgs));
+            }
+            throw new InvalidOperationException("Cannot invoke non-delegate: " + func.GetType().Name);
+        }
+
+        /// <summary>
         /// Create a default value for the given type.
         /// AOT-safe: handles Null&lt;T&gt; without reflection by checking common types directly.
         /// </summary>
