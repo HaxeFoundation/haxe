@@ -90,7 +90,7 @@ class Lua {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-j2.0", "-j@v2.1"]) {
+		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-l5.5", "-j2.0", "-j@v2.1"]) {
 			// luajit 2.0 was missing arm64 support
 			if (System.arch == Arm64 && lv == "-j2.0") continue;
 
