@@ -3357,22 +3357,27 @@ let rec cs_expr_of_texpr ectx e =
 			(* Known iterator class - generate direct method call *)
 			CsCall (CsField (obj, escape_identifier cf.cf_name), args)
 		| CsTypeClass ((["haxe"; "lang"], "HaxeDynamicObject"), _) ->
-			(* Truly anonymous - use _hx_getField -> Runtime.invokeFunction for function fields *)
+			(* Truly anonymous - use _hx_getField to retrieve function, then invoke *)
 			let is_function = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with Some _ -> true | None -> false in
 			let field_call = CsCall (CsField (obj, "_hx_getField"), [CsConst (CsConstString cf.cf_name)]) in
 			if is_function then begin
-				let args_array = make_invoke_args_array args in
-				let call_expr = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
-				(* Cast the result to the expected return type.
-				   Use e.etype (the TCall's return type) which has type parameters resolved,
-				   rather than cf.cf_type which might have unresolved type params. *)
-				let result_type = cs_type_of_type ectx.gctx e.etype in
-				(* Erase out-of-scope type params to avoid CS0246 errors *)
-				let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
-				begin match result_type with
-				| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-				(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
-				| _ -> cast_object_to_type result_type call_expr
+				let num_args = List.length args in
+				if num_args <= 9 then begin
+					(* Use direct __hx_invokeN with Value args *)
+					let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types in
+					let hxvalue_args = generate_hxvalue_args args param_types_cs in
+					let func_as_function = CsCast (function_type, field_call) in
+					let call_expr = CsCall (CsField (func_as_function, hxvalue_invoke_method_name num_args), hxvalue_args) in
+					let result_type = cs_type_of_type ectx.gctx e.etype in
+					let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+					cast_value_to_type result_type call_expr
+				end else begin
+					(* Fallback for arity > 9 *)
+					let args_array = make_invoke_args_array args in
+					let call_expr = CsStaticCall (runtime_type, "invokeFunction", [field_call; args_array]) in
+					let result_type = cs_type_of_type ectx.gctx e.etype in
+					let result_type = CsTypeMapping.erase_out_of_scope_type_params ectx.type_params_in_scope result_type in
+					cast_invoke_result result_type call_expr
 				end
 			end else begin
 				(* Non-function field - just get and cast *)
@@ -3505,19 +3510,40 @@ let rec cs_expr_of_texpr ectx e =
 			| Method _ -> false
 		in
 		if is_stored_function_field then begin
-			(* Stored function field - use Runtime.invokeFunction *)
+			(* Stored function field - use direct __hx_invokeN with Value args to avoid
+			   Array allocation and dynamic dispatch overhead of Runtime.invokeFunction *)
 			let path = cs_path_of_path c.cl_path in
 			(* Haxe classes are non-generic in C#, so no type params *)
 			ignore c.cl_params;
 			let func_expr = CsStaticField (CsTypeClass (path, []), escape_identifier cf.cf_name) in
-			let args_exprs = List.map (cs_expr_of_texpr ectx) orig_args in
-			let args_array = make_invoke_args_array args_exprs in
-			let call_expr = CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array]) in
-			let result_type = cs_type_of_type ectx.gctx return_type in
-			begin match result_type with
-			| CsTypeVoid | CsTypeObject | CsTypeDynamic -> call_expr
-			(* Use cast_object_to_type for proper unboxing of invokeFunction results *)
-			| _ -> cast_object_to_type result_type call_expr
+			let num_args = List.length orig_args in
+			if num_args <= 9 then begin
+				(* Extract param types from cf.cf_type for proper Value wrapping *)
+				let param_types_hx = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with
+					| Some (params, _) ->
+						List.map (fun (_, opt, t) ->
+							let is_already_null = match follow t with
+								| TAbstract ({ a_path = ([], "Null") }, _) -> true
+								| _ -> false
+							in
+							if opt && not is_already_null then ectx.gctx.com.basic.tnull t else t
+						) params
+					| None -> List.map (fun arg -> arg.etype) orig_args
+				in
+				let args_cs = List.map (cs_expr_of_texpr ectx) orig_args in
+				let param_types_cs = List.map (cs_type_of_type ectx.gctx) param_types_hx in
+				let hxvalue_args = generate_hxvalue_args args_cs param_types_cs in
+				let func_as_function = CsCast (function_type, func_expr) in
+				let call_expr = CsCall (CsField (func_as_function, hxvalue_invoke_method_name num_args), hxvalue_args) in
+				let result_type = cs_type_of_type ectx.gctx return_type in
+				cast_value_to_type result_type call_expr
+			end else begin
+				(* Fallback for arity > 9: use Runtime.invokeFunction *)
+				let args_exprs = List.map (cs_expr_of_texpr ectx) orig_args in
+				let args_array = make_invoke_args_array args_exprs in
+				let call_expr = CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array]) in
+				let result_type = cs_type_of_type ectx.gctx return_type in
+				cast_invoke_result result_type call_expr
 			end
 		end else begin
 		(* Special handling for String static methods - redirect to StringExt *)
@@ -6594,41 +6620,49 @@ and generate_method_closure_fallback ectx obj_expr is_static class_path type_par
 		| Method MethDynamic -> true
 		| Method _ -> false
 	in
-	let method_call = if is_static then
+	(* Helper: generate __hx_invokeN call for stored function fields.
+	   Returns (call_expr, true) for Value-based invoke, or falls back to invokeFunction. *)
+	let generate_stored_function_call func_expr =
+		let num_args = List.length call_args in
+		if num_args <= 9 then begin
+			let param_types_cs = List.map (fun p ->
+				match p.p_type with Some t -> t | None -> CsTypeObject
+			) invoke_params in
+			let hxvalue_args = generate_hxvalue_args call_args param_types_cs in
+			let func_as_function = CsCast (function_type, func_expr) in
+			let raw_call = CsCall (CsField (func_as_function, hxvalue_invoke_method_name num_args), hxvalue_args) in
+			(raw_call, true)
+		end else begin
+			(* Fallback for arity > 9 *)
+			let args_array = make_invoke_args_array call_args in
+			(CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array]), false)
+		end
+	in
+	let (method_call, uses_value_invoke) = if is_static then
 		(* Redirect String static methods to cs.StringExt *)
 		let actual_path = match class_path with
 			| ([], ("String" | "string")) | (["haxe"; "root"], ("String" | "string")) -> (["cs"], "StringExt")
 			| _ -> cs_path_of_path class_path
 		in
 		let static_type = CsTypeClass (actual_path, List.map (cs_type_of_type gctx) type_params) in
-		if is_stored_function then begin
-			(* Static function field - use Runtime.invokeFunction *)
+		if is_stored_function then
 			let func_expr = CsStaticField (static_type, method_name) in
-			let args_array = if call_args = [] then
-				CsNew (haxe_array_type, [])
-			else
-				let native_array = CsNewArray (CsTypeObject, call_args) in
-				make_array_from_native ArrayDynamic native_array (haxe_array_type)
-			in
-			CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array])
-		end else
-			CsStaticCall (static_type, method_name, call_args)
-	else if is_stored_function then begin
-		(* Instance function field - use Runtime.invokeFunction *)
+			generate_stored_function_call func_expr
+		else
+			(CsStaticCall (static_type, method_name, call_args), false)
+	else if is_stored_function then
 		let obj = CsField (CsThis, "_hx_this") in
 		let func_expr = CsField (obj, method_name) in
-		let args_array = if call_args = [] then
-			CsNew (haxe_array_type, [])
-		else
-			let native_array = CsNewArray (CsTypeObject, call_args) in
-			make_array_from_native ArrayDynamic native_array (haxe_array_type)
-		in
-		CsStaticCall (runtime_type, "invokeFunction", [func_expr; args_array])
-	end else
-		CsCall (CsField (CsField (CsThis, "_hx_this"), method_name), call_args)
+		generate_stored_function_call func_expr
+	else
+		(CsCall (CsField (CsField (CsThis, "_hx_this"), method_name), call_args), false)
 	in
 	let invoke_body = if return_cs_type = CsTypeVoid then
 		[CsExprStmt method_call]
+	else if uses_value_invoke then
+		(* __hx_invokeN returns Value — extract typed result directly via cast_value_to_type.
+		   This avoids the _ofDynamic path which would cause unnecessary boxing. *)
+		[CsReturn (Some (cast_value_to_type return_cs_type method_call))]
 	else begin
 		(* For type-erased classes like Array, methods return object in C# but the
 		   closure's typed invoke() should return the expected type.
