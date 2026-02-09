@@ -5202,26 +5202,34 @@ and cs_stmt_with_result_assign ectx is_void result_var result_type e =
 			   This handles cases like object/Dynamic -> Null<T> where we need to wrap the value. *)
 			let expr_cs = cs_expr_of_texpr ectx e in
 			let expr_type = cs_type_of_type ectx.gctx e.etype in
-			let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx expr_cs expr_type result_type in
-			CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, coerced))
+			(* When the branch is void-typed in Haxe but we need a value (e.g., result_type_hint
+			   override for coroutine preamble without analyzer), skip coercion and assign directly.
+			   In C#, assignment expressions and constructors produce values even when Haxe types
+			   them as Void. *)
+			if expr_type = CsTypeVoid then
+				CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, expr_cs))
+			else begin
+				let coerced = coerce_cs_types ~in_scope:ectx.type_params_in_scope ~fresh_temp:(fun () -> fresh_temp ectx) ectx.gctx expr_cs expr_type result_type in
+				CsExprStmt (CsBinop (CsOpAssign, CsLocal result_var, coerced))
+			end
 		end
 
 (* Convert block expression to prefix statements + final expression value.
    This is used in statement contexts where we can emit: { stmts...; var x = finalExpr; }
    instead of wrapping in a lambda. *)
-and cs_expr_with_prefix ectx e : cs_expr_result =
+and cs_expr_with_prefix ?result_type_hint ectx e : cs_expr_result =
 	match e.eexpr with
 	| TBlock [] ->
 		{ er_stmts = []; er_expr = CsDefault (cs_type_of_type ectx.gctx e.etype) }
 	| TBlock [single] ->
-		cs_expr_with_prefix ectx single
+		cs_expr_with_prefix ?result_type_hint ectx single
 	| TBlock exprs ->
 		let (init_exprs, last_opt) = split_last exprs in
 		let init_stmts = List.map (cs_stmt_of_texpr ectx) init_exprs in
 		begin match last_opt with
 		| Some last_expr ->
 			(* Recursively handle the last expression - it might also be a block *)
-			let last_result = cs_expr_with_prefix ectx last_expr in
+			let last_result = cs_expr_with_prefix ?result_type_hint ectx last_expr in
 			{ er_stmts = init_stmts @ last_result.er_stmts; er_expr = last_result.er_expr }
 		| None ->
 			{ er_stmts = init_stmts; er_expr = CsDefault (cs_type_of_type ectx.gctx e.etype) }
@@ -5233,6 +5241,13 @@ and cs_expr_with_prefix ectx e : cs_expr_result =
 		(* NOTE: CsNullable filter handles Null<Null<T>> flattening at the AST level *)
 		let result_type = cs_type_of_type ectx.gctx e.etype in
 		let is_void = ExtType.is_void (follow e.etype) in
+		(* When expression is void-typed but caller expects a value, use the hint type.
+		   This handles coroutine preambles without analyzer where the if-expression
+		   is void-typed but its branches produce values (cast result, constructor). *)
+		let result_type, is_void = match is_void, result_type_hint with
+			| true, Some hint when hint <> CsTypeVoid -> hint, false
+			| _ -> result_type, is_void
+		in
 		(* Generate a unique temporary variable name *)
 		let result_var = fresh_temp ectx in
 		(* Declare the result variable with default value *)
@@ -5294,8 +5309,10 @@ and cs_stmt_of_texpr ectx e =
 		begin match init with
 		| None -> CsVarDecl (name, Some var_type_raw, None)
 		| Some init_expr ->
-			(* Use cs_expr_with_prefix to handle block expressions smartly *)
-			let result = cs_expr_with_prefix ectx init_expr in
+			(* Use cs_expr_with_prefix to handle block expressions smartly.
+			   Pass the variable type as hint so void-typed initializers (e.g., coroutine
+			   preamble without analyzer) use the correct type for the IIFE pattern. *)
+			let result = cs_expr_with_prefix ~result_type_hint:var_type_raw ectx init_expr in
 			let init_cs = result.er_expr in
 			(* NOTE: We intentionally do NOT use specific closure types for variable declarations.
 			   While it would enable direct typed invoke() calls, it breaks when the variable
@@ -5857,7 +5874,8 @@ and cs_stmt_of_texpr ectx e =
 	| TBinop (OpAssign, e1, e2) ->
 		(* Assignment statement - use prefix handling for RHS to avoid lambda IIFE.
 		   This optimizes: `x = { ... do-while ... }` to use prefix statements instead of wrapping in lambda. *)
-		let result = cs_expr_with_prefix ectx e2 in
+		let lhs_type = cs_type_of_type ectx.gctx e1.etype in
+		let result = cs_expr_with_prefix ~result_type_hint:lhs_type ectx e2 in
 		if result.er_stmts = [] then begin
 			(* Simple case - no prefix statements from RHS. Use cs_expr_of_texpr for full handling,
 			   but apply IIFE optimization for cases like `b = getValue()` where coercion produces an IIFE *)
