@@ -15,5 +15,7 @@ elseif _G.bit or pcall(require, 'bit') then
   _hx_bit_raw = _G.bit or require('bit')
   _hx_bit = _hx_bit_raw
 else
-  error("Failed to load bit or bit32")
+  _hx_bit = setmetatable({}, {__index = function()
+    error("Failed to load bit or bit32")
+  end})
 end
