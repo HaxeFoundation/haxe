@@ -32,8 +32,14 @@ import haxe.ds.ObjectMap;
 
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
+	/**
+		Generate an inline lua table declaration from an array literal and/or an object literal argument.
+	**/
 	@:pure static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
 
+	/**
+		Convert the array `arr` into a lua table with lua-style indexing.
+	**/
 	inline static function fromArray<T>(arr:Array<T>):Table<Int, T> {
 		var ret = Table.create();
 		for (idx in 0...arr.length) {
