@@ -93,8 +93,17 @@ class Math {
 	public static inline function random():Float
 		return untyped __define_feature__("Math.random", lua.Math.random());
 
-	public static inline function atan2(y:Float, x:Float):Float
-		return lua.Math.atan2(y, x);
+	#if (lua_ver >= 5.3)
+	public static inline function atan2(y:Float, x:Float):Float {
+		return lua.Math.atan(y, x);
+	}
+	#else
+	private static final atan2Impl = lua.Math.atan2 ?? lua.Math.atan;
+
+	public static inline function atan2(y:Float, x:Float):Float {
+		return atan2Impl(y, x);
+	}
+	#end
 
 	public static function max(a:Float, b:Float):Float {
 		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.max(a, b);
