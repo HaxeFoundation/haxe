@@ -1,0 +1,5 @@
+--lua bin/main.lua
+--main Main
+-D lua-vanilla
+--next
+--run RunScript
