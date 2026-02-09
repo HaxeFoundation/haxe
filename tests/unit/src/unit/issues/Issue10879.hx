@@ -16,6 +16,8 @@ class Issue10879 extends Test {
 
 		eq(mapped[1], "hello!");
 		eq(mapped[2], "world!");
+		#else
+		noAssert();
 		#end
 	}
 }
