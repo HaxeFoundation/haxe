@@ -476,7 +476,7 @@ and gen_call ctx e el =
                   if List.length(fields) > 0 then incr count;
               | { eexpr = TConst(TNull)} -> ()
               | _ ->
-                raise_typing_error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+                raise_typing_error "__lua_table__ only accepts array literal and/or anonymous object literal arguments" e.epos;
              )) el;
          spr ctx "})";
      | TIdent "__lua__", [{ eexpr = TConst (TString code) }] ->
