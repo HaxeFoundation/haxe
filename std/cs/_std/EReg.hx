@@ -46,7 +46,7 @@ class EReg {
 				opts = opts | RegexOptions.Singleline;
 			}
 		}
-		this.regex = new Regex(r, cs.Syntax.code("(System.Text.RegularExpressions.RegexOptions){0}", opts));
+		this.regex = new Regex(r, cs.Syntax.code("(global::System.Text.RegularExpressions.RegexOptions){0}", opts));
 	}
 
 	public function match(s:String):Bool {

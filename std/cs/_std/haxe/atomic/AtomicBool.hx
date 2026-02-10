@@ -16,14 +16,14 @@ abstract AtomicBool(BoolWrapper) {
 	public inline function compareExchange(expected:Bool, replacement:Bool):Bool {
 		var expectedInt = expected ? 1 : 0;
 		var replacementInt = replacement ? 1 : 0;
-		var original:Int = cs.Syntax.code("System.Threading.Interlocked.CompareExchange(ref ({0}).value, {1}, {2})", this, replacementInt,
+		var original:Int = cs.Syntax.code("global::System.Threading.Interlocked.CompareExchange(ref ({0}).value, {1}, {2})", this, replacementInt,
 			expectedInt);
 		return original != 0;
 	}
 
 	public inline function exchange(value:Bool):Bool {
 		var valueInt = value ? 1 : 0;
-		var original:Int = cs.Syntax.code("System.Threading.Interlocked.Exchange(ref ({0}).value, {1})", this, valueInt);
+		var original:Int = cs.Syntax.code("global::System.Threading.Interlocked.Exchange(ref ({0}).value, {1})", this, valueInt);
 		return original != 0;
 	}
 

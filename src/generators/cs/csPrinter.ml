@@ -924,8 +924,11 @@ let print_property ctx p =
 (* Print C# attribute *)
 let print_attribute ctx attr =
 	(* UnconditionalSuppressMessage is .NET 5+ only, wrap in #if !NETSTANDARD *)
-	let is_aot_only_attr = String.length attr.attr_name >= 30 &&
-		String.sub attr.attr_name 0 30 = "System.Diagnostics.CodeAnalysi" in
+	let is_aot_only_attr =
+		(String.length attr.attr_name >= 30 &&
+			String.sub attr.attr_name 0 30 = "System.Diagnostics.CodeAnalysi") ||
+		(String.length attr.attr_name >= 38 &&
+			String.sub attr.attr_name 0 38 = "global::System.Diagnostics.CodeAnalysi") in
 	if is_aot_only_attr then begin
 		print ctx "#if !NETSTANDARD";
 		newline ctx

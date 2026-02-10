@@ -402,9 +402,9 @@ class Bytes {
 		#elseif cs
 		switch (encoding) {
 			case UTF8 | null:
-				return cs.Syntax.code("System.Text.Encoding.UTF8.GetString({0}, {1}, {2})", b, pos, len);
+				return cs.Syntax.code("global::System.Text.Encoding.UTF8.GetString({0}, {1}, {2})", b, pos, len);
 			case RawNative:
-				return cs.Syntax.code("System.Text.Encoding.Unicode.GetString({0}, {1}, {2})", b, pos, len);
+				return cs.Syntax.code("global::System.Text.Encoding.Unicode.GetString({0}, {1}, {2})", b, pos, len);
 		}
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
@@ -558,9 +558,9 @@ class Bytes {
 		#elseif cs
 		var bytes:cs.NativeArray<cs.UInt8> = switch (encoding) {
 			case UTF8 | null:
-				cs.Syntax.code("System.Text.Encoding.UTF8.GetBytes({0})", s);
+				cs.Syntax.code("global::System.Text.Encoding.UTF8.GetBytes({0})", s);
 			case RawNative:
-				cs.Syntax.code("System.Text.Encoding.Unicode.GetBytes({0})", s); // UTF-16LE
+				cs.Syntax.code("global::System.Text.Encoding.Unicode.GetBytes({0})", s); // UTF-16LE
 		};
 		return new Bytes(bytes.length, bytes);
 		#elseif lua

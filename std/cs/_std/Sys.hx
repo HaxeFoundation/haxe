@@ -38,7 +38,7 @@ import cs.system.reflection.Assembly;
 		var str = Std.string(v);
 		// On Windows, Console.Write doesn't translate embedded \n to \r\n,
 		// causing staircase output in some terminals. Normalize to Environment.NewLine.
-		var nl:String = cs.Syntax.code("System.Environment.NewLine");
+		var nl:String = cs.Syntax.code("global::System.Environment.NewLine");
 		if (nl != "\n") {
 			str = cs.Syntax.code("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
 		}
@@ -47,7 +47,7 @@ import cs.system.reflection.Assembly;
 
 	public static function println(v:Dynamic):Void {
 		var str = Std.string(v);
-		var nl:String = cs.Syntax.code("System.Environment.NewLine");
+		var nl:String = cs.Syntax.code("global::System.Environment.NewLine");
 		if (nl != "\n") {
 			str = cs.Syntax.code("{0}.Replace(\"\\r\\n\", \"\\n\").Replace(\"\\n\", {1})", str, nl);
 		}
@@ -91,7 +91,7 @@ import cs.system.reflection.Assembly;
 		var env = new haxe.ds.StringMap<String>();
 		var dict = Environment.GetEnvironmentVariables();
 		// Use __cs__ foreach to avoid Dynamic property access issues with IDictionaryEnumerator
-		cs.Syntax.code("foreach (System.Collections.DictionaryEntry entry in {0}) {
+		cs.Syntax.code("foreach (global::System.Collections.DictionaryEntry entry in {0}) {
 			{1}.set((string)entry.Key, (string)entry.Value);
 		}", dict, env);
 		return env;
@@ -216,14 +216,14 @@ import cs.system.reflection.Assembly;
 		// 1. Environment.ProcessPath (.NET 6+ only, not in .NET Standard 2.1)
 		var path:String = cs.Syntax.code("
 #if !NETSTANDARD
-			System.Environment.ProcessPath
+			global::System.Environment.ProcessPath
 #else
 			null
 #endif
 		");
 		if (path == null || path == "") {
 			// 2. Process.MainModule.FileName (more reliable for AOT)
-			path = cs.Syntax.code("System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName");
+			path = cs.Syntax.code("global::System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName");
 		}
 		if (path == null || path == "") {
 			// 3. Assembly.Location (fallback for non-AOT)

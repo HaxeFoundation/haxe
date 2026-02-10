@@ -36,19 +36,19 @@ class Host {
 	private function resolve(name:String):Void {
 		try {
 			// Try to parse as IP address first
-			var ipAddr:Dynamic = cs.Syntax.code("System.Net.IPAddress.Parse({0})", name);
+			var ipAddr:Dynamic = cs.Syntax.code("global::System.Net.IPAddress.Parse({0})", name);
 			_ipAddress = ipAddr;
 			setIpFromAddress(ipAddr);
 		} catch (e:Dynamic) {
 			// Not an IP address, resolve hostname
 			try {
-				var addresses:Dynamic = cs.Syntax.code("System.Net.Dns.GetHostAddresses({0})", name);
-				if (cs.Syntax.code("((System.Net.IPAddress[]){0}).Length", addresses) > 0) {
+				var addresses:Dynamic = cs.Syntax.code("global::System.Net.Dns.GetHostAddresses({0})", name);
+				if (cs.Syntax.code("((global::System.Net.IPAddress[]){0}).Length", addresses) > 0) {
 					// Get the first IPv4 address if available
-					var len:Int = cs.Syntax.code("((System.Net.IPAddress[]){0}).Length", addresses);
+					var len:Int = cs.Syntax.code("((global::System.Net.IPAddress[]){0}).Length", addresses);
 					for (i in 0...len) {
-						var addr:Dynamic = cs.Syntax.code("((System.Net.IPAddress[]){0})[{1}]", addresses, i);
-						var family:Int = cs.Syntax.code("(int)((System.Net.IPAddress){0}).AddressFamily", addr);
+						var addr:Dynamic = cs.Syntax.code("((global::System.Net.IPAddress[]){0})[{1}]", addresses, i);
+						var family:Int = cs.Syntax.code("(int)((global::System.Net.IPAddress){0}).AddressFamily", addr);
 						// AddressFamily.InterNetwork = 2 (IPv4)
 						if (family == 2) {
 							_ipAddress = addr;
@@ -57,7 +57,7 @@ class Host {
 						}
 					}
 					// Fall back to first address
-					_ipAddress = cs.Syntax.code("((System.Net.IPAddress[]){0})[0]", addresses);
+					_ipAddress = cs.Syntax.code("((global::System.Net.IPAddress[]){0})[0]", addresses);
 					setIpFromAddress(_ipAddress);
 				} else {
 					throw "Could not resolve host: " + name;
@@ -69,7 +69,7 @@ class Host {
 	}
 
 	private function setIpFromAddress(addr:Dynamic):Void {
-		var bytes:Dynamic = cs.Syntax.code("((System.Net.IPAddress){0}).GetAddressBytes()", addr);
+		var bytes:Dynamic = cs.Syntax.code("((global::System.Net.IPAddress){0}).GetAddressBytes()", addr);
 		var len:Int = cs.Syntax.code("((byte[]){0}).Length", bytes);
 		if (len >= 4) {
 			// network byte order (big endian)
@@ -90,7 +90,7 @@ class Host {
 
 	public function reverse():String {
 		try {
-			var entry:Dynamic = cs.Syntax.code("System.Net.Dns.GetHostEntry({0})", _ipAddress);
+			var entry:Dynamic = cs.Syntax.code("global::System.Net.Dns.GetHostEntry({0})", _ipAddress);
 			return cs.Syntax.code("{0}.HostName", entry);
 		} catch (e:Dynamic) {
 			return host;
@@ -98,6 +98,6 @@ class Host {
 	}
 
 	public static function localhost():String {
-		return cs.Syntax.code("System.Net.Dns.GetHostName()");
+		return cs.Syntax.code("global::System.Net.Dns.GetHostName()");
 	}
 }

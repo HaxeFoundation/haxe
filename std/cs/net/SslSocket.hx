@@ -39,7 +39,7 @@ class SslSocket extends sys.net.Socket {
 
 		// Wrap with NetworkStream, then SslStream, authenticate, and return as Stream
 		// Using lambda to get proper typing in generated C#
-		var sslStream:cs.system.io.Stream = cs.Syntax.code("((System.Func<System.IO.Stream>)(() => { var ns = new System.Net.Sockets.NetworkStream({0}); var ssl = new System.Net.Security.SslStream(ns, false); ssl.AuthenticateAsClient({1}); return ssl; }))()", _socket, hostName);
+		var sslStream:cs.system.io.Stream = cs.Syntax.code("((global::System.Func<global::System.IO.Stream>)(() => { var ns = new global::System.Net.Sockets.NetworkStream({0}); var ssl = new global::System.Net.Security.SslStream(ns, false); ssl.AuthenticateAsClient({1}); return ssl; }))()", _socket, hostName);
 
 		// Create Haxe I/O from the SSL stream
 		this.input = new cs.io.NativeInput(sslStream);

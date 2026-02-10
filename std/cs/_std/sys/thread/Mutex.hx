@@ -31,14 +31,14 @@ class Mutex {
 	}
 
 	public function tryAcquire():Bool {
-		return cs.Syntax.code("System.Threading.Monitor.TryEnter({0})", _lock);
+		return cs.Syntax.code("global::System.Threading.Monitor.TryEnter({0})", _lock);
 	}
 
 	public function acquire():Void {
-		cs.Syntax.code("System.Threading.Monitor.Enter({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.Enter({0})", _lock);
 	}
 
 	public function release():Void {
-		cs.Syntax.code("System.Threading.Monitor.Exit({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.Exit({0})", _lock);
 	}
 }

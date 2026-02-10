@@ -91,10 +91,10 @@ class FileSystem {
 		var fileInfo = new FileInfo(relPath);
 		var fullName = fileInfo.FullName;
 		// Resolve symlinks if the path is a symlink
-		var linkTarget:String = cs.Syntax.code("System.IO.File.ResolveLinkTarget({0}, true)?.FullName", fullName);
+		var linkTarget:String = cs.Syntax.code("global::System.IO.File.ResolveLinkTarget({0}, true)?.FullName", fullName);
 		if (linkTarget != null)
 			return linkTarget;
-		var dirLinkTarget:String = cs.Syntax.code("System.IO.Directory.ResolveLinkTarget({0}, true)?.FullName", fullName);
+		var dirLinkTarget:String = cs.Syntax.code("global::System.IO.Directory.ResolveLinkTarget({0}, true)?.FullName", fullName);
 		if (dirLinkTarget != null)
 			return dirLinkTarget;
 		return fullName;
@@ -137,7 +137,7 @@ class FileSystem {
 		for (i in 0...native.length) {
 			var p = native[i];
 			// Use System.IO.Path.GetFileName for reliable basename extraction
-			result.push(cs.Syntax.code("System.IO.Path.GetFileName({0})", p));
+			result.push(cs.Syntax.code("global::System.IO.Path.GetFileName({0})", p));
 		}
 		return result;
 	}

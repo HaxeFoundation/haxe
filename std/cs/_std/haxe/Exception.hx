@@ -42,8 +42,8 @@ class Exception extends NativeException {
 			return cs.Syntax.code("(haxe.Exception){0}", value);
 		}
 		// Check if it's a native System.Exception - use inline C# to get message
-		if (cs.Syntax.code("{0} is System.Exception", value)) {
-			return new Exception(cs.Syntax.code("((System.Exception){0}).Message", value), null, value);
+		if (cs.Syntax.code("{0} is global::System.Exception", value)) {
+			return new Exception(cs.Syntax.code("((global::System.Exception){0}).Message", value), null, value);
 		}
 		return new ValueException(value, null, value);
 	}
@@ -53,7 +53,7 @@ class Exception extends NativeException {
 		if (cs.Syntax.code("{0} is haxe.Exception", value)) {
 			return cs.Syntax.code("((haxe.Exception){0}).__nativeException", value);
 		}
-		if (cs.Syntax.code("{0} is System.Exception", value)) {
+		if (cs.Syntax.code("{0} is global::System.Exception", value)) {
 			return value;
 		}
 		// Note: Don't call __shiftStack() here - the leading constructor filtering
@@ -67,22 +67,22 @@ class Exception extends NativeException {
 		__previousException = previous;
 
 		// Capture stack trace and native exception like Haxe4 does
-		if (native != null && cs.Syntax.code("{0} is System.Exception", native)) {
-			__nativeException = cs.Syntax.code("(System.Exception){0}", native);
+		if (native != null && cs.Syntax.code("{0} is global::System.Exception", native)) {
+			__nativeException = cs.Syntax.code("(global::System.Exception){0}", native);
 			// Check if the native exception has a stack trace
-			var hasStack:Bool = cs.Syntax.code("((System.Exception){0}).StackTrace != null", native);
+			var hasStack:Bool = cs.Syntax.code("((global::System.Exception){0}).StackTrace != null", native);
 			if (hasStack) {
 				__nativeStack = new cs.system.diagnostics.StackTrace(cast __nativeException, true);
 				__ownStack = false;
 			} else {
 				// Exception has no stack trace, capture current call stack (skip 1 for constructor)
-				__nativeStack = cs.Syntax.code("new System.Diagnostics.StackTrace(1, true)");
+				__nativeStack = cs.Syntax.code("new global::System.Diagnostics.StackTrace(1, true)");
 				__ownStack = true;
 			}
 		} else {
 			__nativeException = cast this;
 			// Capture current call stack (skip 1 for constructor)
-			__nativeStack = cs.Syntax.code("new System.Diagnostics.StackTrace(1, true)");
+			__nativeStack = cs.Syntax.code("new global::System.Diagnostics.StackTrace(1, true)");
 			__ownStack = true;
 		}
 	}

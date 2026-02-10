@@ -17,7 +17,7 @@ class NativeStackTrace {
 	}
 
 	static public inline function callStack():cs.system.diagnostics.StackTrace {
-		return cs.Syntax.code("new System.Diagnostics.StackTrace(1, true)");
+		return cs.Syntax.code("new global::System.Diagnostics.StackTrace(1, true)");
 	}
 
 	static public function exceptionStack():Null<cs.system.diagnostics.StackTrace> {

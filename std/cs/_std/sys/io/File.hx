@@ -25,43 +25,43 @@ package sys.io;
 @:coreApi
 class File {
 	public static function getContent(path:String):String {
-		return cs.Syntax.code("System.IO.File.ReadAllText({0})", path);
+		return cs.Syntax.code("global::System.IO.File.ReadAllText({0})", path);
 	}
 
 	public static function saveContent(path:String, content:String):Void {
-		cs.Syntax.code("System.IO.File.WriteAllText({0}, {1})", path, content);
+		cs.Syntax.code("global::System.IO.File.WriteAllText({0}, {1})", path, content);
 	}
 
 	public static function getBytes(path:String):haxe.io.Bytes {
-		var data:Dynamic = cs.Syntax.code("System.IO.File.ReadAllBytes({0})", path);
+		var data:Dynamic = cs.Syntax.code("global::System.IO.File.ReadAllBytes({0})", path);
 		return haxe.io.Bytes.ofData(data);
 	}
 
 	public static function saveBytes(path:String, bytes:haxe.io.Bytes):Void {
-		cs.Syntax.code("System.IO.File.WriteAllBytes({0}, {1})", path, bytes.getData());
+		cs.Syntax.code("global::System.IO.File.WriteAllBytes({0}, {1})", path, bytes.getData());
 	}
 
 	public static function read(path:String, binary:Bool = true):FileInput {
-		var stream:cs.system.io.Stream = cs.Syntax.code("new System.IO.FileStream({0}, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)", path);
+		var stream:cs.system.io.Stream = cs.Syntax.code("new global::System.IO.FileStream({0}, global::System.IO.FileMode.Open, global::System.IO.FileAccess.Read, global::System.IO.FileShare.Read)", path);
 		return @:privateAccess new FileInput(stream);
 	}
 
 	public static function write(path:String, binary:Bool = true):FileOutput {
-		var stream:cs.system.io.Stream = cs.Syntax.code("new System.IO.FileStream({0}, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None)", path);
+		var stream:cs.system.io.Stream = cs.Syntax.code("new global::System.IO.FileStream({0}, global::System.IO.FileMode.Create, global::System.IO.FileAccess.Write, global::System.IO.FileShare.None)", path);
 		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		var stream:cs.system.io.Stream = cs.Syntax.code("new System.IO.FileStream({0}, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.None)", path);
+		var stream:cs.system.io.Stream = cs.Syntax.code("new global::System.IO.FileStream({0}, global::System.IO.FileMode.Append, global::System.IO.FileAccess.Write, global::System.IO.FileShare.None)", path);
 		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
-		var stream:cs.system.io.Stream = cs.Syntax.code("new System.IO.FileStream({0}, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None)", path);
+		var stream:cs.system.io.Stream = cs.Syntax.code("new global::System.IO.FileStream({0}, global::System.IO.FileMode.OpenOrCreate, global::System.IO.FileAccess.ReadWrite, global::System.IO.FileShare.None)", path);
 		return @:privateAccess new FileOutput(stream);
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {
-		cs.Syntax.code("System.IO.File.Copy({0}, {1}, true)", srcPath, dstPath);
+		cs.Syntax.code("global::System.IO.File.Copy({0}, {1}, true)", srcPath, dstPath);
 	}
 }

@@ -31,26 +31,26 @@ class Condition {
 	}
 
 	public function acquire():Void {
-		cs.Syntax.code("System.Threading.Monitor.Enter({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.Enter({0})", _lock);
 	}
 
 	public function tryAcquire():Bool {
-		return cs.Syntax.code("System.Threading.Monitor.TryEnter({0})", _lock);
+		return cs.Syntax.code("global::System.Threading.Monitor.TryEnter({0})", _lock);
 	}
 
 	public function release():Void {
-		cs.Syntax.code("System.Threading.Monitor.Exit({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.Exit({0})", _lock);
 	}
 
 	public function wait():Void {
-		cs.Syntax.code("System.Threading.Monitor.Wait({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.Wait({0})", _lock);
 	}
 
 	public function signal():Void {
-		cs.Syntax.code("System.Threading.Monitor.Pulse({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.Pulse({0})", _lock);
 	}
 
 	public function broadcast():Void {
-		cs.Syntax.code("System.Threading.Monitor.PulseAll({0})", _lock);
+		cs.Syntax.code("global::System.Threading.Monitor.PulseAll({0})", _lock);
 	}
 }

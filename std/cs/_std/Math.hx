@@ -28,83 +28,83 @@ class Math {
 	public static var POSITIVE_INFINITY(default, null):Float = 1.0 / 0.0;
 
 	public static inline function abs(v:Float):Float {
-		return cs.Syntax.code("System.Math.Abs({0})", v);
+		return cs.Syntax.code("global::System.Math.Abs({0})", v);
 	}
 
 	public static inline function min(a:Float, b:Float):Float {
-		return cs.Syntax.code("System.Math.Min({0}, {1})", a, b);
+		return cs.Syntax.code("global::System.Math.Min({0}, {1})", a, b);
 	}
 
 	public static inline function max(a:Float, b:Float):Float {
-		return cs.Syntax.code("System.Math.Max({0}, {1})", a, b);
+		return cs.Syntax.code("global::System.Math.Max({0}, {1})", a, b);
 	}
 
 	public static inline function sin(v:Float):Float {
-		return cs.Syntax.code("System.Math.Sin({0})", v);
+		return cs.Syntax.code("global::System.Math.Sin({0})", v);
 	}
 
 	public static inline function cos(v:Float):Float {
-		return cs.Syntax.code("System.Math.Cos({0})", v);
+		return cs.Syntax.code("global::System.Math.Cos({0})", v);
 	}
 
 	public static inline function tan(v:Float):Float {
-		return cs.Syntax.code("System.Math.Tan({0})", v);
+		return cs.Syntax.code("global::System.Math.Tan({0})", v);
 	}
 
 	public static inline function asin(v:Float):Float {
-		return cs.Syntax.code("System.Math.Asin({0})", v);
+		return cs.Syntax.code("global::System.Math.Asin({0})", v);
 	}
 
 	public static inline function acos(v:Float):Float {
-		return cs.Syntax.code("System.Math.Acos({0})", v);
+		return cs.Syntax.code("global::System.Math.Acos({0})", v);
 	}
 
 	public static inline function atan(v:Float):Float {
-		return cs.Syntax.code("System.Math.Atan({0})", v);
+		return cs.Syntax.code("global::System.Math.Atan({0})", v);
 	}
 
 	public static inline function atan2(y:Float, x:Float):Float {
-		return cs.Syntax.code("System.Math.Atan2({0}, {1})", y, x);
+		return cs.Syntax.code("global::System.Math.Atan2({0}, {1})", y, x);
 	}
 
 	public static inline function exp(v:Float):Float {
-		return cs.Syntax.code("System.Math.Exp({0})", v);
+		return cs.Syntax.code("global::System.Math.Exp({0})", v);
 	}
 
 	public static inline function log(v:Float):Float {
-		return cs.Syntax.code("System.Math.Log({0})", v);
+		return cs.Syntax.code("global::System.Math.Log({0})", v);
 	}
 
 	public static inline function pow(v:Float, exp:Float):Float {
-		return cs.Syntax.code("System.Math.Pow({0}, {1})", v, exp);
+		return cs.Syntax.code("global::System.Math.Pow({0}, {1})", v, exp);
 	}
 
 	public static inline function sqrt(v:Float):Float {
-		return cs.Syntax.code("System.Math.Sqrt({0})", v);
+		return cs.Syntax.code("global::System.Math.Sqrt({0})", v);
 	}
 
 	public static inline function round(v:Float):Int {
-		return cs.Syntax.code("(int)System.Math.Floor((double){0} + 0.5)", v);
+		return cs.Syntax.code("(int)global::System.Math.Floor((double){0} + 0.5)", v);
 	}
 
 	public static inline function floor(v:Float):Int {
-		return cs.Syntax.code("(int)System.Math.Floor((double){0})", v);
+		return cs.Syntax.code("(int)global::System.Math.Floor((double){0})", v);
 	}
 
 	public static inline function ceil(v:Float):Int {
-		return cs.Syntax.code("(int)System.Math.Ceiling((double){0})", v);
+		return cs.Syntax.code("(int)global::System.Math.Ceiling((double){0})", v);
 	}
 
 	public static inline function fround(v:Float):Float {
-		return cs.Syntax.code("System.Math.Floor((double){0} + 0.5)", v);
+		return cs.Syntax.code("global::System.Math.Floor((double){0} + 0.5)", v);
 	}
 
 	public static inline function ffloor(v:Float):Float {
-		return cs.Syntax.code("System.Math.Floor((double){0})", v);
+		return cs.Syntax.code("global::System.Math.Floor((double){0})", v);
 	}
 
 	public static inline function fceil(v:Float):Float {
-		return cs.Syntax.code("System.Math.Ceiling((double){0})", v);
+		return cs.Syntax.code("global::System.Math.Ceiling((double){0})", v);
 	}
 
 	public static inline function random():Float {

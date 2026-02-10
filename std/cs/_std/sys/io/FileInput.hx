@@ -71,7 +71,7 @@ class FileInput extends Input {
 			case SeekCur: 1; // SeekOrigin.Current
 			case SeekEnd: 2; // SeekOrigin.End
 		};
-		cs.Syntax.code("{0}.Seek({1}, (System.IO.SeekOrigin){2})", stream, p, origin);
+		cs.Syntax.code("{0}.Seek({1}, (global::System.IO.SeekOrigin){2})", stream, p, origin);
 	}
 
 	public function tell():Int {

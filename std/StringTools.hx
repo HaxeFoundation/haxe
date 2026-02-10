@@ -64,7 +64,7 @@ class StringTools {
 		s = lua.NativeStringTools.gsub(s, " ", "+");
 		return s;
 		#elseif cs
-		return cs.Syntax.code("System.Uri.EscapeDataString({0})", s);
+		return cs.Syntax.code("global::System.Uri.EscapeDataString({0})", s);
 		#else
 		return null;
 		#end
@@ -135,7 +135,7 @@ class StringTools {
 		s = lua.NativeStringTools.gsub(s, "\r\n", "\n");
 		return s;
 		#elseif cs
-		return cs.Syntax.code("System.Uri.UnescapeDataString({0})", s);
+		return cs.Syntax.code("global::System.Uri.UnescapeDataString({0})", s);
 		#else
 		return null;
 		#end
