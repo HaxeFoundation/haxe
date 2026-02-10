@@ -26,10 +26,8 @@ class Issue12540 extends Test {
 		initA = v.a;
 		initB = v.b;
 	}
-	#end
 
 	function test() {
-		#if lua
 		// Verify multiReturn field access worked in __init__
 		eq(initA, 10);
 		eq(initB, 15);
@@ -37,8 +35,6 @@ class Issue12540 extends Test {
 		var v:MRValue = untyped MRHelper.getValue();
 		eq(v.a, 10);
 		eq(v.b, 15);
-		#else
-		noAssert();
-		#end
 	}
+	#end
 }
