@@ -2245,7 +2245,7 @@ let generate com =
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)
-    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_anonToField, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw, _hx_dyn_add, _hx_wrap_if_string_field, _hx_handle_error, _hx_luv";
+    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_anonToField, _hx_print, _hx_apply_self, _hx_box_mr, _hx_table, _hx_bit_raw, _hx_dyn_add, _hx_wrap_if_string_field, _hx_handle_error, _hx_luv";
     println ctx "local _hx_pcall_default = {};";
     println ctx "local _hx_pcall_break = {};";
 
@@ -2256,9 +2256,6 @@ let generate com =
     if has_feature ctx "use._bitop" then begin
         print_file (find_file "lua/_lua/_hx_bit.lua");
     end;
-
-    (* integer clamping is always required, and will use bit ops if available *)
-    print_file (find_file "lua/_lua/_hx_bit_clamp.lua");
 
     (* Array is required, always patch it *)
     println ctx "_hx_array_mt.__index = Array.prototype";

@@ -194,11 +194,84 @@ class Boot {
 			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
 	}
 
+	// wrap with common functionality for all implementations
+	extern inline static function clampWrapper(inner:Float->Null<Int>):Float->Null<Int> {
+		return function (v:Float) {
+			if (v <= Max_Int32 && v >= Min_Int32)
+				return v > 0 ? Math.floor(v) : Math.ceil(v);
+
+			if (inline std.Math.isNaN(v) || !inline std.Math.isFinite(v))
+				return null;
+
+			return inner(v);
+		};
+	}
+
+	extern inline static function prepareForBitwise(v:Float) {
+		if (v > 2251798999999999) {
+			return v * 2;
+		}
+		return v;
+	}
+
+	// Ideally, these should be extern inline because they should only be used
+	// via inlining (we also don't want clampNativeOperator outside testFunctionSupport)
+	// however, extern inline prevents closures, even if they are immediately inlined
+	inline static function clampNativeOperator(v:Float) {
+		v = prepareForBitwise(v);
+		return lua.Syntax.code("({0} & 0x7FFFFFFF) - ({0} & 0x80000000)", v);
+	}
+
+	inline static function clampHxBit(v:Float):Int {
+		v = prepareForBitwise(v);
+		final band:(Float, Float) -> Int = untyped _hx_bit_raw.band;
+		return band(v, Max_Int32) - cast Math.abs(band(v, -Min_Int32));
+	}
+
+	inline static function clampModulo(v:Float):Int {
+		v %= 4294967296;
+		if (v >= 2147483648) {
+			v -= 4294967296;
+		}
+		return cast v;
+	}
+
+	/**
+		Test whether the syntax used in function `f` is supported on the current lua version.
+
+		If it is, return it, otherwise return null.
+	**/
+	extern inline static function testFunctionSupport<T, S>(f:T->S):Null<T->S> {
+		final result = Lua.pcall(Lua.load, lua.Syntax.code("[[return {0}]]", f));
+		if (result.status && result.value != null) {
+			final fn:() -> (T->S) = result.value;
+			return fn();
+		}
+		return null;
+	}
+
 	/**
 		A 32 bit clamp function for numbers
 	**/
-	public inline static function clampInt32(x:Float) {
-        return untyped _hx_bit_clamp(x);
+	@:ifFeature("use._bitop")
+	public static function clampInt32(v:Float) {
+		final clampImpl = {
+			// Try native Lua 5.3+ bit operators first (preferred over bit32/bit library)
+			final nativeOperators = testFunctionSupport(clampWrapper(clampNativeOperator));
+			if (nativeOperators != null) {
+				nativeOperators;
+			} else if (untyped _hx_bit_raw != null) {
+				clampWrapper(clampHxBit);
+			} else {
+				// Fallback for Lua without bit, bit32, or native bit ops: wrap using modulo
+				clampWrapper(clampModulo);
+			}
+		};
+
+		// set implementation so that future calls don't have to perform detection
+		untyped lua.Boot.clampInt32 = clampImpl;
+
+		return clampImpl(v);
 	}
 
 	/**
