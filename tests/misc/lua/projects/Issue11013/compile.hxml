@@ -1,3 +1,7 @@
 -main Main
 -lua bin/test.lua
---cmd lua runner.lua
+-D lua-vanilla
+# Test Int32 wrapping without bit32/bit libraries.
+# On Lua 5.3+ this exercises native bit operators.
+# On other versions, this exercises the modulo-based fallback.
+--cmd lua -e "require = nil; bit32 = nil; bit = nil" bin/test.lua
