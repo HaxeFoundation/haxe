@@ -55,6 +55,11 @@
 		"generic": true
 	},
 	{
+		"name": "WNullSafety",
+		"doc": "Warnings related to null safety",
+		"generic": true
+	},
+	{
 		"name": "WDeprecated",
 		"doc": "This is deprecated and should no longer be used"
 	},
@@ -133,7 +138,8 @@
 	{
 		"name": "WRedundantNullCheck",
 		"doc": "Value can't be null, so comparison with null is excessive",
-		"parent": "WTyper"
+		"parent": "WNullSafety",
+		"enabled": false
 	},
 	{
 		"name": "WHxb",

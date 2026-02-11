@@ -6,21 +6,35 @@ open Error
 type safety_message = {
 	sm_msg : string;
 	sm_pos : pos;
-	sm_type : WarningList.warning option
+	sm_module : module_def;
+}
+
+type safety_warning = {
+	sw_warning : WarningList.warning;
+	sw_options : warning_option list list;
+	sw_msg : string;
+	sw_pos : pos;
+	sw_module : module_def;
 }
 
 type safety_report = {
 	mutable sr_errors : safety_message list;
-	mutable sr_warnings: safety_message list;
+	mutable sr_warnings: safety_warning list;
 }
 
-let add_error report msg pos =
-	let error = { sm_type = None; sm_msg = ("Null safety: " ^ msg); sm_pos = pos; } in
+let add_error report m msg pos =
+	let error = { sm_msg = ("Null safety: " ^ msg); sm_pos = pos; sm_module = m; } in
 	if not (List.mem error report.sr_errors) then
 		report.sr_errors <- error :: report.sr_errors;;
 
-let add_warning report wtype msg pos =
-	let warning = { sm_type = Some wtype; sm_msg = ("Null safety: " ^ msg); sm_pos = pos; } in
+let add_warning report m wtype options msg pos =
+	let warning = {
+		sw_warning = wtype;
+		sw_options = options;
+		sw_msg = ("Null safety: " ^ msg);
+		sw_pos = pos;
+		sw_module = m;
+	} in
 	if not (List.mem warning report.sr_warnings) then
 		report.sr_warnings <- warning :: report.sr_warnings;
 
@@ -484,16 +498,16 @@ let get_safety_mode (metadata:Ast.metadata) =
 		| Some mode -> mode
 		| None -> SMOff
 
-let rec validate_safety_meta report (metadata:Ast.metadata) =
+let rec validate_safety_meta report m (metadata:Ast.metadata) =
 	match metadata with
 		| [] -> ()
 		| (Meta.NullSafety, args, pos) :: rest ->
 			(match args with
 				| ([] | [(EConst (Ident ("Off" | "Loose" | "Strict" | "StrictThreaded")), _)]) -> ()
-				| _ -> add_error report "Invalid argument for @:nullSafety meta" pos
+				| _ -> add_error report m "Invalid argument for @:nullSafety meta" pos
 			);
-			validate_safety_meta report rest
-		| _ :: rest -> validate_safety_meta report rest
+			validate_safety_meta report m rest
+		| _ :: rest -> validate_safety_meta report m rest
 
 (**
 	Check if specified `field` represents a `var` field which will exist at runtime.
@@ -1067,7 +1081,7 @@ class local_safety (mode:safety_mode) =
 (**
 	This class is used to recursively check typed expressions for null-safety
 *)
-class expr_checker mode immediate_execution report =
+class expr_checker m mode immediate_execution report options =
 	object (self)
 		val local_safety = new local_safety mode
 		val mutable return_types = []
@@ -1090,13 +1104,13 @@ class expr_checker mode immediate_execution report =
 							if p <> null_pos then p
 							else get_first_valid_pos rest
 				in
-				add_error report msg (get_first_valid_pos positions)
+				add_error report m msg (get_first_valid_pos positions)
 			end
 
 		method error_unify (trace:unify_error list) p =
 			if not is_pretending then begin
 				let msg = (BetterErrors.better_error_message trace) in
-				add_error report msg p
+				add_error report m msg p
 			end
 		(**
 			Register a warning
@@ -1110,7 +1124,8 @@ class expr_checker mode immediate_execution report =
 							if p <> null_pos then p
 							else get_first_valid_pos rest
 				in
-				add_warning report wtype msg (get_first_valid_pos positions)
+				(* TODO field options *)
+				add_warning report m wtype options msg (get_first_valid_pos positions)
 			end
 
 		method private check_binop_redundant_null_checks e =
@@ -1119,6 +1134,7 @@ class expr_checker mode immediate_execution report =
 				| TBinop ((OpEq | OpNotEq), expr, { eexpr = TConst TNull })
 				| TBinop(OpAssignOp OpNullCoal, expr, _)
 				| TBinop (OpNullCoal, expr, _) ->
+					(* TODO field options *)
 					if not (is_nullable_type ~dynamic_is_nullable:true expr.etype) then
 						self#warning
 							WRedundantNullCheck
@@ -1274,7 +1290,7 @@ class expr_checker mode immediate_execution report =
 				| TThrow expr -> self#check_throw expr e.epos
 				| TCast (expr, _) -> self#check_cast expr e.etype e.epos
 				| TMeta (m, _) when contains_unsafe_meta [m] -> ()
-				| TMeta ((Meta.NullSafety, _, _) as m, e) -> validate_safety_meta report [m]; self#check_expr e
+				| TMeta ((Meta.NullSafety, _, _) as m_meta, e) -> validate_safety_meta report m [m_meta]; self#check_expr e
 				| TMeta (_, e) -> self#check_expr e
 				| TEnumIndex idx -> self#check_enum_index idx e.epos
 				| TEnumParameter (e, _, _) -> self#check_expr e (** Checking enum value itself is not needed here because this expr always follows after TEnumIndex *)
@@ -1606,20 +1622,22 @@ class expr_checker mode immediate_execution report =
 	end
 
 class class_checker cls immediate_execution report (main_expr : texpr option) =
+	let m = cls.cl_module in
 	let cls_meta = cls.cl_meta @ (match cls.cl_kind with KAbstractImpl a -> a.a_meta | _ -> []) in
 	object (self)
 			val is_safe_class = (safety_enabled cls_meta)
-			val mutable checker = new expr_checker SMLoose immediate_execution report
+			(* TODO: field meta *)
+			val mutable checker = new expr_checker m SMLoose immediate_execution report (Warning.from_meta cls_meta)
 			val mutable mode : safety_mode option = None
 		(**
 			Entry point for checking a class
 		*)
 		method check =
-			validate_safety_meta report cls_meta;
+			validate_safety_meta report m cls_meta;
 			if is_safe_class && (not (has_class_flag cls CExtern)) && (not (has_class_flag cls CInterface)) then
 				self#check_var_fields;
 			let check_field is_static f = if not (has_class_field_flag f CfPostProcessed) then begin
-				validate_safety_meta report f.cf_meta;
+				validate_safety_meta report m f.cf_meta;
 				match (get_safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
@@ -1682,7 +1700,8 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 		*)
 		method private get_checker mode =
 			if checker#get_mode <> mode then
-				checker <- new expr_checker mode immediate_execution report;
+				(* TODO field meta *)
+				checker <- new expr_checker m mode immediate_execution report (Warning.from_meta cls_meta);
 			checker
 		(**
 			Check if field should be checked by null safety
@@ -1710,7 +1729,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 		*)
 		method check_var_fields =
 			let check_field is_static field =
-				validate_safety_meta report field.cf_meta;
+				validate_safety_meta report m field.cf_meta;
 				if
 					should_be_initialized field
 					&& not (is_nullable_type field.cf_type)
@@ -1875,20 +1894,22 @@ let run (com:Common.context) (types:module_type list) =
 	match com.callbacks#get_null_safety_report with
 		| [] ->
 			List.iter (fun warn ->
-				com.warning (Option.get warn.sm_type) [] warn.sm_msg warn.sm_pos
+				Common.module_warning com warn.sw_module warn.sw_warning warn.sw_options warn.sw_msg warn.sw_pos
 			) (List.rev report.sr_warnings);
-
 			List.iter (fun err ->
 				Common.display_error com err.sm_msg err.sm_pos
-			) (List.rev report.sr_errors)
+			) (List.rev report.sr_errors);
 		| callbacks ->
-			let warnings =
-				List.map (fun warn -> (warn.sm_type, warn.sm_msg, warn.sm_pos)) report.sr_warnings
-			in
 			let errors =
-				List.map (fun err -> (err.sm_type, err.sm_msg, err.sm_pos)) report.sr_errors
+				List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors
 			in
-			let all = warnings @ errors in
-			List.iter (fun fn -> fn all) callbacks
+			let warnings =
+				List.filter_map (fun w ->
+					match Warning.get_mode w.sw_warning (w.sw_options @ com.warning_options) with
+					| WMEnable -> Some (w.sw_warning, w.sw_msg, w.sw_pos)
+					| WMDisable -> None
+				) report.sr_warnings
+			in
+			List.iter (fun fn -> fn errors warnings) callbacks
 
 ;;

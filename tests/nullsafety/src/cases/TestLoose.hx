@@ -134,7 +134,7 @@ class TestLoose {
 	}
 
 	static function nullCoal_returnNull_shouldPass(token:{children:Array<Int>}):Null<Bool> {
-		final children = shouldWarn(token.children ?? return null);
+		final children = token.children ?? return null;
 		var i = children.length;
 		return null;
 	}

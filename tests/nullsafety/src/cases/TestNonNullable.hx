@@ -7,6 +7,7 @@ typedef Data = {
 	var foo:String;
 }
 
+@:haxe.warning("+WRedundantNullCheck")
 class TestNonNullable {
 	static function main() {
 		final foo = 0;
