@@ -6,9 +6,7 @@ class Issue10879 extends Test {
 		// Test that pairsMap callback takes (key, value) and returns the mapped value.
 		// Before fix, the signature was A->B->C->C (3 args) but the Lua code
 		// only calls the callback with 2 args (k, v).
-		var t:lua.Table<Int, String> = lua.Table.create();
-		t[1] = "hello";
-		t[2] = "world";
+		var t = lua.Table.create(["hello", "world"]);
 
 		var mapped = lua.PairTools.pairsMap(t, function(k:Int, v:String):String {
 			return v + "!";
