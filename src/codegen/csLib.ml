@@ -953,47 +953,66 @@ let convert_ilenum ctx p ilcls =
 			fields := (field, int_val) :: !fields
 	) ilcls.cfields;
 	let fields = List.stable_sort (fun (_,i1) (_,i2) -> compare i1 i2) (List.rev !fields) in
-	let enum_fields = List.map fst fields in
-	ignore is_flags;
 	let hx_path = (match Hashtbl.find_opt il_to_hx_path ilcls.cpath with
 		| Some p -> p
 		| None -> netpath_to_hx ctx.nstd ilcls.cpath
 	) in
 	let name = netname_to_hx (snd hx_path) in
-	let int_type = (CTPath (make_ptp { tpackage = []; tname = "Int"; tparams = []; tsub = None } null_pos), null_pos) in
-	(* Add bitwise operator overloads for all enums (needed for | & ^ ~ operations) *)
-	let self_ct = (CTPath (make_ptp { tpackage = fst hx_path; tname = name; tparams = []; tsub = None } null_pos), null_pos) in
-	let mk_arg aname = ((aname,null_pos), false, [], Some self_ct, None) in
-	let mk_op_field op_name op_expr =
-		{
-			cff_name = op_name,null_pos;
-			cff_doc = None;
-			cff_pos = p;
-			cff_meta = [Meta.Op, [op_expr], p];
-			cff_access = [AStatic,null_pos];
-			cff_kind = FFun {
-				f_params = [];
-				f_args = [mk_arg "lhs"; mk_arg "rhs"];
-				f_type = Some self_ct;
-				f_expr = None;
-			};
+	if is_flags then begin
+		let enum_fields = List.map fst fields in
+		let int_type = (CTPath (make_ptp { tpackage = []; tname = "Int"; tparams = []; tsub = None } null_pos), null_pos) in
+		let self_ct = (CTPath (make_ptp { tpackage = fst hx_path; tname = name; tparams = []; tsub = None } null_pos), null_pos) in
+		let mk_arg aname = ((aname,null_pos), false, [], Some self_ct, None) in
+		let mk_op_field op_name op_expr =
+			{
+				cff_name = op_name,null_pos;
+				cff_doc = None;
+				cff_pos = p;
+				cff_meta = [Meta.Op, [op_expr], p];
+				cff_access = [AStatic,null_pos];
+				cff_kind = FFun {
+					f_params = [];
+					f_args = [mk_arg "lhs"; mk_arg "rhs"];
+					f_type = Some self_ct;
+					f_expr = None;
+				};
+			}
+		in
+		let a = (EConst (Ident "A"), p) in
+		let b = (EConst (Ident "B"), p) in
+		let op_fields = [
+			mk_op_field "or" (EBinop (OpOr, a, b), p);
+			mk_op_field "and" (EBinop (OpAnd, a, b), p);
+			mk_op_field "xor" (EBinop (OpXor, a, b), p);
+		] in
+		EAbstract {
+			d_name = name,null_pos;
+			d_doc = lookup_type_doc ctx ilcls.cpath;
+			d_params = [];
+			d_meta = meta;
+			d_flags = [AbEnum; AbExtern; AbOver int_type];
+			d_data = enum_fields @ op_fields;
 		}
-	in
-	let a = (EConst (Ident "A"), p) in
-	let b = (EConst (Ident "B"), p) in
-	let op_fields = [
-		mk_op_field "or" (EBinop (OpOr, a, b), p);
-		mk_op_field "and" (EBinop (OpAnd, a, b), p);
-		mk_op_field "xor" (EBinop (OpXor, a, b), p);
-	] in
-	EAbstract {
-		d_name = name,null_pos;
-		d_doc = lookup_type_doc ctx ilcls.cpath;
-		d_params = [];
-		d_meta = meta;
-		d_flags = [AbEnum; AbExtern; AbOver int_type];
-		d_data = enum_fields @ op_fields;
-	}
+	end else begin
+		EEnum {
+			d_name = name,null_pos;
+			d_doc = lookup_type_doc ctx ilcls.cpath;
+			d_params = [];
+			d_meta = meta;
+			d_flags = [EExtern];
+			d_data = List.map (fun (field, _) ->
+				{
+					ec_name = field.cff_name;
+					ec_doc = field.cff_doc;
+					ec_meta = [];
+					ec_args = [];
+					ec_pos = p;
+					ec_params = [];
+					ec_type = None;
+				}
+			) fields;
+		}
+	end
 
 (* --- Explicit interface detection --- *)
 
