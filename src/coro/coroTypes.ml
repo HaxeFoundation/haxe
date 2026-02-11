@@ -76,4 +76,9 @@ type cb_flag =
 	| CbSuspendState
 	| CbResumeState
 
+type coro_scope = {
+	scope_var : tvar;
+	restricted_suspension : bool;
+}
+
 exception CoroTco of coro_block

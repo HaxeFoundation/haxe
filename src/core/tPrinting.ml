@@ -621,6 +621,12 @@ module Printer = struct
 			"v_capture",string_of_bool (has_var_flag v VCaptured);
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
+			"v_flags",
+				(let s_flags = match v.v_flags with
+					| 0 -> ""
+					| _ -> Printf.sprintf "(%s)" (s_flags v.v_flags flag_tvar_names)
+				in
+				s_flags);
 			"v_pos",s_pos v.v_pos;
 		]
 

@@ -507,8 +507,17 @@ let fun_to_coro ctx coro_type =
 		in
 
 	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
-
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root expr);
+	let scope = match args with
+		| (v,_) :: _ ->
+			if has_var_flag v VCoroScope then Some {
+				scope_var = v;
+				restricted_suspension = has_var_flag v VCoroRestrictedSuspension
+			} else
+				None
+		| _ ->
+			None
+	in
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope expr);
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
 		let field, eargs =

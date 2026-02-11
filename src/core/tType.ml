@@ -559,7 +559,9 @@ type flag_tvar =
 	| VUsedByTyper (* Set if the typer looked up this variable *)
 	| VHxb (* Flag used by hxb *)
 	| VCoroCaptured
+	| VCoroScope
+	| VCoroRestrictedSuspension
 
 let flag_tvar_names = [
-	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
+	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper";"VHxb";"VCoroCaptured";"VCoroScope";"VRestrictedSuspension"
 ]

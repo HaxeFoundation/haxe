@@ -149,6 +149,18 @@
 		"targets": ["TClassField"]
 	},
 	{
+		"name": "CoroutineRestrictedSuspension",
+		"metadata": ":coroutine.restrictedSuspension",
+		"doc": "Marks a type as a coroutine scope with restricted suspension. Implies @:coroutine.scope.",
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
+	},
+	{
+		"name": "CoroutineScope",
+		"metadata": ":coroutine.scope",
+		"doc": "Marks a type as a coroutine scope, disallowing its usage in other scopes.",
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
+	},
+	{
 		"name": "CoroutineTransformed",
 		"metadata": ":coroutine.transformed",
 		"doc": "Marks a field as being a coroutine that has already been transformed",

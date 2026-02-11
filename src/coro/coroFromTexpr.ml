@@ -12,7 +12,7 @@ type coro_ret =
 	| RBlock
 	| RMapExpr of coro_ret * (texpr -> texpr)
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
+let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in
@@ -67,11 +67,38 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 		let ret = RMapExpr(ret,f) in
 		(ret,(fun e -> if e == e_no_value then e else f e))
 	in
+	let scope_allows_suspension_call_on e1 =
+		match scope with
+		| None ->
+			true
+		| Some scope when not scope.restricted_suspension ->
+			true
+		| Some scope ->
+			let rec is_scope_local_expr e = match (Texpr.skip e).eexpr with
+				| TLocal v when v == scope.scope_var ->
+					true
+				| TField(e1,_) ->
+					is_scope_local_expr e1
+				| _ ->
+					false
+			in
+			is_scope_local_expr e1
+	in
+	let scope_allows_access_to v = match scope with
+		| Some scope when scope.scope_var == v ->
+			true
+		| None ->
+			true (* I think? *)
+		| _ ->
+			false
+	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
 		| TConst TThis | TBlock [] ->
 			Some (cb,e)
+		| TLocal v when (has_var_flag v VCoroScope) && not (scope_allows_access_to v) ->
+			Error.raise_typing_error "Invalid usage of a coroutine scope in a different coroutine scope" e.epos
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
 			Some (cb,e)
@@ -182,6 +209,8 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 					| e1 :: el ->
 						begin match follow_with_coro e1.etype with
 						| Coro _ ->
+							if not (scope_allows_suspension_call_on e1) then
+								Error.raise_typing_error "Invalid suspension call on restricted suspension scope" e.epos;
 							let cb_next = block_from_e e1 in
 							add_block_flag cb_next CbResumeState;
 							add_block_flag cb CbSuspendState;
