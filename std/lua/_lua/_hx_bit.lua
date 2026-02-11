@@ -1,5 +1,5 @@
 if _G.bit32 or pcall(require, 'bit32') then
-  -- lua 5.2 and 5.3 have bit32 builtin, or it maybe be an external library on 5.1
+  -- lua 5.2 and 5.3 have bit32 builtin, otherwise it may be an external library
   _hx_bit_raw = _G.bit32 or require('bit32')
   _hx_bit = setmetatable({}, { __index = _hx_bit_raw })
   -- bit32 operations require manual clamping
@@ -11,7 +11,7 @@ if _G.bit32 or pcall(require, 'bit32') then
   _hx_bit.arshift = function(...) return _hx_bit_clamp(_hx_bit_raw.arshift(...)) end
   _hx_bit.lshift = function(...) return _hx_bit_clamp(_hx_bit_raw.lshift(...)) end
 elseif _G.bit or pcall(require, 'bit') then
-  --If we do not have bit32, fallback to 'bit', default on luajit
+  -- if we do not have bit32, fallback to bit, default on luajit
   _hx_bit_raw = _G.bit or require('bit')
   _hx_bit = _hx_bit_raw
 else

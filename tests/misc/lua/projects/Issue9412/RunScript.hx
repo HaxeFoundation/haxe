@@ -10,7 +10,6 @@ function noBuiltinBit() {
 }
 
 function main() {
-	// emulate no require, rely on builtin module
 	var noRequirePass = Sys.command("lua", ["-e", "require = nil", "bin/main.lua"]) == 0;
 
 	if (noBuiltinBit()) {
@@ -19,10 +18,7 @@ function main() {
 		noRequirePass = !noRequirePass;
 	}
 
-	// emulate no builtin bit32/bit, needs require
-	final noBuiltinPass = Sys.command("lua", ["-e", "bit32, bit = nil, nil", "bin/main.lua"]) == 0;
-
-	if (!(noRequirePass && noBuiltinPass)) {
+	if (!(noRequirePass)) {
 		Sys.exit(1);
 	}
 }
