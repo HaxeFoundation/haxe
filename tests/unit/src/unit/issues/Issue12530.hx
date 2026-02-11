@@ -4,10 +4,7 @@ class Issue12530 extends unit.Test {
 #if lua
 	// Table.iterator() and Table.keyValueIterator() for native for-loop syntax
 	function testTableValueIterator() {
-		var tbl:lua.Table<String, Int> = lua.Table.create();
-		untyped tbl["a"] = 1;
-		untyped tbl["b"] = 2;
-		untyped tbl["c"] = 3;
+		var tbl:lua.Table<String, Int> = lua.Table.create({a: 1, b: 2, c: 3});
 
 		// Test value iterator: for (v in table)
 		var sum = 0;
@@ -18,10 +15,7 @@ class Issue12530 extends unit.Test {
 	}
 
 	function testTableKeyValueIterator() {
-		var tbl:lua.Table<String, Int> = lua.Table.create();
-		untyped tbl["a"] = 1;
-		untyped tbl["b"] = 2;
-		untyped tbl["c"] = 3;
+		var tbl:lua.Table<String, Int> = lua.Table.create({a: 1, b: 2, c: 3});
 
 		// Test key-value iterator: for (k => v in table)
 		var keys:Array<String> = [];
