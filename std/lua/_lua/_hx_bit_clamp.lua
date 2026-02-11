@@ -1,4 +1,4 @@
--- Try native Lua 5.3+ bit operators first (preferred over bit32 library)
+-- Try native Lua 5.3+ bit operators first (preferred over bit32/bit library)
 local _hx_bit_clamp_native = (function()
     local ok, fn = pcall(load, [[
         return function(v)
@@ -30,7 +30,7 @@ elseif _hx_bit_raw then
     return _hx_bit_raw.band(v, 2147483647 ) - math.abs(_hx_bit_raw.band(v, 2147483648))
     end
 else
-    -- Fallback for Lua 5.1/5.2 without bit library: wrap using modulo
+    -- Fallback for Lua without bit, bit32, or native bit ops: wrap using modulo
     _hx_bit_clamp = function(v)
         if v <= 2147483647 and v >= -2147483648 then
             if v > 0 then return _G.math.floor(v)
