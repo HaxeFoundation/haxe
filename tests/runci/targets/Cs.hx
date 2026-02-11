@@ -1,5 +1,6 @@
 package runci.targets;
 
+import haxe.io.Path;
 import runci.Config.*;
 import runci.System.*;
 
@@ -105,6 +106,16 @@ class Cs {
 	}
 
 	static public function run(args:Array<String>) {
+		// === Setup hxcs library ===
+		if (!sys.FileSystem.exists(partyDir))
+			sys.FileSystem.createDirectory(partyDir);
+		changeDirectory(partyDir);
+		if (!sys.FileSystem.exists("hxcs")) {
+			runCommand("git", ["clone", "-b", Config.hxcsVersion, "https://github.com/jeremyfa/hxcs.git", "hxcs"]);
+		}
+		haxelibDev("hxcs", Path.join([partyDir, "hxcs"]));
+		changeDirectory(unitDir);
+
 		deleteDirectoryRecursively("bin/cs");
 
 		runCommand("dotnet", ["--version"]);
@@ -130,7 +141,7 @@ class Cs {
 		changeDirectory(miscCsDir);
 		deleteDirectoryRecursively("projects/Bootstrap/bin");
 		changeDirectory("projects/Bootstrap");
-		runCommand("haxe", ["compile.hxml"].concat(args));
+		runCommand("haxe", ["compile.hxml", "-lib", "hxcs"].concat(args));
 		changeDirectory("bin");
 		runCommand("dotnet", ["run"]);
 
@@ -170,7 +181,7 @@ class Cs {
 
 		// === Thread Tests ===
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-cs", "export/cs"].concat(args));
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs"].concat(args));
 		changeDirectory("export/cs");
 
 		// JIT
@@ -197,7 +208,8 @@ class Cs {
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
 		runCommand("haxelib", ["dev", "hxcoro", "."]);
-		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs"]);
+		runCommand("haxelib", ["dev", "hxcs", Path.join([partyDir, "hxcs"])]);
+		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs"]);
 		changeDirectory("tests/bin/cs");
 
 		// JIT

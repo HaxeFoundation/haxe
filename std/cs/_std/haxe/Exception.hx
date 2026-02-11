@@ -72,7 +72,7 @@ class Exception extends NativeException {
 			// Check if the native exception has a stack trace
 			var hasStack:Bool = cs.Syntax.code("((global::System.Exception){0}).StackTrace != null", native);
 			if (hasStack) {
-				__nativeStack = new cs.system.diagnostics.StackTrace(cast __nativeException, true);
+				__nativeStack = new cs.system.diagnostics.StackTrace((cast __nativeException : cs.system.Exception), true);
 				__ownStack = false;
 			} else {
 				// Exception has no stack trace, capture current call stack (skip 1 for constructor)
