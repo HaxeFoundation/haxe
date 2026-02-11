@@ -111,7 +111,9 @@ class TestNullCoalescing extends Test {
 
 	function test() {
 		count = 0;
+		#if !static
 		eq(true, 0 != 1 ?? 2);
+		#end
 		var a = call() ?? "default";
 		eq(count, 1);
 
@@ -175,11 +177,13 @@ class TestNullCoalescing extends Test {
 		final a = nullString;
 		eq(a ?? "2", "2");
 
+		#if !static
 		eq(1 ?? 2, 1);
+		#end
 		eq("1" ?? "2", "1");
 
 		final arr = [];
-		function item(n) {
+		function item(n):Null<Int> {
 			arr.push(n);
 			return n;
 		}
@@ -362,7 +366,7 @@ class TestNullCoalescing extends Test {
 
 	static macro function mut() {
 		mutI++;
-		return macro mutI;
+		return macro(mutI : Null<Int>);
 	}
 
 	static macro function getMut() {
