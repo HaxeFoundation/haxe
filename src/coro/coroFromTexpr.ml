@@ -80,16 +80,19 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				| TField(e1,_) ->
 					is_scope_local_expr e1
 				| _ ->
-					(* Allow calls where the scope var is the first argument because that's what happens when
-					   using `scope.staticExtension()`. *)
-					begin match el with
-					| e1 :: _ when is_scope_local_expr e1 ->
-						true
-					| _ ->
-						false
-					end
+					false
 			in
-			is_scope_local_expr e1
+			let has_scope_local_first_argument () =
+			(* Allow calls where the scope var is the first argument because that's what happens when
+			   using `scope.staticExtension()`. *)
+				begin match el with
+				| e1 :: _ when is_scope_local_expr e1 ->
+					true
+				| _ ->
+					false
+				end
+			in
+			is_scope_local_expr e1 || has_scope_local_first_argument ()
 	in
 	let scope_allows_access_to v = match scope with
 		| Some scope when scope.scope_var == v ->
