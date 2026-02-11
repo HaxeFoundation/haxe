@@ -210,7 +210,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 						begin match follow_with_coro e1.etype with
 						| Coro _ ->
 							if not (scope_allows_suspension_call_on e1) then
-								Error.raise_typing_error "Invalid suspension call on restricted suspension scope" e.epos;
+								Error.raise_typing_error "Invalid suspension call in restricted suspension scope" e.epos;
 							let cb_next = block_from_e e1 in
 							add_block_flag cb_next CbResumeState;
 							add_block_flag cb CbSuspendState;
