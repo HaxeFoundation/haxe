@@ -67,7 +67,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		let ret = RMapExpr(ret,f) in
 		(ret,(fun e -> if e == e_no_value then e else f e))
 	in
-	let scope_allows_suspension_call_on e1 =
+	let scope_allows_suspension_call_on e1 el =
 		match scope with
 		| None ->
 			true
@@ -80,7 +80,14 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				| TField(e1,_) ->
 					is_scope_local_expr e1
 				| _ ->
-					false
+					(* Allow calls where the scope var is the first argument because that's what happens when
+					   using `scope.staticExtension()`. *)
+					begin match el with
+					| e1 :: _ when is_scope_local_expr e1 ->
+						true
+					| _ ->
+						false
+					end
 			in
 			is_scope_local_expr e1
 	in
@@ -209,7 +216,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 					| e1 :: el ->
 						begin match follow_with_coro e1.etype with
 						| Coro _ ->
-							if not (scope_allows_suspension_call_on e1) then
+							if not (scope_allows_suspension_call_on e1 el) then
 								Error.raise_typing_error "Invalid suspension call in restricted suspension scope" e.epos;
 							let cb_next = block_from_e e1 in
 							add_block_flag cb_next CbResumeState;
