@@ -255,16 +255,21 @@ class Boot {
 	**/
 	@:ifFeature("use._bitop")
 	public static function clampInt32(v:Float) {
+		#if (lua_ver >= 5.3)
+		return clampWrapper(clampNativeOperator)(v);
+		#else
 		final clampImpl = {
 			// Try native Lua 5.3+ bit operators first (preferred over bit32/bit library)
 			final nativeOperators = testFunctionSupport(clampWrapper(clampNativeOperator));
 			if (nativeOperators != null) {
 				nativeOperators;
-			} else if (untyped _hx_bit_raw != null) {
-				clampWrapper(clampHxBit);
-			} else {
+			#if !(lua_ver >= 5.2) // lua 5.2 definitely has bit32
+			} else if (untyped _hx_bit_raw == null) {
 				// Fallback for Lua without bit, bit32, or native bit ops: wrap using modulo
 				clampWrapper(clampModulo);
+			#end
+			} else {
+				clampWrapper(clampHxBit);
 			}
 		};
 
@@ -272,6 +277,7 @@ class Boot {
 		untyped lua.Boot.clampInt32 = clampImpl;
 
 		return clampImpl(v);
+		#end
 	}
 
 	/**
