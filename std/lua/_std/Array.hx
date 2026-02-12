@@ -62,7 +62,7 @@ class Array<T> {
 	public function reverse():Void {
 		var tmp:T;
 		var i = 0;
-		while (i < Std.int(this.length / 2)) {
+		while (i < Math.floor(this.length / 2)) {
 			tmp = this[i];
 			this[i] = this[this.length - i - 1];
 			this[this.length - i - 1] = tmp;
