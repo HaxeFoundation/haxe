@@ -30,8 +30,8 @@ class Boot {
 	static var _:Dynamic;
 	static var _fid = 0;
 
-	static var Max_Int32 = 2147483647;
-	static var Min_Int32 = -2147483648;
+	static inline var Max_Int32 = 2147483647;
+	static inline var Min_Int32 = -2147483648;
 
 
 	// A max stack size to respect for unpack operations
