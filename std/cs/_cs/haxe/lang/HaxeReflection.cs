@@ -7,16 +7,21 @@ namespace haxe.lang
     /// <summary>
     /// Registry for reflection metadata.
     /// Provides AOT-safe reflection access by using a dictionary keyed by type name.
-    /// Each Haxe class calls _hx_bind() from Program.cs which registers its metadata.
+    /// Reflection data is initialized lazily: each class's _hx_bind() is called on first
+    /// reflection access via the initCallback dispatch function.
     /// </summary>
     public static class HaxeReflection
     {
         // Dictionary keyed by typeof(X).FullName (string)
         private static readonly Dictionary<string, StaticAccessors> registry = new Dictionary<string, StaticAccessors>();
 
+        // Lazy init callback — set by Program.cs at startup, dispatches to per-class _hx_bind()
+        internal static Action<string> initCallback;
+
         /// <summary>
         /// Called from _hx_bind() methods of generated classes.
         /// Returns the accessors object for the type, creating it if needed.
+        /// NOT modified with lazy init — this is called BY _hx_bind() itself.
         /// </summary>
         public static StaticAccessors getOrCreate(string typeName)
         {
@@ -35,17 +40,20 @@ namespace haxe.lang
         /// </summary>
         public static object getField(System.Type type, string name)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc))
+            if (!registry.TryGetValue(typeName, out acc))
             {
-                // For __meta__ field, return stored meta directly (used by interfaces
-                // which cannot have static fields, so we store their metadata here)
-                if (name == "__meta__" && acc.meta != null)
-                    return acc.meta;
-                // Otherwise use the getter
-                if (acc.getter != null)
-                    return acc.getter(name);
+                if (initCallback != null) initCallback(typeName);
+                if (!registry.TryGetValue(typeName, out acc)) return null;
             }
+            // For __meta__ field, return stored meta directly (used by interfaces
+            // which cannot have static fields, so we store their metadata here)
+            if (name == "__meta__" && acc.meta != null)
+                return acc.meta;
+            // Otherwise use the getter
+            if (acc.getter != null)
+                return acc.getter(name);
             return null;
         }
 
@@ -55,11 +63,15 @@ namespace haxe.lang
         /// </summary>
         public static bool hasField(System.Type type, string name)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc) && acc.checker != null)
+            if (!registry.TryGetValue(typeName, out acc))
             {
-                return acc.checker(name);
+                if (initCallback != null) initCallback(typeName);
+                if (!registry.TryGetValue(typeName, out acc)) return false;
             }
+            if (acc.checker != null)
+                return acc.checker(name);
             return false;
         }
 
@@ -69,12 +81,14 @@ namespace haxe.lang
         /// </summary>
         public static string[] getClassFieldNames(System.Type type)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc))
+            if (!registry.TryGetValue(typeName, out acc))
             {
-                return acc.classFieldNames;
+                if (initCallback != null) initCallback(typeName);
+                if (!registry.TryGetValue(typeName, out acc)) return null;
             }
-            return null;
+            return acc.classFieldNames;
         }
 
         /// <summary>
@@ -83,12 +97,14 @@ namespace haxe.lang
         /// </summary>
         public static string[] getInstanceFieldNames(System.Type type)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc))
+            if (!registry.TryGetValue(typeName, out acc))
             {
-                return acc.instanceFieldNames;
+                if (initCallback != null) initCallback(typeName);
+                if (!registry.TryGetValue(typeName, out acc)) return null;
             }
-            return null;
+            return acc.instanceFieldNames;
         }
 
         /// <summary>
@@ -98,12 +114,14 @@ namespace haxe.lang
         /// </summary>
         public static string[] getEnumConstructs(System.Type type)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc))
+            if (!registry.TryGetValue(typeName, out acc))
             {
-                return acc.enumConstructs;
+                if (initCallback != null) initCallback(typeName);
+                if (!registry.TryGetValue(typeName, out acc)) return null;
             }
-            return null;
+            return acc.enumConstructs;
         }
 
         /// <summary>
@@ -112,8 +130,14 @@ namespace haxe.lang
         /// </summary>
         public static object createEmpty(System.Type type)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc) && acc.emptyFactory != null)
+            if (!registry.TryGetValue(typeName, out acc))
+            {
+                if (initCallback != null) initCallback(typeName);
+                registry.TryGetValue(typeName, out acc);
+            }
+            if (acc != null && acc.emptyFactory != null)
             {
                 return ((ConstructorFunction)acc.emptyFactory).create(System.Array.Empty<object>());
             }
@@ -134,8 +158,14 @@ namespace haxe.lang
         /// </summary>
         public static object create(System.Type type, object[] args)
         {
+            var typeName = type.FullName;
             StaticAccessors acc;
-            if (registry.TryGetValue(type.FullName, out acc) && acc.factory != null)
+            if (!registry.TryGetValue(typeName, out acc))
+            {
+                if (initCallback != null) initCallback(typeName);
+                registry.TryGetValue(typeName, out acc);
+            }
+            if (acc != null && acc.factory != null)
             {
                 return ((ConstructorFunction)acc.factory).create(args);
             }

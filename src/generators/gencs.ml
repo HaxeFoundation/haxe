@@ -8424,6 +8424,16 @@ let generate_field_accessors gctx c =
 	else if Meta.has Meta.Unreflective c.cl_meta then
 		[]
 	else
+		(* Compute class type for lazy init guard in instance methods *)
+		let cs_path = cs_path_of_path c.cl_path in
+		let cs_class_type = CsTypeClass (cs_path, []) in
+		(* Guard: if (!_hx_bound) _hx_bind(); — triggers lazy init on first instance reflection *)
+		let lazy_init_guard = CsIf (
+			CsUnop (CsOpNot, false, CsStaticField (cs_class_type, "_hx_bound")),
+			CsExprStmt (CsStaticCall (cs_class_type, "_hx_bind", [])),
+			None
+		) in
+
 		(* Get list of instance fields with their Haxe and native names.
 		   Include any physical variable field (AccNormal read/write or @:isVar properties).
 		   Exclude fields marked @:unreflective. *)
@@ -8558,7 +8568,7 @@ let generate_field_accessors gctx c =
 			m_modifiers = [MemberModifier.Override];
 			m_type_params = [];
 			m_params = [{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None }];
-			m_body = Some [CsSwitch (CsLocal "name", all_get_sections)];
+			m_body = Some [lazy_init_guard; CsSwitch (CsLocal "name", all_get_sections)];
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
@@ -8592,7 +8602,7 @@ let generate_field_accessors gctx c =
 				{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None };
 				{ p_name = "value"; p_type = Some CsTypeObject; p_default = None; p_modifier = None };
 			];
-			m_body = Some [CsSwitch (CsLocal "name", set_field_sections @ [set_field_default])];
+			m_body = Some [lazy_init_guard; CsSwitch (CsLocal "name", set_field_sections @ [set_field_default])];
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
@@ -8610,7 +8620,7 @@ let generate_field_accessors gctx c =
 				m_modifiers = [MemberModifier.Override];
 				m_type_params = [];
 				m_params = [];
-				m_body = Some [CsReturn (Some array_expr)];
+				m_body = Some [lazy_init_guard; CsReturn (Some array_expr)];
 				m_constraints = [];
 				m_explicit_interface = None;
 				m_attributes = [];
@@ -8675,7 +8685,7 @@ let generate_field_accessors gctx c =
 					m_modifiers = [MemberModifier.Override];
 					m_type_params = [];
 					m_params = params;
-					m_body = Some [CsSwitch (CsLocal "index", cases @ [default_case])];
+					m_body = Some [lazy_init_guard; CsSwitch (CsLocal "index", cases @ [default_case])];
 					m_constraints = [];
 					m_explicit_interface = None;
 					m_attributes = [];
@@ -8880,6 +8890,28 @@ let generate_static_field_accessors gctx c =
 
 	(* If no static data fields and no static methods,
 	   generate a minimal _hx_bind that only registers field name arrays (no getter/checker) *)
+	(* _hx_bound field: per-class flag for lazy initialization.
+	   Needs 'new' only when the parent is a non-extern Haxe class (which also has _hx_bound).
+	   Unlike _hx_bind, HaxeObject does NOT have _hx_bound, so the first level doesn't need 'new'. *)
+	let bound_needs_new = match c.cl_super with
+		| None -> false
+		| Some (super_class, _) ->
+			not (has_class_flag super_class CExtern) &&
+			not (Meta.has Meta.Unreflective super_class.cl_meta) &&
+			not (Meta.has Meta.Native super_class.cl_meta)
+	in
+	let bound_modifiers = if bound_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
+	let hx_bound_field = CsMemberField {
+		f_name = "_hx_bound";
+		f_type = CsTypeBool;
+		f_access = AccessModifier.Internal;
+		f_modifiers = bound_modifiers;
+		f_value = None;
+	} in
+	(* Guard: if (_hx_bound) return; _hx_bound = true; *)
+	let bind_guard = CsIf (CsStaticField (cs_class_type, "_hx_bound"), CsReturn None, None) in
+	let bind_set_bound = CsExprStmt (CsBinop (CsOpAssign, CsStaticField (cs_class_type, "_hx_bound"), CsConst (CsConstBool true))) in
+
 	if static_fields = [] && static_methods = [] then
 		let bind_body =
 			(* var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyClass).FullName); *)
@@ -8902,9 +8934,9 @@ let generate_static_field_accessors gctx c =
 				CsNewArray (CsTypeString,
 					List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
 			)) in
-			[get_or_create; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
+			[bind_guard; bind_set_bound; get_or_create; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
 		in
-		factory_methods @
+		[hx_bound_field] @ factory_methods @
 		[CsMemberMethod {
 			m_name = "_hx_bind";
 			m_return_type = CsTypeVoid;
@@ -9148,7 +9180,7 @@ let generate_static_field_accessors gctx c =
 			CsNewArray (CsTypeString,
 				List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
 		)) in
-		[get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
+		[bind_guard; bind_set_bound; get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
 	in
 	let bind_method = CsMemberMethod {
 		m_name = "_hx_bind";
@@ -9164,7 +9196,7 @@ let generate_static_field_accessors gctx c =
 	} in
 
 	(* Combine all generated members *)
-	let members = closure_cache_members @ get_static_method_closure_members @
+	let members = [hx_bound_field] @ closure_cache_members @ get_static_method_closure_members @
 		[get_static_field_method; has_static_field_method; bind_method] @ factory_methods in
 	members
 
@@ -10196,9 +10228,20 @@ let generate_enum gctx (e : tenum) =
 			[get_static_field_method; has_static_field_method]
 		in
 
+		(* _hx_bound field for lazy initialization *)
+		let hx_bound_field = CsMemberField {
+			f_name = "_hx_bound";
+			f_type = CsTypeBool;
+			f_access = AccessModifier.Internal;
+			f_modifiers = [MemberModifier.Static];
+			f_value = None;
+		} in
+
 		(* Generate _hx_bind method for HaxeReflection registration.
 		   This registers enum constructor names and the getter/checker.
 		   public static void _hx_bind() {
+		       if (_hx_bound) return;
+		       _hx_bound = true;
 		       var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyEnum).FullName);
 		       acc.enumConstructs = new string[] { "A", "B", "C" };
 		       acc.getter = MyEnum._hx_getEnumConstructor;
@@ -10206,6 +10249,9 @@ let generate_enum gctx (e : tenum) =
 		   }
 		*)
 		let bind_body =
+			(* Guard: if (_hx_bound) return; _hx_bound = true; *)
+			let bind_guard = CsIf (CsStaticField (cs_enum_type, "_hx_bound"), CsReturn None, None) in
+			let bind_set_bound = CsExprStmt (CsBinop (CsOpAssign, CsStaticField (cs_enum_type, "_hx_bound"), CsConst (CsConstBool true))) in
 			(* var acc = haxe.lang.HaxeReflection.getOrCreate(typeof(MyEnum).FullName); *)
 			let get_or_create = CsVarDecl (
 				"acc",
@@ -10232,7 +10278,7 @@ let generate_enum gctx (e : tenum) =
 				CsField (CsLocal "acc", "checker"),
 				CsStaticField (cs_enum_type, checker_name)
 			)) in
-			[get_or_create; set_enum_constructs; set_getter; set_checker]
+			[bind_guard; bind_set_bound; get_or_create; set_enum_constructs; set_getter; set_checker]
 		in
 		let bind_method = CsMemberMethod {
 			m_name = "_hx_bind";
@@ -10265,7 +10311,7 @@ let generate_enum gctx (e : tenum) =
 			c_base = Some haxe_enum_type;
 			c_interfaces = [];
 			c_constraints = [];
-			c_members = meta_field @ cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method] @ static_field_methods @ [bind_method] @ List.rev members;
+			c_members = meta_field @ [hx_bound_field] @ cache_field @ [enum_ctor; get_enum_constructor_method; has_enum_constructor_method] @ static_field_methods @ [bind_method] @ List.rev members;
 		}
 
 (* Generate type *)
@@ -10369,29 +10415,6 @@ let generate com =
 	begin match Gctx.get_entry_point com with
 	| Some (_, entry_class, _) ->
 		let main_class_path = cs_path_of_path entry_class.cl_path in
-		(* Generate _hx_bind() calls for all Haxe classes *)
-		let bind_calls = List.rev_map (fun path ->
-			Printf.sprintf "        global::%s._hx_bind();" (s_cs_path path)
-		) gctx.all_haxe_classes in
-		let bind_calls_str = String.concat "\n" bind_calls in
-		(* Generate interface field name registrations (interfaces can't have _hx_bind) *)
-		let interface_registrations = List.rev_map (fun (ipath, field_names) ->
-			let field_names_str = String.concat ", " (List.map (Printf.sprintf "\"%s\"") field_names) in
-			Printf.sprintf "        {\n            var acc = global::haxe.lang.HaxeReflection.getOrCreate(typeof(global::%s).FullName);\n            acc.instanceFieldNames = new string[] { %s };\n        }" (s_cs_path ipath) field_names_str
-		) gctx.all_haxe_interfaces in
-		let interface_registrations_str = String.concat "\n" interface_registrations in
-		(* Generate interface metadata registrations (interfaces can't have static __meta__ field) *)
-		let interface_meta_registrations = List.rev_map (fun (hxpath, meta_expr) ->
-			let ipath = cs_path_of_path hxpath in
-			let ectx = create_expr_context gctx in
-			let cs_meta_expr = cs_expr_of_texpr ectx meta_expr in
-			(* Print expression to string using CsPrinter *)
-			let pctx = create_printer () in
-			print_expr pctx cs_meta_expr;
-			let meta_str = get_output pctx in
-			Printf.sprintf "        {\n            var acc = global::haxe.lang.HaxeReflection.getOrCreate(typeof(global::%s).FullName);\n            acc.meta = %s;\n        }" (s_cs_path ipath) meta_str
-		) gctx.interface_metadata in
-		let interface_meta_registrations_str = String.concat "\n" interface_meta_registrations in
 		(* Check if haxe.EntryPoint exists (needed for EventLoop support) *)
 		let has_entry_point = List.exists (fun path ->
 			path = (["haxe"], "EntryPoint")
@@ -10409,16 +10432,79 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        // Initialize all Haxe static field accessors
-%s
-%s
-%s
+        global::haxe.lang.HaxeReflection.initCallback = HaxeReflectionInit.initType;
 
-        %s.main();%s
+        global::%s.main();%s
     }
 }
-" bind_calls_str interface_registrations_str interface_meta_registrations_str (s_cs_path main_class_path) entry_point_call in
-		write_file com.file "Program.cs" program_content
+" (s_cs_path main_class_path) entry_point_call in
+		write_file com.file "Program.cs" program_content;
+
+		(* Generate HaxeReflectionInit.cs — lazy dispatch function for reflection initialization.
+		   Contains a switch on type name that calls _hx_bind() for classes/enums
+		   and registers field names / metadata for interfaces. *)
+
+		(* Class/enum switch cases: call _hx_bind() *)
+		let class_cases = List.rev_map (fun path ->
+			Printf.sprintf "            case \"%s\": global::%s._hx_bind(); break;" (s_cs_path path) (s_cs_path path)
+		) gctx.all_haxe_classes in
+
+		(* Build merged interface data: cs_path_string -> (field_names option, meta_str option) *)
+		let iface_data = Hashtbl.create 16 in
+		List.iter (fun (ipath, field_names) ->
+			Hashtbl.replace iface_data (s_cs_path ipath) (Some field_names, None)
+		) gctx.all_haxe_interfaces;
+		List.iter (fun (hxpath, meta_expr) ->
+			let ipath = cs_path_of_path hxpath in
+			let key = s_cs_path ipath in
+			let (existing_fields, _) = try Hashtbl.find iface_data key with Not_found -> (None, None) in
+			let ectx = create_expr_context gctx in
+			let cs_meta_expr = cs_expr_of_texpr ectx meta_expr in
+			let pctx = create_printer () in
+			print_expr pctx cs_meta_expr;
+			let meta_str = get_output pctx in
+			Hashtbl.replace iface_data key (existing_fields, Some meta_str)
+		) gctx.interface_metadata;
+
+		(* Interface switch cases: inline registration *)
+		let interface_cases = Hashtbl.fold (fun key (field_names_opt, meta_str_opt) acc ->
+			let buf = Buffer.create 256 in
+			Buffer.add_string buf (Printf.sprintf "            case \"%s\":\n            {\n" key);
+			Buffer.add_string buf (Printf.sprintf "                var acc = global::haxe.lang.HaxeReflection.getOrCreate(\"%s\");\n" key);
+			begin match field_names_opt with
+			| Some field_names ->
+				let field_names_str = String.concat ", " (List.map (Printf.sprintf "\"%s\"") field_names) in
+				Buffer.add_string buf (Printf.sprintf "                acc.instanceFieldNames = new string[] { %s };\n" field_names_str)
+			| None -> ()
+			end;
+			begin match meta_str_opt with
+			| Some meta_str ->
+				Buffer.add_string buf (Printf.sprintf "                acc.meta = %s;\n" meta_str)
+			| None -> ()
+			end;
+			Buffer.add_string buf "                break;\n            }";
+			Buffer.contents buf :: acc
+		) iface_data [] in
+
+		let all_cases = class_cases @ interface_cases in
+		let all_cases_str = String.concat "\n" all_cases in
+		let init_content = Printf.sprintf
+"// Generated by Haxe C# target
+using System;
+
+public static class HaxeReflectionInit
+{
+    public static void initType(string typeName)
+    {
+        switch (typeName)
+        {
+%s
+            default: break;
+        }
+    }
+}
+" all_cases_str in
+		write_file com.file "HaxeReflectionInit.cs" init_content
 	| None -> ()
 	end;
 

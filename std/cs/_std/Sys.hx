@@ -211,6 +211,7 @@ import cs.system.reflection.Assembly;
 		return getCwd();
 	}
 
+	@:csAttribute("global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"SingleFile\", \"IL3000\", Justification = \"Intentional fallback - guarded by null/empty checks\")")
 	public static function programPath():String {
 		// Try multiple approaches for AOT compatibility
 		// 1. Environment.ProcessPath (.NET 6+ only, not in .NET Standard 2.1)
