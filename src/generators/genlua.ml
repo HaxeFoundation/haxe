@@ -1129,7 +1129,7 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "not ";
         gen_value ctx e;
     | TUnop (NegBits,unop_flag,e) ->
-        add_feature ctx "use._bitop";
+        add_feature ctx "op_bitwise";
         spr ctx "_hx_bit.bnot(";
         gen_value ctx e;
         spr ctx ")";
@@ -1619,7 +1619,7 @@ and gen_paren_tbinop ctx e =
         gen_value ctx ee
 
 and gen_bitop ctx op e1 e2 =
-    add_feature ctx "use._bitop";
+    add_feature ctx "op_bitwise";
     print ctx "_hx_bit.%s(" (match op with
         | Ast.OpXor  ->  "bxor"
         | Ast.OpAnd  ->  "band"
@@ -2253,7 +2253,7 @@ let generate com =
     List.iter (generate_type ctx) com.types;
 
     (* If bit ops are manually imported include the haxe wrapper for them *)
-    if has_feature ctx "use._bitop" then begin
+    if has_feature ctx "op_bitwise" then begin
         print_file (find_file "lua/_lua/_hx_bit.lua");
     end;
 

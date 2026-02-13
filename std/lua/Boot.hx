@@ -253,7 +253,7 @@ class Boot {
 	/**
 		A 32 bit clamp function for numbers
 	**/
-	@:ifFeature("use._bitop")
+	@:ifFeature("op_bitwise")
 	public static function clampInt32(v:Float) {
 		#if (lua_ver >= 5.3)
 		return clampWrapper(clampNativeOperator)(v);

@@ -585,9 +585,9 @@ and check_op dce op = match op with
 		check_and_add_feature dce "binop_%";
 	| OpUShr ->
 		check_and_add_feature dce "binop_>>>";
-		check_and_add_feature dce "use._bitop";
+		check_and_add_feature dce "op_bitwise";
 	| OpXor | OpOr | OpAnd | OpShl | OpShr ->
-		check_and_add_feature dce "use._bitop";
+		check_and_add_feature dce "op_bitwise";
 	| OpAssignOp op ->
 		check_op dce op
 	| _ ->
@@ -748,7 +748,7 @@ and expr dce e =
 		expr dce e1;
 		expr dce e2;
 	| TUnop(NegBits,flag,e) ->
-		check_and_add_feature dce "use._bitop";
+		check_and_add_feature dce "op_bitwise";
 		expr dce e;
 	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
 		mark_t dce e2.epos e2.etype;
