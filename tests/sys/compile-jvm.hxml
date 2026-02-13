@@ -1,6 +1,7 @@
 compile-each.hxml
 
 --main Main
+-D std-encoding-utf8
 --jvm bin/jvm/sys.jar
 
 --next
@@ -13,4 +14,5 @@ compile-each.hxml
 
 --next
 --main UtilityProcess
+-D std-encoding-utf8
 --jvm bin/jvm/UtilityProcess.jar
