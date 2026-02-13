@@ -31,14 +31,24 @@ namespace haxe.lang
 
         /// <summary>
         /// Gets or creates a cached method closure for the given method index.
+        /// Thread-safe: uses Interlocked.CompareExchange for both cache array and element init.
         /// </summary>
         public global::haxe.lang.InstanceMethodFunction _hx_getMethodClosure(int index, int arity)
         {
-            if (_hx_closureCache == null)
-                _hx_closureCache = new global::haxe.lang.InstanceMethodFunction[_hx_methodCount];
-            if (_hx_closureCache[index] == null)
-                _hx_closureCache[index] = new global::haxe.lang.InstanceMethodFunction(this, index, arity);
-            return _hx_closureCache[index];
+            var cache = _hx_closureCache;
+            if (cache == null)
+            {
+                global::System.Threading.Interlocked.CompareExchange(ref _hx_closureCache,
+                    new global::haxe.lang.InstanceMethodFunction[_hx_methodCount], null);
+                cache = _hx_closureCache;
+            }
+
+            var result = cache[index];
+            if (result != null) return result;
+
+            var newClosure = new global::haxe.lang.InstanceMethodFunction(this, index, arity);
+            global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);
+            return cache[index];
         }
 
         /// <summary>

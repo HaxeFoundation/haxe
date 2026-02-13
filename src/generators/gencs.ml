@@ -8981,23 +8981,26 @@ let generate_static_field_accessors gctx c =
 		};
 	] in
 
-	(* Generate _hx_getStaticMethodClosure helper method with direct lambdas:
-	   private static haxe.lang.ClassMethodFunction _hx_getStaticMethodClosure(int index) {
-	       if (_hx_staticClosureCache == null)
-	           _hx_staticClosureCache = new haxe.lang.ClassMethodFunction[N];
-	       if (_hx_staticClosureCache[index] == null) {
-	           switch (index) {
-	               case 0: _hx_staticClosureCache[0] = new ClassMethodFunction(() => Value.fromInt(method0())); break;
-	               case 1: _hx_staticClosureCache[1] = new ClassMethodFunction((a1, a2) => Value.fromObject(method1(...))); break;
-	               ...
+	(* Generate _hx_getStaticMethodClosure helper method with direct lambdas.
+	   Thread-safe: uses Interlocked.CompareExchange for both cache array and element init.
+	   Generated pattern:
+	       internal static ClassMethodFunction _hx_getStaticMethodClosure(int index) {
+	           var cache = _hx_staticClosureCache;
+	           if (cache == null) {
+	               global::System.Threading.Interlocked.CompareExchange(ref _hx_staticClosureCache,
+	                   new ClassMethodFunction[N], null);
+	               cache = _hx_staticClosureCache;
 	           }
+	           var result = cache[index];
+	           if (result != null) return result;
+	           var newClosure = index switch { 0 => new ClassMethodFunction(...), ... , _ => null };
+	           global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);
+	           return cache[index];
 	       }
-	       return _hx_staticClosureCache[index];
-	   }
 	*)
 	let get_static_method_closure_members = if method_count = 0 then [] else
-		(* Build switch cases for closure creation - one case per method *)
-		let creation_cases = List.map (fun (idx, _, native_name, arity, args, ret) ->
+		(* Build switch expression arms for closure creation - one arm per method *)
+		let switch_arms = List.map (fun (idx, _, native_name, arity, args, ret) ->
 			(* Generate lambda parameters: a1, a2, ... (all of type Value) *)
 			let lambda_params = List.mapi (fun i _ -> {
 				p_name = Printf.sprintf "a%d" (i + 1);
@@ -9028,16 +9031,15 @@ let generate_static_field_accessors gctx c =
 				| _ -> CsLambdaExpr result_expr
 			in
 			let lambda = CsLambda (lambda_params, lambda_body) in
-			(* Create the closure assignment *)
-			let closure_creation = CsExprStmt (CsBinop (CsOpAssign,
-				CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsConst (CsConstInt (Int32.of_int idx))),
-				CsNew (class_method_func_type, [lambda])
-			)) in
-			{
-				sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
-				sw_body = [closure_creation; CsBreak];
-			}
+			(* Print the new ClassMethodFunction(...) expression to a string *)
+			let new_expr = CsNew (class_method_func_type, [lambda]) in
+			let pctx = create_printer () in
+			print_expr pctx new_expr;
+			let new_str = get_output pctx in
+			Printf.sprintf "%d => %s" idx new_str
 		) indexed_methods in
+		let switch_arms_str = String.concat ", " switch_arms in
+		let cache_field = Printf.sprintf "global::%s._hx_staticClosureCache" (s_cs_path cs_path) in
 		[CsMemberMethod {
 			m_name = "_hx_getStaticMethodClosure";
 			m_return_type = class_method_func_type;
@@ -9046,23 +9048,30 @@ let generate_static_field_accessors gctx c =
 			m_type_params = [];
 			m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
 			m_body = Some [
-				(* if (_hx_staticClosureCache == null) _hx_staticClosureCache = new ClassMethodFunction[method_count]; *)
+				(* var cache = _hx_staticClosureCache; *)
+				CsRawStmt (Printf.sprintf "var cache = %s;" cache_field);
+				(* if (cache == null) { Interlocked.CompareExchange(ref _hx_staticClosureCache, new ...[N], null); cache = _hx_staticClosureCache; } *)
 				CsIf (
-					CsBinop (CsOpEq, CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsConst CsConstNull),
-					CsExprStmt (CsBinop (CsOpAssign,
-						CsStaticField (cs_class_type, "_hx_staticClosureCache"),
-						CsNewArray (class_method_func_type, List.init method_count (fun _ -> CsConst CsConstNull))
-					)),
+					CsBinop (CsOpEq, CsLocal "cache", CsConst CsConstNull),
+					CsBlock [
+						CsRawStmt (Printf.sprintf "global::System.Threading.Interlocked.CompareExchange(ref %s, new global::haxe.lang.ClassMethodFunction[%d], null);" cache_field method_count);
+						CsRawStmt (Printf.sprintf "cache = %s;" cache_field);
+					],
 					None
 				);
-				(* if (_hx_staticClosureCache[index] == null) { switch ... } *)
+				(* var result = cache[index]; if (result != null) return result; *)
+				CsRawStmt "var result = cache[index];";
 				CsIf (
-					CsBinop (CsOpEq, CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsLocal "index"), CsConst CsConstNull),
-					CsSwitch (CsLocal "index", creation_cases),
+					CsBinop (CsOpNotEq, CsLocal "result", CsConst CsConstNull),
+					CsReturn (Some (CsLocal "result")),
 					None
 				);
-				(* return _hx_staticClosureCache[index]; *)
-				CsReturn (Some (CsArrayAccess (CsStaticField (cs_class_type, "_hx_staticClosureCache"), CsLocal "index")));
+				(* var newClosure = index switch { 0 => ..., 1 => ..., _ => null }; *)
+				CsRawStmt (Printf.sprintf "var newClosure = index switch { %s, _ => null };" switch_arms_str);
+				(* Interlocked.CompareExchange(ref cache[index], newClosure, null); *)
+				CsRawStmt "global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);";
+				(* return cache[index]; *)
+				CsRawStmt "return cache[index];";
 			];
 			m_constraints = [];
 			m_explicit_interface = None;
