@@ -1214,8 +1214,6 @@ let generate_csproj proj =
 	Buffer.add_string b "    <ImplicitUsings>disable</ImplicitUsings>\n";
 	Buffer.add_string b "    <Nullable>disable</Nullable>\n";
 	Buffer.add_string b "    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n";
-	(* Suppress CA2200: Haxe exception handling intentionally re-throws exceptions *)
-	Buffer.add_string b "    <NoWarn>$(NoWarn);CA2200</NoWarn>\n";
 	Buffer.add_string b "  </PropertyGroup>\n";
 	Buffer.add_string b "</Project>\n";
 	Buffer.contents b

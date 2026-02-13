@@ -10508,10 +10508,14 @@ public static class HaxeReflectionInit
 	| None -> ()
 	end;
 
-	(* Generate .csproj *)
+	(* Generate .csproj — target framework overridable via -D net-framework=net9.0 *)
+	let target_framework =
+		try Define.raw_defined_value com.defines "net-framework"
+		with Not_found -> "net8.0"
+	in
 	let proj = {
 		proj_name = "HaxeProject";
-		proj_target_framework = "net8.0";
+		proj_target_framework = target_framework;
 		proj_output_type = "Exe";
 	} in
 	write_file com.file "Project.csproj" (generate_csproj proj);
