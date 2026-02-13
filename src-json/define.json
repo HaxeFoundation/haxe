@@ -50,6 +50,30 @@
 		"doc": "Use legacy cppia generation."
 	},
 	{
+		"name": "CsNetFramework",
+		"define": "cs.net-framework",
+		"doc": "Set the .NET target framework for the generated C# project. (default: net8.0)",
+		"platforms": ["cs"],
+		"default": "net8.0",
+		"params": ["framework"]
+	},
+	{
+		"name": "CsNetTarget",
+		"define": "cs.net-target",
+		"doc": "Set the .NET library target name for loading C# extern API definitions. (default: netstandard)",
+		"platforms": ["cs"],
+		"default": "netstandard",
+		"params": ["target"]
+	},
+	{
+		"name": "CsNetVer",
+		"define": "cs.net-ver",
+		"doc": "Set the .NET library version for loading C# extern API definitions. (default: 2.1)",
+		"platforms": ["cs"],
+		"default": "2.1",
+		"params": ["version"]
+	},
+	{
 		"name": "Dce",
 		"define": "dce",
 		"doc": "Set the dead code elimination mode. (default: std)",

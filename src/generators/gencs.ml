@@ -10547,10 +10547,9 @@ public static class HaxeReflectionInit
 	let unique_files = List.rev !source_files |> List.sort_uniq String.compare in
 	write_file com.file "Sources.props" (generate_sources_props unique_files);
 
-	(* Generate .csproj — imports Sources.props, target framework overridable via -D net-framework=net9.0 *)
+	(* Generate .csproj — imports Sources.props, target framework overridable via -D cs.net-framework=net9.0 *)
 	let target_framework =
-		try Define.raw_defined_value com.defines "net-framework"
-		with Not_found -> "net8.0"
+		Gctx.defined_value_safe ~default:"net8.0" com DefineList.CsNetFramework
 	in
 	let proj = {
 		proj_name = "HaxeProject";
