@@ -95,7 +95,11 @@ let get_exposed ctx path meta = try
 
 let dot_path = Globals.s_type_path
 
-let s_path ctx = flat_path
+let s_path ctx path =
+    let fp = flat_path path in
+    match fst path with
+    | [] -> fp
+    | _ -> "_hx_c." ^ fp
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
 (* provided by StringHelper.s_escape *)
@@ -851,7 +855,7 @@ and gen_expr ?(local=true) ctx e = begin
             spr ctx "#";
             gen_value ctx e;
         ) else (
-            spr ctx "__lua_lib_luautf8_Utf8.len(";
+            print ctx "%s.len(" (s_path ctx (["lua";"lib";"luautf8"],"Utf8"));
             gen_value ctx e;
             spr ctx ", nil, nil, true)";
         )
@@ -2237,6 +2241,7 @@ let generate com =
          newline ctx
     );
 
+    println ctx "local _hx_c = {}";
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)
