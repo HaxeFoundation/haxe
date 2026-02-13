@@ -696,7 +696,7 @@ and gen_func_block ctx ret_expr el =
             (match hd.eexpr with
              | TReturn eo ->
                  newline ctx;
-                 gen_return ctx ret_expr eo;
+                 gen_return ctx ret_expr eo false;
              | _ -> gen_block_element ctx hd)
         | hd :: tl ->
             gen_block_element ctx hd;
@@ -826,7 +826,7 @@ and gen_expr ?(local=true) ctx e = begin
         gen_paren ctx [e];
     | TMeta (_,e) ->
         gen_expr ctx e
-    | TReturn eo -> gen_return ctx e eo;
+    | TReturn eo -> gen_return ctx e eo true;
     | TBreak ->
         if not ctx.loop_ctx.in_loop then unsupported e.epos;
         if ctx.loop_ctx.handle_continue then
@@ -854,10 +854,7 @@ and gen_expr ?(local=true) ctx e = begin
             let fblock = fun_block ctx f e.epos in
             (match fblock.eexpr with
              | TBlock el ->
-                 let bend = open_block ctx in
-                 List.iter (gen_block_element ctx) el;
-                 bend();
-                 newline ctx;
+                 gen_func_block ctx e el;
              |_ -> ());
             spr ctx "end");
         ctx.declared_locals <- old_declared_locals;
@@ -1221,10 +1218,7 @@ and gen_anon_value ctx e =
             let fblock = fun_block ctx f e.epos in
             (match fblock.eexpr with
              | TBlock el ->
-                 let bend = open_block ctx in
-                 List.iter (gen_block_element ctx) el;
-                 bend();
-                 newline ctx;
+                 gen_func_block ctx e el;
              |_ -> ());
             spr ctx "end");
         ctx.separator <- true
@@ -1522,31 +1516,35 @@ and gen_bitop ctx op e1 e2 =
     gen_value ctx e2;
     spr ctx ")"
 
-and gen_return ctx e eo =
+and gen_return ctx e eo wrap =
     if ctx.in_value <> None then unsupported e.epos;
+    let open_ret () = if wrap then spr ctx "do return " else spr ctx "return " in
+    let close_ret () = if wrap then spr ctx " end" in
     (match eo with
      | None ->
-         spr ctx "do return end"
+         if wrap then spr ctx "do return end"
+         else spr ctx "return"
      | Some e ->
          (match e.eexpr with
           | TField (e2, ((FAnon tcf | FInstance (_,_,tcf)) as t)) when ((is_function_type tcf.cf_type) && (not(is_dot_access e2 t)))->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
-              spr ctx "do return ";
+              open_ret ();
               print ctx "_hx_bind(";
               gen_value ctx e2;
               spr ctx ",";
               gen_value ctx e;
-              spr ctx ") end";
+              spr ctx ")";
+              close_ret ();
           | TBinop(OpAssign, e1, e2) ->
               gen_expr ctx e;
-              spr ctx " do return ";
+              if wrap then spr ctx " do return " else spr ctx " return ";
               gen_value ctx e1;
-              spr ctx " end";
+              close_ret ();
           | _ ->
-              spr ctx "do return ";
+              open_ret ();
               gen_value ctx e;
-              spr ctx " end");
+              close_ret ());
     )
 
 and gen_iife_assign ctx f =
