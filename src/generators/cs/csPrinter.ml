@@ -1204,10 +1204,26 @@ let generate_file file =
 	print_file ctx file;
 	get_output ctx
 
-(* Generate .csproj content *)
+(* Generate Sources.props — shared file list importable by any csproj *)
+let generate_sources_props source_files =
+	let b = Buffer.create 1024 in
+	Buffer.add_string b "<Project>\n";
+	Buffer.add_string b "  <PropertyGroup>\n";
+	Buffer.add_string b "    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n";
+	Buffer.add_string b "  </PropertyGroup>\n";
+	Buffer.add_string b "  <ItemGroup>\n";
+	List.iter (fun file ->
+		Buffer.add_string b (Printf.sprintf "    <Compile Include=\"%s\" />\n" file)
+	) source_files;
+	Buffer.add_string b "  </ItemGroup>\n";
+	Buffer.add_string b "</Project>\n";
+	Buffer.contents b
+
+(* Generate .csproj content — imports Sources.props for the file list *)
 let generate_csproj proj =
 	let b = Buffer.create 1024 in
 	Buffer.add_string b "<Project Sdk=\"Microsoft.NET.Sdk\">\n";
+	Buffer.add_string b "  <Import Project=\"Sources.props\" />\n";
 	Buffer.add_string b "  <PropertyGroup>\n";
 	Buffer.add_string b (Printf.sprintf "    <OutputType>%s</OutputType>\n" proj.proj_output_type);
 	Buffer.add_string b (Printf.sprintf "    <TargetFramework>%s</TargetFramework>\n" proj.proj_target_framework);

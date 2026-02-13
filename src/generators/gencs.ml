@@ -10406,9 +10406,11 @@ let generate com =
 		(rel_path, generate_file file)
 	) (List.rev gctx.generated_types) in
 
-	(* Write all files *)
+	(* Write all files, tracking paths for csproj *)
+	let source_files = ref [] in
 	List.iter (fun (rel_path, content) ->
-		write_file com.file rel_path content
+		write_file com.file rel_path content;
+		source_files := rel_path :: !source_files
 	) files;
 
 	(* Generate Program.cs with Main entry point if we have an entry point *)
@@ -10439,6 +10441,7 @@ public class Program
 }
 " (s_cs_path main_class_path) entry_point_call in
 		write_file com.file "Program.cs" program_content;
+		source_files := "Program.cs" :: !source_files;
 
 		(* Generate HaxeReflectionInit.cs — lazy dispatch function for reflection initialization.
 		   Contains a switch on type name that calls _hx_bind() for classes/enums
@@ -10504,27 +10507,17 @@ public static class HaxeReflectionInit
     }
 }
 " all_cases_str in
-		write_file com.file "HaxeReflectionInit.cs" init_content
+		write_file com.file "HaxeReflectionInit.cs" init_content;
+		source_files := "HaxeReflectionInit.cs" :: !source_files
 	| None -> ()
 	end;
-
-	(* Generate .csproj — target framework overridable via -D net-framework=net9.0 *)
-	let target_framework =
-		try Define.raw_defined_value com.defines "net-framework"
-		with Not_found -> "net8.0"
-	in
-	let proj = {
-		proj_name = "HaxeProject";
-		proj_target_framework = target_framework;
-		proj_output_type = "Exe";
-	} in
-	write_file com.file "Project.csproj" (generate_csproj proj);
 
 	(* Copy runtime support files from std/cs/_cs/ *)
 	let find_file f = (com.class_paths#find_file f).file in
 	let copy_runtime_file src_path dest_path =
 		let content = Std.input_file ~bin:true (find_file src_path) in
-		write_file com.file dest_path content
+		write_file com.file dest_path content;
+		source_files := dest_path :: !source_files
 	in
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeObject.cs" "haxe/lang/HaxeObject.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeDynamicObject.cs" "haxe/lang/HaxeDynamicObject.cs";
@@ -10540,4 +10533,20 @@ public static class HaxeReflectionInit
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeReflection.cs" "haxe/lang/HaxeReflection.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/HaxeEnum.cs" "haxe/lang/HaxeEnum.cs";
 	copy_runtime_file "cs/_cs/AssemblyAttributes.cs" "AssemblyAttributes.cs";
+
+	(* Generate Sources.props with explicit file list (deduplicated) *)
+	let unique_files = List.rev !source_files |> List.sort_uniq String.compare in
+	write_file com.file "Sources.props" (generate_sources_props unique_files);
+
+	(* Generate .csproj — imports Sources.props, target framework overridable via -D net-framework=net9.0 *)
+	let target_framework =
+		try Define.raw_defined_value com.defines "net-framework"
+		with Not_found -> "net8.0"
+	in
+	let proj = {
+		proj_name = "HaxeProject";
+		proj_target_framework = target_framework;
+		proj_output_type = "Exe";
+	} in
+	write_file com.file "Project.csproj" (generate_csproj proj);
 
