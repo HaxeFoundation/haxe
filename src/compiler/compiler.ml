@@ -307,8 +307,8 @@ let do_type ctx mctx actx display_file_dot_path =
 
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	Setup.init_native_libs com actx.native_libs;
-	(* Auto-load netstandard.dll from hxcs if available *)
-	let net_std_fns = CsLib.maybe_load_netstandard com in
+	(* Auto-load .NET standard libraries from hxcs if available *)
+	let net_std_fns = CsLib.maybe_load_net_std com actx.net_std_path in
 	List.iter (fun f -> f()) net_std_fns;
 	(* Register stub provider for missing .NET types referenced by loaded DLLs *)
 	CsLib.register_stub_provider com;

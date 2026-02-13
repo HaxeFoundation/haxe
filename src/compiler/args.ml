@@ -66,6 +66,7 @@ let parse_args com =
 		deprecations = [];
 		measure_times = false;
 		net_doc_file = None;
+		net_std_path = None;
 	} in
 	let add_deprecation s =
 		actx.deprecations <- s :: actx.deprecations
@@ -235,6 +236,9 @@ let parse_args com =
 			actx.net_doc_file <- Some file;
 			actx.did_something <- true;
 		),"<file>","generate .hxdoc binary cache from a .NET XML doc file");
+		("Target-specific",["--net-std"],[],Arg.String (fun path ->
+			actx.net_std_path <- Some path;
+		),"<path>","set the .NET standard library lookup folder (default: netlib)");
 		("Compilation",["-r";"--resource"],["-resource"],Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name

@@ -1580,18 +1580,42 @@ let register_stub_provider com =
 		com.load_extern_type <- com.load_extern_type @ ["<net-stubs>", build]
 	end
 
-(** Auto-load netstandard.dll from hxcs if available.
-    Scans class paths for netlib/netstandard-2.1/netstandard.dll.
+(** Auto-load .NET standard libraries from hxcs.
+    Scans class paths for {net_std}/{net_target}-{net_ver}/ directory
+    and loads all .dll files found within it.
+    Configurable via -D net-target (default: netstandard), -D net-ver (default: 2.1),
+    and --net-std (default: netlib).
     Returns a list of init functions to call (like add_net_lib). *)
-let maybe_load_netstandard com =
+let maybe_load_net_std com net_std_base =
 	if com.Common.platform <> Globals.Cs then []
 	else begin
-		let netstandard_path = "netlib/netstandard-2.1/netstandard.dll" in
-		try
-			let file = (com.class_paths#find_file netstandard_path).ClassPaths.file in
+		let net_target = try Define.raw_defined_value com.defines "net_target"
+			with Not_found -> "netstandard" in
+		let net_ver = try Define.raw_defined_value com.defines "net_ver"
+			with Not_found -> "2.1" in
+		let base_path = match net_std_base with Some p -> p | None -> "netlib" in
+		let dir_rel = Printf.sprintf "%s/%s-%s" base_path net_target net_ver in
+		(* Try to find the directory via class paths *)
+		let found_dir = ref None in
+		com.class_paths#iter (fun cp ->
+			if !found_dir = None then begin
+				let dir = cp#path ^ dir_rel in
+				if Sys.file_exists dir && Sys.is_directory dir then
+					found_dir := Some dir
+			end
+		);
+		match !found_dir with
+		| None -> []
+		| Some dir ->
 			if Common.raw_defined com "net_loader_debug" then
-				Printf.printf "(net-lib) Auto-loading netstandard from %s\n" file;
-			[add_net_lib com file false]
-		with Not_found ->
-			[]
+				Printf.printf "(net-lib) Auto-loading .NET libs from %s\n" dir;
+			let entries = Sys.readdir dir in
+			Array.to_list entries
+			|> List.filter (fun f -> Filename.check_suffix f ".dll")
+			|> List.map (fun f ->
+				let file = Filename.concat dir f in
+				if Common.raw_defined com "net_loader_debug" then
+					Printf.printf "(net-lib)   Loading %s\n" file;
+				add_net_lib com file false
+			)
 	end

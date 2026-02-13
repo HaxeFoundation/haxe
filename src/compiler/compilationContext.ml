@@ -40,6 +40,7 @@ type arg_context = {
 	mutable deprecations : string list;
 	mutable measure_times : bool;
 	mutable net_doc_file : string option;
+	mutable net_std_path : string option;
 }
 
 type communication = {
