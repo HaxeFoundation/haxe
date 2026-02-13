@@ -225,7 +225,7 @@ class Boot {
 	inline static function clampHxBit(v:Float):Int {
 		v = prepareForBitwise(v);
 		final band:(Float, Float) -> Int = untyped _hx_bit_raw.band;
-		return band(v, Max_Int32) - cast Math.abs(band(v, -Min_Int32));
+		return band(v, Max_Int32) - cast Math.abs(band(v, 2147483648));
 	}
 
 	inline static function clampModulo(v:Float):Int {
