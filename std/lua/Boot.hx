@@ -229,7 +229,7 @@ class Boot {
 	}
 
 	inline static function clampModulo(v:Float):Int {
-		v %= 4294967296;
+		v = lua.Syntax.modulo(v, 4294967296);
 		if (v >= 2147483648) {
 			v -= 4294967296;
 		}
