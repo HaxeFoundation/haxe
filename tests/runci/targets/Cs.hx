@@ -121,14 +121,14 @@ class Cs {
 		runCommand("dotnet", ["--version"]);
 
 		// === Unit Tests ===
-		// JIT with no-closure-cache (exercises the no-cache code path)
-		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.aot", "-D", "cs.no-closure-cache"].concat(args));
+		// JIT (without cs.aot — different generated C# than AOT)
+		runCommand("haxe", ["compile-cs.hxml"].concat(args));
 		changeDirectory("bin/cs");
-		infoMsg("=== Running Unit Tests (JIT, no-closure-cache) ===");
+		infoMsg("=== Running Unit Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
 		changeDirectory(unitDir);
 
-		// AOT with closure cache (default, exercises the cache code path)
+		// AOT (with cs.aot — separate compilation, different generated C#)
 		deleteDirectoryRecursively("bin/cs");
 		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.aot"].concat(args));
 		changeDirectory("bin/cs");
@@ -140,16 +140,16 @@ class Cs {
 		Display.maybeRunDisplayTests(Cs);
 
 		// === Misc Tests (Bootstrap) ===
-		// JIT with no-closure-cache
+		// JIT
 		changeDirectory(miscCsDir);
 		deleteDirectoryRecursively("projects/Bootstrap/bin");
 		changeDirectory("projects/Bootstrap");
-		runCommand("haxe", ["compile.hxml", "-lib", "hxcs", "-D", "cs.aot", "-D", "cs.no-closure-cache"].concat(args));
+		runCommand("haxe", ["compile.hxml", "-lib", "hxcs"].concat(args));
 		changeDirectory("bin");
-		infoMsg("=== Running Bootstrap Tests (JIT, no-closure-cache) ===");
+		infoMsg("=== Running Bootstrap Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
 
-		// AOT with closure cache (recompile)
+		// AOT (separate compilation)
 		changeDirectory(miscCsDir);
 		deleteDirectoryRecursively("projects/Bootstrap/bin");
 		changeDirectory("projects/Bootstrap");
@@ -159,16 +159,16 @@ class Cs {
 		runAotTest();
 
 		// === Sys Tests ===
-		// JIT with no-closure-cache
+		// JIT
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.aot", "-D", "cs.no-closure-cache"].concat(args));
+		runCommand("haxe", ["compile-cs.hxml"].concat(args));
 		buildUtilityAot("bin/cs-args");
 		buildUtilityAot("bin/cs-exit");
 		buildUtilityAot("bin/cs-utility");
-		infoMsg("=== Running Sys Tests (JIT, no-closure-cache) ===");
+		infoMsg("=== Running Sys Tests (JIT) ===");
 		runSysTest("dotnet", ["run", "--project", "bin/cs/Project.csproj"]);
 
-		// AOT with closure cache (recompile)
+		// AOT (separate compilation)
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.aot"].concat(args));
 		buildUtilityAot("bin/cs-args");
@@ -189,14 +189,14 @@ class Cs {
 		runSysTest(fullPath, []);
 
 		// === Thread Tests ===
-		// JIT with no-closure-cache
+		// JIT
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs", "-D", "cs.aot", "-D", "cs.no-closure-cache"].concat(args));
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs"].concat(args));
 		changeDirectory("export/cs");
-		infoMsg("=== Running Thread Tests (JIT, no-closure-cache) ===");
+		infoMsg("=== Running Thread Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
 
-		// AOT with closure cache (recompile)
+		// AOT (separate compilation)
 		changeDirectory(threadsDir);
 		deleteDirectoryRecursively("export/cs");
 		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs", "-D", "cs.aot"].concat(args));
@@ -221,13 +221,13 @@ class Cs {
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
 		runCommand("haxelib", ["dev", "hxcoro", "."]);
 		runCommand("haxelib", ["dev", "hxcs", Path.join([partyDir, "hxcs"])]);
-		// JIT with no-closure-cache
-		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs", "-D", "cs.aot", "-D", "cs.no-closure-cache"]);
+		// JIT
+		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs"]);
 		changeDirectory("tests/bin/cs");
-		infoMsg("=== Running Coroutine Tests (JIT, no-closure-cache) ===");
+		infoMsg("=== Running Coroutine Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
 
-		// AOT with closure cache (recompile)
+		// AOT (separate compilation)
 		changeDirectory(partyDir);
 		changeDirectory("hxcoro");
 		deleteDirectoryRecursively("tests/bin/cs");
