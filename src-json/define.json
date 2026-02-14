@@ -58,6 +58,12 @@
 		"params": ["framework"]
 	},
 	{
+		"name": "CsAot",
+		"define": "cs.aot",
+		"doc": "Generate AOT-compatible code that embeds reflection data instead of relying on C# runtime reflection. Required for NativeAOT publishing.",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "CsNetTarget",
 		"define": "cs.net-target",
 		"doc": "Set the .NET library target name for loading C# extern API definitions. (default: netstandard)",

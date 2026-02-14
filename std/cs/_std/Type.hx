@@ -203,7 +203,8 @@ class Type {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		if (c == null)
 			return [];
-		// Walk up the class hierarchy collecting instance field names from the registry
+		#if cs.aot
+		// AOT mode: walk up the class hierarchy collecting instance field names from the registry
 		var result:Array<String> = [];
 		var current = c;
 		while (current != null) {
@@ -217,13 +218,41 @@ class Type {
 			current = getSuperClass(current);
 		}
 		return result;
+		#else
+		// JIT mode: walk hierarchy using C# reflection with DeclaredOnly per class
+		var result:Array<String> = [];
+		var current = c;
+		while (current != null) {
+			var members:cs.NativeArray<Dynamic> = cs.Syntax.code("((global::System.Type){0}).GetMembers(global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance | global::System.Reflection.BindingFlags.DeclaredOnly)", current);
+			var count:Int = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0}).Length", members);
+			for (i in 0...count) {
+				var member:Dynamic = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0})[{1}]", members, i);
+				var isConstructor:Bool = cs.Syntax.code("{0} is global::System.Reflection.ConstructorInfo", member);
+				if (isConstructor)
+					continue;
+				// Skip compiler-generated property/event accessor methods (get_X, set_X, add_X, remove_X)
+				var isSpecialMethod:Bool = cs.Syntax.code("{0} is global::System.Reflection.MethodInfo mi && mi.IsSpecialName", member);
+				if (isSpecialMethod)
+					continue;
+				var name:String = cs.Syntax.code("((global::System.Reflection.MemberInfo){0}).Name", member);
+				if (StringTools.startsWith(name, "_hx_"))
+					continue;
+				if (name.charCodeAt(0) == ".".code)
+					continue;
+				if (result.indexOf(name) == -1)
+					result.push(name);
+			}
+			current = getSuperClass(current);
+		}
+		return result;
+		#end
 	}
 
 	public static function getClassFields(c:Class<Dynamic>):Array<String> {
 		if (c == null)
 			return [];
-
-		// Try AOT-safe registry first
+		#if cs.aot
+		// AOT mode: use pre-allocated field name arrays from registry
 		var fieldNames:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getClassFieldNames((global::System.Type){0})", c);
 		if (fieldNames != null) {
 			var result:Array<String> = [];
@@ -232,42 +261,28 @@ class Type {
 			}
 			return result;
 		}
-
-		// Fallback to reflection (works in JIT, may fail in AOT)
+		return [];
+		#else
+		// JIT mode: use C# reflection to enumerate static members
 		var result:Array<String> = [];
-		// c is System.Type - get static fields directly
-		var fields:Dynamic = cs.Syntax.code("((global::System.Type){0}).GetFields(global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.Public)", c);
-		var fieldCount:Int = cs.Syntax.code("((global::System.Reflection.FieldInfo[]){0}).Length", fields);
-		for (i in 0...fieldCount) {
-			var field:Dynamic = cs.Syntax.code("((global::System.Reflection.FieldInfo[]){0})[{1}]", fields, i);
-			var name:String = cs.Syntax.code("((global::System.Reflection.FieldInfo){0}).Name", field);
-			if (!StringTools.startsWith(name, "_hx_"))
-				result.push(name);
-		}
-		// Get static properties (C# auto-properties are generated for Haxe static fields)
-		var properties:Dynamic = cs.Syntax.code("((global::System.Type){0}).GetProperties(global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.Public)", c);
-		var propCount:Int = cs.Syntax.code("((global::System.Reflection.PropertyInfo[]){0}).Length", properties);
-		for (i in 0...propCount) {
-			var prop:Dynamic = cs.Syntax.code("((global::System.Reflection.PropertyInfo[]){0})[{1}]", properties, i);
-			var name:String = cs.Syntax.code("((global::System.Reflection.PropertyInfo){0}).Name", prop);
-			// Skip internal properties
-			if (!StringTools.startsWith(name, "_hx_")) {
-				if (result.indexOf(name) == -1)
-					result.push(name);
-			}
-		}
-		// Get static methods
-		var methods:Dynamic = cs.Syntax.code("((global::System.Type){0}).GetMethods(global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.Public)", c);
-		var methodCount:Int = cs.Syntax.code("((global::System.Reflection.MethodInfo[]){0}).Length", methods);
-		for (i in 0...methodCount) {
-			var method:Dynamic = cs.Syntax.code("((global::System.Reflection.MethodInfo[]){0})[{1}]", methods, i);
-			var name:String = cs.Syntax.code("((global::System.Reflection.MethodInfo){0}).Name", method);
+		var members:cs.NativeArray<Dynamic> = cs.Syntax.code("((global::System.Type){0}).GetMembers(global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.DeclaredOnly)", c);
+		var count:Int = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0}).Length", members);
+		for (i in 0...count) {
+			var member:Dynamic = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0})[{1}]", members, i);
+			var isConstructor:Bool = cs.Syntax.code("{0} is global::System.Reflection.ConstructorInfo", member);
+			if (isConstructor)
+				continue;
+			var isSpecialMethod:Bool = cs.Syntax.code("{0} is global::System.Reflection.MethodInfo mi && mi.IsSpecialName", member);
+			if (isSpecialMethod)
+				continue;
+			var name:String = cs.Syntax.code("((global::System.Reflection.MemberInfo){0}).Name", member);
 			if (!StringTools.startsWith(name, "_hx_")) {
 				if (result.indexOf(name) == -1)
 					result.push(name);
 			}
 		}
 		return result;
+		#end
 	}
 
 	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {

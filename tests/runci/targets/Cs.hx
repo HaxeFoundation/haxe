@@ -121,7 +121,7 @@ class Cs {
 		runCommand("dotnet", ["--version"]);
 
 		// === Unit Tests ===
-		runCommand("haxe", ["compile-cs.hxml"].concat(args));
+		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.aot"].concat(args));
 		changeDirectory("bin/cs");
 
 		// JIT test
@@ -141,7 +141,7 @@ class Cs {
 		changeDirectory(miscCsDir);
 		deleteDirectoryRecursively("projects/Bootstrap/bin");
 		changeDirectory("projects/Bootstrap");
-		runCommand("haxe", ["compile.hxml", "-lib", "hxcs"].concat(args));
+		runCommand("haxe", ["compile.hxml", "-lib", "hxcs", "-D", "cs.aot"].concat(args));
 		changeDirectory("bin");
 		runCommand("dotnet", ["run"]);
 
@@ -151,7 +151,7 @@ class Cs {
 
 		// === Sys Tests ===
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cs.hxml"].concat(args));
+		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.aot"].concat(args));
 
 		// Build utility binaries to AOT (needed by both JIT and AOT tests)
 		buildUtilityAot("bin/cs-args");
@@ -181,7 +181,7 @@ class Cs {
 
 		// === Thread Tests ===
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs"].concat(args));
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs", "-D", "cs.aot"].concat(args));
 		changeDirectory("export/cs");
 
 		// JIT
@@ -209,7 +209,7 @@ class Cs {
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
 		runCommand("haxelib", ["dev", "hxcoro", "."]);
 		runCommand("haxelib", ["dev", "hxcs", Path.join([partyDir, "hxcs"])]);
-		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs"]);
+		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs", "-D", "cs.aot"]);
 		changeDirectory("tests/bin/cs");
 
 		// JIT

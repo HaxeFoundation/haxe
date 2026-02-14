@@ -93,9 +93,31 @@ namespace haxe.lang
             return false;
         }
 
+        /// <summary>
+        /// Get all instance field names. Subclasses override this with a hardcoded array in AOT mode.
+        /// Default implementation uses reflection as fallback (works in JIT mode).
+        /// </summary>
+#if !NETSTANDARD
+        [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL2075",
+            Justification = "Fallback reflection - subclasses should override for AOT")]
+#endif
         public virtual global::haxe.root.Array _hx_getFields()
         {
-            return new global::haxe.root.Array();
+            var type = this.GetType();
+            var members = type.GetMembers(
+                global::System.Reflection.BindingFlags.Public |
+                global::System.Reflection.BindingFlags.Instance);
+            var result = new global::haxe.root.Array();
+            foreach (var m in members)
+            {
+                if (m is global::System.Reflection.PropertyInfo) continue;
+                if (m is global::System.Reflection.MethodInfo) continue;
+                if (m is global::System.Reflection.ConstructorInfo) continue;
+                var name = m.Name;
+                if (name.StartsWith("_hx_")) continue;
+                result.push(name);
+            }
+            return result;
         }
 
         // ============================================================

@@ -8415,8 +8415,12 @@ let rec extends_haxe_object c =
 		else
 			extends_haxe_object sc  (* Check the superclass *)
 
-(* Generate _hx_getField, _hx_setField, _hx_getFields, method closure infrastructure for AOT compatibility *)
+(* Generate _hx_getField, _hx_setField, _hx_getFields, method closure infrastructure.
+   In AOT mode (-D cs.aot): full switch-based overrides for all fields and methods.
+   In JIT mode (default): only method closure cases in _hx_getField, skip _hx_setField/_hx_getFields
+   (base class HaxeObject handles field access via C# reflection). *)
 let generate_field_accessors gctx c =
+	let is_aot = Gctx.defined gctx.com DefineList.CsAot in
 	(* Only generate field accessors if the class inherits from HaxeObject *)
 	if not (extends_haxe_object c) then
 		[]
@@ -8560,7 +8564,9 @@ let generate_field_accessors gctx c =
 			sw_labels = [CsCaseDefault];
 			sw_body = [CsReturn (Some (CsCall (CsField (CsBase, "_hx_getField"), [CsLocal "name"])))];
 		} in
-		let all_get_sections = get_field_sections @ get_method_sections @ [get_field_default] in
+		(* In JIT mode, only include method closure cases (base class handles fields via reflection).
+		   In AOT mode, include both field cases and method closure cases. *)
+		let all_get_sections = (if is_aot then get_field_sections else []) @ get_method_sections @ [get_field_default] in
 		let get_field_method = if all_get_sections = [get_field_default] then None else Some (CsMemberMethod {
 			m_name = "_hx_getField";
 			m_return_type = CsTypeObject;
@@ -8574,42 +8580,46 @@ let generate_field_accessors gctx c =
 			m_attributes = [];
 		}) in
 
-		(* Generate _hx_setField override - only for data fields, not methods *)
-		let set_field_sections = List.map (fun (haxe_name, native_name, field_type) ->
-			{
-				sw_labels = [CsCaseConst (CsConst (CsConstString haxe_name))];
+		(* Generate _hx_setField override - only for data fields, not methods.
+		   In JIT mode, skip entirely — base class HaxeObject handles via reflection. *)
+		let set_field_method = if not is_aot || instance_fields = [] then None else
+			let set_field_sections = List.map (fun (haxe_name, native_name, field_type) ->
+				{
+					sw_labels = [CsCaseConst (CsConst (CsConstString haxe_name))];
+					sw_body = [
+						(* Use cast_object_to_type for proper handling of primitives (Runtime.toInt, etc.) *)
+						CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, native_name), cast_object_to_type field_type (CsLocal "value")));
+						CsReturn None;
+					];
+				}
+			) instance_fields in
+			let set_field_default = {
+				sw_labels = [CsCaseDefault];
 				sw_body = [
-					(* Use cast_object_to_type for proper handling of primitives (Runtime.toInt, etc.) *)
-					CsExprStmt (CsBinop (CsOpAssign, CsField (CsThis, native_name), cast_object_to_type field_type (CsLocal "value")));
+					CsExprStmt (CsCall (CsField (CsBase, "_hx_setField"), [CsLocal "name"; CsLocal "value"]));
 					CsReturn None;
 				];
-			}
-		) instance_fields in
-		let set_field_default = {
-			sw_labels = [CsCaseDefault];
-			sw_body = [
-				CsExprStmt (CsCall (CsField (CsBase, "_hx_setField"), [CsLocal "name"; CsLocal "value"]));
-				CsReturn None;
-			];
-		} in
-		let set_field_method = if instance_fields = [] then None else Some (CsMemberMethod {
-			m_name = "_hx_setField";
-			m_return_type = CsTypeVoid;
-			m_access = AccessModifier.Public;
-			m_modifiers = [MemberModifier.Override];
-			m_type_params = [];
-			m_params = [
-				{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None };
-				{ p_name = "value"; p_type = Some CsTypeObject; p_default = None; p_modifier = None };
-			];
-			m_body = Some [lazy_init_guard; CsSwitch (CsLocal "name", set_field_sections @ [set_field_default])];
-			m_constraints = [];
-			m_explicit_interface = None;
-			m_attributes = [];
-		}) in
+			} in
+			Some (CsMemberMethod {
+				m_name = "_hx_setField";
+				m_return_type = CsTypeVoid;
+				m_access = AccessModifier.Public;
+				m_modifiers = [MemberModifier.Override];
+				m_type_params = [];
+				m_params = [
+					{ p_name = "name"; p_type = Some CsTypeString; p_default = None; p_modifier = None };
+					{ p_name = "value"; p_type = Some CsTypeObject; p_default = None; p_modifier = None };
+				];
+				m_body = Some [lazy_init_guard; CsSwitch (CsLocal "name", set_field_sections @ [set_field_default])];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			})
+		in
 
-		(* Generate _hx_getFields override - only data fields, not methods *)
-		let get_fields_method = if field_names = [] then None else
+		(* Generate _hx_getFields override - only data fields, not methods.
+		   In JIT mode, skip entirely — base class HaxeObject handles via reflection. *)
+		let get_fields_method = if not is_aot || field_names = [] then None else
 			let field_name_exprs = List.map (fun name -> CsConst (CsConstString name)) field_names in
 			let native_array = CsNewArray (CsTypeObject, field_name_exprs) in
 			let array_expr = make_array_from_native ArrayObject native_array haxe_array_type in
@@ -8707,6 +8717,7 @@ let generate_field_accessors gctx c =
    Returns list of members to add to the class.
    Also records the class path in gctx.all_haxe_classes for Program.cs bind calls. *)
 let generate_static_field_accessors gctx c =
+	let is_aot = Gctx.defined gctx.com DefineList.CsAot in
 	(* Skip static reflection generation for classes marked @:unreflective *)
 	if Meta.has Meta.Unreflective c.cl_meta then
 		[]
@@ -8723,8 +8734,9 @@ let generate_static_field_accessors gctx c =
 
 	(* Get list of static physical property fields (only those with backing fields, i.e. @:isVar).
 	   Excludes AccNormal/AccInline read vars which are already in static_fields.
-	   Exclude fields marked @:unreflective. *)
-	let static_property_fields = List.filter_map (fun cf ->
+	   Exclude fields marked @:unreflective.
+	   Only needed in AOT mode for field name arrays. *)
+	let static_property_fields = if not is_aot then [] else List.filter_map (fun cf ->
 		match cf.cf_kind with
 		| Var { v_read = (AccNormal | AccInline); _ } -> None (* already in static_fields *)
 		| Var _ when is_physical_var_field cf && not (Meta.has Meta.Unreflective cf.cf_meta) ->
@@ -8758,8 +8770,9 @@ let generate_static_field_accessors gctx c =
 	let all_method_names = List.map (fun (name, _, _, _, _) -> name) static_methods in
 
 	(* Compute instance field names for Type.getInstanceFields() registry.
-	   Exclude fields marked @:unreflective. *)
-	let all_instance_field_names =
+	   Exclude fields marked @:unreflective.
+	   Only needed in AOT mode for field name arrays. *)
+	let all_instance_field_names = if not is_aot then [] else
 		let instance_data_names = List.filter_map (fun cf ->
 			match cf.cf_kind with
 			| Var { v_read = AccNormal; _ } when not (Meta.has Meta.Unreflective cf.cf_meta) -> Some cf.cf_name
@@ -8922,19 +8935,22 @@ let generate_static_field_accessors gctx c =
 					CsField (CsTypeOf cs_class_type, "FullName")
 				]))
 			) in
-			(* acc.classFieldNames = new string[] { ... }; (property names only, no data fields/methods) *)
-			let set_class_field_names = CsExprStmt (CsBinop (CsOpAssign,
-				CsField (CsLocal "acc", "classFieldNames"),
-				CsNewArray (CsTypeString,
-					List.map (fun name -> CsConst (CsConstString name)) all_property_field_names)
-			)) in
-			(* acc.instanceFieldNames = new string[] { ... }; *)
-			let set_instance_field_names = CsExprStmt (CsBinop (CsOpAssign,
-				CsField (CsLocal "acc", "instanceFieldNames"),
-				CsNewArray (CsTypeString,
-					List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
-			)) in
-			[bind_guard; bind_set_bound; get_or_create; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
+			(* In AOT mode, embed field name arrays for Type.getClassFields/getInstanceFields.
+			   In JIT mode, skip — Type.hx uses C# reflection instead. *)
+			if is_aot then
+				let set_class_field_names = CsExprStmt (CsBinop (CsOpAssign,
+					CsField (CsLocal "acc", "classFieldNames"),
+					CsNewArray (CsTypeString,
+						List.map (fun name -> CsConst (CsConstString name)) all_property_field_names)
+				)) in
+				let set_instance_field_names = CsExprStmt (CsBinop (CsOpAssign,
+					CsField (CsLocal "acc", "instanceFieldNames"),
+					CsNewArray (CsTypeString,
+						List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
+				)) in
+				[bind_guard; bind_set_bound; get_or_create; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
+			else
+				[bind_guard; bind_set_bound; get_or_create] @ factory_bind_stmts
 		in
 		[hx_bound_field] @ factory_methods @
 		[CsMemberMethod {
@@ -9177,19 +9193,22 @@ let generate_static_field_accessors gctx c =
 			CsField (CsLocal "acc", "checker"),
 			CsStaticField (cs_class_type, "_hx_hasStaticField")
 		)) in
-		(* acc.classFieldNames = new string[] { ... }; *)
-		let set_class_field_names = CsExprStmt (CsBinop (CsOpAssign,
-			CsField (CsLocal "acc", "classFieldNames"),
-			CsNewArray (CsTypeString,
-				List.map (fun name -> CsConst (CsConstString name)) (all_data_field_names @ all_property_field_names @ all_method_names))
-		)) in
-		(* acc.instanceFieldNames = new string[] { ... }; *)
-		let set_instance_field_names = CsExprStmt (CsBinop (CsOpAssign,
-			CsField (CsLocal "acc", "instanceFieldNames"),
-			CsNewArray (CsTypeString,
-				List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
-		)) in
-		[bind_guard; bind_set_bound; get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
+		(* In AOT mode, embed field name arrays for Type.getClassFields/getInstanceFields.
+		   In JIT mode, skip — Type.hx uses C# reflection instead. *)
+		if is_aot then
+			let set_class_field_names = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "classFieldNames"),
+				CsNewArray (CsTypeString,
+					List.map (fun name -> CsConst (CsConstString name)) (all_data_field_names @ all_property_field_names @ all_method_names))
+			)) in
+			let set_instance_field_names = CsExprStmt (CsBinop (CsOpAssign,
+				CsField (CsLocal "acc", "instanceFieldNames"),
+				CsNewArray (CsTypeString,
+					List.map (fun name -> CsConst (CsConstString name)) all_instance_field_names)
+			)) in
+			[bind_guard; bind_set_bound; get_or_create; set_getter; set_checker; set_class_field_names; set_instance_field_names] @ factory_bind_stmts
+		else
+			[bind_guard; bind_set_bound; get_or_create; set_getter; set_checker] @ factory_bind_stmts
 	in
 	let bind_method = CsMemberMethod {
 		m_name = "_hx_bind";
@@ -9751,18 +9770,21 @@ let generate_interface gctx c =
 
 	(* Collect interface instance field names for the HaxeReflection registry.
 	   Since C# interfaces can't have static methods, we can't add _hx_bind() directly.
-	   Instead, we store the names here and emit registration code in Program.cs. *)
-	let interface_field_names = List.filter_map (fun cf ->
-		match cf.cf_kind with
-		| Var { v_read = AccNormal; v_write = AccNormal }
-		| Var { v_read = AccNormal; v_write = AccNever }
-		| Var { v_read = AccNormal; v_write = AccNo } -> Some cf.cf_name
-		| Var { v_read = AccNo | AccNever; v_write = AccNormal } -> Some cf.cf_name
-		| Method MethDynamic -> Some cf.cf_name
-		| Method (MethNormal | MethInline) -> Some cf.cf_name
-		| _ -> None
-	) c.cl_ordered_fields in
-	gctx.all_haxe_interfaces <- (path, interface_field_names) :: gctx.all_haxe_interfaces;
+	   Instead, we store the names here and emit registration code in Program.cs.
+	   Only needed in AOT mode — in JIT mode, Type.getInstanceFields uses C# reflection. *)
+	if Gctx.defined gctx.com DefineList.CsAot then begin
+		let interface_field_names = List.filter_map (fun cf ->
+			match cf.cf_kind with
+			| Var { v_read = AccNormal; v_write = AccNormal }
+			| Var { v_read = AccNormal; v_write = AccNever }
+			| Var { v_read = AccNormal; v_write = AccNo } -> Some cf.cf_name
+			| Var { v_read = AccNo | AccNever; v_write = AccNormal } -> Some cf.cf_name
+			| Method MethDynamic -> Some cf.cf_name
+			| Method (MethNormal | MethInline) -> Some cf.cf_name
+			| _ -> None
+		) c.cl_ordered_fields in
+		gctx.all_haxe_interfaces <- (path, interface_field_names) :: gctx.all_haxe_interfaces
+	end;
 
 	(* Check for interface metadata and store for later registration in Program.cs.
 	   C# interfaces can't have static fields, so we store metadata in the registry. *)
