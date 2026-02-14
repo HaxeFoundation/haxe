@@ -64,9 +64,9 @@
 		"platforms": ["cs"]
 	},
 	{
-		"name": "CsNoClosureCache",
-		"define": "cs.no-closure-cache",
-		"doc": "Disable closure caching for method closures. Each access creates a fresh closure. Equality still works via identity fields.",
+		"name": "CsClosureCache",
+		"define": "cs.closure-cache",
+		"doc": "Enable closure caching for method closures. Without this, each access creates a fresh closure. Equality works via identity fields regardless.",
 		"platforms": ["cs"]
 	},
 	{
