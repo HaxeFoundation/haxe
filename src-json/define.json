@@ -64,6 +64,12 @@
 		"platforms": ["cs"]
 	},
 	{
+		"name": "CsNoClosureCache",
+		"define": "cs.no-closure-cache",
+		"doc": "Disable closure caching for method closures. Each access creates a fresh closure. Equality still works via identity fields.",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "CsNetTarget",
 		"define": "cs.net-target",
 		"doc": "Set the .NET library target name for loading C# extern API definitions. (default: netstandard)",

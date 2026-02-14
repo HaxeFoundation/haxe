@@ -1624,6 +1624,13 @@ let rec cs_expr_of_texpr ectx e =
 		| OpNotEq when is_generic_param e1.etype || is_generic_param e2.etype ->
 			(* T != T  ->  !Runtime.valEq(a, b) for generic type params *)
 			CsUnop (CsOpNot, false, CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
+		| OpEq when (match follow e1.etype with TFun _ -> true | _ -> false) || (match follow e2.etype with TFun _ -> true | _ -> false) ->
+			(* Function == Function  ->  Runtime.valEq(a, b) to use Equals() instead of reference equality.
+			   This ensures ClassMethodFunction closures compare by identity fields (_methodTarget + _methodId)
+			   even without closure caching. *)
+			CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2])
+		| OpNotEq when (match follow e1.etype with TFun _ -> true | _ -> false) || (match follow e2.etype with TFun _ -> true | _ -> false) ->
+			CsUnop (CsOpNot, false, CsStaticCall (runtime_type, "valEq", [cs_expr_of_texpr ectx e1; cs_expr_of_texpr ectx e2]))
 		| _ ->
 			(* Check if either operand is Dynamic - if so, use runtime helpers for non-comparison ops *)
 			let is_dynamic t = match cs_type_of_type ectx.gctx (follow t) with
@@ -8420,6 +8427,7 @@ let rec extends_haxe_object c =
    (base class HaxeObject handles field access via C# reflection). *)
 let generate_field_accessors gctx c =
 	let is_aot = Gctx.defined gctx.com DefineList.CsAot in
+	let no_closure_cache = Gctx.defined gctx.com DefineList.CsNoClosureCache in
 	(* Only generate field accessors if the class inherits from HaxeObject *)
 	if not (extends_haxe_object c) then
 		[]
@@ -8520,8 +8528,9 @@ let generate_field_accessors gctx c =
 
 		(* Generate _hx_methodCount property override if this class has any methods in hierarchy.
 		   The base HaxeObject has _hx_closureCache field and _hx_getMethodClosure method.
-		   Subclasses just override _hx_methodCount to return their total count. *)
-		let method_count_property = if total_method_count = 0 then [] else [
+		   Subclasses just override _hx_methodCount to return their total count.
+		   When -D cs.no-closure-cache is set, skip this — defaults to 0, disabling caching. *)
+		let method_count_property = if total_method_count = 0 || no_closure_cache then [] else [
 			CsMemberProperty {
 				prop_name = "_hx_methodCount";
 				prop_type = CsTypeInt;
@@ -8713,6 +8722,7 @@ let generate_field_accessors gctx c =
    Also records the class path in gctx.all_haxe_classes for Program.cs bind calls. *)
 let generate_static_field_accessors gctx c =
 	let is_aot = Gctx.defined gctx.com DefineList.CsAot in
+	let no_closure_cache = Gctx.defined gctx.com DefineList.CsNoClosureCache in
 	(* Skip static reflection generation for classes marked @:unreflective *)
 	if Meta.has Meta.Unreflective c.cl_meta then
 		[]
@@ -8981,8 +8991,9 @@ let generate_static_field_accessors gctx c =
 	let accessor_needs_new = super_has_static_fields c in
 	let static_accessor_modifiers = if accessor_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
-	(* Generate _hx_staticClosureCache field (nullable array of ClassMethodFunction). *)
-	let closure_cache_members = if method_count = 0 then [] else [
+	(* Generate _hx_staticClosureCache field (nullable array of ClassMethodFunction).
+	   Skipped when -D cs.no-closure-cache is set. *)
+	let closure_cache_members = if method_count = 0 || no_closure_cache then [] else [
 		CsMemberField {
 			f_name = "_hx_staticClosureCache";
 			f_type = CsTypeArray (class_method_func_type, None);
@@ -8993,7 +9004,8 @@ let generate_static_field_accessors gctx c =
 	] in
 
 	(* Generate _hx_getStaticMethodClosure helper method with direct lambdas.
-	   Uses thread-safe cache with Interlocked.CompareExchange. *)
+	   When caching is enabled (default): thread-safe cache with Interlocked.CompareExchange.
+	   When -D cs.no-closure-cache: creates fresh closure on each access, sets identity fields. *)
 	let get_static_method_closure_members = if method_count = 0 then [] else
 		(* Build switch sections for closure creation - one section per method *)
 		let switch_sections = List.map (fun (idx, _, native_name, arity, args, ret) ->
@@ -9036,9 +9048,25 @@ let generate_static_field_accessors gctx c =
 				];
 			}
 		) indexed_methods in
+		let typeof_class_expr = CsTypeOf cs_class_type in
 		let cache_field_expr = CsStaticField (cs_class_type, "_hx_staticClosureCache") in
-		let method_body =
-			(* Thread-safe cache with Interlocked.CompareExchange *)
+		let method_body = if no_closure_cache then
+			(* No-cache mode: create fresh closure, set identity fields, return *)
+			[
+				CsVarDecl ("newClosure", Some class_method_func_type, Some (CsConst CsConstNull));
+				CsSwitch (CsLocal "index", switch_sections);
+				CsIf (
+					CsBinop (CsOpNotEq, CsLocal "newClosure", CsConst CsConstNull),
+					CsBlock [
+						CsExprStmt (CsBinop (CsOpAssign, CsField (CsLocal "newClosure", "_methodTarget"), typeof_class_expr));
+						CsExprStmt (CsBinop (CsOpAssign, CsField (CsLocal "newClosure", "_methodId"), CsLocal "index"));
+					],
+					None
+				);
+				CsReturn (Some (CsLocal "newClosure"));
+			]
+		else
+			(* Cache mode: thread-safe cache with Interlocked.CompareExchange *)
 			let cache_field = Printf.sprintf "global::%s._hx_staticClosureCache" (s_cs_path cs_path) in
 			[
 				CsVarDecl ("cache", None, Some cache_field_expr);

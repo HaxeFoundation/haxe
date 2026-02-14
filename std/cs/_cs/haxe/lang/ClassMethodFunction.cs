@@ -344,6 +344,44 @@ namespace haxe.lang
             throw new InvalidOperationException("No suitable invoker for argument count: " + dispatchArity);
         }
 
+        // ============================================================
+        // Equality — enables == for closures even without caching.
+        // Two closures are equal if they wrap the same method on the same target.
+        // ============================================================
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj is ClassMethodFunction other)
+                return _methodId != -1 && _methodId == other._methodId
+                    && object.Equals(_methodTarget, other._methodTarget);
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            if (_methodId == -1) return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + (_methodTarget != null ? _methodTarget.GetHashCode() : 0);
+                hash = hash * 31 + _methodId;
+                return hash;
+            }
+        }
+
+        public static bool operator ==(ClassMethodFunction a, ClassMethodFunction b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a is null || b is null) return false;
+            return a.Equals(b);
+        }
+
+        public static bool operator !=(ClassMethodFunction a, ClassMethodFunction b)
+        {
+            return !(a == b);
+        }
+
         public new static void _hx_bind() { }
     }
 }

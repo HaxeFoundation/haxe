@@ -121,8 +121,8 @@ class Cs {
 		runCommand("dotnet", ["--version"]);
 
 		// === Unit Tests ===
-		// JIT (without cs.aot — different generated C# than AOT)
-		runCommand("haxe", ["compile-cs.hxml"].concat(args));
+		// JIT (without cs.aot, with no-closure-cache — different generated C# than AOT)
+		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.no-closure-cache"].concat(args));
 		changeDirectory("bin/cs");
 		infoMsg("=== Running Unit Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
@@ -144,7 +144,7 @@ class Cs {
 		changeDirectory(miscCsDir);
 		deleteDirectoryRecursively("projects/Bootstrap/bin");
 		changeDirectory("projects/Bootstrap");
-		runCommand("haxe", ["compile.hxml", "-lib", "hxcs"].concat(args));
+		runCommand("haxe", ["compile.hxml", "-lib", "hxcs", "-D", "cs.no-closure-cache"].concat(args));
 		changeDirectory("bin");
 		infoMsg("=== Running Bootstrap Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
@@ -161,7 +161,7 @@ class Cs {
 		// === Sys Tests ===
 		// JIT
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cs.hxml"].concat(args));
+		runCommand("haxe", ["compile-cs.hxml", "-D", "cs.no-closure-cache"].concat(args));
 		buildUtilityAot("bin/cs-args");
 		buildUtilityAot("bin/cs-exit");
 		buildUtilityAot("bin/cs-utility");
@@ -191,7 +191,7 @@ class Cs {
 		// === Thread Tests ===
 		// JIT
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs"].concat(args));
+		runCommand("haxe", ["build.hxml", "-cs", "export/cs", "-lib", "hxcs", "-D", "cs.no-closure-cache"].concat(args));
 		changeDirectory("export/cs");
 		infoMsg("=== Running Thread Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
@@ -222,7 +222,7 @@ class Cs {
 		runCommand("haxelib", ["dev", "hxcoro", "."]);
 		runCommand("haxelib", ["dev", "hxcs", Path.join([partyDir, "hxcs"])]);
 		// JIT
-		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs"]);
+		runCommand("haxe", ["--cwd", "tests", "build-base.hxml", "--cs", "bin/cs", "-lib", "hxcs", "-D", "cs.no-closure-cache"]);
 		changeDirectory("tests/bin/cs");
 		infoMsg("=== Running Coroutine Tests (JIT) ===");
 		runCommand("dotnet", ["run"]);
