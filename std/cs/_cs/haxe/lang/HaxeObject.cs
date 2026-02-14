@@ -11,18 +11,21 @@ namespace haxe.lang
         public virtual void _hx_ctor() { }
 
         // ============================================================
-        // Method closure caching infrastructure
+        // Method closure infrastructure
         // ============================================================
 
         /// <summary>
         /// Cache for method closures. Single array in base class, sized by _hx_methodCount.
         /// Subclasses override _hx_methodCount to return their total method count.
+        /// When _hx_methodCount is not overridden (returns 0), caching is disabled and
+        /// closures are created fresh on each access.
         /// </summary>
-        protected global::haxe.lang.InstanceMethodFunction[] _hx_closureCache;
+        protected global::haxe.lang.ClassMethodFunction[] _hx_closureCache;
 
         /// <summary>
         /// Returns the total number of indexable methods for this class (own + all ancestors).
         /// Subclasses with instance methods override this to return their total count.
+        /// When not overridden (returns 0), _hx_getMethodClosure skips caching.
         /// </summary>
         protected virtual int _hx_methodCount
         {
@@ -30,25 +33,65 @@ namespace haxe.lang
         }
 
         /// <summary>
-        /// Gets or creates a cached method closure for the given method index.
-        /// Thread-safe: uses Interlocked.CompareExchange for both cache array and element init.
+        /// Gets or creates a method closure for the given method index.
+        /// Non-virtual. Fast path checks cache directly (no virtual calls).
+        /// Slow path checks _hx_methodCount to decide cache vs no-cache.
+        /// Always sets identity fields (_methodTarget + _methodId) for compareMethods.
         /// </summary>
-        public global::haxe.lang.InstanceMethodFunction _hx_getMethodClosure(int index, int arity)
+        public global::haxe.lang.ClassMethodFunction _hx_getMethodClosure(int index)
         {
+            // Fast path: cache hit — zero virtual calls, zero allocations
             var cache = _hx_closureCache;
-            if (cache == null)
+            if (cache != null)
             {
-                global::System.Threading.Interlocked.CompareExchange(ref _hx_closureCache,
-                    new global::haxe.lang.InstanceMethodFunction[_hx_methodCount], null);
-                cache = _hx_closureCache;
+                var result = cache[index];
+                if (result != null) return result;
             }
+            // Slow path: create closure, optionally cache
+            return _hx_getMethodClosureMiss(index);
+        }
 
-            var result = cache[index];
-            if (result != null) return result;
+        private global::haxe.lang.ClassMethodFunction _hx_getMethodClosureMiss(int index)
+        {
+            int count = _hx_methodCount;
+            if (count > 0)
+            {
+                // Cache mode: initialize cache if needed, store closure
+                var cache = _hx_closureCache;
+                if (cache == null)
+                {
+                    global::System.Threading.Interlocked.CompareExchange(ref _hx_closureCache,
+                        new global::haxe.lang.ClassMethodFunction[count], null);
+                    cache = _hx_closureCache;
+                }
+                var newClosure = _hx_createMethodClosure(index);
+                if (newClosure == null) return null;
+                newClosure._methodTarget = this;
+                newClosure._methodId = index;
+                global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);
+                return cache[index];
+            }
+            else
+            {
+                // No-cache mode (when _hx_methodCount is not overridden)
+                var newClosure = _hx_createMethodClosure(index);
+                if (newClosure != null)
+                {
+                    newClosure._methodTarget = this;
+                    newClosure._methodId = index;
+                }
+                return newClosure;
+            }
+        }
 
-            var newClosure = new global::haxe.lang.InstanceMethodFunction(this, index, arity);
-            global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);
-            return cache[index];
+        /// <summary>
+        /// Factory method for creating method closures. Subclasses override this with a
+        /// switch expression that creates ClassMethodFunction instances with direct lambdas.
+        /// Each class handles its own method indices, falling through to base for inherited methods.
+        /// </summary>
+        protected virtual global::haxe.lang.ClassMethodFunction _hx_createMethodClosure(int index)
+        {
+            return null;
         }
 
         /// <summary>
@@ -118,69 +161,6 @@ namespace haxe.lang
                 result.push(name);
             }
             return result;
-        }
-
-        // ============================================================
-        // Method invocation dispatchers for MethodClosure
-        // Subclasses should override these to dispatch by method index
-        // ============================================================
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod0(int index)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod1(int index, global::haxe.lang.Value a1)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod2(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod3(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod4(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod5(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod6(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod7(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod8(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7, global::haxe.lang.Value a8)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        public virtual global::haxe.lang.Value _hx_invokeMethod9(int index, global::haxe.lang.Value a1, global::haxe.lang.Value a2, global::haxe.lang.Value a3, global::haxe.lang.Value a4, global::haxe.lang.Value a5, global::haxe.lang.Value a6, global::haxe.lang.Value a7, global::haxe.lang.Value a8, global::haxe.lang.Value a9)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found");
-        }
-
-        /// <summary>
-        /// Fallback for methods with 10+ arguments. Uses object[] allocation.
-        /// </summary>
-        public virtual object _hx_invokeMethodDynamic(int index, global::haxe.root.Array args)
-        {
-            throw new global::System.NotImplementedException($"Method index {index} not found (dynamic)");
         }
 
         public static void _hx_bind() { }

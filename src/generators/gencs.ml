@@ -6433,7 +6433,7 @@ let () = generate_closure_class_ref := generate_closure_class
 (* Compute the total number of indexable instance methods across all ancestor classes.
    Used to offset method indices so they don't collide in the inheritance hierarchy.
    Each class's method indices start after the parent's highest index, ensuring that
-   virtual dispatch of _hx_invokeMethodN never hits the wrong class's case. *)
+   _hx_createMethodClosure dispatch never hits the wrong class's case. *)
 let rec compute_ancestor_method_count c =
 	match c.cl_super with
 	| None -> 0
@@ -6491,7 +6491,7 @@ let compute_static_method_index c cf =
    - method_type: the type of the method (TFun)
 *)
 let rec generate_method_closure ectx obj_expr is_static c_opt class_path type_params cf method_type =
-	(* Fast path: use cached InstanceMethodFunction/ClassMethodFunction when possible.
+	(* Fast path: use cached ClassMethodFunction when possible.
 	   This reuses the same infrastructure as _hx_getField, ensuring that method closures
 	   for the same method on the same object are reference-equal (important for == checks).
 	   Only available for concrete Haxe classes (not interfaces, not externs). *)
@@ -6499,9 +6499,8 @@ let rec generate_method_closure ectx obj_expr is_static c_opt class_path type_pa
 	| Some c when not is_static && not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
 		begin match compute_instance_method_index c cf with
 		| Some idx ->
-			let arity = match follow_tfun_with_coro ectx.gctx.com.basic cf.cf_type with Some(args, _) -> List.length args | None -> 0 in
 			let obj = match obj_expr with Some e -> e | None -> CsThis in
-			CsCall (CsField (obj, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx)); CsConst (CsConstInt (Int32.of_int arity))])
+			CsCall (CsField (obj, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx))])
 		| None ->
 			generate_method_closure_fallback ectx obj_expr is_static class_path type_params cf method_type
 		end
@@ -8421,6 +8420,7 @@ let rec extends_haxe_object c =
    (base class HaxeObject handles field access via C# reflection). *)
 let generate_field_accessors gctx c =
 	let is_aot = Gctx.defined gctx.com DefineList.CsAot in
+	let no_closure_cache = Gctx.defined gctx.com DefineList.CsNoClosureCache in
 	(* Only generate field accessors if the class inherits from HaxeObject *)
 	if not (extends_haxe_object c) then
 		[]
@@ -8500,7 +8500,7 @@ let generate_field_accessors gctx c =
 
 		(* Compute ancestor method count for hierarchical index offset.
 		   Each class's method indices start after all ancestor indices,
-		   preventing collisions when InstanceMethodFunction uses virtual _hx_invokeMethodN dispatch. *)
+		   preventing collisions in _hx_createMethodClosure dispatch. *)
 		let ancestor_method_count = compute_ancestor_method_count c in
 
 		(* Assign sequential indexes to methods, offset by ancestor method count *)
@@ -8521,8 +8521,9 @@ let generate_field_accessors gctx c =
 
 		(* Generate _hx_methodCount property override if this class has any methods in hierarchy.
 		   The base HaxeObject has _hx_closureCache field and _hx_getMethodClosure method.
-		   Subclasses just override _hx_methodCount to return their total count. *)
-		let method_count_property = if total_method_count = 0 then [] else [
+		   Subclasses just override _hx_methodCount to return their total count.
+		   When -D cs.no-closure-cache is set, skip this — defaults to 0, disabling caching. *)
+		let method_count_property = if total_method_count = 0 || no_closure_cache then [] else [
 			CsMemberProperty {
 				prop_name = "_hx_methodCount";
 				prop_type = CsTypeInt;
@@ -8554,10 +8555,10 @@ let generate_field_accessors gctx c =
 				sw_body = [CsReturn (Some (CsField (CsThis, native_name)))];
 			}
 		) instance_fields in
-		let get_method_sections = List.map (fun (idx, name, _, arity, _, _) ->
+		let get_method_sections = List.map (fun (idx, name, _, _, _, _) ->
 			{
 				sw_labels = [CsCaseConst (CsConst (CsConstString name))];
-				sw_body = [CsReturn (Some (CsCall (CsField (CsThis, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx)); CsConst (CsConstInt (Int32.of_int arity))])))];
+				sw_body = [CsReturn (Some (CsCall (CsField (CsThis, "_hx_getMethodClosure"), [CsConst (CsConstInt (Int32.of_int idx))])))];
 			}
 		) indexed_methods in
 		let get_field_default = {
@@ -8637,75 +8638,71 @@ let generate_field_accessors gctx c =
 			})
 		in
 
-		(* Generate _hx_invokeMethodN dispatchers for each arity used by this class's methods *)
-		let methods_by_arity = Hashtbl.create 10 in
-		List.iter (fun (idx, name, native_name, arity, args, ret) ->
-			let current = try Hashtbl.find methods_by_arity arity with Not_found -> [] in
-			Hashtbl.replace methods_by_arity arity ((idx, name, native_name, args, ret) :: current)
-		) indexed_methods;
-
-		let invoke_method_dispatchers = Hashtbl.fold (fun arity methods acc ->
-			if arity > 9 then acc (* Methods with 10+ args use _hx_invokeMethodDynamic *)
-			else
-				let method_name = Printf.sprintf "_hx_invokeMethod%d" arity in
-				(* Build switch cases for each method of this arity *)
-				let cases = List.map (fun (idx, _, native_name, args, ret) ->
-					(* Generate the method call with proper argument extraction from Value *)
-					let call_args = List.filter_map (fun (i, (arg_name, _, t)) ->
-						let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
-						let cs_arg_type = cs_type_of_type gctx t in
-						match cs_arg_type with
-						| CsTypeVoid -> None
-						| _ -> Some (cast_value_to_type cs_arg_type fv_local)
-					) (List.mapi (fun i arg -> (i, arg)) args) in
-					let method_call = CsCall (CsField (CsThis, native_name), call_args) in
-					(* Wrap result in Value *)
-					let cs_ret_type = cs_type_of_type gctx ret in
-					let result_expr = match cs_ret_type with
-						| CsTypeVoid ->
-							[CsExprStmt method_call; CsReturn (Some (CsStaticCall (hxvalue_type, "missing", [])))]
-						| _ ->
-							[CsReturn (Some (cast_type_to_value cs_ret_type method_call))]
-					in
-					{
-						sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
-						sw_body = result_expr;
-					}
-				) (List.rev methods) in (* Reverse to maintain original order *)
-				let default_case = {
-					sw_labels = [CsCaseDefault];
-					sw_body = [CsReturn (Some (CsCall (CsField (CsBase, method_name),
-						CsLocal "index" :: List.mapi (fun i _ -> CsLocal (Printf.sprintf "a%d" (i + 1))) (List.init arity (fun _ -> ()))
-					)))];
-				} in
-				(* Build parameter list: int index, Value a1, Value a2, ... *)
-				let params =
-					{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None } ::
-					List.mapi (fun i _ -> {
-						p_name = Printf.sprintf "a%d" (i + 1);
-						p_type = Some hxvalue_type;
-						p_default = None;
-						p_modifier = None;
-					}) (List.init arity (fun _ -> ()))
+		(* Generate _hx_createMethodClosure override — one switch expression covering all methods.
+		   Each arm creates a ClassMethodFunction with a direct lambda that calls the instance method.
+		   Uses the same pattern as _hx_getStaticMethodClosure but with instance calls (this.method). *)
+		let create_method_closure = if method_count = 0 then [] else
+			(* Build switch sections — one per method *)
+			let switch_sections = List.map (fun (idx, _, native_name, arity, args, ret) ->
+				(* Generate lambda parameters: a1, a2, ... (all of type Value) *)
+				let lambda_params = List.mapi (fun i _ -> {
+					p_name = Printf.sprintf "a%d" (i + 1);
+					p_type = None;  (* Inferred *)
+					p_default = None;
+					p_modifier = None;
+				}) (List.init arity (fun _ -> ())) in
+				(* Generate argument extraction and method call *)
+				let call_args = List.filter_map (fun (i, (_, _, t)) ->
+					let fv_local = CsLocal (Printf.sprintf "a%d" (i + 1)) in
+					let cs_arg_type = cs_type_of_type gctx t in
+					match cs_arg_type with
+					| CsTypeVoid -> None
+					| _ -> Some (cast_value_to_type cs_arg_type fv_local)
+				) (List.mapi (fun i arg -> (i, arg)) args) in
+				let method_call = CsCall (CsField (CsThis, native_name), call_args) in
+				(* Wrap result in Value *)
+				let cs_ret_type = cs_type_of_type gctx ret in
+				let result_expr = match cs_ret_type with
+					| CsTypeVoid ->
+						CsCall (CsStaticField (hxvalue_type, "missing"), [])
+					| _ ->
+						cast_type_to_value cs_ret_type method_call
 				in
-				let dispatcher = CsMemberMethod {
-					m_name = method_name;
-					m_return_type = hxvalue_type;
-					m_access = AccessModifier.Public;
-					m_modifiers = [MemberModifier.Override];
-					m_type_params = [];
-					m_params = params;
-					m_body = Some [lazy_init_guard; CsSwitch (CsLocal "index", cases @ [default_case])];
-					m_constraints = [];
-					m_explicit_interface = None;
-					m_attributes = [];
-				} in
-				dispatcher :: acc
-		) methods_by_arity [] in
+				(* For void methods, we need a block lambda that calls the method then returns *)
+				let lambda_body = match cs_ret_type with
+					| CsTypeVoid -> CsLambdaBlock [CsExprStmt method_call; CsReturn (Some result_expr)]
+					| _ -> CsLambdaExpr result_expr
+				in
+				let lambda = CsLambda (lambda_params, lambda_body) in
+				let new_expr = CsNew (class_method_func_type, [lambda]) in
+				{
+					sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
+					sw_body = [CsReturn (Some new_expr)];
+				}
+			) indexed_methods in
+			let default_section = {
+				sw_labels = [CsCaseDefault];
+				sw_body = [CsReturn (Some (CsCall (CsField (CsBase, "_hx_createMethodClosure"), [CsLocal "index"])))];
+			} in
+			[CsMemberMethod {
+				m_name = "_hx_createMethodClosure";
+				m_return_type = class_method_func_type;
+				m_access = AccessModifier.Protected;
+				m_modifiers = [MemberModifier.Override];
+				m_type_params = [];
+				m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
+				m_body = Some [
+					CsSwitch (CsLocal "index", switch_sections @ [default_section]);
+				];
+				m_constraints = [];
+				m_explicit_interface = None;
+				m_attributes = [];
+			}]
+		in
 
 		(* Combine all generated members *)
 		let optional_members = List.filter_map (fun x -> x) [get_field_method; set_field_method; get_fields_method] in
-		method_count_property @ optional_members @ invoke_method_dispatchers
+		method_count_property @ optional_members @ create_method_closure
 
 (* Generate static field accessors for AOT-compatible static field/method access.
    This includes:
@@ -8718,6 +8715,7 @@ let generate_field_accessors gctx c =
    Also records the class path in gctx.all_haxe_classes for Program.cs bind calls. *)
 let generate_static_field_accessors gctx c =
 	let is_aot = Gctx.defined gctx.com DefineList.CsAot in
+	let no_closure_cache = Gctx.defined gctx.com DefineList.CsNoClosureCache in
 	(* Skip static reflection generation for classes marked @:unreflective *)
 	if Meta.has Meta.Unreflective c.cl_meta then
 		[]
@@ -8986,8 +8984,9 @@ let generate_static_field_accessors gctx c =
 	let accessor_needs_new = super_has_static_fields c in
 	let static_accessor_modifiers = if accessor_needs_new then [MemberModifier.New; MemberModifier.Static] else [MemberModifier.Static] in
 
-	(* Generate _hx_staticClosureCache field (nullable array of ClassMethodFunction) *)
-	let closure_cache_members = if method_count = 0 then [] else [
+	(* Generate _hx_staticClosureCache field (nullable array of ClassMethodFunction).
+	   Skipped when -D cs.no-closure-cache is set. *)
+	let closure_cache_members = if method_count = 0 || no_closure_cache then [] else [
 		CsMemberField {
 			f_name = "_hx_staticClosureCache";
 			f_type = CsTypeArray (class_method_func_type, None);
@@ -8998,25 +8997,11 @@ let generate_static_field_accessors gctx c =
 	] in
 
 	(* Generate _hx_getStaticMethodClosure helper method with direct lambdas.
-	   Thread-safe: uses Interlocked.CompareExchange for both cache array and element init.
-	   Generated pattern:
-	       internal static ClassMethodFunction _hx_getStaticMethodClosure(int index) {
-	           var cache = _hx_staticClosureCache;
-	           if (cache == null) {
-	               global::System.Threading.Interlocked.CompareExchange(ref _hx_staticClosureCache,
-	                   new ClassMethodFunction[N], null);
-	               cache = _hx_staticClosureCache;
-	           }
-	           var result = cache[index];
-	           if (result != null) return result;
-	           var newClosure = index switch { 0 => new ClassMethodFunction(...), ... , _ => null };
-	           global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);
-	           return cache[index];
-	       }
-	*)
+	   When caching is enabled (default): thread-safe cache with Interlocked.CompareExchange.
+	   When -D cs.no-closure-cache: creates fresh closure on each access, sets identity fields. *)
 	let get_static_method_closure_members = if method_count = 0 then [] else
-		(* Build switch expression arms for closure creation - one arm per method *)
-		let switch_arms = List.map (fun (idx, _, native_name, arity, args, ret) ->
+		(* Build switch sections for closure creation - one section per method *)
+		let switch_sections = List.map (fun (idx, _, native_name, arity, args, ret) ->
 			(* Generate lambda parameters: a1, a2, ... (all of type Value) *)
 			let lambda_params = List.mapi (fun i _ -> {
 				p_name = Printf.sprintf "a%d" (i + 1);
@@ -9047,15 +9032,57 @@ let generate_static_field_accessors gctx c =
 				| _ -> CsLambdaExpr result_expr
 			in
 			let lambda = CsLambda (lambda_params, lambda_body) in
-			(* Print the new ClassMethodFunction(...) expression to a string *)
 			let new_expr = CsNew (class_method_func_type, [lambda]) in
-			let pctx = create_printer () in
-			print_expr pctx new_expr;
-			let new_str = get_output pctx in
-			Printf.sprintf "%d => %s" idx new_str
+			{
+				sw_labels = [CsCaseConst (CsConst (CsConstInt (Int32.of_int idx)))];
+				sw_body = [
+					CsExprStmt (CsBinop (CsOpAssign, CsLocal "newClosure", new_expr));
+					CsBreak;
+				];
+			}
 		) indexed_methods in
-		let switch_arms_str = String.concat ", " switch_arms in
-		let cache_field = Printf.sprintf "global::%s._hx_staticClosureCache" (s_cs_path cs_path) in
+		let typeof_class_expr = CsTypeOf cs_class_type in
+		let cache_field_expr = CsStaticField (cs_class_type, "_hx_staticClosureCache") in
+		let method_body = if no_closure_cache then
+			(* No-cache mode: create fresh closure, set identity fields, return *)
+			[
+				CsVarDecl ("newClosure", Some class_method_func_type, Some (CsConst CsConstNull));
+				CsSwitch (CsLocal "index", switch_sections);
+				CsIf (
+					CsBinop (CsOpNotEq, CsLocal "newClosure", CsConst CsConstNull),
+					CsBlock [
+						CsExprStmt (CsBinop (CsOpAssign, CsField (CsLocal "newClosure", "_methodTarget"), typeof_class_expr));
+						CsExprStmt (CsBinop (CsOpAssign, CsField (CsLocal "newClosure", "_methodId"), CsLocal "index"));
+					],
+					None
+				);
+				CsReturn (Some (CsLocal "newClosure"));
+			]
+		else
+			(* Cache mode: thread-safe cache with Interlocked.CompareExchange *)
+			let cache_field = Printf.sprintf "global::%s._hx_staticClosureCache" (s_cs_path cs_path) in
+			[
+				CsVarDecl ("cache", None, Some cache_field_expr);
+				CsIf (
+					CsBinop (CsOpEq, CsLocal "cache", CsConst CsConstNull),
+					CsBlock [
+						CsRawStmt (Printf.sprintf "global::System.Threading.Interlocked.CompareExchange(ref %s, new global::haxe.lang.ClassMethodFunction[%d], null);" cache_field method_count);
+						CsExprStmt (CsBinop (CsOpAssign, CsLocal "cache", cache_field_expr));
+					],
+					None
+				);
+				CsVarDecl ("result", None, Some (CsArrayAccess (CsLocal "cache", CsLocal "index")));
+				CsIf (
+					CsBinop (CsOpNotEq, CsLocal "result", CsConst CsConstNull),
+					CsReturn (Some (CsLocal "result")),
+					None
+				);
+				CsVarDecl ("newClosure", Some class_method_func_type, Some (CsConst CsConstNull));
+				CsSwitch (CsLocal "index", switch_sections);
+				CsRawStmt "global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);";
+				CsReturn (Some (CsArrayAccess (CsLocal "cache", CsLocal "index")));
+			]
+		in
 		[CsMemberMethod {
 			m_name = "_hx_getStaticMethodClosure";
 			m_return_type = class_method_func_type;
@@ -9063,32 +9090,7 @@ let generate_static_field_accessors gctx c =
 			m_modifiers = static_accessor_modifiers;
 			m_type_params = [];
 			m_params = [{ p_name = "index"; p_type = Some CsTypeInt; p_default = None; p_modifier = None }];
-			m_body = Some [
-				(* var cache = _hx_staticClosureCache; *)
-				CsRawStmt (Printf.sprintf "var cache = %s;" cache_field);
-				(* if (cache == null) { Interlocked.CompareExchange(ref _hx_staticClosureCache, new ...[N], null); cache = _hx_staticClosureCache; } *)
-				CsIf (
-					CsBinop (CsOpEq, CsLocal "cache", CsConst CsConstNull),
-					CsBlock [
-						CsRawStmt (Printf.sprintf "global::System.Threading.Interlocked.CompareExchange(ref %s, new global::haxe.lang.ClassMethodFunction[%d], null);" cache_field method_count);
-						CsRawStmt (Printf.sprintf "cache = %s;" cache_field);
-					],
-					None
-				);
-				(* var result = cache[index]; if (result != null) return result; *)
-				CsRawStmt "var result = cache[index];";
-				CsIf (
-					CsBinop (CsOpNotEq, CsLocal "result", CsConst CsConstNull),
-					CsReturn (Some (CsLocal "result")),
-					None
-				);
-				(* var newClosure = index switch { 0 => ..., 1 => ..., _ => null }; *)
-				CsRawStmt (Printf.sprintf "var newClosure = index switch { %s, _ => null };" switch_arms_str);
-				(* Interlocked.CompareExchange(ref cache[index], newClosure, null); *)
-				CsRawStmt "global::System.Threading.Interlocked.CompareExchange(ref cache[index], newClosure, null);";
-				(* return cache[index]; *)
-				CsRawStmt "return cache[index];";
-			];
+			m_body = Some method_body;
 			m_constraints = [];
 			m_explicit_interface = None;
 			m_attributes = [];
@@ -10556,7 +10558,6 @@ public static class HaxeReflectionInit
 	copy_runtime_file "cs/_cs/haxe/lang/Runtime.cs" "haxe/lang/Runtime.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Function.cs" "haxe/lang/Function.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/Value.cs" "haxe/lang/Value.cs";
-	copy_runtime_file "cs/_cs/haxe/lang/InstanceMethodFunction.cs" "haxe/lang/InstanceMethodFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/ClassMethodFunction.cs" "haxe/lang/ClassMethodFunction.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/EmptyConstructor.cs" "haxe/lang/EmptyConstructor.cs";
 	copy_runtime_file "cs/_cs/haxe/lang/ConstructorFunction.cs" "haxe/lang/ConstructorFunction.cs";

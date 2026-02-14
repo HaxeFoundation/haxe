@@ -4,20 +4,29 @@ using System;
 namespace haxe.lang
 {
     /// <summary>
-    /// Fast, AOT-safe method closure for static methods on Haxe classes.
-    /// Used by Reflect.field() to return callable static method references.
+    /// Fast, AOT-safe method closure for both instance and static methods on Haxe classes.
+    /// Used by Reflect.field() and compile-time closures (obj.someMethod) to return
+    /// callable method references.
     ///
     /// Each closure stores the invoke delegate directly (passed at construction),
-    /// avoiding dictionary lookup on every call.
+    /// providing direct delegate call invocation with no intermediate dispatch.
     ///
     /// Performance characteristics:
     /// - Uses Value struct for args/returns (zero boxing for primitives)
-    /// - Cached: Each instance is cached in the class's _hx_staticClosureCache
     /// - Direct delegate call: No dictionary lookup at invocation time
     /// - AOT-safe: No reflection required
+    /// - Instance closures: cached per-object via HaxeObject._hx_closureCache
+    /// - Static closures: cached per-class via _hx_staticClosureCache
     /// </summary>
     public sealed class ClassMethodFunction : Function
     {
+        // Method identity — for Reflect.compareMethods support.
+        // For instance closures: _methodTarget = the object, _methodId = method index
+        // For static closures: _methodTarget = typeof(ClassName), _methodId = method index
+        // Set by HaxeObject._hx_getMethodClosure or generated _hx_getStaticMethodClosure.
+        internal object _methodTarget;
+        internal int _methodId = -1;
+
         private readonly Func<Value> _invoke0;
         private readonly Func<Value, Value> _invoke1;
         private readonly Func<Value, Value, Value> _invoke2;

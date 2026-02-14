@@ -42,50 +42,8 @@ class HaxeObject {
 		return [];
 	}
 
-	// Method invocation dispatchers for MethodClosure
-	// Override in subclasses to dispatch by method index
-
-	public function _hx_invokeMethod0(index:Int):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod1(index:Int, a1:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod2(index:Int, a1:Value, a2:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod3(index:Int, a1:Value, a2:Value, a3:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod4(index:Int, a1:Value, a2:Value, a3:Value, a4:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod5(index:Int, a1:Value, a2:Value, a3:Value, a4:Value, a5:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod6(index:Int, a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod7(index:Int, a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value, a7:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod8(index:Int, a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value, a7:Value, a8:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethod9(index:Int, a1:Value, a2:Value, a3:Value, a4:Value, a5:Value, a6:Value, a7:Value, a8:Value, a9:Value):Value {
-		throw "Method not found: index " + index;
-	}
-
-	public function _hx_invokeMethodDynamic(index:Int, args:Array<Dynamic>):Dynamic {
-		throw "Method not found: index " + index;
+	// Method closure factory — overridden per class to create ClassMethodFunction with direct lambdas
+	public function _hx_getMethodClosure(index:Int):Dynamic {
+		return null;
 	}
 }

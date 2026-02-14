@@ -64,6 +64,12 @@
 		"platforms": ["cs"]
 	},
 	{
+		"name": "CsNoClosureCache",
+		"define": "cs.no-closure-cache",
+		"doc": "Disable closure caching for method closures (both instance and static). Reduces per-object memory at the cost of allocating a new closure on each access.",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "CsNetTarget",
 		"define": "cs.net-target",
 		"doc": "Set the .NET library target name for loading C# extern API definitions. (default: netstandard)",

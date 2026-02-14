@@ -297,9 +297,18 @@ class Reflect {
 		if (f1 == null || f2 == null)
 			return false;
 
-		// Compare HaxeFunctions by reference
+		// Compare ClassMethodFunction by identity (target object + method index)
+		// This works in both cache mode (where reference equality above catches it)
+		// and no-cache mode (where different instances represent the same method)
 		if (Std.isOfType(f1, HaxeFunction) && Std.isOfType(f2, HaxeFunction)) {
-			return f1 == f2;
+			var t1:Dynamic = cs.Syntax.code("({0} is global::haxe.lang.ClassMethodFunction _hx_cmf1) ? _hx_cmf1._methodTarget : null", f1);
+			var t2:Dynamic = cs.Syntax.code("({0} is global::haxe.lang.ClassMethodFunction _hx_cmf2) ? _hx_cmf2._methodTarget : null", f2);
+			if (t1 != null && t2 != null) {
+				var id1:Int = cs.Syntax.code("(({0}) as global::haxe.lang.ClassMethodFunction)._methodId", f1);
+				var id2:Int = cs.Syntax.code("(({0}) as global::haxe.lang.ClassMethodFunction)._methodId", f2);
+				return t1 == t2 && id1 == id2;
+			}
+			return false;
 		}
 
 		// Compare delegates

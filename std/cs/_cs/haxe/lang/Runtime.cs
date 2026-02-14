@@ -325,8 +325,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 0)
-                    return Value.fromObject(hf.invokeDynamic(null));
                 return hf.__hx_invoke0();
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -348,12 +346,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 1)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke1(a1);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -376,13 +368,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 2)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke2(a1, a2);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -406,14 +391,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 3)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke3(a1, a2, a3);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -438,15 +415,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 4)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    arr.push(a4.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke4(a1, a2, a3, a4);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -472,16 +440,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 5)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    arr.push(a4.toDynamic());
-                    arr.push(a5.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke5(a1, a2, a3, a4, a5);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -508,17 +466,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 6)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    arr.push(a4.toDynamic());
-                    arr.push(a5.toDynamic());
-                    arr.push(a6.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke6(a1, a2, a3, a4, a5, a6);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -546,18 +493,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 7)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    arr.push(a4.toDynamic());
-                    arr.push(a5.toDynamic());
-                    arr.push(a6.toDynamic());
-                    arr.push(a7.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke7(a1, a2, a3, a4, a5, a6, a7);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -586,19 +521,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 8)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    arr.push(a4.toDynamic());
-                    arr.push(a5.toDynamic());
-                    arr.push(a6.toDynamic());
-                    arr.push(a7.toDynamic());
-                    arr.push(a8.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke8(a1, a2, a3, a4, a5, a6, a7, a8);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
@@ -628,20 +550,6 @@ namespace haxe.lang
         {
             if (func is Function hf)
             {
-                if (hf is InstanceMethodFunction imf && imf.Arity != 9)
-                {
-                    var arr = new global::haxe.root.Array();
-                    arr.push(a1.toDynamic());
-                    arr.push(a2.toDynamic());
-                    arr.push(a3.toDynamic());
-                    arr.push(a4.toDynamic());
-                    arr.push(a5.toDynamic());
-                    arr.push(a6.toDynamic());
-                    arr.push(a7.toDynamic());
-                    arr.push(a8.toDynamic());
-                    arr.push(a9.toDynamic());
-                    return Value.fromObject(hf.invokeDynamic(arr));
-                }
                 return hf.__hx_invoke9(a1, a2, a3, a4, a5, a6, a7, a8, a9);
             }
             if (func == null) throw new NullReferenceException("Cannot call null function");
