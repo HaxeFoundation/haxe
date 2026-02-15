@@ -56,7 +56,7 @@ class Lua {
 			infoMsg('hererocks has already been installed.');
 		} else {
 			runCommand("pipx", ["ensurepath"]);
-			runCommand("pipx", ["install", "hererocks"]);
+			runCommand("pipx", ["install", "git+https://github.com/luarocks/hererocks"]);
 		}
 	}
 
