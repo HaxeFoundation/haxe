@@ -8841,69 +8841,43 @@ let generate_static_field_accessors gctx c =
 	let factory_methods, factory_bind_stmts =
 		if not is_haxe_object || is_abstract_class then ([], [])
 		else
-			let args_param = { p_name = "args"; p_type = Some (CsTypeArray (CsTypeObject, None)); p_default = None; p_modifier = None } in
-			(* _hx_emptyFactory: return new MyClass((EmptyConstructor)null); *)
-			let empty_factory_method = CsMemberMethod {
-				m_name = "_hx_emptyFactory";
-				m_return_type = CsTypeObject;
-				m_access = AccessModifier.Private;
-				m_modifiers = [MemberModifier.Static];
-				m_type_params = [];
-				m_params = [args_param];
-				m_body = Some [CsReturn (Some (CsNew (cs_class_type, [CsCast (empty_constructor_type, CsNull)])))];
-				m_constraints = [];
-				m_explicit_interface = None;
-				m_attributes = [];
-			} in
-			(* _hx_factory body depends on constructor args and two-phase status.
-			   Arg casts use cast_object_to_type from csTypeCoercion.ml which handles:
-			   - Numeric boxing mismatches via Runtime.toInt/toDouble/toLong/toBool
-			   - Null<T> via _ofDynamic (handles null + boxing correctly)
-			   - String via Runtime.toStr
-			   - Other types via direct cast *)
-			let factory_body =
+			(* Inline lambda for emptyFactory: _ => new MyClass((EmptyConstructor)null) *)
+			let discard_param = { p_name = "_"; p_type = None; p_default = None; p_modifier = None } in
+			let args_param = { p_name = "args"; p_type = None; p_default = None; p_modifier = None } in
+			let empty_factory_lambda = CsLambda ([discard_param],
+				CsLambdaExpr (CsNew (cs_class_type, [CsCast (empty_constructor_type, CsNull)]))
+			) in
+			(* Inline lambda for factory: args => new MyClass(cast(args[0]), ...) or block for two-phase *)
+			let factory_lambda =
 				if ctor_is_two_phase then
-					(* Two-phase: create empty, call _hx_new, return *)
+					(* Two-phase: args => { var t = new MyClass((EmptyConstructor)null); t._hx_new(cast_args); return t; } *)
 					let cast_args = List.mapi (fun i (_, _, t) ->
 						let arg_type = cs_type_of_type gctx t in
 						cast_object_to_type arg_type (CsArrayAccess (CsLocal "args", CsConst (CsConstInt (Int32.of_int i))))
 					) ctor_args in
-					[
+					CsLambda ([args_param], CsLambdaBlock [
 						CsVarDecl ("_hx_tmp", Some cs_class_type,
 							Some (CsNew (cs_class_type, [CsCast (empty_constructor_type, CsNull)])));
 						CsExprStmt (CsCall (CsField (CsLocal "_hx_tmp", "_hx_new"), cast_args));
 						CsReturn (Some (CsLocal "_hx_tmp"))
-					]
+					])
 				else
-					(* Normal: return new MyClass((Type1)args[0], ...); *)
+					(* Normal: args => new MyClass(cast(args[0]), ...) *)
 					let cast_args = List.mapi (fun i (_, _, t) ->
 						let arg_type = cs_type_of_type gctx t in
 						cast_object_to_type arg_type (CsArrayAccess (CsLocal "args", CsConst (CsConstInt (Int32.of_int i))))
 					) ctor_args in
-					[CsReturn (Some (CsNew (cs_class_type, cast_args)))]
+					CsLambda ([args_param], CsLambdaExpr (CsNew (cs_class_type, cast_args)))
 			in
-			let factory_method = CsMemberMethod {
-				m_name = "_hx_factory";
-				m_return_type = CsTypeObject;
-				m_access = AccessModifier.Private;
-				m_modifiers = [MemberModifier.Static];
-				m_type_params = [];
-				m_params = [args_param];
-				m_body = Some factory_body;
-				m_constraints = [];
-				m_explicit_interface = None;
-				m_attributes = [];
-			} in
-			(* Bind statements: acc.emptyFactory = new ConstructorFunction(_hx_emptyFactory); etc. *)
 			let set_empty_factory = CsExprStmt (CsBinop (CsOpAssign,
 				CsField (CsLocal "acc", "emptyFactory"),
-				CsNew (constructor_function_type, [CsStaticField (cs_class_type, "_hx_emptyFactory")])
+				CsNew (constructor_function_type, [empty_factory_lambda])
 			)) in
 			let set_factory = CsExprStmt (CsBinop (CsOpAssign,
 				CsField (CsLocal "acc", "factory"),
-				CsNew (constructor_function_type, [CsStaticField (cs_class_type, "_hx_factory")])
+				CsNew (constructor_function_type, [factory_lambda])
 			)) in
-			([empty_factory_method; factory_method], [set_empty_factory; set_factory])
+			([], [set_empty_factory; set_factory])
 	in
 
 	(* If no static data fields and no static methods,
