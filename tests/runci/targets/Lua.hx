@@ -56,7 +56,7 @@ class Lua {
 			infoMsg('hererocks has already been installed.');
 		} else {
 			runCommand("pipx", ["ensurepath"]);
-			runCommand("pipx", ["install", "git+https://github.com/luarocks/hererocks"]);
+			runCommand("pipx", ["install", "git+https://github.com/tobil4sk/hererocks.git@fix/windows-msys-shell"]);
 		}
 	}
 
@@ -96,7 +96,7 @@ class Lua {
 			// luajit 2.0 was missing arm64 support
 			if (System.arch == Arm64 && lv == "-j2.0") continue;
 
-			final envpath = getInstallPath() + '/lua_env/lua$lv';
+			final envpath = getInstallPath() + '/lua_env/lua${lv.replace("@v", "")}';
 			addToPATH(envpath + '/bin');
 
 			Sys.println('--------------------');
