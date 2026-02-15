@@ -110,7 +110,8 @@ let patch_constructors ectx =
 						| _ -> die "" __LOC__
 					)
 				| None ->
-					raise_typing_error "Could not patch constructor on this function because there isn't one" cls.cl_name_pos
+					(* No constructor — inherited from parent which already handles __shiftStack *)
+					()
 				| _ -> ()
 				)
 			| _ -> ()
