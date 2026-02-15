@@ -25,7 +25,22 @@ package lua;
 import haxe.SysTools;
 
 @:dox(hide)
+@:noPackageRestrict
 class Boot {
+	// wrap with common clamping functionality for all implementations
+	macro static function clampWrapper(inner:haxe.macro.Expr):haxe.macro.Expr {
+		return macro function(v:Float):Int {
+			if (v <= Max_Int32 && v >= Min_Int32)
+				return v > 0 ? std.Math.floor(v) : std.Math.ceil(v);
+
+			if (inline std.Math.isNaN(v) || !inline std.Math.isFinite(v))
+				return null;
+
+			return $inner(v);
+		};
+	}
+
+	#if !macro
 	// Used temporarily for bind()
 	static var _:Dynamic;
 	static var _fid = 0;
@@ -194,18 +209,6 @@ class Boot {
 			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
 	}
 
-	// wrap with common functionality for all implementations
-	extern inline static function clampWrapper(inner:Float->Null<Int>):Float->Null<Int> {
-		return function (v:Float) {
-			if (v <= Max_Int32 && v >= Min_Int32)
-				return v > 0 ? Math.floor(v) : Math.ceil(v);
-
-			if (inline std.Math.isNaN(v) || !inline std.Math.isFinite(v))
-				return null;
-
-			return inner(v);
-		};
-	}
 
 	extern inline static function prepareForBitwise(v:Float) {
 		if (v > 2251798999999999) {
@@ -214,21 +217,18 @@ class Boot {
 		return v;
 	}
 
-	// Ideally, these should be extern inline because they should only be used
-	// via inlining (we also don't want clampNativeOperator outside testFunctionSupport)
-	// however, extern inline prevents closures, even if they are immediately inlined
-	inline static function clampNativeOperator(v:Float) {
+	extern inline static function clampNativeOperator(v:Float):Int {
 		v = prepareForBitwise(v);
 		return lua.Syntax.code("({0} & 0x7FFFFFFF) - ({0} & 0x80000000)", v);
 	}
 
-	inline static function clampHxBit(v:Float):Int {
+	extern inline static function clampHxBit(v:Float):Int {
 		v = prepareForBitwise(v);
 		final band:(Float, Float) -> Int = untyped _hx_bit_raw.band;
 		return band(v, Max_Int32) - cast Math.abs(band(v, 2147483648));
 	}
 
-	inline static function clampModulo(v:Float):Int {
+	extern inline static function clampModulo(v:Float):Int {
 		v = lua.Syntax.modulo(v, 4294967296);
 		if (v >= 2147483648) {
 			v -= 4294967296;
@@ -395,4 +395,5 @@ class Boot {
 
 		return null;
 	}
+	#end
 }
