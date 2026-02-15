@@ -92,7 +92,7 @@ class Lua {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4"].concat(systemName == 'Linux' && Linux.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
+		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4"].concat(systemName == 'Linux' && System.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
 			final envpath = getInstallPath() + '/lua_env/lua$lv';
 			addToPATH(envpath + '/bin');
 

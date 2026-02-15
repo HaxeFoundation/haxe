@@ -14,6 +14,11 @@ class CommandFailure extends haxe.Exception {
 	}
 }
 
+enum abstract Arch(Int) {
+	final Arm64;
+	final Amd64;
+}
+
 class System {
 	static public function successMsg(msg:String):Void {
 		Sys.println(colorSupported ? '\x1b[32m' + msg + '\x1b[0m' : msg);
@@ -255,4 +260,13 @@ class System {
 		return installPath + "/downloads";
 	}
 
+	static public var arch(get, null):Arch;
+	static function get_arch() {
+		if (arch == null)
+			arch = switch commandResult('arch', []).stdout.replace('\n', '') {
+				case 'arm64' | 'aarch64': Arm64;
+				case _: Amd64;
+			}
+		return arch;
+	}
 }

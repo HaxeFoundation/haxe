@@ -13,10 +13,8 @@ class Cpp {
 
 		//hxcpp dependencies
 		switch (systemName) {
-			case "Linux":
-				if (Linux.arch == Amd64) {
-					Linux.requireAptPackages(["gcc-multilib", "g++-multilib"]);
-				}
+			case "Linux" if (System.arch == Amd64):
+				Linux.requireAptPackages(["gcc-multilib", "g++-multilib"]);
 			case "Mac":
 				//pass
 		}
@@ -57,7 +55,7 @@ class Cpp {
 			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 			runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 
-			if (!(systemName == 'Linux' && Linux.arch == Arm64)) // FIXME
+			if (!(systemName == 'Linux' && System.arch == Arm64)) // FIXME
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
