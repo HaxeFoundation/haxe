@@ -67,7 +67,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		let ret = RMapExpr(ret,f) in
 		(ret,(fun e -> if e == e_no_value then e else f e))
 	in
-	let scope_allows_suspension_call_on e1 el =
+	let scope_allows_suspension_call_on e1 args el =
 		match scope with
 		| None ->
 			true
@@ -85,9 +85,19 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 			let has_scope_local_first_argument () =
 			(* Allow calls where the scope var is the first argument because that's what happens when
 			   using `scope.staticExtension()`. *)
-				begin match el with
-				| e1 :: _ when is_scope_local_expr e1 ->
-					true
+				begin match args,el with
+				| ((_,_,t) :: _),arg1 :: _ when is_scope_local_expr arg1 ->
+					begin match e1.eexpr with
+					| TField(_,FStatic({cl_kind = KAbstractImpl a}, cf)) when has_class_field_flag cf CfImpl ->
+						Meta.has Meta.CoroutineRestrictedSuspension a.a_meta
+					| _ ->
+						begin try
+							let mt = t_infos (module_type_of_type t) in
+							Meta.has Meta.CoroutineRestrictedSuspension mt.mt_meta
+						with Exit ->
+							false
+						end
+					end
 				| _ ->
 					false
 				end
@@ -218,9 +228,9 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				begin match el with
 					| e1 :: el ->
 						begin match follow_with_coro e1.etype with
-						| Coro _ ->
-							if not (scope_allows_suspension_call_on e1 el) then
-								Error.raise_typing_error "Invalid suspension call in restricted suspension scope" e.epos;
+						| Coro (args,_) ->
+							if not (scope_allows_suspension_call_on e1 args el) then
+								Common.display_error ctx.typer.com "Invalid suspension call in restricted suspension scope" e.epos;
 							let cb_next = block_from_e e1 in
 							add_block_flag cb_next CbResumeState;
 							add_block_flag cb CbSuspendState;
