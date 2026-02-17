@@ -122,7 +122,7 @@ module IterationKind = struct
 		display_error com (Printf.sprintf "Cannot iterate on %s" (s_type (print_context()) e.etype)) e.epos;
 		mk (TConst TNull) t_dynamic e.epos,t_dynamic
 
-	let check_iterator ?(resume=false) ctx s e p =
+	let check_iterator ?(resume=false) ctx s e =
 		match try_iterator_unification ctx e with
 		| Some r ->
 			r
@@ -190,7 +190,7 @@ module IterationKind = struct
 	let of_texpr ?(resume=false) ctx e unroll_params p =
 		let check_iterator () =
 			try
-				let (e,t) = check_iterator ~resume:true ctx "iterator" e p in
+				let (e,t) = check_iterator ~resume:true ctx "iterator" e in
 				(IteratorIterator,e,t)
 			with Not_found -> try
 				of_texpr_by_array_access ctx e p
@@ -494,7 +494,7 @@ let type_for_loop ctx handle_display ik e1 e2 unroll p =
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		if force_unroll then
 			display_error ctx.com "Cannot force inlining on key => value loops" p;
-		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
+		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
 		let ehasnext = build_call ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in
