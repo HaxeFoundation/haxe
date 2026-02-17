@@ -92,51 +92,53 @@ module IterationKind = struct
 		let pt = spawn_monomorph ctx p in
 		let t = ctx.t.titerator pt in
 		let dynamic_iterator = ref None in
-		let e1 = try
-			let e = AbstractCast.cast_or_unify_raise ctx t e p in
-			match Abstract.follow_with_abstracts e.etype with
-			| TDynamic _ | TMono _ ->
-				(* try to find something better than a dynamic value to iterate on *)
-				dynamic_iterator := Some e;
-				raise_error_msg (Unify [Unify_custom "Avoid iterating on a dynamic value"]) p
-			| _ -> e
-		with Error { err_message = Unify _ } ->
-			let try_last_resort after =
-				try
-					match last_resort with
-					| Some fn -> fn()
-					| None -> raise Not_found
-				with Not_found ->
-					after()
-			in
-			let try_acc acc =
-				let acc_expr = build_call ctx acc [] WithType.value e.epos in
-				try
-					unify_raise acc_expr.etype t acc_expr.epos;
-					acc_expr
-				with Error ({ err_message = Unify _ } as err) ->
-					try_last_resort (fun () ->
-						match !dynamic_iterator with
-						| Some e -> e
-						| None ->
-							if resume then raise Not_found;
-							display_error_ext ctx.com (make_error ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
-							mk (TConst TNull) t_dynamic p
-					)
-			in
+		let handle_dynamic_value e =
+			dynamic_iterator := Some e;
+			raise_error_msg (Unify [Unify_custom "Avoid iterating on a dynamic value"]) p
+		in
+		let try_last_resort after =
 			try
-				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
-				try_acc acc;
+				match last_resort with
+				| Some fn -> fn ()
+				| None -> raise Not_found
 			with Not_found ->
+				after ()
+		in
+		let try_acc acc =
+			let acc_expr = build_call ctx acc [] WithType.value e.epos in
+			try
+				unify_raise acc_expr.etype t acc_expr.epos;
+				acc_expr
+			with Error ({ err_message = Unify _ } as err) ->
 				try_last_resort (fun () ->
 					match !dynamic_iterator with
 					| Some e -> e
 					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
-						try_acc acc
+						if resume then raise Not_found;
+						display_error_ext ctx.com (make_error ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
+						mk (TConst TNull) t_dynamic p
 				)
 		in
-		e1,pt
+		let get_acc () =
+			try
+				let acc = type_field ({do_resume = true; allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+				try_acc acc
+			with Not_found ->
+				try_last_resort (fun () ->
+					let acc = type_field ({do_resume = resume; allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
+					try_acc acc
+				)
+		in
+		let e1 =
+			try
+				let e = AbstractCast.cast_or_unify_raise ctx t e p in
+				match Abstract.follow_with_abstracts e.etype with
+				| TDynamic _ | TMono _ -> handle_dynamic_value e
+				| _ -> e
+			with Error { err_message = Unify _ } ->
+				get_acc ()
+		in
+		e1, pt
 
 	let of_texpr_by_array_access ctx e p =
 		match follow e.etype with
