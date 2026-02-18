@@ -175,7 +175,7 @@ type safety_subject =
 	| SNotSuitable
 
 let rec get_subject mode expr =
-	match (reveal_expr expr).eexpr with
+	match (Texpr.skip expr).eexpr with
 		| TLocal v ->
 			SLocalVar v.v_id
 		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when (mode <> SMStrictThreaded) || (has_class_field_flag field CfFinal) ->
@@ -191,6 +191,7 @@ let rec get_subject mode expr =
 				| SFieldOfLocalVar (var_id, fields) -> SFieldOfLocalVar (var_id, field.cf_name :: fields)
 				|_ -> SNotSuitable
 			)
+		| TBinop (OpAssign, target, _) -> get_subject mode target
 		|_ -> SNotSuitable
 
 (**
@@ -198,12 +199,13 @@ let rec get_subject mode expr =
 	E.g. a call cannot be such a subject, because we cannot track null-state of the call result.
 *)
 let rec is_suitable mode expr =
-	match (reveal_expr expr).eexpr with
+	match (Texpr.skip expr).eexpr with
 		| TField ({ eexpr = TConst TThis }, FInstance _)
 		| TField ({ eexpr = TLocal _ }, (FInstance _ | FAnon _))
 		| TField ({ eexpr = TTypeExpr _ }, FStatic _)
 		| TLocal _ -> true
 		| TField (target, (FInstance _ | FStatic _ | FAnon _)) when mode <> SMStrictThreaded -> is_suitable mode target
+		| TBinop (OpAssign, target, _) -> is_suitable mode target
 		|_ -> false
 
 (**
@@ -424,16 +426,6 @@ let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback
 				add (not positive) checked_expr
 			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
 				add (not positive) checked_expr
-			(* Handle assignment expressions in null checks: (x = expr) != null *)
-			| TBinop ((OpEq | OpNotEq as op), { eexpr = TConst TNull }, checked_expr)
-			| TBinop ((OpEq | OpNotEq as op), checked_expr, { eexpr = TConst TNull }) ->
-				(match (Texpr.skip checked_expr).eexpr with
-					| TBinop (OpAssign, target, _) when is_suitable mode target ->
-						(* OpEq means "is null", OpNotEq means "is not null" *)
-						let is_null_check = (op = OpEq) in
-						add (positive = is_null_check) target
-					| _ -> ()
-				)
 			| TBinop (OpEq, e, checked_expr) when is_suitable mode checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
 			| TBinop (OpEq, checked_expr, e) when is_suitable mode checked_expr && not (is_nullable_expr e) ->
