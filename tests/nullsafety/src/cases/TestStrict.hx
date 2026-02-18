@@ -1516,7 +1516,8 @@ class BinopFlow {
 		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
 
-	// Test coroutines with null-safety (issue #...)
+	// Test that coroutines work correctly with null-safety
+	// (previously failed with "Cannot assign nullable value here")
 	static function coroutine_anonymousLambda_shouldPass() {
 		import haxe.coro.Coroutine;
 		function runWith<T>(lambda:Coroutine<() -> Void>) { }
