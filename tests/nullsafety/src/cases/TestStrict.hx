@@ -1540,3 +1540,61 @@ class BinopFlow {
 		});
 	}
 }
+
+@:build(Validator.checkFields())
+class ConstructorThrow {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorThrowBothBranches {
+	final s:String;
+	final t:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			s = "foo";
+			throw "no";
+		} else {
+			t = "bar";
+			throw "also no";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorReturn {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturn {
+	final s:String;
+	final t:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			s = "one";
+			throw "error";
+		} else {
+			t = "two";
+			return;
+		}
+	}
+}

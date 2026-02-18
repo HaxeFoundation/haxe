@@ -1866,9 +1866,24 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 					| TIf (_, if_block, Some else_block) ->
 						let if_init_list = traverse (Hashtbl.copy init_list) if_block
 						and else_init_list = traverse (Hashtbl.copy init_list) else_block in
+						let if_has_dead_end = DeadEnd.has_dead_end if_block in
+						let else_has_dead_end = DeadEnd.has_dead_end else_block in
 						Hashtbl.clear init_list;
-						Hashtbl.iter (Hashtbl.replace init_list) if_init_list;
-						Hashtbl.iter (Hashtbl.replace init_list) else_init_list
+						(* If a branch has a dead end (throw/return), we don't need to initialize fields in that branch
+						   since the constructor won't return an object. Only merge fields from branches that complete normally. *)
+						if if_has_dead_end && else_has_dead_end then
+							(* Both branches have dead ends, so no fields need to be initialized *)
+							()
+						else if if_has_dead_end then
+							(* Only if branch has dead end, use else branch's uninitialized fields *)
+							Hashtbl.iter (Hashtbl.replace init_list) else_init_list
+						else if else_has_dead_end then
+							(* Only else branch has dead end, use if branch's uninitialized fields *)
+							Hashtbl.iter (Hashtbl.replace init_list) if_init_list
+						else
+							(* Neither branch has dead end, fields must be initialized in both branches *)
+							Hashtbl.iter (Hashtbl.replace init_list) if_init_list;
+							Hashtbl.iter (Hashtbl.replace init_list) else_init_list
 					(* var _gthis = this *)
 					| TVar (v, Some { eexpr = TConst TThis }) ->
 						Hashtbl.add this_vars v.v_id v
