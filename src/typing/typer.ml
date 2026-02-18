@@ -1786,7 +1786,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (OpNullCoal,e1,e2) ->
 		let vr = new value_reference ctx in
-		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
+		let e1 = type_expr ctx (Expr.ensure_block e1) WithType.value in
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
 		let tmin,cast = get_if_then_else_operands ctx e1 e2 with_type in
 		let e2 = cast e2 in
@@ -1796,7 +1796,6 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| TAbstract({a_path = [],"Null"},[t]) -> tmin
 			| _ -> follow_without_type tmin
 		in
-		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
 			| None
 			(* TODO: why does this happen? *)
@@ -1805,8 +1804,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			| Some name ->
 				name
 		in
-		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
-		let e_null = Builder.make_null e1_null_t e1.epos in
+		let e1 = vr#as_var var_name e1 in
+		let e_null = Builder.make_null e1.etype e1.epos in
 		let e_cond = mk (TBinop(OpNotEq,e1,e_null)) ctx.t.tbool e1.epos in
 		let e_if = mk (TIf(e_cond,cast e1,Some e2)) iftype p in
 		vr#to_texpr e_if

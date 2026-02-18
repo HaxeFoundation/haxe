@@ -78,7 +78,7 @@ class compiler_callbacks = object(self)
 	method add_after_generation (f : unit -> unit) : unit =
 		after_generation := f :: !after_generation
 
-	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
+	method add_null_safety_report (f : (string*pos) list -> (WarningList.warning*string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
 	method run handle_error r =

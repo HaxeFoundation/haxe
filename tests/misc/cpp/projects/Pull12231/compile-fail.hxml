@@ -1,0 +1,3 @@
+--main Main
+--cpp bin/cpp
+-D analyzer-optimize

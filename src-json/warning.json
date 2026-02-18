@@ -55,6 +55,11 @@
 		"generic": true
 	},
 	{
+		"name": "WNullSafety",
+		"doc": "Warnings related to null safety",
+		"generic": true
+	},
+	{
 		"name": "WDeprecated",
 		"doc": "This is deprecated and should no longer be used"
 	},
@@ -129,6 +134,12 @@
 		"name": "WIfDisplay",
 		"doc": "Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined(\"display\")` instead.",
 		"parent": "WParser"
+	},
+	{
+		"name": "WRedundantNullCheck",
+		"doc": "Value can't be null, so comparison with null is excessive",
+		"parent": "WNullSafety",
+		"enabled": false
 	},
 	{
 		"name": "WHxb",

@@ -81,62 +81,57 @@ module IterationKind = struct
 	}
 
 	let type_field_config = {
-		Fields.TypeFieldConfig.do_resume = true;
+		(Fields.TypeFieldConfig.create true) with
 		allow_resolve = false;
+		allow_dynamic = false;
+		allow_open_mono = false;
 	}
 
 	let get_next_array_element arr iexpr pt p =
 		(mk (TArray (arr,iexpr)) pt p)
 
-	let check_iterator ?(resume=false) ?last_resort ctx s e p =
-		let pt = spawn_monomorph ctx p in
+	let try_iterator_unification ctx e =
+		let pt = spawn_monomorph ctx e.epos in
 		let t = ctx.t.titerator pt in
-		let dynamic_iterator = ref None in
-		let e1 = try
-			let e = AbstractCast.cast_or_unify_raise ctx t e p in
-			match Abstract.follow_with_abstracts e.etype with
-			| TDynamic _ | TMono _ ->
-				(* try to find something better than a dynamic value to iterate on *)
-				dynamic_iterator := Some e;
-				raise_error_msg (Unify [Unify_custom "Avoid iterating on a dynamic value"]) p
-			| _ -> e
-		with Error { err_message = Unify _ } ->
-			let try_last_resort after =
-				try
-					match last_resort with
-					| Some fn -> fn()
-					| None -> raise Not_found
-				with Not_found ->
-					after()
-			in
-			let try_acc acc =
-				let acc_expr = build_call ctx acc [] WithType.value e.epos in
-				try
-					unify_raise acc_expr.etype t acc_expr.epos;
-					acc_expr
-				with Error ({ err_message = Unify _ } as err) ->
-					try_last_resort (fun () ->
-						match !dynamic_iterator with
-						| Some e -> e
-						| None ->
-							if resume then raise Not_found;
-							display_error_ext ctx.com (make_error ~sub:[err] (Custom "Field iterator has an invalid type") acc_expr.epos);
-							mk (TConst TNull) t_dynamic p
-					)
-			in
-			try
-				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
-				try_acc acc;
-			with Not_found ->
-				try_last_resort (fun () ->
-					match !dynamic_iterator with
-					| Some e -> e
-					| None ->
-						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos (MCall []) (WithType.with_type t) in
-						try_acc acc
-				)
-		in
-		e1,pt
+		try
+			let e = AbstractCast.cast_or_unify_raise ctx t e e.epos in
+			Some (e,pt)
+		with Error ({ err_message = Unify _ }) ->
+			None
+
+	let try_iterator_unification ctx e =
+		match Abstract.follow_with_abstracts e.etype with
+		| TDynamic _ | TMono _ ->
+			(* Unification from these always succeeds, so let's reject it. *)
+			None
+		| _ ->
+			try_iterator_unification ctx e
+
+	let try_iterator_field ctx e s =
+		let pt = spawn_monomorph ctx e.epos in
+		let t_iterator = ctx.t.titerator pt in
+		try
+			let acc = type_field type_field_config ctx e s e.epos (MCall []) (WithType.with_type t_iterator) in
+			let acc_expr = build_call ctx acc [] WithType.value e.epos in
+			unify_raise acc_expr.etype t_iterator acc_expr.epos;
+			Some (acc_expr,pt)
+		with Error ({ err_message = Unify _ }) | Not_found ->
+			None
+
+	let cannot_iterate_on com e =
+		display_error com (Printf.sprintf "Cannot iterate on %s" (s_type (print_context()) e.etype)) e.epos;
+		mk (TConst TNull) t_dynamic e.epos,t_dynamic
+
+	let check_iterator ?(resume=false) ctx s e =
+		match try_iterator_unification ctx e with
+		| Some r ->
+			r
+		| None -> match try_iterator_field ctx e s with
+			| Some r ->
+				r
+			| None ->
+				if resume then raise Not_found;
+				cannot_iterate_on ctx.com e
 
 	let of_texpr_by_array_access ctx e p =
 		match follow e.etype with
@@ -193,23 +188,16 @@ module IterationKind = struct
 				None
 
 	let of_texpr ?(resume=false) ctx e unroll_params p =
-		let dynamic_iterator e =
-			display_error ctx.com "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
-			IteratorDynamic,e,t_dynamic
-		in
 		let check_iterator () =
-			let array_access_result = ref None in
-			let last_resort () =
-				array_access_result := Some (of_texpr_by_array_access ctx e p);
-				mk (TConst TNull) t_dynamic p
-			in
-			let e1,pt = check_iterator ~resume ~last_resort ctx "iterator" e p in
-			match !array_access_result with
-			| Some result -> result
-			| None ->
-				match Abstract.follow_with_abstracts e1.etype with
-					| (TMono _ | TDynamic _) -> dynamic_iterator e1;
-					| _ -> (IteratorIterator,e1,pt)
+			try
+				let (e,t) = check_iterator ~resume:true ctx "iterator" e in
+				(IteratorIterator,e,t)
+			with Not_found -> try
+				of_texpr_by_array_access ctx e p
+			with Not_found ->
+				if resume then raise Not_found;
+				let (e,t) = cannot_iterate_on ctx.com e in
+				(IteratorIterator,e,t)
 		in
 		let cannot_force () = match unroll_params with
 			| Some {force_unroll = true} ->
@@ -291,7 +279,8 @@ module IterationKind = struct
 			cannot_force();
 			IteratorGenericStack c,e,pt
 		| _,(TMono _ | TDynamic _) ->
-			dynamic_iterator e
+			let (e,t) = cannot_iterate_on ctx.com e in
+			(IteratorDynamic,e,t_dynamic)
 		| _ ->
 			cannot_force();
 			check_iterator ()
@@ -503,15 +492,9 @@ let type_for_loop ctx handle_display ik e1 e2 unroll p =
 		old_locals();
 		IterationKind.to_texpr ctx i iterator e2 p
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
-		(match follow e1.etype with
-		| TDynamic _ | TMono _ ->
-			display_error ctx.com "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
-		| _ ->
-			if force_unroll then
-				display_error ctx.com "Cannot force inlining on key => value loops" p;
-			()
-		);
-		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
+		if force_unroll then
+			display_error ctx.com "Cannot force inlining on key => value loops" p;
+		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
 		let ehasnext = build_call ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in

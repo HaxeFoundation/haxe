@@ -1515,4 +1515,28 @@ class BinopFlow {
 		if (a == null || {safe = a; true;}) {}
 		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
+
+	// Test that coroutines work correctly with null-safety
+	// (previously failed with "Cannot assign nullable value here")
+	static function coroutine_anonymousLambda_shouldPass() {
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
+		runWith(() -> {});
+	}
+
+	static function coroutine_namedLocalFunction_shouldPass() {
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
+		@:coroutine function localCoro() {}
+		runWith(localCoro);
+	}
+
+	// Test that parameterized functions work correctly with null-safety
+	static function parameterizedFunction_anonymousLambda_shouldPass() {
+		function acceptFunc<T>(f:T->T) {
+			return f;
+		}
+		// Anonymous function with type parameter
+		acceptFunc(function<T>(x:T):T {
+			return x;
+		});
+	}
 }
