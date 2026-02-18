@@ -1519,14 +1519,12 @@ class BinopFlow {
 	// Test that coroutines work correctly with null-safety
 	// (previously failed with "Cannot assign nullable value here")
 	static function coroutine_anonymousLambda_shouldPass() {
-		import haxe.coro.Coroutine;
-		function runWith<T>(lambda:Coroutine<() -> Void>) { }
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
 		runWith(() -> {});
 	}
 
 	static function coroutine_namedLocalFunction_shouldPass() {
-		import haxe.coro.Coroutine;
-		function runWith<T>(lambda:Coroutine<() -> Void>) { }
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
 		@:coroutine function localCoro() {}
 		runWith(localCoro);
 	}
