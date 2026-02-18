@@ -1853,6 +1853,10 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							iter (check_unsafe_usage init_list meta_mode) e
 						| TMeta (_, e) ->
 							iter (check_unsafe_usage init_list current_mode) e
+						| TBinop (OpAssign, _, right_expr) ->
+							(* For assignment expressions, only check the right side.
+							   The left side is the assignment target, not a read. *)
+							check_unsafe_usage init_list current_mode right_expr
 						| _ ->
 							iter (check_unsafe_usage init_list current_mode) e
 			in
