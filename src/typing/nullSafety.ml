@@ -25,7 +25,7 @@ type safety_report = {
 let add_error report m msg pos =
 	let error = { sm_msg = ("Null safety: " ^ msg); sm_pos = pos; sm_module = m; } in
 	if not (List.mem error report.sr_errors) then
-		report.sr_errors <- error :: report.sr_errors;;
+		report.sr_errors <- error :: report.sr_errors
 
 let add_warning report m wtype options msg pos =
 	let warning = {
@@ -36,7 +36,7 @@ let add_warning report m wtype options msg pos =
 		sw_module = m;
 	} in
 	if not (List.mem warning report.sr_warnings) then
-		report.sr_warnings <- warning :: report.sr_warnings;
+		report.sr_warnings <- warning :: report.sr_warnings
 
 type scope_type =
 	| STNormal
