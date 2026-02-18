@@ -1542,7 +1542,7 @@ class BinopFlow {
 }
 
 @:build(Validator.checkFields())
-class ConstructorThrow {
+class ConstructorThrowWithElse {
 	final s:String;
 
 	public function new() {
@@ -1555,16 +1555,25 @@ class ConstructorThrow {
 }
 
 @:build(Validator.checkFields())
-class ConstructorThrowBothBranches {
+class ConstructorThrowNoElse {
 	final s:String;
-	final t:String;
 
 	public function new() {
 		if (Math.random() > 0.5) {
-			s = "foo";
+			throw "no";
+		}
+		s = "foo";
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorThrowBothBranches {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
 			throw "no";
 		} else {
-			t = "bar";
 			throw "also no";
 		}
 	}
@@ -1586,7 +1595,6 @@ class ConstructorReturn {
 @:build(Validator.checkFields())
 class ConstructorMixedThrowReturn {
 	final s:String;
-	final t:String;
 
 	public function new() {
 		if (Math.random() > 0.5) {
@@ -1595,7 +1603,6 @@ class ConstructorMixedThrowReturn {
 		} else {
 			// Return branch: must initialize all fields
 			s = "three";
-			t = "four";
 			return;
 		}
 	}
@@ -1604,7 +1611,6 @@ class ConstructorMixedThrowReturn {
 @:build(Validator.checkFields())
 class ConstructorMixedThrowReturnFail {
 	@:shouldFail final s:String;
-	@:shouldFail final t:String;
 
 	public function new() {
 		if (Math.random() > 0.5) {
@@ -1626,5 +1632,18 @@ class ConstructorEarlyReturnNoElse {
 			return;
 		}
 		s = "foo";
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorEarlyReturnWithElse {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		} else {
+			s = "foo";
+		}
 	}
 }
