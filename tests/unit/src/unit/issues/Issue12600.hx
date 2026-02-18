@@ -37,3 +37,21 @@ class Issue12600MultiChain extends Test {
 		eq(42, obj.c);
 	}
 }
+
+@:nullSafety(Strict)
+class Issue12600Strict extends Test {
+	public var x:Int;
+	public var y:Int;
+
+	public function new() {
+		super();
+		// Test that chained assignment also works in Strict mode
+		x = y = 100;
+	}
+
+	function test() {
+		var obj = new Issue12600Strict();
+		eq(100, obj.x);
+		eq(100, obj.y);
+	}
+}
