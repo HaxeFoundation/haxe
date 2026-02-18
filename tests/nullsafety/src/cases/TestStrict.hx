@@ -1528,4 +1528,15 @@ class BinopFlow {
 		@:coroutine function localCoro() {}
 		runWith(localCoro);
 	}
+
+	// Test that parameterized functions work correctly with null-safety
+	static function parameterizedFunction_anonymousLambda_shouldPass() {
+		function acceptFunc<T>(f:T->T) {
+			return f;
+		}
+		// Anonymous function with type parameter
+		acceptFunc(function<T>(x:T):T {
+			return x;
+		});
+	}
 }
