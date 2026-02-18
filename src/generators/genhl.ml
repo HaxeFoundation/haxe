@@ -376,7 +376,7 @@ let is_excluded c =
 
 let get_rec_cache ctx t none_callback not_found_callback =
 	try
-		match !(List.assq t ctx.rec_cache) with
+		match !(snd (List.find (fun (t',_) -> fast_eq t' t) ctx.rec_cache)) with
 		| None -> none_callback()
 		| Some t -> t
 	with Not_found ->

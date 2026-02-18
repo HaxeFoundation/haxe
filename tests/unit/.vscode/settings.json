@@ -3,6 +3,7 @@
 		{"label": "Java", "args": ["compile-java.hxml", "-cmd", "java -jar bin/java/TestMain-debug.jar"]},
 		{"label": "JavaScript", "args": ["compile-js.hxml", "-cmd", "node -e \"require('./bin/unit.js').unit.TestMain.main()\""]},
 		{"label": "JVM", "args": ["compile-jvm-only.hxml", "-cmd", "java -jar bin/unit.jar"]},
+		{"label": "HL", "args": ["compile-hl.hxml", "-cmd", "hl bin/unit.hl"]},
 		{"label": "Interp", "args": ["compile-macro.hxml"]},
 		{"label": "Lua", "args": ["compile-lua.hxml", "-cmd", "lua bin/unit.lua"]},
 		{"label": "Python", "args": ["compile-python.hxml", "-cmd", "python3 bin/unit.py"]},
