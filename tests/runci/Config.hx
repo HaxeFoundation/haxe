@@ -22,6 +22,7 @@ class Config {
 	// this stands for third-party, but I've always wanted a party directory
 	static public final partyDir = Path.join([cwd, "party"]);
 	static public final hxcoroVersion = "master";
+	static public final hxcsVersion = "master";
 
 	static public function getMiscSubDir(...subDir:String)
 		return Path.join([cwd, "misc"].concat(subDir.toArray()));

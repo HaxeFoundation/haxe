@@ -65,6 +65,8 @@ let parse_args com =
 		display_arg = None;
 		deprecations = [];
 		measure_times = false;
+		net_doc_file = None;
+		net_std_path = None;
 	} in
 	let add_deprecation s =
 		actx.deprecations <- s :: actx.deprecations
@@ -93,6 +95,9 @@ let parse_args com =
 			actx.jvm_flag <- true;
 			set_platform com Jvm dir;
 		),"<file>","generate JVM bytecode into target file");
+		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
+			set_platform com Cs dir;
+		),"<directory>","generate C# code into target directory");
 		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			set_platform com Python dir;
 		),"<file>","generate Python code into target file");
@@ -221,6 +226,19 @@ let parse_args com =
 		("Target-specific",["--java-lib-extern"],[],Arg.String (fun file ->
 			add_native_lib file true JavaLib;
 		),"<file>","use an external JAR or directory of JAR files for type checking");
+		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
+			add_native_lib file false NetLib;
+		),"<file>","add an external .NET DLL for type checking");
+		("Target-specific",["--net-lib-extern"],[],Arg.String (fun file ->
+			add_native_lib file true NetLib;
+		),"<file>","use an external .NET DLL for type checking");
+		("Target-specific",["--net-doc"],[],Arg.String (fun file ->
+			actx.net_doc_file <- Some file;
+			actx.did_something <- true;
+		),"<file>","generate .hxdoc binary cache from a .NET XML doc file");
+		("Target-specific",["--net-std"],[],Arg.String (fun path ->
+			actx.net_std_path <- Some path;
+		),"<path>","set the .NET standard library lookup folder (default: netlib)");
 		("Compilation",["-r";"--resource"],["-resource"],Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
@@ -370,6 +388,7 @@ let parse_args com =
 				in
 				List.iter process_lib com.native_libs.swf_libs;
 				List.iter process_lib com.native_libs.java_libs;
+				List.iter process_lib com.native_libs.net_libs;
 			) :: actx.pre_compilation;
 			actx.xml_out <- Some "hx"
 		end;

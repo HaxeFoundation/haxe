@@ -10,6 +10,7 @@ type server_mode =
 type native_lib_kind =
 	| JavaLib
 	| SwfLib
+	| NetLib
 	| HxbLib
 
 type native_lib_arg = {
@@ -38,6 +39,8 @@ type arg_context = {
 	mutable display_arg : string option;
 	mutable deprecations : string list;
 	mutable measure_times : bool;
+	mutable net_doc_file : string option;
+	mutable net_std_path : string option;
 }
 
 type communication = {

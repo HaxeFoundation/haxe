@@ -152,7 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko, cs]
         arch: [x86, arm64]
         include:
           - target: hl
@@ -400,7 +400,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko, cs]
     steps:
       - uses: actions/checkout@main
         with:
@@ -522,7 +522,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko, cs]
         arch: [arm64]
         include:
         - target: hl

@@ -144,6 +144,9 @@ module Setup = struct
 				com.package_rules <- PMap.remove "java" com.package_rules;
 				add_std "java";
 				"java"
+			| Cs ->
+				add_std "cs";
+				"cs"
 			| Python ->
 				add_std "python";
 				if not (Common.defined com Define.PythonVersion) then
@@ -304,6 +307,11 @@ let do_type ctx mctx actx display_file_dot_path =
 
 	let macros = match mctx with None -> None | Some mctx -> mctx.g.macros in
 	Setup.init_native_libs com actx.native_libs;
+	(* Auto-load .NET standard libraries from hxcs if available *)
+	let net_std_fns = CsLib.maybe_load_net_std com actx.net_std_path in
+	List.iter (fun f -> f()) net_std_fns;
+	(* Register stub provider for missing .NET types referenced by loaded DLLs *)
+	CsLib.register_stub_provider com;
 	let tctx = Setup.create_typer_context ctx macros in
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	(* Make sure display module is being typed *)
@@ -386,6 +394,13 @@ let compile ctx actx callbacks =
 	) ();
 	enter_stage com CInitialized;
 	ServerMessage.compiler_stage com;
+	begin match actx.net_doc_file with
+		| Some xml_path ->
+			let output = CsLib.generate_hxdoc xml_path in
+			com.Common.info output null_pos;
+			()
+		| None -> ()
+	end;
 	if actx.classes = [([],"Std")] && not actx.force_typing then begin
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
@@ -492,6 +507,7 @@ let finalize ctx =
 	if not ctx.comm.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
+		List.iter (fun lib -> lib#close) ctx.com.native_libs.net_libs;
 	end
 
 let catch_completion_and_exit ctx callbacks run =

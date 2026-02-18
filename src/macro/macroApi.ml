@@ -440,11 +440,12 @@ and encode_platform p =
 		| Flash -> 4, []
 		| Php -> 5, []
 		| Cpp -> 6, []
-		| Jvm -> 7, []
-		| Python -> 8, []
-		| Hl -> 9, []
-		| Eval -> 10, []
-		| CustomTarget s -> 11, [(encode_string s)]
+		| Cs -> 7, []
+		| Jvm -> 8, []
+		| Python -> 9, []
+		| Hl -> 10, []
+		| Eval -> 11, []
+		| CustomTarget s -> 12, [(encode_string s)]
 	in
 	encode_enum IPlatform tag pl
 
@@ -1690,11 +1691,12 @@ let decode_platform v =
 	| 4, [] -> Flash
 	| 5, [] -> Php
 	| 6, [] -> Cpp
-	| 7, [] -> Jvm
-	| 8, [] -> Python
-	| 9, [] -> Hl
-	| 10, [] -> Eval
-	| 11, [s] -> CustomTarget ((decode_string s))
+	| 7, [] -> Cs
+	| 8, [] -> Jvm
+	| 9, [] -> Python
+	| 10, [] -> Hl
+	| 11, [] -> Eval
+	| 12, [s] -> CustomTarget ((decode_string s))
 	| _ -> raise Invalid_expr
 
 let decode_platform_config v =

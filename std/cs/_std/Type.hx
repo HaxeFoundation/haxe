@@ -1,0 +1,454 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+import cs.HaxeDynamicObject;
+import cs.HaxeFunction;
+import cs.HaxeObject;
+
+enum ValueType {
+	TNull;
+	TInt;
+	TInt64;
+	TFloat;
+	TBool;
+	TObject;
+	TFunction;
+	TClass(c:Class<Dynamic>);
+	TEnum(e:Enum<Dynamic>);
+	TUnknown;
+}
+
+@:coreApi
+class Type {
+	public static function getClass<T>(o:T):Null<Class<T>> {
+		if (o == null)
+			return null;
+		// Classes and enums are not instances
+		if (Std.isOfType(o, Class) || Std.isOfType(o, Enum))
+			return null;
+		// Dynamic objects don't have a class
+		if (Std.isOfType(o, HaxeDynamicObject))
+			return null;
+		// Check if it's an enum value (has _hx_index field)
+		if (isEnumValue(o))
+			return null;
+		// Return the class - GetType() returns System.Type which is Class<T> in Haxe
+		return cs.Syntax.code("((object){0}).GetType()", o);
+	}
+
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
+		if (o == null)
+			return null;
+		// Check if it's an enum value by checking for _hx_index
+		if (!isEnumValue(o))
+			return null;
+		// Get the base type (the enum type is the superclass)
+		return cs.Syntax.code("((object){0}).GetType().BaseType", o);
+	}
+
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
+		if (c == null)
+			return null;
+		// String and basic types don't have a Haxe superclass
+		if (c == cast String)
+			return null;
+		// c is System.Type - access BaseType directly
+		var baseType:Class<Dynamic> = cs.Syntax.code("((global::System.Type){0}).BaseType", c);
+		if (baseType == null)
+			return null;
+		// Don't return System.Object as superclass
+		var baseTypeName:String = cs.Syntax.code("((global::System.Type){0}).FullName", baseType);
+		if (baseTypeName == "System.Object" || baseTypeName == "haxe.lang.HaxeObject")
+			return null;
+		return baseType;
+	}
+
+	public static function getClassName(c:Class<Dynamic>):String {
+		if (c == null)
+			return null;
+		// c is already System.Type in C# - access FullName directly
+		var name:String = cs.Syntax.code("((global::System.Type){0}).FullName", c);
+		// Remove haxe.root. prefix
+		if (name.indexOf("haxe.root.") == 0)
+			return name.substr(10);
+		// Handle System.String -> String
+		if (name == "System.String")
+			return "String";
+		return name;
+	}
+
+	public static function getEnumName(e:Enum<Dynamic>):String {
+		if (e == null)
+			return null;
+		// e is already System.Type in C# - access FullName directly
+		var name:String = cs.Syntax.code("((global::System.Type){0}).FullName", e);
+		// Remove haxe.root. prefix
+		if (name.indexOf("haxe.root.") == 0)
+			return name.substr(10);
+		return name;
+	}
+
+	@:csAttribute("global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"AOT\", \"IL2057\", Justification = \"Inherent to dynamic type resolution\")")
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
+		if (name == null)
+			return null;
+		// Try common mappings first
+		if (name == "String")
+			return cast String;
+		// Try with haxe.root prefix
+		var fullName = name.indexOf(".") == -1 ? "haxe.root." + name : name;
+		var nativeType:Class<Dynamic> = cs.Syntax.code("global::System.Type.GetType({0})", fullName);
+		if (nativeType != null)
+			return nativeType;
+		// Try without prefix
+		nativeType = cs.Syntax.code("global::System.Type.GetType({0})", name);
+		return nativeType;
+	}
+
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
+		var c = resolveClass(name);
+		if (c == null)
+			return null;
+		// Check if it's a Haxe enum (inherits from HaxeEnum) or native C# enum
+		var isHaxeEnum:Bool = cs.Syntax.code("typeof(global::haxe.lang.HaxeEnum).IsAssignableFrom((global::System.Type){0})", c);
+		var isNativeEnum:Bool = cs.Syntax.code("((global::System.Type){0}).IsEnum", c);
+		if (isHaxeEnum || isNativeEnum)
+			return cast c;
+		return null;
+	}
+
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
+		if (cl == null)
+			return null;
+		var argLen = (args == null) ? 0 : args.length;
+		// Build native args array
+		var nativeArgs:Dynamic = cs.Syntax.code("new object[{0}]", argLen);
+		for (i in 0...argLen) {
+			cs.Syntax.code("((object[]){0})[{1}] = {2}", nativeArgs, i, args[i]);
+		}
+		// Use AOT-safe registry-based factory (falls back to Activator for non-Haxe types)
+		return cast cs.Syntax.code("global::haxe.lang.HaxeReflection.create((global::System.Type){0}, (object[]){1})", cl, nativeArgs);
+	}
+
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
+		if (cl == null)
+			return null;
+		// Use AOT-safe registry-based factory (falls back to GetUninitializedObject for non-Haxe types)
+		return cast cs.Syntax.code("global::haxe.lang.HaxeReflection.createEmpty((global::System.Type){0})", cl);
+	}
+
+	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
+		if (e == null)
+			return null;
+
+		// Use AOT-safe registry: _hx_getEnumConstructor returns either:
+		// - The singleton enum value directly (for parameterless constructors)
+		// - A ConstructorFunction (for parametric constructors)
+		var constructorOrValue:Dynamic = cs.Syntax.code("global::haxe.lang.HaxeReflection.getField((global::System.Type){0}, {1})", e, constr);
+		if (constructorOrValue == null)
+			throw "Invalid constructor " + constr;
+
+		if (params == null || params.length == 0) {
+			// For parameterless constructors, the result is the singleton value directly
+			// Check if it's already an enum value (not a ConstructorFunction)
+			if (isEnumValue(constructorOrValue)) {
+				return cast constructorOrValue;
+			}
+			// It's a ConstructorFunction for a parametric constructor called with no args - error
+			throw "Invalid number of arguments for " + constr;
+		} else {
+			// For parametric constructors, get the ConstructorFunction and call create()
+			// Check if result is a ConstructorFunction
+			var isCtorFunc:Bool = cs.Syntax.code("{0} is global::haxe.lang.ConstructorFunction", constructorOrValue);
+			if (!isCtorFunc) {
+				// Parameterless constructor was called with params - this is an error
+				throw "Invalid number of arguments for " + constr;
+			}
+			// Build native args array
+			var paramsArray:Array<Dynamic> = params;
+			var nativeArgs:Dynamic = cs.Syntax.code("new object[{0}]", paramsArray.length);
+			for (i in 0...paramsArray.length) {
+				cs.Syntax.code("((object[]){0})[{1}] = {2}", nativeArgs, i, paramsArray[i]);
+			}
+			return cast cs.Syntax.code("((global::haxe.lang.ConstructorFunction){0}).create((object[]){1})", constructorOrValue, nativeArgs);
+		}
+	}
+
+	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
+		var constructs = getEnumConstructs(e);
+		if (index < 0 || index >= constructs.length)
+			return null;
+		return createEnum(e, constructs[index], params);
+	}
+
+	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
+		if (c == null)
+			return [];
+		#if cs.aot
+		// AOT mode: walk up the class hierarchy collecting instance field names from the registry
+		var result:Array<String> = [];
+		var current = c;
+		while (current != null) {
+			var names:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getInstanceFieldNames((global::System.Type){0})", current);
+			if (names != null) {
+				for (i in 0...names.length) {
+					if (result.indexOf(names[i]) == -1)
+						result.push(names[i]);
+				}
+			}
+			current = getSuperClass(current);
+		}
+		return result;
+		#else
+		// JIT mode: walk hierarchy using C# reflection with DeclaredOnly per class
+		var result:Array<String> = [];
+		var current = c;
+		while (current != null) {
+			var members:cs.NativeArray<Dynamic> = cs.Syntax.code("((global::System.Type){0}).GetMembers(global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance | global::System.Reflection.BindingFlags.DeclaredOnly)", current);
+			var count:Int = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0}).Length", members);
+			for (i in 0...count) {
+				var member:Dynamic = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0})[{1}]", members, i);
+				var isConstructor:Bool = cs.Syntax.code("{0} is global::System.Reflection.ConstructorInfo", member);
+				if (isConstructor)
+					continue;
+				// Skip compiler-generated property/event accessor methods (get_X, set_X, add_X, remove_X)
+				var isSpecialMethod:Bool = cs.Syntax.code("{0} is global::System.Reflection.MethodInfo mi && mi.IsSpecialName", member);
+				if (isSpecialMethod)
+					continue;
+				var name:String = cs.Syntax.code("((global::System.Reflection.MemberInfo){0}).Name", member);
+				if (StringTools.startsWith(name, "_hx_"))
+					continue;
+				if (name.charCodeAt(0) == ".".code)
+					continue;
+				if (result.indexOf(name) == -1)
+					result.push(name);
+			}
+			current = getSuperClass(current);
+		}
+		return result;
+		#end
+	}
+
+	public static function getClassFields(c:Class<Dynamic>):Array<String> {
+		if (c == null)
+			return [];
+		#if cs.aot
+		// AOT mode: use pre-allocated field name arrays from registry
+		var fieldNames:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getClassFieldNames((global::System.Type){0})", c);
+		if (fieldNames != null) {
+			var result:Array<String> = [];
+			for (i in 0...fieldNames.length) {
+				result.push(fieldNames[i]);
+			}
+			return result;
+		}
+		return [];
+		#else
+		// JIT mode: use C# reflection to enumerate static members
+		var result:Array<String> = [];
+		var members:cs.NativeArray<Dynamic> = cs.Syntax.code("((global::System.Type){0}).GetMembers(global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.DeclaredOnly)", c);
+		var count:Int = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0}).Length", members);
+		for (i in 0...count) {
+			var member:Dynamic = cs.Syntax.code("((global::System.Reflection.MemberInfo[]){0})[{1}]", members, i);
+			var isConstructor:Bool = cs.Syntax.code("{0} is global::System.Reflection.ConstructorInfo", member);
+			if (isConstructor)
+				continue;
+			var isSpecialMethod:Bool = cs.Syntax.code("{0} is global::System.Reflection.MethodInfo mi && mi.IsSpecialName", member);
+			if (isSpecialMethod)
+				continue;
+			var name:String = cs.Syntax.code("((global::System.Reflection.MemberInfo){0}).Name", member);
+			if (!StringTools.startsWith(name, "_hx_")) {
+				if (result.indexOf(name) == -1)
+					result.push(name);
+			}
+		}
+		return result;
+		#end
+	}
+
+	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
+		if (e == null)
+			return [];
+
+		// Try registry first (AOT-safe, correct declaration order)
+		var names:cs.NativeArray<String> = cs.Syntax.code("global::haxe.lang.HaxeReflection.getEnumConstructs((global::System.Type){0})", e);
+		if (names != null) {
+			var result = new Array<String>();
+			for (i in 0...names.length)
+				result.push(names[i]);
+			return result;
+		}
+
+		// Fallback: reflection (may not preserve declaration order in AOT)
+		var result:Array<String> = [];
+		var nestedTypes:Dynamic = cs.Syntax.code("((global::System.Type){0}).GetNestedTypes()", e);
+		var nestedCount:Int = cs.Syntax.code("((global::System.Type[]){0}).Length", nestedTypes);
+		for (i in 0...nestedCount) {
+			var nested:Dynamic = cs.Syntax.code("((global::System.Type[]){0})[{1}]", nestedTypes, i);
+			var name:String = cs.Syntax.code("((global::System.Type){0}).Name", nested);
+			// Strip _Impl_ suffix for singleton enum constructors
+			if (StringTools.endsWith(name, "_Impl_")) {
+				name = name.substr(0, name.length - 6);
+			}
+			result.push(name);
+		}
+		return result;
+	}
+
+	public static function typeof(v:Dynamic):ValueType {
+		if (v == null)
+			return TNull;
+		// Check for boolean first
+		if (Std.isOfType(v, Bool))
+			return TBool;
+		// Check for int
+		if (Std.isOfType(v, Int))
+			return TInt;
+		// Check for Int64 (before Float, since Float's isOfType returns true for long)
+		if (cs.Syntax.code("{0} is long", v))
+			return TInt64;
+		// Check for float
+		if (Std.isOfType(v, Float))
+			return TFloat;
+		// Check for functions
+		if (Std.isOfType(v, HaxeFunction))
+			return TFunction;
+		if (cs.Syntax.code("{0} is global::System.Delegate", v))
+			return TFunction;
+		// Check for dynamic objects (anonymous)
+		if (Std.isOfType(v, HaxeDynamicObject))
+			return TObject;
+		// Check for enum values
+		if (isEnumValue(v)) {
+			var e = getEnum(cast v);
+			return TEnum(e);
+		}
+		// Must be a class instance
+		var c = getClass(v);
+		if (c != null)
+			return TClass(c);
+		// Check if v is a System.Type (class or enum type object)
+		if (cs.Syntax.code("{0} is global::System.Type", v))
+			return TObject;
+		return TUnknown;
+	}
+
+	public static function enumEq<T:EnumValue>(a:T, b:T):Bool {
+		if (a == null)
+			return b == null;
+		if (b == null)
+			return false;
+		// Check if same index
+		var aIndex:Int = enumIndex(a);
+		var bIndex:Int = enumIndex(b);
+		if (aIndex != bIndex)
+			return false;
+		// Check parameters
+		var aParams = enumParameters(a);
+		var bParams = enumParameters(b);
+		if (aParams.length != bParams.length)
+			return false;
+		for (i in 0...aParams.length) {
+			if (!enumValueEq(aParams[i], bParams[i]))
+				return false;
+		}
+		return true;
+	}
+
+	private static function enumValueEq(a:Dynamic, b:Dynamic):Bool {
+		if (a == b)
+			return true;
+		if (a == null || b == null)
+			return false;
+		if (isEnumValue(a) && isEnumValue(b))
+			return enumEq(cast a, cast b);
+		// Use Equals for value comparison (== on boxed primitives does reference comparison)
+		return cs.Syntax.code("global::System.Object.Equals({0}, {1})", a, b);
+	}
+
+	public static function enumConstructor(e:EnumValue):String {
+		if (e == null)
+			return null;
+		// Get the class name which is the constructor name
+		var name:String = cs.Syntax.code("((object){0}).GetType().Name", e);
+		// Strip _Impl_ suffix for singleton enum constructors
+		if (StringTools.endsWith(name, "_Impl_")) {
+			return name.substr(0, name.length - 6);
+		}
+		return name;
+	}
+
+	public static function enumParameters(e:EnumValue):Array<Dynamic> {
+		if (e == null)
+			return [];
+		// Use HaxeEnum base class for AOT-safe parameter access
+		if (cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", e)) {
+			var params:cs.NativeArray<Dynamic> = cs.Syntax.code("((global::haxe.lang.HaxeEnum){0})._hx_getParameters()", e);
+			var result:Array<Dynamic> = [];
+			for (i in 0...params.length) {
+				result.push(params[i]);
+			}
+			return result;
+		}
+		// Fallback: non-Haxe enums
+		return [];
+	}
+
+	public static function enumIndex(e:EnumValue):Int {
+		if (e == null)
+			return -1;
+		// Use HaxeEnum base class for AOT-safe enum index access
+		if (cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", e)) {
+			return cs.Syntax.code("((global::haxe.lang.HaxeEnum){0})._hx_getIndex()", e);
+		}
+		// Fallback: reflection for non-Haxe enums
+		var nativeType:Dynamic = cs.Syntax.code("((object){0}).GetType()", e);
+		var indexField:Dynamic = cs.Syntax.code(
+			"((global::System.Type){0}).GetField(\"_hx_index\", global::System.Reflection.BindingFlags.Instance | global::System.Reflection.BindingFlags.Public)",
+			nativeType);
+		if (indexField != null) {
+			return cs.Syntax.code("(int)((global::System.Reflection.FieldInfo){0}).GetValue({1})", indexField, e);
+		}
+		return 0;
+	}
+
+	public static function allEnums<T>(e:Enum<T>):Array<T> {
+		if (e == null)
+			return [];
+		var ctors = getEnumConstructs(e);
+		var ret:Array<T> = [];
+		for (ctor in ctors) {
+			var v:Dynamic = Reflect.field(e, ctor);
+			// Parametric constructors return functions, not enum instances
+			if (Std.isOfType(v, e))
+				ret.push(v);
+		}
+		return ret;
+	}
+
+	private static function isEnumValue(v:Dynamic):Bool {
+		if (v == null)
+			return false;
+		// AOT-safe: check if object is an instance of HaxeEnum base class
+		return cs.Syntax.code("{0} is global::haxe.lang.HaxeEnum", v);
+	}
+}

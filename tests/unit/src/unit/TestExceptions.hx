@@ -27,6 +27,8 @@ private class CustomNativeException extends flash.errors.Error {}
 private class CustomNativeException extends java.lang.RuntimeException {}
 #elseif python
 private class CustomNativeException extends python.Exceptions.Exception {}
+#elseif cs
+private class CustomNativeException extends cs.system.Exception {}
 #elseif (lua || eval || neko || hl || cpp)
 private class CustomNativeException { public function new(m:String) {} }
 #end
@@ -252,7 +254,8 @@ class TestExceptions extends Test {
 			var lineShift = 0;
 			for(s in stacks) {
 				// This will avoid hl/c errors on platforms without callstack support
-				#if hlc if (s.length == 0) continue; #end
+				// Also skip empty stacks on C# AOT mode where aggressive inlining can result in no frames
+				#if (hlc || cs) if (s.length == 0) continue; #end
 
 				if(expected == null) {
 					expected = stackItemData(s[0]);

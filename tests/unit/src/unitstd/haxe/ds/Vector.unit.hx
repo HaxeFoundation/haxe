@@ -27,7 +27,7 @@ vec.get(2) == vNullBool;
 // fromArray
 var arr = ["1", "2", "3"];
 var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
-#if (!flash && !neko && !jvm && !lua && !eval && !php)
+#if (!flash && !neko && !jvm && !lua && !eval && !php && !cs)
 arr != vec.toData();
 #end
 vec.length == 3;

@@ -209,6 +209,8 @@ class Timer {
 		return java.lang.System.nanoTime() / 1000000i64;
 		#elseif eval
 		return @:privateAccess Sys.timestamp_ms();
+		#elseif cs
+		return cs.Syntax.code("global::System.Diagnostics.Stopwatch.GetTimestamp() * 1000L / global::System.Diagnostics.Stopwatch.Frequency");
 		#else
 		return Int64.mul(Int64.fromFloat(stamp()), 1000);
 		#end

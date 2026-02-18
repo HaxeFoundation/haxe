@@ -471,6 +471,7 @@ let short_platform_name = function
 	| Flash -> "swf"
 	| Php -> "php"
 	| Cpp -> "cpp"
+	| Cs -> "cs"
 	| Jvm -> "jvm"
 	| Python -> "py"
 	| Hl -> "hl"
@@ -640,6 +641,29 @@ let get_config com =
 			pf_scoping = { default_config.pf_scoping with
 				vs_flags = [NoShadowing];
 				vs_scope = FunctionScope;
+			};
+			pf_supports_atomics = true;
+		}
+	| Cs ->
+		{
+			default_config with
+			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
+			pf_overload = true;
+			pf_supports_threads = true;
+			pf_supports_rest_args = true;
+			pf_this_before_super = false;
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_native_throws = [
+					["cs"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_native_catches = [
+					["cs"],"Exception";
+					["haxe"],"Exception";
+				];
+				ec_wildcard_catch = (["cs"],"Exception");
+				ec_base_throw = (["cs"],"Exception");
 			};
 			pf_supports_atomics = true;
 		}

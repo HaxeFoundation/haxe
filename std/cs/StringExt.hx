@@ -1,0 +1,180 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+package cs;
+
+@:keep
+class StringExt {
+	public static function fromCharCode(code:Int):String {
+		if (code < 0x10000) {
+			// BMP character - single UTF-16 code unit (direct char cast)
+			return cs.Syntax.code("((char){0}).ToString()", code);
+		} else if (code < 0x110000) {
+			// Non-BMP character - create surrogate pair
+			var adjusted = code - 0x10000;
+			var high = (adjusted >> 10) + 0xD800;
+			var low = (adjusted & 0x3FF) + 0xDC00;
+			return cs.Syntax.code("new string(new char[] { (char){0}, (char){1} })", high, low);
+		} else {
+			// Invalid code point - return replacement character
+			return cs.Syntax.code("\"\\uFFFD\"");
+		}
+	}
+
+	public static function charAt(me:String, index:Int):String {
+		if (index >= me.length || index < 0)
+			return "";
+		else
+			return cs.Syntax.code("{0}[{1}].ToString()", me, index);
+	}
+
+	public static function charCodeAt(me:String, index:Int):Null<Int> {
+		if (index >= me.length || index < 0)
+			return null;
+		else
+			return cs.Syntax.code("(int){0}[{1}]", me, index);
+	}
+
+	// Fast unchecked charCodeAt - used by StringTools.fastCodeAt
+	public static inline function cca(me:String, index:Int):Int {
+		return cs.Syntax.code("(int){0}[{1}]", me, index);
+	}
+
+	public static function indexOf(me:String, str:String, startIndex:Null<Int>):Int {
+		if (str.length == 0) {
+			var si = startIndex == null ? 0 : startIndex;
+			if (si < 0) si = 0;
+			if (si > me.length) si = me.length;
+			return si;
+		}
+		if (startIndex == null)
+			return cs.Syntax.code("{0}.IndexOf({1}, System.StringComparison.Ordinal)", me, str);
+		else {
+			var sIndex:Int = startIndex;
+			if (sIndex < 0) sIndex = 0;
+			if (sIndex >= me.length)
+				return -1;
+			return cs.Syntax.code("{0}.IndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
+		}
+	}
+
+	public static function lastIndexOf(me:String, str:String, ?startIndex:Int):Int {
+		// Empty string search - ECMAScript clamps negative indices to 0
+		if (str.length == 0) {
+			var si = startIndex == null ? me.length : startIndex;
+			if (si < 0) si = 0;
+			if (si > me.length) si = me.length;
+			return si;
+		}
+
+		var sIndex:Int = startIndex == null ? me.length - 1 : startIndex;
+		if (sIndex >= me.length)
+			sIndex = me.length - 1;
+		else if (sIndex < 0)
+			return -1;
+
+		// C#'s LastIndexOf has incompatible semantics with Haxe when startIndex is specified.
+		// Use manual search instead (from legacy Haxe 4 C# target - TestBaseTypes.hx@133 fix).
+		if (startIndex != null) {
+			// Shift sIndex left if it would cause OOB access
+			var d = me.length - sIndex - str.length;
+			if (d < 0) sIndex += d;
+
+			// Manual search from sIndex down to 0
+			var i = sIndex + 1;
+			while (i-- > 0) {
+				var found = true;
+				for (j in 0...str.length) {
+					if (cca(me, i + j) != cca(str, j)) {
+						found = false;
+						break;
+					}
+				}
+				if (found) return i;
+			}
+			return -1;
+		} else {
+			// Only use native LastIndexOf when no startIndex is provided
+			return cs.Syntax.code("{0}.LastIndexOf({1}, {2}, System.StringComparison.Ordinal)", me, str, sIndex);
+		}
+	}
+
+	public static function split(me:String, delimiter:String):Array<String> {
+		var ret = new Array<String>();
+		if (delimiter.length == 0) {
+			for (i in 0...me.length) {
+				ret.push(charAt(me, i));
+			}
+		} else {
+			// Split returns string[], wrap each element into the result array
+			var nativeParts:cs.NativeArray<String> = cs.Syntax.code("{0}.Split(new string[] { {1} }, System.StringSplitOptions.None)", me, delimiter);
+			var i = 0;
+			var len:Int = cs.Syntax.code("{0}.Length", nativeParts);
+			while (i < len) {
+				ret.push(cs.Syntax.code("{0}[{1}]", nativeParts, i));
+				i++;
+			}
+		}
+		return ret;
+	}
+
+	public static function substr(me:String, pos:Int, ?len:Int):String {
+		var length:Int = len == null ? me.length : len;
+		if (pos < 0) {
+			pos = me.length + pos;
+			if (pos < 0) {
+				pos = 0;
+			}
+		}
+		if (length < 0) {
+			length = me.length + length - pos;
+		}
+		if (pos + length > me.length) {
+			length = me.length - pos;
+		}
+		if (pos < 0 || length <= 0) {
+			return "";
+		}
+		return cs.Syntax.code("{0}.Substring({1}, {2})", me, pos, length);
+	}
+
+	public static function substring(me:String, startIndex:Int, ?endIndex:Int):String {
+		var end:Int = endIndex == null ? me.length : endIndex;
+		if (end < 0) {
+			end = 0;
+		} else if (end > me.length) {
+			end = me.length;
+		}
+		if (startIndex < 0) {
+			startIndex = 0;
+		} else if (startIndex > me.length) {
+			startIndex = me.length;
+		}
+
+		if (startIndex > end) {
+			var tmp = startIndex;
+			startIndex = end;
+			end = tmp;
+		}
+		return cs.Syntax.code("{0}.Substring({1}, {2})", me, startIndex, end - startIndex);
+	}
+}

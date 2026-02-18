@@ -1,0 +1,22 @@
+compile-each.hxml
+--main Main
+-cs bin/cs
+-lib hxcs
+
+--next
+compile-each.hxml
+--main TestArguments
+-cs bin/cs-args
+-lib hxcs
+
+--next
+compile-each.hxml
+--main ExitCode
+-cs bin/cs-exit
+-lib hxcs
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-cs bin/cs-utility
+-lib hxcs

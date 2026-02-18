@@ -33,11 +33,17 @@ class ExitCode {
 		"bin/lua/ExitCode.lua";
 	#elseif js
 		"bin/js/ExitCode.js";
+	#elseif cs
+		"bin/cs-exit/bin/aot/Project";
 	#else
 		null;
 	#end
 
 	static public function getNative():String {
+		// For C#, just return the cs-exit AOT binary (it's already compiled)
+		#if cs
+		return (Sys.systemName() == "Windows") ? bin + ".exe" : bin;
+		#else
 		// This is just a script that behaves like ExitCode.hx,
 		// which exits with the code same as the first given argument.
 		// var scriptContent = switch (Sys.systemName()) {
@@ -81,6 +87,7 @@ class ExitCode {
 		}
 
 		return binPath;
+		#end
 	}
 
 	static function main():Void {

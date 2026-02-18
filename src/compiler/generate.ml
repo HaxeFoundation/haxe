@@ -179,6 +179,8 @@ let generate ctx tctx ext actx =
 			Gencpp.generate,"cpp"
 		| Jvm ->
 			Genjvm.generate actx.jvm_flag,"jvm"
+		| Cs ->
+			Gencs.generate,"cs"
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->

@@ -93,6 +93,8 @@ class Bytes {
 			b.writeBytes(src.b, srcpos, len);
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
+		#elseif cs
+		cs.NativeArray.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.code("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#else
@@ -151,6 +153,10 @@ class Bytes {
 		#elseif java
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
+		return new Bytes(len, newarr);
+		#elseif cs
+		var newarr = new cs.NativeArray<cs.UInt8>(len);
+		cs.NativeArray.arraycopy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos + len));
@@ -393,6 +399,13 @@ class Bytes {
 		} catch (e:Dynamic) {
 			throw e;
 		}
+		#elseif cs
+		switch (encoding) {
+			case UTF8 | null:
+				return cs.Syntax.code("global::System.Text.Encoding.UTF8.GetString({0}, {1}, {2})", b, pos, len);
+			case RawNative:
+				return cs.Syntax.code("global::System.Text.Encoding.Unicode.GetString({0}, {1}, {2})", b, pos, len);
+		}
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
@@ -500,6 +513,8 @@ class Bytes {
 		return new Bytes(length, b);
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif cs
+		return new Bytes(length, new cs.NativeArray<cs.UInt8>(length));
 		#elseif python
 		return new Bytes(length, new python.Bytearray(length));
 		#else
@@ -540,6 +555,14 @@ class Bytes {
 		#elseif python
 		var b:BytesData = new python.Bytearray(s, "UTF-8");
 		return new Bytes(b.length, b);
+		#elseif cs
+		var bytes:cs.NativeArray<cs.UInt8> = switch (encoding) {
+			case UTF8 | null:
+				cs.Syntax.code("global::System.Text.Encoding.UTF8.GetBytes({0})", s);
+			case RawNative:
+				cs.Syntax.code("global::System.Text.Encoding.Unicode.GetBytes({0})", s); // UTF-16LE
+		};
+		return new Bytes(bytes.length, bytes);
 		#elseif lua
 		var bytes = [
 			for (i in 0...lua.NativeStringTools.len(s)) {

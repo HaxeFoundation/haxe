@@ -39,6 +39,8 @@ class ImportAll {
 			if( !Context.defined("php") ) return;
 		case "neko":
 			if( !Context.defined("neko") ) return;
+		case "cs":
+			if( !Context.defined("cs") ) return;
 		case "js":
 			if( !Context.defined("js") ) return;
 		case "cpp":

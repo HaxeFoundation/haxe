@@ -63,6 +63,8 @@ class StringTools {
 		});
 		s = lua.NativeStringTools.gsub(s, " ", "+");
 		return s;
+		#elseif cs
+		return cs.Syntax.code("global::System.Uri.EscapeDataString({0})", s);
 		#else
 		return null;
 		#end
@@ -132,6 +134,8 @@ class StringTools {
 		});
 		s = lua.NativeStringTools.gsub(s, "\r\n", "\n");
 		return s;
+		#elseif cs
+		return cs.Syntax.code("global::System.Uri.UnescapeDataString({0})", s);
 		#else
 		return null;
 		#end
@@ -475,6 +479,8 @@ class StringTools {
 		#else
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);
 		#end
+		#elseif cs
+		return (index < s.length) ? cast(cs.StringExt.cca(s, index), Int) : -1;
 		#else
 		return untyped s.cca(index);
 		#end
@@ -512,6 +518,8 @@ class StringTools {
 		#else
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);
 		#end
+		#elseif cs
+		return cast(cs.StringExt.cca(s, index), Int);
 		#else
 		return untyped s.cca(index);
 		#end
@@ -549,7 +557,7 @@ class StringTools {
 		return c != c; // fast NaN
 		#elseif (neko || lua || eval)
 		return c == null;
-		#elseif (java || python)
+		#elseif (cs || java || python)
 		return c == -1;
 		#else
 		return false;
