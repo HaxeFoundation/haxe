@@ -1538,7 +1538,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
-		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
+		| (Meta.NullSafety,_,_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
 		| (Meta.BypassAccessor,_,p) ->
