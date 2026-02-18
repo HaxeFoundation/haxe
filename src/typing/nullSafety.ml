@@ -425,56 +425,13 @@ let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback
 			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
 				add (not positive) checked_expr
 			(* Handle assignment expressions in null checks: (x = expr) != null *)
-			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) ->
-				let revealed = reveal_expr checked_expr in
-				(match revealed.eexpr with
+			| TBinop ((OpEq | OpNotEq as op), { eexpr = TConst TNull }, checked_expr)
+			| TBinop ((OpEq | OpNotEq as op), checked_expr, { eexpr = TConst TNull }) ->
+				(match (Texpr.skip checked_expr).eexpr with
 					| TBinop (OpAssign, target, _) when is_suitable mode target ->
-						add positive target
-					| TParenthesis e ->
-						(match e.eexpr with
-							| TBinop (OpAssign, target, _) when is_suitable mode target ->
-								add positive target
-							| _ -> ()
-						)
-					| _ -> ()
-				)
-			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) ->
-				let revealed = reveal_expr checked_expr in
-				(match revealed.eexpr with
-					| TBinop (OpAssign, target, _) when is_suitable mode target ->
-						add positive target
-					| TParenthesis e ->
-						(match e.eexpr with
-							| TBinop (OpAssign, target, _) when is_suitable mode target ->
-								add positive target
-							| _ -> ()
-						)
-					| _ -> ()
-				)
-			| TBinop (OpNotEq, { eexpr = TConst TNull }, checked_expr) ->
-				let revealed = reveal_expr checked_expr in
-				(match revealed.eexpr with
-					| TBinop (OpAssign, target, _) when is_suitable mode target ->
-						add (not positive) target
-					| TParenthesis e ->
-						(match e.eexpr with
-							| TBinop (OpAssign, target, _) when is_suitable mode target ->
-								add (not positive) target
-							| _ -> ()
-						)
-					| _ -> ()
-				)
-			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) ->
-				let revealed = reveal_expr checked_expr in
-				(match revealed.eexpr with
-					| TBinop (OpAssign, target, _) when is_suitable mode target ->
-						add (not positive) target
-					| TParenthesis e ->
-						(match e.eexpr with
-							| TBinop (OpAssign, target, _) when is_suitable mode target ->
-								add (not positive) target
-							| _ -> ()
-						)
+						(* OpEq means "is null", OpNotEq means "is not null" *)
+						let is_null_check = (op = OpEq) in
+						add (positive = is_null_check) target
 					| _ -> ()
 				)
 			| TBinop (OpEq, e, checked_expr) when is_suitable mode checked_expr && not (is_nullable_expr e) ->
