@@ -1793,9 +1793,11 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 									checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 								| SMLoose | SMOff -> ()
 							)
-						| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), e) ->
-							iter (check_unsafe_usage init_list SMOff) e
-						| TMeta ((Meta.NullSafety, _, _), e) ->
+						| TMeta ((Meta.NullSafety, _, _) as meta, e) ->
+							(* Extract the safety mode from the metadata and apply it *)
+							let meta_mode = safety_mode [meta] in
+							iter (check_unsafe_usage init_list meta_mode) e
+						| TMeta (_, e) ->
 							iter (check_unsafe_usage init_list current_mode) e
 						| _ ->
 							iter (check_unsafe_usage init_list current_mode) e
