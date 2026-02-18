@@ -183,9 +183,9 @@ class TestStrict {
 		final v:Int = shouldFail(badInit);
 
 		function name():Void {
-			shouldFail(badInit) = 1;
+			badInit = 1;
 		}
-		if (true) shouldFail(badInit) = 1;
+		if (true) badInit = 1;
 	}
 
 	static public function main() { // not a real main
