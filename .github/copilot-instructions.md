@@ -23,7 +23,7 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 
 ### Prerequisites
 - OCaml 5.0+ (managed via OPAM)
-- Native libraries: PCRE2, zlib, mbedTLS 3.x
+- Native libraries: PCRE2, zlib, mbedTLS 3.x (4.x not yet supported)
 - Neko VM (for building haxelib)
 
 ### Getting Started
