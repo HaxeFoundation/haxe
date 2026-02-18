@@ -1465,8 +1465,14 @@ class expr_checker mode immediate_execution report =
 				| None -> ()
 				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
 				| Some { eexpr = TConst TNull } when v.v_kind = VUser TVOLocalFunction -> ()
-				(* `_this = null` is generated for local `inline function` *)
-				(* | Some { eexpr = TConst TNull } when v.v_kind = VGenerated -> () *)
+				(* Coroutines and parameterized functions are also generated as `var v = null; v = function...` with VGenerated kind *)
+				| Some { eexpr = TConst TNull } when v.v_kind = VGenerated ->
+					(match follow_with_coro v.v_type with
+						| Coro _ | NotCoro (TFun _) -> ()
+						| _ ->
+							let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
+							self#check_binop OpAssign local e p
+					)
 				| Some e ->
 					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
 					self#check_binop OpAssign local e p

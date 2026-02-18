@@ -1515,4 +1515,18 @@ class BinopFlow {
 		if (a == null || {safe = a; true;}) {}
 		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
+
+	// Test coroutines with null-safety (issue #...)
+	static function coroutine_anonymousLambda_shouldPass() {
+		import haxe.coro.Coroutine;
+		function runWith<T>(lambda:Coroutine<() -> Void>) { }
+		runWith(() -> {});
+	}
+
+	static function coroutine_namedLocalFunction_shouldPass() {
+		import haxe.coro.Coroutine;
+		function runWith<T>(lambda:Coroutine<() -> Void>) { }
+		@:coroutine function localCoro() {}
+		runWith(localCoro);
+	}
 }
