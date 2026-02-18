@@ -1749,9 +1749,8 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 				| Some ({ cf_meta = ctor_meta; cf_expr = Some { eexpr = TFunction { tf_expr = e } } } as ctor) ->
 					(* Get the safety mode for the constructor *)
 					let ctor_mode = safety_mode (cls_meta @ ctor_meta) in
-					(* Only check field initialization if constructor is not @:nullSafety(Off) *)
-					if ctor_mode <> SMOff then
-						ignore (self#check_fields_initialization fields_to_initialize e false ctor_mode);
+					(* Always traverse to track field initialization, but use the constructor's mode for safety checks *)
+					ignore (self#check_fields_initialization fields_to_initialize e false ctor_mode);
 				| _ -> ()
 			);
 			Hashtbl.iter

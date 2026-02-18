@@ -52,7 +52,7 @@ class TestConstructorThisStrict_BeforeSingleInit {
 
 	public function new() {
 		// In Strict mode, this should fail because utility1 is not initialized yet
-		shouldFail(utility1 = new UtilityForCStrict(this));
+		utility1 = shouldFail(new UtilityForCStrict(this));
 	}
 }
 
@@ -65,8 +65,8 @@ class TestConstructorThisStrict_BeforeAllInit {
 
 	public function new() {
 		// In Strict mode, this should fail because not all fields are initialized
-		shouldFail(utility1 = new UtilityForCStrict(this));
-		shouldFail(utility2 = new UtilityForCStrict(this));
+		utility1 = shouldFail(new UtilityForCStrict(this));
+		utility2 = shouldFail(new UtilityForCStrict(this));
 	}
 }
 

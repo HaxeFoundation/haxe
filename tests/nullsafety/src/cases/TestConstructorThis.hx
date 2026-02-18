@@ -49,6 +49,6 @@ class TestConstructorThis_AssignmentStrict {
 
 	public function new() {
 		// With @:nullSafety(Strict) on the assignment in Loose mode, this should fail
-		@:nullSafety(Strict) shouldFail(utility1 = new UtilityForC(this));
+		@:nullSafety(Strict) utility1 = shouldFail(new UtilityForC(this));
 	}
 }
