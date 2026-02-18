@@ -464,7 +464,7 @@ let safety_mode (metadata:Ast.metadata) =
 			| _, [] -> mode
 			| _, (Meta.NullSafety, [(EConst (Ident "Off"), _)], _) :: _ ->
 				Some SMOff
-			| None, (Meta.NullSafety, ([] | [(EConst (Ident "Loose"), _)]), _) :: rest ->
+			| _, (Meta.NullSafety, ([] | [(EConst (Ident "Loose"), _)]), _) :: rest ->
 				traverse (Some SMLoose) rest
 			| _, (Meta.NullSafety, [(EConst (Ident "Strict"), _)], _) :: rest ->
 				traverse (Some SMStrict) rest
