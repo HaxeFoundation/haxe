@@ -1811,7 +1811,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 			(match cls.cl_constructor with
 				| Some ({ cf_meta = ctor_meta; cf_expr = Some { eexpr = TFunction { tf_expr = e } } }) ->
 					(* Get the safety mode for the constructor *)
-					let ctor_mode = safety_mode (cls_meta @ ctor_meta) in
+					let ctor_mode = get_safety_mode (cls_meta @ ctor_meta) in
 					(* Always traverse to track field initialization, but use the constructor's mode for safety checks *)
 					ignore (self#check_fields_initialization fields_to_initialize e false ctor_mode);
 				| _ -> ()
@@ -1858,7 +1858,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							)
 						| TMeta ((Meta.NullSafety, _, _) as meta, e) ->
 							(* Extract the safety mode from the metadata and apply it *)
-							let meta_mode = safety_mode [meta] in
+							let meta_mode = get_safety_mode [meta] in
 							iter (check_unsafe_usage init_list meta_mode) e
 						| TMeta (_, e) ->
 							iter (check_unsafe_usage init_list current_mode) e
@@ -1879,7 +1879,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 					| TMeta ((Meta.NullSafety, _, _) as meta, inner) ->
 						(* When @:nullSafety(...) wraps an assignment, unwrap and process the assignment
 						   with the appropriate safety mode for the right-hand side *)
-						let meta_mode = safety_mode [meta] in
+						let meta_mode = get_safety_mode [meta] in
 						ignore(traverse init_list meta_mode inner)
 					| TMeta (_, inner) ->
 						(* For other metadata, just unwrap and continue *)
