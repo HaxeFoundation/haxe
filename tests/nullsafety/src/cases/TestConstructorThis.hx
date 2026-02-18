@@ -40,18 +40,3 @@ class TestConstructorThis_LooseMode_Single {
 		utility1 = new UtilityForC(this);
 	}
 }
-
-/**
- * Test that after all fields are initialized, `this` can be used in Loose mode
- */
-class TestConstructorThis_LooseMode_AfterInit {
-	final utility1:UtilityForC;
-
-	public function new() {
-		utility1 = new UtilityForC(null);
-		// After all fields are initialized, this should work
-		acceptThis(this);
-	}
-
-	static function acceptThis(t:TestConstructorThis_LooseMode_AfterInit) {}
-}

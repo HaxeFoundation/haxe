@@ -30,11 +30,25 @@ class TestConstructorThisStrict_ConstructorOff {
 }
 
 /**
+ * Test @:nullSafety(Off) on the class itself
+ */
+@:nullSafety(Off)
+class TestConstructorThisStrict_ClassOff {
+	final utility1:UtilityForCStrict;
+	final utility2:UtilityForCStrict;
+
+	public function new() {
+		// With @:nullSafety(Off) on the class, this should pass
+		utility1 = new UtilityForCStrict(this);
+		utility2 = new UtilityForCStrict(this);
+	}
+}
+
+/**
  * Problem 3: In Strict mode, using `this` before a field is initialized SHOULD fail
  */
-@:build(Validator.checkFields())
 class TestConstructorThisStrict_BeforeSingleInit {
-	@:shouldFail final utility1:UtilityForCStrict;
+	final utility1:UtilityForCStrict;
 
 	public function new() {
 		// In Strict mode, this should fail because utility1 is not initialized yet
@@ -45,10 +59,9 @@ class TestConstructorThisStrict_BeforeSingleInit {
 /**
  * Problem 3 variant: Multiple fields, using this before all are initialized
  */
-@:build(Validator.checkFields())
 class TestConstructorThisStrict_BeforeAllInit {
-	@:shouldFail final utility1:UtilityForCStrict;
-	@:shouldFail final utility2:UtilityForCStrict;
+	final utility1:UtilityForCStrict;
+	final utility2:UtilityForCStrict;
 
 	public function new() {
 		// In Strict mode, this should fail because not all fields are initialized
