@@ -1853,9 +1853,20 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							iter (check_unsafe_usage init_list meta_mode) e
 						| TMeta (_, e) ->
 							iter (check_unsafe_usage init_list current_mode) e
-						| TBinop (OpAssign, _, right_expr) ->
-							(* For assignment expressions, only check the right side.
-							   The left side is the assignment target, not a read. *)
+						| TBinop (OpAssign, left_expr, right_expr) ->
+							(* For assignments, check the right side and any subexpressions in the left side,
+							   but don't treat a direct field assignment target as a field read. *)
+							(match left_expr.eexpr with
+								| TField ({ eexpr = TConst TThis }, FInstance _) when not is_static ->
+									(* Direct instance field assignment: don't check the field itself, but check its base *)
+									()
+								| TField (_, FStatic _) when is_static ->
+									(* Direct static field assignment: don't check the field itself *)
+									()
+								| _ ->
+									(* For other assignment targets (e.g., array[i] = x), check for unsafe usage *)
+									check_unsafe_usage init_list current_mode left_expr
+							);
 							check_unsafe_usage init_list current_mode right_expr
 						| _ ->
 							iter (check_unsafe_usage init_list current_mode) e
@@ -1864,12 +1875,12 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 				(match e.eexpr with
 					| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
 						when not is_static ->
-						(* Check right side before marking field as initialized *)
-						check_unsafe_usage init_list mode right_expr;
+						(* Traverse right side to handle nested assignments *)
+						ignore (traverse init_list mode right_expr);
 						Hashtbl.remove init_list f.cf_name
 					| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
-						(* Check right side before marking field as initialized *)
-						check_unsafe_usage init_list mode right_expr;
+						(* Traverse right side to handle nested assignments *)
+						ignore (traverse init_list mode right_expr);
 						Hashtbl.remove init_list f.cf_name
 					| TMeta ((Meta.NullSafety, _, _) as meta, inner) ->
 						(* When @:nullSafety(...) wraps an assignment, unwrap and process the assignment
