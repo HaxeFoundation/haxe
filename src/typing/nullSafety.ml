@@ -424,6 +424,15 @@ let rec process_condition mode condition (is_nullable_expr:texpr->bool) callback
 				add (not positive) checked_expr
 			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable mode checked_expr ->
 				add (not positive) checked_expr
+			(* Handle assignment expressions in null checks: (x = expr) != null *)
+			| TBinop (OpEq, { eexpr = TConst TNull }, { eexpr = TBinop (OpAssign, target, _) }) when is_suitable mode target ->
+				add positive target
+			| TBinop (OpEq, { eexpr = TBinop (OpAssign, target, _) }, { eexpr = TConst TNull }) when is_suitable mode target ->
+				add positive target
+			| TBinop (OpNotEq, { eexpr = TConst TNull }, { eexpr = TBinop (OpAssign, target, _) }) when is_suitable mode target ->
+				add (not positive) target
+			| TBinop (OpNotEq, { eexpr = TBinop (OpAssign, target, _) }, { eexpr = TConst TNull }) when is_suitable mode target ->
+				add (not positive) target
 			| TBinop (OpEq, e, checked_expr) when is_suitable mode checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
 			| TBinop (OpEq, checked_expr, e) when is_suitable mode checked_expr && not (is_nullable_expr e) ->

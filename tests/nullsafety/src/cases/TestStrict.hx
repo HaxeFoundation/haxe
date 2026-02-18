@@ -788,6 +788,32 @@ class TestStrict {
 		shouldFail(a.value);
 	}
 
+	static function while_assignmentInCondition_shouldPass() {
+		var arr:Array<Null<String>> = [];
+		var event:Null<String> = null;
+		// Test the pattern: while ((event = arr.pop()) != null)
+		while ((event = arr.pop()) != null) {
+			var s:String = event; // event should be known to be non-null here
+			event.charAt(0); // this should not fail
+		}
+		
+		// Test with null on left side: while (null != (event = arr.pop()))
+		while (null != (event = arr.pop())) {
+			var s:String = event;
+			event.charAt(0);
+		}
+		
+		// Test with == null (should be null inside)
+		while ((event = arr.pop()) == null) {
+			shouldFail(event.charAt(0)); // event is null here
+		}
+		
+		// Test with null on left: while (null == (event = arr.pop()))
+		while (null == (event = arr.pop())) {
+			shouldFail(event.charAt(0)); // event is null here
+		}
+	}
+
 	static function nullable_doWhile_shouldPass(?a:Int) {
 		do {
 			if (a == null) return;
