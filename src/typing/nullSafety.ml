@@ -1746,7 +1746,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 				cls.cl_ordered_fields;
 
 			(match cls.cl_constructor with
-				| Some ({ cf_meta = ctor_meta; cf_expr = Some { eexpr = TFunction { tf_expr = e } } } as ctor) ->
+				| Some ({ cf_meta = ctor_meta; cf_expr = Some { eexpr = TFunction { tf_expr = e } } }) ->
 					(* Get the safety mode for the constructor *)
 					let ctor_mode = safety_mode (cls_meta @ ctor_meta) in
 					(* Always traverse to track field initialization, but use the constructor's mode for safety checks *)
@@ -1802,7 +1802,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 						| _ ->
 							iter (check_unsafe_usage init_list current_mode) e
 			in
-			let rec traverse init_list e =
+			let rec traverse init_list mode e =
 				(match e.eexpr with
 					| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
 						when not is_static ->
@@ -1817,31 +1817,18 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 						(* When @:nullSafety(...) wraps an assignment, unwrap and process the assignment
 						   with the appropriate safety mode for the right-hand side *)
 						let meta_mode = safety_mode [meta] in
-						(match inner.eexpr with
-							| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
-								when not is_static ->
-								(* Process right side with the metadata's mode before marking as initialized *)
-								check_unsafe_usage init_list meta_mode right_expr;
-								Hashtbl.remove init_list f.cf_name
-							| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
-								(* Process right side with the metadata's mode before marking as initialized *)
-								check_unsafe_usage init_list meta_mode right_expr;
-								Hashtbl.remove init_list f.cf_name
-							| _ ->
-								(* For non-assignment expressions, just check with the metadata's mode *)
-								check_unsafe_usage init_list meta_mode inner
-						)
+						ignore(traverse init_list meta_mode inner)
 					| TMeta (_, inner) ->
 						(* For other metadata, just unwrap and continue *)
-						ignore (traverse init_list inner)
+						ignore (traverse init_list mode inner)
 					| TWhile (condition, body, DoWhile) ->
 						check_unsafe_usage init_list mode condition;
-						ignore (traverse init_list body)
+						ignore (traverse init_list mode body)
 					| TBlock exprs ->
-						List.iter (fun e -> ignore (traverse init_list e)) exprs
+						List.iter (fun e -> ignore (traverse init_list mode e)) exprs
 					| TIf (_, if_block, Some else_block) ->
-						let if_init_list = traverse (Hashtbl.copy init_list) if_block
-						and else_init_list = traverse (Hashtbl.copy init_list) else_block in
+						let if_init_list = traverse (Hashtbl.copy init_list) mode if_block
+						and else_init_list = traverse (Hashtbl.copy init_list) mode else_block in
 						Hashtbl.clear init_list;
 						Hashtbl.iter (Hashtbl.replace init_list) if_init_list;
 						Hashtbl.iter (Hashtbl.replace init_list) else_init_list
@@ -1853,7 +1840,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 				);
 				init_list
 			in
-			traverse fields_to_initialize tf_expr
+			traverse fields_to_initialize mode tf_expr
 	end
 
 (**
