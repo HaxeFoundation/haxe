@@ -40,3 +40,15 @@ class TestConstructorThis_LooseMode_Single {
 		utility1 = new UtilityForC(this);
 	}
 }
+
+/**
+ * Test that @:nullSafety(Strict) on an assignment in Loose mode context should fail
+ */
+class TestConstructorThis_AssignmentStrict {
+	final utility1:UtilityForC;
+
+	public function new() {
+		// With @:nullSafety(Strict) on the assignment in Loose mode, this should fail
+		@:nullSafety(Strict) shouldFail(utility1 = new UtilityForC(this));
+	}
+}

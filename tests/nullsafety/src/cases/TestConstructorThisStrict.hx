@@ -83,6 +83,18 @@ class TestConstructorThisStrict_AssignmentOff {
 }
 
 /**
+ * Test that @:nullSafety(Loose) on an assignment in Strict mode context should pass
+ */
+class TestConstructorThisStrict_AssignmentLoose {
+	final utility1:UtilityForCStrict;
+
+	public function new() {
+		// With @:nullSafety(Loose) on the assignment in Strict mode, this should pass
+		@:nullSafety(Loose) utility1 = new UtilityForCStrict(this);
+	}
+}
+
+/**
  * Test that after all fields are initialized, `this` can be used in Strict mode
  */
 class TestConstructorThisStrict_AfterAllInit {

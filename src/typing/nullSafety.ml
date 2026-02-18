@@ -1810,21 +1810,22 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 					| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
 						Hashtbl.remove init_list f.cf_name;
 						ignore (traverse init_list right_expr)
-					| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), inner) ->
-						(* When @:nullSafety(Off) wraps an assignment, unwrap and process the assignment
-						   but skip safety checks for the right-hand side *)
+					| TMeta ((Meta.NullSafety, _, _) as meta, inner) ->
+						(* When @:nullSafety(...) wraps an assignment, unwrap and process the assignment
+						   with the appropriate safety mode for the right-hand side *)
+						let meta_mode = safety_mode [meta] in
 						(match inner.eexpr with
 							| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
 								when not is_static ->
 								Hashtbl.remove init_list f.cf_name;
-								(* Process right side with SMOff mode *)
-								check_unsafe_usage init_list SMOff right_expr
+								(* Process right side with the metadata's mode *)
+								check_unsafe_usage init_list meta_mode right_expr
 							| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
 								Hashtbl.remove init_list f.cf_name;
-								check_unsafe_usage init_list SMOff right_expr
+								check_unsafe_usage init_list meta_mode right_expr
 							| _ ->
-								(* For non-assignment expressions, just check with SMOff mode *)
-								check_unsafe_usage init_list SMOff inner
+								(* For non-assignment expressions, just check with the metadata's mode *)
+								check_unsafe_usage init_list meta_mode inner
 						)
 					| TMeta (_, inner) ->
 						(* For other metadata, just unwrap and continue *)
