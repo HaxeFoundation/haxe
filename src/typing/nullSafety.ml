@@ -1129,7 +1129,7 @@ class expr_checker m mode immediate_execution report options =
 			end
 
 		method private check_binop_redundant_null_checks e =
-			match e.eexpr with
+			match (skip e).eexpr with
 				| TBinop ((OpEq | OpNotEq), { eexpr = TConst TNull }, expr)
 				| TBinop ((OpEq | OpNotEq), expr, { eexpr = TConst TNull })
 				| TBinop(OpAssignOp OpNullCoal, expr, _)
@@ -1140,6 +1140,9 @@ class expr_checker m mode immediate_execution report options =
 							WRedundantNullCheck
 							("The operand type is not nullable, so null-check should be redundant.")
 							[expr.epos; e.epos];
+				| TBinop (op, left_expr, right_expr) ->
+					self#check_binop_redundant_null_checks left_expr;
+					self#check_binop_redundant_null_checks right_expr;
 				| _ -> ()
 		(**
 			Check if `e` is nullable even if the type is reported not-nullable.

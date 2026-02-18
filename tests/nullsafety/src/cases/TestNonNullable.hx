@@ -30,8 +30,9 @@ class TestNonNullable {
 		final v = shouldWarn(data.foo) == null;
 		shouldWarn(data.foo) != null && true;
 		true && shouldWarn(data.foo) != null;
-		data.foo != null || true;
-		true || shouldWarn(data.foo) != null;
+		shouldWarn(data.foo) != null || false;
+		false || shouldWarn(data.foo) != null;
+		(shouldWarn(data.foo) != null || false) || false;
 
 		throw shouldWarn(data.foo) == null;
 
