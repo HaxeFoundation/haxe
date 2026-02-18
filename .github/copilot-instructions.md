@@ -45,16 +45,28 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 
 ### Standard Library (`std/`)
 - Core types (Array, String, Map, etc.) at root level
-- Platform-specific implementations in subdirectories
+- `haxe/` and `sys/` - Platform-independent standard library packages
+- Platform-specific directories (e.g., `cpp/`, `js/`, `jvm/`, `python/`, etc.)
+  - Each platform can shadow standard library implementations via `platform/_std/` directory
+  - Example: `std/cpp/_std/haxe/ds/StringMap.hx` shadows the generic `std/haxe/ds/StringMap.hx`
 
 ### Tests (`tests/`)
 - `unit/` - Unit tests written in Haxe
-- `unit/src/unit/issues/` - Regression tests for specific issues
+  - `unit/src/unit/issues/` - Regression tests for specific issues (success cases)
+- `display/` - IDE-related tests like completion
+- `server/` - Modern version of display tests, generally preferred
+- `misc/` - Tests expected to produce failures
+  - Platform-specific subdirectories (e.g., `misc/cpp/` for C++-specific tests)
+- `nullsafety/` - Tests related to the null-safety feature
+- `optimization/` - Optimization tests that check concrete code output on JavaScript target
+- `sys/` - Tests specific to the `std/sys` package (sys-targets only: excludes Flash and JavaScript)
+- `threads/` - Thread-related tests, generally for `std/sys/thread` package (threaded targets only)
 
 ## Testing Guidelines
 
 ### Adding Regression Tests
-When fixing a bug, **always** add a regression test:
+
+**For tests that assert success**, add a regression test to `tests/unit/src/unit/issues/`:
 
 1. Create a file: `tests/unit/src/unit/issues/Issue{NUMBER}.hx`
 2. Follow this pattern:
@@ -69,6 +81,10 @@ class Issue12345 extends Test {
     #end
 }
 ```
+
+**For expected failures**, use `tests/misc` instead, with platform-specific subdirectories as needed.
+
+**Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
 ### Running Tests
 ```bash
