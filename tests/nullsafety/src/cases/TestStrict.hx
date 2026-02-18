@@ -1562,9 +1562,11 @@ class ConstructorThrowBothBranches {
 	public function new() {
 		if (Math.random() > 0.5) {
 			s = "foo";
+			t = "bar";
 			throw "no";
 		} else {
-			t = "bar";
+			s = "baz";
+			t = "qux";
 			throw "also no";
 		}
 	}
@@ -1591,9 +1593,11 @@ class ConstructorMixedThrowReturn {
 	public function new() {
 		if (Math.random() > 0.5) {
 			s = "one";
+			t = "two";
 			throw "error";
 		} else {
-			t = "two";
+			s = "three";
+			t = "four";
 			return;
 		}
 	}
