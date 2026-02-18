@@ -1842,19 +1842,18 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 							List.iter (check_unsafe_usage init_list current_mode) args
 						| TConst TThis ->
-							(* In Strict modes, using `this` before all fields are initialized is an error.
-							   In Loose mode, it's allowed. *)
+							(* Using `this` before all fields are initialized is an error in all modes except Off *)
 							(match current_mode with
-								| SMStrict | SMStrictThreaded ->
+								| SMStrict | SMStrictThreaded | SMLoose ->
 									checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
-								| SMLoose | SMOff -> ()
+								| SMOff -> ()
 							)
 						| TLocal v when Hashtbl.mem this_vars v.v_id ->
 							(* Same logic for local variables that capture `this` *)
 							(match current_mode with
-								| SMStrict | SMStrictThreaded ->
+								| SMStrict | SMStrictThreaded | SMLoose ->
 									checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
-								| SMLoose | SMOff -> ()
+								| SMOff -> ()
 							)
 						| TMeta ((Meta.NullSafety, _, _) as meta, e) ->
 							(* Extract the safety mode from the metadata and apply it *)

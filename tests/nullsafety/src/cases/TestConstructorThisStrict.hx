@@ -3,10 +3,11 @@ package cases;
 import Validator.shouldFail;
 
 /**
- * Tests for using `this` in constructors with uninitialized fields in Strict mode.
- * Related to issue: https://github.com/HaxeFoundation/haxe/issues/xxxxx
+ * Tests for using `this` in constructors with uninitialized fields.
+ * Both Loose and Strict modes now behave the same way: error on `this` before fields are initialized.
+ * Related to issue: https://github.com/HaxeFoundation/haxe/issues/12572
  * 
- * This file is compiled with Strict mode via test.hxml
+ * This file tests the null-safety behavior with various @:nullSafety annotations.
  */
 
 // Helper class to receive `this` references
@@ -15,6 +16,7 @@ class UtilityForCStrict {
 }
 
 /**
+ * Test @:nullSafety(Off) on the constructor
  * Problem 2: Adding @:nullSafety(Off) to the constructor should disable the check
  */
 class TestConstructorThisStrict_ConstructorOff {
@@ -23,7 +25,7 @@ class TestConstructorThisStrict_ConstructorOff {
 
 	@:nullSafety(Off)
 	public function new() {
-		// With @:nullSafety(Off) on constructor, this should pass even in Strict mode
+		// With @:nullSafety(Off) on constructor, this should pass
 		utility1 = new UtilityForCStrict(this);
 		utility2 = new UtilityForCStrict(this);
 	}
@@ -45,13 +47,13 @@ class TestConstructorThisStrict_ClassOff {
 }
 
 /**
- * Problem 3: In Strict mode, using `this` before a field is initialized SHOULD fail
+ * Problem 3: Using `this` before a field is initialized SHOULD fail (in both Loose and Strict)
  */
 class TestConstructorThisStrict_BeforeSingleInit {
 	final utility1:UtilityForCStrict;
 
 	public function new() {
-		// In Strict mode, this should fail because utility1 is not initialized yet
+		// Using this before the field is initialized should fail
 		utility1 = shouldFail(new UtilityForCStrict(this));
 	}
 }
@@ -64,7 +66,7 @@ class TestConstructorThisStrict_BeforeAllInit {
 	final utility2:UtilityForCStrict;
 
 	public function new() {
-		// In Strict mode, this should fail because not all fields are initialized
+		// Using this before all fields are initialized should fail
 		utility1 = shouldFail(new UtilityForCStrict(this));
 		utility2 = shouldFail(new UtilityForCStrict(this));
 	}
@@ -83,19 +85,7 @@ class TestConstructorThisStrict_AssignmentOff {
 }
 
 /**
- * Test that @:nullSafety(Loose) on an assignment in Strict mode context should pass
- */
-class TestConstructorThisStrict_AssignmentLoose {
-	final utility1:UtilityForCStrict;
-
-	public function new() {
-		// With @:nullSafety(Loose) on the assignment in Strict mode, this should pass
-		@:nullSafety(Loose) utility1 = new UtilityForCStrict(this);
-	}
-}
-
-/**
- * Test that after all fields are initialized, `this` can be used in Strict mode
+ * Test that after all fields are initialized, `this` can be used
  */
 class TestConstructorThisStrict_AfterAllInit {
 	final utility1:UtilityForCStrict;
