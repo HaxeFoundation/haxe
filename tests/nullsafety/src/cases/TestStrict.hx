@@ -1562,11 +1562,9 @@ class ConstructorThrowBothBranches {
 	public function new() {
 		if (Math.random() > 0.5) {
 			s = "foo";
-			t = "bar";
 			throw "no";
 		} else {
-			s = "baz";
-			t = "qux";
+			t = "bar";
 			throw "also no";
 		}
 	}
@@ -1574,7 +1572,7 @@ class ConstructorThrowBothBranches {
 
 @:build(Validator.checkFields())
 class ConstructorReturn {
-	final s:String;
+	@:shouldFail final s:String;
 
 	public function new() {
 		if (Math.random() > 0.5) {
@@ -1592,13 +1590,41 @@ class ConstructorMixedThrowReturn {
 
 	public function new() {
 		if (Math.random() > 0.5) {
-			s = "one";
-			t = "two";
+			// Throw branch: doesn't need to initialize fields
 			throw "error";
 		} else {
+			// Return branch: must initialize all fields
 			s = "three";
 			t = "four";
 			return;
 		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturnFail {
+	@:shouldFail final s:String;
+	@:shouldFail final t:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			// Throw branch: doesn't need to initialize fields
+			throw "error";
+		} else {
+			// Return branch: must initialize all fields, but doesn't - should fail
+			return;
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorEarlyReturnNoElse {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		}
+		s = "foo";
 	}
 }
