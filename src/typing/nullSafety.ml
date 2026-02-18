@@ -1855,14 +1855,17 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							iter (check_unsafe_usage init_list current_mode) e
 						| TBinop (OpAssign, left_expr, right_expr) ->
 							(* For assignments, check the right side and any subexpressions in the left side,
-							   but don't treat a direct field assignment target as a field read. *)
+							   but don't treat a direct field assignment target as a field read, unless it's
+							   uninitialized in which case we need to report an error. *)
 							(match left_expr.eexpr with
-								| TField ({ eexpr = TConst TThis }, FInstance _) when not is_static ->
-									(* Direct instance field assignment: don't check the field itself, but check its base *)
-									()
-								| TField (_, FStatic _) when is_static ->
-									(* Direct static field assignment: don't check the field itself *)
-									()
+								| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) when not is_static ->
+									(* Direct instance field assignment in constructor: check if uninitialized *)
+									if Hashtbl.mem init_list field.cf_name then
+										checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [left_expr.epos]
+								| TField (_, FStatic (_, field)) when is_static ->
+									(* Direct static field assignment in __init__: check if uninitialized *)
+									if Hashtbl.mem init_list field.cf_name then
+										checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [left_expr.epos]
 								| _ ->
 									(* For other assignment targets (e.g., array[i] = x), check for unsafe usage *)
 									check_unsafe_usage init_list current_mode left_expr
