@@ -1804,11 +1804,13 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 				(match e.eexpr with
 					| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
 						when not is_static ->
-						Hashtbl.remove init_list f.cf_name;
-						ignore (traverse init_list right_expr)
+						(* Check right side before marking field as initialized *)
+						ignore (traverse init_list right_expr);
+						Hashtbl.remove init_list f.cf_name
 					| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
-						Hashtbl.remove init_list f.cf_name;
-						ignore (traverse init_list right_expr)
+						(* Check right side before marking field as initialized *)
+						ignore (traverse init_list right_expr);
+						Hashtbl.remove init_list f.cf_name
 					| TMeta ((Meta.NullSafety, _, _) as meta, inner) ->
 						(* When @:nullSafety(...) wraps an assignment, unwrap and process the assignment
 						   with the appropriate safety mode for the right-hand side *)
@@ -1816,12 +1818,13 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 						(match inner.eexpr with
 							| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
 								when not is_static ->
-								Hashtbl.remove init_list f.cf_name;
-								(* Process right side with the metadata's mode *)
-								check_unsafe_usage init_list meta_mode right_expr
+								(* Process right side with the metadata's mode before marking as initialized *)
+								check_unsafe_usage init_list meta_mode right_expr;
+								Hashtbl.remove init_list f.cf_name
 							| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
-								Hashtbl.remove init_list f.cf_name;
-								check_unsafe_usage init_list meta_mode right_expr
+								(* Process right side with the metadata's mode before marking as initialized *)
+								check_unsafe_usage init_list meta_mode right_expr;
+								Hashtbl.remove init_list f.cf_name
 							| _ ->
 								(* For non-assignment expressions, just check with the metadata's mode *)
 								check_unsafe_usage init_list meta_mode inner
