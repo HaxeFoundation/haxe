@@ -1807,11 +1807,11 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 					| TBinop (OpAssign, { eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, f)) }, right_expr)
 						when not is_static ->
 						(* Check right side before marking field as initialized *)
-						ignore (traverse init_list right_expr);
+						check_unsafe_usage init_list mode right_expr;
 						Hashtbl.remove init_list f.cf_name
 					| TBinop (OpAssign, { eexpr = TField(_, FStatic(_, f)) }, right_expr) when is_static ->
 						(* Check right side before marking field as initialized *)
-						ignore (traverse init_list right_expr);
+						check_unsafe_usage init_list mode right_expr;
 						Hashtbl.remove init_list f.cf_name
 					| TMeta ((Meta.NullSafety, _, _) as meta, inner) ->
 						(* When @:nullSafety(...) wraps an assignment, unwrap and process the assignment
