@@ -1,6 +1,6 @@
 package haxe.coro.context;
 
-typedef ElementTree = Array<Any>;
+typedef ElementTree = Array<Null<Any>>;
 
 /**
 	An immutable context, which can be used like a map.

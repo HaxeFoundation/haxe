@@ -13,17 +13,6 @@ class TestClassWithAnon {
 	public var a:Null<{b:Null<Int>}> = cast null;
 }
 
-class ExplicitNullTypeHelper {
-	public var field:String;
-	public function new() { this.field = "test"; }
-	public static function create():ExplicitNullTypeHelper {
-		return new ExplicitNullTypeHelper();
-	}
-	public function get<T>(cls:Class<T>):Null<T> {
-		return cast new ExplicitNullTypeHelper();
-	}
-}
-
 abstract AWrap<T>(T) from T to T {
 	function abstracts_shouldBeChecked(?a:String) {
 		shouldFail(var s:String = a);
@@ -58,17 +47,6 @@ typedef ObjWithField = {
 typedef AnonDefaultNever = {
 	var name(default, never):String;
 	var version(default, never):String;
-}
-
-class ExplicitNullTypeHelper {
-	public var field:String;
-	public function new() { field = "test"; }
-	public static function create():ExplicitNullTypeHelper {
-		return new ExplicitNullTypeHelper();
-	}
-	public function get<T>(cls:Class<T>):T {
-		return cast new ExplicitNullTypeHelper();
-	}
 }
 
 /** Test `@:nullSafety(Off)` is respected on fields */
@@ -818,18 +796,18 @@ class TestStrict {
 			var s:String = event; // event should be known to be non-null here
 			event.charAt(0); // this should not fail
 		}
-		
+
 		// Test with null on left side: while (null != (event = arr.pop()))
 		while (null != (event = arr.pop())) {
 			var s:String = event;
 			event.charAt(0);
 		}
-		
+
 		// Test with == null (should be null inside)
 		while ((event = arr.pop()) == null) {
 			shouldFail(event.charAt(0)); // event is null here
 		}
-		
+
 		// Test with null on left: while (null == (event = arr.pop()))
 		while (null == (event = arr.pop())) {
 			shouldFail(event.charAt(0)); // event is null here
@@ -1588,10 +1566,8 @@ class BinopFlow {
 		});
 	}
 
-	// Test for issue: explicit Null<T> type should remain nullable even when assigned non-null value
-	static function explicitNullType_methodChain_shouldFail() {
-		// This should fail: accessing field on explicitly Null<T> typed variable
-		var obj:Null<ExplicitNullTypeHelper> = ExplicitNullTypeHelper.create().get(ExplicitNullTypeHelper);
-		shouldFail(obj.field);
+	static function coroDispatcher_shouldFail() {
+		var dispatcher = haxe.coro.context.Context.create().get(haxe.coro.dispatchers.Dispatcher);
+		shouldFail(dispatcher.scheduler);
 	}
 }
