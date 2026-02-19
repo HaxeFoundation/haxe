@@ -137,6 +137,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				let eresult = cont.immediate_result (mk (TConst TNull) t_dynamic e.epos) in
 				mk (TReturn (Some eresult)) t_dynamic e.epos
 			| TReturn (Some e1) ->
+				let e1 = remap loop_depth e1 in
 				let eresult = cont.immediate_result e1 in
 				mk (TReturn (Some eresult)) t_dynamic e.epos
 			| TThrow e1 ->
