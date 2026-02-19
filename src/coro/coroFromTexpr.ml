@@ -361,12 +361,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 					add_expr cb {e with eexpr = TIf(e1,e2',None)};
 					cb,e_no_value
 				| HasSuspension ->
-					let cb_then = block_from_e e2 in
-					let cb_then_next = loop_block cb_then RBlock e2 in
-					let cb_next = make_block None in
-					Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
-					terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
-					cb_next,e_no_value
+					split_if_then cb e1 e.etype e.epos e2
 			) cb
 		| TIf(e1,e2,Some e3) ->
 			begin match map_suspension e2, map_suspension e3 with
@@ -404,43 +399,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 					cb,{e with eexpr = TSwitch switch'}
 				) cb
 			| None ->
-				let e_value,ret = check_complex cb ret e.etype e.epos in
-				let e1 = switch.switch_subject in
-				let cb = loop cb RValue e1 in
-				begin match cb with
-					| None ->
-						None
-					| Some(cb,e1) ->
-						let cb_next = lazy (make_block None) in
-						let cases = List.map (fun case ->
-							let cb_case = block_from_e case.case_expr in
-							let cb_case_next = loop_block cb_case ret case.case_expr in
-							Option.may (fun (cb_case_next,_) ->
-								fall_through cb_case_next (Lazy.force cb_next);
-							) cb_case_next;
-							(case.case_patterns,cb_case)
-						) switch.switch_cases in
-						let def = match switch.switch_default with
-							| None ->
-								None
-							| Some e ->
-								let cb_default = block_from_e e in
-								let cb_default_next = loop_block cb_default ret e in
-								Option.may (fun (cb_default_next,_) ->
-									fall_through cb_default_next (Lazy.force cb_next);
-								) cb_default_next;
-								Some cb_default
-						in
-						let switch = {
-							cs_subject = e1;
-							cs_cases = cases;
-							cs_default = def;
-							cs_exhaustive = switch.switch_exhaustive
-						} in
-						let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
-						terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
-						Option.map (fun cb_next -> (cb_next,e_value)) cb_next
-				end
+				split_switch cb ret switch e
 			end
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
@@ -451,15 +410,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				add_expr cb {e with eexpr = TWhile(e1,e2',flag)};
 				Some (cb,e_no_value)
 			| HasSuspension ->
-				let cb_next = lazy (make_block None) in
-				let cb_body = block_from_e e2 in
-				loop_stack := (cb_body,cb_next) :: !loop_stack;
-				let cb_body_next = loop_block cb_body RBlock e2 in
-				Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
-				loop_stack := List.tl !loop_stack;
-				let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
-				terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
-				Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+				split_while cb e1 e2 e.etype e.epos
 			end
 		| TTry(e1,catches) ->
 			let map_catches () =
@@ -477,37 +428,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				(* Neither try body nor any catch has suspension: keep inline with transformed terminators. *)
 				Some (cb,{e with eexpr = TTry(e1',catches')})
 			| _ ->
-				let e_value,ret = check_complex cb ret e.etype e.epos in
-				ctx.has_catch <- true;
-				let cb_next = lazy (make_block None) in
-				let catches = List.map (fun (v,e) ->
-					let cb_catch = block_from_e e in
-					add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
-					let cb_catch_next = loop_block cb_catch ret e in
-					Option.may (fun (cb_catch_next,_) ->
-						fall_through cb_catch_next (Lazy.force cb_next);
-					) cb_catch_next;
-					v,cb_catch
-				) catches in
-				let catch = make_block None in
-				(* This block is handled in a special way in the texpr transformer, let's mark it as
-				   already generated so we don't generate it twice. *)
-				add_block_flag catch CbGenerated;
-				let old = ctx.current_catch in
-				ctx.current_catch <- Some catch;
-				let catch = {
-					cc_cb = catch;
-					cc_catches = catches;
-				} in
-				let cb_try = block_from_e e1 in
-				let cb_try_next = loop_block cb_try ret e1 in
-				ctx.current_catch <- old;
-				Option.may (fun (cb_try_next,_) ->
-					fall_through cb_try_next (Lazy.force cb_next)
-				) cb_try_next;
-				let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
-				terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
-				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+				split_try cb ret e1 catches e.etype e.epos
 			end
 		| TFunction tf ->
 			Some (cb,e)
@@ -581,6 +502,92 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				Some(cb,e_no_value)
 			| _ ->
 				aux' cb el
+	and split_if_then cb e1 etype epos e2 =
+		let cb_then = block_from_e e2 in
+		let cb_then_next = loop_block cb_then RBlock e2 in
+		let cb_next = make_block None in
+		Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
+		terminate cb (NextIfThen(e1,cb_then,cb_next)) etype epos;
+		(cb_next,e_no_value)
+	and split_switch cb ret switch_orig e =
+		let e_value,ret = check_complex cb ret e.etype e.epos in
+		let cb_s = loop cb RValue switch_orig.switch_subject in
+		begin match cb_s with
+			| None ->
+				None
+			| Some(cb,e1) ->
+				let cb_next = lazy (make_block None) in
+				let cases = List.map (fun case ->
+					let cb_case = block_from_e case.case_expr in
+					let cb_case_next = loop_block cb_case ret case.case_expr in
+					Option.may (fun (cb_case_next,_) ->
+						fall_through cb_case_next (Lazy.force cb_next);
+					) cb_case_next;
+					(case.case_patterns,cb_case)
+				) switch_orig.switch_cases in
+				let def = match switch_orig.switch_default with
+					| None ->
+						None
+					| Some e ->
+						let cb_default = block_from_e e in
+						let cb_default_next = loop_block cb_default ret e in
+						Option.may (fun (cb_default_next,_) ->
+							fall_through cb_default_next (Lazy.force cb_next);
+						) cb_default_next;
+						Some cb_default
+				in
+				let switch = {
+					cs_subject = e1;
+					cs_cases = cases;
+					cs_default = def;
+					cs_exhaustive = switch_orig.switch_exhaustive
+				} in
+				let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
+				terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
+				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+		end
+	and split_while cb e1 e2 etype epos =
+		let cb_next = lazy (make_block None) in
+		let cb_body = block_from_e e2 in
+		loop_stack := (cb_body,cb_next) :: !loop_stack;
+		let cb_body_next = loop_block cb_body RBlock e2 in
+		Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
+		loop_stack := List.tl !loop_stack;
+		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		terminate cb (NextWhile(e1,cb_body,cb_next)) etype epos;
+		Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+	and split_try cb ret e1 catches etype epos =
+		let e_value,ret = check_complex cb ret etype epos in
+		ctx.has_catch <- true;
+		let cb_next = lazy (make_block None) in
+		let catches = List.map (fun (v,e) ->
+			let cb_catch = block_from_e e in
+			add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
+			let cb_catch_next = loop_block cb_catch ret e in
+			Option.may (fun (cb_catch_next,_) ->
+				fall_through cb_catch_next (Lazy.force cb_next);
+			) cb_catch_next;
+			v,cb_catch
+		) catches in
+		let catch = make_block None in
+		(* This block is handled in a special way in the texpr transformer, let's mark it as
+		   already generated so we don't generate it twice. *)
+		add_block_flag catch CbGenerated;
+		let old = ctx.current_catch in
+		ctx.current_catch <- Some catch;
+		let catch = {
+			cc_cb = catch;
+			cc_catches = catches;
+		} in
+		let cb_try = block_from_e e1 in
+		let cb_try_next = loop_block cb_try ret e1 in
+		ctx.current_catch <- old;
+		Option.may (fun (cb_try_next,_) ->
+			fall_through cb_try_next (Lazy.force cb_next)
+		) cb_try_next;
+		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
+		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 	and split_if_then_else cb ret etype epos e1 e2 e3 =
 		let e_value,ret = check_complex cb ret etype epos in
 		let cb = loop cb RValue e1 in
