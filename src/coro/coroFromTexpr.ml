@@ -169,7 +169,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| TBlock el ->
 			begin match map_suspension e with
 			| HasNoSuspension e' ->
-				(* No suspension in any sub-expression: inline the block without creating a NextSub CFG node. *)
+				(* No suspension in any sub-expression: inline the block directly. *)
 				Some (cb, e')
 			| HasSuspension ->
 				loop_block cb ret e

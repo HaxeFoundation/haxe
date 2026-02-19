@@ -328,9 +328,6 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ] None
 		| NextThrow e1 ->
 			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some [ (b#break p) ])
-		| NextSub (cb_sub,cb_next) ->
-			add_state (Some cb_sub.cb_id) [] None
-
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None

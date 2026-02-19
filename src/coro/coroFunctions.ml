@@ -39,9 +39,6 @@ let coro_iter f cb =
 	let fo = Option.may f in
 	fo cb.cb_catch;
 	match cb.cb_next with
-	| NextSub(cb_sub,cb_next) ->
-		f cb_sub;
-		fo cb_next
 	| NextIfThen(_,cb_then,cb_next) ->
 		f cb_then;
 		f cb_next;
@@ -72,10 +69,6 @@ let coro_next_map f cb =
 	Option.may (fun cb_catch -> cb.cb_catch <- Some (f cb_catch)) cb.cb_catch;
 	let fo = Option.map f in
 	match cb.cb_next with
-	| NextSub(cb_sub,cb_next) ->
-		let cb_sub = f cb_sub in
-		let cb_next = fo cb_next in
-		cb.cb_next <- NextSub(cb_sub,cb_next);
 	| NextIfThen(e,cb_then,cb_next) ->
 		let cb_then = f cb_then in
 		let cb_next = f cb_next in

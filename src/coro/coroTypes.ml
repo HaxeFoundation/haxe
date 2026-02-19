@@ -19,7 +19,6 @@ and coro_block_next = coro_block option
 
 and coro_next =
 	| NextUnknown
-	| NextSub of coro_block * coro_block_next
 	| NextReturnVoid
 	| NextReturn of texpr
 	| NextThrow of texpr
