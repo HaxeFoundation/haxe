@@ -1,7 +1,5 @@
 package unit.issues;
 
-import utest.Assert;
-
 private function wrap<T>(a:Array<T>):Array<T> {
 	return a;
 }
