@@ -1074,6 +1074,8 @@ class local_safety (mode:safety_mode) =
 							in
 							traverse scopes
 						| _ -> ()
+				else if is_nullable_type left_expr.etype then
+					self#get_current_scope#add_to_safety left_expr
 		method call_made =
 			self#get_current_scope#call_made
 	end
