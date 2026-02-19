@@ -116,15 +116,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| _ ->
 			false
 	in
-	(* Traverses [e] and either reports that it contains a suspension call (HasSuspension),
-	   or returns the expression with all coroutine-relevant nodes transformed (HasNoSuspension):
-	   - Suspension calls (TCall with a Coro type) → HasSuspension
-	   - TReturn None → make_inline_return None (sets gotoLabel=-1, state=Returned, returns continuation)
-	   - TReturn (Some e1) → make_inline_return (Some e1) (same, also sets result=e1)
-	   - TThrow → HasSuspension (too complex to inline for now)
-	   - TBreak / TContinue at loop_depth=0 → HasSuspension (would escape the inlined expression)
-	   - TWhile increments loop_depth so break/continue inside the body are treated as contained
-	   Does not recurse into nested TFunction nodes, as those are separate coroutines. *)
 	let map_suspension e =
 		let exception Found in
 		let rec remap loop_depth e = match e.eexpr with
@@ -169,7 +160,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| TBlock el ->
 			begin match map_suspension e with
 			| HasNoSuspension e' ->
-				(* No suspension in any sub-expression: inline the block directly. *)
 				Some (cb, e')
 			| HasSuspension ->
 				loop_block cb ret e
@@ -224,7 +214,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| TBinop((OpBoolOr | OpBoolAnd) as op, e1, e2) ->
 			begin match map_suspension e with
 			| HasNoSuspension e' ->
-				(* Neither operand has a suspension call; the target handles short-circuiting. *)
 				Some (cb, e')
 			| HasSuspension ->
 				(* At least one operand has a suspension call; desugar to if/else for correct short-circuit semantics:
@@ -357,7 +346,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			Option.map (fun (cb,e1) ->
 				match map_suspension e2 with
 				| HasNoSuspension e2' ->
-					(* The then-branch has no suspension: keep the whole if inline with transformed terminators. *)
 					add_expr cb {e with eexpr = TIf(e1,e2',None)};
 					cb,e_no_value
 				| HasSuspension ->
@@ -366,7 +354,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| TIf(e1,e2,Some e3) ->
 			begin match map_suspension e2, map_suspension e3 with
 			| HasNoSuspension e2', HasNoSuspension e3' ->
-				(* Neither branch has suspension: keep the whole if inline with transformed terminators. *)
 				let cb = loop cb RValue e1 in
 				Option.map (fun (cb,e1) -> cb,{e with eexpr = TIf(e1,e2',Some e3')}) cb
 			| _ ->
@@ -392,7 +379,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			in
 			begin match map_switch_cases () with
 			| Some (cases', def') ->
-				(* No case has suspension: keep the whole switch inline with transformed terminators. *)
 				let cb = loop cb RValue switch.switch_subject in
 				Option.map (fun (cb,e1) ->
 					let switch' = {switch with switch_subject = e1; switch_cases = cases'; switch_default = def'} in
@@ -406,7 +392,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
 			begin match map_suspension e2 with
 			| HasNoSuspension e2' ->
-				(* Body has no suspension: keep the whole while inline with transformed terminators. *)
 				add_expr cb {e with eexpr = TWhile(e1,e2',flag)};
 				Some (cb,e_no_value)
 			| HasSuspension ->
@@ -425,7 +410,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			in
 			begin match map_suspension e1, map_catches () with
 			| HasNoSuspension e1', Some catches' ->
-				(* Neither try body nor any catch has suspension: keep inline with transformed terminators. *)
 				Some (cb,{e with eexpr = TTry(e1',catches')})
 			| _ ->
 				split_try cb ret e1 catches e.etype e.epos
@@ -509,6 +493,33 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
 		terminate cb (NextIfThen(e1,cb_then,cb_next)) etype epos;
 		(cb_next,e_no_value)
+	and split_if_then_else cb ret etype epos e1 e2 e3 =
+		let e_value,ret = check_complex cb ret etype epos in
+		let cb = loop cb RValue e1 in
+		begin match cb with
+			| None ->
+				None
+			| Some(cb,e1) ->
+				let cb_then = block_from_e e2 in
+				let cb_then_next = loop_block cb_then ret e2 in
+				let cb_else = block_from_e e3 in
+				let cb_else_next = loop_block cb_else ret e3 in
+				let cb_next = match cb_then_next,cb_else_next with
+					| Some (cb_then_next,_),Some(cb_else_next,_) ->
+						let cb_next = make_block None in
+						fall_through cb_then_next cb_next;
+						fall_through cb_else_next cb_next;
+						Some cb_next
+					| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
+						let cb_next = make_block None in
+						fall_through cb_branch_next cb_next;
+						Some cb_next
+					| None,None ->
+						None
+				in
+				terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) etype epos;
+				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+		end
 	and split_switch cb ret switch_orig e =
 		let e_value,ret = check_complex cb ret e.etype e.epos in
 		let cb_s = loop cb RValue switch_orig.switch_subject in
@@ -588,32 +599,5 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
 		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
-	and split_if_then_else cb ret etype epos e1 e2 e3 =
-		let e_value,ret = check_complex cb ret etype epos in
-		let cb = loop cb RValue e1 in
-		begin match cb with
-			| None ->
-				None
-			| Some(cb,e1) ->
-				let cb_then = block_from_e e2 in
-				let cb_then_next = loop_block cb_then ret e2 in
-				let cb_else = block_from_e e3 in
-				let cb_else_next = loop_block cb_else ret e3 in
-				let cb_next = match cb_then_next,cb_else_next with
-					| Some (cb_then_next,_),Some(cb_else_next,_) ->
-						let cb_next = make_block None in
-						fall_through cb_then_next cb_next;
-						fall_through cb_else_next cb_next;
-						Some cb_next
-					| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
-						let cb_next = make_block None in
-						fall_through cb_branch_next cb_next;
-						Some cb_next
-					| None,None ->
-						None
-				in
-				terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) etype epos;
-				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
-		end
 	in
 	loop_block cb_root RBlock e
