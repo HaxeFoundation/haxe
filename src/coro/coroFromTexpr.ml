@@ -12,6 +12,10 @@ type coro_ret =
 	| RBlock
 	| RMapExpr of coro_ret * (texpr -> texpr)
 
+type map_suspension_result =
+	| HasSuspension
+	| HasNoSuspension of texpr
+
 let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
@@ -112,33 +116,36 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		| _ ->
 			false
 	in
-	(* Returns true if [e] can be safely inlined into the current block without going through
-	   the CFG machinery. Inlining is safe only when [e] contains:
-	   - No suspension calls (@:coroutine function calls)
-	   - No function-level terminators (return / throw)
-	   - No break/continue that would escape [e] (i.e., not enclosed within a TWhile inside [e])
+	let cont = match ctx.typer.g.continuation_api with
+		| Some api -> api
+		| None -> CoroInit.make_continuation_api ctx.typer
+	in
+	(* Traverses [e] and either reports that it contains a suspension call (HasSuspension),
+	   or returns the expression with all coroutine-relevant nodes transformed (HasNoSuspension):
+	   - TReturn / TThrow are rewritten to return an ImmediateSuspensionResult
+	   - TBreak / TContinue are left as-is (they remain valid in the inlined context)
 	   Does not recurse into nested TFunction nodes, as those are separate coroutines. *)
-	let is_inlineable e =
+	let map_suspension e =
 		let exception Found in
-		let rec check loop_depth e = match e.eexpr with
+		let rec remap e = match e.eexpr with
 			| TCall(e1,_) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				raise Found
-			| TReturn _ | TThrow _ ->
-				raise Found
-			| TBreak | TContinue when loop_depth = 0 ->
-				raise Found
-			| TWhile(e1,e2,_) ->
-				(* The condition is checked at the current depth; break/continue there would escape.
-				   The body gets an incremented depth since break/continue inside are contained. *)
-				check loop_depth e1;
-				check (loop_depth + 1) e2
+			| TReturn None ->
+				let eresult = cont.immediate_result (mk (TConst TNull) t_dynamic e.epos) in
+				mk (TReturn (Some eresult)) t_dynamic e.epos
+			| TReturn (Some e1) ->
+				let eresult = cont.immediate_result e1 in
+				mk (TReturn (Some eresult)) t_dynamic e.epos
+			| TThrow e1 ->
+				let eerr = cont.immediate_error e1 t_dynamic in
+				mk (TReturn (Some eerr)) t_dynamic e.epos
 			| TFunction _ ->
-				()
+				e
 			| _ ->
-				Type.iter (check loop_depth) e
+				Type.map_expr remap e
 		in
-		try check 0 e; true
-		with Found -> false
+		try HasNoSuspension (remap e)
+		with Found -> HasSuspension
 	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
@@ -343,25 +350,26 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		| TIf(e1,e2,None) ->
 			let cb = loop cb RValue e1 in
 			Option.map (fun (cb,e1) ->
-				if is_inlineable e2 then begin
-					(* The then-branch has no suspension or bare terminators: keep the whole if as a single expression. *)
-					add_expr cb {e with eexpr = TIf(e1,e2,None)};
+				match map_suspension e2 with
+				| HasNoSuspension e2' ->
+					(* The then-branch has no suspension: keep the whole if inline with transformed terminators. *)
+					add_expr cb {e with eexpr = TIf(e1,e2',None)};
 					cb,e_no_value
-				end else begin
+				| HasSuspension ->
 					let cb_then = block_from_e e2 in
 					let cb_then_next = loop_block cb_then RBlock e2 in
 					let cb_next = make_block None in
 					Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
 					terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
 					cb_next,e_no_value
-				end
 			) cb
 		| TIf(e1,e2,Some e3) ->
-			if is_inlineable e2 && is_inlineable e3 then begin
-				(* Neither branch has suspension or bare terminators: keep the whole if as a single expression. *)
+			begin match map_suspension e2, map_suspension e3 with
+			| HasNoSuspension e2', HasNoSuspension e3' ->
+				(* Neither branch has suspension: keep the whole if inline with transformed terminators. *)
 				let cb = loop cb RValue e1 in
-				Option.map (fun (cb,e1) -> cb,{e with eexpr = TIf(e1,e2,Some e3)}) cb
-			end else begin
+				Option.map (fun (cb,e1) -> cb,{e with eexpr = TIf(e1,e2',Some e3')}) cb
+			| _ ->
 				let e_value,ret = check_complex cb ret e.etype e.epos in
 				let cb = loop cb RValue e1 in
 				begin match cb with
@@ -390,15 +398,32 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				end
 			end
 		| TSwitch switch ->
-			let cases_inlineable =
-				List.for_all (fun case -> is_inlineable case.case_expr) switch.switch_cases &&
-				(match switch.switch_default with Some e -> is_inlineable e | None -> true)
+			let map_switch_cases () =
+				let rec aux acc cases = match cases with
+					| [] ->
+						let def_opt = match switch.switch_default with
+							| None -> Some None
+							| Some e -> match map_suspension e with
+								| HasNoSuspension e' -> Some (Some e')
+								| HasSuspension -> None
+						in
+						Option.map (fun def -> (List.rev acc, def)) def_opt
+					| case :: rest ->
+						match map_suspension case.case_expr with
+						| HasNoSuspension e' -> aux ({case with case_expr = e'} :: acc) rest
+						| HasSuspension -> None
+				in
+				aux [] switch.switch_cases
 			in
-			if cases_inlineable then begin
-				(* No case has suspension or bare terminators: keep the whole switch as a single expression. *)
+			begin match map_switch_cases () with
+			| Some (cases', def') ->
+				(* No case has suspension: keep the whole switch inline with transformed terminators. *)
 				let cb = loop cb RValue switch.switch_subject in
-				Option.map (fun (cb,e1) -> cb,{e with eexpr = TSwitch {switch with switch_subject = e1}}) cb
-			end else begin
+				Option.map (fun (cb,e1) ->
+					let switch' = {switch with switch_subject = e1; switch_cases = cases'; switch_default = def'} in
+					cb,{e with eexpr = TSwitch switch'}
+				) cb
+			| None ->
 				let e_value,ret = check_complex cb ret e.etype e.epos in
 				let e1 = switch.switch_subject in
 				let cb = loop cb RValue e1 in
@@ -440,13 +465,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
-			(* Check the whole expression so that break/continue inside the body are at loop_depth=1
-			   and treated as properly contained within the while. *)
-			if is_inlineable e then begin
-				(* Body has no suspension or bare terminators: keep the whole while as a single expression. *)
-				add_expr cb e;
+			begin match map_suspension e2 with
+			| HasNoSuspension e2' ->
+				(* Body has no suspension: keep the whole while inline with transformed terminators. *)
+				add_expr cb {e with eexpr = TWhile(e1,e2',flag)};
 				Some (cb,e_no_value)
-			end else begin
+			| HasSuspension ->
 				let cb_next = lazy (make_block None) in
 				let cb_body = block_from_e e2 in
 				loop_stack := (cb_body,cb_next) :: !loop_stack;
@@ -458,10 +482,21 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
 			end
 		| TTry(e1,catches) ->
-			if is_inlineable e1 && List.for_all (fun (_,ec) -> is_inlineable ec) catches then begin
-				(* Neither try body nor any catch has suspension or bare terminators: keep as a single expression. *)
-				Some (cb,e)
-			end else begin
+			let map_catches () =
+				let rec aux acc catches = match catches with
+					| [] -> Some (List.rev acc)
+					| (v,e) :: rest ->
+						match map_suspension e with
+						| HasNoSuspension e' -> aux ((v,e') :: acc) rest
+						| HasSuspension -> None
+				in
+				aux [] catches
+			in
+			begin match map_suspension e1, map_catches () with
+			| HasNoSuspension e1', Some catches' ->
+				(* Neither try body nor any catch has suspension: keep inline with transformed terminators. *)
+				Some (cb,{e with eexpr = TTry(e1',catches')})
+			| _ ->
 				let e_value,ret = check_complex cb ret e.etype e.epos in
 				ctx.has_catch <- true;
 				let cb_next = lazy (make_block None) in
