@@ -1,0 +1,30 @@
+steps:
+  - name: Install system dependencies
+    run: |
+      set -ex
+      sudo apt-get update -qqy
+      sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+
+  - name: Initialize opam and install OCaml 5.3.0
+    run: |
+      set -ex
+      opam init -c 5.3.0 --no-setup -y
+      opam switch list
+
+  - name: Install Haxe OCaml dependencies
+    run: |
+      set -ex
+      eval $(opam env)
+      opam pin add haxe . --no-action -y
+      opam install haxe --deps-only --assume-depexts -y
+      opam list
+      ocamlopt -v
+
+  - name: Persist opam environment for subsequent steps
+    run: |
+      set -ex
+      eval $(opam env)
+      echo "$OPAM_SWITCH_PREFIX/bin" >> $GITHUB_PATH
+      echo "OPAM_SWITCH_PREFIX=$OPAM_SWITCH_PREFIX" >> $GITHUB_ENV
+      echo "CAML_LD_LIBRARY_PATH=$CAML_LD_LIBRARY_PATH" >> $GITHUB_ENV
+      echo "OCAML_TOPLEVEL_PATH=$OCAML_TOPLEVEL_PATH" >> $GITHUB_ENV
