@@ -16,7 +16,7 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
+let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in
@@ -116,14 +116,11 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		| _ ->
 			false
 	in
-	let cont = match ctx.typer.g.continuation_api with
-		| Some api -> api
-		| None -> CoroInit.make_continuation_api ctx.typer
-	in
 	(* Traverses [e] and either reports that it contains a suspension call (HasSuspension),
 	   or returns the expression with all coroutine-relevant nodes transformed (HasNoSuspension):
 	   - Suspension calls (TCall with a Coro type) → HasSuspension
-	   - TReturn is rewritten to return an ImmediateSuspensionResult
+	   - TReturn None → make_inline_return None (sets gotoLabel=-1, state=Returned, returns continuation)
+	   - TReturn (Some e1) → make_inline_return (Some e1) (same, also sets result=e1)
 	   - TThrow → HasSuspension (too complex to inline for now)
 	   - TBreak / TContinue at loop_depth=0 → HasSuspension (would escape the inlined expression)
 	   - TWhile increments loop_depth so break/continue inside the body are treated as contained
@@ -134,17 +131,13 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 			| TCall(e1,_) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				raise Found
 			| TReturn None ->
-				let eresult = cont.immediate_result (mk (TConst TNull) t_dynamic e.epos) in
-				mk (TReturn (Some eresult)) t_dynamic e.epos
+				make_inline_return None e.epos
 			| TReturn (Some e1) ->
 				let e1 = remap loop_depth e1 in
-				let eresult = cont.immediate_result e1 in
-				mk (TReturn (Some eresult)) t_dynamic e.epos
-			| TThrow e1 ->
+				make_inline_return (Some e1) e.epos
+			| TThrow _ ->
 				(* TODO: too much of a special case for now, let's bail until the rest works *)
 				raise Found
-				(* let eerr = cont.immediate_error e1 t_dynamic in
-				mk (TReturn (Some eerr)) t_dynamic e.epos *)
 			| TBreak | TContinue when loop_depth = 0 ->
 				(* Breaking or continuing while we're in block mode means we need to stay in block mode *)
 				raise Found

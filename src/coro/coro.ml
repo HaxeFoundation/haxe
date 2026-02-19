@@ -338,131 +338,6 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	] in
 	b#void_block el
 
-let coro_to_normal ctx cont coro_class cb_root exprs vcontinuation =
-	let open ContinuationClassBuilder in
-	let open CoroToTexpr in
-	let basic = ctx.typer.t in
-	let b = ctx.builder in
-	create_continuation_class ctx cont coro_class 0;
-	let rec loop cb previous_el =
-		let bad_pos = coro_class.name_pos in
-		let loop cb el =
-			if not (has_block_flag cb CbGenerated) then begin
-				add_block_flag cb CbGenerated;
-				loop cb el
-			end else
-				el,false
-		in
-		let loop_as_block cb =
-			let el,term = loop cb [] in
-			b#void_block el,term
-		in
-		let current_el = ref (previous_el @ (get_block_exprs cb)) in
-		let continue cb_next e =
-			loop cb_next (!current_el @ [e])
-		in
-		let maybe_continue cb_next term e = match cb_next with
-			| Some cb_next when not term ->
-				continue cb_next e
-			| _ ->
-				(!current_el @ [e]),true
-		in
-		let add e = current_el := !current_el @ [e] in
-		let terminate e =
-			add e;
-			!current_el,true
-		in
-		begin match cb.cb_next with
-			| NextSub(cb_sub,cb_next) ->
-				let e_next,term = loop_as_block cb_sub in
-				maybe_continue cb_next term e_next
-			| NextReturn e1 ->
-				let e1 = coro_class.continuation_api.immediate_result e1 in
-				terminate (b#return e1);
-			| NextThrow e1 ->
-				let e1 = coro_class.continuation_api.immediate_error e1 coro_class.inside.result_type in
-				terminate (b#return e1);
-			| NextUnknown | NextReturnVoid ->
-				let e1 = coro_class.continuation_api.immediate_result (b#null t_dynamic coro_class.name_pos) in
-				terminate (b#return e1);
-			| NextBreak _ ->
-				terminate (b#break bad_pos);
-			| NextContinue _ ->
-				terminate (b#continue bad_pos);
-			| NextIfThen(e1,cb_then,cb_next) ->
-				let e_then,_ = loop_as_block cb_then in
-				let e_if = b#if_then e1 e_then in
-				continue cb_next e_if
-			| NextIfThenElse(e1,cb_then,cb_else,cb_next) ->
-				let e_then,term_then = loop_as_block cb_then in
-				let e_else,term_else = loop_as_block cb_else in
-				let e_if = b#if_then_else e1 e_then e_else basic.tvoid in
-				maybe_continue cb_next (term_then && term_else) e_if
-			| NextSwitch(switch,cb_next) ->
-				let term = ref true in
-				let p = ref switch.cs_subject.epos in
-				let switch_cases = List.map (fun (el,cb) ->
-					let e,term' = loop_as_block cb in
-					term := !term && term';
-					p := Ast.punion !p e.epos;
-					{
-						case_patterns = el;
-						case_expr = e;
-					}
-				) switch.cs_cases in
-				let switch_default = Option.map (fun cb ->
-					let e,term' = loop_as_block cb in
-					p := Ast.punion !p e.epos;
-					term := !term && term';
-					e
-				) switch.cs_default in
-				let switch = {
-					switch_subject = switch.cs_subject;
-					switch_cases;
-					switch_default;
-					switch_exhaustive = switch.cs_exhaustive
-				} in
-				maybe_continue cb_next (switch.switch_exhaustive && !term) (mk (TSwitch switch) basic.tvoid !p)
-			| NextWhile(e1,cb_body,cb_next) ->
-				let e_body,_ = loop_as_block cb_body in
-				let e_while = mk (TWhile(e1,e_body,NormalWhile)) basic.tvoid (Ast.punion e1.epos e_body.epos) in
-				maybe_continue cb_next false e_while
-			| NextTry(cb_try,catches,cb_next) ->
-				let e_try,term = loop_as_block cb_try in
-				let p = ref e_try.epos in
-				let term = ref term in
-				let catches = List.map (fun (v,cb) ->
-					let e,term' = loop_as_block cb in
-					p := Ast.punion !p e.epos;
-					term := !term && term';
-					(v,e)
-				) catches.cc_catches in
-				let e_try = mk (TTry(e_try,catches)) basic.tvoid !p in
-				maybe_continue cb_next !term e_try
-			| NextFallThrough _ | NextGoto _ ->
-				!current_el,false
-			| NextSuspend(suspend,cb_next) ->
-				let e_sus = CoroToTexpr.make_suspending_call basic cont suspend {exprs.ecompletion with epos = suspend.cs_pos} in
-				add (mk (TReturn (Some e_sus)) t_dynamic e_sus.epos);
-				!current_el,true
-		end
-	in
-	let el,_ = loop cb_root [] in
-	let e = b#void_block el in
-	let e = if ctx.nothrow then
-		e
-	else begin
-		let catch =
-			let v = alloc_var VGenerated "e" t_dynamic e.epos in
-			let ev = b#local v e.epos in
-			let eerr = coro_class.continuation_api.immediate_error ev coro_class.inside.result_type in
-			let eret = b#return eerr in
-			(v,eret)
-		in
-		mk (TTry(e,[catch])) basic.tvoid e.epos
-	end in
-	b#void_block [e]
-
 let fun_to_coro ctx coro_type =
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
@@ -517,7 +392,19 @@ let fun_to_coro ctx coro_type =
 		| _ ->
 			None
 	in
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope expr);
+	let make_inline_return e1_opt pos =
+		let stmts = [
+			b#assign egoto (b#int (-1) pos);
+			b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
+		] in
+		let stmts = match e1_opt with
+			| None -> stmts
+			| Some e1 -> stmts @ [b#assign eresult e1]
+		in
+		let stmts = stmts @ [b#return econtinuation] in
+		mk (TBlock stmts) t_dynamic pos
+	in
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return expr);
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
 		let field, eargs =
