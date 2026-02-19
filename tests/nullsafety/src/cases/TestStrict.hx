@@ -1565,4 +1565,23 @@ class BinopFlow {
 			return x;
 		});
 	}
+
+	// Test for issue: explicit Null<T> type should remain nullable even when assigned non-null value
+	static function explicitNullType_methodChain_shouldFail() {
+		// Helper class to simulate the issue
+		class Helper {
+			public var field:String;
+			public function new() { field = "test"; }
+			public static function create():Helper {
+				return new Helper();
+			}
+			public function get<T>(cls:Class<T>):T {
+				return cast new Helper();
+			}
+		}
+		
+		// This should fail: accessing field on explicitly Null<T> typed variable
+		var obj:Null<Helper> = Helper.create().get(Helper);
+		shouldFail(obj.field);
+	}
 }
