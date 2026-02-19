@@ -122,8 +122,11 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 	in
 	(* Traverses [e] and either reports that it contains a suspension call (HasSuspension),
 	   or returns the expression with all coroutine-relevant nodes transformed (HasNoSuspension):
-	   - TReturn / TThrow are rewritten to return an ImmediateSuspensionResult
-	   - TBreak / TContinue are left as-is (they remain valid in the inlined context)
+	   - Suspension calls (TCall with a Coro type) → HasSuspension
+	   - TReturn is rewritten to return an ImmediateSuspensionResult
+	   - TThrow → HasSuspension (too complex to inline for now)
+	   - TBreak / TContinue at loop_depth=0 → HasSuspension (would escape the inlined expression)
+	   - TWhile increments loop_depth so break/continue inside the body are treated as contained
 	   Does not recurse into nested TFunction nodes, as those are separate coroutines. *)
 	let map_suspension e =
 		let exception Found in
