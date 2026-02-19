@@ -167,30 +167,36 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| TBlock [e1] ->
 			loop cb ret e1
 		| TBlock el ->
-			let cb_sub = block_from_e e in
-			let ret = match ret,el with
-				| RValue,_ :: _ ->
-					(*
-					   If we have a multi-element block in a value-place we might need a temp var
-					   because the result expression might reference local variables declared in
-					   that block (https://github.com/Aidan63/haxe/issues/79).
-					*)
-					let v = tmp_local cb e.etype None e.epos in
-					RLocal v
-				| _ ->
-					ret
-			in
-			let sub_next = loop_block cb_sub ret e in
-			let cb_next = match sub_next with
-				| None ->
-					None
-				| Some (cb_sub_next,e1) ->
-					let cb_next = make_block None in
-					fall_through cb_sub_next cb_next;
-					Some (cb_next,e1)
-			in
-			terminate cb (NextSub(cb_sub,Option.map fst cb_next)) e.etype e.epos;
-			cb_next
+			begin match map_suspension e with
+			| HasNoSuspension e' ->
+				(* No suspension in any sub-expression: inline the block without creating a NextSub CFG node. *)
+				Some (cb, e')
+			| HasSuspension ->
+				let cb_sub = block_from_e e in
+				let ret = match ret,el with
+					| RValue,_ :: _ ->
+						(*
+						   If we have a multi-element block in a value-place we might need a temp var
+						   because the result expression might reference local variables declared in
+						   that block (https://github.com/Aidan63/haxe/issues/79).
+						*)
+						let v = tmp_local cb e.etype None e.epos in
+						RLocal v
+					| _ ->
+						ret
+				in
+				let sub_next = loop_block cb_sub ret e in
+				let cb_next = match sub_next with
+					| None ->
+						None
+					| Some (cb_sub_next,e1) ->
+						let cb_next = make_block None in
+						fall_through cb_sub_next cb_next;
+						Some (cb_next,e1)
+				in
+				terminate cb (NextSub(cb_sub,Option.map fst cb_next)) e.etype e.epos;
+				cb_next
+			end
 		| TArray(e1,e2) ->
 			let cb = ordered_loop cb [e1;e2] in
 			Option.map (fun (cb,el) -> match el with
