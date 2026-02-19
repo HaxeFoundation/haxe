@@ -38,7 +38,6 @@ private enum MyEnum {
 	Value(arr:Array<Int>);
 }
 
-// Main test class
 class Issue9990 extends Test {
 	function checkArray(array:Array<Int>) {
 		eq(10, array[0]);
