@@ -13,6 +13,17 @@ class TestClassWithAnon {
 	public var a:Null<{b:Null<Int>}> = cast null;
 }
 
+class ExplicitNullTypeHelper {
+	public var field:String;
+	public function new() { this.field = "test"; }
+	public static function create():ExplicitNullTypeHelper {
+		return new ExplicitNullTypeHelper();
+	}
+	public function get<T>(cls:Class<T>):Null<T> {
+		return cast new ExplicitNullTypeHelper();
+	}
+}
+
 abstract AWrap<T>(T) from T to T {
 	function abstracts_shouldBeChecked(?a:String) {
 		shouldFail(var s:String = a);
@@ -47,6 +58,17 @@ typedef ObjWithField = {
 typedef AnonDefaultNever = {
 	var name(default, never):String;
 	var version(default, never):String;
+}
+
+class ExplicitNullTypeHelper {
+	public var field:String;
+	public function new() { field = "test"; }
+	public static function create():ExplicitNullTypeHelper {
+		return new ExplicitNullTypeHelper();
+	}
+	public function get<T>(cls:Class<T>):T {
+		return cast new ExplicitNullTypeHelper();
+	}
 }
 
 /** Test `@:nullSafety(Off)` is respected on fields */
@@ -1568,20 +1590,8 @@ class BinopFlow {
 
 	// Test for issue: explicit Null<T> type should remain nullable even when assigned non-null value
 	static function explicitNullType_methodChain_shouldFail() {
-		// Helper class to simulate the issue
-		class Helper {
-			public var field:String;
-			public function new() { field = "test"; }
-			public static function create():Helper {
-				return new Helper();
-			}
-			public function get<T>(cls:Class<T>):T {
-				return cast new Helper();
-			}
-		}
-		
 		// This should fail: accessing field on explicitly Null<T> typed variable
-		var obj:Null<Helper> = Helper.create().get(Helper);
+		var obj:Null<ExplicitNullTypeHelper> = ExplicitNullTypeHelper.create().get(ExplicitNullTypeHelper);
 		shouldFail(obj.field);
 	}
 }
