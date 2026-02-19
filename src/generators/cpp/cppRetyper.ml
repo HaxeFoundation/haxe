@@ -1130,12 +1130,10 @@ let expression ctx request_type function_args function_type expression_tree forI
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               (retyper_ctx, CppCall (func, retypedArgs), returnType)
             | CppEnumField (enum, field) ->
-              (* TODO - proper re-typing *)
               let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               ( retyper_ctx, CppCall (FuncEnumConstruct (enum, field), retypedArgs), cppType )
             | CppSuper _ ->
-              (* TODO - proper re-typing *)
               let arg_types = List.map (fun a -> cpp_type_of a.etype) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               ( retyper_ctx, CppCall (FuncSuperConstruct retypedFunc.cpptype, retypedArgs), TCppVoid )
