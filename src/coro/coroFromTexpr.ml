@@ -112,6 +112,21 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		| _ ->
 			false
 	in
+	(* Returns true if [e] contains any suspension call (i.e. a call to a @:coroutine function).
+	   Does not recurse into nested TFunction nodes, as those are separate coroutines. *)
+	let has_suspension e =
+		let exception Found in
+		let rec check e = match e.eexpr with
+			| TCall(e1,_) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
+				raise Found
+			| TFunction _ ->
+				()
+			| _ ->
+				Type.iter check e
+		in
+		try check e; false
+		with Found -> true
+	in
 	let loop_stack = ref [] in
 	let rec loop cb ret e = match e.eexpr with
 		(* special cases *)
@@ -315,122 +330,155 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 		| TIf(e1,e2,None) ->
 			let cb = loop cb RValue e1 in
 			Option.map (fun (cb,e1) ->
-				let cb_then = block_from_e e2 in
-				let cb_then_next = loop_block cb_then RBlock e2 in
-				let cb_next = make_block None in
-				Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
-				terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
-				cb_next,e_no_value
+				if not (has_suspension e2) then begin
+					(* The then-branch has no suspension: keep the whole if as a single expression. *)
+					add_expr cb {e with eexpr = TIf(e1,e2,None)};
+					cb,e_no_value
+				end else begin
+					let cb_then = block_from_e e2 in
+					let cb_then_next = loop_block cb_then RBlock e2 in
+					let cb_next = make_block None in
+					Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
+					terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
+					cb_next,e_no_value
+				end
 			) cb
 		| TIf(e1,e2,Some e3) ->
-			let e_value,ret = check_complex cb ret e.etype e.epos in
-			let cb = loop cb RValue e1 in
-			begin match cb with
-				| None ->
-					None
-				| Some(cb,e1) ->
-					let cb_then = block_from_e e2 in
-					let cb_then_next = loop_block cb_then ret e2 in
-					let cb_else = block_from_e e3 in
-					let cb_else_next = loop_block cb_else ret e3 in
-					let cb_next = match cb_then_next,cb_else_next with
-						| Some (cb_then_next,_),Some(cb_else_next,_) ->
-							let cb_next = make_block None in
-							fall_through cb_then_next cb_next;
-							fall_through cb_else_next cb_next;
-							Some cb_next
-						| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
-							let cb_next = make_block None in
-							fall_through cb_branch_next cb_next;
-							Some cb_next
-						| None,None ->
-							None
-					in
-					terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
-					Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			if not (has_suspension e2) && not (has_suspension e3) then begin
+				(* Neither branch has suspension: keep the whole if as a single expression. *)
+				let cb = loop cb RValue e1 in
+				Option.map (fun (cb,e1) -> cb,{e with eexpr = TIf(e1,e2,Some e3)}) cb
+			end else begin
+				let e_value,ret = check_complex cb ret e.etype e.epos in
+				let cb = loop cb RValue e1 in
+				begin match cb with
+					| None ->
+						None
+					| Some(cb,e1) ->
+						let cb_then = block_from_e e2 in
+						let cb_then_next = loop_block cb_then ret e2 in
+						let cb_else = block_from_e e3 in
+						let cb_else_next = loop_block cb_else ret e3 in
+						let cb_next = match cb_then_next,cb_else_next with
+							| Some (cb_then_next,_),Some(cb_else_next,_) ->
+								let cb_next = make_block None in
+								fall_through cb_then_next cb_next;
+								fall_through cb_else_next cb_next;
+								Some cb_next
+							| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
+								let cb_next = make_block None in
+								fall_through cb_branch_next cb_next;
+								Some cb_next
+							| None,None ->
+								None
+						in
+						terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
+						Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+				end
 			end
 		| TSwitch switch ->
-			let e_value,ret = check_complex cb ret e.etype e.epos in
-			let e1 = switch.switch_subject in
-			let cb = loop cb RValue e1 in
-			begin match cb with
-				| None ->
-					None
-				| Some(cb,e1) ->
-					let cb_next = lazy (make_block None) in
-					let cases = List.map (fun case ->
-						let cb_case = block_from_e case.case_expr in
-						let cb_case_next = loop_block cb_case ret case.case_expr in
-						Option.may (fun (cb_case_next,_) ->
-							fall_through cb_case_next (Lazy.force cb_next);
-						) cb_case_next;
-						(case.case_patterns,cb_case)
-					) switch.switch_cases in
-					let def = match switch.switch_default with
-						| None ->
-							None
-						| Some e ->
-							let cb_default = block_from_e e in
-							let cb_default_next = loop_block cb_default ret e in
-							Option.may (fun (cb_default_next,_) ->
-								fall_through cb_default_next (Lazy.force cb_next);
-							) cb_default_next;
-							Some cb_default
-					in
-					let switch = {
-						cs_subject = e1;
-						cs_cases = cases;
-						cs_default = def;
-						cs_exhaustive = switch.switch_exhaustive
-					} in
-					let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
-					terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
-					Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			let cases_have_suspension =
+				List.exists (fun case -> has_suspension case.case_expr) switch.switch_cases ||
+				(match switch.switch_default with Some e -> has_suspension e | None -> false)
+			in
+			if not cases_have_suspension then begin
+				(* No case has suspension: keep the whole switch as a single expression. *)
+				let cb = loop cb RValue switch.switch_subject in
+				Option.map (fun (cb,e1) -> cb,{e with eexpr = TSwitch {switch with switch_subject = e1}}) cb
+			end else begin
+				let e_value,ret = check_complex cb ret e.etype e.epos in
+				let e1 = switch.switch_subject in
+				let cb = loop cb RValue e1 in
+				begin match cb with
+					| None ->
+						None
+					| Some(cb,e1) ->
+						let cb_next = lazy (make_block None) in
+						let cases = List.map (fun case ->
+							let cb_case = block_from_e case.case_expr in
+							let cb_case_next = loop_block cb_case ret case.case_expr in
+							Option.may (fun (cb_case_next,_) ->
+								fall_through cb_case_next (Lazy.force cb_next);
+							) cb_case_next;
+							(case.case_patterns,cb_case)
+						) switch.switch_cases in
+						let def = match switch.switch_default with
+							| None ->
+								None
+							| Some e ->
+								let cb_default = block_from_e e in
+								let cb_default_next = loop_block cb_default ret e in
+								Option.may (fun (cb_default_next,_) ->
+									fall_through cb_default_next (Lazy.force cb_next);
+								) cb_default_next;
+								Some cb_default
+						in
+						let switch = {
+							cs_subject = e1;
+							cs_cases = cases;
+							cs_default = def;
+							cs_exhaustive = switch.switch_exhaustive
+						} in
+						let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
+						terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
+						Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+				end
 			end
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
-			let cb_next = lazy (make_block None) in
-			let cb_body = block_from_e e2 in
-			loop_stack := (cb_body,cb_next) :: !loop_stack;
-			let cb_body_next = loop_block cb_body RBlock e2 in
-			Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
-			loop_stack := List.tl !loop_stack;
-			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
-			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
-			Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+			if not (has_suspension e2) then begin
+				(* Body has no suspension: keep the whole while as a single expression. *)
+				add_expr cb e;
+				Some (cb,e_no_value)
+			end else begin
+				let cb_next = lazy (make_block None) in
+				let cb_body = block_from_e e2 in
+				loop_stack := (cb_body,cb_next) :: !loop_stack;
+				let cb_body_next = loop_block cb_body RBlock e2 in
+				Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
+				loop_stack := List.tl !loop_stack;
+				let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+				terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
+				Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+			end
 		| TTry(e1,catches) ->
-			let e_value,ret = check_complex cb ret e.etype e.epos in
-			ctx.has_catch <- true;
-			let cb_next = lazy (make_block None) in
-			let catches = List.map (fun (v,e) ->
-				let cb_catch = block_from_e e in
-				add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
-				let cb_catch_next = loop_block cb_catch ret e in
-				Option.may (fun (cb_catch_next,_) ->
-					fall_through cb_catch_next (Lazy.force cb_next);
-				) cb_catch_next;
-				v,cb_catch
-			) catches in
-			let catch = make_block None in
-			(* This block is handled in a special way in the texpr transformer, let's mark it as
-			   already generated so we don't generate it twice. *)
-			add_block_flag catch CbGenerated;
-			let old = ctx.current_catch in
-			ctx.current_catch <- Some catch;
-			let catch = {
-				cc_cb = catch;
-				cc_catches = catches;
-			} in
-			let cb_try = block_from_e e1 in
-			let cb_try_next = loop_block cb_try ret e1 in
-			ctx.current_catch <- old;
-			Option.may (fun (cb_try_next,_) ->
-				fall_through cb_try_next (Lazy.force cb_next)
-			) cb_try_next;
-			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
-			terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
-			Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			if not (has_suspension e1) && not (List.exists (fun (_,e) -> has_suspension e) catches) then begin
+				(* Neither try body nor any catch has suspension: keep as a single expression. *)
+				Some (cb,e)
+			end else begin
+				let e_value,ret = check_complex cb ret e.etype e.epos in
+				ctx.has_catch <- true;
+				let cb_next = lazy (make_block None) in
+				let catches = List.map (fun (v,e) ->
+					let cb_catch = block_from_e e in
+					add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
+					let cb_catch_next = loop_block cb_catch ret e in
+					Option.may (fun (cb_catch_next,_) ->
+						fall_through cb_catch_next (Lazy.force cb_next);
+					) cb_catch_next;
+					v,cb_catch
+				) catches in
+				let catch = make_block None in
+				(* This block is handled in a special way in the texpr transformer, let's mark it as
+				   already generated so we don't generate it twice. *)
+				add_block_flag catch CbGenerated;
+				let old = ctx.current_catch in
+				ctx.current_catch <- Some catch;
+				let catch = {
+					cc_cb = catch;
+					cc_catches = catches;
+				} in
+				let cb_try = block_from_e e1 in
+				let cb_try_next = loop_block cb_try ret e1 in
+				ctx.current_catch <- old;
+				Option.may (fun (cb_try_next,_) ->
+					fall_through cb_try_next (Lazy.force cb_next)
+				) cb_try_next;
+				let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+				terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
+				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			end
 		| TFunction tf ->
 			Some (cb,e)
 	and ordered_loop cb el =
@@ -505,91 +553,3 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				aux' cb el
 	in
 	loop_block cb_root RBlock e
-
-let optimize_cfg ctx cb =
-	let forward_el cb_from cb_to =
-		if DynArray.length cb_from.cb_el > 0 then begin
-			if DynArray.length cb_to.cb_el = 0 then begin
-				DynArray.iter (fun e -> DynArray.add cb_to.cb_el e) cb_from.cb_el
-			end else begin
-				let e = mk (TBlock (DynArray.to_list cb_from.cb_el)) ctx.typer.t.tvoid null_pos in
-				DynArray.set cb_to.cb_el 0 (concat e (DynArray.get cb_to.cb_el 0))
-			end
-		end
-	in
-	(* first pass: find empty blocks and store their replacement*)
-	let forward = Array.make ctx.next_block_id None in
-	let rec loop cb =
-		if not (has_block_flag cb CbEmptyMarked) then begin
-			add_block_flag cb CbEmptyMarked;
-			match cb.cb_next with
-			| NextSub(cb_sub,None) ->
-				loop cb_sub;
-				forward_el cb cb_sub;
-				if has_block_flag cb CbResumeState then add_block_flag cb_sub CbResumeState;
-				forward.(cb.cb_id) <- Some cb_sub
-			| NextFallThrough cb_next | NextGoto cb_next when DynArray.empty cb.cb_el && not (has_block_flag cb CbResumeState) ->
-				loop cb_next;
-				forward.(cb.cb_id) <- Some cb_next
-			| _ ->
-				coro_iter loop cb
-		end
-	in
-	loop cb;
-	(* second pass: map graph to skip forwarding block *)
-	let rec loop cb = match forward.(cb.cb_id) with
-		| Some cb ->
-			loop cb
-		| None ->
-			if not (has_block_flag cb CbForwardMarked) then begin
-				add_block_flag cb CbForwardMarked;
-				coro_next_map loop cb;
-			end;
-			cb
-	in
-	let cb = loop cb in
-	let is_empty_termination_block cb = match cb with
-		| None ->
-			true
-		| Some cb ->
-			DynArray.empty cb.cb_el && match cb.cb_next with
-				| NextReturnVoid | NextUnknown ->
-					true
-				| _ ->
-					false
-	in
-	let rec loop cb =
-		if not (has_block_flag cb CbTcoChecked) then begin
-			add_block_flag cb CbTcoChecked;
-			begin match cb.cb_next with
-			| NextSuspend(_,cb_next) ->
-				if not (is_empty_termination_block cb_next) then
-					raise Exit;
-			| _ ->
-				()
-			end;
-			coro_iter loop cb;
-		end
-	in
-	if ctx.allow_tco && not ctx.has_catch then
-		(try loop cb; raise (CoroTco cb) with Exit -> ());
-	(* third pass: reindex cb_id for tighter switches. Breadth-first because that makes the numbering more natural, maybe. *)
-	let i = ref 0 in
-	let queue = Queue.create () in
-	Queue.push cb queue;
-	let rec loop () =
-		if not (Queue.is_empty queue) then begin
-			let cb = Queue.pop queue in
-			if not (has_block_flag cb CbReindexed) then begin
-				add_block_flag cb CbReindexed;
-				cb.cb_id <- !i;
-				incr i;
-				coro_iter (fun cb -> Queue.add cb queue) cb;
-				Option.may (fun cb -> Queue.add cb queue) cb.cb_catch;
-			end;
-			loop ()
-		end
-	in
-	loop ();
-	ctx.next_block_id <- !i;
-	cb

@@ -552,12 +552,7 @@ let fun_to_coro ctx coro_type =
 			mk (TCall(ef,[e])) basic.tvoid coro_class.name_pos
 		)
 	in
-	let tf_expr,cb_root = try
-		let cb_root = if ctx.optimize then CoroFromTexpr.optimize_cfg ctx cb_root else cb_root in
-		coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation stack_item_inserter start_exception, cb_root
-	with CoroTco cb_root ->
-		coro_to_normal ctx cont coro_class cb_root exprs vcontinuation,cb_root
-	in
+	let tf_expr = coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation stack_item_inserter start_exception in
 
 	let tf_args = (vcompletion,None) :: args in
 	(* I'm not sure what this should be, but let's stick to the widest one for now.
@@ -573,15 +568,11 @@ let fun_to_coro ctx coro_type =
 	e
 
 let create_coro_context typer meta =
-	(* let optimize = not (Define.raw_defined typer.Typecore.com.defines "coroutine.noopt") in *)
-	let optimize = false in
 	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t in
 	let ctx = {
 		builder;
 		typer;
 		coro_debug = Meta.has (Meta.Custom ":coroutine.debug") meta;
-		optimize;
-		allow_tco = optimize && not (Meta.has (Meta.Custom ":coroutine.notco") meta);
 		nothrow = Meta.has (Meta.Custom ":coroutine.nothrow") meta;
 		vthis = None;
 		next_block_id = 0;
