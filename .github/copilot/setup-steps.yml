@@ -1,3 +1,7 @@
+env:
+  OCAML_VERSION: 5.3.0
+  OPAMYES: 1
+
 steps:
   - name: Install system dependencies
     run: |
@@ -5,18 +9,20 @@ steps:
       sudo apt-get update -qqy
       sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
 
-  - name: Initialize opam and install OCaml 5.3.0
-    run: |
-      set -ex
-      opam init -c 5.3.0 --no-setup -y
-      opam switch list
+  - name: Cache opam
+    id: cache-opam
+    uses: actions/cache@v4
+    with:
+      path: ~/.opam/
+      key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-  - name: Install Haxe OCaml dependencies
+  - name: Initialize opam and install OCaml ${{ env.OCAML_VERSION }}
+    if: steps.cache-opam.outputs.cache-hit != 'true'
     run: |
       set -ex
-      eval $(opam env)
-      opam pin add haxe . --no-action -y
-      opam install haxe --deps-only --assume-depexts -y
+      opam init -c ${{ env.OCAML_VERSION }} --no-setup
+      opam pin add haxe . --no-action
+      opam install haxe --deps-only --assume-depexts
       opam list
       ocamlopt -v
 
