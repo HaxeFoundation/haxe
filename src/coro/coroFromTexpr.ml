@@ -127,7 +127,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 	   Does not recurse into nested TFunction nodes, as those are separate coroutines. *)
 	let map_suspension e =
 		let exception Found in
-		let rec remap e = match e.eexpr with
+		let rec remap loop_depth e = match e.eexpr with
 			| TCall(e1,_) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				raise Found
 			| TReturn None ->
@@ -137,14 +137,23 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope e =
 				let eresult = cont.immediate_result e1 in
 				mk (TReturn (Some eresult)) t_dynamic e.epos
 			| TThrow e1 ->
-				let eerr = cont.immediate_error e1 t_dynamic in
-				mk (TReturn (Some eerr)) t_dynamic e.epos
+				(* TODO: too much of a special case for now, let's bail until the rest works *)
+				raise Found
+				(* let eerr = cont.immediate_error e1 t_dynamic in
+				mk (TReturn (Some eerr)) t_dynamic e.epos *)
+			| TBreak | TContinue when loop_depth = 0 ->
+				(* Breaking or continuing while we're in block mode means we need to stay in block mode *)
+				raise Found
+			| TWhile(e1,e2,flag) ->
+				let e1 = remap loop_depth e1 in
+				let e2 = remap (loop_depth + 1) e2 in
+				{e with eexpr = TWhile(e1,e2,flag)}
 			| TFunction _ ->
 				e
 			| _ ->
-				Type.map_expr remap e
+				Type.map_expr (remap loop_depth) e
 		in
-		try HasNoSuspension (remap e)
+		try HasNoSuspension (remap 0 e)
 		with Found -> HasSuspension
 	in
 	let loop_stack = ref [] in
