@@ -112,7 +112,7 @@ class Issue9990 extends Test {
 	}
 
 	function testObjectDeclaration() {
-		var obj = {
+		final obj = {
 			value: wrap([10, 20, 30])
 		};
 		// The generator always converts to Array<Int> on dynamic field access
