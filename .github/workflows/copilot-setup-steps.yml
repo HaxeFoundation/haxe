@@ -68,7 +68,7 @@ jobs:
           set -ex
           eval $(opam env)
           opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
-          opam config exec -- make -s haxelib
+          opam config exec -- make haxelib
           make -s package_unix
           ls -l out
           ldd -v ./haxe
