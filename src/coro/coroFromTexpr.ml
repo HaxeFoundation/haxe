@@ -11,6 +11,7 @@ type coro_ret =
 	| RValue
 	| RBlock
 	| RMapExpr of coro_ret * (texpr -> texpr)
+	| RTail of coro_ret
 
 type map_suspension_result =
 	| HasSuspension
@@ -252,56 +253,87 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			cb
 		(* calls *)
 		| TCall(e1,el) ->
-			let cb = ordered_loop cb (e1 :: el) in
-			Option.map (fun (cb,el) ->
+			let cb_opt = ordered_loop cb (e1 :: el) in
+			begin match cb_opt with
+			| None ->
+				None
+			| Some (cb,el) ->
 				begin match el with
 					| e1 :: el ->
 						begin match follow_with_coro e1.etype with
 						| Coro (args,_) ->
 							if not (scope_allows_suspension_call_on e1 args el) then
 								Common.display_error ctx.typer.com "Invalid suspension call in restricted suspension scope" e.epos;
-							let cb_next = block_from_e e1 in
-							add_block_flag cb_next CbResumeState;
-							add_block_flag cb CbSuspendState;
-							let eres,res = match ret with
-							| RValue ->
-								let v = tmp_local cb e.etype None e.epos in
-								let ev = Texpr.Builder.make_local v v.v_pos in
-								cb_next.cb_stack_value <- Some ev;
-								ev,SusResult
-							| RTerminate _ | RMapExpr _ | RLocal _ ->
-								etmp_result,SusResult
-							| RBlock ->
-								e_no_value,SusBlock
-							in
-							let might_be_affected,collect_modified_locals = OptimizerTexpr.create_affection_checker() in
-							(* Because of hoisting requirements, we want to temp var anything that has a side-effect
-							   or could be affected by one. *)
-							let el = List.map (fun e ->
-								let has_side_effect = has_side_effect e in
-								let might_be_affected = might_be_affected e in
-								if has_side_effect then collect_modified_locals e;
-								if has_side_effect || might_be_affected then begin
-									let v = tmp_local cb e.etype (Some e) e.epos in
-									Texpr.Builder.make_local v v.v_pos
-								end else
-									e
-							) el in
-							let suspend = {
-								cs_fun = e1;
-								cs_args = el;
-								cs_pos = e.epos;
-								cs_result = res;
-							} in
-							terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
-							cb_next,eres
+							let is_tail_call = match ret with RTail _ -> true | _ -> false in
+							if is_tail_call && cb.cb_catch = None then begin
+								(* Tail-call optimization: pass the incoming completion directly to the callee,
+								   skipping the creation of a resume state in this coroutine. *)
+								let might_be_affected,collect_modified_locals = OptimizerTexpr.create_affection_checker() in
+								let el = List.map (fun e ->
+									let has_side_effect = has_side_effect e in
+									let might_be_affected = might_be_affected e in
+									if has_side_effect then collect_modified_locals e;
+									if has_side_effect || might_be_affected then begin
+										let v = tmp_local cb e.etype (Some e) e.epos in
+										Texpr.Builder.make_local v v.v_pos
+									end else
+										e
+								) el in
+								let suspend = {
+									cs_fun = e1;
+									cs_args = el;
+									cs_pos = e.epos;
+									cs_result = SusBlock;
+									cs_tail = true;
+								} in
+								terminate cb (NextSuspend(suspend,None)) t_dynamic null_pos;
+								None
+							end else begin
+								let effective_ret = match ret with RTail fallback -> fallback | _ -> ret in
+								let cb_next = block_from_e e1 in
+								add_block_flag cb_next CbResumeState;
+								add_block_flag cb CbSuspendState;
+								let eres,res = match effective_ret with
+								| RValue ->
+									let v = tmp_local cb e.etype None e.epos in
+									let ev = Texpr.Builder.make_local v v.v_pos in
+									cb_next.cb_stack_value <- Some ev;
+									ev,SusResult
+								| RBlock ->
+									e_no_value,SusBlock
+								| RTerminate _ | RMapExpr _ | RLocal _ | RTail _ ->
+									etmp_result,SusResult
+								in
+								let might_be_affected,collect_modified_locals = OptimizerTexpr.create_affection_checker() in
+								(* Because of hoisting requirements, we want to temp var anything that has a side-effect
+								   or could be affected by one. *)
+								let el = List.map (fun e ->
+									let has_side_effect = has_side_effect e in
+									let might_be_affected = might_be_affected e in
+									if has_side_effect then collect_modified_locals e;
+									if has_side_effect || might_be_affected then begin
+										let v = tmp_local cb e.etype (Some e) e.epos in
+										Texpr.Builder.make_local v v.v_pos
+									end else
+										e
+								) el in
+								let suspend = {
+									cs_fun = e1;
+									cs_args = el;
+									cs_pos = e.epos;
+									cs_result = res;
+									cs_tail = false;
+								} in
+								terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
+								Some(cb_next,eres)
+							end
 						| _ ->
-							cb,{e with eexpr = TCall(e1,el)}
+							Some(cb,{e with eexpr = TCall(e1,el)})
 						end
 					| [] ->
 						die "" __LOC__
 				end
-			) cb
+			end
 		(* terminators *)
 		| TBreak ->
 			begin match !loop_stack with
@@ -328,7 +360,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			let f_terminate cb e1 =
 				terminate cb (NextReturn e1) e.etype e.epos;
 			in
-			let ret = RTerminate f_terminate in
+			let ret = RTail (RTerminate f_terminate) in
 			let cb_ret = loop_assign cb ret e1 in
 			Option.may (fun (cb_ret,e1) -> terminate cb_ret (NextReturn e1) e.etype e.epos) cb_ret;
 			None
@@ -452,6 +484,8 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 					None
 				| RMapExpr(ret,f) ->
 					aux ret (Some(cb,f e))
+				| RTail fallback ->
+					aux fallback (Some(cb,e))
 				end
 			| Some(cb,e) ->
 				Some(cb,e)
@@ -600,4 +634,4 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 	in
-	loop_block cb_root RBlock e
+	loop_block cb_root (RTail RBlock) e

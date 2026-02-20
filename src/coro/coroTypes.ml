@@ -51,6 +51,7 @@ and coro_suspend = {
 	cs_args : texpr list;
 	cs_pos : pos;
 	cs_result : suspend_expr;
+	cs_tail : bool;
 }
 
 type coro_ctx = {

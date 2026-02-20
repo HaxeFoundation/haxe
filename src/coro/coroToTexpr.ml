@@ -315,6 +315,13 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			cb.cb_id
 		in
 		match cb.cb_next with
+		| NextSuspend (call, _) when call.cs_tail ->
+			(* Tail-call optimization: directly return the result of calling the callee with the incoming
+			   completion, skipping the creation of a resume state in this coroutine. *)
+			let p = call.cs_pos in
+			let etailcall = make_suspending_call com.basic cont call {ecompletion with epos = p} in
+			let ereturn = b#return etailcall in
+			add_state None [] (Some [ereturn])
 		| NextSuspend (call, cb_next) ->
 			let estacktracker, ecallcoroutine, estateswitch = mk_suspending_call call in
 			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) [ estacktracker ] (Some [ ecallcoroutine; estateswitch ]);

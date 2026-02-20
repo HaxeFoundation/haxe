@@ -16,6 +16,24 @@ private class SimpleCont<T> implements IContinuation<T> {
 	public function resume(result:Null<T>, error:Null<Exception>):Void {}
 }
 
+private class TrackingCont<T> implements IContinuation<T> {
+	public var context(get, never):Context;
+	public var resumeCount = 0;
+	public var lastResult:Null<T> = null;
+	public var lastError:Null<Exception> = null;
+
+	public function new() {}
+
+	public function get_context():Context
+		return Context.empty;
+
+	public function resume(result:Null<T>, error:Null<Exception>):Void {
+		resumeCount++;
+		lastResult = result;
+		lastError = error;
+	}
+}
+
 class TestCoroutines extends Test {
 	// Tests that ||/&& with @:coroutine operands correctly short-circuit.
 	function testShortCircuit() {
@@ -47,5 +65,58 @@ class TestCoroutines extends Test {
 		callCount = 0;
 		(@:coroutine function():Bool return boolRet(true) && boolRet(false))(cont);
 		eq(2, callCount);
+	}
+
+	// Tests that a void coroutine tail-calling another void coroutine completes correctly.
+	function testTailCallVoid() {
+		var called = false;
+
+		@:coroutine function inner() {
+			called = true;
+		}
+
+		@:coroutine function outer() {
+			inner();
+		}
+
+		var cont = new TrackingCont<haxe.Unit>();
+		outer(cont);
+		t(called);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+	}
+
+	// Tests that a coroutine tail-calling another coroutine propagates the return value.
+	function testTailCallReturn() {
+		@:coroutine function inner():Int {
+			return 42;
+		}
+
+		@:coroutine function outer():Int {
+			return inner();
+		}
+
+		var cont = new TrackingCont<Int>();
+		outer(cont);
+		eq(1, cont.resumeCount);
+		eq(42, cont.lastResult);
+		eq(null, cont.lastError);
+	}
+
+	// Tests that a tail call with arguments works correctly.
+	function testTailCallWithArgs() {
+		@:coroutine function add(a:Int, b:Int):Int {
+			return a + b;
+		}
+
+		@:coroutine function compute():Int {
+			return add(10, 32);
+		}
+
+		var cont = new TrackingCont<Int>();
+		compute(cont);
+		eq(1, cont.resumeCount);
+		eq(42, cont.lastResult);
+		eq(null, cont.lastError);
 	}
 }
