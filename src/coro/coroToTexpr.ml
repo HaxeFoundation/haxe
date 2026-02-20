@@ -248,9 +248,25 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 	in
 
 	let mk_suspending_tail_call call =
+		let p = call.cs_pos in
 		let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
 		let (cororesult_var, ecororesult) = make_suspension_call_and_assign call ecompletion_field in
-		(cororesult_var, b#return ecororesult)
+		let open ContTypes in
+		let esubject = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cont.state cont.state.cf_type in
+		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
+		let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
+		(* When the callee is pending it returns its own continuation object (not the singleton).
+		   We must return the singleton here so that BaseContinuation.resume suppresses dispatch. *)
+		let estate_switch = mk (TSwitch {
+			switch_subject = esubject;
+			switch_cases = [{
+				case_patterns = [CoroControl.mk_control com.basic CoroPending];
+				case_expr = b#void_block [b#return esuspended_val];
+			}];
+			switch_default = Some (b#void_block [b#return ecororesult]);
+			switch_exhaustive = true;
+		}) com.basic.tvoid p in
+		(cororesult_var, estate_switch)
 	in
 
 	let states = ref [] in

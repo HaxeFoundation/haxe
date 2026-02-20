@@ -295,8 +295,8 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 								SusBlock,None
 							| RBlock | RTailBlock ->
 								SusBlock,Some ((make_next_block (),e_no_value))
-							(* | RTailReturn when cb.cb_catch = None ->
-								SusResult,None *)
+							| RTailReturn when cb.cb_catch = None ->
+								SusResult,None
 							| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
 								SusResult,Some ((make_next_block ()),etmp_result)
 							in
