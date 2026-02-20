@@ -15,6 +15,7 @@ jobs:
     permissions:
       contents: read
     env:
+      PLATFORM: linux64
       OCAML_VERSION: 5.3.0
       OPAMYES: 1
 
