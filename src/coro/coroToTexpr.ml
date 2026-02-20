@@ -426,21 +426,43 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 
 	let fields_and_decls = handle_locals b cls params states tf_args forbidden_vars econtinuation in
 
-	let ethrow = b#void_block [
-		b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
-		b#break p
-	] in
-
-	let switch =
-		let cases = List.map (fun state ->
-			{case_patterns = [b#int state.cs_id p];
-				case_expr = b#void_block state.cs_el;
-			}) states in
-		mk_switch egoto cases (Some ethrow) true
+	(* Check whether an expression list contains a TBreak at the top level (not inside inner loops). *)
+	let state_body_has_break el =
+		let exception Found in
+		let rec check e = match e.eexpr with
+			| TBreak -> raise Found
+			| TWhile _ -> () (* breaks inside inner loops belong to those loops *)
+			| _ -> Type.iter check e
+		in
+		try List.iter check el; false
+		with Found -> true
 	in
-	let eswitch = mk (TSwitch switch) com.basic.tvoid p in
 
-	let eloop = mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p in
+	let eloop = match states with
+		| [state] ->
+			(* Single state: the coroutine has no internal gotos, so we don't need the
+			   while...switch dispatch machinery.  Emit the state body directly, wrapped
+			   in do{}while(false) only when the body contains a TBreak (e.g. NextThrow). *)
+			let body = b#void_block state.cs_el in
+			if state_body_has_break state.cs_el then
+				mk (TWhile (b#bool false p, body, DoWhile)) com.basic.tvoid p
+			else
+				body
+		| _ ->
+			let ethrow = b#void_block [
+				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
+				b#break p
+			] in
+			let switch =
+				let cases = List.map (fun state ->
+					{case_patterns = [b#int state.cs_id p];
+						case_expr = b#void_block state.cs_el;
+					}) states in
+				mk_switch egoto cases (Some ethrow) true
+			in
+			let eswitch = mk (TSwitch switch) com.basic.tvoid p in
+			mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p
+	in
 
 	let etry = if ctx.nothrow then
 		eloop
