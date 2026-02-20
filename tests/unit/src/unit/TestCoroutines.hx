@@ -5,6 +5,15 @@ import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.context.Context;
 
+// A manually-transformed coroutine that always suspends (returns non-singleton Pending).
+// Used to simulate what Coro.suspend does, without requiring the hxcoro library.
+private class AlwaysSuspending {
+	@:coroutine @:coroutine.transformed
+	public static function suspend(cont:IContinuation<Int>):SuspensionResult<Int> {
+		return new SuspensionResult<Int>(Pending);
+	}
+}
+
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
 
@@ -140,5 +149,33 @@ class TestCoroutines extends Test {
 		eq(1, cont.resumeCount);
 		eq(42, cont.lastResult);
 		eq(null, cont.lastError);
+	}
+
+	// Regression test: when a coroutine in RTailReturn position returns a Pending
+	// SuspensionResult (not the SuspensionResult.suspended singleton), the TCO path
+	// must normalise it to the singleton. Otherwise BaseContinuation.resume, which
+	// uses reference equality against the singleton to suppress dispatch, would fire
+	// BaseContinuation.onDispatch with a Pending result and produce
+	// "Invalid dispatch call on suspended coroutine".
+	//
+	// AlwaysSuspending.suspend() simulates what hxcoro's Coro.suspend does: it is
+	// a @:coroutine.transformed function that returns a freshly-constructed (non-
+	// singleton) SuspensionResult in Pending state.
+	function testTailCallReturnPending() {
+		@:coroutine function outer():Int {
+			return AlwaysSuspending.suspend(); // RTailReturn
+		}
+
+		var cont = new TrackingCont<Int>();
+		final result = outer(cont);
+		// With the fix the generated code is:
+		//   let _hx_tmp = AlwaysSuspending.suspend(_hx_continuation.completion);
+		//   switch(_hx_tmp.state) { case 0: return SuspensionResult.suspended; default: return _hx_tmp; }
+		// so result must be the singleton.
+		// Without the fix the code was just:
+		//   return AlwaysSuspending.suspend(_hx_continuation.completion);
+		// which returns the non-singleton Pending object, causing dispatch errors.
+		t(result == SuspensionResult.suspended);
+		eq(0, cont.resumeCount);
 	}
 }
