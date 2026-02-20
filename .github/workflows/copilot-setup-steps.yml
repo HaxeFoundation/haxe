@@ -1,0 +1,52 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      OCAML_VERSION: 5.3.0
+      OPAMYES: 1
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          set -ex
+          sudo apt-get update -qqy
+          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+
+      - name: Cache opam
+        id: cache-opam
+        uses: actions/cache@v4
+        with:
+          path: ~/.opam/
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+
+      - name: Initialize opam and install OCaml ${{ env.OCAML_VERSION }}
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          set -ex
+          opam init -c ${{ env.OCAML_VERSION }} --no-setup
+          opam pin add haxe . --no-action
+          opam install haxe --deps-only --assume-depexts
+          opam list
+          ocamlopt -v
+
+      - name: Persist opam environment for subsequent steps
+        run: |
+          set -ex
+          eval $(opam env)
+          echo "$OPAM_SWITCH_PREFIX/bin" >> $GITHUB_PATH
+          echo "OPAM_SWITCH_PREFIX=$OPAM_SWITCH_PREFIX" >> $GITHUB_ENV
+          echo "CAML_LD_LIBRARY_PATH=$CAML_LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "OCAML_TOPLEVEL_PATH=$OCAML_TOPLEVEL_PATH" >> $GITHUB_ENV
