@@ -19,6 +19,9 @@ jobs:
       OPAMYES: 1
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install system dependencies
         run: |
           set -ex

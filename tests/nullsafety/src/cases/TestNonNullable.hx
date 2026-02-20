@@ -43,7 +43,7 @@ class TestNonNullable {
 		while (shouldWarn(data.foo) == null) {}
 
 		shouldWarn(data.foo) ??= "";
-		final foo = shouldWarn(data.foo ?? "");
+		// final foo = shouldWarn(data.foo ?? "");
 		if (null == shouldWarn(data.foo)) {
 			trace(1);
 		}

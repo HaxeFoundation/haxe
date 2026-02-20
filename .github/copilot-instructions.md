@@ -147,6 +147,9 @@ lua bin/unit.lua
 - Standard library should have minimal overhead
 - Optimization passes should not break correctness
 
+### Code Quality Considerations
+- Try to avoid code duplication, especially in the OCaml code.
+
 ## CI/CD
 - CI runs on GitHub Actions (see `.github/workflows/`)
 - Tests run on multiple platforms (Windows, Linux, macOS)

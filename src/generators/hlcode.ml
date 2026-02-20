@@ -89,7 +89,7 @@ type tgroup =
 	| GInt
 	| GFloat
 	| GBool
-	| GNull of tgroup
+	| GNull
 	| GOther
 
 type unused = int
@@ -280,9 +280,9 @@ let get_group t =
 	| HUI8 | HUI16 | HI32 | HI64 | HGUID -> GInt
 	| HF32 | HF64 -> GFloat
 	| HBool -> GBool
-	| HNull (HUI8 | HUI16 | HI32 | HI64 | HGUID) -> GNull GInt
-	| HNull (HF32 | HF64) -> GNull GFloat
-	| HNull HBool -> GNull GBool
+	| HNull (HUI8 | HUI16 | HI32 | HI64 | HGUID) -> GNull
+	| HNull (HF32 | HF64) -> GNull
+	| HNull HBool -> GNull
 	| HNull _ -> Globals.die "" __LOC__
 	| _ -> GOther
 
@@ -324,7 +324,7 @@ let is_number t =
 
 let is_nullt t =
 	match get_group t with
-	| GNull _ -> true
+	| GNull -> true
 	| _ -> false
 
 (*

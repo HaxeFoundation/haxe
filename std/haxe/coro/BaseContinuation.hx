@@ -88,7 +88,12 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		final resumeResult = invokeResume();
 		if (resumeResult != SuspensionResult.suspended) {
 			this.resumeResult = resumeResult;
-		    context.get(Dispatcher).dispatch(this);
+			final dispatcher = context.get(Dispatcher);
+			if (dispatcher != null) {
+				dispatcher.dispatch(this);
+			} else {
+				onDispatch();
+			}
 		}
     }
 

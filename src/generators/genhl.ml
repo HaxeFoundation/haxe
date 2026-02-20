@@ -1029,13 +1029,15 @@ let common_type ctx e1 e2 for_eq p =
 	let t2 = to_type ctx e2.etype in
 	if t1 == t2 then t1 else
 	match get_group t1, get_group t2, t1, t2 with
-	| (GInt | GFloat), (GInt | GFloat), _, _ -> common_type_number t1 t2
-	| ((GInt | GFloat) | GNull (GInt | GFloat)), ((GInt | GFloat) | GNull (GInt | GFloat)), _, _ ->
+	| GNull, GNull, _, _ ->
+		let ti1 = get_inner_type t1 in
+		let ti2 = get_inner_type t2 in
+		HNull (common_type_number ti1 ti2)
+	| GNull, _, _, _ | _, GNull, _, _->
 		let ti1 = get_inner_type t1 in
 		let ti2 = get_inner_type t2 in
 		if for_eq then HNull (common_type_number ti1 ti2) else common_type_number ti1 ti2
-	| GBool, GNull GBool, _, _ when for_eq -> t2
-	| GNull GBool, GBool, _, _ when for_eq -> t1
+	| (GInt | GFloat), (GInt | GFloat), _, _ -> common_type_number t1 t2
 	| _, (GInt | GFloat), HDyn, _ -> HF64
 	| (GInt | GFloat), _, _, HDyn -> HF64
 	| _, _, HDyn, _ -> HDyn
@@ -1270,34 +1272,36 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
-	| (GInt | GFloat), GNull GFloat, _, HNull t ->
+	| (GInt | GFloat), GNull, _, HNull t ->
 		let tmp = alloc_tmp ctx t in
-		op ctx (OToSFloat (tmp, r));
+		(match get_group t with
+		| GFloat -> op ctx (OToSFloat (tmp, r))
+		| GInt -> op ctx (OToInt (tmp, r))
+		| _ -> die "" __LOC__
+		);
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
-	| (GInt | GFloat), GNull GInt, _, HNull t ->
-		let tmp = alloc_tmp ctx t in
-		op ctx (OToInt (tmp, r));
-		let r = alloc_tmp ctx (HNull t) in
-		op ctx (OToDyn (r,tmp));
-		r
-	| GNull (GInt | GFloat), GFloat, HNull it, _ ->
+	| GNull, GFloat, HNull it, _ when get_group it <> GBool ->
 		let i = alloc_tmp ctx it in
 		op ctx (OSafeCast (i,r));
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, i));
 		tmp
-	| GNull GFloat, GInt, HNull it, _ ->
-		let i = alloc_tmp ctx it in
-		op ctx (OSafeCast (i,r));
-		let tmp = alloc_tmp ctx t in
-		op ctx (OToInt (tmp, i));
-		tmp
-	| GNull GInt, GInt, _, _ ->
-		let out = alloc_tmp ctx t in
-		op ctx (OSafeCast (out, r));
-		out
+	| GNull, GInt, HNull it, _ ->
+		(match get_group it with
+		| GFloat ->
+			let i = alloc_tmp ctx it in
+			op ctx (OSafeCast (i,r));
+			let tmp = alloc_tmp ctx t in
+			op ctx (OToInt (tmp, i));
+			tmp
+		| GInt ->
+			let out = alloc_tmp ctx t in
+			op ctx (OSafeCast (out, r));
+			out
+		| _ -> die "" __LOC__
+		)
 	| _, _, HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
 		let fid = gen_method_wrapper ctx rt t p in
 		let fr = alloc_tmp ctx t in
@@ -1564,8 +1568,8 @@ and jump_expr ctx e jcond =
 		let t1 = to_type ctx e1.etype in
 		let t2 = to_type ctx e2.etype in
 		(match get_group t1, get_group t2 with
-		| GNull _, (GInt | GFloat | GBool)
-		| (GInt | GFloat | GBool), GNull _
+		| GNull, (GInt | GFloat | GBool)
+		| (GInt | GFloat | GBool), GNull
 			->
 			let ti1 = get_inner_type t1 in
 			let ti2 = get_inner_type t2 in
@@ -1606,7 +1610,7 @@ and jump_expr ctx e jcond =
 				| _ -> die "" __LOC__
 		) in
 		(match get_group t1, get_group t2, t1, t2 with
-		| ((GInt | GFloat) | GNull (GInt | GFloat)), ((GInt | GFloat) | GNull (GInt | GFloat)), _, _
+		| ((GInt | GFloat) | GNull), ((GInt | GFloat) | GNull), _, _
 			->
 			let ti1 = get_inner_type t1 in
 			let ti2 = get_inner_type t2 in
@@ -2680,7 +2684,7 @@ and eval_expr ctx e =
 				free ctx r;
 				op ctx (OFloat (tmp,alloc_float ctx 1.));
 				if uop = Increment then op ctx (OAdd (r,r,tmp)) else op ctx (OSub (r,r,tmp))
-			| GNull (GInt | GFloat), HNull t ->
+			| GNull, HNull t ->
 				hold ctx r;
 				let tmp = alloc_tmp ctx t in
 				free ctx r;
