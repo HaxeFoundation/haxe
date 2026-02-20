@@ -136,7 +136,7 @@ class TestCoroutines extends Test {
 		}
 
 		var cont = new TrackingCont<Int>();
-		compute(cont);
+		invokeCoroutine(cont, compute);
 		eq(1, cont.resumeCount);
 		eq(42, cont.lastResult);
 		eq(null, cont.lastError);
