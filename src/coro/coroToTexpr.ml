@@ -208,16 +208,21 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 
 	let ereturn = b#return econtinuation in
 
-	let mk_suspending_call call =
-		let p = call.cs_pos in
-		let base_continuation_field_on e cf t =
-			b#instance_field e cont.suspension_result_class [com.basic.tany] cf t
-		in
+	let make_suspension_call_and_assign call econtinuation =
 		let ecreatecoroutine = make_suspending_call com.basic cont call {econtinuation with epos = p} in
 
 		let vcororesult = alloc_var VGenerated "_hx_tmp" (cont.suspension_result com.basic.tany) p in
 		let ecororesult = b#local vcororesult p in
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
+		(cororesult_var,ecororesult)
+	in
+
+	let mk_suspending_call call =
+		let p = call.cs_pos in
+		let base_continuation_field_on e cf t =
+			b#instance_field e cont.suspension_result_class [com.basic.tany] cf t
+		in
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign call econtinuation in
 		let open ContTypes in
 		let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
 		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
@@ -238,9 +243,14 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		] in
 		let estate_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
 
-		stack_item_inserter call.cs_pos,
 		cororesult_var,
 		estate_switch
+	in
+
+	let mk_suspending_tail_call call =
+		let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign call ecompletion_field in
+		(cororesult_var, b#return ecororesult)
 	in
 
 	let states = ref [] in
@@ -315,22 +325,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			cb.cb_id
 		in
 		match cb.cb_next with
-		| NextSuspend (call, _) when call.cs_tail ->
-			(* Tail-call optimization: call the callee with _hx_continuation.completion (the field on
-			   the continuation object, not _hx_completion which is the function argument) so that when
-			   the continuation is recycled (_hx_completion == _hx_continuation) the callee correctly
-			   notifies the real outer completion rather than re-entering our state machine.
-			   We simply return the callee's result directly. The existing BaseContinuation machinery
-			   handles the rest: if the callee returned the suspended singleton, BaseContinuation.resume
-			   suppresses dispatch; if Returned/Thrown, it dispatches and onDispatch calls
-			   completion.resume with the result/error. *)
-			let p = call.cs_pos in
-			let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
-			let etailcall = make_suspending_call com.basic cont call {ecompletion_field with epos = p} in
-			add_state None [] (Some [b#return etailcall])
-		| NextSuspend (call, cb_next) ->
-			let estacktracker, ecallcoroutine, estateswitch = mk_suspending_call call in
-			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) [ estacktracker ] (Some [ ecallcoroutine; estateswitch ]);
+		| NextSuspend (call, None) ->
+			let ecallcoroutine, eret = mk_suspending_tail_call call in
+			add_state None [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; eret ]);
+		| NextSuspend (call, Some cb_next) ->
+			let ecallcoroutine, estateswitch = mk_suspending_call call in
+			add_state (Some cb_next.cb_id) [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; estateswitch ]);
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn] None
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->

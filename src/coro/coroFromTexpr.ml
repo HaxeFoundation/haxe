@@ -278,44 +278,36 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 								end else
 									e
 							) el in
-							let is_tail_call = match ret with RTailBlock | RTailReturn -> true | _ -> false in
-							if is_tail_call && cb.cb_catch = None then begin
-								(* Tail-call optimization: pass the incoming completion directly to the callee,
-								   skipping the creation of a resume state in this coroutine. *)
-								let suspend = {
-									cs_fun = e1;
-									cs_args = el;
-									cs_pos = e.epos;
-									cs_result = SusBlock;
-									cs_tail = true;
-								} in
-								terminate cb (NextSuspend(suspend,None)) t_dynamic null_pos;
-								None
-							end else begin
+							let make_next_block () =
 								let cb_next = block_from_e e1 in
 								add_block_flag cb_next CbResumeState;
 								add_block_flag cb CbSuspendState;
-								let eres,res = match ret with
-								| RValue ->
-									let v = tmp_local cb e.etype None e.epos in
-									let ev = Texpr.Builder.make_local v v.v_pos in
-									cb_next.cb_stack_value <- Some ev;
-									ev,SusResult
-								| RBlock | RTailBlock ->
-									e_no_value,SusBlock
-								| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
-									etmp_result,SusResult
-								in
-								let suspend = {
-									cs_fun = e1;
-									cs_args = el;
-									cs_pos = e.epos;
-									cs_result = res;
-									cs_tail = false;
-								} in
-								terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
-								Some(cb_next,eres)
-							end
+								cb_next
+							in
+							let res,next = match ret with
+							| RValue ->
+								let v = tmp_local cb e.etype None e.epos in
+								let ev = Texpr.Builder.make_local v v.v_pos in
+								let cb_next = make_next_block () in
+								cb_next.cb_stack_value <- Some ev;
+								SusResult,Some(cb_next,ev)
+							| RTailBlock when cb.cb_catch = None ->
+								SusBlock,None
+							| RBlock | RTailBlock ->
+								SusBlock,Some ((make_next_block (),e_no_value))
+							(* | RTailReturn when cb.cb_catch = None ->
+								SusResult,None *)
+							| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
+								SusResult,Some ((make_next_block ()),etmp_result)
+							in
+							let suspend = {
+								cs_fun = e1;
+								cs_args = el;
+								cs_pos = e.epos;
+								cs_result = res;
+							} in
+							terminate cb (NextSuspend(suspend,Option.map fst next)) t_dynamic null_pos;
+							next
 						| _ ->
 							Some(cb,{e with eexpr = TCall(e1,el)})
 						end

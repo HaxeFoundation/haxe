@@ -27,7 +27,7 @@ and coro_next =
 	| NextSwitch of coro_switch * coro_block_next
 	| NextWhile of texpr * coro_block * coro_block_next
 	| NextTry of coro_block * coro_catch * coro_block_next
-	| NextSuspend of coro_suspend * coro_block_next
+	| NextSuspend of coro_suspend * coro_block_next (* None = tail call *)
 	(* graph connections from here on, careful with traversal *)
 	| NextBreak of coro_block
 	| NextContinue of coro_block
@@ -51,7 +51,6 @@ and coro_suspend = {
 	cs_args : texpr list;
 	cs_pos : pos;
 	cs_result : suspend_expr;
-	cs_tail : bool;
 }
 
 type coro_ctx = {
