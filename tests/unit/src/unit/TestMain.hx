@@ -103,7 +103,7 @@ function main() {
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
 		new TestDefaultTypeParameters(),
-		#if !flash
+		#if (!flash && !hl)
 		new TestCoroutines(),
 		#end
 		// new TestUnspecified(),
