@@ -36,7 +36,7 @@ jobs:
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
           set -ex
-          opam init -c ${{ env.OCAML_VERSION }} --no-setup
+          opam init -c ${{ env.OCAML_VERSION }}
           opam pin add haxe . --no-action
           opam install haxe --deps-only --assume-depexts
           opam list
