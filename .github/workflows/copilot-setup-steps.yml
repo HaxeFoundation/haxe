@@ -70,12 +70,8 @@ jobs:
           set -ex
           eval $(opam env)
           opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
-          opam config exec -- make haxelib
+          opam config exec -- make -s haxelib
           make -s package_unix
           ls -l out
           ldd -v ./haxe
           ldd -v ./haxelib
-
-      - name: Install haxelibs
-        run: |
-          haxelib git utest https://github.com/haxe-utest/utest
