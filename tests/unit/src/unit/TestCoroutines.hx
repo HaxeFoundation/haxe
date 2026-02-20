@@ -5,11 +5,6 @@ import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.context.Context;
 
-// A manually-transformed coroutine that always suspends (returns non-singleton Pending).
-// Used to simulate what Coro.suspend does, without requiring the hxcoro library.
-// The passed-in continuation is stored so tests can resume it manually.
-// @:coroutine.transformed is not supported by CPPIA.
-#if !cppia
 private class AlwaysSuspending {
 	public static var _stored:Null<IContinuation<Int>> = null;
 
@@ -19,7 +14,6 @@ private class AlwaysSuspending {
 		return new SuspensionResult<Int>(Pending);
 	}
 }
-#end
 
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
@@ -169,7 +163,6 @@ class TestCoroutines extends Test {
 	//   1. A non-tail call (passes _hx_continuation to suspend, which stores it).
 	//   2. A tail call (RTailReturn) that is reached only after manually resuming (1).
 	function testTailCallReturnPending() {
-		#if !cppia // @:coroutine.transformed is not supported by CPPIA
 		AlwaysSuspending._stored = null;
 
 		@:coroutine function outer():Int {
@@ -188,9 +181,9 @@ class TestCoroutines extends Test {
 		// and advances to the RTailReturn suspend call.
 		// Without the state-switch fix: outer(bc_outer) returns a non-singleton Pending object
 		// to invokeResume(), which then fires BaseContinuation dispatch and sets cont.lastError.
-		if (bc != null) bc.resume(0, null);
+		if (bc != null)
+			bc.resume(0, null);
 
 		eq(null, cont.lastError);
-		#end
 	}
 }
