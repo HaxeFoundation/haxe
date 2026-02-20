@@ -34,6 +34,28 @@ private class TrackingCont<T> implements IContinuation<T> {
 	}
 }
 
+function invokeCoroutine<T>(cont:IContinuation<T>, f:haxe.coro.Coroutine<() -> T>) {
+	final result:SuspensionResult<T> = f(cont);
+	switch (result.state) {
+		case Pending:
+		case Returned:
+			cont.resume(result.result, null);
+		case Thrown:
+			cont.resume(null, result.error);
+	}
+}
+
+function invokeCoroutineVoid(cont:IContinuation<haxe.Unit>, f:haxe.coro.Coroutine<() -> Void>) {
+	final result:SuspensionResult<haxe.Unit> = f(cont);
+	switch (result.state) {
+		case Pending:
+		case Returned:
+			cont.resume(result.result, null);
+		case Thrown:
+			cont.resume(null, result.error);
+	}
+}
+
 class TestCoroutines extends Test {
 	// Tests that ||/&& with @:coroutine operands correctly short-circuit.
 	function testShortCircuit() {
@@ -80,7 +102,7 @@ class TestCoroutines extends Test {
 		}
 
 		var cont = new TrackingCont<haxe.Unit>();
-		outer(cont);
+		invokeCoroutineVoid(cont, outer);
 		t(called);
 		eq(1, cont.resumeCount);
 		eq(null, cont.lastError);
@@ -97,7 +119,7 @@ class TestCoroutines extends Test {
 		}
 
 		var cont = new TrackingCont<Int>();
-		outer(cont);
+		invokeCoroutine(cont, outer);
 		eq(1, cont.resumeCount);
 		eq(42, cont.lastResult);
 		eq(null, cont.lastError);
