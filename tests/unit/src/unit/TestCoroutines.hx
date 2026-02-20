@@ -7,9 +7,13 @@ import haxe.coro.context.Context;
 
 // A manually-transformed coroutine that always suspends (returns non-singleton Pending).
 // Used to simulate what Coro.suspend does, without requiring the hxcoro library.
+// The passed-in continuation is stored so tests can resume it manually.
 private class AlwaysSuspending {
+	public static var _stored:Null<IContinuation<Int>> = null;
+
 	@:coroutine @:coroutine.transformed
 	public static function suspend(cont:IContinuation<Int>):SuspensionResult<Int> {
+		_stored = cont;
 		return new SuspensionResult<Int>(Pending);
 	}
 }
@@ -151,31 +155,37 @@ class TestCoroutines extends Test {
 		eq(null, cont.lastError);
 	}
 
-	// Regression test: when a coroutine in RTailReturn position returns a Pending
-	// SuspensionResult (not the SuspensionResult.suspended singleton), the TCO path
-	// must normalise it to the singleton. Otherwise BaseContinuation.resume, which
-	// uses reference equality against the singleton to suppress dispatch, would fire
-	// BaseContinuation.onDispatch with a Pending result and produce
-	// "Invalid dispatch call on suspended coroutine".
+	// Regression test: when outer is called via BaseContinuation.invokeResume (the recycled-
+	// continuation path) and its last action is a tail-call suspension that returns a non-
+	// singleton Pending result, mk_suspending_tail_call must normalise the result to the
+	// SuspensionResult.suspended singleton.  Without that, BaseContinuation.resume uses
+	// reference equality and sees resumeResult != suspended, fires dispatch, hits the Pending
+	// branch in onDispatch, and calls completion.resume(null, "Invalid dispatch call ...").
 	//
-	// AlwaysSuspending.suspend() simulates what hxcoro's Coro.suspend does: it is
-	// a @:coroutine.transformed function that returns a freshly-constructed (non-
-	// singleton) SuspensionResult in Pending state.
+	// To trigger the recycling path we need two sequential suspension calls in outer:
+	//   1. A non-tail call (passes _hx_continuation to suspend, which stores it).
+	//   2. A tail call (RTailReturn) that is reached only after manually resuming (1).
 	function testTailCallReturnPending() {
+		AlwaysSuspending._stored = null;
+
 		@:coroutine function outer():Int {
-			return AlwaysSuspending.suspend(); // RTailReturn
+			AlwaysSuspending.suspend(); // non-tail: mk_suspending_call stores outer's BaseContinuation
+			return AlwaysSuspending.suspend(); // RTailReturn: mk_suspending_tail_call path
 		}
 
 		var cont = new TrackingCont<Int>();
-		final result = outer(cont);
-		// With the fix the generated code is:
-		//   let _hx_tmp = AlwaysSuspending.suspend(_hx_continuation.completion);
-		//   switch(_hx_tmp.state) { case 0: return SuspensionResult.suspended; default: return _hx_tmp; }
-		// so result must be the singleton.
-		// Without the fix the code was just:
-		//   return AlwaysSuspending.suspend(_hx_continuation.completion);
-		// which returns the non-singleton Pending object, causing dispatch errors.
-		t(result == SuspensionResult.suspended);
-		eq(0, cont.resumeCount);
+		invokeCoroutine(cont, outer);
+		// outer is now suspended at the first suspend() call.
+		// AlwaysSuspending._stored is outer's BaseContinuation (bc_outer).
+
+		final bc = AlwaysSuspending._stored;
+		AlwaysSuspending._stored = null;
+		// Resume bc_outer.  invokeResume() re-enters outer(bc_outer) (recycled continuation)
+		// and advances to the RTailReturn suspend call.
+		// Without the state-switch fix: outer(bc_outer) returns a non-singleton Pending object
+		// to invokeResume(), which then fires BaseContinuation dispatch and sets cont.lastError.
+		if (bc != null) bc.resume(0, null);
+
+		eq(null, cont.lastError);
 	}
 }
