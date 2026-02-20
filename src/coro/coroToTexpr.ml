@@ -320,30 +320,14 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			   the continuation object, not _hx_completion which is the function argument) so that when
 			   the continuation is recycled (_hx_completion == _hx_continuation) the callee correctly
 			   notifies the real outer completion rather than re-entering our state machine.
-			   We then check the result: if pending, return SuspensionResult.suspended (the singleton)
-			   to prevent BaseContinuation.resume from firing a spurious dispatch; otherwise return the
-			   result so that dispatch correctly calls completion.resume with the result/error. *)
+			   We simply return the callee's result directly. The existing BaseContinuation machinery
+			   handles the rest: if the callee returned the suspended singleton, BaseContinuation.resume
+			   suppresses dispatch; if Returned/Thrown, it dispatches and onDispatch calls
+			   completion.resume with the result/error. *)
 			let p = call.cs_pos in
 			let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
 			let etailcall = make_suspending_call com.basic cont call {ecompletion_field with epos = p} in
-			let vcororesult = alloc_var VGenerated "_hx_tmp" (cont.suspension_result com.basic.tany) p in
-			let ecororesult = b#local vcororesult p in
-			let cororesult_var = b#var_init vcororesult etailcall in
-			let open ContTypes in
-			let esubject = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cont.state cont.state.cf_type in
-			let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-			let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
-			let pending_pattern = CoroControl.mk_control com.basic CoroPending in
-			let epending_case = b#void_block [b#return esuspended_val] in
-			let edefault_case = b#void_block [b#return ecororesult] in
-			let switch_expr = {
-				switch_subject = esubject;
-				switch_cases = [{case_patterns = [pending_pattern]; case_expr = epending_case}];
-				switch_default = Some edefault_case;
-				switch_exhaustive = true;
-			} in
-			let estate_switch = mk (TSwitch switch_expr) com.basic.tvoid p in
-			add_state None [] (Some [cororesult_var; estate_switch])
+			add_state None [] (Some [b#return etailcall])
 		| NextSuspend (call, cb_next) ->
 			let estacktracker, ecallcoroutine, estateswitch = mk_suspending_call call in
 			add_state (Option.map (fun cb_next -> cb_next.cb_id) cb_next) [ estacktracker ] (Some [ ecallcoroutine; estateswitch ]);
