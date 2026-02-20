@@ -142,6 +142,9 @@ lua bin/unit.lua
 - The compiler and standard library must maintain backwards compatibility
 - Breaking changes require careful consideration and deprecation process
 
+### Coding Considerations
+- Avoid code duplication: if you create portions of code, consider checking if something similar exists already
+
 ### Performance Considerations
 - The compiler should be fast and efficient
 - Standard library should have minimal overhead
