@@ -57,7 +57,10 @@ jobs:
           echo "CAML_LD_LIBRARY_PATH=$CAML_LD_LIBRARY_PATH" >> $GITHUB_ENV
           echo "OCAML_TOPLEVEL_PATH=$OCAML_TOPLEVEL_PATH" >> $GITHUB_ENV
 
+      - name: Setup Neko
       - uses: ./.github/actions/setup-neko
+      - env:
+          PLATFORM: linux64
 
       - name: Install dependencies
         run: |
