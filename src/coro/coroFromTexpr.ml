@@ -123,10 +123,38 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| _ ->
 			false
 	in
+	let vars = Hashtbl.create 0 in
+	let declare v = Hashtbl.add vars v.v_id true in
+	let is_known_var v = Hashtbl.mem vars v.v_id in
+	let check_local v = if not (is_known_var v) then ctx.has_capture_vars <- true in
+	let browse_function tf =
+		List.iter (fun (v,_) -> declare v) tf.tf_args;
+		let rec browse e = match e.eexpr with
+			| TConst (TThis | TSuper) ->
+				ctx.captures_this <- true
+			| TLocal v ->
+				check_local v
+			| TTry(e1,catches) ->
+				browse e1;
+				List.iter (fun (v,e) -> declare v; browse e) catches
+			| _ ->
+				Type.iter browse e
+		in
+		browse tf.tf_expr
+	in
 	let map_suspension cb ret e =
 		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None in
 		let exception Found in
 		let rec remap can_tco loop_depth e = match e.eexpr with
+			| TLocal v ->
+				 check_local v;
+				 e
+			| TConst (TThis | TSuper) ->
+				ctx.captures_this <- true;
+				e
+			| TVar(v,eo) ->
+				declare v;
+				{e with eexpr = TVar(v,Option.map (remap false loop_depth) eo)}
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				if can_tco then
 					make_inline_tail_call {
@@ -183,13 +211,14 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				   The catch bodies don't have a catch handler from this TTry node,
 				   so they inherit can_tco from the outer context. *)
 				let e1 = remap false loop_depth e1 in
-				let catches = List.map (fun (v, e) -> (v, remap can_tco loop_depth e)) catches in
+				let catches = List.map (fun (v, e) -> declare v; (v, remap can_tco loop_depth e)) catches in
 				{e with eexpr = TTry(e1, catches)}
 			| TWhile(e1,e2,flag) ->
 				let e1 = remap false loop_depth e1 in
 				let e2 = remap false (loop_depth + 1) e2 in
 				{e with eexpr = TWhile(e1,e2,flag)}
-			| TFunction _ ->
+			| TFunction tf ->
+				browse_function tf;
 				e
 			| _ ->
 				Type.map_expr (remap false loop_depth) e
@@ -201,12 +230,18 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 	let rec loop cb ret e =
 	match e.eexpr with
 		(* special cases *)
-		| TConst TThis | TBlock [] ->
+		| TConst (TThis | TSuper) ->
+			ctx.captures_this <- true;
+			Some  (cb,e)
+		| TBlock [] ->
 			Some (cb,e)
 		| TLocal v when (has_var_flag v VCoroScope) && not (scope_allows_access_to v) ->
 			Error.raise_typing_error "Invalid usage of a coroutine scope in a different coroutine scope" e.epos
 		(* simple values *)
-		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
+		| TLocal v ->
+			check_local v;
+			Some (cb,e)
+		| TConst _ | TTypeExpr _ | TIdent _ ->
 			Some (cb,e)
 		(* compound values *)
 		| TBlock [e1] ->
@@ -263,6 +298,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			let cb = loop cb ret (* TODO: is this right? *) e1 in
 			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TUnop(op,flag,e1)})) cb
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+			check_local v;
 			let cb = loop_assign cb (RLocal v) e2 in
 			Option.map (fun (cb,e2) -> (cb,{e with eexpr = TBinop(OpAssign,e1,e2)})) cb
 		| TBinop((OpBoolOr | OpBoolAnd) as op, e1, e2) ->
@@ -298,9 +334,11 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			end
 		(* variables *)
 		| TVar(v,None) ->
+			declare v;
 			add_expr cb e;
 			Some (cb,e_no_value)
 		| TVar(v,Some e1) ->
+			declare v;
 			add_expr cb {e with eexpr = TVar(v,None)};
 			let cb = loop_assign cb (RLocal v) e1 in
 			cb
@@ -459,6 +497,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				split_while cb e1 e2 e.etype e.epos
 			end
 		| TTry(e1,catches) ->
+			List.iter (fun (v,_) -> declare v) catches;
 			let map_catches () =
 				let rec aux acc catches = match catches with
 					| [] -> Some (List.rev acc)
@@ -476,6 +515,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				split_try cb ret e1 catches e.etype e.epos
 			end
 		| TFunction tf ->
+			browse_function tf;
 			Some (cb,e)
 	and ordered_loop cb el =
 		let rec aux' cb acc el = match el with

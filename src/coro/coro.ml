@@ -285,6 +285,8 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let inline_state_machine = match coro_class.coro_type with
 	| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
 		true
+	(* | LocalFunc _ when not ctx.captures_this && not ctx.has_capture_vars ->
+		true *)
 	| _ ->
 		false
 	in
@@ -544,6 +546,8 @@ let create_coro_context typer config =
 		builder;
 		typer;
 		config;
+		has_capture_vars = false;
+		captures_this = false;
 		vthis = None;
 		next_block_id = 0;
 		current_catch = None;
