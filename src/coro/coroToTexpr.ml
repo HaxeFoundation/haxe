@@ -528,4 +528,4 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		etry
 	in
 
-	eloop, init_state, fields_and_decls, is_single_state
+	eloop, init_state, fields_and_decls, is_single_state, List.length states

@@ -274,7 +274,18 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
-	let eloop, initial_state, fields, is_single_state = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
+	let eloop, initial_state, fields, is_single_state, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
+	(* Check @:coroutine(assert) config *)
+	(match ctx.config.assert_config with
+	| None -> ()
+	| Some assert_config ->
+		(match assert_config.num_states with
+		| None -> ()
+		| Some expected ->
+			if num_states <> expected then
+				Error.raise_typing_error
+					(Printf.sprintf "Expected %d coroutine state(s), got %d" expected num_states)
+					coro_class.name_pos));
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
