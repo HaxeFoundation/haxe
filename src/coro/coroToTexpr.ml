@@ -55,12 +55,10 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 	(* Keep an extra table of all vars and what states they appear in, easier check if a var is used across states this way. *)
 	let var_usages = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
 
-	(* For single-state coroutines: treat arguments as "declared" in the initial state so they
-	   aren't spilled when accessed before the first (non-existent) suspension.
-	   For multi-state coroutines: arguments are always hoisted to continuation fields so that
-	   invokeResume() can restore them for state 0 without a callback to the original function. *)
-	if not is_multi_state then
-		fst_state.cs_declarations <- List.map (fun (a, _) -> a) tf_args;
+	(* All function arguments are always hoisted to continuation fields because invokeResume()
+	   always runs in a separate execution context (either directly in the continuation class
+	   for static ClassField, or inside a thunk for non-static ClassField and LocalFunc) and
+	   has no direct access to the original function's parameter scope. *)
 
 	List.iter (fun state ->
 		let rec loop e =
@@ -100,14 +98,12 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 			false
 	in
 
-	(* Again, treat function arguments as the special case that they are.
-	   For multi-state coroutines, all args are always hoisted so that invokeResume()
-	   can restore them in state 0 from the continuation fields.
+	(* Hoist ALL function arguments unconditionally: invokeResume() needs them via fields.
 	   We use a fresh variable (not the original arg) to avoid conflicts between the
 	   outer function parameter and the inner TVar declaration inside the thunk/invokeResume. *)
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
-		if is_multi_state || is_used_across_multiple_states v.v_id then begin
+		begin
 			fst_state.cs_writes <- IntSet.add v.v_id fst_state.cs_writes;
 
 			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type null_pos null_pos in
