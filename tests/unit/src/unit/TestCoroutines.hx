@@ -4,6 +4,7 @@ import haxe.Exception;
 import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.context.Context;
+import utest.Assert;
 
 private class AlwaysSuspending {
 	public static var _stored:Null<IContinuation<Int>> = null;
@@ -22,6 +23,7 @@ private class NothrowCoroutines {
 
 	// Without nothrow: exception is caught by the coroutine wrapper and forwarded
 	// to the continuation via resume(null, error).
+
 	@:coroutine
 	public static function withThrow():Void {
 		thrower();
@@ -29,6 +31,7 @@ private class NothrowCoroutines {
 
 	// With nothrow: the outer try/catch wrapper is omitted, so the exception
 	// escapes the coroutine call normally.
+
 	@:coroutine(nothrow)
 	public static function withNothrow():Void {
 		thrower();
@@ -217,14 +220,9 @@ class TestCoroutines extends Test {
 		f(cont.lastError == null);
 
 		// With nothrow: exception escapes the coroutine call site.
-		var threw = false;
-		try {
-			var cont2 = new SimpleCont<haxe.Unit>();
-			NothrowCoroutines.withNothrow(cont2);
-		} catch (e:Exception) {
-			threw = true;
-		}
-		t(threw);
+		Assert.raises(() -> {
+			NothrowCoroutines.withNothrow(new SimpleCont());
+		}, String);
 	}
 
 	// Tests that @:coroutine(nothrow) also works on local functions.
