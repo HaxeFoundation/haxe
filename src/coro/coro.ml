@@ -360,9 +360,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		let vthunk = alloc_var VGenerated "_hx_thunk" thunk_type coro_class.name_pos in
 		let ctor_args = [ b#local vthunk coro_class.name_pos; ecompletion ] in
 		let tnew = (mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
+		let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcontinuation.v_pos) in
 		b#void_block ([
-			b#var_init_null vcontinuation;               (* pre-declare so thunk can close over it *)
-			b#var_init vthunk ethunk;                    (* thunk captures _gthis/vcontinuation/outer locals *)
+			null_safety_off (b#var_init_null vcontinuation); (* pre-declare so thunk can close over it *)
+			b#var_init vthunk ethunk;                        (* thunk captures _gthis/vcontinuation/outer locals *)
 			b#assign (b#local vcontinuation coro_class.name_pos) tnew;
 		] @ hoisted_arg_assigns @ [b#return einvoke_resume_call])
 
