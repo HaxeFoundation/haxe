@@ -121,9 +121,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 	let map_suspension cb ret e =
 		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None in
 		let exception Found in
-		(* `can_tco` is the single predicate that combines "we are in tail position"
-		   AND "the outer context allows TCO (no surrounding catch handler, ret is a
-		   tail ret)". A coroutine call is only inlined when `can_tco` is true. *)
 		let rec remap can_tco loop_depth e = match e.eexpr with
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				if can_tco then
@@ -165,13 +162,11 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				in
 				{e with eexpr = TBlock (remap_block el)}
 			| TIf(e1, e2, e3_opt) ->
-				(* Condition is in value position; branches inherit can_tco. *)
 				let e1' = remap false loop_depth e1 in
 				let e2' = remap can_tco loop_depth e2 in
 				let e3_opt' = Option.map (remap can_tco loop_depth) e3_opt in
 				{e with eexpr = TIf(e1', e2', e3_opt')}
 			| TSwitch switch ->
-				(* Subject is in value position; each case/default branch inherits can_tco. *)
 				let switch_subject = remap false loop_depth switch.switch_subject in
 				let switch_cases = List.map (fun case ->
 					{case with case_expr = remap can_tco loop_depth case.case_expr}
@@ -192,7 +187,6 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			| TFunction _ ->
 				e
 			| _ ->
-				(* For all other compound expressions, sub-expressions are in non-tail position. *)
 				Type.map_expr (remap false loop_depth) e
 		in
 		try HasNoSuspension (remap allow_tco 0 e)

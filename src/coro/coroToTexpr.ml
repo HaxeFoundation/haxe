@@ -434,7 +434,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 
 	let fields_and_decls = handle_locals b cls params states tf_args forbidden_vars econtinuation in
 
-	let eloop = match states with
+	let eloop,is_single_state = match states with
 		| [state] ->
 			(* Single state: the coroutine has no internal gotos, so we don't need the
 			   while...switch dispatch machinery.  Any trailing TBreak (e.g. from NextThrow,
@@ -444,7 +444,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				| { eexpr = TBreak } :: rest -> List.rev rest
 				| _ -> state.cs_el
 			in
-			b#void_block el
+			b#void_block el,true
 		| _ ->
 			let ethrow = b#void_block [
 				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
@@ -458,7 +458,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 				mk_switch egoto cases (Some ethrow) true
 			in
 			let eswitch = mk (TSwitch switch) com.basic.tvoid p in
-			mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p
+			mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p,false
 	in
 
 	let etry = if ctx.nothrow then
@@ -528,4 +528,4 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		etry
 	in
 
-	eloop, init_state, fields_and_decls, (List.length states = 1)
+	eloop, init_state, fields_and_decls, is_single_state
