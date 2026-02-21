@@ -244,13 +244,8 @@ class TestCoroutines extends Test {
 		@:coroutine(nothrow) function withNothrow():Void {
 			thrower();
 		}
-		var threw = false;
-		try {
-			var cont2 = new SimpleCont<haxe.Unit>();
-			withNothrow(cont2);
-		} catch (e:Exception) {
-			threw = true;
-		}
-		t(threw);
+		Assert.raises(() -> {
+			withNothrow(new SimpleCont());
+		}, String);
 	}
 }
