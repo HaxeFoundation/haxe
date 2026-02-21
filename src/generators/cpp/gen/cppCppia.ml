@@ -7,7 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 
-type script_type = 
+type script_type =
   | ScriptBool
   | ScriptInt
   | ScriptFloat
@@ -1814,10 +1814,21 @@ let generate_script_class common_ctx script class_def =
     ^ "\n");
 
   let generate_field isStatic field =
-    match (field.cf_kind, follow field.cf_type) with
-    | Var { v_read = AccInline; v_write = AccNever }, _ ->
+	let unknown() =
+		print_endline
+		("Unknown method type "
+		^ join_class_path class_def.cl_path "."
+		^ "." ^ field.cf_name)
+  	in
+	let map_args_ret f = match follow_with_coro field.cf_type with
+		| Coro(args,ret) -> f args ret
+		| NotCoro (TFun(args,ret)) -> f args ret
+		| _ -> unknown ()
+	in
+    match field.cf_kind with
+    | Var { v_read = AccInline; v_write = AccNever } ->
         script#writeOpLine IaInline
-    | Var v, _ ->
+    | Var v->
         let mode_code mode =
           match mode with
           | AccNormal | AccCtor -> IaAccessNormal
@@ -1836,23 +1847,24 @@ let generate_script_class common_ctx script class_def =
         let isExtern = not (is_physical_field field) in
         script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic
           field.cf_name field.cf_type field.cf_expr
-    | Method MethDynamic, TFun (args, ret) ->
-        script#func isStatic true field.cf_name ret args
-          (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
-    | Method _, TFun (args, ret) when field.cf_name = "new" ->
-        script#func true false "new"
-          (TInst (class_def, []))
-          args false field.cf_expr field.cf_pos
-    | Method _, TFun (args, ret) ->
-        script#func isStatic false field.cf_name ret args
-          (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
-    | Method _, _ ->
-        print_endline
-          ("Unknown method type "
-          ^ join_class_path class_def.cl_path "."
-          ^ "." ^ field.cf_name)
+    | Method MethDynamic ->
+		map_args_ret (fun args ret ->
+			script#func isStatic true field.cf_name ret args
+			(has_class_flag class_def CInterface)
+			field.cf_expr field.cf_pos
+		)
+    | Method _ when field.cf_name = "new" ->
+		map_args_ret (fun args ret ->
+			script#func true false "new"
+			(TInst (class_def, []))
+			args false field.cf_expr field.cf_pos
+		)
+    | Method _ ->
+		map_args_ret (fun args ret ->
+			script#func isStatic false field.cf_name ret args
+			(has_class_flag class_def CInterface)
+			field.cf_expr field.cf_pos
+		)
   in
   (match class_def.cl_constructor with
   | Some field -> generate_field true field
