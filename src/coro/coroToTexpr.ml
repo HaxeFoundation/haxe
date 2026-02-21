@@ -50,15 +50,9 @@ let make_suspending_call basic cont call econtinuation =
 let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 	let fst_state     = List.hd states in
 	let arg_state_set = IntSet.of_list [ fst_state.cs_id ] in
-	let is_multi_state = List.length states > 1 in
 
 	(* Keep an extra table of all vars and what states they appear in, easier check if a var is used across states this way. *)
 	let var_usages = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
-
-	(* All function arguments are always hoisted to continuation fields because invokeResume()
-	   always runs in a separate execution context (either directly in the continuation class
-	   for static ClassField, or inside a thunk for non-static ClassField and LocalFunc) and
-	   has no direct access to the original function's parameter scope. *)
 
 	List.iter (fun state ->
 		let rec loop e =
@@ -98,9 +92,6 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 			false
 	in
 
-	(* Hoist ALL function arguments unconditionally: invokeResume() needs them via fields.
-	   We use a fresh variable (not the original arg) to avoid conflicts between the
-	   outer function parameter and the inner TVar declaration inside the thunk/invokeResume. *)
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
