@@ -102,7 +102,10 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 
 	(* Again, treat function arguments as the special case that they are.
 	   For multi-state coroutines, all args are always hoisted so that invokeResume()
-	   can restore them in state 0 from the continuation fields. *)
+	   can restore them in state 0 from the continuation fields.
+	   We use a fresh variable (not the original arg) to avoid conflicts between the
+	   outer function parameter and the inner TVar declaration inside the thunk/invokeResume. *)
+	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		if is_multi_state || is_used_across_multiple_states v.v_id then begin
 			fst_state.cs_writes <- IntSet.add v.v_id fst_state.cs_writes;
@@ -110,7 +113,12 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type null_pos null_pos in
 
 			Hashtbl.replace fields v.v_id field;
-			Hashtbl.replace fst_state.cs_mapped_local v.v_id v;
+			(* Create a fresh restored var rather than reusing the original argument variable.
+			   This prevents the same v_id appearing as both an outer function parameter and
+			   a TVar declaration inside the state machine body (which confuses renameVars). *)
+			let restored_var = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+			Hashtbl.replace fst_state.cs_mapped_local v.v_id restored_var;
+			Hashtbl.replace force_hoisted_ids v.v_id ();
 		end) tf_args;
 
 	List.iter (fun state ->
@@ -138,7 +146,7 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 				{ e with eexpr = TVar (v, Option.map mapper eo) }
 			| TBinop ((OpAssign | OpAssignOp _) as op, elhs, erhs) ->
 				(match Texpr.skip elhs with
-				| { eexpr = TLocal v } when is_used_across_multiple_states v.v_id ->
+				| { eexpr = TLocal v } when is_used_across_multiple_states v.v_id || Hashtbl.mem force_hoisted_ids v.v_id ->
 					state.cs_writes <- IntSet.add v.v_id state.cs_writes;
 
 					let new_local = { elhs with eexpr = TLocal (get_or_create_local_mapping v) } in
@@ -149,14 +157,14 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 					Type.map_expr mapper e)
 			| TUnop ((Increment | Decrement) as mode, flag, erhs) ->
 				(match Texpr.skip erhs with
-				| { eexpr = TLocal v  } when is_used_across_multiple_states v.v_id ->
+				| { eexpr = TLocal v  } when is_used_across_multiple_states v.v_id || Hashtbl.mem force_hoisted_ids v.v_id ->
 					state.cs_writes <- IntSet.add v.v_id state.cs_writes;
 
 					let new_rhs = { erhs with eexpr = TLocal (get_or_create_local_mapping v) } in
 					{ e with eexpr = TUnop (mode, flag, new_rhs) }
 				| _ ->
 					Type.map_expr mapper e)
-			| TLocal v when is_used_across_multiple_states v.v_id ->
+			| TLocal v when is_used_across_multiple_states v.v_id || Hashtbl.mem force_hoisted_ids v.v_id ->
 				(* Each state generates new local variables for variables which are used across states. *)
 				(* Here we generate and store those new variables and remap local access to them *)
 

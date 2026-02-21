@@ -16,6 +16,29 @@ private class AlwaysSuspending {
 	}
 }
 
+// Regression test for hxcoro#95: overriding coroutines used to endlessly call each
+// other because BaseContinuation.invokeResume() dispatched dynamically to the
+// original function, which could call the child's override.  With the new design the
+// state machine is embedded in a thunk inside each class's own invokeResume, so there
+// is no dynamic dispatch back to the original virtual function.
+private class ParentCoro {
+	public var log:Array<String> = [];
+
+	public function new() {}
+
+	@:coroutine public function test() {
+		@:coroutine function id(x:Int):Int { return x; }
+		log.push("parent-" + id(1));
+	}
+}
+
+private class ChildCoro extends ParentCoro {
+	@:coroutine override public function test() {
+		@:coroutine function id(x:Int):Int { return x; }
+		log.push("child-" + id(2));
+	}
+}
+
 private class NothrowCoroutines {
 	static function thrower():Void {
 		throw "nothrow error";
@@ -244,6 +267,18 @@ class TestCoroutines extends Test {
 		invokeCoroutineVoid(cont, foo);
 		eq(null, cont.lastError);
 		eq(maxIters, counter);
+	}
+
+	// Regression test for hxcoro#95: overriding a coroutine method used to cause infinite
+	// mutual recursion because the old invokeResume() dispatched dynamically back to the
+	// overridden method on the child.  With the state machine in a thunk inside each class's
+	// own invokeResume(), calling child.test no longer loops.
+	function testOverridingCoroutine() {
+		var child = new ChildCoro();
+		var cont = new TrackingCont<haxe.Unit>();
+		invokeCoroutineVoid(cont, child.test);
+		eq(null, cont.lastError);
+		eq(["child-2"], child.log);
 	}
 
 	// Tests that @:coroutine(nothrow) also works on local functions.
