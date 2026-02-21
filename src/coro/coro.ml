@@ -337,11 +337,12 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		let ctor_args = [ b#local vthunk coro_class.name_pos; ecompletion ] in
 		let tnew = (mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
 		let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcontinuation.v_pos) in
-		b#void_block ([
-			b#var_init vcontinuation (null_safety_off (b#null vcontinuation.v_type vcontinuation.v_pos));
-			b#var_init vthunk ethunk;
-			b#assign (b#local vcontinuation coro_class.name_pos) tnew;
-		] @ hoisted_arg_assigns @ [b#return einvoke_resume_call])
+		null_safety_off
+			begin b#void_block ([
+				b#var_init_null vcontinuation;
+				b#var_init vthunk ethunk;
+				b#assign (b#local vcontinuation coro_class.name_pos) tnew;
+			] @ hoisted_arg_assigns @ [b#return einvoke_resume_call]) end
 	end
 
 let fun_to_coro ctx coro_type =
