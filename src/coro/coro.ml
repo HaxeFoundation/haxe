@@ -487,10 +487,7 @@ let fun_to_coro ctx coro_type =
 
 let create_coro_context typer meta =
 	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t in
-	let config = match Meta.get Meta.Coroutine meta with
-		| entry -> CoroConfig.of_metadata_entry entry
-		| exception Not_found -> CoroConfig.create ()
-	in
+	let config = CoroConfig.of_meta_list meta in
 	let ctx = {
 		builder;
 		typer;

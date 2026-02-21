@@ -7,12 +7,14 @@ type coro_assert = {
 type t = {
 	mutable debug : bool;
 	mutable nothrow : bool;
+	mutable transformed : bool;
 	mutable assert_config : coro_assert option;
 }
 
 let create () = {
 	debug = false;
 	nothrow = false;
+	transformed = false;
 	assert_config = None;
 }
 
@@ -34,6 +36,8 @@ module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
 					config.debug <- API.read_bool data
 				| "nothrow" ->
 					config.nothrow <- API.read_bool data
+				| "transformed" ->
+					config.transformed <- API.read_bool data
 				| "assert" ->
 					let config_assert = { num_states = None } in
 					read_coro_assert config_assert data;
@@ -51,3 +55,8 @@ let of_metadata_entry entry =
 	let config = create () in
 	CoroConfigReaderMeta.read_coro_config config (MetaDataApi.of_metadata_entry entry);
 	config
+
+let of_meta_list meta =
+	match Meta.get Meta.Coroutine meta with
+	| entry -> of_metadata_entry entry
+	| exception Not_found -> create ()

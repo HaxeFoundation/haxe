@@ -8,7 +8,7 @@ import haxe.coro.context.Context;
 private class AlwaysSuspending {
 	public static var _stored:Null<IContinuation<Int>> = null;
 
-	@:coroutine @:coroutine.transformed
+	@:coroutine(transformed)
 	public static function suspend(cont:IContinuation<Int>):SuspensionResult<Int> {
 		_stored = cont;
 		return new SuspensionResult<Int>(Pending);

@@ -870,7 +870,7 @@ module TypeBinding = struct
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> TClass.set_cl_init c e);
 					let e = mk (TFunction tf) t p in
-					let e = if TyperManager.is_coroutine_context ctx && not (Meta.has Meta.CoroutineTransformed cf.cf_meta) then Coro.fun_to_coro (Coro.create_coro_context ctx cf.cf_meta) (ClassField(c, cf, tf, p)) else e in
+					let e = if TyperManager.is_coroutine_context ctx && not (CoroConfig.of_meta_list cf.cf_meta).CoroConfig.transformed then Coro.fun_to_coro (Coro.create_coro_context ctx cf.cf_meta) (ClassField(c, cf, tf, p)) else e in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 					check_field_display ctx fctx c cf;
@@ -1264,7 +1264,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	let targs = args#for_type in
 	let t = if not is_coroutine then
 		TFun (targs,ret)
-	else if Meta.has Meta.CoroutineTransformed cf.cf_meta then begin
+	else if (CoroConfig.of_meta_list cf.cf_meta).CoroConfig.transformed then begin
 		match targs with
 			| _ :: targs ->
 				(* Ignore leading continuation for actual signature *)
@@ -1272,7 +1272,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 				| TInst({cl_path = (["haxe";"coro"],"SuspensionResult")},[ret]) ->
 					ret
 				| t ->
-					raise_typing_error (Printf.sprintf "Return type of @:coroutine.transformed functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
+					raise_typing_error (Printf.sprintf "Return type of @:coroutine(transformed) functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
 				in
 				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
