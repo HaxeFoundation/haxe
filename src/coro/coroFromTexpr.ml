@@ -121,15 +121,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 	let map_suspension cb ret e =
 		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None in
 		let exception Found in
-		(* remap processes expression `e`. `allow_tco` is threaded explicitly so
-		   TTry can locally disable it. `is_tail_pos` is true when `e` is in tail
-		   position — i.e., it is the last thing executed in the current inline
-		   block so a coroutine call here needs no continuation state. *)
-		let rec remap allow_tco is_tail_pos loop_depth e = match e.eexpr with
+		(* `can_tco` is the single predicate that combines "we are in tail position"
+		   AND "the outer context allows TCO (no surrounding catch handler, ret is a
+		   tail ret)". A coroutine call is only inlined when `can_tco` is true. *)
+		let rec remap can_tco loop_depth e = match e.eexpr with
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
-				(* Inline a TCO suspension call: only when we are both in a tail-call
-				   position within the expression AND the caller's `ret` allows TCO. *)
-				if is_tail_pos && allow_tco then
+				if can_tco then
 					make_inline_tail_call {
 						cs_fun = e1;
 						cs_args = el;
@@ -147,9 +144,9 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				   because make_inline_tail_call already handles the return. *)
 				begin match e1.eexpr with
 				| TCall(efun, _) when (match follow_with_coro efun.etype with Coro _ -> true | _ -> false) ->
-					remap allow_tco is_tail_pos loop_depth e1
+					remap can_tco loop_depth e1
 				| _ ->
-					let e1 = remap allow_tco false loop_depth e1 in
+					let e1 = remap false loop_depth e1 in
 					make_inline_return (Some e1) e.epos
 				end
 			| TThrow _ ->
@@ -163,40 +160,42 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				(* Only the last element of a block is in tail position. *)
 				let rec remap_block = function
 					| [] -> []
-					| [last] -> [remap allow_tco is_tail_pos loop_depth last]
-					| hd :: tl -> remap allow_tco false loop_depth hd :: remap_block tl
+					| [last] -> [remap can_tco loop_depth last]
+					| hd :: tl -> remap false loop_depth hd :: remap_block tl
 				in
 				{e with eexpr = TBlock (remap_block el)}
 			| TIf(e1, e2, e3_opt) ->
-				(* Condition is in value position; branches inherit is_tail_pos. *)
-				let e1' = remap allow_tco false loop_depth e1 in
-				let e2' = remap allow_tco is_tail_pos loop_depth e2 in
-				let e3_opt' = Option.map (remap allow_tco is_tail_pos loop_depth) e3_opt in
+				(* Condition is in value position; branches inherit can_tco. *)
+				let e1' = remap false loop_depth e1 in
+				let e2' = remap can_tco loop_depth e2 in
+				let e3_opt' = Option.map (remap can_tco loop_depth) e3_opt in
 				{e with eexpr = TIf(e1', e2', e3_opt')}
 			| TSwitch switch ->
-				(* Subject is in value position; each case/default branch inherits is_tail_pos. *)
-				let switch_subject = remap allow_tco false loop_depth switch.switch_subject in
+				(* Subject is in value position; each case/default branch inherits can_tco. *)
+				let switch_subject = remap false loop_depth switch.switch_subject in
 				let switch_cases = List.map (fun case ->
-					{case with case_expr = remap allow_tco is_tail_pos loop_depth case.case_expr}
+					{case with case_expr = remap can_tco loop_depth case.case_expr}
 				) switch.switch_cases in
-				let switch_default = Option.map (remap allow_tco is_tail_pos loop_depth) switch.switch_default in
+				let switch_default = Option.map (remap can_tco loop_depth) switch.switch_default in
 				{e with eexpr = TSwitch {switch with switch_subject; switch_cases; switch_default}}
 			| TTry(e1, catches) ->
-				(* The try body has a catch handler, so TCO is unsafe here. *)
-				let e1 = remap false is_tail_pos loop_depth e1 in
-				let catches = List.map (fun (v, e) -> (v, remap false false loop_depth e)) catches in
+				(* The try body has a catch handler (this TTry's), so no TCO there.
+				   The catch bodies don't have a catch handler from this TTry node,
+				   so they inherit can_tco from the outer context. *)
+				let e1 = remap false loop_depth e1 in
+				let catches = List.map (fun (v, e) -> (v, remap can_tco loop_depth e)) catches in
 				{e with eexpr = TTry(e1, catches)}
 			| TWhile(e1,e2,flag) ->
-				let e1 = remap allow_tco false loop_depth e1 in
-				let e2 = remap false false (loop_depth + 1) e2 in
+				let e1 = remap false loop_depth e1 in
+				let e2 = remap false (loop_depth + 1) e2 in
 				{e with eexpr = TWhile(e1,e2,flag)}
 			| TFunction _ ->
 				e
 			| _ ->
 				(* For all other compound expressions, sub-expressions are in non-tail position. *)
-				Type.map_expr (remap allow_tco false loop_depth) e
+				Type.map_expr (remap false loop_depth) e
 		in
-		try HasNoSuspension (remap allow_tco true 0 e)
+		try HasNoSuspension (remap allow_tco 0 e)
 		with Found -> HasSuspension
 	in
 	let loop_stack = ref [] in
