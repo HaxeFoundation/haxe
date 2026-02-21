@@ -40,7 +40,7 @@ module ContinuationClassBuilder = struct
 		coro_type : coro_for;
 		continuation_api : ContTypes.continuation_api;
 		(* Some coroutine classes (member functions, local functions) need to capture state, this field stores that *)
-		captured : tclass_field option;
+		mutable captured : tclass_field option;
 	}
 
 	let create ctx coro_type =
@@ -285,8 +285,11 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let inline_state_machine = match coro_class.coro_type with
 	| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
 		true
-	(* | LocalFunc _ when not ctx.captures_this && not ctx.has_capture_vars ->
-		true *)
+	| LocalFunc _ when not ctx.captures_this && not ctx.has_capture_vars ->
+		(* No outer captures and no this/super: safe to inline state machine directly into invokeResume.
+		   Clear the captured field so mk_ctor won't add a captured constructor parameter. *)
+		coro_class.captured <- None;
+		true
 	| _ ->
 		false
 	in
@@ -507,7 +510,7 @@ let fun_to_coro ctx coro_type =
 		let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
 		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
 	in
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call expr);
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call args expr);
 	let start_exception =
 		let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
 		let ef = continuation_field cf cf.cf_type in

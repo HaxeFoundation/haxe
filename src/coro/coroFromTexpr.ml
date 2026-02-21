@@ -18,7 +18,7 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call e =
+let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call args e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in
@@ -127,6 +127,9 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 	let declare v = Hashtbl.add vars v.v_id true in
 	let is_known_var v = Hashtbl.mem vars v.v_id in
 	let check_local v = if not (is_known_var v) then ctx.has_capture_vars <- true in
+	(* Declare the coroutine's own function arguments so they are not mistakenly
+	   treated as outer captures when encountered as TLocal nodes in the body. *)
+	List.iter (fun (v,_) -> declare v) args;
 	let browse_function tf =
 		List.iter (fun (v,_) -> declare v) tf.tf_args;
 		let rec browse e = match e.eexpr with
