@@ -226,4 +226,33 @@ class TestCoroutines extends Test {
 		}
 		t(threw);
 	}
+
+	// Tests that @:coroutine(nothrow) also works on local functions.
+	function testCoroutineNothrowLocal() {
+		function thrower():Void {
+			throw "nothrow error";
+		}
+
+		// Without nothrow: exception is caught and forwarded via cont.resume(null, error).
+		@:coroutine function withThrow():Void {
+			thrower();
+		}
+		var cont = new TrackingCont<haxe.Unit>();
+		invokeCoroutineVoid(cont, withThrow);
+		eq(1, cont.resumeCount);
+		f(cont.lastError == null);
+
+		// With nothrow: exception escapes the coroutine call site.
+		@:coroutine(nothrow) function withNothrow():Void {
+			thrower();
+		}
+		var threw = false;
+		try {
+			var cont2 = new SimpleCont<haxe.Unit>();
+			withNothrow(cont2);
+		} catch (e:Exception) {
+			threw = true;
+		}
+		t(threw);
+	}
 }
