@@ -274,7 +274,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
-	let eloop, initial_state, fields = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
+	let eloop, initial_state, fields, is_single_state = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -301,20 +301,25 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 
 	let continuation_assign =
 		let t = coro_class.outside.cls_t in
-
-		let ecastedcompletion = mk_cast ecompletion t coro_class.name_pos in
-
-		let tcond =
-			let erecursingfield = b#instance_field ecastedcompletion coro_class.cls coro_class.outside.param_types cont.recursing basic.tbool in
-			let estdis          = std_is ecompletion t in
-			let erecursingcheck = b#op_eq erecursingfield (b#bool false coro_class.name_pos) in
-			b#op_bool_and estdis erecursingcheck
-		in
-		let tif       = ecastedcompletion in
-		let tif       = b#void_block [tif] in
 		let ctor_args = prefix_arg @ [ ecompletion ] in
-		let telse = (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
-		b#if_then_else tcond tif telse basic.tvoid
+		let tnew = (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
+		if is_single_state then
+			(* Single-state coroutines can never be resumed mid-body, so we never
+			   recurse into ourselves. Always allocate a fresh continuation and skip
+			   the recursing check entirely. *)
+			tnew
+		else begin
+			let ecastedcompletion = mk_cast ecompletion t coro_class.name_pos in
+			let tcond =
+				let erecursingfield = b#instance_field ecastedcompletion coro_class.cls coro_class.outside.param_types cont.recursing basic.tbool in
+				let estdis          = std_is ecompletion t in
+				let erecursingcheck = b#op_eq erecursingfield (b#bool false coro_class.name_pos) in
+				b#op_bool_and estdis erecursingcheck
+			in
+			let tif   = b#void_block [ecastedcompletion] in
+			let telse = tnew in
+			b#if_then_else tcond tif telse basic.tvoid
+		end
 	in
 
 	let continuation_field cf t =
@@ -322,9 +327,15 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	in
 	let el = [
 		b#var_init vcontinuation continuation_assign;
-		b#assign
+	] in
+	let el = if is_single_state then el else
+		(* For multi-state coroutines, mark the continuation as actively recursing so
+		   the entry-point check knows whether to reuse it or allocate a fresh one. *)
+		el @ [b#assign
 			(continuation_field cont.recursing basic.tbool)
-			(b#bool true coro_class.name_pos);
+			(b#bool true coro_class.name_pos)]
+	in
+	let el = el @ [
 		b#var_init vtmp_result eresult;
 		b#var_init_null vtmp_error;
 	] in
