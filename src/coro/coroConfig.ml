@@ -60,3 +60,8 @@ let of_meta_list meta =
 	match Meta.get Meta.Coroutine meta with
 	| entry -> of_metadata_entry entry
 	| exception Not_found -> create ()
+
+let get_coroutine_config meta =
+	let config = of_meta_list meta in
+	if config.transformed then None
+	else Some config

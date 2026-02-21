@@ -485,9 +485,8 @@ let fun_to_coro ctx coro_type =
 	if ctx.config.debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
 
-let create_coro_context typer meta =
+let create_coro_context typer config =
 	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t in
-	let config = CoroConfig.of_meta_list meta in
 	let ctx = {
 		builder;
 		typer;
