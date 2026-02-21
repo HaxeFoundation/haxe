@@ -125,6 +125,12 @@ let dump_field_context fctx =
 		"expr_presence_matters",string_of_bool fctx.expr_presence_matters;
 	]
 
+let get_coro_config ctx meta =
+	if TyperManager.is_coroutine_context ctx then
+		CoroConfig.get_coroutine_config meta
+	else
+		None
+
 let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
 		| (Meta.Native,[],_) ->
@@ -870,7 +876,7 @@ module TypeBinding = struct
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> TClass.set_cl_init c e);
 					let e = mk (TFunction tf) t p in
-					let e = match CoroConfig.get_coroutine_config (TyperManager.is_coroutine_context ctx) cf.cf_meta with
+					let e = match get_coro_config ctx cf.cf_meta with
 						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config) (ClassField(c, cf, tf, p))
 						| None -> e
 					in

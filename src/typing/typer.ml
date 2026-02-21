@@ -1260,7 +1260,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
-	let e = match CoroConfig.get_coroutine_config (TyperManager.is_coroutine_context ctx) ctx.f.meta with
+	let e = match TypeloadFields.get_coro_config ctx ctx.f.meta with
 		| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config) (LocalFunc(tf,Option.get v))
 		| None -> e
 	in

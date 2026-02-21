@@ -61,9 +61,7 @@ let of_meta_list meta =
 	| entry -> of_metadata_entry entry
 	| exception Not_found -> create ()
 
-let get_coroutine_config is_coroutine meta =
-	if not is_coroutine then None
-	else
-		let config = of_meta_list meta in
-		if config.transformed then None
-		else Some config
+let get_coroutine_config meta =
+	let config = of_meta_list meta in
+	if config.transformed then None
+	else Some config
