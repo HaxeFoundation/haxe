@@ -186,26 +186,6 @@ module ContinuationClassBuilder = struct
 
 		field
 
-	let default_value basic t p = match follow_without_null t with
-		| TAbstract({a_path = ([],"Int")},[]) ->
-			mk (TConst (TInt (Int32.zero))) t p
-		| TAbstract({a_path = ([],"Float")},[]) ->
-			mk (TConst (TFloat "0.0")) t p
-		| TAbstract({a_path = ([],"Bool")},[]) ->
-			mk (TConst (TBool false)) t p
-		| TMono r when not (is_nullable_mono r) ->
-			(* This might be inferred to anything later, so the best course of action
-			   is to make the mono nullable and use null. *)
-			Monomorph.add_modifier r (MNullable basic.tnull);
-			mk (TConst TNull) t p
-		| TFun _ ->
-			mk (TConst TNull) t p
-		| _ ->
-			if is_nullable t then
-				mk (TConst TNull) t p
-			else
-				mk (TConst (TInt (Int32.zero))) t p (* I guess *)
-
 	(* For ClassField coroutines: embed the state machine body directly inside invokeResume().
 	   For static ClassField only - the state machine can be safely embedded because there
 	   are no implicit `this` or `super` references to worry about. *)
