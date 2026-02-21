@@ -40,6 +40,7 @@ private class ChildCoro extends ParentCoro {
 			return x;
 		}
 		log.push("child-" + id(2));
+		super.test();
 	}
 }
 
@@ -277,12 +278,15 @@ class TestCoroutines extends Test {
 	// mutual recursion because the old invokeResume() dispatched dynamically back to the
 	// overridden method on the child.  With the state machine in a thunk inside each class's
 	// own invokeResume(), calling child.test no longer loops.
+	// Also covers the super.test() case (hxcoro#95 extension): `super` inside the thunk
+	// closure is invalid in most languages, so the compiler inserts a helper method
+	// _hx_super_test_0 on ChildCoro that delegates to super.test().
 	function testOverridingCoroutine() {
 		var child = new ChildCoro();
 		var cont = new TrackingCont<haxe.Unit>();
 		invokeCoroutineVoid(cont, child.test);
 		eq(null, cont.lastError);
-		Assert.same(["child-2"], child.log);
+		Assert.same(["child-2", "parent-1"], child.log);
 	}
 
 	// Tests that @:coroutine(nothrow) also works on local functions.

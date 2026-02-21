@@ -392,13 +392,60 @@ let fun_to_coro ctx coro_type =
 	   called via this.captured() from invokeResume()) can reference the original class instance.
 	   We substitute TConst TThis → TLocal(vgthis) in the method body; vgthis will be declared
 	   as  var _gthis = this  in the thin wrapper body, before the thunk closure is created,
-	   so the thunk naturally captures the correct value via closure. *)
+	   so the thunk naturally captures the correct value via closure.
+	   We also substitute TField(TConst TSuper, fa) → TField(egthis, FInstance(curclass, ..., helper))
+	   because `super` in a closure is invalid in most languages (e.g. JS).  For each unique
+	   super.X access we add a helper method _hx_super_X_N to curclass that delegates to
+	   super.X(); this helper is a regular class method where `super` is valid. *)
 	let expr, vgthis_opt = match coro_type with
 		| ClassField (_, field, _, _) when not (has_class_field_flag field CfStatic) ->
 			let vgthis = alloc_var VGenerated "_gthis" ctx.typer.c.tthis coro_class.name_pos in
 			let egthis = b#local vgthis coro_class.name_pos in
+			let curclass = ctx.typer.c.curclass in
+			let curclass_params = extract_param_types ctx.typer.type_params in
+			let super_helpers = Hashtbl.create 4 in
+			let next_helper_id = ref 0 in
+			let make_super_helper super_field_expr super_cf p =
+				let key = super_cf.cf_name in
+				match Hashtbl.find_opt super_helpers key with
+				| Some helper_cf -> helper_cf
+				| None ->
+					let id = !next_helper_id in
+					incr next_helper_id;
+					let helper_name = Printf.sprintf "_hx_super_%s_%i" super_cf.cf_name id in
+					(* Helper has same Coro type as the super method, so expr_to_coro will
+					   recognize it as a coroutine call and add the completion arg. *)
+					let helper_cf = mk_field helper_name super_cf.cf_type p p in
+					helper_cf.cf_kind <- Method MethNormal;
+					(* Helper body: forwards all args (including completion) to super.X().
+					   We build the body in expanded form (explicit completion parameter)
+					   so it is never run through fun_to_coro again. *)
+					let body_args, body_ret = match follow_with_coro super_cf.cf_type with
+						| Coro (args, ret) -> Common.expand_coro_type basic args ret
+						| NotCoro _ -> die "super helper: expected Coro type" __LOC__
+					in
+					let param_vars = List.map (fun (n, _, t) -> alloc_var VGenerated n t p) body_args in
+					let eparam_exprs = List.map (fun v -> b#local v p) param_vars in
+					(* Expand the super field type so the TCall type-checks *)
+					let efun_expanded = { super_field_expr with etype = TFun(body_args, body_ret) } in
+					let ecall = mk (TCall(efun_expanded, eparam_exprs)) body_ret p in
+					let tf_expr = mk (TReturn (Some ecall)) t_dynamic p in
+					helper_cf.cf_expr <- Some (mk
+						(TFunction {
+							tf_args = List.map (fun v -> v, None) param_vars;
+							tf_type = body_ret;
+							tf_expr
+						}) super_cf.cf_type p);
+					TClass.add_field curclass helper_cf;
+					Hashtbl.replace super_helpers key helper_cf;
+					helper_cf
+			in
 			let rec subst e = match e.eexpr with
 				| TConst TThis -> { e with eexpr = egthis.eexpr; etype = egthis.etype }
+				| TField({eexpr = TConst TSuper} as esuper_this, (FInstance(_, _, super_cf) as fa)) ->
+					let super_field_expr = { eexpr = TField(esuper_this, fa); etype = super_cf.cf_type; epos = e.epos } in
+					let helper_cf = make_super_helper super_field_expr super_cf e.epos in
+					{ e with eexpr = TField(egthis, FInstance(curclass, curclass_params, helper_cf)) }
 				| TFunction _ -> e
 				| _ -> Type.map_expr subst e
 			in
