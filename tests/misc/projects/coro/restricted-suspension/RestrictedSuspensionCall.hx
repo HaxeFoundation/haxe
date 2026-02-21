@@ -2,7 +2,7 @@ import haxe.coro.Coroutine;
 
 @:coroutine function someOtherCoro() {}
 
-@:coroutine.restrictedSuspension
+@:coroutine.scope(restrictedSuspension)
 typedef MyScope = Coroutine<() -> Void>;
 
 function main() {

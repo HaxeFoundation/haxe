@@ -6,10 +6,10 @@ class MyUnrestrictedClass implements MyUnrestrictedInterface {
 	public function new() {}
 }
 
-@:coroutine.restrictedSuspension
+@:coroutine.scope(restrictedSuspension)
 typedef MyRestrictedTypedef = MyUnrestrictedClass;
 
-@:coroutine.restrictedSuspension
+@:coroutine.scope(restrictedSuspension)
 class MyRestrictedChildClass extends MyUnrestrictedClass {}
 
 @:coroutine function passToUnrestrictedClass(_:MyUnrestrictedClass) { }

@@ -93,13 +93,18 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 			   using `scope.staticExtension()`. *)
 				begin match args,el with
 				| ((_,_,t) :: _),arg1 :: _ when is_scope_local_expr arg1 ->
+					let is_restricted meta =
+						match CoroScopeConfig.of_meta_list meta with
+						| Some config -> config.CoroScopeConfig.restricted_suspension
+						| None -> false
+					in
 					begin match e1.eexpr with
 					| TField(_,FStatic({cl_kind = KAbstractImpl a}, cf)) when has_class_field_flag cf CfImpl ->
-						Meta.has Meta.CoroutineRestrictedSuspension a.a_meta
+						is_restricted a.a_meta
 					| _ ->
 						begin try
 							let mt = t_infos (module_type_of_type t) in
-							Meta.has Meta.CoroutineRestrictedSuspension mt.mt_meta
+							is_restricted mt.mt_meta
 						with Exit ->
 							false
 						end

@@ -149,15 +149,9 @@
 		"targets": ["TClassField"]
 	},
 	{
-		"name": "CoroutineRestrictedSuspension",
-		"metadata": ":coroutine.restrictedSuspension",
-		"doc": "Marks a type as a coroutine scope with restricted suspension. Implies @:coroutine.scope.",
-		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
-	},
-	{
 		"name": "CoroutineScope",
 		"metadata": ":coroutine.scope",
-		"doc": "Marks a type as a coroutine scope, disallowing its usage in other scopes.",
+		"doc": "Marks a type as a coroutine scope, disallowing its usage in other scopes. Use @:coroutine.scope(restrictedSuspension) to allow only coroutines defined on this scope to be called.",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{

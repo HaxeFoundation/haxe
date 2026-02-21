@@ -1,6 +1,6 @@
 @:coroutine function someOtherCoro() {}
 
-@:coroutine.restrictedSuspension
+@:coroutine.scope(restrictedSuspension)
 class MyScope {
 	@:coroutine public function scopeCoro() {}
 }

@@ -63,12 +63,12 @@ class function_arguments
 	let check_coroutine_scope v =
 		try
 			let mt = t_infos (module_type_of_type v.v_type) in
-			if (Meta.has Meta.CoroutineRestrictedSuspension mt.mt_meta) then begin
+			(match CoroScopeConfig.of_meta_list mt.mt_meta with
+			| Some config ->
 				add_var_flag v VCoroScope;
-				add_var_flag v VCoroRestrictedSuspension
-			end else if (Meta.has Meta.CoroutineScope mt.mt_meta) then begin
-				add_var_flag v VCoroScope
-			end
+				if config.CoroScopeConfig.restricted_suspension then
+					add_var_flag v VCoroRestrictedSuspension
+			| None -> ())
 		with Exit ->
 			()
 	in

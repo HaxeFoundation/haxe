@@ -1,6 +1,6 @@
 abstract UnrestrictedAbstract(Int) { }
 
-@:coroutine.restrictedSuspension
+@:coroutine.scope(restrictedSuspension)
 abstract RestrictedAbstract(UnrestrictedAbstract) to UnrestrictedAbstract {
 	@:coroutine public function test() {}
 }
