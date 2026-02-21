@@ -15,6 +15,20 @@ private class AlwaysSuspending {
 	}
 }
 
+private class NothrowCoroutines {
+	// @:coroutine(nothrow) - omitted value treated as true
+	@:coroutine(nothrow)
+	public static function returnFortyTwo():Int {
+		return 42;
+	}
+
+	// @:coroutine(nothrow = true) - explicit true value
+	@:coroutine(nothrow = true)
+	public static function returnNinetyNine():Int {
+		return 99;
+	}
+}
+
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
 
@@ -184,6 +198,23 @@ class TestCoroutines extends Test {
 		if (bc != null)
 			bc.resume(0, null);
 
+		eq(null, cont.lastError);
+	}
+
+	// Tests that @:coroutine(nothrow) config syntax compiles and runs correctly.
+	// @:coroutine(nothrow) is equivalent to @:coroutine(nothrow = true).
+	function testCoroutineConfig() {
+		var cont = new TrackingCont<Int>();
+
+		invokeCoroutine(cont, NothrowCoroutines.returnFortyTwo);
+		eq(1, cont.resumeCount);
+		eq(42, cont.lastResult);
+		eq(null, cont.lastError);
+
+		cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, NothrowCoroutines.returnNinetyNine);
+		eq(1, cont.resumeCount);
+		eq(99, cont.lastResult);
 		eq(null, cont.lastError);
 	}
 }
