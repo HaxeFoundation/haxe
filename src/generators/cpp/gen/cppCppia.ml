@@ -413,7 +413,7 @@ let is_extern_class_instance obj =
 let rec is_dynamic_in_cpp ctx expr =
   let expr_type =
     type_string
-      (match follow expr.etype with TFun (args, ret) -> ret | _ -> expr.etype)
+      (match follow_with_coro expr.etype with Coro (args, ret) | NotCoro TFun (args, ret) -> ret | _ -> expr.etype)
   in
   if expr_type = "Dynamic" || expr_type = "cpp::ArrayBase" then true
   else
@@ -454,8 +454,8 @@ let rec is_dynamic_in_cpp ctx expr =
           in
           if is_IaCall then true
           else
-            match follow func.etype with
-            | TFun (args, ret) -> is_dynamic_in_cpp ctx func
+            match follow_with_coro func.etype with
+            | Coro _ | NotCoro TFun _ -> is_dynamic_in_cpp ctx func
             | _ -> true)
       | TParenthesis expr | TMeta (_, expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e, None) -> type_string expr.etype = "Dynamic"
@@ -1087,8 +1087,8 @@ class script_writer ctx filename asciiOut =
                 this#write (this#op IaCall ^ argN ^ "\n");
                 this#gen_expression func);
             let matched_args =
-              match func.etype with
-              | TFun (args, _) -> (
+              match follow_with_coro func.etype with
+              | Coro (args, _) | NotCoro TFun (args, _) -> (
                   try
                     List.iter2
                       (fun (_, _, protoT) arg ->
