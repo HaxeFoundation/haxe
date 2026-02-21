@@ -56,8 +56,7 @@ and coro_suspend = {
 type coro_ctx = {
 	builder : CoroElsewhere.texpr_builder;
 	typer : Typecore.typer;
-	coro_debug : bool;
-	nothrow : bool;
+	config : CoroConfig.t;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;
 	mutable current_catch : coro_block option;

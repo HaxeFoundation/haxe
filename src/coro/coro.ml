@@ -181,7 +181,7 @@ module ContinuationClassBuilder = struct
 		field.cf_expr <- Some expr;
 		field.cf_kind <- Method MethNormal;
 
-		if ctx.coro_debug then
+		if ctx.config.debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
 
 		field
@@ -253,7 +253,7 @@ module ContinuationClassBuilder = struct
 		field.cf_expr <- Some expr;
 		field.cf_kind <- Method MethNormal;
 
-		if ctx.coro_debug then
+		if ctx.config.debug then
 			s_expr_debug expr |> Printf.printf "%s\n";
 
 		field
@@ -265,7 +265,7 @@ let create_continuation_class ctx cont coro_class initial_state =
 	TClass.add_field coro_class.cls resume;
 	Option.may (TClass.add_field coro_class.cls) coro_class.captured;
 	coro_class.cls.cl_constructor <- Some ctor;
-	if ctx.coro_debug then
+	if ctx.config.debug then
 		Printer.s_tclass "\t" coro_class.cls |> Printf.printf "%s\n";
 
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl coro_class.cls ]
@@ -461,12 +461,12 @@ let fun_to_coro ctx coro_type =
 	   Cpp dies if I try to use coro_class.outside.cls_t here, which might be something
 	   to investigate independently. *)
 	let tf_type = cont.suspension_result coro_class.outside.result_type in
-	if ctx.coro_debug then begin
+	if ctx.config.debug then begin
 		print_endline ("BEFORE:\n" ^ (s_expr_debug expr));
 		CoroDebug.create_dotgraph (DotGraph.get_dump_path (SafeCom.of_com ctx.typer.com) (ctx.typer.c.curclass.cl_path) name) cb_root
 	end;
 	let e = mk (TFunction {tf_args; tf_expr; tf_type}) (TFun (tf_args |> List.map (fun (v, _) -> (v.v_name, false, v.v_type)), tf_type)) tf_expr.epos in
-	if ctx.coro_debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
+	if ctx.config.debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
 
 let create_coro_context typer meta =
@@ -478,8 +478,7 @@ let create_coro_context typer meta =
 	let ctx = {
 		builder;
 		typer;
-		coro_debug = config.CoroConfig.debug;
-		nothrow = config.CoroConfig.nothrow;
+		config;
 		vthis = None;
 		next_block_id = 0;
 		current_catch = None;

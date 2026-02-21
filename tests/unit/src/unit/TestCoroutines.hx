@@ -16,16 +16,22 @@ private class AlwaysSuspending {
 }
 
 private class NothrowCoroutines {
-	// @:coroutine(nothrow) - omitted value treated as true
-	@:coroutine(nothrow)
-	public static function returnFortyTwo():Int {
-		return 42;
+	static function thrower():Void {
+		throw "nothrow error";
 	}
 
-	// @:coroutine(nothrow = true) - explicit true value
-	@:coroutine(nothrow = true)
-	public static function returnNinetyNine():Int {
-		return 99;
+	// Without nothrow: exception is caught by the coroutine wrapper and forwarded
+	// to the continuation via resume(null, error).
+	@:coroutine
+	public static function withThrow():Void {
+		thrower();
+	}
+
+	// With nothrow: the outer try/catch wrapper is omitted, so the exception
+	// escapes the coroutine call normally.
+	@:coroutine(nothrow)
+	public static function withNothrow():Void {
+		thrower();
 	}
 }
 
@@ -201,20 +207,23 @@ class TestCoroutines extends Test {
 		eq(null, cont.lastError);
 	}
 
-	// Tests that @:coroutine(nothrow) config syntax compiles and runs correctly.
-	// @:coroutine(nothrow) is equivalent to @:coroutine(nothrow = true).
-	function testCoroutineConfig() {
-		var cont = new TrackingCont<Int>();
-
-		invokeCoroutine(cont, NothrowCoroutines.returnFortyTwo);
+	// Tests that @:coroutine(nothrow) omits the outer try/catch, causing exceptions
+	// to escape normally instead of being forwarded to the continuation.
+	function testCoroutineNothrow() {
+		// Without nothrow: exception is caught and forwarded via cont.resume(null, error).
+		var cont = new TrackingCont<haxe.Unit>();
+		invokeCoroutineVoid(cont, NothrowCoroutines.withThrow);
 		eq(1, cont.resumeCount);
-		eq(42, cont.lastResult);
-		eq(null, cont.lastError);
+		f(cont.lastError == null);
 
-		cont = new TrackingCont<Int>();
-		invokeCoroutine(cont, NothrowCoroutines.returnNinetyNine);
-		eq(1, cont.resumeCount);
-		eq(99, cont.lastResult);
-		eq(null, cont.lastError);
+		// With nothrow: exception escapes the coroutine call site.
+		var threw = false;
+		try {
+			var cont2 = new SimpleCont<haxe.Unit>();
+			NothrowCoroutines.withNothrow(cont2);
+		} catch (e:Exception) {
+			threw = true;
+		}
+		t(threw);
 	}
 }

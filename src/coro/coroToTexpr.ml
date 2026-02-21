@@ -461,7 +461,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p,false
 	in
 
-	let etry = if ctx.nothrow then
+	let etry = if ctx.config.nothrow then
 		eloop
 	else
 		mk (TTry (
