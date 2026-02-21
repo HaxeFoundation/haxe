@@ -18,7 +18,7 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return e =
+let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in

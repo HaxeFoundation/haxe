@@ -192,37 +192,27 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 	|> Hashtbl.to_seq_values
 	|> List.of_seq
 
-let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs p stack_item_inserter start_exception =
-	let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
-	let com = ctx.typer.com in
-	let b = ctx.builder in
-
-	let set_state id = b#assign egoto (b#int id p) in
-
-	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c) in
-
-	let std_is e t =
-		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in
-		Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [e;type_expr] p
-	in
-
-	let ereturn = b#return econtinuation in
-
-	let make_suspension_call_and_assign call econtinuation =
-		let ecreatecoroutine = make_suspending_call com.basic cont call {econtinuation with epos = p} in
+module SuspensionCalls = struct
+	let make_suspension_call_and_assign ctx cont call econtinuation =
+		let com = ctx.typer.com in
+		let b = ctx.builder in
+		let p = call.cs_pos in
+		let ecreatecoroutine = make_suspending_call com.Common.basic cont call {econtinuation with epos = p} in
 
 		let vcororesult = alloc_var VGenerated "_hx_tmp" (cont.suspension_result com.basic.tany) p in
 		let ecororesult = b#local vcororesult p in
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		(cororesult_var,ecororesult)
-	in
 
-	let mk_suspending_call call =
+	let make_suspending_call ctx cont exprs call =
+		let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+		let com = ctx.typer.com in
+		let b = ctx.builder in
 		let p = call.cs_pos in
 		let base_continuation_field_on e cf t =
 			b#instance_field e cont.suspension_result_class [com.basic.tany] cf t
 		in
-		let (cororesult_var, ecororesult) = make_suspension_call_and_assign call econtinuation in
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
 		let open ContTypes in
 		let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
 		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
@@ -245,18 +235,19 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 
 		cororesult_var,
 		estate_switch
-	in
 
-	let mk_suspending_tail_call call =
+	let make_suspending_tail_call ctx cont exprs call =
+		let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+		let com = ctx.typer.com in
+		let b = ctx.builder in
 		let p = call.cs_pos in
 		let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
-		let (cororesult_var, ecororesult) = make_suspension_call_and_assign call ecompletion_field in
-		let open ContTypes in
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
 		let esubject = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cont.state cont.state.cf_type in
 		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
 		let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
 		(* When the callee is pending it returns its own continuation object (not the singleton).
-		   We must return the singleton here so that BaseContinuation.resume suppresses dispatch. *)
+			We must return the singleton here so that BaseContinuation.resume suppresses dispatch. *)
 		let estate_switch = mk (TSwitch {
 			switch_subject = esubject;
 			switch_cases = [{
@@ -267,7 +258,24 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 			switch_exhaustive = true;
 		}) com.basic.tvoid p in
 		(cororesult_var, estate_switch)
+end
+
+
+let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs p stack_item_inserter start_exception =
+	let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+	let com = ctx.typer.com in
+	let b = ctx.builder in
+
+	let set_state id = b#assign egoto (b#int id p) in
+
+	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c) in
+
+	let std_is e t =
+		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in
+		Texpr.Builder.resolve_and_make_static_call com.std "isOfType" [e;type_expr] p
 	in
+
+	let ereturn = b#return econtinuation in
 
 	let states = ref [] in
 
@@ -342,10 +350,10 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 		in
 		match cb.cb_next with
 		| NextSuspend (call, None) ->
-			let ecallcoroutine, eret = mk_suspending_tail_call call in
+			let ecallcoroutine, eret = SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
 			add_state None [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; eret ]);
 		| NextSuspend (call, Some cb_next) ->
-			let ecallcoroutine, estateswitch = mk_suspending_call call in
+			let ecallcoroutine, estateswitch = SuspensionCalls.make_suspending_call ctx cont exprs call in
 			add_state (Some cb_next.cb_id) [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; estateswitch ]);
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn] None

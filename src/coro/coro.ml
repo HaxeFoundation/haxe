@@ -404,8 +404,9 @@ let fun_to_coro ctx coro_type =
 		let stmts = stmts @ [b#return econtinuation] in
 		mk (TBlock stmts) t_dynamic pos
 	in
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return expr);
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
+	let make_inline_tail_call = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs in
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call expr);
 	let stack_item_inserter pos =
 		let field, eargs =
 			match coro_type with
