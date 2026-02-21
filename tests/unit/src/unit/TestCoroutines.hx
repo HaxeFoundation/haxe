@@ -225,6 +225,27 @@ class TestCoroutines extends Test {
 		}, String);
 	}
 
+	// Regression test: a coroutine that suspends and then recursively calls itself used to
+	// fail with "Invalid coroutine state" because the old instanceof+recursing mechanism
+	// incorrectly reused the continuation object on a recursive call made during a resume.
+	// With the new invokeResume-based design there is no such check; each call to the
+	// original function always allocates a fresh continuation.
+	function testRecursiveAfterSuspension() {
+		@:coroutine function yield_() {}
+		var maxIters = 3;
+		var counter = 0;
+		@:coroutine function foo() {
+			if (++counter < maxIters) {
+				yield_();
+				foo();
+			}
+		}
+		var cont = new TrackingCont<haxe.Unit>();
+		invokeCoroutineVoid(cont, foo);
+		eq(null, cont.lastError);
+		eq(maxIters, counter);
+	}
+
 	// Tests that @:coroutine(nothrow) also works on local functions.
 	function testCoroutineNothrowLocal() {
 		function thrower():Void {
