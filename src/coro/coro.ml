@@ -257,12 +257,44 @@ module ContinuationClassBuilder = struct
 			s_expr_debug expr |> Printf.printf "%s\n";
 
 		field
+
+	(* For multi-state coroutines: embed the state machine body directly inside invokeResume()
+	   so the original coroutine function becomes a thin allocation-only wrapper.  State 0 of
+	   the state machine begins with  var _hx_continuation = this  so that all subsequent
+	   field accesses work correctly against the continuation. *)
+	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
+		let basic = ctx.typer.t in
+		let b     = ctx.builder in
+		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.outside.result_type])) in
+		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
+		let el = [
+			b#var_init vcontinuation ethis;
+			b#var_init vtmp_result eresult;
+			b#var_init_null vtmp_error;
+		] in
+		let el = if Lazy.is_val vtmp_error_unwrapped then
+			el @ [b#var_init_null (Lazy.force vtmp_error_unwrapped)]
+		else
+			el
+		in
+		let el = el @ [eloop] in
+		let block = b#void_block el in
+		let func  = TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = block } in
+		let expr  = mk func basic.tvoid coro_class.name_pos in
+		let field = mk_field "invokeResume" (TFun ([], tret_invoke_resume)) coro_class.name_pos coro_class.name_pos in
+		add_class_field_flag field CfOverride;
+		field.cf_expr <- Some expr;
+		field.cf_kind <- Method MethNormal;
+
+		if ctx.config.debug then
+			s_expr_debug expr |> Printf.printf "%s\n";
+
+		field
 end
 
-let create_continuation_class ctx cont coro_class initial_state =
+let create_continuation_class ctx cont coro_class initial_state invoke_resume_field =
 	let ctor   = ContinuationClassBuilder.mk_ctor ctx cont coro_class initial_state in
-	let resume = ContinuationClassBuilder.mk_invoke_resume ctx coro_class in
-	TClass.add_field coro_class.cls resume;
+	TClass.add_field coro_class.cls invoke_resume_field;
 	Option.may (TClass.add_field coro_class.cls) coro_class.captured;
 	coro_class.cls.cl_constructor <- Some ctor;
 	if ctx.config.debug then
@@ -284,7 +316,6 @@ let check_assertions assert_config num_states p =
 	end
 
 let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation stack_item_inserter start_exception =
-	let basic = ctx.typer.t in
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, initial_state, fields, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
@@ -296,12 +327,22 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
 		TClass.add_field coro_class.cls cf
 	) fields;
-	create_continuation_class ctx cont coro_class initial_state;
 
-	let std_is e t =
-		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic coro_class.name_pos in
-		Texpr.Builder.resolve_and_make_static_call ctx.typer.com.std "isOfType" [e;type_expr] coro_class.name_pos
+	let {CoroToTexpr.econtinuation;ecompletion;eresult;_} = exprs in
+
+	(* Build the invokeResume field.  For single-state coroutines the old callback approach
+	   is kept (invokeResume is never actually called on them so it is dead code, but changing
+	   it is unnecessary).  For multi-state coroutines the state machine body is embedded
+	   directly so the original function becomes a thin allocation-only wrapper with no
+	   instanceof check or recursing flag. *)
+	let invoke_resume_field =
+		if is_single_state then
+			ContinuationClassBuilder.mk_invoke_resume ctx coro_class
+		else
+			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class
+				vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop
 	in
+	create_continuation_class ctx cont coro_class initial_state invoke_resume_field;
 
 	let prefix_arg =
 		match coro_class.coro_type with
@@ -313,57 +354,47 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			[ b#local v coro_class.name_pos ]
 	in
 
-	let {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror} = exprs in
-
-	let continuation_assign =
-		let t = coro_class.outside.cls_t in
-		let ctor_args = prefix_arg @ [ ecompletion ] in
-		let tnew = (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
-		if is_single_state then
-			(* Single-state coroutines can never be resumed mid-body, so we never
-			   recurse into ourselves. Always allocate a fresh continuation and skip
-			   the recursing check entirely. *)
-			tnew
-		else begin
-			let ecastedcompletion = mk_cast ecompletion t coro_class.name_pos in
-			let tcond =
-				let erecursingfield = b#instance_field ecastedcompletion coro_class.cls coro_class.outside.param_types cont.recursing basic.tbool in
-				let estdis          = std_is ecompletion t in
-				let erecursingcheck = b#op_eq erecursingfield (b#bool false coro_class.name_pos) in
-				b#op_bool_and estdis erecursingcheck
-			in
-			let tif   = b#void_block [ecastedcompletion] in
-			let telse = tnew in
-			b#if_then_else tcond tif telse basic.tvoid
-		end
-	in
-
 	let continuation_field cf t =
 		b#instance_field econtinuation coro_class.cls coro_class.outside.param_types cf t
 	in
-	let el = [
-		b#var_init vcontinuation continuation_assign;
-	] in
-	let el = if is_single_state then el else
-		(* For multi-state coroutines, mark the continuation as actively recursing so
-		   the entry-point check knows whether to reuse it or allocate a fresh one. *)
-		el @ [b#assign
-			(continuation_field cont.recursing basic.tbool)
-			(b#bool true coro_class.name_pos)]
-	in
-	let el = el @ [
-		b#var_init vtmp_result eresult;
-		b#var_init_null vtmp_error;
-	] in
-	let el = if Lazy.is_val vtmp_error_unwrapped then
-		el @ [b#var_init_null (Lazy.force vtmp_error_unwrapped)]
-	else
-		el
-	in
-	let el = el @ [
-		eloop;
-	] in
-	b#void_block el
+
+	(* Always allocate a fresh continuation: the isinstance/recursing mechanism has been
+	   replaced by moving the state machine into invokeResume() for multi-state coroutines. *)
+	let t = coro_class.outside.cls_t in
+	let ctor_args = prefix_arg @ [ ecompletion ] in
+	let tnew = (mk (TNew (coro_class.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
+	if is_single_state then begin
+		(* Single-state: run the state machine directly in the function body as before. *)
+		let el = [
+			b#var_init vcontinuation tnew;
+			b#var_init vtmp_result eresult;
+			b#var_init_null vtmp_error;
+		] in
+		let el = if Lazy.is_val vtmp_error_unwrapped then
+			el @ [b#var_init_null (Lazy.force vtmp_error_unwrapped)]
+		else
+			el
+		in
+		b#void_block (el @ [eloop])
+	end else begin
+		(* Multi-state: thin wrapper that allocates the continuation, writes each function
+		   argument into its hoisted field so that state 0 of invokeResume() can restore
+		   them, and then delegates to invokeResume(). *)
+		let el = [ b#var_init vcontinuation tnew ] in
+		let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
+		(* Assign each function argument to its hoisted continuation field. *)
+		let hoisted_arg_assigns = List.filter_map (fun (v, _) ->
+			let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
+			(try
+				let field = PMap.find field_name coro_class.cls.cl_fields in
+				let efield = continuation_field field field.cf_type in
+				Some (b#assign efield (b#local v coro_class.name_pos))
+			with Not_found -> None)
+		) args in
+		let einvoke_resume_access = continuation_field invoke_resume_field invoke_resume_field.cf_type in
+		let einvoke_resume_call   = b#call einvoke_resume_access [] tret_invoke_resume in
+		b#void_block (el @ hoisted_arg_assigns @ [b#return einvoke_resume_call])
+	end
 
 let fun_to_coro ctx coro_type =
 	let basic = ctx.typer.t in

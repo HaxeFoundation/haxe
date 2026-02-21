@@ -43,11 +43,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	**/
     public var gotoLabel:Int;
 
-	/**
-		A flag used by the compiler to detect when `this` continuation recurses on itself.
-	**/
-    public var recursing:Bool;
-
 	var resumeResult:Null<SuspensionResult<Any>>;
 	#if debug
 	var stackItem:Null<StackItem>;
@@ -63,7 +58,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         gotoLabel  = initialLabel;
         error      = null;
         result     = null;
-        recursing  = false;
 		context    = completion.context;
 		#if debug
 		startedException = false;
@@ -80,7 +74,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     public final function resume(result:Any, error:Exception):Void {
 		this.result = result;
 		this.error = error;
-		recursing = false;
 		// In a threaded environment, we have to assume that `invokeResume` might
 		// go into this `resume` function before we're even done here. We can only
 		// make assumptions about its return value if it's not the `suspended` marker,

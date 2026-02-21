@@ -50,12 +50,17 @@ let make_suspending_call basic cont call econtinuation =
 let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 	let fst_state     = List.hd states in
 	let arg_state_set = IntSet.of_list [ fst_state.cs_id ] in
+	let is_multi_state = List.length states > 1 in
 
 	(* Keep an extra table of all vars and what states they appear in, easier check if a var is used across states this way. *)
 	let var_usages = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
 
-	(* Treat arguments as "declared" in the initial state, this way they aren't spilled if accessed before the first suspension. *)
-	fst_state.cs_declarations <- List.map (fun (a, _) -> a) tf_args;
+	(* For single-state coroutines: treat arguments as "declared" in the initial state so they
+	   aren't spilled when accessed before the first (non-existent) suspension.
+	   For multi-state coroutines: arguments are always hoisted to continuation fields so that
+	   invokeResume() can restore them for state 0 without a callback to the original function. *)
+	if not is_multi_state then
+		fst_state.cs_declarations <- List.map (fun (a, _) -> a) tf_args;
 
 	List.iter (fun state ->
 		let rec loop e =
@@ -95,9 +100,11 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 			false
 	in
 
-	(* Again, treat function arguments as the special case that they are *)
+	(* Again, treat function arguments as the special case that they are.
+	   For multi-state coroutines, all args are always hoisted so that invokeResume()
+	   can restore them in state 0 from the continuation fields. *)
 	List.iter (fun (v, _) ->
-		if is_used_across_multiple_states v.v_id then begin
+		if is_multi_state || is_used_across_multiple_states v.v_id then begin
 			fst_state.cs_writes <- IntSet.add v.v_id fst_state.cs_writes;
 
 			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type null_pos null_pos in
