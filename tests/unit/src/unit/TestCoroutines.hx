@@ -27,14 +27,18 @@ private class ParentCoro {
 	public function new() {}
 
 	@:coroutine public function test() {
-		@:coroutine function id(x:Int):Int { return x; }
+		@:coroutine function id(x:Int):Int {
+			return x;
+		}
 		log.push("parent-" + id(1));
 	}
 }
 
 private class ChildCoro extends ParentCoro {
 	@:coroutine override public function test() {
-		@:coroutine function id(x:Int):Int { return x; }
+		@:coroutine function id(x:Int):Int {
+			return x;
+		}
 		log.push("child-" + id(2));
 	}
 }
@@ -278,7 +282,7 @@ class TestCoroutines extends Test {
 		var cont = new TrackingCont<haxe.Unit>();
 		invokeCoroutineVoid(cont, child.test);
 		eq(null, cont.lastError);
-		eq(["child-2"], child.log);
+		Assert.same(["child-2"], child.log);
 	}
 
 	// Tests that @:coroutine(nothrow) also works on local functions.
