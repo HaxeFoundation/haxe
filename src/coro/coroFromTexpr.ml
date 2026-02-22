@@ -42,7 +42,7 @@ let check_captures ctx args expr =
 	in
 	browse expr
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call e =
+let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in
@@ -153,7 +153,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		let rec remap can_tco loop_depth e = match e.eexpr with
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				if can_tco then
-					make_inline_tail_call {
+					deferred.make_inline_tail_call {
 						cs_fun = e1;
 						cs_args = el;
 						cs_pos = e.epos;
@@ -162,7 +162,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				else
 					raise Found
 			| TReturn None ->
-				make_inline_return None e.epos
+				deferred.make_inline_return None e.epos
 			| TReturn (Some e1) ->
 				(* `return suspensionCall()` — if `e1` is a coro call, delegate to
 				   the TCall arm (which may inline it as a TCO tail call or raise
@@ -173,7 +173,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 					remap can_tco loop_depth e1
 				| _ ->
 					let e1 = remap false loop_depth e1 in
-					make_inline_return (Some e1) e.epos
+					deferred.make_inline_return (Some e1) e.epos
 				end
 			| TThrow _ ->
 				(* TODO: too much of a special case for now, let's bail until the rest works *)

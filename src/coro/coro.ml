@@ -415,6 +415,35 @@ let rewrite_super_field_call ctx egthis e =
 	| _ ->
 		e
 
+let make_deferred_api ctx b =
+	let make_deferred build =
+		let v = alloc_var VGenerated "_hx_coro_deferred" t_dynamic null_pos in
+		Hashtbl.add ctx.deferred_exprs v.v_id build;
+		b#call (b#local v v.v_pos) [] t_dynamic
+	in
+
+	(* These refs will be filled in after the continuation API is created (step 4). *)
+	let make_inline_return_impl : (texpr option -> pos -> texpr) option ref = ref None in
+	let make_inline_tail_call_impl : (coro_suspend -> texpr) option ref = ref None in
+
+	let make_inline_return e1_opt pos =
+		make_deferred (fun () ->
+			(Option.get !make_inline_return_impl) e1_opt pos)
+	in
+	let make_inline_tail_call call =
+		make_deferred (fun () ->
+			(Option.get !make_inline_tail_call_impl) call)
+	in
+	let deferred = {
+		make_inline_return;
+		make_inline_tail_call;
+	} in
+	let install api =
+		make_inline_return_impl := Some api.make_inline_return;
+		make_inline_tail_call_impl := Some api.make_inline_tail_call;
+	in
+	deferred,install
+
 let fun_to_coro ctx coro_type =
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
@@ -469,32 +498,10 @@ let fun_to_coro ctx coro_type =
 			None
 	in
 
-	(* 3. Run expr_to_coro to build the CFG and set ctx.captures_this/ctx.has_capture_vars.
-	      make_inline_return and make_inline_tail_call need the continuation API which hasn't
-	      been created yet.  We use a deferred-expression mechanism: each callback stores a
-	      thunk keyed by a fresh TLocal placeholder var.  After the continuation API is ready
-	      the thunks are evaluated and the placeholders in every CFG block are replaced. *)
-	let make_deferred build =
-		let v = alloc_var VGenerated "_hx_coro_deferred" t_dynamic coro_class.name_pos in
-		Hashtbl.add ctx.deferred_exprs v.v_id build;
-		b#call (b#local v v.v_pos) [] t_dynamic
-	in
-
-	(* These refs will be filled in after the continuation API is created (step 4). *)
-	let make_inline_return_impl : (texpr option -> pos -> texpr) option ref = ref None in
-	let make_inline_tail_call_impl : (coro_suspend -> texpr) option ref = ref None in
-
-	let make_inline_return e1_opt pos =
-		make_deferred (fun () ->
-			(Option.get !make_inline_return_impl) e1_opt pos)
-	in
-	let make_inline_tail_call call =
-		make_deferred (fun () ->
-			(Option.get !make_inline_tail_call_impl) call)
-	in
-
+	(* 3. Run expr_to_coro to build the CFG and set ctx.captures_this/ctx.has_capture_vars. *)
+	let deferred,install_deferred = make_deferred_api ctx b in
 	CoroFromTexpr.check_captures ctx args expr;
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call expr);
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred expr);
 
 	(* 4. Setup continuation API — now that ctx.captures_this/ctx.has_capture_vars are
 	      fully set we can create the continuation variables with informed types. *)
@@ -572,21 +579,25 @@ let fun_to_coro ctx coro_type =
 
 	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
 
-	make_inline_return_impl := Some (fun e1_opt pos ->
-		let stmts = [
-			b#assign egoto (b#int (-1) pos);
-			b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
-		] in
-		let stmts = match e1_opt with
-			| None -> stmts
-			| Some e1 -> stmts @ [b#assign eresult e1]
-		in
-		let stmts = stmts @ [b#return econtinuation] in
-		mk (TBlock stmts) t_dynamic pos);
-
-	make_inline_tail_call_impl := Some (fun call ->
-		let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]);
+	let deferred_impl = {
+		make_inline_return = (fun e1_opt pos ->
+			let stmts = [
+				b#assign egoto (b#int (-1) pos);
+				b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
+			] in
+			let stmts = match e1_opt with
+				| None -> stmts
+				| Some e1 -> stmts @ [b#assign eresult e1]
+			in
+			let stmts = stmts @ [b#return econtinuation] in
+			mk (TBlock stmts) t_dynamic pos
+		);
+		make_inline_tail_call =(fun call ->
+			let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
+			b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
+		);
+	} in
+	install_deferred deferred_impl;
 
 	(* 6. Transform blocks to state machine *)
 
