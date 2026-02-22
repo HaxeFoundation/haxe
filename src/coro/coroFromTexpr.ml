@@ -225,7 +225,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 				let e1 = remap false loop_depth e1 in
 				let e2 = remap false (loop_depth + 1) e2 in
 				{e with eexpr = TWhile(e1,e2,flag)}
-			| TFunction tf ->
+			| TFunction _ ->
 				e
 			| _ ->
 				Type.map_expr (remap false loop_depth) e
@@ -237,16 +237,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 	let rec loop cb ret e =
 	match e.eexpr with
 		(* special cases *)
-		| TConst (TThis | TSuper) ->
-			Some  (cb,e)
-		| TBlock [] ->
+		| TConst TThis | TBlock [] ->
 			Some (cb,e)
 		| TLocal v when (has_var_flag v VCoroScope) && not (scope_allows_access_to v) ->
 			Error.raise_typing_error "Invalid usage of a coroutine scope in a different coroutine scope" e.epos
 		(* simple values *)
-		| TLocal v ->
-			Some (cb,e)
-		| TConst _ | TTypeExpr _ | TIdent _ ->
+		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
 			Some (cb,e)
 		(* compound values *)
 		| TBlock [e1] ->
