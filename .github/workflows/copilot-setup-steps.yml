@@ -78,3 +78,6 @@ jobs:
           ls -l out
           ldd -v ./haxe
           ldd -v ./haxelib
+
+      - name: Add workspace to PATH
+        run: echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
