@@ -63,20 +63,8 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_
 		| _ ->
 			OptimizerTexpr.has_side_effect e
 	in
-	(* A deferred-placeholder TLocal looks side-effect-free to has_side_effect, but it
-	   will be expanded into a real side-effectful expression later.  We must not drop
-	   expressions that contain such placeholders. *)
-	let contains_deferred e =
-		let found = ref false in
-		let rec check e = match e.eexpr with
-			| TLocal v when Hashtbl.mem ctx.deferred_exprs v.v_id -> found := true
-			| _ -> if not !found then Type.iter check e
-		in
-		check e;
-		!found
-	in
 	let add_expr cb e =
-		if cb.cb_next = NextUnknown && e != e_no_value && (has_side_effect e || contains_deferred e) then
+		if cb.cb_next = NextUnknown && e != e_no_value && (has_side_effect e) then
 			DynArray.add cb.cb_el e
 	in
 	let terminate cb kind t p =
