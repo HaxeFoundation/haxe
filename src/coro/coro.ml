@@ -119,7 +119,7 @@ module ContinuationClassBuilder = struct
 			continuation_api;
 		}
 
-	let mk_ctor ctx cont coro_class initial_state cf_captured =
+	let mk_ctor ctx cont coro_class initial_state cf_captured hoisted_args =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
 		let name  = "completion" in
@@ -144,6 +144,17 @@ module ContinuationClassBuilder = struct
 					vargcaptured, b#assign ecapturedfield eargcaptured)
 			in
 
+		(* For the inline path (no captures), function arguments are passed as constructor parameters
+		   so the thin wrapper can be a single  new Ctor(completion, arg1, ...).invokeResume()  call. *)
+		let hoisted =
+			List.map (fun (orig_v, field) ->
+				let varg = alloc_var VGenerated orig_v.v_name field.cf_type coro_class.name_pos in
+				let earg = b#local varg coro_class.name_pos in
+				let efield = this_field field in
+				varg, b#assign efield earg
+			) hoisted_args
+		in
+
 		(* If the coroutine field is not static then our HxCoro class needs to capture this for future resuming *)
 
 		let eblock, tfun_args, tfunction_args =
@@ -156,10 +167,13 @@ module ContinuationClassBuilder = struct
 							[ (v, None) ])
 						([], [], [])
 				in
+			let hoisted_exprs        = List.map snd hoisted in
+			let hoisted_tfun_args    = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) hoisted in
+			let hoisted_tfunction_args = List.map (fun (v, _) -> (v, None)) hoisted in
 
-			b#void_block (esuper :: extra_exprs),
-			extra_tfun_args @ [ (name, false, cont.continuation) ],
-			extra_tfunction_args @ [ (vargcompletion, None) ]
+			b#void_block (esuper :: extra_exprs @ hoisted_exprs),
+			extra_tfun_args @ [ (name, false, cont.continuation) ] @ hoisted_tfun_args,
+			extra_tfunction_args @ [ (vargcompletion, None) ] @ hoisted_tfunction_args
 		in
 
 		let field = mk_field "new" (TFun (tfun_args, basic.tvoid)) coro_class.name_pos coro_class.name_pos in
@@ -248,8 +262,8 @@ module ContinuationClassBuilder = struct
 		field
 end
 
-let create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured =
-	let ctor   = ContinuationClassBuilder.mk_ctor ctx cont coro_class initial_state cf_captured in
+let create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured hoisted_args =
+	let ctor   = ContinuationClassBuilder.mk_ctor ctx cont coro_class initial_state cf_captured hoisted_args in
 	TClass.add_field coro_class.cls invoke_resume_field;
 	Option.may (TClass.add_field coro_class.cls) cf_captured;
 	coro_class.cls.cl_constructor <- Some ctor;
@@ -295,49 +309,45 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			(* Thunk path: invokeResume() calls the captured thunk closure *)
 			ContinuationClassBuilder.mk_invoke_resume_thunk_call ctx coro_class cf_captured
 	in
-	create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured;
 
-	(* Convert a type from inside (continuation class) type params to outside (original function) type params.
-	   Field types in the continuation class use inside params (e.g. T_inner). The thin wrapper function
-	   lives in the original function's scope where only T_outer is valid for HXB serialisation. *)
-	let inside_to_outside t =
-		apply_params coro_class.inside.params coro_class.outside.param_types t
-	in
-
-	(* For the thin wrapper we always need a variable with outside type to access continuation
-	   fields.  For the inline path vcontinuation has inside type (it lives in invokeResume),
-	   so we create a separate fresh variable; for the thunk path vcontinuation already has
-	   outside type and can be used directly. *)
-	let vcont_outer = match cf_captured with
-		| None -> alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t coro_class.name_pos
-		| Some _ -> vcontinuation
-	in
-	let econt_outer = b#local vcont_outer coro_class.name_pos in
-
-	let continuation_field cf t =
-		b#instance_field econt_outer coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types cf t
-	in
-
-	(* Always allocate a fresh continuation and delegate to invokeResume().
-	   Assign each function argument to its hoisted field so state 0 of invokeResume()
-	   can restore them. *)
-	let t = coro_class.outside.cls_t in
-	let hoisted_arg_assigns = List.filter_map (fun (v, _) ->
+	(* Collect (orig_var, hoisted_field) pairs for function arguments that were hoisted
+	   into continuation fields.  For the inline path these become constructor parameters;
+	   for the thunk path they are assigned after construction. *)
+	let hoisted_args = List.filter_map (fun (v, _) ->
 		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
-		(try
-			let field = PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields in
-			let efield = continuation_field field (inside_to_outside field.cf_type) in
-			Some (b#assign efield (b#local v coro_class.name_pos))
-		with Not_found -> None)
+		match (try Some (PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields) with Not_found -> None) with
+		| Some field -> Some (v, field)
+		| None -> None
 	) args in
-	let einvoke_resume_access = continuation_field invoke_resume_field (inside_to_outside invoke_resume_field.cf_type) in
-	let einvoke_resume_call   = b#call einvoke_resume_access [] tret_invoke_resume in
+	create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured
+		(match cf_captured with None -> hoisted_args | Some _ -> []);
+
+	let t = coro_class.outside.cls_t in
 
 	begin match cf_captured with
 		| None ->
-			let tnew = (mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, [ ecompletion ])) t coro_class.name_pos) in
-			b#void_block ([b#var_init vcont_outer tnew] @ hoisted_arg_assigns @ [b#return einvoke_resume_call])
-		| Some cf_captured ->
+			(* Inline path: pass hoisted args directly to the constructor and call invokeResume()
+			   on the result — no intermediate variable, no separate field assignments. *)
+			let ctor_args = ecompletion :: List.map (fun (v, _) -> b#local v coro_class.name_pos) hoisted_args in
+			let tnew = mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos in
+			let invoke_resume_type = TFun([], tret_invoke_resume) in
+			let einvoke = b#instance_field tnew coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types invoke_resume_field invoke_resume_type in
+			b#return (b#call einvoke [] tret_invoke_resume)
+		| Some _ ->
+			(* Thunk path: build the closure that captures outer locals, allocate the continuation,
+			   assign hoisted arg fields, then call invokeResume(). *)
+			let inside_to_outside t =
+				apply_params coro_class.inside.params coro_class.outside.param_types t
+			in
+			let econt = b#local vcontinuation coro_class.name_pos in
+			let continuation_field cf ty =
+				b#instance_field econt coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types cf ty
+			in
+			let hoisted_arg_assigns = List.map (fun (v, field) ->
+				b#assign (continuation_field field (inside_to_outside field.cf_type)) (b#local v coro_class.name_pos)
+			) hoisted_args in
+			let invoke_resume_type = inside_to_outside invoke_resume_field.cf_type in
+			let einvoke_resume_call = b#call (continuation_field invoke_resume_field invoke_resume_type) [] tret_invoke_resume in
 			let thunk_body_el = [
 				b#var_init vtmp_result eresult;
 				b#var_init_null vtmp_error;
@@ -348,13 +358,13 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 				thunk_type coro_class.name_pos in
 			let vthunk = alloc_var VGenerated "_hx_thunk" thunk_type coro_class.name_pos in
 			let ctor_args = [ b#local vthunk coro_class.name_pos; ecompletion ] in
-			let tnew = (mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
-			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcont_outer.v_pos) in
+			let tnew = mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos in
+			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcontinuation.v_pos) in
 			null_safety_off
 				begin b#void_block ([
-					b#var_init_null vcont_outer;
+					b#var_init_null vcontinuation;
 					b#var_init vthunk ethunk;
-					b#assign (b#local vcont_outer coro_class.name_pos) tnew;
+					b#assign (b#local vcontinuation coro_class.name_pos) tnew;
 				] @ hoisted_arg_assigns @ [b#return einvoke_resume_call]) end
 	end
 
