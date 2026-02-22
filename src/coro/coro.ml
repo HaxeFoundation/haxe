@@ -171,9 +171,9 @@ module ContinuationClassBuilder = struct
 			let hoisted_tfun_args    = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) hoisted in
 			let hoisted_tfunction_args = List.map (fun (v, _) -> (v, None)) hoisted in
 
-			b#void_block (esuper :: extra_exprs @ hoisted_exprs),
-			extra_tfun_args @ [ (name, false, cont.continuation) ] @ hoisted_tfun_args,
-			extra_tfunction_args @ [ (vargcompletion, None) ] @ hoisted_tfunction_args
+			b#void_block (esuper :: hoisted_exprs @ extra_exprs),
+			[ (name, false, cont.continuation) ] @ hoisted_tfun_args @ extra_tfun_args,
+			[ (vargcompletion, None) ] @ hoisted_tfunction_args @ extra_tfunction_args
 		in
 
 		let field = mk_field "new" (TFun (tfun_args, basic.tvoid)) coro_class.name_pos coro_class.name_pos in
@@ -353,7 +353,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let ethunk = mk (TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = b#void_block thunk_body_el })
 				thunk_type coro_class.name_pos in
 			let vthunk = alloc_var VGenerated "_hx_thunk" thunk_type coro_class.name_pos in
-			let ctor_args = b#local vthunk coro_class.name_pos :: ecompletion :: List.map (fun (v, _) -> b#local v coro_class.name_pos) hoisted_args in
+			let ctor_args = ecompletion :: List.map (fun (v, _) -> b#local v coro_class.name_pos) hoisted_args @ [b#local vthunk coro_class.name_pos] in
 			let tnew = mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos in
 			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcontinuation.v_pos) in
 			null_safety_off
