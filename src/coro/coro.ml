@@ -308,14 +308,14 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	   fields.  For the inline path vcontinuation has inside type (it lives in invokeResume),
 	   so we create a separate fresh variable; for the thunk path vcontinuation already has
 	   outside type and can be used directly. *)
-	let vcont_thin = match cf_captured with
+	let vcont_outer = match cf_captured with
 		| None -> alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t coro_class.name_pos
 		| Some _ -> vcontinuation
 	in
-	let econt_thin = b#local vcont_thin coro_class.name_pos in
+	let econt_outer = b#local vcont_outer coro_class.name_pos in
 
 	let continuation_field cf t =
-		b#instance_field econt_thin coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types cf t
+		b#instance_field econt_outer coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types cf t
 	in
 
 	(* Always allocate a fresh continuation and delegate to invokeResume().
@@ -336,7 +336,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	begin match cf_captured with
 		| None ->
 			let tnew = (mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, [ ecompletion ])) t coro_class.name_pos) in
-			b#void_block ([b#var_init vcont_thin tnew] @ hoisted_arg_assigns @ [b#return einvoke_resume_call])
+			b#void_block ([b#var_init vcont_outer tnew] @ hoisted_arg_assigns @ [b#return einvoke_resume_call])
 		| Some cf_captured ->
 			let thunk_body_el = [
 				b#var_init vtmp_result eresult;
@@ -349,12 +349,12 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let vthunk = alloc_var VGenerated "_hx_thunk" thunk_type coro_class.name_pos in
 			let ctor_args = [ b#local vthunk coro_class.name_pos; ecompletion ] in
 			let tnew = (mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos) in
-			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcont_thin.v_pos) in
+			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcont_outer.v_pos) in
 			null_safety_off
 				begin b#void_block ([
-					b#var_init_null vcont_thin;
+					b#var_init_null vcont_outer;
 					b#var_init vthunk ethunk;
-					b#assign (b#local vcont_thin coro_class.name_pos) tnew;
+					b#assign (b#local vcont_outer coro_class.name_pos) tnew;
 				] @ hoisted_arg_assigns @ [b#return einvoke_resume_call]) end
 	end
 
