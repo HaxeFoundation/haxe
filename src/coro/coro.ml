@@ -234,7 +234,7 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume_thunk_call ctx coro_class cf_captured =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
-		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.outside.result_type])) in
+		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let ecaptured   = b#instance_field ethis coro_class.cls coro_class.inside.param_types cf_captured cf_captured.cf_type in
 		let ecall = b#call ecaptured [] tret_invoke_resume in
@@ -289,9 +289,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 
 	let {CoroToTexpr.econtinuation;ecompletion;eresult;_} = exprs in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
+	let tret_invoke_resume_inside = cont.suspension_result coro_class.inside.result_type in
 
 	let make_captured_field p =
-		mk_field "captured" (TFun([], tret_invoke_resume)) p p
+		mk_field "captured" (TFun([], tret_invoke_resume_inside)) p p
 	in
 	(* The presence of absence of cf_captured governs the generation mode (inline vs. thunk). *)
 	let cf_captured = match coro_class.coro_type with
@@ -315,6 +316,13 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	in
 	create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured;
 
+	(* Convert a type from inside (continuation class) type params to outside (original function) type params.
+	   Field types in the continuation class use inside params (e.g. T_inner). The thin wrapper function
+	   lives in the original function's scope where only T_outer is valid for HXB serialisation. *)
+	let inside_to_outside t =
+		apply_params coro_class.inside.params coro_class.outside.param_types t
+	in
+
 	let continuation_field cf t =
 		b#instance_field econtinuation coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types cf t
 	in
@@ -327,11 +335,11 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
 		(try
 			let field = PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields in
-			let efield = continuation_field field field.cf_type in
+			let efield = continuation_field field (inside_to_outside field.cf_type) in
 			Some (b#assign efield (b#local v coro_class.name_pos))
 		with Not_found -> None)
 	) args in
-	let einvoke_resume_access = continuation_field invoke_resume_field invoke_resume_field.cf_type in
+	let einvoke_resume_access = continuation_field invoke_resume_field (inside_to_outside invoke_resume_field.cf_type) in
 	let einvoke_resume_call   = b#call einvoke_resume_access [] tret_invoke_resume in
 
 	begin match cf_captured with
