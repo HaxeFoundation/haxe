@@ -416,40 +416,21 @@ let fun_to_coro ctx coro_type =
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 
+	(* 1. Setup continuation class *)
+
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
-	let cont = coro_class.continuation_api in
 
-	(* Generate and assign the continuation variable *)
-	let vcompletion = alloc_var VGenerated "_hx_completion" cont.continuation coro_class.name_pos in
-	let ecompletion = b#local vcompletion coro_class.name_pos in
-
-	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t coro_class.name_pos in
-	let econtinuation = b#local vcontinuation coro_class.name_pos in
-
-	let continuation_field c cf t =
-		b#instance_field econtinuation c [basic.tany] cf t
-	in
-
-	let estate = continuation_field cont.suspension_result_class cont.state cont.suspension_state in
-	let eresult = continuation_field cont.suspension_result_class cont.result (basic.tnull basic.tany) in
-	let eerror = continuation_field cont.suspension_result_class cont.error (basic.tnull basic.texception) in
-
-	let continuation_field cf t =
-		b#instance_field econtinuation cont.base_continuation_class [basic.tany] cf t
-	in
-
-	let egoto  = continuation_field cont.goto_label basic.tint in
+	(* 2. Create expressions and variables that we need for expr_to_coro *)
 
 	let vtmp_result = alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos in
 	let etmp_result = b#local vtmp_result coro_class.name_pos in
 	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
-	let etmp_error = b#local vtmp_error coro_class.name_pos in
 	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
 	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
 
 	let expr, args, name =
 		match coro_type with
-		| ClassField (_, cf, f, p) ->
+		| ClassField (_, cf, f, _) ->
 			f.tf_expr, f.tf_args, cf.cf_name
 		| LocalFunc(f,v) ->
 			f.tf_expr, f.tf_args, v.v_name
@@ -484,18 +465,60 @@ let fun_to_coro ctx coro_type =
 		| _ ->
 			None
 	in
-	let make_inline_return e1_opt pos =
-		let stmts = [
-			b#assign egoto (b#int (-1) pos);
-			b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
-		] in
-		let stmts = match e1_opt with
-			| None -> stmts
-			| Some e1 -> stmts @ [b#assign eresult e1]
-		in
-		let stmts = stmts @ [b#return econtinuation] in
-		mk (TBlock stmts) t_dynamic pos
+
+	(* 3. Run expr_to_coro to build the CFG and set ctx.captures_this/ctx.has_capture_vars.
+	      make_inline_return and make_inline_tail_call need the continuation API which hasn't
+	      been created yet.  We use a deferred-expression mechanism: each callback stores a
+	      thunk keyed by a fresh TLocal placeholder var.  After the continuation API is ready
+	      the thunks are evaluated and the placeholders in every CFG block are replaced. *)
+
+	let deferred_exprs : (int, unit -> texpr) Hashtbl.t = Hashtbl.create 0 in
+	let make_deferred build =
+		let v = alloc_var VGenerated "_hx_coro_deferred" t_dynamic coro_class.name_pos in
+		Hashtbl.add deferred_exprs v.v_id build;
+		mk (TLocal v) t_dynamic coro_class.name_pos
 	in
+
+	(* These refs will be filled in after the continuation API is created (step 4). *)
+	let make_inline_return_impl : (texpr option -> pos -> texpr) option ref = ref None in
+	let make_inline_tail_call_impl : (coro_suspend -> texpr) option ref = ref None in
+
+	let make_inline_return e1_opt pos =
+		make_deferred (fun () ->
+			(Option.get !make_inline_return_impl) e1_opt pos)
+	in
+	let make_inline_tail_call call =
+		make_deferred (fun () ->
+			(Option.get !make_inline_tail_call_impl) call)
+	in
+
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call args expr);
+
+	(* 4. Setup continuation API — now that ctx.captures_this/ctx.has_capture_vars are
+	      fully set we can create the continuation variables with informed types. *)
+
+	let cont = coro_class.continuation_api in
+
+	let vcompletion = alloc_var VGenerated "_hx_completion" cont.continuation coro_class.name_pos in
+	let ecompletion = b#local vcompletion coro_class.name_pos in
+
+	let vcontinuation = alloc_var VGenerated "_hx_continuation" coro_class.outside.cls_t coro_class.name_pos in
+	let econtinuation = b#local vcontinuation coro_class.name_pos in
+
+	let continuation_field c cf t =
+		b#instance_field econtinuation c [basic.tany] cf t
+	in
+
+	let estate = continuation_field cont.suspension_result_class cont.state cont.suspension_state in
+	let eresult = continuation_field cont.suspension_result_class cont.result (basic.tnull basic.tany) in
+	let eerror = continuation_field cont.suspension_result_class cont.error (basic.tnull basic.texception) in
+
+	let continuation_field cf t =
+		b#instance_field econtinuation cont.base_continuation_class [basic.tany] cf t
+	in
+
+	let egoto  = continuation_field cont.goto_label basic.tint in
+	let etmp_error = b#local vtmp_error coro_class.name_pos in
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
 		let field, eargs =
@@ -506,7 +529,7 @@ let fun_to_coro ctx coro_type =
 					b#string (s_class_path cls) coro_class.name_pos;
 					b#string field.cf_name coro_class.name_pos;
 				]
-			| LocalFunc (f, v) ->
+			| LocalFunc (_, v) ->
 				PMap.find "setLocalFuncStackItem" cont.base_continuation_class.cl_fields,
 				[
 					b#int v.v_id coro_class.name_pos;
@@ -523,11 +546,57 @@ let fun_to_coro ctx coro_type =
 		] in
 		mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos
 	in
-	let make_inline_tail_call call =
+
+	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
+
+	make_inline_return_impl := Some (fun e1_opt pos ->
+		let stmts = [
+			b#assign egoto (b#int (-1) pos);
+			b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
+		] in
+		let stmts = match e1_opt with
+			| None -> stmts
+			| Some e1 -> stmts @ [b#assign eresult e1]
+		in
+		let stmts = stmts @ [b#return econtinuation] in
+		mk (TBlock stmts) t_dynamic pos);
+
+	make_inline_tail_call_impl := Some (fun call ->
 		let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
+		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]);
+
+	(* 6. Expand deferred placeholder expressions in every CFG block *)
+
+	let expand_deferred e =
+		let rec map e = match e.eexpr with
+			| TLocal v when Hashtbl.mem deferred_exprs v.v_id ->
+				(Hashtbl.find deferred_exprs v.v_id) ()
+			| _ ->
+				Texpr.map_expr map e
+		in
+		map e
 	in
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call args expr);
+
+	let visited = Hashtbl.create 8 in
+	let rec apply_to_all_blocks cb =
+		if not (Hashtbl.mem visited cb.cb_id) then begin
+			Hashtbl.add visited cb.cb_id ();
+			let n = DynArray.length cb.cb_el in
+			for i = 0 to n - 1 do
+				DynArray.set cb.cb_el i (expand_deferred (DynArray.get cb.cb_el i))
+			done;
+			(* NextReturn and NextThrow also hold expressions that may contain deferred placeholders *)
+			(match cb.cb_next with
+			| NextReturn e -> cb.cb_next <- NextReturn (expand_deferred e)
+			| NextThrow e -> cb.cb_next <- NextThrow (expand_deferred e)
+			| _ -> ());
+			coro_iter apply_to_all_blocks cb
+		end
+	in
+	apply_to_all_blocks cb_root;
+
+	(* 7. Transform blocks to state machine *)
+
 	let start_exception =
 		let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
 		let ef = continuation_field cf cf.cf_type in

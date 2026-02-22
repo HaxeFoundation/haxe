@@ -18,6 +18,35 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
+(* Lightweight pre-pass: walk the expression tree to determine whether the
+   coroutine captures any outer locals or accesses `this`/`super`.
+   Sets ctx.has_capture_vars and ctx.captures_this without building the CFG,
+   so that the continuation class can be created with the correct generation
+   mode (inline vs. thunk) before expr_to_coro is called. *)
+let check_captures ctx args expr =
+	let vars = Hashtbl.create 16 in
+	let declare v = Hashtbl.add vars v.v_id () in
+	List.iter (fun (v,_) -> declare v) args;
+	let rec browse e = match e.eexpr with
+		| TConst (TThis | TSuper) ->
+			ctx.captures_this <- true
+		| TLocal v ->
+			if not (Hashtbl.mem vars v.v_id) then
+				ctx.has_capture_vars <- true
+		| TVar(v, eo) ->
+			declare v;
+			Option.may browse eo
+		| TTry(e1, catches) ->
+			browse e1;
+			List.iter (fun (v, e) -> declare v; browse e) catches
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			browse tf.tf_expr
+		| _ ->
+			Type.iter browse e
+	in
+	browse expr
+
 let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call args e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
