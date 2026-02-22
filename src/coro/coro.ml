@@ -179,8 +179,30 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
-		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.outside.result_type])) in
+		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
+		(* `vcontinuation` was allocated with outside type params (which are unbound in the
+		   continuation class context).  Create a fresh inner variable using inside type params
+		   so that HXB serialisation doesn't see WUnboundTypeParameter warnings for it.
+		   All other variables in the block get fresh copies with their types substituted
+		   (outside→inside) via a mapping table so that the originals are never mutated —
+		   preventing the substituted inside-types from leaking into unrelated outer scopes. *)
+		let vcont_ir = alloc_var VGenerated vcontinuation.v_name coro_class.inside.cls_t coro_class.name_pos in
+		let subst = substitute_type_params coro_class.type_param_subst in
+		let var_map = Hashtbl.create 8 in
+		let map_var v =
+			if v == vcontinuation then vcont_ir
+			else
+				match Hashtbl.find_opt var_map v.v_id with
+				| Some v' -> v'
+				| None ->
+					let v' = { v with v_type = subst v.v_type } in
+					Hashtbl.replace var_map v.v_id v';
+					v'
+		in
+		let rec subst_eloop e =
+			Texpr.map_expr_type subst_eloop subst map_var e
+		in
 		let el = [
 			b#var_init vcontinuation ethis;
 			b#var_init vtmp_result eresult;
@@ -192,7 +214,7 @@ module ContinuationClassBuilder = struct
 			el
 		in
 		let el = el @ [eloop] in
-		let block = b#void_block el in
+		let block = subst_eloop (b#void_block el) in
 		let func  = TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = block } in
 		let expr  = mk func basic.tvoid coro_class.name_pos in
 		let field = mk_field "invokeResume" (TFun ([], tret_invoke_resume)) coro_class.name_pos coro_class.name_pos in
