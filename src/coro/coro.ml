@@ -311,16 +311,15 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	in
 
 	(* Collect (orig_var, hoisted_field) pairs for function arguments that were hoisted
-	   into continuation fields.  For the inline path these become constructor parameters;
-	   for the thunk path they are assigned after construction. *)
+	   into continuation fields.  These become constructor parameters for both the inline
+	   and thunk paths, so the constructor can assign them in one place. *)
 	let hoisted_args = List.filter_map (fun (v, _) ->
 		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
 		match (try Some (PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields) with Not_found -> None) with
 		| Some field -> Some (v, field)
 		| None -> None
 	) args in
-	create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured
-		(match cf_captured with None -> hoisted_args | Some _ -> []);
+	create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured hoisted_args;
 
 	let t = coro_class.outside.cls_t in
 
@@ -334,8 +333,8 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let einvoke = b#instance_field tnew coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types invoke_resume_field invoke_resume_type in
 			b#return (b#call einvoke [] tret_invoke_resume)
 		| Some _ ->
-			(* Thunk path: build the closure that captures outer locals, allocate the continuation,
-			   assign hoisted arg fields, then call invokeResume(). *)
+			(* Thunk path: build the closure that captures outer locals, allocate the continuation
+			   (passing hoisted args to the constructor), then call invokeResume(). *)
 			let inside_to_outside t =
 				apply_params coro_class.inside.params coro_class.outside.param_types t
 			in
@@ -343,9 +342,6 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let continuation_field cf ty =
 				b#instance_field econt coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types cf ty
 			in
-			let hoisted_arg_assigns = List.map (fun (v, field) ->
-				b#assign (continuation_field field (inside_to_outside field.cf_type)) (b#local v coro_class.name_pos)
-			) hoisted_args in
 			let invoke_resume_type = inside_to_outside invoke_resume_field.cf_type in
 			let einvoke_resume_call = b#call (continuation_field invoke_resume_field invoke_resume_type) [] tret_invoke_resume in
 			let thunk_body_el = [
@@ -357,7 +353,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let ethunk = mk (TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = b#void_block thunk_body_el })
 				thunk_type coro_class.name_pos in
 			let vthunk = alloc_var VGenerated "_hx_thunk" thunk_type coro_class.name_pos in
-			let ctor_args = [ b#local vthunk coro_class.name_pos; ecompletion ] in
+			let ctor_args = b#local vthunk coro_class.name_pos :: ecompletion :: List.map (fun (v, _) -> b#local v coro_class.name_pos) hoisted_args in
 			let tnew = mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos in
 			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcontinuation.v_pos) in
 			null_safety_off
@@ -365,7 +361,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 					b#var_init_null vcontinuation;
 					b#var_init vthunk ethunk;
 					b#assign (b#local vcontinuation coro_class.name_pos) tnew;
-				] @ hoisted_arg_assigns @ [b#return einvoke_resume_call]) end
+					b#return einvoke_resume_call]) end
 	end
 
 let rewrite_super_field_call ctx egthis e =
