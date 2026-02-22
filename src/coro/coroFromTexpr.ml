@@ -18,6 +18,30 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
+let check_captures ctx args expr =
+	let vars = Hashtbl.create 16 in
+	let declare v = Hashtbl.add vars v.v_id () in
+	List.iter (fun (v,_) -> declare v) args;
+	let rec browse e = match e.eexpr with
+		| TConst (TThis | TSuper) ->
+			ctx.captures_this <- true
+		| TLocal v ->
+			if not (Hashtbl.mem vars v.v_id) then
+				ctx.has_capture_vars <- true
+		| TVar(v, eo) ->
+			declare v;
+			Option.may browse eo
+		| TTry(e1, catches) ->
+			browse e1;
+			List.iter (fun (v, e) -> declare v; browse e) catches
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			browse tf.tf_expr
+		| _ ->
+			Type.iter browse e
+	in
+	browse expr
+
 let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)

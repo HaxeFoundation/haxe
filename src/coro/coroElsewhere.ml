@@ -41,6 +41,12 @@ object(self)
 	method int (i : int) (p : pos) =
 		mk (TConst (TInt (Int32.of_int i))) basic.tint p
 
+	method meta0 (m : Meta.strict_meta) (e : texpr) =
+		mk (TMeta((m,[],e.epos),e)) e.etype e.epos
+
+	method meta1 (m : Meta.strict_meta) (marg1 : expr) (e : texpr) =
+		mk (TMeta((m,[marg1],e.epos),e)) e.etype e.epos
+
 	method null (t : Type.t) (p : pos) =
 		mk (TConst TNull) t p
 

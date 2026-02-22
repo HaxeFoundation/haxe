@@ -57,6 +57,9 @@ type coro_ctx = {
 	builder : CoroElsewhere.texpr_builder;
 	typer : Typecore.typer;
 	config : CoroConfig.t;
+	deferred_exprs : (int, unit -> texpr) Hashtbl.t;
+	mutable has_capture_vars : bool;
+	mutable captures_this : bool;
 	mutable vthis : tvar option;
 	mutable next_block_id : int;
 	mutable current_catch : coro_block option;
