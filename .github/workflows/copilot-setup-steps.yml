@@ -62,6 +62,11 @@ jobs:
         env:
           PLATFORM: linux64
 
+      - name: Make Neko shared libraries available to the dynamic linker
+        run: |
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/local.conf
+          sudo ldconfig
+
       - name: Install dependencies
         run: |
           set -ex
