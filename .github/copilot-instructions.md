@@ -161,5 +161,5 @@ lua bin/unit.lua
 - Manual: https://haxe.org/manual/
 
 ## Haxelib
-- The haxelib command is available at the workspace root.
+- The haxelib command is available in your PATH (the workspace root is added to PATH during setup).
 - Use `haxelib git utest https://github.com/haxe-utest/utest` for utest.
