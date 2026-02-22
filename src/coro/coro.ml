@@ -492,7 +492,8 @@ let fun_to_coro ctx coro_type =
 			(Option.get !make_inline_tail_call_impl) call)
 	in
 
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call args expr);
+	CoroFromTexpr.check_captures ctx args expr;
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call expr);
 
 	(* 4. Setup continuation API — now that ctx.captures_this/ctx.has_capture_vars are
 	      fully set we can create the continuation variables with informed types. *)
