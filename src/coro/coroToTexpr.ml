@@ -157,6 +157,8 @@ let handle_locals ctx cls params states tf_args forbidden_vars econtinuation =
 				state.cs_reads <- IntSet.add v.v_id state.cs_reads;
 
 				{ e with eexpr = TLocal (get_or_create_local_mapping v) }
+			| TCall ({eexpr = TLocal v},[]) when Hashtbl.mem ctx.deferred_exprs v.v_id ->
+				mapper ((Hashtbl.find ctx.deferred_exprs v.v_id) ())
 			| _ ->
 				Type.map_expr mapper e
 		in

@@ -365,14 +365,137 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	] in
 	b#void_block el
 
+let rewrite_super_field_call ctx egthis e =
+	let basic = ctx.typer.t in
+	let b = ctx.builder in
+	let curclass = ctx.typer.c.curclass in
+	let curclass_params = extract_param_types ctx.typer.type_params in
+	let make_super_helper super_field_expr super_cl super_cf p =
+		let helper_name = Printf.sprintf "_hx_super_%s" super_cf.cf_name in
+		begin try
+			PMap.find helper_name curclass.cl_fields
+		with Not_found ->
+			(* Helper has same Coro type as the super method, so expr_to_coro will
+				recognize it as a coroutine call and add the completion arg. *)
+			let helper_cf = mk_field helper_name super_cf.cf_type p p in
+			helper_cf.cf_kind <- Method MethNormal;
+			(* Helper body: forwards all args (including completion) to super.X().
+				We build the body in expanded form (explicit completion parameter)
+				so it is never run through fun_to_coro again. *)
+			let body_args, body_ret = match follow_with_coro super_cf.cf_type with
+				| Coro (args, ret) -> Common.expand_coro_type basic args ret
+				| NotCoro _ -> die "super helper: expected Coro type" __LOC__
+			in
+			let param_vars = List.map (fun (n, _, t) -> alloc_var VGenerated n t p) body_args in
+			let eparam_exprs = List.map (fun v -> b#local v p) param_vars in
+			(* Expand the super field type so the TCall type-checks *)
+			let efun_expanded = { super_field_expr with etype = TFun(body_args, body_ret) } in
+			let ecall = mk (TCall(efun_expanded, eparam_exprs)) body_ret p in
+			let tf_expr = mk (TReturn (Some ecall)) t_dynamic p in
+			helper_cf.cf_expr <- Some (mk
+				(TFunction {
+					tf_args = List.map (fun v -> v, None) param_vars;
+					tf_type = body_ret;
+					tf_expr
+				}) super_cf.cf_type p);
+			TClass.add_field curclass helper_cf;
+			helper_cf
+		end
+	in
+	match e.eexpr with
+	| TField({eexpr = TConst TSuper} as esuper_this, (FInstance(super_cl, _, super_cf) as fa)) ->
+		let super_field_expr = { eexpr = TField(esuper_this, fa); etype = super_cf.cf_type; epos = e.epos } in
+		let helper_cf = make_super_helper super_field_expr super_cl super_cf e.epos in
+		{ e with eexpr = TField(egthis, FInstance(curclass, curclass_params, helper_cf)) }
+	| _ ->
+		e
+
 let fun_to_coro ctx coro_type =
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 
+	(* 1. Setup continuation class *)
+
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
+
+	(* 2. Create expressions and variables that we need for expr_to_coro *)
+
+	let vtmp_result = alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos in
+	let etmp_result = b#local vtmp_result coro_class.name_pos in
+	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
+	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
+	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
+
+	let expr, args, name =
+		match coro_type with
+		| ClassField (_, cf, f, _) ->
+			f.tf_expr, f.tf_args, cf.cf_name
+		| LocalFunc(f,v) ->
+			f.tf_expr, f.tf_args, v.v_name
+		in
+
+	let expr, vgthis_opt = match coro_type with
+		| ClassField (_, field, _, _) when not (has_class_field_flag field CfStatic) ->
+			let vgthis = alloc_var VGenerated "_gthis" ctx.typer.c.tthis coro_class.name_pos in
+			let egthis = b#local vgthis coro_class.name_pos in
+
+			let rec subst e = match e.eexpr with
+				| TConst TThis ->
+					{ e with eexpr = egthis.eexpr; etype = egthis.etype }
+				| TField({eexpr = TConst TSuper},_) ->
+					rewrite_super_field_call ctx egthis e;
+				| TFunction _ -> e
+				| _ -> Type.map_expr subst e
+			in
+			subst expr, Some vgthis
+		| _ ->
+			expr, None
+	in
+
+	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
+	let scope = match args with
+		| (v,_) :: _ ->
+			if has_var_flag v VCoroScope then Some {
+				scope_var = v;
+				restricted_suspension = has_var_flag v VCoroRestrictedSuspension
+			} else
+				None
+		| _ ->
+			None
+	in
+
+	(* 3. Run expr_to_coro to build the CFG and set ctx.captures_this/ctx.has_capture_vars.
+	      make_inline_return and make_inline_tail_call need the continuation API which hasn't
+	      been created yet.  We use a deferred-expression mechanism: each callback stores a
+	      thunk keyed by a fresh TLocal placeholder var.  After the continuation API is ready
+	      the thunks are evaluated and the placeholders in every CFG block are replaced. *)
+	let make_deferred build =
+		let v = alloc_var VGenerated "_hx_coro_deferred" t_dynamic coro_class.name_pos in
+		Hashtbl.add ctx.deferred_exprs v.v_id build;
+		b#call (b#local v v.v_pos) [] t_dynamic
+	in
+
+	(* These refs will be filled in after the continuation API is created (step 4). *)
+	let make_inline_return_impl : (texpr option -> pos -> texpr) option ref = ref None in
+	let make_inline_tail_call_impl : (coro_suspend -> texpr) option ref = ref None in
+
+	let make_inline_return e1_opt pos =
+		make_deferred (fun () ->
+			(Option.get !make_inline_return_impl) e1_opt pos)
+	in
+	let make_inline_tail_call call =
+		make_deferred (fun () ->
+			(Option.get !make_inline_tail_call_impl) call)
+	in
+
+	CoroFromTexpr.check_captures ctx args expr;
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call expr);
+
+	(* 4. Setup continuation API — now that ctx.captures_this/ctx.has_capture_vars are
+	      fully set we can create the continuation variables with informed types. *)
+
 	let cont = coro_class.continuation_api in
 
-	(* Generate and assign the continuation variable *)
 	let vcompletion = alloc_var VGenerated "_hx_completion" cont.continuation coro_class.name_pos in
 	let ecompletion = b#local vcompletion coro_class.name_pos in
 
@@ -392,45 +515,7 @@ let fun_to_coro ctx coro_type =
 	in
 
 	let egoto  = continuation_field cont.goto_label basic.tint in
-
-	let vtmp_result = alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos in
-	let etmp_result = b#local vtmp_result coro_class.name_pos in
-	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
 	let etmp_error = b#local vtmp_error coro_class.name_pos in
-	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
-	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
-
-	let expr, args, name =
-		match coro_type with
-		| ClassField (_, cf, f, p) ->
-			f.tf_expr, f.tf_args, cf.cf_name
-		| LocalFunc(f,v) ->
-			f.tf_expr, f.tf_args, v.v_name
-		in
-
-	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
-	let scope = match args with
-		| (v,_) :: _ ->
-			if has_var_flag v VCoroScope then Some {
-				scope_var = v;
-				restricted_suspension = has_var_flag v VCoroRestrictedSuspension
-			} else
-				None
-		| _ ->
-			None
-	in
-	let make_inline_return e1_opt pos =
-		let stmts = [
-			b#assign egoto (b#int (-1) pos);
-			b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
-		] in
-		let stmts = match e1_opt with
-			| None -> stmts
-			| Some e1 -> stmts @ [b#assign eresult e1]
-		in
-		let stmts = stmts @ [b#return econtinuation] in
-		mk (TBlock stmts) t_dynamic pos
-	in
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
 		let field, eargs =
@@ -441,7 +526,7 @@ let fun_to_coro ctx coro_type =
 					b#string (s_class_path cls) coro_class.name_pos;
 					b#string field.cf_name coro_class.name_pos;
 				]
-			| LocalFunc (f, v) ->
+			| LocalFunc (_, v) ->
 				PMap.find "setLocalFuncStackItem" cont.base_continuation_class.cl_fields,
 				[
 					b#int v.v_id coro_class.name_pos;
@@ -458,11 +543,27 @@ let fun_to_coro ctx coro_type =
 		] in
 		mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos
 	in
-	let make_inline_tail_call call =
+
+	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
+
+	make_inline_return_impl := Some (fun e1_opt pos ->
+		let stmts = [
+			b#assign egoto (b#int (-1) pos);
+			b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
+		] in
+		let stmts = match e1_opt with
+			| None -> stmts
+			| Some e1 -> stmts @ [b#assign eresult e1]
+		in
+		let stmts = stmts @ [b#return econtinuation] in
+		mk (TBlock stmts) t_dynamic pos);
+
+	make_inline_tail_call_impl := Some (fun call ->
 		let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
-	in
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope make_inline_return make_inline_tail_call expr);
+		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]);
+
+	(* 6. Transform blocks to state machine *)
+
 	let start_exception =
 		let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
 		let ef = continuation_field cf cf.cf_type in
@@ -471,6 +572,16 @@ let fun_to_coro ctx coro_type =
 		)
 	in
 	let tf_expr = coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation stack_item_inserter start_exception in
+
+	(* For non-static ClassField: prepend  var _gthis = this  to the thin wrapper so the
+	   thunk (built inside coro_to_state_machine) can capture `_gthis` via closure, making
+	   the original class instance accessible throughout the state machine. *)
+	let tf_expr = match vgthis_opt with
+		| Some vgthis ->
+			b#void_block [ b#var_init vgthis (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
+		| None ->
+			tf_expr
+	in
 
 	let tf_args = (vcompletion,None) :: args in
 	(* I'm not sure what this should be, but let's stick to the widest one for now.
