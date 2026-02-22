@@ -26,11 +26,6 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 - Native libraries: PCRE2, zlib, mbedTLS 3.x (4.x not yet supported)
 - Neko VM (for building haxelib)
 
-### Getting Started
-1. Clone with submodules: `git clone --recursive https://github.com/HaxeFoundation/haxe.git`
-2. Install dependencies as documented in `extra/BUILDING.md`
-3. Build the compiler: `make`
-
 ## Code Organization
 
 ### Compiler Source (`src/`)
@@ -149,12 +144,14 @@ lua bin/unit.lua
 
 ### Code Quality Considerations
 - Try to avoid code duplication, especially in the OCaml code.
+- Prefer top-level functions over closures for functions with large bodies.
 
 ## CI/CD
 - CI runs on GitHub Actions (see `.github/workflows/`)
 - Tests run on multiple platforms (Windows, Linux, macOS)
 - Both x86_64 and ARM64 architectures are tested
 - All targets are tested in CI
+- When making changes related to coroutines, run the appropriate target test at https://github.com/HaxeFoundation/hxcoro/tree/master/tests
 
 ## Additional Resources
 - Building instructions: `extra/BUILDING.md`
@@ -163,13 +160,6 @@ lua bin/unit.lua
 - Main documentation: https://haxe.org/documentation/
 - Manual: https://haxe.org/manual/
 
-## Tips for Contributing
-
-1. **Before filing issues**: Check if it's actually a compiler issue vs. a "how to" question
-2. **Reduce test cases**: Create minimal examples without library dependencies
-3. **Check development version**: Issue might already be fixed in development branch
-4. **Target-specific issues**: Verify by checking generated code output
-5. **Read CONTRIBUTING.md**: Contains important guidelines for issue reporting
-
-## Version Compatibility
-Be aware of version compatibility requirements between Haxe and target platforms (see compatibility table in README.md).
+## Haxelib
+- The haxelib command is available at the workspace root.
+- Use `haxelib git utest https://github.com/haxe-utest/utest` for utest.
