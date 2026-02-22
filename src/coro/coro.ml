@@ -378,51 +378,6 @@ let rewrite_super_field_call ctx egthis e =
 			PMap.find helper_name curclass.cl_fields
 		with Not_found ->
 			(* Helper has same Coro type as the super method, so expr_to_coro will
-			   recognize it as a coroutine call and add the completion arg. *)
-			let helper_cf = mk_field helper_name super_cf.cf_type p p in
-			helper_cf.cf_kind <- Method MethNormal;
-			(* Helper body: forwards all args (including completion) to super.X().
-			   We build the body in expanded form (explicit completion parameter)
-			   so it is never run through fun_to_coro again. *)
-			let body_args, body_ret = match follow_with_coro super_cf.cf_type with
-				| Coro (args, ret) -> Common.expand_coro_type basic args ret
-				| NotCoro _ -> die "super helper: expected Coro type" __LOC__
-			in
-			let param_vars = List.map (fun (n, _, t) -> alloc_var VGenerated n t p) body_args in
-			let eparam_exprs = List.map (fun v -> b#local v p) param_vars in
-			(* Expand the super field type so the TCall type-checks *)
-			let efun_expanded = { super_field_expr with etype = TFun(body_args, body_ret) } in
-			let ecall = mk (TCall(efun_expanded, eparam_exprs)) body_ret p in
-			let tf_expr = mk (TReturn (Some ecall)) t_dynamic p in
-			helper_cf.cf_expr <- Some (mk
-				(TFunction {
-					tf_args = List.map (fun v -> v, None) param_vars;
-					tf_type = body_ret;
-					tf_expr
-				}) super_cf.cf_type p);
-			TClass.add_field curclass helper_cf;
-			helper_cf
-		end
-	in
-	match e.eexpr with
-	| TField({eexpr = TConst TSuper} as esuper_this, (FInstance(super_cl, _, super_cf) as fa)) ->
-		let super_field_expr = { eexpr = TField(esuper_this, fa); etype = super_cf.cf_type; epos = e.epos } in
-		let helper_cf = make_super_helper super_field_expr super_cl super_cf e.epos in
-		{ e with eexpr = TField(egthis, FInstance(curclass, curclass_params, helper_cf)) }
-	| _ ->
-		e
-
-let rewrite_super_field_call ctx egthis e =
-	let basic = ctx.typer.t in
-	let b = ctx.builder in
-	let curclass = ctx.typer.c.curclass in
-	let curclass_params = extract_param_types ctx.typer.type_params in
-	let make_super_helper super_field_expr super_cl super_cf p =
-		let helper_name = Printf.sprintf "_hx_super_%s" super_cf.cf_name in
-		begin try
-			PMap.find helper_name curclass.cl_fields
-		with Not_found ->
-			(* Helper has same Coro type as the super method, so expr_to_coro will
 				recognize it as a coroutine call and add the completion arg. *)
 			let helper_cf = mk_field helper_name super_cf.cf_type p p in
 			helper_cf.cf_kind <- Method MethNormal;
