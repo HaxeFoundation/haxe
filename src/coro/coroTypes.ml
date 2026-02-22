@@ -75,3 +75,7 @@ type coro_scope = {
 	scope_var : tvar;
 	restricted_suspension : bool;
 }
+
+type coro_gen_mode =
+	| GenThunk of tclass_field
+	| GenInline of tclass_field option
