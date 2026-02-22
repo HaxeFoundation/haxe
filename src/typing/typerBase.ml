@@ -173,6 +173,15 @@ let get_this ctx p =
 		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember when TyperManager.is_coroutine_context ctx ->
+		(* For coroutine member methods, emit `TLocal v` instead of `TConst TThis`.
+		   `typeloadFunction.ml` will later inject  var v = TConst TThis  before the
+		   first use of `v`, so the typed body looks like:
+		       var _this = this;     <- TVar(v, Some(TConst TThis))
+		       ... body using TLocal v ...
+		   The coroutine transformer detects `TConst TThis` in the initialiser and
+		   rewrites it to `_hx_continuation._hx_captured` (inline path) or
+		   `_hx_gthis` (thunk path).  All remaining `TLocal v` usages then refer to
+		   this cached value, avoiding repeated field accesses. *)
 		let v = match ctx.f.vthis with
 			| None ->
 				let v = add_local ctx VGenerated (Printf.sprintf "%sthis" gen_local_prefix) ctx.c.tthis p in

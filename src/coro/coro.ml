@@ -138,7 +138,7 @@ module ContinuationClassBuilder = struct
 			cf_captured
 			|> Option.map
 				(fun field ->
-					let vargcaptured    = alloc_var VGenerated "captured" field.cf_type coro_class.name_pos in
+					let vargcaptured    = alloc_var VGenerated "_hx_captured" field.cf_type coro_class.name_pos in
 					let eargcaptured    = b#local vargcaptured coro_class.name_pos in
 					let ecapturedfield  = this_field field in
 					vargcaptured, b#assign ecapturedfield eargcaptured)
@@ -493,14 +493,14 @@ let fun_to_coro ctx coro_type =
 			if not ctx.captures_this then
 				GenInline None
 			else begin
-				let cf = mk_field "captured" ctx.typer.c.tthis field.cf_name_pos field.cf_name_pos in
+				let cf = mk_field "_hx_captured" ctx.typer.c.tthis field.cf_name_pos field.cf_name_pos in
 				GenInline (Some (b#this ctx.typer.c.tthis coro_class.name_pos, cf))
 			end
 		| LocalFunc _ when not ctx.captures_this && not ctx.has_capture_vars ->
 			GenInline None
 		| LocalFunc (f,v) ->
 			let make_captured_field p =
-				mk_field "captured" (TFun([], tret_invoke_resume_inside)) p p
+				mk_field "_hx_captured" (TFun([], tret_invoke_resume_inside)) p p
 			in
 			GenThunk (make_captured_field v.v_pos)
 	in
@@ -559,7 +559,7 @@ let fun_to_coro ctx coro_type =
 
 	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
 
-	let vgthis = lazy (alloc_var VGenerated "_gthis" ctx.typer.c.tthis coro_class.name_pos) in
+	let vgthis = lazy (alloc_var VGenerated "_hx_gthis" ctx.typer.c.tthis coro_class.name_pos) in
 
 	let deferred_impl =
 		let egthis = lazy (match gen_mode with
@@ -609,8 +609,8 @@ let fun_to_coro ctx coro_type =
 	in
 	let tf_expr = coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation gen_mode stack_item_inserter start_exception in
 
-	(* For non-static ClassField: prepend  var _gthis = this  to the thin wrapper so the
-	   thunk (built inside coro_to_state_machine) can capture `_gthis` via closure, making
+	(* For non-static ClassField: prepend  var _hx_gthis = this  to the thin wrapper so the
+	   thunk (built inside coro_to_state_machine) can capture `_hx_gthis` via closure, making
 	   the original class instance accessible throughout the state machine. *)
 	let tf_expr = if Lazy.is_val vgthis then
 		b#void_block [ b#var_init (Lazy.force vgthis) (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
