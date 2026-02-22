@@ -96,8 +96,6 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			fst_state.cs_writes <- IntSet.add v.v_id fst_state.cs_writes;
-
 			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type null_pos null_pos in
 
 			Hashtbl.replace fields v.v_id field;
