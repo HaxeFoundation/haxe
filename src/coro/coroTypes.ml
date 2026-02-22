@@ -85,4 +85,4 @@ type coro_scope = {
 
 type coro_gen_mode =
 	| GenThunk of tclass_field
-	| GenInline of tclass_field option
+	| GenInline of (texpr * tclass_field) option

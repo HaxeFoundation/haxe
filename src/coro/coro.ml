@@ -147,8 +147,8 @@ module ContinuationClassBuilder = struct
 		(* For the inline path (no captures), function arguments are passed as constructor parameters
 		   so the thin wrapper can be a single  new Ctor(completion, arg1, ...).invokeResume()  call. *)
 		let hoisted =
-			List.map (fun (orig_v, field) ->
-				let varg = alloc_var VGenerated orig_v.v_name field.cf_type coro_class.name_pos in
+			List.map (fun (name, _, field) ->
+				let varg = alloc_var VGenerated name field.cf_type coro_class.name_pos in
 				let earg = b#local varg coro_class.name_pos in
 				let efield = this_field field in
 				varg, b#assign efield earg
@@ -187,19 +187,11 @@ module ContinuationClassBuilder = struct
 
 		field
 
-	(* For ClassField coroutines: embed the state machine body directly inside invokeResume().
-	   For static ClassField only - the state machine can be safely embedded because there
-	   are no implicit `this` or `super` references to worry about. *)
 	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
 		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
-		(* `vcontinuation` was allocated with inside type params (bound within the
-		   continuation class), so no special remapping is needed for it.
-		   Other variables in the block (hoisted cross-state vars) may still carry the
-		   outside type params; substitute them to inside so HXB serialisation does not
-		   see WUnboundTypeParameter warnings. *)
 		let subst = substitute_type_params coro_class.type_param_subst in
 		let var_map = Hashtbl.create 8 in
 		let map_var v =
@@ -237,10 +229,6 @@ module ContinuationClassBuilder = struct
 
 		field
 
-	(* For LocalFunc and non-static ClassField coroutines: invokeResume() calls the thunk stored
-	   in captured field.  The thunk is a zero-arg closure created in the thin wrapper that
-	   naturally captures all outer locals (`this`, `super`, `counter`, etc.) so that these
-	   references work correctly even inside the generated continuation class. *)
 	let mk_invoke_resume_thunk_call ctx coro_class cf_captured =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
@@ -264,7 +252,7 @@ end
 
 let create_continuation_class ctx cont coro_class initial_state invoke_resume_field gen_mode hoisted_args =
 	let cf_captured = match gen_mode with
-		| GenInline cfo -> cfo
+		| GenInline cfo -> Option.map snd cfo
 		| GenThunk cf -> Some cf
 	in
 	let ctor   = ContinuationClassBuilder.mk_ctor ctx cont coro_class initial_state cf_captured hoisted_args in
@@ -304,16 +292,23 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let {CoroToTexpr.ecompletion;eresult;_} = exprs in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
 
-	let invoke_resume_field = match gen_mode with
-		| GenInline None ->
-			(* Inline path: embed state machine directly in invokeResume() *)
-			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class
-				vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop
-		| GenInline (Some cf) ->
-			assert false (* TODO! *)
+	let invoke_resume_field,leading_args = match gen_mode with
+		| GenInline cfo ->
+			let leading_args = match cfo with
+				| None ->
+					[]
+				| Some (e,cf) ->
+					begin match e.eexpr with
+					| TCall ({eexpr = TLocal v},[]) when Hashtbl.mem ctx.deferred_exprs v.v_id ->
+						let e = ((Hashtbl.find ctx.deferred_exprs v.v_id) ()) in
+						[("gthis", e, cf)]
+					| _ ->
+						die "" __LOC__
+					end
+			in
+			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop,leading_args
 		| GenThunk cf_captured ->
-			(* Thunk path: invokeResume() calls the captured thunk closure *)
-			ContinuationClassBuilder.mk_invoke_resume_thunk_call ctx coro_class cf_captured
+			ContinuationClassBuilder.mk_invoke_resume_thunk_call ctx coro_class cf_captured,[]
 	in
 
 	(* Collect (orig_var, hoisted_field) pairs for function arguments that were hoisted
@@ -322,9 +317,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let hoisted_args = List.filter_map (fun (v, _) ->
 		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
 		match (try Some (PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields) with Not_found -> None) with
-		| Some field -> Some (v, field)
+		| Some field -> Some (v.v_name, b#local v v.v_pos, field)
 		| None -> None
 	) args in
+	let hoisted_args = leading_args @ hoisted_args in
 	create_continuation_class ctx cont coro_class initial_state invoke_resume_field gen_mode hoisted_args;
 
 	let t = coro_class.outside.cls_t in
@@ -333,7 +329,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		| GenInline _ ->
 			(* Inline path: pass hoisted args directly to the constructor and call invokeResume()
 			   on the result — no intermediate variable, no separate field assignments. *)
-			let ctor_args = ecompletion :: List.map (fun (v, _) -> b#local v coro_class.name_pos) hoisted_args in
+			let ctor_args = ecompletion :: List.map (fun (_, e, _) -> e) hoisted_args in
 			let tnew = mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos in
 			let invoke_resume_type = TFun([], tret_invoke_resume) in
 			let einvoke = b#instance_field tnew coro_class.ContinuationClassBuilder.cls coro_class.outside.param_types invoke_resume_field invoke_resume_type in
@@ -359,7 +355,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let ethunk = mk (TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = b#void_block thunk_body_el })
 				thunk_type coro_class.name_pos in
 			let vthunk = alloc_var VGenerated "_hx_thunk" thunk_type coro_class.name_pos in
-			let ctor_args = ecompletion :: List.map (fun (v, _) -> b#local v coro_class.name_pos) hoisted_args @ [b#local vthunk coro_class.name_pos] in
+			let ctor_args = ecompletion :: List.map (fun (_, e, _) -> e) hoisted_args @ [b#local vthunk coro_class.name_pos] in
 			let tnew = mk (TNew (coro_class.ContinuationClassBuilder.cls, coro_class.outside.param_types, ctor_args)) t coro_class.name_pos in
 			let null_safety_off = b#meta1 Meta.NullSafety (EConst (Ident "Off"),vcontinuation.v_pos) in
 			null_safety_off
@@ -510,7 +506,12 @@ let fun_to_coro ctx coro_type =
 		| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
 			GenInline None
 		| ClassField (_,field, _, _) ->
-			GenThunk (make_captured_field field.cf_name_pos)
+			if not ctx.captures_this then
+				GenInline None
+			else begin
+				let cf = make_captured_field field.cf_name_pos in
+				GenInline (Some (deferred.make_this (b#this ctx.typer.c.tthis coro_class.name_pos),cf))
+			end
 		| LocalFunc _ when not ctx.captures_this && not ctx.has_capture_vars ->
 			GenInline None
 		| LocalFunc (f,v) ->
@@ -574,7 +575,14 @@ let fun_to_coro ctx coro_type =
 	let vgthis = lazy (alloc_var VGenerated "_gthis" ctx.typer.c.tthis coro_class.name_pos) in
 
 	let deferred_impl =
-		let egthis = lazy (b#local (Lazy.force vgthis) coro_class.name_pos) in
+		let egthis = lazy (match gen_mode with
+			| GenThunk _ ->
+				b#local (Lazy.force vgthis) coro_class.name_pos
+			| GenInline (Some (_,cf)) ->
+				continuation_field cf cf.cf_type
+			| GenInline None ->
+				die "" __LOC__
+		) in
 		{
 			make_inline_return = (fun e1_opt pos ->
 				let stmts = [
