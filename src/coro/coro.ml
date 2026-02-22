@@ -255,7 +255,6 @@ let check_assertions assert_config num_states p =
 
 let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation stack_item_inserter start_exception =
 	let b = ctx.builder in
-	let basic = ctx.typer.t in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, initial_state, fields, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args [ vcompletion.v_id; vcontinuation.v_id ] exprs coro_class.name_pos stack_item_inserter start_exception in
 	(* Check @:coroutine(assert) config *)
@@ -269,21 +268,19 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let {CoroToTexpr.econtinuation;ecompletion;eresult;_} = exprs in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
 
-	let make_captured_field t p =
-		mk_field "captured" (substitute_type_params coro_class.type_param_subst t) p p
+	let make_captured_field p =
+		mk_field "captured" (TFun([], tret_invoke_resume)) p p
 	in
 	(* The presence of absence of cf_captured governs the generation mode (inline vs. thunk). *)
 	let cf_captured = match coro_class.coro_type with
 		| ClassField (_, field, _, _) when has_class_field_flag field CfStatic ->
 			None
 		| ClassField (_,field, _, _) ->
-			Some (make_captured_field ctx.typer.c.tthis field.cf_name_pos);
+			Some (make_captured_field field.cf_name_pos);
 		| LocalFunc _ when not ctx.captures_this && not ctx.has_capture_vars ->
 			None
 		| LocalFunc (f,v) ->
-			let args = List.map (fun (v, _) -> (v.v_name, false, v.v_type)) f.tf_args in
-			let t    = TFun (Common.expand_coro_type basic args f.tf_type) in
-			Some (make_captured_field t v.v_pos);
+			Some (make_captured_field v.v_pos);
 	in
 	let invoke_resume_field = match cf_captured with
 		| None ->
@@ -292,7 +289,6 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 				vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop
 		| Some cf_captured ->
 			(* Non-static ClassField and LocalFunc: thunk approach *)
-			cf_captured.cf_type <- TFun([], tret_invoke_resume);
 			ContinuationClassBuilder.mk_invoke_resume_thunk_call ctx coro_class cf_captured
 	in
 	create_continuation_class ctx cont coro_class initial_state invoke_resume_field cf_captured;
