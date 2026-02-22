@@ -471,11 +471,9 @@ let fun_to_coro ctx coro_type =
 	      been created yet.  We use a deferred-expression mechanism: each callback stores a
 	      thunk keyed by a fresh TLocal placeholder var.  After the continuation API is ready
 	      the thunks are evaluated and the placeholders in every CFG block are replaced. *)
-
-	let deferred_exprs : (int, unit -> texpr) Hashtbl.t = Hashtbl.create 0 in
 	let make_deferred build =
 		let v = alloc_var VGenerated "_hx_coro_deferred" t_dynamic coro_class.name_pos in
-		Hashtbl.add deferred_exprs v.v_id build;
+		Hashtbl.add ctx.deferred_exprs v.v_id build;
 		mk (TLocal v) t_dynamic coro_class.name_pos
 	in
 
@@ -566,37 +564,7 @@ let fun_to_coro ctx coro_type =
 		let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
 		b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]);
 
-	(* 6. Expand deferred placeholder expressions in every CFG block *)
-
-	let expand_deferred e =
-		let rec map e = match e.eexpr with
-			| TLocal v when Hashtbl.mem deferred_exprs v.v_id ->
-				(Hashtbl.find deferred_exprs v.v_id) ()
-			| _ ->
-				Texpr.map_expr map e
-		in
-		map e
-	in
-
-	let visited = Hashtbl.create 8 in
-	let rec apply_to_all_blocks cb =
-		if not (Hashtbl.mem visited cb.cb_id) then begin
-			Hashtbl.add visited cb.cb_id ();
-			let n = DynArray.length cb.cb_el in
-			for i = 0 to n - 1 do
-				DynArray.set cb.cb_el i (expand_deferred (DynArray.get cb.cb_el i))
-			done;
-			(* NextReturn and NextThrow also hold expressions that may contain deferred placeholders *)
-			(match cb.cb_next with
-			| NextReturn e -> cb.cb_next <- NextReturn (expand_deferred e)
-			| NextThrow e -> cb.cb_next <- NextThrow (expand_deferred e)
-			| _ -> ());
-			coro_iter apply_to_all_blocks cb
-		end
-	in
-	apply_to_all_blocks cb_root;
-
-	(* 7. Transform blocks to state machine *)
+	(* 6. Transform blocks to state machine *)
 
 	let start_exception =
 		let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
@@ -636,6 +604,7 @@ let create_coro_context typer config =
 		builder;
 		typer;
 		config;
+		deferred_exprs = Hashtbl.create 0;
 		has_capture_vars = false;
 		captures_this = false;
 		vthis = None;

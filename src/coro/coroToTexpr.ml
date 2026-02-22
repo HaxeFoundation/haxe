@@ -47,7 +47,8 @@ let make_suspending_call basic cont call econtinuation =
 	let args = econtinuation :: call.cs_args in
 	mk (TCall (efun, args)) (cont.suspension_result basic.tany) call.cs_pos
 
-let handle_locals b cls params states tf_args forbidden_vars econtinuation =
+let handle_locals ctx cls params states tf_args forbidden_vars econtinuation =
+	let b = ctx.builder in
 	let fst_state     = List.hd states in
 	let arg_state_set = IntSet.of_list [ fst_state.cs_id ] in
 
@@ -158,6 +159,8 @@ let handle_locals b cls params states tf_args forbidden_vars econtinuation =
 				state.cs_reads <- IntSet.add v.v_id state.cs_reads;
 
 				{ e with eexpr = TLocal (get_or_create_local_mapping v) }
+			| TLocal v when Hashtbl.mem ctx.deferred_exprs v.v_id ->
+				mapper ((Hashtbl.find ctx.deferred_exprs v.v_id) ())
 			| _ ->
 				Type.map_expr mapper e
 		in
@@ -434,7 +437,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args forbidden_vars exprs
 	let states = !states in
 	let states = states |> List.sort (fun state1 state2 -> state1.cs_id - state2.cs_id) in
 
-	let fields_and_decls = handle_locals b cls params states tf_args forbidden_vars econtinuation in
+	let fields_and_decls = handle_locals ctx cls params states tf_args forbidden_vars econtinuation in
 
 	let eloop = match states with
 		| [state] ->
