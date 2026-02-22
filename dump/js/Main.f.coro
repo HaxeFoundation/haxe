@@ -1,3 +1,0 @@
-digraph graphname {
-n0 [shape=box,label="(0)\nif (x<259>) {\n\t_hx_coro_deferred<262>;\n}\nreturn 2"];
-}
