@@ -370,7 +370,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 					b#return einvoke_resume_call]) end
 	end
 
-let rewrite_super_field_call ctx egthis e =
+let rewrite_super_field ctx egthis e =
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 	let curclass = ctx.typer.c.curclass in
@@ -416,31 +416,41 @@ let rewrite_super_field_call ctx egthis e =
 		e
 
 let make_deferred_api ctx b =
-	let make_deferred build =
+	let make_deferred build t =
 		let v = alloc_var VGenerated "_hx_coro_deferred" t_dynamic null_pos in
 		Hashtbl.add ctx.deferred_exprs v.v_id build;
-		b#call (b#local v v.v_pos) [] t_dynamic
+		b#call (b#local v v.v_pos) [] t
 	in
 
 	(* These refs will be filled in after the continuation API is created (step 4). *)
-	let make_inline_return_impl : (texpr option -> pos -> texpr) option ref = ref None in
-	let make_inline_tail_call_impl : (coro_suspend -> texpr) option ref = ref None in
+	let make_inline_return_impl = ref None in
+	let make_inline_tail_call_impl = ref None in
+	let make_this_impl = ref None in
+	let make_super_field_impl = ref None in
 
 	let make_inline_return e1_opt pos =
-		make_deferred (fun () ->
-			(Option.get !make_inline_return_impl) e1_opt pos)
+		make_deferred (fun () -> (Option.get !make_inline_return_impl) e1_opt pos) t_dynamic (* TODO: ? *)
 	in
 	let make_inline_tail_call call =
-		make_deferred (fun () ->
-			(Option.get !make_inline_tail_call_impl) call)
+		make_deferred (fun () -> (Option.get !make_inline_tail_call_impl) call) t_dynamic (* TODO: ? *)
+	in
+	let make_this e =
+		make_deferred (fun() -> (Option.get !make_this_impl) e) e.etype
+	in
+	let make_super_field e =
+		make_deferred (fun() -> (Option.get !make_super_field_impl) e) e.etype
 	in
 	let deferred = {
 		make_inline_return;
 		make_inline_tail_call;
+		make_this;
+		make_super_field;
 	} in
 	let install api =
 		make_inline_return_impl := Some api.make_inline_return;
 		make_inline_tail_call_impl := Some api.make_inline_tail_call;
+		make_this_impl := Some api.make_this;
+		make_super_field_impl := Some api.make_super_field;
 	in
 	deferred,install
 
@@ -467,24 +477,6 @@ let fun_to_coro ctx coro_type =
 		| LocalFunc(f,v) ->
 			f.tf_expr, f.tf_args, v.v_name
 		in
-
-	let expr, vgthis_opt = match coro_type with
-		| ClassField (_, field, _, _) when not (has_class_field_flag field CfStatic) ->
-			let vgthis = alloc_var VGenerated "_gthis" ctx.typer.c.tthis coro_class.name_pos in
-			let egthis = b#local vgthis coro_class.name_pos in
-
-			let rec subst e = match e.eexpr with
-				| TConst TThis ->
-					{ e with eexpr = egthis.eexpr; etype = egthis.etype }
-				| TField({eexpr = TConst TSuper},_) ->
-					rewrite_super_field_call ctx egthis e;
-				| TFunction _ -> e
-				| _ -> Type.map_expr subst e
-			in
-			subst expr, Some vgthis
-		| _ ->
-			expr, None
-	in
 
 	let cb_root = make_block ctx (Some(expr.etype, coro_class.name_pos)) in
 	let scope = match args with
@@ -579,24 +571,36 @@ let fun_to_coro ctx coro_type =
 
 	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
 
-	let deferred_impl = {
-		make_inline_return = (fun e1_opt pos ->
-			let stmts = [
-				b#assign egoto (b#int (-1) pos);
-				b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
-			] in
-			let stmts = match e1_opt with
-				| None -> stmts
-				| Some e1 -> stmts @ [b#assign eresult e1]
-			in
-			let stmts = stmts @ [b#return econtinuation] in
-			mk (TBlock stmts) t_dynamic pos
-		);
-		make_inline_tail_call =(fun call ->
-			let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-			b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
-		);
-	} in
+	let vgthis = lazy (alloc_var VGenerated "_gthis" ctx.typer.c.tthis coro_class.name_pos) in
+
+	let deferred_impl =
+		let egthis = lazy (b#local (Lazy.force vgthis) coro_class.name_pos) in
+		{
+			make_inline_return = (fun e1_opt pos ->
+				let stmts = [
+					b#assign egoto (b#int (-1) pos);
+					b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
+				] in
+				let stmts = match e1_opt with
+					| None -> stmts
+					| Some e1 -> stmts @ [b#assign eresult e1]
+				in
+				let stmts = stmts @ [b#return econtinuation] in
+				mk (TBlock stmts) t_dynamic pos
+			);
+			make_inline_tail_call = (fun call ->
+				let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
+				b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
+			);
+			make_this = (fun e ->
+				let egthis = Lazy.force egthis in
+				{ e with eexpr = egthis.eexpr; etype = egthis.etype }
+			);
+			make_super_field = (fun e ->
+				rewrite_super_field ctx (Lazy.force egthis) e;
+			);
+		}
+	in
 	install_deferred deferred_impl;
 
 	(* 6. Transform blocks to state machine *)
@@ -613,11 +617,10 @@ let fun_to_coro ctx coro_type =
 	(* For non-static ClassField: prepend  var _gthis = this  to the thin wrapper so the
 	   thunk (built inside coro_to_state_machine) can capture `_gthis` via closure, making
 	   the original class instance accessible throughout the state machine. *)
-	let tf_expr = match vgthis_opt with
-		| Some vgthis ->
-			b#void_block [ b#var_init vgthis (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
-		| None ->
-			tf_expr
+	let tf_expr = if Lazy.is_val vgthis then
+		b#void_block [ b#var_init (Lazy.force vgthis) (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
+	else
+		tf_expr
 	in
 
 	let tf_args = (vcompletion,None) :: args in

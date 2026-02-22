@@ -151,6 +151,10 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None in
 		let exception Found in
 		let rec remap can_tco loop_depth e = match e.eexpr with
+			| TConst TThis ->
+				deferred.make_this e
+			| TField({eexpr = TConst TSuper},_) ->
+				deferred.make_super_field e
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				if can_tco then
 					deferred.make_inline_tail_call {
@@ -225,7 +229,11 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 	let rec loop cb ret e =
 	match e.eexpr with
 		(* special cases *)
-		| TConst TThis | TBlock [] ->
+		| TConst TThis  ->
+			Some (cb,deferred.make_this e)
+		| TField({eexpr = TConst TSuper},_) ->
+			Some (cb,deferred.make_super_field e)
+		| TBlock [] ->
 			Some (cb,e)
 		| TLocal v when (has_var_flag v VCoroScope) && not (scope_allows_access_to v) ->
 			Error.raise_typing_error "Invalid usage of a coroutine scope in a different coroutine scope" e.epos
