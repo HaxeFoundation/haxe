@@ -640,7 +640,6 @@ let create_coro_context typer config =
 		deferred_exprs = Hashtbl.create 0;
 		has_capture_vars = false;
 		captures_this = false;
-		vthis = None;
 		next_block_id = 0;
 		current_catch = None;
 		has_catch = false;
