@@ -71,7 +71,7 @@ module IterationKind = struct
 		| IteratorGenericStack of tclass
 		| IteratorIterator
 		| IteratorCustom of (texpr -> texpr -> Type.t -> pos -> texpr) * (texpr -> pos -> texpr)
-		| IteratorAbstract of tvar * texpr * texpr
+		| IteratorHasNextNext of tvar * texpr * texpr
 		| IteratorDynamic
 
 	type t = {
@@ -118,7 +118,7 @@ module IterationKind = struct
 		with Error ({ err_message = Unify _ }) | Not_found ->
 			None
 
-	(* Try to build an IteratorAbstract kind for an async iterator expression.
+	(* Try to build an IteratorHasNextNext kind for an async iterator expression.
 	   Returns Some (kind, e_iter, pt) if e unifies with AsyncIterator<T>, or if
 	   e.s() returns an AsyncIterator<T>. Returns None otherwise. *)
 	let try_async_iterator_kind ctx e s p =
@@ -131,7 +131,7 @@ module IterationKind = struct
 			let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value in
 			let e_hasNext = build_call ctx acc_hasNext [] (WithType.with_type ctx.t.tbool) e_tmp.epos in
 			let e_next = build_call ctx acc_next [] WithType.value e_tmp.epos in
-			Some (IteratorAbstract(v_tmp, e_next, e_hasNext), e_iter, e_next.etype)
+			Some (IteratorHasNextNext(v_tmp, e_next, e_hasNext), e_iter, e_next.etype)
 		in
 		let t_async_it pt = (Lazy.force ctx.t.tcoro.tasync_iterator) pt in
 		(* First, try direct unification with AsyncIterator<T> *)
@@ -315,7 +315,7 @@ module IterationKind = struct
 				);
 				let e_next = build_call ctx acc_next [] WithType.value e.epos in
 				let e_hasNext = build_call ctx acc_hasNext [] WithType.value e.epos in
-				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
+				IteratorHasNextNext(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
 				(try try_forward_array_iterator ()
 				with Not_found -> check_iterator ())
@@ -480,7 +480,7 @@ module IterationKind = struct
 					NormalWhile
 				)) t_void p
 			]) t_void p
-		| IteratorAbstract(v_tmp,e_next,e_hasNext) ->
+		| IteratorHasNextNext(v_tmp,e_next,e_hasNext) ->
 			let evar = mk (TVar(v,Some e_next)) t_void p in
 			let e2 = concat evar e2 in
 			let ewhile = mk (TWhile(e_hasNext,e2,NormalWhile)) t_void p in
