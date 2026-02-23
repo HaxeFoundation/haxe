@@ -113,7 +113,8 @@ private class CountingAsyncIterator {
 	}
 
 	@:coroutine public function hasNext():Bool {
-		if (suspender != null) suspender.suspend();
+		if (suspender != null)
+			suspender.suspend();
 		return i < limit;
 	}
 
@@ -139,11 +140,14 @@ private class CountingAsyncIterable {
 // provides an async iterator (returning [0,1,2]).  Used to assert that the async
 // iterator takes priority over array access in a coroutine context.
 private abstract AsyncIterablePriority(Array<Int>) {
-	public inline function new(arr:Array<Int>) this = arr;
+	public inline function new(arr:Array<Int>)
+		this = arr;
 
-	public function get_length():Int return this.length;
+	public function get_length():Int
+		return this.length;
 
-	@:arrayAccess public inline function get(i:Int):Int return this[i] * 10;
+	@:arrayAccess public inline function get(i:Int):Int
+		return this[i] * 10;
 
 	public function iterator():haxe.coro.AsyncIterator<Int> {
 		return new CountingAsyncIterator(3);
@@ -338,7 +342,8 @@ class TestCoroutines extends Test {
 		}
 
 		var cont = new TrackingCont<Int>();
-		@:coroutine function wrapper():Int return identity(42);
+		@:coroutine function wrapper():Int
+			return identity(42);
 		invokeCoroutine(cont, wrapper);
 		eq(null, cont.lastError);
 		eq(42, cont.lastResult);
@@ -350,16 +355,18 @@ class TestCoroutines extends Test {
 	function testMultiStateNoResultOptimisation() {
 		var resumed = false;
 
+		final sus = new Suspender();
+
 		@:coroutine function waitAndFlag() {
-			AlwaysSuspending.suspend();
+			sus.suspend();
 			resumed = true;
 		}
 
 		var cont = new TrackingCont<haxe.Unit>();
 		waitAndFlag(cont);
-		f(resumed);  // not yet resumed
-		AlwaysSuspending._stored.resume(null, null);
-		t(resumed);  // now resumed
+		f(resumed); // not yet resumed
+		sus.cont.resume(null, null);
+		t(resumed); // now resumed
 		eq(null, cont.lastError);
 	}
 
