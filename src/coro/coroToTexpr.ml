@@ -29,7 +29,7 @@ type coro_to_texpr_exprs = {
 	eresult : texpr;
 	egoto : texpr;
 	eerror : texpr;
-	etmp_result : texpr;
+	etmp_result : texpr Lazy.t;
 	etmp_error : texpr;
 	etmp_error_unwrapped : texpr Lazy.t;
 }
@@ -227,7 +227,7 @@ module SuspensionCalls = struct
 			| SusBlock ->
 				b#void_block []
 			| SusResult ->
-				b#assign etmp_result eres
+				b#assign (Lazy.force etmp_result) eres
 		in
 		let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
 		let ethrown = b#void_block [
@@ -319,7 +319,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			| None ->
 				b#if_then e_if e_then
 			| Some e ->
-				let e_assign = b#assign e etmp_result in
+				let e_assign = b#assign e (Lazy.force etmp_result) in
 				b#if_then_else e_if e_then e_assign com.basic.tvoid
 	in
 
