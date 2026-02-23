@@ -283,9 +283,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 	let b = ctx.builder in
 
 	(* In a single-state coroutine there is no while/switch dispatch loop, so
-	   gotoLabel is never read.  We set this flag once here so that set_state and
-	   NextThrow can skip emitting assignments/breaks that would only be needed in
-	   the multi-state case, avoiding the need to strip them retroactively. *)
+	   gotoLabel is never read. *)
 	let single_state = ctx.num_states = 1 in
 
 	let set_state id = b#assign egoto (b#int id p) in
@@ -347,7 +345,6 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		let el = get_block_exprs cb in
 
 		let add_state next_id extra_el state_check =
-			let el = el in
 			let el = match (if single_state then None else next_id) with
 				| None ->
 					el
@@ -462,10 +459,6 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let eloop = match states with
 		| [state] ->
-			(* Single state: no while/switch dispatch needed.  Because single_state was
-			   already true when generating the block, set_state emitted void blocks
-			   instead of gotoLabel assignments, and NextThrow did not add a trailing
-			   TBreak.  No retroactive stripping is needed here. *)
 			b#void_block state.cs_el
 		| _ ->
 			let ethrow = b#void_block [

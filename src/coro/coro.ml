@@ -480,13 +480,12 @@ let fun_to_coro ctx coro_type =
 	in
 
 	(* 3. Run expr_to_coro to build the CFG and set ctx.captures_this/ctx.has_capture_vars. *)
+
 	let deferred,install_deferred = make_deferred_api ctx b in
 	CoroFromTexpr.check_captures ctx args expr;
 	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred expr);
 
-	(* Count the number of reachable CFG blocks: each becomes exactly one state in
-	   block_to_texpr_coroutine.  Knowing this upfront lets us skip emitting gotoLabel
-	   assignments and TBreak in the single-state case instead of stripping them afterwards. *)
+	(* Count the number of reachable CFG blocks. *)
 	let count = ref 0 in
 	CoroFunctions.coro_walk (fun _ -> incr count) cb_root;
 	ctx.num_states <- !count;
