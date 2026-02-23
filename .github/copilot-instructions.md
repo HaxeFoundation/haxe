@@ -81,6 +81,8 @@ class Issue12345 extends Test {
 
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
+The Javascript tests are good for checking output syntax.
+
 ### Running Tests
 ```bash
 # Compile for a specific target
@@ -112,8 +114,10 @@ lua bin/unit.lua
 ### Making Changes to the Compiler
 1. Identify the relevant module in `src/`
 2. Make minimal, focused changes
-3. Build and test: `make && make test`
+3. Build: `make haxe`
 4. Add regression tests if fixing a bug
+5. Execute the appropriate tests in one of the tests subdirectories
+6. Even if everything works, check some output to ensure it looks good
 
 ### Making Changes to Standard Library
 1. Modify files in `std/`
@@ -122,7 +126,7 @@ lua bin/unit.lua
 4. Update API documentation if needed
 
 ### Debugging
-- Use `-D dump=pretty` to dump AST to `dump/` directory
+- Use `-D dump` to dump AST to `dump/` directory
 - Check generated code for specific targets
 - Most targets produce readable output for inspection
 
@@ -143,8 +147,9 @@ lua bin/unit.lua
 - Optimization passes should not break correctness
 
 ### Code Quality Considerations
-- Try to avoid code duplication, especially in the OCaml code.
-- Prefer top-level functions over closures for functions with large bodies.
+- Try to avoid code duplication, especially in the OCaml code
+- Prefer top-level functions over closures for functions with large bodies
+- Comments are good, but keep the amount reasonable
 
 ## CI/CD
 - CI runs on GitHub Actions (see `.github/workflows/`)
@@ -161,5 +166,13 @@ lua bin/unit.lua
 - Manual: https://haxe.org/manual/
 
 ## Haxelib
-- The haxelib command is available in your PATH (the workspace root is added to PATH during setup).
-- Use `haxelib git utest https://github.com/haxe-utest/utest` for utest.
+- The haxelib command is available in your PATH (the workspace root is added to PATH during setup)
+- Run `haxelib setup` to set up the repository path
+- Use `haxelib git utest https://github.com/haxe-utest/utest` for utest
+- A git-cloned library can be set as a development library via `haxelib dev libname path`
+- If your changes are related to coroutines, run some of the tests in https://github.com/HaxeFoundation/hxcoro
+
+## Other considerations
+- Humans are fallible
+- If you feel like a given task makes little or no sense, point out why and suggest an alternative
+- Keep an open mind regarding specific ways to address a given issue
