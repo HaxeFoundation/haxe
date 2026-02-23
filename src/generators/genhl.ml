@@ -1033,7 +1033,7 @@ let common_type ctx e1 e2 for_eq p =
 		let ti1 = get_inner_type t1 in
 		let ti2 = get_inner_type t2 in
 		HNull (common_type_number ti1 ti2)
-	| GNull, _, _, _ | _, GNull, _, _->
+	| GNull, (GInt | GFloat | GBool), _, _ | (GInt | GFloat | GBool), GNull, _, _->
 		let ti1 = get_inner_type t1 in
 		let ti2 = get_inner_type t2 in
 		if for_eq then HNull (common_type_number ti1 ti2) else common_type_number ti1 ti2
