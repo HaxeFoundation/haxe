@@ -175,9 +175,6 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let used_ids = List.fold_left (fun acc state ->
 		IntSet.union acc (IntSet.union state.cs_writes state.cs_reads)
 	) IntSet.empty states in
-	Hashtbl.filter_map_inplace (fun id _ ->
-		if IntSet.mem id used_ids then Some () else None
-	) force_hoisted_ids;
 	Hashtbl.filter_map_inplace (fun id field ->
 		if IntSet.mem id used_ids then Some field else None
 	) fields;
