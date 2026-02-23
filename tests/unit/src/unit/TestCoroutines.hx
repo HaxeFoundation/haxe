@@ -142,13 +142,13 @@ private class SuspendingAsyncIterator {
 	}
 
 	@:coroutine(transformed)
-	static function doSuspend(cont:IContinuation<Bool>, result:Bool):SuspensionResult<Bool> {
+	static function doSuspend(cont:IContinuation<Bool>):SuspensionResult<Bool> {
 		cont.context.get(Dispatcher).scheduler.schedule(0, cont);
 		return new SuspensionResult(Pending);
 	}
 
 	@:coroutine public function hasNext():Bool {
-		doSuspend(i < limit);
+		doSuspend();
 		return i < limit;
 	}
 
