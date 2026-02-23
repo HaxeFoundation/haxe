@@ -122,6 +122,8 @@ module IterationKind = struct
 	   Returns Some (kind, e_iter, pt) if e unifies with AsyncIterator<T>, or if
 	   e.s() returns an AsyncIterator<T>. Returns None otherwise. *)
 	let try_async_iterator_kind ctx e s p =
+		if not (TyperManager.is_coroutine_context ctx) then
+			raise Not_found;
 		let build_kind e_iter =
 			let v_tmp = gen_local ctx e_iter.etype e_iter.epos in
 			let e_tmp = make_local v_tmp v_tmp.v_pos in
@@ -129,20 +131,21 @@ module IterationKind = struct
 			let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value in
 			let e_hasNext = build_call ctx acc_hasNext [] (WithType.with_type ctx.t.tbool) e_tmp.epos in
 			let e_next = build_call ctx acc_next [] WithType.value e_tmp.epos in
-			Some (IteratorHasNextNext(v_tmp, e_next, e_hasNext), e_iter, e_next.etype)
+			IteratorHasNextNext(v_tmp, e_next, e_hasNext), e_iter, e_next.etype
 		in
 		let t_async_it pt = (Lazy.force ctx.t.tcoro.tasync_iterator) pt in
 		(* First, try direct unification with AsyncIterator<T> *)
 		let try_direct () =
 			match Abstract.follow_with_abstracts e.etype with
-			| TDynamic _ | TMono _ -> None
+			| TDynamic _ | TMono _ ->
+				raise Not_found
 			| _ ->
 				let pt = spawn_monomorph ctx e.epos in
 				(try
 					let e' = AbstractCast.cast_or_unify_raise ctx (t_async_it pt) e e.epos in
 					build_kind e'
 				with Error ({ err_message = Unify _ }) ->
-					None)
+					raise Not_found)
 		in
 		(* Then, try e.s() returning AsyncIterator<T> *)
 		let try_field () =
@@ -154,17 +157,12 @@ module IterationKind = struct
 				unify_raise acc_expr.etype t acc_expr.epos;
 				build_kind acc_expr
 			with Error ({ err_message = Unify _ }) | Not_found ->
-				None
+				raise Not_found
 		in
-		match try_direct () with
-		| Some _ as r -> r
-		| None -> try_field ()
-
-	let try_async_iterator_kind ctx e s p =
-		if not (TyperManager.is_coroutine_context ctx) then
-			None
-		else
-			try_async_iterator_kind ctx e s p
+		try
+			try_direct ()
+		with Not_found ->
+			try_field ()
 
 	let cannot_iterate_on com e =
 		display_error com (Printf.sprintf "Cannot iterate on %s" (s_type (print_context()) e.etype)) e.epos;
@@ -240,17 +238,14 @@ module IterationKind = struct
 			try
 				let (e,t) = try_sync_iterator ~resume:true ctx "iterator" e in
 				(IteratorIterator,e,t)
+			with Not_found -> try
+				try_async_iterator_kind ctx e "iterator" p
+			with Not_found -> try
+				of_texpr_by_array_access ctx e p
 			with Not_found ->
-				match try_async_iterator_kind ctx e "iterator" p with
-				| Some r ->
-					r
-				| None ->
-					try
-						of_texpr_by_array_access ctx e p
-					with Not_found ->
-						if resume then raise Not_found;
-						let (e,t) = cannot_iterate_on ctx.com e in
-						(IteratorIterator,e,t)
+				if resume then raise Not_found;
+				let (e,t) = cannot_iterate_on ctx.com e in
+				(IteratorIterator,e,t)
 			in
 		let cannot_force () = match unroll_params with
 			| Some {force_unroll = true} ->
@@ -547,7 +542,7 @@ let type_for_loop ctx handle_display ik e1 e2 unroll p =
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		if force_unroll then
 			display_error ctx.com "Cannot force inlining on key => value loops" p;
-		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 in
+		let e1,pt = IterationKind.try_sync_iterator ctx "keyValueIterator" e1 in
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
 		let ehasnext = build_call ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos (MCall []) (WithType.with_type ctx.t.tbool)) [] WithType.value etmp.epos in

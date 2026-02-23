@@ -527,7 +527,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		in
 		let keyValueIterator =
 			try begin
-				let _,pt = ForLoop.IterationKind.check_iterator ~resume:true ctx "keyValueIterator" e in
+				let _,pt = ForLoop.IterationKind.try_sync_iterator ~resume:true ctx "keyValueIterator" e in
 				match follow pt with
 					| TAnon a ->
 						let key = PMap.find "key" a.a_fields in
