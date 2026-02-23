@@ -170,7 +170,7 @@ module IterationKind = struct
 		display_error com (Printf.sprintf "Cannot iterate on %s" (s_type (print_context()) e.etype)) e.epos;
 		mk (TConst TNull) t_dynamic e.epos,t_dynamic
 
-	let check_iterator ?(resume=false) ctx s e =
+	let try_sync_iterator ?(resume=false) ctx s e =
 		match try_iterator_unification ctx e with
 		| Some r ->
 			r
@@ -238,7 +238,7 @@ module IterationKind = struct
 	let of_texpr ?(resume=false) ctx e unroll_params p =
 		let check_iterator () =
 			try
-				let (e,t) = check_iterator ~resume:true ctx "iterator" e in
+				let (e,t) = try_sync_iterator ~resume:true ctx "iterator" e in
 				(IteratorIterator,e,t)
 			with Not_found ->
 				match try_async_iterator_kind ctx e "iterator" p with
