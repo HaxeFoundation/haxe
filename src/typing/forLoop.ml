@@ -122,8 +122,6 @@ module IterationKind = struct
 	   Returns Some (kind, e_iter, pt) if e unifies with AsyncIterator<T>, or if
 	   e.s() returns an AsyncIterator<T>. Returns None otherwise. *)
 	let try_async_iterator_kind ctx e s p =
-		if not (TyperManager.is_coroutine_context ctx) then None
-		else
 		let build_kind e_iter =
 			let v_tmp = gen_local ctx e_iter.etype e_iter.epos in
 			let e_tmp = make_local v_tmp v_tmp.v_pos in
@@ -161,6 +159,12 @@ module IterationKind = struct
 		match try_direct () with
 		| Some _ as r -> r
 		| None -> try_field ()
+
+	let try_async_iterator_kind ctx e s p =
+		if not (TyperManager.is_coroutine_context ctx) then
+			None
+		else
+			try_async_iterator_kind ctx e s p
 
 	let cannot_iterate_on com e =
 		display_error com (Printf.sprintf "Cannot iterate on %s" (s_type (print_context()) e.etype)) e.epos;
