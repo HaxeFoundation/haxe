@@ -4,19 +4,19 @@ import haxe.Exception;
 import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.context.Context;
-import haxe.coro.dispatchers.Dispatcher;
-import haxe.coro.dispatchers.SelfDispatcher;
-import haxe.coro.continuations.FunctionContinuation;
-import haxe.coro.schedulers.ImmediateScheduler;
 import utest.Assert;
 
-private class AlwaysSuspending {
-	public static var _stored:Null<IContinuation<Int>> = null;
+// Generic suspension helper: stores the continuation and suspends without auto-resuming.
+// The caller is responsible for resuming via `s.cont.resume(...)`.
+private class Suspender<T> {
+	public var cont:Null<IContinuation<T>> = null;
+
+	public function new() {}
 
 	@:coroutine(transformed)
-	public static function suspend(cont:IContinuation<Int>):SuspensionResult<Int> {
-		_stored = cont;
-		return new SuspensionResult<Int>(Pending);
+	public function suspend(cont:IContinuation<T>):SuspensionResult<T> {
+		this.cont = cont;
+		return new SuspensionResult(Pending);
 	}
 }
 
@@ -100,16 +100,20 @@ private class TrackingCont<T> implements IContinuation<T> {
 }
 
 // A simple async iterator that counts from 0 up to (but not including) `limit`.
+// If `suspender` is provided, each call to `hasNext` suspends via it.
 private class CountingAsyncIterator {
 	var i:Int;
 	final limit:Int;
+	final suspender:Null<Suspender<Bool>>;
 
-	public function new(limit:Int) {
+	public function new(limit:Int, ?suspender:Suspender<Bool>) {
 		i = 0;
 		this.limit = limit;
+		this.suspender = suspender;
 	}
 
 	@:coroutine public function hasNext():Bool {
+		if (suspender != null) suspender.suspend();
 		return i < limit;
 	}
 
@@ -131,29 +135,18 @@ private class CountingAsyncIterable {
 	}
 }
 
-// A suspending async iterator that uses ImmediateScheduler/SelfDispatcher.
-private class SuspendingAsyncIterator {
-	var i:Int;
-	final limit:Int;
+// An abstract that has array-access iteration (returning element * 10) but also
+// provides an async iterator (returning [0,1,2]).  Used to assert that the async
+// iterator takes priority over array access in a coroutine context.
+private abstract AsyncIterablePriority(Array<Int>) {
+	public inline function new(arr:Array<Int>) this = arr;
 
-	public function new(limit:Int) {
-		i = 0;
-		this.limit = limit;
-	}
+	public function get_length():Int return this.length;
 
-	@:coroutine(transformed)
-	static function doSuspend(cont:IContinuation<Bool>):SuspensionResult<Bool> {
-		cont.context.get(Dispatcher).scheduler.schedule(0, cont);
-		return new SuspensionResult(Pending);
-	}
+	@:arrayAccess public inline function get(i:Int):Int return this[i] * 10;
 
-	@:coroutine public function hasNext():Bool {
-		doSuspend();
-		return i < limit;
-	}
-
-	public function next():Int {
-		return i++;
+	public function iterator():haxe.coro.AsyncIterator<Int> {
+		return new CountingAsyncIterator(3);
 	}
 }
 
@@ -276,20 +269,20 @@ class TestCoroutines extends Test {
 	//   1. A non-tail call (passes _hx_continuation to suspend, which stores it).
 	//   2. A tail call (RTailReturn) that is reached only after manually resuming (1).
 	function testTailCallReturnPending() {
-		AlwaysSuspending._stored = null;
+		final s = new Suspender<Int>();
 
 		@:coroutine function outer():Int {
-			AlwaysSuspending.suspend(); // non-tail: mk_suspending_call stores outer's BaseContinuation
-			return AlwaysSuspending.suspend(); // RTailReturn: mk_suspending_tail_call path
+			s.suspend(); // non-tail: mk_suspending_call stores outer's BaseContinuation
+			return s.suspend(); // RTailReturn: mk_suspending_tail_call path
 		}
 
 		var cont = new TrackingCont<Int>();
 		invokeCoroutine(cont, outer);
-		// outer is now suspended at the first suspend() call.
-		// AlwaysSuspending._stored is outer's BaseContinuation (bc_outer).
+		// outer is now suspended at the first s.suspend() call.
+		// s.cont is outer's BaseContinuation (bc_outer).
 
-		final bc = AlwaysSuspending._stored;
-		AlwaysSuspending._stored = null;
+		final bc = s.cont;
+		s.cont = null;
 		// Resume bc_outer.  invokeResume() re-enters outer(bc_outer) (recycled continuation)
 		// and advances to the RTailReturn suspend call.
 		// Without the state-switch fix: outer(bc_outer) returns a non-singleton Pending object
@@ -412,26 +405,13 @@ class TestCoroutines extends Test {
 	}
 
 	// Tests that a for loop over a suspending AsyncIterator works correctly.
+	// Uses manual pumping: each call to s.cont.resume() advances one hasNext suspension.
 	function testAsyncIteratorForSuspend() {
-		final scheduler = new ImmediateScheduler();
-		final dispatcher = new SelfDispatcher(scheduler);
-		final context = Context.create(dispatcher);
-
-		final results:Array<Int> = [];
-		var done = false;
-		var lastError:Null<Exception> = null;
-
-		final cont = new FunctionContinuation<Array<Int>>(context, (result, error) -> {
-			if (error != null)
-				lastError = error;
-			else
-				for (v in result)
-					results.push(v);
-			done = true;
-		});
+		final s = new Suspender<Bool>();
+		final cont = new TrackingCont<Array<Int>>();
 
 		@:coroutine function collectItems():Array<Int> {
-			final it = new SuspendingAsyncIterator(3);
+			final it = new CountingAsyncIterator(3, s);
 			final ret = [];
 			for (v in it) {
 				ret.push(v);
@@ -439,9 +419,42 @@ class TestCoroutines extends Test {
 			return ret;
 		}
 
-		collectItems(cont);
-		t(done);
-		eq(null, lastError);
-		Assert.same([0, 1, 2], results);
+		invokeCoroutine(cont, collectItems);
+		// collectItems is now suspended at the first hasNext call.
+		// Pump each suspension manually until collectItems completes.
+		while (s.cont != null) {
+			final c = s.cont;
+			s.cont = null;
+			// Resume the suspended hasNext; result is ignored since hasNext re-evaluates
+			// `i < limit` itself after resumption.
+			c.resume(null, null);
+		}
+
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Tests that in a coroutine context, AsyncIterator takes priority over array access
+	// when a type exposes both.
+	function testAsyncIteratorPriority() {
+		@:coroutine function collectItems():Array<Int> {
+			// AsyncIterablePriority has get_length + @:arrayAccess (returning element * 10)
+			// AND iterator():AsyncIterator<Int> (always returning [0,1,2]).
+			// In a coroutine context the async iterator must win.
+			final arr = new AsyncIterablePriority([1, 2, 3]);
+			final ret = [];
+			for (v in arr) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		var cont = new TrackingCont<Array<Int>>();
+		invokeCoroutine(cont, collectItems);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		// Async iterator gives [0, 1, 2]; array access would give [10, 20, 30].
+		Assert.same([0, 1, 2], cont.lastResult);
 	}
 }

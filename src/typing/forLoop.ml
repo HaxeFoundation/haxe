@@ -118,21 +118,24 @@ module IterationKind = struct
 		with Error ({ err_message = Unify _ }) | Not_found ->
 			None
 
+	(* Builds an IteratorHasNextNext for an expression whose type exposes hasNext/next fields.
+	   The optional [check] callback is called with (acc_next, acc_hasNext) after type_field
+	   succeeds and before build_call; raise Not_found there to reject the iterator. *)
+	let mk_has_next_next ?(check = fun _ _ -> ()) ctx e_iter p =
+		let v_tmp = gen_local ctx e_iter.etype e_iter.epos in
+		let e_tmp = make_local v_tmp v_tmp.v_pos in
+		let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p (MCall []) (WithType.with_type ctx.t.tbool) in
+		let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value in
+		check acc_next acc_hasNext;
+		let e_hasNext = build_call ctx acc_hasNext [] (WithType.with_type ctx.t.tbool) e_tmp.epos in
+		let e_next = build_call ctx acc_next [] WithType.value e_tmp.epos in
+		IteratorHasNextNext(v_tmp, e_next, e_hasNext), e_iter, e_next.etype
+
 	(* Try to build an IteratorHasNextNext kind for an async iterator expression.
-	   Returns Some (kind, e_iter, pt) if e unifies with AsyncIterator<T>, or if
-	   e.s() returns an AsyncIterator<T>. Returns None otherwise. *)
+	   Raises Not_found if e cannot be resolved to an AsyncIterator<T> (directly or via e.s()). *)
 	let try_async_iterator_kind ctx e s p =
 		if not (TyperManager.is_coroutine_context ctx) then
 			raise Not_found;
-		let build_kind e_iter =
-			let v_tmp = gen_local ctx e_iter.etype e_iter.epos in
-			let e_tmp = make_local v_tmp v_tmp.v_pos in
-			let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p (MCall []) (WithType.with_type ctx.t.tbool) in
-			let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value in
-			let e_hasNext = build_call ctx acc_hasNext [] (WithType.with_type ctx.t.tbool) e_tmp.epos in
-			let e_next = build_call ctx acc_next [] WithType.value e_tmp.epos in
-			IteratorHasNextNext(v_tmp, e_next, e_hasNext), e_iter, e_next.etype
-		in
 		let t_async_it pt = (Lazy.force ctx.t.tcoro.tasync_iterator) pt in
 		(* First, try direct unification with AsyncIterator<T> *)
 		let try_direct () =
@@ -143,7 +146,7 @@ module IterationKind = struct
 				let pt = spawn_monomorph ctx e.epos in
 				(try
 					let e' = AbstractCast.cast_or_unify_raise ctx (t_async_it pt) e e.epos in
-					build_kind e'
+					mk_has_next_next ctx e' p
 				with Error ({ err_message = Unify _ }) ->
 					raise Not_found)
 		in
@@ -155,7 +158,7 @@ module IterationKind = struct
 				let acc = type_field type_field_config ctx e s e.epos (MCall []) (WithType.with_type t) in
 				let acc_expr = build_call ctx acc [] WithType.value e.epos in
 				unify_raise acc_expr.etype t acc_expr.epos;
-				build_kind acc_expr
+				mk_has_next_next ctx acc_expr p
 			with Error ({ err_message = Unify _ }) | Not_found ->
 				raise Not_found
 		in
@@ -303,18 +306,13 @@ module IterationKind = struct
 		| _,TAbstract({ a_impl = Some c },_) ->
 			cannot_force();
 			(try
-				let v_tmp = gen_local ctx e.etype e.epos in
-				let e_tmp = make_local v_tmp v_tmp.v_pos in
-				let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value (* WITHTYPETODO *) in
-				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p (MCall []) (WithType.with_type ctx.t.tbool) in
-				(match acc_next, acc_hasNext with
-					| AKExpr({ eexpr = TField(_, FDynamic _)}), _
-					| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
-					| _ -> ()
-				);
-				let e_next = build_call ctx acc_next [] WithType.value e.epos in
-				let e_hasNext = build_call ctx acc_hasNext [] WithType.value e.epos in
-				IteratorHasNextNext(v_tmp,e_next,e_hasNext),e,e_next.etype
+				mk_has_next_next ~check:(fun acc_next acc_hasNext ->
+					(match acc_next, acc_hasNext with
+						| AKExpr({ eexpr = TField(_, FDynamic _)}), _
+						| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
+						| _ -> ()
+					)
+				) ctx e p
 			with Not_found ->
 				(try try_forward_array_iterator ()
 				with Not_found -> check_iterator ())
