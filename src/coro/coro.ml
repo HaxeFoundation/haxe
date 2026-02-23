@@ -207,7 +207,7 @@ module ContinuationClassBuilder = struct
 		in
 		let el = [
 			b#var_init vcontinuation ethis;
-			b#var_init vtmp_result eresult;
+		] @ (if Lazy.is_val vtmp_result then [b#var_init (Lazy.force vtmp_result) eresult] else []) @ [
 			b#var_init_null vtmp_error;
 		] in
 		let el = if Lazy.is_val vtmp_error_unwrapped then
@@ -264,7 +264,7 @@ let create_continuation_class ctx cont coro_class initial_state invoke_resume_fi
 
 	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl coro_class.cls ]
 
-let check_assertions assert_config num_states p =
+let check_assertions assert_config num_states num_hoisted p =
 	let open CoroConfig in
 	begin match assert_config with
 	| None -> ()
@@ -274,7 +274,13 @@ let check_assertions assert_config num_states p =
 		| Some expected ->
 			if num_states <> expected then
 				Error.raise_typing_error
-					(Printf.sprintf "Expected %d coroutine state(s), got %d" expected num_states) p)
+					(Printf.sprintf "Expected %d coroutine state(s), got %d" expected num_states) p);
+		(match assert_config.num_hoisted with
+		| None -> ()
+		| Some expected ->
+			if num_hoisted <> expected then
+				Error.raise_typing_error
+					(Printf.sprintf "Expected %d hoisted field(s), got %d" expected num_hoisted) p)
 	end
 
 let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation gen_mode stack_item_inserter start_exception =
@@ -282,7 +288,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, initial_state, fields, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args exprs coro_class.name_pos stack_item_inserter start_exception in
 	(* Check @:coroutine(assert) config *)
-	check_assertions ctx.config.assert_config num_states coro_class.name_pos;
+	check_assertions ctx.config.assert_config num_states (List.length fields) coro_class.name_pos;
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -333,8 +339,8 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			in
 			let invoke_resume_type = inside_to_outside invoke_resume_field.cf_type in
 			let einvoke_resume_call = b#call (continuation_field invoke_resume_field invoke_resume_type) [] tret_invoke_resume in
-			let thunk_body_el = [
-				b#var_init vtmp_result eresult;
+			let thunk_body_el =
+				(if Lazy.is_val vtmp_result then [b#var_init (Lazy.force vtmp_result) eresult] else []) @ [
 				b#var_init_null vtmp_error;
 			] @ (if Lazy.is_val vtmp_error_unwrapped then [b#var_init_null (Lazy.force vtmp_error_unwrapped)] else [])
 			@ [eloop] in
@@ -447,8 +453,8 @@ let fun_to_coro ctx coro_type =
 
 	(* 2. Create expressions and variables that we need for expr_to_coro *)
 
-	let vtmp_result = alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos in
-	let etmp_result = b#local vtmp_result coro_class.name_pos in
+	let vtmp_result = lazy (alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos) in
+	let etmp_result = lazy (b#local (Lazy.force vtmp_result) coro_class.name_pos) in
 	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
 	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
 	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
@@ -474,9 +480,15 @@ let fun_to_coro ctx coro_type =
 	in
 
 	(* 3. Run expr_to_coro to build the CFG and set ctx.captures_this/ctx.has_capture_vars. *)
+
 	let deferred,install_deferred = make_deferred_api ctx b in
 	CoroFromTexpr.check_captures ctx args expr;
 	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred expr);
+
+	(* Count the number of reachable CFG blocks. *)
+	let count = ref 0 in
+	CoroFunctions.coro_walk (fun _ -> incr count) cb_root;
+	ctx.num_states <- !count;
 
 	(* 4. Setup continuation API — now that ctx.captures_this/ctx.has_capture_vars are
 	      fully set we can create the continuation variables with informed types. *)
@@ -572,8 +584,10 @@ let fun_to_coro ctx coro_type =
 		) in
 		{
 			make_inline_return = (fun e1_opt pos ->
-				let stmts = [
+				let stmts = if ctx.num_states = 1 then [] else [
 					b#assign egoto (b#int (-1) pos);
+				] in
+				let stmts = stmts @ [
 					b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
 				] in
 				let stmts = match e1_opt with
@@ -643,5 +657,6 @@ let create_coro_context typer config =
 		next_block_id = 0;
 		current_catch = None;
 		has_catch = false;
+		num_states = 0;
 	} in
 	ctx

@@ -65,6 +65,21 @@ let coro_iter f cb =
 	| NextUnknown | NextReturnVoid | NextReturn _ | NextThrow _ ->
 		()
 
+(** Walk all blocks reachable from [cb], calling [f] exactly once per block.
+    Uses a local visited table to handle back-edges (NextBreak/Continue/etc.)
+    safely without cycles.  The number of times [f] is called equals the number
+    of states the coroutine will produce. *)
+let coro_walk f cb =
+	let visited = Hashtbl.create 16 in
+	let rec loop cb =
+		if not (Hashtbl.mem visited cb.cb_id) then begin
+			Hashtbl.add visited cb.cb_id ();
+			f cb;
+			coro_iter loop cb
+		end
+	in
+	loop cb
+
 let coro_next_map f cb =
 	Option.may (fun cb_catch -> cb.cb_catch <- Some (f cb_catch)) cb.cb_catch;
 	let fo = Option.map f in
