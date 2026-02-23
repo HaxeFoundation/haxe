@@ -215,6 +215,40 @@ jobs:
         if: matrix.target == 'flash'
         run: export DISPLAY=:99.0
 
+      - name: Get hashlink HEAD sha
+        id: hashlink-sha
+        if: matrix.target == 'hl'
+        run: echo "sha=$(git ls-remote https://github.com/HaxeFoundation/hashlink.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+
+      - name: Cache hashlink
+        uses: actions/cache@v4
+        if: matrix.target == 'hl'
+        with:
+          path: |
+            ~/haxe-ci/downloads/hashlink
+            ~/haxe-ci/hashlink
+          key: hashlink-linux-${{ matrix.arch }}-${{ steps.hashlink-sha.outputs.sha }}
+          restore-keys: |
+            hashlink-linux-${{ matrix.arch }}-
+
+      - name: Cache Lua environments
+        uses: actions/cache@v4
+        if: matrix.target == 'lua'
+        with:
+          path: ~/haxe-ci/lua_env
+          key: lua-env-linux-${{ matrix.arch }}-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
+          restore-keys: |
+            lua-env-linux-${{ matrix.arch }}-
+
+      - name: Cache hxcpp compile cache
+        uses: actions/cache@v4
+        if: matrix.target == 'cpp'
+        with:
+          path: ${{ github.workspace }}/hxcache
+          key: hxcpp-linux-${{ matrix.arch }}-${{ github.run_id }}
+          restore-keys: |
+            hxcpp-linux-${{ matrix.arch }}-
+
       - name: Test
         run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
@@ -480,6 +514,32 @@ jobs:
           restore-keys: |
             lua-env-windows64-
 
+      - name: Get hashlink HEAD sha
+        id: hashlink-sha
+        if: matrix.target == 'hl'
+        shell: pwsh
+        run: echo "sha=$(git ls-remote https://github.com/HaxeFoundation/hashlink.git HEAD | ForEach-Object { $_.Split()[0] })" >> $env:GITHUB_OUTPUT
+
+      - name: Cache hashlink
+        uses: actions/cache@v4
+        if: matrix.target == 'hl'
+        with:
+          path: |
+            ~/haxe-ci/downloads/hashlink
+            ~/haxe-ci/hashlink
+          key: hashlink-windows64-${{ steps.hashlink-sha.outputs.sha }}
+          restore-keys: |
+            hashlink-windows64-
+
+      - name: Cache hxcpp compile cache
+        uses: actions/cache@v4
+        if: matrix.target == 'cpp'
+        with:
+          path: ${{ github.workspace }}/hxcache
+          key: hxcpp-windows64-${{ github.run_id }}
+          restore-keys: |
+            hxcpp-windows64-
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml -D include_legacy
@@ -574,6 +634,40 @@ jobs:
           set -ex
           mkdir ~/haxelib
           haxelib setup ~/haxelib
+
+      - name: Get hashlink HEAD sha
+        id: hashlink-sha
+        if: matrix.target == 'hl'
+        run: echo "sha=$(git ls-remote https://github.com/HaxeFoundation/hashlink.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+
+      - name: Cache hashlink
+        uses: actions/cache@v4
+        if: matrix.target == 'hl'
+        with:
+          path: |
+            ~/haxe-ci/downloads/hashlink
+            ~/haxe-ci/hashlink
+          key: hashlink-mac-${{ matrix.arch }}-${{ steps.hashlink-sha.outputs.sha }}
+          restore-keys: |
+            hashlink-mac-${{ matrix.arch }}-
+
+      - name: Cache Lua environments
+        uses: actions/cache@v4
+        if: matrix.target == 'lua'
+        with:
+          path: ~/haxe-ci/lua_env
+          key: lua-env-mac-${{ matrix.arch }}-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
+          restore-keys: |
+            lua-env-mac-${{ matrix.arch }}-
+
+      - name: Cache hxcpp compile cache
+        uses: actions/cache@v4
+        if: matrix.target == 'cpp'
+        with:
+          path: ${{ github.workspace }}/hxcache
+          key: hxcpp-mac-${{ matrix.arch }}-${{ github.run_id }}
+          restore-keys: |
+            hxcpp-mac-${{ matrix.arch }}-
 
       - name: Test
         run: |

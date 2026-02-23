@@ -53,7 +53,7 @@ class Macro {
 
 	static function party() {
 		changeDirectory(partyDir);
-		runCommand("git", ["clone", "https://github.com/haxetink/tink_core", "tink_core"]);
+		runCommand("git", ["clone", "--depth=1", "https://github.com/haxetink/tink_core", "tink_core"]);
 		changeDirectory("tink_core");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
@@ -61,7 +61,7 @@ class Macro {
 		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 
 		changeDirectory(partyDir);
-		runCommand("git", ["clone", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
+		runCommand("git", ["clone", "--depth=1", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
 		changeDirectory("hxcoro");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
