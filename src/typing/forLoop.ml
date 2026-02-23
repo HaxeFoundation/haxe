@@ -118,6 +118,50 @@ module IterationKind = struct
 		with Error ({ err_message = Unify _ }) | Not_found ->
 			None
 
+	(* Try to build an IteratorAbstract kind for an async iterator expression.
+	   Returns Some (kind, e_iter, pt) if e unifies with AsyncIterator<T>, or if
+	   e.s() returns an AsyncIterator<T>. Returns None otherwise. *)
+	let try_async_iterator_kind ctx e s p =
+		if not (TyperManager.is_coroutine_context ctx) then None
+		else
+		let build_kind e_iter =
+			let v_tmp = gen_local ctx e_iter.etype e_iter.epos in
+			let e_tmp = make_local v_tmp v_tmp.v_pos in
+			let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p (MCall []) (WithType.with_type ctx.t.tbool) in
+			let acc_next = type_field type_field_config ctx e_tmp "next" p (MCall []) WithType.value in
+			let e_hasNext = build_call ctx acc_hasNext [] (WithType.with_type ctx.t.tbool) e_tmp.epos in
+			let e_next = build_call ctx acc_next [] WithType.value e_tmp.epos in
+			Some (IteratorAbstract(v_tmp, e_next, e_hasNext), e_iter, e_next.etype)
+		in
+		let t_async_it pt = (Lazy.force ctx.t.tcoro.tasync_iterator) pt in
+		(* First, try direct unification with AsyncIterator<T> *)
+		let try_direct () =
+			match Abstract.follow_with_abstracts e.etype with
+			| TDynamic _ | TMono _ -> None
+			| _ ->
+				let pt = spawn_monomorph ctx e.epos in
+				(try
+					let e' = AbstractCast.cast_or_unify_raise ctx (t_async_it pt) e e.epos in
+					build_kind e'
+				with Error ({ err_message = Unify _ }) ->
+					None)
+		in
+		(* Then, try e.s() returning AsyncIterator<T> *)
+		let try_field () =
+			let pt = spawn_monomorph ctx e.epos in
+			let t = t_async_it pt in
+			try
+				let acc = type_field type_field_config ctx e s e.epos (MCall []) (WithType.with_type t) in
+				let acc_expr = build_call ctx acc [] WithType.value e.epos in
+				unify_raise acc_expr.etype t acc_expr.epos;
+				build_kind acc_expr
+			with Error ({ err_message = Unify _ }) | Not_found ->
+				None
+		in
+		match try_direct () with
+		| Some _ as r -> r
+		| None -> try_field ()
+
 	let cannot_iterate_on com e =
 		display_error com (Printf.sprintf "Cannot iterate on %s" (s_type (print_context()) e.etype)) e.epos;
 		mk (TConst TNull) t_dynamic e.epos,t_dynamic
@@ -195,9 +239,12 @@ module IterationKind = struct
 			with Not_found -> try
 				of_texpr_by_array_access ctx e p
 			with Not_found ->
-				if resume then raise Not_found;
-				let (e,t) = cannot_iterate_on ctx.com e in
-				(IteratorIterator,e,t)
+				match try_async_iterator_kind ctx e "iterator" p with
+				| Some r -> r
+				| None ->
+					if resume then raise Not_found;
+					let (e,t) = cannot_iterate_on ctx.com e in
+					(IteratorIterator,e,t)
 		in
 		let cannot_force () = match unroll_params with
 			| Some {force_unroll = true} ->

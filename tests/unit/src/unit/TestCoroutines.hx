@@ -4,6 +4,10 @@ import haxe.Exception;
 import haxe.coro.IContinuation;
 import haxe.coro.SuspensionResult;
 import haxe.coro.context.Context;
+import haxe.coro.dispatchers.Dispatcher;
+import haxe.coro.dispatchers.SelfDispatcher;
+import haxe.coro.continuations.FunctionContinuation;
+import haxe.coro.schedulers.ImmediateScheduler;
 import utest.Assert;
 
 private class AlwaysSuspending {
@@ -92,6 +96,64 @@ private class TrackingCont<T> implements IContinuation<T> {
 		resumeCount++;
 		lastResult = result;
 		lastError = error;
+	}
+}
+
+// A simple async iterator that counts from 0 up to (but not including) `limit`.
+private class CountingAsyncIterator {
+	var i:Int;
+	final limit:Int;
+
+	public function new(limit:Int) {
+		i = 0;
+		this.limit = limit;
+	}
+
+	@:coroutine public function hasNext():Bool {
+		return i < limit;
+	}
+
+	public function next():Int {
+		return i++;
+	}
+}
+
+// An async iterable wrapping a `CountingAsyncIterator`.
+private class CountingAsyncIterable {
+	final limit:Int;
+
+	public function new(limit:Int) {
+		this.limit = limit;
+	}
+
+	public function iterator():haxe.coro.AsyncIterator<Int> {
+		return new CountingAsyncIterator(limit);
+	}
+}
+
+// A suspending async iterator that uses ImmediateScheduler/SelfDispatcher.
+private class SuspendingAsyncIterator {
+	var i:Int;
+	final limit:Int;
+
+	public function new(limit:Int) {
+		i = 0;
+		this.limit = limit;
+	}
+
+	@:coroutine(transformed)
+	static function doSuspend(cont:IContinuation<Bool>, result:Bool):SuspensionResult<Bool> {
+		cont.context.get(Dispatcher).scheduler.schedule(0, cont);
+		return new SuspensionResult(Pending);
+	}
+
+	@:coroutine public function hasNext():Bool {
+		doSuspend(i < limit);
+		return i < limit;
+	}
+
+	public function next():Int {
+		return i++;
 	}
 }
 
@@ -311,5 +373,75 @@ class TestCoroutines extends Test {
 		Assert.raises(() -> {
 			withNothrow(new SimpleCont());
 		}, String);
+	}
+
+	// Tests that a for loop over an AsyncIterator works inside a coroutine context.
+	function testAsyncIteratorFor() {
+		@:coroutine function collectItems():Array<Int> {
+			final it = new CountingAsyncIterator(3);
+			final ret = [];
+			for (v in it) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		var cont = new TrackingCont<Array<Int>>();
+		invokeCoroutine(cont, collectItems);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Tests that a for loop over an AsyncIterable works inside a coroutine context.
+	function testAsyncIterableFor() {
+		@:coroutine function collectItems():Array<Int> {
+			final it = new CountingAsyncIterable(3);
+			final ret = [];
+			for (v in it) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		var cont = new TrackingCont<Array<Int>>();
+		invokeCoroutine(cont, collectItems);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Tests that a for loop over a suspending AsyncIterator works correctly.
+	function testAsyncIteratorForSuspend() {
+		final scheduler = new ImmediateScheduler();
+		final dispatcher = new SelfDispatcher(scheduler);
+		final context = Context.create(dispatcher);
+
+		final results:Array<Int> = [];
+		var done = false;
+		var lastError:Null<Exception> = null;
+
+		final cont = new FunctionContinuation<Array<Int>>(context, (result, error) -> {
+			if (error != null)
+				lastError = error;
+			else
+				for (v in result)
+					results.push(v);
+			done = true;
+		});
+
+		@:coroutine function collectItems():Array<Int> {
+			final it = new SuspendingAsyncIterator(3);
+			final ret = [];
+			for (v in it) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		collectItems(cont);
+		t(done);
+		eq(null, lastError);
+		Assert.same([0, 1, 2], results);
 	}
 }

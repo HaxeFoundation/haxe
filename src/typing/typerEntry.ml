@@ -216,6 +216,15 @@ let load_coro ctx =
 				None;
 		) m.m_types;
 	end;
+	ctx.t.tcoro.tasync_iterator <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"AsyncIterator") null_pos in
+		ExtList.List.find_map_exn (function
+			| TTypeDecl({ t_path = (["haxe";"coro"],"AsyncIterator") } as td) ->
+				Some (fun t -> TType(td,[t]))
+			| _ ->
+				None
+		) m.m_types;
+	end;
 	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe"], "Exception") } as cl) ->

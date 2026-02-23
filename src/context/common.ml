@@ -804,6 +804,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = lazy (mk_mono());
 				suspension_result_class = lazy null_class;
+				tasync_iterator = lazy (fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			}
 		};
 		std = null_class;
@@ -942,6 +943,7 @@ let clone com is_macro_context =
 				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = lazy (mk_mono());
 				suspension_result_class = lazy null_class;
+				tasync_iterator = lazy (fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			};
 		};
 		local_wrapper = LocalWrapper.null_wrapper;
