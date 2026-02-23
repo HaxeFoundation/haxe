@@ -166,6 +166,22 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		state.cs_el_tail <- Option.map (List.map mapper) state.cs_el_tail
 	) states;
 
+	(* Remove hoisted fields for variables that are never saved or restored:
+	   - Force-hoisted function args that are never actually read in the state machine
+	     (e.g., a discarded `_` or an unused `node` parameter).
+	   - Any cross-state field that ended up with no actual reads or writes.
+	   Removing these avoids passing dead constructor parameters and emitting
+	   prototype fields that are never accessed. *)
+	let used_ids = List.fold_left (fun acc state ->
+		IntSet.union acc (IntSet.union state.cs_writes state.cs_reads)
+	) IntSet.empty states in
+	Hashtbl.filter_map_inplace (fun id _ ->
+		if IntSet.mem id used_ids then Some () else None
+	) force_hoisted_ids;
+	Hashtbl.filter_map_inplace (fun id field ->
+		if IntSet.mem id used_ids then Some field else None
+	) fields;
+
 	List.iter (fun state ->
 		let restoring = IntSet.union state.cs_writes state.cs_reads |> IntSet.to_list |> List.filter_map (fun id ->
 			(* We don't want to restore a variable which is declared in this state *)
