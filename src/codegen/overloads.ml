@@ -233,11 +233,60 @@ struct
 		| [] -> []
 		| [v] -> [v]
 		| compatible ->
+			(* Returns true if all exits from expression e are via throw/break/continue,
+			   not via a return that produces a value. Does not recurse into nested functions. *)
+			let rec always_exits_abnormally e = match e.eexpr with
+				| TThrow _ | TBreak | TContinue -> true
+				| TReturn _ -> false
+				| TBlock el ->
+					let rec loop = function
+						| [] -> false
+						| [e] -> always_exits_abnormally e
+						| e :: rest ->
+							if always_exits_abnormally e then true
+							else loop rest
+					in
+					loop el
+				| TParenthesis e | TMeta(_,e) -> always_exits_abnormally e
+				| TIf (cond,e1,Some e2) ->
+					always_exits_abnormally cond
+					|| (always_exits_abnormally e1 && always_exits_abnormally e2)
+				| _ -> false
+			in
+			(* Returns true if expression e contains a TReturn (Some ret_e) where ret_e
+			   doesn't always exit abnormally. This detects whether a function body could
+			   actually return a value, as opposed to only throwing. *)
+			let has_meaningful_return e =
+				let result = ref false in
+				let rec loop e =
+					if !result then ()
+					else match e.eexpr with
+					| TReturn (Some ret_e) when not (always_exits_abnormally ret_e) ->
+						result := true
+					| TFunction _ -> ()
+					| _ -> iter loop e
+				in
+				loop e;
+				!result
+			in
 			let rate_arg t e = match e.eexpr with
 				(* if the argument is an implicit cast, we need to start with a penalty *)
 				(* The penalty should be higher than any other implicit cast - other than Dynamic *)
 				(* since Dynamic has a penalty of max_int, we'll impose max_int - 1 to it *)
 				| TMeta( (Meta.ImplicitCast,_,_), _) -> (max_int - 1, 0)
+				| TFunction tf ->
+					let base = rate_conv 0 t e.etype in
+					(* If the expected function type has a non-Void return type but the function
+					   body has no meaningful return statement (e.g. it only throws), add a
+					   penalty so that overloads expecting Void return are preferred *)
+					begin match follow t with
+					| TFun(_,ret) when not (ExtType.is_void (follow ret)) ->
+						if not (has_meaningful_return tf.tf_expr) then
+							(fst base + 1, snd base)
+						else
+							base
+					| _ -> base
+					end
 				| _ -> rate_conv 0 t e.etype
 			in
 			(* convert compatible into ( rate * compatible_type ) list *)
