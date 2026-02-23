@@ -187,7 +187,7 @@ module ContinuationClassBuilder = struct
 
 		field
 
-	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
+	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_result_used vtmp_error vtmp_error_unwrapped eresult eloop =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
 		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
@@ -207,7 +207,7 @@ module ContinuationClassBuilder = struct
 		in
 		let el = [
 			b#var_init vcontinuation ethis;
-			b#var_init vtmp_result eresult;
+		] @ (if vtmp_result_used then [b#var_init vtmp_result eresult] else []) @ [
 			b#var_init_null vtmp_error;
 		] in
 		let el = if Lazy.is_val vtmp_error_unwrapped then
@@ -292,9 +292,21 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let {CoroToTexpr.ecompletion;eresult;_} = exprs in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
 
+	(* Check whether the result variable is actually referenced in the generated state
+	   machine.  If it isn't (e.g. the coroutine has no SusResult suspension calls), we
+	   can skip the  var _hx_result = _hx_continuation.result  initialisation entirely. *)
+	let vtmp_result_used =
+		let exception Found in
+		let rec loop e = match e.eexpr with
+			| TLocal v when v.v_id = vtmp_result.v_id -> raise Found
+			| _ -> Type.iter loop e
+		in
+		try loop eloop; false with Found -> true
+	in
+
 	let invoke_resume_field = match gen_mode with
 		| GenInline cfo ->
-			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop
+			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_result_used vtmp_error vtmp_error_unwrapped eresult eloop
 		| GenThunk cf_captured ->
 			ContinuationClassBuilder.mk_invoke_resume_thunk_call ctx coro_class cf_captured
 	in
@@ -333,8 +345,8 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			in
 			let invoke_resume_type = inside_to_outside invoke_resume_field.cf_type in
 			let einvoke_resume_call = b#call (continuation_field invoke_resume_field invoke_resume_type) [] tret_invoke_resume in
-			let thunk_body_el = [
-				b#var_init vtmp_result eresult;
+			let thunk_body_el =
+				(if vtmp_result_used then [b#var_init vtmp_result eresult] else []) @ [
 				b#var_init_null vtmp_error;
 			] @ (if Lazy.is_val vtmp_error_unwrapped then [b#var_init_null (Lazy.force vtmp_error_unwrapped)] else [])
 			@ [eloop] in

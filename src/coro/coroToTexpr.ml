@@ -442,11 +442,30 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			(* Single state: the coroutine has no internal gotos, so we don't need the
 			   while...switch dispatch machinery.  Any trailing TBreak (e.g. from NextThrow,
 			   which would normally break out of the while...switch to reach the error handler)
-			   is in tail position and can be dropped — the error handler follows naturally. *)
+			   is in tail position and can be dropped — the error handler follows naturally.
+			   Similarly, gotoLabel is never read in a single-state coroutine, so any
+			   assignments to it (set_state / make_inline_return) are pointless and removed. *)
+			let is_goto_assign e = match e.eexpr with
+				| TBinop(OpAssign, {eexpr = TField(_, FInstance(_, _, cf))}, _) ->
+					(* Physical equality: cont.goto_label is the unique class_field object
+					   created once in make_continuation_api; == ensures we only strip
+					   assignments to that exact field, not any other field. *)
+					cf == cont.goto_label
+				| _ -> false
+			in
+			let rec strip_goto e = match e.eexpr with
+				| TBlock el -> { e with eexpr = TBlock (List.filter_map strip_goto_opt el) }
+				| TFunction _ -> e (* do not cross function boundaries *)
+				| _ -> Type.map_expr strip_goto e
+			and strip_goto_opt e =
+				if is_goto_assign e then None
+				else Some (strip_goto e)
+			in
 			let el = match List.rev state.cs_el with
 				| { eexpr = TBreak } :: rest -> List.rev rest
 				| _ -> state.cs_el
 			in
+			let el = List.filter_map strip_goto_opt el in
 			b#void_block el
 		| _ ->
 			let ethrow = b#void_block [

@@ -274,6 +274,40 @@ class TestCoroutines extends Test {
 		eq(maxIters, counter);
 	}
 
+	// Regression test for the "skip unused _hx_result / skip gotoLabel in single-state"
+	// optimisations: a single-state coroutine (no suspension points) that just returns a
+	// value must still return the correct result.
+	function testSingleStateResultOptimisation() {
+		@:coroutine function identity(x:Int):Int {
+			return x;
+		}
+
+		var cont = new TrackingCont<Int>();
+		@:coroutine function wrapper():Int return identity(42);
+		invokeCoroutine(cont, wrapper);
+		eq(null, cont.lastError);
+		eq(42, cont.lastResult);
+	}
+
+	// Regression test for the "skip unused _hx_result" optimisation in multi-state coros:
+	// when the coroutine suspends but does NOT use the result (SusBlock), _hx_result is
+	// omitted. Verify that the resumed coroutine still completes correctly.
+	function testMultiStateNoResultOptimisation() {
+		var resumed = false;
+
+		@:coroutine function waitAndFlag() {
+			AlwaysSuspending.suspend();
+			resumed = true;
+		}
+
+		var cont = new TrackingCont<haxe.Unit>();
+		waitAndFlag(cont);
+		f(resumed);  // not yet resumed
+		AlwaysSuspending._stored.resume(null, null);
+		t(resumed);  // now resumed
+		eq(null, cont.lastError);
+	}
+
 	// Regression test for hxcoro#95: overriding a coroutine method used to cause infinite
 	// mutual recursion because the old invokeResume() dispatched dynamically back to the
 	// overridden method on the child.  With the state machine in a thunk inside each class's
