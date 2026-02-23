@@ -559,7 +559,7 @@ let fun_to_coro ctx coro_type =
 
 	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
 
-	let vgthis = lazy (alloc_var VGenerated "_hx_gthis" ctx.typer.c.tthis coro_class.name_pos) in
+	let vgthis = lazy (alloc_var VGenerated "_hx_this" ctx.typer.c.tthis coro_class.name_pos) in
 
 	let deferred_impl =
 		let egthis = lazy (match gen_mode with
@@ -609,8 +609,8 @@ let fun_to_coro ctx coro_type =
 	in
 	let tf_expr = coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation gen_mode stack_item_inserter start_exception in
 
-	(* For non-static ClassField: prepend  var _hx_gthis = this  to the thin wrapper so the
-	   thunk (built inside coro_to_state_machine) can capture `_hx_gthis` via closure, making
+	(* For non-static ClassField: prepend  var _hx_this = this  to the thin wrapper so the
+	   thunk (built inside coro_to_state_machine) can capture `_hx_this` via closure, making
 	   the original class instance accessible throughout the state machine. *)
 	let tf_expr = if Lazy.is_val vgthis then
 		b#void_block [ b#var_init (Lazy.force vgthis) (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
