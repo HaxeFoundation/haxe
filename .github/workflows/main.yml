@@ -240,15 +240,6 @@ jobs:
           restore-keys: |
             lua-env-linux-${{ matrix.arch }}-
 
-      - name: Cache hxcpp compile cache
-        uses: actions/cache@v4
-        if: matrix.target == 'cpp'
-        with:
-          path: ${{ github.workspace }}/hxcache
-          key: hxcpp-linux-${{ matrix.arch }}-${{ github.run_id }}
-          restore-keys: |
-            hxcpp-linux-${{ matrix.arch }}-
-
       - name: Test
         run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
@@ -531,15 +522,6 @@ jobs:
           restore-keys: |
             hashlink-windows64-
 
-      - name: Cache hxcpp compile cache
-        uses: actions/cache@v4
-        if: matrix.target == 'cpp'
-        with:
-          path: ${{ github.workspace }}/hxcache
-          key: hxcpp-windows64-${{ github.run_id }}
-          restore-keys: |
-            hxcpp-windows64-
-
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml -D include_legacy
@@ -659,15 +641,6 @@ jobs:
           key: lua-env-mac-${{ matrix.arch }}-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
           restore-keys: |
             lua-env-mac-${{ matrix.arch }}-
-
-      - name: Cache hxcpp compile cache
-        uses: actions/cache@v4
-        if: matrix.target == 'cpp'
-        with:
-          path: ${{ github.workspace }}/hxcache
-          key: hxcpp-mac-${{ matrix.arch }}-${{ github.run_id }}
-          restore-keys: |
-            hxcpp-mac-${{ matrix.arch }}-
 
       - name: Test
         run: |
