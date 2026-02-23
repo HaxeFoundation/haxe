@@ -34,4 +34,23 @@ class SuspensionResult<T> {
 	public function toString() {
 		return '[SuspensionResult ${state.toString()}, $result]';
 	}
+
+
+	/**
+		Creates a new `SuspensionResult` instance with result `result`.
+	**/
+	static public function withResult<T>(result:T) {
+		final res = new SuspensionResult(Returned);
+		res.result = result;
+		return res;
+	}
+
+	/**
+		Creates a new `SuspensionResult` instance with error `error`.
+	**/
+	static public function withError<T>(error:Exception) {
+		final res = new SuspensionResult(Thrown);
+		res.error = error;
+		return res;
+	}
 }
