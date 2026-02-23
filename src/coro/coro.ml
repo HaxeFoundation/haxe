@@ -484,6 +484,13 @@ let fun_to_coro ctx coro_type =
 	CoroFromTexpr.check_captures ctx args expr;
 	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred expr);
 
+	(* Count the number of reachable CFG blocks: each becomes exactly one state in
+	   block_to_texpr_coroutine.  Knowing this upfront lets us skip emitting gotoLabel
+	   assignments and TBreak in the single-state case instead of stripping them afterwards. *)
+	let count = ref 0 in
+	CoroFunctions.coro_walk (fun _ -> incr count) cb_root;
+	ctx.num_states <- !count;
+
 	(* 4. Setup continuation API — now that ctx.captures_this/ctx.has_capture_vars are
 	      fully set we can create the continuation variables with informed types. *)
 
@@ -578,8 +585,10 @@ let fun_to_coro ctx coro_type =
 		) in
 		{
 			make_inline_return = (fun e1_opt pos ->
-				let stmts = [
+				let stmts = if ctx.num_states = 1 then [] else [
 					b#assign egoto (b#int (-1) pos);
+				] in
+				let stmts = stmts @ [
 					b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
 				] in
 				let stmts = match e1_opt with
@@ -649,5 +658,6 @@ let create_coro_context typer config =
 		next_block_id = 0;
 		current_catch = None;
 		has_catch = false;
+		num_states = 0;
 	} in
 	ctx

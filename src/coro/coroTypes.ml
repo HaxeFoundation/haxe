@@ -70,6 +70,7 @@ type coro_ctx = {
 	mutable next_block_id : int;
 	mutable current_catch : coro_block option;
 	mutable has_catch : bool;
+	mutable num_states : int;
 }
 
 type cb_flag =

@@ -282,6 +282,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 	let com = ctx.typer.com in
 	let b = ctx.builder in
 
+	(* In a single-state coroutine there is no while/switch dispatch loop, so
+	   gotoLabel is never read.  We set this flag once here so that set_state and
+	   NextThrow can skip emitting assignments/breaks that would only be needed in
+	   the multi-state case, avoiding the need to strip them retroactively. *)
+	let single_state = ctx.num_states = 1 in
+
 	let set_state id = b#assign egoto (b#int id p) in
 
 	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c) in
@@ -342,7 +348,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 		let add_state next_id extra_el state_check =
 			let el = el in
-			let el = match next_id with
+			let el = match (if single_state then None else next_id) with
 				| None ->
 					el
 				| Some id ->
@@ -380,7 +386,11 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ] None
 		| NextThrow e1 ->
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some [ (b#break p) ])
+			(* In multi-state mode the break exits the while/switch loop to reach the
+			   outer error handler.  In single-state mode there is no loop, so no break
+			   is needed — the error handler follows the body naturally. *)
+			let tail = if single_state then None else Some [ b#break p ] in
+			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) tail
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None
@@ -452,34 +462,11 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let eloop = match states with
 		| [state] ->
-			(* Single state: the coroutine has no internal gotos, so we don't need the
-			   while...switch dispatch machinery.  Any trailing TBreak (e.g. from NextThrow,
-			   which would normally break out of the while...switch to reach the error handler)
-			   is in tail position and can be dropped — the error handler follows naturally.
-			   Similarly, gotoLabel is never read in a single-state coroutine, so any
-			   assignments to it (set_state / make_inline_return) are pointless and removed. *)
-			let is_goto_assign e = match e.eexpr with
-				| TBinop(OpAssign, {eexpr = TField(_, FInstance(_, _, cf))}, _) ->
-					(* Physical equality: cont.goto_label is the unique class_field object
-					   created once in make_continuation_api; == ensures we only strip
-					   assignments to that exact field, not any other field. *)
-					cf == cont.goto_label
-				| _ -> false
-			in
-			let rec strip_goto e = match e.eexpr with
-				| TBlock el -> { e with eexpr = TBlock (List.filter_map strip_goto_opt el) }
-				| TFunction _ -> e (* do not cross function boundaries *)
-				| _ -> Type.map_expr strip_goto e
-			and strip_goto_opt e =
-				if is_goto_assign e then None
-				else Some (strip_goto e)
-			in
-			let el = match List.rev state.cs_el with
-				| { eexpr = TBreak } :: rest -> List.rev rest
-				| _ -> state.cs_el
-			in
-			let el = List.filter_map strip_goto_opt el in
-			b#void_block el
+			(* Single state: no while/switch dispatch needed.  Because single_state was
+			   already true when generating the block, set_state emitted void blocks
+			   instead of gotoLabel assignments, and NextThrow did not add a trailing
+			   TBreak.  No retroactive stripping is needed here. *)
+			b#void_block state.cs_el
 		| _ ->
 			let ethrow = b#void_block [
 				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
