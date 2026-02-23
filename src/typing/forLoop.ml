@@ -236,16 +236,18 @@ module IterationKind = struct
 			try
 				let (e,t) = check_iterator ~resume:true ctx "iterator" e in
 				(IteratorIterator,e,t)
-			with Not_found -> try
-				of_texpr_by_array_access ctx e p
 			with Not_found ->
 				match try_async_iterator_kind ctx e "iterator" p with
-				| Some r -> r
+				| Some r ->
+					r
 				| None ->
-					if resume then raise Not_found;
-					let (e,t) = cannot_iterate_on ctx.com e in
-					(IteratorIterator,e,t)
-		in
+					try
+						of_texpr_by_array_access ctx e p
+					with Not_found ->
+						if resume then raise Not_found;
+						let (e,t) = cannot_iterate_on ctx.com e in
+						(IteratorIterator,e,t)
+			in
 		let cannot_force () = match unroll_params with
 			| Some {force_unroll = true} ->
 				display_error ctx.com "Could not force inlining on this loop" p
