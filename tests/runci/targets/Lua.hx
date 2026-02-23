@@ -103,7 +103,12 @@ class Lua {
 			Sys.println('Lua Version: $lv');
 
 			final targetFlags = if (systemName == "Windows") ["--target", if (useWindowsVcpkg) "vs" else "mingw"] else [];
-			runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
+			final luaBin = envpath + '/bin/lua' + (systemName == "Windows" ? ".exe" : "");
+			if (!sys.FileSystem.exists(luaBin)) {
+				runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
+			} else {
+				infoMsg('Lua environment at $envpath already exists, skipping hererocks.');
+			}
 			trace('path: ' + Sys.getEnv("PATH"));
 
 

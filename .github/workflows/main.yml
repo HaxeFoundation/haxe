@@ -471,6 +471,15 @@ jobs:
         with:
           msbuild-architecture: x64
 
+      - name: Cache Lua environments
+        uses: actions/cache@v4
+        if: matrix.target == 'lua'
+        with:
+          path: ~/haxe-ci/lua_env
+          key: lua-env-windows64-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
+          restore-keys: |
+            lua-env-windows64-
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml -D include_legacy
