@@ -208,6 +208,13 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	|> Hashtbl.to_seq_values
 	|> List.of_seq
 
+let build_call_stack ctx cont econtinuation p =
+	let b = ctx.builder in
+	let basic = ctx.typer.t in
+	let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+	let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
+	mk (TCall (eaccess, [])) basic.tvoid p
+
 module SuspensionCalls = struct
 	(* Save a reference to the top-level make_suspending_call before any local shadowing *)
 	let mk_coro_call = make_suspending_call
@@ -229,9 +236,9 @@ module SuspensionCalls = struct
 		let com = ctx.typer.com in
 		let open ContTypes in
 		let base cf t = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cf t in
-		let esubject = base cont.state cont.state.cf_type in
-		let eres    = base cont.result com.basic.tany in
-		let eerror  = base cont.error cont.error.cf_type in
+		let esubject  = base cont.state cont.state.cf_type in
+		let eres      = base cont.result com.basic.tany in
+		let eerror    = base cont.error cont.error.cf_type in
 		(esubject, eres, eerror)
 
 	let make_suspended_return b cont p =
@@ -313,9 +320,7 @@ module SuspensionCalls = struct
 				if ctx.num_states = 1 then begin
 					(* Single-state: no while loop to break out of.
 					   Emit the error handler directly (equivalent to eexchandle). *)
-					let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
-					let eaccess = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] build_cf build_cf.cf_type in
-					let ewrapped_call = mk (TCall (eaccess, [])) com.basic.tvoid p in
+					let ewrapped_call = build_call_stack ctx cont econtinuation p in
 					b#void_block [
 						b#assign etmp_error eerr_field;
 						b#assign eerror etmp_error;
@@ -568,9 +573,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
 		let el =
-			let field         = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
-			let eaccess       = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] field field.cf_type in
-			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
+			let ewrapped_call = build_call_stack ctx cont econtinuation p in
 			[
 				b#assign eerror etmp_error;
 				ewrapped_call;
