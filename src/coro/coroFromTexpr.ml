@@ -18,6 +18,19 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
+(* Extract the @:coroutine suspends config from a callee expression.
+   Handles all field access variants and local variables. *)
+let get_suspends_from_callee e1 =
+	let meta = match (Texpr.skip e1).eexpr with
+		| TField(_, FStatic(_, cf))
+		| TField(_, FInstance(_, _, cf))
+		| TField(_, FClosure(_, cf))
+		| TField(_, FAnon cf) -> cf.cf_meta
+		| TLocal v -> v.v_meta
+		| _ -> []
+	in
+	(CoroConfig.of_meta_list meta).suspends
+
 let check_captures ctx args expr =
 	let vars = Hashtbl.create 16 in
 	let declare v = Hashtbl.add vars v.v_id () in
@@ -157,13 +170,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 				deferred.make_super_field e
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				if can_tco then begin
-					let cs_kind =
-						let meta = match (Texpr.skip e1).eexpr with
-							| TField(_, FStatic(_, cf)) | TField(_, FInstance(_, _, cf)) -> cf.cf_meta
-							| _ -> []
-						in
-						(CoroConfig.of_meta_list meta).suspends
-					in
+					let cs_kind = get_suspends_from_callee e1 in
 					deferred.make_inline_tail_call {
 						cs_fun = e1;
 						cs_args = el;
@@ -370,13 +377,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								end else
 									e
 							) el in
-							let cs_kind =
-								let meta = match (Texpr.skip e1).eexpr with
-									| TField(_, FStatic(_, cf)) | TField(_, FInstance(_, _, cf)) -> cf.cf_meta
-									| _ -> []
-								in
-								(CoroConfig.of_meta_list meta).suspends
-							in
+							let cs_kind = get_suspends_from_callee e1 in
 							let make_next_block () =
 								let cb_next = block_from_e e1 in
 								add_block_flag cb_next CbResumeState;

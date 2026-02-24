@@ -223,40 +223,44 @@ module SuspensionCalls = struct
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		(cororesult_var,ecororesult)
 
+	(* Returns (esubject, eres, eerror) field accesses on ecororesult *)
+	let unpack_result_fields ctx cont ecororesult =
+		let b = ctx.builder in
+		let com = ctx.typer.com in
+		let open ContTypes in
+		let base cf t = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cf t in
+		let esubject = base cont.state cont.state.cf_type in
+		let eres    = base cont.result com.basic.tany in
+		let eerror  = base cont.error cont.error.cf_type in
+		(esubject, eres, eerror)
+
+	let make_suspended_return b cont p =
+		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
+		b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type
+
 	let make_suspending_call ctx cont exprs call =
-		let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+		let {econtinuation;etmp_result;etmp_error;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
-		let base_continuation_field_on e cf t =
-			b#instance_field e cont.suspension_result_class [com.basic.tany] cf t
-		in
-		let open ContTypes in
 		let open CoroConfig in
 		match call.cs_kind with
 		| SuspendsAlways ->
 			(* Always-suspending: call the function and return suspended unconditionally.
 			   The caller will be resumed later by the callee via the continuation. *)
 			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {econtinuation with epos = p}] in
-			let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-			let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
-			let ereturn_suspended = b#void_block [b#return esuspended_val] in
-			(ecall_stmt, ereturn_suspended)
+			let esuspended_val = make_suspended_return b cont p in
+			(ecall_stmt, b#void_block [b#return esuspended_val])
 		| SuspendsSometimes | SuspendsNever ->
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
-			let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
-			let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-			let esuspended = b#void_block [
-				b#return (b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type)
-			] in
-			let eres = base_continuation_field_on ecororesult cont.result com.basic.tany in
+			let (esubject, eres, eerror) = unpack_result_fields ctx cont ecororesult in
+			let esuspended = b#void_block [b#return (make_suspended_return b cont p)] in
 			let ereturned = match call.cs_result with
 				| SusBlock ->
 					b#void_block []
 				| SusResult ->
 					b#assign (Lazy.force etmp_result) eres
 			in
-			let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
 			let ethrown = b#void_block [
 				b#assign etmp_error eerror;
 				b#break p;
@@ -267,7 +271,7 @@ module SuspensionCalls = struct
 			estate_switch
 
 	let make_suspending_tail_call ctx cont exprs call =
-		let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+		let {econtinuation;ecompletion;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
@@ -277,14 +281,11 @@ module SuspensionCalls = struct
 		| SuspendsAlways ->
 			(* Always-suspending: always return suspended_val unconditionally. *)
 			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {ecompletion_field with epos = p}] in
-			let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-			let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
-			(ecall_stmt, b#void_block [b#return esuspended_val])
+			(ecall_stmt, b#void_block [b#return (make_suspended_return b cont p)])
 		| SuspendsSometimes | SuspendsNever ->
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
-			let esubject = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cont.state cont.state.cf_type in
-			let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-			let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
+			let (esubject, _, _) = unpack_result_fields ctx cont ecororesult in
+			let esuspended_val = make_suspended_return b cont p in
 			(* When the callee is pending it returns its own continuation object (not the singleton).
 				We must return the singleton here so that BaseContinuation.resume suppresses dispatch. *)
 			let estate_switch = mk (TSwitch {
@@ -307,16 +308,12 @@ module SuspensionCalls = struct
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
-		let base_cf e cf t = b#instance_field e cont.suspension_result_class [com.basic.tany] cf t in
 		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
-		let open ContTypes in
-		let esubject = base_cf ecororesult cont.state cont.state.cf_type in
-		let eerr_field = base_cf ecororesult cont.error cont.error.cf_type in
+		let (esubject, eres, eerr_field) = unpack_result_fields ctx cont ecororesult in
 		let ereturned = match v_opt with
 			| None ->
 				b#void_block []
 			| Some v ->
-				let eres = base_cf ecororesult cont.result com.basic.tany in
 				b#assign (b#local v p) eres
 		in
 		let ethrown =
