@@ -290,20 +290,7 @@ module SuspensionCalls = struct
 			(ecall_stmt, b#void_block [b#return (make_suspended_return b cont p)])
 		end else begin
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
-			let (esubject, _, _) = unpack_result_fields ctx cont ecororesult in
-			let esuspended_val = make_suspended_return b cont p in
-			(* When the callee is pending it returns its own continuation object (not the singleton).
-				We must return the singleton here so that BaseContinuation.resume suppresses dispatch. *)
-			let estate_switch = mk (TSwitch {
-				switch_subject = esubject;
-				switch_cases = [{
-					case_patterns = [CoroControl.mk_control com.basic CoroPending];
-					case_expr = b#void_block [b#return esuspended_val];
-				}];
-				switch_default = Some (b#void_block [b#return ecororesult]);
-				switch_exhaustive = true;
-			}) com.basic.tvoid p in
-			(cororesult_var, estate_switch)
+			(cororesult_var, b#return ecororesult)
 		end
 
 	(* Generate an inline call+result check for a no_suspend callee.

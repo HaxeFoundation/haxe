@@ -79,14 +79,17 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		// make assumptions about its return value if it's not the `suspended` marker,
 		// because in that case it must be a final state of the coroutine.
 		final resumeResult = invokeResume();
-		if (resumeResult != SuspensionResult.suspended) {
-			this.resumeResult = resumeResult;
-			final dispatcher = context.get(Dispatcher);
-			if (dispatcher != null) {
-				dispatcher.dispatch(this);
-			} else {
-				onDispatch();
-			}
+		switch (resumeResult.state) {
+			case Pending:
+
+			case Returned, Thrown:
+				this.resumeResult = resumeResult;
+				final dispatcher = context.get(Dispatcher);
+				if (dispatcher != null) {
+					dispatcher.dispatch(this);
+				} else {
+					onDispatch();
+				}
 		}
     }
 
