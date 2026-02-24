@@ -346,13 +346,16 @@ let unify_field_call ctx fa el_typed el p inline =
 			let args, ret = expand_coro_type ctx.com.basic args ret in
 			ensure_coro_availability ctx;
 			let fcc = make args ret false in
-			let econt = List.hd fcc.fc_args in
-			let original_mk_call = fst fcc.fc_data in
-			let wrapped_mk_call () =
-				let ecall = original_mk_call () in
-				wrap_with_resolve_to ctx ecall econt p
-			in
-			{ fcc with fc_data = (wrapped_mk_call, snd fcc.fc_data) }
+			begin match fcc with
+				| { fc_args = econt :: _; fc_data = (original_mk_call,_) } ->
+					let wrapped_mk_call () =
+						let ecall = original_mk_call () in
+						wrap_with_resolve_to ctx ecall econt p
+					in
+					{ fcc with fc_data = (wrapped_mk_call, snd fcc.fc_data) }
+				| _ ->
+					raise_typing_error "Unexpected overload candidate without arguments for coroutine call" p
+			end
 		| Coro(args,ret) ->
 			make args ret true
 		| NotCoro (TFun(args,ret)) ->
