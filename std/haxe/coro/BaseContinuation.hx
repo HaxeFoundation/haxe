@@ -3,22 +3,17 @@ package haxe.coro;
 import haxe.CallStack.StackItem;
 import haxe.Exception;
 import haxe.coro.context.Context;
-import haxe.coro.context.IElement;
-import haxe.coro.context.Key;
+import haxe.coro.context.ExceptionHandler;
 import haxe.coro.dispatchers.Dispatcher;
 import haxe.coro.dispatchers.IDispatchObject;
 
-class StackTraceManager implements IElement<StackTraceManager> {
-	public static final key = new Key<StackTraceManager>('StackTraceManager');
-
-	public var insertIndex:Null<Int>;
-
+/**
+	@deprecated Use `haxe.coro.context.DefaultExceptionHandler` instead.
+**/
+@:deprecated("Use DefaultExceptionHandler instead")
+class StackTraceManager extends DefaultExceptionHandler {
 	public function new() {
-
-	}
-
-	public function getKey() {
-		return key;
+		super();
 	}
 }
 
@@ -27,6 +22,7 @@ class StackTraceManager implements IElement<StackTraceManager> {
 	basic functionality for managing the internal coroutine state, most of which should be uninteresting to the
 	casual coroutine user.
 **/
+@:allow(haxe.coro.context)
 abstract class BaseContinuation<T> extends SuspensionResult<T> implements IContinuation<T> implements IStackFrame implements IDispatchObject {
     /**
 		The continuation to resume once `this` continuation completes.
@@ -46,7 +42,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	var resumeResult:Null<SuspensionResult<Any>>;
 	#if debug
 	var stackItem:Null<StackItem>;
-	var startedException:Bool;
+	var _hx_startedException:Bool;
 	#end
 
 	/**
@@ -60,7 +56,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         result     = null;
 		context    = completion.context;
 		#if debug
-		startedException = false;
+		_hx_startedException = false;
 		#end
     }
 
@@ -134,97 +130,21 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     }
 
 	function startException(exception:Exception) {
-		#if js
-		return;
-		#end
-		#if debug
-		final stackTraceManager = context.get(StackTraceManager);
-		if (stackTraceManager == null) {
-			return;
+		final handler = context.get(ExceptionHandler);
+		if (handler != null) {
+			// Note: The return value (potentially modified exception) is intentionally not
+			// assigned to `this.error` here. Setting `this.error` at this point would
+			// incorrectly trigger the `eif_error` check in resume states after a suspension
+			// within a catch block, causing the caught exception to be re-thrown.
+			handler.startException(this, exception);
 		}
-		startedException = true;
-		#if target.threaded
-		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
-			// This could maybe be handled via a TLS...
-			return;
-		}
-		#end
-
-		var stack = [];
-		var skipping = 0;
-		var insertIndex = 0;
-		var stackItem = stackItem;
-
-		/*
-			Find first coro stack element
-		*/
-		var currentFrame:Null<IStackFrame> = this;
-		while (stackItem == null) {
-			currentFrame = currentFrame.callerFrame();
-			if (currentFrame == null) {
-				break;
-			}
-			stackItem = currentFrame.getStackItem();
-		}
-
-		switch (stackItem) {
-			case null:
-				return;
-			case FilePos(_, file, line, _):
-				for (index => item in exception.stack.asArray()) {
-					switch (item) {
-						case FilePos(_, file2, line2, _) if (skipping == 0 && file == file2 && line == line2):
-							stack.push(item);
-							skipping = 0;
-						// TODO: this is silly
-						case FilePos(Method("hxcoro.CoroRun", "run"), _) if (skipping == 1):
-							skipping = 2;
-						// this is a hack
-						case FilePos(Method(_, "invokeResume"), _) if (skipping == 0):
-							skipping = 1;
-							insertIndex = index;
-						case _:
-							if (skipping != 1) {
-								stack.push(item);
-							}
-					}
-				}
-			case _:
-				return;
-		}
-		exception.stack = stack;
-		stackTraceManager.insertIndex = insertIndex;
-		#end
 	}
 
     function buildCallStack() {
-		#if js
-		return;
-		#end
-		#if debug
-		if (startedException) {
-			return;
+		final handler = context.get(ExceptionHandler);
+		if (handler != null) {
+			handler.buildCallStack(this);
 		}
-		#if target.threaded
-		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
-			// This could maybe be handled via a TLS...
-			return;
-		}
-		#end
-		var stackTraceManager = context.get(StackTraceManager);
-		if (stackTraceManager == null) {
-			return;
-		}
-		// Can happen in the case of ImmediateSuspensionResult.withError
-		if (stackTraceManager.insertIndex == null) {
-			startException(error);
-		}
-		if (stackItem != null) {
-			final stack = error.stack.asArray();
-			stack.insert(stackTraceManager.insertIndex++, stackItem);
-			error.stack = stack;
-		}
-		#end
     }
 
     abstract function invokeResume():SuspensionResult<T>;
