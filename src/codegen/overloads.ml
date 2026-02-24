@@ -233,35 +233,15 @@ struct
 		| [] -> []
 		| [v] -> [v]
 		| compatible ->
-			(* Returns true if all exits from expression e are via throw/break/continue,
-			   not via a return that produces a value. Does not recurse into nested functions. *)
-			let rec always_exits_abnormally e = match e.eexpr with
-				| TThrow _ | TBreak | TContinue -> true
-				| TReturn _ -> false
-				| TBlock el ->
-					let rec loop = function
-						| [] -> false
-						| [e] -> always_exits_abnormally e
-						| e :: rest ->
-							if always_exits_abnormally e then true
-							else loop rest
-					in
-					loop el
-				| TParenthesis e | TMeta(_,e) -> always_exits_abnormally e
-				| TIf (cond,e1,Some e2) ->
-					always_exits_abnormally cond
-					|| (always_exits_abnormally e1 && always_exits_abnormally e2)
-				| _ -> false
-			in
 			(* Returns true if expression e contains a TReturn (Some ret_e) where ret_e
-			   doesn't always exit abnormally. This detects whether a function body could
-			   actually return a value, as opposed to only throwing. *)
+			   doesn't always terminate (via throw/break/continue/return). This detects
+			   whether a function body could actually return a value. *)
 			let has_meaningful_return e =
 				let result = ref false in
 				let rec loop e =
 					if !result then ()
 					else match e.eexpr with
-					| TReturn (Some ret_e) when not (always_exits_abnormally ret_e) ->
+					| TReturn (Some ret_e) when not (DeadEnd.has_dead_end ret_e) ->
 						result := true
 					| TFunction _ -> ()
 					| _ -> iter loop e
