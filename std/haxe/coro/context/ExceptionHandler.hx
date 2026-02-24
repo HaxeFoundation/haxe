@@ -107,11 +107,6 @@ class DefaultExceptionHandler extends ExceptionHandler {
 			return;
 		}
 
-		// Can happen in the case of ImmediateSuspensionResult.withError
-		if (insertIndex.value == null) {
-			startException(cont, cont.error);
-		}
-
 		final stackItem = cont.getStackItem();
 		if (stackItem != null) {
 			final idx = insertIndex.value;

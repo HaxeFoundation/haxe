@@ -121,12 +121,10 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	function startException(exception:Exception) {
 		final handler = context.get(ExceptionHandler);
 		if (handler != null) {
-			// Note: The return value (potentially modified exception) is intentionally not
-			// assigned to `this.error` here. Setting `this.error` at this point would
-			// incorrectly trigger the `eif_error` check in resume states after a suspension
-			// within a catch block, causing the caught exception to be re-thrown.
-			handler.startException(this, exception);
+			// TODO: make the state machine pick the return value up so exception handlers can modify it
+			return handler.startException(this, exception);
 		}
+		return exception;
 	}
 
     function buildCallStack() {
