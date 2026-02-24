@@ -121,7 +121,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	function startException(exception:Exception) {
 		final handler = context.get(ExceptionHandler);
 		if (handler != null) {
-			// TODO: make the state machine pick the return value up so exception handlers can modify it
 			return handler.startException(this, exception);
 		}
 		return exception;
