@@ -68,7 +68,7 @@ class TestCoroAssert {
 
 	// ---- outcome = {noSuspend: true} ----
 
-	// A pre-transformed coroutine known to never suspend (or throw).
+	// A pre-transformed coroutine that never suspends but may throw.
 	@:coroutine(transformed, outcome = {noSuspend: true})
 	static function neverSuspendingInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
 		return haxe.coro.SuspensionResult.withResult(42);
@@ -81,9 +81,54 @@ class TestCoroAssert {
 	}
 
 	// Calling a no-suspend coroutine with code after it: still a single state (inline path).
+	// Inner switch has Returned + Thrown cases only (no Pending).
 	@:coroutine(assert = {numStates: 1, numHoisted: 0})
 	static function fCallNeverWithMore():Int {
 		var x = neverSuspendingInt();
+		return x + 1;
+	}
+
+	// ---- outcome = {noSuspend: true, noThrow: true} ----
+
+	// A pre-transformed coroutine that never suspends and never throws.
+	@:coroutine(transformed, outcome = {noSuspend: true, noThrow: true})
+	static function nosuspendNothrowInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
+		return haxe.coro.SuspensionResult.withResult(42);
+	}
+
+	// Calling a no-suspend+no-throw coroutine in tail position: single state.
+	@:coroutine(assert = {numStates: 1})
+	static function fCallNosuspendNothrowTail():Int {
+		return nosuspendNothrowInt();
+	}
+
+	// Calling a no-suspend+no-throw coroutine with code after: single state, no hoisted,
+	// and no state switch at all (direct .result access).
+	@:coroutine(assert = {numStates: 1, numHoisted: 0})
+	static function fCallNosuspendNothrowWithMore():Int {
+		var x = nosuspendNothrowInt();
+		return x + 1;
+	}
+
+	// ---- outcome = {noThrow: true} ----
+
+	// A pre-transformed coroutine that may suspend but never throws.
+	@:coroutine(transformed, outcome = {noThrow: true})
+	static function nothrowOnlyInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
+		return haxe.coro.SuspensionResult.withResult(42);
+	}
+
+	// Calling a no-throw coroutine in tail position: single state.
+	@:coroutine(assert = {numStates: 1})
+	static function fCallNothrowTail():Int {
+		return nothrowOnlyInt();
+	}
+
+	// Calling a no-throw coroutine with code after: two states (can still suspend),
+	// but inner switch has Pending + Returned cases only (no Thrown).
+	@:coroutine(assert = {numStates: 2})
+	static function fCallNothrowWithMore():Int {
+		var x = nothrowOnlyInt();
 		return x + 1;
 	}
 
