@@ -6,13 +6,17 @@ import haxe.coro.SuspensionResult;
 import haxe.coro.context.Context;
 import utest.Assert;
 
-private class AlwaysSuspending {
-	public static var _stored:Null<IContinuation<Int>> = null;
+// Generic suspension helper: stores the continuation and suspends without auto-resuming.
+// The caller is responsible for resuming via `s.cont.resume(...)`.
+private class Suspender<T> {
+	public var cont:Null<IContinuation<T>> = null;
+
+	public function new() {}
 
 	@:coroutine(transformed)
-	public static function suspend(cont:IContinuation<Int>):SuspensionResult<Int> {
-		_stored = cont;
-		return new SuspensionResult<Int>(Pending);
+	public function suspend(cont:IContinuation<T>):SuspensionResult<T> {
+		this.cont = cont;
+		return new SuspensionResult(Pending);
 	}
 }
 
@@ -92,6 +96,61 @@ private class TrackingCont<T> implements IContinuation<T> {
 		resumeCount++;
 		lastResult = result;
 		lastError = error;
+	}
+}
+
+// A simple async iterator that counts from 0 up to (but not including) `limit`.
+// If `suspender` is provided, each call to `hasNext` suspends via it.
+private class CountingAsyncIterator {
+	var i:Int;
+	final limit:Int;
+	final suspender:Null<Suspender<Bool>>;
+
+	public function new(limit:Int, ?suspender:Suspender<Bool>) {
+		i = 0;
+		this.limit = limit;
+		this.suspender = suspender;
+	}
+
+	@:coroutine public function hasNext():Bool {
+		if (suspender != null)
+			suspender.suspend();
+		return i < limit;
+	}
+
+	public function next():Int {
+		return i++;
+	}
+}
+
+// An async iterable wrapping a `CountingAsyncIterator`.
+private class CountingAsyncIterable {
+	final limit:Int;
+
+	public function new(limit:Int) {
+		this.limit = limit;
+	}
+
+	public function iterator():haxe.coro.AsyncIterator<Int> {
+		return new CountingAsyncIterator(limit);
+	}
+}
+
+// An abstract that has array-access iteration (returning element * 10) but also
+// provides an async iterator (returning [0,1,2]).  Used to assert that the async
+// iterator takes priority over array access in a coroutine context.
+private abstract AsyncIterablePriority(Array<Int>) {
+	public inline function new(arr:Array<Int>)
+		this = arr;
+
+	public function get_length():Int
+		return this.length;
+
+	@:arrayAccess public inline function get(i:Int):Int
+		return this[i] * 10;
+
+	public function iterator():haxe.coro.AsyncIterator<Int> {
+		return new CountingAsyncIterator(3);
 	}
 }
 
@@ -214,20 +273,20 @@ class TestCoroutines extends Test {
 	//   1. A non-tail call (passes _hx_continuation to suspend, which stores it).
 	//   2. A tail call (RTailReturn) that is reached only after manually resuming (1).
 	function testTailCallReturnPending() {
-		AlwaysSuspending._stored = null;
+		final s = new Suspender<Int>();
 
 		@:coroutine function outer():Int {
-			AlwaysSuspending.suspend(); // non-tail: mk_suspending_call stores outer's BaseContinuation
-			return AlwaysSuspending.suspend(); // RTailReturn: mk_suspending_tail_call path
+			s.suspend(); // non-tail: mk_suspending_call stores outer's BaseContinuation
+			return s.suspend(); // RTailReturn: mk_suspending_tail_call path
 		}
 
 		var cont = new TrackingCont<Int>();
 		invokeCoroutine(cont, outer);
-		// outer is now suspended at the first suspend() call.
-		// AlwaysSuspending._stored is outer's BaseContinuation (bc_outer).
+		// outer is now suspended at the first s.suspend() call.
+		// s.cont is outer's BaseContinuation (bc_outer).
 
-		final bc = AlwaysSuspending._stored;
-		AlwaysSuspending._stored = null;
+		final bc = s.cont;
+		s.cont = null;
 		// Resume bc_outer.  invokeResume() re-enters outer(bc_outer) (recycled continuation)
 		// and advances to the RTailReturn suspend call.
 		// Without the state-switch fix: outer(bc_outer) returns a non-singleton Pending object
@@ -274,6 +333,43 @@ class TestCoroutines extends Test {
 		eq(maxIters, counter);
 	}
 
+	// Regression test for the "skip unused _hx_result / skip gotoLabel in single-state"
+	// optimisations: a single-state coroutine (no suspension points) that just returns a
+	// value must still return the correct result.
+	function testSingleStateResultOptimisation() {
+		@:coroutine function identity(x:Int):Int {
+			return x;
+		}
+
+		var cont = new TrackingCont<Int>();
+		@:coroutine function wrapper():Int
+			return identity(42);
+		invokeCoroutine(cont, wrapper);
+		eq(null, cont.lastError);
+		eq(42, cont.lastResult);
+	}
+
+	// Regression test for the "skip unused _hx_result" optimisation in multi-state coros:
+	// when the coroutine suspends but does NOT use the result (SusBlock), _hx_result is
+	// omitted. Verify that the resumed coroutine still completes correctly.
+	function testMultiStateNoResultOptimisation() {
+		var resumed = false;
+
+		final sus = new Suspender();
+
+		@:coroutine function waitAndFlag() {
+			sus.suspend();
+			resumed = true;
+		}
+
+		var cont = new TrackingCont<haxe.Unit>();
+		waitAndFlag(cont);
+		f(resumed); // not yet resumed
+		sus.cont.resume(null, null);
+		t(resumed); // now resumed
+		eq(null, cont.lastError);
+	}
+
 	// Regression test for hxcoro#95: overriding a coroutine method used to cause infinite
 	// mutual recursion because the old invokeResume() dispatched dynamically back to the
 	// overridden method on the child.  With the state machine in a thunk inside each class's
@@ -311,5 +407,95 @@ class TestCoroutines extends Test {
 		Assert.raises(() -> {
 			withNothrow(new SimpleCont());
 		}, String);
+	}
+
+	// Tests that a for loop over an AsyncIterator works inside a coroutine context.
+	function testAsyncIteratorFor() {
+		@:coroutine function collectItems():Array<Int> {
+			final it = new CountingAsyncIterator(3);
+			final ret = [];
+			for (v in it) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		var cont = new TrackingCont<Array<Int>>();
+		invokeCoroutine(cont, collectItems);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Tests that a for loop over an AsyncIterable works inside a coroutine context.
+	function testAsyncIterableFor() {
+		@:coroutine function collectItems():Array<Int> {
+			final it = new CountingAsyncIterable(3);
+			final ret = [];
+			for (v in it) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		var cont = new TrackingCont<Array<Int>>();
+		invokeCoroutine(cont, collectItems);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Tests that a for loop over a suspending AsyncIterator works correctly.
+	// Uses manual pumping: each call to s.cont.resume() advances one hasNext suspension.
+	function testAsyncIteratorForSuspend() {
+		final s = new Suspender<Bool>();
+		final cont = new TrackingCont<Array<Int>>();
+
+		@:coroutine function collectItems():Array<Int> {
+			final it = new CountingAsyncIterator(3, s);
+			final ret = [];
+			for (v in it) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		invokeCoroutine(cont, collectItems);
+		// collectItems is now suspended at the first hasNext call.
+		// Pump each suspension manually until collectItems completes.
+		while (s.cont != null) {
+			final c = s.cont;
+			s.cont = null;
+			// Resume the suspended hasNext; result is ignored since hasNext re-evaluates
+			// `i < limit` itself after resumption.
+			c.resume(null, null);
+		}
+
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Tests that in a coroutine context, AsyncIterator takes priority over array access
+	// when a type exposes both.
+	function testAsyncIteratorPriority() {
+		@:coroutine function collectItems():Array<Int> {
+			// AsyncIterablePriority has get_length + @:arrayAccess (returning element * 10)
+			// AND iterator():AsyncIterator<Int> (always returning [0,1,2]).
+			// In a coroutine context the async iterator must win.
+			final arr = new AsyncIterablePriority([1, 2, 3]);
+			final ret = [];
+			for (v in arr) {
+				ret.push(v);
+			}
+			return ret;
+		}
+
+		var cont = new TrackingCont<Array<Int>>();
+		invokeCoroutine(cont, collectItems);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		// Async iterator gives [0, 1, 2]; array access would give [10, 20, 30].
+		Assert.same([0, 1, 2], cont.lastResult);
 	}
 }

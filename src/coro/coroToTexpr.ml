@@ -29,7 +29,7 @@ type coro_to_texpr_exprs = {
 	eresult : texpr;
 	egoto : texpr;
 	eerror : texpr;
-	etmp_result : texpr;
+	etmp_result : texpr Lazy.t;
 	etmp_error : texpr;
 	etmp_error_unwrapped : texpr Lazy.t;
 }
@@ -166,6 +166,19 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		state.cs_el_tail <- Option.map (List.map mapper) state.cs_el_tail
 	) states;
 
+	(* Remove hoisted fields for variables that are never saved or restored:
+	   - Force-hoisted function args that are never actually read in the state machine
+	     (e.g., a discarded `_` or an unused `node` parameter).
+	   - Any cross-state field that ended up with no actual reads or writes.
+	   Removing these avoids passing dead constructor parameters and emitting
+	   prototype fields that are never accessed. *)
+	let used_ids = List.fold_left (fun acc state ->
+		IntSet.union acc (IntSet.union state.cs_writes state.cs_reads)
+	) IntSet.empty states in
+	Hashtbl.filter_map_inplace (fun id field ->
+		if IntSet.mem id used_ids then Some field else None
+	) fields;
+
 	List.iter (fun state ->
 		let restoring = IntSet.union state.cs_writes state.cs_reads |> IntSet.to_list |> List.filter_map (fun id ->
 			(* We don't want to restore a variable which is declared in this state *)
@@ -227,7 +240,7 @@ module SuspensionCalls = struct
 			| SusBlock ->
 				b#void_block []
 			| SusResult ->
-				b#assign etmp_result eres
+				b#assign (Lazy.force etmp_result) eres
 		in
 		let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
 		let ethrown = b#void_block [
@@ -268,6 +281,10 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 	let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
 	let com = ctx.typer.com in
 	let b = ctx.builder in
+
+	(* In a single-state coroutine there is no while/switch dispatch loop, so
+	   gotoLabel is never read. *)
+	let single_state = ctx.num_states = 1 in
 
 	let set_state id = b#assign egoto (b#int id p) in
 
@@ -319,7 +336,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			| None ->
 				b#if_then e_if e_then
 			| Some e ->
-				let e_assign = b#assign e etmp_result in
+				let e_assign = b#assign e (Lazy.force etmp_result) in
 				b#if_then_else e_if e_then e_assign com.basic.tvoid
 	in
 
@@ -328,8 +345,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		let el = get_block_exprs cb in
 
 		let add_state next_id extra_el state_check =
-			let el = el in
-			let el = match next_id with
+			let el = match (if single_state then None else next_id) with
 				| None ->
 					el
 				| Some id ->
@@ -367,7 +383,11 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ] None
 		| NextThrow e1 ->
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some [ (b#break p) ])
+			(* In multi-state mode the break exits the while/switch loop to reach the
+			   outer error handler.  In single-state mode there is no loop, so no break
+			   is needed — the error handler follows the body naturally. *)
+			let tail = if single_state then None else Some [ b#break p ] in
+			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) tail
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None
@@ -439,15 +459,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let eloop = match states with
 		| [state] ->
-			(* Single state: the coroutine has no internal gotos, so we don't need the
-			   while...switch dispatch machinery.  Any trailing TBreak (e.g. from NextThrow,
-			   which would normally break out of the while...switch to reach the error handler)
-			   is in tail position and can be dropped — the error handler follows naturally. *)
-			let el = match List.rev state.cs_el with
-				| { eexpr = TBreak } :: rest -> List.rev rest
-				| _ -> state.cs_el
-			in
-			b#void_block el
+			b#void_block state.cs_el
 		| _ ->
 			let ethrow = b#void_block [
 				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));

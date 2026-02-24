@@ -382,7 +382,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 							| RTailReturn when cb.cb_catch = None ->
 								SusResult,None
 							| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
-								SusResult,Some ((make_next_block ()),etmp_result)
+								SusResult,Some ((make_next_block ()),Lazy.force etmp_result)
 							in
 							let suspend = {
 								cs_fun = e1;

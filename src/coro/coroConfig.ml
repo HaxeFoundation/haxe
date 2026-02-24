@@ -2,6 +2,7 @@ open Globals
 
 type coro_assert = {
 	mutable num_states : int option;
+	mutable num_hoisted : int option;
 }
 
 type t = {
@@ -24,6 +25,8 @@ module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
 		List.iter (fun (s, data) -> match s with
 			| "numStates" ->
 				config_assert.num_states <- Some (API.read_int data)
+			| "numHoisted" ->
+				config_assert.num_hoisted <- Some (API.read_int data)
 			| s ->
 				Error.raise_typing_error (Printf.sprintf "Unknown key for coroutine assert config: %s" s) null_pos
 		) fl
@@ -39,7 +42,7 @@ module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
 				| "transformed" ->
 					config.transformed <- API.read_bool data
 				| "assert" ->
-					let config_assert = { num_states = None } in
+					let config_assert = { num_states = None; num_hoisted = None } in
 					read_coro_assert config_assert data;
 					config.assert_config <- Some config_assert
 				| s ->
