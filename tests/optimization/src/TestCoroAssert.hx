@@ -66,5 +66,59 @@ class TestCoroAssert {
 		return x;
 	}
 
+	// ---- suspends = Never ----
+
+	// A pre-transformed coroutine known to never suspend.
+	@:coroutine(suspends = Never, transformed)
+	static function neverSuspendingInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
+		return haxe.coro.SuspensionResult.withResult(42);
+	}
+
+	// Calling a Never coroutine in tail position: single state (same as Sometimes).
+	@:coroutine(assert = {numStates: 1})
+	static function fCallNeverTail():Int {
+		return neverSuspendingInt();
+	}
+
+	// Calling a Never coroutine with code after it: two states.
+	@:coroutine(assert = {numStates: 2})
+	static function fCallNeverWithMore():Int {
+		var x = neverSuspendingInt();
+		return x + 1;
+	}
+
+	// ---- suspends = Always ----
+
+	// A pre-transformed coroutine known to always suspend.
+	@:coroutine(suspends = Always, transformed)
+	static function alwaysSuspendingInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
+		return new haxe.coro.SuspensionResult(Pending);
+	}
+
+	// Calling an Always coroutine in tail position: single state.
+	@:coroutine(assert = {numStates: 1})
+	static function fCallAlwaysTail():Int {
+		return alwaysSuspendingInt();
+	}
+
+	// Calling an Always coroutine with code after it: two states.
+	@:coroutine(assert = {numStates: 2})
+	static function fCallAlwaysWithMore():Int {
+		var x = alwaysSuspendingInt();
+		return x + 1;
+	}
+
+	// ---- suspends = Sometimes (explicit, same as default) ----
+
+	@:coroutine(suspends = Sometimes, transformed)
+	static function sometimesSuspending(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
+		return haxe.coro.SuspensionResult.withResult(0);
+	}
+
+	@:coroutine(assert = {numStates: 1})
+	static function fCallSometimesTail():Int {
+		return sometimesSuspending();
+	}
+
 	static function main() {}
 }

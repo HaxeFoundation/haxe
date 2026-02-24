@@ -156,14 +156,22 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 			| TField({eexpr = TConst TSuper},_) ->
 				deferred.make_super_field e
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
-				if can_tco then
+				if can_tco then begin
+					let cs_kind =
+						let meta = match (Texpr.skip e1).eexpr with
+							| TField(_, FStatic(_, cf)) | TField(_, FInstance(_, _, cf)) -> cf.cf_meta
+							| _ -> []
+						in
+						(CoroConfig.of_meta_list meta).suspends
+					in
 					deferred.make_inline_tail_call {
 						cs_fun = e1;
 						cs_args = el;
 						cs_pos = e.epos;
 						cs_result = SusBlock;
+						cs_kind;
 					}
-				else
+				end else
 					raise Found
 			| TReturn None ->
 				deferred.make_inline_return None e.epos
@@ -362,33 +370,56 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								end else
 									e
 							) el in
+							let cs_kind =
+								let meta = match (Texpr.skip e1).eexpr with
+									| TField(_, FStatic(_, cf)) | TField(_, FInstance(_, _, cf)) -> cf.cf_meta
+									| _ -> []
+								in
+								(CoroConfig.of_meta_list meta).suspends
+							in
 							let make_next_block () =
 								let cb_next = block_from_e e1 in
 								add_block_flag cb_next CbResumeState;
 								add_block_flag cb CbSuspendState;
 								cb_next
 							in
+							let make_next_block_no_resume () =
+								(* For Never-suspending coroutines: no resume state needed *)
+								block_from_e e1
+							in
 							let res,next = match ret with
 							| RValue ->
 								let v = tmp_local cb e.etype None e.epos in
 								let ev = Texpr.Builder.make_local v v.v_pos in
-								let cb_next = make_next_block () in
+								let cb_next = match cs_kind with
+									| CoroConfig.SuspendsNever -> make_next_block_no_resume ()
+									| _ -> make_next_block ()
+								in
 								cb_next.cb_stack_value <- Some ev;
 								SusResult,Some(cb_next,ev)
 							| RTailBlock when cb.cb_catch = None ->
 								SusBlock,None
 							| RBlock | RTailBlock ->
-								SusBlock,Some ((make_next_block (),e_no_value))
+								let cb_next = match cs_kind with
+									| CoroConfig.SuspendsNever -> make_next_block_no_resume ()
+									| _ -> make_next_block ()
+								in
+								SusBlock,Some (cb_next,e_no_value)
 							| RTailReturn when cb.cb_catch = None ->
 								SusResult,None
 							| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
-								SusResult,Some ((make_next_block ()),Lazy.force etmp_result)
+								let cb_next = match cs_kind with
+									| CoroConfig.SuspendsNever -> make_next_block_no_resume ()
+									| _ -> make_next_block ()
+								in
+								SusResult,Some (cb_next,Lazy.force etmp_result)
 							in
 							let suspend = {
 								cs_fun = e1;
 								cs_args = el;
 								cs_pos = e.epos;
 								cs_result = res;
+								cs_kind;
 							} in
 							terminate cb (NextSuspend(suspend,Option.map fst next)) t_dynamic null_pos;
 							next

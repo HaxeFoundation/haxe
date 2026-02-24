@@ -162,6 +162,27 @@ function invokeCoroutineVoid(cont:IContinuation<haxe.Unit>, f:haxe.coro.Coroutin
 	f(cont);
 }
 
+// Helper with suspends=Never: always returns 42 immediately without suspending.
+private class NeverReturns42 {
+	@:coroutine(suspends = Never, transformed)
+	public static function get(cont:IContinuation<Int>):SuspensionResult<Int> {
+		return SuspensionResult.withResult(42);
+	}
+}
+
+// Helper with suspends=Always: always suspends; stores the continuation for manual resume.
+private class AlwaysSuspender<T> {
+	public var cont:Null<IContinuation<T>> = null;
+
+	public function new() {}
+
+	@:coroutine(suspends = Always, transformed)
+	public function suspend(cont:IContinuation<T>):SuspensionResult<T> {
+		this.cont = cont;
+		return new SuspensionResult(Pending);
+	}
+}
+
 class TestCoroutines extends Test {
 	// Tests that ||/&& with @:coroutine operands correctly short-circuit.
 	function testShortCircuit() {
@@ -515,6 +536,40 @@ class TestCoroutines extends Test {
 		syncPath(cont);
 		eq(1, cont.resumeCount); // resumed synchronously
 		eq("syncPath value", cont.lastResult);
+		eq(null, cont.lastError);
+	}
+
+	// Tests that a coroutine declared with suspends=Never works correctly.
+	// The Never callee returns immediately; the caller should get the result without
+	// creating a real suspension point.
+	function testSuspendsNever() {
+		// This pre-transformed helper always returns 42 immediately.
+		@:coroutine function caller():Int {
+			final v = NeverReturns42.get();
+			return v + 1;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, caller);
+		eq(1, cont.resumeCount);
+		eq(43, cont.lastResult);
+		eq(null, cont.lastError);
+	}
+
+	// Tests that a coroutine declared with suspends=Always suspends the caller.
+	function testSuspendsAlways() {
+		final sus = new AlwaysSuspender<Int>();
+		@:coroutine function caller():Int {
+			final v = sus.suspend();
+			return v + 1;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, caller);
+		// Always-suspending: cont not yet resumed.
+		eq(0, cont.resumeCount);
+		// Manually resume with result 10.
+		sus.cont.resume(10, null);
+		eq(1, cont.resumeCount);
+		eq(11, cont.lastResult);
 		eq(null, cont.lastError);
 	}
 }

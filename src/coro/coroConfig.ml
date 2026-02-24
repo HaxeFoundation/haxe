@@ -5,11 +5,17 @@ type coro_assert = {
 	mutable num_hoisted : int option;
 }
 
+type coro_suspends =
+	| SuspendsSometimes
+	| SuspendsNever
+	| SuspendsAlways
+
 type t = {
 	mutable debug : bool;
 	mutable nothrow : bool;
 	mutable transformed : bool;
 	mutable assert_config : coro_assert option;
+	mutable suspends : coro_suspends;
 }
 
 let create () = {
@@ -17,6 +23,7 @@ let create () = {
 	nothrow = false;
 	transformed = false;
 	assert_config = None;
+	suspends = SuspendsSometimes;
 }
 
 module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
@@ -45,6 +52,13 @@ module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
 					let config_assert = { num_states = None; num_hoisted = None } in
 					read_coro_assert config_assert data;
 					config.assert_config <- Some config_assert
+				| "suspends" ->
+					config.suspends <- (match API.data_to_string data with
+						| "Never" -> SuspendsNever
+						| "Sometimes" -> SuspendsSometimes
+						| "Always" -> SuspendsAlways
+						| s -> Error.raise_typing_error (Printf.sprintf "Unknown suspends value: %s" s) null_pos
+					)
 				| s ->
 					Error.raise_typing_error (Printf.sprintf "Unknown key for coroutine config: %s" s) null_pos
 			) fl
