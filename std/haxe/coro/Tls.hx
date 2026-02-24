@@ -15,7 +15,11 @@ class Tls<T> {
 	}
 
 	inline function get_value():Null<T> {
-		return inner.value;
+		try {
+			return inner.value;
+		} catch (_:Dynamic) {
+			return null;
+		}
 	}
 
 	inline function set_value(v:Null<T>):Null<T> {

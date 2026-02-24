@@ -628,7 +628,7 @@ let fun_to_coro ctx coro_type =
 		let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
 		let ef = continuation_field cf cf.cf_type in
 		(fun e ->
-			mk (TCall(ef,[e])) basic.tvoid coro_class.name_pos
+			mk (TCall(ef,[e])) basic.texception coro_class.name_pos
 		)
 	in
 	let tf_expr = coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation gen_mode stack_item_inserter start_exception in

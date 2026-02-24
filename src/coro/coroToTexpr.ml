@@ -453,7 +453,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			   outer error handler.  In single-state mode there is no loop, so no break
 			   is needed — the error handler follows the body naturally. *)
 			let tail = if single_state then None else Some [ b#break p ] in
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) tail
+			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; b#assign etmp_error (start_exception etmp_error); ]) tail
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None
@@ -552,8 +552,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				let ecaught = b#local vcaught p in
 				let ecaught = get_caught ecaught in
 				let e = b#void_block [
-					start_exception ecaught;
-					b#assign etmp_error ecaught
+					b#assign etmp_error (start_exception ecaught);
 				] in
 				(vcaught,e)
 			]
