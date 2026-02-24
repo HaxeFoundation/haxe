@@ -48,49 +48,34 @@ class DefaultExceptionHandler extends ExceptionHandler {
 		return exception;
 		#end
 		#if debug
-		@:privateAccess cont._hx_startedException = true;
-
 		var stack = [];
 		var skipping = 0;
 		var localInsertIndex = 0;
-		var stackItem = cont.getStackItem();
 
-		/*
-			Find first coro stack element
-		*/
-		var currentFrame:Null<haxe.coro.IStackFrame> = cont;
-		while (stackItem == null) {
-			currentFrame = currentFrame.callerFrame();
-			if (currentFrame == null) {
-				break;
-			}
-			stackItem = currentFrame.getStackItem();
-		}
-
-		switch (stackItem) {
-			case null:
-				return exception;
-			case FilePos(_, file, line, _):
-				for (index => item in exception.stack.asArray()) {
-					switch (item) {
-						case FilePos(_, file2, line2, _) if (skipping == 0 && file == file2 && line == line2):
-							stack.push(item);
-							skipping = 0;
-						// TODO: this is silly
-						case FilePos(Method("hxcoro.CoroRun", "run"), _) if (skipping == 1):
-							skipping = 2;
-						// this is a hack
-						case FilePos(Method(_, "invokeResume"), _) if (skipping == 0):
-							skipping = 1;
-							localInsertIndex = index;
+		for (index => item in exception.stack.asArray()) {
+			switch (item) {
+				// Check invokeResume BEFORE the file/line match, since the throw location
+				// inside invokeResume would otherwise match the file/line case first and be
+				// pushed to the output instead of being used as the split point.
+				case FilePos(Method(_, "invokeResume"), file2, line2, col2) if (skipping == 0):
+					skipping = 1;
+					localInsertIndex = index;
+					// Update cont.stackItem with the actual execution position from the
+					// invokeResume frame. This is needed when startException is called from
+					// the outer try-catch (for exceptions from regular function calls), where
+					// cont.stackItem may still point to the last suspension point.
+					@:privateAccess switch (cont.stackItem) {
+						case FilePos(method, _, _, _):
+							cont.stackItem = FilePos(method, file2, line2, col2);
 						case _:
-							if (skipping != 1) {
-								stack.push(item);
-							}
 					}
-				}
-			case _:
-				return exception;
+				case FilePos(Method("hxcoro.CoroRun", "run"), _) if (skipping == 1):
+					skipping = 2;
+				case _:
+					if (skipping != 1) {
+						stack.push(item);
+					}
+			}
 		}
 		exception.stack = stack;
 		insertIndex.value = localInsertIndex;
@@ -103,10 +88,6 @@ class DefaultExceptionHandler extends ExceptionHandler {
 		return;
 		#end
 		#if debug
-		if (@:privateAccess cont._hx_startedException) {
-			return;
-		}
-
 		final stackItem = cont.getStackItem();
 		if (stackItem != null) {
 			final idx = insertIndex.value;

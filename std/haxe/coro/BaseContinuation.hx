@@ -31,7 +31,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	var resumeResult:Null<SuspensionResult<Any>>;
 	#if debug
 	var stackItem:Null<StackItem>;
-	var _hx_startedException:Bool;
 	#end
 
 	/**
@@ -44,9 +43,6 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
         error      = null;
         result     = null;
 		context    = completion.context;
-		#if debug
-		_hx_startedException = false;
-		#end
     }
 
 	inline function get_context() {
