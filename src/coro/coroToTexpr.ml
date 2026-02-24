@@ -245,12 +245,12 @@ module SuspensionCalls = struct
 		let p = call.cs_pos in
 		let outcome = call.cs_kind in
 		if outcome.CoroConfig.no_return && outcome.CoroConfig.no_throw then begin
-			(* Always-suspending: call the function and return suspended unconditionally.
-			   The caller will be resumed later by the callee via the continuation. *)
+			(* Always-suspending: call + return suspended singleton *)
 			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {econtinuation with epos = p}] in
 			let esuspended_val = make_suspended_return b cont p in
 			(ecall_stmt, b#void_block [b#return esuspended_val])
 		end else begin
+			(* Generic version: call + switch *)
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
 			let (esubject, eres, eerror) = unpack_result_fields ctx cont ecororesult in
 			let esuspended = b#void_block [b#return (make_suspended_return b cont p)] in
@@ -281,17 +281,9 @@ module SuspensionCalls = struct
 		let {econtinuation;ecompletion;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
-		let p = call.cs_pos in
 		let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
-		let outcome = call.cs_kind in
-		if outcome.CoroConfig.no_return && outcome.CoroConfig.no_throw then begin
-			(* Always-suspending: always return suspended_val unconditionally. *)
-			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {ecompletion_field with epos = p}] in
-			(ecall_stmt, b#void_block [b#return (make_suspended_return b cont p)])
-		end else begin
-			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
-			(cororesult_var, b#return ecororesult)
-		end
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
+		(cororesult_var, b#return ecororesult)
 
 	(* Generate an inline call+result check for a no_suspend callee.
 	   Returns (call_stmt, check_stmt) — assembled into a void_block by the caller.
