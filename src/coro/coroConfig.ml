@@ -5,25 +5,30 @@ type coro_assert = {
 	mutable num_hoisted : int option;
 }
 
-type coro_suspends =
-	| SuspendsSometimes
-	| SuspendsNever
-	| SuspendsAlways
+type coro_outcome = {
+	mutable no_suspend : bool;
+	mutable no_return : bool;
+	mutable no_throw : bool;
+}
+
+let default_outcome () = {
+	no_suspend = false;
+	no_return = false;
+	no_throw = false;
+}
 
 type t = {
 	mutable debug : bool;
-	mutable nothrow : bool;
 	mutable transformed : bool;
 	mutable assert_config : coro_assert option;
-	mutable suspends : coro_suspends;
+	mutable outcome : coro_outcome;
 }
 
 let create () = {
 	debug = false;
-	nothrow = false;
 	transformed = false;
 	assert_config = None;
-	suspends = SuspendsSometimes;
+	outcome = default_outcome ();
 }
 
 module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
@@ -38,27 +43,33 @@ module CoroConfigReader (API : DataReaderApi.DataReaderApi) = struct
 				Error.raise_typing_error (Printf.sprintf "Unknown key for coroutine assert config: %s" s) null_pos
 		) fl
 
+	let read_coro_outcome outcome data =
+		let fl = API.read_object data in
+		List.iter (fun (s, data) -> match s with
+			| "noSuspend" ->
+				outcome.no_suspend <- API.read_bool data
+			| "noReturn" ->
+				outcome.no_return <- API.read_bool data
+			| "noThrow" ->
+				outcome.no_throw <- API.read_bool data
+			| s ->
+				Error.raise_typing_error (Printf.sprintf "Unknown key for coroutine outcome config: %s" s) null_pos
+		) fl
+
 	let read_coro_config config data =
 		let read data =
 			let fl = API.read_object data in
 			List.iter (fun (s, data) -> match s with
 				| "debug" ->
 					config.debug <- API.read_bool data
-				| "nothrow" ->
-					config.nothrow <- API.read_bool data
 				| "transformed" ->
 					config.transformed <- API.read_bool data
 				| "assert" ->
 					let config_assert = { num_states = None; num_hoisted = None } in
 					read_coro_assert config_assert data;
 					config.assert_config <- Some config_assert
-				| "suspends" ->
-					config.suspends <- (match API.data_to_string data with
-						| "Never" -> SuspendsNever
-						| "Sometimes" -> SuspendsSometimes
-						| "Always" -> SuspendsAlways
-						| s -> Error.raise_typing_error (Printf.sprintf "Unknown suspends value: %s" s) null_pos
-					)
+				| "outcome" ->
+					read_coro_outcome config.outcome data
 				| s ->
 					Error.raise_typing_error (Printf.sprintf "Unknown key for coroutine config: %s" s) null_pos
 			) fl

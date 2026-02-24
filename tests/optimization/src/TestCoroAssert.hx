@@ -66,51 +66,51 @@ class TestCoroAssert {
 		return x;
 	}
 
-	// ---- suspends = Never ----
+	// ---- outcome = {noSuspend: true} ----
 
-	// A pre-transformed coroutine known to never suspend.
-	@:coroutine(suspends = Never, transformed)
+	// A pre-transformed coroutine known to never suspend (or throw).
+	@:coroutine(transformed, outcome = {noSuspend: true})
 	static function neverSuspendingInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
 		return haxe.coro.SuspensionResult.withResult(42);
 	}
 
-	// Calling a Never coroutine in tail position: single state (same as Sometimes).
+	// Calling a no-suspend coroutine in tail position: single state (same as Sometimes).
 	@:coroutine(assert = {numStates: 1})
 	static function fCallNeverTail():Int {
 		return neverSuspendingInt();
 	}
 
-	// Calling a Never coroutine with code after it: still a single state (inline path).
+	// Calling a no-suspend coroutine with code after it: still a single state (inline path).
 	@:coroutine(assert = {numStates: 1, numHoisted: 0})
 	static function fCallNeverWithMore():Int {
 		var x = neverSuspendingInt();
 		return x + 1;
 	}
 
-	// ---- suspends = Always ----
+	// ---- outcome = {noReturn: true, noThrow: true} ----
 
-	// A pre-transformed coroutine known to always suspend.
-	@:coroutine(suspends = Always, transformed)
+	// A pre-transformed coroutine known to always suspend (therefore never returns/throws).
+	@:coroutine(transformed, outcome = {noReturn: true, noThrow: true})
 	static function alwaysSuspendingInt(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
 		return new haxe.coro.SuspensionResult(Pending);
 	}
 
-	// Calling an Always coroutine in tail position: single state.
+	// Calling an always-suspend coroutine in tail position: single state.
 	@:coroutine(assert = {numStates: 1})
 	static function fCallAlwaysTail():Int {
 		return alwaysSuspendingInt();
 	}
 
-	// Calling an Always coroutine with code after it: two states.
+	// Calling an always-suspend coroutine with code after it: two states.
 	@:coroutine(assert = {numStates: 2})
 	static function fCallAlwaysWithMore():Int {
 		var x = alwaysSuspendingInt();
 		return x + 1;
 	}
 
-	// ---- suspends = Sometimes (explicit, same as default) ----
+	// ---- default outcome (no special configuration) ----
 
-	@:coroutine(suspends = Sometimes, transformed)
+	@:coroutine(transformed)
 	static function sometimesSuspending(cont:haxe.coro.IContinuation<Int>):haxe.coro.SuspensionResult<Int> {
 		return haxe.coro.SuspensionResult.withResult(0);
 	}

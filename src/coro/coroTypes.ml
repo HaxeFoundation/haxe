@@ -51,7 +51,7 @@ and coro_suspend = {
 	cs_args : texpr list;
 	cs_pos : pos;
 	cs_result : suspend_expr;
-	cs_kind : CoroConfig.coro_suspends;
+	cs_kind : CoroConfig.coro_outcome;
 }
 
 type coro_deferred_api = {

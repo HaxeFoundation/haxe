@@ -18,9 +18,9 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
-(* Extract the @:coroutine suspends config from a callee expression.
+(* Extract the @:coroutine outcome config from a callee expression.
    Handles all field access variants and local variables. *)
-let get_suspends_from_callee e1 =
+let get_outcome_from_callee e1 =
 	let meta = match (Texpr.skip e1).eexpr with
 		| TField(_, FStatic(_, cf))
 		| TField(_, FInstance(_, _, cf))
@@ -29,7 +29,7 @@ let get_suspends_from_callee e1 =
 		| TLocal v -> v.v_meta
 		| _ -> []
 	in
-	(CoroConfig.of_meta_list meta).suspends
+	(CoroConfig.of_meta_list meta).outcome
 
 let check_captures ctx args expr =
 	let vars = Hashtbl.create 16 in
@@ -170,7 +170,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 				deferred.make_super_field e
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
 				if can_tco then begin
-					let cs_kind = get_suspends_from_callee e1 in
+					let cs_kind = get_outcome_from_callee e1 in
 					deferred.make_inline_tail_call {
 						cs_fun = e1;
 						cs_args = el;
@@ -377,7 +377,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								end else
 									e
 							) el in
-							let cs_kind = get_suspends_from_callee e1 in
+							let cs_kind = get_outcome_from_callee e1 in
 							let make_next_block () =
 								let cb_next = block_from_e e1 in
 								add_block_flag cb_next CbResumeState;
@@ -385,7 +385,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								cb_next
 							in
 							begin match cs_kind with
-							| CoroConfig.SuspendsNever ->
+							| { CoroConfig.no_suspend = true } ->
 								(* For a Never-suspending callee in TCO tail position, keep the
 								   existing tail-call optimisation (single-state, no resume block). *)
 								let is_tco = match ret with

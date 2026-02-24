@@ -243,15 +243,14 @@ module SuspensionCalls = struct
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
-		let open CoroConfig in
-		match call.cs_kind with
-		| SuspendsAlways ->
+		let outcome = call.cs_kind in
+		if outcome.CoroConfig.no_return && outcome.CoroConfig.no_throw then begin
 			(* Always-suspending: call the function and return suspended unconditionally.
 			   The caller will be resumed later by the callee via the continuation. *)
 			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {econtinuation with epos = p}] in
 			let esuspended_val = make_suspended_return b cont p in
 			(ecall_stmt, b#void_block [b#return esuspended_val])
-		| SuspendsSometimes | SuspendsNever ->
+		end else begin
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
 			let (esubject, eres, eerror) = unpack_result_fields ctx cont ecororesult in
 			let esuspended = b#void_block [b#return (make_suspended_return b cont p)] in
@@ -265,10 +264,18 @@ module SuspensionCalls = struct
 				b#assign etmp_error eerror;
 				b#break p;
 			] in
-			let estate_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
-
+			let estate_switch = if outcome.CoroConfig.no_throw then
+				(* Callee can't throw: skip the Thrown case entirely. *)
+				CoroControl.make_custom_control_switch com.basic esubject [
+					[CoroControl.CoroPending],  esuspended;
+					[CoroControl.CoroReturned], ereturned;
+				] p
+			else
+				CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p
+			in
 			cororesult_var,
 			estate_switch
+		end
 
 	let make_suspending_tail_call ctx cont exprs call =
 		let {econtinuation;ecompletion;_} = exprs in
@@ -276,13 +283,12 @@ module SuspensionCalls = struct
 		let b = ctx.builder in
 		let p = call.cs_pos in
 		let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
-		let open CoroConfig in
-		match call.cs_kind with
-		| SuspendsAlways ->
+		let outcome = call.cs_kind in
+		if outcome.CoroConfig.no_return && outcome.CoroConfig.no_throw then begin
 			(* Always-suspending: always return suspended_val unconditionally. *)
 			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {ecompletion_field with epos = p}] in
 			(ecall_stmt, b#void_block [b#return (make_suspended_return b cont p)])
-		| SuspendsSometimes | SuspendsNever ->
+		end else begin
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
 			let (esubject, _, _) = unpack_result_fields ctx cont ecororesult in
 			let esuspended_val = make_suspended_return b cont p in
@@ -298,16 +304,19 @@ module SuspensionCalls = struct
 				switch_exhaustive = true;
 			}) com.basic.tvoid p in
 			(cororesult_var, estate_switch)
+		end
 
-	(* Generate an inline call+result check for a Never-suspending callee.
+	(* Generate an inline call+result check for a no_suspend callee.
 	   Returns (call_stmt, check_stmt) — assembled into a void_block by the caller.
 	   For single-state coroutines there is no enclosing while loop, so the Thrown
-	   branch emits the full error-handler inline instead of using `break`. *)
+	   branch emits the full error-handler inline instead of using `break`.
+	   If the callee also has no_throw, the result is set directly without any switch. *)
 	let make_never_call_and_check ctx cont exprs call v_opt =
 		let {econtinuation;eerror;etmp_error;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
+		let outcome = call.cs_kind in
 		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
 		let (esubject, eres, eerr_field) = unpack_result_fields ctx cont ecororesult in
 		let ereturned = match v_opt with
@@ -316,31 +325,37 @@ module SuspensionCalls = struct
 			| Some v ->
 				b#assign (b#local v p) eres
 		in
-		let ethrown =
-			if ctx.num_states = 1 then begin
-				(* Single-state: no while loop to break out of.
-				   Emit the error handler directly (equivalent to eexchandle). *)
-				let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
-				let eaccess = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] build_cf build_cf.cf_type in
-				let ewrapped_call = mk (TCall (eaccess, [])) com.basic.tvoid p in
-				b#void_block [
-					b#assign etmp_error eerr_field;
-					b#assign eerror etmp_error;
-					ewrapped_call;
-					b#assign exprs.estate (CoroControl.mk_control com.basic CoroControl.CoroThrown);
-					b#return econtinuation;
-				]
-			end else
-				b#void_block [
-					b#assign etmp_error eerr_field;
-					b#break p;
-				]
-		in
-		let echeck = CoroControl.make_custom_control_switch com.basic esubject [
-			[CoroControl.CoroReturned], ereturned;
-			[CoroControl.CoroThrown], ethrown;
-		] p in
-		(cororesult_var, echeck)
+		if outcome.CoroConfig.no_throw then
+			(* Callee can't throw, and we know it can't suspend (no_suspend = true),
+			   so the result is always Returned. No switch needed. *)
+			(cororesult_var, ereturned)
+		else begin
+			let ethrown =
+				if ctx.num_states = 1 then begin
+					(* Single-state: no while loop to break out of.
+					   Emit the error handler directly (equivalent to eexchandle). *)
+					let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+					let eaccess = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] build_cf build_cf.cf_type in
+					let ewrapped_call = mk (TCall (eaccess, [])) com.basic.tvoid p in
+					b#void_block [
+						b#assign etmp_error eerr_field;
+						b#assign eerror etmp_error;
+						ewrapped_call;
+						b#assign exprs.estate (CoroControl.mk_control com.basic CoroControl.CoroThrown);
+						b#return econtinuation;
+					]
+				end else
+					b#void_block [
+						b#assign etmp_error eerr_field;
+						b#break p;
+					]
+			in
+			let echeck = CoroControl.make_custom_control_switch com.basic esubject [
+				[CoroControl.CoroReturned], ereturned;
+				[CoroControl.CoroThrown], ethrown;
+			] p in
+			(cororesult_var, echeck)
+		end
 end
 
 
@@ -543,7 +558,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p
 	in
 
-	let etry = if ctx.config.nothrow then
+	let etry = if ctx.config.outcome.no_throw then
 		eloop
 	else
 		mk (TTry (
