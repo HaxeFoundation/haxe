@@ -401,16 +401,16 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 									(* Inline path: add the call as a statement in the current block,
 									   no new state is created. *)
 									let needs_result = match ret with RBlock | RTailBlock -> false | _ -> true in
-									let v_opt, ev =
+									let e_opt, ev =
 										if needs_result then
-											let v = tmp_local cb e.etype None e.epos in
-											Some v, Texpr.Builder.make_local v v.v_pos
+											let e = Lazy.force etmp_result in
+											(Some e), e
 										else
 											None, e_no_value
 									in
 									let cs_result = if needs_result then SusResult else SusBlock in
 									let suspend = { cs_fun = e1; cs_args = el; cs_pos = e.epos; cs_result; cs_kind } in
-									add_expr cb (deferred.make_inline_never_call_stmt suspend v_opt);
+									add_expr cb (deferred.make_inline_never_call_stmt suspend e_opt);
 									Some (cb, ev)
 								end
 							| _ ->

@@ -424,8 +424,8 @@ let make_deferred_api ctx b =
 	let make_inline_tail_call call =
 		make_deferred (fun () -> (Option.get !make_inline_tail_call_impl) call) t_dynamic (* TODO: ? *)
 	in
-	let make_inline_never_call_stmt call v_opt =
-		make_deferred (fun () -> (Option.get !make_inline_never_call_stmt_impl) call v_opt) t_dynamic
+	let make_inline_never_call_stmt call e_opt =
+		make_deferred (fun () -> (Option.get !make_inline_never_call_stmt_impl) call e_opt) t_dynamic
 	in
 	let make_this e =
 		make_deferred (fun() -> (Option.get !make_this_impl) e) e.etype
@@ -607,8 +607,8 @@ let fun_to_coro ctx coro_type =
 				let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
 				b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
 			);
-			make_inline_never_call_stmt = (fun call v_opt ->
-				let (ecall, echeck) = CoroToTexpr.SuspensionCalls.make_never_call_and_check ctx cont exprs call v_opt in
+			make_inline_never_call_stmt = (fun call e_opt ->
+				let (ecall, echeck) = CoroToTexpr.SuspensionCalls.make_never_call_and_check ctx cont exprs call e_opt in
 				b#void_block [stack_item_inserter call.cs_pos; ecall; echeck]
 			);
 			make_this = (fun e ->

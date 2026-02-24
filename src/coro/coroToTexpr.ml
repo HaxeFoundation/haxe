@@ -311,7 +311,7 @@ module SuspensionCalls = struct
 	   For single-state coroutines there is no enclosing while loop, so the Thrown
 	   branch emits the full error-handler inline instead of using `break`.
 	   If the callee also has no_throw, the result is set directly without any switch. *)
-	let make_never_call_and_check ctx cont exprs call v_opt =
+	let make_never_call_and_check ctx cont exprs call e_opt =
 		let {econtinuation;eerror;etmp_error;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
@@ -319,11 +319,11 @@ module SuspensionCalls = struct
 		let outcome = call.cs_kind in
 		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
 		let (esubject, eres, eerr_field) = unpack_result_fields ctx cont ecororesult in
-		let ereturned = match v_opt with
+		let ereturned = match e_opt with
 			| None ->
 				b#void_block []
-			| Some v ->
-				b#assign (b#local v p) eres
+			| Some e ->
+				b#assign e eres
 		in
 		if outcome.CoroConfig.no_throw then
 			(* Callee can't throw, and we know it can't suspend (no_suspend = true),
