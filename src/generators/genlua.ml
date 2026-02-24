@@ -64,6 +64,7 @@ type ctx = {
     mutable lua_vanilla : bool;
     mutable lua_ver : float;
     mutable declared_locals : (string, unit) Hashtbl.t;
+    mutable in_pcall : bool;
 }
 
 type object_store = {
@@ -826,7 +827,7 @@ and gen_expr ?(local=true) ctx e = begin
         gen_paren ctx [e];
     | TMeta (_,e) ->
         gen_expr ctx e
-    | TReturn eo -> gen_return ctx e eo true;
+    | TReturn eo -> gen_return ctx e eo ctx.in_pcall;
     | TBreak ->
         if not ctx.loop_ctx.in_loop then unsupported e.epos;
         if ctx.loop_ctx.handle_continue then
@@ -1079,7 +1080,10 @@ and gen_expr ?(local=true) ctx e = begin
             ctx.loop_ctx <- { ctx.loop_ctx with in_loop_try = true };
         println ctx "local _hx_status, _hx_result = pcall(function() ";
         let b = open_block ctx in
+        let old_in_pcall = ctx.in_pcall in
+        ctx.in_pcall <- true;
         gen_expr ctx e;
+        ctx.in_pcall <- old_in_pcall;
         b();
         println ctx "return _hx_pcall_default";
         println ctx "end)";
@@ -1200,6 +1204,10 @@ and gen_block_element ctx e  =
                 | [] -> ()
                 | [e] -> gen_block_element ctx e
                 | _ -> Globals.die "" __LOC__)
+        | TReturn eo ->
+            newline ctx;
+            gen_return ctx e eo ctx.in_pcall;
+            semicolon ctx;
         | _ ->
             newline ctx;
             gen_expr ctx e;
@@ -1515,6 +1523,8 @@ and gen_bitop ctx op e1 e2 =
     spr ctx ",";
     gen_value ctx e2;
     spr ctx ")"
+
+
 
 and gen_return ctx e eo wrap =
     if ctx.in_value <> None then unsupported e.epos;
@@ -1922,6 +1932,7 @@ let alloc_ctx com =
                 float_of_string (Gctx.defined_value com Define.LuaVer)
             with | Not_found -> 5.2);
         declared_locals = Hashtbl.create 0;
+        in_pcall = false;
     } in
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
