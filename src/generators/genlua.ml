@@ -60,7 +60,6 @@ type ctx = {
     mutable id_counter : int;
     mutable type_accessor : module_type -> string;
     mutable separator : bool;
-    mutable found_expose : bool;
     mutable lua_jit : bool;
     mutable lua_vanilla : bool;
     mutable lua_ver : float;
@@ -73,12 +72,6 @@ type object_store = {
 }
 
 let replace_float_separators s =  Texpr.replace_separators s ""
-
-let debug_expression expression  =
-    " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
-
-let debug_type t  =
-    " --[[ " ^ Type.s_type_kind t  ^ " --]] ";;
 
 let flat_path (p,s) =
     (* Replace _ with __ in paths to prevent name collisions. *)
@@ -182,15 +175,6 @@ let println ctx =
         end)
 
 let unsupported p = raise_typing_error "This expression cannot be compiled to Lua" p
-
-let basename path =
-    try
-        let idx = String.rindex path '/' in
-        String.sub path (idx + 1) (String.length path - idx - 1)
-    with Not_found -> path
-
-let newprop ctx =
-    print ctx "\n%s" ctx.tabs
 
 let semicolon ctx =
     match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -1226,13 +1210,6 @@ and gen_block_element ctx e  =
     end;
     clear_mapping ()
 
-and is_const_null e =
-    match e.eexpr with
-    | TConst TNull ->
-        true
-    | _ ->
-        false
-
     (* values generated in anon structures can get modified.  Functions are bind-ed *)
     (* and include a dummy "self" leading variable so they can be called like normal *)
     (* instance methods *)
@@ -1251,7 +1228,7 @@ and gen_anon_value ctx e =
              |_ -> ());
             spr ctx "end");
         ctx.separator <- true
-    | _ when (is_function_type e.etype) && not (is_const_null e) ->
+    | _ when (is_function_type e.etype) && e.eexpr <> TConst TNull ->
         spr ctx "function(_,...) return (";
         gen_value ctx e;
         spr ctx ")(...) end";
@@ -1744,12 +1721,10 @@ let generate_class ctx c =
 
     if (has_prototype ctx c) then begin
         println ctx "%s.prototype = _hx_e();" p;
-        let count = ref 0 in
         List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f) ) c.cl_ordered_fields;
         if (has_class ctx c) then begin
-            newprop ctx;
+            newline ctx;
             println ctx "%s.prototype.__class__ =  %s" p p;
-            incr count;
         end;
 
         if has_property_reflection then begin
@@ -1757,7 +1732,7 @@ let generate_class ctx c =
             (match c.cl_super with
              | _ when props = [] -> ()
              | _ ->
-                 newprop ctx;
+                 newline ctx;
                  println ctx "%s.prototype.__properties__ =  {%s}" p (gen_props props));
         end;
         (match c.cl_super with
@@ -1943,7 +1918,6 @@ let alloc_ctx com =
         id_counter = 0;
         type_accessor = (fun _ -> Globals.die "" __LOC__);
         separator = false;
-        found_expose = false;
         lua_jit = Gctx.defined com Define.LuaJit;
         lua_vanilla = Gctx.defined com Define.LuaVanilla;
         lua_ver = (try
