@@ -155,25 +155,11 @@ private abstract AsyncIterablePriority(Array<Int>) {
 }
 
 function invokeCoroutine<T>(cont:IContinuation<T>, f:haxe.coro.Coroutine<() -> T>) {
-	final result:SuspensionResult<T> = f(cont);
-	switch (result.state) {
-		case Pending:
-		case Returned:
-			cont.resume(result.result, null);
-		case Thrown:
-			cont.resume(null, result.error);
-	}
+	f(cont);
 }
 
 function invokeCoroutineVoid(cont:IContinuation<haxe.Unit>, f:haxe.coro.Coroutine<() -> Void>) {
-	final result:SuspensionResult<haxe.Unit> = f(cont);
-	switch (result.state) {
-		case Pending:
-		case Returned:
-			cont.resume(result.result, null);
-		case Thrown:
-			cont.resume(null, result.error);
-	}
+	f(cont);
 }
 
 class TestCoroutines extends Test {
@@ -497,5 +483,38 @@ class TestCoroutines extends Test {
 		eq(null, cont.lastError);
 		// Async iterator gives [0, 1, 2]; array access would give [10, 20, 30].
 		Assert.same([0, 1, 2], cont.lastResult);
+	}
+
+	// Regression test for the synchronous manual continuation scenario: when a coroutine
+	// completes synchronously (without suspending), the continuation must be called
+	// automatically, even when invoked from a non-coroutine context.
+	function testSyncManualContinuation() {
+		// A coroutine that completes synchronously (no suspension points).
+		@:coroutine function syncPath():String {
+			return "syncPath value";
+		}
+
+		// A coroutine that suspends before returning.
+		final sus = new Suspender<String>();
+		@:coroutine function asyncPath():String {
+			sus.suspend();
+			return "asyncPath value";
+		}
+
+		// Async case: continuation not called until manually resumed.
+		var cont = new TrackingCont<String>();
+		asyncPath(cont);
+		eq(0, cont.resumeCount); // not yet resumed
+		sus.cont.resume(null, null);
+		eq(1, cont.resumeCount); // resumed after manual pump
+		eq("asyncPath value", cont.lastResult);
+		eq(null, cont.lastError);
+
+		// Sync case: continuation must be called immediately.
+		cont = new TrackingCont<String>();
+		syncPath(cont);
+		eq(1, cont.resumeCount); // resumed synchronously
+		eq("syncPath value", cont.lastResult);
+		eq(null, cont.lastError);
 	}
 }

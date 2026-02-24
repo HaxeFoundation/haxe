@@ -35,6 +35,19 @@ class SuspensionResult<T> {
 		return '[SuspensionResult ${state.toString()}, $result]';
 	}
 
+	/**
+		If this result is `Returned` or `Thrown`, resumes `cont` with the corresponding
+		result or error. If this result is `Pending`, this is a no-op.
+	**/
+	public function resolveTo(cont:IContinuation<T>) {
+		switch (state) {
+			case Pending:
+			case Returned:
+				cont.resume(result, null);
+			case Thrown:
+				cont.resume(null, error);
+		}
+	}
 
 	/**
 		Creates a new `SuspensionResult` instance with result `result`.
