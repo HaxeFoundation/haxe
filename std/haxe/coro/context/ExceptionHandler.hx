@@ -33,13 +33,13 @@ abstract class ExceptionHandler implements IElement<ExceptionHandler> {
 	The default `ExceptionHandler` implementation, which reconstructs the coroutine call stack
 	from the continuation chain and inserts it into the exception's stack trace.
 
-	Note: `insertIndex` is mutable shared state. In a scenario where multiple coroutines with a
-	shared context throw exceptions concurrently from different threads, access to `insertIndex`
-	would be unsafe. For fully thread-safe exception handling, provide a custom `ExceptionHandler`
-	implementation and add it to the coroutine context.
+	`insertIndex` is stored in thread-local storage, making this implementation safe for
+	concurrent use across multiple coroutines running on different threads.
 **/
 class DefaultExceptionHandler extends ExceptionHandler {
-	public var insertIndex:Null<Int>;
+	#if debug
+	final insertIndex = new haxe.coro.Tls<Int>();
+	#end
 
 	public function new() {}
 
@@ -49,12 +49,6 @@ class DefaultExceptionHandler extends ExceptionHandler {
 		#end
 		#if debug
 		@:privateAccess cont._hx_startedException = true;
-		#if target.threaded
-		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
-			// This could maybe be handled via a TLS...
-			return exception;
-		}
-		#end
 
 		var stack = [];
 		var skipping = 0;
@@ -99,7 +93,7 @@ class DefaultExceptionHandler extends ExceptionHandler {
 				return exception;
 		}
 		exception.stack = stack;
-		insertIndex = localInsertIndex;
+		insertIndex.value = localInsertIndex;
 		#end
 		return exception;
 	}
@@ -112,21 +106,21 @@ class DefaultExceptionHandler extends ExceptionHandler {
 		if (@:privateAccess cont._hx_startedException) {
 			return;
 		}
-		#if target.threaded
-		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
-			// This could maybe be handled via a TLS...
-			return;
-		}
-		#end
+
 		// Can happen in the case of ImmediateSuspensionResult.withError
-		if (insertIndex == null) {
+		if (insertIndex.value == null) {
 			startException(cont, cont.error);
 		}
+
 		final stackItem = cont.getStackItem();
 		if (stackItem != null) {
-			final stack = cont.error.stack.asArray();
-			stack.insert(insertIndex++, stackItem);
-			cont.error.stack = stack;
+			final idx = insertIndex.value;
+			if (idx != null) {
+				final stack = cont.error.stack.asArray();
+				stack.insert(idx, stackItem);
+				cont.error.stack = stack;
+				insertIndex.value = idx + 1;
+			}
 		}
 		#end
 	}
