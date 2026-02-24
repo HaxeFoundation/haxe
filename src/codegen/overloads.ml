@@ -237,17 +237,17 @@ struct
 			   doesn't always terminate (via throw/break/continue/return). This detects
 			   whether a function body could actually return a value. *)
 			let has_meaningful_return e =
-				let result = ref false in
-				let rec loop e =
-					if !result then ()
-					else match e.eexpr with
+				let rec loop e = match e.eexpr with
 					| TReturn (Some ret_e) when not (DeadEnd.has_dead_end ret_e) ->
-						result := true
+						raise Exit
 					| TFunction _ -> ()
 					| _ -> iter loop e
 				in
-				loop e;
-				!result
+				try
+					loop e;
+					false
+				with Exit ->
+					true
 			in
 			let rate_arg t e = match e.eexpr with
 				(* if the argument is an implicit cast, we need to start with a penalty *)
