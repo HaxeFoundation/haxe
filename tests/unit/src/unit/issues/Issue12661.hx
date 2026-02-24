@@ -26,6 +26,12 @@ class Issue12661 extends Test {
 		// Throw inside an infinite while loop should prefer Void overload
 		eq(1, check(() -> { while (true) throw "loop"; }));
 
+		// String literal return should prefer String overload over Void
+		eq(2, check(() -> "foo"));
+
+		// Block with String value should prefer String overload over Void
+		eq(2, check(() -> { var s = "bar"; s; }));
+
 		// Normal overload resolution still works: concrete return types disambiguate
 		eq(42, check2(() -> 42));
 		eq("hi", check2(() -> "hi"));

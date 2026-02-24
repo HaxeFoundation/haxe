@@ -234,20 +234,12 @@ struct
 		| [v] -> [v]
 		| compatible ->
 			(* Returns true if expression e contains a TReturn (Some ret_e) where ret_e
-			   doesn't always terminate (via throw/break/continue/return). This detects
-			   whether a function body could actually return a value. *)
-			let has_meaningful_return e =
-				let rec loop e = match e.eexpr with
-					| TReturn (Some ret_e) when not (DeadEnd.has_dead_end ret_e) ->
-						raise Exit
-					| TFunction _ -> ()
-					| _ -> iter loop e
-				in
-				try
-					loop e;
-					false
-				with Exit ->
-					true
+			   doesn't always terminate. This detects whether a function body could
+			   actually return a value (as opposed to only throwing). *)
+			let rec has_meaningful_return e = match e.eexpr with
+				| TReturn (Some ret_e) -> not (DeadEnd.has_dead_end ret_e)
+				| TFunction _ -> false
+				| _ -> check_expr has_meaningful_return e
 			in
 			let rate_arg t e = match e.eexpr with
 				(* if the argument is an implicit cast, we need to start with a penalty *)
@@ -256,15 +248,26 @@ struct
 				| TMeta( (Meta.ImplicitCast,_,_), _) -> (max_int - 1, 0)
 				| TFunction tf ->
 					let base = rate_conv 0 t e.etype in
-					(* If the expected function type has a non-Void return type but the function
-					   body has no meaningful return statement (e.g. it only throws), add a
-					   penalty so that overloads expecting Void return are preferred *)
 					begin match follow t with
-					| TFun(_,ret) when not (ExtType.is_void (follow ret)) ->
-						if not (has_meaningful_return tf.tf_expr) then
-							(fst base + 1, snd base)
+					| TFun(_,tf_ret) ->
+						let expected_ret = follow tf_ret in
+						if ExtType.is_void expected_ret then
+							(* If the body has a non-Void, non-Dynamic type, a value is being
+							   discarded - penalize this Void overload so that a non-Void one
+							   with a direct return type match is preferred (e.g. () -> "foo"
+							   should prefer () -> String over () -> Void) *)
+							let body_type = follow tf.tf_expr.etype in
+							(match body_type with
+							| TDynamic _ -> base
+							| _ when ExtType.is_void body_type -> base
+							| _ -> (fst base + 1, snd base))
 						else
-							base
+							(* If the body has no meaningful return (e.g. it only throws),
+							   penalize this non-Void overload so that () -> Void is preferred *)
+							if not (has_meaningful_return tf.tf_expr) then
+								(fst base + 1, snd base)
+							else
+								base
 					| _ -> base
 					end
 				| _ -> rate_conv 0 t e.etype
