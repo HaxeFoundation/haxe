@@ -410,7 +410,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 									in
 									let cs_result = if needs_result then SusResult else SusBlock in
 									let suspend = { cs_fun = e1; cs_args = el; cs_pos = e.epos; cs_result; cs_kind } in
-									add_expr cb (deferred.make_inline_never_call_stmt suspend e_opt);
+									add_expr cb (deferred.make_sync_call suspend e_opt);
 									Some (cb, ev)
 								end
 							| _ ->

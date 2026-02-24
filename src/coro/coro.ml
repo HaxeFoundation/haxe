@@ -414,7 +414,7 @@ let make_deferred_api ctx b =
 	(* These refs will be filled in after the continuation API is created (step 4). *)
 	let make_inline_return_impl = ref None in
 	let make_inline_tail_call_impl = ref None in
-	let make_inline_never_call_stmt_impl = ref None in
+	let make_sync_call_impl = ref None in
 	let make_this_impl = ref None in
 	let make_super_field_impl = ref None in
 
@@ -424,8 +424,8 @@ let make_deferred_api ctx b =
 	let make_inline_tail_call call =
 		make_deferred (fun () -> (Option.get !make_inline_tail_call_impl) call) t_dynamic (* TODO: ? *)
 	in
-	let make_inline_never_call_stmt call e_opt =
-		make_deferred (fun () -> (Option.get !make_inline_never_call_stmt_impl) call e_opt) t_dynamic
+	let make_sync_call call e_opt =
+		make_deferred (fun () -> (Option.get !make_sync_call_impl) call e_opt) t_dynamic
 	in
 	let make_this e =
 		make_deferred (fun() -> (Option.get !make_this_impl) e) e.etype
@@ -436,14 +436,14 @@ let make_deferred_api ctx b =
 	let deferred = {
 		make_inline_return;
 		make_inline_tail_call;
-		make_inline_never_call_stmt;
+		make_sync_call;
 		make_this;
 		make_super_field;
 	} in
 	let install api =
 		make_inline_return_impl := Some api.make_inline_return;
 		make_inline_tail_call_impl := Some api.make_inline_tail_call;
-		make_inline_never_call_stmt_impl := Some api.make_inline_never_call_stmt;
+		make_sync_call_impl := Some api.make_sync_call;
 		make_this_impl := Some api.make_this;
 		make_super_field_impl := Some api.make_super_field;
 	in
@@ -607,8 +607,8 @@ let fun_to_coro ctx coro_type =
 				let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
 				b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
 			);
-			make_inline_never_call_stmt = (fun call e_opt ->
-				let (ecall, echeck) = CoroToTexpr.SuspensionCalls.make_never_call_and_check ctx cont exprs call e_opt in
+			make_sync_call = (fun call e_opt ->
+				let (ecall, echeck) = CoroToTexpr.SuspensionCalls.make_sync_call_and_check ctx cont exprs call e_opt in
 				b#void_block [stack_item_inserter call.cs_pos; ecall; echeck]
 			);
 			make_this = (fun e ->

@@ -311,7 +311,7 @@ module SuspensionCalls = struct
 	   For single-state coroutines there is no enclosing while loop, so the Thrown
 	   branch emits the full error-handler inline instead of using `break`.
 	   If the callee also has no_throw, the result is set directly without any switch. *)
-	let make_never_call_and_check ctx cont exprs call e_opt =
+	let make_sync_call_and_check ctx cont exprs call e_opt =
 		let {econtinuation;eerror;etmp_error;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
