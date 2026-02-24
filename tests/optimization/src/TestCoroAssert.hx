@@ -80,8 +80,8 @@ class TestCoroAssert {
 		return neverSuspendingInt();
 	}
 
-	// Calling a Never coroutine with code after it: two states.
-	@:coroutine(assert = {numStates: 2})
+	// Calling a Never coroutine with code after it: still a single state (inline path).
+	@:coroutine(assert = {numStates: 1, numHoisted: 0})
 	static function fCallNeverWithMore():Int {
 		var x = neverSuspendingInt();
 		return x + 1;

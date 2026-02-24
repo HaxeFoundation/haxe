@@ -242,27 +242,7 @@ module SuspensionCalls = struct
 			let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
 			let ereturn_suspended = b#void_block [b#return esuspended_val] in
 			(ecall_stmt, ereturn_suspended)
-		| SuspendsNever ->
-			(* Never-suspending: inline result check without a Pending case.
-			   We still inspect the outcome for Thrown vs Returned, but never suspend. *)
-			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
-			let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
-			let eres = base_continuation_field_on ecororesult cont.result com.basic.tany in
-			let ereturned = match call.cs_result with
-				| SusBlock -> b#void_block []
-				| SusResult -> b#assign (Lazy.force etmp_result) eres
-			in
-			let eerror_field = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
-			let ethrown = b#void_block [
-				b#assign etmp_error eerror_field;
-				b#break p;
-			] in
-			let echeck = CoroControl.make_custom_control_switch com.basic esubject [
-				[CoroControl.CoroReturned], ereturned;
-				[CoroControl.CoroThrown], ethrown;
-			] p in
-			(cororesult_var, echeck)
-		| SuspendsSometimes ->
+		| SuspendsSometimes | SuspendsNever ->
 			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
 			let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
 			let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
@@ -317,6 +297,53 @@ module SuspensionCalls = struct
 				switch_exhaustive = true;
 			}) com.basic.tvoid p in
 			(cororesult_var, estate_switch)
+
+	(* Generate an inline call+result check for a Never-suspending callee.
+	   Returns (call_stmt, check_stmt) — assembled into a void_block by the caller.
+	   For single-state coroutines there is no enclosing while loop, so the Thrown
+	   branch emits the full error-handler inline instead of using `break`. *)
+	let make_never_call_and_check ctx cont exprs call v_opt =
+		let {econtinuation;eerror;etmp_error;_} = exprs in
+		let com = ctx.typer.com in
+		let b = ctx.builder in
+		let p = call.cs_pos in
+		let base_cf e cf t = b#instance_field e cont.suspension_result_class [com.basic.tany] cf t in
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
+		let open ContTypes in
+		let esubject = base_cf ecororesult cont.state cont.state.cf_type in
+		let eerr_field = base_cf ecororesult cont.error cont.error.cf_type in
+		let ereturned = match v_opt with
+			| None ->
+				b#void_block []
+			| Some v ->
+				let eres = base_cf ecororesult cont.result com.basic.tany in
+				b#assign (b#local v p) eres
+		in
+		let ethrown =
+			if ctx.num_states = 1 then begin
+				(* Single-state: no while loop to break out of.
+				   Emit the error handler directly (equivalent to eexchandle). *)
+				let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+				let eaccess = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] build_cf build_cf.cf_type in
+				let ewrapped_call = mk (TCall (eaccess, [])) com.basic.tvoid p in
+				b#void_block [
+					b#assign etmp_error eerr_field;
+					b#assign eerror etmp_error;
+					ewrapped_call;
+					b#assign exprs.estate (CoroControl.mk_control com.basic CoroControl.CoroThrown);
+					b#return econtinuation;
+				]
+			end else
+				b#void_block [
+					b#assign etmp_error eerr_field;
+					b#break p;
+				]
+		in
+		let echeck = CoroControl.make_custom_control_switch com.basic esubject [
+			[CoroControl.CoroReturned], ereturned;
+			[CoroControl.CoroThrown], ethrown;
+		] p in
+		(cororesult_var, echeck)
 end
 
 

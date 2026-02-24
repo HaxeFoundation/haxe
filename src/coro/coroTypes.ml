@@ -57,6 +57,7 @@ and coro_suspend = {
 type coro_deferred_api = {
 	make_inline_return : texpr option -> pos -> texpr;
 	make_inline_tail_call : coro_suspend -> texpr;
+	make_inline_never_call_stmt : coro_suspend -> tvar option -> texpr;
 	make_this : texpr -> texpr;
 	make_super_field : texpr -> texpr;
 }
