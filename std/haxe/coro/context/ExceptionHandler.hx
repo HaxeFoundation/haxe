@@ -48,7 +48,7 @@ class DefaultExceptionHandler extends ExceptionHandler {
 		return exception;
 		#end
 		#if debug
-		cont._hx_startedException = true;
+		@:privateAccess cont._hx_startedException = true;
 		#if target.threaded
 		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
 			// This could maybe be handled via a TLS...
@@ -109,7 +109,7 @@ class DefaultExceptionHandler extends ExceptionHandler {
 		return;
 		#end
 		#if debug
-		if (cont._hx_startedException) {
+		if (@:privateAccess cont._hx_startedException) {
 			return;
 		}
 		#if target.threaded
