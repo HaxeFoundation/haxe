@@ -8,6 +8,21 @@ runs:
       ocaml-compiler: ${{ env.OCAML_VERSION }}
       opam-local-packages: |
         haxe.opam
+      dune-cache: true
+
+  # Cache the opam switch including all compiled haxe dependencies.
+  # This cache is placed after setup-ocaml so that on a cache hit it
+  # overwrites the switch directory (which setup-ocaml populates without
+  # haxe deps) with one that already contains all compiled packages.
+  # The post-step of actions/cache saves the switch at job end, which is
+  # after Install OCaml libraries has run, so the saved cache includes
+  # the fully-built haxe dependencies.
+  - name: Cache opam switch
+    id: cache-opam
+    uses: actions/cache@v4
+    with:
+      path: _opam
+      key: ${{ runner.os }}-${{ env.MINGW_ARCH }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
   - name: Install dependencies
     shell: pwsh
@@ -19,6 +34,7 @@ runs:
       ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
 
   - name: Install OCaml libraries
+    if: steps.cache-opam.outputs.cache-hit != 'true'
     uses: nick-fields/retry@v3
     with:
       timeout_minutes: 10
