@@ -340,10 +340,9 @@ class typed_function
 					| Some s -> name ^ "_" ^ s
 				in
 				Printf.sprintf "Closure_%s_%i" name (host_class#get_next_closure_id name)
-			| FuncStatic(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) (patch_name name)
-			| FuncMember(path,name) ->
-				Printf.sprintf "%s_%s" (snd path) (patch_name name)
+			| FuncStatic(path,name) | FuncMember(path,name) ->
+				let prefix = match fst path with [] -> snd path | pkg -> String.concat "_" pkg ^ "_" ^ snd path in
+				Printf.sprintf "%s_%s" prefix (patch_name name)
 		in
 		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
 		jc#add_typed_function jc#get_this_path;
