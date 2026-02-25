@@ -161,7 +161,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 			false
 	in
 	let map_suspension cb ret e =
-		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None in
+		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None && not ctx.typer.com.debug in
 		let exception Found in
 		let rec remap can_tco loop_depth e = match e.eexpr with
 			| TConst TThis ->
@@ -389,7 +389,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								(* For a Never-suspending callee in TCO tail position, keep the
 								   existing tail-call optimisation (single-state, no resume block). *)
 								let is_tco = match ret with
-									| RTailBlock | RTailReturn -> cb.cb_catch = None
+									| RTailBlock | RTailReturn -> cb.cb_catch = None && not ctx.typer.com.debug
 									| _ -> false
 								in
 								if is_tco then begin
@@ -421,11 +421,11 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 									let cb_next = make_next_block () in
 									cb_next.cb_stack_value <- Some ev;
 									SusResult,Some(cb_next,ev)
-								| RTailBlock when cb.cb_catch = None ->
+								| RTailBlock when cb.cb_catch = None && not ctx.typer.com.debug ->
 									SusBlock,None
 								| RBlock | RTailBlock ->
 									SusBlock,Some ((make_next_block (),e_no_value))
-								| RTailReturn when cb.cb_catch = None ->
+								| RTailReturn when cb.cb_catch = None && not ctx.typer.com.debug ->
 									SusResult,None
 								| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
 									SusResult,Some ((make_next_block ()),Lazy.force etmp_result)

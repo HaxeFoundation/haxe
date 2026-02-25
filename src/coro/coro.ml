@@ -287,8 +287,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, initial_state, fields, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args exprs coro_class.name_pos stack_item_inserter start_exception in
-	(* Check @:coroutine(assert) config *)
-	check_assertions ctx.config.assert_config num_states (List.length fields) coro_class.name_pos;
+	(* Check @:coroutine(assert) config — skip numStates assertion in debug mode
+	   because debug mode disables TCO which may add extra states. *)
+	if not ctx.typer.com.debug then
+		check_assertions ctx.config.assert_config num_states (List.length fields) coro_class.name_pos;
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -297,6 +299,14 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 
 	let {CoroToTexpr.ecompletion;eresult;_} = exprs in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
+
+	(* In debug mode, insert an initial setStackItem call at the very start of
+	   invokeResume so that the continuation always has a valid stack item, even in
+	   single-state coroutines where no suspension call triggers setStackItem. *)
+	let eloop =
+		let einit = stack_item_inserter coro_class.name_pos in
+		b#void_block [einit; eloop]
+	in
 
 	let invoke_resume_field = match gen_mode with
 		| GenInline cfo ->
@@ -549,17 +559,27 @@ let fun_to_coro ctx coro_type =
 	let etmp_error = b#local vtmp_error coro_class.name_pos in
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
-		let field, eargs =
+		if not ctx.typer.com.debug then
+			b#void_block []
+		else begin
+		let field = PMap.find "setStackItem" cont.base_continuation_class.cl_fields in
+		(* setStackItem(kind, cls, func, id, file, line, column, pmin, pmax)
+		   kind: 0 = ClassFunction, 1 = LocalFunction *)
+		let eargs =
 			match coro_type with
 			| ClassField (cls, field, _, _) ->
-				PMap.find "setClassFuncStackItem" cont.base_continuation_class.cl_fields,
 				[
+					b#int 0 coro_class.name_pos;
 					b#string (s_class_path cls) coro_class.name_pos;
 					b#string field.cf_name coro_class.name_pos;
+					b#int 0 coro_class.name_pos;
 				]
 			| LocalFunc (_, v) ->
-				PMap.find "setLocalFuncStackItem" cont.base_continuation_class.cl_fields,
 				[
+					b#int 1 coro_class.name_pos;
+					(* Placeholder values for ClassFunction-only parameters. *)
+					b#string "" coro_class.name_pos;
+					b#string "" coro_class.name_pos;
 					b#int v.v_id coro_class.name_pos;
 				]
 		in
@@ -573,6 +593,7 @@ let fun_to_coro ctx coro_type =
 			b#int pos.pmax coro_class.name_pos;
 		] in
 		mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos
+		end
 	in
 
 	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
@@ -625,11 +646,15 @@ let fun_to_coro ctx coro_type =
 	(* 6. Transform blocks to state machine *)
 
 	let start_exception =
-		let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
-		let ef = continuation_field cf cf.cf_type in
-		(fun e ->
-			mk (TCall(ef,[e])) basic.texception coro_class.name_pos
-		)
+		if not ctx.typer.com.debug then
+			(fun e -> e)
+		else begin
+			let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
+			let ef = continuation_field cf cf.cf_type in
+			(fun e ->
+				mk (TCall(ef,[e])) basic.texception coro_class.name_pos
+			)
+		end
 	in
 	let tf_expr = coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation gen_mode stack_item_inserter start_exception in
 

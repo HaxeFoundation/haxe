@@ -210,10 +210,14 @@ let handle_locals ctx cls params states tf_args econtinuation =
 
 let build_call_stack ctx cont econtinuation p =
 	let b = ctx.builder in
-	let basic = ctx.typer.t in
-	let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
-	let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
-	mk (TCall (eaccess, [])) basic.tvoid p
+	if not ctx.typer.com.debug then
+		b#void_block []
+	else begin
+		let basic = ctx.typer.t in
+		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+		let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
+		mk (TCall (eaccess, [])) basic.tvoid p
+	end
 
 module SuspensionCalls = struct
 	(* Save a reference to the top-level make_suspending_call before any local shadowing *)
