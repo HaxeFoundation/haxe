@@ -210,7 +210,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 let build_call_stack ctx cont econtinuation p =
 	let b = ctx.builder in
 	if not ctx.typer.com.debug then
-		mk (TBlock []) ctx.typer.t.tvoid p
+		b#void_block_at [] p
 	else begin
 		let basic = ctx.typer.t in
 		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
@@ -266,7 +266,7 @@ module SuspensionCalls = struct
 			let esuspended = b#void_block [b#return (make_suspended_return b cont p)] in
 			let ereturned = match call.cs_result with
 				| SusBlock ->
-					mk (TBlock []) com.basic.tvoid p
+					b#void_block_at [] p
 				| SusResult ->
 					b#assign (Lazy.force etmp_result) eres
 			in
@@ -302,7 +302,6 @@ module SuspensionCalls = struct
 	   If the callee also has no_throw, the result is set directly without any switch. *)
 	let make_sync_call_and_check ctx cont exprs call e_opt =
 		let {econtinuation;eerror;etmp_error;_} = exprs in
-		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
 		let outcome = call.cs_kind in
@@ -310,7 +309,7 @@ module SuspensionCalls = struct
 		let (esubject, eres, eerr_field) = unpack_result_fields ctx cont ecororesult in
 		let ereturned = match e_opt with
 			| None ->
-				mk (TBlock []) com.basic.tvoid p
+				b#void_block_at [] p
 			| Some e ->
 				b#assign e eres
 		in
@@ -528,7 +527,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let eloop = match states with
 		| [state] ->
-			mk (TBlock state.cs_el) com.basic.tvoid (Texpr.punion_el p state.cs_el)
+			b#void_block_at state.cs_el (Texpr.punion_el p state.cs_el)
 		| _ ->
 			let ethrow = b#void_block [
 				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
@@ -537,7 +536,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			let switch =
 				let cases = List.map (fun state ->
 					{case_patterns = [b#int state.cs_id p];
-						case_expr = mk (TBlock state.cs_el) com.basic.tvoid (Texpr.punion_el p state.cs_el);
+						case_expr = b#void_block_at state.cs_el (Texpr.punion_el p state.cs_el);
 					}) states in
 				mk_switch egoto cases (Some ethrow) true
 			in
