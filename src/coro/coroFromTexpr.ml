@@ -720,7 +720,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		let cb_next = lazy (make_block None) in
 		let catches = List.map (fun (v,e) ->
 			let cb_catch = block_from_e e in
-			add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
+			add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid v.v_pos);
 			let cb_catch_next = loop_block cb_catch ret e in
 			Option.may (fun (cb_catch_next,_) ->
 				fall_through cb_catch_next (Lazy.force cb_next);

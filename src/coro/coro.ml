@@ -7,10 +7,6 @@ open ContTypes
 
 let next_closure_id = Hashtbl.create 0;
 
-type coro_for =
-	| LocalFunc of tfunc * tvar
-	| ClassField of tclass * tclass_field * tfunc * pos (* expr pos *)
-
 type coro_cls = {
 	params : typed_type_param list;
 	param_types : Type.t list;
@@ -41,15 +37,14 @@ module ContinuationClassBuilder = struct
 		continuation_api : ContTypes.continuation_api;
 	}
 
-	let create ctx coro_type =
+	let create ctx =
 		(* Mangle class names to hopefully get unique names and avoid collisions *)
-		let name, result_type, name_pos =
+		let name, result_type =
 			let managled_class_name = Printf.sprintf "HxCoro_%s_%s" (ctx.typer.c.curclass.cl_path |> fst |> String.concat "_") (ctx.typer.c.curclass.cl_path |> snd) in
-			match coro_type with
+			match ctx.coro_type with
 			| ClassField (_, field, tf, _) ->
 				Printf.sprintf "%s_%s" managled_class_name field.cf_name,
-				tf.tf_type,
-				field.cf_name_pos
+				tf.tf_type
 			| LocalFunc(f,v) ->
 				let next_id =
 					match Hashtbl.find_opt next_closure_id managled_class_name with
@@ -62,8 +57,10 @@ module ContinuationClassBuilder = struct
 					in
 				let n = Printf.sprintf "%s_AnonFunc%i" managled_class_name next_id in
 
-				n, f.tf_type, v.v_pos
+				n, f.tf_type
 			in
+
+		let name_pos = ctx.class_name_pos in
 
 		let result_type = if ExtType.is_void (follow result_type) then ctx.typer.t.tunit else result_type in
 		(* Is there a pre-existing function somewhere to a valid path? *)
@@ -115,7 +112,7 @@ module ContinuationClassBuilder = struct
 				cont_type = TInst(continuation_api.base_continuation_class,[result_type]);
 			};
 			type_param_subst = subst;
-			coro_type  = coro_type;
+			coro_type  = ctx.coro_type;
 			continuation_api;
 		}
 
@@ -459,13 +456,13 @@ let make_deferred_api ctx b =
 	in
 	deferred,install
 
-let fun_to_coro ctx coro_type =
+let fun_to_coro ctx =
 	let basic = ctx.typer.t in
 	let b = ctx.builder in
 
 	(* 1. Setup continuation class *)
 
-	let coro_class = ContinuationClassBuilder.create ctx coro_type in
+	let coro_class = ContinuationClassBuilder.create ctx in
 
 	(* 2. Create expressions and variables that we need for expr_to_coro *)
 
@@ -476,7 +473,7 @@ let fun_to_coro ctx coro_type =
 	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
 
 	let expr, args, name =
-		match coro_type with
+		match ctx.coro_type with
 		| ClassField (_, cf, f, _) ->
 			f.tf_expr, f.tf_args, cf.cf_name
 		| LocalFunc(f,v) ->
@@ -566,7 +563,7 @@ let fun_to_coro ctx coro_type =
 		(* setStackItem(kind, cls, func, id, file, line, column, pmin, pmax)
 		   kind: 0 = ClassFunction, 1 = LocalFunction *)
 		let eargs =
-			match coro_type with
+			match ctx.coro_type with
 			| ClassField (cls, field, _, _) ->
 				[
 					b#int 0 coro_class.name_pos;
@@ -615,7 +612,7 @@ let fun_to_coro ctx coro_type =
 					b#assign egoto (b#int (-1) pos);
 				] in
 				let stmts = stmts @ [
-					b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned);
+					b#assign estate (b#int (Obj.magic CoroReturned) pos);
 				] in
 				let stmts = match e1_opt with
 					| None -> stmts
@@ -680,12 +677,18 @@ let fun_to_coro ctx coro_type =
 	if ctx.config.debug then print_endline ("AFTER:\n" ^ (s_expr_debug e));
 	e
 
-let create_coro_context typer config =
-	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t in
+let create_coro_context typer config coro_type =
+	let class_name_pos = match coro_type with
+		| ClassField (_, field, _, _) -> field.cf_name_pos
+		| LocalFunc (_, v) -> v.v_pos
+	in
+	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t class_name_pos in
 	let ctx = {
 		builder;
 		typer;
 		config;
+		coro_type;
+		class_name_pos;
 		deferred_exprs = Hashtbl.create 0;
 		has_capture_vars = false;
 		captures_this = false;

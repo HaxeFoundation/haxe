@@ -1132,7 +1132,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	let vname,pname= match name with
 		| None ->
 			if params <> [] || is_coroutine then begin
-				Some(gen_local_prefix,VGenerated),null_pos
+				Some(gen_local_prefix,VGenerated),p
 			end else
 				None,p
 		| Some (name,pn) ->
@@ -1261,7 +1261,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	} in
 	let e = mk (TFunction tf) ft p in
 	let e = match TypeloadFields.get_coro_config ctx ctx.f.meta with
-		| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config) (LocalFunc(tf,Option.get v))
+		| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.LocalFunc(tf,Option.get v)))
 		| None -> e
 	in
 	match v with

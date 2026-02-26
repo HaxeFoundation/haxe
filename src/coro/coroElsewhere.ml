@@ -6,8 +6,11 @@ open Globals
 open Ast
 open Type
 
-class texpr_builder (basic : basic_types) =
+class texpr_builder (basic : basic_types) (default_pos : pos) =
 object(self)
+
+	method tvoid = basic.tvoid
+
 	method assign (lhs : texpr) (rhs : texpr) =
 		mk (TBinop(OpAssign,lhs,rhs)) lhs.etype (punion lhs.epos rhs.epos)
 
@@ -81,6 +84,9 @@ object(self)
 		self#var_init v (self#null v.v_type v.v_pos)
 
 	method void_block (el : texpr list) =
-		mk (TBlock el) basic.tvoid (Texpr.punion_el null_pos el)
+		mk (TBlock el) basic.tvoid (Texpr.punion_el default_pos el)
+
+	method void_block_at (el : texpr list) (p : pos) =
+		mk (TBlock el) basic.tvoid p
 
 end
