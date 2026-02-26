@@ -877,7 +877,7 @@ module TypeBinding = struct
 						| _ -> TClass.set_cl_init c e);
 					let e = mk (TFunction tf) t p in
 					let e = match get_coro_config ctx cf.cf_meta with
-						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config) (ClassField(c, cf, tf, p))
+						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.ClassField(c, cf, tf, p)))
 						| None -> e
 					in
 					cf.cf_expr <- Some e;

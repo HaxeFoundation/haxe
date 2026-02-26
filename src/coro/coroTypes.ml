@@ -1,6 +1,10 @@
 open Globals
 open Type
 
+type coro_for =
+	| LocalFunc of tfunc * tvar
+	| ClassField of tclass * tclass_field * tfunc * pos (* expr pos *)
+
 type suspend_expr =
 	| SusBlock
 	| SusResult
@@ -63,9 +67,11 @@ type coro_deferred_api = {
 }
 
 type coro_ctx = {
-	mutable builder : CoroElsewhere.texpr_builder;
+	builder : CoroElsewhere.texpr_builder;
 	typer : Typecore.typer;
 	config : CoroConfig.t;
+	coro_type : coro_for;
+	class_name_pos : pos;
 	deferred_exprs : (int, unit -> texpr) Hashtbl.t;
 	mutable has_capture_vars : bool;
 	mutable captures_this : bool;
