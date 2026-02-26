@@ -762,17 +762,30 @@ and gen_expr ?(local=true) ctx e = begin
         gen_tbinop ctx op e1 e2;
     | TField (x,FClosure (_,f)) ->
         add_feature ctx "use._hx_bind";
+        let fname = if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name) in
+        if is_string_expr x then begin
+            add_feature ctx "use.string";
+            (match x.eexpr with
+             | TConst _ | TLocal _ ->
+                 print ctx "_hx_bind(";
+                 gen_value ctx x;
+                 print ctx ",String.prototype%s)" fname
+             | _ ->
+                 print ctx "(function() local __=";
+                 gen_value ctx x;
+                 print ctx "; return _hx_bind(__,String.prototype%s) end)()" fname)
+        end else
         (match x.eexpr with
          | TConst _ | TLocal _ ->
              print ctx "_hx_bind(";
              gen_value ctx x;
              print ctx ",";
              gen_value ctx x;
-             print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+             print ctx "%s)" fname
          | _ ->
              print ctx "(function() local __=";
              gen_value ctx x;
-             print ctx "; return _hx_bind(__,__%s) end)()" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
+             print ctx "; return _hx_bind(__,__%s) end)()" fname)
     | TEnumParameter (x,_,i) ->
         gen_value ctx x;
         print ctx "[%i]" (i + 2)
