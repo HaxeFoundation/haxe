@@ -6,13 +6,13 @@ type coro_control =
 	| CoroReturned
 	| CoroThrown
 
-let mk_int basic i = Texpr.Builder.make_int basic i null_pos
+let mk_int basic i p = Texpr.Builder.make_int basic i p
 
-let mk_control basic (c : coro_control) = mk_int basic (Obj.magic c)
+let mk_control basic (c : coro_control) p = mk_int basic (Obj.magic c) p
 
 let make_custom_control_switch basic e_subject cases p =
 	let cases = List.map (fun (l,e) -> {
-		case_patterns = List.map (mk_control basic) l;
+		case_patterns = List.map (fun c -> mk_control basic c p) l;
 		case_expr = e;
 	}) cases in
 	let switch = {

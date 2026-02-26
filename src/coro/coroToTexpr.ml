@@ -96,7 +96,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type null_pos null_pos in
+			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
 
 			Hashtbl.replace fields v.v_id field;
 			(* Create a fresh restored var rather than reusing the original argument variable.
@@ -211,7 +211,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 let build_call_stack ctx cont econtinuation p =
 	let b = ctx.builder in
 	if not ctx.typer.com.debug then
-		b#void_block []
+		mk (TBlock []) ctx.typer.t.tvoid p
 	else begin
 		let basic = ctx.typer.t in
 		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
@@ -267,7 +267,7 @@ module SuspensionCalls = struct
 			let esuspended = b#void_block [b#return (make_suspended_return b cont p)] in
 			let ereturned = match call.cs_result with
 				| SusBlock ->
-					b#void_block []
+					mk (TBlock []) com.basic.tvoid p
 				| SusResult ->
 					b#assign (Lazy.force etmp_result) eres
 			in
@@ -311,7 +311,7 @@ module SuspensionCalls = struct
 		let (esubject, eres, eerr_field) = unpack_result_fields ctx cont ecororesult in
 		let ereturned = match e_opt with
 			| None ->
-				b#void_block []
+				mk (TBlock []) com.basic.tvoid p
 			| Some e ->
 				b#assign e eres
 		in
@@ -329,7 +329,7 @@ module SuspensionCalls = struct
 						b#assign etmp_error eerr_field;
 						b#assign eerror etmp_error;
 						ewrapped_call;
-						b#assign exprs.estate (CoroControl.mk_control com.basic CoroControl.CoroThrown);
+						b#assign exprs.estate (CoroControl.mk_control com.basic CoroControl.CoroThrown p);
 						b#return econtinuation;
 					]
 				end else
@@ -358,7 +358,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let set_state id = b#assign egoto (b#int id p) in
 
-	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c) in
+	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c p) in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in
@@ -529,7 +529,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let eloop = match states with
 		| [state] ->
-			b#void_block state.cs_el
+			mk (TBlock state.cs_el) com.basic.tvoid (Texpr.punion_el p state.cs_el)
 		| _ ->
 			let ethrow = b#void_block [
 				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
@@ -538,7 +538,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			let switch =
 				let cases = List.map (fun state ->
 					{case_patterns = [b#int state.cs_id p];
-						case_expr = b#void_block state.cs_el;
+						case_expr = mk (TBlock state.cs_el) com.basic.tvoid (Texpr.punion_el p state.cs_el);
 					}) states in
 				mk_switch egoto cases (Some ethrow) true
 			in

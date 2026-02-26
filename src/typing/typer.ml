@@ -1132,7 +1132,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	let vname,pname= match name with
 		| None ->
 			if params <> [] || is_coroutine then begin
-				Some(gen_local_prefix,VGenerated),null_pos
+				Some(gen_local_prefix,VGenerated),p
 			end else
 				None,p
 		| Some (name,pn) ->
