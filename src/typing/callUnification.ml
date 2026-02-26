@@ -223,7 +223,7 @@ let ensure_coro_availability ctx =
    constructor call), a temp var is introduced to avoid evaluating it twice. *)
 let wrap_with_resolve_to ctx ecall econt p =
 	let basic = ctx.com.basic in
-	let b = new CoroElsewhere.texpr_builder basic in
+	let b = new CoroElsewhere.texpr_builder basic p in
 	let suspension_result_class = Lazy.force basic.tcoro.suspension_result_class in
 	let t_param = match follow ecall.etype with TInst(_, [t]) -> t | _ -> die "Expected SuspensionResult with one type parameter for coroutine call result" __LOC__ in
 	let resolve_to_cf = PMap.find "resolveTo" suspension_result_class.cl_fields in

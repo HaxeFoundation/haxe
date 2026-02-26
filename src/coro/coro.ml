@@ -321,7 +321,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let hoisted_args = List.filter_map (fun (v, _) ->
 		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
 		match (try Some (PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields) with Not_found -> None) with
-		| Some field -> Some (v.v_name, b#local v coro_class.name_pos, field)
+		| Some field -> Some (v.v_name, b#local v v.v_pos, field)
 		| None -> None
 	) args in
 	create_continuation_class ctx cont coro_class initial_state invoke_resume_field gen_mode hoisted_args;
@@ -461,11 +461,12 @@ let make_deferred_api ctx b =
 
 let fun_to_coro ctx coro_type =
 	let basic = ctx.typer.t in
-	let b = ctx.builder in
 
 	(* 1. Setup continuation class *)
 
 	let coro_class = ContinuationClassBuilder.create ctx coro_type in
+	ctx.builder <- new CoroElsewhere.texpr_builder basic coro_class.name_pos;
+	let b = ctx.builder in
 
 	(* 2. Create expressions and variables that we need for expr_to_coro *)
 
@@ -560,7 +561,7 @@ let fun_to_coro ctx coro_type =
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
 		if not ctx.typer.com.debug then
-			mk (TBlock []) ctx.typer.t.tvoid pos
+			b#void_block []
 		else begin
 		let field = PMap.find "setStackItem" cont.base_continuation_class.cl_fields in
 		(* setStackItem(kind, cls, func, id, file, line, column, pmin, pmax)
@@ -615,7 +616,7 @@ let fun_to_coro ctx coro_type =
 					b#assign egoto (b#int (-1) pos);
 				] in
 				let stmts = stmts @ [
-					b#assign estate (CoroControl.mk_control basic CoroControl.CoroReturned pos);
+					b#assign estate (b#int (Obj.magic CoroReturned) pos);
 				] in
 				let stmts = match e1_opt with
 					| None -> stmts
@@ -681,7 +682,7 @@ let fun_to_coro ctx coro_type =
 	e
 
 let create_coro_context typer config =
-	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t in
+	let builder = new CoroElsewhere.texpr_builder typer.Typecore.t null_pos in
 	let ctx = {
 		builder;
 		typer;

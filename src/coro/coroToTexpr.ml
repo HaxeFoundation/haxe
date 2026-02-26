@@ -4,7 +4,6 @@ open CoroFunctions
 open Type
 open ContTypes
 open Texpr
-open CoroControl
 
 module IntSet = Set.Make(struct
 	let compare a b = b - a
@@ -277,12 +276,12 @@ module SuspensionCalls = struct
 			] in
 			let estate_switch = if outcome.CoroConfig.no_throw then
 				(* Callee can't throw: skip the Thrown case entirely. *)
-				CoroControl.make_custom_control_switch com.basic esubject [
-					[CoroControl.CoroPending],  esuspended;
-					[CoroControl.CoroReturned], ereturned;
+				make_custom_control_switch b esubject [
+					[CoroPending],  esuspended;
+					[CoroReturned], ereturned;
 				] p
 			else
-				CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p
+				make_control_switch b esubject esuspended ereturned ethrown p
 			in
 			cororesult_var,
 			estate_switch
@@ -329,7 +328,7 @@ module SuspensionCalls = struct
 						b#assign etmp_error eerr_field;
 						b#assign eerror etmp_error;
 						ewrapped_call;
-						b#assign exprs.estate (CoroControl.mk_control com.basic CoroControl.CoroThrown p);
+						b#assign exprs.estate (b#int (Obj.magic CoroThrown) p);
 						b#return econtinuation;
 					]
 				end else
@@ -338,9 +337,9 @@ module SuspensionCalls = struct
 						b#break p;
 					]
 			in
-			let echeck = CoroControl.make_custom_control_switch com.basic esubject [
-				[CoroControl.CoroReturned], ereturned;
-				[CoroControl.CoroThrown], ethrown;
+			let echeck = make_custom_control_switch b esubject [
+				[CoroReturned], ereturned;
+				[CoroThrown], ethrown;
 			] p in
 			(cororesult_var, echeck)
 		end
@@ -358,7 +357,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let set_state id = b#assign egoto (b#int id p) in
 
-	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c p) in
+	let set_control (c : coro_control) = b#assign estate (b#int (Obj.magic c) p) in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in

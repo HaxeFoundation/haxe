@@ -63,7 +63,7 @@ type coro_deferred_api = {
 }
 
 type coro_ctx = {
-	builder : CoroElsewhere.texpr_builder;
+	mutable builder : CoroElsewhere.texpr_builder;
 	typer : Typecore.typer;
 	config : CoroConfig.t;
 	deferred_exprs : (int, unit -> texpr) Hashtbl.t;

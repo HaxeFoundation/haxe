@@ -1,6 +1,32 @@
 open Type
 open CoroTypes
 
+type coro_control =
+	| CoroPending
+	| CoroReturned
+	| CoroThrown
+
+let make_custom_control_switch b e_subject cases p =
+	let cases = List.map (fun (l,e) -> {
+		case_patterns = List.map (fun c -> b#int (Obj.magic c) p) l;
+		case_expr = e;
+	}) cases in
+	let switch = {
+		switch_subject = e_subject;
+		switch_cases = cases;
+		switch_default = None;
+		switch_exhaustive = true;
+	} in
+	mk (TSwitch switch) b#tvoid p
+
+let make_control_switch b e_subject e_pending e_returned e_thrown p =
+	let cases = [
+		[CoroPending],e_pending;
+		[CoroReturned],e_returned;
+		[CoroThrown],e_thrown;
+	] in
+	make_custom_control_switch b e_subject cases p
+
 let make_block ctx typepos =
 	let id = ctx.next_block_id in
 	ctx.next_block_id <- ctx.next_block_id + 1;
