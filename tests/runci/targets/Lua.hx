@@ -138,8 +138,8 @@ class Lua {
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
 
-			//Install bit32 for lua 5.1 and 5.4
-			if (lv == "-l5.1" || lv == "-l5.4")
+			//Install bit32 for lua 5.1 (5.3+ uses native bit operators)
+			if (lv == "-l5.1")
 				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
 			installLib("https://raw.githubusercontent.com/luvit/luv/refs/heads/master/luv-scm-0.rockspec", "");
