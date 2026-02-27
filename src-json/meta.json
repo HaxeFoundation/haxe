@@ -111,6 +111,12 @@
 		"targets": ["TAbstract"]
 	},
 	{
+		"name": "CallSuper",
+		"metadata": ":callSuper",
+		"doc": "Requires the overriding method to call super.",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "Commutative",
 		"metadata": ":commutative",
 		"doc": "Declares an abstract operator as commutative.",
