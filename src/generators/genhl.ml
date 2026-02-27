@@ -122,6 +122,7 @@ type context = {
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
 	mutable virt_id : int;
+	mutable enum_uid : int;
 }
 
 let compare_version v1 v2 =
@@ -198,10 +199,13 @@ let tuple_type ctx tl =
 	try
 		PMap.find tl ctx.cached_tuples
 	with Not_found ->
+		let euid = ctx.enum_uid in
+		ctx.enum_uid <- euid + 1;
 		let ct = HEnum {
 			eglobal = None;
 			ename = "";
 			eid = 0;
+			euid;
 			efields = [|"",0,Array.of_list tl|];
 		} in
 		ctx.cached_tuples <- PMap.add tl ct ctx.cached_tuples;
@@ -735,10 +739,13 @@ and enum_type ?(tref=None) ctx e =
 		PMap.find key_path ctx.cached_types
 	with Not_found ->
 		let ename = s_type_path e.e_path in
+		let euid = ctx.enum_uid in
+		ctx.enum_uid <- euid + 1;
 		let et = {
 			eglobal = None;
 			ename = ename;
 			eid = alloc_string ctx ename;
+			euid;
 			efields = [||];
 		} in
 		let t = HEnum et in
@@ -4245,6 +4252,7 @@ let create_context com =
 		ct_delayed = [];
 		ct_depth = 0;
 		virt_id = 0;
+		enum_uid = 0;
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");

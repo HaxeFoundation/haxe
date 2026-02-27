@@ -121,7 +121,7 @@ let s_comp = function
 
 let core_types =
 	let vp = { vid = 0; vfields = [||]; vindex = PMap.empty } in
-	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
+	let ep = { ename = ""; eid = 0; euid = 0; eglobal = None; efields = [||] } in
 	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray HDyn;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HMethod ([],HVoid);HStruct null_proto]
 
 let tname str =

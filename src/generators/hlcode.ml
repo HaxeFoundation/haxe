@@ -69,6 +69,7 @@ and class_proto = {
 and enum_proto = {
 	ename : string;
 	eid : int;
+	euid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
 }
@@ -277,7 +278,7 @@ let rec ttype_compare t1 t2 =
 	| HType, HType | HDynObj, HDynObj | HGUID, HGUID -> 0
 	| HObj p1, HObj p2 -> Int.compare p1.pid p2.pid
 	| HStruct p1, HStruct p2 -> Int.compare p1.pid p2.pid
-	| HEnum e1, HEnum e2 -> Int.compare e1.eid e2.eid
+	| HEnum e1, HEnum e2 -> Int.compare e1.euid e2.euid
 	| HVirtual v1, HVirtual v2 -> Int.compare v1.vid v2.vid
 	| HFun (args1, ret1), HFun (args2, ret2) | HMethod (args1, ret1), HMethod (args2, ret2) ->
 		let c = List.compare ttype_compare args1 args2 in
