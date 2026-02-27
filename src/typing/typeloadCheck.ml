@@ -243,39 +243,28 @@ let rec has_super_call name e =
 	| _ ->
 		check_expr (has_super_call name) e
 
-(* Walk up the class hierarchy to find if @:callSuper is active for a field named [name].
-   Called only when the immediate parent field has no @:callSuper annotation. *)
-let rec find_call_super c name =
-	match c.cl_super with
-	| None -> false
-	| Some (csup, _) ->
-		(try
-			let cf = PMap.find name csup.cl_fields in
-			(try
-				let (_, args, _) = Meta.get Meta.CallSuper cf.cf_meta in
-				(match args with
-				| [(EConst (Ident "false"), _)] -> false
-				| _ -> true)
-			with Not_found ->
-				if has_class_field_flag cf CfAbstract then false
-				else find_call_super csup name)
-		with Not_found ->
-			find_call_super csup name)
-
 let check_call_super com rctx e =
 	let name = rctx.cf_old.cf_name in
-	let active =
-		if has_class_field_flag rctx.cf_old CfAbstract then false
-		else
-			try
-				let (_, args, _) = Meta.get Meta.CallSuper rctx.cf_old.cf_meta in
-				(match args with
-				| [(EConst (Ident "false"), _)] -> false
-				| _ -> true)
-			with Not_found ->
-				find_call_super rctx.c_old name
+	let rec is_active c cf =
+		if has_class_field_flag rctx.cf_old CfAbstract then
+			false
+		else try
+			let (_, args, _) = Meta.get Meta.CallSuper cf.cf_meta in
+			(match args with
+			| [(EConst (Ident "false"), _)] -> false
+			| _ -> true)
+		with Not_found ->
+			match c.cl_super with
+			| None ->
+				false
+			| Some (csup, _) ->
+				try
+					let cf = PMap.find name csup.cl_fields in
+					is_active csup cf
+				with Not_found ->
+					false
 	in
-	if active && not (has_super_call name e) then
+	if is_active rctx.c_old rctx.cf_old && not (has_super_call name e) then
 		display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
 
 let check_overriding ctx c f =
