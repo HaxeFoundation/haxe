@@ -385,7 +385,7 @@ let rec safe_cast t1 t2 =
 		if List.exists (fun (t1',t2') -> t1 == t1' && t2 == t2') stack then true
 		else begin
 			let stack = (t1,t2) :: stack in
-			let tsame = loop stack in
+			let safe_cast = loop stack in
 			match t1, t2 with
 			| _, HDyn -> is_dynamic t1
 			| HVirtual v1, HVirtual v2 when Array.length v2.vfields < Array.length v1.vfields ->
