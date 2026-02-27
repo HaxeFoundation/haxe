@@ -1303,6 +1303,8 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			invalid_modifier ctx.com fctx "abstract" "constructor" p
 		end;
 		add_class_field_flag cf CfAbstract;
+		if Meta.has Meta.CallSuper cf.cf_meta then
+			invalid_modifier ctx.com fctx "@:callSuper" "abstract method" cf.cf_name_pos;
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	if fctx.is_abstract_constructor then add_class_field_flag cf CfAbstractConstructor;

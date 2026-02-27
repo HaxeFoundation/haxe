@@ -244,7 +244,7 @@ let rec has_super_call name e =
 		check_expr (has_super_call name) e
 
 let check_call_super com rctx e =
-	if Meta.has Meta.CallSuper rctx.cf_old.cf_meta then begin
+	if Meta.has Meta.CallSuper rctx.cf_old.cf_meta && not (has_class_field_flag rctx.cf_old CfAbstract) then begin
 		let name = rctx.cf_old.cf_name in
 		if not (has_super_call name e) then
 			display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
