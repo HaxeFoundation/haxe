@@ -94,7 +94,14 @@ class ThreadCallbacks<F> {
 }
 
 interface IThreadCallbackHandle {
+	/**
+		Whether this callback has been removed.
+	**/
 	var isClosed(get, never):Bool;
+
+	/**
+		Removes this callback from its parent list.
+	**/
 	function close():Void;
 }
 
@@ -120,9 +127,9 @@ class ThreadInstanceCallbacks {
 		Registers `f` to be called once the thread has completed executing its job
 		successfully. It is not called if the thread has thrown an exception.
 	**/
-	public function onJobDone(f:() -> Void) {
+	public function onJobDone(f:() -> Void):IThreadCallbackHandle {
 		onJobDoneCallback ??= new ThreadCallbacks();
-		onJobDoneCallback.add(f);
+		return onJobDoneCallback.add(f);
 	}
 
 	/**

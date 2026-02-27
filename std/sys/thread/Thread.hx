@@ -220,8 +220,9 @@ class Thread {
 
 	/**
 		Registers `f` to be called when the current thread exits.
+		Returns a handle that can be used to unregister the callback.
 	**/
-	static public function onCurrentExit(f:() -> Void) {
+	static public function onCurrentExit(f:() -> Void):IThreadCallbackHandle {
 		return current().callbacks.onExit(f);
 	}
 

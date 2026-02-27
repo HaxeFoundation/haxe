@@ -172,4 +172,98 @@ class TestThread extends utest.Test {
 		Assert.isFalse(thread == threadVars[1]);
 		Assert.isTrue(thread == threadVars[2]);
 	}
+
+	function testOnJobDone() {
+		// onJobDone should be called after a successful job
+		final sem = new Semaphore(0);
+		var jobDoneThread:Null<Thread> = null;
+
+		final thread = Thread.create(() -> {}, {
+			onJobDone: () -> {
+				jobDoneThread = Thread.current();
+			},
+			onExit: () -> {
+				sem.release();
+			}
+		});
+		sem.acquire();
+		Assert.isTrue(thread == jobDoneThread);
+	}
+
+	function testOnJobDoneNotCalledOnException() {
+		// onJobDone should NOT be called when the thread throws
+		final sem = new Semaphore(0);
+		var jobDoneCalled = false;
+
+		Thread.create(() -> {
+			throw "error";
+		}, {
+			onJobDone: () -> {
+				jobDoneCalled = true;
+			},
+			onAbort: (_) -> {},
+			onExit: () -> {
+				sem.release();
+			}
+		});
+		sem.acquire();
+		Assert.isFalse(jobDoneCalled);
+	}
+
+	function testOnJobDoneHandle() {
+		// onJobDone via ThreadInstanceCallbacks returns a handle that can deregister it
+		final sem = new Semaphore(0);
+		var jobDoneCalled = false;
+
+		final jobStartHandle = Thread.onJobStart(callbacks -> {
+			final handle = callbacks.onJobDone(() -> {
+				jobDoneCalled = true;
+			});
+			handle.close();
+		});
+
+		final thread = executeSync(() -> {});
+		jobStartHandle.close();
+		Assert.isFalse(jobDoneCalled);
+	}
+
+	function testMultipleOnJobStart() {
+		// Multiple onJobStart handlers should all be called
+		final sem = new Semaphore(0);
+		var count = 0;
+
+		final handle1 = Thread.onJobStart(_ -> count++);
+		final handle2 = Thread.onJobStart(_ -> { count++; sem.release(); });
+
+		Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+
+		handle1.close();
+		handle2.close();
+		Assert.equals(2, count);
+	}
+
+	function testOnJobStartWithInstanceCallbacks() {
+		// onJobStart can register per-thread callbacks via ThreadInstanceCallbacks
+		final sem = new Semaphore(0);
+		var jobDoneThread:Null<Thread> = null;
+		var exitThread:Null<Thread> = null;
+
+		final jobStartHandle = Thread.onJobStart(callbacks -> {
+			callbacks.onJobDone(() -> {
+				jobDoneThread = Thread.current();
+			});
+			callbacks.onExit(() -> {
+				exitThread = Thread.current();
+				sem.release();
+			});
+		});
+
+		final thread = Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+		jobStartHandle.close();
+
+		Assert.isTrue(thread == jobDoneThread);
+		Assert.isTrue(thread == exitThread);
+	}
 }
