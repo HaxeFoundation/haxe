@@ -116,7 +116,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	function startException(exception:Exception) {
 		final handler = context.get(ExceptionHandler);
 		if (handler != null) {
-			return handler.startException(this, exception);
+			return handler.startException(context, this, exception);
 		}
 		return exception;
 	}
@@ -124,7 +124,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
     function buildCallStack() {
 		final handler = context.get(ExceptionHandler);
 		if (handler != null) {
-			handler.buildCallStack(this);
+			handler.buildCallStack(context, this);
 		}
     }
 

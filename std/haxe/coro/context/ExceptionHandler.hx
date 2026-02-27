@@ -2,7 +2,6 @@ package haxe.coro.context;
 
 import haxe.Exception;
 import haxe.PosInfos;
-import haxe.coro.BaseContinuation;
 import haxe.coro.context.Context;
 import haxe.coro.context.IElement;
 import haxe.coro.context.Key;
@@ -28,13 +27,13 @@ abstract class ExceptionHandler implements IElement<ExceptionHandler> {
 		Called when an exception is first encountered in a coroutine to process its stack trace.
 		Returns the (potentially modified) exception.
 	**/
-	abstract public function startException(cont:BaseContinuation<Any>, exception:Exception):Exception;
+	abstract public function startException(context:Context, frame:IStackFrame, exception:Exception):Exception;
 
 	/**
 		Called as an exception propagates up the coroutine continuation chain, to insert each
 		continuation frame's stack item into the exception stack.
 	**/
-	abstract public function buildCallStack(cont:BaseContinuation<Any>):Void;
+	abstract public function buildCallStack(context:Context, frame:IStackFrame):Void;
 
 	public function getKey() {
 		return key;
