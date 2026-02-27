@@ -1,13 +1,13 @@
-// Case 2: Parent has @:callSuper, Child has @:callSuper and overrides with super call,
-// GrandChild overrides without super call.
-// Expected: fails because Child's method has @:callSuper.
+// Case: @:callSuper is transitive — without @:callSuper(false) on Child, GrandChild must also call super.
+// A has @:callSuper, B overrides with super call but no @:callSuper(false), C omits super call.
+// Expected: fails because the contract from A propagates through B to C.
 class A {
 	public function new() {}
 	@:callSuper public function init() {}
 }
 
 class B extends A {
-	@:callSuper override public function init() {
+	override public function init() {
 		super.init();
 	}
 }

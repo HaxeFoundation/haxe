@@ -1,12 +1,12 @@
-// Case 1: Parent has @:callSuper, Child overrides with super call, GrandChild overrides without super call.
-// Expected: passes because Child's method doesn't have @:callSuper.
+// Case: @:callSuper(false) on Child breaks the chain.
+// B must call super (A has @:callSuper), but C is exempt because B uses @:callSuper(false).
 class A {
 	public function new() {}
 	@:callSuper public function init() {}
 }
 
 class B extends A {
-	override public function init() {
+	@:callSuper(false) override public function init() {
 		super.init();
 	}
 }
