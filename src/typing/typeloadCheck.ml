@@ -236,19 +236,17 @@ type check_override_kind =
 	| NormalOverride of redefinition_context
 	| OverloadOverride of (unit -> unit)
 
+let rec has_super_call name e =
+	match e.eexpr with
+	| TCall({eexpr = TField({eexpr = TConst TSuper}, FInstance(_, _, cf))}, _) when cf.cf_name = name ->
+		true
+	| _ ->
+		check_expr (has_super_call name) e
+
 let check_call_super com rctx e =
 	if Meta.has Meta.CallSuper rctx.cf_old.cf_meta then begin
 		let name = rctx.cf_old.cf_name in
-		let found = ref false in
-		let rec check e =
-			match e.eexpr with
-			| TCall({eexpr = TField({eexpr = TConst TSuper}, FInstance(_, _, cf))}, _) when cf.cf_name = name ->
-				found := true
-			| _ ->
-				Texpr.iter check e
-		in
-		check e;
-		if not !found then
+		if not (has_super_call name e) then
 			display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
 	end
 
