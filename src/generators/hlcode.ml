@@ -81,6 +81,7 @@ and field_proto = {
 }
 
 and virtual_proto = {
+	vid : int;
 	mutable vfields : (string * string index * ttype) array;
 	mutable vindex : (string, int) PMap.t;
 }
@@ -254,6 +255,37 @@ let null_proto =
 		pinterfaces = PMap.empty;
 		pbindings = [];
 	}
+
+(* assigns a unique integer to each ttype constructor for use as a fallback
+   comparison key when the types have different constructors *)
+let ttype_index = function
+	| HVoid -> 0 | HUI8 -> 1 | HUI16 -> 2 | HI32 -> 3 | HI64 -> 4
+	| HF32 -> 5 | HF64 -> 6 | HBool -> 7 | HBytes -> 8 | HDyn -> 9
+	| HFun _ -> 10 | HObj _ -> 11 | HArray _ -> 12 | HType -> 13
+	| HRef _ -> 14 | HVirtual _ -> 15 | HDynObj -> 16 | HAbstract _ -> 17
+	| HEnum _ -> 18 | HNull _ -> 19 | HMethod _ -> 20 | HStruct _ -> 21
+	| HPacked _ -> 22 | HGUID -> 23
+
+(* a total ordering on ttype values that avoids infinite recursion on recursive
+   types by using the unique identity fields pid/eid/vid for HObj/HStruct/HEnum/HVirtual
+   instead of structurally comparing class_proto/enum_proto/virtual_proto *)
+let rec ttype_compare t1 t2 =
+	if t1 == t2 then 0
+	else match t1, t2 with
+	| HVoid, HVoid | HUI8, HUI8 | HUI16, HUI16 | HI32, HI32 | HI64, HI64
+	| HF32, HF32 | HF64, HF64 | HBool, HBool | HBytes, HBytes | HDyn, HDyn
+	| HType, HType | HDynObj, HDynObj | HGUID, HGUID -> 0
+	| HObj p1, HObj p2 -> Int.compare p1.pid p2.pid
+	| HStruct p1, HStruct p2 -> Int.compare p1.pid p2.pid
+	| HEnum e1, HEnum e2 -> Int.compare e1.eid e2.eid
+	| HVirtual v1, HVirtual v2 -> Int.compare v1.vid v2.vid
+	| HFun (args1, ret1), HFun (args2, ret2) | HMethod (args1, ret1), HMethod (args2, ret2) ->
+		let c = List.compare ttype_compare args1 args2 in
+		if c <> 0 then c else ttype_compare ret1 ret2
+	| HArray t1', HArray t2' | HRef t1', HRef t2' | HNull t1', HNull t2' | HPacked t1', HPacked t2' ->
+		ttype_compare t1' t2'
+	| HAbstract (n1,_), HAbstract (n2,_) -> String.compare n1 n2
+	| _ -> Int.compare (ttype_index t1) (ttype_index t2)
 
 let list_iteri f l =
 	let p = ref (-1) in
