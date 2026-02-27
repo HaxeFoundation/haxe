@@ -335,28 +335,36 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-let rec tsame t1 t2 =
-	if t1 == t2 then true else
-	match t1, t2 with
-	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-	| HObj p1, HObj p2 -> p1 == p2
-	| HEnum e1, HEnum e2 -> e1 == e2
-	| HStruct p1, HStruct p2 -> p1 == p2
-	| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
-	| HVirtual v1, HVirtual v2 ->
-		if v1 == v2 then true else
-		if Array.length v1.vfields <> Array.length v2.vfields then false else
-		let rec loop i =
-			if i = Array.length v1.vfields then true else
-			let _, i1, t1 = v1.vfields.(i) in
-			let _, i2, t2 = v2.vfields.(i) in
-			if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
-		in
-		loop 0
-	| HNull t1, HNull t2 -> tsame t1 t2
-	| HRef t1, HRef t2 -> tsame t1 t2
-	| _ -> false
+let tsame t1 t2 =
+	let rec loop stack t1 t2 =
+		if t1 == t2 then true else
+		if List.exists (fun (t1',t2') -> t1 == t1' && t2 == t2') stack then true
+		else begin
+			let stack = (t1,t2) :: stack in
+			let tsame = loop stack in
+			match t1, t2 with
+			| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+			| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+			| HObj p1, HObj p2 -> p1 == p2
+			| HEnum e1, HEnum e2 -> e1 == e2
+			| HStruct p1, HStruct p2 -> p1 == p2
+			| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
+			| HVirtual v1, HVirtual v2 ->
+				if v1 == v2 then true else
+				if Array.length v1.vfields <> Array.length v2.vfields then false else
+				let rec loop i =
+					if i = Array.length v1.vfields then true else
+					let _, i1, t1 = v1.vfields.(i) in
+					let _, i2, t2 = v2.vfields.(i) in
+					if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
+				in
+				loop 0
+			| HNull t1, HNull t2 -> tsame t1 t2
+			| HRef t1, HRef t2 -> tsame t1 t2
+			| _ -> false
+		end
+	in
+	loop [] t1 t2
 
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
@@ -372,39 +380,47 @@ let compatible_element_types t1 t2 =
 	can we use a value of t1 as t2
 *)
 let rec safe_cast t1 t2 =
-	if t1 == t2 then true else
-	match t1, t2 with
-	| _, HDyn -> is_dynamic t1
-	| HVirtual v1, HVirtual v2 when Array.length v2.vfields < Array.length v1.vfields ->
-		let rec loop i =
-			if i = Array.length v2.vfields then true else
-			let n1, _, t1 = v1.vfields.(i) in
-			let n2, _, t2 = v2.vfields.(i) in
-			if n1 = n2 && tsame t1 t2 then loop (i + 1) else false
-		in
-		loop 0
-	| HObj p1, HObj p2 ->
-		(* allow subtyping *)
-		let rec loop p =
-			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
-		in
-		loop p1
-	| HStruct p1, HStruct p2 ->
-		(* allow subtyping *)
-		let rec loop p =
-			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
-		in
-		loop p1
-	| HPacked t1, HStruct _ ->
-		safe_cast t1 t2
-	| HStruct _, HPacked t2 ->
-		safe_cast t1 t2
-	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
-		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
-	| HArray t1,HArray t2 ->
-		compatible_element_types t1 t2
-	| _ ->
-		tsame t1 t2
+	let rec loop stack t1 t2 =
+		if t1 == t2 then true else
+		if List.exists (fun (t1',t2') -> t1 == t1' && t2 == t2') stack then true
+		else begin
+			let stack = (t1,t2) :: stack in
+			let tsame = loop stack in
+			match t1, t2 with
+			| _, HDyn -> is_dynamic t1
+			| HVirtual v1, HVirtual v2 when Array.length v2.vfields < Array.length v1.vfields ->
+				let rec loop i =
+					if i = Array.length v2.vfields then true else
+					let n1, _, t1 = v1.vfields.(i) in
+					let n2, _, t2 = v2.vfields.(i) in
+					if n1 = n2 && tsame t1 t2 then loop (i + 1) else false
+				in
+				loop 0
+			| HObj p1, HObj p2 ->
+				(* allow subtyping *)
+				let rec loop p =
+					p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
+				in
+				loop p1
+			| HStruct p1, HStruct p2 ->
+				(* allow subtyping *)
+				let rec loop p =
+					p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
+				in
+				loop p1
+			| HPacked t1, HStruct _ ->
+				safe_cast t1 t2
+			| HStruct _, HPacked t2 ->
+				safe_cast t1 t2
+			| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
+				List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
+			| HArray t1,HArray t2 ->
+				compatible_element_types t1 t2
+			| _ ->
+				tsame t1 t2
+		end
+	in
+	loop [] t1 t2
 
 let hl_hash b =
 	let h = ref Int32.zero in
