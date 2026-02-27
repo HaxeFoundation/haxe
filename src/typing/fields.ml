@@ -10,20 +10,20 @@ open FieldAccess
 module TypeFieldConfig = struct
 	type t = {
 		allow_resolve : bool;
+		allow_dynamic : bool;
+		allow_open_mono : bool;
 		do_resume : bool;
 	}
-
-	let allow_resolve cfg = cfg.allow_resolve
-
-	let do_resume cfg = cfg.do_resume
 
 	let default = {
 		allow_resolve = true;
 		do_resume = false;
+		allow_dynamic = true;
+		allow_open_mono = true;
 	}
 
 	let create resume = {
-		allow_resolve = true;
+		default with
 		do_resume = resume;
 	}
 
@@ -281,6 +281,8 @@ let field_access ctx mode f fh e pfield =
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
 
+open TypeFieldConfig
+
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 (* Note: if mode = MCall, with_type (if known) refers to the return type *)
 let type_field cfg ctx e i p mode (with_type : WithType.t) =
@@ -401,13 +403,15 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| Var ({ v_write = AccNo } as acc) when is_open && is_set -> f.cf_kind <- Var { acc with v_write = AccNormal }
 					| _ -> ());
 					field_access f FHAnon
-				with Not_found when is_open ->
+				with Not_found when is_open && cfg.allow_open_mono ->
 					let f = mk_field() in
 					Monomorph.add_down_constraint r (MField f);
 					field_access f FHAnon
 				)
 			| CTypes tl ->
 				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
+			| CUnknown when not cfg.allow_open_mono ->
+				raise Not_found
 			| CUnknown ->
 				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs) && not (ctx.f.untyped && ctx.com.platform = Neko) then
 					ctx.e.monomorphs <- (r,p) :: ctx.e.monomorphs;
@@ -558,11 +562,11 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found when PMap.mem i c.cl_statics ->
 				raise_typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
-		| TDynamic t ->
+		| TDynamic t when cfg.allow_dynamic ->
 			AKExpr (mk (TField (e,FDynamic i)) (match t with None -> t_dynamic | Some t -> t) p)
 		| TAbstract (a,tl) ->
 			(try
-				if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
+				if not cfg.allow_resolve then raise Not_found;
 				let c = find_some a.a_impl in
 				let f = find_some (if is_set then a.a_write else a.a_read) in
 				let sea = make_abstract_static_extension_access a tl c f e false p in
@@ -604,7 +608,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_fallback e t
 	with Not_found -> try
 		type_field_by_module e t
-	with Not_found when not (TypeFieldConfig.do_resume cfg) ->
+	with Not_found when not cfg.do_resume ->
 		if not ctx.f.untyped then begin
 			let has_special_field a =
 				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops

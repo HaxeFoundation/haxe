@@ -486,6 +486,7 @@ type coro_types = {
 	mutable tcoro : ((string * bool * t) list -> t -> t) Lazy.t;
 	mutable continuation : t Lazy.t;
 	mutable suspension_result_class : tclass Lazy.t;
+	mutable tasync_iterator : (t -> t) Lazy.t;
 }
 
 type basic_types = {
@@ -559,7 +560,9 @@ type flag_tvar =
 	| VUsedByTyper (* Set if the typer looked up this variable *)
 	| VHxb (* Flag used by hxb *)
 	| VCoroCaptured
+	| VCoroScope
+	| VCoroRestrictedSuspension
 
 let flag_tvar_names = [
-	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
+	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper";"VHxb";"VCoroCaptured";"VCoroScope";"VRestrictedSuspension"
 ]

@@ -170,7 +170,7 @@ let is_numeric t =
       -> true
    | _
       -> false
-   
+
 let is_objc_class klass =
    has_class_flag klass CExtern && Meta.has Meta.Objc klass.cl_meta
 
@@ -263,12 +263,19 @@ let is_data_member field =
 let is_override field =
    has_class_field_flag field CfOverride
 
-let rec unreflective_type t =
-   match follow t with
-   | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-   | TFun (args,ret) ->
-      List.fold_left (fun result (_,_,t) -> result || (unreflective_type t)) (unreflective_type ret) args;
-   | _ -> false
+let unreflective_type t =
+	let rec aux t seen =
+		if List.exists (fast_eq t) seen then
+			false
+		else
+			let new_seen = t :: seen in
+			match follow t with
+			| TInst (klass,_) -> Meta.has Meta.Unreflective klass.cl_meta
+			| TFun (args,ret) ->
+				List.fold_left (fun result (_,_,t) -> result || (aux t new_seen)) (aux ret new_seen) args
+			| _ -> false
+	in
+	aux t []
 
 let reflective class_def field = not (
    (Meta.has Meta.NativeGen class_def.cl_meta) ||

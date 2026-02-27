@@ -236,6 +236,37 @@ type check_override_kind =
 	| NormalOverride of redefinition_context
 	| OverloadOverride of (unit -> unit)
 
+let rec has_super_call name e =
+	match e.eexpr with
+	| TCall({eexpr = TField({eexpr = TConst TSuper}, FInstance(_, _, cf))}, _) when cf.cf_name = name ->
+		true
+	| _ ->
+		check_expr (has_super_call name) e
+
+let check_call_super com rctx e =
+	let name = rctx.cf_old.cf_name in
+	let rec is_active c cf =
+		if has_class_field_flag rctx.cf_old CfAbstract then
+			false
+		else try
+			let (_, args, _) = Meta.get Meta.CallSuper cf.cf_meta in
+			(match args with
+			| [(EConst (Ident "false"), _)] -> false
+			| _ -> true)
+		with Not_found ->
+			match c.cl_super with
+			| None ->
+				false
+			| Some (csup, _) ->
+				try
+					let cf = PMap.find name csup.cl_fields in
+					is_active csup cf
+				with Not_found ->
+					false
+	in
+	if is_active rctx.c_old rctx.cf_old && not (has_super_call name e) then
+		display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
+
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->

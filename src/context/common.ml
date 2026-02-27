@@ -78,7 +78,7 @@ class compiler_callbacks = object(self)
 	method add_after_generation (f : unit -> unit) : unit =
 		after_generation := f :: !after_generation
 
-	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
+	method add_null_safety_report (f : (string*pos) list -> (WarningList.warning*string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
 	method run handle_error r =
@@ -804,6 +804,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = lazy (mk_mono());
 				suspension_result_class = lazy null_class;
+				tasync_iterator = lazy (fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			}
 		};
 		std = null_class;
@@ -942,6 +943,7 @@ let clone com is_macro_context =
 				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
 				continuation = lazy (mk_mono());
 				suspension_result_class = lazy null_class;
+				tasync_iterator = lazy (fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			};
 		};
 		local_wrapper = LocalWrapper.null_wrapper;

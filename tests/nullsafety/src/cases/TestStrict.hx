@@ -183,9 +183,9 @@ class TestStrict {
 		final v:Int = shouldFail(badInit);
 
 		function name():Void {
-			shouldFail(badInit) = 1;
+			badInit = 1;
 		}
-		if (true) shouldFail(badInit) = 1;
+		if (true) badInit = 1;
 	}
 
 	static public function main() { // not a real main
@@ -786,6 +786,32 @@ class TestStrict {
 		} while (a != null);
 
 		shouldFail(a.value);
+	}
+
+	static function while_assignmentInCondition_shouldPass() {
+		var arr:Array<Null<String>> = [];
+		var event:Null<String> = null;
+		// Test the pattern: while ((event = arr.pop()) != null)
+		while ((event = arr.pop()) != null) {
+			var s:String = event; // event should be known to be non-null here
+			event.charAt(0); // this should not fail
+		}
+
+		// Test with null on left side: while (null != (event = arr.pop()))
+		while (null != (event = arr.pop())) {
+			var s:String = event;
+			event.charAt(0);
+		}
+
+		// Test with == null (should be null inside)
+		while ((event = arr.pop()) == null) {
+			shouldFail(event.charAt(0)); // event is null here
+		}
+
+		// Test with null on left: while (null == (event = arr.pop()))
+		while (null == (event = arr.pop())) {
+			shouldFail(event.charAt(0)); // event is null here
+		}
 	}
 
 	static function nullable_doWhile_shouldPass(?a:Int) {
@@ -1514,5 +1540,34 @@ class BinopFlow {
 		var safe = 1;
 		if (a == null || {safe = a; true;}) {}
 		if (a != null || {shouldFail(safe = a); true;}) {}
+	}
+
+	// Test that coroutines work correctly with null-safety
+	// (previously failed with "Cannot assign nullable value here")
+	static function coroutine_anonymousLambda_shouldPass() {
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
+		runWith(() -> {});
+	}
+
+	static function coroutine_namedLocalFunction_shouldPass() {
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
+		@:coroutine function localCoro() {}
+		runWith(localCoro);
+	}
+
+	// Test that parameterized functions work correctly with null-safety
+	static function parameterizedFunction_anonymousLambda_shouldPass() {
+		function acceptFunc<T>(f:T->T) {
+			return f;
+		}
+		// Anonymous function with type parameter
+		acceptFunc(function<T>(x:T):T {
+			return x;
+		});
+	}
+
+	static function coroDispatcher_shouldFail() {
+		var dispatcher = haxe.coro.context.Context.create().get(haxe.coro.dispatchers.Dispatcher);
+		shouldFail(dispatcher.scheduler);
 	}
 }

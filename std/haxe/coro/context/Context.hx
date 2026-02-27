@@ -1,6 +1,8 @@
 package haxe.coro.context;
 
-typedef ElementTree = Array<Any>;
+import haxe.exceptions.CoroutineException;
+
+typedef ElementTree = Array<Null<Any>>;
 
 /**
 	An immutable context, which can be used like a map.
@@ -31,6 +33,10 @@ abstract Context(ElementTree) {
 	**/
 	public inline function get<T>(key:Key<T>):Null<T> {
 		return cast this[key.id];
+	}
+
+	public inline function getOrRaise<T>(key:Key<T>):T {
+		return get(key) ?? throw new CoroutineException("Key " + key.name + " not found in context");
 	}
 
 	/**

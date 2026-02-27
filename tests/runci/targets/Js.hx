@@ -67,16 +67,21 @@ class Js {
 
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
+				runCommand("node", [output]);
 				output;
 			}
 		];
+
+		// also test running with hxnodejs api for sys tests
+		haxelibInstallGit("HaxeFoundation", "hxnodejs");
+
+		runCommand("haxe", ["compile-js.hxml", "--library", "hxnodejs"].concat(args));
+		runCommand("node", ["bin/unit.js"]);
 
 		infoMsg("Test ES6:");
 		changeDirectory(getMiscSubDir("es6"));
 		runCommand("haxe", ["run.hxml"]);
 
-		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		final env = Sys.environment();
 		if (
 			env.exists("SAUCE") &&

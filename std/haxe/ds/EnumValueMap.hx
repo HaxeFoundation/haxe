@@ -80,7 +80,7 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 
 	function compareArg(v1:Dynamic, v2:Dynamic):Int {
 		var vt1 = Type.typeof(v1);
-		var vt2 = Type.typeof(v1);
+		var vt2 = Type.typeof(v2);
 		return switch [vt1, vt2] {
 			case [TNull, TNull]:
 				// null is always equal to itself

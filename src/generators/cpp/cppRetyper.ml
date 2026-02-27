@@ -1163,6 +1163,11 @@ let expression ctx request_type function_args function_type expression_tree forI
               let arg_types = List.map (fun _ -> TCppUnchanged) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               (retyper_ctx, CppCall (FuncExtern (name, isGlobal), retypedArgs), cppType)
+            | CppVar VarLocal { tcppv_type = TCppCallable (callable_args, callable_ret) } ->
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args callable_args in
+              (retyper_ctx,
+                CppCall (FuncExpression retypedFunc, retypedArgs),
+                callable_ret)
             | _ ->
               let arg_types = List.map (fun _ -> TCppDynamic) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in

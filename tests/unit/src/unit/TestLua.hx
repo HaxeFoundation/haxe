@@ -299,6 +299,40 @@ class TestLua extends Test {
 		t(afterInnerLoop);
 		eq(closureResult, "done");
 	}
+
+	// Issue #11805: TableStruct creates plain Lua tables without __fields__
+	function testTableStructPlain() {
+		// Create a plain table without __fields__ metadata
+		var opts = lua.TableStruct.create({baz: 42});
+
+		// Verify the table has the expected field via @:forward
+		eq(opts.baz, 42);
+
+		// Verify there's no __fields__ in the table
+		var hasFields = false;
+		lua.PairTools.pairsEach(cast opts, function(k:Dynamic, v:Dynamic) {
+			if (k == "__fields__") hasFields = true;
+		});
+		f(hasFields);
+
+		// Test empty table
+		var empty = lua.TableStruct.create({});
+		var emptyCount = 0;
+		lua.PairTools.pairsEach(cast empty, function(k:Dynamic, v:Dynamic) {
+			emptyCount++;
+		});
+		eq(emptyCount, 0);
+
+		// Test multiple fields
+		var multi = lua.TableStruct.create({a: 1, b: "hello", c: true});
+		eq(multi.a, 1);
+		eq(multi.b, "hello");
+		eq(multi.c, true);
+
+		// Test conversion to AnyTable
+		var anyTable:lua.Table.AnyTable = opts;
+		t(anyTable != null);
+	}
 }
 
 @:multiReturn extern class Multi {
@@ -400,4 +434,9 @@ class Issue7539Test {
 // Issue #10090: Helper class for local variable reuse test
 class Issue10090Object {
 	public function new() {}
+}
+
+// Issue #11805: TableStruct plain table test
+typedef Issue11805Options = {
+	baz:Int
 }

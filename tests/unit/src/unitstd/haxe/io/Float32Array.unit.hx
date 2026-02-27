@@ -10,9 +10,7 @@ b[1] == 1.25;
 // check loss of precision due to 32 bits
 b[1] = 8589934591.;
 
-#if typedarray_precision_check // see issue #7407
 b[1] == 8589934592.;
-#end
 
 
 // set

@@ -1,0 +1,3 @@
+Main.hx:10: characters 2-3 : On static platforms, null can't be used as basic type Int
+Main.hx:6: characters 10-11 : On static platforms, null can't be used as basic type Int
+Main.hx:2: characters 11-12 : On static platforms, null can't be used as basic type Int

@@ -22,10 +22,6 @@ let create_dotgraph path cb =
 		let snext = match cb.cb_next with
 			| NextUnknown ->
 				None
-			| NextSub(cb_sub,cb_next) ->
-				maybe_edge_block "next" cb_next;
-				edge_block "sub" cb_sub;
-				None
 			| NextBreak cb_break ->
 				DynArray.add edges (cb.cb_id,cb_break.cb_id,"goto",false);
 				Some "break"

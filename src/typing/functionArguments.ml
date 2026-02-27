@@ -60,6 +60,18 @@ class function_arguments
 		l
 	in
 
+	let check_coroutine_scope v =
+		try
+			let mt = t_infos (module_type_of_type v.v_type) in
+			(match CoroScopeConfig.of_meta_list mt.mt_meta with
+			| Some config ->
+				add_var_flag v VCoroScope;
+				if config.CoroScopeConfig.restricted_suspension then
+					add_var_flag v VCoroRestrictedSuspension
+			| None -> ())
+		with Exit ->
+			()
+	in
 object(self)
 
 	val mutable type_repr = None
@@ -109,6 +121,7 @@ object(self)
 					let v = make_local name (VUser TVOArgument) t m pn in
 					if do_display && DisplayPosition.display_position#enclosed_in pn then
 						DisplayEmitter.display_variable ctx v pn;
+					if acc = [] && TyperManager.is_coroutine_context ctx then check_coroutine_scope v;
 					loop ((v,eo) :: acc) false syntax typed
 				| [],[] ->
 					List.rev acc

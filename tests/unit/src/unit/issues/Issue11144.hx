@@ -2,7 +2,9 @@ package unit.issues;
 
 class Issue11144 extends Test {
 	function test() {
-		t(false ?? false || true); // false
-		t((false ?? false) || true); // true
+		final vfalse:Null<Bool> = false;
+		final vtrue:Null<Bool> = true;
+		t(vfalse ?? vfalse || vtrue);
+		t((vfalse ?? vfalse) || vtrue);
 	}
 }

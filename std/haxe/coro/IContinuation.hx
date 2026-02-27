@@ -18,5 +18,5 @@ interface IContinuation<T> {
 		Generally, if `error != null`, the result value is ignoried and execution
 		continues as if `error` had been thrown as an exception.
 	**/
-	function resume(result:T, error:Exception):Void;
+	function resume(result:Null<T>, error:Null<Exception>):Void;
 }

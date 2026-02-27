@@ -125,6 +125,12 @@ let dump_field_context fctx =
 		"expr_presence_matters",string_of_bool fctx.expr_presence_matters;
 	]
 
+let get_coro_config ctx meta =
+	if TyperManager.is_coroutine_context ctx then
+		CoroConfig.get_coroutine_config meta
+	else
+		None
+
 let is_java_native_function ctx meta pos = try
 	match Meta.get Meta.Native meta with
 		| (Meta.Native,[],_) ->
@@ -839,23 +845,22 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let f_check = match fctx.field_kind with
-						| CfrMember ->
-							begin match TypeloadCheck.check_overriding ctx c cf with
-							| NothingToDo ->
-								(fun () -> ())
-							| NormalOverride rctx ->
-								(fun () ->
-									TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
-								)
-							| OverloadOverride f ->
-								f
-							end
-						| _ ->
-							(fun () -> ())
+					let check_result = match fctx.field_kind with
+						| CfrMember -> TypeloadCheck.check_overriding ctx c cf
+						| _ -> NothingToDo
+					in
+					let f_check () = match check_result with
+						| NothingToDo -> ()
+						| NormalOverride rctx ->
+							TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
+						| OverloadOverride f ->
+							f ()
 					in
 					let e = TypeloadFunction.type_function ctx args ret e fctx.is_display_field p in
 					f_check();
+					(match check_result with
+					| NormalOverride rctx -> TypeloadCheck.check_call_super ctx.com rctx e
+					| _ -> ());
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
 						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
@@ -870,7 +875,10 @@ module TypeBinding = struct
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> TClass.set_cl_init c e);
 					let e = mk (TFunction tf) t p in
-					let e = if TyperManager.is_coroutine_context ctx && not (Meta.has Meta.CoroutineTransformed cf.cf_meta) then Coro.fun_to_coro (Coro.create_coro_context ctx cf.cf_meta) (ClassField(c, cf, tf, p)) else e in
+					let e = match get_coro_config ctx cf.cf_meta with
+						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.ClassField(c, cf, tf, p)))
+						| None -> e
+					in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 					check_field_display ctx fctx c cf;
@@ -1264,7 +1272,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	let targs = args#for_type in
 	let t = if not is_coroutine then
 		TFun (targs,ret)
-	else if Meta.has Meta.CoroutineTransformed cf.cf_meta then begin
+	else if (CoroConfig.of_meta_list cf.cf_meta).CoroConfig.transformed then begin
 		match targs with
 			| _ :: targs ->
 				(* Ignore leading continuation for actual signature *)
@@ -1272,7 +1280,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 				| TInst({cl_path = (["haxe";"coro"],"SuspensionResult")},[ret]) ->
 					ret
 				| t ->
-					raise_typing_error (Printf.sprintf "Return type of @:coroutine.transformed functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
+					raise_typing_error (Printf.sprintf "Return type of @:coroutine(transformed) functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
 				in
 				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
@@ -1295,6 +1303,8 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			invalid_modifier ctx.com fctx "abstract" "constructor" p
 		end;
 		add_class_field_flag cf CfAbstract;
+		if Meta.has Meta.CallSuper cf.cf_meta then
+			invalid_modifier ctx.com fctx "@:callSuper" "abstract method" cf.cf_name_pos;
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	if fctx.is_abstract_constructor then add_class_field_flag cf CfAbstractConstructor;

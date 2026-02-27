@@ -541,7 +541,7 @@ module Printer = struct
 			"t_doc",s_doc t.t_doc;
 			"t_meta",s_metadata t.t_meta;
 			"t_params",s_type_params (tabs ^ "\t") t.t_params;
-			"t_type",s_type_kind t.t_type
+			"t_type",s_type_kind (follow_lazy_and_mono t.t_type);
 		]
 
 	let s_tenum_field tabs ef =
@@ -621,6 +621,12 @@ module Printer = struct
 			"v_capture",string_of_bool (has_var_flag v VCaptured);
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
+			"v_flags",
+				(let s_flags = match v.v_flags with
+					| 0 -> ""
+					| _ -> Printf.sprintf "(%s)" (s_flags v.v_flags flag_tvar_names)
+				in
+				s_flags);
 			"v_pos",s_pos v.v_pos;
 		]
 

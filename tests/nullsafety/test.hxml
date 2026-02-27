@@ -5,8 +5,12 @@ cases.TestStrictThreaded
 cases.TestLoose
 cases.TestSafeFieldInUnsafeClass
 cases.TestAbstract
+cases.TestConstructorThis
+cases.TestNonNullable
 
 --macro nullSafety('cases.TestLoose', Loose)
 --macro nullSafety('cases.TestStrict', Strict)
 --macro nullSafety('cases.TestStrictThreaded', StrictThreaded)
+--macro nullSafety('cases.TestConstructorThis', Loose)
+--macro nullSafety('cases.TestNonNullable', Loose)
 --macro Validator.register()

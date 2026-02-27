@@ -1,4 +1,5 @@
 #if sys
+// socket api is not complete on hxnodejs
 
 // bind & listen
 var s = new sys.net.Socket();

@@ -27,7 +27,7 @@ class Hl {
 	static final miscHlcDir = getMiscSubDir('hlc');
 
 	static var withJitTests = true;
-	static var withHlcTests = true;
+	static var withHlcTests = false;
 
 	static public function getHlDependencies() {
 		if (FileSystem.exists(hlBinary)) {

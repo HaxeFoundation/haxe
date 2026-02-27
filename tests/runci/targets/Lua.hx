@@ -52,8 +52,12 @@ class Lua {
 				}
 
 		}
-		runCommand("pipx", ["ensurepath"]);
-		runCommand("pipx", ["install", "hererocks"]);
+		if (commandSucceed("hererocks", ["--version"])) {
+			infoMsg('hererocks has already been installed.');
+		} else {
+			runCommand("pipx", ["ensurepath"]);
+			runCommand("pipx", ["install", "git+https://github.com/tobil4sk/hererocks.git@fix/windows-msys-shell"]);
+		}
 	}
 
 	static function installLib(lib : String, version : String, ?server :String){
@@ -74,20 +78,37 @@ class Lua {
 		}
 	}
 
+	static function getVersionDefine(hererocksFlag:String) {
+		if (hererocksFlag.startsWith("-l")) {
+			return ["-D", 'lua-ver=${hererocksFlag.substr(2)}'];
+		} else if (hererocksFlag.startsWith("-j")) {
+			return ["-D", "lua-jit"];
+		} else {
+			throw "unknown version";
+		}
+	}
+
 	static public function run(args:Array<String>) {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4"].concat(systemName == 'Linux' && Linux.arch == Arm64 ? [] : ["-j2.0", "-j2.1"])) {
-			final envpath = getInstallPath() + '/lua_env/lua$lv';
+		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-j2.0", "-j@v2.1"]) {
+			// luajit 2.0 was missing arm64 support
+			if (System.arch == Arm64 && lv == "-j2.0") continue;
+
+			final envpath = getInstallPath() + '/lua_env/lua${lv.replace("@v", "")}';
 			addToPATH(envpath + '/bin');
 
-			if (systemName == "Mac" && lv.startsWith("-j")) continue;
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
 
 			final targetFlags = if (systemName == "Windows") ["--target", if (useWindowsVcpkg) "vs" else "mingw"] else [];
-			runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
+			final luaBin = envpath + '/bin/lua' + (systemName == "Windows" ? ".exe" : "");
+			if (!sys.FileSystem.exists(luaBin)) {
+				runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
+			} else {
+				infoMsg('Lua environment at $envpath already exists, skipping hererocks.');
+			}
 			trace('path: ' + Sys.getEnv("PATH"));
 
 
@@ -123,14 +144,16 @@ class Lua {
 			if (lv == "-l5.1" || lv == "-l5.4")
 				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
-			installLib("https://raw.githubusercontent.com/tobil4sk/lua-luv/refs/heads/feature/rockspec-shared-libuv/luv-scm-0.rockspec", "");
+			installLib("https://raw.githubusercontent.com/luvit/luv/refs/heads/master/luv-scm-0.rockspec", "");
 			installLib("luautf8", "0.1.6-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
 			changeDirectory(unitDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
-			runCommand("lua", ["bin/unit.lua"]);
+			for (versionFlags in [[], getVersionDefine(lv)]) {
+				runCommand("haxe", ["compile-lua.hxml"].concat(args).concat(versionFlags));
+				runCommand("lua", ["bin/unit.lua"]);
+			}
 
 			Display.maybeRunDisplayTests(Lua);
 

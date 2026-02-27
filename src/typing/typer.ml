@@ -1132,7 +1132,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	let vname,pname= match name with
 		| None ->
 			if params <> [] || is_coroutine then begin
-				Some(gen_local_prefix,VGenerated),null_pos
+				Some(gen_local_prefix,VGenerated),p
 			end else
 				None,p
 		| Some (name,pn) ->
@@ -1260,7 +1260,10 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
-	let e = if TyperManager.is_coroutine_context ctx then Coro.fun_to_coro (Coro.create_coro_context ctx ctx.f.meta) (LocalFunc(tf,Option.get v)) else e in
+	let e = match TypeloadFields.get_coro_config ctx ctx.f.meta with
+		| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.LocalFunc(tf,Option.get v)))
+		| None -> e
+	in
 	match v with
 	| None ->
 		e
@@ -1538,7 +1541,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
-		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
+		| (Meta.NullSafety,_,_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
 		| (Meta.BypassAccessor,_,p) ->
@@ -1786,7 +1789,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (OpNullCoal,e1,e2) ->
 		let vr = new value_reference ctx in
-		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
+		let e1 = type_expr ctx (Expr.ensure_block e1) WithType.value in
 		let e2 = type_expr ctx (Expr.ensure_block e2) (WithType.with_type e1.etype) in
 		let tmin,cast = get_if_then_else_operands ctx e1 e2 with_type in
 		let e2 = cast e2 in

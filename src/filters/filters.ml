@@ -242,6 +242,7 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 			let types = Dce.run pool scom mscom main dce_mode std_paths all_types in
 			types
 		) in
+		let all_types_array = Array.of_list all_types in
 		Common.enter_stage com CDceDone;
 
 		Finalization.maybe_add_entrypoint com;

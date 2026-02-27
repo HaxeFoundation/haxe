@@ -224,9 +224,9 @@ package hl;
 	public inline function toBytes(len:Int) {
 		return @:privateAccess new haxe.io.Bytes(this, len);
 	}
-	
+
 	#if (hl_ver >= "1.16.0")
-	@:hlNative("std", "gc_get_memsize") public function getMemSize() : Int {
+	@:hlNative("std", "bytes_get_memsize") public function getMemSize() : Int {
 		return 0;
 	}
 	#end

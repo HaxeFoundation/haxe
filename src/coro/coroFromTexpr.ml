@@ -11,8 +11,51 @@ type coro_ret =
 	| RValue
 	| RBlock
 	| RMapExpr of coro_ret * (texpr -> texpr)
+	| RTailBlock (* tail call in block/void position *)
+	| RTailReturn (* tail call in return position *)
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
+type map_suspension_result =
+	| HasSuspension
+	| HasNoSuspension of texpr
+
+(* Extract the @:coroutine outcome config from a callee expression.
+   Handles all field access variants and local variables. *)
+let get_outcome_from_callee e1 =
+	let meta = match (Texpr.skip e1).eexpr with
+		| TField(_, FStatic(_, cf))
+		| TField(_, FInstance(_, _, cf))
+		| TField(_, FClosure(_, cf))
+		| TField(_, FAnon cf) -> cf.cf_meta
+		| TLocal v -> v.v_meta
+		| _ -> []
+	in
+	(CoroConfig.of_meta_list meta).outcome
+
+let check_captures ctx args expr =
+	let vars = Hashtbl.create 16 in
+	let declare v = Hashtbl.add vars v.v_id () in
+	List.iter (fun (v,_) -> declare v) args;
+	let rec browse e = match e.eexpr with
+		| TConst (TThis | TSuper) ->
+			ctx.captures_this <- true
+		| TLocal v ->
+			if not (Hashtbl.mem vars v.v_id) then
+				ctx.has_capture_vars <- true
+		| TVar(v, eo) ->
+			declare v;
+			Option.may browse eo
+		| TTry(e1, catches) ->
+			browse e1;
+			List.iter (fun (v, e) -> declare v; browse e) catches
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			browse tf.tf_expr
+		| _ ->
+			Type.iter browse e
+	in
+	browse expr
+
+let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in
@@ -34,7 +77,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 			OptimizerTexpr.has_side_effect e
 	in
 	let add_expr cb e =
-		if cb.cb_next = NextUnknown && e != e_no_value && has_side_effect e then
+		if cb.cb_next = NextUnknown && e != e_no_value && (has_side_effect e) then
 			DynArray.add cb.cb_el e
 	in
 	let terminate cb kind t p =
@@ -67,11 +110,148 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 		let ret = RMapExpr(ret,f) in
 		(ret,(fun e -> if e == e_no_value then e else f e))
 	in
+	let scope_allows_suspension_call_on e1 args el =
+		match scope with
+		| None ->
+			true
+		| Some scope when not scope.restricted_suspension ->
+			true
+		| Some scope ->
+			let rec is_scope_local_expr e = match (Texpr.skip e).eexpr with
+				| TLocal v when v == scope.scope_var ->
+					true
+				| TField(e1,_) ->
+					is_scope_local_expr e1
+				| _ ->
+					false
+			in
+			let has_scope_local_first_argument () =
+			(* Allow calls where the scope var is the first argument because that's what happens when
+			   using `scope.staticExtension()`. *)
+				begin match args,el with
+				| ((_,_,t) :: _),arg1 :: _ when is_scope_local_expr arg1 ->
+					let is_restricted meta =
+						match CoroScopeConfig.of_meta_list meta with
+						| Some config -> config.CoroScopeConfig.restricted_suspension
+						| None -> false
+					in
+					begin match e1.eexpr with
+					| TField(_,FStatic({cl_kind = KAbstractImpl a}, cf)) when has_class_field_flag cf CfImpl ->
+						is_restricted a.a_meta
+					| _ ->
+						begin try
+							let mt = t_infos (module_type_of_type t) in
+							is_restricted mt.mt_meta
+						with Exit ->
+							false
+						end
+					end
+				| _ ->
+					false
+				end
+			in
+			is_scope_local_expr e1 || has_scope_local_first_argument ()
+	in
+	let scope_allows_access_to v = match scope with
+		| Some scope when scope.scope_var == v ->
+			true
+		| None ->
+			true (* I think? *)
+		| _ ->
+			false
+	in
+	let map_suspension cb ret e =
+		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None && not ctx.typer.com.debug in
+		let exception Found in
+		let rec remap can_tco loop_depth e = match e.eexpr with
+			| TConst TThis ->
+				deferred.make_this e
+			| TField({eexpr = TConst TSuper},_) ->
+				deferred.make_super_field e
+			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
+				if can_tco then begin
+					let cs_kind = get_outcome_from_callee e1 in
+					deferred.make_inline_tail_call {
+						cs_fun = e1;
+						cs_args = el;
+						cs_pos = e.epos;
+						cs_result = SusBlock;
+						cs_kind;
+					}
+				end else
+					raise Found
+			| TReturn None ->
+				deferred.make_inline_return None e.epos
+			| TReturn (Some e1) ->
+				(* `return suspensionCall()` — if `e1` is a coro call, delegate to
+				   the TCall arm (which may inline it as a TCO tail call or raise
+				   Found). We must not wrap with make_inline_return in that case,
+				   because make_inline_tail_call already handles the return. *)
+				begin match e1.eexpr with
+				| TCall(efun, _) when (match follow_with_coro efun.etype with Coro _ -> true | _ -> false) ->
+					remap can_tco loop_depth e1
+				| _ ->
+					let e1 = remap false loop_depth e1 in
+					deferred.make_inline_return (Some e1) e.epos
+				end
+			| TThrow _ ->
+				(* TODO: too much of a special case for now, let's bail until the rest works *)
+				raise Found
+			| TBreak | TContinue when loop_depth = 0 ->
+				(* Breaking or continuing while we're in block mode means we need to stay in block mode *)
+				raise Found
+			| TBlock [] -> e
+			| TBlock el ->
+				(* Only the last element of a block is in tail position. *)
+				let rec remap_block = function
+					| [] -> []
+					| [last] -> [remap can_tco loop_depth last]
+					| hd :: tl -> remap false loop_depth hd :: remap_block tl
+				in
+				{e with eexpr = TBlock (remap_block el)}
+			| TIf(e1, e2, e3_opt) ->
+				let e1' = remap false loop_depth e1 in
+				let e2' = remap can_tco loop_depth e2 in
+				let e3_opt' = Option.map (remap can_tco loop_depth) e3_opt in
+				{e with eexpr = TIf(e1', e2', e3_opt')}
+			| TSwitch switch ->
+				let switch_subject = remap false loop_depth switch.switch_subject in
+				let switch_cases = List.map (fun case ->
+					{case with case_expr = remap can_tco loop_depth case.case_expr}
+				) switch.switch_cases in
+				let switch_default = Option.map (remap can_tco loop_depth) switch.switch_default in
+				{e with eexpr = TSwitch {switch with switch_subject; switch_cases; switch_default}}
+			| TTry(e1, catches) ->
+				(* The try body has a catch handler (this TTry's), so no TCO there.
+				   The catch bodies don't have a catch handler from this TTry node,
+				   so they inherit can_tco from the outer context. *)
+				let e1 = remap false loop_depth e1 in
+				let catches = List.map (fun (v, e) -> (v, remap can_tco loop_depth e)) catches in
+				{e with eexpr = TTry(e1, catches)}
+			| TWhile(e1,e2,flag) ->
+				let e1 = remap false loop_depth e1 in
+				let e2 = remap false (loop_depth + 1) e2 in
+				{e with eexpr = TWhile(e1,e2,flag)}
+			| TFunction _ ->
+				e
+			| _ ->
+				Type.map_expr (remap false loop_depth) e
+		in
+		try HasNoSuspension (remap allow_tco 0 e)
+		with Found -> HasSuspension
+	in
 	let loop_stack = ref [] in
-	let rec loop cb ret e = match e.eexpr with
+	let rec loop cb ret e =
+	match e.eexpr with
 		(* special cases *)
-		| TConst TThis | TBlock [] ->
+		| TConst TThis  ->
+			Some (cb,deferred.make_this e)
+		| TField({eexpr = TConst TSuper},_) ->
+			Some (cb,deferred.make_super_field e)
+		| TBlock [] ->
 			Some (cb,e)
+		| TLocal v when (has_var_flag v VCoroScope) && not (scope_allows_access_to v) ->
+			Error.raise_typing_error "Invalid usage of a coroutine scope in a different coroutine scope" e.epos
 		(* simple values *)
 		| TConst _ | TLocal _ | TTypeExpr _ | TIdent _ ->
 			Some (cb,e)
@@ -79,30 +259,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 		| TBlock [e1] ->
 			loop cb ret e1
 		| TBlock el ->
-			let cb_sub = block_from_e e in
-			let ret = match ret,el with
-				| RValue,_ :: _ ->
-					(*
-					   If we have a multi-element block in a value-place we might need a temp var
-					   because the result expression might reference local variables declared in
-					   that block (https://github.com/Aidan63/haxe/issues/79).
-					*)
-					let v = tmp_local cb e.etype None e.epos in
-					RLocal v
-				| _ ->
-					ret
-			in
-			let sub_next = loop_block cb_sub ret e in
-			let cb_next = match sub_next with
-				| None ->
-					None
-				| Some (cb_sub_next,e1) ->
-					let cb_next = make_block None in
-					fall_through cb_sub_next cb_next;
-					Some (cb_next,e1)
-			in
-			terminate cb (NextSub(cb_sub,Option.map fst cb_next)) e.etype e.epos;
-			cb_next
+			begin match map_suspension cb ret e with
+			| HasNoSuspension e' ->
+				Some (cb, e')
+			| HasSuspension ->
+				loop_block cb ret e
+			end
 		| TArray(e1,e2) ->
 			let cb = ordered_loop cb [e1;e2] in
 			Option.map (fun (cb,el) -> match el with
@@ -131,7 +293,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 			Option.map (fun (cb,e1) -> (cb,{e with eexpr = TEnumIndex e1})) cb
 		| TNew(c,tl,el) ->
 			let cb = ordered_loop cb el in
-			Option.map (fun (cb,e1) -> cb,{e with eexpr = TNew(c,tl,el)}) cb
+			Option.map (fun (cb,el) -> cb,{e with eexpr = TNew(c,tl,el)}) cb
 		(* rewrites & forwards *)
 		| TCast(e1,o) ->
 			let (ret,map) = ret_map_expr ret (fun e1 -> {e with eexpr = TCast(e1,o)}) in
@@ -150,6 +312,21 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 			let cb = loop_assign cb (RLocal v) e2 in
 			Option.map (fun (cb,e2) -> (cb,{e with eexpr = TBinop(OpAssign,e1,e2)})) cb
+		| TBinop((OpBoolOr | OpBoolAnd) as op, e1, e2) ->
+			begin match map_suspension cb ret e with
+			| HasNoSuspension e' ->
+				Some (cb, e')
+			| HasSuspension ->
+				(* At least one operand has a suspension call; desugar to if/else for correct short-circuit semantics:
+				   a || b  →  if (a) true else b
+				   a && b  →  if (a) b else false *)
+				let t = e.etype and p = e.epos in
+				let then_e, else_e = match op with
+					| OpBoolOr -> mk (TConst (TBool true)) t p, e2
+					| _        -> e2, mk (TConst (TBool false)) t p
+				in
+				split_if_then_else cb ret t p e1 then_e else_e
+			end
 		(* TODO: OpAssignOp and other OpAssign *)
 		| TBinop(op,e1,e2) ->
 			let cb = loop cb RValue e1 in
@@ -176,29 +353,20 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 			cb
 		(* calls *)
 		| TCall(e1,el) ->
-			let cb = ordered_loop cb (e1 :: el) in
-			Option.map (fun (cb,el) ->
+			let cb_opt = ordered_loop cb (e1 :: el) in
+			begin match cb_opt with
+			| None ->
+				None
+			| Some (cb,el) ->
 				begin match el with
 					| e1 :: el ->
 						begin match follow_with_coro e1.etype with
-						| Coro _ ->
-							let cb_next = block_from_e e1 in
-							add_block_flag cb_next CbResumeState;
-							add_block_flag cb CbSuspendState;
-							let eres,res = match ret with
-							| RValue ->
-								let v = tmp_local cb e.etype None e.epos in
-								let ev = Texpr.Builder.make_local v v.v_pos in
-								cb_next.cb_stack_value <- Some ev;
-								ev,SusResult
-							| RTerminate _ | RMapExpr _ | RLocal _ ->
-								etmp_result,SusResult
-							| RBlock ->
-								e_no_value,SusBlock
-							in
-							let might_be_affected,collect_modified_locals = OptimizerTexpr.create_affection_checker() in
+						| Coro (args,_) ->
+							if not (scope_allows_suspension_call_on e1 args el) then
+								Common.display_error ctx.typer.com "Invalid suspension call in restricted suspension scope" e.epos;
 							(* Because of hoisting requirements, we want to temp var anything that has a side-effect
 							   or could be affected by one. *)
+							let might_be_affected,collect_modified_locals = OptimizerTexpr.create_affection_checker() in
 							let el = List.map (fun e ->
 								let has_side_effect = has_side_effect e in
 								let might_be_affected = might_be_affected e in
@@ -209,21 +377,76 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 								end else
 									e
 							) el in
-							let suspend = {
-								cs_fun = e1;
-								cs_args = el;
-								cs_pos = e.epos;
-								cs_result = res;
-							} in
-							terminate cb (NextSuspend(suspend,Some cb_next)) t_dynamic null_pos;
-							cb_next,eres
+							let cs_kind = get_outcome_from_callee e1 in
+							let make_next_block () =
+								let cb_next = block_from_e e1 in
+								add_block_flag cb_next CbResumeState;
+								add_block_flag cb CbSuspendState;
+								cb_next
+							in
+							begin match cs_kind with
+							| { CoroConfig.no_suspend = true } ->
+								(* For a Never-suspending callee in TCO tail position, keep the
+								   existing tail-call optimisation (single-state, no resume block). *)
+								let is_tco = match ret with
+									| RTailBlock | RTailReturn -> cb.cb_catch = None && not ctx.typer.com.debug
+									| _ -> false
+								in
+								if is_tco then begin
+									let cs_result = match ret with RTailBlock -> SusBlock | _ -> SusResult in
+									let suspend = { cs_fun = e1; cs_args = el; cs_pos = e.epos; cs_result; cs_kind } in
+									terminate cb (NextSuspend(suspend, None)) t_dynamic null_pos;
+									None
+								end else begin
+									(* Inline path: add the call as a statement in the current block,
+									   no new state is created. *)
+									let needs_result = match ret with RBlock | RTailBlock -> false | _ -> true in
+									let e_opt, ev =
+										if needs_result then
+											let e = Lazy.force etmp_result in
+											(Some e), e
+										else
+											None, e_no_value
+									in
+									let cs_result = if needs_result then SusResult else SusBlock in
+									let suspend = { cs_fun = e1; cs_args = el; cs_pos = e.epos; cs_result; cs_kind } in
+									add_expr cb (deferred.make_sync_call suspend e_opt);
+									Some (cb, ev)
+								end
+							| _ ->
+								let res,next = match ret with
+								| RValue ->
+									let v = tmp_local cb e.etype None e.epos in
+									let ev = Texpr.Builder.make_local v v.v_pos in
+									let cb_next = make_next_block () in
+									cb_next.cb_stack_value <- Some ev;
+									SusResult,Some(cb_next,ev)
+								| RTailBlock when cb.cb_catch = None && not ctx.typer.com.debug ->
+									SusBlock,None
+								| RBlock | RTailBlock ->
+									SusBlock,Some ((make_next_block (),e_no_value))
+								| RTailReturn when cb.cb_catch = None && not ctx.typer.com.debug ->
+									SusResult,None
+								| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
+									SusResult,Some ((make_next_block ()),Lazy.force etmp_result)
+								in
+								let suspend = {
+									cs_fun = e1;
+									cs_args = el;
+									cs_pos = e.epos;
+									cs_result = res;
+									cs_kind;
+								} in
+								terminate cb (NextSuspend(suspend,Option.map fst next)) t_dynamic null_pos;
+								next
+							end
 						| _ ->
-							cb,{e with eexpr = TCall(e1,el)}
+							Some(cb,{e with eexpr = TCall(e1,el)})
 						end
 					| [] ->
 						die "" __LOC__
 				end
-			) cb
+			end
 		(* terminators *)
 		| TBreak ->
 			begin match !loop_stack with
@@ -247,11 +470,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 			terminate cb NextReturnVoid e.etype e.epos;
 			None
 		| TReturn (Some e1) ->
-			let f_terminate cb e1 =
-				terminate cb (NextReturn e1) e.etype e.epos;
-			in
-			let ret = RTerminate f_terminate in
-			let cb_ret = loop_assign cb ret e1 in
+			let cb_ret = loop_assign cb RTailReturn e1 in
 			Option.may (fun (cb_ret,e1) -> terminate cb_ret (NextReturn e1) e.etype e.epos) cb_ret;
 			None
 		| TThrow e1 ->
@@ -266,122 +485,76 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 		| TIf(e1,e2,None) ->
 			let cb = loop cb RValue e1 in
 			Option.map (fun (cb,e1) ->
-				let cb_then = block_from_e e2 in
-				let cb_then_next = loop_block cb_then RBlock e2 in
-				let cb_next = make_block None in
-				Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
-				terminate cb (NextIfThen(e1,cb_then,cb_next)) e.etype e.epos;
-				cb_next,e_no_value
+				match map_suspension cb ret e2 with
+				| HasNoSuspension e2' ->
+					add_expr cb {e with eexpr = TIf(e1,e2',None)};
+					cb,e_no_value
+				| HasSuspension ->
+					split_if_then cb e1 e.etype e.epos e2
 			) cb
 		| TIf(e1,e2,Some e3) ->
-			let e_value,ret = check_complex cb ret e.etype e.epos in
-			let cb = loop cb RValue e1 in
-			begin match cb with
-				| None ->
-					None
-				| Some(cb,e1) ->
-					let cb_then = block_from_e e2 in
-					let cb_then_next = loop_block cb_then ret e2 in
-					let cb_else = block_from_e e3 in
-					let cb_else_next = loop_block cb_else ret e3 in
-					let cb_next = match cb_then_next,cb_else_next with
-						| Some (cb_then_next,_),Some(cb_else_next,_) ->
-							let cb_next = make_block None in
-							fall_through cb_then_next cb_next;
-							fall_through cb_else_next cb_next;
-							Some cb_next
-						| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
-							let cb_next = make_block None in
-							fall_through cb_branch_next cb_next;
-							Some cb_next
-						| None,None ->
-							None
-					in
-					terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) e.etype e.epos;
-					Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			begin match map_suspension cb ret e2, map_suspension cb ret e3 with
+			| HasNoSuspension e2', HasNoSuspension e3' ->
+				let cb = loop cb RValue e1 in
+				Option.map (fun (cb,e1) -> cb,{e with eexpr = TIf(e1,e2',Some e3')}) cb
+			| _ ->
+				split_if_then_else cb ret e.etype e.epos e1 e2 e3
 			end
 		| TSwitch switch ->
-			let e_value,ret = check_complex cb ret e.etype e.epos in
-			let e1 = switch.switch_subject in
-			let cb = loop cb RValue e1 in
-			begin match cb with
-				| None ->
-					None
-				| Some(cb,e1) ->
-					let cb_next = lazy (make_block None) in
-					let cases = List.map (fun case ->
-						let cb_case = block_from_e case.case_expr in
-						let cb_case_next = loop_block cb_case ret case.case_expr in
-						Option.may (fun (cb_case_next,_) ->
-							fall_through cb_case_next (Lazy.force cb_next);
-						) cb_case_next;
-						(case.case_patterns,cb_case)
-					) switch.switch_cases in
-					let def = match switch.switch_default with
-						| None ->
-							None
-						| Some e ->
-							let cb_default = block_from_e e in
-							let cb_default_next = loop_block cb_default ret e in
-							Option.may (fun (cb_default_next,_) ->
-								fall_through cb_default_next (Lazy.force cb_next);
-							) cb_default_next;
-							Some cb_default
-					in
-					let switch = {
-						cs_subject = e1;
-						cs_cases = cases;
-						cs_default = def;
-						cs_exhaustive = switch.switch_exhaustive
-					} in
-					let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
-					terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
-					Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			let map_switch_cases () =
+				let rec aux acc cases = match cases with
+					| [] ->
+						let def_opt = match switch.switch_default with
+							| None -> Some None
+							| Some e -> match map_suspension cb ret e with
+								| HasNoSuspension e' -> Some (Some e')
+								| HasSuspension -> None
+						in
+						Option.map (fun def -> (List.rev acc, def)) def_opt
+					| case :: rest ->
+						match map_suspension cb ret case.case_expr with
+						| HasNoSuspension e' -> aux ({case with case_expr = e'} :: acc) rest
+						| HasSuspension -> None
+				in
+				aux [] switch.switch_cases
+			in
+			begin match map_switch_cases () with
+			| Some (cases', def') ->
+				let cb = loop cb RValue switch.switch_subject in
+				Option.map (fun (cb,e1) ->
+					let switch' = {switch with switch_subject = e1; switch_cases = cases'; switch_default = def'} in
+					cb,{e with eexpr = TSwitch switch'}
+				) cb
+			| None ->
+				split_switch cb ret switch e
 			end
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			loop cb ret (Texpr.not_while_true_to_while_true ctx.typer.com.Common.basic e1 e2 flag e.etype e.epos)
 		| TWhile(e1,e2,flag) (* always while(true) *) ->
-			let cb_next = lazy (make_block None) in
-			let cb_body = block_from_e e2 in
-			loop_stack := (cb_body,cb_next) :: !loop_stack;
-			let cb_body_next = loop_block cb_body RBlock e2 in
-			Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
-			loop_stack := List.tl !loop_stack;
-			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
-			terminate cb (NextWhile(e1,cb_body,cb_next)) e.etype e.epos;
-			Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+			begin match map_suspension cb RBlock e2 with
+			| HasNoSuspension e2' ->
+				add_expr cb {e with eexpr = TWhile(e1,e2',flag)};
+				Some (cb,e_no_value)
+			| HasSuspension ->
+				split_while cb e1 e2 e.etype e.epos
+			end
 		| TTry(e1,catches) ->
-			let e_value,ret = check_complex cb ret e.etype e.epos in
-			ctx.has_catch <- true;
-			let cb_next = lazy (make_block None) in
-			let catches = List.map (fun (v,e) ->
-				let cb_catch = block_from_e e in
-				add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
-				let cb_catch_next = loop_block cb_catch ret e in
-				Option.may (fun (cb_catch_next,_) ->
-					fall_through cb_catch_next (Lazy.force cb_next);
-				) cb_catch_next;
-				v,cb_catch
-			) catches in
-			let catch = make_block None in
-			(* This block is handled in a special way in the texpr transformer, let's mark it as
-			   already generated so we don't generate it twice. *)
-			add_block_flag catch CbGenerated;
-			let old = ctx.current_catch in
-			ctx.current_catch <- Some catch;
-			let catch = {
-				cc_cb = catch;
-				cc_catches = catches;
-			} in
-			let cb_try = block_from_e e1 in
-			let cb_try_next = loop_block cb_try ret e1 in
-			ctx.current_catch <- old;
-			Option.may (fun (cb_try_next,_) ->
-				fall_through cb_try_next (Lazy.force cb_next)
-			) cb_try_next;
-			let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
-			terminate cb (NextTry(cb_try,catch,cb_next)) e.etype e.epos;
-			Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+			let map_catches () =
+				let rec aux acc catches = match catches with
+					| [] -> Some (List.rev acc)
+					| (v,e) :: rest ->
+						match map_suspension cb RBlock e with
+						| HasNoSuspension e' -> aux ((v,e') :: acc) rest
+						| HasSuspension -> None
+				in
+				aux [] catches
+			in
+			begin match map_suspension cb RBlock e1, map_catches () with
+			| HasNoSuspension e1', Some catches' ->
+				Some (cb,{e with eexpr = TTry(e1',catches')})
+			| _ ->
+				split_try cb ret e1 catches e.etype e.epos
+			end
 		| TFunction tf ->
 			Some (cb,e)
 	and ordered_loop cb el =
@@ -420,6 +593,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 					None
 				| RMapExpr(ret,f) ->
 					aux ret (Some(cb,f e))
+				| RTailBlock ->
+					add_expr cb e;
+					Some (cb,e_no_value)
+				| RTailReturn ->
+					terminate cb (NextReturn e) t_dynamic null_pos;
+					None
 				end
 			| Some(cb,e) ->
 				Some(cb,e)
@@ -454,93 +633,118 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root e =
 				Some(cb,e_no_value)
 			| _ ->
 				aux' cb el
-	in
-	loop_block cb_root RBlock e
-
-let optimize_cfg ctx cb =
-	let forward_el cb_from cb_to =
-		if DynArray.length cb_from.cb_el > 0 then begin
-			if DynArray.length cb_to.cb_el = 0 then begin
-				DynArray.iter (fun e -> DynArray.add cb_to.cb_el e) cb_from.cb_el
-			end else begin
-				let e = mk (TBlock (DynArray.to_list cb_from.cb_el)) ctx.typer.t.tvoid null_pos in
-				DynArray.set cb_to.cb_el 0 (concat e (DynArray.get cb_to.cb_el 0))
-			end
+	and split_if_then cb e1 etype epos e2 =
+		let cb_then = block_from_e e2 in
+		let cb_then_next = loop_block cb_then RBlock e2 in
+		let cb_next = make_block None in
+		Option.may (fun (cb_then_next,_) -> fall_through cb_then_next cb_next) cb_then_next;
+		terminate cb (NextIfThen(e1,cb_then,cb_next)) etype epos;
+		(cb_next,e_no_value)
+	and split_if_then_else cb ret etype epos e1 e2 e3 =
+		let e_value,ret = check_complex cb ret etype epos in
+		let cb = loop cb RValue e1 in
+		begin match cb with
+			| None ->
+				None
+			| Some(cb,e1) ->
+				let cb_then = block_from_e e2 in
+				let cb_then_next = loop_block cb_then ret e2 in
+				let cb_else = block_from_e e3 in
+				let cb_else_next = loop_block cb_else ret e3 in
+				let cb_next = match cb_then_next,cb_else_next with
+					| Some (cb_then_next,_),Some(cb_else_next,_) ->
+						let cb_next = make_block None in
+						fall_through cb_then_next cb_next;
+						fall_through cb_else_next cb_next;
+						Some cb_next
+					| (Some (cb_branch_next,_),None) | (None,Some (cb_branch_next,_)) ->
+						let cb_next = make_block None in
+						fall_through cb_branch_next cb_next;
+						Some cb_next
+					| None,None ->
+						None
+				in
+				terminate cb (NextIfThenElse(e1,cb_then,cb_else,cb_next)) etype epos;
+				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 		end
-	in
-	(* first pass: find empty blocks and store their replacement*)
-	let forward = Array.make ctx.next_block_id None in
-	let rec loop cb =
-		if not (has_block_flag cb CbEmptyMarked) then begin
-			add_block_flag cb CbEmptyMarked;
-			match cb.cb_next with
-			| NextSub(cb_sub,None) ->
-				loop cb_sub;
-				forward_el cb cb_sub;
-				if has_block_flag cb CbResumeState then add_block_flag cb_sub CbResumeState;
-				forward.(cb.cb_id) <- Some cb_sub
-			| NextFallThrough cb_next | NextGoto cb_next when DynArray.empty cb.cb_el && not (has_block_flag cb CbResumeState) ->
-				loop cb_next;
-				forward.(cb.cb_id) <- Some cb_next
-			| _ ->
-				coro_iter loop cb
+	and split_switch cb ret switch_orig e =
+		let e_value,ret = check_complex cb ret e.etype e.epos in
+		let cb_s = loop cb RValue switch_orig.switch_subject in
+		begin match cb_s with
+			| None ->
+				None
+			| Some(cb,e1) ->
+				let cb_next = lazy (make_block None) in
+				let cases = List.map (fun case ->
+					let cb_case = block_from_e case.case_expr in
+					let cb_case_next = loop_block cb_case ret case.case_expr in
+					Option.may (fun (cb_case_next,_) ->
+						fall_through cb_case_next (Lazy.force cb_next);
+					) cb_case_next;
+					(case.case_patterns,cb_case)
+				) switch_orig.switch_cases in
+				let def = match switch_orig.switch_default with
+					| None ->
+						None
+					| Some e ->
+						let cb_default = block_from_e e in
+						let cb_default_next = loop_block cb_default ret e in
+						Option.may (fun (cb_default_next,_) ->
+							fall_through cb_default_next (Lazy.force cb_next);
+						) cb_default_next;
+						Some cb_default
+				in
+				let switch = {
+					cs_subject = e1;
+					cs_cases = cases;
+					cs_default = def;
+					cs_exhaustive = switch_orig.switch_exhaustive
+				} in
+				let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
+				terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
+				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 		end
+	and split_while cb e1 e2 etype epos =
+		let cb_next = lazy (make_block None) in
+		let cb_body = block_from_e e2 in
+		loop_stack := (cb_body,cb_next) :: !loop_stack;
+		let cb_body_next = loop_block cb_body RBlock e2 in
+		Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
+		loop_stack := List.tl !loop_stack;
+		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		terminate cb (NextWhile(e1,cb_body,cb_next)) etype epos;
+		Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
+	and split_try cb ret e1 catches etype epos =
+		let e_value,ret = check_complex cb ret etype epos in
+		ctx.has_catch <- true;
+		let cb_next = lazy (make_block None) in
+		let catches = List.map (fun (v,e) ->
+			let cb_catch = block_from_e e in
+			add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid v.v_pos);
+			let cb_catch_next = loop_block cb_catch ret e in
+			Option.may (fun (cb_catch_next,_) ->
+				fall_through cb_catch_next (Lazy.force cb_next);
+			) cb_catch_next;
+			v,cb_catch
+		) catches in
+		let catch = make_block None in
+		(* This block is handled in a special way in the texpr transformer, let's mark it as
+		   already generated so we don't generate it twice. *)
+		add_block_flag catch CbGenerated;
+		let old = ctx.current_catch in
+		ctx.current_catch <- Some catch;
+		let catch = {
+			cc_cb = catch;
+			cc_catches = catches;
+		} in
+		let cb_try = block_from_e e1 in
+		let cb_try_next = loop_block cb_try ret e1 in
+		ctx.current_catch <- old;
+		Option.may (fun (cb_try_next,_) ->
+			fall_through cb_try_next (Lazy.force cb_next)
+		) cb_try_next;
+		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
+		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 	in
-	loop cb;
-	(* second pass: map graph to skip forwarding block *)
-	let rec loop cb = match forward.(cb.cb_id) with
-		| Some cb ->
-			loop cb
-		| None ->
-			if not (has_block_flag cb CbForwardMarked) then begin
-				add_block_flag cb CbForwardMarked;
-				coro_next_map loop cb;
-			end;
-			cb
-	in
-	let cb = loop cb in
-	let is_empty_termination_block cb = match cb with
-		| None ->
-			true
-		| Some cb ->
-			DynArray.empty cb.cb_el && match cb.cb_next with
-				| NextReturnVoid | NextUnknown ->
-					true
-				| _ ->
-					false
-	in
-	let rec loop cb =
-		if not (has_block_flag cb CbTcoChecked) then begin
-			add_block_flag cb CbTcoChecked;
-			begin match cb.cb_next with
-			| NextSuspend(_,cb_next) ->
-				if not (is_empty_termination_block cb_next) then
-					raise Exit;
-			| _ ->
-				()
-			end;
-			coro_iter loop cb;
-		end
-	in
-	if ctx.allow_tco && not ctx.has_catch then
-		(try loop cb; raise (CoroTco cb) with Exit -> ());
-	(* third pass: reindex cb_id for tighter switches. Breadth-first because that makes the numbering more natural, maybe. *)
-	let i = ref 0 in
-	let queue = Queue.create () in
-	Queue.push cb queue;
-	let rec loop () =
-		if not (Queue.is_empty queue) then begin
-			let cb = Queue.pop queue in
-			if not (has_block_flag cb CbReindexed) then begin
-				add_block_flag cb CbReindexed;
-				cb.cb_id <- !i;
-				incr i;
-				coro_iter (fun cb -> Queue.add cb queue) cb;
-				Option.may (fun cb -> Queue.add cb queue) cb.cb_catch;
-			end;
-			loop ()
-		end
-	in
-	loop ();
-	ctx.next_block_id <- !i;
-	cb
+	loop_block cb_root RTailBlock e

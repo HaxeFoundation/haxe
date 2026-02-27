@@ -66,8 +66,13 @@ let insert_save_stacks ectx scom =
 *)
 let patch_constructors ectx =
 	match fst (AtomicLazy.force ectx.haxe_exception) with
-	(* Add only if `__shiftStack` method exists *)
-	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields ->
+	(*
+		Add only if `__shiftStack` method exists and has a constructor.
+
+		If it doesn't have a constructor, that means it wasn't called and was removed during DCE.
+		In this case, there is no need to patch it because the exception is never instantiated.
+	*)
+	| TInst(cls,_) when PMap.mem "__shiftStack" cls.cl_fields && cls.cl_constructor != None ->
 		(fun mt ->
 			match mt with
 			| TClassDecl cls when not (has_class_flag cls CExtern) && cls.cl_path <> haxe_exception_type_path && is_haxe_exception_class cls ->
@@ -90,7 +95,6 @@ let patch_constructors ectx =
 						make_call ectx.scom efield [] rt p
 					| _ -> raise_typing_error "haxe.Exception.__shiftStack is expected to be an instance method" p
 				in
-				(* TypeloadFunction.add_constructor tctx cls true cls.cl_name_pos; *) (* TODO: why? *)
 				Option.may (fun cf -> ignore(follow cf.cf_type)) cls.cl_constructor;
 				(match cls.cl_constructor with
 				| Some ({ cf_expr = Some e_ctor } as ctor) ->
@@ -109,8 +113,6 @@ let patch_constructors ectx =
 							}
 						| _ -> die "" __LOC__
 					)
-				| None ->
-					raise_typing_error "Could not patch constructor on this function because there isn't one" cls.cl_name_pos
 				| _ -> ()
 				)
 			| _ -> ()

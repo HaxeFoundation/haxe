@@ -188,7 +188,7 @@ let load_local_wrapper ctx =
 let load_coro ctx =
 	ctx.t.tcoro.tcoro <- lazy begin
 		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Coroutine") null_pos in
-		ExtList.List.find_map_exn (function
+		(try ExtList.List.find_map_exn (function
 			| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
 				let mk_coro args ret =
 					TAbstract(a,[TFun(args,ret)])
@@ -196,25 +196,38 @@ let load_coro ctx =
 				Some mk_coro
 			| _ ->
 				None
-		) m.m_types;
+		) m.m_types
+		with Not_found -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__)
 	end;
 	ctx.t.tcoro.continuation <- lazy begin
 		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
-		ExtList.List.find_map_exn (function
+		(try ExtList.List.find_map_exn (function
 			| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
 				Some (TInst(cl, [ ctx.t.tany ]))
 			| _ ->
 				None
-		) m.m_types;
+		) m.m_types
+		with Not_found -> die "Could not locate class IContinuation<T> (was it redefined?)" __LOC__)
 	end;
 	ctx.t.tcoro.suspension_result_class <- lazy begin
 		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionResult") null_pos in
-		ExtList.List.find_map_exn (function
+		(try ExtList.List.find_map_exn (function
 			| TClassDecl({ cl_path = (["haxe";"coro"], "SuspensionResult") } as cl) ->
 				Some cl
 			| _ ->
 				None;
-		) m.m_types;
+		) m.m_types
+		with Not_found -> die "Could not locate class SuspensionResult<T> (was it redefined?)" __LOC__)
+	end;
+	ctx.t.tcoro.tasync_iterator <- lazy begin
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"AsyncIterator") null_pos in
+		(try ExtList.List.find_map_exn (function
+			| TTypeDecl({ t_path = (["haxe";"coro"],"AsyncIterator") } as td) ->
+				Some (fun t -> TType(td,[t]))
+			| _ ->
+				None
+		) m.m_types
+		with Not_found -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__)
 	end;
 	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
 	List.iter (function

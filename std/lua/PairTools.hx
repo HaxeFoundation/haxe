@@ -40,7 +40,7 @@ class PairTools {
 		return ret;
 	}
 
-	public static function pairsMap<A, B, C>(table:Table<A, B>, func:A->B->C->C):Table<A, C> {
+	public static function pairsMap<A, B, C>(table:Table<A, B>, func:A->B->C):Table<A, C> {
 		var ret:Table<A, C> = Table.create();
 		Syntax.code("for k,v in {0}({1}) do {2}[k] = ({3})(k,v) end", Lua.pairs, table, ret, func);
 		return ret;

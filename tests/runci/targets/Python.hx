@@ -18,7 +18,7 @@ class Python {
 				if (commandSucceed(pypy, ["-V"])) {
 					infoMsg('pypy3 has already been installed.');
 				} else {
-					final pypyVersion = "pypy3.8-v7.3.7-" + (switch Linux.arch {
+					final pypyVersion = "pypy3.8-v7.3.7-" + (switch System.arch {
 						case Arm64: "aarch64";
 						case Amd64: "linux64";
 					});

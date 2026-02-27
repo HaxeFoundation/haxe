@@ -1,6 +1,7 @@
 package cases;
 
 import Validator.shouldFail;
+import Validator.shouldWarn;
 
 typedef NotNullAnon = {
 	a:String

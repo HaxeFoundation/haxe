@@ -2412,11 +2412,16 @@ let macro_api ccom get_api =
 		);
 		"on_null_safety_report", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
-			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->
-				let encode_item (msg,pos) =
-					encode_obj [("msg", encode_string msg); ("pos", encode_pos pos)]
+			(ccom()).callbacks#add_null_safety_report (fun errors warnings ->
+				let encode_item kind (msg,pos) =
+					encode_obj [("type", encode_string kind); ("msg", encode_string msg); ("pos", encode_pos pos)]
 				in
-				ignore(f [encode_array (List.map encode_item errors)])
+				let encode_warning (w,msg,pos) =
+					encode_item "warning" (msg,pos)
+				in
+				let errors = List.map (encode_item "error") errors in
+				let warnings = List.map encode_warning warnings in
+				ignore(f [encode_array (errors @ warnings)])
 			);
 			vnull
 		);

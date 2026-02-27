@@ -1,0 +1,9 @@
+--lua bin/main.lua
+--main Main
+-D lua-vanilla
+# emulate no builtin bit32/bit, needs require
+--cmd lua -e "bit32, bit = nil, nil" bin/main.lua
+
+# emulate no require, needs builtin module. skips if not available
+--next
+--run RunScript

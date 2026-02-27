@@ -1,4 +1,4 @@
-#if sys
+#if (sys || nodejs)
 var filename = '.sys.io.file.testfile';
 if (sys.FileSystem.exists(filename)) sys.FileSystem.deleteFile(filename);
 sys.FileSystem.exists(filename) == false;

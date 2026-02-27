@@ -111,6 +111,12 @@
 		"targets": ["TAbstract"]
 	},
 	{
+		"name": "CallSuper",
+		"metadata": ":callSuper",
+		"doc": "Requires the overriding method to call super.",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "Commutative",
 		"metadata": ":commutative",
 		"doc": "Declares an abstract operator as commutative.",
@@ -149,10 +155,10 @@
 		"targets": ["TClassField"]
 	},
 	{
-		"name": "CoroutineTransformed",
-		"metadata": ":coroutine.transformed",
-		"doc": "Marks a field as being a coroutine that has already been transformed",
-		"targets": ["TClassField"]
+		"name": "CoroutineScope",
+		"metadata": ":coroutine.scope",
+		"doc": "Marks a type as a coroutine scope, disallowing its usage in other scopes. Use @:coroutine.scope(restrictedSuspension) to allow only coroutines defined on this scope to be called.",
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
 		"name": "CppFileCode",
