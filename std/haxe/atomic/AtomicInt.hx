@@ -128,9 +128,8 @@ abstract AtomicInt(AtomicIntData) {
 	**/
 	public function store(value:Int):Int {
 		this.mutex.acquire();
-		final previousValue = this.value;
 		this.value = value;
 		this.mutex.release();
-		return previousValue;
+		return value;
 	}
 }
