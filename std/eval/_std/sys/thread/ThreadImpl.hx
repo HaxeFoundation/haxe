@@ -24,6 +24,8 @@ package sys.thread;
 
 import eval.vm.NativeThread;
 
+// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'job' vs 'f')
+@:coreApi(check = Off)
 abstract ThreadImpl(NativeThread) {
 
 	public static inline function current():ThreadImpl {

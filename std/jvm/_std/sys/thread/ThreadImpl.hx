@@ -31,6 +31,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import jvm.Int64 as Long;
 
+// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'job' vs 'f')
+@:coreApi(check = Off)
 abstract ThreadImpl(JavaThread) {
 
 	function toNative() {

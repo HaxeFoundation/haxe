@@ -24,6 +24,8 @@ package sys.thread;
 
 @:pythonImport("threading", "local")
 @:native("local")
+// Can't enable @:coreApi because field 'value' has different property access than the core type
+@:coreApi(check = Off)
 extern class Tls<T> {
 	function new():Void;
 	var value(default, default):Null<T>;

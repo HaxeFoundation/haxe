@@ -12,6 +12,8 @@ typedef Symbol = #if (hl_ver >= version("1.12.0")) hl.Abstract<"hl_symbol"> #els
 **/
 @:dox(hide)
 @:noCompletion
+// Can't enable @:coreApi because return types are more specific than the core (NativeTrace/specific type vs Any)
+@:coreApi(check = Off)
 class NativeStackTrace {
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(exception:Any):Void {

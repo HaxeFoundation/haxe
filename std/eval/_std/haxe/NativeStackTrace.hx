@@ -7,6 +7,8 @@ import haxe.CallStack.StackItem;
 **/
 @:dox(hide)
 @:noCompletion
+// Can't enable @:coreApi because return types are more specific than the core (Array<StackItem> vs Any)
+@:coreApi(check = Off)
 class NativeStackTrace {
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
 	static public inline function saveStack(exception:Any):Void {

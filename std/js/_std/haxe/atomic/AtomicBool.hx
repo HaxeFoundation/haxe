@@ -15,6 +15,8 @@ abstract AtomicBool {
 	public function store(value:Bool):Bool;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core (AtomicInt vs @:coreType)
+@:coreApi(check = Off)
 abstract AtomicBool(AtomicInt) {
 	private inline function toInt(v:Bool):Int {
 		return v ? 1 : 0;

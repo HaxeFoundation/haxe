@@ -30,6 +30,8 @@ abstract AtomicInt {
 	public function store(value:Int):Int;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core (hl.NativeArray<Int> vs @:coreType)
+@:coreApi(check = Off)
 abstract AtomicInt(hl.NativeArray<Int>) {
 	public inline function new(value:Int):Void {
 		this = new hl.NativeArray(1);

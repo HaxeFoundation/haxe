@@ -16,6 +16,8 @@ abstract AtomicObject<T:{}> {
 	public function store(value:T):T;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core (AtomicReference vs @:coreType)
+@:coreApi(check = Off)
 abstract AtomicObject<T:{}>(AtomicReference<T>) {
 	public inline function new(value:T) {
 		this = new AtomicReference(value);

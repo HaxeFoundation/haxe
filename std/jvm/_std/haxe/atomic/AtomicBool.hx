@@ -16,6 +16,8 @@ abstract AtomicBool {
 	public function store(value:Bool):Bool;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core (AtomicBoolean vs @:coreType)
+@:coreApi(check = Off)
 abstract AtomicBool(AtomicBoolean) {
 	public inline function new(value:Bool) {
 		this = new AtomicBoolean(value);

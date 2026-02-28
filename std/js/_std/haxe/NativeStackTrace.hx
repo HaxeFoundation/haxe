@@ -23,6 +23,8 @@ private typedef V8CallSite = {
 @:dox(hide)
 @:noCompletion
 @:allow(haxe.Exception)
+// Can't enable @:coreApi because saveStack uses js.lib.Error instead of Any
+@:coreApi(check = Off)
 class NativeStackTrace {
 	static var lastError:Error;
 

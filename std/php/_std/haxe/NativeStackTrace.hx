@@ -11,6 +11,8 @@ private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 @:dox(hide)
 @:noCompletion
 @:allow(haxe.Exception)
+// Can't enable @:coreApi because saveStack uses Throwable instead of Any, return types differ
+@:coreApi(check = Off)
 class NativeStackTrace {
 	/**
 		If defined this function will be used to transform call stack entries.

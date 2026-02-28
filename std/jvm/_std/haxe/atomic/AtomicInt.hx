@@ -27,6 +27,8 @@ abstract AtomicInt {
 	public function store(value:Int):Int;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core (AtomicInteger vs @:coreType)
+@:coreApi(check = Off)
 abstract AtomicInt(AtomicInteger) {
 	public inline function new(value:Int) {
 		this = new AtomicInteger(value);

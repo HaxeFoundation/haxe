@@ -22,6 +22,8 @@
 
 package;
 
+// Can't enable @:coreApi because some fields have different property access (get vs default)
+@:coreApi(check = Off)
 class Math {
 	public static var PI(get, null):Float;
 

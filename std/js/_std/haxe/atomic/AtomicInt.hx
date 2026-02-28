@@ -27,6 +27,8 @@ abstract AtomicInt {
 	public function store(value:Int):Int;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core (js.lib.Int32Array vs @:coreType)
+@:coreApi(check = Off)
 abstract AtomicInt(js.lib.Int32Array) {
 	public inline function new(value:Int) {
 		this = new js.lib.Int32Array(new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT));

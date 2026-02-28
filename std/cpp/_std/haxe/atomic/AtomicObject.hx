@@ -14,6 +14,8 @@ abstract AtomicObject<T:{}> {
 	public function store(value:T):T;
 }
 #else
+// Can't enable @:coreApi because the underlying type differs from the core
+@:coreApi(check = Off)
 #if cppia
 extern
 #end

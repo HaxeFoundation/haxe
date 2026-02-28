@@ -31,6 +31,8 @@ private final class Data {
 		this.value = value;
 	}
 }
+// Can't enable @:coreApi because the underlying type differs from the core (Data vs @:coreType)
+@:coreApi(check = Off)
 #if cppia
 extern
 #end

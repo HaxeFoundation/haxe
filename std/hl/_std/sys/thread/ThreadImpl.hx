@@ -24,6 +24,8 @@ package sys.thread;
 
 private typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
+// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'callb' vs 'f')
+@:coreApi(check = Off)
 abstract ThreadImpl(ThreadHandle) {
 
 	@:hlNative("std", "thread_create")

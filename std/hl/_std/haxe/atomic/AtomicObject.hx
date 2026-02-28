@@ -21,6 +21,8 @@ abstract AtomicObject<T:{}> {
 #else
 // use hl.NativeArray<Dynamic> instead of hl.NativeArray<T>
 // so that the compiler doesn't get confused and emit hl.Ref.make(this.getRef())
+// Can't enable @:coreApi because the underlying type differs from the core
+@:coreApi(check = Off)
 abstract AtomicObject<T:{}>(hl.NativeArray<Dynamic>) {
 	public inline function new(value:T):Void {
 		this = new hl.NativeArray(1);

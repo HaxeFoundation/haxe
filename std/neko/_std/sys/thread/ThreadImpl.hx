@@ -22,6 +22,8 @@
 
 package sys.thread;
 
+// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'callb' vs 'f')
+@:coreApi(check = Off)
 abstract ThreadImpl(Dynamic) {
 
 	static var thread_create:(callb:(_:Dynamic)->Void, _:Dynamic)->ThreadImpl;

@@ -1663,7 +1663,18 @@ let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = build_fields (ctx_c,cctx) c fields in
-	if cctx.core_api_check = CoreApiConfig.On && com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c);
+	begin match cctx.core_api_check with
+	| CoreApiConfig.On ->
+		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c)
+	| CoreApiConfig.Implied ->
+		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() ->
+			try init_core_api ctx_c c
+			with
+			| Error { err_message = Module_not_found _ | Type_not_found _ } -> ()
+			| Error err -> com.error_ext err
+		)
+	| CoreApiConfig.Off -> ()
+	end;
 	if not cctx.is_lib then begin
 		delay ctx_c.g PForce (fun() -> check_overloads ctx_c c);
 		begin match c.cl_super with

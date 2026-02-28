@@ -28,6 +28,8 @@ private abstract NativeThreadHandle {}
 
 private typedef ThreadHandle = NativeThreadHandle;
 
+// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'callb' vs 'f')
+@:coreApi(check = Off)
 abstract ThreadImpl(ThreadHandle) {
 
 	public static #if !scriptable inline #end function current():ThreadImpl {

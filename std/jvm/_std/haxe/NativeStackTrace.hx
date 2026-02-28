@@ -12,6 +12,8 @@ import haxe.CallStack.StackItem;
 **/
 @:dox(hide)
 @:noCompletion
+// Can't enable @:coreApi because saveStack uses Throwable instead of Any, return types differ
+@:coreApi(check = Off)
 class NativeStackTrace {
 	static var exception = new ThreadLocal<Throwable>();
 
