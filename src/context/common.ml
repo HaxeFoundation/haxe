@@ -292,6 +292,7 @@ type context = {
 	dump_config : DumpConfig.t;
 	(* communication *)
 	mutable print : string -> unit;
+	mutable print_err : string -> unit;
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
@@ -749,6 +750,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		config = default_config;
 		custom_ext = None;
 		print = (fun s -> print_string s; flush stdout);
+		print_err = (fun s -> prerr_string s);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
@@ -866,6 +868,7 @@ let clone com is_macro_context =
 		config = com.config;
 		custom_ext = com.custom_ext;
 		print = com.print;
+		print_err = com.print_err;
 		run_command = com.run_command;
 		run_command_args = com.run_command_args;
 		package_rules = com.package_rules;

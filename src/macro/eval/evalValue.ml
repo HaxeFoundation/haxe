@@ -215,6 +215,7 @@ and vinstance_kind =
 	| IProcess of Process.process
 	| IInChannel of in_channel * bool ref (* FileInput *)
 	| IOutChannel of out_channel (* FileOutput *)
+	| IVirtualOutChannel of (string -> unit) * (unit -> unit) (* write_string, flush: for stdout/stderr routing *)
 	| ISocket of Unix.file_descr
 	| IThread of vthread
 	| IMutex of vmutex

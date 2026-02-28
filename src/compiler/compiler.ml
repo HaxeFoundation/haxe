@@ -47,8 +47,11 @@ let run_command ctx cmd =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
-		(* Emit stderr as a server message in server mode *)
-		end else begin
+		end else if not ctx.comm.is_server then
+			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
+			Sys.command cmd
+		else begin
+			(* In server mode, capture stdout/stderr and send them through the communication channel *)
 			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
 			let bout = Bytes.create 1024 in
 			let berr = Bytes.create 1024 in
@@ -231,6 +234,7 @@ module Setup = struct
 	let setup_common_context ctx =
 		let com = ctx.com in
 		ctx.com.print <- ctx.comm.write_out;
+		ctx.com.print_err <- ctx.comm.write_err;
 		Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int version /. 1000.));
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
