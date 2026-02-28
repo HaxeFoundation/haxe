@@ -24,16 +24,14 @@ package sys.thread;
 
 import python.lib.threading.Thread as NativeThread;
 
-// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'callb' vs 'f')
-@:coreApi(check = Off)
 abstract ThreadImpl(NativeThread) {
 
 	public static function current() : ThreadImpl {
 		return cast python.lib.Threading.current_thread();
 	}
 
-	public static function create(callb:Void->Void):ThreadImpl {
-		var t = new NativeThread({target:callb, daemon: true});
+	public static function create(job:Void->Void):ThreadImpl {
+		var t = new NativeThread({target:job, daemon: true});
 		t.start();
 		return cast t;
 	}

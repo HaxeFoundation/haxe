@@ -5,44 +5,29 @@ package haxe.atomic;
 #end
 import hl.Atomics;
 
-#if doc_gen
-@:coreType
-abstract AtomicObject<T:{}> {
-	public function new(value:T):Void;
-
-	public function compareExchange(expected:T, replacement:T):T;
-
-	public function exchange(value:T):T;
-
-	public function load():T;
-
-	public function store(value:T):T;
-}
-#else
 // use hl.NativeArray<Dynamic> instead of hl.NativeArray<T>
 // so that the compiler doesn't get confused and emit hl.Ref.make(this.getRef())
-// Can't enable @:coreApi because the underlying type differs from the core
-@:coreApi(check = Off)
-abstract AtomicObject<T:{}>(hl.NativeArray<Dynamic>) {
-	public inline function new(value:T):Void {
-		this = new hl.NativeArray(1);
-		this[0] = value;
-	}
+private typedef AtomicObjectData<T:{}> = hl.NativeArray<Dynamic>;
 
-	public inline function compareExchange(expected:T, replacement:T):T {
-		return Atomics.compareExchangePtr(this.getRef(), expected, replacement);
-	}
-
-	public inline function exchange(value:T):T {
-		return Atomics.exchangePtr(this.getRef(), value);
-	}
-
-	public inline function load():T {
-		return Atomics.loadPtr(this.getRef());
-	}
-
-	public inline function store(value:T):T {
-		return Atomics.storePtr(this.getRef(), value);
-	}
+abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+public inline function new(value:T):Void {
+this = new hl.NativeArray(1);
+this[0] = value;
 }
-#end
+
+public inline function compareExchange(expected:T, replacement:T):T {
+return Atomics.compareExchangePtr(this.getRef(), expected, replacement);
+}
+
+public inline function exchange(value:T):T {
+return Atomics.exchangePtr(this.getRef(), value);
+}
+
+public inline function load():T {
+return Atomics.loadPtr(this.getRef());
+}
+
+public inline function store(value:T):T {
+return Atomics.storePtr(this.getRef(), value);
+}
+}

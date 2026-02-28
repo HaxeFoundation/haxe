@@ -28,16 +28,14 @@ private abstract NativeThreadHandle {}
 
 private typedef ThreadHandle = NativeThreadHandle;
 
-// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'callb' vs 'f')
-@:coreApi(check = Off)
 abstract ThreadImpl(ThreadHandle) {
 
 	public static #if !scriptable inline #end function current():ThreadImpl {
 		return untyped __global__.__hxcpp_thread_current();
 	}
 
-	public static #if !scriptable inline #end function create(callb:Void->Void):ThreadImpl {
-		return untyped __global__.__hxcpp_thread_create(callb);
+	public static #if !scriptable inline #end function create(job:Void->Void):ThreadImpl {
+		return untyped __global__.__hxcpp_thread_create(job);
 	}
 
 	public static function setName( t : ThreadImpl, name : String ) {

@@ -4,13 +4,13 @@ package haxe.atomic;
 #error "Atomic operations are not supported on this target!"
 #end
 
+private typedef AtomicBoolData = Any;
+
 /**
 	Atomic boolean.
 	(js) The Atomics and SharedArrayBuffer objects need to be available. Errors will be thrown if this is not the case.
 **/
-@:coreApi
-@:coreType
-abstract AtomicBool {
+extern abstract AtomicBool(AtomicBoolData) {
 	public function new(value:Bool):Void;
 
 	/**

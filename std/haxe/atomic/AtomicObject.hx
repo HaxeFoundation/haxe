@@ -8,12 +8,13 @@ package haxe.atomic;
 #error "JavaScript does not support AtomicObject"
 #end
 
+private typedef AtomicObjectData<T:{}> = Any;
+
 /**
 	Atomic object. Use with care, this does not magically make it thread-safe to mutate objects.
 	Not supported on JavaScript.
 **/
-@:coreType
-abstract AtomicObject<T:{}> {
+extern abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 	public function new(value:T):Void;
 
 	/**

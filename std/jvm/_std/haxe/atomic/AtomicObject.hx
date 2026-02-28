@@ -2,50 +2,35 @@ package haxe.atomic;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-#if doc_gen
-@:coreType
-abstract AtomicObject<T:{}> {
-	public function new(value:T):Void;
+private typedef AtomicObjectData<T:{}> = AtomicReference<T>;
 
-	public function compareExchange(expected:T, replacement:T):T;
-
-	public function exchange(value:T):T;
-
-	public function load():T;
-
-	public function store(value:T):T;
+abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+public inline function new(value:T) {
+this = new AtomicReference(value);
 }
-#else
-// Can't enable @:coreApi because the underlying type differs from the core (AtomicReference vs @:coreType)
-@:coreApi(check = Off)
-abstract AtomicObject<T:{}>(AtomicReference<T>) {
-	public inline function new(value:T) {
-		this = new AtomicReference(value);
-	}
 
-	public inline function compareExchange(expected:T, replacement:T):T {
-		// Java's compareAndSet returns a boolean, so do a CAS loop to be able to return the original value without a potential race condition
+public inline function compareExchange(expected:T, replacement:T):T {
+// Java's compareAndSet returns a boolean, so do a CAS loop to be able to return the original value without a potential race condition
 
-		var original;
-		var real_replacement;
-		do {
-			original = this.get();
-			real_replacement = original == expected ? replacement : original;
-		} while (!this.compareAndSet(original, real_replacement));
-		return original;
-	}
-
-	public inline function exchange(value:T):T {
-		return this.getAndSet(value);
-	}
-
-	public inline function load():T {
-		return this.get();
-	}
-
-	public inline function store(value:T):T {
-		this.set(value);
-		return value;
-	}
+var original;
+var real_replacement;
+do {
+original = this.get();
+real_replacement = original == expected ? replacement : original;
+} while (!this.compareAndSet(original, real_replacement));
+return original;
 }
-#end
+
+public inline function exchange(value:T):T {
+return this.getAndSet(value);
+}
+
+public inline function load():T {
+return this.get();
+}
+
+public inline function store(value:T):T {
+this.set(value);
+return value;
+}
+}

@@ -24,12 +24,10 @@ package sys.thread;
 
 private typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
-// Can't enable @:coreApi because parameter names differ from the core type (e.g. 'callb' vs 'f')
-@:coreApi(check = Off)
 abstract ThreadImpl(ThreadHandle) {
 
 	@:hlNative("std", "thread_create")
-	public static function create(callb:Void->Void):ThreadImpl {
+	public static function create(job:Void->Void):ThreadImpl {
 		return null;
 	}
 
@@ -38,15 +36,15 @@ abstract ThreadImpl(ThreadHandle) {
 		return null;
 	}
 
-	public static function setName( impl : ThreadImpl, name : String ) {
+	public static function setName( t : ThreadImpl, name : String ) {
 		#if (hl_ver >= version("1.13.0"))
-		set_name(impl, @:privateAccess name.toUtf8());
+		set_name(t, @:privateAccess name.toUtf8());
 		#end
 	}
 
-	public static function getName( impl : ThreadImpl ) : Null<String> {
+	public static function getName( t : ThreadImpl ) : Null<String> {
 		#if (hl_ver >= version("1.13.0"))
-		var name = get_name(impl);
+		var name = get_name(t);
 		return name == null ? null : @:privateAccess String.fromUTF8(name);
 		#else
 		return null;
