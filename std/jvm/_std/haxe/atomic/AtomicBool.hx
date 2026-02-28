@@ -5,32 +5,32 @@ import java.util.concurrent.atomic.AtomicBoolean;
 private typedef AtomicBoolData = AtomicBoolean;
 
 abstract AtomicBool(AtomicBoolData) {
-public inline function new(value:Bool) {
-this = new AtomicBoolean(value);
-}
+	public inline function new(value:Bool) {
+		this = new AtomicBoolean(value);
+	}
 
-public inline function compareExchange(expected:Bool, replacement:Bool):Bool {
-// Java's compareAndSet returns a boolean, so do a CAS loop to be able to return the original value without a potential race condition
+	public inline function compareExchange(expected:Bool, replacement:Bool):Bool {
+		// Java's compareAndSet returns a boolean, so do a CAS loop to be able to return the original value without a potential race condition
 
-var original;
-var real_replacement;
-do {
-original = this.get();
-real_replacement = original == expected ? replacement : original;
-} while (!this.compareAndSet(original, real_replacement));
-return original;
-}
+		var original;
+		var real_replacement;
+		do {
+			original = this.get();
+			real_replacement = original == expected ? replacement : original;
+		} while (!this.compareAndSet(original, real_replacement));
+		return original;
+	}
 
-public inline function exchange(value:Bool):Bool {
-return this.getAndSet(value);
-}
+	public inline function exchange(value:Bool):Bool {
+		return this.getAndSet(value);
+	}
 
-public inline function load():Bool {
-return this.get();
-}
+	public inline function load():Bool {
+		return this.get();
+	}
 
-public inline function store(value:Bool):Bool {
-this.set(value);
-return value;
-}
+	public inline function store(value:Bool):Bool {
+		this.set(value);
+		return value;
+	}
 }

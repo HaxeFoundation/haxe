@@ -10,24 +10,24 @@ import hl.Atomics;
 private typedef AtomicObjectData<T:{}> = hl.NativeArray<Dynamic>;
 
 abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
-public inline function new(value:T):Void {
-this = new hl.NativeArray(1);
-this[0] = value;
-}
+	public inline function new(value:T):Void {
+		this = new hl.NativeArray(1);
+		this[0] = value;
+	}
 
-public inline function compareExchange(expected:T, replacement:T):T {
-return Atomics.compareExchangePtr(this.getRef(), expected, replacement);
-}
+	public inline function compareExchange(expected:T, replacement:T):T {
+		return Atomics.compareExchangePtr(this.getRef(), expected, replacement);
+	}
 
-public inline function exchange(value:T):T {
-return Atomics.exchangePtr(this.getRef(), value);
-}
+	public inline function exchange(value:T):T {
+		return Atomics.exchangePtr(this.getRef(), value);
+	}
 
-public inline function load():T {
-return Atomics.loadPtr(this.getRef());
-}
+	public inline function load():T {
+		return Atomics.loadPtr(this.getRef());
+	}
 
-public inline function store(value:T):T {
-return Atomics.storePtr(this.getRef(), value);
-}
+	public inline function store(value:T):T {
+		return Atomics.storePtr(this.getRef(), value);
+	}
 }
