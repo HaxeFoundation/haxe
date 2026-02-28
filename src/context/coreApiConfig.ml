@@ -2,44 +2,21 @@ open Globals
 
 (**
 	Determines how the core API check is performed for a class.
-	- On: Always check against the @:coreApiDefinition core type.
+	- On: Always perform the core API check.
 	- Off: Never check. Can be set explicitly to override an Implied check.
-	- Implied: Check only if a @:coreApiDefinition core type exists, otherwise ignore.
+	- Implied: Check only if a core definition type exists, otherwise ignore.
 *)
 type core_api_check =
 	| On
 	| Off
 	| Implied
 
-(**
-	Determines how a @:coreApiDefinition type may be used outside of a core API context.
-	- Disallow: typing outside of coreApi context is not allowed (default).
-	- Eval: like Disallow but also allowed on the eval target.
-	- Thread: only allowed on targets that support threads.
-	- Stub: the type provides a generic stub implementation, typing is allowed.
-	- Todo: temporary marker during migration, no effect.
-*)
-type core_api_definition_typing =
-	| Disallow
-	| Eval
-	| Thread
-	| Stub
-	| Todo
-
 type core_api_config = {
 	mutable check : core_api_check;
 }
 
-type core_api_definition_config = {
-	mutable typing : core_api_definition_typing;
-}
-
 let default_core_api_config () = {
 	check = On;
-}
-
-let default_core_api_definition_config () = {
-	typing = Disallow;
 }
 
 module CoreApiConfigReader (API : DataReaderApi.DataReaderApi) = struct
@@ -49,15 +26,6 @@ module CoreApiConfigReader (API : DataReaderApi.DataReaderApi) = struct
 		| "Off" -> Off
 		| "Implied" -> Implied
 		| s -> Error.raise_typing_error (Printf.sprintf "Unknown value for check: %s (expected On, Off, or Implied)" s) null_pos
-
-	let read_core_api_definition_typing data =
-		match API.read_ident data with
-		| "Disallow" -> Disallow
-		| "Eval" -> Eval
-		| "Thread" -> Thread
-		| "Stub" -> Stub
-		| "Todo" -> Todo
-		| s -> Error.raise_typing_error (Printf.sprintf "Unknown value for typing: %s (expected Disallow, Eval, Thread, Stub, or Todo)" s) null_pos
 
 	let read_core_api_config config data =
 		let read data =
@@ -70,18 +38,6 @@ module CoreApiConfigReader (API : DataReaderApi.DataReaderApi) = struct
 			) fl
 		in
 		API.read_optional data read
-
-	let read_core_api_definition_config config data =
-		let read data =
-			let fl = API.read_object data in
-			List.iter (fun (s, data) -> match s with
-				| "typing" ->
-					config.typing <- read_core_api_definition_typing data
-				| s ->
-					Error.raise_typing_error (Printf.sprintf "Unknown key for coreApiDefinition config: %s" s) null_pos
-			) fl
-		in
-		API.read_optional data read
 end
 
 module CoreApiConfigReaderMeta = CoreApiConfigReader(MetaDataApi.MetaReaderApi)
@@ -89,11 +45,6 @@ module CoreApiConfigReaderMeta = CoreApiConfigReader(MetaDataApi.MetaReaderApi)
 let of_core_api_metadata_entry entry =
 	let config = default_core_api_config () in
 	CoreApiConfigReaderMeta.read_core_api_config config (MetaDataApi.of_metadata_entry entry);
-	config
-
-let of_core_api_definition_metadata_entry entry =
-	let config = default_core_api_definition_config () in
-	CoreApiConfigReaderMeta.read_core_api_definition_config config (MetaDataApi.of_metadata_entry entry);
 	config
 
 (**
