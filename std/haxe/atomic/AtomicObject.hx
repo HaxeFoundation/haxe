@@ -1,9 +1,5 @@
 package haxe.atomic;
 
-#if js
-#error "JavaScript does not support AtomicObject"
-#end
-
 #if target.threaded
 
 import sys.thread.Mutex;
