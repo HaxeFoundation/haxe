@@ -36,8 +36,8 @@ abstract ThreadImpl(Dynamic) {
 		return thread_current();
 	}
 
-	public static function create( callb ) {
-		return thread_create((_) -> callb(),null);
+	public static function create( job ) {
+		return thread_create((_) -> job(),null);
 	}
 
 	public static function getName( t : ThreadImpl ) {

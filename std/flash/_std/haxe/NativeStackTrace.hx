@@ -3,6 +3,8 @@ package haxe;
 import flash.errors.Error;
 import haxe.CallStack.StackItem;
 
+private typedef NativeTrace = String;
+
 /**
 	Do not use manually.
 **/
@@ -11,25 +13,25 @@ import haxe.CallStack.StackItem;
 @:allow(haxe.Exception)
 class NativeStackTrace {
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
-	static public inline function saveStack(e:Any):Void {
+	static public inline function saveStack(exception:Any):Void {
 	}
 
-	static public inline function callStack():String {
+	static public inline function callStack():NativeTrace {
 		return normalize(new Error().getStackTrace(), 1);
 	}
 
-	static public function exceptionStack():String {
+	static public function exceptionStack():NativeTrace {
 		var err:Null<Error> = untyped flash.Boot.lastError;
 		return err == null ? '' : normalize(err.getStackTrace());
 	}
 
-	static public function toHaxe(native:String, skip:Int = 0):Array<StackItem> {
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
 		var a = new Array();
 		var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
 		var rlambda = ~/^MethodInfo-([0-9]+)$/g;
 		var cnt = 0;
-		while (r.match(native)) {
-			native = r.matchedRight();
+		while (r.match(nativeStackTrace)) {
+			nativeStackTrace = r.matchedRight();
 			if(skip > cnt++) {
 				continue;
 			}
@@ -50,7 +52,7 @@ class NativeStackTrace {
 		return a;
 	}
 
-	static function normalize(stack:String, skipItems:Int = 0):String {
+	static function normalize(stack:NativeTrace, skipItems:Int = 0):NativeTrace {
 		switch (stack:String).substring(0, 6) {
 			case 'Error:' | 'Error\n': skipItems += 1;
 			case _:
@@ -58,7 +60,7 @@ class NativeStackTrace {
 		return skipLines(stack, skipItems);
 	}
 
-	static function skipLines(stack:String, skip:Int, pos:Int = 0):String {
+	static function skipLines(stack:NativeTrace, skip:Int, pos:Int = 0):NativeTrace {
 		return if(skip > 0) {
 			pos = stack.indexOf('\n', pos);
 			return pos < 0 ? '' : skipLines(stack, --skip, pos + 1);

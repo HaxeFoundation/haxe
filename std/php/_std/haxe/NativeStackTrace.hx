@@ -17,12 +17,13 @@ class NativeStackTrace {
 		@param String - generated php file name.
 		@param Int - Line number in generated file.
 	**/
-	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
+	@:hack static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
 
 	static var lastExceptionTrace:Null<NativeTrace>;
 
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
-	static public function saveStack(e:Throwable) {
+	static public function saveStack(exception:Any) {
+		var e:Throwable = exception;
 		var nativeTrace = e.getTrace();
 
 		// Reduce exception stack to the place where exception was caught
@@ -58,20 +59,20 @@ class NativeStackTrace {
 		return lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace;
 	}
 
-	static public function toHaxe(native:NativeTrace, skip:Int = 0):Array<StackItem> {
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
 		var result = [];
-		var count = Global.count(native);
+		var count = Global.count(nativeStackTrace);
 
 		for (i in 0...count) {
 			if(skip > i) {
 				continue;
 			}
 
-			var entry = native[i];
+			var entry = nativeStackTrace[i];
 			var item = null;
 
 			if (i + 1 < count) {
-				var next = native[i + 1];
+				var next = nativeStackTrace[i + 1];
 
 				if (!Global.isset(next['function']))
 					next['function'] = '';
