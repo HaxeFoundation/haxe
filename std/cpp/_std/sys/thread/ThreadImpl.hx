@@ -34,8 +34,8 @@ abstract ThreadImpl(ThreadHandle) {
 		return untyped __global__.__hxcpp_thread_current();
 	}
 
-	public static #if !scriptable inline #end function create(callb:Void->Void):ThreadImpl {
-		return untyped __global__.__hxcpp_thread_create(callb);
+	public static #if !scriptable inline #end function create(job:Void->Void):ThreadImpl {
+		return untyped __global__.__hxcpp_thread_create(job);
 	}
 
 	public static function setName( t : ThreadImpl, name : String ) {
