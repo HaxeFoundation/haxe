@@ -18,7 +18,6 @@ private typedef AtomicObjectData<T:{}> = AtomicObjectValue<T>;
 
 /**
 	Atomic object. Use with care, this does not magically make it thread-safe to mutate objects.
-	Not supported on JavaScript.
 **/
 abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 	public function new(value:T):Void {
