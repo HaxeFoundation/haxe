@@ -138,7 +138,13 @@
 	{
 		"name": "CoreApi",
 		"metadata": ":coreApi",
-		"doc": "Identifies this class as a core API class (forces API check).",
+		"doc": "Identifies this class as a core API class. Accepts optional `check = On | Off | Implied` configuration.",
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
+	},
+	{
+		"name": "CoreApiDefinition",
+		"metadata": ":coreApiDefinition",
+		"doc": "Marks a type as the core API definition for its path. Accepts optional `typing = Disallow | Eval | Stub | Todo | Thread` configuration.",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
