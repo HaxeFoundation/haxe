@@ -1243,6 +1243,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			if fctx.is_inline && (has_class_flag c CInterface) then invalid_modifier ctx.com fctx "inline" "method of interface" p;
 		| false,CfrConstructor ->
 			if fctx.is_static then invalid_modifier ctx.com fctx "static" "constructor" p;
+			if Meta.has Meta.Coroutine f.cff_meta then invalid_modifier ctx.com fctx "@:coroutine" "constructor" p;
 			begin match fd.f_type with
 				| None -> ()
 				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
