@@ -70,7 +70,7 @@ class RunCi {
 					case Hl:
 						final withJitTests = !Sys.args().contains("--skip-hl-jit");
 						final withHlcTests = !Sys.args().contains("--skip-hlc");
-						runci.targets.Hl.run(args, withJitTests, false);
+						runci.targets.Hl.run(args, withJitTests, withHlcTests);
 					case t:
 						throw new Exception("unknown target: " + t);
 				}

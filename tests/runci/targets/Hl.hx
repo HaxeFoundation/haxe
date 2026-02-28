@@ -26,7 +26,7 @@ class Hl {
 	static final miscHlcDir = getMiscSubDir('hlc');
 
 	static var withJitTests = true;
-	static var withHlcTests = false;
+	static var withHlcTests = true;
 
 	static public function getHlDependencies() {
 		if (FileSystem.exists(hlBinary)) {
@@ -139,7 +139,7 @@ class Hl {
 
 	static public function run(args:Array<String>, withJitTests:Bool, withHlcTests:Bool) {
 		Hl.withJitTests = withJitTests;
-		Hl.withHlcTests = withHlcTests;
+		Hl.withHlcTests = if (isCi()) false else withHlcTests;
 
 		getHlDependencies();
 
