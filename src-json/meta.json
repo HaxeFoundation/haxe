@@ -142,12 +142,6 @@
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
-		"name": "CoreApiDefinition",
-		"metadata": ":coreApiDefinition",
-		"doc": "Marks a type as the core API definition for its path. Accepts optional `typing = Disallow | Eval | Stub | Todo | Thread` configuration.",
-		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
-	},
-	{
 		"name": "CoreType",
 		"metadata": ":coreType",
 		"doc": "Identifies an abstract as core type so that it requires no implementation.",
