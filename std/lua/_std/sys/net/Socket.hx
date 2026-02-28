@@ -59,6 +59,8 @@ import lua.*;
 import haxe.io.Bytes;
 import haxe.io.Error;
 
+// Can't enable @:coreApi because field 'custom' has different visibility (extern fields default to public, but class fields don't)
+@:coreApi(check = Off)
 class Socket {
 	public var input(default, null):haxe.io.Input;
 

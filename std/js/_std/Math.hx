@@ -22,7 +22,7 @@
 import js.Syntax.code;
 
 // Can't enable @:coreApi because some fields are now inline getters
-// @:coreApi
+@:coreApi(check = Off)
 @:keepInit
 extern class Math {
 	static var PI(default, null):Float;

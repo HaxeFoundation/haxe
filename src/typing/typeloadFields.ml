@@ -33,7 +33,7 @@ open Error
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.c.curclass because it's mutable. *)
 	is_lib : bool;
-	is_core_api : bool;
+	core_api_check : CoreApiConfig.core_api_check;
 	is_class_debug : bool;
 	extends_public : bool;
 	abstract : tabstract option;
@@ -104,7 +104,7 @@ let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
 		"is_lib",string_of_bool cctx.is_lib;
-		"is_core_api",string_of_bool cctx.is_core_api;
+		"core_api_check",CoreApiConfig.s_core_api_check cctx.core_api_check;
 		"is_class_debug",string_of_bool cctx.is_class_debug;
 		"extends_public",string_of_bool cctx.extends_public;
 		"abstract",Printer.s_opt (Printer.s_tabstract "\t") cctx.abstract;
@@ -469,7 +469,7 @@ let create_class_context c p =
 	let cctx = {
 		tclass = c;
 		is_lib = is_lib;
-		is_core_api = Meta.has Meta.CoreApi c.cl_meta;
+		core_api_check = CoreApiConfig.get_core_api_check c.cl_meta (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file);
 		is_class_debug = Meta.has (Meta.Custom ":debug.typeload") c.cl_meta;
 		extends_public = extends_public c;
 		abstract = abstract;
@@ -1120,7 +1120,7 @@ let type_opt (ctx,cctx,fctx) p mode t =
 	| None when is_truly_extern || (has_class_flag c CInterface) ->
 		display_error ctx.com "Type required for extern classes and interfaces" p;
 		t_dynamic
-	| None when cctx.is_core_api ->
+	| None when cctx.core_api_check = CoreApiConfig.On ->
 		display_error ctx.com "Type required for core api classes" p;
 		t_dynamic
 	| None when fctx.is_abstract ->
@@ -1663,7 +1663,18 @@ let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = build_fields (ctx_c,cctx) c fields in
-	if cctx.is_core_api && com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c);
+	begin match cctx.core_api_check with
+	| CoreApiConfig.On ->
+		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c)
+	| CoreApiConfig.Implied ->
+		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() ->
+			try init_core_api ctx_c c
+			with
+			| Error { err_message = Module_not_found _ | Type_not_found _ } -> ()
+			| Error err -> com.error_ext err
+		)
+	| CoreApiConfig.Off -> ()
+	end;
 	if not cctx.is_lib then begin
 		delay ctx_c.g PForce (fun() -> check_overloads ctx_c c);
 		begin match c.cl_super with

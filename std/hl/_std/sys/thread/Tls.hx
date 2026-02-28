@@ -31,6 +31,8 @@ extern class Tls<T> {
 #else
 
 @:hlNative("std")
+// Can't enable @:coreApi because this is an abstract vs the core's extern class
+@:coreApi(check = Off)
 abstract Tls<T>(hl.Abstract<"hl_tls">) {
 	public var value(get, set):Null<T>;
 
