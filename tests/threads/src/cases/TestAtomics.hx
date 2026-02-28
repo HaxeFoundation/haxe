@@ -1,13 +1,13 @@
 package cases;
 
 
-#if target.atomics
+#if target.threaded
 import haxe.atomic.AtomicInt;
 #end
 
 @:timeout(2000)
 class TestAtomics extends utest.Test {
-	#if target.atomics
+	#if target.threaded
 	function test(async:Async) {
 		var a = new AtomicInt(5);
 		final thread = Thread.create(() -> {
