@@ -18,9 +18,6 @@ private typedef AtomicIntData = AtomicIntValue;
 	Atomic integer.
 	(js) The Atomics and SharedArrayBuffer objects need to be available. Errors will be thrown if this is not the case.
 **/
-#if eval
-@:native("haxe.atomic.Atomic")
-#end
 abstract AtomicInt(AtomicIntData) {
 	public function new(value:Int):Void {
 		this = new AtomicIntData(value);
