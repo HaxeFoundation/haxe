@@ -503,6 +503,7 @@ let catch_completion_and_exit ctx callbacks run =
 		if ctx.has_error then 1 else 0
 	with
 		| DisplayProcessingGlobals.Completion str ->
+			ctx.com.io.close ();
 			callbacks.after_compilation ctx;
 			ServerMessage.completion str;
 			ctx.comm.write_err str;
