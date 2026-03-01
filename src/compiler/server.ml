@@ -819,6 +819,7 @@ let rec process sctx comm args =
 	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	reset sctx;
+	let curdir = Unix.getcwd () in
 	let api = {
 		on_context_create = (fun () ->
 			sctx.compilation_step <- sctx.compilation_step + 1;
@@ -838,6 +839,7 @@ let rec process sctx comm args =
 		do_connect = do_connect;
 	} in
 	Compiler.HighLevel.entry api comm args;
+	(try Unix.chdir curdir with _ -> ());
 	run_delays sctx;
 	ServerMessage.stats stats (Extc.time() -. t0)
 
