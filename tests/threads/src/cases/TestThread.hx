@@ -190,6 +190,55 @@ class TestThread extends utest.Test {
 		Assert.isTrue(thread == jobDoneThread);
 	}
 
+	function testOnAbortExceptionStillCallsOnExit() {
+		// If onAbort throws, onExit should still be called
+		final sem = new Semaphore(0);
+		var onExitCalled = false;
+
+		Thread.create(() -> {
+			throw "job error";
+		}, {
+			onAbort: (_) -> {
+				throw "onAbort error";
+			},
+			onExit: () -> {
+				onExitCalled = true;
+				sem.release();
+			}
+		});
+
+		sem.acquire();
+		Assert.isTrue(onExitCalled);
+	}
+
+	function testOnExitExceptionDoesNotCallOnAbort() {
+		// If onExit throws, the custom onAbort callback should NOT be called again
+		final sem = new Semaphore(0);
+		var onAbortCalledCount = 0;
+
+		Thread.create(() -> {
+			throw "job error";
+		}, {
+			onAbort: (_) -> {
+				onAbortCalledCount++;
+			},
+			onExit: () -> {
+				try {
+					throw "onExit error";
+				} catch (e:Dynamic) {
+					// Release the semaphore even when throwing so we can synchronize
+					sem.release();
+					throw e;
+				}
+			}
+		});
+
+		sem.acquire();
+		// onAbort should have been called exactly once (for the job exception),
+		// not again for the onExit exception (which goes to the default handler)
+		Assert.equals(1, onAbortCalledCount);
+	}
+
 	function testOnJobDoneNotCalledOnException() {
 		// onJobDone should NOT be called when the thread throws
 		final sem = new Semaphore(0);
