@@ -181,12 +181,11 @@ class cache = object(self)
 		Hashtbl.clear native_libs;
 		tasks <- PriorityQueue.Empty
 
-	(* Like clear, but preserves the file parse cache within each context. *)
+	(* Like clear, but preserves the file parse cache and directory cache within each context. *)
 	method soft_clear =
 		Hashtbl.iter (fun _ cc -> cc#clear_modules) contexts;
 		context_list <- [];
 		Hashtbl.clear haxelib;
-		Hashtbl.clear directories;
 		Hashtbl.clear native_libs;
 		tasks <- PriorityQueue.Empty
 
