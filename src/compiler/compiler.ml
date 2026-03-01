@@ -580,6 +580,7 @@ let create_context comm cs timer_ctx compilation_step params =
 		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
 		Unix.close stdin_w_fd;
 		let stdin_ch = Unix.in_channel_of_descr stdin_r_fd in
+		let closed = ref false in
 		{
 			Gctx.print = comm.write_out;
 			print_err = comm.write_err;
@@ -587,9 +588,12 @@ let create_context comm cs timer_ctx compilation_step params =
 			stderr = stderr_ch;
 			stdin = stdin_ch;
 			close = (fun () ->
-				flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
-				flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
-				close_in_noerr stdin_ch;
+				if not !closed then begin
+					closed := true;
+					flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
+					flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
+					close_in_noerr stdin_ch;
+				end
 			);
 		}
 	end else
