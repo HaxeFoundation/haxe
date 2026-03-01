@@ -28,7 +28,7 @@ package sys.thread;
 
 import sys.thread.ThreadCallback;
 
-private typedef ThreadCreateCallbacks = {
+typedef ThreadCreateCallbacks = {
 	?onJobDone:() -> Void,
 	?onAbort:haxe.Exception -> Void,
 	?onExit:() -> Void
@@ -169,6 +169,8 @@ class Thread {
 		var t = new Thread(null);
 		threads.push(t);
 		mutex.release();
+
+		final defaultOnAbort = t.onAbort;
 		if (callbacks != null) {
 			t.installCallbacks(callbacks);
 		}
@@ -189,9 +191,21 @@ class Thread {
 			} catch( e ) {
 				exception = e;
 			}
-			if( exception != null )
-				t.onAbort(exception);
-			@:privateAccess t.callbacks.callOnExit();
+
+			if( exception != null ) {
+				try {
+					t.onAbort(exception);
+				} catch ( e ) {
+					defaultOnAbort(e);
+				}
+			}
+
+			try {
+				@:privateAccess t.callbacks.callOnExit();
+			} catch ( e ) {
+				defaultOnAbort(e);
+			}
+
 			t.dispose();
 		});
 		if( name != null ) t.name = name;

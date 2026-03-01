@@ -136,6 +136,9 @@ class ThreadInstanceCallbacks {
 		Registers `f` to be called when the thread is exiting. In the case of an exception,
 		it is called after `onAbort`.
 
+		Exceptions raised during the callback are caught and passed to the default onAbort handler,
+		ignoring any assigned onAbort callback.
+
 		It is not guaranteed to be called if the thread is killed in a way that does not lead to
 		normal termination. Any callback assigned to this should not throw an exception.
 	**/
