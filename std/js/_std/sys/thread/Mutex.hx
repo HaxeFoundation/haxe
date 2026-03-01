@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2024 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,33 +22,33 @@
 
 package sys.thread;
 
-@:pythonImport("threading", "local")
-@:native("local")
-extern class NativeTls<T> {
-	function new():Void;
-	var value(default, default):Null<T>;
-}
+import js.lib.Atomics;
 
-class Tls<T> {
-	final native:NativeTls<Null<T>>;
-
-	public var value(get, set):Null<T>;
+@:noPackageRestrict
+class Mutex {
+	// 0 = unlocked, 1 = locked
+	final _state:js.lib.Int32Array;
 
 	public function new():Void {
-		native = new NativeTls<T>();
-		native.value = null;
+		_state = new js.lib.Int32Array(new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT));
 	}
 
-	function get_value() {
-		try {
-			return native.value;
-		} catch (_:Dynamic) {
-			return null;
+	public function acquire():Void {
+		while (Atomics.compareExchange(_state, 0, 0, 1) != 0) {
+			// In workers, wait efficiently until notified.
+			// On the main thread, Atomics.wait throws, so spin in that case.
+			try {
+				Atomics.wait(_state, 0, 1);
+			} catch (_:Dynamic) {}
 		}
 	}
 
-	function set_value(v:T) {
-		native.value = v;
-		return v;
+	public function tryAcquire():Bool {
+		return Atomics.compareExchange(_state, 0, 0, 1) == 0;
+	}
+
+	public function release():Void {
+		Atomics.store(_state, 0, 0);
+		Atomics.notify(_state, 0, 1);
 	}
 }

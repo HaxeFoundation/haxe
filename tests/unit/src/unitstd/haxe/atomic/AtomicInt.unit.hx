@@ -1,4 +1,3 @@
-#if target.atomics
 var a = new haxe.atomic.AtomicInt(0);
 
 a.load() == 0;
@@ -28,6 +27,3 @@ a.load() == 0;
 
 a.exchange(10) == 0;
 a.load() == 10;
-#else
-0 == 0; // prevent "no assertions" warning
-#end
