@@ -1124,16 +1124,12 @@ module StdFileOutput = struct
 		| _ -> unexpected_value vthis "FileOutput"
 
 	let close = vifun0 (fun vthis ->
-		(match vthis with
-		| VInstance {ikind = IVirtualOutChannel _} -> ()
-		| _ -> close_out (this vthis));
+		close_out (this vthis);
 		vnull
 	)
 
 	let flush = vifun0 (fun vthis ->
-		(match vthis with
-		| VInstance {ikind = IVirtualOutChannel(_,f)} -> f ()
-		| _ -> flush (this vthis));
+		flush (this vthis);
 		vnull
 	)
 
@@ -1150,23 +1146,16 @@ module StdFileOutput = struct
 	)
 
 	let writeByte = vifun1 (fun vthis c ->
-		(match vthis with
-		| VInstance {ikind = IVirtualOutChannel(write,_)} ->
-			write (String.make 1 (char_of_int (decode_int c)))
-		| _ ->
-			output_char (this vthis) (char_of_int (decode_int c)));
+		output_char (this vthis) (char_of_int (decode_int c));
 		vnull
 	)
 
 	let writeBytes = vifun3 (fun vthis bytes pos len ->
+		let this = this vthis in
 		let bytes = decode_bytes bytes in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		(match vthis with
-		| VInstance {ikind = IVirtualOutChannel(write,_)} ->
-			write (Bytes.sub_string bytes pos len)
-		| _ ->
-			output (this vthis) bytes pos len);
+		output this bytes pos len;
 		vint len
 	)
 end
@@ -2772,9 +2761,7 @@ module StdSys = struct
 	)
 
 	let stderr = vfun0 (fun () ->
-		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IVirtualOutChannel(com.io.print_err, fun () -> ()))
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
 	)
 
 	let stdin = vfun0 (fun () ->
@@ -2782,9 +2769,7 @@ module StdSys = struct
 	)
 
 	let stdout = vfun0 (fun () ->
-		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IVirtualOutChannel(com.io.print, fun () -> ()))
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stdout)
 	)
 
 	let systemName =
