@@ -552,9 +552,11 @@ let create_context comm cs timer_ctx compilation_step params =
 	} in
 	let io = if comm.is_server then begin
 		(* In server mode, create pipes so that writing to stdout/stderr channels
-		   gets forwarded through the communication protocol to the client. *)
+		   gets forwarded through the communication protocol to the client.
+		   cloexec:true prevents child processes from inheriting the pipe handles,
+		   which would prevent the reader threads from seeing EOF on Windows. *)
 		let make_pipe write_fn =
-			let (r_fd, w_fd) = Unix.pipe () in
+			let (r_fd, w_fd) = Unix.pipe ~cloexec:true () in
 			let out_ch = Unix.out_channel_of_descr w_fd in
 			let in_ch = Unix.in_channel_of_descr r_fd in
 			let thread = Thread.create (fun () ->
@@ -573,7 +575,7 @@ let create_context comm cs timer_ctx compilation_step params =
 		let (stdout_ch, stdout_thread) = make_pipe comm.write_out in
 		let (stderr_ch, stderr_thread) = make_pipe comm.write_err in
 		(* For stdin in server mode, create a pipe with write end closed (EOF). *)
-		let (stdin_r_fd, stdin_w_fd) = Unix.pipe () in
+		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
 		Unix.close stdin_w_fd;
 		let stdin_ch = Unix.in_channel_of_descr stdin_r_fd in
 		{
