@@ -29,8 +29,19 @@ package sys.thread;
 import sys.thread.ThreadCallback;
 
 typedef ThreadCreateCallbacks = {
+	/**
+		Called when the thread has successfully completed its job. Not called if the thread throws.
+	**/
 	?onJobDone:() -> Void,
+	/**
+		Called when an uncaught exception aborts the thread. If this callback throws, the exception
+		is forwarded to the default abort handler and `onExit` callbacks are still called.
+	**/
 	?onAbort:haxe.Exception -> Void,
+	/**
+		Called when the thread is exiting, after `onAbort` if applicable. If this callback throws,
+		the exception is forwarded to the default abort handler, ignoring any assigned `onAbort`.
+	**/
 	?onExit:() -> Void
 }
 
@@ -243,6 +254,9 @@ class Thread {
 	/**
 		This function is called when an uncaught exception aborted a thread.
 		The error will be printed to stdout but this function can be redefined.
+
+		If this function throws, the exception is forwarded to the default handler
+		(print to stdout) and `onExit` callbacks are still called.
 
 		It is generally good practice to call any previously existing callback
 		from functions assigned to this.
