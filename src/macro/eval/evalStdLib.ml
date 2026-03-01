@@ -1493,7 +1493,7 @@ module StdLog = struct
 					| _ -> [s]
 				in
 				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
-		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
+		((get_ctx()).curapi.MacroApi.get_com()).io.print s;
 		vnull
 	)
 end
@@ -2725,14 +2725,14 @@ module StdSys = struct
 	let print = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v);
+		com.io.print (value_string v);
 		vnull
 	)
 
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v ^ lineEnd);
+		com.io.print (value_string v ^ lineEnd);
 		vnull
 	)
 
@@ -2774,7 +2774,7 @@ module StdSys = struct
 	let stderr = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IVirtualOutChannel(com.print_err, fun () -> ()))
+		encode_instance key_sys_io_FileOutput ~kind:(IVirtualOutChannel(com.io.print_err, fun () -> ()))
 	)
 
 	let stdin = vfun0 (fun () ->
@@ -2784,7 +2784,7 @@ module StdSys = struct
 	let stdout = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IVirtualOutChannel(com.print, fun () -> ()))
+		encode_instance key_sys_io_FileOutput ~kind:(IVirtualOutChannel(com.io.print, fun () -> ()))
 	)
 
 	let systemName =

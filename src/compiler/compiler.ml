@@ -233,8 +233,6 @@ module Setup = struct
 
 	let setup_common_context ctx =
 		let com = ctx.com in
-		ctx.com.print <- ctx.comm.write_out;
-		ctx.com.print_err <- ctx.comm.write_err;
 		Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int version /. 1000.));
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
@@ -542,22 +540,29 @@ let compile_ctx callbacks ctx =
 	end else
 		catch_completion_and_exit ctx callbacks run
 
-let create_context comm cs timer_ctx compilation_step params = {
-	com = Common.create timer_ctx compilation_step cs {
+let create_context comm cs timer_ctx compilation_step params =
+	let version = {
 		version = version;
 		major = version_major;
 		minor = version_minor;
 		revision = version_revision;
 		pre = version_pre;
 		extra = Version.version_extra;
-	} params (DisplayTypes.DisplayMode.create DMNone);
-	messages = [];
-	has_next = false;
-	has_error = false;
-	comm = comm;
-	runtime_args = [];
-	timer_ctx = timer_ctx;
-}
+	} in
+	let io = {
+		Gctx.print = comm.write_out;
+		print_err = comm.write_err;
+	} in
+	let com = Common.create io timer_ctx compilation_step cs version params (DisplayTypes.DisplayMode.create DMNone) in
+	{
+		com;
+		messages = [];
+		has_next = false;
+		has_error = false;
+		comm = comm;
+		runtime_args = [];
+		timer_ctx = timer_ctx;
+	}
 
 module HighLevel = struct
 	let add_libs timer_ctx libs args cs has_display =

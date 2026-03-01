@@ -8,6 +8,11 @@ type context_main = {
 	mutable main_expr : texpr option;
 }
 
+type compilation_io = {
+	print : string -> unit;
+	print_err : string -> unit;
+}
+
 type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit
 type error_function = string -> pos -> unit
 
@@ -19,7 +24,7 @@ type t = {
 	run_command_args : string -> string list -> int;
 	warning : warning_function;
 	error : error_function;
-	print : string -> unit;
+	io : compilation_io;
 	basic : basic_types;
 	debug : bool;
 	file : string;
