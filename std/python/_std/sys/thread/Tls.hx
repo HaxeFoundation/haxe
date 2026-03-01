@@ -40,7 +40,11 @@ class Tls<T> {
 	}
 
 	function get_value() {
-		return native.value;
+		try {
+			return native.value;
+		} catch (_:Dynamic) {
+			return null;
+		}
 	}
 
 	function set_value(v:T) {
