@@ -535,9 +535,9 @@ let compile_ctx callbacks ctx =
 			process_actx ctx actx;
 			compile ctx actx callbacks;
 		);
-		finalize ctx;
 		ctx.comm.flush ctx;
 		callbacks.after_compilation ctx;
+		finalize ctx;
 	in
 	if ctx.has_error then begin
 		finalize ctx;
