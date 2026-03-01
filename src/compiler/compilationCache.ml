@@ -173,6 +173,7 @@ end
 
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
+	val mutable context_list = []
 	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
@@ -180,6 +181,7 @@ class cache = object(self)
 
 	method clear =
 		Hashtbl.clear contexts;
+		context_list <- [];
 		Hashtbl.clear haxelib;
 		Hashtbl.clear directories;
 		Hashtbl.clear native_libs;
@@ -188,6 +190,7 @@ class cache = object(self)
 	(* Like clear, but preserves the file parse cache and directory cache within each context. *)
 	method soft_clear =
 		Hashtbl.iter (fun _ cc -> cc#clear_modules) contexts;
+		context_list <- [];
 		Hashtbl.clear haxelib;
 		Hashtbl.clear native_libs;
 		tasks <- PriorityQueue.Empty
@@ -199,9 +202,13 @@ class cache = object(self)
 
 	method get_context sign =
 		try
-			Hashtbl.find contexts sign
+			let cache = Hashtbl.find contexts sign in
+			if not (List.memq cache context_list) then
+				context_list <- cache :: context_list;
+			cache
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) sign in
+			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
 
@@ -221,7 +228,7 @@ class cache = object(self)
 		cc#set_json jo;
 		cc#get_index
 
-	method get_contexts = Hashtbl.fold (fun _ cache acc -> cache :: acc) contexts []
+	method get_contexts = context_list
 
 	(* files *)
 
