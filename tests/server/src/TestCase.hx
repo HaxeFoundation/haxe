@@ -20,6 +20,15 @@ using Lambda;
 @:autoBuild(utils.macro.BuildHub.build())
 interface ITestCase {}
 
+class TestException extends Exception {
+	final pos:PosInfos;
+
+	public function new(message:String, ?pos:PosInfos) {
+		super(message);
+		this.pos = pos;
+	}
+}
+
 class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
@@ -78,12 +87,12 @@ class TestCase implements ITest implements ITestCase {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
 
-		hxcoro.CoroRun
-			.promise(() -> {
-				runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {});
+		hxcoro.CoroRun.promise(() -> {
+			runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {});
 
-				if (!async.timedOut) async.done();
-			});
+			if (!async.timedOut)
+				async.done();
+		});
 	}
 
 	public function teardown() {}
@@ -140,7 +149,7 @@ class TestCase implements ITest implements ITestCase {
 		hxcoro.Coro.suspend(cont -> {
 			server.rawRequest(args, null, function(result) {
 				handleResult(result);
-				var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
+				var json = try Json.parse(result.stderr) catch (e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
 
 				if (json.result != null) {
 					callback(json.result?.result);
@@ -151,6 +160,30 @@ class TestCase implements ITest implements ITestCase {
 			}, function(msg) {
 				sendErrorMessage(msg);
 				cont.resume(null, null);
+			});
+		});
+	}
+
+	@:coroutine
+	function runHaxeJsonCbNew<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
+			?pos:PosInfos):TResponse {
+		var methodArgs = {method: method, id: 1, params: methodArgs};
+		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		messages = [];
+		errorMessages = [];
+
+		return hxcoro.Coro.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				handleResult(result);
+				var json = try Json.parse(result.stderr) catch (e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
+
+				if (json.result != null) {
+					cont.resume(json.result?.result, null);
+				} else {
+					cont.resume(null, new TestException('Error: ' + json.error, pos));
+				}
+			}, function(msg) {
+				cont.resume(null, new TestException(msg, pos));
 			});
 		});
 	}

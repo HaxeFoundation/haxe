@@ -99,9 +99,8 @@ class ServerTests extends TestCase {
 		var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
 		runHaxe(args);
 		assertErrorMessage("Expected }");
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")});
+		Assert.equals(0, res.length);
 		runHaxe(args);
 		assertErrorMessage("Expected }");
 	}
