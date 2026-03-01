@@ -291,7 +291,7 @@ type context = {
 	parser_state : parser_state;
 	dump_config : DumpConfig.t;
 	(* communication *)
-	mutable io : Gctx.compilation_io;
+	io : Gctx.compilation_io;
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
