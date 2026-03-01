@@ -662,10 +662,22 @@ let after_target_init sctx ctx =
 	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
 	let class_path_strings = com.class_paths#as_string_list in
 	try
-		if (Hashtbl.find sctx.class_paths sign) <> class_path_strings then begin
+		let old_class_path_strings = Hashtbl.find sctx.class_paths sign in
+		if old_class_path_strings <> class_path_strings then begin
 			ServerMessage.class_paths_changed com "";
 			Hashtbl.replace sctx.class_paths sign class_path_strings;
 			cs#clear_directories sign;
+			(* Populate only the truly new class path directories (not previously known) with
+			   mtime=0 so they're treated as changed on the first subsequent check. This enables
+			   check_module_shadowing to detect files in new paths that shadow stale cached
+			   modules, without causing a full rescan of unchanged paths like the standard library. *)
+			let new_dirs = List.filter_map (fun path ->
+				if not (List.mem path old_class_path_strings) && Sys.file_exists path then
+					Some (CompilationCache.create_directory path 0.0)
+				else
+					None
+			) class_path_strings in
+			cs#add_directories sign new_dirs;
 			(cs#get_context sign)#set_initialized false;
 		end;
 	with Not_found ->
