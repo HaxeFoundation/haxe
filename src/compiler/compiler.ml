@@ -553,42 +553,26 @@ let create_context comm cs timer_ctx compilation_step params =
 	} in
 	let io = if comm.is_server then begin
 		(* In server mode, create pipes so that writing to stdout/stderr channels
-		   gets forwarded through the communication protocol to the client.
-		   Reader threads drain the pipe continuously to avoid deadlocks from
-		   buffer-full conditions. We use Mutex/Condition for completion signaling
-		   instead of Thread.join, and Unix.read instead of buffered input, for
-		   reliable cross-platform behavior. *)
+		   gets forwarded through the communication protocol to the client. *)
 		let make_pipe write_fn =
 			let (r_fd, w_fd) = Unix.pipe ~cloexec:true () in
 			let out_ch = Unix.out_channel_of_descr w_fd in
-			let m = Mutex.create () in
-			let c = Condition.create () in
-			let finished = ref false in
-			let _thread = Thread.create (fun () ->
-				let buf = Bytes.create 4096 in
+			let in_ch = Unix.in_channel_of_descr r_fd in
+			let thread = Thread.create (fun () ->
+				let buf = Bytes.create 1024 in
 				(try while true do
-					let n = Unix.read r_fd buf 0 4096 in
+					let n = input in_ch buf 0 1024 in
 					if n = 0 then raise Exit;
 					write_fn (Bytes.sub_string buf 0 n)
 				done with
-				| Exit | Unix.Unix_error _ -> ());
-				Unix.close r_fd;
-				Mutex.lock m;
-				finished := true;
-				Condition.signal c;
-				Mutex.unlock m
+				| End_of_file | Exit -> ()
+				| Unix.Unix_error _ -> ());
+				close_in_noerr in_ch
 			) () in
-			let wait () =
-				Mutex.lock m;
-				while not !finished do
-					Condition.wait c m
-				done;
-				Mutex.unlock m
-			in
-			(out_ch, wait)
+			(out_ch, thread)
 		in
-		let (stdout_ch, wait_stdout) = make_pipe comm.write_out in
-		let (stderr_ch, wait_stderr) = make_pipe comm.write_err in
+		let (stdout_ch, stdout_thread) = make_pipe comm.write_out in
+		let (stderr_ch, stderr_thread) = make_pipe comm.write_err in
 		(* For stdin in server mode, create a pipe with write end closed (EOF). *)
 		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
 		Unix.close stdin_w_fd;
@@ -600,10 +584,8 @@ let create_context comm cs timer_ctx compilation_step params =
 			stderr = stderr_ch;
 			stdin = stdin_ch;
 			close = (fun () ->
-				flush stdout_ch; close_out_noerr stdout_ch;
-				flush stderr_ch; close_out_noerr stderr_ch;
-				wait_stdout ();
-				wait_stderr ();
+				flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
+				flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
 				close_in_noerr stdin_ch;
 			);
 		}
