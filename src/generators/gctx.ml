@@ -11,6 +11,10 @@ type context_main = {
 type compilation_io = {
 	print : string -> unit;
 	print_err : string -> unit;
+	stdout : out_channel;
+	stderr : out_channel;
+	stdin : in_channel;
+	close : unit -> unit;
 }
 
 type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit

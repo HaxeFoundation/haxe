@@ -487,6 +487,7 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
+	ctx.com.io.close ();
 	ctx.comm.flush ctx;
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
@@ -549,10 +550,52 @@ let create_context comm cs timer_ctx compilation_step params =
 		pre = version_pre;
 		extra = Version.version_extra;
 	} in
-	let io = {
-		Gctx.print = comm.write_out;
-		print_err = comm.write_err;
-	} in
+	let io = if comm.is_server then begin
+		(* In server mode, create pipes so that writing to stdout/stderr channels
+		   gets forwarded through the communication protocol to the client. *)
+		let make_pipe write_fn =
+			let (r_fd, w_fd) = Unix.pipe () in
+			let out_ch = Unix.out_channel_of_descr w_fd in
+			let in_ch = Unix.in_channel_of_descr r_fd in
+			let thread = Thread.create (fun () ->
+				let buf = Bytes.create 1024 in
+				(try while true do
+					let n = input in_ch buf 0 1024 in
+					if n = 0 then raise Exit;
+					write_fn (Bytes.sub_string buf 0 n)
+				done with _ -> ());
+				close_in_noerr in_ch
+			) () in
+			(out_ch, thread)
+		in
+		let (stdout_ch, stdout_thread) = make_pipe comm.write_out in
+		let (stderr_ch, stderr_thread) = make_pipe comm.write_err in
+		(* For stdin in server mode, create a pipe with write end closed (EOF). *)
+		let (stdin_r_fd, stdin_w_fd) = Unix.pipe () in
+		Unix.close stdin_w_fd;
+		let stdin_ch = Unix.in_channel_of_descr stdin_r_fd in
+		{
+			Gctx.print = comm.write_out;
+			print_err = comm.write_err;
+			stdout = stdout_ch;
+			stderr = stderr_ch;
+			stdin = stdin_ch;
+			close = (fun () ->
+				flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
+				flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
+				close_in_noerr stdin_ch;
+			);
+		}
+	end else
+		{
+			Gctx.print = comm.write_out;
+			print_err = comm.write_err;
+			stdout = Stdlib.stdout;
+			stderr = Stdlib.stderr;
+			stdin = Stdlib.stdin;
+			close = (fun () -> ());
+		}
+	in
 	let com = Common.create io timer_ctx compilation_step cs version params (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
