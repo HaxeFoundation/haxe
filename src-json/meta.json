@@ -138,7 +138,7 @@
 	{
 		"name": "CoreApi",
 		"metadata": ":coreApi",
-		"doc": "Identifies this class as a core API class (forces API check).",
+		"doc": "Identifies this class as a core API class. Accepts optional `check = On | Off | Implied` configuration.",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{

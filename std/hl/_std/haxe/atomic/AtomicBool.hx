@@ -1,21 +1,8 @@
 package haxe.atomic;
 
-#if doc_gen
-@:coreApi
-@:coreType
-abstract AtomicBool {
-	public function new(value:Bool):Void;
+private typedef AtomicBoolData = AtomicInt;
 
-	public function compareExchange(expected:Bool, replacement:Bool):Bool;
-
-	public function exchange(value:Bool):Bool;
-
-	public function load():Bool;
-
-	public function store(value:Bool):Bool;
-}
-#else
-abstract AtomicBool(AtomicInt) {
+abstract AtomicBool(AtomicBoolData) {
 	private inline function toInt(v:Bool):Int {
 		return v ? 1 : 0;
 	}
@@ -44,4 +31,3 @@ abstract AtomicBool(AtomicInt) {
 		return toBool(this.store(toInt(value)));
 	}
 }
-#end

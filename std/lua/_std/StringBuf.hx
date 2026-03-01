@@ -23,6 +23,8 @@
 import lua.Lua;
 import lua.Table;
 
+// Can't enable @:coreApi because field 'length' has different property access (null vs never)
+@:coreApi(check = Off)
 class StringBuf {
 	private var b:Table<Int, String>;
 

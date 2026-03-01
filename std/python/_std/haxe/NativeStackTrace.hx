@@ -32,13 +32,13 @@ class NativeStackTrace {
 		}
 	}
 
-	static public function toHaxe(native:NativeTrace, skip:Int = 0):Array<StackItem> {
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
 		var stack = [];
-		for(i in 0...native.length) {
+		for(i in 0...nativeStackTrace.length) {
 			if(skip > i) {
 				continue;
 			}
-			var elem = native[i];
+			var elem = nativeStackTrace[i];
 			stack.push(FilePos(Method(null, elem._3), elem._1, elem._2));
 		}
 		return stack;

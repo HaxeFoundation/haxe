@@ -4,12 +4,13 @@ package haxe.atomic;
 #error "This target does not support atomic operations."
 #end
 
+private typedef AtomicIntData = Any;
+
 /**
 	Atomic integer.
 	(js) The Atomics and SharedArrayBuffer objects need to be available. Errors will be thrown if this is not the case.
 **/
-@:coreType
-abstract AtomicInt {
+extern abstract AtomicInt(AtomicIntData) {
 	public function new(value:Int):Void;
 
 	/**

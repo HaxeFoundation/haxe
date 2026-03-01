@@ -183,7 +183,27 @@ private class AlwaysSuspender<T> {
 	}
 }
 
+// Abstract type with a @:coroutine constructor (abstract constructors are transformed
+// to static functions early, so they are valid coroutine targets).
+private abstract CoroAbstract(Int) {
+	@:coroutine public function new(value:Int) {
+		this = value;
+	}
+
+	public function getValue():Int
+		return this;
+}
+
 class TestCoroutines extends Test {
+	// Tests that @:coroutine is allowed on abstract constructors and works correctly.
+	function testAbstractConstructor() {
+		var cont = new TrackingCont<CoroAbstract>();
+		invokeCoroutine(cont, @:coroutine function():CoroAbstract {
+			return new CoroAbstract(42);
+		});
+		eq(42, cont.lastResult.getValue());
+	}
+
 	// Tests that ||/&& with @:coroutine operands correctly short-circuit.
 	function testShortCircuit() {
 		var callCount = 0;

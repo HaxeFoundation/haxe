@@ -32,6 +32,8 @@ extern class Mutex {
 }
 #else
 
+// Can't enable @:coreApi because this is an abstract vs the core's extern class, with missing fields
+@:coreApi(check = Off)
 abstract Mutex(hl.Abstract<"hl_mutex">) {
 	public function new() {
 		this = alloc(true);

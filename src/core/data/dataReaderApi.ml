@@ -9,6 +9,8 @@ module type DataReaderApi = sig
 
 	val read_string : data -> string
 
+	val read_ident : data -> string
+
 	val read_bool : data -> bool
 
 	val read_int : data -> int
