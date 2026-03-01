@@ -321,6 +321,7 @@ let handler =
 			]);
 		);
 		"server/resetState", (fun hctx ->
+			hctx.com.cs#soft_clear;
 			supports_resolve := false;
 			DisplayException.reset();
 			ServerConfig.reset();
