@@ -563,7 +563,9 @@ let create_context comm cs timer_ctx compilation_step params =
 					let n = input in_ch buf 0 1024 in
 					if n = 0 then raise Exit;
 					write_fn (Bytes.sub_string buf 0 n)
-				done with _ -> ());
+				done with
+				| End_of_file | Exit -> ()
+				| Unix.Unix_error _ -> ());
 				close_in_noerr in_ch
 			) () in
 			(out_ch, thread)
