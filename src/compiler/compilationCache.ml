@@ -114,11 +114,17 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.clear modules;
 		self#clear_temp_cache
 
-	(* Clears all module caches but preserves the file parse cache. *)
+	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
 	method clear_modules =
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
-		self#clear_temp_cache
+		self#clear_temp_cache;
+		Hashtbl.clear removed_files;
+		Hashtbl.filter_map_inplace (fun _ cfile ->
+			match cfile.c_file_path.class_path#scope with
+			| ClassPath.User -> None
+			| ClassPath.Std | ClassPath.StdTarget | ClassPath.Lib -> Some cfile
+		) files
 
 	(* initialization *)
 
