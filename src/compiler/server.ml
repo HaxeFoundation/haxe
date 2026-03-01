@@ -16,30 +16,6 @@ exception ServerError of string
 let has_error ctx =
 	ctx.has_error || ctx.com.Common.has_error
 
-let check_display_flush ctx f_otherwise = match ctx.com.json_out with
-	| Some api when not (is_diagnostics ctx.com) ->
-		if has_error ctx then begin
-			let errors = List.map (fun cm ->
-				JObject [
-					"severity",JInt (MessageSeverity.to_int cm.cm_severity);
-					"location",Genjson.generate_pos_as_location cm.cm_pos;
-					"message",JString cm.cm_message;
-				]
-			) (List.rev ctx.messages) in
-			api.send_error errors
-		end
-	| _ ->
-		if is_diagnostics ctx.com then begin
-			List.iter (fun cm ->
-				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-			) (List.rev ctx.messages);
-			(match ctx.com.report_mode with
-			| RMDiagnostics _ -> ()
-			| RMLegacyDiagnostics _ -> raise (Completion (Diagnostics.print ctx.com))
-			| _ -> die "" __LOC__)
-		end else
-			f_otherwise ()
-
 let current_stdin = ref None
 
 let parse_file cs com (rfile : ClassPaths.resolved_file) p =
@@ -89,6 +65,43 @@ let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 
 open ServerCompilationContext
 
+let flush_context sctx ctx =
+	let write = ctx.comm.write_err in
+	match ctx.com.json_out with
+	| Some api when not (is_diagnostics ctx.com) ->
+		if has_error ctx then begin
+			let errors = List.map (fun cm ->
+				JObject [
+					"severity",JInt (MessageSeverity.to_int cm.cm_severity);
+					"location",Genjson.generate_pos_as_location cm.cm_pos;
+					"message",JString cm.cm_message;
+				]
+			) (List.rev ctx.messages) in
+			api.send_error errors
+		end
+	| _ ->
+		let add_diagnostics_messages () =
+			List.iter (fun cm ->
+				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+			) (List.rev ctx.messages);
+		in
+		match ctx.com.report_mode with
+			| RMDiagnostics _ ->
+				add_diagnostics_messages ()
+			| RMLegacyDiagnostics _ ->
+				add_diagnostics_messages ();
+			| _ ->
+				display_messages ctx (fun _ output ->
+					write (output ^ "\n");
+					ServerMessage.message output;
+				);
+				sctx.was_compilation <- ctx.com.display.dms_full_typing;
+				if has_error ctx then begin
+					ctx.timer_ctx.measure_times <- No;
+					write "\x02\n"
+				end else
+					if ctx.timer_ctx.measure_times = Yes then Timer.report_times ctx.timer_ctx (fun s -> write (s ^ "\n"));
+
 module Communication = struct
 	let create_stdio () =
 		let rec self = {
@@ -130,21 +143,7 @@ module Communication = struct
 			write_err = (fun s ->
 				write s
 			);
-			flush = (fun ctx ->
-				check_display_flush ctx (fun () ->
-					display_messages ctx (fun _ output ->
-						write (output ^ "\n");
-						ServerMessage.message output;
-					);
-
-					sctx.was_compilation <- ctx.com.display.dms_full_typing;
-					if has_error ctx then begin
-						ctx.timer_ctx.measure_times <- No;
-						write "\x02\n"
-					end else
-						if ctx.timer_ctx.measure_times = Yes then Timer.report_times ctx.timer_ctx (fun s -> self.write_err (s ^ "\n"));
-				)
-			);
+			flush = flush_context sctx;
 			exit = (fun timer_ctx i ->
 				()
 			);

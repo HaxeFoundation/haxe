@@ -488,7 +488,6 @@ let compile_safe ctx f =
 
 let finalize ctx =
 	ctx.com.io.close ();
-	ctx.comm.flush ctx;
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
@@ -497,16 +496,19 @@ let finalize ctx =
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
+let emit_completion ctx str =
+	ServerMessage.completion str;
+	ctx.comm.write_err str
+
 let catch_completion_and_exit ctx callbacks run =
 	try
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
 		| DisplayProcessingGlobals.Completion str ->
-			ctx.com.io.close ();
 			callbacks.after_compilation ctx;
-			ServerMessage.completion str;
-			ctx.comm.write_err str;
+			emit_completion ctx str;
+			finalize ctx;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
@@ -534,6 +536,7 @@ let compile_ctx callbacks ctx =
 			compile ctx actx callbacks;
 		);
 		finalize ctx;
+		ctx.comm.flush ctx;
 		callbacks.after_compilation ctx;
 	in
 	if ctx.has_error then begin
