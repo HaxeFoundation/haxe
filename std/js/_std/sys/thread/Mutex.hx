@@ -24,29 +24,15 @@ package sys.thread;
 
 import js.lib.Atomics;
 
-/**
-	Creates a mutex, which can be used to acquire a temporary lock
-	to access some resource. The main difference with a lock is
-	that a mutex must always be released by the owner thread.
-
-	On JS, this implementation uses `SharedArrayBuffer` and `Atomics`
-	to provide synchronization between web workers.
-**/
 @:noPackageRestrict
 class Mutex {
 	// 0 = unlocked, 1 = locked
 	final _state:js.lib.Int32Array;
 
-	/**
-		Creates a mutex.
-	**/
 	public function new():Void {
 		_state = new js.lib.Int32Array(new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT));
 	}
 
-	/**
-		The current thread acquires the mutex or waits if not available.
-	**/
 	public function acquire():Void {
 		while (Atomics.compareExchange(_state, 0, 0, 1) != 0) {
 			// In workers, wait efficiently until notified.
@@ -57,17 +43,10 @@ class Mutex {
 		}
 	}
 
-	/**
-		Try to acquire the mutex, returns true if acquired or false
-		if it's already locked.
-	**/
 	public function tryAcquire():Bool {
 		return Atomics.compareExchange(_state, 0, 0, 1) == 0;
 	}
 
-	/**
-		Release a mutex that has been acquired by the current thread.
-	**/
 	public function release():Void {
 		Atomics.store(_state, 0, 0);
 		Atomics.notify(_state, 0, 1);
