@@ -320,6 +320,15 @@ let handler =
 				"success", jbool true
 			]);
 		);
+		"server/resetState", (fun hctx ->
+			hctx.com.cs#soft_clear;
+			supports_resolve := false;
+			DisplayException.reset();
+			ServerConfig.reset();
+			hctx.send_result (jobject [
+				"success", jbool true
+			]);
+		);
 		"server/gcCompact", (fun hctx ->
 			let t0 = Extc.time() in
 			let stats_before = Gc.stat() in
