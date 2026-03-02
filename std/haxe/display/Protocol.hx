@@ -32,11 +32,19 @@ class Methods {
 	static inline var Initialize = new HaxeRequestMethod<InitializeParams, InitializeResult>("initialize");
 
 	static inline var ResetCache = new HaxeRequestMethod<ResetCacheParams, ResetCacheResult>("server/resetCache");
+
+	static inline var ResetState = new HaxeRequestMethod<ResetStateParams, ResetStateResult>("server/resetState");
 }
 
 typedef ResetCacheParams = {}
 
 typedef ResetCacheResult = {
+	final success:Bool;
+}
+
+typedef ResetStateParams = {}
+
+typedef ResetStateResult = {
 	final success:Bool;
 }
 
