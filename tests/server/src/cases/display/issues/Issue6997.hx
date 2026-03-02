@@ -2,7 +2,11 @@ package cases.display.issues;
 
 class Issue6997 extends DisplayTestCase {
 	/**
-		"".lastIndexOf.bind({-1-}
+		class Main {
+			static function main() {
+				"".lastIndexOf.bind({-1-}
+			}
+		}
 	**/
 	function test1(_) {
 		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
@@ -14,7 +18,11 @@ class Issue6997 extends DisplayTestCase {
 	}
 
 	/**
-		"".lastIndexOf.bind("foo", {-1-}
+		class Main {
+			static function main() {
+				"".lastIndexOf.bind("foo", {-1-}
+			}
+		}
 	**/
 	function test2(_) {
 		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});

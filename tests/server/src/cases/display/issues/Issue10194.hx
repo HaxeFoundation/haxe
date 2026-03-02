@@ -18,6 +18,6 @@ class Issue10194 extends DisplayTestCase {
 		Assert.isTrue(diags[0].kind == DKCompilerError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("String should be Int\nFor function argument 'a'", diags[0].args);
-		Assert.equals(range(1, 2), diags[0].range);
+		Assert.same(range(1, 2), diags[0].range);
 	}
 }

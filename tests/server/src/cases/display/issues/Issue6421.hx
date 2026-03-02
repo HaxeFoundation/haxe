@@ -2,7 +2,7 @@ package cases.display.issues;
 
 class Issue6421 extends DisplayTestCase {
 	/**
-		using Issue6421.Abstract;
+		using Main.Abstract;
 
 		abstract Abstract(Int) {
 			public function new(i) this = i;

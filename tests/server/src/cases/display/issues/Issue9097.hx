@@ -9,6 +9,6 @@ class Issue9097 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.FindReferences, {file: file, offset: offset(1)});
 		var locs = parseGotoDefintion().result;
 		Assert.isTrue(locs != null && locs.length > 0);
-		Assert.isTrue(locs.exists(l -> l.range == range(2, 3)));
+		Assert.isTrue(locs.exists(l -> l.range.start.line == range(2, 3).start.line && l.range.start.character == range(2, 3).start.character && l.range.end.line == range(2, 3).end.line && l.range.end.character == range(2, 3).end.character));
 	}
 }

@@ -20,6 +20,6 @@ class Issue5172 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
 		var locs = parseGotoDefintion().result;
 		Assert.isTrue(locs != null && locs.length > 0);
-		Assert.equals(range(3, 1), locs[0].range);
+		Assert.same(range(3, 1), locs[0].range);
 	}
 }

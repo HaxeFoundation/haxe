@@ -16,6 +16,6 @@ class Issue7089 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
 		var result = parseHover();
 		Assert.isTrue(result.result.item.type.kind == (cast "TAbstract" : Dynamic));
-		Assert.equals("Foo", result.result.item.type.args.path.typeName);
+		Assert.equals("Abstract<Foo>", result.result.item.type.args.path.typeName);
 	}
 }

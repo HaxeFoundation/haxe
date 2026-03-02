@@ -2,7 +2,7 @@ package cases.display.issues;
 
 class Issue10004 extends DisplayTestCase {
 	/**
-		using Issue10004.Foo;
+		using Main.Foo;
 
 		class Main {
 			static function main() {
@@ -26,7 +26,7 @@ class Issue10004 extends DisplayTestCase {
 	}
 
 	/**
-		using Issue10004.Tools;
+		using Main.Tools;
 
 		class Tools {
 			public static extern inline overload function getOrZero<K>(map:Map<K,Int>, key:K):Int {

@@ -1,5 +1,7 @@
 package cases.display.issues;
 
+import TestCase;
+
 class Issue7878 extends DisplayTestCase {
 	/**
 		class Main {
@@ -9,9 +11,11 @@ class Issue7878 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		// Hover on unknown type - should return null or an error
-		Assert.isTrue(result.result == null);
+		try {
+			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+			Assert.fail();
+		} catch (e:TestException) {
+			Assert.isTrue(e.message.indexOf("SomethingUnknown") >= 0);
+		}
 	}
 }

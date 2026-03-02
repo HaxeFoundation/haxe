@@ -13,7 +13,7 @@ class Issue7946 extends DisplayTestCase {
 		Assert.isTrue(diags[0].kind == DKParserError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("Unexpected open", diags[0].args);
-		Assert.equals(range(1, 2), diags[0].range);
+		Assert.same(range(1, 2), diags[0].range);
 	}
 
 	/**
@@ -26,6 +26,6 @@ class Issue7946 extends DisplayTestCase {
 		Assert.isTrue(diags[0].kind == DKParserError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("Unexpected clas", diags[0].args);
-		Assert.equals(range(1, 2), diags[0].range);
+		Assert.same(range(1, 2), diags[0].range);
 	}
 }

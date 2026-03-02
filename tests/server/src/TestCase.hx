@@ -267,7 +267,17 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	function parseDiagnostics():Array<Diagnostic<Any>> {
-		var result = haxe.Json.parse(lastResult.stderr)[0];
+		var json:Dynamic = haxe.Json.parse(lastResult.stderr);
+		// JSON-RPC format: {id, result: {result: [{file, diagnostics}]}}
+		var rpcResult:Dynamic = json.result;
+		if (rpcResult != null) {
+			var files:Dynamic = rpcResult.result;
+			if (files != null && files.length > 0)
+				return files[0].diagnostics;
+			return [];
+		}
+		// Legacy format: [{file, diagnostics}]
+		var result = json[0];
 		return if (result == null) [] else result.diagnostics;
 	}
 

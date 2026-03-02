@@ -2,8 +2,12 @@ package cases.display.issues;
 
 class Issue5967 extends DisplayTestCase {
 	/**
-		function call():Void { };
-		call({-1-}a{-2-},{-3-},{-4-} {-5-}
+		class Main {
+			static function main() {
+				function call():Void { };
+				call({-1-}a{-2-},{-3-},{-4-} {-5-}
+			}
+		}
 	**/
 	function test1(_) {
 		for (i in [1, 2]) {

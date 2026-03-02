@@ -14,7 +14,7 @@ class Issue12385 extends DisplayTestCase {
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKUnresolvedIdentifier && d.range == range(3, 4)));
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && d.args == "Can only extend structures" && d.range == range(1, 2)));
+		Assert.isTrue(diags.exists(d -> d.kind == DKUnresolvedIdentifier && Std.string(d.range) == Std.string(range(3, 4))));
+		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && d.args == "Can only extend structures" && Std.string(d.range) == Std.string(range(1, 2))));
 	}
 }

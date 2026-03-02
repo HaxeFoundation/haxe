@@ -12,6 +12,6 @@ class Issue6943 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(2)});
 		var locs = parseGotoDefintion().result;
 		Assert.isTrue(locs != null && locs.length > 0);
-		Assert.equals(range(1, 3), locs[0].range);
+		Assert.same(range(1, 3), locs[0].range);
 	}
 }

@@ -2,7 +2,7 @@ package cases.display.issues;
 
 class Issue12254 extends DisplayTestCase {
 	/**
-		using Issue12254.Tools;
+		using Main.Tools;
 
 		class C {
 			public function new() {}

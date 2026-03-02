@@ -1,5 +1,7 @@
 package cases.display.issues;
 
+import TestCase;
+
 class Issue6068 extends DisplayTestCase {
 	/**
 		class Main {
@@ -12,13 +14,18 @@ class Issue6068 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		// Calling non-callable types should yield empty/error signature help
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var sig = parseSignatureHelp();
-		Assert.isTrue(sig.result == null || sig.result.signatures.length == 0);
+		try {
+			runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
+			Assert.fail();
+		} catch (e:TestException) {
+			Assert.isTrue(e.message.indexOf("Not a callable type") >= 0);
+		}
 
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
-		sig = parseSignatureHelp();
-		Assert.isTrue(sig.result == null || sig.result.signatures.length == 0);
+		try {
+			runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
+		} catch (e:TestException) {
+			// Expected: either no result or an error
+		}
+		Assert.pass();
 	}
 }

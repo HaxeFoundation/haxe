@@ -17,6 +17,6 @@ class Issue7944 extends DisplayTestCase {
 		Assert.isTrue(diags[0].kind == DKParserError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("Unexpected fun", diags[0].args);
-		Assert.equals(range(1, 2), diags[0].range);
+		Assert.same(range(1, 2), diags[0].range);
 	}
 }

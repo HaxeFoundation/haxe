@@ -30,7 +30,7 @@ class Issue11211 extends DisplayTestCase {
 		}
 
 		#if !macro
-		@:build(Issue11211.SafeAst.build())
+		@:build(Main.SafeAst.build())
 		class Main {
 			static function main() {
 				var errRa{-1-}nge = 0;
@@ -54,7 +54,7 @@ class Issue11211 extends DisplayTestCase {
 
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && d.range == range(4, 5)
+		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && Std.string(d.range) == Std.string(range(4, 5))
 			&& (d.args:String).indexOf("Void") != -1));
 	}
 }

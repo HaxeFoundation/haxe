@@ -17,7 +17,7 @@ class Issue6399 extends DisplayTestCase {
 			runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
 			var locs = parseGotoDefintion().result;
 			Assert.isTrue(locs != null && locs.length > 0);
-			Assert.equals(range(1, 2), locs[0].range);
+			Assert.same(range(1, 2), locs[0].range);
 
 			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
 			Assert.equals("String", parseHover().result.item.type.args.path.typeName);
@@ -27,7 +27,7 @@ class Issue6399 extends DisplayTestCase {
 			runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
 			var locs = parseGotoDefintion().result;
 			Assert.isTrue(locs != null && locs.length > 0);
-			Assert.equals(range(3, 4), locs[0].range);
+			Assert.same(range(3, 4), locs[0].range);
 
 			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
 			Assert.equals("Expr", parseHover().result.item.type.args.path.typeName);
@@ -36,6 +36,6 @@ class Issue6399 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(11)});
 		var locs = parseGotoDefintion().result;
 		Assert.isTrue(locs != null && locs.length > 0);
-		Assert.equals(range(5, 6), locs[0].range);
+		Assert.same(range(5, 6), locs[0].range);
 	}
 }

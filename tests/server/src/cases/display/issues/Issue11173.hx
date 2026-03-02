@@ -21,9 +21,9 @@ class Issue11173 extends DisplayTestCase {
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && d.range == range(3, 4)
+		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && Std.string(d.range) == Std.string(range(3, 4))
 			&& (d.args:String).indexOf("writing") != -1));
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && d.range == range(5, 6)
+		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && Std.string(d.range) == Std.string(range(5, 6))
 			&& (d.args:String).indexOf("writing") != -1));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)});
@@ -33,10 +33,10 @@ class Issue11173 extends DisplayTestCase {
 		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
 
 		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(4)});
-		Assert.equals(range(1, 2), parseGotoDefintion().result[0].range);
+		Assert.same(range(1, 2), parseGotoDefintion().result[0].range);
 
 		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(6)});
-		Assert.equals(range(7, 8), parseGotoDefintion().result[0].range);
+		Assert.same(range(7, 8), parseGotoDefintion().result[0].range);
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(9)});
 		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
