@@ -45,20 +45,15 @@ let make_subst ctx t =
 	(* Memoisation tables: original → fresh mono *)
 	let tp_memo = ref [] in  (* ttp_class -> tmono *)
 	let fm_memo = ref [] in  (* tmono -> tmono *)
-	let get_or_create_tp c =
-		try List.assq c !tp_memo
+	let get_or_create l c =
+		try List.assq c !l
 		with Not_found ->
 			let m = Monomorph.create () in
-			tp_memo := (c, m) :: !tp_memo;
+			l := (c, m) :: !l;
 			m
 	in
-	let get_or_create_free m =
-		try List.assq m !fm_memo
-		with Not_found ->
-			let m_new = Monomorph.create () in
-			fm_memo := (m, m_new) :: !fm_memo;
-			m_new
-	in
+	let get_or_create_free m = get_or_create fm_memo m in
+	let get_or_create_tp m = get_or_create tp_memo m in
 	(*
 		subst_tparam: called inside enum/enum-abstract type-argument positions.
 		Substitutes both formal type params and free monos.
