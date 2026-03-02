@@ -14,6 +14,9 @@ type pattern_context = {
 	mutable current_locals : (string, tvar * pos) PMap.t;
 	mutable in_reification : bool;
 	is_postfix_match : bool;
+	(* Reverses the per-case type substitution; used for extractor expressions
+	   so that they see the original type parameters rather than fresh monos. *)
+	unsubst : Type.t -> Type.t;
 }
 
 exception Bad_pattern of string
@@ -272,6 +275,16 @@ let rec make pctx toplevel t e =
 							raise_typing_error "Too many arguments" p
 					in
 					let patterns = loop el args in
+					(* Rebind any unrefined constructor type-param monos back to their
+					   parameter types. This ensures the case body sees a constrained
+					   type variable rather than a free monomorphism, preserving GADT
+					   constructor type constraints (see #1310). *)
+					List.iter2 (fun ttp mono ->
+						match mono, follow mono with
+						| TMono m1, TMono m2 when m2.tm_type = None ->
+							Monomorph.do_bind m1 ttp.ttp_type
+						| _ -> ()
+					) ef.ef_params monos;
 					PatConstructor(con_enum en ef e1.epos,patterns)
 				| _ ->
 					fail()
@@ -400,6 +413,9 @@ let rec make pctx toplevel t e =
 			let restore = save_locals ctx in
 			ctx.f.locals <- pctx.ctx_locals;
 			let v = add_local false "_" null_pos in
+			(* Extractor expressions are typed in the original (non-refined) context
+			   so that type parameters remain visible with their declared identity (#5952). *)
+			v.v_type <- pctx.unsubst v.v_type;
 			let e1 = type_expr ctx e1 WithType.value in
 			v.v_name <- "tmp";
 			restore();

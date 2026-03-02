@@ -29,6 +29,18 @@ private class UntypedBox<T> {
 	public function new() {}
 }
 
+// Support types for testSwitchLevelTypeParamEnum (TEnum variant of the same test)
+enum EnumTag<T> {
+	ETString:EnumTag<String>;
+	ETInt:EnumTag<Int>;
+}
+
+private class UntypedBox2<T> {
+	public var tag:EnumTag<T>;
+	public var value:T;
+	public function new() {}
+}
+
 class TestGADT extends Test {
 	function testBasic() {
 		var ti = 1.22;
@@ -81,7 +93,25 @@ class TestGADT extends Test {
 		t(true); // compile-time type checks passed
 	}
 
-	@:haxe.warning("-WGenerator")
+	// Test switch-level type parameter refinement for free monomorphisms in TEnum:
+	// Same as testSwitchLevelTypeParam but using a plain enum instead of enum abstract.
+	function testSwitchLevelTypeParamEnum() {
+		var expectedStr = "";
+		var expectedInt = 0;
+
+		var box2 = new UntypedBox2();
+		// The HelperMacros.typedAs calls below are compile-time type checks;
+		// at runtime box2.tag is null so we guard with try/catch.
+		try {
+			switch [box2.tag, box2.value] {
+				case [ETString, s]:
+					HelperMacros.typedAs(s, expectedStr);
+				case [ETInt, n]:
+					HelperMacros.typedAs(n, expectedInt);
+			}
+		} catch (_:Dynamic) {}
+		t(true); // compile-time type checks passed
+	}
 	static function evalConst<T>(c:Constant<T>):T {
 		return switch (c) {
 			case CString(s): s;

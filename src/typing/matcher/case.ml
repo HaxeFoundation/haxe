@@ -21,7 +21,7 @@ type t = {
 	   identical to the old apply_params ctx.type_params monos behaviour. This makes
 	   pattern matching refine T per case even though T itself is not a monomorphism.
 
-	2. Free (unbound) monomorphisms in enum-abstract type-argument positions:
+	2. Free (unbound) monomorphisms in enum or enum-abstract type-argument positions:
 	   When the subject type contains Kind<m> where m is a free mono, each case
 	   gets a fresh copy m_new so that matching KString refines m_new=String in that
 	   case without permanently constraining the original m. Free monos at other
@@ -31,11 +31,13 @@ type t = {
 	Both substitutions use memoization (same type variable → same fresh mono) so that
 	if T appears in both the kind field and the value field, they are unified.
 
-	Returns (subst, rebind_unrefined) where:
+	Returns (subst, rebind_unrefined, unsubst) where:
 	- subst: the substitution function to apply to types
 	- rebind_unrefined: to be called after pattern processing; for any type-param
 	  mono that was not bound by the pattern (i.e. T was not refined), binds it back
 	  to the original type parameter so the case body continues to see T, not Unknown.
+	- unsubst: reverses the substitution (m_T → TInst(c,[]), m_new → TMono m_orig);
+	  used for extractor expressions which should see the original types.
 *)
 let make_subst ctx t =
 	(* Classes of the formal type parameters currently in scope *)
@@ -58,7 +60,7 @@ let make_subst ctx t =
 			m_new
 	in
 	(*
-		subst_tparam: called inside enum-abstract type-argument positions.
+		subst_tparam: called inside enum/enum-abstract type-argument positions.
 		Substitutes both formal type params and free monos.
 	*)
 	let rec subst_tparam ty = match ty with
@@ -68,20 +70,24 @@ let make_subst ctx t =
 			| Some t -> subst_tparam t)
 		| TInst({cl_kind = KTypeParameter _} as c, []) when List.memq c tp_classes ->
 			TMono (get_or_create_tp c)
-		| _ -> Type.map subst ty
+		| TEnum(en, tl) ->
+			TEnum(en, List.map subst_tparam tl)
+		| _ -> Type.map subst_tparam ty
 	(*
 		subst: general substitution – replaces formal type params everywhere,
-		but restricts free-mono substitution to enum-abstract type-arg positions.
+		but restricts free-mono substitution to enum/enum-abstract type-arg positions.
 	*)
 	and subst ty = match ty with
 		| TMono m ->
 			(match m.tm_type with
 			| Some t -> subst t
-			| None -> ty)  (* free monos at non-enum-abstract positions: leave alone *)
+			| None -> ty)  (* free monos at non-enum positions: leave alone *)
 		| TInst({cl_kind = KTypeParameter _} as c, []) when List.memq c tp_classes ->
 			TMono (get_or_create_tp c)
 		| TAbstract(a, tl) when a.a_enum ->
 			TAbstract(a, List.map subst_tparam tl)
+		| TEnum(en, tl) ->
+			TEnum(en, List.map subst_tparam tl)
 		| _ -> Type.map subst ty
 	in
 	(*
@@ -96,7 +102,33 @@ let make_subst ctx t =
 				Monomorph.do_bind m (TInst(c, []))
 		) !tp_memo
 	in
-	subst, rebind_unrefined
+	(*
+		Reverse substitution: maps fresh monos back to their originals.
+		m_T (created for a type param) → TInst(c, [])
+		m_new (created for a free mono) → TMono m_orig
+		Used so that extractor expressions see the original types (#5952).
+	*)
+	let unsubst ty =
+		let rec loop ty = match ty with
+			| TMono m ->
+				(match m.tm_type with
+				| None ->
+					begin try
+						let c = fst (List.find (fun (_,m') -> m == m') !tp_memo) in
+						TInst(c, [])
+					with Not_found ->
+						try
+							let m_orig = fst (List.find (fun (_,m_new) -> m == m_new) !fm_memo) in
+							TMono m_orig
+						with Not_found ->
+							ty
+					end
+				| Some t -> loop t)
+			| _ -> Type.map loop ty
+		in
+		loop ty
+	in
+	subst, rebind_unrefined, unsubst
 
 let make ctx t el eg eo_ast with_type postfix_match p =
 	let rec collapse_case el = match el with
@@ -109,7 +141,7 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 			raise_typing_error "case without pattern" p
 	in
 	let e = collapse_case el in
-	let subst,rebind_unrefined = make_subst ctx t in
+	let subst,rebind_unrefined,unsubst = make_subst ctx t in
 	let save = save_locals ctx in
 	let old_types = PMap.fold (fun v acc ->
 		let t_old = v.v_type in
@@ -125,6 +157,7 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 		or_locals = None;
 		in_reification = false;
 		is_postfix_match = postfix_match;
+		unsubst = unsubst;
 	} in
 	let pat = ExprToPattern.make pctx true (subst t) e in
 	(* For any type-param mono not refined by the pattern, rebind it to T *)
