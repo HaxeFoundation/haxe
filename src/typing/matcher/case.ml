@@ -68,40 +68,21 @@ let make_subst ctx t =
 			| Some t -> subst_tparam t)
 		| TInst({cl_kind = KTypeParameter _} as c, []) when List.memq c tp_classes ->
 			TMono (get_or_create_tp c)
-		| _ -> Type.map subst_all ty
+		| _ -> Type.map subst ty
 	(*
-		subst_all: general substitution – replaces formal type params everywhere,
+		subst: general substitution – replaces formal type params everywhere,
 		but restricts free-mono substitution to enum-abstract type-arg positions.
 	*)
-	and subst_all ty = match ty with
+	and subst ty = match ty with
 		| TMono m ->
 			(match m.tm_type with
-			| Some t -> subst_all t
+			| Some t -> subst t
 			| None -> ty)  (* free monos at non-enum-abstract positions: leave alone *)
 		| TInst({cl_kind = KTypeParameter _} as c, []) when List.memq c tp_classes ->
 			TMono (get_or_create_tp c)
 		| TAbstract(a, tl) when a.a_enum ->
 			TAbstract(a, List.map subst_tparam tl)
-		| _ -> Type.map subst_all ty
-	in
-	let subst =
-		if tp_classes = [] then
-			(* Fast path: no type params, only substitute free monos in enum-abstract args *)
-			let rec subst_no_tp ty = match ty with
-				| TMono m ->
-					(match m.tm_type with
-					| Some t -> subst_no_tp t
-					| None -> ty)
-				| TAbstract(a, tl) when a.a_enum ->
-					TAbstract(a, List.map (fun arg -> match arg with
-						| TMono m when m.tm_type = None -> TMono (get_or_create_free m)
-						| TMono m -> (match m.tm_type with Some t -> subst_no_tp t | None -> arg)
-						| _ -> subst_no_tp arg) tl)
-				| _ -> Type.map subst_no_tp ty
-			in
-			subst_no_tp
-		else
-			subst_all
+		| _ -> Type.map subst ty
 	in
 	(*
 		After pattern processing, any type-param mono that is still unbound (i.e. the
