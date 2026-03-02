@@ -1,0 +1,21 @@
+package cases.display.issues;
+
+class Issue7089 extends DisplayTestCase {
+	/**
+		enum abstract Foo(Int) {
+			var Value = 1;
+		}
+
+		class Main {
+			static function main() {
+				Fo{-1-}o;
+			}
+		}
+	**/
+	function test(_) {
+		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		var result = parseHover();
+		Assert.equals("TAbstract", result.result.item.type.kind);
+		Assert.equals("Foo", result.result.item.type.args.path.typeName);
+	}
+}
