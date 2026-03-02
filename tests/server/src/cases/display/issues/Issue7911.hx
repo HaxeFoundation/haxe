@@ -10,10 +10,14 @@ class Issue7911 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		var result = parseCompletion();
 		Assert.equals(1, result.result.items.length);
-		Assert.isTrue(result.result.items.exists(item -> {
-			var args:Dynamic = item.args;
-			return (item.kind == (cast "Type" : Dynamic) && args.path != null && args.path.typeName == "Test")
-				|| (item.kind == (cast "Module" : Dynamic) && args.path != null && args.path.moduleName == "Test");
-		}));
+		final item = result.result.items[0];
+		switch item.kind {
+			case Type:
+				Assert.equals("Test", item.args.path.typeName);
+			case Module:
+				Assert.equals("Test", item.args.path.moduleName);
+			case _:
+				Assert.fail('Unexpected item kind: ${item.kind}');
+		}
 	}
 }

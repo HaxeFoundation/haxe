@@ -23,9 +23,10 @@ class Issue6068 extends DisplayTestCase {
 
 		try {
 			runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
+			Assert.fail();
 		} catch (e:TestException) {
-			// Expected: either no result or an error
+			// TESTTODO: should be "Not a callable type" for offset(2) like for offset(1)
+			Assert.pass();
 		}
-		Assert.pass();
 	}
 }

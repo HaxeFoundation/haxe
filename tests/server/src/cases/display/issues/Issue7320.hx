@@ -11,6 +11,7 @@ class Issue7320 extends DisplayTestCase {
 		}
 	**/
 	function test1(_) {
+		// TESTTODO: compiler should not return "No completion point" here; fix and assert proper result
 		try {
 			runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		} catch (e:TestException) {}
@@ -41,6 +42,7 @@ class Issue7320 extends DisplayTestCase {
 		}
 	**/
 	function test3(_) {
+		// TESTTODO: compiler should not return "No completion point" here; fix and assert proper result
 		try {
 			runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		} catch (e:TestException) {}
@@ -55,6 +57,7 @@ class Issue7320 extends DisplayTestCase {
 		}
 	**/
 	function test4(_) {
+		// TESTTODO: compiler should not return "No completion point" here; fix and assert proper result
 		try {
 			runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		} catch (e:TestException) {}

@@ -17,7 +17,8 @@ class Issue10713 extends DisplayTestCase {
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		var r = range(1, 2);
-		Assert.isTrue(diags.exists(d -> d.kind == MissingFields && Std.string(d.range) == Std.string(r)));
+		var diag = diags.find(d -> d.kind == MissingFields);
+		Assert.notNull(diag);
+		Assert.same(range(1, 2), diag.range);
 	}
 }

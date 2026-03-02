@@ -21,10 +21,14 @@ class Issue11173 extends DisplayTestCase {
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && Std.string(d.range) == Std.string(range(3, 4))
-			&& (d.args:String).indexOf("writing") != -1));
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && Std.string(d.range) == Std.string(range(5, 6))
-			&& (d.args:String).indexOf("writing") != -1));
+		var writingErrors = diags.filter(d -> d.kind == DKCompilerError && (d.args:String).indexOf("writing") != -1);
+		Assert.equals(2, writingErrors.length);
+		var diag1 = writingErrors.find(d -> Std.string(d.range) == Std.string(range(3, 4)));
+		Assert.notNull(diag1);
+		Assert.same(range(3, 4), diag1.range);
+		var diag2 = writingErrors.find(d -> Std.string(d.range) == Std.string(range(5, 6)));
+		Assert.notNull(diag2);
+		Assert.same(range(5, 6), diag2.range);
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)});
 		Assert.equals("Int", parseHover().result.item.type.args.path.typeName);

@@ -22,7 +22,7 @@ class Issue10673 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		vfs.putContent("issue10673/Macro.hx", "package issue10673;\n\nclass Macro {\n\tpublic static function build() {\n\t\tvar fields = haxe.macro.Context.getBuildFields();\n\t\tfor (field in fields) {\n\t\t\tswitch field.kind {\n\t\t\t\tcase FVar(_, e):\n\t\t\t\t\tfield.kind = FVar(TPath({pack: [\"std\"], name: \"StdTypes\", sub: \"Int\"}), e);\n\t\t\t\tcase _:\n\t\t\t}\n\t\t}\n\t\treturn fields;\n\t}\n}");
+		vfs.putContent("issue10673/Macro.hx", getTemplate("display/issues/Issue10673/Macro.hx"));
 		var defRange = range(10, 11);
 		for (i in 1...10) {
 			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});

@@ -13,7 +13,9 @@ class Issue7935 extends DisplayTestCase {
 	function test1(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == "Expected expression or )" && Std.string(d.range) == Std.string(range(1, 2))));
+		var diag = diags.find(d -> d.kind == DKParserError && d.args == "Expected expression or )");
+		Assert.notNull(diag);
+		Assert.same(range(1, 2), diag.range);
 	}
 
 	/**
@@ -26,7 +28,9 @@ class Issue7935 extends DisplayTestCase {
 	function test2(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == "Expected , or )" && Std.string(d.range) == Std.string(range(1, 2))));
+		var diag = diags.find(d -> d.kind == DKParserError && d.args == "Expected , or )");
+		Assert.notNull(diag);
+		Assert.same(range(1, 2), diag.range);
 	}
 
 	/**
@@ -39,6 +43,8 @@ class Issue7935 extends DisplayTestCase {
 	function test3(_) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == "Expected expression" && Std.string(d.range) == Std.string(range(1, 2))));
+		var diag = diags.find(d -> d.kind == DKParserError && d.args == "Expected expression");
+		Assert.notNull(diag);
+		Assert.same(range(1, 2), diag.range);
 	}
 }

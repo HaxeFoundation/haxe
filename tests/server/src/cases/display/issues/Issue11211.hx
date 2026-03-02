@@ -54,7 +54,8 @@ class Issue11211 extends DisplayTestCase {
 
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKCompilerError && Std.string(d.range) == Std.string(range(4, 5))
-			&& (d.args:String).indexOf("Void") != -1));
+		var diag = diags.find(d -> d.kind == DKCompilerError && (d.args:String).indexOf("Void") != -1);
+		Assert.notNull(diag);
+		Assert.same(range(4, 5), diag.range);
 	}
 }
