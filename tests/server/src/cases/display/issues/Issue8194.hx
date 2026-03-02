@@ -1,5 +1,6 @@
 package cases.display.issues;
 
+import TestCase;
 import haxe.Exception;
 
 class Issue8194 extends DisplayTestCase {
@@ -20,10 +21,9 @@ class Issue8194 extends DisplayTestCase {
 				offset: offset(1),
 				wasAutoTriggered: true
 			});
-			var error = haxe.Json.parse(lastResult.stderr).error;
-			Assert.equals("No completion point", error.data[0]);
-		} catch (e:Exception) {
-			Assert.pass(); // TODO
+			Assert.fail();
+		} catch (e:TestException) {
+			Assert.equals("No completion point", e.message);
 		}
 	}
 }

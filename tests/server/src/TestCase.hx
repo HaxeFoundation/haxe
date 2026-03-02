@@ -21,11 +21,20 @@ using Lambda;
 interface ITestCase {}
 
 class TestException extends Exception {
-	final pos:PosInfos;
+	public final pos:PosInfos;
 
 	public function new(message:String, ?pos:PosInfos) {
 		super(message);
 		this.pos = pos;
+	}
+}
+
+typedef JsonRpcResponse = {
+	?result:Dynamic,
+	?error:{
+		code:Int,
+		message:String,
+		?data:Dynamic
 	}
 }
 
@@ -97,7 +106,7 @@ class TestCase implements ITest implements ITestCase {
 
 	public function teardown() {}
 
-	function handleResult(result) {
+	function handleResult(result:HaxeServerRequestResult) {
 		lastResult = result;
 		debugLastResult = {
 			hasError: lastResult.hasError,
@@ -145,19 +154,24 @@ class TestCase implements ITest implements ITestCase {
 				if (result.hasError) {
 					sendErrorMessage(result.stderr);
 				}
-				var json = try Json.parse(result.stderr) catch (e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
+				var json:JsonRpcResponse = try {
+					Json.parse(result.stderr);
+				} catch (e) {
+					error: {
+						code: 1,
+						message: e.message,
+						data: " (Response: " + result.stderr + ")"
+					}
+				}
 
 				if (json.result != null) {
 					cont.resume(json.result?.result, null);
 				} else {
-					sendErrorMessage(result.stderr);
-					cont.resume(null, null);
-					// cont.resume(null, new TestException('Error: ' + json.error, pos));
+					// TODO: this seems not quite right
+					cont.resume(null, new TestException(json.error.data[0], pos));
 				}
 			}, function(msg) {
-				sendErrorMessage(msg);
-				cont.resume(null, null);
-				// cont.resume(null, new TestException(msg, pos));
+				cont.resume(null, new TestException(msg, pos));
 			});
 		});
 	}
