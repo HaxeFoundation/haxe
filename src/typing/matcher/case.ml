@@ -62,8 +62,6 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 			raise_typing_error "case without pattern" p
 	in
 	let e = collapse_case el in
-	let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
-	let map = apply_params ctx.type_params monos in
 	(*
 		Collect free monomorphisms from the subject type (switch-level type parameters)
 		and build a substitution that replaces each free mono with a fresh copy.
@@ -96,11 +94,11 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 	let save = save_locals ctx in
 	let old_types = PMap.fold (fun v acc ->
 		let t_old = v.v_type in
-		v.v_type <- subst (map v.v_type);
+		v.v_type <- subst v.v_type;
 		(v,t_old) :: acc
 	) ctx.f.locals [] in
 	let old_ret = ctx.e.ret in
-	ctx.e.ret <- subst (map ctx.e.ret);
+	ctx.e.ret <- subst ctx.e.ret;
 	let pctx = {
 		ctx = ctx;
 		current_locals = PMap.empty;
@@ -108,10 +106,8 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 		or_locals = None;
 		in_reification = false;
 		is_postfix_match = postfix_match;
-		unapply_type_parameters = (fun () -> unapply_type_parameters ctx.type_params monos);
 	} in
-	let pat = ExprToPattern.make pctx true (subst (map t)) e in
-	ignore(unapply_type_parameters ctx.type_params monos);
+	let pat = ExprToPattern.make pctx true (subst t) e in
 	let eg = match eg with
 		| None -> None
 		| Some e ->
@@ -125,8 +121,8 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 		| None,_ ->
 			None
 		| Some e,WithType.WithType(t,_) ->
-			let e = type_expr ctx e (WithType.with_type (subst (map t))) in
-			let e = AbstractCast.cast_or_unify ctx (subst (map t)) e e.epos in
+			let e = type_expr ctx e (WithType.with_type (subst t)) in
+			let e = AbstractCast.cast_or_unify ctx (subst t) e e.epos in
 			Some e
 		| Some e,_ ->
 			let e = type_expr ctx e with_type in
