@@ -65,8 +65,10 @@ class TestGADT extends Test {
 		// box.kind / box.value have free-mono type (UntypedBox<Unknown<0>>)
 		// before the type parameter is bound by any assignment.
 		var box = new UntypedBox();
-		// The per-case substitution happens entirely at compile time; runtime
-		// values happen to be null, but that does not affect the type checks.
+		// This test is purely a compile-time type-refinement check:
+		// HelperMacros.typedAs asserts at compile time that the types match.
+		// Runtime values are null (UntypedBox fields are uninitialized), which
+		// is fine since the feature being tested is the per-case type narrowing.
 		switch [box.kind, box.value] {
 			case [SKString, s]:
 				// New feature: s is refined to String (not Unknown) because
@@ -76,7 +78,7 @@ class TestGADT extends Test {
 				// Similarly n is refined to Int.
 				HelperMacros.typedAs(n, expectedInt);
 		}
-		t(true); // reached without compile error
+		t(true); // compile-time type checks passed
 	}
 
 	@:haxe.warning("-WGenerator")

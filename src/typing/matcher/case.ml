@@ -34,12 +34,17 @@ let collect_subject_free_monos t =
 	in
 	(* Called when we are inside a type-parameter position of an enum abstract *)
 	let rec loop_tparam ty = match ty with
-		| TMono m when m.tm_type = None -> add m
-		| TMono m -> (match m.tm_type with Some t -> loop_tparam t | None -> ())
+		| TMono m ->
+			(match m.tm_type with
+			| None -> add m
+			| Some t -> loop_tparam t)
 		| _ -> loop ty
 	(* General traversal – only enter "type-param collecting" mode for enum abstracts *)
 	and loop ty = match ty with
-		| TMono m -> (match m.tm_type with Some t -> loop t | None -> ())
+		| TMono m ->
+			(match m.tm_type with
+			| Some t -> loop t
+			| None -> ())
 		| TAbstract(a,tl) when a.a_enum -> List.iter loop_tparam tl
 		| _ -> TFunctions.iter loop ty
 	in
