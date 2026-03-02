@@ -11,6 +11,6 @@ class Issue12018 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
-		Assert.equals("Main", runHaxeJsonCbNew(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)}).item.args.path.typeName);
+		Assert.equals("Main", runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)}).item.args.path.typeName);
 	}
 }

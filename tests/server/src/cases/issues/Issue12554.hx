@@ -10,23 +10,23 @@ class Issue12554 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
-		final sig = runHaxeJsonCbNew(args, ServerMethods.Contexts, null)[0].signature;
+		final sig = runHaxeJson(args, ServerMethods.Contexts, null)[0].signature;
 		Assert.notEquals(sig, "");
 
-		Assert.equals("Good", runHaxeJsonCbNew(args, ServerMethods.Module, {
+		Assert.equals("Good", runHaxeJson(args, ServerMethods.Module, {
 			path: "Main",
 			signature: sig
 		}).cacheState);
 
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Foo.hx")});
 
-		runHaxeJsonCbNew(args, DisplayMethods.Hover, {
+		runHaxeJson(args, DisplayMethods.Hover, {
 			file: new FsPath("Main.hx"),
 			offset: mainTpl.markers[1]
 		});
 		assertSuccess();
 
-		Assert.equals("Good", runHaxeJsonCbNew(args, ServerMethods.Module, {
+		Assert.equals("Good", runHaxeJson(args, ServerMethods.Module, {
 			path: "Main",
 			signature: sig
 		}).cacheState);

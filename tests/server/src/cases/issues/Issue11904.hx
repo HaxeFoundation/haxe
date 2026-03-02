@@ -8,7 +8,7 @@ class Issue11904 extends TestCase {
 		var args = ["-main", "Issue11904", "--js", "no.js", "--no-output"];
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Issue11904.hx")});
-		final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Issue11904.hx")});
+		final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Issue11904.hx")});
 		Assert.equals(1, res.length);
 		Assert.equals(2, res[0].diagnostics.length);
 

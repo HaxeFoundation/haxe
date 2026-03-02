@@ -12,7 +12,7 @@ class Issue11695 extends TestCase {
 		Sys.sleep(1);
 
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue11695/Macro2.hx"));
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Macro.hx")}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Macro.hx")}).length);
 
 		runHaxe(args);
 		assertHasPrint("Macro.hx:1: after");

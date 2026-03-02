@@ -6,7 +6,7 @@ class Issue11711 extends TestCase {
 	function test(_) {
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11711/Main.hx"));
 		var args = ["-main", "Main", "--js", "no.js", "--no-output"];
-		final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
+		final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 		Assert.equals(1, res.length);
 		var diag = res[0];
 		Assert.equals(1, diag.diagnostics.length);
@@ -17,7 +17,7 @@ class Issue11711 extends TestCase {
 
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11711/Main1.hx"));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		final res2 = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
+		final res2 = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 		Assert.equals(1, res2.length);
 		var found = false;
 		var diag = res2[0];

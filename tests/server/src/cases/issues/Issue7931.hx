@@ -9,7 +9,7 @@ class Issue7931 extends TestCase {
 		var args = ["-main", "Main"];
 		runHaxe(args);
 		assertErrorMessage("Local variable s used without being initialized");
-		final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
+		final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 		Assert.equals(1, res.length);
 		Assert.equals(1, res[0].diagnostics.length);
 		Assert.equals("Local variable s used without being initialized", res[0].diagnostics[0].args);
@@ -24,7 +24,7 @@ class Issue7931 extends TestCase {
 		var args = ["-main", "Main", "-js", "out.js", "--no-output"];
 		runHaxe(args);
 		assertErrorMessage("Null safety: Cannot assign nullable value here.");
-		final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
+		final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 		Assert.equals(1, res.length);
 		Assert.equals(1, res[0].diagnostics.length);
 		Assert.equals("Null safety: Cannot assign nullable value here.", res[0].diagnostics[0].args);

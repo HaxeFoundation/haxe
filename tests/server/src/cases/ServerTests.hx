@@ -99,7 +99,7 @@ class ServerTests extends TestCase {
 		var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
 		runHaxe(args);
 		assertErrorMessage("Expected }");
-		final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")});
+		final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Empty.hx")});
 		Assert.equals(0, res.length);
 		runHaxe(args);
 		assertErrorMessage("Expected }");
@@ -164,7 +164,7 @@ class ServerTests extends TestCase {
 		var args = ["-main", "Main", "Other"];
 
 		{
-			final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 				fileContents: [{file: new FsPath("Other.hx")}, {file: new FsPath("Main.hx")},]
 			});
 			Assert.equals(1, res.length);
@@ -178,7 +178,7 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
 
 		{
-			final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 				fileContents: [
 					{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main2.hx")},
 					{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
@@ -195,7 +195,7 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
 
 		{
-			final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 				fileContents: [
 					{file: new FsPath("Main.hx"), contents: getTemplate("issues/Issue9134/Main.hx")},
 					{file: new FsPath("Other.hx"), contents: getTemplate("issues/Issue9134/Other2.hx")}
@@ -220,7 +220,7 @@ class ServerTests extends TestCase {
 		// results will depend on haxe std which may change without updating
 		// this test everytime..
 		{
-			final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {});
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {});
 			var hasMain = false;
 			var hasOther = false;
 
@@ -251,7 +251,7 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
 		assertSkipping("HelloWorld", Tainted("server/invalidate"));
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -265,7 +265,7 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		runHaxe(args);
 		assertSkipping("HelloWorld", Tainted("server/invalidate"));
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {fileContents: [{file: new FsPath("HelloWorld.hx")}]}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {fileContents: [{file: new FsPath("HelloWorld.hx")}]}).length);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -273,7 +273,7 @@ class ServerTests extends TestCase {
 	function testDiagnosticsRecache2() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 	}
@@ -285,7 +285,7 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertReuse("HelloWorld");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
 		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
 		assertReuse("HelloWorld");
 	}
@@ -298,7 +298,7 @@ class ServerTests extends TestCase {
 
 		var args = ["--main", "Main", "--interp"];
 		{
-			final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 				fileContents: [{file: new FsPath("Main.hx")}, {file: new FsPath("File1.hx")}]
 			});
 			Assert.equals(2, res.length); // Asked diagnostics for 2 files
@@ -319,17 +319,18 @@ class ServerTests extends TestCase {
 						Assert.equals(diag.kind, ReplaceableCode);
 						Assert.equals(diag.args.description, "Unused variable");
 
-					case _: throw 'Did not expect diagnostics for $path';
+					case _:
+						throw 'Did not expect diagnostics for $path';
 				}
 			}
 		}
 
 		// Check that File2 was reached
-		final context = runHaxeJsonCbNew(args, ServerMethods.Contexts, null).find(ctx -> ctx.desc == "after_init_macros");
-		Assert.equals(runHaxeJsonCbNew(args, ServerMethods.Type, {signature: context.signature, modulePath: "File2", typeName: "File2"}).pos.file, "File2.hx");
+		final context = runHaxeJson(args, ServerMethods.Contexts, null).find(ctx -> ctx.desc == "after_init_macros");
+		Assert.equals(runHaxeJson(args, ServerMethods.Type, {signature: context.signature, modulePath: "File2", typeName: "File2"}).pos.file, "File2.hx");
 
 		{
-			final res = runHaxeJsonCbNew(args, DisplayMethods.Diagnostics, {
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 				fileContents: [
 					{file: new FsPath("Main.hx")},
 					{file: new FsPath("File3.hx")}, // Not reached by normal compilation
@@ -353,7 +354,8 @@ class ServerTests extends TestCase {
 						Assert.equals(diag.kind, ReplaceableCode);
 						Assert.equals(diag.args.description, "Unused variable");
 
-					case _: throw 'Did not expect diagnostics for $path';
+					case _:
+						throw 'Did not expect diagnostics for $path';
 				}
 			}
 		}
@@ -437,7 +439,7 @@ class ServerTests extends TestCase {
 		var args = ["-lib", "dummy_doc"];
 
 		{
-			final meta = runHaxeJsonCbNew(args, DisplayMethods.Metadata, {compiler: true, user: true});
+			final meta = runHaxeJson(args, DisplayMethods.Metadata, {compiler: true, user: true});
 			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
 			Assert.notNull(analyzer);
 			Assert.equals("Used to configure the static analyzer.", analyzer.doc);
@@ -460,7 +462,7 @@ class ServerTests extends TestCase {
 		}
 
 		{
-			final meta = runHaxeJsonCbNew(args, DisplayMethods.Metadata, {compiler: true, user: false});
+			final meta = runHaxeJson(args, DisplayMethods.Metadata, {compiler: true, user: false});
 			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
 			Assert.notNull(analyzer);
 
@@ -472,7 +474,7 @@ class ServerTests extends TestCase {
 		}
 
 		{
-			final meta = runHaxeJsonCbNew(args, DisplayMethods.Metadata, {compiler: false, user: true});
+			final meta = runHaxeJson(args, DisplayMethods.Metadata, {compiler: false, user: true});
 			var analyzer = Lambda.find(meta, m -> m.name == ':analyzer');
 			Assert.isNull(analyzer);
 
@@ -483,7 +485,7 @@ class ServerTests extends TestCase {
 			Assert.notNull(dummy_doc_dep);
 		}
 
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Metadata, {compiler: false, user: false}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Metadata, {compiler: false, user: false}).length);
 	}
 
 	function testDefines() {
@@ -493,7 +495,7 @@ class ServerTests extends TestCase {
 		var args = ["-lib", "dummy_doc"];
 
 		{
-			final defines = runHaxeJsonCbNew(args, DisplayMethods.Defines, {compiler: true, user: true});
+			final defines = runHaxeJson(args, DisplayMethods.Defines, {compiler: true, user: true});
 			var debug = Lambda.find(defines, d -> d.name == 'debug');
 			Assert.notNull(debug);
 			Assert.equals("Activated when compiling with -debug.", debug.doc);
@@ -510,7 +512,7 @@ class ServerTests extends TestCase {
 		}
 
 		{
-			final defines = runHaxeJsonCbNew(args, DisplayMethods.Defines, {compiler: true, user: false});
+			final defines = runHaxeJson(args, DisplayMethods.Defines, {compiler: true, user: false});
 			var debug = Lambda.find(defines, d -> d.name == 'debug');
 			Assert.notNull(debug);
 
@@ -522,7 +524,7 @@ class ServerTests extends TestCase {
 		}
 
 		{
-			final defines = runHaxeJsonCbNew(args, DisplayMethods.Defines, {compiler: false, user: true});
+			final defines = runHaxeJson(args, DisplayMethods.Defines, {compiler: false, user: true});
 			var debug = Lambda.find(defines, d -> d.name == 'debug');
 			Assert.isNull(debug);
 
@@ -533,7 +535,7 @@ class ServerTests extends TestCase {
 			Assert.notNull(dummy_doc_dep);
 		}
 
-		Assert.equals(0, runHaxeJsonCbNew(args, DisplayMethods.Defines, {compiler: false, user: false}).length);
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Defines, {compiler: false, user: false}).length);
 	}
 
 	function test10986() {

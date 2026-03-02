@@ -36,9 +36,9 @@ class Methods {
 
 typedef ResetCacheParams = {}
 
-typedef ResetCacheResult = {
+typedef ResetCacheResult = Response<{
 	final success:Bool;
-}
+}>;
 
 /* Initialize */
 typedef InitializeParams = {

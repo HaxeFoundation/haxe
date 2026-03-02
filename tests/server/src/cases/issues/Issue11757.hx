@@ -18,8 +18,8 @@ class Issue11757 extends TestCase {
 					Assert.fail("unexpected item kind: " + kind);
 			}
 		}
-		check("get", runHaxeJsonCbNew(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)}));
-		check("set", runHaxeJsonCbNew(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(2)}));
+		check("get", runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)}));
+		check("set", runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(2)}));
 		assertSuccess();
 	}
 }

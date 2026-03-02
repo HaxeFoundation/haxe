@@ -12,7 +12,7 @@ class Issue11909 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
-		final res = runHaxeJsonCbNew(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)});
+		final res = runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)});
 		switch (res.item.kind) {
 			case Local:
 				Assert.equals("int", res.item.args.name);
