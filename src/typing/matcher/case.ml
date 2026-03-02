@@ -12,44 +12,110 @@ type t = {
 }
 
 (*
-	Collect free (unbound) monomorphisms from type parameter positions of enum
-	abstracts within the switch subject type. These become "switch-level type
-	parameters": their fresh copies are refined per case by matching against
-	typed enum abstract constructors (GADT-like refinement).
+	Build a per-case type substitution that replaces "switch-level type parameters"
+	with fresh monomorphisms. Two kinds of type variables are treated as switch-level
+	type parameters:
 
-	Only enum-abstract type params are collected because only those participate in
-	GADT-style refinement (each constructor carries a specific instantiation of
-	the abstract's type parameter).  Free monomorphisms at other positions
-	(e.g. the entire subject type of an integer switch) are left alone so that
-	normal type-inference accumulation across cases is not disturbed.
+	1. Formal type parameters from ctx.type_params (TInst with KTypeParameter):
+	   Each occurrence of a formal type param T is replaced with a fresh mono m_T,
+	   identical to the old apply_params ctx.type_params monos behaviour. This makes
+	   pattern matching refine T per case even though T itself is not a monomorphism.
+
+	2. Free (unbound) monomorphisms in enum-abstract type-argument positions:
+	   When the subject type contains Kind<m> where m is a free mono, each case
+	   gets a fresh copy m_new so that matching KString refines m_new=String in that
+	   case without permanently constraining the original m. Free monos at other
+	   positions (e.g. the whole subject of an integer switch) are left untouched so
+	   that normal type-inference accumulation across cases is not disturbed.
+
+	Both substitutions use memoization (same type variable → same fresh mono) so that
+	if T appears in both the kind field and the value field, they are unified.
+
+	Returns (subst, rebind_unrefined) where:
+	- subst: the substitution function to apply to types
+	- rebind_unrefined: to be called after pattern processing; for any type-param
+	  mono that was not bound by the pattern (i.e. T was not refined), binds it back
+	  to the original type parameter so the case body continues to see T, not Unknown.
 *)
-let collect_subject_free_monos t =
-	let seen = ref [] in
-	let acc = ref [] in
-	let add m =
-		if not (List.memq m !seen) then begin
-			seen := m :: !seen;
-			acc := m :: !acc
-		end
+let make_subst ctx t =
+	(* Classes of the formal type parameters currently in scope *)
+	let tp_classes = List.map (fun ttp -> ttp.ttp_class) ctx.type_params in
+	(* Memoisation tables: original → fresh mono *)
+	let tp_memo = ref [] in  (* ttp_class -> tmono *)
+	let fm_memo = ref [] in  (* tmono -> tmono *)
+	let get_or_create_tp c =
+		try List.assq c !tp_memo
+		with Not_found ->
+			let m = Monomorph.create () in
+			tp_memo := (c, m) :: !tp_memo;
+			m
 	in
-	(* Called when we are inside a type-parameter position of an enum abstract *)
-	let rec loop_tparam ty = match ty with
+	let get_or_create_free m =
+		try List.assq m !fm_memo
+		with Not_found ->
+			let m_new = Monomorph.create () in
+			fm_memo := (m, m_new) :: !fm_memo;
+			m_new
+	in
+	(*
+		subst_tparam: called inside enum-abstract type-argument positions.
+		Substitutes both formal type params and free monos.
+	*)
+	let rec subst_tparam ty = match ty with
 		| TMono m ->
 			(match m.tm_type with
-			| None -> add m
-			| Some t -> loop_tparam t)
-		| _ -> loop ty
-	(* General traversal – only enter "type-param collecting" mode for enum abstracts *)
-	and loop ty = match ty with
+			| None -> TMono (get_or_create_free m)
+			| Some t -> subst_tparam t)
+		| TInst({cl_kind = KTypeParameter _} as c, []) when List.memq c tp_classes ->
+			TMono (get_or_create_tp c)
+		| _ -> Type.map subst_all ty
+	(*
+		subst_all: general substitution – replaces formal type params everywhere,
+		but restricts free-mono substitution to enum-abstract type-arg positions.
+	*)
+	and subst_all ty = match ty with
 		| TMono m ->
 			(match m.tm_type with
-			| Some t -> loop t
-			| None -> ())
-		| TAbstract(a,tl) when a.a_enum -> List.iter loop_tparam tl
-		| _ -> TFunctions.iter loop ty
+			| Some t -> subst_all t
+			| None -> ty)  (* free monos at non-enum-abstract positions: leave alone *)
+		| TInst({cl_kind = KTypeParameter _} as c, []) when List.memq c tp_classes ->
+			TMono (get_or_create_tp c)
+		| TAbstract(a, tl) when a.a_enum ->
+			TAbstract(a, List.map subst_tparam tl)
+		| _ -> Type.map subst_all ty
 	in
-	loop t;
-	!acc
+	let subst =
+		if tp_classes = [] then
+			(* Fast path: no type params, only substitute free monos in enum-abstract args *)
+			let rec subst_no_tp ty = match ty with
+				| TMono m ->
+					(match m.tm_type with
+					| Some t -> subst_no_tp t
+					| None -> ty)
+				| TAbstract(a, tl) when a.a_enum ->
+					TAbstract(a, List.map (fun arg -> match arg with
+						| TMono m when m.tm_type = None -> TMono (get_or_create_free m)
+						| TMono m -> (match m.tm_type with Some t -> subst_no_tp t | None -> arg)
+						| _ -> subst_no_tp arg) tl)
+				| _ -> Type.map subst_no_tp ty
+			in
+			subst_no_tp
+		else
+			subst_all
+	in
+	(*
+		After pattern processing, any type-param mono that is still unbound (i.e. the
+		pattern did not refine T) is bound back to the original type parameter type so
+		that the case body continues to see T instead of Unknown<N>.
+		This mirrors the old unapply_type_parameters behaviour.
+	*)
+	let rebind_unrefined () =
+		List.iter (fun (c, m) ->
+			if m.tm_type = None then
+				Monomorph.do_bind m (TInst(c, []))
+		) !tp_memo
+	in
+	subst, rebind_unrefined
 
 let make ctx t el eg eo_ast with_type postfix_match p =
 	let rec collapse_case el = match el with
@@ -62,35 +128,7 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 			raise_typing_error "case without pattern" p
 	in
 	let e = collapse_case el in
-	(*
-		Collect free monomorphisms from the subject type (switch-level type parameters)
-		and build a substitution that replaces each free mono with a fresh copy.
-		This allows GADT-like per-case type refinement even without an explicit function
-		type parameter: if the subject type contains a free monomorphism m, matching a
-		constructor like [TInst, name] will resolve the fresh copy m_new = String,
-		so that name : String in this branch (while m remains unbound outside).
-	*)
-	let make_free_mono_subst () =
-		let free_monos = collect_subject_free_monos t in
-		match free_monos with
-		| [] ->
-			(fun t -> t)
-		| _ ->
-			let pairs = List.map (fun m -> (m, Monomorph.create ())) free_monos in
-			let rec subst ty = match ty with
-				| TMono m ->
-					begin match m.tm_type with
-					| Some t' -> subst t'
-					| None ->
-						begin try TMono (List.assq m pairs)
-						with Not_found -> ty
-						end
-					end
-				| _ -> Type.map subst ty
-			in
-			subst
-	in
-	let subst = make_free_mono_subst () in
+	let subst,rebind_unrefined = make_subst ctx t in
 	let save = save_locals ctx in
 	let old_types = PMap.fold (fun v acc ->
 		let t_old = v.v_type in
@@ -108,6 +146,8 @@ let make ctx t el eg eo_ast with_type postfix_match p =
 		is_postfix_match = postfix_match;
 	} in
 	let pat = ExprToPattern.make pctx true (subst t) e in
+	(* For any type-param mono not refined by the pattern, rebind it to T *)
+	rebind_unrefined ();
 	let eg = match eg with
 		| None -> None
 		| Some e ->
