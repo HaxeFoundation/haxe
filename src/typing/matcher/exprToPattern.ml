@@ -280,9 +280,9 @@ let rec make pctx toplevel t e =
 					   type variable rather than a free monomorphism, preserving GADT
 					   constructor type constraints (see #1310). *)
 					List.iter2 (fun ttp mono ->
-						match mono, follow mono with
-						| TMono m1, TMono m2 when m2.tm_type = None ->
-							Monomorph.do_bind m1 ttp.ttp_type
+						match mono with
+						| TMono m when m.tm_type = None ->
+							Monomorph.do_bind m ttp.ttp_type
 						| _ -> ()
 					) ef.ef_params monos;
 					PatConstructor(con_enum en ef e1.epos,patterns)

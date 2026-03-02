@@ -113,6 +113,8 @@ let make_subst ctx t =
 			| TMono m ->
 				(match m.tm_type with
 				| None ->
+					(* Use physical equality (==) for monomorph identity: two separate TMono
+					   values wrapping distinct tmono records must not be conflated. *)
 					begin try
 						let c = fst (List.find (fun (_,m') -> m == m') !tp_memo) in
 						TInst(c, [])
