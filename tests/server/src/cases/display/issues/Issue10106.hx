@@ -11,7 +11,7 @@ class Issue10106 extends DisplayTestCase {
 			}
 		}
 
-		@:using(Issue10106.CExtension)
+		@:using(Main.CExtension)
 		class C {
 			public function new(){}
 		}
@@ -43,7 +43,7 @@ class Issue10106 extends DisplayTestCase {
 			}
 		}
 
-		@:using(Issue10106.EnExtension)
+		@:using(Main.EnExtension)
 		enum En {
 			A;
 			B;

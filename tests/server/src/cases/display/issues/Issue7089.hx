@@ -15,7 +15,7 @@ class Issue7089 extends DisplayTestCase {
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
 		var result = parseHover();
-		Assert.isTrue(result.result.item.type.kind == (cast "TAbstract" : Dynamic));
+		// Hovering over an enum abstract gives the meta-type "Abstract<Foo>"
 		Assert.equals("Abstract<Foo>", result.result.item.type.args.path.typeName);
 	}
 }
