@@ -137,7 +137,9 @@ type shared_context = {
 
 type json_api = {
 	send_result : Json.t -> unit;
+	send_result_raise : 'a . Json.t -> 'a;
 	send_error : Json.t list -> unit;
+	send_error_raise : 'a . Json.t list -> 'a;
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 

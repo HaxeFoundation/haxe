@@ -77,7 +77,7 @@ let flush_context sctx ctx =
 					"message",JString cm.cm_message;
 				]
 			) (List.rev ctx.messages) in
-			api.send_error errors
+			api.send_error_raise errors;
 		end
 	| _ ->
 		let add_diagnostics_messages () =

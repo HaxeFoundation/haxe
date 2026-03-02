@@ -81,10 +81,12 @@ let process_display_arg ctx actx =
 			actx.did_something <- true;
 			actx.force_typing <- true;
 			DisplayJson.parse_input ctx.com input
-		end else
+		end else begin
 			handle_display_argument_old ctx.com input actx;
+			NotCompleted
+		end
 	| None ->
-		()
+		NotCompleted
 
 (* 2. Compilation start, setup display configuration in context *)
 

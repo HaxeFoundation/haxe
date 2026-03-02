@@ -477,7 +477,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
+	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | DisplayJson.JsonCompleted as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -510,6 +510,10 @@ let catch_completion_and_exit ctx callbacks run =
 			emit_completion ctx str;
 			finalize ctx;
 			0
+		| DisplayJson.JsonCompleted ->
+			callbacks.after_compilation ctx;
+			finalize ctx;
+			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
 			finalize ctx;
@@ -518,13 +522,16 @@ let catch_completion_and_exit ctx callbacks run =
 let process_actx ctx actx =
 	ctx.com.doinline <- ctx.com.display.dms_inline && not (Common.defined ctx.com Define.NoInline);
 	ctx.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
-	DisplayProcessing.process_display_arg ctx actx;
-	List.iter (fun s ->
-		ctx.com.warning WDeprecated [] s null_pos
-	) actx.deprecations;
-	if defined ctx.com NoDeprecationWarnings then begin
-		ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
-	end
+	match DisplayProcessing.process_display_arg ctx actx with
+	| Completed ->
+		raise DisplayJson.JsonCompleted
+	| NotCompleted ->
+		List.iter (fun s ->
+			ctx.com.warning WDeprecated [] s null_pos
+		) actx.deprecations;
+		if defined ctx.com NoDeprecationWarnings then begin
+			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
+		end
 
 let compile_ctx callbacks ctx =
 	let run ctx =
