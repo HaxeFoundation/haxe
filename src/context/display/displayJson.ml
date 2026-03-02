@@ -46,14 +46,13 @@ let send_json io json =
 
 exception JsonCompleted
 
-(* send_string_raise is kept for call-sites where the OCaml type system requires the
-   callback to diverge. Specifically:
-   - handle_jsonrpc_error's callback must have the same return type as the main function
-     (a non-unit tuple), requiring divergence.
-   - handler_context.send_error has type 'a . Json.t list -> 'a, requiring divergence.
-   - send_error in parse_input is called from flush_context (outside compile_safe), so
-     raising Completion is needed for correct control-flow to catch_completion_and_exit.
-   It is too complex to adapt these call-sites to avoid raising. *)
+(* send_string_raise writes the string to io and then raises JsonCompleted.
+   JsonCompleted is a control-flow exception signaling that a JSON-RPC response has been
+   sent and no further output should be produced. It is caught by catch_completion_and_exit
+   which calls finalize and exits cleanly.
+   Raising is necessary for call-sites that send their response from within compilation
+   (display output handlers, deferred callbacks, flush_context), where we need to abort
+   further processing once the response is sent. *)
 let send_string_raise io j =
 	send_string io j;
 	raise JsonCompleted
@@ -553,7 +552,7 @@ let handler =
 				let ctx = create_context GMFull in
 				let l = List.map (generate_module_type ctx) hctx.com.types in
 				Result (jarray l)
-			);
+			)
 		);
 	] in
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
