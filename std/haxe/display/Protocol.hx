@@ -112,11 +112,11 @@ abstract HaxeNotificationMethod<TParams>(String) to String {
 		this = method;
 }
 
-typedef HaxeResponseErrorData = Array<{
+typedef HaxeResponseErrorData = {
 	var severity:HaxeResponseErrorSeverity;
 	var ?location:Location;
 	var message:String;
-}>;
+};
 
 enum abstract HaxeResponseErrorSeverity(Int) {
 	var Error = 1;

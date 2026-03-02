@@ -158,7 +158,7 @@ class TestCase implements ITest implements ITestCase {
 				if (result.hasError) {
 					sendErrorMessage(result.stderr);
 				}
-				var json:JsonRpcResponse<Response<TResponse>, Array<String>> = try {
+				var json:JsonRpcResponse<Response<TResponse>, Array<Any>> = try {
 					Json.parse(result.stderr);
 				} catch (e) {
 					cont.resume(null, new TestException("Response: " + result.stderr, pos));
@@ -168,8 +168,15 @@ class TestCase implements ITest implements ITestCase {
 				if (json.result != null) {
 					cont.resume(json.result?.result, null);
 				} else {
-					// TODO: this seems not quite right
-					cont.resume(null, new TestException(json.error.data[0], pos));
+					// TODO: This needs some serious cleanup in the compiler so all methods return
+					// properly typed data.
+					final obj = json.error.data[0];
+					final message:String = if (obj is String) {
+						(obj : String);
+					} else {
+						(obj : HaxeResponseErrorData).message;
+					}
+					cont.resume(null, new TestException(message, pos));
 				}
 			}, function(msg) {
 				cont.resume(null, new TestException(msg, pos));
