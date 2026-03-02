@@ -11,7 +11,9 @@ class Issue7935 extends DisplayTestCase {
 		}
 	**/
 	function test1(_) {
-		hasParserError("Expected expression or )");
+		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags = parseDiagnostics();
+		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == "Expected expression or )" && d.range == range(1, 2)));
 	}
 
 	/**
@@ -22,7 +24,9 @@ class Issue7935 extends DisplayTestCase {
 		}
 	**/
 	function test2(_) {
-		hasParserError("Expected , or )");
+		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags = parseDiagnostics();
+		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == "Expected , or )" && d.range == range(1, 2)));
 	}
 
 	/**
@@ -33,12 +37,8 @@ class Issue7935 extends DisplayTestCase {
 		}
 	**/
 	function test3(_) {
-		hasParserError("Expected expression");
-	}
-
-	function hasParserError(message:String) {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
-		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == message && d.range == range(1, 2)));
+		Assert.isTrue(diags.exists(d -> d.kind == DKParserError && d.args == "Expected expression" && d.range == range(1, 2)));
 	}
 }

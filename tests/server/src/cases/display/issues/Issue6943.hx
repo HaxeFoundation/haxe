@@ -1,9 +1,11 @@
 package cases.display.issues;
 
-class Issue6442 extends DisplayTestCase {
+class Issue6943 extends DisplayTestCase {
 	/**
-		extern class Foo {
-			function {-1-}b{-2-}ar{-3-}():Void;
+		class Main {
+		public static function main() {}
+
+		function foo(?{-1-}te{-2-}st{-3-}:Int) {}
 		}
 	**/
 	function test(_) {
@@ -11,8 +13,5 @@ class Issue6442 extends DisplayTestCase {
 		var locs = parseGotoDefintion().result;
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.equals(range(1, 3), locs[0].range);
-
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 	}
 }

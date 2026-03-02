@@ -22,7 +22,7 @@ class Issue7947 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
 		Assert.equals(1, diags.length);
-		Assert.equals(DKCompilerError, diags[0].kind);
+		Assert.isTrue(diags[0].kind == DKCompilerError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("Void should be Bool", diags[0].args);
 		Assert.equals(range(1, 2), diags[0].range);
@@ -47,7 +47,7 @@ class Issue7947 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
 		Assert.equals(1, diags.length);
-		Assert.equals(DKCompilerError, diags[0].kind);
+		Assert.isTrue(diags[0].kind == DKCompilerError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("Bool should be Void", diags[0].args);
 		Assert.equals(range(1, 2), diags[0].range);

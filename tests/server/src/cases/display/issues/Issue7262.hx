@@ -15,6 +15,6 @@ class Issue7262 extends DisplayTestCase {
 			wasAutoTriggered: true
 		});
 		var result = parseCompletion().result;
-		Assert.equals("TAnonymous", result.mode.args.expectedTypeFollowed.args.params[0].kind);
+		Assert.isTrue(result.mode.args.expectedTypeFollowed.args.params[0].kind == "TAnonymous");
 	}
 }

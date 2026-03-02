@@ -27,11 +27,11 @@ class Issue7075 extends DisplayTestCase {
 	function test2(_) {
 		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		var result = parseCompletion();
-		assertHasCompletion(result, item -> switch item.kind {
-			case ClassField: item.args.field.name == "CallStack";
-			case Type: item.args.path.typeName == "CallStack";
-			case Module: item.args.path.moduleName == "CallStack";
+		Assert.isTrue(result.result.items.exists(item -> switch item.kind {
+			case ClassField: (item.args : Dynamic).field.name == "CallStack";
+			case Type: (item.args : Dynamic).path.typeName == "CallStack";
+			case Module: (item.args : Dynamic).path.moduleName == "CallStack";
 			case _: false;
-		});
+		}));
 	}
 }

@@ -15,7 +15,7 @@ class Issue10194 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
 		Assert.equals(1, diags.length);
-		Assert.equals(DKCompilerError, diags[0].kind);
+		Assert.isTrue(diags[0].kind == DKCompilerError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("String should be Int\nFor function argument 'a'", diags[0].args);
 		Assert.equals(range(1, 2), diags[0].range);

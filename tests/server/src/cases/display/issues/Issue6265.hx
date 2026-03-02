@@ -10,10 +10,10 @@ class Issue6265 extends DisplayTestCase {
 	**/
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
 		Assert.equals("Void", parseHover().result.item.type.args.path.typeName);

@@ -14,7 +14,7 @@ class Issue6275 extends DisplayTestCase {
 	**/
 	function test(_) {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
 		var locs = parseGotoDefintion().result;

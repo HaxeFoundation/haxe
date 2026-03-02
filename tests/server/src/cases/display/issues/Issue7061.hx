@@ -34,6 +34,6 @@ class Issue7061 extends DisplayTestCase {
 		Assert.equals(range(2, 3), locs[0].range);
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 	}
 }

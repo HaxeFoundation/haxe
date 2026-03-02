@@ -14,7 +14,7 @@ class Issue7940 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
 		Assert.equals(1, diags.length);
-		Assert.equals(DKParserError, diags[0].kind);
+		Assert.isTrue(diags[0].kind == DKParserError);
 		Assert.equals(Error, diags[0].severity);
 		Assert.equals("Unterminated string", diags[0].args);
 		Assert.equals(range(1, 1), diags[0].range);

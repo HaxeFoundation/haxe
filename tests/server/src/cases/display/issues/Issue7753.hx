@@ -16,10 +16,10 @@ class Issue7753 extends DisplayTestCase {
 	**/
 	function testStatic(_) {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 	}
 
 	/**
@@ -39,10 +39,10 @@ class Issue7753 extends DisplayTestCase {
 	**/
 	function testInstance(_) {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 	}
 
 	/**
@@ -60,9 +60,9 @@ class Issue7753 extends DisplayTestCase {
 	**/
 	function testConstructor(_) {
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 	}
 }

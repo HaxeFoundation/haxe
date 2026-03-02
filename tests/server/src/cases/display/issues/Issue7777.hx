@@ -21,7 +21,7 @@ class Issue7777 extends DisplayTestCase {
 		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
 		var diags = parseDiagnostics();
 		Assert.equals(1, diags.length);
-		Assert.equals(DKUnusedImport, diags[0].kind);
+		Assert.isTrue(diags[0].kind == DKUnusedImport);
 		Assert.equals(Warning, diags[0].severity);
 		Assert.equals(range(1, 2), diags[0].range);
 	}

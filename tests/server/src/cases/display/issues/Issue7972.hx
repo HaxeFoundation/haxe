@@ -17,7 +17,7 @@ class Issue7972 extends DisplayTestCase {
 		Assert.equals("Std", parseHover().result.item.type.args.path.typeName);
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("TFun", parseHover().result.item.type.kind);
+		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
 
 		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
 		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
