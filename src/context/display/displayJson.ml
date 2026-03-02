@@ -38,11 +38,25 @@ let supports_resolve = ref false
 let create_json_context jsonrpc may_resolve =
 	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
-let send_string j =
+let send_string io j =
+	io.Gctx.print_err j
+
+let send_json io json =
+	send_string io (string_of_json json)
+
+(* send_string_raise is kept for call-sites where the OCaml type system requires the
+   callback to diverge. Specifically:
+   - handle_jsonrpc_error's callback must have the same return type as the main function
+     (a non-unit tuple), requiring divergence.
+   - handler_context.send_error has type 'a . Json.t list -> 'a, requiring divergence.
+   - send_error in parse_input is called from flush_context (outside compile_safe), so
+     raising Completion is needed for correct control-flow to catch_completion_and_exit.
+   It is too complex to adapt these call-sites to avoid raising. *)
+let send_string_raise j =
 	raise (Completion j)
 
-let send_json json =
-	send_string (string_of_json json)
+let send_json_raise json =
+	send_string_raise (string_of_json json)
 
 class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) = object(self)
 	val cs = cs;
@@ -511,8 +525,11 @@ let handler =
 	h
 
 let parse_input com input =
+	let io = com.io in
 	let input =
-		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json
+		(* send_json_raise is used here: handle_jsonrpc_error's callback must have the same
+		   return type as parse_request (a non-unit tuple), requiring the callback to diverge. *)
+		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json_raise
 	in
 	let jsonrpc = new jsonrpc_handler input in
 
@@ -536,11 +553,15 @@ let parse_input com input =
 			fl
 		in
 		let jo = jobject fl in
-		send_json (JsonRpc.result jsonrpc#get_id  jo)
+		send_json io (JsonRpc.result jsonrpc#get_id  jo)
 	in
 
 	let send_error jl =
-		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
+		(* send_json_raise is used here: send_error has type 'a . Json.t list -> 'a in
+		   handler_context, requiring divergence. It is also called from flush_context
+		   (outside compile_safe), so raising Completion is needed for catch_completion_and_exit
+		   to perform finalization. *)
+		send_json_raise (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
 	com.json_out <- Some({
@@ -569,4 +590,4 @@ let parse_input com input =
 			raise_method_not_found jsonrpc#get_id method_name
 		in
 		f hctx
-	) send_json
+	) send_json_raise
