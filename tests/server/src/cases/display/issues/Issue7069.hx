@@ -1,5 +1,7 @@
 package cases.display.issues;
 
+import haxe.display.JsonModuleTypes.JsonClassFieldScope;
+
 class Issue7069 extends DisplayTestCase {
 	/**
 		class Main {
@@ -23,7 +25,7 @@ class Issue7069 extends DisplayTestCase {
 			for (i in 0...items.length) {
 				switch items[i].kind {
 					case Local if (items[i].args.name == name): return i;
-					case ClassField if (items[i].args.field.name == name && (items[i].args.field.scope : Dynamic) == 0): return i;
+					case ClassField if (items[i].args.field.name == name && (items[i].args.field.scope : Dynamic) == (JsonClassFieldScope.Static : Dynamic)): return i;
 					case _:
 				}
 			}
