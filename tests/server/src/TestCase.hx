@@ -29,13 +29,17 @@ class TestException extends Exception {
 	}
 }
 
-typedef JsonRpcResponse = {
-	?result:Dynamic,
-	?error:{
-		code:Int,
-		message:String,
-		?data:Dynamic
-	}
+typedef JsonRpcError<Data> = {
+	code:Int,
+	message:String,
+	?data:Data
+}
+
+typedef JsonRpcResponse<Result, ErrorData> = {
+	jsonrpc:String,
+	id:Int,
+	?result:Result,
+	?error:JsonRpcError<ErrorData>
 }
 
 class TestCase implements ITest implements ITestCase {
@@ -154,14 +158,11 @@ class TestCase implements ITest implements ITestCase {
 				if (result.hasError) {
 					sendErrorMessage(result.stderr);
 				}
-				var json:JsonRpcResponse = try {
+				var json:JsonRpcResponse<Response<TResponse>, Array<String>> = try {
 					Json.parse(result.stderr);
 				} catch (e) {
-					error: {
-						code: 1,
-						message: e.message,
-						data: " (Response: " + result.stderr + ")"
-					}
+					cont.resume(null, new TestException("Response: " + result.stderr, pos));
+					return;
 				}
 
 				if (json.result != null) {
