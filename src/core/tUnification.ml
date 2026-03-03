@@ -54,6 +54,7 @@ type unification_context = {
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
+	opaque_field_params     : bool; (* treat cf_params as opaque: don't substitute them with fresh monomorphs during unification *)
 	type_param_mode         : type_param_mode;
 	unify_stack             : (t * t) rec_stack;
 	eq_stack                : (t * t) rec_stack;
@@ -88,6 +89,7 @@ let default_unification_context () = {
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
+	opaque_field_params       = false;
 	type_param_mode         = TpDefault;
 	unify_stack             = new_rec_stack();
 	eq_stack                = new_rec_stack();
@@ -106,6 +108,7 @@ let native_unification_context = {
 	equality_underlying   = false;
 	allow_arg_name_mismatch = true;
 	strict_field_kind       = false;
+	opaque_field_params       = false;
 	type_param_mode         = TpDefault;
 	unify_stack             = new_rec_stack();
 	eq_stack                = new_rec_stack();
@@ -747,6 +750,10 @@ let print_stacks uctx =
 	print_endline "abstract_cast_stack";
 	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) uctx.abstract_cast_stack.rec_stack
 
+let field_type_for_unification uctx f =
+	if uctx.opaque_field_params then f.cf_type
+	else field_type f
+
 let rec unify (uctx : unification_context) a b =
 	if a == b then
 		()
@@ -858,7 +865,8 @@ let rec unify (uctx : unification_context) a b =
 				*)
 				let monos = ref [] in
 				let make_type f =
-					match f.cf_params with
+					if uctx.opaque_field_params then f.cf_type
+					else match f.cf_params with
 					| [] -> f.cf_type
 					| l ->
 						let ml = List.map (fun _ -> mk_mono()) l in
@@ -993,7 +1001,7 @@ let rec unify (uctx : unification_context) a b =
 				| _ -> ());
 				PMap.iter (fun _ f ->
 					try
-						type_eq uctx (field_type f) t1
+						type_eq uctx (field_type_for_unification uctx f) t1
 					with Unify_error l ->
 						error (invalid_field f.cf_name :: l)
 				) an.a_fields
@@ -1028,7 +1036,7 @@ and unify_anons uctx a b a1 a2 =
 		try
 			let f1_type =
 				if fast_eq f1.cf_type f2.cf_type then f1.cf_type
-				else field_type f1
+				else field_type_for_unification uctx f1
 			in
 			unify_with_access uctx f1 f1_type f2;
 			f1
@@ -1139,8 +1147,12 @@ and unifies_from_field uctx a b ab tl (t,cf) =
 		match follow cf.cf_type with
 		| TFun(_,r) ->
 			let map = apply_params ab.a_params tl in
-			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-			let map t = map (apply_params cf.cf_params monos t) in
+			let map =
+				if uctx.opaque_field_params then map
+				else
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+					fun t -> map (apply_params cf.cf_params monos t)
+			in
 			let uctx = get_abstract_context uctx a b ab in
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			unify_func a (map t);
@@ -1152,8 +1164,12 @@ and unifies_to_field uctx a b ab tl (t,cf) =
 		match follow cf.cf_type with
 		| TFun((_,_,ta) :: _,_) ->
 			let map = apply_params ab.a_params tl in
-			let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-			let map t = map (apply_params cf.cf_params monos t) in
+			let map =
+				if uctx.opaque_field_params then map
+				else
+					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+					fun t -> map (apply_params cf.cf_params monos t)
+			in
 			let uctx = get_abstract_context uctx a b ab in
 			let unify_func = get_abstract_unify_func uctx EqStrict in
 			let athis = map ab.a_this in

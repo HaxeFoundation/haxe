@@ -26,6 +26,7 @@ open Type
 open Error
 open Gctx
 open Hlcode
+open Tanon_identification
 
 (* compiler *)
 
@@ -105,7 +106,8 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
-	mutable anons_cache : (tanon, ttype) PMap.t;
+	anon_id : ttype tanon_identification;
+	anons_cache : (path, ttype) Hashtbl.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -127,6 +129,22 @@ type context = {
 
 let compare_version v1 v2 =
 	Semver.compare_version (Semver.parse_version v1) (Semver.parse_version v2)
+
+(* Custom unification context for HL anonymous type identification.
+   - EqDoNotFollowNull: Null<T> ≠ T (important: HL uses null(t) for Null<T> which
+     is a different HVirtual field type from t), but non-null typedefs can be followed
+   - strict_field_kind: distinguish Var and Method fields (HL uses HFun vs HMethod)
+   - allow_optional_mismatch: treat { ?node:T } and { node:T } as the same type
+     (both have the same field type Null<T>; only @:optional meta differs)
+   - opaque_field_params: treat cf_params as opaque rather than instantiating them
+     with fresh monomorphs, so generic method type params (e.g. <X>) are not unified
+     with concrete types (e.g. Int) and two uses of the same generic method are equal *)
+let anon_id_uctx = {
+	AnonIdMode.strict with
+	equality_kind = EqDoNotFollowNull;
+	allow_optional_mismatch = true;
+	opaque_field_params = true;
+}
 
 (* --- *)
 
@@ -422,18 +440,9 @@ let rec to_type ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
-		(* Normalize @:optional meta away so that optional/non-optional fields of the
-		   same type map to the same HVirtual (e.g. { ?node: T } and { node: T }). *)
-		let anorm =
-			let fields = PMap.map (fun cf ->
-				if Meta.has Meta.Optional cf.cf_meta then
-					{ cf with cf_meta = List.filter (fun (m,_,_) -> m <> Meta.Optional) cf.cf_meta }
-				else cf
-			) a.a_fields in
-			{ a with a_fields = fields }
-		in
+		let pfm = ctx.anon_id#identify_anon anon_id_uctx a in
 		(try
-			PMap.find anorm ctx.anons_cache
+			Hashtbl.find ctx.anons_cache pfm.pfm_path
 		with Not_found ->
 			let vid = ctx.virt_id in
 			ctx.virt_id <- vid + 1;
@@ -446,7 +455,7 @@ let rec to_type ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			ctx.anons_cache <- PMap.add anorm t ctx.anons_cache;
+			Hashtbl.add ctx.anons_cache pfm.pfm_path t;
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
@@ -4252,7 +4261,8 @@ let create_context com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = PMap.empty;
+		anon_id = new tanon_identification;
+		anons_cache = Hashtbl.create 0;
 		rec_cache = [];
 		method_wrappers = PMap.create ttype_pair_compare;
 		cdebug_files = new_lookup();
