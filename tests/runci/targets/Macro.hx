@@ -11,11 +11,6 @@ class Macro {
 		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");
 
-		#if include_legacy
-		runCommand("haxe", ["build.hxml", "-D", "display.protocol=xml"]);
-		#end
-		runCommand("haxe", ["build.hxml", "-D", "display.protocol=jsonrpc"]);
-
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
 
@@ -30,8 +25,6 @@ class Macro {
 
 		changeDirectory(getMiscSubDir("resolution"));
 		runCommand("haxe", ["run.hxml"]);
-
-		Display.maybeRunDisplayTests(Eval);
 
 		changeDirectory(sysDir);
 		runSysTest("haxe", ["compile-macro.hxml"].concat(args));

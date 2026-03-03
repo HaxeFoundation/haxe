@@ -1016,7 +1016,7 @@ module HxbWriter = struct
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let pfm = writer.anon_id#identify_anon ~strict:true an in
+			let pfm = writer.anon_id#identify_anon AnonIdMode.strict an in
 			try
 				let index = Pool.get writer.anons pfm.pfm_path in
 				Chunk.write_u8 writer.chunk 0;
