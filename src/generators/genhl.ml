@@ -422,10 +422,18 @@ let rec to_type ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
+		(* Normalize @:optional meta away so that optional/non-optional fields of the
+		   same type map to the same HVirtual (e.g. { ?node: T } and { node: T }). *)
+		let anorm =
+			let fields = PMap.map (fun cf ->
+				if Meta.has Meta.Optional cf.cf_meta then
+					{ cf with cf_meta = List.filter (fun (m,_,_) -> m <> Meta.Optional) cf.cf_meta }
+				else cf
+			) a.a_fields in
+			{ a with a_fields = fields }
+		in
 		(try
-			(* can't use physical comparison in PMap since addresses might change in GC compact,
-				maybe add an uid to tanon if too slow ? *)
-			PMap.find a ctx.anons_cache
+			PMap.find anorm ctx.anons_cache
 		with Not_found ->
 			let vid = ctx.virt_id in
 			ctx.virt_id <- vid + 1;
@@ -438,7 +446,7 @@ let rec to_type ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			ctx.anons_cache <- PMap.add a t ctx.anons_cache;
+			ctx.anons_cache <- PMap.add anorm t ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
