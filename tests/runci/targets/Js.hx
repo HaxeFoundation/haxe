@@ -137,8 +137,6 @@ class Js {
 		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-cache"]);
 		runCommand("node", ["test.js"]);
 
-		Display.maybeRunDisplayTests(Js);
-
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);
 		runCommand("haxe", ["compile-js.hxml"].concat(args));

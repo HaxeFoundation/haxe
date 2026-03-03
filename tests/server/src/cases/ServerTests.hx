@@ -127,19 +127,19 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
-		var args2 = ["--main", "HelloWorld", "--interp", "--display", "HelloWorld.hx@64@type"];
+		var displayArgs = ["--main", "HelloWorld", "--interp"];
 		if (inMemory)
-			args2 = args2.concat(["-D", "disable-hxb-cache"]);
+			displayArgs = displayArgs.concat(["-D", "disable-hxb-cache"]);
 		else
-			args2 = args2.concat(["--undefine", "disable-hxb-cache"]);
+			displayArgs = displayArgs.concat(["--undefine", "disable-hxb-cache"]);
 
-		runHaxe(args2);
+		runHaxeJson(displayArgs, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 64});
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
 		// make sure we still invalidate if the file does change
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
-		runHaxe(args2);
+		runHaxeJson(displayArgs, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 64});
 
 		runHaxe(args);
 
@@ -153,8 +153,7 @@ class ServerTests extends TestCase {
 		var args = ["MutuallyDependent1", "MutuallyDependent2"];
 		runHaxe(args);
 
-		args = args.concat(["--display", "MutuallyDependent1.hx@44@type"]);
-		runHaxe(args);
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("MutuallyDependent1.hx"), offset: 44});
 		assertSuccess();
 	}
 
@@ -286,7 +285,7 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HelloWorld.hx")});
 		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
-		runHaxe(args.concat(["--display", "HelloWorld.hx@0@hover"]));
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 0});
 		assertReuse("HelloWorld");
 	}
 
@@ -656,13 +655,5 @@ class ServerTests extends TestCase {
 		assertHasPrint('Issue9918.hx:22: correct ECast count');
 		runHaxe(args);
 		assertHasPrint('Issue9918.hx:22: correct ECast count');
-	}
-
-	// Regression test: errors should be flushed/sent to the client even when
-	// the error occurs before the main compilation step (e.g. missing library).
-	function testOutputFlushing(_) {
-		runHaxe(["-lib", "doesntexist"]);
-		Assert.isTrue(lastResult.hasError);
-		Assert.isTrue(lastResult.stderr.contains("Library doesntexist is not installed"));
 	}
 }

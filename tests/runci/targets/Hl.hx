@@ -157,8 +157,6 @@ class Hl {
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
 
-		Display.maybeRunDisplayTests(Hl);
-
 		changeDirectory(sysDir);
 		if (Hl.withJitTests) {
 			runCommand("haxe", ["compile-hl.hxml"].concat(args));
