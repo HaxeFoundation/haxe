@@ -1,23 +1,11 @@
 package haxe.atomic;
 
-#if doc_gen
-@:coreType
-abstract AtomicObject<T:{}> {
-	public function new(value:T):Void;
+private typedef AtomicObjectData<T:{}> = Dynamic;
 
-	public function compareExchange(expected:T, replacement:T):T;
-
-	public function exchange(value:T):T;
-
-	public function load():T;
-
-	public function store(value:T):T;
-}
-#else
 #if cppia
 extern
 #end
-abstract AtomicObject<T: {}>(Dynamic) {
+abstract AtomicObject<T: {}>(AtomicObjectData<T>) {
 	#if cppia
 	public function new(value:T):Void;
 
@@ -50,4 +38,3 @@ abstract AtomicObject<T: {}>(Dynamic) {
 	}
 	#end
 }
-#end

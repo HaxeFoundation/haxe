@@ -15,7 +15,7 @@ type script_type =
   | ScriptObject
   | ScriptVoid
 
-let cpp_type_of = CppRetyper.cpp_type_of CppRetyper.with_reference_value_type
+let cpp_type_of basic = CppRetyper.cpp_type_of basic CppRetyper.with_reference_value_type
 
 let to_script_type tcpp =
   match tcpp with
@@ -528,9 +528,10 @@ and is_dynamic_in_cppia ctx expr =
   | TCast (_, None) -> true
   | _ -> is_dynamic_in_cpp ctx expr
 
-class script_writer ctx filename asciiOut =
+class script_writer ctx filename asciiOut basic =
   object (this)
     val debug = asciiOut
+    val basic = basic
 
     val doComment =
       asciiOut && Gctx.defined ctx.ctx_common Define.AnnotateSource
@@ -606,7 +607,7 @@ class script_writer ctx filename asciiOut =
 
     method typeText typeT =
       let tname =
-        if cppiaAst then script_cpptype_string (cpp_type_of typeT)
+        if cppiaAst then script_cpptype_string (cpp_type_of basic typeT)
         else script_type_string typeT
       in
       string_of_int (this#typeId tname) ^ " "
@@ -617,7 +618,7 @@ class script_writer ctx filename asciiOut =
     method writeType typeT = this#write (this#typeText typeT)
 
     method toCppType etype =
-      string_of_int (this#typeId (script_cpptype_string (cpp_type_of etype)))
+      string_of_int (this#typeId (script_cpptype_string (cpp_type_of basic etype)))
       ^ " "
 
     method boolText value = if value then "1" else "0"
@@ -755,9 +756,9 @@ class script_writer ctx filename asciiOut =
         match fieldExpression with
         | Some ({ eexpr = TFunction function_def } as e) ->
             if cppiaAst then (
-              let args = List.map (fun (v, e) -> (CppRetyper.retype_tvar v), e) function_def.tf_args in
+              let args = List.map (fun (v, e) -> (CppRetyper.retype_tvar basic v), e) function_def.tf_args in
               let cppExpr =
-                CppRetyper.expression ctx TCppVoid args (cpp_type_of function_def.tf_type)
+                CppRetyper.expression ctx TCppVoid args (cpp_type_of basic function_def.tf_type)
                   function_def.tf_expr false
               in
               this#begin_expr;
@@ -789,7 +790,7 @@ class script_writer ctx filename asciiOut =
       match varExpr with
       | Some expression ->
           if cppiaAst then
-            let varType = cpp_type_of expression.etype in
+            let varType = cpp_type_of basic expression.etype in
             let cppExpr =
               CppRetyper.expression ctx varType [] TCppDynamic expression false
             in
@@ -892,7 +893,7 @@ class script_writer ctx filename asciiOut =
           match init with
           | Some { eexpr = TConst TNull } -> this#write "0\n"
           | Some const ->
-              let argType = cpp_type_of const.etype in
+              let argType = cpp_type_of basic const.etype in
               if is_cpp_scalar argType || argType == TCppString then (
                 this#write "1 ";
                 this#gen_expression_only const;
@@ -954,7 +955,7 @@ class script_writer ctx filename asciiOut =
             ^ this#typeText function_def.tf_type
             ^ string_of_int (List.length function_def.tf_args)
             ^ "\n");
-          let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar v, e) function_def.tf_args) in
+          let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar basic v, e) function_def.tf_args) in
           let pop = this#pushReturn function_def.tf_type in
           this#gen_expression function_def.tf_expr;
           pop ();
@@ -1903,7 +1904,7 @@ let generate_cppia ctx =
   let common_ctx = ctx.ctx_common in
   let debug = ctx.ctx_debug_level in
   Path.mkdir_from_path common_ctx.file;
-  let script = new script_writer ctx common_ctx.file common_ctx.debug in
+  let script = new script_writer ctx common_ctx.file common_ctx.debug common_ctx.basic in
   ignore (script#stringId "");
   ignore (script#typeId "");
 

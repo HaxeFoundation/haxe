@@ -24,7 +24,31 @@ package sys.thread;
 
 @:pythonImport("threading", "local")
 @:native("local")
-extern class Tls<T> {
+extern class NativeTls<T> {
 	function new():Void;
 	var value(default, default):Null<T>;
+}
+
+class Tls<T> {
+	final native:NativeTls<Null<T>>;
+
+	public var value(get, set):Null<T>;
+
+	public function new():Void {
+		native = new NativeTls<T>();
+		native.value = null;
+	}
+
+	function get_value() {
+		try {
+			return native.value;
+		} catch (_:Dynamic) {
+			return null;
+		}
+	}
+
+	function set_value(v:T) {
+		native.value = v;
+		return v;
+	}
 }

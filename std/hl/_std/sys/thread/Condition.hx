@@ -17,6 +17,7 @@ package sys.thread;
 	public function broadcast():Void;
 }
 #else
+@:coreApi(check = Off)
 abstract Condition(hl.Abstract<"hl_condition">) {
 	public function new():Void {
 		this = alloc();

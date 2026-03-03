@@ -32,13 +32,21 @@ class Methods {
 	static inline var Initialize = new HaxeRequestMethod<InitializeParams, InitializeResult>("initialize");
 
 	static inline var ResetCache = new HaxeRequestMethod<ResetCacheParams, ResetCacheResult>("server/resetCache");
+
+	static inline var ResetState = new HaxeRequestMethod<ResetStateParams, ResetStateResult>("server/resetState");
 }
 
 typedef ResetCacheParams = {}
 
-typedef ResetCacheResult = {
+typedef ResetCacheResult = Response<{
 	final success:Bool;
-}
+}>;
+
+typedef ResetStateParams = {}
+
+typedef ResetStateResult = Response<{
+	final success:Bool;
+}>
 
 /* Initialize */
 typedef InitializeParams = {
@@ -104,11 +112,11 @@ abstract HaxeNotificationMethod<TParams>(String) to String {
 		this = method;
 }
 
-typedef HaxeResponseErrorData = Array<{
+typedef HaxeResponseErrorData = {
 	var severity:HaxeResponseErrorSeverity;
 	var ?location:Location;
 	var message:String;
-}>;
+};
 
 enum abstract HaxeResponseErrorSeverity(Int) {
 	var Error = 1;
