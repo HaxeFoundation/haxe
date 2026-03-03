@@ -162,20 +162,18 @@ class Thread {
 		return mainThread;
 	}
 
-	function installCallbacks(callbacks:ThreadCallbacks) {
+	static function installCallbacks(host:ThreadCallbackManager, callbacks:ThreadCallbacks) {
+		final handles:Array<IThreadCallbackHandle> = [];
 		if (callbacks.onStart != null) {
-			this.callbacks.onStart(callbacks.onStart);
+			handles.push(host.onStart(callbacks.onStart));
 		}
 		if (callbacks.onJobDone != null) {
-			this.callbacks.onJobDone(callbacks.onJobDone);
-		}
-		if (callbacks.onAbort != null) {
-			// TODO: Change to variable too?
-			onAbort = callbacks.onAbort;
+			handles.push(host.onJobDone(callbacks.onJobDone));
 		}
 		if (callbacks.onExit != null) {
-			this.callbacks.onExit(callbacks.onExit);
+			handles.push(host.onExit(callbacks.onExit));
 		}
+		return handles;
 	}
 
 	/**
@@ -191,7 +189,10 @@ class Thread {
 
 		final defaultOnAbort = t.onAbort;
 		if (callbacks != null) {
-			t.installCallbacks(callbacks);
+			installCallbacks(t.callbacks, callbacks);
+			if (callbacks.onAbort != null) {
+				t.onAbort = callbacks.onAbort;
+			}
 		}
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
@@ -253,17 +254,14 @@ class Thread {
 		callbacks from being called even for threads that are already running.
 	**/
 	static public function addCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
-		final handles:Array<IThreadCallbackHandle> = [];
-		if (callbacks.onStart != null)
-			handles.push(globalCallbacks.onStart(callbacks.onStart));
-		if (callbacks.onJobDone != null)
-			handles.push(globalCallbacks.onJobDone(callbacks.onJobDone));
-		if (callbacks.onAbort != null)
+		final handles = installCallbacks(globalCallbacks, callbacks);
+		if (callbacks.onAbort != null) {
 			handles.push(globalCallbacks.onAbort(callbacks.onAbort));
-		if (callbacks.onExit != null)
-			handles.push(globalCallbacks.onExit(callbacks.onExit));
-		if (handles.length == 1) return handles[0];
-		return new MultiHandle(handles); // also valid for empty handles (isClosed = true, close = no-op)
+		}
+		if (handles.length == 1) {
+			return handles[0];
+		}
+		return new MultiHandle(handles);
 	}
 
 	/**
