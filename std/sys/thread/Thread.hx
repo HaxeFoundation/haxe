@@ -28,11 +28,7 @@ package sys.thread;
 
 import sys.thread.ThreadCallback;
 
-typedef ThreadCallbacks = {
-	/**
-		Called when the thread starts, before the job is executed.
-	**/
-	?onStart:() -> Void,
+typedef CurrentThreadCallbacks = {
 	/**
 		Called when the thread has successfully completed its job. Not called if the thread throws.
 	**/
@@ -47,6 +43,13 @@ typedef ThreadCallbacks = {
 		the exception is forwarded to the default abort handler, ignoring any assigned `onAbort`.
 	**/
 	?onExit:() -> Void
+}
+
+typedef ThreadCallbacks = CurrentThreadCallbacks & {
+	/**
+		Called when the thread starts, before the job is executed.
+	**/
+	?onStart:() -> Void
 }
 
 class Thread {
@@ -262,12 +265,15 @@ class Thread {
 
 	/**
 		Registers `callbacks` to be called for the current thread.
-
-		By definition, passing `onJobStart` has no effect because the current thread has already started.
 	**/
-	static public function addCurrentCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
+	static public function addCurrentCallbacks(callbacks:CurrentThreadCallbacks):IThreadCallbackHandle {
 		final thread = Thread.current();
-		return installCallbacks(thread.callbacks, callbacks);
+		return installCallbacks(thread.callbacks, {
+			onStart: null,
+			onJobDone: callbacks.onJobDone,
+			onAbort: callbacks.onAbort,
+			onExit: callbacks.onExit
+		});
 	}
 
 	/**
