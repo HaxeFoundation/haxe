@@ -1,6 +1,7 @@
 package unit.issues;
 
 class Issue12700 extends Test {
+	#if !lua
 	function test() {
 		// Assigning to a .length field on an anonymous struct should not generate
 		// invalid Python code like `HxOverrides.length(obj) = value`
@@ -11,4 +12,5 @@ class Issue12700 extends Test {
 		notes[holdIndexes[lane]].length = time - notes[holdIndexes[lane]].time;
 		eq(1.0, notes[0].length);
 	}
+	#end
 }

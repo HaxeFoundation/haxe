@@ -204,10 +204,10 @@ class Thread {
 				hl.Api.setErrorHandler(null);
 				#end
 				t.callbacks.callOnStart();
-				globalCallbacks.callOnStart();
+				globalCallbacks?.callOnStart();
 				job();
 				t.callbacks.callOnJobDone();
-				globalCallbacks.callOnJobDone();
+				globalCallbacks?.callOnJobDone();
 			} catch( e ) {
 				exception = e;
 			}
@@ -215,7 +215,7 @@ class Thread {
 			if( exception != null ) {
 				try {
 					t.onAbort(exception);
-					globalCallbacks.callOnAbort(exception);
+					globalCallbacks?.callOnAbort(exception);
 				} catch ( e ) {
 					defaultOnAbort(e);
 				}
@@ -223,7 +223,7 @@ class Thread {
 
 			try {
 				t.callbacks.callOnExit();
-				globalCallbacks.callOnExit();
+				globalCallbacks?.callOnExit();
 			} catch ( e ) {
 				defaultOnAbort(e);
 			}
@@ -254,6 +254,7 @@ class Thread {
 		callbacks from being called even for threads that are already running.
 	**/
 	static public function addCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
+		globalCallbacks ??= new ThreadCallbackManager();
 		final handles = installCallbacks(globalCallbacks, callbacks);
 		if (callbacks.onAbort != null) {
 			handles.push(globalCallbacks.onAbort(callbacks.onAbort));
@@ -318,7 +319,6 @@ class Thread {
 		threads = [mainThread];
 		currentTLS = new Tls();
 		currentTLS.value = mainThread;
-		globalCallbacks = new ThreadCallbackManager();
 	}
 
 }
