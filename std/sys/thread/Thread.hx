@@ -170,10 +170,16 @@ class Thread {
 		if (callbacks.onJobDone != null) {
 			handles.push(host.onJobDone(callbacks.onJobDone));
 		}
+		if (callbacks.onAbort != null) {
+			handles.push(host.onAbort(callbacks.onAbort));
+		}
 		if (callbacks.onExit != null) {
 			handles.push(host.onExit(callbacks.onExit));
 		}
-		return handles;
+		if (handles.length == 1) {
+			return handles[0];
+		}
+		return new MultiHandle(handles);
 	}
 
 	/**
@@ -187,12 +193,8 @@ class Thread {
 		threads.push(t);
 		mutex.release();
 
-		final defaultOnAbort = t.onAbort;
 		if (callbacks != null) {
 			installCallbacks(t.callbacks, callbacks);
-			if (callbacks.onAbort != null) {
-				t.onAbort = callbacks.onAbort;
-			}
 		}
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
@@ -214,10 +216,10 @@ class Thread {
 
 			if( exception != null ) {
 				try {
-					t.onAbort(exception);
+					t.callbacks.callOnAbort(exception);
 					globalCallbacks?.callOnAbort(exception);
 				} catch ( e ) {
-					defaultOnAbort(e);
+					t.onAbort(e);
 				}
 			}
 
@@ -225,7 +227,7 @@ class Thread {
 				t.callbacks.callOnExit();
 				globalCallbacks?.callOnExit();
 			} catch ( e ) {
-				defaultOnAbort(e);
+				t.onAbort(e);
 			}
 
 			t.dispose();
@@ -255,14 +257,7 @@ class Thread {
 	**/
 	static public function addCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
 		globalCallbacks ??= new ThreadCallbackManager();
-		final handles = installCallbacks(globalCallbacks, callbacks);
-		if (callbacks.onAbort != null) {
-			handles.push(globalCallbacks.onAbort(callbacks.onAbort));
-		}
-		if (handles.length == 1) {
-			return handles[0];
-		}
-		return new MultiHandle(handles);
+		return installCallbacks(globalCallbacks, callbacks);
 	}
 
 	/**
@@ -272,14 +267,7 @@ class Thread {
 	**/
 	static public function addCurrentCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
 		final thread = Thread.current();
-		final handles = installCallbacks(thread.callbacks, callbacks);
-		if (callbacks.onAbort != null) {
-			thread.onAbort = callbacks.onAbort;
-		}
-		if (handles.length == 1) {
-			return handles[0];
-		}
-		return new MultiHandle(handles);
+		return installCallbacks(thread.callbacks, callbacks);
 	}
 
 	/**
@@ -292,7 +280,7 @@ class Thread {
 		It is generally good practice to call any previously existing callback
 		from functions assigned to this.
 	**/
-	dynamic function onAbort(e:haxe.Exception) {
+	function onAbort(e:haxe.Exception) {
 		var name = this.name;
 		if( name == null ) name = "" else name = " "+name;
 		Sys.println("THREAD"+name+" ABORTED : "+e.message+haxe.CallStack.toString(e.stack));
