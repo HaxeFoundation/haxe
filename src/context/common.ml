@@ -1141,9 +1141,7 @@ let adapt_defines_to_display_context defines =
 	Define.define defines Define.Display;
 	defines
 
-let is_legacy_completion com = match com.json_out with
-	| None -> true
-	| Some api -> !ServerConfig.legacy_completion
+let is_legacy_completion _com = !ServerConfig.legacy_completion
 
 let get_entry_point com =
 	Option.map (fun path ->
