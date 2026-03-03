@@ -149,10 +149,17 @@ let is_lower_ident s p =
 	with Invalid_argument msg -> raise_typing_error msg p
 
 let get_this ctx p =
+	let has_jsfun_meta metas =
+		ctx.com.platform == Js && List.exists (fun (name,args,pos) ->
+			match name with
+				| Meta.JsFunction -> true
+				| _ -> false
+				) metas
+	in
 	match ctx.e.curfun with
 	| FunStatic ->
 		raise_typing_error "Cannot access this from a static function" p
-	| FunMemberClassLocal | FunMemberAbstractLocal ->
+	| FunMemberClassLocal | FunMemberAbstractLocal when not ctx.com.config.pf_can_capture_this || has_jsfun_meta ctx.f.meta ->
 		let v = match ctx.f.vthis with
 			| None ->
 				let v = if ctx.e.curfun = FunMemberAbstractLocal then begin
@@ -169,7 +176,7 @@ let get_this ctx p =
 				v
 		in
 		mk (TLocal v) ctx.c.tthis p
-	| FunMemberAbstract ->
+	| FunMemberAbstract | FunMemberAbstractLocal ->
 		let v = (try PMap.find "this" ctx.f.locals with Not_found -> raise_typing_error "Cannot reference this abstract here" p) in
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember when TyperManager.is_coroutine_context ctx ->
@@ -191,7 +198,7 @@ let get_this ctx p =
 				v
 		in
 		mk (TLocal v) ctx.c.tthis p
-	| FunConstructor | FunMember ->
+	| FunConstructor | FunMember | FunMemberClassLocal ->
 		mk (TConst TThis) ctx.c.tthis p
 
 let get_stored_typed_expr ctx id =

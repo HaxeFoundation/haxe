@@ -1544,6 +1544,14 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.NullSafety,_,_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
+		| (Meta.JsFunction, [],pos) when ctx.com.platform=Js ->
+			let e = e() in
+			begin match e.eexpr with
+				| TFunction f ->
+					{e with eexpr = TMeta(m,e)}
+				| _ ->
+					raise_typing_error "@:js.function can be applied only to anonymous functions" pos
+			end
 		| (Meta.BypassAccessor,_,p) ->
 			let old_counter = ctx.e.bypass_accessor in
 			ctx.e.bypass_accessor <- old_counter + 1;

@@ -7,6 +7,7 @@ class Init {
 	// Default, except everything has been set to `true`.
 	public static var intendedConfig: PlatformConfig = {
 		supportsAtomics: true,
+		canCaptureThis: true,
 		thisBeforeSuper: true,
 		scoping: {
 			scope: BlockScope,

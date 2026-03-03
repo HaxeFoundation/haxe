@@ -123,10 +123,10 @@ class HxOverrides {
 			return {
 				cur: 0,
 				arr: a,
-				hasNext: function() {
+				hasNext: @:js.function function() {
 					return __this__.cur < __this__.arr.length;
 				},
-				next: function() {
+				next: @:js.function function() {
 					return __this__.arr[__this__.cur++];
 				}
 			};

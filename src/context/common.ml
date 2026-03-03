@@ -519,6 +519,7 @@ let default_config =
 			vs_scope = BlockScope;
 			vs_flags = [];
 		};
+		pf_can_capture_this = true;
 		pf_supports_atomics = false;
 	}
 
@@ -553,6 +554,7 @@ let get_config com =
 					(if defined Define.JsUnflatten then ReserveAllTopLevelSymbols else ReserveAllTypesFlat)
 					:: if es6 then [NoShadowing; SwitchCasesNoBlocks;] else [VarHoisting; NoCatchVarShadowing];
 			};
+			pf_can_capture_this = es6;
 			pf_supports_atomics = true;
 		}
 	| Lua ->
@@ -564,7 +566,8 @@ let get_config com =
 			pf_supports_rest_args = true;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_avoid_wrapping = false;
-			}
+			};
+			pf_can_capture_this = false;
 		}
 	| Neko ->
 		{
@@ -579,7 +582,8 @@ let get_config com =
 			};
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_avoid_wrapping = false
-			}
+			};
+			pf_can_capture_this = false;
 		}
 	| Flash ->
 		{
@@ -604,6 +608,7 @@ let get_config com =
 				vs_scope = FunctionScope;
 				vs_flags = [VarHoisting];
 			};
+			pf_can_capture_this = false;
 		}
 	| Php ->
 		{
@@ -643,6 +648,7 @@ let get_config com =
 				vs_flags = [NoShadowing];
 				vs_scope = FunctionScope;
 			};
+			pf_can_capture_this = false;
 			pf_supports_atomics = true;
 		}
 	| Jvm ->
@@ -666,6 +672,7 @@ let get_config com =
 				ec_wildcard_catch = (["java";"lang"],"Throwable");
 				ec_base_throw = (["java";"lang"],"RuntimeException");
 			};
+			pf_can_capture_this = false;
 			pf_supports_atomics = true;
 		}
 	| Python ->
@@ -690,6 +697,7 @@ let get_config com =
 				vs_scope = FunctionScope;
 				vs_flags = [VarHoisting]
 			};
+			pf_can_capture_this = false;
 		}
 	| Hl ->
 		{
@@ -704,7 +712,8 @@ let get_config com =
 			};
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_avoid_wrapping = false
-			}
+			};
+			pf_can_capture_this = false;
 		}
 	| Eval ->
 		{
@@ -718,6 +727,7 @@ let get_config com =
 				ec_avoid_wrapping = false
 			};
 			pf_supports_atomics = true;
+			pf_can_capture_this = false;
 		}
 
 let memory_marker = [|Unix.time()|]

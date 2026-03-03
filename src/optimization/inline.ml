@@ -483,7 +483,7 @@ object(self)
 			_inlined_vars <- vars; (* Order is reversed due to tail-recursion *)
 		in
 		match ethis.eexpr with
-		| TConst TNull ->
+		| TConst TNull | TConst TThis ->
 			set_inlined_vars params f.tf_args;
 			None
 		| _ ->
@@ -713,7 +713,8 @@ let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(se
 				l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 				{ e with eexpr = TLocal l.i_subst }
 			| None ->
-				raise_typing_error "Could not inline `this` outside of an instance context" po
+				{ e with eexpr = TConst TThis }
+				(* raise_typing_error "Could not inline `this` outside of an instance context" po *)
 			)
 		| TVar (v,eo) ->
 			if has_var_flag v VStatic then raise_typing_error "Inline functions cannot have static locals" v.v_pos;

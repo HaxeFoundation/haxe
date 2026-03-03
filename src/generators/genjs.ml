@@ -558,6 +558,8 @@ and gen_expr ctx e =
 		| TBreak ->
 			print ctx "break _hx_loop%s" n;
 		| _ -> die "" __LOC__)
+	| TMeta ((Meta.JsFunction, [], _),{eexpr = TFunction f}) ->
+		gen_function ~hasJsFunction:true ctx f e.epos
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo ->
@@ -722,7 +724,7 @@ and gen_expr ctx e =
 	);
 	clear_mapping ()
 
-and gen_function ?(keyword="function") ctx f pos =
+and gen_function ?(keyword="function") ?(hasJsFunction=false) ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
 	ctx.in_value <- None;
 	ctx.in_loop <- false;
@@ -760,7 +762,15 @@ and gen_function ?(keyword="function") ctx f pos =
 		| _ ->
 			f, mk_non_rest_arg_names f.tf_args
 	in
-	print ctx "%s(%s) " keyword (String.concat "," args);
+	let can_be_arrow =
+		keyword = "function" &&
+		ctx.es_version >= 6 &&
+		not hasJsFunction
+	in
+	if can_be_arrow then
+		print ctx "(%s) => " (String.concat "," args)
+	else
+		print ctx "%s(%s) " keyword (String.concat "," args);
 	gen_expr ctx (fun_block ctx f pos);
 	ctx.in_value <- fst old;
 	ctx.in_loop <- snd old;
@@ -831,6 +841,7 @@ and gen_value ctx e =
 	| TNew _
 	| TUnop _
 	| TFunction _
+	| TMeta ((Meta.JsFunction, [], _),_)
 	| TIdent _ ->
 		gen_expr ctx e
 	| TMeta (_,e1) ->
