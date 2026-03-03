@@ -10,7 +10,7 @@ class Issue4662 extends DisplayTestCase {
 		for (item in items) {
 			switch item.kind {
 				case Package:
-					Assert.isFalse(item.args.path.pack[0] == "_pkg",
+					Assert.isFalse(item.args.path.pack.length > 0 && item.args.path.pack[0].charAt(0) == "_",
 						"Package starting with _ should not appear in completion");
 				case _:
 			}
