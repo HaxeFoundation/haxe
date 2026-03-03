@@ -657,4 +657,12 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertHasPrint('Issue9918.hx:22: correct ECast count');
 	}
+
+	// Regression test: errors should be flushed/sent to the client even when
+	// the error occurs before the main compilation step (e.g. missing library).
+	function testOutputFlushing(_) {
+		runHaxe(["-lib", "doesntexist"]);
+		Assert.isTrue(lastResult.hasError);
+		Assert.isTrue(lastResult.stderr.contains("Library doesntexist is not installed"));
+	}
 }
