@@ -43,7 +43,7 @@ let write_callable_trailer captures output =
 
 let gen_function ctx tcpp_class is_static func =
   let output      = ctx.ctx_output in
-  let return_type = cpp_type_of func.tcf_func.tf_type in
+  let return_type = cpp_type_of ctx.ctx_common.basic func.tcf_func.tf_type in
 
   let ret, is_void, return_type_str =
     match return_type with
@@ -101,8 +101,8 @@ let gen_function ctx tcpp_class is_static func =
 let gen_function_closures ctx tcpp_class is_static func =
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     let output          = ctx.ctx_output in
-    let return_type_str = type_to_string func.tcf_func.tf_type in
-    let return_type     = cpp_type_of func.tcf_func.tf_type in
+    let return_type_str = type_to_string ctx.ctx_common.basic func.tcf_func.tf_type in
+    let return_type     = cpp_type_of ctx.ctx_common.basic func.tcf_func.tf_type in
     let is_void         = return_type = TCppVoid in
     let callable_name   = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
     let full_name       = (tcpp_class.tcl_class.cl_path |> fst |> List.map keyword_remap |> String.concat "::") ^ "::" ^ tcpp_class.tcl_name in
@@ -327,7 +327,7 @@ let generate_managed_class base_ctx tcpp_class =
   let class_super_name =
     match class_def.cl_super with
     | Some (klass, params) ->
-        tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type)
+        tcpp_to_string_suffix "_obj" (cpp_instance_type ctx.ctx_common.basic klass params CppRetyper.with_stack_value_type)
     | _ -> ""
   in
 
@@ -556,7 +556,7 @@ let generate_managed_class base_ctx tcpp_class =
     let rec find_next_super_iteration cls =
       match cls.tcl_super with
       | Some ({ tcl_container = Some Current } as super) ->
-        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params CppRetyper.with_stack_value_type))
+        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx.ctx_common.basic super.tcl_class super.tcl_params CppRetyper.with_stack_value_type))
       | Some super ->
         find_next_super_iteration super
       | None ->
@@ -617,7 +617,7 @@ let generate_managed_class base_ctx tcpp_class =
   in
 
   let get_wrapper field value =
-    match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type field.cf_type with
+    match CppRetyper.cpp_type_of ctx.ctx_common.basic CppRetyper.with_promoted_value_type field.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
       Printf.sprintf "(::cpp::Struct< %s >) %s" (tcpp_to_string inst) value
     | TCppStar _ ->
@@ -812,7 +812,7 @@ let generate_managed_class base_ctx tcpp_class =
     Printf.sprintf "void %s::__GetFields(::Array< ::String >& outFields)\n{\n%s\n}\n\n" class_name fields |> output_cpp);
 
   let storage field =
-    match cpp_type_of field.cf_type with
+    match cpp_type_of ctx.ctx_common.basic field.cf_type with
     | TCppScalar "bool" -> "::hx::fsBool"
     | TCppScalar "int" -> "::hx::fsInt"
     | TCppScalar "Float" -> "::hx::fsFloat"

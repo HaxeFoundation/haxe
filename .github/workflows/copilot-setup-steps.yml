@@ -94,4 +94,5 @@ jobs:
           haxelib git hxcoro https://github.com/HaxeFoundation/hxcoro.git
           haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
           haxelib git hxjava https://github.com/HaxeFoundation/hxjava.git
+          haxelib git hxnodejs https://github.com/HaxeFoundation/hxnodejs.git
           haxelib git haxeserver https://github.com/Simn/haxeserver.git

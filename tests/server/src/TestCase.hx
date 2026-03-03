@@ -20,6 +20,28 @@ using Lambda;
 @:autoBuild(utils.macro.BuildHub.build())
 interface ITestCase {}
 
+class TestException extends Exception {
+	public final pos:PosInfos;
+
+	public function new(message:String, ?pos:PosInfos) {
+		super(message);
+		this.pos = pos;
+	}
+}
+
+typedef JsonRpcError<Data> = {
+	code:Int,
+	message:String,
+	?data:Data
+}
+
+typedef JsonRpcResponse<Result, ErrorData> = {
+	jsonrpc:String,
+	id:Int,
+	?result:Result,
+	?error:JsonRpcError<ErrorData>
+}
+
 class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
@@ -78,17 +100,17 @@ class TestCase implements ITest implements ITestCase {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
 
-		hxcoro.CoroRun
-			.promise(() -> {
-				runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {});
+		hxcoro.CoroRun.promise(() -> {
+			runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetState, {});
 
-				if (!async.timedOut) async.done();
-			});
+			if (!async.timedOut)
+				async.done();
+		});
 	}
 
 	public function teardown() {}
 
-	function handleResult(result) {
+	function handleResult(result:HaxeServerRequestResult) {
 		lastResult = result;
 		debugLastResult = {
 			hasError: lastResult.hasError,
@@ -123,34 +145,41 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	@:coroutine
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams) {
-		var methodArgs = {method: method, id: 1, params: methodArgs};
-		args = args.concat(['--display', Json.stringify(methodArgs)]);
-		runHaxe(args);
-	}
-
-	@:coroutine
-	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, ?pos:PosInfos) {
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
+			?pos:PosInfos):TResponse {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
 
-		hxcoro.Coro.suspend(cont -> {
+		return hxcoro.Coro.suspend(cont -> {
 			server.rawRequest(args, null, function(result) {
 				handleResult(result);
-				var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
+				if (result.hasError) {
+					sendErrorMessage(result.stderr);
+				}
+				var json:JsonRpcResponse<Response<TResponse>, Array<Any>> = try {
+					Json.parse(result.stderr);
+				} catch (e) {
+					cont.resume(null, new TestException("Response: " + result.stderr, pos));
+					return;
+				}
 
 				if (json.result != null) {
-					callback(json.result?.result);
+					cont.resume(json.result?.result, null);
 				} else {
-					Assert.fail('Error: ' + json.error, pos);
+					// TODO: This needs some serious cleanup in the compiler so all methods return
+					// properly typed data.
+					final obj = json.error.data[0];
+					final message:String = if (obj is String) {
+						(obj : String);
+					} else {
+						(obj : HaxeResponseErrorData).message;
+					}
+					cont.resume(null, new TestException(message, pos));
 				}
-				cont.resume(null, null);
 			}, function(msg) {
-				sendErrorMessage(msg);
-				cont.resume(null, null);
+				cont.resume(null, new TestException(msg, pos));
 			});
 		});
 	}
@@ -238,7 +267,17 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	function parseDiagnostics():Array<Diagnostic<Any>> {
-		var result = haxe.Json.parse(lastResult.stderr)[0];
+		var json:Dynamic = haxe.Json.parse(lastResult.stderr);
+		// JSON-RPC format: {id, result: {result: [{file, diagnostics}]}}
+		var rpcResult:Dynamic = json.result;
+		if (rpcResult != null) {
+			var files:Dynamic = rpcResult.result;
+			if (files != null && files.length > 0)
+				return files[0].diagnostics;
+			return [];
+		}
+		// Legacy format: [{file, diagnostics}]
+		var result = json[0];
 		return if (result == null) [] else result.diagnostics;
 	}
 

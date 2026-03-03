@@ -14,7 +14,9 @@ type pattern_context = {
 	mutable current_locals : (string, tvar * pos) PMap.t;
 	mutable in_reification : bool;
 	is_postfix_match : bool;
-	unapply_type_parameters : unit -> (tmono * Type.t option) list;
+	(* Reverses the per-case type substitution; used for extractor expressions
+	   so that they see the original type parameters rather than fresh monos. *)
+	unsubst : Type.t -> Type.t;
 }
 
 exception Bad_pattern of string
@@ -26,23 +28,6 @@ let tuple_type tl =
 
 let type_field_access ctx ?(resume=false) e name =
 	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos MGet WithType.value)
-
-let unapply_type_parameters params monos =
-	let unapplied = ref [] in
-	List.iter2 (fun tp1 t2 ->
-		match t2,follow t2 with
-		| TMono m1,TMono m2 ->
-			unapplied := (m1,m1.tm_type) :: !unapplied;
-			Monomorph.do_bind m1 tp1.ttp_type;
-		| _ -> ()
-	) params monos;
-	!unapplied
-
-let reapply_type_parameters unapplied =
-	List.iter (fun (m,o) -> match o with
-		| None -> Monomorph.unbind m
-		| Some t -> Monomorph.bind m t
-	) unapplied
 
 let get_general_module_type ctx mt p =
 	let rec loop = function
@@ -290,7 +275,16 @@ let rec make pctx toplevel t e =
 							raise_typing_error "Too many arguments" p
 					in
 					let patterns = loop el args in
-					ignore(unapply_type_parameters ef.ef_params monos);
+					(* Rebind any unrefined constructor type-param monos back to their
+					   parameter types. This ensures the case body sees a constrained
+					   type variable rather than a free monomorphism, preserving GADT
+					   constructor type constraints (see #1310). *)
+					List.iter2 (fun ttp mono ->
+						match mono with
+						| TMono m when m.tm_type = None ->
+							Monomorph.do_bind m ttp.ttp_type
+						| _ -> ()
+					) ef.ef_params monos;
 					PatConstructor(con_enum en ef e1.epos,patterns)
 				| _ ->
 					fail()
@@ -419,11 +413,10 @@ let rec make pctx toplevel t e =
 			let restore = save_locals ctx in
 			ctx.f.locals <- pctx.ctx_locals;
 			let v = add_local false "_" null_pos in
-			(* Tricky stuff: Extractor expressions are like normal expressions, so we don't want to deal with GADT-applied types here.
-			   Let's unapply, then reapply after we're done with the extractor (#5952). *)
-			let unapplied = pctx.unapply_type_parameters () in
+			(* Extractor expressions are typed in the original (non-refined) context
+			   so that type parameters remain visible with their declared identity (#5952). *)
+			v.v_type <- pctx.unsubst v.v_type;
 			let e1 = type_expr ctx e1 WithType.value in
-			reapply_type_parameters unapplied;
 			v.v_name <- "tmp";
 			restore();
 			let pat = make pctx toplevel e1.etype e2 in

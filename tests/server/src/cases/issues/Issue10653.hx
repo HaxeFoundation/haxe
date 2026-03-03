@@ -10,13 +10,9 @@ class Issue10653 extends TestCase {
 		runHaxe(args);
 		vfs.putContent("Main.hx", getTemplate("issues/Issue10653/MainAfter.hx"));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}).length);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}).length);
 	}
 
 	function testTypeHole(_) {
@@ -26,16 +22,18 @@ class Issue10653 extends TestCase {
 		runHaxe(args);
 		vfs.putContent("Main.hx", getTemplate("issues/Issue10653/MainAfterWrong.hx"));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+		{
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 			Assert.equals(1, res.length);
 			var arg:MissingFieldDiagnostics = cast res[0].diagnostics[0].args;
 			Assert.equals("foo", arg.entries[0].fields[0].field.name);
-		});
+		}
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
+		{
+			final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 			Assert.equals(1, res.length);
 			var arg:MissingFieldDiagnostics = cast res[0].diagnostics[0].args;
 			Assert.equals("foo", arg.entries[0].fields[0].field.name);
-		});
+		}
 	}
 }
