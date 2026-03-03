@@ -108,8 +108,11 @@ let handle_display_exception_json ctx dex api =
 			| DMDefault -> api.send_error_raise [jstring "No completion point"]
 			| _ -> api.send_result_raise JNull
 		)
-	| ModuleSymbols _ | Metadata _ ->
-		die "" __LOC__
+	| ModuleSymbols json ->
+		DisplayPosition.display_position#reset;
+		api.send_result_raise json
+	| Metadata _ ->
+		die "Unexpected Metadata display exception" __LOC__
 
 let handle_display_exception ctx dex =
 	handle_display_exception_json ctx dex (Option.get ctx.com.json_out)

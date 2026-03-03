@@ -282,6 +282,16 @@ let handler =
 			hctx.display#enable_display DMPackage;
 			NoResponse
 		);
+		"display/documentSymbols", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display (DMModuleSymbols None);
+			NoResponse
+		);
+		"display/workspaceSymbols", (fun hctx ->
+			let filter = hctx.jsonrpc#get_string_param "filter" in
+			hctx.display#enable_display (DMModuleSymbols (Some filter));
+			NoResponse
+		);
 		"display/signatureHelp", (fun hctx ->
 			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMSignature;

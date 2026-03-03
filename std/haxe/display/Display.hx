@@ -94,6 +94,16 @@ class DisplayMethods {
 	**/
 	static inline var Defines = new HaxeRequestMethod<DefinesParams, DefinesResult>("display/defines");
 
+	/**
+		The document symbols request is sent from the client to Haxe to list all symbols of a given Haxe file.
+	**/
+	static inline var DocumentSymbols = new HaxeRequestMethod<FileParams, DocumentSymbolsResult>("display/documentSymbols");
+
+	/**
+		The workspace symbols request is sent from the client to Haxe to list all symbols matching a query string.
+	**/
+	static inline var WorkspaceSymbols = new HaxeRequestMethod<WorkspaceSymbolsParams, WorkspaceSymbolsResult>("display/workspaceSymbols");
+
 	/*
 		TODO:
 
@@ -584,6 +594,48 @@ typedef DefinesParams = {
 }
 
 typedef DefinesResult = Response<Array<Define>>;
+
+/** DocumentSymbols / WorkspaceSymbols **/
+
+enum abstract ModuleSymbolKind(Int) {
+	var Class = 1;
+	var Interface;
+	var Enum;
+	var TypeAlias;
+	var Abstract;
+	var Field;
+	var Property;
+	var Method;
+	var Constructor;
+	var Function;
+	var Variable;
+	var Struct;
+	var EnumAbstract;
+	var Operator;
+	var EnumMember;
+	var Constant;
+	var Module;
+}
+
+typedef ModuleSymbol = {
+	var name:String;
+	var kind:ModuleSymbolKind;
+	var range:Range;
+	var ?containerName:String;
+	var ?isDeprecated:Bool;
+}
+
+typedef ModuleSymbolsEntry = {
+	var file:FsPath;
+	var symbols:Array<ModuleSymbol>;
+}
+
+typedef WorkspaceSymbolsParams = {
+	var filter:String;
+}
+
+typedef DocumentSymbolsResult = Response<Array<ModuleSymbolsEntry>>;
+typedef WorkspaceSymbolsResult = Response<Array<ModuleSymbolsEntry>>;
 
 /** General types **/
 typedef PositionParams = FileParams & {

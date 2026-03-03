@@ -250,7 +250,7 @@ let process_global_display_mode com tctx =
 					acc
 			) [] l
 		in
-		DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
+		DisplayException.raise_module_symbols (DocumentSymbols.Printer.json_of_module_symbols com symbols filter)
 	| _ -> ()
 
 let handle_display_after_finalization ctx tctx display_file_dot_path =

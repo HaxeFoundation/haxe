@@ -44,7 +44,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 		| DMModuleSymbols (Some ""),_ -> ()
 		| DMModuleSymbols filter,(ParseSuccess(data,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
 			let ds = DocumentSymbols.collect_module_symbols None (filter = None) data in
-			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
+			DisplayException.raise_module_symbols (DocumentSymbols.Printer.json_of_module_symbols com [file,ds] filter);
 		| _,ParseSuccess(_,({pd_was_display_file = true} as pdi)) ->
 			if pdi.pd_had_resume then
 				com.parser_state.had_parser_resume <- true;
