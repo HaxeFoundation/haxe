@@ -1,23 +1,23 @@
 package unit;
 
-enum Constant<T> {
+private enum Constant<T> {
 	CString(s:String):Constant<String>;
 	CInt(s:String):Constant<Int>;
 	CFloat(s:String):Constant<Float>;
 }
 
-enum Binop<S, T> {
+private enum Binop<S, T> {
 	OpAdd:Binop<Float, Float>;
 	OpEq:Binop<S, Bool>;
 }
 
-enum Expr<T> {
+private enum Expr<T> {
 	EConst(c:Constant<T>):Expr<T>;
 	EBinop<C>(op:Binop<C, T>, e1:Expr<C>, e2:Expr<C>):Expr<T>;
 }
 
 // Support types for testSwitchLevelTypeParam
-enum abstract SwitchKind<K>(String) {
+private enum abstract SwitchKind<K>(String) {
 	var SKString:SwitchKind<String>;
 	var SKInt:SwitchKind<Int>;
 }
@@ -30,7 +30,7 @@ private class UntypedBox<T> {
 }
 
 // Support types for testSwitchLevelTypeParamEnum (TEnum variant of the same test)
-enum EnumTag<T> {
+private enum EnumTag<T> {
 	ETString:EnumTag<String>;
 	ETInt:EnumTag<Int>;
 }
@@ -40,6 +40,16 @@ private class UntypedBox2<T> {
 	public var value:T;
 
 	public function new() {}
+}
+
+private enum abstract MyTypeKind<K>(String) {
+	var TInst:MyTypeKind<String>;
+	var TEnum:MyTypeKind<Int>;
+}
+
+private typedef MyType<T> = {
+	var kind:MyTypeKind<T>;
+	var args:T;
 }
 
 class TestGADT extends Test {
@@ -65,6 +75,50 @@ class TestGADT extends Test {
 		var s = eval(eeq);
 		HelperMacros.typedAs(s, tb);
 		eq(s, true);
+	}
+
+	function testFieldMatches() {
+		function matchTypeAsTuple<T>(t:Null<MyType<T>>):T {
+			return switch [t.kind, t.args] {
+				case [TInst, name]:
+					HelperMacros.typedAs(name, "");
+					name;
+				case [TEnum, id]:
+					HelperMacros.typedAs(id, 0);
+					id;
+			}
+		}
+
+		function matchTypeField<T>(t:Null<MyType<T>>):T {
+			return switch (t.kind) {
+				case TInst:
+					HelperMacros.typedAs(t.args, "");
+					t.args;
+				case TEnum:
+					HelperMacros.typedAs(t.args, 0);
+					t.args;
+			}
+		}
+
+		function matchTypeDirect<T>(t:Null<MyType<T>>):T {
+			return switch (t) {
+				case {kind: TInst}:
+					HelperMacros.typedAs(t.args, "");
+					t.args;
+				case {kind: TEnum}:
+					HelperMacros.typedAs(t.args, 0);
+					t.args;
+			}
+		}
+
+		final tInst = {kind: TInst, args: "MyClass"};
+		final tEnum = {kind: TEnum, args: 12};
+		eq("MyClass", matchTypeAsTuple(tInst));
+		eq(12, matchTypeAsTuple(tEnum));
+		eq("MyClass", matchTypeField(tInst));
+		eq(12, matchTypeField(tEnum));
+		eq("MyClass", matchTypeDirect(tInst));
+		eq(12, matchTypeDirect(tEnum));
 	}
 
 	#if todo
