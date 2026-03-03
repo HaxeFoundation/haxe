@@ -93,12 +93,9 @@ let handle_syntax_completion com kind subj =
 		()
 	| _ ->
 		let l = List.map make_ci_keyword l in
-		match com.Common.json_out with
-		| None ->
-			failwith "Unexpected syntax completion in non-display mode"
-		| Some api ->
-			let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
-			api.send_result_raise (fields_to_json ctx l kind subj)
+		let api = Option.get com.Common.json_out in
+		let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
+		api.send_result_raise (fields_to_json ctx l kind subj)
 
 let handle_display_exception_json ctx dex api =
 	match dex with
@@ -111,15 +108,14 @@ let handle_display_exception_json ctx dex api =
 			| DMDefault -> api.send_error_raise [jstring "No completion point"]
 			| _ -> api.send_result_raise JNull
 		)
-	| ModuleSymbols s | Metadata s ->
+	| ModuleSymbols json ->
 		DisplayPosition.display_position#reset;
-		raise (Completion s)
+		api.send_result_raise json
+	| Metadata _ ->
+		die "Unexpected Metadata display exception" __LOC__
 
-let handle_display_exception ctx dex = match ctx.com.json_out with
-	| Some api ->
-		handle_display_exception_json ctx dex api
-	| None ->
-		failwith "Unexpected display exception in non-display mode"
+let handle_display_exception ctx dex =
+	handle_display_exception_json ctx dex (Option.get ctx.com.json_out)
 
 let handle_type_path_exception ctx p c is_import pos =
 	let open DisplayTypes.CompletionResultKind in
@@ -135,33 +131,30 @@ let handle_type_path_exception ctx p c is_import pos =
 			error_ext ctx err;
 			None
 	in
-	match ctx.com.json_out with
-	| Some api ->
-		begin match fields with
-		| None ->
-			()
-		| Some fields ->
-			let ctx = DisplayJson.create_json_context api.jsonrpc false in
-			let path = match List.rev p with
-				| name :: pack -> List.rev pack,name
-				| [] -> [],""
-			in
-			let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-			api.send_result_raise (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
-		end
+	let api = Option.get ctx.com.json_out in
+	begin match fields with
 	| None ->
-		failwith "Unexpected type path exception in non-display mode"
+		()
+	| Some fields ->
+		let ctx = DisplayJson.create_json_context api.jsonrpc false in
+		let path = match List.rev p with
+			| name :: pack -> List.rev pack,name
+			| [] -> [],""
+		in
+		let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
+		api.send_result_raise (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
+	end
 
 let emit_diagnostics com =
-	match com.Common.json_out with
-	| None -> die "" __LOC__
-	| Some api ->
-		let dctx = Diagnostics.run com in
-		let diagnostics = DiagnosticsPrinter.json_of_diagnostics com dctx in
-		DisplayPosition.display_position#reset;
-		api.send_result_raise diagnostics
+	let api = Option.get com.Common.json_out in
+	let dctx = Diagnostics.run com in
+	let diagnostics = DiagnosticsPrinter.json_of_diagnostics com dctx in
+	DisplayPosition.display_position#reset;
+	api.send_result_raise diagnostics
 
 let emit_statistics tctx =
+	let api = Option.get tctx.Common.json_out in
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
-	let s = Statistics.Printer.print_statistics stats in
-	raise (Completion s)
+	let json = Statistics.Printer.json_of_statistics stats in
+	DisplayPosition.display_position#reset;
+	api.send_result_raise json

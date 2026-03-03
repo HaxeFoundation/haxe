@@ -1,29 +1,9 @@
 package cases.display;
 
-private enum abstract ModuleSymbolKind(Int) {
-	var Class = 1;
-	var Interface;
-	var Enum;
-	var TypeAlias;
-	var Abstract;
-	var Field;
-	var Property;
-	var Method;
-	var Constructor;
-	var Function;
-	var Variable;
-	var Struct;
-	var EnumAbstract;
-	var Operator;
-	var EnumMember;
-	var Constant;
-}
-
-private typedef ModuleSymbolEntry = {
+private typedef ExpectedSymbol = {
 	var name:String;
 	var kind:ModuleSymbolKind;
 	var ?containerName:String;
-	var ?isDeprecated:Bool;
 }
 
 class DocumentSymbols extends DisplayTestCase {
@@ -153,19 +133,25 @@ class DocumentSymbols extends DisplayTestCase {
 	}
 
 	@:coroutine
-	function documentSymbols():Array<ModuleSymbolEntry> {
-		runHaxe(["--no-output", "--display", "Main.hx@0@module-symbols"]);
-		return haxe.Json.parse(lastResult.stderr)[0].symbols;
+	function documentSymbols():Array<ModuleSymbol> {
+		final result = runHaxeJson(["--no-output"], DisplayMethods.DocumentSymbols, {file: file});
+		if (result.length == 0)
+			return [];
+		return result[0].symbols;
 	}
 
-	function checkDocumentSymbols(expected:Array<ModuleSymbolEntry>, actual:Array<ModuleSymbolEntry>, ?pos:haxe.PosInfos) {
-		function toKey(e:ModuleSymbolEntry) {
+	function checkDocumentSymbols(expected:Array<ExpectedSymbol>, actual:Array<ModuleSymbol>, ?pos:haxe.PosInfos) {
+		function toKey(e:ExpectedSymbol) {
+			var cn = e.containerName != null ? e.containerName : "";
+			return e.kind + ":" + e.name + ":" + cn;
+		}
+		function toKeyActual(e:ModuleSymbol) {
 			var cn = e.containerName != null ? e.containerName : "";
 			return e.kind + ":" + e.name + ":" + cn;
 		}
 		var expectedMap = [for (e in expected) toKey(e) => e];
 		for (a in actual) {
-			var key = toKey(a);
+			var key = toKeyActual(a);
 			Assert.isTrue(expectedMap.exists(key), "Result not part of expected Array: " + key, pos);
 			expectedMap.remove(key);
 		}
