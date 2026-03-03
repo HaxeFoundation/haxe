@@ -189,7 +189,6 @@ class Thread {
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
 	**/
-	@:access(sys.thread.ThreadCallbackManager)
 	public static function create(?name:String, job:()->Void, ?callbacks:ThreadCallbacks):Thread {
 		mutex.acquire();
 		var t = new Thread(null);

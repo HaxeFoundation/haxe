@@ -116,65 +116,37 @@ class ThreadCallbackManager {
 
 	public function new() {}
 
-	function callOnStart() {
-		if (onStartCallback != null) {
-			onStartCallback.foreach(f -> f());
-		}
+	public function callOnStart() {
+		onStartCallback?.foreach(f -> f());
 	}
 
-	function callOnJobDone() {
-		if (onJobDoneCallback != null) {
-			onJobDoneCallback.foreach(f -> f());
-		}
+	public function callOnJobDone() {
+		onJobDoneCallback?.foreach(f -> f());
 	}
 
-	function callOnExit() {
-		if (onExitCallback != null) {
-			onExitCallback.foreach(f -> f());
-		}
+	public function callOnExit() {
+		onExitCallback?.foreach(f -> f());
 	}
 
-	function callOnAbort(e:haxe.Exception) {
-		if (onAbortCallback != null) {
-			onAbortCallback.foreach(f -> f(e));
-		}
+	public function callOnAbort(e:haxe.Exception) {
+		onAbortCallback?.foreach(f -> f(e));
 	}
 
-	/**
-		Registers `f` to be called when the thread starts, before the job is executed.
-	**/
 	public function onStart(f:() -> Void):IThreadCallbackHandle {
 		onStartCallback ??= new ThreadCallbackStack();
 		return onStartCallback.add(f);
 	}
 
-	/**
-		Registers `f` to be called once the thread has completed executing its job
-		successfully. It is not called if the thread has thrown an exception.
-	**/
 	public function onJobDone(f:() -> Void):IThreadCallbackHandle {
 		onJobDoneCallback ??= new ThreadCallbackStack();
 		return onJobDoneCallback.add(f);
 	}
 
-	/**
-		Registers `f` to be called when the thread is exiting. In the case of an exception,
-		it is called after `onAbort`.
-
-		Exceptions raised during the callback are caught and passed to the default onAbort handler,
-		ignoring any assigned onAbort callback.
-
-		It is not guaranteed to be called if the thread is killed in a way that does not lead to
-		normal termination. Any callback assigned to this should not throw an exception.
-	**/
 	public function onExit(f:() -> Void):IThreadCallbackHandle {
 		onExitCallback ??= new ThreadCallbackStack();
 		return onExitCallback.add(f);
 	}
 
-	/**
-		Registers `f` to be called when an uncaught exception aborts the thread.
-	**/
 	public function onAbort(f:haxe.Exception -> Void):IThreadCallbackHandle {
 		onAbortCallback ??= new ThreadCallbackStack();
 		return onAbortCallback.add(f);
