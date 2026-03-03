@@ -85,6 +85,22 @@ class TestConstructorThisStrict_AssignmentOff {
 }
 
 /**
+ * Test @:nullSafety(Off) on a method call before all fields are initialized should suppress the error
+ * Related to issue: https://github.com/HaxeFoundation/haxe/issues/12626
+ */
+class TestConstructorThisStrict_MethodCallOff {
+	var a:Int;
+
+	public function new() {
+		// With @:nullSafety(Off) on the method call, this should pass
+		@:nullSafety(Off) call();
+		a = 0;
+	}
+
+	function call():Void {}
+}
+
+/**
  * Test that after all fields are initialized, `this` can be used
  */
 class TestConstructorThisStrict_AfterAllInit {

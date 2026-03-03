@@ -1839,10 +1839,11 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 						| TField (_, FStatic (_, field)) when is_static ->
 							if Hashtbl.mem init_list field.cf_name then
 								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [e.epos]
-						| TField ({ eexpr = TConst TThis }, FClosure (_, field)) ->
+						| TField ({ eexpr = TConst TThis }, FClosure (_, field)) when safety_is_on ->
 							checker#error ("Cannot use method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 						| TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) }, args) ->
-							checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
+							if safety_is_on then
+								checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 							List.iter (check_unsafe_usage init_list current_mode) args
 						| TConst TThis when safety_is_on ->
 							(* Using `this` before all fields are initialized is an error in all modes except Off *)
