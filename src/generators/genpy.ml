@@ -1415,7 +1415,7 @@ module Printer = struct
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
 			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
-			| FAnon({cf_name = "length"}) | FDynamic ("length") ->
+			| FAnon({cf_name = "length"}) | FDynamic ("length") when not is_assign ->
 				Printf.sprintf "HxOverrides.length(%s)" (print_expr pctx e1)
 			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "HxString.fromCharCode"
@@ -1653,6 +1653,7 @@ module Generator = struct
 		packages : (string,int) Hashtbl.t;
 		mutable static_inits : (unit -> unit) list;
 		mutable class_inits : (unit -> unit) list;
+		mutable boot_static_inits : (unit -> unit) list;
 		mutable indent_count : int;
 		transform_time : float;
 		print_time : float;
@@ -1677,6 +1678,7 @@ module Generator = struct
 		packages = Hashtbl.create 0;
 		static_inits = [];
 		class_inits = [];
+		boot_static_inits = [];
 		indent_count = 0;
 		transform_time = 0.;
 		print_time = 0.;
@@ -1959,7 +1961,10 @@ module Generator = struct
 					newline ctx;
 					gen_expr ctx e (Printf.sprintf "%s.%s" p field) "";
 				in
-				ctx.static_inits <- f :: ctx.static_inits)
+				if c.cl_path = (["python"], "Boot") then
+					ctx.boot_static_inits <- f :: ctx.boot_static_inits
+				else
+					ctx.static_inits <- f :: ctx.static_inits)
 		) other;
 
 		(* generate static methods *)
@@ -2380,6 +2385,10 @@ module Generator = struct
 		newline ctx;
 		List.iter (fun f -> f()) (List.rev ctx.static_inits)
 
+	let gen_boot_static_inits ctx =
+		newline ctx;
+		List.iter (fun f -> f()) (List.rev ctx.boot_static_inits)
+
 	let gen_class_inits ctx =
 		newline ctx;
 		List.iter (fun f -> f()) (List.rev ctx.class_inits)
@@ -2418,6 +2427,7 @@ module Generator = struct
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;
+		gen_boot_static_inits ctx;
 		gen_class_inits ctx;
 		gen_static_inits ctx;
 		gen_main ctx;
