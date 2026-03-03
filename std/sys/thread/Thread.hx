@@ -55,7 +55,7 @@ class Thread {
 	static var mutex : Mutex;
 	static var mainThread : Thread;
 	static var idCounter : Int; // TODO: Should probably be an AtomicInt
-	static var onJobStartCallback : ThreadCallbackStack<ThreadCallbacks>;
+	static var globalCallbacks : ThreadCallbackManager;
 
 	@:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead")
 	public var events(get, null):Null<haxe.EventLoop>;
@@ -67,7 +67,7 @@ class Thread {
 	public final id : Int;
 	var impl : ThreadImpl;
 	var messages : Deque<Dynamic>;
-	final callbacks : ThreadInstanceCallbacks;
+	final callbacks : ThreadCallbackManager;
 
 	/**
 		Tells if we needs to wait for the thread to terminate before we stop the main loop (default:true).
@@ -89,7 +89,7 @@ class Thread {
 		this.id = idCounter++;
 		this.impl = impl;
 		if( impl != null ) this.name = ThreadImpl.getName(impl);
-		callbacks = new ThreadInstanceCallbacks();
+		callbacks = new ThreadCallbackManager();
 	}
 
 	function set_name(n) {
@@ -163,6 +163,9 @@ class Thread {
 	}
 
 	function installCallbacks(callbacks:ThreadCallbacks) {
+		if (callbacks.onStart != null) {
+			this.callbacks.onStart(callbacks.onStart);
+		}
 		if (callbacks.onJobDone != null) {
 			this.callbacks.onJobDone(callbacks.onJobDone);
 		}
@@ -189,7 +192,6 @@ class Thread {
 		if (callbacks != null) {
 			t.installCallbacks(callbacks);
 		}
-		final perThreadOnStart = callbacks?.onStart;
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
 			if( name != null ) t.name = name;
@@ -199,24 +201,11 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
-				if (perThreadOnStart != null) perThreadOnStart();
-				if (onJobStartCallback != null) {
-					onJobStartCallback.foreach(cb -> {
-						if (cb.onStart != null) cb.onStart();
-						if (cb.onJobDone != null) t.callbacks.onJobDone(cb.onJobDone);
-						if (cb.onExit != null) t.callbacks.onExit(cb.onExit);
-						if (cb.onAbort != null) {
-							final prevAbort = t.onAbort;
-							final cb_onAbort = cb.onAbort;
-							t.onAbort = function(e) {
-								try { cb_onAbort(e); } catch(ex) { defaultOnAbort(ex); }
-								prevAbort(e);
-							};
-						}
-					});
-				}
+				@:privateAccess t.callbacks.callOnStart();
+				@:privateAccess globalCallbacks.callOnStart();
 				job();
 				@:privateAccess t.callbacks.callOnJobDone();
+				@:privateAccess globalCallbacks.callOnJobDone();
 			} catch( e ) {
 				exception = e;
 			}
@@ -227,10 +216,20 @@ class Thread {
 				} catch ( e ) {
 					defaultOnAbort(e);
 				}
+				try {
+					@:privateAccess globalCallbacks.callOnAbort(exception);
+				} catch ( e ) {
+					defaultOnAbort(e);
+				}
 			}
 
 			try {
 				@:privateAccess t.callbacks.callOnExit();
+			} catch ( e ) {
+				defaultOnAbort(e);
+			}
+			try {
+				@:privateAccess globalCallbacks.callOnExit();
 			} catch ( e ) {
 				defaultOnAbort(e);
 			}
@@ -254,12 +253,24 @@ class Thread {
 	}
 
 	/**
-		Registers `callbacks` to be called for every thread that is created after this call.
+		Registers `callbacks` to be called for every thread, both already-running and future ones.
 		Returns a handle that can be used to unregister the callbacks.
+
+		Unlike callbacks passed to `Thread.create`, closing the returned handle prevents the
+		callbacks from being called even for threads that are already running.
 	**/
 	static public function addCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
-		onJobStartCallback ??= new ThreadCallbackStack();
-		return onJobStartCallback.add(callbacks);
+		final handles:Array<IThreadCallbackHandle> = [];
+		if (callbacks.onStart != null)
+			handles.push(globalCallbacks.onStart(callbacks.onStart));
+		if (callbacks.onJobDone != null)
+			handles.push(globalCallbacks.onJobDone(callbacks.onJobDone));
+		if (callbacks.onAbort != null)
+			handles.push(globalCallbacks.onAbort(callbacks.onAbort));
+		if (callbacks.onExit != null)
+			handles.push(globalCallbacks.onExit(callbacks.onExit));
+		if (handles.length == 1) return handles[0];
+		return new MultiHandle(handles); // also valid for empty handles (isClosed = true, close = no-op)
 	}
 
 	/**
@@ -307,6 +318,7 @@ class Thread {
 		threads = [mainThread];
 		currentTLS = new Tls();
 		currentTLS.value = mainThread;
+		globalCallbacks = new ThreadCallbackManager();
 	}
 
 }

@@ -262,18 +262,30 @@ class TestThread extends utest.Test {
 	}
 
 	function testAddCallbacksHandle() {
-		// Closing the addCallbacks handle prevents callbacks from applying to future threads
-		var jobDoneCalled = false;
+		// Closing the addCallbacks handle prevents callbacks even for already-running threads
+		var onExitCalled = false;
+		final sem1 = new Semaphore(0);
+		final sem2 = new Semaphore(0);
+		final sem3 = new Semaphore(0);
 
 		final handle = Thread.addCallbacks({
-			onJobDone: () -> {
-				jobDoneCalled = true;
+			onExit: () -> {
+				onExitCalled = true;
 			}
 		});
-		handle.close();
 
-		final thread = executeSync(() -> {});
-		Assert.isFalse(jobDoneCalled);
+		// Create a thread that signals when running then waits before exiting
+		Thread.create(() -> {
+			sem1.release(); // thread is running
+			sem2.acquire(); // wait for permission to exit
+		}, {onExit: () -> sem3.release()});
+
+		sem1.acquire(); // thread is now running
+		handle.close(); // close handle while the thread is still alive
+		sem2.release(); // let the thread exit
+		sem3.acquire(); // wait for thread to fully exit
+
+		Assert.isFalse(onExitCalled);
 	}
 
 	function testMultipleAddCallbacks() {

@@ -86,8 +86,11 @@ class ThreadCallbackStack<F> {
 	public function foreach(f:F->Void) {
 		var current = top;
 		while (current != null) {
-			f(current.callback);
-			current = current.prev;
+			// Save prev before calling f, in case f or a concurrent close modifies the list.
+			// Skip closed entries so that closing a handle stops future invocations.
+			final prev = current.prev;
+			if (!current.isClosed) f(current.callback);
+			current = prev;
 		};
 	}
 
@@ -105,11 +108,19 @@ interface IThreadCallbackHandle {
 	function close():Void;
 }
 
-class ThreadInstanceCallbacks {
+class ThreadCallbackManager {
+	var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
 	var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
 	var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
+	var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
 
 	public function new() {}
+
+	function callOnStart() {
+		if (onStartCallback != null) {
+			onStartCallback.foreach(f -> f());
+		}
+	}
 
 	function callOnJobDone() {
 		if (onJobDoneCallback != null) {
@@ -121,6 +132,20 @@ class ThreadInstanceCallbacks {
 		if (onExitCallback != null) {
 			onExitCallback.foreach(f -> f());
 		}
+	}
+
+	function callOnAbort(e:haxe.Exception) {
+		if (onAbortCallback != null) {
+			onAbortCallback.foreach(f -> f(e));
+		}
+	}
+
+	/**
+		Registers `f` to be called when the thread starts, before the job is executed.
+	**/
+	public function onStart(f:() -> Void):IThreadCallbackHandle {
+		onStartCallback ??= new ThreadCallbackStack();
+		return onStartCallback.add(f);
 	}
 
 	/**
@@ -145,5 +170,34 @@ class ThreadInstanceCallbacks {
 	public function onExit(f:() -> Void):IThreadCallbackHandle {
 		onExitCallback ??= new ThreadCallbackStack();
 		return onExitCallback.add(f);
+	}
+
+	/**
+		Registers `f` to be called when an uncaught exception aborts the thread.
+	**/
+	public function onAbort(f:haxe.Exception -> Void):IThreadCallbackHandle {
+		onAbortCallback ??= new ThreadCallbackStack();
+		return onAbortCallback.add(f);
+	}
+}
+
+class MultiHandle implements IThreadCallbackHandle {
+	final handles:Array<IThreadCallbackHandle>;
+
+	public function new(handles:Array<IThreadCallbackHandle>) {
+		this.handles = handles;
+	}
+
+	public var isClosed(get, never):Bool;
+
+	function get_isClosed() {
+		for (h in handles)
+			if (!h.isClosed) return false;
+		return true;
+	}
+
+	public function close() {
+		for (h in handles)
+			h.close();
 	}
 }
