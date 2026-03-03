@@ -11,10 +11,8 @@ private typedef BinaryTreeDef = {
 }
 
 class Issue12239 extends Test {
-	#if hl
 	function test() {
 		var bt = BinaryTree12239.lift({});
 		t(bt != null);
 	}
-	#end
 }

@@ -10,10 +10,8 @@ private class FooLike9662 {
 }
 
 class Issue9662 extends Test {
-	#if hl
 	function test() {
 		var _foo:Foo9662 = new FooLike9662();
 		t(_foo != null);
 	}
-	#end
 }

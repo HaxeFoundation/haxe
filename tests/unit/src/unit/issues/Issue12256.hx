@@ -5,7 +5,6 @@ private typedef Tree = {
 }
 
 class Issue12256 extends Test {
-	#if hl
 	function test() {
 		function iterTree(tree:Tree) {
 			return null;
@@ -13,5 +12,4 @@ class Issue12256 extends Test {
 		iterTree(null);
 		noAssert();
 	}
-	#end
 }
