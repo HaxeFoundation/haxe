@@ -204,7 +204,7 @@ let tuple_type ctx tl =
 		let ct = HEnum {
 			eglobal = None;
 			ename = "";
-			eid = 0;
+			ename_idx = 0;
 			euid;
 			efields = [|"",0,Array.of_list tl|];
 		} in
@@ -744,7 +744,7 @@ and enum_type ?(tref=None) ctx e =
 		let et = {
 			eglobal = None;
 			ename = ename;
-			eid = alloc_string ctx ename;
+			ename_idx = alloc_string ctx ename;
 			euid;
 			efields = [||];
 		} in
@@ -4073,7 +4073,7 @@ let write_code ch code debug =
 			write_index i
 		| HEnum e ->
 			byte 18;
-			write_index e.eid;
+			write_index e.ename_idx;
 			(match e.eglobal with
 			| None -> write_index 0
 			| Some g -> write_index (g + 1));

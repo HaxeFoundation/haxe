@@ -68,7 +68,7 @@ and class_proto = {
 
 and enum_proto = {
 	ename : string;
-	eid : int;
+	ename_idx : int; (* string-table index of ename, 0 = anonymous/tuple enum *)
 	euid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
@@ -268,7 +268,7 @@ let ttype_index = function
 	| HPacked _ -> 22 | HGUID -> 23
 
 (* a total ordering on ttype values that avoids infinite recursion on recursive
-   types by using the unique identity fields pid/eid/vid for HObj/HStruct/HEnum/HVirtual
+   types by using the unique identity fields pid/euid/vid for HObj/HStruct/HEnum/HVirtual
    instead of structurally comparing class_proto/enum_proto/virtual_proto *)
 let rec ttype_compare t1 t2 =
 	if t1 == t2 then 0
@@ -368,36 +368,7 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-let tsame t1 t2 =
-	let rec loop stack t1 t2 =
-		if t1 == t2 then true else
-		if List.exists (fun (t1',t2') -> t1 == t1' && t2 == t2') stack then true
-		else begin
-			let stack = (t1,t2) :: stack in
-			let tsame = loop stack in
-			match t1, t2 with
-			| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-			| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-			| HObj p1, HObj p2 -> p1 == p2
-			| HEnum e1, HEnum e2 -> e1 == e2
-			| HStruct p1, HStruct p2 -> p1 == p2
-			| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
-			| HVirtual v1, HVirtual v2 ->
-				if v1 == v2 then true else
-				if Array.length v1.vfields <> Array.length v2.vfields then false else
-				let rec loop i =
-					if i = Array.length v1.vfields then true else
-					let _, i1, t1 = v1.vfields.(i) in
-					let _, i2, t2 = v2.vfields.(i) in
-					if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
-				in
-				loop 0
-			| HNull t1, HNull t2 -> tsame t1 t2
-			| HRef t1, HRef t2 -> tsame t1 t2
-			| _ -> false
-		end
-	in
-	loop [] t1 t2
+let tsame t1 t2 = ttype_compare t1 t2 = 0
 
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
@@ -576,7 +547,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		"dynobj"
 	| HAbstract (s,_) ->
 		"abstract(" ^ s ^ ")"
-	| HEnum e when e.eid = 0 ->
+	| HEnum e when e.ename_idx = 0 ->
 		let _,_,fl = e.efields.(0) in
 		"enum(" ^ String.concat "," (List.map tstr (Array.to_list fl)) ^ ")"
 	| HEnum e ->

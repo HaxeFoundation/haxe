@@ -12,16 +12,15 @@ class Issue11909 extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 
-		runHaxeJsonCb(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)}, res -> {
-			switch (res.item.kind) {
-				case Local:
-					Assert.equals("int", res.item.args.name);
-					Assert.equals("Int", res.item.args.type.args.path.typeName);
+		final res = runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("Main.hx"), offset: transform.offset(1)});
+		switch (res.item.kind) {
+			case Local:
+				Assert.equals("int", res.item.args.name);
+				Assert.equals("Int", res.item.args.type.args.path.typeName);
 
-				case kind:
-					Assert.fail("unexpected item kind: " + kind);
-			}
-		});
+			case kind:
+				Assert.fail("unexpected item kind: " + kind);
+		}
 		assertSuccess();
 	}
 }

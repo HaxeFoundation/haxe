@@ -18,10 +18,10 @@ type tinject = {
   inj_tail : string;
 }
 
-let cpp_type_of = CppRetyper.cpp_type_of CppRetyper.with_stack_value_type
+let cpp_type_of basic = CppRetyper.cpp_type_of basic CppRetyper.with_stack_value_type
 let cpp_type_of_null = CppRetyper.cpp_type_of_null
 let cpp_instance_type = CppRetyper.cpp_instance_type
-let type_to_string haxe_type = tcpp_to_string (cpp_type_of haxe_type)
+let type_to_string basic haxe_type = tcpp_to_string (cpp_type_of basic haxe_type)
 
 let type_cant_be_null tcpp =
   match tcpp with TCppScalar _ -> true | _ -> false
@@ -77,16 +77,16 @@ let cpp_member_name_of member =
   | Some n -> n
   | None -> keyword_remap member.cf_name
 
-let function_signature include_names tfun abi =
+let function_signature basic include_names tfun abi =
   let print_tfun_arg_list include_names arg_list =
     arg_list
-    |> List.map (CppRetyper.retype_arg CppRetyper.with_stack_value_type)
+    |> List.map (CppRetyper.retype_arg basic CppRetyper.with_stack_value_type)
     |> print_retyped_tfun_arg_list include_names
   in
 
   match follow tfun with
   | TFun (args, ret) ->
-      type_to_string ret ^ " " ^ abi ^ "("
+      type_to_string basic ret ^ " " ^ abi ^ "("
       ^ print_tfun_arg_list include_names args
       ^ ")"
   | _ -> "void *"
@@ -132,7 +132,7 @@ let func_to_callable_string wrapper func =
 let mk_injection prologue set_var tail =
   Some { inj_prologue = prologue; inj_setvar = set_var; inj_tail = tail }
 
-let gen_type ctx haxe_type = ctx.ctx_output (type_to_string haxe_type)
+let gen_type ctx haxe_type = ctx.ctx_output (type_to_string ctx.ctx_common.basic haxe_type)
 
 let cpp_macro_var_type_of var =
   let t = tcpp_to_string var.tcppv_type in
@@ -446,6 +446,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
   let lastLine = ref (-1) in
   let tempId = ref 0 in
   let strq = strq ctx.ctx_common in
+  let cpp_type_of = cpp_type_of ctx.ctx_common.basic in
 
   let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
   let output_i value =
@@ -832,7 +833,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
         gen e;
         out "))"
     | CppFunctionAddress (klass, member) ->
-        let signature = function_signature false member.cf_type "" in
+        let signature = function_signature ctx.ctx_common.basic false member.cf_type "" in
         let name = cpp_member_name_of member in
         (*let void_cast = has_meta_key field.cf_meta Meta.Void in*)
         out ("::cpp::Function< " ^ signature ^ ">(::hx::AnyCast(");

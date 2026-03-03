@@ -264,7 +264,7 @@ let handle_syntax_completion com kind subj =
 			raise (Completion s)
 		| Some api ->
 			let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
-			api.send_result(fields_to_json ctx l kind subj)
+			api.send_result_raise (fields_to_json ctx l kind subj)
 
 let handle_display_exception_old ctx dex = match dex with
 	| DisplayPackage pack ->
@@ -323,11 +323,11 @@ let handle_display_exception_json ctx dex api =
 	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
 		DisplayPosition.display_position#reset;
 		let ctx = DisplayJson.create_json_context api.jsonrpc (match dex with DisplayFields _ -> true | _ -> false) in
-		api.send_result (DisplayException.to_json ctx dex)
+		api.send_result_raise (DisplayException.to_json ctx dex)
 	| DisplayNoResult ->
 		(match ctx.com.display.dms_kind with
-			| DMDefault -> api.send_error [jstring "No completion point"]
-			| _ -> api.send_result JNull
+			| DMDefault -> api.send_error_raise [jstring "No completion point"]
+			| _ -> api.send_result_raise JNull
 		)
 	| _ ->
 		handle_display_exception_old ctx dex
@@ -358,7 +358,7 @@ let handle_type_path_exception ctx p c is_import pos =
 	| None,Some fields ->
 		raise (Completion (print_fields fields))
 	| Some api,None when is_legacy_completion com ->
-		api.send_result JNull
+		api.send_result_raise JNull
 	| Some api,fields ->
 		let fields = Option.default [] fields in
 		let ctx = DisplayJson.create_json_context api.jsonrpc false in
@@ -367,7 +367,7 @@ let handle_type_path_exception ctx p c is_import pos =
 			| [] -> [],""
 		in
 		let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-		api.send_result (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
+		api.send_result_raise (DisplayException.fields_to_json ctx fields kind (DisplayTypes.make_subject None pos));
 	end
 
 let emit_legacy_diagnostics com =
@@ -377,14 +377,13 @@ let emit_legacy_diagnostics com =
 	raise (Completion s)
 
 let emit_diagnostics com =
-	(match com.Common.json_out with
+	match com.Common.json_out with
 	| None -> die "" __LOC__
 	| Some api ->
 		let dctx = Diagnostics.run com in
 		let diagnostics = DiagnosticsPrinter.json_of_diagnostics com dctx in
 		DisplayPosition.display_position#reset;
-		api.send_result diagnostics;
-		raise Abort (* not reached because send_result always raises *))
+		api.send_result_raise diagnostics
 
 let emit_statistics tctx =
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in

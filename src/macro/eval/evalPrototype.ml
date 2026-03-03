@@ -347,8 +347,11 @@ let add_types ctx types ready =
 			DynArray.add fl_static (create_static_prototype ctx mt);
 		| TAbstractDecl a ->
 			DynArray.add fl_static (create_static_prototype ctx mt);
-			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778). *)
-			if Meta.has Meta.CoreType a.a_meta then
+			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778).
+			   Also do this for extern abstracts with Any as underlying type - these are native opaque types
+			   that use the typedef trick to satisfy @:coreApi checks. *)
+			let is_native_opaque = a.a_extern && (match follow a.a_this with TAbstract({a_path=[],"Any"},_) -> true | _ -> false) in
+			if Meta.has Meta.CoreType a.a_meta || is_native_opaque then
 				DynArray.add fl_instance (create_instance_prototype ctx {null_class with cl_path = a.a_path})
 		| _ ->
 			()

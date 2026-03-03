@@ -22,7 +22,8 @@
 
 package haxe.io;
 
-// @:coreApi
+// Can't enable @:coreApi because this implementation is missing some fields that were added to the core type (e.g. readString)
+@:coreApi(check = Off)
 extern class Bytes {
 	function new(length:Int, b:BytesData):Void;
 	var length(default, null):Int;

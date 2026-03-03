@@ -114,6 +114,18 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.clear modules;
 		self#clear_temp_cache
 
+	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
+	method clear_modules =
+		Hashtbl.clear modules;
+		Hashtbl.clear binary_cache;
+		self#clear_temp_cache;
+		Hashtbl.clear removed_files;
+		Hashtbl.filter_map_inplace (fun _ cfile ->
+			match cfile.c_file_path.class_path#scope with
+			| ClassPath.User -> None
+			| ClassPath.Std | ClassPath.StdTarget | ClassPath.Lib -> Some cfile
+		) files
+
 	(* initialization *)
 
 	method is_initialized = initialized
@@ -175,6 +187,14 @@ class cache = object(self)
 		Hashtbl.clear native_libs;
 		tasks <- PriorityQueue.Empty
 
+	(* Like clear, but preserves the file parse cache and directory cache within each context. *)
+	method soft_clear =
+		Hashtbl.iter (fun _ cc -> cc#clear_modules) contexts;
+		context_list <- [];
+		Hashtbl.clear haxelib;
+		Hashtbl.clear native_libs;
+		tasks <- PriorityQueue.Empty
+
 	(* contexts *)
 
 	method clear_temp_cache =
@@ -182,7 +202,10 @@ class cache = object(self)
 
 	method get_context sign =
 		try
-			Hashtbl.find contexts sign
+			let cache = Hashtbl.find contexts sign in
+			if not (List.memq cache context_list) then
+				context_list <- cache :: context_list;
+			cache
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) sign in
 			context_list <- cache :: context_list;

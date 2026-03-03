@@ -1,4 +1,3 @@
-#if (target.atomics)
 var a = new haxe.atomic.AtomicBool(true);
 
 a.load() == true;
@@ -13,6 +12,3 @@ a.load() == true;
 
 a.exchange(true) == true;
 a.load() == true;
-#else
-0 == 0; // prevent "no assertions" warning
-#end

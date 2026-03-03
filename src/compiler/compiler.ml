@@ -47,8 +47,11 @@ let run_command ctx cmd =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
-		(* Emit stderr as a server message in server mode *)
-		end else begin
+		end else if not ctx.comm.is_server then
+			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
+			Sys.command cmd
+		else begin
+			(* In server mode, capture stdout/stderr and send them through the communication channel *)
 			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
 			let bout = Bytes.create 1024 in
 			let berr = Bytes.create 1024 in
@@ -230,7 +233,6 @@ module Setup = struct
 
 	let setup_common_context ctx =
 		let com = ctx.com in
-		ctx.com.print <- ctx.comm.write_out;
 		Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int version /. 1000.));
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
@@ -475,7 +477,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ as exc ->
+	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | DisplayJson.JsonCompleted as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -485,7 +487,7 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
-	ctx.comm.flush ctx;
+	ctx.com.io.close ();
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
@@ -494,6 +496,10 @@ let finalize ctx =
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
+let emit_completion ctx str =
+	ServerMessage.completion str;
+	ctx.comm.write_err str
+
 let catch_completion_and_exit ctx callbacks run =
 	try
 		run ctx;
@@ -501,8 +507,12 @@ let catch_completion_and_exit ctx callbacks run =
 	with
 		| DisplayProcessingGlobals.Completion str ->
 			callbacks.after_compilation ctx;
-			ServerMessage.completion str;
-			ctx.comm.write_err str;
+			emit_completion ctx str;
+			finalize ctx;
+			0
+		| DisplayJson.JsonCompleted ->
+			callbacks.after_compilation ctx;
+			finalize ctx;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
@@ -512,13 +522,16 @@ let catch_completion_and_exit ctx callbacks run =
 let process_actx ctx actx =
 	ctx.com.doinline <- ctx.com.display.dms_inline && not (Common.defined ctx.com Define.NoInline);
 	ctx.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
-	DisplayProcessing.process_display_arg ctx actx;
-	List.iter (fun s ->
-		ctx.com.warning WDeprecated [] s null_pos
-	) actx.deprecations;
-	if defined ctx.com NoDeprecationWarnings then begin
-		ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
-	end
+	match DisplayProcessing.process_display_arg ctx actx with
+	| Completed ->
+		raise DisplayJson.JsonCompleted
+	| NotCompleted ->
+		List.iter (fun s ->
+			ctx.com.warning WDeprecated [] s null_pos
+		) actx.deprecations;
+		if defined ctx.com NoDeprecationWarnings then begin
+			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
+		end
 
 let compile_ctx callbacks ctx =
 	let run ctx =
@@ -529,8 +542,9 @@ let compile_ctx callbacks ctx =
 			process_actx ctx actx;
 			compile ctx actx callbacks;
 		);
-		finalize ctx;
+		ctx.comm.flush ctx;
 		callbacks.after_compilation ctx;
+		finalize ctx;
 	in
 	if ctx.has_error then begin
 		finalize ctx;
@@ -538,22 +552,77 @@ let compile_ctx callbacks ctx =
 	end else
 		catch_completion_and_exit ctx callbacks run
 
-let create_context comm cs timer_ctx compilation_step params = {
-	com = Common.create timer_ctx compilation_step cs {
+let create_context comm cs timer_ctx compilation_step params =
+	let version = {
 		version = version;
 		major = version_major;
 		minor = version_minor;
 		revision = version_revision;
 		pre = version_pre;
 		extra = Version.version_extra;
-	} params (DisplayTypes.DisplayMode.create DMNone);
-	messages = [];
-	has_next = false;
-	has_error = false;
-	comm = comm;
-	runtime_args = [];
-	timer_ctx = timer_ctx;
-}
+	} in
+	let io = if comm.is_server then begin
+		(* In server mode, create pipes so that writing to stdout/stderr channels
+		   gets forwarded through the communication protocol to the client. *)
+		let make_pipe write_fn =
+			let (r_fd, w_fd) = Unix.pipe ~cloexec:true () in
+			let out_ch = Unix.out_channel_of_descr w_fd in
+			let in_ch = Unix.in_channel_of_descr r_fd in
+			let thread = Thread.create (fun () ->
+				let buf = Bytes.create 1024 in
+				(try while true do
+					let n = input in_ch buf 0 1024 in
+					if n = 0 then raise Exit;
+					write_fn (Bytes.sub_string buf 0 n)
+				done with
+				| End_of_file | Exit -> ()
+				| Unix.Unix_error _ -> ());
+				close_in_noerr in_ch
+			) () in
+			(out_ch, thread)
+		in
+		let (stdout_ch, stdout_thread) = make_pipe comm.write_out in
+		let (stderr_ch, stderr_thread) = make_pipe comm.write_err in
+		(* For stdin in server mode, create a pipe with write end closed (EOF). *)
+		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
+		Unix.close stdin_w_fd;
+		let stdin_ch = Unix.in_channel_of_descr stdin_r_fd in
+		let closed = ref false in
+		{
+			Gctx.print = comm.write_out;
+			print_err = comm.write_err;
+			stdout = stdout_ch;
+			stderr = stderr_ch;
+			stdin = stdin_ch;
+			close = (fun () ->
+				if not !closed then begin
+					closed := true;
+					flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
+					flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
+					close_in_noerr stdin_ch;
+				end
+			);
+		}
+	end else
+		{
+			Gctx.print = comm.write_out;
+			print_err = comm.write_err;
+			stdout = Stdlib.stdout;
+			stderr = Stdlib.stderr;
+			stdin = Stdlib.stdin;
+			close = (fun () -> ());
+		}
+	in
+	let com = Common.create io timer_ctx compilation_step cs version params (DisplayTypes.DisplayMode.create DMNone) in
+	{
+		com;
+		messages = [];
+		has_next = false;
+		has_error = false;
+		comm = comm;
+		runtime_args = [];
+		timer_ctx = timer_ctx;
+	}
 
 module HighLevel = struct
 	let add_libs timer_ctx libs args cs has_display =
