@@ -50,6 +50,7 @@ type unification_context = {
 	allow_abstract_cast     : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
 	allow_dynamic_to_cast   : bool; (* allows a cast from dynamic to non-dynamic *)
 	allow_arg_name_mismatch : bool;
+	allow_optional_mismatch : bool; (* allows optional vs. non-optional fields *)
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
@@ -83,6 +84,7 @@ let default_unification_context () = {
 	allow_abstract_cast     = true;
 	allow_dynamic_to_cast   = true;
 	allow_arg_name_mismatch = true;
+	allow_optional_mismatch = true;
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
@@ -99,6 +101,7 @@ let native_unification_context = {
 	allow_transitive_cast = false;
 	allow_abstract_cast   = false;
 	allow_dynamic_to_cast = false;
+	allow_optional_mismatch = true;
 	equality_kind         = EqStrict;
 	equality_underlying   = false;
 	allow_arg_name_mismatch = true;

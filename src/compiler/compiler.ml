@@ -514,6 +514,7 @@ let catch_completion_and_exit ctx callbacks run =
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
+			ctx.comm.flush ctx;
 			finalize ctx;
 			i
 
@@ -545,6 +546,7 @@ let compile_ctx callbacks ctx =
 		finalize ctx;
 	in
 	if ctx.has_error then begin
+		ctx.comm.flush ctx;
 		finalize ctx;
 		1 (* can happen if process_params fails already *)
 	end else

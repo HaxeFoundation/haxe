@@ -723,7 +723,7 @@ class texpr_to_jvm
 			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
 			cast();
 		in
-		match gctx.anon_identification#identify true t with
+		match gctx.anon_identification#identify AnonIdMode.default true t with
 		| Some pfm ->
 			let cf = PMap.find cf.cf_name pfm.pfm_fields in
 			let path = pfm.pfm_path in
@@ -873,7 +873,7 @@ class texpr_to_jvm
 			jm#putfield c.cl_path cf.cf_name jsig_cf
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
-			begin match gctx.anon_identification#identify true e1.etype with
+			begin match gctx.anon_identification#identify AnonIdMode.default true e1.etype with
 			| Some pfm ->
 				let cf = PMap.find cf.cf_name pfm.pfm_fields in
 				let path = pfm.pfm_path in
@@ -1762,7 +1762,7 @@ class texpr_to_jvm
 			jm#invokestatic en.e_path ef.ef_name (method_sig tl (Some tr));
 			Some tr
 		| TField(e11,FAnon cf) ->
-			begin match gctx.anon_identification#identify false e11.etype with
+			begin match gctx.anon_identification#identify AnonIdMode.default false e11.etype with
 			| Some {pfm_path=path_anon} ->
 				begin match gctx.typedef_interfaces#get_interface_class path_anon with
 				| Some c ->
@@ -2246,7 +2246,7 @@ class texpr_to_jvm
 				PMap.add name cf acc
 			) PMap.empty fl in
 			let t = mk_anon ~fields (ref Closed) in
-			let td = gctx.anon_identification#identify true t in
+			let td = gctx.anon_identification#identify AnonIdMode.default true t in
 			begin match td with
 			| Some pfm when not !had_invalid_field_name ->
 				let lut = Hashtbl.create 0 in

@@ -1,33 +1,32 @@
 package runci.targets;
 
-import haxe.io.Path;
 import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 
 using StringTools;
+using haxe.io.Path;
 
 class Hl {
 	static final hlSrc = Path.join([getDownloadPath(), "hashlink"]);
 
 	static final hlBuild = Path.join([getDownloadPath(), "hashlink_build"]);
 
-	static final hlInstallDir = Path.join([getInstallPath(), "hashlink"]);
-	static final hlInstallBinDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "bin"]);
-	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
-
-	static final hlBinary =
-		if (!commandSucceed("hl", ["--version"])){
-			Path.join([hlInstallBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
+	static final hlBinary = if (!commandSucceed("hl", ["--version"])) {
+			Path.join([getInstallPath(), "hashlink", systemName == 'Windows' ? '' : 'bin', "hl" + ((systemName == "Windows") ? ".exe" : "")]);
 		} else {
-			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
+			commandResult(if (systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
 		};
+
+	static final hlInstallBinDir = hlBinary.directory();
+	static final hlInstallDir = if (systemName == "Windows") hlInstallBinDir else hlInstallBinDir.directory();
+	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
 
 	static final miscHlDir = getMiscSubDir('hl');
 	static final miscHlcDir = getMiscSubDir('hlc');
 
 	static var withJitTests = true;
-	static var withHlcTests = false;
+	static var withHlcTests = true;
 
 	static public function getHlDependencies() {
 		if (FileSystem.exists(hlBinary)) {
@@ -73,7 +72,6 @@ class Hl {
 		runCommand("cmake", ["--build", hlBuild, "--target", "install"]);
 
 		addToPATH(hlInstallBinDir);
-		addToLIBPATH(hlInstallLibDir);
 		if (withJitTests) {
 			runCommand(hlBinary, ["--version"]);
 		}
@@ -93,7 +91,8 @@ class Hl {
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
 		final extraCompilerFlags = switch (systemName) {
 			case "Windows": ["-ldbghelp", "-municode"];
-			case _: [];
+			case "Mac": ["-rpath", hlInstallLibDir];
+			case _: ['-Wl,-rpath,$hlInstallLibDir'];
 		};
 
 		runCommand(compiler, [
@@ -140,7 +139,7 @@ class Hl {
 
 	static public function run(args:Array<String>, withJitTests:Bool, withHlcTests:Bool) {
 		Hl.withJitTests = withJitTests;
-		Hl.withHlcTests = withHlcTests;
+		Hl.withHlcTests = if (isCi()) false else withHlcTests;
 
 		getHlDependencies();
 
