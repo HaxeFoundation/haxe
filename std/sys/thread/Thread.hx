@@ -182,6 +182,7 @@ class Thread {
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
 	**/
+	@:access(sys.thread.ThreadCallbackManager)
 	public static function create(?name:String, job:()->Void, ?callbacks:ThreadCallbacks):Thread {
 		mutex.acquire();
 		var t = new Thread(null);
@@ -201,11 +202,11 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
-				@:privateAccess t.callbacks.callOnStart();
-				@:privateAccess globalCallbacks.callOnStart();
+				t.callbacks.callOnStart();
+				globalCallbacks.callOnStart();
 				job();
-				@:privateAccess t.callbacks.callOnJobDone();
-				@:privateAccess globalCallbacks.callOnJobDone();
+				t.callbacks.callOnJobDone();
+				globalCallbacks.callOnJobDone();
 			} catch( e ) {
 				exception = e;
 			}
@@ -213,23 +214,15 @@ class Thread {
 			if( exception != null ) {
 				try {
 					t.onAbort(exception);
-				} catch ( e ) {
-					defaultOnAbort(e);
-				}
-				try {
-					@:privateAccess globalCallbacks.callOnAbort(exception);
+					globalCallbacks.callOnAbort(exception);
 				} catch ( e ) {
 					defaultOnAbort(e);
 				}
 			}
 
 			try {
-				@:privateAccess t.callbacks.callOnExit();
-			} catch ( e ) {
-				defaultOnAbort(e);
-			}
-			try {
-				@:privateAccess globalCallbacks.callOnExit();
+				t.callbacks.callOnExit();
+				globalCallbacks.callOnExit();
 			} catch ( e ) {
 				defaultOnAbort(e);
 			}
