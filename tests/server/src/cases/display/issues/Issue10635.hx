@@ -16,13 +16,9 @@ class Issue10635 extends DisplayTestCase {
 	function test(_) {
 		var args = ["-main", "Main"];
 		vfs.putContent("Something.hx", getTemplate("issues/Issue10635/Something.hx"));
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}).length);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}).length);
 	}
 
 	/**
@@ -37,13 +33,9 @@ class Issue10635 extends DisplayTestCase {
 	function testGenericClassPerMethod(_) {
 		var args = ["-main", "Main"];
 		vfs.putContent("Something.hx", "@:genericClassPerMethod " + getTemplate("issues/Issue10635/Something.hx"));
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}).length);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}).length);
 	}
 
 	function testGenericAddition(_) {
@@ -75,13 +67,12 @@ class Issue10635 extends DisplayTestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		// Note: We only have to run this once to reproduce because ServerMethods.Type will call cl_restore anyway
 		runHaxe(args);
-		var contexts = null;
-		runHaxeJsonCb(args, ServerMethods.Contexts, null, r -> contexts = r);
+		final contexts = runHaxeJson(args, ServerMethods.Contexts, null);
 		Assert.notNull(contexts);
 		utest.Assert.equals(1, contexts.length);
-		var sig = contexts[0].signature;
-		var type:JsonModuleType<JsonClass> = null;
-		runHaxeJsonCb(args, ServerMethods.Type, {signature: sig, modulePath: "GenericInstanceMethod", typeName: "GenericInstanceMethod"}, r -> type = r);
+		final sig = contexts[0].signature;
+		final type:JsonModuleType<JsonClass> = runHaxeJson(args, ServerMethods.Type,
+			{signature: sig, modulePath: "GenericInstanceMethod", typeName: "GenericInstanceMethod"});
 		var fields = type.args.fields;
 		Assert.isTrue(fields.exists(cf -> cf.name == "f"));
 		Assert.isTrue(fields.exists(cf -> cf.name == "f_Class<Main>"));

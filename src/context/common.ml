@@ -137,7 +137,9 @@ type shared_context = {
 
 type json_api = {
 	send_result : Json.t -> unit;
+	send_result_raise : 'a . Json.t -> 'a;
 	send_error : Json.t list -> unit;
+	send_error_raise : 'a . Json.t list -> 'a;
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
@@ -291,7 +293,7 @@ type context = {
 	parser_state : parser_state;
 	dump_config : DumpConfig.t;
 	(* communication *)
-	mutable print : string -> unit;
+	io : Gctx.compilation_io;
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
@@ -357,7 +359,7 @@ let to_gctx com = {
 	run_command_args = com.run_command_args;
 	warning = com.warning;
 	error = com.error;
-	print = com.print;
+	io = com.io;
 	debug = com.debug;
 	file = com.file;
 	version = com.version;
@@ -720,7 +722,7 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create timer_ctx compilation_step cs version args display_mode =
+let create io timer_ctx compilation_step cs version args display_mode =
 	let rec com = {
 		compilation_step = compilation_step;
 		cs = cs;
@@ -748,7 +750,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		platform = Cross;
 		config = default_config;
 		custom_ext = None;
-		print = (fun s -> print_string s; flush stdout);
+		io;
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
@@ -846,7 +848,7 @@ let disable_report_mode com =
 	(fun () -> com.report_mode <- old)
 
 let log com str =
-	if com.verbose then com.print (str ^ "\n")
+	if com.verbose then com.io.print (str ^ "\n")
 
 let clone com is_macro_context =
 	{
@@ -865,7 +867,7 @@ let clone com is_macro_context =
 		platform = com.platform;
 		config = com.config;
 		custom_ext = com.custom_ext;
-		print = com.print;
+		io = com.io;
 		run_command = com.run_command;
 		run_command_args = com.run_command_args;
 		package_rules = com.package_rules;

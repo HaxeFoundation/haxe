@@ -2467,8 +2467,7 @@ let macro_api ccom get_api =
 				let json = decode_string json in
 				let lexbuf = Sedlexing.Utf8.from_string json in
 				let parse = Json.Reader.read_json lexbuf in
-				api.send_result parse;
-				vbool true
+				api.send_result_raise parse;
 			| None ->
 				vbool false
 			end

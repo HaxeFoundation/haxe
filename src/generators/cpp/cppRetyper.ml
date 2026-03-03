@@ -69,7 +69,7 @@ let is_lvalue_expr expr =
   in
   checker expr
 
-let rec cpp_type_of stack value_type_handler haxe_type =
+let rec cpp_type_of stack basic value_type_handler haxe_type =
   if List.exists (fast_eq haxe_type) stack then
     TCppDynamic
   else
@@ -78,20 +78,28 @@ let rec cpp_type_of stack value_type_handler haxe_type =
     | TMono r -> (
       match r.tm_type with
       | None -> TCppDynamic
-      | Some t -> cpp_type_of stack value_type_handler t)
+      | Some t -> cpp_type_of stack basic value_type_handler t)
     | TEnum (enum, params) -> TCppEnum enum
     | TInst ({ cl_path = [], "Array"; cl_kind = KTypeParameter _ }, _) ->
       TCppObject
     | TInst ({ cl_kind = KTypeParameter _ }, _) -> TCppDynamic
     | TInst (klass, params) ->
-      cpp_instance_type stack klass params value_type_handler
+      cpp_instance_type stack basic klass params value_type_handler
+    | TAbstract({ a_path = (["haxe";"coro"],"Coroutine"); a_pos = pos },[t]) ->
+      begin match follow t with
+        | TFun(args,ret) ->
+          let args,ret = Common.expand_coro_type basic args ret in
+          cpp_type_of stack basic value_type_handler (TFun (args, ret))
+        | t ->
+          cpp_abort CppError.InternalError pos
+      end
     | TAbstract (abs, pl) when is_marshalling_native_enum abs ->
       TCppMarshalNativeType (ValueEnum abs, value_type_handler())
     | TAbstract (abs, pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
-      cpp_type_from_path stack abs.a_path pl value_type_handler (fun () ->
-        cpp_type_of stack value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))
+      cpp_type_from_path stack basic abs.a_path pl value_type_handler (fun () ->
+        cpp_type_of stack basic value_type_handler (Abstract.get_underlying_type ~return_first:true abs pl))
     | TAbstract (a, params) ->
-      cpp_type_from_path stack a.a_path params value_type_handler (fun () ->
+      cpp_type_from_path stack basic a.a_path params value_type_handler (fun () ->
         if is_scalar_abstract a then
           match get_meta_string a.a_meta Meta.Native with
           | Some s -> TCppScalar s
@@ -133,18 +141,18 @@ let rec cpp_type_of stack value_type_handler haxe_type =
             false
         in
       if find [] haxe_type then
-        cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> TCppDynamic)
+        cpp_type_from_path stack basic type_def.t_path params value_type_handler (fun () -> TCppDynamic)
       else
-        cpp_type_from_path stack type_def.t_path params value_type_handler (fun () -> cpp_type_of stack value_type_handler (apply_typedef type_def params))
+        cpp_type_from_path stack basic type_def.t_path params value_type_handler (fun () -> cpp_type_of stack basic value_type_handler (apply_typedef type_def params))
     | TFun (arguments, return) ->
-      let retyped_arguments = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack o with_reference_value_type t) arguments in
-      let retyped_return    = cpp_type_of stack with_stack_value_type return in
+      let retyped_arguments = List.map (fun (_, o, t) -> cpp_tfun_arg_type_of stack basic o with_reference_value_type t) arguments in
+      let retyped_return    = cpp_type_of stack basic with_stack_value_type return in
       TCppCallable (retyped_arguments, retyped_return)
     | TAnon _ -> TCppObject
     | TDynamic _ -> TCppDynamic
-    | TLazy func -> cpp_type_of stack value_type_handler (lazy_type func)
+    | TLazy func -> cpp_type_of stack basic value_type_handler (lazy_type func)
 
-and cpp_type_from_path stack path params value_type_handler default =
+and cpp_type_from_path stack basic path params value_type_handler default =
   match (path, params) with
   | ([], "Void"), _ -> TCppVoid
   | ([], "void"), _ -> TCppVoid (* for old code with @:void *)
@@ -173,22 +181,22 @@ and cpp_type_from_path stack path params value_type_handler default =
   | ([ "cpp" ], "AutoCast"), _ -> TCppAutoCast
   | ([], "String"), [] -> TCppString
   (* Things with type parameters hxcpp knows about ... *)
-  | ([ "cpp" ], "FastIterator"), [ p ] -> TCppFastIterator (cpp_type_of stack value_type_handler p)
-  | ([ "cpp" ], "Pointer"), [ p ] -> TCppPointer ("Pointer", cpp_type_of stack value_type_handler p)
+  | ([ "cpp" ], "FastIterator"), [ p ] -> TCppFastIterator (cpp_type_of stack basic value_type_handler p)
+  | ([ "cpp" ], "Pointer"), [ p ] -> TCppPointer ("Pointer", cpp_type_of stack basic value_type_handler p)
   | ([ "cpp" ], "ConstPointer"), [ p ] ->
-      TCppPointer ("ConstPointer", cpp_type_of stack value_type_handler p)
-  | ([ "cpp" ], "RawPointer"), [ p ] -> TCppRawPointer ("", cpp_type_of stack value_type_handler p)
+      TCppPointer ("ConstPointer", cpp_type_of stack basic value_type_handler p)
+  | ([ "cpp" ], "RawPointer"), [ p ] -> TCppRawPointer ("", cpp_type_of stack basic value_type_handler p)
   | ([ "cpp" ], "RawConstPointer"), [ p ] ->
-      TCppRawPointer ("const ", cpp_type_of stack value_type_handler p)
+      TCppRawPointer ("const ", cpp_type_of stack basic value_type_handler p)
   | ([ "cpp" ], "Function"), [ function_type; abi ] ->
-      cpp_function_type_of stack function_type abi value_type_handler
+      cpp_function_type_of stack basic function_type abi value_type_handler
   | ([ "cpp" ], "Callable"), [ function_type ]
   | ([ "cpp" ], "CallableData"), [ function_type ] ->
-      cpp_function_type_of_string stack function_type "" value_type_handler
+      cpp_function_type_of_string stack basic function_type "" value_type_handler
   | ("cpp" :: [ "objc" ], "ObjcBlock"), [ function_type ] ->
-      let args, ret = cpp_function_type_of_args_ret stack value_type_handler function_type in
+      let args, ret = cpp_function_type_of_args_ret stack basic value_type_handler function_type in
       TCppObjCBlock (args, ret)
-  | ([ "cpp" ], "Rest"), [ rest ] -> TCppRest (cpp_type_of stack value_type_handler rest)
+  | ([ "cpp" ], "Rest"), [ rest ] -> TCppRest (cpp_type_of stack basic value_type_handler rest)
   | ("cpp" :: [ "objc" ], "Protocol"), [ interface_type ] -> (
       match follow interface_type with
       | TInst (klass, []) when has_class_flag klass CInterface ->
@@ -198,14 +206,14 @@ and cpp_type_from_path stack path params value_type_handler default =
           print_endline "cpp.objc.Protocol must refer to an interface";
           die "" __LOC__)
   | ([ "cpp" ], "Reference"), [ param ] ->
-      TCppReference (cpp_type_of stack value_type_handler param)
-  | ([ "cpp" ], "Struct"), [ param ] -> TCppStruct (cpp_type_of stack value_type_handler param)
+      TCppReference (cpp_type_of stack basic value_type_handler param)
+  | ([ "cpp" ], "Struct"), [ param ] -> TCppStruct (cpp_type_of stack basic value_type_handler param)
   | ([ "cpp" ], "Star"), [ param ] ->
-      TCppStar (cpp_type_of_pointer stack value_type_handler param, false)
+      TCppStar (cpp_type_of_pointer stack basic value_type_handler param, false)
   | ([ "cpp" ], "ConstStar"), [ param ] ->
-      TCppStar (cpp_type_of_pointer stack value_type_handler param, true)
+      TCppStar (cpp_type_of_pointer stack basic value_type_handler param, true)
   | ([], "Array"), [ p ] -> (
-      let arrayOf = cpp_type_of stack with_promoted_value_type p in
+      let arrayOf = cpp_type_of stack basic with_promoted_value_type p in
       match arrayOf with
       | TCppVoid (* ? *) | TCppDynamic -> TCppDynamicArray
       | TCppObject | TCppObjectPtr | TCppReference _ | TCppStruct _ | TCppStar _
@@ -214,57 +222,57 @@ and cpp_type_from_path stack path params value_type_handler default =
       | TCppMarshalManagedType _ | TCppCallable _ ->
         TCppObjectArray arrayOf
       | _ -> TCppScalarArray arrayOf)
-  | ([], "Null"), [ p ] -> cpp_type_of_null stack value_type_handler p
+  | ([], "Null"), [ p ] -> cpp_type_of_null stack basic value_type_handler p
   | _ -> default ()
 
-and cpp_type_of_null stack value_type_handler p =
-  match cpp_type_of stack with_promoted_value_type p with
+and cpp_type_of_null stack basic value_type_handler p =
+  match cpp_type_of stack basic with_promoted_value_type p with
   | other when is_cpp_scalar other || type_has_meta_key Meta.NotNull p ->
     TCppObject
   | other ->
     other
 
-and cpp_type_of_pointer stack value_type_handler p =
+and cpp_type_of_pointer stack basic value_type_handler p =
   match p with
-  | TAbstract ({ a_path = [], "Null" }, [ t ]) -> cpp_type_of stack value_type_handler t
-  | x -> cpp_type_of stack value_type_handler x
+  | TAbstract ({ a_path = [], "Null" }, [ t ]) -> cpp_type_of stack basic value_type_handler t
+  | x -> cpp_type_of stack basic value_type_handler x
 
 (* Optional types are Dynamic if they norally could not be null *)
-and cpp_fun_arg_type_of tvar opt value_type_handler =
+and cpp_fun_arg_type_of basic tvar opt value_type_handler =
   match opt with
-  | Some _ -> cpp_type_of_null [] value_type_handler tvar.v_type
-  | _ -> cpp_type_of [] value_type_handler tvar.v_type
+  | Some _ -> cpp_type_of_null [] basic value_type_handler tvar.v_type
+  | _ -> cpp_type_of [] basic value_type_handler tvar.v_type
 
-and cpp_tfun_arg_type_of stack opt value_type_handler t =
-  if opt then cpp_type_of_null stack value_type_handler t else cpp_type_of stack value_type_handler t
+and cpp_tfun_arg_type_of stack basic opt value_type_handler t =
+  if opt then cpp_type_of_null stack basic value_type_handler t else cpp_type_of stack basic value_type_handler t
 
-and cpp_function_type_of stack function_type abi value_type_handler =
+and cpp_function_type_of stack basic function_type abi value_type_handler =
   let abi =
     match follow abi with
     | TInst (klass1, _) ->
         get_meta_string klass1.cl_meta Meta.Abi |> Option.default ""
     | _ -> die "" __LOC__
   in
-  cpp_function_type_of_string stack function_type abi value_type_handler
+  cpp_function_type_of_string stack basic function_type abi value_type_handler
 
-and cpp_function_type_of_string stack function_type abi_string value_type_handler =
-  let args, ret = cpp_function_type_of_args_ret stack value_type_handler function_type in
+and cpp_function_type_of_string stack basic function_type abi_string value_type_handler =
+  let args, ret = cpp_function_type_of_args_ret stack basic value_type_handler function_type in
   TCppFunction (args, ret, abi_string)
 
-and cpp_function_type_of_args_ret stack value_type_handler function_type =
+and cpp_function_type_of_args_ret stack basic value_type_handler function_type =
   match follow function_type with
   | TFun (args, ret) ->
       (* Optional types are Dynamic if they norally could not be null *)
       let cpp_arg_type_of (_, optional, haxe_type) =
-        if optional then cpp_type_of_null stack value_type_handler haxe_type
-        else cpp_type_of stack value_type_handler haxe_type
+        if optional then cpp_type_of_null stack basic value_type_handler haxe_type
+        else cpp_type_of stack basic value_type_handler haxe_type
       in
-      (List.map cpp_arg_type_of args, cpp_type_of stack value_type_handler ret)
+      (List.map cpp_arg_type_of args, cpp_type_of stack basic value_type_handler ret)
   | _ ->
       (* ? *)
       ([ TCppVoid ], TCppVoid)
 
-and cpp_instance_type stack klass params value_type_handler =
+and cpp_instance_type stack basic klass params value_type_handler =
   let fallback_handler () =
     if is_objc_class klass then TCppObjC klass
     else if has_class_flag klass CInterface && is_native_gen_class klass then
@@ -273,23 +281,23 @@ and cpp_instance_type stack klass params value_type_handler =
       TCppInterface klass
     else if has_class_flag klass CExtern && not (is_internal_class klass.cl_path) then
       if is_marshalling_native_value_class klass then
-        let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
+        let tcpp_params = List.map (cpp_type_of stack basic with_stack_value_type) params in
         TCppMarshalNativeType (ValueClass (klass, tcpp_params), value_type_handler ())
       else if is_marshalling_native_pointer klass then
-        let tcpp_params = List.map (cpp_type_of stack with_stack_value_type) params in
+        let tcpp_params = List.map (cpp_type_of stack basic with_stack_value_type) params in
         TCppMarshalNativeType (Pointer (klass, tcpp_params), value_type_handler ())
       else if is_marshalling_managed_class klass then
-        let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
+        let tcpp_params = List.map (cpp_type_of stack basic value_type_handler) params in
         TCppMarshalManagedType (klass, tcpp_params)
       else
-        let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
+        let tcpp_params = List.map (cpp_type_of stack basic value_type_handler) params in
         TCppInst (klass, tcpp_params)
     else
-      let tcpp_params = List.map (cpp_type_of stack value_type_handler) params in
+      let tcpp_params = List.map (cpp_type_of stack basic value_type_handler) params in
       TCppInst (klass, tcpp_params)
   in
 
-  cpp_type_from_path stack klass.cl_path params value_type_handler fallback_handler
+  cpp_type_from_path stack basic klass.cl_path params value_type_handler fallback_handler
 
 let cpp_type_of = cpp_type_of []
 let cpp_type_from_path = cpp_type_from_path []
@@ -322,7 +330,7 @@ let sanitise_stack_only_type pos tcpp =
   | _ ->
     tcpp
 
-let retype_tvar tvar =
+let retype_tvar basic tvar =
   let copying_var =
     match tvar.v_kind with
     | VUser (TVOLocalVariable | TVOArgument | TVOForVariable | TVOCatchVariable)
@@ -339,12 +347,12 @@ let retype_tvar tvar =
       
   {
     tcppv_var        = tvar;
-    tcppv_type       = cpp_type_of handler tvar.v_type |> sanitise_stack_only_type tvar.v_pos;
+    tcppv_type       = cpp_type_of basic handler tvar.v_type |> sanitise_stack_only_type tvar.v_pos;
     tcppv_name       = cpp_var_name_of tvar;
     tcppv_debug_name = keyword_remap tvar.v_name
   }
 
-let retype_func_arg tvar expr =
+let retype_func_arg basic tvar expr =
   let handler =
     match tvar.v_kind with
     | VAbstractThis -> with_reference_value_type
@@ -353,16 +361,16 @@ let retype_func_arg tvar expr =
   
   {
     tcppv_var        = tvar;
-    tcppv_type       = cpp_fun_arg_type_of tvar expr handler |> sanitise_stack_only_type tvar.v_pos;
+    tcppv_type       = cpp_fun_arg_type_of basic tvar expr handler |> sanitise_stack_only_type tvar.v_pos;
     tcppv_name       = cpp_var_name_of tvar;
     tcppv_debug_name = keyword_remap tvar.v_name
   }
 
-let retype_arg handler (name, opt, t) =
+let retype_arg basic handler (name, opt, t) =
   {
     tfa_name     = keyword_remap name;
     tfa_optional = opt;
-    tfa_type     = cpp_type_of handler t
+    tfa_type     = cpp_type_of basic handler t
   }
 
 let expression ctx request_type function_args function_type expression_tree forInjection =
@@ -404,6 +412,14 @@ let expression ctx request_type function_args function_type expression_tree forI
 
     new_ctx, resolver
   in
+
+  let cpp_type_of = cpp_type_of ctx.ctx_common.basic in
+  let retype_tvar = retype_tvar ctx.ctx_common.basic in
+  let retype_func_arg = retype_func_arg ctx.ctx_common.basic in
+  let cpp_tfun_arg_type_of = cpp_tfun_arg_type_of ctx.ctx_common.basic in
+  let cpp_function_type_of_args_ret = cpp_function_type_of_args_ret ctx.ctx_common.basic in
+  let cpp_instance_type = cpp_instance_type ctx.ctx_common.basic in
+  let cpp_type_from_path = cpp_type_from_path ctx.ctx_common.basic in
 
   let cpp_return_type ctx haxe_type =
     match follow_with_coro haxe_type with
@@ -1726,6 +1742,8 @@ let native_field_name_remap field =
 
 let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable in
+  let cpp_type_of = cpp_type_of ctx.ctx_common.basic in
+  let retype_func_arg = retype_func_arg ctx.ctx_common.basic in
 
   let create_function field func = {
     tcf_field = field;
@@ -2018,7 +2036,9 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
 
 and tcpp_interface_from_tclass ctx slots class_def =
 
-  let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private in
+  let scriptable  = Gctx.defined ctx.ctx_common Define.Scriptable && not class_def.cl_private in
+  let cpp_type_of = cpp_type_of ctx.ctx_common.basic in
+  let retype_arg  = retype_arg ctx.ctx_common.basic in
 
   let function_filter handler (slots, fields) field =
     match (field.cf_type, field.cf_kind) with
@@ -2080,6 +2100,8 @@ and tcpp_interface_from_tclass ctx slots class_def =
   (slots, iface)
 
 and tcpp_enum_from_tenum ctx ids enum_def =
+  let retype_arg  = retype_arg ctx.ctx_common.basic in
+  
   let sort_constructors f1 f2 =
     f1.ef_index - f2.ef_index in
 

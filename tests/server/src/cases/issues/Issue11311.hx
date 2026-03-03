@@ -23,7 +23,7 @@ class Issue11311 extends TestCase {
 
 		vfs.putContent("Main.hx", getTemplate("issues/Issue11311/Main.hx").replace("// ", ""));
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")}, res -> {});
+		runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Main.hx")});
 
 		runHaxe(args);
 		assertSuccess();

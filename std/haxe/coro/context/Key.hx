@@ -2,7 +2,7 @@ package haxe.coro.context;
 
 class KeyImpl<T> {
 	static var counter = 0;
-	static var counterMutex = new Mutex();
+	static var counterMutex = new sys.thread.Mutex(); // TODO: AtomicInt once it's cross-platform
 
 	public final name:String;
 	public final id:Int;

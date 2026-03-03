@@ -155,6 +155,7 @@ let generate_native_header base_ctx tcpp_class =
   let class_def  = tcpp_class.tcl_class in
   let class_path = class_def.cl_path in
   let scriptable = has_tcpp_class_flag tcpp_class Scriptable in
+  let cpp_instance_type = cpp_instance_type common_ctx.basic in
 
   let h_file = new_header_file common_ctx common_ctx.file class_path in
   let ctx = file_context base_ctx h_file tcpp_class.tcl_debug_level true in
@@ -214,6 +215,7 @@ let generate_managed_header base_ctx tcpp_class =
   let ptr_name = class_pointer class_def in
   let can_quick_alloc = has_tcpp_class_flag tcpp_class QuickAlloc in
   let gcName = gen_gc_name class_def.cl_path in
+  let cpp_instance_type = cpp_instance_type common_ctx.basic in
 
   let constructor_type_args =
     tcpp_class

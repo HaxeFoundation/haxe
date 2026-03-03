@@ -12,6 +12,7 @@ class Display {
 			System.changeDirectory(Config.displayDir);
 			System.haxelibInstallGit("Simn", "haxeserver");
 			System.runCommand("haxe", ["build.hxml", "-D", "display.protocol=xml", "-D", 'display.target=$target']);
+			Sys.sleep(1.0);
 			System.runCommand("haxe", ["build.hxml", "-D", "display.protocol=jsonrpc", "-D", 'display.target=$target']);
 		}
 	}
