@@ -121,6 +121,8 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
+	mutable virt_id : int;
+	mutable enum_uid : int;
 }
 
 let compare_version v1 v2 =
@@ -197,10 +199,13 @@ let tuple_type ctx tl =
 	try
 		PMap.find tl ctx.cached_tuples
 	with Not_found ->
+		let euid = ctx.enum_uid in
+		ctx.enum_uid <- euid + 1;
 		let ct = HEnum {
 			eglobal = None;
 			ename = "";
-			eid = 0;
+			ename_idx = 0;
+			euid;
 			efields = [|"",0,Array.of_list tl|];
 		} in
 		ctx.cached_tuples <- PMap.add tl ct ctx.cached_tuples;
@@ -241,7 +246,7 @@ let method_context id t captured hasthis =
 		mregs = new_lookup();
 		mops = DynArray.create();
 		mvars = Hashtbl.create 0;
-		mallocs = PMap.empty;
+		mallocs = PMap.create ttype_compare;
 		mret = t;
 		mbreaks = [];
 		mdeclared = [];
@@ -422,7 +427,10 @@ let rec to_type ?tref ctx t =
 				maybe add an uid to tanon if too slow ? *)
 			PMap.find a ctx.anons_cache
 		with Not_found ->
+			let vid = ctx.virt_id in
+			ctx.virt_id <- vid + 1;
 			let vp = {
+				vid;
 				vfields = [||];
 				vindex = PMap.empty;
 			} in
@@ -574,7 +582,10 @@ and class_type ?(tref=None) ctx c pl statics =
 	try
 		PMap.find key_path ctx.cached_types
 	with Not_found when (has_class_flag c CInterface) && not statics ->
+		let vid = ctx.virt_id in
+		ctx.virt_id <- vid + 1;
 		let vp = {
+			vid;
 			vfields = [||];
 			vindex = PMap.empty;
 		} in
@@ -608,7 +619,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
 			pnfields = -1;
-			pinterfaces = PMap.empty;
+			pinterfaces = PMap.create ttype_compare;
 			pbindings = [];
 		} in
 		let t = (if Meta.has Meta.Struct c.cl_meta && not statics then HStruct p else HObj p) in
@@ -728,10 +739,13 @@ and enum_type ?(tref=None) ctx e =
 		PMap.find key_path ctx.cached_types
 	with Not_found ->
 		let ename = s_type_path e.e_path in
+		let euid = ctx.enum_uid in
+		ctx.enum_uid <- euid + 1;
 		let et = {
 			eglobal = None;
 			ename = ename;
-			eid = alloc_string ctx ename;
+			ename_idx = alloc_string ctx ename;
+			euid;
 			efields = [||];
 		} in
 		let t = HEnum et in
@@ -768,7 +782,7 @@ and enum_class ctx e =
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
 			pnfields = -1;
-			pinterfaces = PMap.empty;
+			pinterfaces = PMap.create ttype_compare;
 			pbindings = [];
 		} in
 		let t = HObj p in
@@ -4059,7 +4073,7 @@ let write_code ch code debug =
 			write_index i
 		| HEnum e ->
 			byte 18;
-			write_index e.eid;
+			write_index e.ename_idx;
 			(match e.eglobal with
 			| None -> write_index 0
 			| Some g -> write_index (g + 1));
@@ -4154,6 +4168,10 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
+let ttype_pair_compare (a1,a2) (b1,b2) =
+	let c = ttype_compare a1 b1 in
+	if c <> 0 then c else ttype_compare a2 b2
+
 let create_context com =
 	let get_type name =
 		try
@@ -4191,7 +4209,7 @@ let create_context com =
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
 		cached_types = PMap.empty;
-		cached_tuples = PMap.empty;
+		cached_tuples = PMap.create (List.compare ttype_compare);
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
 		tstring = HVoid;
@@ -4228,11 +4246,13 @@ let create_context com =
 		ref_abstract = get_abstract "Ref";
 		anons_cache = PMap.empty;
 		rec_cache = [];
-		method_wrappers = PMap.empty;
+		method_wrappers = PMap.create ttype_pair_compare;
 		cdebug_files = new_lookup();
 		macro_typedefs = Hashtbl.create 0;
 		ct_delayed = [];
 		ct_depth = 0;
+		virt_id = 0;
+		enum_uid = 0;
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");

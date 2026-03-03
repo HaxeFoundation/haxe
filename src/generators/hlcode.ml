@@ -68,7 +68,8 @@ and class_proto = {
 
 and enum_proto = {
 	ename : string;
-	eid : int;
+	ename_idx : int; (* string-table index of ename, 0 = anonymous/tuple enum *)
+	euid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
 }
@@ -81,6 +82,7 @@ and field_proto = {
 }
 
 and virtual_proto = {
+	vid : int;
 	mutable vfields : (string * string index * ttype) array;
 	mutable vindex : (string, int) PMap.t;
 }
@@ -255,6 +257,37 @@ let null_proto =
 		pbindings = [];
 	}
 
+(* assigns a unique integer to each ttype constructor for use as a fallback
+   comparison key when the types have different constructors *)
+let ttype_index = function
+	| HVoid -> 0 | HUI8 -> 1 | HUI16 -> 2 | HI32 -> 3 | HI64 -> 4
+	| HF32 -> 5 | HF64 -> 6 | HBool -> 7 | HBytes -> 8 | HDyn -> 9
+	| HFun _ -> 10 | HObj _ -> 11 | HArray _ -> 12 | HType -> 13
+	| HRef _ -> 14 | HVirtual _ -> 15 | HDynObj -> 16 | HAbstract _ -> 17
+	| HEnum _ -> 18 | HNull _ -> 19 | HMethod _ -> 20 | HStruct _ -> 21
+	| HPacked _ -> 22 | HGUID -> 23
+
+(* a total ordering on ttype values that avoids infinite recursion on recursive
+   types by using the unique identity fields pid/euid/vid for HObj/HStruct/HEnum/HVirtual
+   instead of structurally comparing class_proto/enum_proto/virtual_proto *)
+let rec ttype_compare t1 t2 =
+	if t1 == t2 then 0
+	else match t1, t2 with
+	| HVoid, HVoid | HUI8, HUI8 | HUI16, HUI16 | HI32, HI32 | HI64, HI64
+	| HF32, HF32 | HF64, HF64 | HBool, HBool | HBytes, HBytes | HDyn, HDyn
+	| HType, HType | HDynObj, HDynObj | HGUID, HGUID -> 0
+	| HObj p1, HObj p2 -> Int.compare p1.pid p2.pid
+	| HStruct p1, HStruct p2 -> Int.compare p1.pid p2.pid
+	| HEnum e1, HEnum e2 -> Int.compare e1.euid e2.euid
+	| HVirtual v1, HVirtual v2 -> Int.compare v1.vid v2.vid
+	| HFun (args1, ret1), HFun (args2, ret2) | HMethod (args1, ret1), HMethod (args2, ret2) ->
+		let c = List.compare ttype_compare args1 args2 in
+		if c <> 0 then c else ttype_compare ret1 ret2
+	| HArray t1', HArray t2' | HRef t1', HRef t2' | HNull t1', HNull t2' | HPacked t1', HPacked t2' ->
+		ttype_compare t1' t2'
+	| HAbstract (n1,_), HAbstract (n2,_) -> String.compare n1 n2
+	| _ -> Int.compare (ttype_index t1) (ttype_index t2)
+
 let list_iteri f l =
 	let p = ref (-1) in
 	List.iter (fun v -> incr p; f !p v) l
@@ -335,36 +368,7 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-let tsame t1 t2 =
-	let rec loop stack t1 t2 =
-		if t1 == t2 then true else
-		if List.exists (fun (t1',t2') -> t1 == t1' && t2 == t2') stack then true
-		else begin
-			let stack = (t1,t2) :: stack in
-			let tsame = loop stack in
-			match t1, t2 with
-			| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-			| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-			| HObj p1, HObj p2 -> p1 == p2
-			| HEnum e1, HEnum e2 -> e1 == e2
-			| HStruct p1, HStruct p2 -> p1 == p2
-			| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
-			| HVirtual v1, HVirtual v2 ->
-				if v1 == v2 then true else
-				if Array.length v1.vfields <> Array.length v2.vfields then false else
-				let rec loop i =
-					if i = Array.length v1.vfields then true else
-					let _, i1, t1 = v1.vfields.(i) in
-					let _, i2, t2 = v2.vfields.(i) in
-					if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
-				in
-				loop 0
-			| HNull t1, HNull t2 -> tsame t1 t2
-			| HRef t1, HRef t2 -> tsame t1 t2
-			| _ -> false
-		end
-	in
-	loop [] t1 t2
+let tsame t1 t2 = ttype_compare t1 t2 = 0
 
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
@@ -543,7 +547,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		"dynobj"
 	| HAbstract (s,_) ->
 		"abstract(" ^ s ^ ")"
-	| HEnum e when e.eid = 0 ->
+	| HEnum e when e.ename_idx = 0 ->
 		let _,_,fl = e.efields.(0) in
 		"enum(" ^ String.concat "," (List.map tstr (Array.to_list fl)) ^ ")"
 	| HEnum e ->

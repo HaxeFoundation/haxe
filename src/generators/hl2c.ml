@@ -120,8 +120,8 @@ let s_comp = function
 	| CNeq -> "!="
 
 let core_types =
-	let vp = { vfields = [||]; vindex = PMap.empty } in
-	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
+	let vp = { vid = 0; vfields = [||]; vindex = PMap.empty } in
+	let ep = { ename = ""; ename_idx = 0; euid = 0; eglobal = None; efields = [||] } in
 	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray HDyn;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HMethod ([],HVoid);HStruct null_proto]
 
 let tname str =
@@ -294,7 +294,7 @@ let enum_constr_type gctx ctx e i =
 	if Array.length tl = 0 then
 		"venum"
 	else
-	let name = if e.eid = 0 then
+	let name = if e.ename_idx = 0 then
 		let name = (try PMap.find (HEnum e) gctx.htypes with Not_found -> Globals.die "" __LOC__) in
 		"Enum" ^ name
 	else
@@ -1729,7 +1729,7 @@ let write_c com file (code:code) gnames num_domains =
 				name;
 			end in
 			let efields = [
-				if e.eid = 0 then "NULL" else sprintf "(const uchar*)%s" (string gctx ctx e.eid);
+				if e.ename_idx = 0 then "NULL" else sprintf "(const uchar*)%s" (string gctx ctx e.ename_idx);
 				string_of_int (Array.length e.efields);
 				constr_name
 			] in
