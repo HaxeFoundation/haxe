@@ -39,9 +39,9 @@ private class ThreadCallback<F> implements IThreadCallbackHandle {
 	public var prev:Null<ThreadCallback<F>>;
 	public var isClosed(get, null):Bool;
 
-	final host:ThreadCallbacks<F>;
+	final host:ThreadCallbackStack<F>;
 
-	public function new(host:ThreadCallbacks<F>, callback:F, ?prev:ThreadCallback<F>) {
+	public function new(host:ThreadCallbackStack<F>, callback:F, ?prev:ThreadCallback<F>) {
 		this.host = host;
 		this.callback = callback;
 		this.prev = prev;
@@ -72,7 +72,7 @@ private class ThreadCallback<F> implements IThreadCallbackHandle {
 	}
 }
 
-class ThreadCallbacks<F> {
+class ThreadCallbackStack<F> {
 	var top:Null<ThreadCallback<F>>;
 
 	public function new() {}
@@ -106,8 +106,8 @@ interface IThreadCallbackHandle {
 }
 
 class ThreadInstanceCallbacks {
-	var onJobDoneCallback:Null<ThreadCallbacks<() -> Void>>;
-	var onExitCallback:Null<ThreadCallbacks<() -> Void>>;
+	var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
+	var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
 
 	public function new() {}
 
@@ -128,7 +128,7 @@ class ThreadInstanceCallbacks {
 		successfully. It is not called if the thread has thrown an exception.
 	**/
 	public function onJobDone(f:() -> Void):IThreadCallbackHandle {
-		onJobDoneCallback ??= new ThreadCallbacks();
+		onJobDoneCallback ??= new ThreadCallbackStack();
 		return onJobDoneCallback.add(f);
 	}
 
@@ -143,7 +143,7 @@ class ThreadInstanceCallbacks {
 		normal termination. Any callback assigned to this should not throw an exception.
 	**/
 	public function onExit(f:() -> Void):IThreadCallbackHandle {
-		onExitCallback ??= new ThreadCallbacks();
+		onExitCallback ??= new ThreadCallbackStack();
 		return onExitCallback.add(f);
 	}
 }

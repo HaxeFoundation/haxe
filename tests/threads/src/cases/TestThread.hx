@@ -90,12 +90,14 @@ class TestThread extends utest.Test {
 		return thread;
 	}
 
-	function testOnJobStart() {
+	function testAddCallbacks() {
 		final stack = [];
 
 		// register
-		final handle = Thread.onJobStart(callbacks -> {
-			stack.push(Thread.current());
+		final handle = Thread.addCallbacks({
+			onStart: () -> {
+				stack.push(Thread.current());
+			}
 		});
 
 		// spawn thread to check if we have it
@@ -259,30 +261,28 @@ class TestThread extends utest.Test {
 		Assert.isFalse(jobDoneCalled);
 	}
 
-	function testOnJobDoneHandle() {
-		// onJobDone via ThreadInstanceCallbacks returns a handle that can deregister it
-		final sem = new Semaphore(0);
+	function testAddCallbacksHandle() {
+		// Closing the addCallbacks handle prevents callbacks from applying to future threads
 		var jobDoneCalled = false;
 
-		final jobStartHandle = Thread.onJobStart(callbacks -> {
-			final handle = callbacks.onJobDone(() -> {
+		final handle = Thread.addCallbacks({
+			onJobDone: () -> {
 				jobDoneCalled = true;
-			});
-			handle.close();
+			}
 		});
+		handle.close();
 
 		final thread = executeSync(() -> {});
-		jobStartHandle.close();
 		Assert.isFalse(jobDoneCalled);
 	}
 
-	function testMultipleOnJobStart() {
-		// Multiple onJobStart handlers should all be called
+	function testMultipleAddCallbacks() {
+		// Multiple addCallbacks registrations should all be called
 		final sem = new Semaphore(0);
 		var count = 0;
 
-		final handle1 = Thread.onJobStart(_ -> count++);
-		final handle2 = Thread.onJobStart(_ -> { count++; sem.release(); });
+		final handle1 = Thread.addCallbacks({onStart: () -> count++});
+		final handle2 = Thread.addCallbacks({onStart: () -> { count++; sem.release(); }});
 
 		Thread.create(() -> {}, {onAbort: (_) -> {}});
 		sem.acquire();
@@ -292,25 +292,25 @@ class TestThread extends utest.Test {
 		Assert.equals(2, count);
 	}
 
-	function testOnJobStartWithInstanceCallbacks() {
-		// onJobStart can register per-thread callbacks via ThreadInstanceCallbacks
+	function testAddCallbacksGlobal() {
+		// addCallbacks registers global callbacks applied to each new thread
 		final sem = new Semaphore(0);
 		var jobDoneThread:Null<Thread> = null;
 		var exitThread:Null<Thread> = null;
 
-		final jobStartHandle = Thread.onJobStart(callbacks -> {
-			callbacks.onJobDone(() -> {
+		final handle = Thread.addCallbacks({
+			onJobDone: () -> {
 				jobDoneThread = Thread.current();
-			});
-			callbacks.onExit(() -> {
+			},
+			onExit: () -> {
 				exitThread = Thread.current();
 				sem.release();
-			});
+			}
 		});
 
 		final thread = Thread.create(() -> {}, {onAbort: (_) -> {}});
 		sem.acquire();
-		jobStartHandle.close();
+		handle.close();
 
 		Assert.isTrue(thread == jobDoneThread);
 		Assert.isTrue(thread == exitThread);
