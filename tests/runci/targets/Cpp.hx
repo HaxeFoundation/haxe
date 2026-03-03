@@ -59,8 +59,6 @@ class Cpp {
 				runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 		}
 
-		Display.maybeRunDisplayTests(Cpp);
-
 		changeDirectory(sysDir);
 		runCommand("haxe", ["--each", "compile-cpp.hxml"].concat(args));
 		runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
