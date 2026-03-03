@@ -265,11 +265,20 @@ class Thread {
 	}
 
 	/**
-		Registers `f` to be called when the current thread exits.
-		Returns a handle that can be used to unregister the callback.
+		Registers `callbacks` to be called for the current thread.
+
+		By definition, passing `onJobStart` has no effect because the current thread has already started.
 	**/
-	static public function onCurrentExit(f:() -> Void):IThreadCallbackHandle {
-		return current().callbacks.onExit(f);
+	static public function addCurrentCallbacks(callbacks:ThreadCallbacks):IThreadCallbackHandle {
+		final thread = Thread.current();
+		final handles = installCallbacks(thread.callbacks, callbacks);
+		if (callbacks.onAbort != null) {
+			thread.onAbort = callbacks.onAbort;
+		}
+		if (handles.length == 1) {
+			return handles[0];
+		}
+		return new MultiHandle(handles);
 	}
 
 	/**

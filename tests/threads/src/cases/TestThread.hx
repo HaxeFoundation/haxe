@@ -114,9 +114,13 @@ class TestThread extends utest.Test {
 	function testOnCurrentExit() {
 		var threadVars = [];
 
+		function onCurrentExit(f:() -> Void) {
+			return Thread.addCurrentCallbacks({onExit: f});
+		}
+
 		// 1 active onExit
 		final thread = executeSync(() -> {
-			Thread.onCurrentExit(() -> {
+			onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
 		});
@@ -124,7 +128,7 @@ class TestThread extends utest.Test {
 
 		// 1 onExit that gets closed
 		final thread = executeSync(() -> {
-			final handle = Thread.onCurrentExit(() -> {
+			final handle = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
 			handle.close();
@@ -133,10 +137,10 @@ class TestThread extends utest.Test {
 
 		// 2 onExit, first closed
 		final thread = executeSync(() -> {
-			final handle1 = Thread.onCurrentExit(() -> {
+			final handle1 = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
-			final handle2 = Thread.onCurrentExit(() -> {
+			final handle2 = onCurrentExit(() -> {
 				threadVars[1] = Thread.current();
 			});
 			handle1.close();
@@ -146,10 +150,10 @@ class TestThread extends utest.Test {
 
 		// 2 onExit, second closed
 		final thread = executeSync(() -> {
-			final handle1 = Thread.onCurrentExit(() -> {
+			final handle1 = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
-			final handle2 = Thread.onCurrentExit(() -> {
+			final handle2 = onCurrentExit(() -> {
 				threadVars[1] = Thread.current();
 			});
 			handle2.close();
@@ -159,13 +163,13 @@ class TestThread extends utest.Test {
 
 		// 3 onExit, second closed
 		final thread = executeSync(() -> {
-			final handle1 = Thread.onCurrentExit(() -> {
+			final handle1 = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
-			final handle2 = Thread.onCurrentExit(() -> {
+			final handle2 = onCurrentExit(() -> {
 				threadVars[1] = Thread.current();
 			});
-			final handle3 = Thread.onCurrentExit(() -> {
+			final handle3 = onCurrentExit(() -> {
 				threadVars[2] = Thread.current();
 			});
 			handle2.close();
