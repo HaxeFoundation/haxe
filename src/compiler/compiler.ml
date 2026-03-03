@@ -6,7 +6,6 @@ let handle_diagnostics ctx msg p kind =
 	ctx.has_error <- true;
 	add_diagnostics_message ctx.com msg p kind Error;
 	match ctx.com.report_mode with
-	| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
 	| _ -> die "" __LOC__
 
@@ -21,7 +20,6 @@ let run_or_diagnose ctx f =
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
 			(match com.report_mode with
-			| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->

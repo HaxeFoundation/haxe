@@ -88,8 +88,6 @@ let flush_context sctx ctx =
 		match ctx.com.report_mode with
 			| RMDiagnostics _ ->
 				add_diagnostics_messages ()
-			| RMLegacyDiagnostics _ ->
-				add_diagnostics_messages ();
 			| _ ->
 				display_messages ctx (fun _ output ->
 					write (output ^ "\n");
