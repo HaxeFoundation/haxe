@@ -90,12 +90,14 @@ class TestThread extends utest.Test {
 		return thread;
 	}
 
-	function testOnJobStart() {
+	function testAddCallbacks() {
 		final stack = [];
 
 		// register
-		final handle = Thread.onJobStart(callbacks -> {
-			stack.push(Thread.current());
+		final handle = Thread.addCallbacks({
+			onStart: () -> {
+				stack.push(Thread.current());
+			}
 		});
 
 		// spawn thread to check if we have it
@@ -112,9 +114,13 @@ class TestThread extends utest.Test {
 	function testOnCurrentExit() {
 		var threadVars = [];
 
+		function onCurrentExit(f:() -> Void) {
+			return Thread.addCurrentCallbacks({onExit: f});
+		}
+
 		// 1 active onExit
 		final thread = executeSync(() -> {
-			Thread.onCurrentExit(() -> {
+			onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
 		});
@@ -122,7 +128,7 @@ class TestThread extends utest.Test {
 
 		// 1 onExit that gets closed
 		final thread = executeSync(() -> {
-			final handle = Thread.onCurrentExit(() -> {
+			final handle = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
 			handle.close();
@@ -131,10 +137,10 @@ class TestThread extends utest.Test {
 
 		// 2 onExit, first closed
 		final thread = executeSync(() -> {
-			final handle1 = Thread.onCurrentExit(() -> {
+			final handle1 = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
-			final handle2 = Thread.onCurrentExit(() -> {
+			final handle2 = onCurrentExit(() -> {
 				threadVars[1] = Thread.current();
 			});
 			handle1.close();
@@ -144,10 +150,10 @@ class TestThread extends utest.Test {
 
 		// 2 onExit, second closed
 		final thread = executeSync(() -> {
-			final handle1 = Thread.onCurrentExit(() -> {
+			final handle1 = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
-			final handle2 = Thread.onCurrentExit(() -> {
+			final handle2 = onCurrentExit(() -> {
 				threadVars[1] = Thread.current();
 			});
 			handle2.close();
@@ -157,13 +163,13 @@ class TestThread extends utest.Test {
 
 		// 3 onExit, second closed
 		final thread = executeSync(() -> {
-			final handle1 = Thread.onCurrentExit(() -> {
+			final handle1 = onCurrentExit(() -> {
 				threadVars[0] = Thread.current();
 			});
-			final handle2 = Thread.onCurrentExit(() -> {
+			final handle2 = onCurrentExit(() -> {
 				threadVars[1] = Thread.current();
 			});
-			final handle3 = Thread.onCurrentExit(() -> {
+			final handle3 = onCurrentExit(() -> {
 				threadVars[2] = Thread.current();
 			});
 			handle2.close();
@@ -259,30 +265,40 @@ class TestThread extends utest.Test {
 		Assert.isFalse(jobDoneCalled);
 	}
 
-	function testOnJobDoneHandle() {
-		// onJobDone via ThreadInstanceCallbacks returns a handle that can deregister it
-		final sem = new Semaphore(0);
-		var jobDoneCalled = false;
+	function testAddCallbacksHandle() {
+		// Closing the addCallbacks handle prevents callbacks even for already-running threads
+		var onExitCalled = false;
+		final sem1 = new Semaphore(0);
+		final sem2 = new Semaphore(0);
+		final sem3 = new Semaphore(0);
 
-		final jobStartHandle = Thread.onJobStart(callbacks -> {
-			final handle = callbacks.onJobDone(() -> {
-				jobDoneCalled = true;
-			});
-			handle.close();
+		final handle = Thread.addCallbacks({
+			onExit: () -> {
+				onExitCalled = true;
+			}
 		});
 
-		final thread = executeSync(() -> {});
-		jobStartHandle.close();
-		Assert.isFalse(jobDoneCalled);
+		// Create a thread that signals when running then waits before exiting
+		Thread.create(() -> {
+			sem1.release(); // thread is running
+			sem2.acquire(); // wait for permission to exit
+		}, {onExit: () -> sem3.release()});
+
+		sem1.acquire(); // thread is now running
+		handle.close(); // close handle while the thread is still alive
+		sem2.release(); // let the thread exit
+		sem3.acquire(); // wait for thread to fully exit
+
+		Assert.isFalse(onExitCalled);
 	}
 
-	function testMultipleOnJobStart() {
-		// Multiple onJobStart handlers should all be called
+	function testMultipleAddCallbacks() {
+		// Multiple addCallbacks registrations should all be called
 		final sem = new Semaphore(0);
 		var count = 0;
 
-		final handle1 = Thread.onJobStart(_ -> count++);
-		final handle2 = Thread.onJobStart(_ -> { count++; sem.release(); });
+		final handle1 = Thread.addCallbacks({onStart: () -> count++});
+		final handle2 = Thread.addCallbacks({onStart: () -> { count++; sem.release(); }});
 
 		Thread.create(() -> {}, {onAbort: (_) -> {}});
 		sem.acquire();
@@ -292,25 +308,25 @@ class TestThread extends utest.Test {
 		Assert.equals(2, count);
 	}
 
-	function testOnJobStartWithInstanceCallbacks() {
-		// onJobStart can register per-thread callbacks via ThreadInstanceCallbacks
+	function testAddCallbacksGlobal() {
+		// addCallbacks registers global callbacks applied to each new thread
 		final sem = new Semaphore(0);
 		var jobDoneThread:Null<Thread> = null;
 		var exitThread:Null<Thread> = null;
 
-		final jobStartHandle = Thread.onJobStart(callbacks -> {
-			callbacks.onJobDone(() -> {
+		final handle = Thread.addCallbacks({
+			onJobDone: () -> {
 				jobDoneThread = Thread.current();
-			});
-			callbacks.onExit(() -> {
+			},
+			onExit: () -> {
 				exitThread = Thread.current();
 				sem.release();
-			});
+			}
 		});
 
 		final thread = Thread.create(() -> {}, {onAbort: (_) -> {}});
 		sem.acquire();
-		jobStartHandle.close();
+		handle.close();
 
 		Assert.isTrue(thread == jobDoneThread);
 		Assert.isTrue(thread == exitThread);

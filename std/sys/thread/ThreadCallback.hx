@@ -39,9 +39,9 @@ private class ThreadCallback<F> implements IThreadCallbackHandle {
 	public var prev:Null<ThreadCallback<F>>;
 	public var isClosed(get, null):Bool;
 
-	final host:ThreadCallbacks<F>;
+	final host:ThreadCallbackStack<F>;
 
-	public function new(host:ThreadCallbacks<F>, callback:F, ?prev:ThreadCallback<F>) {
+	public function new(host:ThreadCallbackStack<F>, callback:F, ?prev:ThreadCallback<F>) {
 		this.host = host;
 		this.callback = callback;
 		this.prev = prev;
@@ -72,7 +72,7 @@ private class ThreadCallback<F> implements IThreadCallbackHandle {
 	}
 }
 
-class ThreadCallbacks<F> {
+class ThreadCallbackStack<F> {
 	var top:Null<ThreadCallback<F>>;
 
 	public function new() {}
@@ -86,8 +86,11 @@ class ThreadCallbacks<F> {
 	public function foreach(f:F->Void) {
 		var current = top;
 		while (current != null) {
-			f(current.callback);
-			current = current.prev;
+			// Save prev before calling f, in case f or a concurrent close modifies the list.
+			// Skip closed entries so that closing a handle stops future invocations.
+			final prev = current.prev;
+			if (!current.isClosed) f(current.callback);
+			current = prev;
 		};
 	}
 
@@ -105,45 +108,68 @@ interface IThreadCallbackHandle {
 	function close():Void;
 }
 
-class ThreadInstanceCallbacks {
-	var onJobDoneCallback:Null<ThreadCallbacks<() -> Void>>;
-	var onExitCallback:Null<ThreadCallbacks<() -> Void>>;
+class ThreadCallbackManager {
+	var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
+	var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
+	var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
+	var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
 
 	public function new() {}
 
-	function callOnJobDone() {
-		if (onJobDoneCallback != null) {
-			onJobDoneCallback.foreach(f -> f());
-		}
+	public function callOnStart() {
+		onStartCallback?.foreach(f -> f());
 	}
 
-	function callOnExit() {
-		if (onExitCallback != null) {
-			onExitCallback.foreach(f -> f());
-		}
+	public function callOnJobDone() {
+		onJobDoneCallback?.foreach(f -> f());
 	}
 
-	/**
-		Registers `f` to be called once the thread has completed executing its job
-		successfully. It is not called if the thread has thrown an exception.
-	**/
+	public function callOnExit() {
+		onExitCallback?.foreach(f -> f());
+	}
+
+	public function callOnAbort(e:haxe.Exception) {
+		onAbortCallback?.foreach(f -> f(e));
+	}
+
+	public function onStart(f:() -> Void):IThreadCallbackHandle {
+		onStartCallback ??= new ThreadCallbackStack();
+		return onStartCallback.add(f);
+	}
+
 	public function onJobDone(f:() -> Void):IThreadCallbackHandle {
-		onJobDoneCallback ??= new ThreadCallbacks();
+		onJobDoneCallback ??= new ThreadCallbackStack();
 		return onJobDoneCallback.add(f);
 	}
 
-	/**
-		Registers `f` to be called when the thread is exiting. In the case of an exception,
-		it is called after `onAbort`.
-
-		Exceptions raised during the callback are caught and passed to the default onAbort handler,
-		ignoring any assigned onAbort callback.
-
-		It is not guaranteed to be called if the thread is killed in a way that does not lead to
-		normal termination. Any callback assigned to this should not throw an exception.
-	**/
 	public function onExit(f:() -> Void):IThreadCallbackHandle {
-		onExitCallback ??= new ThreadCallbacks();
+		onExitCallback ??= new ThreadCallbackStack();
 		return onExitCallback.add(f);
+	}
+
+	public function onAbort(f:haxe.Exception -> Void):IThreadCallbackHandle {
+		onAbortCallback ??= new ThreadCallbackStack();
+		return onAbortCallback.add(f);
+	}
+}
+
+class MultiHandle implements IThreadCallbackHandle {
+	final handles:Array<IThreadCallbackHandle>;
+
+	public function new(handles:Array<IThreadCallbackHandle>) {
+		this.handles = handles;
+	}
+
+	public var isClosed(get, never):Bool;
+
+	function get_isClosed() {
+		for (h in handles)
+			if (!h.isClosed) return false;
+		return true;
+	}
+
+	public function close() {
+		for (h in handles)
+			h.close();
 	}
 }
