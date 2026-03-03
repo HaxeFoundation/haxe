@@ -52,6 +52,7 @@ module AnonIdMode = struct
 		equality_kind = EqStricter;
 		equality_underlying = false;
 		strict_field_kind = true;
+		opaque_field_params = false;
 		type_param_mode = TpDefault;
 		unify_stack = new_rec_stack();
 		eq_stack = new_rec_stack();
@@ -93,6 +94,10 @@ object(self)
 					(cf,cf') :: acc
 				) pfm.pfm_fields []
 			in
+			let get_field_type cf =
+				if uctx.opaque_field_params then cf.cf_type
+				else monomorphs cf.cf_params cf.cf_type
+			in
 			let monos = match follow tc with
 				| TInst(c,tl) ->
 					let pairs = pair_up c.cl_fields in
@@ -100,7 +105,7 @@ object(self)
 					let map = apply_params pfm.pfm_params monos in
 					List.iter (fun (cf,cf') ->
 						if not (unify_kind ~strict:uctx.strict_field_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
-						Type.unify (apply_params c.cl_params tl (monomorphs cf'.cf_params cf'.cf_type)) (map (monomorphs cf.cf_params cf.cf_type))
+						Type.unify (apply_params c.cl_params tl (get_field_type cf')) (map (get_field_type cf))
 					) pairs;
 					monos
 				| TAnon an1 ->
@@ -112,7 +117,7 @@ object(self)
 						if not uctx.allow_optional_mismatch && (Meta.has Meta.Optional cf.cf_meta) != (Meta.has Meta.Optional cf'.cf_meta) then raise (Unify_error [Unify_custom "optional mismatch"]);
 						if not (unify_kind ~strict:uctx.strict_field_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						fields := PMap.remove cf.cf_name !fields;
-						type_eq_custom uctx cf'.cf_type (map (monomorphs cf.cf_params cf.cf_type))
+						type_eq_custom uctx (get_field_type cf') (map (get_field_type cf))
 					) pairs;
 					if not (PMap.is_empty !fields) then raise (Unify_error [Unify_custom "not enough fields"]);
 					monos
