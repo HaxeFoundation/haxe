@@ -153,6 +153,8 @@ let emit_diagnostics com =
 	api.send_result_raise diagnostics
 
 let emit_statistics tctx =
+	let api = Option.get tctx.Common.json_out in
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
-	let s = Statistics.Printer.print_statistics stats in
-	raise (Completion s)
+	let json = Statistics.Printer.json_of_statistics stats in
+	DisplayPosition.display_position#reset;
+	api.send_result_raise json

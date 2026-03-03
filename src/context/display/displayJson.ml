@@ -250,6 +250,13 @@ let handler =
 			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
 			NoResponse
 		);
+		"display/statistics", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display ~skip_define:true DMNone;
+			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
+			hctx.com.report_mode <- RMStatistics;
+			NoResponse
+		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);

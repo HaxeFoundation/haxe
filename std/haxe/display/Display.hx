@@ -104,6 +104,11 @@ class DisplayMethods {
 	**/
 	static inline var WorkspaceSymbols = new HaxeRequestMethod<WorkspaceSymbolsParams, WorkspaceSymbolsResult>("display/workspaceSymbols");
 
+	/**
+		The statistics request is sent from the client to Haxe to get symbol statistics (references, overrides, etc.) for a given file.
+	**/
+	static inline var Statistics = new HaxeRequestMethod<FileParams, StatisticsResult>("display/statistics");
+
 	/*
 		TODO:
 
@@ -636,6 +641,29 @@ typedef WorkspaceSymbolsParams = {
 
 typedef DocumentSymbolsResult = Response<Array<ModuleSymbolsEntry>>;
 typedef WorkspaceSymbolsResult = Response<Array<ModuleSymbolsEntry>>;
+
+/** Statistics **/
+
+typedef StatisticsEntry = {
+	var range:Range;
+	var ?kind:String;
+	var ?references:Array<StatisticsRelation>;
+	var ?implementers:Array<StatisticsRelation>;
+	var ?subclasses:Array<StatisticsRelation>;
+	var ?overrides:Array<StatisticsRelation>;
+}
+
+typedef StatisticsRelation = {
+	var range:Range;
+	var file:String;
+}
+
+typedef StatisticsFileResult = {
+	var file:String;
+	var statistics:Array<StatisticsEntry>;
+}
+
+typedef StatisticsResult = Response<Array<StatisticsFileResult>>;
 
 /** General types **/
 typedef PositionParams = FileParams & {
