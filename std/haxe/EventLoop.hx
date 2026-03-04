@@ -433,7 +433,7 @@ class EventLoop {
 		Tells if we currently have blocking unfinished threads.
 	**/
 	public static function hasRunningThreads() {
-		return main.numPendingThreadTasks.load() > 0;
+		return main.hasRunningThreadTasks();
 	}
 
 	function hasRunningThreadTasks() {
