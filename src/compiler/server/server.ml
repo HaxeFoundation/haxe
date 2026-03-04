@@ -331,12 +331,12 @@ module WorkerDomain = struct
 					conn.close();
 					sctx.current_stdin <- None;
 					ServerCompilationContext.cleanup();
-					(* Run any pending server tasks. For blocking connections, execute all tasks
-					   immediately; otherwise queue a background exploration if it was a compilation. *)
-					if not conn.support_nonblock then
-						while cs#has_task do cs#get_task#run done
-					else if sctx.was_compilation then
+					(* Add exploration task for full compilations, then run ALL pending tasks
+					   before picking up the next request. This ensures tasks never run
+					   concurrently with a compilation in another domain (OCaml 5 data race). *)
+					if sctx.was_compilation then
 						cs#add_task (new Tasks.server_exploration_task cs);
+					while cs#has_task do cs#get_task#run done;
 					loop()
 			in
 			loop ()
@@ -356,7 +356,6 @@ let wait_loop entry verbose accept =
 	(try Sys.set_signal 13 Sys.Signal_ignore with _ -> ());
 	(* Create server context and set up hooks for parsing and typing *)
 	let sctx = ServerCompilationContext.create verbose in
-	let cs = sctx.cs in
 	ServerCache.enable_cache_mode sctx;
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
@@ -380,14 +379,8 @@ let wait_loop entry verbose accept =
 					let data = Helper.parse_hxml_data hxml in
 					RequestQueue.add rq data stdin stdin_pipe conn;
 				| None ->
-					if not cs#has_task then
-						(* If there is no pending task, turn into blocking mode. *)
-						loop true
-					else begin
-						(* Otherwise run the task and loop to check if there are more or if there's a request now. *)
-						cs#get_task#run;
-						loop false
-					end;
+					(* Tasks are now run by the worker domain between requests, so just block. *)
+					loop true
 			in
 			loop (not conn.support_nonblock)
 		with Unix.Unix_error _ ->
