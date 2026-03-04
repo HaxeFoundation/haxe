@@ -59,11 +59,11 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 		flush stdout;
 		IO.write_i32 chout (Buffer.length bout);
 		IO.nwrite_string chout (Buffer.contents bout);
-		IO.flush chout
+		IO.flush chout;
+		Buffer.clear bout
 	in
 
 	fun () ->
-		Buffer.clear bout;
 		{ support_nonblock = allow_nonblock; read; write; close; get_stdin = (fun () -> None) }
 
 let ssend sock str =
@@ -269,6 +269,7 @@ module RequestQueue = struct
 	type request = {
 		args : string list;
 		stdin : string option;
+		stdin_pipe : in_channel option;
 		conn : server_connection;
 	}
 
@@ -285,17 +286,12 @@ module RequestQueue = struct
 			requests = []
 		}
 
-	let add rq args stdin conn =
+	let add rq args stdin stdin_pipe conn =
 		Mutex.lock rq.mutex;
-		rq.requests <- { args; stdin; conn } :: rq.requests;
+		rq.requests <- { args; stdin; stdin_pipe; conn } :: rq.requests;
 		Mutex.unlock rq.mutex;
 		Semaphore.Counting.release rq.semaphore
-
-	let is_empty rq =
-		rq.requests = []
 end
-
-let todo_semaphore = Semaphore.Binary.make false
 
 module WorkerDomain = struct
 	open RequestQueue
@@ -307,6 +303,7 @@ module WorkerDomain = struct
 
 	let create sctx entry rq =
 		let domain = Domain.spawn (fun () ->
+			let cs = sctx.cs in
 			let rec loop () =
 				Semaphore.Counting.acquire rq.semaphore;
 				Mutex.lock rq.mutex;
@@ -315,12 +312,12 @@ module WorkerDomain = struct
 					Mutex.unlock rq.mutex;
 					(* Done *)
 					()
-				|  {conn; stdin; args} :: l ->
+				| {conn; stdin; stdin_pipe; args} :: l ->
 					rq.requests <- l;
 					Mutex.unlock rq.mutex;
 					sctx.current_stdin <- stdin;
 					begin try
-						process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) args;
+						process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
 					with e ->
 						let estr = Printexc.to_string e in
 						ServerMessage.uncaught_error estr;
@@ -331,7 +328,15 @@ module WorkerDomain = struct
 							exit (-1);
 						end;
 					end;
-					Semaphore.Binary.release todo_semaphore;
+					conn.close();
+					sctx.current_stdin <- None;
+					ServerCompilationContext.cleanup();
+					(* Run any pending server tasks. For blocking connections, execute all tasks
+					   immediately; otherwise queue a background exploration if it was a compilation. *)
+					if not conn.support_nonblock then
+						while cs#has_task do cs#get_task#run done
+					else if sctx.was_compilation then
+						cs#add_task (new Tasks.server_exploration_task cs);
 					loop()
 			in
 			loop ()
@@ -355,7 +360,7 @@ let wait_loop entry verbose accept =
 	ServerCache.enable_cache_mode sctx;
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
-	(* Main loop: accept connections and process arguments *)
+	(* Main loop: accept connections and enqueue requests for the worker *)
 	while true do
 		let conn = accept() in
 		begin try
@@ -371,13 +376,9 @@ let wait_loop entry verbose accept =
 						with Not_found ->
 							None,s
 					in
-					sctx.current_stdin_pipe <- conn.get_stdin ();
+					let stdin_pipe = conn.get_stdin () in
 					let data = Helper.parse_hxml_data hxml in
-					RequestQueue.add rq data stdin conn;
-					Semaphore.Binary.acquire todo_semaphore;
-				| None when not (RequestQueue.is_empty rq) ->
-					(* TODO: busy loop is bad *)
-					()
+					RequestQueue.add rq data stdin stdin_pipe conn;
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)
@@ -390,18 +391,9 @@ let wait_loop entry verbose accept =
 			in
 			loop (not conn.support_nonblock)
 		with Unix.Unix_error _ ->
-			ServerMessage.socket_message "Connection Aborted"
+			ServerMessage.socket_message "Connection Aborted";
+			conn.close()
 		end;
-		(* Close connection and perform some cleanup *)
-		conn.close();
-		sctx.current_stdin <- None;
-		sctx.current_stdin_pipe <- None;
-		ServerCompilationContext.cleanup();
-		(* If our connection always blocks, we have to execute all pending tasks now. *)
-		if not conn.support_nonblock then
-			while cs#has_task do cs#get_task#run done
-		else if sctx.was_compilation then
-			cs#add_task (new Tasks.server_exploration_task cs)
 	done;
 	Domain.join worker.domain;
 	0
