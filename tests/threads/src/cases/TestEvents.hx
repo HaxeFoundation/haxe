@@ -90,4 +90,17 @@ class TestEvents extends utest.Test {
 
 		Assert.equals("ok", threadValue);
 	}
+
+	function testBlockingInstance() {
+		var threadValue = null;
+		final loop = new EventLoop();
+		loop.addThreadTask(() -> {
+			Sys.sleep(0.1);
+			threadValue = "ok";
+		});
+
+		loop.loop();
+
+		Assert.equals("ok", threadValue);
+	}
 }

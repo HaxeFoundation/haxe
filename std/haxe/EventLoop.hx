@@ -135,7 +135,7 @@ class EventLoop {
 	**/
 	public function loop() {
 		checkThread();
-		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
+		while( hasEvents(true) || promiseCount > 0 || hasRunningThreadTasks() ) {
 			var time = getNextTick();
 			// disable wait if we have our native loop alive
 			if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
@@ -433,10 +433,14 @@ class EventLoop {
 		Tells if we currently have blocking unfinished threads.
 	**/
 	public static function hasRunningThreads() {
+		return main.numPendingThreadTasks.load() > 0;
+	}
+
+	function hasRunningThreadTasks() {
 		#if !target.threaded
 		return false;
 		#else
-		return main.numPendingThreadTasks.load() > 0;
+		return numPendingThreadTasks.load() > 0;
 		#end
 	}
 
@@ -477,7 +481,10 @@ class EventLoop {
 		#if target.threaded
 		if (blocking) {
 			numPendingThreadTasks.add(1);
-			sys.thread.Thread.create(f, { onExit: () -> numPendingThreadTasks.sub(1) });
+			sys.thread.Thread.create(f, { onExit: () -> {
+				numPendingThreadTasks.sub(1);
+				wakeup();
+		 	}});
 		} else {
 			sys.thread.Thread.create(f);
 		}
