@@ -1,5 +1,6 @@
 package cases;
 
+import sys.thread.Semaphore;
 import utest.Assert;
 import sys.thread.Condition;
 
@@ -11,13 +12,13 @@ class TestThread extends utest.Test {
 		cond.acquire();
 		final thread = Thread.create(() -> {
 			throw "error";
-		}, function(error) {
+		}, { onAbort: function(error) {
 			exc = error;
 			failingThread = Thread.current();
 			cond.acquire();
 			cond.signal();
 			cond.release();
-		});
+		}});
 		cond.wait();
 		cond.release();
 
@@ -31,12 +32,12 @@ class TestThread extends utest.Test {
 		cond.acquire();
 		final thread = Thread.create(() -> {
 			throw "error";
-		}, function() {
+		}, { onExit: function() {
 			exitingThread = Thread.current();
 			cond.acquire();
 			cond.signal();
 			cond.release();
-		});
+		}});
 		cond.wait();
 		cond.release();
 
@@ -52,17 +53,17 @@ class TestThread extends utest.Test {
 		cond.acquire();
 		final thread = Thread.create(() -> {
 			throw "error";
-		}, function() {
+		}, { onExit: function() {
 			acc.push("onExit");
 			exitingThread = Thread.current();
 			cond.acquire();
 			cond.signal();
 			cond.release();
-		}, function(error) {
+		}, onAbort: function(error) {
 			acc.push("onError");
 			exc = error;
 			failingThread = Thread.current();
-		});
+		}});
 		cond.wait();
 		cond.release();
 
@@ -70,5 +71,264 @@ class TestThread extends utest.Test {
 		Assert.isTrue(thread == exitingThread);
 		Assert.equals("error", exc.message);
 		Assert.same(["onError", "onExit"], acc);
+	}
+
+	function executeSync(f:() -> Void) {
+		final sem = new Semaphore(0);
+		final cond = new Condition();
+		cond.acquire();
+		final thread = Thread.create(() -> {
+			cond.acquire();
+			f();
+			cond.release();
+		}, {onExit :() -> {
+			sem.release();
+		}});
+		cond.signal();
+		cond.release();
+		sem.acquire();
+		return thread;
+	}
+
+	function testAddCallbacks() {
+		final stack = [];
+
+		// register
+		final handle = Thread.addCallbacks({
+			onStart: () -> {
+				stack.push(Thread.current());
+			}
+		});
+
+		// spawn thread to check if we have it
+		final thread = executeSync(() -> {});
+		Assert.isTrue(thread == stack.pop());
+
+		// close handle and try again
+		handle.close();
+
+		final thread = executeSync(() -> {});
+		Assert.equals(0, stack.length);
+	}
+
+	function testOnCurrentExit() {
+		var threadVars = [];
+
+		function onCurrentExit(f:() -> Void) {
+			return Thread.addCurrentCallbacks({onExit: f});
+		}
+
+		// 1 active onExit
+		final thread = executeSync(() -> {
+			onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+		});
+		Assert.isTrue(thread == threadVars[0]);
+
+		// 1 onExit that gets closed
+		final thread = executeSync(() -> {
+			final handle = onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			handle.close();
+		});
+		Assert.isFalse(thread == threadVars[0]);
+
+		// 2 onExit, first closed
+		final thread = executeSync(() -> {
+			final handle1 = onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			final handle2 = onCurrentExit(() -> {
+				threadVars[1] = Thread.current();
+			});
+			handle1.close();
+		});
+		Assert.isFalse(thread == threadVars[0]);
+		Assert.isTrue(thread == threadVars[1]);
+
+		// 2 onExit, second closed
+		final thread = executeSync(() -> {
+			final handle1 = onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			final handle2 = onCurrentExit(() -> {
+				threadVars[1] = Thread.current();
+			});
+			handle2.close();
+		});
+		Assert.isTrue(thread == threadVars[0]);
+		Assert.isFalse(thread == threadVars[1]);
+
+		// 3 onExit, second closed
+		final thread = executeSync(() -> {
+			final handle1 = onCurrentExit(() -> {
+				threadVars[0] = Thread.current();
+			});
+			final handle2 = onCurrentExit(() -> {
+				threadVars[1] = Thread.current();
+			});
+			final handle3 = onCurrentExit(() -> {
+				threadVars[2] = Thread.current();
+			});
+			handle2.close();
+		});
+		Assert.isTrue(thread == threadVars[0]);
+		Assert.isFalse(thread == threadVars[1]);
+		Assert.isTrue(thread == threadVars[2]);
+	}
+
+	function testOnJobDone() {
+		// onJobDone should be called after a successful job
+		final sem = new Semaphore(0);
+		var jobDoneThread:Null<Thread> = null;
+
+		final thread = Thread.create(() -> {}, {
+			onJobDone: () -> {
+				jobDoneThread = Thread.current();
+			},
+			onExit: () -> {
+				sem.release();
+			}
+		});
+		sem.acquire();
+		Assert.isTrue(thread == jobDoneThread);
+	}
+
+	function testOnAbortExceptionStillCallsOnExit() {
+		// If onAbort throws, onExit should still be called
+		final sem = new Semaphore(0);
+		var onExitCalled = false;
+
+		Thread.create(() -> {
+			throw "job error";
+		}, {
+			onAbort: (_) -> {
+				throw "onAbort error";
+			},
+			onExit: () -> {
+				onExitCalled = true;
+				sem.release();
+			}
+		});
+
+		sem.acquire();
+		Assert.isTrue(onExitCalled);
+	}
+
+	function testOnExitExceptionDoesNotCallOnAbort() {
+		// If onExit throws, the custom onAbort callback should NOT be called again
+		final sem = new Semaphore(0);
+		var onAbortCalledCount = 0;
+
+		Thread.create(() -> {
+			throw "job error";
+		}, {
+			onAbort: (_) -> {
+				onAbortCalledCount++;
+			},
+			onExit: () -> {
+				try {
+					throw "onExit error";
+				} catch (e:Dynamic) {
+					// Release the semaphore even when throwing so we can synchronize
+					sem.release();
+					throw e;
+				}
+			}
+		});
+
+		sem.acquire();
+		// onAbort should have been called exactly once (for the job exception),
+		// not again for the onExit exception (which goes to the default handler)
+		Assert.equals(1, onAbortCalledCount);
+	}
+
+	function testOnJobDoneNotCalledOnException() {
+		// onJobDone should NOT be called when the thread throws
+		final sem = new Semaphore(0);
+		var jobDoneCalled = false;
+
+		Thread.create(() -> {
+			throw "error";
+		}, {
+			onJobDone: () -> {
+				jobDoneCalled = true;
+			},
+			onAbort: (_) -> {},
+			onExit: () -> {
+				sem.release();
+			}
+		});
+		sem.acquire();
+		Assert.isFalse(jobDoneCalled);
+	}
+
+	function testAddCallbacksHandle() {
+		// Closing the addCallbacks handle prevents callbacks even for already-running threads
+		var onExitCalled = false;
+		final sem1 = new Semaphore(0);
+		final sem2 = new Semaphore(0);
+		final sem3 = new Semaphore(0);
+
+		final handle = Thread.addCallbacks({
+			onExit: () -> {
+				onExitCalled = true;
+			}
+		});
+
+		// Create a thread that signals when running then waits before exiting
+		Thread.create(() -> {
+			sem1.release(); // thread is running
+			sem2.acquire(); // wait for permission to exit
+		}, {onExit: () -> sem3.release()});
+
+		sem1.acquire(); // thread is now running
+		handle.close(); // close handle while the thread is still alive
+		sem2.release(); // let the thread exit
+		sem3.acquire(); // wait for thread to fully exit
+
+		Assert.isFalse(onExitCalled);
+	}
+
+	function testMultipleAddCallbacks() {
+		// Multiple addCallbacks registrations should all be called
+		final sem = new Semaphore(0);
+		var count = 0;
+
+		final handle1 = Thread.addCallbacks({onStart: () -> count++});
+		final handle2 = Thread.addCallbacks({onStart: () -> { count++; sem.release(); }});
+
+		Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+
+		handle1.close();
+		handle2.close();
+		Assert.equals(2, count);
+	}
+
+	function testAddCallbacksGlobal() {
+		// addCallbacks registers global callbacks applied to each new thread
+		final sem = new Semaphore(0);
+		var jobDoneThread:Null<Thread> = null;
+		var exitThread:Null<Thread> = null;
+
+		final handle = Thread.addCallbacks({
+			onJobDone: () -> {
+				jobDoneThread = Thread.current();
+			},
+			onExit: () -> {
+				exitThread = Thread.current();
+				sem.release();
+			}
+		});
+
+		final thread = Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+		handle.close();
+
+		Assert.isTrue(thread == jobDoneThread);
+		Assert.isTrue(thread == exitThread);
 	}
 }
