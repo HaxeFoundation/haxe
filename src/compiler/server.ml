@@ -752,85 +752,91 @@ let init_wait_stdio() =
 	set_binary_mode_out stderr true;
 	mk_length_prefixed_communication false stdin stderr
 
-(* The connect function to connect to [host] at [port] and send arguments [args]. *)
-let do_connect ip port args =
-	let (domain, host) = match ip with
-		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
-		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
-	in
-	let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
-	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with
-		| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
-		| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
-	);
-	let rec display_stdin args =
-		match args with
-		| [] -> ""
-		| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
-			let accept = init_wait_stdio() in
-			let conn = accept() in
-			Option.default "" (conn.read true)
-		| _ :: args ->
-			display_stdin args
-	in
-	let args = ("--cwd " ^ Unix.getcwd()) :: args in
-	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
-	ssend sock (Bytes.of_string (s ^ "\000"));
-	let has_error = ref false in
-	let print line =
-		match (if line = "" then '\x00' else line.[0]) with
-		| '\x01' ->
-			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
-			flush stdout
-		| '\x02' ->
-			has_error := true;
-		| _ ->
-			prerr_endline line;
-	in
-	let response_buf = Buffer.create 0 in
-	let process_response () =
-		let lines = ExtString.String.nsplit (Buffer.contents response_buf) "\n" in
-		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-		List.iter print lines;
-	in
-	(* Use Unix.select to multiplex reading from both server socket and local stdin,
-	   avoiding the need for a separate forwarding thread. *)
-	let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
-	let stdin_buf = Bytes.create 1024 in
-	let sock_buf = Bytes.create 1024 in
-	let stdin_active = ref true in
-	let sock_open = ref true in
-	let rec loop () =
-		let read_fds = (if !sock_open then [sock] else []) @ (if !stdin_active then [stdin_fd] else []) in
-		if read_fds = [] then ()
-		else begin
-			let readable, _, _ = Unix.select read_fds [] [] (-1.0) in
-			List.iter (fun fd ->
-				if fd = stdin_fd then begin
-					let n = Unix.read fd stdin_buf 0 1024 in
-					if n = 0 then begin
-						stdin_active := false;
-						(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
-					end else
-						ssend sock (Bytes.sub stdin_buf 0 n)
-				end else begin
-					let b = Unix.recv sock sock_buf 0 1024 [] in
-					Buffer.add_subbytes response_buf sock_buf 0 b;
-					if b > 0 then begin
-						if Bytes.get sock_buf (b - 1) = '\n' then begin
-							process_response ();
-							Buffer.reset response_buf;
-						end
-					end else
-						sock_open := false
-				end
-			) readable;
-			if !sock_open then loop ()
-		end
-	in
-	loop ();
-	process_response ();
-	if !has_error then exit 1 else exit 0
+module Connect = struct
+
+	let poll sock print =
+		let response_buf = Buffer.create 0 in
+		let process_response () =
+			let lines = ExtString.String.nsplit (Buffer.contents response_buf) "\n" in
+			let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
+			List.iter print lines;
+		in
+		process_response ();
+		(* Use Unix.select to multiplex reading from both server socket and local stdin,
+		avoiding the need for a separate forwarding thread. *)
+		let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
+		let stdin_buf = Bytes.create 1024 in
+		let sock_buf = Bytes.create 1024 in
+		let stdin_active = ref true in
+		let sock_open = ref true in
+		let rec loop () =
+			let read_fds = (if !sock_open then [sock] else []) @ (if !stdin_active then [stdin_fd] else []) in
+			if read_fds = [] then ()
+			else begin
+				let readable, _, _ = Unix.select read_fds [] [] (-1.0) in
+				List.iter (fun fd ->
+					if fd = stdin_fd then begin
+						let n = Unix.read fd stdin_buf 0 1024 in
+						if n = 0 then begin
+							stdin_active := false;
+							(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
+						end else
+							ssend sock (Bytes.sub stdin_buf 0 n)
+					end else begin
+						let b = Unix.recv sock sock_buf 0 1024 [] in
+						Buffer.add_subbytes response_buf sock_buf 0 b;
+						if b > 0 then begin
+							if Bytes.get sock_buf (b - 1) = '\n' then begin
+								process_response ();
+								Buffer.reset response_buf;
+							end
+						end else
+							sock_open := false
+					end
+				) readable;
+				if !sock_open then loop ()
+			end
+		in
+		loop ()
+
+	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
+	let do_connect ip port args =
+		let (domain, host) = match ip with
+			| V4 ip -> (Unix.PF_INET, V4.to_string ip)
+			| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
+		in
+		let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
+		(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with
+			| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
+			| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
+		);
+		let rec display_stdin args =
+			match args with
+			| [] -> ""
+			| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
+				let accept = init_wait_stdio() in
+				let conn = accept() in
+				Option.default "" (conn.read true)
+			| _ :: args ->
+				display_stdin args
+		in
+		let args = ("--cwd " ^ Unix.getcwd()) :: args in
+		let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
+		ssend sock (Bytes.of_string (s ^ "\000"));
+		let has_error = ref false in
+		let print line =
+			match (if line = "" then '\x00' else line.[0]) with
+			| '\x01' ->
+				print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")));
+				flush stdout
+			| '\x02' ->
+				has_error := true;
+			| _ ->
+				prerr_endline line;
+		in
+		poll sock print;
+		if !has_error then exit 1 else exit 0
+end
 
 module SocketRequest = struct
 	type t = {
@@ -933,7 +939,7 @@ let rec process sctx comm args =
 		init_wait_connect = init_wait_connect;
 		init_wait_stdio = init_wait_stdio;
 		wait_loop = wait_loop;
-		do_connect = do_connect;
+		do_connect = Connect.do_connect;
 	} in
 	Compiler.HighLevel.entry api comm args;
 	run_delays sctx;
