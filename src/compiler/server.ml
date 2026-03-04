@@ -761,7 +761,6 @@ module Connect = struct
 			let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
 			List.iter print lines;
 		in
-		process_response ();
 		(* Use Unix.select to multiplex reading from both server socket and local stdin,
 		avoiding the need for a separate forwarding thread. *)
 		let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
@@ -797,7 +796,8 @@ module Connect = struct
 				if !sock_open then loop ()
 			end
 		in
-		loop ()
+		loop ();
+		process_response ()
 
 	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
 	let do_connect ip port args =
