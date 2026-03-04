@@ -13,10 +13,6 @@ open TypeloadCacheHook
 exception Dirty of module_skip_reason
 exception ServerError of string
 
-let has_error ctx =
-	ctx.has_error || ctx.com.Common.has_error
-
-
 let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	let cc = CommonCache.get_cache com in
 	let file = rfile.file in
@@ -63,96 +59,6 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 		data
 
 open ServerCompilationContext
-
-let flush_context sctx ctx =
-	let write = ctx.comm.write_err in
-	match ctx.com.json_out with
-	| Some api when not (is_diagnostics ctx.com) ->
-		if has_error ctx then begin
-			let errors = List.map (fun cm ->
-				JObject [
-					"severity",JInt (MessageSeverity.to_int cm.cm_severity);
-					"location",Genjson.generate_pos_as_location cm.cm_pos;
-					"message",JString cm.cm_message;
-				]
-			) (List.rev ctx.messages) in
-			api.send_error_raise errors;
-		end
-	| _ ->
-		let add_diagnostics_messages () =
-			List.iter (fun cm ->
-				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-			) (List.rev ctx.messages);
-		in
-		match ctx.com.report_mode with
-			| RMDiagnostics _ ->
-				add_diagnostics_messages ()
-			| RMLegacyDiagnostics _ ->
-				add_diagnostics_messages ();
-			| _ ->
-				display_messages ctx (fun _ output ->
-					write (output ^ "\n");
-					ServerMessage.message output;
-				);
-				sctx.was_compilation <- ctx.com.display.dms_full_typing;
-				if has_error ctx then begin
-					ctx.timer_ctx.measure_times <- No;
-					write "\x02\n"
-				end else
-					if ctx.timer_ctx.measure_times = Yes then Timer.report_times ctx.timer_ctx (fun s -> write (s ^ "\n"));
-
-module Communication = struct
-	let create_stdio () =
-		let rec self = {
-			write_out = (fun s ->
-				print_string s;
-				flush stdout;
-			);
-			write_err = (fun s ->
-				prerr_string s;
-			);
-			flush = (fun ctx ->
-				display_messages ctx (fun sev output ->
-					match sev with
-						| MessageSeverity.Information -> print_endline output
-						| Warning | Error | Hint -> prerr_endline output
-				);
-
-				if has_error ctx && !Helper.prompt then begin
-					print_endline "Press enter to exit...";
-					ignore(read_line());
-				end;
-				flush stdout;
-			);
-			exit = (fun timer_ctx code ->
-				if code = 0 then begin
-					if timer_ctx.measure_times = Yes then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
-				end;
-				exit code;
-			);
-			is_server = false;
-			stdin = None;
-		} in
-		self
-
-	let create_pipe sctx write stdin =
-		let rec self = {
-			write_out = (fun s ->
-				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-			);
-			write_err = (fun s ->
-				write s
-			);
-			flush = flush_context sctx;
-			exit = (fun timer_ctx i ->
-				()
-			);
-			is_server = true;
-			stdin = stdin;
-		}
-		in
-		self
-end
 
 let stat dir =
 	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
@@ -975,7 +881,7 @@ and wait_loop verbose accept =
 					in
 					sctx.current_stdin_pipe <- conn.get_stdin ();
 					let data = Helper.parse_hxml_data hxml in
-					process sctx (Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) data
+					process sctx (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) data
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)

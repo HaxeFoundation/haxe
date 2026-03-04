@@ -107,6 +107,9 @@ let error ctx ?(depth=0) ?(from_macro = false) msg p =
 	error ctx ~depth ~from_macro msg p;
 	after_error ctx
 
+let has_error ctx =
+	ctx.has_error || ctx.com.Common.has_error
+
 let create_native_lib file extern kind = {
 	lib_file = file;
 	lib_extern = extern;
