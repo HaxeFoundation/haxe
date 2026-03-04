@@ -84,9 +84,7 @@ class ThreadCallbackStack<F> {
 	}
 
 	public function foreach(f:F->Void) {
-		// Read top under the mutex to ensure proper memory ordering across threads.
-		// This acquire barrier makes writes from close() (isClosed, prev/next) visible.
-		var current = withMutex(() -> top);
+		var current = top;
 		while (current != null) {
 			// Save prev before calling f, in case f or a concurrent close modifies the list.
 			// Skip closed entries so that closing a handle stops future invocations.
