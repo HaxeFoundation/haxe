@@ -116,10 +116,6 @@ class ThreadCallbackManager {
 
 	public function new() {}
 
-	public function callOnAbort(e:haxe.Exception) {
-		onAbortCallback?.foreach(f -> f.callback(e));
-	}
-
 	public function onStart(f:() -> Void):IThreadCallbackHandle {
 		onStartCallback ??= new ThreadCallbackStack();
 		return onStartCallback.add(f);

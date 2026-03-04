@@ -202,6 +202,23 @@ class Thread {
 		}
 	}
 
+	static function invokeAbortCallbacks(local:Null<ThreadCallbackStack<haxe.Exception -> Void>>, global:Null<ThreadCallbackStack<haxe.Exception -> Void>>, e:haxe.Exception) {
+		final toExecute = [];
+		withMutex(() -> {
+			if (local != null) {
+				local.foreach(c -> toExecute.push(c));
+			}
+			if (global != null) {
+				global.foreach(c -> toExecute.push(c));
+			}
+		});
+		for (c in toExecute) {
+			if (!c.isClosed) {
+				c.callback(e);
+			}
+		}
+	}
+
 	/**
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
@@ -233,8 +250,7 @@ class Thread {
 
 			if( exception != null ) {
 				try {
-					t.callbacks.callOnAbort(exception);
-					globalCallbacks?.callOnAbort(exception);
+					invokeAbortCallbacks(t.callbacks.onAbortCallback, globalCallbacks?.onAbortCallback, exception);
 				} catch ( e ) {
 					t.onAbort(e);
 				}
