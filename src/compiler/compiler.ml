@@ -725,7 +725,7 @@ module HighLevel = struct
 					loop acc l
 				else begin
 					let host, port = Helper.parse_host_port hp in
-					server_api.do_connect host port ((List.rev acc) @ l);
+					ignore(Server.Connect.do_connect host port ((List.rev acc) @ l));
 					[],None
 				end
 			| "--server-connect" :: hp :: l ->
@@ -765,29 +765,29 @@ module HighLevel = struct
 		let args,ctx = loop [] args in
 		args,!server_mode,ctx
 
-	let execute_ctx server_api ctx server_mode =
+	let rec execute_ctx server_api ctx server_mode =
 		begin match server_mode with
 		| SMListen hp ->
 			(* parse for com.verbose *)
 			ignore(Args.parse_args ctx.com);
 			let accept = match hp with
 			| "stdio" ->
-				server_api.init_wait_stdio()
+				Server.init_wait_stdio()
 			| _ ->
 				let host, port = Helper.parse_host_port hp in
-				server_api.init_wait_socket host port
+				Server.init_wait_socket host port
 			in
-			server_api.wait_loop ctx.com.verbose accept
+			Server.wait_loop entry ctx.com.verbose accept
 		| SMConnect hp ->
 			ignore(Args.parse_args ctx.com);
 			let host, port = Helper.parse_host_port hp in
-			let accept = server_api.init_wait_connect host port in
-			server_api.wait_loop ctx.com.verbose accept
+			let accept = Server.init_wait_connect host port in
+			Server.wait_loop entry ctx.com.verbose accept
 		| SMNone ->
 			compile_ctx server_api.callbacks ctx
 		end
 
-	let entry server_api comm args =
+	and entry server_api comm args =
 		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
 		let create = create_context comm server_api.cache timer_ctx in
 		let each_args = ref [] in

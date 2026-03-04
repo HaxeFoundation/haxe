@@ -244,7 +244,7 @@ module SocketRequest = struct
 		{ data; stdin }
 end
 
-let rec process sctx comm args =
+let process sctx entry comm args =
 	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	ServerCompilationContext.reset sctx;
@@ -260,19 +260,14 @@ let rec process sctx comm args =
 			after_save = ServerCache.after_save sctx;
 			after_compilation = ServerCache.after_compilation sctx;
 		};
-		init_wait_socket = init_wait_socket;
-		init_wait_connect = init_wait_connect;
-		init_wait_stdio = init_wait_stdio;
-		wait_loop = wait_loop;
-		do_connect = Connect.do_connect;
 	} in
-	Compiler.HighLevel.entry api comm args;
+	entry api comm args;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats stats (Extc.time() -. t0)
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
-and wait_loop verbose accept =
+let wait_loop entry verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Ignore SIGPIPE to prevent process termination when stdin pipe is closed.
@@ -300,7 +295,7 @@ and wait_loop verbose accept =
 					in
 					sctx.current_stdin_pipe <- conn.get_stdin ();
 					let data = Helper.parse_hxml_data hxml in
-					process sctx (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) data
+					process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) data
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)
@@ -338,7 +333,7 @@ and wait_loop verbose accept =
 	0
 
 (* Connect to given host/port and return accept function for communication *)
-and init_wait_connect ip port =
+let init_wait_connect ip port =
 	let host = match ip with
 		| V4 ip -> V4.to_string ip
 		| V6 ip -> V6.to_string ip
@@ -348,7 +343,7 @@ and init_wait_connect ip port =
 	mk_length_prefixed_communication true chin chout
 
 (* The accept-function to wait for a socket connection. *)
-and init_wait_socket ip port =
+let init_wait_socket ip port =
 	let (domain, host) = match ip with
 		| V4 ip -> (Unix.PF_INET, V4.to_string ip)
 		| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
