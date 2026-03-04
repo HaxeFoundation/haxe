@@ -1415,6 +1415,12 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_staticToInstance(";
               gen_expr ctx e2;
               spr ctx ")";
+          | TField(e3, ef), _ when is_possible_string_field e3 (field_name ef) ->
+              (* Assignment target can never be a string, so skip _hx_wrap_if_string_field *)
+              gen_value ctx e3;
+              spr ctx (field (field_name ef));
+              print ctx " %s " (Ast.s_binop op);
+              gen_value ctx e2
           | _ ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
