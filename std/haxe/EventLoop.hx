@@ -509,34 +509,33 @@ class EventLoop {
 		threadsToEventLoopsMutex = new sys.thread.Mutex();
 
 		// Set up main EventLoop
-		final mainEvents = main;
-		mainEvents.thread = sys.thread.Thread.main();
-		eventsTls.value = mainEvents;
+		main.thread = sys.thread.Thread.main();
+		eventsTls.value = main;
 		threadsToEventLoopsMutex.acquire(); // probably not necessary but let's play it safe
-		threadsToEventLoops.set(mainEvents.thread.id, mainEvents);
+		threadsToEventLoops.set(main.thread.id, main);
 		threadsToEventLoopsMutex.release();
 
-		// Set up onJobStart
-		sys.thread.Thread.onJobStart(() -> {
-			final thread = sys.thread.Thread.current();
-			final events = new EventLoop();
-			events.thread = thread;
-			eventsTls.value = events;
-			threadsToEventLoopsMutex.acquire();
-			threadsToEventLoops.set(thread.id, events);
-			threadsToEventLoopsMutex.release();
-
-			// Set up onJobDone
-			thread.onJobDone(() -> {
-				events.loop();
-			});
-
-			// Set up onExit
-			thread.onExit(() -> {
-				events.dispose();
-				mainEvents.wakeup();
+		// Set up addCallbacks for all threads
+		sys.thread.Thread.addCallbacks({
+			onStart: () -> {
+				final thread = sys.thread.Thread.current();
+				final events = new EventLoop();
+				events.thread = thread;
+				eventsTls.value = events;
+				threadsToEventLoopsMutex.acquire();
+				threadsToEventLoops.set(thread.id, events);
+				threadsToEventLoopsMutex.release();
+			},
+			onJobDone: () -> {
+				final events = eventsTls.value;
+				if (events != null) events.loop();
+			},
+			onExit: () -> {
+				final events = eventsTls.value;
+				if (events != null) events.dispose();
+				main.wakeup();
 				eventsTls.value = null;
-			});
+			}
 		});
 	}
 
