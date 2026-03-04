@@ -1,7 +1,8 @@
 package haxe;
 
-import haxe.ds.IntMap;
 import haxe.EntryPoint;
+import haxe.atomic.AtomicInt;
+import haxe.ds.IntMap;
 
 class Event {
 
@@ -93,6 +94,7 @@ class EventLoop {
 	static var eventsTls:sys.thread.Tls<EventLoop>;
 	static var threadsToEventLoops:IntMap<EventLoop>;
 	static var threadsToEventLoopsMutex:sys.thread.Mutex;
+	static final numPendingThreadTasks = new AtomicInt(0);
 	#end
 
 	var events : Event;
@@ -433,7 +435,7 @@ class EventLoop {
 		#if !target.threaded
 		return false;
 		#else
-		return @:privateAccess sys.thread.Thread.hasBlocking();
+		return numPendingThreadTasks.load() > 0;
 		#end
 	}
 
@@ -465,7 +467,12 @@ class EventLoop {
 	**/
 	public static function addTask( f : Void -> Void, blocking = true ) {
 		#if target.threaded
-		sys.thread.Thread.create(f).isBlocking = blocking;
+		if (blocking) {
+			numPendingThreadTasks.add(1);
+			sys.thread.Thread.create(f, { onExit: () -> numPendingThreadTasks.sub(1) });
+		} else {
+			sys.thread.Thread.create(f);
+		}
 		#else
 		main.add(f).isBlocking = blocking;
 		#end

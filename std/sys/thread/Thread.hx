@@ -73,11 +73,6 @@ class Thread {
 	final callbacks : ThreadCallbackManager;
 
 	/**
-		Tells if we needs to wait for the thread to terminate before we stop the main loop (default:true).
-	**/
-	public var isBlocking : Bool = true;
-
-	/**
 		Allows to query or change the name of the thread. On some platforms this might allow debugger to identify threads.
 	**/
 	public var name(default,set) : Null<String>;
@@ -289,19 +284,6 @@ class Thread {
 		var name = this.name;
 		if( name == null ) name = "" else name = " "+name;
 		Sys.println("THREAD"+name+" ABORTED : "+e.message+haxe.CallStack.toString(e.stack));
-	}
-
-	static function hasBlocking() {
-		// let's check if we have blocking threads running other that our calling thread
-		var me = current();
-		mutex.acquire();
-		for( t in threads )
-			if( t.impl != me.impl && t.isBlocking ) {
-				mutex.release();
-				return true;
-			}
-		mutex.release();
-		return false;
 	}
 
 	static function __init__() {
