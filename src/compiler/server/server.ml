@@ -231,13 +231,17 @@ module RequestQueue = struct
 		mutex : Mutex.t;
 		semaphore : Semaphore.Counting.t;
 		mutable requests : request list;
+		shutdown_flag : bool Atomic.t;
+		cancel_token : bool Atomic.t;
 	}
 
 	let create () =
 		{
 			mutex = Mutex.create ();
 			semaphore = Semaphore.Counting.make 0;
-			requests = []
+			requests = [];
+			shutdown_flag = Atomic.make false;
+			cancel_token = Atomic.make false;
 		}
 
 	let wake_up rq =
@@ -247,6 +251,11 @@ module RequestQueue = struct
 		Mutex.lock rq.mutex;
 		rq.requests <- { args; stdin; stdin_pipe; conn } :: rq.requests;
 		Mutex.unlock rq.mutex;
+		wake_up rq
+
+	let shutdown rq =
+		Atomic.set rq.cancel_token true;
+		Atomic.set rq.shutdown_flag true;
 		wake_up rq
 end
 
@@ -259,42 +268,65 @@ module WorkerDomain = struct
 	}
 
 	let create sctx entry rq =
+		(* Install cancellation hook: raises Cancelled when the token is set *)
+		TypeloadCacheHook.check_cancellation := (fun () ->
+			if Atomic.get rq.cancel_token then raise Cancelled
+		);
 		let domain = Domain.spawn (fun () ->
 			let cs = sctx.cs in
 			let rec loop () =
 				Semaphore.Counting.acquire rq.semaphore;
-				Mutex.lock rq.mutex;
-				match rq.requests with
-				| [] ->
+				(* Check for shutdown before doing any work *)
+				if Atomic.get rq.shutdown_flag then begin
+					(* Drain remaining requests by closing their connections, then return
+					   without recursing to exit the loop gracefully. *)
+					Mutex.lock rq.mutex;
+					let pending = rq.requests in
+					rq.requests <- [];
 					Mutex.unlock rq.mutex;
-					if cs#has_task then begin
-						cs#get_task#run;
-						RequestQueue.wake_up rq;
-					end;
-					loop()
-				| {conn; stdin; stdin_pipe; args} :: l ->
-					rq.requests <- l;
-					Mutex.unlock rq.mutex;
-					sctx.current_stdin <- stdin;
-					begin try
-						process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
-					with e ->
-						let estr = Printexc.to_string e in
-						ServerMessage.uncaught_error estr;
-						(try conn.write ("\x02\n" ^ estr); with _ -> ());
-						if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
-						if e = Out_of_memory then begin
-							conn.close();
-							exit (-1);
+					List.iter (fun req ->
+						(try req.conn.write "\x02\nServer shutdown\n"; with _ -> ());
+						req.conn.close()
+					) pending
+				end else begin
+					Mutex.lock rq.mutex;
+					match rq.requests with
+					| [] ->
+						Mutex.unlock rq.mutex;
+						if cs#has_task then begin
+							cs#get_task#run;
+							RequestQueue.wake_up rq;
 						end;
-					end;
-					conn.close();
-					sctx.current_stdin <- None;
-					ServerCompilationContext.cleanup();
-					if sctx.was_compilation then
-						cs#add_task (new Tasks.server_exploration_task cs);
-					RequestQueue.wake_up rq;
-					loop()
+						loop()
+					| {conn; stdin; stdin_pipe; args} :: l ->
+						rq.requests <- l;
+						Mutex.unlock rq.mutex;
+						sctx.current_stdin <- stdin;
+						Atomic.set rq.cancel_token false;
+						begin try
+							process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
+						with
+						| Cancelled ->
+							ServerMessage.uncaught_error "Compilation cancelled";
+							(try conn.write "\x02\nCancelled\n"; with _ -> ());
+						| e ->
+							let estr = Printexc.to_string e in
+							ServerMessage.uncaught_error estr;
+							(try conn.write ("\x02\n" ^ estr); with _ -> ());
+							if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+							if e = Out_of_memory then begin
+								conn.close();
+								exit (-1);
+							end;
+						end;
+						conn.close();
+						sctx.current_stdin <- None;
+						ServerCompilationContext.cleanup();
+						if sctx.was_compilation then
+							cs#add_task (new Tasks.server_exploration_task cs);
+						RequestQueue.wake_up rq;
+						loop()
+				end
 			in
 			loop ()
 		) in
@@ -316,27 +348,32 @@ let wait_loop entry verbose accept =
 	ServerCache.enable_cache_mode sctx;
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
-	(* Main loop: accept connections and enqueue requests for the worker *)
-	while true do
-		let conn = accept() in
-		begin try
-			let s = conn.read () in
-			let stdin,hxml =
-				try
-					let idx = String.index s '\001' in
-					let stdin = (String.sub s (idx + 1) ((String.length s) - idx - 1)) in
-					Some stdin,(String.sub s 0 idx)
-				with Not_found ->
-					None,s
-			in
-			let stdin_pipe = conn.get_stdin () in
-			let data = Helper.parse_hxml_data hxml in
-			RequestQueue.add rq data stdin stdin_pipe conn;
-		with Unix.Unix_error _ ->
-			ServerMessage.socket_message "Connection Aborted";
-			conn.close()
-		end;
-	done;
+	(* Main loop: accept connections and enqueue requests for the worker.
+	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
+	(try
+		while true do
+			let conn = accept() in
+			begin try
+				let s = conn.read () in
+				let stdin,hxml =
+					try
+						let idx = String.index s '\001' in
+						let stdin = (String.sub s (idx + 1) ((String.length s) - idx - 1)) in
+						Some stdin,(String.sub s 0 idx)
+					with Not_found ->
+						None,s
+				in
+				let stdin_pipe = conn.get_stdin () in
+				let data = Helper.parse_hxml_data hxml in
+				RequestQueue.add rq data stdin stdin_pipe conn;
+			with Unix.Unix_error _ ->
+				ServerMessage.socket_message "Connection Aborted";
+				conn.close()
+			end;
+		done
+	with _ -> ());
+	(* Signal the worker to shut down and wait for it to finish *)
+	RequestQueue.shutdown rq;
 	Domain.join worker.domain;
 	0
 
