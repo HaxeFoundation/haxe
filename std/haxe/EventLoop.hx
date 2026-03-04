@@ -135,16 +135,27 @@ class EventLoop {
 	**/
 	public function loop() {
 		checkThread();
-		while( hasEvents(true) || promiseCount > 0 || hasRunningThreadTasks() ) {
-			var time = getNextTick();
-			// disable wait if we have our native loop alive
-			if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
-				time = -1;
-			if( time > 0 ) {
-				wait(time);
-				continue;
+		while (true) {
+			if (hasEvents(true)) {
+				var time = getNextTick();
+				// disable wait if we have our native loop alive
+				if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
+					time = -1;
+				if( time > 0 ) {
+					wait(time);
+					continue;
+				}
+				loopOnce(false);
+			} else if (promiseCount > 0 || hasRunningThreadTasks()) {
+				#if target.threaded
+				// wait till we get notified
+				lockTime.wait();
+				#else
+				// ?
+				#end
+			} else {
+				break;
 			}
-			loopOnce(false);
 		}
 	}
 
