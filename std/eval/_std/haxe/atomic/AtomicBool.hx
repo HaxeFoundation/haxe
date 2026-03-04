@@ -11,6 +11,8 @@ extern abstract AtomicBool(AtomicBoolData) {
 
 	public function compareExchange(expected:Bool, replacement:Bool):Bool;
 
+	public function exchange(value:Bool):Bool;
+
 	public function load():Bool;
 
 	public function store(value:Bool):Bool;
