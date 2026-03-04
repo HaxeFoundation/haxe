@@ -1,16 +1,32 @@
 package cases;
 
+import haxe.atomic.AtomicInt;
 import sys.thread.Semaphore;
 import utest.Assert;
 import sys.thread.Condition;
 
 class TestThread extends utest.Test {
-	// Wait for all spawned threads to fully exit (including global callback
-	// processing and dispose) to prevent cross-test interference through
-	// global callbacks.
+	var activeThreads:AtomicInt;
+	var semaphore:Semaphore;
+
+	function setup() {
+		activeThreads = new AtomicInt(0);
+		semaphore = new Semaphore(0);
+		Thread.addCallbacks({
+			onStart: () -> {
+				activeThreads.add(1);
+			},
+			onExit: () -> {
+				semaphore.release();
+			}
+		});
+	}
+
 	function teardown() {
-		while (Thread.getAll().length > 1)
-			Sys.sleep(0.001);
+		final activeThreads = activeThreads.load();
+		for (_ in 0...activeThreads) {
+			semaphore.acquire();
+		}
 	}
 
 	function testOnAbort() {

@@ -185,40 +185,6 @@ class Thread {
 		return new MultiHandle(handles);
 	}
 
-	static function invokeCallbacks<F>(local:Null<ThreadCallbackStack<() -> Void>>, global:Null<ThreadCallbackStack<() -> Void>>) {
-		final toExecute = [];
-		withMutex(() -> {
-			if (local != null) {
-				local.foreach(c -> toExecute.push(c));
-			}
-			if (global != null) {
-				global.foreach(c -> toExecute.push(c));
-			}
-		});
-		for (c in toExecute) {
-			if (!c.isClosed) {
-				c.callback();
-			}
-		}
-	}
-
-	static function invokeAbortCallbacks(local:Null<ThreadCallbackStack<haxe.Exception -> Void>>, global:Null<ThreadCallbackStack<haxe.Exception -> Void>>, e:haxe.Exception) {
-		final toExecute = [];
-		withMutex(() -> {
-			if (local != null) {
-				local.foreach(c -> toExecute.push(c));
-			}
-			if (global != null) {
-				global.foreach(c -> toExecute.push(c));
-			}
-		});
-		for (c in toExecute) {
-			if (!c.isClosed) {
-				c.callback(e);
-			}
-		}
-	}
-
 	/**
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
@@ -241,23 +207,23 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
-				invokeCallbacks(t.callbacks.onStartCallback, globalCallbacks?.onStartCallback);
+				ThreadCallbackManager.invokeCallbacks(t.callbacks.onStartCallback, globalCallbacks?.onStartCallback);
 				job();
-				invokeCallbacks(t.callbacks.onJobDoneCallback, globalCallbacks?.onJobDoneCallback);
+				ThreadCallbackManager.invokeCallbacks(t.callbacks.onJobDoneCallback, globalCallbacks?.onJobDoneCallback);
 			} catch( e ) {
 				exception = e;
 			}
 
 			if( exception != null ) {
 				try {
-					invokeAbortCallbacks(t.callbacks.onAbortCallback, globalCallbacks?.onAbortCallback, exception);
+					ThreadCallbackManager.invokeCallbacksArg(t.callbacks.onAbortCallback, globalCallbacks?.onAbortCallback, exception);
 				} catch ( e ) {
 					t.onAbort(e);
 				}
 			}
 
 			try {
-				invokeCallbacks(t.callbacks.onExitCallback, globalCallbacks?.onExitCallback);
+				ThreadCallbackManager.invokeCallbacks(t.callbacks.onExitCallback, globalCallbacks?.onExitCallback);
 			} catch ( e ) {
 				t.onAbort(e);
 			}
