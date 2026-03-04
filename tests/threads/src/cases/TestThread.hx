@@ -272,6 +272,12 @@ class TestThread extends utest.Test {
 		final sem2 = new Semaphore(0);
 		final sem3 = new Semaphore(0);
 
+		// Register sync callback FIRST — in LIFO order it runs LAST,
+		// so sem3 is released after all other global onExit callbacks.
+		final syncHandle = Thread.addCallbacks({
+			onExit: () -> sem3.release()
+		});
+
 		final handle = Thread.addCallbacks({
 			onExit: () -> {
 				onExitCalled = true;
@@ -282,14 +288,68 @@ class TestThread extends utest.Test {
 		Thread.create(() -> {
 			sem1.release(); // thread is running
 			sem2.acquire(); // wait for permission to exit
-		}, {onExit: () -> sem3.release()});
+		}, {onAbort: (_) -> {}});
 
 		sem1.acquire(); // thread is now running
 		handle.close(); // close handle while the thread is still alive
 		sem2.release(); // let the thread exit
-		sem3.acquire(); // wait for thread to fully exit
+		sem3.acquire(); // wait for all global callbacks to complete
 
 		Assert.isFalse(onExitCalled);
+		syncHandle.close();
+	}
+
+	function testAddCallbacksHandleCloseInOnExit() {
+		// handle.close() from within the per-thread onExit callback
+		// should prevent the global callback from being called
+		var onExitCalled = false;
+		final sem = new Semaphore(0);
+
+		// Register sync callback FIRST — runs LAST in LIFO order
+		final syncHandle = Thread.addCallbacks({
+			onExit: () -> sem.release()
+		});
+
+		final handle = Thread.addCallbacks({
+			onExit: () -> {
+				onExitCalled = true;
+			}
+		});
+
+		// The per-thread onExit closes the handle before global callbacks run
+		Thread.create(() -> {}, {
+			onExit: () -> handle.close(),
+			onAbort: (_) -> {}
+		});
+
+		sem.acquire(); // wait for all global callbacks to complete
+		Assert.isFalse(onExitCalled);
+		syncHandle.close();
+	}
+
+	function testCallbackLIFOOrder() {
+		// Callbacks should be called in LIFO order (last registered first)
+		final sem = new Semaphore(0);
+		final order = [];
+
+		// handle1 registered first — runs LAST in LIFO order
+		final handle1 = Thread.addCallbacks({
+			onExit: () -> {
+				order.push(1);
+				sem.release();
+			}
+		});
+		final handle2 = Thread.addCallbacks({onExit: () -> order.push(2)});
+		final handle3 = Thread.addCallbacks({onExit: () -> order.push(3)});
+
+		Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+
+		handle1.close();
+		handle2.close();
+		handle3.close();
+
+		Assert.same([3, 2, 1], order);
 	}
 
 	function testMultipleAddCallbacks() {
