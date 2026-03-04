@@ -12,46 +12,16 @@ open TypeloadCacheHook
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
+	Unix.clear_nonblock sin;
 	let chin = IO.input_channel chin in
 	let chout = IO.output_channel chout in
 
 	let bout = Buffer.create 0 in
 
-	let block () = Unix.clear_nonblock sin in
-	let unblock () = Unix.set_nonblock sin in
-
-	let read_nonblock _ =
+	let read () =
         let len = IO.read_i32 chin in
-        Some (IO.really_nread_string chin len)
+        IO.really_nread_string chin len
 	in
-	let read = if allow_nonblock then fun do_block ->
-		if do_block then begin
-			block();
-			read_nonblock true;
-		end else begin
-			let c0 =
-				unblock();
-				try
-					Some (IO.read_byte chin)
-				with
-				| Sys_blocked_io
-				(* TODO: We're supposed to catch Sys_blocked_io only, but that doesn't work on my PC... *)
-				| Sys_error _ ->
-					None
-			in
-			begin match c0 with
-			| Some c0 ->
-				block(); (* We got something, make sure we block until we're done. *)
-				let c1 = IO.read_byte chin in
-				let c2 = IO.read_byte chin in
-				let c3 = IO.read_byte chin in
-				let len = c3 lsl 24 + c2 lsl 16 + c1 lsl 8 + c0 in
-				Some (IO.really_nread_string chin len)
-			| None ->
-				None
-			end
-		end
-	else read_nonblock in
 
 	let write = Buffer.add_string bout in
 
@@ -64,7 +34,7 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	in
 
 	fun () ->
-		{ support_nonblock = allow_nonblock; read; write; close; get_stdin = (fun () -> None) }
+		{ read; write; close; get_stdin = (fun () -> None) }
 
 let ssend sock str =
 	let rec loop pos len =
@@ -75,12 +45,6 @@ let ssend sock str =
 			loop (pos + s) (len - s)
 	in
 	loop 0 (Bytes.length str)
-
-(* The accept-function to wait for a stdio connection. *)
-let init_wait_stdio() =
-	set_binary_mode_in stdin true;
-	set_binary_mode_out stderr true;
-	mk_length_prefixed_communication false stdin stderr
 
 module Connect = struct
 
@@ -140,18 +104,8 @@ module Connect = struct
 			| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
 			| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
 		);
-		let rec display_stdin args =
-			match args with
-			| [] -> ""
-			| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
-				let accept = init_wait_stdio() in
-				let conn = accept() in
-				Option.default "" (conn.read true)
-			| _ :: args ->
-				display_stdin args
-		in
 		let args = ("--cwd " ^ Unix.getcwd()) :: args in
-		let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
+		let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) in
 		ssend sock (Bytes.of_string (s ^ "\000"));
 		let has_error = ref false in
 		let print line =
@@ -363,26 +317,18 @@ let wait_loop entry verbose accept =
 	while true do
 		let conn = accept() in
 		begin try
-			(* Read arguments *)
-			let rec loop block =
-				match conn.read block with
-				| Some s ->
-					let stdin,hxml =
-						try
-							let idx = String.index s '\001' in
-							let stdin = (String.sub s (idx + 1) ((String.length s) - idx - 1)) in
-							Some stdin,(String.sub s 0 idx)
-						with Not_found ->
-							None,s
-					in
-					let stdin_pipe = conn.get_stdin () in
-					let data = Helper.parse_hxml_data hxml in
-					RequestQueue.add rq data stdin stdin_pipe conn;
-				| None ->
-					(* Tasks are now run by the worker domain between requests, so just block. *)
-					loop true
+			let s = conn.read () in
+			let stdin,hxml =
+				try
+					let idx = String.index s '\001' in
+					let stdin = (String.sub s (idx + 1) ((String.length s) - idx - 1)) in
+					Some stdin,(String.sub s 0 idx)
+				with Not_found ->
+					None,s
 			in
-			loop (not conn.support_nonblock)
+			let stdin_pipe = conn.get_stdin () in
+			let data = Helper.parse_hxml_data hxml in
+			RequestQueue.add rq data stdin stdin_pipe conn;
 		with Unix.Unix_error _ ->
 			ServerMessage.socket_message "Connection Aborted";
 			conn.close()
@@ -418,11 +364,11 @@ let init_wait_socket ip port =
 		Unix.set_nonblock sin;
 		ServerMessage.socket_message "Client connected";
 		let stdin_pipe = ref None in
-		let read = fun _ ->
+		let read () =
 			let req = SocketRequest.read sin bufsize in
 			Unix.clear_nonblock sin;
 			stdin_pipe := Some (req.stdin);
-			Some req.data
+			req.data
 		in
 		let get_stdin () = !stdin_pipe in
 		let closed = ref false in
@@ -438,6 +384,6 @@ let init_wait_socket ip port =
 				| Some _ -> close()
 				| None -> ssend sin (Bytes.unsafe_of_string s);
 		in
-		{ support_nonblock = false; read; write; close; get_stdin }
+		{ read; write; close; get_stdin }
 	) in
 	accept

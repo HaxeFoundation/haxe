@@ -67,8 +67,7 @@ type compilation_callbacks = {
 }
 
 type server_connection = {
-	support_nonblock : bool;
-	read : bool -> string option;
+	read : unit -> string;
 	write : string -> unit;
 	close : unit -> unit;
 	get_stdin : unit -> in_channel option;

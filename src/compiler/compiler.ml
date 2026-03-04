@@ -770,10 +770,7 @@ module HighLevel = struct
 		| SMListen hp ->
 			(* parse for com.verbose *)
 			ignore(Args.parse_args ctx.com);
-			let accept = match hp with
-			| "stdio" ->
-				Server.init_wait_stdio()
-			| _ ->
+			let accept =
 				let host, port = Helper.parse_host_port hp in
 				Server.init_wait_socket host port
 			in
