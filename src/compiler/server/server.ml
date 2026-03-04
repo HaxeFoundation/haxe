@@ -265,6 +265,82 @@ let process sctx entry comm args =
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats stats (Extc.time() -. t0)
 
+module RequestQueue = struct
+	type request = {
+		args : string list;
+		stdin : string option;
+		conn : server_connection;
+	}
+
+	type t = {
+		mutex : Mutex.t;
+		semaphore : Semaphore.Counting.t;
+		mutable requests : request list;
+	}
+
+	let create () =
+		{
+			mutex = Mutex.create ();
+			semaphore = Semaphore.Counting.make 0;
+			requests = []
+		}
+
+	let add rq args stdin conn =
+		Mutex.lock rq.mutex;
+		rq.requests <- { args; stdin; conn } :: rq.requests;
+		Mutex.unlock rq.mutex;
+		Semaphore.Counting.release rq.semaphore
+
+	let is_empty rq =
+		rq.requests = []
+end
+
+let todo_semaphore = Semaphore.Binary.make false
+
+module WorkerDomain = struct
+	open RequestQueue
+	open ServerCompilationContext
+
+	type t = {
+		domain : unit Domain.t;
+	}
+
+	let create sctx entry rq =
+		let domain = Domain.spawn (fun () ->
+			let rec loop () =
+				Semaphore.Counting.acquire rq.semaphore;
+				Mutex.lock rq.mutex;
+				match rq.requests with
+				| [] ->
+					Mutex.unlock rq.mutex;
+					(* Done *)
+					()
+				|  {conn; stdin; args} :: l ->
+					rq.requests <- l;
+					Mutex.unlock rq.mutex;
+					sctx.current_stdin <- stdin;
+					begin try
+						process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) args;
+					with e ->
+						let estr = Printexc.to_string e in
+						ServerMessage.uncaught_error estr;
+						(try conn.write ("\x02\n" ^ estr); with _ -> ());
+						if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+						if e = Out_of_memory then begin
+							conn.close();
+							exit (-1);
+						end;
+					end;
+					Semaphore.Binary.release todo_semaphore;
+					loop()
+			in
+			loop ()
+		) in
+		{
+			domain;
+		}
+end
+
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop entry verbose accept =
@@ -277,6 +353,8 @@ let wait_loop entry verbose accept =
 	let sctx = ServerCompilationContext.create verbose in
 	let cs = sctx.cs in
 	ServerCache.enable_cache_mode sctx;
+	let rq = RequestQueue.create () in
+	let worker = WorkerDomain.create sctx entry rq in
 	(* Main loop: accept connections and process arguments *)
 	while true do
 		let conn = accept() in
@@ -285,17 +363,21 @@ let wait_loop entry verbose accept =
 			let rec loop block =
 				match conn.read block with
 				| Some s ->
-					let hxml =
+					let stdin,hxml =
 						try
 							let idx = String.index s '\001' in
-							sctx.current_stdin <- Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
-							(String.sub s 0 idx)
+							let stdin = (String.sub s (idx + 1) ((String.length s) - idx - 1)) in
+							Some stdin,(String.sub s 0 idx)
 						with Not_found ->
-							s
+							None,s
 					in
 					sctx.current_stdin_pipe <- conn.get_stdin ();
 					let data = Helper.parse_hxml_data hxml in
-					process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) data
+					RequestQueue.add rq data stdin conn;
+					Semaphore.Binary.acquire todo_semaphore;
+				| None when not (RequestQueue.is_empty rq) ->
+					(* TODO: busy loop is bad *)
+					()
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)
@@ -309,15 +391,6 @@ let wait_loop entry verbose accept =
 			loop (not conn.support_nonblock)
 		with Unix.Unix_error _ ->
 			ServerMessage.socket_message "Connection Aborted"
-		| e ->
-			let estr = Printexc.to_string e in
-			ServerMessage.uncaught_error estr;
-			(try conn.write ("\x02\n" ^ estr); with _ -> ());
-			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
-			if e = Out_of_memory then begin
-				conn.close();
-				exit (-1);
-			end;
 		end;
 		(* Close connection and perform some cleanup *)
 		conn.close();
@@ -330,6 +403,7 @@ let wait_loop entry verbose accept =
 		else if sctx.was_compilation then
 			cs#add_task (new Tasks.server_exploration_task cs)
 	done;
+	Domain.join worker.domain;
 	0
 
 (* Connect to given host/port and return accept function for communication *)
