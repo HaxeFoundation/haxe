@@ -66,7 +66,15 @@ type compilation_callbacks = {
 	after_compilation : compilation_context -> unit;
 }
 
-type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
+type server_connection = {
+	support_nonblock : bool;
+	read : bool -> string option;
+	write : string -> unit;
+	close : unit -> unit;
+	get_stdin : unit -> in_channel option;
+}
+
+type server_accept = unit -> server_connection
 
 type server_api = {
 	cache : CompilationCache.t;
