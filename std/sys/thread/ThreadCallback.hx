@@ -83,13 +83,13 @@ class ThreadCallbackStack<F> {
 		});
 	}
 
-	public function foreach(f:F->Void) {
+	public function foreach(f:ThreadCallback<F>->Void) {
 		var current = top;
 		while (current != null) {
 			// Save prev before calling f, in case f or a concurrent close modifies the list.
 			// Skip closed entries so that closing a handle stops future invocations.
 			final prev = current.prev;
-			if (!current.isClosed) f(current.callback);
+			if (!current.isClosed) f(current);
 			current = prev;
 		};
 	}
@@ -109,27 +109,15 @@ interface IThreadCallbackHandle {
 }
 
 class ThreadCallbackManager {
-	var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
-	var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
-	var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
-	var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
+	public var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
+	public var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
+	public var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
+	public var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
 
 	public function new() {}
 
-	public function callOnStart() {
-		onStartCallback?.foreach(f -> f());
-	}
-
-	public function callOnJobDone() {
-		onJobDoneCallback?.foreach(f -> f());
-	}
-
-	public function callOnExit() {
-		onExitCallback?.foreach(f -> f());
-	}
-
 	public function callOnAbort(e:haxe.Exception) {
-		onAbortCallback?.foreach(f -> f(e));
+		onAbortCallback?.foreach(f -> f.callback(e));
 	}
 
 	public function onStart(f:() -> Void):IThreadCallbackHandle {

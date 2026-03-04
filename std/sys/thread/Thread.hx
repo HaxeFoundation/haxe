@@ -185,6 +185,23 @@ class Thread {
 		return new MultiHandle(handles);
 	}
 
+	static function invokeCallbacks<F>(local:Null<ThreadCallbackStack<() -> Void>>, global:Null<ThreadCallbackStack<() -> Void>>) {
+		final toExecute = [];
+		withMutex(() -> {
+			if (local != null) {
+				local.foreach(c -> toExecute.push(c));
+			}
+			if (global != null) {
+				global.foreach(c -> toExecute.push(c));
+			}
+		});
+		for (c in toExecute) {
+			if (!c.isClosed) {
+				c.callback();
+			}
+		}
+	}
+
 	/**
 		Creates a new thread that will execute the `job` function, then exit after all events are processed.
 		You can specify a custom exception handler `onAbort` or else `Thread.onAbort` will be called.
@@ -207,11 +224,9 @@ class Thread {
 				#if hl
 				hl.Api.setErrorHandler(null);
 				#end
-				t.callbacks.callOnStart();
-				globalCallbacks?.callOnStart();
+				invokeCallbacks(t.callbacks.onStartCallback, globalCallbacks?.onStartCallback);
 				job();
-				t.callbacks.callOnJobDone();
-				globalCallbacks?.callOnJobDone();
+				invokeCallbacks(t.callbacks.onJobDoneCallback, globalCallbacks?.onJobDoneCallback);
 			} catch( e ) {
 				exception = e;
 			}
@@ -226,8 +241,7 @@ class Thread {
 			}
 
 			try {
-				t.callbacks.callOnExit();
-				globalCallbacks?.callOnExit();
+				invokeCallbacks(t.callbacks.onExitCallback, globalCallbacks?.onExitCallback);
 			} catch ( e ) {
 				t.onAbort(e);
 			}
