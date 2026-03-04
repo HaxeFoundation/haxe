@@ -8,6 +8,13 @@ class Issue8068 extends Test {
 		eq(o.charAt(0), "f");
 		eq(o.charAt(1), "o");
 		eq(o.charAt(2), "o");
+
+		// Dynamic string closure should also bind correctly
+		var d:Dynamic = "bar";
+		var fn = d.charAt;
+		eq(fn(0), "b");
+		eq(fn(1), "a");
+		eq(fn(2), "r");
 		#else
 		noAssert();
 		#end
