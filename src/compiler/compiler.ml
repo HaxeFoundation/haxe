@@ -585,10 +585,15 @@ let create_context comm cs timer_ctx compilation_step params =
 		in
 		let (stdout_ch, stdout_thread) = make_pipe comm.write_out in
 		let (stderr_ch, stderr_thread) = make_pipe comm.write_err in
-		(* For stdin in server mode, create a pipe with write end closed (EOF). *)
-		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
-		Unix.close stdin_w_fd;
-		let stdin_ch = Unix.in_channel_of_descr stdin_r_fd in
+		(* For stdin in server mode, use forwarded stdin from client if available,
+		   otherwise create a pipe with write end closed (EOF). *)
+		let stdin_ch = match comm.stdin with
+			| Some ch -> ch
+			| None ->
+				let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
+				Unix.close stdin_w_fd;
+				Unix.in_channel_of_descr stdin_r_fd
+		in
 		let closed = ref false in
 		{
 			Gctx.print = comm.write_out;

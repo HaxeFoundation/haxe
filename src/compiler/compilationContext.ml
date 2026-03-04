@@ -46,6 +46,7 @@ type communication = {
 	flush     : compilation_context -> unit;
 	exit      : Timer.timer_context -> int -> unit;
 	is_server : bool;
+	stdin     : in_channel option;
 }
 
 and compilation_context = {

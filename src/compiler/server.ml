@@ -17,6 +17,7 @@ let has_error ctx =
 	ctx.has_error || ctx.com.Common.has_error
 
 let current_stdin = ref None
+let current_stdin_pipe : in_channel option ref = ref None
 
 let parse_file cs com (rfile : ClassPaths.resolved_file) p =
 	let cc = CommonCache.get_cache com in
@@ -132,10 +133,11 @@ module Communication = struct
 				exit code;
 			);
 			is_server = false;
+			stdin = None;
 		} in
 		self
 
-	let create_pipe sctx write =
+	let create_pipe sctx write stdin =
 		let rec self = {
 			write_out = (fun s ->
 				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
@@ -148,6 +150,7 @@ module Communication = struct
 				()
 			);
 			is_server = true;
+			stdin = stdin;
 		}
 		in
 		self
@@ -775,6 +778,27 @@ let do_connect ip port args =
 	let args = ("--cwd " ^ Unix.getcwd()) :: args in
 	let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
 	ssend sock (Bytes.of_string (s ^ "\000"));
+	(* Start a thread to forward local stdin to the server socket.
+	   Uses Unix.select with a timeout to allow clean shutdown. *)
+	let stdin_done = ref false in
+	let _stdin_thread = Thread.create (fun () ->
+		let fd = Unix.descr_of_in_channel Stdlib.stdin in
+		let buf = Bytes.create 1024 in
+		(try
+			while not !stdin_done do
+				let readable, _, _ = Unix.select [fd] [] [] 0.5 in
+				if readable <> [] then begin
+					let n = Unix.read fd buf 0 1024 in
+					if n = 0 then begin
+						(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ());
+						raise Exit
+					end;
+					ssend sock (Bytes.sub buf 0 n)
+				end
+			done
+		with _ -> ());
+		(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
+	) () in
 	let has_error = ref false in
 	let print line =
 		match (if line = "" then '\x00' else line.[0]) with
@@ -807,7 +831,9 @@ let do_connect ip port args =
 	in
 	loop();
 	process();
-	if !has_error then exit 1
+	(* Signal the stdin thread to stop and wait for it *)
+	stdin_done := true;
+	if !has_error then exit 1 else exit 0
 
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;
@@ -845,6 +871,9 @@ let rec process sctx comm args =
 and wait_loop verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
+	(* Ignore SIGPIPE to prevent process termination when stdin pipe is closed.
+	   Sys.sigpipe may not map to the real signal number, so use 13 directly. *)
+	(try Sys.set_signal 13 Sys.Signal_ignore with _ -> ());
 	(* Create server context and set up hooks for parsing and typing *)
 	let sctx = ServerCompilationContext.create verbose in
 	let cs = sctx.cs in
@@ -866,7 +895,7 @@ and wait_loop verbose accept =
 							s
 					in
 					let data = Helper.parse_hxml_data hxml in
-					process sctx (Communication.create_pipe sctx write) data
+					process sctx (Communication.create_pipe sctx write !current_stdin_pipe) data
 				| None ->
 					if not cs#has_task then
 						(* If there is no pending task, turn into blocking mode. *)
@@ -893,6 +922,7 @@ and wait_loop verbose accept =
 		(* Close connection and perform some cleanup *)
 		close();
 		current_stdin := None;
+		current_stdin_pipe := None;
 		cleanup();
 		(* If our connection always blocks, we have to execute all pending tasks now. *)
 		if not support_nonblock then
@@ -930,6 +960,7 @@ and init_wait_socket ip port =
 		Unix.set_nonblock sin;
 		ServerMessage.socket_message "Client connected";
 		let b = Buffer.create 0 in
+		let overflow = ref Bytes.empty in
 		let rec read_loop count =
 			try
 				let r = Unix.recv sin tmp 0 bufsize [] in
@@ -937,11 +968,20 @@ and init_wait_socket ip port =
 					failwith "Incomplete request"
 				else begin
 					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
-					Buffer.add_subbytes b tmp 0 r;
-					if Bytes.get tmp (r-1) = '\000' then
-						Buffer.sub b 0 (Buffer.length b - 1)
-					else
+					(* Find null terminator anywhere in received data *)
+					let rec find_null i = if i >= r then -1 else if Bytes.get tmp i = '\000' then i else find_null (i + 1) in
+					let null_pos = find_null 0 in
+					if null_pos >= 0 then begin
+						Buffer.add_subbytes b tmp 0 null_pos;
+						(* Save any data after null as overflow (stdin data) *)
+						let remaining = r - null_pos - 1 in
+						if remaining > 0 then
+							overflow := Bytes.sub tmp (null_pos + 1) remaining;
+						Buffer.contents b
+					end else begin
+						Buffer.add_subbytes b tmp 0 r;
 						read_loop 0
+					end
 				end
 			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
 				if count = 100 then
@@ -952,7 +992,44 @@ and init_wait_socket ip port =
 					read_loop (count + 1);
 				end
 		in
-		let read = fun _ -> (let s = read_loop 0 in Unix.clear_nonblock sin; Some s) in
+		let read = fun _ ->
+			let s = read_loop 0 in
+			Unix.clear_nonblock sin;
+			(* Set up stdin forwarding: create a pipe and a thread that reads
+			   from the client socket and writes to the pipe. *)
+			let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
+			let _stdin_thread = Thread.create (fun () ->
+				let buf = Bytes.create 1024 in
+				(try
+					(* Write any overflow data read past the null terminator *)
+					if Bytes.length !overflow > 0 then begin
+						let ov = !overflow in
+						let rec write_all pos len =
+							if len > 0 then begin
+								let w = Unix.write stdin_w_fd ov pos len in
+								write_all (pos + w) (len - w)
+							end
+						in
+						write_all 0 (Bytes.length ov)
+					end;
+					(* Forward data from client socket to stdin pipe *)
+					while true do
+						let n = Unix.recv sin buf 0 1024 [] in
+						if n = 0 then raise Exit;
+						let rec write_all pos len =
+							if len > 0 then begin
+								let w = Unix.write stdin_w_fd buf pos len in
+								write_all (pos + w) (len - w)
+							end
+						in
+						write_all 0 n
+					done
+				with _ -> ());
+				(try Unix.close stdin_w_fd with _ -> ())
+			) () in
+			current_stdin_pipe := Some (Unix.in_channel_of_descr stdin_r_fd);
+			Some s
+		in
 		let closed = ref false in
 		let close() =
 			if not !closed then begin
