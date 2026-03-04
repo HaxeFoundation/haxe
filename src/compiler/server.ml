@@ -154,51 +154,6 @@ module Communication = struct
 		self
 end
 
-(* Reads a null-terminated request from a non-blocking socket, tracking any
-   overflow data received past the null terminator (e.g. stdin data from the client). *)
-module SocketRequest = struct
-	type t = {
-		data : string;
-		overflow : Bytes.t;
-	}
-
-	let read sin bufsize =
-		let tmp = Bytes.create bufsize in
-		let b = Buffer.create 0 in
-		let overflow = ref Bytes.empty in
-		let rec read_loop count =
-			try
-				let r = Unix.recv sin tmp 0 bufsize [] in
-				if r = 0 then
-					failwith "Incomplete request"
-				else begin
-					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
-					let rec find_null i = if i >= r then -1 else if Bytes.get tmp i = '\000' then i else find_null (i + 1) in
-					let null_pos = find_null 0 in
-					if null_pos >= 0 then begin
-						Buffer.add_subbytes b tmp 0 null_pos;
-						let remaining = r - null_pos - 1 in
-						if remaining > 0 then
-							overflow := Bytes.sub tmp (null_pos + 1) remaining;
-						Buffer.contents b
-					end else begin
-						Buffer.add_subbytes b tmp 0 r;
-						read_loop 0
-					end
-				end
-			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
-				if count = 100 then
-					failwith "Aborting inactive connection"
-				else begin
-					ServerMessage.socket_message "Waiting for data...";
-					ignore(Unix.select [] [] [] 0.05);
-					read_loop (count + 1);
-				end
-		in
-		let data = read_loop 0 in
-		{ data; overflow = !overflow }
-end
-
 let stat dir =
 	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
 
@@ -877,6 +832,82 @@ let do_connect ip port args =
 	process_response ();
 	if !has_error then exit 1 else exit 0
 
+module SocketRequest = struct
+	type t = {
+		data : string;
+		stdin : in_channel;
+	}
+
+	let setup_client_stdin_forward overflow sin =
+		(* Set up stdin forwarding: create a pipe and a thread that reads
+		   from the client socket and writes to the pipe. *)
+		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
+		let _stdin_thread = Thread.create (fun () ->
+			let write_all fd data pos len =
+				let rec loop pos len =
+					if len > 0 then begin
+						let w = Unix.write fd data pos len in
+						loop (pos + w) (len - w)
+					end
+				in
+				loop pos len
+			in
+			let buf = Bytes.create 1024 in
+			(try
+				(* Write any overflow data read past the null terminator *)
+				if Bytes.length overflow > 0 then
+					write_all stdin_w_fd overflow 0 (Bytes.length overflow);
+				(* Forward data from client socket to stdin pipe *)
+				while true do
+					let n = Unix.recv sin buf 0 1024 [] in
+					if n = 0 then raise Exit;
+					write_all stdin_w_fd buf 0 n
+				done
+			with _ -> ());
+			(try Unix.close stdin_w_fd with _ -> ())
+		) () in
+		Unix.in_channel_of_descr stdin_r_fd
+
+	(* Reads a null-terminated request from a non-blocking socket, tracking any
+	   overflow data received past the null terminator (e.g. stdin data from the client). *)
+	let read sin bufsize =
+		let tmp = Bytes.create bufsize in
+		let b = Buffer.create 0 in
+		let overflow = ref Bytes.empty in
+		let rec read_loop count =
+			try
+				let r = Unix.recv sin tmp 0 bufsize [] in
+				if r = 0 then
+					failwith "Incomplete request"
+				else begin
+					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
+					let rec find_null i = if i >= r then -1 else if Bytes.get tmp i = '\000' then i else find_null (i + 1) in
+					let null_pos = find_null 0 in
+					if null_pos >= 0 then begin
+						Buffer.add_subbytes b tmp 0 null_pos;
+						let remaining = r - null_pos - 1 in
+						if remaining > 0 then
+							overflow := Bytes.sub tmp (null_pos + 1) remaining;
+						Buffer.contents b
+					end else begin
+						Buffer.add_subbytes b tmp 0 r;
+						read_loop 0
+					end
+				end
+			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
+				if count = 100 then
+					failwith "Aborting inactive connection"
+				else begin
+					ServerMessage.socket_message "Waiting for data...";
+					ignore(Unix.select [] [] [] 0.05);
+					read_loop (count + 1);
+				end
+		in
+		let data = read_loop 0 in
+		let stdin = setup_client_stdin_forward !overflow sin in
+		{ data; stdin }
+end
+
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;
 	ServerCompilationContext.ensure_macro_setup sctx;
@@ -1005,34 +1036,7 @@ and init_wait_socket ip port =
 		let read = fun _ ->
 			let req = SocketRequest.read sin bufsize in
 			Unix.clear_nonblock sin;
-			(* Set up stdin forwarding: create a pipe and a thread that reads
-			   from the client socket and writes to the pipe. *)
-			let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
-			let _stdin_thread = Thread.create (fun () ->
-				let write_all fd data pos len =
-					let rec loop pos len =
-						if len > 0 then begin
-							let w = Unix.write fd data pos len in
-							loop (pos + w) (len - w)
-						end
-					in
-					loop pos len
-				in
-				let buf = Bytes.create 1024 in
-				(try
-					(* Write any overflow data read past the null terminator *)
-					if Bytes.length req.overflow > 0 then
-						write_all stdin_w_fd req.overflow 0 (Bytes.length req.overflow);
-					(* Forward data from client socket to stdin pipe *)
-					while true do
-						let n = Unix.recv sin buf 0 1024 [] in
-						if n = 0 then raise Exit;
-						write_all stdin_w_fd buf 0 n
-					done
-				with _ -> ());
-				(try Unix.close stdin_w_fd with _ -> ())
-			) () in
-			stdin_pipe := Some (Unix.in_channel_of_descr stdin_r_fd);
+			stdin_pipe := Some (req.stdin);
 			Some req.data
 		in
 		let get_stdin () = !stdin_pipe in
