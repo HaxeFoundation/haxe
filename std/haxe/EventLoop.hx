@@ -94,7 +94,6 @@ class EventLoop {
 	static var eventsTls:sys.thread.Tls<EventLoop>;
 	static var threadsToEventLoops:IntMap<EventLoop>;
 	static var threadsToEventLoopsMutex:sys.thread.Mutex;
-	static final numPendingThreadTasks = new AtomicInt(0);
 	#end
 
 	var events : Event;
@@ -105,6 +104,7 @@ class EventLoop {
 	#if target.threaded
 	var mutex : sys.thread.Mutex;
 	var lockTime : sys.thread.Lock;
+	final numPendingThreadTasks : AtomicInt;
 	/**
 		The reference thread for this loop. If set, the loop can only be run within this thread.
 	**/
@@ -117,6 +117,7 @@ class EventLoop {
 		#if target.threaded
 		mutex = new sys.thread.Mutex();
 		lockTime = new sys.thread.Lock();
+		numPendingThreadTasks = new AtomicInt(0);
 		#end
 	}
 
@@ -435,7 +436,7 @@ class EventLoop {
 		#if !target.threaded
 		return false;
 		#else
-		return numPendingThreadTasks.load() > 0;
+		return main.numPendingThreadTasks.load() > 0;
 		#end
 	}
 
@@ -462,10 +463,17 @@ class EventLoop {
 	}
 
 	/**
-		Add a task to be run either on another thread or as part of the main event loop if the
-		platform does not support threads.
+		Adds `f` as a thread task on the main thread.
 	**/
 	public static function addTask( f : Void -> Void, blocking = true ) {
+		main.addThreadTask(f, blocking);
+	}
+
+	/**
+		Add a task to be run either on another thread or as part of this event loop if the
+		platform does not support threads.
+	**/
+	public function addThreadTask( f : Void -> Void, blocking = true ) {
 		#if target.threaded
 		if (blocking) {
 			numPendingThreadTasks.add(1);
@@ -474,7 +482,7 @@ class EventLoop {
 			sys.thread.Thread.create(f);
 		}
 		#else
-		main.add(f).isBlocking = blocking;
+		add(f).isBlocking = blocking;
 		#end
 	}
 
