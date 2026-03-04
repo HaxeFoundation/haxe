@@ -240,11 +240,14 @@ module RequestQueue = struct
 			requests = []
 		}
 
+	let wake_up rq =
+		Semaphore.Counting.release rq.semaphore
+
 	let add rq args stdin stdin_pipe conn =
 		Mutex.lock rq.mutex;
 		rq.requests <- { args; stdin; stdin_pipe; conn } :: rq.requests;
 		Mutex.unlock rq.mutex;
-		Semaphore.Counting.release rq.semaphore
+		wake_up rq
 end
 
 module WorkerDomain = struct
@@ -264,8 +267,11 @@ module WorkerDomain = struct
 				match rq.requests with
 				| [] ->
 					Mutex.unlock rq.mutex;
-					(* Done *)
-					()
+					if cs#has_task then begin
+						cs#get_task#run;
+						RequestQueue.wake_up rq;
+					end;
+					loop()
 				| {conn; stdin; stdin_pipe; args} :: l ->
 					rq.requests <- l;
 					Mutex.unlock rq.mutex;
@@ -285,12 +291,9 @@ module WorkerDomain = struct
 					conn.close();
 					sctx.current_stdin <- None;
 					ServerCompilationContext.cleanup();
-					(* Add exploration task for full compilations, then run ALL pending tasks
-					   before picking up the next request. This ensures tasks never run
-					   concurrently with a compilation in another domain (OCaml 5 data race). *)
 					if sctx.was_compilation then
 						cs#add_task (new Tasks.server_exploration_task cs);
-					while cs#has_task do cs#get_task#run done;
+					RequestQueue.wake_up rq;
 					loop()
 			in
 			loop ()
