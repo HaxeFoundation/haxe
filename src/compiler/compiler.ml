@@ -554,7 +554,7 @@ let compile_ctx callbacks ctx =
 	end else
 		catch_completion_and_exit ctx callbacks run
 
-let create_context comm cs timer_ctx compilation_step params =
+let create_context comm sctx timer_ctx compilation_step params =
 	let version = {
 		version = version;
 		major = version_major;
@@ -620,7 +620,7 @@ let create_context comm cs timer_ctx compilation_step params =
 			close = (fun () -> ());
 		}
 	in
-	let com = Common.create io timer_ctx compilation_step cs version params (DisplayTypes.DisplayMode.create DMNone) in
+	let com = Common.create io timer_ctx compilation_step sctx version params (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
