@@ -1,0 +1,4 @@
+# This file is intentionally empty (only comments).
+# This simulates what the CI does on macOS/APFS for sys/compile-fs.hxml:
+#   echo "" > sys/compile-fs.hxml
+# Including an empty hxml file should be a no-op, not a "file not found" error.

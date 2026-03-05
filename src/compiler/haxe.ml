@@ -58,4 +58,6 @@ let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 let sctx = ServerCompilationContext.create false in
-Server.process sctx Compiler.HighLevel.entry (ServerCommunication.Communication.create_stdio ()) args;
+let request_scope = Server.create_request_scope () in
+let parsed_args = Args.parse_args sctx args in
+Server.process sctx request_scope Compiler.HighLevel.entry (ServerCommunication.Communication.create_stdio ()) parsed_args;

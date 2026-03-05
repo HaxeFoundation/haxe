@@ -190,7 +190,7 @@ let json_of_diagnostics com dctx =
 				add DKDeprecationWarning p MessageSeverity.Warning (Some wobj.w_name) (JString s);
 			| WMDisable -> ()
 			end
-		) DeprecationCheck.warned_positions;
+		) com.part_scope.warned_positions;
 	| WMDisable ->
 		()
 	end;

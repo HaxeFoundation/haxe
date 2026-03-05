@@ -1,7 +1,9 @@
-open Common
+open Globals
 open CompilationCache
 
+
 type t = {
+	version : Globals.compiler_version;
 	(* If true, prints some debug information *)
 	verbose : bool;
 	(* The list of changed directories per-signature *)
@@ -20,12 +22,21 @@ type t = {
 	mutable macro_context_setup : bool;
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
-	(* Forwarded stdin pipe from the current client connection *)
-	mutable current_stdin_pipe : in_channel option;
 }
 
+let create_version () =
+	{
+		version = version;
+		major = version_major;
+		minor = version_minor;
+		revision = version_revision;
+		pre = version_pre;
+		extra = Version.version_extra;
+	}
+
 let create verbose = {
-	verbose = verbose;
+	version = create_version ();
+	verbose;
 	cs = new CompilationCache.cache;
 	class_paths = Hashtbl.create 0;
 	changed_directories = Hashtbl.create 0;
@@ -34,7 +45,6 @@ let create verbose = {
 	was_compilation = false;
 	macro_context_setup = false;
 	current_stdin = None;
-	current_stdin_pipe = None;
 }
 
 let add_delay sctx f =
@@ -50,29 +60,4 @@ let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
 	Parser.reset_state();
-	Parallel.enable := false;
-	Hashtbl.clear DeprecationCheck.warned_positions;
-	stats.s_files_parsed := 0;
-	stats.s_classes_built := 0;
-	stats.s_methods_typed := 0;
-	stats.s_macros_called := 0
-
-let maybe_cache_context sctx com =
-	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
-		Timer.time com.timer_ctx ["server";"cache context"] (CommonCache.cache_context sctx.cs) com;
-		ServerMessage.cached_modules com "" (List.length com.modules);
-	end
-
-let ensure_macro_setup sctx =
-	if not sctx.macro_context_setup then begin
-		sctx.macro_context_setup <- true;
-		MacroContext.setup();
-	end
-
-let cleanup () = match !MacroContext.macro_interp_cache with
-	| Some interp ->
-		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)
-		interp.curapi <- Obj.magic ""
-	| None ->
-		()
+	Parallel.enable := false
