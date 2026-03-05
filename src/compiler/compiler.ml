@@ -1,6 +1,7 @@
 open Globals
 open Common
 open CompilationContext
+open ParsedArg
 
 let handle_diagnostics ctx msg p kind =
 	ctx.has_error <- true;

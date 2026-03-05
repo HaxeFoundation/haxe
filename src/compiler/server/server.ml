@@ -6,6 +6,7 @@ open DisplayProcessingGlobals
 open Ipaddr
 open Json
 open CompilationContext
+open ParsedArg
 open MessageReporting
 open HxbData
 open TypeloadCacheHook

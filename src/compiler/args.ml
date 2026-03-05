@@ -1,6 +1,6 @@
 open Globals
 open Common
-open CompilationContext
+open ParsedArg
 
 let columns = lazy (match Terminal_size.get_columns () with None -> 80 | Some c -> c)
 

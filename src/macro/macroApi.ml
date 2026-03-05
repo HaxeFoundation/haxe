@@ -2213,7 +2213,7 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			let open CompilationContext in
+			let open ParsedArg in
 			let kind = match com.platform with
 				| Jvm -> JavaLib
 				| Flash -> SwfLib
