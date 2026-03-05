@@ -1,7 +1,8 @@
 package haxe;
 
-import haxe.ds.IntMap;
 import haxe.EntryPoint;
+import haxe.atomic.AtomicInt;
+import haxe.ds.IntMap;
 
 class Event {
 
@@ -103,6 +104,7 @@ class EventLoop {
 	#if target.threaded
 	var mutex : sys.thread.Mutex;
 	var lockTime : sys.thread.Lock;
+	final numPendingThreadTasks : AtomicInt;
 	/**
 		The reference thread for this loop. If set, the loop can only be run within this thread.
 	**/
@@ -115,6 +117,7 @@ class EventLoop {
 		#if target.threaded
 		mutex = new sys.thread.Mutex();
 		lockTime = new sys.thread.Lock();
+		numPendingThreadTasks = new AtomicInt(0);
 		#end
 	}
 
@@ -132,16 +135,27 @@ class EventLoop {
 	**/
 	public function loop() {
 		checkThread();
-		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
-			var time = getNextTick();
-			// disable wait if we have our native loop alive
-			if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
-				time = -1;
-			if( time > 0 ) {
-				wait(time);
-				continue;
+		while (true) {
+			if (hasEvents(true)) {
+				var time = getNextTick();
+				// disable wait if we have our native loop alive
+				if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
+					time = -1;
+				if( time > 0 ) {
+					wait(time);
+					continue;
+				}
+				loopOnce(false);
+			} else if (promiseCount > 0 || hasRunningThreadTasks()) {
+				#if target.threaded
+				// wait till we get notified
+				lockTime.wait();
+				#else
+				// ?
+				#end
+			} else {
+				break;
 			}
-			loopOnce(false);
 		}
 	}
 
@@ -430,10 +444,14 @@ class EventLoop {
 		Tells if we currently have blocking unfinished threads.
 	**/
 	public static function hasRunningThreads() {
+		return main.hasRunningThreadTasks();
+	}
+
+	function hasRunningThreadTasks() {
 		#if !target.threaded
 		return false;
 		#else
-		return @:privateAccess sys.thread.Thread.hasBlocking();
+		return numPendingThreadTasks.load() > 0;
 		#end
 	}
 
@@ -460,14 +478,29 @@ class EventLoop {
 	}
 
 	/**
-		Add a task to be run either on another thread or as part of the main event loop if the
-		platform does not support threads.
+		Adds `f` as a thread task on the main thread.
 	**/
 	public static function addTask( f : Void -> Void, blocking = true ) {
+		main.addThreadTask(f, blocking);
+	}
+
+	/**
+		Add a task to be run either on another thread or as part of this event loop if the
+		platform does not support threads.
+	**/
+	public function addThreadTask( f : Void -> Void, blocking = true ) {
 		#if target.threaded
-		sys.thread.Thread.create(f).isBlocking = blocking;
+		if (blocking) {
+			numPendingThreadTasks.add(1);
+			sys.thread.Thread.create(f, { onExit: () -> {
+				numPendingThreadTasks.sub(1);
+				wakeup();
+		 	}});
+		} else {
+			sys.thread.Thread.create(f);
+		}
 		#else
-		main.add(f).isBlocking = blocking;
+		add(f).isBlocking = blocking;
 		#end
 	}
 

@@ -18,6 +18,10 @@ type t = {
 	mutable was_compilation : bool;
 	(* True if the macro context has been set up *)
 	mutable macro_context_setup : bool;
+	(* Stdin content for the current display request *)
+	mutable current_stdin : string option;
+	(* Forwarded stdin pipe from the current client connection *)
+	mutable current_stdin_pipe : in_channel option;
 }
 
 let create verbose = {
@@ -29,6 +33,8 @@ let create verbose = {
 	delays = [];
 	was_compilation = false;
 	macro_context_setup = false;
+	current_stdin = None;
+	current_stdin_pipe = None;
 }
 
 let add_delay sctx f =

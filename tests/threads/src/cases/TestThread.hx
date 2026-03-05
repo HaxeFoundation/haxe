@@ -1,10 +1,34 @@
 package cases;
 
+import haxe.atomic.AtomicInt;
 import sys.thread.Semaphore;
 import utest.Assert;
 import sys.thread.Condition;
 
 class TestThread extends utest.Test {
+	var activeThreads:AtomicInt;
+	var semaphore:Semaphore;
+
+	function setup() {
+		activeThreads = new AtomicInt(0);
+		semaphore = new Semaphore(0);
+		Thread.addCallbacks({
+			onStart: () -> {
+				activeThreads.add(1);
+			},
+			onExit: () -> {
+				semaphore.release();
+			}
+		});
+	}
+
+	function teardown() {
+		final activeThreads = activeThreads.load();
+		for (_ in 0...activeThreads) {
+			semaphore.acquire();
+		}
+	}
+
 	function testOnAbort() {
 		final cond = new Condition();
 		var failingThread = null;
@@ -292,13 +316,63 @@ class TestThread extends utest.Test {
 		Assert.isFalse(onExitCalled);
 	}
 
+	function testAddCallbacksHandleCloseInOnExit() {
+		// handle.close() from within the per-thread onExit callback
+		// should prevent the global callback from being called
+		var onExitCalled = false;
+		final sem = new Semaphore(0);
+
+		final handle = Thread.addCallbacks({
+			onExit: () -> {
+				onExitCalled = true;
+			}
+		});
+
+		// The per-thread onExit closes the handle before global callbacks run
+		Thread.create(() -> {}, {
+			onExit: () -> {
+				handle.close();
+				sem.release();
+			},
+			onAbort: (_) -> {}
+		});
+
+		sem.acquire();
+		Assert.isFalse(onExitCalled);
+	}
+
+	function testCallbackLIFOOrder() {
+		// Callbacks should be called in LIFO order (last registered first)
+		final sem = new Semaphore(0);
+		final order = [];
+
+		// handle1 registered first — runs LAST in LIFO order
+		final handle1 = Thread.addCallbacks({
+			onExit: () -> {
+				order.push(1);
+				sem.release();
+			}
+		});
+		final handle2 = Thread.addCallbacks({onExit: () -> order.push(2)});
+		final handle3 = Thread.addCallbacks({onExit: () -> order.push(3)});
+
+		Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+
+		handle1.close();
+		handle2.close();
+		handle3.close();
+
+		Assert.same([3, 2, 1], order);
+	}
+
 	function testMultipleAddCallbacks() {
 		// Multiple addCallbacks registrations should all be called
 		final sem = new Semaphore(0);
 		var count = 0;
 
-		final handle1 = Thread.addCallbacks({onStart: () -> count++});
-		final handle2 = Thread.addCallbacks({onStart: () -> { count++; sem.release(); }});
+		final handle1 = Thread.addCallbacks({onStart: () -> { count++; sem.release(); }});
+		final handle2 = Thread.addCallbacks({onStart: () -> count++});
 
 		Thread.create(() -> {}, {onAbort: (_) -> {}});
 		sem.acquire();

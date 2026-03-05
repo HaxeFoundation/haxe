@@ -22,6 +22,7 @@
 
 package sys.thread;
 
+import haxe.Exception;
 #if (!target.threaded)
 #error "This class is not available on this target"
 #end
@@ -33,7 +34,7 @@ function withMutex<T>(f:() -> T) {
 	return v;
 }
 
-private class ThreadCallback<F> implements IThreadCallbackHandle {
+class ThreadCallback<F> implements IThreadCallbackHandle {
 	public final callback:F;
 	public var next:Null<ThreadCallback<F>>;
 	public var prev:Null<ThreadCallback<F>>;
@@ -83,13 +84,13 @@ class ThreadCallbackStack<F> {
 		});
 	}
 
-	public function foreach(f:F->Void) {
+	public function foreach(f:ThreadCallback<F>->Void) {
 		var current = top;
 		while (current != null) {
 			// Save prev before calling f, in case f or a concurrent close modifies the list.
 			// Skip closed entries so that closing a handle stops future invocations.
 			final prev = current.prev;
-			if (!current.isClosed) f(current.callback);
+			if (!current.isClosed) f(current);
 			current = prev;
 		};
 	}
@@ -109,28 +110,12 @@ interface IThreadCallbackHandle {
 }
 
 class ThreadCallbackManager {
-	var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
-	var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
-	var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
-	var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
+	public var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
+	public var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
+	public var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
+	public var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
 
 	public function new() {}
-
-	public function callOnStart() {
-		onStartCallback?.foreach(f -> f());
-	}
-
-	public function callOnJobDone() {
-		onJobDoneCallback?.foreach(f -> f());
-	}
-
-	public function callOnExit() {
-		onExitCallback?.foreach(f -> f());
-	}
-
-	public function callOnAbort(e:haxe.Exception) {
-		onAbortCallback?.foreach(f -> f(e));
-	}
 
 	public function onStart(f:() -> Void):IThreadCallbackHandle {
 		onStartCallback ??= new ThreadCallbackStack();
@@ -150,6 +135,47 @@ class ThreadCallbackManager {
 	public function onAbort(f:haxe.Exception -> Void):IThreadCallbackHandle {
 		onAbortCallback ??= new ThreadCallbackStack();
 		return onAbortCallback.add(f);
+	}
+
+	static function collectCallbacks<F>(local:Null<ThreadCallbackStack<F>>, global:Null<ThreadCallbackStack<F>>) {
+		final toExecute = [];
+		withMutex(() -> {
+			if (local != null) {
+				local.foreach(c -> toExecute.push(c));
+			}
+			if (global != null) {
+				global.foreach(c -> toExecute.push(c));
+			}
+		});
+		return toExecute;
+	}
+
+	static function iterateCallbacks<F>(callbacks:Array<ThreadCallback<F>>, f:ThreadCallback<F> -> Void) {
+		var firstException = null;
+		for (c in callbacks) {
+			if (!c.isClosed) {
+				try {
+					f(c);
+				} catch(e:Exception) {
+					if (firstException == null) {
+						firstException = e;
+					}
+				}
+			}
+		}
+		if (firstException != null) {
+			throw firstException;
+		}
+	}
+
+	static public function invokeCallbacks(local:Null<ThreadCallbackStack<() -> Void>>, global:Null<ThreadCallbackStack<() -> Void>>) {
+		final callbacks = collectCallbacks(local, global);
+		iterateCallbacks(callbacks, c -> c.callback());
+	}
+
+	static public function invokeCallbacksArg<Arg>(local:Null<ThreadCallbackStack<Arg -> Void>>, global:Null<ThreadCallbackStack<Arg -> Void>>, e:Arg) {
+		final callbacks = collectCallbacks(local, global);
+		iterateCallbacks(callbacks, c -> c.callback(e));
 	}
 }
 
