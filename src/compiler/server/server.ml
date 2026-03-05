@@ -267,6 +267,35 @@ module WorkerDomain = struct
 		domain : unit Domain.t;
 	}
 
+	let shutdown rq =
+		(* Drain remaining requests by closing their connections, then return
+		   without recursing to exit the loop gracefully. *)
+		Mutex.lock rq.mutex;
+		let pending = rq.requests in
+		rq.requests <- [];
+		Mutex.unlock rq.mutex;
+		List.iter (fun req ->
+			(try req.conn.write "\x02\nServer shutdown\n"; with _ -> ());
+			req.conn.close()
+		) pending
+
+	let run_request sctx entry {conn; stdin; stdin_pipe; args} =
+		try
+			process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
+		with
+		| Cancelled ->
+			ServerMessage.uncaught_error "Compilation cancelled";
+			(try conn.write "\x02\nCancelled\n"; with _ -> ());
+		| e ->
+			let estr = Printexc.to_string e in
+			ServerMessage.uncaught_error estr;
+			(try conn.write ("\x02\n" ^ estr); with _ -> ());
+			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if e = Out_of_memory then begin
+				conn.close();
+				exit (-1);
+			end
+
 	let create sctx entry rq =
 		(* Install cancellation hook: raises Cancelled when the token is set *)
 		TypeloadCacheHook.check_cancellation := (fun () ->
@@ -278,16 +307,7 @@ module WorkerDomain = struct
 				Semaphore.Counting.acquire rq.semaphore;
 				(* Check for shutdown before doing any work *)
 				if Atomic.get rq.shutdown_flag then begin
-					(* Drain remaining requests by closing their connections, then return
-					   without recursing to exit the loop gracefully. *)
-					Mutex.lock rq.mutex;
-					let pending = rq.requests in
-					rq.requests <- [];
-					Mutex.unlock rq.mutex;
-					List.iter (fun req ->
-						(try req.conn.write "\x02\nServer shutdown\n"; with _ -> ());
-						req.conn.close()
-					) pending
+					shutdown rq
 				end else begin
 					Mutex.lock rq.mutex;
 					match rq.requests with
@@ -298,28 +318,13 @@ module WorkerDomain = struct
 							RequestQueue.wake_up rq;
 						end;
 						loop()
-					| {conn; stdin; stdin_pipe; args} :: l ->
+					| request :: l ->
 						rq.requests <- l;
 						Mutex.unlock rq.mutex;
-						sctx.current_stdin <- stdin;
+						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
-						begin try
-							process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
-						with
-						| Cancelled ->
-							ServerMessage.uncaught_error "Compilation cancelled";
-							(try conn.write "\x02\nCancelled\n"; with _ -> ());
-						| e ->
-							let estr = Printexc.to_string e in
-							ServerMessage.uncaught_error estr;
-							(try conn.write ("\x02\n" ^ estr); with _ -> ());
-							if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
-							if e = Out_of_memory then begin
-								conn.close();
-								exit (-1);
-							end;
-						end;
-						conn.close();
+						run_request sctx entry request;
+						request.conn.close();
 						sctx.current_stdin <- None;
 						ServerCompilationContext.cleanup();
 						if sctx.was_compilation then
