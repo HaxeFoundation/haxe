@@ -207,14 +207,15 @@ let handler =
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
+			let version = hctx.com.sctx.version in
 			Result (JObject [
 				"methods",jarray methods;
 				"haxeVersion",jobject [
-					"major",jint hctx.com.version.major;
-					"minor",jint hctx.com.version.minor;
-					"patch",jint hctx.com.version.revision;
-					"pre",(match hctx.com.version.pre with None -> jnull | Some pre -> jstring pre);
-					"build",(match hctx.com.version.extra with None -> jnull | Some(_,build) -> jstring build);
+					"major",jint version.major;
+					"minor",jint version.minor;
+					"patch",jint version.revision;
+					"pre",(match version.pre with None -> jnull | Some pre -> jstring pre);
+					"build",(match version.extra with None -> jnull | Some(_,build) -> jstring build);
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
@@ -580,7 +581,7 @@ type parse_input_result =
 	| Completed
 
 let parse_input com input =
-	let io = com.io in
+	let io = com.part_scope.io in
 	let input = JsonRpc.parse_request input in
 	let jsonrpc = new jsonrpc_handler input in
 
@@ -676,7 +677,7 @@ let parse_input com input =
 
 let parse_input com input =
 	let handle_error json =
-		send_json com.io json;
+		send_json com.part_scope.io json;
 		Completed
 	in
 	JsonRpc.handle_jsonrpc_error (fun () ->

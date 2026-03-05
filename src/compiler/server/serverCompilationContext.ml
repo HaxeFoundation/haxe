@@ -1,7 +1,9 @@
-open Common
+open Globals
 open CompilationCache
 
+
 type t = {
+	version : Globals.compiler_version;
 	(* If true, prints some debug information *)
 	verbose : bool;
 	(* The list of changed directories per-signature *)
@@ -20,22 +22,39 @@ type t = {
 	mutable macro_context_setup : bool;
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
-	(* Forwarded stdin pipe from the current client connection *)
-	mutable current_stdin_pipe : in_channel option;
+	(* The server's domain pool. *)
+	pool : Domainslib.Task.pool Lazy.t;
 }
 
-let create verbose = {
-	verbose = verbose;
-	cs = new CompilationCache.cache;
-	class_paths = Hashtbl.create 0;
-	changed_directories = Hashtbl.create 0;
-	compilation_step = 0;
-	delays = [];
-	was_compilation = false;
-	macro_context_setup = false;
-	current_stdin = None;
-	current_stdin_pipe = None;
-}
+let create_version () =
+	{
+		version = version;
+		major = version_major;
+		minor = version_minor;
+		revision = version_revision;
+		pre = version_pre;
+		extra = Version.version_extra;
+	}
+
+let create verbose =
+	let pool = lazy (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ()) in
+	{
+		version = create_version ();
+		verbose;
+		cs = new CompilationCache.cache;
+		class_paths = Hashtbl.create 0;
+		changed_directories = Hashtbl.create 0;
+		compilation_step = 0;
+		delays = [];
+		was_compilation = false;
+		macro_context_setup = false;
+		current_stdin = None;
+		pool;
+	}
+
+let dispose sctx =
+	if Lazy.is_val sctx.pool then
+		Domainslib.Task.teardown_pool (Lazy.force sctx.pool)
 
 let add_delay sctx f =
 	sctx.delays <- f :: sctx.delays
@@ -49,29 +68,4 @@ let run_delays sctx =
 let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
-	Parser.reset_state();
-	Hashtbl.clear DeprecationCheck.warned_positions;
-	stats.s_files_parsed := 0;
-	stats.s_classes_built := 0;
-	stats.s_methods_typed := 0;
-	stats.s_macros_called := 0
-
-let maybe_cache_context sctx com =
-	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
-		Timer.time com.timer_ctx ["server";"cache context"] (CommonCache.cache_context sctx.cs) com;
-		ServerMessage.cached_modules com "" (List.length com.modules);
-	end
-
-let ensure_macro_setup sctx =
-	if not sctx.macro_context_setup then begin
-		sctx.macro_context_setup <- true;
-		MacroContext.setup();
-	end
-
-let cleanup () = match !MacroContext.macro_interp_cache with
-	| Some interp ->
-		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
-		   context can be collected. *)
-		interp.curapi <- Obj.magic ""
-	| None ->
-		()
+	Parser.reset_state()

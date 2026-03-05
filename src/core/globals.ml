@@ -185,6 +185,9 @@ let gen_local_prefix = "`"
 (* msg * backtrace *)
 exception Ice of string * string
 
+(* Raised to cooperatively cancel an ongoing compiler operation *)
+exception Cancelled
+
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
 	Usage: `die message __LOC__`, where `__LOC__` is a built-in ocaml constant

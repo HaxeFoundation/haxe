@@ -360,7 +360,7 @@ class hxb_reader_api_server
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
-			incr stats.s_modules_restored;
+			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
@@ -379,7 +379,7 @@ class hxb_reader_api_server
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
-			incr stats.s_modules_restored;
+			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -539,7 +539,7 @@ and type_module sctx com delay mpath p =
 					(match typing_mode with
 					| FullTyping -> ignore(f_next chunks EOM)
 					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
-					incr stats.s_modules_restored;
+					incr com.request_scope.stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
@@ -555,6 +555,20 @@ and type_module sctx com delay mpath p =
 	in
 	t();
 	m
+
+let ensure_macro_setup sctx =
+	if not sctx.macro_context_setup then begin
+		sctx.macro_context_setup <- true;
+		MacroContext.setup();
+	end
+
+let cleanup () = match !MacroContext.macro_interp_cache with
+	| Some interp ->
+		(* curapi holds a reference to the typing context which we don't want to persist. Let's unset it so the
+		   context can be collected. *)
+		interp.curapi <- Obj.magic ""
+	| None ->
+		()
 
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
@@ -580,7 +594,7 @@ let after_target_init sctx ctx =
 
 let after_save sctx ctx =
 	if ctx.comm.is_server && not (has_error ctx) then
-		maybe_cache_context sctx ctx.com
+		CommonCache.maybe_cache_context ctx.com
 
 let after_compilation sctx ctx =
 	sctx.cs#clear_temp_cache;
@@ -588,5 +602,5 @@ let after_compilation sctx ctx =
 
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;
-	ServerCompilationContext.ensure_macro_setup sctx;
+	ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file sctx

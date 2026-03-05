@@ -36,10 +36,10 @@ let flush_context sctx ctx =
 				);
 				sctx.was_compilation <- ctx.com.display.dms_full_typing;
 				if has_error ctx then begin
-					ctx.timer_ctx.measure_times <- No;
+					ctx.com.timer_ctx.measure_times <- No;
 					write "\x02\n"
 				end else
-					if ctx.timer_ctx.measure_times = Yes then Timer.report_times ctx.timer_ctx (fun s -> write (s ^ "\n"));
+					if ctx.com.timer_ctx.measure_times = Yes then Timer.report_times ctx.com.timer_ctx (fun s -> write (s ^ "\n"));
 
 module Communication = struct
 	let create_stdio () =

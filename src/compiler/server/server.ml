@@ -6,52 +6,23 @@ open DisplayProcessingGlobals
 open Ipaddr
 open Json
 open CompilationContext
+open ParsedArg
 open MessageReporting
 open HxbData
 open TypeloadCacheHook
 
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
+	Unix.clear_nonblock sin;
 	let chin = IO.input_channel chin in
 	let chout = IO.output_channel chout in
 
 	let bout = Buffer.create 0 in
 
-	let block () = Unix.clear_nonblock sin in
-	let unblock () = Unix.set_nonblock sin in
-
-	let read_nonblock _ =
+	let read () =
         let len = IO.read_i32 chin in
-        Some (IO.really_nread_string chin len)
+        IO.really_nread_string chin len
 	in
-	let read = if allow_nonblock then fun do_block ->
-		if do_block then begin
-			block();
-			read_nonblock true;
-		end else begin
-			let c0 =
-				unblock();
-				try
-					Some (IO.read_byte chin)
-				with
-				| Sys_blocked_io
-				(* TODO: We're supposed to catch Sys_blocked_io only, but that doesn't work on my PC... *)
-				| Sys_error _ ->
-					None
-			in
-			begin match c0 with
-			| Some c0 ->
-				block(); (* We got something, make sure we block until we're done. *)
-				let c1 = IO.read_byte chin in
-				let c2 = IO.read_byte chin in
-				let c3 = IO.read_byte chin in
-				let len = c3 lsl 24 + c2 lsl 16 + c1 lsl 8 + c0 in
-				Some (IO.really_nread_string chin len)
-			| None ->
-				None
-			end
-		end
-	else read_nonblock in
 
 	let write = Buffer.add_string bout in
 
@@ -59,12 +30,12 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 		flush stdout;
 		IO.write_i32 chout (Buffer.length bout);
 		IO.nwrite_string chout (Buffer.contents bout);
-		IO.flush chout
+		IO.flush chout;
+		Buffer.clear bout
 	in
 
 	fun () ->
-		Buffer.clear bout;
-		{ support_nonblock = allow_nonblock; read; write; close; get_stdin = (fun () -> None) }
+		{ read; write; close; get_stdin = (fun () -> None) }
 
 let ssend sock str =
 	let rec loop pos len =
@@ -75,12 +46,6 @@ let ssend sock str =
 			loop (pos + s) (len - s)
 	in
 	loop 0 (Bytes.length str)
-
-(* The accept-function to wait for a stdio connection. *)
-let init_wait_stdio() =
-	set_binary_mode_in stdin true;
-	set_binary_mode_out stderr true;
-	mk_length_prefixed_communication false stdin stderr
 
 module Connect = struct
 
@@ -130,7 +95,7 @@ module Connect = struct
 		process_response ()
 
 	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
-	let do_connect ip port args =
+	let do_connect ip port (args : parsed_arg list) =
 		let (domain, host) = match ip with
 			| V4 ip -> (Unix.PF_INET, V4.to_string ip)
 			| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
@@ -140,18 +105,8 @@ module Connect = struct
 			| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
 			| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
 		);
-		let rec display_stdin args =
-			match args with
-			| [] -> ""
-			| "-D" :: ("display_stdin" | "display-stdin") :: _ ->
-				let accept = init_wait_stdio() in
-				let conn = accept() in
-				Option.default "" (conn.read true)
-			| _ :: args ->
-				display_stdin args
-		in
-		let args = ("--cwd " ^ Unix.getcwd()) :: args in
-		let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) ^ (display_stdin args) in
+		let raw_args = ("--cwd " ^ Unix.getcwd()) :: Args.to_raw_args args in
+		let s = (String.concat "" (List.map (fun a -> a ^ "\n") raw_args)) in
 		ssend sock (Bytes.of_string (s ^ "\000"));
 		let has_error = ref false in
 		let print line =
@@ -244,26 +199,141 @@ module SocketRequest = struct
 		{ data; stdin }
 end
 
-let process sctx entry comm args =
+let create_request_scope () =
+	{
+		stats = Stats.create ();
+		timer_ctx = Timer.make_context (Timer.make ["other"]);
+		cancellation_requested = false;
+	}
+
+let process sctx request_scope entry comm (args : parsed_arg list) =
 	let t0 = Extc.time() in
-	ServerMessage.arguments args;
+	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
 	ServerCompilationContext.reset sctx;
-	let api = {
-		on_context_create = (fun () ->
-			sctx.compilation_step <- sctx.compilation_step + 1;
-			sctx.compilation_step;
-		);
-		cache = sctx.cs;
-		callbacks = {
-			before_anything = ServerCache.before_anything sctx;
-			after_target_init = ServerCache.after_target_init sctx;
-			after_save = ServerCache.after_save sctx;
-			after_compilation = ServerCache.after_compilation sctx;
-		};
-	} in
-	entry api comm args;
+	entry sctx request_scope comm args;
 	ServerCompilationContext.run_delays sctx;
-	ServerMessage.stats stats (Extc.time() -. t0)
+	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
+
+module RequestQueue = struct
+	type request = {
+		args : parsed_arg list;
+		stdin : string option;
+		stdin_pipe : in_channel option;
+		conn : server_connection;
+	}
+
+	type t = {
+		mutex : Mutex.t;
+		semaphore : Semaphore.Counting.t;
+		mutable requests : request list;
+		mutable current_request : request_scope option;
+		shutdown_flag : bool Atomic.t;
+		cancel_token : bool Atomic.t;
+	}
+
+	let create () =
+		{
+			mutex = Mutex.create ();
+			semaphore = Semaphore.Counting.make 0;
+			requests = [];
+			current_request = None;
+			shutdown_flag = Atomic.make false;
+			cancel_token = Atomic.make false;
+		}
+
+	let wake_up rq =
+		Semaphore.Counting.release rq.semaphore
+
+	let add rq args stdin stdin_pipe conn =
+		Mutex.lock rq.mutex;
+		rq.requests <- { args; stdin; stdin_pipe; conn } :: rq.requests;
+		Mutex.unlock rq.mutex;
+		wake_up rq
+
+	let shutdown rq =
+		Atomic.set rq.cancel_token true;
+		Atomic.set rq.shutdown_flag true;
+		wake_up rq
+end
+
+module WorkerDomain = struct
+	open RequestQueue
+	open ServerCompilationContext
+
+	type t = {
+		domain : unit Domain.t;
+	}
+
+	let shutdown rq =
+		(* Drain remaining requests by closing their connections, then return
+		   without recursing to exit the loop gracefully. *)
+		Mutex.lock rq.mutex;
+		let pending = rq.requests in
+		rq.requests <- [];
+		Mutex.unlock rq.mutex;
+		List.iter (fun req ->
+			(try req.conn.write "\x02\nServer shutdown\n"; with _ -> ());
+			req.conn.close()
+		) pending
+
+	let run_request sctx request_scope entry {conn; stdin; stdin_pipe; args} =
+		try
+			process sctx request_scope entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
+		with
+		| Cancelled ->
+			ServerMessage.uncaught_error "Compilation cancelled";
+			(try conn.write "\x02\nCancelled\n"; with _ -> ());
+		| e ->
+			let estr = Printexc.to_string e in
+			ServerMessage.uncaught_error estr;
+			(try conn.write ("\x02\n" ^ estr); with _ -> ());
+			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if e = Out_of_memory then begin
+				conn.close();
+				exit (-1);
+			end
+
+	let create sctx entry rq =
+		let domain = Domain.spawn (fun () ->
+			let cs = sctx.cs in
+			let rec loop () =
+				Semaphore.Counting.acquire rq.semaphore;
+				(* Check for shutdown before doing any work *)
+				if Atomic.get rq.shutdown_flag then begin
+					shutdown rq
+				end else begin
+					Mutex.lock rq.mutex;
+					match rq.requests with
+					| [] ->
+						Mutex.unlock rq.mutex;
+						if cs#has_task then begin
+							cs#get_task#run;
+							RequestQueue.wake_up rq;
+						end;
+						loop()
+					| request :: l ->
+						rq.requests <- l;
+						Mutex.unlock rq.mutex;
+						sctx.current_stdin <- request.stdin;
+						Atomic.set rq.cancel_token false;
+						let request_scope = create_request_scope() in
+						rq.current_request <- Some request_scope;
+						run_request sctx request_scope entry request;
+						request.conn.close();
+						sctx.current_stdin <- None;
+						ServerCache.cleanup();
+						if sctx.was_compilation then
+							cs#add_task (new Tasks.server_exploration_task cs);
+						RequestQueue.wake_up rq;
+						loop()
+				end
+			in
+			loop ()
+		) in
+		{
+			domain;
+		}
+end
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
@@ -275,61 +345,37 @@ let wait_loop entry verbose accept =
 	(try Sys.set_signal 13 Sys.Signal_ignore with _ -> ());
 	(* Create server context and set up hooks for parsing and typing *)
 	let sctx = ServerCompilationContext.create verbose in
-	let cs = sctx.cs in
 	ServerCache.enable_cache_mode sctx;
-	(* Main loop: accept connections and process arguments *)
-	while true do
-		let conn = accept() in
-		begin try
-			(* Read arguments *)
-			let rec loop block =
-				match conn.read block with
-				| Some s ->
-					let hxml =
-						try
-							let idx = String.index s '\001' in
-							sctx.current_stdin <- Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
-							(String.sub s 0 idx)
-						with Not_found ->
-							s
-					in
-					sctx.current_stdin_pipe <- conn.get_stdin ();
-					let data = Helper.parse_hxml_data hxml in
-					process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write sctx.current_stdin_pipe) data
-				| None ->
-					if not cs#has_task then
-						(* If there is no pending task, turn into blocking mode. *)
-						loop true
-					else begin
-						(* Otherwise run the task and loop to check if there are more or if there's a request now. *)
-						cs#get_task#run;
-						loop false
-					end;
-			in
-			loop (not conn.support_nonblock)
-		with Unix.Unix_error _ ->
-			ServerMessage.socket_message "Connection Aborted"
-		| e ->
-			let estr = Printexc.to_string e in
-			ServerMessage.uncaught_error estr;
-			(try conn.write ("\x02\n" ^ estr); with _ -> ());
-			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
-			if e = Out_of_memory then begin
-				conn.close();
-				exit (-1);
+	let rq = RequestQueue.create () in
+	let worker = WorkerDomain.create sctx entry rq in
+	(* Main loop: accept connections and enqueue requests for the worker.
+	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
+	(try
+		while true do
+			let conn = accept() in
+			begin try
+				let s = conn.read () in
+				let stdin,hxml =
+					try
+						let idx = String.index s '\001' in
+						let stdin = (String.sub s (idx + 1) ((String.length s) - idx - 1)) in
+						Some stdin,(String.sub s 0 idx)
+					with Not_found ->
+						None,s
+				in
+				let stdin_pipe = conn.get_stdin () in
+				let data = Helper.parse_hxml_data hxml in
+				let parsed_args = Args.parse_args sctx data in
+				RequestQueue.add rq parsed_args stdin stdin_pipe conn;
+			with Unix.Unix_error _ ->
+				ServerMessage.socket_message "Connection Aborted";
+				conn.close()
 			end;
-		end;
-		(* Close connection and perform some cleanup *)
-		conn.close();
-		sctx.current_stdin <- None;
-		sctx.current_stdin_pipe <- None;
-		ServerCompilationContext.cleanup();
-		(* If our connection always blocks, we have to execute all pending tasks now. *)
-		if not conn.support_nonblock then
-			while cs#has_task do cs#get_task#run done
-		else if sctx.was_compilation then
-			cs#add_task (new Tasks.server_exploration_task cs)
-	done;
+		done
+	with _ -> ());
+	(* Signal the worker to shut down and wait for it to finish *)
+	RequestQueue.shutdown rq;
+	Domain.join worker.domain;
 	0
 
 (* Connect to given host/port and return accept function for communication *)
@@ -359,11 +405,11 @@ let init_wait_socket ip port =
 		Unix.set_nonblock sin;
 		ServerMessage.socket_message "Client connected";
 		let stdin_pipe = ref None in
-		let read = fun _ ->
+		let read () =
 			let req = SocketRequest.read sin bufsize in
 			Unix.clear_nonblock sin;
 			stdin_pipe := Some (req.stdin);
-			Some req.data
+			req.data
 		in
 		let get_stdin () = !stdin_pipe in
 		let closed = ref false in
@@ -379,6 +425,6 @@ let init_wait_socket ip port =
 				| Some _ -> close()
 				| None -> ssend sin (Bytes.unsafe_of_string s);
 		in
-		{ support_nonblock = false; read; write; close; get_stdin }
+		{ read; write; close; get_stdin }
 	) in
 	accept

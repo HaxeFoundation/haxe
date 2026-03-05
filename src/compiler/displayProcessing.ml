@@ -1,6 +1,7 @@
 open Globals
 open Common
 open CompilationContext
+open ParsedArg
 open DisplayProcessingGlobals
 
 type display_path_kind =

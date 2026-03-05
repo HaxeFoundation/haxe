@@ -819,7 +819,7 @@ let load_macro' ctx display cpath f p =
 
 let do_call_macro com api cpath name args p =
 	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ name ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
-	incr stats.s_macros_called;
+	incr com.request_scope.stats.s_macros_called;
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
 	let r = macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f api in
