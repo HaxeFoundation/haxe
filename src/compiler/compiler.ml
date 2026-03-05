@@ -764,9 +764,16 @@ module HighLevel = struct
 					raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
 				else
 					hxml_stack := full_path :: !hxml_stack;
-				let hxml_raw = try Helper.parse_hxml path with Not_found -> [] in
-				let expanded = (if hxml_raw = [] then [IncludeModule (path ^ " (file not found)")]
-					else Args.parse_args_new sctx hxml_raw) in
+				(* Separate "file not found" from "file exists but is empty/all-comments":
+				   an empty hxml (e.g. cleared by CI for platform reasons) is a no-op,
+				   not an error. *)
+				let hxml_raw, expanded =
+					try
+						let raw = Helper.parse_hxml path in
+						raw, Args.parse_args_new sctx raw
+					with Not_found ->
+						[], [IncludeModule (path ^ " (file not found)")]
+				in
 				(* When an hxml file is expanded, its content becomes the raw args
 				   for this context so that Compiler.getArguments() returns the
 				   hxml content rather than the wrapper CLI invocation. *)
