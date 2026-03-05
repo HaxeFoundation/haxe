@@ -140,19 +140,10 @@ class file_keys = object(self)
 
 end
 
-type shared_display_information = {
-	mutable diagnostics_messages : diagnostic list;
-}
-
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable display_module_has_macro_defines : bool;
 	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
-}
-
-(* This information is shared between normal and macro context. *)
-type shared_context = {
-	shared_display_information : shared_display_information;
 }
 
 type json_api = {
@@ -288,6 +279,7 @@ end
 
 type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
+	mutable diagnostics_messages : diagnostic list;
 }
 
 type request_scope = {
@@ -346,7 +338,6 @@ type context = {
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
-	shared : shared_context;
 	display_information : display_information;
 	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
@@ -749,6 +740,7 @@ let create io request_scope compilation_step sctx version args display_mode =
 		request_scope;
 		part_scope = {
 			warned_positions = Hashtbl.create 0;
+			diagnostics_messages = [];
 		};
 		compilation_step = compilation_step;
 		sctx;
@@ -758,11 +750,6 @@ let create io request_scope compilation_step sctx version args display_mode =
 		stage = CCreated;
 		version = version;
 		args = args;
-		shared = {
-			shared_display_information = {
-				diagnostics_messages = [];
-			}
-		};
 		display_information = {
 			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
@@ -888,7 +875,6 @@ let clone com is_macro_context =
 		timer_ctx = com.timer_ctx;
 		version = com.version;
 		args = com.args;
-		shared = com.shared;
 		debug = com.debug;
 		display = com.display;
 		verbose = com.verbose;
@@ -1140,7 +1126,7 @@ let hash f =
 
 let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
-	let di = com.shared.shared_display_information in
+	let di = com.part_scope in
 	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
 
 let display_error_ext com err =
