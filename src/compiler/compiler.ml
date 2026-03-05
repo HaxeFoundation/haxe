@@ -743,7 +743,7 @@ module HighLevel = struct
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs timer_ctx libs args server_api.cache has_display in
+				let lines = add_libs timer_ctx libs args server_api.sctx.cs has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -786,7 +786,7 @@ module HighLevel = struct
 
 	and entry server_api comm args =
 		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
-		let create = create_context comm server_api.cache timer_ctx in
+		let create = create_context comm server_api.sctx timer_ctx in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
 		let has_display = ref false in

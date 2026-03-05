@@ -38,14 +38,34 @@ let const_type basic const default =
 	| TBool _ -> basic.tbool
 	| _ -> default
 
-type stats = {
-	s_files_parsed : int ref;
-	s_modules_typed : int ref;
-	s_modules_restored : int ref;
-	s_classes_built : int ref;
-	s_methods_typed : int ref;
-	s_macros_called : int ref;
-}
+module Stats = struct
+	type t = {
+		s_files_parsed : int ref;
+		s_modules_typed : int ref;
+		s_modules_restored : int ref;
+		s_classes_built : int ref;
+		s_methods_typed : int ref;
+		s_macros_called : int ref;
+	}
+
+	let create () =
+		{
+			s_files_parsed = ref 0;
+			s_modules_typed = ref 0;
+			s_modules_restored = ref 0;
+			s_classes_built = ref 0;
+			s_methods_typed = ref 0;
+			s_macros_called = ref 0;
+		}
+
+	let add lhs rhs =
+		lhs.s_files_parsed := !(lhs.s_files_parsed) + !(rhs.s_files_parsed);
+		lhs.s_modules_typed := !(lhs.s_modules_typed) + !(rhs.s_modules_typed);
+		lhs.s_modules_restored := !(lhs.s_modules_restored) + !(rhs.s_modules_restored);
+		lhs.s_classes_built := !(lhs.s_classes_built) + !(rhs.s_classes_built);
+		lhs.s_methods_typed := !(lhs.s_methods_typed) + !(rhs.s_methods_typed);
+		lhs.s_macros_called := !(lhs.s_macros_called) + !(rhs.s_macros_called)
+end
 
 class compiler_callbacks = object(self)
 	val before_typer_create = ref [];
@@ -269,11 +289,13 @@ end
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
+	sctx : ServerCompilationContext.t;
 	cs : CompilationCache.t;
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
 	mutable json_out : json_api option;
 	timer_ctx : Timer.timer_context;
+	stats : Stats.t;
 	(* config *)
 	version : compiler_version;
 	mutable args : string list;
@@ -478,16 +500,6 @@ let short_platform_name = function
 	| Hl -> "hl"
 	| Eval -> "evl"
 	| CustomTarget n -> "c_" ^ n
-
-let stats =
-	{
-		s_files_parsed = ref 0;
-		s_modules_typed = ref 0;
-		s_modules_restored = ref 0;
-		s_classes_built = ref 0;
-		s_methods_typed = ref 0;
-		s_macros_called = ref 0;
-	}
 
 open PlatformConfig
 
@@ -722,10 +734,11 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create io timer_ctx compilation_step cs version args display_mode =
+let create io timer_ctx compilation_step sctx version args display_mode =
 	let rec com = {
 		compilation_step = compilation_step;
-		cs = cs;
+		sctx;
+		cs = sctx.cs;
 		cache = None;
 		timer_ctx = timer_ctx;
 		stage = CCreated;
@@ -741,6 +754,7 @@ let create io timer_ctx compilation_step cs version args display_mode =
 			display_module_has_macro_defines = false;
 			module_diagnostics = [];
 		};
+		stats = Stats.create ();
 		debug = false;
 		display = display_mode;
 		verbose = false;
@@ -854,11 +868,13 @@ let clone com is_macro_context =
 	{
 		(* keeps *)
 		compilation_step = com.compilation_step;
+		sctx = com.sctx;
 		cs = com.cs;
 		timer_ctx = com.timer_ctx;
 		version = com.version;
 		args = com.args;
 		shared = com.shared;
+		stats = Stats.create ();
 		debug = com.debug;
 		display = com.display;
 		verbose = com.verbose;

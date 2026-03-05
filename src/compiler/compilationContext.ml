@@ -76,7 +76,7 @@ type server_connection = {
 type server_accept = unit -> server_connection
 
 type server_api = {
-	cache : CompilationCache.t;
+	sctx : ServerCompilationContext.t;
 	callbacks : compilation_callbacks;
 	on_context_create : unit -> int;
 }

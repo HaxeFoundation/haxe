@@ -202,17 +202,24 @@ let process sctx entry comm args =
 	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	ServerCompilationContext.reset sctx;
+	Hashtbl.clear DeprecationCheck.warned_positions;
+
+	let stats = Stats.create () in
+	let after_compilation ctx =
+		ServerCache.after_compilation sctx ctx;
+		Stats.add stats ctx.com.stats;
+	in
 	let api = {
 		on_context_create = (fun () ->
 			sctx.compilation_step <- sctx.compilation_step + 1;
 			sctx.compilation_step;
 		);
-		cache = sctx.cs;
+		sctx;
 		callbacks = {
 			before_anything = ServerCache.before_anything sctx;
 			after_target_init = ServerCache.after_target_init sctx;
 			after_save = ServerCache.after_save sctx;
-			after_compilation = ServerCache.after_compilation sctx;
+			after_compilation = after_compilation;
 		};
 	} in
 	entry api comm args;
@@ -326,7 +333,7 @@ module WorkerDomain = struct
 						run_request sctx entry request;
 						request.conn.close();
 						sctx.current_stdin <- None;
-						ServerCompilationContext.cleanup();
+						ServerCache.cleanup();
 						if sctx.was_compilation then
 							cs#add_task (new Tasks.server_exploration_task cs);
 						RequestQueue.wake_up rq;
