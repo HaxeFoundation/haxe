@@ -98,8 +98,8 @@ let adv_args_descriptions = [
 
     The translation is mostly 1-to-1: one CLI flag group → one [parsed_arg].
     Compound expansions (e.g. adding [php.Boot] for [--php], setting
-    [actx.interp] for [--interp]) are deferred to [process_args_new]. *)
-let parse_args_new (_sctx : ServerCompilationContext.t) args =
+    [actx.interp] for [--interp]) are deferred to [process_args]. *)
+let parse_args (_sctx : ServerCompilationContext.t) args =
 	let parsed = DynArray.create () in
 	let add a = DynArray.add parsed a in
 	let rec loop = function
@@ -165,7 +165,7 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 			add SetDebug; loop rest
 		| ("--version" | "-version") :: _ ->
 			add ShowVersion
-			(* consume remaining args - ShowVersion raises immediately in process_args_new *)
+			(* consume remaining args - ShowVersion raises immediately in process_args *)
 		| ("--help" | "-h" | "-help") :: _ ->
 			add ShowHelp
 		| "--help-defines" :: _ ->
@@ -248,19 +248,13 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 					add (IncludeModule arg)));
 			loop rest
 	in
-	let args = match List.rev args with
-		| file :: "--display" :: pl when file <> "memory" ->
-			"--display" :: file :: List.rev pl
-		| _ ->
-			args
-	in
 	loop args;
 	DynArray.to_list parsed
 
 (** Apply a single-part [parsed_arg list] to [com], returning the populated
     [arg_context].  Higher-level concerns ([Next], [Each], [AddLib] expansion,
     hxml expansion) are handled by [Compiler.HighLevel.process_params]. *)
-let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
+let process_args (com : Common.context) (parsed_args : parsed_arg list) =
 	let actx = {
 		classes = [([],"Std")];
 		xml_out = None;
@@ -400,7 +394,7 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			actx.did_something <- true
 		| HxmlFile _ ->
-			(* hxml files should have been expanded before reaching process_args_new *)
+			(* hxml files should have been expanded before reaching process_args *)
 			()
 		| Next | Each ->
 			(* batch directives handled at process_params level *)

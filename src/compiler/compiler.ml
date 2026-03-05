@@ -537,7 +537,7 @@ let compile_ctx sctx ctx =
 		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
-			let actx = Args.process_args_new ctx.com ctx.parsed_args in
+			let actx = Args.process_args ctx.com ctx.parsed_args in
 			process_actx ctx actx;
 			compile ctx actx sctx;
 		);
@@ -702,7 +702,7 @@ module HighLevel = struct
 			List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 			let global_repo = List.exists (fun a -> a = HaxelibGlobal) args in
 			let raw_lines = add_libs request_scope.timer_ctx libs (if global_repo then ["--haxelib-global"] else []) sctx.cs has_display in
-			(Args.parse_args_new sctx raw_lines) @ rest
+			(Args.parse_args sctx raw_lines) @ rest
 		in
 		let rec loop acc = function
 			| [] ->
@@ -764,7 +764,7 @@ module HighLevel = struct
 				let hxml_raw, expanded =
 					try
 						let raw = Helper.parse_hxml path in
-						raw, Args.parse_args_new sctx raw
+						raw, Args.parse_args sctx raw
 					with Not_found ->
 						[], [IncludeModule (path ^ " (file not found)")]
 				in
@@ -779,14 +779,14 @@ module HighLevel = struct
 		begin match server_mode with
 		| SMListen hp ->
 			(* Apply args to get com.verbose before starting the wait loop *)
-			ignore(Args.process_args_new ctx.com ctx.parsed_args);
+			ignore(Args.process_args ctx.com ctx.parsed_args);
 			let accept =
 				let host, port = Helper.parse_host_port hp in
 				Server.init_wait_socket host port
 			in
 			Server.wait_loop entry ctx.com.verbose accept
 		| SMConnect hp ->
-			ignore(Args.process_args_new ctx.com ctx.parsed_args);
+			ignore(Args.process_args ctx.com ctx.parsed_args);
 			let host, port = Helper.parse_host_port hp in
 			let accept = Server.init_wait_connect host port in
 			Server.wait_loop entry ctx.com.verbose accept
