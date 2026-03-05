@@ -69,13 +69,23 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 		| (("--neko" | "-neko") as f) :: file :: rest ->
 			raw [f; file]; add (SetPlatform (Neko, file)); loop rest
 		| (("--php" | "-php") as f) :: dir :: rest ->
-			raw [f; dir]; add (AddClass (["php"], "Boot")); add (SetPlatform (Php, dir)); loop rest
+			raw [f; dir];
+			add (AddClass (["php"], "Boot"));
+			add (SetPlatform (Php, dir));
+			loop rest
 		| (("--cpp" | "-cpp") as f) :: dir :: rest ->
 			raw [f; dir]; add (SetPlatform (Cpp, dir)); loop rest
 		| (("--cppia" | "-cppia") as f) :: file :: rest ->
-			raw [f; file]; add (Define ("cppia", None)); add (SetPlatform (Cpp, file)); loop rest
+			raw [f; file];
+			add (Define ("cppia", None));
+			add (SetPlatform (Cpp, file));
+			loop rest
 		| (("--jvm" | "-jvm") as f) :: file :: rest ->
-			raw [f; file]; add SetJvmFlag; add (SetPlatform (Jvm, file)); add (AddLib "hxjava"); loop rest
+			raw [f; file];
+			add SetJvmFlag;
+			add (SetPlatform (Jvm, file));
+			add (AddLib "hxjava");
+			loop rest
 		| (("--python" | "-python") as f) :: dir :: rest ->
 			raw [f; dir]; add (SetPlatform (Python, dir)); loop rest
 		| (("--hl" | "-hl") as f) :: file :: rest ->
@@ -87,19 +97,28 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 		| "-x" :: cl :: rest ->
 			let cpath = Path.parse_type_path cl in
 			raw ["-x"; cl];
-			add (SetMain cpath); add (AddClass cpath); add (Define ("interp", None));
-			add (SetPlatform (Eval, "")); add SetInterp;
+			add (SetMain cpath);
+			add (AddClass cpath);
+			add (Define ("interp", None));
+			add (SetPlatform (Eval, ""));
+			add SetInterp;
 			loop rest
 		| "--interp" :: rest ->
 			raw ["--interp"];
-			add (Define ("interp", None)); add (SetPlatform (Eval, "")); add SetInterp;
+			add (Define ("interp", None));
+			add (SetPlatform (Eval, ""));
+			add SetInterp;
 			loop rest
 		| "--run" :: cl :: rest ->
 			let cpath = Path.parse_type_path cl in
 			(* Use -x format for backward compat with Compiler.getArguments() *)
 			raw ["-x"; cl];
-			add (SetMain cpath); add (AddClass cpath); add (Define ("interp", None));
-			add (SetPlatform (Eval, "")); add SetInterp; add (AddRuntimeArgs rest);
+			add (SetMain cpath);
+			add (AddClass cpath);
+			add (Define ("interp", None));
+			add (SetPlatform (Eval, ""));
+			add SetInterp;
+			add (AddRuntimeArgs rest);
 			(* --run consumes remaining args as runtime args *)
 		| (("--class-path" | "-p" | "-cp") as f) :: path :: rest ->
 			raw [f; path]; add (AddClassPath path); loop rest
