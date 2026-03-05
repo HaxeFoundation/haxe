@@ -59,5 +59,4 @@ let run_delays sctx =
 let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
-	Parser.reset_state();
-	Parallel.enable := false
+	Parser.reset_state()
