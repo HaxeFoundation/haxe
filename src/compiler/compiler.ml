@@ -539,6 +539,9 @@ let compile_ctx sctx ctx =
 		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
+			(* Restore com.args from the raw tokens embedded in parsed_args, mirroring
+			   the original behavior where com.args came from the accumulated CLI strings. *)
+			ctx.com.args <- Args.to_raw_args ctx.parsed_args;
 			let actx = Args.process_args_new ctx.com ctx.parsed_args in
 			process_actx ctx actx;
 			compile ctx actx sctx;
@@ -754,6 +757,10 @@ module HighLevel = struct
 					hxml_stack := full_path :: !hxml_stack;
 				let expanded = (try Args.parse_args_new sctx (Helper.parse_hxml path)
 					with Not_found -> [IncludeModule (path ^ " (file not found)")]) in
+				(* When an hxml file is expanded, its content defines com.args for this
+				   context. Discard any RawArgs from the wrapper invocation so that
+				   Compiler.getArguments() reflects only the hxml content. *)
+				let acc = List.filter (function RawArgs _ -> false | _ -> true) acc in
 				loop acc (expanded @ l)
 			| arg :: l ->
 				loop (arg :: acc) l

@@ -76,6 +76,10 @@ type parsed_arg =
 	| ShowHelp
 	| ShowHelpDefines
 	| ShowHelpMetas
+	| ShowHelpUserDefines
+	| ShowHelpUserMetas
+	(* Raw CLI tokens preserved for com.args reconstruction *)
+	| RawArgs of string list
 
 type arg_context = {
 	mutable classes : Globals.path list;
