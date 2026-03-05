@@ -1,6 +1,9 @@
+open Globals
 open CompilationCache
 
+
 type t = {
+	version : Globals.compiler_version;
 	(* If true, prints some debug information *)
 	verbose : bool;
 	(* The list of changed directories per-signature *)
@@ -21,8 +24,19 @@ type t = {
 	mutable current_stdin : string option;
 }
 
+let create_version () =
+	{
+		version = version;
+		major = version_major;
+		minor = version_minor;
+		revision = version_revision;
+		pre = version_pre;
+		extra = Version.version_extra;
+	}
+
 let create verbose = {
-	verbose = verbose;
+	version = create_version ();
+	verbose;
 	cs = new CompilationCache.cache;
 	class_paths = Hashtbl.create 0;
 	changed_directories = Hashtbl.create 0;

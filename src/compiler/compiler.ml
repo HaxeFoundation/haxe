@@ -431,8 +431,8 @@ let compile ctx actx callbacks =
 		) (List.rev actx.cmds)
 	end
 
-let make_ice_message com msg backtrace =
-		let ver = (s_version_full com.version) in
+let make_ice_message (com : Common.context) msg backtrace =
+		let ver = (s_version_full com.sctx.version) in
 		let os_type = if Sys.unix then "unix" else "windows" in
 		Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s" msg ver os_type backtrace
 let compile_safe ctx f =
@@ -555,14 +555,6 @@ let compile_ctx callbacks ctx =
 		catch_completion_and_exit ctx callbacks run
 
 let create_context comm sctx request_scope compilation_step params =
-	let version = {
-		version = version;
-		major = version_major;
-		minor = version_minor;
-		revision = version_revision;
-		pre = version_pre;
-		extra = Version.version_extra;
-	} in
 	let io = if comm.is_server then begin
 		(* In server mode, create pipes so that writing to stdout/stderr channels
 		   gets forwarded through the communication protocol to the client. *)
@@ -625,7 +617,7 @@ let create_context comm sctx request_scope compilation_step params =
 		diagnostics_messages = [];
 		io;
 	} in
-	let com = Common.create sctx request_scope part_scope compilation_step version params (DisplayTypes.DisplayMode.create DMNone) in
+	let com = Common.create sctx request_scope part_scope compilation_step params (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
