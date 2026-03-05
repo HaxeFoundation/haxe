@@ -1,2 +1,2 @@
-Main.hx:2: [-x,Main]
+Main.hx:2: [--main,Main,--interp]
 Main.hx:8: [arg]

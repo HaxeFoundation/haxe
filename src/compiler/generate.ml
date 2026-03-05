@@ -1,5 +1,6 @@
 open Globals
 open CompilationContext
+open ParsedArg
 open TType
 open Tanon_identification
 
