@@ -83,9 +83,7 @@ let check_hxb_output ctx config =
 					None
 			in
 			let a_in = Array.of_list com.modules in
-			let a_out = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
-				Parallel.ParallelArray.map pool f a_in None
-			) in
+			let a_out = Parallel.ParallelArray.map (Some (Lazy.force com.sctx.pool)) f a_in None in
 			Array.iter (function
 				| None ->
 					()
