@@ -58,6 +58,7 @@ module AnonIdMode = struct
 		variance_stack = new_rec_stack();
 		abstract_cast_stack = new_rec_stack();
 		unify_new_monos = new_rec_stack();
+		apply_params_stack = ref [];
 	}
 end
 
