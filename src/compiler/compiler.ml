@@ -539,9 +539,6 @@ let compile_ctx sctx ctx =
 		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
-			(* Restore com.args from the raw tokens embedded in parsed_args, mirroring
-			   the original behavior where com.args came from the accumulated CLI strings. *)
-			ctx.com.args <- Args.to_raw_args ctx.parsed_args;
 			let actx = Args.process_args_new ctx.com ctx.parsed_args in
 			process_actx ctx actx;
 			compile ctx actx sctx;
@@ -557,7 +554,7 @@ let compile_ctx sctx ctx =
 	end else
 		catch_completion_and_exit ctx sctx run
 
-let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
+let create_context comm sctx request_scope compilation_step (raw_args : string list) (parsed_args : parsed_arg list) =
 	let io = if comm.is_server then begin
 		(* In server mode, create pipes so that writing to stdout/stderr channels
 		   gets forwarded through the communication protocol to the client. *)
@@ -620,7 +617,7 @@ let create_context comm sctx request_scope compilation_step (parsed_args : parse
 		diagnostics_messages = [];
 		io;
 	} in
-	let com = Common.create sctx request_scope part_scope compilation_step [] (DisplayTypes.DisplayMode.create DMNone) in
+	let com = Common.create sctx request_scope part_scope compilation_step raw_args (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
@@ -628,6 +625,7 @@ let create_context comm sctx request_scope compilation_step (parsed_args : parse
 		has_error = false;
 		comm = comm;
 		runtime_args = [];
+		raw_args;
 		parsed_args;
 	}
 
@@ -685,15 +683,19 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) create each_args has_display is_server (args : parsed_arg list) =
+	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) create each_args has_display is_server (raw_args : string list) (args : parsed_arg list) =
 		(* We want the loop below to actually see all the --each params, so let's prepend them *)
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
 		let hxml_stack = ref [] in
+		(* Tracks the raw CLI tokens for the current batch.  Updated to the hxml
+		   file content whenever a [HxmlFile] is expanded, so that [com.args]
+		   (set via [create_context]) reflects the actual source of the args. *)
+		let current_raw_args = ref raw_args in
 		let create_context parsed =
 			sctx.compilation_step <- sctx.compilation_step + 1;
-			let ctx = create sctx.compilation_step parsed in
+			let ctx = create sctx.compilation_step !current_raw_args parsed in
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
@@ -741,8 +743,15 @@ module HighLevel = struct
 			| ServerListen hp :: l ->
 				server_mode := SMListen hp;
 				loop acc l
-			| AddRuntimeArgs runtime_args :: _ ->
-				(* --run already translated; runtime args are the last thing *)
+			| Run (cl, runtime_args) :: _ ->
+				(* --run: expand into SetMain + Interp, then create context.
+				   This is terminal: remaining args become runtime_args (already in tuple).
+				   Update current_raw_args to use the -x form so that com.args normalises
+				   '--run Main ...' to '-x Main' (matching old parse_args behaviour). *)
+				let cpath = Path.parse_type_path cl in
+				let pre_acc_raw = Args.to_raw_args (List.rev acc) in
+				let acc = Interp :: SetMain cpath :: acc in
+				current_raw_args := pre_acc_raw @ ["-x"; cl];
 				let ctx = create_context (List.rev acc) in
 				ctx.runtime_args <- runtime_args;
 				[], Some ctx
@@ -755,12 +764,13 @@ module HighLevel = struct
 					raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
 				else
 					hxml_stack := full_path :: !hxml_stack;
-				let expanded = (try Args.parse_args_new sctx (Helper.parse_hxml path)
-					with Not_found -> [IncludeModule (path ^ " (file not found)")]) in
-				(* When an hxml file is expanded, its content defines com.args for this
-				   context. Discard any RawArgs from the wrapper invocation so that
-				   Compiler.getArguments() reflects only the hxml content. *)
-				let acc = List.filter (function RawArgs _ -> false | _ -> true) acc in
+				let hxml_raw = try Helper.parse_hxml path with Not_found -> [] in
+				let expanded = (if hxml_raw = [] then [IncludeModule (path ^ " (file not found)")]
+					else Args.parse_args_new sctx hxml_raw) in
+				(* When an hxml file is expanded, its content becomes the raw args
+				   for this context so that Compiler.getArguments() returns the
+				   hxml content rather than the wrapper CLI invocation. *)
+				current_raw_args := hxml_raw;
 				loop acc (expanded @ l)
 			| arg :: l ->
 				loop (arg :: acc) l
@@ -787,16 +797,16 @@ module HighLevel = struct
 			compile_ctx sctx ctx
 		end
 
-	and entry sctx request_scope comm (args : parsed_arg list) =
+	and entry sctx request_scope comm (raw_args : string list) (args : parsed_arg list) =
 		let create = create_context comm sctx request_scope in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
 		let has_display = ref (List.exists (fun a -> match a with SetDisplayArg _ -> true | _ -> false) args) in
-		let rec loop args =
+		let rec loop raw_args args =
 			let args,server_mode,ctx = try
-				process_params sctx request_scope create each_args !has_display comm.is_server args
+				process_params sctx request_scope create each_args !has_display comm.is_server raw_args args
 			with Arg.Bad msg ->
-				let ctx = create 0 args in
+				let ctx = create 0 raw_args args in
 				error ctx ("Error: " ^ msg) null_pos;
 				[],SMNone,Some ctx
 			in
@@ -812,10 +822,10 @@ module HighLevel = struct
 			if code = 0 && args <> [] && not !has_display then begin
 				(* We have to chdir here again because any --cwd also takes effect in execute_ctx *)
 				Unix.chdir curdir;
-				loop args
+				loop raw_args args
 			end else
 				code
 		in
-		let code = loop args in
+		let code = loop raw_args args in
 		comm.exit request_scope.timer_ctx code
 end

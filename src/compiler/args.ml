@@ -45,101 +45,76 @@ let process_args arg_spec =
     NOT call out to haxelib (libraries become [AddLib] markers). Both are
     handled lazily when the request is later processed.
 
-    Each logical CLI argument group is preceded by a [RawArgs] marker carrying
-    the original tokens, so that [to_raw_args] can reconstruct [com.args]. *)
+    The translation is mostly 1-to-1: one CLI flag group → one [parsed_arg].
+    Compound expansions (e.g. adding [php.Boot] for [--php], setting
+    [actx.interp] for [--interp]) are deferred to [process_args_new]. *)
 let parse_args_new (_sctx : ServerCompilationContext.t) args =
 	let parsed = DynArray.create () in
 	let add a = DynArray.add parsed a in
-	(* Emit raw token(s) then the parsed arg(s) for one CLI argument group. *)
-	let raw raw = add (RawArgs raw) in
 	let rec loop = function
 		| [] -> ()
 		| ("--next" | "-next") :: rest ->
 			add Next; loop rest
 		| ("--each" | "-each") :: rest ->
 			add Each; loop rest
-		| (("--cwd" | "-C") as f) :: dir :: rest ->
-			raw [f; dir]; add (Cwd dir); loop rest
-		| (("--js" | "-js") as f) :: file :: rest ->
-			raw [f; file]; add (SetPlatform (Js, file)); loop rest
-		| (("--lua" | "-lua") as f) :: file :: rest ->
-			raw [f; file]; add (SetPlatform (Lua, file)); loop rest
-		| (("--swf" | "-swf") as f) :: file :: rest ->
-			raw [f; file]; add (SetPlatform (Flash, file)); loop rest
-		| (("--neko" | "-neko") as f) :: file :: rest ->
-			raw [f; file]; add (SetPlatform (Neko, file)); loop rest
-		| (("--php" | "-php") as f) :: dir :: rest ->
-			raw [f; dir];
-			add (AddClass (["php"], "Boot"));
-			add (SetPlatform (Php, dir));
-			loop rest
-		| (("--cpp" | "-cpp") as f) :: dir :: rest ->
-			raw [f; dir]; add (SetPlatform (Cpp, dir)); loop rest
-		| (("--cppia" | "-cppia") as f) :: file :: rest ->
-			raw [f; file];
-			add (Define ("cppia", None));
-			add (SetPlatform (Cpp, file));
-			loop rest
-		| (("--jvm" | "-jvm") as f) :: file :: rest ->
-			raw [f; file];
-			add SetJvmFlag;
+		| ("--cwd" | "-C") :: dir :: rest ->
+			add (Cwd dir); loop rest
+		| ("--js" | "-js") :: file :: rest ->
+			add (SetPlatform (Js, file)); loop rest
+		| ("--lua" | "-lua") :: file :: rest ->
+			add (SetPlatform (Lua, file)); loop rest
+		| ("--swf" | "-swf") :: file :: rest ->
+			add (SetPlatform (Flash, file)); loop rest
+		| ("--neko" | "-neko") :: file :: rest ->
+			add (SetPlatform (Neko, file)); loop rest
+		| ("--php" | "-php") :: dir :: rest ->
+			add (SetPlatform (Php, dir)); loop rest
+		| ("--cpp" | "-cpp") :: dir :: rest ->
+			add (SetPlatform (Cpp, dir)); loop rest
+		| ("--cppia" | "-cppia") :: file :: rest ->
+			add (SetCppiaTarget file); loop rest
+		| ("--jvm" | "-jvm") :: file :: rest ->
 			add (SetPlatform (Jvm, file));
 			add (AddLib "hxjava");
 			loop rest
-		| (("--python" | "-python") as f) :: dir :: rest ->
-			raw [f; dir]; add (SetPlatform (Python, dir)); loop rest
-		| (("--hl" | "-hl") as f) :: file :: rest ->
-			raw [f; file]; add (SetPlatform (Hl, file)); loop rest
-		| (("--custom-target" | "-custom") as f) :: target :: rest ->
-			raw [f; target];
+		| ("--python" | "-python") :: dir :: rest ->
+			add (SetPlatform (Python, dir)); loop rest
+		| ("--hl" | "-hl") :: file :: rest ->
+			add (SetPlatform (Hl, file)); loop rest
+		| ("--custom-target" | "-custom") :: target :: rest ->
 			let name, path = try ExtString.String.split target "=" with _ -> target, "" in
 			add (SetCustomTarget (name, path)); loop rest
 		| "-x" :: cl :: rest ->
 			let cpath = Path.parse_type_path cl in
-			raw ["-x"; cl];
+			(* -x expands inline (non-terminal) so that subsequent args are still processed *)
 			add (SetMain cpath);
-			add (AddClass cpath);
-			add (Define ("interp", None));
-			add (SetPlatform (Eval, ""));
-			add SetInterp;
+			add Interp;
 			loop rest
 		| "--interp" :: rest ->
-			raw ["--interp"];
-			add (Define ("interp", None));
-			add (SetPlatform (Eval, ""));
-			add SetInterp;
-			loop rest
+			add Interp; loop rest
 		| "--run" :: cl :: rest ->
-			let cpath = Path.parse_type_path cl in
-			(* Use -x format for backward compat with Compiler.getArguments() *)
-			raw ["-x"; cl];
-			add (SetMain cpath);
-			add (AddClass cpath);
-			add (Define ("interp", None));
-			add (SetPlatform (Eval, ""));
-			add SetInterp;
-			add (AddRuntimeArgs rest);
-			(* --run consumes remaining args as runtime args *)
-		| (("--class-path" | "-p" | "-cp") as f) :: path :: rest ->
-			raw [f; path]; add (AddClassPath path); loop rest
+			add (Run (cl, rest))
+			(* --run consumes all remaining tokens as runtime args *)
+		| ("--class-path" | "-p" | "-cp") :: path :: rest ->
+			add (AddClassPath path); loop rest
 		| "-libcp" :: path :: rest ->
-			raw ["-libcp"; path]; add (AddLibClassPath path); loop rest
-		| (("--hxb-lib" | "-hxb-lib") as f) :: file :: rest ->
-			raw [f; file]; add (AddHxbLib file); loop rest
-		| (("--main" | "-m" | "-main") as f) :: cl :: rest ->
+			add (AddLibClassPath path); loop rest
+		| ("--hxb-lib" | "-hxb-lib") :: file :: rest ->
+			add (AddHxbLib file); loop rest
+		| ("--main" | "-m" | "-main") :: cl :: rest ->
 			let cpath = Path.parse_type_path cl in
-			raw [f; cl]; add (SetMain cpath); add (AddClass cpath); loop rest
-		| (("--library" | "-L" | "-lib") as f) :: name :: rest ->
-			raw [f; name]; add (AddLib name); loop rest
-		| (("--define" | "-D") as f) :: var :: rest ->
+			add (SetMain cpath); loop rest
+		| ("--library" | "-L" | "-lib") :: name :: rest ->
+			add (AddLib name); loop rest
+		| ("--define" | "-D") :: var :: rest ->
 			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
-			raw [f; var]; add (Define (flag, value)); loop rest
+			add (Define (flag, value)); loop rest
 		| "--undefine" :: var :: rest ->
-			raw ["--undefine"; var]; add (Undefine var); loop rest
-		| (("--verbose" | "-v") as f) :: rest ->
-			raw [f]; add SetVerbose; loop rest
-		| (("--debug" | "-debug") as f) :: rest ->
-			raw [f]; add (Define ("debug", None)); add SetDebug; loop rest
+			add (Undefine var); loop rest
+		| ("--verbose" | "-v") :: rest ->
+			add SetVerbose; loop rest
+		| ("--debug" | "-debug") :: rest ->
+			add SetDebug; loop rest
 		| ("--version" | "-version") :: _ ->
 			add ShowVersion
 			(* consume remaining args - ShowVersion raises immediately in process_args_new *)
@@ -153,28 +128,28 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 			add ShowHelpUserDefines
 		| "--help-user-metas" :: _ ->
 			add ShowHelpUserMetas
-		| (("--dce" | "-dce") as f) :: mode :: rest ->
-			raw [f; mode]; add (SetDce mode); loop rest
-		| (("--swf-version" | "-swf-version") as f) :: v :: rest ->
-			raw [f; v]; (try add (SetSwfVersion (float_of_string v)) with _ -> ()); loop rest
+		| ("--dce" | "-dce") :: mode :: rest ->
+			add (SetDce mode); loop rest
+		| ("--swf-version" | "-swf-version") :: v :: rest ->
+			(try add (SetSwfVersion (float_of_string v)) with _ -> ());
+			loop rest
 		| ("--swf-header" | "-swf-header") :: h :: rest ->
 			add (AddDeprecation "-swf-header has been deprecated, use -D swf-header instead");
 			add (Define ("swf-header", Some h)); loop rest
 		| "--flash-strict" :: rest ->
 			add (AddDeprecation "--flash-strict has been deprecated, use -D flash-strict instead");
 			add (Define ("flash-strict", None)); loop rest
-		| (("--swf-lib" | "-swf-lib") as f) :: file :: rest ->
-			raw [f; file]; add (AddNativeLib (create_native_lib file false SwfLib)); loop rest
+		| ("--swf-lib" | "-swf-lib") :: file :: rest ->
+			add (AddNativeLib (create_native_lib file false SwfLib)); loop rest
 		| "--neko-lib-path" :: dir :: rest ->
-			raw ["--neko-lib-path"; dir]; add (AddNekoLibPath dir); loop rest
-		| (("--swf-lib-extern" | "-swf-lib-extern") as f) :: file :: rest ->
-			raw [f; file]; add (AddNativeLib (create_native_lib file true SwfLib)); loop rest
-		| (("--java-lib" | "-java-lib") as f) :: file :: rest ->
-			raw [f; file]; add (AddNativeLib (create_native_lib file false JavaLib)); loop rest
+			add (AddNekoLibPath dir); loop rest
+		| ("--swf-lib-extern" | "-swf-lib-extern") :: file :: rest ->
+			add (AddNativeLib (create_native_lib file true SwfLib)); loop rest
+		| ("--java-lib" | "-java-lib") :: file :: rest ->
+			add (AddNativeLib (create_native_lib file false JavaLib)); loop rest
 		| "--java-lib-extern" :: file :: rest ->
-			raw ["--java-lib-extern"; file]; add (AddNativeLib (create_native_lib file true JavaLib)); loop rest
-		| (("--resource" | "-r" | "-resource") as f) :: res :: rest ->
-			raw [f; res];
+			add (AddNativeLib (create_native_lib file true JavaLib)); loop rest
+		| ("--resource" | "-r" | "-resource") :: res :: rest ->
 			(match ExtString.String.nsplit res "@" with
 			| [file; name] -> add (AddResource (file, name))
 			| [file] -> add (AddResource (file, file))
@@ -182,57 +157,56 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 			loop rest
 		| ("--prompt" | "-prompt") :: rest ->
 			add SetPrompt; loop rest
-		| (("--cmd" | "-cmd") as f) :: cmd :: rest ->
-			raw [f; cmd]; add (RunCmd (Helper.unquote cmd)); loop rest
+		| ("--cmd" | "-cmd") :: cmd :: rest ->
+			add (RunCmd (Helper.unquote cmd)); loop rest
 		| "--no-traces" :: rest ->
 			add (AddDeprecation "--no-traces has been deprecated, use -D no-traces instead");
 			add (Define ("no-traces", None)); loop rest
 		| "--display" :: input :: rest ->
-			raw ["--display"; input]; add (SetDisplayArg input); loop rest
-		| (("--xml" | "-xml") as f) :: file :: rest ->
-			raw [f; file]; add (SetXmlOut file); loop rest
+			add (SetDisplayArg input); loop rest
+		| ("--xml" | "-xml") :: file :: rest ->
+			add (SetXmlOut file); loop rest
 		| "--json" :: file :: rest ->
-			raw ["--json"; file]; add (SetJsonOut file); loop rest
+			add (SetJsonOut file); loop rest
 		| "--hxb" :: file :: rest ->
-			raw ["--hxb"; file]; add (SetHxbOut file); loop rest
+			add (SetHxbOut file); loop rest
 		| "--no-output" :: rest ->
-			raw ["--no-output"]; add SetNoOutput; loop rest
+			add SetNoOutput; loop rest
 		| "--times" :: rest ->
-			raw ["--times"]; add SetMeasureTimes; loop rest
+			add SetMeasureTimes; loop rest
 		| "--no-inline" :: rest ->
 			add (AddDeprecation "--no-inline has been deprecated, use -D no-inline instead");
 			add (Define ("no-inline", None)); loop rest
 		| "--no-opt" :: rest ->
-			raw ["--no-opt"];
 			add (AddDeprecation "--no-opt has been deprecated, use -D no-opt instead");
-			add (Define ("no-opt", None)); add (Define ("no-opt-2", None)); loop rest
-		| (("--remap" | "-remap") as f) :: s :: rest ->
-			raw [f; s];
+			add (Define ("no-opt", None));
+			add (Define ("no-opt-2", None));
+			loop rest
+		| ("--remap" | "-remap") :: s :: rest ->
 			(try
 				let pack, target = ExtString.String.split s ":" in
 				add (Remap (pack, target))
 			with _ -> ());
 			loop rest
 		| "--custom-extension" :: ext :: rest ->
-			raw ["--custom-extension"; ext]; add (SetCustomExtension ext); loop rest
-		| (("--macro" | "-macro") as f) :: e :: rest ->
-			raw [f; e]; add (AddMacro e); loop rest
-		| (("--server-listen" | "--wait") as f) :: hp :: rest ->
-			raw [f; hp]; add (ServerListen hp); loop rest
+			add (SetCustomExtension ext); loop rest
+		| ("--macro" | "-macro") :: e :: rest ->
+			add (AddMacro e); loop rest
+		| ("--server-listen" | "--wait") :: hp :: rest ->
+			add (ServerListen hp); loop rest
 		| "--server-connect" :: hp :: rest ->
-			raw ["--server-connect"; hp]; add (ServerConnect hp); loop rest
+			add (ServerConnect hp); loop rest
 		| "--connect" :: hp :: rest ->
-			raw ["--connect"; hp]; add (Connect hp); loop rest
+			add (Connect hp); loop rest
 		| "--haxelib-global" :: rest ->
-			raw ["--haxelib-global"]; add HaxelibGlobal; loop rest
+			add HaxelibGlobal; loop rest
 		| "-w" :: s :: rest ->
-			raw ["-w"; s]; add (AddWarning s); loop rest
+			add (AddWarning s); loop rest
 		| arg :: rest ->
 			(match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ :: _ ->
-				raw [arg]; add (HxmlFile arg)
+				add (HxmlFile arg)
 			| _ ->
-				raw [arg];
 				(try
 					let path, name = Path.parse_path arg in
 					if StringHelper.starts_uppercase_identifier name then
@@ -283,7 +257,19 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 	in
 	let process_one arg = match arg with
 		| SetPlatform (platform, file) ->
+			(match platform with
+			| Php ->
+				(* --php also adds the php.Boot class *)
+				actx.classes <- (["php"],"Boot") :: actx.classes
+			| Jvm ->
+				(* --jvm also sets the jvm_flag *)
+				actx.jvm_flag <- true
+			| _ -> ());
 			set_platform com platform file
+		| SetCppiaTarget file ->
+			(* --cppia: enable cppia define and target cpp *)
+			Common.define com Define.Cppia;
+			set_platform com Cpp file
 		| SetCustomTarget (name, path) ->
 			set_custom_target com name path
 		| AddClassPath path ->
@@ -294,7 +280,9 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 			actx.hxb_libs <- create_native_lib file false HxbLib :: actx.hxb_libs
 		| SetMain cpath ->
 			if com.main.main_path <> None then raise (Arg.Bad "Multiple --main classes specified");
-			com.main.main_path <- Some cpath
+			com.main.main_path <- Some cpath;
+			(* --main also adds the class for compilation (matches old parse_args behaviour) *)
+			actx.classes <- cpath :: actx.classes
 		| AddLib _ | HaxelibGlobal ->
 			(* handled at the process_params level *)
 			()
@@ -311,12 +299,13 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 		| SetDebug ->
 			Common.define com Define.Debug;
 			com.debug <- true
-		| SetInterp ->
+		| Interp ->
+			(* --interp: define interp, set eval platform, mark actx.interp *)
+			Common.define com Define.Interp;
+			set_platform com Eval "";
 			actx.interp <- true
-		| SetJvmFlag ->
-			actx.jvm_flag <- true
-		| AddRuntimeArgs _ ->
-			(* runtime args are set on compilation_context in process_params *)
+		| Run _ ->
+			(* -x / --run: handled at process_params level (creates context + sets runtime_args) *)
 			()
 		| AddResource (file, name) ->
 			let file = (try Common.find_file com file with Not_found -> file) in
@@ -391,9 +380,6 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 		| ServerListen _ | ServerConnect _ | Connect _ ->
 			(* server modes handled at process_params level *)
 			()
-		| RawArgs _ ->
-			(* raw token carrier for com.args reconstruction - no action needed *)
-			()
 		| ShowVersion ->
 			raise (Helper.HelpMessage (s_version_full com.sctx.version))
 		| ShowHelp ->
@@ -441,12 +427,74 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 	);
 	actx
 
-(** Convert a [parsed_arg list] back to the original CLI tokens.
-    Each [RawArgs] marker in the list carries the original tokens for its group;
-    all other variants are ignored.  This gives a faithful reconstruction of
-    [com.args] from the per-batch parsed_arg list. *)
+(** Serialize a [parsed_arg list] back to CLI tokens for the [--connect] wire
+    protocol.  Each variant is mapped to the string(s) a user would type.
+    This is used to forward a client's arguments to a remote compilation server. *)
 let to_raw_args (parsed_args : parsed_arg list) =
-	List.concat_map (fun arg -> match arg with RawArgs raw -> raw | _ -> []) parsed_args
+	let s_platform = function
+		| Cross -> "cross" | Js -> "js" | Lua -> "lua" | Neko -> "neko"
+		| Flash -> "swf" | Php -> "php" | Cpp -> "cpp"
+		| Jvm -> "jvm" | Python -> "python" | Hl -> "hl" | Eval -> "eval"
+		| CustomTarget name -> name
+	in
+	let s_path (p, n) = String.concat "." (p @ [n]) in
+	List.concat_map (fun arg -> match arg with
+		| SetPlatform (platform, file) -> ["--" ^ s_platform platform; file]
+		| SetCppiaTarget file -> ["--cppia"; file]
+		| SetCustomTarget (name, path) ->
+			["--custom-target"; if path = "" then name else name ^ "=" ^ path]
+		| AddClassPath path -> ["-cp"; path]
+		| AddLibClassPath path -> ["-libcp"; path]
+		| AddHxbLib file -> ["--hxb-lib"; file]
+		| SetMain p -> ["--main"; s_path p]
+		| AddLib name -> ["-lib"; name]
+		| HaxelibGlobal -> ["--haxelib-global"]
+		| Define (flag, None) -> ["-D"; flag]
+		| Define (flag, Some value) -> ["-D"; flag ^ "=" ^ value]
+		| Undefine var -> ["--undefine"; var]
+		| SetVerbose -> ["-v"]
+		| SetDebug -> ["--debug"]
+		| Interp -> ["--interp"]
+		| Run (cl, _) -> ["-x"; cl]
+		| AddResource (file, name) ->
+			if file = name then ["-r"; file] else ["-r"; file ^ "@" ^ name]
+		| RunCmd cmd -> ["--cmd"; cmd]
+		| SetSwfVersion v -> ["--swf-version"; string_of_float v]
+		| SetDce mode -> ["--dce"; mode]
+		| AddNativeLib {lib_file; lib_extern = false; lib_kind = SwfLib} -> ["--swf-lib"; lib_file]
+		| AddNativeLib {lib_file; lib_extern = true; lib_kind = SwfLib} -> ["--swf-lib-extern"; lib_file]
+		| AddNativeLib {lib_file; lib_extern = false; lib_kind = JavaLib} -> ["--java-lib"; lib_file]
+		| AddNativeLib {lib_file; lib_extern = true; lib_kind = JavaLib} -> ["--java-lib-extern"; lib_file]
+		| AddNativeLib _ -> []
+		| AddNekoLibPath dir -> ["--neko-lib-path"; dir]
+		| Remap (pack, target) -> ["--remap"; pack ^ ":" ^ target]
+		| SetCustomExtension ext -> ["--custom-extension"; ext]
+		| AddMacro e -> ["--macro"; e]
+		| SetDisplayArg input -> ["--display"; input]
+		| SetXmlOut file -> ["--xml"; file]
+		| SetJsonOut file -> ["--json"; file]
+		| SetHxbOut file -> ["--hxb"; file]
+		| SetNoOutput -> ["--no-output"]
+		| SetMeasureTimes -> ["--times"]
+		| AddWarning s -> ["-w"; s]
+		| AddDeprecation _ -> []  (* internal only; not round-tripped *)
+		| AddClass p -> [s_path p]
+		| IncludeModule cl -> [cl]
+		| SetPrompt -> ["--prompt"]
+		| Next -> ["--next"]
+		| Each -> ["--each"]
+		| ServerListen hp -> ["--wait"; hp]
+		| ServerConnect hp -> ["--server-connect"; hp]
+		| Connect hp -> ["--connect"; hp]
+		| Cwd dir -> ["--cwd"; dir]
+		| HxmlFile path -> [path]
+		| ShowVersion -> ["--version"]
+		| ShowHelp -> ["--help"]
+		| ShowHelpDefines -> ["--help-defines"]
+		| ShowHelpMetas -> ["--help-metas"]
+		| ShowHelpUserDefines -> ["--help-user-defines"]
+		| ShowHelpUserMetas -> ["--help-user-metas"]
+	) parsed_args
 
 let parse_args (com : Common.context) =
 	let usage = Printf.sprintf

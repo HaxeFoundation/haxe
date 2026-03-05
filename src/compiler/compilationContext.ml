@@ -21,11 +21,19 @@ type native_lib_arg = {
 (** Pre-parsed representation of a single compiler argument.  Produced by
     [Args.parse_args_new] from raw string arguments and stored in the
     [RequestQueue] so the server can inspect requests without running a full
-    compilation.  Applied to a [Common.context] by [Args.process_args_new]. *)
+    compilation.  Applied to a [Common.context] by [Args.process_args_new].
+
+    [parse_args_new] aims to be a mostly 1-to-1 translation of CLI tokens to
+    [parsed_arg] values.  Expansions that require side-effects (library lookup,
+    target initialisation, etc.) are deferred: [process_params] handles
+    batch-level concerns ([HxmlFile], [AddLib], [Next], [Each], [Cwd],
+    [Connect]) while [process_args_new] handles the compilation-level
+    expansions. *)
 type parsed_arg =
 	(* Targets *)
 	| SetPlatform of platform * string
 	| SetCustomTarget of string * string
+	| SetCppiaTarget of string   (** --cppia: cpp target with cppia define *)
 	(* Compilation *)
 	| AddClassPath of string
 	| AddLibClassPath of string
@@ -37,9 +45,8 @@ type parsed_arg =
 	| Undefine of string
 	| SetVerbose
 	| SetDebug
-	| SetInterp
-	| SetJvmFlag
-	| AddRuntimeArgs of string list
+	| Interp                    (** --interp: eval target + interp flag *)
+	| Run of string * string list (** -x/-run: path + runtime args (used as -x form) *)
 	| AddResource of string * string
 	| RunCmd of string
 	| SetSwfVersion of float
@@ -78,8 +85,6 @@ type parsed_arg =
 	| ShowHelpMetas
 	| ShowHelpUserDefines
 	| ShowHelpUserMetas
-	(* Raw CLI tokens preserved for com.args reconstruction *)
-	| RawArgs of string list
 
 type arg_context = {
 	mutable classes : Globals.path list;
@@ -119,9 +124,12 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
-	(** The pre-parsed arguments for this compilation part. Used by
-	    [Args.process_args_new] to apply arguments to [com] without
-	    re-parsing from scratch. *)
+	(** The original CLI tokens for this compilation batch (hxml content or direct
+	    CLI args).  Stored into [com.args] before compilation starts so that
+	    [Compiler.getArguments()] returns the correct values. *)
+	mutable raw_args : string list;
+	(** The pre-parsed arguments for this compilation batch. Used by
+	    [Args.process_args_new] to apply arguments to [com]. *)
 	mutable parsed_args : parsed_arg list;
 }
 
