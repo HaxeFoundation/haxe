@@ -2698,8 +2698,13 @@ module StdSys = struct
 		if Unix.isatty stdin_fd then
 			vint (Extc.getch echo)
 		else begin
-			let c = int_of_char (input_char stdin_ch) in
-			if echo then begin
+			let c = try
+				int_of_char (input_char stdin_ch)
+			with End_of_file ->
+				(* Match native getch behavior which returns -1 on EOF *)
+				-1
+			in
+			if echo && c >= 0 then begin
 				output_char com.part_scope.io.stdout (char_of_int c);
 				flush com.part_scope.io.stdout
 			end;
