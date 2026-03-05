@@ -286,7 +286,18 @@ module LocalWrapper = struct
 	end
 end
 
+type part_scope = {
+	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
+}
+
+type request_scope = {
+	stats : Stats.t;
+	timer_ctx : Timer.timer_context;
+}
+
 type context = {
+	request_scope : request_scope;
+	part_scope : part_scope;
 	compilation_step : int;
 	mutable stage : compiler_stage;
 	sctx : ServerCompilationContext.t;
@@ -295,7 +306,6 @@ type context = {
 	is_macro_context : bool;
 	mutable json_out : json_api option;
 	timer_ctx : Timer.timer_context;
-	stats : Stats.t;
 	(* config *)
 	version : compiler_version;
 	mutable args : string list;
@@ -348,7 +358,6 @@ type context = {
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
 	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
-	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -735,13 +744,17 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create io timer_ctx compilation_step sctx version args display_mode =
+let create io request_scope compilation_step sctx version args display_mode =
 	let rec com = {
+		request_scope;
+		part_scope = {
+			warned_positions = Hashtbl.create 0;
+		};
 		compilation_step = compilation_step;
 		sctx;
 		cs = sctx.cs;
 		cache = None;
-		timer_ctx = timer_ctx;
+		timer_ctx = request_scope.timer_ctx;
 		stage = CCreated;
 		version = version;
 		args = args;
@@ -755,7 +768,6 @@ let create io timer_ctx compilation_step sctx version args display_mode =
 			display_module_has_macro_defines = false;
 			module_diagnostics = [];
 		};
-		stats = Stats.create ();
 		debug = false;
 		display = display_mode;
 		verbose = false;
@@ -804,7 +816,6 @@ let create io timer_ctx compilation_step sctx version args display_mode =
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
-		warned_positions = Hashtbl.create 0;
 		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = mk_mono();
@@ -869,6 +880,8 @@ let log com str =
 let clone com is_macro_context =
 	{
 		(* keeps *)
+		request_scope = com.request_scope;
+		part_scope = com.part_scope;
 		compilation_step = com.compilation_step;
 		sctx = com.sctx;
 		cs = com.cs;
@@ -876,7 +889,6 @@ let clone com is_macro_context =
 		version = com.version;
 		args = com.args;
 		shared = com.shared;
-		stats = Stats.create ();
 		debug = com.debug;
 		display = com.display;
 		verbose = com.verbose;
@@ -925,7 +937,6 @@ let clone com is_macro_context =
 		dump_config = com.dump_config;
 		file_contents = com.file_contents;
 		(* reinits *)
-		warned_positions = Hashtbl.create 0;
 		cache = None;
 		stage = CCreated;
 		display_information = {

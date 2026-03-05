@@ -203,11 +203,10 @@ let process sctx entry comm args =
 	ServerMessage.arguments args;
 	ServerCompilationContext.reset sctx;
 
-	let stats = Stats.create () in
-	let after_compilation ctx =
-		ServerCache.after_compilation sctx ctx;
-		Stats.add stats ctx.com.stats;
-	in
+	let request_scope = {
+		stats = Stats.create ();
+		timer_ctx = Timer.make_context (Timer.make ["other"])
+	} in
 	let api = {
 		on_context_create = (fun () ->
 			sctx.compilation_step <- sctx.compilation_step + 1;
@@ -218,12 +217,12 @@ let process sctx entry comm args =
 			before_anything = ServerCache.before_anything sctx;
 			after_target_init = ServerCache.after_target_init sctx;
 			after_save = ServerCache.after_save sctx;
-			after_compilation = after_compilation;
+			after_compilation = ServerCache.after_compilation sctx;
 		};
 	} in
-	entry api comm args;
+	entry api request_scope comm args;
 	ServerCompilationContext.run_delays sctx;
-	ServerMessage.stats stats (Extc.time() -. t0)
+	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
 module RequestQueue = struct
 	type request = {

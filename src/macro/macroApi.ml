@@ -2377,7 +2377,7 @@ let macro_api ccom get_api =
 		);
 		"server_stats", vfun0 (fun () ->
 			let com = ccom() in
-			let stats = com.stats in
+			let stats = com.request_scope.stats in
 			encode_obj [
 				"filesParsed", vint !(stats.s_files_parsed);
 				"modulesTyped", vint !(stats.s_modules_typed);
