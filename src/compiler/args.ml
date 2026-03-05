@@ -27,6 +27,12 @@ let usage_string ?(print_cat=true) arg_spec usage =
 		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
 
+(** Forward reference for generating help strings.
+    Set to [build_help_string] after [parse_args] is defined.
+    [true] = full help (all options, for [--help]),
+    [false] = basic help (common options, for no-argument invocation). *)
+let help_string_fn : (Common.context -> bool -> string) ref = ref (fun _com _full -> "")
+
 let process_args arg_spec =
 	List.flatten(List.map (fun (cat, ok, dep, spec, hint, doc) ->
 		(* official argument names *)
@@ -230,10 +236,6 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 		display_arg = None;
 		measure_times = false;
 	} in
-	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2025 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
-		(s_version_full com.sctx.version) (if Sys.os_type = "Win32" then ".exe" else "")
-	in
 	let process_one arg = match arg with
 		| SetPlatform (platform, file) ->
 			(match platform with
@@ -360,7 +362,7 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 		| ShowVersion ->
 			raise (Helper.HelpMessage (s_version_full com.sctx.version))
 		| ShowHelp ->
-			raise (Helper.HelpMessage usage)
+			raise (Helper.HelpMessage (!help_string_fn com true))
 		| ShowHelpDefines ->
 			let all, max_length = Define.get_documentation_list com.user_defines in
 			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
@@ -400,7 +402,7 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 		actx.xml_out <- Some "hx"
 	end;
 	actx.raise_usage <- (fun () ->
-		raise (Helper.HelpMessage usage)
+		raise (Helper.HelpMessage (!help_string_fn com false))
 	);
 	actx
 
@@ -787,3 +789,29 @@ let parse_args (com : Common.context) =
 	(* Handle CLI arguments *)
 	process com.args;
 	actx
+
+(** Build a help string using the full [parse_args] spec.
+    [full = true]  returns the extended help (all options), used for [--help].
+    [full = false] returns the basic help (common options), used when no
+    useful arguments are given.
+    Uses [parse_args] internally so that the spec stays in one place; the
+    temporary mutation of [com.args] is always restored before returning. *)
+let build_help_string (com : Common.context) full =
+	let saved_args = com.args in
+	(* For full help we ask parse_args to process ["--help"], which makes
+	   Arg.parse_argv raise Arg.Help "" → caught as HelpMessage(all_args).
+	   For basic help we pass [] so parse_args returns normally and we invoke
+	   actx.raise_usage() which raises HelpMessage(basic_args_spec). *)
+	com.args <- (if full then ["--help"] else []);
+	let msg =
+		Fun.protect ~finally:(fun () -> com.args <- saved_args) (fun () ->
+			try
+				let actx = parse_args com in
+				(* Reached only for the basic (empty) case *)
+				(try actx.raise_usage (); "" with Helper.HelpMessage msg -> msg)
+			with Helper.HelpMessage msg -> msg
+		)
+	in
+	msg
+
+let () = help_string_fn := build_help_string
