@@ -687,6 +687,7 @@ module HighLevel = struct
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
+		let hxml_stack = ref [] in
 		let create_context parsed =
 			sctx.compilation_step <- sctx.compilation_step + 1;
 			let ctx = create sctx.compilation_step parsed in
@@ -746,6 +747,11 @@ module HighLevel = struct
 				let libs, args = find_subsequent_libs [name] args in
 				loop acc (expand_libs libs args)
 			| HxmlFile path :: l ->
+				let full_path = try Extc.get_full_path path with Failure(_) -> raise (Arg.Bad (Printf.sprintf "File not found: %s" path)) in
+				if List.mem full_path !hxml_stack then
+					raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
+				else
+					hxml_stack := full_path :: !hxml_stack;
 				let expanded = (try Args.parse_args_new sctx (Helper.parse_hxml path)
 					with Not_found -> [IncludeModule (path ^ " (file not found)")]) in
 				loop acc (expanded @ l)
