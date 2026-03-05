@@ -109,11 +109,12 @@ let rec cache_context cs com =
 				DynArray.add parallels (cc,m,f)
 	in
 	List.iter cache_module com.modules;
-	let a = Parallel.ParallelArray.map (Some (Lazy.force com.sctx.pool)) (fun (cc,m,f) ->
+	let a = Parallel.run_with_pool com.sctx.pool (fun pool ->
+		Parallel.ParallelArray.map pool (fun (cc,m,f) ->
 			let chunks = f() in
 			(cc,m,chunks)
 		) (DynArray.to_array parallels) (cc,null_module,[])
-	in
+	) in
 	Array.iter (fun (cc,m,chunks) ->
 		cc#add_binary_cache m chunks
 	) a;
