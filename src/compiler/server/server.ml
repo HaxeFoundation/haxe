@@ -94,7 +94,7 @@ module Connect = struct
 		process_response ()
 
 	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
-	let do_connect ip port args =
+	let do_connect ip port (args : parsed_arg list) =
 		let (domain, host) = match ip with
 			| V4 ip -> (Unix.PF_INET, V4.to_string ip)
 			| V6 ip -> (Unix.PF_INET6, V6.to_string ip)
@@ -104,8 +104,8 @@ module Connect = struct
 			| Unix.Unix_error(code,_,_) -> failwith("Couldn't connect on " ^ host ^ ":" ^ string_of_int port ^ " (" ^ (Unix.error_message code) ^ ")");
 			| _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port)
 		);
-		let args = ("--cwd " ^ Unix.getcwd()) :: args in
-		let s = (String.concat "" (List.map (fun a -> a ^ "\n") args)) in
+		let raw_args = ("--cwd " ^ Unix.getcwd()) :: Args.to_raw_args args in
+		let s = (String.concat "" (List.map (fun a -> a ^ "\n") raw_args)) in
 		ssend sock (Bytes.of_string (s ^ "\000"));
 		let has_error = ref false in
 		let print line =
@@ -205,9 +205,9 @@ let create_request_scope () =
 		cancellation_requested = false;
 	}
 
-let process sctx request_scope entry comm args =
+let process sctx request_scope entry comm (args : parsed_arg list) =
 	let t0 = Extc.time() in
-	ServerMessage.arguments args;
+	ServerMessage.arguments (List.length args |> string_of_int |> fun s -> ["<" ^ s ^ " pre-parsed args>"]);
 	ServerCompilationContext.reset sctx;
 	entry sctx request_scope comm args;
 	ServerCompilationContext.run_delays sctx;
@@ -215,7 +215,7 @@ let process sctx request_scope entry comm args =
 
 module RequestQueue = struct
 	type request = {
-		args : string list;
+		args : parsed_arg list;
 		stdin : string option;
 		stdin_pipe : in_channel option;
 		conn : server_connection;
@@ -365,8 +365,7 @@ let wait_loop entry verbose accept =
 				let stdin_pipe = conn.get_stdin () in
 				let data = Helper.parse_hxml_data hxml in
 				let parsed_args = Args.parse_args_new sctx data in
-				ignore(parsed_args);
-				RequestQueue.add rq data stdin stdin_pipe conn;
+				RequestQueue.add rq parsed_args stdin stdin_pipe conn;
 			with Unix.Unix_error _ ->
 				ServerMessage.socket_message "Connection Aborted";
 				conn.close()

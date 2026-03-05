@@ -40,30 +40,441 @@ let process_args arg_spec =
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
 
-type parsed_arg =
-	| SetPlatform of platform * string
-
-let parse_args_new sctx args =
+(** Pre-parse a flat string list into a [parsed_arg list].
+    This does NOT expand hxml files (they become [HxmlFile] markers) and does
+    NOT call out to haxelib (libraries become [AddLib] markers). Both are
+    handled lazily when the request is later processed. *)
+let parse_args_new (_sctx : ServerCompilationContext.t) args =
 	let parsed = DynArray.create () in
-	let set_platform platform file =
-		DynArray.add parsed (SetPlatform(platform,file))
+	let add a = DynArray.add parsed a in
+	let rec loop = function
+		| [] -> ()
+		| ("--next" | "-next") :: rest ->
+			add Next; loop rest
+		| ("--each" | "-each") :: rest ->
+			add Each; loop rest
+		| ("--cwd" | "-C") :: dir :: rest ->
+			add (Cwd dir); loop rest
+		| ("--js" | "-js") :: file :: rest ->
+			add (SetPlatform (Js, file)); loop rest
+		| ("--lua" | "-lua") :: file :: rest ->
+			add (SetPlatform (Lua, file)); loop rest
+		| ("--swf" | "-swf") :: file :: rest ->
+			add (SetPlatform (Flash, file)); loop rest
+		| ("--neko" | "-neko") :: file :: rest ->
+			add (SetPlatform (Neko, file)); loop rest
+		| ("--php" | "-php") :: dir :: rest ->
+			add (AddClass (["php"], "Boot"));
+			add (SetPlatform (Php, dir)); loop rest
+		| ("--cpp" | "-cpp") :: dir :: rest ->
+			add (SetPlatform (Cpp, dir)); loop rest
+		| ("--cppia" | "-cppia") :: file :: rest ->
+			add (Define ("cppia", None));
+			add (SetPlatform (Cpp, file)); loop rest
+		| ("--jvm" | "-jvm") :: file :: rest ->
+			add SetJvmFlag;
+			add (SetPlatform (Jvm, file));
+			add (AddLib "hxjava");
+			loop rest
+		| ("--python" | "-python") :: dir :: rest ->
+			add (SetPlatform (Python, dir)); loop rest
+		| ("--hl" | "-hl") :: file :: rest ->
+			add (SetPlatform (Hl, file)); loop rest
+		| ("--custom-target" | "-custom") :: target :: rest ->
+			let name, path = try ExtString.String.split target "=" with _ -> target, "" in
+			add (SetCustomTarget (name, path)); loop rest
+		| "-x" :: cl :: rest ->
+			let cpath = Path.parse_type_path cl in
+			add (SetMain cpath);
+			add (AddClass cpath);
+			add (Define ("interp", None));
+			add (SetPlatform (Eval, ""));
+			add SetInterp;
+			loop rest
+		| "--interp" :: rest ->
+			add (Define ("interp", None));
+			add (SetPlatform (Eval, ""));
+			add SetInterp;
+			loop rest
+		| "--run" :: cl :: rest ->
+			let cpath = Path.parse_type_path cl in
+			add (SetMain cpath);
+			add (AddClass cpath);
+			add (Define ("interp", None));
+			add (SetPlatform (Eval, ""));
+			add SetInterp;
+			add (AddRuntimeArgs rest);
+			(* --run consumes remaining args as runtime args *)
+		| ("--class-path" | "-p" | "-cp") :: path :: rest ->
+			add (AddClassPath path); loop rest
+		| "-libcp" :: path :: rest ->
+			add (AddLibClassPath path); loop rest
+		| ("--hxb-lib" | "-hxb-lib") :: file :: rest ->
+			add (AddHxbLib file); loop rest
+		| ("--main" | "-m" | "-main") :: cl :: rest ->
+			let cpath = Path.parse_type_path cl in
+			add (SetMain cpath);
+			add (AddClass cpath);
+			loop rest
+		| ("--library" | "-L" | "-lib") :: name :: rest ->
+			add (AddLib name); loop rest
+		| ("--define" | "-D") :: var :: rest ->
+			let flag, value = try let split = ExtString.String.split var "=" in (fst split, Some (snd split)) with _ -> var, None in
+			add (Define (flag, value)); loop rest
+		| "--undefine" :: var :: rest ->
+			add (Undefine var); loop rest
+		| ("--verbose" | "-v") :: rest ->
+			add SetVerbose; loop rest
+		| ("--debug" | "-debug") :: rest ->
+			add (Define ("debug", None));
+			add SetDebug;
+			loop rest
+		| ("--version" | "-version") :: _ ->
+			add ShowVersion
+			(* consume remaining args - ShowVersion raises immediately in process_args_new *)
+		| ("--help" | "-h" | "-help") :: _ ->
+			add ShowHelp
+		| ("--help-defines" | "--help-metas") :: _ ->
+			add ShowHelpDefines
+		| ("--help-user-defines" | "--help-user-metas") :: _ ->
+			add ShowHelpMetas
+		| ("--dce" | "-dce") :: mode :: rest ->
+			add (SetDce mode); loop rest
+		| ("--swf-version" | "-swf-version") :: v :: rest ->
+			(try add (SetSwfVersion (float_of_string v)) with _ -> ());
+			loop rest
+		| ("--swf-header" | "-swf-header") :: h :: rest ->
+			add (AddDeprecation "-swf-header has been deprecated, use -D swf-header instead");
+			add (Define ("swf-header", Some h));
+			loop rest
+		| "--flash-strict" :: rest ->
+			add (AddDeprecation "--flash-strict has been deprecated, use -D flash-strict instead");
+			add (Define ("flash-strict", None));
+			loop rest
+		| ("--swf-lib" | "-swf-lib") :: file :: rest ->
+			add (AddNativeLib (create_native_lib file false SwfLib)); loop rest
+		| "--neko-lib-path" :: dir :: rest ->
+			add (AddNekoLibPath dir); loop rest
+		| ("--swf-lib-extern" | "-swf-lib-extern") :: file :: rest ->
+			add (AddNativeLib (create_native_lib file true SwfLib)); loop rest
+		| ("--java-lib" | "-java-lib") :: file :: rest ->
+			add (AddNativeLib (create_native_lib file false JavaLib)); loop rest
+		| "--java-lib-extern" :: file :: rest ->
+			add (AddNativeLib (create_native_lib file true JavaLib)); loop rest
+		| ("--resource" | "-r" | "-resource") :: res :: rest ->
+			(match ExtString.String.nsplit res "@" with
+			| [file; name] -> add (AddResource (file, name))
+			| [file] -> add (AddResource (file, file))
+			| _ -> ());
+			loop rest
+		| ("--prompt" | "-prompt") :: rest ->
+			add SetPrompt; loop rest
+		| ("--cmd" | "-cmd") :: cmd :: rest ->
+			add (RunCmd (Helper.unquote cmd)); loop rest
+		| "--no-traces" :: rest ->
+			add (AddDeprecation "--no-traces has been deprecated, use -D no-traces instead");
+			add (Define ("no-traces", None));
+			loop rest
+		| "--display" :: input :: rest ->
+			add (SetDisplayArg input); loop rest
+		| ("--xml" | "-xml") :: file :: rest ->
+			add (SetXmlOut file); loop rest
+		| "--json" :: file :: rest ->
+			add (SetJsonOut file); loop rest
+		| "--hxb" :: file :: rest ->
+			add (SetHxbOut file); loop rest
+		| "--no-output" :: rest ->
+			add SetNoOutput; loop rest
+		| "--times" :: rest ->
+			add SetMeasureTimes; loop rest
+		| "--no-inline" :: rest ->
+			add (AddDeprecation "--no-inline has been deprecated, use -D no-inline instead");
+			add (Define ("no-inline", None));
+			loop rest
+		| "--no-opt" :: rest ->
+			add (AddDeprecation "--no-opt has been deprecated, use -D no-opt instead");
+			add (Define ("no-opt", None));
+			add (Define ("no-opt-2", None));
+			loop rest
+		| ("--remap" | "-remap") :: s :: rest ->
+			(try
+				let pack, target = ExtString.String.split s ":" in
+				add (Remap (pack, target))
+			with _ -> ());
+			loop rest
+		| "--custom-extension" :: ext :: rest ->
+			add (SetCustomExtension ext); loop rest
+		| ("--macro" | "-macro") :: e :: rest ->
+			add (AddMacro e); loop rest
+		| ("--server-listen" | "--wait") :: hp :: rest ->
+			add (ServerListen hp); loop rest
+		| "--server-connect" :: hp :: rest ->
+			add (ServerConnect hp); loop rest
+		| "--connect" :: hp :: rest ->
+			add (Connect hp); loop rest
+		| "--haxelib-global" :: rest ->
+			add HaxelibGlobal; loop rest
+		| "-w" :: s :: rest ->
+			add (AddWarning s); loop rest
+		| arg :: rest ->
+			(match List.rev (ExtString.String.nsplit arg ".") with
+			| "hxml" :: _ :: _ ->
+				add (HxmlFile arg)
+			| _ ->
+				(try
+					let path, name = Path.parse_path arg in
+					if StringHelper.starts_uppercase_identifier name then
+						add (AddClass (path, name))
+					else
+						add (IncludeModule arg)
+				with Failure _ ->
+					add (IncludeModule arg)));
+			loop rest
 	in
-	let basic_args_spec = [
-		("Target",["--js"],["-js"],Arg.String (set_platform Js),"<file>","generate JavaScript code into target file");
-	] in
-	let adv_args_spec = [
-		(* ... *)
-	] in
-	let all_args = (basic_args_spec @ adv_args_spec) in
-	ignore(all_args);
-	(* args parsing like in parse_args *)
+	let args = match List.rev args with
+		| file :: "--display" :: pl when file <> "memory" ->
+			"--display" :: file :: List.rev pl
+		| _ ->
+			args
+	in
+	loop args;
 	DynArray.to_list parsed
 
-let process_args_new sctx com parsed_args =
-	let process_arg arg = match arg with
-		| SetPlatform (platform, file) -> set_platform com platform file
+(** Apply a single-part [parsed_arg list] to [com], returning the populated
+    [arg_context].  Higher-level concerns ([Next], [Each], [AddLib] expansion,
+    hxml expansion) are handled by [Compiler.HighLevel.process_params]. *)
+let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
+	let actx = {
+		classes = [([],"Std")];
+		xml_out = None;
+		hxb_out = None;
+		json_out = None;
+		cmds = [];
+		config_macros = [];
+		no_output = false;
+		did_something = false;
+		force_typing = false;
+		pre_compilation = [];
+		interp = false;
+		jvm_flag = false;
+		swf_version = false;
+		hxb_libs = [];
+		native_libs = [];
+		raise_usage = (fun () -> ());
+		display_arg = None;
+		deprecations = [];
+		measure_times = false;
+	} in
+	let usage = Printf.sprintf
+		"Haxe Compiler %s - (C)2005-2025 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
+		(s_version_full com.sctx.version) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
-	List.iter process_arg parsed_args
+	let process_one arg = match arg with
+		| SetPlatform (platform, file) ->
+			set_platform com platform file
+		| SetCustomTarget (name, path) ->
+			set_custom_target com name path
+		| AddClassPath path ->
+			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) User)
+		| AddLibClassPath path ->
+			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) Lib)
+		| AddHxbLib file ->
+			actx.hxb_libs <- create_native_lib file false HxbLib :: actx.hxb_libs
+		| SetMain cpath ->
+			if com.main.main_path <> None then raise (Arg.Bad "Multiple --main classes specified");
+			com.main.main_path <- Some cpath
+		| AddLib _ | HaxelibGlobal ->
+			(* handled at the process_params level *)
+			()
+		| Define (flag, value) ->
+			(match value with
+			| Some v -> Common.external_define_value com flag v
+			| None -> Common.external_define com flag)
+		| Undefine var ->
+			Common.external_undefine com var
+		| SetVerbose ->
+			com.verbose <- true
+		| SetDebug ->
+			Common.define com Define.Debug;
+			com.debug <- true
+		| SetInterp ->
+			actx.interp <- true
+		| SetJvmFlag ->
+			actx.jvm_flag <- true
+		| AddRuntimeArgs _ ->
+			(* runtime args are set on compilation_context in process_params *)
+			()
+		| AddResource (file, name) ->
+			let file = (try Common.find_file com file with Not_found -> file) in
+			let data = (try
+				let s = Std.input_file ~bin:true file in
+				if String.length s > 12000000 then raise Exit;
+				s
+			with
+			| Sys_error _ -> failwith ("Resource file not found: " ^ file)
+			| _ -> failwith ("Resource '" ^ file ^ "' excess the maximum size of 12MB"))
+			in
+			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
+			Hashtbl.add com.resources name data
+		| RunCmd cmd ->
+			actx.cmds <- cmd :: actx.cmds
+		| SetSwfVersion v ->
+			if not actx.swf_version || com.flash_version < v then com.flash_version <- v;
+			actx.swf_version <- true
+		| SetDce mode ->
+			(match mode with
+			| "std" | "full" | "no" -> ()
+			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
+			Common.define_value com Define.Dce mode
+		| AddNativeLib lib ->
+			actx.native_libs <- lib :: actx.native_libs
+		| AddNekoLibPath dir ->
+			com.neko_lib_paths <- dir :: com.neko_lib_paths
+		| Remap (pack, target) ->
+			com.package_rules <- PMap.add pack (Common.Remap target) com.package_rules
+		| SetCustomExtension ext ->
+			com.custom_ext <- Some ext
+		| AddMacro e ->
+			actx.force_typing <- true;
+			actx.config_macros <- e :: actx.config_macros
+		| SetDisplayArg input ->
+			actx.display_arg <- Some input
+		| SetXmlOut file ->
+			actx.xml_out <- Some file
+		| SetJsonOut file ->
+			actx.json_out <- Some file
+		| SetHxbOut file ->
+			actx.hxb_out <- Some file
+		| SetNoOutput ->
+			actx.no_output <- true
+		| SetMeasureTimes ->
+			actx.measure_times <- true
+		| AddWarning s ->
+			let p = fake_pos ("-w " ^ s) in
+			let l = Warning.parse_options s p in
+			com.warning_options <- l :: com.warning_options
+		| AddDeprecation s ->
+			actx.deprecations <- s :: actx.deprecations
+		| AddClass cpath ->
+			actx.classes <- cpath :: actx.classes
+		| IncludeModule cl ->
+			actx.force_typing <- true;
+			actx.config_macros <- (Printf.sprintf "include('%s', true, null, null, true)" cl) :: actx.config_macros
+		| SetPrompt ->
+			Helper.prompt := true
+		| Cwd _ ->
+			(* chdir was already applied eagerly in process_params for hxml resolution;
+			   mark as did_something so empty-compile checks don't trigger spuriously *)
+			actx.did_something <- true
+		| HxmlFile _ ->
+			(* hxml files should have been expanded before reaching process_args_new *)
+			()
+		| Next | Each ->
+			(* batch directives handled at process_params level *)
+			()
+		| ServerListen _ | ServerConnect _ | Connect _ ->
+			(* server modes handled at process_params level *)
+			()
+		| ShowVersion ->
+			raise (Helper.HelpMessage (s_version_full com.sctx.version))
+		| ShowHelp ->
+			raise (Helper.HelpMessage usage)
+		| ShowHelpDefines ->
+			let all, max_length = Define.get_documentation_list com.user_defines in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all))
+		| ShowHelpMetas ->
+			let all, max_length = Meta.get_documentation_list com.user_metas in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
+			raise (Helper.HelpMessage (ExtLib.String.join "\n" all))
+	in
+	List.iter process_one parsed_args;
+	if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then
+		Define.define com.defines HxcppSmartStings;
+	if Define.raw_defined com.defines "gen_hx_classes" then begin
+		actx.force_typing <- true;
+		actx.pre_compilation <- (fun() ->
+			let process_lib lib =
+				if not (lib#has_flag NativeLibraries.FlagIsStd) then
+					List.iter (fun path -> if path <> (["java";"lang"],"String") then actx.classes <- path :: actx.classes) lib#list_modules
+			in
+			List.iter process_lib com.native_libs.swf_libs;
+			List.iter process_lib com.native_libs.java_libs;
+		) :: actx.pre_compilation;
+		actx.xml_out <- Some "hx"
+	end;
+	actx.raise_usage <- (fun () ->
+		raise (Helper.HelpMessage usage)
+	);
+	actx
+
+(** Convert a [parsed_arg list] back to a flat string list for use with the
+    legacy [--connect] protocol, where args must be sent as raw strings. *)
+let to_raw_args parsed_args =
+	let buf = Buffer.create 64 in
+	let add s = Buffer.add_string buf s; Buffer.add_char buf '\000' in
+	let result = ref [] in
+	let push s = result := s :: !result in
+	ignore (buf, add);
+	List.iter (fun arg -> match arg with
+		| SetPlatform (platform, file) ->
+			push ("--" ^ (platform_name platform)); push file
+		| SetCustomTarget (name, path) ->
+			push "--custom-target"; push (name ^ "=" ^ path)
+		| AddClassPath p -> push "-cp"; push p
+		| AddLibClassPath p -> push "-libcp"; push p
+		| AddHxbLib f -> push "--hxb-lib"; push f
+		| SetMain (path, name) ->
+			push "--main"; push (String.concat "." (path @ [name]))
+		| AddLib name -> push "-lib"; push name
+		| HaxelibGlobal -> push "--haxelib-global"
+		| Define (flag, Some v) -> push "-D"; push (flag ^ "=" ^ v)
+		| Define (flag, None) -> push "-D"; push flag
+		| Undefine var -> push "--undefine"; push var
+		| SetVerbose -> push "--verbose"
+		| SetDebug -> push "--debug"
+		| SetInterp -> push "--interp"
+		| SetJvmFlag -> ()
+		| AddRuntimeArgs _ -> ()
+		| AddResource (file, name) -> push "-r"; push (file ^ "@" ^ name)
+		| RunCmd cmd -> push "--cmd"; push cmd
+		| SetSwfVersion v -> push "--swf-version"; push (string_of_float v)
+		| SetDce mode -> push "--dce"; push mode
+		| AddNativeLib lib ->
+			let flag = (if lib.lib_extern then
+				match lib.lib_kind with SwfLib -> "--swf-lib-extern" | JavaLib -> "--java-lib-extern" | HxbLib -> "--hxb-lib"
+			else
+				match lib.lib_kind with SwfLib -> "--swf-lib" | JavaLib -> "--java-lib" | HxbLib -> "--hxb-lib") in
+			push flag; push lib.lib_file
+		| AddNekoLibPath dir -> push "--neko-lib-path"; push dir
+		| Remap (pack, target) -> push "--remap"; push (pack ^ ":" ^ target)
+		| SetCustomExtension ext -> push "--custom-extension"; push ext
+		| AddMacro e -> push "--macro"; push e
+		| SetDisplayArg input -> push "--display"; push input
+		| SetXmlOut f -> push "--xml"; push f
+		| SetJsonOut f -> push "--json"; push f
+		| SetHxbOut f -> push "--hxb"; push f
+		| SetNoOutput -> push "--no-output"
+		| SetMeasureTimes -> push "--times"
+		| AddWarning s -> push "-w"; push s
+		| AddDeprecation _ -> ()
+		| AddClass (path, name) ->
+			push (String.concat "." (path @ [name]))
+		| IncludeModule cl -> push cl
+		| SetPrompt -> push "--prompt"
+		| Next -> push "--next"
+		| Each -> push "--each"
+		| ServerListen hp -> push "--server-listen"; push hp
+		| ServerConnect hp -> push "--server-connect"; push hp
+		| Connect hp -> push "--connect"; push hp
+		| Cwd dir -> push "--cwd"; push dir
+		| HxmlFile path -> push path
+		| ShowVersion -> push "--version"
+		| ShowHelp -> push "--help"
+		| ShowHelpDefines -> push "--help-defines"
+		| ShowHelpMetas -> push "--help-metas"
+	) parsed_args;
+	List.rev !result
 
 let parse_args (com : Common.context) =
 	let usage = Printf.sprintf
@@ -300,7 +711,7 @@ let parse_args (com : Common.context) =
 		), "","disable code optimizations");
 		("Compilation",["--remap"],[], Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
-			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
+			com.package_rules <- PMap.add pack (Common.Remap target) com.package_rules;
 		),"<package:target>","remap a package to another one");
 		("Compilation",["--custom-extension"],[],Arg.String (fun ext ->
 			com.custom_ext <- Some ext;

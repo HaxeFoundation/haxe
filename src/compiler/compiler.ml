@@ -539,7 +539,7 @@ let compile_ctx sctx ctx =
 		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
-			let actx = Args.parse_args ctx.com in
+			let actx = Args.process_args_new ctx.com ctx.parsed_args in
 			process_actx ctx actx;
 			compile ctx actx sctx;
 		);
@@ -554,7 +554,7 @@ let compile_ctx sctx ctx =
 	end else
 		catch_completion_and_exit ctx sctx run
 
-let create_context comm sctx request_scope compilation_step params =
+let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
 	let io = if comm.is_server then begin
 		(* In server mode, create pipes so that writing to stdout/stderr channels
 		   gets forwarded through the communication protocol to the client. *)
@@ -617,7 +617,7 @@ let create_context comm sctx request_scope compilation_step params =
 		diagnostics_messages = [];
 		io;
 	} in
-	let com = Common.create sctx request_scope part_scope compilation_step params (DisplayTypes.DisplayMode.create DMNone) in
+	let com = Common.create sctx request_scope part_scope compilation_step [] (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
@@ -625,6 +625,7 @@ let create_context comm sctx request_scope compilation_step params =
 		has_error = false;
 		comm = comm;
 		runtime_args = [];
+		parsed_args;
 	}
 
 module HighLevel = struct
@@ -681,99 +682,91 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) create each_args has_display is_server args =
+	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) create each_args has_display is_server (args : parsed_arg list) =
 		(* We want the loop below to actually see all the --each params, so let's prepend them *)
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
-		let hxml_stack = ref [] in
-		let create_context args =
+		let create_context parsed =
 			sctx.compilation_step <- sctx.compilation_step + 1;
-			let ctx = create sctx.compilation_step args in
+			let ctx = create sctx.compilation_step parsed in
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
-		| ("-L" | "--library" | "-lib") :: name :: args ->
+		| AddLib name :: args ->
 			find_subsequent_libs (name :: acc) args
 		| _ ->
-			List.rev acc,args
+			List.rev acc, args
+		in
+		let expand_libs libs rest =
+			let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
+			List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
+			let global_repo = List.exists (fun a -> a = HaxelibGlobal) args in
+			let raw_lines = add_libs request_scope.timer_ctx libs (if global_repo then ["--haxelib-global"] else []) sctx.cs has_display in
+			(Args.parse_args_new sctx raw_lines) @ rest
 		in
 		let rec loop acc = function
 			| [] ->
-				[],Some (create_context (List.rev acc))
-			| "--next" :: l when acc = [] -> (* skip empty --next *)
+				[], Some (create_context (List.rev acc))
+			| Next :: l when acc = [] -> (* skip empty --next *)
 				loop [] l
-			| "--next" :: l ->
+			| Next :: l ->
 				let ctx = create_context (List.rev acc) in
 				ctx.has_next <- true;
-				l,Some ctx
-			| "--each" :: l ->
+				l, Some ctx
+			| Each :: l ->
 				each_args := List.rev acc;
 				loop acc l
-			| "--cwd" :: dir :: l | "-C" :: dir :: l ->
-				(* we need to change it immediately since it will affect hxml loading *)
-				(* Exceptions are ignored there to let arg parsing do the error handling in expected order *)
+			| Cwd dir :: l ->
+				(* Apply cwd eagerly for hxml file resolution *)
 				(try Unix.chdir dir with _ -> ());
-				(* Push the --cwd arg so the arg processor know we did something. *)
-				loop (dir :: "--cwd" :: acc) l
-			| "--connect" :: hp :: l ->
+				loop (Cwd dir :: acc) l
+			| Connect hp :: l ->
 				if is_server then
 					(* If we are already connected, ignore (issue #10813) *)
 					loop acc l
 				else begin
 					let host, port = Helper.parse_host_port hp in
+					(* Forward accumulated + remaining args to the remote server *)
 					ignore(Server.Connect.do_connect host port ((List.rev acc) @ l));
-					[],None
+					[], None
 				end
-			| "--server-connect" :: hp :: l ->
+			| ServerConnect hp :: l ->
 				server_mode := SMConnect hp;
 				loop acc l
-			| ("--server-listen" | "--wait") :: hp :: l ->
+			| ServerListen hp :: l ->
 				server_mode := SMListen hp;
 				loop acc l
-			| "--run" :: cl :: args ->
-				let acc = cl :: "-x" :: acc in
+			| AddRuntimeArgs runtime_args :: _ ->
+				(* --run already translated; runtime args are the last thing *)
 				let ctx = create_context (List.rev acc) in
-				ctx.runtime_args <- args;
-				[],Some ctx
-			| ("-L" | "--library" | "-lib") :: name :: args ->
-				let libs,args = find_subsequent_libs [name] args in
-				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
-				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs request_scope.timer_ctx libs args sctx.cs has_display in
-				loop acc (lines @ args)
-			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
-				loop_lib arg dir "hxjava" acc args
+				ctx.runtime_args <- runtime_args;
+				[], Some ctx
+			| AddLib name :: args ->
+				let libs, args = find_subsequent_libs [name] args in
+				loop acc (expand_libs libs args)
+			| HxmlFile path :: l ->
+				let expanded = (try Args.parse_args_new sctx (Helper.parse_hxml path)
+					with Not_found -> [IncludeModule (path ^ " (file not found)")]) in
+				loop acc (expanded @ l)
 			| arg :: l ->
-				match List.rev (ExtString.String.nsplit arg ".") with
-				| "hxml" :: _ :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
-					let full_path = try Extc.get_full_path arg with Failure(_) -> raise (Arg.Bad (Printf.sprintf "File not found: %s" arg)) in
-					if List.mem full_path !hxml_stack then
-						raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
-					else
-						hxml_stack := full_path :: !hxml_stack;
-					let acc, l = (try acc, Helper.parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
-					loop acc l
-				| _ ->
-					loop (arg :: acc) l
-		and loop_lib arg dir lib acc args =
-			loop (dir :: arg :: acc) ("-lib" :: lib :: args)
+				loop (arg :: acc) l
 		in
-		let args,ctx = loop [] args in
-		args,!server_mode,ctx
+		let args, ctx = loop [] args in
+		args, !server_mode, ctx
 
 	let rec execute_ctx (sctx : ServerCompilationContext.t) ctx server_mode =
 		begin match server_mode with
 		| SMListen hp ->
-			(* parse for com.verbose *)
-			ignore(Args.parse_args ctx.com);
+			(* Apply args to get com.verbose before starting the wait loop *)
+			ignore(Args.process_args_new ctx.com ctx.parsed_args);
 			let accept =
 				let host, port = Helper.parse_host_port hp in
 				Server.init_wait_socket host port
 			in
 			Server.wait_loop entry ctx.com.verbose accept
 		| SMConnect hp ->
-			ignore(Args.parse_args ctx.com);
+			ignore(Args.process_args_new ctx.com ctx.parsed_args);
 			let host, port = Helper.parse_host_port hp in
 			let accept = Server.init_wait_connect host port in
 			Server.wait_loop entry ctx.com.verbose accept
@@ -781,19 +774,11 @@ module HighLevel = struct
 			compile_ctx sctx ctx
 		end
 
-	and entry sctx request_scope comm args =
+	and entry sctx request_scope comm (args : parsed_arg list) =
 		let create = create_context comm sctx request_scope in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
-		let has_display = ref false in
-		(* put --display in front if it was last parameter *)
-		let args = match List.rev args with
-			| file :: "--display" :: pl when file <> "memory" ->
-				has_display := true;
-				"--display" :: file :: List.rev pl
-			| _ ->
-				args
-		in
+		let has_display = ref (List.exists (fun a -> match a with SetDisplayArg _ -> true | _ -> false) args) in
 		let rec loop args =
 			let args,server_mode,ctx = try
 				process_params sctx request_scope create each_args !has_display comm.is_server args

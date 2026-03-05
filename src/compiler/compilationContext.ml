@@ -18,6 +18,65 @@ type native_lib_arg = {
 	lib_extern : bool;
 }
 
+(** Pre-parsed representation of a single compiler argument.  Produced by
+    [Args.parse_args_new] from raw string arguments and stored in the
+    [RequestQueue] so the server can inspect requests without running a full
+    compilation.  Applied to a [Common.context] by [Args.process_args_new]. *)
+type parsed_arg =
+	(* Targets *)
+	| SetPlatform of platform * string
+	| SetCustomTarget of string * string
+	(* Compilation *)
+	| AddClassPath of string
+	| AddLibClassPath of string
+	| AddHxbLib of string
+	| SetMain of path
+	| AddLib of string
+	| HaxelibGlobal
+	| Define of string * string option
+	| Undefine of string
+	| SetVerbose
+	| SetDebug
+	| SetInterp
+	| SetJvmFlag
+	| AddRuntimeArgs of string list
+	| AddResource of string * string
+	| RunCmd of string
+	| SetSwfVersion of float
+	| SetDce of string
+	| AddNativeLib of native_lib_arg
+	| AddNekoLibPath of string
+	| Remap of string * string
+	| SetCustomExtension of string
+	| AddMacro of string
+	| SetDisplayArg of string
+	| SetXmlOut of string
+	| SetJsonOut of string
+	| SetHxbOut of string
+	| SetNoOutput
+	| SetMeasureTimes
+	| AddWarning of string
+	| AddDeprecation of string
+	| AddClass of path
+	| IncludeModule of string
+	| SetPrompt
+	(* Batch *)
+	| Next
+	| Each
+	(* Server *)
+	| ServerListen of string
+	| ServerConnect of string
+	| Connect of string
+	(* Working directory - applied eagerly for hxml resolution *)
+	| Cwd of string
+	(* Hxml file reference - expanded lazily in process_params *)
+	| HxmlFile of string
+	(* Early-exit helpers (raise HelpMessage when processed) *)
+	| ShowVersion
+	| ShowHelp
+	| ShowHelpDefines
+	| ShowHelpMetas
+
 type arg_context = {
 	mutable classes : Globals.path list;
 	mutable xml_out : string option;
@@ -56,6 +115,10 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
+	(** The pre-parsed arguments for this compilation part. Used by
+	    [Args.process_args_new] to apply arguments to [com] without
+	    re-parsing from scratch. *)
+	mutable parsed_args : parsed_arg list;
 }
 
 type server_connection = {
