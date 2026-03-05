@@ -24,10 +24,6 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
-	(** The original CLI tokens for this compilation batch (hxml content or direct
-	    CLI args).  Stored into [com.args] before compilation starts so that
-	    [Compiler.getArguments()] returns the correct values. *)
-	mutable raw_args : string list;
 	(** The pre-parsed arguments for this compilation batch. Used by
 	    [Args.process_args_new] to apply arguments to [com]. *)
 	mutable parsed_args : parsed_arg list;

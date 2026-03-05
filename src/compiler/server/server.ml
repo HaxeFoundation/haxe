@@ -206,17 +206,16 @@ let create_request_scope () =
 		cancellation_requested = false;
 	}
 
-let process sctx request_scope entry comm (raw_args : string list) (args : parsed_arg list) =
+let process sctx request_scope entry comm (args : parsed_arg list) =
 	let t0 = Extc.time() in
 	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
 	ServerCompilationContext.reset sctx;
-	entry sctx request_scope comm raw_args args;
+	entry sctx request_scope comm args;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
 module RequestQueue = struct
 	type request = {
-		raw_args : string list;
 		args : parsed_arg list;
 		stdin : string option;
 		stdin_pipe : in_channel option;
@@ -245,9 +244,9 @@ module RequestQueue = struct
 	let wake_up rq =
 		Semaphore.Counting.release rq.semaphore
 
-	let add rq raw_args args stdin stdin_pipe conn =
+	let add rq args stdin stdin_pipe conn =
 		Mutex.lock rq.mutex;
-		rq.requests <- { raw_args; args; stdin; stdin_pipe; conn } :: rq.requests;
+		rq.requests <- { args; stdin; stdin_pipe; conn } :: rq.requests;
 		Mutex.unlock rq.mutex;
 		wake_up rq
 
@@ -277,9 +276,9 @@ module WorkerDomain = struct
 			req.conn.close()
 		) pending
 
-	let run_request sctx request_scope entry {conn; stdin; stdin_pipe; raw_args; args} =
+	let run_request sctx request_scope entry {conn; stdin; stdin_pipe; args} =
 		try
-			process sctx request_scope entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) raw_args args;
+			process sctx request_scope entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
@@ -367,7 +366,7 @@ let wait_loop entry verbose accept =
 				let stdin_pipe = conn.get_stdin () in
 				let data = Helper.parse_hxml_data hxml in
 				let parsed_args = Args.parse_args_new sctx data in
-				RequestQueue.add rq data parsed_args stdin stdin_pipe conn;
+				RequestQueue.add rq parsed_args stdin stdin_pipe conn;
 			with Unix.Unix_error _ ->
 				ServerMessage.socket_message "Connection Aborted";
 				conn.close()
