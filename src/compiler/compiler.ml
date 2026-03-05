@@ -77,7 +77,7 @@ let run_command ctx cmd =
 	result
 
 let run_command ctx cmd =
-	Timer.time ctx.timer_ctx ["command";cmd] (run_command ctx) cmd
+	Timer.time ctx.com.timer_ctx ["command";cmd] (run_command ctx) cmd
 
 module Setup = struct
 	let initialize_target ctx com actx =
@@ -348,14 +348,14 @@ let finalize_typing ctx tctx =
 	com.modules <- modules
 
 let finalize_typing ctx tctx =
-	Timer.time ctx.timer_ctx ["finalize"] (finalize_typing ctx) tctx
+	Timer.time ctx.com.timer_ctx ["finalize"] (finalize_typing ctx) tctx
 
 let filter ctx tctx ectx before_destruction =
-	Timer.time ctx.timer_ctx ["filters"] (fun () ->
+	Timer.time ctx.com.timer_ctx ["filters"] (fun () ->
 		run_or_diagnose ctx (fun () -> Filters.run tctx ectx before_destruction)
 	) ()
 
-let compile ctx actx callbacks =
+let compile ctx actx sctx =
 	let com = ctx.com in
 	(* Set up display configuration *)
 	DisplayProcessing.process_display_configuration ctx;
@@ -376,8 +376,8 @@ let compile ctx actx callbacks =
 	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Setup.initialize_target ctx com actx in
 	update_platform_config com; (* make sure to adapt all flags changes defined after platform *)
-	callbacks.after_target_init ctx;
-	Timer.time ctx.timer_ctx ["init"] (fun () ->
+	ServerCache.after_target_init sctx ctx;
+	Timer.time ctx.com.timer_ctx ["init"] (fun () ->
 		List.iter (fun f -> f()) (List.rev (actx.pre_compilation));
 		begin match actx.hxb_out with
 			| None ->
@@ -392,14 +392,14 @@ let compile ctx actx callbacks =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let (tctx,display_file_dot_path) = Timer.time ctx.timer_ctx ["typing"] (do_type ctx mctx actx) display_file_dot_path in
+		let (tctx,display_file_dot_path) = Timer.time ctx.com.timer_ctx ["typing"] (do_type ctx mctx actx) display_file_dot_path in
 		DisplayProcessing.handle_display_after_typing ctx tctx display_file_dot_path;
 		let ectx = ExceptionInit.create_exception_context tctx in
 		finalize_typing ctx tctx;
 		Dump.maybe_generate_dump ctx.com AfterTyping;
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->
-			callbacks.after_save ctx;
+			ServerCache.after_save sctx ctx;
 			if is_compilation then match com.hxb_writer_config with
 				| Some config ->
 					Generate.check_hxb_output ctx config;
@@ -431,8 +431,8 @@ let compile ctx actx callbacks =
 		) (List.rev actx.cmds)
 	end
 
-let make_ice_message com msg backtrace =
-		let ver = (s_version_full com.version) in
+let make_ice_message (com : Common.context) msg backtrace =
+		let ver = (s_version_full com.sctx.version) in
 		let os_type = if Sys.unix then "unix" else "windows" in
 		Printf.sprintf "%s\nHaxe: %s; OS type: %s;\n%s" msg ver os_type backtrace
 let compile_safe ctx f =
@@ -487,7 +487,7 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
-	ctx.com.io.close ();
+	ctx.com.part_scope.io.close ();
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
@@ -500,18 +500,18 @@ let emit_completion ctx str =
 	ServerMessage.completion str;
 	ctx.comm.write_err str
 
-let catch_completion_and_exit ctx callbacks run =
+let catch_completion_and_exit ctx sctx run =
 	try
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
 		| DisplayProcessingGlobals.Completion str ->
-			callbacks.after_compilation ctx;
+			ServerCache.after_compilation sctx ctx;
 			emit_completion ctx str;
 			finalize ctx;
 			0
 		| DisplayJson.JsonCompleted ->
-			callbacks.after_compilation ctx;
+			ServerCache.after_compilation sctx ctx;
 			finalize ctx;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
@@ -522,7 +522,7 @@ let catch_completion_and_exit ctx callbacks run =
 
 let process_actx ctx actx =
 	ctx.com.doinline <- ctx.com.display.dms_inline && not (Common.defined ctx.com Define.NoInline);
-	ctx.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
+	ctx.com.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
 	match DisplayProcessing.process_display_arg ctx actx with
 	| Completed ->
 		raise DisplayJson.JsonCompleted
@@ -534,17 +534,17 @@ let process_actx ctx actx =
 			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
 		end
 
-let compile_ctx callbacks ctx =
+let compile_ctx sctx ctx =
 	let run ctx =
-		callbacks.before_anything ctx;
+		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
 			let actx = Args.parse_args ctx.com in
 			process_actx ctx actx;
-			compile ctx actx callbacks;
+			compile ctx actx sctx;
 		);
 		ctx.comm.flush ctx;
-		callbacks.after_compilation ctx;
+		ServerCache.after_compilation sctx ctx;
 		finalize ctx;
 	in
 	if ctx.has_error then begin
@@ -552,17 +552,9 @@ let compile_ctx callbacks ctx =
 		finalize ctx;
 		1 (* can happen if process_params fails already *)
 	end else
-		catch_completion_and_exit ctx callbacks run
+		catch_completion_and_exit ctx sctx run
 
-let create_context comm cs timer_ctx compilation_step params =
-	let version = {
-		version = version;
-		major = version_major;
-		minor = version_minor;
-		revision = version_revision;
-		pre = version_pre;
-		extra = Version.version_extra;
-	} in
+let create_context comm sctx request_scope compilation_step params =
 	let io = if comm.is_server then begin
 		(* In server mode, create pipes so that writing to stdout/stderr channels
 		   gets forwarded through the communication protocol to the client. *)
@@ -620,7 +612,12 @@ let create_context comm cs timer_ctx compilation_step params =
 			close = (fun () -> ());
 		}
 	in
-	let com = Common.create io timer_ctx compilation_step cs version params (DisplayTypes.DisplayMode.create DMNone) in
+	let part_scope = {
+		warned_positions = Hashtbl.create 0;
+		diagnostics_messages = [];
+		io;
+	} in
+	let com = Common.create sctx request_scope part_scope compilation_step params (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
@@ -628,7 +625,6 @@ let create_context comm cs timer_ctx compilation_step params =
 		has_error = false;
 		comm = comm;
 		runtime_args = [];
-		timer_ctx = timer_ctx;
 	}
 
 module HighLevel = struct
@@ -685,14 +681,15 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params server_api timer_ctx create each_args has_display is_server args =
+	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) create each_args has_display is_server args =
 		(* We want the loop below to actually see all the --each params, so let's prepend them *)
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
 		let server_mode = ref SMNone in
 		let hxml_stack = ref [] in
 		let create_context args =
-			let ctx = create (server_api.on_context_create()) args in
+			sctx.compilation_step <- sctx.compilation_step + 1;
+			let ctx = create sctx.compilation_step args in
 			ctx
 		in
 		let rec find_subsequent_libs acc args = match args with
@@ -743,7 +740,7 @@ module HighLevel = struct
 				let libs,args = find_subsequent_libs [name] args in
 				let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 				List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-				let lines = add_libs timer_ctx libs args server_api.sctx.cs has_display in
+				let lines = add_libs request_scope.timer_ctx libs args sctx.cs has_display in
 				loop acc (lines @ args)
 			| ("--jvm" | "-jvm" as arg) :: dir :: args ->
 				loop_lib arg dir "hxjava" acc args
@@ -765,7 +762,7 @@ module HighLevel = struct
 		let args,ctx = loop [] args in
 		args,!server_mode,ctx
 
-	let rec execute_ctx server_api ctx server_mode =
+	let rec execute_ctx (sctx : ServerCompilationContext.t) ctx server_mode =
 		begin match server_mode with
 		| SMListen hp ->
 			(* parse for com.verbose *)
@@ -781,12 +778,11 @@ module HighLevel = struct
 			let accept = Server.init_wait_connect host port in
 			Server.wait_loop entry ctx.com.verbose accept
 		| SMNone ->
-			compile_ctx server_api.callbacks ctx
+			compile_ctx sctx ctx
 		end
 
-	and entry server_api comm args =
-		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
-		let create = create_context comm server_api.sctx timer_ctx in
+	and entry sctx request_scope comm args =
+		let create = create_context comm sctx request_scope in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
 		let has_display = ref false in
@@ -800,7 +796,7 @@ module HighLevel = struct
 		in
 		let rec loop args =
 			let args,server_mode,ctx = try
-				process_params server_api timer_ctx create each_args !has_display comm.is_server args
+				process_params sctx request_scope create each_args !has_display comm.is_server args
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;
@@ -810,7 +806,7 @@ module HighLevel = struct
 				| Some ctx ->
 					(* Need chdir here because --cwd is eagerly applied in process_params *)
 					Unix.chdir curdir;
-					execute_ctx server_api ctx server_mode
+					execute_ctx sctx ctx server_mode
 				| None ->
 					(* caused by --connect *)
 					0
@@ -823,5 +819,5 @@ module HighLevel = struct
 				code
 		in
 		let code = loop args in
-		comm.exit timer_ctx code
+		comm.exit request_scope.timer_ctx code
 end

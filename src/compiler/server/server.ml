@@ -198,33 +198,20 @@ module SocketRequest = struct
 		{ data; stdin }
 end
 
-let process sctx entry comm args =
+let create_request_scope () =
+	{
+		stats = Stats.create ();
+		timer_ctx = Timer.make_context (Timer.make ["other"]);
+		cancellation_requested = false;
+	}
+
+let process sctx request_scope entry comm args =
 	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	ServerCompilationContext.reset sctx;
-	Hashtbl.clear DeprecationCheck.warned_positions;
-
-	let stats = Stats.create () in
-	let after_compilation ctx =
-		ServerCache.after_compilation sctx ctx;
-		Stats.add stats ctx.com.stats;
-	in
-	let api = {
-		on_context_create = (fun () ->
-			sctx.compilation_step <- sctx.compilation_step + 1;
-			sctx.compilation_step;
-		);
-		sctx;
-		callbacks = {
-			before_anything = ServerCache.before_anything sctx;
-			after_target_init = ServerCache.after_target_init sctx;
-			after_save = ServerCache.after_save sctx;
-			after_compilation = after_compilation;
-		};
-	} in
-	entry api comm args;
+	entry sctx request_scope comm args;
 	ServerCompilationContext.run_delays sctx;
-	ServerMessage.stats stats (Extc.time() -. t0)
+	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
 module RequestQueue = struct
 	type request = {
@@ -238,6 +225,7 @@ module RequestQueue = struct
 		mutex : Mutex.t;
 		semaphore : Semaphore.Counting.t;
 		mutable requests : request list;
+		mutable current_request : request_scope option;
 		shutdown_flag : bool Atomic.t;
 		cancel_token : bool Atomic.t;
 	}
@@ -247,6 +235,7 @@ module RequestQueue = struct
 			mutex = Mutex.create ();
 			semaphore = Semaphore.Counting.make 0;
 			requests = [];
+			current_request = None;
 			shutdown_flag = Atomic.make false;
 			cancel_token = Atomic.make false;
 		}
@@ -286,9 +275,9 @@ module WorkerDomain = struct
 			req.conn.close()
 		) pending
 
-	let run_request sctx entry {conn; stdin; stdin_pipe; args} =
+	let run_request sctx request_scope entry {conn; stdin; stdin_pipe; args} =
 		try
-			process sctx entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
+			process sctx request_scope entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
@@ -304,10 +293,6 @@ module WorkerDomain = struct
 			end
 
 	let create sctx entry rq =
-		(* Install cancellation hook: raises Cancelled when the token is set *)
-		TypeloadCacheHook.check_cancellation := (fun () ->
-			if Atomic.get rq.cancel_token then raise Cancelled
-		);
 		let domain = Domain.spawn (fun () ->
 			let cs = sctx.cs in
 			let rec loop () =
@@ -330,7 +315,9 @@ module WorkerDomain = struct
 						Mutex.unlock rq.mutex;
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
-						run_request sctx entry request;
+						let request_scope = create_request_scope() in
+						rq.current_request <- Some request_scope;
+						run_request sctx request_scope entry request;
 						request.conn.close();
 						sctx.current_stdin <- None;
 						ServerCache.cleanup();

@@ -360,7 +360,7 @@ class hxb_reader_api_server
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
-			incr com.stats.s_modules_restored;
+			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
@@ -379,7 +379,7 @@ class hxb_reader_api_server
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
-			incr com.stats.s_modules_restored;
+			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadModule reason ->
 			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
@@ -539,7 +539,7 @@ and type_module sctx com delay mpath p =
 					(match typing_mode with
 					| FullTyping -> ignore(f_next chunks EOM)
 					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
-					incr com.stats.s_modules_restored;
+					incr com.request_scope.stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason

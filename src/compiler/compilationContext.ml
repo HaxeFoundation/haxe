@@ -56,14 +56,6 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
-	timer_ctx : Timer.timer_context;
-}
-
-type compilation_callbacks = {
-	before_anything : compilation_context -> unit;
-	after_target_init : compilation_context -> unit;
-	after_save : compilation_context -> unit;
-	after_compilation : compilation_context -> unit;
 }
 
 type server_connection = {
@@ -74,12 +66,6 @@ type server_connection = {
 }
 
 type server_accept = unit -> server_connection
-
-type server_api = {
-	sctx : ServerCompilationContext.t;
-	callbacks : compilation_callbacks;
-	on_context_create : unit -> int;
-}
 
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
