@@ -328,7 +328,10 @@ let mark_dependent_fields dce csup n kind =
 			end
 			(* otherwise it might be kept if the class is kept later, so mark it as :?used *)
 			else if not (has_class_field_flag cf CfMaybeUsed) then begin
-				add_class_field_flag cf CfMaybeUsed;
+				Mutex.lock dce.field_marker_mutex;
+				if not (has_class_field_flag cf CfMaybeUsed) then
+					add_class_field_flag cf CfMaybeUsed;
+				Mutex.unlock dce.field_marker_mutex;
 			end
 		with Not_found ->
 			(* if the field is not present on current class, it might come from a base class *)
