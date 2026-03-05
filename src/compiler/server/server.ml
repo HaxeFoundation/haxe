@@ -209,20 +209,7 @@ let process sctx request_scope entry comm args =
 	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	ServerCompilationContext.reset sctx;
-	let api = {
-		on_context_create = (fun () ->
-			sctx.compilation_step <- sctx.compilation_step + 1;
-			sctx.compilation_step;
-		);
-		sctx;
-		callbacks = {
-			before_anything = ServerCache.before_anything sctx;
-			after_target_init = ServerCache.after_target_init sctx;
-			after_save = ServerCache.after_save sctx;
-			after_compilation = ServerCache.after_compilation sctx;
-		};
-	} in
-	entry api request_scope comm args;
+	entry sctx request_scope comm args;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
