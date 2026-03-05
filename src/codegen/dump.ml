@@ -127,9 +127,7 @@ let dump_types com pretty =
 		);
 		close()
 	in
-	Parallel.run_with_pool com.sctx.pool (fun pool ->
-		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
-	);
+	Parallel.ParallelArray.iter (Some (Lazy.force com.sctx.pool)) f (Array.of_list com.types);
 	restore()
 
 let dump_record com =
@@ -144,9 +142,7 @@ let dump_record com =
 		Buffer.add_string buf s;
 		close()
 	in
-	Parallel.run_with_pool com.sctx.pool (fun pool ->
-		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
-	)
+	Parallel.ParallelArray.iter (Some (Lazy.force com.sctx.pool)) f (Array.of_list com.types)
 
 let dump_position com =
 	let f mt =
@@ -169,9 +165,7 @@ let dump_position com =
 			| _ ->
 				()
 	in
-	Parallel.run_with_pool com.sctx.pool (fun pool ->
-		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
-	)
+	Parallel.ParallelArray.iter (Some (Lazy.force com.sctx.pool)) f (Array.of_list com.types)
 
 let dump_types com =
 	match com.dump_config.dump_mode with
