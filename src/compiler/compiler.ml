@@ -51,8 +51,26 @@ let run_command ctx cmd =
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
 			Sys.command cmd
 		else begin
-			(* In server mode, capture stdout/stderr and send them through the communication channel *)
-			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
+			(* In server mode, capture stdout/stderr and forward stdin through the communication channel.
+			   We use create_process instead of open_process_full so that we can
+			   properly forward the client's stdin and close it to signal EOF. *)
+			let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
+			let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
+			let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
+			let shell, args =
+				if Sys.win32 then
+					"cmd.exe", [|"cmd.exe"; "/c"; cmd|]
+				else
+					"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
+			in
+			let pid = Unix.create_process_env shell args (Unix.environment())
+				child_stdin_r child_stdout_w child_stderr_w in
+			Unix.close child_stdin_r;
+			Unix.close child_stdout_w;
+			Unix.close child_stderr_w;
+			let pout = Unix.in_channel_of_descr child_stdout_r in
+			let pin = Unix.out_channel_of_descr child_stdin_w in
+			let perr = Unix.in_channel_of_descr child_stderr_r in
 			let bout = Bytes.create 1024 in
 			let berr = Bytes.create 1024 in
 			let rec read_content channel buf f =
@@ -66,11 +84,31 @@ let run_command ctx cmd =
 					()
 				end
 			in
+			let tin = match ctx.comm.stdin with
+				| Some stdin_pipe ->
+					Some (Thread.create (fun () ->
+						let buf = Bytes.create 1024 in
+						(try while true do
+							let i = input stdin_pipe buf 0 1024 in
+							if i = 0 then raise Exit;
+							output_string pin (Bytes.sub_string buf 0 i);
+							flush pin
+						done with _ -> ());
+						close_out_noerr pin
+					) ())
+				| None ->
+					close_out_noerr pin;
+					None
+			in
 			let tout = Thread.create (fun() -> read_content pout bout ctx.comm.write_out) () in
 			let terr = Thread.create (fun() -> read_content perr berr ctx.comm.write_err) () in
+			(match tin with Some t -> Thread.join t | None -> ());
 			Thread.join tout;
 			Thread.join terr;
-			let result = (match Unix.close_process_full (pout,pin,perr) with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
+			close_in_noerr pout;
+			close_in_noerr perr;
+			let _, status = Unix.waitpid [] pid in
+			let result = (match status with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c) in
 			result
 		end
 	in
