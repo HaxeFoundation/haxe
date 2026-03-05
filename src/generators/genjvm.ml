@@ -3235,7 +3235,8 @@ let generate jvm_flag gctx =
 		gctx.out#add_entry v filename;
 	) gctx.gctx.resources;
 
-	let generate pool =
+	let generate () =
+		let pool = (Some (Lazy.force gctx.gctx.pool)) in
 		let generate_real_types () =
 			Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
 		in
@@ -3249,7 +3250,7 @@ let generate jvm_flag gctx =
 		run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
 		run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
 	in
-	Parallel.run_in_new_pool gctx.gctx.timer_ctx generate;
+	generate ();
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
