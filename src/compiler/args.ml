@@ -40,6 +40,31 @@ let process_args arg_spec =
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
 
+type parsed_arg =
+	| SetPlatform of platform * string
+
+let parse_args_new sctx args =
+	let parsed = DynArray.create () in
+	let set_platform platform file =
+		DynArray.add parsed (SetPlatform(platform,file))
+	in
+	let basic_args_spec = [
+		("Target",["--js"],["-js"],Arg.String (set_platform Js),"<file>","generate JavaScript code into target file");
+	] in
+	let adv_args_spec = [
+		(* ... *)
+	] in
+	let all_args = (basic_args_spec @ adv_args_spec) in
+	ignore(all_args);
+	(* args parsing like in parse_args *)
+	DynArray.to_list parsed
+
+let process_args_new sctx com parsed_args =
+	let process_arg arg = match arg with
+		| SetPlatform (platform, file) -> set_platform com platform file
+	in
+	List.iter process_arg parsed_args
+
 let parse_args (com : Common.context) =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2025 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"

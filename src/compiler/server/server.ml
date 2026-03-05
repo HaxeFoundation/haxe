@@ -364,6 +364,8 @@ let wait_loop entry verbose accept =
 				in
 				let stdin_pipe = conn.get_stdin () in
 				let data = Helper.parse_hxml_data hxml in
+				let parsed_args = Args.parse_args_new sctx data in
+				ignore(parsed_args);
 				RequestQueue.add rq data stdin stdin_pipe conn;
 			with Unix.Unix_error _ ->
 				ServerMessage.socket_message "Connection Aborted";
