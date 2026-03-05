@@ -219,7 +219,7 @@ let destruction_on_com scom com types =
 	SafeCom.run_type_filters_safe scom filters types
 
 let destruction (com : Common.context) scom ectx detail_times rename_locals_config all_types all_types_array =
-	let all_types = Parallel.run_with_pool com.sctx.pool (fun pool ->
+	let all_types = Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
 			SafeCom.run_with_scom com scom (fun () ->
 				destruction_before_dce pool scom all_types_array
@@ -422,7 +422,6 @@ let might_need_cf_unoptimized c cf =
 		has_class_field_flag cf CfGeneric
 
 let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array rename_locals_config =
-	let pool_lazy = com.Common.sctx.pool in
 	let detail_times = Timer.level_from_define scom.defines Define.FilterTimes in
 	let cv_wrapper_impl = com.Common.local_wrapper in
 	let filters_before_inlining = [
@@ -454,7 +453,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
 	] in
 
-	Parallel.run_with_pool pool_lazy (fun pool ->
+	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		begin
 			let pool = if Common.defined com Define.EnableParallelAbstractCast then pool else None in
 			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining) new_types_array;
@@ -532,8 +531,11 @@ let run com ectx before_destruction =
 		) new_types;
 	);
 	(* Note: We cannot have a thread pool up during the before/after_save callbacks because Eval's thread handling
-	   currently does not get along with it. This is why we need a separate pool for this operation. *)
-	Parallel.run_with_pool com.sctx.pool (fun pool ->
+	   currently does not get along with it. When domain workers from a persistent pool are alive while the Eval
+	   interpreter runs (e.g., for the --interp target), concurrency issues arise on platforms with true parallelism
+	   (e.g., arm64). We use a fresh pool that is created and torn down for this operation only, ensuring no
+	   domain workers are alive during the callbacks or the generate phase. *)
+	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		Parallel.ParallelArray.iter pool (save_class_state com.compilation_step) new_types_array
 	);
 	Common.enter_stage com CSaveDone;
