@@ -57,14 +57,6 @@ module Stats = struct
 			s_methods_typed = ref 0;
 			s_macros_called = ref 0;
 		}
-
-	let add lhs rhs =
-		lhs.s_files_parsed := !(lhs.s_files_parsed) + !(rhs.s_files_parsed);
-		lhs.s_modules_typed := !(lhs.s_modules_typed) + !(rhs.s_modules_typed);
-		lhs.s_modules_restored := !(lhs.s_modules_restored) + !(rhs.s_modules_restored);
-		lhs.s_classes_built := !(lhs.s_classes_built) + !(rhs.s_classes_built);
-		lhs.s_methods_typed := !(lhs.s_methods_typed) + !(rhs.s_methods_typed);
-		lhs.s_macros_called := !(lhs.s_macros_called) + !(rhs.s_macros_called)
 end
 
 class compiler_callbacks = object(self)
@@ -280,6 +272,7 @@ end
 type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : diagnostic list;
+	io : Gctx.compilation_io;
 }
 
 type request_scope = {
@@ -317,7 +310,6 @@ type context = {
 	parser_state : parser_state;
 	dump_config : DumpConfig.t;
 	(* communication *)
-	io : Gctx.compilation_io;
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
@@ -382,7 +374,7 @@ let to_gctx com = {
 	run_command_args = com.run_command_args;
 	warning = com.warning;
 	error = com.error;
-	io = com.io;
+	io = com.part_scope.io;
 	debug = com.debug;
 	file = com.file;
 	version = com.version;
@@ -735,13 +727,10 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create io request_scope compilation_step sctx version args display_mode =
+let create sctx request_scope part_scope compilation_step version args display_mode =
 	let rec com = {
 		request_scope;
-		part_scope = {
-			warned_positions = Hashtbl.create 0;
-			diagnostics_messages = [];
-		};
+		part_scope;
 		compilation_step = compilation_step;
 		sctx;
 		cs = sctx.cs;
@@ -764,7 +753,6 @@ let create io request_scope compilation_step sctx version args display_mode =
 		platform = Cross;
 		config = default_config;
 		custom_ext = None;
-		io;
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
@@ -862,7 +850,7 @@ let disable_report_mode com =
 	(fun () -> com.report_mode <- old)
 
 let log com str =
-	if com.verbose then com.io.print (str ^ "\n")
+	if com.verbose then com.part_scope.io.print (str ^ "\n")
 
 let clone com is_macro_context =
 	{
@@ -883,7 +871,6 @@ let clone com is_macro_context =
 		platform = com.platform;
 		config = com.config;
 		custom_ext = com.custom_ext;
-		io = com.io;
 		run_command = com.run_command;
 		run_command_args = com.run_command_args;
 		package_rules = com.package_rules;

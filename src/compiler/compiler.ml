@@ -487,7 +487,7 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
-	ctx.com.io.close ();
+	ctx.com.part_scope.io.close ();
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
@@ -620,7 +620,12 @@ let create_context comm sctx request_scope compilation_step params =
 			close = (fun () -> ());
 		}
 	in
-	let com = Common.create io request_scope compilation_step sctx version params (DisplayTypes.DisplayMode.create DMNone) in
+	let part_scope = {
+		warned_positions = Hashtbl.create 0;
+		diagnostics_messages = [];
+		io;
+	} in
+	let com = Common.create sctx request_scope part_scope compilation_step version params (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
