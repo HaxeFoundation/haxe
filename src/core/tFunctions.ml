@@ -563,20 +563,17 @@ let apply_typedef td tl =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let apply_params_stack_key = Domain.DLS.new_key (fun () -> ref [])
-
-let try_apply_params_rec cparams params t success =
-	let apply_params_stack = Domain.DLS.get apply_params_stack_key in
-	let old_stack = !apply_params_stack in
+let try_apply_params_rec stack cparams params t success =
+	let old_stack = !stack in
 	try
-		let result = success (apply_params ~stack:apply_params_stack cparams params t) in
-		apply_params_stack := old_stack;
+		let result = success (apply_params ~stack:stack cparams params t) in
+		stack := old_stack;
 		result
 	with
 		| ApplyParamsRecursion ->
-			apply_params_stack := old_stack;
+			stack := old_stack;
 		| err ->
-			apply_params_stack := old_stack;
+			stack := old_stack;
 			raise err
 
 let rec follow t =
