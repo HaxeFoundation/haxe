@@ -58,7 +58,39 @@ class Main {
 			return exitCode == 0;
 		});
 
-		// Test 3: Piped stdin through --cmd
+		// Test 3: Sys.getChar over --connect
+		test("stdin getChar forwarding", () -> {
+			var client = new Process("haxe", ["--connect", Std.string(port), "--run", "StdinChar"]);
+			client.stdin.writeString("h");
+			client.stdin.close();
+			var stdout = client.stdout.readAll().toString().trim();
+			var exitCode = client.exitCode();
+			client.close();
+			if (stdout != "Got: h") {
+				Sys.println('\n    Expected: "Got: h"');
+				Sys.println('    Got: "$stdout"');
+				return false;
+			}
+			return exitCode == 0;
+		});
+
+		// Test 4: Sys.getChar through --cmd
+		test("stdin getChar forwarding to command", () -> {
+			var client = new Process("haxe", ["--connect", Std.string(port), "--cmd", "haxe --run StdinChar"]);
+			client.stdin.writeString("h");
+			client.stdin.close();
+			var stdout = client.stdout.readAll().toString().trim();
+			var exitCode = client.exitCode();
+			client.close();
+			if (stdout != "Got: h") {
+				Sys.println('\n    Expected: "Got: h"');
+				Sys.println('    Got: "$stdout"');
+				return false;
+			}
+			return exitCode == 0;
+		});
+
+		// Test 5: Piped stdin through --cmd
 		test("stdin line forwarding to command", () -> {
 			var client = new Process("haxe", ["--connect", Std.string(port), "--cmd", "cat -"]);
 			client.stdin.writeString("hello world\n");
@@ -74,7 +106,7 @@ class Main {
 			return exitCode == 0;
 		});
 
-		// Test 4: No stdin consumed (just compile) - should not hang
+		// Test 6: No stdin consumed (just compile) - should not hang
 		test("no-stdin request completes", () -> {
 			var client = new Process("haxe", ["--connect", Std.string(port), "-cp", ".", "--main", "StdinEcho", "--no-output"]);
 			client.stdin.close();
