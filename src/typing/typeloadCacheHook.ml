@@ -13,9 +13,6 @@ type find_module_result =
 
 let type_module_hook : (Common.context -> (typer_pass -> (unit -> unit) -> unit) -> path -> pos -> find_module_result) ref = ref (fun _ _ _ _ -> NoModule)
 
-(* Hook to check for cooperative cancellation. Raises [Cancelled] when set by the server. *)
-let check_cancellation : (unit -> unit) ref = ref (fun () -> ())
-
 let fake_modules = Hashtbl.create 0
 
 let create_fake_module com file =

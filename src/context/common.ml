@@ -278,6 +278,7 @@ type part_scope = {
 type request_scope = {
 	stats : Stats.t;
 	timer_ctx : Timer.timer_context;
+	mutable cancellation_requested : bool;
 }
 
 type context = {
@@ -1180,3 +1181,6 @@ let make_unforced_lazy t_proc f where =
 				raise (Error.Fatal_error e)
 	);
 	r
+
+let check_cancellation com =
+	if com.request_scope.cancellation_requested then raise Cancelled

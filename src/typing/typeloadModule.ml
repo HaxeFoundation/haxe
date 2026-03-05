@@ -796,7 +796,7 @@ let rec load_hxb_module com g path p =
 	loop com.hxb_libs
 
 and load_module' com g m p =
-	!TypeloadCacheHook.check_cancellation ();
+	check_cancellation com;
 	try
 		(* Check current context *)
 		com.module_lut#find m
