@@ -2693,23 +2693,7 @@ module StdSys = struct
 		let echo = decode_bool echo in
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		let stdin_ch = com.part_scope.io.stdin in
-		let stdin_fd = Unix.descr_of_in_channel stdin_ch in
-		if Unix.isatty stdin_fd then
-			vint (Extc.getch echo)
-		else begin
-			let c = try
-				int_of_char (input_char stdin_ch)
-			with End_of_file ->
-				(* Match native getch behavior which returns -1 on EOF *)
-				-1
-			in
-			if echo && c >= 0 then begin
-				output_char com.part_scope.io.stdout (char_of_int c);
-				flush com.part_scope.io.stdout
-			end;
-			vint c
-		end
+		vint (com.part_scope.io.getch echo)
 	)
 
 	let getCwd = vfun0 (fun () ->

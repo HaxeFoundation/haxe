@@ -14,6 +14,7 @@ type compilation_io = {
 	stdout : out_channel;
 	stderr : out_channel;
 	stdin : in_channel;
+	getch : bool -> int;
 	close : unit -> unit;
 }
 
