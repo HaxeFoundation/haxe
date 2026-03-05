@@ -202,7 +202,6 @@ let process sctx entry comm args =
 	let t0 = Extc.time() in
 	ServerMessage.arguments args;
 	ServerCompilationContext.reset sctx;
-	Hashtbl.clear DeprecationCheck.warned_positions;
 
 	let stats = Stats.create () in
 	let after_compilation ctx =

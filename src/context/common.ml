@@ -348,6 +348,7 @@ type context = {
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
 	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
+	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
@@ -803,6 +804,7 @@ let create io timer_ctx compilation_step sctx version args display_mode =
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
+		warned_positions = Hashtbl.create 0;
 		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = mk_mono();
@@ -923,6 +925,7 @@ let clone com is_macro_context =
 		dump_config = com.dump_config;
 		file_contents = com.file_contents;
 		(* reinits *)
+		warned_positions = Hashtbl.create 0;
 		cache = None;
 		stage = CCreated;
 		display_information = {
