@@ -527,9 +527,6 @@ let process_actx ctx actx =
 	| Completed ->
 		raise DisplayJson.JsonCompleted
 	| NotCompleted ->
-		List.iter (fun s ->
-			ctx.com.warning WDeprecated [] s null_pos
-		) actx.deprecations;
 		if defined ctx.com NoDeprecationWarnings then begin
 			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
 		end
@@ -746,8 +743,7 @@ module HighLevel = struct
 			| Run (cl, runtime_args) :: _ ->
 				(* --run: expand into SetMain + Interp, then create context.
 				   This is terminal: remaining args become runtime_args (already in tuple).
-				   Update current_raw_args to use the -x form so that com.args normalises
-				   '--run Main ...' to '-x Main' (matching old parse_args behaviour). *)
+				   Normalise com.args to the -x form, matching old parse_args behaviour. *)
 				let cpath = Path.parse_type_path cl in
 				let pre_acc_raw = Args.to_raw_args (List.rev acc) in
 				let acc = Interp :: SetMain cpath :: acc in
@@ -755,6 +751,10 @@ module HighLevel = struct
 				let ctx = create_context (List.rev acc) in
 				ctx.runtime_args <- runtime_args;
 				[], Some ctx
+			| RunX cl :: l ->
+				(* -x: non-terminal shorthand for SetMain + Interp; subsequent args are still build args *)
+				let cpath = Path.parse_type_path cl in
+				loop (Interp :: SetMain cpath :: acc) l
 			| AddLib name :: args ->
 				let libs, args = find_subsequent_libs [name] args in
 				loop acc (expand_libs libs args)

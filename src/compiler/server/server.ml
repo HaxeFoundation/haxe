@@ -207,7 +207,7 @@ let create_request_scope () =
 
 let process sctx request_scope entry comm (raw_args : string list) (args : parsed_arg list) =
 	let t0 = Extc.time() in
-	ServerMessage.arguments (List.length args |> string_of_int |> fun s -> ["<" ^ s ^ " pre-parsed args>"]);
+	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
 	ServerCompilationContext.reset sctx;
 	entry sctx request_scope comm raw_args args;
 	ServerCompilationContext.run_delays sctx;

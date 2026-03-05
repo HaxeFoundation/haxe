@@ -85,11 +85,8 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 			let name, path = try ExtString.String.split target "=" with _ -> target, "" in
 			add (SetCustomTarget (name, path)); loop rest
 		| "-x" :: cl :: rest ->
-			let cpath = Path.parse_type_path cl in
-			(* -x expands inline (non-terminal) so that subsequent args are still processed *)
-			add (SetMain cpath);
-			add Interp;
-			loop rest
+			(* -x is non-terminal: subsequent args remain build args *)
+			add (RunX cl); loop rest
 		| "--interp" :: rest ->
 			add Interp; loop rest
 		| "--run" :: cl :: rest ->
@@ -133,12 +130,6 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 		| ("--swf-version" | "-swf-version") :: v :: rest ->
 			(try add (SetSwfVersion (float_of_string v)) with _ -> ());
 			loop rest
-		| ("--swf-header" | "-swf-header") :: h :: rest ->
-			add (AddDeprecation "-swf-header has been deprecated, use -D swf-header instead");
-			add (Define ("swf-header", Some h)); loop rest
-		| "--flash-strict" :: rest ->
-			add (AddDeprecation "--flash-strict has been deprecated, use -D flash-strict instead");
-			add (Define ("flash-strict", None)); loop rest
 		| ("--swf-lib" | "-swf-lib") :: file :: rest ->
 			add (AddNativeLib (create_native_lib file false SwfLib)); loop rest
 		| "--neko-lib-path" :: dir :: rest ->
@@ -159,9 +150,6 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 			add SetPrompt; loop rest
 		| ("--cmd" | "-cmd") :: cmd :: rest ->
 			add (RunCmd (Helper.unquote cmd)); loop rest
-		| "--no-traces" :: rest ->
-			add (AddDeprecation "--no-traces has been deprecated, use -D no-traces instead");
-			add (Define ("no-traces", None)); loop rest
 		| "--display" :: input :: rest ->
 			add (SetDisplayArg input); loop rest
 		| ("--xml" | "-xml") :: file :: rest ->
@@ -174,14 +162,6 @@ let parse_args_new (_sctx : ServerCompilationContext.t) args =
 			add SetNoOutput; loop rest
 		| "--times" :: rest ->
 			add SetMeasureTimes; loop rest
-		| "--no-inline" :: rest ->
-			add (AddDeprecation "--no-inline has been deprecated, use -D no-inline instead");
-			add (Define ("no-inline", None)); loop rest
-		| "--no-opt" :: rest ->
-			add (AddDeprecation "--no-opt has been deprecated, use -D no-opt instead");
-			add (Define ("no-opt", None));
-			add (Define ("no-opt-2", None));
-			loop rest
 		| ("--remap" | "-remap") :: s :: rest ->
 			(try
 				let pack, target = ExtString.String.split s ":" in
@@ -248,7 +228,6 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 		native_libs = [];
 		raise_usage = (fun () -> ());
 		display_arg = None;
-		deprecations = [];
 		measure_times = false;
 	} in
 	let usage = Printf.sprintf
@@ -304,8 +283,8 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 			Common.define com Define.Interp;
 			set_platform com Eval "";
 			actx.interp <- true
-		| Run _ ->
-			(* -x / --run: handled at process_params level (creates context + sets runtime_args) *)
+		| Run _ | RunX _ ->
+			(* --run / -x: handled at process_params level *)
 			()
 		| AddResource (file, name) ->
 			let file = (try Common.find_file com file with Not_found -> file) in
@@ -356,8 +335,6 @@ let process_args_new (com : Common.context) (parsed_args : parsed_arg list) =
 			let p = fake_pos ("-w " ^ s) in
 			let l = Warning.parse_options s p in
 			com.warning_options <- l :: com.warning_options
-		| AddDeprecation s ->
-			actx.deprecations <- s :: actx.deprecations
 		| AddClass cpath ->
 			actx.classes <- cpath :: actx.classes
 		| IncludeModule cl ->
@@ -455,7 +432,8 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| SetVerbose -> ["-v"]
 		| SetDebug -> ["--debug"]
 		| Interp -> ["--interp"]
-		| Run (cl, _) -> ["-x"; cl]
+		| Run (cl, _) -> ["--run"; cl]
+		| RunX cl -> ["-x"; cl]
 		| AddResource (file, name) ->
 			if file = name then ["-r"; file] else ["-r"; file ^ "@" ^ name]
 		| RunCmd cmd -> ["--cmd"; cmd]
@@ -477,7 +455,6 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| SetNoOutput -> ["--no-output"]
 		| SetMeasureTimes -> ["--times"]
 		| AddWarning s -> ["-w"; s]
-		| AddDeprecation _ -> []  (* internal only; not round-tripped *)
 		| AddClass p -> [s_path p]
 		| IncludeModule cl -> [cl]
 		| SetPrompt -> ["--prompt"]
@@ -519,12 +496,8 @@ let parse_args (com : Common.context) =
 		native_libs = [];
 		raise_usage = (fun () -> ());
 		display_arg = None;
-		deprecations = [];
 		measure_times = false;
 	} in
-	let add_deprecation s =
-		actx.deprecations <- s :: actx.deprecations
-	in
 	let add_native_lib file extern kind =
 		let lib = create_native_lib file extern kind in
 		actx.native_libs <- lib :: actx.native_libs
@@ -654,14 +627,6 @@ let parse_args (com : Common.context) =
 			if not actx.swf_version || com.flash_version < v then com.flash_version <- v;
 			actx.swf_version <- true;
 		),"<version>","change the SWF version");
-		("Target-specific",["--swf-header"],["-swf-header"],Arg.String (fun h ->
-			add_deprecation "-swf-header has been deprecated, use -D swf-header instead";
-			define_value com Define.SwfHeader h
-		),"<header>","define SWF header (width:height:fps:color)");
-		("Target-specific",["--flash-strict"],[],Arg.Unit (fun () ->
-			add_deprecation "--flash-strict has been deprecated, use -D flash-strict instead";
-			Common.define com Define.FlashStrict
-		), "","more type strict flash API");
 		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			add_native_lib file false SwfLib;
 		),"<file>","add the SWF library to the compiled SWF");
@@ -699,10 +664,6 @@ let parse_args (com : Common.context) =
 		("Compilation",["--cmd"],["-cmd"], Arg.String (fun cmd ->
 			actx.cmds <- Helper.unquote cmd :: actx.cmds
 		),"<command>","run the specified command after successful compilation");
-		("Optimization",["--no-traces"],[], Arg.Unit (fun () ->
-			add_deprecation "--no-traces has been deprecated, use -D no-traces instead";
-			Common.define com Define.NoTraces
-		), "","don't compile trace calls in the program");
 		("Batch",["--next"],[], Arg.Unit (fun() -> die "" __LOC__), "","separate several haxe compilations");
 		("Batch",["--each"],[], Arg.Unit (fun() -> die "" __LOC__), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
@@ -721,14 +682,6 @@ let parse_args (com : Common.context) =
 		("Debug",["--times"],[], Arg.Unit (fun() ->
 			actx.measure_times <- true
 		),"","measure compilation times");
-		("Optimization",["--no-inline"],[],Arg.Unit (fun () ->
-			add_deprecation "--no-inline has been deprecated, use -D no-inline instead";
-			Common.define com Define.NoInline
-		), "","disable inlining");
-		("Optimization",["--no-opt"],[], Arg.Unit (fun() ->
-			com.foptimize <- false;
-			Common.define com Define.NoOpt;
-		), "","disable code optimizations");
 		("Compilation",["--remap"],[], Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
 			com.package_rules <- PMap.add pack (Common.Remap target) com.package_rules;

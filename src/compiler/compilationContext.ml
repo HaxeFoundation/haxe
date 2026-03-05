@@ -46,7 +46,8 @@ type parsed_arg =
 	| SetVerbose
 	| SetDebug
 	| Interp                    (** --interp: eval target + interp flag *)
-	| Run of string * string list (** -x/-run: path + runtime args (used as -x form) *)
+	| Run of string * string list (** --run: path + runtime args (terminal; rest becomes argv) *)
+	| RunX of string            (** -x: shorthand run (non-terminal; subsequent args are still build args) *)
 	| AddResource of string * string
 	| RunCmd of string
 	| SetSwfVersion of float
@@ -63,7 +64,7 @@ type parsed_arg =
 	| SetNoOutput
 	| SetMeasureTimes
 	| AddWarning of string
-	| AddDeprecation of string
+
 	| AddClass of path
 	| IncludeModule of string
 	| SetPrompt
@@ -104,7 +105,7 @@ type arg_context = {
 	mutable native_libs : native_lib_arg list;
 	mutable raise_usage : unit -> unit;
 	mutable display_arg : string option;
-	mutable deprecations : string list;
+
 	mutable measure_times : bool;
 }
 
