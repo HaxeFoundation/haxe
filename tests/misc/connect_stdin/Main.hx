@@ -90,7 +90,24 @@ class Main {
 			return exitCode == 0;
 		});
 
-		// Test 5: Piped stdin through --cmd
+		// Test 5: Sys.getChar with newline char — verifies \n doesn't get
+		// special-cased in the stdin forwarding protocol
+		test("stdin getChar newline forwarding", () -> {
+			var client = new Process("haxe", ["--connect", Std.string(port), "--run", "StdinChar"]);
+			client.stdin.writeString("\n");
+			client.stdin.close();
+			var stdout = client.stdout.readAll().toString().trim();
+			var exitCode = client.exitCode();
+			client.close();
+			if (stdout != "Got: \\n") {
+				Sys.println('\n    Expected: "Got: \\n"');
+				Sys.println('    Got: "$stdout"');
+				return false;
+			}
+			return exitCode == 0;
+		});
+
+		// Test 6: Piped stdin through --cmd
 		test("stdin line forwarding to command", () -> {
 			var client = new Process("haxe", ["--connect", Std.string(port), "--cmd", "cat -"]);
 			client.stdin.writeString("hello world\n");
@@ -106,7 +123,7 @@ class Main {
 			return exitCode == 0;
 		});
 
-		// Test 6: No stdin consumed (just compile) - should not hang
+		// Test 7: No stdin consumed (just compile) - should not hang
 		test("no-stdin request completes", () -> {
 			var client = new Process("haxe", ["--connect", Std.string(port), "-cp", ".", "--main", "StdinEcho", "--no-output"]);
 			client.stdin.close();

@@ -33,9 +33,25 @@ let run_or_diagnose ctx f =
 	else
 		f ()
 
+(** Handles IO piping between the compilation server and its clients.
+
+    In server mode (--connect), the compiler runs as a long-lived process.
+    Client requests arrive over a socket, and we need to redirect the
+    compilation's stdin/stdout/stderr through the socket protocol rather
+    than using the server process's own file descriptors.
+
+    The socket protocol uses newline-framed messages with prefix bytes:
+    - [\x01]: stdout data (newlines within the data are encoded as [\x01] separators)
+    - [\x02]: error flag
+    - other: stderr (written verbatim)
+
+    Stdin data from the client is forwarded as raw bytes after the null-terminated
+    argument string, so newlines in stdin require no special encoding. *)
 module PipeThings = struct
 	open ServerCommunication
 
+	(** Reads all available data from [channel] in 1024-byte chunks,
+	    passing each chunk to [f]. Stops on EOF or Unix error. *)
 	let rec read_content channel buf f =
 		begin try
 			let i = input channel buf 0 1024 in
@@ -47,6 +63,11 @@ module PipeThings = struct
 			()
 		end
 
+	(** Creates a pipe where the write end is an [out_channel] and a background
+	    thread reads from the read end, forwarding chunks to [write_fn].
+	    Returns [(out_channel, thread)] — the caller writes to [out_channel],
+	    and [write_fn] receives the data asynchronously. Used to bridge
+	    OCaml channel writes (e.g. [Sys.println]) to the socket protocol. *)
 	let make_output_pipe write_fn =
 		let (r_fd, w_fd) = Unix.pipe ~cloexec:true () in
 		let out_ch = Unix.out_channel_of_descr w_fd in
@@ -64,6 +85,11 @@ module PipeThings = struct
 		) () in
 		(out_ch, thread)
 
+	(** Returns the stdin [in_channel] for this compilation context.
+	    In server mode, [comm.stdin] is [Some ch] when the client forwarded
+	    stdin data over the socket (see {!SocketRequest.setup_client_stdin_forward}).
+	    When [None] (no stdin data), creates a pipe with the write end immediately
+	    closed so that reads return EOF. *)
 	let get_stdin_channel comm =
 		match comm.stdin with
 		| Some ch -> ch
@@ -72,6 +98,9 @@ module PipeThings = struct
 			Unix.close stdin_w_fd;
 			Unix.in_channel_of_descr stdin_r_fd
 
+	(** Pipe-based implementation of [Sys.getChar] for server mode.
+	    Reads a single byte from [stdin_ch] and optionally echoes it to [stdout_ch].
+	    Returns -1 on EOF, matching the convention of the native [Extc.getch]. *)
 	let getch_from_channel stdin_ch stdout_ch echo =
 		let c = try
 			int_of_char (input_char stdin_ch)
@@ -84,6 +113,18 @@ module PipeThings = struct
 		end;
 		c
 
+	(** Creates the {!Gctx.compilation_io} record for this compilation.
+
+	    In server mode ([comm.is_server = true]):
+	    - stdout/stderr are pipe-backed channels with background threads that
+	      forward writes through [comm.write_out]/[comm.write_err] (the socket protocol)
+	    - stdin comes from the client's forwarded data (or an immediately-closed pipe)
+	    - [getch] reads from the stdin pipe instead of the terminal
+	    - [close] flushes and joins all background threads
+
+	    In non-server mode:
+	    - channels are the process's real stdin/stdout/stderr
+	    - [getch] uses [Extc.getch] for native terminal raw-mode reading *)
 	let create_io comm =
 		if comm.is_server then begin
 			let (stdout_ch, stdout_thread) = make_output_pipe comm.write_out in
@@ -117,6 +158,11 @@ module PipeThings = struct
 				close = (fun () -> ());
 			}
 
+	(** Runs a shell command in server mode, forwarding stdin from the client
+	    and capturing stdout/stderr through the socket protocol.
+	    Uses [Unix.create_process_env] (not [Sys.command]) so we can connect
+	    the child's stdin to the client's forwarded data and properly signal
+	    EOF when the client closes its end. *)
 	let run_command comm cmd =
 		let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
 		let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
