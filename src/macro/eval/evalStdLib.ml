@@ -1911,7 +1911,9 @@ module StdCondition = struct
 
 	let wait = vifun0 (fun vthis ->
 		let c = this vthis in
-		(* Save reentrant depth and fully release the DomainMutex *)
+		(* Save reentrant depth and fully release the DomainMutex.
+		   Set ddepth to 1 so that Condition.wait's internal unlock
+		   (which calls Mutex.unlock on dmutex) fully releases it. *)
 		let saved_depth = c.cmutex.ddepth in
 		c.cmutex.ddepth <- 1;
 		Atomic.set c.cmutex.downer (-1);

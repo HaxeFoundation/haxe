@@ -82,19 +82,21 @@ module DomainSafeLazy = struct
 		| Some v -> v
 		| None ->
 			Mutex.lock t.mutex;
-			match t.value with
-			| Some v ->
-				Mutex.unlock t.mutex;
-				v
+			(* Re-check after acquiring mutex (double-checked locking) *)
+			let result = match t.value with
+			| Some v -> v
 			| None ->
-				let v = match !(t.f) with
-					| Some f -> f ()
-					| None -> failwith "DomainSafeLazy: already forced but no value"
+				let f = match !(t.f) with
+					| Some f -> f
+					| None -> failwith "DomainSafeLazy: internal error - thunk cleared but no value"
 				in
+				let v = f () in
 				t.value <- Some v;
 				t.f := None;
-				Mutex.unlock t.mutex;
 				v
+			in
+			Mutex.unlock t.mutex;
+			result
 end
 
 type cmp =
