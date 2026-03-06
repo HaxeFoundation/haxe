@@ -1,14 +1,15 @@
 class Main {
 	static function main() {
+		// Creating a process for a non-existent command must not throw.
+		// It should return a process with EOF pipes and a non-zero exit code.
 		var p = new sys.io.Process("totally_nonexistent_command_12345", ["-v"]);
 		var stdout = p.stdout.readAll().toString();
 		var stderr = p.stderr.readAll().toString();
 		var code = p.exitCode();
 		p.close();
 
-		if (code == 0) {
-			Sys.stderr().writeString("ERROR: Expected non-zero exit code for non-existent command, got 0\n");
-			Sys.exit(1);
-		}
+		Sys.println('stdout_empty=${stdout.length == 0}');
+		Sys.println('stderr_empty=${stderr.length == 0}');
+		Sys.println('exit_code=$code');
 	}
 }

@@ -106,5 +106,5 @@ let close p =
   (try Unix.close p.stdin_fd with Unix.Unix_error _ -> ())
 
 let kill p =
-  if p.exit_code = None then
+  if p.exit_code = None && p.pid > 0 then
     (try Unix.kill p.pid Sys.sigkill with Unix.Unix_error _ -> ())
