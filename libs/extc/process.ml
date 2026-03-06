@@ -58,33 +58,32 @@ let run cmd args =
 		Unix.close child_stdout_w;
 		Unix.close child_stderr_w;
 		{ pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r; exit_code = None }
-	| Error (Unix.Unix_error (err, fn, arg)) ->
-		(* Process creation failed (e.g. command not found).
-			Match the old fork+exec behavior: return a process whose pipes
-			immediately return EOF and whose exit code is 127.
-			Write the error message to the stderr pipe so callers can read it. *)
+	| Error err  ->
 		Unix.close child_stdin_r;
 		Unix.close child_stdin_w;
 		Unix.close child_stdout_r;
 		Unix.close child_stdout_w;
 		Unix.close child_stderr_r;
-		let errmsg = unix_error_msg err fn arg ^ "\n" in
-		let (stderr_r, stderr_w) = Unix.pipe ~cloexec:true () in
-		begin try
-			ignore (Unix.write_substring stderr_w errmsg 0 (String.length errmsg))
-		with Unix.Unix_error _ ->
-			()
-		end;
-		Unix.close stderr_w;
+		let stderr_r = match err with
+			| (Unix.Unix_error (err, fn, arg)) ->
+				(* Process creation failed (e.g. command not found).
+					Match the old fork+exec behavior: return a process whose pipes
+					immediately return EOF and whose exit code is 127.
+					Write the error message to the stderr pipe so callers can read it. *)
+				let errmsg = unix_error_msg err fn arg ^ "\n" in
+				let (stderr_r, stderr_w) = Unix.pipe ~cloexec:true () in
+				begin try
+					ignore (Unix.write_substring stderr_w errmsg 0 (String.length errmsg))
+				with Unix.Unix_error _ ->
+					()
+				end;
+				Unix.close stderr_w;
+				stderr_r
+			| _ ->
+				Unix.close child_stderr_w;
+				make_eof_fd ()
+		in
 		{ pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = stderr_r; exit_code = Some 127 }
-	| Error _ ->
-		Unix.close child_stdin_r;
-		Unix.close child_stdin_w;
-		Unix.close child_stdout_r;
-		Unix.close child_stdout_w;
-		Unix.close child_stderr_r;
-		Unix.close child_stderr_w;
-		{ pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = make_eof_fd (); exit_code = Some 127 }
 
 let read_stdout p buf pos len =
 	let n = try
