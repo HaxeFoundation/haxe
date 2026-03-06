@@ -3422,11 +3422,11 @@ let init_constructors builtins =
 			} in
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
-	let tls_counter = ref (-1) in
+	let tls_counter = Atomic.make (-1) in
 	add key_sys_net_Tls
 		(fun _ ->
-			incr tls_counter;
-			encode_instance key_sys_net_Tls ~kind:(ITls !tls_counter)
+			let id = Atomic.fetch_and_add tls_counter 1 + 1 in
+			encode_instance key_sys_net_Tls ~kind:(ITls id)
 		);
 	add key_sys_net_Deque
 		(fun _ ->
