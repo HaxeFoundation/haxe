@@ -3414,7 +3414,7 @@ let init_constructors builtins =
 					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
-				let proc = process_catch (Process.run cmd) args in
+				let proc = process_catch (fun () -> Process.run cmd args) () in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess proc)
 			| _ -> die "" __LOC__
 		);
