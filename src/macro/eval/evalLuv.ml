@@ -1968,7 +1968,7 @@ let fs_event_fields = [
 	);
 ]
 
-let thread_pool_fields = [
+(* let thread_pool_fields = [
 	"createRequest", vfun0 (fun() ->
 		VHandle (HThreadPoolRequest (Thread_pool.Request.make()))
 	);
@@ -1992,9 +1992,9 @@ let thread_pool_fields = [
 		Thread_pool.set_size ?if_not_already_set size;
 		vnull
 	);
-]
+] *)
 
-let thread_fields = [
+(* let thread_fields = [
 	"self", vfun0 (fun() ->
 		VHandle (HThread (Thread.self()))
 	);
@@ -2013,7 +2013,7 @@ let thread_fields = [
 		in
 		encode_unit_result (Thread.join thread)
 	);
-]
+] *)
 
 let once_fields = [
 	"init", vfun0 (fun() ->

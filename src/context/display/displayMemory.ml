@@ -29,7 +29,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"additionalSizes",jarray (
 					(match !MacroContext.macro_interp_cache with
 					| Some interp ->
-						let eval = Thread_local_storage.get_exn interp.eval in
+						let eval = Domain.DLS.get interp.eval in
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache);"child",jarray [
 							jobject ["name",jstring "builtins";"size",jint (mem_size_2 interp.builtins [Obj.repr interp])];
 							jobject ["name",jstring "debug";"size",jint (mem_size_2 interp.debug [Obj.repr interp])];

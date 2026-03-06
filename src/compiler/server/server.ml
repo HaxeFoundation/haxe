@@ -292,6 +292,7 @@ let wait_loop entry verbose accept =
 	ServerCache.enable_cache_mode sctx;
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
+	EvalMain.main_domain_hack := worker.domain;
 	(* Main loop: accept connections and enqueue requests for the worker.
 	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
 	begin try

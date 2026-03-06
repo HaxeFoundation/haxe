@@ -33,6 +33,8 @@ open EvalField
 open MacroApi
 open Extlib_leftovers
 
+let main_domain_hack : unit Domain.t ref = ref (Obj.magic())
+
 (* Create *)
 
 let create com api is_macro =
@@ -90,8 +92,10 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
+	let next_thread_id = Atomic.make 0 in
 	let thread = {
-		tthread = Thread.self();
+		tid = (Atomic.incr next_thread_id; Atomic.get next_thread_id);
+		tthread = !main_domain_hack;
 		tstorage = IntMap.empty;
 		tevents = vnull;
 		tdeque = EvalThread.Deque.create();
@@ -119,11 +123,12 @@ let create com api is_macro =
 		file_keys = com.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
+		next_thread_id;
 		toplevel = 	vobject {
 			ofields = [||];
 			oproto = OProto (fake_proto key_eval_toplevel);
 		};
-		eval = Thread_local_storage.create ();
+		eval = Domain.DLS.new_key (fun () -> eval);
 		evals = evals;
 		timer_ctx = com.timer_ctx;
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
@@ -131,7 +136,7 @@ let create com api is_macro =
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
 			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
-	Thread_local_storage.set ctx.eval eval;
+	Domain.DLS.set ctx.eval eval;
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
 		   Note that configuration is shared between macro and interpreter contexts, which is why the check
