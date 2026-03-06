@@ -110,7 +110,7 @@ let run ctx f thread =
 		raise exc
 
 let spawn ctx f =
-	let id = (Atomic.incr ctx.next_thread_id; Atomic.get ctx.next_thread_id) in
+	let id = Atomic.fetch_and_add ctx.next_thread_id 1 + 1 in
 	let thread = {
 		tid = id;
 		tthread = Obj.magic ();

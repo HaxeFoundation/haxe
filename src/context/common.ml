@@ -390,6 +390,7 @@ let to_gctx com = {
 	include_files = com.include_files;
 	std = com.std;
 	timer_ctx = com.timer_ctx;
+	pool = com.sctx.pool;
 }
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
