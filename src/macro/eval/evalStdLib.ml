@@ -146,7 +146,7 @@ module StdArray = struct
 		let path = key_haxe_iterators_array_key_value_iterator in
 		let vit = encode_instance path in
 		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		ignore(call_value_on vit (DomainSafeLazy.force fnew) [vthis]);
 		vit
 	)
 
@@ -1503,7 +1503,7 @@ let map_key_value_iterator path = vifun0 (fun vthis ->
 	let ctx = get_ctx() in
 	let vit = encode_instance path in
 	let fnew = get_instance_constructor ctx path null_pos in
-	ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+	ignore(call_value_on vit (DomainSafeLazy.force fnew) [vthis]);
 	vit
 )
 
@@ -1850,6 +1850,90 @@ module StdMutex = struct
 		let mutex = this vthis in
 		let domain_id = current_domain_id () in
 		vbool (DomainMutex.try_lock mutex domain_id)
+	)
+end
+
+module StdSemaphore = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=ISemaphore sem} -> sem
+		| _ -> unexpected_value vthis "Semaphore"
+
+	let acquire = vifun0 (fun vthis ->
+		Semaphore.Counting.acquire (this vthis);
+		vnull
+	)
+
+	let tryAcquire = vifun1 (fun vthis vtimeout ->
+		let sem = this vthis in
+		match vtimeout with
+		| VNull ->
+			vbool (Semaphore.Counting.try_acquire sem)
+		| _ ->
+			let timeout = decode_float vtimeout in
+			let t = Unix.gettimeofday () +. timeout in
+			let rec loop () =
+				if Semaphore.Counting.try_acquire sem then vtrue
+				else if Unix.gettimeofday () >= t then vfalse
+				else begin Domain.cpu_relax (); loop () end
+			in
+			loop ()
+	)
+
+	let release = vifun0 (fun vthis ->
+		Semaphore.Counting.release (this vthis);
+		vnull
+	)
+end
+
+module StdCondition = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=ICondition cond} -> cond
+		| _ -> unexpected_value vthis "Condition"
+
+	let acquire = vifun0 (fun vthis ->
+		let cond = this vthis in
+		let domain_id = current_domain_id () in
+		DomainMutex.lock cond.cmutex domain_id;
+		vnull
+	)
+
+	let tryAcquire = vifun0 (fun vthis ->
+		let cond = this vthis in
+		let domain_id = current_domain_id () in
+		vbool (DomainMutex.try_lock cond.cmutex domain_id)
+	)
+
+	let release = vifun0 (fun vthis ->
+		let cond = this vthis in
+		DomainMutex.unlock cond.cmutex;
+		vnull
+	)
+
+	let wait = vifun0 (fun vthis ->
+		let c = this vthis in
+		(* Save reentrant depth and fully release the DomainMutex.
+		   Set ddepth to 1 so that Condition.wait's internal unlock
+		   (which calls Mutex.unlock on dmutex) fully releases it. *)
+		let saved_depth = c.cmutex.ddepth in
+		c.cmutex.ddepth <- 1;
+		Atomic.set c.cmutex.downer (-1);
+		(* Condition.wait atomically releases the underlying mutex and blocks *)
+		Condition.wait c.cond c.cmutex.dmutex;
+		(* Re-acquire: Condition.wait re-acquires the mutex before returning *)
+		let domain_id = current_domain_id () in
+		Atomic.set c.cmutex.downer domain_id;
+		c.cmutex.ddepth <- saved_depth;
+		vnull
+	)
+
+	let signal = vifun0 (fun vthis ->
+		Condition.signal (this vthis).cond;
+		vnull
+	)
+
+	let broadcast = vifun0 (fun vthis ->
+		Condition.broadcast (this vthis).cond;
+		vnull
 	)
 end
 
@@ -2933,7 +3017,7 @@ module StdType = struct
 			with Not_found ->
 				let vthis = encode_instance path in
 				let fnew = get_instance_constructor ctx path null_pos in
-				ignore(call_value_on vthis (Lazy.force fnew) (decode_array vl));
+				ignore(call_value_on vthis (DomainSafeLazy.force fnew) (decode_array vl));
 				vthis
 			end
 		| _ ->
@@ -3415,6 +3499,20 @@ let init_constructors builtins =
 			let mutex = DomainMutex.create () in
 			encode_instance key_sys_net_Mutex ~kind:(IMutex mutex)
 		);
+	add key_sys_net_Semaphore
+		(fun vl ->
+			let v = List.hd vl in
+			let sem = Semaphore.Counting.make (decode_int v) in
+			encode_instance key_sys_net_Semaphore ~kind:(ISemaphore sem)
+		);
+	add key_sys_net_Condition
+		(fun _ ->
+			let cond = {
+				cond = Condition.create ();
+				cmutex = DomainMutex.create ();
+			} in
+			encode_instance key_sys_net_Condition ~kind:(ICondition cond)
+		);
 	add key_sys_net_Lock
 		(fun _ ->
 			let lock = {
@@ -3422,11 +3520,11 @@ let init_constructors builtins =
 			} in
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
-	let tls_counter = ref (-1) in
+	let tls_counter = Atomic.make 0 in
 	add key_sys_net_Tls
 		(fun _ ->
-			incr tls_counter;
-			encode_instance key_sys_net_Tls ~kind:(ITls !tls_counter)
+			let id = Atomic.fetch_and_add tls_counter 1 in
+			encode_instance key_sys_net_Tls ~kind:(ITls id)
 		);
 	add key_sys_net_Deque
 		(fun _ ->
@@ -3695,6 +3793,19 @@ let init_standard_library builtins =
 		"acquire",StdMutex.acquire;
 		"tryAcquire",StdMutex.tryAcquire;
 		"release",StdMutex.release;
+	];
+	init_fields builtins (["sys";"thread"],"Semaphore") [] [
+		"acquire",StdSemaphore.acquire;
+		"tryAcquire",StdSemaphore.tryAcquire;
+		"release",StdSemaphore.release;
+	];
+	init_fields builtins (["sys";"thread"],"Condition") [] [
+		"acquire",StdCondition.acquire;
+		"tryAcquire",StdCondition.tryAcquire;
+		"release",StdCondition.release;
+		"wait",StdCondition.wait;
+		"signal",StdCondition.signal;
+		"broadcast",StdCondition.broadcast;
 	];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;

@@ -43,7 +43,7 @@ let create_constructor ctx c =
 	match c.cl_constructor with
 	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not (has_class_flag c CExtern) ->
 		let key = path_hash c.cl_path in
-		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false pos)) in
+		let v = DomainSafeLazy.make (fun () -> vfunction (jit_tfunction ctx key key_new tf false pos)) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
 	| _ ->
 		()
