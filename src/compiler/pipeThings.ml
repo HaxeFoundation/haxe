@@ -126,26 +126,14 @@ let create_io comm =
 
 (** Runs a shell command in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.
-	Uses [Unix.create_process_env] (not [Sys.command]) so we can connect
+	Uses {!Process.run} to create the child process so we can connect
 	the child's stdin to the client's forwarded data and properly signal
 	EOF when the client closes its end. *)
 let run_command comm cmd =
-	let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
-	let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
-	let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
-	let shell, args =
-		if Sys.win32 then
-			"cmd.exe", [|"cmd.exe"; "/c"; cmd|]
-		else
-			"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
-	in
-	let pid = Unix.create_process_env shell args (Unix.environment()) child_stdin_r child_stdout_w child_stderr_w in
-	Unix.close child_stdin_r;
-	Unix.close child_stdout_w;
-	Unix.close child_stderr_w;
-	let pout = Unix.in_channel_of_descr child_stdout_r in
-	let pin = Unix.out_channel_of_descr child_stdin_w in
-	let perr = Unix.in_channel_of_descr child_stderr_r in
+	let proc = Process.run cmd None in
+	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
+	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
+	let perr = Unix.in_channel_of_descr proc.Process.stderr_fd in
 	let bout = Bytes.create 1024 in
 	let berr = Bytes.create 1024 in
 	(* Use a flag to signal the stdin-forwarding thread to stop.
@@ -182,10 +170,10 @@ let run_command comm cmd =
 	Thread.join terr;
 	close_in_noerr pout;
 	close_in_noerr perr;
-	let _, status = Unix.waitpid [] pid in
+	let code = Process.exit proc in
 	stop_stdin := true;
 	(match tin with Some t -> Thread.join t | None -> ());
-	match status with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c
+	code
 
 let ssend sock str =
 	let rec loop pos len =

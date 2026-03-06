@@ -1,31 +1,79 @@
-(*
- *  Extc : C common OCaml bindings
- *  Copyright (c)2004-2015 Nicolas Cannasse
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
- *)
+(** Pure OCaml implementation of subprocess management.
 
-type process
+    Replaces the former C stubs (process_stubs.c) which were unsafe under
+    OCaml 5 multi-domain execution (missing [caml_enter_blocking_section],
+    direct [fork()] in multi-threaded processes).
 
-external run : string -> string array option -> process = "process_run"
-external read_stdout : process -> string -> int -> int -> int = "process_stdout_read"
-external read_stderr : process -> string -> int -> int -> int = "process_stderr_read"
-external write_stdin : process -> string -> int -> int -> int = "process_stdin_write"
-external close_stdin : process -> unit = "process_stdin_close"
-external exit : process -> int = "process_exit"
-external pid : process -> int = "process_pid"
-external close : process -> unit = "process_close"
-external kill : process -> unit = "process_kill"
+    Uses [Unix.create_process] which is domain-safe and handles
+    [posix_spawn] on modern systems. *)
+
+type process = {
+  pid : int;
+  stdin_fd : Unix.file_descr;
+  stdout_fd : Unix.file_descr;
+  stderr_fd : Unix.file_descr;
+}
+
+let run cmd args =
+  let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
+  let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
+  let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
+  let shell, argv = match args with
+    | None ->
+      if Sys.win32 then
+        let comspec = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
+        comspec, [|comspec; "/C"; cmd|]
+      else
+        "/bin/sh", [|"/bin/sh"; "-c"; cmd|]
+    | Some a ->
+      cmd, Array.append [|cmd|] a
+  in
+  let pid =
+    try Unix.create_process shell argv child_stdin_r child_stdout_w child_stderr_w
+    with e ->
+      Unix.close child_stdin_r;
+      Unix.close child_stdin_w;
+      Unix.close child_stdout_r;
+      Unix.close child_stdout_w;
+      Unix.close child_stderr_r;
+      Unix.close child_stderr_w;
+      raise e
+  in
+  Unix.close child_stdin_r;
+  Unix.close child_stdout_w;
+  Unix.close child_stderr_w;
+  { pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r }
+
+let read_stdout p buf pos len =
+  let n = Unix.read p.stdout_fd (Bytes.unsafe_of_string buf) pos len in
+  if n = 0 then failwith "process_stdout_read";
+  n
+
+let read_stderr p buf pos len =
+  let n = Unix.read p.stderr_fd (Bytes.unsafe_of_string buf) pos len in
+  if n = 0 then failwith "process_stderr_read";
+  n
+
+let write_stdin p buf pos len =
+  Unix.write_substring p.stdin_fd buf pos len
+
+let close_stdin p =
+  Unix.close p.stdin_fd
+
+let exit p =
+  let _, status = Unix.waitpid [] p.pid in
+  match status with
+  | Unix.WEXITED c -> c
+  | Unix.WSIGNALED _ -> failwith "process_exit"
+  | Unix.WSTOPPED _ -> failwith "process_exit"
+
+let pid p = p.pid
+
+let close p =
+  (try Unix.close p.stdout_fd with Unix.Unix_error _ -> ());
+  (try Unix.close p.stderr_fd with Unix.Unix_error _ -> ());
+  (try Unix.close p.stdin_fd with Unix.Unix_error _ -> ())
+
+let kill p =
+  (try Unix.kill p.pid Sys.sigkill with Unix.Unix_error _ -> ())
 
