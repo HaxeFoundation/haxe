@@ -1184,6 +1184,24 @@ let expression ctx request_type function_args function_type expression_tree forI
               (retyper_ctx,
                 CppCall (FuncExpression retypedFunc, retypedArgs),
                 callable_ret)
+            | CppArray t ->
+              let expr, return =
+                match t with
+                | ArrayObject (_, _, (TCppCallable (_, ret) as callable)) ->
+                  (* If we have Array<Dynamic> where Dynamic is a callable we need cast the result of the array indexing *)
+                  (* Without that we are doing dynamic calling *)
+                  mk_cppexpr (CppCast (retypedFunc, callable)) callable, ret
+                | ArrayDynamic _ | ArrayVirtual _ ->
+                  retypedFunc, TCppDynamic
+                | _ ->
+                  (* I don't think other array types can contain something which can be invoked, so error *)
+                  cpp_abort InternalError expr.epos
+              in
+
+              let arg_types = List.map (fun _ -> TCppUnchanged) args in
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+
+              ( retyper_ctx, CppCall (FuncExpression expr, retypedArgs), return )
             | _ ->
               let arg_types = List.map (fun _ -> TCppDynamic) args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in

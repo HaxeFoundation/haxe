@@ -158,6 +158,18 @@ lua bin/unit.lua
 - All targets are tested in CI
 - When making changes related to coroutines, run the appropriate target test at https://github.com/HaxeFoundation/hxcoro/tree/master/tests
 
+### Investigating CI Failures
+
+When investigating CI failures, use the GitHub MCP tools as follows:
+
+1. Use `list_workflow_runs` to find the relevant workflow run ID for the failing branch/PR
+2. Use `list_workflow_jobs` to identify which jobs failed (look for `conclusion != "success"`)
+3. Use `get_job_logs` with `failed_only: true` and `return_content: true` to get log content
+   - **Important**: Use a moderate `tail_lines` value (100-200) to avoid being flooded by post-step cleanup output that always appears at the very end of logs
+   - The actual test failure output typically appears near the bottom of the test step output, before the post-step cleanup lines
+   - Look for keywords like `FAILED`, `error`, `exit code`, `assert`, `exception` to locate the relevant failure
+4. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
+
 ## Additional Resources
 - Building instructions: `extra/BUILDING.md`
 - Contributing guidelines: `CONTRIBUTING.md`

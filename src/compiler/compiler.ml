@@ -33,66 +33,6 @@ let run_or_diagnose ctx f =
 	else
 		f ()
 
-module PipeThings = struct
-	open ServerCommunication
-
-	let run_command comm cmd =
-		let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
-		let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
-		let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
-		let shell, args =
-			if Sys.win32 then
-				"cmd.exe", [|"cmd.exe"; "/c"; cmd|]
-			else
-				"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
-		in
-		let pid = Unix.create_process_env shell args (Unix.environment()) child_stdin_r child_stdout_w child_stderr_w in
-		Unix.close child_stdin_r;
-		Unix.close child_stdout_w;
-		Unix.close child_stderr_w;
-		let pout = Unix.in_channel_of_descr child_stdout_r in
-		let pin = Unix.out_channel_of_descr child_stdin_w in
-		let perr = Unix.in_channel_of_descr child_stderr_r in
-		let bout = Bytes.create 1024 in
-		let berr = Bytes.create 1024 in
-		let rec read_content channel buf f =
-			begin try
-				let i = input channel buf 0 1024 in
-				if i > 0 then begin
-					f (Bytes.unsafe_to_string (Bytes.sub buf 0 i));
-					read_content channel buf f
-				end
-			with Unix.Unix_error _ ->
-				()
-			end
-		in
-		let tin = match comm.stdin with
-			| Some stdin_pipe ->
-				Some (Thread.create (fun () ->
-					let buf = Bytes.create 1024 in
-					(try while true do
-						let i = input stdin_pipe buf 0 1024 in
-						if i = 0 then raise Exit;
-						output_string pin (Bytes.sub_string buf 0 i);
-						flush pin
-					done with _ -> ());
-					close_out_noerr pin
-				) ())
-			| None ->
-				close_out_noerr pin;
-				None
-		in
-		let tout = Thread.create (fun() -> read_content pout bout comm.write_out) () in
-		let terr = Thread.create (fun() -> read_content perr berr comm.write_err) () in
-		(match tin with Some t -> Thread.join t | None -> ());
-		Thread.join tout;
-		Thread.join terr;
-		close_in_noerr pout;
-		close_in_noerr perr;
-		let _, status = Unix.waitpid [] pid in
-		match status with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c
-end
-
 let run_command ctx cmd =
 	(* TODO: this is a hack *)
 	let cmd = if ctx.comm.is_server then begin
@@ -596,63 +536,7 @@ let compile_ctx sctx ctx =
 		catch_completion_and_exit ctx sctx run
 
 let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
-	let io = if comm.is_server then begin
-		(* In server mode, create pipes so that writing to stdout/stderr channels
-		   gets forwarded through the communication protocol to the client. *)
-		let make_pipe write_fn =
-			let (r_fd, w_fd) = Unix.pipe ~cloexec:true () in
-			let out_ch = Unix.out_channel_of_descr w_fd in
-			let in_ch = Unix.in_channel_of_descr r_fd in
-			let thread = Thread.create (fun () ->
-				let buf = Bytes.create 1024 in
-				(try while true do
-					let n = input in_ch buf 0 1024 in
-					if n = 0 then raise Exit;
-					write_fn (Bytes.sub_string buf 0 n)
-				done with
-				| End_of_file | Exit -> ()
-				| Unix.Unix_error _ -> ());
-				close_in_noerr in_ch
-			) () in
-			(out_ch, thread)
-		in
-		let (stdout_ch, stdout_thread) = make_pipe comm.write_out in
-		let (stderr_ch, stderr_thread) = make_pipe comm.write_err in
-		(* For stdin in server mode, use forwarded stdin from client if available,
-		   otherwise create a pipe with write end closed (EOF). *)
-		let stdin_ch = match comm.stdin with
-			| Some ch -> ch
-			| None ->
-				let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
-				Unix.close stdin_w_fd;
-				Unix.in_channel_of_descr stdin_r_fd
-		in
-		let closed = ref false in
-		{
-			Gctx.print = comm.write_out;
-			print_err = comm.write_err;
-			stdout = stdout_ch;
-			stderr = stderr_ch;
-			stdin = stdin_ch;
-			close = (fun () ->
-				if not !closed then begin
-					closed := true;
-					flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
-					flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
-					close_in_noerr stdin_ch;
-				end
-			);
-		}
-	end else
-		{
-			Gctx.print = comm.write_out;
-			print_err = comm.write_err;
-			stdout = Stdlib.stdout;
-			stderr = Stdlib.stderr;
-			stdin = Stdlib.stdin;
-			close = (fun () -> ());
-		}
-	in
+	let io = PipeThings.create_io comm in
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
