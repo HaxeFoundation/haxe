@@ -36,6 +36,7 @@ type loop_context = {
     in_loop_try : bool;
     break_depth : int;
     handle_continue : bool;
+    use_goto_continue : bool;
 }
 
 let default_loop_context = {
@@ -43,6 +44,7 @@ let default_loop_context = {
     in_loop_try = false;
     break_depth = 0;
     handle_continue = false;
+    use_goto_continue = false;
 }
 
 type ctx = {
@@ -599,13 +601,15 @@ and gen_loop ctx cond do_while e =
     let old_loop_ctx = ctx.loop_ctx in
     let will_continue = has_continue e in
     let new_break_depth = old_loop_ctx.break_depth + 1 in
+    let goto_continue = ctx.lua_jit && will_continue in
     ctx.loop_ctx <- {
         in_loop = true;
         in_loop_try = false;
         break_depth = new_break_depth;
         handle_continue = will_continue;
+        use_goto_continue = goto_continue;
     };
-    if will_continue then
+    if will_continue && not goto_continue then
         println ctx "local _hx_continue_%i = false;" new_break_depth;
     if do_while then
         println ctx "local _hx_do_first_%i = true;" new_break_depth;
@@ -619,17 +623,27 @@ and gen_loop ctx cond do_while e =
         newline ctx;
         println ctx "_hx_do_first_%i = false;" new_break_depth;
     end;
-    if will_continue then print ctx "repeat ";
+    if will_continue then begin
+        if goto_continue then
+            print ctx "do "
+        else
+            print ctx "repeat "
+    end;
     gen_block_element ctx e;
     if will_continue then begin
-        println ctx "until true";
-        println ctx "if _hx_continue_%i then " new_break_depth;
-        println ctx "_hx_continue_%i = false;" new_break_depth;
-        if ctx.loop_ctx.in_loop_try then
-            println ctx "_G.error(\"_hx_pcall_break\");"
-        else
-            println ctx "break;";
-        println ctx "end;";
+        if goto_continue then begin
+            println ctx "end";
+            print ctx "::_hx_continue_%i::" new_break_depth;
+        end else begin
+            println ctx "until true";
+            println ctx "if _hx_continue_%i then " new_break_depth;
+            println ctx "_hx_continue_%i = false;" new_break_depth;
+            if ctx.loop_ctx.in_loop_try then
+                println ctx "_G.error(\"_hx_pcall_break\");"
+            else
+                println ctx "break;";
+            println ctx "end;";
+        end
     end;
     b();
     newline ctx;
@@ -830,15 +844,27 @@ and gen_expr ?(local=true) ctx e = begin
     | TReturn eo -> gen_return ctx e eo ctx.in_pcall;
     | TBreak ->
         if not ctx.loop_ctx.in_loop then unsupported e.epos;
-        if ctx.loop_ctx.handle_continue then
-            print ctx "_hx_continue_%i = true;" ctx.loop_ctx.break_depth;
-        if ctx.loop_ctx.in_loop_try then
-            print ctx "_G.error(\"_hx_pcall_break\", 0)"
-        else
-            spr ctx "break"
+        if ctx.loop_ctx.use_goto_continue then begin
+            if ctx.loop_ctx.in_loop_try then
+                print ctx "_G.error(\"_hx_pcall_break\", 0)"
+            else
+                spr ctx "break"
+        end else begin
+            if ctx.loop_ctx.handle_continue then
+                print ctx "_hx_continue_%i = true;" ctx.loop_ctx.break_depth;
+            if ctx.loop_ctx.in_loop_try then
+                print ctx "_G.error(\"_hx_pcall_break\", 0)"
+            else
+                spr ctx "break"
+        end
     | TContinue ->
         if not ctx.loop_ctx.in_loop then unsupported e.epos;
-        if ctx.loop_ctx.in_loop_try then
+        if ctx.loop_ctx.use_goto_continue then begin
+            if ctx.loop_ctx.in_loop_try then
+                print ctx "_G.error(\"_hx_pcall_continue\", 0)"
+            else
+                print ctx "goto _hx_continue_%i" ctx.loop_ctx.break_depth
+        end else if ctx.loop_ctx.in_loop_try then
             print ctx "_G.error(\"_hx_pcall_break\", 0)"
         else
             spr ctx "break"
@@ -1089,12 +1115,28 @@ and gen_expr ?(local=true) ctx e = begin
         println ctx "end)";
         ctx.loop_ctx <- { ctx.loop_ctx with in_loop_try = old_in_loop_try };
         if ctx.loop_ctx.in_loop then begin
-            println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
-            if old_in_loop_try then
-                println ctx "  _G.error(_hx_result,0);"
-            else
-                println ctx "  break";
-            println ctx "elseif not _hx_status then "
+            if ctx.loop_ctx.use_goto_continue then begin
+                println ctx "if not _hx_status and _hx_result == \"_hx_pcall_continue\" then";
+                if old_in_loop_try then
+                    println ctx "  _G.error(_hx_result,0);"
+                else begin
+                    print ctx "  goto _hx_continue_%i" ctx.loop_ctx.break_depth;
+                    newline ctx;
+                end;
+                println ctx "elseif not _hx_status and _hx_result == \"_hx_pcall_break\" then";
+                if old_in_loop_try then
+                    println ctx "  _G.error(_hx_result,0);"
+                else
+                    println ctx "  break";
+                println ctx "elseif not _hx_status then "
+            end else begin
+                println ctx "if not _hx_status and _hx_result == \"_hx_pcall_break\" then";
+                if old_in_loop_try then
+                    println ctx "  _G.error(_hx_result,0);"
+                else
+                    println ctx "  break";
+                println ctx "elseif not _hx_status then "
+            end
         end else
             println ctx "if not _hx_status then ";
         let bend = open_block ctx in
@@ -2040,7 +2082,10 @@ let generate com =
 	let find_file f = (com.class_paths#find_file f).file in
 
     (* base table-to-array helpers and metatables *)
-    print_file (find_file "lua/_lua/_hx_tab_array.lua");
+    if ctx.lua_jit then
+        print_file (find_file "lua/_lua/_hx_tab_array_jit.lua")
+    else
+        print_file (find_file "lua/_lua/_hx_tab_array.lua");
 
     (* base lua "toString" functionality for haxe objects*)
     print_file (find_file "lua/_lua/_hx_tostring.lua");
