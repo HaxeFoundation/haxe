@@ -324,6 +324,12 @@ let s_debug_state = function
 let get_eval ctx =
 	Domain.DLS.get ctx.eval
 
+let get_domain_id ctx =
+	(get_eval ctx).thread.tid
+
+let current_domain_id () =
+	get_domain_id (get_ctx())
+
 let kind_name eval kind =
 	let rec loop kind env = match kind with
 		| EKMethod(i1,i2) ->

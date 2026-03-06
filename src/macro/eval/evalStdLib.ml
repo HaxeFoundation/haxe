@@ -742,21 +742,21 @@ module StdDeque = struct
 
 	let add = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Deque.add this i;
+		Deque.add this (current_domain_id()) i;
 		vnull
 	)
 
 	let pop = vifun1 (fun vthis blocking ->
 		let this = this vthis in
 		let blocking = decode_bool blocking in
-		match Deque.pop this blocking with
+		match Deque.pop this (current_domain_id()) blocking with
 		| None -> vnull
 		| Some v -> v
 	)
 
 	let push = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Deque.push this i;
+		Deque.push this (current_domain_id()) i;
 		vnull
 	)
 end
@@ -1428,14 +1428,14 @@ module StdLock = struct
 
 	let release = vifun0 (fun vthis ->
 		let this = this vthis in
-		Deque.push this.ldeque vnull;
+		Deque.push this.ldeque (current_domain_id()) vnull;
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
 		let rec loop target_time =
-			match Deque.pop lock.ldeque false with
+			match Deque.pop lock.ldeque (current_domain_id()) false with
 			| None ->
 				if Sys.time() >= target_time then
 					vfalse
@@ -1446,11 +1446,11 @@ module StdLock = struct
 			| Some _ ->
 				vtrue
 		in
-		match Deque.pop lock.ldeque false with
+		match Deque.pop lock.ldeque (current_domain_id()) false with
 		| None ->
 			begin match timeout with
 				| VNull ->
-					ignore(Deque.pop lock.ldeque true);
+					ignore(Deque.pop lock.ldeque (current_domain_id()) true);
 					vtrue
 				| _ ->
 					let target_time = (Sys.time()) +. num timeout in
@@ -1835,47 +1835,21 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let domain_id = (get_eval (get_ctx())).thread.tid in
-		(match mutex.mowner with
-		| None ->
-			Mutex.lock mutex.mmutex;
-			mutex.mowner <- Some (domain_id,1)
-		| Some (id,n) ->
-			if id = domain_id then
-				mutex.mowner <- Some (domain_id,n + 1)
-			else begin
-				Mutex.lock mutex.mmutex;
-				mutex.mowner <- Some (domain_id,1)
-			end
-		);
+		let domain_id = current_domain_id () in
+		DomainMutex.lock mutex domain_id;
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		(match mutex.mowner with
-		| Some (id,n) when n > 1 ->
-			mutex.mowner <- Some (id,n - 1)
-		| _ ->
-			mutex.mowner <- None;
-			Mutex.unlock mutex.mmutex;
-		);
+		DomainMutex.unlock mutex;
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let domain_id = (get_eval (get_ctx())).thread.tid in
-		match mutex.mowner with
-		| Some (id,n) when id = domain_id ->
-			mutex.mowner <- Some (domain_id,n + 1);
-			vtrue
-		| _ ->
-			if Mutex.try_lock mutex.mmutex then begin
-				mutex.mowner <- Some (domain_id,1);
-				vtrue
-			end else
-				vfalse
+		let domain_id = current_domain_id () in
+		vbool (DomainMutex.try_lock mutex domain_id)
 	)
 end
 
@@ -2863,12 +2837,12 @@ module StdThread = struct
 	let readMessage = vfun1 (fun blocking ->
 		let eval = get_eval (get_ctx()) in
 		let blocking = decode_bool blocking in
-		Option.get (Deque.pop eval.thread.tdeque blocking)
+		Option.get (Deque.pop eval.thread.tdeque (current_domain_id()) blocking)
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Deque.push this.tdeque msg;
+		Deque.push this.tdeque (current_domain_id()) msg;
 		vnull
 	)
 
@@ -3449,10 +3423,7 @@ let init_constructors builtins =
 		);
 	add key_sys_net_Mutex
 		(fun _ ->
-			let mutex = {
-				mmutex = Mutex.create();
-				mowner = None;
-			} in
+			let mutex = DomainMutex.create () in
 			encode_instance key_sys_net_Mutex ~kind:(IMutex mutex)
 		);
 	add key_sys_net_Lock

@@ -19,6 +19,51 @@
 open Extlib_leftovers
 open Globals
 
+module DomainMutex = struct
+	type t = {
+		dmutex : Mutex.t;
+		mutable downer : (int * int) option;
+	}
+
+	let create () = {
+		dmutex = Mutex.create();
+		downer = None;
+	}
+
+	let lock mutex domain_id =
+		match mutex.downer with
+		| None ->
+			Mutex.lock mutex.dmutex;
+			mutex.downer <- Some (domain_id,1)
+		| Some (id,n) ->
+			if id = domain_id then
+				mutex.downer <- Some (domain_id,n + 1)
+			else begin
+				Mutex.lock mutex.dmutex;
+				mutex.downer <- Some (domain_id,1)
+			end
+
+	let try_lock mutex domain_id =
+		match mutex.downer with
+		| Some (id,n) when id = domain_id ->
+			mutex.downer <- Some (domain_id,n + 1);
+			true
+		| _ ->
+			if Mutex.try_lock mutex.dmutex then begin
+				mutex.downer <- Some (domain_id,1);
+				true
+			end else
+				false
+
+	let unlock mutex =
+		match mutex.downer with
+		| Some (id,n) when n > 1 ->
+			mutex.downer <- Some (id,n - 1)
+		| _ ->
+			mutex.downer <- None;
+			Mutex.unlock mutex.dmutex
+end
+
 type cmp =
 	| CEq
 	| CSup
@@ -217,7 +262,7 @@ and vinstance_kind =
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
 	| IThread of vthread
-	| IMutex of vmutex
+	| IMutex of DomainMutex.t
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
@@ -273,12 +318,7 @@ and vthread = {
 
 and vdeque = {
 	mutable dvalues : value list;
-	dmutex : Mutex.t;
-}
-
-and vmutex = {
-	mmutex : Mutex.t;
-	mutable mowner : (int * int) option; (* thread ID * same thread lock count *)
+	dmutex : DomainMutex.t;
 }
 
 and vlock = {
