@@ -57,9 +57,20 @@ DynamicGc.(setup_dynamic_tuning
 let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
-let sctx = ServerCompilationContext.create false in
-Std.finally (fun () -> ServerCompilationContext.dispose sctx) (fun () ->
-	let request_scope = Server.create_request_scope () in
-	let parsed_args = Args.parse_args sctx args in
-	Server.process sctx request_scope Compiler.HighLevel.entry (ServerCommunication.Communication.create_stdio ()) parsed_args;
-) ()
+
+let start_semaphore = Semaphore.Binary.make false in
+
+let run_compiler () =
+	Semaphore.Binary.acquire start_semaphore;
+	let sctx = ServerCompilationContext.create false in
+	Std.finally (fun () -> ServerCompilationContext.dispose sctx) (fun () ->
+		let request_scope = Server.create_request_scope () in
+		let parsed_args = Args.parse_args sctx args in
+		Server.process sctx request_scope Compiler.HighLevel.entry (ServerCommunication.Communication.create_stdio ()) parsed_args;
+	) ()
+in
+
+let main_domain = Domain.spawn run_compiler in
+EvalMain.main_domain_hack := main_domain;
+Semaphore.Binary.release start_semaphore;
+Domain.join main_domain

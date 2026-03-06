@@ -285,8 +285,9 @@ and context = {
 	file_keys : Common.file_keys;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
+	mutable next_thread_id : int Atomic.t;
 	toplevel : value;
-	eval : eval Thread_local_storage.t;
+	eval : eval Domain.DLS.key;
 	evals : (int,eval) ThreadSafeHashtbl.t;
 	max_stack_depth : int;
 	max_print_depth : int;
@@ -321,7 +322,7 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-	Thread_local_storage.get_exn ctx.eval
+	Domain.DLS.get ctx.eval
 
 let kind_name eval kind =
 	let rec loop kind env = match kind with

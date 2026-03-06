@@ -1440,7 +1440,7 @@ module StdLock = struct
 				if Sys.time() >= target_time then
 					vfalse
 				else begin
-					Thread.yield();
+					Domain.cpu_relax ();
 					loop target_time
 				end
 			| Some _ ->
@@ -1835,17 +1835,17 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let thread_id = Thread.id (Thread.self()) in
+		let domain_id = (get_eval (get_ctx())).thread.tid in
 		(match mutex.mowner with
 		| None ->
 			Mutex.lock mutex.mmutex;
-			mutex.mowner <- Some (thread_id,1)
+			mutex.mowner <- Some (domain_id,1)
 		| Some (id,n) ->
-			if id = thread_id then
-				mutex.mowner <- Some (thread_id,n + 1)
+			if id = domain_id then
+				mutex.mowner <- Some (domain_id,n + 1)
 			else begin
 				Mutex.lock mutex.mmutex;
-				mutex.mowner <- Some (thread_id,1)
+				mutex.mowner <- Some (domain_id,1)
 			end
 		);
 		vnull
@@ -1865,14 +1865,14 @@ module StdMutex = struct
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let thread_id = Thread.id (Thread.self()) in
+		let domain_id = (get_eval (get_ctx())).thread.tid in
 		match mutex.mowner with
-		| Some (id,n) when id = thread_id ->
-			mutex.mowner <- Some (thread_id,n + 1);
+		| Some (id,n) when id = domain_id ->
+			mutex.mowner <- Some (domain_id,n + 1);
 			vtrue
 		| _ ->
 			if Mutex.try_lock mutex.mmutex then begin
-				mutex.mowner <- Some (thread_id,1);
+				mutex.mowner <- Some (domain_id,1);
 				vtrue
 			end else
 				vfalse
@@ -2754,7 +2754,7 @@ module StdSys = struct
 
 	let sleep = vfun1 (fun f ->
 		let time = Sys.time() in
-		Thread.yield();
+		Domain.cpu_relax ();
 		let diff = Sys.time() -. time in
 		Thread.delay ((num f) -. diff);
 		vnull
@@ -2821,7 +2821,7 @@ module StdThread = struct
 	)
 
 	let id = vifun0 (fun vthis ->
-		vint (Thread.id (this vthis).tthread)
+		vint (this vthis).tid
 	)
 
 	let get_events = vifun0 (fun vthis ->
@@ -2834,7 +2834,7 @@ module StdThread = struct
 	)
 
 	let join = vfun1 (fun thread ->
-		Thread.join (this thread).tthread;
+		Domain.join (this thread).tthread;
 		vnull
 	)
 
@@ -2863,7 +2863,7 @@ module StdThread = struct
 	)
 
 	let yield = vfun0 (fun () ->
-		Thread.yield();
+		Domain.cpu_relax ();
 		vnull
 	)
 end
@@ -3941,8 +3941,8 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv"], "FileSync") EvalLuv.file_sync_fields [];
 	init_fields builtins (["eval";"luv"], "DirSync") EvalLuv.dir_sync_fields [];
 	init_fields builtins (["eval";"luv";"_FsEvent"], "FsEvent_Impl_") EvalLuv.fs_event_fields [];
-	init_fields builtins (["eval";"luv"], "ThreadPool") EvalLuv.thread_pool_fields [];
-	init_fields builtins (["eval";"luv";"_Thread"], "Thread_Impl_") EvalLuv.thread_fields [];
+	(* init_fields builtins (["eval";"luv"], "ThreadPool") EvalLuv.thread_pool_fields []; *)
+	(* init_fields builtins (["eval";"luv";"_Thread"], "Thread_Impl_") EvalLuv.thread_fields []; *)
 	init_fields builtins (["eval";"luv";"_Once"], "Once_Impl_") EvalLuv.once_fields [];
 	init_fields builtins (["eval";"luv";"_Mutex"], "Mutex_Impl_") EvalLuv.mutex_fields [];
 	init_fields builtins (["eval";"luv";"_RwLock"], "RwLock_Impl_") EvalLuv.rwlock_fields [];

@@ -38,7 +38,7 @@ module Deque = struct
 				Mutex.unlock this.dmutex;
 				(* First attempt failed, let's be pessimistic now to avoid locks. *)
 				let rec loop () =
-					Thread.yield();
+					Domain.cpu_relax ();
 					match this.dvalues with
 					| v :: vl ->
 						(* Only lock if there's a chance to have a value. This avoids high amounts of unneeded locking. *)
@@ -79,7 +79,7 @@ let create_eval thread = {
 }
 
 let run ctx f thread =
-	let id = Thread.id (Thread.self()) in
+	let id = thread.tid in
 	let maybe_send_thread_event reason = match ctx.debug.debug_socket with
 		| Some socket ->
 			socket.connection.send_thread_event id reason
@@ -88,7 +88,7 @@ let run ctx f thread =
 	in
 	let new_eval = create_eval thread in
 	ThreadSafeHashtbl.add ctx.evals id new_eval;
-	Thread_local_storage.set ctx.eval new_eval;
+	Domain.DLS.set ctx.eval new_eval;
 	let close () =
 		ThreadSafeHashtbl.remove ctx.evals id;
 		maybe_send_thread_event "exited";
@@ -111,12 +111,13 @@ let run ctx f thread =
 
 let spawn ctx f =
 	let thread = {
+		tid = (Atomic.incr ctx.next_thread_id; Atomic.get ctx.next_thread_id);
 		tthread = Obj.magic ();
 		tstorage = IntMap.empty;
 		tevents = vnull;
 		tdeque = Deque.create();
 	} in
-	thread.tthread <- Thread.create (run ctx f) thread;
+	thread.tthread <- Domain.spawn (fun () -> run ctx f thread);
 	thread
 
 (**
@@ -124,16 +125,16 @@ let spawn ctx f =
 	Otherwise creates Haxe thread data structures, runs `f` and then cleans up
 	created data.
 *)
-let run ctx f =
+(* let run ctx f =
 	let id = Thread.id (Thread.self()) in
 	if ThreadSafeHashtbl.mem ctx.evals id then
 		ignore(f())
 	else begin
 		let thread = {
-			tthread = Thread.self();
+			tthread = Domain.self();
 			tstorage = IntMap.empty;
 			tevents = vnull;
 			tdeque = Deque.create();
 		} in
 		run ctx f thread
-	end
+	end *)
