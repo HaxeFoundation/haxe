@@ -2089,6 +2089,7 @@ let semaphore_fields = [
 		encode_result (fun s -> VHandle (HSemaphore s)) (Ok (Stdlib.Semaphore.Counting.make (decode_int v)))
 	);
 	"destroy", vfun1 (fun v ->
+		(* OCaml Semaphore.Counting is GC-managed, no explicit destruction needed *)
 		ignore (decode_semaphore v);
 		vnull
 	);
