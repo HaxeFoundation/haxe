@@ -1,3 +1,3 @@
 stdout_empty=true
-stderr_empty=true
+has_error_info=true
 exit_code=127
