@@ -64,8 +64,8 @@ let exit p =
   let _, status = Unix.waitpid [] p.pid in
   match status with
   | Unix.WEXITED c -> c
-  | Unix.WSIGNALED _ -> failwith "process_exit"
-  | Unix.WSTOPPED _ -> failwith "process_exit"
+  | Unix.WSIGNALED c -> c
+  | Unix.WSTOPPED c -> c
 
 let pid p = p.pid
 

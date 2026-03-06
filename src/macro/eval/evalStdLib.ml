@@ -1907,7 +1907,7 @@ module StdNativeProcess = struct
 	)
 
 	let exitCode = vifun0 (fun vthis ->
-		vint (process_catch Process.exit vthis)
+		vint (Process.exit (this vthis))
 	)
 
 	let getPid = vifun0 (fun vthis ->
