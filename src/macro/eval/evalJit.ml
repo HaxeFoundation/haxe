@@ -489,7 +489,7 @@ and jit_expr jit return e =
 					emit_special_super_call f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
-					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+					let v = DomainSafeLazy.make (fun () -> match DomainSafeLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 					emit_super_call v execs e.epos
 				end
 			| _ -> die "" __LOC__
@@ -518,7 +518,7 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			let v = DomainSafeLazy.make (fun () -> match DomainSafeLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 			emit_constructor_call proto v execs e.epos
 		end
 	(* read *)
