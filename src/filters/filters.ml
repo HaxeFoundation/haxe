@@ -219,7 +219,7 @@ let destruction_on_com scom com types =
 	SafeCom.run_type_filters_safe scom filters types
 
 let destruction (com : Common.context) scom ectx detail_times rename_locals_config all_types all_types_array =
-	let all_types = Parallel.run_with_pool com.sctx.pool (fun pool ->
+	let all_types = Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
 			SafeCom.run_with_scom com scom (fun () ->
 				destruction_before_dce pool scom all_types_array
@@ -421,8 +421,7 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array rename_locals_config =
-	let pool_lazy = com.Common.sctx.pool in
+let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array rename_locals_config pool =
 	let detail_times = Timer.level_from_define scom.defines Define.FilterTimes in
 	let cv_wrapper_impl = com.Common.local_wrapper in
 	let filters_before_inlining = [
@@ -454,26 +453,25 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;
 	] in
 
-	Parallel.run_with_pool pool_lazy (fun pool ->
-		begin
-			let pool = if Common.defined com Define.EnableParallelAbstractCast then pool else None in
-			Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining) new_types_array;
-		end;
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining_parallel) new_types_array;
-		Dump.maybe_generate_dump com AfterCasting;
+	begin
+		let pool = if Common.defined com Define.EnableParallelAbstractCast then pool else None in
+		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining) new_types_array;
+	end;
+	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_inlining_parallel) new_types_array;
+	Dump.maybe_generate_dump com AfterCasting;
 
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_analyzer) new_types_array;
-		Dump.maybe_generate_dump com AfterInlining;
+	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_before_analyzer) new_types_array;
+	Dump.maybe_generate_dump com AfterInlining;
 
-		Common.enter_stage com CAnalyzerStart;
-		if scom.platform <> Cross then
-			Analyzer.Run.run_on_types scom pool all_types_array new_types_array;
-		Dump.maybe_generate_dump com AfterAnalyzing;
-		Common.enter_stage com CAnalyzerDone;
+	Common.enter_stage com CAnalyzerStart;
+	if scom.platform <> Cross then
+		let pool = if Common.defined com Define.EnableParallelAnalyzer then pool else None in
+		Analyzer.Run.run_on_types scom pool all_types_array new_types_array;
+	Dump.maybe_generate_dump com AfterAnalyzing;
+	Common.enter_stage com CAnalyzerDone;
 
-		Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_after_analyzer) new_types_array;
-		Dump.maybe_generate_dump com AfterSanitizing
-	)
+	Parallel.ParallelArray.iter pool (SafeCom.run_expression_filters_safe scom detail_times filters_after_analyzer) new_types_array;
+	Dump.maybe_generate_dump com AfterSanitizing
 
 let run com ectx before_destruction =
 	let scom = SafeCom.of_com com in
@@ -519,8 +517,10 @@ let run com ectx before_destruction =
 	DeprecationCheck.run com new_types;
 	NullSafety.run com new_types;
 	let rename_locals_config = RenameVars.init scom.SafeCom.platform_config com.types in
-	SafeCom.run_with_scom com scom (fun () ->
-		run_safe_filters ectx com scom all_types_array new_types_array rename_locals_config
+	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
+		SafeCom.run_with_scom com scom (fun () ->
+			run_safe_filters ectx com scom all_types_array new_types_array rename_locals_config pool
+		)
 	);
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;
@@ -533,7 +533,7 @@ let run com ectx before_destruction =
 	);
 	(* Note: We cannot have a thread pool up during the before/after_save callbacks because Eval's thread handling
 	   currently does not get along with it. This is why we need a separate pool for this operation. *)
-	Parallel.run_with_pool com.sctx.pool (fun pool ->
+	Parallel.run_in_new_pool scom.timer_ctx (fun pool ->
 		Parallel.ParallelArray.iter pool (save_class_state com.compilation_step) new_types_array
 	);
 	Common.enter_stage com CSaveDone;

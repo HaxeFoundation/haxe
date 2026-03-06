@@ -91,8 +91,8 @@ let alloc_var =
 	alloc_var
 
 let alloc_mid =
-	let mid = Atomic.make 0 in
-	(fun() -> Atomic.incr mid; Atomic.get mid)
+	let mid = ref 0 in
+	(fun() -> incr mid; !mid)
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
@@ -563,17 +563,19 @@ let apply_typedef td tl =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let try_apply_params_rec stack cparams params t success =
-	let old_stack = !stack in
+let apply_params_stack = ref []
+
+let try_apply_params_rec cparams params t success =
+	let old_stack = !apply_params_stack in
 	try
-		let result = success (apply_params ~stack:stack cparams params t) in
-		stack := old_stack;
+		let result = success (apply_params ~stack:apply_params_stack cparams params t) in
+		apply_params_stack := old_stack;
 		result
 	with
 		| ApplyParamsRecursion ->
-			stack := old_stack;
+			apply_params_stack := old_stack;
 		| err ->
-			stack := old_stack;
+			apply_params_stack := old_stack;
 			raise err
 
 let rec follow t =

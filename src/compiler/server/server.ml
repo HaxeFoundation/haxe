@@ -351,7 +351,7 @@ let wait_loop entry verbose accept =
 	EvalMain.main_domain_hack := worker.domain;
 	(* Main loop: accept connections and enqueue requests for the worker.
 	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
-	begin try
+	(try
 		while true do
 			let conn = accept() in
 			begin try
@@ -373,13 +373,10 @@ let wait_loop entry verbose accept =
 				conn.close()
 			end;
 		done
-	with _ ->
-		()
-	end;
+	with _ -> ());
 	(* Signal the worker to shut down and wait for it to finish *)
 	RequestQueue.shutdown rq;
 	Domain.join worker.domain;
-	ServerCompilationContext.dispose sctx;
 	0
 
 (* Connect to given host/port and return accept function for communication *)
