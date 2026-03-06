@@ -5,14 +5,32 @@
     direct [fork()] in multi-threaded processes).
 
     Uses [Unix.create_process] which is domain-safe and handles
-    [posix_spawn] on modern systems. *)
+    [posix_spawn] on modern systems.
+
+    When the command is not found, [run] returns a process whose pipes
+    immediately return EOF and whose [exit] returns code 127 (matching
+    the POSIX shell convention and the old fork+exec behavior where
+    fork always succeeded). *)
 
 type process = {
   pid : int;
   stdin_fd : Unix.file_descr;
   stdout_fd : Unix.file_descr;
   stderr_fd : Unix.file_descr;
+  mutable exit_code : int option;
 }
+
+(** Returns a readable file_descr that immediately yields EOF. *)
+let make_eof_fd () =
+  let (r, w) = Unix.pipe ~cloexec:true () in
+  Unix.close w;
+  r
+
+(** Returns a writable file_descr where writes fail with EPIPE. *)
+let make_null_fd () =
+  let (r, w) = Unix.pipe ~cloexec:true () in
+  Unix.close r;
+  w
 
 let run cmd args =
   let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
@@ -28,44 +46,57 @@ let run cmd args =
     | Some a ->
       cmd, Array.append [|cmd|] a
   in
-  let pid =
-    try Unix.create_process shell argv child_stdin_r child_stdout_w child_stderr_w
-    with e ->
-      Unix.close child_stdin_r;
-      Unix.close child_stdin_w;
-      Unix.close child_stdout_r;
-      Unix.close child_stdout_w;
-      Unix.close child_stderr_r;
-      Unix.close child_stderr_w;
-      raise e
-  in
-  Unix.close child_stdin_r;
-  Unix.close child_stdout_w;
-  Unix.close child_stderr_w;
-  { pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r }
+  match
+    try Ok (Unix.create_process shell argv child_stdin_r child_stdout_w child_stderr_w)
+    with Unix.Unix_error _ as e -> Error e
+  with
+  | Ok pid ->
+    Unix.close child_stdin_r;
+    Unix.close child_stdout_w;
+    Unix.close child_stderr_w;
+    { pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r; exit_code = None }
+  | Error _ ->
+    (* Process creation failed (e.g. command not found).
+       Match the old fork+exec behavior: return a process whose pipes
+       immediately return EOF and whose exit code is 127. *)
+    Unix.close child_stdin_r;
+    Unix.close child_stdin_w;
+    Unix.close child_stdout_r;
+    Unix.close child_stdout_w;
+    Unix.close child_stderr_r;
+    Unix.close child_stderr_w;
+    { pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = make_eof_fd (); exit_code = Some 127 }
 
 let read_stdout p buf pos len =
-  let n = Unix.read p.stdout_fd (Bytes.unsafe_of_string buf) pos len in
+  let n = try Unix.read p.stdout_fd (Bytes.unsafe_of_string buf) pos len with Unix.Unix_error _ -> 0 in
   if n = 0 then failwith "process_stdout_read";
   n
 
 let read_stderr p buf pos len =
-  let n = Unix.read p.stderr_fd (Bytes.unsafe_of_string buf) pos len in
+  let n = try Unix.read p.stderr_fd (Bytes.unsafe_of_string buf) pos len with Unix.Unix_error _ -> 0 in
   if n = 0 then failwith "process_stderr_read";
   n
 
 let write_stdin p buf pos len =
-  Unix.write_substring p.stdin_fd buf pos len
+  try Unix.write_substring p.stdin_fd buf pos len
+  with Unix.Unix_error _ -> failwith "process_stdin_write"
 
 let close_stdin p =
-  Unix.close p.stdin_fd
+  try Unix.close p.stdin_fd
+  with Unix.Unix_error _ -> failwith "process_stdin_close"
 
 let exit p =
-  let _, status = Unix.waitpid [] p.pid in
-  match status with
-  | Unix.WEXITED c -> c
-  | Unix.WSIGNALED c -> c
-  | Unix.WSTOPPED c -> c
+  match p.exit_code with
+  | Some c -> c
+  | None ->
+    let _, status = Unix.waitpid [] p.pid in
+    let c = match status with
+      | Unix.WEXITED c -> c
+      | Unix.WSIGNALED c -> c
+      | Unix.WSTOPPED c -> c
+    in
+    p.exit_code <- Some c;
+    c
 
 let pid p = p.pid
 
@@ -75,5 +106,5 @@ let close p =
   (try Unix.close p.stdin_fd with Unix.Unix_error _ -> ())
 
 let kill p =
-  (try Unix.kill p.pid Sys.sigkill with Unix.Unix_error _ -> ())
-
+  if p.exit_code = None then
+    (try Unix.kill p.pid Sys.sigkill with Unix.Unix_error _ -> ())
