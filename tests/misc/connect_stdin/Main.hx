@@ -132,6 +132,37 @@ class Main {
 			return exitCode == 0;
 		});
 
+		// Test 8: Sys.getChar via --cmd without explicitly closing stdin
+		// (closer to real-world use where stdin isn't EOF-terminated)
+		test("stdin getChar via --cmd without close", () -> {
+			var client = new Process("haxe", ["--connect", Std.string(port), "--cmd", "haxe --run StdinChar"]);
+			client.stdin.writeString("h");
+			var stdout = client.stdout.readAll().toString().trim();
+			var exitCode = client.exitCode();
+			client.close();
+			if (stdout != "Got: h") {
+				Sys.println('\n    Expected: "Got: h"');
+				Sys.println('    Got: "$stdout"');
+				return false;
+			}
+			return exitCode == 0;
+		});
+
+		// Test 9: Sys.getChar via --run without explicitly closing stdin
+		test("stdin getChar via --run without close", () -> {
+			var client = new Process("haxe", ["--connect", Std.string(port), "--run", "StdinChar"]);
+			client.stdin.writeString("h");
+			var stdout = client.stdout.readAll().toString().trim();
+			var exitCode = client.exitCode();
+			client.close();
+			if (stdout != "Got: h") {
+				Sys.println('\n    Expected: "Got: h"');
+				Sys.println('    Got: "$stdout"');
+				return false;
+			}
+			return exitCode == 0;
+		});
+
 		// Clean up the server
 		server.kill();
 		server.close();

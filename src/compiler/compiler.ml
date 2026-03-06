@@ -182,15 +182,24 @@ module PipeThings = struct
 		let perr = Unix.in_channel_of_descr child_stderr_r in
 		let bout = Bytes.create 1024 in
 		let berr = Bytes.create 1024 in
+		(* Use a flag to signal the stdin-forwarding thread to stop.
+		   The thread uses Unix.select with a timeout so it can check this flag
+		   periodically, avoiding a hang when the child exits but the client
+		   hasn't closed its stdin (e.g. interactive use or partial writes). *)
+		let stop_stdin = ref false in
 		let tin = match comm.stdin with
 			| Some stdin_pipe ->
+				let stdin_fd = Unix.descr_of_in_channel stdin_pipe in
 				Some (Thread.create (fun () ->
 					let buf = Bytes.create 1024 in
-					(try while true do
-						let i = input stdin_pipe buf 0 1024 in
-						if i = 0 then raise Exit;
-						output_string pin (Bytes.sub_string buf 0 i);
-						flush pin
+					(try while not !stop_stdin do
+						let readable, _, _ = Unix.select [stdin_fd] [] [] 0.05 in
+						if readable <> [] then begin
+							let i = Unix.read stdin_fd buf 0 1024 in
+							if i = 0 then raise Exit;
+							output pin buf 0 i;
+							flush pin
+						end
 					done with _ -> ());
 					close_out_noerr pin
 				) ())
@@ -200,12 +209,16 @@ module PipeThings = struct
 		in
 		let tout = Thread.create (fun() -> read_content pout bout comm.write_out) () in
 		let terr = Thread.create (fun() -> read_content perr berr comm.write_err) () in
-		(match tin with Some t -> Thread.join t | None -> ());
+		(* Join stdout/stderr threads first — they complete when the child closes
+		   its output fds (typically on exit). Then reap the child process, signal
+		   the stdin thread to stop, and join it. *)
 		Thread.join tout;
 		Thread.join terr;
 		close_in_noerr pout;
 		close_in_noerr perr;
 		let _, status = Unix.waitpid [] pid in
+		stop_stdin := true;
+		(match tin with Some t -> Thread.join t | None -> ());
 		match status with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c
 end
 

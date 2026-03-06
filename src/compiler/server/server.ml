@@ -415,8 +415,12 @@ let init_wait_socket ip port =
 		let closed = ref false in
 		let close() =
 			if not !closed then begin
-				try Unix.close sin with Unix.Unix_error _ -> trace "Error while closing socket.";
 				closed := true;
+				(* Shutdown before close to ensure FIN is sent to the client even if
+				   the stdin-forwarding thread has a pending recv on the same fd.
+				   Unix.close alone may not send FIN while another thread blocks on recv. *)
+				(try Unix.shutdown sin Unix.SHUTDOWN_ALL with Unix.Unix_error _ -> ());
+				(try Unix.close sin with Unix.Unix_error _ -> trace "Error while closing socket.");
 			end
 		in
 		let write s =
