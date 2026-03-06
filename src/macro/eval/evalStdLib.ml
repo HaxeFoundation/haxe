@@ -1893,8 +1893,13 @@ module StdNativeProcess = struct
 		f this (Bytes.unsafe_to_string bytes) pos len
 
 	let process_catch f vthis =
-		try f (this vthis)
-		with Failure msg -> exc_string msg
+		try
+			f (this vthis)
+		with
+		| Failure msg ->
+			exc_string msg
+		| Unix.Unix_error (err, fn, arg) ->
+			exc_string (Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err))
 
 	let close = vifun0 (fun vthis ->
 		process_catch Process.close vthis;

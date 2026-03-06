@@ -37,11 +37,7 @@ let run cmd args =
       Unix.close child_stdout_w;
       Unix.close child_stderr_r;
       Unix.close child_stderr_w;
-      (* Convert Unix errors to Failure so eval can catch them as Dynamic *)
-      match e with
-      | Unix.Unix_error (err, fn, arg) ->
-        failwith (Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err))
-      | _ -> raise e
+      raise e
   in
   Unix.close child_stdin_r;
   Unix.close child_stdout_w;
@@ -49,24 +45,20 @@ let run cmd args =
   { pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r }
 
 let read_stdout p buf pos len =
-  let n = try Unix.read p.stdout_fd (Bytes.unsafe_of_string buf) pos len
-    with Unix.Unix_error _ -> failwith "process_stdout_read" in
+  let n = Unix.read p.stdout_fd (Bytes.unsafe_of_string buf) pos len in
   if n = 0 then failwith "process_stdout_read";
   n
 
 let read_stderr p buf pos len =
-  let n = try Unix.read p.stderr_fd (Bytes.unsafe_of_string buf) pos len
-    with Unix.Unix_error _ -> failwith "process_stderr_read" in
+  let n = Unix.read p.stderr_fd (Bytes.unsafe_of_string buf) pos len in
   if n = 0 then failwith "process_stderr_read";
   n
 
 let write_stdin p buf pos len =
-  try Unix.write_substring p.stdin_fd buf pos len
-  with Unix.Unix_error _ -> failwith "process_stdin_write"
+  Unix.write_substring p.stdin_fd buf pos len
 
 let close_stdin p =
-  try Unix.close p.stdin_fd
-  with Unix.Unix_error _ -> failwith "process_stdin_close"
+  Unix.close p.stdin_fd
 
 let exit p =
   let _, status = Unix.waitpid [] p.pid in
