@@ -704,7 +704,8 @@ let generate_function gctx ctx f =
 	) f.regs;
 	Hashtbl.iter (fun (s,i) il ->
 		let prefix = String.make i '*' in
-		let il = List.rev_map (fun s -> prefix ^ s) il in
+		let suffix = if i > 0 then " = NULL" else "" in
+		let il = List.rev_map (fun s -> prefix ^ s ^ suffix) il in
 		sexpr "%s %s" s (String.concat ", " il)
 	) var_map;
 	let output_options = Array.make (Array.length f.code + 1) [] in
