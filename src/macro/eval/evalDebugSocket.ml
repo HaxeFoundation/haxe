@@ -316,7 +316,7 @@ let output_inner_vars v env =
 				(s,v) :: acc
 			) h []
 		| VInstance {ikind = IMutex mutex} ->
-			["owner",match mutex.mowner with None -> vnull | Some (id,_) -> vint id]
+			["owner",match mutex.downer with None -> vnull | Some (id,_) -> vint id]
 		| VInstance {ikind = IThread thread} ->
 			["id",vint thread.tid]
 		| VInstance vi ->

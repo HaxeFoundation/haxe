@@ -5,52 +5,52 @@ open EvalExceptions
 open EvalValue
 
 module Deque = struct
-	let create () = {
+	let create id = {
 		dvalues = [];
-		dmutex = Mutex.create();
+		dmutex = DomainMutex.create();
 	}
 
-	let add this i =
-		Mutex.lock this.dmutex;
+	let add this domain_id i =
+		DomainMutex.lock this.dmutex domain_id;
 		this.dvalues <- this.dvalues @ [i];
-		Mutex.unlock this.dmutex
+		DomainMutex.unlock this.dmutex
 
-	let pop this blocking =
+	let pop this domain_id blocking =
 		if not blocking then begin
-			Mutex.lock this.dmutex;
+			DomainMutex.lock this.dmutex domain_id;
 			match this.dvalues with
 			| v :: vl ->
 				this.dvalues <- vl;
-				Mutex.unlock this.dmutex;
+				DomainMutex.unlock this.dmutex;
 				Some v
 			| [] ->
-				Mutex.unlock this.dmutex;
+				DomainMutex.unlock this.dmutex;
 				None
 		end else begin
 			(* Optimistic first attempt with immediate lock. *)
-			Mutex.lock this.dmutex;
+			DomainMutex.lock this.dmutex domain_id;
 			begin match this.dvalues with
 			| v :: vl ->
 				this.dvalues <- vl;
-				Mutex.unlock this.dmutex;
+				DomainMutex.unlock this.dmutex;
 				Some v
 			| [] ->
-				Mutex.unlock this.dmutex;
+				DomainMutex.unlock this.dmutex;
 				(* First attempt failed, let's be pessimistic now to avoid locks. *)
 				let rec loop () =
 					Domain.cpu_relax ();
 					match this.dvalues with
 					| v :: vl ->
 						(* Only lock if there's a chance to have a value. This avoids high amounts of unneeded locking. *)
-						Mutex.lock this.dmutex;
+						DomainMutex.lock this.dmutex domain_id;
 						(* We have to check again because the value could be gone by now. *)
 						begin match this.dvalues with
 						| v :: vl ->
 							this.dvalues <- vl;
-							Mutex.unlock this.dmutex;
+							DomainMutex.unlock this.dmutex;
 							Some v
 						| [] ->
-							Mutex.unlock this.dmutex;
+							DomainMutex.unlock this.dmutex;
 							loop()
 						end
 					| [] ->
@@ -60,10 +60,10 @@ module Deque = struct
 			end
 		end
 
-	let push this i =
-		Mutex.lock this.dmutex;
+	let push this domain_id i =
+		DomainMutex.lock this.dmutex domain_id;
 		this.dvalues <- i :: this.dvalues;
-		Mutex.unlock this.dmutex
+		DomainMutex.unlock this.dmutex
 end
 
 let create_eval thread = {
@@ -110,12 +110,13 @@ let run ctx f thread =
 		raise exc
 
 let spawn ctx f =
+	let id = (Atomic.incr ctx.next_thread_id; Atomic.get ctx.next_thread_id) in
 	let thread = {
-		tid = (Atomic.incr ctx.next_thread_id; Atomic.get ctx.next_thread_id);
+		tid = id;
 		tthread = Obj.magic ();
 		tstorage = IntMap.empty;
 		tevents = vnull;
-		tdeque = Deque.create();
+		tdeque = Deque.create id;
 	} in
 	thread.tthread <- Domain.spawn (fun () -> run ctx f thread);
 	thread
