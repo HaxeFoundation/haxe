@@ -28,6 +28,7 @@
 #include <caml/custom.h>
 #include <caml/mlvalues.h>
 #include <caml/fail.h>
+#include <caml/signals.h>
 
 #ifdef _WIN32
 #	include <windows.h>
@@ -38,6 +39,7 @@
 #	include <errno.h>
 #	include <string.h>
 #	include <sys/wait.h>
+#	include <spawn.h>
 #endif
 
 #ifdef _WIN32
@@ -49,6 +51,7 @@
 #	define POSIX_LABEL(name)	name:
 #	define HANDLE_EINTR(label)	if( errno == EINTR ) goto label
 #	define HANDLE_FINTR(f,label) if( ferror(f) && errno == EINTR ) goto label
+extern char **environ;
 #endif
 
 // --- neko-to-caml api --
@@ -375,27 +378,30 @@ CAMLprim value process_run( value cmd, value vargs ) {
 	if( pipe(input) || pipe(output) || pipe(error) )
 		neko_error();
 	p = (vprocess*)malloc(sizeof(vprocess));
-	p->pid = fork();
-	if( p->pid == -1 ) {
-		do_close(input[0]);
-		do_close(input[1]);
-		do_close(output[0]);
-		do_close(output[1]);
-		do_close(error[0]);
-		do_close(error[1]);
-		neko_error();
-	}
-	// child
-	if( p->pid == 0 ) {
-		close(input[1]);
-		close(output[0]);
-		close(error[0]);
-		dup2(input[0],0);
-		dup2(output[1],1);
-		dup2(error[1],2);
-		execvp(argv[0],argv);
-		fprintf(stderr,"Command not found : %s\n",val_string(cmd));
-		exit(1);
+	{
+		posix_spawn_file_actions_t actions;
+		posix_spawn_file_actions_init(&actions);
+		posix_spawn_file_actions_adddup2(&actions, input[0], 0);
+		posix_spawn_file_actions_adddup2(&actions, output[1], 1);
+		posix_spawn_file_actions_adddup2(&actions, error[1], 2);
+		posix_spawn_file_actions_addclose(&actions, input[0]);
+		posix_spawn_file_actions_addclose(&actions, input[1]);
+		posix_spawn_file_actions_addclose(&actions, output[0]);
+		posix_spawn_file_actions_addclose(&actions, output[1]);
+		posix_spawn_file_actions_addclose(&actions, error[0]);
+		posix_spawn_file_actions_addclose(&actions, error[1]);
+		int ret = posix_spawnp(&p->pid, argv[0], &actions, NULL, argv, environ);
+		posix_spawn_file_actions_destroy(&actions);
+		if( ret != 0 ) {
+			do_close(input[0]);
+			do_close(input[1]);
+			do_close(output[0]);
+			do_close(output[1]);
+			do_close(error[0]);
+			do_close(error[1]);
+			free(p);
+			neko_error();
+		}
 	}
 	// parent
 	do_close(input[0]);
@@ -430,20 +436,42 @@ CAMLprim value process_stdout_read( value vp, value str, value pos, value len ) 
 #	ifdef _WIN32
 	{
 		DWORD nbytes;
-		if( !ReadFile(p->oread,val_string(str)+val_int(pos),val_int(len),&nbytes,NULL) )
+		HANDLE handle = p->oread;
+		int c_pos = val_int(pos);
+		int c_len = val_int(len);
+		char *buf = (char*)malloc(c_len);
+		if( !buf )
 			neko_error();
+		caml_enter_blocking_section();
+		BOOL ok = ReadFile(handle,buf,c_len,&nbytes,NULL);
+		caml_leave_blocking_section();
+		if( !ok ) {
+			free(buf);
+			neko_error();
+		}
+		memcpy(Bytes_val(str)+c_pos,buf,nbytes);
+		free(buf);
 		CAMLreturn(alloc_int(nbytes));
 	}
 #	else
 	int nbytes;
-	POSIX_LABEL(stdout_read_again);
-	nbytes = read(p->oread,val_string(str)+val_int(pos),val_int(len));
-	if( nbytes < 0 ) {
-		HANDLE_EINTR(stdout_read_again);
+	int fd = p->oread;
+	int c_pos = val_int(pos);
+	int c_len = val_int(len);
+	char *buf = (char*)malloc(c_len);
+	if( !buf )
+		neko_error();
+	caml_enter_blocking_section();
+	do {
+		nbytes = read(fd,buf,c_len);
+	} while( nbytes < 0 && errno == EINTR );
+	caml_leave_blocking_section();
+	if( nbytes <= 0 ) {
+		free(buf);
 		neko_error();
 	}
-	if( nbytes == 0 )
-		neko_error();
+	memcpy(Bytes_val(str)+c_pos,buf,nbytes);
+	free(buf);
 	CAMLreturn(alloc_int(nbytes));
 #	endif
 }
@@ -461,20 +489,42 @@ CAMLprim value process_stderr_read( value vp, value str, value pos, value len ) 
 #	ifdef _WIN32
 	{
 		DWORD nbytes;
-		if( !ReadFile(p->eread,val_string(str)+val_int(pos),val_int(len),&nbytes,NULL) )
+		HANDLE handle = p->eread;
+		int c_pos = val_int(pos);
+		int c_len = val_int(len);
+		char *buf = (char*)malloc(c_len);
+		if( !buf )
 			neko_error();
+		caml_enter_blocking_section();
+		BOOL ok = ReadFile(handle,buf,c_len,&nbytes,NULL);
+		caml_leave_blocking_section();
+		if( !ok ) {
+			free(buf);
+			neko_error();
+		}
+		memcpy(Bytes_val(str)+c_pos,buf,nbytes);
+		free(buf);
 		CAMLreturn(alloc_int(nbytes));
 	}
 #	else
 	int nbytes;
-	POSIX_LABEL(stderr_read_again);
-	nbytes = read(p->eread,val_string(str)+val_int(pos),val_int(len));
-	if( nbytes < 0 ) {
-		HANDLE_EINTR(stderr_read_again);
+	int fd = p->eread;
+	int c_pos = val_int(pos);
+	int c_len = val_int(len);
+	char *buf = (char*)malloc(c_len);
+	if( !buf )
+		neko_error();
+	caml_enter_blocking_section();
+	do {
+		nbytes = read(fd,buf,c_len);
+	} while( nbytes < 0 && errno == EINTR );
+	caml_leave_blocking_section();
+	if( nbytes <= 0 ) {
+		free(buf);
 		neko_error();
 	}
-	if( nbytes == 0 )
-		neko_error();
+	memcpy(Bytes_val(str)+c_pos,buf,nbytes);
+	free(buf);
 	CAMLreturn(alloc_int(nbytes));
 #	endif
 }
@@ -492,18 +542,38 @@ CAMLprim value process_stdin_write( value vp, value str, value pos, value len ) 
 #	ifdef _WIN32
 	{
 		DWORD nbytes;
-		if( !WriteFile(p->iwrite,val_string(str)+val_int(pos),val_int(len),&nbytes,NULL) )
+		HANDLE handle = p->iwrite;
+		int c_pos = val_int(pos);
+		int c_len = val_int(len);
+		char *buf = (char*)malloc(c_len);
+		if( !buf )
+			neko_error();
+		memcpy(buf,val_string(str)+c_pos,c_len);
+		caml_enter_blocking_section();
+		BOOL ok = WriteFile(handle,buf,c_len,&nbytes,NULL);
+		caml_leave_blocking_section();
+		free(buf);
+		if( !ok )
 			neko_error();
 		CAMLreturn(alloc_int(nbytes));
 	}
 #	else
 	int nbytes;
-	POSIX_LABEL(stdin_write_again);
-	nbytes = write(p->iwrite,val_string(str)+val_int(pos),val_int(len));
-	if( nbytes == -1 ) {
-		HANDLE_EINTR(stdin_write_again);
+	int fd = p->iwrite;
+	int c_pos = val_int(pos);
+	int c_len = val_int(len);
+	char *buf = (char*)malloc(c_len);
+	if( !buf )
 		neko_error();
-	}
+	memcpy(buf,val_string(str)+c_pos,c_len);
+	caml_enter_blocking_section();
+	do {
+		nbytes = write(fd,buf,c_len);
+	} while( nbytes == -1 && errno == EINTR );
+	caml_leave_blocking_section();
+	free(buf);
+	if( nbytes == -1 )
+		neko_error();
 	CAMLreturn(alloc_int(nbytes));
 #	endif
 }
@@ -540,18 +610,25 @@ CAMLprim value process_exit( value vp ) {
 #	ifdef _WIN32
 	{
 		DWORD rval;
-		WaitForSingleObject(p->pinf.hProcess,INFINITE);
+		HANDLE hProcess = p->pinf.hProcess;
+		caml_enter_blocking_section();
+		WaitForSingleObject(hProcess,INFINITE);
+		caml_leave_blocking_section();
 		if( !GetExitCodeProcess(p->pinf.hProcess,&rval) )
 			neko_error();
 		CAMLreturn(alloc_int(rval));
 	}
 #	else
 	int rval;
-	while( waitpid(p->pid,&rval,0) != p->pid ) {
-		if( errno == EINTR )
-			continue;
+	int pid = p->pid;
+	int ret;
+	caml_enter_blocking_section();
+	do {
+		ret = waitpid(pid,&rval,0);
+	} while( ret != pid && errno == EINTR );
+	caml_leave_blocking_section();
+	if( ret != pid )
 		neko_error();
-	}
 	if( !WIFEXITED(rval) )
 		neko_error();
 	CAMLreturn(alloc_int(WEXITSTATUS(rval)));
