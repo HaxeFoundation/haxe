@@ -61,6 +61,42 @@ module DomainMutex = struct
 		end
 end
 
+(* Domain-safe lazy: OCaml 5's Lazy.t is not safe to force from multiple domains
+   simultaneously (raises CamlinternalLazy.Undefined). This wraps a thunk with
+   a Mutex so only one domain computes the value; others wait and get the cached result. *)
+module DomainSafeLazy = struct
+	type 'a t = {
+		mutable value : 'a option;
+		f : (unit -> 'a) option ref;
+		mutex : Mutex.t;
+	}
+
+	let make f = {
+		value = None;
+		f = ref (Some f);
+		mutex = Mutex.create ();
+	}
+
+	let force t =
+		match t.value with
+		| Some v -> v
+		| None ->
+			Mutex.lock t.mutex;
+			match t.value with
+			| Some v ->
+				Mutex.unlock t.mutex;
+				v
+			| None ->
+				let v = match !(t.f) with
+					| Some f -> f ()
+					| None -> failwith "DomainSafeLazy: already forced but no value"
+				in
+				t.value <- Some v;
+				t.f := None;
+				Mutex.unlock t.mutex;
+				v
+end
+
 type cmp =
 	| CEq
 	| CSup

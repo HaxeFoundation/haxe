@@ -343,7 +343,7 @@ let emit_field_call exec name execs p env =
 
 let emit_constructor_call proto v execs p env =
 	check_stack_depth env;
-	let f = Lazy.force v in
+	let f = DomainSafeLazy.force v in
 	let vthis = create_instance_direct proto INormal in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
@@ -367,7 +367,7 @@ let emit_special_super_call fnew execs env =
 
 let emit_super_call v execs p env =
 	check_stack_depth env;
-	let f = Lazy.force v in
+	let f = DomainSafeLazy.force v in
 	let vthis = env.env_locals.(0) in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;

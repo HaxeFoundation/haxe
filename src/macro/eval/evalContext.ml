@@ -281,7 +281,7 @@ and context = {
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
-	mutable constructors : value Lazy.t IntMap.t;
+	mutable constructors : value DomainSafeLazy.t IntMap.t;
 	file_keys : Common.file_keys;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)

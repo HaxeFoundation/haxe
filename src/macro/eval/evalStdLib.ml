@@ -146,7 +146,7 @@ module StdArray = struct
 		let path = key_haxe_iterators_array_key_value_iterator in
 		let vit = encode_instance path in
 		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		ignore(call_value_on vit (DomainSafeLazy.force fnew) [vthis]);
 		vit
 	)
 
@@ -1503,7 +1503,7 @@ let map_key_value_iterator path = vifun0 (fun vthis ->
 	let ctx = get_ctx() in
 	let vit = encode_instance path in
 	let fnew = get_instance_constructor ctx path null_pos in
-	ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+	ignore(call_value_on vit (DomainSafeLazy.force fnew) [vthis]);
 	vit
 )
 
@@ -3015,7 +3015,7 @@ module StdType = struct
 			with Not_found ->
 				let vthis = encode_instance path in
 				let fnew = get_instance_constructor ctx path null_pos in
-				ignore(call_value_on vthis (Lazy.force fnew) (decode_array vl));
+				ignore(call_value_on vthis (DomainSafeLazy.force fnew) (decode_array vl));
 				vthis
 			end
 		| _ ->
