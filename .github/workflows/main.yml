@@ -178,6 +178,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
@@ -407,6 +408,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: win${{env.ARCH}}Binaries
@@ -548,6 +550,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: macBinaries
