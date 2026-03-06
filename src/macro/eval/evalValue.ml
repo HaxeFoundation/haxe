@@ -261,6 +261,7 @@ and vinstance_kind =
 	| IThread of vthread
 	| IMutex of DomainMutex.t
 	| ISemaphore of Semaphore.Counting.t
+	| ICondition of vcondition
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
@@ -321,6 +322,11 @@ and vdeque = {
 
 and vlock = {
 	ldeque : vdeque;
+}
+
+and vcondition = {
+	cond : Condition.t;
+	cmutex : DomainMutex.t;
 }
 
 let same_handle h1 h2 =

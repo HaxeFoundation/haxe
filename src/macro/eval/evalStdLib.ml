@@ -1885,6 +1885,56 @@ module StdSemaphore = struct
 	)
 end
 
+module StdCondition = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=ICondition cond} -> cond
+		| _ -> unexpected_value vthis "Condition"
+
+	let acquire = vifun0 (fun vthis ->
+		let cond = this vthis in
+		let domain_id = current_domain_id () in
+		DomainMutex.lock cond.cmutex domain_id;
+		vnull
+	)
+
+	let tryAcquire = vifun0 (fun vthis ->
+		let cond = this vthis in
+		let domain_id = current_domain_id () in
+		vbool (DomainMutex.try_lock cond.cmutex domain_id)
+	)
+
+	let release = vifun0 (fun vthis ->
+		let cond = this vthis in
+		DomainMutex.unlock cond.cmutex;
+		vnull
+	)
+
+	let wait = vifun0 (fun vthis ->
+		let c = this vthis in
+		(* Save reentrant depth and fully release the DomainMutex *)
+		let saved_depth = c.cmutex.ddepth in
+		c.cmutex.ddepth <- 1;
+		Atomic.set c.cmutex.downer (-1);
+		(* Condition.wait atomically releases the underlying mutex and blocks *)
+		Condition.wait c.cond c.cmutex.dmutex;
+		(* Re-acquire: Condition.wait re-acquires the mutex before returning *)
+		let domain_id = current_domain_id () in
+		Atomic.set c.cmutex.downer domain_id;
+		c.cmutex.ddepth <- saved_depth;
+		vnull
+	)
+
+	let signal = vifun0 (fun vthis ->
+		Condition.signal (this vthis).cond;
+		vnull
+	)
+
+	let broadcast = vifun0 (fun vthis ->
+		Condition.broadcast (this vthis).cond;
+		vnull
+	)
+end
+
 module StdNativeProcess = struct
 
 	let this vthis = match vthis with
@@ -3453,6 +3503,14 @@ let init_constructors builtins =
 			let sem = Semaphore.Counting.make (decode_int v) in
 			encode_instance key_sys_net_Semaphore ~kind:(ISemaphore sem)
 		);
+	add key_sys_net_Condition
+		(fun _ ->
+			let cond = {
+				cond = Condition.create ();
+				cmutex = DomainMutex.create ();
+			} in
+			encode_instance key_sys_net_Condition ~kind:(ICondition cond)
+		);
 	add key_sys_net_Lock
 		(fun _ ->
 			let lock = {
@@ -3738,6 +3796,14 @@ let init_standard_library builtins =
 		"acquire",StdSemaphore.acquire;
 		"tryAcquire",StdSemaphore.tryAcquire;
 		"release",StdSemaphore.release;
+	];
+	init_fields builtins (["sys";"thread"],"Condition") [] [
+		"acquire",StdCondition.acquire;
+		"tryAcquire",StdCondition.tryAcquire;
+		"release",StdCondition.release;
+		"wait",StdCondition.wait;
+		"signal",StdCondition.signal;
+		"broadcast",StdCondition.broadcast;
 	];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
