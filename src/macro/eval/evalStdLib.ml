@@ -2691,7 +2691,9 @@ module StdSys = struct
 
 	let getChar = vfun1 (fun echo ->
 		let echo = decode_bool echo in
-		vint (Extc.getch echo)
+		let ctx = get_ctx() in
+		let com = ctx.curapi.get_com() in
+		vint (com.part_scope.io.getch echo)
 	)
 
 	let getCwd = vfun0 (fun () ->

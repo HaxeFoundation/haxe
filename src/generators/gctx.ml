@@ -14,6 +14,10 @@ type compilation_io = {
 	stdout : out_channel;
 	stderr : out_channel;
 	stdin : in_channel;
+	getch : bool -> int;
+		(** Reads a single character from stdin. The [bool] parameter controls echo.
+		    In non-server mode, uses [Extc.getch] for native terminal raw-mode input.
+		    In server mode, reads from the client's forwarded stdin pipe. Returns -1 on EOF. *)
 	close : unit -> unit;
 }
 
