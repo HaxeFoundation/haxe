@@ -260,6 +260,7 @@ and vinstance_kind =
 	| ISocket of Unix.file_descr
 	| IThread of vthread
 	| IMutex of DomainMutex.t
+	| ISemaphore of Semaphore.Counting.t
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque

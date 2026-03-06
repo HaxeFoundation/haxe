@@ -1853,6 +1853,38 @@ module StdMutex = struct
 	)
 end
 
+module StdSemaphore = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=ISemaphore sem} -> sem
+		| _ -> unexpected_value vthis "Semaphore"
+
+	let acquire = vifun0 (fun vthis ->
+		Semaphore.Counting.acquire (this vthis);
+		vnull
+	)
+
+	let tryAcquire = vifun1 (fun vthis vtimeout ->
+		let sem = this vthis in
+		match vtimeout with
+		| VNull ->
+			vbool (Semaphore.Counting.try_acquire sem)
+		| _ ->
+			let timeout = decode_float vtimeout in
+			let t = Unix.gettimeofday () +. timeout in
+			let rec loop () =
+				if Semaphore.Counting.try_acquire sem then vtrue
+				else if Unix.gettimeofday () >= t then vfalse
+				else begin Domain.cpu_relax (); loop () end
+			in
+			loop ()
+	)
+
+	let release = vifun0 (fun vthis ->
+		Semaphore.Counting.release (this vthis);
+		vnull
+	)
+end
+
 module StdNativeProcess = struct
 
 	let this vthis = match vthis with
@@ -3415,6 +3447,12 @@ let init_constructors builtins =
 			let mutex = DomainMutex.create () in
 			encode_instance key_sys_net_Mutex ~kind:(IMutex mutex)
 		);
+	add key_sys_net_Semaphore
+		(fun vl ->
+			let v = List.hd vl in
+			let sem = Semaphore.Counting.make (decode_int v) in
+			encode_instance key_sys_net_Semaphore ~kind:(ISemaphore sem)
+		);
 	add key_sys_net_Lock
 		(fun _ ->
 			let lock = {
@@ -3695,6 +3733,11 @@ let init_standard_library builtins =
 		"acquire",StdMutex.acquire;
 		"tryAcquire",StdMutex.tryAcquire;
 		"release",StdMutex.release;
+	];
+	init_fields builtins (["sys";"thread"],"Semaphore") [] [
+		"acquire",StdSemaphore.acquire;
+		"tryAcquire",StdSemaphore.tryAcquire;
+		"release",StdSemaphore.release;
 	];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
