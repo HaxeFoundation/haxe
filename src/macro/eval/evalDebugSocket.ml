@@ -316,7 +316,8 @@ let output_inner_vars v env =
 				(s,v) :: acc
 			) h []
 		| VInstance {ikind = IMutex mutex} ->
-			["owner",match mutex.downer with None -> vnull | Some (id,_) -> vint id]
+			let owner = Atomic.get mutex.downer in
+			["owner",if owner = -1 then vnull else vint owner]
 		| VInstance {ikind = IThread thread} ->
 			["id",vint thread.tid]
 		| VInstance vi ->

@@ -22,46 +22,43 @@ open Globals
 module DomainMutex = struct
 	type t = {
 		dmutex : Mutex.t;
-		mutable downer : (int * int) option;
+		downer : int Atomic.t;  (* owner domain_id, or -1 if unlocked *)
+		mutable ddepth : int;   (* reentrant depth, only accessed by owner *)
 	}
 
 	let create () = {
 		dmutex = Mutex.create();
-		downer = None;
+		downer = Atomic.make (-1);
+		ddepth = 0;
 	}
 
 	let lock mutex domain_id =
-		match mutex.downer with
-		| None ->
+		if Atomic.get mutex.downer = domain_id then
+			mutex.ddepth <- mutex.ddepth + 1
+		else begin
 			Mutex.lock mutex.dmutex;
-			mutex.downer <- Some (domain_id,1)
-		| Some (id,n) ->
-			if id = domain_id then
-				mutex.downer <- Some (domain_id,n + 1)
-			else begin
-				Mutex.lock mutex.dmutex;
-				mutex.downer <- Some (domain_id,1)
-			end
+			Atomic.set mutex.downer domain_id;
+			mutex.ddepth <- 1
+		end
 
 	let try_lock mutex domain_id =
-		match mutex.downer with
-		| Some (id,n) when id = domain_id ->
-			mutex.downer <- Some (domain_id,n + 1);
+		if Atomic.get mutex.downer = domain_id then begin
+			mutex.ddepth <- mutex.ddepth + 1;
 			true
-		| _ ->
-			if Mutex.try_lock mutex.dmutex then begin
-				mutex.downer <- Some (domain_id,1);
-				true
-			end else
-				false
+		end else if Mutex.try_lock mutex.dmutex then begin
+			Atomic.set mutex.downer domain_id;
+			mutex.ddepth <- 1;
+			true
+		end else
+			false
 
 	let unlock mutex =
-		match mutex.downer with
-		| Some (id,n) when n > 1 ->
-			mutex.downer <- Some (id,n - 1)
-		| _ ->
-			mutex.downer <- None;
+		if mutex.ddepth > 1 then
+			mutex.ddepth <- mutex.ddepth - 1
+		else begin
+			Atomic.set mutex.downer (-1);
 			Mutex.unlock mutex.dmutex
+		end
 end
 
 type cmp =
