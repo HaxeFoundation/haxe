@@ -37,63 +37,7 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	fun () ->
 		{ read; write; close; get_stdin = (fun () -> None) }
 
-let ssend sock str =
-	let rec loop pos len =
-		if len = 0 then
-			()
-		else
-			let s = Unix.send sock str pos len [] in
-			loop (pos + s) (len - s)
-	in
-	loop 0 (Bytes.length str)
-
 module Connect = struct
-
-	let poll sock print =
-		let response_buf = Buffer.create 0 in
-		let process_response () =
-			let lines = ExtString.String.nsplit (Buffer.contents response_buf) "\n" in
-			let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-			List.iter print lines;
-		in
-		(* Use Unix.select to multiplex reading from both server socket and local stdin,
-		avoiding the need for a separate forwarding thread. *)
-		let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
-		let stdin_buf = Bytes.create 1024 in
-		let sock_buf = Bytes.create 1024 in
-		let stdin_active = ref true in
-		let sock_open = ref true in
-		let rec loop () =
-			let read_fds = (if !sock_open then [sock] else []) @ (if !stdin_active then [stdin_fd] else []) in
-			if read_fds = [] then ()
-			else begin
-				let readable, _, _ = Unix.select read_fds [] [] (-1.0) in
-				List.iter (fun fd ->
-					if fd = stdin_fd then begin
-						let n = Unix.read fd stdin_buf 0 1024 in
-						if n = 0 then begin
-							stdin_active := false;
-							(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
-						end else
-							ssend sock (Bytes.sub stdin_buf 0 n)
-					end else begin
-						let b = Unix.recv sock sock_buf 0 1024 [] in
-						Buffer.add_subbytes response_buf sock_buf 0 b;
-						if b > 0 then begin
-							if Bytes.get sock_buf (b - 1) = '\n' then begin
-								process_response ();
-								Buffer.reset response_buf;
-							end
-						end else
-							sock_open := false
-					end
-				) readable;
-				if !sock_open then loop ()
-			end
-		in
-		loop ();
-		process_response ()
-
 	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
 	let do_connect ip port (args : parsed_arg list) =
 		let (domain, host) = match ip with
@@ -107,7 +51,7 @@ module Connect = struct
 		);
 		let raw_args = ("--cwd " ^ Unix.getcwd()) :: Args.to_raw_args args in
 		let s = (String.concat "" (List.map (fun a -> a ^ "\n") raw_args)) in
-		ssend sock (Bytes.of_string (s ^ "\000"));
+		PipeThings.ssend sock (Bytes.of_string (s ^ "\000"));
 		let has_error = ref false in
 		let print line =
 			match (if line = "" then '\x00' else line.[0]) with
@@ -119,7 +63,7 @@ module Connect = struct
 			| _ ->
 				prerr_endline line;
 		in
-		poll sock print;
+		PipeThings.poll sock print;
 		if !has_error then exit 1 else exit 0
 end
 
@@ -427,7 +371,7 @@ let init_wait_socket ip port =
 			if not !closed then
 				match Unix.getsockopt_error sin with
 				| Some _ -> close()
-				| None -> ssend sin (Bytes.unsafe_of_string s);
+				| None -> PipeThings.ssend sin (Bytes.unsafe_of_string s);
 		in
 		{ read; write; close; get_stdin }
 	) in
