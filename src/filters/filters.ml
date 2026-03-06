@@ -526,21 +526,17 @@ let run com ectx before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_before_save;
 	);
 	Common.enter_stage com CSaveStart;
-	ServerCompilationContext.dispose com.sctx;
 	with_timer com.timer_ctx detail_times "save state" None (fun () ->
 		List.iter (fun mt ->
 			update_cache_dependencies ~close_monomorphs:true scom mt;
 		) new_types;
 	);
-	(* Note: We cannot have a thread pool up during the before/after_save callbacks because Eval's thread handling
-	   currently does not get along with it. This is why we need a separate pool for this operation. *)
-	(* Parallel.run_with_pool com.sctx.pool (fun pool -> *)
-		Parallel.ParallelArray.iter None (save_class_state com.compilation_step) new_types_array;
-	(* ); *)
+	Parallel.run_with_pool com.sctx.pool (fun pool ->
+		Parallel.ParallelArray.iter pool (save_class_state com.compilation_step) new_types_array;
+	);
 	Common.enter_stage com CSaveDone;
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	com.sctx.pool <- lazy (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ());
 	destruction com scom ectx detail_times rename_locals_config com.types all_types_array

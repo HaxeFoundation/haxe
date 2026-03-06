@@ -23,7 +23,7 @@ type t = {
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
 	(* The server's domain pool. *)
-	mutable pool : Domainslib.Task.pool Lazy.t;
+	pool : Domainslib.Task.pool Lazy.t;
 }
 
 let create_version () =
