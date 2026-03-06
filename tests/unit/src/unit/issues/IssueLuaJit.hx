@@ -2,7 +2,6 @@ package unit.issues;
 
 class IssueLuaJit extends Test {
 	function testGotoContinue() {
-		#if lua_jit
 		var sum = 0;
 		for (i in 0...10) {
 			if (i % 2 == 0)
@@ -25,13 +24,9 @@ class IssueLuaJit extends Test {
 		eq(result[1], 2);
 		eq(result[2], 4);
 		eq(result[3], 5);
-		#else
-		noAssert();
-		#end
 	}
 
 	function testBreakWithContinue() {
-		#if lua_jit
 		// Verify break still works correctly in loops that also use continue
 		var sum = 0;
 		for (i in 0...10) {
@@ -42,13 +37,9 @@ class IssueLuaJit extends Test {
 			sum += i;
 		}
 		eq(sum, 4); // 1 + 3
-		#else
-		noAssert();
-		#end
 	}
 
 	function testArrayOperations() {
-		#if lua_jit
 		var arr = [1, 2, 3, 4, 5];
 		eq(arr.length, 5);
 		eq(arr[0], 1);
@@ -62,14 +53,9 @@ class IssueLuaJit extends Test {
 		eq(empty.length, 0);
 		empty.push(42);
 		eq(empty[0], 42);
-		#else
-		noAssert();
-		#end
 	}
 
 	function testGotoContinueInTryCatch() {
-		#if lua_jit
-		// Continue inside try-catch should use _hx_pcall_continue sentinel
 		var sum = 0;
 		for (i in 0...10) {
 			try {
@@ -102,14 +88,9 @@ class IssueLuaJit extends Test {
 		eq(result[1], 1);
 		eq(result[2], 3);
 		eq(result[3], 4);
-		#else
-		noAssert();
-		#end
 	}
 
 	function testBreakInTryCatch() {
-		#if lua_jit
-		// Break inside try-catch should use _hx_pcall_break sentinel
 		var sum = 0;
 		for (i in 0...10) {
 			try {
@@ -140,13 +121,9 @@ class IssueLuaJit extends Test {
 		eq(result[0], 1);
 		eq(result[1], 3);
 		eq(result[2], 5);
-		#else
-		noAssert();
-		#end
 	}
 
 	function testNestedLoopContinue() {
-		#if lua_jit
 		var results = [];
 		for (i in 0...3) {
 			for (j in 0...3) {
@@ -163,8 +140,5 @@ class IssueLuaJit extends Test {
 		eq(results[3], 12);
 		eq(results[4], 20);
 		eq(results[5], 22);
-		#else
-		noAssert();
-		#end
 	}
 }
