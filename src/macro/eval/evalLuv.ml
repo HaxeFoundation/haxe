@@ -2086,26 +2086,22 @@ let rwlock_fields = [
 
 let semaphore_fields = [
 	"init", vfun1 (fun v ->
-		encode_result (fun s -> VHandle (HSemaphore s)) (Ok (Stdlib.Semaphore.Counting.make (decode_int v)))
+		encode_result (fun s -> VHandle (HSemaphore s)) (Semaphore.init (decode_int v))
 	);
 	"destroy", vfun1 (fun v ->
-		(* OCaml Semaphore.Counting is GC-managed, no explicit destruction needed *)
-		ignore (decode_semaphore v);
+		Semaphore.destroy (decode_semaphore v);
 		vnull
 	);
 	"post", vfun1 (fun v ->
-		Stdlib.Semaphore.Counting.release (decode_semaphore v);
+		Semaphore.post (decode_semaphore v);
 		vnull
 	);
 	"wait", vfun1 (fun v ->
-		Stdlib.Semaphore.Counting.acquire (decode_semaphore v);
+		Semaphore.wait (decode_semaphore v);
 		vnull
 	);
 	"tryWait", vfun1 (fun v ->
-		if Stdlib.Semaphore.Counting.try_acquire (decode_semaphore v) then
-			encode_unit_result (Ok ())
-		else
-			encode_unit_result (Error `EAGAIN)
+		encode_unit_result (Semaphore.trywait (decode_semaphore v))
 	);
 ]
 

@@ -179,7 +179,7 @@ type vhandle =
 	| HOnce of Luv.Once.t
 	| HMutex of Luv.Mutex.t
 	| HRwLock of Luv.Rwlock.t
-	| HSemaphore of Semaphore.Counting.t
+	| HSemaphore of Luv.Semaphore.t
 	| HCondition of Luv.Condition.t
 	| HBarrier of Luv.Barrier.t
 	| HFsPoll of Luv.FS_poll.t
