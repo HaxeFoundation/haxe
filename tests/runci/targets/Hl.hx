@@ -183,7 +183,7 @@ class Hl {
 			buildAndRunHlc("bin", "reservedKeywords");
 
 			changeDirectory(getMiscSubDir(""));
-			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc"]);
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine]);
 		}
 	}
 }

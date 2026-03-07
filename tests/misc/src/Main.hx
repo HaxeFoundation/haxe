@@ -24,6 +24,11 @@ class Main {
 	}
 
 	static public function compileProjects(args:Array<String>):Result {
+		if (args.length == 0) {
+			Sys.printlin("Missing subdir argument");
+		}
+		final subdir = args.shift();
+		Sys.setCwd(subdir);
 		var count = 0;
 		var failures = 0;
 		var failuresSummary = [];
@@ -47,7 +52,7 @@ class Main {
 					var expectFailure = file.endsWith("-fail.hxml");
 					var expectStdout = if (FileSystem.exists('$file.stdout')) prepareExpectedOutput(File.getContent('$file.stdout')) else null;
 					var expectStderr = if (FileSystem.exists('$file.stderr')) prepareExpectedOutput(File.getContent('$file.stderr')) else null;
-					var result = runCommand("haxe", ["-D", "message.reporting=classic", file], expectFailure, expectStdout, expectStderr);
+					var result = runCommand("haxe", ["-D", "message.reporting=classic", file].concat(args), expectFailure, expectStdout, expectStderr);
 					++count;
 					if (!result.success) {
 						failures++;
@@ -57,7 +62,6 @@ class Main {
 				}
 			}
 		}
-		Sys.setCwd(args[0]);
 		browse("projects");
 		return {
 			count: count,
