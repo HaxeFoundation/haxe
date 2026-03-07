@@ -481,7 +481,7 @@ let create_class_context c p =
 	cctx
 
 let create_typer_context_for_class ctx cctx p =
-	incr stats.s_classes_built;
+	incr ctx.com.request_scope.stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	TyperManager.clone_for_class ctx c
@@ -835,7 +835,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let ctx = TyperManager.clone_for_expr ctx_f fmode function_mode in
 		let bind () =
-			incr stats.s_methods_typed;
+			incr ctx_f.com.request_scope.stats.s_methods_typed;
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			begin match ctx.com.platform with
 				| Jvm when is_java_native_function ctx cf.cf_meta cf.cf_pos ->

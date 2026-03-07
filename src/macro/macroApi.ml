@@ -2213,7 +2213,7 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			let open CompilationContext in
+			let open ParsedArg in
 			let kind = match com.platform with
 				| Jvm -> JavaLib
 				| Flash -> SwfLib
@@ -2267,7 +2267,7 @@ let macro_api ccom get_api =
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
 			encode_obj [
-				"version", vint com.version.version;
+				"version", vint com.sctx.version.version;
 				"args", encode_array (List.map encode_string com.args);
 				"debug", vbool com.debug;
 				"verbose", vbool com.verbose;
@@ -2376,6 +2376,8 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"server_stats", vfun0 (fun () ->
+			let com = ccom() in
+			let stats = com.request_scope.stats in
 			encode_obj [
 				"filesParsed", vint !(stats.s_files_parsed);
 				"modulesTyped", vint !(stats.s_modules_typed);

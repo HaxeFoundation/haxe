@@ -1,4 +1,5 @@
 open Globals
+open ParsedArg
 
 exception Abort
 
@@ -7,45 +8,13 @@ type server_mode =
 	| SMListen of string
 	| SMConnect of string
 
-type native_lib_kind =
-	| JavaLib
-	| SwfLib
-	| HxbLib
-
-type native_lib_arg = {
-	lib_file : string;
-	lib_kind : native_lib_kind;
-	lib_extern : bool;
-}
-
-type arg_context = {
-	mutable classes : Globals.path list;
-	mutable xml_out : string option;
-	mutable hxb_out : string option;
-	mutable json_out : string option;
-	mutable cmds : string list;
-	mutable config_macros : string list;
-	mutable no_output : bool;
-	mutable did_something : bool;
-	mutable force_typing : bool;
-	mutable pre_compilation : (unit -> unit) list;
-	mutable interp : bool;
-	mutable jvm_flag : bool;
-	mutable swf_version : bool;
-	mutable hxb_libs : native_lib_arg list;
-	mutable native_libs : native_lib_arg list;
-	mutable raise_usage : unit -> unit;
-	mutable display_arg : string option;
-	mutable deprecations : string list;
-	mutable measure_times : bool;
-}
-
 type communication = {
 	write_out : string -> unit;
 	write_err : string -> unit;
 	flush     : compilation_context -> unit;
 	exit      : Timer.timer_context -> int -> unit;
 	is_server : bool;
+	stdin     : in_channel option;
 }
 
 and compilation_context = {
@@ -55,28 +24,19 @@ and compilation_context = {
 	mutable has_error : bool;
 	comm : communication;
 	mutable runtime_args : string list;
-	timer_ctx : Timer.timer_context;
+	(** The pre-parsed arguments for this compilation batch. Used by
+	    [Args.process_args_new] to apply arguments to [com]. *)
+	mutable parsed_args : parsed_arg list;
 }
 
-type compilation_callbacks = {
-	before_anything : compilation_context -> unit;
-	after_target_init : compilation_context -> unit;
-	after_save : compilation_context -> unit;
-	after_compilation : compilation_context -> unit;
+type server_connection = {
+	read : unit -> string;
+	write : string -> unit;
+	close : unit -> unit;
+	get_stdin : unit -> in_channel option;
 }
 
-type server_accept = unit -> (bool * (bool -> string option) * (string -> unit) * (unit -> unit))
-
-type server_api = {
-	cache : CompilationCache.t;
-	callbacks : compilation_callbacks;
-	on_context_create : unit -> int;
-	init_wait_socket : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> server_accept;
-	init_wait_connect : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> server_accept;
-	init_wait_stdio : unit -> server_accept;
-	wait_loop : bool -> server_accept -> int;
-	do_connect : (Ipaddr.V4.t, Ipaddr.V6.t) Ipaddr.v4v6 -> int -> string list -> unit;
-}
+type server_accept = unit -> server_connection
 
 let message ctx msg =
 	ctx.messages <- msg :: ctx.messages
@@ -98,8 +58,5 @@ let error ctx ?(depth=0) ?(from_macro = false) msg p =
 	error ctx ~depth ~from_macro msg p;
 	after_error ctx
 
-let create_native_lib file extern kind = {
-	lib_file = file;
-	lib_extern = extern;
-	lib_kind = kind;
-}
+let has_error ctx =
+	ctx.has_error || ctx.com.Common.has_error

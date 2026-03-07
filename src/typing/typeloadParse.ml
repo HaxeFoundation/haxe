@@ -31,7 +31,7 @@ open Error
 exception DisplayInMacroBlock
 
 let parse_file_from_lexbuf com file p lexbuf =
-	incr stats.s_files_parsed;
+	incr com.request_scope.stats.s_files_parsed;
 	let parse_result = try
 		ParserEntry.parse (ParserConfig.file_parser_config com file) Grammar.parse_file (Lexer.create_file_ctx file) lexbuf file
 	with

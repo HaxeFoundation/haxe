@@ -2,4 +2,4 @@
 --macro Main.MacroClass.start()
 --cpp bin
 --no-output
---no-opt
+-D no-opt

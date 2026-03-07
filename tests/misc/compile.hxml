@@ -1,4 +1,5 @@
 -p src
+-p ../tools
 #-D MISC_TEST_FILTER=4270
 -main Main
 --interp 

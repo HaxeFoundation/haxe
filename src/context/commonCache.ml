@@ -109,7 +109,7 @@ let rec cache_context cs com =
 				DynArray.add parallels (cc,m,f)
 	in
 	List.iter cache_module com.modules;
-	let a = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+	let a = Parallel.run_with_pool com.sctx.pool (fun pool ->
 		Parallel.ParallelArray.map pool (fun (cc,m,f) ->
 			let chunks = f() in
 			(cc,m,chunks)
@@ -133,3 +133,9 @@ let lock_signature com name =
 	let cs = com.cs in
 	maybe_add_context_sign cs com name;
 	com.cache <- Some (get_cache com)
+
+let maybe_cache_context com =
+	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
+		Timer.time com.timer_ctx ["server";"cache context"] (cache_context com.cs) com;
+		ServerMessage.cached_modules com "" (List.length com.modules);
+	end

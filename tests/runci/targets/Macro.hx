@@ -33,6 +33,9 @@ class Macro {
 			case 'Linux':
 				changeDirectory(getMiscSubDir('compiler_loops'));
 				runCommand("haxe", ["run.hxml"]);
+
+				changeDirectory(getMiscSubDir('connect_stdin'));
+				runCommand("haxe", ["run.hxml"]);
 			case _: // TODO
 		}
 

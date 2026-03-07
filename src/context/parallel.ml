@@ -44,3 +44,10 @@ let run_in_new_pool timer_ctx f =
 	else
 		let pool = Timer.time timer_ctx ["domainslib";"setup"] (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1)) () in
 		Std.finally (fun () -> Timer.time timer_ctx ["domainslib";"teardown"] Domainslib.Task.teardown_pool pool) (Domainslib.Task.run pool) (fun () -> f (Some pool))
+
+let run_with_pool pool f =
+	if not !enable then
+		f None
+	else
+		let pool = Lazy.force pool in
+		Domainslib.Task.run pool (fun () -> f (Some pool))
