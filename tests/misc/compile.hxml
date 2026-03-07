@@ -1,5 +1,4 @@
--p src
--p ../tools
+run-base.hxml
 #-D MISC_TEST_FILTER=4270
--main Main
---interp 
+--run Main
+eval

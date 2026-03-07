@@ -6,8 +6,6 @@ import haxe.io.*;
 using StringTools;
 
 class Lua {
-	static final miscLuaDir = getMiscSubDir('lua');
-
 	static var useWindowsVcpkg = false;
 	static var msys2Path = Sys.getEnv("MSYS2_LOCATION") ?? "C:\\msys64";
 
@@ -159,11 +157,11 @@ class Lua {
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
-			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));
+			changeDirectory(getMiscSubDir("lua", "luaDeadCode", "stringReflection"));
 			runCommand("haxe", ["compile.hxml"]);
 
-			changeDirectory(miscLuaDir);
-			runCommand("haxe", ["run.hxml"]);
+			changeDirectory(getMiscSubDir(""));
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "lua"]);
 		}
 	}
 }

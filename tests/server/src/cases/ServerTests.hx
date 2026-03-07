@@ -432,7 +432,7 @@ class ServerTests extends TestCase {
 	}
 
 	function testMetadata() {
-		var dummy_path = Path.join(["..", "misc", "projects", "Issue10844"]);
+		var dummy_path = Path.join(["..", "misc", "eval", "projects", "Issue10844"]);
 		Sys.command("haxelib", ["dev", "dummy_doc_dep", Path.join([dummy_path, "dummy_doc_dep"])]);
 		Sys.command("haxelib", ["dev", "dummy_doc", Path.join([dummy_path, "dummy_doc"])]);
 		var args = ["-lib", "dummy_doc"];
@@ -488,7 +488,7 @@ class ServerTests extends TestCase {
 	}
 
 	function testDefines() {
-		var dummy_path = Path.join(["..", "misc", "projects", "Issue10844"]);
+		var dummy_path = Path.join(["..", "misc", "eval", "projects", "Issue10844"]);
 		Sys.command("haxelib", ["dev", "dummy_doc_dep", Path.join([dummy_path, "dummy_doc_dep"])]);
 		Sys.command("haxelib", ["dev", "dummy_doc", Path.join([dummy_path, "dummy_doc"])]);
 		var args = ["-lib", "dummy_doc"];

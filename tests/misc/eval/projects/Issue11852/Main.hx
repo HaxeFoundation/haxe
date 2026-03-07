@@ -41,7 +41,7 @@ class Main {
 
 			for (line in matches) {
 				if (line.endsWith(":")) line = line.substr(0, line.length - 1);
-				if (!line.endsWith('tests/misc/projects/Issue11852/$module')) {
+				if (!line.endsWith('tests/misc/eval/projects/Issue11852/$module')) {
 					trace(module, line);
 					throw 'Incorrect path generated for $module';
 				}
