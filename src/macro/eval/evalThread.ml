@@ -5,59 +5,40 @@ open EvalExceptions
 open EvalValue
 
 module Deque = struct
-	let create id = {
+	let create _ = {
 		dvalues = [];
-		dmutex = DomainMutex.create();
+		dmutex = Mutex.create();
+		dcond = Condition.create();
 	}
 
-	let add this domain_id i =
-		DomainMutex.lock this.dmutex domain_id;
+	let add this i =
+		Mutex.lock this.dmutex;
 		this.dvalues <- this.dvalues @ [i];
-		DomainMutex.unlock this.dmutex
+		Condition.signal this.dcond;
+		Mutex.unlock this.dmutex
 
-	let pop this domain_id blocking =
-		if not blocking then begin
-			DomainMutex.lock this.dmutex domain_id;
-			match this.dvalues with
+	let pop this blocking =
+		Mutex.lock this.dmutex;
+		if blocking then begin
+			while this.dvalues = [] do
+				Condition.wait this.dcond this.dmutex
+			done
+		end;
+		let result = match this.dvalues with
 			| v :: vl ->
 				this.dvalues <- vl;
-				DomainMutex.unlock this.dmutex;
 				Some v
 			| [] ->
-				DomainMutex.unlock this.dmutex;
 				None
-		end else begin
-			(* Optimistic first attempt with immediate lock. *)
-			DomainMutex.lock this.dmutex domain_id;
-			begin match this.dvalues with
-			| v :: vl ->
-				this.dvalues <- vl;
-				DomainMutex.unlock this.dmutex;
-				Some v
-			| [] ->
-				DomainMutex.unlock this.dmutex;
-				(* First attempt failed. Always lock before reading dvalues to ensure
-				   proper acquire barrier on weakly-ordered architectures (e.g. ARM64). *)
-				let rec loop () =
-					Domain.cpu_relax ();
-					DomainMutex.lock this.dmutex domain_id;
-					match this.dvalues with
-					| v :: vl ->
-						this.dvalues <- vl;
-						DomainMutex.unlock this.dmutex;
-						Some v
-					| [] ->
-						DomainMutex.unlock this.dmutex;
-						loop()
-				in
-				loop()
-			end
-		end
+		in
+		Mutex.unlock this.dmutex;
+		result
 
-	let push this domain_id i =
-		DomainMutex.lock this.dmutex domain_id;
+	let push this i =
+		Mutex.lock this.dmutex;
 		this.dvalues <- i :: this.dvalues;
-		DomainMutex.unlock this.dmutex
+		Condition.signal this.dcond;
+		Mutex.unlock this.dmutex
 end
 
 let create_eval thread = {

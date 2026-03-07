@@ -362,7 +362,8 @@ and vthread = {
 
 and vdeque = {
 	mutable dvalues : value list;
-	dmutex : DomainMutex.t;
+	dmutex : Mutex.t;
+	dcond : Condition.t;
 }
 
 and vlock = {
