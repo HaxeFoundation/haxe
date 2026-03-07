@@ -372,7 +372,7 @@ and vlock = {
 
 and vcondition = {
 	cond : Condition.t;
-	cmutex : DomainMutex.t;
+	cmutex : Mutex.t;
 }
 
 let same_handle h1 h2 =
