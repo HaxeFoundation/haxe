@@ -136,7 +136,7 @@ class Hl {
 
 	static public function run(args:Array<String>, withJitTests:Bool, withHlcTests:Bool) {
 		Hl.withJitTests = withJitTests;
-		Hl.withHlcTests = if (isCi()) false else withHlcTests;
+		Hl.withHlcTests = withHlcTests;
 
 		getHlDependencies();
 
