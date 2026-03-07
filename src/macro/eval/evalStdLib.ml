@@ -742,21 +742,21 @@ module StdDeque = struct
 
 	let add = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Deque.add this (current_domain_id()) i;
+		Deque.add this i;
 		vnull
 	)
 
 	let pop = vifun1 (fun vthis blocking ->
 		let this = this vthis in
 		let blocking = decode_bool blocking in
-		match Deque.pop this (current_domain_id()) blocking with
+		match Deque.pop this blocking with
 		| None -> vnull
 		| Some v -> v
 	)
 
 	let push = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Deque.push this (current_domain_id()) i;
+		Deque.push this i;
 		vnull
 	)
 end
@@ -1428,36 +1428,43 @@ module StdLock = struct
 
 	let release = vifun0 (fun vthis ->
 		let this = this vthis in
-		Deque.push this.ldeque (current_domain_id()) vnull;
+		Deque.push this.ldeque vnull;
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
-		let rec loop target_time =
-			match Deque.pop lock.ldeque (current_domain_id()) false with
-			| None ->
-				if Sys.time() >= target_time then
-					vfalse
-				else begin
-					Domain.cpu_relax ();
-					loop target_time
-				end
-			| Some _ ->
-				vtrue
-		in
-		match Deque.pop lock.ldeque (current_domain_id()) false with
-		| None ->
-			begin match timeout with
-				| VNull ->
-					ignore(Deque.pop lock.ldeque (current_domain_id()) true);
-					vtrue
-				| _ ->
-					let target_time = (Sys.time()) +. num timeout in
-					loop target_time
-			end
-		| Some _ ->
+		match timeout with
+		| VNull ->
+			(* Blocking wait: block until release() is called, via condition variable *)
+			Mutex.lock lock.ldeque.dmutex;
+			while lock.ldeque.dvalues = [] do
+				Condition.wait lock.ldeque.dcond lock.ldeque.dmutex
+			done;
+			(match lock.ldeque.dvalues with _ :: vl -> lock.ldeque.dvalues <- vl | [] -> ());
+			Mutex.unlock lock.ldeque.dmutex;
 			vtrue
+		| _ ->
+			(* Timed wait: check with small sleeps to yield CPU to other domains,
+			   using wall-clock time (matches EventLoop's Timer.stamp()). *)
+			let target_time = Unix.gettimeofday() +. num timeout in
+			let rec loop () =
+				let now = Unix.gettimeofday() in
+				if now >= target_time then vfalse
+				else begin
+					Unix.sleepf (min 0.001 (target_time -. now));
+					Mutex.lock lock.ldeque.dmutex;
+					match lock.ldeque.dvalues with
+					| _ :: vl ->
+						lock.ldeque.dvalues <- vl;
+						Mutex.unlock lock.ldeque.dmutex;
+						vtrue
+					| [] ->
+						Mutex.unlock lock.ldeque.dmutex;
+						loop()
+				end
+			in
+			loop()
 	)
 end
 
@@ -2921,12 +2928,12 @@ module StdThread = struct
 	let readMessage = vfun1 (fun blocking ->
 		let eval = get_eval (get_ctx()) in
 		let blocking = decode_bool blocking in
-		Option.get (Deque.pop eval.thread.tdeque (current_domain_id()) blocking)
+		Option.get (Deque.pop eval.thread.tdeque blocking)
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Deque.push this.tdeque (current_domain_id()) msg;
+		Deque.push this.tdeque msg;
 		vnull
 	)
 
