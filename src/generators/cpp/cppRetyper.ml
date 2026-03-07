@@ -1197,12 +1197,18 @@ let expression ctx request_type function_args function_type expression_tree forI
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
 
               ( retyper_ctx, CppCall (FuncExpression expr, retypedArgs), return )
-            | _ ->
-              let arg_types = List.map (fun _ -> TCppUnchanged) args in
+            | CppCallable cls ->
+              let arg_types = List.map (fun (v, _) -> v.tcppv_type) cls.close_args in
               let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
               ( retyper_ctx,
                 CppCall (FuncExpression retypedFunc, retypedArgs),
-                cppType )))
+                cls.close_type )
+            | o ->
+              let arg_types = List.map (fun _ -> TCppDynamic) args in
+              let retyper_ctx, retypedArgs = retype_function_args retyper_ctx args arg_types in
+              ( retyper_ctx,
+                CppCall (FuncExpression retypedFunc, retypedArgs),
+                TCppDynamic )))
       | TNew (class_def, params, args) ->
         let constructor_type =
           match
