@@ -144,6 +144,7 @@ let anon_id_uctx = {
 	equality_kind = EqDoNotFollowNull;
 	allow_optional_mismatch = true;
 	opaque_field_params = true;
+	allow_final_invariance = true;
 }
 
 (* --- *)

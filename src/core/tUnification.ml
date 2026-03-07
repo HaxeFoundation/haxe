@@ -51,6 +51,7 @@ type unification_context = {
 	allow_dynamic_to_cast   : bool; (* allows a cast from dynamic to non-dynamic *)
 	allow_arg_name_mismatch : bool;
 	allow_optional_mismatch : bool; (* allows optional vs. non-optional fields *)
+	allow_final_invariance  : bool;
 	equality_kind           : eq_kind;
 	equality_underlying     : bool;
 	strict_field_kind       : bool;
@@ -90,7 +91,8 @@ let default_unification_context () = {
 	equality_kind           = EqStrict;
 	equality_underlying     = false;
 	strict_field_kind       = false;
-	opaque_field_params       = false;
+	opaque_field_params     = false;
+	allow_final_invariance  = false;
 	type_param_mode         = TpDefault;
 	unify_stack             = new_rec_stack();
 	eq_stack                = new_rec_stack();
@@ -102,15 +104,16 @@ let default_unification_context () = {
 
 (* Unify like targets (e.g. Java) probably would. *)
 let native_unification_context = {
-	allow_transitive_cast = false;
-	allow_abstract_cast   = false;
-	allow_dynamic_to_cast = false;
+	allow_transitive_cast   = false;
+	allow_abstract_cast     = false;
+	allow_dynamic_to_cast   = false;
 	allow_optional_mismatch = true;
-	equality_kind         = EqStrict;
-	equality_underlying   = false;
+	equality_kind           = EqStrict;
+	equality_underlying     = false;
 	allow_arg_name_mismatch = true;
 	strict_field_kind       = false;
-	opaque_field_params       = false;
+	opaque_field_params     = false;
+	allow_final_invariance  = true;
 	type_param_mode         = TpDefault;
 	unify_stack             = new_rec_stack();
 	eq_stack                = new_rec_stack();
@@ -517,31 +520,33 @@ let has_extra_field t n = Has_extra_field (t,n)
 (*
 	we can restrict access as soon as both are runtime-compatible
 *)
-let unify_access a1 a2 =
+let unify_var_access uctx a1 a2 =
 	a1 = a2 || match a1, a2 with
 	| _, AccNo | _, AccNever -> true
 	| AccInline, AccNormal -> true
 	| AccCall, AccPrivateCall -> true
+	| AccNormal, AccCtor | AccCtor, AccNormal -> uctx.allow_final_invariance
 	| _ -> false
 
 let direct_access = function
 	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
 	| AccCall | AccPrivateCall -> false
 
-let unify_kind ~(strict:bool) k1 k2 =
+let unify_kind uctx k1 k2 =
 	k1 = k2 || match k1, k2 with
-		| Var v1, Var v2 -> unify_access v1.v_read v2.v_read && unify_access v1.v_write v2.v_write
+		| Var v1, Var v2 ->
+			unify_var_access uctx v1.v_read v2.v_read && unify_var_access uctx v1.v_write v2.v_write
 		| Method m1, Method m2 ->
 			(match m1,m2 with
 			| MethInline, MethNormal
 			| MethDynamic, MethNormal -> true
 			| _ -> false)
-		| Var v, Method m when not strict ->
+		| Var v, Method m when not uctx.strict_field_kind ->
 			(match v.v_read, v.v_write, m with
 			| AccNormal, _, MethNormal -> true
 			| AccNormal, AccNormal, MethDynamic -> true
 			| _ -> false)
-		| Method m, Var v when not strict ->
+		| Method m, Var v when not uctx.strict_field_kind ->
 			(match m with
 			| MethDynamic -> direct_access v.v_read && direct_access v.v_write
 			| MethMacro -> false
@@ -685,7 +690,7 @@ let rec type_eq uctx a b =
 						| EqStrict | EqCoreType | EqDoNotFollowNull | EqStricter -> true
 						| _ -> false
 					in
-					if f1.cf_kind <> f2.cf_kind && (kind_should_match || not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+					if f1.cf_kind <> f2.cf_kind && (kind_should_match || not (unify_kind uctx f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
 					(try type_eq uctx a b with Unify_error l -> error (invalid_field n :: l));
 					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
@@ -878,7 +883,7 @@ let rec unify (uctx : unification_context) a b =
 				in
 				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
 				let ft = apply_params c.cl_params tl ft in
-				if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+				if not (unify_kind uctx f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 
 				(match f2.cf_kind with
@@ -1032,7 +1037,7 @@ and unify_anons uctx a b a1 a2 =
 	let unify_field a1_fields f2 =
 		let n = f2.cf_name in
 		let f1 = PMap.find n a1_fields in
-		if not (unify_kind ~strict:uctx.strict_field_kind f1.cf_kind f2.cf_kind) then
+		if not (unify_kind uctx f1.cf_kind f2.cf_kind) then
 			error [invalid_kind n f1.cf_kind f2.cf_kind];
 		if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then
 			error [invalid_visibility n];
@@ -1270,7 +1275,7 @@ and unify_with_access uctx f1 t1 f2 =
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
 		let is_final = has_class_field_flag f1 CfFinal in
 		let is_final2 = has_class_field_flag f2 CfFinal in
-		if (is_final <> is_final2) then raise (
+		if (is_final <> is_final2) && not uctx.allow_final_invariance then raise (
 			Unify_error [
 				Cannot_unify (f2.cf_type, f1.cf_type);
 				FinalInvariance (is_final2, is_final)

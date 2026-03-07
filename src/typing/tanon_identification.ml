@@ -53,6 +53,7 @@ module AnonIdMode = struct
 		equality_underlying = false;
 		strict_field_kind = true;
 		opaque_field_params = false;
+		allow_final_invariance = false;
 		type_param_mode = TpDefault;
 		unify_stack = new_rec_stack();
 		eq_stack = new_rec_stack();
@@ -105,7 +106,7 @@ object(self)
 					let monos = List.map (fun _ -> mk_mono()) pfm.pfm_params in
 					let map = apply_params pfm.pfm_params monos in
 					List.iter (fun (cf,cf') ->
-						if not (unify_kind ~strict:uctx.strict_field_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
+						if not (unify_kind uctx cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						Type.unify (apply_params c.cl_params tl (get_field_type cf')) (map (get_field_type cf))
 					) pairs;
 					monos
@@ -116,7 +117,7 @@ object(self)
 					let map = apply_params pfm.pfm_params monos in
 					List.iter (fun (cf,cf') ->
 						if not uctx.allow_optional_mismatch && (Meta.has Meta.Optional cf.cf_meta) != (Meta.has Meta.Optional cf'.cf_meta) then raise (Unify_error [Unify_custom "optional mismatch"]);
-						if not (unify_kind ~strict:uctx.strict_field_kind cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
+						if not (unify_kind uctx cf'.cf_kind cf.cf_kind) then raise (Unify_error [Unify_custom "kind mismatch"]);
 						fields := PMap.remove cf.cf_name !fields;
 						type_eq_custom uctx (get_field_type cf') (map (get_field_type cf))
 					) pairs;
