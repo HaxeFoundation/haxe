@@ -12,6 +12,10 @@ class Issue12746 extends Test {
 	function test() {
 		final obj = new Foo();
 
+		final a:Event->Void = cast obj.onMouseMove;
+		final b:Event->Void = cast obj.onMouseMove;
+		t(a == b);
+
 		t(genericCast(obj.onMouseMove, obj.onMouseMove));
 	}
 
