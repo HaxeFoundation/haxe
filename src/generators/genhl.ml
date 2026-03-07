@@ -141,10 +141,11 @@ let compare_version v1 v2 =
      with concrete types (e.g. Int) and two uses of the same generic method are equal *)
 let anon_id_uctx = {
 	AnonIdMode.strict with
-	equality_kind = EqDoNotFollowNull;
+	equality_kind = EqStrict;
 	allow_optional_mismatch = true;
 	opaque_field_params = true;
 	allow_final_invariance = true;
+	null_follow_mode = FollowIfNullable;
 }
 
 (* --- *)

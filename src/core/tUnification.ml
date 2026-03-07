@@ -29,7 +29,6 @@ type eq_kind =
 	| EqCoreType
 	| EqRightDynamic
 	| EqBothDynamic
-	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 	| EqStricter
 
 type type_param_unification_context = {
@@ -45,6 +44,11 @@ type 'a rec_stack = {
 	mutable rec_stack : 'a list;
 }
 
+type null_follow_mode =
+	| NeverFollow
+	| AlwaysFollow
+	| FollowIfNullable
+
 type unification_context = {
 	allow_transitive_cast   : bool;
 	allow_abstract_cast     : bool; (* allows a non-transitive abstract cast (from,to,@:from,@:to) *)
@@ -57,6 +61,7 @@ type unification_context = {
 	strict_field_kind       : bool;
 	opaque_field_params     : bool; (* treat cf_params as opaque: don't substitute them with fresh monomorphs during unification *)
 	type_param_mode         : type_param_mode;
+	null_follow_mode        : null_follow_mode;
 	unify_stack             : (t * t) rec_stack;
 	eq_stack                : (t * t) rec_stack;
 	variance_stack          : (t * t) rec_stack;
@@ -94,6 +99,7 @@ let default_unification_context () = {
 	opaque_field_params     = false;
 	allow_final_invariance  = false;
 	type_param_mode         = TpDefault;
+	null_follow_mode		= AlwaysFollow;
 	unify_stack             = new_rec_stack();
 	eq_stack                = new_rec_stack();
 	variance_stack          = new_rec_stack();
@@ -114,6 +120,7 @@ let native_unification_context = {
 	strict_field_kind       = false;
 	opaque_field_params     = false;
 	allow_final_invariance  = true;
+	null_follow_mode		= FollowIfNullable;
 	type_param_mode         = TpDefault;
 	unify_stack             = new_rec_stack();
 	eq_stack                = new_rec_stack();
@@ -590,15 +597,15 @@ let rec_stack_default stack value fcheck frun def =
 
 let rec type_eq uctx a b =
 	let param = uctx.equality_kind in
-	let can_follow_null = match param with
-		| EqStricter | EqDoNotFollowNull -> false
-		| _ -> true
-	in
 	let can_follow t = match param with
 		| EqStricter -> false
 		| EqCoreType -> false
-		| EqDoNotFollowNull -> not (is_explicit_null t)
 		| _ -> true
+	in
+	let can_follow_null t = match uctx.null_follow_mode with
+		| AlwaysFollow -> true
+		| NeverFollow -> false
+		| FollowIfNullable -> is_nullable t
 	in
 	let can_follow_abstract ab = uctx.equality_underlying && match ab.a_this with
 		| TAbstract (ab',_) -> ab' != ab
@@ -627,9 +634,9 @@ let rec type_eq uctx a b =
 		()
 	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
 		type_eq uctx t1 t2
-	| TAbstract ({a_path=[],"Null"},[t]),_ when can_follow_null ->
+	| TAbstract ({a_path=[],"Null"},[t]),t2 when can_follow_null t2 ->
 		type_eq uctx t b
-	| _,TAbstract ({a_path=[],"Null"},[t]) when can_follow_null ->
+	| t1,TAbstract ({a_path=[],"Null"},[t]) when can_follow_null t1 ->
 		type_eq uctx a t
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params uctx a b tl1 tl2
@@ -687,7 +694,7 @@ let rec type_eq uctx a b =
 				try
 					let f2 = PMap.find n a2.a_fields in
 					let kind_should_match = match param with
-						| EqStrict | EqCoreType | EqDoNotFollowNull | EqStricter -> true
+						| EqStrict | EqCoreType | EqStricter -> true
 						| _ -> false
 					in
 					if f1.cf_kind <> f2.cf_kind && (kind_should_match || not (unify_kind uctx f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];

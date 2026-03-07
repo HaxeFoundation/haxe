@@ -41,7 +41,7 @@ let pfm_of_typedef td = match follow td.t_type with
 		die "" __LOC__
 
 module AnonIdMode = struct
-	let default = {(default_unification_context()) with equality_kind = EqDoNotFollowNull}
+	let default = {(default_unification_context()) with null_follow_mode = NeverFollow}
 
 	let strict = {
 		allow_transitive_cast = false;
@@ -55,6 +55,7 @@ module AnonIdMode = struct
 		opaque_field_params = false;
 		allow_final_invariance = false;
 		type_param_mode = TpDefault;
+		null_follow_mode = NeverFollow;
 		unify_stack = new_rec_stack();
 		eq_stack = new_rec_stack();
 		variance_stack = new_rec_stack();
