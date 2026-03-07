@@ -6,8 +6,6 @@ import runci.Config.*;
 using haxe.io.Path;
 
 class Php {
-	static final miscPhpDir = getMiscSubDir('php');
-
 	static final windowsPhpIni = cwd + 'PHP.ini';
 
 	static var windowsPhpExtPath(get, null) = null;
@@ -70,8 +68,8 @@ class Php {
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
 
-		changeDirectory(miscPhpDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "php"]);
 
 		final binDir = "bin/php";
 

@@ -14,7 +14,6 @@ import runci.Config.*;
 using StringTools;
 
 class Flash {
-	static final miscFlashDir = getMiscSubDir('flash');
 	static var playerLocation:String;
 
 	static final DEFAULT_APACHE_MIRROR = "https://downloads.apache.org/";
@@ -252,8 +251,8 @@ class Flash {
 			runFlash("bin/unit.swf");
 		}
 
-		changeDirectory(miscFlashDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "flash"]);
 	}
 
 }

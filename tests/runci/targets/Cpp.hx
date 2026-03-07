@@ -6,7 +6,6 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
-	static final miscCppDir = getMiscSubDir('cpp');
 
 	static public function getCppDependencies() {
 		if (gotCppDependencies) return;
@@ -78,7 +77,7 @@ class Cpp {
 			runCpp("bin/TestObjc-debug");
 		}
 
-		changeDirectory(miscCppDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "cpp"]);
 	}
 }

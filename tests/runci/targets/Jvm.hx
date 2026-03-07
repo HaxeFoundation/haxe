@@ -10,8 +10,6 @@ class Jvm {
 		runCommand("javac", ["-version"]);
 	}
 
-	static final miscJavaDir = getMiscSubDir('java');
-
 	static public function run(args:Array<String>) {
 		deleteDirectoryRecursively("bin/jvm");
 		getJavaDependencies();
@@ -33,8 +31,8 @@ class Jvm {
 			runCommand("java", ["-jar", "bin/unit.jar"]);
 		}
 
-		changeDirectory(miscJavaDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "jvm"]);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-jvm.hxml"].concat(args));

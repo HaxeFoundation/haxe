@@ -176,8 +176,8 @@ class Hl {
 
 		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
 		// so they are not skipped with --skip-hl-jit
-		changeDirectory(miscHlDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "hl"]);
 
 		if (Hl.withHlcTests) {
 			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
