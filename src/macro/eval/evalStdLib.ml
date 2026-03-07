@@ -4023,8 +4023,8 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"luv"], "FileSync") EvalLuv.file_sync_fields [];
 	init_fields builtins (["eval";"luv"], "DirSync") EvalLuv.dir_sync_fields [];
 	init_fields builtins (["eval";"luv";"_FsEvent"], "FsEvent_Impl_") EvalLuv.fs_event_fields [];
-	(* init_fields builtins (["eval";"luv"], "ThreadPool") EvalLuv.thread_pool_fields []; *)
-	(* init_fields builtins (["eval";"luv";"_Thread"], "Thread_Impl_") EvalLuv.thread_fields []; *)
+	init_fields builtins (["eval";"luv"], "ThreadPool") EvalLuv.thread_pool_fields [];
+	init_fields builtins (["eval";"luv";"_Thread"], "Thread_Impl_") EvalLuv.thread_fields [];
 	init_fields builtins (["eval";"luv";"_Once"], "Once_Impl_") EvalLuv.once_fields [];
 	init_fields builtins (["eval";"luv";"_Mutex"], "Mutex_Impl_") EvalLuv.mutex_fields [];
 	init_fields builtins (["eval";"luv";"_RwLock"], "RwLock_Impl_") EvalLuv.rwlock_fields [];
