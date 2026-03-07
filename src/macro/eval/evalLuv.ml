@@ -1968,52 +1968,68 @@ let fs_event_fields = [
 	);
 ]
 
-(* let thread_pool_fields = [
+let thread_pool_fields = [
 	"createRequest", vfun0 (fun() ->
 		VHandle (HThreadPoolRequest (Thread_pool.Request.make()))
 	);
 	"queueWork", vfun4 (fun v1 v2 v3 v4 ->
-		let loop = decode_loop v1
-		and request =
+		let loop = decode_loop v1 in
+		(* The request handle was used by libuv for cancellation. Since we use
+		   OCaml domains instead of libuv's thread pool, cancellation via the
+		   request handle is not supported. *)
+		let _request =
 			decode_optional (function
 				| VHandle (HThreadPoolRequest r) -> r
 				| v -> unexpected_value v "eval.luv.ThreadPool.ThreadPoolRequest"
 			) v2
-		and work =
-			let cb = prepare_callback v3 0 in
-			(fun() -> EvalThread.run (get_ctx()) (fun() -> cb []))
-		and callback = encode_unit_callback v4 in
-		Thread_pool.queue_work ~loop ?request work callback;
+		in
+		let ctx = get_ctx() in
+		let work_cb = prepare_callback v3 0 in
+		let done_cb = prepare_callback v4 1 in
+		let ok_result = encode_unit_result (Result.Ok ()) in
+		(match Async.init ~loop (fun async ->
+			ignore(done_cb [ok_result]);
+			Handle.close (Handle.coerce async) (fun() -> ())
+		) with
+		| Result.Error e -> ignore(done_cb [encode_unit_result (Result.Error e)])
+		| Result.Ok async ->
+			(* Fire-and-forget: the domain signals completion via the async handle. *)
+			let _thread = EvalThread.spawn ctx (fun() ->
+				ignore(work_cb []);
+				ignore(Async.send async)
+			) in
+			());
 		vnull
 	);
-	"setSize", vfun2 (fun v1 v2 ->
-		let size = decode_int v1
-		and if_not_already_set = decode_optional decode_bool v2 in
-		Thread_pool.set_size ?if_not_already_set size;
+	"setSize", vfun2 (fun _v1 _v2 ->
+		(* No-op: domain count is determined by the system *)
 		vnull
 	);
-] *)
+]
 
-(* let thread_fields = [
+let thread_fields = [
 	"self", vfun0 (fun() ->
-		VHandle (HThread (Thread.self()))
+		let eval = get_eval (get_ctx()) in
+		let t = eval.thread in
+		VHandle (HThread { lu_tid = t.tid; lu_domain = t.tthread })
 	);
-	"create", vfun2 (fun v1 v2 ->
-		let fn =
-			let cb = prepare_callback v1 0 in
-			(fun() -> EvalThread.run (get_ctx()) (fun() -> cb []))
-		and stack_size = decode_optional decode_int v2 in
-		encode_result (fun t -> VHandle (HThread t)) (Thread.create ?stack_size fn)
+	"create", vfun2 (fun v1 _v2 ->
+		let ctx = get_ctx() in
+		let cb = prepare_callback v1 0 in
+		let thread = EvalThread.spawn ctx (fun() -> ignore(cb [])) in
+		let luv_t = { lu_tid = thread.tid; lu_domain = thread.tthread } in
+		encode_result (fun t -> VHandle (HThread t)) (Result.Ok luv_t)
 	);
 	"join", vfun1 (fun v ->
 		let thread =
 			match v with
 			| VHandle (HThread t) -> t
-			| _ -> unexpected_value v "eval.luv.Thread"
+			| v -> unexpected_value v "eval.luv.Thread"
 		in
-		encode_unit_result (Thread.join thread)
+		Domain.join thread.lu_domain;
+		encode_unit_result (Result.Ok ())
 	);
-] *)
+]
 
 let once_fields = [
 	"init", vfun0 (fun() ->
