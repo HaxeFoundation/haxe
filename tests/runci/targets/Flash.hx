@@ -252,8 +252,6 @@ class Flash {
 			runFlash("bin/unit.swf");
 		}
 
-		Display.maybeRunDisplayTests(Flash);
-
 		changeDirectory(miscFlashDir);
 		runCommand("haxe", ["run.hxml"]);
 	}

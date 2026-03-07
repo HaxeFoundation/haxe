@@ -1,4 +1,4 @@
-Main.hx:16: [--main,Main,--macro,Main.MacroClass.start(),--cpp,bin,--no-output,--no-opt]
+Main.hx:16: [--main,Main,--macro,Main.MacroClass.start(),--cpp,bin,--no-output,-D,no-opt]
 Main.hx:17: false
 Main.hx:18: false
 Main.hx:19: false

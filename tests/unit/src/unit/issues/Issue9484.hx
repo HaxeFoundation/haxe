@@ -10,15 +10,11 @@ private class Hoge {
 
 class Issue9484 extends Test {
 	function test() {
-		#if lua
 		var a = new Hoge(5);
 		var serializedA = haxe.Serializer.run(a);
 		var unserialized:Hoge = haxe.Unserializer.run(serializedA);
 		eq(unserialized.x, 5);
 		var serializedB = haxe.Serializer.run(unserialized);
 		eq(serializedA, serializedB);
-		#else
-		noAssert();
-		#end
 	}
 }

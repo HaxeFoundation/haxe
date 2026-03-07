@@ -207,14 +207,15 @@ let handler =
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
+			let version = hctx.com.sctx.version in
 			Result (JObject [
 				"methods",jarray methods;
 				"haxeVersion",jobject [
-					"major",jint hctx.com.version.major;
-					"minor",jint hctx.com.version.minor;
-					"patch",jint hctx.com.version.revision;
-					"pre",(match hctx.com.version.pre with None -> jnull | Some pre -> jstring pre);
-					"build",(match hctx.com.version.extra with None -> jnull | Some(_,build) -> jstring build);
+					"major",jint version.major;
+					"minor",jint version.minor;
+					"patch",jint version.revision;
+					"pre",(match version.pre with None -> jnull | Some pre -> jstring pre);
+					"build",(match version.extra with None -> jnull | Some(_,build) -> jstring build);
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
@@ -250,6 +251,13 @@ let handler =
 			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
 			NoResponse
 		);
+		"display/statistics", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display ~skip_define:true DMNone;
+			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
+			hctx.com.report_mode <- RMStatistics;
+			NoResponse
+		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);
@@ -280,6 +288,16 @@ let handler =
 		"display/package", (fun hctx ->
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display DMPackage;
+			NoResponse
+		);
+		"display/documentSymbols", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display (DMModuleSymbols None);
+			NoResponse
+		);
+		"display/workspaceSymbols", (fun hctx ->
+			let filter = hctx.jsonrpc#get_string_param "filter" in
+			hctx.display#enable_display (DMModuleSymbols (Some filter));
 			NoResponse
 		);
 		"display/signatureHelp", (fun hctx ->
@@ -563,7 +581,7 @@ type parse_input_result =
 	| Completed
 
 let parse_input com input =
-	let io = com.io in
+	let io = com.part_scope.io in
 	let input = JsonRpc.parse_request input in
 	let jsonrpc = new jsonrpc_handler input in
 
@@ -659,7 +677,7 @@ let parse_input com input =
 
 let parse_input com input =
 	let handle_error json =
-		send_json com.io json;
+		send_json com.part_scope.io json;
 		Completed
 	in
 	JsonRpc.handle_jsonrpc_error (fun () ->

@@ -178,6 +178,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
@@ -218,7 +219,7 @@ jobs:
         run: export DISPLAY=:99.0
 
       - name: Test
-        run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+        run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -407,6 +408,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: win${{env.ARCH}}Binaries
@@ -484,7 +486,7 @@ jobs:
 
       - name: Test
         shell: pwsh
-        run: haxe RunCi.hxml -D include_legacy
+        run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
         env:
@@ -548,6 +550,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: macBinaries
@@ -581,7 +584,7 @@ jobs:
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+          haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 
