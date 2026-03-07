@@ -2,4 +2,4 @@
 --macro Macro.run()
 -hl bin/test.hl
 -D dump
--main HlCodeTests
+-main Main

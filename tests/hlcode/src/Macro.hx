@@ -33,10 +33,10 @@ class Macro {
 	/** Entry point: call this from compile.hxml with `--macro Macro.run()` **/
 	public static macro function run():Void {
 		Context.onAfterInitMacros(() -> {
-			var dir = sys.FileSystem.readDirectory("src");
+			var dir = sys.FileSystem.readDirectory("src/cases");
 			for (file in dir) {
-				if (file.endsWith(".hx") && file != "Macro.hx") {
-					var name = file.substr(0, file.length - 3);
+				if (file.endsWith(".hx")) {
+					var name = "cases." + file.substring(0, file.length - 3);
 					Context.getType(name);
 					classes.push(name);
 				}
@@ -131,6 +131,8 @@ class Macro {
 		var lines = dump.replace("\r", "").split("\n");
 		var i = 0;
 		var inFunctions = false;
+		var isSectionEnd = ~/^\d+ (objects protos|constant values)$/;
+		var funcNameRegex = ~/\(([^()]+)\)\s*$/;
 
 		while (i < lines.length) {
 			var line = lines[i];
@@ -144,7 +146,7 @@ class Macro {
 			}
 
 			// End of functions section
-			if (~/^\d+ objects protos$/.match(line) || ~/^\d+ constant values$/.match(line)) {
+			if (isSectionEnd.match(line)) {
 				break;
 			}
 
@@ -157,15 +159,14 @@ class Macro {
 				if (i < lines.length && lines[i].startsWith("\t;")) {
 					var commentLine = lines[i];
 					// Extract function name from the last "(...)" in the comment
-					var nameReg = ~/\(([^()]+)\)\s*$/;
-					var funcName = nameReg.match(commentLine) ? nameReg.matched(1) : null;
+					var funcName = funcNameRegex.match(commentLine) ? funcNameRegex.matched(1) : null;
 					i++;
 
 					// Collect register and instruction lines until next function or section end
 					var bodyLines = [funcHeader, commentLine];
 					while (i < lines.length) {
 						var bodyLine = lines[i];
-						if (bodyLine.startsWith("\tfun@") || ~/^\d+ objects protos/.match(bodyLine) || ~/^\d+ constant values/.match(bodyLine)) {
+						if (bodyLine.startsWith("\tfun@") || isSectionEnd.match(bodyLine)) {
 							break;
 						}
 						bodyLines.push(bodyLine);
