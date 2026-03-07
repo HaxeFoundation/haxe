@@ -779,17 +779,23 @@ let handler =
 	h
 
 let make_connection socket =
+	let current_eval_thread_id () =
+		try
+			(get_eval (get_ctx())).thread.tid
+		with _ ->
+			Thread.id (Thread.self())
+	in
 	let output_thread_event thread_id reason =
 		send_event socket "threadEvent" (Some (JObject ["threadId",JInt thread_id;"reason",JString reason]))
 	in
 	let output_breakpoint_stop debug =
-		(* TODO: this isn't thread-safe. We should only creates these anew if all threads continued *)
+		(* TODO: this isn't thread-safe. We should only create these anew if all threads continued *)
 		debug.debug_context <- new eval_debug_context;
-		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
+		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (current_eval_thread_id())]))
 	in
 	let output_exception_stop debug v _ =
 		debug.debug_context <- new eval_debug_context;
-		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()));"text",JString (value_string v)]))
+		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (current_eval_thread_id());"text",JString (value_string v)]))
 	in
 	let wait () : unit =
 		let rec process_outcome id outcome =
