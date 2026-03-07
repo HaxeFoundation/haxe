@@ -1610,6 +1610,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
     output_i "int __Compare(const ::hx::Object* inRhs) const override {\n";
     output_i (Printf.sprintf "\treturn dynamic_cast<const _hx_Closure_%i*>(inRhs) ? 0 : -1;\n" closure.close_id);
     output_i "}\n";
+    output_i "std::type_index callableId() const override {\n";
+    output_i (Printf.sprintf "\treturn std::type_index{ typeid(_hx_Closure_%i) };\n" closure.close_id);
+    output_i "}\n";
 
     let return =
       match closure.close_type with TCppVoid -> "(void)" | _ -> "return"
