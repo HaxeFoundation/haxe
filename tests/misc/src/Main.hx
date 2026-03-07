@@ -25,7 +25,7 @@ class Main {
 
 	static public function compileProjects(args:Array<String>):Result {
 		if (args.length == 0) {
-			Sys.printlin("Missing subdir argument");
+			Sys.print("Missing subdir argument");
 		}
 		final subdir = args.shift();
 		Sys.setCwd(subdir);
