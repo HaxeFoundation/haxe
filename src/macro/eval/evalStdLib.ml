@@ -1443,7 +1443,7 @@ module StdLock = struct
 					vfalse
 				else begin
 					(* Back off a little to avoid starving timer/event threads on many timed waits. *)
-					Thread.delay (min remaining 0.005);
+					Unix.sleepf (min remaining 0.005);
 					loop target_time
 				end
 			| Some _ ->
@@ -2811,10 +2811,8 @@ module StdSys = struct
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
 	let sleep = vfun1 (fun f ->
-		let time = Sys.time() in
-		Domain.cpu_relax ();
-		let diff = Sys.time() -. time in
-		Thread.delay ((num f) -. diff);
+		let t = num f in
+		if t > 0.0 then Unix.sleepf t;
 		vnull
 	)
 
@@ -2869,7 +2867,8 @@ module StdThread = struct
 		| _ -> unexpected_value vthis "Thread"
 
 	let delay = vfun1 (fun f ->
-		Thread.delay (num f);
+		let t = num f in
+		if t > 0.0 then Unix.sleepf t;
 		vnull
 	)
 
