@@ -1892,37 +1892,24 @@ module StdCondition = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let cond = this vthis in
-		let domain_id = current_domain_id () in
-		DomainMutex.lock cond.cmutex domain_id;
+		Mutex.lock cond.cmutex;
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let cond = this vthis in
-		let domain_id = current_domain_id () in
-		vbool (DomainMutex.try_lock cond.cmutex domain_id)
+		vbool (Mutex.try_lock cond.cmutex);
 	)
 
 	let release = vifun0 (fun vthis ->
 		let cond = this vthis in
-		DomainMutex.unlock cond.cmutex;
+		Mutex.unlock cond.cmutex;
 		vnull
 	)
 
 	let wait = vifun0 (fun vthis ->
 		let c = this vthis in
-		(* Save reentrant depth and fully release the DomainMutex.
-		   Set ddepth to 1 so that Condition.wait's internal unlock
-		   (which calls Mutex.unlock on dmutex) fully releases it. *)
-		let saved_depth = c.cmutex.ddepth in
-		c.cmutex.ddepth <- 1;
-		Atomic.set c.cmutex.downer (-1);
-		(* Condition.wait atomically releases the underlying mutex and blocks *)
-		Condition.wait c.cond c.cmutex.dmutex;
-		(* Re-acquire: Condition.wait re-acquires the mutex before returning *)
-		let domain_id = current_domain_id () in
-		Atomic.set c.cmutex.downer domain_id;
-		c.cmutex.ddepth <- saved_depth;
+		Condition.wait c.cond c.cmutex;
 		vnull
 	)
 
@@ -3520,7 +3507,7 @@ let init_constructors builtins =
 		(fun _ ->
 			let cond = {
 				cond = Condition.create ();
-				cmutex = DomainMutex.create ();
+				cmutex = Mutex.create ();
 			} in
 			encode_instance key_sys_net_Condition ~kind:(ICondition cond)
 		);
