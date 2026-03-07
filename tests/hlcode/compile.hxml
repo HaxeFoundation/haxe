@@ -1,4 +1,5 @@
 -p src
+-p ../tools
 --macro Macro.run()
 -hl bin/test.hl
 -D dump

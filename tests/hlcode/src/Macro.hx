@@ -90,9 +90,7 @@ class Macro {
 					var normalizedActual = normalize(actual);
 					if (normalizedExpected != normalizedActual) {
 						++failures;
-						Context.warning('Test failed for $funcName', cf.pos);
-						Context.warning('Expected:\n$normalizedExpected', cf.pos);
-						Context.warning('  Actual:\n$normalizedActual', cf.pos);
+						Context.warning('Test failed for $funcName\n${makeDiff(normalizedExpected, normalizedActual)}', cf.pos);
 					}
 				}
 			}
@@ -121,6 +119,19 @@ class Macro {
 			default:
 				Context.error("String or markup literal expected for @:hl", e.pos);
 		}
+	}
+
+	/**
+		Produce a unified diff between two normalized strings for readable test failure output.
+	**/
+	static function makeDiff(expected:String, actual:String):String {
+		final a = new diff.FileData(haxe.io.Bytes.ofString(expected), "expected", Date.now());
+		final b = new diff.FileData(haxe.io.Bytes.ofString(actual), "actual", Date.now());
+		final ctx:diff.Context = {file1: a, file2: b, context: 3};
+		final script = diff.Analyze.diff2Files(ctx);
+		final result = diff.Printer.printUnidiff(ctx, script);
+		// Strip the file header lines (--- expected / +++ actual)
+		return result.split("\n").slice(2).join("\n");
 	}
 
 	/**
