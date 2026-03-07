@@ -1,0 +1,3 @@
+-cp ../src
+-cp ../../tools
+--run Main
