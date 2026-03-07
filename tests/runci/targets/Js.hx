@@ -77,7 +77,7 @@ class Js {
 		runCommand("node", ["bin/unit.js"]);
 
 		infoMsg("Test ES6:");
-		changeDirectory(getMiscSubDir("es6"));
+		changeDirectory(getMiscSubDir("js", "es6"));
 		runCommand("haxe", ["run.hxml"]);
 
 		final env = Sys.environment();

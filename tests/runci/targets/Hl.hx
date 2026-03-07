@@ -22,9 +22,6 @@ class Hl {
 	static final hlInstallDir = if (systemName == "Windows") hlInstallBinDir else hlInstallBinDir.directory();
 	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
 
-	static final miscHlDir = getMiscSubDir('hl');
-	static final miscHlcDir = getMiscSubDir('hlc');
-
 	static var withJitTests = true;
 	static var withHlcTests = true;
 
@@ -171,7 +168,7 @@ class Hl {
 			buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
 		}
 
-		changeDirectory(getMiscSubDir("eventLoop"));
+		changeDirectory(getMiscSubDir("cross", "eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");
 
 		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
@@ -185,8 +182,8 @@ class Hl {
 			runCommand("haxe", ["compile.hxml", "-D", hlcTemplateDefine]);
 			buildAndRunHlc("bin", "reservedKeywords");
 
-			changeDirectory(miscHlcDir);
-			runCommand("haxe", ["run.hxml", "-D", hlcTemplateDefine]);
+			changeDirectory(getMiscSubDir(""));
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc"]);
 		}
 	}
 }

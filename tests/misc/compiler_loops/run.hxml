@@ -1,4 +1,0 @@
--cp ../src
--cp ../../tools
--D timeout=3
---run Main
