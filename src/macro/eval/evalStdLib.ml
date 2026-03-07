@@ -742,21 +742,21 @@ module StdDeque = struct
 
 	let add = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Deque.add this (current_domain_id()) i;
+		Deque.add this i;
 		vnull
 	)
 
 	let pop = vifun1 (fun vthis blocking ->
 		let this = this vthis in
 		let blocking = decode_bool blocking in
-		match Deque.pop this (current_domain_id()) blocking with
+		match Deque.pop this blocking with
 		| None -> vnull
 		| Some v -> v
 	)
 
 	let push = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Deque.push this (current_domain_id()) i;
+		Deque.push this i;
 		vnull
 	)
 end
@@ -1428,14 +1428,14 @@ module StdLock = struct
 
 	let release = vifun0 (fun vthis ->
 		let this = this vthis in
-		Deque.push this.ldeque (current_domain_id()) vnull;
+		Deque.push this.ldeque vnull;
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
 		let rec loop target_time =
-			match Deque.pop lock.ldeque (current_domain_id()) false with
+			match Deque.pop lock.ldeque false with
 			| None ->
 				if Sys.time() >= target_time then
 					vfalse
@@ -1446,11 +1446,11 @@ module StdLock = struct
 			| Some _ ->
 				vtrue
 		in
-		match Deque.pop lock.ldeque (current_domain_id()) false with
+		match Deque.pop lock.ldeque false with
 		| None ->
 			begin match timeout with
 				| VNull ->
-					ignore(Deque.pop lock.ldeque (current_domain_id()) true);
+					ignore(Deque.pop lock.ldeque true);
 					vtrue
 				| _ ->
 					let target_time = (Sys.time()) +. num timeout in
@@ -2921,12 +2921,12 @@ module StdThread = struct
 	let readMessage = vfun1 (fun blocking ->
 		let eval = get_eval (get_ctx()) in
 		let blocking = decode_bool blocking in
-		Option.get (Deque.pop eval.thread.tdeque (current_domain_id()) blocking)
+		Option.get (Deque.pop eval.thread.tdeque blocking)
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Deque.push this.tdeque (current_domain_id()) msg;
+		Deque.push this.tdeque msg;
 		vnull
 	)
 
