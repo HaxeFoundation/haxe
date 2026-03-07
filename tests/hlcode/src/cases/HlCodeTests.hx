@@ -8,6 +8,16 @@ typedef ApplicationDesc = {
 	@:optional final target:EKind;
 }
 
+typedef WheelGroup = {
+	?choices : Array<String>,
+	?neutralChoice: String,
+}
+
+class ChoiceWheel {
+	public function new( group : WheelGroup ) {
+	}
+}
+
 /**
 	Tests that verify correct HL code generation for basic patterns.
 **/
@@ -28,5 +38,36 @@ class HlCodeTests {
 	</>)
 	static public function registerAffixDesc():ApplicationDesc {
 		return {target: Empty};
+	}
+
+	@:hl(<>
+		fun@366(16Eh) ():void
+		; src/cases/HlCodeTests.hx:44 (cases.HlCodeTests.testWheelGroup)
+		r0 hl.types.ArrayObj
+		r1 i32
+		r2 array(dyn)
+		r3 array(String)
+		r4 type
+		r5 void
+		r6 cases.ChoiceWheel
+		r7 dynobj
+		r8 virtual(choices:hl.types.ArrayObj,neutralChoice:String)
+		.44    @0 int 1,@0
+		.44    @1 type 4,String
+		.44    @2 call 2, std@alloc_array(4,1)
+		.44    @3 unsafecast 3,2
+		.44    @4 call 0, hl.types.ArrayObj.alloc(3)
+		.45    @5 new 6
+		.45    @6 new 7
+		.46    @7 dynset 7[@159],0
+		.46    @8 tovirtual 8,7
+		.45    @9 call 5, cases.ChoiceWheel.new(6,8)
+		.48    @A ret 5
+	</>)
+	static public function testWheelGroup() {
+		var icons : Array<String> = [];
+		new ChoiceWheel({
+			choices: icons,
+		});
 	}
 }
