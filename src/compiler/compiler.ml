@@ -663,14 +663,14 @@ module HighLevel = struct
 			| ServerListen hp :: l ->
 				server_mode := SMListen hp;
 				loop acc l
-			| Run (cl, runtime_args) :: _ ->
+			| Run (cl, runtime_args) :: l ->
 				(* --run: expand into SetMain + Interp, then create context.
 				   This is terminal: remaining args become runtime_args (already in tuple).
 				   Normalise com.args to the -x form, matching old parse_args behaviour. *)
 				let cpath = Path.parse_type_path cl in
 				let acc = Interp :: SetMain cpath :: acc in
 				let ctx = create_context (List.rev acc) in
-				ctx.runtime_args <- runtime_args;
+				ctx.runtime_args <- runtime_args @ (Args.to_raw_args l);
 				[], Some ctx
 			| RunX cl :: l ->
 				(* -x: non-terminal shorthand for SetMain + Interp; subsequent args are still build args *)
