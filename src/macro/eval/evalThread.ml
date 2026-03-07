@@ -36,24 +36,18 @@ module Deque = struct
 				Some v
 			| [] ->
 				DomainMutex.unlock this.dmutex;
-				(* First attempt failed, let's be pessimistic now to avoid locks. *)
+				(* First attempt failed. Always lock before reading dvalues to ensure
+				   proper acquire barrier on weakly-ordered architectures (e.g. ARM64). *)
 				let rec loop () =
 					Domain.cpu_relax ();
+					DomainMutex.lock this.dmutex domain_id;
 					match this.dvalues with
 					| v :: vl ->
-						(* Only lock if there's a chance to have a value. This avoids high amounts of unneeded locking. *)
-						DomainMutex.lock this.dmutex domain_id;
-						(* We have to check again because the value could be gone by now. *)
-						begin match this.dvalues with
-						| v :: vl ->
-							this.dvalues <- vl;
-							DomainMutex.unlock this.dmutex;
-							Some v
-						| [] ->
-							DomainMutex.unlock this.dmutex;
-							loop()
-						end
+						this.dvalues <- vl;
+						DomainMutex.unlock this.dmutex;
+						Some v
 					| [] ->
+						DomainMutex.unlock this.dmutex;
 						loop()
 				in
 				loop()
