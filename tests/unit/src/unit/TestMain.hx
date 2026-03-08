@@ -97,6 +97,7 @@ function main() {
 		new TestMapComprehension(),
 		new TestMacro(),
 		new TestGcFinalizer(),
+		new TestWeakRef(),
 		new TestKeyValueIterator(),
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
