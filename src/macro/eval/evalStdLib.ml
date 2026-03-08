@@ -1875,11 +1875,11 @@ module StdSemaphore = struct
 		| VNull ->
 			vbool (Semaphore.Counting.try_acquire sem)
 		| _ ->
-			let timeout = decode_float vtimeout in
-			let t = Unix.gettimeofday () +. timeout in
+			let timeout = num vtimeout in
+			let t = Extc.time () +. timeout in
 			let rec loop backoff =
 				if Semaphore.Counting.try_acquire sem then vtrue
-				else if Unix.gettimeofday () >= t then vfalse
+				else if Extc.time () >= t then vfalse
 				else begin loop (Backoff.once backoff) end
 			in
 			loop (Backoff.create ())
@@ -2859,7 +2859,7 @@ module StdSys = struct
 			encode_string s
 		)
 
-	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
+	let time = vfun0 (fun () -> vfloat (catch_unix_error Extc.time()))
 
 	let timestamp_ms = vfun0 (fun () -> vint64 (Extc.timestamp_ms()))
 end
