@@ -7,6 +7,10 @@ import haxe.io.Path;
 import sys.io.Process;
 
 class UtilityProcess {
+	#if (macro || interp)
+	public static inline var HXB_PATH = "bin/eval/UtilityProcess.hxb";
+	#end
+
 	public static var BIN_PATH =
 #if cpp
 		Path.join(["bin", "cpp"]);
@@ -75,7 +79,7 @@ class UtilityProcess {
 		var execFull = Path.join([options.execPath, options.execName]);
 		var proc =
 		#if (macro || interp)
-		new Process("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
+		new Process("haxe", ["-p", "src", "--hxb-lib", HXB_PATH, "--run", "UtilityProcess"].concat(args));
 		#elseif cpp
 		new Process(execFull, args);
 		#elseif java
@@ -124,7 +128,7 @@ class UtilityProcess {
 		final execFull = Path.join([options.execPath, options.execName]);
 		final exitCode =
 		#if (macro || interp)
-		Sys.command("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
+		Sys.command("haxe", ["-p", "src", "--hxb-lib", HXB_PATH, "--run", "UtilityProcess"].concat(args));
 		#elseif cpp
 		Sys.command(execFull, args);
 		#elseif java

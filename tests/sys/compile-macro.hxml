@@ -1,3 +1,25 @@
+-p src
+--main UtilityProcess
+--interp
+--no-output
+--hxb bin/eval/UtilityProcess.hxb
+
+--next
+-p src
+--main ExitCode
+--interp
+--no-output
+--hxb bin/eval/ExitCode.hxb
+
+--next
+-p src
+-lib utest
+--main TestArguments
+--interp
+--no-output
+--hxb bin/eval/TestArguments.hxb
+
+--next
 compile-each.hxml
 --main Main
 --interp
