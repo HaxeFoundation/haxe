@@ -58,20 +58,9 @@ let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 
-let start_semaphore = Semaphore.Binary.make false in
-
-let sctx = ServerCompilationContext.create false in
-
-let run_compiler () =
-	Semaphore.Binary.acquire start_semaphore;
-	Std.finally (fun () -> ServerCompilationContext.dispose sctx) (fun () ->
-		let request_scope = Server.create_request_scope () in
-		let parsed_args = Args.parse_args sctx args in
-		Server.process sctx request_scope Compiler.HighLevel.entry (ServerCommunication.Communication.create_stdio ()) parsed_args;
-	) ()
-in
-
-let main_domain = Domain.spawn run_compiler in
-sctx.domain <- main_domain;
-Semaphore.Binary.release start_semaphore;
-Domain.join main_domain
+let (sctx,rq,dispose) = Server.create_server_entry Compiler.HighLevel.entry false in
+let parsed_args = Args.parse_args sctx args in
+let comm () = ServerCommunication.Communication.create_stdio () in
+RequestQueue.add rq parsed_args None comm;
+Domain.join sctx.domain;
+dispose();

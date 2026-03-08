@@ -162,8 +162,7 @@ module RequestQueue = struct
 	type request = {
 		args : parsed_arg list;
 		stdin : string option;
-		stdin_pipe : in_channel option;
-		conn : server_connection;
+		comm : unit -> communication;
 	}
 
 	type t = {
@@ -188,9 +187,9 @@ module RequestQueue = struct
 	let wake_up rq =
 		Semaphore.Counting.release rq.semaphore
 
-	let add rq args stdin stdin_pipe conn =
+	let add rq args stdin comm =
 		Mutex.lock rq.mutex;
-		rq.requests <- { args; stdin; stdin_pipe; conn } :: rq.requests;
+		rq.requests <- { args; stdin; comm; } :: rq.requests;
 		Mutex.unlock rq.mutex;
 		wake_up rq
 
@@ -216,26 +215,31 @@ module WorkerDomain = struct
 		rq.requests <- [];
 		Mutex.unlock rq.mutex;
 		List.iter (fun req ->
-			(try req.conn.write "\x02\nServer shutdown\n"; with _ -> ());
-			req.conn.close()
+			let comm = req.comm() in
+			(try comm.write_err "\x02\nServer shutdown\n"; with _ -> ());
+			comm.close();
 		) pending
 
-	let run_request sctx request_scope entry {conn; stdin; stdin_pipe; args} =
+	let run_request sctx request_scope entry {comm; stdin; args} =
+		let comm = (comm()) in
 		try
-			process sctx request_scope entry (ServerCommunication.Communication.create_pipe sctx conn.write stdin_pipe) args;
+			process sctx request_scope entry comm args;
+			comm
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
-			(try conn.write "\x02\nCancelled\n"; with _ -> ());
+			(try comm.write_err "\x02\nCancelled\n"; with _ -> ());
+			comm;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
-			(try conn.write ("\x02\n" ^ estr); with _ -> ());
+			(try comm.write_err ("\x02\n" ^ estr); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then begin
-				conn.close();
+				comm.close();
 				exit (-1);
-			end
+			end;
+			comm
 
 	let create sctx entry rq =
 		let domain = Domain.spawn (fun () ->
@@ -262,8 +266,8 @@ module WorkerDomain = struct
 						Atomic.set rq.cancel_token false;
 						let request_scope = create_request_scope() in
 						rq.current_request <- Some request_scope;
-						run_request sctx request_scope entry request;
-						request.conn.close();
+						let comm = run_request sctx request_scope entry request in
+						comm.close();
 						sctx.current_stdin <- None;
 						ServerCache.cleanup();
 						if sctx.was_compilation then
@@ -291,12 +295,17 @@ let create_server_entry entry verbose =
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
 	sctx.domain <- worker.domain;
-	(sctx,rq)
+	let dispose () =
+		RequestQueue.shutdown rq;
+		Domain.join worker.domain;
+		ServerCompilationContext.dispose sctx;
+	in
+	(sctx,rq,dispose)
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop entry verbose accept =
-	let (sctx,rq) = create_server_entry entry verbose in
+	let (sctx,rq,dispose) = create_server_entry entry verbose in
 	(* Main loop: accept connections and enqueue requests for the worker.
 	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
 	begin try
@@ -312,10 +321,10 @@ let wait_loop entry verbose accept =
 					with Not_found ->
 						None,s
 				in
-				let stdin_pipe = conn.get_stdin () in
 				let data = Helper.parse_hxml_data hxml in
 				let parsed_args = Args.parse_args sctx data in
-				RequestQueue.add rq parsed_args stdin stdin_pipe conn;
+				let comm () = ServerCommunication.Communication.create_pipe sctx conn in
+				RequestQueue.add rq parsed_args stdin comm;
 			with Unix.Unix_error _ ->
 				ServerMessage.socket_message "Connection Aborted";
 				conn.close()
@@ -324,10 +333,7 @@ let wait_loop entry verbose accept =
 	with _ ->
 		()
 	end;
-	(* Signal the worker to shut down and wait for it to finish *)
-	RequestQueue.shutdown rq;
-	Domain.join sctx.domain;
-	ServerCompilationContext.dispose sctx;
+	dispose();
 	0
 
 (* Connect to given host/port and return accept function for communication *)

@@ -62,6 +62,7 @@ module Communication = struct
 				end;
 				flush stdout;
 			);
+			close = (fun () -> ());
 			exit = (fun timer_ctx code ->
 				if code = 0 then begin
 					if timer_ctx.measure_times = Yes then Timer.report_times timer_ctx (fun s -> self.write_err (s ^ "\n"));
@@ -73,20 +74,23 @@ module Communication = struct
 		} in
 		self
 
-	let create_pipe sctx write stdin =
+	let create_pipe sctx (conn : server_connection) =
 		let rec self = {
 			write_out = (fun s ->
-				write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
+				conn.write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
 			);
 			write_err = (fun s ->
-				write s
+				conn.write s
 			);
 			flush = flush_context sctx;
+			close = (fun () ->
+				conn.close()
+			);
 			exit = (fun timer_ctx i ->
 				()
 			);
 			is_server = true;
-			stdin = stdin;
+			stdin = conn.get_stdin();
 		}
 		in
 		self
