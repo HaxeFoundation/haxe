@@ -427,7 +427,7 @@ and jit_expr jit return e =
 			in
 			let lazy_proto_field proto =
 				let i = get_proto_field_index proto name in
-				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
+				DomainSafeLazy.make (fun () -> match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
 			let jit_with_null_check ef =
 				let exec = jit_expr jit false ef in

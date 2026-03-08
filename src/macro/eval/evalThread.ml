@@ -93,24 +93,7 @@ let spawn ctx f =
 		tevents = vnull;
 		tdeque = Deque.create id;
 	} in
-	thread.tthread <- Domain.spawn (fun () -> run ctx f thread);
-	thread
-
-(**
-	Just executes `f` if called from a Haxe thread.
-	Otherwise creates Haxe thread data structures, runs `f` and then cleans up
-	created data.
-*)
-(* let run ctx f =
-	let id = Thread.id (Thread.self()) in
-	if ThreadSafeHashtbl.mem ctx.evals id then
-		ignore(f())
-	else begin
-		let thread = {
-			tthread = Domain.self();
-			tstorage = IntMap.empty;
-			tevents = vnull;
-			tdeque = Deque.create();
-		} in
+	thread.tthread <- Domain.spawn (fun () ->
 		run ctx f thread
-	end *)
+	);
+	thread

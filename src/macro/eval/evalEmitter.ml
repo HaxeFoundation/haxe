@@ -304,7 +304,7 @@ let emit_super_field_call slot proto i execs p env =
 
 let emit_proto_field_call v execs p env =
 	check_stack_depth env;
-	let f = Lazy.force v in
+	let f = DomainSafeLazy.force v in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
