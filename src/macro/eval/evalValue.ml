@@ -152,13 +152,6 @@ type vprototype_kind =
 	| PInstance
 	| PObject
 
-(** Lightweight thread handle used by eval.luv.Thread. Avoids a forward
-    reference to vthread, which is defined in the mutually-recursive value group. *)
-type vluv_thread = {
-	lu_tid : int;
-	mutable lu_domain : unit Domain.t;
-}
-
 type vhandle =
 	| HLoop of Luv.Loop.t
 	| HIdle of Luv.Idle.t
@@ -182,7 +175,7 @@ type vhandle =
 	| HThreadPoolRequest of Luv.Thread_pool.Request.t
 	| HFileModeNumeric of Luv.File.Mode.numeric
 	| HFsEvent of Luv.FS_event.t
-	| HThread of vluv_thread
+	| HThread of Luv.Thread.t
 	| HOnce of Luv.Once.t
 	| HMutex of Luv.Mutex.t
 	| HRwLock of Luv.Rwlock.t
@@ -363,7 +356,7 @@ let same_handle h1 h2 =
 	| HThreadPoolRequest h1, HThreadPoolRequest h2 -> h1 == h2
 	| HFileModeNumeric h1, HFileModeNumeric h2 -> h1 == h2
 	| HFsEvent h1, HFsEvent h2 -> h1 == h2
-	| HThread h1, HThread h2 -> h1.lu_tid = h2.lu_tid
+	| HThread h1, HThread h2 -> Luv.Thread.equal h1 h2
 	| HOnce h1, HOnce h2 -> h1 == h2
 	| HMutex h1, HMutex h2 -> h1 == h2
 	| HRwLock h1, HRwLock h2 -> h1 == h2
