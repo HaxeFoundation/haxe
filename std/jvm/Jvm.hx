@@ -71,6 +71,10 @@ class Jvm {
 		return Reflect.compare(v1, v2);
 	}
 
+	static public function compareFunctions(v1:Dynamic, v2:Dynamic):Bool {
+		return Reflect.compareMethods(v1, v2);
+	}
+
 	static public function enumEq(v1:Dynamic, v2:Dynamic) {
 		if (!instanceof(v1, jvm.Enum)) {
 			return false;

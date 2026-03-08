@@ -1134,7 +1134,10 @@ class texpr_to_jvm
 		| [TObject(path1,_);sig2] when jc#has_typed_function path1 || path1 = haxe_function_path ->
 			code#swap;
 			fun_compare path1 sig2
-		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
+		| [TMethod _;_] | [_;TMethod _] ->
+			jm#invokestatic haxe_jvm_path "compareFunctions" (method_sig [object_sig;object_sig] (Some TBool));
+			CmpNormal(op,TBool)
+		| [(TObject _ | TArray _) as t1;(TObject _ | TArray _) as t2] ->
 			CmpSpecial ((if op = CmpEq then code#if_acmp_ne else code#if_acmp_eq) t1 t2)
 		| [TDouble;TDouble] ->
 			let op = flip_cmp_op op in
