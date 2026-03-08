@@ -1,6 +1,7 @@
 local _hx_hidden = {__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true, __mt__=true, __name__=true}
 
-local table_new = require("table.new")
+local ok, table_new = pcall(require, "table.new")
+if not ok then table_new = function(narr, nrec) return {} end end
 
 _hx_array_mt = {
     __newindex = function(t,k,v)

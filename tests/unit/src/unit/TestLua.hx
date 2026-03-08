@@ -300,6 +300,65 @@ class TestLua extends Test {
 		eq(closureResult, "done");
 	}
 
+	// LuaJIT goto-based continue: continue inside try-catch in a for loop
+	function testContinueInTryCatch() {
+		var sum = 0;
+		for (i in 0...10) {
+			try {
+				if (i % 2 == 0)
+					continue;
+				sum += i;
+			} catch (e:Dynamic) {}
+		}
+		eq(sum, 25); // 1 + 3 + 5 + 7 + 9
+
+		// Nested try-catch with continue (re-throw path)
+		var result = [];
+		for (i in 0...5) {
+			try {
+				try {
+					if (i == 2)
+						continue;
+				} catch (inner:Dynamic) {}
+				result.push(i);
+			} catch (outer:Dynamic) {}
+		}
+		eq(result.length, 4);
+		eq(result[0], 0);
+		eq(result[1], 1);
+		eq(result[2], 3);
+		eq(result[3], 4);
+	}
+
+	// LuaJIT goto-based continue: break inside try-catch in a for loop
+	function testBreakInTryCatch() {
+		var sum = 0;
+		for (i in 0...10) {
+			try {
+				if (i >= 5)
+					break;
+				sum += i;
+			} catch (e:Dynamic) {}
+		}
+		eq(sum, 10); // 0 + 1 + 2 + 3 + 4
+
+		// Both break and continue in try-catch
+		var result = [];
+		for (i in 0...10) {
+			try {
+				if (i % 2 == 0)
+					continue;
+				if (i >= 7)
+					break;
+				result.push(i);
+			} catch (e:Dynamic) {}
+		}
+		eq(result.length, 3);
+		eq(result[0], 1);
+		eq(result[1], 3);
+		eq(result[2], 5);
+	}
+
 	// Issue #11805: TableStruct creates plain Lua tables without __fields__
 	function testTableStructPlain() {
 		// Create a plain table without __fields__ metadata
