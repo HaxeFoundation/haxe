@@ -1131,7 +1131,7 @@ let type_opt (ctx,cctx,fctx) p mode t =
 
 let setup_args_ret ctx cctx fctx name fd p =
 	let c = cctx.tclass in
-	let mk = lazy (
+	let mk = AtomicLazy.from_fun (fun () ->
 		if String.length name < 4 then
 			MKNormal
 		else match String.sub name 0 4 with
@@ -1151,7 +1151,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let try_find_property_type () =
 		let name = String.sub name 4 (String.length name - 4) in
 		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
-		match Lazy.force mk, cf.cf_kind with
+		match AtomicLazy.force mk, cf.cf_kind with
 			| MKGetter, Var({v_read = AccCall | AccPrivateCall})
 			| MKSetter, Var({v_write = AccCall | AccPrivateCall}) -> cf.cf_type
 			| _ -> raise Not_found;
@@ -1171,7 +1171,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		let def () =
 			type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
 		in
-		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
+		maybe_use_property_type fd.f_type (fun () -> match AtomicLazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && not fctx.is_abstract_constructor && not fctx.is_macro ->
@@ -1184,7 +1184,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		let def () =
 			type_opt (ctx,cctx,fctx) p LoadNormal cto
 		in
-		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
+		if i = 0 then maybe_use_property_type cto (fun () -> match AtomicLazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
 	let args = new FunctionArguments.function_arguments ctx.com type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	args,ret
@@ -1283,11 +1283,11 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 				| t ->
 					raise_typing_error (Printf.sprintf "Return type of @:coroutine(transformed) functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
 				in
-				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
+				(AtomicLazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
 				die "" __LOC__
 	end else
-		(Lazy.force ctx.t.tcoro.tcoro) targs ret
+		(AtomicLazy.force ctx.t.tcoro.tcoro) targs ret
 	in
 	cf.cf_type <- t;
 	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);

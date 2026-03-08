@@ -136,7 +136,7 @@ module IterationKind = struct
 	let try_async_iterator_kind ctx e s p =
 		if not (TyperManager.is_coroutine_context ctx) then
 			raise Not_found;
-		let t_async_it pt = (Lazy.force ctx.t.tcoro.tasync_iterator) pt in
+		let t_async_it pt = (AtomicLazy.force ctx.t.tcoro.tasync_iterator) pt in
 		(* First, try direct unification with AsyncIterator<T> *)
 		let try_direct () =
 			match Abstract.follow_with_abstracts e.etype with

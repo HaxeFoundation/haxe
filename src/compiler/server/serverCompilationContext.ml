@@ -23,7 +23,7 @@ type t = {
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
 	(* The server's domain pool. *)
-	pool : Domainslib.Task.pool Lazy.t;
+	pool : Domainslib.Task.pool AtomicLazy.t;
 }
 
 let create_version () =
@@ -37,7 +37,7 @@ let create_version () =
 	}
 
 let create verbose =
-	let pool = lazy (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ()) in
+	let pool = AtomicLazy.from_fun (fun () -> Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ()) in
 	{
 		version = create_version ();
 		verbose;
@@ -53,8 +53,8 @@ let create verbose =
 	}
 
 let dispose sctx =
-	if Lazy.is_val sctx.pool then
-		Domainslib.Task.teardown_pool (Lazy.force sctx.pool)
+	if AtomicLazy.is_val sctx.pool then
+		Domainslib.Task.teardown_pool (AtomicLazy.force sctx.pool)
 
 let add_delay sctx f =
 	sctx.delays <- f :: sctx.delays

@@ -2,10 +2,10 @@ open Globals
 open Common
 open ParsedArg
 
-let columns = lazy (match Terminal_size.get_columns () with None -> 80 | Some c -> c)
+let columns = AtomicLazy.from_fun (fun () -> match Terminal_size.get_columns () with None -> 80 | Some c -> c)
 
 let limit_string s offset =
-	let rest = (Lazy.force columns) - offset in
+	let rest = (AtomicLazy.force columns) - offset in
 	let words = ExtString.String.nsplit s " " in
 	let rec loop i words = match words with
 		| word :: words ->

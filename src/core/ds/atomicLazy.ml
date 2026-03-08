@@ -10,6 +10,13 @@ type 'a t = {
 let from_fun f =
 	{ state = Atomic.make (Unset f) }
 
+let from_val v =
+	{ state = Atomic.make (Set v) }
+
+let is_val lazy_val = match Atomic.get lazy_val.state with
+	| Set _ -> true
+	| _ -> false
+
 let force lazy_val =
 	let wait_loop () =
 		let rec loop backoff = match Atomic.get lazy_val.state with

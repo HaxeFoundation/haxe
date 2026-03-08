@@ -49,5 +49,5 @@ let run_with_pool pool f =
 	if not !enable then
 		f None
 	else
-		let pool = Lazy.force pool in
+		let pool = AtomicLazy.force pool in
 		Domainslib.Task.run pool (fun () -> f (Some pool))
