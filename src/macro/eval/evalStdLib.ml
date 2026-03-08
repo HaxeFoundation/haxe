@@ -146,7 +146,7 @@ module StdArray = struct
 		let path = key_haxe_iterators_array_key_value_iterator in
 		let vit = encode_instance path in
 		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (DomainSafeLazy.force fnew) [vthis]);
+		ignore(call_value_on vit (AtomicLazy.force fnew) [vthis]);
 		vit
 	)
 
@@ -1427,38 +1427,43 @@ module StdLock = struct
 		| v -> unexpected_value v "Lock"
 
 	let release = vifun0 (fun vthis ->
-		let this = this vthis in
-		Deque.push this.ldeque vnull;
+		let lock = this vthis in
+		Mutex.lock lock.lmutex;
+		lock.lcount <- lock.lcount + 1;
+		Condition.signal lock.lcond;
+		Mutex.unlock lock.lmutex;
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
-		let now () = catch_unix_error Extc.time () in
-		let rec loop backoff target_time =
-			match Deque.pop lock.ldeque false with
-			| None ->
-				let remaining = target_time -. (now ()) in
-				if remaining <= 0.0 then
-					vfalse
-				else begin
-					loop (Backoff.once backoff) target_time
-				end
-			| Some _ ->
-				vtrue
-		in
-		match Deque.pop lock.ldeque false with
-		| None ->
-			begin match timeout with
-				| VNull ->
-					ignore(Deque.pop lock.ldeque true);
-					vtrue
-				| _ ->
-					let target_time = (now ()) +. num timeout in
-					loop (Backoff.create ()) target_time
-			end
-		| Some _ ->
+		match timeout with
+		| VNull ->
+			Mutex.lock lock.lmutex;
+			while lock.lcount = 0 do
+				Condition.wait lock.lcond lock.lmutex
+			done;
+			lock.lcount <- lock.lcount - 1;
+			Mutex.unlock lock.lmutex;
 			vtrue
+		| _ ->
+			let timeout = num timeout in
+			let deadline = Extc.time () +. timeout in
+			let rec loop backoff =
+				Mutex.lock lock.lmutex;
+				if lock.lcount > 0 then begin
+					lock.lcount <- lock.lcount - 1;
+					Mutex.unlock lock.lmutex;
+					vtrue
+				end else begin
+					Mutex.unlock lock.lmutex;
+					if Extc.time () >= deadline then vfalse
+					else begin
+						loop (Backoff.once backoff)
+					end
+				end
+			in
+			loop (Backoff.create ())
 	)
 end
 
@@ -1504,7 +1509,7 @@ let map_key_value_iterator path = vifun0 (fun vthis ->
 	let ctx = get_ctx() in
 	let vit = encode_instance path in
 	let fnew = get_instance_constructor ctx path null_pos in
-	ignore(call_value_on vit (DomainSafeLazy.force fnew) [vthis]);
+	ignore(call_value_on vit (AtomicLazy.force fnew) [vthis]);
 	vit
 )
 
@@ -1872,12 +1877,12 @@ module StdSemaphore = struct
 		| _ ->
 			let timeout = decode_float vtimeout in
 			let t = Unix.gettimeofday () +. timeout in
-			let rec loop () =
+			let rec loop backoff =
 				if Semaphore.Counting.try_acquire sem then vtrue
 				else if Unix.gettimeofday () >= t then vfalse
-				else begin Domain.cpu_relax (); loop () end
+				else begin loop (Backoff.once backoff) end
 			in
-			loop ()
+			loop (Backoff.create ())
 	)
 
 	let release = vifun0 (fun vthis ->
@@ -2919,6 +2924,7 @@ module StdThread = struct
 
 	let yield = vfun0 (fun () ->
 		Domain.cpu_relax ();
+		Thread.yield();
 		vnull
 	)
 end
@@ -3014,7 +3020,7 @@ module StdType = struct
 			with Not_found ->
 				let vthis = encode_instance path in
 				let fnew = get_instance_constructor ctx path null_pos in
-				ignore(call_value_on vthis (DomainSafeLazy.force fnew) (decode_array vl));
+				ignore(call_value_on vthis (AtomicLazy.force fnew) (decode_array vl));
 				vthis
 			end
 		| _ ->
@@ -3514,7 +3520,9 @@ let init_constructors builtins =
 	add key_sys_net_Lock
 		(fun _ ->
 			let lock = {
-				ldeque = Deque.create();
+				lmutex = Mutex.create ();
+				lcond = Condition.create ();
+				lcount = 0;
 			} in
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
