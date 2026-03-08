@@ -22,17 +22,15 @@
 
 package haxe.ds;
 
-import python.lib.Weakref;
-
 @:coreApi
 class WeakRef<T:{}> {
-	var h:WeakrefCallable<T>;
+	var h:Dynamic;
 
-	public inline function new(target:T) {
-		h = python.lib.Weakref.ref(target);
+	public function new(target:T) {
+		h = python.Syntax.code("__import__('weakref').ref({0})", target);
 	}
 
-	public inline function get():Null<T> {
-		return h.call();
+	public function get():Null<T> {
+		return python.Syntax.code("{0}()", h);
 	}
 }

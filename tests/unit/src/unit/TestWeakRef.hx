@@ -1,10 +1,12 @@
 package unit;
 
 class TestWeakRef extends Test {
+	#if (js || lua || python || php || (cpp && !cppia) || jvm)
 	function testWeakRefGet() {
 		var obj = {value: 42};
 		var ref = new haxe.ds.WeakRef(obj);
 		eq(ref.get().value, 42);
+		t(obj != null);
 	}
 
 	function testWeakRefIdentity() {
@@ -12,7 +14,9 @@ class TestWeakRef extends Test {
 		var ref = new haxe.ds.WeakRef(obj);
 		t(ref.get() == obj);
 	}
+	#end
 
+	#if (js || lua || python || php || (cpp && !cppia) || flash || jvm)
 	function testWeakMapSetGet() {
 		var wm = new haxe.ds.WeakMap();
 		var key1 = {id: 1};
@@ -61,8 +65,9 @@ class TestWeakRef extends Test {
 		wm.clear();
 		f(wm.exists(key));
 	}
+	#end
 
-	#if !js
+	#if (lua || python || php || (cpp && !cppia) || flash || jvm)
 	function testWeakMapIteration() {
 		var wm = new haxe.ds.WeakMap();
 		var key1 = {id: 1};
@@ -83,6 +88,8 @@ class TestWeakRef extends Test {
 		eq(count, 2);
 		t(foundOne);
 		t(foundTwo);
+		t(key1 != null);
+		t(key2 != null);
 	}
 
 	function testWeakMapKeys() {
@@ -97,6 +104,8 @@ class TestWeakRef extends Test {
 			count++;
 		}
 		eq(count, 2);
+		t(key1 != null);
+		t(key2 != null);
 	}
 
 	function testWeakMapSize() {
@@ -106,6 +115,8 @@ class TestWeakRef extends Test {
 		wm.set(key1, "one");
 		wm.set(key2, "two");
 		eq(wm.size(), 2);
+		t(key1 != null);
+		t(key2 != null);
 	}
 	#end
 
@@ -115,6 +126,12 @@ class TestWeakRef extends Test {
 		exc(function() wm.keys());
 		exc(function() wm.iterator());
 		exc(function() wm.size());
+	}
+	#end
+
+	#if !(js || lua || python || php || cpp || jvm || flash)
+	function testNotImplemented() {
+		noAssert();
 	}
 	#end
 }
