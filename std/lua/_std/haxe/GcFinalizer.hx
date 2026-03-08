@@ -22,21 +22,17 @@
 
 package haxe;
 
-import haxe.ds.ObjectMap;
-
 @:coreApi
 class GcFinalizer<T> {
 	var callback:T->Void;
-	var tokenMap:ObjectMap<{}, Array<Dynamic>>;
 	var nextId:Int;
 
 	public function new(callback:T->Void) {
 		this.callback = callback;
-		this.tokenMap = new ObjectMap();
 		this.nextId = 0;
 	}
 
-	public function register(target:{}, heldValue:T, ?unregisterToken:{}):Void {
+	public function register(target:{}, heldValue:T):ICloseable {
 		var cb = callback;
 		var id = nextId++;
 		var proxy:Dynamic = lua.Syntax.code(
@@ -44,23 +40,8 @@ class GcFinalizer<T> {
 			heldValue, cb);
 		lua.Syntax.code("rawset({0}, '__hx_gc_' .. {1}, {2})", target, id, proxy);
 
-		if (unregisterToken != null) {
-			var list = tokenMap.get(unregisterToken);
-			if (list == null) {
-				list = [];
-				tokenMap.set(unregisterToken, list);
-			}
-			list.push(proxy);
-		}
-	}
-
-	public function unregister(unregisterToken:{}):Void {
-		var list = tokenMap.get(unregisterToken);
-		if (list != null) {
-			for (proxy in list) {
-				lua.Syntax.code("{0}.cb = nil", proxy);
-			}
-			tokenMap.remove(unregisterToken);
-		}
+		return cast {
+			close: function() lua.Syntax.code("{0}.cb = nil", proxy)
+		};
 	}
 }

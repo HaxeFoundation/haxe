@@ -22,8 +22,6 @@
 
 package haxe;
 
-import haxe.ds.ObjectMap;
-
 private class Registration<T> {
 	public var heldValue:T;
 	public var cancelled:Bool;
@@ -36,17 +34,27 @@ private class Registration<T> {
 	}
 }
 
+private class Handle<T> implements ICloseable {
+	var reg:Registration<T>;
+
+	public function new(reg:Registration<T>) {
+		this.reg = reg;
+	}
+
+	public function close():Void {
+		reg.cancelled = true;
+	}
+}
+
 @:coreApi
 class GcFinalizer<T> {
 	var callback:T->Void;
-	var tokenMap:ObjectMap<{}, Array<Registration<T>>>;
 
 	public function new(callback:T->Void) {
 		this.callback = callback;
-		this.tokenMap = new ObjectMap();
 	}
 
-	public function register(target:{}, heldValue:T, ?unregisterToken:{}):Void {
+	public function register(target:{}, heldValue:T):ICloseable {
 		var reg = new Registration(heldValue, callback);
 		eval.vm.Gc.finalise(function(_) {
 			if (!reg.cancelled) {
@@ -54,23 +62,6 @@ class GcFinalizer<T> {
 			}
 		}, target);
 
-		if (unregisterToken != null) {
-			var list = tokenMap.get(unregisterToken);
-			if (list == null) {
-				list = [];
-				tokenMap.set(unregisterToken, list);
-			}
-			list.push(reg);
-		}
-	}
-
-	public function unregister(unregisterToken:{}):Void {
-		var list = tokenMap.get(unregisterToken);
-		if (list != null) {
-			for (reg in list) {
-				reg.cancelled = true;
-			}
-			tokenMap.remove(unregisterToken);
-		}
+		return new Handle(reg);
 	}
 }

@@ -14,32 +14,19 @@ class TestGcFinalizer extends Test {
 		#if (js || python || cpp || eval || lua || jvm)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		var target = {id: 1};
-		finalizer.register(target, "hello");
-		t(true);
+		var handle = finalizer.register(target, "hello");
+		t(handle != null);
 		#else
 		noAssert();
 		#end
 	}
 
-	function testRegisterWithToken() {
+	function testCloseNoThrow() {
 		#if (js || python || cpp || eval || lua || jvm)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		var target = {id: 1};
-		var token = {id: 99};
-		finalizer.register(target, "hello", token);
-		t(true);
-		#else
-		noAssert();
-		#end
-	}
-
-	function testUnregisterNoThrow() {
-		#if (js || python || cpp || eval || lua || jvm)
-		var finalizer = new haxe.GcFinalizer(function(v:String) {});
-		var target = {id: 1};
-		var token = {id: 99};
-		finalizer.register(target, "hello", token);
-		finalizer.unregister(token);
+		var handle = finalizer.register(target, "hello");
+		handle.close();
 		t(true);
 		#else
 		noAssert();
@@ -78,15 +65,14 @@ class TestGcFinalizer extends Test {
 		#end
 	}
 
-	function testUnregisterPreventsCallback() {
+	function testClosePreventsCallback() {
 		#if (cpp || eval)
 		var called = false;
 		var finalizer = new haxe.GcFinalizer(function(v:String) {
 			called = true;
 		});
-		var token = {id: 99};
-		finalizer.register({id: 1}, "collected", token);
-		finalizer.unregister(token);
+		var handle = finalizer.register({id: 1}, "collected");
+		handle.close();
 		// Force GC
 		#if cpp
 		cpp.vm.Gc.run(true);

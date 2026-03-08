@@ -23,37 +23,17 @@
 package haxe;
 
 import python.lib.Weakref.PythonFinalizer;
-import haxe.ds.ObjectMap;
 
 @:coreApi
 class GcFinalizer<T> {
 	var callback:T->Void;
-	var tokenMap:ObjectMap<{}, Array<PythonFinalizer>>;
 
 	public function new(callback:T->Void) {
 		this.callback = callback;
-		this.tokenMap = new ObjectMap();
 	}
 
-	public function register(target:{}, heldValue:T, ?unregisterToken:{}):Void {
+	public function register(target:{}, heldValue:T):ICloseable {
 		var fin = new PythonFinalizer(target, callback, heldValue);
-		if (unregisterToken != null) {
-			var list = tokenMap.get(unregisterToken);
-			if (list == null) {
-				list = [];
-				tokenMap.set(unregisterToken, list);
-			}
-			list.push(fin);
-		}
-	}
-
-	public function unregister(unregisterToken:{}):Void {
-		var list = tokenMap.get(unregisterToken);
-		if (list != null) {
-			for (fin in list) {
-				fin.detach();
-			}
-			tokenMap.remove(unregisterToken);
-		}
+		return cast {close: function() fin.detach()};
 	}
 }

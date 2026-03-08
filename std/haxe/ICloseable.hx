@@ -23,33 +23,9 @@
 package haxe;
 
 /**
-	A GC finalizer registry that invokes a callback when a watched object
-	is garbage-collected. Modeled after JavaScript's `FinalizationRegistry`.
-
-	The callback receives a held value (not the collected object itself),
-	which is safe because the object may already be in an invalid state.
-
-	Not all targets support GC finalizers. On unsupported targets, the
-	constructor throws `NotImplementedException`.
+	A general-purpose interface for objects that hold resources which
+	can be released by calling `close()`.
 **/
-class GcFinalizer<T> {
-	/**
-		Creates a new `GcFinalizer` with the given cleanup `callback`.
-		The callback will be invoked with the held value when a registered
-		target object is garbage-collected.
-	**/
-	public function new(callback:T->Void) {
-		throw new haxe.exceptions.NotImplementedException("Not implemented for this platform");
-	}
-
-	/**
-		Registers `target` for clean-up. When `target` is garbage-collected,
-		the callback will be invoked with `heldValue`.
-
-		Returns an `ICloseable` handle. Calling `close()` on the handle
-		cancels the registration, preventing the callback from firing.
-	**/
-	public function register(target:{}, heldValue:T):ICloseable {
-		return null;
-	}
+interface ICloseable {
+	function close():Void;
 }
