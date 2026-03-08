@@ -1259,6 +1259,7 @@ and gen_block_element ctx e  =
             newline ctx;
             let f () = gen_tbinop ctx op e1 e2 in
             gen_iife_assign ctx f;
+            semicolon ctx;
         | TUnop ((Increment|Decrement) as op,_,e) ->
             newline ctx;
             gen_expr ctx e;
