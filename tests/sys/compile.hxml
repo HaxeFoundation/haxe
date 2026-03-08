@@ -1,5 +1,4 @@
 # This is not run by CIs, just for convenience when testing manually.
-# Note that compile-macro.hxml is not included.
 
 --next compile-neko.hxml
 --next compile-python.hxml
@@ -9,3 +8,4 @@
 --next compile-hl.hxml
 --next compile-js.hxml
 --next compile-lua.hxml
+--next compile-eval-hxb.hxml

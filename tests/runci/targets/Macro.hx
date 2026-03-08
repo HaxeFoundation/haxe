@@ -27,7 +27,8 @@ class Macro {
 		runCommand("haxe", ["run-base.hxml", "--run", "Main", "eval/resolution"]);
 
 		changeDirectory(sysDir);
-		runSysTest("haxe", ["compile-macro.hxml"].concat(args));
+		runCommand("haxe", args.concat(["--each", "compile-eval-hxb.hxml"]));
+		runSysTest("haxe", ["--hxb-lib", "bin/eval/sys.hxb", "--run", "Main"]);
 
 		switch Sys.systemName() {
 			case 'Linux':

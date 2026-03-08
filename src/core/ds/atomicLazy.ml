@@ -16,6 +16,7 @@ let force lazy_val =
 			| Set v ->
 				v
 			| Computing ->
+				Thread.yield();
 				loop (Backoff.once backoff)
 			| Unset _ ->
 				assert false
