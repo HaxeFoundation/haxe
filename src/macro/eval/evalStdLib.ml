@@ -1434,17 +1434,15 @@ module StdLock = struct
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
-		let now () = catch_unix_error Unix.gettimeofday () in
-		let rec loop target_time =
+		let now () = catch_unix_error Extc.time () in
+		let rec loop backoff target_time =
 			match Deque.pop lock.ldeque false with
 			| None ->
 				let remaining = target_time -. (now ()) in
 				if remaining <= 0.0 then
 					vfalse
 				else begin
-					(* Back off a little to avoid starving timer/event threads on many timed waits. *)
-					Unix.sleepf (min remaining 0.005);
-					loop target_time
+					loop (Backoff.once backoff) target_time
 				end
 			| Some _ ->
 				vtrue
@@ -1457,7 +1455,7 @@ module StdLock = struct
 					vtrue
 				| _ ->
 					let target_time = (now ()) +. num timeout in
-					loop target_time
+					loop (Backoff.create ()) target_time
 			end
 		| Some _ ->
 			vtrue
