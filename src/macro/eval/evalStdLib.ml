@@ -1449,7 +1449,7 @@ module StdLock = struct
 		| _ ->
 			let timeout = num timeout in
 			let deadline = Extc.time () +. timeout in
-			let rec loop () =
+			let rec loop backoff =
 				Mutex.lock lock.lmutex;
 				if lock.lcount > 0 then begin
 					lock.lcount <- lock.lcount - 1;
@@ -1459,12 +1459,11 @@ module StdLock = struct
 					Mutex.unlock lock.lmutex;
 					if Extc.time () >= deadline then vfalse
 					else begin
-						Domain.cpu_relax ();
-						loop ()
+						loop (Backoff.once backoff)
 					end
 				end
 			in
-			loop ()
+			loop (Backoff.create ())
 	)
 end
 
@@ -1878,12 +1877,12 @@ module StdSemaphore = struct
 		| _ ->
 			let timeout = decode_float vtimeout in
 			let t = Unix.gettimeofday () +. timeout in
-			let rec loop () =
+			let rec loop backoff =
 				if Semaphore.Counting.try_acquire sem then vtrue
 				else if Unix.gettimeofday () >= t then vfalse
-				else begin Domain.cpu_relax (); loop () end
+				else begin loop (Backoff.once backoff) end
 			in
-			loop ()
+			loop (Backoff.create ())
 	)
 
 	let release = vifun0 (fun vthis ->
@@ -2925,6 +2924,7 @@ module StdThread = struct
 
 	let yield = vfun0 (fun () ->
 		Domain.cpu_relax ();
+		Thread.yield();
 		vnull
 	)
 end
