@@ -19,7 +19,7 @@ class Semaphore {
 	}
 
 	public function acquire():Void {
-		s.release();
+		s.acquire();
 	}
 
 	public function tryAcquire(?timeout:Float):Bool {
