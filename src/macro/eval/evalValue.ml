@@ -367,8 +367,9 @@ and vdeque = {
 }
 
 and vlock = {
-	lread_fd : Unix.file_descr;  (* select waits on this end for notifications *)
-	lwrite_fd : Unix.file_descr; (* release() writes a byte here to wake waiters *)
+	lmutex : Mutex.t;
+	lcond : Condition.t;
+	mutable lcount : int;
 }
 
 and vcondition = {
