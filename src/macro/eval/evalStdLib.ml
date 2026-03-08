@@ -1426,39 +1426,61 @@ module StdLock = struct
 		| VInstance {ikind = ILock lock} -> lock
 		| v -> unexpected_value v "Lock"
 
+	(* Pre-allocated buffer reused by every release() call. *)
+	let wake_byte = Bytes.make 1 '\x00'
+
 	let release = vifun0 (fun vthis ->
-		let this = this vthis in
-		Deque.push this.ldeque vnull;
+		let lock = this vthis in
+		(* Write one byte to wake any domain blocked in Lock.wait.
+		   Each byte in the socket buffer corresponds to one pending release,
+		   so multiple rapid releases are correctly queued. *)
+		(try ignore (Unix.write lock.lwrite_fd wake_byte 0 1)
+		with Unix.Unix_error _ -> ());
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
-		let now () = catch_unix_error Extc.time () in
-		let rec loop backoff target_time =
-			match Deque.pop lock.ldeque false with
-			| None ->
-				let remaining = target_time -. (now ()) in
-				if remaining <= 0.0 then
-					vfalse
-				else begin
-					loop (Backoff.once backoff) target_time
-				end
-			| Some _ ->
-				vtrue
+		let buf = Bytes.create 1 in
+		(* Non-blocking read: succeeds immediately if release() was called before
+		   wait(). We always reference lock.lread_fd directly (not a pre-bound int)
+		   so that every closure below captures `lock`, keeping it alive in the GC
+		   and preventing premature finalization of the file descriptors. *)
+		let try_read () =
+			match (try Unix.read lock.lread_fd buf 0 1 with Unix.Unix_error _ -> 0) with
+			| 1 -> true
+			| _ -> false
 		in
-		match Deque.pop lock.ldeque false with
-		| None ->
-			begin match timeout with
-				| VNull ->
-					ignore(Deque.pop lock.ldeque true);
-					vtrue
-				| _ ->
-					let target_time = (now ()) +. num timeout in
-					loop (Backoff.create ()) target_time
-			end
-		| Some _ ->
-			vtrue
+		if try_read () then vtrue
+		else
+			match timeout with
+			| VNull ->
+				(* Block indefinitely. Use select to truly suspend the domain,
+				   then do a non-blocking read. Loop on spurious wakeups in case
+				   a concurrent waiter consumed the byte first. *)
+				let rec loop () =
+					(try ignore (Unix.select [lock.lread_fd] [] [] (-1.0))
+					with Unix.Unix_error _ -> ());
+					if try_read () then vtrue
+					else loop ()
+				in
+				loop ()
+			| _ ->
+				let now () = catch_unix_error Extc.time () in
+				let deadline = now () +. num timeout in
+				let rec loop () =
+					let remaining = deadline -. now () in
+					if remaining <= 0.0 then vfalse
+					else
+						let readable, _, _ =
+							try Unix.select [lock.lread_fd] [] [] remaining
+							with Unix.Unix_error _ -> ([], [], [])
+						in
+						if readable = [] then vfalse (* timeout expired *)
+						else if try_read () then vtrue
+						else loop () (* concurrent waiter consumed the byte, retry *)
+				in
+				loop ()
 	)
 end
 
@@ -3513,9 +3535,21 @@ let init_constructors builtins =
 		);
 	add key_sys_net_Lock
 		(fun _ ->
+			(* Create a socket pair as a non-blocking notification channel.
+			   release() writes one byte to lwrite_fd; wait() blocks in select
+			   on lread_fd. lread_fd is non-blocking so concurrent waiters can
+			   each attempt a read and correctly handle the case where another
+			   waiter consumed the byte first. *)
+			let (rfd, wfd) = Unix.socketpair Unix.PF_UNIX Unix.SOCK_STREAM 0 in
+			Unix.set_nonblock rfd;
 			let lock = {
-				ldeque = Deque.create();
+				lread_fd = rfd;
+				lwrite_fd = wfd;
 			} in
+			Gc.finalise (fun lock ->
+				(try Unix.close lock.lread_fd with Unix.Unix_error _ -> ());
+				(try Unix.close lock.lwrite_fd with Unix.Unix_error _ -> ())
+			) lock;
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
 	let tls_counter = Atomic.make 0 in
