@@ -1925,6 +1925,15 @@ module StdCondition = struct
 	)
 end
 
+let process_catch f arg =
+	try
+		f arg
+	with
+	| Failure msg ->
+		exc_string msg
+	| Unix.Unix_error (err, fn, arg) ->
+		exc_string (Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err))
+
 module StdNativeProcess = struct
 
 	let this vthis = match vthis with
@@ -1939,8 +1948,7 @@ module StdNativeProcess = struct
 		f this (Bytes.unsafe_to_string bytes) pos len
 
 	let process_catch f vthis =
-		try f (this vthis)
-		with Failure msg -> exc_string msg
+		process_catch f (this vthis)
 
 	let close = vifun0 (fun vthis ->
 		process_catch Process.close vthis;
@@ -1948,7 +1956,7 @@ module StdNativeProcess = struct
 	)
 
 	let exitCode = vifun0 (fun vthis ->
-		vint (process_catch Process.exit vthis)
+		vint (Process.exit (this vthis))
 	)
 
 	let getPid = vifun0 (fun vthis ->
@@ -2737,7 +2745,9 @@ module StdSys = struct
 
 	let getChar = vfun1 (fun echo ->
 		let echo = decode_bool echo in
-		vint (Extc.getch echo)
+		let ctx = get_ctx() in
+		let com = ctx.curapi.get_com() in
+		vint (com.part_scope.io.getch echo)
 	)
 
 	let getCwd = vfun0 (fun () ->
@@ -3449,7 +3459,8 @@ let init_constructors builtins =
 					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
-				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
+				let proc = process_catch (fun () -> Process.run cmd args) () in
+				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess proc)
 			| _ -> die "" __LOC__
 		);
 	add key_eval_vm_NativeSocket
