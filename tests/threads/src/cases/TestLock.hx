@@ -4,7 +4,7 @@ import utest.Assert;
 import sys.thread.Semaphore;
 
 @:timeout(2000)
-class TestLock extends utest.Test {
+class TestLock extends ThreadTestBase {
 	function testLockContention(async:Async) {
 		var main = Thread.current();
 		final numThreads = 10;

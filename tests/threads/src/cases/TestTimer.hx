@@ -4,7 +4,7 @@ import haxe.Timer;
 
 @:timeout(10000)
 @:depends(cases.TestEvents)
-class TestTimer extends utest.Test {
+class TestTimer extends ThreadTestBase {
 	static inline var APPROX_FACTOR = 0.95;
 
 	function testCorrectInterval(async:Async) {

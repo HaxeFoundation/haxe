@@ -4,7 +4,7 @@ import utest.Assert;
 import haxe.EventLoop;
 
 @:timeout(2000)
-class TestEvents extends utest.Test {
+class TestEvents extends ThreadTestBase {
 
 	function testIssue10567_runEventsInOrderByTime(async:Async) {
 		var events = EventLoop.current;
