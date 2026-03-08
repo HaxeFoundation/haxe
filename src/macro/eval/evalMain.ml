@@ -33,8 +33,6 @@ open EvalField
 open MacroApi
 open Extlib_leftovers
 
-let main_domain_hack : unit Domain.t ref = ref (Obj.magic())
-
 (* Create *)
 
 let create com api is_macro =
@@ -95,7 +93,7 @@ let create com api is_macro =
 	let next_thread_id = Atomic.make 0 in
 	let thread = {
 		tid = Atomic.fetch_and_add next_thread_id 1 + 1;
-		tthread = !main_domain_hack;
+		tthread = com.sctx.domain;
 		tstorage = IntMap.empty;
 		tevents = vnull;
 		tdeque = EvalThread.Deque.create();

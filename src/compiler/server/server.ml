@@ -279,9 +279,7 @@ module WorkerDomain = struct
 		}
 end
 
-(* The server main loop. Waits for the [accept] call to then process the sent compilation
-   parameters through [process_params]. *)
-let wait_loop entry verbose accept =
+let create_server_entry entry verbose =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Ignore SIGPIPE to prevent process termination when stdin pipe is closed.
@@ -292,7 +290,13 @@ let wait_loop entry verbose accept =
 	ServerCache.enable_cache_mode sctx;
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
-	EvalMain.main_domain_hack := worker.domain;
+	sctx.domain <- worker.domain;
+	(sctx,rq)
+
+(* The server main loop. Waits for the [accept] call to then process the sent compilation
+   parameters through [process_params]. *)
+let wait_loop entry verbose accept =
+	let (sctx,rq) = create_server_entry entry verbose in
 	(* Main loop: accept connections and enqueue requests for the worker.
 	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
 	begin try
@@ -322,7 +326,7 @@ let wait_loop entry verbose accept =
 	end;
 	(* Signal the worker to shut down and wait for it to finish *)
 	RequestQueue.shutdown rq;
-	Domain.join worker.domain;
+	Domain.join sctx.domain;
 	ServerCompilationContext.dispose sctx;
 	0
 

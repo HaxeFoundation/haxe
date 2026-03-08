@@ -60,9 +60,10 @@ set_binary_mode_out stderr true;
 
 let start_semaphore = Semaphore.Binary.make false in
 
+let sctx = ServerCompilationContext.create false in
+
 let run_compiler () =
 	Semaphore.Binary.acquire start_semaphore;
-	let sctx = ServerCompilationContext.create false in
 	Std.finally (fun () -> ServerCompilationContext.dispose sctx) (fun () ->
 		let request_scope = Server.create_request_scope () in
 		let parsed_args = Args.parse_args sctx args in
@@ -71,6 +72,6 @@ let run_compiler () =
 in
 
 let main_domain = Domain.spawn run_compiler in
-EvalMain.main_domain_hack := main_domain;
+sctx.domain <- main_domain;
 Semaphore.Binary.release start_semaphore;
 Domain.join main_domain

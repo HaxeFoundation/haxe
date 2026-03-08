@@ -22,6 +22,8 @@ type t = {
 	mutable macro_context_setup : bool;
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
+	(* The server's worker domain. *)
+	mutable domain : unit Domain.t;
 	(* The server's domain pool. *)
 	pool : Domainslib.Task.pool Lazy.t;
 }
@@ -49,6 +51,7 @@ let create verbose =
 		was_compilation = false;
 		macro_context_setup = false;
 		current_stdin = None;
+		domain = Obj.magic ();
 		pool;
 	}
 
