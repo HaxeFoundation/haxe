@@ -154,8 +154,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         arch: [x86, arm64]
+        include:
+          - target: hl
+            arch: x86
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: hl
+            arch: arm64
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+            runci-args: --skip-hl-jit
+          - target: cpp
+            arch: x86
+            APT_PACKAGES: gcc-multilib g++-multilib
+          - target: lua
+            APT_PACKAGES: ncurses-dev
+          - target: flash
+            APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
         exclude:
           - target: flash
             arch: arm64
@@ -388,7 +403,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
     steps:
       - uses: actions/checkout@main
         with:
@@ -520,8 +535,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [macro]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
         arch: [arm64]
+        include:
+        - target: hl
+          arch: arm64
+          runci-args: --skip-hl-jit
+        - target: hl
+          arch: x86_64
+          runner: macos-15-intel
 
     runs-on: ${{ matrix.runner || 'macos-latest' }}
     steps:
