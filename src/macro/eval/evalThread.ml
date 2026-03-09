@@ -98,16 +98,22 @@ let create_thread_info next_thread_id mode =
 
 let spawn_domain ctx f =
 	let tthread = create_thread_info ctx.next_thread_id (Obj.magic ()) in
+	let start_sem = Semaphore.Binary.make false in
 	let thread = Domain (Domain.spawn (fun () ->
+		Semaphore.Binary.acquire start_sem;
 		run ctx tthread f
 	)) in
 	tthread.thread_mode <- thread;
+	Semaphore.Binary.release start_sem;
 	tthread
 
 let spawn_thread ctx f =
 	let tthread = create_thread_info ctx.next_thread_id (Obj.magic ()) in
+	let start_sem = Semaphore.Binary.make false in
 	let thread = Thread (Thread.create (fun () ->
+		Semaphore.Binary.acquire start_sem;
 		run ctx tthread f
 	) ()) in
 	tthread.thread_mode <- thread;
+	Semaphore.Binary.release start_sem;
 	tthread
