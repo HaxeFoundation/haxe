@@ -192,40 +192,62 @@ let poll sock print =
 		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
 		List.iter print lines;
 	in
-	(* Use Unix.select to multiplex reading from both server socket and local stdin,
-	avoiding the need for a separate forwarding thread. *)
+	(* Forward stdin to the server in a background thread rather than
+	   multiplexing stdin and socket in a single Unix.select call.
+	   On Windows, mixing non-socket file descriptors (console or pipe) with
+	   socket file descriptors causes the Unix select implementation to use
+	   WSAEventSelect internally.  WSAEventSelect consumes the FD_CLOSE event
+	   (signalling that the remote side closed the connection) and never
+	   re-raises it, so after all buffered data has been read the socket-poll
+	   worker blocks indefinitely waiting for an event that will never fire.
+	   Using a dedicated stdin-forwarding thread keeps the main select
+	   socket-only, which takes the simpler WSA select path that correctly
+	   signals the socket as readable when recv() would return 0. *)
 	let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
-	let stdin_buf = Bytes.create 1024 in
+	let stop_stdin = ref false in
+	let stdin_thread =
+		let buf = Bytes.create 1024 in
+		Thread.create (fun () ->
+			(try
+				while not !stop_stdin do
+					let readable, _, _ = Unix.select [stdin_fd] [] [] 0.05 in
+					if readable <> [] then begin
+						let n = Unix.read stdin_fd buf 0 1024 in
+						if n = 0 then begin
+							(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ());
+							raise Exit
+						end;
+						ssend sock (Bytes.sub buf 0 n)
+					end
+				done
+			with _ -> ())
+		) ()
+	in
 	let sock_buf = Bytes.create 1024 in
-	let stdin_active = ref true in
 	let sock_open = ref true in
 	let rec loop () =
-		let read_fds = (if !sock_open then [sock] else []) @ (if !stdin_active then [stdin_fd] else []) in
-		if read_fds = [] then ()
+		if not !sock_open then ()
 		else begin
-			let readable, _, _ = Unix.select read_fds [] [] (-1.0) in
-			List.iter (fun fd ->
-				if fd = stdin_fd then begin
-					let n = Unix.read fd stdin_buf 0 1024 in
-					if n = 0 then begin
-						stdin_active := false;
-						(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
-					end else
-						ssend sock (Bytes.sub stdin_buf 0 n)
-				end else begin
-					let b = Unix.recv sock sock_buf 0 1024 [] in
-					Buffer.add_subbytes response_buf sock_buf 0 b;
-					if b > 0 then begin
-						if Bytes.get sock_buf (b - 1) = '\n' then begin
-							process_response ();
-							Buffer.reset response_buf;
-						end
-					end else
-						sock_open := false
-				end
+			let readable, _, _ = Unix.select [sock] [] [] (-1.0) in
+			List.iter (fun _ ->
+				let b = Unix.recv sock sock_buf 0 1024 [] in
+				Buffer.add_subbytes response_buf sock_buf 0 b;
+				if b > 0 then begin
+					if Bytes.get sock_buf (b - 1) = '\n' then begin
+						process_response ();
+						Buffer.reset response_buf;
+					end
+				end else
+					sock_open := false
 			) readable;
 			if !sock_open then loop ()
 		end
 	in
 	loop ();
+	(* Signal the stdin thread to stop and wait for it to exit.  The thread
+	   polls stop_stdin on every select timeout (every 50 ms at most), so
+	   the join completes quickly.  The small delay is imperceptible to the
+	   user and avoids the complexity of a dedicated wakeup mechanism. *)
+	stop_stdin := true;
+	Thread.join stdin_thread;
 	process_response ()
