@@ -400,17 +400,7 @@ let compile ctx actx sctx =
 		ServerMessage.compiler_stage com;
 		Dump.maybe_generate_dump ctx.com AfterDce;
 		Generate.maybe_generate_dump_dependencies ctx tctx;
-		(* Release the domain pool around generation for targets that don't
-		   use it, so idle worker domains don't stay alive during eval
-		   interpretation. Skip for Jvm which uses the pool throughout
-		   generation and benefits from keeping it alive across compilations
-		   in server mode. *)
-		if com.platform <> Jvm then begin
-			Parallel.ManagedPool.release com.sctx.pool;
-			if not actx.no_output then Generate.generate ctx tctx ext actx;
-			Parallel.ManagedPool.release com.sctx.pool;
-		end else
-			if not actx.no_output then Generate.generate ctx tctx ext actx;
+		if not actx.no_output then Generate.generate ctx tctx ext actx;
 		enter_stage com CGenerationDone;
 		ServerMessage.compiler_stage com;
 	end;

@@ -1081,6 +1081,7 @@ let finalize_macro_api tctx mctx =
 		| Some mint -> mint.curapi <- api
 
 let interpret ctx =
+	Parallel.ManagedPool.release ctx.com.sctx.pool;
 	let mctx = get_macro_context ctx in
 	let mctx = Interp.create ctx.com (make_macro_com_api ctx.com mctx.com null_pos) false in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
