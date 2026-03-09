@@ -1421,6 +1421,14 @@ module StdHost = struct
 	)
 end
 
+let yield_eval ctx = match (get_eval ctx).thread.thread_mode with
+	| Domain _ ->
+		Domain.cpu_relax ()
+	| Thread _ ->
+		Thread.yield()
+	| LuvThread _ ->
+		Unix.sleepf(0.0)
+
 module StdLock = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = ILock lock} -> lock
@@ -1449,6 +1457,7 @@ module StdLock = struct
 		| _ ->
 			let timeout = num timeout in
 			let deadline = Extc.time () +. timeout in
+			let ctx = get_ctx () in
 			let rec loop backoff =
 				Mutex.lock lock.lmutex;
 				if lock.lcount > 0 then begin
@@ -1459,6 +1468,7 @@ module StdLock = struct
 					Mutex.unlock lock.lmutex;
 					if Extc.time () >= deadline then vfalse
 					else begin
+						yield_eval ctx;
 						loop (Backoff.once backoff)
 					end
 				end
@@ -1877,10 +1887,14 @@ module StdSemaphore = struct
 		| _ ->
 			let timeout = num vtimeout in
 			let t = Extc.time () +. timeout in
+			let ctx = get_ctx() in
 			let rec loop backoff =
 				if Semaphore.Counting.try_acquire sem then vtrue
 				else if Extc.time () >= t then vfalse
-				else begin loop (Backoff.once backoff) end
+				else begin
+					yield_eval ctx;
+					loop (Backoff.once backoff)
+				end
 			in
 			loop (Backoff.create ())
 	)
@@ -2930,14 +2944,7 @@ module StdThread = struct
 	)
 
 	let yield = vfun0 (fun () ->
-		begin match (get_eval (get_ctx())).thread.thread_mode with
-		| Domain _ ->
-			Domain.cpu_relax ();
-		| Thread _ ->
-			Thread.yield();
-		| LuvThread _ ->
-			Unix.sleepf(0.0);
-		end;
+		yield_eval (get_ctx());
 		vnull
 	)
 end
