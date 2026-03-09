@@ -1425,7 +1425,7 @@ let yield_eval ctx = match (get_eval ctx).thread.thread_mode with
 	| Domain _ ->
 		Domain.cpu_relax ()
 	| Thread _ ->
-		Thread.yield()
+		Unix.sleepf(0.0)
 	| LuvThread _ ->
 		Unix.sleepf(0.0)
 
