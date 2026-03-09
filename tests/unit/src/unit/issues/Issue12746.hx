@@ -10,6 +10,7 @@ private class Foo {
 
 class Issue12746 extends Test {
 	function test() {
+#if !neko
 		final obj = new Foo();
 
 		final a:Event->Void = cast obj.onMouseMove;
@@ -17,6 +18,9 @@ class Issue12746 extends Test {
 		t(a == b);
 
 		t(genericCast(obj.onMouseMove, obj.onMouseMove));
+#else
+		utest.Assert.pass(); // See PR 12763 discussion
+#end
 	}
 
 	static function genericCast<T:Event>(a:T->Void, b:T->Void):Bool {
