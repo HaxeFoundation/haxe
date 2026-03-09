@@ -307,12 +307,15 @@ and venum_value = {
 	mutable enpos : pos option;
 }
 
+and vthread_mode =
+	| Thread of Thread.t
+	| Domain of unit Domain.t
+	| LuvThread of Luv.Thread.t
+
 and vthread = {
-	tid : int;
-	mutable tthread : unit Domain.t;
-	tdeque : vdeque;
-	mutable tevents : value;
-	mutable tstorage : value IntMap.t;
+	thread_id : int;
+	mutable thread_mode : vthread_mode;
+	thread_deque : vdeque;
 }
 
 and vdeque = {

@@ -91,13 +91,7 @@ let create com api is_macro =
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
 	let next_thread_id = Atomic.make 0 in
-	let thread = {
-		tid = Atomic.fetch_and_add next_thread_id 1 + 1;
-		tthread = com.sctx.domain;
-		tstorage = IntMap.empty;
-		tevents = vnull;
-		tdeque = EvalThread.Deque.create();
-	} in
+	let thread = EvalThread.create_thread_info next_thread_id (Thread (Thread.self ())) in
 	let eval = EvalThread.create_eval thread in
 	let evals = ThreadSafeHashtbl.create 1 in
 	ThreadSafeHashtbl.add evals 0 eval;
@@ -126,7 +120,7 @@ let create com api is_macro =
 			ofields = [||];
 			oproto = OProto (fake_proto key_eval_toplevel);
 		};
-		eval = Domain.DLS.new_key (fun () -> eval);
+		eval = Thread_local_storage.create ();
 		evals = evals;
 		timer_ctx = com.timer_ctx;
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
@@ -134,7 +128,7 @@ let create com api is_macro =
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
 			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
-	Domain.DLS.set ctx.eval eval;
+	Thread_local_storage.set ctx.eval eval;
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
 		   Note that configuration is shared between macro and interpreter contexts, which is why the check

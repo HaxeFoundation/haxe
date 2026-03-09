@@ -1841,7 +1841,7 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let domain_id = current_domain_id () in
+		let domain_id = current_thread_id (get_ctx()) in
 		DomainMutex.lock mutex domain_id;
 		vnull
 	)
@@ -1854,7 +1854,7 @@ module StdMutex = struct
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let domain_id = current_domain_id () in
+		let domain_id = current_thread_id (get_ctx()) in
 		vbool (DomainMutex.try_lock mutex domain_id)
 	)
 end
@@ -2881,29 +2881,20 @@ module StdThread = struct
 	)
 
 	let id = vifun0 (fun vthis ->
-		vint (this vthis).tid
-	)
-
-	let get_events = vifun0 (fun vthis ->
-		(this vthis).tevents
-	)
-
-	let set_events = vifun1 (fun vthis v ->
-		(this vthis).tevents <- v;
-		v
+		vint (this vthis).thread_id
 	)
 
 	let join = vfun1 (fun thread ->
-		Domain.join (this thread).tthread;
+		begin match (this thread).thread_mode with
+		| Domain d ->
+			Domain.join d
+		| Thread t ->
+			Thread.join t
+		| LuvThread t ->
+			ignore(Luv.Thread.join t)
+		end;
 		vnull
 	)
-
-	(* Thread.kill has been marked deprecated (because unstable or even not working at all) for a while, and removed in ocaml 5 *)
-	(* See also https://github.com/HaxeFoundation/haxe/issues/5800 *)
-	(* let kill = vifun0 (fun vthis -> *)
-	(* 	Thread.kill (this vthis).tthread; *)
-	(* 	vnull *)
-	(* ) *)
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
@@ -2913,12 +2904,14 @@ module StdThread = struct
 	let readMessage = vfun1 (fun blocking ->
 		let eval = get_eval (get_ctx()) in
 		let blocking = decode_bool blocking in
-		Option.get (Deque.pop eval.thread.tdeque blocking)
+		match Deque.pop eval.thread.thread_deque blocking with
+		| None -> vnull
+		| Some v -> v
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Deque.push this.tdeque msg;
+		Deque.push this.thread_deque msg;
 		vnull
 	)
 
@@ -2938,7 +2931,7 @@ module StdTls = struct
 		let this = this vthis in
 		try
 			let eval = get_eval (get_ctx()) in
-			IntMap.find this eval.thread.tstorage
+			IntMap.find this eval.eval_storage
 		with Not_found ->
 			vnull
 	)
@@ -2946,7 +2939,7 @@ module StdTls = struct
 	let set_value = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let eval = get_eval (get_ctx()) in
-		eval.thread.tstorage <- IntMap.add this v eval.thread.tstorage;
+		eval.eval_storage <- IntMap.add this v eval.eval_storage;
 		v
 	)
 end
@@ -3494,7 +3487,7 @@ let init_constructors builtins =
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
-				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
+				let thread = EvalThread.spawn_domain ctx (fun () -> call_value f []) in
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
 			| _ -> die "" __LOC__
 		);
@@ -3940,9 +3933,6 @@ let init_standard_library builtins =
 		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
-		"get_events",StdThread.get_events;
-		"set_events",StdThread.set_events;
-		(* "kill",StdThread.kill; *)
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["sys";"thread"],"Tls") [] [

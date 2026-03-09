@@ -283,7 +283,7 @@ module WorkerDomain = struct
 		}
 end
 
-let create_server_entry entry verbose =
+let setup_server_context verbose =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Ignore SIGPIPE to prevent process termination when stdin pipe is closed.
@@ -292,20 +292,14 @@ let create_server_entry entry verbose =
 	(* Create server context and set up hooks for parsing and typing *)
 	let sctx = ServerCompilationContext.create verbose in
 	ServerCache.enable_cache_mode sctx;
-	let rq = RequestQueue.create () in
-	let worker = WorkerDomain.create sctx entry rq in
-	sctx.domain <- worker.domain;
-	let dispose () =
-		RequestQueue.shutdown rq;
-		Domain.join worker.domain;
-		ServerCompilationContext.dispose sctx;
-	in
-	(sctx,rq,dispose)
+	sctx
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop entry verbose accept =
-	let (sctx,rq,dispose) = create_server_entry entry verbose in
+	let sctx = setup_server_context verbose in
+	let rq = RequestQueue.create () in
+	let worker = WorkerDomain.create sctx entry rq in
 	(* Main loop: accept connections and enqueue requests for the worker.
 	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
 	begin try
@@ -333,7 +327,9 @@ let wait_loop entry verbose accept =
 	with _ ->
 		()
 	end;
-	dispose();
+	RequestQueue.shutdown rq;
+	Domain.join worker.domain;
+	ServerCompilationContext.dispose sctx;
 	0
 
 (* Connect to given host/port and return accept function for communication *)

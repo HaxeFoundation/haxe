@@ -122,6 +122,7 @@ and eval = {
 	mutable last_return : value option;
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
+	mutable eval_storage : value IntMap.t;
 }
 
 and debug_state =
@@ -287,7 +288,7 @@ and context = {
 	(* eval *)
 	mutable next_thread_id : int Atomic.t;
 	toplevel : value;
-	eval : eval Domain.DLS.key;
+	eval : eval Thread_local_storage.t;
 	evals : (int,eval) ThreadSafeHashtbl.t;
 	max_stack_depth : int;
 	max_print_depth : int;
@@ -322,13 +323,10 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-	Domain.DLS.get ctx.eval
+	Thread_local_storage.get_exn ctx.eval
 
-let get_domain_id ctx =
-	(get_eval ctx).thread.tid
-
-let current_domain_id () =
-	get_domain_id (get_ctx())
+let current_thread_id ctx =
+	(get_eval ctx).thread.thread_id
 
 let kind_name eval kind =
 	let rec loop kind env = match kind with

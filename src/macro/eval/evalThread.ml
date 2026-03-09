@@ -5,7 +5,7 @@ open EvalExceptions
 open EvalValue
 
 module Deque = struct
-	let create _ = {
+	let create () = {
 		dvalues = [];
 		dmutex = Mutex.create();
 		dcond = Condition.create();
@@ -41,29 +41,32 @@ module Deque = struct
 		Mutex.unlock this.dmutex
 end
 
-let create_eval thread = {
-	env = None;
-	thread = thread;
-	exception_stack = [];
-	debug_channel = Event.new_channel ();
-	debug_state = DbgRunning;
-	breakpoint = make_breakpoint 0 0 BPDisabled BPAny None;
-	caught_types = IntHashtbl.create 0;
-	last_return = None;
-	caught_exception = vnull;
-}
+let create_eval tthread =
+	let eval = {
+		env = None;
+		thread = tthread;
+		exception_stack = [];
+		debug_channel = Event.new_channel ();
+		debug_state = DbgRunning;
+		breakpoint = make_breakpoint 0 0 BPDisabled BPAny None;
+		caught_types = IntHashtbl.create 0;
+		last_return = None;
+		caught_exception = vnull;
+		eval_storage = IntMap.empty;
+	} in
+	eval
 
-let run ctx f thread =
-	let id = thread.tid in
+let run ctx tthread f =
+	let new_eval = create_eval tthread in
+	let id = tthread.thread_id in
 	let maybe_send_thread_event reason = match ctx.debug.debug_socket with
 		| Some socket ->
 			socket.connection.send_thread_event id reason
 		| None ->
 			()
 	in
-	let new_eval = create_eval thread in
 	ThreadSafeHashtbl.add ctx.evals id new_eval;
-	Domain.DLS.set ctx.eval new_eval;
+	Thread_local_storage.set ctx.eval new_eval;
 	let close () =
 		ThreadSafeHashtbl.remove ctx.evals id;
 		maybe_send_thread_event "exited";
@@ -84,16 +87,27 @@ let run ctx f thread =
 		close();
 		raise exc
 
-let spawn ctx f =
-	let id = Atomic.fetch_and_add ctx.next_thread_id 1 + 1 in
-	let thread = {
-		tid = id;
-		tthread = Obj.magic ();
-		tstorage = IntMap.empty;
-		tevents = vnull;
-		tdeque = Deque.create id;
+let create_thread_info next_thread_id mode =
+	let id = Atomic.fetch_and_add next_thread_id 1 + 1 in
+	let tthread = {
+		thread_id = id;
+		thread_mode = mode;
+		thread_deque = Deque.create ();
 	} in
-	thread.tthread <- Domain.spawn (fun () ->
-		run ctx f thread
-	);
-	thread
+	tthread
+
+let spawn_domain ctx f =
+	let tthread = create_thread_info ctx.next_thread_id (Obj.magic ()) in
+	let thread = Domain (Domain.spawn (fun () ->
+		run ctx tthread f
+	)) in
+	tthread.thread_mode <- thread;
+	tthread
+
+let spawn_thread ctx f =
+	let tthread = create_thread_info ctx.next_thread_id (Obj.magic ()) in
+	let thread = Thread (Thread.create (fun () ->
+		run ctx tthread f
+	) ()) in
+	tthread.thread_mode <- thread;
+	tthread

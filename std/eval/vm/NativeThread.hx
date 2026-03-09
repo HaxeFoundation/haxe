@@ -39,12 +39,6 @@ extern class NativeThread {
 	function id():Int;
 
 	/**
-		Terminate prematurely the thread whose handle is given. This functionality is
-		available only with bytecode-level threads.
-	**/
-	function kill():Int;
-
-	/**
 		Suspends the execution of the calling thread for `f` seconds. The other program
 		threads continue to run during this time.
 	**/

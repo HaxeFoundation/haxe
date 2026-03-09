@@ -58,9 +58,9 @@ let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 
-let (sctx,rq,dispose) = Server.create_server_entry Compiler.HighLevel.entry false in
+let sctx = Server.setup_server_context false in
 let parsed_args = Args.parse_args sctx args in
-let comm () = ServerCommunication.Communication.create_stdio () in
-RequestQueue.add rq parsed_args None comm;
-Domain.join sctx.domain;
-dispose();
+let comm = ServerCommunication.Communication.create_stdio () in
+let request_scope = create_request_scope() in
+Compiler.HighLevel.entry sctx request_scope comm parsed_args;
+ServerCompilationContext.dispose sctx;
