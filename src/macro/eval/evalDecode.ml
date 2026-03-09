@@ -79,10 +79,6 @@ let decode_int v = match v with
 	| VFloat f -> int_of_float f
 	| _ -> unexpected_value v "int"
 
-let decode_float v = match v with
-	| VFloat f -> f
-	| _ -> unexpected_value v "float"
-
 let decode_bool v = match v with
 	| VTrue -> true
 	| VFalse -> false

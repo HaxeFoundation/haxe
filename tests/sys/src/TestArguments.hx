@@ -68,7 +68,7 @@ class TestArguments extends utest.Test {
 
 	static public var bin:String =
 	#if interp
-		"TestArguments.hx";
+		"bin/eval/TestArguments.hxb";
 	#elseif neko
 		"bin/neko/TestArguments.n";
 	#elseif hl

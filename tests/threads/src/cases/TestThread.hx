@@ -5,30 +5,7 @@ import sys.thread.Semaphore;
 import utest.Assert;
 import sys.thread.Condition;
 
-class TestThread extends utest.Test {
-	var activeThreads:AtomicInt;
-	var semaphore:Semaphore;
-
-	function setup() {
-		activeThreads = new AtomicInt(0);
-		semaphore = new Semaphore(0);
-		Thread.addCallbacks({
-			onStart: () -> {
-				activeThreads.add(1);
-			},
-			onExit: () -> {
-				semaphore.release();
-			}
-		});
-	}
-
-	function teardown() {
-		final activeThreads = activeThreads.load();
-		for (_ in 0...activeThreads) {
-			semaphore.acquire();
-		}
-	}
-
+class TestThread extends ThreadTestBase {
 	function testOnAbort() {
 		final cond = new Condition();
 		var failingThread = null;

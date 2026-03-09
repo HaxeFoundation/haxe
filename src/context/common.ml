@@ -182,7 +182,6 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
@@ -273,11 +272,11 @@ type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : diagnostic list;
 	io : Gctx.compilation_io;
+	timer_ctx : Timer.timer_context;
 }
 
 type request_scope = {
 	stats : Stats.t;
-	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 }
 
@@ -390,6 +389,7 @@ let to_gctx com = {
 	include_files = com.include_files;
 	std = com.std;
 	timer_ctx = com.timer_ctx;
+	pool = com.sctx.pool;
 }
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
@@ -735,7 +735,7 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 		sctx;
 		cs = sctx.cs;
 		cache = None;
-		timer_ctx = request_scope.timer_ctx;
+		timer_ctx = part_scope.timer_ctx;
 		stage = CCreated;
 		args = args;
 		display_information = {
@@ -838,7 +838,7 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
+	| RMDiagnostics _ -> true
 	| _ -> false
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
@@ -1143,9 +1143,7 @@ let adapt_defines_to_display_context defines =
 	Define.define defines Define.Display;
 	defines
 
-let is_legacy_completion com = match com.json_out with
-	| None -> true
-	| Some api -> !ServerConfig.legacy_completion
+let is_legacy_completion _com = !ServerConfig.legacy_completion
 
 let get_entry_point com =
 	Option.map (fun path ->

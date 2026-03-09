@@ -22,6 +22,8 @@ type t = {
 	mutable macro_context_setup : bool;
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
+	(* The server's domain pool. *)
+	pool : Domainslib.Task.pool Lazy.t;
 }
 
 let create_version () =
@@ -34,18 +36,25 @@ let create_version () =
 		extra = Version.version_extra;
 	}
 
-let create verbose = {
-	version = create_version ();
-	verbose;
-	cs = new CompilationCache.cache;
-	class_paths = Hashtbl.create 0;
-	changed_directories = Hashtbl.create 0;
-	compilation_step = 0;
-	delays = [];
-	was_compilation = false;
-	macro_context_setup = false;
-	current_stdin = None;
-}
+let create verbose =
+	let pool = lazy (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ()) in
+	{
+		version = create_version ();
+		verbose;
+		cs = new CompilationCache.cache;
+		class_paths = Hashtbl.create 0;
+		changed_directories = Hashtbl.create 0;
+		compilation_step = 0;
+		delays = [];
+		was_compilation = false;
+		macro_context_setup = false;
+		current_stdin = None;
+		pool;
+	}
+
+let dispose sctx =
+	if Lazy.is_val sctx.pool then
+		Domainslib.Task.teardown_pool (Lazy.force sctx.pool)
 
 let add_delay sctx f =
 	sctx.delays <- f :: sctx.delays
@@ -59,5 +68,4 @@ let run_delays sctx =
 let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
 	sctx.was_compilation <- false;
-	Parser.reset_state();
-	Parallel.enable := false
+	Parser.reset_state()

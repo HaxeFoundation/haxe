@@ -524,7 +524,7 @@ CAMLprim value sys_time() {
 
 	elapsedNano = time * sTimebaseInfo.numer / sTimebaseInfo.denom;
 
-	return caml_copy_double(time / 1000000000.0);
+	return caml_copy_double((double)elapsedNano / 1000000000.0);
 #elif defined CLOCK_MONOTONIC_RAW
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &t);

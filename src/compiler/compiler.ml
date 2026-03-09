@@ -7,7 +7,6 @@ let handle_diagnostics ctx msg p kind =
 	ctx.has_error <- true;
 	add_diagnostics_message ctx.com msg p kind Error;
 	match ctx.com.report_mode with
-	| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
 	| _ -> die "" __LOC__
 
@@ -22,7 +21,6 @@ let run_or_diagnose ctx f =
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
 			(match com.report_mode with
-			| RMLegacyDiagnostics _ -> DisplayOutput.emit_legacy_diagnostics ctx.com
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
@@ -535,12 +533,13 @@ let compile_ctx sctx ctx =
 	end else
 		catch_completion_and_exit ctx sctx run
 
-let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
+let create_context comm sctx request_scope timer_ctx compilation_step (parsed_args : parsed_arg list) =
 	let io = PipeThings.create_io comm in
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
 		io;
+		timer_ctx;
 	} in
 	let com = Common.create sctx request_scope part_scope compilation_step (Args.to_raw_args parsed_args) (DisplayTypes.DisplayMode.create DMNone) in
 	{
@@ -607,7 +606,7 @@ module HighLevel = struct
 			lines
 
 	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) create each_args has_display is_server (args : parsed_arg list) =
+	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) timer_ctx create each_args has_display is_server (args : parsed_arg list) =
 		(* We want the loop below to actually see all the --each params, so let's prepend them *)
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
@@ -628,7 +627,7 @@ module HighLevel = struct
 			let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
 			List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 			let global_repo = List.exists (fun a -> a = HaxelibGlobal) args in
-			let raw_lines = add_libs request_scope.timer_ctx libs (if global_repo then ["--haxelib-global"] else []) sctx.cs has_display in
+			let raw_lines = add_libs timer_ctx libs (if global_repo then ["--haxelib-global"] else []) sctx.cs has_display in
 			(Args.parse_args sctx raw_lines) @ rest
 		in
 		let rec loop acc = function
@@ -663,14 +662,14 @@ module HighLevel = struct
 			| ServerListen hp :: l ->
 				server_mode := SMListen hp;
 				loop acc l
-			| Run (cl, runtime_args) :: _ ->
+			| Run (cl, runtime_args) :: l ->
 				(* --run: expand into SetMain + Interp, then create context.
 				   This is terminal: remaining args become runtime_args (already in tuple).
 				   Normalise com.args to the -x form, matching old parse_args behaviour. *)
 				let cpath = Path.parse_type_path cl in
 				let acc = Interp :: SetMain cpath :: acc in
 				let ctx = create_context (List.rev acc) in
-				ctx.runtime_args <- runtime_args;
+				ctx.runtime_args <- runtime_args @ (Args.to_raw_args l);
 				[], Some ctx
 			| RunX cl :: l ->
 				(* -x: non-terminal shorthand for SetMain + Interp; subsequent args are still build args *)
@@ -722,13 +721,14 @@ module HighLevel = struct
 		end
 
 	and entry sctx request_scope comm (args : parsed_arg list) =
-		let create = create_context comm sctx request_scope in
+		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
+		let create = create_context comm sctx request_scope timer_ctx in
 		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
 		let has_display = ref (List.exists (fun a -> match a with SetDisplayArg _ -> true | _ -> false) args) in
 		let rec loop args =
 			let args,server_mode,ctx = try
-				process_params sctx request_scope create each_args !has_display comm.is_server args
+				process_params sctx request_scope timer_ctx create each_args !has_display comm.is_server args
 			with Arg.Bad msg ->
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;
@@ -751,5 +751,5 @@ module HighLevel = struct
 				code
 		in
 		let code = loop args in
-		comm.exit request_scope.timer_ctx code
+		comm.exit timer_ctx code
 end

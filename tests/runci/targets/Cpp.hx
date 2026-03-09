@@ -6,7 +6,6 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
-	static final miscCppDir = getMiscSubDir('cpp');
 
 	static public function getCppDependencies() {
 		if (gotCppDependencies) return;
@@ -67,18 +66,18 @@ class Cpp {
 		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
 		runCpp("export/cpp/Main");
 
-		changeDirectory(getMiscSubDir("eventLoop"));
+		changeDirectory(getMiscSubDir("cross", "eventLoop"));
 		runCommand("haxe", ["build-cpp.hxml"]);
 		// TODO: check output like misc tests do
 		runCpp("cpp/Main");
 
 		if (Sys.systemName() == "Mac") {
-			changeDirectory(getMiscSubDir("cppObjc"));
+			changeDirectory(getMiscSubDir("cpp", "cppObjc"));
 			runCommand("haxe", ["build.hxml"]);
 			runCpp("bin/TestObjc-debug");
 		}
 
-		changeDirectory(miscCppDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "cpp"]);
 	}
 }

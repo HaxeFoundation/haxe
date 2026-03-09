@@ -8,8 +8,8 @@ class Neko {
 		runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 		runCommand("neko", ["bin/unit.n"]);
 
-		changeDirectory(getMiscSubDir('neko'));
-		runCommand("haxe", ["run.hxml"].concat(args));
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "neko"]);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-neko.hxml"].concat(args));
