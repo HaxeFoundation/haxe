@@ -187,45 +187,38 @@ let ssend sock str =
 
 let poll sock print =
 	let response_buf = Buffer.create 0 in
-	let process_response () =
-		let lines = ExtString.String.nsplit (Buffer.contents response_buf) "\n" in
-		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-		List.iter print lines;
-	in
-	(* Use Unix.select to multiplex reading from both server socket and local stdin,
-	avoiding the need for a separate forwarding thread. *)
-	let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
+	(* Forward stdin to the server socket in a background thread.
+	   Using a dedicated thread avoids mixing socket and non-socket file
+	   descriptors in Unix.select, which has known issues on Windows. *)
 	let stdin_buf = Bytes.create 1024 in
-	let sock_buf = Bytes.create 1024 in
-	let stdin_active = ref true in
-	let sock_open = ref true in
-	let rec loop () =
-		let read_fds = (if !sock_open then [sock] else []) @ (if !stdin_active then [stdin_fd] else []) in
-		if read_fds = [] then ()
-		else begin
-			let readable, _, _ = Unix.select read_fds [] [] (-1.0) in
-			List.iter (fun fd ->
-				if fd = stdin_fd then begin
-					let n = Unix.read fd stdin_buf 0 1024 in
-					if n = 0 then begin
-						stdin_active := false;
-						(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
-					end else
-						ssend sock (Bytes.sub stdin_buf 0 n)
-				end else begin
-					let b = Unix.recv sock sock_buf 0 1024 [] in
-					Buffer.add_subbytes response_buf sock_buf 0 b;
-					if b > 0 then begin
-						if Bytes.get sock_buf (b - 1) = '\n' then begin
-							process_response ();
-							Buffer.reset response_buf;
-						end
-					end else
-						sock_open := false
+	let _ = Thread.create (fun () ->
+		(try
+			let rec loop () =
+				let n = Unix.read (Unix.descr_of_in_channel Stdlib.stdin) stdin_buf 0 1024 in
+				if n = 0 then
+					(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
+				else begin
+					ssend sock (Bytes.sub stdin_buf 0 n);
+					loop ()
 				end
-			) readable;
-			if !sock_open then loop ()
-		end
-	in
-	loop ();
-	process_response ()
+			in
+			loop ()
+		with _ -> ())
+	) () in
+	(* Read server output until the connection closes, printing lines immediately
+	   as they arrive rather than waiting for the server to disconnect. *)
+	let sock_buf = Bytes.create 1024 in
+	let sock_open = ref true in
+	while !sock_open do
+		let b = Unix.recv sock sock_buf 0 1024 [] in
+		Buffer.add_subbytes response_buf sock_buf 0 b;
+		if b <= 0 then
+			sock_open := false
+	done;
+	(* Flush any remaining partial line after the server closes the connection *)
+	let s = Buffer.contents response_buf in
+	if s <> "" then begin
+		let lines = ExtString.String.nsplit s "\n" in
+		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
+		List.iter print lines
+	end
