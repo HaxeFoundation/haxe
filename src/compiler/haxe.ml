@@ -57,9 +57,10 @@ DynamicGc.(setup_dynamic_tuning
 let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
-let sctx = ServerCompilationContext.create false in
-Std.finally (fun () -> ServerCompilationContext.dispose sctx) (fun () ->
-	let request_scope = Server.create_request_scope () in
-	let parsed_args = Args.parse_args sctx args in
-	Server.process sctx request_scope Compiler.HighLevel.entry (ServerCommunication.Communication.create_stdio ()) parsed_args;
-) ()
+
+let sctx = Server.setup_server_context false in
+let parsed_args = Args.parse_args sctx args in
+let comm = ServerCommunication.Communication.create_stdio () in
+let request_scope = create_request_scope() in
+Compiler.HighLevel.entry sctx request_scope comm parsed_args;
+ServerCompilationContext.dispose sctx;

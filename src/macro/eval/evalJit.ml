@@ -427,7 +427,7 @@ and jit_expr jit return e =
 			in
 			let lazy_proto_field proto =
 				let i = get_proto_field_index proto name in
-				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
+				AtomicLazy.from_fun (fun () -> match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
 			let jit_with_null_check ef =
 				let exec = jit_expr jit false ef in
@@ -489,7 +489,7 @@ and jit_expr jit return e =
 					emit_special_super_call f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
-					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+					let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 					emit_super_call v execs e.epos
 				end
 			| _ -> die "" __LOC__
@@ -518,7 +518,7 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 			emit_constructor_call proto v execs e.epos
 		end
 	(* read *)

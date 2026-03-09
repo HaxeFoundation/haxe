@@ -272,11 +272,11 @@ type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : diagnostic list;
 	io : Gctx.compilation_io;
+	timer_ctx : Timer.timer_context;
 }
 
 type request_scope = {
 	stats : Stats.t;
-	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 }
 
@@ -735,7 +735,7 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 		sctx;
 		cs = sctx.cs;
 		cache = None;
-		timer_ctx = request_scope.timer_ctx;
+		timer_ctx = part_scope.timer_ctx;
 		stage = CCreated;
 		args = args;
 		display_information = {

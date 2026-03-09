@@ -15,7 +15,7 @@ open EvalDebugMisc
 
 let handle_in_temp_thread ctx env f =
 	let channel = Event.new_channel () in
-	let _ = EvalThread.spawn ctx (fun () ->
+	let _ = EvalThread.spawn_thread ctx (fun () ->
 		let eval = get_eval ctx in
 		eval.env <- Some env;
 		let v = try
@@ -196,7 +196,7 @@ let output_threads ctx =
 	let fold id eval acc =
 		(JObject [
 			"id",JInt id;
-			"name",JString (Printf.sprintf "Thread %i" (Thread.id eval.thread.tthread));
+			"name",JString (Printf.sprintf "Thread %i" eval.thread.thread_id);
 		]) :: acc
 	in
 	let threads = ThreadSafeHashtbl.fold fold ctx.evals [] in
@@ -316,9 +316,10 @@ let output_inner_vars v env =
 				(s,v) :: acc
 			) h []
 		| VInstance {ikind = IMutex mutex} ->
-			["owner",match mutex.mowner with None -> vnull | Some (id,_) -> vint id]
+			let owner = Atomic.get mutex.downer in
+			["owner",if owner = -1 then vnull else vint owner]
 		| VInstance {ikind = IThread thread} ->
-			["id",vint (Thread.id thread.tthread)]
+			["id",vint thread.thread_id]
 		| VInstance vi ->
 			let fields = instance_fields vi in
 			List.map (fun (n,v) ->
@@ -778,17 +779,23 @@ let handler =
 	h
 
 let make_connection socket =
+	let current_eval_thread_id () =
+		try
+			(get_eval (get_ctx())).thread.thread_id
+		with _ ->
+			Thread.id (Thread.self())
+	in
 	let output_thread_event thread_id reason =
 		send_event socket "threadEvent" (Some (JObject ["threadId",JInt thread_id;"reason",JString reason]))
 	in
 	let output_breakpoint_stop debug =
-		(* TODO: this isn't thread-safe. We should only creates these anew if all threads continued *)
+		(* TODO: this isn't thread-safe. We should only create these anew if all threads continued *)
 		debug.debug_context <- new eval_debug_context;
-		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
+		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (current_eval_thread_id())]))
 	in
 	let output_exception_stop debug v _ =
 		debug.debug_context <- new eval_debug_context;
-		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()));"text",JString (value_string v)]))
+		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (current_eval_thread_id());"text",JString (value_string v)]))
 	in
 	let wait () : unit =
 		let rec process_outcome id outcome =

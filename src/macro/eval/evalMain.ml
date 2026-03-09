@@ -90,12 +90,8 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let thread = {
-		tthread = Thread.self();
-		tstorage = IntMap.empty;
-		tevents = vnull;
-		tdeque = EvalThread.Deque.create();
-	} in
+	let next_thread_id = Atomic.make 0 in
+	let thread = EvalThread.create_thread_info next_thread_id (Thread (Thread.self ())) in
 	let eval = EvalThread.create_eval thread in
 	let evals = ThreadSafeHashtbl.create 1 in
 	ThreadSafeHashtbl.add evals 0 eval;
@@ -119,6 +115,7 @@ let create com api is_macro =
 		file_keys = com.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
+		next_thread_id;
 		toplevel = 	vobject {
 			ofields = [||];
 			oproto = OProto (fake_proto key_eval_toplevel);

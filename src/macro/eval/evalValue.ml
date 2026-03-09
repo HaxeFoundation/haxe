@@ -19,6 +19,48 @@
 open Extlib_leftovers
 open Globals
 
+module DomainMutex = struct
+	type t = {
+		dmutex : Mutex.t;
+		downer : int Atomic.t;  (* owner domain_id, or -1 if unlocked *)
+		mutable ddepth : int;   (* reentrant depth, only accessed by owner *)
+	}
+
+	let create () = {
+		dmutex = Mutex.create();
+		downer = Atomic.make (-1);
+		ddepth = 0;
+	}
+
+	let lock mutex domain_id =
+		if Atomic.get mutex.downer = domain_id then
+			mutex.ddepth <- mutex.ddepth + 1
+		else begin
+			Mutex.lock mutex.dmutex;
+			Atomic.set mutex.downer domain_id;
+			mutex.ddepth <- 1
+		end
+
+	let try_lock mutex domain_id =
+		if Atomic.get mutex.downer = domain_id then begin
+			mutex.ddepth <- mutex.ddepth + 1;
+			true
+		end else if Mutex.try_lock mutex.dmutex then begin
+			Atomic.set mutex.downer domain_id;
+			mutex.ddepth <- 1;
+			true
+		end else
+			false
+
+	let unlock mutex =
+		if mutex.ddepth > 1 then
+			mutex.ddepth <- mutex.ddepth - 1
+		else begin
+			Atomic.set mutex.downer (-1);
+			Mutex.unlock mutex.dmutex
+		end
+end
+
 type cmp =
 	| CEq
 	| CSup
@@ -217,7 +259,9 @@ and vinstance_kind =
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
 	| IThread of vthread
-	| IMutex of vmutex
+	| IMutex of DomainMutex.t
+	| ISemaphore of Semaphore.Counting.t
+	| ICondition of vcondition
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
@@ -263,25 +307,32 @@ and venum_value = {
 	mutable enpos : pos option;
 }
 
+and vthread_mode =
+	| Thread of Thread.t
+	| Domain of unit Domain.t
+	| LuvThread of Luv.Thread.t
+
 and vthread = {
-	mutable tthread : Thread.t;
-	tdeque : vdeque;
-	mutable tevents : value;
-	mutable tstorage : value IntMap.t;
+	thread_id : int;
+	mutable thread_mode : vthread_mode;
+	thread_deque : vdeque;
 }
 
 and vdeque = {
 	mutable dvalues : value list;
 	dmutex : Mutex.t;
-}
-
-and vmutex = {
-	mmutex : Mutex.t;
-	mutable mowner : (int * int) option; (* thread ID * same thread lock count *)
+	dcond : Condition.t;
 }
 
 and vlock = {
-	ldeque : vdeque;
+	lmutex : Mutex.t;
+	lcond : Condition.t;
+	mutable lcount : int;
+}
+
+and vcondition = {
+	cond : Condition.t;
+	cmutex : Mutex.t;
 }
 
 let same_handle h1 h2 =

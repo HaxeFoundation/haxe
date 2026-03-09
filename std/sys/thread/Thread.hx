@@ -191,7 +191,12 @@ class Thread {
 		mutex.release();
 
 		if (callbacks != null) {
+			if (callbacks.onAbort == null) {
+				callbacks.onAbort = t.onAbort;
+			}
 			installCallbacks(t.callbacks, callbacks);
+		} else {
+			t.callbacks.onAbort(t.onAbort);
 		}
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
@@ -205,7 +210,13 @@ class Thread {
 				ThreadCallbackManager.invokeCallbacks(t.callbacks.onStartCallback, globalCallbacks?.onStartCallback);
 				job();
 				ThreadCallbackManager.invokeCallbacks(t.callbacks.onJobDoneCallback, globalCallbacks?.onJobDoneCallback);
-			} catch( e ) {
+			}
+			#if eval
+			catch (_:eval.vm.NativeThread.NativeThreadExit) {
+				// This comes from a NativeThread.exit() call and is not a real exception
+			}
+			#end
+			catch( e ) {
 				exception = e;
 			}
 

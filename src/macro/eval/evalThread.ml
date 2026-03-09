@@ -8,85 +8,63 @@ module Deque = struct
 	let create () = {
 		dvalues = [];
 		dmutex = Mutex.create();
+		dcond = Condition.create();
 	}
 
 	let add this i =
 		Mutex.lock this.dmutex;
 		this.dvalues <- this.dvalues @ [i];
+		Condition.signal this.dcond;
 		Mutex.unlock this.dmutex
 
 	let pop this blocking =
-		if not blocking then begin
-			Mutex.lock this.dmutex;
-			match this.dvalues with
+		Mutex.lock this.dmutex;
+		if blocking then begin
+			while this.dvalues = [] do
+				Condition.wait this.dcond this.dmutex
+			done
+		end;
+		let result = match this.dvalues with
 			| v :: vl ->
 				this.dvalues <- vl;
-				Mutex.unlock this.dmutex;
 				Some v
 			| [] ->
-				Mutex.unlock this.dmutex;
 				None
-		end else begin
-			(* Optimistic first attempt with immediate lock. *)
-			Mutex.lock this.dmutex;
-			begin match this.dvalues with
-			| v :: vl ->
-				this.dvalues <- vl;
-				Mutex.unlock this.dmutex;
-				Some v
-			| [] ->
-				Mutex.unlock this.dmutex;
-				(* First attempt failed, let's be pessimistic now to avoid locks. *)
-				let rec loop () =
-					Thread.yield();
-					match this.dvalues with
-					| v :: vl ->
-						(* Only lock if there's a chance to have a value. This avoids high amounts of unneeded locking. *)
-						Mutex.lock this.dmutex;
-						(* We have to check again because the value could be gone by now. *)
-						begin match this.dvalues with
-						| v :: vl ->
-							this.dvalues <- vl;
-							Mutex.unlock this.dmutex;
-							Some v
-						| [] ->
-							Mutex.unlock this.dmutex;
-							loop()
-						end
-					| [] ->
-						loop()
-				in
-				loop()
-			end
-		end
+		in
+		Mutex.unlock this.dmutex;
+		result
 
 	let push this i =
 		Mutex.lock this.dmutex;
 		this.dvalues <- i :: this.dvalues;
+		Condition.signal this.dcond;
 		Mutex.unlock this.dmutex
 end
 
-let create_eval thread = {
-	env = None;
-	thread = thread;
-	exception_stack = [];
-	debug_channel = Event.new_channel ();
-	debug_state = DbgRunning;
-	breakpoint = make_breakpoint 0 0 BPDisabled BPAny None;
-	caught_types = IntHashtbl.create 0;
-	last_return = None;
-	caught_exception = vnull;
-}
+let create_eval tthread =
+	let eval = {
+		env = None;
+		thread = tthread;
+		exception_stack = [];
+		debug_channel = Event.new_channel ();
+		debug_state = DbgRunning;
+		breakpoint = make_breakpoint 0 0 BPDisabled BPAny None;
+		caught_types = IntHashtbl.create 0;
+		last_return = None;
+		caught_exception = vnull;
+		eval_storage = IntMap.empty;
+	} in
+	eval
 
-let run ctx f thread =
-	let id = Thread.id (Thread.self()) in
+let run ctx tthread f =
+	let new_eval = create_eval tthread in
+	let id = tthread.thread_id in
 	let maybe_send_thread_event reason = match ctx.debug.debug_socket with
 		| Some socket ->
 			socket.connection.send_thread_event id reason
 		| None ->
 			()
 	in
-	let new_eval = create_eval thread in
 	ThreadSafeHashtbl.add ctx.evals id new_eval;
 	Thread_local_storage.set ctx.eval new_eval;
 	let close () =
@@ -109,31 +87,33 @@ let run ctx f thread =
 		close();
 		raise exc
 
-let spawn ctx f =
-	let thread = {
-		tthread = Obj.magic ();
-		tstorage = IntMap.empty;
-		tevents = vnull;
-		tdeque = Deque.create();
+let create_thread_info next_thread_id mode =
+	let id = Atomic.fetch_and_add next_thread_id 1 + 1 in
+	let tthread = {
+		thread_id = id;
+		thread_mode = mode;
+		thread_deque = Deque.create ();
 	} in
-	thread.tthread <- Thread.create (run ctx f) thread;
-	thread
+	tthread
 
-(**
-	Just executes `f` if called from a Haxe thread.
-	Otherwise creates Haxe thread data structures, runs `f` and then cleans up
-	created data.
-*)
-let run ctx f =
-	let id = Thread.id (Thread.self()) in
-	if ThreadSafeHashtbl.mem ctx.evals id then
-		ignore(f())
-	else begin
-		let thread = {
-			tthread = Thread.self();
-			tstorage = IntMap.empty;
-			tevents = vnull;
-			tdeque = Deque.create();
-		} in
-		run ctx f thread
-	end
+let spawn_domain ctx f =
+	let tthread = create_thread_info ctx.next_thread_id (Obj.magic ()) in
+	let start_sem = Semaphore.Binary.make false in
+	let thread = Domain (Domain.spawn (fun () ->
+		Semaphore.Binary.acquire start_sem;
+		run ctx tthread f
+	)) in
+	tthread.thread_mode <- thread;
+	Semaphore.Binary.release start_sem;
+	tthread
+
+let spawn_thread ctx f =
+	let tthread = create_thread_info ctx.next_thread_id (Obj.magic ()) in
+	let start_sem = Semaphore.Binary.make false in
+	let thread = Thread (Thread.create (fun () ->
+		Semaphore.Binary.acquire start_sem;
+		run ctx tthread f
+	) ()) in
+	tthread.thread_mode <- thread;
+	Semaphore.Binary.release start_sem;
+	tthread
