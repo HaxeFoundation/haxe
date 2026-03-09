@@ -75,7 +75,7 @@ module ContinuationClassBuilder = struct
 			let def = Option.map map ttp.ttp_default in
 			let constraints = match ttp.ttp_constraints with
 				| None -> None
-				| Some constraints -> Some (AtomicLazy.from_fun (fun () -> List.map map (AtomicAtomicLazy.force constraints)))
+				| Some constraints -> Some (AtomicLazy.from_fun (fun () -> List.map map (AtomicLazy.force constraints)))
 			in
 			mk_type_param c TPHType (* !!! *) def constraints
 		 ) params_outside in
@@ -187,7 +187,7 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
-		let tret_invoke_resume = (TInst(AtomicAtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
+		let tret_invoke_resume = (TInst(AtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let subst = substitute_type_params coro_class.type_param_subst in
 		let var_map = Hashtbl.create 8 in
@@ -229,7 +229,7 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume_thunk_call ctx coro_class cf_captured =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
-		let tret_invoke_resume = (TInst(AtomicAtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
+		let tret_invoke_resume = (TInst(AtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let ecaptured   = b#instance_field ethis coro_class.cls coro_class.inside.param_types cf_captured cf_captured.cf_type in
 		let ecall = b#call ecaptured [] tret_invoke_resume in
