@@ -28,6 +28,7 @@
 #ifdef _WIN32
 #	include <windows.h>
 #	include <conio.h>
+#	include <io.h>
 #else
 #	include <dlfcn.h>
 #	include <limits.h>
@@ -558,7 +559,25 @@ CAMLprim value sys_timestamp_ms() {
 
 CAMLprim value sys_getch( value b ) {
 #	ifdef _WIN32
-	return Val_int( Bool_val(b)?getche():getch() );
+	/* getch()/getche() from <conio.h> read from the console input buffer,
+	   not from stdin.  When stdin is a pipe or file (e.g. subprocess with
+	   redirected input) they ignore the redirected data entirely.
+	   Detect this and fall back to _read() on the raw file descriptor. */
+	{
+		HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
+		DWORD ft = (h != INVALID_HANDLE_VALUE) ? GetFileType(h) : FILE_TYPE_CHAR;
+		if (ft == FILE_TYPE_CHAR) {
+			return Val_int( Bool_val(b) ? getche() : getch() );
+		} else {
+			unsigned char c;
+			int n = _read(0, &c, 1);
+			if (n <= 0) return Val_int(-1);
+			if (Bool_val(b)) {
+				_write(1, &c, 1);
+			}
+			return Val_int(c);
+		}
+	}
 #	else
 	// took some time to figure out how to do that
 	// without relying on ncurses, which clear the

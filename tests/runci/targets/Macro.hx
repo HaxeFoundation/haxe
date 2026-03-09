@@ -34,11 +34,11 @@ class Macro {
 			case 'Linux':
 				changeDirectory(getMiscSubDir());
 				runCommand("haxe", ["run-base.hxml", "-D", "timeout=3", "--run", "Main", "eval/compiler_loops"]);
-
-				changeDirectory(getMiscSubDir("eval", "connect_stdin"));
-				runCommand("haxe", ["run.hxml"]);
 			case _: // TODO
 		}
+
+		changeDirectory(getMiscSubDir("eval", "connect_stdin"));
+		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--interp"]);
