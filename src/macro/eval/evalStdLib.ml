@@ -1421,6 +1421,16 @@ module StdHost = struct
 	)
 end
 
+(* Yield between spin-loop iterations when waiting on a lock or semaphore
+   with a timeout. Unix.sleepf 0.0 calls caml_enter_blocking_section /
+   caml_leave_blocking_section, which releases the OCaml domain lock for the
+   duration of the nanosleep. This is required for Thread and LuvThread modes,
+   where all threads share one domain lock: without it, the spinning thread
+   holds the domain lock and prevents other threads from running OCaml code
+   (including the code that would release the lock), causing a deadlock.
+   For Domain mode this is also safe — each domain has its own lock — and the
+   brief syscall is a reasonable price for correct cross-mode behaviour. *)
+
 module StdLock = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = ILock lock} -> lock
@@ -1449,7 +1459,7 @@ module StdLock = struct
 		| _ ->
 			let timeout = num timeout in
 			let deadline = Extc.time () +. timeout in
-			let rec loop backoff =
+			let rec loop () =
 				Mutex.lock lock.lmutex;
 				if lock.lcount > 0 then begin
 					lock.lcount <- lock.lcount - 1;
@@ -1459,11 +1469,12 @@ module StdLock = struct
 					Mutex.unlock lock.lmutex;
 					if Extc.time () >= deadline then vfalse
 					else begin
-						loop (Backoff.once backoff)
+						Unix.sleepf 0.0;
+						loop ()
 					end
 				end
 			in
-			loop (Backoff.create ())
+			loop ()
 	)
 end
 
@@ -1877,12 +1888,12 @@ module StdSemaphore = struct
 		| _ ->
 			let timeout = num vtimeout in
 			let t = Extc.time () +. timeout in
-			let rec loop backoff =
+			let rec loop () =
 				if Semaphore.Counting.try_acquire sem then vtrue
 				else if Extc.time () >= t then vfalse
-				else begin loop (Backoff.once backoff) end
+				else begin Unix.sleepf 0.0; loop () end
 			in
-			loop (Backoff.create ())
+			loop ()
 	)
 
 	let release = vifun0 (fun vthis ->
