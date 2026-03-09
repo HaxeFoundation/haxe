@@ -2876,7 +2876,14 @@ module StdThread = struct
 	)
 
 	let exit = vfun0 (fun () ->
-		Thread.exit();
+		begin match (get_eval (get_ctx())).thread.thread_mode with
+		| Domain _
+		| Thread _ ->
+			Thread.exit();
+		| LuvThread _ ->
+			(* Caught by catch_exceptions *)
+			raise MacroApi.Abort
+		end;
 		vnull
 	)
 
@@ -2916,8 +2923,14 @@ module StdThread = struct
 	)
 
 	let yield = vfun0 (fun () ->
-		Domain.cpu_relax ();
-		Thread.yield();
+		begin match (get_eval (get_ctx())).thread.thread_mode with
+		| Domain _ ->
+			Domain.cpu_relax ();
+		| Thread _ ->
+			Thread.yield();
+		| LuvThread _ ->
+			Unix.sleepf(0.0);
+		end;
 		vnull
 	)
 end
