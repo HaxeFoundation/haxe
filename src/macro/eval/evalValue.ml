@@ -201,7 +201,7 @@ type value =
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
-	| VLazy of value Lazy.t
+	| VLazy of value AtomicLazy.t
 	| VNativeString of string
 	| VHandle of vhandle
 	| VInt64 of Signed.Int64.t
@@ -396,8 +396,8 @@ let rec equals a b = match a,b with
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| VNativeString s1,VNativeString s2 -> s1 = s2
 	| VHandle h1,VHandle h2 -> same_handle h1 h2
-	| VLazy f1,_ -> equals (Lazy.force f1) b
-	| _,VLazy f2 -> equals a (Lazy.force f2)
+	| VLazy f1,_ -> equals (AtomicLazy.force f1) b
+	| _,VLazy f2 -> equals a (AtomicLazy.force f2)
 	| _ -> a == b
 
 module ValueHashtbl = Hashtbl.Make(struct
@@ -428,7 +428,7 @@ let vnative_string s = VNativeString s
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
 let rec vresolve v = match v with
-	| VLazy f -> vresolve (Lazy.force f)
+	| VLazy f -> vresolve (AtomicLazy.force f)
 	| _ -> v
 
 let associate_enum_value_pos ve p = match ve with

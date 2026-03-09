@@ -3195,7 +3195,7 @@ module StdType = struct
 			| VEnumValue ve ->
 				8,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
-				loop (Lazy.force f)
+				loop (AtomicLazy.force f)
 			| VNativeString _ | VHandle _ -> 9,[||]
 		in
 		let i,vl = loop v in

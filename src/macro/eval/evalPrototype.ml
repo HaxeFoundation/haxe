@@ -68,9 +68,9 @@ module PrototypeBuilder = struct
 		(* The kind of the prototype. *)
 		kind : vprototype_kind;
 		(* The fields of the prototype. A field here is a pair of its hashed name and its (lazyfied) value. *)
-		fields : (int * value Lazy.t) DynArray.t;
+		fields : (int * value AtomicLazy.t) DynArray.t;
 		(* The instance fields of the prototype. See above. *)
-		instance_fields : (int * value Lazy.t) DynArray.t;
+		instance_fields : (int * value AtomicLazy.t) DynArray.t;
 		(* The metadata expression, if exists. *)
 		meta : texpr option;
 		(* Whether or not the prototype is static. *)
@@ -101,7 +101,7 @@ module PrototypeBuilder = struct
 
 	(* Forces the lazy field values and assigns them to the prototype. *)
 	let initialize_fields pctx proto =
-		DynArray.iteri (fun i (_,v) -> proto.pfields.(i) <- Lazy.force v) pctx.fields
+		DynArray.iteri (fun i (_,v) -> proto.pfields.(i) <- AtomicLazy.force v) pctx.fields
 
 	(* Processes the field information and returns an initialization function. *)
 	let finalize pctx =
@@ -137,7 +137,7 @@ module PrototypeBuilder = struct
 			) (names,offset) pctx.instance_fields in
 			names,a,(fun proto ->
 				Array.iteri (fun i v -> a.(i) <- v) fields;
-				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- Lazy.force v) pctx.instance_fields;
+				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- AtomicLazy.force v) pctx.instance_fields;
 				initialize_fields pctx proto;
 			)
 		end else
