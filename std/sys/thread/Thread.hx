@@ -191,7 +191,12 @@ class Thread {
 		mutex.release();
 
 		if (callbacks != null) {
+			if (callbacks.onAbort == null) {
+				callbacks.onAbort = t.onAbort;
+			}
 			installCallbacks(t.callbacks, callbacks);
+		} else {
+			t.callbacks.onAbort(t.onAbort);
 		}
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
