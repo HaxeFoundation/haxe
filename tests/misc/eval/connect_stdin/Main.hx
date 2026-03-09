@@ -163,6 +163,35 @@ class Main {
 			return exitCode == 0;
 		});
 
+		// Test 10: Output is streamed immediately, not buffered until program exit.
+		// StreamOutput traces "before_stdin", then blocks on stdin.
+		// If --connect streaming works, we can read that line before sending stdin.
+		// If output were buffered until exit this test would deadlock because the
+		// program waits for stdin which we only send after reading the first line.
+		test("streaming output not buffered until exit", () -> {
+			var client = new Process("haxe", [
+				"--connect", Std.string(port), "-cp", ".", "--main", "StreamOutput", "--interp"
+			]);
+			// This readLine() returns immediately if streaming works,
+			// because the trace happens before the program reads stdin.
+			var firstLine = client.stdout.readLine();
+			// Unblock the program by sending a stdin byte.
+			client.stdin.writeByte(0);
+			client.stdin.close();
+			var rest = client.stdout.readAll().toString().trim();
+			var exitCode = client.exitCode();
+			client.close();
+			if (!firstLine.contains("before_stdin")) {
+				Sys.println('\n    First line should contain "before_stdin", got: "$firstLine"');
+				return false;
+			}
+			if (!rest.contains("after_stdin")) {
+				Sys.println('\n    Remaining output should contain "after_stdin", got: "$rest"');
+				return false;
+			}
+			return exitCode == 0;
+		});
+
 		// Clean up the server
 		server.kill();
 		server.close();

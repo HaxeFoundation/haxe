@@ -187,6 +187,21 @@ let ssend sock str =
 
 let poll sock print =
 	let response_buf = Buffer.create 0 in
+	(* Process all complete lines (up to the last newline) in the buffer,
+	   keeping any partial unflushed line for the next read. *)
+	let flush_complete_lines () =
+		let s = Buffer.contents response_buf in
+		match String.rindex_opt s '\n' with
+		| None -> ()
+		| Some last_nl ->
+			let complete = String.sub s 0 (last_nl + 1) in
+			let remaining = String.sub s (last_nl + 1) (String.length s - last_nl - 1) in
+			let lines = ExtString.String.nsplit complete "\n" in
+			let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
+			List.iter print lines;
+			Buffer.reset response_buf;
+			if remaining <> "" then Buffer.add_string response_buf remaining
+	in
 	(* Forward stdin to the server socket in a background thread.
 	   Using a dedicated thread avoids mixing socket and non-socket file
 	   descriptors in Unix.select, which has known issues on Windows. *)
@@ -214,6 +229,8 @@ let poll sock print =
 		Buffer.add_subbytes response_buf sock_buf 0 b;
 		if b <= 0 then
 			sock_open := false
+		else
+			flush_complete_lines ()
 	done;
 	(* Flush any remaining partial line after the server closes the connection *)
 	let s = Buffer.contents response_buf in
