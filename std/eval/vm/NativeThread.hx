@@ -22,6 +22,13 @@
 
 package eval.vm;
 
+@:ifFeature("eval.vm.NativeThread.exit")
+class NativeThreadExit extends haxe.Exception {
+	public function new() {
+		super("NativeThreadExit");
+	}
+}
+
 extern class NativeThread {
 	/**
 		Creates a new thread that executes function `f`.

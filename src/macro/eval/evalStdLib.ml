@@ -2877,8 +2877,15 @@ module StdThread = struct
 
 	let exit = vfun0 (fun () ->
 		begin match (get_eval (get_ctx())).thread.thread_mode with
-		| Domain _
+		| Domain _ ->
+			let ctx = get_ctx() in
+			let path = key_eval_vm_NativeThreadExit in
+			let v = encode_instance path in
+			let fnew = get_instance_constructor ctx path null_pos in
+			ignore(call_value_on v (AtomicLazy.force fnew) []);
+			exc v
 		| Thread _ ->
+			(* Is this right? *)
 			Thread.exit();
 		| LuvThread _ ->
 			(* Caught by catch_exceptions *)

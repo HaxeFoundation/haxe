@@ -22,9 +22,8 @@ class TestEval extends ThreadTestBase {
 			NativeThread.delay(0.1);
 			NativeThread.yield();
 			deque.push({id: id, firstMessage: firstMessage, secondMessage: secondMessage});
-			// TODO: need to get the control flow right so that Thread callbacks don't miss this
-			// NativeThread.exit();
-			// throw "unreachable";
+			NativeThread.exit();
+			throw "unreachable";
 		}
 
 		function mainThreadCheck() {
