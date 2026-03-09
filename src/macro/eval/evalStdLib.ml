@@ -1458,7 +1458,7 @@ module StdLock = struct
 			let timeout = num timeout in
 			let deadline = Extc.time () +. timeout in
 			let ctx = get_ctx () in
-			let rec loop backoff =
+			let rec loop () =
 				Mutex.lock lock.lmutex;
 				if lock.lcount > 0 then begin
 					lock.lcount <- lock.lcount - 1;
@@ -1469,11 +1469,11 @@ module StdLock = struct
 					if Extc.time () >= deadline then vfalse
 					else begin
 						yield_eval ctx;
-						loop (Backoff.once backoff)
+						loop ()
 					end
 				end
 			in
-			loop (Backoff.create ())
+			loop ()
 	)
 end
 
@@ -1888,15 +1888,15 @@ module StdSemaphore = struct
 			let timeout = num vtimeout in
 			let t = Extc.time () +. timeout in
 			let ctx = get_ctx() in
-			let rec loop backoff =
+			let rec loop () =
 				if Semaphore.Counting.try_acquire sem then vtrue
 				else if Extc.time () >= t then vfalse
 				else begin
 					yield_eval ctx;
-					loop (Backoff.once backoff)
+					loop ()
 				end
 			in
-			loop (Backoff.create ())
+			loop ()
 	)
 
 	let release = vifun0 (fun vthis ->
