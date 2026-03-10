@@ -49,10 +49,21 @@ let run cmd args =
 		| Some a ->
 			cmd, Array.append [|cmd|] a
 	in
-	match
-		try Ok (Unix.create_process shell argv child_stdin_r child_stdout_w child_stderr_w)
+	(* On Unix, posix_spawn (used by Unix.create_process on modern systems) does not
+	   fall back to /bin/sh for scripts without a shebang line, unlike the traditional
+	   execvp. Restore the execvp behaviour by retrying with /bin/sh on ENOEXEC. *)
+	let try_spawn sh sh_argv =
+		try Ok (Unix.create_process sh sh_argv child_stdin_r child_stdout_w child_stderr_w)
 		with Unix.Unix_error _ as e -> Error e
-	with
+	in
+	let result = match try_spawn shell argv with
+		| Error (Unix.Unix_error (Unix.ENOEXEC, _, _)) when not Sys.win32 && args <> None ->
+			(* Retry as /bin/sh <cmd> <args> *)
+			let sh_argv = Array.append [|"/bin/sh"; cmd|] (match args with Some a -> a | None -> [||]) in
+			try_spawn "/bin/sh" sh_argv
+		| other -> other
+	in
+	match result with
 	| Ok pid ->
 		Unix.close child_stdin_r;
 		Unix.close child_stdout_w;

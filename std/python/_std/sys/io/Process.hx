@@ -36,15 +36,28 @@ class Process {
 
 	var p:Popen;
 
+	static function createPopen(cmd:String, args:Null<Array<String>>):Popen {
+		if (args == null) {
+			return Popen.create(cmd, {shell: true, stdin: Subprocess.PIPE, stdout: Subprocess.PIPE, stderr: Subprocess.PIPE});
+		}
+		// When args are provided, exec the file directly (shell:false).
+		// On Unix, posix_spawn does not fall back to /bin/sh for scripts
+		// without a shebang line (ENOEXEC), unlike the traditional execvp.
+		// Restore that behaviour by retrying via /bin/sh on ENOEXEC (errno 8).
+		try {
+			return Popen.create([cmd].concat(args), {shell: false, stdin: Subprocess.PIPE, stdout: Subprocess.PIPE, stderr: Subprocess.PIPE});
+		} catch (e:python.Exceptions.OSError) {
+			if (Sys.systemName() != "Windows" && (cast e : Dynamic).errno == 8 /* ENOEXEC */) {
+				return Popen.create(["/bin/sh", cmd].concat(args), {shell: false, stdin: Subprocess.PIPE, stdout: Subprocess.PIPE, stderr: Subprocess.PIPE});
+			}
+			throw e;
+		}
+	}
+
 	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
 		if (detached)
 			throw "Detached process is not supported on this platform";
-		p = Popen.create(args == null ? cmd : [cmd].concat(args), {
-			shell: args == null,
-			stdin: Subprocess.PIPE,
-			stdout: Subprocess.PIPE,
-			stderr: Subprocess.PIPE
-		});
+		p = createPopen(cmd, args);
 		this.stdout = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stdout)));
 		this.stderr = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stderr)));
 		this.stdin = IoTools.createFileOutputFromText(new TextIOWrapper(new BufferedWriter(p.stdin)));

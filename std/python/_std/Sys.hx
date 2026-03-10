@@ -102,10 +102,21 @@ class Sys {
 	}
 
 	public static function command(cmd:String, ?args:Array<String>):Int {
-		return if (args == null)
-			python.lib.Subprocess.call(cmd, {shell: true});
-		else
-			python.lib.Subprocess.call([cmd].concat(args));
+		if (args == null) {
+			return python.lib.Subprocess.call(cmd, {shell: true});
+		}
+		// When args are provided, exec the file directly (shell:false).
+		// On Unix, posix_spawn does not fall back to /bin/sh for scripts
+		// without a shebang line (ENOEXEC), unlike the traditional execvp.
+		// Restore that behaviour by retrying via /bin/sh on ENOEXEC (errno 8).
+		try {
+			return python.lib.Subprocess.call([cmd].concat(args));
+		} catch (e:python.Exceptions.OSError) {
+			if (systemName() != "Windows" && (cast e : Dynamic).errno == 8 /* ENOEXEC */) {
+				return python.lib.Subprocess.call(["/bin/sh", cmd].concat(args));
+			}
+			throw e;
+		}
 	}
 
 	public static inline function cpuTime():Float {
