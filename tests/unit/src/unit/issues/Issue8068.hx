@@ -2,7 +2,6 @@ package unit.issues;
 
 class Issue8068 extends Test {
 	function test() {
-		#if lua
 		var f = "foo";
 		var o = {charAt: f.charAt};
 		eq(o.charAt(0), "f");
@@ -15,8 +14,5 @@ class Issue8068 extends Test {
 		eq(fn(0), "b");
 		eq(fn(1), "a");
 		eq(fn(2), "r");
-		#else
-		noAssert();
-		#end
 	}
 }
