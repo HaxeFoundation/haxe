@@ -345,7 +345,7 @@ type diagnostics_context = {
 }
 
 type display_exception_kind =
-	| ModuleSymbols of string
+	| ModuleSymbols of Json.t
 	| Metadata of string
 	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind)
 	| DisplayHover of hover_result

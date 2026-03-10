@@ -130,7 +130,7 @@ and typed_type_param = {
 	ttp_class : tclass;
 	ttp_host : type_param_host;
 	mutable ttp_type : t;
-	mutable ttp_constraints : t list Lazy.t option;
+	mutable ttp_constraints : t list AtomicLazy.t option;
 	mutable ttp_default : t option;
 }
 
@@ -483,10 +483,10 @@ and build_state =
 exception Type_exception of t
 
 type coro_types = {
-	mutable tcoro : ((string * bool * t) list -> t -> t) Lazy.t;
-	mutable continuation : t Lazy.t;
-	mutable suspension_result_class : tclass Lazy.t;
-	mutable tasync_iterator : (t -> t) Lazy.t;
+	mutable tcoro : ((string * bool * t) list -> t -> t) AtomicLazy.t;
+	mutable continuation : t AtomicLazy.t;
+	mutable suspension_result_class : tclass AtomicLazy.t;
+	mutable tasync_iterator : (t -> t) AtomicLazy.t;
 }
 
 type basic_types = {

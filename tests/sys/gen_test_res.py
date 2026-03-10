@@ -88,7 +88,7 @@ for data in all_filenames:
         ("../../bin/neko/UtilityProcess.n", "bin-neko"),
         ("../../bin/php/UtilityProcess/index.php", "bin-php"),
         ("../../bin/python/UtilityProcess.py", "bin-py"),
-        ("../../src/UtilityProcess.hx", "bin-eval"),
+        ("../../bin/eval/UtilityProcess.hxb", "bin-eval"),
         ("../../bin/js/UtilityProcess.js", "bin-js")
     ]:
         os.symlink(target, os.path.join(TESTDIR, data, name), target_is_directory=False)

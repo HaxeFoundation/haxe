@@ -215,7 +215,7 @@ let ensure_coro_availability ctx =
 	(* In cases where we never actually built a coro state machine, the SuspensionResult structure might
 	   not have been initialized yet. This would normally be handled via the pass flushing in `load_module`,
 	   but because all coro data is loaded from a `build-module` pass, this doesn't trigger in time. *)
-	ignore ((Lazy.force ctx.com.basic.tcoro.suspension_result_class).cl_build())
+	ignore ((AtomicLazy.force ctx.com.basic.tcoro.suspension_result_class).cl_build())
 
 (* Wrap a coroutine call expression from a non-coroutine context with a `.resolveTo(cont)` call.
    This ensures that if the coroutine completes synchronously, its result or error is propagated
@@ -224,7 +224,7 @@ let ensure_coro_availability ctx =
 let wrap_with_resolve_to ctx ecall econt p =
 	let basic = ctx.com.basic in
 	let b = new CoroElsewhere.texpr_builder basic p in
-	let suspension_result_class = Lazy.force basic.tcoro.suspension_result_class in
+	let suspension_result_class = AtomicLazy.force basic.tcoro.suspension_result_class in
 	let t_param = match follow ecall.etype with TInst(_, [t]) -> t | _ -> die "Expected SuspensionResult with one type parameter for coroutine call result" __LOC__ in
 	let resolve_to_cf = PMap.find "resolveTo" suspension_result_class.cl_fields in
 	let resolve_to_type = apply_params suspension_result_class.cl_params [t_param] resolve_to_cf.cf_type in
@@ -337,7 +337,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			(* here *)
 			let el = el_typed @ el in
 			let args = (args_typed @ args) in
-			let tf = if coro then (Lazy.force ctx.t.tcoro.tcoro) args ret else TFun(args,ret) in
+			let tf = if coro then (AtomicLazy.force ctx.t.tcoro.tcoro) args ret else TFun(args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p

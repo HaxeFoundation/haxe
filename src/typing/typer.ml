@@ -1237,7 +1237,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	| _ ->
 		()
 	);
-	let ft = if is_coroutine then (Lazy.force ctx.t.tcoro.tcoro) targs rt else TFun(targs,rt) in
+	let ft = if is_coroutine then (AtomicLazy.force ctx.t.tcoro.tcoro) targs rt else TFun(targs,rt) in
 	let ft = match with_type with
 		| WithType.NoValue ->
 			ft

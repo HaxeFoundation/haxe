@@ -23,21 +23,22 @@ class Macro {
 		changeDirectory(getMiscSubDir());
 		runCommand("haxe", ["compile.hxml"]);
 
-		changeDirectory(getMiscSubDir("resolution"));
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir());
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "eval/resolution"]);
 
 		changeDirectory(sysDir);
-		runSysTest("haxe", ["compile-macro.hxml"].concat(args));
+		runCommand("haxe", args.concat(["--each", "compile-eval-hxb.hxml"]));
+		runSysTest("haxe", ["--hxb-lib", "bin/eval/sys.hxb", "--run", "Main"]);
 
 		switch Sys.systemName() {
 			case 'Linux':
-				changeDirectory(getMiscSubDir('compiler_loops'));
-				runCommand("haxe", ["run.hxml"]);
-
-				changeDirectory(getMiscSubDir('connect_stdin'));
-				runCommand("haxe", ["run.hxml"]);
+				changeDirectory(getMiscSubDir());
+				runCommand("haxe", ["run-base.hxml", "-D", "timeout=3", "--run", "Main", "eval/compiler_loops"]);
 			case _: // TODO
 		}
+
+		changeDirectory(getMiscSubDir("eval", "connect_stdin"));
+		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--interp"]);

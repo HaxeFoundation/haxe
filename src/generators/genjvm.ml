@@ -1134,7 +1134,10 @@ class texpr_to_jvm
 		| [TObject(path1,_);sig2] when jc#has_typed_function path1 || path1 = haxe_function_path ->
 			code#swap;
 			fun_compare path1 sig2
-		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
+		| [TMethod _;_] | [_;TMethod _] ->
+			jm#invokestatic haxe_jvm_path "compareFunctions" (method_sig [object_sig;object_sig] (Some TBool));
+			CmpNormal(op,TBool)
+		| [(TObject _ | TArray _) as t1;(TObject _ | TArray _) as t2] ->
 			CmpSpecial ((if op = CmpEq then code#if_acmp_ne else code#if_acmp_eq) t1 t2)
 		| [TDouble;TDouble] ->
 			let op = flip_cmp_op op in
@@ -3235,21 +3238,23 @@ let generate jvm_flag gctx =
 		gctx.out#add_entry v filename;
 	) gctx.gctx.resources;
 
-	let generate pool =
-		let generate_real_types () =
-			Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
-		in
-		let generate_typed_interfaces () =
-			let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
-			Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
-		in
-		run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
-		run_timed gctx false "real types" generate_real_types;
-		run_timed gctx false "typed interfaces" generate_typed_interfaces;
-		run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
-		run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+	let generate () =
+		Parallel.run_with_pool gctx.gctx.pool (fun pool ->
+			let generate_real_types () =
+				Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
+			in
+			let generate_typed_interfaces () =
+				let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
+				Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
+			in
+			run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
+			run_timed gctx false "real types" generate_real_types;
+			run_timed gctx false "typed interfaces" generate_typed_interfaces;
+			run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
+			run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+		)
 	in
-	Parallel.run_in_new_pool gctx.gctx.timer_ctx generate;
+	generate ();
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^

@@ -573,7 +573,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 					let ret = topt LoadReturn fd.f_type in
 					let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
 					let t = if is_coroutine then
-						(Lazy.force ctx.t.tcoro.tcoro) args ret
+						(AtomicLazy.force ctx.t.tcoro.tcoro) args ret
 					else
 						TFun (args,ret)
 					in
@@ -769,7 +769,7 @@ and type_type_params ctx host path tpl =
 		| None ->
 			()
 		| Some th ->
-			let constraints = lazy (
+			let constraints = AtomicLazy.from_fun (fun () ->
 				let rec loop th = match fst th with
 					| CTIntersection tl -> List.map (load_complex_type ctx true LoadNormal) tl
 					| CTParent ct -> loop ct
@@ -789,7 +789,7 @@ and type_type_params ctx host path tpl =
 				List.iter loop constr;
 				constr
 			) in
-			delay ctx.g PConnectField (fun () -> ignore (Lazy.force constraints));
+			delay ctx.g PConnectField (fun () -> ignore (AtomicLazy.force constraints));
 			ttp.ttp_constraints <- Some constraints;
 	) param_pairs;
 	params

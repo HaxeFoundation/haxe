@@ -75,7 +75,7 @@ module ContinuationClassBuilder = struct
 			let def = Option.map map ttp.ttp_default in
 			let constraints = match ttp.ttp_constraints with
 				| None -> None
-				| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+				| Some constraints -> Some (AtomicLazy.from_fun (fun () -> List.map map (AtomicLazy.force constraints)))
 			in
 			mk_type_param c TPHType (* !!! *) def constraints
 		 ) params_outside in
@@ -187,7 +187,7 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
-		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
+		let tret_invoke_resume = (TInst(AtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let subst = substitute_type_params coro_class.type_param_subst in
 		let var_map = Hashtbl.create 8 in
@@ -204,11 +204,11 @@ module ContinuationClassBuilder = struct
 		in
 		let el = [
 			b#var_init vcontinuation ethis;
-		] @ (if Lazy.is_val vtmp_result then [b#var_init (Lazy.force vtmp_result) eresult] else []) @ [
+		] @ (if AtomicLazy.is_val vtmp_result then [b#var_init (AtomicLazy.force vtmp_result) eresult] else []) @ [
 			b#var_init_null vtmp_error;
 		] in
-		let el = if Lazy.is_val vtmp_error_unwrapped then
-			el @ [b#var_init_null (Lazy.force vtmp_error_unwrapped)]
+		let el = if AtomicLazy.is_val vtmp_error_unwrapped then
+			el @ [b#var_init_null (AtomicLazy.force vtmp_error_unwrapped)]
 		else
 			el
 		in
@@ -229,7 +229,7 @@ module ContinuationClassBuilder = struct
 	let mk_invoke_resume_thunk_call ctx coro_class cf_captured =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
-		let tret_invoke_resume = (TInst(Lazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
+		let tret_invoke_resume = (TInst(AtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
 		let ethis = b#this coro_class.inside.cls_t coro_class.name_pos in
 		let ecaptured   = b#instance_field ethis coro_class.cls coro_class.inside.param_types cf_captured cf_captured.cf_type in
 		let ecall = b#call ecaptured [] tret_invoke_resume in
@@ -347,9 +347,9 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let invoke_resume_type = inside_to_outside invoke_resume_field.cf_type in
 			let einvoke_resume_call = b#call (continuation_field invoke_resume_field invoke_resume_type) [] tret_invoke_resume in
 			let thunk_body_el =
-				(if Lazy.is_val vtmp_result then [b#var_init (Lazy.force vtmp_result) eresult] else []) @ [
+				(if AtomicLazy.is_val vtmp_result then [b#var_init (AtomicLazy.force vtmp_result) eresult] else []) @ [
 				b#var_init_null vtmp_error;
-			] @ (if Lazy.is_val vtmp_error_unwrapped then [b#var_init_null (Lazy.force vtmp_error_unwrapped)] else [])
+			] @ (if AtomicLazy.is_val vtmp_error_unwrapped then [b#var_init_null (AtomicLazy.force vtmp_error_unwrapped)] else [])
 			@ [eloop] in
 			let thunk_type = TFun([], tret_invoke_resume) in
 			let ethunk = mk (TFunction { tf_type = tret_invoke_resume; tf_args = []; tf_expr = b#void_block thunk_body_el })
@@ -466,11 +466,11 @@ let fun_to_coro ctx =
 
 	(* 2. Create expressions and variables that we need for expr_to_coro *)
 
-	let vtmp_result = lazy (alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos) in
-	let etmp_result = lazy (b#local (Lazy.force vtmp_result) coro_class.name_pos) in
+	let vtmp_result = AtomicLazy.from_fun (fun () -> alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos) in
+	let etmp_result = AtomicLazy.from_fun (fun () -> b#local (AtomicLazy.force vtmp_result) coro_class.name_pos) in
 	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
-	let vtmp_error_unwrapped = lazy (alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
-	let etmp_error_unwrapped = lazy (b#local (Lazy.force vtmp_error_unwrapped) coro_class.name_pos) in
+	let vtmp_error_unwrapped = AtomicLazy.from_fun (fun () -> alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
+	let etmp_error_unwrapped = AtomicLazy.from_fun (fun () -> b#local (AtomicLazy.force vtmp_error_unwrapped) coro_class.name_pos) in
 
 	let expr, args, name =
 		match ctx.coro_type with
@@ -595,12 +595,12 @@ let fun_to_coro ctx =
 
 	(* 5. Fill in the deferred callback implementations now that the continuation API exists *)
 
-	let vgthis = lazy (alloc_var VGenerated "_hx_this" ctx.typer.c.tthis coro_class.name_pos) in
+	let vgthis = AtomicLazy.from_fun (fun () -> alloc_var VGenerated "_hx_this" ctx.typer.c.tthis coro_class.name_pos) in
 
 	let deferred_impl =
-		let egthis = lazy (match gen_mode with
+		let egthis = AtomicLazy.from_fun (fun () -> match gen_mode with
 			| GenThunk _ ->
-				b#local (Lazy.force vgthis) coro_class.name_pos
+				b#local (AtomicLazy.force vgthis) coro_class.name_pos
 			| GenInline (Some (_,cf)) ->
 				b#instance_field econtinuation coro_class.ContinuationClassBuilder.cls coro_class.inside.param_types cf cf.cf_type
 			| GenInline None ->
@@ -630,11 +630,11 @@ let fun_to_coro ctx =
 				b#void_block [stack_item_inserter call.cs_pos; ecall; echeck]
 			);
 			make_this = (fun e ->
-				let egthis = Lazy.force egthis in
+				let egthis = AtomicLazy.force egthis in
 				{ e with eexpr = egthis.eexpr; etype = egthis.etype }
 			);
 			make_super_field = (fun e ->
-				rewrite_super_field ctx (Lazy.force egthis) e;
+				rewrite_super_field ctx (AtomicLazy.force egthis) e;
 			);
 		}
 	in
@@ -658,8 +658,8 @@ let fun_to_coro ctx =
 	(* For non-static ClassField: prepend  var _hx_this = this  to the thin wrapper so the
 	   thunk (built inside coro_to_state_machine) can capture `_hx_this` via closure, making
 	   the original class instance accessible throughout the state machine. *)
-	let tf_expr = if Lazy.is_val vgthis then
-		b#void_block [ b#var_init (Lazy.force vgthis) (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
+	let tf_expr = if AtomicLazy.is_val vgthis then
+		b#void_block [ b#var_init (AtomicLazy.force vgthis) (b#this ctx.typer.c.tthis coro_class.name_pos); tf_expr ]
 	else
 		tf_expr
 	in

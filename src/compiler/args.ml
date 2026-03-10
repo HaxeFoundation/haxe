@@ -2,10 +2,15 @@ open Globals
 open Common
 open ParsedArg
 
-let columns = lazy (match Terminal_size.get_columns () with None -> 80 | Some c -> c)
+type server_mode =
+	| SMNone
+	| SMListen of string
+	| SMConnect of string
+
+let columns = AtomicLazy.from_fun (fun () -> match Terminal_size.get_columns () with None -> 80 | Some c -> c)
 
 let limit_string s offset =
-	let rest = (Lazy.force columns) - offset in
+	let rest = (AtomicLazy.force columns) - offset in
 	let words = ExtString.String.nsplit s " " in
 	let rec loop i words = match words with
 		| word :: words ->
@@ -99,7 +104,7 @@ let adv_args_descriptions = [
     The translation is mostly 1-to-1: one CLI flag group → one [parsed_arg].
     Compound expansions (e.g. adding [php.Boot] for [--php], setting
     [actx.interp] for [--interp]) are deferred to [process_args]. *)
-let parse_args (_sctx : ServerCompilationContext.t) args =
+let parse_args args =
 	let parsed = DynArray.create () in
 	let add a = DynArray.add parsed a in
 	let rec loop = function
@@ -396,7 +401,7 @@ let process_args (com : Common.context) (parsed_args : parsed_arg list) =
 		| HxmlFile _ ->
 			(* hxml files should have been expanded before reaching process_args *)
 			()
-		| Next | Each ->
+		| Next | Each | Expand _ ->
 			(* batch directives handled at process_params level *)
 			()
 		| ServerListen _ | ServerConnect _ | Connect _ ->
@@ -460,7 +465,7 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| CustomTarget name -> name
 	in
 	let s_path (p, n) = String.concat "." (p @ [n]) in
-	List.concat_map (fun arg -> match arg with
+	let rec to_raw arg = match arg with
 		| SetPlatform (platform, file) -> ["--" ^ s_platform platform; file]
 		| SetCppiaTarget file -> ["--cppia"; file]
 		| SetCustomTarget (name, path) ->
@@ -505,6 +510,7 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| SetPrompt -> ["--prompt"]
 		| Next -> ["--next"]
 		| Each -> ["--each"]
+		| Expand ex -> List.concat_map to_raw ex.original
 		| ServerListen hp -> ["--wait"; hp]
 		| ServerConnect hp -> ["--server-connect"; hp]
 		| Connect hp -> ["--connect"; hp]
@@ -516,5 +522,103 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| ShowHelpMetas -> ["--help-metas"]
 		| ShowHelpUserDefines -> ["--help-user-defines"]
 		| ShowHelpUserMetas -> ["--help-user-metas"]
-	) parsed_args
+	in
+	List.concat_map to_raw parsed_args
 
+type part_args = {
+	args : parsed_arg list;
+	runtime_args : string list;
+}
+
+type request_args = {
+	parts : part_args list;
+	server_mode : server_mode;
+	connect_arg : string option;
+	display_arg : string option;
+}
+
+let expand_args args =
+	let each = ref [] in
+	let parts = DynArray.create () in
+	let server_mode = ref SMNone in
+	let connect_arg = ref None in
+	let display_arg = ref None in
+	let hxml_stack = ref [] in
+	let add_part args runtime_args =
+		DynArray.add parts {args = !each @ args;runtime_args}
+	in
+	let rec find_subsequent_libs acc args = match args with
+		| AddLib name :: args ->
+			find_subsequent_libs (name :: acc) args
+		| _ ->
+			List.rev acc, args
+	in
+	let rec loop current = function
+		| [] ->
+			add_part (List.rev current) []
+		| Next :: rest when current = [] ->
+			(* reset hxml_stack so the same hxml can be included in a subsequent section *)
+			hxml_stack := [];
+			loop [] rest
+		| Next :: rest ->
+			add_part (List.rev current) [];
+			(* reset hxml_stack so the same hxml can be included in a subsequent section *)
+			hxml_stack := [];
+			loop [] rest
+		| Each :: rest ->
+			each := List.rev current;
+			loop [] rest
+		| Cwd dir :: rest ->
+			(try Unix.chdir dir with _ -> ());
+			loop (Cwd dir :: current) rest
+		| Connect hp :: rest ->
+			connect_arg := Some hp;
+			loop current rest
+		| ServerConnect hp :: rest ->
+			server_mode := SMConnect hp;
+			loop current rest
+		| ServerListen hp :: rest ->
+			server_mode := SMListen hp;
+			loop current rest
+		| Run (cl, runtime_args) :: rest ->
+			let cpath = Path.parse_type_path cl in
+			let acc = Interp :: SetMain cpath :: current in
+			let runtime_args = runtime_args @ (to_raw_args rest) in
+			add_part (List.rev acc) runtime_args;
+		| RunX cl :: rest ->
+			let cpath = Path.parse_type_path cl in
+			loop (Interp :: SetMain cpath :: current) rest
+		| AddLib name :: rest ->
+			let libs, rest = find_subsequent_libs [name] rest in
+			let ex = {
+				original = List.map (fun name -> AddLib name) libs;
+				state = NotYetExpanded (AddLibs libs)
+			} in
+			loop (Expand ex :: current) rest
+		| HxmlFile path :: rest ->
+			let full_path = try Extc.get_full_path path with Failure(_) -> raise (Arg.Bad (Printf.sprintf "File not found: %s" path)) in
+			if List.mem full_path !hxml_stack then
+				raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
+			else
+				hxml_stack := full_path :: !hxml_stack;
+			let expanded =
+				try
+					let raw = Helper.parse_hxml path in
+					parse_args raw
+				with Not_found ->
+					[IncludeModule (path ^ " (file not found)")]
+			in
+			loop current (expanded @ rest)
+		| SetDisplayArg s :: rest ->
+			display_arg := Some s;
+			loop (SetDisplayArg s :: current) rest
+		| arg :: rest ->
+			loop (arg :: current) rest
+	in
+	loop [] args;
+	{
+		parts = DynArray.to_list parts;
+		server_mode = !server_mode;
+		connect_arg = !connect_arg;
+		display_arg = !display_arg;
+	}

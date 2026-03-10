@@ -18,7 +18,7 @@ compile.hxml
 --cmd echo Hl     && export EXISTS=1 && hl bin/hl/sys.hl
 --cmd echo Js     && export EXISTS=1 && node bin/js/sys.js
 --cmd echo Lua    && export EXISTS=1 && lua bin/sys.lua
---cmd echo Macro  && export EXISTS=1 && haxe compile-macro.hxml
+--cmd echo Eval   && export EXISTS=1 && haxe --hxb-lib bin/eval/sys.hxb --run Main
 
 # Windows
 # --next
@@ -30,4 +30,4 @@ compile.hxml
 # --cmd echo Hl     && set EXISTS=1 && hl bin/hl/sys.hl
 # --cmd echo Js     && set EXISTS=1 && node bin/js/sys.js
 # --cmd echo Lua    && set EXISTS=1 && lua bin/lua/sys.lua
-# --cmd echo Macro  && set EXISTS=1 && haxe compile-macro.hxml
+# --cmd echo Eval   && set EXISTS=1 && haxe --hxb-lib bin/eval/sys.hxb --run Main

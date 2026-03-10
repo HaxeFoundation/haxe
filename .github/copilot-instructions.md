@@ -16,7 +16,8 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 - **Build commands**:
   - `make` - Build everything
   - `make haxe` - Build only the compiler
-  - `opam install . --deps-only` - Install OCaml dependencies
+  - `opam install haxe --deps-only` - Install OCaml dependencies (after pinning the local checkout)
+  - `opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe` - Typical Windows compiler build command used in CI/tasks
   - `dune build` - Build using dune directly
 
 ## Development Setup
@@ -48,7 +49,6 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 ### Tests (`tests/`)
 - `unit/` - Unit tests written in Haxe
   - `unit/src/unit/issues/` - Regression tests for specific issues (success cases)
-- `display/` - IDE-related tests like completion
 - `server/` - Modern version of display tests, generally preferred
 - `misc/` - Tests expected to produce failures
   - Platform-specific subdirectories (e.g., `misc/cpp/` for C++-specific tests)
@@ -91,6 +91,9 @@ haxe --cwd tests/unit compile-{target}.hxml
 # Run the tests
 # Example for Lua:
 lua bin/unit.lua
+
+# Example for JavaScript:
+node bin/unit.js
 ```
 
 ## Code Style and Conventions
@@ -126,7 +129,7 @@ lua bin/unit.lua
 4. Update API documentation if needed
 
 ### Debugging
-- Use `-D dump` to dump AST to `dump/` directory
+- Use `-D dump=pretty` to dump readable AST to `dump/` directory
 - Check generated code for specific targets
 - Most targets produce readable output for inspection
 

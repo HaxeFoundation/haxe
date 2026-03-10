@@ -403,7 +403,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 									let needs_result = match ret with RBlock | RTailBlock -> false | _ -> true in
 									let e_opt, ev =
 										if needs_result then
-											let e = Lazy.force etmp_result in
+											let e = AtomicLazy.force etmp_result in
 											(Some e), e
 										else
 											None, e_no_value
@@ -428,7 +428,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								| RTailReturn when cb.cb_catch = None && not ctx.typer.com.debug ->
 									SusResult,None
 								| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
-									SusResult,Some ((make_next_block ()),Lazy.force etmp_result)
+									SusResult,Some ((make_next_block ()),AtomicLazy.force etmp_result)
 								in
 								let suspend = {
 									cs_fun = e1;
@@ -451,7 +451,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		| TBreak ->
 			begin match !loop_stack with
 				| hd :: _ ->
-					terminate cb (NextBreak (Lazy.force (snd hd))) e.etype e.epos;
+					terminate cb (NextBreak (AtomicLazy.force (snd hd))) e.etype e.epos;
 				| [] ->
 					(* Ignore, this failed during typing already. *)
 					()
@@ -674,12 +674,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 			| None ->
 				None
 			| Some(cb,e1) ->
-				let cb_next = lazy (make_block None) in
+				let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 				let cases = List.map (fun case ->
 					let cb_case = block_from_e case.case_expr in
 					let cb_case_next = loop_block cb_case ret case.case_expr in
 					Option.may (fun (cb_case_next,_) ->
-						fall_through cb_case_next (Lazy.force cb_next);
+						fall_through cb_case_next (AtomicLazy.force cb_next);
 					) cb_case_next;
 					(case.case_patterns,cb_case)
 				) switch_orig.switch_cases in
@@ -690,7 +690,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 						let cb_default = block_from_e e in
 						let cb_default_next = loop_block cb_default ret e in
 						Option.may (fun (cb_default_next,_) ->
-							fall_through cb_default_next (Lazy.force cb_next);
+							fall_through cb_default_next (AtomicLazy.force cb_next);
 						) cb_default_next;
 						Some cb_default
 				in
@@ -700,30 +700,30 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 					cs_default = def;
 					cs_exhaustive = switch_orig.switch_exhaustive
 				} in
-				let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
+				let cb_next = if AtomicLazy.is_val cb_next || not switch.cs_exhaustive then Some (AtomicLazy.force cb_next) else None in
 				terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
 				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 		end
 	and split_while cb e1 e2 etype epos =
-		let cb_next = lazy (make_block None) in
+		let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 		let cb_body = block_from_e e2 in
 		loop_stack := (cb_body,cb_next) :: !loop_stack;
 		let cb_body_next = loop_block cb_body RBlock e2 in
 		Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
 		loop_stack := List.tl !loop_stack;
-		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		let cb_next = if AtomicLazy.is_val cb_next then Some (AtomicLazy.force cb_next) else None in
 		terminate cb (NextWhile(e1,cb_body,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
 	and split_try cb ret e1 catches etype epos =
 		let e_value,ret = check_complex cb ret etype epos in
 		ctx.has_catch <- true;
-		let cb_next = lazy (make_block None) in
+		let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 		let catches = List.map (fun (v,e) ->
 			let cb_catch = block_from_e e in
-			add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid v.v_pos);
+			add_expr cb_catch (mk (TVar(v,Some (AtomicLazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid v.v_pos);
 			let cb_catch_next = loop_block cb_catch ret e in
 			Option.may (fun (cb_catch_next,_) ->
-				fall_through cb_catch_next (Lazy.force cb_next);
+				fall_through cb_catch_next (AtomicLazy.force cb_next);
 			) cb_catch_next;
 			v,cb_catch
 		) catches in
@@ -741,9 +741,9 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		let cb_try_next = loop_block cb_try ret e1 in
 		ctx.current_catch <- old;
 		Option.may (fun (cb_try_next,_) ->
-			fall_through cb_try_next (Lazy.force cb_next)
+			fall_through cb_try_next (AtomicLazy.force cb_next)
 		) cb_try_next;
-		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		let cb_next = if AtomicLazy.is_val cb_next then Some (AtomicLazy.force cb_next) else None in
 		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 	in

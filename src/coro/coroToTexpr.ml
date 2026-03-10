@@ -28,9 +28,9 @@ type coro_to_texpr_exprs = {
 	eresult : texpr;
 	egoto : texpr;
 	eerror : texpr;
-	etmp_result : texpr Lazy.t;
+	etmp_result : texpr AtomicLazy.t;
 	etmp_error : texpr;
-	etmp_error_unwrapped : texpr Lazy.t;
+	etmp_error_unwrapped : texpr AtomicLazy.t;
 }
 
 let make_suspending_call basic cont call econtinuation =
@@ -268,7 +268,7 @@ module SuspensionCalls = struct
 				| SusBlock ->
 					b#void_block_at [] p
 				| SusResult ->
-					b#assign (Lazy.force etmp_result) eres
+					b#assign (AtomicLazy.force etmp_result) eres
 			in
 			let ethrown = b#void_block [
 				b#assign etmp_error eerror;
@@ -404,7 +404,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			| None ->
 				b#if_then e_if e_then
 			| Some e ->
-				let etmp_result = {(Lazy.force etmp_result) with epos = e.epos} in
+				let etmp_result = {(AtomicLazy.force etmp_result) with epos = e.epos} in
 				let e_assign = b#assign e etmp_result in
 				b#if_then_else e_if e_then e_assign com.basic.tvoid
 	in
@@ -501,12 +501,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 					| TDynamic _ ->
 						set_state cb_catch.cb_id (* no next *)
 					| t ->
-						let etypecheck = std_is (Lazy.force etmp_error_unwrapped) vcatch.v_type in
+						let etypecheck = std_is (AtomicLazy.force etmp_error_unwrapped) vcatch.v_type in
 						b#if_then_else etypecheck (set_state cb_catch.cb_id) enext com.basic.tvoid
 				) erethrow (List.rev catch.cc_catches)
 			in
-			let el = if Lazy.is_val etmp_error_unwrapped then
-				[b#assign (Lazy.force etmp_error_unwrapped) (unwrap_exception etmp_error);eif]
+			let el = if AtomicLazy.is_val etmp_error_unwrapped then
+				[b#assign (AtomicLazy.force etmp_error_unwrapped) (unwrap_exception etmp_error);eif]
 			else
 				[eif]
 			in

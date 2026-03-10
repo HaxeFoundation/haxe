@@ -109,7 +109,7 @@ let rec cache_context cs com =
 				DynArray.add parallels (cc,m,f)
 	in
 	List.iter cache_module com.modules;
-	let a = Parallel.run_in_new_pool com.timer_ctx (fun pool ->
+	let a = Parallel.run_with_pool com.sctx.pool (fun pool ->
 		Parallel.ParallelArray.map pool (fun (cc,m,f) ->
 			let chunks = f() in
 			(cc,m,chunks)

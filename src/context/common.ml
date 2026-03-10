@@ -182,7 +182,6 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
@@ -273,11 +272,11 @@ type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : diagnostic list;
 	io : Gctx.compilation_io;
+	timer_ctx : Timer.timer_context;
 }
 
 type request_scope = {
 	stats : Stats.t;
-	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 }
 
@@ -390,6 +389,7 @@ let to_gctx com = {
 	include_files = com.include_files;
 	std = com.std;
 	timer_ctx = com.timer_ctx;
+	pool = com.sctx.pool;
 }
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
@@ -735,7 +735,7 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 		sctx;
 		cs = sctx.cs;
 		cache = None;
-		timer_ctx = request_scope.timer_ctx;
+		timer_ctx = part_scope.timer_ctx;
 		stage = CCreated;
 		args = args;
 		display_information = {
@@ -804,10 +804,10 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 			tunit = mk_mono();
 			tcoro = {
-				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
-				continuation = lazy (mk_mono());
-				suspension_result_class = lazy null_class;
-				tasync_iterator = lazy (fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
+				tcoro = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = AtomicLazy.from_fun (fun () -> mk_mono());
+				suspension_result_class = AtomicLazy.from_fun (fun () -> null_class);
+				tasync_iterator = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			}
 		};
 		std = null_class;
@@ -838,7 +838,7 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
+	| RMDiagnostics _ -> true
 	| _ -> false
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
@@ -943,10 +943,10 @@ let clone com is_macro_context =
 			texception = mk_mono();
 			tunit = mk_mono();
 			tcoro = {
-				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
-				continuation = lazy (mk_mono());
-				suspension_result_class = lazy null_class;
-				tasync_iterator = lazy (fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
+				tcoro = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = AtomicLazy.from_fun (fun () -> mk_mono());
+				suspension_result_class = AtomicLazy.from_fun (fun () -> null_class);
+				tasync_iterator = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			};
 		};
 		local_wrapper = LocalWrapper.null_wrapper;
@@ -1143,9 +1143,7 @@ let adapt_defines_to_display_context defines =
 	Define.define defines Define.Display;
 	defines
 
-let is_legacy_completion com = match com.json_out with
-	| None -> true
-	| Some api -> !ServerConfig.legacy_completion
+let is_legacy_completion _com = !ServerConfig.legacy_completion
 
 let get_entry_point com =
 	Option.map (fun path ->
@@ -1160,9 +1158,9 @@ let get_entry_point com =
 	) com.main.main_path
 
 let expand_coro_type basic args ret =
-	let args = ("_hx_continuation",false,Lazy.force basic.tcoro.continuation) :: args in
+	let args = ("_hx_continuation",false,AtomicLazy.force basic.tcoro.continuation) :: args in
 	let ret = if ExtType.is_void (follow ret) then basic.tunit else ret in
-	let c = Lazy.force basic.tcoro.suspension_result_class in
+	let c = AtomicLazy.force basic.tcoro.suspension_result_class in
 	(args,TInst(c,[ret]))
 
 let make_unforced_lazy t_proc f where =

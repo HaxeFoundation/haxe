@@ -243,7 +243,7 @@ let clone_type_parameter map path ttp =
 	let def = Option.map map ttp.ttp_default in
 	let constraints = match ttp.ttp_constraints with
 		| None -> None
-		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+		| Some constraints -> Some (AtomicLazy.from_fun (fun () -> List.map map (AtomicLazy.force constraints)))
 	in
 	mk_type_param c ttp.ttp_host def constraints
 

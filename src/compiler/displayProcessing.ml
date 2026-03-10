@@ -13,81 +13,15 @@ type display_path_kind =
 
 (* 1. Argument processing from --display *)
 
-let handle_display_argument_old com file_pos actx =
-	match file_pos with
-	| "classes" ->
-		actx.pre_compilation <- (fun() -> raise (Parser.TypePath (["."],None,true,null_pos))) :: actx.pre_compilation;
-	| "keywords" ->
-		raise (Completion (DisplayOutput.print_keywords ()))
-	| "memory" ->
-		actx.did_something <- true;
-		(try DisplayMemory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
-	| "diagnostics" ->
-		com.report_mode <- RMLegacyDiagnostics []
-	| _ ->
-		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
-		let file = Helper.unquote file in
-		let file_unique = com.file_keys#get file in
-		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let create mode =
-			DisplayTypes.DisplayMode.create mode
-		in
-		let dm = match smode with
-			| "position" ->
-				create DMDefinition
-			| "usage" ->
-				create (DMUsage (false,false,false))
-			| "package" ->
-				create DMPackage
-			| "type" ->
-				create DMHover
-			| "toplevel" ->
-				create DMDefault
-			| "module-symbols" ->
-				create (DMModuleSymbols None)
-			| "diagnostics" ->
-				com.report_mode <- RMLegacyDiagnostics [file_unique];
-				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPOnly; dms_per_file = true; dms_populate_cache = false}
-			| "statistics" ->
-				com.report_mode <- RMStatistics;
-				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore; dms_per_file = true}
-			| "signature" ->
-				create DMSignature
-			| "" ->
-				create DMDefault
-			| _ ->
-				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
-				match smode with
-					| "workspace-symbols" ->
-						create (DMModuleSymbols (Some arg))
-					| _ ->
-						create DMDefault
-		in
-		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
-		com.display <- dm;
-		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		DisplayPosition.display_position#set {
-			pfile = Path.get_full_path file;
-			pmin = pos;
-			pmax = pos;
-		}
-
 let process_display_arg ctx actx =
 	match actx.display_arg with
 	| Some input ->
 		let input = String.trim input in
-		if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-			actx.did_something <- true;
-			actx.force_typing <- true;
-			DisplayJson.parse_input ctx.com input
-		end else begin
-			handle_display_argument_old ctx.com input actx;
-			NotCompleted
-		end
+		actx.did_something <- true;
+		actx.force_typing <- true;
+		DisplayJson.parse_input ctx.com input
 	| None ->
-		NotCompleted
+		DisplayJson.NotCompleted
 
 (* 2. Compilation start, setup display configuration in context *)
 
@@ -276,12 +210,7 @@ let handle_display_after_typing ctx tctx display_file_dot_path =
 		(* If we didn't find a completion point, load the display file in macro mode. *)
 		if com.display_information.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
-		let no_completion_point_found = "No completion point was found" in
-		match com.json_out with
-		| Some _ ->
-			raise (DisplayException.DisplayException DisplayNoResult)
-		| None ->
-			failwith no_completion_point_found;
+		raise (DisplayException.DisplayException DisplayNoResult)
 	end
 
 (* 6. Display processing after finalization *)
@@ -322,7 +251,7 @@ let process_global_display_mode com tctx =
 					acc
 			) [] l
 		in
-		DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
+		DisplayException.raise_module_symbols (DocumentSymbols.Printer.json_of_module_symbols com symbols filter)
 	| _ -> ()
 
 let handle_display_after_finalization ctx tctx display_file_dot_path =
@@ -345,8 +274,6 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 	end;
 	process_global_display_mode com tctx;
 	begin match com.report_mode with
-	| RMLegacyDiagnostics _ ->
-		DisplayOutput.emit_legacy_diagnostics com
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->

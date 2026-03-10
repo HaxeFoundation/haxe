@@ -148,12 +148,7 @@ let display_meta com meta p = match com.display.dms_kind with
 		begin match meta with
 		| Meta.Custom _ | Meta.Dollar _ -> ()
 		| _ ->
-			if com.json_out = None then begin match Meta.get_documentation com.user_metas meta with
-				| None -> ()
-				| Some (_,s) ->
-					raise_metadata ("<metadata>" ^ s ^ "</metadata>")
-			end else
-				raise_hover (make_ci_metadata meta) None p
+			raise_hover (make_ci_metadata meta) None p
 		end
 	| DMDefault ->
 		let all = Meta.get_all com.user_metas in

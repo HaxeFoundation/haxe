@@ -1022,7 +1022,7 @@ class java_library_modern com  name file_path = object(self)
 	inherit [java_lib_type,unit] native_library name file_path as super
 
 
-	val zip = lazy (Zip.open_in file_path)
+	val zip = AtomicLazy.from_fun (fun () -> Zip.open_in file_path)
 	val mutable cached_files = []
 	val modules = Hashtbl.create 0
 	val mutable loaded = false
@@ -1048,7 +1048,7 @@ class java_library_modern com  name file_path = object(self)
 					Hashtbl.add modules (pack,mname) (filename,entry);
 				end
 		| _ -> ()
-	) (Zip.entries (Lazy.force zip));
+	) (Zip.entries (AtomicLazy.force zip));
 
 	method load =
 		if not loaded then begin
@@ -1069,7 +1069,7 @@ class java_library_modern com  name file_path = object(self)
 	method close =
 		if not closed then begin
 			closed <- true;
-			Zip.close_in (Lazy.force zip)
+			Zip.close_in (AtomicLazy.force zip)
 		end
 
 	method list_modules : path list =
@@ -1083,7 +1083,7 @@ class java_library_modern com  name file_path = object(self)
 				try
 					let entries = Hashtbl.find_all modules path in
 					if entries = [] then raise Not_found;
-					let zip = Lazy.force zip in
+					let zip = AtomicLazy.force zip in
 					let jcs = List.map (self#read zip) entries in
 					Timer.time com.Common.timer_ctx ["jar";"convert"] (fun () ->
 						Some (Converter.convert_module (fst path) jcs)

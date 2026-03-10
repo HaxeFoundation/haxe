@@ -816,7 +816,7 @@ let get_constraints ttp = match ttp.ttp_constraints with
 	| None ->
 		[]
 	| Some r ->
-		Lazy.force r
+		AtomicLazy.force r
 
 let has_ctor_constraint c = match c.cl_kind with
 	| KTypeParameter ttp ->

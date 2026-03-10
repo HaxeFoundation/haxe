@@ -126,26 +126,14 @@ let create_io comm =
 
 (** Runs a shell command in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.
-	Uses [Unix.create_process_env] (not [Sys.command]) so we can connect
+	Uses {!Process.run} to create the child process so we can connect
 	the child's stdin to the client's forwarded data and properly signal
 	EOF when the client closes its end. *)
 let run_command comm cmd =
-	let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
-	let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
-	let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
-	let shell, args =
-		if Sys.win32 then
-			"cmd.exe", [|"cmd.exe"; "/c"; cmd|]
-		else
-			"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
-	in
-	let pid = Unix.create_process_env shell args (Unix.environment()) child_stdin_r child_stdout_w child_stderr_w in
-	Unix.close child_stdin_r;
-	Unix.close child_stdout_w;
-	Unix.close child_stderr_w;
-	let pout = Unix.in_channel_of_descr child_stdout_r in
-	let pin = Unix.out_channel_of_descr child_stdin_w in
-	let perr = Unix.in_channel_of_descr child_stderr_r in
+	let proc = Process.run cmd None in
+	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
+	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
+	let perr = Unix.in_channel_of_descr proc.Process.stderr_fd in
 	let bout = Bytes.create 1024 in
 	let berr = Bytes.create 1024 in
 	(* Use a flag to signal the stdin-forwarding thread to stop.
@@ -182,10 +170,10 @@ let run_command comm cmd =
 	Thread.join terr;
 	close_in_noerr pout;
 	close_in_noerr perr;
-	let _, status = Unix.waitpid [] pid in
+	let code = Process.exit proc in
 	stop_stdin := true;
 	(match tin with Some t -> Thread.join t | None -> ());
-	match status with Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c
+	code
 
 let ssend sock str =
 	let rec loop pos len =
@@ -199,45 +187,55 @@ let ssend sock str =
 
 let poll sock print =
 	let response_buf = Buffer.create 0 in
-	let process_response () =
-		let lines = ExtString.String.nsplit (Buffer.contents response_buf) "\n" in
-		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
-		List.iter print lines;
+	(* Process all complete lines (up to the last newline) in the buffer,
+	   keeping any partial unflushed line for the next read. *)
+	let flush_complete_lines () =
+		let s = Buffer.contents response_buf in
+		match String.rindex_opt s '\n' with
+		| None -> ()
+		| Some last_nl ->
+			let complete = String.sub s 0 (last_nl + 1) in
+			let remaining = String.sub s (last_nl + 1) (String.length s - last_nl - 1) in
+			let lines = ExtString.String.nsplit complete "\n" in
+			let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
+			List.iter print lines;
+			Buffer.reset response_buf;
+			if remaining <> "" then Buffer.add_string response_buf remaining
 	in
-	(* Use Unix.select to multiplex reading from both server socket and local stdin,
-	avoiding the need for a separate forwarding thread. *)
-	let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
+	(* Forward stdin to the server socket in a background thread.
+	   Using a dedicated thread avoids mixing socket and non-socket file
+	   descriptors in Unix.select, which has known issues on Windows. *)
 	let stdin_buf = Bytes.create 1024 in
-	let sock_buf = Bytes.create 1024 in
-	let stdin_active = ref true in
-	let sock_open = ref true in
-	let rec loop () =
-		let read_fds = (if !sock_open then [sock] else []) @ (if !stdin_active then [stdin_fd] else []) in
-		if read_fds = [] then ()
-		else begin
-			let readable, _, _ = Unix.select read_fds [] [] (-1.0) in
-			List.iter (fun fd ->
-				if fd = stdin_fd then begin
-					let n = Unix.read fd stdin_buf 0 1024 in
-					if n = 0 then begin
-						stdin_active := false;
-						(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
-					end else
-						ssend sock (Bytes.sub stdin_buf 0 n)
-				end else begin
-					let b = Unix.recv sock sock_buf 0 1024 [] in
-					Buffer.add_subbytes response_buf sock_buf 0 b;
-					if b > 0 then begin
-						if Bytes.get sock_buf (b - 1) = '\n' then begin
-							process_response ();
-							Buffer.reset response_buf;
-						end
-					end else
-						sock_open := false
+	let _ = Thread.create (fun () ->
+		(try
+			let rec loop () =
+				let n = Unix.read (Unix.descr_of_in_channel Stdlib.stdin) stdin_buf 0 1024 in
+				if n = 0 then
+					(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
+				else begin
+					ssend sock (Bytes.sub stdin_buf 0 n);
+					loop ()
 				end
-			) readable;
-			if !sock_open then loop ()
-		end
-	in
-	loop ();
-	process_response ()
+			in
+			loop ()
+		with _ -> ())
+	) () in
+	(* Read server output until the connection closes, printing lines immediately
+	   as they arrive rather than waiting for the server to disconnect. *)
+	let sock_buf = Bytes.create 1024 in
+	let sock_open = ref true in
+	while !sock_open do
+		let b = Unix.recv sock sock_buf 0 1024 [] in
+		Buffer.add_subbytes response_buf sock_buf 0 b;
+		if b <= 0 then
+			sock_open := false
+		else
+			flush_complete_lines ()
+	done;
+	(* Flush any remaining partial line after the server closes the connection *)
+	let s = Buffer.contents response_buf in
+	if s <> "" then begin
+		let lines = ExtString.String.nsplit s "\n" in
+		let lines = (match List.rev lines with "" :: l -> List.rev l | _ -> lines) in
+		List.iter print lines
+	end
