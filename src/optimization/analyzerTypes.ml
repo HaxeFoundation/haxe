@@ -254,7 +254,6 @@ module Graph = struct
 
 	type var_info = {
 		vi_var : tvar;                            (* The variable itself *)
-		vi_extra : tvar_extra option;             (* The original v_extra *)
 		vi_bb_declare : BasicBlock.t;             (* The block where this variable was declared *)
 		mutable vi_origin : tvar;                 (* The origin variable of this variable *)
 		mutable vi_writes : var_write;            (* A list of blocks that assign to this variable *)
@@ -270,6 +269,7 @@ module Graph = struct
 		mutable g_functions : tfunc_info itbl;     (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t list;       (* A list of all blocks *)
 		g_var_infos : var_info DynArray.t;         (* A map of variable information *)
+		g_var_lookup : (int, int) Hashtbl.t;       (* Maps variable IDs to var_info indices, graph-local to avoid races *)
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
@@ -278,7 +278,6 @@ module Graph = struct
 	let create_var_info g bb v =
 		let vi = {
 			vi_var = v;
-			vi_extra = v.v_extra;
 			vi_bb_declare = bb;
 			vi_origin = v;
 			vi_writes = [];
@@ -288,12 +287,12 @@ module Graph = struct
 		} in
 		DynArray.add g.g_var_infos vi;
 		let i = DynArray.length g.g_var_infos - 1 in
-		v.v_extra <- Some(var_extra [] (Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos)));
+		Hashtbl.replace g.g_var_lookup v.v_id i;
 		vi
 
-	let get_var_info g v = match v.v_extra with
-		| Some({v_expr = Some {eexpr = TConst (TInt i32)}}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
-		| _ ->
+	let get_var_info g v = match Hashtbl.find_opt g.g_var_lookup v.v_id with
+		| Some i -> DynArray.get g.g_var_infos i
+		| None ->
 			print_endline "Unbound variable, please report this";
 			print_endline (Printer.s_tvar v);
 			create_var_info g g.g_unreachable v
@@ -382,6 +381,7 @@ module Graph = struct
 			g_functions = Hashtbl.create 0;
 			g_nodes = [bb_root];
 			g_var_infos = DynArray.create();
+			g_var_lookup = Hashtbl.create 0;
 			g_loops = IntMap.empty;
 		}
 
