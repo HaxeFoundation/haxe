@@ -145,4 +145,17 @@ class TestCommandBase extends utest.Test {
 		var exitCode = run('$native 1 || $native 0');
 		Assert.equals(0, exitCode);
 	}
+
+	function testShellExecutable() {
+		if (Sys.systemName() == "Windows") {
+			Assert.pass();
+		} else {
+			var bin = "src/shell-tool.sh";
+			var exitCode = run(bin);
+			Assert.equals(42, exitCode);
+
+			var exitCode = run(bin, ["--version"]);
+			Assert.equals(42, exitCode);
+		}
+	}
 }
