@@ -64,7 +64,7 @@ module Connect = struct
 				prerr_endline line;
 		in
 		PipeThings.poll sock print;
-		if !has_error then exit 1 else exit 0
+		if !has_error then 1 else 0
 end
 
 module SocketRequest = struct

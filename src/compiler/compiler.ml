@@ -605,182 +605,54 @@ module HighLevel = struct
 			) [] (List.rev lines) in
 			lines
 
-	(* Returns a list of contexts, but doesn't do anything yet *)
-	let process_params (sctx : ServerCompilationContext.t) (request_scope : request_scope) timer_ctx create each_args has_display is_server (args : parsed_arg list) =
-		(* We want the loop below to actually see all the --each params, so let's prepend them *)
-		let args = !each_args @ args in
-		let added_libs = Hashtbl.create 0 in
-		let server_mode = ref Args.SMNone in
-		let hxml_stack = ref [] in
-		let create_context parsed =
-			sctx.compilation_step <- sctx.compilation_step + 1;
-			let ctx = create sctx.compilation_step parsed in
-			ctx
-		in
-		let rec find_subsequent_libs acc args = match args with
-		| AddLib name :: args ->
-			find_subsequent_libs (name :: acc) args
-		| _ ->
-			List.rev acc, args
-		in
-		let expand_libs libs rest =
-			let libs = List.filter (fun l -> not (Hashtbl.mem added_libs l)) libs in
-			List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
-			let global_repo = List.exists (fun a -> a = HaxelibGlobal) args in
-			let raw_lines = add_libs timer_ctx libs (if global_repo then ["--haxelib-global"] else []) sctx.cs has_display in
-			(Args.parse_args raw_lines) @ rest
-		in
-		let rec loop acc = function
-			| [] ->
-				[], Some (create_context (List.rev acc))
-			| Next :: l when acc = [] -> (* skip empty --next *)
-				loop [] l
-			| Next :: l ->
-				let ctx = create_context (List.rev acc) in
-				ctx.has_next <- true;
-				l, Some ctx
-			| Each :: l ->
-				each_args := List.rev acc;
-				loop acc l
-			| Cwd dir :: l ->
-				(* Apply cwd eagerly for hxml file resolution *)
-				(try Unix.chdir dir with _ -> ());
-				loop (Cwd dir :: acc) l
-			| Connect hp :: l ->
-				if is_server then
-					(* If we are already connected, ignore (issue #10813) *)
-					loop acc l
-				else begin
-					let host, port = Helper.parse_host_port hp in
-					(* Forward accumulated + remaining args to the remote server *)
-					ignore(Server.Connect.do_connect host port ((List.rev acc) @ l));
-					[], None
-				end
-			| ServerConnect hp :: l ->
-				server_mode := SMConnect hp;
-				loop acc l
-			| ServerListen hp :: l ->
-				server_mode := SMListen hp;
-				loop acc l
-			| Run (cl, runtime_args) :: l ->
-				(* --run: expand into SetMain + Interp, then create context.
-				   This is terminal: remaining args become runtime_args (already in tuple).
-				   Normalise com.args to the -x form, matching old parse_args behaviour. *)
-				let cpath = Path.parse_type_path cl in
-				let acc = Interp :: SetMain cpath :: acc in
-				let ctx = create_context (List.rev acc) in
-				ctx.runtime_args <- runtime_args @ (Args.to_raw_args l);
-				[], Some ctx
-			| RunX cl :: l ->
-				(* -x: non-terminal shorthand for SetMain + Interp; subsequent args are still build args *)
-				let cpath = Path.parse_type_path cl in
-				loop (Interp :: SetMain cpath :: acc) l
-			| AddLib name :: args ->
-				let libs, args = find_subsequent_libs [name] args in
-				loop acc (expand_libs libs args)
-			| HxmlFile path :: l ->
-				let full_path = try Extc.get_full_path path with Failure(_) -> raise (Arg.Bad (Printf.sprintf "File not found: %s" path)) in
-				if List.mem full_path !hxml_stack then
-					raise (Arg.Bad (Printf.sprintf "Duplicate hxml inclusion: %s" full_path))
-				else
-					hxml_stack := full_path :: !hxml_stack;
-				(* Separate "file not found" from "file exists but is empty/all-comments":
-				   an empty hxml (e.g. cleared by CI for platform reasons) is a no-op,
-				   not an error. *)
-				let hxml_raw, expanded =
-					try
-						let raw = Helper.parse_hxml path in
-						raw, Args.parse_args raw
-					with Not_found ->
-						[], [IncludeModule (path ^ " (file not found)")]
-				in
-				loop acc (expanded @ l)
-			| arg :: l ->
-				loop (arg :: acc) l
-		in
-		let args, ctx = loop [] args in
-		args, !server_mode, ctx
-
-	let rec execute_ctx (sctx : ServerCompilationContext.t) ctx server_mode =
-		begin match server_mode with
-		| Args.SMListen hp ->
-			(* Apply args to get com.verbose before starting the wait loop *)
-			ignore(Args.process_args ctx.com ctx.parsed_args);
-			let accept =
-				let host, port = Helper.parse_host_port hp in
-				Server.init_wait_socket host port
+	let create_context_from_part (sctx : ServerCompilationContext.t) comm request_scope timer_ctx has_display part =
+		(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
+		let expand_part_libs has_global (part_args : parsed_arg list) =
+			let expand_one arg = match arg with
+				| Expand ex ->
+					(match ex.state with
+					| AlreadyExpanded expanded ->
+						expanded
+					| NotYetExpanded (AddLibs libs) ->
+						let raw_lines = add_libs timer_ctx libs (if has_global then ["--haxelib-global"] else []) sctx.cs has_display in
+						let expanded = Args.parse_args raw_lines in
+						ex.state <- AlreadyExpanded expanded;
+						expanded)
+				| arg -> [arg]
 			in
-			Server.wait_loop entry ctx.com.verbose accept
-		| SMConnect hp ->
-			ignore(Args.process_args ctx.com ctx.parsed_args);
-			let host, port = Helper.parse_host_port hp in
-			let accept = Server.init_wait_connect host port in
-			Server.wait_loop entry ctx.com.verbose accept
-		| SMNone ->
-			compile_ctx sctx ctx
-		end
+			List.concat_map expand_one part_args
+		in
+		let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
+		let expanded_args = expand_part_libs has_global part.Args.args in
+		sctx.compilation_step <- sctx.compilation_step + 1;
+		create_context comm sctx request_scope timer_ctx sctx.compilation_step expanded_args
 
-	and entry sctx request_scope comm (args : parsed_arg list) =
+	let entry sctx request_scope comm (args : parsed_arg list) =
 		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
-		let create = create_context comm sctx request_scope timer_ctx in
 		let curdir = Unix.getcwd () in
-		let has_display = List.exists (fun a -> match a with SetDisplayArg _ -> true | _ -> false) args in
 		let code =
 			try
 				let request_args = Args.expand_args args in
-				(* expand_args applies --cwd eagerly; restore original dir before compilation *)
-				Unix.chdir curdir;
-				(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
-				let expand_part_libs has_global (part_args : parsed_arg list) =
-					let expand_one arg = match arg with
-						| Expand ex ->
-							(match ex.state with
-							| AlreadyExpanded expanded ->
-								expanded
-							| NotYetExpanded (AddLibs libs) ->
-								let raw_lines = add_libs timer_ctx libs (if has_global then ["--haxelib-global"] else []) sctx.cs has_display in
-								let expanded = Args.parse_args raw_lines in
-								ex.state <- AlreadyExpanded expanded;
-								expanded)
-						| arg -> [arg]
-					in
-					List.concat_map expand_one part_args
+				let has_display = request_args.display_arg <> None in
+				let rec loop = function
+					| [] -> 0
+					| part :: rest ->
+						(* Re-apply original dir in case --cwd was used in a previous part *)
+						Unix.chdir curdir;
+						let ctx = create_context_from_part sctx comm request_scope timer_ctx has_display part in
+						if rest <> [] then ctx.has_next <- true;
+						ctx.runtime_args <- part.Args.runtime_args;
+						let code = compile_ctx sctx ctx in
+						if code = 0 && rest <> [] && not has_display then
+							loop rest
+						else
+							code
 				in
-				(* Handle --connect: forward all args to a remote compilation server *)
-				match request_args.connect_arg with
-				| Some hp when not comm.is_server ->
-					let host, port = Helper.parse_host_port hp in
-					let rec interleave_next = function
-						| [] -> []
-						| [p] -> p.Args.args
-						| p :: rest -> p.Args.args @ [Next] @ interleave_next rest
-					in
-					ignore(Server.Connect.do_connect host port (interleave_next request_args.parts));
-					0
-				| _ ->
-					let rec loop = function
-						| [] -> 0
-						| part :: rest ->
-							(* Re-apply original dir in case --cwd was used in a previous part *)
-							Unix.chdir curdir;
-							let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
-							let expanded_args = expand_part_libs has_global part.Args.args in
-							sctx.compilation_step <- sctx.compilation_step + 1;
-							let ctx = create sctx.compilation_step expanded_args in
-							if rest <> [] then ctx.has_next <- true;
-							ctx.runtime_args <- part.Args.runtime_args;
-							(* server_mode only applies to the last part in the sequence *)
-							let server_mode = if rest = [] then request_args.server_mode else Args.SMNone in
-							let code = execute_ctx sctx ctx server_mode in
-							if code = 0 && rest <> [] && not has_display then
-								loop rest
-							else
-								code
-					in
-					loop request_args.parts
+				loop request_args.parts
 			with Arg.Bad msg ->
 				Unix.chdir curdir;
-				let ctx = create 0 args in
+				(* TODO: this is silly *)
+				let ctx = create_context comm sctx request_scope timer_ctx 0 args in
 				error ctx ("Error: " ^ msg) null_pos;
 				compile_ctx sctx ctx
 		in
