@@ -3,11 +3,6 @@ open ParsedArg
 
 exception Abort
 
-type server_mode =
-	| SMNone
-	| SMListen of string
-	| SMConnect of string
-
 type communication = {
 	write_out : string -> unit;
 	write_err : string -> unit;

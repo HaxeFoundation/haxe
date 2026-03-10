@@ -610,7 +610,7 @@ module HighLevel = struct
 		(* We want the loop below to actually see all the --each params, so let's prepend them *)
 		let args = !each_args @ args in
 		let added_libs = Hashtbl.create 0 in
-		let server_mode = ref SMNone in
+		let server_mode = ref Args.SMNone in
 		let hxml_stack = ref [] in
 		let create_context parsed =
 			sctx.compilation_step <- sctx.compilation_step + 1;
@@ -628,7 +628,7 @@ module HighLevel = struct
 			List.iter (fun l -> Hashtbl.add added_libs l ()) libs;
 			let global_repo = List.exists (fun a -> a = HaxelibGlobal) args in
 			let raw_lines = add_libs timer_ctx libs (if global_repo then ["--haxelib-global"] else []) sctx.cs has_display in
-			(Args.parse_args sctx raw_lines) @ rest
+			(Args.parse_args raw_lines) @ rest
 		in
 		let rec loop acc = function
 			| [] ->
@@ -690,7 +690,7 @@ module HighLevel = struct
 				let hxml_raw, expanded =
 					try
 						let raw = Helper.parse_hxml path in
-						raw, Args.parse_args sctx raw
+						raw, Args.parse_args raw
 					with Not_found ->
 						[], [IncludeModule (path ^ " (file not found)")]
 				in
@@ -703,7 +703,7 @@ module HighLevel = struct
 
 	let rec execute_ctx (sctx : ServerCompilationContext.t) ctx server_mode =
 		begin match server_mode with
-		| SMListen hp ->
+		| Args.SMListen hp ->
 			(* Apply args to get com.verbose before starting the wait loop *)
 			ignore(Args.process_args ctx.com ctx.parsed_args);
 			let accept =

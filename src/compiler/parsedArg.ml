@@ -12,7 +12,20 @@ type native_lib_arg = {
 	lib_extern : bool;
 }
 
-type parsed_arg =
+
+type expanding_arg_function =
+	| AddLibs of string list
+
+type expanding_arg_state =
+	| NotYetExpanded of expanding_arg_function
+	| AlreadyExpanded of parsed_arg list
+
+and expanding_arg = {
+	original : parsed_arg list;
+	mutable state : expanding_arg_state;
+}
+
+and parsed_arg =
 	(* Targets *)
 	| SetPlatform of platform * string
 	| SetCustomTarget of string * string
@@ -54,6 +67,7 @@ type parsed_arg =
 	(* Batch *)
 	| Next
 	| Each
+	| Expand of expanding_arg
 	(* Server *)
 	| ServerListen of string
 	| ServerConnect of string

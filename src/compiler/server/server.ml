@@ -315,7 +315,7 @@ let wait_loop entry verbose accept =
 						None,s
 				in
 				let data = Helper.parse_hxml_data hxml in
-				let parsed_args = Args.parse_args sctx data in
+				let parsed_args = Args.parse_args data in
 				let comm () = ServerCommunication.Communication.create_pipe sctx conn in
 				RequestQueue.add rq parsed_args stdin comm;
 			with Unix.Unix_error _ ->

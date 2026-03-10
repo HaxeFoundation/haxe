@@ -59,7 +59,7 @@ set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 
 let sctx = Server.setup_server_context false in
-let parsed_args = Args.parse_args sctx args in
+let parsed_args = Args.parse_args args in
 let comm = ServerCommunication.Communication.create_stdio () in
 let request_scope = create_request_scope() in
 Compiler.HighLevel.entry sctx request_scope comm parsed_args;
