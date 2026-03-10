@@ -125,10 +125,68 @@ type context = {
 	mutable ct_depth : int;
 	mutable virt_id : int;
 	mutable enum_uid : int;
+	virtual_dedup : (string, virtual_proto) Hashtbl.t;
 }
 
 let compare_version v1 v2 =
 	Semver.compare_version (Semver.parse_version v1) (Semver.parse_version v2)
+
+(* Compute a structural key for a virtual_proto based on its field names and
+   HL types. This handles recursive (self-referential) types by using "..."
+   for cycles. Two virtuals with the same field structure produce the same key
+   regardless of their vid. *)
+let virtual_structural_key vp =
+	let buf = Buffer.create 128 in
+	let rec type_key stack t = match t with
+		| HVoid -> Buffer.add_string buf "V"
+		| HUI8 -> Buffer.add_string buf "u8"
+		| HUI16 -> Buffer.add_string buf "u16"
+		| HI32 -> Buffer.add_string buf "i32"
+		| HI64 -> Buffer.add_string buf "i64"
+		| HF32 -> Buffer.add_string buf "f32"
+		| HF64 -> Buffer.add_string buf "f64"
+		| HBool -> Buffer.add_string buf "b"
+		| HBytes -> Buffer.add_string buf "B"
+		| HDyn -> Buffer.add_string buf "D"
+		| HFun (args, ret) ->
+			Buffer.add_string buf "F(";
+			List.iter (fun t -> type_key stack t; Buffer.add_char buf ',') args;
+			Buffer.add_char buf ')';
+			type_key stack ret
+		| HMethod (args, ret) ->
+			Buffer.add_string buf "M(";
+			List.iter (fun t -> type_key stack t; Buffer.add_char buf ',') args;
+			Buffer.add_char buf ')';
+			type_key stack ret
+		| HObj p -> Buffer.add_string buf "O:"; Buffer.add_string buf p.pname
+		| HStruct p -> Buffer.add_string buf "S:"; Buffer.add_string buf p.pname
+		| HArray t -> Buffer.add_string buf "A("; type_key stack t; Buffer.add_char buf ')'
+		| HType -> Buffer.add_string buf "T"
+		| HRef t -> Buffer.add_string buf "R("; type_key stack t; Buffer.add_char buf ')'
+		| HVirtual v when List.memq v stack -> Buffer.add_string buf "..."
+		| HVirtual v ->
+			Buffer.add_char buf '{';
+			Array.iter (fun (name, _, t) ->
+				Buffer.add_string buf name;
+				Buffer.add_char buf ':';
+				type_key (v :: stack) t;
+				Buffer.add_char buf ','
+			) v.vfields;
+			Buffer.add_char buf '}'
+		| HDynObj -> Buffer.add_string buf "DO"
+		| HAbstract (s, _) -> Buffer.add_string buf "Ab:"; Buffer.add_string buf s
+		| HEnum e -> Buffer.add_string buf "E:"; Buffer.add_string buf e.ename
+		| HNull t -> Buffer.add_string buf "N("; type_key stack t; Buffer.add_char buf ')'
+		| HPacked t -> Buffer.add_string buf "P("; type_key stack t; Buffer.add_char buf ')'
+		| HGUID -> Buffer.add_string buf "G"
+	in
+	Array.iter (fun (name, _, t) ->
+		Buffer.add_string buf name;
+		Buffer.add_char buf ':';
+		type_key [vp] t;
+		Buffer.add_char buf ','
+	) vp.vfields;
+	Buffer.contents buf
 
 (* Custom unification context for HL anonymous type identification.
    - EqDoNotFollowNull: Null<T> ≠ T (important: HL uses null(t) for Null<T> which
@@ -595,7 +653,18 @@ and anon_type ctx tref a =
 		let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-		t
+		(* HL-level structural dedup: two different Haxe anons can produce the same
+		   HL virtual (same field names and HL types). Check if an identical virtual
+		   already exists, and if so, unify their vids so that gather_types/ttype_compare
+		   treats them as the same type. This prevents duplicate C definitions in hl2c. *)
+		let key = virtual_structural_key vp in
+		(match Hashtbl.find_opt ctx.virtual_dedup key with
+		| Some existing_vp ->
+			vp.vid <- existing_vp.vid;
+			t
+		| None ->
+			Hashtbl.add ctx.virtual_dedup key vp;
+			t)
 	)
 
 and class_type ?(tref=None) ctx c pl statics =
@@ -606,6 +675,7 @@ and class_type ?(tref=None) ctx c pl statics =
 	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let fields = TClass.get_all_fields c (extract_param_types c.cl_params) in
 		let fields = PMap.map snd fields in
+		if PMap.is_empty fields then HDyn else
 		let an = {a_status = ref Closed; a_fields = fields} in
 		anon_type ctx tref an
 	| Not_found ->
@@ -4256,6 +4326,7 @@ let create_context com =
 		ct_depth = 0;
 		virt_id = 0;
 		enum_uid = 0;
+		virtual_dedup = Hashtbl.create 0;
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");

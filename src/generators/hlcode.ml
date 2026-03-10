@@ -82,7 +82,7 @@ and field_proto = {
 }
 
 and virtual_proto = {
-	vid : int;
+	mutable vid : int;
 	mutable vfields : (string * string index * ttype) array;
 	mutable vindex : (string, int) PMap.t;
 }
