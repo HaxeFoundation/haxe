@@ -442,28 +442,7 @@ let rec to_type ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
-		let pfm = ctx.anon_id#identify_anon anon_id_uctx a in
-		(try
-			Hashtbl.find ctx.anons_cache pfm.pfm_path
-		with Not_found ->
-			let vid = ctx.virt_id in
-			ctx.virt_id <- vid + 1;
-			let vp = {
-				vid;
-				vfields = [||];
-				vindex = PMap.empty;
-			} in
-			let t = HVirtual vp in
-			(match tref with
-			| None -> ()
-			| Some r -> r := Some t);
-			Hashtbl.add ctx.anons_cache pfm.pfm_path t;
-			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
-			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
-			vp.vfields <- Array.of_list fields;
-			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-			t
-		)
+		anon_type ctx tref a
 	| TDynamic _ ->
 		HDyn
 	| TEnum (e,_) ->
@@ -595,12 +574,11 @@ and real_type ctx e =
 	in
 	to_type ctx (loop e)
 
-and class_type ?(tref=None) ctx c pl statics =
-	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
-	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
-	try
-		PMap.find key_path ctx.cached_types
-	with Not_found when (has_class_flag c CInterface) && not statics ->
+and anon_type ctx tref a =
+	let pfm = ctx.anon_id#identify_anon anon_id_uctx a in
+	(try
+		Hashtbl.find ctx.anons_cache pfm.pfm_path
+	with Not_found ->
 		let vid = ctx.virt_id in
 		ctx.virt_id <- vid + 1;
 		let vp = {
@@ -609,22 +587,27 @@ and class_type ?(tref=None) ctx c pl statics =
 			vindex = PMap.empty;
 		} in
 		let t = HVirtual vp in
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
-		let rec loop c =
-			let rec concat_uniq fields pfields =
-				match pfields with
-				| (n,_,_) as pf::pfl -> if List.exists (fun (n1,_,_) -> n1 = n) fields then concat_uniq fields pfl else concat_uniq (pf::fields) pfl
-				| [] -> fields
-			in
-			let pfields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields [] in
-			concat_uniq fields pfields
-		in
-		let fields = loop c in
+		(match tref with
+		| None -> ()
+		| Some r -> r := Some t);
+		Hashtbl.add ctx.anons_cache pfm.pfm_path t;
+		let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 		let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 		t
+	)
+
+and class_type ?(tref=None) ctx c pl statics =
+	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
+	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
+	try
+		PMap.find key_path ctx.cached_types
+	with Not_found when (has_class_flag c CInterface) && not statics ->
+		let fields = TClass.get_all_fields c (extract_param_types c.cl_params) in
+		let fields = PMap.map snd fields in
+		let an = {a_status = ref Closed; a_fields = fields} in
+		anon_type ctx tref an
 	| Not_found ->
 		let pname = s_type_path (List.tl key_path, List.hd key_path) in
 		let p = {
