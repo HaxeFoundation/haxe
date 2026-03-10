@@ -822,6 +822,11 @@ class texpr_to_jvm
 			self#read_anon_field cast e1.etype cf;
 		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(None,{cf_name = s}) ->
 			dynamic_read s
+		| FClosure((Some(c,_)),cf) when c.cl_path = string_path ->
+			(* String instance methods need JVM-compatible wrappers (e.g. charAt returns char not
+			   String in Java). Redirect the closure creation through Jvm.readField which already
+			   handles all string methods correctly via StringExt. *)
+			dynamic_read cf.cf_name
 		| FClosure((Some(c,_)),cf) ->
 			if has_class_flag c CInterface then
 				dynamic_read cf.cf_name
