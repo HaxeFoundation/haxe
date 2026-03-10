@@ -564,7 +564,7 @@
 	{
 		"name": "LuaJit",
 		"define": "lua-jit",
-		"doc": "Enable the jit compiler for lua (version 5.2 only).",
+		"doc": "Enable LuaJIT-specific code generation optimizations.",
 		"platforms": ["lua"]
 	},
 	{
