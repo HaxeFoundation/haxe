@@ -675,7 +675,6 @@ and class_type ?(tref=None) ctx c pl statics =
 	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let fields = TClass.get_all_fields c (extract_param_types c.cl_params) in
 		let fields = PMap.map snd fields in
-		if PMap.is_empty fields then HDyn else
 		let an = {a_status = ref Closed; a_fields = fields} in
 		anon_type ctx tref an
 	| Not_found ->
