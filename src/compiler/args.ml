@@ -557,13 +557,17 @@ let expand_args args =
 		| [] ->
 			add_part (List.rev current) []
 		| Next :: rest when current = [] ->
+			(* reset hxml_stack so the same hxml can be included in a subsequent section *)
+			hxml_stack := [];
 			loop [] rest
 		| Next :: rest ->
 			add_part (List.rev current) [];
+			(* reset hxml_stack so the same hxml can be included in a subsequent section *)
+			hxml_stack := [];
 			loop [] rest
 		| Each :: rest ->
 			each := List.rev current;
-			loop []  rest
+			loop [] rest
 		| Cwd dir :: rest ->
 			(try Unix.chdir dir with _ -> ());
 			loop (Cwd dir :: current) rest
@@ -607,9 +611,9 @@ let expand_args args =
 			loop current (expanded @ rest)
 		| SetDisplayArg s :: rest ->
 			display_arg := Some s;
-			loop current rest
-		| _ ->
-			assert false
+			loop (SetDisplayArg s :: current) rest
+		| arg :: rest ->
+			loop (arg :: current) rest
 	in
 	loop [] args;
 	{

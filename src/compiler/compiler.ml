@@ -723,33 +723,66 @@ module HighLevel = struct
 	and entry sctx request_scope comm (args : parsed_arg list) =
 		let timer_ctx = Timer.make_context (Timer.make ["other"]) in
 		let create = create_context comm sctx request_scope timer_ctx in
-		let each_args = ref [] in
 		let curdir = Unix.getcwd () in
-		let has_display = ref (List.exists (fun a -> match a with SetDisplayArg _ -> true | _ -> false) args) in
-		let rec loop args =
-			let args,server_mode,ctx = try
-				process_params sctx request_scope timer_ctx create each_args !has_display comm.is_server args
+		let has_display = List.exists (fun a -> match a with SetDisplayArg _ -> true | _ -> false) args in
+		let code =
+			try
+				let request_args = Args.expand_args args in
+				(* expand_args applies --cwd eagerly; restore original dir before compilation *)
+				Unix.chdir curdir;
+				(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
+				let expand_part_libs has_global (part_args : parsed_arg list) =
+					let expand_one arg = match arg with
+						| Expand ex ->
+							(match ex.state with
+							| AlreadyExpanded expanded ->
+								expanded
+							| NotYetExpanded (AddLibs libs) ->
+								let raw_lines = add_libs timer_ctx libs (if has_global then ["--haxelib-global"] else []) sctx.cs has_display in
+								let expanded = Args.parse_args raw_lines in
+								ex.state <- AlreadyExpanded expanded;
+								expanded)
+						| arg -> [arg]
+					in
+					List.concat_map expand_one part_args
+				in
+				(* Handle --connect: forward all args to a remote compilation server *)
+				match request_args.connect_arg with
+				| Some hp when not comm.is_server ->
+					let host, port = Helper.parse_host_port hp in
+					let rec interleave_next = function
+						| [] -> []
+						| [p] -> p.Args.args
+						| p :: rest -> p.Args.args @ [Next] @ interleave_next rest
+					in
+					ignore(Server.Connect.do_connect host port (interleave_next request_args.parts));
+					0
+				| _ ->
+					let rec loop = function
+						| [] -> 0
+						| part :: rest ->
+							(* Re-apply original dir in case --cwd was used in a previous part *)
+							Unix.chdir curdir;
+							let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
+							let expanded_args = expand_part_libs has_global part.Args.args in
+							sctx.compilation_step <- sctx.compilation_step + 1;
+							let ctx = create sctx.compilation_step expanded_args in
+							if rest <> [] then ctx.has_next <- true;
+							ctx.runtime_args <- part.Args.runtime_args;
+							(* server_mode only applies to the last part in the sequence *)
+							let server_mode = if rest = [] then request_args.server_mode else Args.SMNone in
+							let code = execute_ctx sctx ctx server_mode in
+							if code = 0 && rest <> [] && not has_display then
+								loop rest
+							else
+								code
+					in
+					loop request_args.parts
 			with Arg.Bad msg ->
+				Unix.chdir curdir;
 				let ctx = create 0 args in
 				error ctx ("Error: " ^ msg) null_pos;
-				[],SMNone,Some ctx
-			in
-			let code = match ctx with
-				| Some ctx ->
-					(* Need chdir here because --cwd is eagerly applied in process_params *)
-					Unix.chdir curdir;
-					execute_ctx sctx ctx server_mode
-				| None ->
-					(* caused by --connect *)
-					0
-			in
-			if code = 0 && args <> [] && not !has_display then begin
-				(* We have to chdir here again because any --cwd also takes effect in execute_ctx *)
-				Unix.chdir curdir;
-				loop args
-			end else
-				code
+				compile_ctx sctx ctx
 		in
-		let code = loop args in
 		comm.exit timer_ctx code
 end
