@@ -47,6 +47,10 @@ open ParsedArg
 ;;
 Sys.catch_break true;
 
+(* Ignore SIGPIPE to prevent process termination when stdin pipe is closed.
+   Sys.sigpipe may not map to the real signal number, so use 13 directly. *)
+(try Sys.set_signal 13 Sys.Signal_ignore with _ -> ());
+
 DynamicGc.(setup_dynamic_tuning
   {
     min_space_overhead = 100;

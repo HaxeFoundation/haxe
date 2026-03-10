@@ -285,9 +285,6 @@ end
 let setup_server_context verbose =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
-	(* Ignore SIGPIPE to prevent process termination when stdin pipe is closed.
-	   Sys.sigpipe may not map to the real signal number, so use 13 directly. *)
-	(try Sys.set_signal 13 Sys.Signal_ignore with _ -> ());
 	(* Create server context and set up hooks for parsing and typing *)
 	let sctx = ServerCompilationContext.create verbose in
 	ServerCache.enable_cache_mode sctx;
