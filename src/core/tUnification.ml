@@ -524,6 +524,10 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 
+let direct_access = function
+	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
+	| AccCall | AccPrivateCall -> false
+
 (*
 	we can restrict access as soon as both are runtime-compatible
 *)
@@ -532,12 +536,8 @@ let unify_var_access uctx a1 a2 =
 	| _, AccNo | _, AccNever -> true
 	| AccInline, AccNormal -> true
 	| AccCall, AccPrivateCall -> true
-	| AccNormal, AccCtor | AccCtor, AccNormal -> uctx.allow_final_invariance
+	| _ when uctx.allow_final_invariance -> direct_access a1 && direct_access a2
 	| _ -> false
-
-let direct_access = function
-	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ | AccCtor -> true
-	| AccCall | AccPrivateCall -> false
 
 let unify_kind uctx k1 k2 =
 	k1 = k2 || match k1, k2 with
