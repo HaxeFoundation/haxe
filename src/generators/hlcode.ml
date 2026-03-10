@@ -504,7 +504,58 @@ let gather_types (code:code) =
 			| _ -> ()
 		) f.code;
 	) code.functions;
-	DynArray.to_array arr, !types
+	(* Second pass: remove structural duplicates introduced by different object identities.
+	   HVirtual types are compared by vid (not by field content), so two structurally-identical
+	   virtuals that originate from different genhl caches end up as separate entries in arr.
+	   HFun/HMethod types containing such virtuals are also duplicated transitively.
+	   Use a fixed-point forward-scan: each round assigns canonical indices to types that
+	   share the same structural key. Rounds repeat until stable, propagating canonicalization
+	   through each level of nesting. *)
+	let n = DynArray.length arr in
+	let remap = Array.make n (-1) in
+	let rec canonical i =
+		if remap.(i) < 0 then i else canonical remap.(i)
+	in
+	let canonical_of t = canonical (PMap.find t !types) in
+	let virtual_keys : ((string * int) list, int) Hashtbl.t = Hashtbl.create n in
+	let fun_keys : (bool * int list * int, int) Hashtbl.t = Hashtbl.create n in
+	let changed = ref true in
+	while !changed do
+		changed := false;
+		Hashtbl.clear virtual_keys;
+		Hashtbl.clear fun_keys;
+		for i = 0 to n - 1 do
+			if canonical i = i then
+				(match DynArray.get arr i with
+				| HVirtual v ->
+					let key = Array.fold_right (fun (name,_,ft) acc -> (name, canonical_of ft) :: acc) v.vfields [] in
+					(match Hashtbl.find_opt virtual_keys key with
+					| Some ci -> remap.(i) <- ci; changed := true
+					| None -> Hashtbl.add virtual_keys key i)
+				| (HFun _ | HMethod _) as t ->
+					let is_method, args, ret = match t with
+						| HFun (a,r) -> false, a, r
+						| HMethod (a,r) -> true, a, r
+						| _ -> assert false
+					in
+					let key = (is_method, List.map canonical_of args, canonical_of ret) in
+					(match Hashtbl.find_opt fun_keys key with
+					| Some ci -> remap.(i) <- ci; changed := true
+					| None -> Hashtbl.add fun_keys key i)
+				| _ -> ())
+		done;
+	done;
+	(* Rebuild arr and types without the remapped (duplicate) entries *)
+	let new_arr = DynArray.create() in
+	let old_to_new = Array.make n (-1) in
+	for i = 0 to n - 1 do
+		if canonical i = i then begin
+			old_to_new.(i) <- DynArray.length new_arr;
+			DynArray.add new_arr (DynArray.get arr i)
+		end
+	done;
+	let new_types = PMap.mapi (fun _t old_idx -> old_to_new.(canonical old_idx)) !types in
+	DynArray.to_array new_arr, new_types
 
 let lookup_type types t =
 	try PMap.find t types with Not_found -> Globals.die "" __LOC__

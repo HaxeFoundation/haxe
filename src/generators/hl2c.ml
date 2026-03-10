@@ -1657,29 +1657,20 @@ let write_c com file (code:code) gnames num_domains =
 	define ctx "#define HLC_BOOT";
 	define ctx "#include <hlc.h>";
 	line "// Types values";
-	let declared_type_names = Hashtbl.create (Array.length all_types) in
 	Array.iteri (fun i t ->
-		let name = type_name gctx t in
-		if not (Hashtbl.mem declared_type_names name) then begin
-			Hashtbl.add declared_type_names name ();
-			match t with
-			| HMethod _ | HFun _ | HVirtual _ ->
-				sexpr "hl_type %s = { %s } /* %s */" name (type_id t) (tstr t);
-			| _ ->
-				sexpr "hl_type %s = { %s }" name (type_id t);
-		end
+		match t with
+		| HMethod _ | HFun _ | HVirtual _ ->
+			sexpr "hl_type %s = { %s } /* %s */" (type_name gctx t) (type_id t) (tstr t);
+		| _ ->
+			sexpr "hl_type %s = { %s }" (type_name gctx t) (type_id t);
 	) all_types;
 
 	line "";
 	line "// Types values data";
-	let declared_type_data_names = Hashtbl.create (Array.length all_types) in
 	Array.iter (fun t ->
 		let field_value (_,name_id,t) =
 			sprintf "{(const uchar*)%s, %s, %ld}" (string gctx ctx name_id) (type_value gctx t) (hash gctx name_id)
 		in
-		let name = type_name gctx t in
-		if not (Hashtbl.mem declared_type_data_names name) then begin
-		Hashtbl.add declared_type_data_names name ();
 		match t with
 		| HObj o | HStruct o ->
 			let name = type_name gctx t in
@@ -1766,7 +1757,6 @@ let write_c com file (code:code) gnames num_domains =
 			sexpr "static hl_type_fun tfun%s = {%s,%s,%d}" fname aname (type_value gctx ret) (List.length args)
 		| _ ->
 			()
-		end
 	) all_types;
 
 	line "";
