@@ -263,6 +263,7 @@ class unificator =
 					(* if `b` is nullable, no more checks needed *)
 					| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
 						()
+					(* Dynamic is inherently nullable and accepts any value, including Null<T> *)
 					| _, TDynamic _ -> ()
 					| TAbstract ({ a_path = ([],"Null") },[t]), _ when not (is_nullable_type b) ->
 						safety_error a b acc_kind
