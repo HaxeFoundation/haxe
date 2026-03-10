@@ -139,6 +139,11 @@ module SocketRequest = struct
 				end
 		in
 		let data = read_loop 0 in
+		(* Switch to blocking mode before spawning the stdin forwarding thread.
+		   The socket was set to non-blocking for the request-parsing phase above
+		   (to handle slow clients with retries), but the forwarding thread needs
+		   blocking recv to avoid exiting prematurely on EWOULDBLOCK. *)
+		Unix.clear_nonblock sin;
 		let stdin = setup_client_stdin_forward !overflow sin in
 		{ data; stdin }
 end
@@ -357,7 +362,6 @@ let init_wait_socket ip port =
 		let stdin_pipe = ref None in
 		let read () =
 			let req = SocketRequest.read sin bufsize in
-			Unix.clear_nonblock sin;
 			stdin_pipe := Some (req.stdin);
 			req.data
 		in
