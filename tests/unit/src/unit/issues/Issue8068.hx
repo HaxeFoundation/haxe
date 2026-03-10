@@ -1,6 +1,7 @@
 package unit.issues;
 
 class Issue8068 extends Test {
+	#if (hl || lua || interp || php)
 	function test() {
 		var f = "foo";
 		var o = {charAt: f.charAt};
@@ -15,4 +16,5 @@ class Issue8068 extends Test {
 		eq(fn(1), "a");
 		eq(fn(2), "r");
 	}
+	#end
 }
