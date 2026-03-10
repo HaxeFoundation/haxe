@@ -468,7 +468,7 @@ let resolve_field p fid =
 	loop [] p
 
 let gather_types (code:code) =
-	let types = ref PMap.empty in
+	let types = ref (PMap.create ttype_compare) in
 	let arr = DynArray.create() in
 	let rec get_type t =
 		(match t with
