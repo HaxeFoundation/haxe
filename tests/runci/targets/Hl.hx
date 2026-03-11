@@ -30,7 +30,7 @@ class Hl {
 	static public function getHlDependencies() {
 		Sys.putEnv("HASHLINK", hlInstallDir);
 		if (systemName == "Windows") {
-			Sys.putEnv("HASHLINK_SRC", hlSrc);
+			Sys.putEnv("HASHLINK_SRC", hlInstallDir);
 			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
 		}
 
