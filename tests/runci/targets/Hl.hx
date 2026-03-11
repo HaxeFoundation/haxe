@@ -25,6 +25,8 @@ class Hl {
 	static var withJitTests = true;
 	static var withHlcTests = true;
 
+	static var msbuildPlatform:String = 'x64';
+
 	static public function getHlDependencies() {
 		Sys.putEnv("HASHLINK", hlInstallDir);
 		if (systemName == "Windows") {
@@ -114,9 +116,9 @@ class Hl {
 				'-nologo', '-verbosity:minimal',
 				'-t:$filename',
 				'-property:Configuration=Release',
-				'-property:Platform=x64'
+				'-property:Platform=$msbuildPlatform'
 			]);
-			run('$dir/x64/Release/$filename.exe', []);
+			run('$dir${msbuildPlatform == 'x64' ? '/x64' : ''}/Release/$filename.exe', []);
 		}
 	}
 
@@ -134,19 +136,24 @@ class Hl {
 		}
 	}
 
-	static public function run(args:Array<String>, withJitTests:Bool, withHlcTests:Bool) {
-		Hl.withJitTests = withJitTests;
-		Hl.withHlcTests = withHlcTests;
+	static public function run(testArgs:Array<String>, haxeArgs:Array<String>) {
+		final msbuildPlatformArgIndex = testArgs.lastIndexOf("--msbuild-platform");
+		if (msbuildPlatformArgIndex != -1) {
+			msbuildPlatform = testArgs[msbuildPlatformArgIndex + 1] ?? throw "--msbuild-platform needs an argument";
+			testArgs.splice(msbuildPlatformArgIndex, 2);
+		}
+		withJitTests = !testArgs.remove("--skip-hl-jit");
+		withHlcTests = !testArgs.remove("--skip-hlc");
 
 		getHlDependencies();
 
 		for (extraArgs in [[], ["--undefine", "analyzer-optimize"]]) {
 			if (Hl.withJitTests) {
-				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(args));
+				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(haxeArgs));
 				runCommand(hlBinary, ['bin/unit.hl']);
 			}
 			if (Hl.withHlcTests) {
-				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(args));
+				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(haxeArgs));
 				buildAndRunHlc("bin/hlc", "unit", runCommand);
 			}
 		}
@@ -156,11 +163,11 @@ class Hl {
 
 		changeDirectory(sysDir);
 		if (Hl.withJitTests) {
-			runCommand("haxe", ["compile-hl.hxml"].concat(args));
+			runCommand("haxe", ["compile-hl.hxml"].concat(haxeArgs));
 			runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 		}
 		if (Hl.withHlcTests) {
-			runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+			runCommand("haxe", ["compile-hlc.hxml"].concat(haxeArgs));
 			function dontRun(cmd,?args) {}
 			buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
 			buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
