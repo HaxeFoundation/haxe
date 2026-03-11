@@ -32,7 +32,7 @@ class GcFinalizer<T> {
 		this.callback = callback;
 	}
 
-	public function register(target:{}, heldValue:T):ICloseable {
+	public function register(target:{}, heldValue:T):IHandle {
 		var fin = new PythonFinalizer(target, callback, heldValue);
 		return cast {close: function() fin.detach()};
 	}

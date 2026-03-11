@@ -38,7 +38,7 @@ private class Registration<T> extends WeakReference<Dynamic> {
 	}
 }
 
-private class Handle<T> implements ICloseable {
+private class Handle<T> implements IHandle {
 	var reg:Registration<T>;
 
 	public function new(reg:Registration<T>) {
@@ -75,7 +75,7 @@ class GcFinalizer<T> {
 		}
 	}
 
-	public function register(target:{}, heldValue:T):ICloseable {
+	public function register(target:{}, heldValue:T):IHandle {
 		pollQueue();
 		var reg = new Registration(target, heldValue, callback, queue);
 		allRegs.push(reg);

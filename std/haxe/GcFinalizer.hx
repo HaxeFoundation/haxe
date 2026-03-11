@@ -46,10 +46,10 @@ class GcFinalizer<T> {
 		Registers `target` for clean-up. When `target` is garbage-collected,
 		the callback will be invoked with `heldValue`.
 
-		Returns an `ICloseable` handle. Calling `close()` on the handle
+		Returns an `IHandle` handle. Calling `close()` on the handle
 		cancels the registration, preventing the callback from firing.
 	**/
-	public function register(target:{}, heldValue:T):ICloseable {
+	public function register(target:{}, heldValue:T):IHandle {
 		return null;
 	}
 }

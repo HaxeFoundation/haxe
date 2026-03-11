@@ -22,63 +22,13 @@
 
 package haxe;
 
-private class Registration<T> {
-	public var heldValue:T;
-	public var cancelled:Bool;
-	public var callback:T->Void;
-
-	public function new(heldValue:T, callback:T->Void) {
-		this.heldValue = heldValue;
-		this.cancelled = false;
-		this.callback = callback;
-	}
-}
-
-private class Handle<T> implements ICloseable {
-	var reg:Registration<T>;
-
-	public function new(reg:Registration<T>) {
-		this.reg = reg;
-	}
-
-	public function close():Void {
-		reg.cancelled = true;
-	}
-}
-
 @:coreApi
 class GcFinalizer<T> {
-	var callback:T->Void;
-
 	public function new(callback:T->Void) {
-		this.callback = callback;
+		throw new haxe.exceptions.NotImplementedException("GcFinalizer is not yet implemented for cpp — see #12766");
 	}
 
-	public function register(target:{}, heldValue:T):ICloseable {
-		var reg = new Registration(heldValue, callback);
-
-		var regs:Array<Dynamic> = Reflect.field(target, "__hx_gc_regs");
-		if (regs == null) {
-			regs = [];
-			Reflect.setField(target, "__hx_gc_regs", regs);
-			cpp.vm.Gc.setFinalizer(target, cpp.Callable.fromStaticFunction(_invoke));
-		}
-		regs.push(reg);
-
-		return new Handle(reg);
-	}
-
-	static function _invoke(obj:Dynamic):Void {
-		var regs:Array<Dynamic> = Reflect.field(obj, "__hx_gc_regs");
-		if (regs != null) {
-			var i = 0;
-			while (i < regs.length) {
-				var reg:Dynamic = regs[i];
-				if (reg.cancelled != true) {
-					reg.callback(reg.heldValue);
-				}
-				i++;
-			}
-		}
+	public function register(target:{}, heldValue:T):IHandle {
+		return null;
 	}
 }

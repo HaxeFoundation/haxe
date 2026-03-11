@@ -32,7 +32,7 @@ class GcFinalizer<T> {
 		this.nextId = 0;
 	}
 
-	public function register(target:{}, heldValue:T):ICloseable {
+	public function register(target:{}, heldValue:T):IHandle {
 		var cb = callback;
 		var id = nextId++;
 		var proxy:Dynamic = lua.Syntax.code(

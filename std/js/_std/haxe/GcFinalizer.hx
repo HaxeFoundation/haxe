@@ -30,7 +30,7 @@ class GcFinalizer<T> {
 		h = new js.lib.FinalizationRegistry(callback);
 	}
 
-	public inline function register(target:{}, heldValue:T):ICloseable {
+	public inline function register(target:{}, heldValue:T):IHandle {
 		var token = {};
 		h.register(target, heldValue, token);
 		return cast {close: function() h.unregister(token)};

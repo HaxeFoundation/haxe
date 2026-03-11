@@ -23,9 +23,11 @@
 package haxe;
 
 /**
-	A general-purpose interface for objects that hold resources which
-	can be released by calling `close()`.
+	A general-purpose interface for handles that can be released
+	by calling `close()`. Used by `GcFinalizer` to return cancellation
+	handles, and intended for thread callback handles, coroutine
+	scheduler handles, and similar patterns.
 **/
-interface ICloseable {
+interface IHandle {
 	function close():Void;
 }

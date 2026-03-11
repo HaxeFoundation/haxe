@@ -34,7 +34,7 @@ private class Registration<T> {
 	}
 }
 
-private class Handle<T> implements ICloseable {
+private class Handle<T> implements IHandle {
 	var reg:Registration<T>;
 
 	public function new(reg:Registration<T>) {
@@ -54,7 +54,7 @@ class GcFinalizer<T> {
 		this.callback = callback;
 	}
 
-	public function register(target:{}, heldValue:T):ICloseable {
+	public function register(target:{}, heldValue:T):IHandle {
 		var reg = new Registration(heldValue, callback);
 		eval.vm.Gc.finalise(function(_) {
 			if (!reg.cancelled) {

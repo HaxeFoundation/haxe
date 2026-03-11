@@ -2,7 +2,7 @@ package unit;
 
 class TestGcFinalizer extends Test {
 	function testConstructNoThrow() {
-		#if (js || python || cpp || eval || lua || jvm)
+		#if (js || python || eval || lua || jvm)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		t(finalizer != null);
 		#else
@@ -11,7 +11,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testRegisterNoThrow() {
-		#if (js || python || cpp || eval || lua || jvm)
+		#if (js || python || eval || lua || jvm)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		var target = {id: 1};
 		var handle = finalizer.register(target, "hello");
@@ -22,7 +22,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testCloseNoThrow() {
-		#if (js || python || cpp || eval || lua || jvm)
+		#if (js || python || eval || lua || jvm)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		var target = {id: 1};
 		var handle = finalizer.register(target, "hello");
@@ -34,7 +34,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testUnsupportedTargetThrows() {
-		#if !(js || python || cpp || eval || lua || jvm)
+		#if !(js || python || eval || lua || jvm)
 		exc(function() new haxe.GcFinalizer(function(v:String) {}));
 		#else
 		noAssert();
@@ -42,7 +42,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testCallbackFiresAfterGc() {
-		#if (cpp || eval)
+		#if eval
 		var called = false;
 		var heldResult:Null<String> = null;
 		var finalizer = new haxe.GcFinalizer(function(v:String) {
@@ -51,13 +51,8 @@ class TestGcFinalizer extends Test {
 		});
 		finalizer.register({id: 1}, "collected");
 		// Force GC
-		#if cpp
-		cpp.vm.Gc.run(true);
-		cpp.vm.Gc.run(true);
-		#elseif eval
 		eval.vm.Gc.full_major();
 		eval.vm.Gc.full_major();
-		#end
 		t(called);
 		eq(heldResult, "collected");
 		#else
@@ -66,7 +61,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testClosePreventsCallback() {
-		#if (cpp || eval)
+		#if eval
 		var called = false;
 		var finalizer = new haxe.GcFinalizer(function(v:String) {
 			called = true;
@@ -74,13 +69,8 @@ class TestGcFinalizer extends Test {
 		var handle = finalizer.register({id: 1}, "collected");
 		handle.close();
 		// Force GC
-		#if cpp
-		cpp.vm.Gc.run(true);
-		cpp.vm.Gc.run(true);
-		#elseif eval
 		eval.vm.Gc.full_major();
 		eval.vm.Gc.full_major();
-		#end
 		f(called);
 		#else
 		noAssert();
