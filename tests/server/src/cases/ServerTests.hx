@@ -420,7 +420,7 @@ class ServerTests extends TestCase {
 		var args = ["-main", "VectorInliner", "--interp"];
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("VectorInliner.hx")});
-		var compiledTypes:Array<Dynamic> = runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
+		final compiledTypes:Dynamic = runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
 		var type = getStoredType(compiledTypes, "", "VectorInliner");
 		function moreHack(s:String) {
 			return ~/[\r\n\t]/g.replace(s, "");

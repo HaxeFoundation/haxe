@@ -20,7 +20,7 @@ class Issue11173 extends DisplayTestCase {
 	**/
 	function test(_) {
 		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
+		final diags:Array<haxe.display.Diagnostic<Any>> = files != null && files.length > 0 ? cast files[0].diagnostics : [];
 		var writingErrors = diags.filter(d -> d.kind == DKCompilerError && (d.args:String).indexOf("writing") != -1);
 		Assert.equals(2, writingErrors.length);
 		var diag1 = writingErrors.find(d -> Std.string(d.range) == Std.string(range(3, 4)));

@@ -12,7 +12,7 @@ class Issue7935 extends DisplayTestCase {
 	**/
 	function test1(_) {
 		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
+		final diags:Array<haxe.display.Diagnostic<Any>> = files != null && files.length > 0 ? cast files[0].diagnostics : [];
 		var diag = diags.find(d -> d.kind == DKParserError && d.args == "Expected expression or )");
 		Assert.notNull(diag);
 		Assert.same(range(1, 2), diag.range);
@@ -27,7 +27,7 @@ class Issue7935 extends DisplayTestCase {
 	**/
 	function test2(_) {
 		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
+		final diags:Array<haxe.display.Diagnostic<Any>> = files != null && files.length > 0 ? cast files[0].diagnostics : [];
 		var diag = diags.find(d -> d.kind == DKParserError && d.args == "Expected , or )");
 		Assert.notNull(diag);
 		Assert.same(range(1, 2), diag.range);
@@ -42,7 +42,7 @@ class Issue7935 extends DisplayTestCase {
 	**/
 	function test3(_) {
 		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
+		final diags:Array<haxe.display.Diagnostic<Any>> = files != null && files.length > 0 ? cast files[0].diagnostics : [];
 		var diag = diags.find(d -> d.kind == DKParserError && d.args == "Expected expression");
 		Assert.notNull(diag);
 		Assert.same(range(1, 2), diag.range);

@@ -13,7 +13,7 @@ class Issue12385 extends DisplayTestCase {
 	**/
 	function test(_) {
 		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
+		final diags:Array<haxe.display.Diagnostic<Any>> = files != null && files.length > 0 ? cast files[0].diagnostics : [];
 		var diag1 = diags.find(d -> d.kind == DKUnresolvedIdentifier);
 		Assert.notNull(diag1);
 		Assert.same(range(3, 4), diag1.range);

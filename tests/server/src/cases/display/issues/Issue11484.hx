@@ -14,7 +14,7 @@ class Issue11484 extends DisplayTestCase {
 	**/
 	function test(_) {
 		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
+		final diags:Array<haxe.display.Diagnostic<Any>> = files != null && files.length > 0 ? cast files[0].diagnostics : [];
 		var diag = diags.find(d -> d.kind == MissingFields);
 		Assert.notNull(diag);
 		Assert.same(range(1, 2), diag.range);

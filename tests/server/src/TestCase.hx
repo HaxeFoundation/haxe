@@ -237,15 +237,6 @@ class TestCase implements ITest implements ITestCase {
 		return null;
 	}
 
-	function parseGotoDefinitionLocations(result:Array<Location>):Array<Location> {
-		switch result {
-			case null:
-				throw new Exception('No result for GotoDefinition found');
-			case r:
-				return r;
-		}
-	}
-
 	function assertSilence() {
 		return Assert.isTrue(lastResult.stderr == "");
 	}
