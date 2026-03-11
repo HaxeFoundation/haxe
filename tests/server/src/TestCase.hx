@@ -154,6 +154,8 @@ class TestCase implements ITest implements ITestCase {
 
 		return hxcoro.Coro.suspend(cont -> {
 			server.rawRequest(args, null, function(result) {
+				// TODO: would be nicer to not have that here either, but it makes 3 tests fail.
+				sendLogMessage(result.stdout);
 				var json:JsonRpcResponse<Response<TResponse>, Array<Any>> = try {
 					Json.parse(result.stderr);
 				} catch (e) {
