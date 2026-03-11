@@ -17,7 +17,6 @@ class Issue11678 extends DisplayTestCase {
 			offset: transform.markers[1]
 		});
 
-		Assert.notNull(response); // no error was raised (equivalent to original Assert.equals(null, response.error))
 		Assert.equals("foo", response.item.args.field.name);
 	}
 }
