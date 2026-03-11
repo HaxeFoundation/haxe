@@ -10,7 +10,7 @@ class ThreadTestBase extends utest.Test {
 		activeThreads = new AtomicInt(0);
 		semaphore = new Semaphore(0);
 		Thread.addCallbacks({
-			onStart: () -> {
+			onCreate: () -> {
 				activeThreads.add(1);
 			},
 			onExit: () -> {

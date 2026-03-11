@@ -47,6 +47,12 @@ typedef CurrentThreadCallbacks = {
 
 typedef ThreadCallbacks = CurrentThreadCallbacks & {
 	/**
+		Called from the creating thread, synchronously within `Thread.create`, just before the
+		new thread is actually spawned. Unlike `onStart`, this fires in the context of the
+		creating thread, so `Thread.current()` returns the creating thread, not the new thread.
+	**/
+	?onCreate:() -> Void,
+	/**
 		Called when the thread starts, before the job is executed.
 	**/
 	?onStart:() -> Void
@@ -162,6 +168,9 @@ class Thread {
 
 	static function installCallbacks(host:ThreadCallbackManager, callbacks:ThreadCallbacks) {
 		final handles:Array<IThreadCallbackHandle> = [];
+		if (callbacks.onCreate != null) {
+			handles.push(host.onCreate(callbacks.onCreate));
+		}
 		if (callbacks.onStart != null) {
 			handles.push(host.onStart(callbacks.onStart));
 		}
@@ -198,6 +207,7 @@ class Thread {
 		} else {
 			t.callbacks.onAbort(t.onAbort);
 		}
+		ThreadCallbackManager.invokeCallbacks(t.callbacks.onCreateCallback, globalCallbacks?.onCreateCallback);
 		t.impl = ThreadImpl.create(function() {
 			t.impl = ThreadImpl.current();
 			if( name != null ) t.name = name;

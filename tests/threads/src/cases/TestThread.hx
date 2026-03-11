@@ -382,4 +382,62 @@ class TestThread extends ThreadTestBase {
 		Assert.isTrue(thread == jobDoneThread);
 		Assert.isTrue(thread == exitThread);
 	}
+
+	function testOnCreate() {
+		// onCreate is called from the creating thread, not the new thread
+		final sem = new Semaphore(0);
+		final creatingThread = Thread.current();
+		var onCreateThread:Null<Thread> = null;
+
+		final handle = Thread.addCallbacks({
+			onCreate: () -> {
+				onCreateThread = Thread.current();
+			}
+		});
+
+		Thread.create(() -> {}, {
+			onExit: () -> sem.release(),
+			onAbort: (_) -> {}
+		});
+		sem.acquire();
+		handle.close();
+
+		Assert.isTrue(creatingThread == onCreateThread);
+	}
+
+	function testOnCreatePerThread() {
+		// Per-thread onCreate is also called from the creating thread
+		final sem = new Semaphore(0);
+		final creatingThread = Thread.current();
+		var onCreateThread:Null<Thread> = null;
+
+		Thread.create(() -> {}, {
+			onCreate: () -> {
+				onCreateThread = Thread.current();
+			},
+			onExit: () -> sem.release(),
+			onAbort: (_) -> {}
+		});
+		sem.acquire();
+
+		Assert.isTrue(creatingThread == onCreateThread);
+	}
+
+	function testOnCreateFiresBeforeThreadStarts() {
+		// onCreate fires before onStart (i.e., before the thread begins executing)
+		final sem = new Semaphore(0);
+		final order = [];
+
+		final handle = Thread.addCallbacks({
+			onCreate: () -> order.push("onCreate"),
+			onStart: () -> order.push("onStart"),
+			onExit: () -> sem.release()
+		});
+
+		Thread.create(() -> {}, {onAbort: (_) -> {}});
+		sem.acquire();
+		handle.close();
+
+		Assert.isTrue(order.indexOf("onCreate") < order.indexOf("onStart"));
+	}
 }

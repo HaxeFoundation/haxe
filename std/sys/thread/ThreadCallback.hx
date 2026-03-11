@@ -110,12 +110,18 @@ interface IThreadCallbackHandle {
 }
 
 class ThreadCallbackManager {
+	public var onCreateCallback:Null<ThreadCallbackStack<() -> Void>>;
 	public var onStartCallback:Null<ThreadCallbackStack<() -> Void>>;
 	public var onJobDoneCallback:Null<ThreadCallbackStack<() -> Void>>;
 	public var onExitCallback:Null<ThreadCallbackStack<() -> Void>>;
 	public var onAbortCallback:Null<ThreadCallbackStack<haxe.Exception -> Void>>;
 
 	public function new() {}
+
+	public function onCreate(f:() -> Void):IThreadCallbackHandle {
+		onCreateCallback ??= new ThreadCallbackStack();
+		return onCreateCallback.add(f);
+	}
 
 	public function onStart(f:() -> Void):IThreadCallbackHandle {
 		onStartCallback ??= new ThreadCallbackStack();
