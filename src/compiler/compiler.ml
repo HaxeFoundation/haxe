@@ -656,5 +656,10 @@ module HighLevel = struct
 				error ctx ("Error: " ^ msg) null_pos;
 				compile_ctx sctx ctx
 		in
+		(* Release the domainslib pool before exit to ensure worker domains
+		   are joined. Without this, if the pool was re-acquired after
+		   MacroContext.interpret released it (e.g. by after_generation
+		   callbacks), the worker domains could prevent clean process exit. *)
+		Parallel.ManagedPool.release sctx.pool;
 		comm.exit timer_ctx code
 end
