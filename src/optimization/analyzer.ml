@@ -1020,6 +1020,9 @@ module Run = struct
 	let back_again actx is_real_function =
 		let e = actx.with_timer ["<-";"to-texpr"] (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
+		DynArray.iter (fun vi ->
+			vi.vi_var.v_extra <- vi.vi_extra;
+		) actx.graph.g_var_infos;
 		let e = if actx.config.fusion then actx.with_timer ["<-";"fusion"] (fun () -> Fusion.apply actx e) else e in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
 		let e = actx.with_timer ["<-";"cleanup"] (fun () -> Cleanup.apply actx.com e) in

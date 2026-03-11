@@ -73,12 +73,12 @@ let has_var_flag v (flag : flag_tvar) =
 let alloc_var' =
 	let uid = Atomic.make 0 in
 	uid,(fun kind n t p ->
-		let id = Atomic.fetch_and_add uid 1 + 1 in
+		Atomic.incr uid;
 		{
 			v_kind = kind;
 			v_name = n;
 			v_type = t;
-			v_id = id;
+			v_id = Atomic.get uid;
 			v_extra = None;
 			v_meta = [];
 			v_pos = p;
@@ -92,7 +92,7 @@ let alloc_var =
 
 let alloc_mid =
 	let mid = Atomic.make 0 in
-	(fun() -> Atomic.fetch_and_add mid 1 + 1)
+	(fun() -> Atomic.incr mid; Atomic.get mid)
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
