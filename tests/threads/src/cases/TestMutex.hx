@@ -2,7 +2,7 @@ package cases;
 
 import sys.thread.Mutex;
 
-class TestMutex extends utest.Test {
+class TestMutex extends ThreadTestBase {
 	function testIssue10249() {
 		var m = new Mutex();
 		m.acquire();

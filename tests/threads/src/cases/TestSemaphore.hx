@@ -2,7 +2,7 @@ package cases;
 
 import sys.thread.Semaphore;
 
-class TestSemaphore extends utest.Test {
+class TestSemaphore extends ThreadTestBase {
 	function test() {
 		var m = new Semaphore(3);
 		m.acquire();

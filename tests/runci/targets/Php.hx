@@ -32,18 +32,22 @@ class Php {
 		];
 	}
 
-	static public function getPhpDependencies() {
+	static function getInstalledPhpVersion() {
+		if (!commandSucceed("php", ["-v"]))
+			return null;
 		final phpCmd = commandResult("php", ["-v"]);
 		final phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-		final phpVer = if (phpVerReg.match(phpCmd.stdout))
-			Std.parseFloat(phpVerReg.matched(1));
-		else
-			null;
+		if (phpVerReg.match(phpCmd.stdout))
+			return Std.parseFloat(phpVerReg.matched(1));
+		return null;
+	}
 
-		if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 7.0) {
+	static public function getPhpDependencies() {
+		final phpVer = getInstalledPhpVersion();
+		if (phpVer != null && phpVer >= 7.0) {
 			switch systemName {
 				case "Linux":
-					var phpInfo = commandResult("php", ["-i"]).stdout;
+					final phpInfo = commandResult("php", ["-i"]).stdout;
 					if(phpInfo.indexOf("mbstring => enabled") < 0) {
 						Linux.requireAptPackages(["php-mbstring"]);
 					}
