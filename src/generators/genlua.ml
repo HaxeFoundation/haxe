@@ -156,14 +156,28 @@ let temp ctx =
     ctx.id_counter <- ctx.id_counter + 1;
     "_hx_" ^ string_of_int (ctx.id_counter)
 
+let is_ident_char c =
+    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+    (c >= '0' && c <= '9') || c = '_'
+
 let check_sep ctx s =
     if ctx.needs_sep && String.length s > 0 then
-        match s.[0] with
-        | '(' ->
+        let insert_sep () =
             ctx.needs_sep <- false;
             handle_newlines ctx.smap ";";
             Buffer.add_string ctx.buf ";"
+        in
+        match s.[0] with
+        | '(' ->
+            insert_sep ()
         | '\n' | '\t' | '\r' -> ()
+        | c when is_ident_char c ->
+            (* Prevent token merging: end followed by EReg would parse as endEReg *)
+            let buf_len = Buffer.length ctx.buf in
+            if buf_len > 0 && is_ident_char (Buffer.nth ctx.buf (buf_len - 1)) then
+                insert_sep ()
+            else
+                ctx.needs_sep <- false
         | _ -> ctx.needs_sep <- false
 
 let spr ctx s =
