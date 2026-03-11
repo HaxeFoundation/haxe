@@ -218,30 +218,11 @@ jobs:
         if: matrix.target == 'flash'
         run: export DISPLAY=:99.0
 
-      - name: Get hashlink HEAD sha
-        id: hashlink-sha
-        if: matrix.target == 'hl'
-        run: echo "sha=$(git ls-remote https://github.com/HaxeFoundation/hashlink.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
-
-      - name: Cache hashlink
-        uses: actions/cache@v4
-        if: matrix.target == 'hl'
-        with:
-          path: |
-            ~/haxe-ci/downloads/hashlink
-            ~/haxe-ci/hashlink
-          key: hashlink-linux-${{ matrix.arch }}-${{ steps.hashlink-sha.outputs.sha }}
-          restore-keys: |
-            hashlink-linux-${{ matrix.arch }}-
-
       - name: Cache Lua environments
-        uses: actions/cache@v4
+        uses: ./.github/actions/cache-lua
         if: matrix.target == 'lua'
         with:
-          path: ~/haxe-ci/lua_env
-          key: lua-env-linux-${{ matrix.arch }}-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
-          restore-keys: |
-            lua-env-linux-${{ matrix.arch }}-
+          key-prefix: lua-env-linux-${{ matrix.arch }}
 
       - name: Test
         run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
@@ -501,30 +482,10 @@ jobs:
           msbuild-architecture: x64
 
       - name: Cache Lua environments
-        uses: actions/cache@v4
+        uses: ./.github/actions/cache-lua
         if: matrix.target == 'lua'
         with:
-          path: ~/haxe-ci/lua_env
-          key: lua-env-windows64-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
-          restore-keys: |
-            lua-env-windows64-
-
-      - name: Get hashlink HEAD sha
-        id: hashlink-sha
-        if: matrix.target == 'hl'
-        shell: pwsh
-        run: echo "sha=$(git ls-remote https://github.com/HaxeFoundation/hashlink.git HEAD | ForEach-Object { $_.Split()[0] })" >> $env:GITHUB_OUTPUT
-
-      - name: Cache hashlink
-        uses: actions/cache@v4
-        if: matrix.target == 'hl'
-        with:
-          path: |
-            ~/haxe-ci/downloads/hashlink
-            ~/haxe-ci/hashlink
-          key: hashlink-windows64-${{ steps.hashlink-sha.outputs.sha }}
-          restore-keys: |
-            hashlink-windows64-
+          key-prefix: lua-env-windows64
 
       - name: Test
         shell: pwsh
@@ -622,30 +583,11 @@ jobs:
           mkdir ~/haxelib
           haxelib setup ~/haxelib
 
-      - name: Get hashlink HEAD sha
-        id: hashlink-sha
-        if: matrix.target == 'hl'
-        run: echo "sha=$(git ls-remote https://github.com/HaxeFoundation/hashlink.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
-
-      - name: Cache hashlink
-        uses: actions/cache@v4
-        if: matrix.target == 'hl'
-        with:
-          path: |
-            ~/haxe-ci/downloads/hashlink
-            ~/haxe-ci/hashlink
-          key: hashlink-mac-${{ matrix.arch }}-${{ steps.hashlink-sha.outputs.sha }}
-          restore-keys: |
-            hashlink-mac-${{ matrix.arch }}-
-
       - name: Cache Lua environments
-        uses: actions/cache@v4
+        uses: ./.github/actions/cache-lua
         if: matrix.target == 'lua'
         with:
-          path: ~/haxe-ci/lua_env
-          key: lua-env-mac-${{ matrix.arch }}-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
-          restore-keys: |
-            lua-env-mac-${{ matrix.arch }}-
+          key-prefix: lua-env-mac-${{ matrix.arch }}
 
       - name: Test
         run: |

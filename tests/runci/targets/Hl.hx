@@ -26,47 +26,47 @@ class Hl {
 	static var withHlcTests = true;
 
 	static public function getHlDependencies() {
-		if (!FileSystem.exists(hlBinary)) {
-			if (!FileSystem.exists(hlSrc))
-				runCommand("git", ["clone", "--depth=1", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
-			else
-				infoMsg("Reusing hashlink repository");
-
-			switch (systemName) {
-				case "Linux":
-					Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
-				case "Mac":
-				case "Windows":
-					//pass
-			}
-
-			FileSystem.createDirectory(hlBuild);
-			final args = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
-			if (systemName == "Mac") {
-				args.push("-DDOWNLOAD_DEPENDENCIES=ON");
-			}
-			runCommand("cmake", args.concat([
-				"-DBUILD_TESTING=OFF",
-				"-DWITH_DIRECTX=OFF",
-				"-DWITH_FMT=ON",
-				"-DWITH_OPENAL=OFF",
-				"-DWITH_SDL=OFF",
-				"-DWITH_SQLITE=ON",
-				"-DWITH_SSL=ON",
-				"-DWITH_UI=OFF",
-				"-DWITH_UV=OFF",
-				"-DWITH_VIDEO=OFF",
-				"-DCMAKE_INSTALL_PREFIX=" + hlInstallDir,
-				"-B" + hlBuild,
-				"-H" + hlSrc
-			]));
-			runCommand("cmake", [
-				"--build", hlBuild
-			]);
-			runCommand("cmake", ["--build", hlBuild, "--target", "install"]);
-		} else {
+		if (FileSystem.exists(hlBinary)) {
 			infoMsg('hl has already been installed at $hlBinary.');
+			return;
 		}
+		if (!FileSystem.exists(hlSrc))
+			runCommand("git", ["clone", "--depth=1", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
+		else
+			infoMsg("Reusing hashlink repository");
+
+		switch (systemName) {
+			case "Linux":
+				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
+			case "Mac":
+			case "Windows":
+				//pass
+		}
+
+		FileSystem.createDirectory(hlBuild);
+		final args = systemName == "Windows" ? ["-DCMAKE_SYSTEM_VERSION=10.0.19041.0"] : ["-GNinja"];
+		if (systemName == "Mac") {
+			args.push("-DDOWNLOAD_DEPENDENCIES=ON");
+		}
+		runCommand("cmake", args.concat([
+			"-DBUILD_TESTING=OFF",
+			"-DWITH_DIRECTX=OFF",
+			"-DWITH_FMT=ON",
+			"-DWITH_OPENAL=OFF",
+			"-DWITH_SDL=OFF",
+			"-DWITH_SQLITE=ON",
+			"-DWITH_SSL=ON",
+			"-DWITH_UI=OFF",
+			"-DWITH_UV=OFF",
+			"-DWITH_VIDEO=OFF",
+			"-DCMAKE_INSTALL_PREFIX=" + hlInstallDir,
+			"-B" + hlBuild,
+			"-H" + hlSrc
+		]));
+		runCommand("cmake", [
+			"--build", hlBuild
+		]);
+		runCommand("cmake", ["--build", hlBuild, "--target", "install"]);
 
 		addToPATH(hlInstallBinDir);
 		if (withJitTests) {
