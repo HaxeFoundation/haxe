@@ -26,6 +26,12 @@ class Hl {
 	static var withHlcTests = true;
 
 	static public function getHlDependencies() {
+		Sys.putEnv("HASHLINK", hlInstallDir);
+		if (systemName == "Windows") {
+			Sys.putEnv("HASHLINK_SRC", hlSrc);
+			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
+		}
+
 		if (FileSystem.exists(hlBinary)) {
 			infoMsg('hl has already been installed at $hlBinary.');
 			return;
@@ -74,12 +80,6 @@ class Hl {
 		}
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
-
-		Sys.putEnv("HASHLINK", hlInstallDir);
-		if (systemName == "Windows") {
-			Sys.putEnv("HASHLINK_SRC", hlSrc);
-			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
-		}
 	}
 
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
