@@ -11,6 +11,6 @@ class Issue12586 extends Test {
 	function test() {
 		final callback:() -> E = () -> A;
 
-		eq(A, callback());
+		t(callback().match(A));
 	}
 }

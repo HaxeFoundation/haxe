@@ -1,7 +1,9 @@
 # TODO: support skip ci (https://github.community/t/github-actions-does-not-respect-skip-ci/17325/8)
 
 name: CI
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 env:
   OCAML_VERSION: 5.3.0
@@ -176,6 +178,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
@@ -241,7 +244,7 @@ jobs:
             lua-env-linux-${{ matrix.arch }}-
 
       - name: Test
-        run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+        run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
 
@@ -430,6 +433,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: win${{env.ARCH}}Binaries
@@ -524,7 +528,7 @@ jobs:
 
       - name: Test
         shell: pwsh
-        run: haxe RunCi.hxml -D include_legacy
+        run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 20
         env:
@@ -588,6 +592,7 @@ jobs:
       - uses: actions/checkout@main
         with:
           submodules: recursive
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: macBinaries
@@ -646,7 +651,7 @@ jobs:
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+          haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 
@@ -729,6 +734,8 @@ jobs:
           RCLONE_CONFIG_R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
           RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
           RCLONE_CONFIG_R2_ACL: "private"
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -ex
 
@@ -747,6 +754,22 @@ jobs:
           rclone copyto win64Binaries/*_bin.zip         s3:hxbuilds/builds/haxe/windows64/haxe_latest.zip
           rclone copyto win64Binaries/*_installer.zip   s3:hxbuilds/builds/haxe/windows64-installer/haxe_latest.zip
           rclone copyto win64Binaries/*.nupkg           s3:hxbuilds/builds/haxe/windows64-choco/haxe_latest.nupkg
+
+          curl "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+              -fsS \
+              -H 'Content-Type: application/json' \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -d '{
+                      "files": [
+                          "https://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/linux-arm64/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/mac/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/mac-installer/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/windows64/haxe_latest.zip",
+                          "https://build.haxe.org/builds/haxe/windows64-installer/haxe_latest.zip",
+                          "https://build.haxe.org/builds/haxe/windows64-choco/haxe_latest.nupkg"
+                      ]
+                  }'
 
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')

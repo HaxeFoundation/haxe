@@ -1,25 +1,14 @@
 package haxe.coro;
 
-import haxe.CallStack.StackItem;
 import haxe.Exception;
 import haxe.coro.context.Context;
-import haxe.coro.context.IElement;
-import haxe.coro.context.Key;
+import haxe.coro.context.ExceptionHandler;
 import haxe.coro.dispatchers.Dispatcher;
 import haxe.coro.dispatchers.IDispatchObject;
 
-class StackTraceManager implements IElement<StackTraceManager> {
-	public static final key = new Key<StackTraceManager>('StackTraceManager');
-
-	public var insertIndex:Null<Int>;
-
-	public function new() {
-
-	}
-
-	public function getKey() {
-		return key;
-	}
+private enum abstract StackItemKind(Int) {
+	final ClassFunction;
+	final LocalFunction;
 }
 
 /**
@@ -45,8 +34,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 
 	var resumeResult:Null<SuspensionResult<Any>>;
 	#if debug
-	var stackItem:Null<StackItem>;
-	var startedException:Bool;
+	var stackItem:Null<CoroStackItem>;
 	#end
 
 	/**
@@ -56,12 +44,9 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		super(Pending);
         this.completion = completion;
         gotoLabel  = initialLabel;
-        error      = null;
-        result     = null;
+		error      = null;
+		result     = null;
 		context    = completion.context;
-		#if debug
-		startedException = false;
-		#end
     }
 
 	inline function get_context() {
@@ -79,32 +64,35 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		// make assumptions about its return value if it's not the `suspended` marker,
 		// because in that case it must be a final state of the coroutine.
 		final resumeResult = invokeResume();
-		if (resumeResult != SuspensionResult.suspended) {
-			this.resumeResult = resumeResult;
-			final dispatcher = context.get(Dispatcher);
-			if (dispatcher != null) {
-				dispatcher.dispatch(this);
-			} else {
-				onDispatch();
-			}
+		switch (resumeResult.state) {
+			case Pending:
+
+			case Returned, Thrown:
+				this.resumeResult = resumeResult;
+				final dispatcher = context.get(Dispatcher);
+				if (dispatcher != null) {
+					dispatcher.dispatch(this);
+				} else {
+					onDispatch();
+				}
 		}
     }
 
 	/**
 		@see `IStackFrame.callerFrame`
 	**/
-    public function callerFrame():Null<IStackFrame> {
-        return if (completion is IStackFrame) {
-            cast completion;
-        } else {
-            null;
-        }
-    }
+	public function callerFrame():Null<IStackFrame> {
+		return if (completion is IStackFrame) {
+			cast completion;
+		} else {
+			null;
+		}
+	}
 
 	/**
 		@see `IStackFrame.callerFrame`
 	**/
-	public function getStackItem():Null<StackItem> {
+	public function getStackItem():Null<CoroStackItem> {
 		#if debug
 		return stackItem;
 		#else
@@ -112,116 +100,32 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 		#end
 	}
 
-    function setClassFuncStackItem(cls:String, func:String, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
+	function setStackItem(kind:StackItemKind, cls:String, func:String, id:Int, file:String, line:Int, column:Int, pmin:Int, pmax:Int) {
 		#if debug
-        stackItem = StackItem.FilePos(StackItem.Method(cls, func), file, line, pos);
-		#if eval
-		eval.vm.Context.callMacroApi("associate_enum_value_pos")(stackItem, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
-		#end
-		#end
-    }
-
-    function setLocalFuncStackItem(id:Int, file:String, line:Int, pos:Int, pmin:Int, pmax:Int) {
-		#if debug
-        stackItem = StackItem.FilePos(StackItem.LocalFunction(id), file, line, pos);
-		#if eval
-		eval.vm.Context.callMacroApi("associate_enum_value_pos")(stackItem, haxe.macro.Context.makePosition({file: file, min: pmin, max: pmax}));
-		#end
-		#end
-    }
-
-	function startException(exception:Exception) {
-		#if js
-		return;
-		#end
-		#if debug
-		final stackTraceManager = context.get(StackTraceManager);
-		if (stackTraceManager == null) {
-			return;
-		}
-		startedException = true;
-		#if target.threaded
-		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
-			// This could maybe be handled via a TLS...
-			return;
-		}
-		#end
-
-		var stack = [];
-		var skipping = 0;
-		var insertIndex = 0;
-		var stackItem = stackItem;
-
-		/*
-			Find first coro stack element
-		*/
-		var currentFrame:Null<IStackFrame> = this;
-		while (stackItem == null) {
-			currentFrame = currentFrame.callerFrame();
-			if (currentFrame == null) {
-				break;
-			}
-			stackItem = currentFrame.getStackItem();
-		}
-
-		switch (stackItem) {
-			case null:
-				return;
-			case FilePos(_, file, line, _):
-				for (index => item in exception.stack.asArray()) {
-					switch (item) {
-						case FilePos(_, file2, line2, _) if (skipping == 0 && file == file2 && line == line2):
-							stack.push(item);
-							skipping = 0;
-						// TODO: this is silly
-						case FilePos(Method("hxcoro.CoroRun", "run"), _) if (skipping == 1):
-							skipping = 2;
-						// this is a hack
-						case FilePos(Method(_, "invokeResume"), _) if (skipping == 0):
-							skipping = 1;
-							insertIndex = index;
-						case _:
-							if (skipping != 1) {
-								stack.push(item);
-							}
-					}
-				}
+		stackItem = switch (kind) {
+			case ClassFunction:
+				ClassFunction(cls, func, file, line, column);
+			case LocalFunction:
+				LocalFunction(id, file, line, column);
 			case _:
-				return;
+				throw new Exception('Invalid coroutine stack item kind: $kind (expected 0 for ClassFunction or 1 for LocalFunction)');
 		}
-		exception.stack = stack;
-		stackTraceManager.insertIndex = insertIndex;
 		#end
 	}
 
+	function startException(exception:Exception) {
+		final handler = context.get(ExceptionHandler);
+		if (handler != null) {
+			return handler.startException(context, this, exception);
+		}
+		return exception;
+	}
+
     function buildCallStack() {
-		#if js
-		return;
-		#end
-		#if debug
-		if (startedException) {
-			return;
+		final handler = context.get(ExceptionHandler);
+		if (handler != null) {
+			handler.buildCallStack(context, this);
 		}
-		#if target.threaded
-		if (sys.thread.Thread.main() != sys.thread.Thread.current()) {
-			// This could maybe be handled via a TLS...
-			return;
-		}
-		#end
-		var stackTraceManager = context.get(StackTraceManager);
-		if (stackTraceManager == null) {
-			return;
-		}
-		// Can happen in the case of ImmediateSuspensionResult.withError
-		if (stackTraceManager.insertIndex == null) {
-			startException(error);
-		}
-		if (stackItem != null) {
-			final stack = error.stack.asArray();
-			stack.insert(stackTraceManager.insertIndex++, stackItem);
-			error.stack = stack;
-		}
-		#end
     }
 
     abstract function invokeResume():SuspensionResult<T>;

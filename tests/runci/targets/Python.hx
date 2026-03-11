@@ -67,16 +67,14 @@ class Python {
 			runCommand(py, ["bin/unit34.py"]);
 		}
 
-		Display.maybeRunDisplayTests(Python);
-
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-python.hxml"].concat(args));
 		for (py in pys) {
 			runSysTest(py, ["bin/python/sys.py"]);
 		}
 
-		changeDirectory(getMiscSubDir("python"));
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "python"]);
 
 		changeDirectory(getMiscSubDir('python', "pythonImport"));
 		runCommand("haxe", ["compile.hxml"]);

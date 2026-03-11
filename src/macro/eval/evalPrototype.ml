@@ -43,7 +43,7 @@ let create_constructor ctx c =
 	match c.cl_constructor with
 	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not (has_class_flag c CExtern) ->
 		let key = path_hash c.cl_path in
-		let v = lazy (vfunction (jit_tfunction ctx key key_new tf false pos)) in
+		let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction ctx key key_new tf false pos)) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
 	| _ ->
 		()
@@ -68,9 +68,9 @@ module PrototypeBuilder = struct
 		(* The kind of the prototype. *)
 		kind : vprototype_kind;
 		(* The fields of the prototype. A field here is a pair of its hashed name and its (lazyfied) value. *)
-		fields : (int * value Lazy.t) DynArray.t;
+		fields : (int * value AtomicLazy.t) DynArray.t;
 		(* The instance fields of the prototype. See above. *)
-		instance_fields : (int * value Lazy.t) DynArray.t;
+		instance_fields : (int * value AtomicLazy.t) DynArray.t;
 		(* The metadata expression, if exists. *)
 		meta : texpr option;
 		(* Whether or not the prototype is static. *)
@@ -101,7 +101,7 @@ module PrototypeBuilder = struct
 
 	(* Forces the lazy field values and assigns them to the prototype. *)
 	let initialize_fields pctx proto =
-		DynArray.iteri (fun i (_,v) -> proto.pfields.(i) <- Lazy.force v) pctx.fields
+		DynArray.iteri (fun i (_,v) -> proto.pfields.(i) <- AtomicLazy.force v) pctx.fields
 
 	(* Processes the field information and returns an initialization function. *)
 	let finalize pctx =
@@ -111,14 +111,14 @@ module PrototypeBuilder = struct
 		List.iter (fun (s,v) ->
 			try
 				let i = DynArray.index_of (fun (name',_) -> name' = s) pctx.fields in
-				DynArray.set pctx.fields i (s,(lazy v))
+				DynArray.set pctx.fields i (s,(AtomicLazy.from_val v))
 			with Not_found ->
-				add_proto_field pctx s (lazy v)
+				add_proto_field pctx s (AtomicLazy.from_val v)
 		) builtins;
 		(* Add metadata field *)
 		begin match pctx.meta with
 			| None -> ()
-			| Some e -> DynArray.add pctx.fields (key___meta__,lazy (match eval_expr ctx (EKMethod(pctx.key,key___meta__)) e with Some e -> e | None -> vnull))
+			| Some e -> DynArray.add pctx.fields (key___meta__,AtomicLazy.from_fun (fun () -> match eval_expr ctx (EKMethod(pctx.key,key___meta__)) e with Some e -> e | None -> vnull))
 		end;
 		(* Create the mapping from hashed name to field offset for prototype fields. *)
 		let _,pnames = DynArray.fold_left (fun (i,acc) (name,_) -> i + 1,IntMap.add name i acc) (0,IntMap.empty) pctx.fields in
@@ -137,7 +137,7 @@ module PrototypeBuilder = struct
 			) (names,offset) pctx.instance_fields in
 			names,a,(fun proto ->
 				Array.iteri (fun i v -> a.(i) <- v) fields;
-				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- Lazy.force v) pctx.instance_fields;
+				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- AtomicLazy.force v) pctx.instance_fields;
 				initialize_fields pctx proto;
 			)
 		end else
@@ -197,17 +197,17 @@ let create_static_prototype ctx mt =
 		if not (has_class_flag c CExtern) then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash cf.cf_name in
-				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true pos)));
+				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_fun (fun () -> vstatic_function (jit_tfunction ctx key name tf true pos)));
 			| Var _,Some e ->
 				let name = hash cf.cf_name in
-				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
+				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_val vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				let persistent = is_persistent cf in
 				DynArray.add delays (persistent,(fun proto ->
 					proto.pfields.(i) <- (match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull)
 				))
 			| _,None when is_physical_field cf ->
-				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (lazy vnull);
+				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
 			|  _ ->
 				()
 		) fields;
@@ -234,7 +234,7 @@ let create_static_prototype ctx mt =
 				vstatic_function f
 			| _ -> encode_enum_value key ef.ef_index [||] (Some ef.ef_pos)
 		in
-		PMap.iter (fun name ef -> PrototypeBuilder.add_proto_field pctx (hash name ) (lazy (enum_field_value ef))) en.e_constrs;
+		PMap.iter (fun name ef -> PrototypeBuilder.add_proto_field pctx (hash name ) (AtomicLazy.from_val (enum_field_value ef))) en.e_constrs;
 		PrototypeBuilder.finalize pctx,[];
 	| TAbstractDecl a ->
 		let pctx = PrototypeBuilder.create ctx key None (PClass []) meta in
@@ -272,15 +272,15 @@ let create_instance_prototype ctx c =
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
 			let name = hash cf.cf_name in
-			let v = lazy (vfunction (jit_tfunction ctx key name tf false pos)) in
+			let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction ctx key name tf false pos)) in
 			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
 		| Var _,_ when is_physical_field cf ->
 			let name = hash cf.cf_name in
-			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
+			PrototypeBuilder.add_instance_field pctx name (AtomicLazy.from_val vnull);
 		| Method meth,None when has_class_field_flag cf CfAbstract ->
 			let name = hash cf.cf_name in
-			let v = lazy vnull in
+			let v = AtomicLazy.from_val vnull in
 			PrototypeBuilder.add_proto_field pctx name v
 		| _ ->
 			()
@@ -296,7 +296,7 @@ let get_object_prototype ctx l =
 			IntMap.find name ctx.instance_prototypes
 		with Not_found ->
 			let pctx = PrototypeBuilder.create ctx name None PObject None in
-			List.iter (fun (name,_) -> PrototypeBuilder.add_instance_field pctx name (lazy vnull)) l;
+			List.iter (fun (name,_) -> PrototypeBuilder.add_instance_field pctx name (AtomicLazy.from_val vnull)) l;
 			let proto = fst (PrototypeBuilder.finalize pctx) in
 			ctx.instance_prototypes <- IntMap.add name proto ctx.instance_prototypes;
 			proto
@@ -347,8 +347,11 @@ let add_types ctx types ready =
 			DynArray.add fl_static (create_static_prototype ctx mt);
 		| TAbstractDecl a ->
 			DynArray.add fl_static (create_static_prototype ctx mt);
-			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778). *)
-			if Meta.has Meta.CoreType a.a_meta then
+			(* Create a fake instance prototype for coreType abstracts in case something inspects them (#8778).
+			   Also do this for extern abstracts with Any as underlying type - these are native opaque types
+			   that use the typedef trick to satisfy @:coreApi checks. *)
+			let is_native_opaque = a.a_extern && (match follow a.a_this with TAbstract({a_path=[],"Any"},_) -> true | _ -> false) in
+			if Meta.has Meta.CoreType a.a_meta || is_native_opaque then
 				DynArray.add fl_instance (create_instance_prototype ctx {null_class with cl_path = a.a_path})
 		| _ ->
 			()

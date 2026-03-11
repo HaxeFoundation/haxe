@@ -5,7 +5,6 @@ private typedef StateHandler<T> = {
 }
 
 class Issue12028 extends Test {
-	#if !lua
 	function testMakeVarArgsInDynamic() {
 		var func = function(args:Array<Dynamic>):String {
 			return args.length >= 1 ? args[0] : "";
@@ -34,5 +33,4 @@ class Issue12028 extends Test {
 	function foo2<T>(handlers:StateHandler<T>):Null<T> {
 		return handlers.onUpdate();
 	}
-	#end
 }

@@ -1,6 +1,32 @@
 open Type
 open CoroTypes
 
+type coro_control =
+	| CoroPending
+	| CoroReturned
+	| CoroThrown
+
+let make_custom_control_switch b e_subject cases p =
+	let cases = List.map (fun (l,e) -> {
+		case_patterns = List.map (fun c -> b#int (Obj.magic c) p) l;
+		case_expr = e;
+	}) cases in
+	let switch = {
+		switch_subject = e_subject;
+		switch_cases = cases;
+		switch_default = None;
+		switch_exhaustive = true;
+	} in
+	mk (TSwitch switch) b#tvoid p
+
+let make_control_switch b e_subject e_pending e_returned e_thrown p =
+	let cases = [
+		[CoroPending],e_pending;
+		[CoroReturned],e_returned;
+		[CoroThrown],e_thrown;
+	] in
+	make_custom_control_switch b e_subject cases p
+
 let make_block ctx typepos =
 	let id = ctx.next_block_id in
 	ctx.next_block_id <- ctx.next_block_id + 1;
@@ -64,6 +90,21 @@ let coro_iter f cb =
 		f cb_next;
 	| NextUnknown | NextReturnVoid | NextReturn _ | NextThrow _ ->
 		()
+
+(** Walk all blocks reachable from [cb], calling [f] exactly once per block.
+    Uses a local visited table to handle back-edges (NextBreak/Continue/etc.)
+    safely without cycles.  The number of times [f] is called equals the number
+    of states the coroutine will produce. *)
+let coro_walk f cb =
+	let visited = Hashtbl.create 16 in
+	let rec loop cb =
+		if not (Hashtbl.mem visited cb.cb_id) then begin
+			Hashtbl.add visited cb.cb_id ();
+			f cb;
+			coro_iter loop cb
+		end
+	in
+	loop cb
 
 let coro_next_map f cb =
 	Option.may (fun cb_catch -> cb.cb_catch <- Some (f cb_catch)) cb.cb_catch;

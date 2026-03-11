@@ -24,21 +24,51 @@ package sys.thread;
 
 @:coreApi
 class Deque<T> {
-	var q:Dynamic;
+	final storage:Array<T>;
+	final condition:Condition;
 
 	public function new() {
-		q = untyped __global__.__hxcpp_deque_create();
+		storage   = [];
+		condition = new Condition();
 	}
 
 	public function add(i:T):Void {
-		untyped __global__.__hxcpp_deque_add(q, i);
+		condition.acquire();
+		storage.push(i);
+		condition.signal();
+		condition.release();
 	}
 
 	public function push(i:T):Void {
-		untyped __global__.__hxcpp_deque_push(q, i);
+		condition.acquire();
+		storage.insert(0, i);
+		condition.signal();
+		condition.release();
 	}
 
 	public function pop(block:Bool):Null<T> {
-		return untyped __global__.__hxcpp_deque_pop(q, block);
+		if (block)
+		{
+			condition.acquire();
+
+			var result = storage.shift();
+			while (null == result) {
+				condition.wait();
+
+				result = storage.shift();
+			}
+
+			condition.release();
+
+			return result;
+		}
+		else
+		{
+			condition.acquire();
+			final result = storage.shift();
+			condition.release();
+			
+			return result;
+		}
 	}
 }

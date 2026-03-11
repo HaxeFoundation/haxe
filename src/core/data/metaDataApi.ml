@@ -48,6 +48,12 @@ module MetaReaderApi = struct
 		| _ ->
 			error (Printf.sprintf "Expected string, got %s" (Printer.s_expr_inner "" data)) (snd data)
 
+	let read_ident data = match fst data with
+		| EConst (Ident s) ->
+			s
+		| _ ->
+			error (Printf.sprintf "Expected identifier, got %s" (Printer.s_expr_inner "" data)) (snd data)
+
 	let read_bool data = match fst data with
 		| EConst (Ident "true") ->
 			true

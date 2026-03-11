@@ -38,14 +38,26 @@ let const_type basic const default =
 	| TBool _ -> basic.tbool
 	| _ -> default
 
-type stats = {
-	s_files_parsed : int ref;
-	s_modules_typed : int ref;
-	s_modules_restored : int ref;
-	s_classes_built : int ref;
-	s_methods_typed : int ref;
-	s_macros_called : int ref;
-}
+module Stats = struct
+	type t = {
+		s_files_parsed : int ref;
+		s_modules_typed : int ref;
+		s_modules_restored : int ref;
+		s_classes_built : int ref;
+		s_methods_typed : int ref;
+		s_macros_called : int ref;
+	}
+
+	let create () =
+		{
+			s_files_parsed = ref 0;
+			s_modules_typed = ref 0;
+			s_modules_restored = ref 0;
+			s_classes_built = ref 0;
+			s_methods_typed = ref 0;
+			s_macros_called = ref 0;
+		}
+end
 
 class compiler_callbacks = object(self)
 	val before_typer_create = ref [];
@@ -120,24 +132,17 @@ class file_keys = object(self)
 
 end
 
-type shared_display_information = {
-	mutable diagnostics_messages : diagnostic list;
-}
-
 type display_information = {
 	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable display_module_has_macro_defines : bool;
 	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
 }
 
-(* This information is shared between normal and macro context. *)
-type shared_context = {
-	shared_display_information : shared_display_information;
-}
-
 type json_api = {
 	send_result : Json.t -> unit;
+	send_result_raise : 'a . Json.t -> 'a;
 	send_error : Json.t list -> unit;
+	send_error_raise : 'a . Json.t list -> 'a;
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
 }
 
@@ -177,7 +182,6 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
@@ -264,16 +268,30 @@ module LocalWrapper = struct
 	end
 end
 
+type part_scope = {
+	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
+	mutable diagnostics_messages : diagnostic list;
+	io : Gctx.compilation_io;
+	timer_ctx : Timer.timer_context;
+}
+
+type request_scope = {
+	stats : Stats.t;
+	mutable cancellation_requested : bool;
+}
+
 type context = {
+	request_scope : request_scope;
+	part_scope : part_scope;
 	compilation_step : int;
 	mutable stage : compiler_stage;
+	sctx : ServerCompilationContext.t;
 	cs : CompilationCache.t;
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
 	mutable json_out : json_api option;
 	timer_ctx : Timer.timer_context;
 	(* config *)
-	version : compiler_version;
 	mutable args : string list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
@@ -291,7 +309,6 @@ type context = {
 	parser_state : parser_state;
 	dump_config : DumpConfig.t;
 	(* communication *)
-	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
@@ -312,7 +329,6 @@ type context = {
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
-	shared : shared_context;
 	display_information : display_information;
 	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
@@ -357,10 +373,10 @@ let to_gctx com = {
 	run_command_args = com.run_command_args;
 	warning = com.warning;
 	error = com.error;
-	print = com.print;
+	io = com.part_scope.io;
 	debug = com.debug;
 	file = com.file;
-	version = com.version;
+	version = com.sctx.version;
 	features = com.features;
 	modules = com.modules;
 	main = com.main;
@@ -373,6 +389,7 @@ let to_gctx com = {
 	include_files = com.include_files;
 	std = com.std;
 	timer_ctx = com.timer_ctx;
+	pool = com.sctx.pool;
 }
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
@@ -476,16 +493,6 @@ let short_platform_name = function
 	| Hl -> "hl"
 	| Eval -> "evl"
 	| CustomTarget n -> "c_" ^ n
-
-let stats =
-	{
-		s_files_parsed = ref 0;
-		s_modules_typed = ref 0;
-		s_modules_restored = ref 0;
-		s_classes_built = ref 0;
-		s_methods_typed = ref 0;
-		s_macros_called = ref 0;
-	}
 
 open PlatformConfig
 
@@ -720,20 +727,17 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create timer_ctx compilation_step cs version args display_mode =
+let create sctx request_scope part_scope compilation_step args display_mode =
 	let rec com = {
+		request_scope;
+		part_scope;
 		compilation_step = compilation_step;
-		cs = cs;
+		sctx;
+		cs = sctx.cs;
 		cache = None;
-		timer_ctx = timer_ctx;
+		timer_ctx = part_scope.timer_ctx;
 		stage = CCreated;
-		version = version;
 		args = args;
-		shared = {
-			shared_display_information = {
-				diagnostics_messages = [];
-			}
-		};
 		display_information = {
 			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
@@ -748,7 +752,6 @@ let create timer_ctx compilation_step cs version args display_mode =
 		platform = Cross;
 		config = default_config;
 		custom_ext = None;
-		print = (fun s -> print_string s; flush stdout);
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
@@ -801,9 +804,10 @@ let create timer_ctx compilation_step cs version args display_mode =
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
 			tunit = mk_mono();
 			tcoro = {
-				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
-				continuation = lazy (mk_mono());
-				suspension_result_class = lazy null_class;
+				tcoro = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = AtomicLazy.from_fun (fun () -> mk_mono());
+				suspension_result_class = AtomicLazy.from_fun (fun () -> null_class);
+				tasync_iterator = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			}
 		};
 		std = null_class;
@@ -834,7 +838,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 	com
 
 let is_diagnostics com = match com.report_mode with
-	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
+	| RMDiagnostics _ -> true
 	| _ -> false
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
@@ -845,17 +849,18 @@ let disable_report_mode com =
 	(fun () -> com.report_mode <- old)
 
 let log com str =
-	if com.verbose then com.print (str ^ "\n")
+	if com.verbose then com.part_scope.io.print (str ^ "\n")
 
 let clone com is_macro_context =
 	{
 		(* keeps *)
+		request_scope = com.request_scope;
+		part_scope = com.part_scope;
 		compilation_step = com.compilation_step;
+		sctx = com.sctx;
 		cs = com.cs;
 		timer_ctx = com.timer_ctx;
-		version = com.version;
 		args = com.args;
-		shared = com.shared;
 		debug = com.debug;
 		display = com.display;
 		verbose = com.verbose;
@@ -864,7 +869,6 @@ let clone com is_macro_context =
 		platform = com.platform;
 		config = com.config;
 		custom_ext = com.custom_ext;
-		print = com.print;
 		run_command = com.run_command;
 		run_command_args = com.run_command_args;
 		package_rules = com.package_rules;
@@ -939,9 +943,10 @@ let clone com is_macro_context =
 			texception = mk_mono();
 			tunit = mk_mono();
 			tcoro = {
-				tcoro = lazy (fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
-				continuation = lazy (mk_mono());
-				suspension_result_class = lazy null_class;
+				tcoro = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = AtomicLazy.from_fun (fun () -> mk_mono());
+				suspension_result_class = AtomicLazy.from_fun (fun () -> null_class);
+				tasync_iterator = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
 			};
 		};
 		local_wrapper = LocalWrapper.null_wrapper;
@@ -984,7 +989,7 @@ let init_platform com =
 	end;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
-		define_value com Define.SourceHeader ("Generated by Haxe " ^ (s_version_full com.version));
+		define_value com Define.SourceHeader ("Generated by Haxe " ^ (s_version_full com.sctx.version));
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules ("java" :: (List.map platform_name platforms));
 	update_platform_config com;
@@ -1106,7 +1111,7 @@ let hash f =
 
 let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
-	let di = com.shared.shared_display_information in
+	let di = com.part_scope in
 	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
 
 let display_error_ext com err =
@@ -1138,9 +1143,7 @@ let adapt_defines_to_display_context defines =
 	Define.define defines Define.Display;
 	defines
 
-let is_legacy_completion com = match com.json_out with
-	| None -> true
-	| Some api -> !ServerConfig.legacy_completion
+let is_legacy_completion _com = !ServerConfig.legacy_completion
 
 let get_entry_point com =
 	Option.map (fun path ->
@@ -1155,9 +1158,9 @@ let get_entry_point com =
 	) com.main.main_path
 
 let expand_coro_type basic args ret =
-	let args = ("_hx_continuation",false,Lazy.force basic.tcoro.continuation) :: args in
+	let args = ("_hx_continuation",false,AtomicLazy.force basic.tcoro.continuation) :: args in
 	let ret = if ExtType.is_void (follow ret) then basic.tunit else ret in
-	let c = Lazy.force basic.tcoro.suspension_result_class in
+	let c = AtomicLazy.force basic.tcoro.suspension_result_class in
 	(args,TInst(c,[ret]))
 
 let make_unforced_lazy t_proc f where =
@@ -1173,3 +1176,6 @@ let make_unforced_lazy t_proc f where =
 				raise (Error.Fatal_error e)
 	);
 	r
+
+let check_cancellation com =
+	if com.request_scope.cancellation_requested then raise Cancelled

@@ -31,6 +31,8 @@ package sys.thread;
 }
 #else
 
+// Can't enable @:coreApi because this is an abstract vs the core's extern class, with type param count mismatch in impl
+@:coreApi(check = Off)
 @:hlNative("std", "deque_")
 abstract Deque<T>(hl.Abstract<"hl_deque">) {
 	public function new() {

@@ -9,8 +9,6 @@ import sys.io.Process;
 using StringTools;
 
 class Js {
-	static final miscJsDir = getMiscSubDir('js');
-
 	static public function getJSDependencies() {
 		switch [ci, systemName] {
 			case [_, "Linux"]:
@@ -79,7 +77,7 @@ class Js {
 		runCommand("node", ["bin/unit.js"]);
 
 		infoMsg("Test ES6:");
-		changeDirectory(getMiscSubDir("es6"));
+		changeDirectory(getMiscSubDir("js", "es6"));
 		runCommand("haxe", ["run.hxml"]);
 
 		final env = Sys.environment();
@@ -137,14 +135,12 @@ class Js {
 		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-cache"]);
 		runCommand("node", ["test.js"]);
 
-		Display.maybeRunDisplayTests(Js);
-
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);
 		runCommand("haxe", ["compile-js.hxml"].concat(args));
 		runSysTest("node", ["bin/js/sys.js"]);
 
-		changeDirectory(miscJsDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "js"]);
 	}
 }

@@ -231,9 +231,9 @@ let encode_string s =
 
 (* Should only be used for std types that aren't expected to change while the compilation server is running *)
 let create_cached_instance path fkind =
-	let proto = lazy (get_instance_prototype (get_ctx()) path null_pos) in
+	let proto = AtomicLazy.from_fun (fun () -> get_instance_prototype (get_ctx()) path null_pos) in
 	(fun v ->
-		create_instance_direct (Lazy.force proto) (fkind v)
+		create_instance_direct (AtomicLazy.force proto) (fkind v)
 	)
 
 let encode_bytes =

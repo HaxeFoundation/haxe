@@ -18,6 +18,19 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
+(* Extract the @:coroutine outcome config from a callee expression.
+   Handles all field access variants and local variables. *)
+let get_outcome_from_callee e1 =
+	let meta = match (Texpr.skip e1).eexpr with
+		| TField(_, FStatic(_, cf))
+		| TField(_, FInstance(_, _, cf))
+		| TField(_, FClosure(_, cf))
+		| TField(_, FAnon cf) -> cf.cf_meta
+		| TLocal v -> v.v_meta
+		| _ -> []
+	in
+	(CoroConfig.of_meta_list meta).outcome
+
 let check_captures ctx args expr =
 	let vars = Hashtbl.create 16 in
 	let declare v = Hashtbl.add vars v.v_id () in
@@ -148,7 +161,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 			false
 	in
 	let map_suspension cb ret e =
-		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None in
+		let allow_tco = (match ret with RTailBlock | RTailReturn -> true | _ -> false) && cb.cb_catch = None && not ctx.typer.com.debug in
 		let exception Found in
 		let rec remap can_tco loop_depth e = match e.eexpr with
 			| TConst TThis ->
@@ -156,14 +169,16 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 			| TField({eexpr = TConst TSuper},_) ->
 				deferred.make_super_field e
 			| TCall(e1,el) when (match follow_with_coro e1.etype with Coro _ -> true | _ -> false) ->
-				if can_tco then
+				if can_tco then begin
+					let cs_kind = get_outcome_from_callee e1 in
 					deferred.make_inline_tail_call {
 						cs_fun = e1;
 						cs_args = el;
 						cs_pos = e.epos;
 						cs_result = SusBlock;
+						cs_kind;
 					}
-				else
+				end else
 					raise Found
 			| TReturn None ->
 				deferred.make_inline_return None e.epos
@@ -362,36 +377,69 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 								end else
 									e
 							) el in
+							let cs_kind = get_outcome_from_callee e1 in
 							let make_next_block () =
 								let cb_next = block_from_e e1 in
 								add_block_flag cb_next CbResumeState;
 								add_block_flag cb CbSuspendState;
 								cb_next
 							in
-							let res,next = match ret with
-							| RValue ->
-								let v = tmp_local cb e.etype None e.epos in
-								let ev = Texpr.Builder.make_local v v.v_pos in
-								let cb_next = make_next_block () in
-								cb_next.cb_stack_value <- Some ev;
-								SusResult,Some(cb_next,ev)
-							| RTailBlock when cb.cb_catch = None ->
-								SusBlock,None
-							| RBlock | RTailBlock ->
-								SusBlock,Some ((make_next_block (),e_no_value))
-							| RTailReturn when cb.cb_catch = None ->
-								SusResult,None
-							| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
-								SusResult,Some ((make_next_block ()),etmp_result)
-							in
-							let suspend = {
-								cs_fun = e1;
-								cs_args = el;
-								cs_pos = e.epos;
-								cs_result = res;
-							} in
-							terminate cb (NextSuspend(suspend,Option.map fst next)) t_dynamic null_pos;
-							next
+							begin match cs_kind with
+							| { CoroConfig.no_suspend = true } ->
+								(* For a Never-suspending callee in TCO tail position, keep the
+								   existing tail-call optimisation (single-state, no resume block). *)
+								let is_tco = match ret with
+									| RTailBlock | RTailReturn -> cb.cb_catch = None && not ctx.typer.com.debug
+									| _ -> false
+								in
+								if is_tco then begin
+									let cs_result = match ret with RTailBlock -> SusBlock | _ -> SusResult in
+									let suspend = { cs_fun = e1; cs_args = el; cs_pos = e.epos; cs_result; cs_kind } in
+									terminate cb (NextSuspend(suspend, None)) t_dynamic null_pos;
+									None
+								end else begin
+									(* Inline path: add the call as a statement in the current block,
+									   no new state is created. *)
+									let needs_result = match ret with RBlock | RTailBlock -> false | _ -> true in
+									let e_opt, ev =
+										if needs_result then
+											let e = AtomicLazy.force etmp_result in
+											(Some e), e
+										else
+											None, e_no_value
+									in
+									let cs_result = if needs_result then SusResult else SusBlock in
+									let suspend = { cs_fun = e1; cs_args = el; cs_pos = e.epos; cs_result; cs_kind } in
+									add_expr cb (deferred.make_sync_call suspend e_opt);
+									Some (cb, ev)
+								end
+							| _ ->
+								let res,next = match ret with
+								| RValue ->
+									let v = tmp_local cb e.etype None e.epos in
+									let ev = Texpr.Builder.make_local v v.v_pos in
+									let cb_next = make_next_block () in
+									cb_next.cb_stack_value <- Some ev;
+									SusResult,Some(cb_next,ev)
+								| RTailBlock when cb.cb_catch = None && not ctx.typer.com.debug ->
+									SusBlock,None
+								| RBlock | RTailBlock ->
+									SusBlock,Some ((make_next_block (),e_no_value))
+								| RTailReturn when cb.cb_catch = None && not ctx.typer.com.debug ->
+									SusResult,None
+								| RTerminate _ | RMapExpr _ | RLocal _ | RTailReturn ->
+									SusResult,Some ((make_next_block ()),AtomicLazy.force etmp_result)
+								in
+								let suspend = {
+									cs_fun = e1;
+									cs_args = el;
+									cs_pos = e.epos;
+									cs_result = res;
+									cs_kind;
+								} in
+								terminate cb (NextSuspend(suspend,Option.map fst next)) t_dynamic null_pos;
+								next
+							end
 						| _ ->
 							Some(cb,{e with eexpr = TCall(e1,el)})
 						end
@@ -403,7 +451,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		| TBreak ->
 			begin match !loop_stack with
 				| hd :: _ ->
-					terminate cb (NextBreak (Lazy.force (snd hd))) e.etype e.epos;
+					terminate cb (NextBreak (AtomicLazy.force (snd hd))) e.etype e.epos;
 				| [] ->
 					(* Ignore, this failed during typing already. *)
 					()
@@ -626,12 +674,12 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 			| None ->
 				None
 			| Some(cb,e1) ->
-				let cb_next = lazy (make_block None) in
+				let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 				let cases = List.map (fun case ->
 					let cb_case = block_from_e case.case_expr in
 					let cb_case_next = loop_block cb_case ret case.case_expr in
 					Option.may (fun (cb_case_next,_) ->
-						fall_through cb_case_next (Lazy.force cb_next);
+						fall_through cb_case_next (AtomicLazy.force cb_next);
 					) cb_case_next;
 					(case.case_patterns,cb_case)
 				) switch_orig.switch_cases in
@@ -642,7 +690,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 						let cb_default = block_from_e e in
 						let cb_default_next = loop_block cb_default ret e in
 						Option.may (fun (cb_default_next,_) ->
-							fall_through cb_default_next (Lazy.force cb_next);
+							fall_through cb_default_next (AtomicLazy.force cb_next);
 						) cb_default_next;
 						Some cb_default
 				in
@@ -652,30 +700,30 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 					cs_default = def;
 					cs_exhaustive = switch_orig.switch_exhaustive
 				} in
-				let cb_next = if Lazy.is_val cb_next || not switch.cs_exhaustive then Some (Lazy.force cb_next) else None in
+				let cb_next = if AtomicLazy.is_val cb_next || not switch.cs_exhaustive then Some (AtomicLazy.force cb_next) else None in
 				terminate cb (NextSwitch(switch,cb_next)) e.etype e.epos;
 				Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 		end
 	and split_while cb e1 e2 etype epos =
-		let cb_next = lazy (make_block None) in
+		let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 		let cb_body = block_from_e e2 in
 		loop_stack := (cb_body,cb_next) :: !loop_stack;
 		let cb_body_next = loop_block cb_body RBlock e2 in
 		Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
 		loop_stack := List.tl !loop_stack;
-		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		let cb_next = if AtomicLazy.is_val cb_next then Some (AtomicLazy.force cb_next) else None in
 		terminate cb (NextWhile(e1,cb_body,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_no_value)) cb_next
 	and split_try cb ret e1 catches etype epos =
 		let e_value,ret = check_complex cb ret etype epos in
 		ctx.has_catch <- true;
-		let cb_next = lazy (make_block None) in
+		let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 		let catches = List.map (fun (v,e) ->
 			let cb_catch = block_from_e e in
-			add_expr cb_catch (mk (TVar(v,Some (Lazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid null_pos);
+			add_expr cb_catch (mk (TVar(v,Some (AtomicLazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid v.v_pos);
 			let cb_catch_next = loop_block cb_catch ret e in
 			Option.may (fun (cb_catch_next,_) ->
-				fall_through cb_catch_next (Lazy.force cb_next);
+				fall_through cb_catch_next (AtomicLazy.force cb_next);
 			) cb_catch_next;
 			v,cb_catch
 		) catches in
@@ -693,9 +741,9 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		let cb_try_next = loop_block cb_try ret e1 in
 		ctx.current_catch <- old;
 		Option.may (fun (cb_try_next,_) ->
-			fall_through cb_try_next (Lazy.force cb_next)
+			fall_through cb_try_next (AtomicLazy.force cb_next)
 		) cb_try_next;
-		let cb_next = if Lazy.is_val cb_next then Some (Lazy.force cb_next) else None in
+		let cb_next = if AtomicLazy.is_val cb_next then Some (AtomicLazy.force cb_next) else None in
 		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
 	in

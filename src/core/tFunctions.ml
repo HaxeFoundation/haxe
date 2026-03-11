@@ -73,12 +73,12 @@ let has_var_flag v (flag : flag_tvar) =
 let alloc_var' =
 	let uid = Atomic.make 0 in
 	uid,(fun kind n t p ->
-		Atomic.incr uid;
+		let id = Atomic.fetch_and_add uid 1 + 1 in
 		{
 			v_kind = kind;
 			v_name = n;
 			v_type = t;
-			v_id = Atomic.get uid;
+			v_id = id;
 			v_extra = None;
 			v_meta = [];
 			v_pos = p;
@@ -91,8 +91,8 @@ let alloc_var =
 	alloc_var
 
 let alloc_mid =
-	let mid = ref 0 in
-	(fun() -> incr mid; !mid)
+	let mid = Atomic.make 0 in
+	(fun() -> Atomic.fetch_and_add mid 1 + 1)
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
@@ -563,19 +563,17 @@ let apply_typedef td tl =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let apply_params_stack = ref []
-
-let try_apply_params_rec cparams params t success =
-	let old_stack = !apply_params_stack in
+let try_apply_params_rec stack cparams params t success =
+	let old_stack = !stack in
 	try
-		let result = success (apply_params ~stack:apply_params_stack cparams params t) in
-		apply_params_stack := old_stack;
+		let result = success (apply_params ~stack:stack cparams params t) in
+		stack := old_stack;
 		result
 	with
 		| ApplyParamsRecursion ->
-			apply_params_stack := old_stack;
+			stack := old_stack;
 		| err ->
-			apply_params_stack := old_stack;
+			stack := old_stack;
 			raise err
 
 let rec follow t =
@@ -818,7 +816,7 @@ let get_constraints ttp = match ttp.ttp_constraints with
 	| None ->
 		[]
 	| Some r ->
-		Lazy.force r
+		AtomicLazy.force r
 
 let has_ctor_constraint c = match c.cl_kind with
 	| KTypeParameter ttp ->

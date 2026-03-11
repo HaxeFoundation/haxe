@@ -1968,6 +1968,24 @@ let fs_event_fields = [
 	);
 ]
 
+let prepare_luv_callback v =
+	match v with
+	| VFunction _ | VFieldClosure _ ->
+		(fun () ->
+			let ctx = get_ctx() in
+			begin match Thread_local_storage.get_opt ctx.eval with
+				| Some _ ->
+					()
+				| None ->
+					let thread = EvalThread.create_thread_info ctx.next_thread_id (LuvThread (Thread.self())) in
+					let eval = EvalThread.create_eval thread in
+					Thread_local_storage.set ctx.eval eval
+			end;
+			ignore(catch_exceptions ctx (fun() -> call_value v []) null_pos)
+		)
+	| _ ->
+		raise MacroApi.Invalid_expr
+
 let thread_pool_fields = [
 	"createRequest", vfun0 (fun() ->
 		VHandle (HThreadPoolRequest (Thread_pool.Request.make()))
@@ -1979,9 +1997,7 @@ let thread_pool_fields = [
 				| VHandle (HThreadPoolRequest r) -> r
 				| v -> unexpected_value v "eval.luv.ThreadPool.ThreadPoolRequest"
 			) v2
-		and work =
-			let cb = prepare_callback v3 0 in
-			(fun() -> EvalThread.run (get_ctx()) (fun() -> cb []))
+		and work = prepare_luv_callback v3
 		and callback = encode_unit_callback v4 in
 		Thread_pool.queue_work ~loop ?request work callback;
 		vnull
@@ -1999,9 +2015,7 @@ let thread_fields = [
 		VHandle (HThread (Thread.self()))
 	);
 	"create", vfun2 (fun v1 v2 ->
-		let fn =
-			let cb = prepare_callback v1 0 in
-			(fun() -> EvalThread.run (get_ctx()) (fun() -> cb []))
+		let fn = prepare_luv_callback v1
 		and stack_size = decode_optional decode_int v2 in
 		encode_result (fun t -> VHandle (HThread t)) (Thread.create ?stack_size fn)
 	);

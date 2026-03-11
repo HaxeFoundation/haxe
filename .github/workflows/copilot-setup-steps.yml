@@ -24,12 +24,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Install system dependencies
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 install -y \
+            opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build \
+            cmake gcc-multilib g++-multilib \
+            libturbojpeg-dev libvorbis-dev \
+            libuv1-dev libreadline-dev
 
       - name: Cache opam
         id: cache-opam
@@ -67,12 +72,6 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/local.conf
           sudo ldconfig
 
-      - name: Install dependencies
-        run: |
-          set -ex
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
-
       - name: Build Haxe
         run: |
           set -ex
@@ -86,3 +85,15 @@ jobs:
 
       - name: Add workspace to PATH
         run: echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+          haxelib git utest https://github.com/haxe-utest/utest.git
+          haxelib git hxcoro https://github.com/HaxeFoundation/hxcoro.git
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          haxelib git hxjava https://github.com/HaxeFoundation/hxjava.git
+          haxelib git hxnodejs https://github.com/HaxeFoundation/hxnodejs.git
+          haxelib git haxeserver https://github.com/Simn/haxeserver.git

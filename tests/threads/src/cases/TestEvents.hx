@@ -1,9 +1,10 @@
 package cases;
 
+import utest.Assert;
 import haxe.EventLoop;
 
 @:timeout(2000)
-class TestEvents extends utest.Test {
+class TestEvents extends ThreadTestBase {
 
 	function testIssue10567_runEventsInOrderByTime(async:Async) {
 		var events = EventLoop.current;
@@ -76,4 +77,30 @@ class TestEvents extends utest.Test {
 		});
 	}
 
+	function testBlocking() {
+		var threadValue = null;
+		EventLoop.addTask(() -> {
+			Sys.sleep(0.1);
+			threadValue = "ok";
+		});
+
+		while (EventLoop.hasRunningThreads()) {
+			Sys.sleep(0.01);
+		}
+
+		Assert.equals("ok", threadValue);
+	}
+
+	function testBlockingInstance() {
+		var threadValue = null;
+		final loop = new EventLoop();
+		loop.addThreadTask(() -> {
+			Sys.sleep(0.1);
+			threadValue = "ok";
+		});
+
+		loop.loop();
+
+		Assert.equals("ok", threadValue);
+	}
 }

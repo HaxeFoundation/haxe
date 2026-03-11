@@ -16,7 +16,8 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 - **Build commands**:
   - `make` - Build everything
   - `make haxe` - Build only the compiler
-  - `opam install . --deps-only` - Install OCaml dependencies
+  - `opam install haxe --deps-only` - Install OCaml dependencies (after pinning the local checkout)
+  - `opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe` - Typical Windows compiler build command used in CI/tasks
   - `dune build` - Build using dune directly
 
 ## Development Setup
@@ -48,7 +49,6 @@ This is the Haxe compiler repository. Haxe is an open source toolkit that allows
 ### Tests (`tests/`)
 - `unit/` - Unit tests written in Haxe
   - `unit/src/unit/issues/` - Regression tests for specific issues (success cases)
-- `display/` - IDE-related tests like completion
 - `server/` - Modern version of display tests, generally preferred
 - `misc/` - Tests expected to produce failures
   - Platform-specific subdirectories (e.g., `misc/cpp/` for C++-specific tests)
@@ -81,6 +81,8 @@ class Issue12345 extends Test {
 
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
+The Javascript tests are good for checking output syntax.
+
 ### Running Tests
 ```bash
 # Compile for a specific target
@@ -89,6 +91,9 @@ haxe --cwd tests/unit compile-{target}.hxml
 # Run the tests
 # Example for Lua:
 lua bin/unit.lua
+
+# Example for JavaScript:
+node bin/unit.js
 ```
 
 ## Code Style and Conventions
@@ -112,8 +117,10 @@ lua bin/unit.lua
 ### Making Changes to the Compiler
 1. Identify the relevant module in `src/`
 2. Make minimal, focused changes
-3. Build and test: `make && make test`
+3. Build: `make haxe`
 4. Add regression tests if fixing a bug
+5. Execute the appropriate tests in one of the tests subdirectories
+6. Even if everything works, check some output to ensure it looks good
 
 ### Making Changes to Standard Library
 1. Modify files in `std/`
@@ -122,7 +129,7 @@ lua bin/unit.lua
 4. Update API documentation if needed
 
 ### Debugging
-- Use `-D dump=pretty` to dump AST to `dump/` directory
+- Use `-D dump=pretty` to dump readable AST to `dump/` directory
 - Check generated code for specific targets
 - Most targets produce readable output for inspection
 
@@ -143,8 +150,9 @@ lua bin/unit.lua
 - Optimization passes should not break correctness
 
 ### Code Quality Considerations
-- Try to avoid code duplication, especially in the OCaml code.
-- Prefer top-level functions over closures for functions with large bodies.
+- Try to avoid code duplication, especially in the OCaml code
+- Prefer top-level functions over closures for functions with large bodies
+- Comments are good, but keep the amount reasonable
 
 ## CI/CD
 - CI runs on GitHub Actions (see `.github/workflows/`)
@@ -152,6 +160,18 @@ lua bin/unit.lua
 - Both x86_64 and ARM64 architectures are tested
 - All targets are tested in CI
 - When making changes related to coroutines, run the appropriate target test at https://github.com/HaxeFoundation/hxcoro/tree/master/tests
+
+### Investigating CI Failures
+
+When investigating CI failures, use the GitHub MCP tools as follows:
+
+1. Use `list_workflow_runs` to find the relevant workflow run ID for the failing branch/PR
+2. Use `list_workflow_jobs` to identify which jobs failed (look for `conclusion != "success"`)
+3. Use `get_job_logs` with `failed_only: true` and `return_content: true` to get log content
+   - **Important**: Use a moderate `tail_lines` value (100-200) to avoid being flooded by post-step cleanup output that always appears at the very end of logs
+   - The actual test failure output typically appears near the bottom of the test step output, before the post-step cleanup lines
+   - Look for keywords like `FAILED`, `error`, `exit code`, `assert`, `exception` to locate the relevant failure
+4. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
 
 ## Additional Resources
 - Building instructions: `extra/BUILDING.md`
@@ -161,5 +181,13 @@ lua bin/unit.lua
 - Manual: https://haxe.org/manual/
 
 ## Haxelib
-- The haxelib command is available in your PATH (the workspace root is added to PATH during setup).
-- Use `haxelib git utest https://github.com/haxe-utest/utest` for utest.
+- The haxelib command is available in your PATH (the workspace root is added to PATH during setup)
+- Run `haxelib setup` to set up the repository path
+- Use `haxelib git utest https://github.com/haxe-utest/utest` for utest
+- A git-cloned library can be set as a development library via `haxelib dev libname path`
+- If your changes are related to coroutines, run some of the tests in https://github.com/HaxeFoundation/hxcoro
+
+## Other considerations
+- Humans are fallible
+- If you feel like a given task makes little or no sense, point out why and suggest an alternative
+- Keep an open mind regarding specific ways to address a given issue

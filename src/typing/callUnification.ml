@@ -215,7 +215,40 @@ let ensure_coro_availability ctx =
 	(* In cases where we never actually built a coro state machine, the SuspensionResult structure might
 	   not have been initialized yet. This would normally be handled via the pass flushing in `load_module`,
 	   but because all coro data is loaded from a `build-module` pass, this doesn't trigger in time. *)
-	ignore ((Lazy.force ctx.com.basic.tcoro.suspension_result_class).cl_build())
+	ignore ((AtomicLazy.force ctx.com.basic.tcoro.suspension_result_class).cl_build())
+
+(* Wrap a coroutine call expression from a non-coroutine context with a `.resolveTo(cont)` call.
+   This ensures that if the coroutine completes synchronously, its result or error is propagated
+   to the continuation immediately. If the continuation expression `econt` is not pure (e.g. a
+   constructor call), a temp var is introduced to avoid evaluating it twice. *)
+let wrap_with_resolve_to ctx ecall econt p =
+	let basic = ctx.com.basic in
+	let b = new CoroElsewhere.texpr_builder basic p in
+	let suspension_result_class = AtomicLazy.force basic.tcoro.suspension_result_class in
+	let t_param = match follow ecall.etype with TInst(_, [t]) -> t | _ -> die "Expected SuspensionResult with one type parameter for coroutine call result" __LOC__ in
+	let resolve_to_cf = PMap.find "resolveTo" suspension_result_class.cl_fields in
+	let resolve_to_type = apply_params suspension_result_class.cl_params [t_param] resolve_to_cf.cf_type in
+	let make_resolve_call ecall econt =
+		let efield = b#instance_field ecall suspension_result_class [t_param] resolve_to_cf resolve_to_type in
+		b#call efield [econt] basic.tvoid
+	in
+	let is_pure e = match e.eexpr with TLocal _ | TConst _ -> true | _ -> false in
+	if is_pure econt then
+		make_resolve_call ecall econt
+	else begin
+		(* Introduce a temp var for the continuation so it is evaluated exactly once, and replace
+		   its occurrence in ecall's argument list with a reference to the local var. *)
+		let v = alloc_var VGenerated "_hx_cont" econt.etype econt.epos in
+		let elocal = b#local v v.v_pos in
+		let new_ecall = match ecall.eexpr with
+			| TCall(ef, _ :: rest) -> { ecall with eexpr = TCall(ef, elocal :: rest) }
+			| _ -> die "Expected TCall with at least one argument (continuation)" __LOC__
+		in
+		b#void_block [
+			b#var_init v econt;
+			make_resolve_call new_ecall elocal
+		]
+	end
 
 let unify_field_call ctx fa el_typed el p inline =
 	let expand_overloads cf =
@@ -304,7 +337,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			(* here *)
 			let el = el_typed @ el in
 			let args = (args_typed @ args) in
-			let tf = if coro then (Lazy.force ctx.t.tcoro.tcoro) args ret else TFun(args,ret) in
+			let tf = if coro then (AtomicLazy.force ctx.t.tcoro.tcoro) args ret else TFun(args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
@@ -315,7 +348,17 @@ let unify_field_call ctx fa el_typed el p inline =
 		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
 			let args, ret = expand_coro_type ctx.com.basic args ret in
 			ensure_coro_availability ctx;
-			make args ret false
+			let fcc = make args ret false in
+			begin match fcc with
+				| { fc_args = econt :: _; fc_data = (original_mk_call,_) } ->
+					let wrapped_mk_call () =
+						let ecall = original_mk_call () in
+						wrap_with_resolve_to ctx ecall econt p
+					in
+					{ fcc with fc_data = (wrapped_mk_call, snd fcc.fc_data) }
+				| _ ->
+					raise_typing_error "Unexpected overload candidate without arguments for coroutine call" p
+			end
 		| Coro(args,ret) ->
 			make args ret true
 		| NotCoro (TFun(args,ret)) ->
@@ -574,7 +617,9 @@ object(self)
 		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
 			let args, ret = expand_coro_type ctx.com.basic args ret in
 			ensure_coro_availability ctx;
-			make args ret
+			let ecall = make args ret in
+			let econt = (match ecall.eexpr with TCall(_, econt :: _) -> econt | _ -> die "Expected TCall with at least one argument (continuation)" __LOC__) in
+			wrap_with_resolve_to ctx ecall econt p
 		| Coro(args,ret) ->
 			make args ret
 		| NotCoro(TFun(args,ret)) ->

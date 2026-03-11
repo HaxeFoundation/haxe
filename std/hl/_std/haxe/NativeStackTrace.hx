@@ -7,6 +7,8 @@ import haxe.CallStack.StackItem;
 @:dox(hide)
 typedef Symbol = #if (hl_ver >= version("1.12.0")) hl.Abstract<"hl_symbol"> #else hl.Bytes #end
 
+private typedef NativeTrace = NativeArray<Symbol>;
+
 /**
 	Do not use manually.
 **/
@@ -19,14 +21,14 @@ class NativeStackTrace {
 
 	#if (hl_ver >= version("1.12.0") )
 
-	static public function exceptionStack():NativeArray<Symbol> {
+	static public function exceptionStack():NativeTrace {
 		var count = exceptionStackRaw(null);
 		var arr = new NativeArray(count);
 		exceptionStackRaw(arr);
 		return arr;
 	}
 
-	static public inline function callStack():NativeArray<Symbol> {
+	static public inline function callStack():NativeTrace {
 		var count = callStackRaw(null);
 		var arr = new NativeArray(count);
 		callStackRaw(arr);
@@ -53,13 +55,13 @@ class NativeStackTrace {
 	#else
 
 	@:hlNative("std", "exception_stack")
-	static public function exceptionStack():NativeArray<Bytes> {
+	static public function exceptionStack():NativeTrace {
 		return null;
 	}
 
 	//TODO: implement in hashlink like `exceptionStack`
-	static public function callStack():NativeArray<Bytes> {
-		var stack:NativeArray<Bytes> = try {
+	static public function callStack():NativeTrace {
+		var stack:NativeTrace = try {
 			throw new Exception('', null, 'stack');
 		} catch (e:Exception) {
 			exceptionStack();
@@ -77,7 +79,7 @@ class NativeStackTrace {
 
 	#end
 
-	static public function toHaxe(native:NativeArray<Symbol>, skip:Int=0 ):Array<StackItem> {
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int=0 ):Array<StackItem> {
 		var stack = [];
 		var r = ~/^([A-Za-z0-9.$_]+)\.([~A-Za-z0-9_]+(\.[0-9]+)?)\((.+):([0-9]+)\)$/;
 		var r_fun = ~/^fun\$([0-9]+)\((.+):([0-9]+)\)$/;
@@ -85,14 +87,14 @@ class NativeStackTrace {
 		var maxLen = 1024;
 		var tmpBuf = @:privateAccess hl.Bytes.alloc(maxLen);
 		#end
-		for (i in 0...native.length-1) {
+		for (i in 0...nativeStackTrace.length-1) {
 			if( i < skip ) continue;
 			#if (hl_ver >= version("1.12.0"))
 			var len = maxLen;
-			var bytes = resolveSymbol(native[i],tmpBuf,len);
+			var bytes = resolveSymbol(nativeStackTrace[i],tmpBuf,len);
 			if( bytes == null ) continue;
 			#else
-			var bytes = native[i];
+			var bytes = nativeStackTrace[i];
 			#end
 			var str = @:privateAccess String.fromUCS2(bytes);
 			if (r.match(str))

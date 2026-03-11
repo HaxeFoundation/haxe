@@ -60,10 +60,9 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 									jobject ["name",jstring "env";"size",jint (mem_size_2 eval.env [Obj.repr interp; Obj.repr eval])];
 								);
 								jobject ["name",jstring "thread";"size",jint (mem_size_2 eval.thread [Obj.repr interp; Obj.repr eval]);"child", jarray [
-									jobject ["name",jstring "tthread";"size",jint (mem_size_2 eval.thread.tthread [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
-									jobject ["name",jstring "tdeque";"size",jint (mem_size_2 eval.thread.tdeque [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
-									jobject ["name",jstring "tevents";"size",jint (mem_size_2 eval.thread.tevents [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
-									jobject ["name",jstring "tstorage";"size",jint (mem_size_2 eval.thread.tstorage [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
+									jobject ["name",jstring "tthread";"size",jint (mem_size_2 eval.thread.thread_mode [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
+									jobject ["name",jstring "tdeque";"size",jint (mem_size_2 eval.thread.thread_deque [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
+									jobject ["name",jstring "tstorage";"size",jint (mem_size_2 eval.eval_storage [Obj.repr interp; Obj.repr eval; Obj.repr eval.thread])];
 								]];
 								jobject ["name",jstring "debug_state";"size",jint (mem_size_2 eval.debug_state [Obj.repr interp; Obj.repr eval])];
 								jobject ["name",jstring "breakpoint";"size",jint (mem_size_2 eval.breakpoint [Obj.repr interp; Obj.repr eval])];

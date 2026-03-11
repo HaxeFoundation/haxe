@@ -499,7 +499,7 @@ module Printer = struct
 		s_record_fields tabs [
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
-			"cf_type",s_type_kind (follow cf.cf_type);
+			"cf_type",s_type_kind (follow_lazy_and_mono cf.cf_type);
 			"cf_pos",s_pos cf.cf_pos;
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;

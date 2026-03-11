@@ -723,7 +723,7 @@ class texpr_to_jvm
 			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
 			cast();
 		in
-		match gctx.anon_identification#identify true t with
+		match gctx.anon_identification#identify AnonIdMode.default true t with
 		| Some pfm ->
 			let cf = PMap.find cf.cf_name pfm.pfm_fields in
 			let path = pfm.pfm_path in
@@ -822,6 +822,11 @@ class texpr_to_jvm
 			self#read_anon_field cast e1.etype cf;
 		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(None,{cf_name = s}) ->
 			dynamic_read s
+		| FClosure((Some(c,_)),cf) when c.cl_path = string_path ->
+			(* String instance methods need JVM-compatible wrappers (e.g. charAt returns char not
+			   String in Java). Redirect the closure creation through Jvm.readField which already
+			   handles all string methods correctly via StringExt. *)
+			dynamic_read cf.cf_name
 		| FClosure((Some(c,_)),cf) ->
 			if has_class_flag c CInterface then
 				dynamic_read cf.cf_name
@@ -873,7 +878,7 @@ class texpr_to_jvm
 			jm#putfield c.cl_path cf.cf_name jsig_cf
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
-			begin match gctx.anon_identification#identify true e1.etype with
+			begin match gctx.anon_identification#identify AnonIdMode.default true e1.etype with
 			| Some pfm ->
 				let cf = PMap.find cf.cf_name pfm.pfm_fields in
 				let path = pfm.pfm_path in
@@ -1134,7 +1139,10 @@ class texpr_to_jvm
 		| [TObject(path1,_);sig2] when jc#has_typed_function path1 || path1 = haxe_function_path ->
 			code#swap;
 			fun_compare path1 sig2
-		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
+		| [TMethod _;_] | [_;TMethod _] ->
+			jm#invokestatic haxe_jvm_path "compareFunctions" (method_sig [object_sig;object_sig] (Some TBool));
+			CmpNormal(op,TBool)
+		| [(TObject _ | TArray _) as t1;(TObject _ | TArray _) as t2] ->
 			CmpSpecial ((if op = CmpEq then code#if_acmp_ne else code#if_acmp_eq) t1 t2)
 		| [TDouble;TDouble] ->
 			let op = flip_cmp_op op in
@@ -1762,7 +1770,7 @@ class texpr_to_jvm
 			jm#invokestatic en.e_path ef.ef_name (method_sig tl (Some tr));
 			Some tr
 		| TField(e11,FAnon cf) ->
-			begin match gctx.anon_identification#identify false e11.etype with
+			begin match gctx.anon_identification#identify AnonIdMode.default false e11.etype with
 			| Some {pfm_path=path_anon} ->
 				begin match gctx.typedef_interfaces#get_interface_class path_anon with
 				| Some c ->
@@ -2246,7 +2254,7 @@ class texpr_to_jvm
 				PMap.add name cf acc
 			) PMap.empty fl in
 			let t = mk_anon ~fields (ref Closed) in
-			let td = gctx.anon_identification#identify true t in
+			let td = gctx.anon_identification#identify AnonIdMode.default true t in
 			begin match td with
 			| Some pfm when not !had_invalid_field_name ->
 				let lut = Hashtbl.create 0 in
@@ -3235,21 +3243,23 @@ let generate jvm_flag gctx =
 		gctx.out#add_entry v filename;
 	) gctx.gctx.resources;
 
-	let generate pool =
-		let generate_real_types () =
-			Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
-		in
-		let generate_typed_interfaces () =
-			let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
-			Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
-		in
-		run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
-		run_timed gctx false "real types" generate_real_types;
-		run_timed gctx false "typed interfaces" generate_typed_interfaces;
-		run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
-		run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+	let generate () =
+		Parallel.run_with_pool gctx.gctx.pool (fun pool ->
+			let generate_real_types () =
+				Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
+			in
+			let generate_typed_interfaces () =
+				let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
+				Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
+			in
+			run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
+			run_timed gctx false "real types" generate_real_types;
+			run_timed gctx false "typed interfaces" generate_typed_interfaces;
+			run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
+			run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+		)
 	in
-	Parallel.run_in_new_pool gctx.gctx.timer_ctx generate;
+	generate ();
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^

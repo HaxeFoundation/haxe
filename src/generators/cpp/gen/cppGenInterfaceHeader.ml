@@ -97,7 +97,7 @@ let generate_native_interface base_ctx tcpp_interface =
   let parent, super =
     match tcpp_interface.if_class.cl_super with
     | Some (klass, params) ->
-      let name = tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type) in
+      let name = tcpp_to_string_suffix "_obj" (cpp_instance_type common_ctx.basic klass params CppRetyper.with_stack_value_type) in
       ( "virtual " ^ name, name )
     | None ->
       ("virtual ::hx::NativeInterface", "::hx::NativeInterface")
@@ -144,7 +144,7 @@ let generate_managed_interface base_ctx tcpp_interface =
   let super =
     match tcpp_interface.if_class.cl_super with
     | Some (klass, params) ->
-      tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type)
+      tcpp_to_string_suffix "_obj" (cpp_instance_type common_ctx.basic klass params CppRetyper.with_stack_value_type)
     | None ->
       "::hx::Object"
   in

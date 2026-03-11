@@ -1,0 +1,2 @@
+-D no-inline
+--run Main

@@ -123,7 +123,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : (string * value) list -> value
-	val encode_lazy : value Lazy.t -> value
+	val encode_lazy : value AtomicLazy.t -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -631,7 +631,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	encode_lazy (lazy (loop e))
+	encode_lazy (AtomicLazy.from_fun (fun () -> loop e))
 
 and encode_null_expr e =
 	match e with
@@ -2213,7 +2213,7 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			let open CompilationContext in
+			let open ParsedArg in
 			let kind = match com.platform with
 				| Jvm -> JavaLib
 				| Flash -> SwfLib
@@ -2267,7 +2267,7 @@ let macro_api ccom get_api =
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
 			encode_obj [
-				"version", vint com.version.version;
+				"version", vint com.sctx.version.version;
 				"args", encode_array (List.map encode_string com.args);
 				"debug", vbool com.debug;
 				"verbose", vbool com.verbose;
@@ -2376,6 +2376,8 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"server_stats", vfun0 (fun () ->
+			let com = ccom() in
+			let stats = com.request_scope.stats in
 			encode_obj [
 				"filesParsed", vint !(stats.s_files_parsed);
 				"modulesTyped", vint !(stats.s_modules_typed);
@@ -2467,8 +2469,7 @@ let macro_api ccom get_api =
 				let json = decode_string json in
 				let lexbuf = Sedlexing.Utf8.from_string json in
 				let parse = Json.Reader.read_json lexbuf in
-				api.send_result parse;
-				vbool true
+				api.send_result_raise parse;
 			| None ->
 				vbool false
 			end

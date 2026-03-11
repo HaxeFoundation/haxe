@@ -236,6 +236,37 @@ type check_override_kind =
 	| NormalOverride of redefinition_context
 	| OverloadOverride of (unit -> unit)
 
+let rec has_super_call name e =
+	match e.eexpr with
+	| TCall({eexpr = TField({eexpr = TConst TSuper}, FInstance(_, _, cf))}, _) when cf.cf_name = name ->
+		true
+	| _ ->
+		check_expr (has_super_call name) e
+
+let check_call_super com rctx e =
+	let name = rctx.cf_old.cf_name in
+	let rec is_active c cf =
+		if has_class_field_flag rctx.cf_old CfAbstract then
+			false
+		else try
+			let (_, args, _) = Meta.get Meta.CallSuper cf.cf_meta in
+			(match args with
+			| [(EConst (Ident "false"), _)] -> false
+			| _ -> true)
+		with Not_found ->
+			match c.cl_super with
+			| None ->
+				false
+			| Some (csup, _) ->
+				try
+					let cf = PMap.find name csup.cl_fields in
+					is_active csup cf
+				with Not_found ->
+					false
+	in
+	if is_active rctx.c_old rctx.cf_old && not (has_super_call name e) then
+		display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
+
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
@@ -355,6 +386,7 @@ module Inheritance = struct
 		| t -> raise_typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
 
 	let rec check_interface com g missing c intf params =
+		let uctx = default_unification_context () in
 		List.iter (fun (i2,p2) ->
 			check_interface com g missing c i2 (List.map (apply_params intf.cl_params params) p2)
 		) intf.cl_implements;
@@ -397,7 +429,7 @@ module Inheritance = struct
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 						display_error com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-					else if not (unify_kind ~strict:false f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
+					else if not (unify_kind uctx f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ ": " ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind) p
 					else try
 						let map1 = TClass.get_map_function  intf params in

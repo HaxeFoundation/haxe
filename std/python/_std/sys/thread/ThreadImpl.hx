@@ -30,8 +30,8 @@ abstract ThreadImpl(NativeThread) {
 		return cast python.lib.Threading.current_thread();
 	}
 
-	public static function create(callb:Void->Void):ThreadImpl {
-		var t = new NativeThread({target:callb, daemon: true});
+	public static function create(job:Void->Void):ThreadImpl {
+		var t = new NativeThread({target:job, daemon: true});
 		t.start();
 		return cast t;
 	}

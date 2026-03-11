@@ -147,7 +147,7 @@ let prepare com =
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
-	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
+	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.part_scope.diagnostics_messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
@@ -177,7 +177,7 @@ let prepare com =
 	| Some com -> process_modules com
 	end;
 	(* We do this at the end because some of the prepare functions might add information to the common context. *)
-	dctx.diagnostics_messages <- com.shared.shared_display_information.diagnostics_messages;
+	dctx.diagnostics_messages <- com.part_scope.diagnostics_messages;
 	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
 

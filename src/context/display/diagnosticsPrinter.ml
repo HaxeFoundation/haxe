@@ -26,8 +26,8 @@ let make_diagnostic kd p sev code args = {
 
 let is_diagnostics_file com file_key =
 	match com.report_mode with
-	| RMLegacyDiagnostics [] | RMDiagnostics [] -> true
-	| RMLegacyDiagnostics file_keys | RMDiagnostics file_keys -> List.mem file_key file_keys
+	| RMDiagnostics [] -> true
+	| RMDiagnostics file_keys -> List.mem file_key file_keys
 	| _ -> false
 
 module UnresolvedIdentifierSuggestion = struct
@@ -190,7 +190,7 @@ let json_of_diagnostics com dctx =
 				add DKDeprecationWarning p MessageSeverity.Warning (Some wobj.w_name) (JString s);
 			| WMDisable -> ()
 			end
-		) DeprecationCheck.warned_positions;
+		) com.part_scope.warned_positions;
 	| WMDisable ->
 		()
 	end;

@@ -4,7 +4,6 @@ open CoroFunctions
 open Type
 open ContTypes
 open Texpr
-open CoroControl
 
 module IntSet = Set.Make(struct
 	let compare a b = b - a
@@ -29,9 +28,9 @@ type coro_to_texpr_exprs = {
 	eresult : texpr;
 	egoto : texpr;
 	eerror : texpr;
-	etmp_result : texpr;
+	etmp_result : texpr AtomicLazy.t;
 	etmp_error : texpr;
-	etmp_error_unwrapped : texpr Lazy.t;
+	etmp_error_unwrapped : texpr AtomicLazy.t;
 }
 
 let make_suspending_call basic cont call econtinuation =
@@ -96,7 +95,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type null_pos null_pos in
+			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
 
 			Hashtbl.replace fields v.v_id field;
 			(* Create a fresh restored var rather than reusing the original argument variable.
@@ -166,6 +165,19 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		state.cs_el_tail <- Option.map (List.map mapper) state.cs_el_tail
 	) states;
 
+	(* Remove hoisted fields for variables that are never saved or restored:
+	   - Force-hoisted function args that are never actually read in the state machine
+	     (e.g., a discarded `_` or an unused `node` parameter).
+	   - Any cross-state field that ended up with no actual reads or writes.
+	   Removing these avoids passing dead constructor parameters and emitting
+	   prototype fields that are never accessed. *)
+	let used_ids = List.fold_left (fun acc state ->
+		IntSet.union acc (IntSet.union state.cs_writes state.cs_reads)
+	) IntSet.empty states in
+	Hashtbl.filter_map_inplace (fun id field ->
+		if IntSet.mem id used_ids then Some field else None
+	) fields;
+
 	List.iter (fun state ->
 		let restoring = IntSet.union state.cs_writes state.cs_reads |> IntSet.to_list |> List.filter_map (fun id ->
 			(* We don't want to restore a variable which is declared in this state *)
@@ -195,72 +207,141 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	|> Hashtbl.to_seq_values
 	|> List.of_seq
 
+let build_call_stack ctx cont econtinuation p =
+	let b = ctx.builder in
+	if not ctx.typer.com.debug then
+		b#void_block_at [] p
+	else begin
+		let basic = ctx.typer.t in
+		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+		let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
+		mk (TCall (eaccess, [])) basic.tvoid p
+	end
+
 module SuspensionCalls = struct
+	(* Save a reference to the top-level make_suspending_call before any local shadowing *)
+	let mk_coro_call = make_suspending_call
+
 	let make_suspension_call_and_assign ctx cont call econtinuation =
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
-		let ecreatecoroutine = make_suspending_call com.Common.basic cont call {econtinuation with epos = p} in
+		let ecreatecoroutine = mk_coro_call com.Common.basic cont call {econtinuation with epos = p} in
 
 		let vcororesult = alloc_var VGenerated "_hx_tmp" (cont.suspension_result com.basic.tany) p in
 		let ecororesult = b#local vcororesult p in
 		let cororesult_var = b#var_init vcororesult ecreatecoroutine in
 		(cororesult_var,ecororesult)
 
+	(* Returns (esubject, eres, eerror) field accesses on ecororesult *)
+	let unpack_result_fields ctx cont ecororesult =
+		let b = ctx.builder in
+		let com = ctx.typer.com in
+		let open ContTypes in
+		let base cf t = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cf t in
+		let esubject  = base cont.state cont.state.cf_type in
+		let eres      = base cont.result com.basic.tany in
+		let eerror    = base cont.error cont.error.cf_type in
+		(esubject, eres, eerror)
+
+	let make_suspended_return b cont p =
+		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
+		b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type
+
 	let make_suspending_call ctx cont exprs call =
-		let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+		let {econtinuation;etmp_result;etmp_error;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
 		let p = call.cs_pos in
-		let base_continuation_field_on e cf t =
-			b#instance_field e cont.suspension_result_class [com.basic.tany] cf t
-		in
-		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
-		let open ContTypes in
-		let esubject = base_continuation_field_on ecororesult cont.state cont.state.cf_type in
-		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-		let esuspended = b#void_block [
-			b#return (b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type)
-		] in
-		let eres = base_continuation_field_on ecororesult cont.result com.basic.tany in
-		let ereturned = match call.cs_result with
-			| SusBlock ->
-				b#void_block []
-			| SusResult ->
-				b#assign etmp_result eres
-		in
-		let eerror = base_continuation_field_on ecororesult cont.error cont.error.cf_type in
-		let ethrown = b#void_block [
-			b#assign etmp_error eerror;
-			b#break p;
-		] in
-		let estate_switch = CoroControl.make_control_switch com.basic esubject esuspended ereturned ethrown p in
-
-		cororesult_var,
-		estate_switch
+		let outcome = call.cs_kind in
+		if outcome.CoroConfig.no_return && outcome.CoroConfig.no_throw then begin
+			(* Always-suspending: call + return suspended singleton *)
+			let ecall_stmt = b#void_block [mk_coro_call com.Common.basic cont call {econtinuation with epos = p}] in
+			let esuspended_val = make_suspended_return b cont p in
+			(ecall_stmt, b#void_block [b#return esuspended_val])
+		end else begin
+			(* Generic version: call + switch *)
+			let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
+			let (esubject, eres, eerror) = unpack_result_fields ctx cont ecororesult in
+			let esuspended = b#void_block [b#return (make_suspended_return b cont p)] in
+			let ereturned = match call.cs_result with
+				| SusBlock ->
+					b#void_block_at [] p
+				| SusResult ->
+					b#assign (AtomicLazy.force etmp_result) eres
+			in
+			let ethrown = b#void_block [
+				b#assign etmp_error eerror;
+				b#break p;
+			] in
+			let estate_switch = if outcome.CoroConfig.no_throw then
+				(* Callee can't throw: skip the Thrown case entirely. *)
+				make_custom_control_switch b esubject [
+					[CoroPending],  esuspended;
+					[CoroReturned], ereturned;
+				] p
+			else
+				make_control_switch b esubject esuspended ereturned ethrown p
+			in
+			cororesult_var,
+			estate_switch
+		end
 
 	let make_suspending_tail_call ctx cont exprs call =
-		let {econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} = exprs in
+		let {econtinuation;ecompletion;_} = exprs in
 		let com = ctx.typer.com in
 		let b = ctx.builder in
-		let p = call.cs_pos in
 		let ecompletion_field = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] cont.completion ecompletion.etype in
 		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call ecompletion_field in
-		let esubject = b#instance_field ecororesult cont.suspension_result_class [com.basic.tany] cont.state cont.state.cf_type in
-		let esuspensionresult = Builder.make_static_this cont.suspension_result_class p in
-		let esuspended_val = b#static_field esuspensionresult cont.suspension_result_class cont.suspended cont.suspended.cf_type in
-		(* When the callee is pending it returns its own continuation object (not the singleton).
-			We must return the singleton here so that BaseContinuation.resume suppresses dispatch. *)
-		let estate_switch = mk (TSwitch {
-			switch_subject = esubject;
-			switch_cases = [{
-				case_patterns = [CoroControl.mk_control com.basic CoroPending];
-				case_expr = b#void_block [b#return esuspended_val];
-			}];
-			switch_default = Some (b#void_block [b#return ecororesult]);
-			switch_exhaustive = true;
-		}) com.basic.tvoid p in
-		(cororesult_var, estate_switch)
+		(cororesult_var, b#return ecororesult)
+
+	(* Generate an inline call+result check for a no_suspend callee.
+	   Returns (call_stmt, check_stmt) — assembled into a void_block by the caller.
+	   For single-state coroutines there is no enclosing while loop, so the Thrown
+	   branch emits the full error-handler inline instead of using `break`.
+	   If the callee also has no_throw, the result is set directly without any switch. *)
+	let make_sync_call_and_check ctx cont exprs call e_opt =
+		let {econtinuation;eerror;etmp_error;_} = exprs in
+		let b = ctx.builder in
+		let p = call.cs_pos in
+		let outcome = call.cs_kind in
+		let (cororesult_var, ecororesult) = make_suspension_call_and_assign ctx cont call econtinuation in
+		let (esubject, eres, eerr_field) = unpack_result_fields ctx cont ecororesult in
+		let ereturned = match e_opt with
+			| None ->
+				b#void_block_at [] p
+			| Some e ->
+				b#assign e eres
+		in
+		if outcome.CoroConfig.no_throw then
+			(* Callee can't throw, and we know it can't suspend (no_suspend = true),
+			   so the result is always Returned. No switch needed. *)
+			(cororesult_var, ereturned)
+		else begin
+			let ethrown =
+				if ctx.num_states = 1 then begin
+					(* Single-state: no while loop to break out of.
+					   Emit the error handler directly (equivalent to eexchandle). *)
+					let ewrapped_call = build_call_stack ctx cont econtinuation p in
+					b#void_block [
+						b#assign etmp_error eerr_field;
+						b#assign eerror etmp_error;
+						ewrapped_call;
+						b#assign exprs.estate (b#int (Obj.magic CoroThrown) p);
+						b#return econtinuation;
+					]
+				end else
+					b#void_block [
+						b#assign etmp_error eerr_field;
+						b#break p;
+					]
+			in
+			let echeck = make_custom_control_switch b esubject [
+				[CoroReturned], ereturned;
+				[CoroThrown], ethrown;
+			] p in
+			(cororesult_var, echeck)
+		end
 end
 
 
@@ -269,9 +350,13 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 	let com = ctx.typer.com in
 	let b = ctx.builder in
 
+	(* In a single-state coroutine there is no while/switch dispatch loop, so
+	   gotoLabel is never read. *)
+	let single_state = ctx.num_states = 1 in
+
 	let set_state id = b#assign egoto (b#int id p) in
 
-	let set_control (c : coro_control) = b#assign estate (CoroControl.mk_control com.basic c) in
+	let set_control (c : coro_control) = b#assign estate (b#int (Obj.magic c) p) in
 
 	let std_is e t =
 		let type_expr = mk (TTypeExpr (module_type_of_type t)) t_dynamic p in
@@ -319,6 +404,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			| None ->
 				b#if_then e_if e_then
 			| Some e ->
+				let etmp_result = {(AtomicLazy.force etmp_result) with epos = e.epos} in
 				let e_assign = b#assign e etmp_result in
 				b#if_then_else e_if e_then e_assign com.basic.tvoid
 	in
@@ -328,8 +414,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		let el = get_block_exprs cb in
 
 		let add_state next_id extra_el state_check =
-			let el = el in
-			let el = match next_id with
+			let el = match (if single_state then None else next_id) with
 				| None ->
 					el
 				| Some id ->
@@ -367,7 +452,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		| NextReturn e ->
 			add_state (Some (-1)) [ set_control CoroReturned; b#assign eresult e; ereturn ] None
 		| NextThrow e1 ->
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; start_exception etmp_error; ]) (Some [ (b#break p) ])
+			(* In multi-state mode the break exits the while/switch loop to reach the
+			   outer error handler.  In single-state mode there is no loop, so no break
+			   is needed — the error handler follows the body naturally. *)
+			let tail = if single_state then None else Some [ b#break p ] in
+			let etmp_error = {etmp_error with epos = e1.epos } in
+			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; b#assign etmp_error (start_exception etmp_error); ]) tail
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None
@@ -411,12 +501,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 					| TDynamic _ ->
 						set_state cb_catch.cb_id (* no next *)
 					| t ->
-						let etypecheck = std_is (Lazy.force etmp_error_unwrapped) vcatch.v_type in
+						let etypecheck = std_is (AtomicLazy.force etmp_error_unwrapped) vcatch.v_type in
 						b#if_then_else etypecheck (set_state cb_catch.cb_id) enext com.basic.tvoid
 				) erethrow (List.rev catch.cc_catches)
 			in
-			let el = if Lazy.is_val etmp_error_unwrapped then
-				[b#assign (Lazy.force etmp_error_unwrapped) (unwrap_exception etmp_error);eif]
+			let el = if AtomicLazy.is_val etmp_error_unwrapped then
+				[b#assign (AtomicLazy.force etmp_error_unwrapped) (unwrap_exception etmp_error);eif]
 			else
 				[eif]
 			in
@@ -439,15 +529,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let eloop = match states with
 		| [state] ->
-			(* Single state: the coroutine has no internal gotos, so we don't need the
-			   while...switch dispatch machinery.  Any trailing TBreak (e.g. from NextThrow,
-			   which would normally break out of the while...switch to reach the error handler)
-			   is in tail position and can be dropped — the error handler follows naturally. *)
-			let el = match List.rev state.cs_el with
-				| { eexpr = TBreak } :: rest -> List.rev rest
-				| _ -> state.cs_el
-			in
-			b#void_block el
+			b#void_block_at state.cs_el (Texpr.punion_el p state.cs_el)
 		| _ ->
 			let ethrow = b#void_block [
 				b#assign etmp_error (get_caught (b#string "Invalid coroutine state" p));
@@ -456,7 +538,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			let switch =
 				let cases = List.map (fun state ->
 					{case_patterns = [b#int state.cs_id p];
-						case_expr = b#void_block state.cs_el;
+						case_expr = b#void_block_at state.cs_el (Texpr.punion_el p state.cs_el);
 					}) states in
 				mk_switch egoto cases (Some ethrow) true
 			in
@@ -464,7 +546,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			mk (TWhile (b#bool true p, eswitch, NormalWhile)) com.basic.tvoid p
 	in
 
-	let etry = if ctx.config.nothrow then
+	let etry = if ctx.config.outcome.no_throw then
 		eloop
 	else
 		mk (TTry (
@@ -474,8 +556,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				let ecaught = b#local vcaught p in
 				let ecaught = get_caught ecaught in
 				let e = b#void_block [
-					start_exception ecaught;
-					b#assign etmp_error ecaught
+					b#assign etmp_error (start_exception ecaught);
 				] in
 				(vcaught,e)
 			]
@@ -495,9 +576,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
 		let el =
-			let field         = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
-			let eaccess       = b#instance_field econtinuation cont.base_continuation_class [com.basic.tany] field field.cf_type in
-			let ewrapped_call = mk (TCall (eaccess, [ ])) com.basic.tvoid p in
+			let ewrapped_call = build_call_stack ctx cont econtinuation p in
 			[
 				b#assign eerror etmp_error;
 				ewrapped_call;

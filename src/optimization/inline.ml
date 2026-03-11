@@ -558,7 +558,11 @@ object(self)
 				| TAbstract ({ a_path = [],"Void" },_) -> e
 				| _ -> raise (Unify_error []))
 			| _ ->
-				type_eq (if scom.platform_config.pf_static then EqDoNotFollowNull else EqStrict) etype tret;
+				let uctx = {(default_unification_context()) with
+					equality_kind = EqStrict;
+					null_follow_mode = if scom.platform_config.pf_static then NeverFollow else AlwaysFollow;
+				} in
+				type_eq_custom uctx etype tret;
 				e)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos

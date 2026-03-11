@@ -146,7 +146,7 @@ module StdArray = struct
 		let path = key_haxe_iterators_array_key_value_iterator in
 		let vit = encode_instance path in
 		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		ignore(call_value_on vit (AtomicLazy.force fnew) [vthis]);
 		vit
 	)
 
@@ -1421,43 +1421,60 @@ module StdHost = struct
 	)
 end
 
+(* Yield between spin-loop iterations when waiting on a lock or semaphore
+   with a timeout. Unix.sleepf 0.0 calls caml_enter_blocking_section /
+   caml_leave_blocking_section, which releases the OCaml domain lock for the
+   duration of the nanosleep. This is required for Thread and LuvThread modes,
+   where all threads share one domain lock: without it, the spinning thread
+   holds the domain lock and prevents other threads from running OCaml code
+   (including the code that would release the lock), causing a deadlock.
+   For Domain mode this is also safe — each domain has its own lock — and the
+   brief syscall is a reasonable price for correct cross-mode behaviour. *)
+
 module StdLock = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = ILock lock} -> lock
 		| v -> unexpected_value v "Lock"
 
 	let release = vifun0 (fun vthis ->
-		let this = this vthis in
-		Deque.push this.ldeque vnull;
+		let lock = this vthis in
+		Mutex.lock lock.lmutex;
+		lock.lcount <- lock.lcount + 1;
+		Condition.signal lock.lcond;
+		Mutex.unlock lock.lmutex;
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
-		let rec loop target_time =
-			match Deque.pop lock.ldeque false with
-			| None ->
-				if Sys.time() >= target_time then
-					vfalse
-				else begin
-					Thread.yield();
-					loop target_time
-				end
-			| Some _ ->
-				vtrue
-		in
-		match Deque.pop lock.ldeque false with
-		| None ->
-			begin match timeout with
-				| VNull ->
-					ignore(Deque.pop lock.ldeque true);
-					vtrue
-				| _ ->
-					let target_time = (Sys.time()) +. num timeout in
-					loop target_time
-			end
-		| Some _ ->
+		match timeout with
+		| VNull ->
+			Mutex.lock lock.lmutex;
+			while lock.lcount = 0 do
+				Condition.wait lock.lcond lock.lmutex
+			done;
+			lock.lcount <- lock.lcount - 1;
+			Mutex.unlock lock.lmutex;
 			vtrue
+		| _ ->
+			let timeout = num timeout in
+			let deadline = Extc.time () +. timeout in
+			let rec loop () =
+				Mutex.lock lock.lmutex;
+				if lock.lcount > 0 then begin
+					lock.lcount <- lock.lcount - 1;
+					Mutex.unlock lock.lmutex;
+					vtrue
+				end else begin
+					Mutex.unlock lock.lmutex;
+					if Extc.time () >= deadline then vfalse
+					else begin
+						Unix.sleepf 0.0;
+						loop ()
+					end
+				end
+			in
+			loop ()
 	)
 end
 
@@ -1482,7 +1499,7 @@ module StdLog = struct
 					| _ -> [s]
 				in
 				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
-		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
+		((get_ctx()).curapi.MacroApi.get_com()).part_scope.io.print s;
 		vnull
 	)
 end
@@ -1503,7 +1520,7 @@ let map_key_value_iterator path = vifun0 (fun vthis ->
 	let ctx = get_ctx() in
 	let vit = encode_instance path in
 	let fnew = get_instance_constructor ctx path null_pos in
-	ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+	ignore(call_value_on vit (AtomicLazy.force fnew) [vthis]);
 	vit
 )
 
@@ -1835,49 +1852,103 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let thread_id = Thread.id (Thread.self()) in
-		(match mutex.mowner with
-		| None ->
-			Mutex.lock mutex.mmutex;
-			mutex.mowner <- Some (thread_id,1)
-		| Some (id,n) ->
-			if id = thread_id then
-				mutex.mowner <- Some (thread_id,n + 1)
-			else begin
-				Mutex.lock mutex.mmutex;
-				mutex.mowner <- Some (thread_id,1)
-			end
-		);
+		let domain_id = current_thread_id (get_ctx()) in
+		DomainMutex.lock mutex domain_id;
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		(match mutex.mowner with
-		| Some (id,n) when n > 1 ->
-			mutex.mowner <- Some (id,n - 1)
-		| _ ->
-			mutex.mowner <- None;
-			Mutex.unlock mutex.mmutex;
-		);
+		DomainMutex.unlock mutex;
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		let thread_id = Thread.id (Thread.self()) in
-		match mutex.mowner with
-		| Some (id,n) when id = thread_id ->
-			mutex.mowner <- Some (thread_id,n + 1);
-			vtrue
-		| _ ->
-			if Mutex.try_lock mutex.mmutex then begin
-				mutex.mowner <- Some (thread_id,1);
-				vtrue
-			end else
-				vfalse
+		let domain_id = current_thread_id (get_ctx()) in
+		vbool (DomainMutex.try_lock mutex domain_id)
 	)
 end
+
+module StdSemaphore = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=ISemaphore sem} -> sem
+		| _ -> unexpected_value vthis "Semaphore"
+
+	let acquire = vifun0 (fun vthis ->
+		Semaphore.Counting.acquire (this vthis);
+		vnull
+	)
+
+	let tryAcquire = vifun1 (fun vthis vtimeout ->
+		let sem = this vthis in
+		match vtimeout with
+		| VNull ->
+			vbool (Semaphore.Counting.try_acquire sem)
+		| _ ->
+			let timeout = num vtimeout in
+			let t = Extc.time () +. timeout in
+			let rec loop () =
+				if Semaphore.Counting.try_acquire sem then vtrue
+				else if Extc.time () >= t then vfalse
+				else begin Unix.sleepf 0.0; loop () end
+			in
+			loop ()
+	)
+
+	let release = vifun0 (fun vthis ->
+		Semaphore.Counting.release (this vthis);
+		vnull
+	)
+end
+
+module StdCondition = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=ICondition cond} -> cond
+		| _ -> unexpected_value vthis "Condition"
+
+	let acquire = vifun0 (fun vthis ->
+		let cond = this vthis in
+		Mutex.lock cond.cmutex;
+		vnull
+	)
+
+	let tryAcquire = vifun0 (fun vthis ->
+		let cond = this vthis in
+		vbool (Mutex.try_lock cond.cmutex);
+	)
+
+	let release = vifun0 (fun vthis ->
+		let cond = this vthis in
+		Mutex.unlock cond.cmutex;
+		vnull
+	)
+
+	let wait = vifun0 (fun vthis ->
+		let c = this vthis in
+		Condition.wait c.cond c.cmutex;
+		vnull
+	)
+
+	let signal = vifun0 (fun vthis ->
+		Condition.signal (this vthis).cond;
+		vnull
+	)
+
+	let broadcast = vifun0 (fun vthis ->
+		Condition.broadcast (this vthis).cond;
+		vnull
+	)
+end
+
+let process_catch f arg =
+	try
+		f arg
+	with
+	| Failure msg ->
+		exc_string msg
+	| Unix.Unix_error (err, fn, arg) ->
+		exc_string (Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err))
 
 module StdNativeProcess = struct
 
@@ -1893,8 +1964,7 @@ module StdNativeProcess = struct
 		f this (Bytes.unsafe_to_string bytes) pos len
 
 	let process_catch f vthis =
-		try f (this vthis)
-		with Failure msg -> exc_string msg
+		process_catch f (this vthis)
 
 	let close = vifun0 (fun vthis ->
 		process_catch Process.close vthis;
@@ -1902,7 +1972,7 @@ module StdNativeProcess = struct
 	)
 
 	let exitCode = vifun0 (fun vthis ->
-		vint (process_catch Process.exit vthis)
+		vint (Process.exit (this vthis))
 	)
 
 	let getPid = vifun0 (fun vthis ->
@@ -2691,7 +2761,9 @@ module StdSys = struct
 
 	let getChar = vfun1 (fun echo ->
 		let echo = decode_bool echo in
-		vint (Extc.getch echo)
+		let ctx = get_ctx() in
+		let com = ctx.curapi.get_com() in
+		vint (com.part_scope.io.getch echo)
 	)
 
 	let getCwd = vfun0 (fun () ->
@@ -2714,14 +2786,14 @@ module StdSys = struct
 	let print = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v);
+		com.part_scope.io.print (value_string v);
 		vnull
 	)
 
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v ^ lineEnd);
+		com.part_scope.io.print (value_string v ^ lineEnd);
 		vnull
 	)
 
@@ -2753,23 +2825,27 @@ module StdSys = struct
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
 	let sleep = vfun1 (fun f ->
-		let time = Sys.time() in
-		Thread.yield();
-		let diff = Sys.time() -. time in
-		Thread.delay ((num f) -. diff);
+		let t = num f in
+		if t > 0.0 then Unix.sleepf t;
 		vnull
 	)
 
 	let stderr = vfun0 (fun () ->
-		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
+		let ctx = get_ctx() in
+		let com = ctx.curapi.get_com() in
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel com.part_scope.io.stderr)
 	)
 
 	let stdin = vfun0 (fun () ->
-		encode_instance key_sys_io_FileInput ~kind:(IInChannel(stdin,ref false))
+		let ctx = get_ctx() in
+		let com = ctx.curapi.get_com() in
+		encode_instance key_sys_io_FileInput ~kind:(IInChannel(com.part_scope.io.stdin,ref false))
 	)
 
 	let stdout = vfun0 (fun () ->
-		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stdout)
+		let ctx = get_ctx() in
+		let com = ctx.curapi.get_com() in
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel com.part_scope.io.stdout)
 	)
 
 	let systemName =
@@ -2794,7 +2870,7 @@ module StdSys = struct
 			encode_string s
 		)
 
-	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
+	let time = vfun0 (fun () -> vfloat (catch_unix_error Extc.time()))
 
 	let timestamp_ms = vfun0 (fun () -> vint64 (Extc.timestamp_ms()))
 end
@@ -2805,39 +2881,45 @@ module StdThread = struct
 		| _ -> unexpected_value vthis "Thread"
 
 	let delay = vfun1 (fun f ->
-		Thread.delay (num f);
+		let t = num f in
+		if t > 0.0 then Unix.sleepf t;
 		vnull
 	)
 
 	let exit = vfun0 (fun () ->
-		Thread.exit();
+		begin match (get_eval (get_ctx())).thread.thread_mode with
+		| Domain _ ->
+			let ctx = get_ctx() in
+			let path = key_eval_vm_NativeThreadExit in
+			let v = encode_instance path in
+			let fnew = get_instance_constructor ctx path null_pos in
+			ignore(call_value_on v (AtomicLazy.force fnew) []);
+			exc v
+		| Thread _ ->
+			(* Is this right? *)
+			Thread.exit();
+		| LuvThread _ ->
+			(* Caught by catch_exceptions *)
+			raise MacroApi.Abort
+		end;
 		vnull
 	)
 
 	let id = vifun0 (fun vthis ->
-		vint (Thread.id (this vthis).tthread)
-	)
-
-	let get_events = vifun0 (fun vthis ->
-		(this vthis).tevents
-	)
-
-	let set_events = vifun1 (fun vthis v ->
-		(this vthis).tevents <- v;
-		v
+		vint (this vthis).thread_id
 	)
 
 	let join = vfun1 (fun thread ->
-		Thread.join (this thread).tthread;
+		begin match (this thread).thread_mode with
+		| Domain d ->
+			Domain.join d
+		| Thread t ->
+			Thread.join t
+		| LuvThread t ->
+			ignore(Luv.Thread.join t)
+		end;
 		vnull
 	)
-
-	(* Thread.kill has been marked deprecated (because unstable or even not working at all) for a while, and removed in ocaml 5 *)
-	(* See also https://github.com/HaxeFoundation/haxe/issues/5800 *)
-	(* let kill = vifun0 (fun vthis -> *)
-	(* 	Thread.kill (this vthis).tthread; *)
-	(* 	vnull *)
-	(* ) *)
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
@@ -2847,17 +2929,26 @@ module StdThread = struct
 	let readMessage = vfun1 (fun blocking ->
 		let eval = get_eval (get_ctx()) in
 		let blocking = decode_bool blocking in
-		Option.get (Deque.pop eval.thread.tdeque blocking)
+		match Deque.pop eval.thread.thread_deque blocking with
+		| None -> vnull
+		| Some v -> v
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Deque.push this.tdeque msg;
+		Deque.push this.thread_deque msg;
 		vnull
 	)
 
 	let yield = vfun0 (fun () ->
-		Thread.yield();
+		begin match (get_eval (get_ctx())).thread.thread_mode with
+		| Domain _ ->
+			Domain.cpu_relax ();
+		| Thread _ ->
+			Thread.yield();
+		| LuvThread _ ->
+			Unix.sleepf(0.0);
+		end;
 		vnull
 	)
 end
@@ -2871,7 +2962,7 @@ module StdTls = struct
 		let this = this vthis in
 		try
 			let eval = get_eval (get_ctx()) in
-			IntMap.find this eval.thread.tstorage
+			IntMap.find this eval.eval_storage
 		with Not_found ->
 			vnull
 	)
@@ -2879,7 +2970,7 @@ module StdTls = struct
 	let set_value = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let eval = get_eval (get_ctx()) in
-		eval.thread.tstorage <- IntMap.add this v eval.thread.tstorage;
+		eval.eval_storage <- IntMap.add this v eval.eval_storage;
 		v
 	)
 end
@@ -2953,7 +3044,7 @@ module StdType = struct
 			with Not_found ->
 				let vthis = encode_instance path in
 				let fnew = get_instance_constructor ctx path null_pos in
-				ignore(call_value_on vthis (Lazy.force fnew) (decode_array vl));
+				ignore(call_value_on vthis (AtomicLazy.force fnew) (decode_array vl));
 				vthis
 			end
 		| _ ->
@@ -3104,7 +3195,7 @@ module StdType = struct
 			| VEnumValue ve ->
 				8,[|get_static_prototype_as_value ctx ve.epath null_pos|]
 			| VLazy f ->
-				loop (Lazy.force f)
+				loop (AtomicLazy.force f)
 			| VNativeString _ | VHandle _ -> 9,[||]
 		in
 		let i,vl = loop v in
@@ -3398,7 +3489,8 @@ let init_constructors builtins =
 					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
-				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
+				let proc = process_catch (fun () -> Process.run cmd args) () in
+				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess proc)
 			| _ -> die "" __LOC__
 		);
 	add key_eval_vm_NativeSocket
@@ -3426,30 +3518,43 @@ let init_constructors builtins =
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
-				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
+				let thread = EvalThread.spawn_domain ctx (fun () -> call_value f []) in
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
 			| _ -> die "" __LOC__
 		);
 	add key_sys_net_Mutex
 		(fun _ ->
-			let mutex = {
-				mmutex = Mutex.create();
-				mowner = None;
-			} in
+			let mutex = DomainMutex.create () in
 			encode_instance key_sys_net_Mutex ~kind:(IMutex mutex)
+		);
+	add key_sys_net_Semaphore
+		(fun vl ->
+			let v = List.hd vl in
+			let sem = Semaphore.Counting.make (decode_int v) in
+			encode_instance key_sys_net_Semaphore ~kind:(ISemaphore sem)
+		);
+	add key_sys_net_Condition
+		(fun _ ->
+			let cond = {
+				cond = Condition.create ();
+				cmutex = Mutex.create ();
+			} in
+			encode_instance key_sys_net_Condition ~kind:(ICondition cond)
 		);
 	add key_sys_net_Lock
 		(fun _ ->
 			let lock = {
-				ldeque = Deque.create();
+				lmutex = Mutex.create ();
+				lcond = Condition.create ();
+				lcount = 0;
 			} in
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
-	let tls_counter = ref (-1) in
+	let tls_counter = Atomic.make 0 in
 	add key_sys_net_Tls
 		(fun _ ->
-			incr tls_counter;
-			encode_instance key_sys_net_Tls ~kind:(ITls !tls_counter)
+			let id = Atomic.fetch_and_add tls_counter 1 in
+			encode_instance key_sys_net_Tls ~kind:(ITls id)
 		);
 	add key_sys_net_Deque
 		(fun _ ->
@@ -3719,6 +3824,19 @@ let init_standard_library builtins =
 		"tryAcquire",StdMutex.tryAcquire;
 		"release",StdMutex.release;
 	];
+	init_fields builtins (["sys";"thread"],"Semaphore") [] [
+		"acquire",StdSemaphore.acquire;
+		"tryAcquire",StdSemaphore.tryAcquire;
+		"release",StdSemaphore.release;
+	];
+	init_fields builtins (["sys";"thread"],"Condition") [] [
+		"acquire",StdCondition.acquire;
+		"tryAcquire",StdCondition.tryAcquire;
+		"release",StdCondition.release;
+		"wait",StdCondition.wait;
+		"signal",StdCondition.signal;
+		"broadcast",StdCondition.broadcast;
+	];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
 		"exitCode",StdNativeProcess.exitCode;
@@ -3846,9 +3964,6 @@ let init_standard_library builtins =
 		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
-		"get_events",StdThread.get_events;
-		"set_events",StdThread.set_events;
-		(* "kill",StdThread.kill; *)
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["sys";"thread"],"Tls") [] [

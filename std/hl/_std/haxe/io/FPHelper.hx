@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+// Can't enable @:coreApi because floatToI32/i32ToFloat use Single instead of Float, and field types differ from core
+@:coreApi(check = Off)
 class FPHelper {
 	// note : this is not thread safe, use TLS when available
 	static var i64tmp = Int64.ofInt(0);

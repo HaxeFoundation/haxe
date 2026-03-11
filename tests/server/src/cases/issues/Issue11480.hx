@@ -17,10 +17,9 @@ class Issue11480 extends TestCase {
 		assertSuccess();
 
 		var std = Path.removeTrailingSlashes(utils.macro.BuildHub.getStd());
-		runHaxeJsonCb(args, DisplayMethods.Hover, {file: new FsPath('${std}/StdTypes.hx'), offset: 0}, (res) -> {
-			// If we don't use the cb version, assertSuccess() below will pass even when request fails..
-			Assert.isNull(res);
-		});
+		final res = runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath('${std}/StdTypes.hx'), offset: 0});
+		// If we don't use the new version, assertSuccess() below will pass even when request fails..
+		Assert.isNull(res);
 		assertSuccess();
 	}
 }

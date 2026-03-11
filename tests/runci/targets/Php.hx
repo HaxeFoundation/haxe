@@ -6,8 +6,6 @@ import runci.Config.*;
 using haxe.io.Path;
 
 class Php {
-	static final miscPhpDir = getMiscSubDir('php');
-
 	static final windowsPhpIni = cwd + 'PHP.ini';
 
 	static var windowsPhpExtPath(get, null) = null;
@@ -34,18 +32,22 @@ class Php {
 		];
 	}
 
-	static public function getPhpDependencies() {
+	static function getInstalledPhpVersion() {
+		if (!commandSucceed("php", ["-v"]))
+			return null;
 		final phpCmd = commandResult("php", ["-v"]);
 		final phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
-		final phpVer = if (phpVerReg.match(phpCmd.stdout))
-			Std.parseFloat(phpVerReg.matched(1));
-		else
-			null;
+		if (phpVerReg.match(phpCmd.stdout))
+			return Std.parseFloat(phpVerReg.matched(1));
+		return null;
+	}
 
-		if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 7.0) {
+	static public function getPhpDependencies() {
+		final phpVer = getInstalledPhpVersion();
+		if (phpVer != null && phpVer >= 7.0) {
 			switch systemName {
 				case "Linux":
-					var phpInfo = commandResult("php", ["-i"]).stdout;
+					final phpInfo = commandResult("php", ["-i"]).stdout;
 					if(phpInfo.indexOf("mbstring => enabled") < 0) {
 						Linux.requireAptPackages(["php-mbstring"]);
 					}
@@ -70,8 +72,8 @@ class Php {
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
 
-		changeDirectory(miscPhpDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "php"]);
 
 		final binDir = "bin/php";
 
@@ -88,8 +90,6 @@ class Php {
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
 			runCommand("php", generateArgs(binDir + "/index.php"));
-
-			Display.maybeRunDisplayTests(Php);
 
 			changeDirectory(sysDir);
 			if(isCi())

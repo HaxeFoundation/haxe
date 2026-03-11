@@ -37,11 +37,11 @@ extern class String implements java.lang.CharSequence {
 		return jvm.StringExt.charAt(this, index);
 	}
 
-	inline function charCodeAt(index:Int):Null<Int> {
+	@:runtime inline function charCodeAt(index:Int):Null<Int> {
 		return jvm.StringExt.charCodeAt(this, index);
 	}
 
-	inline function indexOf(str:String, ?startIndex:Int):Int {
+	@:runtime inline function indexOf(str:String, ?startIndex:Int):Int {
 		return jvm.StringExt.indexOf(this, str, startIndex);
 	}
 
