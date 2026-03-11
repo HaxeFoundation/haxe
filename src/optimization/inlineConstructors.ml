@@ -120,6 +120,13 @@ let inline_constructors (scom : SafeCom.t) original_e =
 	let vars = ref IntMap.empty in
 	let marked_vars = Hashtbl.create 0 in
 	let is_marked vid = Hashtbl.mem marked_vars (abs vid) in
+	let toggle_mark vid =
+		let key = abs vid in
+		if Hashtbl.mem marked_vars key then
+			Hashtbl.remove marked_vars key
+		else
+			Hashtbl.replace marked_vars key true
+	in
 	let scoped_ivs = ref [] in
 	let get_io (ioid:int) : inline_object = IntMap.find ioid !inline_objs in
 	let get_iv (vid:int) : inline_var = IntMap.find (abs vid) !vars in
@@ -177,7 +184,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			iv_kind = kind;
 			iv_closed = false
 		} in
-		Hashtbl.replace marked_vars (abs v.v_id) true;
+		toggle_mark v.v_id;
 		vars := IntMap.add (abs v.v_id) iv !vars;
 		iv
 	in
