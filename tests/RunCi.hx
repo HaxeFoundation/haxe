@@ -11,8 +11,14 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
+		function argToTarget(arg:Null<String>) {
+			if (arg == null || arg.startsWith("-"))
+				return null;
+			return arg;
+		}
+
 		final testArgs = Sys.args();
-		final tests:Array<TestTarget> = switch (testArgs.shift() ?? Sys.getEnv("TEST")) {
+		final tests:Array<TestTarget> = switch (argToTarget(testArgs.shift()) ?? Sys.getEnv("TEST")) {
 			case null:
 				[Macro];
 			case env:
