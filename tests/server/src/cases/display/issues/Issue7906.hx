@@ -17,18 +17,15 @@ class Issue7906 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(4, 5), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(2)});
-		locs = parseGotoDefintion().result;
+		locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(2)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(6, 7), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(3)});
-		locs = parseGotoDefintion().result;
+		locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(3)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(4, 5), locs[0].range);
 	}

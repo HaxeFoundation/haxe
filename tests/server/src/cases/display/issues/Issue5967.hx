@@ -11,22 +11,19 @@ class Issue5967 extends DisplayTestCase {
 	**/
 	function test1(_) {
 		for (i in [1, 2]) {
-			runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(i), wasAutoTriggered: false});
-			var sig = parseSignatureHelp();
-			Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-			Assert.equals(0, sig.result.activeParameter);
-			Assert.equals(0, sig.result.signatures[0].args.length);
+			var sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(i), wasAutoTriggered: false});
+			Assert.isTrue(sig != null && sig.signatures.length > 0);
+			Assert.equals(0, sig.activeParameter);
+			Assert.equals(0, sig.signatures[0].args.length);
 		}
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(3), wasAutoTriggered: false});
-		var sig = parseSignatureHelp();
-		Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-		Assert.equals(1, sig.result.activeParameter);
+		var sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(3), wasAutoTriggered: false});
+		Assert.isTrue(sig != null && sig.signatures.length > 0);
+		Assert.equals(1, sig.activeParameter);
 
 		for (i in [4, 5]) {
-			runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(i), wasAutoTriggered: false});
-			sig = parseSignatureHelp();
-			Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-			Assert.equals(2, sig.result.activeParameter);
+			sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(i), wasAutoTriggered: false});
+			Assert.isTrue(sig != null && sig.signatures.length > 0);
+			Assert.equals(2, sig.activeParameter);
 		}
 	}
 }

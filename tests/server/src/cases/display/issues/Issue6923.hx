@@ -9,20 +9,15 @@ class Issue6923 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("String", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("String", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
-		Assert.equals("Int", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Int", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)});
-		Assert.equals("Int", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Int", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(5)});
-		Assert.equals("Void", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Void", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(5)}).item.type.args.path.typeName);
 	}
 
 	/**
@@ -34,19 +29,14 @@ class Issue6923 extends DisplayTestCase {
 		}
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("Int", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Int", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Float", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
-		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Float", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)});
-		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Float", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(5)});
-		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Float", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(5)}).item.type.args.path.typeName);
 	}
 }

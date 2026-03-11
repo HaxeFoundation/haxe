@@ -13,8 +13,7 @@ class Issue7937 extends DisplayTestCase {
 		typedef FoldingRangeProviderOptions = {}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.isTrue(result.result != null);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.isTrue(result != null);
 	}
 }

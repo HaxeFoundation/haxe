@@ -16,17 +16,15 @@ class Issue7326 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var sig = parseSignatureHelp();
-		Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-		Assert.equals(0, sig.result.activeSignature);
-		Assert.equals(1, sig.result.signatures[0].args.length);
-		Assert.equals("Int", sig.result.signatures[0].args[0].t.args.path.typeName);
+		var sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(sig != null && sig.signatures.length > 0);
+		Assert.equals(0, sig.activeSignature);
+		Assert.equals(1, sig.signatures[0].args.length);
+		Assert.equals("Int", sig.signatures[0].args[0].t.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
-		sig = parseSignatureHelp();
-		Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-		Assert.equals(0, sig.result.activeSignature);
-		Assert.equals(1, sig.result.signatures[0].args.length);
+		sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
+		Assert.isTrue(sig != null && sig.signatures.length > 0);
+		Assert.equals(0, sig.activeSignature);
+		Assert.equals(1, sig.signatures[0].args.length);
 	}
 }

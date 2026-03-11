@@ -13,12 +13,11 @@ class Issue9449 extends DisplayTestCase {
 	**/
 	function test(_) {
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue9449/Macro.hx"));
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion().result;
 		Assert.equals(1, result.items.length);
 		Assert.equals('x', result.items[0].args.field.name);
 	}

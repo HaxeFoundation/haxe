@@ -20,13 +20,11 @@ class Issue8737 extends DisplayTestCase {
 	**/
 	function test(_) {
 		for (i in 1...4) {
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			var result = parseHover();
-			Assert.isTrue(result.result.item.type.kind == (cast "TFun" : Dynamic));
-			Assert.equals("Test doc", StringTools.trim(result.result.item.args.field.doc));
+			var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
+			Assert.isTrue(result.item.type.kind == (cast "TFun" : Dynamic));
+			Assert.equals("Test doc", StringTools.trim(result.item.args.field.doc));
 
-			runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
-			var locs = parseGotoDefintion().result;
+			var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
 			Assert.isTrue(locs != null && locs.length > 0);
 			Assert.same(range(4, 5), locs[0].range);
 		}
@@ -45,13 +43,11 @@ class Issue8737 extends DisplayTestCase {
 		}
 	**/
 	function testSimple(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.isTrue(result.result.item.type.kind == (cast "TFun" : Dynamic));
-		Assert.equals("Test doc", StringTools.trim(result.result.item.args.field.doc));
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.isTrue(result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.equals("Test doc", StringTools.trim(result.item.args.field.doc));
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(2, 3), locs[0].range);
 	}

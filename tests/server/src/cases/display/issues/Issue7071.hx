@@ -13,14 +13,12 @@ class Issue7071 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "bar");
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
-		result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "bar");
 	}
 }

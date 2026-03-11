@@ -23,12 +23,10 @@ class Issue5709 extends DisplayTestCase {
 	**/
 	function test(_) {
 		for (i in 1...5) {
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			var result = parseHover();
-			Assert.equals("Foo doc", StringTools.trim(result.result.item.args.doc));
+			var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
+			Assert.equals("Foo doc", StringTools.trim(result.item.args.doc));
 		}
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(5)});
-		var result = parseHover();
-		Assert.equals("IBaz doc", StringTools.trim(result.result.item.args.doc));
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(5)});
+		Assert.equals("IBaz doc", StringTools.trim(result.item.args.doc));
 	}
 }

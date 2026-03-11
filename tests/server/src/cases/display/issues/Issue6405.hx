@@ -16,16 +16,13 @@ class Issue6405 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(2, 3), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("Expr", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Expr", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(4), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(4), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "expr";
 			case _: false;

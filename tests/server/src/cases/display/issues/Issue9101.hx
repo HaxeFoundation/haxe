@@ -8,9 +8,8 @@ class Issue9101 extends DisplayTestCase {
 	**/
 	function testCatch_noTypeHint(_) {
 		for (n in [1, 2, 3]) {
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(n)});
-			var result = parseHover();
-			Assert.equals("Null", result.result.item.type.args.path.typeName);
+			var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(n)});
+			Assert.equals("Null", result.item.type.args.path.typeName);
 		}
 	}
 }

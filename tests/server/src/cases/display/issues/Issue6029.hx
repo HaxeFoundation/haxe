@@ -11,12 +11,10 @@ class Issue6029 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("A", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("A", result.item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		result = parseHover();
-		Assert.equals("B", result.result.item.type.args.path.typeName);
+		result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
+		Assert.equals("B", result.item.type.args.path.typeName);
 	}
 }

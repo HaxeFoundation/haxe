@@ -24,7 +24,6 @@ class Issue11549 extends DisplayTestCase {
 	function test(_) {
 		var args = ["--jvm", "no.jar"];
 		runHaxe(args);
-		runHaxeJson(args, DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		eq(true, hasField(parseCompletion().result.items, "isTerminated", "() -> Bool"));
+		eq(true, hasField(runHaxeJson(args, DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false}).items, "isTerminated", "() -> Bool"));
 	}
 }

@@ -12,19 +12,16 @@ class Issue8712 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.isTrue(result.result.item.kind == (cast "Local" : Dynamic));
-		Assert.equals("this", result.result.item.args.name);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.isTrue(result.item.kind == (cast "Local" : Dynamic));
+		Assert.equals("this", result.item.args.name);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		result = parseHover();
-		Assert.isTrue(result.result.item.kind == (cast "Literal" : Dynamic));
-		Assert.equals("abstract", result.result.item.args.name);
+		result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
+		Assert.isTrue(result.item.kind == (cast "Literal" : Dynamic));
+		Assert.equals("abstract", result.item.args.name);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
-		result = parseHover();
-		Assert.isTrue(result.result.item.kind == (cast "Literal" : Dynamic));
-		Assert.equals("abstract", result.result.item.args.name);
+		result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
+		Assert.isTrue(result.item.kind == (cast "Literal" : Dynamic));
+		Assert.equals("abstract", result.item.args.name);
 	}
 }

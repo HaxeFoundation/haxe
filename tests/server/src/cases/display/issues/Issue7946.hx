@@ -7,8 +7,8 @@ class Issue7946 extends DisplayTestCase {
 		{-1-}open{-2-} haxe.Json;
 	**/
 	function test1(_) {
-		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags = parseDiagnostics();
+		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
 		Assert.equals(1, diags.length);
 		Assert.isTrue(diags[0].kind == DKParserError);
 		Assert.equals(Error, diags[0].severity);
@@ -20,8 +20,8 @@ class Issue7946 extends DisplayTestCase {
 		{-1-}clas{-2-} Test {}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags = parseDiagnostics();
+		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
 		Assert.equals(1, diags.length);
 		Assert.isTrue(diags[0].kind == DKParserError);
 		Assert.equals(Error, diags[0].severity);

@@ -9,8 +9,7 @@ class Issue9446 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.FindReferences, {file: file, offset: offset(1)});
-		var result = parseGotoDefinitionLocations();
+		var result = runHaxeJson([], DisplayMethods.FindReferences, {file: file, offset: offset(1)});
 		Assert.same([range(2, 3)], result.map(l -> l.range));
 	}
 }

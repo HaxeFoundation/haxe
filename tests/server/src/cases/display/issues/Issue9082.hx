@@ -15,12 +15,11 @@ class Issue9082 extends DisplayTestCase {
 
 		var markers = Markers.parse("class C extends Thing{-1-}");
 		vfs.putContent("C.hx", markers.source);
-		runHaxeJson(args, DisplayMethods.Completion, {
+		var result = runHaxeJson(args, DisplayMethods.Completion, {
 			file: new FsPath("C.hx"),
 			offset: markers.offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion();
 		assertHasCompletion(result, function(item) {
 			return switch item {
 				case {kind: Type, args: {path: {pack: ["org"], typeName: "Thing"}}}: true;

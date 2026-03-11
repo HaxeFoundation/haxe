@@ -9,9 +9,8 @@ class Issue9319 extends DisplayTestCase {
 		}
 	**/
 	function testCatch_noTypeHint(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("Exception", result.result.item.type.args.path.typeName);
-		Assert.equals("haxe", result.result.item.type.args.path.pack[0]);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("Exception", result.item.type.args.path.typeName);
+		Assert.equals("haxe", result.item.type.args.path.pack[0]);
 	}
 }

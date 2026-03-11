@@ -25,11 +25,10 @@ class Issue10673 extends DisplayTestCase {
 		vfs.putContent("issue10673/Macro.hx", getTemplate("display/issues/Issue10673/Macro.hx"));
 		var defRange = range(10, 11);
 		for (i in 1...10) {
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			var result = parseHover();
-			Assert.isTrue(result.result != null);
-			Assert.isTrue(result.result.item.kind == (cast "Local" : Dynamic));
-			Assert.equals("rhs_______", result.result.item.args.name);
+			var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
+			Assert.isTrue(result != null);
+			Assert.isTrue(result.item.kind == (cast "Local" : Dynamic));
+			Assert.equals("rhs_______", result.item.args.name);
 		}
 	}
 }

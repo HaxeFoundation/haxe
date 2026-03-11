@@ -18,9 +18,8 @@ class Issue7069 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		var items = result.result.items;
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		var items = result.items;
 		function indexOfLocal(name:String) {
 			for (i in 0...items.length) {
 				switch items[i].kind {

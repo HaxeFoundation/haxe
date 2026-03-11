@@ -19,9 +19,8 @@ class Issue9554 extends DisplayTestCase {
 
 	**/
 	function testCatch_noTypeHint(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.equals(1, result.result.items.length);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.equals(1, result.items.length);
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "foo" && item.args.field.kind.kind == FVar;
 			case _: false;
@@ -42,8 +41,7 @@ class Issue9554 extends DisplayTestCase {
 
 	**/
 	function testStaticExtension(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "foo" && item.args.field.kind.kind == FVar;
 			case _: false;

@@ -7,8 +7,7 @@ class Issue7029 extends DisplayTestCase {
 		interface IFoo { }
 	**/
 	function test1(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "IFoo";
 			case _: false;
@@ -26,8 +25,7 @@ class Issue7029 extends DisplayTestCase {
 		interface IFoo { }
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "C2";
 			case _: false;
@@ -48,8 +46,7 @@ class Issue7029 extends DisplayTestCase {
 		interface IFoo2 extends {-1-} { }
 	**/
 	function test3(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "IFoo";
 			case _: false;
@@ -73,8 +70,7 @@ class Issue7029 extends DisplayTestCase {
 		}
 	**/
 	function test4(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "T1";
 			case _: false;
@@ -94,8 +90,7 @@ class Issue7029 extends DisplayTestCase {
 		}
 	**/
 	function test5(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "T1";
 			case _: false;
@@ -117,8 +112,7 @@ class Issue7029 extends DisplayTestCase {
 		}
 	**/
 	function test6(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "T2";
 			case _: false;
@@ -146,8 +140,7 @@ class Issue7029 extends DisplayTestCase {
 		}
 	**/
 	function test7(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "C1";
 			case _: false;
@@ -175,8 +168,7 @@ class Issue7029 extends DisplayTestCase {
 		class C2 extends {-1-} { }
 	**/
 	function test8(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasNoCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "C1";
 			case _: false;
@@ -188,8 +180,7 @@ class Issue7029 extends DisplayTestCase {
 		@:hack class C2 extends {-1-} { }
 	**/
 	function test9(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "C1";
 			case _: false;

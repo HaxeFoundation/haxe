@@ -13,13 +13,11 @@ class Issue5141 extends DisplayTestCase {
 		}
 	**/
 	function testTypedef(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("MyHandler", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("MyHandler", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
-		var sig = parseSignatureHelp();
-		Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-		Assert.equals(2, sig.result.signatures[0].args.length);
+		var sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
+		Assert.isTrue(sig != null && sig.signatures.length > 0);
+		Assert.equals(2, sig.signatures[0].args.length);
 	}
 
 	/**
@@ -35,12 +33,10 @@ class Issue5141 extends DisplayTestCase {
 		}
 	**/
 	function testAbstract(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("MyCallable", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("MyCallable", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
-		var sig = parseSignatureHelp();
-		Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-		Assert.equals(2, sig.result.signatures[0].args.length);
+		var sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(2), wasAutoTriggered: false});
+		Assert.isTrue(sig != null && sig.signatures.length > 0);
+		Assert.equals(2, sig.signatures[0].args.length);
 	}
 }

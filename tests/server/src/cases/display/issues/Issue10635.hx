@@ -1,7 +1,6 @@
 package cases.display.issues;
 
 import haxe.display.JsonModuleTypes;
-import haxe.Json;
 
 class Issue10635 extends DisplayTestCase {
 	/**
@@ -47,12 +46,10 @@ class Issue10635 extends DisplayTestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		// Note: We only have to run this once to reproduce because ServerMethods.Type will call cl_restore anyway
 		runHaxe(args);
-		runHaxeJson(args, ServerMethods.Contexts, null);
-		var contexts:Array<HaxeServerContext> = Json.parse(lastResult.stderr).result.result;
+		var contexts:Array<HaxeServerContext> = runHaxeJson(args, ServerMethods.Contexts, null);
 		utest.Assert.equals(1, contexts.length);
 		var sig = contexts[0].signature;
-		runHaxeJson(args, ServerMethods.Type, {signature: sig, modulePath: "GenericMethod", typeName: "GenericMethod"});
-		var type:JsonModuleType<JsonClass> = Json.parse(lastResult.stderr).result.result;
+		var type:JsonModuleType<JsonClass> = runHaxeJson(args, ServerMethods.Type, {signature: sig, modulePath: "GenericMethod", typeName: "GenericMethod"});
 		var statics = type.args.statics;
 		Assert.isTrue(statics.exists(cf -> cf.name == "f"));
 		Assert.isTrue(statics.exists(cf -> cf.name == "f_Class<Main>"));

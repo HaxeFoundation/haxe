@@ -13,11 +13,10 @@ class Issue7068 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
-		switch result.result.items[0].kind {
-			case EnumField: Assert.equals("Bar", result.result.items[0].args.field.name);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
+		switch result.items[0].kind {
+			case EnumField: Assert.equals("Bar", result.items[0].args.field.name);
 			case _: Assert.fail('Expected EnumField');
 		}
 	}
@@ -34,11 +33,10 @@ class Issue7068 extends DisplayTestCase {
 		}
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
-		switch result.result.items[0].kind {
-			case EnumField: Assert.equals("Bar", result.result.items[0].args.field.name);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
+		switch result.items[0].kind {
+			case EnumField: Assert.equals("Bar", result.items[0].args.field.name);
 			case _: Assert.fail('Expected EnumField');
 		}
 	}

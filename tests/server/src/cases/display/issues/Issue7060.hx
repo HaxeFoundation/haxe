@@ -9,8 +9,7 @@ class Issue7060 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("ValueType", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("ValueType", result.item.type.args.path.typeName);
 	}
 }

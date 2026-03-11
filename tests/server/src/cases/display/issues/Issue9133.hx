@@ -11,9 +11,8 @@ class Issue9133 extends DisplayTestCase {
 				{-1-}
 	**/
 	function test1(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		var items = result.result.items;
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		var items = result.items;
 		var i1 = -1;
 		var i2 = -1;
 		for (idx in 0...items.length) {
@@ -35,9 +34,8 @@ class Issue9133 extends DisplayTestCase {
 				{-1-}
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		var items = result.result.items;
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		var items = result.items;
 		var i1 = -1;
 		var i2 = -1;
 		for (idx in 0...items.length) {
@@ -55,9 +53,8 @@ class Issue9133 extends DisplayTestCase {
 			{-1-}// comment
 	**/
 	function test3(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		var items = result.result.items;
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		var items = result.items;
 		var i1 = -1;
 		for (idx in 0...items.length) {
 			if (items[idx].kind == Local && items[idx].args.name == "i") i1 = idx;

@@ -19,8 +19,8 @@ class Issue11173 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags = parseDiagnostics();
+		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
 		var writingErrors = diags.filter(d -> d.kind == DKCompilerError && (d.args:String).indexOf("writing") != -1);
 		Assert.equals(2, writingErrors.length);
 		var diag1 = writingErrors.find(d -> Std.string(d.range) == Std.string(range(3, 4)));
@@ -30,19 +30,14 @@ class Issue11173 extends DisplayTestCase {
 		Assert.notNull(diag2);
 		Assert.same(range(5, 6), diag2.range);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)});
-		Assert.equals("Int", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Int", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(6)});
-		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("String", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(6)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(4)});
-		Assert.same(range(1, 2), parseGotoDefintion().result[0].range);
+		Assert.same(range(1, 2), runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(4)})[0].range);
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(6)});
-		Assert.same(range(7, 8), parseGotoDefintion().result[0].range);
+		Assert.same(range(7, 8), runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(6)})[0].range);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(9)});
-		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("String", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(9)}).item.type.args.path.typeName);
 	}
 }

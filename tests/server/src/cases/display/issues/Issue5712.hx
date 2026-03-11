@@ -13,20 +13,16 @@ class Issue5712 extends DisplayTestCase {
 		}
 	**/
 	function testType1(_) {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(3)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(3)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(1, 2), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(4)});
-		locs = parseGotoDefintion().result;
+		locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(4)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(1, 2), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
-		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Float", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)});
-		Assert.equals("Float", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Float", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(4)}).item.type.args.path.typeName);
 	}
 }

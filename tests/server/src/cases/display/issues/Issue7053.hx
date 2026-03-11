@@ -5,8 +5,7 @@ class Issue7053 extends DisplayTestCase {
 		{-1-}
 	**/
 	function testFull(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -16,8 +15,7 @@ class Issue7053 extends DisplayTestCase {
 		i{-1-}
 	**/
 	function testFullIdent(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -28,8 +26,7 @@ class Issue7053 extends DisplayTestCase {
 		{-1-}
 	**/
 	function testAfterImport(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -41,8 +38,7 @@ class Issue7053 extends DisplayTestCase {
 		i{-1-}
 	**/
 	function testAfterImportIdent(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -54,8 +50,7 @@ class Issue7053 extends DisplayTestCase {
 		{-1-}
 	**/
 	function testAfterClass(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -69,8 +64,7 @@ class Issue7053 extends DisplayTestCase {
 		i{-1-}
 	**/
 	function testAfterClassIdent(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -83,8 +77,7 @@ class Issue7053 extends DisplayTestCase {
 		{-1-}class
 	**/
 	function testOnClass(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -94,8 +87,7 @@ class Issue7053 extends DisplayTestCase {
 		private {-1-}
 	**/
 	function testAfterPrivate(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -106,8 +98,7 @@ class Issue7053 extends DisplayTestCase {
 		extern {-1-}
 	**/
 	function testAfterExtern(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["private", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -118,8 +109,7 @@ class Issue7053 extends DisplayTestCase {
 		final {-1-}
 	**/
 	function testAfterFinal(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["private", "class", "interface", "extern"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -132,8 +122,7 @@ class Issue7053 extends DisplayTestCase {
 		final extern {-1-}
 	**/
 	function testAfterFinalExtern(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		for (expected in ["private", "class", "interface"]) {
 			assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == expected);
 		}
@@ -149,10 +138,9 @@ class Issue7053 extends DisplayTestCase {
 	function testInImportHx(_) {
 		vfs.putContent("import.hx", markers.source);
 		vfs.putContent("Main.hx", "");
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("import.hx"), offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("import.hx"), offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == "import");
 		assertHasCompletion(result, item -> item.kind == Keyword && item.args.name == "using");
-		Assert.equals(2, result.result.items.length);
+		Assert.equals(2, result.items.length);
 	}
 }

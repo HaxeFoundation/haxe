@@ -68,8 +68,8 @@ class DisplayTestCase extends TestCase {
 
 	@:coroutine
 	function fields(n:Int):Array<DisplayItem<Dynamic>> {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(n), wasAutoTriggered: false});
-		return parseCompletion().result.items;
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(n), wasAutoTriggered: false});
+		return result.items;
 	}
 
 	@:coroutine
@@ -79,26 +79,25 @@ class DisplayTestCase extends TestCase {
 
 	@:coroutine
 	function type(n:Int):String {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(n)});
-		return printer.printType(parseHover().result.item.type);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(n)});
+		return printer.printType(result.item.type);
 	}
 
 	@:coroutine
 	function position(n:Int):Range {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(n)});
-		return parseGotoDefintion().result[0].range;
+		var result = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(n)});
+		return result[0].range;
 	}
 
 	@:coroutine
 	function usage(n:Int):Array<Range> {
-		runHaxeJson([], DisplayMethods.FindReferences, {file: file, offset: offset(n)});
-		return parseGotoDefintion().result.map(l -> l.range);
+		var result = runHaxeJson([], DisplayMethods.FindReferences, {file: file, offset: offset(n)});
+		return result.map(l -> l.range);
 	}
 
 	@:coroutine
 	function signature(n:Int):DisplaySignatureHelp {
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(n), wasAutoTriggered: false});
-		var res = parseSignatureHelp().result;
+		var res = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(n), wasAutoTriggered: false});
 		return {
 			signatures: res.signatures.map(s -> ({
 				label: printer.printCallArguments(s, printer.printSignatureFunctionArgument) + ':' + printer.printType(s.ret),
@@ -114,8 +113,7 @@ class DisplayTestCase extends TestCase {
 
 	@:coroutine
 	function doc(n:Int):String {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(n)});
-		var result = parseHover().result;
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(n)});
 		return switch result.item.kind {
 			case ClassField | EnumAbstractField: StringTools.trim(result.item.args.field.doc);
 			case EnumField: StringTools.trim(result.item.args.field.doc);

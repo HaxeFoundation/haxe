@@ -9,8 +9,7 @@ class Issue7047 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "Array";
 			case _: false;

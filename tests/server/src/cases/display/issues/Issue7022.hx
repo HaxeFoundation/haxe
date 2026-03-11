@@ -11,8 +11,7 @@ class Issue7022 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.isTrue(result.result.item.type.kind == (cast "TFun" : Dynamic));
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.isTrue(result.item.type.kind == (cast "TFun" : Dynamic));
 	}
 }

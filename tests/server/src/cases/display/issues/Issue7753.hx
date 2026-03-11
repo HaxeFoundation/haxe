@@ -15,11 +15,9 @@ class Issue7753 extends DisplayTestCase {
 		}
 	**/
 	function testStatic(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.kind == (cast "TFun" : Dynamic));
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.kind == (cast "TFun" : Dynamic));
 	}
 
 	/**
@@ -38,11 +36,9 @@ class Issue7753 extends DisplayTestCase {
 		}
 	**/
 	function testInstance(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.kind == (cast "TFun" : Dynamic));
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.kind == (cast "TFun" : Dynamic));
 	}
 
 	/**
@@ -59,10 +55,8 @@ class Issue7753 extends DisplayTestCase {
 		}
 	**/
 	function testConstructor(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.kind == (cast "TFun" : Dynamic));
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.kind == (cast "TFun" : Dynamic));
 	}
 }

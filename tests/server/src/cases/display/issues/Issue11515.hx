@@ -11,8 +11,7 @@ class Issue11515 extends DisplayTestCase {
 		}
 	**/
 	function testImport(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case EnumField: item.args.field.name == "None";
 			case _: false;
@@ -27,8 +26,7 @@ class Issue11515 extends DisplayTestCase {
 		}
 	**/
 	function testFully(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case EnumField: item.args.field.name == "None";
 			case _: false;

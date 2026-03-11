@@ -14,27 +14,22 @@ class Issue6399 extends DisplayTestCase {
 	**/
 	function test(_) {
 		for (i in [8, 10, 12]) {
-			runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
-			var locs = parseGotoDefintion().result;
+			var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
 			Assert.isTrue(locs != null && locs.length > 0);
 			Assert.same(range(1, 2), locs[0].range);
 
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			Assert.equals("String", parseHover().result.item.type.args.path.typeName);
+			Assert.equals("String", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)}).item.type.args.path.typeName);
 		}
 
 		for (i in [7, 9]) {
-			runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
-			var locs = parseGotoDefintion().result;
+			var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(i)});
 			Assert.isTrue(locs != null && locs.length > 0);
 			Assert.same(range(3, 4), locs[0].range);
 
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			Assert.equals("Expr", parseHover().result.item.type.args.path.typeName);
+			Assert.equals("Expr", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)}).item.type.args.path.typeName);
 		}
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(11)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(11)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(5, 6), locs[0].range);
 	}

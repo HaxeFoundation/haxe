@@ -11,9 +11,7 @@ class Issue8992 extends DisplayTestCase {
 	**/
 	function test(_) {
 		runHaxe(["--no-output", "-main", "Main"]);
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-
-		var result = parseHover().result;
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
 		Assert.isNull(result);
 	}
 }

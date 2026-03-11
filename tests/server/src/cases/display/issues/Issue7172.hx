@@ -14,8 +14,7 @@ class Issue7172 extends DisplayTestCase {
 		}
 	**/
 	function testNo(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasNoCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "x" && item.args.field.type.args.path.typeName == "Int";
 			case _: false;
@@ -35,8 +34,7 @@ class Issue7172 extends DisplayTestCase {
 		}
 	**/
 	function testYes(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "x" && item.args.field.type.args.path.typeName == "Int";
 			case _: false;

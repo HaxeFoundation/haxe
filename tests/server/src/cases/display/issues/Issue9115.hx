@@ -6,11 +6,10 @@ class Issue9115 extends DisplayTestCase {
 		var markers = Markers.parse(content);
 		vfs.putContent("A.hx", markers.source);
 		runHaxe(["--no-output", "A"]);
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: new FsPath("A.hx"),
 			offset: markers.offset(1)
 		});
-		var result = parseHover();
-		Assert.equals("A", result.result.item.type.args.path.typeName /* lol */);
+		Assert.equals("A", result.item.type.args.path.typeName /* lol */);
 	}
 }

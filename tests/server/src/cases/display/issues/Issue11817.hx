@@ -8,12 +8,11 @@ class Issue11817 extends DisplayTestCase {
 		var mainHx = Marker.extractMarkers(getTemplate("issues/Issue11817/MainAfter.hx"));
 		vfs.putContent("Main.hx", mainHx.source);
 		runHaxeJson([], ServerMethods.Invalidate, {file: file});
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: mainHx.markers[1],
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion().result;
 		Assert.equals(1, result.items.length);
 		Assert.equals('foo', result.items[0].args.field.name);
 

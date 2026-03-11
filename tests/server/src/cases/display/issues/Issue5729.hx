@@ -15,8 +15,7 @@ class Issue5729 extends DisplayTestCase {
 		}
 	**/
 	function testType1(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("Int", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("Int", result.item.type.args.path.typeName);
 	}
 }

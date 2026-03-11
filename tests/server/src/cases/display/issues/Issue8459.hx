@@ -9,10 +9,9 @@ class Issue8459 extends DisplayTestCase {
 		}
 	**/
 	function testDollarType(_) {
-		runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var sig = parseSignatureHelp();
-		Assert.isTrue(sig.result != null && sig.result.signatures.length > 0);
-		Assert.equals(0, sig.result.activeSignature);
-		Assert.equals(1, sig.result.signatures[0].args.length);
+		var sig = runHaxeJson([], DisplayMethods.SignatureHelp, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(sig != null && sig.signatures.length > 0);
+		Assert.equals(0, sig.activeSignature);
+		Assert.equals(1, sig.signatures[0].args.length);
 	}
 }

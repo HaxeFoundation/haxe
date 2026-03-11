@@ -13,8 +13,7 @@ class Issue9084 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(2, 3), locs[0].range);
 	}

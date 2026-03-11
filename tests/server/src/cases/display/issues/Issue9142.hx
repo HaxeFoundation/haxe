@@ -11,9 +11,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -26,9 +25,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testLowercaseImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -41,9 +39,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testPrivateImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -56,9 +53,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testLowercaseAliasImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -71,9 +67,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentSubtypeImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -86,9 +81,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentSubtypeFieldImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -101,9 +95,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentSubtypeFieldImport2(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -116,9 +109,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentSubtypeFieldImport3(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -131,9 +123,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentSubtypeFieldImport4(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -146,9 +137,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testTooMuchImport(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -161,9 +151,8 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testTooMuchImportAll(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 
 	/**
@@ -176,8 +165,7 @@ class Issue9142 extends DisplayTestCase {
 		}
 	**/
 	function testNonExistentSubtypeAll(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("String", result.result.item.type.args.path.typeName);
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("String", result.item.type.args.path.typeName);
 	}
 }

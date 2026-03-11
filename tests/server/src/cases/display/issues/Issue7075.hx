@@ -9,8 +9,7 @@ class Issue7075 extends DisplayTestCase {
 		}
 	**/
 	function test1(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case Type: item.args.path.typeName == "CallStack";
 			case _: false;
@@ -25,9 +24,8 @@ class Issue7075 extends DisplayTestCase {
 		}
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.exists(item -> switch item.kind {
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.exists(item -> switch item.kind {
 			case ClassField: (item.args : Dynamic).field.name == "CallStack";
 			case Type: (item.args : Dynamic).path.typeName == "CallStack";
 			case Module: (item.args : Dynamic).path.moduleName == "CallStack";

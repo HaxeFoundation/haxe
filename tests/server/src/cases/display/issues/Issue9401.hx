@@ -31,14 +31,12 @@ class Issue9401 extends DisplayTestCase {
 	**/
 	function testCatch_noTypeHint(_) {
 		for (i in 1...5) {
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			var result = parseHover();
-			Assert.equals("a0", StringTools.trim(result.result.item.args.field.doc));
+			var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
+			Assert.equals("a0", StringTools.trim(result.item.args.field.doc));
 		}
 		for (i in [5, 6]) {
-			runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
-			var result = parseHover();
-			Assert.equals("b0", StringTools.trim(result.result.item.args.field.doc));
+			var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(i)});
+			Assert.equals("b0", StringTools.trim(result.item.args.field.doc));
 		}
 	}
 }

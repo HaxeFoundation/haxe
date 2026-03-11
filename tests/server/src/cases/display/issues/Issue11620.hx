@@ -10,8 +10,8 @@ class Issue11620 extends DisplayTestCase {
 	**/
 	function test(_) {
 		vfs.putContent("issue11620/Foo.hx", "package issue11620;\n\nclass Foo {\n    public static function foo() {}\n}\n\nclass Bar {\n    public static function bar() {}\n}");
-		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags = parseDiagnostics();
+		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
 		Assert.equals(0, diags.length);
 	}
 }

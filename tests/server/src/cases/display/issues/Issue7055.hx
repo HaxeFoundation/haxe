@@ -20,9 +20,8 @@ class Issue7055 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		var items = result.result.items;
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		var items = result.items;
 		var i = 0;
 		function nextIs(name:String) {
 			Assert.isTrue(i < items.length);

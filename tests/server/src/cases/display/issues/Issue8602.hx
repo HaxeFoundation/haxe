@@ -9,8 +9,7 @@ class Issue8602 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: true});
-		var result = parseCompletion();
-		Assert.equals(result.result.mode.kind, Toplevel);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: true});
+		Assert.equals(result.mode.kind, Toplevel);
 	}
 }

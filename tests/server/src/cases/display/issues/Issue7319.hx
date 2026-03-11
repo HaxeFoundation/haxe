@@ -15,8 +15,7 @@ class Issue7319 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasNoCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "So";
 			case _: false;

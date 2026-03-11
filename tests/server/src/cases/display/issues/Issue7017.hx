@@ -9,7 +9,6 @@ class Issue7017 extends DisplayTestCase {
 		}
 	**/
 	function testMacroInitType(_) {
-		runHaxeJson(["--macro", "Main.init()"], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		eq("String", printer.printType(parseHover().result.item.type));
+		eq("String", printer.printType(runHaxeJson(["--macro", "Main.init()"], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type));
 	}
 }

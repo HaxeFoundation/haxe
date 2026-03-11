@@ -15,12 +15,10 @@ class Issue7327 extends DisplayTestCase {
 		}
 	**/
 	function test1(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
-		result = parseCompletion();
+		result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 	}
 
@@ -37,20 +35,16 @@ class Issue7327 extends DisplayTestCase {
 		}
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
-		result = parseCompletion();
+		result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(3), wasAutoTriggered: false});
-		result = parseCompletion();
+		result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(3), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(4), wasAutoTriggered: false});
-		result = parseCompletion();
+		result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(4), wasAutoTriggered: false});
 		assertHasNoCompletion(result, item -> item.kind == Local && item.args.name == "v");
 	}
 
@@ -68,12 +62,10 @@ class Issue7327 extends DisplayTestCase {
 		}
 	**/
 	function test3(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
-		result = parseCompletion();
+		result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: false});
 		assertHasNoCompletion(result, item -> item.kind == Local && item.args.name == "v");
 	}
 
@@ -87,8 +79,7 @@ class Issue7327 extends DisplayTestCase {
 					case Some(v):{-1-}
 	**/
 	function test4(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> item.kind == Local && item.args.name == "v");
 	}
 }

@@ -22,10 +22,8 @@ class Issue9077 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("String", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("String", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("Bool", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Bool", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.args.path.typeName);
 	}
 }

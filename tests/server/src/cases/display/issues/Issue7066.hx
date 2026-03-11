@@ -18,9 +18,8 @@ class Issue7066 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.equals(1, result.result.items.length);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.equals(1, result.items.length);
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "fieldB" && item.args.field.kind.kind == FVar;
 			case _: false;

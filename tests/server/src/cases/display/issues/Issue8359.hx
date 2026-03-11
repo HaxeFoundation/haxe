@@ -20,8 +20,8 @@ class Issue8359 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags = parseDiagnostics();
+		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
 		Assert.equals(0, diags.length);
 	}
 }

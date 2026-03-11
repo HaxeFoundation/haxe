@@ -13,17 +13,14 @@ class Issue11205 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(5)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(5)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(1, 2), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(6)});
-		locs = parseGotoDefintion().result;
+		locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(6)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(3, 4), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(6)});
-		Assert.equals("Null", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Null", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(6)}).item.type.args.path.typeName);
 	}
 }

@@ -378,8 +378,7 @@ class ServerTests extends TestCase {
 		vfs.putContent("Empty.hx", "");
 		runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
-		var completion = parseCompletion();
+		var completion = runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		assertHasCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "HelloWorld";
 			case _: false;
@@ -391,8 +390,7 @@ class ServerTests extends TestCase {
 		// check removal
 		vfs.putContent("Empty.hx", "");
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
-		var completion = parseCompletion();
+		var completion = runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		assertHasCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "HelloWorld";
 			case _: false;
@@ -409,8 +407,7 @@ class ServerTests extends TestCase {
 		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		runHaxeJson([] /* No args here because file watchers don't generally know */, ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
-		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
-		var completion = parseCompletion();
+		var completion = runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		assertHasCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "Empty";
 			case _: false;
@@ -423,8 +420,8 @@ class ServerTests extends TestCase {
 		var args = ["-main", "VectorInliner", "--interp"];
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("VectorInliner.hx")});
-		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
-		var type = getStoredType("", "VectorInliner");
+		var compiledTypes:Array<Dynamic> = runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
+		var type = getStoredType(compiledTypes, "", "VectorInliner");
 		function moreHack(s:String) {
 			return ~/[\r\n\t]/g.replace(s, "");
 		}
@@ -597,12 +594,9 @@ class ServerTests extends TestCase {
 			offset: transform.markers[2],
 			wasAutoTriggered: false
 		};
-		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 23);
-		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 23);
-		runHaxeJson(args, DisplayMethods.Completion, completionRequest);
-		Assert.isTrue(parseCompletion().result.items.length == 23);
+		Assert.isTrue(runHaxeJson(args, DisplayMethods.Completion, completionRequest).items.length == 23);
+		Assert.isTrue(runHaxeJson(args, DisplayMethods.Completion, completionRequest).items.length == 23);
+		Assert.isTrue(runHaxeJson(args, DisplayMethods.Completion, completionRequest).items.length == 23);
 
 		runHaxe(args);
 		assertSuccess();

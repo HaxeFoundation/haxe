@@ -10,8 +10,7 @@ class Issue8732 extends DisplayTestCase {
 		runHaxeJson([], Methods.Initialize, {maxCompletionItems: 50});
 		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(2), wasAutoTriggered: true});
 		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(3), wasAutoTriggered: true});
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: true});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: true});
 		assertHasNoCompletion(result, item -> switch (item.kind) {
 			case ClassField: item.args.field.name == "charAt";
 			case _: false;

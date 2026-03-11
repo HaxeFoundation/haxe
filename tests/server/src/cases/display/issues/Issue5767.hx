@@ -11,8 +11,7 @@ class Issue5767 extends DisplayTestCase {
 		}
 	**/
 	function testGama11(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "b" && item.args.field.type.args.path.typeName == "String";
 			case _: false;
@@ -29,8 +28,7 @@ class Issue5767 extends DisplayTestCase {
 		}
 	**/
 	function testGama11Intact(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "b" && item.args.field.type.args.path.typeName == "String";
 			case _: false;
@@ -51,8 +49,7 @@ class Issue5767 extends DisplayTestCase {
 		}
 	**/
 	function testOrder(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "b" && item.args.field.type.args.path.typeName == "Int";
 			case _: false;
@@ -81,8 +78,7 @@ class Issue5767 extends DisplayTestCase {
 		}
 	**/
 	function testNested(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "a" && item.args.field.type.args.path.typeName == "Bool";
 			case _: false;
@@ -107,8 +103,7 @@ class Issue5767 extends DisplayTestCase {
 		}
 	**/
 	function testFirstArg(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "a" && item.args.field.type.args.path.typeName == "Bool";
 			case _: false;
@@ -129,8 +124,7 @@ class Issue5767 extends DisplayTestCase {
 		}
 	**/
 	function testIntact(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		assertHasCompletion(result, item -> switch item.kind {
 			case ClassField: item.args.field.name == "c" && item.args.field.type.args.path.typeName == "String";
 			case _: false;

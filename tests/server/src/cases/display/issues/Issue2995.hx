@@ -18,8 +18,7 @@ class Issue2995 extends DisplayTestCase {
 		Assert.same(range(2, 3), position(1));
 		var args = ["--no-output", "-main", "Main"];
 		runHaxe(args);
-		runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(2)});
-		var refs = parseGotoDefintion().result;
+		var refs = runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(2)});
 		Assert.isTrue(refs.length >= 2);
 	}
 }

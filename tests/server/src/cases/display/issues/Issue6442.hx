@@ -7,12 +7,10 @@ class Issue6442 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(2)});
-		var locs = parseGotoDefintion().result;
+		var locs = runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(2)});
 		Assert.isTrue(locs != null && locs.length > 0);
 		Assert.same(range(1, 3), locs[0].range);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.isTrue(parseHover().result.item.type.kind == (cast "TFun" : Dynamic));
+		Assert.isTrue(runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.kind == (cast "TFun" : Dynamic));
 	}
 }

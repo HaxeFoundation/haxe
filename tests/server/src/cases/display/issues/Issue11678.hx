@@ -1,12 +1,7 @@
 package cases.display.issues;
 
-import haxe.Json;
+import haxe.display.FsPath;
 import haxe.display.Display;
-
-typedef HoverResponse = {
-	?error:{code:Int, message:String},
-	?result:HoverResult
-}
 
 class Issue11678 extends DisplayTestCase {
 	function test(_) {
@@ -17,13 +12,11 @@ class Issue11678 extends DisplayTestCase {
 
 		var args = ["-main", "Main"];
 		runHaxe(["--no-output"].concat(args));
-		runHaxeJson(args, DisplayMethods.Hover, {
+		var response = runHaxeJson(args, DisplayMethods.Hover, {
 			file: new FsPath("Main.hx"),
 			offset: transform.markers[1]
 		});
 
-		var response:HoverResponse = Json.parse(lastResult.stderr);
-		Assert.equals(null, response.error);
-		Assert.equals("foo", response.result.result.item.args.field.name);
+		Assert.equals("foo", response.item.args.field.name);
 	}
 }

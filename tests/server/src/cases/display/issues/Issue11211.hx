@@ -43,17 +43,14 @@ class Issue11211 extends DisplayTestCase {
 		#end
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		Assert.equals("Int", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Int", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)});
-		Assert.equals("Void", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Void", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(2)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)});
-		Assert.equals("Bool", parseHover().result.item.type.args.path.typeName);
+		Assert.equals("Bool", runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(3)}).item.type.args.path.typeName);
 
-		runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
-		var diags = parseDiagnostics();
+		var files = runHaxeJson([], DisplayMethods.Diagnostics, {file: file});
+		var diags:Array<Diagnostic<Any>> = (files != null && files.length > 0 && files[0].diagnostics != null) ? files[0].diagnostics : [];
 		var diag = diags.find(d -> d.kind == DKCompilerError && (d.args:String).indexOf("Void") != -1);
 		Assert.notNull(diag);
 		Assert.same(range(4, 5), diag.range);

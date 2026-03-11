@@ -9,9 +9,8 @@ class Issue7219 extends DisplayTestCase {
 		}
 	**/
 	function testIf(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 	}
 
 	/**
@@ -22,9 +21,8 @@ class Issue7219 extends DisplayTestCase {
 		}
 	**/
 	function testFor(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 	}
 
 	/**
@@ -35,9 +33,8 @@ class Issue7219 extends DisplayTestCase {
 		}
 	**/
 	function testWhile(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 	}
 
 	/**
@@ -48,9 +45,8 @@ class Issue7219 extends DisplayTestCase {
 		}
 	**/
 	function testDoWhile1(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 	}
 
 	/**
@@ -63,8 +59,7 @@ class Issue7219 extends DisplayTestCase {
 		}
 	**/
 	function testDoWhile2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var result = parseCompletion();
-		Assert.isTrue(result.result.items.length > 0);
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
+		Assert.isTrue(result.items.length > 0);
 	}
 }

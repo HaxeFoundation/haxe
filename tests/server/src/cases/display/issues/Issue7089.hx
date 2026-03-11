@@ -13,9 +13,8 @@ class Issue7089 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
 		// Hovering over an enum abstract gives the meta-type "Abstract<Foo>"
-		Assert.equals("Abstract<Foo>", result.result.item.type.args.path.typeName);
+		Assert.equals("Abstract<Foo>", result.item.type.args.path.typeName);
 	}
 }
