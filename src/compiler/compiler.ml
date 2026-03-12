@@ -451,7 +451,7 @@ with
 		let s = make_ice_message com msg backtrace in
 		error ctx ("Error: " ^ s) null_pos
 	| Helper.HelpMessage msg ->
-		print_endline msg
+		CompilerIo.write_out ctx.com.request_scope.io (msg ^ "\n")
 	| Parser.TypePath (p,c,is_import,pos) ->
 		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->
@@ -487,7 +487,7 @@ module ContextFlush = struct
 
 	let flush_context_server ctx =
 		let write = CompilerIo.write_err ctx.com.request_scope.io in
-		match ctx.com.json_out with
+		match ctx.com.request_scope.json_out with
 		| Some api when not (is_diagnostics ctx.com) ->
 			if has_error ctx then begin
 				let errors = List.map (fun cm ->
@@ -523,19 +523,20 @@ module ContextFlush = struct
 							CompilerOutput.send_timer_report ctx.com.request_scope.io ctx.com.timer_ctx
 
 	let flush_context_client ctx =
+		let io = ctx.com.request_scope.io in
 		display_messages ctx (fun sev output ->
 			match sev with
-				| MessageSeverity.Information -> print_endline output
-				| Warning | Error | Hint -> prerr_endline output
+				| MessageSeverity.Information -> CompilerIo.write_out io (output ^ "\n")
+				| Warning | Error | Hint -> CompilerIo.write_err io (output ^ "\n")
 		);
 
 		if has_error ctx && !Helper.prompt then begin
-			print_endline "Press enter to exit...";
+			CompilerIo.write_out io "Press enter to exit...\n";
 			ignore(read_line());
 		end;
-		flush stdout
+		CompilerIo.flush io
 
-		let flush_context ctx =
+	let flush_context ctx =
 			if ctx.com.sctx.is_server then
 				flush_context_server ctx
 			else
