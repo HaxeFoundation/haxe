@@ -51,9 +51,8 @@ let run_command ctx cmd =
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
 			Sys.command cmd
 		else begin
-			(* In server mode, capture stdout/stderr and forward stdin through the output target.
-			   We use create_process instead of open_process_full so that we can
-			   properly forward the client's stdin and close it to signal EOF. *)
+			(* In server mode, capture stdout/stderr through the output target and
+			   forward the client's stdin from request_scope. *)
 			PipeThings.run_command output ctx.com.request_scope.stdin cmd
 		end
 	in
