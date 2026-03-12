@@ -11,6 +11,11 @@ open MessageReporting
 open HxbData
 open TypeloadCacheHook
 
+let make_closed_stdin () =
+	let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
+	Unix.close stdin_w_fd;
+	Unix.in_channel_of_descr stdin_r_fd
+
 let mk_length_prefixed_communication allow_nonblock chin chout =
 	let sin = Unix.descr_of_in_channel chin in
 	Unix.clear_nonblock sin;
@@ -35,7 +40,7 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	in
 
 	fun () ->
-		{ read; write; close; get_stdin = (fun () -> None) }
+		{ read; write; close; stdin = make_closed_stdin () }
 
 module Connect = struct
 	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
@@ -68,11 +73,6 @@ module Connect = struct
 end
 
 module SocketRequest = struct
-	type t = {
-		data : string;
-		stdin : in_channel;
-	}
-
 	let setup_client_stdin_forward overflow sin =
 		(* Set up stdin forwarding: create a pipe and a thread that reads
 		   from the client socket and writes to the pipe. *)
@@ -105,10 +105,9 @@ module SocketRequest = struct
 
 	(* Reads a null-terminated request from a non-blocking socket, tracking any
 	   overflow data received past the null terminator (e.g. stdin data from the client). *)
-	let read sin bufsize =
+	let read overflow sin bufsize =
 		let tmp = Bytes.create bufsize in
 		let b = Buffer.create 0 in
-		let overflow = ref Bytes.empty in
 		let rec read_loop count =
 			try
 				let r = Unix.recv sin tmp 0 bufsize [] in
@@ -144,17 +143,16 @@ module SocketRequest = struct
 		   (to handle slow clients with retries), but the forwarding thread needs
 		   blocking recv to avoid exiting prematurely on EWOULDBLOCK. *)
 		Unix.clear_nonblock sin;
-		let stdin = setup_client_stdin_forward !overflow sin in
-		{ data; stdin }
+		data
 end
 
-let create_request_scope ?(stdin=None) output =
+let create_request_scope io output : request_scope =
 	{
 		stats = Stats.create ();
 		timer_ctx = Timer.make_context (Timer.make ["other"]);
 		cancellation_requested = false;
 		output;
-		stdin;
+		io;
 	}
 
 let process sctx request_scope entry comm (args : parsed_arg list) =
@@ -274,7 +272,9 @@ module WorkerDomain = struct
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
 						let comm = ServerCommunication.Communication.create_pipe sctx conn in
-						let request_scope = create_request_scope ~stdin:(conn.get_stdin()) (CompilerOutput.Pipe conn.write) in
+						let output = (CompilerOutput.Pipe conn.write) in
+						let io = PipeThings.create_io output conn.stdin in
+						let request_scope = create_request_scope io output in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry comm request.args in
 						conn.close();
@@ -371,13 +371,11 @@ let init_wait_socket ip port =
 		let sin, _ = Unix.accept sock in
 		Unix.set_nonblock sin;
 		ServerMessage.socket_message "Client connected";
-		let stdin_pipe = ref None in
+		let overflow = ref Bytes.empty in
+		let stdin = SocketRequest.setup_client_stdin_forward !overflow sin in
 		let read () =
-			let req = SocketRequest.read sin bufsize in
-			stdin_pipe := Some (req.stdin);
-			req.data
+			SocketRequest.read overflow sin bufsize
 		in
-		let get_stdin () = !stdin_pipe in
 		let closed = ref false in
 		let close() =
 			if not !closed then begin
@@ -395,6 +393,6 @@ let init_wait_socket ip port =
 				| Some _ -> close()
 				| None -> PipeThings.ssend sin (Bytes.unsafe_of_string s);
 		in
-		{ read; write; close; get_stdin }
+		{ read; write; close; stdin }
 	) in
 	accept

@@ -581,7 +581,7 @@ type parse_input_result =
 	| Completed
 
 let parse_input com input =
-	let io = com.part_scope.io in
+	let io = com.request_scope.io in
 	let input = JsonRpc.parse_request input in
 	let jsonrpc = new jsonrpc_handler input in
 
@@ -677,7 +677,7 @@ let parse_input com input =
 
 let parse_input com input =
 	let handle_error json =
-		send_json com.part_scope.io json;
+		send_json com.request_scope.io json;
 		Completed
 	in
 	JsonRpc.handle_jsonrpc_error (fun () ->

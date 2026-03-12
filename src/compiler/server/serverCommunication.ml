@@ -64,7 +64,6 @@ module Communication = struct
 				flush stdout;
 			);
 			is_server = false;
-			stdin = None;
 		} in
 		self
 
@@ -78,7 +77,6 @@ module Communication = struct
 			);
 			flush = flush_context sctx;
 			is_server = true;
-			stdin = conn.get_stdin();
 		}
 		in
 		self

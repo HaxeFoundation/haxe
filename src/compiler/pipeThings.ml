@@ -48,19 +48,6 @@ let make_output_pipe write_fn =
 	) () in
 	(out_ch, thread)
 
-(** Returns the stdin [in_channel] for this compilation context.
-	In server mode, [stdin] is [Some ch] when the client forwarded
-	stdin data over the socket (see {!SocketRequest.setup_client_stdin_forward}).
-	When [None] (no stdin data), creates a pipe with the write end immediately
-	closed so that reads return EOF. *)
-let get_stdin_channel stdin =
-	match stdin with
-	| Some ch -> ch
-	| None ->
-		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
-		Unix.close stdin_w_fd;
-		Unix.in_channel_of_descr stdin_r_fd
-
 (** Pipe-based implementation of [Sys.getChar] for server mode.
 	Reads a single byte from [stdin_ch] and optionally echoes it to [stdout_ch].
 	Returns -1 on EOF, matching the convention of the native [Extc.getch]. *)
@@ -88,13 +75,12 @@ let getch_from_channel stdin_ch stdout_ch echo =
 	In non-server mode ([Stdio]):
 	- channels are the process's real stdin/stdout/stderr
 	- [getch] uses [Extc.getch] for native terminal raw-mode reading *)
-let create_io target stdin =
+let create_io target stdin_ch =
 	let write_out = CompilerOutput.write_out target in
 	let write_err = CompilerOutput.write_err target in
 	if CompilerOutput.is_server target then begin
 		let (stdout_ch, stdout_thread) = make_output_pipe write_out in
 		let (stderr_ch, stderr_thread) = make_output_pipe write_err in
-		let stdin_ch = get_stdin_channel stdin in
 		let closed = ref false in
 		{
 			Gctx.print = write_out;

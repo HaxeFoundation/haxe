@@ -271,7 +271,6 @@ end
 type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : diagnostic list;
-	io : Gctx.compilation_io;
 }
 
 type request_scope = {
@@ -279,7 +278,7 @@ type request_scope = {
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 	output : CompilerOutput.output_target;
-	stdin : in_channel option;
+	io : Gctx.compilation_io;
 }
 
 type context = {
@@ -375,7 +374,7 @@ let to_gctx com = {
 	run_command_args = com.run_command_args;
 	warning = com.warning;
 	error = com.error;
-	io = com.part_scope.io;
+	io = com.request_scope.io;
 	debug = com.debug;
 	file = com.file;
 	version = com.sctx.version;
@@ -851,7 +850,7 @@ let disable_report_mode com =
 	(fun () -> com.report_mode <- old)
 
 let log com str =
-	if com.verbose then com.part_scope.io.print (str ^ "\n")
+	if com.verbose then com.request_scope.io.print (str ^ "\n")
 
 let clone com is_macro_context =
 	{

@@ -8,7 +8,6 @@ type communication = {
 	write_err : string -> unit;
 	flush     : compilation_context -> unit;
 	is_server : bool;
-	stdin     : in_channel option;
 }
 
 and compilation_context = {
@@ -27,7 +26,7 @@ type server_connection = {
 	read : unit -> string;
 	write : string -> unit;
 	close : unit -> unit;
-	get_stdin : unit -> in_channel option;
+	stdin : in_channel;
 }
 
 type server_accept = unit -> server_connection

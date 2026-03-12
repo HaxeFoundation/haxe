@@ -53,7 +53,7 @@ let run_command ctx cmd =
 		else begin
 			(* In server mode, capture stdout/stderr through the output target and
 			   forward the client's stdin from request_scope. *)
-			PipeThings.run_command output ctx.com.request_scope.stdin cmd
+			PipeThings.run_command output (Some ctx.com.request_scope.io.stdin) cmd
 		end
 	in
 	result
@@ -469,7 +469,7 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
-	ctx.com.part_scope.io.close ();
+	ctx.com.request_scope.io.close ();
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
@@ -534,11 +534,9 @@ let compile_ctx sctx ctx =
 		catch_completion_and_exit ctx sctx run
 
 let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
-	let io = PipeThings.create_io request_scope.output request_scope.stdin in
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
-		io;
 	} in
 	let com = Common.create sctx request_scope part_scope compilation_step (Args.to_raw_args parsed_args) (DisplayTypes.DisplayMode.create DMNone) in
 	{
