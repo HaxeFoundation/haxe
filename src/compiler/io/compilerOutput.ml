@@ -38,13 +38,13 @@ let extract_error_message je =
     The [_raise] variants must never be called in this mode. *)
 let create_default_result_handler io = {
 	send_result = (fun _ -> ());
-	send_result_raise = (fun _ -> assert false);
+	send_result_raise = (fun _ -> failwith "send_result_raise called in non-JSON-RPC mode");
 	send_error = (fun errors ->
 		List.iter (fun je ->
 			CompilerIo.write_err io (extract_error_message je ^ "\n")
 		) errors
 	);
-	send_error_raise = (fun _ -> assert false);
+	send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
 	jsonrpc = None;
 }
 
