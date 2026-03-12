@@ -237,12 +237,12 @@ module WorkerDomain = struct
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
-			(try CompilerIo.write_err request_scope.io.output "\x02\nCancelled\n"; with _ -> ());
+			(try CompilerIo.write_err request_scope.io "\x02\nCancelled\n"; with _ -> ());
 			Cancelled;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
-			(try CompilerIo.write_err request_scope.io.output ("\x02\n" ^ estr); with _ -> ());
+			(try CompilerIo.write_err request_scope.io ("\x02\n" ^ estr); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then Oom else Errored
 

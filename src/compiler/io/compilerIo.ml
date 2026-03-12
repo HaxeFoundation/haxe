@@ -3,8 +3,6 @@ type output_target =
 	| Pipe of (string -> unit)
 
 type t = {
-	print : string -> unit;
-	print_err : string -> unit;
 	stdout : out_channel;
 	stderr : out_channel;
 	stdin : in_channel;
@@ -53,16 +51,28 @@ let getch_from_channel stdin_ch stdout_ch echo =
 	end;
 	c
 
-(** Write a string to stdout (CLI) or through the pipe protocol (server).
-    In server mode, lines are separated by [\x01] markers. *)
-let write_out target s = match target with
+let write_out' output s = match output with
 	| Stdio -> print_string s; flush stdout
 	| Pipe write -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
 
-(** Write a string to stderr (CLI) or through the connection (server). *)
-let write_err target s = match target with
+let write_err' output s = match output with
 	| Stdio -> prerr_string s
 	| Pipe write -> write s
+
+let write_out io s = write_out' io.output s
+let write_err io s = write_err' io.output s
+
+let get_stdout io = io.stdout
+let get_stderr io = io.stderr
+let get_stdin io = io.stdin
+
+let getch io echo = io.getch echo
+
+let close io = io.close ()
+
+let is_server io = match io.output with
+	| Stdio -> false
+	| Pipe _ -> true
 
 (** Creates the {!Gctx.compilation_io} record for this compilation.
 
@@ -77,14 +87,12 @@ let write_err target s = match target with
 	- channels are the process's real stdin/stdout/stderr
 	- [getch] uses [Extc.getch] for native terminal raw-mode reading *)
 let create_pipe_io output stdin_ch =
-	let write_out = write_out output in
-	let write_err = write_err output in
+	let write_out = write_out' output in
+	let write_err = write_err' output in
 	let (stdout_ch, stdout_thread) = make_output_pipe write_out in
 	let (stderr_ch, stderr_thread) = make_output_pipe write_err in
 	let closed = ref false in
 	{
-		print = write_out;
-		print_err = write_err;
 		stdout = stdout_ch;
 		stderr = stderr_ch;
 		stdin = stdin_ch;
@@ -102,8 +110,6 @@ let create_pipe_io output stdin_ch =
 
 let create_stdio_io output stdin_ch =
 	{
-		print = write_out output;
-		print_err = write_err output;
 		stdout = Stdlib.stdout;
 		stderr = Stdlib.stderr;
 		stdin = Stdlib.stdin;

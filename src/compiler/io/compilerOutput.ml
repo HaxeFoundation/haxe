@@ -29,14 +29,11 @@ open CompilerIo
       write function (which handles the socket protocol) *)
 
 (** Whether we're in server mode. *)
-let is_server target = match target with
-	| Stdio -> false
-	| Pipe _ -> true
 
 (** Collect timer report output and write it to stderr / the connection.
     Writes are wrapped in [try ... with] because in server mode the
     client connection may have been closed. *)
-let send_timer_report target timer_ctx =
+let send_timer_report io timer_ctx =
 	let buf = Buffer.create 4096 in
 	Timer.report_times timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
-	try write_err target (Buffer.contents buf) with _ -> ()
+	try (CompilerIo.write_err io) (Buffer.contents buf) with _ -> ()

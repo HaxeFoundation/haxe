@@ -31,9 +31,9 @@ let rec read_content channel buf f =
 	Uses {!Process.run} to create the child process so we can connect
 	the child's stdin to the client's forwarded data and properly signal
 	EOF when the client closes its end. *)
-let run_command target stdin cmd =
-	let write_out = CompilerIo.write_out target in
-	let write_err = CompilerIo.write_err target in
+let run_command io cmd =
+	let write_out = CompilerIo.write_out io in
+	let write_err = CompilerIo.write_err io in
 	let proc = Process.run cmd None in
 	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
 	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
@@ -45,7 +45,7 @@ let run_command target stdin cmd =
 		periodically, avoiding a hang when the child exits but the client
 		hasn't closed its stdin (e.g. interactive use or partial writes). *)
 	let stop_stdin = ref false in
-	let tin = match stdin with
+	let tin = match Some (CompilerIo.get_stdin io) with
 		| Some stdin_pipe ->
 			let stdin_fd = Unix.descr_of_in_channel stdin_pipe in
 			Some (Thread.create (fun () ->

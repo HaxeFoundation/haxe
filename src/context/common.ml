@@ -849,7 +849,7 @@ let disable_report_mode com =
 	(fun () -> com.report_mode <- old)
 
 let log com str =
-	if com.verbose then com.request_scope.io.print (str ^ "\n")
+	if com.verbose then CompilerIo.write_out com.request_scope.io (str ^ "\n")
 
 let clone com is_macro_context =
 	{

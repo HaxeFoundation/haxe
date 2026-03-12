@@ -465,7 +465,7 @@ let generate_source ctx =
 			let path = path#path in
 			cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
 		);
-		common_ctx.io.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
+		CompilerIo.write_out common_ctx.io ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
 		if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
 	  ) ()
