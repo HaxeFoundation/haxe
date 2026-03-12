@@ -229,12 +229,10 @@ module WorkerDomain = struct
 	let run_request sctx request_scope entry comm args =
 		try
 			process sctx request_scope entry comm args;
-			comm
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
 			(try comm.write_err "\x02\nCancelled\n"; with _ -> ());
-			comm;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
@@ -243,8 +241,7 @@ module WorkerDomain = struct
 			if e = Out_of_memory then begin
 				comm.close();
 				exit (-1);
-			end;
-			comm
+			end
 
 	let create sctx entry rq =
 		let domain = Domain.spawn (fun () ->
@@ -272,7 +269,7 @@ module WorkerDomain = struct
 						let comm = request.comm() in
 						let request_scope = create_request_scope (OutputPipe.create ~write_err:comm.write_err) in
 						rq.current_request <- Some request_scope;
-						let comm = run_request sctx request_scope entry comm request.args in
+						run_request sctx request_scope entry comm request.args;
 						comm.close();
 						sctx.current_stdin <- None;
 						ServerCache.cleanup();
