@@ -7,19 +7,13 @@ type t = {
 	stderr : out_channel;
 	stdin : in_channel;
 	getch : bool -> int;
-		(** Reads a single character from stdin. The [bool] parameter controls echo.
-		    In non-server mode, uses [Extc.getch] for native terminal raw-mode input.
-		    In server mode, reads from the client's forwarded stdin pipe. Returns -1 on EOF. *)
 	flush : unit -> unit;
 	close : unit -> unit;
 	output : output_target;
 }
 
-(** Creates a pipe where the write end is an [out_channel] and a background
-	thread reads from the read end, forwarding chunks to [write_fn].
-	Returns [(out_channel, thread)] — the caller writes to [out_channel],
-	and [write_fn] receives the data asynchronously. Used to bridge
-	OCaml channel writes (e.g. [Sys.println]) to the socket protocol. *)
+(* Create a Unix pipe with a background reader thread that forwards chunks
+   to [write_fn].  Returns [(out_channel, thread)]. *)
 let make_output_pipe write_fn =
 	let (r_fd, w_fd) = Unix.pipe ~cloexec:true () in
 	let out_ch = Unix.out_channel_of_descr w_fd in
@@ -37,9 +31,6 @@ let make_output_pipe write_fn =
 	) () in
 	(out_ch, thread)
 
-(** Pipe-based implementation of [Sys.getChar] for server mode.
-	Reads a single byte from [stdin_ch] and optionally echoes it to [stdout_ch].
-	Returns -1 on EOF, matching the convention of the native [Extc.getch]. *)
 let getch_from_channel stdin_ch stdout_ch echo =
 	let c = try
 		int_of_char (input_char stdin_ch)
@@ -76,18 +67,6 @@ let is_server io = match io.output with
 	| Stdio -> false
 	| Pipe _ -> true
 
-(** Creates the {!Gctx.compilation_io} record for this compilation.
-
-	In server mode ([Pipe]):
-	- stdout/stderr are pipe-backed channels with background threads that
-		forward writes through [CompilerOutput.write_out]/[write_err] (the socket protocol)
-	- stdin comes from the client's forwarded data (or an immediately-closed pipe)
-	- [getch] reads from the stdin pipe instead of the terminal
-	- [close] flushes and joins all background threads
-
-	In non-server mode ([Stdio]):
-	- channels are the process's real stdin/stdout/stderr
-	- [getch] uses [Extc.getch] for native terminal raw-mode reading *)
 let create_pipe_io output stdin_ch =
 	let write_out = write_out' output in
 	let write_err = write_err' output in
