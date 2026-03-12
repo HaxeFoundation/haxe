@@ -205,6 +205,12 @@ module RequestQueue = struct
 		wake_up rq
 end
 
+type request_outcome =
+	| Success
+	| Cancelled
+	| Errored
+	| Oom
+
 module WorkerDomain = struct
 	open RequestQueue
 	open ServerCompilationContext
@@ -229,19 +235,18 @@ module WorkerDomain = struct
 	let run_request sctx request_scope entry comm args =
 		try
 			process sctx request_scope entry comm args;
+			Success
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
 			(try comm.write_err "\x02\nCancelled\n"; with _ -> ());
+			Cancelled;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
 			(try comm.write_err ("\x02\n" ^ estr); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
-			if e = Out_of_memory then begin
-				comm.close();
-				exit (-1);
-			end
+			if e = Out_of_memory then Oom else Errored
 
 	let create sctx entry rq =
 		let domain = Domain.spawn (fun () ->
@@ -266,11 +271,19 @@ module WorkerDomain = struct
 						Mutex.unlock rq.mutex;
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
-						let comm = ServerCommunication.Communication.create_pipe sctx request.conn in
+						let conn = request.conn in
+						let comm = ServerCommunication.Communication.create_pipe sctx conn in
 						let request_scope = create_request_scope (OutputPipe.create ~write_err:comm.write_err) in
 						rq.current_request <- Some request_scope;
-						run_request sctx request_scope entry comm request.args;
-						comm.close();
+						let outcome = run_request sctx request_scope entry comm request.args in
+						conn.close();
+						begin match outcome with
+						| Oom ->
+							exit (-1)
+						| _ ->
+							()
+						end;
+
 						sctx.current_stdin <- None;
 						ServerCache.cleanup();
 						if sctx.was_compilation then

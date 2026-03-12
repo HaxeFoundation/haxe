@@ -63,7 +63,6 @@ module Communication = struct
 				end;
 				flush stdout;
 			);
-			close = (fun () -> ());
 			is_server = false;
 			stdin = None;
 		} in
@@ -78,9 +77,6 @@ module Communication = struct
 				conn.write s
 			);
 			flush = flush_context sctx;
-			close = (fun () ->
-				conn.close()
-			);
 			is_server = true;
 			stdin = conn.get_stdin();
 		}

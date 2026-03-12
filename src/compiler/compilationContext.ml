@@ -6,7 +6,6 @@ exception Abort
 type communication = {
 	write_out : string -> unit;
 	write_err : string -> unit;
-	close     : unit -> unit;
 	flush     : compilation_context -> unit;
 	is_server : bool;
 	stdin     : in_channel option;
