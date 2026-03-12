@@ -1,79 +1,54 @@
-open Globals
+(** Unified compiler output.
 
-(** Unified compiler output protocol.
+    This module defines the output target type and API functions for all
+    user-facing compiler output. The [output_target] is a data-only variant
+    that lives in [request_scope] and determines how output is delivered.
 
-    This module defines the types for all user-facing compiler output.
-    All output from the compiler should eventually pass through a single
-    [output_handler] function that routes messages to the appropriate
-    printer (JSON or CLI).
+    API functions (like [write_err], [send_timer_report]) pattern-match on
+    the target to route output appropriately. This separates the "what kind
+    of output are we producing" from "where does it go."
 
-    The design follows patterns from rustc (--error-format=json) and LSP
-    diagnostics: a single message type with a kind discriminator, carrying
-    structured payload. Printers switch on the kind and format accordingly.
-
-    Current output mechanisms being unified:
-    - [json_out] (JSON-RPC responses for display/IDE features)
-    - [Communication] (CLI stdio/pipe output)
-    - [compiler_message] / [display_messages] (formatted error/warning output)
-    - [diagnostics] (per-file diagnostic collection)
+    Currently handles:
     - Timer reporting
+    - stdout/stderr routing (via [write_out] / [write_err])
 
-    Migration strategy:
-    1. Keep [json_out] working alongside this new system.
-    2. Incrementally port output sites to use [send_output].
-    3. Eventually remove [json_out] once all sites are ported. *)
+    Future migration:
+    - Compiler messages (errors, warnings, hints)
+    - Diagnostics (per-file IDE diagnostics)
+    - JSON-RPC display results
+    - Eventually replaces [Communication] and [json_out] entirely *)
 
-(** The kind of output being produced. Each variant represents a distinct
-    category of compiler output that printers must handle. *)
-type output_kind =
-	(** Compiler messages (errors, warnings, information, hints) produced
-	    during compilation. These are the primary user-facing messages.
-	    Corresponds to the current [display_messages] / [flush_context] paths. *)
-	| OMessages of compiler_message list
-	(** Diagnostic results collected across files, used for IDE integration.
-	    Carries per-file diagnostic information with codes and severity.
-	    Corresponds to the current [DiagnosticsPrinter.json_of_diagnostics] path. *)
-	| ODiagnostics of diagnostic list
-	(** A successful result as JSON. Used for display/IDE features
-	    like hover, completion, signature help, etc.
-	    Corresponds to the current [json_out.send_result] path. *)
-	| OResult of Json.t
-	(** An error result as a list of JSON error objects.
-	    Corresponds to the current [json_out.send_error] path. *)
-	| OError of Json.t list
-	(** Performance timer data as a pre-formatted string.
-	    Corresponds to the current [Timer.report_times] output. *)
-	| OTimerData of string
+(** The output target determines where compiler output goes.
+    This is a data-only type: the API functions below handle formatting
+    and delivery based on the variant.
 
-(** An output handler processes compiler output of any kind.
-    Printers implement this type by switching on [output_kind]
-    to format and deliver the output appropriately.
+    - [Stdio]: direct writes to the process's stdout/stderr
+    - [Pipe write]: server mode — writes go through the connection's
+      write function (which handles the socket protocol) *)
+type output_target =
+	| Stdio
+	| Pipe of (string -> unit)
 
-    Two printer implementations are planned:
-    - CLI printer: formats messages using pretty/classic/indent formatters
-      and writes to stdout/stderr (replaces [Communication.create_stdio])
-    - JSON printer: wraps output in JSON-RPC envelopes and sends via
-      the IO channel (replaces [json_out] and [Communication.create_pipe]) *)
-type output_handler = output_kind -> unit
+(** Write a string to stdout (CLI) or through the pipe protocol (server).
+    In server mode, lines are separated by [\x01] markers. *)
+let write_out target s = match target with
+	| Stdio -> print_string s; flush stdout
+	| Pipe write -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
 
-(** An output handler that discards all output.
-    Used as the default before a proper handler is configured. *)
-let noop_handler : output_handler = fun _ -> ()
+(** Write a string to stderr (CLI) or through the connection (server). *)
+let write_err target s = match target with
+	| Stdio -> prerr_string s
+	| Pipe write -> write s
 
-(** Convenience: send compiler messages through a handler. *)
-let send_messages handler messages =
-	handler (OMessages messages)
+(** Whether we're in server mode. *)
+let is_server target = match target with
+	| Stdio -> false
+	| Pipe _ -> true
 
-(** Convenience: send a display result through a handler. *)
-let send_result handler json =
-	handler (OResult json)
-
-(** Convenience: send a display error through a handler. *)
-let send_error handler errors =
-	handler (OError errors)
-
-(** Collect timer report output and send as [OTimerData] through the handler. *)
-let send_timer_report handler timer_ctx =
+(** Collect timer report output and write it to stderr / the connection.
+    Writes are wrapped in [try ... with] because in server mode the
+    client connection may have been closed. *)
+let send_timer_report target timer_ctx =
 	let buf = Buffer.create 4096 in
 	Timer.report_times timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
-	handler (OTimerData (Buffer.contents buf))
+	try write_err target (Buffer.contents buf) with _ -> ()

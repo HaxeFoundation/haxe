@@ -273,7 +273,7 @@ module WorkerDomain = struct
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
 						let comm = ServerCommunication.Communication.create_pipe sctx conn in
-						let request_scope = create_request_scope (OutputPipe.create ~write_err:comm.write_err) in
+						let request_scope = create_request_scope (CompilerOutput.Pipe conn.write) in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry comm request.args in
 						conn.close();
