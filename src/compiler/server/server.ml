@@ -153,6 +153,7 @@ let create_request_scope () =
 		stats = Stats.create ();
 		timer_ctx = Timer.make_context (Timer.make ["other"]);
 		cancellation_requested = false;
+		output = CompilerOutput.noop_handler;
 	}
 
 let process sctx request_scope entry comm (args : parsed_arg list) =
