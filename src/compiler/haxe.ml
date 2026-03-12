@@ -141,11 +141,8 @@ request_scope.output <- (fun kind -> match kind with
 let code = Compiler.HighLevel.entry sctx request_scope comm parsed_args in
 if code = 0 then begin
 	let timer_ctx = request_scope.timer_ctx in
-	if timer_ctx.measure_times = Yes then begin
-		let buf = Buffer.create 4096 in
-		Timer.report_times timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
-		request_scope.output (CompilerOutput.OTimerData (Buffer.contents buf))
-	end
+	if timer_ctx.measure_times = Yes then
+		CompilerOutput.send_timer_report request_scope.output timer_ctx
 end;
 ServerCompilationContext.dispose sctx;
 exit code;

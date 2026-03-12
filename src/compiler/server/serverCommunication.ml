@@ -37,11 +37,8 @@ let flush_context sctx ctx =
 					ctx.com.timer_ctx.measure_times <- No;
 					write "\x02\n"
 				end else
-					if ctx.com.timer_ctx.measure_times = Yes then begin
-						let buf = Buffer.create 4096 in
-						Timer.report_times ctx.com.timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
-						ctx.com.request_scope.output (CompilerOutput.OTimerData (Buffer.contents buf))
-					end;
+					if ctx.com.timer_ctx.measure_times = Yes then
+						CompilerOutput.send_timer_report ctx.com.request_scope.output ctx.com.timer_ctx;
 
 module Communication = struct
 	let create_stdio () =

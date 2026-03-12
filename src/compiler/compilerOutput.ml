@@ -72,3 +72,8 @@ let send_result handler json =
 let send_error handler errors =
 	handler (OError errors)
 
+(** Collect timer report output and send as [OTimerData] through the handler. *)
+let send_timer_report handler timer_ctx =
+	let buf = Buffer.create 4096 in
+	Timer.report_times timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
+	handler (OTimerData (Buffer.contents buf))
