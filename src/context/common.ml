@@ -277,7 +277,7 @@ type request_scope = {
 	stats : Stats.t;
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
-	io : Gctx.compilation_io;
+	io : CompilerIo.t;
 }
 
 type context = {

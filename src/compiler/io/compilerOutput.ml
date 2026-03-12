@@ -1,3 +1,5 @@
+open CompilerIo
+
 (** Unified compiler output.
 
     This module defines the output target type and API functions for all
@@ -25,20 +27,6 @@
     - [Stdio]: direct writes to the process's stdout/stderr
     - [Pipe write]: server mode — writes go through the connection's
       write function (which handles the socket protocol) *)
-type output_target =
-	| Stdio
-	| Pipe of (string -> unit)
-
-(** Write a string to stdout (CLI) or through the pipe protocol (server).
-    In server mode, lines are separated by [\x01] markers. *)
-let write_out target s = match target with
-	| Stdio -> print_string s; flush stdout
-	| Pipe write -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-
-(** Write a string to stderr (CLI) or through the connection (server). *)
-let write_err target s = match target with
-	| Stdio -> prerr_string s
-	| Pipe write -> write s
 
 (** Whether we're in server mode. *)
 let is_server target = match target with

@@ -480,7 +480,7 @@ let finalize ctx =
 
 let emit_completion ctx str =
 	ServerMessage.completion str;
-	CompilerOutput.write_err ctx.com.request_scope.io.output str
+	CompilerIo.write_err ctx.com.request_scope.io.output str
 
 let catch_completion_and_exit ctx sctx run =
 	try

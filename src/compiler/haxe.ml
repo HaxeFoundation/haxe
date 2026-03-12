@@ -133,14 +133,13 @@ end;
 
 let sctx = Server.setup_server_context false in
 let comm = ServerCommunication.Communication.create_stdio () in
-let output = CompilerOutput.Stdio in
-let io = PipeThings.create_stdio_io output stdin in
+let io = CompilerIo.create_stdio_io Stdio stdin in
 let request_scope = create_request_scope io in
 let code = Compiler.HighLevel.entry sctx request_scope comm parsed_args in
 if code = 0 then begin
 	let timer_ctx = request_scope.timer_ctx in
 	if timer_ctx.measure_times = Yes then
-		CompilerOutput.send_timer_report output timer_ctx
+		CompilerOutput.send_timer_report io.output timer_ctx
 end;
 ServerCompilationContext.dispose sctx;
 exit code;
