@@ -784,9 +784,10 @@ let debug com (path : string list) str =
 	if Common.raw_defined com "cdebug" then begin
 		let emit () =
 			let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-			match com.request_scope.json_out with
-			| None -> print_endline s
-			| Some _ -> DynArray.add com.pass_debug_messages s
+			if CompilerOutput.has_json_rpc com.request_scope.result_handler then
+				DynArray.add com.pass_debug_messages s
+			else
+				print_endline s
 		in
 		match debug_paths,path with
 		| [],_

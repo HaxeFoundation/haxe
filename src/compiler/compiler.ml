@@ -487,8 +487,8 @@ module ContextFlush = struct
 
 	let flush_context_server ctx =
 		let write = CompilerIo.write_err ctx.com.request_scope.io in
-		match ctx.com.request_scope.json_out with
-		| Some api when not (is_diagnostics ctx.com) ->
+		let rh = ctx.com.request_scope.result_handler in
+		if CompilerOutput.has_json_rpc rh && not (is_diagnostics ctx.com) then begin
 			if has_error ctx then begin
 				let errors = List.map (fun cm ->
 					Json.JObject [
@@ -497,9 +497,9 @@ module ContextFlush = struct
 						"message",JString cm.cm_message;
 					]
 				) (List.rev ctx.messages) in
-				api.send_error_raise errors;
+				CompilerOutput.send_error_raise rh errors;
 			end
-		| _ ->
+		end else
 			let add_diagnostics_messages () =
 				List.iter (fun cm ->
 					add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity

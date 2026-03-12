@@ -617,13 +617,13 @@ let parse_input com input =
 	let send_error_raise = send_error (send_json_raise io) in
 	let send_error_noraise = send_error (send_json io) in
 
-	com.request_scope.json_out <- Some({
+	com.request_scope.result_handler <- {
 		send_result = send_result_noraise;
 		send_result_raise = send_result_raise;
 		send_error = send_error_noraise;
 		send_error_raise = send_error_raise;
-		jsonrpc = jsonrpc
-	});
+		jsonrpc = Some jsonrpc;
+	};
 
 	let cs = com.cs in
 

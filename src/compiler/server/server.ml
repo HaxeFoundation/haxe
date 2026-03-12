@@ -153,7 +153,7 @@ let create_request_scope io =
 		timer_ctx = Timer.make_context (Timer.make ["other"]);
 		cancellation_requested = false;
 		io;
-		json_out = None;
+		result_handler = CompilerOutput.create_default_result_handler io;
 	}
 
 let process sctx request_scope entry (args : parsed_arg list) =

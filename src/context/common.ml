@@ -138,14 +138,6 @@ type display_information = {
 	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
 }
 
-type json_api = {
-	send_result : Json.t -> unit;
-	send_result_raise : 'a . Json.t -> 'a;
-	send_error : Json.t list -> unit;
-	send_error_raise : 'a . Json.t list -> 'a;
-	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
-}
-
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
@@ -278,7 +270,7 @@ type request_scope = {
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 	io : CompilerIo.t;
-	mutable json_out : json_api option;
+	mutable result_handler : CompilerOutput.result_handler;
 }
 
 type context = {
