@@ -1,6 +1,3 @@
-open ServerCommunication
-open CompilationContext
-
 (** Handles IO piping between the compilation server and its clients.
 
     In server mode (--connect), the compiler runs as a long-lived process.
@@ -52,12 +49,12 @@ let make_output_pipe write_fn =
 	(out_ch, thread)
 
 (** Returns the stdin [in_channel] for this compilation context.
-	In server mode, [comm.stdin] is [Some ch] when the client forwarded
+	In server mode, [stdin] is [Some ch] when the client forwarded
 	stdin data over the socket (see {!SocketRequest.setup_client_stdin_forward}).
 	When [None] (no stdin data), creates a pipe with the write end immediately
 	closed so that reads return EOF. *)
-let get_stdin_channel comm =
-	match comm.stdin with
+let get_stdin_channel stdin =
+	match stdin with
 	| Some ch -> ch
 	| None ->
 		let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in
@@ -81,25 +78,27 @@ let getch_from_channel stdin_ch stdout_ch echo =
 
 (** Creates the {!Gctx.compilation_io} record for this compilation.
 
-	In server mode ([comm.is_server = true]):
+	In server mode ([Pipe]):
 	- stdout/stderr are pipe-backed channels with background threads that
-		forward writes through [comm.write_out]/[comm.write_err] (the socket protocol)
+		forward writes through [CompilerOutput.write_out]/[write_err] (the socket protocol)
 	- stdin comes from the client's forwarded data (or an immediately-closed pipe)
 	- [getch] reads from the stdin pipe instead of the terminal
 	- [close] flushes and joins all background threads
 
-	In non-server mode:
+	In non-server mode ([Stdio]):
 	- channels are the process's real stdin/stdout/stderr
 	- [getch] uses [Extc.getch] for native terminal raw-mode reading *)
-let create_io comm =
-	if comm.is_server then begin
-		let (stdout_ch, stdout_thread) = make_output_pipe comm.write_out in
-		let (stderr_ch, stderr_thread) = make_output_pipe comm.write_err in
-		let stdin_ch = get_stdin_channel comm in
+let create_io target stdin =
+	let write_out = CompilerOutput.write_out target in
+	let write_err = CompilerOutput.write_err target in
+	if CompilerOutput.is_server target then begin
+		let (stdout_ch, stdout_thread) = make_output_pipe write_out in
+		let (stderr_ch, stderr_thread) = make_output_pipe write_err in
+		let stdin_ch = get_stdin_channel stdin in
 		let closed = ref false in
 		{
-			Gctx.print = comm.write_out;
-			print_err = comm.write_err;
+			Gctx.print = write_out;
+			print_err = write_err;
 			stdout = stdout_ch;
 			stderr = stderr_ch;
 			stdin = stdin_ch;
@@ -115,8 +114,8 @@ let create_io comm =
 		}
 	end else
 		{
-			Gctx.print = comm.write_out;
-			print_err = comm.write_err;
+			Gctx.print = write_out;
+			print_err = write_err;
 			stdout = Stdlib.stdout;
 			stderr = Stdlib.stderr;
 			stdin = Stdlib.stdin;
@@ -129,7 +128,9 @@ let create_io comm =
 	Uses {!Process.run} to create the child process so we can connect
 	the child's stdin to the client's forwarded data and properly signal
 	EOF when the client closes its end. *)
-let run_command comm cmd =
+let run_command target stdin cmd =
+	let write_out = CompilerOutput.write_out target in
+	let write_err = CompilerOutput.write_err target in
 	let proc = Process.run cmd None in
 	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
 	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
@@ -141,7 +142,7 @@ let run_command comm cmd =
 		periodically, avoiding a hang when the child exits but the client
 		hasn't closed its stdin (e.g. interactive use or partial writes). *)
 	let stop_stdin = ref false in
-	let tin = match comm.stdin with
+	let tin = match stdin with
 		| Some stdin_pipe ->
 			let stdin_fd = Unix.descr_of_in_channel stdin_pipe in
 			Some (Thread.create (fun () ->
@@ -161,8 +162,8 @@ let run_command comm cmd =
 			close_out_noerr pin;
 			None
 	in
-	let tout = Thread.create (fun() -> read_content pout bout comm.write_out) () in
-	let terr = Thread.create (fun() -> read_content perr berr comm.write_err) () in
+	let tout = Thread.create (fun() -> read_content pout bout write_out) () in
+	let terr = Thread.create (fun() -> read_content perr berr write_err) () in
 	(* Join stdout/stderr threads first — they complete when the child closes
 		its output fds (typically on exit). Then reap the child process, signal
 		the stdin thread to stop, and join it. *)

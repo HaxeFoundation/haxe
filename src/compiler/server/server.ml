@@ -148,12 +148,13 @@ module SocketRequest = struct
 		{ data; stdin }
 end
 
-let create_request_scope output =
+let create_request_scope ?(stdin=None) output =
 	{
 		stats = Stats.create ();
 		timer_ctx = Timer.make_context (Timer.make ["other"]);
 		cancellation_requested = false;
 		output;
+		stdin;
 	}
 
 let process sctx request_scope entry comm (args : parsed_arg list) =
@@ -239,12 +240,12 @@ module WorkerDomain = struct
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
-			(try comm.write_err "\x02\nCancelled\n"; with _ -> ());
+			(try CompilerOutput.write_err request_scope.output "\x02\nCancelled\n"; with _ -> ());
 			Cancelled;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
-			(try comm.write_err ("\x02\n" ^ estr); with _ -> ());
+			(try CompilerOutput.write_err request_scope.output ("\x02\n" ^ estr); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then Oom else Errored
 
@@ -273,7 +274,7 @@ module WorkerDomain = struct
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
 						let comm = ServerCommunication.Communication.create_pipe sctx conn in
-						let request_scope = create_request_scope (CompilerOutput.Pipe conn.write) in
+						let request_scope = create_request_scope ~stdin:(conn.get_stdin()) (CompilerOutput.Pipe conn.write) in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry comm request.args in
 						conn.close();

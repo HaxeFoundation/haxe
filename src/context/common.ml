@@ -279,6 +279,7 @@ type request_scope = {
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 	output : CompilerOutput.output_target;
+	stdin : in_channel option;
 }
 
 type context = {

@@ -32,8 +32,9 @@ let run_or_diagnose ctx f =
 		f ()
 
 let run_command ctx cmd =
+	let output = ctx.com.request_scope.output in
 	(* TODO: this is a hack *)
-	let cmd = if ctx.comm.is_server then begin
+	let cmd = if CompilerOutput.is_server output then begin
 		let h = Hashtbl.create 0 in
 		Hashtbl.add h "__file__" ctx.com.file;
 		Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
@@ -46,14 +47,14 @@ let run_command ctx cmd =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
-		end else if not ctx.comm.is_server then
+		end else if not (CompilerOutput.is_server output) then
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
 			Sys.command cmd
 		else begin
-			(* In server mode, capture stdout/stderr and forward stdin through the communication channel.
+			(* In server mode, capture stdout/stderr and forward stdin through the output target.
 			   We use create_process instead of open_process_full so that we can
 			   properly forward the client's stdin and close it to signal EOF. *)
-			PipeThings.run_command ctx.comm cmd
+			PipeThings.run_command output ctx.com.request_scope.stdin cmd
 		end
 	in
 	result
@@ -473,14 +474,14 @@ let finalize ctx =
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
-	if not ctx.comm.is_server then begin
+	if not (CompilerOutput.is_server ctx.com.request_scope.output) then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
 let emit_completion ctx str =
 	ServerMessage.completion str;
-	ctx.comm.write_err str
+	CompilerOutput.write_err ctx.com.request_scope.output str
 
 let catch_completion_and_exit ctx sctx run =
 	try
@@ -534,7 +535,7 @@ let compile_ctx sctx ctx =
 		catch_completion_and_exit ctx sctx run
 
 let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
-	let io = PipeThings.create_io comm in
+	let io = PipeThings.create_io request_scope.output request_scope.stdin in
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
