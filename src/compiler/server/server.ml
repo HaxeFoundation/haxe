@@ -228,6 +228,10 @@ module WorkerDomain = struct
 
 	let run_request sctx request_scope entry {comm; stdin; args} =
 		let comm = (comm()) in
+		request_scope.output <- (fun kind -> match kind with
+			| CompilerOutput.OTimerData s -> (try comm.write_err s with _ -> ())
+			| _ -> ()
+		);
 		try
 			process sctx request_scope entry comm args;
 			comm
