@@ -1499,7 +1499,7 @@ module StdLog = struct
 					| _ -> [s]
 				in
 				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
-		((get_ctx()).curapi.MacroApi.get_com()).part_scope.io.print s;
+		CompilerIo.write_out ((get_ctx()).curapi.MacroApi.get_com()).request_scope.io s;
 		vnull
 	)
 end
@@ -2763,7 +2763,7 @@ module StdSys = struct
 		let echo = decode_bool echo in
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		vint (com.part_scope.io.getch echo)
+		vint (CompilerIo.getch com.request_scope.io echo)
 	)
 
 	let getCwd = vfun0 (fun () ->
@@ -2786,14 +2786,14 @@ module StdSys = struct
 	let print = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.part_scope.io.print (value_string v);
+		CompilerIo.write_out com.request_scope.io (value_string v);
 		vnull
 	)
 
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.part_scope.io.print (value_string v ^ lineEnd);
+		CompilerIo.write_out com.request_scope.io (value_string v ^ lineEnd);
 		vnull
 	)
 
@@ -2833,19 +2833,19 @@ module StdSys = struct
 	let stderr = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel com.part_scope.io.stderr)
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel (CompilerIo.get_stderr com.request_scope.io))
 	)
 
 	let stdin = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileInput ~kind:(IInChannel(com.part_scope.io.stdin,ref false))
+		encode_instance key_sys_io_FileInput ~kind:(IInChannel (CompilerIo.get_stdin com.request_scope.io,ref false))
 	)
 
 	let stdout = vfun0 (fun () ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel com.part_scope.io.stdout)
+		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel (CompilerIo.get_stdout com.request_scope.io))
 	)
 
 	let systemName =

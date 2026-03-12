@@ -3,21 +3,11 @@ open ParsedArg
 
 exception Abort
 
-type communication = {
-	write_out : string -> unit;
-	write_err : string -> unit;
-	close     : unit -> unit;
-	flush     : compilation_context -> unit;
-	is_server : bool;
-	stdin     : in_channel option;
-}
-
-and compilation_context = {
+type compilation_context = {
 	com : Common.context;
 	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
-	comm : communication;
 	mutable runtime_args : string list;
 	(** The pre-parsed arguments for this compilation batch. Used by
 	    [Args.process_args_new] to apply arguments to [com]. *)
@@ -28,7 +18,7 @@ type server_connection = {
 	read : unit -> string;
 	write : string -> unit;
 	close : unit -> unit;
-	get_stdin : unit -> in_channel option;
+	get_stdin : unit -> in_channel;
 }
 
 type server_accept = unit -> server_connection

@@ -39,7 +39,7 @@ let create_json_context jsonrpc may_resolve =
 	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string io j =
-	io.Gctx.print_err j
+	CompilerIo.write_err io j
 
 let send_json io json =
 	send_string io (string_of_json json)
@@ -581,7 +581,7 @@ type parse_input_result =
 	| Completed
 
 let parse_input com input =
-	let io = com.part_scope.io in
+	let io = com.request_scope.io in
 	let input = JsonRpc.parse_request input in
 	let jsonrpc = new jsonrpc_handler input in
 
@@ -677,7 +677,7 @@ let parse_input com input =
 
 let parse_input com input =
 	let handle_error json =
-		send_json com.part_scope.io json;
+		send_json com.request_scope.io json;
 		Completed
 	in
 	JsonRpc.handle_jsonrpc_error (fun () ->

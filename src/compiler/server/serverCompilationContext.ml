@@ -3,6 +3,7 @@ open CompilationCache
 
 
 type t = {
+	is_server : bool;
 	version : Globals.compiler_version;
 	(* If true, prints some debug information *)
 	verbose : bool;
@@ -36,9 +37,10 @@ let create_version () =
 		extra = Version.version_extra;
 	}
 
-let create verbose =
+let create verbose is_server =
 	let pool = Parallel.ManagedPool.create (fun () -> Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ()) in
 	{
+		is_server;
 		version = create_version ();
 		verbose;
 		cs = new CompilationCache.cache;

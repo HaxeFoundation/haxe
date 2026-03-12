@@ -8,19 +8,6 @@ type context_main = {
 	mutable main_expr : texpr option;
 }
 
-type compilation_io = {
-	print : string -> unit;
-	print_err : string -> unit;
-	stdout : out_channel;
-	stderr : out_channel;
-	stdin : in_channel;
-	getch : bool -> int;
-		(** Reads a single character from stdin. The [bool] parameter controls echo.
-		    In non-server mode, uses [Extc.getch] for native terminal raw-mode input.
-		    In server mode, reads from the client's forwarded stdin pipe. Returns -1 on EOF. *)
-	close : unit -> unit;
-}
-
 type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit
 type error_function = string -> pos -> unit
 
@@ -32,7 +19,7 @@ type t = {
 	run_command_args : string -> string list -> int;
 	warning : warning_function;
 	error : error_function;
-	io : compilation_io;
+	io : CompilerIo.t;
 	basic : basic_types;
 	debug : bool;
 	file : string;

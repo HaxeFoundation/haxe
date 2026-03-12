@@ -32,8 +32,9 @@ let run_or_diagnose ctx f =
 		f ()
 
 let run_command ctx cmd =
+	let io = ctx.com.request_scope.io in
 	(* TODO: this is a hack *)
-	let cmd = if ctx.comm.is_server then begin
+	let cmd = if ctx.com.sctx.is_server then begin
 		let h = Hashtbl.create 0 in
 		Hashtbl.add h "__file__" ctx.com.file;
 		Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
@@ -46,14 +47,13 @@ let run_command ctx cmd =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
-		end else if not ctx.comm.is_server then
+		end else if not ctx.com.sctx.is_server then
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
 			Sys.command cmd
 		else begin
-			(* In server mode, capture stdout/stderr and forward stdin through the communication channel.
-			   We use create_process instead of open_process_full so that we can
-			   properly forward the client's stdin and close it to signal EOF. *)
-			PipeThings.run_command ctx.comm cmd
+			(* In server mode, capture stdout/stderr through the output target and
+			   forward the client's stdin from request_scope. *)
+			PipeThings.run_command io cmd
 		end
 	in
 	result
@@ -469,18 +469,78 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
-	ctx.com.part_scope.io.close ();
+	CompilerIo.flush ctx.com.request_scope.io;
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
-	if not ctx.comm.is_server then begin
+	if not ctx.com.sctx.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
 let emit_completion ctx str =
 	ServerMessage.completion str;
-	ctx.comm.write_err str
+	CompilerIo.write_err ctx.com.request_scope.io str
+
+module ContextFlush = struct
+	open MessageReporting
+
+	let flush_context_server ctx =
+		let write = CompilerIo.write_err ctx.com.request_scope.io in
+		match ctx.com.json_out with
+		| Some api when not (is_diagnostics ctx.com) ->
+			if has_error ctx then begin
+				let errors = List.map (fun cm ->
+					Json.JObject [
+						"severity",JInt (MessageSeverity.to_int cm.cm_severity);
+						"location",Genjson.generate_pos_as_location cm.cm_pos;
+						"message",JString cm.cm_message;
+					]
+				) (List.rev ctx.messages) in
+				api.send_error_raise errors;
+			end
+		| _ ->
+			let add_diagnostics_messages () =
+				List.iter (fun cm ->
+					add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+				) (List.rev ctx.messages);
+			in
+			match ctx.com.report_mode with
+				| RMDiagnostics _ ->
+					add_diagnostics_messages ()
+				| _ ->
+					display_messages ctx (fun _ output ->
+						write (output ^ "\n");
+						ServerMessage.message output;
+					);
+					(* TODO: What is this? *)
+					ctx.com.sctx.was_compilation <- ctx.com.display.dms_full_typing;
+					if has_error ctx then begin
+						ctx.com.timer_ctx.measure_times <- No;
+						CompilerIo.signal_error ctx.com.request_scope.io
+					end else
+						if ctx.com.timer_ctx.measure_times = Yes then
+							CompilerOutput.send_timer_report ctx.com.request_scope.io ctx.com.timer_ctx
+
+	let flush_context_client ctx =
+		display_messages ctx (fun sev output ->
+			match sev with
+				| MessageSeverity.Information -> print_endline output
+				| Warning | Error | Hint -> prerr_endline output
+		);
+
+		if has_error ctx && !Helper.prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		flush stdout
+
+		let flush_context ctx =
+			if ctx.com.sctx.is_server then
+				flush_context_server ctx
+			else
+				flush_context_client ctx
+end
 
 let catch_completion_and_exit ctx sctx run =
 	try
@@ -498,7 +558,7 @@ let catch_completion_and_exit ctx sctx run =
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
-			ctx.comm.flush ctx;
+			ContextFlush.flush_context ctx;
 			finalize ctx;
 			i
 
@@ -522,23 +582,21 @@ let compile_ctx sctx ctx =
 			process_actx ctx actx;
 			compile ctx actx sctx;
 		);
-		ctx.comm.flush ctx;
+		ContextFlush.flush_context ctx;
 		ServerCache.after_compilation sctx ctx;
 		finalize ctx;
 	in
 	if ctx.has_error then begin
-		ctx.comm.flush ctx;
+		ContextFlush.flush_context ctx;
 		finalize ctx;
 		1 (* can happen if process_params fails already *)
 	end else
 		catch_completion_and_exit ctx sctx run
 
-let create_context comm sctx request_scope compilation_step (parsed_args : parsed_arg list) =
-	let io = PipeThings.create_io comm in
+let create_context sctx request_scope compilation_step (parsed_args : parsed_arg list) =
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
-		io;
 	} in
 	let com = Common.create sctx request_scope part_scope compilation_step (Args.to_raw_args parsed_args) (DisplayTypes.DisplayMode.create DMNone) in
 	{
@@ -546,7 +604,6 @@ let create_context comm sctx request_scope compilation_step (parsed_args : parse
 		messages = [];
 		has_next = false;
 		has_error = false;
-		comm = comm;
 		runtime_args = [];
 		parsed_args;
 	}
@@ -604,7 +661,7 @@ module HighLevel = struct
 			) [] (List.rev lines) in
 			lines
 
-	let create_context_from_part (sctx : ServerCompilationContext.t) comm (request_scope : request_scope) has_display part =
+	let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope : request_scope) has_display part =
 		(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
 		let expand_part_libs has_global (part_args : parsed_arg list) =
 			let expand_one arg = match arg with
@@ -624,9 +681,9 @@ module HighLevel = struct
 		let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
 		let expanded_args = expand_part_libs has_global part.Args.args in
 		sctx.compilation_step <- sctx.compilation_step + 1;
-		create_context comm sctx request_scope sctx.compilation_step expanded_args
+		create_context sctx request_scope sctx.compilation_step expanded_args
 
-	let entry sctx request_scope comm (args : parsed_arg list) =
+	let entry sctx request_scope (args : parsed_arg list) =
 		let curdir = Unix.getcwd () in
 		try
 			let request_args = Args.expand_args args in
@@ -636,7 +693,7 @@ module HighLevel = struct
 				| part :: rest ->
 					(* Re-apply original dir in case --cwd was used in a previous part *)
 					Unix.chdir curdir;
-					let ctx = create_context_from_part sctx comm request_scope has_display part in
+					let ctx = create_context_from_part sctx request_scope has_display part in
 					if rest <> [] then ctx.has_next <- true;
 					ctx.runtime_args <- part.Args.runtime_args;
 					let code = compile_ctx sctx ctx in
@@ -649,7 +706,7 @@ module HighLevel = struct
 		with Arg.Bad msg ->
 			Unix.chdir curdir;
 			(* TODO: this is silly *)
-			let ctx = create_context comm sctx request_scope 0 args in
+			let ctx = create_context sctx request_scope 0 args in
 			error ctx ("Error: " ^ msg) null_pos;
 			compile_ctx sctx ctx
 end
