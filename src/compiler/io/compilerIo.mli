@@ -1,39 +1,42 @@
 (** Compiler IO abstraction.
 
-    This module provides the IO channels and output routing for a single
-    compilation request. It bridges the gap between OCaml's standard channel
-    API (used by code generators, [Printf], etc.) and the socket protocol
-    used in server mode.
+    This module provides the IO channels and protocol-aware output routing
+    for a single compilation request.
+
+    The protocol is determined internally by the create function used:
+    {!create_stdio_io} for CLI mode, {!create_pipe_io} for server mode.
+    The protocol encoding (how stdout/stderr/errors are multiplexed) is
+    fully encapsulated — callers use {!write_out}, {!write_err},
+    {!signal_error} without knowing the wire format.
 
     In server mode, [stdout] and [stderr] are pipe-backed channels with
-    background threads that forward writes through the socket protocol.
+    background threads that forward writes through the protocol layer.
     In non-server mode, the process's real stdin/stdout/stderr are used. *)
-
-(** The output target determines where compiler output goes.
-
-    - [Stdio]: direct writes to the process's stdout/stderr.
-    - [Pipe write]: server mode — writes go through the connection's
-      write function, which encodes and sends them to the client. *)
-type output_target =
-	| Stdio
-	| Pipe of (string -> unit)
 
 (** Abstract IO handle for a compilation request. *)
 type t
 
-(** Write to stdout using the socket protocol encoding in server mode,
-    or directly to stdout in CLI mode.  In [Pipe] mode, newlines in the
-    string are encoded as [\x01] separators per the legacy protocol. *)
+(** Write to stdout using the protocol encoding.  In server mode, newlines
+    in the string are encoded as [\x01] separators per the v1 protocol.
+    In CLI mode, writes directly to [Stdlib.stdout]. *)
 val write_out : t -> string -> unit
 
-(** Write to stderr.  In [Pipe] mode, the string is sent as-is through
-    the connection's write function (stderr lines are plain text in the
-    legacy protocol).  In [Stdio] mode, writes to [Stdlib.stderr]. *)
+(** Write to stderr using the protocol encoding.  In server mode, the
+    string is sent as-is through the connection's write function (stderr
+    lines are plain text in v1).  In CLI mode, writes to [Stdlib.stderr]. *)
 val write_err : t -> string -> unit
+
+(** Signal that the current request ended with an error.  In server mode,
+    writes the [\x02\n] error sentinel per the v1 protocol.  In CLI
+    mode, this is a no-op (error status is communicated via the exit code). *)
+val signal_error : t -> unit
+
+(** Whether this IO handle is in server mode (i.e. using a socket protocol). *)
+val is_server : t -> bool
 
 (** The [out_channel] that compilation code should use for stdout.
     In server mode this is one end of a pipe; a background thread reads
-    the other end and forwards chunks through [write_out]. *)
+    the other end and forwards chunks through the protocol layer. *)
 val get_stdout : t -> out_channel
 
 (** The [out_channel] for stderr, analogous to {!get_stdout}. *)
@@ -64,19 +67,18 @@ val close : t -> unit
 
 (** Create a pipe-backed IO handle for server mode.
 
-    [stdout] and [stderr] are pipe-backed channels; background threads
-    read from the pipes and forward chunks through the socket protocol
-    via [write_out] / [write_err].
+    Uses the v1 socket protocol: [\x01]-separated stdout, verbatim stderr,
+    [\x02] error sentinel.
 
-    @param output The output target (should be [Pipe _]).
+    [stdout] and [stderr] are pipe-backed channels; background threads
+    read from the pipes and forward chunks through the protocol encoder.
+
+    @param write The connection's raw write function.
     @param stdin_ch The stdin channel forwarded from the client. *)
-val create_pipe_io : output_target -> in_channel -> t
+val create_pipe_io : (string -> unit) -> in_channel -> t
 
 (** Create a stdio-based IO handle for non-server (CLI) mode.
 
     Uses the process's real [stdin]/[stdout]/[stderr].  [getch] uses
-    [Extc.getch] for native terminal raw-mode reading.
-
-    @param output The output target (should be [Stdio]).
-    @param stdin_ch Unused in practice ([Stdlib.stdin] is used directly). *)
-val create_stdio_io : output_target -> in_channel -> t
+    [Extc.getch] for native terminal raw-mode reading. *)
+val create_stdio_io : unit -> t

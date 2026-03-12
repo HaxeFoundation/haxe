@@ -517,7 +517,7 @@ module ContextFlush = struct
 					ctx.com.sctx.was_compilation <- ctx.com.display.dms_full_typing;
 					if has_error ctx then begin
 						ctx.com.timer_ctx.measure_times <- No;
-						write "\x02\n"
+						CompilerIo.signal_error ctx.com.request_scope.io
 					end else
 						if ctx.com.timer_ctx.measure_times = Yes then
 							CompilerOutput.send_timer_report ctx.com.request_scope.io ctx.com.timer_ctx

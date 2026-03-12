@@ -227,6 +227,8 @@ module WorkerDomain = struct
 		Mutex.unlock rq.mutex;
 		List.iter (fun req ->
 			let conn = req.conn in
+			(* No CompilerIo.t exists for pending requests, so signal error
+			   directly through the raw connection using v1 protocol encoding. *)
 			(try conn.write "\x02\nServer shutdown\n"; with _ -> ());
 			conn.close();
 		) pending
@@ -238,12 +240,12 @@ module WorkerDomain = struct
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
-			(try CompilerIo.write_err request_scope.io "\x02\nCancelled\n"; with _ -> ());
+			(try CompilerIo.signal_error request_scope.io; CompilerIo.write_err request_scope.io "Cancelled\n"; with _ -> ());
 			Cancelled;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
-			(try CompilerIo.write_err request_scope.io ("\x02\n" ^ estr); with _ -> ());
+			(try CompilerIo.signal_error request_scope.io; CompilerIo.write_err request_scope.io (estr ^ "\n"); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then Oom else Errored
 
@@ -271,7 +273,7 @@ module WorkerDomain = struct
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
-						let io = CompilerIo.create_pipe_io (CompilerIo.Pipe conn.write) (conn.get_stdin()) in
+						let io = CompilerIo.create_pipe_io conn.write (conn.get_stdin()) in
 						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry request.args in

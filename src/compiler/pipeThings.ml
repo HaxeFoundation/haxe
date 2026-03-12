@@ -1,14 +1,14 @@
 (** Handles IO piping between the compilation server and its clients.
 
-    In server mode (--connect), the compiler runs as a long-lived process.
-    Client requests arrive over a socket, and we need to redirect the
-    compilation's stdin/stdout/stderr through the socket protocol rather
-    than using the server process's own file descriptors.
+    In server mode, the compiler runs as a long-lived process.  Client
+    requests arrive over a socket, and we need to redirect the compilation's
+    stdin/stdout/stderr through the socket rather than using the server
+    process's own file descriptors.
 
-    The socket protocol uses newline-framed messages with prefix bytes:
-    - [\x01]: stdout data (newlines within the data are encoded as [\x01] separators)
-    - [\x02]: error flag
-    - other: stderr (written verbatim)
+    Protocol encoding (how stdout/stderr/errors are multiplexed) is handled
+    by {!CompilerIo} via its opaque {!CompilerIo.protocol} type.  This module
+    provides the client-side socket communication ([poll], [ssend]) and the
+    server-side subprocess runner ({!run_command}).
 
     Stdin data from the client is forwarded as raw bytes after the null-terminated
     argument string, so newlines in stdin require no special encoding. *)

@@ -1,9 +1,11 @@
 open CompilerIo
 
-(** Higher-level compiler output helpers.
+(** Higher-level compiler output helpers ("what to send").
 
-    Builds on {!CompilerIo} to provide convenience functions for output
-    that needs formatting or buffering beyond simple string writes. *)
+    Builds on {!CompilerIo} to provide convenience functions for common
+    output operations like timer reports.  These functions are the top-level
+    API that compiler code should use — they route through {!CompilerIo}
+    which handles protocol encoding and transport. *)
 
 (** Collect timer report output and write it to stderr / the connection.
     Writes are wrapped in [try ... with] because in server mode the
