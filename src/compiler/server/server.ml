@@ -168,7 +168,7 @@ module RequestQueue = struct
 	type request = {
 		args : parsed_arg list;
 		stdin : string option;
-		comm : unit -> communication;
+		conn : server_connection;
 	}
 
 	type t = {
@@ -193,9 +193,9 @@ module RequestQueue = struct
 	let wake_up rq =
 		Semaphore.Counting.release rq.semaphore
 
-	let add rq args stdin comm =
+	let add rq args stdin conn =
 		Mutex.lock rq.mutex;
-		rq.requests <- { args; stdin; comm; } :: rq.requests;
+		rq.requests <- { args; stdin; conn; } :: rq.requests;
 		Mutex.unlock rq.mutex;
 		wake_up rq
 
@@ -221,9 +221,9 @@ module WorkerDomain = struct
 		rq.requests <- [];
 		Mutex.unlock rq.mutex;
 		List.iter (fun req ->
-			let comm = req.comm() in
-			(try comm.write_err "\x02\nServer shutdown\n"; with _ -> ());
-			comm.close();
+			let conn = req.conn in
+			(try conn.write "\x02\nServer shutdown\n"; with _ -> ());
+			conn.close();
 		) pending
 
 	let run_request sctx request_scope entry comm args =
@@ -266,7 +266,7 @@ module WorkerDomain = struct
 						Mutex.unlock rq.mutex;
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
-						let comm = request.comm() in
+						let comm = ServerCommunication.Communication.create_pipe sctx request.conn in
 						let request_scope = create_request_scope (OutputPipe.create ~write_err:comm.write_err) in
 						rq.current_request <- Some request_scope;
 						run_request sctx request_scope entry comm request.args;
@@ -317,8 +317,7 @@ let wait_loop entry verbose accept =
 				in
 				let data = Helper.parse_hxml_data hxml in
 				let parsed_args = Args.parse_args data in
-				let comm () = ServerCommunication.Communication.create_pipe sctx conn in
-				RequestQueue.add rq parsed_args stdin comm;
+				RequestQueue.add rq parsed_args stdin conn;
 			with Unix.Unix_error _ ->
 				ServerMessage.socket_message "Connection Aborted";
 				conn.close()
