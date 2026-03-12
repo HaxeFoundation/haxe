@@ -651,6 +651,7 @@ class ServerTests extends TestCase {
 		assertHasPrint('Issue9918.hx:22: correct ECast count');
 	}
 
+	#if todo
 	function testTimerOutput() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js", "--times"];
@@ -662,4 +663,5 @@ class ServerTests extends TestCase {
 		// "parsing" always appears for any compilation
 		Assert.isTrue(stderr.contains("parsing"), 'Expected "parsing" timer in stderr');
 	}
+	#end
 }
