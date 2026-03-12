@@ -18,7 +18,7 @@ type server_connection = {
 	read : unit -> string;
 	write : string -> unit;
 	close : unit -> unit;
-	stdin : in_channel;
+	get_stdin : unit -> in_channel;
 }
 
 type server_accept = unit -> server_connection

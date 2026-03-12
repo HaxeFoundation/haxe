@@ -40,7 +40,8 @@ let mk_length_prefixed_communication allow_nonblock chin chout =
 	in
 
 	fun () ->
-		{ read; write; close; stdin = make_closed_stdin () }
+		let stdin = make_closed_stdin () in
+		{ read; write; close; get_stdin = (fun () -> stdin) }
 
 module Connect = struct
 	(* The connect function to connect to [host] at [port] and send arguments [args]. *)
@@ -270,7 +271,7 @@ module WorkerDomain = struct
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
-						let io = CompilerIo.create_pipe_io (CompilerIo.Pipe conn.write) conn.stdin in
+						let io = CompilerIo.create_pipe_io (CompilerIo.Pipe conn.write) (conn.get_stdin()) in
 						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry request.args in
@@ -369,9 +370,11 @@ let init_wait_socket ip port =
 		Unix.set_nonblock sin;
 		ServerMessage.socket_message "Client connected";
 		let overflow = ref Bytes.empty in
-		let stdin = SocketRequest.setup_client_stdin_forward !overflow sin in
+		let stdin_ref = ref (make_closed_stdin ()) in
 		let read () =
-			SocketRequest.read overflow sin bufsize
+			let data = SocketRequest.read overflow sin bufsize in
+			stdin_ref := SocketRequest.setup_client_stdin_forward !overflow sin;
+			data
 		in
 		let closed = ref false in
 		let close() =
@@ -390,6 +393,6 @@ let init_wait_socket ip port =
 				| Some _ -> close()
 				| None -> PipeThings.ssend sin (Bytes.unsafe_of_string s);
 		in
-		{ read; write; close; stdin }
+		{ read; write; close; get_stdin = (fun () -> !stdin_ref) }
 	) in
 	accept
