@@ -1,25 +1,14 @@
-(** The protocol determines how compiler output is encoded for the transport.
-
-    - [Stdio]: CLI mode — writes directly to the process's stdout/stderr.
-    - [Socket write]: server mode — output is encoded per the socket protocol
-      and sent through the connection's [write] function.
-
-    The current socket protocol is the legacy v1 text-framed protocol:
-    [\x01]-separated stdout, verbatim stderr, [\x02] error sentinel.
-    A future v2 binary protocol can be added as a new variant (or by
-    extending [Socket] with a version field). *)
-type protocol =
-	| Stdio
-	| Socket of (string -> unit)
-
 type t = {
 	stdout : out_channel;
 	stderr : out_channel;
 	stdin : in_channel;
 	getch : bool -> int;
+	write_out : string -> unit;
+	write_err : string -> unit;
+	write_result : string -> unit;
+	signal_error : unit -> unit;
 	flush : unit -> unit;
 	close : unit -> unit;
-	protocol : protocol;
 }
 
 (* Create a Unix pipe with a background reader thread that forwards chunks
@@ -30,13 +19,14 @@ let make_output_pipe write_fn =
 	let in_ch = Unix.in_channel_of_descr r_fd in
 	let thread = Thread.create (fun () ->
 		let buf = Bytes.create 1024 in
-		(try while true do
+		begin try while true do
 			let n = input in_ch buf 0 1024 in
 			if n = 0 then raise Exit;
 			write_fn (Bytes.sub_string buf 0 n)
 		done with
 		| End_of_file | Exit -> ()
-		| Unix.Unix_error _ -> ());
+		| Unix.Unix_error _ -> ()
+		end;
 		close_in_noerr in_ch
 	) () in
 	(out_ch, thread)
@@ -49,33 +39,14 @@ let getch_from_channel stdin_ch stdout_ch echo =
 	in
 	if echo && c >= 0 then begin
 		output_char stdout_ch (char_of_int c);
-		flush stdout_ch
+		Stdlib.flush stdout_ch
 	end;
 	c
 
-(* Protocol-aware output functions.  These encode the data according to
-   the protocol variant and send it through the appropriate channel. *)
-
-let write_out' protocol s = match protocol with
-	| Stdio -> print_string s; flush stdout
-	| Socket write -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n")
-
-let write_err' protocol s = match protocol with
-	| Stdio -> prerr_string s
-	| Socket write -> write s
-
-let signal_error' protocol = match protocol with
-	| Stdio -> ()
-	| Socket write -> write "\x02\n"
-
-let is_server' protocol = match protocol with
-	| Stdio -> false
-	| Socket _ -> true
-
-let write_out io s = write_out' io.protocol s
-let write_err io s = write_err' io.protocol s
-let signal_error io = signal_error' io.protocol
-let is_server io = is_server' io.protocol
+let write_out io s = io.write_out s
+let write_err io s = io.write_err s
+let write_result io s = io.write_result s
+let signal_error io = io.signal_error ()
 
 let get_stdout io = io.stdout
 let get_stderr io = io.stderr
@@ -86,10 +57,7 @@ let getch io echo = io.getch echo
 let flush io = io.flush ()
 let close io = io.close ()
 
-let create_pipe_io write stdin_ch =
-	let protocol = Socket write in
-	let write_out = write_out' protocol in
-	let write_err = write_err' protocol in
+let create ~write_out ~write_err ~write_result ~signal_error stdin_ch =
 	let (stdout_ch, stdout_thread) = make_output_pipe write_out in
 	let (stderr_ch, stderr_thread) = make_output_pipe write_err in
 	let closed = ref false in
@@ -98,6 +66,10 @@ let create_pipe_io write stdin_ch =
 		stderr = stderr_ch;
 		stdin = stdin_ch;
 		getch = getch_from_channel stdin_ch stdout_ch;
+		write_out;
+		write_err;
+		write_result;
+		signal_error;
 		flush = (fun () ->
 			Stdlib.flush stdout_ch;
 			Stdlib.flush stderr_ch;
@@ -110,7 +82,6 @@ let create_pipe_io write stdin_ch =
 				close_in_noerr stdin_ch;
 			end
 		);
-		protocol;
 	}
 
 let create_stdio_io () =
@@ -119,7 +90,10 @@ let create_stdio_io () =
 		stderr = Stdlib.stderr;
 		stdin = Stdlib.stdin;
 		getch = Extc.getch;
+		write_out = (fun s -> print_string s; Stdlib.flush Stdlib.stdout);
+		write_err = prerr_string;
+		write_result = prerr_string;
+		signal_error = (fun () -> ());
 		flush = (fun () -> Stdlib.flush Stdlib.stdout);
 		close = (fun () -> ());
-		protocol = Stdio;
 	}

@@ -39,7 +39,7 @@ let create_json_context jsonrpc may_resolve =
 	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string io j =
-	CompilerIo.write_err io j
+	CompilerIo.write_result io j
 
 let send_json io json =
 	send_string io (string_of_json json)

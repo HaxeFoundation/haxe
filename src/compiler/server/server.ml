@@ -273,7 +273,11 @@ module WorkerDomain = struct
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
-						let io = CompilerIo.create_pipe_io conn.write (conn.get_stdin()) in
+						let write_out s = conn.write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n") in
+						let write_err s = conn.write s in
+						let write_result s = conn.write s in
+						let signal_error () = conn.write "\x02\n" in
+						let io = CompilerIo.create ~write_out ~write_err ~write_result ~signal_error (conn.get_stdin()) in
 						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry request.args in
