@@ -63,10 +63,6 @@ let getch io echo = io.getch echo
 let flush io = io.flush ()
 let close io = io.close ()
 
-let is_server io = match io.output with
-	| Stdio -> false
-	| Pipe _ -> true
-
 let create_pipe_io output stdin_ch =
 	let write_out = write_out' output in
 	let write_err = write_err' output in

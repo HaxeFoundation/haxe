@@ -131,7 +131,7 @@ end;
 
 (* We are a normal non-server compilation. *)
 
-let sctx = Server.setup_server_context false in
+let sctx = Server.setup_server_context false false in
 let io = CompilerIo.create_stdio_io Stdio stdin in
 let request_scope = create_request_scope io in
 let code = Compiler.HighLevel.entry sctx request_scope parsed_args in

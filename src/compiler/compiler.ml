@@ -34,7 +34,7 @@ let run_or_diagnose ctx f =
 let run_command ctx cmd =
 	let io = ctx.com.request_scope.io in
 	(* TODO: this is a hack *)
-	let cmd = if CompilerIo.is_server io then begin
+	let cmd = if ctx.com.sctx.is_server then begin
 		let h = Hashtbl.create 0 in
 		Hashtbl.add h "__file__" ctx.com.file;
 		Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
@@ -47,7 +47,7 @@ let run_command ctx cmd =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
-		end else if not (CompilerIo.is_server io) then
+		end else if not ctx.com.sctx.is_server then
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
 			Sys.command cmd
 		else begin
@@ -473,7 +473,7 @@ let finalize ctx =
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
-	if not (CompilerIo.is_server ctx.com.request_scope.io) then begin
+	if not ctx.com.sctx.is_server then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
@@ -536,7 +536,7 @@ module ContextFlush = struct
 		flush stdout
 
 		let flush_context ctx =
-			if CompilerIo.is_server ctx.com.request_scope.io then
+			if ctx.com.sctx.is_server then
 				flush_context_server ctx
 			else
 				flush_context_client ctx

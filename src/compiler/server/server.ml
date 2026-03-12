@@ -299,18 +299,18 @@ module WorkerDomain = struct
 		}
 end
 
-let setup_server_context verbose =
+let setup_server_context verbose is_server =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
 	(* Create server context and set up hooks for parsing and typing *)
-	let sctx = ServerCompilationContext.create verbose in
+	let sctx = ServerCompilationContext.create verbose is_server in
 	ServerCache.enable_cache_mode sctx;
 	sctx
 
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop entry verbose accept =
-	let sctx = setup_server_context verbose in
+	let sctx = setup_server_context verbose true in
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx entry rq in
 	(* Main loop: accept connections and enqueue requests for the worker.

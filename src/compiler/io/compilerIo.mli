@@ -62,9 +62,6 @@ val flush : t -> unit
     In CLI mode, this is a no-op. *)
 val close : t -> unit
 
-(** Whether we're in server mode (i.e. the output target is [Pipe]). *)
-val is_server : t -> bool
-
 (** Create a pipe-backed IO handle for server mode.
 
     [stdout] and [stderr] are pipe-backed channels; background threads
