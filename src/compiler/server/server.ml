@@ -148,12 +148,12 @@ module SocketRequest = struct
 		{ data; stdin }
 end
 
-let create_request_scope () =
+let create_request_scope output =
 	{
 		stats = Stats.create ();
 		timer_ctx = Timer.make_context (Timer.make ["other"]);
 		cancellation_requested = false;
-		output = CompilerOutput.noop_handler;
+		output;
 	}
 
 let process sctx request_scope entry comm (args : parsed_arg list) =
@@ -226,12 +226,7 @@ module WorkerDomain = struct
 			comm.close();
 		) pending
 
-	let run_request sctx request_scope entry {comm; stdin; args} =
-		let comm = (comm()) in
-		request_scope.output <- (fun kind -> match kind with
-			| CompilerOutput.OTimerData s -> (try comm.write_err s with _ -> ())
-			| _ -> ()
-		);
+	let run_request sctx request_scope entry comm args =
 		try
 			process sctx request_scope entry comm args;
 			comm
@@ -274,9 +269,10 @@ module WorkerDomain = struct
 						Mutex.unlock rq.mutex;
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
-						let request_scope = create_request_scope() in
+						let comm = request.comm() in
+						let request_scope = create_request_scope (OutputPipe.create ~write_err:comm.write_err) in
 						rq.current_request <- Some request_scope;
-						let comm = run_request sctx request_scope entry request in
+						let comm = run_request sctx request_scope entry comm request.args in
 						comm.close();
 						sctx.current_stdin <- None;
 						ServerCache.cleanup();

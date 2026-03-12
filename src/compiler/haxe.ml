@@ -133,11 +133,7 @@ end;
 
 let sctx = Server.setup_server_context false in
 let comm = ServerCommunication.Communication.create_stdio () in
-let request_scope = create_request_scope() in
-request_scope.output <- (fun kind -> match kind with
-	| CompilerOutput.OTimerData s -> prerr_string s
-	| _ -> ()
-);
+let request_scope = create_request_scope (OutputCli.create ()) in
 let code = Compiler.HighLevel.entry sctx request_scope comm parsed_args in
 if code = 0 then begin
 	let timer_ctx = request_scope.timer_ctx in
