@@ -3,19 +3,11 @@ open ParsedArg
 
 exception Abort
 
-type communication = {
-	write_out : string -> unit;
-	write_err : string -> unit;
-	flush     : compilation_context -> unit;
-	is_server : bool;
-}
-
-and compilation_context = {
+type compilation_context = {
 	com : Common.context;
 	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable has_error : bool;
-	comm : communication;
 	mutable runtime_args : string list;
 	(** The pre-parsed arguments for this compilation batch. Used by
 	    [Args.process_args_new] to apply arguments to [com]. *)

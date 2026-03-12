@@ -154,11 +154,11 @@ let create_request_scope io =
 		io;
 	}
 
-let process sctx request_scope entry comm (args : parsed_arg list) =
+let process sctx request_scope entry (args : parsed_arg list) =
 	let t0 = Extc.time() in
 	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
 	ServerCompilationContext.reset sctx;
-	entry sctx request_scope comm args;
+	entry sctx request_scope args;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
@@ -230,9 +230,9 @@ module WorkerDomain = struct
 			conn.close();
 		) pending
 
-	let run_request sctx request_scope entry comm args =
+	let run_request sctx request_scope entry args =
 		try
-			process sctx request_scope entry comm args;
+			process sctx request_scope entry args;
 			Success
 		with
 		| Cancelled ->
@@ -270,11 +270,10 @@ module WorkerDomain = struct
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
 						let conn = request.conn in
-						let comm = ServerCommunication.Communication.create_pipe sctx conn in
 						let io = CompilerIo.create_pipe_io (CompilerIo.Pipe conn.write) conn.stdin in
 						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
-						let outcome = run_request sctx request_scope entry comm request.args in
+						let outcome = run_request sctx request_scope entry request.args in
 						conn.close();
 						begin match outcome with
 						| Oom ->
