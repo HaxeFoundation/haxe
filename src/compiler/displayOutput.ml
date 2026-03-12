@@ -93,7 +93,7 @@ let handle_syntax_completion com kind subj =
 		()
 	| _ ->
 		let l = List.map make_ci_keyword l in
-		let api = Option.get com.Common.json_out in
+		let api = Option.get com.Common.request_scope.json_out in
 		let ctx = Genjson.create_context ~jsonrpc:api.jsonrpc GMFull in
 		api.send_result_raise (fields_to_json ctx l kind subj)
 
@@ -115,7 +115,7 @@ let handle_display_exception_json ctx dex api =
 		die "Unexpected Metadata display exception" __LOC__
 
 let handle_display_exception ctx dex =
-	handle_display_exception_json ctx dex (Option.get ctx.com.json_out)
+	handle_display_exception_json ctx dex (Option.get ctx.com.request_scope.json_out)
 
 let handle_type_path_exception ctx p c is_import pos =
 	let open DisplayTypes.CompletionResultKind in
@@ -131,7 +131,7 @@ let handle_type_path_exception ctx p c is_import pos =
 			error_ext ctx err;
 			None
 	in
-	let api = Option.get ctx.com.json_out in
+	let api = Option.get ctx.com.request_scope.json_out in
 	begin match fields with
 	| None ->
 		()
@@ -146,14 +146,14 @@ let handle_type_path_exception ctx p c is_import pos =
 	end
 
 let emit_diagnostics com =
-	let api = Option.get com.Common.json_out in
+	let api = Option.get com.Common.request_scope.json_out in
 	let dctx = Diagnostics.run com in
 	let diagnostics = DiagnosticsPrinter.json_of_diagnostics com dctx in
 	DisplayPosition.display_position#reset;
 	api.send_result_raise diagnostics
 
 let emit_statistics tctx =
-	let api = Option.get tctx.Common.json_out in
+	let api = Option.get tctx.Common.request_scope.json_out in
 	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
 	let json = Statistics.Printer.json_of_statistics stats in
 	DisplayPosition.display_position#reset;

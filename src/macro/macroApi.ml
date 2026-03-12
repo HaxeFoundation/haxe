@@ -2464,7 +2464,7 @@ let macro_api ccom get_api =
 			vnull;
 		);
 		"send_json", vfun1 (fun json ->
-			begin match (ccom()).json_out with
+			begin match (ccom()).request_scope.json_out with
 			| Some api ->
 				let json = decode_string json in
 				let lexbuf = Sedlexing.Utf8.from_string json in

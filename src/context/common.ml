@@ -278,6 +278,7 @@ type request_scope = {
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 	io : CompilerIo.t;
+	mutable json_out : json_api option;
 }
 
 type context = {
@@ -289,7 +290,6 @@ type context = {
 	cs : CompilationCache.t;
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
-	mutable json_out : json_api option;
 	timer_ctx : Timer.timer_context;
 	(* config *)
 	mutable args : string list;
@@ -819,7 +819,6 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 		memory_marker = memory_marker;
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
-		json_out = None;
 		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
@@ -900,7 +899,6 @@ let clone com is_macro_context =
 		stored_typed_exprs = com.stored_typed_exprs;
 		cached_macros = com.cached_macros;
 		memory_marker = com.memory_marker;
-		json_out = com.json_out;
 		has_error = com.has_error;
 		report_mode = com.report_mode;
 		hxb_writer_config = com.hxb_writer_config;
