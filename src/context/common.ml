@@ -277,7 +277,6 @@ type request_scope = {
 	stats : Stats.t;
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
-	output : CompilerOutput.output_target;
 	io : Gctx.compilation_io;
 }
 

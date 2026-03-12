@@ -593,7 +593,7 @@ let after_target_init sctx ctx =
 		()
 
 let after_save sctx ctx =
-	if CompilerOutput.is_server ctx.com.request_scope.output && not (has_error ctx) then
+	if CompilerOutput.is_server ctx.com.request_scope.io.output && not (has_error ctx) then
 		CommonCache.maybe_cache_context ctx.com
 
 let after_compilation sctx ctx =

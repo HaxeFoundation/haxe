@@ -146,12 +146,11 @@ module SocketRequest = struct
 		data
 end
 
-let create_request_scope io output : request_scope =
+let create_request_scope io =
 	{
 		stats = Stats.create ();
 		timer_ctx = Timer.make_context (Timer.make ["other"]);
 		cancellation_requested = false;
-		output;
 		io;
 	}
 
@@ -238,12 +237,12 @@ module WorkerDomain = struct
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
-			(try CompilerOutput.write_err request_scope.output "\x02\nCancelled\n"; with _ -> ());
+			(try CompilerOutput.write_err request_scope.io.output "\x02\nCancelled\n"; with _ -> ());
 			Cancelled;
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
-			(try CompilerOutput.write_err request_scope.output ("\x02\n" ^ estr); with _ -> ());
+			(try CompilerOutput.write_err request_scope.io.output ("\x02\n" ^ estr); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then Oom else Errored
 
@@ -274,7 +273,7 @@ module WorkerDomain = struct
 						let comm = ServerCommunication.Communication.create_pipe sctx conn in
 						let output = (CompilerOutput.Pipe conn.write) in
 						let io = PipeThings.create_io output conn.stdin in
-						let request_scope = create_request_scope io output in
+						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry comm request.args in
 						conn.close();

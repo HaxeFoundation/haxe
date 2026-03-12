@@ -75,10 +75,10 @@ let getch_from_channel stdin_ch stdout_ch echo =
 	In non-server mode ([Stdio]):
 	- channels are the process's real stdin/stdout/stderr
 	- [getch] uses [Extc.getch] for native terminal raw-mode reading *)
-let create_io target stdin_ch =
-	let write_out = CompilerOutput.write_out target in
-	let write_err = CompilerOutput.write_err target in
-	if CompilerOutput.is_server target then begin
+let create_io output stdin_ch =
+	let write_out = CompilerOutput.write_out output in
+	let write_err = CompilerOutput.write_err output in
+	if CompilerOutput.is_server output then begin
 		let (stdout_ch, stdout_thread) = make_output_pipe write_out in
 		let (stderr_ch, stderr_thread) = make_output_pipe write_err in
 		let closed = ref false in
@@ -97,6 +97,7 @@ let create_io target stdin_ch =
 					close_in_noerr stdin_ch;
 				end
 			);
+			output;
 		}
 	end else
 		{
@@ -107,6 +108,7 @@ let create_io target stdin_ch =
 			stdin = Stdlib.stdin;
 			getch = Extc.getch;
 			close = (fun () -> ());
+			output;
 		}
 
 (** Runs a shell command in server mode, forwarding stdin from the client

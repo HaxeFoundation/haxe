@@ -112,7 +112,7 @@ let check_hxb_output ctx config =
 	in
 	try
 		(* This Abort case shouldn't happen, unless some modules are not stored in hxb cache (which should not be the case currently) *)
-		if CompilerOutput.is_server ctx.com.request_scope.output then try try_write true with Abort -> try_write false
+		if CompilerOutput.is_server ctx.com.request_scope.io.output then try try_write true with Abort -> try_write false
 		else try_write false
 	with Sys_error s ->
 		CompilationContext.error ctx (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos

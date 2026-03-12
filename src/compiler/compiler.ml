@@ -32,7 +32,7 @@ let run_or_diagnose ctx f =
 		f ()
 
 let run_command ctx cmd =
-	let output = ctx.com.request_scope.output in
+	let output = ctx.com.request_scope.io.output in
 	(* TODO: this is a hack *)
 	let cmd = if CompilerOutput.is_server output then begin
 		let h = Hashtbl.create 0 in
@@ -473,14 +473,14 @@ let finalize ctx =
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)
-	if not (CompilerOutput.is_server ctx.com.request_scope.output) then begin
+	if not (CompilerOutput.is_server ctx.com.request_scope.io.output) then begin
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.java_libs;
 		List.iter (fun lib -> lib#close) ctx.com.native_libs.swf_libs;
 	end
 
 let emit_completion ctx str =
 	ServerMessage.completion str;
-	CompilerOutput.write_err ctx.com.request_scope.output str
+	CompilerOutput.write_err ctx.com.request_scope.io.output str
 
 let catch_completion_and_exit ctx sctx run =
 	try

@@ -19,6 +19,7 @@ type compilation_io = {
 		    In non-server mode, uses [Extc.getch] for native terminal raw-mode input.
 		    In server mode, reads from the client's forwarded stdin pipe. Returns -1 on EOF. *)
 	close : unit -> unit;
+	output : CompilerOutput.output_target;
 }
 
 type warning_function = ?depth:int -> ?from_macro:bool -> warning -> warning_option list list -> string -> pos -> unit

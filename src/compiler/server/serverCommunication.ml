@@ -38,7 +38,7 @@ let flush_context sctx ctx =
 					write "\x02\n"
 				end else
 					if ctx.com.timer_ctx.measure_times = Yes then
-						CompilerOutput.send_timer_report ctx.com.request_scope.output ctx.com.timer_ctx;
+						CompilerOutput.send_timer_report ctx.com.request_scope.io.output ctx.com.timer_ctx;
 
 module Communication = struct
 	let create_stdio () =
