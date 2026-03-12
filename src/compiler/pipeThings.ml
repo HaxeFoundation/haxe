@@ -75,41 +75,41 @@ let getch_from_channel stdin_ch stdout_ch echo =
 	In non-server mode ([Stdio]):
 	- channels are the process's real stdin/stdout/stderr
 	- [getch] uses [Extc.getch] for native terminal raw-mode reading *)
-let create_io output stdin_ch =
+let create_pipe_io output stdin_ch =
 	let write_out = CompilerOutput.write_out output in
 	let write_err = CompilerOutput.write_err output in
-	if CompilerOutput.is_server output then begin
-		let (stdout_ch, stdout_thread) = make_output_pipe write_out in
-		let (stderr_ch, stderr_thread) = make_output_pipe write_err in
-		let closed = ref false in
-		{
-			Gctx.print = write_out;
-			print_err = write_err;
-			stdout = stdout_ch;
-			stderr = stderr_ch;
-			stdin = stdin_ch;
-			getch = getch_from_channel stdin_ch stdout_ch;
-			close = (fun () ->
-				if not !closed then begin
-					closed := true;
-					flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
-					flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
-					close_in_noerr stdin_ch;
-				end
-			);
-			output;
-		}
-	end else
-		{
-			Gctx.print = write_out;
-			print_err = write_err;
-			stdout = Stdlib.stdout;
-			stderr = Stdlib.stderr;
-			stdin = Stdlib.stdin;
-			getch = Extc.getch;
-			close = (fun () -> ());
-			output;
-		}
+	let (stdout_ch, stdout_thread) = make_output_pipe write_out in
+	let (stderr_ch, stderr_thread) = make_output_pipe write_err in
+	let closed = ref false in
+	{
+		Gctx.print = write_out;
+		print_err = write_err;
+		stdout = stdout_ch;
+		stderr = stderr_ch;
+		stdin = stdin_ch;
+		getch = getch_from_channel stdin_ch stdout_ch;
+		close = (fun () ->
+			if not !closed then begin
+				closed := true;
+				flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
+				flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
+				close_in_noerr stdin_ch;
+			end
+		);
+		output;
+	}
+
+let create_stdio_io output stdin_ch =
+	{
+		Gctx.print = print_string;
+		print_err = prerr_string;
+		stdout = Stdlib.stdout;
+		stderr = Stdlib.stderr;
+		stdin = Stdlib.stdin;
+		getch = Extc.getch;
+		close = (fun () -> ());
+		output;
+	}
 
 (** Runs a shell command in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.

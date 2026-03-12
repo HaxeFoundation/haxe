@@ -272,7 +272,7 @@ module WorkerDomain = struct
 						let conn = request.conn in
 						let comm = ServerCommunication.Communication.create_pipe sctx conn in
 						let output = (CompilerOutput.Pipe conn.write) in
-						let io = PipeThings.create_io output conn.stdin in
+						let io = PipeThings.create_pipe_io output conn.stdin in
 						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry comm request.args in

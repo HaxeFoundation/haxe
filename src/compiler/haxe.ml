@@ -134,7 +134,7 @@ end;
 let sctx = Server.setup_server_context false in
 let comm = ServerCommunication.Communication.create_stdio () in
 let output = CompilerOutput.Stdio in
-let io = PipeThings.create_io output stdin in
+let io = PipeThings.create_stdio_io output stdin in
 let request_scope = create_request_scope io in
 let code = Compiler.HighLevel.entry sctx request_scope comm parsed_args in
 if code = 0 then begin
