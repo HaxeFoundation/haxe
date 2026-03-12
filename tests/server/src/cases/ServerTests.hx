@@ -650,4 +650,16 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertHasPrint('Issue9918.hx:22: correct ECast count');
 	}
+
+	function testTimerOutput() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js", "--times"];
+		runHaxe(args);
+		var stderr = lastResult.stderr;
+		// Timer output should contain header line
+		Assert.isTrue(stderr.contains("time(s)"), 'Expected timer header in stderr');
+		// Timer output should contain a meaningful timer (not just "other")
+		// "parsing" always appears for any compilation
+		Assert.isTrue(stderr.contains("parsing"), 'Expected "parsing" timer in stderr');
+	}
 }
