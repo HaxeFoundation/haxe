@@ -469,8 +469,7 @@ let compile_safe ctx f =
 	try compile_safe ctx f with Abort -> ()
 
 let finalize ctx =
-	(* TODO: this can't be right, see compilerIo.mli *)
-	CompilerIo.close ctx.com.request_scope.io;
+	CompilerIo.flush ctx.com.request_scope.io;
 	List.iter (fun lib -> lib#close) ctx.com.hxb_libs;
 	(* In server mode any open libs are closed by the lib_build_task. In offline mode
 		we should do it here to be safe. *)

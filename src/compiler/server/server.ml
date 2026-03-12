@@ -275,6 +275,7 @@ module WorkerDomain = struct
 						let request_scope = create_request_scope io in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry request.args in
+						CompilerIo.close io;
 						conn.close();
 						begin match outcome with
 						| Oom ->

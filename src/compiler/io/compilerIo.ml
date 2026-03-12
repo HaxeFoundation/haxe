@@ -10,6 +10,7 @@ type t = {
 		(** Reads a single character from stdin. The [bool] parameter controls echo.
 		    In non-server mode, uses [Extc.getch] for native terminal raw-mode input.
 		    In server mode, reads from the client's forwarded stdin pipe. Returns -1 on EOF. *)
+	flush : unit -> unit;
 	close : unit -> unit;
 	output : output_target;
 }
@@ -68,6 +69,7 @@ let get_stdin io = io.stdin
 
 let getch io echo = io.getch echo
 
+let flush io = io.flush ()
 let close io = io.close ()
 
 let is_server io = match io.output with
@@ -97,11 +99,15 @@ let create_pipe_io output stdin_ch =
 		stderr = stderr_ch;
 		stdin = stdin_ch;
 		getch = getch_from_channel stdin_ch stdout_ch;
+		flush = (fun () ->
+			Stdlib.flush stdout_ch;
+			Stdlib.flush stderr_ch;
+		);
 		close = (fun () ->
 			if not !closed then begin
 				closed := true;
-				flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
-				flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
+				Stdlib.flush stdout_ch; close_out_noerr stdout_ch; Thread.join stdout_thread;
+				Stdlib.flush stderr_ch; close_out_noerr stderr_ch; Thread.join stderr_thread;
 				close_in_noerr stdin_ch;
 			end
 		);
@@ -114,6 +120,7 @@ let create_stdio_io output stdin_ch =
 		stderr = Stdlib.stderr;
 		stdin = Stdlib.stdin;
 		getch = Extc.getch;
+		flush = (fun () -> Stdlib.flush Stdlib.stdout);
 		close = (fun () -> ());
 		output;
 	}

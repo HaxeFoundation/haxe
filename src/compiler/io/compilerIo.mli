@@ -13,7 +13,12 @@ val get_stdin : t -> in_channel
 
 val getch : t -> bool -> int
 
-(* TODO: This is called at part-level which is wrong *)
+(** Flush the stdout/stderr channels. Call per compilation part to ensure
+    output from each part is delivered before the next part starts. *)
+val flush : t -> unit
+
+(** Close the io channels and join background threads. Call once at
+    request level to clean up resources. *)
 val close : t -> unit
 
 (* TODO: IMO this shouldn't exist *)
