@@ -687,18 +687,15 @@ module HighLevel = struct
 		create_context sctx request_scope sctx.compilation_step expanded_args
 
 	let entry sctx request_scope (request_args : Args.request_args) =
-		let curdir = Unix.getcwd () in
 		try
 			let has_display = request_args.display_arg <> None in
 			let rec loop = function
 				| [] -> 0
 				| part :: rest ->
-
 					let ctx = create_context_from_part sctx request_scope has_display part in
 					if rest <> [] then ctx.has_next <- true;
 					ctx.runtime_args <- part.Args.runtime_args;
 					let code = compile_ctx sctx ctx in
-					Unix.chdir curdir;
 					if code = 0 && rest <> [] && not has_display then
 						loop rest
 					else
@@ -706,7 +703,6 @@ module HighLevel = struct
 			in
 			loop request_args.parts
 		with Arg.Bad msg ->
-			Unix.chdir curdir;
 			(* TODO: this is silly *)
 			let ctx = create_context sctx request_scope 0 [] in
 			error ctx ("Error: " ^ msg) null_pos;

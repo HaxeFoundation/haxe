@@ -84,9 +84,7 @@ set_binary_mode_out stdout true;
 set_binary_mode_out stderr true;
 
 let parsed_args = Args.parse_args args in
-let curdir = Unix.getcwd () in
 let request_args = try Args.expand_args parsed_args with Arg.Bad msg -> bad_arg msg in
-Unix.chdir curdir;
 
 (* Are we a client? *)
 
