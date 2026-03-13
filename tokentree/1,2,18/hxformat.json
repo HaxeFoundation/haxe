@@ -1,0 +1,27 @@
+{
+	"sameLine":{
+		"ifBody": "same",
+		"elseBody": "same",
+		"ifElse": "next",
+		"forBody": "same",
+		"whileBody": "same",
+		"doWhile": "next",
+		"tryCatch": "next",
+		"tryBody": "next",
+		"catchBody": "next",
+		"caseBody": "next",
+		"expressionCase": "same"
+	},
+	"emptyLines":{
+		"finalNewline": false,
+		"enumAbstractEmptyLines":{
+			"betweenVars": 1
+		}
+	},
+	"wrapping": {
+		"methodChain": {
+			"defaultWrap": "fillLine",
+			"rules": []
+		}
+	}
+}

@@ -1,0 +1,18 @@
+{
+	"name": "vscode-json-rpc",
+	"description": "JSON RPC implementation",
+	"url": "https://github.com/vshaxe/vscode-json-rpc",
+	"license": "MIT",
+	"version": "1.0.0",
+	"releasenote": "Initial release",
+	"classPath": "src",
+	"contributors": [
+		"vshaxe"
+	],
+	"dependencies": {},
+	"tags": [
+		"json",
+		"rpc",
+		"vscode"
+	]
+}

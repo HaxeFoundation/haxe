@@ -1,0 +1,270 @@
+{
+	"defaultSeverity": "INFO",
+	"checks": [
+		{
+			"type": "ArrayAccess"
+		},
+		{
+			"type": "ArrayLiteral"
+		},
+		{
+			"type": "AvoidStarImport"
+		},
+		{
+			"props": {
+				"format": "^(e)$"
+			},
+			"type": "CatchParameterName"
+		},
+		{
+			"type": "CommentedOutCode"
+		},
+		{
+			"props": {
+				"ignoreExtern": true,
+				"format": "^[A-Z][A-Z0-9]*(_[A-Z0-9_]+)*$"
+			},
+			"type": "ConstantName"
+		},
+		{
+			"type": "DefaultComesLast"
+		},
+		{
+			"type": "Dynamic"
+		},
+		{
+			"type": "ERegLiteral"
+		},
+		{
+			"type": "EmptyPackage"
+		},
+		{
+			"type": "FieldDocComment",
+			"props": {
+				"tokens": [
+					"CLASS_DEF"
+				],
+				"severity": "IGNORE"
+			}
+		},
+		{
+			"props": {
+				"max": 2000
+			},
+			"type": "FileLength"
+		},
+		{
+			"props": {
+				"option": "upperCase"
+			},
+			"type": "HexadecimalLiteral"
+		},
+		{
+			"props": {
+				"ignoreSetter": true,
+				"ignoreFormat": "^(main|run)$",
+				"ignoreConstructorParameter": true
+			},
+			"type": "HiddenField"
+		},
+		{
+			"type": "InnerAssignment"
+		},
+		{
+			"props": {
+				"max": 160,
+				"ignorePattern": "(^@desc)|(LONG LINE TEST)"
+			},
+			"type": "LineLength"
+		},
+		{
+			"props": {
+				"listeners": [
+					"addEventListener",
+					"addListener",
+					"on",
+					"once"
+				],
+				"format": "^_?[a-z][a-zA-Z0-9]*$"
+			},
+			"type": "ListenerName"
+		},
+		{
+			"props": {
+				"ignoreExtern": true,
+				"format": "^[a-z][a-zA-Z0-9]*$"
+			},
+			"type": "LocalVariableName"
+		},
+		{
+			"props": {
+				"ignoreExtern": true,
+				"format": "^[A-Z][a-z]+(?:[A-Z][a-z]+)*$",
+				"tokens": [
+					"ENUM"
+				]
+			},
+			"type": "MemberName"
+		},
+		{
+			"props": {
+				"maxPrivate": 50,
+				"maxPublic": 50,
+				"maxTotal": 50
+			},
+			"type": "MethodCount"
+		},
+		{
+			"props": {
+				"ignoreExtern": true,
+				"format": "^[a-z][a-zA-Z0-9]*$"
+			},
+			"type": "MethodName"
+		},
+		{
+			"props": {
+				"modifiers": [
+					"MACRO",
+					"OVERRIDE",
+					"PUBLIC_PRIVATE",
+					"STATIC",
+					"INLINE",
+					"DYNAMIC"
+				]
+			},
+			"type": "ModifierOrder"
+		},
+		{
+			"type": "MultipleVariableDeclarations"
+		},
+		{
+			"props": {
+				"allowSingleLineStatement": true,
+				"tokens": [
+					"FOR",
+					"IF",
+					"ELSE_IF",
+					"WHILE",
+					"DO_WHILE"
+				]
+			},
+			"type": "NeedBraces"
+		},
+		{
+			"type": "NestedForDepth"
+		},
+		{
+			"type": "NestedIfDepth"
+		},
+		{
+			"type": "NestedTryDepth"
+		},
+		{
+			"props": {
+				"ignoreExtern": true,
+				"format": "^(_|[a-z][a-zA-Z0-9]*$)"
+			},
+			"type": "ParameterName"
+		},
+		{
+			"props": {
+				"max": 7,
+				"ignoreOverriddenMethods": false
+			},
+			"type": "ParameterNumber"
+		},
+		{
+			"type": "RedundantModifier"
+		},
+		{
+			"type": "RedundantAllowMeta"
+		},
+		{
+			"type": "RedundantAccessMeta"
+		},
+		{
+			"props": {
+				"allowEmptyReturn": true,
+				"enforceReturnType": false
+			},
+			"type": "Return"
+		},
+		{
+			"props": {
+				"tokens": [
+					","
+				],
+				"option": "eol"
+			},
+			"type": "SeparatorWrap"
+		},
+		{
+			"type": "SimplifyBooleanExpression"
+		},
+		{
+			"type": "SimplifyBooleanReturn"
+		},
+		{
+			"props": {
+				"spaceIfCondition": "should",
+				"spaceAroundBinop": true,
+				"spaceForLoop": "should",
+				"ignoreRangeOperator": true,
+				"spaceWhileLoop": "should",
+				"spaceCatch": "should",
+				"spaceSwitchCase": "should",
+				"noSpaceAroundUnop": true
+			},
+			"type": "Spacing"
+		},
+		{
+			"props": {
+				"allowException": true,
+				"policy": "doubleAndInterpolation"
+			},
+			"type": "StringLiteral"
+		},
+		{
+			"type": "TODOComment"
+		},
+		{
+			"type": "TabForAligning"
+		},
+		{
+			"type": "Trace"
+		},
+		{
+			"type": "TypeDocComment",
+			"props": {
+				"tokens": [
+					"CLASS_DEF",
+					"INTERFACE_DEF"
+				],
+				"severity": "IGNORE"
+			}
+		},
+		{
+			"props": {
+				"ignoreExtern": true,
+				"format": "^[A-Z]+[a-zA-Z0-9]*$"
+			},
+			"type": "TypeName"
+		},
+		{
+			"type": "UnnecessaryConstructor"
+		}
+	],
+	"exclude": {
+		"path": "RELATIVE_TO_PROJECT",
+		"all": [],
+		"AvoidStarImport": [
+			"testcases"
+		],
+		"HiddenField": [
+			"testcases"
+		],
+		"MultipleStringLiterals": [
+			"config"
+		]
+	}
+}

@@ -1,0 +1,32 @@
+{
+    "name": "@haxecheckstyle/haxe-rename",
+    "version": "3.0.1",
+    "description": "Renaming tool for Haxe",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/HaxeCheckstyle/haxe-rename"
+    },
+    "keywords": [
+        "haxe",
+        "rename",
+        "refactor"
+    ],
+    "author": {
+        "name": "Alexander Blum",
+        "email": "Alexander.Blum@gmail.com"
+    },
+    "devDependencies": {
+        "lix": "^15.12.4"
+    },
+    "bin": {
+        "haxe-rename": "bin/rename.js"
+    },
+    "files": [
+        "bin"
+    ],
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com/"
+    },
+    "bugs": "https://github.com/HaxeCheckstyle/haxe-rename/issues",
+    "license": "MIT"
+}

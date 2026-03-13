@@ -1,0 +1,12 @@
+{
+	"name": "language-server-protocol",
+	"description": "Type definitions for the Language Server Protocol (LSP)",
+	"url": "https://github.com/vshaxe/language-server-protocol-haxe",
+	"license": "MIT",
+	"version": "3.15.3",
+	"releasenote": "Update to 3.15.3",
+	"classPath": "src",
+	"contributors": ["Gama11", "nadako"],
+	"dependencies": {},
+	"tags": ["vscode", "lsp"]
+}

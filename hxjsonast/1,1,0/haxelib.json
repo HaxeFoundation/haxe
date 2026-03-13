@@ -1,0 +1,12 @@
+{
+    "name": "hxjsonast",
+    "description": "Type-safe position-aware JSON parsing & printing",
+    "license": "MIT",
+    "tags": ["cross", "json", "parser"],
+    "classPath": "src",
+    "contributors": ["nadako"],
+    "releasenote": "haxe 4 update",
+    "version": "1.1.0",
+    "url": "https://github.com/nadako/hxjsonast/",
+    "dependencies": {}
+}

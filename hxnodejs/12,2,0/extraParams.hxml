@@ -1,0 +1,4 @@
+--macro allowPackage('sys')
+# should behave like other target defines and not be defined in macro context
+--macro define('nodejs')
+--macro _internal.SuppressDeprecated.run()

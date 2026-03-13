@@ -1,0 +1,13 @@
+{
+  "name": "haxeparser",
+  "url": "https://github.com/Simn/haxeparser",
+  "classPath": "src",
+  "license": "BSD",
+  "description": "A Haxe parser",
+  "version": "3.3.0",
+  "contributors": ["Simn", "Gama11"],
+  "releasenote": "update",
+  "dependencies": {
+    "hxparse": ""
+  }
+}

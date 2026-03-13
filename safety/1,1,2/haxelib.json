@@ -1,0 +1,12 @@
+{
+	"name"         : "safety",
+	"url"          : "https://github.com/RealyUniqueName/Safety",
+	"license"      : "MIT",
+	"tags"         : ["null", "safety", "npe"],
+	"description"  : "Null safety for Haxe.",
+	"version"      : "1.1.2",
+	"releasenote"  : "Updated for Haxe 4.1",
+	"classPath"    : "src",
+	"contributors" : ["RealyUniqueName"],
+	"dependencies" : {}
+}
