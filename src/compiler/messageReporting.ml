@@ -360,7 +360,8 @@ let format_messages defines messages =
 
 (** Format and dispatch compiler messages.
     [defines] controls formatting options, [messages] is the ordered list of
-    messages (oldest first), [set_error] is called when a formatter configuration
+    messages (oldest first, i.e. already reversed from the accumulation order),
+    [set_error] is called when a formatter configuration
     error is encountered, and [on_message sev str] receives each formatted message. *)
 let display_messages_from defines messages ~set_error on_message = begin
 	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
@@ -425,7 +426,8 @@ let display_messages_from defines messages ~set_error on_message = begin
 	if !log_messages then (Option.get !close_logs) ();
 end
 
-(** Convenience wrapper that extracts defines and messages from a compilation context. *)
+(** Convenience wrapper that extracts defines and messages from a compilation context.
+    Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
 let display_messages ctx on_message =
 	display_messages_from ctx.com.defines (List.rev ctx.messages)
 		~set_error:(fun () -> ctx.has_error <- true) on_message
