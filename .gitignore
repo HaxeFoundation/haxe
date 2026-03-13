@@ -87,6 +87,7 @@ tests/unit/unit.py.res2.bin
 tests/sys/bin/
 /tests/sys/test-res/
 tests/misc/projects/*/*.n
+tests/misc/eval/projects/*/*.n
 tests/misc/*/*/*.lua
 tests/unit/bin/
 tests/*.n
