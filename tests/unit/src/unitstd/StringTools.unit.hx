@@ -110,6 +110,22 @@ StringTools.hex(0xABCDEF, 7) == "0ABCDEF";
 StringTools.hex( -1, 8) == "FFFFFFFF";
 StringTools.hex( -481400000, 8) == "E34E6B40";
 
+// binary
+StringTools.binary(0, 0) == "0";
+StringTools.binary(0, 1) == "0";
+StringTools.binary(0, 2) == "00";
+StringTools.binary(1, 2) == "01";
+StringTools.binary(4564562) == "10001011010011001010010";
+StringTools.binary(4564562, 0) == "10001011010011001010010";
+StringTools.binary(4564562, 1) == "10001011010011001010010";
+StringTools.binary( -1) == "11111111111111111111111111111111";
+StringTools.binary( -2) == "11111111111111111111111111111110";
+#if haxe5
+StringTools.binary(0b101010111100110111101111, 7) == "101010111100110111101111";
+#end
+StringTools.binary( -1, 8) == "11111111111111111111111111111111";
+StringTools.binary( -481400000, 8) == "11100011010011100110101101000000";
+
 // contains
 var s = "foo1bar";
 StringTools.contains(s, '') == true;
