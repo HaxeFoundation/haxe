@@ -211,6 +211,8 @@ class TestCase implements ITest implements ITestCase {
 		for (print in prints) {
 			var trimmed = print.trim();
 			if (trimmed.length == 0) continue;
+			// Prints contain mixed content (trace output, compiler messages, etc.).
+			// We only extract entries that parse as JSON-RPC 2.0 notifications.
 			var parsed:Dynamic = try Json.parse(trimmed) catch (_) null;
 			if (parsed != null && Reflect.field(parsed, "jsonrpc") == "2.0" && Reflect.field(parsed, "method") != null) {
 				notifications.push({

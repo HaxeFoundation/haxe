@@ -698,9 +698,13 @@ class ServerTests extends TestCase {
 		var args = ["--main", "pack.Main", "--interp", "--no-output"];
 		try {
 			runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("pack/Main.hx"), offset: 55});
-			Assert.pass();
 		} catch (e:TestException) {
-			Assert.pass();
+			// A properly structured JSON-RPC error is expected (package mismatch).
+			// If the response were malformed (e.g. notifications concatenated with JSON),
+			// we'd get "Response: ..." instead of the actual error message.
+			Assert.isFalse(e.message.startsWith("Response: "));
+			return;
 		}
+		// Hover may also succeed in some configurations — that's fine too.
 	}
 }
