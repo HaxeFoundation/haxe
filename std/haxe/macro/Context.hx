@@ -436,7 +436,9 @@ class Context {
 		compiler's typing phase, just before its generation phase.
 
 		The callback receives an `Array` containing all types which are about
-		to be generated. Modifications are limited to metadata, it is mainly
+		to be generated, unless `onlyNew` is set to `true` in which case the callback
+		only receives types that were not cached by the compilation server.
+		Modifications are limited to metadata, it is mainly
 		intended to obtain information.
 
 		By default, the callback is made before types are stored in the compilation
@@ -447,8 +449,8 @@ class Context {
 
 		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
-	public static function onGenerate(callback:Array<Type>->Void, persistent:Bool = true) {
-		load("on_generate", 2)(callback, persistent);
+	public static function onGenerate(callback:Array<Type>->Void, persistent:Bool = true, onlyNew:Bool = false) {
+		load("on_generate", 3)(callback, persistent, onlyNew);
 	}
 
 	/**
