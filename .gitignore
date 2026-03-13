@@ -139,3 +139,23 @@ tests/misc/coroutines/dump
 /dump
 */a.out
 .repo-version
+
+# Haxelib repository artifacts (from haxelib setup pointing to repo root)
+/dummy_doc/
+/dummy_doc_dep/
+/formatter/
+/haxeparser/
+/haxeserver/
+/hxcoro/
+/hxjsonast/
+/hxnodejs/
+/hxparse/
+/json2object/
+/language-server-protocol/
+/lib1/
+/lib2/
+/rename/
+/safety/
+/tokentree/
+/utest/
+/vscode-json-rpc/
