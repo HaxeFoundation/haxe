@@ -128,6 +128,8 @@ tests/display/.unittest/
 tests/unit/.unittest/
 tests/threads/export/
 tests/server/test.js.map
+tests/server/test_output.log
+tests/server/build_with_deps.hxml
 *.merlin
 lib.sexp
 src/compiler/version.ml
@@ -136,3 +138,4 @@ tests/misc/projects/Issue10863/error.log
 tests/misc/coroutines/dump
 /dump
 */a.out
+.repo-version
