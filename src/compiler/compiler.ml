@@ -499,6 +499,7 @@ let catch_completion_and_exit ctx sctx run =
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
 			if i <> 0 then ctx.has_error <- true;
 			ctx.comm.flush ctx;
+			ServerCache.after_compilation sctx ctx;
 			finalize ctx;
 			i
 

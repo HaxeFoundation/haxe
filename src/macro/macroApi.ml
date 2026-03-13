@@ -74,6 +74,64 @@ type 'value compiler_api = {
 	set_hxb_writer_config : 'value -> unit;
 }
 
+(** A null compiler API that holds no references to any compilation context.
+    Used to clear the eval interpreter's curapi between compilations so that
+    the compilation context can be garbage collected. Any accidental access
+    raises [Globals.Ice]. *)
+let null_api () = {
+	pos = null_pos;
+	get_com = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_macro_com = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_macro_stack = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	init_macros_done = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_module = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	include_module = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	after_init_macros = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	after_typing = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	on_generate = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	after_generate = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	on_type_not_found = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	parse_string = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	register_file_contents = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	parse = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	type_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	resolve_type = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	resolve_complex_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	store_typed_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	allow_package = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_type = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_expected_type = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_call_arguments = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_method = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_imports = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_using = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_vars = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_build_fields = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	define_type = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	define_module = (fun _ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	module_dependency = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	current_module = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	format_string = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	cast_or_unify = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	add_global_metadata = (fun _ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	register_define = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	register_metadata = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	add_module_check_policy = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	decode_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	encode_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	encode_ctype = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	decode_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	info = (fun ?depth:_ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	warning = (fun ?depth:_ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	display_error = (fun ?sub:_ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	with_imports = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	with_options = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	exc_string = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_hxb_writer_config = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	set_hxb_writer_config = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+}
+
 type enum_type =
 	| IExpr
 	| IEFieldKind
