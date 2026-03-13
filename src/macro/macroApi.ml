@@ -2463,16 +2463,6 @@ let macro_api ccom get_api =
 			v.v_name <- name;
 			vnull;
 		);
-		"send_json", vfun1 (fun json ->
-			let rh = (ccom()).request_scope.result_handler in
-			if CompilerOutput.has_json_rpc rh then begin
-				let json = decode_string json in
-				let lexbuf = Sedlexing.Utf8.from_string json in
-				let parse = Json.Reader.read_json lexbuf in
-				CompilerOutput.send_result_raise rh parse;
-			end else
-				vbool false
-		);
 		"get_hxb_writer_config", vfun0 (fun () ->
 			(get_api()).get_hxb_writer_config ()
 		);
