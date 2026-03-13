@@ -33,24 +33,82 @@ class ServerMethods {
 	**/
 	static inline var ReadClassPaths = new HaxeRequestMethod<ReadClassPathsParams, Response<{?files:Int}>>("server/readClassPaths");
 
+	/**
+		Configure server print options, module check behavior and legacy completion mode.
+	**/
 	static inline var Configure = new HaxeRequestMethod<ConfigureParams, Response<NoData>>("server/configure");
+
+	/**
+		Invalidate a file, removing it from the cache and marking dependent modules as tainted.
+	**/
 	static inline var Invalidate = new HaxeRequestMethod<FileParams, Response<NoData>>("server/invalidate");
+
+	/**
+		List all active compilation contexts (one per unique define signature and platform).
+	**/
 	static inline var Contexts = new HaxeRequestMethod<NoData, Response<Array<HaxeServerContext>>>("server/contexts");
+
+	/**
+		Return memory usage statistics for the compilation server.
+	**/
 	static inline var Memory = new HaxeRequestMethod<NoData, Response<HaxeMemoryResult>>("server/memory");
+
+	/**
+		Trigger a GC compaction cycle and report before/after heap sizes.
+	**/
 	static inline var GcCompact = new HaxeRequestMethod<NoData, Response<GcCompactResult>>("server/gcCompact");
+
+	/**
+		Return detailed memory usage for a specific compilation context.
+	**/
 	static inline var ContextMemory = new HaxeRequestMethod<ContextParams, Response<HaxeContextMemoryResult>>("server/memory/context");
+
+	/**
+		Return memory usage for a specific module within a context.
+	**/
 	static inline var ModuleMemory = new HaxeRequestMethod<ModuleParams, Response<HaxeModuleMemoryResult>>("server/memory/module");
+
+	/**
+		List all cached modules in a compilation context.
+	**/
 	static inline var Modules = new HaxeRequestMethod<ContextParams, Response<Array<String>>>("server/modules");
+
+	/**
+		Return detailed information about a specific cached module.
+	**/
 	static inline var Module = new HaxeRequestMethod<ModuleParams, Response<JsonModule>>("server/module");
+
+	/**
+		Return detailed information about a specific type within a cached module.
+	**/
 	static inline var Type = new HaxeRequestMethod<TypeParams, Response<JsonModuleType<Any>>>("server/type");
+
+	/**
+		List all cached files in a compilation context.
+	**/
 	static inline var Files = new HaxeRequestMethod<ContextParams, Response<Array<JsonServerFile>>>("server/files");
+
+	/**
+		Notify the server that a new module file has been created.
+	**/
 	static inline var ModuleCreated = new HaxeRequestMethod<FileParams, Response<NoData>>("server/moduleCreated");
+
+	/**
+		Set the persistent working directory for subsequent requests. The directory is reset by `server/resetState`.
+	**/
+	static inline var SetCwd = new HaxeRequestMethod<SetCwdParams, Response<NoData>>("server/setCwd");
 }
 
 /* ReadClassPaths */
 typedef ReadClassPathsParams = {
 	/** Explore classpaths during the request instead of delaying it to a server task **/
 	var ?wait:Bool;
+}
+
+/* SetCwd */
+typedef SetCwdParams = {
+	/** The directory to set as persistent working directory **/
+	var dir:String;
 }
 
 /* Configure */

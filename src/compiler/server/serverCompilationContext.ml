@@ -23,6 +23,8 @@ type t = {
 	mutable macro_context_setup : bool;
 	(* Stdin content for the current display request *)
 	mutable current_stdin : string option;
+	(* Persistent working directory set via server/setCwd, applied before each request *)
+	mutable persistent_cwd : string option;
 	(* The server's domain pool. *)
 	pool : Parallel.ManagedPool.t;
 }
@@ -51,6 +53,7 @@ let create verbose is_server =
 		was_compilation = false;
 		macro_context_setup = false;
 		current_stdin = None;
+		persistent_cwd = None;
 		pool;
 	}
 

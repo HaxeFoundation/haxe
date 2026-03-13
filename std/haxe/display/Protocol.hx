@@ -31,8 +31,14 @@ class Methods {
 	**/
 	static inline var Initialize = new HaxeRequestMethod<InitializeParams, InitializeResult>("initialize");
 
+	/**
+		Reset the compilation server cache, clearing all cached data.
+	**/
 	static inline var ResetCache = new HaxeRequestMethod<ResetCacheParams, ResetCacheResult>("server/resetCache");
 
+	/**
+		Soft-reset the compilation server state without fully clearing the cache.
+	**/
 	static inline var ResetState = new HaxeRequestMethod<ResetStateParams, ResetStateResult>("server/resetState");
 }
 

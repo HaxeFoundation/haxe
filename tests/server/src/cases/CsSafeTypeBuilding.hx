@@ -27,7 +27,8 @@ class CsSafeTypeBuilding extends TestCase {
 
 		hxcoro.CoroRun
 			.promise(() -> {
-				runHaxeJson(["--cwd", TestCase.rootCwd, "--cwd", testDir], Methods.ResetState, {});
+				runHaxeJson([], Methods.ResetState, {});
+				runHaxeJson([], ServerMethods.SetCwd, {dir: testDir});
 
 				if (!async.timedOut) async.done();
 			});
