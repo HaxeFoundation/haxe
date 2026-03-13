@@ -660,10 +660,11 @@ class ServerTests extends TestCase {
 		runHaxe(baseArgs);
 		runHaxe(uniqueArgs);
 
-		// Count contexts and verify the unique one was added.
+		// Verify the unique context was added.
 		var contextsBefore:Array<HaxeServerContext> = runHaxeJson(baseArgs, ServerMethods.Contexts, null);
 		var countBefore = contextsBefore.length;
 		Assert.isTrue(countBefore >= 2);
+		Assert.isTrue(contextsBefore.exists(c -> c.defines.exists(d -> d.key == "uniqueTestDefine")));
 
 		// Compile several more times with only the base args.
 		// This ages out the unique context beyond stale_context_max_age (5).
@@ -671,8 +672,9 @@ class ServerTests extends TestCase {
 			runHaxe(baseArgs);
 		}
 
-		// The stale context should have been removed.
+		// The stale context with the unique define should have been removed.
 		var contextsAfter:Array<HaxeServerContext> = runHaxeJson(baseArgs, ServerMethods.Contexts, null);
 		Assert.isTrue(contextsAfter.length < countBefore);
+		Assert.isFalse(contextsAfter.exists(c -> c.defines.exists(d -> d.key == "uniqueTestDefine")));
 	}
 }
