@@ -288,7 +288,9 @@ module WorkerDomain = struct
 						let write_result s = conn.write s in
 						let signal_error () = conn.write "\x02\n" in
 						let io = CompilerIo.create ~write_out ~write_err ~write_result ~signal_error (conn.get_stdin()) in
+						let curdir = Unix.getcwd () in
 						let request_args = Args.expand_args request.args in
+						Unix.chdir curdir;
 						let request_scope = create_request_scope io request_args.display_arg in
 						rq.current_request <- Some request_scope;
 						let outcome = run_request sctx request_scope entry request_args in

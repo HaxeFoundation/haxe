@@ -690,12 +690,12 @@ module HighLevel = struct
 			let rec loop = function
 				| [] -> 0
 				| part :: rest ->
-					(* Re-apply original dir in case --cwd was used in a previous part *)
-					Unix.chdir curdir;
+
 					let ctx = create_context_from_part sctx request_scope has_display part in
 					if rest <> [] then ctx.has_next <- true;
 					ctx.runtime_args <- part.Args.runtime_args;
 					let code = compile_ctx sctx ctx in
+					Unix.chdir curdir;
 					if code = 0 && rest <> [] && not has_display then
 						loop rest
 					else
