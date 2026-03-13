@@ -615,9 +615,7 @@ let expand_args args =
 		| arg :: rest ->
 			loop (arg :: current) rest
 	in
-	let curdir = Unix.getcwd () in
 	loop [] args;
-	Unix.chdir curdir;
 	{
 		parts = DynArray.to_list parts;
 		server_mode = !server_mode;
