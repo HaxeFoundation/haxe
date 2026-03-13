@@ -45,12 +45,19 @@ class ServerMethods {
 	static inline var Type = new HaxeRequestMethod<TypeParams, Response<JsonModuleType<Any>>>("server/type");
 	static inline var Files = new HaxeRequestMethod<ContextParams, Response<Array<JsonServerFile>>>("server/files");
 	static inline var ModuleCreated = new HaxeRequestMethod<FileParams, Response<NoData>>("server/moduleCreated");
+	static inline var SetCwd = new HaxeRequestMethod<SetCwdParams, Response<NoData>>("server/setCwd");
 }
 
 /* ReadClassPaths */
 typedef ReadClassPathsParams = {
 	/** Explore classpaths during the request instead of delaying it to a server task **/
 	var ?wait:Bool;
+}
+
+/* SetCwd */
+typedef SetCwdParams = {
+	/** The directory to set as persistent working directory **/
+	var dir:String;
 }
 
 /* Configure */

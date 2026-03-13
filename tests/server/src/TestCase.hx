@@ -5,6 +5,7 @@ import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
+import haxe.display.Server;
 import haxe.display.Protocol;
 import haxe.display.Diagnostic;
 import haxe.Json;
@@ -101,7 +102,8 @@ class TestCase implements ITest implements ITestCase {
 		vfs = new Vfs(testDir);
 
 		hxcoro.CoroRun.promise(() -> {
-			runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetState, {});
+			runHaxeJson([], Methods.ResetState, {});
+			runHaxeJson([], ServerMethods.SetCwd, {dir: testDir});
 
 			if (!async.timedOut)
 				async.done();

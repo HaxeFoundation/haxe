@@ -372,6 +372,7 @@ let handler =
 			)
 		);
 		"server/resetCache", (fun hctx ->
+			hctx.com.sctx.persistent_cwd <- None;
 			hctx.com.cs#clear;
 			supports_resolve := false;
 			DisplayException.reset();
@@ -381,6 +382,7 @@ let handler =
 			]);
 		);
 		"server/resetState", (fun hctx ->
+			hctx.com.sctx.persistent_cwd <- None;
 			hctx.com.cs#soft_clear;
 			supports_resolve := false;
 			DisplayException.reset();
@@ -388,6 +390,12 @@ let handler =
 			Result (jobject [
 				"success", jbool true
 			]);
+		);
+		"server/setCwd", (fun hctx ->
+			let dir = hctx.jsonrpc#get_string_param "dir" in
+			let dir = Path.get_full_path dir in
+			hctx.com.sctx.persistent_cwd <- Some dir;
+			Result jnull
 		);
 		"server/gcCompact", (fun hctx ->
 			let t0 = Extc.time() in

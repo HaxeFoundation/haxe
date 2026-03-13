@@ -645,7 +645,9 @@ module HighLevel = struct
 					else
 						code
 			in
-			loop request_args.parts
+			let code = loop request_args.parts in
+			Unix.chdir curdir;
+			code
 		with Arg.Bad msg ->
 			Unix.chdir curdir;
 			(* TODO: this is silly *)

@@ -157,9 +157,15 @@ let create_request_scope () =
 
 let process sctx request_scope entry comm (args : parsed_arg list) =
 	let t0 = Extc.time() in
+	let curdir = Unix.getcwd () in
 	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
 	ServerCompilationContext.reset sctx;
-	entry sctx request_scope comm args;
+	(match sctx.persistent_cwd with
+	| Some dir -> (try Unix.chdir dir with _ -> ())
+	| None -> ());
+	(try entry sctx request_scope comm args
+	with e -> Unix.chdir curdir; raise e);
+	Unix.chdir curdir;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
