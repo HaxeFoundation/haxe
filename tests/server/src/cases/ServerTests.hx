@@ -372,6 +372,33 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	/**
+		Regression test: if expand_args or create_json_result_handler throws before
+		a request_scope exists (e.g. unknown JSON-RPC method), the worker domain must
+		NOT crash. In the buggy code the unhandled exception killed the worker domain
+		so all subsequent requests would hang forever (vshaxe "Parsing Classpaths…"
+		stall). After the fix the server sends a proper JSON-RPC error response and
+		keeps processing further requests.
+	**/
+	function testUnknownDisplayMethodDoesNotCrashWorker() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+
+		// Send a display request with an unknown method; the server should
+		// return a JSON-RPC error rather than crashing the worker domain.
+		var unknownMethodArgs = [
+			"-cp", ".",
+			"--display", haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/methodThatDoesNotExist", params: null})
+		];
+		runHaxe(unknownMethodArgs);
+		// The response should contain a JSON-RPC error (no error signal, just an error JSON in stderr)
+		Assert.isTrue(lastResult.stderr.contains('"error"'), 'Expected JSON-RPC error response, got: ${lastResult.stderr}');
+
+		// The worker domain must still be alive after the error. If it crashed
+		// this next request would time out instead of succeeding.
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
+		assertSuccess();
+	}
+
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, {wait: true});

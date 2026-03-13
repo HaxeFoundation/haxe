@@ -151,8 +151,13 @@ let create_request_scope io display_arg =
 	let timer_ctx = Timer.make_context (Timer.make ["other"]) in
 	let result_handler = match display_arg with
 		| Some arg ->
-			let input = JsonRpc.parse_request arg in
-			DisplayJson.create_json_result_handler timer_ctx io (new Jsonrpc_handler.jsonrpc_handler input)
+			JsonRpc.handle_jsonrpc_error (fun () ->
+				let input = JsonRpc.parse_request arg in
+				DisplayJson.create_json_result_handler timer_ctx io (new Jsonrpc_handler.jsonrpc_handler input)
+			) (fun json ->
+				DisplayJson.send_json io json;
+				raise Exit
+			)
 		| None ->
 			CompilerOutput.create_default_result_handler io
 	in
@@ -166,8 +171,7 @@ let create_request_scope io display_arg =
 
 let process sctx request_scope entry request_args =
 	let t0 = Extc.time() in
-	(* TODO *)
-	(* ServerMessage.arguments ["<" ^ string_of_int (List.length request_args) ^ " pre-parsed args>"]; *)
+	ServerMessage.arguments (Args.to_raw_args (List.concat_map (fun part -> part.Args.args) request_args.Args.parts));
 	ServerCompilationContext.reset sctx;
 	entry sctx request_scope request_args;
 	ServerCompilationContext.run_delays sctx;
@@ -184,7 +188,6 @@ module RequestQueue = struct
 		mutex : Mutex.t;
 		semaphore : Semaphore.Counting.t;
 		mutable requests : request list;
-		mutable current_request : request_scope option;
 		shutdown_flag : bool Atomic.t;
 		cancel_token : bool Atomic.t;
 	}
@@ -194,7 +197,6 @@ module RequestQueue = struct
 			mutex = Mutex.create ();
 			semaphore = Semaphore.Counting.make 0;
 			requests = [];
-			current_request = None;
 			shutdown_flag = Atomic.make false;
 			cancel_token = Atomic.make false;
 		}
@@ -243,19 +245,36 @@ module WorkerDomain = struct
 			conn.close();
 		) pending
 
-	let run_request sctx request_scope entry request_args =
+	let create_request_io request =
+		let conn = request.conn in
+		let write_out s = conn.write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n") in
+		let write_err s = conn.write s in
+		let write_result s = conn.write s in
+		let signal_error () = conn.write "\x02\n" in
+		CompilerIo.create ~write_out ~write_err ~write_result ~signal_error (conn.get_stdin())
+
+	let run_request sctx io entry request =
+		sctx.current_stdin <- request.stdin;
 		try
+			let request_args = Args.expand_args request.args in
+			let request_scope = create_request_scope io request_args.display_arg in
 			process sctx request_scope entry request_args;
 			Success
 		with
 		| Cancelled ->
 			ServerMessage.uncaught_error "Compilation cancelled";
-			(try CompilerIo.signal_error request_scope.io; CompilerIo.write_err request_scope.io "Cancelled\n"; with _ -> ());
+			(try CompilerIo.signal_error io; CompilerIo.write_err io "Cancelled\n"; with _ -> ());
 			Cancelled;
+		| Arg.Bad msg ->
+			(try CompilerIo.signal_error io; CompilerIo.write_err io msg; with _ -> ());
+			Errored
+		| Exit ->
+			(* From JSON-RPC failure *)
+			Errored
 		| e ->
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
-			(try CompilerIo.signal_error request_scope.io; CompilerIo.write_err request_scope.io (estr ^ "\n"); with _ -> ());
+			(try CompilerIo.signal_error io; CompilerIo.write_err io (estr ^ "\n"); with _ -> ());
 			if Helper.is_debug_run then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
 			if e = Out_of_memory then Oom else Errored
 
@@ -282,18 +301,10 @@ module WorkerDomain = struct
 						Mutex.unlock rq.mutex;
 						sctx.current_stdin <- request.stdin;
 						Atomic.set rq.cancel_token false;
-						let conn = request.conn in
-						let write_out s = conn.write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit s "\n") ^ "\n") in
-						let write_err s = conn.write s in
-						let write_result s = conn.write s in
-						let signal_error () = conn.write "\x02\n" in
-						let io = CompilerIo.create ~write_out ~write_err ~write_result ~signal_error (conn.get_stdin()) in
-						let request_args = Args.expand_args request.args in
-						let request_scope = create_request_scope io request_args.display_arg in
-						rq.current_request <- Some request_scope;
-						let outcome = run_request sctx request_scope entry request_args in
+						let io = create_request_io request in
+						let outcome = run_request sctx io entry request in
 						CompilerIo.close io;
-						conn.close();
+						request.conn.close();
 						begin match outcome with
 						| Oom ->
 							exit (-1)
