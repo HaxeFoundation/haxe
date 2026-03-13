@@ -561,17 +561,20 @@ let catch_completion_and_exit ctx sctx run =
 let process_actx ctx actx =
 	ctx.com.doinline <- ctx.com.display.dms_inline && not (Common.defined ctx.com Define.NoInline);
 	ctx.com.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
+	let check_deprecation_settings () =
+		if defined ctx.com NoDeprecationWarnings then begin
+			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
+		end
+	in
 	match DisplayProcessing.process_display_arg ctx actx with
 	| Completed ->
 		raise DisplayJson.JsonCompleted
 	| NeedsTyping ->
 		actx.did_something <- true;
 		actx.force_typing <- true;
-		if defined ctx.com NoDeprecationWarnings then begin
-			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
-		end
+		check_deprecation_settings ()
 	| NoCompletionPointFound ->
-		()
+		check_deprecation_settings ()
 
 let compile_ctx sctx ctx =
 	let run ctx =
