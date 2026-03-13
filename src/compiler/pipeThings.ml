@@ -110,19 +110,20 @@ let poll sock print =
 	   Using a dedicated thread avoids mixing socket and non-socket file
 	   descriptors in Unix.select, which has known issues on Windows. *)
 	let stdin_buf = Bytes.create 1024 in
-	let _ = Thread.create (fun () ->
-		(try
-			let rec loop () =
-				let n = Unix.read (Unix.descr_of_in_channel Stdlib.stdin) stdin_buf 0 1024 in
-				if n = 0 then
-					(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ())
-				else begin
-					ssend sock (Bytes.sub stdin_buf 0 n);
-					loop ()
-				end
-			in
-			loop ()
-		with _ -> ())
+	let stop_stdin = ref false in
+	let stdin_fd = Unix.descr_of_in_channel Stdlib.stdin in
+	let stdin_thread = Thread.create (fun () ->
+		(try while not !stop_stdin do
+			let readable, _, _ = Unix.select [stdin_fd] [] [] 0.05 in
+			if readable <> [] then begin
+				let n = Unix.read stdin_fd stdin_buf 0 1024 in
+				if n = 0 then begin
+					(try Unix.shutdown sock Unix.SHUTDOWN_SEND with _ -> ());
+					raise Exit
+				end;
+				ssend sock (Bytes.sub stdin_buf 0 n)
+			end
+		done with _ -> ())
 	) () in
 	(* Read server output until the connection closes, printing lines immediately
 	   as they arrive rather than waiting for the server to disconnect. *)
@@ -136,6 +137,8 @@ let poll sock print =
 		else
 			flush_complete_lines ()
 	done;
+	stop_stdin := true;
+	Thread.join stdin_thread;
 	(* Flush any remaining partial line after the server closes the connection *)
 	let s = Buffer.contents response_buf in
 	if s <> "" then begin

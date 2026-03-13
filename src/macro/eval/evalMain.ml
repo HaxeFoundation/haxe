@@ -140,7 +140,9 @@ let create com api is_macro =
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
 	(* If no user-defined exception handler is set then follow libuv behavior.
-		Which is printing an error to stderr and exiting with code 2 *)
+		Which is printing an error to stderr and exiting with code 2.
+		Use get_ctx() to access the current context dynamically instead of capturing
+		`com` directly, so the compilation context can be garbage collected between requests. *)
 	Luv.Error.set_on_unhandled_exception (fun ex ->
 		match ex with
 		| EvalTypes.Sys_exit _ ->
@@ -152,7 +154,7 @@ let create com api is_macro =
 						Error.recurse_error (fun depth err ->
 							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
 						) err;
-						MessageReporting.format_messages com.defines !messages
+						MessageReporting.format_messages ((get_ctx()).curapi.MacroApi.get_com()).Common.defines !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -393,6 +395,7 @@ let setup get_api =
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
+	ctx.had_error <- false;
 	ctx.static_prototypes#reset
 
 let set_error ctx b =

@@ -315,7 +315,7 @@ module WorkerDomain = struct
 						end;
 
 						sctx.current_stdin <- None;
-						ServerCache.cleanup();
+						ServerCache.cleanup sctx;
 						if sctx.was_compilation then
 							cs#add_task (new Tasks.server_exploration_task cs);
 						RequestQueue.wake_up rq;

@@ -40,6 +40,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
+	val mutable last_access_time = Unix.gettimeofday ()
 
 	(* files *)
 
@@ -147,6 +148,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 (* Pointers for memory inspection. *)
 	method get_pointers : unit array =
 		[|Obj.magic files;Obj.magic modules;Obj.magic binary_cache|]
+
+	(* access tracking *)
+
+	method update_access_time = last_access_time <- Unix.gettimeofday ()
+	method get_last_access_time = last_access_time
 end
 
 let create_directory path mtime = {
@@ -203,11 +209,13 @@ class cache = object(self)
 	method get_context sign =
 		try
 			let cache = Hashtbl.find contexts sign in
+			cache#update_access_time;
 			if not (List.memq cache context_list) then
 				context_list <- cache :: context_list;
 			cache
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) sign in
+			cache#update_access_time;
 			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
@@ -365,6 +373,24 @@ class cache = object(self)
 			else folded
 		in
 		tasks <- PriorityQueue.merge tasks (loop PriorityQueue.Empty);
+
+	(* context lifecycle *)
+
+	(* Remove context caches that haven't been accessed for [max_age_seconds] seconds.
+	   This prevents unbounded accumulation of stale contexts when defines change between
+	   compilations, creating new signatures each time. *)
+	method remove_stale_contexts max_age_seconds =
+		let now = Unix.gettimeofday () in
+		let threshold = now -. max_age_seconds in
+		let to_remove = Hashtbl.fold (fun sign cc acc ->
+			if cc#get_last_access_time < threshold then sign :: acc else acc
+		) contexts [] in
+		List.iter (fun sign ->
+			Hashtbl.remove contexts sign
+		) to_remove;
+		if to_remove <> [] then
+			context_list <- List.filter (fun cc -> cc#get_last_access_time >= threshold) context_list;
+		List.length to_remove
 
 	(* Pointers for memory inspection. *)
 	method get_pointers : unit array =

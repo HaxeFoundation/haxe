@@ -549,7 +549,6 @@ let catch_completion_and_exit ctx sctx run =
 		if ctx.has_error then 1 else 0
 	with
 		| DisplayJson.JsonCompleted ->
-			ServerCache.after_compilation sctx ctx;
 			finalize ctx;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
@@ -586,7 +585,6 @@ let compile_ctx sctx ctx =
 			compile ctx actx sctx;
 		);
 		ContextFlush.flush_context ctx;
-		ServerCache.after_compilation sctx ctx;
 		finalize ctx;
 	in
 	if ctx.has_error then begin
