@@ -147,20 +147,29 @@ module SocketRequest = struct
 		data
 end
 
-let create_request_scope io =
+let create_request_scope io display_arg =
+	let timer_ctx = Timer.make_context (Timer.make ["other"]) in
+	let result_handler = match display_arg with
+		| Some arg ->
+			let input = JsonRpc.parse_request arg in
+			DisplayJson.create_json_result_handler timer_ctx io (new Jsonrpc_handler.jsonrpc_handler input)
+		| None ->
+			CompilerOutput.create_default_result_handler io
+	in
 	{
 		stats = Stats.create ();
-		timer_ctx = Timer.make_context (Timer.make ["other"]);
+		timer_ctx;
 		cancellation_requested = false;
 		io;
-		result_handler = CompilerOutput.create_default_result_handler io;
+		result_handler;
 	}
 
-let process sctx request_scope entry (args : parsed_arg list) =
+let process sctx request_scope entry request_args =
 	let t0 = Extc.time() in
-	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
+	(* TODO *)
+	(* ServerMessage.arguments ["<" ^ string_of_int (List.length request_args) ^ " pre-parsed args>"]; *)
 	ServerCompilationContext.reset sctx;
-	entry sctx request_scope args;
+	entry sctx request_scope request_args;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
@@ -234,9 +243,9 @@ module WorkerDomain = struct
 			conn.close();
 		) pending
 
-	let run_request sctx request_scope entry args =
+	let run_request sctx request_scope entry request_args =
 		try
-			process sctx request_scope entry args;
+			process sctx request_scope entry request_args;
 			Success
 		with
 		| Cancelled ->
@@ -279,9 +288,10 @@ module WorkerDomain = struct
 						let write_result s = conn.write s in
 						let signal_error () = conn.write "\x02\n" in
 						let io = CompilerIo.create ~write_out ~write_err ~write_result ~signal_error (conn.get_stdin()) in
-						let request_scope = create_request_scope io in
+						let request_args = Args.expand_args request.args in
+						let request_scope = create_request_scope io request_args.display_arg in
 						rq.current_request <- Some request_scope;
-						let outcome = run_request sctx request_scope entry request.args in
+						let outcome = run_request sctx request_scope entry request_args in
 						CompilerIo.close io;
 						conn.close();
 						begin match outcome with

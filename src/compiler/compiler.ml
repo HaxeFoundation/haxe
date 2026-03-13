@@ -459,7 +459,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | DisplayJson.JsonCompleted as exc ->
+	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayJson.JsonCompleted as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -548,11 +548,6 @@ let catch_completion_and_exit ctx sctx run =
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
-		| DisplayProcessingGlobals.Completion str ->
-			ServerCache.after_compilation sctx ctx;
-			emit_completion ctx str;
-			finalize ctx;
-			0
 		| DisplayJson.JsonCompleted ->
 			ServerCache.after_compilation sctx ctx;
 			finalize ctx;
@@ -569,10 +564,14 @@ let process_actx ctx actx =
 	match DisplayProcessing.process_display_arg ctx actx with
 	| Completed ->
 		raise DisplayJson.JsonCompleted
-	| NotCompleted ->
+	| NeedsTyping ->
+		actx.did_something <- true;
+		actx.force_typing <- true;
 		if defined ctx.com NoDeprecationWarnings then begin
 			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
 		end
+	| NoCompletionPointFound ->
+		()
 
 let compile_ctx sctx ctx =
 	let run ctx =
@@ -684,10 +683,9 @@ module HighLevel = struct
 		sctx.compilation_step <- sctx.compilation_step + 1;
 		create_context sctx request_scope sctx.compilation_step expanded_args
 
-	let entry sctx request_scope (args : parsed_arg list) =
+	let entry sctx request_scope (request_args : Args.request_args) =
 		let curdir = Unix.getcwd () in
 		try
-			let request_args = Args.expand_args args in
 			let has_display = request_args.display_arg <> None in
 			let rec loop = function
 				| [] -> 0
@@ -707,7 +705,7 @@ module HighLevel = struct
 		with Arg.Bad msg ->
 			Unix.chdir curdir;
 			(* TODO: this is silly *)
-			let ctx = create_context sctx request_scope 0 args in
+			let ctx = create_context sctx request_scope 0 [] in
 			error ctx ("Error: " ^ msg) null_pos;
 			compile_ctx sctx ctx
 end

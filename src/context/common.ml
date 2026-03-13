@@ -265,15 +265,29 @@ type part_scope = {
 	mutable diagnostics_messages : diagnostic list;
 }
 
+type parse_input_result =
+	| NeedsTyping
+	| NoCompletionPointFound
+	| Completed
+
 type request_scope = {
 	stats : Stats.t;
 	timer_ctx : Timer.timer_context;
 	mutable cancellation_requested : bool;
 	io : CompilerIo.t;
-	mutable result_handler : CompilerOutput.result_handler;
+	result_handler : result_handler;
 }
 
-type context = {
+and result_handler = {
+	send_result : Json.t -> unit;
+	send_result_raise : 'a . Json.t -> 'a;
+	send_error : Json.t list -> unit;
+	send_error_raise : 'a . Json.t list -> 'a;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler option;
+	set_com : context -> parse_input_result;
+}
+
+and context = {
 	request_scope : request_scope;
 	part_scope : part_scope;
 	compilation_step : int;

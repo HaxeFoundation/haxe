@@ -1,4 +1,5 @@
 open CompilerIo
+open Common
 
 (** Higher-level compiler output helpers ("what to send").
 
@@ -14,13 +15,7 @@ open CompilerIo
 (** Handler that encapsulates result delivery for a compilation request.
     Set up once when the request mode is determined; call-sites use
     {!send_result}, {!send_error}, etc. instead of touching this directly. *)
-type result_handler = {
-	send_result : Json.t -> unit;
-	send_result_raise : 'a . Json.t -> 'a;
-	send_error : Json.t list -> unit;
-	send_error_raise : 'a . Json.t list -> 'a;
-	jsonrpc : Jsonrpc_handler.jsonrpc_handler option;
-}
+
 
 (** Extract the ["message"] string from a JSON error object, falling back
     to the full JSON representation when the field is absent. *)
@@ -46,6 +41,7 @@ let create_default_result_handler io = {
 	);
 	send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
 	jsonrpc = None;
+	set_com = (fun _ -> NoCompletionPointFound);
 }
 
 (** Send a JSON result to the client (non-raising). *)
