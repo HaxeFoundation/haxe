@@ -7,7 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 
-type script_type = 
+type script_type =
   | ScriptBool
   | ScriptInt
   | ScriptFloat
@@ -413,7 +413,7 @@ let is_extern_class_instance obj =
 let rec is_dynamic_in_cpp ctx expr =
   let expr_type =
     type_string
-      (match follow expr.etype with TFun (args, ret) -> ret | _ -> expr.etype)
+      (match follow_with_coro expr.etype with Coro (args, ret) | NotCoro TFun (args, ret) -> ret | _ -> expr.etype)
   in
   if expr_type = "Dynamic" || expr_type = "cpp::ArrayBase" then true
   else
@@ -454,8 +454,8 @@ let rec is_dynamic_in_cpp ctx expr =
           in
           if is_IaCall then true
           else
-            match follow func.etype with
-            | TFun (args, ret) -> is_dynamic_in_cpp ctx func
+            match follow_with_coro func.etype with
+            | Coro _ | NotCoro TFun _ -> is_dynamic_in_cpp ctx func
             | _ -> true)
       | TParenthesis expr | TMeta (_, expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e, None) -> type_string expr.etype = "Dynamic"
@@ -1088,8 +1088,8 @@ class script_writer ctx filename asciiOut basic =
                 this#write (this#op IaCall ^ argN ^ "\n");
                 this#gen_expression func);
             let matched_args =
-              match func.etype with
-              | TFun (args, _) -> (
+              match follow_with_coro func.etype with
+              | Coro (args, _) | NotCoro TFun (args, _) -> (
                   try
                     List.iter2
                       (fun (_, _, protoT) arg ->
@@ -1815,10 +1815,21 @@ let generate_script_class common_ctx script class_def =
     ^ "\n");
 
   let generate_field isStatic field =
-    match (field.cf_kind, follow field.cf_type) with
-    | Var { v_read = AccInline; v_write = AccNever }, _ ->
+	let unknown() =
+		print_endline
+		("Unknown method type "
+		^ join_class_path class_def.cl_path "."
+		^ "." ^ field.cf_name)
+  	in
+	let map_args_ret f = match follow_with_coro field.cf_type with
+		| Coro(args,ret) -> f args ret
+		| NotCoro (TFun(args,ret)) -> f args ret
+		| _ -> unknown ()
+	in
+    match field.cf_kind with
+    | Var { v_read = AccInline; v_write = AccNever } ->
         script#writeOpLine IaInline
-    | Var v, _ ->
+    | Var v->
         let mode_code mode =
           match mode with
           | AccNormal | AccCtor -> IaAccessNormal
@@ -1837,23 +1848,24 @@ let generate_script_class common_ctx script class_def =
         let isExtern = not (is_physical_field field) in
         script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic
           field.cf_name field.cf_type field.cf_expr
-    | Method MethDynamic, TFun (args, ret) ->
-        script#func isStatic true field.cf_name ret args
-          (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
-    | Method _, TFun (args, ret) when field.cf_name = "new" ->
-        script#func true false "new"
-          (TInst (class_def, []))
-          args false field.cf_expr field.cf_pos
-    | Method _, TFun (args, ret) ->
-        script#func isStatic false field.cf_name ret args
-          (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
-    | Method _, _ ->
-        print_endline
-          ("Unknown method type "
-          ^ join_class_path class_def.cl_path "."
-          ^ "." ^ field.cf_name)
+    | Method MethDynamic ->
+		map_args_ret (fun args ret ->
+			script#func isStatic true field.cf_name ret args
+			(has_class_flag class_def CInterface)
+			field.cf_expr field.cf_pos
+		)
+    | Method _ when field.cf_name = "new" ->
+		map_args_ret (fun args ret ->
+			script#func true false "new"
+			(TInst (class_def, []))
+			args false field.cf_expr field.cf_pos
+		)
+    | Method _ ->
+		map_args_ret (fun args ret ->
+			script#func isStatic false field.cf_name ret args
+			(has_class_flag class_def CInterface)
+			field.cf_expr field.cf_pos
+		)
   in
   (match class_def.cl_constructor with
   | Some field -> generate_field true field

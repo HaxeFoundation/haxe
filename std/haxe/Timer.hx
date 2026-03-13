@@ -185,7 +185,7 @@ class Timer {
 	 *
 	 * The precision and epoch of the timer is platform defined.
 	 */
-	public static inline function milliseconds():Int64 {
+	public static #if !cppia inline #end function milliseconds():Int64 {
 		#if flash
 		return flash.Lib.getTimer();
 		#elseif js
