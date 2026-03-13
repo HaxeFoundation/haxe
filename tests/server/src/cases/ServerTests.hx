@@ -650,4 +650,29 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		assertHasPrint('Issue9918.hx:22: correct ECast count');
 	}
+
+	function testStaleContextRemoval() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var baseArgs = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
+		var uniqueArgs = baseArgs.concat(["-D", "uniqueTestDefine"]);
+
+		// Create two contexts with different signatures.
+		runHaxe(baseArgs);
+		runHaxe(uniqueArgs);
+
+		// Count contexts and verify the unique one was added.
+		var contextsBefore:Array<HaxeServerContext> = runHaxeJson(baseArgs, ServerMethods.Contexts, null);
+		var countBefore = contextsBefore.length;
+		Assert.isTrue(countBefore >= 2);
+
+		// Compile several more times with only the base args.
+		// This ages out the unique context beyond stale_context_max_age (5).
+		for (_ in 0...7) {
+			runHaxe(baseArgs);
+		}
+
+		// The stale context should have been removed.
+		var contextsAfter:Array<HaxeServerContext> = runHaxeJson(baseArgs, ServerMethods.Contexts, null);
+		Assert.isTrue(contextsAfter.length < countBefore);
+	}
 }

@@ -87,7 +87,6 @@ tests/unit/unit.py.res2.bin
 tests/sys/bin/
 /tests/sys/test-res/
 tests/misc/projects/*/*.n
-tests/misc/eval/projects/*/*.n
 tests/misc/*/*/*.lua
 tests/unit/bin/
 tests/*.n
@@ -129,8 +128,6 @@ tests/display/.unittest/
 tests/unit/.unittest/
 tests/threads/export/
 tests/server/test.js.map
-tests/server/test_output.log
-tests/server/build_with_deps.hxml
 *.merlin
 lib.sexp
 src/compiler/version.ml
@@ -139,24 +136,3 @@ tests/misc/projects/Issue10863/error.log
 tests/misc/coroutines/dump
 /dump
 */a.out
-.repo-version
-
-# Haxelib repository artifacts (from haxelib setup pointing to repo root)
-/dummy_doc/
-/dummy_doc_dep/
-/formatter/
-/haxeparser/
-/haxeserver/
-/hxcoro/
-/hxjsonast/
-/hxnodejs/
-/hxparse/
-/json2object/
-/language-server-protocol/
-/lib1/
-/lib2/
-/rename/
-/safety/
-/tokentree/
-/utest/
-/vscode-json-rpc/

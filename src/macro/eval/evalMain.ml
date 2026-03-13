@@ -396,7 +396,6 @@ let setup get_api =
 let do_reuse ctx api =
 	ctx.curapi <- api;
 	ctx.had_error <- false;
-	ctx.type_cache <- IntMap.empty;
 	ctx.static_prototypes#reset
 
 let set_error ctx b =

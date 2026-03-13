@@ -596,8 +596,16 @@ let after_save sctx ctx =
 	if ctx.comm.is_server && not (has_error ctx) then
 		CommonCache.maybe_cache_context ctx.com
 
+let stale_context_max_age = 5
+
 let after_compilation sctx ctx =
 	sctx.cs#clear_temp_cache;
+	(* Remove context caches that haven't been accessed for [stale_context_max_age] compilation steps.
+	   This prevents unbounded accumulation of stale contexts when compilation defines
+	   change between requests, generating new cache signatures each time. *)
+	let removed = sctx.cs#remove_stale_contexts stale_context_max_age in
+	if removed > 0 then
+		ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed);
 	()
 
 let enable_cache_mode sctx =

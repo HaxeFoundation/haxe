@@ -40,6 +40,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
+	val mutable last_access_step = 0
 
 	(* files *)
 
@@ -147,6 +148,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 (* Pointers for memory inspection. *)
 	method get_pointers : unit array =
 		[|Obj.magic files;Obj.magic modules;Obj.magic binary_cache|]
+
+	(* access tracking *)
+
+	method update_access step = last_access_step <- step
+	method get_last_access = last_access_step
 end
 
 let create_directory path mtime = {
@@ -178,6 +184,7 @@ class cache = object(self)
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
+	val mutable current_step = 0
 
 	method clear =
 		Hashtbl.clear contexts;
@@ -203,11 +210,13 @@ class cache = object(self)
 	method get_context sign =
 		try
 			let cache = Hashtbl.find contexts sign in
+			cache#update_access current_step;
 			if not (List.memq cache context_list) then
 				context_list <- cache :: context_list;
 			cache
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) sign in
+			cache#update_access current_step;
 			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
@@ -365,6 +374,26 @@ class cache = object(self)
 			else folded
 		in
 		tasks <- PriorityQueue.merge tasks (loop PriorityQueue.Empty);
+
+	(* context lifecycle *)
+
+	method set_current_step step =
+		current_step <- step
+
+	(* Remove context caches that haven't been accessed for [max_age] compilation steps.
+	   This prevents unbounded accumulation of stale contexts when defines change between
+	   compilations, creating new signatures each time. *)
+	method remove_stale_contexts max_age =
+		let threshold = current_step - max_age in
+		let to_remove = Hashtbl.fold (fun sign cc acc ->
+			if cc#get_last_access < threshold then sign :: acc else acc
+		) contexts [] in
+		List.iter (fun sign ->
+			Hashtbl.remove contexts sign
+		) to_remove;
+		if to_remove <> [] then
+			context_list <- List.filter (fun cc -> cc#get_last_access >= threshold) context_list;
+		List.length to_remove
 
 	(* Pointers for memory inspection. *)
 	method get_pointers : unit array =

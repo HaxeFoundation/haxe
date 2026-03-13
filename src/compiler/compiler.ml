@@ -625,6 +625,7 @@ module HighLevel = struct
 		let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
 		let expanded_args = expand_part_libs has_global part.Args.args in
 		sctx.compilation_step <- sctx.compilation_step + 1;
+		sctx.cs#set_current_step sctx.compilation_step;
 		create_context comm sctx request_scope sctx.compilation_step expanded_args
 
 	let entry sctx request_scope comm (args : parsed_arg list) =
