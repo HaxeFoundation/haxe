@@ -576,15 +576,52 @@ let handler =
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
 	h
 
-type parse_input_result =
-	| NotCompleted
-	| Completed
+let run_on_com jsonrpc f com =
+	let catch_api_error f =
+		try f() with Api_error json -> Error json
+	in
+	let result_handler = com.request_scope.result_handler in
+	let display = new display_handler jsonrpc com com.cs in
 
-let parse_input com input =
-	let io = com.request_scope.io in
-	let input = JsonRpc.parse_request input in
-	let jsonrpc = new jsonrpc_handler input in
+	let hctx = {
+		com = com;
+		jsonrpc = jsonrpc;
+		display = display;
+	} in
+	let rec maybe_send_response = function
+		| NoResponse ->
+			NeedsTyping
+		| Result json ->
+			result_handler.send_result json;
+			Completed
+		| Error json ->
+			result_handler.send_error [json];
+			Completed
+		| Deferred(deferrence,f) ->
+			let send_response = function
+				| NoResponse ->
+					()
+				| Result json ->
+					result_handler.send_result_raise json;
+				| Error json ->
+					result_handler.send_error_raise [json];
+				| Deferred _ ->
+					die "" __LOC__
+			in
+			let f () = send_response (catch_api_error f) in
+			begin match deferrence with
+			| AfterInitMacros ->
+				com.callbacks#add_after_init_macros f
+			| AfterFilters ->
+				com.callbacks#add_after_filters f
+			end;
+			NeedsTyping
+	in
+	maybe_send_response (catch_api_error (fun () -> f hctx))
 
+open CompilerOutput
+
+let create_json_result_handler timer_ctx io jsonrpc =
 	let send_result send json =
 		flush stdout;
 		flush stderr;
@@ -592,20 +629,15 @@ let parse_input com input =
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
-		let fl = if com.timer_ctx.measure_times = Yes then begin
-			let _,_,root = Timer.build_times_tree com.timer_ctx in
+		let fl = if timer_ctx.measure_times = Yes then begin
+			let _,_,root = Timer.build_times_tree timer_ctx in
 			begin match json_of_times root with
 			| None -> fl
 			| Some jo -> ("timers",jo) :: fl
 			end
 		end else fl in
-		let fl = if DynArray.length com.pass_debug_messages > 0 then
-			("passMessages",jarray (List.map jstring (DynArray.to_list com.pass_debug_messages))) :: fl
-		else
-			fl
-		in
 		let jo = jobject fl in
-		send (JsonRpc.result jsonrpc#get_id  jo)
+		send (JsonRpc.result jsonrpc#get_id jo)
 	in
 
 	let send_error send jl =
@@ -617,69 +649,18 @@ let parse_input com input =
 	let send_error_raise = send_error (send_json_raise io) in
 	let send_error_noraise = send_error (send_json io) in
 
-	com.request_scope.json_out <- Some({
-		send_result = send_result_noraise;
-		send_result_raise = send_result_raise;
-		send_error = send_error_noraise;
-		send_error_raise = send_error_raise;
-		jsonrpc = jsonrpc
-	});
-
-	let cs = com.cs in
-
-	let display = new display_handler jsonrpc com cs in
-
-	let hctx = {
-		com = com;
-		jsonrpc = jsonrpc;
-		display = display;
-	} in
-
 	let method_name = jsonrpc#get_method_name in
 	let f = try
 		Hashtbl.find handler method_name
 	with Not_found ->
 		raise_method_not_found jsonrpc#get_id method_name
 	in
-	let catch_api_error f =
-		try f() with Api_error json -> Error json
-	in
-	let rec maybe_send_response = function
-		| NoResponse ->
-			NotCompleted
-		| Result json ->
-			send_result_noraise json;
-			Completed
-		| Error json ->
-			send_error_noraise [json];
-			Completed
-		| Deferred(deferrence,f) ->
-			let send_response = function
-				| NoResponse ->
-					()
-				| Result json ->
-					send_result_raise json;
-				| Error json ->
-					send_error_raise [json];
-				| Deferred _ ->
-					die "" __LOC__
-			in
-			let f () = send_response (catch_api_error f) in
-			begin match deferrence with
-			| AfterInitMacros ->
-				com.callbacks#add_after_init_macros f
-			| AfterFilters ->
-				com.callbacks#add_after_filters f
-			end;
-			NotCompleted
-	in
-	maybe_send_response (catch_api_error (fun () -> f hctx))
 
-let parse_input com input =
-	let handle_error json =
-		send_json com.request_scope.io json;
-		Completed
-	in
-	JsonRpc.handle_jsonrpc_error (fun () ->
-		parse_input com input
-	) handle_error
+	{
+		send_result = send_result_noraise;
+		send_result_raise = send_result_raise;
+		send_error = send_error_noraise;
+		send_error_raise = send_error_raise;
+		jsonrpc = Some jsonrpc;
+		set_com = run_on_com jsonrpc f;
+	}

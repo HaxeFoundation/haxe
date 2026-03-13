@@ -459,7 +459,7 @@ with
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception ctx dex
-	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayProcessingGlobals.Completion _ | DisplayJson.JsonCompleted as exc ->
+	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayJson.JsonCompleted as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
@@ -487,8 +487,8 @@ module ContextFlush = struct
 
 	let flush_context_server ctx =
 		let write = CompilerIo.write_err ctx.com.request_scope.io in
-		match ctx.com.request_scope.json_out with
-		| Some api when not (is_diagnostics ctx.com) ->
+		let rh = ctx.com.request_scope.result_handler in
+		if CompilerOutput.has_json_rpc rh && not (is_diagnostics ctx.com) then begin
 			if has_error ctx then begin
 				let errors = List.map (fun cm ->
 					Json.JObject [
@@ -497,9 +497,9 @@ module ContextFlush = struct
 						"message",JString cm.cm_message;
 					]
 				) (List.rev ctx.messages) in
-				api.send_error_raise errors;
+				CompilerOutput.send_error_raise rh errors;
 			end
-		| _ ->
+		end else
 			let add_diagnostics_messages () =
 				List.iter (fun cm ->
 					add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
@@ -548,11 +548,6 @@ let catch_completion_and_exit ctx sctx run =
 		run ctx;
 		if ctx.has_error then 1 else 0
 	with
-		| DisplayProcessingGlobals.Completion str ->
-			ServerCache.after_compilation sctx ctx;
-			emit_completion ctx str;
-			finalize ctx;
-			0
 		| DisplayJson.JsonCompleted ->
 			ServerCache.after_compilation sctx ctx;
 			finalize ctx;
@@ -566,13 +561,20 @@ let catch_completion_and_exit ctx sctx run =
 let process_actx ctx actx =
 	ctx.com.doinline <- ctx.com.display.dms_inline && not (Common.defined ctx.com Define.NoInline);
 	ctx.com.timer_ctx.measure_times <- (if actx.measure_times then Yes else No);
-	match DisplayProcessing.process_display_arg ctx actx with
-	| Completed ->
-		raise DisplayJson.JsonCompleted
-	| NotCompleted ->
+	let check_deprecation_settings () =
 		if defined ctx.com NoDeprecationWarnings then begin
 			ctx.com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: ctx.com.warning_options
 		end
+	in
+	match DisplayProcessing.process_display_arg ctx actx with
+	| Completed ->
+		raise DisplayJson.JsonCompleted
+	| NeedsTyping ->
+		actx.did_something <- true;
+		actx.force_typing <- true;
+		check_deprecation_settings ()
+	| NoCompletionPointFound ->
+		check_deprecation_settings ()
 
 let compile_ctx sctx ctx =
 	let run ctx =
@@ -684,20 +686,19 @@ module HighLevel = struct
 		sctx.compilation_step <- sctx.compilation_step + 1;
 		create_context sctx request_scope sctx.compilation_step expanded_args
 
-	let entry sctx request_scope (args : parsed_arg list) =
+	let entry sctx request_scope (request_args : Args.request_args) =
 		let curdir = Unix.getcwd () in
 		try
-			let request_args = Args.expand_args args in
 			let has_display = request_args.display_arg <> None in
 			let rec loop = function
 				| [] -> 0
 				| part :: rest ->
-					(* Re-apply original dir in case --cwd was used in a previous part *)
-					Unix.chdir curdir;
+
 					let ctx = create_context_from_part sctx request_scope has_display part in
 					if rest <> [] then ctx.has_next <- true;
 					ctx.runtime_args <- part.Args.runtime_args;
 					let code = compile_ctx sctx ctx in
+					Unix.chdir curdir;
 					if code = 0 && rest <> [] && not has_display then
 						loop rest
 					else
@@ -707,7 +708,7 @@ module HighLevel = struct
 		with Arg.Bad msg ->
 			Unix.chdir curdir;
 			(* TODO: this is silly *)
-			let ctx = create_context sctx request_scope 0 args in
+			let ctx = create_context sctx request_scope 0 [] in
 			error ctx ("Error: " ^ msg) null_pos;
 			compile_ctx sctx ctx
 end

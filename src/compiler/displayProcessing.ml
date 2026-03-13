@@ -14,14 +14,8 @@ type display_path_kind =
 (* 1. Argument processing from --display *)
 
 let process_display_arg ctx actx =
-	match actx.display_arg with
-	| Some input ->
-		let input = String.trim input in
-		actx.did_something <- true;
-		actx.force_typing <- true;
-		DisplayJson.parse_input ctx.com input
-	| None ->
-		DisplayJson.NotCompleted
+	let result_handler = ctx.com.request_scope.result_handler in
+	result_handler.set_com ctx.com
 
 (* 2. Compilation start, setup display configuration in context *)
 
