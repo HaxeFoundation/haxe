@@ -1,4 +1,5 @@
 open CompilerIo
+open Globals
 open Common
 
 (** Higher-level compiler output helpers ("what to send").
@@ -8,7 +9,8 @@ open Common
 
     The {!result_handler} type abstracts over how compilation results
     are delivered to clients: in JSON-RPC mode it sends structured
-    responses, while in CLI/pipe mode a default (no-op) handler is used.
+    responses, while in CLI/pipe mode the protocol-specific handler
+    routes messages to the appropriate output channels.
     Call-sites should use the [send_*] functions below instead of
     interacting with the underlying JSON-RPC API directly. *)
 
@@ -28,21 +30,80 @@ let extract_error_message je =
 		with Not_found -> Json.string_of_json je)
 	| _ -> Json.string_of_json je
 
-(** Create the default handler for non-JSON-RPC mode (CLI, plain server pipe).
-    [send_error] writes error messages to stderr via [io].
-    The [_raise] variants must never be called in this mode. *)
-let create_default_result_handler io = {
-	send_result = (fun _ -> ());
-	send_result_raise = (fun _ -> failwith "send_result_raise called in non-JSON-RPC mode");
-	send_error = (fun errors ->
-		List.iter (fun je ->
-			CompilerIo.write_err io (extract_error_message je ^ "\n")
-		) errors
-	);
-	send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
-	jsonrpc = None;
-	set_com = (fun _ -> NoCompletionPointFound);
-}
+(** Collect timer report output and write it to stderr / the connection.
+    Writes are wrapped in [try ... with] because in server mode the
+    client connection may have been closed by the time we try to send. *)
+let send_timer_report io timer_ctx =
+	let buf = Buffer.create 4096 in
+	Timer.report_times timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
+	try (CompilerIo.write_err io) (Buffer.contents buf) with _ -> ()
+
+(** Create the handler for server-pipe mode (non-JSON-RPC server).
+    Messages are written to stderr, errors are signaled via the pipe protocol,
+    and timer reports are sent after successful compilation. *)
+let create_server_result_handler io =
+	let send_message _sev output =
+		CompilerIo.write_err io (output ^ "\n");
+		ServerMessage.message output
+	in
+	{
+		send_result = (fun _ -> ());
+		send_result_raise = (fun _ -> failwith "send_result_raise called in non-JSON-RPC mode");
+		send_error = (fun errors ->
+			List.iter (fun je ->
+				CompilerIo.write_err io (extract_error_message je ^ "\n")
+			) errors
+		);
+		send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
+		send_message;
+		flush_messages = (fun messages has_error com ->
+			MessageReporting.display_messages_from com.defines messages
+				~set_error:(fun () -> com.has_error <- true)
+				(fun sev output -> send_message sev output);
+			com.sctx.was_compilation <- com.display.dms_full_typing;
+			if has_error then begin
+				com.timer_ctx.measure_times <- No;
+				CompilerIo.signal_error io
+			end else
+				if com.timer_ctx.measure_times = Yes then
+					send_timer_report io com.timer_ctx
+		);
+		jsonrpc = None;
+		set_com = (fun _ -> NoCompletionPointFound);
+	}
+
+(** Create the handler for CLI mode (non-server).
+    Messages are routed by severity: info to stdout, warnings/errors to stderr.
+    Optionally prompts user to press enter before exiting on error. *)
+let create_cli_result_handler io =
+	let send_message sev output =
+		match sev with
+			| MessageSeverity.Information -> CompilerIo.write_out io (output ^ "\n")
+			| Warning | Error | Hint -> CompilerIo.write_err io (output ^ "\n")
+	in
+	{
+		send_result = (fun _ -> ());
+		send_result_raise = (fun _ -> failwith "send_result_raise called in non-JSON-RPC mode");
+		send_error = (fun errors ->
+			List.iter (fun je ->
+				CompilerIo.write_err io (extract_error_message je ^ "\n")
+			) errors
+		);
+		send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
+		send_message;
+		flush_messages = (fun messages has_error com ->
+			MessageReporting.display_messages_from com.defines messages
+				~set_error:(fun () -> com.has_error <- true)
+				(fun sev output -> send_message sev output);
+			if has_error && !Helper.prompt then begin
+				CompilerIo.write_out io "Press enter to exit...\n";
+				ignore(read_line());
+			end;
+			CompilerIo.flush io
+		);
+		jsonrpc = None;
+		set_com = (fun _ -> NoCompletionPointFound);
+	}
 
 (** Send a JSON result to the client (non-raising). *)
 let send_result rh json = rh.send_result json
@@ -58,17 +119,12 @@ let send_error rh errors = rh.send_error errors
 let send_error_raise : 'a . result_handler -> Json.t list -> 'a =
 	fun rh errors -> rh.send_error_raise errors
 
-(** Whether this handler is backed by a JSON-RPC connection. *)
-let has_json_rpc rh = rh.jsonrpc <> None
+(** Send a single formatted message through the protocol. *)
+let send_message rh sev msg = rh.send_message sev msg
+
+(** Flush all compiler messages through the protocol. *)
+let flush_messages rh messages has_error com = rh.flush_messages messages has_error com
 
 (** Return the JSON-RPC handler.
     @raise Invalid_argument if not in JSON-RPC mode. *)
 let get_jsonrpc_exn rh = Option.get rh.jsonrpc
-
-(** Collect timer report output and write it to stderr / the connection.
-    Writes are wrapped in [try ... with] because in server mode the
-    client connection may have been closed by the time we try to send. *)
-let send_timer_report io timer_ctx =
-	let buf = Buffer.create 4096 in
-	Timer.report_times timer_ctx (fun s -> Buffer.add_string buf (s ^ "\n"));
-	try (CompilerIo.write_err io) (Buffer.contents buf) with _ -> ()

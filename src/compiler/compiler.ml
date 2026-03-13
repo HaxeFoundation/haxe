@@ -485,62 +485,15 @@ let emit_completion ctx str =
 module ContextFlush = struct
 	open MessageReporting
 
-	let flush_context_server ctx =
-		let write = CompilerIo.write_err ctx.com.request_scope.io in
-		let rh = ctx.com.request_scope.result_handler in
-		if CompilerOutput.has_json_rpc rh && not (is_diagnostics ctx.com) then begin
-			if has_error ctx then begin
-				let errors = List.map (fun cm ->
-					Json.JObject [
-						"severity",JInt (MessageSeverity.to_int cm.cm_severity);
-						"location",Genjson.generate_pos_as_location cm.cm_pos;
-						"message",JString cm.cm_message;
-					]
-				) (List.rev ctx.messages) in
-				CompilerOutput.send_error_raise rh errors;
-			end
-		end else
-			let add_diagnostics_messages () =
-				List.iter (fun cm ->
-					add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-				) (List.rev ctx.messages);
-			in
-			match ctx.com.report_mode with
-				| RMDiagnostics _ ->
-					add_diagnostics_messages ()
-				| _ ->
-					display_messages ctx (fun _ output ->
-						write (output ^ "\n");
-						ServerMessage.message output;
-					);
-					(* TODO: What is this? *)
-					ctx.com.sctx.was_compilation <- ctx.com.display.dms_full_typing;
-					if has_error ctx then begin
-						ctx.com.timer_ctx.measure_times <- No;
-						CompilerIo.signal_error ctx.com.request_scope.io
-					end else
-						if ctx.com.timer_ctx.measure_times = Yes then
-							CompilerOutput.send_timer_report ctx.com.request_scope.io ctx.com.timer_ctx
-
-	let flush_context_client ctx =
-		let io = ctx.com.request_scope.io in
-		display_messages ctx (fun sev output ->
-			match sev with
-				| MessageSeverity.Information -> CompilerIo.write_out io (output ^ "\n")
-				| Warning | Error | Hint -> CompilerIo.write_err io (output ^ "\n")
-		);
-
-		if has_error ctx && !Helper.prompt then begin
-			CompilerIo.write_out io "Press enter to exit...\n";
-			ignore(read_line());
-		end;
-		CompilerIo.flush io
-
 	let flush_context ctx =
-		if ctx.com.sctx.is_server then
-			flush_context_server ctx
-		else
-			flush_context_client ctx
+		let rh = ctx.com.request_scope.result_handler in
+		match ctx.com.report_mode with
+		| RMDiagnostics _ ->
+			List.iter (fun cm ->
+				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+			) (List.rev ctx.messages)
+		| _ ->
+			CompilerOutput.flush_messages rh (List.rev ctx.messages) (has_error ctx) ctx.com
 end
 
 let catch_completion_and_exit ctx sctx run =
