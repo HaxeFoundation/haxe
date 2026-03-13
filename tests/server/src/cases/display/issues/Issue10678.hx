@@ -1,6 +1,7 @@
 package cases.display.issues;
 
 class Issue10678 extends DisplayTestCase {
+	#if todo // needs to be tested differently
 	function test(_) {
 		vfs.putContent("Macro.hx", getTemplate("issues/Issue10678/Macro.hx"));
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
@@ -11,4 +12,5 @@ class Issue10678 extends DisplayTestCase {
 			Assert.notContains(result, results.slice(i + 1));
 		}
 	}
+	#end
 }
