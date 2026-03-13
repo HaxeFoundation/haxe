@@ -562,13 +562,27 @@ let ensure_macro_setup sctx =
 		MacroContext.setup();
 	end
 
-let cleanup () = match !MacroContext.macro_interp_cache with
+(* Maximum age in seconds for unused context caches before they are removed.
+   10 minutes is long enough to survive bursts of display requests with
+   varying defines, while still cleaning up contexts that are truly abandoned. *)
+let stale_context_max_age_seconds = 600.
+
+let cleanup sctx =
+	begin match !MacroContext.macro_interp_cache with
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Replace it with a
 		   null API so all references to the compilation context are released and it can be garbage collected. *)
 		interp.curapi <- MacroApi.null_api ()
 	| None ->
 		()
+	end;
+	sctx.cs#clear_temp_cache;
+	(* Remove context caches that haven't been accessed within the max age window.
+	   This prevents unbounded accumulation of stale contexts when compilation defines
+	   change between requests, generating new cache signatures each time. *)
+	let removed = sctx.cs#remove_stale_contexts stale_context_max_age_seconds in
+	if removed > 0 then
+		ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed)
 
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
@@ -595,18 +609,6 @@ let after_target_init sctx ctx =
 let after_save sctx ctx =
 	if ctx.comm.is_server && not (has_error ctx) then
 		CommonCache.maybe_cache_context ctx.com
-
-let stale_context_max_age = 5
-
-let after_compilation sctx ctx =
-	sctx.cs#clear_temp_cache;
-	(* Remove context caches that haven't been accessed for [stale_context_max_age] compilation steps.
-	   This prevents unbounded accumulation of stale contexts when compilation defines
-	   change between requests, generating new cache signatures each time. *)
-	let removed = sctx.cs#remove_stale_contexts stale_context_max_age in
-	if removed > 0 then
-		ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed);
-	()
 
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;

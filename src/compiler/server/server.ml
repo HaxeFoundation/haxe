@@ -276,7 +276,7 @@ module WorkerDomain = struct
 						let comm = run_request sctx request_scope entry request in
 						comm.close();
 						sctx.current_stdin <- None;
-						ServerCache.cleanup();
+						ServerCache.cleanup sctx;
 						if sctx.was_compilation then
 							cs#add_task (new Tasks.server_exploration_task cs);
 						RequestQueue.wake_up rq;

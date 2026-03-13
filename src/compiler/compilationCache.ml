@@ -40,7 +40,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
-	val mutable last_access_step = 0
+	val mutable last_access_time = Unix.gettimeofday ()
 
 	(* files *)
 
@@ -151,8 +151,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 	(* access tracking *)
 
-	method update_access step = last_access_step <- step
-	method get_last_access = last_access_step
+	method update_access_time = last_access_time <- Unix.gettimeofday ()
+	method get_last_access_time = last_access_time
 end
 
 let create_directory path mtime = {
@@ -184,7 +184,6 @@ class cache = object(self)
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
-	val mutable current_step = 0
 
 	method clear =
 		Hashtbl.clear contexts;
@@ -210,13 +209,13 @@ class cache = object(self)
 	method get_context sign =
 		try
 			let cache = Hashtbl.find contexts sign in
-			cache#update_access current_step;
+			cache#update_access_time;
 			if not (List.memq cache context_list) then
 				context_list <- cache :: context_list;
 			cache
 		with Not_found ->
 			let cache = new context_cache (Hashtbl.length contexts) sign in
-			cache#update_access current_step;
+			cache#update_access_time;
 			context_list <- cache :: context_list;
 			Hashtbl.add contexts sign cache;
 			cache
@@ -377,22 +376,20 @@ class cache = object(self)
 
 	(* context lifecycle *)
 
-	method set_current_step step =
-		current_step <- step
-
-	(* Remove context caches that haven't been accessed for [max_age] compilation steps.
+	(* Remove context caches that haven't been accessed for [max_age_seconds] seconds.
 	   This prevents unbounded accumulation of stale contexts when defines change between
 	   compilations, creating new signatures each time. *)
-	method remove_stale_contexts max_age =
-		let threshold = current_step - max_age in
+	method remove_stale_contexts max_age_seconds =
+		let now = Unix.gettimeofday () in
+		let threshold = now -. max_age_seconds in
 		let to_remove = Hashtbl.fold (fun sign cc acc ->
-			if cc#get_last_access < threshold then sign :: acc else acc
+			if cc#get_last_access_time < threshold then sign :: acc else acc
 		) contexts [] in
 		List.iter (fun sign ->
 			Hashtbl.remove contexts sign
 		) to_remove;
 		if to_remove <> [] then
-			context_list <- List.filter (fun cc -> cc#get_last_access >= threshold) context_list;
+			context_list <- List.filter (fun cc -> cc#get_last_access_time >= threshold) context_list;
 		List.length to_remove
 
 	(* Pointers for memory inspection. *)
