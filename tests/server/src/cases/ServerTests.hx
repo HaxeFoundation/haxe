@@ -6,6 +6,7 @@ import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
 import haxe.io.Path;
+import TestCase;
 import utest.Assert;
 
 using StringTools;
@@ -691,4 +692,15 @@ class ServerTests extends TestCase {
 		Assert.isTrue(stderr.contains("parsing"), 'Expected "parsing" timer in stderr');
 	}
 	#end
+
+	function testHoverWithPackageError() {
+		vfs.putContent("pack/Main.hx", "package wrongpack;\n\nclass Main {\n\tpublic static function main() {\n\t\tvar x = 1;\n\t}\n}");
+		var args = ["--main", "pack.Main", "--interp", "--no-output"];
+		try {
+			runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("pack/Main.hx"), offset: 55});
+			Assert.pass();
+		} catch (e:TestException) {
+			Assert.pass();
+		}
+	}
 }

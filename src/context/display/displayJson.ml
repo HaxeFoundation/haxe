@@ -670,7 +670,7 @@ let create_json_result_handler timer_ctx io jsonrpc =
 			"severity", Json.JInt (MessageSeverity.to_int sev);
 			"message", Json.JString msg;
 		])) in
-		send_string io (string_of_json json ^ "\n")
+		CompilerIo.write_out io (string_of_json json)
 	in
 
 	{
@@ -679,10 +679,7 @@ let create_json_result_handler timer_ctx io jsonrpc =
 		send_error = send_error_noraise;
 		send_error_raise = send_error_raise;
 		send_message;
-		flush_messages = (fun messages has_error com ->
-			MessageReporting.display_messages_from com.defines messages
-				~set_error:(fun () -> com.has_error <- true)
-				(fun sev output -> send_message sev output);
+		flush_messages = (fun messages has_error _com ->
 			if has_error then begin
 				let errors = List.map (fun cm ->
 					Json.JObject [

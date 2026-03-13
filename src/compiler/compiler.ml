@@ -499,7 +499,7 @@ end
 let catch_completion_and_exit ctx sctx run =
 	try
 		run ctx;
-		if ctx.has_error then 1 else 0
+		if has_error ctx then 1 else 0
 	with
 		| DisplayJson.JsonCompleted ->
 			finalize ctx;

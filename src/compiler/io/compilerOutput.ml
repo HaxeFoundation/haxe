@@ -57,11 +57,12 @@ let create_server_result_handler io =
 		send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
 		send_message;
 		flush_messages = (fun messages has_error com ->
+			let has_error = ref has_error in
 			MessageReporting.display_messages_from com.defines messages
-				~set_error:(fun () -> com.has_error <- true)
+				~set_error:(fun () -> has_error := true; com.has_error <- true)
 				(fun sev output -> send_message sev output);
 			com.sctx.was_compilation <- com.display.dms_full_typing;
-			if has_error then begin
+			if !has_error then begin
 				com.timer_ctx.measure_times <- No;
 				CompilerIo.signal_error io
 			end else
@@ -92,10 +93,11 @@ let create_cli_result_handler io =
 		send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
 		send_message;
 		flush_messages = (fun messages has_error com ->
+			let has_error = ref has_error in
 			MessageReporting.display_messages_from com.defines messages
-				~set_error:(fun () -> com.has_error <- true)
+				~set_error:(fun () -> has_error := true; com.has_error <- true)
 				(fun sev output -> send_message sev output);
-			if has_error && !Helper.prompt then begin
+			if !has_error && !Helper.prompt then begin
 				CompilerIo.write_out io "Press enter to exit...\n";
 				ignore(read_line());
 			end;
