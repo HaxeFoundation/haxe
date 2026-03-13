@@ -451,7 +451,7 @@ with
 		let s = make_ice_message com msg backtrace in
 		error ctx ("Error: " ^ s) null_pos
 	| Helper.HelpMessage msg ->
-		CompilerIo.write_out ctx.com.request_scope.io (msg ^ "\n")
+		print_endline msg
 	| Parser.TypePath (p,c,is_import,pos) ->
 		DisplayOutput.handle_type_path_exception ctx p c is_import pos
 	| Parser.SyntaxCompletion(kind,subj) ->
