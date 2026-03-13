@@ -372,7 +372,6 @@ let handler =
 			)
 		);
 		"server/resetCache", (fun hctx ->
-			hctx.com.sctx.persistent_cwd <- None;
 			hctx.com.cs#clear;
 			supports_resolve := false;
 			DisplayException.reset();
@@ -394,6 +393,8 @@ let handler =
 		"server/setCwd", (fun hctx ->
 			let dir = hctx.jsonrpc#get_string_param "dir" in
 			let dir = Path.get_full_path dir in
+			if not (Sys.file_exists dir && Sys.is_directory dir) then
+				raise (Api_error (jstring ("Invalid directory: " ^ dir)));
 			hctx.com.sctx.persistent_cwd <- Some dir;
 			Result jnull
 		);

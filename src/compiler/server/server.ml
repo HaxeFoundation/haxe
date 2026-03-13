@@ -160,12 +160,8 @@ let process sctx request_scope entry comm (args : parsed_arg list) =
 	let curdir = Unix.getcwd () in
 	ServerMessage.arguments ["<" ^ string_of_int (List.length args) ^ " pre-parsed args>"];
 	ServerCompilationContext.reset sctx;
-	(match sctx.persistent_cwd with
-	| Some dir -> (try Unix.chdir dir with _ -> ())
-	| None -> ());
-	(try entry sctx request_scope comm args
-	with e -> Unix.chdir curdir; raise e);
-	Unix.chdir curdir;
+	Option.may (fun dir -> try Unix.chdir dir with _ -> ()) sctx.persistent_cwd;
+	Std.finally (fun () -> Unix.chdir curdir) (entry sctx request_scope comm) args;
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
