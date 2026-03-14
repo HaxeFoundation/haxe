@@ -261,6 +261,7 @@ type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	has_next : bool;
 	mutable messages : Message.t list;
+	mutable has_error : bool;
 }
 
 type parse_input_result =
@@ -317,7 +318,7 @@ and context = {
 	(* communication *)
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
-	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
+	mutable info : ?depth:int -> string -> pos -> unit;
 	mutable warning : Gctx.warning_function;
 	mutable warning_options : warning_option list list;
 	mutable get_messages : unit -> Message.t list;
@@ -345,7 +346,6 @@ and context = {
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
 	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
-	mutable has_error : bool;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
@@ -402,7 +402,7 @@ let enter_stage com stage =
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
-	if b then com.has_error <- true;
+	if b then com.part_scope.has_error <- true;
 	b
 
 let module_warning com m w options msg p =
@@ -786,8 +786,8 @@ let create sctx request_scope part_scope compilation_step display_mode =
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
 		local_wrapper = LocalWrapper.null_wrapper;
-		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
-		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
+		info = (fun ?depth _ _ -> die "" __LOC__);
+		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
 		error = (fun _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
@@ -822,7 +822,6 @@ let create sctx request_scope part_scope compilation_step display_mode =
 		memory_marker = memory_marker;
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
-		has_error = false;
 		report_mode = RMNone;
 		is_macro_context = false;
 		functional_interface_lut = new Lookup.hashtbl_lookup;
@@ -859,7 +858,7 @@ let has_error_to_report com =
 		| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> false
 		| _ -> true
 	) com.part_scope.messages in
-	com.has_error && (is_compilation com || has_reportable_message)
+	com.part_scope.has_error && (is_compilation com || has_reportable_message)
 
 let disable_report_mode com =
 	let old = com.report_mode in
@@ -918,7 +917,6 @@ let clone com is_macro_context =
 		stored_typed_exprs = com.stored_typed_exprs;
 		cached_macros = com.cached_macros;
 		memory_marker = com.memory_marker;
-		has_error = com.has_error;
 		report_mode = com.report_mode;
 		hxb_writer_config = com.hxb_writer_config;
 		parser_state = com.parser_state;
@@ -1121,14 +1119,14 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
-let add_diagnostics_message ?(depth = 0) ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
-	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
-	com.part_scope.messages <- (make_diagnostic from_macro diagnostics_kind (JString s) p depth message_kind) :: com.part_scope.messages
+let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
+	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
+	com.part_scope.messages <- (make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind) :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
-			add_diagnostics_message ~depth ~from_macro:err.err_from_macro com (Error.error_msg err.err_message) err.err_pos MKError;
+			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError;
 		) err;
 	end else
 		com.error_ext err

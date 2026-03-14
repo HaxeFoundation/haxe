@@ -14,7 +14,7 @@ let add_replaceable_code ctx reason replacement display_range replace_range =
 
 let error_in_diagnostics_run com p =
 	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
-	if b then com.has_error <- true;
+	if b then com.part_scope.has_error <- true;
 	b
 
 let find_unused_variables com e =

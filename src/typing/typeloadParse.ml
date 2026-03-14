@@ -270,7 +270,7 @@ let handle_parser_result com p result =
 				if is_diagnostics com then add_diagnostics_message ~diagnostics_kind:DKParserError com msg p MKError
 				else raise_typing_error msg p
 			| EPIgnore ->
-				com.has_error <- true
+				com.part_scope.has_error <- true
 	in
 	match result with
 		| ParseSuccess(data,pdi) ->

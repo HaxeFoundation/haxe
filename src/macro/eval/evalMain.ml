@@ -153,7 +153,7 @@ let create com api is_macro args =
 				| Error.Error err ->
 						let messages = ref [] in
 						Error.recurse_error (fun depth err ->
-							messages := (Message.make_message err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth MKError) :: !messages;
+							messages := (Message.make_message is_macro (Error.error_msg err.err_message) err.err_pos depth MKError) :: !messages;
 						) err;
 						MessageReporting.format_messages ((get_ctx()).curapi.MacroApi.get_com()).Common.defines !messages
 				| _ -> Printexc.to_string ex

@@ -73,7 +73,7 @@ let typing_timer ctx need_type f =
 	let old = ctx.com.error_ext in
 	let restore_report_mode = disable_report_mode ctx.com in
 	let restore_field_state = TypeloadFunction.save_field_state ctx in
-	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
+	ctx.com.error_ext <- (fun err -> raise_error err);
 
 	let exit() =
 		t();
@@ -171,7 +171,7 @@ let make_macro_com_api com mcom p =
 		);
 		parse_string = (fun s p inl ->
 			let old = com.error_ext in
-			com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
+			com.error_ext <- (fun err -> raise_error err);
 			let exit() = com.error_ext <- old in
 
 			try
@@ -689,20 +689,14 @@ let create_macro_interp api mctx =
 			Interp.do_reuse mint api (Args.to_raw_args com2.parsed_args);
 			mint, (fun() -> ())
 	) in
-	let on_error = com2.error_ext in
+	let on_error = CompilerMessage.default_error_handler com2 in
 	com2.error_ext <- (fun err ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
-		on_error { err with err_from_macro = true }
+		on_error err
 	);
-	let on_warning = com2.warning in
-	com2.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
-		on_warning ~depth ~from_macro:true w options msg p
-	);
-	let on_info = com2.info in
-	com2.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-		on_info ~depth ~from_macro:true msg p
-	);
+	com2.warning <- CompilerMessage.default_warning_handler com2;
+	com2.info <- CompilerMessage.default_info_handler com2;
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init();
 	let init = (fun() -> Interp.select mint) in

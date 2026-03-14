@@ -20,13 +20,13 @@ let process_display_arg com actx =
 
 let process_display_configuration com =
 	if is_diagnostics com then begin
-		com.info <- (fun ?(depth = 0) ?(from_macro = false) s p ->
-			add_diagnostics_message ~depth ~from_macro com s p MKInfo
+		com.info <- (fun ?(depth = 0) s p ->
+			add_diagnostics_message ~depth com s p MKInfo
 		);
-		com.warning <- (fun ?(depth = 0) ?(from_macro = false) w options s p ->
+		com.warning <- (fun ?(depth = 0) w options s p ->
 			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
-				add_diagnostics_message ~depth ~from_macro com s p (MKWarning(w,options))
+				add_diagnostics_message ~depth com s p (MKWarning(w,options))
 			| WMDisable ->
 				()
 		);
@@ -190,7 +190,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 (* 5. Display processing after typing *)
 
 let handle_display_after_typing com tctx display_file_dot_path =
-	if com.display.dms_kind = DMNone && com.has_error && Common.is_compilation com then
+	if com.display.dms_kind = DMNone && com.part_scope.has_error && Common.is_compilation com then
 		true
 	else begin
 	begin match com.display.dms_kind,Atomic.get com.parser_state.delayed_syntax_completion with

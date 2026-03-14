@@ -59,7 +59,7 @@ let create_server_result_handler io =
 		flush_messages = (fun has_error com ->
 			let has_error = ref has_error in
 			MessageReporting.display_messages_from com.defines (List.rev com.part_scope.messages)
-				~set_error:(fun () -> has_error := true; com.has_error <- true)
+				~set_error:(fun () -> has_error := true; com.part_scope.has_error <- true)
 				(fun sev output -> send_message sev output);
 			com.sctx.was_compilation <- com.display.dms_full_typing;
 			if !has_error then begin
@@ -93,7 +93,7 @@ let create_cli_result_handler io =
 		flush_messages = (fun has_error com ->
 			let has_error = ref has_error in
 			MessageReporting.display_messages_from com.defines (List.rev com.part_scope.messages)
-				~set_error:(fun () -> has_error := true; com.has_error <- true)
+				~set_error:(fun () -> has_error := true; com.part_scope.has_error <- true)
 				(fun sev output -> send_message sev output);
 			if !has_error && !Helper.prompt then begin
 				CompilerIo.write_out io "Press enter to exit...\n";

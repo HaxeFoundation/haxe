@@ -3,33 +3,20 @@ open Message
 open Common
 open ParsedArg
 
-exception Abort
-
-let message com msg =
-	com.part_scope.messages <- msg :: com.part_scope.messages
-
-let add_error_message com ?(depth=0) ?(from_macro=false) msg p =
-	message com (Message.make_message from_macro msg p depth MKError)
-
-let after_error com =
-	com.has_error <- true;
-	if Common.fail_fast com then raise Abort
+let add_error_message com ?(depth=0) msg p =
+	CompilerMessage.add_message com msg p depth MKError
 
 let error_ext com (err : Error.error) =
-	Error.recurse_error (fun depth err ->
-		add_error_message ~depth ~from_macro:err.err_from_macro com (Error.error_msg err.err_message) err.err_pos
-	) err;
-	after_error com
+	com.error_ext err
 
-let error com ?(depth=0) ?(from_macro=false) msg p =
-	add_error_message ~depth ~from_macro com msg p;
-	after_error com
+let error com msg p =
+	error_ext com (Error.make_error (Custom msg) p)
 
 let has_error com =
-	com.has_error
+	com.part_scope.has_error
 
 let handle_diagnostics com ?(diagnostics_kind = MessageKind.DKCompilerMessage) msg p message_kind =
-	com.has_error <- true;
+	com.part_scope.has_error <- true;
 	add_diagnostics_message ~diagnostics_kind com msg p message_kind;
 	match com.report_mode with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
@@ -40,7 +27,7 @@ let run_or_diagnose com f =
 			f ()
 		with
 		| Error.Error err ->
-			com.has_error <- true;
+			com.part_scope.has_error <- true;
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError
 			) err;
@@ -241,23 +228,9 @@ module Setup = struct
 		Common.define_value com Define.Haxe s_version;
 		Common.raw_define com "true";
 		List.iter (fun (k,v) -> Define.raw_define_value com.defines k v) DefineList.default_values;
-		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-			message com (Message.make_message from_macro msg p depth MKInfo)
-		);
-		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
-			match Warning.get_mode w (options @ com.warning_options) with
-			| WMEnable ->
-				let wobj = Warning.warning_obj w in
-				let msg = if wobj.w_generic then
-					msg
-				else
-					Printf.sprintf "(%s) %s" wobj.w_name msg
-				in
-				message com (Message.make_message from_macro msg p depth (MKWarning(w,options)))
-			| WMDisable ->
-				()
-		);
-		com.error_ext <- error_ext com;
+		com.info <- CompilerMessage.default_info_handler com;
+		com.warning <- CompilerMessage.default_warning_handler com;
+		com.error_ext <- CompilerMessage.default_error_handler com;
 		com.error <- (fun msg p -> com.error_ext (Error.make_error (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm_severity cm with
@@ -394,7 +367,7 @@ let compile com actx sctx =
 	end else begin
 		(* Actual compilation starts here *)
 		let (tctx,display_file_dot_path) = Timer.time com.timer_ctx ["typing"] (do_type com mctx actx) display_file_dot_path in
-		if DisplayProcessing.handle_display_after_typing com tctx display_file_dot_path then raise Abort;
+		if DisplayProcessing.handle_display_after_typing com tctx display_file_dot_path then raise CompilerMessage.Abort;
 		let ectx = ExceptionInit.create_exception_context tctx in
 		finalize_typing com tctx;
 		Dump.maybe_generate_dump com AfterTyping;
@@ -413,7 +386,7 @@ let compile com actx sctx =
 			DisplayProcessing.handle_display_after_finalization com tctx display_file_dot_path;
 			filter com com ectx (fun () -> ());
 		end;
-		if has_error com && is_compilation then raise Abort;
+		if has_error com && is_compilation then raise CompilerMessage.Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
@@ -448,7 +421,7 @@ with
 		error com (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
 		if com.display.dms_kind <> DMNone && com.part_scope.has_next then begin
-			com.has_error <- false;
+			com.part_scope.has_error <- false;
 			com.part_scope.messages <- [];
 		end else begin
 			let sub = List.map (fun p -> Error.make_error (Error.Custom (Error.compl_msg "referenced here")) p) pl in
@@ -477,14 +450,14 @@ with
 		error com ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception com dex
-	| Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayJson.JsonCompleted as exc ->
+	| CompilerMessage.Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayJson.JsonCompleted as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->
 		error com (Printexc.to_string e) null_pos
 
 let compile_safe com f =
-	try compile_safe com f with Abort -> ()
+	try compile_safe com f with CompilerMessage.Abort -> ()
 
 let finalize com =
 	CompilerIo.flush com.request_scope.io;
@@ -523,7 +496,7 @@ let catch_completion_and_exit com sctx run =
 			finalize com;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
-			if i <> 0 then com.has_error <- true;
+			if i <> 0 then com.part_scope.has_error <- true;
 			ContextFlush.flush_context com;
 			finalize com;
 			i
@@ -565,6 +538,7 @@ let create_context sctx request_scope runtime_args has_next =
 		runtime_args;
 		warned_positions = Hashtbl.create 0;
 		has_next;
+		has_error = false;
 		messages = [];
 	} in
 	Common.create sctx request_scope part_scope sctx.compilation_step (DisplayTypes.DisplayMode.create DMNone)

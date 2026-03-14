@@ -430,5 +430,5 @@ end
     Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
 let display_messages com on_message =
 	display_messages_from com.defines (List.rev com.part_scope.messages)
-		~set_error:(fun () -> com.has_error <- true) on_message
+		~set_error:(fun () -> com.part_scope.has_error <- true) on_message
 

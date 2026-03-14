@@ -20,9 +20,9 @@ open Type
     This is the primary entry point for recording any compiler output
     (errors, warnings, info messages).
 
-    Sets [com.has_error] when severity is [Error]. *)
+    Sets [com.part_scope.has_error] when severity is [Error]. *)
 let add_message com msg p depth message_kind =
-	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
+	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
 	let cm = make_message com.is_macro_context msg p depth message_kind in
 	com.part_scope.messages <- cm :: com.part_scope.messages
 
@@ -37,7 +37,7 @@ let add_message com msg p depth message_kind =
     processing a specific module and should be preserved across
     compilations. *)
 let add_module_message com (m : module_def) msg p depth message_kind =
-	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
+	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
 	let cm = make_message com.is_macro_context msg p depth message_kind in
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
@@ -80,7 +80,7 @@ let add_module_diagnostic com (m : module_def) cm =
 let replay_message com cm =
 	match cm.cm_message_kind with
 	| MKWarning(w, options) ->
-		com.warning ~depth:cm.cm_depth ~from_macro:cm.cm_from_macro w options cm.cm_message cm.cm_pos
+		com.warning ~depth:cm.cm_depth w options cm.cm_message cm.cm_pos
 	| _ ->
 		let is_diagnostics_only = match cm.cm_diagnostics_kind with
 			| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> true
@@ -88,3 +88,36 @@ let replay_message com cm =
 		in
 		if not is_diagnostics_only || is_diagnostics com then
 			com.part_scope.messages <- cm :: com.part_scope.messages
+
+(* Default handlers *)
+
+exception Abort
+
+let default_error_handler com =
+	(fun (err : Error.error) ->
+		Error.recurse_error (fun depth err ->
+			add_message com (Error.error_msg err.err_message) err.err_pos depth MKError
+		) err;
+		com.part_scope.has_error <- true;
+		if Common.fail_fast com then raise Abort
+	)
+
+let default_warning_handler com =
+	(fun ?(depth=0) w options msg p ->
+		match Warning.get_mode w (options @ com.warning_options) with
+		| WMEnable ->
+			let wobj = Warning.warning_obj w in
+			let msg = if wobj.w_generic then
+				msg
+			else
+				Printf.sprintf "(%s) %s" wobj.w_name msg
+			in
+			add_message com msg p depth (MKWarning(w,options))
+		| WMDisable ->
+			()
+	)
+
+let default_info_handler com =
+	(fun ?(depth=0) msg p ->
+		add_message com msg p depth MKInfo
+	)
