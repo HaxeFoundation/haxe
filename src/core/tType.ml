@@ -60,15 +60,6 @@ type type_param_host =
 	| TPHLocal
 	| TPHUnbound
 
-type warning_mode = Globals.warning_mode =
-	| WMEnable
-	| WMDisable
-
-type warning_option = Globals.warning_option = {
-	wo_warning : WarningList.warning;
-	wo_mode : warning_mode;
-}
-
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string

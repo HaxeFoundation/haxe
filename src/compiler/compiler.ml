@@ -8,7 +8,7 @@ let message com msg =
 	com.part_scope.messages <- msg :: com.part_scope.messages
 
 let add_error_message com ?(depth=0) ?(from_macro=false) msg p =
-	message com (make_compiler_message ~from_macro msg p depth MKCompilerError)
+	message com (make_compiler_message ~from_macro msg p depth MKError)
 
 let after_error com =
 	com.has_error <- true;
@@ -25,11 +25,11 @@ let error com ?(depth=0) ?(from_macro=false) msg p =
 	after_error com
 
 let has_error com =
-	com.has_error && (is_compilation com || (not (is_diagnostics com) && com.part_scope.messages <> []))
+	com.has_error
 
-let handle_diagnostics com msg p message_kind =
+let handle_diagnostics com ?(diagnostics_kind = MessageKind.DKCompilerMessage) msg p message_kind =
 	com.has_error <- true;
-	add_diagnostics_message com msg p message_kind;
+	add_diagnostics_message ~diagnostics_kind com msg p message_kind;
 	match com.report_mode with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 	| _ -> die "" __LOC__
@@ -41,15 +41,15 @@ let run_or_diagnose com f =
 		| Error.Error err ->
 			com.has_error <- true;
 			Error.recurse_error (fun depth err ->
-				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKCompilerError
+				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError
 			) err;
 			(match com.report_mode with
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
-			handle_diagnostics com (Parser.error_msg msg) p MKParserError
+			handle_diagnostics com ~diagnostics_kind:DKParserError (Parser.error_msg msg) p MKError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics com (Lexer.error_msg msg) p MKParserError
+			handle_diagnostics com ~diagnostics_kind:DKParserError (Lexer.error_msg msg) p MKError
 		end
 	else
 		f ()
@@ -412,7 +412,7 @@ let compile com actx sctx =
 			DisplayProcessing.handle_display_after_finalization com tctx display_file_dot_path;
 			filter com com ectx (fun () -> ());
 		end;
-		if has_error com then raise Abort;
+		if has_error com && is_compilation then raise Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
@@ -458,12 +458,12 @@ with
 	| Arg.Bad msg ->
 		error com ("Error: " ^ msg) null_pos
 	| Failure msg when is_diagnostics com ->
-		handle_diagnostics com msg null_pos MKCompilerError;
+		handle_diagnostics com msg null_pos MKError;
 	| Failure msg when not Helper.is_debug_run ->
 		error com ("Error: " ^ msg) null_pos
 	| Globals.Ice (msg,backtrace) when is_diagnostics com ->
 		let s = make_ice_message com msg backtrace in
-		handle_diagnostics com s null_pos MKCompilerError
+		handle_diagnostics com s null_pos MKError
 	| Globals.Ice (msg,backtrace) when not Helper.is_debug_run ->
 		let s = make_ice_message com msg backtrace in
 		error com ("Error: " ^ s) null_pos
@@ -510,7 +510,8 @@ module ContextFlush = struct
 			()
 		| _ ->
 			let rh = com.request_scope.result_handler in
-			CompilerOutput.flush_messages rh (has_error com) com
+			let report_error = has_error com && (is_compilation com || com.part_scope.messages <> []) in
+			CompilerOutput.flush_messages rh report_error com
 end
 
 let catch_completion_and_exit com sctx run =

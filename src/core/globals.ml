@@ -263,19 +263,14 @@ type warning_option = {
 }
 
 type message_kind =
-	| MKCompilerError
-	| MKParserError
+	| MKError
 	| MKWarning of WarningList.warning * (warning_option list list)
 	| MKInfo
 
 let message_kind_severity = function
-	| MKCompilerError | MKParserError -> MessageSeverity.Error
+	| MKError -> MessageSeverity.Error
 	| MKWarning _ -> MessageSeverity.Warning
 	| MKInfo -> MessageSeverity.Information
-
-let message_kind_diagnostics_kind = function
-	| MKParserError -> MessageKind.DKParserError
-	| MKCompilerError | MKWarning _ | MKInfo -> MessageKind.DKCompilerMessage
 
 type compiler_message = {
 	cm_message : string;
@@ -283,10 +278,10 @@ type compiler_message = {
 	cm_depth : int;
 	cm_from_macro : bool;
 	cm_message_kind : message_kind;
+	cm_diagnostics_kind : MessageKind.t;
 }
 
 let cm_severity cm = message_kind_severity cm.cm_message_kind
-let cm_diagnostics_kind cm = message_kind_diagnostics_kind cm.cm_message_kind
 
 let cm_code cm = match cm.cm_message_kind with
 	| MKWarning(w,_) ->
@@ -294,12 +289,13 @@ let cm_code cm = match cm.cm_message_kind with
 		Some wobj.w_name
 	| _ -> None
 
-let make_compiler_message ?(from_macro = false) msg p depth message_kind = {
+let make_compiler_message ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) msg p depth message_kind = {
 	cm_message = msg;
 	cm_pos = p;
 	cm_depth = depth;
 	cm_from_macro = from_macro;
 	cm_message_kind = message_kind;
+	cm_diagnostics_kind = diagnostics_kind;
 }
 
 let i32_31 = Int32.of_int 31

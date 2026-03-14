@@ -190,8 +190,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 (* 5. Display processing after typing *)
 
 let handle_display_after_typing com tctx display_file_dot_path =
-	let has_error = com.has_error && (Common.is_compilation com || (not (Common.is_diagnostics com) && com.part_scope.messages <> [])) in
-	if com.display.dms_kind = DMNone && has_error then
+	if com.display.dms_kind = DMNone && com.has_error && Common.is_compilation com then
 		true
 	else begin
 	begin match com.display.dms_kind,Atomic.get com.parser_state.delayed_syntax_completion with
@@ -199,7 +198,7 @@ let handle_display_after_typing com tctx display_file_dot_path =
 		| _ -> ()
 	end;
 	if com.display.dms_exit_during_typing then begin
-		if com.part_scope.has_next || has_error then
+		if com.part_scope.has_next || (com.has_error && (Common.is_compilation com || com.part_scope.messages <> [])) then
 			true
 		else begin
 		(* If we didn't find a completion point, load the display file in macro mode. *)

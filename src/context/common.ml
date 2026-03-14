@@ -412,12 +412,8 @@ let ignore_error com =
 
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
-		match Warning.get_mode w (options @ com.warning_options) with
-		| WMEnable ->
-			let cm = make_compiler_message msg p 0 (MKWarning(w, options)) in
-			DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
-		| WMDisable ->
-			()
+		let cm = make_compiler_message msg p 0 (MKWarning(w, options)) in
+		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
 	end;
 	com.warning w options msg p
 
@@ -1124,14 +1120,14 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
-let add_diagnostics_message ?(depth = 0) ?(from_macro = false) com s p message_kind =
+let add_diagnostics_message ?(depth = 0) ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
 	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
-	com.part_scope.messages <- (make_compiler_message ~from_macro s p depth message_kind) :: com.part_scope.messages
+	com.part_scope.messages <- (make_compiler_message ~from_macro ~diagnostics_kind s p depth message_kind) :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
-			add_diagnostics_message ~depth ~from_macro:err.err_from_macro com (Error.error_msg err.err_message) err.err_pos MKCompilerError;
+			add_diagnostics_message ~depth ~from_macro:err.err_from_macro com (Error.error_msg err.err_message) err.err_pos MKError;
 		) err;
 	end else
 		com.error_ext err

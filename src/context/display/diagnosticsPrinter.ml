@@ -110,7 +110,7 @@ let json_of_diagnostics com dctx =
 					diag.diag_related_information <- List.append diag.diag_related_information ((d.cm_pos,depth,s) :: related);
 			)
 		| 0, _ ->
-			add (cm_diagnostics_kind d) d.cm_pos (cm_severity d) (cm_code d) (JString d.cm_message)
+			add d.cm_diagnostics_kind d.cm_pos (cm_severity d) (cm_code d) (JString d.cm_message)
 		| _ ->
 			(* Do not add errors with depth greater than one as top level diagnostic. *)
 			(* This could happen when running diagnostics for a file that is wentioned in *)
