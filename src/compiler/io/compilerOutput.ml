@@ -69,7 +69,6 @@ let create_server_result_handler io =
 				if com.timer_ctx.measure_times = Yes then
 					send_timer_report io com.timer_ctx
 		);
-		jsonrpc = None;
 		set_com = (fun _ -> NoCompletionPointFound);
 	}
 
@@ -103,7 +102,6 @@ let create_cli_result_handler io =
 			end;
 			CompilerIo.flush io
 		);
-		jsonrpc = None;
 		set_com = (fun _ -> NoCompletionPointFound);
 	}
 
@@ -126,7 +124,3 @@ let send_message rh sev msg = rh.send_message sev msg
 
 (** Flush all compiler messages through the protocol. *)
 let flush_messages rh messages has_error com = rh.flush_messages messages has_error com
-
-(** Return the JSON-RPC handler.
-    @raise Invalid_argument if not in JSON-RPC mode. *)
-let get_jsonrpc_exn rh = Option.get rh.jsonrpc

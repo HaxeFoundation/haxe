@@ -94,14 +94,14 @@ let handle_syntax_completion com kind subj =
 	| _ ->
 		let l = List.map make_ci_keyword l in
 		let rh = com.Common.request_scope.result_handler in
-		let ctx = Genjson.create_context ~jsonrpc:(CompilerOutput.get_jsonrpc_exn rh) GMFull in
+		let ctx = Genjson.create_context GMFull in
 		CompilerOutput.send_result_raise rh (fields_to_json ctx l kind subj)
 
 let handle_display_exception_json ctx dex rh =
 	match dex with
 	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
 		DisplayPosition.display_position#reset;
-		let ctx = DisplayJson.create_json_context (CompilerOutput.get_jsonrpc_exn rh) (match dex with DisplayFields _ -> true | _ -> false) in
+		let ctx = DisplayJson.create_json_context (match dex with DisplayFields _ -> true | _ -> false) in
 		CompilerOutput.send_result_raise rh (DisplayException.to_json ctx dex)
 	| DisplayNoResult ->
 		(match ctx.com.display.dms_kind with
@@ -136,7 +136,7 @@ let handle_type_path_exception ctx p c is_import pos =
 	| None ->
 		()
 	| Some fields ->
-		let ctx = DisplayJson.create_json_context (CompilerOutput.get_jsonrpc_exn rh) false in
+		let ctx = DisplayJson.create_json_context false in
 		let path = match List.rev p with
 			| name :: pack -> List.rev pack,name
 			| [] -> [],""

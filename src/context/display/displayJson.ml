@@ -35,8 +35,8 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context jsonrpc may_resolve =
-	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
+let create_json_context  may_resolve =
+	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string io j =
 	CompilerIo.write_result io j
@@ -691,6 +691,5 @@ let create_json_result_handler timer_ctx io jsonrpc =
 				send_error_raise errors;
 			end
 		);
-		jsonrpc = Some jsonrpc;
 		set_com = run_on_com jsonrpc f;
 	}

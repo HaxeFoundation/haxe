@@ -247,7 +247,7 @@ module CompletionModuleType = struct
 			]) ::
 			("kind",jint (to_int cm.kind)) ::
 			(match ctx.generation_mode with
-			| GMFull | GMWithoutDoc ->
+			| GMFull | GMWithoutDoc | GMMinimum ->
 				("meta",generate_metadata ctx cm.meta) ::
 				("pos",generate_pos ctx cm.pos) ::
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
@@ -255,10 +255,6 @@ module CompletionModuleType = struct
 				("isFinal",jbool cm.is_final) ::
 				("isAbstract",jbool cm.is_abstract) ::
 				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
-			| GMMinimum ->
-				match generate_minimum_metadata ctx cm.meta with
-					| None -> []
-					| Some meta -> [("meta",meta)]
 			)
 		in
 		jobject fields

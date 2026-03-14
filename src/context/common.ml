@@ -292,7 +292,6 @@ and result_handler = {
 	    error signaling, timer reports, etc. Takes the ordered message list
 	    (oldest first), whether errors occurred, and the common context. *)
 	flush_messages : compiler_message list -> bool -> context -> unit;
-	jsonrpc : Jsonrpc_handler.jsonrpc_handler option;
 	set_com : context -> parse_input_result;
 }
 
