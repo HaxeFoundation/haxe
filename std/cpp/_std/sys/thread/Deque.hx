@@ -51,13 +51,11 @@ class Deque<T> {
 		{
 			condition.acquire();
 
-			var result = storage.shift();
-			while (null == result) {
+			while (storage.length == 0) {
 				condition.wait();
-
-				result = storage.shift();
 			}
 
+			final result = storage.shift();
 			condition.release();
 
 			return result;
