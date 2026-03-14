@@ -85,6 +85,7 @@ let make_missing_fields_message mf =
 		else begin
 			current_fields := (t,cf) :: !current_fields;
 			Some (jobject [
+				"name",jstring cf.cf_name;
 				"field",generate_class_field jctx (scope cf) cf;
 				"type",CompletionType.generate_type jctx ct;
 			])
@@ -207,15 +208,7 @@ let json_of_diagnostics com dctx =
 						| Some (JArray fl) ->
 							List.map (fun fj ->
 								let name = match fj with
-									| JObject l ->
-										begin match List.assoc_opt "field" l with
-										| Some (JObject fl) ->
-											begin match List.assoc_opt "name" fl with
-											| Some (JString n) -> n
-											| _ -> ""
-											end
-										| _ -> ""
-										end
+									| JObject l -> (match List.assoc_opt "name" l with Some (JString n) -> n | _ -> "")
 									| _ -> ""
 								in
 								let unique = not (Hashtbl.mem all_field_names name) in
