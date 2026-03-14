@@ -4,7 +4,7 @@ open CompilationContext
 open ParsedArg
 
 let handle_diagnostics ctx msg p kind =
-	ctx.has_error <- true;
+	ctx.com.has_error <- true;
 	add_diagnostics_message ctx.com msg p kind Error;
 	match ctx.com.report_mode with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
@@ -16,7 +16,7 @@ let run_or_diagnose ctx f =
 			f ()
 		with
 		| Error.Error err ->
-			ctx.has_error <- true;
+			ctx.com.has_error <- true;
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
@@ -394,7 +394,7 @@ let compile ctx actx sctx =
 			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
 			filter ctx com ectx (fun () -> ());
 		end;
-		if ctx.has_error then raise Abort;
+		if has_error ctx then raise Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
@@ -430,7 +430,7 @@ with
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
 		if ctx.com.display.dms_kind <> DMNone && ctx.has_next then begin
-			ctx.has_error <- false;
+			ctx.com.has_error <- false;
 			ctx.messages <- [];
 		end else begin
 			let sub = List.map (fun p -> Error.make_error (Error.Custom (Error.compl_msg "referenced here")) p) pl in
@@ -505,7 +505,7 @@ let catch_completion_and_exit ctx sctx run =
 			finalize ctx;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
-			if i <> 0 then ctx.has_error <- true;
+			if i <> 0 then ctx.com.has_error <- true;
 			ContextFlush.flush_context ctx;
 			finalize ctx;
 			i
@@ -552,7 +552,6 @@ let create_context sctx request_scope compilation_step (parsed_args : parsed_arg
 		com;
 		messages = [];
 		has_next = false;
-		has_error = false;
 		runtime_args = [];
 		parsed_args;
 	}
