@@ -253,24 +253,53 @@ module MessageKind = struct
 		| DKMissingFields -> 7
 end
 
+type warning_mode =
+	| WMEnable
+	| WMDisable
+
+type warning_option = {
+	wo_warning : WarningList.warning;
+	wo_mode : warning_mode;
+}
+
+type message_kind =
+	| MKCompilerError
+	| MKParserError
+	| MKWarning of WarningList.warning * (warning_option list list)
+	| MKInfo
+
+let message_kind_severity = function
+	| MKCompilerError | MKParserError -> MessageSeverity.Error
+	| MKWarning _ -> MessageSeverity.Warning
+	| MKInfo -> MessageSeverity.Information
+
+let message_kind_diagnostics_kind = function
+	| MKParserError -> MessageKind.DKParserError
+	| MKCompilerError | MKWarning _ | MKInfo -> MessageKind.DKCompilerMessage
+
 type compiler_message = {
 	cm_message : string;
 	cm_pos : pos;
 	cm_depth : int;
 	cm_from_macro : bool;
-	cm_kind : MessageKind.t;
-	cm_severity : MessageSeverity.t;
-	cm_code : string option;
+	cm_message_kind : message_kind;
 }
 
-let make_compiler_message ?(from_macro = false) ?(code = None) msg p depth kind sev = {
+let cm_severity cm = message_kind_severity cm.cm_message_kind
+let cm_diagnostics_kind cm = message_kind_diagnostics_kind cm.cm_message_kind
+
+let cm_code cm = match cm.cm_message_kind with
+	| MKWarning(w,_) ->
+		let wobj = WarningList.warning_obj w in
+		Some wobj.w_name
+	| _ -> None
+
+let make_compiler_message ?(from_macro = false) msg p depth message_kind = {
 	cm_message = msg;
 	cm_pos = p;
 	cm_depth = depth;
 	cm_from_macro = from_macro;
-	cm_kind = kind;
-	cm_severity = sev;
-	cm_code = code;
+	cm_message_kind = message_kind;
 }
 
 let i32_31 = Int32.of_int 31

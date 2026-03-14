@@ -8,7 +8,7 @@ let message com msg =
 	com.part_scope.messages <- msg :: com.part_scope.messages
 
 let add_error_message com ?(depth=0) ?(from_macro=false) msg p =
-	message com (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error)
+	message com (make_compiler_message ~from_macro msg p depth MKCompilerError)
 
 let after_error com =
 	com.has_error <- true;
@@ -27,9 +27,9 @@ let error com ?(depth=0) ?(from_macro=false) msg p =
 let has_error com =
 	com.has_error && (is_compilation com || (not (is_diagnostics com) && com.part_scope.messages <> []))
 
-let handle_diagnostics com msg p kind =
+let handle_diagnostics com msg p message_kind =
 	com.has_error <- true;
-	add_diagnostics_message com msg p kind Error;
+	add_diagnostics_message com msg p message_kind;
 	match com.report_mode with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 	| _ -> die "" __LOC__
@@ -41,15 +41,15 @@ let run_or_diagnose com f =
 		| Error.Error err ->
 			com.has_error <- true;
 			Error.recurse_error (fun depth err ->
-				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
+				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKCompilerError
 			) err;
 			(match com.report_mode with
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
-			handle_diagnostics com (Parser.error_msg msg) p DKParserError
+			handle_diagnostics com (Parser.error_msg msg) p MKParserError
 		| Lexer.Error(msg,p) ->
-			handle_diagnostics com (Lexer.error_msg msg) p DKParserError
+			handle_diagnostics com (Lexer.error_msg msg) p MKParserError
 		end
 	else
 		f ()
@@ -241,31 +241,30 @@ module Setup = struct
 		Common.raw_define com "true";
 		List.iter (fun (k,v) -> Define.raw_define_value com.defines k v) DefineList.default_values;
 		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-			message com (make_compiler_message ~from_macro msg p depth DKCompilerMessage Information)
+			message com (make_compiler_message ~from_macro msg p depth MKInfo)
 		);
 		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
 			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
-				let code = if wobj.w_generic then None else Some wobj.w_name in
 				let msg = if wobj.w_generic then
 					msg
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message com (make_compiler_message ~from_macro ~code msg p depth DKCompilerMessage Warning)
+				message com (make_compiler_message ~from_macro msg p depth (MKWarning(w,options)))
 			| WMDisable ->
 				()
 		);
 		com.error_ext <- error_ext com;
 		com.error <- (fun msg p -> com.error_ext (Error.make_error (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
-			(match cm.cm_severity with
+			(match cm_severity cm with
 			| MessageSeverity.Error -> keep_errors;
 			| Information | Warning | Hint -> predicate cm;)
 		) (List.rev com.part_scope.messages))) in
 		com.get_messages <- (fun () -> (List.map (fun cm ->
-			(match cm.cm_severity with
+			(match cm_severity cm with
 			| MessageSeverity.Error -> die "" __LOC__;
 			| Information | Warning | Hint -> cm;)
 		) (filter_messages false (fun _ -> true))));
@@ -459,12 +458,12 @@ with
 	| Arg.Bad msg ->
 		error com ("Error: " ^ msg) null_pos
 	| Failure msg when is_diagnostics com ->
-		handle_diagnostics com msg null_pos DKCompilerMessage;
+		handle_diagnostics com msg null_pos MKCompilerError;
 	| Failure msg when not Helper.is_debug_run ->
 		error com ("Error: " ^ msg) null_pos
 	| Globals.Ice (msg,backtrace) when is_diagnostics com ->
 		let s = make_ice_message com msg backtrace in
-		handle_diagnostics com s null_pos DKCompilerMessage
+		handle_diagnostics com s null_pos MKCompilerError
 	| Globals.Ice (msg,backtrace) when not Helper.is_debug_run ->
 		let s = make_ice_message com msg backtrace in
 		error com ("Error: " ^ s) null_pos

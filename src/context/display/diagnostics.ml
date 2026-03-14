@@ -45,10 +45,10 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com "This code has no effect" p DKCompilerMessage Warning;
+		add_diagnostics_message com "This code has no effect" p (MKWarning(WPointlessCode, []));
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerMessage Warning;
+		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p (MKWarning(WPointlessCode, []));
 	in
 	let rec compound s el p =
 		let old = !had_effect in
@@ -147,7 +147,7 @@ let prepare com =
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
-	if not (List.exists (fun cm -> cm.cm_severity = MessageSeverity.Error) com.part_scope.messages) then
+	if not (List.exists (fun cm -> cm_severity cm = MessageSeverity.Error) com.part_scope.messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
