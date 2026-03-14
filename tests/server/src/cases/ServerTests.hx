@@ -16,7 +16,7 @@ class ServerTests extends TestCase {
 	function findDiagnosticsFor(res:Dynamic, fileName:String):Null<Array<haxe.display.Diagnostic<Any>>> {
 		if (res == null) return null;
 		for (fileDiag in (cast res : Array<Dynamic>)) {
-			final path = ~/[\/|\\]/g.split(Std.string(fileDiag.file)).pop();
+			final path = ~/[\/\\]/g.split(Std.string(fileDiag.file)).pop();
 			if (path == fileName) return cast fileDiag.diagnostics;
 		}
 		return null;
