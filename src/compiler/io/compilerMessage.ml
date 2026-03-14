@@ -1,9 +1,7 @@
 (** Unified compiler message API.
 
     This module provides a single entry point for adding compiler messages
-    (errors, warnings, info) to the compilation context. It replaces the
-    scattered message-adding logic that was spread across [compiler.ml],
-    [displayProcessing.ml], and [common.ml].
+    (errors, warnings, info) to the compilation context.
 
     Messages are stored in a single buffer ([com.part_scope.messages]) and
     the output layer determines how to present them (formatted text for CLI,
@@ -16,27 +14,16 @@ open Globals
 open Common
 open Type
 
-(** Buffer a compiler message into the appropriate list.
-    In diagnostics mode, messages go to [diagnostics_messages];
-    otherwise they go to the regular [messages] list. *)
-let buffer_message com cm =
-	if is_diagnostics com then
-		com.part_scope.diagnostics_messages <- cm :: com.part_scope.diagnostics_messages
-	else
-		com.part_scope.messages <- cm :: com.part_scope.messages
-
 (** Add a compiler message to the message buffer.
 
     This is the primary entry point for recording any compiler output
-    (errors, warnings, info messages). In diagnostics mode, messages go
-    to the diagnostics buffer; otherwise they go to the regular message
-    buffer.
+    (errors, warnings, info messages).
 
     Sets [com.has_error] when severity is [Error]. *)
 let add_message ?(depth = 0) ?(from_macro = false) ?(code = None) com msg p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let cm = make_compiler_message ~from_macro ~code msg p depth kind sev in
-	buffer_message com cm
+	com.part_scope.messages <- cm :: com.part_scope.messages
 
 (** Add a compiler message that is bound to a specific module's cache.
 
@@ -53,12 +40,11 @@ let add_module_message ?(depth = 0) ?(from_macro = false) ?(code = None) com (m 
 	let cm = make_compiler_message ~from_macro ~code msg p depth kind sev in
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
-	buffer_message com cm
+	com.part_scope.messages <- cm :: com.part_scope.messages
 
 (** Replay a cache-bound message into the current compilation context.
 
     Called from {!ServerCache.handle_cache_bound_objects} when loading
-    modules from cache. The message is added to the appropriate buffer
-    based on whether we're in diagnostics mode. *)
+    modules from cache. The message is added to the message buffer. *)
 let replay_message com cm =
-	buffer_message com cm
+	com.part_scope.messages <- cm :: com.part_scope.messages

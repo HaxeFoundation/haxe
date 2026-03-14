@@ -143,11 +143,11 @@ let prepare com =
 		replaceable_code = [];
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
-		diagnostics_messages = [];
+		messages = [];
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
-	if not (List.exists (fun cm -> cm.cm_severity = MessageSeverity.Error) com.part_scope.diagnostics_messages) then
+	if not (List.exists (fun cm -> cm.cm_severity = MessageSeverity.Error) com.part_scope.messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
@@ -177,7 +177,7 @@ let prepare com =
 	| Some com -> process_modules com
 	end;
 	(* We do this at the end because some of the prepare functions might add information to the common context. *)
-	dctx.diagnostics_messages <- com.part_scope.diagnostics_messages;
+	dctx.messages <- com.part_scope.messages;
 	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
 

@@ -25,7 +25,7 @@ let error com ?(depth=0) ?(from_macro=false) msg p =
 	after_error com
 
 let has_error com =
-	com.has_error && (is_compilation com || com.part_scope.messages <> [])
+	com.has_error && (is_compilation com || (not (is_diagnostics com) && com.part_scope.messages <> []))
 
 let handle_diagnostics com msg p kind =
 	com.has_error <- true;
@@ -504,13 +504,13 @@ module ContextFlush = struct
 	open MessageReporting
 
 	let flush_context com =
-		let rh = com.request_scope.result_handler in
 		match com.report_mode with
 		| RMDiagnostics _ ->
-			List.iter (fun cm ->
-				add_diagnostics_message ~depth:cm.cm_depth com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-			) (List.rev com.part_scope.messages)
+			(* In diagnostics mode, messages are already in the unified buffer.
+			   Output happens via DisplayOutput.emit_diagnostics, not flush_messages. *)
+			()
 		| _ ->
+			let rh = com.request_scope.result_handler in
 			CompilerOutput.flush_messages rh (has_error com) com
 end
 
@@ -565,7 +565,6 @@ let create_context sctx request_scope runtime_args has_next =
 		runtime_args;
 		warned_positions = Hashtbl.create 0;
 		has_next;
-		diagnostics_messages = [];
 		messages = [];
 	} in
 	Common.create sctx request_scope part_scope sctx.compilation_step (DisplayTypes.DisplayMode.create DMNone)

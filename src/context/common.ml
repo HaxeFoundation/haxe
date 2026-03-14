@@ -264,7 +264,6 @@ type part_scope = {
 	runtime_args : string list;
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	has_next : bool;
-	mutable diagnostics_messages : compiler_message list;
 	mutable messages : compiler_message list;
 }
 
@@ -1130,8 +1129,7 @@ let hash f =
 
 let add_diagnostics_message ?(depth = 0) ?(from_macro = false) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
-	let di = com.part_scope in
-	di.diagnostics_messages <- (make_compiler_message ~from_macro ~code s p depth kind sev) :: di.diagnostics_messages
+	com.part_scope.messages <- (make_compiler_message ~from_macro ~code s p depth kind sev) :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin

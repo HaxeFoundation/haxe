@@ -191,7 +191,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 (* 5. Display processing after typing *)
 
 let handle_display_after_typing com tctx display_file_dot_path =
-	let has_error = com.has_error && (Common.is_compilation com || com.part_scope.messages <> []) in
+	let has_error = com.has_error && (Common.is_compilation com || (not (Common.is_diagnostics com) && com.part_scope.messages <> [])) in
 	if com.display.dms_kind = DMNone && has_error then
 		true
 	else begin

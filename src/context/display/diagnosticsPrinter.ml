@@ -116,7 +116,7 @@ let json_of_diagnostics com dctx =
 			(* This could happen when running diagnostics for a file that is wentioned in *)
 			(* sub errors of a file not included for diagnostics. *)
 			()
-	) (List.rev dctx.diagnostics_messages);
+	) (List.rev dctx.messages);
 	PMap.iter (fun p (mt,mfl) ->
 		let jctx = create_context GMMinimum in
 		let all_fields = ref [] in
