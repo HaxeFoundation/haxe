@@ -155,7 +155,7 @@ let generate ctx tctx ext actx =
 		let restore () =
 			timer ()
 		in
-		Std.finally restore (MacroContext.interpret tctx) ctx.runtime_args
+		Std.finally restore (MacroContext.interpret tctx) ctx.com.part_scope.runtime_args
 	end else begin
 		let generate,name = match com.platform with
 		| Flash ->

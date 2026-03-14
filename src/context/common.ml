@@ -261,6 +261,7 @@ module LocalWrapper = struct
 end
 
 type part_scope = {
+	runtime_args : string list;
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : compiler_message list;
 	mutable messages : compiler_message list;
