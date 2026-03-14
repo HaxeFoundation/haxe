@@ -446,8 +446,8 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 		mf_fields = [(cf,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
 		mf_cause = FieldAccess;
 	} in
-	let display = ctx.com.display_information in
-	display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+	let cm = DiagnosticsPrinter.make_missing_fields_message diag in
+	ctx.com.part_scope.messages <- cm :: ctx.com.part_scope.messages
 
 let handle_missing_ident ctx i mode with_type p =
 	match ctx.e.curfun with

@@ -144,8 +144,6 @@ let prepare com =
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
 		messages = [];
-		unresolved_identifiers = [];
-		missing_fields = PMap.empty;
 	} in
 	if not (List.exists (fun cm -> cm_severity cm = MessageSeverity.Error) com.part_scope.messages) then
 		collect_diagnostics dctx com;
@@ -159,17 +157,7 @@ let prepare com =
 					b' := true
 				end
 			) m.m_extra.m_display.m_import_positions;
-		) com.modules;
-		List.iter (function
-			| MissingFields mf ->
-				let p = mf.mf_pos in
-				begin try
-					let _,l = PMap.find p dctx.missing_fields in
-					l := mf :: !l
-				with Not_found ->
-					dctx.missing_fields <- PMap.add p (mf.mf_on,ref [mf]) dctx.missing_fields
-				end
-		) com.display_information.module_diagnostics
+		) com.modules
 	in
 	process_modules com;
 	begin match com.get_macros() with
@@ -178,7 +166,6 @@ let prepare com =
 	end;
 	(* We do this at the end because some of the prepare functions might add information to the common context. *)
 	dctx.messages <- com.part_scope.messages;
-	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
 	dctx
 
 let print com =

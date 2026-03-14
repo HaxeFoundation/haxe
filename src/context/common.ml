@@ -133,9 +133,7 @@ class file_keys = object(self)
 end
 
 type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable display_module_has_macro_defines : bool;
-	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
 }
 
 type compiler_stage =
@@ -752,9 +750,7 @@ let create sctx request_scope part_scope compilation_step display_mode =
 		stage = CCreated;
 		parsed_args = [];
 		display_information = {
-			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
-			module_diagnostics = [];
 		};
 		debug = false;
 		display = display_mode;
@@ -929,9 +925,7 @@ let clone com is_macro_context =
 		cache = None;
 		stage = CCreated;
 		display_information = {
-			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
-			module_diagnostics = [];
 		};
 		features = Hashtbl.create 0;
 		empty_class_path = new ClassPath.directory_class_path "" User;

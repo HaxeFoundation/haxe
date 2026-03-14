@@ -562,4 +562,5 @@ let handle_unresolved_identifier ctx i p only_types =
 	) l in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
 	let cl = StringError.filter_similar (fun (s,_,_) r -> r <= (min (String.length s) (String.length i)) / 3) cl in
-	ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers
+	let cm = DiagnosticsPrinter.make_unresolved_identifier_message i p cl in
+	ctx.com.part_scope.messages <- cm :: ctx.com.part_scope.messages
