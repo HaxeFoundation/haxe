@@ -8,9 +8,6 @@ type compilation_context = {
 	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable runtime_args : string list;
-	(** The pre-parsed arguments for this compilation batch. Used by
-	    [Args.process_args_new] to apply arguments to [com]. *)
-	mutable parsed_args : parsed_arg list;
 }
 
 type server_connection = {

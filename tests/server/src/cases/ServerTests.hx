@@ -68,6 +68,18 @@ class ServerTests extends TestCase {
 		assertHasPrint("2");
 	}
 
+	function testMacroArgsPerRequest() {
+		vfs.putContent("ArgsMain.hx", getTemplate("ArgsMain.hx"));
+		vfs.putContent("ArgsMacro.hx", getTemplate("ArgsMacro.hx"));
+		var baseArgs = ["-main", "ArgsMain.hx", "--no-output", "-js", "no.js", "--macro", "ArgsMacro.test()"];
+
+		runHaxe(["-D", "arg_marker=first"].concat(baseArgs));
+		assertHasPrint("arg_marker=first");
+
+		runHaxe(["-D", "arg_marker=second"].concat(baseArgs));
+		assertHasPrint("arg_marker=second");
+	}
+
 	// function testDceEmpty() {
 	// 	vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 	// 	var args = ["-main", "Empty", "--no-output", "--jvm", "java"];

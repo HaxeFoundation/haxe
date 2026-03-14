@@ -2735,7 +2735,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).args)
+		encode_array (List.map create_unknown (get_ctx()).args)
 	)
 
 	let _command = vfun1 (fun cmd ->

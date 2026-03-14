@@ -533,7 +533,7 @@ let compile_ctx sctx ctx =
 		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
-			let actx = Args.process_args ctx.com ctx.parsed_args in
+			let actx = Args.process_args ctx.com in
 			process_actx ctx actx;
 			compile ctx actx sctx;
 		);
@@ -542,18 +542,17 @@ let compile_ctx sctx ctx =
 	in
 	catch_completion_and_exit ctx sctx run
 
-let create_context sctx request_scope compilation_step (parsed_args : parsed_arg list) =
+let create_context sctx request_scope compilation_step =
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
 	} in
-	let com = Common.create sctx request_scope part_scope compilation_step (Args.to_raw_args parsed_args) (DisplayTypes.DisplayMode.create DMNone) in
+	let com = Common.create sctx request_scope part_scope compilation_step (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
 		has_next = false;
 		runtime_args = [];
-		parsed_args;
 	}
 
 module HighLevel = struct
@@ -610,6 +609,8 @@ module HighLevel = struct
 			lines
 
 	let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope : request_scope) has_display part =
+		sctx.compilation_step <- sctx.compilation_step + 1;
+		let ctx = create_context sctx request_scope sctx.compilation_step in
 		(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
 		let expand_part_libs has_global (part_args : parsed_arg list) =
 			let expand_one arg = match arg with
@@ -628,8 +629,8 @@ module HighLevel = struct
 		in
 		let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
 		let expanded_args = expand_part_libs has_global part.Args.args in
-		sctx.compilation_step <- sctx.compilation_step + 1;
-		create_context sctx request_scope sctx.compilation_step expanded_args
+		ctx.com.parsed_args <- expanded_args;
+		ctx
 
 	let entry sctx request_scope (request_args : Args.request_args) =
 		let curdir = Unix.getcwd () in

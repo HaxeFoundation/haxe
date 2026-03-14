@@ -152,13 +152,10 @@ let generate ctx tctx ext actx =
 	end;
 	if actx.interp then begin
 		let timer = Timer.start_timer ctx.com.timer_ctx ["interp"] in
-		let old = tctx.com.args in
-		tctx.com.args <- ctx.runtime_args;
 		let restore () =
-			tctx.com.args <- old;
 			timer ()
 		in
-		Std.finally restore MacroContext.interpret tctx
+		Std.finally restore (MacroContext.interpret tctx) ctx.runtime_args
 	end else begin
 		let generate,name = match com.platform with
 		| Flash ->
@@ -185,7 +182,7 @@ let generate ctx tctx ext actx =
 		| Hl ->
 			Genhl.generate,"hl"
 		| Eval ->
-			(fun _ -> MacroContext.interpret tctx),"eval"
+			(fun _ -> MacroContext.interpret tctx [] (* TODO: ? *)),"eval"
 		| Cross
 		| CustomTarget _ ->
 			(fun _ -> ()),""

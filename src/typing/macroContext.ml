@@ -682,11 +682,11 @@ let create_macro_interp api mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mint = Interp.create com2 api true in
+			let mint = Interp.create com2 api true (Args.to_raw_args com2.parsed_args) in
 			Interp.select mint;
 			mint, (fun() -> init_macro_interp mctx mint)
 		| Some mint ->
-			Interp.do_reuse mint api;
+			Interp.do_reuse mint api (Args.to_raw_args com2.parsed_args);
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.error_ext in
@@ -1080,10 +1080,10 @@ let finalize_macro_api tctx mctx =
 		| None -> ignore(create_macro_interp api mctx)
 		| Some mint -> mint.curapi <- api
 
-let interpret ctx =
+let interpret ctx args =
 	Parallel.ManagedPool.release ctx.com.sctx.pool;
 	let mctx = get_macro_context ctx in
-	let mctx = Interp.create ctx.com (make_macro_com_api ctx.com mctx.com null_pos) false in
+	let mctx = Interp.create ctx.com (make_macro_com_api ctx.com mctx.com null_pos) false args in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
 	match ctx.com.main.main_expr with
 		| None -> ()

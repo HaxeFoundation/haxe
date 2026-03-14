@@ -306,7 +306,7 @@ and context = {
 	is_macro_context : bool;
 	timer_ctx : Timer.timer_context;
 	(* config *)
-	mutable args : string list;
+	mutable parsed_args : ParsedArg.parsed_arg list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
@@ -741,7 +741,7 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create sctx request_scope part_scope compilation_step args display_mode =
+let create sctx request_scope part_scope compilation_step display_mode =
 	let rec com = {
 		request_scope;
 		part_scope;
@@ -751,7 +751,7 @@ let create sctx request_scope part_scope compilation_step args display_mode =
 		cache = None;
 		timer_ctx = request_scope.timer_ctx;
 		stage = CCreated;
-		args = args;
+		parsed_args = [];
 		display_information = {
 			unresolved_identifiers = [];
 			display_module_has_macro_defines = false;
@@ -873,7 +873,7 @@ let clone com is_macro_context =
 		sctx = com.sctx;
 		cs = com.cs;
 		timer_ctx = com.timer_ctx;
-		args = com.args;
+		parsed_args = com.parsed_args;
 		debug = com.debug;
 		display = com.display;
 		verbose = com.verbose;

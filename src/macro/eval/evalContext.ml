@@ -276,6 +276,7 @@ and context = {
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;
 	timer_ctx : Timer.timer_context;
+	mutable args : string list;
 	(* prototypes *)
 	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
