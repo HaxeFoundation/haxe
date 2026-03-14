@@ -5,7 +5,6 @@ open Type
 open DisplayProcessingGlobals
 open Ipaddr
 open Json
-open CompilationContext
 open MessageReporting
 open HxbData
 open TypeloadCacheHook
@@ -587,8 +586,7 @@ let cleanup sctx =
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
 
-let after_target_init sctx ctx =
-	let com = ctx.com in
+let after_target_init sctx com =
 	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	ServerMessage.defines com "";
@@ -606,9 +604,9 @@ let after_target_init sctx ctx =
 		Hashtbl.add sctx.class_paths sign class_path_strings;
 		()
 
-let after_save sctx ctx =
-	if sctx.is_server && not (has_error ctx) then
-		CommonCache.maybe_cache_context ctx.com
+let after_save sctx com =
+	if sctx.is_server && not (com.has_error && (Common.is_compilation com || com.part_scope.messages <> [])) then
+		CommonCache.maybe_cache_context com
 
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;

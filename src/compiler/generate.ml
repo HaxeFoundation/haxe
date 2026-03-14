@@ -1,8 +1,10 @@
 open Globals
-open CompilationContext
+open Common
 open ParsedArg
 open TType
 open Tanon_identification
+
+exception Missing_hxb_module
 
 let check_auxiliary_output com actx =
 	begin match actx.xml_out with
@@ -41,7 +43,7 @@ let export_hxb from_cache com config cc platform m =
 			let path = (String.concat "/" l) ^ ".hxb" in
 
 			if from_cache then begin
-				let hxb_cache = try cc#get_hxb_module m.m_path with Not_found -> raise Abort in
+				let hxb_cache = try cc#get_hxb_module m.m_path with Not_found -> raise Missing_hxb_module in
 				let out = IO.output_string () in
 				write_header out;
 				List.iter (fun (kind,data) ->
@@ -60,16 +62,15 @@ let export_hxb from_cache com config cc platform m =
 	| _ ->
 		None
 
-let check_hxb_output ctx config =
+let check_hxb_output com config =
 	let open HxbWriterConfig in
-	let com = ctx.com in
 	let match_path_list l sl_path =
 		List.exists (fun sl -> Ast.match_path true sl_path sl) l
 	in
 	let try_write from_cache =
 		let path = config.HxbWriterConfig.archive_path in
-		let path = Str.global_replace (Str.regexp "\\$target") (platform_name ctx.com.platform) path in
-		let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hxb"] in
+		let path = Str.global_replace (Str.regexp "\\$target") (platform_name com.platform) path in
+		let t = Timer.start_timer com.timer_ctx ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 6 in
 		let export com config =
@@ -78,7 +79,7 @@ let check_hxb_output ctx config =
 			let f m =
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Timer.time ctx.com.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config cc target) m
+					Timer.time com.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config cc target) m
 				else
 					None
 			in
@@ -111,20 +112,20 @@ let check_hxb_output ctx config =
 		) ()
 	in
 	try
-		(* This Abort case shouldn't happen, unless some modules are not stored in hxb cache (which should not be the case currently) *)
-		if com.sctx.is_server then try try_write true with Abort -> try_write false
+		(* This case shouldn't happen, unless some modules are not stored in hxb cache (which should not be the case currently) *)
+		if com.sctx.is_server then try try_write true with Missing_hxb_module -> try_write false
 		else try_write false
 	with Sys_error s ->
-		CompilationContext.error ctx (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
+		com.error (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
 
-let parse_swf_header ctx h = match ExtString.String.nsplit h ":" with
+let parse_swf_header com h = match ExtString.String.nsplit h ":" with
 		| [width; height; fps] ->
 			Some (int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
 		| [width; height; fps; color] ->
 			let color = if ExtString.String.starts_with color "0x" then color else "0x" ^ color in
 			Some (int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
 		| _ ->
-			error ctx "Invalid SWF header format, expected width:height:fps[:color]" null_pos;
+			com.error "Invalid SWF header format, expected width:height:fps[:color]" null_pos;
 			None
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -138,8 +139,7 @@ let maybe_generate_dump_dependencies ctx tctx =
 			| Some(_,ctx) -> Dump.dump_dependencies ~target_override:(Some "macro") ctx.Typecore.com
 	end
 
-let generate ctx tctx ext actx =
-	let com = tctx.Typecore.com in
+let generate com tctx ext actx =
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if Path.file_extension com.file = ext then delete_file com.file;
@@ -151,16 +151,16 @@ let generate ctx tctx ext actx =
 		| _ -> Path.mkdir_from_path com.file
 	end;
 	if actx.interp then begin
-		let timer = Timer.start_timer ctx.com.timer_ctx ["interp"] in
+		let timer = Timer.start_timer com.timer_ctx ["interp"] in
 		let restore () =
 			timer ()
 		in
-		Std.finally restore (MacroContext.interpret tctx) ctx.com.part_scope.runtime_args
+		Std.finally restore (MacroContext.interpret tctx) com.part_scope.runtime_args
 	end else begin
 		let generate,name = match com.platform with
 		| Flash ->
 			let header = try
-				parse_swf_header ctx (Common.defined_value com Define.SwfHeader)
+				parse_swf_header com (Common.defined_value com Define.SwfHeader)
 			with Not_found ->
 				None
 			in

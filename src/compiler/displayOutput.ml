@@ -11,7 +11,6 @@ open Type
 open DisplayTypes
 open CompletionModuleType
 open Genjson
-open CompilationContext
 open DisplayProcessingGlobals
 
 (* New JSON stuff *)
@@ -97,14 +96,14 @@ let handle_syntax_completion com kind subj =
 		let ctx = Genjson.create_context GMFull in
 		CompilerOutput.send_result_raise rh (fields_to_json ctx l kind subj)
 
-let handle_display_exception_json ctx dex rh =
+let handle_display_exception_json com dex rh =
 	match dex with
 	| DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ ->
 		DisplayPosition.display_position#reset;
 		let ctx = DisplayJson.create_json_context (match dex with DisplayFields _ -> true | _ -> false) in
 		CompilerOutput.send_result_raise rh (DisplayException.to_json ctx dex)
 	| DisplayNoResult ->
-		(match ctx.com.display.dms_kind with
+		(match com.display.dms_kind with
 			| DMDefault -> CompilerOutput.send_error_raise rh [jstring "No completion point"]
 			| _ -> CompilerOutput.send_result_raise rh JNull
 		)
@@ -114,12 +113,11 @@ let handle_display_exception_json ctx dex rh =
 	| Metadata _ ->
 		die "Unexpected Metadata display exception" __LOC__
 
-let handle_display_exception ctx dex =
-	handle_display_exception_json ctx dex ctx.com.request_scope.result_handler
+let handle_display_exception com dex =
+	handle_display_exception_json com dex com.request_scope.result_handler
 
-let handle_type_path_exception ctx p c is_import pos =
+let handle_type_path_exception com p c is_import pos =
 	let open DisplayTypes.CompletionResultKind in
-	let com = ctx.com in
 	let fields =
 		try begin match c with
 			| None ->
@@ -128,10 +126,10 @@ let handle_type_path_exception ctx p c is_import pos =
 				let ctx = TyperEntry.create com None in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 		end with Error.Fatal_error err ->
-			error_ext ctx err;
+			com.error_ext err;
 			None
 	in
-	let rh = ctx.com.request_scope.result_handler in
+	let rh = com.request_scope.result_handler in
 	begin match fields with
 	| None ->
 		()

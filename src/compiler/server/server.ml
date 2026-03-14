@@ -5,11 +5,19 @@ open Type
 open DisplayProcessingGlobals
 open Ipaddr
 open Json
-open CompilationContext
 open ParsedArg
 open MessageReporting
 open HxbData
 open TypeloadCacheHook
+
+type server_connection = {
+	read : unit -> string;
+	write : string -> unit;
+	close : unit -> unit;
+	get_stdin : unit -> in_channel;
+}
+
+type server_accept = unit -> server_connection
 
 let make_closed_stdin () =
 	let (stdin_r_fd, stdin_w_fd) = Unix.pipe ~cloexec:true () in

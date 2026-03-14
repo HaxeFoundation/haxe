@@ -1,6 +1,5 @@
 open Globals
 open Common
-open CompilationContext
 open ParsedArg
 open DisplayProcessingGlobals
 
@@ -13,14 +12,13 @@ type display_path_kind =
 
 (* 1. Argument processing from --display *)
 
-let process_display_arg ctx actx =
-	let result_handler = ctx.com.request_scope.result_handler in
-	result_handler.set_com ctx.com
+let process_display_arg com actx =
+	let result_handler = com.request_scope.result_handler in
+	result_handler.set_com com
 
 (* 2. Compilation start, setup display configuration in context *)
 
-let process_display_configuration ctx =
-	let com = ctx.com in
+let process_display_configuration com =
 	if is_diagnostics com then begin
 		com.info <- (fun ?(depth = 0) ?(from_macro = false) s p ->
 			add_diagnostics_message ~depth ~from_macro com s p DKCompilerMessage Information
@@ -192,19 +190,26 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 
 (* 5. Display processing after typing *)
 
-let handle_display_after_typing ctx tctx display_file_dot_path =
-	let com = ctx.com in
-	if ctx.com.display.dms_kind = DMNone && has_error ctx then raise Abort;
-	begin match ctx.com.display.dms_kind,Atomic.get ctx.com.parser_state.delayed_syntax_completion with
+let handle_display_after_typing com tctx display_file_dot_path =
+	let has_error = com.has_error && (Common.is_compilation com || com.part_scope.messages <> []) in
+	if com.display.dms_kind = DMNone && has_error then
+		true
+	else begin
+	begin match com.display.dms_kind,Atomic.get com.parser_state.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
 	end;
-	if ctx.com.display.dms_exit_during_typing then begin
-		if ctx.com.part_scope.has_next || has_error ctx then raise Abort;
+	if com.display.dms_exit_during_typing then begin
+		if com.part_scope.has_next || has_error then
+			true
+		else begin
 		(* If we didn't find a completion point, load the display file in macro mode. *)
 		if com.display_information.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		raise (DisplayException.DisplayException DisplayNoResult)
+		end
+	end else
+		false
 	end
 
 (* 6. Display processing after finalization *)
@@ -248,8 +253,7 @@ let process_global_display_mode com tctx =
 		DisplayException.raise_module_symbols (DocumentSymbols.Printer.json_of_module_symbols com symbols filter)
 	| _ -> ()
 
-let handle_display_after_finalization ctx tctx display_file_dot_path =
-	let com = ctx.com in
+let handle_display_after_finalization com tctx display_file_dot_path =
 	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
 		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
 	let should_load_in_macro =
@@ -257,7 +261,7 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 			type the module in macro context. (#8682). *)
 		not (is_diagnostics com) || com.display_information.display_module_has_macro_defines
 	in
-	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
+	if com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro tctx display_file_dot_path false with
 		| None -> ()
 		| Some mctx ->

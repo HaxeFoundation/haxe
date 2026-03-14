@@ -1,7 +1,6 @@
 open Extlib_leftovers
 open Globals
 open Common
-open CompilationContext
 
 let resolve_source file l1 p1 l2 p2 =
 	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
@@ -428,7 +427,7 @@ end
 
 (** Convenience wrapper that extracts defines and messages from a compilation context.
     Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
-let display_messages ctx on_message =
-	display_messages_from ctx.com.defines (List.rev ctx.com.part_scope.messages)
-		~set_error:(fun () -> ctx.com.has_error <- true) on_message
+let display_messages com on_message =
+	display_messages_from com.defines (List.rev com.part_scope.messages)
+		~set_error:(fun () -> com.has_error <- true) on_message
 
