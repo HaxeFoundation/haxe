@@ -262,7 +262,7 @@ end
 
 type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
-	mutable diagnostics_messages : diagnostic list;
+	mutable diagnostics_messages : compiler_message list;
 }
 
 type parse_input_result =
@@ -1113,15 +1113,15 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
-let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
+let add_diagnostics_message ?(depth = 0) ?(from_macro = false) ?(code = None) com s p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let di = com.part_scope in
-	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
+	di.diagnostics_messages <- (make_compiler_message ~from_macro ~code s p depth kind sev) :: di.diagnostics_messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
-			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
+			add_diagnostics_message ~depth ~from_macro:err.err_from_macro com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
 		) err;
 	end else
 		com.error_ext err

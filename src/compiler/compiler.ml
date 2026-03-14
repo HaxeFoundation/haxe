@@ -226,12 +226,13 @@ module Setup = struct
 			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
 				let wobj = Warning.warning_obj w in
+				let code = if wobj.w_generic then None else Some wobj.w_name in
 				let msg = if wobj.w_generic then
 					msg
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Warning)
+				message ctx (make_compiler_message ~from_macro ~code msg p depth DKCompilerMessage Warning)
 			| WMDisable ->
 				()
 		);

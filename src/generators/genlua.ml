@@ -67,6 +67,7 @@ type ctx = {
     mutable lua_ver : float;
     mutable declared_locals : (string, unit) Hashtbl.t;
     mutable in_pcall : bool;
+    mutable needs_sep : bool;
 }
 
 type object_store = {
@@ -155,14 +156,40 @@ let temp ctx =
     ctx.id_counter <- ctx.id_counter + 1;
     "_hx_" ^ string_of_int (ctx.id_counter)
 
+let is_ident_char c =
+    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+    (c >= '0' && c <= '9') || c = '_'
+
+let check_sep ctx s =
+    if ctx.needs_sep && String.length s > 0 then
+        let insert_sep () =
+            ctx.needs_sep <- false;
+            handle_newlines ctx.smap ";";
+            Buffer.add_string ctx.buf ";"
+        in
+        match s.[0] with
+        | '(' ->
+            insert_sep ()
+        | '\n' | '\t' | '\r' -> ()
+        | c when is_ident_char c ->
+            (* Prevent token merging: end followed by EReg would parse as endEReg *)
+            let buf_len = Buffer.length ctx.buf in
+            if buf_len > 0 && is_ident_char (Buffer.nth ctx.buf (buf_len - 1)) then
+                insert_sep ()
+            else
+                ctx.needs_sep <- false
+        | _ -> ctx.needs_sep <- false
+
 let spr ctx s =
     ctx.separator <- false;
-	handle_newlines ctx.smap s;
+    check_sep ctx s;
+    handle_newlines ctx.smap s;
     Buffer.add_string ctx.buf s
 
 let print ctx =
     ctx.separator <- false;
     Printf.kprintf (fun s -> begin
+        check_sep ctx s;
         handle_newlines ctx.smap s;
         Buffer.add_string ctx.buf s
     end)
@@ -173,6 +200,7 @@ let newline ctx = print ctx "\n%s" ctx.tabs
 let println ctx =
     ctx.separator <- false;
     Printf.kprintf (fun s -> begin
+            check_sep ctx s;
             Buffer.add_string ctx.buf s;
             newline ctx
         end)
@@ -180,9 +208,7 @@ let println ctx =
 let unsupported p = raise_typing_error "This expression cannot be compiled to Lua" p
 
 let semicolon ctx =
-    match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-    | '}' when not ctx.separator -> ()
-    | _ -> spr ctx ";"
+    ctx.needs_sep <- true
 
 let rec concat ctx s f = function
     | [] -> ()
@@ -631,8 +657,10 @@ and gen_loop ctx cond do_while e =
     if will_continue then begin
         if goto_continue then
             print ctx "do "
-        else
+        else begin
+            newline ctx;
             print ctx "repeat "
+        end
     end;
     gen_block_element ctx e;
     if will_continue then begin
@@ -640,6 +668,7 @@ and gen_loop ctx cond do_while e =
             println ctx "end";
             print ctx "::_hx_continue_%i::" new_break_depth;
         end else begin
+            newline ctx;
             println ctx "until true";
             println ctx "if _hx_continue_%i then " new_break_depth;
             println ctx "_hx_continue_%i = false;" new_break_depth;
@@ -1192,11 +1221,13 @@ and gen_expr ?(local=true) ctx e = begin
             bend();
         ) cases;
         (match def with
-         | None -> spr ctx " end"
+         | None -> newline ctx; spr ctx "end"
          | Some e ->
              begin
-                 if (cases <> []) then
+                 if (cases <> []) then begin
+                     newline ctx;
                      spr ctx "else";
+                 end;
                  let bend = open_block ctx in
                  bend();
                  gen_block_element ctx e;
@@ -1242,6 +1273,7 @@ and gen_block_element ctx e  =
             newline ctx;
             let f () = gen_tbinop ctx op e1 e2 in
             gen_iife_assign ctx f;
+            semicolon ctx;
         | TUnop ((Increment|Decrement) as op,_,e) ->
             newline ctx;
             gen_expr ctx e;
@@ -1631,9 +1663,8 @@ and gen_return ctx e eo wrap =
     )
 
 and gen_iife_assign ctx f =
-    spr ctx "(function() return ";
+    spr ctx "local _ = ";
     f();
-    spr ctx " end)()";
 
 
 and has_class ctx c =
@@ -2006,6 +2037,7 @@ let alloc_ctx com =
             with | Not_found -> 5.2);
         declared_locals = Hashtbl.create 0;
         in_pcall = false;
+        needs_sep = false;
     } in
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
@@ -2098,6 +2130,7 @@ let generate com =
 
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
+    if has_feature ctx "lua.Lib.getModuleVarargs" then add_feature ctx "use._hx_module_varargs";
 
     let print_file path =
         let file_content = Std.input_file ~bin:true path in
@@ -2105,6 +2138,10 @@ let generate com =
     in
 
 	let find_file f = (com.class_paths#find_file f).file in
+
+    (* pre-declare base runtime globals as locals *)
+    (* NOTE: _hx_array_mt must remain global — hx-lua-simdjson reads it from _G *)
+    println ctx "local _hx_is_array, _hx_tab_array, _hx_print_class, _hx_print_enum, _hx_tostring, _hx_field_arr";
 
     (* base table-to-array helpers and metatables *)
     if ctx.lua_jit then
@@ -2203,7 +2240,7 @@ let generate com =
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)
-    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_anonToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+    println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_anonToField, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw, _hx_dyn_add, _hx_wrap_if_string_field, _hx_handle_error, _hx_luv";
     println ctx "local _hx_pcall_default = {};";
     println ctx "local _hx_pcall_break = {};";
 
@@ -2254,6 +2291,7 @@ let generate com =
         "use._hx_wrap_if_string_field", "lua/_lua/_hx_wrap_if_string_field.lua";
         "use._hx_wrap_if_string_field_closure", "lua/_lua/_hx_wrap_if_string_field_closure.lua";
         "use._hx_dyn_add", "lua/_lua/_hx_dyn_add.lua";
+        "use._hx_module_varargs", "lua/_lua/_hx_module_varargs.lua";
     ];
 
     print_file (find_file "lua/_lua/_hx_handle_error.lua");

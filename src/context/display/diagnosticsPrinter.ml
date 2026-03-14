@@ -100,17 +100,17 @@ let json_of_diagnostics com dctx =
 		) suggestions in
 		add DKUnresolvedIdentifier p MessageSeverity.Error None (JArray suggestions);
 	) dctx.unresolved_identifiers;
-	List.iter (fun d -> match (d.diag_depth, !current) with
+	List.iter (fun d -> match (d.cm_depth, !current) with
 		| depth, Some diag when depth > 0 ->
-			let lines = ExtString.String.nsplit d.diag_message "\n" in
+			let lines = ExtString.String.nsplit d.cm_message "\n" in
 			(match lines with
 				| [] -> ()
 				| s :: sub ->
-					let related = List.fold_left (fun acc s -> (d.diag_pos,depth,Error.compl_msg s) :: acc) [] (List.rev sub) in
-					diag.diag_related_information <- List.append diag.diag_related_information ((d.diag_pos,depth,s) :: related);
+					let related = List.fold_left (fun acc s -> (d.cm_pos,depth,Error.compl_msg s) :: acc) [] (List.rev sub) in
+					diag.diag_related_information <- List.append diag.diag_related_information ((d.cm_pos,depth,s) :: related);
 			)
 		| 0, _ ->
-			add d.diag_kind d.diag_pos d.diag_severity d.diag_code (JString d.diag_message)
+			add d.cm_kind d.cm_pos d.cm_severity d.cm_code (JString d.cm_message)
 		| _ ->
 			(* Do not add errors with depth greater than one as top level diagnostic. *)
 			(* This could happen when running diagnostics for a file that is wentioned in *)

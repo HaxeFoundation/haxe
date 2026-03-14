@@ -147,7 +147,7 @@ let prepare com =
 		unresolved_identifiers = [];
 		missing_fields = PMap.empty;
 	} in
-	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.part_scope.diagnostics_messages) then
+	if not (List.exists (fun cm -> cm.cm_severity = MessageSeverity.Error) com.part_scope.diagnostics_messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
