@@ -11,7 +11,7 @@ type safety_message = {
 
 type safety_warning = {
 	sw_warning : WarningList.warning;
-	sw_options : warning_option list list;
+	sw_options : Message.warning_option list list;
 	sw_msg : string;
 	sw_pos : pos;
 	sw_module : module_def;

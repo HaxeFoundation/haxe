@@ -145,7 +145,7 @@ let prepare com =
 		dead_blocks = Hashtbl.create 0;
 		messages = [];
 	} in
-	if not (List.exists (fun cm -> cm_severity cm = MessageSeverity.Error) com.part_scope.messages) then
+	if not (List.exists (fun cm -> Message.cm_severity cm = Message.MessageSeverity.Error) com.part_scope.messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->

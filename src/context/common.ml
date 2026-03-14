@@ -16,6 +16,7 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
+open Message
 open Ast
 open Type
 open Error
@@ -259,7 +260,7 @@ type part_scope = {
 	runtime_args : string list;
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	has_next : bool;
-	mutable messages : compiler_message list;
+	mutable messages : Message.t list;
 }
 
 type parse_input_result =
@@ -319,8 +320,8 @@ and context = {
 	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
 	mutable warning : Gctx.warning_function;
 	mutable warning_options : warning_option list list;
-	mutable get_messages : unit -> compiler_message list;
-	mutable filter_messages : (compiler_message -> bool) -> unit;
+	mutable get_messages : unit -> Message.t list;
+	mutable filter_messages : (Message.t -> bool) -> unit;
 	mutable run_command : string -> int;
 	mutable run_command_args : string -> string list -> int;
 	(* typing setup *)
@@ -406,7 +407,7 @@ let ignore_error com =
 
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
-		let cm = make_compiler_message msg p 0 (MKWarning(w, options)) in
+		let cm = make msg p 0 (MKWarning(w, options)) in
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
 	end;
 	com.warning w options msg p
@@ -1122,7 +1123,7 @@ let hash f =
 
 let add_diagnostics_message ?(depth = 0) ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
 	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
-	com.part_scope.messages <- (make_compiler_message ~from_macro ~diagnostics_kind s p depth message_kind) :: com.part_scope.messages
+	com.part_scope.messages <- (make ~from_macro ~diagnostics_kind s p depth message_kind) :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin

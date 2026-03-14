@@ -63,7 +63,7 @@ type type_param_host =
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
-	| Message of Globals.compiler_message
+	| Message of Message.t
 
 type t =
 	| TMono of tmono

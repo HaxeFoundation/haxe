@@ -336,7 +336,7 @@ type diagnostics_context = {
 	mutable replaceable_code : replaceable_code list;
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
-	mutable messages : compiler_message list;
+	mutable messages : Message.t list;
 }
 
 type display_exception_kind =

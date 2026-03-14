@@ -4,6 +4,7 @@ open Json
 open DisplayTypes
 open Type
 open Genjson
+open Message
 open MessageKind
 
 type t = {
@@ -45,7 +46,7 @@ open CompletionItem
 open CompletionModuleType
 
 (** Convert a single missing_fields_diagnostics to its JSON form and
-    store it as a compiler_message with [DKMissingFields].
+    store it as a [Message.t] with [DKMissingFields].
 
     The JSON carries: moduleType, moduleFile, and a single entry
     (with "fields" and "cause"). The printer groups entries by
@@ -104,9 +105,9 @@ let make_missing_fields_message mf =
 		"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mf.mf_on).mt_module.m_extra.m_file);
 		"entry",entry
 	] in
-	make_compiler_message ~diagnostics_kind:DKMissingFields ~json:j "" mf.mf_pos 0 MKError
+	Message.make ~diagnostics_kind:DKMissingFields ~json:j "" mf.mf_pos 0 MKError
 
-(** Create a compiler_message for an UnresolvedIdentifier diagnostic. *)
+(** Create a [Message.t] for an UnresolvedIdentifier diagnostic. *)
 let make_unresolved_identifier_message i p suggestions =
 	let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
 		match item.ci_kind with
@@ -125,7 +126,7 @@ let make_unresolved_identifier_message i p suggestions =
 				"name",JString s;
 			])
 	) suggestions in
-	make_compiler_message ~diagnostics_kind:DKUnresolvedIdentifier ~json:(JArray suggestions) i p 0 MKError
+	Message.make ~diagnostics_kind:DKUnresolvedIdentifier ~json:(JArray suggestions) i p 0 MKError
 
 let json_of_diagnostics com dctx =
 	let diagnostics = Hashtbl.create 0 in

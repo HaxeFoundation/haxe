@@ -1,4 +1,5 @@
 open Globals
+open Message
 open Error
 open TType
 include WarningList

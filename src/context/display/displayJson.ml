@@ -674,7 +674,7 @@ let create_json_result_handler timer_ctx io jsonrpc =
 			if has_error then begin
 				let errors = List.map (fun cm ->
 					Json.JObject [
-						"severity",Json.JInt (MessageSeverity.to_int (cm_severity cm));
+						"severity",Json.JInt (Message.MessageSeverity.to_int (Message.cm_severity cm));
 						"location",Genjson.generate_pos_as_location cm.cm_pos;
 						"message",Json.JString cm.cm_message;
 					]

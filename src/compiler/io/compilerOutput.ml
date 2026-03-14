@@ -1,5 +1,6 @@
 open CompilerIo
 open Globals
+open Message
 open Common
 
 (** Higher-level compiler output helpers ("what to send").

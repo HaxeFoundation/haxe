@@ -1,5 +1,6 @@
 open Extlib_leftovers
 open Globals
+open Message
 open Common
 
 let resolve_source file l1 p1 l2 p2 =
@@ -255,7 +256,7 @@ let compiler_pretty_message_string defines ectx cm =
 		)
 	end
 
-let compiler_message_string ectx cm =
+let message_string ectx cm =
 	let str = match cm_severity cm with
 		| MessageSeverity.Warning -> "Warning : " ^ cm.cm_message
 		| Information | Error | Hint -> cm.cm_message
@@ -318,7 +319,7 @@ let get_max_line max_lines messages =
 let display_source_at defines p =
 	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
-	let msg = make_compiler_message "" p 0 MKInfo in
+	let msg = make "" p 0 MKInfo in
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
 	match compiler_pretty_message_string defines ectx msg with
 		| None -> ()
@@ -331,7 +332,7 @@ let get_formatter defines def default =
 	match format_mode with
 		| "pretty" -> compiler_pretty_message_string defines
 		| "indent" -> compiler_indented_message_string
-		| "classic" -> compiler_message_string
+		| "classic" -> message_string
 		| m -> begin
 			let def = Define.get_define_key def in
 			raise (ConfigError (Printf.sprintf "Invalid message reporting mode: \"%s\", expected classic | pretty | indent (for -D %s)." m def))
@@ -376,7 +377,7 @@ let display_messages_from defines messages ~set_error on_message = begin
 		try get_formatter defines def default
 		with | ConfigError s ->
 			error s;
-			compiler_message_string
+			message_string
 	in
 
 	let message_formatter = get_formatter defines Define.MessageReporting "pretty" in

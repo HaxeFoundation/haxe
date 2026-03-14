@@ -1,4 +1,5 @@
 open Globals
+open Message
 open Type
 open PlatformConfig
 
