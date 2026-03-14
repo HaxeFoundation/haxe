@@ -467,8 +467,6 @@ let finalize com =
 	end
 
 module ContextFlush = struct
-	open MessageReporting
-
 	let flush_context com =
 		match com.report_mode with
 		| RMDiagnostics _ ->

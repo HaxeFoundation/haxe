@@ -1,13 +1,7 @@
 open Globals
 open Common
-open CompilationCache
-open Type
-open DisplayProcessingGlobals
 open Ipaddr
-open Json
 open ParsedArg
-open MessageReporting
-open TypeloadCacheHook
 
 type server_connection = {
 	read : unit -> string;
@@ -183,7 +177,7 @@ let process sctx request_scope entry request_args =
 	ServerMessage.arguments (Args.to_raw_args (List.concat_map (fun part -> part.Args.args) request_args.Args.parts));
 	ServerCompilationContext.reset sctx;
 	Option.may (fun dir -> try Unix.chdir dir with _ -> ()) sctx.persistent_cwd;
-	Std.finally (fun () -> Unix.chdir curdir) (entry sctx request_scope) request_args;
+	ignore (Std.finally (fun () -> Unix.chdir curdir) (entry sctx request_scope) request_args);
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 

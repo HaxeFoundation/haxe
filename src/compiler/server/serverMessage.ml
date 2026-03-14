@@ -91,15 +91,6 @@ let removed_directory com tabs dir =
 let reusing com tabs m =
 	if config.print_reusing then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path))
 
-let retyper_ok com tabs m =
-	if config.print_retyping then print_endline (Printf.sprintf "%s%sretyped %s" (sign_string com) tabs (s_type_path m.m_path))
-
-let retyper_fail com tabs m reason =
-	if config.print_retyping then begin
-		print_endline (Printf.sprintf "%s%sfailed retyping %s" (sign_string com) tabs (s_type_path m.m_path));
-		print_endline (Printf.sprintf "%s%s%s" (sign_string com) (tabs ^ "  ") reason);
-	end
-
 let skipping_dep com tabs (mpath,reason) =
 	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path mpath) reason)
 

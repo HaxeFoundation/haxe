@@ -147,10 +147,6 @@ let get_user_documentation_list user_metas =
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) user_meta_list in
 	all,!m
 
-let copy_from_to m src dst =
-	try (get m src) :: dst
-	with Not_found -> dst
-
 let maybe_get_pos m ml = try
 		let (_,_,p) = get m ml in
 		Some p

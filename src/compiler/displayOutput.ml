@@ -4,14 +4,10 @@ open Common
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem
-open CompletionClassField
-open CompletionEnumField
 open DisplayException
 open Type
 open DisplayTypes
-open CompletionModuleType
 open Genjson
-open DisplayProcessingGlobals
 
 (* New JSON stuff *)
 
@@ -45,20 +41,6 @@ let print_signature tl display_arg =
 	string_of_json jo
 
 (* Mode processing *)
-
-let find_doc t =
-	let doc = match follow t with
-		| TAnon an ->
-			begin match !(an.a_status) with
-				| ClassStatics c -> c.cl_doc
-				| EnumStatics en -> en.e_doc
-				| AbstractStatics a -> a.a_doc
-				| _ -> None
-			end
-		| _ ->
-			None
-	in
-	doc
 
 let handle_syntax_completion com kind subj =
 	let open Parser in
