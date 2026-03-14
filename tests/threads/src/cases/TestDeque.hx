@@ -5,6 +5,7 @@ import sys.thread.Deque;
 
 @:timeout(2000)
 class TestDeque extends ThreadTestBase {
+	#if !jvm // doesn't work on Java's LinkedBlockingDeque
 	function testPopNullMessage() {
 		final deque = new Deque<Dynamic>();
 		deque.add(null);
@@ -52,4 +53,5 @@ class TestDeque extends ThreadTestBase {
 		Assert.equals("value", deque.pop(false));
 		Assert.isNull(deque.pop(false));
 	}
+	#end
 }
