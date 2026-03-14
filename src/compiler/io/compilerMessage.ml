@@ -16,6 +16,15 @@ open Globals
 open Common
 open Type
 
+(** Buffer a compiler message into the appropriate list.
+    In diagnostics mode, messages go to [diagnostics_messages];
+    otherwise they go to the regular [messages] list. *)
+let buffer_message com cm =
+	if is_diagnostics com then
+		com.part_scope.diagnostics_messages <- cm :: com.part_scope.diagnostics_messages
+	else
+		com.part_scope.messages <- cm :: com.part_scope.messages
+
 (** Add a compiler message to the message buffer.
 
     This is the primary entry point for recording any compiler output
@@ -27,10 +36,7 @@ open Type
 let add_message ?(depth = 0) ?(from_macro = false) ?(code = None) com msg p kind sev =
 	if sev = MessageSeverity.Error then com.has_error <- true;
 	let cm = make_compiler_message ~from_macro ~code msg p depth kind sev in
-	if is_diagnostics com then
-		com.part_scope.diagnostics_messages <- cm :: com.part_scope.diagnostics_messages
-	else
-		com.part_scope.messages <- cm :: com.part_scope.messages
+	buffer_message com cm
 
 (** Add a compiler message that is bound to a specific module's cache.
 
@@ -47,10 +53,7 @@ let add_module_message ?(depth = 0) ?(from_macro = false) ?(code = None) com (m 
 	let cm = make_compiler_message ~from_macro ~code msg p depth kind sev in
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
-	if is_diagnostics com then
-		com.part_scope.diagnostics_messages <- cm :: com.part_scope.diagnostics_messages
-	else
-		com.part_scope.messages <- cm :: com.part_scope.messages
+	buffer_message com cm
 
 (** Replay a cache-bound message into the current compilation context.
 
@@ -58,7 +61,4 @@ let add_module_message ?(depth = 0) ?(from_macro = false) ?(code = None) com (m 
     modules from cache. The message is added to the appropriate buffer
     based on whether we're in diagnostics mode. *)
 let replay_message com cm =
-	if is_diagnostics com then
-		com.part_scope.diagnostics_messages <- cm :: com.part_scope.diagnostics_messages
-	else
-		com.part_scope.messages <- cm :: com.part_scope.messages
+	buffer_message com cm
