@@ -316,15 +316,6 @@ let get_max_line max_lines messages =
 		else max_lines
 	) max_lines messages
 
-let display_source_at defines p =
-	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
-	let ectx = create_error_context absolute_positions in
-	let msg = make_message false "" p 0 MKInfo in
-	ectx.max_lines <- get_max_line ectx.max_lines [msg];
-	match compiler_pretty_message_string defines ectx msg with
-		| None -> ()
-		| Some s -> prerr_endline s
-
 exception ConfigError of string
 
 let get_formatter defines def default =

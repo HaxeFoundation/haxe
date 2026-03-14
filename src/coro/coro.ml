@@ -2,7 +2,6 @@ open Globals
 open Type
 open CoroTypes
 open CoroFunctions
-open Texpr
 open ContTypes
 
 let next_closure_id = Hashtbl.create 0;

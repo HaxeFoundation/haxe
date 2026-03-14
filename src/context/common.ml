@@ -31,14 +31,6 @@ type package_rule =
 
 type pos = Globals.pos
 
-let const_type basic const default =
-	match const with
-	| TString _ -> basic.tstring
-	| TInt _ -> basic.tint
-	| TFloat _ -> basic.tfloat
-	| TBool _ -> basic.tbool
-	| _ -> default
-
 module Stats = struct
 	type t = {
 		s_files_parsed : int ref;

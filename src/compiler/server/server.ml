@@ -7,7 +7,6 @@ open Ipaddr
 open Json
 open ParsedArg
 open MessageReporting
-open HxbData
 open TypeloadCacheHook
 
 type server_connection = {

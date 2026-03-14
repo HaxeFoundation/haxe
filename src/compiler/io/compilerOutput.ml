@@ -1,5 +1,3 @@
-open CompilerIo
-open Globals
 open Message
 open Common
 

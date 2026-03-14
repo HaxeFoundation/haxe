@@ -1,7 +1,6 @@
 open Globals
 open Message
 open Error
-open TType
 include WarningList
 
 let parse_options lctx s ps lexbuf =

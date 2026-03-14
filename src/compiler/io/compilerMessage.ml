@@ -10,7 +10,6 @@
     Cache-bound messages are stored on module extras via
     [m_cache_bound_objects] so they survive across server compilations. *)
 
-open Globals
 open Message
 open Common
 open Type

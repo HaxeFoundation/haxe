@@ -597,7 +597,7 @@ let run_on_com jsonrpc f com =
 		jsonrpc = jsonrpc;
 		display = display;
 	} in
-	let rec maybe_send_response = function
+	let maybe_send_response = function
 		| NoResponse ->
 			NeedsTyping
 		| Result json ->
@@ -627,8 +627,6 @@ let run_on_com jsonrpc f com =
 			NeedsTyping
 	in
 	maybe_send_response (catch_api_error (fun () -> f hctx))
-
-open CompilerOutput
 
 let create_json_result_handler timer_ctx io jsonrpc =
 	let send_result send json =

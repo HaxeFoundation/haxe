@@ -2,10 +2,6 @@ open Globals
 open Common
 open CompilationCache
 open Type
-open DisplayProcessingGlobals
-open Ipaddr
-open Json
-open MessageReporting
 open HxbData
 open TypeloadCacheHook
 

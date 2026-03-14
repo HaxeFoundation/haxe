@@ -1,5 +1,4 @@
 open Globals
-open Ast
 
 type native_lib_kind =
 	| JavaLib

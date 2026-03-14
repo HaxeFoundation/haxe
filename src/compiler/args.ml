@@ -622,34 +622,3 @@ let expand_args args =
 		connect_arg = !connect_arg;
 		display_arg = !display_arg;
 	}
-
-let string_of_request_args (req : request_args) : string =
-	let quote s =
-		(* quote arguments that contain whitespace for clearer output *)
-		if String.contains s ' ' || String.contains s '\t' then Printf.sprintf "%S" s else s
-	in
-	let string_of_server_mode = function
-		| SMNone -> "None"
-		| SMListen hp -> Printf.sprintf "Listen %s" hp
-		| SMConnect hp -> Printf.sprintf "Connect %s" hp
-	in
-	let format_part { args; runtime_args } =
-		let raw = to_raw_args args in
-		let args_str = String.concat " " (List.map quote raw) in
-		let runtime_str = String.concat " " (List.map quote runtime_args) in
-		match runtime_str with
-		| "" -> args_str
-		| _ -> args_str ^ " -- " ^ runtime_str
-	in
-	let parts_str =
-		req.parts
-		|> List.mapi (fun i p -> Printf.sprintf "  Part %d: %s" (i + 1) (format_part p))
-		|> String.concat "\n"
-	in
-	String.concat "\n" [
-		Printf.sprintf "server_mode: %s" (string_of_server_mode req.server_mode);
-		Printf.sprintf "connect_arg: %s" (match req.connect_arg with Some s -> s | None -> "<none>");
-		Printf.sprintf "display_arg: %s" (match req.display_arg with Some s -> s | None -> "<none>");
-		"parts:";
-		parts_str;
-	]
