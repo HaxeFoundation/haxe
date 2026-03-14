@@ -447,7 +447,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 		mf_cause = FieldAccess;
 	} in
 	let cm = DiagnosticsPrinter.make_missing_fields_message diag in
-	ctx.com.part_scope.messages <- cm :: ctx.com.part_scope.messages
+	CompilerMessage.add_module_diagnostic ctx.com (t_infos mt).mt_module cm
 
 let handle_missing_ident ctx i mode with_type p =
 	match ctx.e.curfun with

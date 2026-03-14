@@ -13,6 +13,15 @@ using StringTools;
 using Lambda;
 
 class ServerTests extends TestCase {
+	function findDiagnosticsFor(res:Dynamic, fileName:String):Null<Array<haxe.display.Diagnostic<Any>>> {
+		if (res == null) return null;
+		for (fileDiag in (cast res : Array<Dynamic>)) {
+			final path = ~/[\/|\\]/g.split(Std.string(fileDiag.file)).pop();
+			if (path == fileName) return cast fileDiag.diagnostics;
+		}
+		return null;
+	}
+
 	function testNoModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
@@ -300,6 +309,44 @@ class ServerTests extends TestCase {
 		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("HelloWorld.hx")}).length);
 		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 0});
 		assertReuse("HelloWorld");
+	}
+
+	function testDiagnosticsCacheBoundMissingFields() {
+		vfs.putContent("MissingFieldsDep.hx", getTemplate("diagnostics/MissingFieldsDep.hx"));
+		vfs.putContent("MissingFieldsMain.hx", getTemplate("diagnostics/MissingFieldsMain.hx"));
+		var args = ["--main", "MissingFieldsMain", "--interp"];
+		// First diagnostics run: types both modules, creates MissingFields on Dep, caches both
+		var res1 = runHaxeJson(args, DisplayMethods.Diagnostics, {
+			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
+		});
+		final diags1 = findDiagnosticsFor(res1, "MissingFieldsDep.hx");
+		Assert.notNull(diags1);
+		Assert.notNull(diags1.find(d -> d.kind == MissingFields));
+		// Invalidate Main only, so Dep stays cached
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MissingFieldsMain.hx")});
+		// Second diagnostics run: Main retyped, Dep reused from cache, MissingFields replayed
+		var res2 = runHaxeJson(args, DisplayMethods.Diagnostics, {
+			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
+		});
+		assertReuse("MissingFieldsDep");
+		final diags2 = findDiagnosticsFor(res2, "MissingFieldsDep.hx");
+		Assert.notNull(diags2);
+		Assert.notNull(diags2.find(d -> d.kind == MissingFields));
+	}
+
+	function testDiagnosticsCacheBoundFilterOnReplay() {
+		vfs.putContent("MissingFieldsDep.hx", getTemplate("diagnostics/MissingFieldsDep.hx"));
+		vfs.putContent("MissingFieldsMain.hx", getTemplate("diagnostics/MissingFieldsMain.hx"));
+		var args = ["--main", "MissingFieldsMain", "--interp"];
+		// Diagnostics run: types both modules, caches Dep with MissingFields cache-bound object
+		var res = runHaxeJson(args, DisplayMethods.Diagnostics, {
+			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
+		});
+		Assert.notNull(findDiagnosticsFor(res, "MissingFieldsDep.hx").find(d -> d.kind == MissingFields));
+		// Normal compilation: Dep reused from cache, MissingFields NOT replayed (filtered by RMDiagnostics)
+		runHaxe(args);
+		// No error messages from filtered diagnostics (only normal "Field needed by" errors)
+		Assert.isFalse(hasErrorMessage("unimplemented"));
 	}
 
 	function testDiagnosticsMultipleOpenFiles() {

@@ -42,14 +42,48 @@ let add_module_message ?(depth = 0) ?(from_macro = false) com (m : module_def) m
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
 	com.part_scope.messages <- cm :: com.part_scope.messages
 
+(** Add a pre-built diagnostic message bound to a specific module's cache.
+
+    Like {!add_module_message} but takes a pre-built [compiler_message]
+    (e.g. from {!DiagnosticsPrinter.make_missing_fields_message}).
+
+    During [dms_full_typing], the message is cached in
+    [m.m_extra.m_cache_bound_objects] unconditionally — the
+    [RMDiagnostics] filter is checked at replay time, not at store time.
+
+    The message is only added to the current message buffer when in
+    diagnostics mode ([RMDiagnostics]), matching the old behavior where
+    [module_diagnostics] data was stored separately and only processed
+    by the diagnostics printer.
+
+    Use this for diagnostics-specific messages (MissingFields,
+    UnresolvedIdentifier) that originate from module typing and should
+    survive across server compilations. *)
+let add_module_diagnostic com (m : module_def) cm =
+	if com.display.dms_full_typing then
+		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
+	if is_diagnostics com then
+		com.part_scope.messages <- cm :: com.part_scope.messages
+
 (** Replay a cache-bound message into the current compilation context.
 
     Called from {!ServerCache.handle_cache_bound_objects} when loading
-    modules from cache. [MKWarning] messages are re-evaluated through
-    [com.warning] to respect current warning options. *)
+    modules from cache.
+
+    - [MKWarning] messages are re-evaluated through [com.warning] to
+      respect current warning options.
+    - Diagnostics-specific messages ([DKMissingFields],
+      [DKUnresolvedIdentifier]) are only replayed when in diagnostics
+      mode ([RMDiagnostics]), matching the filter-on-replay pattern
+      used for warning options. *)
 let replay_message com cm =
 	match cm.cm_message_kind with
 	| MKWarning(w, options) ->
 		com.warning ~depth:cm.cm_depth ~from_macro:cm.cm_from_macro w options cm.cm_message cm.cm_pos
 	| _ ->
-		com.part_scope.messages <- cm :: com.part_scope.messages
+		let dominated_by_diagnostics = match cm.cm_diagnostics_kind with
+			| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> true
+			| _ -> false
+		in
+		if not dominated_by_diagnostics || is_diagnostics com then
+			com.part_scope.messages <- cm :: com.part_scope.messages

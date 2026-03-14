@@ -1464,7 +1464,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 						mf_cause = PropertyAccessor(cf,is_getter);
 					} in
 					let cm = DiagnosticsPrinter.make_missing_fields_message diag in
-					ctx.com.part_scope.messages <- cm :: ctx.com.part_scope.messages
+					CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 				end else if not (has_class_flag c CExtern) then begin
 					try
 						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (extract_param_types c.cl_params) m) in
@@ -1828,7 +1828,7 @@ let init_class ctx_c cctx c p herits fields =
 					mf_cause = FinalFields (cf :: cfl);
 				} in
 				let cm = DiagnosticsPrinter.make_missing_fields_message diag in
-				com.part_scope.messages <- cm :: com.part_scope.messages
+				CompilerMessage.add_module_diagnostic com c.cl_module cm
 			end else begin
 				display_error_ext com (make_error (Custom "This class has uninitialized final vars, which requires a constructor") ~sub:[
 					make_error (Custom "Example of an uninitialized final var") cf.cf_name_pos;

@@ -489,7 +489,7 @@ module Inheritance = struct
 					mf_cause = ImplementedInterface(intf,params);
 				} in
 				let cm = DiagnosticsPrinter.make_missing_fields_message diag in
-				ctx.com.part_scope.messages <- cm :: ctx.com.part_scope.messages
+				CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 			end
 		) c.cl_implements
 
@@ -525,7 +525,7 @@ module Inheritance = struct
 				mf_cause = AbstractParent(csup,params);
 			} in
 			let cm = DiagnosticsPrinter.make_missing_fields_message diag in
-			ctx.com.part_scope.messages <- cm :: ctx.com.part_scope.messages
+			CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 		| l ->
 			let pctx = print_context() in
 			let sub = List.map (fun (cf,_) ->
