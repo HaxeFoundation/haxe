@@ -279,6 +279,7 @@ type compiler_message = {
 	cm_from_macro : bool;
 	cm_message_kind : message_kind;
 	cm_diagnostics_kind : MessageKind.t;
+	cm_json : Json.t;
 }
 
 let cm_severity cm = message_kind_severity cm.cm_message_kind
@@ -289,13 +290,16 @@ let cm_code cm = match cm.cm_message_kind with
 		Some wobj.w_name
 	| _ -> None
 
-let make_compiler_message ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) msg p depth message_kind = {
-	cm_message = msg;
-	cm_pos = p;
-	cm_depth = depth;
-	cm_from_macro = from_macro;
-	cm_message_kind = message_kind;
-	cm_diagnostics_kind = diagnostics_kind;
-}
+let make_compiler_message ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) ?json msg p depth message_kind =
+	let json = match json with Some j -> j | None -> Json.JString msg in
+	{
+		cm_message = msg;
+		cm_pos = p;
+		cm_depth = depth;
+		cm_from_macro = from_macro;
+		cm_message_kind = message_kind;
+		cm_diagnostics_kind = diagnostics_kind;
+		cm_json = json;
+	}
 
 let i32_31 = Int32.of_int 31
