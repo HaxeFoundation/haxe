@@ -291,7 +291,7 @@ let cm_code cm = match cm.cm_message_kind with
 	| _ -> None
 
 let make_compiler_message ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) ?json msg p depth message_kind =
-	let json = match json with Some j -> j | None -> Json.JString msg in
+	let cm_json = match json with Some j -> j | None -> Json.JString msg in
 	{
 		cm_message = msg;
 		cm_pos = p;
@@ -299,7 +299,7 @@ let make_compiler_message ?(from_macro = false) ?(diagnostics_kind = MessageKind
 		cm_from_macro = from_macro;
 		cm_message_kind = message_kind;
 		cm_diagnostics_kind = diagnostics_kind;
-		cm_json = json;
+		cm_json;
 	}
 
 let i32_31 = Int32.of_int 31
