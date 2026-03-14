@@ -194,13 +194,13 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 
 let handle_display_after_typing ctx tctx display_file_dot_path =
 	let com = ctx.com in
-	if ctx.com.display.dms_kind = DMNone && ctx.has_error then raise Abort;
+	if ctx.com.display.dms_kind = DMNone && has_error ctx then raise Abort;
 	begin match ctx.com.display.dms_kind,Atomic.get ctx.com.parser_state.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
 	end;
 	if ctx.com.display.dms_exit_during_typing then begin
-		if ctx.has_next || ctx.has_error then raise Abort;
+		if ctx.has_next || has_error ctx then raise Abort;
 		(* If we didn't find a completion point, load the display file in macro mode. *)
 		if com.display_information.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);

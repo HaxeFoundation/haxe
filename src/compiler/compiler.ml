@@ -4,7 +4,7 @@ open CompilationContext
 open ParsedArg
 
 let handle_diagnostics ctx msg p kind =
-	ctx.has_error <- true;
+	ctx.com.has_error <- true;
 	add_diagnostics_message ctx.com msg p kind Error;
 	match ctx.com.report_mode with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics ctx.com
@@ -16,7 +16,7 @@ let run_or_diagnose ctx f =
 			f ()
 		with
 		| Error.Error err ->
-			ctx.has_error <- true;
+			ctx.com.has_error <- true;
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos DKCompilerMessage Error
 			) err;
@@ -395,7 +395,7 @@ let compile ctx actx sctx =
 			DisplayProcessing.handle_display_after_finalization ctx tctx display_file_dot_path;
 			filter ctx com ectx (fun () -> ());
 		end;
-		if ctx.has_error then raise Abort;
+		if has_error ctx then raise Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
@@ -431,7 +431,7 @@ with
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
 		if ctx.com.display.dms_kind <> DMNone && ctx.has_next then begin
-			ctx.has_error <- false;
+			ctx.com.has_error <- false;
 			ctx.messages <- [];
 		end else begin
 			let sub = List.map (fun p -> Error.make_error (Error.Custom (Error.compl_msg "referenced here")) p) pl in
@@ -486,74 +486,27 @@ let emit_completion ctx str =
 module ContextFlush = struct
 	open MessageReporting
 
-	let flush_context_server ctx =
-		let write = CompilerIo.write_err ctx.com.request_scope.io in
-		let rh = ctx.com.request_scope.result_handler in
-		if CompilerOutput.has_json_rpc rh && not (is_diagnostics ctx.com) then begin
-			if has_error ctx then begin
-				let errors = List.map (fun cm ->
-					Json.JObject [
-						"severity",JInt (MessageSeverity.to_int cm.cm_severity);
-						"location",Genjson.generate_pos_as_location cm.cm_pos;
-						"message",JString cm.cm_message;
-					]
-				) (List.rev ctx.messages) in
-				CompilerOutput.send_error_raise rh errors;
-			end
-		end else
-			let add_diagnostics_messages () =
-				List.iter (fun cm ->
-					add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-				) (List.rev ctx.messages);
-			in
-			match ctx.com.report_mode with
-				| RMDiagnostics _ ->
-					add_diagnostics_messages ()
-				| _ ->
-					display_messages ctx (fun _ output ->
-						write (output ^ "\n");
-						ServerMessage.message output;
-					);
-					(* TODO: What is this? *)
-					ctx.com.sctx.was_compilation <- ctx.com.display.dms_full_typing;
-					if has_error ctx then begin
-						ctx.com.timer_ctx.measure_times <- No;
-						CompilerIo.signal_error ctx.com.request_scope.io
-					end else
-						if ctx.com.timer_ctx.measure_times = Yes then
-							CompilerOutput.send_timer_report ctx.com.request_scope.io ctx.com.timer_ctx
-
-	let flush_context_client ctx =
-		let io = ctx.com.request_scope.io in
-		display_messages ctx (fun sev output ->
-			match sev with
-				| MessageSeverity.Information -> CompilerIo.write_out io (output ^ "\n")
-				| Warning | Error | Hint -> CompilerIo.write_err io (output ^ "\n")
-		);
-
-		if has_error ctx && !Helper.prompt then begin
-			CompilerIo.write_out io "Press enter to exit...\n";
-			ignore(read_line());
-		end;
-		CompilerIo.flush io
-
 	let flush_context ctx =
-		if ctx.com.sctx.is_server then
-			flush_context_server ctx
-		else
-			flush_context_client ctx
+		let rh = ctx.com.request_scope.result_handler in
+		match ctx.com.report_mode with
+		| RMDiagnostics _ ->
+			List.iter (fun cm ->
+				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
+			) (List.rev ctx.messages)
+		| _ ->
+			CompilerOutput.flush_messages rh (List.rev ctx.messages) (has_error ctx) ctx.com
 end
 
 let catch_completion_and_exit ctx sctx run =
 	try
 		run ctx;
-		if ctx.has_error then 1 else 0
+		if has_error ctx then 1 else 0
 	with
 		| DisplayJson.JsonCompleted ->
 			finalize ctx;
 			0
 		| EvalTypes.Sys_exit i | Hlinterp.Sys_exit i ->
-			if i <> 0 then ctx.has_error <- true;
+			if i <> 0 then ctx.com.has_error <- true;
 			ContextFlush.flush_context ctx;
 			finalize ctx;
 			i
@@ -581,7 +534,7 @@ let compile_ctx sctx ctx =
 		ServerCache.before_anything sctx ctx;
 		Setup.setup_common_context ctx;
 		compile_safe ctx (fun () ->
-			let actx = Args.process_args ctx.com ctx.parsed_args in
+			let actx = Args.process_args ctx.com in
 			process_actx ctx actx;
 			compile ctx actx sctx;
 		);
@@ -590,19 +543,17 @@ let compile_ctx sctx ctx =
 	in
 	catch_completion_and_exit ctx sctx run
 
-let create_context sctx request_scope compilation_step (parsed_args : parsed_arg list) =
+let create_context sctx request_scope compilation_step =
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
 	} in
-	let com = Common.create sctx request_scope part_scope compilation_step (Args.to_raw_args parsed_args) (DisplayTypes.DisplayMode.create DMNone) in
+	let com = Common.create sctx request_scope part_scope compilation_step (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
 		messages = [];
 		has_next = false;
-		has_error = false;
 		runtime_args = [];
-		parsed_args;
 	}
 
 module HighLevel = struct
@@ -659,6 +610,8 @@ module HighLevel = struct
 			lines
 
 	let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope : request_scope) has_display part =
+		sctx.compilation_step <- sctx.compilation_step + 1;
+		let ctx = create_context sctx request_scope sctx.compilation_step in
 		(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
 		let expand_part_libs has_global (part_args : parsed_arg list) =
 			let expand_one arg = match arg with
@@ -677,8 +630,8 @@ module HighLevel = struct
 		in
 		let has_global = List.exists (fun a -> a = HaxelibGlobal) part.Args.args in
 		let expanded_args = expand_part_libs has_global part.Args.args in
-		sctx.compilation_step <- sctx.compilation_step + 1;
-		create_context sctx request_scope sctx.compilation_step expanded_args
+		ctx.com.parsed_args <- expanded_args;
+		ctx
 
 	let entry sctx request_scope (request_args : Args.request_args) =
 		let curdir = Unix.getcwd () in

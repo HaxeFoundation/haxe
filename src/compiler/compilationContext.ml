@@ -7,11 +7,7 @@ type compilation_context = {
 	com : Common.context;
 	mutable messages : compiler_message list;
 	mutable has_next : bool;
-	mutable has_error : bool;
 	mutable runtime_args : string list;
-	(** The pre-parsed arguments for this compilation batch. Used by
-	    [Args.process_args_new] to apply arguments to [com]. *)
-	mutable parsed_args : parsed_arg list;
 }
 
 type server_connection = {
@@ -30,7 +26,7 @@ let error ctx ?(depth=0) ?(from_macro = false) msg p =
 	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error)
 
 let after_error ctx =
-	ctx.has_error <- true;
+	ctx.com.has_error <- true;
 	if Common.fail_fast ctx.com then raise Abort
 
 let error_ext ctx (err : Error.error) =
@@ -44,4 +40,4 @@ let error ctx ?(depth=0) ?(from_macro = false) msg p =
 	after_error ctx
 
 let has_error ctx =
-	ctx.has_error || ctx.com.Common.has_error
+	ctx.com.has_error && (Common.is_compilation ctx.com || ctx.messages <> [])

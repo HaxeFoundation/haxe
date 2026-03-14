@@ -35,7 +35,7 @@ open Extlib_leftovers
 
 (* Create *)
 
-let create com api is_macro =
+let create com api is_macro args =
 	incr GlobalState.sid;
 	let builtins = match !GlobalState.stdlib with
 		| None ->
@@ -105,6 +105,7 @@ let create com api is_macro =
 		type_cache = IntMap.empty;
 		overrides = Hashtbl.create 0;
 		had_error = false;
+		args;
 		(* prototypes *)
 		string_prototype = fake_proto key_String;
 		array_prototype = fake_proto key_Array;
@@ -162,8 +163,8 @@ let create com api is_macro =
 	);
 	ctx
 
-let create com api is_macro =
-	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api) is_macro
+let create com api is_macro args =
+	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api is_macro) args
 
 (* API for macroContext.ml *)
 
@@ -393,8 +394,9 @@ let setup get_api =
 		Hashtbl.replace GlobalState.macro_lib n v
 	) api
 
-let do_reuse ctx api =
+let do_reuse ctx api args =
 	ctx.curapi <- api;
+	ctx.args <- args;
 	ctx.had_error <- false;
 	ctx.static_prototypes#reset
 

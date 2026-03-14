@@ -11,7 +11,6 @@ type generation_mode =
 type context = {
 	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
-	request : JsonRequest.json_request option
 }
 
 let jnull = Json.JNull
@@ -181,20 +180,6 @@ and generate_metadata ctx ml =
 		not data.m_internal
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
-
-and generate_minimum_metadata ctx ml =
-	match ctx.request with
-		| None -> None
-		| Some request ->
-			match request#get_requested_meta_list with
-				| None -> None
-				| Some requested ->
-					let ml =
-						List.filter
-							(fun (m,_,_) -> List.exists (fun r -> r = to_string m) requested)
-							ml
-					in
-					Some (jlist (generate_metadata_entry ctx) ml)
 
 (* AST.ml structures *)
 
@@ -722,10 +707,9 @@ let generate_module modules find_module m =
 		) modules []));
 	]
 
-let create_context ?jsonrpc gm = {
+let create_context gm = {
 	generation_mode = gm;
 	generate_abstract_impl = false;
-	request = match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc)
 }
 
 let generate timer_ctx types file =

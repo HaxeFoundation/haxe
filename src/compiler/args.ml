@@ -259,7 +259,7 @@ let parse_args args =
 (** Apply a single-part [parsed_arg list] to [com], returning the populated
     [arg_context].  Higher-level concerns ([Next], [Each], [AddLib] expansion,
     hxml expansion) are handled by [Compiler.HighLevel.process_params]. *)
-let process_args (com : Common.context) (parsed_args : parsed_arg list) =
+let process_args (com : Common.context) =
 	let actx = {
 		classes = [([],"Std")];
 		xml_out = None;
@@ -434,7 +434,7 @@ let process_args (com : Common.context) (parsed_args : parsed_arg list) =
 				raise (Helper.HelpMessage (ExtLib.String.join "\n" all))
 			)
 	in
-	List.iter process_one parsed_args;
+	List.iter process_one com.parsed_args;
 	if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then
 		Define.define com.defines HxcppSmartStings;
 	if Define.raw_defined com.defines "gen_hx_classes" then begin

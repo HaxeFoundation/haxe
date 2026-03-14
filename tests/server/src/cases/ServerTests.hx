@@ -6,6 +6,7 @@ import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
 import haxe.io.Path;
+import TestCase;
 import utest.Assert;
 
 using StringTools;
@@ -65,6 +66,18 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MacroMain.hx")});
 		runHaxe(args);
 		assertHasPrint("2");
+	}
+
+	function testMacroArgsPerRequest() {
+		vfs.putContent("ArgsMain.hx", getTemplate("ArgsMain.hx"));
+		vfs.putContent("ArgsMacro.hx", getTemplate("ArgsMacro.hx"));
+		var baseArgs = ["-main", "ArgsMain.hx", "--no-output", "-js", "no.js", "--macro", "ArgsMacro.test()"];
+
+		runHaxe(["-D", "arg_marker=first"].concat(baseArgs));
+		assertHasPrint("arg_marker=first");
+
+		runHaxe(["-D", "arg_marker=second"].concat(baseArgs));
+		assertHasPrint("arg_marker=second");
 	}
 
 	// function testDceEmpty() {
@@ -691,4 +704,19 @@ class ServerTests extends TestCase {
 		Assert.isTrue(stderr.contains("parsing"), 'Expected "parsing" timer in stderr');
 	}
 	#end
+
+	function testHoverWithPackageError() {
+		vfs.putContent("pack/Main.hx", "package wrongpack;\n\nclass Main {\n\tpublic static function main() {\n\t\tvar x = 1;\n\t}\n}");
+		var args = ["--main", "pack.Main", "--interp", "--no-output"];
+		try {
+			runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("pack/Main.hx"), offset: 55});
+		} catch (e:TestException) {
+			// A properly structured JSON-RPC error is expected (package mismatch).
+			// If the response were malformed (e.g. notifications concatenated with JSON),
+			// we'd get "Response: ..." instead of the actual error message.
+			Assert.isFalse(e.message.startsWith("Response: "));
+			return;
+		}
+		// Hover may also succeed in some configurations — that's fine too.
+	}
 }

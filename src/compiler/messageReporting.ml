@@ -358,27 +358,32 @@ let format_messages defines messages =
 	) in
 	ExtLib.String.join "\n" lines
 
-let display_messages ctx on_message = begin
-	let absolute_positions = Define.defined ctx.com.defines Define.MessageAbsolutePositions in
+(** Format and dispatch compiler messages.
+    [defines] controls formatting options, [messages] is the ordered list of
+    messages (oldest first, i.e. already reversed from the accumulation order),
+    [set_error] is called when a formatter configuration
+    error is encountered, and [on_message sev str] receives each formatted message. *)
+let display_messages_from defines messages ~set_error on_message = begin
+	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
-	ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
+	ectx.max_lines <- get_max_line ectx.max_lines messages;
 
 	let error msg =
-		ctx.has_error <- true;
+		set_error ();
 		on_message MessageSeverity.Error msg
 	in
 
 	let get_formatter _ def default =
-		try get_formatter ctx.com.defines def default
+		try get_formatter defines def default
 		with | ConfigError s ->
 			error s;
 			compiler_message_string
 	in
 
-	let message_formatter = get_formatter ctx.com.defines Define.MessageReporting "pretty" in
-	let log_formatter = get_formatter ctx.com.defines Define.MessageLogFormat "indent" in
+	let message_formatter = get_formatter defines Define.MessageReporting "pretty" in
+	let log_formatter = get_formatter defines Define.MessageLogFormat "indent" in
 
-	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in
+	let log_messages = ref (Define.defined defines Define.MessageLogFile) in
 	let log_message = ref None in
 	let close_logs = ref None in
 
@@ -386,7 +391,7 @@ let display_messages ctx on_message = begin
 		try begin
 			let buf = Rbuffer.create 16000 in
 
-			let file = Define.defined_value ctx.com.defines Define.MessageLogFile in
+			let file = Define.defined_value defines Define.MessageLogFile in
 			let chan =
 				Path.mkdir_from_path file;
 				open_out_bin file
@@ -416,8 +421,14 @@ let display_messages ctx on_message = begin
 		match (message_formatter ectx cm) with
 			| None -> ()
 			| Some str -> on_message cm.cm_severity str
-	) (List.rev ctx.messages);
+	) messages;
 
 	if !log_messages then (Option.get !close_logs) ();
 end
+
+(** Convenience wrapper that extracts defines and messages from a compilation context.
+    Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
+let display_messages ctx on_message =
+	display_messages_from ctx.com.defines (List.rev ctx.messages)
+		~set_error:(fun () -> ctx.com.has_error <- true) on_message
 

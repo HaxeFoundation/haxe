@@ -147,7 +147,7 @@ module SocketRequest = struct
 		data
 end
 
-let create_request_scope io display_arg =
+let create_request_scope ~is_server io display_arg =
 	let timer_ctx = Timer.make_context (Timer.make ["other"]) in
 	let result_handler = match display_arg with
 		| Some arg ->
@@ -159,7 +159,8 @@ let create_request_scope io display_arg =
 				raise Exit
 			)
 		| None ->
-			CompilerOutput.create_default_result_handler io
+			if is_server then CompilerOutput.create_server_result_handler io
+			else CompilerOutput.create_cli_result_handler io
 	in
 	{
 		stats = Stats.create ();
@@ -259,7 +260,7 @@ module WorkerDomain = struct
 		sctx.current_stdin <- request.stdin;
 		try
 			let request_args = Args.expand_args request.args in
-			let request_scope = create_request_scope io request_args.display_arg in
+			let request_scope = create_request_scope ~is_server:true io request_args.display_arg in
 			process sctx request_scope entry request_args;
 			Success
 		with

@@ -35,8 +35,8 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context jsonrpc may_resolve =
-	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
+let create_json_context  may_resolve =
+	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string io j =
 	CompilerIo.write_result io j
@@ -665,11 +665,31 @@ let create_json_result_handler timer_ctx io jsonrpc =
 		raise_method_not_found jsonrpc#get_id method_name
 	in
 
+	let send_message sev msg =
+		let json = JsonRpc.notification "compiler/message" (Some (Json.JObject [
+			"severity", Json.JInt (MessageSeverity.to_int sev);
+			"message", Json.JString msg;
+		])) in
+		CompilerIo.write_out io (string_of_json json)
+	in
+
 	{
 		send_result = send_result_noraise;
 		send_result_raise = send_result_raise;
 		send_error = send_error_noraise;
 		send_error_raise = send_error_raise;
-		jsonrpc = Some jsonrpc;
+		send_message;
+		flush_messages = (fun messages has_error _com ->
+			if has_error then begin
+				let errors = List.map (fun cm ->
+					Json.JObject [
+						"severity",Json.JInt (MessageSeverity.to_int cm.cm_severity);
+						"location",Genjson.generate_pos_as_location cm.cm_pos;
+						"message",Json.JString cm.cm_message;
+					]
+				) messages in
+				send_error_raise errors;
+			end
+		);
 		set_com = run_on_com jsonrpc f;
 	}

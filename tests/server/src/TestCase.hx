@@ -43,6 +43,12 @@ typedef JsonRpcResponse<Result, ErrorData> = {
 	?error:JsonRpcError<ErrorData>
 }
 
+typedef JsonRpcNotification = {
+	jsonrpc:String,
+	method:String,
+	?params:Dynamic
+}
+
 class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
 		hasError:Bool,
@@ -59,6 +65,7 @@ class TestCase implements ITest implements ITestCase {
 	var lastResult:HaxeServerRequestResult;
 	var messages:Array<String> = [];
 	var errorMessages = [];
+	var notifications:Array<JsonRpcNotification> = [];
 
 	static var i:Int = 0;
 
@@ -153,11 +160,13 @@ class TestCase implements ITest implements ITestCase {
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
+		notifications = [];
 
 		return hxcoro.Coro.suspend(cont -> {
 			server.rawRequest(args, null, function(result) {
 				// TODO: would be nicer to not have that here either, but it makes 3 tests fail.
 				sendLogMessage(result.stdout);
+				collectNotifications(result.prints);
 				var json:JsonRpcResponse<Response<TResponse>, Array<Any>> = try {
 					Json.parse(result.stderr);
 				} catch (e) {
@@ -196,6 +205,38 @@ class TestCase implements ITest implements ITestCase {
 		for (message in split) {
 			messages.push(message.trim());
 		}
+	}
+
+	function collectNotifications(prints:Array<String>) {
+		for (print in prints) {
+			var trimmed = print.trim();
+			if (trimmed.length == 0) continue;
+			// Prints contain mixed content (trace output, compiler messages, etc.).
+			// We only extract entries that parse as JSON-RPC 2.0 notifications.
+			var parsed:Dynamic = try Json.parse(trimmed) catch (_) null;
+			if (parsed != null && Reflect.field(parsed, "jsonrpc") == "2.0" && Reflect.field(parsed, "method") != null) {
+				notifications.push({
+					jsonrpc: parsed.jsonrpc,
+					method: parsed.method,
+					params: parsed.params
+				});
+			}
+		}
+	}
+
+	function hasNotification(method:String) {
+		for (n in notifications) {
+			if (n.method == method) return true;
+		}
+		return false;
+	}
+
+	function assertHasNotification(method:String, ?p:haxe.PosInfos) {
+		return Assert.isTrue(hasNotification(method), null, p);
+	}
+
+	function assertNoNotification(method:String, ?p:haxe.PosInfos) {
+		return Assert.isFalse(hasNotification(method), null, p);
 	}
 
 	function getTemplate(templateName:String) {

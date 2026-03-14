@@ -2326,7 +2326,7 @@ let macro_api ccom get_api =
 			let com = ccom() in
 			encode_obj [
 				"version", vint com.sctx.version.version;
-				"args", encode_array (List.map encode_string com.args);
+				"args", encode_array (List.map encode_string (Args.to_raw_args com.parsed_args));
 				"debug", vbool com.debug;
 				"verbose", vbool com.verbose;
 				"foptimize", vbool com.foptimize;
