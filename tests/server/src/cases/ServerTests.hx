@@ -342,7 +342,9 @@ class ServerTests extends TestCase {
 		var res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
-		Assert.notNull(findDiagnosticsFor(res, "MissingFieldsDep.hx").find(d -> d.kind == MissingFields));
+		final diags = findDiagnosticsFor(res, "MissingFieldsDep.hx");
+		Assert.notNull(diags);
+		Assert.notNull(diags.find(d -> d.kind == MissingFields));
 		// Normal compilation: Dep reused from cache, MissingFields NOT replayed (filtered by RMDiagnostics)
 		runHaxe(args);
 		// No error messages from filtered diagnostics (only normal "Field needed by" errors)
