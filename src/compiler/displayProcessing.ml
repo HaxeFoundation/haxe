@@ -202,7 +202,7 @@ let handle_display_after_typing com tctx display_file_dot_path =
 			true
 		else begin
 		(* If we didn't find a completion point, load the display file in macro mode. *)
-		if com.display_information.display_module_has_macro_defines then
+		if com.parser_state.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		raise (DisplayException.DisplayException DisplayNoResult)
 		end
@@ -257,7 +257,7 @@ let handle_display_after_finalization com tctx display_file_dot_path =
 	let should_load_in_macro =
 		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
 			type the module in macro context. (#8682). *)
-		not (is_diagnostics com) || com.display_information.display_module_has_macro_defines
+		not (is_diagnostics com) || com.parser_state.display_module_has_macro_defines
 	in
 	if com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro tctx display_file_dot_path false with

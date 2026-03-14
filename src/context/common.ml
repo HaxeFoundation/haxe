@@ -132,10 +132,6 @@ class file_keys = object(self)
 
 end
 
-type display_information = {
-	mutable display_module_has_macro_defines : bool;
-}
-
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
@@ -226,6 +222,7 @@ end
 type parser_state = {
 	mutable was_auto_triggered : bool;
 	mutable had_parser_resume : bool;
+	mutable display_module_has_macro_defines : bool;
 	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
 	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
 }
@@ -337,7 +334,6 @@ and context = {
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
-	display_information : display_information;
 	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
 	parser_cache : (string,(type_def * pos) list) lookup;
@@ -749,9 +745,6 @@ let create sctx request_scope part_scope compilation_step display_mode =
 		timer_ctx = request_scope.timer_ctx;
 		stage = CCreated;
 		parsed_args = [];
-		display_information = {
-			display_module_has_macro_defines = false;
-		};
 		debug = false;
 		display = display_mode;
 		verbose = false;
@@ -838,6 +831,7 @@ let create sctx request_scope part_scope compilation_step display_mode =
 		parser_state = {
 			was_auto_triggered = false;
 			had_parser_resume = false;
+			display_module_has_macro_defines = false;
 			delayed_syntax_completion = Atomic.make None;
 			special_identifier_files = ThreadSafeHashtbl.create 0;
 		};
@@ -932,9 +926,6 @@ let clone com is_macro_context =
 		(* reinits *)
 		cache = None;
 		stage = CCreated;
-		display_information = {
-			display_module_has_macro_defines = false;
-		};
 		features = Hashtbl.create 0;
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;
