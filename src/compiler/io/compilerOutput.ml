@@ -55,10 +55,9 @@ let create_server_result_handler io =
 			) errors
 		);
 		send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
-		send_message;
-		flush_messages = (fun messages has_error com ->
+		flush_messages = (fun has_error com ->
 			let has_error = ref has_error in
-			MessageReporting.display_messages_from com.defines messages
+			MessageReporting.display_messages_from com.defines (List.rev com.part_scope.messages)
 				~set_error:(fun () -> has_error := true; com.has_error <- true)
 				(fun sev output -> send_message sev output);
 			com.sctx.was_compilation <- com.display.dms_full_typing;
@@ -90,10 +89,9 @@ let create_cli_result_handler io =
 			) errors
 		);
 		send_error_raise = (fun _ -> failwith "send_error_raise called in non-JSON-RPC mode");
-		send_message;
-		flush_messages = (fun messages has_error com ->
+		flush_messages = (fun has_error com ->
 			let has_error = ref has_error in
-			MessageReporting.display_messages_from com.defines messages
+			MessageReporting.display_messages_from com.defines (List.rev com.part_scope.messages)
 				~set_error:(fun () -> has_error := true; com.has_error <- true)
 				(fun sev output -> send_message sev output);
 			if !has_error && !Helper.prompt then begin
@@ -119,8 +117,5 @@ let send_error rh errors = rh.send_error errors
 let send_error_raise : 'a . result_handler -> Json.t list -> 'a =
 	fun rh errors -> rh.send_error_raise errors
 
-(** Send a single formatted message through the protocol. *)
-let send_message rh sev msg = rh.send_message sev msg
-
 (** Flush all compiler messages through the protocol. *)
-let flush_messages rh messages has_error com = rh.flush_messages messages has_error com
+let flush_messages rh has_error com = rh.flush_messages has_error com

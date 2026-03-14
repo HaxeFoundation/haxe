@@ -242,13 +242,13 @@ module Setup = struct
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> keep_errors;
 			| Information | Warning | Hint -> predicate cm;)
-		) (List.rev ctx.messages))) in
+		) (List.rev ctx.com.part_scope.messages))) in
 		com.get_messages <- (fun () -> (List.map (fun cm ->
 			(match cm.cm_severity with
 			| MessageSeverity.Error -> die "" __LOC__;
 			| Information | Warning | Hint -> cm;)
 		) (filter_messages false (fun _ -> true))));
-		com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
+		com.filter_messages <- (fun predicate -> (ctx.com.part_scope.messages <- (List.rev (filter_messages true predicate))));
 		com.run_command <- run_command ctx;
 		init_std_class_paths com
 
@@ -432,7 +432,7 @@ with
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
 		if ctx.com.display.dms_kind <> DMNone && ctx.has_next then begin
 			ctx.com.has_error <- false;
-			ctx.messages <- [];
+			ctx.com.part_scope.messages <- [];
 		end else begin
 			let sub = List.map (fun p -> Error.make_error (Error.Custom (Error.compl_msg "referenced here")) p) pl in
 			error_ext ctx (Error.make_error (Error.Custom (Printf.sprintf "You cannot access the %s package while %s (for %s)" pack (if pf = "macro" then "in a macro" else "targeting " ^ pf) (s_type_path m))) ~sub p)
@@ -492,9 +492,9 @@ module ContextFlush = struct
 		| RMDiagnostics _ ->
 			List.iter (fun cm ->
 				add_diagnostics_message ~depth:cm.cm_depth ctx.com cm.cm_message cm.cm_pos cm.cm_kind cm.cm_severity
-			) (List.rev ctx.messages)
+			) (List.rev ctx.com.part_scope.messages)
 		| _ ->
-			CompilerOutput.flush_messages rh (List.rev ctx.messages) (has_error ctx) ctx.com
+			CompilerOutput.flush_messages rh (has_error ctx) ctx.com
 end
 
 let catch_completion_and_exit ctx sctx run =
@@ -547,11 +547,11 @@ let create_context sctx request_scope compilation_step =
 	let part_scope = {
 		warned_positions = Hashtbl.create 0;
 		diagnostics_messages = [];
+		messages = [];
 	} in
 	let com = Common.create sctx request_scope part_scope compilation_step (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
-		messages = [];
 		has_next = false;
 		runtime_args = [];
 	}

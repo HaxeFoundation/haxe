@@ -429,6 +429,6 @@ end
 (** Convenience wrapper that extracts defines and messages from a compilation context.
     Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
 let display_messages ctx on_message =
-	display_messages_from ctx.com.defines (List.rev ctx.messages)
+	display_messages_from ctx.com.defines (List.rev ctx.com.part_scope.messages)
 		~set_error:(fun () -> ctx.com.has_error <- true) on_message
 

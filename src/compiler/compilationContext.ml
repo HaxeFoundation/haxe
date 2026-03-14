@@ -5,7 +5,6 @@ exception Abort
 
 type compilation_context = {
 	com : Common.context;
-	mutable messages : compiler_message list;
 	mutable has_next : bool;
 	mutable runtime_args : string list;
 }
@@ -20,7 +19,7 @@ type server_connection = {
 type server_accept = unit -> server_connection
 
 let message ctx msg =
-	ctx.messages <- msg :: ctx.messages
+	ctx.com.part_scope.messages <- msg :: ctx.com.part_scope.messages
 
 let error ctx ?(depth=0) ?(from_macro = false) msg p =
 	message ctx (make_compiler_message ~from_macro msg p depth DKCompilerMessage Error)
@@ -40,4 +39,4 @@ let error ctx ?(depth=0) ?(from_macro = false) msg p =
 	after_error ctx
 
 let has_error ctx =
-	ctx.com.has_error && (Common.is_compilation ctx.com || ctx.messages <> [])
+	ctx.com.has_error && (Common.is_compilation ctx.com || ctx.com.part_scope.messages <> [])

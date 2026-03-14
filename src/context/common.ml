@@ -263,6 +263,7 @@ end
 type part_scope = {
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	mutable diagnostics_messages : compiler_message list;
+	mutable messages : compiler_message list;
 }
 
 type parse_input_result =
@@ -283,15 +284,9 @@ and result_handler = {
 	send_result_raise : 'a . Json.t -> 'a;
 	send_error : Json.t list -> unit;
 	send_error_raise : 'a . Json.t list -> 'a;
-	(** Send a single formatted message through the protocol.
-	    In JSON-RPC mode this is a no-op (messages are batched).
-	    In server-pipe/CLI mode this routes to the appropriate output channel. *)
-	send_message : MessageSeverity.t -> string -> unit;
-	(** Flush all compiler messages through the protocol.
-	    Called at the end of compilation to dispatch messages and handle
-	    error signaling, timer reports, etc. Takes the ordered message list
-	    (oldest first), whether errors occurred, and the common context. *)
-	flush_messages : compiler_message list -> bool -> context -> unit;
+	(** Finalize message output at the end of compilation.
+	    Handles error signaling, timer reports, log file writing, etc. *)
+	flush_messages : bool -> context -> unit;
 	set_com : context -> parse_input_result;
 }
 

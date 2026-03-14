@@ -665,21 +665,12 @@ let create_json_result_handler timer_ctx io jsonrpc =
 		raise_method_not_found jsonrpc#get_id method_name
 	in
 
-	let send_message sev msg =
-		let json = JsonRpc.notification "compiler/message" (Some (Json.JObject [
-			"severity", Json.JInt (MessageSeverity.to_int sev);
-			"message", Json.JString msg;
-		])) in
-		CompilerIo.write_out io (string_of_json json)
-	in
-
 	{
 		send_result = send_result_noraise;
 		send_result_raise = send_result_raise;
 		send_error = send_error_noraise;
 		send_error_raise = send_error_raise;
-		send_message;
-		flush_messages = (fun messages has_error _com ->
+		flush_messages = (fun has_error com ->
 			if has_error then begin
 				let errors = List.map (fun cm ->
 					Json.JObject [
@@ -687,7 +678,7 @@ let create_json_result_handler timer_ctx io jsonrpc =
 						"location",Genjson.generate_pos_as_location cm.cm_pos;
 						"message",Json.JString cm.cm_message;
 					]
-				) messages in
+				) (List.rev com.part_scope.messages) in
 				send_error_raise errors;
 			end
 		);
