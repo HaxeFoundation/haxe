@@ -200,7 +200,7 @@ let handle_display_after_typing ctx tctx display_file_dot_path =
 		| _ -> ()
 	end;
 	if ctx.com.display.dms_exit_during_typing then begin
-		if ctx.has_next || has_error ctx then raise Abort;
+		if ctx.com.part_scope.has_next || has_error ctx then raise Abort;
 		(* If we didn't find a completion point, load the display file in macro mode. *)
 		if com.display_information.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);

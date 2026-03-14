@@ -5,7 +5,6 @@ exception Abort
 
 type compilation_context = {
 	com : Common.context;
-	mutable has_next : bool;
 }
 
 type server_connection = {

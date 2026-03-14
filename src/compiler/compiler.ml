@@ -430,7 +430,7 @@ with
 	| Parser.Error (m,p) ->
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
-		if ctx.com.display.dms_kind <> DMNone && ctx.has_next then begin
+		if ctx.com.display.dms_kind <> DMNone && ctx.com.part_scope.has_next then begin
 			ctx.com.has_error <- false;
 			ctx.com.part_scope.messages <- [];
 		end else begin
@@ -543,17 +543,17 @@ let compile_ctx sctx ctx =
 	in
 	catch_completion_and_exit ctx sctx run
 
-let create_context sctx request_scope runtime_args =
+let create_context sctx request_scope runtime_args has_next =
 	let part_scope = {
 		runtime_args;
 		warned_positions = Hashtbl.create 0;
+		has_next;
 		diagnostics_messages = [];
 		messages = [];
 	} in
 	let com = Common.create sctx request_scope part_scope sctx.compilation_step (DisplayTypes.DisplayMode.create DMNone) in
 	{
 		com;
-		has_next = false;
 	}
 
 module HighLevel = struct
@@ -609,9 +609,9 @@ module HighLevel = struct
 			) [] (List.rev lines) in
 			lines
 
-	let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope : request_scope) has_display (part : Args.part_args) =
+	let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope : request_scope) has_display has_next (part : Args.part_args) =
 		sctx.compilation_step <- sctx.compilation_step + 1;
-		let ctx = create_context sctx request_scope part.runtime_args in
+		let ctx = create_context sctx request_scope part.runtime_args has_next in
 		(* Expand Expand markers by calling haxelib, caching the result in the marker state *)
 		let expand_part_libs has_global (part_args : parsed_arg list) =
 			let expand_one arg = match arg with
@@ -640,8 +640,7 @@ module HighLevel = struct
 			| [] ->
 				0
 			| part :: rest ->
-				let ctx = create_context_from_part sctx request_scope has_display part in
-				if rest <> [] then ctx.has_next <- true;
+				let ctx = create_context_from_part sctx request_scope has_display (rest <> []) part in
 				let code = compile_ctx sctx ctx in
 				Unix.chdir curdir;
 				if code = 0 && rest <> [] && not has_display then
