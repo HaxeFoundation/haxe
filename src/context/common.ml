@@ -412,7 +412,17 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,options,msg,p));
+	if com.display.dms_full_typing then begin
+		match Warning.get_mode w (options @ com.warning_options) with
+		| WMEnable ->
+			let wobj = Warning.warning_obj w in
+			let code = if wobj.w_generic then None else Some wobj.w_name in
+			let formatted_msg = if wobj.w_generic then msg else Printf.sprintf "(%s) %s" wobj.w_name msg in
+			let cm = make_compiler_message ~code formatted_msg p 0 DKCompilerMessage MessageSeverity.Warning in
+			DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
+		| WMDisable ->
+			()
+	end;
 	com.warning w options msg p
 
 (* Defines *)

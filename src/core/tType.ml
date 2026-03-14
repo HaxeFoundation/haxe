@@ -72,7 +72,7 @@ type warning_option = {
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
-	| Warning of WarningList.warning * (warning_option list list) * string * pos
+	| Message of Globals.compiler_message
 
 type t =
 	| TMono of tmono
