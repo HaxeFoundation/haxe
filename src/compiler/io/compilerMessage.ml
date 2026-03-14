@@ -21,9 +21,9 @@ open Type
     (errors, warnings, info messages).
 
     Sets [com.has_error] when severity is [Error]. *)
-let add_message ?(depth = 0) ?(from_macro = false) com msg p message_kind =
+let add_message com msg p depth message_kind =
 	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
-	let cm = make ~from_macro msg p depth message_kind in
+	let cm = make_message com.is_macro_context msg p depth message_kind in
 	com.part_scope.messages <- cm :: com.part_scope.messages
 
 (** Add a compiler message that is bound to a specific module's cache.
@@ -36,9 +36,9 @@ let add_message ?(depth = 0) ?(from_macro = false) com msg p message_kind =
     Use this instead of {!add_message} when the message originates from
     processing a specific module and should be preserved across
     compilations. *)
-let add_module_message ?(depth = 0) ?(from_macro = false) com (m : module_def) msg p message_kind =
+let add_module_message com (m : module_def) msg p depth message_kind =
 	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
-	let cm = make ~from_macro msg p depth message_kind in
+	let cm = make_message com.is_macro_context msg p depth message_kind in
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
 	com.part_scope.messages <- cm :: com.part_scope.messages

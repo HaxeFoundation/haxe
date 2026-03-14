@@ -407,7 +407,7 @@ let ignore_error com =
 
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
-		let cm = make msg p 0 (MKWarning(w, options)) in
+		let cm = make_message com.is_macro_context msg p 0 (MKWarning(w, options)) in
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
 	end;
 	com.warning w options msg p
@@ -1123,7 +1123,7 @@ let hash f =
 
 let add_diagnostics_message ?(depth = 0) ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
 	if message_kind_severity message_kind = MessageSeverity.Error then com.has_error <- true;
-	com.part_scope.messages <- (make ~from_macro ~diagnostics_kind s p depth message_kind) :: com.part_scope.messages
+	com.part_scope.messages <- (make_diagnostic from_macro diagnostics_kind (JString s) p depth message_kind) :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin

@@ -73,14 +73,19 @@ let cm_code cm = match cm.cm_message_kind with
 		Some wobj.w_name
 	| _ -> None
 
-let make ?(from_macro = false) ?(diagnostics_kind = MessageKind.DKCompilerMessage) ?json msg p depth message_kind =
-	let cm_json = match json with Some j -> j | None -> Json.JString msg in
+let make cm_from_macro cm_diagnostics_kind cm_json cm_message cm_pos cm_depth cm_message_kind =
 	{
-		cm_message = msg;
-		cm_pos = p;
-		cm_depth = depth;
-		cm_from_macro = from_macro;
-		cm_message_kind = message_kind;
-		cm_diagnostics_kind = diagnostics_kind;
+		cm_message;
+		cm_pos;
+		cm_depth;
+		cm_from_macro;
+		cm_message_kind;
+		cm_diagnostics_kind;
 		cm_json;
 	}
+
+let make_message from_macro msg p depth message_kind =
+	make from_macro DKCompilerMessage (JString msg) msg p depth message_kind
+
+let make_diagnostic from_macro diagnostics_kind json p depth message_kind =
+	make from_macro diagnostics_kind json "" p depth message_kind

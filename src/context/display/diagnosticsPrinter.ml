@@ -105,7 +105,7 @@ let make_missing_fields_message mf =
 		"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mf.mf_on).mt_module.m_extra.m_file);
 		"entry",entry
 	] in
-	Message.make ~diagnostics_kind:DKMissingFields ~json:j "" mf.mf_pos 0 MKError
+	Message.make_diagnostic false DKMissingFields j mf.mf_pos 0 MKError
 
 (** Create a [Message.t] for an UnresolvedIdentifier diagnostic. *)
 let make_unresolved_identifier_message i p suggestions =
@@ -126,7 +126,7 @@ let make_unresolved_identifier_message i p suggestions =
 				"name",JString s;
 			])
 	) suggestions in
-	Message.make ~diagnostics_kind:DKUnresolvedIdentifier ~json:(JArray suggestions) i p 0 MKError
+	Message.make_diagnostic false DKUnresolvedIdentifier (JArray suggestions) p 0 MKError
 
 let json_of_diagnostics com dctx =
 	let diagnostics = Hashtbl.create 0 in

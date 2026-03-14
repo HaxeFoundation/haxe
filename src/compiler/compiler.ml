@@ -9,7 +9,7 @@ let message com msg =
 	com.part_scope.messages <- msg :: com.part_scope.messages
 
 let add_error_message com ?(depth=0) ?(from_macro=false) msg p =
-	message com (Message.make ~from_macro msg p depth MKError)
+	message com (Message.make_message from_macro msg p depth MKError)
 
 let after_error com =
 	com.has_error <- true;
@@ -242,7 +242,7 @@ module Setup = struct
 		Common.raw_define com "true";
 		List.iter (fun (k,v) -> Define.raw_define_value com.defines k v) DefineList.default_values;
 		com.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-			message com (Message.make ~from_macro msg p depth MKInfo)
+			message com (Message.make_message from_macro msg p depth MKInfo)
 		);
 		com.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
 			match Warning.get_mode w (options @ com.warning_options) with
@@ -253,7 +253,7 @@ module Setup = struct
 				else
 					Printf.sprintf "(%s) %s" wobj.w_name msg
 				in
-				message com (Message.make ~from_macro msg p depth (MKWarning(w,options)))
+				message com (Message.make_message from_macro msg p depth (MKWarning(w,options)))
 			| WMDisable ->
 				()
 		);
