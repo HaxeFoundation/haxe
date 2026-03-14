@@ -510,8 +510,7 @@ module ContextFlush = struct
 			()
 		| _ ->
 			let rh = com.request_scope.result_handler in
-			let report_error = has_error com && (is_compilation com || com.part_scope.messages <> []) in
-			CompilerOutput.flush_messages rh report_error com
+			CompilerOutput.flush_messages rh (Common.has_error_to_report com) com
 end
 
 let catch_completion_and_exit com sctx run =

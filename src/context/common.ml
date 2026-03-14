@@ -855,6 +855,13 @@ let is_diagnostics com = match com.report_mode with
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
+(** Returns true when there is an error that should be reported/acted upon.
+    In compilation mode, any has_error is significant.
+    In display mode, has_error can be set transiently during type resolution
+    without producing actual error messages, so we require messages to exist. *)
+let has_error_to_report com =
+	com.has_error && (is_compilation com || com.part_scope.messages <> [])
+
 let disable_report_mode com =
 	let old = com.report_mode in
 	com.report_mode <- RMNone;

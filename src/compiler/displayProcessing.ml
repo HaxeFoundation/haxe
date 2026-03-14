@@ -198,7 +198,7 @@ let handle_display_after_typing com tctx display_file_dot_path =
 		| _ -> ()
 	end;
 	if com.display.dms_exit_during_typing then begin
-		if com.part_scope.has_next || (com.has_error && (Common.is_compilation com || com.part_scope.messages <> [])) then
+		if com.part_scope.has_next || Common.has_error_to_report com then
 			true
 		else begin
 		(* If we didn't find a completion point, load the display file in macro mode. *)

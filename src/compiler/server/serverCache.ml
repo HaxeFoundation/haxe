@@ -605,7 +605,7 @@ let after_target_init sctx com =
 		()
 
 let after_save sctx com =
-	if sctx.is_server && not com.has_error then
+	if sctx.is_server && not (Common.has_error_to_report com) then
 		CommonCache.maybe_cache_context com
 
 let enable_cache_mode sctx =
