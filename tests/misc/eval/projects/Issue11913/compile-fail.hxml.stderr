@@ -1,0 +1,1 @@
+Main.hx:3: characters 11-25 : Module haxe.ds.Map is expected to contain an abstract type with an implementation, but found [TClassDecl(haxe.ds.Map)]

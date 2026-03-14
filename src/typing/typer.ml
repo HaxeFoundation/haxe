@@ -1095,7 +1095,9 @@ and type_map_declaration ctx e1 el with_type p =
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
-		| _ -> die "" __LOC__
+		| _ ->
+			let s_mt = String.concat ", " (List.map TPrinting.s_module_type_kind m.m_types) in
+			raise_typing_error (Printf.sprintf "Module haxe.ds.Map is expected to contain an abstract type with an implementation, but found [%s]" s_mt) p
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
 	let cf = PMap.find "set" c.cl_statics in
