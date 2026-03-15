@@ -1122,8 +1122,6 @@ let adapt_defines_to_display_context defines =
 	Define.define defines Define.Display;
 	defines
 
-let is_legacy_completion _com = !ServerConfig.legacy_completion
-
 let get_entry_point com =
 	Option.map (fun path ->
 		let m = List.find (fun m -> m.m_path = path) com.modules in

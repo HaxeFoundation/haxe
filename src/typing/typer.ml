@@ -410,9 +410,6 @@ and type_ident ctx i p mode with_type =
 						| _ ->
 							display_error ctx.com (error_msg err) p;
 							let t = mk_mono() in
-							(* Add a fake local for #8751. *)
-							if !ServerConfig.legacy_completion then
-								ignore(add_local ctx VGenerated i t p);
 							AKExpr (mk (TIdent i) t p)
 				end
 			end
@@ -469,10 +466,7 @@ and handle_efield ctx e p0 mode with_type =
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.f.in_display then begin
 							let sl = List.map (fun part -> part.name) path in
-							if is_legacy_completion ctx.com then
-								raise (Parser.TypePath (sl,None,false,p))
-							else
-								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
+							DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 						end;
 						raise_error e
 	in

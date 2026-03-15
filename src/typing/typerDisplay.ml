@@ -622,15 +622,9 @@ let handle_display ctx e_ast dk mode with_type =
 	| (_,p),_ -> try
 		type_expr ~mode ctx e_ast with_type
 	with Error { err_message = Unknown_ident n } when ctx.com.display.dms_kind = DMDefault ->
-        if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
-		else raise_toplevel ctx dk with_type (n,p)
-	| Error ({ err_message = Type_not_found (path,_,_) | Module_not_found path } as err) when ctx.com.display.dms_kind = DMDefault ->
-		if is_legacy_completion ctx.com then begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
-		with Not_found ->
-			raise_error err
-		end else
-			raise_toplevel ctx dk with_type (s_type_path path,p)
+		raise_toplevel ctx dk with_type (n,p)
+	| Error ({ err_message = Type_not_found (path,_,_) | Module_not_found path }) when ctx.com.display.dms_kind = DMDefault ->
+		raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let l = Timer.time ctx.com.timer_ctx ["display";"toplevel";"filter ctors"] (filter_ctors ctx) r in
 		raise_fields l CRNew r.fsubject

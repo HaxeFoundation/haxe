@@ -228,16 +228,10 @@ let is_pack_visible pack =
 let collect ctx tk with_type sort =
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.c.curclass.cl_path in
-	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
-	   `is_legacy_completion com` because the latter is always false for the old protocol, yet we have
-	   tests which assume advanced completion even in the old protocol. This means that we can only
-	   use "legacy mode" in the new protocol. *)
-	let is_legacy_completion = !ServerConfig.legacy_completion in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
 	let add item name = add_item cctx item name in
-
 	let add_type mt =
 		match mt with
 		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleFields _} -> ()
@@ -448,17 +442,15 @@ let collect ctx tk with_type sort =
 					()
 			end;
 
-			if not is_legacy_completion then begin
-				(* keywords *)
-				let kwds = [
-					Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
-					Try; New; Throw; Untyped; Cast; Inline;
-				] in
-				List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+			(* keywords *)
+			let kwds = [
+				Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+				Try; New; Throw; Untyped; Cast; Inline;
+			] in
+			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
-				(* builtins *)
-				add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
-			end;
+			(* builtins *)
+			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace");
 		) ();
 	end;
 
@@ -493,13 +485,7 @@ let collect ctx tk with_type sort =
 		List.iter (fun ((file_key,cfile),_) ->
 			let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path.file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
-			(* In legacy mode we only show toplevel types. *)
-			if is_legacy_completion && cfile.c_package <> [] then begin
-				(* And only toplevel packages. *)
-				match cfile.c_package with
-				| [s] -> add_package ([],s)
-				| _ -> ()
-			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
 				ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
@@ -531,9 +517,7 @@ let collect ctx tk with_type sort =
 	Timer.time ctx.com.timer_ctx ["display";"toplevel sorting"] (fun () ->
 		(* sorting *)
 		let l = DynArray.to_list cctx.items in
-		let l = if is_legacy_completion then
-			List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
-		else if sort then
+		let l = if sort then
 			Display.sort_fields l with_type tk
 		else
 			l
