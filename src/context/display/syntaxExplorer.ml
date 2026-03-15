@@ -179,7 +179,8 @@ let explore_uncached_modules tctx cs symbols =
 					(* We have to flush immediately so we catch exceptions from weird modules *)
 					Typecore.flush_pass tctx.g PFinal ("final",cfile.c_package @ [module_name]);
 					m :: acc
-				with _ ->
+				with Error.Fatal_error _ | Error.Error _ | Failure _ | Not_found
+				| Lexer.Error _ | Parser.Error _ | Typecore.Forbid_package _ | Typecore.WithTypeError _ ->
 					acc
 				end
 		) files []

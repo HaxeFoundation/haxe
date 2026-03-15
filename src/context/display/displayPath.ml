@@ -155,7 +155,8 @@ module TypePathHandler = struct
 				) en.e_constrs fields
 			in
 			Some fields
-		with _ ->
+		with Error.Fatal_error _ | Error.Error _ | Failure _ | Not_found
+		| Lexer.Error _ | Parser.Error _ | Typecore.Forbid_package _ ->
 			Error.abort ("Could not load module " ^ (s_type_path (p,c))) null_pos
 end
 

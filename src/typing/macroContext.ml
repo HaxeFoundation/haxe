@@ -102,7 +102,7 @@ let make_macro_com_api com mcom p =
 			match ParserEntry.parse_string (ParserConfig.default_config com.defines) Grammar.parse_meta s null_pos raise_typing_error false with
 			| ParseSuccess(meta,_) -> meta
 			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
-		with _ ->
+		with Lexer.Error _ | Failure _ ->
 			raise_typing_error "Malformed metadata string" p
 	in
 	let bad_stage () =
@@ -311,7 +311,7 @@ let make_macro_api ctx mctx p =
 			match ParserEntry.parse_string (ParserConfig.default_config mctx.com.defines) Grammar.parse_meta s null_pos raise_typing_error false with
 			| ParseSuccess(meta,_) -> meta
 			| ParseError(_,_,_) -> raise_typing_error "Malformed metadata string" p
-		with _ ->
+		with Lexer.Error _ | Failure _ ->
 			raise_typing_error "Malformed metadata string" p
 	in
 	let com_api = make_macro_com_api ctx.com mctx.com p in
