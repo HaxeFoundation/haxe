@@ -105,6 +105,7 @@ function main() {
 		#if (!flash && !hl && !cppia)
 		new TestCoroutines(),
 		#end
+		new TestRedefinition(),
 		// new TestUnspecified(),
 	];
 
