@@ -532,7 +532,7 @@ let run com ectx before_destruction =
 		) new_types;
 	);
 	Parallel.run_with_pool com.sctx.pool (fun pool ->
-		Parallel.ParallelArray.iter pool (save_class_state com.compilation_step) new_types_array;
+		Parallel.ParallelArray.iter pool (save_class_state com.part_scope.compilation_step) new_types_array;
 	);
 	Common.enter_stage com CSaveDone;
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->

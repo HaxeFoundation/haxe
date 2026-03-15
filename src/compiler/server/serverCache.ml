@@ -12,8 +12,8 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	let cc = CommonCache.get_cache com in
 	let file = rfile.file in
 	let ffile = Path.get_full_path rfile.file
-	and fkey = com.file_keys#get file in
-	let is_display_file = DisplayPosition.display_position#is_in_file (com.file_keys#get ffile) in
+	and fkey = com.part_scope.file_keys#get file in
+	let is_display_file = DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get ffile) in
 	match is_display_file, sctx.ServerCompilationContext.current_stdin with
 	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
 		TypeloadParse.parse_file_from_string com file p stdin
@@ -41,7 +41,7 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 							(* We assume that when not in display mode it's okay to cache stuff that has #if display
 							checks. The reasoning is that non-display mode has more information than display mode. *)
 							if com.display.dms_full_typing then raise Not_found;
-							let ident = ThreadSafeHashtbl.find com.parser_state.special_identifier_files fkey in
+							let ident = ThreadSafeHashtbl.find com.part_scope.parser_state.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
 							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
@@ -138,7 +138,7 @@ let get_typing_mode com m_extra =
 let check_module sctx com m_path m_extra p =
 	let cc = CommonCache.get_cache com in
 	let content_changed m_path file =
-		let fkey = com.file_keys#get file in
+		let fkey = com.part_scope.file_keys#get file in
 		try
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
@@ -179,7 +179,7 @@ let check_module sctx com m_path m_extra p =
 						| None ->
 							loop l
 						| Some _ ->
-							if com.file_keys#get file <> (Path.UniqueKey.lazy_key m_extra.m_file) then begin
+							if com.part_scope.file_keys#get file <> (Path.UniqueKey.lazy_key m_extra.m_file) then begin
 								if sctx.verbose then print_endline ("Library file was changed for " ^ s_type_path m_path); (* TODO *)
 								raise (Dirty LibraryChanged)
 							end
@@ -425,8 +425,8 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				| _ -> ()
 			);
 			com.module_lut#remove m.m_path
-		end else if m.m_extra.m_added < com.compilation_step then begin
-			m.m_extra.m_added <- com.compilation_step;
+		end else if m.m_extra.m_added < com.part_scope.compilation_step then begin
+			m.m_extra.m_added <- com.part_scope.compilation_step;
 			(match m0.m_extra.m_kind, m.m_extra.m_kind with
 			| MCode, MMacro | MMacro, MCode ->
 				(* this was just a dependency to check : do not add to the context *)

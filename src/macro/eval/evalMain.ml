@@ -113,7 +113,7 @@ let create com api is_macro args =
 		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
-		file_keys = com.file_keys;
+		file_keys = com.part_scope.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
 		next_thread_id;

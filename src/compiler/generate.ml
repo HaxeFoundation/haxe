@@ -132,7 +132,7 @@ let delete_file f = try Sys.remove f with _ -> ()
 
 let maybe_generate_dump_dependencies ctx tctx =
 	let com = tctx.Typecore.com in
-	if com.dump_config.dump_dependencies then begin
+	if com.part_scope.dump_config.dump_dependencies then begin
 		Dump.dump_dependencies com;
 		if not com.is_macro_context then match tctx.Typecore.g.Typecore.macros with
 			| None -> ()

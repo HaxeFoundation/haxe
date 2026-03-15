@@ -254,6 +254,14 @@ type part_scope = {
 	has_next : bool;
 	mutable messages : Message.t list;
 	mutable has_error : bool;
+	mutable report_mode : report_mode;
+	compilation_step : int;
+	pass_debug_messages : string DynArray.t;
+	dump_config : DumpConfig.t;
+	parser_state : parser_state;
+	file_keys : file_keys;
+	stored_typed_exprs : (int, texpr) lookup;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
 }
 
 type parse_input_result =
@@ -283,7 +291,6 @@ and result_handler = {
 and context = {
 	request_scope : request_scope;
 	part_scope : part_scope;
-	compilation_step : int;
 	mutable stage : compiler_stage;
 	sctx : ServerCompilationContext.t;
 	cs : CompilationCache.t;
@@ -304,9 +311,6 @@ and context = {
 	class_paths : ClassPaths.class_paths;
 	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
-	mutable report_mode : report_mode;
-	parser_state : parser_state;
-	dump_config : DumpConfig.t;
 	(* communication *)
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
@@ -328,17 +332,13 @@ and context = {
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
-	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
 	parser_cache : (string,(type_def * pos) list) lookup;
 	module_to_file : (path,ClassPaths.resolved_file) lookup;
-	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
-	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
 	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
-	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
@@ -727,11 +727,10 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create sctx request_scope part_scope compilation_step display_mode =
+let create sctx request_scope part_scope display_mode =
 	let rec com = {
 		request_scope;
 		part_scope;
-		compilation_step = compilation_step;
 		sctx;
 		cs = sctx.cs;
 		cache = None;
@@ -785,7 +784,6 @@ let create sctx request_scope part_scope compilation_step display_mode =
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
-		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = mk_mono();
 			tany = mk_mono();
@@ -806,32 +804,20 @@ let create sctx request_scope part_scope compilation_step display_mode =
 			}
 		};
 		std = null_class;
-		file_keys = new file_keys;
 		file_contents = [];
 		module_to_file = new hashtbl_lookup;
-		stored_typed_exprs = new hashtbl_lookup;
-		cached_macros = new hashtbl_lookup;
 		memory_marker = memory_marker;
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
-		report_mode = RMNone;
 		is_macro_context = false;
 		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
-		parser_state = {
-			was_auto_triggered = false;
-			had_parser_resume = false;
-			display_module_has_macro_defines = false;
-			delayed_syntax_completion = Atomic.make None;
-			special_identifier_files = ThreadSafeHashtbl.create 0;
-		};
-		dump_config = DumpConfig.create_default ();
 	} in
 	com
 
-let is_diagnostics com = match com.report_mode with
+let is_diagnostics com = match com.part_scope.report_mode with
 	| RMDiagnostics _ -> true
 	| _ -> false
 
@@ -853,9 +839,9 @@ let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || has_reportable_message)
 
 let disable_report_mode com =
-	let old = com.report_mode in
-	com.report_mode <- RMNone;
-	(fun () -> com.report_mode <- old)
+	let old = com.part_scope.report_mode in
+	com.part_scope.report_mode <- RMNone;
+	(fun () -> com.part_scope.report_mode <- old)
 
 let log com str =
 	if com.verbose then CompilerIo.write_out com.request_scope.io (str ^ "\n")
@@ -865,7 +851,6 @@ let clone com is_macro_context =
 		(* keeps *)
 		request_scope = com.request_scope;
 		part_scope = com.part_scope;
-		compilation_step = com.compilation_step;
 		sctx = com.sctx;
 		cs = com.cs;
 		timer_ctx = com.timer_ctx;
@@ -904,15 +889,8 @@ let clone com is_macro_context =
 		error_ext = com.error_ext;
 		get_messages = com.get_messages;
 		filter_messages = com.filter_messages;
-		pass_debug_messages = com.pass_debug_messages;
-		file_keys = com.file_keys;
-		stored_typed_exprs = com.stored_typed_exprs;
-		cached_macros = com.cached_macros;
 		memory_marker = com.memory_marker;
-		report_mode = com.report_mode;
 		hxb_writer_config = com.hxb_writer_config;
-		parser_state = com.parser_state;
-		dump_config = com.dump_config;
 		file_contents = com.file_contents;
 		(* reinits *)
 		cache = None;

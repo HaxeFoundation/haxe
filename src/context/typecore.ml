@@ -737,7 +737,7 @@ let make_stored_id_expr id p =
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
-	com.stored_typed_exprs#add id te;
+	com.part_scope.stored_typed_exprs#add id te;
 	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
@@ -746,7 +746,7 @@ let push_this ctx e = match e.eexpr with
 	(EConst (tconst_to_const ct),e.epos),fun () -> ()
 | _ ->
 	let id,er = store_typed_expr ctx.com e e.epos in
-	er,fun () -> ctx.com.stored_typed_exprs#remove id
+	er,fun () -> ctx.com.part_scope.stored_typed_exprs#remove id
 
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
@@ -785,7 +785,7 @@ let debug com (path : string list) str =
 		let emit () =
 			let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
 			if com.sctx.is_server then
-				DynArray.add com.pass_debug_messages s
+				DynArray.add com.part_scope.pass_debug_messages s
 			else
 				print_endline s
 		in

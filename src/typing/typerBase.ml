@@ -195,7 +195,7 @@ let get_this ctx p =
 		mk (TConst TThis) ctx.c.tthis p
 
 let get_stored_typed_expr ctx id =
-	let e = ctx.com.stored_typed_exprs#find id in
+	let e = ctx.com.part_scope.stored_typed_exprs#find id in
 	Texpr.duplicate_tvars (fun e -> get_this ctx e.epos) e
 
 let type_stored_expr ctx e1 =

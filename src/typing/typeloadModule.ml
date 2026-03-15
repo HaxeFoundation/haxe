@@ -49,7 +49,7 @@ module ModuleLevel = struct
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.compilation_step (get_policy g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.part_scope.compilation_step (get_policy g mpath);
 		} in
 		m
 
@@ -666,7 +666,7 @@ module TypeLevel = struct
 	let init_imports_or_using ctx_m (decl,p) =
 		let com = ctx_m.com in
 		let check_path_display path p =
-			if DisplayPosition.display_position#is_in_file (com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
+			if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
 		in
 		match decl with
 		| EImport (path,mode) ->

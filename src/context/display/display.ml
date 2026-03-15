@@ -31,8 +31,8 @@ module ReferencePosition = struct
 end
 
 let preprocess_expr com e = match com.display.dms_kind with
-	| DMDefinition | DMTypeDefinition | DMUsage _ | DMImplementation | DMHover | DMDefault -> ExprPreprocessing.find_before_pos com.parser_state.was_auto_triggered com.display.dms_kind e
-	| DMSignature -> ExprPreprocessing.find_display_call com.parser_state.was_auto_triggered e
+	| DMDefinition | DMTypeDefinition | DMUsage _ | DMImplementation | DMHover | DMDefault -> ExprPreprocessing.find_before_pos com.part_scope.parser_state.was_auto_triggered com.display.dms_kind e
+	| DMSignature -> ExprPreprocessing.find_display_call com.part_scope.parser_state.was_auto_triggered e
 	| _ -> e
 
 let sort_fields l with_type tk =

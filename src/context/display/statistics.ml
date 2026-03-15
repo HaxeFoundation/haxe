@@ -24,7 +24,7 @@ let collect_statistics com pos_filters with_expressions =
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = com.file_keys#get path in
+				let unique = com.part_scope.file_keys#get path in
 				Hashtbl.add paths path unique;
 				unique
 		)

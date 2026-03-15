@@ -41,7 +41,7 @@ let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
 	let raise_decode_error s =
-		let path = [com.dump_config.DumpConfig.dump_path;"decoding_error"] in
+		let path = [com.part_scope.dump_config.DumpConfig.dump_path;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		Printf.fprintf ch "%s: %s\n" (TPrinting.Printer.s_pos p) s;
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
@@ -474,7 +474,7 @@ let make_macro_api ctx mctx p =
 				with Not_found ->
 					ctx.com.cs#taint_module mpath DefineType;
 					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
-					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) [tdef,pos] pos in
+					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) [tdef,pos] pos in
 					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 					add_dependency mnew mdep MDepFromMacro;
 					add_dependency mdep mnew MDepFromMacroDefine;
@@ -512,7 +512,7 @@ let make_macro_api ctx mctx p =
 					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
 			with Not_found ->
 				ctx.com.cs#taint_module mpath DefineModule;
-				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) types pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod MDepFromMacro;
 				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
@@ -618,7 +618,7 @@ and flush_macro_context mint mctx =
 		*)
 		let minimal_restore t =
 			if (t_infos t).mt_module.m_extra.m_processed = 0 then
-				(t_infos t).mt_module.m_extra.m_processed <- mctx.com.compilation_step;
+				(t_infos t).mt_module.m_extra.m_processed <- mctx.com.part_scope.compilation_step;
 
 			match t with
 			| TClassDecl c ->
@@ -771,7 +771,7 @@ let load_macro'' com mctx display cpath fname p =
 	let mint = Interp.get_ctx() in
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	try
-		mctx.com.cached_macros#find (cpath,fname)
+		mctx.com.part_scope.cached_macros#find (cpath,fname)
 	with Not_found ->
 		let f () =
 			let mpath, sub = (match List.rev (fst cpath) with
@@ -800,7 +800,7 @@ let load_macro'' com mctx display cpath fname p =
 			let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> raise_typing_error "Macro call should be a method" p) in
 			restore();
 			if not com.is_macro_context then flush_macro_context mint mctx;
-			mctx.com.cached_macros#add (cpath,fname) meth;
+			mctx.com.part_scope.cached_macros#add (cpath,fname) meth;
 			meth
 		in
 		macro_timer com.timer_ctx timer_level ["typing";s_type_path cpath ^ "." ^ fname] None f ()

@@ -15,7 +15,7 @@ let has_error com =
 let handle_diagnostics com ?(diagnostics_kind = MessageKind.DKCompilerMessage) msg p message_kind =
 	com.part_scope.has_error <- true;
 	add_diagnostics_message ~diagnostics_kind com msg p message_kind;
-	match com.report_mode with
+	match com.part_scope.report_mode with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 	| _ -> die "" __LOC__
 
@@ -28,7 +28,7 @@ let run_or_diagnose com f =
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError
 			) err;
-			(match com.report_mode with
+			(match com.part_scope.report_mode with
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
@@ -283,7 +283,7 @@ let do_type com mctx actx display_file_dot_path =
 	let display_file_dot_path = DisplayProcessing.maybe_load_display_file_before_typing tctx display_file_dot_path in
 	(* Make sure display module is being typed *)
 	Option.may (fun cpath -> actx.classes <- cpath :: actx.classes) display_file_dot_path;
-	DumpConfig.update_from_defines com.dump_config com.defines;
+	DumpConfig.update_from_defines com.part_scope.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
 	(try begin
@@ -468,7 +468,7 @@ let finalize com =
 
 module ContextFlush = struct
 	let flush_context com =
-		match com.report_mode with
+		match com.part_scope.report_mode with
 		| RMDiagnostics _ ->
 			(* In diagnostics mode, messages are already in the unified buffer.
 			   Output happens via DisplayOutput.emit_diagnostics, not flush_messages. *)
@@ -524,15 +524,29 @@ let compile_ctx sctx com =
 	in
 	catch_completion_and_exit com sctx run
 
-let create_context sctx request_scope runtime_args has_next =
+let create_context (sctx : ServerCompilationContext.t) request_scope runtime_args has_next =
 	let part_scope = {
 		runtime_args;
 		warned_positions = Hashtbl.create 0;
 		has_next;
 		has_error = false;
 		messages = [];
+		report_mode = RMNone;
+		compilation_step = sctx.compilation_step;
+		pass_debug_messages = DynArray.create ();
+		dump_config = DumpConfig.create_default ();
+		parser_state = {
+			was_auto_triggered = false;
+			had_parser_resume = false;
+			display_module_has_macro_defines = false;
+			delayed_syntax_completion = Atomic.make None;
+			special_identifier_files = ThreadSafeHashtbl.create 0;
+		};
+		file_keys = new file_keys;
+		stored_typed_exprs = new Lookup.hashtbl_lookup;
+		cached_macros = new Lookup.hashtbl_lookup;
 	} in
-	Common.create sctx request_scope part_scope sctx.compilation_step (DisplayTypes.DisplayMode.create DMNone)
+	Common.create sctx request_scope part_scope (DisplayTypes.DisplayMode.create DMNone)
 
 module HighLevel = struct
 	let add_libs timer_ctx libs args cs has_display =

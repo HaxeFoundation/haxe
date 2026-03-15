@@ -38,7 +38,7 @@ let is_overridden cls field =
 
 let is_cached com t =
 	let m = (t_infos t).mt_module.m_extra in
-	m.m_processed <> 0 && m.m_processed < com.compilation_step
+	m.m_processed <> 0 && m.m_processed < com.part_scope.compilation_step
 
 let apply_filters_once ctx scom filters t =
 	let detail_times = (try int_of_string (Common.defined_value_safe ctx.com ~default:"0" Define.FilterTimes) with _ -> 0) in

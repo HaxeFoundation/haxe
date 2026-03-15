@@ -80,10 +80,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		) None in
 
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		com.parser_state.was_auto_triggered <- was_auto_triggered;
+		com.part_scope.parser_state.was_auto_triggered <- was_auto_triggered;
 
 		if file <> file_input_marker then begin
-			let file_unique = com.file_keys#get file in
+			let file_unique = com.part_scope.file_keys#get file in
 
 			DisplayPosition.display_position#set {
 				pfile = file;
@@ -101,7 +101,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 				| JObject fl ->
 					let file = jsonrpc#get_string_field "fileContents" "file" fl in
 					let file = Path.get_full_path file in
-					let file_unique = com.file_keys#get file in
+					let file_unique = com.part_scope.file_keys#get file in
 					let contents = jsonrpc#get_opt_param (fun () ->
 						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
 						Some s
@@ -248,14 +248,14 @@ let handler =
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display ~skip_define:true DMNone;
 			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
-			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
+			hctx.com.part_scope.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
 			NoResponse
 		);
 		"display/statistics", (fun hctx ->
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display ~skip_define:true DMNone;
 			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
-			hctx.com.report_mode <- RMStatistics;
+			hctx.com.part_scope.report_mode <- RMStatistics;
 			NoResponse
 		);
 		"display/implementation", (fun hctx ->
@@ -506,7 +506,7 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.get_full_path file in
-			let key = hctx.com.file_keys#get file in
+			let key = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
 				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path)
@@ -530,7 +530,7 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let fkey = hctx.com.file_keys#get file in
+			let fkey = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey ServerInvalidate;
 			cs#remove_files fkey;

@@ -1868,7 +1868,7 @@ let macro_api ccom get_api =
 				|| (
 					let com = ccom() in
 					(Filename.is_relative p.pfile || Filename.is_relative dfile)
-					&& (com.file_keys#get dfile = com.file_keys#get p.pfile)
+					&& (com.part_scope.file_keys#get dfile = com.part_scope.file_keys#get p.pfile)
 				)
 			in
 			vbool (display_pos#enclosed_in p && same_file())
@@ -2427,7 +2427,7 @@ let macro_api ccom get_api =
 			let cs = com.cs in
 			List.iter (fun v ->
 				let s = decode_string v in
-				let s = com.file_keys#get s in
+				let s = com.part_scope.file_keys#get s in
 				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);

@@ -193,7 +193,7 @@ let handle_display_after_typing com tctx display_file_dot_path =
 	if com.display.dms_kind = DMNone && com.part_scope.has_error && Common.is_compilation com then
 		true
 	else begin
-	begin match com.display.dms_kind,Atomic.get com.parser_state.delayed_syntax_completion with
+	begin match com.display.dms_kind,Atomic.get com.part_scope.parser_state.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
 	end;
@@ -202,7 +202,7 @@ let handle_display_after_typing com tctx display_file_dot_path =
 			true
 		else begin
 		(* If we didn't find a completion point, load the display file in macro mode. *)
-		if com.parser_state.display_module_has_macro_defines then
+		if com.part_scope.parser_state.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
 		raise (DisplayException.DisplayException DisplayNoResult)
 		end
@@ -242,7 +242,7 @@ let process_global_display_mode com tctx =
 			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 			List.fold_left (fun acc (file_key,cfile) ->
 				let file = cfile.c_file_path.file in
-				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
+				if (filter <> None || DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get file)) then
 					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 				else
 					acc
@@ -257,7 +257,7 @@ let handle_display_after_finalization com tctx display_file_dot_path =
 	let should_load_in_macro =
 		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
 			type the module in macro context. (#8682). *)
-		not (is_diagnostics com) || com.parser_state.display_module_has_macro_defines
+		not (is_diagnostics com) || com.part_scope.parser_state.display_module_has_macro_defines
 	in
 	if com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro tctx display_file_dot_path false with
@@ -269,7 +269,7 @@ let handle_display_after_finalization com tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	process_global_display_mode com tctx;
-	begin match com.report_mode with
+	begin match com.part_scope.report_mode with
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->

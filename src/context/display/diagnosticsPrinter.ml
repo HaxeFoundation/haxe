@@ -26,7 +26,7 @@ let make_diagnostic kd p sev code args = {
 }
 
 let is_diagnostics_file com file_key =
-	match com.report_mode with
+	match com.part_scope.report_mode with
 	| RMDiagnostics [] -> true
 	| RMDiagnostics file_keys -> List.mem file_key file_keys
 	| _ -> false

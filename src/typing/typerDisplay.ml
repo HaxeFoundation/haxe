@@ -491,7 +491,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		raise_positions pl
 	| DMTypeDefinition ->
 		raise_position_of_type ctx e.etype
-	| DMDefault when not ctx.com.parser_state.had_parser_resume ->
+	| DMDefault when not ctx.com.part_scope.parser_state.had_parser_resume ->
 		let display_fields e_ast e1 so =
 			let l = match so with None -> 0 | Some s -> String.length s in
 			let fields = DisplayFields.collect ctx e_ast e1 dk with_type p in

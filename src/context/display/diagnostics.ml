@@ -13,7 +13,7 @@ let add_replaceable_code ctx reason replacement display_range replace_range =
 	} :: ctx.replaceable_code
 
 let error_in_diagnostics_run com p =
-	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
+	let b = DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get p.pfile) in
 	if b then com.part_scope.has_error <- true;
 	b
 
@@ -106,7 +106,7 @@ let collect_diagnostics dctx com =
 	let open CompilationCache in
 	let dectx = DeprecationCheck.create_context com in
 	List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get c.cl_pos.pfile) ->
 			let dectx = {dectx with class_meta = c.cl_meta} in
 			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;
@@ -121,7 +121,7 @@ let collect_diagnostics dctx com =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path.file) then begin
+				if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get cfile.c_file_path.file) then begin
 					let dead_blocks = cfile.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try

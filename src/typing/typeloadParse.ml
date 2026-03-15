@@ -42,13 +42,13 @@ let parse_file_from_lexbuf com file p lexbuf =
 	in
 	begin match com.display.dms_kind,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
-		| DMModuleSymbols filter,(ParseSuccess(data,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.file_keys#get file) ->
+		| DMModuleSymbols filter,(ParseSuccess(data,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get file) ->
 			let ds = DocumentSymbols.collect_module_symbols None (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.json_of_module_symbols com [file,ds] filter);
 		| _,ParseSuccess(_,({pd_was_display_file = true} as pdi)) ->
 			if pdi.pd_had_resume then
-				com.parser_state.had_parser_resume <- true;
-			Atomic.set com.parser_state.delayed_syntax_completion pdi.pd_delayed_syntax_completion
+				com.part_scope.parser_state.had_parser_resume <- true;
+			Atomic.set com.part_scope.parser_state.delayed_syntax_completion pdi.pd_delayed_syntax_completion
 		| _ ->
 			()
 	end;
@@ -62,7 +62,7 @@ let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
 
 let parse_file com rfile p =
-	let file_key = com.file_keys#get rfile.ClassPaths.file in
+	let file_key = com.part_scope.file_keys#get rfile.ClassPaths.file in
 	let contents = match com.file_contents with
 		| [] when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
 			let s = Std.input_all stdin in
@@ -113,8 +113,8 @@ let resolve_module_file com m remap p =
 	(* if we try to load a std.xxxx class and resolve a real std file, the package name is not valid, ignore *)
 	(match fst m with
 	| "std" :: _ ->
-		let file_key = com.file_keys#get rfile.file in
-		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (com.file_keys#get path#path)) com.class_paths#get_std_paths then raise Not_found;
+		let file_key = com.part_scope.file_keys#get rfile.file in
+		if List.exists (fun path -> Path.UniqueKey.starts_with file_key (com.part_scope.file_keys#get path#path)) com.class_paths#get_std_paths then raise Not_found;
 	| _ -> ());
 	if !forbid then begin
 		let parse_result = (!parse_hook) com rfile p in
@@ -241,7 +241,7 @@ module PdiHandler = struct
 		) display_position#get in
 		List.iter (fun (p,e) ->
 			let has_macro_define = is_true macro_defines e in
-			if has_macro_define then com.parser_state.display_module_has_macro_defines <- true;
+			if has_macro_define then com.part_scope.parser_state.display_module_has_macro_defines <- true;
 			if check p then begin
 				if has_macro_define then
 					raise DisplayInMacroBlock;

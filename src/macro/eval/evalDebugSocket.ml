@@ -482,12 +482,12 @@ module ValueCompletion = struct
 			)
 		in
 		let com = (ctx.curapi.get_com()) in
-		let config = Parser.create_config com.Common.defines true true DMDefault com.parser_state.was_auto_triggered None in
+		let config = Parser.create_config com.Common.defines true true DMDefault com.part_scope.parser_state.was_auto_triggered None in
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
 		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
 			let e = parse_expr ctx config text p in
-			let e = ExprPreprocessing.find_before_pos com.parser_state.was_auto_triggered DMDefault e in
+			let e = ExprPreprocessing.find_before_pos com.part_scope.parser_state.was_auto_triggered DMDefault e in
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->
