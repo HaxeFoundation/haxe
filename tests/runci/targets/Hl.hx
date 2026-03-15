@@ -145,6 +145,8 @@ class Hl {
 		withJitTests = !testArgs.remove("--skip-hl-jit");
 		withHlcTests = !testArgs.remove("--skip-hlc");
 
+		haxeArgs = haxeArgs.concat(testArgs);
+
 		getHlDependencies();
 
 		for (extraArgs in [[], ["--undefine", "analyzer-optimize"]]) {
@@ -188,7 +190,7 @@ class Hl {
 
 		if (Hl.withHlcTests) {
 			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
-			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine]);
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine].concat(haxeArgs));
 		}
 	}
 }
