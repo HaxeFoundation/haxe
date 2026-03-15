@@ -180,19 +180,14 @@ class Hl {
 
 		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
 		// so they are not skipped with --skip-hl-jit
-		changeDirectory(getMiscSubDir(""));
-		runCommand("haxe", ["run-base.hxml", "--run", "Main", "hl"]);
-
 		changeDirectory(hlcodeDir);
 		runCommand("haxe", ["compile.hxml"]);
 
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "hl"]);
+
 		if (Hl.withHlcTests) {
 			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
-			changeDirectory(getMiscSubDir("hlc/reservedKeywords"));
-			runCommand("haxe", ["compile.hxml", "-D", hlcTemplateDefine]);
-			buildAndRunHlc("bin", "reservedKeywords");
-
-			changeDirectory(getMiscSubDir(""));
 			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine]);
 		}
 	}
