@@ -314,6 +314,13 @@ let select ctx =
 	GlobalState.initialized := true;
 	GlobalState.get_ctx_ref := (fun() -> ctx)
 
+let s_debug_state = function
+	| DbgRunning -> "DbgRunning"
+	| DbgWaiting -> "DbgWaiting"
+	| DbgStep -> "DbgStep"
+	| DbgNext _ -> "DbgNext"
+	| DbgFinish _ -> "DbgFinish"
+
 (* Misc *)
 
 let get_eval ctx =

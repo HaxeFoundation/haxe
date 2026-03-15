@@ -174,7 +174,7 @@ let create_request_scope ~is_server io display_arg =
 let process sctx request_scope entry request_args =
 	let t0 = Extc.time() in
 	let curdir = Unix.getcwd () in
-	ServerMessage.arguments (Args.to_raw_args (List.concat_map (fun part -> part.Args.args) request_args.Args.parts));
+	ServerMessage.arguments (Args.string_of_request_args request_args);
 	ServerCompilationContext.reset sctx;
 	Option.may (fun dir -> try Unix.chdir dir with _ -> ()) sctx.persistent_cwd;
 	ignore (Std.finally (fun () -> Unix.chdir curdir) (entry sctx request_scope) request_args);

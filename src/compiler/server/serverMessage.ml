@@ -104,7 +104,7 @@ let class_paths_changed com tabs =
 	if config.print_class_paths_changed then print_endline (Printf.sprintf "%sclass paths changed, resetting directories" (sign_string com))
 
 let arguments data =
-	if config.print_arguments then print_endline (("Processing Arguments [" ^ String.concat "," data ^ "]"))
+	if config.print_arguments then print_endline ("Processing Arguments " ^ data)
 
 let completion str =
 	if config.print_completion then print_endline ("Completion Response =\n" ^ str)
