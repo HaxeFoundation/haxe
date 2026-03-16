@@ -592,4 +592,57 @@ class TestCoroutines extends Test {
 		eq(11, cont.lastResult);
 		eq(null, cont.lastError);
 	}
+
+	// Regression: when a while-condition contains two coroutine calls joined by && or ||,
+	// the compiler wraps the condition in TParenthesis which turned `ret` into
+	// `RMapExpr(RValue, f)`.  check_complex fell through to `| _ -> e_no_value` so no
+	// temp var was allocated and the state machine used `!null` as the branch guard,
+	// meaning the loop body was never entered.
+	function testWhileConditionMultipleCoroCalls() {
+		var items:Array<Int> = [];
+		var pos = 0;
+
+		@:coroutine function peek():Int {
+			return items[pos];
+		}
+
+		@:coroutine function consume():Void {
+			pos++;
+		}
+
+		// && version: loop while peek() != 0 AND peek() != -1
+		@:coroutine function countAnd():Int {
+			var count = 0;
+			while (peek() != 0 && peek() != -1) {
+				consume();
+				count++;
+			}
+			return count;
+		}
+
+		var cont = new TrackingCont<Int>();
+		items = [1, 2, 3, 0];
+		pos = 0;
+		invokeCoroutine(cont, countAnd);
+		eq(null, cont.lastError);
+		eq(3, cont.lastResult);
+
+		// || version: loop while peek() == 5 OR peek() == 99
+		// (stops when peek() is neither 5 nor 99, i.e. when it reads 0)
+		@:coroutine function countOr():Int {
+			var count = 0;
+			while (peek() == 5 || peek() == 99) {
+				consume();
+				count++;
+			}
+			return count;
+		}
+
+		var cont2 = new TrackingCont<Int>();
+		items = [5, 5, 5, 0];
+		pos = 0;
+		invokeCoroutine(cont2, countOr);
+		eq(null, cont2.lastError);
+		eq(3, cont2.lastResult);
+	}
 }

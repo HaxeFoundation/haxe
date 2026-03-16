@@ -95,7 +95,7 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		add_expr cb (mk (TVar(v, eo)) ctx.typer.t.tvoid p);
 		v
 	in
-	let check_complex cb ret t p = match ret with
+	let rec check_complex cb ret t p = match ret with
 		| RValue ->
 			let v = tmp_local cb t None p in
 			let ev = Texpr.Builder.make_local v v.v_pos in
@@ -103,6 +103,19 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		| RLocal v ->
 			let ev = Texpr.Builder.make_local v v.v_pos in
 			ev,ret
+		| RMapExpr(inner_ret, f) ->
+			(* When a complex expression (&&/||, switch, try) is wrapped by TParenthesis
+			   or TCast, `ret` becomes `RMapExpr(inner_ret, f)`.  Without special
+			   handling this falls through to `| _ ->` and returns e_no_value, so no
+			   temp variable is allocated and the result is lost (manifests as `!null`
+			   in the generated while-condition state).
+			   Fix: recurse into inner_ret to allocate the temp var as usual, then
+			   apply f to produce the correctly-wrapped expression for the caller. *)
+			let ev, inner_ret' = check_complex cb inner_ret t p in
+			if ev == e_no_value then
+				e_no_value, RMapExpr(inner_ret', f)
+			else
+				f ev, inner_ret'
 		| _ ->
 			e_no_value,ret
 	in
