@@ -481,7 +481,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		#end
 	}
 	
-	static var IMPL = ___Int64;
+	static var IMPL = haxe.numeric.Int64Native;
 }
 
 /**
@@ -489,23 +489,4 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	the same underlying type, even though it might be different on
 	specific platforms.
 **/
-private typedef __Int64 = ___Int64;
-
-private class ___Int64 {
-	public var high:Int32;
-	public var low:Int32;
-
-	public inline function new(high, low) {
-		this.high = high;
-		this.low = low;
-	}
-
-	/**
-		We also define toString here to ensure we always get a pretty string
-		when tracing or calling `Std.string`. This tends not to happen when
-		`toString` is only in the abstract.
-	**/
-	@:ifFeature("dynamic_read.toString")
-	public function toString():String
-		return Int64.toStr(cast this);
-}
+private typedef __Int64 = haxe.numeric.Int64Native;

@@ -132,7 +132,6 @@ let jsignature_of_path path = match path with
 	| ["jvm"],"Int16" -> TShort
 	| [],"Int" -> TInt
 	| ["haxe"],"Int32" -> TInt
-	| ["haxe"],"Int64" -> TLong
 	| ["jvm"],"Int64" -> TLong
 	| ["jvm"],"Char16" -> TChar
 	| [],"Single" -> TFloat
@@ -1681,30 +1680,6 @@ class texpr_to_jvm
 			let tl,tr = self#call_arguments cf.cf_type el in
 			jm#invokestatic c.cl_path (String.sub cf.cf_name 1 (String.length cf.cf_name - 1)) (method_sig tl tr);
 			tr
-		| TField(_,FStatic({cl_path = (["haxe"],"Int64$Int64_Impl_")},{cf_name = "make"})) ->
-			begin match el with
-			| [{eexpr = TConst (TInt i1)};{eexpr = TConst (TInt i2)}] ->
-				let high = Int64.of_int32 i1 in
-				let high = Int64.shift_left high 32 in
-				let low = Int64.of_int32 i2 in
-				let low = Int64.logand low (Int64.of_string "0xFFFFFFFF") in
-				let i = Int64.logor high low in
-				jm#get_code#lconst i;
-				Some TLong
-			| [e1;e2] ->
-				self#texpr (rvalue_sig TLong) e1;
-				jm#cast TLong;
-				jm#get_code#iconst (Int32.of_int 32);
-				jm#get_code#lshl;
-				self#texpr (rvalue_sig TLong) e2;
-				jm#cast TLong;
-				jm#get_code#lconst (Int64.of_string "0xFFFFFFFF");
-				jm#get_code#land_;
-				jm#get_code#lor_;
-				Some TLong
-			| _ ->
-				die "" __LOC__
-			end
 		| TIdent "__array__" | TField(_,FStatic({cl_path = (["jvm"],"NativeArray")},{cf_name = "make"})) ->
 			begin match follow tr with
 			| TInst({cl_path = (["jvm"],"NativeArray")},[t]) ->
