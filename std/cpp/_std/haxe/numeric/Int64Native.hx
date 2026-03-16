@@ -22,6 +22,9 @@
 
 package haxe.numeric;
 
+typedef Int64Native = Int64NativeImpl;
+
+#if !cppia
 @:include("cpp/Int64.h")
 private extern class CppInt64Helper {
 	@:native("_hx_int64_make")
@@ -93,74 +96,103 @@ private extern class CppInt64Helper {
 	@:native("_hx_int64_low")
 	static function low(a:cpp.Int64):haxe.Int32;
 }
-
-typedef Int64Native = Int64NativeImpl;
+#end
 
 @:coreApi(check = Off)
+#if cppia
+extern
+#end
 private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
-	public var high(get, set):haxe.Int32;
+	#if cppia
+	public function new(high:haxe.Int32, low:haxe.Int32):Void;
 
-	inline function get_high():haxe.Int32
+	public static function make(high:haxe.Int32, low:haxe.Int32):Int64Native;
+	public static function ofInt(x:Int):Int64Native;
+	public static function toInt(x:Int64Native):Int;
+	public static function isInt64(val:Dynamic):Bool;
+	public static function getHigh(x:Int64Native):haxe.Int32;
+	public static function getLow(x:Int64Native):haxe.Int32;
+	public static function isNeg(x:Int64Native):Bool;
+	public static function isZero(x:Int64Native):Bool;
+	public static function compare(a:Int64Native, b:Int64Native):Int;
+	public static function ucompare(a:Int64Native, b:Int64Native):Int;
+	public static function neg(x:Int64Native):Int64Native;
+	public static function add(a:Int64Native, b:Int64Native):Int64Native;
+	public static function sub(a:Int64Native, b:Int64Native):Int64Native;
+	public static function mul(a:Int64Native, b:Int64Native):Int64Native;
+	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native};
+	public static function eq(a:Int64Native, b:Int64Native):Bool;
+	public static function neq(a:Int64Native, b:Int64Native):Bool;
+	public static function complement(x:Int64Native):Int64Native;
+	public static function and(a:Int64Native, b:Int64Native):Int64Native;
+	public static function or(a:Int64Native, b:Int64Native):Int64Native;
+	public static function xor(a:Int64Native, b:Int64Native):Int64Native;
+	public static function shl(a:Int64Native, b:Int):Int64Native;
+	public static function shr(a:Int64Native, b:Int):Int64Native;
+	public static function ushr(a:Int64Native, b:Int):Int64Native;
+	public function toString():String;
+	public static function parseString(sParam:String):Int64Native;
+	public static function fromFloat(f:Float):Int64Native;
+	#else
+	public var high(get, never):haxe.Int32;
+
+	#if !scriptable inline #end function get_high():haxe.Int32
 		return CppInt64Helper.high(this);
 
-	inline function set_high(v:haxe.Int32):haxe.Int32 {
-		this = CppInt64Helper.make(v, CppInt64Helper.low(this));
-		return v;
-	}
+	public var low(get, never):haxe.Int32;
 
-	public var low(get, set):haxe.Int32;
-
-	inline function get_low():haxe.Int32
+	#if !scriptable inline #end function get_low():haxe.Int32
 		return CppInt64Helper.low(this);
 
-	inline function set_low(v:haxe.Int32):haxe.Int32 {
-		this = CppInt64Helper.make(CppInt64Helper.high(this), v);
-		return v;
-	}
+	public static #if !scriptable inline #end function getHigh(x:Int64Native):haxe.Int32
+		return CppInt64Helper.high(x);
+
+	public static #if !scriptable inline #end function getLow(x:Int64Native):haxe.Int32
+		return CppInt64Helper.low(x);
 
 	public inline function new(high:haxe.Int32, low:haxe.Int32) {
 		this = CppInt64Helper.make(high, low);
 	}
 
-	public static #if !cppia inline #end function make(high:haxe.Int32, low:haxe.Int32):Int64Native {
+	public static #if !scriptable inline #end function make(high:haxe.Int32, low:haxe.Int32):Int64Native {
 		return new Int64Native(high, low);
 	}
 
-	public static #if !cppia inline #end function ofInt(x:Int):Int64Native {
+	public static #if !scriptable inline #end function ofInt(x:Int):Int64Native {
 		return cast x;
 	}
 
-	public static #if !cppia inline #end function toInt(x:Int64Native):Int {
+	public static #if !scriptable inline #end function toInt(x:Int64Native):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
 		return x.low;
 	}
 
-	public static #if !cppia inline #end function isInt64(val:Dynamic):Bool
+	public static #if !scriptable inline #end function isInt64(val:Dynamic):Bool
 		return val is cpp.Int64;
 
-	public static #if !cppia inline #end function isNeg(x:Int64Native):Bool
+	public static #if !scriptable inline #end function isNeg(x:Int64Native):Bool
 		return CppInt64Helper.isNeg(x);
 
-	public static #if !cppia inline #end function isZero(x:Int64Native):Bool
+	public static #if !scriptable inline #end function isZero(x:Int64Native):Bool
 		return CppInt64Helper.isZero(x);
 
-	public static #if !cppia inline #end function compare(a:Int64Native, b:Int64Native):Int
+	public static #if !scriptable inline #end function compare(a:Int64Native, b:Int64Native):Int
 		return CppInt64Helper.compare(a, b);
 
-	public static #if !cppia inline #end function ucompare(a:Int64Native, b:Int64Native):Int
+	public static #if !scriptable inline #end function ucompare(a:Int64Native, b:Int64Native):Int
 		return CppInt64Helper.ucompare(a, b);
 
-	public static #if !cppia inline #end function neg(x:Int64Native):Int64Native
+	public static #if !scriptable inline #end function neg(x:Int64Native):Int64Native
 		return CppInt64Helper.neg(x);
 
-	public static #if !cppia inline #end function add(a:Int64Native, b:Int64Native):Int64Native
+	public static #if !scriptable inline #end function add(a:Int64Native, b:Int64Native):Int64Native
 		return CppInt64Helper.add(a, b);
 
-	public static #if !cppia inline #end function sub(a:Int64Native, b:Int64Native):Int64Native
+	public static #if !scriptable inline #end function sub(a:Int64Native, b:Int64Native):Int64Native
 		return CppInt64Helper.sub(a, b);
 
-	public static #if !cppia inline #end function mul(a:Int64Native, b:Int64Native):Int64Native
+	public static #if !scriptable inline #end function mul(a:Int64Native, b:Int64Native):Int64Native
 		return CppInt64Helper.mul(a, b);
 
 	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
@@ -169,34 +201,34 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 		return {quotient: CppInt64Helper.div(dividend, divisor), modulus: CppInt64Helper.mod(dividend, divisor)};
 	}
 
-	public static #if !cppia inline #end function eq(a:Int64Native, b:Int64Native):Bool
+	public static #if !scriptable inline #end function eq(a:Int64Native, b:Int64Native):Bool
 		return CppInt64Helper.eq(a, b);
 
-	public static #if !cppia inline #end function neq(a:Int64Native, b:Int64Native):Bool
+	public static #if !scriptable inline #end function neq(a:Int64Native, b:Int64Native):Bool
 		return CppInt64Helper.neq(a, b);
 
-	public static #if !cppia inline #end function complement(x:Int64Native):Int64Native
+	public static #if !scriptable inline #end function complement(x:Int64Native):Int64Native
 		return CppInt64Helper.complement(x);
 
-	public static #if !cppia inline #end function and(a:Int64Native, b:Int64Native):Int64Native
+	public static #if !scriptable inline #end function and(a:Int64Native, b:Int64Native):Int64Native
 		return CppInt64Helper.bitAnd(a, b);
 
-	public static #if !cppia inline #end function or(a:Int64Native, b:Int64Native):Int64Native
+	public static #if !scriptable inline #end function or(a:Int64Native, b:Int64Native):Int64Native
 		return CppInt64Helper.bitOr(a, b);
 
-	public static #if !cppia inline #end function xor(a:Int64Native, b:Int64Native):Int64Native
+	public static #if !scriptable inline #end function xor(a:Int64Native, b:Int64Native):Int64Native
 		return CppInt64Helper.bitXor(a, b);
 
-	public static #if !cppia inline #end function shl(a:Int64Native, b:Int):Int64Native
+	public static #if !scriptable inline #end function shl(a:Int64Native, b:Int):Int64Native
 		return CppInt64Helper.shl(a, b);
 
-	public static #if !cppia inline #end function shr(a:Int64Native, b:Int):Int64Native
+	public static #if !scriptable inline #end function shr(a:Int64Native, b:Int):Int64Native
 		return CppInt64Helper.shr(a, b);
 
-	public static #if !cppia inline #end function ushr(a:Int64Native, b:Int):Int64Native
+	public static #if !scriptable inline #end function ushr(a:Int64Native, b:Int):Int64Native
 		return CppInt64Helper.ushr(a, b);
 
-	public #if !cppia inline #end function toString():String
+	public #if !scriptable inline #end function toString():String
 		return cast this;
 
 	public static inline function parseString(sParam:String):Int64Native {
@@ -206,4 +238,5 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
 	}
+	#end
 }
