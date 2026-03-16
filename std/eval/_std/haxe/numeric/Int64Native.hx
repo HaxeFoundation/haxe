@@ -56,7 +56,7 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 	}
 
 	public static inline function ofInt(x:Int):Int64Native {
-		return cast EvalInt64.ofInt(x);
+		return EvalInt64.ofInt(x);
 	}
 
 	public static function toInt(x:Int64Native):Int {
@@ -86,28 +86,24 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 	}
 
 	public static function neg(x:Int64Native):Int64Native {
-		var v:EvalInt64 = x;
-		return cast -v;
+		return -(x : EvalInt64);
 	}
 
 	public static function add(a:Int64Native, b:Int64Native):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.add(b);
+		return (a : EvalInt64).add(b);
 	}
 
 	public static function sub(a:Int64Native, b:Int64Native):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.sub(b);
+		return (a : EvalInt64).sub(b);
 	}
 
 	public static function mul(a:Int64Native, b:Int64Native):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.mul(b);
+		return (a : EvalInt64).mul(b);
 	}
 
 	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
 		var vd:EvalInt64 = dividend;
-		return {quotient: cast vd.div(divisor), modulus: cast vd.remainder(divisor)};
+		return {quotient: vd.div(divisor), modulus: vd.remainder(divisor)};
 	}
 
 	public static function eq(a:Int64Native, b:Int64Native):Bool
@@ -117,38 +113,31 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 		return EvalInt64.compare(a, b) != 0;
 
 	public static function complement(x:Int64Native):Int64Native {
-		var v:EvalInt64 = x;
-		return cast v.lognot();
+		return (x : EvalInt64).lognot();
 	}
 
 	public static function and(a:Int64Native, b:Int64Native):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.logand(b);
+		return (a : EvalInt64).logand(b);
 	}
 
 	public static function or(a:Int64Native, b:Int64Native):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.logor(b);
+		return (a : EvalInt64).logor(b);
 	}
 
 	public static function xor(a:Int64Native, b:Int64Native):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.logxor(b);
+		return (a : EvalInt64).logxor(b);
 	}
 
 	public static function shl(a:Int64Native, b:Int):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.shift_left(b);
+		return (a : EvalInt64).shift_left(b);
 	}
 
 	public static function shr(a:Int64Native, b:Int):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.shift_right(b);
+		return (a : EvalInt64).shift_right(b);
 	}
 
 	public static function ushr(a:Int64Native, b:Int):Int64Native {
-		var v:EvalInt64 = a;
-		return cast v.shift_right_logical(b);
+		return (a : EvalInt64).shift_right_logical(b);
 	}
 
 	public inline function toString():String
