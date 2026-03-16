@@ -60,8 +60,6 @@ class ChildWidenedNonPhysical extends ParentWithNonPhysical {
 }
 
 class TestRedefinition extends Test {
-	// cppia doesn't support redefining non-physical vars from a parent class
-	#if !cppia
 	public function testDispatcher() {
 		final dispatcher = new ConcreteDispatcher(123);
 		eq(dispatcher.scheduler, 123);
@@ -89,5 +87,4 @@ class TestRedefinition extends Test {
 		final parent:ParentWithNonPhysical = child;
 		eq(parent.name, "child");
 	}
-	#end
 }
