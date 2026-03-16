@@ -100,25 +100,25 @@ typedef Int64Native = Int64NativeImpl;
 private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public var high(get, set):haxe.Int32;
 
-	inline function get_high():haxe.Int32
+	if !cppia inline #end function get_high():haxe.Int32
 		return CppInt64Helper.high(this);
 
-	inline function set_high(v:haxe.Int32):haxe.Int32 {
+	if !cppia inline #end function set_high(v:haxe.Int32):haxe.Int32 {
 		this = CppInt64Helper.make(v, CppInt64Helper.low(this));
 		return v;
 	}
 
 	public var low(get, set):haxe.Int32;
 
-	inline function get_low():haxe.Int32
+	if !cppia inline #end function get_low():haxe.Int32
 		return CppInt64Helper.low(this);
 
-	inline function set_low(v:haxe.Int32):haxe.Int32 {
+	if !cppia inline #end function set_low(v:haxe.Int32):haxe.Int32 {
 		this = CppInt64Helper.make(CppInt64Helper.high(this), v);
 		return v;
 	}
 
-	public inline function new(high:haxe.Int32, low:haxe.Int32) {
+	public if !cppia inline #end function new(high:haxe.Int32, low:haxe.Int32) {
 		this = CppInt64Helper.make(high, low);
 	}
 
