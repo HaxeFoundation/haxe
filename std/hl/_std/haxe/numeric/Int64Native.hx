@@ -23,11 +23,7 @@
 package haxe.numeric;
 
 #if (hl_ver >= version("1.12.0") && !hl_legacy32)
-/**
-	HL-native 64-bit integer implementation.
-	Shadows the cross-platform emulation with native HL `I64` operations.
-	Only available on HL >= 1.12.0 without legacy 32-bit mode.
-**/
+@:dox(hide)
 @:coreApi(check = Off)
 abstract Int64Native(hl.I64) from hl.I64 to hl.I64 {
 	static var MASK:hl.I64 = {

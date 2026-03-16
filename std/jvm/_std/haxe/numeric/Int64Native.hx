@@ -22,11 +22,7 @@
 
 package haxe.numeric;
 
-/**
-	JVM-native 64-bit integer implementation.
-	Shadows the cross-platform emulation with native Java `long` operations
-	via `jvm.Int64`.
-**/
+@:dox(hide)
 @:coreApi(check = Off)
 abstract Int64Native(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 	public var high(get, set):haxe.Int32;

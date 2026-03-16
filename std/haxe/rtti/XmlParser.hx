@@ -239,7 +239,7 @@ class XmlParser {
 					else
 						tinf.doc = inf.doc;
 				}
-				if (tinf.path == "haxe._Int64.NativeInt64")
+				if (tinf.path == "haxe._Int64.NativeInt64" || tinf.path == "haxe.numeric.Int64Native")
 					continue;
 				if (tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate)
 					switch (ct) {

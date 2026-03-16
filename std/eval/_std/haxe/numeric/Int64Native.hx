@@ -24,11 +24,7 @@ package haxe.numeric;
 
 import eval.integers.Int64 as EvalInt64;
 
-/**
-	Eval/interpreter-native 64-bit integer implementation.
-	Shadows the cross-platform emulation with the eval runtime's native
-	`eval.integers.Int64` (`VInt64` OCaml value type).
-**/
+@:dox(hide)
 @:coreApi(check = Off)
 abstract Int64Native(EvalInt64) from EvalInt64 to EvalInt64 {
 	public var high(get, set):haxe.Int32;

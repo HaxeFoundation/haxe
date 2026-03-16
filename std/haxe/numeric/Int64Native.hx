@@ -24,12 +24,7 @@ package haxe.numeric;
 
 import haxe.numeric.Int64Data;
 
-/**
-	Cross-platform emulation of a 64-bit integer using two 32-bit words.
-	This is the default implementation used on targets without native 64-bit
-	integer support. Targets with native support can shadow this file via
-	their `_std` directory to provide an optimized version.
-**/
+@:dox(hide)
 abstract Int64Native(Int64Data) from Int64Data to Int64Data {
 	public var high(get, set):haxe.Int32;
 

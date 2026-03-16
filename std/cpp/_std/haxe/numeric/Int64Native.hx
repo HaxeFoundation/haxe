@@ -94,11 +94,7 @@ private extern class CppInt64Helper {
 	static function low(a:cpp.Int64):haxe.Int32;
 }
 
-/**
-	C++-native 64-bit integer implementation.
-	Shadows the cross-platform emulation with native HXCPP `cpp.Int64` operations
-	via the `cpp/Int64.h` helper functions.
-**/
+@:dox(hide)
 @:coreApi(check = Off)
 abstract Int64Native(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public var high(get, set):haxe.Int32;

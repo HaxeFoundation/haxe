@@ -1,0 +1,3 @@
+hxcpp_api_level=500
+hxcpp_smart_strings=1
+hxcpp=/home/runner/haxelib/hxcpp/git/
