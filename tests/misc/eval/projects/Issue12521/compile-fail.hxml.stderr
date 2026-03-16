@@ -1,0 +1,8 @@
+Main.hx:51: characters 2-22 : Variable x has less visibility (public/private) than superclass one
+Main.hx:47: characters 13-14 : Cannot narrow write access of x in subclass
+Main.hx:43: characters 13-14 : Cannot narrow write access of x in subclass
+Main.hx:39: characters 13-14 : Cannot narrow read access of x in subclass
+Main.hx:26: characters 13-14 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalParent
+Main.hx:22: characters 13-14 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalPropertyParent
+Main.hx:18: characters 21-22 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalPropertyParent
+Main.hx:14: characters 13-14 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalParent
