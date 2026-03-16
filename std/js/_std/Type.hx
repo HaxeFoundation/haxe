@@ -212,7 +212,7 @@ enum ValueType {
 					#end
 				}
 				var c = js.Boot.getClass(v);
-				if( c == haxe.numeric.Int64Native )
+				if( c == haxe.numeric.Int64Data )
 					return TInt64;
 				if (c != null)
 					return TClass(c);

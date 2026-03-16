@@ -106,7 +106,7 @@ abstract Int64Native(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	#if !cppia inline #end function get_high():haxe.Int32
 		return CppInt64Helper.high(this);
 
-	#if !cppia inline #end function set_high(v:haxe.Int32):haxe.Int32 {
+	inline function set_high(v:haxe.Int32):haxe.Int32 {
 		this = CppInt64Helper.make(v, CppInt64Helper.low(this));
 		return v;
 	}
@@ -116,12 +116,12 @@ abstract Int64Native(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	#if !cppia inline #end function get_low():haxe.Int32
 		return CppInt64Helper.low(this);
 
-	#if !cppia inline #end function set_low(v:haxe.Int32):haxe.Int32 {
+	inline function set_low(v:haxe.Int32):haxe.Int32 {
 		this = CppInt64Helper.make(CppInt64Helper.high(this), v);
 		return v;
 	}
 
-	public #if !cppia inline #end function new(high:haxe.Int32, low:haxe.Int32) {
+	public inline function new(high:haxe.Int32, low:haxe.Int32) {
 		this = CppInt64Helper.make(high, low);
 	}
 

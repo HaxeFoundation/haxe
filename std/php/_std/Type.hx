@@ -279,7 +279,7 @@ enum ValueType {
 			var hxClass = Boot.getClass(Global.get_class(v));
 			if (Boot.isEnumValue(v))
 				return TEnum(cast hxClass);
-			if( (cast hxClass) == haxe.numeric.Int64Native )
+			if( (cast hxClass) == haxe.numeric.Int64Data )
 				return TInt64;
 			return TClass(cast hxClass);
 		}

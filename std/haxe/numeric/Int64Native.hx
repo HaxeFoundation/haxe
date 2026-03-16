@@ -22,19 +22,33 @@
 
 package haxe.numeric;
 
+import haxe.numeric.Int64Data;
+
 /**
 	Cross-platform emulation of a 64-bit integer using two 32-bit words.
 	This is the default implementation used on targets without native 64-bit
 	integer support. Targets with native support can shadow this file via
 	their `_std` directory to provide an optimized version.
 **/
-class Int64Native {
-	public var high:haxe.Int32;
-	public var low:haxe.Int32;
+abstract Int64Native(Int64Data) from Int64Data to Int64Data {
+	public var high(get, set):haxe.Int32;
+
+	inline function get_high():haxe.Int32
+		return this.high;
+
+	inline function set_high(v:haxe.Int32):haxe.Int32
+		return this.high = v;
+
+	public var low(get, set):haxe.Int32;
+
+	inline function get_low():haxe.Int32
+		return this.low;
+
+	inline function set_low(v:haxe.Int32):haxe.Int32
+		return this.low = v;
 
 	public inline function new(high:haxe.Int32, low:haxe.Int32) {
-		this.high = high;
-		this.low = low;
+		this = new Int64Data(high, low);
 	}
 
 	public static inline function make(high:haxe.Int32, low:haxe.Int32):Int64Native {
@@ -57,7 +71,7 @@ class Int64Native {
 	}
 
 	public static inline function isInt64(val:Dynamic):Bool {
-		return Std.isOfType(val, Int64Native);
+		return Std.isOfType(val, Int64Data);
 	}
 
 	public static inline function isNeg(x:Int64Native):Bool {
@@ -238,31 +252,8 @@ class Int64Native {
 	/**
 		Returns a signed decimal `String` representation of the value.
 	**/
-	@:ifFeature("dynamic_read.toString")
-	public function toString():String {
-		if (isZero(this))
-			return "0";
-		var str = "";
-		var negative = false;
-		if (isNeg(this)) {
-			negative = true;
-		}
-		var ten = ofInt(10);
-		var i = make(this.high, this.low);
-		while (!isZero(i)) {
-			var r = divMod(i, ten);
-			if (isNeg(r.modulus)) {
-				str = neg(r.modulus).low + str;
-				i = neg(r.quotient);
-			} else {
-				str = r.modulus.low + str;
-				i = r.quotient;
-			}
-		}
-		if (negative)
-			str = "-" + str;
-		return str;
-	}
+	public inline function toString():String
+		return this.toString();
 
 	public static inline function parseString(sParam:String):Int64Native {
 		return haxe.numeric.Int64Helper.parseString(sParam);
