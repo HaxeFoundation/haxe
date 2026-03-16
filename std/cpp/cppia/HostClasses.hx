@@ -120,7 +120,7 @@ class HostClasses {
 		"haxe.NativeStackTrace",
 		"haxe.Resource",
 		"haxe.Utf8",
-		"haxe.Int64",
+		"haxe.numeric.Int64Native",
 		"haxe.Int32",
 		"haxe.Serializer",
 		"haxe.Unserializer",
@@ -183,7 +183,7 @@ class HostClasses {
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);
 		externs.set("sys.ssl._Socket.SocketOutput", true);
-		externs.set("sys.thread._Thread.HaxeThread",true);
+		externs.set("sys.thread._Thread.HaxeThread", true);
 		externs.set("haxe.ds.TreeNode", true);
 		externs.set("haxe.xml.XmlParserException", true);
 		for (e in classes)
