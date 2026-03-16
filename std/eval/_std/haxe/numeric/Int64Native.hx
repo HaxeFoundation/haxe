@@ -85,58 +85,58 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 		return (EvalInt64.compare(b, EvalInt64.ZERO) < 0) ? -1 : EvalInt64.compare(a, b);
 	}
 
-	public static function neg(x:Int64Native):Int64Native {
+	public static inline function neg(x:Int64Native):Int64Native {
 		return -(x : EvalInt64);
 	}
 
-	public static function add(a:Int64Native, b:Int64Native):Int64Native {
+	public static inline function add(a:Int64Native, b:Int64Native):Int64Native {
 		return (a : EvalInt64).add(b);
 	}
 
-	public static function sub(a:Int64Native, b:Int64Native):Int64Native {
+	public static inline function sub(a:Int64Native, b:Int64Native):Int64Native {
 		return (a : EvalInt64).sub(b);
 	}
 
-	public static function mul(a:Int64Native, b:Int64Native):Int64Native {
+	public static inline function mul(a:Int64Native, b:Int64Native):Int64Native {
 		return (a : EvalInt64).mul(b);
 	}
 
-	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
+	public static inline function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
 		var vd:EvalInt64 = dividend;
 		return {quotient: vd.div(divisor), modulus: vd.remainder(divisor)};
 	}
 
-	public static function eq(a:Int64Native, b:Int64Native):Bool
+	public static inline function eq(a:Int64Native, b:Int64Native):Bool
 		return EvalInt64.compare(a, b) == 0;
 
-	public static function neq(a:Int64Native, b:Int64Native):Bool
+	public static inline function neq(a:Int64Native, b:Int64Native):Bool
 		return EvalInt64.compare(a, b) != 0;
 
-	public static function complement(x:Int64Native):Int64Native {
+	public static inline function complement(x:Int64Native):Int64Native {
 		return (x : EvalInt64).lognot();
 	}
 
-	public static function and(a:Int64Native, b:Int64Native):Int64Native {
+	public static inline function and(a:Int64Native, b:Int64Native):Int64Native {
 		return (a : EvalInt64).logand(b);
 	}
 
-	public static function or(a:Int64Native, b:Int64Native):Int64Native {
+	public static inline function or(a:Int64Native, b:Int64Native):Int64Native {
 		return (a : EvalInt64).logor(b);
 	}
 
-	public static function xor(a:Int64Native, b:Int64Native):Int64Native {
+	public static inline function xor(a:Int64Native, b:Int64Native):Int64Native {
 		return (a : EvalInt64).logxor(b);
 	}
 
-	public static function shl(a:Int64Native, b:Int):Int64Native {
+	public static inline function shl(a:Int64Native, b:Int):Int64Native {
 		return (a : EvalInt64).shift_left(b);
 	}
 
-	public static function shr(a:Int64Native, b:Int):Int64Native {
+	public static inline function shr(a:Int64Native, b:Int):Int64Native {
 		return (a : EvalInt64).shift_right(b);
 	}
 
-	public static function ushr(a:Int64Native, b:Int):Int64Native {
+	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
 		return (a : EvalInt64).shift_right_logical(b);
 	}
 
