@@ -30,7 +30,7 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 	public var high(get, set):haxe.Int32;
 
 	inline function get_high():haxe.Int32
-		return (this >> 32).toInt32();
+		return this.shift_right(32).toInt32();
 
 	inline function set_high(v:haxe.Int32):haxe.Int32 {
 		this = EvalInt64.make(v, get_low());
@@ -59,10 +59,11 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 		return cast EvalInt64.ofInt(x);
 	}
 
-	public static inline function toInt(x:Int64Native):Int {
+	public static function toInt(x:Int64Native):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
-		return (x : EvalInt64).toInt();
+		var v:EvalInt64 = x;
+		return v.toInt();
 	}
 
 	public static inline function isInt64(val:Dynamic):Bool {
@@ -70,61 +71,85 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 	}
 
 	public static inline function isNeg(x:Int64Native):Bool
-		return (x : EvalInt64) < EvalInt64.ZERO;
+		return EvalInt64.compare(x, EvalInt64.ZERO) < 0;
 
 	public static inline function isZero(x:Int64Native):Bool
-		return (x : EvalInt64) == EvalInt64.ZERO;
+		return EvalInt64.compare(x, EvalInt64.ZERO) == 0;
 
 	public static inline function compare(a:Int64Native, b:Int64Native):Int
 		return EvalInt64.compare(a, b);
 
 	public static function ucompare(a:Int64Native, b:Int64Native):Int {
-		if ((a : EvalInt64) < EvalInt64.ZERO)
-			return ((b : EvalInt64) < EvalInt64.ZERO) ? EvalInt64.compare(a, b) : 1;
-		return ((b : EvalInt64) < EvalInt64.ZERO) ? -1 : EvalInt64.compare(a, b);
+		if (EvalInt64.compare(a, EvalInt64.ZERO) < 0)
+			return (EvalInt64.compare(b, EvalInt64.ZERO) < 0) ? EvalInt64.compare(a, b) : 1;
+		return (EvalInt64.compare(b, EvalInt64.ZERO) < 0) ? -1 : EvalInt64.compare(a, b);
 	}
 
-	public static inline function neg(x:Int64Native):Int64Native
-		return cast -(x : EvalInt64);
+	public static function neg(x:Int64Native):Int64Native {
+		var v:EvalInt64 = x;
+		return cast -v;
+	}
 
-	public static inline function add(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : EvalInt64) + (b : EvalInt64));
+	public static function add(a:Int64Native, b:Int64Native):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.add(b);
+	}
 
-	public static inline function sub(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : EvalInt64) - (b : EvalInt64));
+	public static function sub(a:Int64Native, b:Int64Native):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.sub(b);
+	}
 
-	public static inline function mul(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : EvalInt64) * (b : EvalInt64));
+	public static function mul(a:Int64Native, b:Int64Native):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.mul(b);
+	}
 
-	public static inline function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native}
-		return {quotient: cast((dividend : EvalInt64) / (divisor : EvalInt64)), modulus: cast((dividend : EvalInt64) % (divisor : EvalInt64))};
+	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
+		var vd:EvalInt64 = dividend;
+		return {quotient: cast vd.div(divisor), modulus: cast vd.remainder(divisor)};
+	}
 
-	public static inline function eq(a:Int64Native, b:Int64Native):Bool
-		return (a : EvalInt64) == (b : EvalInt64);
+	public static function eq(a:Int64Native, b:Int64Native):Bool
+		return EvalInt64.compare(a, b) == 0;
 
-	public static inline function neq(a:Int64Native, b:Int64Native):Bool
-		return (a : EvalInt64) != (b : EvalInt64);
+	public static function neq(a:Int64Native, b:Int64Native):Bool
+		return EvalInt64.compare(a, b) != 0;
 
-	public static inline function complement(x:Int64Native):Int64Native
-		return cast ~(x : EvalInt64);
+	public static function complement(x:Int64Native):Int64Native {
+		var v:EvalInt64 = x;
+		return cast v.lognot();
+	}
 
-	public static inline function and(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : EvalInt64) & (b : EvalInt64));
+	public static function and(a:Int64Native, b:Int64Native):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.logand(b);
+	}
 
-	public static inline function or(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : EvalInt64) | (b : EvalInt64));
+	public static function or(a:Int64Native, b:Int64Native):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.logor(b);
+	}
 
-	public static inline function xor(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : EvalInt64) ^ (b : EvalInt64));
+	public static function xor(a:Int64Native, b:Int64Native):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.logxor(b);
+	}
 
-	public static inline function shl(a:Int64Native, b:Int):Int64Native
-		return cast((a : EvalInt64) << b);
+	public static function shl(a:Int64Native, b:Int):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.shift_left(b);
+	}
 
-	public static inline function shr(a:Int64Native, b:Int):Int64Native
-		return cast((a : EvalInt64) >> b);
+	public static function shr(a:Int64Native, b:Int):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.shift_right(b);
+	}
 
-	public static inline function ushr(a:Int64Native, b:Int):Int64Native
-		return cast((a : EvalInt64) >>> b);
+	public static function ushr(a:Int64Native, b:Int):Int64Native {
+		var v:EvalInt64 = a;
+		return cast v.shift_right_logical(b);
+	}
 
 	public inline function toString():String
 		return this.toString();

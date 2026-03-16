@@ -22,9 +22,10 @@
 
 package haxe.numeric;
 
-@:dox(hide)
+typedef Int64Native = Int64NativeImpl;
+
 @:coreApi(check = Off)
-abstract Int64Native(jvm.Int64) from jvm.Int64 to jvm.Int64 {
+private abstract Int64NativeImpl(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 	public var high(get, set):haxe.Int32;
 
 	inline function get_high():haxe.Int32

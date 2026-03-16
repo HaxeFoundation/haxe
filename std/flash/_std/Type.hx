@@ -256,7 +256,7 @@ enum ValueType {
 							return TObject;
 						if (c.__isenum)
 							return TEnum(c);
-						if( c == haxe.numeric.Int64Data )
+						if( c == haxe.numeric.Int64Native )
 							return TInt64;
 						return TClass(c);
 					} catch (e:Dynamic) {

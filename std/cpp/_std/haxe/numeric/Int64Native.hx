@@ -94,12 +94,13 @@ private extern class CppInt64Helper {
 	static function low(a:cpp.Int64):haxe.Int32;
 }
 
-@:dox(hide)
+typedef Int64Native = Int64NativeImpl;
+
 @:coreApi(check = Off)
-abstract Int64Native(cpp.Int64) from cpp.Int64 to cpp.Int64 {
+private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public var high(get, set):haxe.Int32;
 
-	#if !cppia inline #end function get_high():haxe.Int32
+	inline function get_high():haxe.Int32
 		return CppInt64Helper.high(this);
 
 	inline function set_high(v:haxe.Int32):haxe.Int32 {
@@ -109,7 +110,7 @@ abstract Int64Native(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 
 	public var low(get, set):haxe.Int32;
 
-	#if !cppia inline #end function get_low():haxe.Int32
+	inline function get_low():haxe.Int32
 		return CppInt64Helper.low(this);
 
 	inline function set_low(v:haxe.Int32):haxe.Int32 {
