@@ -83,6 +83,8 @@ class TestRedefinition extends Test {
 		final child = new ChildWidenedNonPhysical();
 		eq(child.name, "child");
 		child.name = "new child";
+		// Non-physical setter has no storage, so the value is unchanged
+		eq(child.name, "child");
 
 		final parent:ParentWithNonPhysical = child;
 		eq(parent.name, "child");
