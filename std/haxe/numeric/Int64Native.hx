@@ -259,4 +259,12 @@ class Int64Native {
 			str = "-" + str;
 		return str;
 	}
+
+	public static inline function parseString(sParam:String):Int64Native {
+		return haxe.numeric.Int64Helper.parseString(sParam);
+	}
+
+	public static inline function fromFloat(f:Float):Int64Native {
+		return haxe.numeric.Int64Helper.fromFloat(f);
+	}
 }

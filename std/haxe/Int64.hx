@@ -34,8 +34,8 @@ package haxe;
 @:notNull
 #end
 @:transitive
-abstract Int64(__Int64) from __Int64 to __Int64 {
-	private inline function new(x:__Int64)
+abstract Int64(haxe.numeric.Int64Native) from haxe.numeric.Int64Native to haxe.numeric.Int64Native {
+	private inline function new(x:haxe.numeric.Int64Native)
 		this = x;
 
 	/**
@@ -48,21 +48,21 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Construct an Int64 from two 32-bit words `high` and `low`.
 	**/
 	public static inline function make(high:Int32, low:Int32):Int64
-		return new Int64(__Int64.make(high, low));
+		return new Int64(haxe.numeric.Int64Native.make(high, low));
 
 	/**
 		Returns an Int64 with the value of the Int `x`.
 		`x` is sign-extended to fill 64 bits.
 	**/
 	@:from public static inline function ofInt(x:Int):Int64
-		return new Int64(__Int64.ofInt(x));
+		return new Int64(haxe.numeric.Int64Native.ofInt(x));
 
 	/**
 		Returns an Int with the value of the Int64 `x`.
 		Throws an exception  if `x` cannot be represented in 32 bits.
 	**/
 	public static inline function toInt(x:Int64):Int
-		return __Int64.toInt(x);
+		return haxe.numeric.Int64Native.toInt(x);
 
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool {
@@ -73,7 +73,11 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns whether the value `val` is of type `haxe.Int64`
 	**/
 	inline public static function isInt64(val:Dynamic):Bool
-		return Std.isOfType(val, __Int64);
+		#if jvm
+		return Std.isOfType(val, java.lang.Long.LongClass);
+		#else
+		return Std.isOfType(val, haxe.numeric.Int64Native);
+		#end
 
 	/**
 		Returns the high 32-bit word of `x`.
@@ -93,13 +97,13 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns `true` if `x` is less than zero.
 	**/
 	public static inline function isNeg(x:Int64):Bool
-		return __Int64.isNeg(x);
+		return haxe.numeric.Int64Native.isNeg(x);
 
 	/**
 		Returns `true` if `x` is exactly zero.
 	**/
 	public static inline function isZero(x:Int64):Bool
-		return __Int64.isZero(x);
+		return haxe.numeric.Int64Native.isZero(x);
 
 	/**
 		Compares `a` and `b` in signed mode.
@@ -107,7 +111,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		or 0 if `a == b`.
 	**/
 	public static inline function compare(a:Int64, b:Int64):Int
-		return __Int64.compare(a, b);
+		return haxe.numeric.Int64Native.compare(a, b);
 
 	/**
 		Compares `a` and `b` in unsigned mode.
@@ -115,7 +119,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		or 0 if `a == b`.
 	**/
 	public static inline function ucompare(a:Int64, b:Int64):Int
-		return __Int64.ucompare(a, b);
+		return haxe.numeric.Int64Native.ucompare(a, b);
 
 	/**
 		Returns a signed decimal `String` representation of `x`.
@@ -127,11 +131,11 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return this.toString();
 
 	public static inline function parseString(sParam:String):Int64 {
-		return Int64Helper.parseString(sParam);
+		return haxe.numeric.Int64Native.parseString(sParam);
 	}
 
 	public static inline function fromFloat(f:Float):Int64 {
-		return Int64Helper.fromFloat(f);
+		return haxe.numeric.Int64Native.fromFloat(f);
 	}
 
 	/**
@@ -139,7 +143,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns `{ quotient : Int64, modulus : Int64 }`.
 	**/
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
-		var r = __Int64.divMod(dividend, divisor);
+		var r = haxe.numeric.Int64Native.divMod(dividend, divisor);
 		return {quotient: r.quotient, modulus: r.modulus};
 	}
 
@@ -147,10 +151,10 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the negative of `x`.
 	**/
 	@:op(-A) public static inline function neg(x:Int64):Int64
-		return __Int64.neg(x);
+		return haxe.numeric.Int64Native.neg(x);
 
 	@:op(++A) private inline function preIncrement():Int64 {
-		this = __Int64.add(this, __Int64.ofInt(1));
+		this = haxe.numeric.Int64Native.add(this, haxe.numeric.Int64Native.ofInt(1));
 		return cast this;
 	}
 
@@ -161,7 +165,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	}
 
 	@:op(--A) private inline function preDecrement():Int64 {
-		this = __Int64.sub(this, __Int64.ofInt(1));
+		this = haxe.numeric.Int64Native.sub(this, haxe.numeric.Int64Native.ofInt(1));
 		return cast this;
 	}
 
@@ -175,7 +179,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the sum of `a` and `b`.
 	**/
 	@:op(A + B) public static inline function add(a:Int64, b:Int64):Int64
-		return __Int64.add(a, b);
+		return haxe.numeric.Int64Native.add(a, b);
 
 	@:op(A + B) @:commutative private static inline function addInt(a:Int64, b:Int):Int64
 		return add(a, b);
@@ -184,7 +188,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns `a` minus `b`.
 	**/
 	@:op(A - B) public static inline function sub(a:Int64, b:Int64):Int64
-		return __Int64.sub(a, b);
+		return haxe.numeric.Int64Native.sub(a, b);
 
 	@:op(A - B) private static inline function subInt(a:Int64, b:Int):Int64
 		return sub(a, b);
@@ -196,7 +200,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the product of `a` and `b`.
 	**/
 	@:op(A * B) public static inline function mul(a:Int64, b:Int64):Int64
-		return __Int64.mul(a, b);
+		return haxe.numeric.Int64Native.mul(a, b);
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int64, b:Int):Int64
 		return mul(a, b);
@@ -229,7 +233,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns `true` if `a` is equal to `b`.
 	**/
 	@:op(A == B) public static inline function eq(a:Int64, b:Int64):Bool
-		return __Int64.eq(a, b);
+		return haxe.numeric.Int64Native.eq(a, b);
 
 	@:op(A == B) @:commutative private static inline function eqInt(a:Int64, b:Int):Bool
 		return eq(a, b);
@@ -238,7 +242,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns `true` if `a` is not equal to `b`.
 	**/
 	@:op(A != B) public static inline function neq(a:Int64, b:Int64):Bool
-		return __Int64.neq(a, b);
+		return haxe.numeric.Int64Native.neq(a, b);
 
 	@:op(A != B) @:commutative private static inline function neqInt(a:Int64, b:Int):Bool
 		return neq(a, b);
@@ -283,45 +287,45 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the bitwise NOT of `a`.
 	**/
 	@:op(~A) private static inline function complement(a:Int64):Int64
-		return __Int64.complement(a);
+		return haxe.numeric.Int64Native.complement(a);
 
 	/**
 		Returns the bitwise AND of `a` and `b`.
 	**/
 	@:op(A & B) public static inline function and(a:Int64, b:Int64):Int64
-		return __Int64.and(a, b);
+		return haxe.numeric.Int64Native.and(a, b);
 
 	/**
 		Returns the bitwise OR of `a` and `b`.
 	**/
 	@:op(A | B) public static inline function or(a:Int64, b:Int64):Int64
-		return __Int64.or(a, b);
+		return haxe.numeric.Int64Native.or(a, b);
 
 	/**
 		Returns the bitwise XOR of `a` and `b`.
 	**/
 	@:op(A ^ B) public static inline function xor(a:Int64, b:Int64):Int64
-		return __Int64.xor(a, b);
+		return haxe.numeric.Int64Native.xor(a, b);
 
 	/**
 		Returns `a` left-shifted by `b` bits.
 	**/
 	@:op(A << B) public static inline function shl(a:Int64, b:Int):Int64
-		return __Int64.shl(a, b);
+		return haxe.numeric.Int64Native.shl(a, b);
 
 	/**
 		Returns `a` right-shifted by `b` bits in signed mode.
 		`a` is sign-extended.
 	**/
 	@:op(A >> B) public static inline function shr(a:Int64, b:Int):Int64
-		return __Int64.shr(a, b);
+		return haxe.numeric.Int64Native.shr(a, b);
 
 	/**
 		Returns `a` right-shifted by `b` bits in unsigned mode.
 		`a` is padded with zeroes.
 	**/
 	@:op(A >>> B) public static inline function ushr(a:Int64, b:Int):Int64
-		return __Int64.ushr(a, b);
+		return haxe.numeric.Int64Native.ushr(a, b);
 
 	public var high(get, never):Int32;
 
@@ -338,13 +342,4 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
-
-	static var IMPL = haxe.numeric.Int64Native;
 }
-
-/**
-	This typedef will fool `@:coreApi` into thinking that we are using
-	the same underlying type, even though it might be different on
-	specific platforms.
-**/
-private typedef __Int64 = haxe.numeric.Int64Native;
