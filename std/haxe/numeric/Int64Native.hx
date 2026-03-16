@@ -37,12 +37,226 @@ class Int64Native {
 		this.low = low;
 	}
 
+	public static inline function make(high:haxe.Int32, low:haxe.Int32):Int64Native {
+		return new Int64Native(high, low);
+	}
+
+	public static inline function ofInt(x:Int):Int64Native {
+		#if lua
+		return make((x : haxe.Int32) >> 31, (x : haxe.Int32));
+		#else
+		return make(x >> 31, x);
+		#end
+	}
+
+	public static inline function toInt(x:Int64Native):Int {
+		if (x.high != x.low >> 31)
+			throw "Overflow";
+
+		return x.low;
+	}
+
+	public static inline function isNeg(x:Int64Native):Bool {
+		return x.high < 0;
+	}
+
+	public static inline function isZero(x:Int64Native):Bool {
+		return x.high == 0 && x.low == 0;
+	}
+
+	public static inline function compare(a:Int64Native, b:Int64Native):Int {
+		var v = a.high - b.high;
+		v = if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
+		return a.high < 0 ? (b.high < 0 ? v : -1) : (b.high >= 0 ? v : 1);
+	}
+
+	public static inline function ucompare(a:Int64Native, b:Int64Native):Int {
+		var v = haxe.Int32.ucompare(a.high, b.high);
+		return if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
+	}
+
+	public static inline function neg(x:Int64Native):Int64Native {
+		var high = ~x.high;
+		var low = -x.low;
+		if (low == 0)
+			high++;
+		return make(high, low);
+	}
+
+	public static inline function add(a:Int64Native, b:Int64Native):Int64Native {
+		var high = a.high + b.high;
+		var low = a.low + b.low;
+		if (haxe.Int32.ucompare(low, a.low) < 0)
+			high++;
+		return make(high, low);
+	}
+
+	public static inline function sub(a:Int64Native, b:Int64Native):Int64Native {
+		var high = a.high - b.high;
+		var low = a.low - b.low;
+		if (haxe.Int32.ucompare(a.low, b.low) < 0)
+			high--;
+		return make(high, low);
+	}
+
+	@:pure(false)
+	public static #if !lua inline #end function mul(a:Int64Native, b:Int64Native):Int64Native {
+		var mask = 0xFFFF;
+		var al = a.low & mask, ah = a.low >>> 16;
+		var bl = b.low & mask, bh = b.low >>> 16;
+		var p00 = al * bl;
+		var p10 = ah * bl;
+		var p01 = al * bh;
+		var p11 = ah * bh;
+		var low = p00;
+		var high = p11 + (p01 >>> 16) + (p10 >>> 16);
+		p01 <<= 16;
+		low += p01;
+		if (haxe.Int32.ucompare(low, p01) < 0)
+			high++;
+		p10 <<= 16;
+		low += p10;
+		if (haxe.Int32.ucompare(low, p10) < 0)
+			high++;
+		high += a.low * b.high + a.high * b.low;
+		return make(high, low);
+	}
+
+	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
+		// Handle special cases of 0 and 1
+		if (divisor.high == 0) {
+			switch (divisor.low) {
+				case 0:
+					throw "divide by zero";
+				case 1:
+					return {quotient: make(dividend.high, dividend.low), modulus: ofInt(0)};
+			}
+		}
+
+		var divSign = isNeg(dividend) != isNeg(divisor);
+
+		var modulus = isNeg(dividend) ? neg(dividend) : make(dividend.high, dividend.low);
+		divisor = isNeg(divisor) ? neg(divisor) : divisor;
+
+		var quotient = ofInt(0);
+		var mask = ofInt(1);
+
+		while (!isNeg(divisor)) {
+			var cmp = ucompare(divisor, modulus);
+			divisor = shl(divisor, 1);
+			mask = shl(mask, 1);
+			if (cmp >= 0)
+				break;
+		}
+
+		while (!isZero(mask)) {
+			if (ucompare(modulus, divisor) >= 0) {
+				quotient = or(quotient, mask);
+				modulus = sub(modulus, divisor);
+			}
+			mask = ushr(mask, 1);
+			divisor = ushr(divisor, 1);
+		}
+
+		if (divSign)
+			quotient = neg(quotient);
+		if (isNeg(dividend))
+			modulus = neg(modulus);
+
+		return {
+			quotient: quotient,
+			modulus: modulus
+		};
+	}
+
+	public static inline function eq(a:Int64Native, b:Int64Native):Bool {
+		return a.high == b.high && a.low == b.low;
+	}
+
+	public static inline function neq(a:Int64Native, b:Int64Native):Bool {
+		return a.high != b.high || a.low != b.low;
+	}
+
+	public static inline function complement(a:Int64Native):Int64Native {
+		return make(~a.high, ~a.low);
+	}
+
+	public static inline function and(a:Int64Native, b:Int64Native):Int64Native {
+		return make(a.high & b.high, a.low & b.low);
+	}
+
+	public static inline function or(a:Int64Native, b:Int64Native):Int64Native {
+		return make(a.high | b.high, a.low | b.low);
+	}
+
+	public static inline function xor(a:Int64Native, b:Int64Native):Int64Native {
+		return make(a.high ^ b.high, a.low ^ b.low);
+	}
+
+	public static inline function shl(a:Int64Native, b:Int):Int64Native {
+		b &= 63;
+		return if (b == 0) make(a.high, a.low) else if (b < 32) make((a.high << b) | (a.low >>> (32 - b)), a.low << b) else make(a.low << (b - 32), 0);
+	}
+
+	public static inline function shr(a:Int64Native, b:Int):Int64Native {
+		b &= 63;
+		return if (b == 0) make(a.high, a.low) else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b)); else make(a.high >> 31, a.high >> (b - 32));
+	}
+
+	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
+		b &= 63;
+		return if (b == 0) make(a.high, a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
+	}
+
+	#if php
+	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
+	#end
+
+	#if !lua
+	inline
+	#end
+	static function clamp(x:Int):Int {
+		// force to-int conversion on platforms that require it
+		#if js
+		return x | 0;
+		#elseif php
+		// we might be on 64-bit php, so sign extend from 32-bit
+		return (x << extraBits) >> extraBits;
+		#elseif python
+		return (python.Syntax.code("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) : Int) - python.Syntax.opPow(2, 31);
+		#elseif lua
+		return lua.Boot.clampInt32(x);
+		#else
+		return x;
+		#end
+	}
+
 	/**
-		We also define toString here to ensure we always get a pretty string
-		when tracing or calling `Std.string`. This tends not to happen when
-		`toString` is only in the abstract.
+		Returns a signed decimal `String` representation of the value.
 	**/
 	@:ifFeature("dynamic_read.toString")
-	public function toString():String
-		return haxe.Int64.toStr(cast this);
+	public function toString():String {
+		if (isZero(this))
+			return "0";
+		var str = "";
+		var negative = false;
+		if (isNeg(this)) {
+			negative = true;
+		}
+		var ten = ofInt(10);
+		var i = make(this.high, this.low);
+		while (!isZero(i)) {
+			var r = divMod(i, ten);
+			if (isNeg(r.modulus)) {
+				str = neg(r.modulus).low + str;
+				i = neg(r.quotient);
+			} else {
+				str = r.modulus.low + str;
+				i = r.quotient;
+			}
+		}
+		if (negative)
+			str = "-" + str;
+		return str;
+	}
 }
