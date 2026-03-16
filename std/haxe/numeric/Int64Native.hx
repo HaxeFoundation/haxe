@@ -56,6 +56,10 @@ class Int64Native {
 		return x.low;
 	}
 
+	public static inline function isInt64(val:Dynamic):Bool {
+		return Std.isOfType(val, Int64Native);
+	}
+
 	public static inline function isNeg(x:Int64Native):Bool {
 		return x.high < 0;
 	}

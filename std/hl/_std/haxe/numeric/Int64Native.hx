@@ -22,20 +22,26 @@
 
 package haxe.numeric;
 
+#if (hl_ver >= version("1.12.0") && !hl_legacy32)
 /**
-	JVM-native 64-bit integer implementation.
-	Shadows the cross-platform emulation with native Java `long` operations
-	via `jvm.Int64`.
+	HL-native 64-bit integer implementation.
+	Shadows the cross-platform emulation with native HL `I64` operations.
+	Only available on HL >= 1.12.0 without legacy 32-bit mode.
 **/
 @:coreApi(check = Off)
-abstract Int64Native(jvm.Int64) from jvm.Int64 to jvm.Int64 {
+abstract Int64Native(hl.I64) from hl.I64 to hl.I64 {
+	static var MASK:hl.I64 = {
+		var v:hl.I64 = 0xFFFF;
+		v | (v << 16);
+	}
+
 	public var high(get, set):haxe.Int32;
 
 	inline function get_high():haxe.Int32
 		return cast(this >> 32);
 
 	inline function set_high(v:haxe.Int32):haxe.Int32 {
-		this = ((cast v : jvm.Int64) << 32) | (this & lowMask());
+		this = ((cast v : hl.I64) << 32) | (this & MASK);
 		return v;
 	}
 
@@ -45,22 +51,14 @@ abstract Int64Native(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 		return cast this;
 
 	inline function set_low(v:haxe.Int32):haxe.Int32 {
-		this = (this & highMask()) | ((cast v : jvm.Int64) & lowMask());
+		this = (this & ~MASK) | ((cast v : hl.I64) & MASK);
 		return v;
 	}
 
-	/** 0x00000000FFFFFFFFL **/
-	static inline function lowMask():jvm.Int64 {
-		return ((cast 0 : jvm.Int64) | (cast -1 : jvm.Int64)) >>> 32;
-	}
-
-	/** 0xFFFFFFFF00000000L **/
-	static inline function highMask():jvm.Int64 {
-		return ~lowMask();
-	}
-
 	public inline function new(high:haxe.Int32, low:haxe.Int32) {
-		this = ((cast high : jvm.Int64) << 32) | ((cast low : jvm.Int64) & lowMask());
+		var h:hl.I64 = high;
+		var l:hl.I64 = low;
+		this = (h << 32) | (l & MASK);
 	}
 
 	public static inline function make(high:haxe.Int32, low:haxe.Int32):Int64Native {
@@ -72,80 +70,79 @@ abstract Int64Native(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 	}
 
 	public static inline function toInt(x:Int64Native):Int {
-		var v:jvm.Int64 = x;
-		if (v < ((cast -2147483648 : jvm.Int64))
-			|| v > ((cast 2147483647 : jvm.Int64)))
+		var v:hl.I64 = x;
+		if (v < (cast -2147483648 : hl.I64) || v > (cast 2147483647 : hl.I64))
 			throw "Overflow";
 		return cast v;
 	}
 
 	public static inline function isInt64(val:Dynamic):Bool
-		return Std.isOfType(val, java.lang.Long.LongClass);
+		return hl.Type.getDynamic(val).kind == HI64;
 
 	public static inline function isNeg(x:Int64Native):Bool
-		return (x : jvm.Int64) < 0;
+		return (x : hl.I64) < 0;
 
 	public static inline function isZero(x:Int64Native):Bool
-		return (x : jvm.Int64) == 0;
+		return (x : hl.I64) == 0;
 
 	public static inline function compare(a:Int64Native, b:Int64Native):Int {
-		if ((a : jvm.Int64) < (b : jvm.Int64))
+		if ((a : hl.I64) < (b : hl.I64))
 			return -1;
-		if ((a : jvm.Int64) > (b : jvm.Int64))
+		if ((a : hl.I64) > (b : hl.I64))
 			return 1;
 		return 0;
 	}
 
 	public static inline function ucompare(a:Int64Native, b:Int64Native):Int {
-		if ((a : jvm.Int64) < 0)
-			return ((b : jvm.Int64) < 0) ? compare(a, b) : 1;
-		return ((b : jvm.Int64) < 0) ? -1 : compare(a, b);
+		if ((a : hl.I64) < 0)
+			return ((b : hl.I64) < 0) ? compare(a, b) : 1;
+		return ((b : hl.I64) < 0) ? -1 : compare(a, b);
 	}
 
 	public static inline function neg(x:Int64Native):Int64Native
-		return cast -(x : jvm.Int64);
+		return cast -(x : hl.I64);
 
 	public static inline function add(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : jvm.Int64) + (b : jvm.Int64));
+		return cast((a : hl.I64) + (b : hl.I64));
 
 	public static inline function sub(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : jvm.Int64) - (b : jvm.Int64));
+		return cast((a : hl.I64) - (b : hl.I64));
 
 	public static inline function mul(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : jvm.Int64) * (b : jvm.Int64));
+		return cast((a : hl.I64) * (b : hl.I64));
 
 	public static inline function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native}
-		return {quotient: cast((dividend : jvm.Int64) / (divisor : jvm.Int64)), modulus: cast((dividend : jvm.Int64) % (divisor : jvm.Int64))};
+		return {quotient: cast((dividend : hl.I64) / (divisor : hl.I64)), modulus: cast((dividend : hl.I64) % (divisor : hl.I64))};
 
 	public static inline function eq(a:Int64Native, b:Int64Native):Bool
-		return (a : jvm.Int64) == (b : jvm.Int64);
+		return (a : hl.I64) == (b : hl.I64);
 
 	public static inline function neq(a:Int64Native, b:Int64Native):Bool
-		return (a : jvm.Int64) != (b : jvm.Int64);
+		return (a : hl.I64) != (b : hl.I64);
 
 	public static inline function complement(x:Int64Native):Int64Native
-		return cast ~(x : jvm.Int64);
+		return cast ~(x : hl.I64);
 
 	public static inline function and(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : jvm.Int64) & (b : jvm.Int64));
+		return cast((a : hl.I64) & (b : hl.I64));
 
 	public static inline function or(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : jvm.Int64) | (b : jvm.Int64));
+		return cast((a : hl.I64) | (b : hl.I64));
 
 	public static inline function xor(a:Int64Native, b:Int64Native):Int64Native
-		return cast((a : jvm.Int64) ^ (b : jvm.Int64));
+		return cast((a : hl.I64) ^ (b : hl.I64));
 
 	public static inline function shl(a:Int64Native, b:Int):Int64Native
-		return cast((a : jvm.Int64) << b);
+		return cast((a : hl.I64) << b);
 
 	public static inline function shr(a:Int64Native, b:Int):Int64Native
-		return cast((a : jvm.Int64) >> b);
+		return cast((a : hl.I64) >> b);
 
 	public static inline function ushr(a:Int64Native, b:Int):Int64Native
-		return cast((a : jvm.Int64) >>> b);
+		return cast((a : hl.I64) >>> b);
 
 	public inline function toString():String
-		return '${(this : jvm.Int64)}';
+		return Std.string(this);
 
 	public static inline function parseString(sParam:String):Int64Native {
 		return haxe.numeric.Int64Helper.parseString(sParam);
@@ -155,3 +152,5 @@ abstract Int64Native(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 		return haxe.numeric.Int64Helper.fromFloat(f);
 	}
 }
+
+#end

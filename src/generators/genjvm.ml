@@ -132,6 +132,7 @@ let jsignature_of_path path = match path with
 	| ["jvm"],"Int16" -> TShort
 	| [],"Int" -> TInt
 	| ["haxe"],"Int32" -> TInt
+	| ["haxe"],"Int64" -> TLong
 	| ["jvm"],"Int64" -> TLong
 	| ["jvm"],"Char16" -> TChar
 	| [],"Single" -> TFloat
