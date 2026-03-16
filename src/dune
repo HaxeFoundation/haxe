@@ -9,9 +9,10 @@
 		; 27 - Unused var (strict)
 		; 30 - Duplicate field label (e.g. timer_ctx in request_scope and context)
 		; 32 - Unused value declaration
+		; 33 - Unused open statement
 		; 36 - Unused `as super`
 		; 50 - Unexpected docstring
-		(flags (:standard -w -3 -w -6 -w -9 -w -23 -w -27 -w -30 -w -32 -w -36 -w -50 -thread))
+		(flags (:standard -w -3 -w -6 -w -9 -w -23 -w -27 -w -30 -w -32 -w -33 -w -36 -w -50 -thread))
 	)
 )
 

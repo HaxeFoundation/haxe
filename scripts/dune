@@ -1,0 +1,6 @@
+(executable
+	(name parse_std)
+	(libraries haxe unix)
+	(modules parse_std)
+	(link_flags (:include %{workspace_root}/src/libs.sexp))
+)
