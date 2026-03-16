@@ -22,28 +22,15 @@
 
 package haxe.numeric;
 
-import haxe.numeric.Int64Data;
+typedef Int64Native = Int64NativeImpl;
 
-@:dox(hide)
-abstract Int64Native(Int64Data) from Int64Data to Int64Data {
-	public var high(get, set):haxe.Int32;
-
-	inline function get_high():haxe.Int32
-		return this.high;
-
-	inline function set_high(v:haxe.Int32):haxe.Int32
-		return this.high = v;
-
-	public var low(get, set):haxe.Int32;
-
-	inline function get_low():haxe.Int32
-		return this.low;
-
-	inline function set_low(v:haxe.Int32):haxe.Int32
-		return this.low = v;
+private class Int64NativeImpl {
+	public var high:haxe.Int32;
+	public var low:haxe.Int32;
 
 	public inline function new(high:haxe.Int32, low:haxe.Int32) {
-		this = new Int64Data(high, low);
+		this.high = high;
+		this.low = low;
 	}
 
 	public static inline function make(high:haxe.Int32, low:haxe.Int32):Int64Native {
@@ -66,7 +53,7 @@ abstract Int64Native(Int64Data) from Int64Data to Int64Data {
 	}
 
 	public static inline function isInt64(val:Dynamic):Bool {
-		return Std.isOfType(val, Int64Data);
+		return Std.isOfType(val, Int64Native);
 	}
 
 	public static inline function isNeg(x:Int64Native):Bool {
@@ -213,12 +200,14 @@ abstract Int64Native(Int64Data) from Int64Data to Int64Data {
 
 	public static inline function shr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high, a.low) else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b)); else make(a.high >> 31, a.high >> (b - 32));
+		return if (b == 0) make(a.high,
+			a.low) else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b)); else make(a.high >> 31, a.high >> (b - 32));
 	}
 
 	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high, a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
+		return if (b == 0) make(a.high,
+			a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
 	}
 
 	#if php
@@ -244,17 +233,51 @@ abstract Int64Native(Int64Data) from Int64Data to Int64Data {
 		#end
 	}
 
-	/**
-		Returns a signed decimal `String` representation of the value.
-	**/
-	public inline function toString():String
-		return this.toString();
-
 	public static inline function parseString(sParam:String):Int64Native {
 		return haxe.numeric.Int64Helper.parseString(sParam);
 	}
 
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
+	}
+
+	@:ifFeature("dynamic_read.toString")
+	public function toString():String {
+		if (high == 0 && low == 0)
+			return "0";
+		var negative = high < 0;
+		// Split into four unsigned 16-bit chunks for safe division
+		var h:Int, l:Int;
+		if (negative) {
+			h = ~high;
+			l = -low;
+			if (l == 0)
+				h++;
+		} else {
+			h = high;
+			l = low;
+		}
+		var d3 = (h >>> 16) & 0xFFFF;
+		var d2 = h & 0xFFFF;
+		var d1 = (l >>> 16) & 0xFFFF;
+		var d0 = l & 0xFFFF;
+		var str = "";
+		while (d3 != 0 || d2 != 0 || d1 != 0 || d0 != 0) {
+			// Divide the 4-chunk number by 10, propagating remainders
+			var r = d3 % 10;
+			d3 = Std.int(d3 / 10);
+			var v = r * 65536 + d2;
+			d2 = Std.int(v / 10);
+			r = v % 10;
+			v = r * 65536 + d1;
+			d1 = Std.int(v / 10);
+			r = v % 10;
+			v = r * 65536 + d0;
+			d0 = Std.int(v / 10);
+			str = (v % 10) + str;
+		}
+		if (negative)
+			str = "-" + str;
+		return str;
 	}
 }

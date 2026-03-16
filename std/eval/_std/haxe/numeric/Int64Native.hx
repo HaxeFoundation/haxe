@@ -24,9 +24,9 @@ package haxe.numeric;
 
 import eval.integers.Int64 as EvalInt64;
 
-@:dox(hide)
-@:coreApi(check = Off)
-abstract Int64Native(EvalInt64) from EvalInt64 to EvalInt64 {
+typedef Int64Native = Int64NativeImpl;
+
+private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 	public var high(get, set):haxe.Int32;
 
 	inline function get_high():haxe.Int32
