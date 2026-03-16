@@ -104,14 +104,18 @@ extern
 #end
 private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	#if cppia
+	public var high(get, never):haxe.Int32;
+	public function get_high():haxe.Int32;
+
+	public var low(get, never):haxe.Int32;
+	public function get_low():haxe.Int32;
+
 	public function new(high:haxe.Int32, low:haxe.Int32):Void;
 
 	public static function make(high:haxe.Int32, low:haxe.Int32):Int64Native;
 	public static function ofInt(x:Int):Int64Native;
 	public static function toInt(x:Int64Native):Int;
 	public static function isInt64(val:Dynamic):Bool;
-	public static function getHigh(x:Int64Native):haxe.Int32;
-	public static function getLow(x:Int64Native):haxe.Int32;
 	public static function isNeg(x:Int64Native):Bool;
 	public static function isZero(x:Int64Native):Bool;
 	public static function compare(a:Int64Native, b:Int64Native):Int;
@@ -143,12 +147,6 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 
 	#if !scriptable inline #end function get_low():haxe.Int32
 		return CppInt64Helper.low(this);
-
-	public static #if !scriptable inline #end function getHigh(x:Int64Native):haxe.Int32
-		return CppInt64Helper.high(x);
-
-	public static #if !scriptable inline #end function getLow(x:Int64Native):haxe.Int32
-		return CppInt64Helper.low(x);
 
 	public inline function new(high:haxe.Int32, low:haxe.Int32) {
 		this = CppInt64Helper.make(high, low);

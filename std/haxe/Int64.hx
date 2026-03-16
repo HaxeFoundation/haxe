@@ -328,12 +328,12 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	public var high(get, never):Int32;
 
 	private inline function get_high()
-		return #if cpp Int64Native.getHigh(this) #else this.high #end;
+		return this.high;
 
 	public var low(get, never):Int32;
 
 	private inline function get_low()
-		return #if cpp Int64Native.getLow(this) #else this.low #end;
+		return this.low;
 
 	// Used by platform-specific FPHelper on Lua/Python/PHP via @:privateAccess.
 	// Not available on C++ because the C++ Int64NativeImpl has read-only high/low.
