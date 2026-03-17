@@ -41,9 +41,20 @@ let send_timer_report io timer_ctx =
     Messages are written to stderr, errors are signaled via the pipe protocol,
     and timer reports are sent after successful compilation. *)
 let create_server_result_handler io =
-	let send_message _sev output =
-		CompilerIo.write_err io (output ^ "\n");
-		ServerMessage.message output
+	let send_message sev output =
+		(* Route non-error messages via write_out (the \x01-prefixed prints channel)
+		   rather than write_err (raw bytes). In --server-connect mode, write_err
+		   writes raw bytes into the same buffer as write_result (the JSON response),
+		   so warning text would end up in result.stderr and corrupt JSON-RPC parsing.
+		   For errors we still use write_err (error signal) + ServerMessage for verbose
+		   server logging. Non-errors are already delivered via write_out, so we skip
+		   the duplicate ServerMessage call to avoid the message appearing twice. *)
+		match sev with
+		| MessageSeverity.Error ->
+			CompilerIo.write_err io (output ^ "\n");
+			ServerMessage.message output
+		| Warning | Information | Hint ->
+			CompilerIo.write_out io (output ^ "\n")
 	in
 	{
 		send_result = (fun _ -> ());
