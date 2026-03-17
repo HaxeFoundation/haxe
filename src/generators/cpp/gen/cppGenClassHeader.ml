@@ -38,7 +38,7 @@ let gen_member_function ctx class_def is_static func =
 
   let fold_static acc = if is_static then "static" :: acc else acc in
   let fold_virtual acc =
-    if not is_static && func.tcf_is_virtual then (
+    if not is_static && func.tcf_is_virtual && not func.tcf_is_overriding then (
       if func.tcf_is_external && not func.tcf_is_scriptable then
         let key = Printf.sprintf "%s.%s" (join_class_path class_def.cl_path ".") func.tcf_field.cf_name in
         match StringMap.find_opt key ctx.ctx_class_member_types with
@@ -63,7 +63,13 @@ let gen_member_function ctx class_def is_static func =
     | other ->
       tcpp_to_string other in
 
-  Printf.sprintf "\t\t%s %s %s(%s);\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_args "") |> output;
+  let override_specifier = if func.tcf_is_overriding || (not is_static && func.tcf_name = "toString" && func.tcf_args = []) then
+    " override"
+  else
+    ""
+  in
+
+  Printf.sprintf "\t\t%s %s %s(%s)%s;\n" attributes return_type_str func.tcf_name (print_arg_list func.tcf_args "") override_specifier |> output;
 
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     let prefix    = if is_static then "static " else "" in
@@ -283,19 +289,19 @@ let generate_managed_header base_ctx tcpp_class =
   output_h "\t\tHX_DO_RTTI_ALL;\n";
   if has_tcpp_class_flag tcpp_class MemberGet then
     output_h
-      "\t\t::hx::Val __Field(const ::String &inString, ::hx::PropertyAccess inCallProp);\n";
+      "\t\t::hx::Val __Field(const ::String &inString, ::hx::PropertyAccess inCallProp) override;\n";
   if has_tcpp_class_flag tcpp_class StaticGet then
     output_h
       "\t\tstatic bool __GetStatic(const ::String &inString, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n";
   if has_tcpp_class_flag tcpp_class MemberSet then
     output_h
-      "\t\t::hx::Val __SetField(const ::String &inString,const ::hx::Val &inValue, ::hx::PropertyAccess inCallProp);\n";
+      "\t\t::hx::Val __SetField(const ::String &inString, const ::hx::Val &inValue, ::hx::PropertyAccess inCallProp) override;\n";
   if has_tcpp_class_flag tcpp_class StaticSet then
     output_h
       "\t\tstatic bool __SetStatic(const ::String &inString, ::Dynamic &ioValue, ::hx::PropertyAccess inCallProp);\n";
   if has_tcpp_class_flag tcpp_class GetFields then
     output_h
-      "\t\tvoid __GetFields(::Array< ::String> &outFields);\n";
+      "\t\tvoid __GetFields(::Array< ::String> &outFields) override;\n";
   if has_tcpp_class_flag tcpp_class Compare then
     output_h
       ("\t\tint __Compare(const ::hx::Object *inRHS) const { "
@@ -304,8 +310,8 @@ let generate_managed_header base_ctx tcpp_class =
 
   output_h "\t\tstatic void __register();\n";
   if tcpp_class.tcl_container = Some Current then (
-    output_h "\t\tvoid __Mark(HX_MARK_PARAMS);\n";
-    output_h "\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
+    output_h "\t\tvoid __Mark(HX_MARK_PARAMS) override;\n";
+    output_h "\t\tvoid __Visit(HX_VISIT_PARAMS) override;\n");
 
   if List.length tcpp_class.tcl_native_interfaces > 0 then (
     output_h "\n\t\tHX_NATIVE_IMPLEMENTATION\n";
@@ -323,9 +329,9 @@ let generate_managed_header base_ctx tcpp_class =
 
     output_h "\n");
 
-  output_h "\t\tbool _hx_isInstanceOf(int inClassId);\n";
+  output_h "\t\tbool _hx_isInstanceOf(int inClassId) override;\n";
   if List.length tcpp_class.tcl_haxe_interfaces > 0 then (
-    output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
+    output_h "\t\tvoid *_hx_getInterface(int inHash) override;\n";
     (* generate header glue *)
     let alreadyGlued = Hashtbl.create 0 in
     List.iter
@@ -366,7 +372,7 @@ let generate_managed_header base_ctx tcpp_class =
 
   if Option.is_some tcpp_class.tcl_init then output_h "\t\tstatic void __init__();\n\n";
   output_h
-    ("\t\t::String __ToString() const { return " ^ strq smart_class_name ^ "; }\n\n");
+    ("\t\t::String __ToString() const override { return " ^ strq smart_class_name ^ "; }\n\n");
 
   if has_tcpp_class_flag tcpp_class Boot then output_h "\t\tstatic void __boot();\n";
 

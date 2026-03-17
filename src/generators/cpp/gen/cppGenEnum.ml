@@ -170,9 +170,9 @@ let generate base_ctx tcpp_enum =
   output_h ("\t\tstatic void __boot();\n");
   output_h ("\t\tstatic void __register();\n");
   output_h ("\t\tstatic bool __GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp);\n");
-  output_h ("\t\t::String GetEnumName( ) const { return " ^ (strq (join_class_path class_path "."))  ^ "; }\n" );
-  output_h ("\t\t::String __ToString() const { return " ^ (strq (just_class_name ^ ".") )^ " + _hx_tag; }\n");
-  output_h ("\t\tbool _hx_isInstanceOf(int inClassId);\n\n");
+  output_h ("\t\t::String GetEnumName() const override { return " ^ (strq (join_class_path class_path "."))  ^ "; }\n" );
+  output_h ("\t\t::String __ToString() const override { return " ^ (strq (just_class_name ^ ".") )^ " + _hx_tag; }\n");
+  output_h ("\t\tbool _hx_isInstanceOf(int inClassId) override;\n\n");
 
   List.iter
     (fun constructor ->
