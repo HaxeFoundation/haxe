@@ -92,41 +92,21 @@ import haxe.Int32;
 	**/
 	public function remainder(u:Int64):Int64;
 
-	function add(u:Int64):Int64;
-	function sub(u:Int64):Int64;
-	function mul(u:Int64):Int64;
-	function div(u:Int64):Int64;
-	function logand(u:Int64):Int64;
-	function logor(u:Int64):Int64;
-	function logxor(u:Int64):Int64;
-	function shift_left(i:Int):Int64;
-	function shift_right(i:Int):Int64;
-	function shift_right_logical(i:Int):Int64;
-	function lognot():Int64;
+	public function add(u:Int64):Int64;
+	public function sub(u:Int64):Int64;
+	public function mul(u:Int64):Int64;
+	public function div(u:Int64):Int64;
+	public function logand(u:Int64):Int64;
+	public function logor(u:Int64):Int64;
+	public function logxor(u:Int64):Int64;
+	public function shift_left(i:Int):Int64;
+	public function shift_right(i:Int):Int64;
+	public function shift_right_logical(i:Int):Int64;
+	public function lognot():Int64;
+	@:op(-A) public function neg():Int64;
 
-	@:op(-A) function neg():Int64;
 	@:op(++A) function preIncr():Int64;
 	@:op(A++) function postIncr():Int64;
 	@:op(--A) function preDecr():Int64;
 	@:op(A--) function postDecr():Int64;
-
-	@:op(A + B) inline function _add(u:Int64):Int64 return this.add(u);
-	@:op(A - B) inline function _sub(u:Int64):Int64 return this.sub(u);
-	@:op(A * B) inline function _mul(u:Int64):Int64 return this.mul(u);
-	@:op(A / B) inline function _div(u:Int64):Int64 return this.div(u);
-	@:op(A % B) inline function _mod(u:Int64):Int64 return this.remainder(u);
-	@:op(A & B) inline function _logand(u:Int64):Int64 return this.logand(u);
-	@:op(A | B) inline function _logor(u:Int64):Int64 return this.logor(u);
-	@:op(A ^ B) inline function _logxor(u:Int64):Int64 return this.logxor(u);
-	@:op(A << B) inline function _shift_left(i:Int):Int64 return this.shift_left(i);
-	@:op(A >> B) inline function _shift_right(i:Int):Int64 return this.shift_right(i);
-	@:op(A >>> B) inline function _shift_right_logical(i:Int):Int64 return this.shift_right_logical(i);
-	@:op(~A) inline function _lognot():Int64 return this.lognot();
-
-	@:op(A != B) static inline function eq(a:Int64, b:Int64):Bool return compare(a, b) != 0;
-	@:op(A == B) static inline function ne(a:Int64, b:Int64):Bool return compare(a, b) == 0;
-	@:op(A < B) static inline function lt(a:Int64, b:Int64):Bool return compare(a, b) < 0;
-	@:op(A > B) static inline function gt(a:Int64, b:Int64):Bool return compare(a, b) > 0;
-	@:op(A <= B) static inline function lte(a:Int64, b:Int64):Bool return compare(a, b) <= 0;
-	@:op(A >= B) static inline function gte(a:Int64, b:Int64):Bool return compare(a, b) >= 0;
 }

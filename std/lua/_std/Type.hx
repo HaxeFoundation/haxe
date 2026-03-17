@@ -168,7 +168,7 @@ enum ValueType {
 				if (e != null)
 					return TEnum(e);
 				var c = lua.Boot.getClass(v);
-				if( c == @:privateAccess haxe.Int64.IMPL )
+				if( c == haxe.numeric.Int64Native )
 					return TInt64;
 				if (c != null)
 					return TClass(c);

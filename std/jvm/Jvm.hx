@@ -261,8 +261,9 @@ class Jvm {
 		return d == null ? 0 : (d : java.lang.Number).intValue();
 	}
 
-	static public function toLong(d:Dynamic) {
-		return d == null ? 0 : (d : java.lang.Number).longValue();
+	static public function toLong(d:Dynamic):haxe.Int64 {
+		if (d == null) return haxe.Int64.ofInt(0);
+		return (d : java.lang.Number).longValue();
 	}
 
 	static public function toShort(d:Dynamic) {
@@ -588,7 +589,7 @@ class Jvm {
 			return toDouble(a) + 1.;
 		}
 		if (instanceof(a, java.lang.Long.LongClass)) {
-			return toLong(a) + 1.;
+			return toLong(a) + 1;
 		}
 		if (instanceof(a, java.lang.Integer.IntegerClass)) {
 			return toInt(a) + 1;
@@ -601,7 +602,7 @@ class Jvm {
 			return toDouble(a) - 1.;
 		}
 		if (instanceof(a, java.lang.Long.LongClass)) {
-			return toLong(a) - 1.;
+			return toLong(a) - 1;
 		}
 		if (instanceof(a, java.lang.Integer.IntegerClass)) {
 			return toInt(a) - 1;
