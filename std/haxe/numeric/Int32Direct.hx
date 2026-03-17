@@ -67,6 +67,12 @@ abstract Int32Direct(Int) from Int to Int {
 	public static inline function ushr(a:Int32Direct, b:Int):Int32Direct
 		return cast((a : Int) >>> b);
 
+	public static inline function compare(a:Int32Direct, b:Int32Direct):Int {
+		var av:Int = a;
+		var bv:Int = b;
+		return av < bv ? -1 : (av > bv ? 1 : 0);
+	}
+
 	public static function ucompare(a:Int32Direct, b:Int32Direct):Int {
 		if ((a : Int) < 0)
 			return (b : Int) < 0 ? (~(b : Int) - ~(a : Int)) : 1;
@@ -75,6 +81,9 @@ abstract Int32Direct(Int) from Int to Int {
 
 	public inline function toFloat():Float
 		return this;
+
+	public static inline function mod(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) % (b : Int));
 
 	public static inline function clamp(x:Int):Int32Direct
 		return cast x;
