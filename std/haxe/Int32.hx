@@ -76,143 +76,65 @@ abstract Int32(Int32Native) from Int to Int {
 	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
 		return Int32Native.add(a, b);
 
-	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
-		return Int32Native.add(a, b);
-
-	@:op(A + B) @:commutative private static inline function addFloat(a:Int32, b:Float):Float
-		return (a : Int) + b;
-
 	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
 		return Int32Native.sub(a, b);
-
-	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
-		return Int32Native.sub(a, b);
-
-	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
-		return Int32Native.sub(a, b);
-
-	@:op(A - B) private static inline function subFloat(a:Int32, b:Float):Float
-		return (a : Int) - b;
-
-	@:op(A - B) private static inline function floatSub(a:Float, b:Int32):Float
-		return a - (b : Int);
 
 	@:op(A * B) private static inline function mul(a:Int32, b:Int32):Int32
 		return Int32Native.mul(a, b);
 
-	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
-		return Int32Native.mul(a, b);
-
-	@:op(A * B) @:commutative private static inline function mulFloat(a:Int32, b:Float):Float
-		return (a : Int) * b;
-
 	@:op(A / B) private static inline function div(a:Int32, b:Int32):Float
 		return (a : Int) / (b : Int);
-
-	@:op(A / B) private static inline function divInt(a:Int32, b:Int):Float
-		return (a : Int) / b;
-
-	@:op(A / B) private static inline function intDiv(a:Int, b:Int32):Float
-		return a / (b : Int);
-
-	@:op(A / B) private static inline function divFloat(a:Int32, b:Float):Float
-		return (a : Int) / b;
-
-	@:op(A / B) private static inline function floatDiv(a:Float, b:Int32):Float
-		return a / (b : Int);
 
 	@:op(A % B) private static inline function mod(a:Int32, b:Int32):Int32
 		return Int32Native.mod(a, b);
 
-	@:op(A % B) private static inline function modInt(a:Int32, b:Int):Int
-		return (a : Int) % b;
-
-	@:op(A % B) private static inline function intMod(a:Int, b:Int32):Int
-		return a % (b : Int);
-
-	@:op(A % B) private static inline function modFloat(a:Int32, b:Float):Float
-		return (a : Int) % b;
-
-	@:op(A % B) private static inline function floatMod(a:Float, b:Int32):Float
-		return a % (b : Int);
-
-	@:op(A == B) private static inline function eq(a:Int32, b:Int32):Bool
-		return (a : Int) == (b : Int);
-
-	@:op(A == B) @:commutative private static inline function eqInt(a:Int32, b:Int):Bool
+	@:op(A == B) @:commutative private static inline function equalsInt<T:Int>(a:Int32, b:T):Bool
 		return (a : Int) == b;
 
-	@:op(A == B) @:commutative private static inline function eqFloat(a:Int32, b:Float):Bool
-		return (a : Int) == b;
-
-	@:op(A != B) private static inline function neq(a:Int32, b:Int32):Bool
-		return (a : Int) != (b : Int);
-
-	@:op(A != B) @:commutative private static inline function neqInt(a:Int32, b:Int):Bool
+	@:op(A != B) @:commutative private static inline function notEqualsInt<T:Int>(a:Int32, b:T):Bool
 		return (a : Int) != b;
 
-	@:op(A != B) @:commutative private static inline function neqFloat(a:Int32, b:Float):Bool
-		return (a : Int) != b;
+	@:op(A == B) @:commutative private static inline function equalsFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) == b;
+
+	@:op(A != B) @:commutative private static inline function notEqualsFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) != b;
 
 	@:op(A < B) private static inline function lt(a:Int32, b:Int32):Bool
 		return compare(a, b) < 0;
 
-	@:op(A < B) private static inline function ltInt(a:Int32, b:Int):Bool
-		return (a : Int) < b;
-
-	@:op(A < B) private static inline function intLt(a:Int, b:Int32):Bool
-		return a < (b : Int);
-
-	@:op(A < B) private static inline function ltFloat(a:Int32, b:Float):Bool
-		return (a : Int) < b;
-
-	@:op(A < B) private static inline function floatLt(a:Float, b:Int32):Bool
-		return a < (b : Int);
-
 	@:op(A <= B) private static inline function lte(a:Int32, b:Int32):Bool
 		return compare(a, b) <= 0;
-
-	@:op(A <= B) private static inline function lteInt(a:Int32, b:Int):Bool
-		return (a : Int) <= b;
-
-	@:op(A <= B) private static inline function intLte(a:Int, b:Int32):Bool
-		return a <= (b : Int);
-
-	@:op(A <= B) private static inline function lteFloat(a:Int32, b:Float):Bool
-		return (a : Int) <= b;
-
-	@:op(A <= B) private static inline function floatLte(a:Float, b:Int32):Bool
-		return a <= (b : Int);
 
 	@:op(A > B) private static inline function gt(a:Int32, b:Int32):Bool
 		return compare(a, b) > 0;
 
-	@:op(A > B) private static inline function gtInt(a:Int32, b:Int):Bool
-		return (a : Int) > b;
-
-	@:op(A > B) private static inline function intGt(a:Int, b:Int32):Bool
-		return a > (b : Int);
-
-	@:op(A > B) private static inline function gtFloat(a:Int32, b:Float):Bool
-		return (a : Int) > b;
-
-	@:op(A > B) private static inline function floatGt(a:Float, b:Int32):Bool
-		return a > (b : Int);
-
 	@:op(A >= B) private static inline function gte(a:Int32, b:Int32):Bool
 		return compare(a, b) >= 0;
 
-	@:op(A >= B) private static inline function gteInt(a:Int32, b:Int):Bool
-		return (a : Int) >= b;
+	@:op(A < B) private static inline function ltFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) < b;
 
-	@:op(A >= B) private static inline function intGte(a:Int, b:Int32):Bool
-		return a >= (b : Int);
+	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:Int32):Bool
+		return a < (b : Float);
 
-	@:op(A >= B) private static inline function gteFloat(a:Int32, b:Float):Bool
-		return (a : Int) >= b;
+	@:op(A <= B) private static inline function lteFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) <= b;
 
-	@:op(A >= B) private static inline function floatGte(a:Float, b:Int32):Bool
-		return a >= (b : Int);
+	@:op(A <= B) private static inline function floatLte<T:Float>(a:T, b:Int32):Bool
+		return a <= (b : Float);
+
+	@:op(A > B) private static inline function gtFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) > b;
+
+	@:op(A > B) private static inline function floatGt<T:Float>(a:T, b:Int32):Bool
+		return a > (b : Float);
+
+	@:op(A >= B) private static inline function gteFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) >= b;
+
+	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:Int32):Bool
+		return a >= (b : Float);
 
 	@:op(~A) private static inline function complement(a:Int32):Int32
 		return Int32Native.complement(a);
@@ -220,47 +142,20 @@ abstract Int32(Int32Native) from Int to Int {
 	@:op(A & B) private static inline function and(a:Int32, b:Int32):Int32
 		return Int32Native.and(a, b);
 
-	@:op(A & B) @:commutative private static inline function andInt(a:Int32, b:Int):Int32
-		return Int32Native.and(a, b);
-
 	@:op(A | B) private static inline function or(a:Int32, b:Int32):Int32
-		return Int32Native.or(a, b);
-
-	@:op(A | B) @:commutative private static inline function orInt(a:Int32, b:Int):Int32
 		return Int32Native.or(a, b);
 
 	@:op(A ^ B) private static inline function xor(a:Int32, b:Int32):Int32
 		return Int32Native.xor(a, b);
 
-	@:op(A ^ B) @:commutative private static inline function xorInt(a:Int32, b:Int):Int32
-		return Int32Native.xor(a, b);
-
-	@:op(A >> B) private static inline function shr(a:Int32, b:Int32):Int32
-		return Int32Native.shr(a, (b : Int));
-
-	@:op(A >> B) private static inline function shrInt(a:Int32, b:Int):Int32
-		return Int32Native.shr(a, b);
-
-	@:op(A >> B) private static inline function intShr(a:Int, b:Int32):Int32
-		return Int32Native.shr(a, (b : Int));
-
-	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int32):Int32
-		return Int32Native.ushr(a, (b : Int));
-
-	@:op(A >>> B) private static inline function ushrInt(a:Int32, b:Int):Int32
-		return Int32Native.ushr(a, b);
-
-	@:op(A >>> B) private static inline function intUshr(a:Int, b:Int32):Int32
-		return Int32Native.ushr(a, (b : Int));
-
-	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
-		return Int32Native.shl(a, (b : Int));
-
-	@:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
+	@:op(A << B) private static inline function shl(a:Int32, b:Int):Int32
 		return Int32Native.shl(a, b);
 
-	@:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
-		return Int32Native.shl(a, (b : Int));
+	@:op(A >> B) private static inline function shr(a:Int32, b:Int):Int32
+		return Int32Native.shr(a, b);
+
+	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
+		return Int32Native.ushr(a, b);
 
 	@:to private inline function toFloat():Float
 		return (this : Int);
