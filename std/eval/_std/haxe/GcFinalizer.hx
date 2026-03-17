@@ -22,14 +22,16 @@
 
 package haxe;
 
+import haxe.atomic.AtomicBool;
+
 private class Registration<T> {
-	public var heldValue:T;
-	public var cancelled:Bool;
-	public var callback:T->Void;
+	public var heldValue:Null<T>;
+	public var cancelled:AtomicBool;
+	public var callback:Null<T->Void>;
 
 	public function new(heldValue:T, callback:T->Void) {
 		this.heldValue = heldValue;
-		this.cancelled = false;
+		this.cancelled = new AtomicBool(false);
 		this.callback = callback;
 	}
 }
@@ -42,7 +44,7 @@ private class Handle<T> implements IHandle {
 	}
 
 	public function close():Void {
-		reg.cancelled = true;
+		reg.cancelled.compareExchange(false, true);
 	}
 }
 
@@ -57,9 +59,11 @@ class GcFinalizer<T> {
 	public function register(target:{}, heldValue:T):IHandle {
 		var reg = new Registration(heldValue, callback);
 		eval.vm.Gc.finalise(function(_) {
-			if (!reg.cancelled) {
+			if (!reg.cancelled.load()) {
 				reg.callback(reg.heldValue);
 			}
+			reg.callback = null;
+			reg.heldValue = null;
 		}, target);
 
 		return new Handle(reg);

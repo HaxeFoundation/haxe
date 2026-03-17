@@ -22,19 +22,20 @@
 
 package haxe;
 
+import haxe.atomic.AtomicBool;
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 
 private class Registration<T> extends WeakReference<Dynamic> {
-	public var heldValue:T;
-	public var callback:T->Void;
-	public var cancelled:Bool;
+	public var heldValue:Null<T>;
+	public var callback:Null<T->Void>;
+	public var cancelled:AtomicBool;
 
 	public function new(target:Dynamic, heldValue:T, callback:T->Void, queue:ReferenceQueue<Dynamic>) {
 		super(target, queue);
 		this.heldValue = heldValue;
 		this.callback = callback;
-		this.cancelled = false;
+		this.cancelled = new AtomicBool(false);
 	}
 }
 
@@ -46,7 +47,7 @@ private class Handle<T> implements IHandle {
 	}
 
 	public function close():Void {
-		reg.cancelled = true;
+		reg.cancelled.compareExchange(false, true);
 	}
 }
 
@@ -66,7 +67,7 @@ class GcFinalizer<T> {
 		var ref:Dynamic = null;
 		while ((ref = queue.poll()) != null) {
 			var reg:Registration<T> = cast ref;
-			if (!reg.cancelled) {
+			if (!reg.cancelled.load()) {
 				reg.callback(reg.heldValue);
 			}
 			reg.heldValue = null;

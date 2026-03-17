@@ -2,7 +2,7 @@ package unit;
 
 class TestGcFinalizer extends Test {
 	function testConstructNoThrow() {
-		#if (js || python || eval || lua || jvm)
+		#if (js || python || eval || lua || jvm || cpp)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		t(finalizer != null);
 		#else
@@ -11,7 +11,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testRegisterNoThrow() {
-		#if (js || python || eval || lua || jvm)
+		#if (js || python || eval || lua || jvm || cpp)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		var target = {id: 1};
 		var handle = finalizer.register(target, "hello");
@@ -22,7 +22,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testCloseNoThrow() {
-		#if (js || python || eval || lua || jvm)
+		#if (js || python || eval || lua || jvm || cpp)
 		var finalizer = new haxe.GcFinalizer(function(v:String) {});
 		var target = {id: 1};
 		var handle = finalizer.register(target, "hello");
@@ -34,7 +34,7 @@ class TestGcFinalizer extends Test {
 	}
 
 	function testUnsupportedTargetThrows() {
-		#if !(js || python || eval || lua || jvm)
+		#if !(js || python || eval || lua || jvm || cpp)
 		exc(function() new haxe.GcFinalizer(function(v:String) {}));
 		#else
 		noAssert();

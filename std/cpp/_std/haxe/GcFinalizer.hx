@@ -22,13 +22,68 @@
 
 package haxe;
 
+import haxe.atomic.AtomicBool;
+
+private class Registration<T> {
+	public var heldValue:Null<T>;
+	public var callback:Null<T->Void>;
+	public var cancelled:AtomicBool;
+	public var weakTarget:cpp.vm.WeakRef<Dynamic>;
+
+	public function new(target:Dynamic, heldValue:T, callback:T->Void) {
+		this.weakTarget = new cpp.vm.WeakRef<Dynamic>(target);
+		this.heldValue = heldValue;
+		this.callback = callback;
+		this.cancelled = new AtomicBool(false);
+	}
+}
+
+private class Handle<T> implements IHandle {
+	var reg:Registration<T>;
+
+	public function new(reg:Registration<T>) {
+		this.reg = reg;
+	}
+
+	public function close():Void {
+		reg.cancelled.compareExchange(false, true);
+	}
+}
+
 @:coreApi
 class GcFinalizer<T> {
+	var callback:T->Void;
+	var registrations:Array<Registration<T>>;
+
 	public function new(callback:T->Void) {
-		throw new haxe.exceptions.NotImplementedException("GcFinalizer is not yet implemented for cpp — see #12766");
+		this.callback = callback;
+		this.registrations = [];
+	}
+
+	function pollQueue():Void {
+		var i = registrations.length - 1;
+		while (i >= 0) {
+			var reg = registrations[i];
+			if (reg.weakTarget.get() == null) {
+				if (!reg.cancelled.load()) {
+					reg.callback(reg.heldValue);
+				}
+				reg.heldValue = null;
+				reg.callback = null;
+				registrations.splice(i, 1);
+			} else if (reg.cancelled.load()) {
+				reg.heldValue = null;
+				reg.callback = null;
+				registrations.splice(i, 1);
+			}
+			i--;
+		}
 	}
 
 	public function register(target:{}, heldValue:T):IHandle {
-		return null;
+		pollQueue();
+		var reg = new Registration(target, heldValue, callback);
+		registrations.push(reg);
+		return new Handle(reg);
 	}
 }
