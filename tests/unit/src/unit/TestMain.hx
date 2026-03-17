@@ -47,6 +47,7 @@ function main() {
 		new TestResource(),
 		new TestInt32(),
 		new TestInt64(),
+		new TestUInt64(),
 		new TestReflect(),
 		new TestSerialize(),
 		new TestSerializerCrossTarget(),
