@@ -109,7 +109,7 @@ function main() {
 		// new TestUnspecified(),
 	];
 
-	TestIssues.addTestClasses("src/unit/std", "unit.std");
+	TestIssues.addTestClasses("src/unit/teststd", "unit.teststd");
 	TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 	TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 
