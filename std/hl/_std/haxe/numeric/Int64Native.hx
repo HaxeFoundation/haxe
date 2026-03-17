@@ -147,6 +147,26 @@ private abstract Int64NativeImpl(hl.I64) from hl.I64 to hl.I64 {
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
 	}
+
+	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
+		return haxe.numeric.UInt64Helper.udivMod(dividend, divisor);
+	}
+
+	public static function utoString(x:Int64Native):String {
+		return haxe.numeric.UInt64Helper.utoString(x);
+	}
+
+	public static function uparseString(sParam:String):Int64Native {
+		return haxe.numeric.UInt64Helper.parseString(sParam);
+	}
+
+	public static function ufromFloat(f:Float):Int64Native {
+		return haxe.numeric.UInt64Helper.fromFloat(f);
+	}
+
+	public static function utoFloat(x:Int64Native):Float {
+		return haxe.numeric.UInt64Helper.toFloat(x);
+	}
 }
 
 #end

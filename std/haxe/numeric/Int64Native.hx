@@ -233,6 +233,79 @@ private class Int64NativeImpl {
 		#end
 	}
 
+	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
+		if (divisor.high == 0) {
+			switch (divisor.low) {
+				case 0:
+					throw "divide by zero";
+				case 1:
+					return {quotient: make(dividend.high, dividend.low), modulus: ofInt(0)};
+			}
+		}
+
+		var modulus = make(dividend.high, dividend.low);
+		var quotient = ofInt(0);
+		var mask = ofInt(1);
+
+		while (!isNeg(divisor)) {
+			var cmp = ucompare(divisor, modulus);
+			divisor = shl(divisor, 1);
+			mask = shl(mask, 1);
+			if (cmp >= 0)
+				break;
+		}
+
+		while (!isZero(mask)) {
+			if (ucompare(modulus, divisor) >= 0) {
+				quotient = or(quotient, mask);
+				modulus = sub(modulus, divisor);
+			}
+			mask = ushr(mask, 1);
+			divisor = ushr(divisor, 1);
+		}
+
+		return {
+			quotient: quotient,
+			modulus: modulus
+		};
+	}
+
+	public static function utoString(x:Int64Native):String {
+		if (x.high == 0 && x.low == 0)
+			return "0";
+		var d3 = (x.high >>> 16) & 0xFFFF;
+		var d2 = x.high & 0xFFFF;
+		var d1 = (x.low >>> 16) & 0xFFFF;
+		var d0 = x.low & 0xFFFF;
+		var str = "";
+		while (d3 != 0 || d2 != 0 || d1 != 0 || d0 != 0) {
+			var r = d3 % 10;
+			d3 = Std.int(d3 / 10);
+			var v = r * 65536 + d2;
+			d2 = Std.int(v / 10);
+			r = v % 10;
+			v = r * 65536 + d1;
+			d1 = Std.int(v / 10);
+			r = v % 10;
+			v = r * 65536 + d0;
+			d0 = Std.int(v / 10);
+			str = (v % 10) + str;
+		}
+		return str;
+	}
+
+	public static function uparseString(sParam:String):Int64Native {
+		return haxe.numeric.UInt64Helper.parseString(sParam);
+	}
+
+	public static function ufromFloat(f:Float):Int64Native {
+		return haxe.numeric.UInt64Helper.fromFloat(f);
+	}
+
+	public static function utoFloat(x:Int64Native):Float {
+		return haxe.numeric.UInt64Helper.toFloat(x);
+	}
+
 	public static inline function parseString(sParam:String):Int64Native {
 		return haxe.numeric.Int64Helper.parseString(sParam);
 	}

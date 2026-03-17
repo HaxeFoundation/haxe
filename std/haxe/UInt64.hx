@@ -23,7 +23,6 @@
 package haxe;
 
 import haxe.numeric.Int64Native;
-import haxe.numeric.UInt64Helper;
 
 /**
 	A cross-platform unsigned 64-bit integer type.
@@ -32,10 +31,9 @@ import haxe.numeric.UInt64Helper;
 	representation as `haxe.Int64`. All bit-identical operations (addition,
 	subtraction, multiplication, bitwise) delegate directly to `Int64Native`.
 	Operations that differ for unsigned interpretation (division, comparison,
-	right shift, toString) use unsigned-specific implementations.
-
-	This demonstrates that signed and unsigned 64-bit types can share a
-	single native implementation per target, avoiding code duplication.
+	right shift, toString) use unsigned-specific implementations provided
+	by `Int64Native` (udivMod, utoString, etc.), which native targets can
+	override for better performance.
 **/
 abstract UInt64(Int64Native) from Int64Native to Int64Native {
 	private inline function new(x:Int64Native)
@@ -84,18 +82,15 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 	/**
 		Returns an unsigned decimal `String` representation of `x`.
 	**/
-	public static inline function toStr(x:UInt64):String
-		return x.toString();
-
 	public inline function toString():String
-		return UInt64Helper.utoString(this);
+		return Int64Native.utoString(this);
 
 	/**
 		Parses an unsigned decimal string into a UInt64.
 		Throws on invalid input, negative values, or overflow.
 	**/
 	public static inline function parseString(sParam:String):UInt64 {
-		return UInt64Helper.parseString(sParam);
+		return Int64Native.uparseString(sParam);
 	}
 
 	/**
@@ -103,7 +98,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Throws on negative, NaN, Infinite, or values exceeding `2^53-1`.
 	**/
 	public static inline function fromFloat(f:Float):UInt64 {
-		return UInt64Helper.fromFloat(f);
+		return Int64Native.ufromFloat(f);
 	}
 
 	/**
@@ -111,7 +106,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Values above `2^53` may lose precision.
 	**/
 	public inline function toFloat():Float {
-		return UInt64Helper.toFloat(this);
+		return Int64Native.utoFloat(this);
 	}
 
 	/**
@@ -119,7 +114,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Returns `{ quotient : UInt64, modulus : UInt64 }`.
 	**/
 	public static function divMod(dividend:UInt64, divisor:UInt64):{quotient:UInt64, modulus:UInt64} {
-		var r = UInt64Helper.udivMod(dividend, divisor);
+		var r = Int64Native.udivMod(dividend, divisor);
 		return {quotient: r.quotient, modulus: r.modulus};
 	}
 
@@ -143,23 +138,23 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 
 	@:op(++A) private inline function preIncrement():UInt64 {
 		this = Int64Native.add(this, Int64Native.ofInt(1));
-		return cast this;
+		return this;
 	}
 
 	@:op(A++) private inline function postIncrement():UInt64 {
 		var ret = this;
-		preIncrement();
+		this = Int64Native.add(this, Int64Native.ofInt(1));
 		return ret;
 	}
 
 	@:op(--A) private inline function preDecrement():UInt64 {
 		this = Int64Native.sub(this, Int64Native.ofInt(1));
-		return cast this;
+		return this;
 	}
 
 	@:op(A--) private inline function postDecrement():UInt64 {
 		var ret = this;
-		preDecrement();
+		this = Int64Native.sub(this, Int64Native.ofInt(1));
 		return ret;
 	}
 
@@ -197,7 +192,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Returns the unsigned quotient of `a` divided by `b`.
 	**/
 	@:op(A / B) public static inline function div(a:UInt64, b:UInt64):UInt64
-		return divMod(a, b).quotient;
+		return Int64Native.udivMod(a, b).quotient;
 
 	@:op(A / B) private static inline function divInt(a:UInt64, b:Int):UInt64
 		return div(a, b);
@@ -209,7 +204,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Returns the unsigned modulus of `a` divided by `b`.
 	**/
 	@:op(A % B) public static inline function mod(a:UInt64, b:UInt64):UInt64
-		return divMod(a, b).modulus;
+		return Int64Native.udivMod(a, b).modulus;
 
 	@:op(A % B) private static inline function modInt(a:UInt64, b:Int):UInt64
 		return mod(a, b);

@@ -63,19 +63,19 @@ class TestUInt64 extends Test {
 
 		// 2^32 = 4294967296
 		a = UInt64.make(1, 0);
-		eq(UInt64.toStr(a), "4294967296");
+		eq(Std.string(a), "4294967296");
 
 		// MAX_UINT64 = 2^64 - 1 = 18446744073709551615
 		a = UInt64.make(0xFFFFFFFF, 0xFFFFFFFF);
-		eq(UInt64.toStr(a), "18446744073709551615");
+		eq(Std.string(a), "18446744073709551615");
 
 		// 2^63 = 9223372036854775808 (would be MIN_INT64 in signed)
 		a = UInt64.make(0x80000000, 0);
-		eq(UInt64.toStr(a), "9223372036854775808");
+		eq(Std.string(a), "9223372036854775808");
 
 		// 2^63 - 1 = 9223372036854775807
 		a = UInt64.make(0x7FFFFFFF, 0xFFFFFFFF);
-		eq(UInt64.toStr(a), "9223372036854775807");
+		eq(Std.string(a), "9223372036854775807");
 	}
 
 	public function testComparison() {
