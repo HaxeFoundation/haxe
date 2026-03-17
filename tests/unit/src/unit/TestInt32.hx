@@ -194,9 +194,9 @@ class TestInt32 extends Test {
 		eq(2147483643, cast(-(5 + min), Int)); // static analyzer issue
 	}
 
+	// C++ handles array indexing with Int32 differently due to native type handling
+	#if !cpp
 	function testArrayIndexWithInt32() {
-		// C++ handles array indexing with Int32 differently due to native type handling
-		#if !cpp
 		var a = [1];
 		var next = 0;
 
@@ -215,8 +215,8 @@ class TestInt32 extends Test {
 		var i32:Int32 = 2;
 		var c = ~(((a[next] << 32) | 1) : Int32);
 		eq(c, cast(0xfffffffe, Int32));
-		#end
 	}
+	#end
 
 	// --- Arithmetic identity tests ---
 	function testArithmeticIdentities() {

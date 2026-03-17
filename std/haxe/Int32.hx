@@ -30,6 +30,12 @@ import haxe.numeric.Int32Native;
 	This abstract defines the operator overloads and public API surface.
 	The actual implementation is in `haxe.numeric.Int32Native`, which can be
 	shadowed by platform-specific `_std` directories for native support.
+
+	On targets with native 32-bit Int (C++, JVM, HL), Int32 maps directly
+	to the platform Int with no overhead. On scripting targets (JS, PHP, Python,
+	Lua), operations are clamped to 32-bit range after each computation. On Neko,
+	values exceeding 31-bit range are auto-promoted to Float by the VM while
+	preserving correct 32-bit arithmetic.
 **/
 @:transitive
 abstract Int32(Int32Native) from Int to Int {

@@ -22,13 +22,8 @@
 
 package haxe.numeric;
 
-/**
-	C++-specific Int32Native. On C++, Int is natively 32-bit,
-	so all operations are trivial with no masking needed.
-**/
 typedef Int32Native = Int32NativeImpl;
 
-@:coreApi(check = Off)
 private abstract Int32NativeImpl(Int) from Int to Int {
 	public static inline function neg(x:Int32Native):Int32Native
 		return cast(-(x : Int));

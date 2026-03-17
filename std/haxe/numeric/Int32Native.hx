@@ -22,14 +22,6 @@
 
 package haxe.numeric;
 
-/**
-	Cross-platform 32-bit integer native implementation.
-	Provides the actual arithmetic and bitwise operations with appropriate
-	masking for platforms where Int is wider than 32 bits.
-
-	Targets with native 32-bit Int (C++, JVM, HL) shadow this file via
-	their `_std` directories to avoid unnecessary masking.
-**/
 typedef Int32Native = Int32NativeImpl;
 
 private abstract Int32NativeImpl(Int) from Int to Int {
