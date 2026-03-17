@@ -25,7 +25,6 @@ package haxe.numeric;
 #if (hl_ver >= version("1.12.0") && !hl_legacy32)
 typedef Int64Native = Int64NativeImpl;
 
-@:coreApi(check = Off)
 private abstract Int64NativeImpl(hl.I64) from hl.I64 to hl.I64 {
 	static var MASK:hl.I64 = {
 		var v:hl.I64 = 0xFFFF;

@@ -45,6 +45,7 @@ function main() {
 		new TestMisc(),
 		new TestJson(),
 		new TestResource(),
+		new TestInt32(),
 		new TestInt64(),
 		new TestReflect(),
 		new TestSerialize(),
