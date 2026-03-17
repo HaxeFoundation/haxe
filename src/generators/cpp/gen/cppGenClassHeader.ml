@@ -63,7 +63,7 @@ let gen_member_function ctx class_def is_static func =
     | other ->
       tcpp_to_string other in
 
-  let override_specifier = if func.tcf_is_overriding || (not is_static && func.tcf_name = "toString" && func.tcf_args = []) then
+  let override_specifier = if func.tcf_is_virtual && (func.tcf_is_overriding || (not is_static && func.tcf_name = "toString" && func.tcf_args = [])) then
     " override"
   else
     ""
