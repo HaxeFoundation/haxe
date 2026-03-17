@@ -663,6 +663,9 @@ let create_json_result_handler timer_ctx io jsonrpc =
 		send_error = send_error_noraise;
 		send_error_raise = send_error_raise;
 		flush_messages = (fun has_error com ->
+			(* flush_messages in the JSON-RPC handler is always an error state:
+			   a successful completion raises JsonCompleted before flush_context is
+			   called, so reaching here means no meaningful result was sent. *)
 			if has_error then begin
 				let errors = List.map (fun cm ->
 					Json.JObject [
@@ -672,7 +675,10 @@ let create_json_result_handler timer_ctx io jsonrpc =
 					]
 				) (List.rev com.part_scope.messages) in
 				send_error_raise errors;
-			end
+			end else
+				(* No completion point was found — send an appropriate no-result
+				   response so the client is not left waiting. *)
+				DisplayException.send_no_result_raise com
 		);
 		set_com = run_on_com jsonrpc f;
 	}
