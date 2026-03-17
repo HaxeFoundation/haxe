@@ -585,11 +585,11 @@ module Printer = struct
 			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
 			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
 			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
-			"a_this",s_type_kind a.a_this;
-			"a_from",s_list ", " s_type_kind a.a_from;
-			"a_to",s_list ", " s_type_kind a.a_to;
-			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_from_field;
-			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_to_field;
+			"a_this",s_type_kind (follow_lazy_and_mono a.a_this);
+			"a_from", s_list ", " s_type_kind (List.map follow_lazy_and_mono a.a_from);
+			"a_to",s_list ", " s_type_kind (List.map follow_lazy_and_mono a.a_to);
+			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind (follow_lazy_and_mono t)) cf.cf_name) a.a_from_field;
+			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind (follow_lazy_and_mono t)) cf.cf_name) a.a_to_field;
 			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
 			"a_read",s_opt (fun cf -> cf.cf_name) a.a_read;
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;

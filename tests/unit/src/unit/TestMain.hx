@@ -110,9 +110,7 @@ function main() {
 		// new TestUnspecified(),
 	];
 
-	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
-		classes.push(specClass);
-	}
+	TestIssues.addTestClasses("src/unit/teststd", "unit.teststd");
 	TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 	TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 

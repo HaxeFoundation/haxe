@@ -165,13 +165,29 @@ node bin/unit.js
 
 When investigating CI failures, use the GitHub MCP tools as follows:
 
-1. Use `list_workflow_runs` to find the relevant workflow run ID for the failing branch/PR
-2. Use `list_workflow_jobs` to identify which jobs failed (look for `conclusion != "success"`)
-3. Use `get_job_logs` with `failed_only: true` and `return_content: true` to get log content
+1. **Find the correct workflow run for the current PR commit**:
+   - Use `pull_request_read` (method `get`) to retrieve the PR details, including its `head_sha`
+   - Use `list_workflow_runs` filtered by the PR's branch to see recent runs
+   - Use `get_workflow_run` on the most recently created run to verify its current `status` and `head_sha`
+   - A run belongs to the right commit when its `head_sha` matches the PR's `head_sha`
+   - **Never assume a run's status from memory or a previous check — always call `get_workflow_run` to get the live status**
+
+2. **Understand `status` vs `conclusion` — these are different fields**:
+   - `status: "in_progress"` → the run is **actively running right now**
+   - `status: "completed"` → the run is **finished**; check `conclusion` for the outcome
+   - `conclusion: "failure"` → the run **failed** (it is NOT in progress, even if you previously saw it running)
+   - `conclusion: "success"` → the run passed
+   - `conclusion: "cancelled"` → the run was cancelled (e.g., a newer push superseded it)
+   - **Do not describe a `completed` run as "in progress"**
+
+3. Use `list_workflow_jobs` on the confirmed run ID to identify which jobs failed (look for `conclusion != "success"`)
+
+4. Use `get_job_logs` with `failed_only: true` and `return_content: true` to get log content
    - **Important**: Use a moderate `tail_lines` value (100-200) to avoid being flooded by post-step cleanup output that always appears at the very end of logs
    - The actual test failure output typically appears near the bottom of the test step output, before the post-step cleanup lines
    - Look for keywords like `FAILED`, `error`, `exit code`, `assert`, `exception` to locate the relevant failure
-4. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
+
+5. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
 
 ## Additional Resources
 - Building instructions: `extra/BUILDING.md`
