@@ -194,6 +194,33 @@ class TestInt32 extends Test {
 		eq(2147483643, cast(-(5 + min), Int)); // static analyzer issue
 	}
 
+	// https://github.com/HaxeFoundation/haxe/issues/10780
+	// C++ inconsistent overflow behavior for Int32 with multiplication
+	function testMulOverflow_Issue10780() {
+		var a:Int32 = 257;
+		var b:Int32 = 0x01010101;
+		// 257 * 0x01010101 = 0x102020201 overflows 32-bit to 0x02020201 = 33686017
+		eq((a * b : Int), 0x02020201);
+	}
+
+	// https://github.com/HaxeFoundation/haxe/issues/10995
+	// Python: wrong result when XOR with dynamic shift amount
+	function testXorWithDynamicShift_Issue10995() {
+		var changeBit = 31;
+		var result:Int32 = MIN ^ (1 << changeBit);
+		eq((result : Int), 0);
+	}
+
+	// https://github.com/HaxeFoundation/haxe/issues/5938
+	// Python: |= not clamping result to 32 bits
+	function testOrEqualsNotClamping_Issue5938() {
+		var i32:Int32 = 15459750;
+		var arr = [178, 0, 0];
+		var next = 0;
+		i32 |= (arr[next] << 24);
+		eq((i32 : Int), -1293163098);
+	}
+
 	// C++ handles array indexing with Int32 differently due to native type handling
 	#if !cpp
 	function testArrayIndexWithInt32() {

@@ -98,7 +98,6 @@ private extern class CppInt64Helper {
 }
 #end
 
-@:coreApi(check = Off)
 #if cppia
 extern
 #end

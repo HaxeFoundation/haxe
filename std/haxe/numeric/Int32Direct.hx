@@ -1,0 +1,81 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+package haxe.numeric;
+
+/**
+	Shared Int32Native implementation for targets where `Int` is natively
+	32-bit (C++, JVM, HashLink). No masking is needed; operations are identity
+	casts on the underlying type.
+
+	This type is used internally via `typedef Int32Native = Int32Direct`
+	in the target-specific overrides.
+**/
+abstract Int32Direct(Int) from Int to Int {
+	public static inline function neg(x:Int32Direct):Int32Direct
+		// Use ~x+1 (two's complement) rather than unary minus.
+		// On CPPIA, unary minus on Int can return a value wider than 32 bits,
+		// while bitwise NOT and addition stay within the native 32-bit int range.
+		return cast(~(x : Int) + 1);
+
+	public static inline function add(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) + (b : Int));
+
+	public static inline function sub(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) - (b : Int));
+
+	public static inline function mul(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) * (b : Int));
+
+	public static inline function complement(a:Int32Direct):Int32Direct
+		return cast ~(a : Int);
+
+	public static inline function and(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) & (b : Int));
+
+	public static inline function or(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) | (b : Int));
+
+	public static inline function xor(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast((a : Int) ^ (b : Int));
+
+	public static inline function shl(a:Int32Direct, b:Int):Int32Direct
+		return cast((a : Int) << b);
+
+	public static inline function shr(a:Int32Direct, b:Int):Int32Direct
+		return cast((a : Int) >> b);
+
+	public static inline function ushr(a:Int32Direct, b:Int):Int32Direct
+		return cast((a : Int) >>> b);
+
+	public static function ucompare(a:Int32Direct, b:Int32Direct):Int {
+		if ((a : Int) < 0)
+			return (b : Int) < 0 ? (~(b : Int) - ~(a : Int)) : 1;
+		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
+	}
+
+	public inline function toFloat():Float
+		return this;
+
+	public static inline function clamp(x:Int):Int32Direct
+		return cast x;
+}

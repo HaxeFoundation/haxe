@@ -24,7 +24,6 @@ package haxe.numeric;
 
 typedef Int64Native = Int64NativeImpl;
 
-@:coreApi(check = Off)
 private abstract Int64NativeImpl(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 	public var high(get, set):haxe.Int32;
 
