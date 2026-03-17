@@ -124,6 +124,11 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public static function sub(a:Int64Native, b:Int64Native):Int64Native;
 	public static function mul(a:Int64Native, b:Int64Native):Int64Native;
 	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native};
+	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native};
+	public static function utoString(x:Int64Native):String;
+	public static function uparseString(sParam:String):Int64Native;
+	public static function ufromFloat(f:Float):Int64Native;
+	public static function utoFloat(x:Int64Native):Float;
 	public static function eq(a:Int64Native, b:Int64Native):Bool;
 	public static function neq(a:Int64Native, b:Int64Native):Bool;
 	public static function complement(x:Int64Native):Int64Native;
@@ -234,6 +239,26 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
+	}
+
+	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
+		return haxe.numeric.UInt64Helper.udivMod(dividend, divisor);
+	}
+
+	public static function utoString(x:Int64Native):String {
+		return haxe.numeric.UInt64Helper.utoString(x);
+	}
+
+	public static function uparseString(sParam:String):Int64Native {
+		return haxe.numeric.UInt64Helper.parseString(sParam);
+	}
+
+	public static function ufromFloat(f:Float):Int64Native {
+		return haxe.numeric.UInt64Helper.fromFloat(f);
+	}
+
+	public static function utoFloat(x:Int64Native):Float {
+		return haxe.numeric.UInt64Helper.toFloat(x);
 	}
 	#end
 }
