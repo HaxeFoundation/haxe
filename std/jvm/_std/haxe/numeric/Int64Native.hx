@@ -68,11 +68,7 @@ private abstract Int64NativeImpl(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 	}
 
 	public static inline function toInt(x:Int64Native):Int {
-		var v:jvm.Int64 = x;
-		if (v < ((cast -2147483648 : jvm.Int64))
-			|| v > ((cast 2147483647 : jvm.Int64)))
-			throw "Overflow";
-		return cast v;
+		return cast(x : jvm.Int64);
 	}
 
 	public static inline function isInt64(val:Dynamic):Bool
@@ -149,6 +145,10 @@ private abstract Int64NativeImpl(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
+	}
+
+	public static inline function toFloat(x:Int64Native):Float {
+		return cast(x : jvm.Int64);
 	}
 
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {

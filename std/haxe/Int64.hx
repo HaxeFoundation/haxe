@@ -40,6 +40,12 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	private inline function new(x:Int64Native)
 		this = x;
 
+	/** The greatest representable Int64 value: `2^63 - 1`. **/
+	public static final MAX:Int64 = make(0x7FFFFFFF, 0xFFFFFFFF);
+
+	/** The smallest representable Int64 value: `-2^63`. **/
+	public static final MIN:Int64 = make(0x80000000, 0);
+
 	/**
 		Makes a copy of `this` Int64.
 	**/
@@ -60,8 +66,8 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return new Int64(Int64Native.ofInt(x));
 
 	/**
-		Returns an Int with the value of the Int64 `x`.
-		Throws an exception  if `x` cannot be represented in 32 bits.
+		Returns an Int with the low 32 bits of the Int64 `x`.
+		The high 32 bits are discarded.
 	**/
 	public static inline function toInt(x:Int64):Int
 		return Int64Native.toInt(x);
@@ -134,6 +140,14 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 
 	public static inline function fromFloat(f:Float):Int64 {
 		return Int64Native.fromFloat(f);
+	}
+
+	/**
+		Converts this Int64 to a Float.
+		Values between -2^53 and 2^53 are exact; larger values may lose precision.
+	**/
+	public inline function toFloat():Float {
+		return Int64Native.toFloat(this);
 	}
 
 	/**

@@ -59,9 +59,7 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 		return EvalInt64.ofInt(x);
 	}
 
-	public static function toInt(x:Int64Native):Int {
-		if (x.high != x.low >> 31)
-			throw "Overflow";
+	public static inline function toInt(x:Int64Native):Int {
 		var v:EvalInt64 = x;
 		return v.toInt();
 	}
@@ -149,6 +147,13 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
+	}
+
+	public static inline function toFloat(x:Int64Native):Float {
+		var f:Float = x.low;
+		if (f < 0)
+			f += 4294967296.0;
+		return (x.high : Float) * 4294967296.0 + f;
 	}
 
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {

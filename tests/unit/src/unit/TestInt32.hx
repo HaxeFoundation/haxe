@@ -4,11 +4,16 @@ import haxe.Int32;
 
 class TestInt32 extends Test {
 	// --- Constants ---
-	static var MAX:Int32 = 0x7fffffff;
-	static var MIN:Int32 = 0x80000000;
+	static var MAX:Int32 = Int32.MAX;
+	static var MIN:Int32 = Int32.MIN;
 	static var ZERO:Int32 = 0;
 	static var ONE:Int32 = 1;
 	static var NEG_ONE:Int32 = -1;
+
+	function testMinMax() {
+		eq((Int32.MAX : Int32), (0x7fffffff : Int32));
+		eq((Int32.MIN : Int32), (0x80000000 : Int32));
+	}
 
 	// --- Overflow behavior ---
 	function testOverflowAdd() {

@@ -419,4 +419,17 @@ class TestUInt64 extends Test {
 	function uint64eq(v:UInt64, v2:UInt64, ?pos:haxe.PosInfos) {
 		t(v == v2, pos);
 	}
+
+	public function testMinMax() {
+		uint64eq(UInt64.MIN, UInt64.make(0, 0));
+		uint64eq(UInt64.MAX, UInt64.make(0xFFFFFFFF, 0xFFFFFFFF));
+
+		// MAX + 1 wraps to 0 (MIN)
+		uint64eq(UInt64.MAX + UInt64.ofInt(1), UInt64.MIN);
+		// MIN - 1 wraps to MAX
+		uint64eq(UInt64.MIN - UInt64.ofInt(1), UInt64.MAX);
+
+		eq(Std.string(UInt64.MIN), "0");
+		eq(Std.string(UInt64.MAX), "18446744073709551615");
+	}
 }
