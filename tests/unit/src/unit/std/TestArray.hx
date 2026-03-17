@@ -15,12 +15,8 @@ class TestArray extends unit.Test {
 		eq([].concat([]).length, 0);
 		eq([1].concat([])[0], 1);
 		eq([].concat([1])[0], 1);
-		eq([1].concat([2])[0], 1);
-		eq([1].concat([2])[1], 2);
-		eq([1,2].concat([2,1])[0], 1);
-		eq([1,2].concat([2,1])[1], 2);
-		eq([1,2].concat([2,1])[2], 2);
-		eq([1,2].concat([2,1])[3], 1);
+		aeq([1, 2], [1].concat([2]));
+		aeq([1, 2, 2, 1], [1,2].concat([2,1]));
 
 		// join
 		eq([1,2].join(""), "12");
@@ -36,8 +32,7 @@ class TestArray extends unit.Test {
 		var a = [1, 2, 3];
 		var b = a;
 		eq(a.pop(), 3);
-		eq(a[0], 1);
-		eq(a[1], 2);
+		aeq([1, 2], a);
 		eq(a, b);
 		eq(a.pop(), 2);
 		eq(a[0], 1);
@@ -57,21 +52,16 @@ class TestArray extends unit.Test {
 		eq(a[0], 1);
 		eq(a.push(2), 2);
 		eq(a, b);
-		eq(a[0], 1);
-		eq(a[1], 2);
+		aeq([1, 2], a);
 		eq(a.push(null), 3);
-		eq(a[0], 1);
-		eq(a[1], 2);
-		eq(a[2], null);
+		aeq([1, 2, null], a);
 
 		// reverse
 		var a = [1, 2, 3];
 		var b = a;
 		a.reverse();
 		eq(a, b);
-		eq(a[0], 3);
-		eq(a[1], 2);
-		eq(a[2], 1);
+		aeq([3, 2, 1], a);
 		var a = [];
 		a.reverse();
 		eq(a.length, 0);
@@ -85,8 +75,7 @@ class TestArray extends unit.Test {
 		var a = [1, 2, 3];
 		var b = a;
 		eq(a.shift(), 1);
-		eq(a[0], 2);
-		eq(a[1], 3);
+		aeq([2, 3], a);
 		eq(a, b);
 		eq(a.shift(), 2);
 		eq(a[0], 3);
@@ -107,21 +96,11 @@ class TestArray extends unit.Test {
 		var a = [i4,i0,i1,i3,i0,i2];
 		var b = a.slice(0);
 		t(b != a);
-		eq(b[0], i4);
-		eq(b[1], i0);
-		eq(b[2], i1);
-		eq(b[3], i3);
-		eq(b[4], i0);
-		eq(b[5], i2);
+		aeq([i4, i0, i1, i3, i0, i2], b);
 		b = b.slice(1);
-		eq(b[0], i0);
-		eq(b[1], i1);
-		eq(b[2], i3);
-		eq(b[3], i0);
-		eq(b[4], i2);
+		aeq([i0, i1, i3, i0, i2], b);
 		b = b.slice(1, 3);
-		eq(b[0], i1);
-		eq(b[1], i3);
+		aeq([i1, i3], b);
 		b = b.slice( -1);
 		eq(b[0], i3);
 		b = b.slice(0, 4);
@@ -138,12 +117,7 @@ class TestArray extends unit.Test {
 		var i4 = new IntWrap(2);
 		var a = [i4, i0, i1, i3, i0, i2];
 		haxe.ds.ArraySort.sort(a, IntWrap.compare);
-		eq(a[0], i0);
-		eq(a[1], i1);
-		eq(a[2], i0);
-		eq(a[3], i4);
-		eq(a[4], i2);
-		eq(a[5], i3);
+		aeq([i0, i1, i0, i4, i2, i3], a);
 
 		// splice
 		var i0 = new IntWrap(1);
@@ -155,42 +129,22 @@ class TestArray extends unit.Test {
 		var a = b.splice(0, 0);
 		t(b != a);
 		eq(a.length, 0);
-		eq(b[0], i4);
-		eq(b[1], i0);
-		eq(b[2], i1);
-		eq(b[3], i3);
-		eq(b[4], i0);
-		eq(b[5], i2);
+		aeq([i4, i0, i1, i3, i0, i2], b);
 		a = b.splice(1, b.length - 1);
 		eq(b[0], i4);
-		eq(a[0], i0);
-		eq(a[1], i1);
-		eq(a[2], i3);
-		eq(a[3], i0);
-		eq(a[4], i2);
+		aeq([i0, i1, i3, i0, i2], a);
 		b = a.splice(1, -1);
-		eq(a[0], i0);
-		eq(a[1], i1);
-		eq(a[2], i3);
-		eq(a[3], i0);
-		eq(a[4], i2);
+		aeq([i0, i1, i3, i0, i2], a);
 		eq(b.length, 0);
 		b = a.splice(0, 10);
-		eq(b[0], i0);
-		eq(b[1], i1);
-		eq(b[2], i3);
-		eq(b[3], i0);
-		eq(b[4], i2);
+		aeq([i0, i1, i3, i0, i2], b);
 		eq(a.length, 0);
 		a = b.splice(10, 10);
 		eq(a.length, 0);
 		b = [i0, i1, i3, i0, i2];
 		a = b.splice( -2, 2);
-		eq(b[0], i0);
-		eq(b[1], i1);
-		eq(b[2], i3);
-		eq(a[0], i0);
-		eq(a[1], i2);
+		aeq([i0, i1, i3], b);
+		aeq([i0, i2], a);
 
 		// toString
 		var a = [new ClassWithToString(), new ClassWithToStringChild(), new ClassWithToStringChild2()];
@@ -205,12 +159,9 @@ class TestArray extends unit.Test {
 		eq(a[0], 1);
 		a.unshift(2);
 		eq(a, b);
-		eq(a[0], 2);
-		eq(a[1], 1);
+		aeq([2, 1], a);
 		a.unshift(null);
-		eq(a[0], null);
-		eq(a[1], 2);
-		eq(a[2], 1);
+		aeq([null, 2, 1], a);
 
 		// insert
 		var a = [];
@@ -218,29 +169,14 @@ class TestArray extends unit.Test {
 		eq(a[0], 1);
 		var a = [1, 2, 3];
 		a.insert(1, 4);
-		eq(a[0], 1);
-		eq(a[1], 4);
-		eq(a[2], 2);
-		eq(a[3], 3);
+		aeq([1, 4, 2, 3], a);
 		var a = [1, 2, 3];
 		a.insert( -1, 4);
-		eq(a[0], 1);
-		eq(a[1], 2);
-		eq(a[2], 4);
-		eq(a[3], 3);
+		aeq([1, 2, 4, 3], a);
 		a.insert( -2, 8);
-		eq(a[0], 1);
-		eq(a[1], 2);
-		eq(a[2], 8);
-		eq(a[3], 4);
-		eq(a[4], 3);
+		aeq([1, 2, 8, 4, 3], a);
 		a.insert ( -8, 9);
-		eq(a[0], 9);
-		eq(a[1], 1);
-		eq(a[2], 2);
-		eq(a[3], 8);
-		eq(a[4], 4);
-		eq(a[5], 3);
+		aeq([9, 1, 2, 8, 4, 3], a);
 
 		// remove
 		var i0 = new IntWrap(1);
@@ -250,40 +186,23 @@ class TestArray extends unit.Test {
 		var i4 = new IntWrap(2);
 		var a = [i4, i0, i1, i3, i0, i2];
 		t(a.remove(i0));
-		eq(a[0], i4);
-		eq(a[1], i1);
-		eq(a[2], i3);
-		eq(a[3], i0);
-		eq(a[4], i2);
+		aeq([i4, i1, i3, i0, i2], a);
 		t(a.remove(i0));
-		eq(a[0], i4);
-		eq(a[1], i1);
-		eq(a[2], i3);
-		eq(a[3], i2);
+		aeq([i4, i1, i3, i2], a);
 		f(a.remove(i0));
-		eq(a[0], i4);
-		eq(a[1], i1);
-		eq(a[2], i3);
-		eq(a[3], i2);
+		aeq([i4, i1, i3, i2], a);
 		var a = ["foo", "bar"];
 		t(a.remove("foo"));
 		eq(a[0], "bar");
 		var a = [i0, null, i1, null, null];
 		t(a.remove(null));
-		eq(a[0], i0);
-		eq(a[1], i1);
-		eq(a[2], null);
-		eq(a[3], null);
+		aeq([i0, i1, null, null], a);
 		t(a.remove(null));
-		eq(a[0], i0);
-		eq(a[1], i1);
-		eq(a[2], null);
+		aeq([i0, i1, null], a);
 		t(a.remove(null));
-		eq(a[0], i0);
-		eq(a[1], i1);
+		aeq([i0, i1], a);
 		f(a.remove(null));
-		eq(a[0], i0);
-		eq(a[1], i1);
+		aeq([i0, i1], a);
 
 		// contains
 		f([].contains(1));
@@ -339,36 +258,26 @@ class TestArray extends unit.Test {
 		var a = [i0, i1, i2];
 		var b = a.copy();
 		t(a != b);
-		eq(b[0], i0);
-		eq(b[1], i1);
-		eq(b[2], i2);
+		aeq([i0, i1, i2], b);
 		var a = [];
 		var b = a.copy();
 		t(a != b);
 		eq(b.length, 0);
 
 		// map
-		eq([1, 2, 3].map(function(i) return i * 2)[0], 2);
-		eq([1, 2, 3].map(function(i) return i * 2)[1], 4);
-		eq([1, 2, 3].map(function(i) return i * 2)[2], 6);
+		aeq([2, 4, 6], [1, 2, 3].map(function(i) return i * 2));
 		var a = [new IntWrap(1), new IntWrap(2)];
 		var b = a.map(function(x) return x);
 		t(a != b);
 		eq(b.length, a.length);
-		eq(a[0], b[0]);
-		eq(a[1], b[1]);
+		aeq([b[0], b[1]], a);
 		var func = function(s) return s.toUpperCase();
-		eq(["foo", "bar"].map(func)[0], "FOO");
-		eq(["foo", "bar"].map(func)[1], "BAR");
+		aeq(["FOO", "BAR"], ["foo", "bar"].map(func));
 		eq([].map(func).length, 0);
 
 		// filter
-		eq([1, 2, 3, 4].filter(function(i) return i < 3)[0], 1);
-		eq([1, 2, 3, 4].filter(function(i) return i < 3)[1], 2);
-		eq([1, 2, 3, 4].filter(function(i) return true)[0], 1);
-		eq([1, 2, 3, 4].filter(function(i) return true)[1], 2);
-		eq([1, 2, 3, 4].filter(function(i) return true)[2], 3);
-		eq([1, 2, 3, 4].filter(function(i) return true)[3], 4);
+		aeq([1, 2], [1, 2, 3, 4].filter(function(i) return i < 3));
+		aeq([1, 2, 3, 4], [1, 2, 3, 4].filter(function(i) return true));
 		eq([1, 2, 3, 4].filter(function(i) return false).length, 0);
 		eq([].filter(function(_) return true).length, 0);
 		eq([].filter(function(_) return false).length, 0);
@@ -376,32 +285,25 @@ class TestArray extends unit.Test {
 		arr = arr.filter(function(i) return i.id % 2 != 0);
 		var values = [];
 		for (a in arr) values.push(a.id);
-		eq(values[0], 1);
-		eq(values[1], 3);
-		eq(values[2], 5);
+		aeq([1, 3, 5], values);
 
 		// check that map and filter work well on Dynamic as well
 		var a : Dynamic = [0,1,2];
 		var b : Dynamic = a.filter(function(x) return x & 1 == 0).map(function(x) return x * 10);
 		eq(b.length, 2);
-		eq(b[0], 0);
-		eq(b[1], 20);
+		aeq([0, 20], b);
 
 		// resize
 		var a : Array<Int> = [1,2,3];
 		a.resize(10);
 		eq(a.length, 10);
-		eq(a[0], 1);
-		eq(a[1], 2);
-		eq(a[2], 3);
+		aeq([1, 2, 3], a);
 		a.resize(2);
 		eq(a.length, 2);
-		eq(a[0], 1);
-		eq(a[1], 2);
+		aeq([1, 2], a);
 		a.resize(3);
 		eq(a.length, 3);
-		eq(a[0], 1);
-		eq(a[1], 2);
+		aeq([1, 2], a);
 		t(a[2] != 3);
 		a.resize(0);
 		eq(a.length, 0);
@@ -409,64 +311,28 @@ class TestArray extends unit.Test {
 
 		// keyValueIterator
 		var a : Array<Int> = [1,2,3,5,8];
-		eq([for (k=>v in a) k][0], 0);
-		eq([for (k=>v in a) k][1], 1);
-		eq([for (k=>v in a) k][2], 2);
-		eq([for (k=>v in a) k][3], 3);
-		eq([for (k=>v in a) k][4], 4);
-		eq([for (k=>v in a) v][0], 1);
-		eq([for (k=>v in a) v][1], 2);
-		eq([for (k=>v in a) v][2], 3);
-		eq([for (k=>v in a) v][3], 5);
-		eq([for (k=>v in a) v][4], 8);
-		eq([for (k=>v in a) k*v][0], 0);
-		eq([for (k=>v in a) k*v][1], 2);
-		eq([for (k=>v in a) k*v][2], 6);
-		eq([for (k=>v in a) k*v][3], 15);
-		eq([for (k=>v in a) k*v][4], 32);
+		aeq([0, 1, 2, 3, 4], [for (k=>v in a) k]);
+		aeq([1, 2, 3, 5, 8], [for (k=>v in a) v]);
+		aeq([0, 2, 6, 15, 32], [for (k=>v in a) k*v]);
 
 		// keyValueIterator through Structure
 		var a : Array<Int> = [1,2,3,5,8];
 		var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
 		var a2 = [for (k=>v in it) k];
-		eq(a2[0], 0);
-		eq(a2[1], 1);
-		eq(a2[2], 2);
-		eq(a2[3], 3);
-		eq(a2[4], 4);
+		aeq([0, 1, 2, 3, 4], a2);
 		var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
 		a2 = [for (k=>v in it) v];
-		eq(a2[0], 1);
-		eq(a2[1], 2);
-		eq(a2[2], 3);
-		eq(a2[3], 5);
-		eq(a2[4], 8);
+		aeq([1, 2, 3, 5, 8], a2);
 		var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
 		a2 = [for (k=>v in it) k*v];
-		eq(a2[0], 0);
-		eq(a2[1], 2);
-		eq(a2[2], 6);
-		eq(a2[3], 15);
-		eq(a2[4], 32);
+		aeq([0, 2, 6, 15, 32], a2);
 
 		// keyValueIterator through Structure
 		var a : Array<Int> = [1,2,3,5,8];
 		var it : KeyValueIterable<Int, Int> = a;
-		eq([for (k=>v in it) k][0], 0);
-		eq([for (k=>v in it) k][1], 1);
-		eq([for (k=>v in it) k][2], 2);
-		eq([for (k=>v in it) k][3], 3);
-		eq([for (k=>v in it) k][4], 4);
-		eq([for (k=>v in it) v][0], 1);
-		eq([for (k=>v in it) v][1], 2);
-		eq([for (k=>v in it) v][2], 3);
-		eq([for (k=>v in it) v][3], 5);
-		eq([for (k=>v in it) v][4], 8);
-		eq([for (k=>v in it) k*v][0], 0);
-		eq([for (k=>v in it) k*v][1], 2);
-		eq([for (k=>v in it) k*v][2], 6);
-		eq([for (k=>v in it) k*v][3], 15);
-		eq([for (k=>v in it) k*v][4], 32);
+		aeq([0, 1, 2, 3, 4], [for (k=>v in it) k]);
+		aeq([1, 2, 3, 5, 8], [for (k=>v in it) v]);
+		aeq([0, 2, 6, 15, 32], [for (k=>v in it) k*v]);
 
 		#if !flash
 		// Can't create this closure on Flash apparently
@@ -475,27 +341,15 @@ class TestArray extends unit.Test {
 		var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 		var it = itf();
 		var a2 = [for (k=>v in it) k];
-		eq(a2[0], 0);
-		eq(a2[1], 1);
-		eq(a2[2], 2);
-		eq(a2[3], 3);
-		eq(a2[4], 4);
+		aeq([0, 1, 2, 3, 4], a2);
 		var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 		var it = itf();
 		a2 = [for (k=>v in it) v];
-		eq(a2[0], 1);
-		eq(a2[1], 2);
-		eq(a2[2], 3);
-		eq(a2[3], 5);
-		eq(a2[4], 8);
+		aeq([1, 2, 3, 5, 8], a2);
 		var itf : () -> KeyValueIterator<Int, Int> = a.keyValueIterator;
 		var it = itf();
 		a2 = [for (k=>v in it) k*v];
-		eq(a2[0], 0);
-		eq(a2[1], 2);
-		eq(a2[2], 6);
-		eq(a2[3], 15);
-		eq(a2[4], 32);
+		aeq([0, 2, 6, 15, 32], a2);
 		#end
 	}
 }

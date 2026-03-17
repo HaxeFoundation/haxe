@@ -43,8 +43,7 @@ class TestVector extends unit.Test {
 		var vec = new haxe.ds.Vector(3);
 		vec.set(1, 2);
 		var arr = vec.toArray();
-		eq(arr[0], vNullInt);
-		eq(arr[1], 2);
+		aeq([vNullInt, 2], arr);
 		eq(arr[3], vNullInt);
 
 		// objects
@@ -61,9 +60,7 @@ class TestVector extends unit.Test {
 		eq(vec2.get(2), "3");
 
 		// []
-		eq(vec2[0], "1");
-		eq(vec2[1], "2");
-		eq(vec2[2], "3");
+		aeq(["1", "2", "3"], vec2);
 		vec2[1] = "4";
 		eq(vec2[1], "4");
 		vec2[0] += "a";
@@ -81,30 +78,16 @@ class TestVector extends unit.Test {
 		eq(vec4[0], vNullInt);
 
 		haxe.ds.Vector.blit(vec3, 0, vec4, 0, 5);
-		eq(vec4[0], 0);
-		eq(vec4[1], 1);
-		eq(vec4[2], 2);
-		eq(vec4[3], 3);
-		eq(vec4[4], 4);
+		aeq([0, 1, 2, 3, 4], vec4);
 
 		haxe.ds.Vector.blit(vec4, 1, vec3, 0, 4);
 		//vec3 should be [1,2,3,4,4,5,6]
-		eq(vec3[0], 1);
-		eq(vec3[1], 2);
-		eq(vec3[2], 3);
-		eq(vec3[3], 4);
-		eq(vec3[4], 4);
-		eq(vec3[5], 5);
-		eq(vec3[6], 6);
+		aeq([1, 2, 3, 4, 4, 5, 6], vec3);
 
 		var vec5 = new haxe.ds.Vector(3, 5);
-		eq(vec5[0], 5);
-		eq(vec5[1], 5);
-		eq(vec5[2], 5);
+		aeq([5, 5, 5], vec5);
 		vec5.fill(1);
-		eq(vec5[0], 1);
-		eq(vec5[1], 1);
-		eq(vec5[2], 1);
+		aeq([1, 1, 1], vec5);
 
 		var vec5 = new haxe.ds.Vector(3, true);
 		t(vec5[0]);
@@ -113,27 +96,15 @@ class TestVector extends unit.Test {
 
 		var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
 		haxe.ds.Vector.blit(vec5, 0, vec5, 1, 4);
-		eq(vec5[0], 0);
-		eq(vec5[1], 0);
-		eq(vec5[2], 1);
-		eq(vec5[3], 2);
-		eq(vec5[4], 3);
+		aeq([0, 0, 1, 2, 3], vec5);
 
 		var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
 		haxe.ds.Vector.blit(vec5, 1, vec5, 0, 4);
-		eq(vec5[0], 1);
-		eq(vec5[1], 2);
-		eq(vec5[2], 3);
-		eq(vec5[3], 4);
-		eq(vec5[4], 4);
+		aeq([1, 2, 3, 4, 4], vec5);
 
 		var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
 		haxe.ds.Vector.blit(vec5, 0, vec5, 0, 5);
-		eq(vec5[0], 0);
-		eq(vec5[1], 1);
-		eq(vec5[2], 2);
-		eq(vec5[3], 3);
-		eq(vec5[4], 4);
+		aeq([0, 1, 2, 3, 4], vec5);
 
 		// test iteration
 
@@ -158,9 +129,7 @@ class TestVector extends unit.Test {
 		vec[2] = i2;
 		var vec2 = vec.copy();
 		f(vec == vec2);
-		eq(vec[0], vec2[0]);
-		eq(vec[1], vec2[1]);
-		eq(vec[2], vec2[2]);
+		aeq([vec2[0], vec2[1], vec2[2]], vec);
 
 		// join
 
@@ -191,8 +160,7 @@ class TestVector extends unit.Test {
 		vec[0] = 12;
 		vec[1] = 13;
 		var vec2 = vec.map(function(i) return "value: " +i);
-		eq(vec2[0], "value: 12");
-		eq(vec2[1], "value: 13");
+		aeq(["value: 12", "value: 13"], vec2);
 
 		// sort
 
@@ -203,10 +171,7 @@ class TestVector extends unit.Test {
 		vec[2] = -12;
 		vec[3] = 0;
 		vec.sort(Reflect.compare);
-		eq(vec[0], -12);
-		eq(vec[1], 0);
-		eq(vec[2], 99);
-		eq(vec[3], 101);
+		aeq([-12, 0, 99, 101], vec);
 		#end
 
 	}

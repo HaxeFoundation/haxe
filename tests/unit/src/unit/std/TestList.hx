@@ -50,20 +50,8 @@ class TestList extends unit.Test {
 		l4.add(3);
 		l4.add(5);
 		l4.add(8);
-		eq([for (k=>v in l4) k][0], 0);
-		eq([for (k=>v in l4) k][1], 1);
-		eq([for (k=>v in l4) k][2], 2);
-		eq([for (k=>v in l4) k][3], 3);
-		eq([for (k=>v in l4) k][4], 4);
-		eq([for (k=>v in l4) v][0], 1);
-		eq([for (k=>v in l4) v][1], 2);
-		eq([for (k=>v in l4) v][2], 3);
-		eq([for (k=>v in l4) v][3], 5);
-		eq([for (k=>v in l4) v][4], 8);
-		eq([for (k=>v in l4) k*v][0], 0);
-		eq([for (k=>v in l4) k*v][1], 2);
-		eq([for (k=>v in l4) k*v][2], 6);
-		eq([for (k=>v in l4) k*v][3], 15);
-		eq([for (k=>v in l4) k*v][4], 32);
+		aeq([0, 1, 2, 3, 4], [for (k=>v in l4) k]);
+		aeq([1, 2, 3, 5, 8], [for (k=>v in l4) v]);
+		aeq([0, 2, 6, 15, 32], [for (k=>v in l4) k*v]);
 	}
 }

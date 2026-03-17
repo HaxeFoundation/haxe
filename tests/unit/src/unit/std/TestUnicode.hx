@@ -62,17 +62,14 @@ class TestUnicode extends unit.Test {
 		eq(s, "é😂あ");
 		var a = s.split('😂');
 		eq(a.length, 2);
-		eq(a[0], "é");
-		eq(a[1], "あ");
+		aeq(["é", "あ"], a);
 		eq(a.join('😂'), s);
 
 		var a = s.split('');
 		#if !utf16
 		// native UTF-16 or 32
 		eq(a.length, 3);
-		eq(a[0], "é");
-		eq(a[1], "😂");
-		eq(a[2], "あ");
+		aeq(["é", "😂", "あ"], a);
 		#else
 		eq(a.length, 4);
 		eq(a[0], "é");
@@ -207,8 +204,7 @@ class TestUnicode extends unit.Test {
 		eq(s, "Hello World!");
 		eq(s.length, 12);
 
-		eq("äabc:def".substr(1).split(":")[0], "abc");
-		eq("äabc:def".substr(1).split(":")[1], "def");
+		aeq(["abc", "def"], "äabc:def".substr(1).split(":"));
 
 		var s1 = "abc";
 		var b1 = haxe.io.Bytes.ofString(s1, RawNative);

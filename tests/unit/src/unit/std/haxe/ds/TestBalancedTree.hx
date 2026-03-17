@@ -83,15 +83,9 @@ class TestBalancedTree extends unit.Test {
 		var values1 = [2,4,6];
 		for(i in 0 ... keys1.length) test2.set(keys1[i], values1[i]);
 
-		eq([for(k=>v in test2) k][0], 1);
-		eq([for(k=>v in test2) k][1], 2);
-		eq([for(k=>v in test2) k][2], 3);
-		eq([for(k=>v in test2) v][0], 2);
-		eq([for(k=>v in test2) v][1], 4);
-		eq([for(k=>v in test2) v][2], 6);
-		eq([for(k=>v in test2) k*v][0], 2);
-		eq([for(k=>v in test2) k*v][1], 8);
-		eq([for(k=>v in test2) k*v][2], 18);
+		aeq([1, 2, 3], [for(k=>v in test2) k]);
+		aeq([2, 4, 6], [for(k=>v in test2) v]);
+		aeq([2, 8, 18], [for(k=>v in test2) k*v]);
 
 		// clear
 		var test3 = new haxe.ds.BalancedTree<Int, Int>();
@@ -99,9 +93,7 @@ class TestBalancedTree extends unit.Test {
 		test3.set(2, 3);
 		test3.set(4, 6);
 
-		eq([for(k=>v in test3) k][0], 0);
-		eq([for(k=>v in test3) k][1], 2);
-		eq([for(k=>v in test3) k][2], 4);
+		aeq([0, 2, 4], [for(k=>v in test3) k]);
 
 		test3.clear();
 

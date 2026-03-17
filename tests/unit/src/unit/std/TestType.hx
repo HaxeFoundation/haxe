@@ -121,13 +121,8 @@ class TestType extends unit.Test {
 		eq(requiredFields.length, 0);
 
 		// getEnumConstructs
-		eq(Type.getEnumConstructs(E)[0], "NoArgs");
-		eq(Type.getEnumConstructs(E)[1], "OneArg");
-		eq(Type.getEnumConstructs(E)[2], "RecArg");
-		eq(Type.getEnumConstructs(E)[3], "MultipleArgs");
-		eq(Type.getEnumConstructs(EnumFlagTest)[0], "EA");
-		eq(Type.getEnumConstructs(EnumFlagTest)[1], "EB");
-		eq(Type.getEnumConstructs(EnumFlagTest)[2], "EC");
+		aeq(["NoArgs", "OneArg", "RecArg", "MultipleArgs"], Type.getEnumConstructs(E));
+		aeq(["EA", "EB", "EC"], Type.getEnumConstructs(EnumFlagTest));
 
 		// typeof
 		eq(Type.typeof(1.5), TFloat);
@@ -167,8 +162,7 @@ class TestType extends unit.Test {
 		eq(Type.enumParameters(NoArgs).length, 0);
 		eq(Type.enumParameters(OneArg(1))[0], 1);
 		eq(Type.enumParameters(RecArg(NoArgs))[0], NoArgs);
-		eq(Type.enumParameters(MultipleArgs(1, "foo"))[0], 1);
-		eq(Type.enumParameters(MultipleArgs(1, "foo"))[1], "foo");
+		aeq([1, "foo"], Type.enumParameters(MultipleArgs(1, "foo")));
 		eq(Type.enumParameters(EC).length, 0);
 
 		// enumIndex
@@ -180,11 +174,8 @@ class TestType extends unit.Test {
 
 		// allEnums
 		eq(Type.allEnums(E)[0], NoArgs);
-		eq(Type.allEnums(haxe.macro.Expr.ExprDef)[0], EBreak);
-		eq(Type.allEnums(haxe.macro.Expr.ExprDef)[1], EContinue);
-		eq(Type.allEnums(EnumFlagTest)[0], EA);
-		eq(Type.allEnums(EnumFlagTest)[1], EB);
-		eq(Type.allEnums(EnumFlagTest)[2], EC);
+		aeq([EBreak, EContinue], Type.allEnums(haxe.macro.Expr.ExprDef));
+		aeq([EA, EB, EC], Type.allEnums(EnumFlagTest));
 
 
 	}

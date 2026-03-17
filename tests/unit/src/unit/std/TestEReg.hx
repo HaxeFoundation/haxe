@@ -72,42 +72,25 @@ class TestEReg extends unit.Test {
 
 		// split
 		eq(~/a/.split("")[0], "");
-		eq(~/a/.split("a")[0], "");
-		eq(~/a/.split("a")[1], "");
-		eq(~/a/.split("aa")[0], "");
-		eq(~/a/.split("aa")[1], "a");
+		aeq(["", ""], ~/a/.split("a"));
+		aeq(["", "a"], ~/a/.split("aa"));
 		eq(~/a/.split("b")[0], "b");
-		eq(~/a/.split("ab")[0], "");
-		eq(~/a/.split("ab")[1], "b");
-		eq(~/a/.split("ba")[0], "b");
-		eq(~/a/.split("ba")[1], "");
-		eq(~/a/.split("aba")[0], "");
-		eq(~/a/.split("aba")[1], "ba");
-		eq(~/a/.split("bab")[0], "b");
-		eq(~/a/.split("bab")[1], "b");
-		eq(~/a/.split("baba")[0], "b");
-		eq(~/a/.split("baba")[1], "ba");
+		aeq(["", "b"], ~/a/.split("ab"));
+		aeq(["b", ""], ~/a/.split("ba"));
+		aeq(["", "ba"], ~/a/.split("aba"));
+		aeq(["b", "b"], ~/a/.split("bab"));
+		aeq(["b", "ba"], ~/a/.split("baba"));
 
 		// split + g
 		eq(~/a/g.split("")[0], "");
-		eq(~/a/g.split("a")[0], "");
-		eq(~/a/g.split("a")[1], "");
-		eq(~/a/g.split("aa")[0], "");
-		eq(~/a/g.split("aa")[1], "");
-		eq(~/a/g.split("aa")[2], "");
+		aeq(["", ""], ~/a/g.split("a"));
+		aeq(["", "", ""], ~/a/g.split("aa"));
 		eq(~/a/g.split("b")[0], "b");
-		eq(~/a/g.split("ab")[0], "");
-		eq(~/a/g.split("ab")[1], "b");
-		eq(~/a/g.split("ba")[0], "b");
-		eq(~/a/g.split("ba")[1], "");
-		eq(~/a/g.split("aba")[0], "");
-		eq(~/a/g.split("aba")[1], "b");
-		eq(~/a/g.split("aba")[2], "");
-		eq(~/a/g.split("bab")[0], "b");
-		eq(~/a/g.split("bab")[1], "b");
-		eq(~/a/g.split("baba")[0], "b");
-		eq(~/a/g.split("baba")[1], "b");
-		eq(~/a/g.split("baba")[2], "");
+		aeq(["", "b"], ~/a/g.split("ab"));
+		aeq(["b", ""], ~/a/g.split("ba"));
+		aeq(["", "b", ""], ~/a/g.split("aba"));
+		aeq(["b", "b"], ~/a/g.split("bab"));
+		aeq(["b", "b", ""], ~/a/g.split("baba"));
 
 		// replace
 		eq(~/a/.replace("", "z"), "");
@@ -156,8 +139,7 @@ class TestEReg extends unit.Test {
 		t(new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ ^ $ * + ? . ( ) | { } [ ]"));
 
 		// #6641
-		eq(~/(b)/.split("abc")[0], "a");
-		eq(~/(b)/.split("abc")[1], "c");
+		aeq(["a", "c"], ~/(b)/.split("abc"));
 
 		// #3430
 		eq(~/(\d+)/g.replace("a1234b12","$1"), "a1234b12");

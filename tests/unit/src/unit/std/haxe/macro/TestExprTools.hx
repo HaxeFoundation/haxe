@@ -59,14 +59,8 @@ class TestExprTools extends unit.Test {
 			}
 		}
 		extract(subject);
-		eq(strings[0], "java");
-		eq(strings[1], "-jar");
-		eq(strings[2], "/java/java.jar");
-		eq(strings[3], "Content-Type");
-		eq(strings[4], "text/plain");
-		eq(upperIdents[0], "StringTools");
-		eq(upperIdents[1], "String");
-		eq(upperIdents[2], "StringTools");
+		aeq(["java", "-jar", "/java/java.jar", "Content-Type", "text/plain"], strings);
+		aeq(["StringTools", "String", "StringTools"], upperIdents);
 
 		var iter = haxe.macro.ExprTools.iter;
 		var fail = function(e) throw "I was called";

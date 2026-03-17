@@ -97,8 +97,7 @@ class TestSsl extends unit.Test {
 		");
 
 		eq(cert.commonName, "foo.bar");
-		eq(cert.altNames[0], "foo.bar");
-		eq(cert.altNames[1], "*.foo.bar");
+		aeq(["foo.bar", "*.foo.bar"], cert.altNames);
 		eq(cert.notBefore.getFullYear(), 2016);
 		eq(cert.notAfter.getFullYear(), 2017);
 		eq(cert.issuer("O"), "Test Dev CA");

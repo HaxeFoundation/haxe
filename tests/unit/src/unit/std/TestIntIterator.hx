@@ -12,11 +12,9 @@ class TestIntIterator extends unit.Test {
 		var r = [];
 		for (i in ii)
 			r.push(i);
-		eq(r[0], 0);
-		eq(r[1], 1);
+		aeq([0, 1], r);
 		for (i in ii)
 			r.push(i);
-		eq(r[0], 0);
-		eq(r[1], 1);
+		aeq([0, 1], r);
 	}
 }

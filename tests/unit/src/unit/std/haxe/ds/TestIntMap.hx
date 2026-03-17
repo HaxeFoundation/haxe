@@ -14,34 +14,24 @@ class TestIntMap extends unit.Test {
 		// iterator
 		var keys1a = [for (k in map1.keys()) k];
 		keys1a.sort(Reflect.compare); // Order is undefined
-		eq(keys1a[0], 1);
-		eq(keys1a[1], 2);
-		eq(keys1a[2], 3);
+		aeq([1, 2, 3], keys1a);
 
 		var values1a = [for (v in map1) v];
 		values1a.sort(Reflect.compare);
-		eq(values1a[0], 2);
-		eq(values1a[1], 4);
-		eq(values1a[2], 6);
+		aeq([2, 4, 6], values1a);
 
 		// key value iterator
 		var keys1b = [for (k=>v in map1) k];
 		keys1b.sort(Reflect.compare);
-		eq(keys1b[0], 1);
-		eq(keys1b[1], 2);
-		eq(keys1b[2], 3);
+		aeq([1, 2, 3], keys1b);
 
 		var values1b = [for (k=>v in map1) v];
 		values1b.sort(Reflect.compare);
-		eq(values1b[0], 2);
-		eq(values1b[1], 4);
-		eq(values1b[2], 6);
+		aeq([2, 4, 6], values1b);
 
 		var values1c = [for (k=>v in map1) k*v];
 		values1c.sort(Reflect.compare);
-		eq(values1c[0], 2);
-		eq(values1c[1], 8);
-		eq(values1c[2], 18);
+		aeq([2, 8, 18], values1c);
 
 
 		var map2 = new haxe.ds.IntMap();
@@ -56,27 +46,19 @@ class TestIntMap extends unit.Test {
 		// iterator
 		var keys2a = [for (k in map2.keys()) k];
 		keys2a.sort(Reflect.compare);
-		eq(keys2a[0], 1);
-		eq(keys2a[1], 2);
-		eq(keys2a[2], 3);
+		aeq([1, 2, 3], keys2a);
 
 		var values2a = [for (v in map2) v];
 		values2a.sort(Reflect.compare);
-		eq(values2a[0], "2");
-		eq(values2a[1], "4");
-		eq(values2a[2], "6");
+		aeq(["2", "4", "6"], values2a);
 		// key value iterator
 		var keys2b = [for (k=>v in map2) k];
 		keys2b.sort(Reflect.compare);
-		eq(keys2b[0], 1);
-		eq(keys2b[1], 2);
-		eq(keys2b[2], 3);
+		aeq([1, 2, 3], keys2b);
 
 		var values2b = [for (k=>v in map2) v];
 		values2b.sort(Reflect.compare);
-		eq(values2b[0], "2");
-		eq(values2b[1], "4");
-		eq(values2b[2], "6");
+		aeq(["2", "4", "6"], values2b);
 
 		// clear
 		map2.clear();

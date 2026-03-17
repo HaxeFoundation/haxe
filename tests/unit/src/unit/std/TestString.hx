@@ -133,20 +133,9 @@ class TestString extends unit.Test {
 		eq(s.lastIndexOf("a", s.length + 9000), 13);
 		// split
 		var s = "xfooxfooxxbarxbarxx";
-		eq(s.split("x")[0], "");
-		eq(s.split("x")[1], "foo");
-		eq(s.split("x")[2], "foo");
-		eq(s.split("x")[3], "");
-		eq(s.split("x")[4], "bar");
-		eq(s.split("x")[5], "bar");
-		eq(s.split("x")[6], "");
-		eq(s.split("x")[7], "");
-		eq(s.split("xx")[0], "xfooxfoo");
-		eq(s.split("xx")[1], "barxbar");
-		eq(s.split("xx")[2], "");
-		s.split("") == [
-			"x", "f", "o", "o", "x", "f", "o", "o", "x", "x", "b", "a", "r", "x", "b", "a", "r", "x", "x"
-		];
+		aeq(["", "foo", "foo", "", "bar", "bar", "", ""], s.split("x"));
+		aeq(["xfooxfoo", "barxbar", ""], s.split("xx"));
+		aeq(["x", "f", "o", "o", "x", "f", "o", "o", "x", "x", "b", "a", "r", "x", "b", "a", "r", "x", "x"], s.split(""));
 		eq(s.split("z")[0], "xfooxfooxxbarxbarxx");
 		// substr
 		var s = "xfooxfooxxbarxbarxx";

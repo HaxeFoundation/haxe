@@ -63,14 +63,10 @@ class TestMap extends unit.Test {
 		var map3 = [1=>"2",2=>"4",3=>"6"];
 		var keys = [for (k=>v in map3) k];
 		keys.sort(Reflect.compare);
-		eq(keys[0], 1);
-		eq(keys[1], 2);
-		eq(keys[2], 3);
+		aeq([1, 2, 3], keys);
 		var values = [for (k=>v in map3) v];
 		values.sort(Reflect.compare);
-		eq(values[0], "2");
-		eq(values[1], "4");
-		eq(values[2], "6");
+		aeq(["2", "4", "6"], values);
 
 
 		// Int
@@ -124,14 +120,10 @@ class TestMap extends unit.Test {
 		var map3 = [1=>2,2=>4,3=>6];
 		var keys = [for (k=>v in map3) k];
 		keys.sort(Reflect.compare);
-		eq(keys[0], 1);
-		eq(keys[1], 2);
-		eq(keys[2], 3);
+		aeq([1, 2, 3], keys);
 		var values = [for (k=>v in map3) v];
 		values.sort(Reflect.compare);
-		eq(values[0], 2);
-		eq(values[1], 4);
-		eq(values[2], 6);
+		aeq([2, 4, 6], values);
 
 		// Hashable
 		var map = new Map();

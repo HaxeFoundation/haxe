@@ -82,12 +82,8 @@ class TestLambda extends unit.Test {
 		Lambda.iter([],function(i) return throw "no call");
 
 		// filter
-		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return i < 3))[0], 1);
-		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return i < 3))[1], 2);
-		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return true))[0], 1);
-		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return true))[1], 2);
-		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return true))[2], 3);
-		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return true))[3], 4);
+		aeq([1, 2], Lambda.array(Lambda.filter([1,2,3,4],function(i) return i < 3)));
+		aeq([1, 2, 3, 4], Lambda.array(Lambda.filter([1,2,3,4],function(i) return true)));
 		eq(Lambda.array(Lambda.filter([1,2,3,4],function(i) return false)).length, 0);
 		eq(Lambda.array(Lambda.filter([],function(_) return false)).length, 0);
 		eq(Lambda.array(Lambda.filter([],function(_) return true)).length, 0);
@@ -142,18 +138,9 @@ class TestLambda extends unit.Test {
 		eq(Lambda.findIndex([],i -> false), -1);
 
 		// concat
-		eq(Lambda.array(Lambda.concat([1,2,3],[3,4,5]))[0], 1);
-		eq(Lambda.array(Lambda.concat([1,2,3],[3,4,5]))[1], 2);
-		eq(Lambda.array(Lambda.concat([1,2,3],[3,4,5]))[2], 3);
-		eq(Lambda.array(Lambda.concat([1,2,3],[3,4,5]))[3], 3);
-		eq(Lambda.array(Lambda.concat([1,2,3],[3,4,5]))[4], 4);
-		eq(Lambda.array(Lambda.concat([1,2,3],[3,4,5]))[5], 5);
-		eq(Lambda.array(Lambda.concat([1,2,3],[]))[0], 1);
-		eq(Lambda.array(Lambda.concat([1,2,3],[]))[1], 2);
-		eq(Lambda.array(Lambda.concat([1,2,3],[]))[2], 3);
-		eq(Lambda.array(Lambda.concat([],[1,2,3]))[0], 1);
-		eq(Lambda.array(Lambda.concat([],[1,2,3]))[1], 2);
-		eq(Lambda.array(Lambda.concat([],[1,2,3]))[2], 3);
+		aeq([1, 2, 3, 3, 4, 5], Lambda.array(Lambda.concat([1,2,3],[3,4,5])));
+		aeq([1, 2, 3], Lambda.array(Lambda.concat([1,2,3],[])));
+		aeq([1, 2, 3], Lambda.array(Lambda.concat([],[1,2,3])));
 		eq(Lambda.array(Lambda.concat([],[])).length, 0);
 	}
 }
