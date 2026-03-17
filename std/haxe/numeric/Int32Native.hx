@@ -101,11 +101,20 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 	public static inline function ushr(a:Int32Native, b:Int):Int32Native
 		return cast((a : Int) >>> b);
 
+	public static inline function compare(a:Int32Native, b:Int32Native):Int {
+		var av:Int = a;
+		var bv:Int = b;
+		return av < bv ? -1 : (av > bv ? 1 : 0);
+	}
+
 	public static function ucompare(a:Int32Native, b:Int32Native):Int {
 		if ((a : Int) < 0)
 			return (b : Int) < 0 ? (~(b : Int) - ~(a : Int)) : 1;
 		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
 	}
+
+	public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
+		return cast((a : Int) % (b : Int));
 
 	public inline function toFloat():Float
 		return this;
