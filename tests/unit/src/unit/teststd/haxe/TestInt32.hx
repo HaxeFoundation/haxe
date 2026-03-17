@@ -6,6 +6,10 @@ class TestInt32 extends unit.Test {
 		var max:haxe.Int32 = 0x7fffffff;
 		var min:haxe.Int32 = 0x80000000;
 
+		// MIN/MAX constants match expected values
+		eq(haxe.Int32.MAX, max);
+		eq(haxe.Int32.MIN, min);
+
 		var a:haxe.Int32 = 0x7fffffff;
 		eq(a++, max);
 		eq(a, min);

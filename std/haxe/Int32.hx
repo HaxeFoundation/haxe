@@ -42,6 +42,12 @@ abstract Int32(Int32Native) from Int to Int {
 	private inline function new(x:Int32Native)
 		this = x;
 
+	/** The greatest representable Int32 value: `2^31 - 1`. **/
+	public static final MAX:Int32 = 0x7FFFFFFF;
+
+	/** The smallest representable Int32 value: `-2^31`. **/
+	public static final MIN:Int32 = 0x80000000;
+
 	@:op(-A) private static inline function neg(x:Int32):Int32
 		return Int32Native.neg(x);
 

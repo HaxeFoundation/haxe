@@ -39,6 +39,12 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 	private inline function new(x:Int64Native)
 		this = x;
 
+	/** The greatest representable UInt64 value: `2^64 - 1`. **/
+	public static final MAX:UInt64 = make(0xFFFFFFFF, 0xFFFFFFFF);
+
+	/** The smallest representable UInt64 value: `0`. **/
+	public static final MIN:UInt64 = make(0, 0);
+
 	/**
 		Makes a copy of `this` UInt64.
 	**/

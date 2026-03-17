@@ -140,6 +140,7 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public static function ushr(a:Int64Native, b:Int):Int64Native;
 	public function toString():String;
 	public static function parseString(sParam:String):Int64Native;
+	public static function toFloat(x:Int64Native):Float;
 	public static function fromFloat(f:Float):Int64Native;
 	#else
 	public var high(get, never):haxe.Int32;
@@ -165,8 +166,6 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	}
 
 	public static #if !scriptable inline #end function toInt(x:Int64Native):Int {
-		if (x.high != x.low >> 31)
-			throw "Overflow";
 		return x.low;
 	}
 
@@ -239,6 +238,13 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 
 	public static inline function fromFloat(f:Float):Int64Native {
 		return haxe.numeric.Int64Helper.fromFloat(f);
+	}
+
+	public static #if !scriptable inline #end function toFloat(x:Int64Native):Float {
+		var f:Float = x.low;
+		if (f < 0)
+			f += 4294967296.0;
+		return (x.high : Float) * 4294967296.0 + f;
 	}
 
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {

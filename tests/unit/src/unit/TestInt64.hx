@@ -34,7 +34,8 @@ class TestInt64 extends Test {
 		a = Int64.make(0,0x80000000);
 		eq( a.high, 0 );
 		eq( a.low, 0x80000000 );
-		exc( tryOverflow.bind(a) );	// Throws Overflow
+		// toInt truncates: discards high 32 bits, returns low
+		eq( a.toInt(), 0x80000000 );
 
 		a = Int64.make(0xFFFFFFFF,0x80000000);
 		eq( a.high, 0xFFFFFFFF );
@@ -44,7 +45,8 @@ class TestInt64 extends Test {
 		a = Int64.make(0xFFFFFFFF,0x7FFFFFFF);
 		eq( a.high, 0xFFFFFFFF );
 		eq( a.low, 0x7FFFFFFF );
-		exc( tryOverflow.bind(a) );	// Throws Overflow
+		// toInt truncates: discards high 32 bits, returns low
+		eq( a.toInt(), 0x7FFFFFFF );
 	}
 
 	public function testNegateOverflow_Issue7485()
@@ -87,10 +89,6 @@ class TestInt64 extends Test {
 		n = Int64.make(0xf0f0f0f0, 0xefefefef);
 		eq(n.high, 0xf0f0f0f0);
 		eq(n.low, 0xefefefef);
-	}
-
-	function tryOverflow(a:Int64) {
-		a.toInt();
 	}
 
 	public function testIncrement() {
@@ -563,6 +561,51 @@ class TestInt64 extends Test {
 		} catch (e:Dynamic) {
 			// fine
 		}
+	}
+
+	public function testToFloat() {
+		// Zero
+		feq(Int64.make(0, 0).toFloat(), 0.0);
+
+		// Positive values
+		feq(Int64.ofInt(1).toFloat(), 1.0);
+		feq(Int64.ofInt(100).toFloat(), 100.0);
+
+		// Negative values
+		feq(Int64.ofInt(-1).toFloat(), -1.0);
+		feq(Int64.ofInt(-100).toFloat(), -100.0);
+
+		// Boundary: MAX_SAFE_INTEGER (2^53 - 1) — exact
+		feq(Int64.parseString("9007199254740991").toFloat(), 9007199254740991.0);
+		feq(Int64.parseString("-9007199254740991").toFloat(), -9007199254740991.0);
+
+		// Int32 boundaries
+		feq(Int64.ofInt(2147483647).toFloat(), 2147483647.0);
+		feq(Int64.ofInt(-2147483648).toFloat(), -2147483648.0);
+
+		// Large positive: 2^32 = 4294967296
+		feq(Int64.make(1, 0).toFloat(), 4294967296.0);
+
+		// MAX and MIN: large values, may not be exact but roundtrip should be close
+		var maxFloat = Int64.MAX.toFloat();
+		t(maxFloat > 9.22e18);
+
+		var minFloat = Int64.MIN.toFloat();
+		t(minFloat < -9.22e18);
+	}
+
+	public function testMinMax() {
+		int64eq(Int64.MAX, Int64.make(0x7FFFFFFF, 0xFFFFFFFF));
+		int64eq(Int64.MIN, Int64.make(0x80000000, 0));
+
+		// MAX + 1 wraps to MIN
+		int64eq(Int64.MAX + Int64.ofInt(1), Int64.MIN);
+		// MIN - 1 wraps to MAX
+		int64eq(Int64.MIN - Int64.ofInt(1), Int64.MAX);
+
+		// String representations
+		eq(Std.string(Int64.MAX), "9223372036854775807");
+		eq(Std.string(Int64.MIN), "-9223372036854775808");
 	}
 
 	static function toHex(v:haxe.Int64) {
