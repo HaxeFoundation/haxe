@@ -242,7 +242,7 @@ class Macro {
 			// Normalize integer constant pool references: "int R,@N" → "int R,@I0"
 			// The @N references the integer constant pool, which is unstable across compilations
 			trimmed = ~/\bint (\d+),@(\d+)/.map(trimmed, function(r) {
-				return "int " + r.matched(1) + ",@" + getGlobalId("int_" + r.matched(2));
+				return "int " + r.matched(1) + ",@" + getGlobalId("intpool_" + r.matched(2));
 			});
 
 			result.push(trimmed);
