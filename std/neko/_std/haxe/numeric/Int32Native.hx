@@ -33,6 +33,8 @@ typedef Int32Native = Int32NativeImpl;
 
 @:coreApi(check = Off)
 private abstract Int32NativeImpl(Int) from Int to Int {
+	// Two's complement negation. Best-effort on Neko where values
+	// near 32-bit boundaries may overflow the 31-bit Int range.
 	public static inline function neg(x:Int32Native):Int32Native
 		return cast(~(x : Int) + 1);
 

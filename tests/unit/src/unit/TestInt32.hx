@@ -195,6 +195,7 @@ class TestInt32 extends Test {
 	}
 
 	function testArrayIndexWithInt32() {
+		// C++ handles array indexing with Int32 differently due to native type handling
 		#if !cpp
 		var a = [1];
 		var next = 0;
