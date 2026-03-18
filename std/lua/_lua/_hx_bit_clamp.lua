@@ -9,7 +9,6 @@ local _hx_bit_clamp_native = (function()
             end
             if v > 2251798999999999 then v = v*2 end
             if (v ~= v or math.abs(v) == _G.math.huge) then return nil end
-            v = _G.math.floor(v)
             return (v & 0x7FFFFFFF) - (v & 0x80000000)
         end
     ]])
@@ -28,7 +27,6 @@ elseif _hx_bit_raw then
         end
         if v > 2251798999999999 then v = v*2 end;
         if (v ~= v or math.abs(v) == _G.math.huge) then return nil end
-        v = _G.math.floor(v)
         return _hx_bit_raw.band(v, 2147483647 ) - math.abs(_hx_bit_raw.band(v, 2147483648))
     end
 else
