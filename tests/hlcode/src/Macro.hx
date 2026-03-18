@@ -24,6 +24,7 @@ using StringTools;
 	- Source comment lines (`; file:line (Name)`)
 	- Function indices (`fun@23(17h)` → `fun@N(Nh)`)
 	- Global IDs (replaced by sequential `$0`, `$1`, ... per function)
+	- Integer constant pool references (`int R,@19` → `int R,@$N`)
 **/
 class Macro {
 	static var failures = 0;
@@ -236,6 +237,12 @@ class Macro {
 			// Normalize global IDs in "setglobal G, R" (OSetGlobal): G is the global index
 			trimmed = ~/\bsetglobal (\d+), (\d+)/.map(trimmed, function(r) {
 				return "setglobal " + getGlobalId(r.matched(1)) + ", " + r.matched(2);
+			});
+
+			// Normalize integer constant pool references: "int R,@N" → "int R,@I0"
+			// The @N references the integer constant pool, which is unstable across compilations
+			trimmed = ~/\bint (\d+),@(\d+)/.map(trimmed, function(r) {
+				return "int " + r.matched(1) + ",@" + getGlobalId("intpool_" + r.matched(2));
 			});
 
 			result.push(trimmed);
