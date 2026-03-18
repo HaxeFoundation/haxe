@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#if ((flash || flash9doc) && !doc_gen)
+#if (flash || flash9doc)
 /**
 The unsigned `Int` type is only defined for Flash. It's currently
 handled the same as a normal Int.
