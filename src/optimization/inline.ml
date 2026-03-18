@@ -56,9 +56,10 @@ let api_inline2 basic platform c field params p =
 			Some (stringv())
 		| TAbstract ({ a_path = [],"UInt" }, []) ->
 			Some (stringv())
-		(* TODO: UInt is now `typedef UInt = haxe.UInt32`. This check is on a followed type;
-		   the new path is (["haxe"],"UInt32"). Add that case here once inline.ml is updated
-		   to also handle haxe.UInt32 for string inlining. *)
+		| TAbstract ({ a_path = ["haxe"],"UInt32" }, []) ->
+			(* Note: Std.string(v:UInt32) is rewritten to v.toString() during typing,
+			   so this case is never reached in practice. Kept for completeness. *)
+			Some (stringv())
 		| TAbstract ({ a_path = [],"Bool" }, []) ->
 			Some (stringv())
 		| _ ->

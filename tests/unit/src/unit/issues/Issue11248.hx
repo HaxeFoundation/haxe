@@ -1,6 +1,8 @@
 package unit.issues;
 
 class Issue11248 extends unit.Test {
+	// TODO: BIT_A should be UInt32 to match the original issue, but typing UInt32 as a Map<Int,Int>
+	// value with XOR assignment currently requires an explicit cast. Using Int for now.
 	public static var BIT_A:Int = 1;
 	public static var FLAG_1:Int = 0;
 

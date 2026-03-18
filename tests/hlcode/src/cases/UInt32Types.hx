@@ -3,27 +3,27 @@ package cases;
 import haxe.UInt32;
 
 /**
-Tests that document the HL bytecode generated for UInt32 operations.
+	Tests that document the HL bytecode generated for UInt32 operations.
 
-UInt32 is backed by Int32Native. Operations that differ for unsigned
-semantics (comparison, division, modulo) use Haxe-level helper functions
-rather than native HL unsigned opcodes (juge/udiv/umod).
-The right-shift operator does use the native `ushr` opcode because
-`UInt32.shr` delegates to `Int32Native.ushr` which uses `a >>> b`.
+	UInt32 is backed by Int32Native. Operations that differ for unsigned
+	semantics (comparison, division, modulo) use Haxe-level helper functions
+	rather than native HL unsigned opcodes (juge/udiv/umod).
+	The right-shift operator does use the native `ushr` opcode because
+	`UInt32.shr` delegates to `Int32Native.ushr` which uses `a >>> b`.
 **/
 @:keep
 class UInt32Types {
-static final u32a:UInt32 = cast 0;
-static final u32b:UInt32 = cast 0;
+	static final u32a:UInt32 = cast 0;
+	static final u32b:UInt32 = cast 0;
 
-@:pure(false)
-static function use<T>(v:T) {}
+	@:pure(false)
+	static function use<T>(v:T) {}
 
-/**
-UInt32 > UInt32 comparison uses Haxe-level ucompare, not a native
-unsigned jump opcode. The result is compared signed (jsgte) against 0.
-**/
-@:hl(<>
+	/**
+		UInt32 > UInt32 comparison uses Haxe-level ucompare, not a native
+		unsigned jump opcode. The result is compared signed (jsgte) against 0.
+	**/
+	@:hl(<>
 fun@N(Nh) ():void
 ; (cases.UInt32Types.cmpGt)
 r0 void
@@ -46,16 +46,16 @@ r5 dyn
 @B call 0, cases.UInt32Types.use(5)
 @C ret 0
 </>)
-static function cmpGt() {
-use(u32a > u32b);
-}
+	static function cmpGt() {
+		use(u32a > u32b);
+	}
 
-/**
-UInt32 >> Int uses the native `ushr` opcode (unsigned right shift).
-This works because `UInt32.shr` calls `Int32Native.ushr` which uses
-the unsigned shift operator `>>>` on Int.
-**/
-@:hl(<>
+	/**
+		UInt32 >> Int uses the native `ushr` opcode (unsigned right shift).
+		This works because `UInt32.shr` calls `Int32Native.ushr` which uses
+		the unsigned shift operator `>>>` on Int.
+	**/
+	@:hl(<>
 fun@N(Nh) ():void
 ; (cases.UInt32Types.shrOp)
 r0 void
@@ -71,7 +71,7 @@ r4 null(i32)
 @5 call 0, cases.UInt32Types.use(4)
 @6 ret 0
 </>)
-static function shrOp() {
-use(u32a >> 1);
-}
+	static function shrOp() {
+		use(u32a >> 1);
+	}
 }

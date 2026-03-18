@@ -172,4 +172,17 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	**/
 	public static inline function ucompare(a:Int32, b:Int32):Int
 		return Int32Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `x` is exactly zero.
+	**/
+	public static inline function isZero(x:Int32):Bool
+		return (x : Int) == 0;
+
+	/**
+		Returns an `Int32` with the value of the `Int` `x`.
+		Only the low 32 bits of `x` are used (masking applied if necessary).
+	**/
+	public static inline function fromInt(x:Int):Int32
+		return Int32Native.clamp(x);
 }

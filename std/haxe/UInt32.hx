@@ -173,8 +173,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	public static inline function ucompare(a:UInt32, b:UInt32):Int
 		return Int32Native.ucompare(a, b);
 
-	// extra API that doesn't exist on Int32
-
 	/**
 		Returns `true` if `x` is exactly zero.
 	**/
@@ -184,41 +182,25 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	}
 
 	/**
-		Reinterprets the bits of an `Int32` as a `UInt32`.
-	**/
-	public static inline function fromInt32(x:Int32):UInt32
-		return new UInt32((x : Int32Native));
-
-	/**
-		Reinterprets the bits of this `UInt32` as a signed `Int32`.
-	**/
-	public inline function toInt32():Int32
-		return (this : Int32Native);
-
-	/**
 		Returns a UInt32 with the value of the Int `x`.
 		Only the low 32 bits of `x` are used (masking applied if necessary).
 	**/
-	@:from public static inline function ofInt(x:Int):UInt32
+	@:from public static inline function fromInt(x:Int):UInt32
 		return new UInt32(Int32Native.clamp(x));
+
+	/** @deprecated Use `fromInt` instead. **/
+	@:deprecated("Use fromInt instead")
+	public static inline function ofInt(x:Int):UInt32
+		return fromInt(x);
 
 	/**
 		Returns the value of this UInt32 as an Int (same bit pattern,
 		may appear negative for values ≥ `2^31`).
+		// TODO: review naming consistency with other numeric types
 	**/
 	public static inline function toInt(x:UInt32):Int {
 		var n:Int32Native = x;
 		return (n : Int);
-	}
-
-	/**
-		Performs unsigned integer division of `dividend` by `divisor`.
-		Returns `{ quotient : UInt32, modulus : UInt32 }`.
-		Throws on division by zero.
-	**/
-	public static function divMod(dividend:UInt32, divisor:UInt32):{quotient:UInt32, modulus:UInt32} {
-		var r = Int32Native.udivMod(dividend, divisor);
-		return {quotient: r.quotient, modulus: r.modulus};
 	}
 
 	/**
