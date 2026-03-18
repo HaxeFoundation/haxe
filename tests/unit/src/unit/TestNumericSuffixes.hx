@@ -5,7 +5,7 @@ class TestNumericSuffixes extends Test {
     public function testIntSuffixes() {
         eq(7i32, 7);
         eq(-7i32, -7);
-        eq(-1u32, (-1 : UInt));
+        eq(-1u32, (-1 : haxe.UInt32));
         eq(3000000000000i64 + "", "3000000000000");
         eq(9223372036854775807i64 + "", "9223372036854775807");
     }
@@ -21,7 +21,7 @@ class TestNumericSuffixes extends Test {
 
     public function testHexSuffixes() {
         eq(0xFFFFFFFFi32, -1);
-        eq(0xFFFFFFFFu32, (0xFFFFFFFF : UInt));
+        eq(0xFFFFFFFFu32, (0xFFFFFFFF : haxe.UInt32));
         eq(0xFFFFFFFFi64 + "", "4294967295");
         eq(0xFFFFFFFFFFFFFFFFi64 + "", "-1");
         eq(0x7FFFFFFFFFFFFFFFi64 + "", "9223372036854775807");
@@ -29,7 +29,7 @@ class TestNumericSuffixes extends Test {
 
     public function testBinSuffixes() {
         eq(0b11111111111111111111111111111111i32, -1);
-        eq(0b11111111111111111111111111111111u32, (0b11111111111111111111111111111111i32 : UInt));
+        eq(0b11111111111111111111111111111111u32, (0b11111111111111111111111111111111i32 : haxe.UInt32));
         eq(0b11111111111111111111111111111111i64 + "", "4294967295");
         eq(0b1111111111111111111111111111111111111111111111111111111111111111i64 + "", "-1");
         eq(0b0111111111111111111111111111111111111111111111111111111111111111i64 + "", "9223372036854775807");

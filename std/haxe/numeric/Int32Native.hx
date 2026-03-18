@@ -116,6 +116,36 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 	public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) % (b : Int));
 
+	/**
+		Convert `a` to Float treating its bit-pattern as an unsigned 32-bit value.
+		Values that appear negative as signed Int are converted as `4294967296 + a`.
+	**/
+	public static inline function utoFloat(a:Int32Native):Float
+		return Int32Helper.utoFloat(a);
+
+	/**
+		Perform unsigned integer division/modulo on `a` and `b`.
+		The quotient and modulus are computed treating both values as unsigned 32-bit integers.
+		Throws on division by zero.
+	**/
+	public static inline function udivMod(a:Int32Native, b:Int32Native):{quotient:Int32Native, modulus:Int32Native} {
+		var r = Int32Helper.udivMod(a, b);
+		return {quotient: clamp(r.quotient), modulus: clamp(r.modulus)};
+	}
+
+	/**
+		Returns the unsigned decimal string representation of `a`.
+	**/
+	public static inline function utoString(a:Int32Native):String {
+		var v:Int = a;
+		if (v >= 0)
+			return Std.string(v);
+		// High bit set: unsigned value = 2^32 + v.
+		// Using integer arithmetic avoids float-format strings (e.g. "1.0" on Lua).
+		// Safe here because this file is only used on scripting targets where Int > 32 bits.
+		return Std.string(4294967296 + v);
+	}
+
 	public inline function toFloat():Float
 		return this;
 

@@ -60,7 +60,7 @@ let rec make_tpath x =
 		let pack, name = match pack, name with
 			| [], "void" -> [], "Void"
 			| [], "int" -> [], "Int"
-			| [], "uint" -> [], "UInt"
+			| [], "uint" -> ["haxe"], "UInt32"
 			| [], "Number" -> [], "Float"
 			| [], "Boolean" -> [], "Bool"
 			| [], "Object" -> ["flash";"utils"], "Object"
@@ -399,8 +399,10 @@ let build_class com c file =
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some ((CTPath {path = { tpackage = []; tname = ("String" | "Int" | "UInt")}} as real_t),_),None)
-				| FProp (("default",_),("never",_),Some ((CTPath { path = { tpackage = []; tname = ("String" | "Int" | "UInt")}}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
+				| FVar (Some ((CTPath {path = { tpackage = []; tname = ("String" | "Int")}} as real_t),_),None)
+				| FVar (Some ((CTPath {path = { tpackage = ["haxe"]; tname = "UInt32"}} as real_t),_),None)
+				| FProp (("default",_),("never",_),Some ((CTPath { path = { tpackage = ["haxe"]; tname = "UInt32"}}) as real_t,_),None)
+				| FProp (("default",_),("never",_),Some ((CTPath { path = { tpackage = []; tname = ("String" | "Int")}}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
 					(match !real_type with
 					| None ->
 						real_type := Some real_t

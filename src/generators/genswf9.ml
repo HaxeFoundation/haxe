@@ -180,6 +180,7 @@ let jump_back ctx =
 let real_path = function
 	| [] , "Int" -> [] , "int"
 	| [] , "UInt" -> [] , "uint"
+	| ["haxe"] , "UInt32" -> [] , "uint"
 	| [] , "Float" -> [] , "Number"
 	| [] , "Bool" -> [] , "Boolean"
 	| [] , "Enum" -> [] , "Class"
@@ -213,12 +214,11 @@ let rec follow_basic t =
 		| TFun _
 		| TAbstract ({ a_path = ([],"Int") },[])
 		| TAbstract ({ a_path = ([],"Float") },[])
-		| TAbstract ({ a_path = [],"UInt" },[])
+		| TAbstract ({ a_path = ["haxe"],"UInt32" },[])
 		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
-	| TType ({ t_path = ["flash";"utils"],"Function" },[])
-	| TType ({ t_path = [],"UInt" },[]) ->
+	| TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		t
 	| TType (t,tl) ->
 		follow_basic (apply_typedef t tl)
@@ -253,7 +253,7 @@ let rec type_id ctx t =
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		type_path ctx ([],"Function")
-	| TType ({ t_path = ([],"UInt") as path },_) ->
+	| TAbstract ({ a_path = (["haxe"],"UInt32") as path },_) ->
 		type_path ctx path
 	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		HMPath ([],"String")
@@ -288,7 +288,7 @@ let classify ctx t =
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		KType (type_id ctx t)
-	| TAbstract ({ a_path = [],"UInt" },_) | TType ({ t_path = [],"UInt" },_) ->
+	| TAbstract ({ a_path = ["haxe"],"UInt32" },_) | TType ({ t_path = [],"UInt" },_) ->
 		KUInt
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		KType (HMPath ([],"Function"))

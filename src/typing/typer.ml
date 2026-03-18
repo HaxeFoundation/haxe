@@ -1774,7 +1774,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			let call     = ECall (field, [ arg_high; arg_low ]), p in
 			type_expr ctx call with_type
 		| "u32" ->
-			let check = ECheckType ((EConst (Int (s, None)), p), (make_ptp_th (mk_type_path ([],"UInt")) p)), p in
+			let check = ECheckType ((EConst (Int (s, None)), p), (make_ptp_th (mk_type_path (["haxe"],"UInt32")) p)), p in
 			type_expr ctx check with_type
 		| other -> raise_typing_error (other ^ " is not a valid integer suffix") p)
 	| EConst (Float (s, Some suffix) as c) ->

@@ -1,7 +1,6 @@
 package unit.issues;
 
 class Issue5362 extends unit.Test {
-	@:analyzer(ignore)
 	function test() {
 		var a:UInt = Std.random(256);
 		var b = messType(a);

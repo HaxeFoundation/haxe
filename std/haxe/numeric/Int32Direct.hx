@@ -85,6 +85,31 @@ abstract Int32Direct(Int) from Int to Int {
 	public static inline function mod(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) % (b : Int));
 
+	/**
+		Convert `a` to Float treating its bit-pattern as an unsigned 32-bit value.
+	**/
+	public static inline function utoFloat(a:Int32Direct):Float
+		return Int32Helper.utoFloat(a);
+
+	/**
+		Perform unsigned integer division/modulo on `a` and `b`.
+		Throws on division by zero.
+	**/
+	public static inline function udivMod(a:Int32Direct, b:Int32Direct):{quotient:Int32Direct, modulus:Int32Direct} {
+		var r = Int32Helper.udivMod(a, b);
+		return {quotient: cast r.quotient, modulus: cast r.modulus};
+	}
+
+	/**
+		Returns the unsigned decimal string representation of `a`.
+	**/
+	public static inline function utoString(a:Int32Direct):String
+		#if jvm
+		return java.lang.Integer.IntegerClass.toUnsignedString(a);
+		#else
+		return Std.string(utoFloat(a));
+		#end
+
 	public static inline function clamp(x:Int):Int32Direct
 		return cast x;
 }

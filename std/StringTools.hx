@@ -413,18 +413,12 @@ class StringTools {
 		its `length` equals `digits`.
 	**/
 	public static function hex(n:Int, ?digits:Int) {
-		#if flash
-		var n:UInt = n;
-		var s:String = untyped n.toString(16);
-		s = s.toUpperCase();
-		#else
 		var s = "";
 		var hexChars = "0123456789ABCDEF";
 		do {
 			s = hexChars.charAt(n & 15) + s;
 			n >>>= 4;
 		} while (n > 0);
-		#end
 		#if python
 		if (digits != null && s.length < digits) {
 			var diff = digits - s.length;

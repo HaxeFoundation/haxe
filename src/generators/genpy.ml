@@ -2211,6 +2211,7 @@ module Generator = struct
 		| TClassDecl c -> gen_class ctx c
 		| TEnumDecl en when not (has_enum_flag en EnExtern) -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
+		| TAbstractDecl {a_path = ["haxe"],"UInt32"} -> ()
 		| TAbstractDecl {a_path = [],"Enum"} -> ()
 		| TAbstractDecl {a_path = [],"EnumValue"} when not (has_feature ctx "has_enum") -> ()
 		| TAbstractDecl {a_path = [],"Void"} -> ()
