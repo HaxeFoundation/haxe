@@ -157,7 +157,7 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
 		return Int32Native.ushr(a, b);
 
-	@:to private inline function toFloat():Float
+	@:to public inline function toFloat():Float
 		return (this : Int);
 
 	/**
