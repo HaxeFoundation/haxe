@@ -317,17 +317,17 @@ class TestUInt64 extends Test {
 	public function testInt64Conversion() {
 		// UInt64 <-> Int64 round-trip preserves bits
 		var u = UInt64.make(0x80000000, 0x12345678);
-		var i = u.toInt64();
+		var i:haxe.Int64 = u;
 		eq(i.high, 0x80000000);
 		eq(i.low, 0x12345678);
-		var u2 = UInt64.fromInt64(i);
+		var u2:UInt64 = i;
 		t(u == u2);
 
 		// Zero round-trip
 		var u0:UInt64 = UInt64.make(0, 0);
-		var i0 = u0.toInt64();
+		var i0:haxe.Int64 = u0;
 		t(haxe.Int64.isZero(i0));
-		uint64eq(UInt64.fromInt64(i0), u0);
+		uint64eq(u0, i0);
 	}
 
 	public function testParseString() {
