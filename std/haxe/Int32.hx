@@ -38,7 +38,7 @@ import haxe.numeric.Int32Native;
 	preserving correct 32-bit arithmetic.
 **/
 @:transitive
-abstract Int32(Int32Native) from Int to Int {
+abstract Int32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
 		this = x;
 
@@ -116,7 +116,7 @@ abstract Int32(Int32Native) from Int to Int {
 		return (a : Float) < b;
 
 	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:Int32):Bool
-		return a < (b : Float);
+		return a < (b:Float);
 
 	@:op(A <= B) private static inline function lteFloat<T:Float>(a:Int32, b:T):Bool
 		return (a : Float) <= b;

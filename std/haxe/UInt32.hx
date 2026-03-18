@@ -37,7 +37,7 @@ import haxe.numeric.Int32Native;
 	overhead is incurred. On scripting targets, values are masked to 32 bits after
 	each operation that may overflow.
 **/
-abstract UInt32(Int32Native) from Int32Native to Int32Native from Int to Int {
+abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
 		this = x;
 
@@ -293,7 +293,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native from Int to Int {
 		return (a : Float) < b;
 
 	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:UInt32):Bool
-		return a < (b : Float);
+		return a < (b:Float);
 
 	@:op(A <= B) private static inline function lteFloat<T:Float>(a:UInt32, b:T):Bool
 		return (a : Float) <= b;
