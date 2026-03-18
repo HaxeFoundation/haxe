@@ -62,8 +62,16 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		Returns an Int64 with the value of the Int `x`.
 		`x` is sign-extended to fill 64 bits.
 	**/
-	@:from public static inline function ofInt(x:Int):Int64
+	@:from public static inline function fromInt(x:Int):Int64
 		return new Int64(Int64Native.ofInt(x));
+
+	/**
+		Returns an Int64 with the value of the Int `x`.
+		`x` is sign-extended to fill 64 bits.
+	**/
+	@:deprecated("Use fromInt instead")
+	public static inline function ofInt(x:Int):Int64
+		return fromInt(x);
 
 	/**
 		Returns an Int with the low 32 bits of the Int64 `x`.
@@ -87,6 +95,12 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	**/
 	public static inline function ucompare(a:Int64, b:Int64):Int
 		return Int64Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `x` is less than zero.
+	**/
+	public static inline function isNeg(x:Int64):Bool
+		return Int64Native.isNeg(x);
 
 	/**
 		Returns `true` if `x` is exactly zero.
@@ -117,7 +131,7 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		Performs signed integer division of `dividend` by `divisor`.
 		Returns `{ quotient : Int64, modulus : Int64 }`.
 	**/
-	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
+	private static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
 		var r = Int64Native.divMod(dividend, divisor);
 		return {quotient: r.quotient, modulus: r.modulus};
 	}
@@ -325,35 +339,10 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	// Extra
 
 	/**
-		Returns `true` if `x` is less than zero.
-	**/
-	public static inline function isNeg(x:Int64):Bool
-		return Int64Native.isNeg(x);
-
-	/**
 		Returns whether the value `val` is of type `haxe.Int64`
 	**/
 	inline public static function isInt64(val:Dynamic):Bool
 		return Int64Native.isInt64(val);
-
-	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
-	inline public static function is(val:Dynamic):Bool {
-		return isInt64(val);
-	}
-
-	/**
-		Returns the high 32-bit word of `x`.
-	**/
-	@:deprecated("Use high instead")
-	public static inline function getHigh(x:Int64):Int32
-		return x.high;
-
-	/**
-		Returns the low 32-bit word of `x`.
-	**/
-	@:deprecated("Use low instead")
-	public static inline function getLow(x:Int64):Int32
-		return x.low;
 
 	/**
 		Returns a signed decimal `String` representation of `x`.

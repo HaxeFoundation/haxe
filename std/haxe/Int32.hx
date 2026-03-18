@@ -174,6 +174,12 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.ucompare(a, b);
 
 	/**
+		Returns `true` if `x` is less than zero.
+	**/
+	public static inline function isNeg(x:Int32):Bool
+		return (x : Int) < 0;
+
+	/**
 		Returns `true` if `x` is exactly zero.
 	**/
 	public static inline function isZero(x:Int32):Bool
@@ -183,6 +189,13 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		Returns an `Int32` with the value of the `Int` `x`.
 		Only the low 32 bits of `x` are used (masking applied if necessary).
 	**/
-	public static inline function fromInt(x:Int):Int32
+	@:from public static inline function fromInt(x:Int):Int32
 		return Int32Native.clamp(x);
+
+	/**
+		Parses a signed decimal string into an `Int32`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(sParam:String):Int32
+		return Int32Native.parseString(sParam);
 }

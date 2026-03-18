@@ -59,10 +59,18 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 
 	/**
 		Returns a UInt64 with the value of the Int `x`.
-		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.ofInt`).
+		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.fromInt`).
 	**/
-	@:from public static inline function ofInt(x:Int):UInt64
+	@:from public static inline function fromInt(x:Int):UInt64
 		return new UInt64(Int64Native.ofInt(x));
+
+	/**
+		Returns a UInt64 with the value of the Int `x`.
+		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.fromInt`).
+	**/
+	@:deprecated("Use fromInt instead")
+	public static inline function ofInt(x:Int):UInt64
+		return fromInt(x);
 
 	/**
 		Returns the low 32 bits of `x` as an Int.
@@ -127,7 +135,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Performs unsigned integer division of `dividend` by `divisor`.
 		Returns `{ quotient : UInt64, modulus : UInt64 }`.
 	**/
-	public static function divMod(dividend:UInt64, divisor:UInt64):{quotient:UInt64, modulus:UInt64} {
+	private static function divMod(dividend:UInt64, divisor:UInt64):{quotient:UInt64, modulus:UInt64} {
 		var r = Int64Native.udivMod(dividend, divisor);
 		return {quotient: r.quotient, modulus: r.modulus};
 	}
@@ -320,18 +328,4 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 
 	private inline function get_low()
 		return this.low;
-
-	// Extra
-
-	/**
-		Reinterprets the bits of an `Int64` as a `UInt64`.
-	**/
-	public static inline function fromInt64(x:Int64):UInt64
-		return new UInt64((x : Int64Native));
-
-	/**
-		Reinterprets the bits of this `UInt64` as an `Int64`.
-	**/
-	public inline function toInt64():Int64
-		return (this : Int64Native);
 }

@@ -26,16 +26,16 @@ class TestUInt64 extends Test {
 	public function testOfInt() {
 		var a:UInt64;
 
-		a = UInt64.ofInt(0);
+		a = UInt64.fromInt(0);
 		eq(a.high, 0);
 		eq(a.low, 0);
 
-		a = UInt64.ofInt(1);
+		a = UInt64.fromInt(1);
 		eq(a.high, 0);
 		eq(a.low, 1);
 
 		// Negative int is sign-extended (same bit pattern as Int64)
-		a = UInt64.ofInt(-1);
+		a = UInt64.fromInt(-1);
 		eq(a.high, 0xFFFFFFFF);
 		eq(a.low, 0xFFFFFFFF);
 	}
@@ -217,12 +217,11 @@ class TestUInt64 extends Test {
 		uint64eq(a / b, UInt64.make(0x7FFFFFFF, 0xFFFFFFFF));
 		uint64eq(a % b, UInt64.make(0, 1));
 
-		// divMod
+		// divMod (tested via / and % operators)
 		a = UInt64.make(0, 47);
 		b = UInt64.make(0, 5);
-		var result = UInt64.divMod(a, b);
-		uint64eq(result.quotient, UInt64.make(0, 9));
-		uint64eq(result.modulus, UInt64.make(0, 2));
+		uint64eq(a / b, UInt64.make(0, 9));
+		uint64eq(a % b, UInt64.make(0, 2));
 
 		// Divide by self
 		a = UInt64.make(0x12345678, 0x9ABCDEF0);
@@ -238,7 +237,7 @@ class TestUInt64 extends Test {
 		// Divide by zero throws
 		var threw = false;
 		try {
-			UInt64.divMod(UInt64.make(0, 1), UInt64.make(0, 0));
+			var _ = UInt64.make(0, 1) / UInt64.make(0, 0);
 		} catch (e:Dynamic) {
 			threw = true;
 		}
@@ -428,9 +427,9 @@ class TestUInt64 extends Test {
 		uint64eq(UInt64.MAX, UInt64.make(0xFFFFFFFF, 0xFFFFFFFF));
 
 		// MAX + 1 wraps to 0 (MIN)
-		uint64eq(UInt64.MAX + UInt64.ofInt(1), UInt64.MIN);
+		uint64eq(UInt64.MAX + UInt64.fromInt(1), UInt64.MIN);
 		// MIN - 1 wraps to MAX
-		uint64eq(UInt64.MIN - UInt64.ofInt(1), UInt64.MAX);
+		uint64eq(UInt64.MIN - UInt64.fromInt(1), UInt64.MAX);
 
 		eq(Std.string(UInt64.MIN), "0");
 		eq(Std.string(UInt64.MAX), "18446744073709551615");

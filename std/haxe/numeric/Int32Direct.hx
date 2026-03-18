@@ -110,6 +110,21 @@ abstract Int32Direct(Int) from Int to Int {
 		return Std.string(utoFloat(a));
 		#end
 
+	/**
+		Parse a signed decimal string into an `Int32Direct`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(s:String):Int32Direct
+		return cast Int32Helper.parseString(s);
+
+	/**
+		Parse an unsigned decimal string into an `Int32Direct`.
+		Values ≥ 2^31 are stored as negative (two's complement bit-pattern).
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function uparseString(s:String):Int32Direct
+		return cast Int32Helper.uparseString(s);
+
 	public static inline function clamp(x:Int):Int32Direct
 		return cast x;
 }
