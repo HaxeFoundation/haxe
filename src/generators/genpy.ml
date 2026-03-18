@@ -2211,6 +2211,9 @@ module Generator = struct
 		| TClassDecl c -> gen_class ctx c
 		| TEnumDecl en when not (has_enum_flag en EnExtern) -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
+		(* TODO: UInt is now `typedef UInt = haxe.UInt32`. The actual abstract is now
+		   TAbstractDecl {a_path = ["haxe"],"UInt32"}. This check operates on an unfollowed
+		   declaration; add a matching case for haxe.UInt32 once the follow logic is updated. *)
 		| TAbstractDecl {a_path = [],"Enum"} -> ()
 		| TAbstractDecl {a_path = [],"EnumValue"} when not (has_feature ctx "has_enum") -> ()
 		| TAbstractDecl {a_path = [],"Void"} -> ()

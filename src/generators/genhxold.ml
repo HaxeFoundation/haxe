@@ -135,6 +135,9 @@ let generate_type com t =
 			else
 				(* we have not found a default value stored in metadata, let's generate it *)
 				n ^ " : " ^ stype t ^ " = " ^ (match follow t with
+					(* TODO: UInt is now `typedef UInt = haxe.UInt32`. After follow, UInt gives
+					   TAbstract(haxe.UInt32). This check is on a followed type; add a case for
+					   (["haxe"],"UInt32") when updating. *)
 					| TAbstract ({ a_path = [],("Int"|"Float"|"UInt") },_) -> "0"
 					| TAbstract ({ a_path = [],"Bool" },_) -> "false"
 					| _ -> "null")

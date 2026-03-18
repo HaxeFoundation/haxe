@@ -179,6 +179,8 @@ let jump_back ctx =
 
 let real_path = function
 	| [] , "Int" -> [] , "int"
+	(* TODO: UInt is now `typedef UInt = haxe.UInt32`. The real_path mapping still works for
+	   the typedef path ([],"UInt"), but haxe.UInt32 should also map to uint when used directly. *)
 	| [] , "UInt" -> [] , "uint"
 	| [] , "Float" -> [] , "Number"
 	| [] , "Bool" -> [] , "Boolean"
@@ -213,11 +215,17 @@ let rec follow_basic t =
 		| TFun _
 		| TAbstract ({ a_path = ([],"Int") },[])
 		| TAbstract ({ a_path = ([],"Float") },[])
+		(* TODO: UInt is now `typedef UInt = haxe.UInt32`. After follow_basic, UInt appears as
+		   TType({t_path=[],"UInt"}) - handled below - or TAbstract(haxe.UInt32) when resolved.
+		   Add a case for TAbstract({a_path=["haxe"],"UInt32"}) here when updating for the new type. *)
 		| TAbstract ({ a_path = [],"UInt" },[])
 		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
 	| TType ({ t_path = ["flash";"utils"],"Function" },[])
+	(* TODO: UInt is now `typedef UInt = haxe.UInt32`. This TType case preserves the typedef
+	   without following it, maintaining backward compatibility for Flash's uint type mapping.
+	   This is an unfollowed typedef check; once UInt typedef is removed, update accordingly. *)
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
 	| TType (t,tl) ->
@@ -253,6 +261,9 @@ let rec type_id ctx t =
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		type_path ctx ([],"Function")
+	(* TODO: UInt is now `typedef UInt = haxe.UInt32`. This unfollowed TType check still correctly
+	   maps the UInt typedef to Flash's uint path. When the typedef is eventually removed, also
+	   add a case for TAbstract({a_path=["haxe"],"UInt32"}) mapping to uint. *)
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
 	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
@@ -288,6 +299,10 @@ let classify ctx t =
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		KType (type_id ctx t)
+	(* TODO: UInt is now `typedef UInt = haxe.UInt32`. With follow_basic, UInt appears as
+	   TType({t_path=[],"UInt"}) (since follow_basic doesn't follow through this typedef, see above).
+	   The TAbstract case is now dead code. The TType case still works. Once the typedef is removed,
+	   replace both with a check for TAbstract({a_path=["haxe"],"UInt32"}). *)
 	| TAbstract ({ a_path = [],"UInt" },_) | TType ({ t_path = [],"UInt" },_) ->
 		KUInt
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->

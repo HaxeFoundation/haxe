@@ -116,6 +116,35 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 	public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) % (b : Int));
 
+	/**
+		Convert `a` to Float treating its bit-pattern as an unsigned 32-bit value.
+		Values that appear negative as signed Int are converted as `4294967296 + a`.
+	**/
+	public static inline function utoFloat(a:Int32Native):Float {
+		var v:Int = a;
+		return v < 0 ? 4294967296.0 + v : v + 0.0;
+	}
+
+	/**
+		Perform unsigned integer division/modulo on `a` and `b`.
+		The quotient and modulus are computed treating both values as unsigned 32-bit integers.
+		Throws on division by zero.
+	**/
+	public static inline function udivMod(a:Int32Native, b:Int32Native):{quotient:Int32Native, modulus:Int32Native} {
+		var af = utoFloat(a);
+		var bf = utoFloat(b);
+		if (bf == 0) throw "Division by zero";
+		var q = clamp(Std.int(af / bf));
+		var m = clamp(Std.int(af % bf));
+		return {quotient: q, modulus: m};
+	}
+
+	/**
+		Returns the unsigned decimal string representation of `a`.
+	**/
+	public static inline function utoString(a:Int32Native):String
+		return Std.string(utoFloat(a));
+
 	public inline function toFloat():Float
 		return this;
 
