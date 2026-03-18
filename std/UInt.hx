@@ -26,5 +26,5 @@
 	@see https://haxe.org/manual/types-basic-types.html
 	@deprecated Use `haxe.UInt32` instead.
 **/
-@:deprecated("UInt is deprecated, use haxe.UInt32 instead")
+// @:deprecated("UInt is deprecated, use haxe.UInt32 instead")
 typedef UInt = haxe.UInt32;
