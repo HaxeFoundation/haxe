@@ -142,8 +142,15 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 	/**
 		Returns the unsigned decimal string representation of `a`.
 	**/
-	public static inline function utoString(a:Int32Native):String
-		return Std.string(utoFloat(a));
+	public static inline function utoString(a:Int32Native):String {
+		var v:Int = a;
+		if (v >= 0)
+			return Std.string(v);
+		// High bit set: unsigned value = 2^32 + v.
+		// Using integer arithmetic avoids float-format strings (e.g. "1.0" on Lua).
+		// Safe here because this file is only used on scripting targets where Int > 32 bits.
+		return Std.string(4294967296 + v);
+	}
 
 	public inline function toFloat():Float
 		return this;
