@@ -44,7 +44,10 @@ private class Handle<T> implements IHandle {
 	}
 
 	public function close():Void {
-		reg.cancelled.compareExchange(false, true);
+		if (reg.cancelled.compareExchange(false, true) == false) {
+			reg.callback = null;
+			reg.heldValue = null;
+		}
 	}
 }
 
@@ -59,11 +62,11 @@ class GcFinalizer<T> {
 	public function register(target:{}, heldValue:T):IHandle {
 		var reg = new Registration(heldValue, callback);
 		eval.vm.Gc.finalise(function(_) {
-			if (!reg.cancelled.load()) {
+			if (reg.cancelled.compareExchange(false, true) == false) {
 				reg.callback(reg.heldValue);
+				reg.callback = null;
+				reg.heldValue = null;
 			}
-			reg.callback = null;
-			reg.heldValue = null;
 		}, target);
 
 		return new Handle(reg);

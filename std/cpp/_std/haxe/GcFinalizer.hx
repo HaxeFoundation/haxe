@@ -46,7 +46,10 @@ private class Handle<T> implements IHandle {
 	}
 
 	public function close():Void {
-		reg.cancelled.compareExchange(false, true);
+		if (reg.cancelled.compareExchange(false, true) == false) {
+			reg.callback = null;
+			reg.heldValue = null;
+		}
 	}
 }
 
@@ -65,15 +68,14 @@ class GcFinalizer<T> {
 		while (i >= 0) {
 			var reg = registrations[i];
 			if (reg.weakTarget.get() == null) {
-				if (!reg.cancelled.load()) {
+				if (reg.cancelled.compareExchange(false, true) == false) {
 					reg.callback(reg.heldValue);
+					reg.callback = null;
+					reg.heldValue = null;
 				}
-				reg.heldValue = null;
-				reg.callback = null;
 				registrations.splice(i, 1);
 			} else if (reg.cancelled.load()) {
-				reg.heldValue = null;
-				reg.callback = null;
+				// close() already nulled fields
 				registrations.splice(i, 1);
 			}
 			i--;
