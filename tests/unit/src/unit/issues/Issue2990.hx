@@ -7,16 +7,16 @@ function test()
 {
 var u:haxe.UInt32 = 11;
 // UInt32 operations return UInt32 (integer type, no Float mixing)
-eq(typeof(u << 1), 'TAbstract(UInt32,[])');
-eq(typeof(~u), 'TAbstract(UInt32,[])');
-eq(typeof(u >> 1), 'TAbstract(UInt32,[])');
-eq(typeof(u >>> 1), 'TAbstract(UInt32,[])');
-eq(typeof(u + 1), 'TAbstract(UInt32,[])');
-eq(typeof(u - 1), 'TAbstract(UInt32,[])');
+eq(typeof(u << 1), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(~u), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(u >> 1), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(u >>> 1), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(u + 1), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(u - 1), 'TAbstract(haxe.UInt32,[])');
 // Division returns UInt32 (integer division), not Float
-eq(typeof(u / cast(2, haxe.UInt32)), 'TAbstract(UInt32,[])');
-eq(typeof(u * cast(2, haxe.UInt32)), 'TAbstract(UInt32,[])');
-eq(typeof(u % cast(2, haxe.UInt32)), 'TAbstract(UInt32,[])');
+eq(typeof(u / cast(2, haxe.UInt32)), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(u * cast(2, haxe.UInt32)), 'TAbstract(haxe.UInt32,[])');
+eq(typeof(u % cast(2, haxe.UInt32)), 'TAbstract(haxe.UInt32,[])');
 
 eq(typeof(u > u), 'TAbstract(Bool,[])');
 eq(typeof(u >= u), 'TAbstract(Bool,[])');

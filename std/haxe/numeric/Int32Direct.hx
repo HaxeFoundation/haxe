@@ -110,7 +110,11 @@ abstract Int32Direct(Int) from Int to Int {
 		Returns the unsigned decimal string representation of `a`.
 	**/
 	public static inline function utoString(a:Int32Direct):String
+		#if jvm
+		return java.lang.Integer.IntegerClass.toUnsignedString(a);
+		#else
 		return Std.string(utoFloat(a));
+		#end
 
 	public static inline function clamp(x:Int):Int32Direct
 		return cast x;

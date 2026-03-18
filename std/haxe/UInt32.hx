@@ -37,7 +37,7 @@ import haxe.numeric.Int32Native;
 	overhead is incurred. On scripting targets, values are masked to 32 bits after
 	each operation that may overflow.
 **/
-abstract UInt32(Int32Native) from Int32Native to Int32Native {
+abstract UInt32(Int32Native) from Int32Native to Int32Native from Int to Int {
 	private inline function new(x:Int32Native)
 		this = x;
 
@@ -51,7 +51,14 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		Returns this UInt32 value as a Float, interpreting the bits as unsigned.
 		Values with the high bit set are in the range `2147483648`–`4294967295`.
 	**/
-	@:to public inline function toFloat():Float
+	@:to private inline function toFloatImplicit():Float
+		return Int32Native.utoFloat(this);
+
+	/**
+		Returns this UInt32 value as a Float, interpreting the bits as unsigned.
+		Values with the high bit set are in the range `2147483648`–`4294967295`.
+	**/
+	public inline function toFloat():Float
 		return Int32Native.utoFloat(this);
 
 	/**
