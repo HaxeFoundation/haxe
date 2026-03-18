@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue11248 extends unit.Test {
-	public static var BIT_A:UInt = 1;
+	public static var BIT_A:Int = 1;
 	public static var FLAG_1:Int = 0;
 
 	static final _flags:Map<Int, Int> = [0 => 1010];

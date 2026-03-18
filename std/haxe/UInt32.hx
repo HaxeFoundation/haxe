@@ -51,7 +51,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		Returns this UInt32 value as a Float, interpreting the bits as unsigned.
 		Values with the high bit set are in the range `2147483648`–`4294967295`.
 	**/
-	public inline function toFloat():Float
+	@:to public inline function toFloat():Float
 		return Int32Native.utoFloat(this);
 
 	/**
@@ -151,6 +151,9 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A + B) @:commutative private static inline function addInt(a:UInt32, b:Int):UInt32
 		return add(a, b);
 
+	@:op(A + B) @:commutative private static inline function addFloat(a:UInt32, b:Float):Float
+		return (a : Float) + b;
+
 	/**
 		Returns `a` minus `b` (wraps on underflow).
 	**/
@@ -163,6 +166,12 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A - B) private static inline function intSub(a:Int, b:UInt32):UInt32
 		return sub(a, b);
 
+	@:op(A - B) private static inline function subFloat(a:UInt32, b:Float):Float
+		return (a : Float) - b;
+
+	@:op(A - B) private static inline function floatSub(a:Float, b:UInt32):Float
+		return a - (b : Float);
+
 	/**
 		Returns the product of `a` and `b` (wraps on overflow).
 	**/
@@ -171,6 +180,9 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:UInt32, b:Int):UInt32
 		return mul(a, b);
+
+	@:op(A * B) @:commutative private static inline function mulFloat(a:UInt32, b:Float):Float
+		return (a : Float) * b;
 
 	/**
 		Returns the unsigned quotient of `a` divided by `b`.
@@ -185,6 +197,12 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A / B) private static inline function intDiv(a:Int, b:UInt32):UInt32
 		return div(a, b);
 
+	@:op(A / B) private static inline function divFloat(a:UInt32, b:Float):Float
+		return (a : Float) / b;
+
+	@:op(A / B) private static inline function floatDiv(a:Float, b:UInt32):Float
+		return a / (b : Float);
+
 	/**
 		Returns the unsigned modulus of `a` divided by `b`.
 		Throws on division by zero.
@@ -198,6 +216,12 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A % B) private static inline function intMod(a:Int, b:UInt32):UInt32
 		return mod(a, b);
 
+	@:op(A % B) private static inline function modFloat(a:UInt32, b:Float):Float
+		return (a : Float) % b;
+
+	@:op(A % B) private static inline function floatMod(a:Float, b:UInt32):Float
+		return a % (b : Float);
+
 	/**
 		Returns `true` if `a` is equal to `b`.
 	**/
@@ -207,6 +231,9 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A == B) @:commutative private static inline function eqInt<T:Int>(a:UInt32, b:T):Bool
 		return (a : Int32Native) == b;
 
+	@:op(A == B) @:commutative private static inline function equalsFloat<T:Float>(a:UInt32, b:T):Bool
+		return (a : Float) == b;
+
 	/**
 		Returns `true` if `a` is not equal to `b`.
 	**/
@@ -215,6 +242,9 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A != B) @:commutative private static inline function neqInt<T:Int>(a:UInt32, b:T):Bool
 		return (a : Int32Native) != b;
+
+	@:op(A != B) @:commutative private static inline function notEqualsFloat<T:Float>(a:UInt32, b:T):Bool
+		return (a : Float) != b;
 
 	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool
 		return compare(a, b) < 0;
@@ -251,6 +281,30 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A >= B) private static inline function intGte(a:Int, b:UInt32):Bool
 		return gte(a, b);
+
+	@:op(A < B) private static inline function ltFloat<T:Float>(a:UInt32, b:T):Bool
+		return (a : Float) < b;
+
+	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:UInt32):Bool
+		return a < (b : Float);
+
+	@:op(A <= B) private static inline function lteFloat<T:Float>(a:UInt32, b:T):Bool
+		return (a : Float) <= b;
+
+	@:op(A <= B) private static inline function floatLte<T:Float>(a:T, b:UInt32):Bool
+		return a <= (b : Float);
+
+	@:op(A > B) private static inline function gtFloat<T:Float>(a:UInt32, b:T):Bool
+		return (a : Float) > b;
+
+	@:op(A > B) private static inline function floatGt<T:Float>(a:T, b:UInt32):Bool
+		return a > (b : Float);
+
+	@:op(A >= B) private static inline function gteFloat<T:Float>(a:UInt32, b:T):Bool
+		return (a : Float) >= b;
+
+	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:UInt32):Bool
+		return a >= (b : Float);
 
 	/**
 		Returns the bitwise NOT of `a`.

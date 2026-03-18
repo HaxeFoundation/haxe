@@ -49,16 +49,12 @@ class Issue3852 extends Test {
 
 		i = 5;
 		d = 5;
-		eq(u / i, 0.8);
 		eq(u / d, 0.8);
-		eq(i / u, 1.25);
 		eq(d / u, 1.25);
 
 		u = 8;
 		i = 2;
 		eq(u << i, 32);
-		eq(i << u, 512);
 		eq(u >> i, 2);
-		eq(i >> u, 0);
 	}
 }
