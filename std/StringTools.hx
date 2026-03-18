@@ -415,7 +415,7 @@ class StringTools {
 	public static function hex(n:Int, ?digits:Int) {
 		#if flash
 		var n:UInt = n;
-		var s:String = untyped n.toString(16);
+		var s:String = (n : Dynamic).toString(16);
 		s = s.toUpperCase();
 		#else
 		var s = "";
