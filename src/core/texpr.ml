@@ -834,18 +834,6 @@ let collect_captured_vars e =
 	loop e;
 	List.rev !unknown,!accesses_this
 
-(** Returns `true` if `e` contains any reference to local variable `v`. *)
-let references_local e v =
-	let found = ref false in
-	let rec loop e =
-		if not !found then
-			match e.eexpr with
-			| TLocal v' when v'.v_id = v.v_id -> found := true
-			| _ -> iter loop e
-	in
-	loop e;
-	!found
-
 (**
 	If `e` contains a sequence of unsafe casts, then look if that sequence
 	already has casts to `t` and return the bottom-most of such casts.

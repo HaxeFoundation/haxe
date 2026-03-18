@@ -8,7 +8,6 @@ import haxe.Int32;
 	These ensure that abstract type layering (Int32 → Int32Native, Int64 → Int64Native)
 	does not introduce unnecessary intermediate variables or instructions.
 **/
-@:analyzer(ignore)
 @:keep
 class NumericTypes {
 	static final i32:Int32 = 0;

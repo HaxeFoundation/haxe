@@ -174,21 +174,7 @@ let sanitize_expr scom e =
 let reduce_expr com e =
 	match e.eexpr with
 	| TBlock l ->
-		(match l with
-		(* Collapse trivial inlined abstract constructor blocks:
-		   { var v; v = expr; (cast v) } => (cast expr)
-		   This pattern is produced when inlining abstract constructors of the form
-		   `inline function new(x) this = x;` *)
-		| [{ eexpr = TVar(v, eo) };
-		   { eexpr = TBinop(OpAssign, { eexpr = TLocal v1 }, e_val) };
-		   { eexpr = TCast({ eexpr = TLocal v2 }, None) } as e_cast]
-			when v.v_id = v1.v_id && v.v_id = v2.v_id
-			(* Only collapse when the variable has no meaningful initializer (None or null). *)
-			&& (match eo with None -> true | Some { eexpr = TConst TNull } -> true | _ -> false)
-			&& not (Texpr.references_local e_val v) ->
-			{ e_cast with eexpr = TCast(e_val, None) }
-		| _ ->
-		match List.rev l with
+		(match List.rev l with
 		| [] -> e
 		| ec :: l ->
 			(* remove all no-ops : not-final constants in blocks *)
