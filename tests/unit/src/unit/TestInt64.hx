@@ -60,7 +60,7 @@ class TestInt64 extends Test {
 		var a = haxe.Int64.parseString('2147483647');
 		var b = haxe.Int64.parseString('9223372036854775807');
 		var z = haxe.Int64.sub(a, b);
-		eq(haxe.Int64.toStr(z), "-9223372034707292160");
+		eq(z.toString(), "-9223372034707292160");
 
 		// This fails because the first division fails:
 		var ten = haxe.Int64.make(0, 10);
@@ -139,10 +139,10 @@ class TestInt64 extends Test {
 		eq('$a', "-1");
 
 		a = Int64.make(0xFFFFFFFE, 0);
-		eq(a.toStr(), "-8589934592");
+		eq(a.toString(), "-8589934592");
 
 		a = Int64.make(1, 1);
-		eq(a.toStr(), "4294967297");
+		eq(a.toString(), "4294967297");
 
 		// set a to 2^63 (overflows to the smallest negative number)
 		a = Int64.ofInt(2);
@@ -150,9 +150,9 @@ class TestInt64 extends Test {
 			a = Int64.mul(a, 2);
 		}
 
-		eq(Int64.add(a, -1).toStr(), "9223372036854775807"); // largest positive
-		eq(Int64.add(a, 1).toStr(), "-9223372036854775807"); // smallest negative - 1
-		eq(a.toStr(), "-9223372036854775808"); // smallest negative
+		eq(Int64.add(a, -1).toString(), "9223372036854775807"); // largest positive
+		eq(Int64.add(a, 1).toString(), "-9223372036854775807"); // smallest negative - 1
+		eq(a.toString(), "-9223372036854775808"); // smallest negative
 	}
 
 	public function testComparison() {
@@ -424,18 +424,18 @@ class TestInt64 extends Test {
 		var a = Int64.make(0, 0x239B0E13);
 		var b = Int64.make(0, 0x39193D1B);
 		var c = Int64.mul(a, b);
-		eq(c.toStr(), "572248275467371265");
-		eq(Int64.toStr(c), "572248275467371265");
+		eq(c.toString(), "572248275467371265");
+		eq(c.toString(), "572248275467371265");
 
 		var a = Int64.make(0, 0xD3F9C9F4);
 		var b = Int64.make(0, 0xC865C765);
 		var c = Int64.mul(a, b);
-		eq(c.toStr(), "-6489849317865727676");
+		eq(c.toString(), "-6489849317865727676");
 
 		var a = Int64.make(0, 0x9E370301);
 		var b = Int64.make(0, 0xB0590000);
 		var c = Int64.add(a, b);
-		eq(Int64.toStr(c), "5613028097");
+		eq(c.toString(), "5613028097");
 
 		var a = Int64.make(0xFFF21CDA, 0x972E8BA3);
 		var b = Int64.make(0x0098C29B, 0x81000001);
@@ -458,17 +458,17 @@ class TestInt64 extends Test {
 		var y = x.and((ofInt(0xffff))),
 			z = x.or((ofInt(0xffff))),
 			w = x.xor((make(0xffffffff, 0xffffffff)));
-		eq(y.toStr(), '12816');
-		eq(z.toStr(), '-81985529216434177');
-		eq(w.toStr(), '81985529216486895');
-		eq(x.and(ofInt(0xffff)).toStr(), '12816');
-		eq((x.or(ofInt(0xffff))).toStr(), '-81985529216434177');
-		eq((x.xor(ofInt(0xffff))).toStr(), '-81985529216446993');
-		eq((x.and(make(0x1, 0xffffffff))).toStr(), '1985229328');
-		eq((x.or(make(0x1, 0xffffffff))).toStr(), '-81985522611781633');
-		eq((x.xor(make(0x1, 0xffffffff))).toStr(), '-81985524597010961');
+		eq(y.toString(), '12816');
+		eq(z.toString(), '-81985529216434177');
+		eq(w.toString(), '81985529216486895');
+		eq(x.and(ofInt(0xffff)).toString(), '12816');
+		eq((x.or(ofInt(0xffff))).toString(), '-81985529216434177');
+		eq((x.xor(ofInt(0xffff))).toString(), '-81985529216446993');
+		eq((x.and(make(0x1, 0xffffffff))).toString(), '1985229328');
+		eq((x.or(make(0x1, 0xffffffff))).toString(), '-81985522611781633');
+		eq((x.xor(make(0x1, 0xffffffff))).toString(), '-81985524597010961');
 		var a = ofInt(7), b = a.shl(1);
-		eq(b.toStr(), '14');
+		eq(b.toString(), '14');
 	}
 
 	public function testAdd() {
@@ -477,7 +477,7 @@ class TestInt64 extends Test {
 		eq((a.add(ofInt(4))).compare(ofInt(7)), 0);
 		eq((c.add(ofInt(3))).compare(ofInt(1)), 0);
 		// numbers larger than int32
-		eq(a.add(make(0x1, 0)).toStr(), '4294967299');
+		eq(a.add(make(0x1, 0)).toString(), '4294967299');
 	}
 
 	public function testNeg() {

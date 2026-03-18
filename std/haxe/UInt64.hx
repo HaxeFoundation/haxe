@@ -72,18 +72,26 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		return x.low;
 
 	/**
-		Returns `true` if `x` is exactly zero.
-	**/
-	public static inline function isZero(x:UInt64):Bool
-		return Int64Native.isZero(x);
-
-	/**
 		Compares `a` and `b` as unsigned 64-bit integers.
 		Returns a negative value if `a < b`, positive if `a > b`,
 		or 0 if `a == b`.
 	**/
 	public static inline function compare(a:UInt64, b:UInt64):Int
 		return Int64Native.ucompare(a, b);
+
+	/**
+		Compares `a` and `b` as unsigned 64-bit integers.
+		Returns a negative value if `a < b`, positive if `a > b`,
+		or 0 if `a == b`.
+	**/
+	public static inline function ucompare(a:UInt64, b:UInt64):Int
+		return Int64Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `x` is exactly zero.
+	**/
+	public static inline function isZero(x:UInt64):Bool
+		return Int64Native.isZero(x);
 
 	/**
 		Returns an unsigned decimal `String` representation of `x`.
@@ -123,18 +131,6 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		var r = Int64Native.udivMod(dividend, divisor);
 		return {quotient: r.quotient, modulus: r.modulus};
 	}
-
-	/**
-		Reinterprets the bits of an `Int64` as a `UInt64`.
-	**/
-	public static inline function fromInt64(x:Int64):UInt64
-		return new UInt64((x : Int64Native));
-
-	/**
-		Reinterprets the bits of this `UInt64` as an `Int64`.
-	**/
-	public inline function toInt64():Int64
-		return (this : Int64Native);
 
 	/**
 		Returns the two's complement negation of `x`.
@@ -324,4 +320,18 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 
 	private inline function get_low()
 		return this.low;
+
+	// Extra
+
+	/**
+		Reinterprets the bits of an `Int64` as a `UInt64`.
+	**/
+	public static inline function fromInt64(x:Int64):UInt64
+		return new UInt64((x : Int64Native));
+
+	/**
+		Reinterprets the bits of this `UInt64` as an `Int64`.
+	**/
+	public inline function toInt64():Int64
+		return (this : Int64Native);
 }

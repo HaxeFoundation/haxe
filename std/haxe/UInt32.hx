@@ -188,6 +188,8 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:from public static inline function fromInt(x:Int):UInt32
 		return new UInt32(Int32Native.clamp(x));
 
+	// Extra
+
 	/** @deprecated Use `fromInt` instead. **/
 	@:deprecated("Use fromInt instead")
 	public static inline function ofInt(x:Int):UInt32
@@ -196,7 +198,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	/**
 		Returns the value of this UInt32 as an Int (same bit pattern,
 		may appear negative for values ≥ `2^31`).
-		// TODO: review naming consistency with other numeric types
 	**/
 	public static inline function toInt(x:UInt32):Int {
 		var n:Int32Native = x;

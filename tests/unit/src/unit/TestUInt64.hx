@@ -91,6 +91,7 @@ class TestUInt64 extends Test {
 		t(a >= b);
 		f(a > b);
 		eq(UInt64.compare(a, b), 0);
+		eq(UInt64.ucompare(a, b), 0);
 
 		// Simple ordering
 		a = UInt64.make(0, 10);
@@ -102,6 +103,7 @@ class TestUInt64 extends Test {
 		f(a > b);
 		f(a >= b);
 		t(UInt64.compare(a, b) < 0);
+		t(UInt64.ucompare(a, b) < 0);
 
 		// Key unsigned test: 0x80000000_00000000 > 0x7FFFFFFF_FFFFFFFF
 		// (In signed Int64, 0x80000000_00000000 would be negative and LESS than 0x7FFFFFFF_FFFFFFFF)
@@ -111,6 +113,7 @@ class TestUInt64 extends Test {
 		f(a < b);
 		f(a == b);
 		t(UInt64.compare(a, b) > 0);
+		t(UInt64.ucompare(a, b) > 0);
 
 		// MAX > 0
 		a = UInt64.make(0xFFFFFFFF, 0xFFFFFFFF);

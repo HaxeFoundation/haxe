@@ -72,43 +72,6 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	public static inline function toInt(x:Int64):Int
 		return Int64Native.toInt(x);
 
-	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
-	inline public static function is(val:Dynamic):Bool {
-		return isInt64(val);
-	}
-
-	/**
-		Returns whether the value `val` is of type `haxe.Int64`
-	**/
-	inline public static function isInt64(val:Dynamic):Bool
-		return Int64Native.isInt64(val);
-
-	/**
-		Returns the high 32-bit word of `x`.
-	**/
-	@:deprecated("Use high instead")
-	public static inline function getHigh(x:Int64):Int32
-		return x.high;
-
-	/**
-		Returns the low 32-bit word of `x`.
-	**/
-	@:deprecated("Use low instead")
-	public static inline function getLow(x:Int64):Int32
-		return x.low;
-
-	/**
-		Returns `true` if `x` is less than zero.
-	**/
-	public static inline function isNeg(x:Int64):Bool
-		return Int64Native.isNeg(x);
-
-	/**
-		Returns `true` if `x` is exactly zero.
-	**/
-	public static inline function isZero(x:Int64):Bool
-		return Int64Native.isZero(x);
-
 	/**
 		Compares `a` and `b` in signed mode.
 		Returns a negative value if `a < b`, positive if `a > b`,
@@ -126,10 +89,10 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return Int64Native.ucompare(a, b);
 
 	/**
-		Returns a signed decimal `String` representation of `x`.
+		Returns `true` if `x` is exactly zero.
 	**/
-	public static inline function toStr(x:Int64):String
-		return x.toString();
+	public static inline function isZero(x:Int64):Bool
+		return Int64Native.isZero(x);
 
 	public inline function toString():String
 		return this.toString();
@@ -358,4 +321,44 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	private inline function set_low(x)
 		return this.low = x;
 	#end
+
+	// Extra
+
+	/**
+		Returns `true` if `x` is less than zero.
+	**/
+	public static inline function isNeg(x:Int64):Bool
+		return Int64Native.isNeg(x);
+
+	/**
+		Returns whether the value `val` is of type `haxe.Int64`
+	**/
+	inline public static function isInt64(val:Dynamic):Bool
+		return Int64Native.isInt64(val);
+
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	inline public static function is(val:Dynamic):Bool {
+		return isInt64(val);
+	}
+
+	/**
+		Returns the high 32-bit word of `x`.
+	**/
+	@:deprecated("Use high instead")
+	public static inline function getHigh(x:Int64):Int32
+		return x.high;
+
+	/**
+		Returns the low 32-bit word of `x`.
+	**/
+	@:deprecated("Use low instead")
+	public static inline function getLow(x:Int64):Int32
+		return x.low;
+
+	/**
+		Returns a signed decimal `String` representation of `x`.
+	**/
+	@:deprecated("Use toString instead")
+	public static inline function toStr(x:Int64):String
+		return x.toString();
 }
