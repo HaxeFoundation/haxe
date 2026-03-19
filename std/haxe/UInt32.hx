@@ -102,16 +102,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		return (n1 : Int) != (n2 : Int);
 	}
 
-	@:op(A == B) @:commutative private static inline function equalsInt<T:Int>(a:UInt32, b:T):Bool {
-		var n:Int32Native = a;
-		return (n : Int) == b;
-	}
-
-	@:op(A != B) @:commutative private static inline function notEqualsInt<T:Int>(a:UInt32, b:T):Bool {
-		var n:Int32Native = a;
-		return (n : Int) != b;
-	}
-
 	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool
 		return compare(a, b) < 0;
 
