@@ -10,6 +10,6 @@ extern class TextSnapshot {
 	function getTextRunInfo(beginIndex : Int, endIndex : Int) : Array<Dynamic>;
 	private function get_charCount() : Int;
 	function hitTestTextNearPos(x : Float, y : Float, maxDistance : Float = 0) : Float;
-	function setSelectColor(hexColor : UInt = 16776960u32) : Void;
+	function setSelectColor(hexColor : UInt = 16776960) : Void;
 	function setSelected(beginIndex : Int, endIndex : Int, select : Bool) : Void;
 }

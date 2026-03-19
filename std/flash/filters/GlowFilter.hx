@@ -9,7 +9,7 @@ extern final class GlowFilter extends BitmapFilter {
 	@:flash.property var knockout(get,set) : Bool;
 	@:flash.property var quality(get,set) : Int;
 	@:flash.property var strength(get,set) : Float;
-	function new(color : UInt = 16711680u32, alpha : Float = 1, blurX : Float = 6, blurY : Float = 6, strength : Float = 2, quality : Int = 1, inner : Bool = false, knockout : Bool = false) : Void;
+	function new(color : UInt = 16711680, alpha : Float = 1, blurX : Float = 6, blurY : Float = 6, strength : Float = 2, quality : Int = 1, inner : Bool = false, knockout : Bool = false) : Void;
 	private function get_alpha() : Float;
 	private function get_blurX() : Float;
 	private function get_blurY() : Float;

@@ -9,7 +9,7 @@ extern interface IDataOutput {
 	private function set_objectEncoding(value : UInt) : UInt;
 	function writeBoolean(value : Bool) : Void;
 	function writeByte(value : Int) : Void;
-	function writeBytes(bytes : ByteArray, offset : UInt = 0u32, length : UInt = 0u32) : Void;
+	function writeBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
 	function writeDouble(value : Float) : Void;
 	function writeFloat(value : Float) : Void;
 	function writeInt(value : Int) : Void;

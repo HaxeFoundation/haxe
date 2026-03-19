@@ -9,7 +9,7 @@ extern final class Context3D extends flash.events.EventDispatcher {
 	@:flash.property var maxBackBufferWidth(get,set) : Int;
 	@:flash.property @:require(flash12) var profile(get,never) : String;
 	@:flash.property var totalGPUMemory(get,never) : Float;
-	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0u32, mask : UInt = 0xFFFFFFFFu32) : Void;
+	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
 	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false, wantsBestResolutionOnBrowserZoom : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
 	function createIndexBuffer(numIndices : Int, ?bufferUsage : Context3DBufferUsage) : IndexBuffer3D;
@@ -43,7 +43,7 @@ extern final class Context3D extends flash.events.EventDispatcher {
 	@:require(flash11_6) function setSamplerStateAt(sampler : Int, wrap : Context3DWrapMode, filter : Context3DTextureFilter, mipfilter : Context3DMipFilter) : Void;
 	function setScissorRectangle(rectangle : flash.geom.Rectangle) : Void;
 	function setStencilActions(?triangleFace : Context3DTriangleFace, ?compareMode : Context3DCompareMode, ?actionOnBothPass : Context3DStencilAction, ?actionOnDepthFail : Context3DStencilAction, ?actionOnDepthPassStencilFail : Context3DStencilAction) : Void;
-	function setStencilReferenceValue(referenceValue : UInt, readMask : UInt = 255u32, writeMask : UInt = 255u32) : Void;
+	function setStencilReferenceValue(referenceValue : UInt, readMask : UInt = 255, writeMask : UInt = 255) : Void;
 	function setTextureAt(sampler : Int, texture : flash.display3D.textures.TextureBase) : Void;
 	function setVertexBufferAt(index : Int, buffer : VertexBuffer3D, bufferOffset : Int = 0, ?format : Context3DVertexBufferFormat) : Void;
 	private function set_enableErrorChecking(value : Bool) : Bool;

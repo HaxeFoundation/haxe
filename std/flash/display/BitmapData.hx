@@ -5,7 +5,7 @@ extern class BitmapData implements IBitmapDrawable {
 	@:flash.property var rect(get,never) : flash.geom.Rectangle;
 	@:flash.property var transparent(get,never) : Bool;
 	@:flash.property var width(get,never) : Int;
-	function new(width : Int, height : Int, transparent : Bool = true, fillColor : UInt = 0xFFFFFFFFu32) : Void;
+	function new(width : Int, height : Int, transparent : Bool = true, fillColor : UInt = 0xFFFFFFFF) : Void;
 	function applyFilter(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, filter : flash.filters.BitmapFilter) : Void;
 	function clone() : BitmapData;
 	function colorTransform(rect : flash.geom.Rectangle, colorTransform : flash.geom.ColorTransform) : Void;
@@ -30,18 +30,18 @@ extern class BitmapData implements IBitmapDrawable {
 	private function get_transparent() : Bool;
 	private function get_width() : Int;
 	@:require(flash10) function histogram(?hRect : flash.geom.Rectangle) : flash.Vector<flash.Vector<Float>>;
-	function hitTest(firstPoint : flash.geom.Point, firstAlphaThreshold : UInt, secondObject : flash.utils.Object, ?secondBitmapDataPoint : flash.geom.Point, secondAlphaThreshold : UInt = 1u32) : Bool;
+	function hitTest(firstPoint : flash.geom.Point, firstAlphaThreshold : UInt, secondObject : flash.utils.Object, ?secondBitmapDataPoint : flash.geom.Point, secondAlphaThreshold : UInt = 1) : Bool;
 	function lock() : Void;
 	function merge(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, redMultiplier : UInt, greenMultiplier : UInt, blueMultiplier : UInt, alphaMultiplier : UInt) : Void;
-	function noise(randomSeed : Int, low : UInt = 0u32, high : UInt = 255u32, channelOptions : UInt = 7u32, grayScale : Bool = false) : Void;
+	function noise(randomSeed : Int, low : UInt = 0, high : UInt = 255, channelOptions : UInt = 7, grayScale : Bool = false) : Void;
 	function paletteMap(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, ?redArray : Array<Int>, ?greenArray : Array<Int>, ?blueArray : Array<Int>, ?alphaArray : Array<Int>) : Void;
-	function perlinNoise(baseX : Float, baseY : Float, numOctaves : UInt, randomSeed : Int, stitch : Bool, fractalNoise : Bool, channelOptions : UInt = 7u32, grayScale : Bool = false, ?offsets : Array<flash.geom.Point>) : Void;
-	function pixelDissolve(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, randomSeed : Int = 0, numPixels : Int = 0, fillColor : UInt = 0u32) : Int;
+	function perlinNoise(baseX : Float, baseY : Float, numOctaves : UInt, randomSeed : Int, stitch : Bool, fractalNoise : Bool, channelOptions : UInt = 7, grayScale : Bool = false, ?offsets : Array<flash.geom.Point>) : Void;
+	function pixelDissolve(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, randomSeed : Int = 0, numPixels : Int = 0, fillColor : UInt = 0) : Int;
 	function scroll(x : Int, y : Int) : Void;
 	function setPixel(x : Int, y : Int, color : UInt) : Void;
 	function setPixel32(x : Int, y : Int, color : UInt) : Void;
 	function setPixels(rect : flash.geom.Rectangle, inputByteArray : flash.utils.ByteArray) : Void;
 	@:require(flash10) function setVector(rect : flash.geom.Rectangle, inputVector : flash.Vector<UInt>) : Void;
-	function threshold(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, operation : String, threshold : UInt, color : UInt = 0u32, mask : UInt = 0xFFFFFFFFu32, copySource : Bool = false) : UInt;
+	function threshold(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, operation : String, threshold : UInt, color : UInt = 0, mask : UInt = 0xFFFFFFFF, copySource : Bool = false) : UInt;
 	function unlock(?changeRect : flash.geom.Rectangle) : Void;
 }
