@@ -262,7 +262,7 @@ class Jvm {
 	}
 
 	static public function toLong(d:Dynamic):haxe.Int64 {
-		if (d == null) return haxe.Int64.ofInt(0);
+		if (d == null) return haxe.Int64.fromInt(0);
 		return (d : java.lang.Number).longValue();
 	}
 

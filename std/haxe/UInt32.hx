@@ -174,7 +174,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.ucompare(a, b);
 
 	/**
-		Returns `true` if `x` is exactly zero.
+		Returns `true` if `x` is zero (i.e. the minimum value).
 	**/
 	public static inline function isZero(x:UInt32):Bool {
 		var n:Int32Native = x;
@@ -188,6 +188,15 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:from public static inline function fromInt(x:Int):UInt32
 		return new UInt32(Int32Native.clamp(x));
 
+	/**
+		Parses an unsigned decimal string into a `UInt32`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(sParam:String):UInt32
+		return new UInt32(Int32Native.uparseString(sParam));
+
+	// Extra
+
 	/** @deprecated Use `fromInt` instead. **/
 	@:deprecated("Use fromInt instead")
 	public static inline function ofInt(x:Int):UInt32
@@ -196,7 +205,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	/**
 		Returns the value of this UInt32 as an Int (same bit pattern,
 		may appear negative for values ≥ `2^31`).
-		// TODO: review naming consistency with other numeric types
 	**/
 	public static inline function toInt(x:UInt32):Int {
 		var n:Int32Native = x;

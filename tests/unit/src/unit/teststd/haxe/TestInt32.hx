@@ -201,10 +201,14 @@ class TestInt32 extends unit.Test {
 		eq((b : Int), -42);
 	}
 
-	// --- Division (returns Float) ---
+	// --- Division (returns Int32) ---
 	function testDivision() {
 		var ten:Int32 = 10;
 		var three:Int32 = 3;
+		eq((ten / three : Int32), cast(3, Int32));
+		eq((ten / cast(-3, Int32) : Int32), cast(-3, Int32));
+		eq((cast(-10, Int32) / three : Int32), cast(-3, Int32));
+		// Float division still works via @:to toFloat
 		feq((ten : Float) / (three : Float), 10.0 / 3.0);
 	}
 

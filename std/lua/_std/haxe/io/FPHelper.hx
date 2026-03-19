@@ -27,7 +27,7 @@ package haxe.io;
 	Always works in low-endian encoding.
 **/
 class FPHelper {
-	static var i64tmp:Int64 = Int64.ofInt(0);
+	static var i64tmp:Int64 = Int64.fromInt(0);
 
 	#if !(lua_ver >= 5.3)
 	static var hasStringPack:Bool = untyped __lua__("string.pack ~= nil");

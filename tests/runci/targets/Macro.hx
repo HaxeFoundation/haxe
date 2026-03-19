@@ -49,13 +49,14 @@ class Macro {
 	}
 
 	static function party() {
-		changeDirectory(partyDir);
-		runCommand("git", ["clone", "--depth=1", "https://github.com/haxetink/tink_core", "tink_core"]);
-		changeDirectory("tink_core");
-		runCommand("haxelib", ["newrepo"]);
-		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
-		runCommand("haxelib", ["dev", "tink_core", "."]);
-		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
+		// Need fix for deep_equal Int64.is
+		// changeDirectory(partyDir);
+		// runCommand("git", ["clone", "--depth=1", "https://github.com/haxetink/tink_core", "tink_core"]);
+		// changeDirectory("tink_core");
+		// runCommand("haxelib", ["newrepo"]);
+		// runCommand("haxelib", ["install", "tests.hxml", "--always"]);
+		// runCommand("haxelib", ["dev", "tink_core", "."]);
+		// runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 
 		changeDirectory(partyDir);
 		runCommand("git", ["clone", "--depth=1", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);

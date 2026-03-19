@@ -34,9 +34,9 @@ class Int64Helper {
 		Create `Int64` from given string.
 	**/
 	public static function parseString(sParam:String):Int64 {
-		var base = Int64.ofInt(10);
-		var current = Int64.ofInt(0);
-		var multiplier = Int64.ofInt(1);
+		var base = Int64.fromInt(10);
+		var current = Int64.fromInt(0);
+		var multiplier = Int64.fromInt(1);
 		var sIsNegative = false;
 
 		var s = StringTools.trim(sParam);
@@ -54,7 +54,7 @@ class Int64Helper {
 			}
 
 			if (digitInt != 0) {
-				var digit:Int64 = Int64.ofInt(digitInt);
+				var digit:Int64 = Int64.fromInt(digitInt);
 				if (sIsNegative) {
 					current = Int64.sub(current, Int64.mul(multiplier, digit));
 					if (!Int64.isNeg(current)) {
@@ -94,7 +94,7 @@ class Int64Helper {
 			throw "Conversion underflow";
 		}
 
-		var result = Int64.ofInt(0);
+		var result = Int64.fromInt(0);
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
 
@@ -103,7 +103,7 @@ class Int64Helper {
 			var curr = rest % 2;
 			rest = rest / 2;
 			if (curr >= 1) {
-				result = Int64.add(result, Int64.shl(Int64.ofInt(1), i));
+				result = Int64.add(result, Int64.shl(Int64.fromInt(1), i));
 			}
 			i++;
 		}

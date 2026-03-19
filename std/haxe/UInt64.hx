@@ -59,10 +59,18 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 
 	/**
 		Returns a UInt64 with the value of the Int `x`.
-		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.ofInt`).
+		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.fromInt`).
 	**/
-	@:from public static inline function ofInt(x:Int):UInt64
+	@:from public static inline function fromInt(x:Int):UInt64
 		return new UInt64(Int64Native.ofInt(x));
+
+	/**
+		Returns a UInt64 with the value of the Int `x`.
+		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.fromInt`).
+	**/
+	@:deprecated("Use fromInt instead")
+	public static inline function ofInt(x:Int):UInt64
+		return fromInt(x);
 
 	/**
 		Returns the low 32 bits of `x` as an Int.
@@ -72,18 +80,26 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		return x.low;
 
 	/**
-		Returns `true` if `x` is exactly zero.
-	**/
-	public static inline function isZero(x:UInt64):Bool
-		return Int64Native.isZero(x);
-
-	/**
 		Compares `a` and `b` as unsigned 64-bit integers.
 		Returns a negative value if `a < b`, positive if `a > b`,
 		or 0 if `a == b`.
 	**/
 	public static inline function compare(a:UInt64, b:UInt64):Int
 		return Int64Native.ucompare(a, b);
+
+	/**
+		Compares `a` and `b` as unsigned 64-bit integers.
+		Returns a negative value if `a < b`, positive if `a > b`,
+		or 0 if `a == b`.
+	**/
+	public static inline function ucompare(a:UInt64, b:UInt64):Int
+		return Int64Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `x` is exactly zero.
+	**/
+	public static inline function isZero(x:UInt64):Bool
+		return Int64Native.isZero(x);
 
 	/**
 		Returns an unsigned decimal `String` representation of `x`.
@@ -119,22 +135,10 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		Performs unsigned integer division of `dividend` by `divisor`.
 		Returns `{ quotient : UInt64, modulus : UInt64 }`.
 	**/
-	public static function divMod(dividend:UInt64, divisor:UInt64):{quotient:UInt64, modulus:UInt64} {
+	private static function divMod(dividend:UInt64, divisor:UInt64):{quotient:UInt64, modulus:UInt64} {
 		var r = Int64Native.udivMod(dividend, divisor);
 		return {quotient: r.quotient, modulus: r.modulus};
 	}
-
-	/**
-		Reinterprets the bits of an `Int64` as a `UInt64`.
-	**/
-	public static inline function fromInt64(x:Int64):UInt64
-		return new UInt64((x : Int64Native));
-
-	/**
-		Reinterprets the bits of this `UInt64` as an `Int64`.
-	**/
-	public inline function toInt64():Int64
-		return (this : Int64Native);
 
 	/**
 		Returns the two's complement negation of `x`.

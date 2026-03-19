@@ -49,4 +49,55 @@ class Int32Helper {
 			throw "Division by zero";
 		return {quotient: Std.int(af / bf), modulus: Std.int(af % bf)};
 	}
+
+	/**
+		Parse a signed decimal string into a raw `Int` in the range [-2^31, 2^31-1].
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static function parseString(s:String):Int {
+		var t = StringTools.trim(s);
+		if (t.length == 0)
+			throw "NumberFormatError";
+		var negative = t.charAt(0) == "-";
+		var digits = negative ? t.substring(1) : t;
+		if (digits.length == 0)
+			throw "NumberFormatError";
+		var result:Float = 0.0;
+		for (i in 0...digits.length) {
+			var d = digits.charCodeAt(i) - '0'.code;
+			if (d < 0 || d > 9)
+				throw "NumberFormatError";
+			result = result * 10.0 + d;
+		}
+		if (negative)
+			result = -result;
+		if (result < -2147483648.0 || result > 2147483647.0)
+			throw "NumberFormatError: Overflow";
+		return Std.int(result);
+	}
+
+	/**
+		Parse an unsigned decimal string into a raw `Int` whose bit-pattern
+		represents a value in the range [0, 2^32-1].
+		Values ≥ 2^31 are stored as negative `Int` (two's complement).
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static function uparseString(s:String):Int {
+		var t = StringTools.trim(s);
+		if (t.length == 0 || t.charAt(0) == "-")
+			throw "NumberFormatError";
+		var result:Float = 0.0;
+		for (i in 0...t.length) {
+			var d = t.charCodeAt(i) - '0'.code;
+			if (d < 0 || d > 9)
+				throw "NumberFormatError";
+			result = result * 10.0 + d;
+		}
+		if (result > 4294967295.0)
+			throw "NumberFormatError: Overflow";
+		// Values ≥ 2^31 must be stored as negative Int (bit-pattern preservation).
+		if (result >= 2147483648.0)
+			return Std.int(result - 4294967296.0);
+		return Std.int(result);
+	}
 }

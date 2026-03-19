@@ -113,6 +113,9 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
 	}
 
+	public static inline function div(a:Int32Native, b:Int32Native):Int32Native
+		return clamp(Std.int((a : Int) / (b : Int)));
+
 	public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) % (b : Int));
 
@@ -145,6 +148,21 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 		// Safe here because this file is only used on scripting targets where Int > 32 bits.
 		return Std.string(4294967296 + v);
 	}
+
+	/**
+		Parse a signed decimal string into an `Int32Native`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(s:String):Int32Native
+		return clamp(Int32Helper.parseString(s));
+
+	/**
+		Parse an unsigned decimal string into an `Int32Native`.
+		Values ≥ 2^31 are stored as negative (two's complement bit-pattern).
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function uparseString(s:String):Int32Native
+		return clamp(Int32Helper.uparseString(s));
 
 	public inline function toFloat():Float
 		return this;
