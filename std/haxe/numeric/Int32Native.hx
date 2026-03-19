@@ -113,6 +113,9 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
 	}
 
+	public static inline function div(a:Int32Native, b:Int32Native):Int32Native
+		return clamp(Std.int((a : Int) / (b : Int)));
+
 	public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) % (b : Int));
 

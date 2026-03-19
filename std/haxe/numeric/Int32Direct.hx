@@ -82,6 +82,9 @@ abstract Int32Direct(Int) from Int to Int {
 	public inline function toFloat():Float
 		return this;
 
+	public static inline function div(a:Int32Direct, b:Int32Direct):Int32Direct
+		return cast(Std.int((a : Int) / (b : Int)));
+
 	public static inline function mod(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) % (b : Int));
 

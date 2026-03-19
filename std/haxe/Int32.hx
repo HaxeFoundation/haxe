@@ -82,8 +82,8 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	@:op(A * B) private static inline function mul(a:Int32, b:Int32):Int32
 		return Int32Native.mul(a, b);
 
-	@:op(A / B) private static inline function div(a:Int32, b:Int32):Float
-		return (a : Int) / (b : Int);
+	@:op(A / B) private static inline function div(a:Int32, b:Int32):Int32
+		return Int32Native.div(a, b);
 
 	@:op(A % B) private static inline function mod(a:Int32, b:Int32):Int32
 		return Int32Native.mod(a, b);
