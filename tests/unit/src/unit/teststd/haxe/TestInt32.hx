@@ -178,15 +178,20 @@ class TestInt32 extends unit.Test {
 	}
 
 	function testMixedFloatOps() {
+		#if loose_numeric_casts
 		// Int32 + Float returns Float (via @:to Float)
 		var result:Float = MAX + 0.5;
 		feq(result, 2147483647.5);
 		// Int32 * Float returns Float
 		var result2:Float = ONE * 2.5;
 		feq(result2, 2.5);
+		#else
+		noAssert();
+		#end
 	}
 
 	function testFloatComparisons() {
+		#if loose_numeric_casts
 		var five:Int32 = 5;
 		var fiveF:Float = 5.0;
 		var threeF:Float = 3.0;
@@ -209,6 +214,9 @@ class TestInt32 extends unit.Test {
 		f(threeF > five);
 		t(fiveF >= five);
 		f(threeF >= five);
+		#else
+		noAssert();
+		#end
 	}
 
 	// --- Conversion ---

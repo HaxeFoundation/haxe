@@ -48,7 +48,12 @@ abstract UInt32Array(UInt32ArrayData) {
 
 	@:arrayAccess public inline function set(index:Int, value:UInt):UInt {
 		if (index >= 0 && index < length) {
+			#if (flash || flash9doc)
+			// Flash's UInt has built-in @:to Int so no explicit conversion needed
 			this.bytes.setInt32((index << 2) + this.byteOffset, value);
+			#else
+			this.bytes.setInt32((index << 2) + this.byteOffset, haxe.UInt32.toInt(value));
+			#end
 			return value;
 		}
 		return 0;

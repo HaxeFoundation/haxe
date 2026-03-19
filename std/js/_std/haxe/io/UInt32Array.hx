@@ -48,7 +48,8 @@ abstract UInt32Array(UInt32ArrayData) {
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:UInt):UInt {
-		return this[index] = value;
+		this[index] = haxe.UInt32.toInt(value);
+		return value;
 	}
 
 	public inline function sub(begin:Int, ?length:Int):UInt32Array {

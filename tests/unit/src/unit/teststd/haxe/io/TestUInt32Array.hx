@@ -9,7 +9,11 @@ class TestUInt32Array extends unit.Test {
 
 		// check write negative
 		b[0] = -2;
+		#if loose_numeric_casts
 		eq((b[0] : Float), 4294967294.);
+		#else
+		eq(b[0].toFloat(), 4294967294.);
+		#end
 
 		// check write for big int
 		b[1] = 65535 * 65534 * 65533;

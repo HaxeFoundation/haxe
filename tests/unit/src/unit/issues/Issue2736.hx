@@ -18,9 +18,11 @@ class Issue2736 extends Test {
 		f(a < b); f(a <= b);
 
 		// UInt vs Float comparisons
+		#if loose_numeric_casts
 		f( a == 1.0 ); t( b == 50000.0 );
 		t( a > 1.0 ); t( a >= 1.0 );
 		f( a < -1.0 ); f( a <= 1.0 );
+		#end
 
 		#if false // ?
 		var u:UInt = 2147483648;

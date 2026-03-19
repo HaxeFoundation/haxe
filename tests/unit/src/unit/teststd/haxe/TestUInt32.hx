@@ -158,6 +158,7 @@ class TestUInt32 extends unit.Test {
 	}
 
 	function testFloatComparisons() {
+		#if loose_numeric_casts
 		var five:UInt32 = 5;
 		var fiveF:Float = 5.0;
 		var threeF:Float = 3.0;
@@ -180,6 +181,9 @@ class TestUInt32 extends unit.Test {
 		f(threeF > five);
 		t(fiveF >= five);
 		f(threeF >= five);
+		#else
+		noAssert();
+		#end
 	}
 
 	// --- isZero ---
