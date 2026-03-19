@@ -22,7 +22,7 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	@:require(flash10) function inflate() : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
-	function readBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
+	function readBytes(bytes : ByteArray, offset : UInt = 0u32, length : UInt = 0u32) : Void;
 	function readDouble() : Float;
 	function readFloat() : Float;
 	function readInt() : Int;
@@ -43,7 +43,7 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	function uncompress(?algorithm : CompressionAlgorithm) : Void;
 	function writeBoolean(value : Bool) : Void;
 	function writeByte(value : Int) : Void;
-	function writeBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
+	function writeBytes(bytes : ByteArray, offset : UInt = 0u32, length : UInt = 0u32) : Void;
 	function writeDouble(value : Float) : Void;
 	function writeFloat(value : Float) : Void;
 	function writeInt(value : Int) : Void;

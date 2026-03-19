@@ -20,7 +20,7 @@ extern class TextFormat {
 	@:flash.property var target(get,set) : String;
 	@:flash.property var underline(get,set) : Null<Bool>;
 	@:flash.property var url(get,set) : String;
-	function new(?font : String, size : Null<Float> = 0, color : Null<UInt> = 0, bold : Null<Bool> = false, italic : Null<Bool> = false, underline : Null<Bool> = false, ?url : String, ?target : String, ?align : TextFormatAlign, leftMargin : Null<Float> = 0, rightMargin : Null<Float> = 0, indent : Null<Float> = 0, leading : Null<Float> = 0) : Void;
+	function new(?font : String, size : Null<Float> = 0, color : Null<UInt> = 0u32, bold : Null<Bool> = false, italic : Null<Bool> = false, underline : Null<Bool> = false, ?url : String, ?target : String, ?align : TextFormatAlign, leftMargin : Null<Float> = 0, rightMargin : Null<Float> = 0, indent : Null<Float> = 0, leading : Null<Float> = 0) : Void;
 	private function get_align() : TextFormatAlign;
 	private function get_blockIndent() : Null<Float>;
 	private function get_bold() : Null<Bool>;

@@ -22,7 +22,7 @@ extern final class Graphics {
 	@:require(flash10) function lineBitmapStyle(bitmap : BitmapData, ?matrix : flash.geom.Matrix, repeat : Bool = true, smooth : Bool = false) : Void;
 	function lineGradientStyle(type : GradientType, colors : Array<UInt>, alphas : Array<Dynamic>, ratios : Array<Dynamic>, ?matrix : flash.geom.Matrix, ?spreadMethod : SpreadMethod, ?interpolationMethod : InterpolationMethod, focalPointRatio : Float = 0) : Void;
 	@:require(flash10) function lineShaderStyle(shader : Shader, ?matrix : flash.geom.Matrix) : Void;
-	function lineStyle(thickness : Null<Float> = 0, color : UInt = 0, alpha : Float = 1, pixelHinting : Bool = false, ?scaleMode : LineScaleMode, ?caps : CapsStyle, ?joints : JointStyle, miterLimit : Float = 3) : Void;
+	function lineStyle(thickness : Null<Float> = 0, color : UInt = 0u32, alpha : Float = 1, pixelHinting : Bool = false, ?scaleMode : LineScaleMode, ?caps : CapsStyle, ?joints : JointStyle, miterLimit : Float = 3) : Void;
 	function lineTo(x : Float, y : Float) : Void;
 	function moveTo(x : Float, y : Float) : Void;
 	@:require(flash11_6) function readGraphicsData(recurse : Bool = true) : flash.Vector<IGraphicsData>;

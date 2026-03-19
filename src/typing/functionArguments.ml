@@ -25,17 +25,19 @@ let type_function_arg_value ctx t c do_display =
 			let e = if do_display then Display.preprocess_expr ctx.com e else e in
 			let e = Optimizer.reduce_expression (SafeCom.of_typer ctx) (type_expr ctx e (WithType.with_type t)) in
 			unify ctx e.etype t p;
-			let rec loop e = match e.eexpr with
+			let e0 = e in
+			let rec loop analyzered e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
-				| TCast(e,None) -> loop e
+				| TCast(e,None) -> loop analyzered e
+				| _ when not analyzered -> loop true (!analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e)
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
-						Common.display_error ctx.com "Default argument value should be constant" p;
+						Common.display_error ctx.com ("Default argument value should be constant found: " ^ (s_expr_debug e0)) p;
 					None
 			in
-			loop e
+			loop false e
 
 class function_arguments
 	(com : Common.context)

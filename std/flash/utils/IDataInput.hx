@@ -9,7 +9,7 @@ extern interface IDataInput {
 	private function get_objectEncoding() : UInt;
 	function readBoolean() : Bool;
 	function readByte() : Int;
-	function readBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
+	function readBytes(bytes : ByteArray, offset : UInt = 0u32, length : UInt = 0u32) : Void;
 	function readDouble() : Float;
 	function readFloat() : Float;
 	function readInt() : Int;
