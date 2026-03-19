@@ -23,6 +23,7 @@
 package haxe;
 
 import haxe.numeric.Int64Native;
+import haxe.numeric.Int32Native;
 
 /**
 	A cross-platform unsigned 64-bit integer type.
@@ -65,6 +66,22 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		return new UInt64(Int64Native.ofInt(x));
 
 	/**
+		Returns a UInt64 with the value of `x` zero-extended to 64 bits.
+		All UInt32 values fit without loss.
+	**/
+	@:from public static inline function fromUInt32(x:UInt32):UInt64 {
+		final n:Int32Native = x;
+		return make(0, n);
+	}
+
+	/**
+		Returns a UInt64 with the same bit pattern as `x`.
+		Negative Int64 values become large UInt64 values.
+	**/
+	@:from public static inline function fromInt64(x:Int64):UInt64
+		return cast x;
+
+	/**
 		Returns a UInt64 with the value of the Int `x`.
 		`x` is sign-extended to fill 64 bits (same bit pattern as `Int64.fromInt`).
 	**/
@@ -77,7 +94,7 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		The top 32 bits are discarded.
 	**/
 	public static inline function toInt(x:UInt64):Int
-		return x.low;
+		return x.low.toInt();
 
 	/**
 		Compares `a` and `b` as unsigned 64-bit integers.
@@ -130,6 +147,27 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 	public inline function toFloat():Float {
 		return Int64Native.utoFloat(this);
 	}
+
+	/**
+		Returns the low 32 bits of this UInt64 as an Int32.
+		The high 32 bits are discarded.
+	**/
+	public inline function toInt32():Int32
+		return cast Int64Native.toInt(this);
+
+	/**
+		Returns the low 32 bits of this UInt64 as a UInt32.
+		The high 32 bits are discarded.
+	**/
+	public inline function toUInt32():UInt32
+		return cast Int64Native.toInt(this);
+
+	/**
+		Returns an Int64 with the same bit pattern.
+		Values above `2^63-1` will appear negative as Int64.
+	**/
+	public inline function toInt64():Int64
+		return cast this;
 
 	/**
 		Performs unsigned integer division of `dividend` by `divisor`.

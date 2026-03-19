@@ -37,7 +37,6 @@ import haxe.numeric.Int32Native;
 	overhead is incurred. On scripting targets, values are masked to 32 bits after
 	each operation that may overflow.
 **/
-@:transitive
 abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
 		this = x;
@@ -88,17 +87,27 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A % B) private static inline function mod(a:UInt32, b:UInt32):UInt32
 		return Int32Native.udivMod(a, b).modulus;
 
-	@:op(A == B) @:commutative private static inline function equalsInt<T:Int>(a:UInt32, b:T):Bool
-		return (a : Int) == b;
+	@:op(A == B) private static inline function eq(a:UInt32, b:UInt32):Bool {
+		var n1:Int32Native = a;
+		var n2:Int32Native = b;
+		return (n1 : Int) == (n2 : Int);
+	}
 
-	@:op(A != B) @:commutative private static inline function notEqualsInt<T:Int>(a:UInt32, b:T):Bool
-		return (a : Int) != b;
+	@:op(A != B) private static inline function neq(a:UInt32, b:UInt32):Bool {
+		var n1:Int32Native = a;
+		var n2:Int32Native = b;
+		return (n1 : Int) != (n2 : Int);
+	}
 
-	@:op(A == B) @:commutative private static inline function equalsFloat<T:Float>(a:UInt32, b:T):Bool
-		return (a : Float) == b;
+	@:op(A == B) @:commutative private static inline function equalsInt<T:Int>(a:UInt32, b:T):Bool {
+		var n:Int32Native = a;
+		return (n : Int) == b;
+	}
 
-	@:op(A != B) @:commutative private static inline function notEqualsFloat<T:Float>(a:UInt32, b:T):Bool
-		return (a : Float) != b;
+	@:op(A != B) @:commutative private static inline function notEqualsInt<T:Int>(a:UInt32, b:T):Bool {
+		var n:Int32Native = a;
+		return (n : Int) != b;
+	}
 
 	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool
 		return compare(a, b) < 0;
@@ -111,30 +120,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A >= B) private static inline function gte(a:UInt32, b:UInt32):Bool
 		return compare(a, b) >= 0;
-
-	@:op(A < B) private static inline function ltFloat<T:Float>(a:UInt32, b:T):Bool
-		return (a : Float) < b;
-
-	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:UInt32):Bool
-		return a < (b:Float);
-
-	@:op(A <= B) private static inline function lteFloat<T:Float>(a:UInt32, b:T):Bool
-		return (a : Float) <= b;
-
-	@:op(A <= B) private static inline function floatLte<T:Float>(a:T, b:UInt32):Bool
-		return a <= (b : Float);
-
-	@:op(A > B) private static inline function gtFloat<T:Float>(a:UInt32, b:T):Bool
-		return (a : Float) > b;
-
-	@:op(A > B) private static inline function floatGt<T:Float>(a:T, b:UInt32):Bool
-		return a > (b : Float);
-
-	@:op(A >= B) private static inline function gteFloat<T:Float>(a:UInt32, b:T):Bool
-		return (a : Float) >= b;
-
-	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:UInt32):Bool
-		return a >= (b : Float);
 
 	@:op(~A) private static inline function complement(a:UInt32):UInt32
 		return Int32Native.complement(a);
@@ -157,8 +142,50 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >>> B) private static inline function ushr(a:UInt32, b:Int):UInt32
 		return Int32Native.ushr(a, b);
 
-	@:to public inline function toFloat():Float
+	/**
+		Converts this UInt32 to a Float.
+		All UInt32 values (including those above 2^31) are exactly representable.
+	**/
+	public inline function toFloat():Float
 		return Int32Native.utoFloat(this);
+
+	/**
+		Returns an Int32 with the same bit pattern.
+		Values ≥ `2^31` appear as negative in Int32.
+	**/
+	public inline function toInt32():Int32
+		return cast this;
+
+	/**
+		Returns an Int64 with this value zero-extended to 64 bits.
+	**/
+	public inline function toInt64():Int64 {
+		final n:Int32 = cast this;
+		return Int64.make(0, n);
+	}
+
+	/**
+		Returns a UInt64 with this value zero-extended to 64 bits.
+	**/
+	public inline function toUInt64():UInt64 {
+		final n:Int32 = cast this;
+		return UInt64.make(0, n);
+	}
+
+	/**
+		Converts a Float to UInt32.
+		The fractional part is truncated. Values outside [0, 2^32-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):UInt32
+		return new UInt32(Int32Native.clamp(Std.int(f)));
+
+	/**
+		Returns a UInt32 with the same bit pattern as `x`.
+		Negative Int32 values become large UInt32 values.
+	**/
+	@:from public static inline function fromInt32(x:Int32):UInt32
+		return cast x;
 
 	/**
 		Compare `a` and `b` in signed mode.

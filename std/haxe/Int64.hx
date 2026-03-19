@@ -23,6 +23,7 @@
 package haxe;
 
 import haxe.numeric.Int64Native;
+import haxe.numeric.Int32Native;
 
 /**
 	A cross-platform signed 64-bit integer.
@@ -35,7 +36,6 @@ import haxe.numeric.Int64Native;
 #if flash
 @:notNull
 #end
-@:transitive
 abstract Int64(Int64Native) from Int64Native to Int64Native {
 	private inline function new(x:Int64Native)
 		this = x;
@@ -64,6 +64,31 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	**/
 	@:from public static inline function fromInt(x:Int):Int64
 		return new Int64(Int64Native.ofInt(x));
+
+	/**
+		Returns an Int64 with the value of `x` sign-extended to 64 bits.
+	**/
+	@:from public static inline function fromInt32(x:Int32):Int64 {
+		final n:Int32Native = x;
+		final i:Int = n;
+		return new Int64(Int64Native.ofInt(i));
+	}
+
+	/**
+		Returns an Int64 with the value of `x` zero-extended to 64 bits.
+		All UInt32 values fit in Int64 without loss.
+	**/
+	@:from public static inline function fromUInt32(x:UInt32):Int64 {
+		final n:Int32Native = x;
+		return make(0, n);
+	}
+
+	/**
+		Returns an Int64 with the same bit pattern as `x`.
+		UInt64 values above `2^63-1` will appear negative as Int64.
+	**/
+	@:from public static inline function fromUInt64(x:UInt64):Int64
+		return cast x;
 
 	/**
 		Returns an Int64 with the value of the Int `x`.
@@ -126,6 +151,27 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	public inline function toFloat():Float {
 		return Int64Native.toFloat(this);
 	}
+
+	/**
+		Returns the low 32 bits of this Int64 as an Int32.
+		The high 32 bits are discarded.
+	**/
+	public inline function toInt32():Int32
+		return cast Int64Native.toInt(this);
+
+	/**
+		Returns the low 32 bits of this Int64 as a UInt32.
+		The high 32 bits are discarded.
+	**/
+	public inline function toUInt32():UInt32
+		return cast Int64Native.toInt(this);
+
+	/**
+		Returns a UInt64 with the same bit pattern.
+		Negative Int64 values become large UInt64 values.
+	**/
+	public inline function toUInt64():UInt64
+		return cast this;
 
 	/**
 		Performs signed integer division of `dividend` by `divisor`.

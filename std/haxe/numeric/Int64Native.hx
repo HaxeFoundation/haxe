@@ -46,7 +46,7 @@ private class Int64NativeImpl {
 	}
 
 	public static inline function toInt(x:Int64Native):Int {
-		return x.low;
+		return x.low.toInt();
 	}
 
 	public static inline function isInt64(val:Dynamic):Bool {
@@ -122,7 +122,7 @@ private class Int64NativeImpl {
 	public static function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
 		// Handle special cases of 0 and 1
 		if (divisor.high == 0) {
-			switch (divisor.low) {
+			switch (divisor.low.toInt()) {
 				case 0:
 					throw "divide by zero";
 				case 1:
@@ -232,14 +232,13 @@ private class Int64NativeImpl {
 
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
 		if (divisor.high == 0) {
-			switch (divisor.low) {
+			switch (divisor.low.toInt()) {
 				case 0:
 					throw "divide by zero";
 				case 1:
 					return {quotient: make(dividend.high, dividend.low), modulus: ofInt(0)};
 			}
 		}
-
 		var modulus = make(dividend.high, dividend.low);
 		var quotient = ofInt(0);
 		var mask = ofInt(1);
@@ -312,10 +311,10 @@ private class Int64NativeImpl {
 	}
 
 	public static inline function toFloat(x:Int64Native):Float {
-		var f:Float = x.low;
+		var f:Float = x.low.toFloat();
 		if (f < 0)
 			f += 4294967296.0;
-		return (x.high : Float) * 4294967296.0 + f;
+		return x.high.toFloat() * 4294967296.0 + f;
 	}
 
 	@:ifFeature("dynamic_read.toString")

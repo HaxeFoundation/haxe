@@ -142,11 +142,11 @@ abstract class Output {
 	public function writeDouble(x:Float) {
 		var i64 = FPHelper.doubleToI64(x);
 		if (bigEndian) {
-			writeInt32(i64.high);
-			writeInt32(i64.low);
+			writeInt32(i64.high.toInt());
+			writeInt32(i64.low.toInt());
 		} else {
-			writeInt32(i64.low);
-			writeInt32(i64.high);
+			writeInt32(i64.low.toInt());
+			writeInt32(i64.high.toInt());
 		}
 	}
 

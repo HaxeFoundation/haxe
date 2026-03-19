@@ -37,7 +37,6 @@ import haxe.numeric.Int32Native;
 	values exceeding 31-bit range are auto-promoted to Float by the VM while
 	preserving correct 32-bit arithmetic.
 **/
-@:transitive
 abstract Int32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
 		this = x;
@@ -100,30 +99,6 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >= B) private static inline function gte(a:Int32, b:Int32):Bool
 		return compare(a, b) >= 0;
 
-	@:op(A < B) private static inline function ltFloat<T:Float>(a:Int32, b:T):Bool
-		return (a : Float) < b;
-
-	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:Int32):Bool
-		return a < (b : Float);
-
-	@:op(A <= B) private static inline function lteFloat<T:Float>(a:Int32, b:T):Bool
-		return (a : Float) <= b;
-
-	@:op(A <= B) private static inline function floatLte<T:Float>(a:T, b:Int32):Bool
-		return a <= (b : Float);
-
-	@:op(A > B) private static inline function gtFloat<T:Float>(a:Int32, b:T):Bool
-		return (a : Float) > b;
-
-	@:op(A > B) private static inline function floatGt<T:Float>(a:T, b:Int32):Bool
-		return a > (b : Float);
-
-	@:op(A >= B) private static inline function gteFloat<T:Float>(a:Int32, b:T):Bool
-		return (a : Float) >= b;
-
-	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:Int32):Bool
-		return a >= (b : Float);
-
 	@:op(~A) private static inline function complement(a:Int32):Int32
 		return Int32Native.complement(a);
 
@@ -145,8 +120,59 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
 		return Int32Native.ushr(a, b);
 
-	@:to public inline function toFloat():Float
+	/**
+		Converts this Int32 to a Float.
+		All Int32 values are exactly representable as Float.
+	**/
+	public inline function toFloat():Float
 		return (this : Int);
+
+	/**
+		Returns the integer value of this Int32 as a platform-native `Int`.
+	**/
+	@:to public inline function toInt():Int
+		return (this : Int);
+
+	/**
+		Returns a UInt32 with the same bit pattern.
+		Values ≥ `2^31` appear as negative in Int32 but are correct as UInt32.
+	**/
+	public inline function toUInt32():UInt32
+		return cast this;
+
+	/**
+		Returns an Int64 with this value sign-extended to 64 bits.
+	**/
+	public inline function toInt64():Int64 {
+		final n:Int32Native = this;
+		final i:Int = n;
+		return Int64.fromInt(i);
+	}
+
+	/**
+		Returns a UInt64 with this value sign-extended to 64 bits.
+		Negative Int32 values become large UInt64 values (two's complement).
+	**/
+	public inline function toUInt64():UInt64 {
+		final n:Int32Native = this;
+		final i:Int = n;
+		return UInt64.fromInt(i);
+	}
+
+	/**
+		Converts a Float to Int32.
+		The fractional part is truncated. Values outside [-2^31, 2^31-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):Int32
+		return Int32Native.clamp(Std.int(f));
+
+	/**
+		Returns an Int32 with the same bit pattern as `x`.
+		Values ≥ `2^31` in `x` appear as negative in Int32.
+	**/
+	@:from public static inline function fromUInt32(x:UInt32):Int32
+		return cast x;
 
 	/**
 		Compare `a` and `b` in signed mode.

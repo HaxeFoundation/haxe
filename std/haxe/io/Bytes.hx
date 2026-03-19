@@ -267,8 +267,8 @@ class Bytes {
 		b.writeDouble(v);
 		#else
 		var i = FPHelper.doubleToI64(v);
-		setInt32(pos, i.low);
-		setInt32(pos + 4, i.high);
+		setInt32(pos, i.low.toInt());
+		setInt32(pos + 4, i.high.toInt());
 		#end
 	}
 
@@ -364,8 +364,8 @@ class Bytes {
 		little-endian encoding).
 	**/
 	public inline function setInt64(pos:Int, v:haxe.Int64):Void {
-		setInt32(pos, v.low);
-		setInt32(pos + 4, v.high);
+		setInt32(pos, v.low.toInt());
+		setInt32(pos + 4, v.high.toInt());
 	}
 
 	/**
