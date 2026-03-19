@@ -37,6 +37,10 @@ package hl;
 		return toInt();
 	}
 
+	@:from static function fromInt64(v:haxe.Int64):I64 {
+		return cast v;
+	}
+
 	#if (hl_ver >= version("1.12.0") && !hl_legacy32)
 	@:op(a+b) function add(v:I64) : I64;
 	@:op(a-b) function sub(v:I64) : I64;
