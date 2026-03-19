@@ -37,6 +37,7 @@ import haxe.numeric.Int32Native;
 	values exceeding 31-bit range are auto-promoted to Float by the VM while
 	preserving correct 32-bit arithmetic.
 **/
+@:forward.ops
 @:transitive
 abstract Int32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
@@ -47,9 +48,6 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 
 	/** The smallest representable Int32 value: `-2^31`. **/
 	public static final MIN:Int32 = 0x80000000;
-
-	@:op(-A) private static inline function neg(x:Int32):Int32
-		return Int32Native.neg(x);
 
 	@:op(++A) private inline function preIncrement():Int32 {
 		this = Int32Native.add(this, 1);
@@ -72,21 +70,6 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		this = Int32Native.sub(this, 1);
 		return ret;
 	}
-
-	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
-		return Int32Native.add(a, b);
-
-	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
-		return Int32Native.sub(a, b);
-
-	@:op(A * B) private static inline function mul(a:Int32, b:Int32):Int32
-		return Int32Native.mul(a, b);
-
-	@:op(A / B) private static inline function div(a:Int32, b:Int32):Int32
-		return Int32Native.div(a, b);
-
-	@:op(A % B) private static inline function mod(a:Int32, b:Int32):Int32
-		return Int32Native.mod(a, b);
 
 	@:op(A == B) @:commutative private static inline function equalsInt<T:Int>(a:Int32, b:T):Bool
 		return (a : Int) == b;
@@ -135,27 +118,6 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:Int32):Bool
 		return a >= (b : Float);
-
-	@:op(~A) private static inline function complement(a:Int32):Int32
-		return Int32Native.complement(a);
-
-	@:op(A & B) private static inline function and(a:Int32, b:Int32):Int32
-		return Int32Native.and(a, b);
-
-	@:op(A | B) private static inline function or(a:Int32, b:Int32):Int32
-		return Int32Native.or(a, b);
-
-	@:op(A ^ B) private static inline function xor(a:Int32, b:Int32):Int32
-		return Int32Native.xor(a, b);
-
-	@:op(A << B) private static inline function shl(a:Int32, b:Int):Int32
-		return Int32Native.shl(a, b);
-
-	@:op(A >> B) private static inline function shr(a:Int32, b:Int):Int32
-		return Int32Native.shr(a, b);
-
-	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
-		return Int32Native.ushr(a, b);
 
 	@:to public inline function toFloat():Float
 		return (this : Int);

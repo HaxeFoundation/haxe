@@ -37,6 +37,7 @@ import haxe.numeric.Int32Native;
 	overhead is incurred. On scripting targets, values are masked to 32 bits after
 	each operation that may overflow.
 **/
+@:forward.ops
 @:transitive
 abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
@@ -47,9 +48,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 
 	/** The smallest representable UInt32 value: `0`. **/
 	public static final MIN:UInt32 = cast 0;
-
-	@:op(-A) private static inline function neg(x:UInt32):UInt32
-		return Int32Native.neg(x);
 
 	@:op(++A) private inline function preIncrement():UInt32 {
 		this = Int32Native.add(this, 1);
@@ -72,15 +70,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		this = Int32Native.sub(this, 1);
 		return ret;
 	}
-
-	@:op(A + B) private static inline function add(a:UInt32, b:UInt32):UInt32
-		return Int32Native.add(a, b);
-
-	@:op(A - B) private static inline function sub(a:UInt32, b:UInt32):UInt32
-		return Int32Native.sub(a, b);
-
-	@:op(A * B) private static inline function mul(a:UInt32, b:UInt32):UInt32
-		return Int32Native.mul(a, b);
 
 	@:op(A / B) private static inline function div(a:UInt32, b:UInt32):UInt32
 		return Int32Native.udivMod(a, b).quotient;
@@ -136,25 +125,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:UInt32):Bool
 		return a >= (b : Float);
 
-	@:op(~A) private static inline function complement(a:UInt32):UInt32
-		return Int32Native.complement(a);
-
-	@:op(A & B) private static inline function and(a:UInt32, b:UInt32):UInt32
-		return Int32Native.and(a, b);
-
-	@:op(A | B) private static inline function or(a:UInt32, b:UInt32):UInt32
-		return Int32Native.or(a, b);
-
-	@:op(A ^ B) private static inline function xor(a:UInt32, b:UInt32):UInt32
-		return Int32Native.xor(a, b);
-
-	@:op(A << B) private static inline function shl(a:UInt32, b:Int):UInt32
-		return Int32Native.shl(a, b);
-
 	@:op(A >> B) private static inline function shr(a:UInt32, b:Int):UInt32
-		return Int32Native.ushr(a, b);
-
-	@:op(A >>> B) private static inline function ushr(a:UInt32, b:Int):UInt32
 		return Int32Native.ushr(a, b);
 
 	@:to public inline function toFloat():Float

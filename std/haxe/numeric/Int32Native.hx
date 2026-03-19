@@ -25,13 +25,13 @@ package haxe.numeric;
 typedef Int32Native = Int32NativeImpl;
 
 private abstract Int32NativeImpl(Int) from Int to Int {
-	public static inline function neg(x:Int32Native):Int32Native
+	@:op(-A) public static inline function neg(x:Int32Native):Int32Native
 		return clamp(~(x : Int) + 1);
 
-	public static inline function add(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A + B) public static inline function add(a:Int32Native, b:Int32Native):Int32Native
 		return clamp((a : Int) + (b : Int));
 
-	public static inline function sub(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A - B) public static inline function sub(a:Int32Native, b:Int32Native):Int32Native
 		return clamp((a : Int) - (b : Int));
 
 	#if (js || php || python || lua)
@@ -39,7 +39,7 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 	// On JS we want to try using Math.imul, but we have to assign that function
 	// to _mul only once, or else V8 will deoptimize it.
 	// See https://github.com/HaxeFoundation/haxe/issues/5367 for benchmarks.
-	public static inline function mul(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A * B) public static inline function mul(a:Int32Native, b:Int32Native):Int32Native
 		return _mul(a, b);
 
 	static var _mul:Int32Native->Int32Native->Int32Native = untyped if (Math.imul != null)
@@ -47,58 +47,58 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 		else
 			function(a:Int32Native, b:Int32Native):Int32Native return clamp((a : Int) * ((b : Int) & 0xFFFF) + clamp((a : Int) * ((b : Int) >>> 16) << 16));
 	#else
-	public static function mul(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A * B) public static function mul(a:Int32Native, b:Int32Native):Int32Native
 		return clamp((a : Int) * ((b : Int) & 0xFFFF) + clamp((a : Int) * ((b : Int) >>> 16) << 16));
 	#end
 	#else
-	public static inline function mul(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A * B) public static inline function mul(a:Int32Native, b:Int32Native):Int32Native
 		return clamp((a : Int) * (b : Int));
 	#end
 
 	#if (lua || python || php)
-	public static #if (python || php) inline #end function complement(a:Int32Native):Int32Native
+	@:op(~A) public static #if (python || php) inline #end function complement(a:Int32Native):Int32Native
 		#if lua return lua.Boot.clampInt32(~(a : Int)); #else return clamp(~(a : Int)); #end
 	#else
-	public static inline function complement(a:Int32Native):Int32Native
+	@:op(~A) public static inline function complement(a:Int32Native):Int32Native
 		return cast ~(a : Int);
 	#end
 
-	public static inline function and(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A & B) public static inline function and(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) & (b : Int));
 
 	#if (lua || python || php)
-	public static #if (python || php) inline #end function or(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A | B) public static #if (python || php) inline #end function or(a:Int32Native, b:Int32Native):Int32Native
 		return clamp((a : Int) | (b : Int));
 	#else
-	public static inline function or(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A | B) public static inline function or(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) | (b : Int));
 	#end
 
 	#if (lua || python || php)
-	public static #if (python || php) inline #end function xor(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A ^ B) public static #if (python || php) inline #end function xor(a:Int32Native, b:Int32Native):Int32Native
 		return clamp((a : Int) ^ (b : Int));
 	#else
-	public static inline function xor(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A ^ B) public static inline function xor(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) ^ (b : Int));
 	#end
 
 	#if (php || python || lua)
-	public static inline function shl(a:Int32Native, b:Int):Int32Native
+	@:op(A << B) public static inline function shl(a:Int32Native, b:Int):Int32Native
 		return clamp((a : Int) << b);
 	#else
-	public static inline function shl(a:Int32Native, b:Int):Int32Native
+	@:op(A << B) public static inline function shl(a:Int32Native, b:Int):Int32Native
 		return cast((a : Int) << b);
 	#end
 
 	#if (lua || python || php)
-	public static #if (python || php) inline #end function shr(a:Int32Native, b:Int):Int32Native
+	@:op(A >> B) public static #if (python || php) inline #end function shr(a:Int32Native, b:Int):Int32Native
 		return clamp((a : Int) >> b);
 	#else
-	public static inline function shr(a:Int32Native, b:Int):Int32Native
+	@:op(A >> B) public static inline function shr(a:Int32Native, b:Int):Int32Native
 		return cast((a : Int) >> b);
 	#end
 
-	public static inline function ushr(a:Int32Native, b:Int):Int32Native
+	@:op(A >>> B) public static inline function ushr(a:Int32Native, b:Int):Int32Native
 		return cast((a : Int) >>> b);
 
 	public static inline function compare(a:Int32Native, b:Int32Native):Int {
@@ -113,10 +113,10 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
 	}
 
-	public static inline function div(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A / B) public static inline function div(a:Int32Native, b:Int32Native):Int32Native
 		return clamp(Std.int((a : Int) / (b : Int)));
 
-	public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
+	@:op(A % B) public static inline function mod(a:Int32Native, b:Int32Native):Int32Native
 		return cast((a : Int) % (b : Int));
 
 	/**

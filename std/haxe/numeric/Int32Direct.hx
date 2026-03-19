@@ -31,40 +31,40 @@ package haxe.numeric;
 	in the target-specific overrides.
 **/
 abstract Int32Direct(Int) from Int to Int {
-	public static inline function neg(x:Int32Direct):Int32Direct
+	@:op(-A) public static inline function neg(x:Int32Direct):Int32Direct
 		// Use ~x+1 (two's complement) rather than unary minus.
 		// On CPPIA, unary minus on Int can return a value wider than 32 bits,
 		// while bitwise NOT and addition stay within the native 32-bit int range.
 		return cast(~(x : Int) + 1);
 
-	public static inline function add(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A + B) public static inline function add(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) + (b : Int));
 
-	public static inline function sub(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A - B) public static inline function sub(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) - (b : Int));
 
-	public static inline function mul(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A * B) public static inline function mul(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) * (b : Int));
 
-	public static inline function complement(a:Int32Direct):Int32Direct
+	@:op(~A) public static inline function complement(a:Int32Direct):Int32Direct
 		return cast ~(a : Int);
 
-	public static inline function and(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A & B) public static inline function and(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) & (b : Int));
 
-	public static inline function or(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A | B) public static inline function or(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) | (b : Int));
 
-	public static inline function xor(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A ^ B) public static inline function xor(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) ^ (b : Int));
 
-	public static inline function shl(a:Int32Direct, b:Int):Int32Direct
+	@:op(A << B) public static inline function shl(a:Int32Direct, b:Int):Int32Direct
 		return cast((a : Int) << b);
 
-	public static inline function shr(a:Int32Direct, b:Int):Int32Direct
+	@:op(A >> B) public static inline function shr(a:Int32Direct, b:Int):Int32Direct
 		return cast((a : Int) >> b);
 
-	public static inline function ushr(a:Int32Direct, b:Int):Int32Direct
+	@:op(A >>> B) public static inline function ushr(a:Int32Direct, b:Int):Int32Direct
 		return cast((a : Int) >>> b);
 
 	public static inline function compare(a:Int32Direct, b:Int32Direct):Int {
@@ -82,10 +82,10 @@ abstract Int32Direct(Int) from Int to Int {
 	public inline function toFloat():Float
 		return this;
 
-	public static inline function div(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A / B) public static inline function div(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast(Std.int((a : Int) / (b : Int)));
 
-	public static inline function mod(a:Int32Direct, b:Int32Direct):Int32Direct
+	@:op(A % B) public static inline function mod(a:Int32Direct, b:Int32Direct):Int32Direct
 		return cast((a : Int) % (b : Int));
 
 	/**

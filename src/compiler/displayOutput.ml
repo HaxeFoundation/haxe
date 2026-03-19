@@ -1,17 +1,11 @@
 open Globals
 open Ast
 open Common
-open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem
 open DisplayException
-open Type
 open DisplayTypes
 open Genjson
-
-(* New JSON stuff *)
-
-open Json
 
 (* Mode processing *)
 

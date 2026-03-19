@@ -342,6 +342,12 @@
 		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
+		"name": "ForwardOps",
+		"metadata": ":forward.ops",
+		"doc": "Forwards operator overloads to underlying type.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ForwardVariance",
 		"metadata": ":forward.variance",
 		"doc": "Forwards variance unification to underlying type.",

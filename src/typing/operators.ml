@@ -410,7 +410,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 	| OpAssignOp _ ->
 		die "" __LOC__
 
-let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
+let rec find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
@@ -530,15 +530,54 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	else
 		find (loop op)
 
+(** If [a] has @:forward.ops, look up the operator on the underlying abstract.
+    When a match is found, retype the result to [TAbstract(a, tl)]. *)
+and forward_binop_to_underlying ctx op e1 e2 a tl left is_assign_op p =
+	if not (Meta.has Meta.ForwardOps a.a_meta) then raise Not_found;
+	let map_t = apply_params a.a_params tl in
+	let underlying = follow (map_t a.a_this) in
+	begin match underlying with
+	| TAbstract({a_impl = Some c2} as a2, tl2) ->
+		(* Retype the owner expression to the underlying abstract so that
+		   static @:op methods (is_impl=false) match via type_eq EqStrict. *)
+		let ta2 = TAbstract(a2, tl2) in
+		let e1',e2' = if left then
+			{ e1 with etype = ta2 },e2
+		else
+			e1,{ e2 with etype = ta2 }
+		in
+		let result = find_abstract_binop_overload ctx op e1' e2' a2 c2 tl2 left is_assign_op p in
+		let ta = TAbstract(a, tl) in
+		(* Retype the result from the underlying abstract type to the outer abstract type *)
+		begin match result with
+		| BinopResult.BinopNormal bn ->
+			BinopResult.BinopNormal { bn with binop_type = ta }
+		| BinopResult.BinopSpecial(e, needs_assign) ->
+			BinopResult.BinopSpecial({ e with etype = ta }, needs_assign)
+		end
+	| _ ->
+		raise Not_found
+	end
+
 let try_abstract_binop_overloads ctx op e1 e2 is_assign_op p =
 	try
 		begin match follow e1.etype with
 			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl true is_assign_op p
 			| _ -> raise Not_found
 		end
-	with Not_found ->
+	with Not_found -> try
 		begin match follow e2.etype with
 			| TAbstract({a_impl = Some c} as a,tl) -> find_abstract_binop_overload ctx op e1 e2 a c tl false is_assign_op p
+			| _ -> raise Not_found
+		end
+	with Not_found -> try
+		begin match follow e1.etype with
+			| TAbstract(a,tl) -> forward_binop_to_underlying ctx op e1 e2 a tl true is_assign_op p
+			| _ -> raise Not_found
+		end
+	with Not_found ->
+		begin match follow e2.etype with
+			| TAbstract(a,tl) -> forward_binop_to_underlying ctx op e1 e2 a tl false is_assign_op p
 			| _ -> raise Not_found
 		end
 
@@ -890,6 +929,21 @@ let type_unop ctx op flag e with_type p =
 		| _ ->
 			raise Not_found
 	in
+	let try_abstract_unop_forward e = match follow e.etype with
+		| TAbstract (a,tl) when Meta.has Meta.ForwardOps a.a_meta ->
+			let map_t = apply_params a.a_params tl in
+			begin match follow (map_t a.a_this) with
+			| TAbstract ({a_impl = Some _} as a2,tl2) ->
+				let e2 = { e with etype = TAbstract(a2, tl2) } in
+				let result = try_abstract_unop_overloads e2 in
+				(* Retype the result to the outer abstract type *)
+				{ result with etype = TAbstract(a, tl) }
+			| _ ->
+				raise Not_found
+			end
+		| _ ->
+			raise Not_found
+	in
 	let unexpected_spread p =
 		raise_typing_error "Spread unary operator is only allowed for unpacking the last argument in a call with rest arguments" p
 	in
@@ -925,6 +979,8 @@ let type_unop ctx op flag e with_type p =
 	let find_overload_or_make e =
 		try
 			try_abstract_unop_overloads e
+		with Not_found -> try
+			try_abstract_unop_forward e
 		with Not_found ->
 			make e
 	in

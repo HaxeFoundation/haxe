@@ -92,46 +92,46 @@ private abstract Int64NativeImpl(hl.I64) from hl.I64 to hl.I64 {
 		return ((b : hl.I64) < 0) ? -1 : compare(a, b);
 	}
 
-	public static inline function neg(x:Int64Native):Int64Native
+	@:op(-A) public static inline function neg(x:Int64Native):Int64Native
 		return cast -(x : hl.I64);
 
-	public static inline function add(a:Int64Native, b:Int64Native):Int64Native
+	@:op(A + B) public static inline function add(a:Int64Native, b:Int64Native):Int64Native
 		return cast((a : hl.I64) + (b : hl.I64));
 
-	public static inline function sub(a:Int64Native, b:Int64Native):Int64Native
+	@:op(A - B) public static inline function sub(a:Int64Native, b:Int64Native):Int64Native
 		return cast((a : hl.I64) - (b : hl.I64));
 
-	public static inline function mul(a:Int64Native, b:Int64Native):Int64Native
+	@:op(A * B) public static inline function mul(a:Int64Native, b:Int64Native):Int64Native
 		return cast((a : hl.I64) * (b : hl.I64));
 
 	public static inline function divMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native}
 		return {quotient: cast((dividend : hl.I64) / (divisor : hl.I64)), modulus: cast((dividend : hl.I64) % (divisor : hl.I64))};
 
-	public static inline function eq(a:Int64Native, b:Int64Native):Bool
+	@:op(A == B) public static inline function eq(a:Int64Native, b:Int64Native):Bool
 		return (a : hl.I64) == (b : hl.I64);
 
-	public static inline function neq(a:Int64Native, b:Int64Native):Bool
+	@:op(A != B) public static inline function neq(a:Int64Native, b:Int64Native):Bool
 		return (a : hl.I64) != (b : hl.I64);
 
-	public static inline function complement(x:Int64Native):Int64Native
+	@:op(~A) public static inline function complement(x:Int64Native):Int64Native
 		return cast ~(x : hl.I64);
 
-	public static inline function and(a:Int64Native, b:Int64Native):Int64Native
+	@:op(A & B) public static inline function and(a:Int64Native, b:Int64Native):Int64Native
 		return cast((a : hl.I64) & (b : hl.I64));
 
-	public static inline function or(a:Int64Native, b:Int64Native):Int64Native
+	@:op(A | B) public static inline function or(a:Int64Native, b:Int64Native):Int64Native
 		return cast((a : hl.I64) | (b : hl.I64));
 
-	public static inline function xor(a:Int64Native, b:Int64Native):Int64Native
+	@:op(A ^ B) public static inline function xor(a:Int64Native, b:Int64Native):Int64Native
 		return cast((a : hl.I64) ^ (b : hl.I64));
 
-	public static inline function shl(a:Int64Native, b:Int):Int64Native
+	@:op(A << B) public static inline function shl(a:Int64Native, b:Int):Int64Native
 		return cast((a : hl.I64) << b);
 
-	public static inline function shr(a:Int64Native, b:Int):Int64Native
+	@:op(A >> B) public static inline function shr(a:Int64Native, b:Int):Int64Native
 		return cast((a : hl.I64) >> b);
 
-	public static inline function ushr(a:Int64Native, b:Int):Int64Native
+	@:op(A >>> B) public static inline function ushr(a:Int64Native, b:Int):Int64Native
 		return cast((a : hl.I64) >>> b);
 
 	public inline function toString():String
