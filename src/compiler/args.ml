@@ -623,6 +623,10 @@ let expand_args args =
 		display_arg = !display_arg;
 	}
 
+let expand_args args =
+	let curdir = Unix.getcwd () in
+	Std.finally (fun () -> Unix.chdir curdir) expand_args args
+
 let string_of_request_args (req : request_args) : string =
 	let quote s =
 		(* quote arguments that contain whitespace for clearer output *)
