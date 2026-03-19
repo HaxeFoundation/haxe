@@ -12,7 +12,7 @@ class TestUInt32 extends unit.Test {
 	// --- Constants ---
 	function testMinMax() {
 		// MIN is 0
-		eq(UInt32.toInt(ZERO), 0);
+		eq(ZERO.toInt(), 0);
 		eq(Std.string(ZERO), "0");
 
 		// MAX is 4294967295 (2^32 - 1)
@@ -68,7 +68,7 @@ class TestUInt32 extends unit.Test {
 	function testAddOverflow() {
 		// MAX + 1 wraps to 0
 		var r = MAX + ONE;
-		eq(UInt32.toInt(r), 0);
+		eq(r.toInt(), 0);
 		eq(r.toString(), "0");
 	}
 
