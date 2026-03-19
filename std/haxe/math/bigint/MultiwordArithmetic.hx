@@ -30,7 +30,7 @@ import haxe.ds.Vector;
 /* Original code courtesy Chuck Batson (github.com/cbatson) */
 /**
 	A collection of static, low-level arithmetic functions that operate directly on
-	`Vector<Int>` representations of large numbers.
+	`Vector<Int32>` representations of large numbers.
 **/
 @:allow(haxe.math.bigint)
 class MultiwordArithmetic {
@@ -40,7 +40,7 @@ class MultiwordArithmetic {
 		@param length The number of words in the value.
 		@return `true` if the value is zero.
 	**/
-	public static function isZero(value:Vector<Int>, length:Int):Bool {
+	public static function isZero(value:Vector<Int32>, length:Int):Bool {
 		if (length < 1) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -58,7 +58,7 @@ class MultiwordArithmetic {
 		@param length The number of words in the value.
 		@return `true` if the most significant bit is set.
 	**/
-	public static inline function isNegative(value:Vector<Int>, length:Int):Bool {
+	public static inline function isNegative(value:Vector<Int32>, length:Int):Bool {
 		return value.get(length - 1) < 0;
 	}
 
@@ -68,7 +68,7 @@ class MultiwordArithmetic {
 		@param length The number of words in the value.
 		@return The minimal number of words needed to represent the value.
 	**/
-	public static function getLengthUnsigned(value:Vector<Int>, length:Int):Int {
+	public static function getLengthUnsigned(value:Vector<Int32>, length:Int):Int {
 		if (length < 1) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -88,7 +88,7 @@ class MultiwordArithmetic {
 		@param input The source vector.
 		@param inputLength The length of the input.
 	**/
-	public static function extendUnsigned(result:Vector<Int>, resultLength:Int, input:Vector<Int>, inputLength:Int):Void {
+	public static function extendUnsigned(result:Vector<Int32>, resultLength:Int, input:Vector<Int32>, inputLength:Int):Void {
 		if (input == result) {
 			if (resultLength > inputLength) {
 				for (i in inputLength...resultLength) {
@@ -117,7 +117,7 @@ class MultiwordArithmetic {
 
 		Ok for `result` and `operand` to be the same object.
 	**/
-	public static function negate(result:Vector<Int>, operand:Vector<Int>, length:Int):Bool {
+	public static function negate(result:Vector<Int32>, operand:Vector<Int32>, length:Int):Bool {
 		var c:Int = 1;
 		var x:Int = 0;
 		var z:Int = 0;
@@ -139,7 +139,7 @@ class MultiwordArithmetic {
 
 		Returns the "carry" value of either 0 or 1.
 	**/
-	public static function add(result:Vector<Int>, operand1:Vector<Int>, operand2:Vector<Int>, length:Int):Int {
+	public static function add(result:Vector<Int32>, operand1:Vector<Int32>, operand2:Vector<Int32>, length:Int):Int {
 		if ((length < 1) || (result.length < length) || (operand1.length < length) || (operand2.length < length)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -163,7 +163,7 @@ class MultiwordArithmetic {
 
 		Returns the "borrow" value of either 0 or 1.
 	**/
-	public static function subtract(result:Vector<Int>, operand1:Vector<Int>, operand2:Vector<Int>, length:Int):Int {
+	public static function subtract(result:Vector<Int32>, operand1:Vector<Int32>, operand2:Vector<Int32>, length:Int):Int {
 		if ((length < 1) || (result.length < length) || (operand1.length < length) || (operand2.length < length)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -189,9 +189,9 @@ class MultiwordArithmetic {
 		or `operand2`; however, `operand1` and `operand2` may be the
 		same object.
 	**/
-	public static function multiplyIntUnsigned(result:Vector<Int>, operand1:Vector<Int>, operand1Length:Int, operand2:Int):Void {
+	public static function multiplyIntUnsigned(result:Vector<Int32>, operand1:Vector<Int32>, operand1Length:Int, operand2:Int):Void {
 		// TODO: Optimize.
-		var op2 = new Vector<Int>(1);
+		var op2 = new Vector<Int32>(1);
 		op2.set(0, operand2);
 		multiplyUnsigned(result, operand1, operand1Length, op2, 1);
 	}
@@ -207,7 +207,7 @@ class MultiwordArithmetic {
 		or `operand2`; however, `operand1` and `operand2` may be the
 		same object.
 	**/
-	public static function multiplyUnsigned(result:Vector<Int>, operand1:Vector<Int>, operand1Length:Int, operand2:Vector<Int>, operand2Length:Int):Void {
+	public static function multiplyUnsigned(result:Vector<Int32>, operand1:Vector<Int32>, operand1Length:Int, operand2:Vector<Int32>, operand2Length:Int):Void {
 		// Implements Figure 8-1 (p. 172) from "Hacker's Delight", Second Edition; Henry S. Warren, Jr.; 2013.
 
 		if ((operand1 == result) || (operand2 == result)) {
@@ -276,10 +276,10 @@ class MultiwordArithmetic {
 
 		The results are unspecified if `divisor` is negative.
 	**/
-	public static function divideIntUnsigned(dividend:Vector<Int>, dividendLength:Int, divisor:Int, quotientOut:Vector<Int>, work:Vector<Int>):Int {
+	public static function divideIntUnsigned(dividend:Vector<Int32>, dividendLength:Int, divisor:Int, quotientOut:Vector<Int32>, work:Vector<Int32>):Int {
 		// TODO: Consider optimizing this case.
-		var remainder = new Vector<Int>(1);
-		var vDivisor = new Vector<Int>(1);
+		var remainder = new Vector<Int32>(1);
+		var vDivisor = new Vector<Int32>(1);
 		vDivisor.set(0, divisor);
 		divideUnsigned(dividend, dividendLength, vDivisor, 1, quotientOut, remainder, work);
 		return remainder.get(0);
@@ -309,8 +309,8 @@ class MultiwordArithmetic {
 		`dividend` and `divisor` are not modified, unless they
 		reference one of the outputs.
 	**/
-	public static function divideUnsigned(dividend:Vector<Int>, dividendLength:Int, divisor:Vector<Int>, divisorLength:Int, quotientOut:Vector<Int>,
-			remainderOut:Vector<Int>, work:Vector<Int>):Void {
+	public static function divideUnsigned(dividend:Vector<Int32>, dividendLength:Int, divisor:Vector<Int32>, divisorLength:Int, quotientOut:Vector<Int32>,
+			remainderOut:Vector<Int32>, work:Vector<Int32>):Void {
 		if ((quotientOut == null) || (work == null) || (quotientOut == remainderOut)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -360,7 +360,7 @@ class MultiwordArithmetic {
 		}*/
 
 		if (dividendLength < 2) {
-			switch (dividend.get(0)) {
+			switch ((dividend.get(0) : Int)) {
 				case 0:
 					setZero(quotientOut, quotientLength);
 					if (remainderOut != null) {
@@ -494,7 +494,7 @@ class MultiwordArithmetic {
 
 		`result` and `input` may be the same object.
 	**/
-	public static function arithmeticShiftRight(result:Vector<Int>, input:Vector<Int>, length:Int, shift:Int):Void {
+	public static function arithmeticShiftRight(result:Vector<Int32>, input:Vector<Int32>, length:Int, shift:Int):Void {
 		if ((length < 1) || (result.length < length) || (input.length < length)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -520,7 +520,7 @@ class MultiwordArithmetic {
 
 		`result` and `input` may be the same object.
 	**/
-	public static function logicalShiftRight(result:Vector<Int>, input:Vector<Int>, length:Int, shift:Int):Void {
+	public static function logicalShiftRight(result:Vector<Int32>, input:Vector<Int32>, length:Int, shift:Int):Void {
 		if ((length < 1) || (result.length < length) || (input.length < length)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -546,7 +546,7 @@ class MultiwordArithmetic {
 
 		`result` and `input` may be the same object.
 	**/
-	public static function shiftLeft(result:Vector<Int>, input:Vector<Int>, length:Int, shift:Int):Void {
+	public static function shiftLeft(result:Vector<Int32>, input:Vector<Int32>, length:Int, shift:Int):Void {
 		if ((length < 1) || (result.length < length) || (input.length < length)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -570,7 +570,7 @@ class MultiwordArithmetic {
 		returns 1 if `a > b`; otherwise
 		returns 0 (`a == b`).
 	**/
-	public static function compareSigned(a:Vector<Int>, b:Vector<Int>, length:Int):Int {
+	public static function compareSigned(a:Vector<Int32>, b:Vector<Int32>, length:Int):Int {
 		if (a != b) {
 			var ah:Int = a.get(length - 1);
 			var bh:Int = b.get(length - 1);
@@ -590,7 +590,7 @@ class MultiwordArithmetic {
 		returns 1 if `a > b`; otherwise
 		returns 0 (`a == b`).
 	**/
-	public static function compareUnsigned(a:Vector<Int>, b:Vector<Int>, length:Int):Int {
+	public static function compareUnsigned(a:Vector<Int32>, b:Vector<Int32>, length:Int):Int {
 		if (a != b) {
 			var an:Int, bn:Int, d:Int;
 			var x:Int32 = -2147483648;
@@ -611,7 +611,7 @@ class MultiwordArithmetic {
 		@param dest The destination vector.
 		@param length The number of words to zero out.
 	**/
-	public static function setZero(dest:Vector<Int>, length:Int):Void {
+	public static function setZero(dest:Vector<Int32>, length:Int):Void {
 		if (dest.length < length) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -626,7 +626,7 @@ class MultiwordArithmetic {
 		@param length The total length of the destination.
 		@param value The integer value to set.
 	**/
-	public static function setFromIntUnsigned(dest:Vector<Int>, length:Int, value:Int):Void {
+	public static function setFromIntUnsigned(dest:Vector<Int32>, length:Int, value:Int):Void {
 		if (dest.length < length) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -643,7 +643,7 @@ class MultiwordArithmetic {
 		@param value The hexadecimal string.
 		@return `true` on success.
 	**/
-	public static function setFromHexUnsigned(dest:Vector<Int>, length:Int, value:String):Bool {
+	public static function setFromHexUnsigned(dest:Vector<Int32>, length:Int, value:String):Bool {
 		if ((value == null) || (dest == null)) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -711,7 +711,7 @@ class MultiwordArithmetic {
 		@param length The number of words.
 		@return The hexadecimal string representation.
 	**/
-	public static function toHex(input:Vector<Int>, length:Int):String {
+	public static function toHex(input:Vector<Int32>, length:Int):String {
 		var sb = new StringBuf();
 		while (--length >= 0) {
 			var v = input.get(length);
@@ -728,9 +728,9 @@ class MultiwordArithmetic {
 	/**
 		Get the value in decimal form.
 	**/
-	public static function toDecimalSigned(value:Vector<Int>, length:Int):String {
+	public static function toDecimalSigned(value:Vector<Int32>, length:Int):String {
 		var sb = new StringBuf();
-		var work = new Vector<Int>(length);
+		var work = new Vector<Int32>(length);
 		if (isNegative(value, length)) {
 			negate(work, value, length);
 			sb.addChar(45); // '-'
@@ -747,10 +747,10 @@ class MultiwordArithmetic {
 		@param radix The base for the conversion.
 		@return The string representation.
 	**/
-	public static function toBaseString(value : Vector<Int>, length : Int, radix:Int) : String
+	public static function toBaseString(value : Vector<Int32>, length : Int, radix:Int) : String
 	{
 		var sb = new StringBuf();
-		var work = new Vector<Int>(length);
+		var work = new Vector<Int32>(length);
 		if (isNegative(value, length))
 		{
 			negate(work, value, length);
@@ -766,9 +766,9 @@ class MultiwordArithmetic {
 	/**
 		Get the value in decimal form.
 	**/
-	public static function toDecimalUnsigned(value:Vector<Int>, length:Int):String {
+	public static function toDecimalUnsigned(value:Vector<Int32>, length:Int):String {
 		var sb = new StringBuf();
-		var work = new Vector<Int>(length);
+		var work = new Vector<Int32>(length);
 		copy(work, value, length);
 		return _toDecimal(sb, work, length);
 	}
@@ -779,7 +779,7 @@ class MultiwordArithmetic {
 		@param source The source vector.
 		@param length The number of words to copy.
 	**/
-	public static function copy(dest:Vector<Int>, source:Vector<Int>, length:Int):Void {
+	public static function copy(dest:Vector<Int32>, source:Vector<Int32>, length:Int):Void {
 		if (dest.length < length) {
 			throw new BigIntException(BigIntError.INVALID_ARGUMENT);
 		}
@@ -793,7 +793,7 @@ class MultiwordArithmetic {
 		@param index The index of the bit to get.
 		@return 1 if the bit is set, 0 otherwise.
 	**/
-	public static function getBitSigned(value:Vector<Int>, length:Int, index:Int):Int {
+	public static function getBitSigned(value:Vector<Int32>, length:Int, index:Int):Int {
 		var d:Int = index >> 5;
 		if (d >= length) {
 			return value.get(length - 1) >>> 31;
@@ -806,7 +806,7 @@ class MultiwordArithmetic {
 	//-----------------------------------------------------------------------
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static function _lsl32(output:Vector<Int>, outputOffset:Int, input:Vector<Int>, inputSize:Int, shift:Int):Void {
+	private static function _lsl32(output:Vector<Int32>, outputOffset:Int, input:Vector<Int32>, inputSize:Int, shift:Int):Void {
 		var x:Int = input.get(inputSize - 1);
 		var r:Int = 32 - shift;
 		var y:Int;
@@ -822,7 +822,7 @@ class MultiwordArithmetic {
 	// assumes 0 < shift < 32
 	// ok if output == input
 	// note this writes inputSize + 1 words to output
-	private static function _lsl32x(output:Vector<Int>, outputOffset:Int, input:Vector<Int>, inputSize:Int, shift:Int):Void {
+	private static function _lsl32x(output:Vector<Int32>, outputOffset:Int, input:Vector<Int32>, inputSize:Int, shift:Int):Void {
 		var x:Int = 0;
 		var r:Int = 32 - shift;
 		var y:Int;
@@ -838,7 +838,7 @@ class MultiwordArithmetic {
 
 	// assumes 0 < shiftBits < 32
 	// assumes shiftDigits < length
-	private static function _asr32(result:Vector<Int>, input:Vector<Int>, length:Int, shiftDigits:Int, shiftBits:Int):Void {
+	private static function _asr32(result:Vector<Int32>, input:Vector<Int32>, length:Int, shiftDigits:Int, shiftBits:Int):Void {
 		var r:Int = 32 - shiftBits;
 		var i:Int = 0;
 		while (i < length - shiftDigits - 1) {
@@ -850,7 +850,7 @@ class MultiwordArithmetic {
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static function _lsr32(output:Vector<Int>, input:Vector<Int>, inputSize:Int, inputOffset:Int, shift:Int):Void {
+	private static function _lsr32(output:Vector<Int32>, input:Vector<Int32>, inputSize:Int, inputOffset:Int, shift:Int):Void {
 		var r:Int = 32 - shift;
 		var i:Int = 0;
 		while (i < inputSize - 1) {
@@ -861,16 +861,16 @@ class MultiwordArithmetic {
 	}
 
 	@:noCompletion
-	private static function _toDecimal(sb:StringBuf, value:Vector<Int>, length:Int):String {
+	private static function _toDecimal(sb:StringBuf, value:Vector<Int32>, length:Int):String {
 		return _toBase(sb,value,length,10);
 	}
 	
 	@:noCompletion
-	private static function _toBase(sb : StringBuf, value : Vector<Int>, length : Int, radix:Int) : String
+	private static function _toBase(sb : StringBuf, value : Vector<Int32>, length : Int, radix:Int) : String
 	{
 		length = getLengthUnsigned(value, length);
-		var digits = new Vector<Int>(length * Math.ceil(Math.log(4294967296)/Math.log(radix)));
-		var work = new Vector<Int>(length + 1 + 1);
+		var digits = new Vector<Int32>(length * Math.ceil(Math.log(4294967296)/Math.log(radix)));
+		var work = new Vector<Int32>(length + 1 + 1);
 		var pos : Int = digits.length;
 		var r : Int;
 		do
@@ -890,11 +890,11 @@ class MultiwordArithmetic {
 		return sb.toString();
 	}
 
-	private static inline function getShort(v:Vector<Int>, n:Int):Int {
+	private static inline function getShort(v:Vector<Int32>, n:Int):Int {
 		return (v.get(n >> 1) >> ((n & 1) << 4)) & 0xffff;
 	}
 
-	private static inline function setShort(a:Vector<Int>, n:Int, v:Int32):Void {
+	private static inline function setShort(a:Vector<Int32>, n:Int, v:Int32):Void {
 		var s:Int = (n & 1) << 4;
 		var t:Int = a.get(n >> 1) & (~0xffff >>> s);
 		a.set(n >> 1, t | ((v & 0xffff) << s));

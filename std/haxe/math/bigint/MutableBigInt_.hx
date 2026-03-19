@@ -151,7 +151,7 @@ class MutableBigInt_ extends BigInt_ {
 		@param value The `Vector` containing the integer words.
 		@param length The number of words to use from the vector.
 	**/
-	public function setFromUnsignedInts(value:Vector<Int>, length:Int = 0):Void {
+	public function setFromUnsignedInts(value:Vector<Int32>, length:Int = 0):Void {
 		if (length <= 0) {
 			length = value.length;
 		}
@@ -169,7 +169,7 @@ class MutableBigInt_ extends BigInt_ {
 		@param sourcePosition The starting position in the source vector.
 		@param length The number of words to copy.
 	**/
-	public function setFromVector(source : Vector<Int>, sourcePosition:Int, length : Int ) : Void
+	public function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
 	{
 		ensureCapacity(length , false);
 		Vector.blit(source, sourcePosition, m_data, 0, length);
@@ -363,7 +363,7 @@ class MutableBigInt_ extends BigInt_ {
 		if (preserve && (m_data != null) && (m_count > 0)) {
 			n = (m_count > n) ? m_count : n;
 			n += s_debugAllocationPadding;
-			var newData = new Vector<Int>(n);
+			var newData = new Vector<Int32>(n);
 			for (i in 0...m_count) {
 				newData.set(i, m_data.get(i));
 			}
@@ -373,7 +373,7 @@ class MutableBigInt_ extends BigInt_ {
 			m_data = newData;
 		} else {
 			n += s_debugAllocationPadding;
-			m_data = new Vector<Int>(n);
+			m_data = new Vector<Int32>(n);
 			for (i in 0...n) {
 				m_data.set(i, 0xdeadbeef);
 			}
@@ -388,13 +388,13 @@ class MutableBigInt_ extends BigInt_ {
 		if ((!m_owned) || (m_data == null) || (n > m_data.length)) {
 			n = BigIntHelper.clp2(n);
 			if (preserve && (m_data != null)) {
-				var newData = new Vector<Int>(n);
+				var newData = new Vector<Int32>(n);
 				for (i in 0...m_count) {
 					newData.set(i, m_data.get(i));
 				}
 				m_data = newData;
 			} else {
-				m_data = new Vector<Int>(n);
+				m_data = new Vector<Int32>(n);
 				for(i in 0...n) {
 					m_data.set(i,0);
 				}

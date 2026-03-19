@@ -711,7 +711,7 @@ class BigIntArithmetic {
 	//-----------------------------------------------------------------------
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static inline function asl32(output:Vector<Int>, outputOffset:Int, input:Vector<Int>, inputSize:Int, shift:Int):Void {
+	private static inline function asl32(output:Vector<Int32>, outputOffset:Int, input:Vector<Int32>, inputSize:Int, shift:Int):Void {
 		var x:Int = input.get(inputSize - 1) >> 31; // sign extend
 		var r:Int = 32 - shift;
 		var y:Int;
@@ -727,7 +727,7 @@ class BigIntArithmetic {
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static inline function lsl32(output:Vector<Int>, outputOffset:Int, input:Vector<Int>, inputSize:Int, shift:Int):Void {
+	private static inline function lsl32(output:Vector<Int32>, outputOffset:Int, input:Vector<Int32>, inputSize:Int, shift:Int):Void {
 		var x:Int = 0;
 		var r:Int = 32 - shift;
 		var y:Int;
@@ -743,7 +743,7 @@ class BigIntArithmetic {
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static inline function lsr32(output:Vector<Int>, input:Vector<Int>, inputSize:Int, inputOffset:Int, shift:Int):Void {
+	private static inline function lsr32(output:Vector<Int32>, input:Vector<Int32>, inputSize:Int, inputOffset:Int, shift:Int):Void {
 		var r:Int = 32 - shift;
 		var i:Int = 0;
 		while (i < inputSize - 1) {
@@ -753,7 +753,7 @@ class BigIntArithmetic {
 		output.set(i, input.get(inputOffset + i) >>> shift);
 	}
 
-	private static inline function copy(output:Vector<Int>, outputOffset:Int, input:Vector<Int>, inputOffset:Int, length:Int):Void {
+	private static inline function copy(output:Vector<Int32>, outputOffset:Int, input:Vector<Int32>, inputOffset:Int, length:Int):Void {
 		for (i in 0...length) {
 			output.set(outputOffset + i, input.get(inputOffset + i));
 		}

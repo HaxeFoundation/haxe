@@ -48,7 +48,7 @@ abstract UInt32Array(UInt32ArrayData) {
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:UInt):UInt {
-		this[index] = haxe.UInt32.toInt(value);
+		this[index] = value.toInt();
 		return value;
 	}
 

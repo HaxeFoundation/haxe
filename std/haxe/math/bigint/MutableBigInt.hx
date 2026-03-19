@@ -92,7 +92,7 @@ abstract MutableBigInt(MutableBigInt_) {
 		@param output The vector to write the integer words into.
 		@return The number of words written.
 	**/
-	public inline function toInts(output:Vector<Int>):Int {
+	public inline function toInts(output:Vector<Int32>):Int {
 		return BigInt_.toInts1(this, output);
 	}
 
@@ -110,7 +110,7 @@ abstract MutableBigInt(MutableBigInt_) {
 		@param value The vector of integer words.
 		@param length The number of words to use. If 0, uses the whole vector.
 	**/
-	public inline function setFromUnsignedInts(value:Vector<Int>, length:Int = 0):Void {
+	public inline function setFromUnsignedInts(value:Vector<Int32>, length:Int = 0):Void {
 		var a:MutableBigInt_ = this;
 		a.setFromUnsignedInts(value, length);
 	}
@@ -121,7 +121,7 @@ abstract MutableBigInt(MutableBigInt_) {
 		@param sourcePosition The starting position in the source vector.
 		@param length The number of words to copy.
 	**/
-	public inline function setFromVector(source : Vector<Int>, sourcePosition:Int, length : Int ) : Void
+	public inline function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
 	{
 		var a:MutableBigInt_ = this;
 		a.setFromVector(source,sourcePosition, length);

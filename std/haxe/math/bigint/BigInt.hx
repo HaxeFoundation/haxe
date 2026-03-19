@@ -147,7 +147,7 @@ abstract BigInt(BigInt_) {
 		@param output The vector to write the integer words into.
 		@return The number of words written to the vector.
 	**/
-	public inline function toInts(output:Vector<Int>):Int {
+	public inline function toInts(output:Vector<Int32>):Int {
 		return BigInt_.toInts1(this, output);
 	}
 
@@ -203,7 +203,7 @@ abstract BigInt(BigInt_) {
 		@param length The number of words to use from the vector. If 0, uses the whole vector.
 		@return A new `BigInt` instance.
 	**/
-	public static inline function fromUnsignedInts(value:Vector<Int>, length:Int = 0):BigInt {
+	public static inline function fromUnsignedInts(value:Vector<Int32>, length:Int = 0):BigInt {
 		return new BigInt(BigInt_.fromUnsignedInts(value, length));
 	}
 

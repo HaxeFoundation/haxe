@@ -182,7 +182,7 @@ class FPHelper {
 		helper.position = 0;
 		helper.writeFloat(f);
 		helper.position = 0;
-		return helper.readUnsignedInt();
+		return helper.readUnsignedInt().toInt();
 		#elseif js
 		helper.setFloat32(0, f, true);
 		return helper.getInt32(0, true);

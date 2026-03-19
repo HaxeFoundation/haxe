@@ -45,7 +45,11 @@ class BytesOutput extends Output {
 	}
 
 	inline function get_length():Int {
+		#if flash
+		return b.length.toInt();
+		#else
 		return b.length;
+		#end
 	}
 
 	override function writeByte(c) {

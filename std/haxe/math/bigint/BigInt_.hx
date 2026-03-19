@@ -33,7 +33,7 @@ import haxe.io.Bytes;
 class BigInt_ {
 
 	private var m_count:Int = 0;
-	private var m_data:Vector<Int>;
+	private var m_data:Vector<Int32>;
 
 	private static inline var s_firstCachedValue:Int = -16;
 	private static inline var s_lastCachedValue:Int = 16;
@@ -426,7 +426,7 @@ class BigInt_ {
 		@param output The `Vector` to write the words into.
 		@return The number of `Int`s required to store the value.
 	**/
-	public function toInts(output:Vector<Int>):Int {
+	public function toInts(output:Vector<Int32>):Int {
 		if (output != null) {
 			var n:Int = (m_count > output.length) ? output.length : m_count;
 			for (i in 0...n) {
@@ -503,7 +503,7 @@ class BigInt_ {
 		@param length The number of words to use from the vector.
 		@return A new `BigInt_` instance.
 	**/
-	public static function fromUnsignedInts(value:Vector<Int>, length:Int = 0):BigInt_ {
+	public static function fromUnsignedInts(value:Vector<Int32>, length:Int = 0):BigInt_ {
 		var bi = new MutableBigInt_();
 		bi.setFromUnsignedInts(value, length);
 		return bi;
@@ -934,13 +934,13 @@ class BigInt_ {
 			j:Int;
 		var smallMontyModulus:Bool;
 		var mDash:Int32;
-		var yAccum:Vector<Int>,
-			zVal:Vector<Int>,
-			tmp:Vector<Int>,
-			zSquared:Vector<Int>,
-			windowList:Vector<Int>,
-			yVal:Vector<Int>;
-		var oddPowers:Vector<Vector<Int>>;
+		var yAccum:Vector<Int32>,
+			zVal:Vector<Int32>,
+			tmp:Vector<Int32>,
+			zSquared:Vector<Int32>,
+			windowList:Vector<Int32>,
+			yVal:Vector<Int32>;
+		var oddPowers:Vector<Vector<Int32>>;
 		var m:BigInt_ = _m, e:BigInt_ = _e;
 		n = m.m_count;
 		powR = 32 * n;
@@ -949,11 +949,11 @@ class BigInt_ {
 		if (convert) {
 			b = divMod(BigInt_.arithmeticShiftLeft2(b, powR), m).remainder;
 		}
-		yAccum = new Vector<Int>(n + 1);
+		yAccum = new Vector<Int32>(n + 1);
 		zVal = b.m_data;
 		var zLen = b.m_count;
 		if (zLen < n) {
-			tmp = new Vector<Int>(n);
+			tmp = new Vector<Int32>(n);
 			Vector.blit(zVal, 0, tmp, n - zLen, zLen);
 			zVal = tmp;
 		}
@@ -964,7 +964,7 @@ class BigInt_ {
 				extraBits++;
 		}
 		numPowers = 1 << extraBits;
-		oddPowers = new Vector<Vector<Int>>(numPowers);
+		oddPowers = new Vector<Vector<Int32>>(numPowers);
 		oddPowers[0] = zVal;
 		zSquared = zVal.copy();
 		squareMonty(yAccum, zSquared, m.m_data, m.m_count, mDash, smallMontyModulus);
@@ -1010,7 +1010,7 @@ class BigInt_ {
 		return montResult;
 	}
 
-	private function squareMonty(a:Vector<Int>, x:Vector<Int>, m:Vector<Int>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+	private function squareMonty(a:Vector<Int32>, x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
 		var n:Int, aMax:Int, j:Int, i:Int;
 		var xVal:Int, a0:Int;
 		var x0:Int64, carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
@@ -1072,7 +1072,7 @@ class BigInt_ {
 		Vector.blit(a, 0, x, 0, n);
 	}
 
-	private function multiplyMonty(a:Vector<Int>, x:Vector<Int>, y:Vector<Int>, m:Vector<Int>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
+	private function multiplyMonty(a:Vector<Int32>, x:Vector<Int32>, y:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32, smallMontyModulus:Bool):Void {
 		var n:Int, aMax:Int, j:Int, i:Int;
 		var a0:Int64, y0:Int64;
 		var carry:Int64, t:Int64, prod1:Int64, prod2:Int64, xi:Int64, u:Int64;
@@ -1114,7 +1114,7 @@ class BigInt_ {
 		Vector.blit(a, 0, x, 0, n);
 	}
 
-	private function montgomeryReduce(x:Vector<Int>, m:Vector<Int>, mLen:Int, mDash:Int32):Void {
+	private function montgomeryReduce(x:Vector<Int32>, m:Vector<Int32>, mLen:Int, mDash:Int32):Void {
 		var n:Int, i:Int, j:Int;
 		var x0:Int;
 		var t:Int64, carry:Int64;
@@ -1141,7 +1141,7 @@ class BigInt_ {
 	}
 	
 	// x = x - y - where x is >= y
-	private function subtractMonty(x:Vector<Int>,y:Vector<Int>):Void {
+	private function subtractMonty(x:Vector<Int32>,y:Vector<Int32>):Void {
 		var yIndex:Int = y.length-1;
 		while(yIndex>=0 && y[yIndex]==0) {
 			yIndex--;
@@ -1159,7 +1159,7 @@ class BigInt_ {
 		}
 	}
 
-	private function compareMonty(x:Vector<Int>, y:Vector<Int>):Int {
+	private function compareMonty(x:Vector<Int32>, y:Vector<Int32>):Int {
 		var xIndex:Int = 0;
 		var yIndex:Int = 0;
 		var xLen:Int = x.length - 1;
@@ -1216,7 +1216,7 @@ class BigInt_ {
 		var e:BigInt_ = exponent;
 		var m:BigInt_ = modulus;
 		var oddPowers:Vector<BigInt_>;
-		var windowList:Vector<Int>;
+		var windowList:Vector<Int32>;
 
 		k = m.m_count;
 		mr = BigInt_.arithmeticShiftLeft2(BigInt.ONE, (k + 1) << 5);
@@ -1269,7 +1269,7 @@ class BigInt_ {
 		return y;
 	}
 
-	private function getWindowList(mag:Vector<Int>, magLen:Int, extraBits:Int):Vector<Int> {
+	private function getWindowList(mag:Vector<Int32>, magLen:Int, extraBits:Int):Vector<Int32> {
 		var i:Int,
 			v:Int32,
 			leadingBits:Int,
@@ -1282,7 +1282,7 @@ class BigInt_ {
 		v = mag[magLen - 1];
 		leadingBits = BigIntHelper.bitLen(v);
 		resultSize = Math.floor((((magLen - 1) << 5) + leadingBits) / (1 + extraBits) + 2);
-		var result:Vector<Int> = new Vector<Int>(resultSize);
+		var result:Vector<Int32> = new Vector<Int32>(resultSize);
 		resultPos = 0;
 		bitPos = 33 - leadingBits;
 		v = v << bitPos;
@@ -1566,7 +1566,7 @@ class BigInt_ {
 	}
 
 	@:noCompletion
-	private static inline function toInts1(a:BigInt_, v:Vector<Int>):Int {
+	private static inline function toInts1(a:BigInt_, v:Vector<Int32>):Int {
 		return a.toInts(v);
 	}
 

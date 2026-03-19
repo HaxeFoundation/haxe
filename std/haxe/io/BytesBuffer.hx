@@ -64,6 +64,8 @@ class BytesBuffer {
 		return untyped __dollar__ssize(StringBuf.__to_string(b));
 		#elseif java
 		return b.size();
+		#elseif flash
+		return b.length.toInt();
 		#else
 		return b.length;
 		#end
