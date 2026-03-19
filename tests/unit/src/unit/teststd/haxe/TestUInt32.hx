@@ -157,6 +157,31 @@ class TestUInt32 extends unit.Test {
 		feq(MAX.toFloat(), 4294967295.0);
 	}
 
+	function testFloatComparisons() {
+		var five:UInt32 = 5;
+		var fiveF:Float = 5.0;
+		var threeF:Float = 3.0;
+		var tenF:Float = 10.0;
+		// UInt32 < Float
+		t(five > threeF);
+		f(five > tenF);
+		t(five >= fiveF);
+		f(five >= tenF);
+		t(five < tenF);
+		f(five < threeF);
+		t(five <= fiveF);
+		f(five <= threeF);
+		// Float < UInt32
+		t(threeF < five);
+		f(tenF < five);
+		t(fiveF <= five);
+		f(tenF <= five);
+		t(tenF > five);
+		f(threeF > five);
+		t(fiveF >= five);
+		f(threeF >= five);
+	}
+
 	// --- isZero ---
 	function testIsZero() {
 		t(UInt32.isZero(ZERO));

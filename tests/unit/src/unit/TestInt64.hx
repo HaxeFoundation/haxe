@@ -579,6 +579,36 @@ class TestInt64 extends Test {
 		t(minFloat < -9.22e18);
 	}
 
+	public function testFloatComparisons() {
+		var five:Int64 = 5;
+		var fiveF:Float = 5.0;
+		var threeF:Float = 3.0;
+		var tenF:Float = 10.0;
+		// Int64 < Float
+		t(five > threeF);
+		f(five > tenF);
+		t(five >= fiveF);
+		f(five >= tenF);
+		t(five < tenF);
+		f(five < threeF);
+		t(five <= fiveF);
+		f(five <= threeF);
+		// Float < Int64
+		t(threeF < five);
+		f(tenF < five);
+		t(fiveF <= five);
+		f(tenF <= five);
+		t(tenF > five);
+		f(threeF > five);
+		t(fiveF >= five);
+		f(threeF >= five);
+		// Equality via @:to Float
+		t(fiveF == five);
+		t(five == fiveF);
+		f(threeF == five);
+		f(five == threeF);
+	}
+
 	public function testMinMax() {
 		int64eq(Int64.MAX, Int64.make(0x7FFFFFFF, 0xFFFFFFFF));
 		int64eq(Int64.MIN, Int64.make(0x80000000, 0));

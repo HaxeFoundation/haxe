@@ -186,6 +186,31 @@ class TestInt32 extends unit.Test {
 		feq(result2, 2.5);
 	}
 
+	function testFloatComparisons() {
+		var five:Int32 = 5;
+		var fiveF:Float = 5.0;
+		var threeF:Float = 3.0;
+		var tenF:Float = 10.0;
+		// Int32 < Float
+		t(five > threeF);
+		f(five > tenF);
+		t(five >= fiveF);
+		f(five >= tenF);
+		t(five < tenF);
+		f(five < threeF);
+		t(five <= fiveF);
+		f(five <= threeF);
+		// Float < Int32
+		t(threeF < five);
+		f(tenF < five);
+		t(fiveF <= five);
+		f(tenF <= five);
+		t(tenF > five);
+		f(threeF > five);
+		t(fiveF >= five);
+		f(threeF >= five);
+	}
+
 	// --- Conversion ---
 	function testToFloat() {
 		var f:Float = MAX;

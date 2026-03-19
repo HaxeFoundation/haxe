@@ -100,6 +100,30 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >= B) private static inline function gte(a:Int32, b:Int32):Bool
 		return compare(a, b) >= 0;
 
+	@:op(A < B) private static inline function ltFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) < b;
+
+	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:Int32):Bool
+		return a < (b : Float);
+
+	@:op(A <= B) private static inline function lteFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) <= b;
+
+	@:op(A <= B) private static inline function floatLte<T:Float>(a:T, b:Int32):Bool
+		return a <= (b : Float);
+
+	@:op(A > B) private static inline function gtFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) > b;
+
+	@:op(A > B) private static inline function floatGt<T:Float>(a:T, b:Int32):Bool
+		return a > (b : Float);
+
+	@:op(A >= B) private static inline function gteFloat<T:Float>(a:Int32, b:T):Bool
+		return (a : Float) >= b;
+
+	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:Int32):Bool
+		return a >= (b : Float);
+
 	@:op(~A) private static inline function complement(a:Int32):Int32
 		return Int32Native.complement(a);
 

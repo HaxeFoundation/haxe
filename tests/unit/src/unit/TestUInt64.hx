@@ -403,6 +403,36 @@ class TestUInt64 extends Test {
 		feq(a.toFloat(), 9223372036854775808.0);
 	}
 
+	public function testFloatComparisons() {
+		var five:UInt64 = 5;
+		var fiveF:Float = 5.0;
+		var threeF:Float = 3.0;
+		var tenF:Float = 10.0;
+		// UInt64 < Float
+		t(five > threeF);
+		f(five > tenF);
+		t(five >= fiveF);
+		f(five >= tenF);
+		t(five < tenF);
+		f(five < threeF);
+		t(five <= fiveF);
+		f(five <= threeF);
+		// Float < UInt64
+		t(threeF < five);
+		f(tenF < five);
+		t(fiveF <= five);
+		f(tenF <= five);
+		t(tenF > five);
+		f(threeF > five);
+		t(fiveF >= five);
+		f(threeF >= five);
+		// Equality via @:to Float
+		t(fiveF == five);
+		t(five == fiveF);
+		f(threeF == five);
+		f(five == threeF);
+	}
+
 	public function testZero() {
 		t(UInt64.isZero(UInt64.make(0, 0)));
 		f(UInt64.isZero(UInt64.make(0, 1)));
