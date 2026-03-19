@@ -243,7 +243,7 @@ abstract BigInt(BigInt_) {
 		@param tolerance The certainty level for the primality test.
 		@return A probable prime `BigInt`.
 	**/
-	public static function randomPrime(bits:Int32, tolerance:UInt):BigInt {
+	public static function randomPrime(bits:Int32, tolerance:Int):BigInt {
 		return new BigInt(BigInt_.randomPrime(bits, tolerance));
 	}
 
@@ -334,7 +334,7 @@ abstract BigInt(BigInt_) {
 		@param tolerance The certainty level. A higher value means a more rigorous (but slower) test.
 		@return `true` if the number is probably prime, `false` if it is definitely composite.
 	**/
-	public function isProbablePrime(tolerance:UInt):Bool {
+	public function isProbablePrime(tolerance:Int):Bool {
 		return this.isProbablePrime(tolerance);
 	}
 

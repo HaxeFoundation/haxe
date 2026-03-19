@@ -169,7 +169,7 @@ class MutableBigInt_ extends BigInt_ {
 		@param sourcePosition The starting position in the source vector.
 		@param length The number of words to copy.
 	**/
-	public function setFromVector(source : Vector<Int32>, sourcePosition:Int, length : Int ) : Void
+	public function setFromVector(source : Vector<Int>, sourcePosition:Int, length : Int ) : Void
 	{
 		ensureCapacity(length , false);
 		Vector.blit(source, sourcePosition, m_data, 0, length);

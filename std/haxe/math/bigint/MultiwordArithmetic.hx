@@ -338,7 +338,7 @@ class MultiwordArithmetic {
 		// special cases
 		var dh:Int32 = divisor.get(divisorLength - 1);
 		if (divisorLength < 2) {
-			switch (dh) {
+			switch ((dh : Int)) {
 				case 0:
 					throw new BigIntException(BigIntError.DIVISION_BY_ZERO);
 				case 1:
@@ -747,10 +747,10 @@ class MultiwordArithmetic {
 		@param radix The base for the conversion.
 		@return The string representation.
 	**/
-	public static function toBaseString(value : Vector<Int32>, length : Int, radix:Int) : String
+	public static function toBaseString(value : Vector<Int>, length : Int, radix:Int) : String
 	{
 		var sb = new StringBuf();
-		var work = new Vector<Int32>(length);
+		var work = new Vector<Int>(length);
 		if (isNegative(value, length))
 		{
 			negate(work, value, length);
@@ -838,7 +838,7 @@ class MultiwordArithmetic {
 
 	// assumes 0 < shiftBits < 32
 	// assumes shiftDigits < length
-	private static function _asr32(result:Vector<Int>, input:Vector<Int>, length:Int, shiftDigits:Int, shiftBits:Int32):Void {
+	private static function _asr32(result:Vector<Int>, input:Vector<Int>, length:Int, shiftDigits:Int, shiftBits:Int):Void {
 		var r:Int = 32 - shiftBits;
 		var i:Int = 0;
 		while (i < length - shiftDigits - 1) {
@@ -850,7 +850,7 @@ class MultiwordArithmetic {
 
 	// assumes 0 < shift < 32
 	// ok if output == input
-	private static function _lsr32(output:Vector<Int>, input:Vector<Int>, inputSize:Int, inputOffset:Int, shift:Int32):Void {
+	private static function _lsr32(output:Vector<Int>, input:Vector<Int>, inputSize:Int, inputOffset:Int, shift:Int):Void {
 		var r:Int = 32 - shift;
 		var i:Int = 0;
 		while (i < inputSize - 1) {
@@ -866,11 +866,11 @@ class MultiwordArithmetic {
 	}
 	
 	@:noCompletion
-	private static function _toBase(sb : StringBuf, value : Vector<Int32>, length : Int, radix:Int) : String
+	private static function _toBase(sb : StringBuf, value : Vector<Int>, length : Int, radix:Int) : String
 	{
 		length = getLengthUnsigned(value, length);
-		var digits = new Vector<Int32>(length * Math.ceil(Math.log(4294967296)/Math.log(radix)));
-		var work = new Vector<Int32>(length + 1 + 1);
+		var digits = new Vector<Int>(length * Math.ceil(Math.log(4294967296)/Math.log(radix)));
+		var work = new Vector<Int>(length + 1 + 1);
 		var pos : Int = digits.length;
 		var r : Int;
 		do
