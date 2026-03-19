@@ -178,7 +178,7 @@ class TestInt32 extends unit.Test {
 	}
 
 	function testMixedFloatOps() {
-		// Int32 + Float returns Float
+		// Int32 + Float returns Float (via @:to Float)
 		var result:Float = MAX + 0.5;
 		feq(result, 2147483647.5);
 		// Int32 * Float returns Float
@@ -233,7 +233,7 @@ class TestInt32 extends unit.Test {
 		eq((ten / three : Int32), cast(3, Int32));
 		eq((ten / cast(-3, Int32) : Int32), cast(-3, Int32));
 		eq((cast(-10, Int32) / three : Int32), cast(-3, Int32));
-		// Float division still works via @:to toFloat
+		// Float division via @:to Float
 		feq((ten : Float) / (three : Float), 10.0 / 3.0);
 	}
 

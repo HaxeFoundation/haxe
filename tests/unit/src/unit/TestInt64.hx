@@ -579,34 +579,29 @@ class TestInt64 extends Test {
 		t(minFloat < -9.22e18);
 	}
 
-	public function testFloatComparisons() {
-		var five:Int64 = 5;
-		var fiveF:Float = 5.0;
-		var threeF:Float = 3.0;
-		var tenF:Float = 10.0;
-		// Int64 < Float
-		t(five > threeF);
-		f(five > tenF);
-		t(five >= fiveF);
-		f(five >= tenF);
-		t(five < tenF);
-		f(five < threeF);
-		t(five <= fiveF);
-		f(five <= threeF);
-		// Float < Int64
-		t(threeF < five);
-		f(tenF < five);
-		t(fiveF <= five);
-		f(tenF <= five);
-		t(tenF > five);
-		f(threeF > five);
-		t(fiveF >= five);
-		f(threeF >= five);
-		// Equality via @:to Float
-		t(fiveF == five);
-		t(five == fiveF);
-		f(threeF == five);
-		f(five == threeF);
+	public function testCrossTypeComparisons() {
+		// Verify that comparisons between Int64 and smaller integer types use
+		// integer semantics, not float. With @:to Float removed from Int64,
+		// Int32 values are widened to Int64 (via @:from Int) for comparison.
+		var i64:Int64 = 200;
+		var i32:haxe.Int32 = 100;
+		var u32:haxe.UInt32 = 100;
+
+		t(i64 > i32);
+		t(i64 > u32);
+		t(i32 < i64);
+		t(u32 < i64);
+		f(i64 == i32);
+
+		// Values above Float's exact integer range (> 2^53) would lose precision
+		// if compared via float. Confirm integer semantics are preserved.
+		var big1 = Int64.make(0x200000, 1); // 2^53 + 1
+		var big3 = Int64.make(0x200000, 3); // 2^53 + 3
+		t(big1 != big3);         // integer semantics: differ by 2
+		t(big1 < big3);
+		var one:haxe.Int32 = 1;
+		t(one < big3);           // Int32 widened to Int64, then integer compare
+		t(big3 > one);
 	}
 
 	public function testMinMax() {

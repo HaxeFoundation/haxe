@@ -123,7 +123,7 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		Converts this Int64 to a Float.
 		Values between -2^53 and 2^53 are exact; larger values may lose precision.
 	**/
-	@:to public inline function toFloat():Float {
+	public inline function toFloat():Float {
 		return Int64Native.toFloat(this);
 	}
 
@@ -217,30 +217,6 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 
 	@:op(A >= B) private static inline function gte(a:Int64, b:Int64):Bool
 		return compare(a, b) >= 0;
-
-	@:op(A < B) private static inline function ltFloat<T:Float>(a:Int64, b:T):Bool
-		return (a : Float) < b;
-
-	@:op(A < B) private static inline function floatLt<T:Float>(a:T, b:Int64):Bool
-		return a < (b : Float);
-
-	@:op(A <= B) private static inline function lteFloat<T:Float>(a:Int64, b:T):Bool
-		return (a : Float) <= b;
-
-	@:op(A <= B) private static inline function floatLte<T:Float>(a:T, b:Int64):Bool
-		return a <= (b : Float);
-
-	@:op(A > B) private static inline function gtFloat<T:Float>(a:Int64, b:T):Bool
-		return (a : Float) > b;
-
-	@:op(A > B) private static inline function floatGt<T:Float>(a:T, b:Int64):Bool
-		return a > (b : Float);
-
-	@:op(A >= B) private static inline function gteFloat<T:Float>(a:Int64, b:T):Bool
-		return (a : Float) >= b;
-
-	@:op(A >= B) private static inline function floatGte<T:Float>(a:T, b:Int64):Bool
-		return a >= (b : Float);
 
 	/**
 		Returns the bitwise NOT of `a`.
