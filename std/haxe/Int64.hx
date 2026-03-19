@@ -170,20 +170,11 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	@:op(A + B) public static inline function add(a:Int64, b:Int64):Int64
 		return Int64Native.add(a, b);
 
-	@:op(A + B) @:commutative private static inline function addInt(a:Int64, b:Int):Int64
-		return add(a, b);
-
 	/**
 		Returns `a` minus `b`.
 	**/
 	@:op(A - B) public static inline function sub(a:Int64, b:Int64):Int64
 		return Int64Native.sub(a, b);
-
-	@:op(A - B) private static inline function subInt(a:Int64, b:Int):Int64
-		return sub(a, b);
-
-	@:op(A - B) private static inline function intSub(a:Int, b:Int64):Int64
-		return sub(a, b);
 
 	/**
 		Returns the product of `a` and `b`.
@@ -191,20 +182,11 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	@:op(A * B) public static inline function mul(a:Int64, b:Int64):Int64
 		return Int64Native.mul(a, b);
 
-	@:op(A * B) @:commutative private static inline function mulInt(a:Int64, b:Int):Int64
-		return mul(a, b);
-
 	/**
 		Returns the quotient of `a` divided by `b`.
 	**/
 	@:op(A / B) public static inline function div(a:Int64, b:Int64):Int64
 		return divMod(a, b).quotient;
-
-	@:op(A / B) private static inline function divInt(a:Int64, b:Int):Int64
-		return div(a, b);
-
-	@:op(A / B) private static inline function intDiv(a:Int, b:Int64):Int64
-		return toInt(div(a, b));
 
 	/**
 		Returns the modulus of `a` divided by `b`.
@@ -212,20 +194,11 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	@:op(A % B) public static inline function mod(a:Int64, b:Int64):Int64
 		return divMod(a, b).modulus;
 
-	@:op(A % B) private static inline function modInt(a:Int64, b:Int):Int64
-		return toInt(mod(a, b));
-
-	@:op(A % B) private static inline function intMod(a:Int, b:Int64):Int64
-		return toInt(mod(a, b));
-
 	/**
 		Returns `true` if `a` is equal to `b`.
 	**/
 	@:op(A == B) public static inline function eq(a:Int64, b:Int64):Bool
 		return Int64Native.eq(a, b);
-
-	@:op(A == B) @:commutative private static inline function eqInt(a:Int64, b:Int):Bool
-		return eq(a, b);
 
 	/**
 		Returns `true` if `a` is not equal to `b`.
@@ -233,44 +206,17 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	@:op(A != B) public static inline function neq(a:Int64, b:Int64):Bool
 		return Int64Native.neq(a, b);
 
-	@:op(A != B) @:commutative private static inline function neqInt(a:Int64, b:Int):Bool
-		return neq(a, b);
-
 	@:op(A < B) private static inline function lt(a:Int64, b:Int64):Bool
 		return compare(a, b) < 0;
-
-	@:op(A < B) private static inline function ltInt(a:Int64, b:Int):Bool
-		return lt(a, b);
-
-	@:op(A < B) private static inline function intLt(a:Int, b:Int64):Bool
-		return lt(a, b);
 
 	@:op(A <= B) private static inline function lte(a:Int64, b:Int64):Bool
 		return compare(a, b) <= 0;
 
-	@:op(A <= B) private static inline function lteInt(a:Int64, b:Int):Bool
-		return lte(a, b);
-
-	@:op(A <= B) private static inline function intLte(a:Int, b:Int64):Bool
-		return lte(a, b);
-
 	@:op(A > B) private static inline function gt(a:Int64, b:Int64):Bool
 		return compare(a, b) > 0;
 
-	@:op(A > B) private static inline function gtInt(a:Int64, b:Int):Bool
-		return gt(a, b);
-
-	@:op(A > B) private static inline function intGt(a:Int, b:Int64):Bool
-		return gt(a, b);
-
 	@:op(A >= B) private static inline function gte(a:Int64, b:Int64):Bool
 		return compare(a, b) >= 0;
-
-	@:op(A >= B) private static inline function gteInt(a:Int64, b:Int):Bool
-		return gte(a, b);
-
-	@:op(A >= B) private static inline function intGte(a:Int, b:Int64):Bool
-		return gte(a, b);
 
 	/**
 		Returns the bitwise NOT of `a`.
