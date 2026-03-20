@@ -144,6 +144,10 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 		return x;
 	}
 
+	public static #if !cppia inline #end function fromInt(x:Int):Int64 {
+		return x;
+	}
+
 	public static #if !cppia inline #end function toInt(x:Int64):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
