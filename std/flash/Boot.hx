@@ -127,7 +127,7 @@ class Boot extends flash.display.MovieClip {
 			#if flash10_2
 			var color = 0xFFFFFF, glow = 0;
 			if (mc.stage != null) {
-				glow = mc.stage.color;
+				glow = mc.stage.color.toInt();
 				color = 0xFFFFFF - glow;
 			}
 			tf.textColor = color;
