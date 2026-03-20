@@ -34,7 +34,7 @@ class FPHelper {
 	#elseif neko
 	static var i64tmp = new sys.thread.Tls<Int64>();
 	#elseif !(java || cpp)
-	static var i64tmp = Int64.ofInt(0);
+	static var i64tmp = Int64.fromInt(0);
 
 	static inline var LN2 = 0.6931471805599453; // Math.log(2)
 
@@ -246,7 +246,7 @@ class FPHelper {
 		if (helper == null) {
 			helpers.value = helper = neko.NativeArray.alloc(2);
 			helper[0] = neko.NativeArray.alloc(2);
-			helper[1] = haxe.Int64.ofInt(0);
+			helper[1] = haxe.Int64.fromInt(0);
 		}
 		var i64:haxe.Int64 = helper[1], int2 = helper[0];
 		untyped $dtoi(v, int2, false);
@@ -258,7 +258,7 @@ class FPHelper {
 		#else
 		var r = _double_bytes(v, false), i64 = i64tmp.value;
 		if (i64 == null)
-			i64 = i64tmp.value = haxe.Int64.ofInt(0);
+			i64 = i64tmp.value = haxe.Int64.fromInt(0);
 		@:privateAccess {
 			i64.set_low(untyped $sget(r, 0) | ($sget(r, 1) << 8) | ($sget(r, 2) << 16) | ($sget(r, 3) << 24));
 			i64.set_high(untyped $sget(r, 4) | ($sget(r, 5) << 8) | ($sget(r, 6) << 16) | ($sget(r, 7) << 24));

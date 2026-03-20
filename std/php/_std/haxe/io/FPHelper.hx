@@ -27,7 +27,7 @@ import haxe.Int32;
 
 class FPHelper {
 	static var isLittleEndian:Bool = Global.unpack('S', '\x01\x00')[1] == 1;
-	static var i64tmp = Int64.ofInt(0);
+	static var i64tmp = Int64.fromInt(0);
 
 	public static inline function i32ToFloat(i:Int32):Float {
 		return Global.unpack('f', Global.pack('l', i))[1];

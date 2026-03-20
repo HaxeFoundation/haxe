@@ -55,6 +55,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
 
+	public static inline function fromInt(x:Int):Int64
+		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
+
 	/**
 		Returns an Int with the value of the Int64 `x`.
 		Throws an exception  if `x` cannot be represented in 32 bits.
@@ -480,7 +483,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x;
 		#end
 	}
-	
+
 	static var IMPL = ___Int64;
 }
 

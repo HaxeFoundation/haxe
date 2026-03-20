@@ -1,5 +1,6 @@
 package unit;
 
+import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
@@ -65,9 +66,9 @@ class TestJava extends Test {
 
 		var i:java.lang.Long = null;
 		eq(cl.longTest(i), 100);
-		eq(cl.longTest(haxe.Int64.ofInt(-1)), -1);
-		eq(cl.longTest(haxe.Int64.ofInt(1000)), 1000);
-		i = 10;
+		eq(cl.longTest(haxe.Int64.fromInt(-1)), -1);
+		eq(cl.longTest(haxe.Int64.fromInt(1000)), 1000);
+		i = Int64.fromInt(10);
 		eq(cl.longTest(i), 10);
 	}
 
@@ -185,7 +186,7 @@ class TestJava extends Test {
 		t(c.boolCalled);
 		c.normalOverload(6161);
 		t(c.intCalled);
-		c.normalOverload(haxe.Int64.ofInt(0));
+		c.normalOverload(haxe.Int64.fromInt(0));
 		t(c.int64Called);
 		c.normalOverload("");
 		t(c.stringCalled);
@@ -199,7 +200,7 @@ class TestJava extends Test {
 		t(c.boolCalled);
 		b.normalOverload(10);
 		t(c.intCalled);
-		b.normalOverload(haxe.Int64.ofInt(0));
+		b.normalOverload(haxe.Int64.fromInt(0));
 		t(c.int64Called);
 		b.normalOverload("");
 		t(c.stringCalled);

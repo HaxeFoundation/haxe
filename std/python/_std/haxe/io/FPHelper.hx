@@ -30,7 +30,7 @@ import haxe.Int32;
 	Always works in low-endian encoding.
 **/
 class FPHelper {
-	static var i64tmp:Int64 = Int64.ofInt(0);
+	static var i64tmp:Int64 = Int64.fromInt(0);
 
 	public static inline function i32ToFloat(i:Int32):Float {
 		// Pack as little-endian 32-bit signed int, unpack as float

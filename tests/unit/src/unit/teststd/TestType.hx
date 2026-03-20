@@ -133,7 +133,7 @@ class TestType extends unit.Test {
 		#if !eval
 		eq(Type.typeof(1.0), TInt);
 		#end
-		var i0 = haxe.Int64.ofInt(256);
+		var i0 = haxe.Int64.fromInt(256);
 		eq(Type.typeof(i0), TInt64);
 		var ibig = haxe.Int64.make(1,0);
 		eq(Type.typeof(ibig), TInt64);

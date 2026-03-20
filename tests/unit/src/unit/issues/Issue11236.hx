@@ -23,7 +23,7 @@ class Issue11236 extends Test {
 	function test() {
 		schedule(greeter);
 
-		t(exec.awaitTermination(Int64.ofInt(1), TimeUnit.SECONDS));
+		t(exec.awaitTermination(Int64.fromInt(1), TimeUnit.SECONDS));
 		t(called);
 	}
 	#end

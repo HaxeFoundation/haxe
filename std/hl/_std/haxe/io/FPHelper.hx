@@ -28,7 +28,7 @@ import haxe.Int32;
 @:coreApi(check = Off)
 class FPHelper {
 	// note : this is not thread safe, use TLS when available
-	static var i64tmp = Int64.ofInt(0);
+	static var i64tmp = Int64.fromInt(0);
 	static var helper = new hl.Bytes(8);
 
 	public static function i32ToFloat(i:Int32):Single {

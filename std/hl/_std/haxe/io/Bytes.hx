@@ -155,7 +155,7 @@ class Bytes {
 
 	public function getInt64(pos:Int):haxe.Int64 {
 		if (out(pos + 7))
-			return haxe.Int64.ofInt(0);
+			return haxe.Int64.fromInt(0);
 		return haxe.Int64.make(b.getI32(pos + 4), b.getI32(pos));
 	}
 
