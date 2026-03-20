@@ -72,6 +72,30 @@ private class Int64NativeImpl {
 		return if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
 	}
 
+	public static inline function lt(a:Int64Native, b:Int64Native):Bool
+		return compare(a, b) < 0;
+
+	public static inline function lte(a:Int64Native, b:Int64Native):Bool
+		return compare(a, b) <= 0;
+
+	public static inline function gt(a:Int64Native, b:Int64Native):Bool
+		return compare(a, b) > 0;
+
+	public static inline function gte(a:Int64Native, b:Int64Native):Bool
+		return compare(a, b) >= 0;
+
+	public static inline function ult(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) < 0;
+
+	public static inline function ulte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) <= 0;
+
+	public static inline function ugt(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) > 0;
+
+	public static inline function ugte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) >= 0;
+
 	public static inline function neg(x:Int64Native):Int64Native {
 		var high = ~x.high;
 		var low = -x.low;

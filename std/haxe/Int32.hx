@@ -88,16 +88,16 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.mod(a, b);
 
 	@:op(A < B) private static inline function lt(a:Int32, b:Int32):Bool
-		return compare(a, b) < 0;
+		return Int32Native.lt(a, b);
 
 	@:op(A <= B) private static inline function lte(a:Int32, b:Int32):Bool
-		return compare(a, b) <= 0;
+		return Int32Native.lte(a, b);
 
 	@:op(A > B) private static inline function gt(a:Int32, b:Int32):Bool
-		return compare(a, b) > 0;
+		return Int32Native.gt(a, b);
 
 	@:op(A >= B) private static inline function gte(a:Int32, b:Int32):Bool
-		return compare(a, b) >= 0;
+		return Int32Native.gte(a, b);
 
 	@:op(~A) private static inline function complement(a:Int32):Int32
 		return Int32Native.complement(a);

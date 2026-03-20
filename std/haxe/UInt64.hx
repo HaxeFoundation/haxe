@@ -225,16 +225,16 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		return Int64Native.neq(a, b);
 
 	@:op(A < B) private static inline function lt(a:UInt64, b:UInt64):Bool
-		return compare(a, b) < 0;
+		return Int64Native.ult(a, b);
 
 	@:op(A <= B) private static inline function lte(a:UInt64, b:UInt64):Bool
-		return compare(a, b) <= 0;
+		return Int64Native.ulte(a, b);
 
 	@:op(A > B) private static inline function gt(a:UInt64, b:UInt64):Bool
-		return compare(a, b) > 0;
+		return Int64Native.ugt(a, b);
 
 	@:op(A >= B) private static inline function gte(a:UInt64, b:UInt64):Bool
-		return compare(a, b) >= 0;
+		return Int64Native.ugte(a, b);
 
 	/**
 		Returns the bitwise NOT of `a`.

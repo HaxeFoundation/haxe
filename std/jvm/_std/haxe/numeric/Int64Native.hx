@@ -94,6 +94,30 @@ private abstract Int64NativeImpl(jvm.Int64) from jvm.Int64 to jvm.Int64 {
 		return ((b : jvm.Int64) < 0) ? -1 : compare(a, b);
 	}
 
+	public static inline function lt(a:Int64Native, b:Int64Native):Bool
+		return (a : jvm.Int64) < (b : jvm.Int64);
+
+	public static inline function lte(a:Int64Native, b:Int64Native):Bool
+		return (a : jvm.Int64) <= (b : jvm.Int64);
+
+	public static inline function gt(a:Int64Native, b:Int64Native):Bool
+		return (a : jvm.Int64) > (b : jvm.Int64);
+
+	public static inline function gte(a:Int64Native, b:Int64Native):Bool
+		return (a : jvm.Int64) >= (b : jvm.Int64);
+
+	public static inline function ult(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) < 0;
+
+	public static inline function ulte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) <= 0;
+
+	public static inline function ugt(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) > 0;
+
+	public static inline function ugte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) >= 0;
+
 	public static inline function neg(x:Int64Native):Int64Native
 		return cast -(x : jvm.Int64);
 

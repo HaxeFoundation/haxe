@@ -100,16 +100,16 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	}
 
 	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool
-		return compare(a, b) < 0;
+		return Int32Native.ult(a, b);
 
 	@:op(A <= B) private static inline function lte(a:UInt32, b:UInt32):Bool
-		return compare(a, b) <= 0;
+		return Int32Native.ulte(a, b);
 
 	@:op(A > B) private static inline function gt(a:UInt32, b:UInt32):Bool
-		return compare(a, b) > 0;
+		return Int32Native.ugt(a, b);
 
 	@:op(A >= B) private static inline function gte(a:UInt32, b:UInt32):Bool
-		return compare(a, b) >= 0;
+		return Int32Native.ugte(a, b);
 
 	@:op(~A) private static inline function complement(a:UInt32):UInt32
 		return Int32Native.complement(a);

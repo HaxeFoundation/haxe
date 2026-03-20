@@ -79,6 +79,30 @@ abstract Int32Direct(Int) from Int to Int {
 		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
 	}
 
+	public static inline function lt(a:Int32Direct, b:Int32Direct):Bool
+		return (a : Int) < (b : Int);
+
+	public static inline function lte(a:Int32Direct, b:Int32Direct):Bool
+		return (a : Int) <= (b : Int);
+
+	public static inline function gt(a:Int32Direct, b:Int32Direct):Bool
+		return (a : Int) > (b : Int);
+
+	public static inline function gte(a:Int32Direct, b:Int32Direct):Bool
+		return (a : Int) >= (b : Int);
+
+	public static inline function ult(a:Int32Direct, b:Int32Direct):Bool
+		return ucompare(a, b) < 0;
+
+	public static inline function ulte(a:Int32Direct, b:Int32Direct):Bool
+		return ucompare(a, b) <= 0;
+
+	public static inline function ugt(a:Int32Direct, b:Int32Direct):Bool
+		return ucompare(a, b) > 0;
+
+	public static inline function ugte(a:Int32Direct, b:Int32Direct):Bool
+		return ucompare(a, b) >= 0;
+
 	public inline function toFloat():Float
 		return this;
 

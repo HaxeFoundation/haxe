@@ -113,6 +113,30 @@ private abstract Int32NativeImpl(Int) from Int to Int {
 		return (b : Int) < 0 ? -1 : ((a : Int) - (b : Int));
 	}
 
+	public static inline function lt(a:Int32Native, b:Int32Native):Bool
+		return (a : Int) < (b : Int);
+
+	public static inline function lte(a:Int32Native, b:Int32Native):Bool
+		return (a : Int) <= (b : Int);
+
+	public static inline function gt(a:Int32Native, b:Int32Native):Bool
+		return (a : Int) > (b : Int);
+
+	public static inline function gte(a:Int32Native, b:Int32Native):Bool
+		return (a : Int) >= (b : Int);
+
+	public static inline function ult(a:Int32Native, b:Int32Native):Bool
+		return ucompare(a, b) < 0;
+
+	public static inline function ulte(a:Int32Native, b:Int32Native):Bool
+		return ucompare(a, b) <= 0;
+
+	public static inline function ugt(a:Int32Native, b:Int32Native):Bool
+		return ucompare(a, b) > 0;
+
+	public static inline function ugte(a:Int32Native, b:Int32Native):Bool
+		return ucompare(a, b) >= 0;
+
 	public static inline function div(a:Int32Native, b:Int32Native):Int32Native
 		return clamp(Std.int((a : Int) / (b : Int)));
 

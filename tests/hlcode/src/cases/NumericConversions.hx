@@ -19,8 +19,12 @@ import haxe.UInt64;
 	- UInt32 → Int64/UInt64 zero-extension cannot use a native HL opcode and is
 	  therefore emitted as a mask-and-or sequence (field read for the mask constant
 	  from Int64NativeImpl, AND with the low 32 bits, OR with a zero high word).
-	- Int32 < Int uses the `Int32Native.compare` helper (returns {-1,0,1}) rather
-	  than a direct `jslt` instruction.  The same pattern appears for Int64 < Int.
+	- Int32 < Int dispatches to `Int32Native.lt`, producing a direct `jsgte`
+	  instruction (the HL inverse of `<`).  Int64 < Int similarly uses
+	  `Int64Native.lt`, producing a direct `jsgte i64`.
+	  UInt32 and UInt64 comparisons dispatch to `Int32Native.ult` and
+	  `Int64Native.ult` respectively, which internally delegate to `ucompare`
+	  because unsigned comparison requires sign-handling logic.
 	  UInt64 < Int expands to the full 64-bit `ucompare` logic.
 **/
 @:keep
@@ -456,39 +460,29 @@ class NumericConversions {
 
 	/**
 		Int32 < Int: Int is promoted to Int32 via @:from, then Int32.lt is called.
-		Int32.lt uses Int32Native.compare (returns {-1,0,1}) rather than a direct
-		`jslt`, resulting in a multi-branch compare-then-check sequence.
+		Int32.lt dispatches to Int32Native.lt, producing a direct `jsgte`
+		(the HL inverse of `<`) instead of the multi-branch compare-then-check sequence.
 	**/
 	@:hl(<>
 		fun@N(Nh) ():void
 		; (cases.NumericConversions.i32LtInt)
-		r0 i32
-		r1 cases.$NumericConversions
-		r2 void
-		r3 i32
-		r4 bool
-		r5 i32
-		r6 i32
-		r7 dyn
-		@0 global 1, $0
-		@1 field 0,1[6]
-		@2 global 1, $0
-		@3 field 3,1[5]
-		@4 jsgte 0,3,2
-		@5 int 5,@$1
-		@6 jalways 4
-		@7 jsgte 3,0,2
-		@8 int 5,@$2
-		@9 jalways 1
-		@A int 5,@$3
-		@B int 6,@$3
-		@C jsgte 5,6,2
-		@D true 4
-		@E jalways 1
-		@F false 4
-		@10 todyn 7,4
-		@11 call 2, cases.NumericConversions.use(7)
-		@12 ret 2
+		r0 void
+		r1 bool
+		r2 i32
+		r3 cases.$NumericConversions
+		r4 i32
+		r5 dyn
+		@0 global 3, $0
+		@1 field 2,3[6]
+		@2 global 3, $0
+		@3 field 4,3[5]
+		@4 jsgte 2,4,2
+		@5 true 1
+		@6 jalways 1
+		@7 false 1
+		@8 todyn 5,1
+		@9 call 0, cases.NumericConversions.use(5)
+		@A ret 0
 	</>)
 	static function i32LtInt() {
 		use(i32 < i);
@@ -690,40 +684,31 @@ class NumericConversions {
 
 	/**
 		Int64 < Int: Int sign-extended to i64 via `toint`, then Int64.lt called.
-		Like Int32 < Int, uses the compare-return-{-1,0,1} pattern rather than
-		a direct `jslt i64`.
+		Int64.lt dispatches to Int64Native.lt, producing a direct `jsgte` on i64
+		instead of the multi-branch compare-then-check sequence.
 	**/
 	@:hl(<>
 		fun@N(Nh) ():void
 		; (cases.NumericConversions.i64LtInt)
-		r0 i64
-		r1 cases.$NumericConversions
-		r2 void
-		r3 i32
-		r4 i64
-		r5 bool
-		r6 i32
-		r7 dyn
-		@0 global 1, $0
-		@1 field 0,1[8]
-		@2 global 1, $0
-		@3 field 3,1[5]
-		@4 toint 4,3
-		@5 jsgte 0,4,2
-		@6 int 3,@$1
-		@7 jalways 4
-		@8 jsgte 4,0,2
-		@9 int 3,@$2
-		@A jalways 1
-		@B int 3,@$3
-		@C int 6,@$3
-		@D jsgte 3,6,2
-		@E true 5
-		@F jalways 1
-		@10 false 5
-		@11 todyn 7,5
-		@12 call 2, cases.NumericConversions.use(7)
-		@13 ret 2
+		r0 void
+		r1 bool
+		r2 i64
+		r3 cases.$NumericConversions
+		r4 i32
+		r5 i64
+		r6 dyn
+		@0 global 3, $0
+		@1 field 2,3[8]
+		@2 global 3, $0
+		@3 field 4,3[5]
+		@4 toint 5,4
+		@5 jsgte 2,5,2
+		@6 true 1
+		@7 jalways 1
+		@8 false 1
+		@9 todyn 6,1
+		@A call 0, cases.NumericConversions.use(6)
+		@B ret 0
 	</>)
 	static function i64LtInt() {
 		use(i64 < i);

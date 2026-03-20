@@ -220,16 +220,16 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return Int64Native.neq(a, b);
 
 	@:op(A < B) private static inline function lt(a:Int64, b:Int64):Bool
-		return compare(a, b) < 0;
+		return Int64Native.lt(a, b);
 
 	@:op(A <= B) private static inline function lte(a:Int64, b:Int64):Bool
-		return compare(a, b) <= 0;
+		return Int64Native.lte(a, b);
 
 	@:op(A > B) private static inline function gt(a:Int64, b:Int64):Bool
-		return compare(a, b) > 0;
+		return Int64Native.gt(a, b);
 
 	@:op(A >= B) private static inline function gte(a:Int64, b:Int64):Bool
-		return compare(a, b) >= 0;
+		return Int64Native.gte(a, b);
 
 	/**
 		Returns the bitwise NOT of `a`.
