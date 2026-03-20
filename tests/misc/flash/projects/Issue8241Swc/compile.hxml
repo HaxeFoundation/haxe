@@ -1,7 +1,0 @@
---cmd compc -include-sources . -source-path . -output bin/lib.swc
-
---next
-
---main Main
---swf-lib bin/lib.swc
---swf bin/test.swf
