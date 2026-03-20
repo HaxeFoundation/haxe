@@ -178,16 +178,12 @@ class TestInt32 extends unit.Test {
 	}
 
 	function testMixedFloatOps() {
-		#if loose_numeric_casts
-		// Int32 + Float returns Float (via @:to Float)
-		var result:Float = MAX + 0.5;
+		// Int32 + Float returns Float
+		var result:Float = MAX.toFloat() + 0.5;
 		feq(result, 2147483647.5);
 		// Int32 * Float returns Float
-		var result2:Float = ONE * 2.5;
+		var result2:Float = ONE.toFloat() * 2.5;
 		feq(result2, 2.5);
-		#else
-		noAssert();
-		#end
 	}
 
 	function testFloatComparisons() {
@@ -263,8 +259,8 @@ class TestInt32 extends unit.Test {
 		eq(2147483643, cast(-(5 + min), Int)); // static analyzer issue
 
 		// Old test from teststd (uses equals form)
-		-min == min;              // two's complement overflow,
-		-2147483643 == 5 + -min;  // order of ops and negate
+		- min == min; // two's complement overflow,
+		- 2147483643 == 5 + -min; // order of ops and negate
 		2147483643 == -(5 + min); // static analyzer issue
 	}
 
@@ -340,9 +336,9 @@ class TestInt32 extends unit.Test {
 	function testHlEdgeCases() {
 		var min:Int32 = MIN;
 		var max:Int32 = MAX;
-		eq(0, min % 0);              // % 0 div by zero exception
+		eq(0, min % 0); // % 0 div by zero exception
 		eq(0, Std.int(min / 0));
-		eq(0, min % -1);             // min % -1 integer overflow exception
+		eq(0, min % -1); // min % -1 integer overflow exception
 		eq(min, Std.int(min / -1));
 		eq(min, min * -1);
 		eq(0, min % 1);
