@@ -337,18 +337,18 @@ class TestInt32 extends unit.Test {
 	function testHlEdgeCases() {
 		var min:Int32 = MIN;
 		var max:Int32 = MAX;
-		eq(0, min % 0); // % 0 div by zero exception
-		eq(0, Std.int(min / 0));
-		eq(0, min % -1); // min % -1 integer overflow exception
-		eq(min, Std.int(min / -1));
-		eq(min, min * -1);
-		eq(0, min % 1);
-		eq(0, max % 0);
-		eq(0, Std.int(max / 0));
-		eq(0, max % -1);
-		eq(-max, Std.int(max / -1));
-		eq(-max, max * -1);
-		eq(0, max % 1);
+		eq((min % 0).toInt(), 0); // % 0 div by zero exception
+		eq(Std.int(min.toFloat() / 0), 0);
+		eq((min % -1).toInt(), 0); // min % -1 integer overflow exception
+		eq((min / -1), min);
+		eq(min * -1, min);
+		eq((min % 1).toInt(), 0);
+		eq((max % 0).toInt(), 0);
+		eq(Std.int(max.toFloat() / 0), 0);
+		eq((max % -1).toInt(), 0);
+		eq(max / -1, -max);
+		eq(max * -1, -max);
+		eq((max % 1).toInt(), 0);
 	}
 	#end
 
