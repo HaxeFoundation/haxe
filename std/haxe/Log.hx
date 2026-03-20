@@ -62,8 +62,9 @@ class Log {
 	public static dynamic function trace(v:Dynamic, ?infos:PosInfos):Void {
 		var str = formatOutput(v, infos);
 		#if js
-		if (js.Syntax.typeof(untyped console) != "undefined" && (untyped console).log != null)
-			(untyped console).log(str);
+		var console = js.Lib.global.console;
+		if (js.Syntax.typeof(console) != "undefined" && console.log != null)
+			console.log(str);
 		#elseif lua
 		untyped __define_feature__("use._hx_print", _hx_print(str));
 		#elseif sys

@@ -30,12 +30,14 @@ import lua.NativeStringTools;
 		return isOfType(v, t);
 	}
 
+	@:access(lua.Boot)
 	public static inline function isOfType(v:Dynamic, t:Dynamic):Bool {
-		return untyped lua.Boot.__instanceof(v, t);
+		return lua.Boot.__instanceof(v, t);
 	}
 
+	@:access(lua.Boot)
 	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
-		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
+		return lua.Boot.__instanceof(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
@@ -94,6 +96,6 @@ import lua.NativeStringTools;
 	}
 
 	public static function random(x:Int):Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random() * x);
+		return x <= 0 ? 0 : Math.floor(Math.random() * x);
 	}
 }

@@ -40,7 +40,7 @@
 	}
 
 	@:keep public static function string(s:Dynamic):String {
-		return untyped s == null ? "null" : s.toString();
+		return s == null ? "null" : s.toString();
 	}
 
 	@:keep public static function int(x:Float):Int {

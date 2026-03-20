@@ -99,7 +99,7 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	static inline function getId(obj:{}):Int {
-		return untyped obj.__id__;
+		return Syntax.code("{0}.__id__", obj);
 	}
 
 	var h:{__keys__:{}};
@@ -118,16 +118,16 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	}
 
 	public inline function get(key:K):Null<V> {
-		return untyped h[getId(key)];
+		return Syntax.code("{0}[{1}]", h, getId(key));
 	}
 
 	public inline function exists(key:K):Bool {
-		return untyped h.__keys__[getId(key)] != null;
+		return Syntax.code("{0}[{1}] != null", h.__keys__, getId(key));
 	}
 
 	public function remove(key:K):Bool {
 		var id = getId(key);
-		if (untyped h.__keys__[id] == null)
+		if (Syntax.code("{0}[{1}] == null", h.__keys__, id))
 			return false;
 		js.Syntax.delete(h, id);
 		js.Syntax.delete(h.__keys__, id);

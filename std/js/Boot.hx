@@ -107,7 +107,7 @@ class Boot {
 					}
 					var tostr;
 					try {
-						tostr = untyped o.toString;
+						tostr = o.toString;
 					} catch (e:Dynamic) {
 						// strange error on IE
 						return "???";

@@ -33,7 +33,7 @@ class Cookie {
 		var s = name + "=" + StringTools.urlEncode(value);
 		if (expireDelay != null) {
 			var d = DateTools.delta(Date.now(), expireDelay * 1000);
-			s += ";expires=" + untyped d.toGMTString();
+			s += ";expires=" + (d : Dynamic).toGMTString();
 		}
 		if (path != null) {
 			s += ";path=" + path;

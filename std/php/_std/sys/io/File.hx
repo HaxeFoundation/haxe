@@ -49,18 +49,18 @@ import php.Global;
 	}
 
 	public static function write(path:String, binary:Bool = true):FileOutput {
-		return untyped new FileOutput(fopen(path, binary ? "wb" : "w"));
+		return @:privateAccess new FileOutput(fopen(path, binary ? "wb" : "w"));
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		return untyped new FileOutput(fopen(path, binary ? "ab" : "a"));
+		return @:privateAccess new FileOutput(fopen(path, binary ? "ab" : "a"));
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
 		if (!FileSystem.exists(path)) {
 			write(path).close();
 		}
-		return untyped new FileOutput(fopen(path, binary ? "rb+" : "r+"));
+		return @:privateAccess new FileOutput(fopen(path, binary ? "rb+" : "r+"));
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {
