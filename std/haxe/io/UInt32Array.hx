@@ -48,7 +48,7 @@ abstract UInt32Array(UInt32ArrayData) {
 
 	@:arrayAccess public inline function set(index:Int, value:UInt):UInt {
 		if (index >= 0 && index < length) {
-			this.bytes.setInt32((index << 2) + this.byteOffset, value.toInt());
+			this.bytes.setInt32((index << 2) + this.byteOffset, value);
 			return value;
 		}
 		return 0;

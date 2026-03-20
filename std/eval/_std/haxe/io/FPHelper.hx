@@ -1,9 +1,11 @@
 package haxe.io;
 
-extern class FPHelper {
-	public static function i32ToFloat(i:Int):Float;
+import haxe.Int32;
 
-	public static function floatToI32(f:Float):Int;
+extern class FPHelper {
+	public static function i32ToFloat(i:Int32):Float;
+
+	public static function floatToI32(f:Float):Int32;
 
 	public static function i64ToDouble(low:Int, high:Int):Float;
 

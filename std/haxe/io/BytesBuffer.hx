@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 class BytesBuffer {
 	#if neko
 	var b:Dynamic; // neko string buffer
@@ -124,7 +126,7 @@ class BytesBuffer {
 		#end
 	}
 
-	public #if flash inline #end function addInt32(v:Int) {
+	public #if flash inline #end function addInt32(v:Int32) {
 		#if flash
 		b.writeUnsignedInt(v);
 		#else
@@ -136,8 +138,8 @@ class BytesBuffer {
 	}
 
 	public #if flash inline #end function addInt64(v:haxe.Int64) {
-		addInt32(v.low.toInt());
-		addInt32(v.high.toInt());
+		addInt32(v.low);
+		addInt32(v.high);
 	}
 
 	public inline function addFloat(v:Float) {
@@ -196,7 +198,7 @@ class BytesBuffer {
 			var str = StringBuf.__to_string(b);
 			var bytes = new Bytes(__dollar__ssize(str), str);
 			#elseif flash
-			var bytes = new Bytes(b.length, b);
+			var bytes = new Bytes(b.length.toInt(), b);
 			b.position = 0;
 			#elseif java
 			var buf = b.toByteArray();

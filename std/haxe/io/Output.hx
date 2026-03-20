@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 /**
 	An Output is an abstract write. A specific output implementation will only
 	have to override the `writeByte` and maybe the `write`, `flush` and `close`
@@ -142,11 +144,11 @@ abstract class Output {
 	public function writeDouble(x:Float) {
 		var i64 = FPHelper.doubleToI64(x);
 		if (bigEndian) {
-			writeInt32(i64.high.toInt());
-			writeInt32(i64.low.toInt());
+			writeInt32(i64.high);
+			writeInt32(i64.low);
 		} else {
-			writeInt32(i64.low.toInt());
-			writeInt32(i64.high.toInt());
+			writeInt32(i64.low);
+			writeInt32(i64.high);
 		}
 	}
 
@@ -222,7 +224,7 @@ abstract class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeInt32(x:Int) {
+	public function writeInt32(x:Int32) {
 		if (bigEndian) {
 			writeByte(x >>> 24);
 			writeByte((x >> 16) & 0xFF);
