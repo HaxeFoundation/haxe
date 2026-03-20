@@ -327,7 +327,7 @@ class TestUInt64 extends Test {
 		// Zero round-trip
 		var u0:UInt64 = UInt64.make(0, 0);
 		var i0:haxe.Int64 = u0;
-		t(haxe.Int64.isZero(i0));
+		t(i0.isZero());
 		uint64eq(u0, i0);
 	}
 
@@ -405,10 +405,10 @@ class TestUInt64 extends Test {
 	}
 
 	public function testZero() {
-		t(UInt64.isZero(UInt64.make(0, 0)));
-		f(UInt64.isZero(UInt64.make(0, 1)));
-		f(UInt64.isZero(UInt64.make(1, 0)));
-		f(UInt64.isZero(UInt64.make(0xFFFFFFFF, 0xFFFFFFFF)));
+		t(UInt64.make(0, 0).isZero());
+		f(UInt64.make(0, 1).isZero());
+		f(UInt64.make(1, 0).isZero());
+		f(UInt64.make(0xFFFFFFFF, 0xFFFFFFFF).isZero());
 	}
 
 	public function testCopy() {

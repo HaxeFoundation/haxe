@@ -239,15 +239,15 @@ class NumericConversions {
 		; (cases.NumericConversions.i32ImplicitToI64)
 		r0 i32
 		r1 cases.$NumericConversions
-		r2 void
-		r3 i64
+		r2 i64
+		r3 void
 		r4 null(i64)
 		@0 global 1, $0
 		@1 field 0,1[6]
-		@2 toint 3,0
-		@3 todyn 4,3
-		@4 call 2, cases.NumericConversions.use(4)
-		@5 ret 2
+		@2 toint 2,0
+		@3 todyn 4,2
+		@4 call 3, cases.NumericConversions.use(4)
+		@5 ret 3
 	</>)
 	static function i32ImplicitToI64() {
 		var x:Int64 = i32;
@@ -306,30 +306,29 @@ class NumericConversions {
 		fun@N(Nh) ():void
 		; (cases.NumericConversions.u32ImplicitToU64)
 		r0 i32
-		r1 cases.$NumericConversions
+		r1 i64
 		r2 void
-		r3 i32
+		r3 cases.$NumericConversions
 		r4 i64
 		r5 i64
 		r6 i64
 		r7 i64
-		r8 i64
-		r9 haxe.numeric._Int64Native.$Int64NativeImpl_Impl_
-		r10 null(i64)
-		@0 global 1, $0
-		@1 field 0,1[7]
-		@2 int 3,@$1
-		@3 toint 4,3
-		@4 toint 5,0
-		@5 int 3,@$2
-		@6 toint 7,3
-		@7 shl 6,4,7
-		@8 global 9, $3
-		@9 field 8,9[5]
-		@A and 7,5,8
-		@B or 6,6,7
-		@C todyn 10,6
-		@D call 2, cases.NumericConversions.use(10)
+		r8 haxe.numeric._Int64Native.$Int64NativeImpl_Impl_
+		r9 null(i64)
+		@0 int 0,@$0
+		@1 toint 1,0
+		@2 global 3, $1
+		@3 field 0,3[7]
+		@4 toint 4,0
+		@5 int 0,@$2
+		@6 toint 6,0
+		@7 shl 5,1,6
+		@8 global 8, $3
+		@9 field 7,8[5]
+		@A and 6,4,7
+		@B or 5,5,6
+		@C todyn 9,5
+		@D call 2, cases.NumericConversions.use(9)
 		@E ret 2
 	</>)
 	static function u32ImplicitToU64() {
@@ -546,23 +545,23 @@ class NumericConversions {
 	@:hl(<>
 		fun@N(Nh) ():void
 		; (cases.NumericConversions.u32EqInt)
-		r0 i32
-		r1 cases.$NumericConversions
-		r2 void
-		r3 i32
-		r4 bool
+		r0 void
+		r1 bool
+		r2 i32
+		r3 cases.$NumericConversions
+		r4 i32
 		r5 dyn
-		@0 global 1, $0
-		@1 field 0,1[7]
-		@2 global 1, $0
-		@3 field 3,1[5]
-		@4 jnoteq 0,3,2
-		@5 true 4
+		@0 global 3, $0
+		@1 field 2,3[7]
+		@2 global 3, $0
+		@3 field 4,3[5]
+		@4 jnoteq 2,4,2
+		@5 true 1
 		@6 jalways 1
-		@7 false 4
-		@8 todyn 5,4
-		@9 call 2, cases.NumericConversions.use(5)
-		@A ret 2
+		@7 false 1
+		@8 todyn 5,1
+		@9 call 0, cases.NumericConversions.use(5)
+		@A ret 0
 	</>)
 	static function u32EqInt() {
 		use(u32 == i);
