@@ -202,6 +202,8 @@ When investigating CI failures, use the GitHub MCP tools as follows:
 - Use `haxelib git utest https://github.com/haxe-utest/utest` for utest
 - A git-cloned library can be set as a development library via `haxelib dev libname path`
 - If your changes are related to coroutines, run some of the tests in https://github.com/HaxeFoundation/hxcoro
+- **hxcpp bootstrapping**: The git version of hxcpp requires bootstrapping before C++ compilation works. Run `cd $(haxelib libpath hxcpp)tools/hxcpp && haxe compile.hxml` after installing. Without this, `haxelib run hxcpp` will prompt for interactive input and hang. The setup steps workflow already does this automatically.
+- C++ compilation is slow (minutes for a full build with all static libraries) but should produce constant output. If it hangs with no output, hxcpp likely needs bootstrapping.
 
 ## Other considerations
 - Humans are fallible

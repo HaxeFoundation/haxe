@@ -22,6 +22,9 @@
 
 package haxe.io;
 
+import haxe.Int32;
+import haxe.Int64;
+
 class Bytes {
 	public var length(default, null):Int;
 
@@ -322,7 +325,7 @@ class Bytes {
 		Returns the 32-bit integer at the given position `pos` (in little-endian
 		encoding).
 	**/
-	public inline function getInt32(pos:Int):Int {
+	public inline function getInt32(pos:Int):Int32 {
 		#if neko_v21
 		return untyped $sget32(b, pos, false);
 		#elseif python
@@ -340,15 +343,15 @@ class Bytes {
 		Returns the 64-bit integer at the given position `pos` (in little-endian
 		encoding).
 	**/
-	public inline function getInt64(pos:Int):haxe.Int64 {
-		return haxe.Int64.make(getInt32(pos + 4), getInt32(pos));
+	public inline function getInt64(pos:Int):Int64 {
+		return Int64.make(getInt32(pos + 4), getInt32(pos));
 	}
 
 	/**
 		Stores the given 32-bit integer `v` at the given position `pos` (in
 		little-endian encoding).
 	**/
-	public inline function setInt32(pos:Int, v:Int):Void {
+	public inline function setInt32(pos:Int, v:Int32):Void {
 		#if neko_v21
 		untyped $sset32(b, pos, v, false);
 		#else
@@ -363,7 +366,7 @@ class Bytes {
 		Stores the given 64-bit integer `v` at the given position `pos` (in
 		little-endian encoding).
 	**/
-	public inline function setInt64(pos:Int, v:haxe.Int64):Void {
+	public inline function setInt64(pos:Int, v:Int64):Void {
 		setInt32(pos, v.low);
 		setInt32(pos + 4, v.high);
 	}

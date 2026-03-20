@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 // Can't enable @:coreApi because floatToI32/i32ToFloat use Single instead of Float, and field types differ from core
 @:coreApi(check = Off)
 class FPHelper {
@@ -29,17 +31,17 @@ class FPHelper {
 	static var i64tmp = Int64.ofInt(0);
 	static var helper = new hl.Bytes(8);
 
-	public static function i32ToFloat(i:Int):Single {
+	public static function i32ToFloat(i:Int32):Single {
 		helper.setI32(0, i);
 		return helper.getF32(0);
 	}
 
-	public static function floatToI32(f:Single):Int {
+	public static function floatToI32(f:Single):Int32 {
 		helper.setF32(0, f);
 		return helper.getI32(0);
 	}
 
-	public static function i64ToDouble(low:Int, high:Int):Float {
+	public static function i64ToDouble(low:Int32, high:Int32):Float {
 		helper.setI32(0, low);
 		helper.setI32(4, high);
 		return helper.getF64(0);

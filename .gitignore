@@ -137,3 +137,5 @@ tests/misc/projects/Issue10863/error.log
 tests/misc/coroutines/dump
 /dump
 */a.out
+tests/docgen/cpp/
+extra/doc/

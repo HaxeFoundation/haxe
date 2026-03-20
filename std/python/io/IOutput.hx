@@ -25,6 +25,7 @@ package python.io;
 import haxe.io.Bytes;
 import haxe.io.Encoding;
 import haxe.io.Input;
+import haxe.Int32;
 
 interface IOutput {
 	public var bigEndian(default, set):Bool;
@@ -55,7 +56,7 @@ interface IOutput {
 
 	public function writeUInt24(x:Int):Void;
 
-	public function writeInt32(x:Int):Void;
+	public function writeInt32(x:Int32):Void;
 
 	public function prepare(nbytes:Int):Void;
 

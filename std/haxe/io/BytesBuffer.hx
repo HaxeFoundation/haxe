@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 class BytesBuffer {
 	#if neko
 	var b:Dynamic; // neko string buffer
@@ -122,7 +124,7 @@ class BytesBuffer {
 		#end
 	}
 
-	public #if flash inline #end function addInt32(v:Int) {
+	public #if flash inline #end function addInt32(v:Int32) {
 		#if flash
 		b.writeUnsignedInt(v);
 		#else

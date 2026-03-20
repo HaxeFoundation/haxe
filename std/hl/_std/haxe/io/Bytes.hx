@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 @:coreApi
 class Bytes {
 	public var length(default, null):Int;
@@ -147,7 +149,7 @@ class Bytes {
 		b.setUI16(pos, v);
 	}
 
-	public function getInt32(pos:Int):Int {
+	public function getInt32(pos:Int):Int32 {
 		return if (out(pos + 3)) 0 else b.getI32(pos);
 	}
 
@@ -157,7 +159,7 @@ class Bytes {
 		return haxe.Int64.make(b.getI32(pos + 4), b.getI32(pos));
 	}
 
-	public function setInt32(pos:Int, v:Int):Void {
+	public function setInt32(pos:Int, v:Int32):Void {
 		if (out(pos + 3))
 			throw Error.OutsideBounds;
 		b.setI32(pos, v);
