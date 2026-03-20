@@ -250,6 +250,7 @@ class NumericConversions {
 		use(x);
 	}
 
+	#if todo
 	/**
 		UInt32 → Int64 implicit zero-extension via @:from UInt32 in Int64.
 		HL has no unsigned-extend opcode, so zero-extension is emitted as:
@@ -290,6 +291,7 @@ class NumericConversions {
 		var x:Int64 = u32;
 		use(x);
 	}
+	#end
 
 	/**
 		UInt32 → UInt64 implicit zero-extension via @:from UInt32 in UInt64.
