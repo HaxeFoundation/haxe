@@ -1,3 +1,6 @@
+package unit.issues;
+
+#if flash_test_swc
 private class NoProtected {}
 
 private class Base extends NoProtected {
@@ -19,16 +22,18 @@ private class GrandChild extends Child {
 
 private class ExternChild extends Lib {}
 private class ExternGrandChild extends ExternChild {
-	@:protected
+	@:protected // TODO: should we generate `protected` automatically here?
 	override function f() return "bye";
 
 	public function getF() return f();
 }
+#end
 
-class Main {
-	static function main() {
-		var gc = new GrandChild();
-		var egc = new ExternGrandChild();
-		var s:String = egc.getF();
+class Issue8248 extends unit.Test {
+	#if flash_test_swc
+	function test() {
+		eq(new GrandChild().x, 2);
+		eq(new ExternGrandChild().getF(), "bye");
 	}
+	#end
 }
