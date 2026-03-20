@@ -37,9 +37,6 @@ import haxe.numeric.Int32Native;
 	overhead is incurred. On scripting targets, values are masked to 32 bits after
 	each operation that may overflow.
 **/
-#if flash // TODO: massive problems with `arg : UInt = 0` kind of things.
-@:transitive
-#end
 abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
 		this = x;

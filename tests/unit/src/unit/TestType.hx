@@ -1,9 +1,9 @@
 package unit;
 
 import haxe.ds.List;
-import unit.MyEnum;
-import unit.MyClass;
 import unit.HelperMacros.*;
+import unit.MyClass;
+import unit.MyEnum;
 
 class TestType extends Test {
 
@@ -171,7 +171,7 @@ class TestType extends Test {
 		typedAs([ { x : new Child1() }, { x : new Child2() } ], [{ x: new Base() }]);
 
 		#if flash
-		typedAs((function() { return 0; var v:UInt = 0; return v; }) (), 1);
+		typedAs((function() { return 0; var v:UInt = 0; return v.toInt(); }) (), 1);
 		#end
 	}
 
