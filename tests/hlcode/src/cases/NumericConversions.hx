@@ -22,8 +22,9 @@ import haxe.UInt64;
 	- Int32 < Int dispatches to `Int32Native.lt`, producing a direct `jsgte`
 	  instruction (the HL inverse of `<`).  Int64 < Int similarly uses
 	  `Int64Native.lt`, producing a direct `jsgte i64`.
-	  UInt32 and UInt64 comparisons still use the `ucompare` helper because
-	  unsigned comparison requires sign-handling logic.
+	  UInt32 and UInt64 comparisons dispatch to `Int32Native.ult` and
+	  `Int64Native.ult` respectively, which internally delegate to `ucompare`
+	  because unsigned comparison requires sign-handling logic.
 	  UInt64 < Int expands to the full 64-bit `ucompare` logic.
 **/
 @:keep
