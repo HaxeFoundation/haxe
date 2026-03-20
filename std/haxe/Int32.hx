@@ -37,7 +37,6 @@ import haxe.numeric.Int32Native;
 	values exceeding 31-bit range are auto-promoted to Float by the VM while
 	preserving correct 32-bit arithmetic.
 **/
-@:transitive
 abstract Int32(Int32Native) from Int32Native to Int32Native {
 	private inline function new(x:Int32Native)
 		this = x;
@@ -121,8 +120,41 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
 		return Int32Native.ushr(a, b);
 
-	@:to public inline function toFloat():Float
+	/**
+		Converts this Int32 to a Float.
+		All Int32 values are exactly representable as Float.
+	**/
+	public inline function toFloat():Float
 		return (this : Int);
+
+	/**
+		Returns the integer value of this Int32 as a platform-native `Int`.
+	**/
+	@:to public inline function toInt():Int
+		return (this : Int);
+
+	/**
+		Implicit conversion to UInt32 (same bit pattern, same size).
+	**/
+	@:to private inline function toUInt32():UInt32
+		return cast this;
+
+	/**
+		Implicit widening conversion to Int64 (sign-extended to 64 bits).
+	**/
+	@:to private inline function toInt64():Int64 {
+		final n:Int32Native = this;
+		final i:Int = n;
+		return Int64.fromInt(i);
+	}
+
+	/**
+		Converts a Float to Int32.
+		The fractional part is truncated. Values outside [-2^31, 2^31-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):Int32
+		return Int32Native.clamp(Std.int(f));
 
 	/**
 		Compare `a` and `b` in signed mode.

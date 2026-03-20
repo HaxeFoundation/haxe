@@ -23,6 +23,7 @@
 package haxe;
 
 import haxe.numeric.Int64Native;
+import haxe.numeric.Int32Native;
 
 /**
 	A cross-platform signed 64-bit integer.
@@ -35,7 +36,6 @@ import haxe.numeric.Int64Native;
 #if flash
 @:notNull
 #end
-@:transitive
 abstract Int64(Int64Native) from Int64Native to Int64Native {
 	private inline function new(x:Int64Native)
 		this = x;
@@ -126,6 +126,19 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	public inline function toFloat():Float {
 		return Int64Native.toFloat(this);
 	}
+
+	/**
+		Returns the low 32 bits of this Int64 as an Int32.
+		The high 32 bits are discarded.
+	**/
+	public inline function toInt32():Int32
+		return cast Int64Native.toInt(this);
+
+	/**
+		Implicit conversion to UInt64 (same bit pattern, same size).
+	**/
+	@:to private inline function toUInt64():UInt64
+		return cast this;
 
 	/**
 		Performs signed integer division of `dividend` by `divisor`.

@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 /**
 	Helper that converts between floating point and binary representation.
 	Always works in low-endian encoding.
@@ -33,7 +35,7 @@ class FPHelper {
 	static var hasStringPack:Bool = untyped __lua__("string.pack ~= nil");
 	#end
 
-	public static function i32ToFloat(i:Int):Float {
+	public static function i32ToFloat(i:Int32):Float {
 		#if (lua_ver >= 5.3)
 		return untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i);
 		#else
@@ -41,7 +43,7 @@ class FPHelper {
 		#end
 	}
 
-	public static function floatToI32(f:Float):Int {
+	public static function floatToI32(f:Float):Int32 {
 		#if (lua_ver >= 5.3)
 		return untyped __lua__("string.unpack('<i4', string.pack('<f', {0}))", f);
 		#else
@@ -49,7 +51,7 @@ class FPHelper {
 		#end
 	}
 
-	public static function i64ToDouble(low:Int, high:Int):Float {
+	public static function i64ToDouble(low:Int32, high:Int32):Float {
 		#if (lua_ver >= 5.3)
 		return untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high);
 		#else

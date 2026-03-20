@@ -1,6 +1,7 @@
 package unit;
 
 import haxe.Int64.*;
+import unit.HelperMacros.typeError;
 
 using haxe.Int64;
 
@@ -579,6 +580,28 @@ class TestInt64 extends Test {
 		t(minFloat < -9.22e18);
 	}
 
+	public function testCrossTypeComparisons() {
+		// Verify that comparisons between Int64 and smaller integer types use
+		// integer semantics, not float. With @:to Float removed from Int64,
+		// Int32 values are widened to Int64 (via @:to on Int32) for comparison.
+		var i64:Int64 = 200;
+		var i32:haxe.Int32 = 100;
+
+		t(i64 > i32);
+		t(i32 < i64);
+		f(i64 == i32);
+
+		// Values above Float's exact integer range (> 2^53) would lose precision
+		// if compared via float. Confirm integer semantics are preserved.
+		var big1 = Int64.make(0x200000, 1); // 2^53 + 1
+		var big3 = Int64.make(0x200000, 3); // 2^53 + 3
+		t(big1 != big3);         // integer semantics: differ by 2
+		t(big1 < big3);
+		var one:haxe.Int32 = 1;
+		t(one < big3);           // Int32 widened to Int64, then integer compare
+		t(big3 > one);
+	}
+
 	public function testMinMax() {
 		int64eq(Int64.MAX, Int64.make(0x7FFFFFFF, 0xFFFFFFFF));
 		int64eq(Int64.MIN, Int64.make(0x80000000, 0));
@@ -654,5 +677,16 @@ class TestInt64 extends Test {
 		f(x + 1 < x);
 		t(x - 1 < x);
 		f(x < x);
+	}
+
+	function testStrictTypeChecking() {
+		// Float → Int64 is not allowed
+		t(typeError({var x:haxe.Int64 = 1.5;}));
+		// Int64 → Float is not allowed (no implicit @:to Float)
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var f:Float = i;}));
+		// Int64 → Int32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
+		// Int64 → UInt32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.UInt32 = i;}));
 	}
 }

@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 /**
 	Helper that converts between floating point and binary representation.
 	Always works in low-endian encoding.
@@ -130,7 +132,7 @@ class FPHelper {
 	#if neko_v21
 	inline
 	#end
-	public static function i32ToFloat(i:Int):Float {
+	public static function i32ToFloat(i:Int32):Float {
 		#if neko
 		#if neko_v21
 		return untyped $itof(i, false);
@@ -165,7 +167,7 @@ class FPHelper {
 	#if neko_v21
 	inline
 	#end
-	public static function floatToI32(f:Float):Int {
+	public static function floatToI32(f:Float):Int32 {
 		#if neko
 		#if neko_v21
 		return untyped $ftoi(f, false);
@@ -194,7 +196,7 @@ class FPHelper {
 	#if neko_v21
 	inline
 	#end
-	public static function i64ToDouble(low:Int, high:Int):Float {
+	public static function i64ToDouble(low:Int32, high:Int32):Float {
 		#if neko
 		#if neko_v21
 		return untyped $itod(low, high, false);

@@ -23,25 +23,25 @@ class NumericTypes {
 	@:hl(<>
 		fun@N(Nh) ():void
 		; (cases.NumericTypes.eqI64I32)
-		r0 void
-		r1 bool
-		r2 i64
-		r3 cases.$NumericTypes
-		r4 i32
+		r0 i32
+		r1 cases.$NumericTypes
+		r2 void
+		r3 bool
+		r4 i64
 		r5 i64
 		r6 dyn
-		@0 global 3, $0
-		@1 field 2,3[6]
-		@2 global 3, $0
-		@3 field 4,3[5]
-		@4 toint 5,4
-		@5 jnoteq 2,5,2
-		@6 true 1
+		@0 global 1, $0
+		@1 field 0,1[5]
+		@2 global 1, $0
+		@3 field 4,1[6]
+		@4 toint 5,0
+		@5 jnoteq 4,5,2
+		@6 true 3
 		@7 jalways 1
-		@8 false 1
-		@9 todyn 6,1
-		@A call 0, cases.NumericTypes.use(6)
-		@B ret 0
+		@8 false 3
+		@9 todyn 6,3
+		@A call 2, cases.NumericTypes.use(6)
+		@B ret 2
 	</>)
 	static function eqI64I32() {
 		use(i64 == i32);
@@ -82,15 +82,15 @@ class NumericTypes {
 		; (cases.NumericTypes.i32ToI64)
 		r0 i32
 		r1 cases.$NumericTypes
-		r2 i64
-		r3 void
+		r2 void
+		r3 i64
 		r4 null(i64)
 		@0 global 1, $0
 		@1 field 0,1[5]
-		@2 toint 2,0
-		@3 todyn 4,2
-		@4 call 3, cases.NumericTypes.use(4)
-		@5 ret 3
+		@2 toint 3,0
+		@3 todyn 4,3
+		@4 call 2, cases.NumericTypes.use(4)
+		@5 ret 2
 	</>)
 	static function i32ToI64() {
 		var x:Int64 = i32;

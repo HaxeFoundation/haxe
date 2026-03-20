@@ -41,7 +41,7 @@ class UInt64Helper {
 	**/
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {
 		if (divisor.high == 0) {
-			switch (divisor.low) {
+			switch (divisor.low.toInt()) {
 				case 0:
 					throw "divide by zero";
 				case 1:
@@ -178,10 +178,10 @@ class UInt64Helper {
 		Values above `2^53` may lose precision.
 	**/
 	public static function toFloat(x:Int64Native):Float {
-		var f:Float = x.low;
+		var f:Float = x.low.toFloat();
 		if (f < 0)
 			f += 4294967296.0;
-		var h:Float = x.high;
+		var h:Float = x.high.toFloat();
 		if (h < 0)
 			h += 4294967296.0;
 		return h * 4294967296.0 + f;

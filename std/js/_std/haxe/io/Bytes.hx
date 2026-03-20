@@ -112,12 +112,12 @@ class Bytes {
 		data.setUint16(pos, v, true);
 	}
 
-	public function getInt32(pos:Int):Int {
+	public function getInt32(pos:Int):Int32 {
 		initData();
 		return data.getInt32(pos, true);
 	}
 
-	public function setInt32(pos:Int, v:Int):Void {
+	public function setInt32(pos:Int, v:Int32):Void {
 		initData();
 		data.setInt32(pos, v, true);
 	}

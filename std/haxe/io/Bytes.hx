@@ -22,6 +22,9 @@
 
 package haxe.io;
 
+import haxe.Int32;
+import haxe.Int64;
+
 class Bytes {
 	public var length(default, null):Int;
 
@@ -189,13 +192,13 @@ class Bytes {
 				var d = b1.readUnsignedInt() - b2.readUnsignedInt();
 				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
-				return d;
+				return d.toInt();
 			}
 		for (i in 0...len & 3)
 			if (b1.readUnsignedByte() != b2.readUnsignedByte()) {
 				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
-				return b1[b1.position - 1] - b2[b2.position - 1];
+				return b1[b1.position.toInt() - 1] - b2[b2.position.toInt() - 1];
 			}
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
@@ -322,7 +325,7 @@ class Bytes {
 		Returns the 32-bit integer at the given position `pos` (in little-endian
 		encoding).
 	**/
-	public inline function getInt32(pos:Int):Int {
+	public inline function getInt32(pos:Int):Int32 {
 		#if neko_v21
 		return untyped $sget32(b, pos, false);
 		#elseif python
@@ -340,15 +343,15 @@ class Bytes {
 		Returns the 64-bit integer at the given position `pos` (in little-endian
 		encoding).
 	**/
-	public inline function getInt64(pos:Int):haxe.Int64 {
-		return haxe.Int64.make(getInt32(pos + 4), getInt32(pos));
+	public inline function getInt64(pos:Int):Int64 {
+		return Int64.make(getInt32(pos + 4), getInt32(pos));
 	}
 
 	/**
 		Stores the given 32-bit integer `v` at the given position `pos` (in
 		little-endian encoding).
 	**/
-	public inline function setInt32(pos:Int, v:Int):Void {
+	public inline function setInt32(pos:Int, v:Int32):Void {
 		#if neko_v21
 		untyped $sset32(b, pos, v, false);
 		#else
@@ -363,7 +366,7 @@ class Bytes {
 		Stores the given 64-bit integer `v` at the given position `pos` (in
 		little-endian encoding).
 	**/
-	public inline function setInt64(pos:Int, v:haxe.Int64):Void {
+	public inline function setInt64(pos:Int, v:Int64):Void {
 		setInt32(pos, v.low);
 		setInt32(pos + 4, v.high);
 	}
@@ -524,7 +527,7 @@ class Bytes {
 			b.writeMultiByte(s, "unicode")
 		else
 			b.writeUTFBytes(s);
-		return new Bytes(b.length, b);
+		return new Bytes(b.length.toInt(), b);
 		#elseif java
 		try {
 			var b:BytesData = switch (encoding) {
@@ -581,7 +584,7 @@ class Bytes {
 	**/
 	public static function ofData(b:BytesData) {
 		#if flash
-		return new Bytes(b.length, b);
+		return new Bytes(b.length.toInt(), b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b), b);
 		#else

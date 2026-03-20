@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 class BytesInput extends Input {
 	var b:#if js js.lib.Uint8Array #elseif hl hl.Bytes #else BytesData #end;
 	#if !flash
@@ -66,7 +68,7 @@ class BytesInput extends Input {
 
 	inline function get_position():Int {
 		#if flash
-		return b.position;
+		return b.position.toInt();
 		#else
 		return pos;
 		#end
@@ -74,7 +76,7 @@ class BytesInput extends Input {
 
 	inline function get_length():Int {
 		#if flash
-		return b.length;
+		return b.length.toInt();
 		#else
 		return totlen;
 		#end
@@ -86,7 +88,8 @@ class BytesInput extends Input {
 		else if (p > length)
 			p = length;
 		#if flash
-		return b.position = p;
+		b.position = p;
+		return p;
 		#else
 		len = totlen - p;
 		return pos = p;
@@ -95,7 +98,7 @@ class BytesInput extends Input {
 
 	public override function readByte():Int {
 		#if flash
-		return try b.readUnsignedByte() catch (e:Dynamic) throw new Eof();
+		return try b.readUnsignedByte().toInt() catch (e:Dynamic) throw new Eof();
 		#else
 		if (this.len == 0)
 			throw new Eof();
@@ -122,7 +125,7 @@ class BytesInput extends Input {
 			throw Error.OutsideBounds;
 		#end
 		#if flash
-		var avail:Int = b.bytesAvailable;
+		var avail:Int = b.bytesAvailable.toInt();
 		if (len > avail && avail > 0)
 			len = avail;
 		try
@@ -192,11 +195,11 @@ class BytesInput extends Input {
 
 	@:dox(hide)
 	override function readUInt16():Int {
-		return try b.readUnsignedShort() catch (e:Dynamic) throw new Eof();
+		return try b.readUnsignedShort().toInt() catch (e:Dynamic) throw new Eof();
 	}
 
 	@:dox(hide)
-	override function readInt32():Int {
+	override function readInt32():Int32 {
 		return try b.readInt() catch (e:Dynamic) throw new Eof();
 	}
 

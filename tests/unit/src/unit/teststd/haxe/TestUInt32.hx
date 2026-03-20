@@ -1,6 +1,7 @@
 package unit.teststd.haxe;
 
 import haxe.UInt32;
+import unit.HelperMacros.typeError;
 
 class TestUInt32 extends unit.Test {
 	static final ZERO:UInt32 = UInt32.MIN;
@@ -12,7 +13,7 @@ class TestUInt32 extends unit.Test {
 	// --- Constants ---
 	function testMinMax() {
 		// MIN is 0
-		eq(UInt32.toInt(ZERO), 0);
+		eq(ZERO.toInt(), 0);
 		eq(Std.string(ZERO), "0");
 
 		// MAX is 4294967295 (2^32 - 1)
@@ -68,7 +69,7 @@ class TestUInt32 extends unit.Test {
 	function testAddOverflow() {
 		// MAX + 1 wraps to 0
 		var r = MAX + ONE;
-		eq(UInt32.toInt(r), 0);
+		eq(r.toInt(), 0);
 		eq(r.toString(), "0");
 	}
 
@@ -157,6 +158,35 @@ class TestUInt32 extends unit.Test {
 		feq(MAX.toFloat(), 4294967295.0);
 	}
 
+	function testFloatComparisons() {
+		#if loose_numeric_casts
+		var five:UInt32 = 5;
+		var fiveF:Float = 5.0;
+		var threeF:Float = 3.0;
+		var tenF:Float = 10.0;
+		// UInt32 < Float
+		t(five > threeF);
+		f(five > tenF);
+		t(five >= fiveF);
+		f(five >= tenF);
+		t(five < tenF);
+		f(five < threeF);
+		t(five <= fiveF);
+		f(five <= threeF);
+		// Float < UInt32
+		t(threeF < five);
+		f(tenF < five);
+		t(fiveF <= five);
+		f(tenF <= five);
+		t(tenF > five);
+		f(threeF > five);
+		t(fiveF >= five);
+		f(threeF >= five);
+		#else
+		noAssert();
+		#end
+	}
+
 	// --- isZero ---
 	function testIsZero() {
 		t(UInt32.isZero(ZERO));
@@ -212,5 +242,16 @@ class TestUInt32 extends unit.Test {
 		t(MAX > ZERO);
 		f(ZERO > MAX);
 		f(MAX < ZERO);
+	}
+
+	function testStrictTypeChecking() {
+		// Float → UInt32 is not allowed
+		t(typeError({var x:haxe.UInt32 = 1.5;}));
+		// UInt32 → Float is not allowed (no implicit @:to Float)
+		t(typeError({var u:haxe.UInt32 = 5; var f:Float = u;}));
+		// Int64 → UInt32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.UInt32 = i;}));
+		// UInt64 → UInt32 narrowing is not allowed
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.UInt32 = u;}));
 	}
 }

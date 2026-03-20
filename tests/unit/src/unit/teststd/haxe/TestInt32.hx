@@ -2,6 +2,7 @@ package unit.teststd.haxe;
 
 import haxe.Int32;
 import haxe.UInt32;
+import unit.HelperMacros.typeError;
 
 class TestInt32 extends unit.Test {
 	// --- Constants ---
@@ -179,11 +180,40 @@ class TestInt32 extends unit.Test {
 
 	function testMixedFloatOps() {
 		// Int32 + Float returns Float
-		var result:Float = MAX + 0.5;
+		var result:Float = MAX.toFloat() + 0.5;
 		feq(result, 2147483647.5);
 		// Int32 * Float returns Float
-		var result2:Float = ONE * 2.5;
+		var result2:Float = ONE.toFloat() * 2.5;
 		feq(result2, 2.5);
+	}
+
+	function testFloatComparisons() {
+		#if loose_numeric_casts
+		var five:Int32 = 5;
+		var fiveF:Float = 5.0;
+		var threeF:Float = 3.0;
+		var tenF:Float = 10.0;
+		// Int32 < Float
+		t(five > threeF);
+		f(five > tenF);
+		t(five >= fiveF);
+		f(five >= tenF);
+		t(five < tenF);
+		f(five < threeF);
+		t(five <= fiveF);
+		f(five <= threeF);
+		// Float < Int32
+		t(threeF < five);
+		f(tenF < five);
+		t(fiveF <= five);
+		f(tenF <= five);
+		t(tenF > five);
+		f(threeF > five);
+		t(fiveF >= five);
+		f(threeF >= five);
+		#else
+		noAssert();
+		#end
 	}
 
 	// --- Conversion ---
@@ -208,7 +238,7 @@ class TestInt32 extends unit.Test {
 		eq((ten / three : Int32), cast(3, Int32));
 		eq((ten / cast(-3, Int32) : Int32), cast(-3, Int32));
 		eq((cast(-10, Int32) / three : Int32), cast(-3, Int32));
-		// Float division still works via @:to toFloat
+		// Float division via @:to Float
 		feq((ten : Float) / (three : Float), 10.0 / 3.0);
 	}
 
@@ -230,8 +260,8 @@ class TestInt32 extends unit.Test {
 		eq(2147483643, cast(-(5 + min), Int)); // static analyzer issue
 
 		// Old test from teststd (uses equals form)
-		-min == min;              // two's complement overflow,
-		-2147483643 == 5 + -min;  // order of ops and negate
+		- min == min; // two's complement overflow,
+		- 2147483643 == 5 + -min; // order of ops and negate
 		2147483643 == -(5 + min); // static analyzer issue
 	}
 
@@ -307,9 +337,9 @@ class TestInt32 extends unit.Test {
 	function testHlEdgeCases() {
 		var min:Int32 = MIN;
 		var max:Int32 = MAX;
-		eq(0, min % 0);              // % 0 div by zero exception
+		eq(0, min % 0); // % 0 div by zero exception
 		eq(0, Std.int(min / 0));
-		eq(0, min % -1);             // min % -1 integer overflow exception
+		eq(0, min % -1); // min % -1 integer overflow exception
 		eq(min, Std.int(min / -1));
 		eq(min, min * -1);
 		eq(0, min % 1);
@@ -321,4 +351,15 @@ class TestInt32 extends unit.Test {
 		eq(0, max % 1);
 	}
 	#end
+
+	function testStrictTypeChecking() {
+		// Float → Int32 is not allowed (no implicit @:from Float)
+		t(typeError({var x:haxe.Int32 = 1.5;}));
+		// Float variable → Int32 is not allowed
+		t(typeError({var f:Float = 1.5; var r:haxe.Int32 = f;}));
+		// Int64 → Int32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
+		// UInt64 → Int32 narrowing is not allowed
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.Int32 = u;}));
+	}
 }

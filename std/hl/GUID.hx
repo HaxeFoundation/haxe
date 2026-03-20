@@ -36,5 +36,9 @@ package hl;
 	@:op(a<=b) function lte(v:GUID) : Bool;
 	@:op(a>b) function gt(v:GUID) : Bool;
 	@:op(a<b) function lt(v:GUID) : Bool;
+
+	@:from static function fromInt64(v:haxe.Int64):GUID {
+		return cast v;
+	}
 }
 #end

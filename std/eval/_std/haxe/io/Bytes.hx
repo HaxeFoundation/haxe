@@ -39,9 +39,9 @@ extern class Bytes {
 	function setFloat(pos:Int, v:Float):Void;
 	function getUInt16(pos:Int):Int;
 	function setUInt16(pos:Int, v:Int):Void;
-	function getInt32(pos:Int):Int;
+	function getInt32(pos:Int):haxe.Int32;
 	function getInt64(pos:Int):haxe.Int64;
-	function setInt32(pos:Int, v:Int):Void;
+	function setInt32(pos:Int, v:haxe.Int32):Void;
 	function setInt64(pos:Int, v:haxe.Int64):Void;
 	function getString(pos:Int, len:Int, ?encoding:Encoding):String;
 	function toString():String;

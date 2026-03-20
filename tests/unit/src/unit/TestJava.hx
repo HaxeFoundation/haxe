@@ -1,5 +1,6 @@
 package unit;
 
+import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
@@ -67,7 +68,7 @@ class TestJava extends Test {
 		eq(cl.longTest(i), 100);
 		eq(cl.longTest(haxe.Int64.fromInt(-1)), -1);
 		eq(cl.longTest(haxe.Int64.fromInt(1000)), 1000);
-		i = 10;
+		i = Int64.fromInt(10);
 		eq(cl.longTest(i), 10);
 	}
 
