@@ -25,7 +25,7 @@ class Issue8004 extends TestCase {
 		var found = false;
 		for (module in result) {
 			for (symbol in module.symbols) {
-				if (symbol.name == "UInt" && symbol.kind == Abstract) {
+				if (symbol.name == "UInt32" && symbol.kind == Abstract) {
 					found = true;
 					break;
 				}

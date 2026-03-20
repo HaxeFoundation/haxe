@@ -36,11 +36,11 @@ class Bytes {
 	}
 
 	inline function out(pos:Int):Bool {
-		return (pos : UInt) >= (length : UInt);
+		return (pos : haxe.UInt32) >= (length : haxe.UInt32);
 	}
 
 	inline function outRange(pos:Int, len:Int):Bool {
-		return pos < 0 || len < 0 || ((pos + len) : UInt) > (length : UInt);
+		return pos < 0 || len < 0 || ((pos + len) : haxe.UInt32) > (length : haxe.UInt32);
 	}
 
 	public function get(pos:Int):Int {

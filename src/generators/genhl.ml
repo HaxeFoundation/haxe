@@ -314,7 +314,7 @@ let member_fun c t =
 
 let rec unsigned t =
 	match follow t with
-	| TAbstract ({ a_path = [],"UInt" },_) -> true
+	| TAbstract ({ a_path = ["haxe"],"UInt32" },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
 
@@ -462,7 +462,7 @@ let rec to_type ?tref ctx t =
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
 			| [], "Void" -> HVoid
-			| [], "Int" | [], "UInt" -> HI32
+			| [], "Int" | ["haxe"], "UInt32" -> HI32
 			| [], "Float" -> HF64
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool
