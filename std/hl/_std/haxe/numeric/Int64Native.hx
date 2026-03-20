@@ -92,6 +92,30 @@ private abstract Int64NativeImpl(hl.I64) from hl.I64 to hl.I64 {
 		return ((b : hl.I64) < 0) ? -1 : compare(a, b);
 	}
 
+	public static inline function lt(a:Int64Native, b:Int64Native):Bool
+		return (a : hl.I64) < (b : hl.I64);
+
+	public static inline function lte(a:Int64Native, b:Int64Native):Bool
+		return (a : hl.I64) <= (b : hl.I64);
+
+	public static inline function gt(a:Int64Native, b:Int64Native):Bool
+		return (a : hl.I64) > (b : hl.I64);
+
+	public static inline function gte(a:Int64Native, b:Int64Native):Bool
+		return (a : hl.I64) >= (b : hl.I64);
+
+	public static inline function ult(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) < 0;
+
+	public static inline function ulte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) <= 0;
+
+	public static inline function ugt(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) > 0;
+
+	public static inline function ugte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) >= 0;
+
 	public static inline function neg(x:Int64Native):Int64Native
 		return cast -(x : hl.I64);
 

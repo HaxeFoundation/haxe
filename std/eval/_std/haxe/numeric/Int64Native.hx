@@ -83,6 +83,30 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 		return (EvalInt64.compare(b, EvalInt64.ZERO) < 0) ? -1 : EvalInt64.compare(a, b);
 	}
 
+	public static inline function lt(a:Int64Native, b:Int64Native):Bool
+		return EvalInt64.compare(a, b) < 0;
+
+	public static inline function lte(a:Int64Native, b:Int64Native):Bool
+		return EvalInt64.compare(a, b) <= 0;
+
+	public static inline function gt(a:Int64Native, b:Int64Native):Bool
+		return EvalInt64.compare(a, b) > 0;
+
+	public static inline function gte(a:Int64Native, b:Int64Native):Bool
+		return EvalInt64.compare(a, b) >= 0;
+
+	public static inline function ult(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) < 0;
+
+	public static inline function ulte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) <= 0;
+
+	public static inline function ugt(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) > 0;
+
+	public static inline function ugte(a:Int64Native, b:Int64Native):Bool
+		return ucompare(a, b) >= 0;
+
 	public static inline function neg(x:Int64Native):Int64Native {
 		return -(x : EvalInt64);
 	}

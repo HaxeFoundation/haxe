@@ -119,6 +119,14 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	public static function isZero(x:Int64Native):Bool;
 	public static function compare(a:Int64Native, b:Int64Native):Int;
 	public static function ucompare(a:Int64Native, b:Int64Native):Int;
+	public static function lt(a:Int64Native, b:Int64Native):Bool;
+	public static function lte(a:Int64Native, b:Int64Native):Bool;
+	public static function gt(a:Int64Native, b:Int64Native):Bool;
+	public static function gte(a:Int64Native, b:Int64Native):Bool;
+	public static function ult(a:Int64Native, b:Int64Native):Bool;
+	public static function ulte(a:Int64Native, b:Int64Native):Bool;
+	public static function ugt(a:Int64Native, b:Int64Native):Bool;
+	public static function ugte(a:Int64Native, b:Int64Native):Bool;
 	public static function neg(x:Int64Native):Int64Native;
 	public static function add(a:Int64Native, b:Int64Native):Int64Native;
 	public static function sub(a:Int64Native, b:Int64Native):Int64Native;
@@ -183,6 +191,30 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 
 	public static #if !scriptable inline #end function ucompare(a:Int64Native, b:Int64Native):Int
 		return CppInt64Helper.ucompare(a, b);
+
+	public static #if !scriptable inline #end function lt(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.compare(a, b) < 0;
+
+	public static #if !scriptable inline #end function lte(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.compare(a, b) <= 0;
+
+	public static #if !scriptable inline #end function gt(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.compare(a, b) > 0;
+
+	public static #if !scriptable inline #end function gte(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.compare(a, b) >= 0;
+
+	public static #if !scriptable inline #end function ult(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.ucompare(a, b) < 0;
+
+	public static #if !scriptable inline #end function ulte(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.ucompare(a, b) <= 0;
+
+	public static #if !scriptable inline #end function ugt(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.ucompare(a, b) > 0;
+
+	public static #if !scriptable inline #end function ugte(a:Int64Native, b:Int64Native):Bool
+		return CppInt64Helper.ucompare(a, b) >= 0;
 
 	public static #if !scriptable inline #end function neg(x:Int64Native):Int64Native
 		return CppInt64Helper.neg(x);
