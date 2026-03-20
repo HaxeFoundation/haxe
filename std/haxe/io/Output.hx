@@ -226,15 +226,15 @@ abstract class Output {
 	**/
 	public function writeInt32(x:Int32) {
 		if (bigEndian) {
-			writeByte(x >>> 24);
-			writeByte((x >> 16) & 0xFF);
-			writeByte((x >> 8) & 0xFF);
-			writeByte(x & 0xFF);
+			writeByte(x.toInt() >>> 24);
+			writeByte((x.toInt() >> 16) & 0xFF);
+			writeByte((x.toInt() >> 8) & 0xFF);
+			writeByte(x.toInt() & 0xFF);
 		} else {
-			writeByte(x & 0xFF);
-			writeByte((x >> 8) & 0xFF);
-			writeByte((x >> 16) & 0xFF);
-			writeByte(x >>> 24);
+			writeByte(x.toInt() & 0xFF);
+			writeByte((x.toInt() >> 8) & 0xFF);
+			writeByte((x.toInt() >> 16) & 0xFF);
+			writeByte(x.toInt() >>> 24);
 		}
 	}
 

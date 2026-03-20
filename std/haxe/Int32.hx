@@ -130,7 +130,7 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	/**
 		Returns the integer value of this Int32 as a platform-native `Int`.
 	**/
-	@:to public inline function toInt():Int
+	public inline function toInt():Int
 		return (this : Int);
 
 	/**
@@ -191,13 +191,13 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		Returns `true` if `x` is less than zero.
 	**/
 	public static inline function isNeg(x:Int32):Bool
-		return (x : Int) < 0;
+		return x.toInt() < 0;
 
 	/**
 		Returns `true` if `x` is exactly zero.
 	**/
 	public static inline function isZero(x:Int32):Bool
-		return (x : Int) == 0;
+		return x.toInt() == 0;
 
 	/**
 		Returns an `Int32` with the value of the `Int` `x`.

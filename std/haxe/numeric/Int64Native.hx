@@ -62,9 +62,8 @@ private class Int64NativeImpl {
 	}
 
 	public static inline function compare(a:Int64Native, b:Int64Native):Int {
-		var v = a.high - b.high;
-		v = if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
-		return a.high < 0 ? (b.high < 0 ? v : -1) : (b.high >= 0 ? v : 1);
+		var v = haxe.Int32.compare(a.high, b.high);
+		return if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
 	}
 
 	public static inline function ucompare(a:Int64Native, b:Int64Native):Int {
@@ -192,7 +191,7 @@ private class Int64NativeImpl {
 
 	public static inline function shl(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high, a.low) else if (b < 32) make((a.high << b) | (a.low >>> (32 - b)), a.low << b) else make(a.low << (b - 32), 0);
+		return if (b == 0) make(a.high, a.low) else if (b < 32) make((a.high << b) | (a.low >>> (32 - b)), a.low << b) else make(a.low << (b - 32), (0 : haxe.Int32));
 	}
 
 	public static inline function shr(a:Int64Native, b:Int):Int64Native {
@@ -204,7 +203,7 @@ private class Int64NativeImpl {
 	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
 		return if (b == 0) make(a.high,
-			a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
+			a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make((0 : haxe.Int32), clamp(a.high.toInt() >>> (b - 32)));
 	}
 
 	#if php
@@ -269,10 +268,10 @@ private class Int64NativeImpl {
 	public static function utoString(x:Int64Native):String {
 		if (x.high == 0 && x.low == 0)
 			return "0";
-		var d3 = (x.high >>> 16) & 0xFFFF;
-		var d2 = x.high & 0xFFFF;
-		var d1 = (x.low >>> 16) & 0xFFFF;
-		var d0 = x.low & 0xFFFF;
+		var d3 = (x.high >>> 16).toInt() & 0xFFFF;
+		var d2 = x.high.toInt() & 0xFFFF;
+		var d1 = (x.low >>> 16).toInt() & 0xFFFF;
+		var d0 = x.low.toInt() & 0xFFFF;
 		var str = "";
 		while (d3 != 0 || d2 != 0 || d1 != 0 || d0 != 0) {
 			var r = d3 % 10;

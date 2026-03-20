@@ -361,5 +361,7 @@ class TestInt32 extends unit.Test {
 		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
 		// UInt64 → Int32 narrowing is not allowed
 		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.Int32 = u;}));
+		// Int32 → Int implicit cast is not allowed (no @:to Int)
+		t(typeError({var i:haxe.Int32 = haxe.Int32.fromInt(5); var r:Int = i;}));
 	}
 }

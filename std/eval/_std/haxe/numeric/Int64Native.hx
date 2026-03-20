@@ -150,10 +150,10 @@ private abstract Int64NativeImpl(EvalInt64) from EvalInt64 to EvalInt64 {
 	}
 
 	public static inline function toFloat(x:Int64Native):Float {
-		var f:Float = x.low;
+		var f:Float = x.low.toFloat();
 		if (f < 0)
 			f += 4294967296.0;
-		return (x.high : Float) * 4294967296.0 + f;
+		return x.high.toFloat() * 4294967296.0 + f;
 	}
 
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {

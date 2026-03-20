@@ -85,10 +85,10 @@ class UInt64Helper {
 	public static function utoString(x:Int64Native):String {
 		if (x.high == 0 && x.low == 0)
 			return "0";
-		var d3 = (x.high >>> 16) & 0xFFFF;
-		var d2 = x.high & 0xFFFF;
-		var d1 = (x.low >>> 16) & 0xFFFF;
-		var d0 = x.low & 0xFFFF;
+		var d3 = (x.high >>> 16).toInt() & 0xFFFF;
+		var d2 = x.high.toInt() & 0xFFFF;
+		var d1 = (x.low >>> 16).toInt() & 0xFFFF;
+		var d0 = x.low.toInt() & 0xFFFF;
 		var str = "";
 		while (d3 != 0 || d2 != 0 || d1 != 0 || d0 != 0) {
 			var r = d3 % 10;

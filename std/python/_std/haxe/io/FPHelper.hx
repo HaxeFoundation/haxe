@@ -42,7 +42,7 @@ class FPHelper {
 		return Struct.unpack("<i", Struct.pack("<f", f))[0];
 	}
 
-	public static inline function i64ToDouble(low:Int, high:Int):Float {
+	public static inline function i64ToDouble(low:Int32, high:Int32):Float {
 		// Pack two 32-bit ints as little-endian, unpack as double
 		return Struct.unpack("<d", Struct.pack("<ii", low, high))[0];
 	}
