@@ -142,7 +142,7 @@ class BytesOutput extends Output {
 		#if flash
 		var bytes = b;
 		b = null;
-		return new Bytes(bytes.length.toInt(), bytes);
+		return @:privateAccess new Bytes(bytes.length.toInt(), bytes);
 		#else
 		return b.getBytes();
 		#end
