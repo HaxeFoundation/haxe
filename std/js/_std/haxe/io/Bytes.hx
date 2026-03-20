@@ -119,7 +119,7 @@ class Bytes {
 
 	public function setInt32(pos:Int, v:Int32):Void {
 		initData();
-		data.setInt32(pos, v, true);
+		data.setInt32(pos, v.toInt(), true);
 	}
 
 	public function getInt64(pos:Int):haxe.Int64 {

@@ -106,10 +106,10 @@ class Bytes {
 	}
 
 	public inline function setInt32(pos:Int, v:Int32):Void {
-		set(pos, v);
-		set(pos + 1, v >> 8);
-		set(pos + 2, v >> 16);
-		set(pos + 3, v >>> 24);
+		set(pos, v.toInt());
+		set(pos + 1, (v >> 8).toInt());
+		set(pos + 2, (v >> 16).toInt());
+		set(pos + 3, (v >>> 24).toInt());
 	}
 
 	public inline function setInt64(pos:Int, v:haxe.Int64):Void {

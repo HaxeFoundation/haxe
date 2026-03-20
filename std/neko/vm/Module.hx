@@ -176,7 +176,7 @@ class Module {
 		if (i.readByte() != 0x4E || i.readByte() != 0x45 || i.readByte() != 0x4B || i.readByte() != 0x4F)
 			throw "Not a neko file";
 		function readInt() {
-			return i.readInt32();
+			return i.readInt32().toInt();
 		}
 		var nglobals = readInt();
 		/*var nfields =*/ readInt();

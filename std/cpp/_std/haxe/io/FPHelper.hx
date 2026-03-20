@@ -51,8 +51,8 @@ class FPHelper {
 		final value = 0f64;
 		final view  = value.refAsView().asBytesView();
 
-		view.writeLittleEndianInt32(low);
-		view.slice(4).writeLittleEndianInt32(high);
+		view.writeLittleEndianInt32(low.toInt());
+		view.slice(4).writeLittleEndianInt32(high.toInt());
 
 		return value;
 	}

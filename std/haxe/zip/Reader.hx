@@ -65,7 +65,7 @@ class Reader {
 					} else {
 						var crc = i.readInt32();
 						var name = i.read(len - 5).toString();
-						fields.add(FInfoZipUnicodePath(name, crc));
+						fields.add(FInfoZipUnicodePath(name, crc.toInt()));
 					}
 				default:
 					fields.add(FUnknown(tag, i.read(len)));
@@ -77,7 +77,7 @@ class Reader {
 
 	public function readEntryHeader():Null<Entry> {
 		var i = this.i;
-		var h = i.readInt32();
+		var h = i.readInt32().toInt();
 		if (h == 0x02014B50 || h == 0x06054B50)
 			return null;
 		if (h != 0x04034B50)
@@ -92,9 +92,9 @@ class Reader {
 		if (compressed && compression != 8)
 			throw "Unsupported compression " + compression;
 		var mtime = readZipDate();
-		var crc32:Null<Int> = i.readInt32();
-		var csize = i.readInt32();
-		var usize = i.readInt32();
+		var crc32:Null<Int> = i.readInt32().toInt();
+		var csize = i.readInt32().toInt();
+		var usize = i.readInt32().toInt();
 		var fnamelen = i.readInt16();
 		var elen = i.readInt16();
 		var fname = i.readString(fnamelen);
@@ -179,11 +179,11 @@ class Reader {
 			// If CRC32 is not defined in the header,
 			// it's defined in a data descriptor after the compressed data.
 			if (e.crc32 == null) {
-				e.crc32 = i.readInt32();
+				e.crc32 = i.readInt32().toInt();
 				if (e.crc32 == 0x08074b50)
-					e.crc32 = i.readInt32();
-				e.dataSize = i.readInt32();
-				e.fileSize = i.readInt32();
+					e.crc32 = i.readInt32().toInt();
+				e.dataSize = i.readInt32().toInt();
+				e.fileSize = i.readInt32().toInt();
 				// set data to uncompressed
 				e.dataSize = e.fileSize;
 				e.compressed = false;

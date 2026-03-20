@@ -191,19 +191,37 @@ private class Int64NativeImpl {
 
 	public static inline function shl(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high, a.low) else if (b < 32) make((a.high << b) | (a.low >>> (32 - b)), a.low << b) else make(a.low << (b - 32), (0 : haxe.Int32));
+		if (b == 0)
+			return make(a.high, a.low);
+		if (b < 32) {
+			var rh = (a.high << b) | (a.low >>> (32 - b));
+			return make(rh, a.low << b);
+		}
+		var rh = a.low << (b - 32);
+		return make(rh, 0);
 	}
 
 	public static inline function shr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high,
-			a.low) else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b)); else make(a.high >> 31, a.high >> (b - 32));
+		if (b == 0)
+			return make(a.high, a.low);
+		if (b < 32) {
+			var rl = (a.high << (32 - b)) | (a.low >>> b);
+			return make(a.high >> b, rl);
+		}
+		var rl = a.high >> (b - 32);
+		return make(a.high >> 31, rl);
 	}
 
 	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high,
-			a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make((0 : haxe.Int32), clamp(a.high.toInt() >>> (b - 32)));
+		if (b == 0)
+			return make(a.high, a.low);
+		if (b < 32) {
+			var rl = (a.high << (32 - b)) | (a.low >>> b);
+			return make(a.high >>> b, rl);
+		}
+		return make(0, clamp(a.high.toInt() >>> (b - 32)));
 	}
 
 	#if php
@@ -324,13 +342,13 @@ private class Int64NativeImpl {
 		// Split into four unsigned 16-bit chunks for safe division
 		var h:Int, l:Int;
 		if (negative) {
-			h = ~high;
-			l = -low;
+			h = (~high).toInt();
+			l = (-low).toInt();
 			if (l == 0)
 				h++;
 		} else {
-			h = high;
-			l = low;
+			h = high.toInt();
+			l = low.toInt();
 		}
 		var d3 = (h >>> 16) & 0xFFFF;
 		var d2 = h & 0xFFFF;
