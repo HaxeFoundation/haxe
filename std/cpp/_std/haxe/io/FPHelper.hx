@@ -47,7 +47,7 @@ class FPHelper {
 		return f32.refAsView().asBytesView().readInt32();
 	}
 
-	public static function i64ToDouble(low:Int, high:Int):Float {
+	public static function i64ToDouble(low:Int32, high:Int32):Float {
 		final value = 0f64;
 		final view  = value.refAsView().asBytesView();
 

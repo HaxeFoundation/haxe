@@ -41,7 +41,7 @@ class FPHelper {
 		return helper.getI32(0);
 	}
 
-	public static function i64ToDouble(low:Int, high:Int):Float {
+	public static function i64ToDouble(low:Int32, high:Int32):Float {
 		helper.setI32(0, low);
 		helper.setI32(4, high);
 		return helper.getF64(0);

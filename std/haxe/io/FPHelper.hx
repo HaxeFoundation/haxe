@@ -196,7 +196,7 @@ class FPHelper {
 	#if neko_v21
 	inline
 	#end
-	public static function i64ToDouble(low:Int, high:Int):Float {
+	public static function i64ToDouble(low:Int32, high:Int32):Float {
 		#if neko
 		#if neko_v21
 		return untyped $itod(low, high, false);
