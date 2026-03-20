@@ -197,14 +197,16 @@ private class Int64NativeImpl {
 
 	public static inline function shr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high,
-			a.low) else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b)); else make(a.high >> 31, a.high >> (b - 32));
+		return if (b == 0) make(a.high, a.low)
+			else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b))
+			else make(a.high >> 31, a.high >> (b - 32));
 	}
 
 	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		return if (b == 0) make(a.high,
-			a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
+		return if (b == 0) make(a.high, a.low)
+			else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b))
+			else make(0, clamp(a.high >>> (b - 32)));
 	}
 
 	#if php
