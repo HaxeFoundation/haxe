@@ -22,8 +22,8 @@
 
 package haxe;
 
-import haxe.numeric.Int64Native;
 import haxe.numeric.Int32Native;
+import haxe.numeric.Int64Native;
 
 /**
 	A cross-platform signed 64-bit integer.
@@ -156,8 +156,7 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return Int64Native.neg(x);
 
 	@:op(++A) private inline function preIncrement():Int64 {
-		this = Int64Native.add(this, Int64Native.ofInt(1));
-		return cast this;
+		return this = Int64Native.add(this, Int64Native.ofInt(1));
 	}
 
 	@:op(A++) private inline function postIncrement():Int64 {
@@ -167,8 +166,7 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 	}
 
 	@:op(--A) private inline function preDecrement():Int64 {
-		this = Int64Native.sub(this, Int64Native.ofInt(1));
-		return cast this;
+		return this = Int64Native.sub(this, Int64Native.ofInt(1));
 	}
 
 	@:op(A--) private inline function postDecrement():Int64 {

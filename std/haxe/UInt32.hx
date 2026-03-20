@@ -51,8 +51,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.neg(x);
 
 	@:op(++A) private inline function preIncrement():UInt32 {
-		this = Int32Native.add(this, 1);
-		return cast this;
+		return this = Int32Native.add(this, 1);
 	}
 
 	@:op(A++) private inline function postIncrement():UInt32 {
@@ -62,8 +61,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	}
 
 	@:op(--A) private inline function preDecrement():UInt32 {
-		this = Int32Native.sub(this, 1);
-		return cast this;
+		return this = Int32Native.sub(this, 1);
 	}
 
 	@:op(A--) private inline function postDecrement():UInt32 {
@@ -88,15 +86,11 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.udivMod(a, b).modulus;
 
 	@:op(A == B) private static inline function eq(a:UInt32, b:UInt32):Bool {
-		var n1:Int32Native = a;
-		var n2:Int32Native = b;
-		return (n1 : Int) == (n2 : Int);
+		return a.toInt() == b.toInt();
 	}
 
 	@:op(A != B) private static inline function neq(a:UInt32, b:UInt32):Bool {
-		var n1:Int32Native = a;
-		var n2:Int32Native = b;
-		return (n1 : Int) != (n2 : Int);
+		return a.toInt() != b.toInt();
 	}
 
 	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool
@@ -140,6 +134,14 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.utoFloat(this);
 
 	/**
+		Returns the value of this UInt32 as an Int (same bit pattern,
+		may appear negative for values ≥ `2^31`).
+	**/
+	public inline function toInt():Int {
+		return ((this : Int32Native) : Int);
+	}
+
+	/**
 		Implicit conversion to Int32 (same bit pattern, same size).
 	**/
 	@:to private inline function toInt32():Int32
@@ -149,8 +151,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		Implicit widening conversion to UInt64 (zero-extended to 64 bits).
 	**/
 	@:to private inline function toUInt64():UInt64 {
-		final n:Int32 = cast this;
-		return UInt64.make(0, n);
+		return UInt64.make(0, this);
 	}
 
 	/**
@@ -178,8 +179,7 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		Returns `true` if `x` is zero (i.e. the minimum value).
 	**/
 	public static inline function isZero(x:UInt32):Bool {
-		var n:Int32Native = x;
-		return (n : Int) == 0;
+		return x.toInt() == 0;
 	}
 
 	/**
@@ -196,21 +196,10 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	public static inline function parseString(sParam:String):UInt32
 		return new UInt32(Int32Native.uparseString(sParam));
 
-	// Extra
-
 	/** @deprecated Use `fromInt` instead. **/
 	@:deprecated("Use fromInt instead")
 	public static inline function ofInt(x:Int):UInt32
 		return fromInt(x);
-
-	/**
-		Returns the value of this UInt32 as an Int (same bit pattern,
-		may appear negative for values ≥ `2^31`).
-	**/
-	public inline function toInt():Int {
-		var n:Int32Native = this;
-		return (n : Int);
-	}
 
 	/**
 		Returns an unsigned decimal String representation of `x`.

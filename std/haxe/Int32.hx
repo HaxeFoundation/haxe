@@ -51,8 +51,7 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.neg(x);
 
 	@:op(++A) private inline function preIncrement():Int32 {
-		this = Int32Native.add(this, 1);
-		return cast this;
+		return this = Int32Native.add(this, 1);
 	}
 
 	@:op(A++) private inline function postIncrement():Int32 {
@@ -62,8 +61,7 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	}
 
 	@:op(--A) private inline function preDecrement():Int32 {
-		this = Int32Native.sub(this, 1);
-		return cast this;
+		return this = Int32Native.sub(this, 1);
 	}
 
 	@:op(A--) private inline function postDecrement():Int32 {
@@ -143,9 +141,7 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		Implicit widening conversion to Int64 (sign-extended to 64 bits).
 	**/
 	@:to private inline function toInt64():Int64 {
-		final n:Int32Native = this;
-		final i:Int = n;
-		return Int64.fromInt(i);
+		return Int64.fromInt(this);
 	}
 
 	/**
