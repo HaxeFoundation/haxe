@@ -62,8 +62,9 @@ private class Int64NativeImpl {
 	}
 
 	public static inline function compare(a:Int64Native, b:Int64Native):Int {
-		var v = haxe.Int32.compare(a.high, b.high);
-		return if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
+		var v = a.high - b.high;
+		v = if (v != 0) v else haxe.Int32.ucompare(a.low, b.low);
+		return a.high < 0 ? (b.high < 0 ? v : -1) : (b.high >= 0 ? v : 1);
 	}
 
 	public static inline function ucompare(a:Int64Native, b:Int64Native):Int {
@@ -191,37 +192,19 @@ private class Int64NativeImpl {
 
 	public static inline function shl(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		if (b == 0)
-			return make(a.high, a.low);
-		if (b < 32) {
-			var rh = (a.high << b) | (a.low >>> (32 - b));
-			return make(rh, a.low << b);
-		}
-		var rh = a.low << (b - 32);
-		return make(rh, 0);
+		return if (b == 0) make(a.high, a.low) else if (b < 32) make((a.high << b) | (a.low >>> (32 - b)), a.low << b) else make(a.low << (b - 32), 0);
 	}
 
 	public static inline function shr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		if (b == 0)
-			return make(a.high, a.low);
-		if (b < 32) {
-			var rl = (a.high << (32 - b)) | (a.low >>> b);
-			return make(a.high >> b, rl);
-		}
-		var rl = a.high >> (b - 32);
-		return make(a.high >> 31, rl);
+		return if (b == 0) make(a.high,
+			a.low) else if (b < 32) make(a.high >> b, (a.high << (32 - b)) | (a.low >>> b)); else make(a.high >> 31, a.high >> (b - 32));
 	}
 
 	public static inline function ushr(a:Int64Native, b:Int):Int64Native {
 		b &= 63;
-		if (b == 0)
-			return make(a.high, a.low);
-		if (b < 32) {
-			var rl = (a.high << (32 - b)) | (a.low >>> b);
-			return make(a.high >>> b, rl);
-		}
-		return make(0, clamp(a.high.toInt() >>> (b - 32)));
+		return if (b == 0) make(a.high,
+			a.low) else if (b < 32) make(a.high >>> b, (a.high << (32 - b)) | (a.low >>> b)); else make(0, clamp(a.high >>> (b - 32)));
 	}
 
 	#if php
@@ -286,10 +269,10 @@ private class Int64NativeImpl {
 	public static function utoString(x:Int64Native):String {
 		if (x.high == 0 && x.low == 0)
 			return "0";
-		var d3 = (x.high >>> 16).toInt() & 0xFFFF;
-		var d2 = x.high.toInt() & 0xFFFF;
-		var d1 = (x.low >>> 16).toInt() & 0xFFFF;
-		var d0 = x.low.toInt() & 0xFFFF;
+		var d3 = (x.high >>> 16) & 0xFFFF;
+		var d2 = x.high & 0xFFFF;
+		var d1 = (x.low >>> 16) & 0xFFFF;
+		var d0 = x.low & 0xFFFF;
 		var str = "";
 		while (d3 != 0 || d2 != 0 || d1 != 0 || d0 != 0) {
 			var r = d3 % 10;
@@ -342,13 +325,13 @@ private class Int64NativeImpl {
 		// Split into four unsigned 16-bit chunks for safe division
 		var h:Int, l:Int;
 		if (negative) {
-			h = (~high).toInt();
-			l = (-low).toInt();
+			h = ~high;
+			l = -low;
 			if (l == 0)
 				h++;
 		} else {
-			h = high.toInt();
-			l = low.toInt();
+			h = high;
+			l = low;
 		}
 		var d3 = (h >>> 16) & 0xFFFF;
 		var d2 = h & 0xFFFF;

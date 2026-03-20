@@ -43,12 +43,12 @@ abstract Int32Array(Int32ArrayData) {
 	}
 
 	@:arrayAccess public inline function get(index:Int):Int {
-		return this.bytes.getInt32((index << 2) + this.byteOffset).toInt();
+		return this.bytes.getInt32((index << 2) + this.byteOffset);
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:Int):Int {
 		if (index >= 0 && index < length) {
-			this.bytes.setInt32((index << 2) + this.byteOffset, haxe.Int32.fromInt(value));
+			this.bytes.setInt32((index << 2) + this.byteOffset, value);
 			return value;
 		}
 		return 0;

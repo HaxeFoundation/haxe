@@ -218,17 +218,17 @@ class TestInt32 extends unit.Test {
 
 	// --- Conversion ---
 	function testToFloat() {
-		var f:Float = MAX.toFloat();
+		var f:Float = MAX;
 		feq(f, 2147483647.0);
-		var f2:Float = MIN.toFloat();
+		var f2:Float = MIN;
 		feq(f2, -2147483648.0);
 	}
 
 	function testFromInt() {
 		var a:Int32 = 42;
-		eq(a.toInt(), 42);
+		eq((a : Int), 42);
 		var b:Int32 = -42;
-		eq(b.toInt(), -42);
+		eq((b : Int), -42);
 	}
 
 	// --- Division (returns Int32) ---
@@ -238,8 +238,8 @@ class TestInt32 extends unit.Test {
 		eq((ten / three : Int32), cast(3, Int32));
 		eq((ten / cast(-3, Int32) : Int32), cast(-3, Int32));
 		eq((cast(-10, Int32) / three : Int32), cast(-3, Int32));
-		// Float division via explicit .toFloat()
-		feq(ten.toFloat() / three.toFloat(), 10.0 / 3.0);
+		// Float division via @:to Float
+		feq((ten : Float) / (three : Float), 10.0 / 3.0);
 	}
 
 	// --- Modulus ---
@@ -271,7 +271,7 @@ class TestInt32 extends unit.Test {
 		var a:Int32 = 257;
 		var b:Int32 = 0x01010101;
 		// 257 * 0x01010101 = 0x102020201 overflows 32-bit to 0x02020201 = 33686017
-		eq((a * b).toInt(), 0x02020201);
+		eq((a * b : Int), 0x02020201);
 	}
 
 	// https://github.com/HaxeFoundation/haxe/issues/10995
@@ -279,7 +279,7 @@ class TestInt32 extends unit.Test {
 	function testXorWithDynamicShift_Issue10995() {
 		var changeBit = 31;
 		var result:Int32 = MIN ^ (1 << changeBit);
-		eq(result.toInt(), 0);
+		eq((result : Int), 0);
 	}
 
 	// https://github.com/HaxeFoundation/haxe/issues/5938
@@ -289,7 +289,7 @@ class TestInt32 extends unit.Test {
 		var arr = [178, 0, 0];
 		var next = 0;
 		i32 |= (arr[next] << 24);
-		eq(i32.toInt(), -1293163098);
+		eq((i32 : Int), -1293163098);
 	}
 
 	// C++ handles array indexing with Int32 differently due to native type handling
@@ -304,11 +304,11 @@ class TestInt32 extends unit.Test {
 
 		var i32:Int32 = ((a[next] << 33) | 3);
 		i32 >>= 1;
-		eq(i32.toInt(), 1);
+		eq((i32 : Int), 1);
 
 		var i32:Int32 = 2;
 		i32 ^= (((a[next] << 32) | 1) : Int32);
-		eq(i32.toInt(), 3);
+		eq((i32 : Int), 3);
 
 		var i32:Int32 = 2;
 		var c = ~(((a[next] << 32) | 1) : Int32);
@@ -337,18 +337,18 @@ class TestInt32 extends unit.Test {
 	function testHlEdgeCases() {
 		var min:Int32 = MIN;
 		var max:Int32 = MAX;
-		eq((min % 0).toInt(), 0); // % 0 div by zero exception
-		eq(Std.int(min.toFloat() / 0), 0);
-		eq((min % -1).toInt(), 0); // min % -1 integer overflow exception
-		eq((min / -1), min);
-		eq(min * -1, min);
-		eq((min % 1).toInt(), 0);
-		eq((max % 0).toInt(), 0);
-		eq(Std.int(max.toFloat() / 0), 0);
-		eq((max % -1).toInt(), 0);
-		eq(max / -1, -max);
-		eq(max * -1, -max);
-		eq((max % 1).toInt(), 0);
+		eq(0, min % 0); // % 0 div by zero exception
+		eq(0, Std.int(min / 0));
+		eq(0, min % -1); // min % -1 integer overflow exception
+		eq(min, Std.int(min / -1));
+		eq(min, min * -1);
+		eq(0, min % 1);
+		eq(0, max % 0);
+		eq(0, Std.int(max / 0));
+		eq(0, max % -1);
+		eq(-max, Std.int(max / -1));
+		eq(-max, max * -1);
+		eq(0, max % 1);
 	}
 	#end
 
@@ -361,7 +361,5 @@ class TestInt32 extends unit.Test {
 		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
 		// UInt64 → Int32 narrowing is not allowed
 		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.Int32 = u;}));
-		// Int32 → Int implicit cast is not allowed (no @:to Int)
-		t(typeError({var i:haxe.Int32 = haxe.Int32.fromInt(5); var r:Int = i;}));
 	}
 }

@@ -149,7 +149,7 @@ class FPHelper {
 		#elseif cpp
 		return untyped __global__.__hxcpp_reinterpret_le_int32_as_float32(i);
 		#elseif java
-		return java.lang.Float.FloatClass.intBitsToFloat(i.toInt());
+		return java.lang.Float.FloatClass.intBitsToFloat(i);
 		#elseif flash
 		var helper = helper;
 		helper.position = 0;
@@ -157,10 +157,10 @@ class FPHelper {
 		helper.position = 0;
 		return helper.readFloat();
 		#elseif js
-		helper.setInt32(0, i.toInt(), true);
+		helper.setInt32(0, i, true);
 		return helper.getFloat32(0, true);
 		#else
-		return _i32ToFloat(i.toInt());
+		return _i32ToFloat(i);
 		#end
 	}
 
@@ -196,7 +196,7 @@ class FPHelper {
 	#if neko_v21
 	inline
 	#end
-	public static function i64ToDouble(low:Int32, high:Int32):Float {
+	public static function i64ToDouble(low:Int, high:Int):Float {
 		#if neko
 		#if neko_v21
 		return untyped $itod(low, high, false);
@@ -221,16 +221,16 @@ class FPHelper {
 		#elseif flash
 		var helper = helper;
 		helper.position = 0;
-		helper.writeUnsignedInt(low.toInt());
-		helper.writeUnsignedInt(high.toInt());
+		helper.writeUnsignedInt(low);
+		helper.writeUnsignedInt(high);
 		helper.position = 0;
 		return helper.readDouble();
 		#elseif js
-		helper.setInt32(0, low.toInt(), true);
-		helper.setInt32(4, high.toInt(), true);
+		helper.setInt32(0, low, true);
+		helper.setInt32(4, high, true);
 		return helper.getFloat64(0, true);
 		#else
-		return _i64ToDouble(low.toInt(), high.toInt());
+		return _i64ToDouble(low, high);
 		#end
 	}
 

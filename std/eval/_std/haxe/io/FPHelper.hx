@@ -7,7 +7,7 @@ extern class FPHelper {
 
 	public static function floatToI32(f:Float):Int32;
 
-	public static function i64ToDouble(low:Int32, high:Int32):Float;
+	public static function i64ToDouble(low:Int, high:Int):Float;
 
 	public static function doubleToI64(v:Float):Int64;
 }

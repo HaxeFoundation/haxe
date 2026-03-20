@@ -47,12 +47,12 @@ class FPHelper {
 		return f32.refAsView().asBytesView().readInt32();
 	}
 
-	public static function i64ToDouble(low:Int32, high:Int32):Float {
+	public static function i64ToDouble(low:Int, high:Int):Float {
 		final value = 0f64;
 		final view  = value.refAsView().asBytesView();
 
-		view.writeLittleEndianInt32(low.toInt());
-		view.slice(4).writeLittleEndianInt32(high.toInt());
+		view.writeLittleEndianInt32(low);
+		view.slice(4).writeLittleEndianInt32(high);
 
 		return value;
 	}

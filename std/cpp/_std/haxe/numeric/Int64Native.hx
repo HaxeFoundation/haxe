@@ -166,7 +166,7 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	}
 
 	public static #if !scriptable inline #end function toInt(x:Int64Native):Int {
-		return x.low.toInt();
+		return x.low;
 	}
 
 	public static #if !scriptable inline #end function isInt64(val:Dynamic):Bool
@@ -241,10 +241,10 @@ private abstract Int64NativeImpl(cpp.Int64) from cpp.Int64 to cpp.Int64 {
 	}
 
 	public static #if !scriptable inline #end function toFloat(x:Int64Native):Float {
-		var f:Float = x.low.toFloat();
+		var f:Float = x.low;
 		if (f < 0)
 			f += 4294967296.0;
-		return x.high.toFloat() * 4294967296.0 + f;
+		return (x.high : Float) * 4294967296.0 + f;
 	}
 
 	public static function udivMod(dividend:Int64Native, divisor:Int64Native):{quotient:Int64Native, modulus:Int64Native} {

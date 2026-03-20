@@ -48,10 +48,10 @@ class BytesBuffer {
 	}
 
 	public function addInt32(v:Int32) {
-		addByte(v.toInt() & 0xFF);
-		addByte((v >> 8).toInt() & 0xFF);
-		addByte((v >> 16).toInt() & 0xFF);
-		addByte((v >>> 24).toInt());
+		addByte(v & 0xFF);
+		addByte((v >> 8) & 0xFF);
+		addByte((v >> 16) & 0xFF);
+		addByte(v >>> 24);
 	}
 
 	public function addInt64(v:haxe.Int64) {

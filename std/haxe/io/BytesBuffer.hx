@@ -130,10 +130,10 @@ class BytesBuffer {
 		#if flash
 		b.writeUnsignedInt(v);
 		#else
-		addByte(v.toInt() & 0xFF);
-		addByte((v.toInt() >> 8) & 0xFF);
-		addByte((v.toInt() >> 16) & 0xFF);
-		addByte(v.toInt() >>> 24);
+		addByte(v & 0xFF);
+		addByte((v >> 8) & 0xFF);
+		addByte((v >> 16) & 0xFF);
+		addByte(v >>> 24);
 		#end
 	}
 

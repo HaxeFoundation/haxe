@@ -140,24 +140,15 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 		return Int32Native.utoFloat(this);
 
 	/**
-		Returns an Int32 with the same bit pattern.
-		Values ≥ `2^31` appear as negative in Int32.
+		Implicit conversion to Int32 (same bit pattern, same size).
 	**/
-	public inline function toInt32():Int32
+	@:to private inline function toInt32():Int32
 		return cast this;
 
 	/**
-		Returns an Int64 with this value zero-extended to 64 bits.
+		Implicit widening conversion to UInt64 (zero-extended to 64 bits).
 	**/
-	public inline function toInt64():Int64 {
-		final n:Int32 = cast this;
-		return Int64.make(0, n);
-	}
-
-	/**
-		Returns a UInt64 with this value zero-extended to 64 bits.
-	**/
-	public inline function toUInt64():UInt64 {
+	@:to private inline function toUInt64():UInt64 {
 		final n:Int32 = cast this;
 		return UInt64.make(0, n);
 	}
@@ -169,13 +160,6 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	**/
 	public static inline function fromFloat(f:Float):UInt32
 		return new UInt32(Int32Native.clamp(Std.int(f)));
-
-	/**
-		Returns a UInt32 with the same bit pattern as `x`.
-		Negative Int32 values become large UInt32 values.
-	**/
-	@:from public static inline function fromInt32(x:Int32):UInt32
-		return cast x;
 
 	/**
 		Compare `a` and `b` in signed mode.

@@ -146,7 +146,7 @@ package hl;
 		Creates an pointer at a given memory address (highly unsafe)
 	**/
 	public static inline function fromAddress(h:haxe.Int64):Bytes {
-		return from_address(h.low.toInt(), h.high.toInt());
+		return from_address(h.low, h.high);
 	}
 
 	/**

@@ -130,33 +130,22 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	/**
 		Returns the integer value of this Int32 as a platform-native `Int`.
 	**/
-	public inline function toInt():Int
+	@:to public inline function toInt():Int
 		return (this : Int);
 
 	/**
-		Returns a UInt32 with the same bit pattern.
-		Values ≥ `2^31` appear as negative in Int32 but are correct as UInt32.
+		Implicit conversion to UInt32 (same bit pattern, same size).
 	**/
-	public inline function toUInt32():UInt32
+	@:to private inline function toUInt32():UInt32
 		return cast this;
 
 	/**
-		Returns an Int64 with this value sign-extended to 64 bits.
+		Implicit widening conversion to Int64 (sign-extended to 64 bits).
 	**/
-	public inline function toInt64():Int64 {
+	@:to private inline function toInt64():Int64 {
 		final n:Int32Native = this;
 		final i:Int = n;
 		return Int64.fromInt(i);
-	}
-
-	/**
-		Returns a UInt64 with this value sign-extended to 64 bits.
-		Negative Int32 values become large UInt64 values (two's complement).
-	**/
-	public inline function toUInt64():UInt64 {
-		final n:Int32Native = this;
-		final i:Int = n;
-		return UInt64.fromInt(i);
 	}
 
 	/**
@@ -166,13 +155,6 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	**/
 	public static inline function fromFloat(f:Float):Int32
 		return Int32Native.clamp(Std.int(f));
-
-	/**
-		Returns an Int32 with the same bit pattern as `x`.
-		Values ≥ `2^31` in `x` appear as negative in Int32.
-	**/
-	@:from public static inline function fromUInt32(x:UInt32):Int32
-		return cast x;
 
 	/**
 		Compare `a` and `b` in signed mode.
@@ -191,13 +173,13 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 		Returns `true` if `x` is less than zero.
 	**/
 	public static inline function isNeg(x:Int32):Bool
-		return x.toInt() < 0;
+		return (x : Int) < 0;
 
 	/**
 		Returns `true` if `x` is exactly zero.
 	**/
 	public static inline function isZero(x:Int32):Bool
-		return x.toInt() == 0;
+		return (x : Int) == 0;
 
 	/**
 		Returns an `Int32` with the value of the `Int` `x`.

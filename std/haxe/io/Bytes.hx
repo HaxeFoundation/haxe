@@ -355,10 +355,10 @@ class Bytes {
 		#if neko_v21
 		untyped $sset32(b, pos, v, false);
 		#else
-		set(pos, v.toInt());
-		set(pos + 1, v.toInt() >> 8);
-		set(pos + 2, v.toInt() >> 16);
-		set(pos + 3, v.toInt() >>> 24);
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		set(pos + 2, v >> 16);
+		set(pos + 3, v >>> 24);
 		#end
 	}
 

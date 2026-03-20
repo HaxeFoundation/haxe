@@ -583,15 +583,12 @@ class TestInt64 extends Test {
 	public function testCrossTypeComparisons() {
 		// Verify that comparisons between Int64 and smaller integer types use
 		// integer semantics, not float. With @:to Float removed from Int64,
-		// Int32 values are widened to Int64 (via @:from Int) for comparison.
+		// Int32 values are widened to Int64 (via @:to on Int32) for comparison.
 		var i64:Int64 = 200;
 		var i32:haxe.Int32 = 100;
-		var u32:haxe.UInt32 = 100;
 
 		t(i64 > i32);
-		t(i64 > u32);
 		t(i32 < i64);
-		t(u32 < i64);
 		f(i64 == i32);
 
 		// Values above Float's exact integer range (> 2^53) would lose precision
@@ -620,7 +617,7 @@ class TestInt64 extends Test {
 	}
 
 	static function toHex(v:haxe.Int64) {
-		return "0x" + (v.high == 0 ? StringTools.hex(v.low.toInt()) : StringTools.hex(v.high.toInt()) + StringTools.hex(v.low.toInt(), 8));
+		return "0x" + (v.high == 0 ? StringTools.hex(v.low) : StringTools.hex(v.high) + StringTools.hex(v.low, 8));
 	}
 
 	function testNicolas() {

@@ -179,7 +179,7 @@ class Bytes {
 		little-endian encoding).
 	**/
 	public function setInt32(pos:Int, v:Int32):Void {
-		this.asView().slice(pos).writeInt32(v.toInt());
+		this.asView().slice(pos).writeInt32(v);
 	}
 
 	/**

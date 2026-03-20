@@ -22,7 +22,6 @@
 
 package haxe.io;
 
-import haxe.Int32;
 /**
 	An Input is an abstract reader. See other classes in the `haxe.io` package
 	for several possible implementations.
@@ -277,7 +276,7 @@ abstract class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt32():Int32 {
+	public function readInt32():Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();

@@ -66,31 +66,6 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return new Int64(Int64Native.ofInt(x));
 
 	/**
-		Returns an Int64 with the value of `x` sign-extended to 64 bits.
-	**/
-	@:from public static inline function fromInt32(x:Int32):Int64 {
-		final n:Int32Native = x;
-		final i:Int = n;
-		return new Int64(Int64Native.ofInt(i));
-	}
-
-	/**
-		Returns an Int64 with the value of `x` zero-extended to 64 bits.
-		All UInt32 values fit in Int64 without loss.
-	**/
-	@:from public static inline function fromUInt32(x:UInt32):Int64 {
-		final n:Int32Native = x;
-		return make(0, n);
-	}
-
-	/**
-		Returns an Int64 with the same bit pattern as `x`.
-		UInt64 values above `2^63-1` will appear negative as Int64.
-	**/
-	@:from public static inline function fromUInt64(x:UInt64):Int64
-		return cast x;
-
-	/**
 		Returns an Int64 with the value of the Int `x`.
 		`x` is sign-extended to fill 64 bits.
 	**/
@@ -160,17 +135,9 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return cast Int64Native.toInt(this);
 
 	/**
-		Returns the low 32 bits of this Int64 as a UInt32.
-		The high 32 bits are discarded.
+		Implicit conversion to UInt64 (same bit pattern, same size).
 	**/
-	public inline function toUInt32():UInt32
-		return cast Int64Native.toInt(this);
-
-	/**
-		Returns a UInt64 with the same bit pattern.
-		Negative Int64 values become large UInt64 values.
-	**/
-	public inline function toUInt64():UInt64
+	@:to private inline function toUInt64():UInt64
 		return cast this;
 
 	/**

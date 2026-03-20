@@ -66,15 +66,15 @@ class BytesBuffer {
 	public function addInt32(v:Int32):Void {
 		if (pos + 4 > size)
 			grow(4);
-		view.setInt32(pos, v.toInt(), true);
+		view.setInt32(pos, v, true);
 		pos += 4;
 	}
 
 	public function addInt64(v:haxe.Int64):Void {
 		if (pos + 8 > size)
 			grow(8);
-		view.setInt32(pos, v.low.toInt(), true);
-		view.setInt32(pos + 4, v.high.toInt(), true);
+		view.setInt32(pos, v.low, true);
+		view.setInt32(pos + 4, v.high, true);
 		pos += 8;
 	}
 

@@ -39,7 +39,7 @@ class FPHelper {
 		#if (lua_ver >= 5.3)
 		return untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i);
 		#else
-		return hasStringPack ? untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i) : _i32ToFloat(i.toInt());
+		return hasStringPack ? untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i) : _i32ToFloat(i);
 		#end
 	}
 
@@ -51,11 +51,11 @@ class FPHelper {
 		#end
 	}
 
-	public static function i64ToDouble(low:Int32, high:Int32):Float {
+	public static function i64ToDouble(low:Int, high:Int):Float {
 		#if (lua_ver >= 5.3)
 		return untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high);
 		#else
-		return hasStringPack ? untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high) : _i64ToDouble(low.toInt(), high.toInt());
+		return hasStringPack ? untyped __lua__("string.unpack('<d', string.pack('<i4i4', {0}, {1}))", low, high) : _i64ToDouble(low, high);
 		#end
 	}
 

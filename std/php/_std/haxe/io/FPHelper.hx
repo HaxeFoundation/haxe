@@ -37,7 +37,7 @@ class FPHelper {
 		return Global.unpack('l', Global.pack('f', f))[1];
 	}
 
-	public static inline function i64ToDouble(low:Int32, high:Int32):Float {
+	public static inline function i64ToDouble(low:Int, high:Int):Float {
 		return Global.unpack('d', Global.pack('ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
 	}
 

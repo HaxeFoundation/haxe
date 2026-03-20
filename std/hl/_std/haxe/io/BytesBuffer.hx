@@ -79,15 +79,15 @@ class BytesBuffer {
 	public inline function addInt32(v:Int32):Void {
 		if (pos + 4 > size)
 			__expand(0);
-		b.setI32(pos, v.toInt());
+		b.setI32(pos, v);
 		pos += 4;
 	}
 
 	public inline function addInt64(v:haxe.Int64):Void {
 		if (pos + 8 > size)
 			__expand(0);
-		b.setI32(pos, v.low.toInt());
-		b.setI32(pos + 4, v.high.toInt());
+		b.setI32(pos, v.low);
+		b.setI32(pos + 4, v.high);
 		pos += 8;
 	}
 
