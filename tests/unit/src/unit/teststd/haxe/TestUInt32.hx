@@ -1,6 +1,7 @@
 package unit.teststd.haxe;
 
 import haxe.UInt32;
+import unit.HelperMacros.typeError;
 
 class TestUInt32 extends unit.Test {
 	static final ZERO:UInt32 = UInt32.MIN;
@@ -241,5 +242,16 @@ class TestUInt32 extends unit.Test {
 		t(MAX > ZERO);
 		f(ZERO > MAX);
 		f(MAX < ZERO);
+	}
+
+	function testStrictTypeChecking() {
+		// Float → UInt32 is not allowed
+		t(typeError({var x:haxe.UInt32 = 1.5;}));
+		// UInt32 → Float is not allowed (no implicit @:to Float)
+		t(typeError({var u:haxe.UInt32 = 5; var f:Float = u;}));
+		// Int64 → UInt32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.UInt32 = i;}));
+		// UInt64 → UInt32 narrowing is not allowed
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.UInt32 = u;}));
 	}
 }

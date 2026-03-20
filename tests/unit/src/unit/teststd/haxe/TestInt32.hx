@@ -2,6 +2,7 @@ package unit.teststd.haxe;
 
 import haxe.Int32;
 import haxe.UInt32;
+import unit.HelperMacros.typeError;
 
 class TestInt32 extends unit.Test {
 	// --- Constants ---
@@ -350,4 +351,15 @@ class TestInt32 extends unit.Test {
 		eq(0, max % 1);
 	}
 	#end
+
+	function testStrictTypeChecking() {
+		// Float → Int32 is not allowed (no implicit @:from Float)
+		t(typeError({var x:haxe.Int32 = 1.5;}));
+		// Float variable → Int32 is not allowed
+		t(typeError({var f:Float = 1.5; var r:haxe.Int32 = f;}));
+		// Int64 → Int32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
+		// UInt64 → Int32 narrowing is not allowed
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.Int32 = u;}));
+	}
 }

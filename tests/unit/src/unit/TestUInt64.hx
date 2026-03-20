@@ -1,6 +1,7 @@
 package unit;
 
 import haxe.UInt64;
+import unit.HelperMacros.typeError;
 
 class TestUInt64 extends Test {
 	public function testMake() {
@@ -433,5 +434,16 @@ class TestUInt64 extends Test {
 
 		eq(Std.string(UInt64.MIN), "0");
 		eq(Std.string(UInt64.MAX), "18446744073709551615");
+	}
+
+	function testStrictTypeChecking() {
+		// Float → UInt64 is not allowed
+		t(typeError({var x:haxe.UInt64 = 1.5;}));
+		// UInt64 → Float is not allowed (no implicit @:to Float)
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var f:Float = u;}));
+		// UInt64 → Int32 narrowing is not allowed
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.Int32 = u;}));
+		// UInt64 → UInt32 narrowing is not allowed
+		t(typeError({var u:haxe.UInt64 = haxe.UInt64.make(0, 5); var r:haxe.UInt32 = u;}));
 	}
 }

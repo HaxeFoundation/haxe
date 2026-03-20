@@ -1,6 +1,7 @@
 package unit;
 
 import haxe.Int64.*;
+import unit.HelperMacros.typeError;
 
 using haxe.Int64;
 
@@ -679,5 +680,16 @@ class TestInt64 extends Test {
 		f(x + 1 < x);
 		t(x - 1 < x);
 		f(x < x);
+	}
+
+	function testStrictTypeChecking() {
+		// Float → Int64 is not allowed
+		t(typeError({var x:haxe.Int64 = 1.5;}));
+		// Int64 → Float is not allowed (no implicit @:to Float)
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var f:Float = i;}));
+		// Int64 → Int32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
+		// Int64 → UInt32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.UInt32 = i;}));
 	}
 }
