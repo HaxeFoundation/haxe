@@ -218,17 +218,17 @@ class TestInt32 extends unit.Test {
 
 	// --- Conversion ---
 	function testToFloat() {
-		var f:Float = MAX;
+		var f:Float = MAX.toFloat();
 		feq(f, 2147483647.0);
-		var f2:Float = MIN;
+		var f2:Float = MIN.toFloat();
 		feq(f2, -2147483648.0);
 	}
 
 	function testFromInt() {
 		var a:Int32 = 42;
-		eq((a : Int), 42);
+		eq(a.toInt(), 42);
 		var b:Int32 = -42;
-		eq((b : Int), -42);
+		eq(b.toInt(), -42);
 	}
 
 	// --- Division (returns Int32) ---
@@ -238,8 +238,8 @@ class TestInt32 extends unit.Test {
 		eq((ten / three : Int32), cast(3, Int32));
 		eq((ten / cast(-3, Int32) : Int32), cast(-3, Int32));
 		eq((cast(-10, Int32) / three : Int32), cast(-3, Int32));
-		// Float division via @:to Float
-		feq((ten : Float) / (three : Float), 10.0 / 3.0);
+		// Float division via explicit .toFloat()
+		feq(ten.toFloat() / three.toFloat(), 10.0 / 3.0);
 	}
 
 	// --- Modulus ---
@@ -271,7 +271,7 @@ class TestInt32 extends unit.Test {
 		var a:Int32 = 257;
 		var b:Int32 = 0x01010101;
 		// 257 * 0x01010101 = 0x102020201 overflows 32-bit to 0x02020201 = 33686017
-		eq((a * b : Int), 0x02020201);
+		eq((a * b).toInt(), 0x02020201);
 	}
 
 	// https://github.com/HaxeFoundation/haxe/issues/10995
@@ -279,7 +279,7 @@ class TestInt32 extends unit.Test {
 	function testXorWithDynamicShift_Issue10995() {
 		var changeBit = 31;
 		var result:Int32 = MIN ^ (1 << changeBit);
-		eq((result : Int), 0);
+		eq(result.toInt(), 0);
 	}
 
 	// https://github.com/HaxeFoundation/haxe/issues/5938
@@ -289,7 +289,7 @@ class TestInt32 extends unit.Test {
 		var arr = [178, 0, 0];
 		var next = 0;
 		i32 |= (arr[next] << 24);
-		eq((i32 : Int), -1293163098);
+		eq(i32.toInt(), -1293163098);
 	}
 
 	// C++ handles array indexing with Int32 differently due to native type handling
@@ -304,11 +304,11 @@ class TestInt32 extends unit.Test {
 
 		var i32:Int32 = ((a[next] << 33) | 3);
 		i32 >>= 1;
-		eq((i32 : Int), 1);
+		eq(i32.toInt(), 1);
 
 		var i32:Int32 = 2;
 		i32 ^= (((a[next] << 32) | 1) : Int32);
-		eq((i32 : Int), 3);
+		eq(i32.toInt(), 3);
 
 		var i32:Int32 = 2;
 		var c = ~(((a[next] << 32) | 1) : Int32);

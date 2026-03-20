@@ -620,7 +620,7 @@ class TestInt64 extends Test {
 	}
 
 	static function toHex(v:haxe.Int64) {
-		return "0x" + (v.high == 0 ? StringTools.hex(v.low) : StringTools.hex(v.high) + StringTools.hex(v.low, 8));
+		return "0x" + (v.high == 0 ? StringTools.hex(v.low.toInt()) : StringTools.hex(v.high.toInt()) + StringTools.hex(v.low.toInt(), 8));
 	}
 
 	function testNicolas() {
