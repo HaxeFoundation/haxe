@@ -156,7 +156,7 @@ class Deployment {
 		}
 		file.seek(0x3c, SeekBegin);
 		var peSigOffset = file.readInt32();
-		file.seek(peSigOffset, SeekBegin);
+		file.seek(peSigOffset.toInt(), SeekBegin);
 		if (file.readByte() != 'P'.code || file.readByte() != 'E'.code || file.readByte() != 0 || file.readByte() != 0)
 		{
 			throw 'Invalid PE header signature: PE expected';

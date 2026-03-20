@@ -52,8 +52,8 @@ private abstract Int64NativeImpl(hl.I64) from hl.I64 to hl.I64 {
 	}
 
 	public inline function new(high:haxe.Int32, low:haxe.Int32) {
-		var h:hl.I64 = high;
-		var l:hl.I64 = low;
+		var h:hl.I64 = cast high.toInt();
+		var l:hl.I64 = cast low.toInt();
 		this = (h << 32) | (l & MASK);
 	}
 

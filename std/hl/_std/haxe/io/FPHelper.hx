@@ -32,7 +32,7 @@ class FPHelper {
 	static var helper = new hl.Bytes(8);
 
 	public static function i32ToFloat(i:Int32):Single {
-		helper.setI32(0, i);
+		helper.setI32(0, i.toInt());
 		return helper.getF32(0);
 	}
 

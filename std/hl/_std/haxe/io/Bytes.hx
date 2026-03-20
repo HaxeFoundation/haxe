@@ -162,7 +162,7 @@ class Bytes {
 	public function setInt32(pos:Int, v:Int32):Void {
 		if (out(pos + 3))
 			throw Error.OutsideBounds;
-		b.setI32(pos, v);
+		b.setI32(pos, v.toInt());
 	}
 
 	public inline function setInt64(pos:Int, v:haxe.Int64):Void {

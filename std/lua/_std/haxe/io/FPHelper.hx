@@ -39,7 +39,7 @@ class FPHelper {
 		#if (lua_ver >= 5.3)
 		return untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i);
 		#else
-		return hasStringPack ? untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i) : _i32ToFloat(i);
+		return hasStringPack ? untyped __lua__("string.unpack('<f', string.pack('<i4', {0}))", i) : _i32ToFloat(i.toInt());
 		#end
 	}
 
