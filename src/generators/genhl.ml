@@ -314,12 +314,8 @@ let member_fun c t =
 
 let rec unsigned t =
 	match follow t with
-	(* TODO: UInt is now `typedef UInt = haxe.UInt32`. After this change, follow(UInt) gives
-	   TAbstract(haxe.UInt32) here. UInt32 comparisons/division/shift are handled via explicit
-	   @:op abstract operators, so unsigned opcodes are not needed from this path for UInt32.
-	   Once the UInt typedef is fully removed, this case can be replaced with a haxe.UInt32 check
-	   to re-enable native HL unsigned opcodes for UInt32. *)
-	| TAbstract ({ a_path = [],"UInt" },_) -> true
+	(* TODO: this causes unit test failures *)
+	(* | TAbstract ({ a_path = ["haxe"],"UInt32" },_) -> true *)
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
 
@@ -467,9 +463,7 @@ let rec to_type ?tref ctx t =
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
 			| [], "Void" -> HVoid
-			(* TODO: UInt is now `typedef UInt = haxe.UInt32`, so UInt is no longer @:coreType.
-			   This case is now dead code and can be removed once the typedef is fully adopted. *)
-			| [], "Int" | [], "UInt" -> HI32
+			| [], "Int" | ["haxe"], "UInt32" -> HI32
 			| [], "Float" -> HF64
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool

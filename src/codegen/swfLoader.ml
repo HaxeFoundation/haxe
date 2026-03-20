@@ -465,6 +465,7 @@ let extract_data (_,tags) =
 			let path = (make_tpath f.hlf_name).path in
 			(match path with
 			| { tpackage = []; tname = "Float" | "Bool" | "Int" | "UInt" | "Dynamic" } -> ()
+			| { tpackage = ["haxe"]; tname = "UInt32" } -> ()
 			| { tpackage = _; tname = "MethodClosure" } -> ()
 			| _ -> Hashtbl.add h (path.tpackage,path.tname) c)
 		| _ -> ()
