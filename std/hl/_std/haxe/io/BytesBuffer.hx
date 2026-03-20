@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 @:coreApi
 class BytesBuffer {
 	var b:hl.Bytes;
@@ -74,7 +76,7 @@ class BytesBuffer {
 		@:privateAccess (encoding == RawNative ? __add(v.bytes, 0, v.length << 1) : __add(v.bytes.utf16ToUtf8(0, len), 0, len));
 	}
 
-	public inline function addInt32(v:Int):Void {
+	public inline function addInt32(v:Int32):Void {
 		if (pos + 4 > size)
 			__expand(0);
 		b.setI32(pos, v);

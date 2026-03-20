@@ -23,16 +23,17 @@
 package haxe.io;
 
 import php.*;
+import haxe.Int32;
 
 class FPHelper {
 	static var isLittleEndian:Bool = Global.unpack('S', '\x01\x00')[1] == 1;
 	static var i64tmp = Int64.fromInt(0);
 
-	public static inline function i32ToFloat(i:Int):Float {
+	public static inline function i32ToFloat(i:Int32):Float {
 		return Global.unpack('f', Global.pack('l', i))[1];
 	}
 
-	public static inline function floatToI32(f:Float):Int {
+	public static inline function floatToI32(f:Float):Int32 {
 		return Global.unpack('l', Global.pack('f', f))[1];
 	}
 
