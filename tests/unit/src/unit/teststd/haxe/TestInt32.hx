@@ -258,11 +258,10 @@ class TestInt32 extends unit.Test {
 		eq(-min, min); // two's complement overflow
 		eq(-2147483643, cast(5 + -min, Int)); // order of ops and negate
 		eq(2147483643, cast(-(5 + min), Int)); // static analyzer issue
-
-		// Old test from teststd (uses equals form)
-		- min == min; // two's complement overflow,
-		- 2147483643 == 5 + -min; // order of ops and negate
-		2147483643 == -(5 + min); // static analyzer issue
+		// Test the == operator on Int32 directly
+		t(-min == min); // two's complement overflow
+		t(cast(-2147483643, Int32) == 5 + -min); // order of ops and negate
+		t(cast(2147483643, Int32) == -(5 + min)); // static analyzer issue
 	}
 
 	// https://github.com/HaxeFoundation/haxe/issues/10780
