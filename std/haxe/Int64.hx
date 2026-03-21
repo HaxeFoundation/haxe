@@ -97,16 +97,16 @@ abstract Int64(Int64Native) from Int64Native to Int64Native {
 		return Int64Native.ucompare(a, b);
 
 	/**
-		Returns `true` if `x` is less than zero.
+		Returns `true` if `this` is less than zero.
 	**/
-	public static inline function isNeg(x:Int64):Bool
-		return Int64Native.isNeg(x);
+	public inline function isNeg():Bool
+		return Int64Native.isNeg(this);
 
 	/**
-		Returns `true` if `x` is exactly zero.
+		Returns `true` if `this` is exactly zero.
 	**/
-	public static inline function isZero(x:Int64):Bool
-		return Int64Native.isZero(x);
+	public inline function isZero():Bool
+		return Int64Native.isZero(this);
 
 	public inline function toString():String
 		return this.toString();

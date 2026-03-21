@@ -189,10 +189,10 @@ class TestUInt32 extends unit.Test {
 
 	// --- isZero ---
 	function testIsZero() {
-		t(UInt32.isZero(ZERO));
-		f(UInt32.isZero(ONE));
-		f(UInt32.isZero(MAX));
-		f(UInt32.isZero(HIGH));
+		t(ZERO.isZero());
+		f(ONE.isZero());
+		f(MAX.isZero());
+		f(HIGH.isZero());
 	}
 
 	// --- Increment/Decrement ---

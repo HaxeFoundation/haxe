@@ -57,12 +57,12 @@ class Int64Helper {
 				var digit:Int64 = Int64.fromInt(digitInt);
 				if (sIsNegative) {
 					current = Int64.sub(current, Int64.mul(multiplier, digit));
-					if (!Int64.isNeg(current)) {
+					if (!current.isNeg()) {
 						throw "NumberFormatError: Underflow";
 					}
 				} else {
 					current = Int64.add(current, Int64.mul(multiplier, digit));
-					if (Int64.isNeg(current)) {
+					if (current.isNeg()) {
 						throw "NumberFormatError: Overflow";
 					}
 				}

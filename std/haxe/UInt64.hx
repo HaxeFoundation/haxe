@@ -97,10 +97,10 @@ abstract UInt64(Int64Native) from Int64Native to Int64Native {
 		return Int64Native.ucompare(a, b);
 
 	/**
-		Returns `true` if `x` is exactly zero.
+		Returns `true` if `this` is exactly zero.
 	**/
-	public static inline function isZero(x:UInt64):Bool
-		return Int64Native.isZero(x);
+	public inline function isZero():Bool
+		return Int64Native.isZero(this);
 
 	/**
 		Returns an unsigned decimal `String` representation of `x`.

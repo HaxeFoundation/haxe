@@ -47,6 +47,85 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 	/** The smallest representable Int32 value: `-2^31`. **/
 	public static final MIN:Int32 = 0x80000000;
 
+	/**
+		Makes a copy of `this` Int32.
+	**/
+	public inline function copy():Int32
+		return new Int32(this);
+
+	/**
+		Returns an `Int32` with the value of the `Int` `x`.
+		Only the low 32 bits of `x` are used (masking applied if necessary).
+	**/
+	@:from public static inline function fromInt(x:Int):Int32
+		return Int32Native.clamp(x);
+
+	/**
+		Returns the integer value of this Int32 as a platform-native `Int`.
+	**/
+	@:to public inline function toInt():Int
+		return (this : Int);
+
+	/**
+		Compare `a` and `b` in signed mode.
+		Returns a negative value if `a < b`, positive if `a > b`, or 0 if `a == b`.
+	**/
+	public static inline function compare(a:Int32, b:Int32):Int
+		return Int32Native.compare(a, b);
+
+	/**
+		Compare `a` and `b` in unsigned mode.
+	**/
+	public static inline function ucompare(a:Int32, b:Int32):Int
+		return Int32Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `this` is less than zero.
+	**/
+	public inline function isNeg():Bool
+		return (this : Int) < 0;
+
+	/**
+		Returns `true` if `this` is exactly zero.
+	**/
+	public inline function isZero():Bool
+		return (this : Int) == 0;
+
+	/**
+		Parses a signed decimal string into an `Int32`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(sParam:String):Int32
+		return Int32Native.parseString(sParam);
+
+	/**
+		Converts a Float to Int32.
+		The fractional part is truncated. Values outside [-2^31, 2^31-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):Int32
+		return Int32Native.clamp(Std.int(f));
+
+	/**
+		Converts this Int32 to a Float.
+		All Int32 values are exactly representable as Float.
+	**/
+	public inline function toFloat():Float
+		return (this : Int);
+
+	/**
+		Implicit conversion to UInt32 (same bit pattern, same size).
+	**/
+	@:to private inline function toUInt32():UInt32
+		return cast this;
+
+	/**
+		Implicit widening conversion to Int64 (sign-extended to 64 bits).
+	**/
+	@:to private inline function toInt64():Int64 {
+		return Int64.fromInt(this);
+	}
+
 	@:op(-A) private static inline function neg(x:Int32):Int32
 		return Int32Native.neg(x);
 
@@ -117,77 +196,4 @@ abstract Int32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
 		return Int32Native.ushr(a, b);
-
-	/**
-		Converts this Int32 to a Float.
-		All Int32 values are exactly representable as Float.
-	**/
-	public inline function toFloat():Float
-		return (this : Int);
-
-	/**
-		Returns the integer value of this Int32 as a platform-native `Int`.
-	**/
-	@:to public inline function toInt():Int
-		return (this : Int);
-
-	/**
-		Implicit conversion to UInt32 (same bit pattern, same size).
-	**/
-	@:to private inline function toUInt32():UInt32
-		return cast this;
-
-	/**
-		Implicit widening conversion to Int64 (sign-extended to 64 bits).
-	**/
-	@:to private inline function toInt64():Int64 {
-		return Int64.fromInt(this);
-	}
-
-	/**
-		Converts a Float to Int32.
-		The fractional part is truncated. Values outside [-2^31, 2^31-1] result
-		in platform-dependent behavior.
-	**/
-	public static inline function fromFloat(f:Float):Int32
-		return Int32Native.clamp(Std.int(f));
-
-	/**
-		Compare `a` and `b` in signed mode.
-		Returns a negative value if `a < b`, positive if `a > b`, or 0 if `a == b`.
-	**/
-	public static inline function compare(a:Int32, b:Int32):Int
-		return Int32Native.compare(a, b);
-
-	/**
-		Compare `a` and `b` in unsigned mode.
-	**/
-	public static inline function ucompare(a:Int32, b:Int32):Int
-		return Int32Native.ucompare(a, b);
-
-	/**
-		Returns `true` if `x` is less than zero.
-	**/
-	public static inline function isNeg(x:Int32):Bool
-		return (x : Int) < 0;
-
-	/**
-		Returns `true` if `x` is exactly zero.
-	**/
-	public static inline function isZero(x:Int32):Bool
-		return (x : Int) == 0;
-
-	/**
-		Returns an `Int32` with the value of the `Int` `x`.
-		Only the low 32 bits of `x` are used (masking applied if necessary).
-	**/
-	@:from public static inline function fromInt(x:Int):Int32
-		return Int32Native.clamp(x);
-
-	/**
-		Parses a signed decimal string into an `Int32`.
-		Throws `NumberFormatError` on invalid input or out-of-range values.
-	**/
-	public static inline function parseString(sParam:String):Int32
-		return Int32Native.parseString(sParam);
 }

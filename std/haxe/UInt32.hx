@@ -47,6 +47,93 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 	/** The smallest representable UInt32 value: `0`. **/
 	public static final MIN:UInt32 = cast 0;
 
+	/**
+		Makes a copy of `this` UInt32.
+	**/
+	public inline function copy():UInt32
+		return new UInt32(this);
+
+	/**
+		Returns a UInt32 with the value of the Int `x`.
+		Only the low 32 bits of `x` are used (masking applied if necessary).
+	**/
+	@:from public static inline function fromInt(x:Int):UInt32
+		return new UInt32(Int32Native.clamp(x));
+
+	/** @deprecated Use `fromInt` instead. **/
+	@:deprecated("Use fromInt instead")
+	public static inline function ofInt(x:Int):UInt32
+		return fromInt(x);
+
+	/**
+		Returns the value of this UInt32 as an Int (same bit pattern,
+		may appear negative for values ≥ `2^31`).
+	**/
+	public inline function toInt():Int {
+		return ((this : Int32Native) : Int);
+	}
+
+	/**
+		Compare `a` and `b` in unsigned mode.
+		Returns a negative value if `a < b`, positive if `a > b`, or 0 if `a == b`.
+	**/
+	public static inline function compare(a:UInt32, b:UInt32):Int
+		return Int32Native.ucompare(a, b);
+
+	/**
+		Compare `a` and `b` in unsigned mode.
+	**/
+	public static inline function ucompare(a:UInt32, b:UInt32):Int
+		return Int32Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `this` is zero (i.e. the minimum value).
+	**/
+	public inline function isZero():Bool {
+		return ((this : Int32Native) : Int) == 0;
+	}
+
+	/**
+		Returns an unsigned decimal String representation of this UInt32.
+	**/
+	public inline function toString():String
+		return Int32Native.utoString(this);
+
+	/**
+		Parses an unsigned decimal string into a `UInt32`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(sParam:String):UInt32
+		return new UInt32(Int32Native.uparseString(sParam));
+
+	/**
+		Converts a Float to UInt32.
+		The fractional part is truncated. Values outside [0, 2^32-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):UInt32
+		return new UInt32(Int32Native.clamp(Std.int(f)));
+
+	/**
+		Converts this UInt32 to a Float.
+		All UInt32 values (including those above 2^31) are exactly representable.
+	**/
+	public inline function toFloat():Float
+		return Int32Native.utoFloat(this);
+
+	/**
+		Implicit conversion to Int32 (same bit pattern, same size).
+	**/
+	@:to private inline function toInt32():Int32
+		return cast this;
+
+	/**
+		Implicit widening conversion to UInt64 (zero-extended to 64 bits).
+	**/
+	@:to private inline function toUInt64():UInt64 {
+		return UInt64.make(0, this);
+	}
+
 	@:op(-A) private static inline function neg(x:UInt32):UInt32
 		return Int32Native.neg(x);
 
@@ -125,85 +212,4 @@ abstract UInt32(Int32Native) from Int32Native to Int32Native {
 
 	@:op(A >>> B) private static inline function ushr(a:UInt32, b:Int):UInt32
 		return Int32Native.ushr(a, b);
-
-	/**
-		Converts this UInt32 to a Float.
-		All UInt32 values (including those above 2^31) are exactly representable.
-	**/
-	public inline function toFloat():Float
-		return Int32Native.utoFloat(this);
-
-	/**
-		Returns the value of this UInt32 as an Int (same bit pattern,
-		may appear negative for values ≥ `2^31`).
-	**/
-	public inline function toInt():Int {
-		return ((this : Int32Native) : Int);
-	}
-
-	/**
-		Implicit conversion to Int32 (same bit pattern, same size).
-	**/
-	@:to private inline function toInt32():Int32
-		return cast this;
-
-	/**
-		Implicit widening conversion to UInt64 (zero-extended to 64 bits).
-	**/
-	@:to private inline function toUInt64():UInt64 {
-		return UInt64.make(0, this);
-	}
-
-	/**
-		Converts a Float to UInt32.
-		The fractional part is truncated. Values outside [0, 2^32-1] result
-		in platform-dependent behavior.
-	**/
-	public static inline function fromFloat(f:Float):UInt32
-		return new UInt32(Int32Native.clamp(Std.int(f)));
-
-	/**
-		Compare `a` and `b` in signed mode.
-		Returns a negative value if `a < b`, positive if `a > b`, or 0 if `a == b`.
-	**/
-	public static inline function compare(a:UInt32, b:UInt32):Int
-		return Int32Native.ucompare(a, b);
-
-	/**
-		Compare `a` and `b` in unsigned mode.
-	**/
-	public static inline function ucompare(a:UInt32, b:UInt32):Int
-		return Int32Native.ucompare(a, b);
-
-	/**
-		Returns `true` if `x` is zero (i.e. the minimum value).
-	**/
-	public static inline function isZero(x:UInt32):Bool {
-		return x.toInt() == 0;
-	}
-
-	/**
-		Returns a UInt32 with the value of the Int `x`.
-		Only the low 32 bits of `x` are used (masking applied if necessary).
-	**/
-	@:from public static inline function fromInt(x:Int):UInt32
-		return new UInt32(Int32Native.clamp(x));
-
-	/**
-		Parses an unsigned decimal string into a `UInt32`.
-		Throws `NumberFormatError` on invalid input or out-of-range values.
-	**/
-	public static inline function parseString(sParam:String):UInt32
-		return new UInt32(Int32Native.uparseString(sParam));
-
-	/** @deprecated Use `fromInt` instead. **/
-	@:deprecated("Use fromInt instead")
-	public static inline function ofInt(x:Int):UInt32
-		return fromInt(x);
-
-	/**
-		Returns an unsigned decimal String representation of `x`.
-	**/
-	public inline function toString():String
-		return Int32Native.utoString(this);
 }
