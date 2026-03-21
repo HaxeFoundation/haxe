@@ -411,7 +411,6 @@ class TestInt64 extends Test {
 		var b = Int64.make(0, 0x39193D1B);
 		var c = Int64.mul(a, b);
 		eq(c.toString(), "572248275467371265");
-		eq(c.toString(), "572248275467371265");
 
 		var a = Int64.make(0, 0xD3F9C9F4);
 		var b = Int64.make(0, 0xC865C765);
