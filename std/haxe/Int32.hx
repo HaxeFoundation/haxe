@@ -22,261 +22,178 @@
 
 package haxe;
 
+import haxe.numeric.Int32Native;
+
 /**
-	Int32 provides a 32-bit integer with consistent overflow behavior across
-	all platforms.
+	A cross-platform signed 32-bit integer with consistent overflow behavior.
+
+	This abstract defines the operator overloads and public API surface.
+	The actual implementation is in `haxe.numeric.Int32Native`, which can be
+	shadowed by platform-specific `_std` directories for native support.
+
+	On targets with native 32-bit Int (C++, JVM, HL), Int32 maps directly
+	to the platform Int with no overhead. On scripting targets (JS, PHP, Python,
+	Lua), operations are clamped to 32-bit range after each computation. On Neko,
+	values exceeding 31-bit range are auto-promoted to Float by the VM while
+	preserving correct 32-bit arithmetic.
 **/
-@:transitive
-abstract Int32(Int) from Int to Int {
-	@:op(-A) private inline function negate():Int32
-		return clamp(~this + 1);
-
-	@:op(++A) private inline function preIncrement():Int32
-		return this = clamp(++this);
-
-	@:op(A++) private inline function postIncrement():Int32 {
-		var ret = this++;
-		this = clamp(this);
-		return ret;
-	}
-
-	@:op(--A) private inline function preDecrement():Int32
-		return this = clamp(--this);
-
-	@:op(A--) private inline function postDecrement():Int32 {
-		var ret = this--;
-		this = clamp(this);
-		return ret;
-	}
-
-	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
-		return clamp((a : Int) + (b : Int));
-
-	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
-		return clamp((a : Int) + (b : Int));
-
-	@:op(A + B) @:commutative private static function addFloat(a:Int32, b:Float):Float;
-
-	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
-		return clamp((a : Int) - (b : Int));
-
-	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
-		return clamp((a : Int) - (b : Int));
-
-	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
-		return clamp((a : Int) - (b : Int));
-
-	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
-
-	@:op(A - B) private static function floatSub(a:Float, b:Int32):Float;
-
-	#if (js || php || python || lua)
-	#if js
-	// on JS we want to try using Math.imul, but we have to assign that function to Int32.mul only once,
-	// or else V8 will deoptimize it, so we need to be a bit funky with this.
-	// See https://github.com/HaxeFoundation/haxe/issues/5367 for benchmarks.
-	@:op(A * B) inline static function mul(a:Int32, b:Int32):Int32
-		return _mul(a, b);
-
-	static var _mul:Int32->Int32->Int32 = untyped if (Math.imul != null)
-			Math.imul
-		else
-			function(a:Int32, b:Int32):Int32 return clamp((a : Int) * ((b : Int) & 0xFFFF) + clamp((a : Int) * ((b : Int) >>> 16) << 16));
-	#else
-	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
-		return clamp((a : Int) * ((b : Int) & 0xFFFF) + clamp((a : Int) * ((b : Int) >>> 16) << 16));
-	#end
-
-	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
-		return mul(a, b);
-	#else
-	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32;
-
-	@:op(A * B) @:commutative private static function mulInt(a:Int32, b:Int):Int32;
-	#end
-
-	@:op(A * B) @:commutative private static function mulFloat(a:Int32, b:Float):Float;
-
-	@:op(A / B) private static function div(a:Int32, b:Int32):Float;
-
-	@:op(A / B) private static function divInt(a:Int32, b:Int):Float;
-
-	@:op(A / B) private static function intDiv(a:Int, b:Int32):Float;
-
-	@:op(A / B) private static function divFloat(a:Int32, b:Float):Float;
-
-	@:op(A / B) private static function floatDiv(a:Float, b:Int32):Float;
-
-	@:op(A % B) private static function mod(a:Int32, b:Int32):Int32;
-
-	@:op(A % B) private static function modInt(a:Int32, b:Int):Int;
-
-	@:op(A % B) private static function intMod(a:Int, b:Int32):Int;
-
-	@:op(A % B) private static function modFloat(a:Int32, b:Float):Float;
-
-	@:op(A % B) private static function floatMod(a:Float, b:Int32):Float;
-
-	@:op(A == B) private static function eq(a:Int32, b:Int32):Bool;
-
-	@:op(A == B) @:commutative private static function eqInt(a:Int32, b:Int):Bool;
-
-	@:op(A == B) @:commutative private static function eqFloat(a:Int32, b:Float):Bool;
-
-	@:op(A != B) private static function neq(a:Int32, b:Int32):Bool;
-
-	@:op(A != B) @:commutative private static function neqInt(a:Int32, b:Int):Bool;
-
-	@:op(A != B) @:commutative private static function neqFloat(a:Int32, b:Float):Bool;
-
-	@:op(A < B) private static function lt(a:Int32, b:Int32):Bool;
-
-	@:op(A < B) private static function ltInt(a:Int32, b:Int):Bool;
-
-	@:op(A < B) private static function intLt(a:Int, b:Int32):Bool;
-
-	@:op(A < B) private static function ltFloat(a:Int32, b:Float):Bool;
-
-	@:op(A < B) private static function floatLt(a:Float, b:Int32):Bool;
-
-	@:op(A <= B) private static function lte(a:Int32, b:Int32):Bool;
-
-	@:op(A <= B) private static function lteInt(a:Int32, b:Int):Bool;
-
-	@:op(A <= B) private static function intLte(a:Int, b:Int32):Bool;
-
-	@:op(A <= B) private static function lteFloat(a:Int32, b:Float):Bool;
-
-	@:op(A <= B) private static function floatLte(a:Float, b:Int32):Bool;
-
-	@:op(A > B) private static function gt(a:Int32, b:Int32):Bool;
-
-	@:op(A > B) private static function gtInt(a:Int32, b:Int):Bool;
-
-	@:op(A > B) private static function intGt(a:Int, b:Int32):Bool;
-
-	@:op(A > B) private static function gtFloat(a:Int32, b:Float):Bool;
-
-	@:op(A > B) private static function floatGt(a:Float, b:Int32):Bool;
-
-	@:op(A >= B) private static function gte(a:Int32, b:Int32):Bool;
-
-	@:op(A >= B) private static function gteInt(a:Int32, b:Int):Bool;
-
-	@:op(A >= B) private static function intGte(a:Int, b:Int32):Bool;
-
-	@:op(A >= B) private static function gteFloat(a:Int32, b:Float):Bool;
-
-	@:op(A >= B) private static function floatGte(a:Float, b:Int32):Bool;
-
-	#if (lua || python || php)
-	@:op(~A) private static inline function complement(a:Int32):Int32
-		#if lua return lua.Boot.clampInt32(~a); #else return clamp(~a); #end
-	#else
-	@:op(~A) private function complement():Int32;
-	#end
-
-	@:op(A & B) private static function and(a:Int32, b:Int32):Int32;
-
-	@:op(A & B) @:commutative private static function andInt(a:Int32, b:Int):Int32;
-
-	#if (lua || python || php)
-	@:op(A | B) private static #if (python || php) inline #end function or(a:Int32, b:Int32):Int32
-		return clamp((a : Int) | (b : Int));
-
-	@:op(A | B) @:commutative private #if (python || php) inline #end static function orInt(a:Int32, b:Int):Int32
-		return clamp((a : Int) | b);
-	#else
-	@:op(A | B) private static function or(a:Int32, b:Int32):Int32;
-
-	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32;
-	#end
-
-	#if (lua || python || php)
-	@:op(A ^ B) private static #if (python || php) inline #end function xor(a:Int32, b:Int32):Int32
-		return clamp((a : Int) ^ (b : Int));
-
-	@:op(A ^ B) @:commutative private static #if (python || php) inline #end function xorInt(a:Int32, b:Int):Int32
-		return clamp((a : Int) ^ b);
-	#else
-	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32;
-
-	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32;
-	#end
-
-	#if (lua || python || php)
-	@:op(A >> B) private static #if (python || php) inline #end function shr(a:Int32, b:Int32):Int32
-		return clamp((a : Int) >> (b : Int));
-
-	@:op(A >> B) private static #if (python || php) inline #end function shrInt(a:Int32, b:Int):Int32
-		return clamp((a : Int) >> b);
-
-	@:op(A >> B) private static #if (python || php) inline #end function intShr(a:Int, b:Int32):Int32
-		return clamp(a >> (b : Int));
-	#else
-	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32;
-
-	@:op(A >> B) private static function shrInt(a:Int32, b:Int):Int32;
-
-	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32;
-	#end
-
-	@:op(A >>> B) private static function ushr(a:Int32, b:Int32):Int32;
-
-	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
-
-	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
-
-	#if (php || python || lua)
-	// PHP may be 64-bit, so shifts must be clamped
-	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
-		return clamp((a : Int) << (b : Int));
-
-	@:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
-		return clamp((a : Int) << b);
-
-	@:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
-		return clamp(a << (b : Int));
-	#else
-	@:op(A << B) private static function shl(a:Int32, b:Int32):Int32;
-
-	@:op(A << B) private static function shlInt(a:Int32, b:Int):Int32;
-
-	@:op(A << B) private static function intShl(a:Int, b:Int32):Int32;
-	#end
-
-	@:to private inline function toFloat():Float
-		return this;
+abstract Int32(Int32Native) from Int32Native to Int32Native {
+	private inline function new(x:Int32Native)
+		this = x;
+
+	/** The greatest representable Int32 value: `2^31 - 1`. **/
+	public static final MAX:Int32 = 0x7FFFFFFF;
+
+	/** The smallest representable Int32 value: `-2^31`. **/
+	public static final MIN:Int32 = 0x80000000;
+
+	/**
+		Makes a copy of `this` Int32.
+	**/
+	public inline function copy():Int32
+		return new Int32(this);
+
+	/**
+		Returns an `Int32` with the value of the `Int` `x`.
+		Only the low 32 bits of `x` are used (masking applied if necessary).
+	**/
+	@:from public static inline function fromInt(x:Int):Int32
+		return Int32Native.clamp(x);
+
+	/**
+		Returns the integer value of this Int32 as a platform-native `Int`.
+	**/
+	@:to public inline function toInt():Int
+		return (this : Int);
+
+	/**
+		Compare `a` and `b` in signed mode.
+		Returns a negative value if `a < b`, positive if `a > b`, or 0 if `a == b`.
+	**/
+	public static inline function compare(a:Int32, b:Int32):Int
+		return Int32Native.compare(a, b);
 
 	/**
 		Compare `a` and `b` in unsigned mode.
 	**/
-	public static function ucompare(a:Int32, b:Int32):Int {
-		if (a < 0)
-			return b < 0 ? (~b - ~a) : 1;
-		return b < 0 ? -1 : (a - b);
+	public static inline function ucompare(a:Int32, b:Int32):Int
+		return Int32Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `this` is less than zero.
+	**/
+	public inline function isNeg():Bool
+		return (this : Int) < 0;
+
+	/**
+		Returns `true` if `this` is exactly zero.
+	**/
+	public inline function isZero():Bool
+		return (this : Int) == 0;
+
+	/**
+		Parses a signed decimal string into an `Int32`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(sParam:String):Int32
+		return Int32Native.parseString(sParam);
+
+	/**
+		Converts a Float to Int32.
+		The fractional part is truncated. Values outside [-2^31, 2^31-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):Int32
+		return Int32Native.clamp(Std.int(f));
+
+	/**
+		Converts this Int32 to a Float.
+		All Int32 values are exactly representable as Float.
+	**/
+	public inline function toFloat():Float
+		return (this : Int);
+
+	/**
+		Implicit conversion to UInt32 (same bit pattern, same size).
+	**/
+	@:to private inline function toUInt32():UInt32
+		return cast this;
+
+	/**
+		Implicit widening conversion to Int64 (sign-extended to 64 bits).
+	**/
+	@:to private inline function toInt64():Int64 {
+		return Int64.fromInt(this);
 	}
 
-	#if php
-	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
-	#end
+	@:op(-A) private static inline function neg(x:Int32):Int32
+		return Int32Native.neg(x);
 
-	#if !lua
-	inline
-	#end
-	static function clamp(x:Int):Int {
-		// force to-int conversion on platforms that require it
-		#if js
-		return x | 0;
-		#elseif php
-		// we might be on 64-bit php, so sign extend from 32-bit
-		return (x << extraBits) >> extraBits;
-		#elseif python
-		return (python.Syntax.code("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) : Int) - python.Syntax.opPow(2, 31);
-		#elseif lua
-		return lua.Boot.clampInt32(x);
-		#else
-		return (x);
-		#end
+	@:op(++A) private inline function preIncrement():Int32 {
+		return this = Int32Native.add(this, 1);
 	}
+
+	@:op(A++) private inline function postIncrement():Int32 {
+		var ret = this;
+		this = Int32Native.add(this, 1);
+		return ret;
+	}
+
+	@:op(--A) private inline function preDecrement():Int32 {
+		return this = Int32Native.sub(this, 1);
+	}
+
+	@:op(A--) private inline function postDecrement():Int32 {
+		var ret = this;
+		this = Int32Native.sub(this, 1);
+		return ret;
+	}
+
+	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
+		return Int32Native.add(a, b);
+
+	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
+		return Int32Native.sub(a, b);
+
+	@:op(A * B) private static inline function mul(a:Int32, b:Int32):Int32
+		return Int32Native.mul(a, b);
+
+	@:op(A / B) private static inline function div(a:Int32, b:Int32):Int32
+		return Int32Native.div(a, b);
+
+	@:op(A % B) private static inline function mod(a:Int32, b:Int32):Int32
+		return Int32Native.mod(a, b);
+
+	@:op(A < B) private static inline function lt(a:Int32, b:Int32):Bool
+		return Int32Native.lt(a, b);
+
+	@:op(A <= B) private static inline function lte(a:Int32, b:Int32):Bool
+		return Int32Native.lte(a, b);
+
+	@:op(A > B) private static inline function gt(a:Int32, b:Int32):Bool
+		return Int32Native.gt(a, b);
+
+	@:op(A >= B) private static inline function gte(a:Int32, b:Int32):Bool
+		return Int32Native.gte(a, b);
+
+	@:op(~A) private static inline function complement(a:Int32):Int32
+		return Int32Native.complement(a);
+
+	@:op(A & B) private static inline function and(a:Int32, b:Int32):Int32
+		return Int32Native.and(a, b);
+
+	@:op(A | B) private static inline function or(a:Int32, b:Int32):Int32
+		return Int32Native.or(a, b);
+
+	@:op(A ^ B) private static inline function xor(a:Int32, b:Int32):Int32
+		return Int32Native.xor(a, b);
+
+	@:op(A << B) private static inline function shl(a:Int32, b:Int):Int32
+		return Int32Native.shl(a, b);
+
+	@:op(A >> B) private static inline function shr(a:Int32, b:Int):Int32
+		return Int32Native.shr(a, b);
+
+	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int):Int32
+		return Int32Native.ushr(a, b);
 }

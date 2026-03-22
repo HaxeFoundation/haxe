@@ -1,6 +1,7 @@
 package unit;
 
 import haxe.Int64.*;
+import unit.HelperMacros.typeError;
 
 using haxe.Int64;
 
@@ -34,7 +35,8 @@ class TestInt64 extends Test {
 		a = Int64.make(0,0x80000000);
 		eq( a.high, 0 );
 		eq( a.low, 0x80000000 );
-		exc( tryOverflow.bind(a) );	// Throws Overflow
+		// toInt truncates: discards high 32 bits, returns low
+		eq( a.toInt(), 0x80000000 );
 
 		a = Int64.make(0xFFFFFFFF,0x80000000);
 		eq( a.high, 0xFFFFFFFF );
@@ -44,7 +46,8 @@ class TestInt64 extends Test {
 		a = Int64.make(0xFFFFFFFF,0x7FFFFFFF);
 		eq( a.high, 0xFFFFFFFF );
 		eq( a.low, 0x7FFFFFFF );
-		exc( tryOverflow.bind(a) );	// Throws Overflow
+		// toInt truncates: discards high 32 bits, returns low
+		eq( a.toInt(), 0x7FFFFFFF );
 	}
 
 	public function testNegateOverflow_Issue7485()
@@ -58,11 +61,11 @@ class TestInt64 extends Test {
 		var a = haxe.Int64.parseString('2147483647');
 		var b = haxe.Int64.parseString('9223372036854775807');
 		var z = haxe.Int64.sub(a, b);
-		eq(haxe.Int64.toStr(z), "-9223372034707292160");
+		eq(z.toString(), "-9223372034707292160");
 
 		// This fails because the first division fails:
 		var ten = haxe.Int64.make(0, 10);
-		var modulus = haxe.Int64.divMod(z, ten).modulus.low;
+		var modulus = (z % ten).low;
 		eq(modulus, 0);
 
 		// The first division failed because of negate:
@@ -87,10 +90,6 @@ class TestInt64 extends Test {
 		n = Int64.make(0xf0f0f0f0, 0xefefefef);
 		eq(n.high, 0xf0f0f0f0);
 		eq(n.low, 0xefefefef);
-	}
-
-	function tryOverflow(a:Int64) {
-		a.toInt();
 	}
 
 	public function testIncrement() {
@@ -141,20 +140,20 @@ class TestInt64 extends Test {
 		eq('$a', "-1");
 
 		a = Int64.make(0xFFFFFFFE, 0);
-		eq(a.toStr(), "-8589934592");
+		eq(a.toString(), "-8589934592");
 
 		a = Int64.make(1, 1);
-		eq(a.toStr(), "4294967297");
+		eq(a.toString(), "4294967297");
 
 		// set a to 2^63 (overflows to the smallest negative number)
-		a = Int64.ofInt(2);
+		a = Int64.fromInt(2);
 		for (i in 0...62) {
 			a = Int64.mul(a, 2);
 		}
 
-		eq(Int64.add(a, -1).toStr(), "9223372036854775807"); // largest positive
-		eq(Int64.add(a, 1).toStr(), "-9223372036854775807"); // smallest negative - 1
-		eq(a.toStr(), "-9223372036854775808"); // smallest negative
+		eq(Int64.add(a, -1).toString(), "9223372036854775807"); // largest positive
+		eq(Int64.add(a, 1).toString(), "-9223372036854775807"); // smallest negative - 1
+		eq(a.toString(), "-9223372036854775808"); // smallest negative
 	}
 
 	public function testComparison() {
@@ -298,41 +297,26 @@ class TestInt64 extends Test {
 		b = Int64.make(0x00000001, 0x00002000);
 		int64eq(a / b, 9026);
 		int64eq(a % b, Int64.make(0, 0xD986F421));
-		var result = a.divMod(b);
-		int64eq(a / b, result.quotient);
-		int64eq(a % b, result.modulus);
 
 		a = Int64.make(0xF0120AAA, 0xAAAAAAA0);
 		b = Int64.make(0x00020001, 0x0FF02000);
 		int64eq(a / b, -2038);
 		int64eq(a % b, Int64.make(0xFFFE131F, 0x8C496AA0));
-		result = a.divMod(b);
-		int64eq(a / b, result.quotient);
-		int64eq(a % b, result.modulus);
 
 		a = Int64.make(0, 2);
 		b = Int64.make(0xFFFFFFFF, 0xFAFAFAFA);
 		int64eq(a / b, 0);
 		int64eq(a % b, 2);
-		result = a.divMod(b);
-		int64eq(a / b, result.quotient);
-		int64eq(a % b, result.modulus);
 
 		a = Int64.make(0x7ABADDAD, 0xDEADBEEF);
 		b = Int64.make(0xFFFFFFF1, 0x1FFFFFFF);
 		int64eq(a / b, Int64.make(0xFFFFFFFF, 0xF7BFCEAE));
 		int64eq(a % b, Int64.make(0x0000000A, 0x166D8D9D));
-		result = a.divMod(b);
-		int64eq(a / b, result.quotient);
-		int64eq(a % b, result.modulus);
 
 		a = Int64.make(0x81234567, 0xFDECBA98);
 		b = Int64.make(0xFFFFFEFF, 0xEEEEEEEE);
 		int64eq(a / b, 0x007ED446);
 		int64eq(a % b, Int64.make(0xFFFFFFF5, 0x31964D84));
-		result = a.divMod(b);
-		int64eq(a / b, result.quotient);
-		int64eq(a % b, result.modulus);
 
 		// Int64/Int
 		int64eq(a / 2, Int64.make(0xC091A2B3, 0xFEF65D4C));
@@ -381,8 +365,8 @@ class TestInt64 extends Test {
 
 	/** Tests that we have all of the classic Int64 interface. */
 	public function testBackwardsCompat() {
-		var a:Int64 = 32.ofInt();
-		var b:Int64 = (-4).ofInt();
+		var a:Int64 = (32 : Int64);
+		var b:Int64 = (-4 : Int64);
 
 		f(a.eq(b));
 		t(a.neq(b));
@@ -426,18 +410,17 @@ class TestInt64 extends Test {
 		var a = Int64.make(0, 0x239B0E13);
 		var b = Int64.make(0, 0x39193D1B);
 		var c = Int64.mul(a, b);
-		eq(c.toStr(), "572248275467371265");
-		eq(Int64.toStr(c), "572248275467371265");
+		eq(c.toString(), "572248275467371265");
 
 		var a = Int64.make(0, 0xD3F9C9F4);
 		var b = Int64.make(0, 0xC865C765);
 		var c = Int64.mul(a, b);
-		eq(c.toStr(), "-6489849317865727676");
+		eq(c.toString(), "-6489849317865727676");
 
 		var a = Int64.make(0, 0x9E370301);
 		var b = Int64.make(0, 0xB0590000);
 		var c = Int64.add(a, b);
-		eq(Int64.toStr(c), "5613028097");
+		eq(c.toString(), "5613028097");
 
 		var a = Int64.make(0xFFF21CDA, 0x972E8BA3);
 		var b = Int64.make(0x0098C29B, 0x81000001);
@@ -447,7 +430,7 @@ class TestInt64 extends Test {
 	}
 
 	public function testCompare() {
-		var a = ofInt(2), b = ofInt(3);
+		var a = fromInt(2), b = fromInt(3);
 		t(a == a);
 		t(b == b);
 		eq(a.compare(a), 0);
@@ -457,34 +440,34 @@ class TestInt64 extends Test {
 
 	public function testBits() {
 		var x = make(0xfedcba98, 0x76543210);
-		var y = x.and((ofInt(0xffff))),
-			z = x.or((ofInt(0xffff))),
+		var y = x.and((fromInt(0xffff))),
+			z = x.or((fromInt(0xffff))),
 			w = x.xor((make(0xffffffff, 0xffffffff)));
-		eq(y.toStr(), '12816');
-		eq(z.toStr(), '-81985529216434177');
-		eq(w.toStr(), '81985529216486895');
-		eq(x.and(ofInt(0xffff)).toStr(), '12816');
-		eq((x.or(ofInt(0xffff))).toStr(), '-81985529216434177');
-		eq((x.xor(ofInt(0xffff))).toStr(), '-81985529216446993');
-		eq((x.and(make(0x1, 0xffffffff))).toStr(), '1985229328');
-		eq((x.or(make(0x1, 0xffffffff))).toStr(), '-81985522611781633');
-		eq((x.xor(make(0x1, 0xffffffff))).toStr(), '-81985524597010961');
-		var a = ofInt(7), b = a.shl(1);
-		eq(b.toStr(), '14');
+		eq(y.toString(), '12816');
+		eq(z.toString(), '-81985529216434177');
+		eq(w.toString(), '81985529216486895');
+		eq(x.and(fromInt(0xffff)).toString(), '12816');
+		eq((x.or(fromInt(0xffff))).toString(), '-81985529216434177');
+		eq((x.xor(fromInt(0xffff))).toString(), '-81985529216446993');
+		eq((x.and(make(0x1, 0xffffffff))).toString(), '1985229328');
+		eq((x.or(make(0x1, 0xffffffff))).toString(), '-81985522611781633');
+		eq((x.xor(make(0x1, 0xffffffff))).toString(), '-81985524597010961');
+		var a = fromInt(7), b = a.shl(1);
+		eq(b.toString(), '14');
 	}
 
 	public function testAdd() {
-		var a = ofInt(3), b = ofInt(2), c = make(0xffffffff, 0xfffffffe);
-		eq((a.add(b)).compare(ofInt(5)), 0);
-		eq((a.add(ofInt(4))).compare(ofInt(7)), 0);
-		eq((c.add(ofInt(3))).compare(ofInt(1)), 0);
+		var a = fromInt(3), b = fromInt(2), c = make(0xffffffff, 0xfffffffe);
+		eq((a.add(b)).compare(fromInt(5)), 0);
+		eq((a.add(fromInt(4))).compare(fromInt(7)), 0);
+		eq((c.add(fromInt(3))).compare(fromInt(1)), 0);
 		// numbers larger than int32
-		eq(a.add(make(0x1, 0)).toStr(), '4294967299');
+		eq(a.add(make(0x1, 0)).toString(), '4294967299');
 	}
 
 	public function testNeg() {
-		eq(Std.string(ofInt(-1)), Std.string(neg(ofInt(1))));
-		eq(Std.string(ofInt(-100)), Std.string(neg(ofInt(100))));
+		eq(Std.string(fromInt(-1)), Std.string(neg(fromInt(1))));
+		eq(Std.string(fromInt(-100)), Std.string(neg(fromInt(100))));
 		eq(Std.string(make(-2147483648, 1)), Std.string(neg(make(2147483647, -1)))); // -9223372036854775807 == neg(9223372036854775807)
 	}
 
@@ -565,6 +548,73 @@ class TestInt64 extends Test {
 		}
 	}
 
+	public function testToFloat() {
+		// Zero
+		feq(Int64.make(0, 0).toFloat(), 0.0);
+
+		// Positive values
+		feq(Int64.fromInt(1).toFloat(), 1.0);
+		feq(Int64.fromInt(100).toFloat(), 100.0);
+
+		// Negative values
+		feq(Int64.fromInt(-1).toFloat(), -1.0);
+		feq(Int64.fromInt(-100).toFloat(), -100.0);
+
+		// Boundary: MAX_SAFE_INTEGER (2^53 - 1) — exact
+		feq(Int64.parseString("9007199254740991").toFloat(), 9007199254740991.0);
+		feq(Int64.parseString("-9007199254740991").toFloat(), -9007199254740991.0);
+
+		// Int32 boundaries
+		feq(Int64.fromInt(2147483647).toFloat(), 2147483647.0);
+		feq(Int64.fromInt(-2147483648).toFloat(), -2147483648.0);
+
+		// Large positive: 2^32 = 4294967296
+		feq(Int64.make(1, 0).toFloat(), 4294967296.0);
+
+		// MAX and MIN: large values, may not be exact but roundtrip should be close
+		var maxFloat = Int64.MAX.toFloat();
+		t(maxFloat > 9.22e18);
+
+		var minFloat = Int64.MIN.toFloat();
+		t(minFloat < -9.22e18);
+	}
+
+	public function testCrossTypeComparisons() {
+		// Verify that comparisons between Int64 and smaller integer types use
+		// integer semantics, not float. With @:to Float removed from Int64,
+		// Int32 values are widened to Int64 (via @:to on Int32) for comparison.
+		var i64:Int64 = 200;
+		var i32:haxe.Int32 = 100;
+
+		t(i64 > i32);
+		t(i32 < i64);
+		f(i64 == i32);
+
+		// Values above Float's exact integer range (> 2^53) would lose precision
+		// if compared via float. Confirm integer semantics are preserved.
+		var big1 = Int64.make(0x200000, 1); // 2^53 + 1
+		var big3 = Int64.make(0x200000, 3); // 2^53 + 3
+		t(big1 != big3);         // integer semantics: differ by 2
+		t(big1 < big3);
+		var one:haxe.Int32 = 1;
+		t(one < big3);           // Int32 widened to Int64, then integer compare
+		t(big3 > one);
+	}
+
+	public function testMinMax() {
+		int64eq(Int64.MAX, Int64.make(0x7FFFFFFF, 0xFFFFFFFF));
+		int64eq(Int64.MIN, Int64.make(0x80000000, 0));
+
+		// MAX + 1 wraps to MIN
+		int64eq(Int64.MAX + Int64.fromInt(1), Int64.MIN);
+		// MIN - 1 wraps to MAX
+		int64eq(Int64.MIN - Int64.fromInt(1), Int64.MAX);
+
+		// String representations
+		eq(Std.string(Int64.MAX), "9223372036854775807");
+		eq(Std.string(Int64.MIN), "-9223372036854775808");
+	}
+
 	static function toHex(v:haxe.Int64) {
 		return "0x" + (v.high == 0 ? StringTools.hex(v.low) : StringTools.hex(v.high) + StringTools.hex(v.low, 8));
 	}
@@ -626,5 +676,16 @@ class TestInt64 extends Test {
 		f(x + 1 < x);
 		t(x - 1 < x);
 		f(x < x);
+	}
+
+	function testStrictTypeChecking() {
+		// Float → Int64 is not allowed
+		t(typeError({var x:haxe.Int64 = 1.5;}));
+		// Int64 → Float is not allowed (no implicit @:to Float)
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var f:Float = i;}));
+		// Int64 → Int32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.Int32 = i;}));
+		// Int64 → UInt32 narrowing is not allowed
+		t(typeError({var i:haxe.Int64 = haxe.Int64.make(0, 5); var r:haxe.UInt32 = i;}));
 	}
 }

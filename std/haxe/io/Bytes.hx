@@ -192,13 +192,13 @@ class Bytes {
 				var d = b1.readUnsignedInt() - b2.readUnsignedInt();
 				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
-				return d;
+				return d.toInt();
 			}
 		for (i in 0...len & 3)
 			if (b1.readUnsignedByte() != b2.readUnsignedByte()) {
 				b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 				b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
-				return b1[b1.position - 1] - b2[b2.position - 1];
+				return b1[b1.position.toInt() - 1] - b2[b2.position.toInt() - 1];
 			}
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
@@ -527,7 +527,7 @@ class Bytes {
 			b.writeMultiByte(s, "unicode")
 		else
 			b.writeUTFBytes(s);
-		return new Bytes(b.length, b);
+		return new Bytes(b.length.toInt(), b);
 		#elseif java
 		try {
 			var b:BytesData = switch (encoding) {
@@ -584,7 +584,7 @@ class Bytes {
 	**/
 	public static function ofData(b:BytesData) {
 		#if flash
-		return new Bytes(b.length, b);
+		return new Bytes(b.length.toInt(), b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b), b);
 		#else

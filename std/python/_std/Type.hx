@@ -196,7 +196,7 @@ enum ValueType {
 			return TEnum(Syntax.field(v, "__class__"));
 		} else if (UBuiltins.isinstance(v, UBuiltins.type) || Internal.hasClass(v)) {
 			var cl = Syntax.field(v, "__class__");
-			return cl == @:privateAccess haxe.Int64.IMPL ? TInt64 : TClass(cl);
+			return cl == haxe.numeric.Int64Native ? TInt64 : TClass(cl);
 		} else if (UBuiltins.callable(v)) {
 			return TFunction;
 		} else {

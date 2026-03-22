@@ -48,7 +48,7 @@ abstract UInt32Array(UInt32ArrayData) {
 	}
 
 	@:arrayAccess public inline function set(index:Int, value:UInt):UInt {
-		return this[index] = value;
+		return this[index] = value.toInt();
 	}
 
 	public inline function sub(begin:Int, ?length:Int):UInt32Array {

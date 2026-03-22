@@ -314,7 +314,15 @@ let member_fun c t =
 
 let rec unsigned t =
 	match follow t with
-	| TAbstract ({ a_path = ["haxe"],"UInt32" },_) -> true
+	(* haxe.UInt32 is intentionally not listed here. Its operations (division, comparison,
+	   shift) are handled via @:op abstract operators that call Int32Helper/Int32Direct
+	   functions. These helpers use `v < 0` to detect the high bit for unsigned conversion
+	   (e.g. utoFloat). After Haxe inlines these helpers with a UInt32 argument, the
+	   comparison `v < 0` retains UInt32 as the type of `v`. If unsigned returned true for
+	   UInt32, that comparison would be emitted as an unsigned `jugte` (always false),
+	   breaking the conversion. To enable native HL unsigned opcodes for UInt32 in the
+	   future, the helper functions would need native HL overrides that use unsigned opcodes
+	   directly rather than sign-based Int tricks. *)
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
 
@@ -462,7 +470,7 @@ let rec to_type ?tref ctx t =
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
 			| [], "Void" -> HVoid
-			| [], "Int" | ["haxe"], "UInt32" -> HI32
+			| [], "Int" -> HI32
 			| [], "Float" -> HF64
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool

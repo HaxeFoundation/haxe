@@ -46,6 +46,7 @@ function main() {
 		new TestJson(),
 		new TestResource(),
 		new TestInt64(),
+		new TestUInt64(),
 		new TestReflect(),
 		new TestSerialize(),
 		new TestSerializerCrossTarget(),
