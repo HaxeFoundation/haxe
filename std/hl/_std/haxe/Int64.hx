@@ -272,6 +272,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		return make(x >> 31, x);
 
+	public static inline function fromInt(x:Int):Int64
+		return make(x >> 31, x);
+
 	public static inline function toInt(x:Int64):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
