@@ -29,10 +29,6 @@ class Hl {
 
 	static public function getHlDependencies() {
 		Sys.putEnv("HASHLINK", hlInstallDir);
-		if (systemName == "Windows") {
-			Sys.putEnv("HASHLINK_SRC", hlInstallDir);
-			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
-		}
 
 		if (FileSystem.exists(hlBinary)) {
 			infoMsg('hl has already been installed at $hlBinary.');
@@ -87,38 +83,13 @@ class Hl {
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
 		if (run == null) run = runCommand;
 
-		final compiler = if (systemName == "Mac") "clang" else "gcc";
-		final extraCompilerFlags = switch (systemName) {
-			case "Windows": ["-ldbghelp", "-municode"];
-			case "Mac": ["-rpath", hlInstallLibDir];
-			case _: ['-Wl,-rpath,$hlInstallLibDir'];
-		};
-
-		runCommand(compiler, [
-			"-o", '$dir/$filename.exe',
-			'$dir/$filename.c',
-			'-I$dir',
-			'-I$hlInstallDir/include',
-			'-L$hlInstallLibDir',
-			'$hlInstallLibDir/fmt.hdll',
-			'$hlInstallLibDir/ssl.hdll',
-			'$hlInstallLibDir/sqlite.hdll',
-			"-lm",
-			"-lhl"
-		].concat(extraCompilerFlags));
-
-		run('$dir/$filename.exe', []);
+		runCommand("haxelib", ["run", "hashlink", "build", '$dir/$filename.c', "-D", "hlgen.makefile=make"]);
+		run('$dir/$filename', []);
 
 		// Run with MSBuild
 		if (systemName == "Windows") {
-			runCommand("MSBuild.exe", [
-				'$dir/$filename.sln',
-				'-nologo', '-verbosity:minimal',
-				'-t:$filename',
-				'-property:Configuration=Release',
-				'-property:Platform=$msbuildPlatform'
-			]);
-			run('$dir${msbuildPlatform == 'x64' ? '/x64' : ''}/Release/$filename.exe', []);
+			runCommand("haxelib", ["run", "hashlink", "build", '$dir/$filename.c', "-D", "hlgen.makefile=vs2022"]);
+			run('$dir${msbuildPlatform == 'x64' ? '/x64' : ''}/Debug/$filename.exe', []);
 		}
 	}
 
@@ -131,7 +102,7 @@ class Hl {
 		}
 
 		if (withHlcTests) {
-			runCommand("haxe", [hxml, "-hl", '$target/hlc.c', "-D", "hlgen.makefile=ci"].concat(args));
+			runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
 			buildAndRunHlc(target, "hlc");
 		}
 	}
@@ -156,7 +127,7 @@ class Hl {
 			}
 			if (Hl.withHlcTests) {
 				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(haxeArgs));
-				buildAndRunHlc("bin/hlc", "unit", runCommand);
+				buildAndRunHlc("bin/hlc", "main", runCommand);
 			}
 		}
 
@@ -174,11 +145,11 @@ class Hl {
 			buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
 			buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
 			buildAndRunHlc("bin/hlc/utilityProcess", "UtilityProcess", dontRun);
-			buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
+			buildAndRunHlc("bin/hlc/sys", "main", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
 		}
 
 		changeDirectory(getMiscSubDir("cross", "eventLoop"));
-		buildAndRun("build-hl.hxml", "bin/eventLoop");
+		buildAndRun("build-hl.hxml", "bin/eventLoop", haxeArgs);
 
 		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
 		// so they are not skipped with --skip-hl-jit
@@ -189,8 +160,7 @@ class Hl {
 		runCommand("haxe", ["run-base.hxml", "--run", "Main", "hl"]);
 
 		if (Hl.withHlcTests) {
-			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
-			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine].concat(haxeArgs));
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", "hlgen.makefile"].concat(haxeArgs));
 		}
 	}
 }
