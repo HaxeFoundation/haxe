@@ -1,4 +1,5 @@
 name: Setup neko
+description: Install latest neko from build.haxe.org
 runs:
   using: composite
   steps:

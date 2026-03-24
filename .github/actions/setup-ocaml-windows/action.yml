@@ -1,4 +1,5 @@
 name: Setup Ocaml Windows
+description: Sets up ocaml on Windows
 runs:
   using: composite
   steps:

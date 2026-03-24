@@ -1,4 +1,5 @@
 name: Cache Lua environments
+description: Cache lua environments used in haxe tests
 inputs:
   key-prefix:
     description: 'Platform/arch-specific cache key prefix (e.g., lua-env-linux-arm64, lua-env-mac-x86_64)'
