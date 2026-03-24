@@ -398,7 +398,11 @@ let ignore_error com =
 	b
 
 let module_warning com m w options msg p =
-	if com.display.dms_full_typing then begin
+	(* Only cache messages for freshly-typed modules (m_processed = 0).
+	   Cached modules share their m_cache_bound_objects DynArray with the
+	   binary-cache entry; mutating it would embed stale warnings into the
+	   cache that would then be replayed on every subsequent compilation. *)
+	if com.display.dms_full_typing && m.m_extra.m_processed = 0 then begin
 		let cm = make_message com.is_macro_context msg p 0 (MKWarning(w, options)) in
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
 	end;

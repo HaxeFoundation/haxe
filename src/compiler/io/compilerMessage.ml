@@ -48,8 +48,23 @@ let add_module_message com (m : module_def) msg p depth message_kind =
     (e.g. from {!DiagnosticsPrinter.make_missing_fields_message}).
 
     During [dms_full_typing], the message is cached in
-    [m.m_extra.m_cache_bound_objects] unconditionally — the
-    [RMDiagnostics] filter is checked at replay time, not at store time.
+    [m.m_extra.m_cache_bound_objects] only when the message position
+    belongs to the same file as the module itself.  This guards against
+    two related problems:
+
+    1. Caching a diagnostic in the wrong module — e.g. [displayFields.ml
+       handle_missing_field_raise] calls this with the target type's module
+       (e.g. StdTypes for Int) while the message position is in the calling
+       file.  The calling file is always re-typed in diagnostics mode so the
+       message is regenerated; no caching needed or wanted.
+
+    2. Shared-DynArray pollution — modules loaded from the HXB binary cache
+       share their [m_cache_bound_objects] DynArray with the cached entry.
+       Mutating this DynArray embeds stale diagnostics into the cache that
+       are replayed on every subsequent compilation even after the original
+       problem is fixed.
+
+    The [RMDiagnostics] filter is checked at replay time, not at store time.
 
     The message is only added to the current message buffer when in
     diagnostics mode ([RMDiagnostics]), matching the old behavior where
@@ -60,8 +75,17 @@ let add_module_message com (m : module_def) msg p depth message_kind =
     UnresolvedIdentifier) that originate from module typing and should
     survive across server compilations. *)
 let add_module_diagnostic com (m : module_def) cm =
-	if com.display.dms_full_typing then
-		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
+	if com.display.dms_full_typing then begin
+		(* Only cache messages whose position is in the same file as the
+		   module.  A position in a different file means the diagnostic is
+		   about a *usage* of the module (e.g. a field-access in the calling
+		   code), not about the module's own content, so it must not be stored
+		   in the module's cache-bound objects. *)
+		let msg_fkey = com.part_scope.file_keys#get cm.cm_pos.pfile in
+		let mod_fkey = Path.UniqueKey.lazy_key m.m_extra.m_file in
+		if msg_fkey = mod_fkey then
+			DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
+	end;
 	if is_diagnostics com then
 		com.part_scope.messages <- cm :: com.part_scope.messages
 
