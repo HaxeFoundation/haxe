@@ -3,11 +3,7 @@ package cases.issues;
 import haxe.display.Diagnostic;
 
 // Regression test for https://github.com/HaxeFoundation/haxe/issues/12861
-// Old diagnostics errors (DKMissingFields) must be cleared after the
-// underlying problem is fixed.  The bug was that add_module_diagnostic
-// mutated the shared m_cache_bound_objects DynArray of cached stdlib modules
-// (e.g. Int), so stale diagnostics were replayed on every subsequent
-// compilation even after the code was corrected.
+// Stale diagnostics must be cleared after the underlying problem is fixed.
 class Issue12861 extends TestCase {
 	function test(_) {
 		// File with a type error: Int has no field charAt
