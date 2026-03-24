@@ -102,7 +102,7 @@ class Hl {
 		}
 
 		if (withHlcTests) {
-			runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args));
+			runCommand("haxe", [hxml, "-hl", '$target/hlc.c'].concat(args).concat(["--debug"]));
 			buildAndRunHlc(target, "hlc");
 		}
 	}
