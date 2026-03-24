@@ -1,0 +1,5 @@
+-p src
+--main ExitCode
+-neko bin/neko/ExitCode.n
+-lib utest
+-cmd nekotools boot bin/neko/ExitCode.n
