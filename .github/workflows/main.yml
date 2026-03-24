@@ -20,7 +20,7 @@ jobs:
       PLATFORM: windows64
       ARCH: 64
       MINGW_ARCH: x86_64
-      CYG_ROOT: C:\cygwin
+      CYG_ROOT: C:\.opam\.cygwin\root
     steps:
       - uses: actions/checkout@main
         with:
