@@ -83,7 +83,8 @@ class Hl {
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
 		if (run == null) run = runCommand;
 
-		runCommand("haxelib", ["run", "hashlink", "build", '$dir/$filename.c', "-D", "hlgen.makefile=make"]);
+		runCommand("haxelib", ["run", "hashlink", "build", '$dir/$filename.c', "-D", "hlgen.makefile=make"]
+			.concat(systemName == "Windows" ? ["-D", "hlgen.makefile.jumbo"] : []));
 		run('$dir/$filename', []);
 
 		// Run with MSBuild
