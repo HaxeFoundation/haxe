@@ -46,7 +46,7 @@ class Sys {
 	public static inline function programPath():String return haxe.io.Path.join([getCwd(), Lua.arg[0]]);
 	public static function getCwd():String return notImplemented();
 	public static function setCwd(s:String):Void notImplemented();
-	public static function getEnv(s:String):Null<String> return notImplemented();
+	public static inline function getEnv(s:String):Null<String> return lua.Os.getenv(s);
 	public static function putEnv(s:String, v:Null<String>):Void notImplemented();
 	public static inline function setTimeLocale(loc:String):Bool return lua.Os.setlocale(loc) != null;
 	public static function sleep(seconds:Float):Void notImplemented();
