@@ -592,7 +592,7 @@ let expand_args args =
 			let libs, rest = find_subsequent_libs [name] rest in
 			let ex = {
 				original = List.map (fun name -> AddLib name) libs;
-				state = NotYetExpanded (AddLibs libs)
+				state = NotYetExpanded (AddLibs (libs, Unix.getcwd ()))
 			} in
 			loop (Expand ex :: current) rest
 		| HxmlFile path :: rest ->

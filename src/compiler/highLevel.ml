@@ -1,13 +1,13 @@
 open Common
 open ParsedArg
 
-let add_libs timer_ctx libs args cs has_display =
+let add_libs timer_ctx (libs,cwd) args cs has_display =
 	let global_repo = List.exists (fun a -> a = "--haxelib-global") args in
 	let fail msg =
 		raise (Arg.Bad msg)
 	in
 	let call_haxelib() =
-		let cmd = "haxelib" ^ (if global_repo then " --global" else "") ^ " path " ^ String.concat " " libs in
+		let cmd = "haxelib" ^ (if global_repo then " --global" else " --cwd " ^ cwd) ^ " path " ^ String.concat " " libs in
 		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
 		let lines = Std.input_list pin in
 		let err = Std.input_list perr in
@@ -29,10 +29,10 @@ let add_libs timer_ctx libs args cs has_display =
 			try
 				(* if we are compiling, really call haxelib since library path might have changed *)
 				if not has_display then raise Not_found;
-				cs#find_haxelib libs
+				cs#find_haxelib (libs, if global_repo then None else Some cwd)
 			with Not_found -> try
 				let lines = call_haxelib() in
-				cs#cache_haxelib libs lines;
+				cs#cache_haxelib (libs, if global_repo then None else Some cwd) lines;
 				lines
 			with Unix.Unix_error(code,msg,arg) ->
 				fail ((Printf.sprintf "%s (%s)" (Unix.error_message code) arg))

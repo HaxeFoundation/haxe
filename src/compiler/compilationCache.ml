@@ -180,7 +180,7 @@ end
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
-	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
+	val haxelib : (string list * string option, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
