@@ -1,0 +1,7 @@
+--cwd dir1
+--cmd haxelib newrepo
+--cmd haxelib dev lib1 ../libs/lib1
+--next
+--cwd dir2
+--cmd haxelib newrepo
+--cmd haxelib dev lib2 ../libs/lib2
