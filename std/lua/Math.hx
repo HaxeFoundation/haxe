@@ -77,9 +77,10 @@ extern class Math {
 	/**
 		Returns the arc tangent of y/x (in radians), but uses the signs of both parameters to find the quadrant of the result.
 		(It also handles correctly the case of x being zero.)
-
-		Deprecated in lua 5.3 and removed in 5.5.
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
 	static function atan2(y:Float, x:Float):Float;
 	#end
 
@@ -89,29 +90,40 @@ extern class Math {
 	static function cos(x:Float):Float;
 
 	/**
-		Returns the hyperbolic cosine of x.
-	**/
-	static function cosh(x:Float):Float;
-
-	/**
 		Returns the sine of x (assumed to be in radians).
 	**/
 	static function sin(x:Float):Float;
-
-	/**
-		Returns the hyperbolic sine of x.
-	**/
-	static function sinh(x:Float):Float;
 
 	/**
 		Returns the tangent of x (assumed to be in radians)
 	**/
 	static function tan(x:Float):Float;
 
+	#if !(lua_ver >= 5.5)
+	/**
+		Returns the hyperbolic cosine of x.
+	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
+	static function cosh(x:Float):Float;
+
+	/**
+		Returns the hyperbolic sine of x.
+	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
+	static function sinh(x:Float):Float;
+
 	/**
 		Returns the hyperbolic tangent of x.
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
 	static function tanh(x:Float):Float;
+	#end
 
 	/**
 		Returns the angle x (given in degrees) in radians.
@@ -128,10 +140,15 @@ extern class Math {
 	**/
 	static function fmod(x:Float):Float;
 
+	#if !(lua_ver >= 5.5)
 	/**
 		Returns y-th power of x.
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
 	static function pow(x:Float, y:Float):Float;
+	#end
 
 	/**
 		Returns the square root of x.
@@ -158,10 +175,15 @@ extern class Math {
 	**/
 	static function log(x:Float):Float;
 
+	#if !(lua_ver >= 5.5)
 	/**
 		Returns the base-10 logarithm of x.
 	**/
+	#if (lua_ver >= 5.2)
+	@:deprecated("Deprecated in Lua 5.2, removed in Lua 5.5")
+	#end
 	static function log10(x:Float):Float;
+	#end
 
 	/**
 		Returns the maximum value among its arguments.
