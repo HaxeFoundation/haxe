@@ -64,14 +64,23 @@ extern class Math {
 	**/
 	static function asin(x:Float):Float;
 
+	#if (lua_ver <= 5.2 || luajit)
+	/**
+		Returns the arc tangent of y/x (in radians), using the signs of both arguments to find the quadrant of the result. It also handles correctly the case of x being zero.
+
+		The default value for x is 1, so that the call math.atan(y) returns the arc tangent of y.
+	**/
+	static function atan(y:Float):Float;
+	#else
 	/**
 		Returns the arc tangent of y/x (in radians), using the signs of both arguments to find the quadrant of the result. It also handles correctly the case of x being zero.
 
 		The default value for x is 1, so that the call math.atan(y) returns the arc tangent of y.
 
-		The x argument is ignored on lua 5.2 or older, where atan2 was used instead.
+		The x argument is ignored on lua 5.2 or older and luajit, where atan2 is available instead.
 	**/
 	static function atan(y:Float, ?x:Float):Float;
+	#end
 
 	#if !(lua_ver >= 5.5)
 	/**
