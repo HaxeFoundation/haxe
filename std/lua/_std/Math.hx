@@ -114,7 +114,7 @@ class Math {
 	}
 
 	public static inline function pow(v:Float, exp:Float):Float
-		return lua.Math.pow(v, exp);
+		return lua.Syntax.code("(({0}) ^ ({1}))", v, exp);
 
 	public static inline function round(v:Float):Int
 		return Math.floor(v + 0.5);
