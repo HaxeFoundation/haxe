@@ -163,11 +163,17 @@ extern class Math {
 	/**
 		Returns m and e such that x = m2^e, e is an integer and the absolute value of m is in the range [0.5, 1) (or zero when x is zero).
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3")
+	#end
 	static function frexp(x:Float):MathFrexpResult;
 
 	/**
 		Returns m2^e (e should be an integer).
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3")
+	#end
 	static function ldexp(m:Float, e:Int):Float;
 
 	/**
