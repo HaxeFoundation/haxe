@@ -94,9 +94,11 @@ class Math {
 		return untyped __define_feature__("Math.random", lua.Math.random());
 
 	#if (lua_ver >= 5.3)
-	public static inline function atan2(y:Float, x:Float):Float {
+	public static inline function atan2(y:Float, x:Float):Float
 		return lua.Math.atan(y, x);
-	}
+	#elseif (lua_ver <= 5.2 || luajit)
+	public static inline function atan2(y:Float, x:Float):Float
+		return lua.Math.atan2(y, x);
 	#else
 	private static final atan2Impl = lua.Math.atan2 ?? lua.Math.atan;
 
