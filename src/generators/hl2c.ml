@@ -1782,7 +1782,7 @@ let write_c com file (code:code) gnames num_domains =
 		| _ -> ()
 	) all_types;
 	line "#else";
-	sexpr "printf(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\")";
+	sexpr "hl_sys_print((vbyte*)USTR(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\"))";
 	line "#endif";
 	unblock ctx;
 	line "}";
