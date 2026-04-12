@@ -2237,6 +2237,10 @@ let generate com =
          newline ctx
     );
 
+    (* UTF-8 shim: pre-populate package.loaded before @:luaRequire generates require *)
+    if not ctx.lua_vanilla then
+        print_file (find_file "lua/_lua/_hx_utf8.lua");
+
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)
