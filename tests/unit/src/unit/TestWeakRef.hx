@@ -129,7 +129,7 @@ class TestWeakRef extends Test {
 	}
 	#end
 
-	#if !(js || lua || python || php || cpp || jvm || flash)
+	#if !(js || lua || python || php || (cpp && !cppia) || jvm || flash)
 	function testNotImplemented() {
 		noAssert();
 	}
