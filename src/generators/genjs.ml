@@ -24,6 +24,10 @@ open Error
 open Gctx
 open JsSourcemap
 
+type js_module_type = 
+	| Es
+	| Iife
+
 type ctx = {
 	com : Gctx.t;
 	buf : Rbuffer.t;
@@ -32,6 +36,7 @@ type ctx = {
 	smap : sourcemap option;
 	js_modern : bool;
 	js_flatten : bool;
+	js_module_type : js_module_type;
 	has_resolveClass : bool;
 	has_interface_check : bool;
 	es_version : int;
@@ -1616,6 +1621,11 @@ let alloc_ctx com es_version =
 		smap = smap;
 		js_modern = not (Gctx.defined com Define.JsClassic);
 		js_flatten = not (Gctx.defined com Define.JsUnflatten);
+		js_module_type = (match Gctx.defined_value_safe ~default:"iife" com Define.JsModule with
+			| "es" -> (if es_version >= 6 then Es else failwith "ES modules require targetting ES6 or higher")
+			| "iife" -> Iife
+			| _ -> failwith "Invalid `js.module` define. Use `es` or `iife`"
+		);
 		has_resolveClass = Gctx.has_feature com "Type.resolveClass";
 		has_interface_check = Gctx.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
@@ -1833,7 +1843,7 @@ let generate js_gen com =
 		newline ctx
 	);
 
-	if ctx.js_modern then begin
+	if (ctx.js_modern && ctx.js_module_type = Iife) then begin
 		(* Wrap output in a closure *)
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
@@ -1955,7 +1965,8 @@ let generate js_gen com =
 	(match com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
-	if ctx.js_modern then begin
+
+	if (ctx.js_modern && ctx.js_module_type = Iife) then begin
 		let closureArgs =
 			if has_feature ctx "js.Lib.global" || defined_global then
 				closureArgs

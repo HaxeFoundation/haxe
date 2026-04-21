@@ -525,6 +525,14 @@
 		"platforms": ["js"]
 	},
 	{
+		"name": "JsModule",
+		"define": "js.module",
+		"doc": "Customizes the JS module output type. (default: iife)",
+		"platforms": ["js"],
+		"params": ["type: es | iife"],
+		"default": "iife"
+	},
+	{
 		"name": "JsUnflatten",
 		"define": "js-unflatten",
 		"doc": "Generate nested objects for packages and types.",
