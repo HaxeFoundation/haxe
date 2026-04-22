@@ -1253,17 +1253,13 @@ let export_tmp_name() =
 	name
 
 let generate_export_statement_es6 ctx expr ident =
-	if (ctx.js_module_type == Es) then
-		if not (ExtString.String.contains ident '.') then
-			(*
-				The lack of dots in ident typically means an explicit identifier (or no package).
-				Either way, assume the user knows what they're doing:
-				do not validate identifiers, do not check for name collisions
-			*)
+	if ctx.js_module_type == Es then
+		let ident_contains_dots = ExtString.String.contains ident '.' in
+		if (not ident_contains_dots) && expr <> ident then
 			print ctx "export const %s = %s;" ident expr
 		else begin
 			let tmp_name = export_tmp_name() in
-			let exported_name = if ctx.es_version >= 2022 then
+			let exported_name = if ident_contains_dots && ctx.es_version >= 2022 then
 				(* Keyword: "arbitrary module namespace identifier names" *)
 				Printf.sprintf "\"%s\"" ident
 			else
@@ -1281,14 +1277,36 @@ let generate_class_es6 ctx c =
 	let cl_path = get_generated_class_path c in
 	let p = s_path ctx cl_path in
 	let dotp = dot_path cl_path in
+	let class_already_exported = ref false in 
 
 	let cls_name =
 		if not ctx.js_flatten && (fst cl_path) <> [] then begin
 			generate_package_create ctx cl_path;
 			print ctx "%s = " p;
 			Path.flat_path cl_path
-		end else
+		end else begin
+
+			if ctx.js_module_type = Es then begin
+				try
+					let (_, args, pos) = Meta.get Meta.Expose c.cl_meta in
+					match args with
+					| [EConst (String(s, _)), _] -> begin
+						if p = s then begin
+							print ctx "export ";
+							class_already_exported := true;
+						end
+					end
+					| [] -> begin
+						print ctx "export ";
+						class_already_exported := true;
+					end
+					| _ -> abort "Invalid @:expose parameters" pos
+				with Not_found ->
+					();
+			end;
+
 			p
+		end
 	in
 	print ctx "class %s" cls_name;
 
@@ -1371,7 +1389,8 @@ let generate_class_es6 ctx c =
 			print ctx "$hxClasses[\"%s\"] = %s;" dotp p;
 			newline ctx;
 		end;
-		process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement_es6 ctx p s);
+		if not !class_already_exported then
+			process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement_es6 ctx p s);
 	end;
 
 	if not is_abstract_impl then begin
