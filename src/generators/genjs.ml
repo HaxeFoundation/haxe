@@ -1387,25 +1387,13 @@ let generate_class_es6 ctx c =
 
 	let is_abstract_impl = is_abstract_impl c in
 
-	if ctx.js_module_type = Iife then begin
-		let added = ref false in
-		if ctx.has_resolveClass && not is_abstract_impl then begin
-			added := true;
-			print ctx "$hxClasses[\"%s\"] = " dotp
-		end;
-		process_expose c.cl_meta (fun () -> dotp) (fun s -> added := true; print ctx "$hx_exports%s = " (path_to_brackets s));
-		if !added then begin
-			spr ctx p;
-			newline ctx;
-		end;
-	end else begin
-		if ctx.has_resolveClass && not is_abstract_impl then begin
-			print ctx "$hxClasses[\"%s\"] = %s;" dotp p;
-			newline ctx;
-		end;
-		if not !class_already_exported then
-			process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement ctx p s);
+	if ctx.has_resolveClass && not is_abstract_impl then begin
+		print ctx "$hxClasses[\"%s\"] = %s;" dotp p;
+		newline ctx;
 	end;
+	
+	if not !class_already_exported then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement ctx p s);
 
 	if not is_abstract_impl then begin
 		generate_class___name__ ctx cl_path;
