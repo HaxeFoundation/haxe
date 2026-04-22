@@ -24,9 +24,10 @@ open Error
 open Gctx
 open JsSourcemap
 
-type js_module_type = 
+type js_module_type =
 	| Es
 	| Iife
+	| Classic
 
 type ctx = {
 	com : Gctx.t;
@@ -34,7 +35,6 @@ type ctx = {
 	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
-	js_modern : bool;
 	js_flatten : bool;
 	js_module_type : js_module_type;
 	has_resolveClass : bool;
@@ -1010,16 +1010,14 @@ let generate_package_create ctx (p,_) =
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
 			| [] ->
-				if ctx.js_modern then
-					print ctx "var %s = {}" p
-				else
-					print ctx "var %s = %s || {}" p p
+				(match ctx.js_module_type with
+				| Classic -> print ctx "var %s = %s || {}" p p
+				| _ ->       print ctx "var %s = {}" p)
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
-				if ctx.js_modern then
-					print ctx "%s = {}" p
-				else
-					print ctx "if(!%s) %s = {}" p p
+				(match ctx.js_module_type with
+				| Classic -> print ctx "if(!%s) %s = {}" p p
+				| _ ->       print ctx "%s = {}" p)
 			);
 			ctx.separator <- true;
 			newline ctx;
@@ -1188,7 +1186,7 @@ let generate_class_es5 ctx c =
 
 	(* Do not add to $hxClasses on same line as declaration to make sure not to trip js debugger *)
 	(* when it tries to get a string representation of a class. Will be added below *)
-	if ctx.com.debug || ctx.js_modern || not added_to_hxClasses then
+	if ctx.com.debug || ctx.js_module_type <> Classic || not added_to_hxClasses then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
@@ -1208,7 +1206,7 @@ let generate_class_es5 ctx c =
 
 	newline ctx;
 
-	if (ctx.js_modern || ctx.com.debug) && added_to_hxClasses then begin
+	if (ctx.js_module_type <> Classic || ctx.com.debug) && added_to_hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" dotp p;
 		newline ctx;
 	end;
@@ -1697,13 +1695,16 @@ let alloc_ctx com es_version =
 		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
-		js_modern = not (Gctx.defined com Define.JsClassic);
 		js_flatten = not (Gctx.defined com Define.JsUnflatten);
-		js_module_type = (match Gctx.defined_value_safe ~default:"iife" com Define.JsModule with
-			| "es" -> (if es_version >= 6 then Es else failwith "ES modules require targetting ES6 or higher")
-			| "iife" -> Iife
-			| _ -> failwith "Invalid `js.module` define. Use `es` or `iife`"
-		);
+		js_module_type = begin
+			let fallback = if (Gctx.defined com Define.JsClassic) then "classic" else "iife" in
+			(match Gctx.defined_value_safe ~default:fallback com Define.JsModule with
+				| "es" -> (if es_version >= 6 then Es else failwith "ES modules require targetting ES6 or higher")
+				| "iife" -> Iife
+				| "classic" -> Classic
+				| _ -> failwith "Invalid `js.module` define. Use `es`, `iife`, or `classic`"
+			)	
+		end;
 		has_resolveClass = Gctx.has_feature com "Type.resolveClass";
 		has_interface_check = Gctx.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
@@ -1915,13 +1916,13 @@ let generate js_gen com =
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
 
-	if (anyExposed && ((Gctx.defined com Define.ShallowExpose) || not ctx.js_modern)) then (
+	if (anyExposed && ((Gctx.defined com Define.ShallowExpose) || ctx.js_module_type = Classic)) then (
 		print ctx "var %s = %s" (fst var_exports) (snd var_exports);
 		ctx.separator <- true;
 		newline ctx
 	);
 
-	if (ctx.js_modern && ctx.js_module_type = Iife) then begin
+	if (ctx.js_module_type = Iife) then begin
 		(* Wrap output in a closure *)
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
@@ -1953,17 +1954,22 @@ let generate js_gen com =
 		| _ -> ()
 	) include_files;
 
-	if (not ctx.js_modern) then
-		print ctx "var %s = %s;\n" (fst var_global) (snd var_global)
-	else if ctx.js_module_type = Es then
+	(* Define global object *)
+	(match ctx.js_module_type with
+	| Es ->
 		if has_feature ctx "js.Lib.global" || has_feature ctx "use.$bind" || has_feature ctx "$global.$haxeUID" then
-			print ctx "const %s = %s;\n" (fst var_global) (snd var_global);
+			print ctx "const %s = %s;\n" (fst var_global) (snd var_global)
+	| Iife ->
+		() (* provided by the closure *)
+	| Classic ->
+		print ctx "var %s = %s;\n" (fst var_global) (snd var_global)
+	);
 
 	let enums_as_objects = not (Gctx.defined com Define.JsEnumsAsArrays) in
 
 	(* TODO: fix $estr *)
 	let vars = [] in
-	let vars = (if ctx.has_resolveClass || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
+	let vars = (if ctx.has_resolveClass || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_module_type <> Classic then "{}" else "$hxClasses || {}")) :: vars else vars) in
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
@@ -2054,7 +2060,7 @@ let generate js_gen com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 
-	if (ctx.js_modern && ctx.js_module_type = Iife) then begin
+	if (ctx.js_module_type = Iife) then begin
 		let closureArgs =
 			if has_feature ctx "js.Lib.global" || defined_global then
 				closureArgs
