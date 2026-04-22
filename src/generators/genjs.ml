@@ -1246,6 +1246,37 @@ let generate_class_es5 ctx c =
 	end;
 	flush ctx
 
+let tmp_var_counter = ref 0
+let export_tmp_name() = 
+	let name = Printf.sprintf "$hx_export_tmp_%d" !tmp_var_counter in
+	tmp_var_counter := !tmp_var_counter + 1;
+	name
+
+let generate_export_statement_es6 ctx expr ident =
+	if (ctx.js_module_type == Es) then
+		if not (ExtString.String.contains ident '.') then
+			(*
+				The lack of dots in ident typically means an explicit identifier (or no package).
+				Either way, assume the user knows what they're doing:
+				do not validate identifiers, do not check for name collisions
+			*)
+			print ctx "export const %s = %s;" ident expr
+		else begin
+			let tmp_name = export_tmp_name() in
+			let exported_name = if ctx.es_version >= 2022 then
+				(* Keyword: "arbitrary module namespace identifier names" *)
+				Printf.sprintf "\"%s\"" ident
+			else
+				(* Older versions need mangling *)
+				let parts = ExtString.String.nsplit ident "." in
+				String.concat "_" parts
+			in
+			print ctx "const %s = %s; export {%s as %s};" tmp_name expr tmp_name exported_name
+		end
+	else
+		print ctx "$hx_exports%s = %s;" (path_to_brackets ident) expr;
+	newline ctx
+
 let generate_class_es6 ctx c =
 	let cl_path = get_generated_class_path c in
 	let p = s_path ctx cl_path in
@@ -1316,16 +1347,15 @@ let generate_class_es6 ctx c =
 	spr ctx "}";
 	newline ctx;
 
-	List.iter (fun (path,name) ->
-		print ctx "$hx_exports%s = %s.%s;" (path_to_brackets path) p name;
-		newline ctx
+	List.iter (fun (path, name) ->
+		generate_export_statement_es6 ctx (Printf.sprintf "%s.%s" p name) path
 	) !exposed_static_methods;
 
 	List.iter (gen_class_static_field ctx c cl_path) nonmethod_statics;
 
 	let is_abstract_impl = is_abstract_impl c in
 
-	begin
+	if ctx.js_module_type = Iife then begin
 		let added = ref false in
 		if ctx.has_resolveClass && not is_abstract_impl then begin
 			added := true;
@@ -1336,6 +1366,12 @@ let generate_class_es6 ctx c =
 			spr ctx p;
 			newline ctx;
 		end;
+	end else begin
+		if ctx.has_resolveClass && not is_abstract_impl then begin
+			print ctx "$hxClasses[\"%s\"] = %s;" dotp p;
+			newline ctx;
+		end;
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement_es6 ctx p s);
 	end;
 
 	if not is_abstract_impl then begin
@@ -1849,6 +1885,11 @@ let generate js_gen com =
 		newline ctx;
 	end;
 
+	(* 
+		If necessary, generate objects for subpackages in the main exports object.
+		For example: `package foo; @:expose class Bar {}`
+		will generate `exports["foo"]["Bar"] = exports["foo"]["Bar"] || {};`.
+	*)
 	let rec print_obj f root = (
 		let path = root ^ (path_to_brackets f.os_name) in
 		print ctx "%s = %s || {}" path path;
