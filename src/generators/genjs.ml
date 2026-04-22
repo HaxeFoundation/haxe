@@ -1040,6 +1040,34 @@ let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
 
+let mangle_export_name_es6 ctx ident =
+	if ctx.es_version >= 2022 then
+		(* Keyword: "arbitrary module namespace identifier names" *)
+		Printf.sprintf "\"%s\"" ident
+	else
+		let parts = ExtString.String.nsplit ident "." in
+		String.concat "_" parts
+
+let tmp_var_counter = ref 0
+let export_tmp_name() = 
+	let name = Printf.sprintf "$hx_export_tmp_%d" !tmp_var_counter in
+	tmp_var_counter := !tmp_var_counter + 1;
+	name
+
+let generate_export_statement ctx expr ident =
+	if ctx.js_module_type == Es then
+		let ident_contains_dots = ExtString.String.contains ident '.' in
+		if (not ident_contains_dots) && expr <> ident then
+			print ctx "export const %s = %s;" ident expr
+		else begin
+			let tmp_name = export_tmp_name() in
+			let exported_name = if ident_contains_dots then mangle_export_name_es6 ctx ident else ident in
+			print ctx "const %s = %s; export {%s as %s};" tmp_name expr tmp_name exported_name
+		end
+	else
+		print ctx "$hx_exports%s = %s;" (path_to_brackets ident) expr;
+	newline ctx
+
 let gen_module_fields ctx m c fl =
 	List.iter (fun f ->
 		let name = module_field m f in
@@ -1053,14 +1081,25 @@ let gen_module_fields ctx m c fl =
 			match e.eexpr with
 			| TFunction fn ->
 				ctx.id_counter <- 0;
+
+				let already_exported = ref false in
+				let expose_fallback = module_field_expose_path m.m_path f in
+				if ctx.js_module_type = Es then
+					process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+						if name = (mangle_export_name_es6 ctx s) then begin
+							print ctx "export ";
+							already_exported := true;
+						end
+					);
+
 				print ctx "function %s" name;
 				gen_function ~keyword:"" ctx fn e.epos;
 				ctx.separator <- false;
 				newline ctx;
-				process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s ->
-					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
-					newline ctx
-				)
+				if not !already_exported then
+					process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+						generate_export_statement ctx name s
+					)
 			| _ ->
 				ctx.statics <- (c,f,e) :: ctx.statics
 	) fl
@@ -1246,33 +1285,6 @@ let generate_class_es5 ctx c =
 	end;
 	flush ctx
 
-let tmp_var_counter = ref 0
-let export_tmp_name() = 
-	let name = Printf.sprintf "$hx_export_tmp_%d" !tmp_var_counter in
-	tmp_var_counter := !tmp_var_counter + 1;
-	name
-
-let generate_export_statement_es6 ctx expr ident =
-	if ctx.js_module_type == Es then
-		let ident_contains_dots = ExtString.String.contains ident '.' in
-		if (not ident_contains_dots) && expr <> ident then
-			print ctx "export const %s = %s;" ident expr
-		else begin
-			let tmp_name = export_tmp_name() in
-			let exported_name = if ident_contains_dots && ctx.es_version >= 2022 then
-				(* Keyword: "arbitrary module namespace identifier names" *)
-				Printf.sprintf "\"%s\"" ident
-			else
-				(* Older versions need mangling *)
-				let parts = ExtString.String.nsplit ident "." in
-				String.concat "_" parts
-			in
-			print ctx "const %s = %s; export {%s as %s};" tmp_name expr tmp_name exported_name
-		end
-	else
-		print ctx "$hx_exports%s = %s;" (path_to_brackets ident) expr;
-	newline ctx
-
 let generate_class_es6 ctx c =
 	let cl_path = get_generated_class_path c in
 	let p = s_path ctx cl_path in
@@ -1366,7 +1378,7 @@ let generate_class_es6 ctx c =
 	newline ctx;
 
 	List.iter (fun (path, name) ->
-		generate_export_statement_es6 ctx (Printf.sprintf "%s.%s" p name) path
+		generate_export_statement ctx (Printf.sprintf "%s.%s" p name) path
 	) !exposed_static_methods;
 
 	List.iter (gen_class_static_field ctx c cl_path) nonmethod_statics;
@@ -1390,7 +1402,7 @@ let generate_class_es6 ctx c =
 			newline ctx;
 		end;
 		if not !class_already_exported then
-			process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement_es6 ctx p s);
+			process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement ctx p s);
 	end;
 
 	if not is_abstract_impl then begin
@@ -1585,18 +1597,39 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	begin
+	let already_exported = ref false in
 	match c.cl_kind with
 	| KModuleFields m ->
-		print ctx "var %s = " (module_field m f);
-		process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+		
+		let kwd = if ctx.js_module_type = Es then "let" else "var" in
+		let var_name = module_field m f in
+		let expose_fallback = module_field_expose_path m.m_path f in
+
+		if ctx.js_module_type = Es then
+			process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+				if var_name = (mangle_export_name_es6 ctx s) then begin
+					print ctx "export ";
+					already_exported := true;
+				end
+			);
+
+		print ctx "%s %s = " kwd var_name;
+		gen_value ctx e;
+		newline ctx;
+
+		if not !already_exported then
+			process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+				generate_export_statement ctx var_name s
+			)
 	| _ ->
 		let cl_path = get_generated_class_path c in
-		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
-		print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
-	end;
-	gen_value ctx e;
-	newline ctx
+		let expr = Printf.sprintf "%s%s" (s_path ctx cl_path) (static_field ctx c f) in
+		print ctx "%s = " expr;
+		gen_value ctx e;
+		newline ctx;
+		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s ->
+			generate_export_statement ctx expr s
+		)
 
 let generate_require ctx path meta =
 	let _, args, mp = Meta.get Meta.JsRequire meta in
