@@ -502,7 +502,8 @@
 		"name": "JsClassic",
 		"define": "js-classic",
 		"doc": "Don't use a function wrapper and strict mode in JS output.",
-		"platforms": ["js"]
+		"platforms": ["js"],
+		"deprecated": "Use `-D js.module=classic` instead."
 	},
 	{
 		"name": "JsEs",
@@ -529,8 +530,7 @@
 		"define": "js.module",
 		"doc": "Customizes the JS module output type. (default: iife)",
 		"platforms": ["js"],
-		"params": ["type: es | iife"],
-		"default": "iife"
+		"params": ["type: es | iife | classic"]
 	},
 	{
 		"name": "JsUnflatten",
