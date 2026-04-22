@@ -1116,12 +1116,14 @@ let gen_class_static_field ctx c cl_path f =
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
+			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			print ctx "%s = " path;
-			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 			gen_value ctx e;
 			newline ctx;
+			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s ->
+				generate_export_statement ctx path s
+			);
 		| _ ->
 			ctx.statics <- (c,f,e) :: ctx.statics
 
