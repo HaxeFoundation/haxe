@@ -1391,7 +1391,7 @@ let generate_class_es6 ctx c =
 		print ctx "$hxClasses[\"%s\"] = %s;" dotp p;
 		newline ctx;
 	end;
-	
+
 	if not !class_already_exported then
 		process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement ctx p s);
 
@@ -1902,7 +1902,7 @@ let generate js_gen com =
 
 	let var_global = (
 		"$global",
-		typeof_join (if defined_global then [defined_global_value] else ["window"; "global"; "self"; "this"])
+		typeof_join (if defined_global then [defined_global_value] else ["globalThis"; "window"; "global"; "self"; "this"])
 	) in
 
 	let closureArgs = [var_global] in
@@ -1954,7 +1954,10 @@ let generate js_gen com =
 	) include_files;
 
 	if (not ctx.js_modern) then
-		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
+		print ctx "var %s = %s;\n" (fst var_global) (snd var_global)
+	else if ctx.js_module_type = Es then
+		if has_feature ctx "js.Lib.global" || has_feature ctx "use.$bind" || has_feature ctx "$global.$haxeUID" then
+			print ctx "const %s = %s;\n" (fst var_global) (snd var_global);
 
 	let enums_as_objects = not (Gctx.defined com Define.JsEnumsAsArrays) in
 
