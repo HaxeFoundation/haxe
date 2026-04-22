@@ -1940,7 +1940,9 @@ let generate js_gen com =
 		concat ctx ";" (fun g -> print_obj g path) f.os_fields
 	)
 	in
-	List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
+
+	if ctx.js_module_type <> Es then
+		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 
 	List.iter (fun file ->
 		match file with
