@@ -1923,7 +1923,12 @@ let generate js_gen com =
 
 	let var_global = (
 		"$global",
-		typeof_join (if defined_global then [defined_global_value] else ["globalThis"; "window"; "global"; "self"; "this"])
+		typeof_join (if defined_global then
+			[defined_global_value]
+		else if ctx.es_version >= 2020 then
+			["globalThis"]
+		else
+			["globalThis"; "window"; "global"; "self"; "this"])
 	) in
 
 	let closureArgs = [var_global] in
@@ -1983,8 +1988,7 @@ let generate js_gen com =
 	(* Define global object *)
 	(match ctx.js_module_type with
 	| Es ->
-		if has_feature ctx "js.Lib.global" || has_feature ctx "use.$bind" || has_feature ctx "$global.$haxeUID" then
-			print ctx "const %s = %s;\n" (fst var_global) (snd var_global)
+		print ctx "const %s = %s;\n" (fst var_global) (snd var_global)
 	| Iife ->
 		() (* provided by the closure *)
 	| Classic ->
