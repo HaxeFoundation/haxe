@@ -7,7 +7,9 @@ class Issue8710 extends unit.Test {
 
 	function test() {
 		var actual =
-			#if js
+			#if (js && js.module == "es") 
+				js.Syntax.code("exposed");
+			#elseif js
 				js.Syntax.code("$hx_exports[\"exposed\"]");
 			#elseif lua
 				untyped __lua__("_hx_exports[\"exposed\"]");
