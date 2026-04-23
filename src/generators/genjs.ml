@@ -1916,11 +1916,17 @@ let generate js_gen com =
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
 
-	if (anyExposed && ((Gctx.defined com Define.ShallowExpose) || ctx.js_module_type = Classic)) then (
-		print ctx "var %s = %s" (fst var_exports) (snd var_exports);
-		ctx.separator <- true;
-		newline ctx
-	);
+	if anyExposed then begin
+		if (Gctx.defined com Define.ShallowExpose) && ctx.js_module_type <> Es then begin
+			print ctx "var %s = %s || {}" (fst var_exports) (fst var_exports);
+			ctx.separator <- true;
+			newline ctx
+		end else if ctx.js_module_type = Classic then begin
+			print ctx "var %s = %s" (fst var_exports) (snd var_exports);
+			ctx.separator <- true;
+			newline ctx
+		end;
+	end;
 
 	if (ctx.js_module_type = Iife) then begin
 		(* Wrap output in a closure *)
@@ -2076,7 +2082,7 @@ let generate js_gen com =
 		newline ctx;
 	end;
 
-	if (anyExposed && (Gctx.defined com Define.ShallowExpose)) then (
+	if (anyExposed && (Gctx.defined com Define.ShallowExpose) && ctx.js_module_type <> Es) then (
 		List.iter (fun f ->
 			print ctx "var %s = $hx_exports%s" f.os_name (path_to_brackets f.os_name);
 			ctx.separator <- true;
