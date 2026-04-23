@@ -37,6 +37,7 @@ type ctx = {
 	smap : sourcemap option;
 	js_flatten : bool;
 	js_module_type : js_module_type;
+	mutable es_synthetic_require_generated : bool;
 	has_resolveClass : bool;
 	has_interface_check : bool;
 	es_version : int;
@@ -1620,12 +1621,26 @@ let generate_static ctx (c,f,e) =
 			generate_export_statement ctx expr s
 		)
 
+let generate_create_require_once ctx =
+	if ctx.js_module_type = Es then
+		if (not (Gctx.raw_defined ctx.com "nodejs")) then
+			failwith "Cannot require() in an ES module.\nIf you are using Node.js, use `--define nodejs` to enable CommonJS module loading,\nor use a different `--define js.module` type, like `iife`."
+		else if not ctx.es_synthetic_require_generated then begin
+			ctx.es_synthetic_require_generated <- true;
+			spr ctx "import { createRequire } from \"node:module\"";
+			newline ctx;
+			spr ctx "const require = createRequire(import.meta.url)";
+			newline ctx;
+		end
+
 let generate_require ctx path meta =
 	let _, args, mp = Meta.get Meta.JsRequire meta in
 	let p = (s_path ctx path) in
 
+	generate_create_require_once ctx;
+
 	if ctx.js_flatten then
-		spr ctx "var "
+		spr ctx (if ctx.js_module_type = Es then "const " else "var ")
 	else
 		generate_package_create ctx path;
 
@@ -1706,6 +1721,7 @@ let alloc_ctx com es_version =
 				| _ -> failwith "Invalid `js.module` define. Use `es`, `iife`, or `classic`"
 			)	
 		end;
+		es_synthetic_require_generated = false;
 		has_resolveClass = Gctx.has_feature com "Type.resolveClass";
 		has_interface_check = Gctx.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
@@ -1820,6 +1836,9 @@ let generate js_gen com =
 				print ctx "%s\n" line
 			) (List.rev lines)
 	);
+
+	if has_feature ctx "js.Lib.require" then
+		generate_create_require_once ctx;
 
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
