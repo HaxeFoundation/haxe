@@ -63,7 +63,7 @@ class Lib {
 		is available, such as Node.js or RequireJS.
 	**/
 	extern public static inline function require(module:String):Dynamic {
-		return js.Syntax.code("require")(module);
+		return untyped __define_feature__("js.Lib.require", js.Syntax.code("require")(module));
 	}
 
 	/**
