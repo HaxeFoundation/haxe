@@ -1012,7 +1012,8 @@ let generate_package_create ctx (p,_) =
 			| [] ->
 				(match ctx.js_module_type with
 				| Classic -> print ctx "var %s = %s || {}" p p
-				| _ ->       print ctx "var %s = {}" p)
+				| Iife ->    print ctx "var %s = {}" p
+				| Es ->      print ctx "const %s = {}" p)
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
 				(match ctx.js_module_type with
