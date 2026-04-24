@@ -1041,28 +1041,28 @@ let path_to_brackets path =
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
 
 let mangle_export_name_es6 ctx ident =
-	if ctx.es_version >= 2022 then
+	if not (ExtString.String.contains ident '.') then
+		ident
+	else if ctx.es_version >= 2022 then
 		(* Keyword: "arbitrary module namespace identifier names" *)
 		Printf.sprintf "\"%s\"" ident
 	else
 		let parts = ExtString.String.nsplit ident "." in
 		String.concat "_" parts
 
-let tmp_var_counter = ref 0
-let export_tmp_name() = 
-	let name = Printf.sprintf "$hx_export_tmp_%d" !tmp_var_counter in
-	tmp_var_counter := !tmp_var_counter + 1;
-	name
-
+let tmp_export_vars = Atomic.make 0
 let generate_export_statement ctx expr ident =
 	if ctx.js_module_type == Es then
-		let ident_contains_dots = ExtString.String.contains ident '.' in
-		if (not ident_contains_dots) && expr <> ident then
-			print ctx "export const %s = %s;" ident expr
+		let ident = mangle_export_name_es6 ctx ident in
+		let expr_contains_dots = ExtString.String.contains expr '.' in
+		if not expr_contains_dots then
+			if expr = ident then
+				print ctx "export { %s };" ident
+			else
+				print ctx "export { %s as %s };" expr ident
 		else begin
-			let tmp_name = export_tmp_name() in
-			let exported_name = if ident_contains_dots then mangle_export_name_es6 ctx ident else ident in
-			print ctx "const %s = %s; export {%s as %s};" tmp_name expr tmp_name exported_name
+			let tmp_name = Printf.sprintf "$hx_export_tmp_%d" (Atomic.fetch_and_add tmp_export_vars 1) in
+			print ctx "const %s = %s; export { %s as %s };" tmp_name expr tmp_name ident
 		end
 	else
 		print ctx "$hx_exports%s = %s;" (path_to_brackets ident) expr;
