@@ -1495,7 +1495,7 @@ let generate_enum ctx e =
 	let dotp = dot_path e.e_path in
 	let has_enum_feature = has_feature ctx "has_enum" in
 	if ctx.js_flatten then
-		print ctx "var "
+		print ctx (if ctx.js_module_type = Es then "const " else "var ")
 	else
 		generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
@@ -2003,7 +2003,7 @@ let generate js_gen com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
-	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
+	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then ("$hxEnums = " ^ (if ctx.js_module_type = Es then "{}" else "$hxEnums || {}")) :: vars else vars in
 	let vars,has_dollar_underscore =
 		if List.exists (function TEnumDecl e when not (has_enum_flag e EnExtern) -> true | _ -> false) com.types then
 			"$_" :: vars,ref true
@@ -2013,7 +2013,8 @@ let generate js_gen com =
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
-		print ctx "var %s" (String.concat "," vl);
+		let kwd = if ctx.js_module_type = Es then "let" else "var" in
+		print ctx "%s %s" kwd (String.concat ", " vl);
 		ctx.separator <- true;
 		newline ctx
 	);
