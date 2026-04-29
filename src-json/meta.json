@@ -1137,7 +1137,7 @@
 		"name": "Using",
 		"metadata": ":using",
 		"doc": "Automatically uses the argument types as static extensions for the annotated type.",
-		"targets": ["TClass", "TEnum", "TAbstract"],
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"],
 		"links": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
 	},
 	{
