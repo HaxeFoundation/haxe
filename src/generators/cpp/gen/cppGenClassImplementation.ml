@@ -20,12 +20,18 @@ let write_callable_header callable_name captures func return_type_str prefix out
   | None ->
     Printf.sprintf "\t%s() {} \n" callable_name |> output);
   
+  (* Override __Compare *)
   output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
   Printf.sprintf "\t\tauto casted = dynamic_cast<const %s*>(inRhs);\n" callable_name |> output;
   output "\t\tif (!casted) { return -1; }\n";
   if Option.is_some captures then
     output "\t\tif (__this != casted->__this) return 1;\n";
   output "\t\treturn 0;\n";
+  output "\t}\n";
+
+  (* Override callableId, Haxe function closures are only compared based on name, not signature *)
+  output "\tstd::type_index callableId() const override {\n";
+  Printf.sprintf "\t\treturn std::type_index{ typeid(%s) };\n" callable_name |> output;
   output "\t}\n";
 
   Printf.sprintf "\t%s HX_LOCAL_RUN(%s) override {\n" return_type_str (cpp_callable_args func.tcf_args prefix) |> output
