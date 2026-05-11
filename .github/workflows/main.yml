@@ -26,7 +26,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: repolevedavaj/install-nsis@v1.1.0
+      - uses: repolevedavaj/install-nsis@v1.2.0
         with:
           nsis-version: '3.10'
 
