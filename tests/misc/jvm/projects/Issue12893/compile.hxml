@@ -1,0 +1,7 @@
+--main Main
+--jvm bin/run.jar
+
+--next
+
+--main Check
+--interp

@@ -226,6 +226,12 @@ jobs:
         with:
           key-prefix: lua-env-linux-${{ matrix.arch }}
 
+      - name: Setup Android SDK (for d8)
+        if: matrix.target == 'jvm'
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;34.0.0'
+
       - name: Test
         run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
