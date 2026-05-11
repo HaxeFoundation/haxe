@@ -73,7 +73,7 @@ class TestArguments extends utest.Test {
 		"bin/neko/TestArguments.n";
 	#elseif hl
 		#if hlc
-			"bin/hlc/testArguments/TestArguments.exe";
+			"bin/hlc/testArguments/TestArguments";
 		#else
 			"bin/hl/TestArguments.hl";
 		#end
