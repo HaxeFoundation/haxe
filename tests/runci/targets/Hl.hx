@@ -189,7 +189,7 @@ class Hl {
 		runCommand("haxe", ["run-base.hxml", "--run", "Main", "hl"]);
 
 		if (Hl.withHlcTests) {
-			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
+			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2026" : "hlgen.makefile=make";
 			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine].concat(haxeArgs));
 		}
 	}
