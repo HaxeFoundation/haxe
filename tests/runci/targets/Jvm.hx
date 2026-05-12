@@ -14,13 +14,15 @@ class Jvm {
 		runCommand("javac", ["-version"]);
 	}
 
-	static function checkAndRun(args:Array<String>, output:String):Void {
+	static function checkAndRun(args:Array<String>, output:String, ?run:(String, Array<String>)->Void):Void {
+		final run = run ?? runCommand;
+
 		runCommand("haxe", args);
-		runCommand("java", ["-jar", output]);
+		run("java", ["-jar", output]);
 
 		runCommand("haxe", args.concat(["-D", "jvm.dex-compatible"]));
 		verifyDex(output);
-		runCommand("java", ["-jar", output]);
+		run("java", ["-jar", output]);
 	}
 
 	// Runs d8 against `jar` and fails the build on any error or non-allowlisted
@@ -73,7 +75,7 @@ class Jvm {
 		verifyDexAll(miscJvmProjectJars());
 
 		changeDirectory(sysDir);
-		checkAndRun(args.concat(["compile-jvm.hxml"]), "bin/jvm/sys.jar");
+		checkAndRun(args.concat(["compile-jvm.hxml"]), "bin/jvm/sys.jar", runSysTest);
 
 		changeDirectory(threadsDir);
 		checkAndRun(["build.hxml", "--jvm", "export/threads.jar"].concat(args), "export/threads.jar");
