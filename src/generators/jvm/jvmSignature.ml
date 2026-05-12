@@ -255,7 +255,7 @@ let rec write_param full ch param = match param with
 			| WSuper -> write_byte ch (Char.code '-')
 			| WNone -> ()
 		end;
-		write_signature full ch s
+		write_signature full ch (NativeSignatures.get_boxed_type s)
 
 and write_signature full ch jsig = match jsig with
 	| TByte -> write_byte ch (Char.code 'B')
