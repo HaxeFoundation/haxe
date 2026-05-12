@@ -1,0 +1,9 @@
+--main Main
+--jvm bin/run.jar
+-D jvm.dex-compatible
+
+--next
+
+-cp ../../dex
+--main Check
+--interp
