@@ -14,6 +14,15 @@ class Jvm {
 		runCommand("javac", ["-version"]);
 	}
 
+	static function checkAndRun(args:Array<String>, output:String):Void {
+		runCommand("haxe", args);
+		runCommand("java", ["-jar", output]);
+
+		runCommand("haxe", args.concat(["-D", "jvm.dex-compatible"]));
+		verifyDex(output);
+		runCommand("java", ["-jar", output]);
+	}
+
 	// Runs d8 against `jar` and fails the build on any error or non-allowlisted
 	// warning. No-op when d8 isn't available (allowed locally via --soft).
 	static function verifyDex(jar:String) {
@@ -53,21 +62,10 @@ class Jvm {
 
 		for (level in 0...3) {
 			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);
-			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb", "bin/hxb/jvm.zip"].concat(args));
-			verifyDex("bin/unit.jar");
-			runCommand("java", ["-jar", "bin/unit.jar"]);
-
-			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args));
-			verifyDex("bin/unit.jar");
-			runCommand("java", ["-jar", "bin/unit.jar"]);
-
-			runCommand("haxe", ["compile-jvm-only.hxml","-dce","no"].concat(args));
-			verifyDex("bin/unit.jar");
-			runCommand("java", ["-jar", "bin/unit.jar"]);
-
-			runCommand("haxe", ["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args));
-			verifyDex("bin/unit.jar");
-			runCommand("java", ["-jar", "bin/unit.jar"]);
+			checkAndRun(["compile-jvm-only.hxml", "--hxb", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
+			checkAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
+			checkAndRun(["compile-jvm-only.hxml","-dce","no"].concat(args), "bin/unit.jar");
+			checkAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
 		}
 
 		changeDirectory(getMiscSubDir(""));
@@ -75,13 +73,9 @@ class Jvm {
 		verifyDexAll(miscJvmProjectJars());
 
 		changeDirectory(sysDir);
-		runCommand("haxe", args.concat(["compile-jvm.hxml"]));
-		verifyDex("bin/jvm/sys.jar");
-		runSysTest("java", ["-jar", "bin/jvm/sys.jar"]);
+		checkAndRun(args.concat(["compile-jvm.hxml"]), "bin/jvm/sys.jar");
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "--jvm", "export/threads.jar"].concat(args));
-		verifyDex("export/threads.jar");
-		runCommand("java", ["-jar", "export/threads.jar"]);
+		checkAndRun(["build.hxml", "--jvm", "export/threads.jar"].concat(args), "export/threads.jar");
 	}
 }
