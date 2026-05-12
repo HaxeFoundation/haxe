@@ -535,6 +535,63 @@ let create_field_closure gctx jc path_this jm name jsig f t =
 		[jsig_this]
 	)
 
+(* Like create_field_closure but builds a single closure class that hosts
+   multiple invoke methods — one per overload of the target method. Used by
+   generate_dynamic_access when a class exposes several JVM methods sharing
+   a name (typical with `@:overload @:native("foo")`). Without this, each
+   overload would spawn its own closure class with the same path and the
+   second would silently overwrite the first in the jar (which d8/r8
+   rejects). All overload signatures get registered in the closure cache so
+   later user-code references via any of them resolve to this merged class. *)
+let create_field_closure_overloads gctx jc path_this jm name overloads f =
+	let jsig_this = object_path_sig path_this in
+	let context = ["this",jsig_this] in
+	Mutex.lock gctx.mutexes.closure_lookup;
+	let wf = create_typed_function gctx (FuncMember(path_this,name)) jc jm context in
+	let jc_closure = wf#get_class in
+	List.iter (fun (jsig,_) ->
+		if not (Hashtbl.mem gctx.closure_paths (path_this,name,jsig)) then
+			Hashtbl.add gctx.closure_paths (path_this,name,jsig) jc_closure#get_this_path
+	) overloads;
+	Mutex.unlock gctx.mutexes.closure_lookup;
+	ignore(wf#generate_constructor true);
+	List.iter (fun (jsig,_) -> match jsig with
+		| TMethod(args,ret) ->
+			let args_named = List.mapi (fun i a -> (Printf.sprintf "arg%i" i, a)) args in
+			let jm_invoke = wf#generate_invoke args_named ret [] in
+			let vars = List.map (fun (n,j) ->
+				jm_invoke#add_local n j VarArgument
+			) args_named in
+			jm_invoke#finalize_arguments;
+			jm_invoke#load_this;
+			jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
+			List.iter (fun (_,load,_) -> load()) vars;
+			jm_invoke#invokevirtual path_this name (method_sig args ret);
+			jm_invoke#return
+		| _ ->
+			die "" __LOC__
+	) overloads;
+	(* equals — identical shape to the single-overload path *)
+	let jm_equals,load = generate_equals_function jc_closure object_sig in
+	let code = jm_equals#get_code in
+	jm_equals#load_this;
+	jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
+	load();
+	jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
+	jm_equals#if_then
+		(code#if_acmp_eq jc_closure#get_jsig jc_closure#get_jsig)
+		(fun () ->
+			code#bconst false;
+			jm_equals#return;
+		);
+	code#bconst true;
+	jm_equals#return;
+	write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
+	jm#construct ConstructInit jc_closure#get_this_path (fun () ->
+		f();
+		[jsig_this]
+	)
+
 let rvalue_any = RValue(None,None)
 let rvalue_sig jsig = RValue (Some jsig,None)
 let rvalue_type gctx t name = RValue (Some (jsignature_of_type gctx t),name)
@@ -2352,26 +2409,64 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 		let jm = jc#spawn_method "_hx_getField" jsig [MPublic;MSynthetic] in
 		let _,load,_ = jm#add_local "name" string_sig VarArgument in
 		jm#finalize_arguments;
-		let cases = List.map (fun (name,jsig,kind) ->
+		(* Group fields by name. When `@:overload @:native(X)` or similar makes
+		   several Haxe fields share a JVM name, they end up in the same group
+		   and produce a single switch case + a single merged closure class. *)
+		let grouped =
+			let h = Hashtbl.create 16 in
+			let order = ref [] in
+			List.iter (fun (name,jsig,kind) ->
+				if not (Hashtbl.mem h name) then order := name :: !order;
+				let prev = try Hashtbl.find h name with Not_found -> [] in
+				Hashtbl.replace h name ((jsig,kind) :: prev)
+			) fields;
+			List.rev_map (fun name -> name, List.rev (Hashtbl.find h name)) !order
+		in
+		let cases = List.map (fun (name,entries) ->
 			[name],(fun () ->
-			begin match kind,jsig with
+			let emit_field jsig =
+				jm#load_this;
+				jm#getfield jc#get_this_path name jsig;
+				jm#expect_reference_type
+			in
+			let emit_dynamic_closure args =
+				jm#load_this;
+				jm#string name;
+				jm#new_native_array java_class_sig (List.map (fun jsig -> fun () -> jm#get_class jsig) args);
+				jm#invokestatic haxe_jvm_path "readFieldClosure" (method_sig [object_sig;string_sig;array_sig (java_class_sig)] (Some (object_sig)))
+			in
+			let is_method = function Method (MethNormal | MethInline) -> true | _ -> false in
+			begin match entries with
+			| [(jsig,kind)] ->
+				begin match kind,jsig with
 				| Method (MethNormal | MethInline),TMethod(args,_) ->
-					if gctx.dynamic_level >= 2 then begin
+					if gctx.dynamic_level >= 2 then
 						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () -> jm#load_this) None
-					end else begin
-						jm#load_this;
-						jm#string name;
-						jm#new_native_array java_class_sig (List.map (fun jsig -> fun () -> jm#get_class jsig) args);
-						jm#invokestatic haxe_jvm_path "readFieldClosure" (method_sig [object_sig;string_sig;array_sig (java_class_sig)] (Some (object_sig)))
-					end
+					else
+						emit_dynamic_closure args
 				| _ ->
-					jm#load_this;
-					jm#getfield jc#get_this_path name jsig;
-					jm#expect_reference_type;
-				end;
-				jm#replace_top object_sig;
-			)
-		) fields in
+					emit_field jsig
+				end
+			| _ when List.for_all (fun (_,k) -> is_method k) entries ->
+				if gctx.dynamic_level >= 2 then
+					create_field_closure_overloads gctx jc jc#get_this_path jm name entries (fun () -> jm#load_this)
+				else begin
+					(* Reflection-based dispatch; readFieldClosure's parameterTypes
+					   only narrows to one overload, so pick the first deterministically. *)
+					let args = match fst (List.hd entries) with TMethod(args,_) -> args | _ -> die "" __LOC__ in
+					emit_dynamic_closure args
+				end
+			| (jsig,_) :: _ ->
+				(* Mixed kinds for the same name shouldn't occur in well-formed
+				   Haxe (JVM forbids it for fields, and field+method sharing a
+				   name is a Haxe-level error). Fall back to the first entry. *)
+				emit_field jsig
+			| [] ->
+				die "" __LOC__
+			end;
+			jm#replace_top object_sig
+		)
+		) grouped in
 		let def = (fun () ->
 			jm#load_this;
 			load();
