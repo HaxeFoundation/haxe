@@ -75,8 +75,25 @@ type generation_context = {
 	mutable (* final after preprocessing *) typedef_interfaces : jsignature typedef_interfaces;
 	jar_compression_level : int;
 	dynamic_level : int;
+	dex_compatible : bool;
 	mutexes : mutexes;
 }
+
+(* DEX (pre-040) SimpleName grammar: Java-identifier-ish. We use a conservative
+   ASCII subset so the predicate is stable across DEX versions and so we don't
+   need to track which extra Unicode code points each release allows. *)
+let is_dex_safe_simple_name name =
+	let len = String.length name in
+	if len = 0 then false
+	else
+		let is_start c = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c = '_' || c = '$' in
+		let is_cont c = is_start c || (c >= '0' && c <= '9') in
+		let rec loop i =
+			if i >= len then true
+			else if is_cont name.[i] then loop (i + 1)
+			else false
+		in
+		is_start name.[0] && loop 1
 
 type ret =
 	| RValue of jsignature option * string option
@@ -724,7 +741,7 @@ class texpr_to_jvm
 			cast();
 		in
 		match gctx.anon_identification#identify AnonIdMode.default true t with
-		| Some pfm ->
+		| Some pfm when not gctx.dex_compatible || is_dex_safe_simple_name cf.cf_name ->
 			let cf = PMap.find cf.cf_name pfm.pfm_fields in
 			let path = pfm.pfm_path in
 			code#dup;
@@ -737,7 +754,7 @@ class texpr_to_jvm
 					cast();
 				)
 				(fun () -> default());
-		| None ->
+		| _ ->
 			default();
 
 	method read_static_closure (path : path) (name : string) (args : (string * jsignature) list) (ret : jsignature option) (t : Type.t) =
@@ -879,7 +896,7 @@ class texpr_to_jvm
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
 			begin match gctx.anon_identification#identify AnonIdMode.default true e1.etype with
-			| Some pfm ->
+			| Some pfm when not gctx.dex_compatible || is_dex_safe_simple_name cf.cf_name ->
 				let cf = PMap.find cf.cf_name pfm.pfm_fields in
 				let path = pfm.pfm_path in
 				code#dup;
@@ -901,7 +918,7 @@ class texpr_to_jvm
 						default cf.cf_name cf.cf_type;
 						if need_val ret then jm#cast jsig_cf;
 					);
-			| None ->
+			| _ ->
 				default cf.cf_name cf.cf_type;
 			end
 		| TField(e1,(FDynamic s | FInstance(_,_,{cf_name = s}))) ->
@@ -2318,6 +2335,15 @@ type super_ctor_mode =
 	| SCHaxe
 
 let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
+	(* In dex-compatible anon classes, unsafe-named entries aren't typed
+	   fields — they live in DynamicObject's _hx_fields. Drop them from the
+	   switches so the default branch (super) handles them via the map. *)
+	let fields =
+		if is_anon && gctx.dex_compatible then
+			List.filter (fun (name,_,_) -> is_dex_safe_simple_name name) fields
+		else
+			fields
+	in
 	begin match fields with
 	| [] ->
 		()
@@ -2975,14 +3001,37 @@ let generate_anons gctx pool =
 		let fields = convert_fields gctx pfm in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
+		let is_typed_field name = not gctx.dex_compatible || is_dex_safe_simple_name name in
 		begin
 			let jm_ctor = jc#spawn_method "<init>" (method_sig (List.map snd fields) None) [MPublic] in
 			jm_ctor#load_this;
 			jm_ctor#get_code#aconst_null haxe_empty_constructor_sig;
 			jm_ctor#call_super_ctor ConstructInit (method_sig [haxe_empty_constructor_sig] None);
-			List.iter (fun (name,jsig) ->
-				jm_ctor#add_argument_and_field name jsig [FdPublic]
-			) fields;
+			(* Two-pass: first initialize typed fields (so _hx_getKnownFields can
+			   read them when _hx_setField triggers _hx_initReflection), then
+			   write the map-backed unsafe ones via super._hx_setField. *)
+			let arg_loaders = List.map (fun (name,jsig) ->
+				let _,load,_ = jm_ctor#add_local name jsig VarArgument in
+				(name,jsig,load)
+			) fields in
+			List.iter (fun (name,jsig,load) ->
+				if is_typed_field name then begin
+					ignore(jc#spawn_field name jsig [FdPublic]);
+					jm_ctor#load_this;
+					load();
+					jm_ctor#putfield jc#get_this_path name jsig
+				end
+			) arg_loaders;
+			List.iter (fun (name,jsig,load) ->
+				if not (is_typed_field name) then begin
+					jm_ctor#load_this;
+					jm_ctor#string name;
+					load();
+					jm_ctor#expect_reference_type;
+					jm_ctor#invokevirtual haxe_dynamic_object_path "_hx_setField"
+						(method_sig [string_sig;object_sig] None)
+				end
+			) arg_loaders;
 			jm_ctor#return;
 		end;
 		begin
@@ -2993,13 +3042,18 @@ let generate_anons gctx pool =
 			jm_fields#construct ConstructInit string_map_path (fun () -> []);
 			save();
 			List.iter (fun (name,jsig) ->
-				load();
-				let offset = jc#get_pool#add_const_string name in
-				jm_fields#get_code#sconst (string_sig) offset;
-				jm_fields#load_this;
-				jm_fields#getfield jc#get_this_path name jsig;
-				jm_fields#expect_reference_type;
-				jm_fields#invokevirtual string_map_path "set" (method_sig [string_sig;object_sig] None);
+				(* Unsafe-named fields live in DynamicObject._hx_fields directly
+				   (written from the constructor), so they're merged into the
+				   reflection map elsewhere — skip them here. *)
+				if is_typed_field name then begin
+					load();
+					let offset = jc#get_pool#add_const_string name in
+					jm_fields#get_code#sconst (string_sig) offset;
+					jm_fields#load_this;
+					jm_fields#getfield jc#get_this_path name jsig;
+					jm_fields#expect_reference_type;
+					jm_fields#invokevirtual string_map_path "set" (method_sig [string_sig;object_sig] None);
+				end
 			) fields;
 			load();
 			jm_fields#return
@@ -3194,6 +3248,7 @@ let generate jvm_flag gctx =
 		1
 	in
 	if dynamic_level < 0 || dynamic_level > 2 then failwith "Invalid value for -D jvm.dynamic-level: Must be >=0 and <= 2";
+	let dex_compatible = Define.defined gctx.defines Define.JvmDexCompatible in
 	let gctx = {
 		gctx = gctx;
 		out = out;
@@ -3213,6 +3268,7 @@ let generate jvm_flag gctx =
 		detail_times = Gctx.raw_defined gctx "jvm_times";
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;
+		dex_compatible = dex_compatible;
 		functional_interfaces = [];
 		mutexes = {
 			write_class = Mutex.create();
