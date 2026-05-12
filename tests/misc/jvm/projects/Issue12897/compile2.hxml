@@ -1,0 +1,9 @@
+--main Main2
+--jvm bin/run2.jar
+-D jvm.dynamic-level=2
+
+--next
+
+-cp ../../dex
+--main Check2
+--interp
