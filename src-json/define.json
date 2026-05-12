@@ -555,6 +555,12 @@
 		"platforms": ["jvm"]
 	},
 	{
+		"name": "JvmDexCompatible",
+		"define": "jvm.dex-compatible",
+		"doc": "Adjust codegen so the output jar can be processed by Android's dex toolchain (d8/r8). Off by default; opt in for projects that target Android.",
+		"platforms": ["jvm"]
+	},
+	{
 		"name": "LoopUnrollMaxCost",
 		"define": "loop-unroll-max-cost",
 		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled. (default: 250)",
