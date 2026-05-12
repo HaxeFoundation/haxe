@@ -135,7 +135,6 @@ module Setup = struct
 			| Jvm ->
 				add_std "jvm";
 				com.package_rules <- PMap.remove "java" com.package_rules;
-				add_std "java";
 				"java"
 			| Python ->
 				add_std "python";
