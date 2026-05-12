@@ -1,0 +1,3 @@
+-cp src
+--jvm bin/out.jar
+--macro Macro.run()
