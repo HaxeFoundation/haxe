@@ -1013,18 +1013,38 @@ module Converter = struct
 			| "toString", TMethod([],_) -> true
 			| _ -> false
 		in
-		let is_structural_sam = is_interface && (
-			let count = List.fold_left (fun acc jf ->
-				if AccessFlags.has_flag jf.jf_flags MAbstract
-					&& not (AccessFlags.has_flag jf.jf_flags MStatic)
-					&& not (AccessFlags.has_flag jf.jf_flags MPrivate)
-					&& not (AccessFlags.has_flag jf.jf_flags MSynthetic)
-					&& jf.jf_name <> "<init>"
-					&& not (is_object_redeclaration jf)
-				then acc + 1 else acc
-			) 0 jc.jc_methods in
-			count = 1
-		) in
+		(* Skip JDK-internal packages: sun.*, com.sun.*, jdk.internal.*. They host
+		   many single-method classes (sun.reflect.ConstructorAccessor,
+		   sun.nio.ch.Interruptible, sun.reflect.generics.tree.TypeTree, ...) that
+		   compile-time externs see but the runtime JDK may not expose — sun.* was
+		   moved to jdk.internal.* in JDK 9+ and is inaccessible to app code.
+		   Auto-tagging them as functional interfaces makes the JFI matcher emit
+		   `implements sun.reflect.ConstructorAccessor` on every matching closure,
+		   which then fails to defineClass at runtime. User code can't target these
+		   anyway, so structural detection must skip them. The @FunctionalInterface
+		   annotation path is still honored (none of the affected JDK-internal
+		   classes carry it, so this is a safe restriction). *)
+		let is_jdk_internal_package pack = match pack with
+			| "sun" :: _ -> true
+			| "com" :: "sun" :: _ -> true
+			| "jdk" :: "internal" :: _ -> true
+			| _ -> false
+		in
+		let is_structural_sam = is_interface
+			&& not (is_jdk_internal_package (fst jc.jc_path))
+			&& (
+				let count = List.fold_left (fun acc jf ->
+					if AccessFlags.has_flag jf.jf_flags MAbstract
+						&& not (AccessFlags.has_flag jf.jf_flags MStatic)
+						&& not (AccessFlags.has_flag jf.jf_flags MPrivate)
+						&& not (AccessFlags.has_flag jf.jf_flags MSynthetic)
+						&& jf.jf_name <> "<init>"
+						&& not (is_object_redeclaration jf)
+					then acc + 1 else acc
+				) 0 jc.jc_methods in
+				count = 1
+			)
+		in
 		if !has_fi_annotation || is_structural_sam then
 			add_meta (Meta.FunctionalInterface,[],p);
 		let d = {
