@@ -192,6 +192,17 @@ struct
 				raise Not_found)
 		| TFun _, TFun _ -> (* unify will make sure they are compatible *)
 			cacc,0
+		(* SAM conversion: lambda passed where a functional-interface class is
+		   expected. Rate by how closely the lambda's signature matches the SAM
+		   method's signature so specificity ordering still works between two
+		   SAM-parametered overloads. *)
+		| TInst(cf,tlf), TFun _ when has_class_flag cf CFunctionalInterface ->
+			begin match TOther.TClass.get_singular_interface_field cf.cl_ordered_fields with
+			| None -> raise Not_found
+			| Some sam ->
+				let map = apply_params cf.cl_params tlf in
+				rate_conv (cacc+1) (map sam.cf_type) targ
+			end
 		| tfun,targ ->
 			raise Not_found
 

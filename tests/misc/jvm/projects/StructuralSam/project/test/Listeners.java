@@ -1,0 +1,84 @@
+package test;
+
+// None of these interfaces carry @FunctionalInterface. javac still permits
+// lambda conversion to them (the annotation is documentation, not a gate);
+// Haxe's structural SAM detection in javaModern.ml should match that.
+
+public class Listeners {
+    public interface OnClick {
+        void onClick(int id);
+    }
+
+    // Inherits Object.toString (not abstract here), declares one abstract.
+    public interface WithToString {
+        String describe(int value);
+    }
+
+    // Abstract equals re-declaration must NOT count as an extra abstract method
+    // (matches the JLS §9.8 exclusion of Object members).
+    public interface AbstractEqualsPlusOne {
+        @Override
+        boolean equals(Object other);
+
+        int compute(int a);
+    }
+
+    // Default + static + private methods do not count as abstract; only
+    // `transform` should remain.
+    public interface WithDefaults {
+        int transform(int x);
+
+        default int doubled(int x) { return transform(x) * 2; }
+        static int identity(int x) { return x; }
+    }
+
+    // Two abstract methods — NOT a SAM. Lambda assignment must remain rejected.
+    public interface NotSam {
+        void first();
+        void second();
+    }
+
+    // Single-arg method that returns a value — exercises the non-void SAM path
+    // and overload disambiguation against an Object-parametered overload.
+    public interface StringMaker {
+        String make(int n);
+    }
+
+    public static String runOnClick(OnClick cb, int id) {
+        cb.onClick(id);
+        return "ok";
+    }
+
+    public static String runDescribe(WithToString cb, int v) {
+        return cb.describe(v);
+    }
+
+    public static int runCompute(AbstractEqualsPlusOne cb, int v) {
+        return cb.compute(v);
+    }
+
+    public static int runTransform(WithDefaults cb, int v) {
+        return cb.transform(v);
+    }
+
+    public static String runMaker(StringMaker cb, int v) {
+        return cb.make(v);
+    }
+
+    // Overloaded call sites — disjoint SAM signatures so resolution is
+    // unambiguous (lambda arg arity differs). Exercises SAM-aware overload
+    // candidate filtering.
+    @FunctionalInterface
+    public interface UnaryStringFn {
+        String apply(String s);
+    }
+
+    public static String overloaded(OnClick cb, int id) {
+        cb.onClick(id);
+        return "click";
+    }
+
+    public static String overloaded(UnaryStringFn cb, String s) {
+        return cb.apply(s);
+    }
+}

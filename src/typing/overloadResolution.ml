@@ -1,7 +1,28 @@
 open TType
 open TUnification
 open TFunctions
+open TOther
 open FieldCallCandidate
+
+(* Try the functional-interface conversion path: if [t_param] is a SAM class
+   and [t_arg] is a function type, unify the function against the SAM method's
+   signature (mirroring what AbstractCast does at cast time). Returns true if
+   compatible. Used during overload candidate filtering so SAM-parameter
+   overloads aren't discarded before the cast layer runs — but unlike a blind
+   accept, this still rejects lambdas whose shape doesn't match the SAM. *)
+let try_functional_interface_match t_param t_arg =
+	match follow t_param, follow t_arg with
+	| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
+		begin match TClass.get_singular_interface_field c.cl_ordered_fields with
+		| None -> false
+		| Some cf ->
+			let map = apply_params c.cl_params tl in
+			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let expected = map (apply_params cf.cf_params monos cf.cf_type) in
+			try Type.unify t_arg expected; true
+			with Unify_error _ -> false
+		end
+	| _ -> false
 
 let unify_cf map_type c cf el =
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -10,7 +31,8 @@ let unify_cf map_type c cf el =
 			let rec loop2 acc el tl = match el,tl with
 				| e :: el,(_,o,t) :: tl ->
 					begin try
-						Type.unify e.etype t;
+						(try Type.unify e.etype t
+						 with Unify_error _ when try_functional_interface_match t e.etype -> ());
 						loop2 (e :: acc) el tl
 					with _ ->
 						if Type.ExtType.is_rest (follow t) then
