@@ -1,8 +1,8 @@
 // Anonymous-structure keys that aren't valid DEX SimpleNames (here: a key
-// containing a newline + space). Without -D jvm.dex-compatible, genjvm emits
-// a typed field literally named "a\n b" on the Anon class, which DEX rejects
-// pre-040. With the define, the field is routed through DynamicObject's map
-// so the jar is dex-clean. Behavior under Reflect / Json must be unchanged.
+// containing a newline + space). genjvm routes such fields through
+// DynamicObject's `_hx_fields` map instead of emitting a typed JVM field
+// literally named "a\n b" (which DEX rejects pre-040). Behavior under
+// Reflect / Json must be unchanged.
 class Main {
 	static public function main() {
 		final a:Dynamic = {"a\n b": 1, normal: 2};

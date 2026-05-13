@@ -1,6 +1,5 @@
 --main Main
 --jvm bin/run.jar
--D jvm.dex-compatible
 
 --next
 

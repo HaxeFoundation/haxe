@@ -1,4 +1,4 @@
-// Verifies two things about the jar built with -D jvm.dex-compatible:
+// Verifies two things about the jar:
 //   1. Behavior: the program runs and Reflect operations work on the
 //      unsafe-named field (Main.main exits 0 — that's already established
 //      by run-base, but we re-run it here to be self-contained).

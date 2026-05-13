@@ -87,7 +87,6 @@ type generation_context = {
 	mutable (* final after preprocessing *) typedef_interfaces : jsignature typedef_interfaces;
 	jar_compression_level : int;
 	dynamic_level : int;
-	dex_compatible : bool;
 	mutexes : mutexes;
 }
 
@@ -788,7 +787,7 @@ class texpr_to_jvm
 			cast();
 		in
 		match gctx.anon_identification#identify AnonIdMode.default true t with
-		| Some pfm when not gctx.dex_compatible || is_dex_safe_simple_name cf.cf_name ->
+		| Some pfm when is_dex_safe_simple_name cf.cf_name ->
 			let cf = PMap.find cf.cf_name pfm.pfm_fields in
 			let path = pfm.pfm_path in
 			code#dup;
@@ -943,7 +942,7 @@ class texpr_to_jvm
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
 			begin match gctx.anon_identification#identify AnonIdMode.default true e1.etype with
-			| Some pfm when not gctx.dex_compatible || is_dex_safe_simple_name cf.cf_name ->
+			| Some pfm when is_dex_safe_simple_name cf.cf_name ->
 				let cf = PMap.find cf.cf_name pfm.pfm_fields in
 				let path = pfm.pfm_path in
 				code#dup;
@@ -2382,11 +2381,11 @@ type super_ctor_mode =
 	| SCHaxe
 
 let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
-	(* In dex-compatible anon classes, unsafe-named entries aren't typed
-	   fields — they live in DynamicObject's _hx_fields. Drop them from the
-	   switches so the default branch (super) handles them via the map. *)
+	(* In anon classes, unsafe-named entries aren't typed fields — they live
+	   in DynamicObject's _hx_fields. Drop them from the switches so the
+	   default branch (super) handles them via the map. *)
 	let fields =
-		if is_anon && gctx.dex_compatible then
+		if is_anon then
 			List.filter (fun (name,_,_) -> is_dex_safe_simple_name name) fields
 		else
 			fields
@@ -3086,7 +3085,7 @@ let generate_anons gctx pool =
 		let fields = convert_fields gctx pfm in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
-		let is_typed_field name = not gctx.dex_compatible || is_dex_safe_simple_name name in
+		let is_typed_field name = is_dex_safe_simple_name name in
 		begin
 			let jm_ctor = jc#spawn_method "<init>" (method_sig (List.map snd fields) None) [MPublic] in
 			jm_ctor#load_this;
@@ -3333,7 +3332,6 @@ let generate jvm_flag gctx =
 		1
 	in
 	if dynamic_level < 0 || dynamic_level > 2 then failwith "Invalid value for -D jvm.dynamic-level: Must be >=0 and <= 2";
-	let dex_compatible = Define.defined gctx.defines Define.JvmDexCompatible in
 	let gctx = {
 		gctx = gctx;
 		out = out;
@@ -3354,7 +3352,6 @@ let generate jvm_flag gctx =
 		detail_times = Gctx.raw_defined gctx "jvm_times";
 		jar_compression_level = compression_level;
 		dynamic_level = dynamic_level;
-		dex_compatible = dex_compatible;
 		functional_interfaces = [];
 		mutexes = {
 			write_class = Mutex.create();
