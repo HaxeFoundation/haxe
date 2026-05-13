@@ -140,7 +140,9 @@ class Issue12898 extends TestCase {
 			assertSuccess();
 			final r = runJar();
 			Assert.equals(0, r.exit, 'jar exited ${r.exit} (${label ?? "?"}): ${r.stderr}');
-			Assert.equals(expectedStdout, r.stdout, 'wrong stdout (${label ?? "?"})');
+			// Normalize CRLF -> LF: Sys.println on JVM uses the platform line separator.
+			final stdout = StringTools.replace(r.stdout, "\r\n", "\n");
+			Assert.equals(expectedStdout, stdout, 'wrong stdout (${label ?? "?"})');
 			assertClosureInJar(classNameNeedle, label);
 		}
 
