@@ -57,6 +57,17 @@ type mutexes = {
 	closure_lookup : Mutex.t;
 }
 
+(* One shared top-level closure class per (path_this, name). Codegen sites
+   register their signature(s) here; materialization (constructor / invoke
+   methods / equals / write_class) happens in generate_closures at the end
+   of the build, after all sites have contributed their invokes and FI
+   associations. *)
+type closure_record = {
+	cr_path : path;
+	cr_wf : JvmFunctions.typed_function;
+	cr_pending_sigs : (jsignature,unit) Hashtbl.t;
+}
+
 type generation_context = {
 	gctx : Gctx.t;
 	out : Zip_output.any_output;
@@ -69,7 +80,8 @@ type generation_context = {
 	mutable (* final after preprocessing *) preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
 	typed_functions : JvmFunctions.typed_functions; (* guards itself *)
-	closure_paths : (path * string * jsignature,path) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
+	closure_paths : (path * string,closure_record) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
+	static_closure_paths : (path * string * jsignature,path) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
 	enum_paths : (path,unit) Hashtbl.t; (* final after preprocessing *)
 	detail_times : bool;
 	mutable (* final after preprocessing *) typedef_interfaces : jsignature typedef_interfaces;
@@ -465,42 +477,94 @@ let associate_functional_interfaces gctx f t =
 	end
 
 let create_typed_function gctx kind jc jm context =
-	new JvmFunctions.typed_function gctx.typed_functions kind jc jm context
+	new JvmFunctions.typed_function gctx.typed_functions kind (JvmFunctions.THostInner jc) jm context
 
-let create_field_closure gctx jc path_this jm name jsig t =
+(* Mangle a (target_class_path, method_name) into the simple class name used
+   for its shared closure. The synthetic package `jvm.$Closure` segregates
+   them from user code; the leading `$` in the package segment makes both
+   the package and any sibling class name unreachable from Haxe source
+   (Haxe identifiers disallow `$`), so user code cannot define a class that
+   collides with — or shadows — one of these. *)
+let closure_class_name path_this name =
+	let prefix = match fst path_this with
+		| [] -> snd path_this
+		| pkg -> String.concat "_" pkg ^ "_" ^ snd path_this
+	in
+	Printf.sprintf "Closure_%s_%s" prefix (patch_name name)
+
+let closure_class_package = ["jvm";"$Closure"]
+
+(* Register N invoke signatures for the shared closure of (path_this, name),
+   creating its class builder on first hit. Each caller site invokes this
+   while emitting its own bytecode; the actual closure-class body is only
+   materialized later by generate_closures (after every caller has had a
+   chance to contribute its signatures and functional-interface bindings).
+
+   The site must still emit a NEW + invokespecial of the closure ctor at the
+   call point — we do that here, given the closure path is known up-front. *)
+let register_field_closure gctx jc path_this jm name overloads f t =
 	let jsig_this = object_path_sig path_this in
 	let context = ["this",jsig_this] in
-	let wf = create_typed_function gctx (FuncMember(path_this,name)) jc jm context in
-	let jc_closure = wf#get_class in
-	Hashtbl.add gctx.closure_paths (path_this,name,jsig) jc_closure#get_this_path;
-	Mutex.unlock gctx.mutexes.closure_lookup;
-	begin match t with
-	| None ->
-		()
-	| Some t ->
-		associate_functional_interfaces gctx wf t
-	end;
-	ignore(wf#generate_constructor true);
-	let args,ret = match jsig with
-		| TMethod(args,ret) ->
-			List.mapi (fun i jsig -> (Printf.sprintf "arg%i" i,jsig)) args,ret
-		| _ ->
-			die "" __LOC__
+	Mutex.lock gctx.mutexes.closure_lookup;
+	let record = try Hashtbl.find gctx.closure_paths (path_this,name)
+	with Not_found ->
+		let closure_path = (closure_class_package, closure_class_name path_this name) in
+		let wf = new JvmFunctions.typed_function gctx.typed_functions
+			(FuncMember(path_this,name)) (JvmFunctions.THostStandalone closure_path) jm context in
+		let r = {
+			cr_path = closure_path;
+			cr_wf = wf;
+			cr_pending_sigs = Hashtbl.create 2;
+		} in
+		Hashtbl.add gctx.closure_paths (path_this,name) r;
+		r
 	in
-	let jm_invoke = wf#generate_invoke args ret [] in
-	let vars = List.map (fun (name,jsig) ->
-		jm_invoke#add_local name jsig VarArgument
-	) args in
-	jm_invoke#finalize_arguments;
-	jm_invoke#load_this;
-	jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
-	List.iter (fun (_,load,_) ->
-		load();
-	) vars;
-	jm_invoke#invokevirtual path_this name (method_sig (List.map snd args) ret);
-	jm_invoke#return;
-	(* equals *)
-	begin
+	List.iter (fun jsig ->
+		if not (Hashtbl.mem record.cr_pending_sigs jsig) then
+			Hashtbl.add record.cr_pending_sigs jsig ()
+	) overloads;
+	Mutex.unlock gctx.mutexes.closure_lookup;
+	(* FI association is additive across sites — each caller contributes the
+	   SAM types it expected. Later, generate_invoke materializes them all. *)
+	begin match t with
+	| None -> ()
+	| Some t -> associate_functional_interfaces gctx record.cr_wf t
+	end;
+	ignore jc; (* host class no longer used; kept in the signature to ease the call-site diff *)
+	jm#construct ConstructInit record.cr_path (fun () ->
+		f();
+		[jsig_this]
+	)
+
+(* Materialize all shared closure classes registered during codegen. Emits
+   each one's constructor, the accumulated invoke methods (one per unique
+   signature collected from caller sites), and an equals method. Called
+   from generate () after every type-level codegen pass has completed.
+
+   This always runs end-to-end every build — there's no per-class caching
+   to invalidate. JVM codegen re-walks gctx.types from scratch on every
+   compilation-server cycle, so the cache is fresh and complete each time. *)
+let generate_closures gctx =
+	Hashtbl.iter (fun (path_this,name) record ->
+		let jc_closure = record.cr_wf#get_class in
+		let jsig_this = object_path_sig path_this in
+		ignore(record.cr_wf#generate_constructor true);
+		Hashtbl.iter (fun jsig () -> match jsig with
+			| TMethod(args,ret) ->
+				let args_named = List.mapi (fun i a -> (Printf.sprintf "arg%i" i, a)) args in
+				let jm_invoke = record.cr_wf#generate_invoke args_named ret [] in
+				let vars = List.map (fun (n,j) ->
+					jm_invoke#add_local n j VarArgument
+				) args_named in
+				jm_invoke#finalize_arguments;
+				jm_invoke#load_this;
+				jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
+				List.iter (fun (_,load,_) -> load()) vars;
+				jm_invoke#invokevirtual path_this name (method_sig args ret);
+				jm_invoke#return
+			| _ ->
+				die "" __LOC__
+		) record.cr_pending_sigs;
 		let jm_equals,load = generate_equals_function jc_closure object_sig in
 		let code = jm_equals#get_code in
 		jm_equals#load_this;
@@ -515,82 +579,8 @@ let create_field_closure gctx jc path_this jm name jsig t =
 			);
 		code#bconst true;
 		jm_equals#return;
-	end;
-	write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
-	jc_closure#get_this_path
-
-let create_field_closure gctx jc path_this jm name jsig f t =
-	let jsig_this = object_path_sig path_this in
-	Mutex.lock gctx.mutexes.closure_lookup;
-	let closure_path = try
-		let r = Hashtbl.find gctx.closure_paths (path_this,name,jsig) in
-		Mutex.unlock gctx.mutexes.closure_lookup;
-		r;
-	with Not_found ->
-		let closure_path = create_field_closure gctx jc path_this jm name jsig t in
-		closure_path
-	in
-	jm#construct ConstructInit closure_path (fun () ->
-		f();
-		[jsig_this]
-	)
-
-(* Like create_field_closure but builds a single closure class that hosts
-   multiple invoke methods — one per overload of the target method. Used by
-   generate_dynamic_access when a class exposes several JVM methods sharing
-   a name (typical with `@:overload @:native("foo")`). Without this, each
-   overload would spawn its own closure class with the same path and the
-   second would silently overwrite the first in the jar (which d8/r8
-   rejects). All overload signatures get registered in the closure cache so
-   later user-code references via any of them resolve to this merged class. *)
-let create_field_closure_overloads gctx jc path_this jm name overloads f =
-	let jsig_this = object_path_sig path_this in
-	let context = ["this",jsig_this] in
-	Mutex.lock gctx.mutexes.closure_lookup;
-	let wf = create_typed_function gctx (FuncMember(path_this,name)) jc jm context in
-	let jc_closure = wf#get_class in
-	List.iter (fun (jsig,_) ->
-		if not (Hashtbl.mem gctx.closure_paths (path_this,name,jsig)) then
-			Hashtbl.add gctx.closure_paths (path_this,name,jsig) jc_closure#get_this_path
-	) overloads;
-	Mutex.unlock gctx.mutexes.closure_lookup;
-	ignore(wf#generate_constructor true);
-	List.iter (fun (jsig,_) -> match jsig with
-		| TMethod(args,ret) ->
-			let args_named = List.mapi (fun i a -> (Printf.sprintf "arg%i" i, a)) args in
-			let jm_invoke = wf#generate_invoke args_named ret [] in
-			let vars = List.map (fun (n,j) ->
-				jm_invoke#add_local n j VarArgument
-			) args_named in
-			jm_invoke#finalize_arguments;
-			jm_invoke#load_this;
-			jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
-			List.iter (fun (_,load,_) -> load()) vars;
-			jm_invoke#invokevirtual path_this name (method_sig args ret);
-			jm_invoke#return
-		| _ ->
-			die "" __LOC__
-	) overloads;
-	(* equals — identical shape to the single-overload path *)
-	let jm_equals,load = generate_equals_function jc_closure object_sig in
-	let code = jm_equals#get_code in
-	jm_equals#load_this;
-	jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
-	load();
-	jm_equals#getfield jc_closure#get_this_path "this" jsig_this;
-	jm_equals#if_then
-		(code#if_acmp_eq jc_closure#get_jsig jc_closure#get_jsig)
-		(fun () ->
-			code#bconst false;
-			jm_equals#return;
-		);
-	code#bconst true;
-	jm_equals#return;
-	write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
-	jm#construct ConstructInit jc_closure#get_this_path (fun () ->
-		f();
-		[jsig_this]
-	)
+		write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config)
+	) gctx.closure_paths
 
 let rvalue_any = RValue(None,None)
 let rvalue_sig jsig = RValue (Some jsig,None)
@@ -818,13 +808,13 @@ class texpr_to_jvm
 		let jsig = method_sig (List.map snd args) ret in
 		Mutex.lock gctx.mutexes.closure_lookup;
 		let closure_path = try
-			let r = Hashtbl.find gctx.closure_paths (path,name,jsig) in
+			let r = Hashtbl.find gctx.static_closure_paths (path,name,jsig) in
 			Mutex.unlock gctx.mutexes.closure_lookup;
 			r
 		with Not_found ->
 			let wf = create_typed_function gctx (FuncStatic(path,name)) jc jm [] in
 			let jc_closure = wf#get_class in
-			Hashtbl.add gctx.closure_paths (path,name,jsig) jc_closure#get_this_path;
+			Hashtbl.add gctx.static_closure_paths (path,name,jsig) jc_closure#get_this_path;
 			Mutex.unlock gctx.mutexes.closure_lookup;
 			associate_functional_interfaces gctx wf t;
 			ignore(wf#generate_constructor false);
@@ -905,7 +895,7 @@ class texpr_to_jvm
 			if has_class_flag c CInterface then
 				dynamic_read cf.cf_name
 			else
-				create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
+				register_field_closure gctx jc c.cl_path jm cf.cf_name [self#vtype cf.cf_type] (fun () ->
 					self#texpr rvalue_any e1;
 				) (Some cf.cf_type)
 
@@ -2441,7 +2431,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 				begin match kind,jsig with
 				| Method (MethNormal | MethInline),TMethod(args,_) ->
 					if gctx.dynamic_level >= 2 then
-						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () -> jm#load_this) None
+						register_field_closure gctx jc jc#get_this_path jm name [jsig] (fun () -> jm#load_this) None
 					else
 						emit_dynamic_closure args
 				| _ ->
@@ -2449,7 +2439,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 				end
 			| _ when List.for_all (fun (_,k) -> is_method k) entries ->
 				if gctx.dynamic_level >= 2 then
-					create_field_closure_overloads gctx jc jc#get_this_path jm name entries (fun () -> jm#load_this)
+					register_field_closure gctx jc jc#get_this_path jm name (List.map fst entries) (fun () -> jm#load_this) None
 				else begin
 					(* Reflection-based dispatch; readFieldClosure's parameterTypes
 					   only narrows to one overload, so pick the first deterministically. *)
@@ -3356,6 +3346,7 @@ let generate jvm_flag gctx =
 		typedef_interfaces = Obj.magic ();
 		typed_functions = new JvmFunctions.typed_functions;
 		closure_paths = Hashtbl.create 0;
+		static_closure_paths = Hashtbl.create 0;
 		enum_paths = Hashtbl.create 0;
 		default_export_config = {
 			export_debug = true;
@@ -3408,6 +3399,7 @@ let generate jvm_flag gctx =
 			run_timed gctx false "typed interfaces" generate_typed_interfaces;
 			run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
 			run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+			run_timed gctx false "closures" (fun () -> generate_closures gctx);
 		)
 	in
 	generate ();
