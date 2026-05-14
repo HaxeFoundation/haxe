@@ -4,6 +4,7 @@ import test.Listeners.Listeners_WithToString;
 import test.Listeners.Listeners_AbstractEqualsPlusOne;
 import test.Listeners.Listeners_WithDefaults;
 import test.Listeners.Listeners_StringMaker;
+import test.Listeners.Listeners_Unused;
 
 function main() {
 	// Plain SAM — javac would accept the lambda directly.
@@ -25,4 +26,13 @@ function main() {
 	// candidate is unambiguous.
 	trace(Listeners.overloaded((id:Int) -> Sys.println("ovl-click=" + id), 1));
 	trace(Listeners.overloaded((s:String) -> s + "!", "hi"));
+
+	// A closure converted to OnClick must implement OnClick at runtime — but
+	// NOT Unused, which is structurally identical yet never used as a
+	// conversion target. Guards against closures promiscuously implementing
+	// every matching SAM interface on the classpath.
+	var cb:Listeners_OnClick = id -> Sys.println("bound-click=" + id);
+	Listeners.runOnClick(cb, 99);
+	trace(Std.isOfType(cb, Listeners_OnClick));
+	trace(Std.isOfType(cb, Listeners_Unused));
 }

@@ -3241,13 +3241,25 @@ module Preprocessor = struct
 			| [] ->
 				false
 		in
+		(* Functional interfaces the program actually converts a function to
+		   (recorded by AbstractCast). Membership is resolved here and kept by
+		   physical class identity because check_path, in this same loop, may
+		   still rewrite cl_path for private types — so a path captured now
+		   would be stale by the time the second loop runs. *)
+		let fi_used_classes = ref [] in
+		let note_if_used_fi c =
+			if has_class_flag c CFunctionalInterface
+			&& Hashtbl.mem gctx.gctx.functional_interfaces_used c.cl_path then
+				fi_used_classes := c :: !fi_used_classes
+		in
 		(* go through com.modules so we can also pick up private typedefs *)
 		List.iter (fun m ->
 			List.iter (fun mt ->
 				match mt with
 				| TClassDecl c when has_runtime_meta c.cl_meta && has_class_flag c CInterface ->
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
-				| TClassDecl _ ->
+				| TClassDecl c ->
+					note_if_used_fi c;
 					check_path (t_infos mt);
 				| TEnumDecl en ->
 					check_path (t_infos mt);
@@ -3275,8 +3287,13 @@ module Preprocessor = struct
 					gctx.preprocessor#preprocess_class c
 				else begin
 					patch_optional c;
-					if has_class_flag c CFunctionalInterface then
-					check_functional_interface gctx c
+					(* Only register SAM interfaces the program actually converts a
+					   function to. Without this filter a closure would implement
+					   every structurally-matching interface on the --java-lib
+					   classpath — including incidental ones from a higher API
+					   level than the runtime, which hard-fails class linking. *)
+					if List.memq c !fi_used_classes then
+						check_functional_interface gctx c
 				end
 			| _ -> ()
 		) gctx.gctx.types;

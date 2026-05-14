@@ -30,6 +30,13 @@ type t = {
 	main : context_main;
 	types : Type.module_type list;
 	resources : (string,string) Hashtbl.t;
+	(* Paths of functional interfaces that some expression is actually converted
+	   to (populated by AbstractCast). The JVM generator only lets closures
+	   implement interfaces in this set, so a closure never ends up implementing
+	   an incidental SAM interface from a --java-lib jar that the program never
+	   uses as a conversion target — which would hard-fail class linking when
+	   that interface is from a higher API level than the runtime provides. *)
+	functional_interfaces_used : (path,unit) Hashtbl.t;
 	native_libs : NativeLibraries.native_library_base list;
 	include_files : (string * string) list;
 	std : tclass; (* TODO: I would prefer to not have this here, have to check default_cast *)

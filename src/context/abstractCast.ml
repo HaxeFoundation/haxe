@@ -101,6 +101,18 @@ and do_check_cast ctx uctx tleft eright p =
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
+					(* Record that this interface is genuinely used as a conversion
+					   target — the JVM generator consults this so closures only
+					   implement SAM interfaces the program actually demands. Key
+					   by the @:native path when present: Native.apply_native_paths
+					   rewrites cl_path between typing and generation, so storing
+					   the raw cl_path here would not match what the generator sees
+					   (e.g. View_OnClickListener vs View$OnClickListener). *)
+					let fi_key =
+						try parse_path (fst (Native.get_native_name c.cl_meta))
+						with Not_found -> c.cl_path
+					in
+					Hashtbl.replace ctx.com.functional_interfaces_used fi_key ();
 					eright
 				| _ ->
 					raise Not_found

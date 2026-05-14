@@ -44,6 +44,14 @@ public class Listeners {
         String make(int n);
     }
 
+    // Structurally a SAM, identical in shape to OnClick — but Main never
+    // converts a function to it. A closure must therefore NOT implement it:
+    // the JVM generator only binds interfaces that are actually used as a
+    // conversion target somewhere in the program.
+    public interface Unused {
+        void onUnused(int id);
+    }
+
     public static String runOnClick(OnClick cb, int id) {
         cb.onClick(id);
         return "ok";

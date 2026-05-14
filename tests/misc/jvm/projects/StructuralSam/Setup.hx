@@ -13,5 +13,6 @@ function main() {
 		"test/Listeners$WithDefaults.class",
 		"test/Listeners$NotSam.class",
 		"test/Listeners$StringMaker.class",
+		"test/Listeners$Unused.class",
 		"test/Listeners$UnaryStringFn.class"]);
 }

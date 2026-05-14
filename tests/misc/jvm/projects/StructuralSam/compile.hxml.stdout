@@ -1,9 +1,12 @@
 click=7
-Main.hx:10: ok
-Main.hx:13: v=3
-Main.hx:16: 25
-Main.hx:19: 11
-Main.hx:22: made-2
+Main.hx:11: ok
+Main.hx:14: v=3
+Main.hx:17: 25
+Main.hx:20: 11
+Main.hx:23: made-2
 ovl-click=1
-Main.hx:26: click
-Main.hx:27: hi!
+Main.hx:27: click
+Main.hx:28: hi!
+bound-click=99
+Main.hx:36: true
+Main.hx:37: false

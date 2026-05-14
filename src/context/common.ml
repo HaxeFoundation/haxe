@@ -346,6 +346,10 @@ and context = {
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
+	(* Functional interfaces actually used as a conversion target somewhere in
+	   the program (populated by AbstractCast). Read by the JVM generator to
+	   avoid binding closures to incidental SAM interfaces — see Gctx.t. *)
+	functional_interfaces_used : (path,unit) Hashtbl.t;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
@@ -379,6 +383,7 @@ let to_gctx com = {
 	main = com.main;
 	types = com.types;
 	resources = com.resources;
+	functional_interfaces_used = com.functional_interfaces_used;
 	native_libs = (match com.platform with
 		| Jvm -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
 		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
@@ -811,6 +816,7 @@ let create sctx request_scope part_scope display_mode =
 		overload_cache = new hashtbl_lookup;
 		is_macro_context = false;
 		functional_interface_lut = new Lookup.hashtbl_lookup;
+		functional_interfaces_used = Hashtbl.create 0;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
@@ -936,6 +942,10 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup; (* ! *)
 		is_macro_context = is_macro_context;
 		functional_interface_lut = new Lookup.hashtbl_lookup;
+		(* Shared with the parent context: a SAM conversion typed in a cloned
+		   context (core-api check, macro context) must still be visible to the
+		   JVM generator, which only ever sees the root context. *)
+		functional_interfaces_used = com.functional_interfaces_used;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
