@@ -3252,6 +3252,49 @@ module Preprocessor = struct
 			&& Hashtbl.mem gctx.gctx.functional_interfaces_used c.cl_path then
 				fi_used_classes := c :: !fi_used_classes
 		in
+		(* A SAM interface is also "used" when it is named anywhere in non-extern
+		   code — a field signature, or the type of any sub-expression (e.g. the
+		   TFun type of a called extern method whose parameter is the interface).
+		   The AbstractCast set only covers interfaces reached through an implicit
+		   SAM conversion typed from source, which an `--hxb-lib` build never
+		   re-runs, and which an explicit `cast` of a closure bypasses entirely.
+		   Scanning the AST instead is independent of how the module was loaded.
+		   Restricting the scan to non-extern types keeps incidental SAM
+		   interfaces from a --java-lib classpath out of the set unless user code
+		   actually references them. *)
+		let rec note_fi_in_type depth t =
+			if depth < 32 then match follow t with
+			| TInst(c,tl) ->
+				if has_class_flag c CFunctionalInterface then fi_used_classes := c :: !fi_used_classes;
+				List.iter (note_fi_in_type (depth + 1)) tl
+			| TFun(args,ret) ->
+				List.iter (fun (_,_,t) -> note_fi_in_type (depth + 1) t) args;
+				note_fi_in_type (depth + 1) ret
+			| TAbstract(_,tl) | TEnum(_,tl) | TType(_,tl) ->
+				List.iter (note_fi_in_type (depth + 1)) tl
+			| TAnon an ->
+				PMap.iter (fun _ cf -> note_fi_in_type (depth + 1) cf.cf_type) an.a_fields
+			| TDynamic (Some t) ->
+				note_fi_in_type (depth + 1) t
+			| _ ->
+				()
+		in
+		let rec note_fi_in_expr e =
+			note_fi_in_type 0 e.etype;
+			Type.iter note_fi_in_expr e
+		in
+		let note_fi_in_signatures c =
+			if not (has_class_flag c CExtern) then begin
+				let rec scan cf =
+					note_fi_in_type 0 cf.cf_type;
+					Option.may note_fi_in_expr cf.cf_expr;
+					List.iter scan cf.cf_overloads
+				in
+				List.iter scan c.cl_ordered_fields;
+				List.iter scan c.cl_ordered_statics;
+				Option.may scan c.cl_constructor
+			end
+		in
 		(* go through com.modules so we can also pick up private typedefs *)
 		List.iter (fun m ->
 			List.iter (fun mt ->
@@ -3260,6 +3303,7 @@ module Preprocessor = struct
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
 				| TClassDecl c ->
 					note_if_used_fi c;
+					note_fi_in_signatures c;
 					check_path (t_infos mt);
 				| TEnumDecl en ->
 					check_path (t_infos mt);
