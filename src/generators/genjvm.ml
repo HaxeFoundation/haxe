@@ -2429,22 +2429,15 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 			| [(jsig,kind)] ->
 				begin match kind,jsig with
 				| Method (MethNormal | MethInline),TMethod(args,_) ->
-					if gctx.dynamic_level >= 2 then
-						register_field_closure gctx jc jc#get_this_path jm name [jsig] (fun () -> jm#load_this) None
-					else
-						emit_dynamic_closure args
+					emit_dynamic_closure args
 				| _ ->
 					emit_field jsig
 				end
 			| _ when List.for_all (fun (_,k) -> is_method k) entries ->
-				if gctx.dynamic_level >= 2 then
-					register_field_closure gctx jc jc#get_this_path jm name (List.map fst entries) (fun () -> jm#load_this) None
-				else begin
-					(* Reflection-based dispatch; readFieldClosure's parameterTypes
-					   only narrows to one overload, so pick the first deterministically. *)
-					let args = match fst (List.hd entries) with TMethod(args,_) -> args | _ -> die "" __LOC__ in
-					emit_dynamic_closure args
-				end
+				(* Reflection-based dispatch; readFieldClosure's parameterTypes
+				   only narrows to one overload, so pick the first deterministically. *)
+				let args = match fst (List.hd entries) with TMethod(args,_) -> args | _ -> die "" __LOC__ in
+				emit_dynamic_closure args
 			| (jsig,_) :: _ ->
 				(* Mixed kinds for the same name shouldn't occur in well-formed
 				   Haxe (JVM forbids it for fields, and field+method sharing a
