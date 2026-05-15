@@ -551,7 +551,7 @@
 	{
 		"name": "JvmDynamicLevel",
 		"define": "jvm.dynamic-level",
-		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
+		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default)",
 		"platforms": ["jvm"]
 	},
 	{

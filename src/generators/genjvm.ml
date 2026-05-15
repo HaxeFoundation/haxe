@@ -3324,7 +3324,7 @@ let generate jvm_flag gctx =
 	with _ ->
 		1
 	in
-	if dynamic_level < 0 || dynamic_level > 2 then failwith "Invalid value for -D jvm.dynamic-level: Must be >=0 and <= 2";
+	if dynamic_level < 0 || dynamic_level > 1 then failwith "Invalid value for -D jvm.dynamic-level: Must be 0 or 1";
 	let gctx = {
 		gctx = gctx;
 		out = out;

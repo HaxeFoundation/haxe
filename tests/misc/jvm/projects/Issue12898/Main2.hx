@@ -1,10 +1,5 @@
 // `@:overload @:native(X)` makes multiple Haxe fields share a JVM method
-// name. With -D jvm.dynamic-level=2, the _hx_getField switch used to emit
-// one case (and one closure class) per overload — all with the same target
-// path, so the second class silently overwrote the first in the jar and
-// the switch had a dead duplicate case.
-//
-// genjvm now groups by name in _hx_getField and produces a single closure
+// name. genjvm now groups by name in _hx_getField and produces a single closure
 // class hosting all overloads' invoke methods.
 class Buf {
 	public function new() {}

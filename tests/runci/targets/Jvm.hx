@@ -64,7 +64,7 @@ class Jvm {
 
 		runCommand("haxe", ["compile-java-native.hxml"]);
 
-		for (level in 0...3) {
+		for (level in 0...2) {
 			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);
 			buildAndRun(["compile-jvm-only.hxml", "--hxb", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
 			buildAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
