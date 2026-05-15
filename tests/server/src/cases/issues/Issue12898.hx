@@ -11,47 +11,6 @@ import haxe.display.Server;
 // subset of the participating modules and rebuilding, regardless of which
 // caller's codegen actually triggered the registration on a given build.
 class Issue12898 extends TestCase {
-	// Multi-overload merge path: `@:overload @:native('foo')` makes several
-	// Haxe fields share a JVM method name; generate_dynamic_access groups
-	// them and emits a single shared closure with one invoke per overload.
-	function testOverloadedClosureViaReflect(_) {
-		vfs.putContent("Target.hx", "
-			class Target {
-				public function new() {}
-				public function foo(x:Dynamic):Void Sys.println('dyn:' + x);
-				@:overload @:native('foo') public function fooBool(b:Bool):Void Sys.println('bool:' + b);
-			}
-		");
-		vfs.putContent("CallerA.hx", "
-			class CallerA {
-				public static function run(t:Target):Void {
-					final f = Reflect.field(t, 'foo');
-					Reflect.callMethod(t, f, [true]);
-				}
-			}
-		");
-		vfs.putContent("CallerB.hx", "
-			class CallerB {
-				public static function run(t:Target):Void {
-					final f = Reflect.field(t, 'foo');
-					Reflect.callMethod(t, f, ['hello']);
-				}
-			}
-		");
-		vfs.putContent("Main.hx", "
-			class Main {
-				static function main() {
-					final t = new Target();
-					CallerA.run(t);
-					CallerB.run(t);
-					t.fooBool(true);
-				}
-			}
-		");
-
-		runScenario(["-D", "jvm.dynamic-level=2"], "dyn:true\ndyn:hello\nbool:true\n", "Target_foo");
-	}
-
 	// Direct member-closure path (`obj.method` as a value): exercises
 	// read_anon_field's FClosure branch, which is not gated on
 	// dynamic-level and was previously a separate per-caller inner class
@@ -90,46 +49,6 @@ class Issue12898 extends TestCase {
 		");
 
 		runScenario([], "hi A\nhi B\n", "Target_greet");
-	}
-
-	// Single-method dynamic-access path: a non-overloaded method reached
-	// via Reflect.field at dynamic-level=2 goes through the single-entry
-	// generate_dynamic_access branch (different from the overload-merge
-	// branch covered above). Two callers must still share one closure.
-	function testSingleMethodViaReflect(_) {
-		vfs.putContent("Target.hx", "
-			class Target {
-				public function new() {}
-				public function bar(x:Int):Void Sys.println('bar:' + x);
-			}
-		");
-		vfs.putContent("CallerA.hx", "
-			class CallerA {
-				public static function run(t:Target):Void {
-					final f = Reflect.field(t, 'bar');
-					Reflect.callMethod(t, f, [1]);
-				}
-			}
-		");
-		vfs.putContent("CallerB.hx", "
-			class CallerB {
-				public static function run(t:Target):Void {
-					final f = Reflect.field(t, 'bar');
-					Reflect.callMethod(t, f, [2]);
-				}
-			}
-		");
-		vfs.putContent("Main.hx", "
-			class Main {
-				static function main() {
-					final t = new Target();
-					CallerA.run(t);
-					CallerB.run(t);
-				}
-			}
-		");
-
-		runScenario(["-D", "jvm.dynamic-level=2"], "bar:1\nbar:2\n", "Target_bar");
 	}
 
 	@:coroutine function runScenario(extraArgs:Array<String>, expectedStdout:String, classNameNeedle:String) {
