@@ -345,6 +345,10 @@ and context = {
 	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	(* Functional interfaces actually used as a conversion target somewhere in
+	   the program (populated by AbstractCast). Read by the JVM generator to
+	   avoid binding closures to incidental SAM interfaces — see Gctx.t. *)
+	functional_interfaces_used : (path,unit) Hashtbl.t;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
@@ -378,6 +382,7 @@ let to_gctx com = {
 	main = com.main;
 	types = com.types;
 	resources = com.resources;
+	functional_interfaces_used = com.functional_interfaces_used;
 	native_libs = (match com.platform with
 		| Jvm -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
 		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
@@ -765,6 +770,7 @@ let create sctx request_scope part_scope display_mode =
 		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
+		functional_interfaces_used = Hashtbl.create 0;
 		native_libs = create_native_libs();
 		hxb_libs = [];
 		neko_lib_paths = [];
@@ -868,6 +874,10 @@ let clone com is_macro_context =
 		global_metadata = com.global_metadata;
 		flash_version = com.flash_version;
 		resources = com.resources;
+		(* Shared with the parent context: a SAM conversion typed in a cloned
+		   context (core-api check, macro context) must still be visible to the
+		   JVM generator, which only ever sees the root context. *)
+		functional_interfaces_used = com.functional_interfaces_used;
 		native_libs = com.native_libs;
 		hxb_libs = com.hxb_libs;
 		neko_lib_paths = com.neko_lib_paths;

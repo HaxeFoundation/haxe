@@ -3221,6 +3221,13 @@ module Preprocessor = struct
 	   it; scanning non-extern code only keeps classpath noise out. *)
 	let collect_used_functional_interfaces gctx =
 		let used = Hashtbl.create 0 in
+		(* Seed with interfaces AbstractCast recorded as implicit SAM-conversion
+		   targets. The AST scan below misses these: when a function expression
+		   is passed where a SAM is expected, AbstractCast unifies but returns
+		   the original TFun-typed expression unchanged, so the SAM TInst never
+		   appears in the typed AST. *)
+		Hashtbl.iter (fun path () -> Hashtbl.replace used path ())
+			gctx.gctx.functional_interfaces_used;
 		let rec note_fi_in_type depth t =
 			if depth < 32 then match follow t with
 			| TInst(c,tl) ->

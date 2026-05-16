@@ -30,6 +30,12 @@ type t = {
 	main : context_main;
 	types : Type.module_type list;
 	resources : (string,string) Hashtbl.t;
+	(* Paths of functional interfaces that some expression is actually converted
+	   to (populated by AbstractCast). Seeds the JVM generator's used-SAM set —
+	   the AST scan alone misses implicit SAM conversions in argument position,
+	   where AbstractCast unifies but leaves eright with its original TFun type
+	   so the SAM TInst never appears in the AST. *)
+	functional_interfaces_used : (path,unit) Hashtbl.t;
 	native_libs : NativeLibraries.native_library_base list;
 	include_files : (string * string) list;
 	std : tclass; (* TODO: I would prefer to not have this here, have to check default_cast *)
