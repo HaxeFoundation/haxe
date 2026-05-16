@@ -3225,11 +3225,11 @@ module Preprocessor = struct
 		   closure should only implement SAMs in this set — otherwise it would
 		   bind to every structurally-matching interface on the --java-lib
 		   classpath, including incidental ones from a higher API level than the
-		   runtime, which hard-fails class linking. Tracked by physical class
-		   identity because check_path, in this same loop, may still rewrite
-		   cl_path for private types. Scanning non-extern code only keeps
-		   classpath noise out: an interface counts as used iff some user
-		   expression's type, field signature, or sub-expression names it. *)
+		   runtime, which hard-fails class linking. Scanning non-extern code only
+		   keeps classpath noise out: an interface counts as used iff some user
+		   expression's type, field signature, or sub-expression names it. The
+		   set is finalized into a path-keyed hashtbl after loop 1 finishes, at
+		   which point check_path's cl_path rewrites for private types are done. *)
 		let fi_used_classes = ref [] in
 		let rec note_fi_in_type depth t =
 			if depth < 32 then match follow t with
@@ -3283,6 +3283,8 @@ module Preprocessor = struct
 					()
 			) m.m_types
 		) gctx.gctx.modules;
+		let fi_used = Hashtbl.create (List.length !fi_used_classes) in
+		List.iter (fun c -> Hashtbl.replace fi_used c.cl_path ()) !fi_used_classes;
 		(* preprocess classes *)
 		let patch_optional c =
 			let apply cf =
@@ -3299,7 +3301,7 @@ module Preprocessor = struct
 					gctx.preprocessor#preprocess_class c
 				else begin
 					patch_optional c;
-					if List.memq c !fi_used_classes then
+					if Hashtbl.mem fi_used c.cl_path then
 						check_functional_interface gctx c
 				end
 			| _ -> ()
