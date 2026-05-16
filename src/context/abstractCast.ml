@@ -96,21 +96,13 @@ and do_check_cast ctx uctx tleft eright p =
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
-					(* Record that this interface is genuinely used as a conversion
-					   target. The genjvm AST scan can't see SAM conversions in
-					   argument position — this path returns eright unchanged with
-					   its original TFun type, so the SAM TInst never appears in
-					   the AST. Key by the @:native path when present:
-					   Native.apply_native_paths rewrites cl_path between typing
-					   and generation, so storing the raw cl_path would not match
-					   what the generator sees (e.g. View_OnClickListener vs
-					   View$OnClickListener). *)
-					let fi_key =
-						try parse_path (fst (Native.get_native_name c.cl_meta))
-						with Not_found -> c.cl_path
-					in
-					Hashtbl.replace ctx.com.functional_interfaces_used fi_key ();
-					eright
+					(* Wrap the function expression in a TCast to the SAM type so
+					   the SAM TInst lives in the typed AST. Without this the
+					   genjvm AST scan can't see SAM conversions in argument
+					   position (TNew has no callee subexpression; the
+					   constructor's parameter types are unreachable), and the
+					   emitted closure would not implement the SAM interface. *)
+					mk_cast eright tleft p
 				| _ ->
 					raise Not_found
 			end
