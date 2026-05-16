@@ -3221,27 +3221,16 @@ module Preprocessor = struct
 			| [] ->
 				false
 		in
-		(* Functional interfaces the program actually converts a function to
-		   (recorded by AbstractCast). Membership is resolved here and kept by
-		   physical class identity because check_path, in this same loop, may
-		   still rewrite cl_path for private types — so a path captured now
-		   would be stale by the time the second loop runs. *)
+		(* Collect functional interfaces the program actually references. A
+		   closure should only implement SAMs in this set — otherwise it would
+		   bind to every structurally-matching interface on the --java-lib
+		   classpath, including incidental ones from a higher API level than the
+		   runtime, which hard-fails class linking. Tracked by physical class
+		   identity because check_path, in this same loop, may still rewrite
+		   cl_path for private types. Scanning non-extern code only keeps
+		   classpath noise out: an interface counts as used iff some user
+		   expression's type, field signature, or sub-expression names it. *)
 		let fi_used_classes = ref [] in
-		let note_if_used_fi c =
-			if has_class_flag c CFunctionalInterface
-			&& Hashtbl.mem gctx.gctx.functional_interfaces_used c.cl_path then
-				fi_used_classes := c :: !fi_used_classes
-		in
-		(* A SAM interface is also "used" when it is named anywhere in non-extern
-		   code — a field signature, or the type of any sub-expression (e.g. the
-		   TFun type of a called extern method whose parameter is the interface).
-		   The AbstractCast set only covers interfaces reached through an implicit
-		   SAM conversion typed from source, which an `--hxb-lib` build never
-		   re-runs, and which an explicit `cast` of a closure bypasses entirely.
-		   Scanning the AST instead is independent of how the module was loaded.
-		   Restricting the scan to non-extern types keeps incidental SAM
-		   interfaces from a --java-lib classpath out of the set unless user code
-		   actually references them. *)
 		let rec note_fi_in_type depth t =
 			if depth < 32 then match follow t with
 			| TInst(c,tl) ->
@@ -3282,7 +3271,6 @@ module Preprocessor = struct
 				| TClassDecl c when has_runtime_meta c.cl_meta && has_class_flag c CInterface ->
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
 				| TClassDecl c ->
-					note_if_used_fi c;
 					note_fi_in_signatures c;
 					check_path (t_infos mt);
 				| TEnumDecl en ->
@@ -3311,11 +3299,6 @@ module Preprocessor = struct
 					gctx.preprocessor#preprocess_class c
 				else begin
 					patch_optional c;
-					(* Only register SAM interfaces the program actually converts a
-					   function to. Without this filter a closure would implement
-					   every structurally-matching interface on the --java-lib
-					   classpath — including incidental ones from a higher API
-					   level than the runtime, which hard-fails class linking. *)
 					if List.memq c !fi_used_classes then
 						check_functional_interface gctx c
 				end
