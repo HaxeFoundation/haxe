@@ -10,3 +10,4 @@ Main.hx:28: hi!
 bound-click=99
 Main.hx:36: true
 Main.hx:37: false
+ctor=42

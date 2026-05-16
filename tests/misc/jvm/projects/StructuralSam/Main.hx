@@ -5,6 +5,7 @@ import test.Listeners.Listeners_AbstractEqualsPlusOne;
 import test.Listeners.Listeners_WithDefaults;
 import test.Listeners.Listeners_StringMaker;
 import test.Listeners.Listeners_Unused;
+import test.Listeners.Listeners_CtorSam;
 
 function main() {
 	// Plain SAM — javac would accept the lambda directly.
@@ -35,4 +36,28 @@ function main() {
 	Listeners.runOnClick(cb, 99);
 	trace(Std.isOfType(cb, Listeners_OnClick));
 	trace(Std.isOfType(cb, Listeners_Unused));
+
+	// Constructor-position SAM conversion with a bound instance-method
+	// reference — the exact shape that crashed RideAssist's
+	// `new TextToSpeech(this, onTtsInit)`. CtorOnly is never named anywhere
+	// in user code (no typed local, no field, no import, no explicit cast).
+	// The AST scan in genjvm.collect_used_functional_interfaces cannot
+	// discover this conversion: a TNew has no callee subexpression, so the
+	// constructor's parameter types (where CtorOnly's TInst lives) are never
+	// visited — and the scan deliberately skips extern classes. Only
+	// AbstractCast's writeback to functional_interfaces_used carries this
+	// information from typing to codegen. If that writeback regresses, the
+	// emitted closure won't implement CtorOnly and this `new` call will
+	// ClassCastException at runtime.
+	new Holder().run();
+}
+
+class Holder {
+	public function new() {}
+	public function run() {
+		new Listeners_CtorSam(onCtor, 42);
+	}
+	function onCtor(n:Int):Void {
+		Sys.println("ctor=" + n);
+	}
 }

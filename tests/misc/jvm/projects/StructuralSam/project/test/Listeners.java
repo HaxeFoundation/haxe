@@ -52,6 +52,40 @@ public class Listeners {
         void onUnused(int id);
     }
 
+    // SAM exercised ONLY in argument position from Haxe — no typed local, no
+    // field signature, no explicit cast. The genjvm AST scan can't see this
+    // case: AbstractCast's SAM branch leaves the closure expression with its
+    // original TFun type (no TCast wrapper), so the only place ArgOnly's
+    // TInst exists is the extern callee's parameter signature, which the
+    // scan deliberately skips. Without AbstractCast's writeback to
+    // functional_interfaces_used, the emitted closure does not implement
+    // ArgOnly and the call ClassCastExceptions at runtime.
+    public interface ArgOnly {
+        void onArg(int n);
+    }
+
+    public static String runArgOnly(ArgOnly cb, int n) {
+        cb.onArg(n);
+        return "arg-ok";
+    }
+
+    // Constructor-position SAM: a Haxe `new CtorSam(closure)` is a TNew
+    // expression in the typed AST. Unlike TCall (where the callee field has a
+    // TFun etype that exposes the parameter types to the scan), TNew has no
+    // callee subexpression — the only place CtorOnly's TInst would appear is
+    // on this extern's cl_constructor.cf_type, which the AST scan never
+    // visits. This is the exact shape that crashed RideAssist:
+    // `new TextToSpeech(this, onTtsInit)`.
+    public interface CtorOnly {
+        void onCtor(int n);
+    }
+
+    public static class CtorSam {
+        public CtorSam(CtorOnly cb, int n) {
+            cb.onCtor(n);
+        }
+    }
+
     public static String runOnClick(OnClick cb, int id) {
         cb.onClick(id);
         return "ok";

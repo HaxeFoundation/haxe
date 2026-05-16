@@ -14,5 +14,8 @@ function main() {
 		"test/Listeners$NotSam.class",
 		"test/Listeners$StringMaker.class",
 		"test/Listeners$Unused.class",
-		"test/Listeners$UnaryStringFn.class"]);
+		"test/Listeners$UnaryStringFn.class",
+		"test/Listeners$ArgOnly.class",
+		"test/Listeners$CtorOnly.class",
+		"test/Listeners$CtorSam.class"]);
 }
