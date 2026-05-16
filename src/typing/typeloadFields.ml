@@ -1644,14 +1644,6 @@ let finalize_class cctx =
 		| Some r -> delay ctx.g PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
 
-let check_functional_interface ctx c =
-	match TClass.get_singular_interface_field c.cl_ordered_fields with
-	| None ->
-		()
-	| Some cf ->
-		add_class_flag c CFunctionalInterface;
-		ctx.com.functional_interface_lut#add c.cl_path (c,cf)
-
 let create_class_field cctx f  =
 	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1793,7 +1785,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CFunctionalInterface) && com.platform = Jvm then check_functional_interface ctx_c c;
+			()
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;

@@ -345,7 +345,6 @@ and context = {
 	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
-	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
@@ -810,7 +809,6 @@ let create sctx request_scope part_scope display_mode =
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		is_macro_context = false;
-		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
@@ -935,7 +933,6 @@ let clone com is_macro_context =
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup; (* ! *)
 		is_macro_context = is_macro_context;
-		functional_interface_lut = new Lookup.hashtbl_lookup;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
