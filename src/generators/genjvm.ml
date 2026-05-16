@@ -3212,29 +3212,19 @@ module Preprocessor = struct
 			| _ ->
 				()
 
-	let preprocess gctx =
-		let rec has_runtime_meta = function
-			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
-				true
-			| _ :: l ->
-				has_runtime_meta l
-			| [] ->
-				false
-		in
-		(* Collect functional interfaces the program actually references. A
-		   closure should only implement SAMs in this set — otherwise it would
-		   bind to every structurally-matching interface on the --java-lib
-		   classpath, including incidental ones from a higher API level than the
-		   runtime, which hard-fails class linking. Scanning non-extern code only
-		   keeps classpath noise out: an interface counts as used iff some user
-		   expression's type, field signature, or sub-expression names it. The
-		   set is finalized into a path-keyed hashtbl after loop 1 finishes, at
-		   which point check_path's cl_path rewrites for private types are done. *)
-		let fi_used_classes = ref [] in
+	(* Collect the functional interfaces actually referenced by user code, so
+	   closures only implement SAMs the program demands. Without this filter a
+	   closure would bind to every structurally-matching interface on the
+	   --java-lib classpath — including incidental ones from a higher API level
+	   than the runtime, which hard-fails class linking. An interface counts as
+	   used iff some non-extern type, field signature, or sub-expression names
+	   it; scanning non-extern code only keeps classpath noise out. *)
+	let collect_used_functional_interfaces gctx =
+		let used = Hashtbl.create 0 in
 		let rec note_fi_in_type depth t =
 			if depth < 32 then match follow t with
 			| TInst(c,tl) ->
-				if has_class_flag c CFunctionalInterface then fi_used_classes := c :: !fi_used_classes;
+				if has_class_flag c CFunctionalInterface then Hashtbl.replace used c.cl_path ();
 				List.iter (note_fi_in_type (depth + 1)) tl
 			| TFun(args,ret) ->
 				List.iter (fun (_,_,t) -> note_fi_in_type (depth + 1) t) args;
@@ -3252,7 +3242,7 @@ module Preprocessor = struct
 			note_fi_in_type 0 e.etype;
 			Type.iter note_fi_in_expr e
 		in
-		let note_fi_in_signatures c =
+		let scan_class c =
 			if not (has_class_flag c CExtern) then begin
 				let rec scan cf =
 					note_fi_in_type 0 cf.cf_type;
@@ -3266,12 +3256,28 @@ module Preprocessor = struct
 		in
 		(* go through com.modules so we can also pick up private typedefs *)
 		List.iter (fun m ->
+			List.iter (fun mt -> match mt with
+				| TClassDecl c -> scan_class c
+				| _ -> ()
+			) m.m_types
+		) gctx.gctx.modules;
+		used
+
+	let preprocess gctx =
+		let rec has_runtime_meta = function
+			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
+				true
+			| _ :: l ->
+				has_runtime_meta l
+			| [] ->
+				false
+		in
+		List.iter (fun m ->
 			List.iter (fun mt ->
 				match mt with
 				| TClassDecl c when has_runtime_meta c.cl_meta && has_class_flag c CInterface ->
 					() (* TODO: run-time interface metadata is a problem (issue #2042) *)
-				| TClassDecl c ->
-					note_fi_in_signatures c;
+				| TClassDecl _ ->
 					check_path (t_infos mt);
 				| TEnumDecl en ->
 					check_path (t_infos mt);
@@ -3283,8 +3289,9 @@ module Preprocessor = struct
 					()
 			) m.m_types
 		) gctx.gctx.modules;
-		let fi_used = Hashtbl.create (List.length !fi_used_classes) in
-		List.iter (fun c -> Hashtbl.replace fi_used c.cl_path ()) !fi_used_classes;
+		(* After check_path: cl_paths are stable, so we can key the used-SAM
+		   set by cl_path without worrying about private-type rewrites. *)
+		let fi_used = collect_used_functional_interfaces gctx in
 		(* preprocess classes *)
 		let patch_optional c =
 			let apply cf =
