@@ -3201,27 +3201,7 @@ module Preprocessor = struct
 			mt.mt_path <- make_root mt.mt_path
 
 	let check_functional_interface gctx c =
-		(* JLS §9.8 excludes Object members (equals/hashCode/toString) from the
-		   SAM count. Matches the rule applied in TOther.TClass.get_singular_interface_field. *)
-		let is_object_member cf = match cf.cf_name, follow cf.cf_type with
-			| "equals", TFun([_],_) -> true
-			| "hashCode", TFun([],_) -> true
-			| "toString", TFun([],_) -> true
-			| _ -> false
-		in
-		let rec loop m l = match l with
-			| [] ->
-				m
-			| cf :: l ->
-				if not (has_class_field_flag cf CfDefault) && not (is_object_member cf) then begin match m with
-					| None ->
-						loop (Some cf) l
-					| Some _ ->
-						None
-				end else
-					loop m l
-		in
-		match loop None c.cl_ordered_fields with
+		match TClass.get_singular_interface_field c.cl_ordered_fields with
 		| None ->
 			()
 		| Some cf ->
