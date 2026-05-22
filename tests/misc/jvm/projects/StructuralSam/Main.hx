@@ -6,6 +6,7 @@ import test.Listeners.Listeners_WithDefaults;
 import test.Listeners.Listeners_StringMaker;
 import test.Listeners.Listeners_Unused;
 import test.Listeners.Listeners_CtorSam;
+import test.Listeners.Listeners_Boxed;
 
 function main() {
 	// Plain SAM — javac would accept the lambda directly.
@@ -50,6 +51,20 @@ function main() {
 	// emitted closure won't implement CtorOnly and this `new` call will
 	// ClassCastException at runtime.
 	new Holder().run();
+
+	// Generic SAM whose abstract method is `T invoke()` — same shape as
+	// kotlin.jvm.functions.Function0<T>. The closure's typed invoke returns
+	// Boxed (a specific class), but the FI bridge spawned for the erased
+	// `Object invoke()` slot was forwarded to (meth.name, meth.dargs,
+	// meth.dret) where meth.dret had already been declassified to Object — so
+	// the bridge body invoked itself rather than the typed invoke, and the
+	// later loop that would have emitted the proper Object→Boxed bridge was
+	// short-circuited by has_method. Calling cb.invoke() from Java therefore
+	// went into infinite recursion (StackOverflowError) instead of returning
+	// the Boxed instance. RideAssist crash repro: a `() -> SyncStats` closure
+	// passed to `new Thread(...)` against a classpath carrying both
+	// kotlin Function0<SyncStats> and j.u.c.Callable<SyncStats>.
+	trace(Listeners.runGenericInvoke(() -> new Listeners_Boxed(7)));
 }
 
 class Holder {

@@ -123,4 +123,27 @@ public class Listeners {
     public static String overloaded(UnaryStringFn cb, String s) {
         return cb.apply(s);
     }
+
+    // Generic SAM whose abstract method is named `invoke` and whose erased
+    // return type is Object — the shape of kotlin.jvm.functions.Function0<T>
+    // and similar interfaces. Probes a codegen bug in
+    // jvmFunctions.generate_invoke: the FI loop synthesizes a bridge for
+    // `Object invoke()` and forwards it to (meth.name, meth.dargs, meth.dret),
+    // but meth.dret is Object-declassified at that point — so the bridge body
+    // becomes `invokevirtual invoke()Object` against itself, and the later
+    // loop that would have emitted the proper Object→typed bridge is
+    // short-circuited by has_method. The first call StackOverflowErrors.
+    public interface GenericInvoke<T> {
+        T invoke();
+    }
+
+    public static String runGenericInvoke(GenericInvoke<Boxed> cb) {
+        return cb.invoke().describe();
+    }
+
+    public static class Boxed {
+        public final int value;
+        public Boxed(int value) { this.value = value; }
+        public String describe() { return "boxed=" + value; }
+    }
 }
