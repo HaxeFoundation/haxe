@@ -796,6 +796,11 @@ let rec unify (uctx : unification_context) a b =
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
 		unify_type_params uctx a b tl1 tl2
+	| TAbstract ({a_path=[],"Null"},[t1]), TAbstract ({a_path=[],"Null"},[t2]) ->
+		(* Unify the wrapped types directly so a monomorph on either side binds to the
+		   unwrapped type instead of capturing the whole Null<...> - see #11077 *)
+		begin try unify uctx t1 t2
+		with Unify_error l -> error (cannot_unify a b :: l) end
 	| TAbstract ({a_path=[],"Null"},[t]),_ ->
 		begin try unify uctx t b
 		with Unify_error l -> error (cannot_unify a b :: l) end
