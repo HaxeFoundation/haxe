@@ -344,7 +344,6 @@ class TestReflect extends Test {
 	}
 
 	function testNullFields() {
-		var fields:Array<String> = Reflect.fields(null);
-		typeof(fields, TClass(Array));
+		typeof(Reflect.fields(null), TClass(Array));
 	}
 }
