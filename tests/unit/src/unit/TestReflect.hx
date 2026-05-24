@@ -342,4 +342,9 @@ class TestReflect extends Test {
 		var None:haxe.ds.Option<Dynamic> = Reflect.getProperty(haxe.ds.Option, "None");
 		utest.Assert.same(None, None);
 	}
+
+	function testNullFields() {
+		var fields:Array<String> = Reflect.fields(null);
+		typeof(fields, TClass(Array));
+	}
 }
