@@ -78,6 +78,10 @@ class Reflect {
 	}
 
 	public static function fields(o:Dynamic):Array<String> {
+		if (o == null) {
+			return [];
+		}
+		
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			if (Jvm.instanceof(o, java.lang.Class)) {
 				return Type.getClassFields(o);
