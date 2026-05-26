@@ -786,6 +786,10 @@ and type_object_decl ctx fl with_type p =
 		let fields = List.fold_left (fun acc ((n,opt,t),parg) ->
 			let f = mk_field n t parg parg in
 			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
+			(try
+				let cf = PMap.find n c.cl_fields in
+				f.cf_doc <- cf.cf_doc
+			with Not_found -> ());
 			PMap.add n f acc
 		) PMap.empty args in
 		let t,fl = type_fields fields in

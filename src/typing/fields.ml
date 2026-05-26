@@ -655,7 +655,7 @@ let get_struct_init_anon_fields c tl =
 			| TFun (args,_) ->
 				Some (match cf.cf_expr with
 					| Some { eexpr = TFunction fn } ->
-						List.map (fun (name,_,t) ->
+						List.map (fun (name,opt,t) ->
 							let t = apply_params c.cl_params tl t in
 							let p = try
 								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
@@ -663,17 +663,17 @@ let get_struct_init_anon_fields c tl =
 							with Not_found ->
 								cf.cf_name_pos
 							in
-							name,t,p,extract_param_info name
+							name,opt,t,p,extract_param_info name
 						) args
 					| _ ->
 						List.map
-							(fun (name,_,t) ->
+							(fun (name,opt,t) ->
 								let t = apply_params c.cl_params tl t in
 								try
 									let cf = PMap.find name c.cl_fields in
-									name,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
+									name,opt,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
-									name,t,cf.cf_name_pos,extract_param_info name
+									name,opt,t,cf.cf_name_pos,extract_param_info name
 							) args
 				)
 			| _ -> None
@@ -682,8 +682,9 @@ let get_struct_init_anon_fields c tl =
 	in
 	match args with
 	| Some args ->
-		List.fold_left (fun fields (name,t,p,doc) ->
+		List.fold_left (fun fields (name,opt,t,p,doc) ->
 			let cf = mk_field name t p p in
+			if opt then cf.cf_meta <- [(Meta.Optional,[],null_pos)];
 			cf.cf_doc <- (doc_from_string_opt doc);
 			PMap.add cf.cf_name cf fields
 		) PMap.empty args
