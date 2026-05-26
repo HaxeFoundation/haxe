@@ -84,6 +84,7 @@ import lua.TableTools;
 	}
 
 	public static function fields(o:Dynamic):Array<String> {
+		if (o == null) return [];
 		if (lua.Lua.type(o) == "string") {
 			return Reflect.fields(untyped String.prototype);
 		} else {
