@@ -27,6 +27,7 @@
 
 /src/version.ml
 /haxe
+/haxe.debug
 /haxelib*
 /haxedoc*
 /lib

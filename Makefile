@@ -69,6 +69,10 @@ haxe:
 	dune build --profile release src/haxe.exe
 	cp -f _build/default/src/haxe.exe ./"$(HAXE_OUTPUT)"
 
+haxe.debug:
+	dune build src/haxe.bc
+	cp -f _build/default/src/haxe.bc ./"$(HAXE_OUTPUT).debug"
+
 plugin: haxe
 	$(DUNE_COMMAND) build --profile release plugins/$(PLUGIN)/$(PLUGIN).cmxs
 	mkdir -p plugins/$(PLUGIN)/cmxs/$(SYSTEM_NAME)
@@ -238,10 +242,10 @@ package_installer_mac: $(INSTALLER_TMP_DIR)/neko-osx.tar.gz package_unix
 clean: clean_haxe clean_tools clean_package
 
 clean_haxe:
-	rm -f -r _build $(HAXE_OUTPUT) $(PREBUILD_OUTPUT)
+	rm -f -r _build $(HAXE_OUTPUT) $(HAXE_OUTPUT).debug $(PREBUILD_OUTPUT)
 
 clean_tools:
-	rm -f $(HAXE_OUTPUT) $(PREBUILD_OUTPUT) $(HAXELIB_OUTPUT)
+	rm -f $(HAXE_OUTPUT) $(PREBUILD_OUTPUT) $(HAXE_OUTPUT).debug $(HAXELIB_OUTPUT)
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)
@@ -256,7 +260,7 @@ FORCE:
 .ml.cmo:
 	$(CC_CMD)
 
-.PHONY: haxe haxelib
+.PHONY: haxe haxe.debug haxelib
 
 # our "all:" target doens't work in parallel mode
 .NOTPARALLEL:

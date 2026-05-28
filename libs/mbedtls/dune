@@ -5,5 +5,6 @@
 	(foreign_stubs
 		(language c)
 		(names mbedtls_stubs))
+        (c_library_flags -lmbedtls -lmbedx509 -lmbedcrypto)
 	(wrapped false)
 )
