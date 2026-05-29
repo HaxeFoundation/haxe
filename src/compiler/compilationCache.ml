@@ -41,7 +41,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val mutable json = JNull
 	val mutable initialized = false
 	val mutable last_access_time = Unix.gettimeofday ()
-	val context_deps : (Digest.t,unit) Hashtbl.t = Hashtbl.create 0
+	val children : (Digest.t,unit) Hashtbl.t = Hashtbl.create 0
 
 	(* files *)
 
@@ -155,11 +155,10 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method update_access_time = last_access_time <- Unix.gettimeofday ()
 	method get_last_access_time = last_access_time
 
-	(* context dependencies *)
+	(* child contexts *)
 
-	method add_context_dep (target_sign : Digest.t) =
-		if target_sign <> sign then Hashtbl.replace context_deps target_sign ()
-	method get_context_deps = context_deps
+	method add_child (child_sign : Digest.t) = Hashtbl.replace children child_sign ()
+	method get_children = children
 end
 
 let create_directory path mtime = {
@@ -388,7 +387,7 @@ class cache = object(self)
 	   compilations, creating new signatures each time.
 
 	   A stale context is only removed if no live (non-stale) context transitively
-	   reaches it via `context_deps` edges. Otherwise the next dep walk on a live
+	   reaches it via `children` edges. Otherwise the next dep walk on a live
 	   module would `get_context` the removed signature, get back a freshly-created
 	   empty context, and crash with "Could not find dependency". *)
 	method remove_stale_contexts max_age_seconds =
@@ -400,7 +399,7 @@ class cache = object(self)
 		if not any_stale then 0
 		else begin
 			(* Transitive closure of "kept": start with non-stale contexts, follow
-			   each kept context's context_deps edges. *)
+			   each kept context's children edges. *)
 			let kept = Hashtbl.create 0 in
 			let worklist = ref [] in
 			Hashtbl.iter (fun sign cc ->
@@ -419,7 +418,7 @@ class cache = object(self)
 						| Some target_cc -> worklist := target_cc :: !worklist
 						| None -> ()
 					end
-				) cc#get_context_deps
+				) cc#get_children
 			done;
 			let to_remove = Hashtbl.fold (fun sign cc acc ->
 				if is_stale cc && not (Hashtbl.mem kept sign) then sign :: acc else acc

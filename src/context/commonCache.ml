@@ -86,16 +86,10 @@ let rec cache_context cs com =
 	let sign = Define.get_signature com.defines in
 
 	let parallels = DynArray.create () in
-	let record_context_deps cc m =
-		PMap.iter (fun _ dep ->
-			if dep.md_sign <> m.m_extra.m_sign then cc#add_context_dep dep.md_sign
-		) m.m_extra.m_deps
-	in
 	let cache_module m =
 		if Define.defined com.defines DisableHxbCache then
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
-			record_context_deps cc m;
 			cc#cache_module_in_memory m.m_path m;
 		else
 			let anon_identification = new Tanon_identification.tanon_identification in
@@ -108,7 +102,6 @@ let rec cache_context cs com =
 			in
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
-			record_context_deps cc m;
 			match cc#cache_hxb_module config warn anon_identification m with
 			| None ->
 				()
@@ -127,7 +120,9 @@ let rec cache_context cs com =
 	) a;
 	begin match com.get_macros() with
 		| None -> ()
-		| Some com -> cache_context cs com
+		| Some macro_com ->
+			cc#add_child (get_cache_sign macro_com);
+			cache_context cs macro_com
 	end;
 	if Define.defined com.defines HxbStats then
 		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats
