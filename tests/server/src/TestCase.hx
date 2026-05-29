@@ -287,7 +287,9 @@ class TestCase implements ITest implements ITestCase {
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
-		return Assert.isTrue(0 == errorMessages.length, p);
+		var res = 0 == errorMessages.length;
+		if (!res) debugErrorMessages();
+		return Assert.isTrue(res, p);
 	}
 
 	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
