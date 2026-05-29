@@ -396,8 +396,8 @@ class Xml {
 
 	function new(nodeType:XmlType) {
 		this.nodeType = nodeType;
-		children = [];
-		attributeMap = new Map();
+		if (nodeType == Element || nodeType == Document) children = [];
+		if (nodeType == Element) attributeMap = new Map();
 	}
 
 	inline function ensureElementType() {
