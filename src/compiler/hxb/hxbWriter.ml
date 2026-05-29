@@ -1023,10 +1023,16 @@ module HxbWriter = struct
 				Chunk.write_uleb128 writer.chunk index
 			with Not_found ->
 				let restore = start_temporary_chunk writer 256 in
+				(* Reset the flag to find out whether this anon (on its own) needs local
+				   context, but remember the outer value: a sibling field may have already
+				   required it, and writing this anon must not discard that. *)
+				let old = writer.needs_local_context in
 				writer.needs_local_context <- false;
 				write_anon writer an;
 				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-				if writer.needs_local_context then begin
+				let needs_local_context = writer.needs_local_context in
+				writer.needs_local_context <- old || needs_local_context;
+				if needs_local_context then begin
 					let index = Pool.add writer.anons pfm.pfm_path None in
 					ignore(IdentityPool.add writer.identified_anons an index);
 					Chunk.write_u8 writer.chunk 1;
