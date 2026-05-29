@@ -557,11 +557,6 @@ let ensure_macro_setup sctx =
 		MacroContext.setup();
 	end
 
-(* Maximum age in seconds for unused context caches before they are removed.
-   10 minutes is long enough to survive bursts of display requests with
-   varying defines, while still cleaning up contexts that are truly abandoned. *)
-let stale_context_max_age_seconds = 600.
-
 let cleanup sctx =
 	begin match !MacroContext.macro_interp_cache with
 	| Some interp ->
@@ -575,7 +570,7 @@ let cleanup sctx =
 	(* Remove context caches that haven't been accessed within the max age window.
 	   This prevents unbounded accumulation of stale contexts when compilation defines
 	   change between requests, generating new cache signatures each time. *)
-	let removed = sctx.cs#remove_stale_contexts stale_context_max_age_seconds in
+	let removed = sctx.cs#remove_stale_contexts !ServerConfig.stale_context_max_age_seconds in
 	if removed > 0 then
 		ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed)
 

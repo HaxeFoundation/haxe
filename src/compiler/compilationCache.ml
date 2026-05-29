@@ -393,7 +393,7 @@ class cache = object(self)
 	   empty context, and crash with "Could not find dependency". *)
 	method remove_stale_contexts max_age_seconds =
 		let now = Unix.gettimeofday () in
-		let threshold = now -. max_age_seconds in
+		let threshold = now -. (float_of_int max_age_seconds) in
 		let is_stale cc = cc#get_last_access_time < threshold in
 		(* Short-circuit: nothing stale, nothing to do. *)
 		let any_stale = Hashtbl.fold (fun _ cc acc -> acc || is_stale cc) contexts false in
