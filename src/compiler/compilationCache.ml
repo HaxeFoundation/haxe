@@ -41,6 +41,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val mutable json = JNull
 	val mutable initialized = false
 	val mutable last_access_time = Unix.gettimeofday ()
+	val context_deps : (Digest.t,unit) Hashtbl.t = Hashtbl.create 0
 
 	(* files *)
 
@@ -153,6 +154,12 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 	method update_access_time = last_access_time <- Unix.gettimeofday ()
 	method get_last_access_time = last_access_time
+
+	(* context dependencies *)
+
+	method add_context_dep (target_sign : Digest.t) =
+		if target_sign <> sign then Hashtbl.replace context_deps target_sign ()
+	method get_context_deps = context_deps
 end
 
 let create_directory path mtime = {
@@ -378,19 +385,53 @@ class cache = object(self)
 
 	(* Remove context caches that haven't been accessed for [max_age_seconds] seconds.
 	   This prevents unbounded accumulation of stale contexts when defines change between
-	   compilations, creating new signatures each time. *)
+	   compilations, creating new signatures each time.
+
+	   A stale context is only removed if no live (non-stale) context transitively
+	   reaches it via `context_deps` edges. Otherwise the next dep walk on a live
+	   module would `get_context` the removed signature, get back a freshly-created
+	   empty context, and crash with "Could not find dependency". *)
 	method remove_stale_contexts max_age_seconds =
 		let now = Unix.gettimeofday () in
 		let threshold = now -. max_age_seconds in
-		let to_remove = Hashtbl.fold (fun sign cc acc ->
-			if cc#get_last_access_time < threshold then sign :: acc else acc
-		) contexts [] in
-		List.iter (fun sign ->
-			Hashtbl.remove contexts sign
-		) to_remove;
-		if to_remove <> [] then
-			context_list <- List.filter (fun cc -> cc#get_last_access_time >= threshold) context_list;
-		List.length to_remove
+		let is_stale cc = cc#get_last_access_time < threshold in
+		(* Short-circuit: nothing stale, nothing to do. *)
+		let any_stale = Hashtbl.fold (fun _ cc acc -> acc || is_stale cc) contexts false in
+		if not any_stale then 0
+		else begin
+			(* Transitive closure of "kept": start with non-stale contexts, follow
+			   each kept context's context_deps edges. *)
+			let kept = Hashtbl.create 0 in
+			let worklist = ref [] in
+			Hashtbl.iter (fun sign cc ->
+				if not (is_stale cc) then begin
+					Hashtbl.replace kept sign ();
+					worklist := cc :: !worklist
+				end
+			) contexts;
+			while !worklist <> [] do
+				let cc = List.hd !worklist in
+				worklist := List.tl !worklist;
+				Hashtbl.iter (fun target_sign () ->
+					if not (Hashtbl.mem kept target_sign) then begin
+						Hashtbl.replace kept target_sign ();
+						match Hashtbl.find_opt contexts target_sign with
+						| Some target_cc -> worklist := target_cc :: !worklist
+						| None -> ()
+					end
+				) cc#get_context_deps
+			done;
+			let to_remove = Hashtbl.fold (fun sign cc acc ->
+				if is_stale cc && not (Hashtbl.mem kept sign) then sign :: acc else acc
+			) contexts [] in
+			List.iter (fun sign -> Hashtbl.remove contexts sign) to_remove;
+			if to_remove <> [] then begin
+				let removed_set = Hashtbl.create (List.length to_remove) in
+				List.iter (fun s -> Hashtbl.replace removed_set s ()) to_remove;
+				context_list <- List.filter (fun cc -> not (Hashtbl.mem removed_set cc#get_sign)) context_list
+			end;
+			List.length to_remove
+		end
 
 	(* Pointers for memory inspection. *)
 	method get_pointers : unit array =
