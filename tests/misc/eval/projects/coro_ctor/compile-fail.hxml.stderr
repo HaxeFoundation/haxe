@@ -1,12 +1,2 @@
-[ERROR] Main.hx:2: characters 14-41
-
- 2 |  @:coroutine public function new():Void;
-   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   | Invalid modifier: @:coroutine on constructor
-
-[ERROR] Main.hx:8: characters 2-13
-
- 8 |  new Child();
-   |  ^^^^^^^^^^^
-   | Child does not have a constructor
-
+Main.hx:2: characters 14-41 : Invalid modifier: @:coroutine on constructor
+Main.hx:8: characters 2-13 : Child does not have a constructor
