@@ -160,7 +160,7 @@ let generic_substitute_expr gctx e =
 		| _ ->
 			map_expr_type build_expr (generic_substitute_type gctx) build_var e
 		in
-		CallUnification.maybe_reapply_overload_call gctx.ctx e
+		CallUnification.maybe_reapply_overload_call (Some gctx.ctx) e
 	in
 	build_expr e
 
