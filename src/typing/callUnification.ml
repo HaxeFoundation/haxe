@@ -152,12 +152,16 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			end
 		| e :: el,(name,opt,t) :: args ->
 			let might_skip = List.length el < List.length args in
+			let messages_snapshot = ctx.com.part_scope.messages in
+			let has_error_snapshot = ctx.com.part_scope.has_error in
 			begin try
 				let e = type_against name t e in
 				e :: loop el args
 			with
 				WithTypeError ul ->
 					if opt && might_skip then begin
+						ctx.com.part_scope.messages <- messages_snapshot;
+						ctx.com.part_scope.has_error <- has_error_snapshot;
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
 					end else

@@ -399,7 +399,8 @@ and type_ident ctx i p mode with_type =
 					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
-					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
+					if ctx.f.in_call_args then raise (WithTypeError (make_error err p))
+					else if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
 						let t = mk_mono() in
@@ -1249,7 +1250,11 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	in
-	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
+	let old_in_call_args = ctx.f.in_call_args in
+	let old_in_call_arg_function = ctx.f.in_call_arg_function in
+	ctx.f.in_call_arg_function <- ctx.f.in_call_args || ctx.f.in_call_arg_function;
+	if not ctx.f.in_overload_call_args then ctx.f.in_call_args <- false;
+	let e = Std.finally (fun () -> ctx.f.in_call_args <- old_in_call_args; ctx.f.in_call_arg_function <- old_in_call_arg_function) (fun () -> TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p) () in
 	let tf = {
 		tf_args = args#for_expr ctx;
 		tf_type = rt;

@@ -147,6 +147,7 @@ and typer_field = {
 	mutable meta : metadata;
 	mutable in_display : bool;
 	mutable in_call_args : bool;
+	mutable in_call_arg_function : bool;
 	mutable in_overload_call_args : bool;
 }
 
@@ -219,6 +220,7 @@ module TyperManager = struct
 			in_display = false;
 			in_overload_call_args = false;
 			in_call_args = false;
+			in_call_arg_function = false;
 		}
 
 	let create_ctx_e curfun function_mode =
@@ -396,7 +398,7 @@ let raise_with_type_error msg p =
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()
-	else if ctx.f.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else if ctx.f.in_call_args || ctx.f.in_call_arg_function then raise (WithTypeError (make_error (Unify l) p))
 	else display_error_ext ctx.com (make_error (Unify l) p)
 
 let raise_or_display_error ctx err =
