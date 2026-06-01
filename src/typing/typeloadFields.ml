@@ -1579,6 +1579,8 @@ let init_field (ctx,cctx,fctx) f cf =
 	end;
 	let cf =
 		match f.cff_kind with
+		| (FVar _ | FProp _) when fctx.field_kind = CfrConstructor ->
+			raise_typing_error "A constructor must be a function" p
 		| FVar (t,e) ->
 			create_variable (ctx,cctx,fctx) c f cf t e p
 		| FFun fd ->
