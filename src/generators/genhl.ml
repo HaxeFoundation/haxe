@@ -3372,6 +3372,8 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OInt (t,alloc_i32 ctx i))
 				| TConst (TFloat s) -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
+				(* haxe.Int64 default values aren't constants, materialize the expression *)
+				| _ when vt = HI64 -> op ctx (OMov (t,eval_to ctx c vt))
 				| _ -> die "" __LOC__)
 			| GFloat ->
 				(match c.eexpr with

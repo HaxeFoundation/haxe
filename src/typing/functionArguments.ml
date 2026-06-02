@@ -4,6 +4,20 @@ open Type
 open Typecore
 open Error
 
+(* haxe.Int64 values are never compile-time constants (they are built through
+   Int64.make), so they cannot be reduced to a TConst. We still allow an int or
+   i64 literal as a default value for a haxe.Int64 argument and let each generator
+   materialize the (constant) expression on the not-passed path. *)
+let rec is_haxe_int64 t = match follow t with
+	| TAbstract({a_path=([],"Null")},[t]) -> is_haxe_int64 t
+	| TAbstract({a_path=(["haxe"],"Int64")},_) -> true
+	| _ -> false
+
+let rec is_int64_default_literal (e,_) = match e with
+	| EConst (Int (_,(None | Some "i64"))) -> true
+	| EUnop (Neg,Prefix,e) -> is_int64_default_literal e
+	| _ -> false
+
 let type_function_arg com t e opt p =
 	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
 	(* delay ctx PTypeField (fun() ->
@@ -22,16 +36,29 @@ let type_function_arg_value ctx t c do_display =
 		| None -> None
 		| Some e ->
 			let p = pos e in
+			(* haxe.Int64 default: only int/i64 literals are allowed, materialized later by each generator.
+			   Not supported on the C++ target yet (the default value can't be rendered there). *)
+			let is_int64_default = is_haxe_int64 t && is_int64_default_literal e in
+			if is_int64_default && ctx.com.platform = Cpp then
+				raise_typing_error "haxe.Int64 default argument values are not supported on the C++ target" p;
 			let e = if do_display then Display.preprocess_expr ctx.com e else e in
 			let e = type_expr ctx e (WithType.with_type t) in
 			let e = AbstractCast.cast_or_unify ctx t e p in
 			let e = Optimizer.reduce_expression (SafeCom.of_typer ctx) e in
+			let run_analyzer e = !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e in
+			if is_int64_default then
+				(* An Int64 is never a TConst (it is built through Int64.make), so we keep the
+				   expression as the default value. Run the analyzer to collapse the inlined
+				   constructor down to `cast new ___Int64(high,low)`; without that the leftover
+				   abstract-this var makes php emit an illegal `$this = ...`. *)
+				Some (run_analyzer e)
+			else
 			let rec loop analyzered e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
 				| TCast(e,None) -> loop analyzered e
-				| _ when not analyzered -> loop true (!analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e)
+				| _ when not analyzered -> loop true (run_analyzer e)
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
 						Common.display_error ctx.com "Default argument value should be constant" p;
