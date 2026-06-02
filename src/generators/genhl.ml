@@ -3372,18 +3372,18 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OInt (t,alloc_i32 ctx i))
 				| TConst (TFloat s) -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
-				| _ -> die "" __LOC__)
+				| _ -> op ctx (OMov (t,eval_to ctx c vt)))
 			| GFloat ->
 				(match c.eexpr with
 				| TConst (TInt i) -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
 				| TConst (TFloat s) -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
-				| _ -> die "" __LOC__)
+				| _ -> op ctx (OMov (t,eval_to ctx c vt)))
 			| GBool ->
 				(match c.eexpr with
 				| TConst (TBool b) -> op ctx (OBool (t,b))
-				| _ -> die "" __LOC__)
+				| _ -> op ctx (OMov (t,eval_to ctx c vt)))
 			| _ ->
-				die "" __LOC__);
+				op ctx (OMov (t,eval_to ctx c vt)));
 			if capt = None then add_assign ctx v;
 			let jend = jump ctx (fun n -> OJAlways n) in
 			j();

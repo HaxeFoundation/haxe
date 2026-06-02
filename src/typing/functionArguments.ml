@@ -26,16 +26,23 @@ let type_function_arg_value ctx t c do_display =
 			let e = type_expr ctx e (WithType.with_type t) in
 			let e = AbstractCast.cast_or_unify ctx t e p in
 			let e = Optimizer.reduce_expression (SafeCom.of_typer ctx) e in
+			let run_analyzer e = !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e in
+			let rec check_this e = match e.eexpr with
+				| TConst TThis ->
+					raise_typing_error "Cannot access this in a default argument value" e.epos
+				| TLocal v when (match ctx.f.vthis with Some v2 -> v == v2 | None -> false) ->
+					raise_typing_error "Cannot access this in a default argument value" e.epos
+				| _ ->
+					Type.iter check_this e
+			in
+			check_this e;
 			let rec loop analyzered e = match e.eexpr with
 				| TConst _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
 				| TCast(e,None) -> loop analyzered e
-				| _ when not analyzered -> loop true (!analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e)
-				| _ ->
-					if ctx.com.display.dms_kind = DMNone || Common.is_diagnostics ctx.com then
-						Common.display_error ctx.com "Default argument value should be constant" p;
-					None
+				| _ when not analyzered -> loop true (run_analyzer e)
+				| _ -> Some e
 			in
 			loop false e
 
