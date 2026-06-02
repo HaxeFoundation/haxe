@@ -64,7 +64,7 @@ let resolve_class_field_ref dce cfr =
 
 (* check for @:keepSub metadata, which forces @:keep on child classes *)
 let rec super_forces_keep c =
-	Meta.has Meta.KeepSub c.cl_meta || match c.cl_super with
+	Meta.has Meta.KeepSub c.cl_meta || (List.exists (fun (c,_) -> super_forces_keep c) c.cl_implements) || match c.cl_super with
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
