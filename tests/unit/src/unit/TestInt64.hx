@@ -565,6 +565,33 @@ class TestInt64 extends Test {
 		}
 	}
 
+	public function testToFloat() {
+		// exact (within 2^53) round-trips
+		eq(Int64.ofInt(0).toFloat(), 0.0);
+		eq(Int64.ofInt(1).toFloat(), 1.0);
+		eq(Int64.ofInt(-1).toFloat(), -1.0);
+		eq(Int64.ofInt(123456789).toFloat(), 123456789.0);
+		eq(Int64.ofInt(-123456789).toFloat(), -123456789.0);
+
+		// values that need both words
+		eq(Int64.make(0, 0x80000000).toFloat(), 2147483648.0);
+		eq(Int64.make(1, 0).toFloat(), 4294967296.0);
+		eq(Int64.make(1, 1).toFloat(), 4294967297.0);
+		eq(Int64.make(0xFFFFFFFE, 0).toFloat(), -8589934592.0);
+
+		// largest exactly representable magnitudes
+		eq(Int64.fromFloat(9007199254740991).toFloat(), 9007199254740991.0);
+		eq(Int64.fromFloat(-9007199254740991).toFloat(), -9007199254740991.0);
+
+		// extremes (precision loss expected, but the rounded double is well defined)
+		eq(Int64.make(0x7FFFFFFF, 0xFFFFFFFF).toFloat(), 9223372036854775807.0);
+		eq(Int64.make(0x80000000, 0).toFloat(), -9223372036854775808.0);
+
+		// matches the static `using` form
+		var a:Int64 = Int64.make(0x12345678, 0x9ABCDEF0);
+		eq(a.toFloat(), 1311768467463790320.0);
+	}
+
 	static function toHex(v:haxe.Int64) {
 		return "0x" + (v.high == 0 ? StringTools.hex(v.low) : StringTools.hex(v.high) + StringTools.hex(v.low, 8));
 	}

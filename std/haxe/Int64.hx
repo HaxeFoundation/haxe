@@ -168,6 +168,15 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	}
 
 	/**
+		Returns a `Float` with the value of `this` Int64.
+
+		Loss of precision may occur for values whose magnitude exceeds 2^53.
+	**/
+	public inline function toFloat():Float {
+		return Int64Helper.toFloat(abstract);
+	}
+
+	/**
 		Performs signed integer division of `dividend` by `divisor`.
 		Returns `{ quotient : Int64, modulus : Int64 }`.
 	**/

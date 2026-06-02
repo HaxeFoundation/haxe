@@ -197,6 +197,10 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 		return Int64Helper.fromFloat(f);
 	}
 
+	public #if !cppia inline #end function toFloat():Float {
+		return Int64Helper.toFloat(abstract);
+	}
+
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
 		var q = dividend / divisor;
 
