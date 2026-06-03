@@ -8,7 +8,7 @@
 -lib haxeserver
 -D analyzer-optimize
 -D UTEST-PRINT-TESTS
--D UTEST_FAILURE_THROW
+# -D UTEST_FAILURE_THROW
 #-D UTEST_PATTERN=ServerTests
 # or set UTEST_PATTERN environment variable
 
