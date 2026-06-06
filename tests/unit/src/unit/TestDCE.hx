@@ -27,6 +27,21 @@ class GenericKeepSub<T> {}
 
 class ChildOfGenericKeepSub extends GenericKeepSub<String> {}
 
+@:keepSub
+interface KeepSubInterface {}
+
+// never referenced/constructed, kept only via @:keepSub on the interface
+class ImplementsKeepSubInterface implements KeepSubInterface {}
+class ExtendsImplementsKeepSubInterface extends ImplementsKeepSubInterface {}
+
+@:keepSub
+interface KeepSubBaseInterface {}
+
+interface KeepSubChildInterface extends KeepSubBaseInterface {}
+
+// kept via @:keepSub on a transitively extended interface
+class ImplementsKeepSubChildInterface implements KeepSubChildInterface {}
+
 @:analyzer(no_local_dce)
 class DCEClass {
 	// used statics
@@ -215,6 +230,12 @@ class TestDCE extends Test {
 
 	function testIssue6500() {
 		t(Type.resolveClass("unit.ChildOfGenericKeepSub") != null);
+	}
+
+	function testKeepSubInterface() {
+		t(Type.resolveClass("unit.ImplementsKeepSubInterface") != null);
+		t(Type.resolveClass("unit.ImplementsKeepSubChildInterface") != null);
+		t(Type.resolveClass("unit.ExtendsImplementsKeepSubInterface") != null);
 	}
 
 	public function testIssue7259() {
