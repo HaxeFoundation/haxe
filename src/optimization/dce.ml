@@ -107,6 +107,15 @@ let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
 	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
 
+(* check if a field carries @:dce, forcing it to be DCE-eligible even if its class is kept *)
+let field_forces_dce cf = has_meta Meta.Dce cf.cf_meta
+
+(* check if a class has any field marked with @:dce *)
+let class_has_dce_field c =
+	List.exists field_forces_dce c.cl_ordered_fields
+	|| List.exists field_forces_dce c.cl_ordered_statics
+	|| (match c.cl_constructor with Some cf -> field_forces_dce cf | None -> false)
+
 let mk_used_meta pos =
 	Meta.Used,[],(mk_zero_range_pos pos)
 
@@ -813,7 +822,8 @@ let collect_entry_points dce types =
 				let cf_if_feature = extract_if_feature cf.cf_meta in
 				check_feature cf_ref (cl_if_feature @ cf_if_feature);
 				(* Have to delay mark_field so that we see all @:ifFeature *)
-				if keep_class || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
+				(* a @:dce field is not kept just because its class is: it must be reached like in full DCE *)
+				if (keep_class && not (field_forces_dce cf)) || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
 			in
 			List.iter (loop CfrStatic) c.cl_ordered_statics;
 			List.iter (loop CfrMember) c.cl_ordered_fields;
@@ -872,7 +882,7 @@ let mark pool dce =
 let sweep dce types =
 	let rec loop acc types =
 		match types with
-		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
+		| (TClassDecl c) as mt :: l when keep_whole_class dce c && not (class_has_dce_field c) ->
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
 			let check_property cf stat =
@@ -900,10 +910,14 @@ let sweep dce types =
 					()
 				end;
 			in
+			(* a kept-whole class only reaches this branch because of @:dce fields:
+			   keep all of its fields except the @:dce ones that DCE did not reach *)
+			let class_kept = keep_whole_class dce c in
+			let keep cf kind = (class_kept && not (field_forces_dce cf)) || keep_field dce cf c kind in
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (mk_keep_meta c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
-				let b = keep_field dce cf c CfrStatic in
+				let b = keep cf CfrStatic in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf true;
@@ -912,7 +926,7 @@ let sweep dce types =
 				b
 			) c.cl_ordered_statics;
 			c.cl_ordered_fields <- List.filter (fun cf ->
-				let b = keep_field dce cf c CfrMember in
+				let b = keep cf CfrMember in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf false;
@@ -920,11 +934,11 @@ let sweep dce types =
 				end;
 				b
 			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf c CfrConstructor) -> c.cl_constructor <- None | _ -> ());
+			(match c.cl_constructor with Some cf when not (keep cf CfrConstructor) -> c.cl_constructor <- None | _ -> ());
 			let inef cf = is_physical_field cf in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
-			(* we keep a class if it was used or has a used field *)
-			if has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
+			(* we keep a class if it is kept whole, was used or has a used field *)
+			if class_kept || has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
 				(match TClass.get_cl_init c with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)

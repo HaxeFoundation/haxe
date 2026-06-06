@@ -228,6 +228,20 @@ class TestDCE extends Test {
 		hf(ThrownWithToString, "toString");
 	}
 
+	function testDceField() {
+		// the class is force-kept, but individual @:dce fields still get eliminated when unused
+		var o = new KeepClassWithDceField();
+		o.dceUsed();
+		var c = Type.getClass(o);
+
+		hf(c, "normalUnused"); // kept because the whole class is @:keep
+		hf(c, "dceUsed"); // @:dce but reached -> kept
+		nhf(c, "dceUnused"); // @:dce and unreached -> removed
+
+		hsf(c, "staticNormalUnused");
+		nhsf(c, "staticDceUnused");
+	}
+
 	function testIssue6500() {
 		t(Type.resolveClass("unit.ChildOfGenericKeepSub") != null);
 	}
@@ -256,6 +270,24 @@ class TestDCE extends Test {
 class ClassWithBar {
 	static public function bar()
 		return 'bar';
+}
+
+@:keep
+@:analyzer(no_local_dce)
+class KeepClassWithDceField {
+	public function new() {}
+
+	// no @:dce: kept along with the whole @:keep class even though unused
+	function normalUnused() {}
+
+	static function staticNormalUnused() {}
+
+	// @:dce: eligible for elimination despite the class being kept
+	@:dce public function dceUsed() {}
+
+	@:dce function dceUnused() {}
+
+	@:dce static function staticDceUnused() {}
 }
 
 class UsedConstructed {
