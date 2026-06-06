@@ -228,7 +228,7 @@ class TestDCE extends Test {
 		hf(ThrownWithToString, "toString");
 	}
 
-	function testDceField() {
+	public function testDceField() {
 		// the class is force-kept, but individual @:dce fields still get eliminated when unused
 		var o = new KeepClassWithDceField();
 		o.dceUsed();
@@ -242,7 +242,7 @@ class TestDCE extends Test {
 		nhsf(c, "staticDceUnused");
 	}
 
-	function testDceToString() {
+	public function testDceToString() {
 		// Std.string normally keeps toString, but @:dce opts the field out of that heuristic
 		var e = new DceToStringElement();
 		var s = Std.string(e);
@@ -250,11 +250,23 @@ class TestDCE extends Test {
 		nhf(c, "toString");
 	}
 
-	function testIssue6500() {
+	public function testArrayJoinKeepsToString() {
+		var a = [new JoinElement()];
+		eq("aaa", a.join(""));
+		hf(JoinElement, "toString");
+	}
+
+	public function testArrayToStringKeepsToString() {
+		var a = [new ArrayToStringElement()];
+		t(a.toString().indexOf("aaa") != -1);
+		hf(ArrayToStringElement, "toString");
+	}
+
+	public function testIssue6500() {
 		t(Type.resolveClass("unit.ChildOfGenericKeepSub") != null);
 	}
 
-	function testKeepSubInterface() {
+	public function testKeepSubInterface() {
 		t(Type.resolveClass("unit.ImplementsKeepSubInterface") != null);
 		t(Type.resolveClass("unit.ImplementsKeepSubChildInterface") != null);
 		t(Type.resolveClass("unit.ExtendsImplementsKeepSubInterface") != null);
@@ -378,6 +390,24 @@ class ThrownWithToString {
 
 	public function toString() {
 		return "I was thrown today";
+	}
+}
+
+// toString must be kept because Array<JoinElement>.join() is called
+class JoinElement {
+	public function new() {}
+
+	public function toString() {
+		return "aaa";
+	}
+}
+
+// toString must be kept because Array<ArrayToStringElement>.toString() is called
+class ArrayToStringElement {
+	public function new() {}
+
+	public function toString() {
+		return "aaa";
 	}
 }
 
