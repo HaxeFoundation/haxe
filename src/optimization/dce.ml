@@ -364,19 +364,16 @@ let mark_dependent_fields dce csup n kind =
 
 let opt f e = match e with None -> () | Some e -> f e
 
-(* a @:dce toString is not implicitly kept by Std.string/trace/Array.join *)
-let to_string_filter cf = not (field_forces_dce cf)
-
 let rec to_string dce stack t = match t with
 	| TInst(c,tl) ->
-		field ~filter:to_string_filter dce c "toString" CfrMember;
+		keep_to_string dce c;
 	| TType(tt,tl) ->
 		if not (List.exists (fun t2 -> Type.fast_eq t t2) stack) then begin
 			to_string dce (t :: stack) (apply_typedef tt tl)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
-			field ~filter:to_string_filter dce c "toString" CfrMember
+			keep_to_string dce c
 		else
 			to_string dce stack (Abstract.get_underlying_type a tl)
 	| TMono r ->
@@ -391,38 +388,49 @@ let rec to_string dce stack t = match t with
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 
-(*
-	`filter` is checked against the resolved field before marking it. When it returns false the field is
-	left alone (and the search stops): this is how a @:dce field opts out of being implicitly kept, e.g.
-	`toString` pulled in by `Std.string`/`trace`/`Array.join`.
-*)
-and field ?(filter=(fun _ -> true)) dce c n kind =
-	(try
+(* resolve a field by name across the class, its super classes, implemented interfaces and type
+   parameter constraints, returning the class that actually defines it. Raises Not_found if absent. *)
+and resolve_field dce c n kind =
+	try
 		let cf = find_field c n kind in
-		if filter cf then mark_field dce c cf kind;
+		(c,cf)
 	with Not_found -> try
 		if (has_class_flag c CInterface) then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
 				| (c,_) :: cl ->
-					try field ~filter dce c n kind with Not_found -> loop cl
+					try resolve_field dce c n kind with Not_found -> loop cl
 			in
 			loop c.cl_implements
-		end else match c.cl_super with Some (csup,_) -> field ~filter dce csup n kind | None -> raise Not_found
-	with Not_found -> try
+		end else match c.cl_super with Some (csup,_) -> resolve_field dce csup n kind | None -> raise Not_found
+	with Not_found ->
 		match c.cl_kind with
 		| KTypeParameter ttp ->
 			let rec loop tl = match tl with
 				| [] -> raise Not_found
 				| TInst(c,_) :: cl ->
-					(try field ~filter dce c n kind with Not_found -> loop cl)
+					(try resolve_field dce c n kind with Not_found -> loop cl)
 				| t :: tl ->
 					loop tl
 			in
 			loop (get_constraints ttp)
 		| _ -> raise Not_found
+
+and field dce c n kind =
+	try
+		let (c,cf) = resolve_field dce c n kind in
+		mark_field dce c cf kind
 	with Not_found ->
-		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
+		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path))
+
+(* keep a type's toString, unless that field opts out of being implicitly kept with @:dce
+   (it is only pulled in by Std.string/trace/Array.join, never by an explicit call) *)
+and keep_to_string dce c =
+	try
+		let (c,cf) = resolve_field dce c "toString" CfrMember in
+		if not (field_forces_dce cf) then mark_field dce c cf CfrMember
+	with Not_found ->
+		()
 
 and mark_directly_used_class dce c =
 	(* don't add @:directlyUsed if it's used within the class itself. this can happen with extern inline methods *)
