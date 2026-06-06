@@ -1,0 +1,4 @@
+Main present: true
+pack.A present: false
+pack.sub.B present: false
+other.C present: true
