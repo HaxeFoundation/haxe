@@ -632,8 +632,8 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e;
 
-	(* keep toString method of T when array<T>.join() is called *)
-	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
+	(* keep toString method of T when array<T>.join() or array<T>.toString() is called *)
+	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join" | "toString"}))} as ef, args) ->
 		List.iter (fun e -> to_string dce [] e) pl;
 		expr dce ef;
 		List.iter (expr dce) args;
