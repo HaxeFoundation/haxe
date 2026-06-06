@@ -364,16 +364,19 @@ let mark_dependent_fields dce csup n kind =
 
 let opt f e = match e with None -> () | Some e -> f e
 
+(* a @:dce toString is not implicitly kept by Std.string/trace/Array.join *)
+let to_string_filter cf = not (field_forces_dce cf)
+
 let rec to_string dce stack t = match t with
 	| TInst(c,tl) ->
-		field dce c "toString" CfrMember;
+		field ~filter:to_string_filter dce c "toString" CfrMember;
 	| TType(tt,tl) ->
 		if not (List.exists (fun t2 -> Type.fast_eq t t2) stack) then begin
 			to_string dce (t :: stack) (apply_typedef tt tl)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
-			field dce c "toString" CfrMember
+			field ~filter:to_string_filter dce c "toString" CfrMember
 		else
 			to_string dce stack (Abstract.get_underlying_type a tl)
 	| TMono r ->
@@ -388,26 +391,31 @@ let rec to_string dce stack t = match t with
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 
-and field dce c n kind =
+(*
+	`filter` is checked against the resolved field before marking it. When it returns false the field is
+	left alone (and the search stops): this is how a @:dce field opts out of being implicitly kept, e.g.
+	`toString` pulled in by `Std.string`/`trace`/`Array.join`.
+*)
+and field ?(filter=(fun _ -> true)) dce c n kind =
 	(try
 		let cf = find_field c n kind in
-		mark_field dce c cf kind;
+		if filter cf then mark_field dce c cf kind;
 	with Not_found -> try
 		if (has_class_flag c CInterface) then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
 				| (c,_) :: cl ->
-					try field dce c n kind with Not_found -> loop cl
+					try field ~filter dce c n kind with Not_found -> loop cl
 			in
 			loop c.cl_implements
-		end else match c.cl_super with Some (csup,_) -> field dce csup n kind | None -> raise Not_found
+		end else match c.cl_super with Some (csup,_) -> field ~filter dce csup n kind | None -> raise Not_found
 	with Not_found -> try
 		match c.cl_kind with
 		| KTypeParameter ttp ->
 			let rec loop tl = match tl with
 				| [] -> raise Not_found
 				| TInst(c,_) :: cl ->
-					(try field dce c n kind with Not_found -> loop cl)
+					(try field ~filter dce c n kind with Not_found -> loop cl)
 				| t :: tl ->
 					loop tl
 			in
