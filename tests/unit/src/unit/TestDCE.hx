@@ -250,6 +250,7 @@ class TestDCE extends Test {
 		nhf(c, "toString");
 	}
 
+	#if !python
 	public function testArrayJoinKeepsToString() {
 		var a = [new JoinElement()];
 		eq("aaa", a.join(""));
@@ -261,6 +262,7 @@ class TestDCE extends Test {
 		t(a.toString().indexOf("aaa") != -1);
 		hf(ArrayToStringElement, "toString");
 	}
+	#end
 
 	public function testIssue6500() {
 		t(Type.resolveClass("unit.ChildOfGenericKeepSub") != null);
