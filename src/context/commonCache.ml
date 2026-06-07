@@ -81,11 +81,32 @@ let get_cache_sign com = match com.Common.cache with
 	| None -> Define.get_signature com.defines
 	| Some cache -> cache#get_sign
 
+(* Diagnostic for `-D hxb.detect_unexpected_mutations`: compares the freshly re-serialized chunks of a
+   module the unchanged-skip heuristic would skip against the cached ones, returning a description of any
+   *unexpected* differences. EXD (expression data) diffs are ignored: re-reading reassigns var/anon ids,
+   so EXD round-trips are not byte-identical even when nothing changed. This means genuine expression-body
+   mutations to a reused module would not be detected, but those don't happen (cached modules aren't re-typed). *)
+let unexpected_chunk_diffs (cached : HxbData.cached_chunks) (fresh : HxbData.cached_chunks) =
+	if List.length cached <> List.length fresh then
+		Some (Printf.sprintf "chunk count %d vs %d" (List.length cached) (List.length fresh))
+	else
+		let diffs = List.filter_map (fun ((ka,ba),(kb,bb)) ->
+			if ka = HxbData.EXD then None
+			else if ka <> kb then Some (Printf.sprintf "%s<>%s(kind)" (HxbData.string_of_chunk_kind ka) (HxbData.string_of_chunk_kind kb))
+			else if ba <> bb then Some (Printf.sprintf "%s(%d/%d)" (HxbData.string_of_chunk_kind ka) (Bytes.length ba) (Bytes.length bb))
+			else None
+		) (List.combine cached fresh) in
+		match diffs with [] -> None | _ -> Some (String.concat "," diffs)
+
 let rec cache_context cs com =
 	let cc = get_cache com in
 	let sign = Define.get_signature com.defines in
 
+	let detect_mutations = Define.defined com.defines HxbDetectUnexpectedMutations in
 	let parallels = DynArray.create () in
+	(* Modules the unchanged-skip heuristic would skip, to be re-serialized and verified (in parallel,
+	   like the real write path) only when `-D hxb.detect_unexpected_mutations` is set. *)
+	let detect_parallels = DynArray.create () in
 	let cache_module m =
 		if Define.defined com.defines DisableHxbCache then
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
@@ -94,6 +115,17 @@ let rec cache_context cs com =
 		else begin
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
+			let make_writer warn =
+				let anon_identification = new Tanon_identification.tanon_identification in
+				let config = match com.hxb_writer_config with
+					| None ->
+						HxbWriterConfig.create_target_config ()
+					| Some config ->
+						if com.is_macro_context then config.macro_config else config.target_config
+				in
+				cc#cache_hxb_module config warn anon_identification m
+			in
+			let warn w s p = com.warning w com.warning_options s p in
 			(* A module that wasn't (re)typed this round (its m_processed is from an earlier compilation
 			   step) serializes to chunks identical to what's already cached, so we can skip writing it
 			   entirely as long as a good binary cache entry for it already exists. This avoids
@@ -103,18 +135,18 @@ let rec cache_context cs com =
 				&& m.m_extra.m_processed < com.part_scope.compilation_step
 				&& cc#has_good_hxb_module m.m_path m.m_id
 			in
-			if unchanged then
-				()
-			else begin
-				let anon_identification = new Tanon_identification.tanon_identification in
-				let warn w s p = com.warning w com.warning_options s p in
-				let config = match com.hxb_writer_config with
+			if unchanged then begin
+				if detect_mutations then begin
+					(* Suppress writer warnings here: this module is being re-serialized only to verify the
+					   skip, so its writer warnings are not "real" and would just be noise. *)
+					match make_writer (fun _ _ _ -> ()) with
 					| None ->
-						HxbWriterConfig.create_target_config ()
-					| Some config ->
-						if com.is_macro_context then config.macro_config else config.target_config
-				in
-				match cc#cache_hxb_module config warn anon_identification m with
+						()
+					| Some f ->
+						DynArray.add detect_parallels (cc,m,f)
+				end
+			end else begin
+				match make_writer warn with
 				| None ->
 					()
 				| Some f ->
@@ -132,6 +164,26 @@ let rec cache_context cs com =
 	Array.iter (fun (cc,m,chunks) ->
 		cc#add_binary_cache m chunks
 	) a;
+	if detect_mutations && DynArray.length detect_parallels > 0 then
+		(* Re-serialize the skipped modules in parallel (like the write path), diff against the cache,
+		   then emit warnings sequentially (com.warning is not thread-safe). Timed so its cost shows up. *)
+		Timer.time com.timer_ctx ["server";"cache context";"detect mutations"] (fun () ->
+			let results = Parallel.run_with_pool com.sctx.pool (fun pool ->
+				Parallel.ParallelArray.map pool (fun (cc,m,f) ->
+					let fresh = f () in
+					let cached = (cc#get_hxb_module m.m_path).HxbData.mc_chunks in
+					(m,unexpected_chunk_diffs cached fresh)
+				) (DynArray.to_array detect_parallels) (null_module,None)
+			) in
+			Array.iter (fun (m,diff) -> match diff with
+				| Some desc ->
+					let p = file_pos (Path.UniqueKey.lazy_path m.m_extra.m_file) in
+					com.warning WHxbUnexpectedMutation com.warning_options
+						(Printf.sprintf "Module %s was mutated without being re-typed; its cached hxb form would be stale (%s)" (s_type_path m.m_path) desc) p
+				| None ->
+					()
+			) results
+		) ();
 	let written = ref (Array.length a) in
 	begin match com.get_macros() with
 		| None -> ()
