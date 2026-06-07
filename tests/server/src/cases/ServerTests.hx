@@ -32,6 +32,7 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
+	#if !disable_hxb_cache
 	// Returns the "written" count from the last "Cached N modules (M written)" message.
 	function lastCacheWrittenCount():Null<Int> {
 		var re = ~/Cached \d+ modules \((\d+) written\)/;
@@ -71,6 +72,7 @@ class ServerTests extends TestCase {
 		Assert.isTrue(partialWritten > 0);
 		Assert.isTrue(partialWritten < firstWritten);
 	}
+	#end
 
 	function testModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
