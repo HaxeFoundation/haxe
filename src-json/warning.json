@@ -146,6 +146,11 @@
 		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
 	},
 	{
+		"name": "WHxbUnexpectedMutation",
+		"doc": "A cached module was mutated without being re-typed, so the cache-write unchanged-skip heuristic would drop the change. Reported only with `-D hxb.detect_unexpected_mutations`.",
+		"parent": "WHxb"
+	},
+	{
 		"name": "WIgnoredBadModule",
 		"doc": "An invalidated module has been ignored during a display request",
 		"parent": "WHxb"
