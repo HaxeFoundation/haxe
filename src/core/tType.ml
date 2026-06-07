@@ -434,6 +434,11 @@ and module_def_extra = {
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
 	mutable m_cache_state : module_cache_state;
+	(* Set when the in-memory module has been mutated (e.g. a cross-module unification adding
+	   CfMaybeUsed to one of its fields) so its serialized form no longer matches the hxb cache.
+	   Not serialized; reset when the module is (re)written to the cache. Used so the unchanged-skip
+	   heuristic in CommonCache does not drop such mutations. *)
+	mutable m_cache_dirty : bool;
 	mutable m_added : int;
 	mutable m_checked : int;
 	mutable m_processed : int;

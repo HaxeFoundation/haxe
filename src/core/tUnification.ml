@@ -877,6 +877,12 @@ let rec unify (uctx : unification_context) a b =
 				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) (get_constraints ttp)) then error [cannot_unify a b]
 			| _ -> ());
 		ignore(c.cl_build());
+		(* Adding CfMaybeUsed below mutates the field's declaring class; if that class lives in a
+		   module restored from cache, flag the module so the unchanged-skip heuristic re-serializes it. *)
+		let mark_owner_dirty = function
+			| Some (oc,_) -> oc.cl_module.m_extra.m_cache_dirty <- true
+			| None -> ()
+		in
 		(try
 			PMap.iter (fun n f2 ->
 				(*
@@ -893,7 +899,7 @@ let rec unify (uctx : unification_context) a b =
 						monos := ml;
 						apply_params f.cf_params ml f.cf_type
 				in
-				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
+				let co1, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
 				let ft = apply_params c.cl_params tl ft in
 				if not (unify_kind uctx f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
@@ -932,12 +938,14 @@ let rec unify (uctx : unification_context) a b =
 				(* we mark the field as :?used because it might be used through the structure *)
 				if not (has_class_field_flag f1 CfMaybeUsed) then begin
 					add_class_field_flag f1 CfMaybeUsed;
+					mark_owner_dirty co1;
 					match f2.cf_kind with
 					| Var vk ->
 						let check name =
 							try
-								let _,_,cf = raw_class_field make_type c tl name in
-								add_class_field_flag cf CfMaybeUsed
+								let co2,_,cf = raw_class_field make_type c tl name in
+								add_class_field_flag cf CfMaybeUsed;
+								mark_owner_dirty co2
 							with Not_found ->
 								()
 						in
@@ -1092,7 +1100,8 @@ and unify_anons uctx a b a1 a2 =
 			)
 		| ClassStatics c1,_ ->
 			unify_fields c1.cl_statics (fun f1 ->
-				add_class_field_flag f1 CfMaybeUsed
+				add_class_field_flag f1 CfMaybeUsed;
+				c1.cl_module.m_extra.m_cache_dirty <- true
 			) (fun _ -> false)
 		| _ ->
 			unify_fields a1.a_fields (fun _ -> ()) (fun _ -> false)
