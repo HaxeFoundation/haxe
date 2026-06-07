@@ -133,6 +133,7 @@ let rec cache_context cs com =
 			let unchanged =
 				m.m_extra.m_processed <> 0
 				&& m.m_extra.m_processed < com.part_scope.compilation_step
+				&& not m.m_extra.m_cache_dirty
 				&& cc#has_good_hxb_module m.m_path m.m_id
 			in
 			if unchanged then begin

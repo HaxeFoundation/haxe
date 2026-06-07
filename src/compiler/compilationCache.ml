@@ -98,7 +98,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 			mc_path = m.m_path;
 			mc_id = m.m_id;
 			mc_chunks = chunks;
-			mc_extra = { m.m_extra with m_cache_state = MSGood; m_display_deps = None }
+			(* The cached chunks now reflect the in-memory module, so the cached copy is clean. *)
+			mc_extra = { m.m_extra with m_cache_state = MSGood; m_display_deps = None; m_cache_dirty = false }
 		}
 
 	method cache_hxb_module config warn anon_identification m =

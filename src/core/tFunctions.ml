@@ -178,6 +178,7 @@ let module_extra file sign time kind added policy =
 			m_import_positions = PMap.empty;
 		};
 		m_cache_state = MSGood;
+		m_cache_dirty = false;
 		m_added = added;
 		m_checked = 0;
 		m_time = time;
