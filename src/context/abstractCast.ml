@@ -1,5 +1,4 @@
 open Globals
-open Common
 open Ast
 open Type
 open Typecore
