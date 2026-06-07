@@ -349,6 +349,12 @@
 		"doc": "Display hxb timing when used with `--times`."
 	},
 	{
+		"name": "HxbDetectUnexpectedMutations",
+		"define": "hxb.detect_unexpected_mutations",
+		"signatureNeutral": true,
+		"doc": "Report modules whose hxb-serialized form changed without being re-typed (verifies the cache-write unchanged-skip heuristic; only with compilation server)."
+	},
+	{
 		"name": "HxbStats",
 		"define": "hxb.stats",
 		"signatureNeutral": true,
