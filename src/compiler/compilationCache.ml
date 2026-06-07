@@ -86,6 +86,13 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try (Hashtbl.find modules path).m_extra
 		with Not_found -> (self#get_hxb_module path).mc_extra
 
+	(* Returns true if [path] already has a binary cache entry that is up to date with module id [id]
+	   and in a good cache state. Used to skip re-serializing modules that weren't re-typed. *)
+	method has_good_hxb_module path id =
+		match Hashtbl.find_opt binary_cache path with
+		| Some mc -> mc.mc_id = id && mc.mc_extra.m_cache_state = MSGood
+		| None -> false
+
 	method add_binary_cache m chunks =
 		Hashtbl.replace binary_cache m.m_path {
 			mc_path = m.m_path;
