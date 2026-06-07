@@ -91,22 +91,36 @@ let rec cache_context cs com =
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
 			cc#cache_module_in_memory m.m_path m;
-		else
-			let anon_identification = new Tanon_identification.tanon_identification in
-			let warn w s p = com.warning w com.warning_options s p in
-			let config = match com.hxb_writer_config with
-				| None ->
-					HxbWriterConfig.create_target_config ()
-				| Some config ->
-					if com.is_macro_context then config.macro_config else config.target_config
-			in
+		else begin
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
-			match cc#cache_hxb_module config warn anon_identification m with
-			| None ->
+			(* A module that wasn't (re)typed this round (its m_processed is from an earlier compilation
+			   step) serializes to chunks identical to what's already cached, so we can skip writing it
+			   entirely as long as a good binary cache entry for it already exists. This avoids
+			   re-serializing the whole module graph on incremental compiles and diagnostics. *)
+			let unchanged =
+				m.m_extra.m_processed <> 0
+				&& m.m_extra.m_processed < com.part_scope.compilation_step
+				&& cc#has_good_hxb_module m.m_path m.m_id
+			in
+			if unchanged then
 				()
-			| Some f ->
-				DynArray.add parallels (cc,m,f)
+			else begin
+				let anon_identification = new Tanon_identification.tanon_identification in
+				let warn w s p = com.warning w com.warning_options s p in
+				let config = match com.hxb_writer_config with
+					| None ->
+						HxbWriterConfig.create_target_config ()
+					| Some config ->
+						if com.is_macro_context then config.macro_config else config.target_config
+				in
+				match cc#cache_hxb_module config warn anon_identification m with
+				| None ->
+					()
+				| Some f ->
+					DynArray.add parallels (cc,m,f)
+			end
+		end
 	in
 	List.iter cache_module com.modules;
 	let a = Parallel.run_with_pool com.sctx.pool (fun pool ->
@@ -118,14 +132,16 @@ let rec cache_context cs com =
 	Array.iter (fun (cc,m,chunks) ->
 		cc#add_binary_cache m chunks
 	) a;
+	let written = ref (Array.length a) in
 	begin match com.get_macros() with
 		| None -> ()
 		| Some macro_com ->
 			cc#add_child (get_cache_sign macro_com);
-			cache_context cs macro_com
+			written := !written + cache_context cs macro_com
 	end;
 	if Define.defined com.defines HxbStats then
-		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats
+		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats;
+	!written
 
 let maybe_add_context_sign cs com desc =
 	let sign = Define.get_signature com.defines in
@@ -138,6 +154,6 @@ let lock_signature com name =
 
 let maybe_cache_context com =
 	if com.display.dms_full_typing && com.display.dms_populate_cache then begin
-		Timer.time com.timer_ctx ["server";"cache context"] (cache_context com.cs) com;
-		ServerMessage.cached_modules com "" (List.length com.modules);
+		let written = Timer.time com.timer_ctx ["server";"cache context"] (cache_context com.cs) com in
+		ServerMessage.cached_modules com "" (List.length com.modules) written;
 	end

@@ -32,6 +32,46 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
+	// Returns the "written" count from the last "Cached N modules (M written)" message.
+	function lastCacheWrittenCount():Null<Int> {
+		var re = ~/Cached \d+ modules \((\d+) written\)/;
+		var result:Null<Int> = null;
+		for (message in messages) {
+			if (re.match(message))
+				result = Std.parseInt(re.matched(1));
+		}
+		return result;
+	}
+
+	// cache_context must skip re-serializing modules that weren't re-typed.
+	function testCacheContextSkipsUnchanged() {
+		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
+		var args = ["-main", "WithDependency.hx", "--no-output", "-js", "no.js"];
+
+		// First compile: everything is freshly typed, so every module is written.
+		runHaxe(args);
+		var firstWritten = lastCacheWrittenCount();
+		Assert.notNull(firstWritten);
+		Assert.isTrue(firstWritten > 0);
+
+		// Recompile with no changes: every module is reused from cache and nothing is
+		// re-typed, so no module should be re-serialized.
+		runHaxe(args);
+		assertReuse("Dependency");
+		assertReuse("WithDependency");
+		Assert.equals(0, lastCacheWrittenCount());
+
+		// Invalidate one module: only it (and its dependents) get re-typed and written,
+		// the rest stays cached, so the written count is well below the first run.
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		var partialWritten = lastCacheWrittenCount();
+		Assert.notNull(partialWritten);
+		Assert.isTrue(partialWritten > 0);
+		Assert.isTrue(partialWritten < firstWritten);
+	}
+
 	function testModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];

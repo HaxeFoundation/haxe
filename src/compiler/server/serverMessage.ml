@@ -97,8 +97,8 @@ let skipping_dep com tabs (mpath,reason) =
 let unchanged_content com tabs file =
 	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file)
 
-let cached_modules com tabs i =
-	if config.print_cached_modules then print_endline (Printf.sprintf "%sCached %i modules" (sign_string com) i)
+let cached_modules com tabs i written =
+	if config.print_cached_modules then print_endline (Printf.sprintf "%sCached %i modules (%i written)" (sign_string com) i written)
 
 let class_paths_changed com tabs =
 	if config.print_class_paths_changed then print_endline (Printf.sprintf "%sclass paths changed, resetting directories" (sign_string com))
