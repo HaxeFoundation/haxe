@@ -1109,7 +1109,10 @@ let rec encode_mtype t fields =
 		"pos", encode_pos i.mt_pos;
 		"module", encode_string (s_type_path i.mt_module.m_path);
 		"isPrivate", vbool i.mt_private;
-		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
+		(* A macro mutating a module type's metadata (e.g. onGenerate adding @:hxGen via Compiler.exclude)
+		   diverges that module's in-memory state from its hxb cache; mark it so the unchanged-skip
+		   heuristic re-serializes it. *)
+		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m; i.mt_module.m_extra.m_cache_dirty <- true);
 		"doc", null encode_string (get_own_doc_opt i.mt_doc);
 		"params", encode_type_params i.mt_params;
 	] @ fields)
@@ -1225,7 +1228,7 @@ and encode_tclass c =
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
-		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; vnull);
+		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; c.cl_module.m_extra.m_cache_dirty <- true; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
 		"isAbstract", vbool (has_class_flag c CAbstract);
