@@ -759,9 +759,8 @@ class hxb_reader
 			(mk_type_param { null_class with cl_path = path } TPHUnbound None None).ttp_type
 		| 10 ->
 			let c = self#read_class_ref in
-			self#make_lazy_type_dynamic (fun () ->
-				(AtomicLazy.force c).cl_type
-			)
+			let c = AtomicLazy.force c in
+			c.cl_type
 		| 11 ->
 			let en = self#read_enum_ref in
 			self#make_lazy_type_dynamic (fun () ->
