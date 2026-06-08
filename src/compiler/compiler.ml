@@ -321,9 +321,9 @@ let finalize_typing com tctx =
 let finalize_typing com tctx =
 	Timer.time com.timer_ctx ["finalize"] (finalize_typing com) tctx
 
-let filter com tctx ectx before_destruction =
+let filter com tctx ectx before_destruction ~no_output =
 	Timer.time com.timer_ctx ["filters"] (fun () ->
-		run_or_diagnose com (fun () -> Filters.run tctx ectx before_destruction)
+		run_or_diagnose com (fun () -> Filters.run tctx ectx before_destruction ~no_output)
 	) ()
 
 let compile com actx sctx =
@@ -377,10 +377,10 @@ let compile com actx sctx =
 					()
 		);
 		if is_diagnostics com then
-			filter com com ectx (fun () -> DisplayProcessing.handle_display_after_finalization com tctx display_file_dot_path)
+			filter com com ectx (fun () -> DisplayProcessing.handle_display_after_finalization com tctx display_file_dot_path) ~no_output:actx.no_output
 		else begin
 			DisplayProcessing.handle_display_after_finalization com tctx display_file_dot_path;
-			filter com com ectx (fun () -> ());
+			filter com com ectx (fun () -> ()) ~no_output:actx.no_output;
 		end;
 		if has_error com && is_compilation then raise CompilerMessage.Abort;
 		if is_compilation then Generate.check_auxiliary_output com actx;

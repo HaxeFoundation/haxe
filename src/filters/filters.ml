@@ -218,7 +218,7 @@ let destruction_on_com scom com types =
 	(* These aren't actually safe. The logic works fine regardless, we just can't parallelize this at the moment. *)
 	SafeCom.run_type_filters_safe scom filters types
 
-let destruction (com : Common.context) scom ectx detail_times rename_locals_config all_types all_types_array =
+let destruction (com : Common.context) scom ectx detail_times rename_locals_config all_types all_types_array ~no_output =
 	let all_types = Parallel.run_with_pool com.sctx.pool (fun pool ->
 		with_timer scom.timer_ctx detail_times "type 2" None (fun () ->
 			SafeCom.run_with_scom com scom (fun () ->
@@ -228,19 +228,30 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 
 		Common.enter_stage com CDceStart;
 		let all_types = with_timer scom.timer_ctx detail_times "dce" None (fun () ->
-			(* DCE *)
-			let dce_mode = try Define.defined_value scom.defines Define.Dce with _ -> "no" in
-			let dce_mode = match dce_mode with
-				| "full" -> if Define.defined scom.defines Define.Interp then Dce.DceNo else DceFull
-				| "std" -> DceStd
-				| "no" -> DceNo
-				| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
-			in
-			let std_paths = com.class_paths#get_std_paths in
-			let mscom = Option.map of_com (com.get_macros()) in
-			let main = com.main.main_expr in
-			let types = Dce.run pool scom mscom main dce_mode std_paths all_types in
-			types
+			(* DCE only makes sense when we will generate output that consumes its results. Skip it for
+			   compiles that won't generate: explicit --no-output, or diagnostics. Both emit nothing that
+			   reads DCE's products, and the hxb cache is written before this pass, so its mutations never
+			   persist.
+			   The Eval target is NOT skippable: even in DceNo mode the cleanup pass runs fix_accessors,
+			   which downgrades a property's AccCall/AccPrivateCall to AccNever once its accessor has been
+			   removed (e.g. via exclude()). Eval reads cf_kind at runtime, so skipping it is unsound. *)
+			if no_output || Common.is_diagnostics com then
+				all_types
+			else begin
+				(* DCE *)
+				let dce_mode = try Define.defined_value scom.defines Define.Dce with _ -> "no" in
+				let dce_mode = match dce_mode with
+					| "full" -> if Define.defined scom.defines Define.Interp then Dce.DceNo else DceFull
+					| "std" -> DceStd
+					| "no" -> DceNo
+					| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
+				in
+				let std_paths = com.class_paths#get_std_paths in
+				let mscom = Option.map of_com (com.get_macros()) in
+				let main = com.main.main_expr in
+				let types = Dce.run pool scom mscom main dce_mode std_paths all_types in
+				types
+			end
 		) in
 		let all_types_array = Array.of_list all_types in
 		Common.enter_stage com CDceDone;
@@ -474,7 +485,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		Dump.maybe_generate_dump com AfterSanitizing
 	)
 
-let run com ectx before_destruction =
+let run com ectx before_destruction ~no_output =
 	let scom = SafeCom.of_com com in
 	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
 	let new_types = List.filter (fun t ->
@@ -538,4 +549,4 @@ let run com ectx before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction com scom ectx detail_times rename_locals_config com.types all_types_array
+	destruction com scom ectx detail_times rename_locals_config com.types all_types_array ~no_output
