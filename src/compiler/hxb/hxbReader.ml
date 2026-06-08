@@ -153,9 +153,6 @@ class hxb_reader
 	val mutable api = Obj.magic ""
 	val mutable typing_mode = FullTyping
 	val mutable current_module = null_module
-	(* In partial typing, reading a module's field data (up to EOF) is deferred until one of
-	   its fields is actually accessed (its cf_type followed). *)
-	val mutable delayed_field_loading : (unit -> unit) list = []
 
 	val mutable ch = BytesWithPosition.create (Bytes.create 0)
 	val mutable string_pool = Array.make 0 ""
@@ -177,9 +174,6 @@ class hxb_reader
 
 	val mutable field_type_parameter_offset = 0
 	val empty_anon = mk_anon (ref Closed)
-
-	method set_delayed_field_loading f =
-		delayed_field_loading <- f :: delayed_field_loading
 
 	method resolve_type pack mname tname =
 		try begin
@@ -1935,25 +1929,7 @@ class hxb_reader
 				c.cl_flags <- read_uleb128 ch;
 
 				let read_field () =
-					let cf = self#read_class_field_forward in
-					(match typing_mode with
-					| AllowPartialTyping ->
-						(* Defer reading this module's field data until any of its fields is followed. *)
-						let r = ref (lazy_processing t_dynamic) in
-						r := lazy_wait (fun () ->
-							let rec loop = function
-								| [] -> []
-								| f :: l ->
-									f();
-									loop l
-							in
-							delayed_field_loading <- loop delayed_field_loading;
-							cf.cf_type
-						);
-						cf.cf_type <- TLazy r
-					| FullTyping ->
-						());
-					cf
+					self#read_class_field_forward;
 				in
 
 				c.cl_constructor <- self#read_option read_field;
@@ -1963,7 +1939,7 @@ class hxb_reader
 						if i = 0 then
 							acc_l,acc_pm
 						else begin
-							let cf = read_field () in
+							let cf = self#read_class_field_forward in
 							loop (cf :: acc_l) (PMap.add cf.cf_name cf acc_pm) (i - 1)
 						end
 					in
