@@ -1283,7 +1283,18 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		if resets_call_args then ctx.f.in_call_args <- false;
 		let messages_before = ctx.com.part_scope.messages in
 		let e = Std.finally (fun () -> ctx.f.in_call_args <- old_in_call_args)
-			(fun () -> TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p) ()
+			(fun () ->
+				(* A block body recovers per-statement inside type_block, but an expression
+				   body (e.g. `() -> x`) would let the error propagate out and be mistaken
+				   for a signature failure of the enclosing call argument. So for a
+				   call-argument function literal we recover the body error here, committing
+				   it in place (in_call_args is reset, so check_error displays it) and
+				   continuing as if the body were empty. *)
+				try TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p
+				with Error err when resets_call_args ->
+					check_error ctx err;
+					mk (TBlock []) ctx.t.tvoid p
+			) ()
 		in
 		(* Record the errors committed while typing this body so unify_call_args can roll
 		   them back if the enclosing argument ends up being skipped (see typecore.ml). *)
