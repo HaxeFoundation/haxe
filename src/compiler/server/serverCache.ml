@@ -354,7 +354,7 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+			| AllowPartialTyping -> reader#set_delayed_field_loading (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
@@ -373,7 +373,7 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+			| AllowPartialTyping -> reader#set_delayed_field_loading (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadModule reason ->
@@ -533,7 +533,7 @@ and type_module sctx com delay mpath p =
 					   our current display file if we're in display mode. *)
 					(match typing_mode with
 					| FullTyping -> ignore(f_next chunks EOM)
-					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+					| AllowPartialTyping -> reader#set_delayed_field_loading (fun () -> ignore(f_next chunks EOF)));
 					incr com.request_scope.stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->
