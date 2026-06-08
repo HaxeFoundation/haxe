@@ -1,2 +1,1 @@
 Main.hx:5: characters 45-48 : String should be Int
-Main.hx:5: characters 45-48 : ... For optional function argument 'a'
