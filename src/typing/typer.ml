@@ -399,6 +399,12 @@ and type_ident ctx i p mode with_type =
 					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
+					(* While typing a call argument, an unresolved identifier must raise so that
+					   optional-argument skipping / overload resolution can recover (e.g. an
+					   unqualified enum value typed against an earlier non-matching parameter).
+					   In diagnostics mode the default path below would instead record a
+					   diagnostic and return a placeholder, producing a false positive. (#10634, #7924) *)
+					if ctx.f.in_call_args then raise (WithTypeError (make_error err p));
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
@@ -637,7 +643,19 @@ and type_block ctx el with_type p =
 	let rec loop acc = function
 		| [] -> List.rev acc
 		| e :: l ->
-			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error err -> check_error ctx err; acc in
+			let with_type = if l = [] then with_type else WithType.no_value in
+			let acc =
+				try merge acc (type_expr ctx e with_type)
+				with Error err ->
+					check_error ctx err;
+					(* If the block's value-position expression fails, dropping it would
+					   collapse the block's type to Void and cascade a spurious unification
+					   error against the expected type. Recover with an unconstrained
+					   monomorph instead, so the enclosing context can bind it freely. *)
+					(match with_type with
+					| WithType.NoValue -> acc
+					| _ -> mk (TConst TNull) (mk_mono()) (pos e) :: acc)
+			in
 			loop acc l
 	in
 	let l = loop [] el in
@@ -1253,7 +1271,33 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	in
-	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
+	(* Errors inside the body of a function literal passed as a call argument should be
+	   reported at their own position, not attributed to the enclosing call argument
+	   ("For function argument 'x'"). We therefore reset in_call_args while typing the
+	   body so such errors are displayed in place instead of being re-raised as a
+	   WithTypeError and wrapped by arg_error. During overload resolution in_call_args is
+	   kept, because a body error there must reject the candidate. (#10634, #7924) *)
+	let e =
+		let old_in_call_args = ctx.f.in_call_args in
+		let resets_call_args = old_in_call_args && not ctx.f.in_overload_call_args in
+		if resets_call_args then ctx.f.in_call_args <- false;
+		let messages_before = ctx.com.part_scope.messages in
+		let e = Std.finally (fun () -> ctx.f.in_call_args <- old_in_call_args)
+			(fun () -> TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p) ()
+		in
+		(* Record the errors committed while typing this body so unify_call_args can roll
+		   them back if the enclosing argument ends up being skipped (see typecore.ml). *)
+		if resets_call_args then begin
+			let rec collect l =
+				if l == messages_before then []
+				else match l with
+					| [] -> []
+					| m :: l -> m :: collect l
+			in
+			ctx.g.call_arg_body_messages <- collect ctx.com.part_scope.messages @ ctx.g.call_arg_body_messages
+		end;
+		e
+	in
 	let tf = {
 		tf_args = args#for_expr ctx;
 		tf_type = rt;

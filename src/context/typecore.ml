@@ -112,6 +112,12 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
+	(* Messages committed while typing the body of a function literal passed as a call
+	   argument. unify_call_args uses this to roll back body errors of an argument that
+	   gets skipped to a later parameter (they are re-emitted against the parameter it
+	   actually binds to), without discarding once-only side-effect errors such as module
+	   loading. *)
+	mutable call_arg_body_messages : Message.t list;
 	root_typer : typer;
 	(* api *)
 	mutable continuation_api : ContTypes.continuation_api option;

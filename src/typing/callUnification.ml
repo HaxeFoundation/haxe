@@ -152,12 +152,22 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			end
 		| e :: el,(name,opt,t) :: args ->
 			let might_skip = List.length el < List.length args in
+			ctx.g.call_arg_body_messages <- [];
 			begin try
 				let e = type_against name t e in
 				e :: loop el args
 			with
 				WithTypeError ul ->
 					if opt && might_skip then begin
+						(* This argument is skipped to a later parameter and will be re-typed
+						   there. Roll back any function-literal body errors committed during
+						   this attempt so they are not reported twice; once-only side-effect
+						   errors (e.g. module loading) are not tracked and thus preserved. *)
+						begin match ctx.g.call_arg_body_messages with
+						| [] -> ()
+						| body_msgs ->
+							ctx.com.part_scope.messages <- List.filter (fun m -> not (List.memq m body_msgs)) ctx.com.part_scope.messages
+						end;
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
 					end else
@@ -169,11 +179,13 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 	let restore =
 		let in_call_args = ctx.f.in_call_args in
 		let in_overload_call_args = ctx.f.in_overload_call_args in
+		let call_arg_body_messages = ctx.g.call_arg_body_messages in
 		ctx.f.in_call_args <- true;
 		ctx.f.in_overload_call_args <- in_overload;
 		(fun () ->
 			ctx.f.in_call_args <- in_call_args;
 			ctx.f.in_overload_call_args <- in_overload_call_args;
+			ctx.g.call_arg_body_messages <- call_arg_body_messages;
 		)
 	in
 	let el = try loop el args with exc -> restore(); raise exc; in
