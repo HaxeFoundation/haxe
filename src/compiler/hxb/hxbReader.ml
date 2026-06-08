@@ -823,24 +823,28 @@ class hxb_reader
 			TFun(args,ret)
 		| 40 ->
 			let c = self#read_class_ref in
-			let c = AtomicLazy.force c in
-			TInst(c,[])
+			self#make_lazy_type_dynamic (fun () ->
+				TInst(AtomicLazy.force c,[])
+			)
 		| 41 ->
 			let c = self#read_class_ref in
 			let t1 = self#read_type_instance in
-			let c = AtomicLazy.force c in
-			TInst(c,[t1])
+			self#make_lazy_type_dynamic (fun () ->
+				TInst(AtomicLazy.force c,[t1])
+			)
 		| 42 ->
 			let c = self#read_class_ref in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			let c = AtomicLazy.force c in
-			TInst(c,[t1;t2])
+			self#make_lazy_type_dynamic (fun () ->
+				TInst(AtomicLazy.force c,[t1;t2])
+			)
 		| 49 ->
 			let c = self#read_class_ref in
 			let tl = self#read_types in
-			let c = AtomicLazy.force c in
-			TInst(c,tl)
+			self#make_lazy_type_dynamic (fun () ->
+				TInst(AtomicLazy.force c,tl)
+			)
 		| 50 ->
 			let en = self#read_enum_ref in
 			self#make_lazy_type_dynamic (fun () ->
