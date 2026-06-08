@@ -1297,15 +1297,20 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			) ()
 		in
 		(* Record the errors committed while typing this body so unify_call_args can roll
-		   them back if the enclosing argument ends up being skipped (see typecore.ml). *)
+		   them back if the enclosing argument ends up being skipped (see typecore.ml).
+		   This is the prefix of part_scope.messages newer than messages_before. If
+		   messages_before is no longer a tail — e.g. a nested call already rolled some
+		   messages back via List.filter — we cannot compute the delta reliably, so we
+		   record nothing rather than risk rolling back unrelated messages. *)
 		if resets_call_args then begin
 			let rec collect l =
 				if l == messages_before then []
 				else match l with
-					| [] -> []
+					| [] -> raise Not_found
 					| m :: l -> m :: collect l
 			in
-			ctx.g.call_arg_body_messages <- collect ctx.com.part_scope.messages @ ctx.g.call_arg_body_messages
+			(try ctx.g.call_arg_body_messages <- collect ctx.com.part_scope.messages @ ctx.g.call_arg_body_messages
+			with Not_found -> ())
 		end;
 		e
 	in
