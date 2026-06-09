@@ -95,19 +95,8 @@ type function_mode =
 	| FunCoroutine
 	| FunNotFunction
 
-(* State that is live only while unify_call_args is resolving a call's arguments.
-   Its lifetime spans the whole call resolution, which is coarser than in_call_args
-   (that bool is additionally toggled off while typing function-literal bodies and
-   display sub-expressions). *)
 type call_arg_context = {
-	(* True while resolving an overloaded call. There a function-literal body error
-	   must reject the candidate, so in_call_args is kept instead of being reset. *)
 	cac_in_overload : bool;
-	(* Messages committed while typing the body of a function literal passed as a call
-	   argument. unify_call_args uses this to roll back body errors of an argument that
-	   gets skipped to a later parameter (they are re-emitted against the parameter it
-	   actually binds to), without discarding once-only side-effect errors such as module
-	   loading. *)
 	mutable cac_body_messages : Message.t list;
 }
 
@@ -128,7 +117,6 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
-	(* See call_arg_context. Some only while unify_call_args resolves a call. *)
 	mutable call_arg_context : call_arg_context option;
 	root_typer : typer;
 	(* api *)
@@ -407,9 +395,6 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
-(* Enter call-argument resolution for the duration of unify_call_args: mark
-   argument-position expressions (in_call_args) and install a fresh call_arg_context.
-   Returns a restore function that pops both, so nested calls do not leak state. *)
 let enter_call_args ctx ~in_overload =
 	let old_in_call_args = ctx.f.in_call_args in
 	let old_context = ctx.g.call_arg_context in

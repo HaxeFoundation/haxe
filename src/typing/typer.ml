@@ -399,11 +399,6 @@ and type_ident ctx i p mode with_type =
 					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
-					(* While typing a call argument, an unresolved identifier must raise so that
-					   optional-argument skipping / overload resolution can recover (e.g. an
-					   unqualified enum value typed against an earlier non-matching parameter).
-					   In diagnostics mode the default path below would instead record a
-					   diagnostic and return a placeholder, producing a false positive. (#10634, #7924) *)
 					if ctx.f.in_call_args then raise (WithTypeError (make_error err p));
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
@@ -648,13 +643,7 @@ and type_block ctx el with_type p =
 				try merge acc (type_expr ctx e with_type)
 				with Error err ->
 					check_error ctx err;
-					(* If the block's value-position expression fails, dropping it would
-					   collapse the block's type to Void and cascade a spurious unification
-					   error against the expected type. Recover with an unconstrained
-					   monomorph instead, so the enclosing context can bind it freely. *)
-					(match with_type with
-					| WithType.NoValue -> acc
-					| _ -> mk (TConst TNull) (mk_mono()) (pos e) :: acc)
+					(match with_type with | WithType.NoValue -> acc | _ -> mk (TConst TNull) (mk_mono()) (pos e) :: acc)
 			in
 			loop acc l
 	in
@@ -1271,12 +1260,6 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	in
-	(* Errors inside the body of a function literal passed as a call argument should be
-	   reported at their own position, not attributed to the enclosing call argument
-	   ("For function argument 'x'"). We therefore reset in_call_args while typing the
-	   body so such errors are displayed in place instead of being re-raised as a
-	   WithTypeError and wrapped by arg_error. During overload resolution in_call_args is
-	   kept, because a body error there must reject the candidate. (#10634, #7924) *)
 	let e =
 		let old_in_call_args = ctx.f.in_call_args in
 		let resets_call_args = old_in_call_args && not (in_overload_call_args ctx) in
@@ -1284,24 +1267,12 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 		let messages_before = ctx.com.part_scope.messages in
 		let e = Std.finally (fun () -> ctx.f.in_call_args <- old_in_call_args)
 			(fun () ->
-				(* A block body recovers per-statement inside type_block, but an expression
-				   body (e.g. `() -> x`) would let the error propagate out and be mistaken
-				   for a signature failure of the enclosing call argument. So for a
-				   call-argument function literal we recover the body error here, committing
-				   it in place (in_call_args is reset, so check_error displays it) and
-				   continuing as if the body were empty. *)
 				try TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p
 				with Error err when resets_call_args ->
 					check_error ctx err;
 					mk (TBlock []) ctx.t.tvoid p
 			) ()
 		in
-		(* Record the errors committed while typing this body so unify_call_args can roll
-		   them back if the enclosing argument ends up being skipped (see typecore.ml).
-		   This is the prefix of part_scope.messages newer than messages_before. If
-		   messages_before is no longer a tail — e.g. a nested call already rolled some
-		   messages back via List.filter — we cannot compute the delta reliably, so we
-		   record nothing rather than risk rolling back unrelated messages. *)
 		if resets_call_args then begin
 			let rec collect l =
 				if l == messages_before then []
