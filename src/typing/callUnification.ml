@@ -159,10 +159,6 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			with
 				WithTypeError ul ->
 					if opt && might_skip then begin
-						(* This argument is skipped to a later parameter and will be re-typed
-						   there. Roll back any function-literal body errors committed during
-						   this attempt so they are not reported twice; once-only side-effect
-						   errors (e.g. module loading) are not tracked and thus preserved. *)
 						begin match call_arg_body_messages ctx with
 						| [] -> ()
 						| body_msgs ->
@@ -171,12 +167,6 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
 					end else if call_arg_body_messages ctx <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
-						(* A function literal was passed where a non-function parameter is
-						   expected: it can never fit, so the signature mismatch is pure noise
-						   on top of the body error(s) already reported in place. Suppress it
-						   and recover (default this parameter) so later arguments are still
-						   checked. A function-vs-function mismatch is kept, as it is a real
-						   signature error. *)
 						let e_def = default_value name t in
 						e_def :: loop el args
 					end else
