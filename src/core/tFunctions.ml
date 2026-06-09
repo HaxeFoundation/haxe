@@ -184,6 +184,7 @@ let module_extra file sign time kind added policy =
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;
+		m_field_deps = [];
 		m_display_deps = None;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
@@ -323,7 +324,11 @@ let merge_dep_fields f1 f2 = match f1,f2 with
 
 let add_dependency_mutex = Mutex.create ()
 
-let add_dependency ?(skip_postprocess=false) ?(fields=MDFull) m mdep origin =
+(* [src] is the field of [m] that creates the dependency (None = module-level: inheritance, import,
+   macro, class-decl typing); [tgt] is the specific field of [mdep] being used (None = the type
+   itself). Both feed the field-granular [m_field_deps]; [m_deps] is kept as the module-level
+   projection while consumers migrate. *)
+let add_dependency ?(skip_postprocess=false) ?(fields=MDFull) ?src ?tgt m mdep origin =
 	match origin with
 	(* These module dependency origins should not add as a dependency *)
 	| MDepFromMacroInclude -> ()
@@ -337,16 +342,22 @@ let add_dependency ?(skip_postprocess=false) ?(fields=MDFull) m mdep origin =
 					| exception Not_found -> base
 				in
 				m.m_extra.m_deps <- PMap.add mdep.m_id dep m.m_extra.m_deps;
+				let edge = {
+					dep_src = src;
+					dep_tgt_sign = mdep.m_extra.m_sign;
+					dep_tgt_path = mdep.m_path;
+					dep_tgt_origin = origin;
+					dep_tgt = tgt;
+				} in
+				m.m_extra.m_field_deps <- edge :: m.m_extra.m_field_deps;
 				(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 				if not skip_postprocess then m.m_extra.m_processed <- 0
 			)
 		end
 
-(* Records that [m] uses field [name] (of the given [kind]) from dependency [mdep]. Merges with
-   any existing edge. Currently additive metadata only: edges created from type references stay
-   [MDFull], so this is dominated until those are refined to skeleton-level edges. *)
-let add_field_dependency ?(skip_postprocess=false) m mdep kind name origin =
-	add_dependency ~skip_postprocess ~fields:(MDFields [{fd_field = name; fd_kind = kind}]) m mdep origin
+(* Builds a source/target field descriptor from a class + field. *)
+let dep_field_of_class (c : tclass) (cf : tclass_field) (kind : class_field_ref_kind) =
+	{ dfd_path = c.cl_path; dfd_field = cf.cf_name; dfd_kind = kind }
 
 let arg_name (a,_) = a.v_name
 

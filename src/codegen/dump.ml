@@ -216,10 +216,23 @@ let dump_dependencies ?(target_override=None) com =
 			Hashtbl.replace dep file (m :: l)
 		) m.m_extra.m_deps;
 	) com.Common.modules;
-	let total = !n_skeleton + !n_fields + !n_full in
-	let pct n = if total = 0 then 0. else 100. *. float_of_int n /. float_of_int total in
-	print "\n# dependency edges: %d total | skeleton %d (%.1f%%) | fields %d (%.1f%%) | full %d (%.1f%%)\n"
-		total !n_skeleton (pct !n_skeleton) !n_fields (pct !n_fields) !n_full (pct !n_full);
+	ignore (n_skeleton,n_fields,n_full);
+	(* Field-level dependency edge coverage: how many recorded edges are attributed to a specific
+	   source field / target field vs still module-level (None). This is the new field-granular
+	   dependency store (m_field_deps); m_deps above is its module-level projection. *)
+	let n_edges = ref 0 and n_src = ref 0 and n_tgt = ref 0 and n_both = ref 0 in
+	List.iter (fun m ->
+		List.iter (fun e ->
+			incr n_edges;
+			let has_src = e.dep_src <> None and has_tgt = e.dep_tgt <> None in
+			if has_src then incr n_src;
+			if has_tgt then incr n_tgt;
+			if has_src && has_tgt then incr n_both
+		) m.m_extra.m_field_deps
+	) com.Common.modules;
+	let pct n = if !n_edges = 0 then 0. else 100. *. float_of_int n /. float_of_int !n_edges in
+	print "\n# field-dep edges: %d total | with source field %d (%.1f%%) | with target field %d (%.1f%%) | field->field %d (%.1f%%)\n"
+		!n_edges !n_src (pct !n_src) !n_tgt (pct !n_tgt) !n_both (pct !n_both);
 	close();
 	let dump_dependants_path = [com.part_scope.dump_config.dump_path;target_name;"dependants"] in
 	let buf,close = create_dumpfile [] dump_dependants_path in

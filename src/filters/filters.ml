@@ -280,51 +280,55 @@ let update_cache_dependencies ~close_monomorphs scom t =
 	(* These references all appear in signature positions (field types), so they only need the
 	   dependency's structure (MDSkeleton), not its field bodies. Merges with any heavier edge
 	   already recorded during typing (e.g. an import), which dominates. *)
-	let rec check_t m t = match t with
+	(* These references all appear in signature positions (field types). [src] is the field whose
+	   signature is being walked, so the recorded edge is field-granular on the source side; the
+	   target is the referenced type itself (no specific field). *)
+	let rec check_t src m t = match t with
 		| TInst(c,tl) ->
-			add_dependency ~fields:MDSkeleton m c.cl_module MDepFromTyping;
-			List.iter (check_t m) tl;
+			add_dependency ~fields:MDSkeleton ?src m c.cl_module MDepFromTyping;
+			List.iter (check_t src m) tl;
 		| TEnum(en,tl) ->
-			add_dependency ~fields:MDSkeleton m en.e_module MDepFromTyping;
-			List.iter (check_t m) tl;
+			add_dependency ~fields:MDSkeleton ?src m en.e_module MDepFromTyping;
+			List.iter (check_t src m) tl;
 		| TType(t,tl) ->
-			add_dependency ~fields:MDSkeleton m t.t_module MDepFromTyping;
-			List.iter (check_t m) tl;
+			add_dependency ~fields:MDSkeleton ?src m t.t_module MDepFromTyping;
+			List.iter (check_t src m) tl;
 		| TAbstract(a,tl) ->
-			add_dependency ~fields:MDSkeleton m a.a_module MDepFromTyping;
-			List.iter (check_t m) tl;
+			add_dependency ~fields:MDSkeleton ?src m a.a_module MDepFromTyping;
+			List.iter (check_t src m) tl;
 		| TFun(targs,tret) ->
-			List.iter (fun (_,_,t) -> check_t m t) targs;
-			check_t m tret;
+			List.iter (fun (_,_,t) -> check_t src m t) targs;
+			check_t src m tret;
 		| TAnon an ->
 			if not (List.memq an !visited_anons) then begin
 				visited_anons := an :: !visited_anons;
-				PMap.iter (fun _ cf -> check_t m cf.cf_type) an.a_fields
+				PMap.iter (fun _ cf -> check_t src m cf.cf_type) an.a_fields
 			end
 		| TMono r ->
 			begin match r.tm_type with
 				| Some t ->
-					check_t m t
+					check_t src m t
 				| _ ->
 					(* Bind any still open monomorph that's part of a signature to Any now (issue #10653) *)
 					if close_monomorphs then Monomorph.do_bind r scom.basic.tany;
 		end
 		| TLazy f ->
-			check_t m (lazy_type f)
+			check_t src m (lazy_type f)
 		| TDynamic None ->
 			()
 		| TDynamic (Some t) ->
-			check_t m t
+			check_t src m t
 	in
-	let rec check_field m cf =
-		check_t m cf.cf_type;
-		List.iter (check_field m) cf.cf_overloads
+	let rec check_field src m cf =
+		check_t src m cf.cf_type;
+		List.iter (check_field src m) cf.cf_overloads
 	in
 	match t with
 		| TClassDecl c ->
-			List.iter (check_field c.cl_module) c.cl_ordered_statics;
-			List.iter (check_field c.cl_module) c.cl_ordered_fields;
-			(match c.cl_constructor with None -> () | Some cf -> check_field c.cl_module cf);
+			let src kind cf = Some (dep_field_of_class c cf kind) in
+			List.iter (fun cf -> check_field (src CfrStatic cf) c.cl_module cf) c.cl_ordered_statics;
+			List.iter (fun cf -> check_field (src CfrMember cf) c.cl_module cf) c.cl_ordered_fields;
+			(match c.cl_constructor with None -> () | Some cf -> check_field (src CfrConstructor cf) c.cl_module cf);
 		| _ ->
 			()
 

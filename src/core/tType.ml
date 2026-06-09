@@ -447,6 +447,24 @@ and field_dep = {
 	fd_kind : class_field_ref_kind;
 }
 
+(* A field-granular dependency edge: a specific field (or, when [dep_src]/[dep_tgt] is None, the
+   module/type itself) of this module depends on a specific field (or type) of another module.
+   This is the field-level replacement for the module-level [m_deps]; for now [m_deps] is kept as a
+   derived module-level projection so existing consumers keep working while they migrate. *)
+and module_dep_edge = {
+	dep_src : dep_field option;        (* source field in THIS module; None = module-level *)
+	dep_tgt_sign : Digest.t;           (* target module signature *)
+	dep_tgt_path : path;               (* target module path *)
+	dep_tgt_origin : module_dep_origin;
+	dep_tgt : dep_field option;        (* target field; None = the type/module itself *)
+}
+
+and dep_field = {
+	dfd_path : path;                   (* declaring type's path *)
+	dfd_field : string;
+	dfd_kind : class_field_ref_kind;
+}
+
 and module_def_extra = {
 	m_file : Path.UniqueKey.lazy_t;
 	m_sign : Digest.t;
@@ -463,6 +481,9 @@ and module_def_extra = {
 	mutable m_checked : int;
 	mutable m_processed : int;
 	mutable m_deps : (int,module_dep) PMap.t;
+	(* Field-granular dependency edges (new source of truth; m_deps above is its module-level
+	   projection during migration). Accumulated during typing, deduplicated lazily. *)
+	mutable m_field_deps : module_dep_edge list;
 	mutable m_display_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
