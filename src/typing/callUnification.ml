@@ -166,7 +166,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 						begin match call_arg_body_messages ctx with
 						| [] -> ()
 						| body_msgs ->
-							ctx.com.part_scope.messages <- List.filter (fun m -> not (List.memq m body_msgs)) ctx.com.part_scope.messages
+							rollback_messages ctx.com body_msgs
 						end;
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
