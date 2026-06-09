@@ -1279,7 +1279,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	   kept, because a body error there must reject the candidate. (#10634, #7924) *)
 	let e =
 		let old_in_call_args = ctx.f.in_call_args in
-		let resets_call_args = old_in_call_args && not ctx.f.in_overload_call_args in
+		let resets_call_args = old_in_call_args && not (in_overload_call_args ctx) in
 		if resets_call_args then ctx.f.in_call_args <- false;
 		let messages_before = ctx.com.part_scope.messages in
 		let e = Std.finally (fun () -> ctx.f.in_call_args <- old_in_call_args)
@@ -1309,7 +1309,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 					| [] -> raise Not_found
 					| m :: l -> m :: collect l
 			in
-			(try ctx.g.call_arg_body_messages <- collect ctx.com.part_scope.messages @ ctx.g.call_arg_body_messages
+			(try add_call_arg_body_messages ctx (collect ctx.com.part_scope.messages)
 			with Not_found -> ())
 		end;
 		e

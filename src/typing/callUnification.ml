@@ -152,7 +152,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			end
 		| e :: el,(name,opt,t) :: args ->
 			let might_skip = List.length el < List.length args in
-			ctx.g.call_arg_body_messages <- [];
+			reset_call_arg_body_messages ctx;
 			begin try
 				let e = type_against name t e in
 				e :: loop el args
@@ -163,14 +163,14 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 						   there. Roll back any function-literal body errors committed during
 						   this attempt so they are not reported twice; once-only side-effect
 						   errors (e.g. module loading) are not tracked and thus preserved. *)
-						begin match ctx.g.call_arg_body_messages with
+						begin match call_arg_body_messages ctx with
 						| [] -> ()
 						| body_msgs ->
 							ctx.com.part_scope.messages <- List.filter (fun m -> not (List.memq m body_msgs)) ctx.com.part_scope.messages
 						end;
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
-					end else if ctx.g.call_arg_body_messages <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+					end else if call_arg_body_messages ctx <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
 						(* A function literal was passed where a non-function parameter is
 						   expected: it can never fit, so the signature mismatch is pure noise
 						   on top of the body error(s) already reported in place. Suppress it
@@ -185,18 +185,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 						| (s,ul) :: _ -> arg_error ul s true
 			end
 	in
-	let restore =
-		let in_call_args = ctx.f.in_call_args in
-		let in_overload_call_args = ctx.f.in_overload_call_args in
-		let call_arg_body_messages = ctx.g.call_arg_body_messages in
-		ctx.f.in_call_args <- true;
-		ctx.f.in_overload_call_args <- in_overload;
-		(fun () ->
-			ctx.f.in_call_args <- in_call_args;
-			ctx.f.in_overload_call_args <- in_overload_call_args;
-			ctx.g.call_arg_body_messages <- call_arg_body_messages;
-		)
-	in
+	let restore = enter_call_args ctx ~in_overload in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
 	el
@@ -300,7 +289,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	(* Delayed display handling works like this: If ctx.e.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	(* Delayed display handling works like this: If in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
 	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.g.delayed_display.
 	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
 	   can take place and only then the display callback is actually committed.
