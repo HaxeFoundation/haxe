@@ -836,6 +836,16 @@ let has_error_to_report com =
 	) com.part_scope.messages in
 	com.part_scope.has_error && (is_compilation com || has_reportable_message)
 
+(* Remove previously-committed messages from the buffer and recompute has_error from
+   what remains. Used when a typing attempt that emitted errors is abandoned (e.g. a
+   call argument skipped to a later parameter): committing an error sets the sticky
+   has_error flag in addition to appending the message, so dropping only the message
+   would leave the compiler exiting with an error status but nothing to print. *)
+let rollback_messages com msgs =
+	let messages = List.filter (fun cm -> not (List.memq cm msgs)) com.part_scope.messages in
+	com.part_scope.messages <- messages;
+	com.part_scope.has_error <- List.exists (fun cm -> Message.cm_severity cm = MessageSeverity.Error) messages
+
 let disable_report_mode com =
 	let old = com.part_scope.report_mode in
 	com.part_scope.report_mode <- RMNone;
