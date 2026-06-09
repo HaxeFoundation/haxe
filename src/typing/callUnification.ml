@@ -151,7 +151,6 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				| (s,ul) :: _ -> arg_error ul s true
 			end
 		| e :: el,(name,opt,t) :: args ->
-			let might_skip = List.length el < List.length args in
 			let body_capture = reset_call_arg_body_capture ctx in
 			let restore_monos = monomorph_transaction ctx in
 			let committed = ref false in
@@ -162,22 +161,28 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 					let e = type_against name t e in
 					commit ();
 					e :: loop el args
-				with
-					| WithTypeError ul when opt && might_skip ->
-							drop ();
-							restore_monos();
-							let e_def = skip name ul t in
-							e_def :: loop (e :: el) args
-					| WithTypeError _ when !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) ->
-							commit ();
-							restore_monos();
-							let e_def = default_value name t in
-							e_def :: loop el args
-					| WithTypeError ul ->
-							commit ();
-							match List.rev !skipped with
-							| [] -> arg_error ul name opt
-							| (s,ul) :: _ -> arg_error ul s true
+				with WithTypeError ul ->
+					let might_skip = opt && List.length el < List.length args in
+					let opt_followed_by_rest = opt && match args with
+						| [(_,_,t)] -> ExtType.is_rest (follow t)
+						| _ -> false
+					in
+					if might_skip || opt_followed_by_rest then begin
+						drop ();
+						restore_monos();
+						let e_def = skip name ul t in
+						e_def :: loop (e :: el) args
+					end else if !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+						commit ();
+						restore_monos();
+						let e_def = default_value name t in
+						e_def :: loop el args
+					end else begin
+						commit ();
+						match List.rev !skipped with
+						| [] -> arg_error ul name opt
+						| (s,ul) :: _ -> arg_error ul s true
+					end
 				end
 			with exc ->
 				commit ();
