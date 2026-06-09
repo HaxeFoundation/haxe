@@ -251,27 +251,32 @@ let dump_dependencies ?(target_override=None) com =
    consumer would not know about. Also reports how many module deps carry field-level detail
    (an edge with a concrete target field) vs only module-level edges. *)
 let verify_field_deps com =
-	let n_deps = ref 0 and n_missing = ref 0 and n_fieldlevel = ref 0 in
+	let n_deps = ref 0 and n_missing = ref 0 and n_fieldlevel = ref 0 and n_sourced = ref 0 in
 	let missing = Hashtbl.create 0 in
 	List.iter (fun m ->
 		let edge_mods = Hashtbl.create 0 in
 		let edge_field_mods = Hashtbl.create 0 in
+		let edge_src_mods = Hashtbl.create 0 in
 		List.iter (fun e ->
 			Hashtbl.replace edge_mods e.dep_tgt_path ();
-			if e.dep_tgt <> None then Hashtbl.replace edge_field_mods e.dep_tgt_path ()
+			if e.dep_tgt <> None then Hashtbl.replace edge_field_mods e.dep_tgt_path ();
+			if e.dep_src <> None then Hashtbl.replace edge_src_mods e.dep_tgt_path ()
 		) m.m_extra.m_field_deps;
 		PMap.iter (fun _ mdep ->
 			incr n_deps;
 			if not (Hashtbl.mem edge_mods mdep.md_path) then begin
 				incr n_missing;
 				Hashtbl.replace missing (s_type_path m.m_path ^ " -> " ^ s_type_path mdep.md_path) ()
-			end else if Hashtbl.mem edge_field_mods mdep.md_path then
-				incr n_fieldlevel
+			end else begin
+				if Hashtbl.mem edge_field_mods mdep.md_path then incr n_fieldlevel;
+				if Hashtbl.mem edge_src_mods mdep.md_path then incr n_sourced
+			end
 		) m.m_extra.m_deps
 	) com.Common.modules;
 	let pct n = if !n_deps = 0 then 0. else 100. *. float_of_int n /. float_of_int !n_deps in
 	print_endline (Printf.sprintf "[verify-field-deps] module deps: %d | with field-level edge %d (%.1f%%) | module-only %d (%.1f%%) | MISSING edge %d (%.1f%%, soundness bug)"
 		!n_deps !n_fieldlevel (pct !n_fieldlevel) (!n_deps - !n_fieldlevel - !n_missing) (pct (!n_deps - !n_fieldlevel - !n_missing)) !n_missing (pct !n_missing));
+	print_endline (Printf.sprintf "[verify-field-deps] with source field %d (%.1f%%)" !n_sourced (pct !n_sourced));
 	if !n_missing > 0 then begin
 		print_endline "[verify-field-deps] dependencies with NO edge (m_deps entry not in m_field_deps):";
 		Hashtbl.iter (fun k () -> print_endline ("  " ^ k)) missing
