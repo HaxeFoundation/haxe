@@ -482,8 +482,8 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_deps : (int,module_dep) PMap.t;
 	(* Field-granular dependency edges (new source of truth; m_deps above is its module-level
-	   projection during migration). Accumulated during typing, deduplicated lazily. *)
-	mutable m_field_deps : module_dep_edge list;
+	   projection during migration). Keyed by edge identity so duplicate edges collapse. *)
+	mutable m_field_deps : (string,module_dep_edge) PMap.t;
 	mutable m_display_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;

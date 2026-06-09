@@ -222,7 +222,7 @@ let dump_dependencies ?(target_override=None) com =
 	   dependency store (m_field_deps); m_deps above is its module-level projection. *)
 	let n_edges = ref 0 and n_src = ref 0 and n_tgt = ref 0 and n_both = ref 0 in
 	List.iter (fun m ->
-		List.iter (fun e ->
+		PMap.iter (fun _ e ->
 			incr n_edges;
 			let has_src = e.dep_src <> None and has_tgt = e.dep_tgt <> None in
 			if has_src then incr n_src;
@@ -257,7 +257,7 @@ let verify_field_deps com =
 		let edge_mods = Hashtbl.create 0 in
 		let edge_field_mods = Hashtbl.create 0 in
 		let edge_src_mods = Hashtbl.create 0 in
-		List.iter (fun e ->
+		PMap.iter (fun _ e ->
 			Hashtbl.replace edge_mods e.dep_tgt_path ();
 			if e.dep_tgt <> None then Hashtbl.replace edge_field_mods e.dep_tgt_path ();
 			if e.dep_src <> None then Hashtbl.replace edge_src_mods e.dep_tgt_path ()
