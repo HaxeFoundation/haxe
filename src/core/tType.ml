@@ -424,7 +424,27 @@ and module_dep = {
 	md_sign : Digest.t;
 	md_kind : module_kind;
 	md_path : path;
-	md_origin : module_dep_origin
+	md_origin : module_dep_origin;
+	(* Which symbols of the dependency are actually used by the dependent module.
+	   [MDFull] is the conservative default and means the whole dependency may be needed
+	   (current behavior). [MDFields] records the specific fields used, so the load path
+	   can eventually restore only those instead of the entire dependency. *)
+	md_fields : module_dep_fields;
+}
+
+and module_dep_fields =
+	(* Only the dependency's structure is needed: its identity, type parameters, parent/underlying
+	   type, and that its fields exist. Field bodies/signatures may be restored lazily on demand.
+	   Emitted for references that appear only in signature positions. *)
+	| MDSkeleton
+	(* The listed fields are needed (implies the skeleton). *)
+	| MDFields of field_dep list
+	(* The whole dependency may be needed (conservative default; current behavior). *)
+	| MDFull
+
+and field_dep = {
+	fd_field : string;
+	fd_kind : class_field_ref_kind;
 }
 
 and module_def_extra = {
