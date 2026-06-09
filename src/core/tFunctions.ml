@@ -184,7 +184,7 @@ let module_extra file sign time kind added policy =
 		m_time = time;
 		m_processed = 0;
 		m_deps = PMap.empty;
-		m_field_deps = [];
+		m_field_deps = PMap.empty;
 		m_display_deps = None;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
@@ -324,6 +324,19 @@ let merge_dep_fields f1 f2 = match f1,f2 with
 
 let add_dependency_mutex = Mutex.create ()
 
+(* Stable identity of a field-dependency edge, used to deduplicate m_field_deps. *)
+let dep_edge_key src tgt_path tgt origin =
+	let s_kind = function CfrStatic -> "s" | CfrMember -> "m" | CfrConstructor -> "c" | CfrInit -> "i" in
+	let s_df = function
+		| None -> ""
+		| Some df -> s_type_path df.dfd_path ^ "." ^ df.dfd_field ^ ":" ^ s_kind df.dfd_kind
+	in
+	let s_origin = function
+		| MDepFromTyping -> "t" | MDepFromImport -> "i" | MDepFromMacro -> "M"
+		| MDepFromMacroInclude -> "x" | MDepFromMacroDefine -> "d"
+	in
+	(s_df src) ^ ">" ^ s_type_path tgt_path ^ "#" ^ (s_df tgt) ^ "@" ^ (s_origin origin)
+
 (* [src] is the field of [m] that creates the dependency (None = module-level: inheritance, import,
    macro, class-decl typing); [tgt] is the specific field of [mdep] being used (None = the type
    itself). Both feed the field-granular [m_field_deps]; [m_deps] is kept as the module-level
@@ -349,7 +362,7 @@ let add_dependency ?(skip_postprocess=false) ?(fields=MDFull) ?src ?tgt m mdep o
 					dep_tgt_origin = origin;
 					dep_tgt = tgt;
 				} in
-				m.m_extra.m_field_deps <- edge :: m.m_extra.m_field_deps;
+				m.m_extra.m_field_deps <- PMap.add (dep_edge_key src mdep.m_path tgt origin) edge m.m_extra.m_field_deps;
 				(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 				if not skip_postprocess then m.m_extra.m_processed <- 0
 			)
