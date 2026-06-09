@@ -361,6 +361,12 @@
 		"doc": "Display some hxb related stats (only with compilation server)."
 	},
 	{
+		"name": "VerifyFieldDeps",
+		"define": "hxb.verify_field_deps",
+		"signatureNeutral": true,
+		"doc": "Verify that the field-granular dependency edges cover every cross-module reference in the typed AST; reports field-covered / module-only / uncovered counts."
+	},
+	{
 		"name": "HxcppApiLevel",
 		"define": "hxcpp-api-level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",
