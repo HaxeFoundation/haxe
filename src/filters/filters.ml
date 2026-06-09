@@ -326,18 +326,22 @@ let update_cache_dependencies ~close_monomorphs scom t =
 		| None -> ()
 		| Some e ->
 			let seen = Hashtbl.create 0 in
-			let add_tgt tc tcf kind =
-				let key = (tc.cl_path,tcf.cf_name,kind) in
+			let add_tgt_raw tmod tpath fname kind =
+				let key = (tpath,fname,kind) in
 				if not (Hashtbl.mem seen key) then begin
 					Hashtbl.add seen key ();
-					add_dependency ~skip_postprocess:true ?src ~tgt:(dep_field_of_class tc tcf kind) m tc.cl_module MDepFromTyping
+					add_dependency ~skip_postprocess:true ?src ~tgt:{dfd_path = tpath; dfd_field = fname; dfd_kind = kind} m tmod MDepFromTyping
 				end
 			in
+			let add_tgt c cf' kind = add_tgt_raw c.cl_module c.cl_path cf'.cf_name kind in
+			let add_enum en ef = add_tgt_raw en.e_module en.e_path ef.ef_name CfrConstructor in
 			let rec walk e =
 				(match e.eexpr with
 				| TField(_,FInstance(c,_,cf')) -> add_tgt c cf' CfrMember
 				| TField(_,FStatic(c,cf')) -> add_tgt c cf' CfrStatic
 				| TField(_,FClosure(Some(c,_),cf')) -> add_tgt c cf' CfrMember
+				| TField(_,FEnum(en,ef)) -> add_enum en ef
+				| TEnumParameter(e1,ef,_) -> (match follow e1.etype with TEnum(en,_) -> add_enum en ef | _ -> ())
 				| TNew(c,_,_) -> (match c.cl_constructor with Some cf' -> add_tgt c cf' CfrConstructor | None -> ())
 				| _ -> ());
 				Type.iter walk e
