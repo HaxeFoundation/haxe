@@ -319,8 +319,34 @@ let update_cache_dependencies ~close_monomorphs scom t =
 		| TDynamic (Some t) ->
 			check_t src m t
 	in
+	(* Body walk: record field->field edges from the field's expression. Deduplicated per source
+	   field via [seen] so a field that calls B.foo() a hundred times produces one edge. *)
+	let check_body src m cf =
+		match cf.cf_expr with
+		| None -> ()
+		| Some e ->
+			let seen = Hashtbl.create 0 in
+			let add_tgt tc tcf kind =
+				let key = (tc.cl_path,tcf.cf_name,kind) in
+				if not (Hashtbl.mem seen key) then begin
+					Hashtbl.add seen key ();
+					add_dependency ~skip_postprocess:true ?src ~tgt:(dep_field_of_class tc tcf kind) m tc.cl_module MDepFromTyping
+				end
+			in
+			let rec walk e =
+				(match e.eexpr with
+				| TField(_,FInstance(c,_,cf')) -> add_tgt c cf' CfrMember
+				| TField(_,FStatic(c,cf')) -> add_tgt c cf' CfrStatic
+				| TField(_,FClosure(Some(c,_),cf')) -> add_tgt c cf' CfrMember
+				| TNew(c,_,_) -> (match c.cl_constructor with Some cf' -> add_tgt c cf' CfrConstructor | None -> ())
+				| _ -> ());
+				Type.iter walk e
+			in
+			walk e
+	in
 	let rec check_field src m cf =
 		check_t src m cf.cf_type;
+		check_body src m cf;
 		List.iter (check_field src m) cf.cf_overloads
 	in
 	match t with
