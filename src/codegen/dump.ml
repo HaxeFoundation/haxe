@@ -190,6 +190,14 @@ let dump_dependencies ?(target_override=None) com =
 	let buf,close = create_dumpfile [] dump_dependencies_path in
 	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
 	let dep = Hashtbl.create 0 in
+	(* Tally how the field-level dependency lattice partitions edges, to gauge how much
+	   the skeleton/field tiers win over the conservative MDFull default. *)
+	let n_skeleton = ref 0 and n_fields = ref 0 and n_full = ref 0 in
+	let s_dep_fields = function
+		| MDSkeleton -> incr n_skeleton; "skeleton"
+		| MDFields fds -> incr n_fields; "fields: " ^ String.concat "," (List.map (fun fd -> fd.fd_field) fds)
+		| MDFull -> incr n_full; "full"
+	in
 	List.iter (fun m ->
 		print "%s:\n" (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		PMap.iter (fun _ mdep ->
@@ -203,11 +211,15 @@ let dump_dependencies ?(target_override=None) com =
 				with Not_found -> (com.cs#get_context mdep.md_sign)#find_module_extra mdep.md_path
 			in
 			let file = Path.UniqueKey.lazy_path mdep_extra.m_file in
-			print "\t%s%s\n" ctx file;
+			print "\t%s%s [%s]\n" ctx file (s_dep_fields mdep.md_fields);
 			let l = try Hashtbl.find dep file with Not_found -> [] in
 			Hashtbl.replace dep file (m :: l)
 		) m.m_extra.m_deps;
 	) com.Common.modules;
+	let total = !n_skeleton + !n_fields + !n_full in
+	let pct n = if total = 0 then 0. else 100. *. float_of_int n /. float_of_int total in
+	print "\n# dependency edges: %d total | skeleton %d (%.1f%%) | fields %d (%.1f%%) | full %d (%.1f%%)\n"
+		total !n_skeleton (pct !n_skeleton) !n_fields (pct !n_fields) !n_full (pct !n_full);
 	close();
 	let dump_dependants_path = [com.part_scope.dump_config.dump_path;target_name;"dependants"] in
 	let buf,close = create_dumpfile [] dump_dependants_path in
