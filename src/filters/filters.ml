@@ -335,6 +335,16 @@ let update_cache_dependencies ~close_monomorphs scom t =
 			in
 			let add_tgt c cf' kind = add_tgt_raw c.cl_module c.cl_path cf'.cf_name kind in
 			let add_enum en ef = add_tgt_raw en.e_module en.e_path ef.ef_name CfrConstructor in
+			(* A type referenced as a value (TTypeExpr) or cast target has no specific field, but it is
+			   sourced to the enclosing field. Deduplicated per module via [seen_t]. *)
+			let seen_t = Hashtbl.create 0 in
+			let add_type_ref mt =
+				let mdep = (t_infos mt).mt_module in
+				if not (Hashtbl.mem seen_t mdep.m_path) then begin
+					Hashtbl.add seen_t mdep.m_path ();
+					add_dependency ~skip_postprocess:true ?src m mdep MDepFromTyping
+				end
+			in
 			let rec walk e =
 				(match e.eexpr with
 				| TField(_,FInstance(c,_,cf')) -> add_tgt c cf' CfrMember
@@ -343,6 +353,8 @@ let update_cache_dependencies ~close_monomorphs scom t =
 				| TField(_,FEnum(en,ef)) -> add_enum en ef
 				| TEnumParameter(e1,ef,_) -> (match follow e1.etype with TEnum(en,_) -> add_enum en ef | _ -> ())
 				| TNew(c,_,_) -> (match c.cl_constructor with Some cf' -> add_tgt c cf' CfrConstructor | None -> ())
+				| TTypeExpr mt -> add_type_ref mt
+				| TCast(_,Some mt) -> add_type_ref mt
 				| _ -> ());
 				Type.iter walk e
 			in
