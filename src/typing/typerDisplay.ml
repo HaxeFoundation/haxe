@@ -591,9 +591,9 @@ let filter_ctors ctx r =
 	) r.fitems
 
 let handle_display ctx e_ast dk mode with_type =
-	let old = ctx.f.in_display,ctx.f.in_call_args in
+	let old_in_display = ctx.f.in_display in
+	let restore_call_args = suspend_call_args ctx in
 	ctx.f.in_display <- true;
-	ctx.f.in_call_args <- false;
 	let tpair t =
 		let ct = CompletionType.from_type (get_import_status ctx) t in
 		(t,ct)
@@ -651,8 +651,8 @@ let handle_display ctx e_ast dk mode with_type =
 	if is_display_debug then begin
 		print_endline (Printf.sprintf "cast expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
 	end;
-	ctx.f.in_display <- fst old;
-	ctx.f.in_call_args <- snd old;
+	ctx.f.in_display <- old_in_display;
+	restore_call_args ();
 	let f () = display_expr ctx e_ast e dk mode with_type p in
 	if in_overload_call_args ctx then begin
 		try

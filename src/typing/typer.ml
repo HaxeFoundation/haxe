@@ -404,7 +404,7 @@ and type_ident ctx i p mode with_type =
 					   unqualified enum value typed against an earlier non-matching parameter).
 					   In diagnostics mode the default path below would instead record a
 					   diagnostic and return a placeholder, producing a false positive. (#10634, #7924) *)
-					if ctx.f.in_call_args then raise (WithTypeError (make_error err p));
+					if in_call_args ctx then raise (WithTypeError (make_error err p));
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
@@ -1278,11 +1278,10 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	   WithTypeError and wrapped by arg_error. During overload resolution in_call_args is
 	   kept, because a body error there must reject the candidate. (#10634, #7924) *)
 	let e =
-		let old_in_call_args = ctx.f.in_call_args in
-		let resets_call_args = old_in_call_args && not (in_overload_call_args ctx) in
-		if resets_call_args then ctx.f.in_call_args <- false;
+		let resets_call_args = in_call_args ctx && not (in_overload_call_args ctx) in
+		let restore_call_args = if resets_call_args then suspend_call_args ctx else (fun () -> ()) in
 		let messages_before = ctx.com.part_scope.messages in
-		let e = Std.finally (fun () -> ctx.f.in_call_args <- old_in_call_args)
+		let e = Std.finally restore_call_args
 			(fun () ->
 				(* A block body recovers per-statement inside type_block, but an expression
 				   body (e.g. `() -> x`) would let the error propagate out and be mistaken

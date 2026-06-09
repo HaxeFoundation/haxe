@@ -96,12 +96,14 @@ type function_mode =
 	| FunNotFunction
 
 (* State that is live only while unify_call_args is resolving a call's arguments.
-   Its lifetime spans the whole call resolution, which is coarser than in_call_args
-   (that bool is additionally toggled off while typing function-literal bodies and
-   display sub-expressions). *)
+   `g.call_arg_context = Some _` is exactly the old `in_call_args` flag: the
+   expression being typed is in call-argument position, so unification errors must
+   raise (to drive optional-arg skipping / overload resolution) rather than display.
+   It is reset to None — not just queried — while typing function-literal bodies and
+   display sub-expressions, so that errors there display in place. *)
 type call_arg_context = {
 	(* True while resolving an overloaded call. There a function-literal body error
-	   must reject the candidate, so in_call_args is kept instead of being reset. *)
+	   must reject the candidate, so the context is kept instead of being reset. *)
 	cac_in_overload : bool;
 	(* Messages committed while typing the body of a function literal passed as a call
 	   argument. unify_call_args uses this to roll back body errors of an argument that
@@ -164,7 +166,6 @@ and typer_field = {
 	mutable untyped : bool;
 	mutable meta : metadata;
 	mutable in_display : bool;
-	mutable in_call_args : bool;
 }
 
 and typer = {
@@ -234,7 +235,6 @@ module TyperManager = struct
 			untyped = false;
 			meta = [];
 			in_display = false;
-			in_call_args = false;
 		}
 
 	let create_ctx_e curfun function_mode =
@@ -407,18 +407,28 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
-(* Enter call-argument resolution for the duration of unify_call_args: mark
-   argument-position expressions (in_call_args) and install a fresh call_arg_context.
-   Returns a restore function that pops both, so nested calls do not leak state. *)
+(* True while typing an expression in call-argument position: unification errors
+   must raise (to drive optional-arg skipping / overload resolution) rather than
+   display. Equivalent to "a call_arg_context is installed". *)
+let in_call_args ctx = match ctx.g.call_arg_context with
+	| Some _ -> true
+	| None -> false
+
+(* Enter call-argument resolution for the duration of unify_call_args by installing a
+   fresh call_arg_context. Returns a restore function that pops it, so nested calls do
+   not leak state. *)
 let enter_call_args ctx ~in_overload =
-	let old_in_call_args = ctx.f.in_call_args in
 	let old_context = ctx.g.call_arg_context in
-	ctx.f.in_call_args <- true;
 	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_messages = [] };
-	(fun () ->
-		ctx.f.in_call_args <- old_in_call_args;
-		ctx.g.call_arg_context <- old_context;
-	)
+	(fun () -> ctx.g.call_arg_context <- old_context)
+
+(* Temporarily leave call-argument position (e.g. while typing a function-literal body
+   or a display sub-expression) so errors there display in place instead of raising.
+   Returns a restore function. *)
+let suspend_call_args ctx =
+	let old_context = ctx.g.call_arg_context in
+	ctx.g.call_arg_context <- None;
+	(fun () -> ctx.g.call_arg_context <- old_context)
 
 let in_overload_call_args ctx = match ctx.g.call_arg_context with
 	| Some cac -> cac.cac_in_overload
@@ -441,16 +451,16 @@ let raise_with_type_error msg p =
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()
-	else if ctx.f.in_call_args then raise (WithTypeError (make_error (Unify l) p))
+	else if in_call_args ctx then raise (WithTypeError (make_error (Unify l) p))
 	else display_error_ext ctx.com (make_error (Unify l) p)
 
 let raise_or_display_error ctx err =
 	if ctx.f.untyped then ()
-	else if ctx.f.in_call_args then raise (WithTypeError err)
+	else if in_call_args ctx then raise (WithTypeError err)
 	else display_error_ext ctx.com err
 
 let raise_or_display_message ctx msg p =
-	if ctx.f.in_call_args then raise_with_type_error msg p
+	if in_call_args ctx then raise_with_type_error msg p
 	else display_error ctx.com msg p
 
 let unify ctx t1 t2 p =
