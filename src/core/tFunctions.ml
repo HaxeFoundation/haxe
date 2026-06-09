@@ -305,23 +305,48 @@ let null_abstract = {
 	a_enum = false;
 }
 
-let create_dependency mdep origin =
-	{md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = origin}
+let create_dependency ?(fields=MDFull) mdep origin =
+	{md_sign = mdep.m_extra.m_sign; md_path = mdep.m_path; md_kind = mdep.m_extra.m_kind; md_origin = origin; md_fields = fields}
+
+(* Combines the symbol requirements of two edges to the same dependency, taking the least upper
+   bound in the lattice MDSkeleton < MDFields < MDFull. [MDFull] dominates; a field set implies the
+   skeleton, so it absorbs [MDSkeleton]; two field sets are merged (deduplicated on name + kind). *)
+let merge_dep_fields f1 f2 = match f1,f2 with
+	| MDFull,_ | _,MDFull -> MDFull
+	| MDFields l1,MDFields l2 ->
+		MDFields (List.fold_left (fun acc fd ->
+			if List.exists (fun fd' -> fd'.fd_field = fd.fd_field && fd'.fd_kind = fd.fd_kind) acc then acc
+			else fd :: acc
+		) l1 l2)
+	| (MDFields _ as f),MDSkeleton | MDSkeleton,(MDFields _ as f) -> f
+	| MDSkeleton,MDSkeleton -> MDSkeleton
 
 let add_dependency_mutex = Mutex.create ()
 
-let add_dependency ?(skip_postprocess=false) m mdep = function
+let add_dependency ?(skip_postprocess=false) ?(fields=MDFull) m mdep origin =
+	match origin with
 	(* These module dependency origins should not add as a dependency *)
 	| MDepFromMacroInclude -> ()
 
 	| origin ->
 		if m != null_module && mdep != null_module && (m.m_path != mdep.m_path || m.m_extra.m_sign != mdep.m_extra.m_sign) then begin
 			Mutex.protect add_dependency_mutex (fun () ->
-				m.m_extra.m_deps <- PMap.add mdep.m_id (create_dependency mdep origin) m.m_extra.m_deps;
+				let base = create_dependency ~fields mdep origin in
+				let dep = match PMap.find mdep.m_id m.m_extra.m_deps with
+					| existing -> { base with md_fields = merge_dep_fields existing.md_fields base.md_fields }
+					| exception Not_found -> base
+				in
+				m.m_extra.m_deps <- PMap.add mdep.m_id dep m.m_extra.m_deps;
 				(* In case the module is cached, we'll have to run post-processing on it again (issue #10635) *)
 				if not skip_postprocess then m.m_extra.m_processed <- 0
 			)
 		end
+
+(* Records that [m] uses field [name] (of the given [kind]) from dependency [mdep]. Merges with
+   any existing edge. Currently additive metadata only: edges created from type references stay
+   [MDFull], so this is dominated until those are refined to skeleton-level edges. *)
+let add_field_dependency ?(skip_postprocess=false) m mdep kind name origin =
+	add_dependency ~skip_postprocess ~fields:(MDFields [{fd_field = name; fd_kind = kind}]) m mdep origin
 
 let arg_name (a,_) = a.v_name
 

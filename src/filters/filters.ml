@@ -277,18 +277,21 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 
 let update_cache_dependencies ~close_monomorphs scom t =
 	let visited_anons = ref [] in
+	(* These references all appear in signature positions (field types), so they only need the
+	   dependency's structure (MDSkeleton), not its field bodies. Merges with any heavier edge
+	   already recorded during typing (e.g. an import), which dominates. *)
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
-			add_dependency m c.cl_module MDepFromTyping;
+			add_dependency ~fields:MDSkeleton m c.cl_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TEnum(en,tl) ->
-			add_dependency m en.e_module MDepFromTyping;
+			add_dependency ~fields:MDSkeleton m en.e_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TType(t,tl) ->
-			add_dependency m t.t_module MDepFromTyping;
+			add_dependency ~fields:MDSkeleton m t.t_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TAbstract(a,tl) ->
-			add_dependency m a.a_module MDepFromTyping;
+			add_dependency ~fields:MDSkeleton m a.a_module MDepFromTyping;
 			List.iter (check_t m) tl;
 		| TFun(targs,tret) ->
 			List.iter (fun (_,_,t) -> check_t m t) targs;
