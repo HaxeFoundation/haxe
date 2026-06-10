@@ -149,13 +149,19 @@ let check_module sctx com m_path m_extra p =
 			true
 	in
 	let pack_path = match fst m_path with [] -> "" | pack -> String.concat "/" pack ^ "/" in
-	let dir_is_package_dir c_path =
-		let n = String.length pack_path and l = String.length c_path in
-		n = 0 || (l >= n && String.sub c_path (l - n) n = pack_path)
+	let contains hay needle =
+		let nl = String.length needle and hl = String.length hay in
+		let rec loop i = i + nl <= hl && (String.sub hay i nl = needle || loop (i + 1)) in
+		nl = 0 || loop 0
+	in
+	let dir_hosts_shadow c_path =
+		pack_path = ""
+		|| String.starts_with ~prefix:pack_path c_path
+		|| contains c_path ("/" ^ pack_path)
 	in
 	let check_module_shadowing paths m_path m_extra =
 		List.iter (fun dir ->
-			if dir_is_package_dir dir.c_path then begin
+			if dir_hosts_shadow dir.c_path then begin
 				let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
 				if Sys.file_exists file then begin
 					let time = file_time file in
