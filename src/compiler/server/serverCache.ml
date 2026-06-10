@@ -570,9 +570,11 @@ let cleanup sctx =
 	(* Remove context caches that haven't been accessed within the max age window.
 	   This prevents unbounded accumulation of stale contexts when compilation defines
 	   change between requests, generating new cache signatures each time. *)
-	let removed = sctx.cs#remove_stale_contexts !ServerConfig.stale_context_max_age_seconds in
-	if removed > 0 then
-		ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed)
+	if !ServerConfig.stale_context_max_age_seconds > -1 then begin
+		let removed = sctx.cs#remove_stale_contexts !ServerConfig.stale_context_max_age_seconds in
+		if removed > 0 then
+			ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed)
+	end
 
 let before_anything sctx ctx =
 	ensure_macro_setup sctx
