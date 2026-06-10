@@ -39,7 +39,7 @@ let perform_type_voodoo t tl' tr' =
 			| _ -> (List.rev acc) @ tl'
 		in
 		let tl = loop [] tl tl' in
-		TFun(tl,if tr == t_dynamic then tr' else tr')
+		TFun(tl,if tr == t_dynamic then tr' else tr)
 	| _ ->
 		TFun(tl',tr')
 
@@ -89,7 +89,8 @@ class explore_class_path_task com checked recursive f_pack f_module dir pack = o
 									let name = String.sub file 0 (l - 3) in
 									try
 										let dot_pos = String.rindex name '.' in
-										let second_ext = String.sub file dot_pos (String.length name - dot_pos) in
+										(* The second extension without the dot, e.g. "js" for Foo.js.hx. *)
+										let second_ext = String.sub file (dot_pos + 1) (String.length name - dot_pos - 1) in
 										if (Option.map_default (fun custom_ext -> custom_ext = second_ext) false com.custom_ext) || platform_str = second_ext then
 											String.sub file 0 dot_pos
 										else
