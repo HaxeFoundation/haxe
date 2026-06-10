@@ -490,7 +490,7 @@ jobs:
           haxelib setup "$env:HAXELIB_ROOT"
 
       - name: Add msbuild to PATH (hl/c)
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
         if: matrix.target == 'hl'
         with:
           msbuild-architecture: x64
