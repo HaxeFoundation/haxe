@@ -414,7 +414,7 @@ jobs:
 
   windows64-test:
     needs: windows64-build
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     env:
       PLATFORM: windows64
       TEST: ${{matrix.target}}
