@@ -655,8 +655,6 @@ class TestInt64 extends Test {
 		f(x < x);
 	}
 
-	#if !cpp
-	// Default argument values for haxe.Int64 (int and i64 literals), not yet supported on cpp
 	static function defI64(i:Int64 = 0i64):Int64 return i;
 	static function defInt(i:Int64 = 7):Int64 return i;
 	static function defNeg(i:Int64 = -5i64):Int64 return i;
@@ -672,5 +670,4 @@ class TestInt64 extends Test {
 		// passed value must win over the default
 		eq("9223372036854775807", defI64(0x7FFFFFFFFFFFFFFFi64).toStr());
 	}
-	#end
 }
