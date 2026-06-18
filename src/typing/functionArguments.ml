@@ -27,15 +27,17 @@ let type_function_arg_value ctx t c do_display =
 			let e = AbstractCast.cast_or_unify ctx t e p in
 			let e = Optimizer.reduce_expression (SafeCom.of_typer ctx) e in
 			let run_analyzer e = !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e in
-			let rec check_this e = match e.eexpr with
-				| TConst TThis ->
-					raise_typing_error "Cannot access this in a default argument value" e.epos
-				| TLocal v when (match ctx.f.vthis with Some v2 -> v == v2 | None -> false) ->
-					raise_typing_error "Cannot access this in a default argument value" e.epos
-				| _ ->
-					Type.iter check_this e
-			in
-			check_this e;
+			if ctx.f.curfield.cf_name = "new" then begin
+				let rec check_this e = match e.eexpr with
+					| TConst TThis ->
+						raise_typing_error "Cannot access this in a constructor's default argument value" e.epos
+					| TLocal v when (match ctx.f.vthis with Some v2 -> v == v2 | None -> false) ->
+						raise_typing_error "Cannot access this in a constructor's default argument value" e.epos
+					| _ ->
+						Type.iter check_this e
+				in
+				check_this e
+			end;
 			let references_arg e =
 				let rec loop e = match e.eexpr with
 					| TLocal v when (try PMap.find v.v_name ctx.f.locals == v with Not_found -> false) -> raise Exit

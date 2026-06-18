@@ -107,5 +107,20 @@ class TestDefaultArgs extends Test {
 		eq("2,3,3", fChain(2, 3));
 		eq("2,3,4", fChain(2, 3, 4));
 	}
+
+	// --- A (non-constructor) method default may reference `this` ---
+	var instanceField = 10;
+
+	function mThis(x:Int = this.instanceField):Int
+		return x;
+
+	public function testThisInDefault() {
+		instanceField = 10;
+		eq(10, mThis());
+		eq(3, mThis(3));
+		// evaluated at call time
+		instanceField = 99;
+		eq(99, mThis());
+	}
 	#end
 }
