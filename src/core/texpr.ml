@@ -41,7 +41,7 @@ let iter f e =
 	| TVar (v,eo) ->
 		(match eo with None -> () | Some e -> f e)
 	| TFunction fu ->
-		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> f e) fu.tf_args;
+		List.iter (fun (_,eo) -> match eo with None | Some {eexpr = TConst TNull} -> () | Some e -> f e) fu.tf_args;
 		f fu.tf_expr
 	| TIf (e,e1,e2) ->
 		f e;
@@ -80,8 +80,7 @@ let check_expr predicate e =
 		| TVar (_,eo) | TReturn eo ->
 			(match eo with None -> false | Some e -> predicate e)
 		| TFunction fu ->
-			List.exists (fun (_,eo) -> match eo with None -> false | Some e -> predicate e) fu.tf_args
-			|| predicate fu.tf_expr
+			List.exists (fun (_,eo) -> match eo with None | Some {eexpr = TConst TNull} -> false | Some e -> predicate e) fu.tf_args || predicate fu.tf_expr
 		| TIf (e,e1,e2) ->
 			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
 		| TSwitch switch ->
@@ -135,7 +134,11 @@ let map_expr f e =
 	| TVar (v,eo) ->
 		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
 	| TFunction fu ->
-		{ e with eexpr = TFunction { fu with tf_args = List.map (fun (v,eo) -> v,Option.map f eo) fu.tf_args; tf_expr = f fu.tf_expr } }
+		let map_arg (v,eo) = match eo with
+			| None | Some {eexpr = TConst TNull} -> v,eo
+			| Some e -> v,Some (f e)
+		in
+		{ e with eexpr = TFunction { fu with tf_args = List.map map_arg fu.tf_args; tf_expr = f fu.tf_expr } }
 	| TIf (ec,e1,e2) ->
 		let ec = f ec in
 		let e1 = f e1 in
@@ -440,8 +443,9 @@ let foldmap f acc e =
 		acc,{ e with eexpr = TVar (v, eo) }
 	| TFunction fu ->
 		let acc,tf_args = List.fold_left (fun (acc,args) (v,eo) ->
-			let acc,eo = foldmap_opt f acc eo in
-			acc,((v,eo) :: args)
+			match eo with
+			| None | Some {eexpr = TConst TNull} -> acc,((v,eo) :: args)
+			| _ -> let acc,eo = foldmap_opt f acc eo in acc,((v,eo) :: args)
 		) (acc,[]) fu.tf_args in
 		let tf_args = List.rev tf_args in
 		let acc,e1 = f acc fu.tf_expr in
