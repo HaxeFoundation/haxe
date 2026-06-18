@@ -4,6 +4,14 @@ open Type
 open Typecore
 open Error
 
+let rec is_flash_native_basic t = match follow t with
+	| TAbstract({a_path=([],("Int"|"Float"|"Bool"))},_) -> true
+	| TAbstract({a_path=(["haxe"],("Int32"|"UInt32"))},_) -> true
+	| TInst({cl_path=([],("Int"|"Float"))},_) -> true
+	| TInst({cl_path=(["haxe"],"Int32")},_) -> true
+	| TEnum({e_path=([],"Bool")},_) -> true
+	| _ -> false
+
 let type_function_arg com t e opt p =
 	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
 	(* delay ctx PTypeField (fun() ->
@@ -52,7 +60,7 @@ let type_function_arg_value ctx t c do_display =
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
 				| TCast(e,None) -> loop analyzered e
 				| _ when not analyzered && not (references_arg e) -> loop true (run_analyzer e)
-				| _ when ctx.com.platform = Flash && not (is_nullable t) ->
+				| _ when ctx.com.platform = Flash && is_flash_native_basic t ->
 					raise_typing_error ("Non-constant default argument values are not supported on the flash target for basic type " ^ s_type (print_context()) t) p
 				| _ -> Some e
 			in
