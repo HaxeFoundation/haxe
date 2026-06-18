@@ -255,6 +255,7 @@ type part_scope = {
 	mutable messages : Message.t list;
 	mutable has_error : bool;
 	mutable report_mode : report_mode;
+	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
 	pass_debug_messages : string DynArray.t;
 	dump_config : DumpConfig.t;
@@ -836,10 +837,31 @@ let has_error_to_report com =
 	) com.part_scope.messages in
 	com.part_scope.has_error && (is_compilation com || has_reportable_message)
 
-let rollback_messages com msgs =
-	let messages = List.filter (fun cm -> not (List.memq cm msgs)) com.part_scope.messages in
-	com.part_scope.messages <- messages;
-	com.part_scope.has_error <- List.exists (fun cm -> Message.cm_severity cm = MessageSeverity.Error) messages
+let activate_message_capture com buf =
+	let old_capture = com.part_scope.message_capture in
+	let old_hook = !lazy_force_hook in
+	com.part_scope.message_capture <- Some buf;
+	lazy_force_hook := (fun f ->
+		let saved = com.part_scope.message_capture in
+		com.part_scope.message_capture <- None;
+		let r = (try f () with exc -> com.part_scope.message_capture <- saved; raise exc) in
+		com.part_scope.message_capture <- saved;
+		r
+	);
+	(fun () ->
+		com.part_scope.message_capture <- old_capture;
+		lazy_force_hook := old_hook
+	)
+
+let commit_captured_messages com (buf : Message.t list) =
+	List.iter (fun cm ->
+		match com.part_scope.message_capture with
+		| Some parent ->
+			parent := cm :: !parent
+		| None ->
+			if Message.cm_severity cm = MessageSeverity.Error then com.part_scope.has_error <- true;
+			com.part_scope.messages <- cm :: com.part_scope.messages
+	) (List.rev buf)
 
 let disable_report_mode com =
 	let old = com.part_scope.report_mode in
@@ -1092,8 +1114,13 @@ let hash f =
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
 let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
-	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
-	com.part_scope.messages <- (make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind) :: com.part_scope.messages
+	let cm = make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind in
+	match com.part_scope.message_capture with
+	| Some buf ->
+		buf := cm :: !buf
+	| None ->
+		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
+		com.part_scope.messages <- cm :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin

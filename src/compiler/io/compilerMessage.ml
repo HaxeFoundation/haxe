@@ -21,9 +21,13 @@ open Type
 
     Sets [com.part_scope.has_error] when severity is [Error]. *)
 let add_message com msg p depth message_kind =
-	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
 	let cm = make_message com.is_macro_context msg p depth message_kind in
-	com.part_scope.messages <- cm :: com.part_scope.messages
+	match com.part_scope.message_capture with
+	| Some buf ->
+		buf := cm :: !buf
+	| None ->
+		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
+		com.part_scope.messages <- cm :: com.part_scope.messages
 
 (** Add a compiler message that is bound to a specific module's cache.
 
@@ -97,8 +101,10 @@ let default_error_handler com =
 		Error.recurse_error (fun depth err ->
 			add_message com (Error.error_msg err.err_message) err.err_pos depth MKError
 		) err;
-		com.part_scope.has_error <- true;
-		if Common.fail_fast com then raise Abort
+		if com.part_scope.message_capture = None then begin
+			com.part_scope.has_error <- true;
+			if Common.fail_fast com then raise Abort
+		end
 	)
 
 let default_warning_handler com =

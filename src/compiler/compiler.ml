@@ -531,6 +531,7 @@ let create_context (sctx : ServerCompilationContext.t) request_scope runtime_arg
 		has_error = false;
 		messages = [];
 		report_mode = RMNone;
+		message_capture = None;
 		compilation_step = sctx.compilation_step;
 		pass_debug_messages = DynArray.create ();
 		dump_config = DumpConfig.create_default ();

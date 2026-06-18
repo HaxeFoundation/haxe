@@ -97,7 +97,7 @@ type function_mode =
 
 type call_arg_context = {
 	cac_in_overload : bool;
-	mutable cac_body_messages : Message.t list;
+	mutable cac_body_capture : Message.t list ref;
 }
 
 type typer_globals = {
@@ -410,7 +410,7 @@ let enter_call_args ctx ~in_overload =
 	let old_in_call_args = ctx.f.in_call_args in
 	let old_context = ctx.g.call_arg_context in
 	ctx.f.in_call_args <- true;
-	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_messages = [] };
+	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_capture = ref [] };
 	(fun () ->
 		ctx.f.in_call_args <- old_in_call_args;
 		ctx.g.call_arg_context <- old_context;
@@ -420,17 +420,13 @@ let in_overload_call_args ctx = match ctx.g.call_arg_context with
 	| Some cac -> cac.cac_in_overload
 	| None -> false
 
-let call_arg_body_messages ctx = match ctx.g.call_arg_context with
-	| Some cac -> cac.cac_body_messages
-	| None -> []
+let reset_call_arg_body_capture ctx = match ctx.g.call_arg_context with
+	| Some cac -> let buf = ref [] in cac.cac_body_capture <- buf; buf
+	| None -> ref []
 
-let reset_call_arg_body_messages ctx = match ctx.g.call_arg_context with
-	| Some cac -> cac.cac_body_messages <- []
-	| None -> ()
-
-let add_call_arg_body_messages ctx msgs = match ctx.g.call_arg_context with
-	| Some cac -> cac.cac_body_messages <- msgs @ cac.cac_body_messages
-	| None -> ()
+let call_arg_body_capture ctx = match ctx.g.call_arg_context with
+	| Some cac -> Some cac.cac_body_capture
+	| None -> None
 
 let raise_with_type_error msg p =
 	raise (WithTypeError (make_error (Custom msg) p))
