@@ -153,6 +153,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 		| e :: el,(name,opt,t) :: args ->
 			let might_skip = List.length el < List.length args in
 			reset_call_arg_body_messages ctx;
+			let restore_monos = monomorph_transaction ctx in
 			begin try
 				let e = type_against name t e in
 				e :: loop el args
@@ -164,9 +165,11 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 						| body_msgs ->
 							rollback_messages ctx.com body_msgs
 						end;
+						restore_monos();
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
 					end else if call_arg_body_messages ctx <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+						restore_monos();
 						let e_def = default_value name t in
 						e_def :: loop el args
 					end else

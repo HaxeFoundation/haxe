@@ -391,6 +391,17 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
+let monomorph_transaction ctx =
+	let known = List.map (fun (m,_) -> m,m.tm_type,m.tm_down_constraints) ctx.e.monomorphs in
+	let current = ctx.e.monomorphs in
+	(fun () ->
+		List.iter (fun (m,t,constr) ->
+			if t != m.tm_type then m.tm_type <- t;
+			if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
+		) known;
+		ctx.e.monomorphs <- current
+	)
+
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
