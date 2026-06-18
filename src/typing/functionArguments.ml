@@ -36,12 +36,20 @@ let type_function_arg_value ctx t c do_display =
 					Type.iter check_this e
 			in
 			check_this e;
+			let references_arg e =
+				let rec loop e = match e.eexpr with
+					| TLocal v when (try PMap.find v.v_name ctx.f.locals == v with Not_found -> false) -> raise Exit
+					| _ -> Type.iter loop e
+				in
+				try loop e; false with Exit -> true
+			in
 			let rec loop analyzered e = match e.eexpr with
 				| TConst _ -> Some e
+				| TLocal _ -> Some e
 				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 				| TField({eexpr = TTypeExpr _},FStatic({cl_kind = KAbstractImpl a},cf)) when a.a_enum && has_class_field_flag cf CfEnum -> Some e
 				| TCast(e,None) -> loop analyzered e
-				| _ when not analyzered -> loop true (run_analyzer e)
+				| _ when not analyzered && not (references_arg e) -> loop true (run_analyzer e)
 				| _ -> Some e
 			in
 			loop false e
@@ -131,6 +139,7 @@ object(self)
 					if do_display && DisplayPosition.display_position#enclosed_in pn then
 						DisplayEmitter.display_variable ctx v pn;
 					if acc = [] && TyperManager.is_coroutine_context ctx then check_coroutine_scope v;
+					if name <> "_" then ctx.f.locals <- PMap.add v.v_name v ctx.f.locals;
 					loop ((v,eo) :: acc) false syntax typed
 				| [],[] ->
 					List.rev acc

@@ -90,5 +90,22 @@ class TestDefaultArgs extends Test {
 		eq(100, fCall(100));
 		eq(2, Helper.counter);
 	}
+
+	// --- A default value may reference a preceding argument ---
+	static function fSibling(a:Int, b:Int = a):Int
+		return a + b;
+
+	static function fChain(a:Int = 1, b:Int = a, c:Int = b):String
+		return '$a,$b,$c';
+
+	public function testSiblingArg() {
+		eq(10, fSibling(5));
+		eq(8, fSibling(5, 3));
+		// chained defaults are injected in argument order
+		eq("1,1,1", fChain());
+		eq("2,2,2", fChain(2));
+		eq("2,3,3", fChain(2, 3));
+		eq("2,3,4", fChain(2, 3, 4));
+	}
 	#end
 }

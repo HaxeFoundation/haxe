@@ -243,11 +243,11 @@ let inject_rest_args ctx args e =
 
 let fun_block ctx f p =
     let fn_body = inject_rest_args ctx f.tf_args f.tf_expr in
-    List.fold_left (fun e (a,c) ->
+    List.fold_right (fun (a,c) e ->
         match c with
         | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
-    ) fn_body f.tf_args
+    ) f.tf_args fn_body
 
 let open_block ctx =
     let oldt = ctx.tabs in

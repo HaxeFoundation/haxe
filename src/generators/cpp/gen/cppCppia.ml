@@ -907,11 +907,12 @@ class script_writer ctx filename asciiOut basic =
           | _ -> this#write "0\n")
         args;
 
-      if List.length !gen_inits == 0 then fun () -> ()
+      let gen_inits = List.rev !gen_inits in
+      if List.length gen_inits == 0 then fun () -> ()
       else (
         this#begin_expr;
-        this#writePos (snd (List.hd !gen_inits));
-        this#writeList (this#op IaBlock) (List.length !gen_inits + 1);
+        this#writePos (snd (List.hd gen_inits));
+        this#writeList (this#op IaBlock) (List.length gen_inits + 1);
         List.iter
           (fun (arg, const) ->
             let start_expr () =
@@ -939,7 +940,7 @@ class script_writer ctx filename asciiOut basic =
             this#gen_expression const;
             this#end_expr;
             this#begin_expr)
-          !gen_inits;
+          gen_inits;
         fun () -> this#end_expr)
 
     method gen_expression expr =

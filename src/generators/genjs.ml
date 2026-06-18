@@ -210,11 +210,11 @@ let declare_rest_args_legacy com offset rest_arg =
 	]
 
 let fun_block ctx f p =
-	let e = List.fold_left (fun e (a,c) ->
+	let e = List.fold_right (fun (a,c) e ->
 		match c with
 		| None | Some {eexpr = TConst TNull} -> e
 		| Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
-	) f.tf_expr f.tf_args in
+	) f.tf_args f.tf_expr in
 	e
 
 let open_block ctx =
