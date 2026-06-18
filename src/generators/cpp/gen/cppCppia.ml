@@ -756,7 +756,7 @@ class script_writer ctx filename asciiOut basic =
         match fieldExpression with
         | Some ({ eexpr = TFunction function_def } as e) ->
             if cppiaAst then (
-              let args = List.map (fun (v, e) -> (CppRetyper.retype_tvar basic v), e) function_def.tf_args in
+              let args = List.map this#retype_default_arg function_def.tf_args in
               let cppExpr =
                 CppRetyper.expression ctx TCppVoid args (cpp_type_of basic function_def.tf_type)
                   function_def.tf_expr false
@@ -884,6 +884,16 @@ class script_writer ctx filename asciiOut basic =
            this#writeOpLine op);
         this#gen_expression expr)
 
+    method private retype_default_arg (v, e) =
+      let v =
+        match e with
+        | Some { eexpr = TConst _ } | None -> v
+        | Some _ when is_cpp_scalar (cpp_type_of basic v.v_type) ->
+            { v with v_type = basic.tnull v.v_type }
+        | Some _ -> v
+      in
+      (CppRetyper.retype_tvar basic v, e)
+
     method gen_func_args args =
       let gen_inits = ref [] in
       List.iter
@@ -959,7 +969,7 @@ class script_writer ctx filename asciiOut basic =
             ^ this#typeText function_def.tf_type
             ^ string_of_int (List.length function_def.tf_args)
             ^ "\n");
-          let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar basic v, e) function_def.tf_args) in
+          let close = this#gen_func_args (List.map this#retype_default_arg function_def.tf_args) in
           let pop = this#pushReturn function_def.tf_type in
           this#gen_expression function_def.tf_expr;
           pop ();
