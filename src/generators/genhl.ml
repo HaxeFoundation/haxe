@@ -686,15 +686,24 @@ and class_type ?(tref=None) ctx c pl statics =
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
 		if not statics then begin
 			(* add interfaces *)
-			List.iter (fun (i,pl) ->
-				if not (has_class_flag i CExtern) then begin
+			let seen = ref PMap.empty in
+			let rec add_interface i pl =
+				if not (has_class_flag i CExtern) && not (PMap.mem i.cl_path !seen) then begin
+					seen := PMap.add i.cl_path () !seen;
 					let rid = ref (-1) in
 					rid := add_field "" (fun() ->
 						let t = to_type ctx (TInst (i,pl)) in
 						p.pinterfaces <- PMap.add t !rid p.pinterfaces;
 						t
 					);
+					List.iter (fun (si,spl) ->
+						let spl = List.map (apply_params i.cl_params pl) spl in
+						add_interface si spl
+					) i.cl_implements;
 				end;
+			in
+			List.iter (fun (i,pl) ->
+				add_interface i pl
 			) c.cl_implements;
 			(* check toString *)
 			(try
