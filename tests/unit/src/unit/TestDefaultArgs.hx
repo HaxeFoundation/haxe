@@ -4,7 +4,9 @@ import haxe.Int64;
 
 private class Helper {
 	public static var counter = 0;
-	public static inline final CONST = 7;
+	// non-inline so a default referencing it is genuinely non-constant (and must
+	// survive DCE)
+	public static var seven = 7;
 
 	public static function make():Int {
 		counter++;
@@ -17,8 +19,7 @@ private class Helper {
 }
 
 class TestDefaultArgs extends Test {
-	// --- Non-value-type, non-constant defaults (work everywhere but cpp) ---
-	#if !cpp
+	// --- Non-constant defaults of object/string types (work on every target) ---
 	static function fArr(a:Array<Int> = [1, 2, 3]):Int
 		return a.length;
 
@@ -28,8 +29,10 @@ class TestDefaultArgs extends Test {
 	static function fStr(s:String = "a" + "b"):String
 		return s;
 
+	static function defArr(a:Array<Int> = []):Array<Int>
+		return a;
+
 	public function testNonConstReference() {
-		// array/object/string defaults
 		eq(3, fArr());
 		eq(0, fArr([]));
 		eq(9, fObj());
@@ -44,15 +47,27 @@ class TestDefaultArgs extends Test {
 		eq(0, a2.length);
 	}
 
-	static function defArr(a:Array<Int> = []):Array<Int>
-		return a;
-	#end
+	// --- haxe.Int64 defaults (the original motivation; Int64 is never a TConst) ---
+	static function fI64(v:Int64 = 5):String
+		return Int64.toStr(v);
 
-	// --- Value-type, non-constant defaults. Not supported on cpp (can't
-	//     render the default) nor flash (basic types can't hold the null
-	//     "not passed" sentinel). ---
-	#if (!cpp && !flash)
-	static function fStatic(x:Int = Helper.CONST):Int
+	static function fI64Lit(v:Int64 = 0x7FFFFFFFFFFFFFFFi64):String
+		return Int64.toStr(v);
+
+	static function fI64Neg(v:Int64 = -5i64):String
+		return Int64.toStr(v);
+
+	public function testInt64Default() {
+		eq("5", fI64());
+		eq("42", fI64(42i64));
+		eq("9223372036854775807", fI64Lit());
+		eq("-5", fI64Neg());
+	}
+
+	// --- Non-constant defaults of basic value types. Not supported on flash,
+	//     where a basic type can't hold the `null` "not-passed" sentinel. ---
+	#if !flash
+	static function fStatic(x:Int = Helper.seven):Int
 		return x;
 
 	static function fCall(x:Int = Helper.make()):Int
@@ -74,26 +89,6 @@ class TestDefaultArgs extends Test {
 		// ...and not evaluated at all when the argument is passed
 		eq(100, fCall(100));
 		eq(2, Helper.counter);
-	}
-	#end
-
-	// --- haxe.Int64 defaults (the original motivation). Int64 is a boxed
-	//     value on flash, so only cpp is excluded. ---
-	#if !cpp
-	static function fI64(v:Int64 = 5):String
-		return Int64.toStr(v);
-
-	static function fI64Lit(v:Int64 = 0x7FFFFFFFFFFFFFFFi64):String
-		return Int64.toStr(v);
-
-	static function fI64Neg(v:Int64 = -5i64):String
-		return Int64.toStr(v);
-
-	public function testInt64Default() {
-		eq("5", fI64());
-		eq("42", fI64(42i64));
-		eq("9223372036854775807", fI64Lit());
-		eq("-5", fI64Neg());
 	}
 	#end
 }

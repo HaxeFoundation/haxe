@@ -168,6 +168,11 @@ let cpp_enum_name_of field =
 
 let string_of_path path = "::" ^ join_class_path_remap path "::" ^ "_obj"
 
+let is_renderable_constant value =
+  match value.eexpr with
+  | TConst _ | TField (_, FEnum _) -> true
+  | _ -> false
+
 let default_value_string ctx value =
   match value.eexpr with
   | TConst (TInt i) -> Printf.sprintf "%ld" i
@@ -180,27 +185,46 @@ let default_value_string ctx value =
       string_of_path enum.e_path ^ "::" ^ cpp_enum_name_of field ^ "_dyn()"
   | _ -> "/* Hmmm " ^ s_expr_kind value ^ " */"
 
-let cpp_gen_default_values ctx args prefix =
+let gen_default_value_expr_ref :
+    (context -> string -> string -> tcpp -> string -> texpr -> unit) ref =
+  ref (fun _ _ _ _ _ _ -> die "" __LOC__)
+
+let cpp_gen_default_values ctx dot_name func_name args prefix =
   List.iter
     (fun (var, o) ->
       let not_null =
         type_has_meta_key Meta.NotNull var.tcppv_var.v_type || is_cpp_scalar var.tcppv_type
       in
+      let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
+      let pname = prefix ^ var.tcppv_name in
+      let vname = var.tcppv_name in
+      let tname = tcpp_to_string var.tcppv_type in
       match o with
       | Some { eexpr = TConst TNull } -> ()
-      | Some const ->
-          let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
-          let pname = prefix ^ var.tcppv_name in
-          ctx.ctx_output
-            (spacer ^ "\t" ^ tcpp_to_string var.tcppv_type ^ " " ^ var.tcppv_name ^ " = " ^ pname);
+      | Some const when is_renderable_constant const ->
+          ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ " = " ^ pname);
           ctx.ctx_output
             (if not_null then
                ".Default(" ^ default_value_string ctx.ctx_common const ^ ");\n"
              else
-               ";\n" ^ spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) " ^ var.tcppv_name
+               ";\n" ^ spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) " ^ vname
                ^ " = "
                ^ default_value_string ctx.ctx_common const
                ^ ";\n")
+      | Some const ->
+          let gen_assign () =
+            !gen_default_value_expr_ref ctx dot_name func_name var.tcppv_type (vname ^ " = ") const
+          in
+          if not_null then begin
+            ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ ";\n");
+            ctx.ctx_output (spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) ");
+            gen_assign ();
+            ctx.ctx_output (spacer ^ "\telse " ^ vname ^ " = " ^ pname ^ ";\n")
+          end else begin
+            ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ " = " ^ pname ^ ";\n");
+            ctx.ctx_output (spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) ");
+            gen_assign ()
+          end
       | _ -> ())
     args
 
@@ -412,7 +436,7 @@ let find_class_implementation func tcpp_class =
   in
 
   match find tcpp_class with
-  | Some func -> 
+  | Some func ->
     print_arg_list func.tcf_args ""
   | _ ->
     ""
@@ -1593,7 +1617,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
     let prologue = function
       | gc_stack ->
-          cpp_gen_default_values ctx closure.close_args "__o_";
+          cpp_gen_default_values ctx class_name func_name closure.close_args "__o_";
 
           hx_stack_push ctx output_i class_name func_name
             closure.close_expr.cpppos gc_stack;
@@ -1622,6 +1646,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
   in
 
   gen_with_injection injection cppTree true
+
+let () =
+  gen_default_value_expr_ref :=
+    (fun ctx dot_name func_name ftype lhs expr ->
+      let injection = mk_injection (fun _ -> ()) lhs "" in
+      gen_cpp_ast_expression_tree ctx dot_name func_name [] ftype injection (mk_block expr))
 
 let gen_cpp_init ctx dot_name func_name var_name expr =
   let output = ctx.ctx_output in
@@ -1719,8 +1749,6 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes (slot
   let newScriptable = Gctx.defined common_ctx Define.Scriptable in
   if newScriptable then (
     output_boot "#include <hx/Scriptable.h>\n";
-
-    
 
     let funcs = StringMap.bindings slots.hash in
     let sorted = List.sort (fun (_, id1) (_, id2) -> id1 - id2) funcs in
@@ -1839,7 +1867,7 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
     | gc_stack ->
         let spacer = if no_debug then "\t" else "            \t" in
         let output_i s = output (spacer ^ s) in
-        cpp_gen_default_values ctx function_def.tcf_args "__o_";
+        cpp_gen_default_values ctx dot_name func_name function_def.tcf_args "__o_";
         hx_stack_push ctx output_i dot_name func_name function_def.tcf_func.tf_expr.epos
           gc_stack;
         if ctx.ctx_debug_level >= 2 then (
@@ -1922,7 +1950,7 @@ let generate_constructor ctx out tcpp_class isHeader =
     if isHeader then
       match tcpp_class.tcl_constructor with
       | Some constructor ->
-        let cb no_debug = 
+        let cb no_debug =
           ctx.ctx_real_this_ptr <- false;
           gen_cpp_function_body ctx tcpp_class.tcl_class false "new" constructor "" "" no_debug;
           out "\n";
