@@ -185,49 +185,6 @@ let default_value_string ctx value =
       string_of_path enum.e_path ^ "::" ^ cpp_enum_name_of field ^ "_dyn()"
   | _ -> "/* Hmmm " ^ s_expr_kind value ^ " */"
 
-let gen_default_value_expr_ref :
-    (context -> string -> string -> tcpp -> string -> texpr -> unit) ref =
-  ref (fun _ _ _ _ _ _ -> die "" __LOC__)
-
-let cpp_gen_default_values ctx dot_name func_name args prefix =
-  List.iter
-    (fun (var, o) ->
-      let not_null =
-        type_has_meta_key Meta.NotNull var.tcppv_var.v_type || is_cpp_scalar var.tcppv_type
-      in
-      let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
-      let pname = prefix ^ var.tcppv_name in
-      let vname = var.tcppv_name in
-      let tname = tcpp_to_string var.tcppv_type in
-      match o with
-      | Some { eexpr = TConst TNull } -> ()
-      | Some const when is_renderable_constant const ->
-          ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ " = " ^ pname);
-          ctx.ctx_output
-            (if not_null then
-               ".Default(" ^ default_value_string ctx.ctx_common const ^ ");\n"
-             else
-               ";\n" ^ spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) " ^ vname
-               ^ " = "
-               ^ default_value_string ctx.ctx_common const
-               ^ ";\n")
-      | Some const ->
-          let gen_assign () =
-            !gen_default_value_expr_ref ctx dot_name func_name var.tcppv_type (vname ^ " = ") const
-          in
-          if not_null then begin
-            ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ ";\n");
-            ctx.ctx_output (spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) ");
-            gen_assign ();
-            ctx.ctx_output (spacer ^ "\telse " ^ vname ^ " = " ^ pname ^ ";\n")
-          end else begin
-            ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ " = " ^ pname ^ ";\n");
-            ctx.ctx_output (spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) ");
-            gen_assign ()
-          end
-      | _ -> ())
-    args
-
 let cpp_class_hash interface =
   gen_hash 0 (join_class_path interface.cl_path "::")
 
@@ -464,7 +421,7 @@ let needed_interface_functions implemented_instance_fields native_implementation
   |> List.fold_left iface_folder (have, [])
   |> snd
 
-let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
+let rec gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
   let writer = ctx.ctx_writer in
   let out = ctx.ctx_output in
   let lastLine = ref (-1) in
@@ -1647,11 +1604,48 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
   gen_with_injection injection cppTree true
 
-let () =
-  gen_default_value_expr_ref :=
-    (fun ctx dot_name func_name ftype lhs expr ->
-      let injection = mk_injection (fun _ -> ()) lhs "" in
-      gen_cpp_ast_expression_tree ctx dot_name func_name [] ftype injection (mk_block expr))
+and cpp_gen_default_values ctx dot_name func_name args prefix =
+  List.iter
+    (fun (var, o) ->
+      let not_null =
+        type_has_meta_key Meta.NotNull var.tcppv_var.v_type || is_cpp_scalar var.tcppv_type
+      in
+      let spacer = if ctx.ctx_debug_level > 0 then "            \t" else "" in
+      let pname = prefix ^ var.tcppv_name in
+      let vname = var.tcppv_name in
+      let tname = tcpp_to_string var.tcppv_type in
+      match o with
+      | Some { eexpr = TConst TNull } -> ()
+      | Some const when is_renderable_constant const ->
+          ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ " = " ^ pname);
+          ctx.ctx_output
+            (if not_null then
+               ".Default(" ^ default_value_string ctx.ctx_common const ^ ");\n"
+             else
+               ";\n" ^ spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) " ^ vname
+               ^ " = "
+               ^ default_value_string ctx.ctx_common const
+               ^ ";\n")
+      | Some const ->
+          let gen_assign () =
+            gen_default_value_expr ctx dot_name func_name var.tcppv_type (vname ^ " = ") const
+          in
+          if not_null then begin
+            ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ ";\n");
+            ctx.ctx_output (spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) ");
+            gen_assign ();
+            ctx.ctx_output (spacer ^ "\telse " ^ vname ^ " = " ^ pname ^ ";\n")
+          end else begin
+            ctx.ctx_output (spacer ^ "\t" ^ tname ^ " " ^ vname ^ " = " ^ pname ^ ";\n");
+            ctx.ctx_output (spacer ^ "\tif (::hx::IsNull(" ^ pname ^ ")) ");
+            gen_assign ()
+          end
+      | _ -> ())
+    args
+
+and gen_default_value_expr ctx dot_name func_name ftype lhs expr =
+  let injection = mk_injection (fun _ -> ()) lhs "" in
+  gen_cpp_ast_expression_tree ctx dot_name func_name [] ftype injection (mk_block expr)
 
 let gen_cpp_init ctx dot_name func_name var_name expr =
   let output = ctx.ctx_output in
