@@ -758,9 +758,6 @@ and expr dce e =
 			Type.iter loop e
 		in
 		loop e
-	| TFunction tf ->
-		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> expr dce e) tf.tf_args;
-		expr dce tf.tf_expr
 	| _ ->
 		Type.iter (expr dce) e
 

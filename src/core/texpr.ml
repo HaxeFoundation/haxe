@@ -41,6 +41,7 @@ let iter f e =
 	| TVar (v,eo) ->
 		(match eo with None -> () | Some e -> f e)
 	| TFunction fu ->
+		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> f e) fu.tf_args;
 		f fu.tf_expr
 	| TIf (e,e1,e2) ->
 		f e;
@@ -79,7 +80,8 @@ let check_expr predicate e =
 		| TVar (_,eo) | TReturn eo ->
 			(match eo with None -> false | Some e -> predicate e)
 		| TFunction fu ->
-			predicate fu.tf_expr
+			List.exists (fun (_,eo) -> match eo with None -> false | Some e -> predicate e) fu.tf_args
+			|| predicate fu.tf_expr
 		| TIf (e,e1,e2) ->
 			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
 		| TSwitch switch ->
@@ -133,7 +135,7 @@ let map_expr f e =
 	| TVar (v,eo) ->
 		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
 	| TFunction fu ->
-		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
+		{ e with eexpr = TFunction { fu with tf_args = List.map (fun (v,eo) -> v,Option.map f eo) fu.tf_args; tf_expr = f fu.tf_expr } }
 	| TIf (ec,e1,e2) ->
 		let ec = f ec in
 		let e1 = f e1 in
@@ -335,7 +337,7 @@ let duplicate_tvars f_this e =
 			) cl in
 			{e with eexpr = TTry(build_expr e1, cl)}
 		| TFunction f ->
-			let args = List.map (fun (v,c) -> copy_var v, c) f.tf_args in
+			let args = List.map (fun (v,c) -> let v = copy_var v in v, Option.map build_expr c) f.tf_args in
 			let f = {
 				tf_args = args;
 				tf_type = f.tf_type;
@@ -437,8 +439,13 @@ let foldmap f acc e =
 		let acc,eo = foldmap_opt f acc eo in
 		acc,{ e with eexpr = TVar (v, eo) }
 	| TFunction fu ->
+		let acc,tf_args = List.fold_left (fun (acc,args) (v,eo) ->
+			let acc,eo = foldmap_opt f acc eo in
+			acc,((v,eo) :: args)
+		) (acc,[]) fu.tf_args in
+		let tf_args = List.rev tf_args in
 		let acc,e1 = f acc fu.tf_expr in
-		acc,{ e with eexpr = TFunction { fu with tf_expr = e1 } }
+		acc,{ e with eexpr = TFunction { fu with tf_args; tf_expr = e1 } }
 	| TIf (ec,e1,eo) ->
 		let acc,ec = f acc ec in
 		let acc,e1 = f acc e1 in
