@@ -1,0 +1,1 @@
+Main.hx:7: characters 28-40 : Non-constant default argument values are not supported on the flash target for basic type Int
