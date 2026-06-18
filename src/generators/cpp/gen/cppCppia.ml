@@ -7,7 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 
-type script_type = 
+type script_type =
   | ScriptBool
   | ScriptInt
   | ScriptFloat
@@ -892,7 +892,7 @@ class script_writer ctx filename asciiOut basic =
           this#writeVar arg.tcppv_var;
           match init with
           | Some { eexpr = TConst TNull } -> this#write "0\n"
-          | Some const ->
+          | Some ({ eexpr = TConst _ } as const) ->
               let argType = cpp_type_of basic const.etype in
               if is_cpp_scalar argType || argType == TCppString then (
                 this#write "1 ";
@@ -901,6 +901,9 @@ class script_writer ctx filename asciiOut basic =
               else (
                 gen_inits := (arg, const) :: !gen_inits;
                 this#write "0\n")
+          | Some init ->
+              gen_inits := (arg, init) :: !gen_inits;
+              this#write "0\n"
           | _ -> this#write "0\n")
         args;
 
