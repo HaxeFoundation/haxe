@@ -163,23 +163,21 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 					commit ();
 					e :: loop el args
 				with
-					WithTypeError ul ->
-						if opt && might_skip then begin
+					| WithTypeError ul when opt && might_skip ->
 							drop ();
 							restore_monos();
 							let e_def = skip name ul t in
 							e_def :: loop (e :: el) args
-						end else if !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+					| WithTypeError _ when !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) ->
 							commit ();
 							restore_monos();
 							let e_def = default_value name t in
 							e_def :: loop el args
-						end else begin
+					| WithTypeError ul ->
 							commit ();
 							match List.rev !skipped with
 							| [] -> arg_error ul name opt
 							| (s,ul) :: _ -> arg_error ul s true
-						end
 				end
 			with exc ->
 				commit ();
