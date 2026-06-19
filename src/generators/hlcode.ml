@@ -222,6 +222,7 @@ type fundecl = {
 	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int) array;
 	need_opt : bool;
+	is_extern : bool;
 }
 
 type code = {
@@ -477,7 +478,7 @@ let gather_types (code:code) =
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->
-		get_type f.ftype;
+		if not f.is_extern then get_type f.ftype;
 		Array.iter (fun r -> get_type r) f.regs;
 		Array.iter (function
 			| OType (_,t) -> get_type t
