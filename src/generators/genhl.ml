@@ -372,7 +372,7 @@ let fake_tnull =
 	}
 
 let is_excluded c =
-	has_class_flag c CExcluded
+	has_class_flag c CExcluded && not (has_class_flag c CInterface)
 
 let get_rec_cache ctx t none_callback not_found_callback =
 	try
