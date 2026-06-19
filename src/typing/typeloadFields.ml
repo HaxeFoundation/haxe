@@ -951,9 +951,12 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let r = make_lazy ctx.g t (fun () ->
 			(* the return type of a from-function must be the abstract, not the underlying type *)
 			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
-			match t with
-				| TFun([_,_,t],_) -> t
-				| TFun([(_,_,t1);(_,true,t2)],_) when is_pos_infos t2 -> t1
+			let visible_args = match t with
+				| TFun(args,_) -> strip_implicit_trailing_args args
+				| _ -> []
+			in
+			match visible_args with
+				| [(_,_,t1)] -> t1
 				| _ -> raise_typing_error ("@:from cast functions must accept exactly one argument") p
 		) "@:from" in
 		a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
@@ -961,9 +964,8 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 	let handle_to () =
 		if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "cast function" p;
 		let are_valid_args args =
-			match args with
+			match strip_implicit_trailing_args args with
 			| [_] -> true
-			| [_; (_,true,t)] when is_pos_infos t -> true
 			| _ -> false
 		in
 		(match cf.cf_kind, cf.cf_type with
@@ -1004,7 +1006,10 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 				args
 			end else
 				match cf.cf_type with
-				| TFun([_;(_,true,t)],_) when is_pos_infos t -> [t]
+				| TFun(args,_) ->
+					(match split_implicit_trailing_args args with
+					| ([_],implicit) -> List.map (fun (_,_,t) -> t) implicit
+					| _ -> [])
 				| _ -> []
 			in
 			let t = resolve_m args in
@@ -1026,11 +1031,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 			end
 		in
 		begin match follow t with
-			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
+			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when has_only_implicit_args args ->
 				if a.a_read <> None then display_error ctx.com "Multiple resolve-read methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_read <- Some cf;
-			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
+			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when has_only_implicit_args args ->
 				if a.a_write <> None then display_error ctx.com "Multiple resolve-write methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_write <- Some cf;
@@ -1052,10 +1057,8 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 			if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
 			let targ = if fctx.is_abstract_member then tthis else ta in
 			let left_eq,right_eq =
-				match follow t with
-				| TFun([(_,_,t1);(_,_,t2)],_) ->
-					type_iseq targ t1,type_iseq targ t2
-				| TFun([(_,_,t1);(_,_,t2);(_,true,t3)],_) when is_pos_infos t3 ->
+				match (match follow t with TFun(args,_) -> Some (strip_implicit_trailing_args args) | _ -> None) with
+				| Some [(_,_,t1);(_,_,t2)] ->
 					type_iseq targ t1,type_iseq targ t2
 				| _ ->
 					if fctx.is_abstract_member then
@@ -1435,6 +1438,10 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 								make_error (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
 							] p);
 						| _ -> ());
+					let t2 = match follow t2 with
+						| TFun(args,ret) -> TFun(strip_implicit_trailing_args args,ret)
+						| _ -> t2
+					in
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
 						display_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;

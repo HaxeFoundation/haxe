@@ -153,7 +153,7 @@ let find_array_read_access_raise ctx a pl e1 p =
 		| cf :: cfl ->
 			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
 			match follow (map cf.cf_type) with
-			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when is_empty_or_pos_infos args ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when has_only_implicit_args args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
@@ -173,7 +173,7 @@ let find_array_write_access_raise ctx a pl e1 e2  p =
 		| cf :: cfl ->
 			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
 			match follow (map cf.cf_type) with
-			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
+			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when has_only_implicit_args args ->
 				begin try
 					Type.unify tab (get_ta());
 					let e1 = cast_or_unify_raise ctx ta1 e1 p in
