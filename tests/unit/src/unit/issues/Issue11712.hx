@@ -1,6 +1,12 @@
 package unit.issues;
 
 import unit.Test;
+#if !macro
+import unit.issues.misc.Issue11712Macro;
+
+@:genericBuild(unit.issues.misc.Issue11712Macro.build())
+private class GBuild {}
+#end
 
 class Issue11712 extends Test {
 	#if !macro
@@ -18,6 +24,9 @@ class Issue11712 extends Test {
 
 		// a macro can forward its (call-site) pos to a regular helper run in macro context
 		eq("test", forwarded());
+
+		// a @:genericBuild macro's ?pos is the use-site position
+		unit.HelperMacros.typedAs((null : GBuild), (null : Issue11712Result<"test">));
 	}
 	#end
 
