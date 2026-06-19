@@ -845,6 +845,14 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			List.rev (rest :: margs_rev),Some(t,true)
 		| _ -> margs,None
 	in
+	(match pos_infos with
+	| Some _ ->
+		let has_override = List.exists (fun e -> match fst e with EMeta((Meta.PosInfos,_,_),_) -> true | _ -> false) el in
+		let has_rest = match List.rev margs with (_,_,t) :: _ -> ExtType.is_rest (follow t) | _ -> false in
+		if has_override || (not has_rest && List.length el = List.length margs + 1) then
+			raise_typing_error "haxe.PosInfos is auto-filled on macro functions and cannot be passed explicitly" p
+	| None ->
+		());
 	let margs =
 		(*
 			Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".

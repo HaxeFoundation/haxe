@@ -15,8 +15,16 @@ class Issue11712 extends Test {
 		// works alongside a rest argument
 		eq("2:test", afterRest(1, 2));
 		eq("0:test", afterRest());
+
+		// a macro can forward its (call-site) pos to a regular helper run in macro context
+		eq("test", forwarded());
 	}
 	#end
+
+	// a regular function, also callable from the macro above at compile time
+	static function helper(?pos:haxe.PosInfos):String {
+		return pos.methodName;
+	}
 
 	macro static function whereMethod(?pos:haxe.PosInfos) {
 		return macro $v{pos.methodName};
@@ -32,5 +40,10 @@ class Issue11712 extends Test {
 
 	macro static function afterRest(...rest:haxe.macro.Expr, ?pos:haxe.PosInfos) {
 		return macro $v{rest.length + ":" + pos.methodName};
+	}
+
+	macro static function forwarded(?pos:haxe.PosInfos) {
+		// forward the auto-filled call-site pos to a regular function (runs in macro context)
+		return macro $v{helper(pos)};
 	}
 }
