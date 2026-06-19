@@ -56,6 +56,8 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				| name :: _ -> call_error (Cannot_skip_non_nullable name) callp;
 			end;
 			[]
+		| _,(_,true,t) :: ((_,false,tr) :: _ as args) when is_pos_infos t && ExtType.is_rest (follow tr) ->
+			mk_pos_infos t :: loop el args
 		| _,[name,false,TAbstract({ a_path = ["cpp"],"Rest" },[t])] ->
 			(try List.map (fun e -> type_against name t e) el
 			with WithTypeError e -> arg_error e name false)
