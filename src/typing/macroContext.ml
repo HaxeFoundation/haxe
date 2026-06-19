@@ -838,6 +838,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx = get_macro_context ctx in
 	let api = make_macro_api ctx mctx p in
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx ctx.com mctx api (mode = MDisplay) cpath f p in
+	let margs,pos_infos = match List.rev margs with
+		| (_,o,t) :: margs_rev when o && is_pos_infos t ->
+			List.rev margs_rev,Some(t,false)
+		| ((_,_,rt) as rest) :: (_,o,t) :: margs_rev when o && is_pos_infos t && ExtType.is_rest (follow rt) ->
+			List.rev (rest :: margs_rev),Some(t,true)
+		| _ -> margs,None
+	in
 	let margs =
 		(*
 			Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".
@@ -972,6 +979,16 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let args = match el2 with
 		| [] -> args
 		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.encode_array (List.map Interp.encode_expr el2)]
+	in
+	let args = match pos_infos with
+		| None -> args
+		| Some(t,before_rest) ->
+			let einfos = mk_infos_t ctx p [] t in
+			let v = match Interp.eval_expr (Interp.get_ctx()) einfos with Some v -> v | None -> Interp.vnull in
+			if before_rest then
+				(match List.rev args with last :: rev -> List.rev (last :: v :: rev) | [] -> [v])
+			else
+				args @ [v]
 	in
 	let call() =
 		match call_macro args with

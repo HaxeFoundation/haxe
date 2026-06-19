@@ -1232,7 +1232,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			let to_dyn p ptp = match ptp.path with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
-				| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> raise_typing_error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
+				| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> Some (make_ptp_th (mk_type_path (["haxe"],"PosInfos")) p)
 				| _ -> tdyn
 			in
 			{
