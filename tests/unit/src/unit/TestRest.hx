@@ -38,11 +38,11 @@ class TestRest extends Test {
 		eq("x2/true", tag("x", 1, 2));
 
 		// a Dynamic rest must not greedily unify a positional with PosInfos
-		function dyn(...rest:Dynamic, ?pos:haxe.PosInfos):Int {
-			return rest.length;
+		function dyn(...rest:Dynamic, ?pos:haxe.PosInfos):String {
+			return rest.length + ":" + pos.methodName;
 		}
-		eq(2, dyn("a", "b"));
-		eq(0, dyn());
+		eq("2:testPosInfos", dyn("a", "b"));
+		eq("0:testPosInfos", dyn());
 	}
 
 	function testToArray() {

@@ -27,4 +27,28 @@ class Issue10955 extends Test {
 	overload extern inline static function bar(n:Int, ...args:String) {
 		return "int:" + n + "|" + args.toArray().join(",");
 	}
+
+	// same patterns, now with a trailing PosInfos auto-filled past the rest
+	function testPosInfos() {
+		eq("F||testPosInfos", foop());
+		eq("F|a,b|testPosInfos", foop("a", "b"));
+		eq("T|a,b|testPosInfos", foop(true, "a", "b"));
+
+		eq("opt:null||testPosInfos", barp());
+		eq("opt:null|a,b|testPosInfos", barp("a", "b"));
+		eq("opt:true|a,b|testPosInfos", barp(true, "a", "b"));
+		eq("int:3|a,b|testPosInfos", barp(3, "a", "b"));
+	}
+
+	static function foop(?b:Bool = false, ...args:String, ?pos:haxe.PosInfos) {
+		return (b ? "T" : "F") + "|" + args.toArray().join(",") + "|" + pos.methodName;
+	}
+
+	overload extern inline static function barp(?b:Bool, ...args:String, ?pos:haxe.PosInfos) {
+		return "opt:" + b + "|" + args.toArray().join(",") + "|" + pos.methodName;
+	}
+
+	overload extern inline static function barp(n:Int, ...args:String, ?pos:haxe.PosInfos) {
+		return "int:" + n + "|" + args.toArray().join(",") + "|" + pos.methodName;
+	}
 }
