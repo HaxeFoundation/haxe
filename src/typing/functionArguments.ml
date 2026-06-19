@@ -35,7 +35,7 @@ let type_function_arg_value ctx t c do_display =
 			let e = AbstractCast.cast_or_unify ctx t e p in
 			let e = Optimizer.reduce_expression (SafeCom.of_typer ctx) e in
 			let run_analyzer e = !analyzer_run_on_expr_ref ctx.com (Printf.sprintf "%s.%s" (s_type_path ctx.c.curclass.cl_path) ctx.f.curfield.cf_name) e in
-			if ctx.f.curfield.cf_name = "new" then begin
+			if ctx.e.curfun = FunConstructor then begin
 				let rec check_this e = match e.eexpr with
 					| TConst TThis ->
 						raise_typing_error "Cannot access this in a constructor's default argument value" e.epos
