@@ -488,6 +488,13 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "ImplicitArgResolver",
+		"metadata": ":implicitArgResolver",
+		"doc": "Marks an abstract whose values auto-fill an omitted optional argument of that type. The named static function (macro or not) resolves the value at each call site.",
+		"params": ["Resolver function name"],
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ImplicitCast",
 		"metadata": ":implicitCast",
 		"doc": "Generated automatically on the AST when an implicit abstract cast happens.",

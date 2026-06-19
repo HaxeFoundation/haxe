@@ -7,6 +7,11 @@ open Error
 open FieldAccess
 open FieldCallCandidate
 
+let implicit_resolver_stack = new_rec_stack()
+
+let mk_implicit_resolver_value_ref : (typer -> tclass -> tclass_field -> t list -> t -> pos -> texpr) ref =
+	ref (fun _ _ _ _ _ _ -> assert false)
+
 let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
@@ -43,18 +48,36 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			true
 	) el in
 	let pos_override_used = ref false in
-	let mk_pos_infos t =
+	let implicit_resolver t =
+		match follow t with
+		| TAbstract(a,pl) when Meta.has Meta.ImplicitArgResolver a.a_meta ->
+			(match Meta.get Meta.ImplicitArgResolver a.a_meta, a.a_impl with
+			| (_,[(EConst(Ident name),_)],_), Some c ->
+				(try Some(a,c,pl,PMap.find name c.cl_statics) with Not_found -> None)
+			| _ -> None)
+		| _ ->
+			None
+	in
+	let is_implicit_value t = is_pos_infos t || implicit_resolver t <> None in
+	let mk_implicit_value t =
 		match !pos_override with
-		| Some e ->
+		| Some e when is_pos_infos t ->
 			pos_override_used := true;
 			(try type_against "pos" t e
 			with WithTypeError err -> arg_error err "pos" true)
-		| None ->
-			mk_infos_t ctx callp [] t
+		| _ ->
+			match implicit_resolver t with
+			| Some(a,c,pl,cf) ->
+				if rec_stack_memq c implicit_resolver_stack then
+					raise_typing_error ("Cyclic @:implicitArgResolver for " ^ s_type_path a.a_path) callp;
+				rec_stack_loop implicit_resolver_stack c
+					(fun () -> !mk_implicit_resolver_value_ref ctx c cf pl t callp) ()
+			| None ->
+				mk_infos_t ctx callp [] t
 	in
 	let default_value name t =
-		if is_pos_infos t then
-			mk_pos_infos t
+		if is_implicit_value t then
+			mk_implicit_value t
 		else
 			null (ctx.t.tnull t) callp
 	in
@@ -74,7 +97,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			end;
 			[]
 		| _,(_,true,t) :: ((_,false,tr) :: _ as args) when is_pos_infos t && ExtType.is_rest (follow tr) ->
-			mk_pos_infos t :: loop el args
+			mk_implicit_value t :: loop el args
 		| _,[name,false,TAbstract({ a_path = ["cpp"],"Rest" },[t])] ->
 			(try List.map (fun e -> type_against name t e) el
 			with WithTypeError e -> arg_error e name false)
@@ -153,7 +176,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				[]
 			end else begin match loop [] args with
 				| [] when not (inline && (ctx.com.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
-					if is_pos_infos t then [mk_pos_infos t]
+					if is_implicit_value t then [mk_implicit_value t]
 					else []
 				| args ->
 					let e_def = default_value name t in
@@ -756,3 +779,15 @@ let make_static_call_better ctx c cf tl el t p =
 	let fa = FieldAccess.create e1 cf fh false p in
 	let fcc = unify_field_call ctx fa el [] p false in
 	fcc.fc_data()
+
+let () = mk_implicit_resolver_value_ref := (fun ctx c cf tl t p ->
+	if cf.cf_kind = Method MethMacro then
+		match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p with
+		| MSuccess e ->
+			let e = type_expr ctx e (WithType.with_type t) in
+			!cast_or_unify_raise_ref ctx t e p
+		| _ ->
+			type_expr ctx (EConst (Ident "null"),p) WithType.value
+	else
+		make_static_call_better ctx c cf tl [] t p
+)
