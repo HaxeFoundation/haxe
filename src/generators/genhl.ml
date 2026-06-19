@@ -4268,9 +4268,14 @@ let add_types ctx types =
 			if check_virtual_rec c then begin
 				(*
 					Assume all fields and superclass fields are overriden from this base class
+					Inline methods are excluded because they cannot be overridden.
 				*)
 				let rec loop_cl c =
-					List.iter (fun f -> ignore(loop (Some (c,[])) f)) c.cl_ordered_fields;
+					List.iter (fun f ->
+						match f.cf_kind with
+						| Method MethInline -> ()
+						| _ -> ignore(loop (Some (c,[])) f)
+					) c.cl_ordered_fields;
 					match c.cl_super with
 					| None -> ()
 					| Some (c,_) -> loop_cl c
