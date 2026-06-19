@@ -1660,6 +1660,44 @@ let create_class_field cctx f  =
 	} in
 	cf
 
+let check_implicit_arg_resolver ctx_c c a =
+	match Meta.get Meta.ImplicitArgResolver a.a_meta with
+	| (_,params,meta_pos) ->
+		let com = ctx_c.com in
+		(match params with
+		| [(EConst(Ident name),_)] ->
+			let static = try Some (PMap.find name c.cl_statics) with Not_found -> None in
+			(match static with
+			| None ->
+				if PMap.mem name c.cl_fields then
+					display_error com (Printf.sprintf "@:implicitArgResolver: resolver function '%s' must be static" name) meta_pos
+				else
+					display_error com (Printf.sprintf "@:implicitArgResolver: resolver function '%s' not found" name) meta_pos
+			| Some cf when has_class_field_flag cf CfImpl ->
+				display_error com (Printf.sprintf "@:implicitArgResolver: resolver function '%s' must be static" name) cf.cf_pos
+			| Some cf ->
+				(match cf.cf_kind with
+				| Method _ -> ()
+				| _ -> display_error com (Printf.sprintf "@:implicitArgResolver: resolver '%s' must be a function" name) cf.cf_pos);
+				let is_macro = cf.cf_kind = Method MethMacro in
+				delay ctx_c.g PForce (fun () ->
+					match follow cf.cf_type with
+					| TFun (args,ret) ->
+						List.iter (fun (aname,opt,_) ->
+							if not opt then
+								display_error com (Printf.sprintf "@:implicitArgResolver: resolver '%s' must not have a required argument ('%s')" name aname) cf.cf_pos
+						) args;
+						if not is_macro then begin
+							let at = TAbstract(a,extract_param_types a.a_params) in
+							if not (does_unify ret at || does_unify ret a.a_this) then
+								display_error com (Printf.sprintf "@:implicitArgResolver: resolver '%s' must return %s" name (s_type_path a.a_path)) cf.cf_pos
+						end
+					| _ ->
+						())
+			)
+		| _ ->
+			display_error com "@:implicitArgResolver expects a single resolver function name" meta_pos)
+
 let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
@@ -1793,6 +1831,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_ops <- List.rev a.a_ops;
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
+			if Meta.has Meta.ImplicitArgResolver a.a_meta then check_implicit_arg_resolver ctx_c c a;
 		| None ->
 			()
 	end;
