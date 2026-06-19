@@ -1073,6 +1073,10 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		| EUnop(op,flag,_) ->
 			if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
 			let targ = if fctx.is_abstract_member then tthis else ta in
+			let t = match follow t with
+				| TFun(args,ret) -> TFun(strip_implicit_trailing_args args,ret)
+				| _ -> t
+			in
 			(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise_error_msg (Unify l) cf.cf_pos);
 			a.a_unops <- (op,flag,cf) :: a.a_unops;
 			allow_no_expr();
