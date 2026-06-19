@@ -43,6 +43,22 @@ class TestRest extends Test {
 		}
 		eq("2:testPosInfos", dyn("a", "b"));
 		eq("0:testPosInfos", dyn());
+
+		// @:posInfos explicitly targets the pos slot, so the value is NOT consumed by the
+		// greedy rest and pos is not auto-filled
+		var custom:haxe.PosInfos = {fileName: "X", lineNumber: 1, className: "C", methodName: "manual"};
+		function sr(...rest:String, ?pos:haxe.PosInfos):String {
+			return rest.toArray().join(",") + ":" + pos.methodName;
+		}
+		eq("a,b:manual", sr("a", "b", @:posInfos custom));
+		eq(":testPosInfos", sr()); // auto-fill still applies without the marker
+
+		// works for non-rest too (an explicit override rather than skip-by-mismatch)
+		function nb(?b:Bool, ?pos:haxe.PosInfos):String {
+			return (b == null ? "_" : "" + b) + ":" + pos.methodName;
+		}
+		eq("_:manual", nb(@:posInfos custom));
+		eq("true:manual", nb(true, @:posInfos custom));
 	}
 
 	function testToArray() {

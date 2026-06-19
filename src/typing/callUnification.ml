@@ -19,8 +19,38 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 		raise_error { e with err_message = (Call_error (Could_not_unify e.err_message)) }
 	in
 
+	let handle_errors fn =
+		try
+			fn()
+		with Error e when (match e.err_message with Call_error _ | Module_not_found _ -> false | _ -> true) ->
+			raise (WithTypeError e)
+	in
+	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
+	let type_against name t e =
+		handle_errors (fun() ->
+			let e = type_expr ctx e (WithType.with_argument t name) in
+			!cast_or_unify_raise_ref ctx t e e.epos
+		)
+	in
+	let pos_override = ref None in
+	let el = List.filter (fun e -> match e with
+		| (EMeta((Meta.PosInfos,_,p),e1),_) ->
+			(match !pos_override with
+			| Some _ -> raise_typing_error "Multiple @:posInfos arguments are not allowed" p
+			| None -> pos_override := Some e1);
+			false
+		| _ ->
+			true
+	) el in
+	let pos_override_used = ref false in
 	let mk_pos_infos t =
-		mk_infos_t ctx callp [] t
+		match !pos_override with
+		| Some e ->
+			pos_override_used := true;
+			(try type_against "pos" t e
+			with WithTypeError err -> arg_error err "pos" true)
+		| None ->
+			mk_infos_t ctx callp [] t
 	in
 	let default_value name t =
 		if is_pos_infos t then
@@ -35,19 +65,6 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			invalid_skips := name :: !invalid_skips;
 		skipped := (name,ul) :: !skipped;
 		default_value name t
-	in
-	let handle_errors fn =
-		try
-			fn()
-		with Error e when (match e.err_message with Call_error _ | Module_not_found _ -> false | _ -> true) ->
-			raise (WithTypeError e)
-	in
-	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, (has_class_flag c CExtern) | _ -> false, false in *)
-	let type_against name t e =
-		handle_errors (fun() ->
-			let e = type_expr ctx e (WithType.with_argument t name) in
-			!cast_or_unify_raise_ref ctx t e e.epos
-		)
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
@@ -194,6 +211,10 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 	let restore = enter_call_args ctx ~in_overload in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
+	(match !pos_override with
+	| Some e when not !pos_override_used ->
+		raise_typing_error "@:posInfos argument has no matching haxe.PosInfos parameter" (snd e)
+	| _ -> ());
 	el
 
 type overload_kind =

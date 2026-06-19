@@ -865,6 +865,12 @@
 		"links": ["https://haxe.org/manual/macro-reification.html"]
 	},
 	{
+		"name": "PosInfos",
+		"metadata": ":posInfos",
+		"doc": "Explicitly designates a call argument as the value for an implicit `haxe.PosInfos` parameter, overriding the auto-filled position.",
+		"targets": ["TExpr"]
+	},
+	{
 		"name": "Public",
 		"metadata": ":public",
 		"doc": "Marks a class field as being public.",
