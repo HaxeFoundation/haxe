@@ -838,18 +838,20 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx = get_macro_context ctx in
 	let api = make_macro_api ctx mctx p in
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx ctx.com mctx api (mode = MDisplay) cpath f p in
-	let margs,pos_infos = match List.rev margs with
+	let margs,implicit_pos = match List.rev margs with
 		| (_,o,t) :: margs_rev when o && is_pos_infos t ->
 			List.rev margs_rev,Some(t,false)
 		| ((_,_,rt) as rest) :: (_,o,t) :: margs_rev when o && is_pos_infos t && ExtType.is_rest (follow rt) ->
 			List.rev (rest :: margs_rev),Some(t,true)
 		| _ -> margs,None
 	in
-	(match pos_infos with
-	| Some _ ->
-		let has_override = List.exists (fun e -> match fst e with EMeta((Meta.PosInfos,_,_),_) -> true | _ -> false) el in
-		let has_rest = match List.rev margs with (_,_,t) :: _ -> ExtType.is_rest (follow t) | _ -> false in
-		if has_override || (not has_rest && List.length el = List.length margs + 1) then
+	(match implicit_pos with
+	| Some (_,before_rest) ->
+		let has_override = List.exists (fun (e,_) -> match e with EMeta((Meta.PosInfos,_,_),_) -> true | _ -> false) el in
+		(* the stripped pos slot can't be reached positionally past a rest; without one,
+		   exactly one extra positional lands in it (more than that is genuinely too many) *)
+		let fills_pos_slot = not before_rest && List.length el = List.length margs + 1 in
+		if has_override || fills_pos_slot then
 			raise_typing_error "haxe.PosInfos is auto-filled on macro functions and cannot be passed explicitly" p
 	| None ->
 		());
@@ -988,7 +990,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| [] -> args
 		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.encode_array (List.map Interp.encode_expr el2)]
 	in
-	let args = match pos_infos with
+	let args = match implicit_pos with
 		| None -> args
 		| Some(t,before_rest) ->
 			let einfos = mk_infos_t ctx p [] t in
