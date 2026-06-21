@@ -782,7 +782,10 @@ let make_static_call_better ctx c cf tl el t p =
 
 let () = mk_implicit_resolver_value_ref := (fun ctx c cf tl t p ->
 	if cf.cf_kind = Method MethMacro then
-		match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p with
+		let _ = ctx.e.with_type_stack <- (WithType.with_type t) :: ctx.e.with_type_stack in
+		let r = ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p in
+		ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
+		match r with
 		| MSuccess e ->
 			let e = type_expr ctx e (WithType.with_type t) in
 			!cast_or_unify_raise_ref ctx t e p
