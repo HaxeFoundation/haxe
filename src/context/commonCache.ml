@@ -147,6 +147,9 @@ let rec cache_context cs com =
 						DynArray.add detect_parallels (cc,m,f)
 				end
 			end else begin
+				(* Re-typed module: compute its header signature now (pre-DCE — full public surface,
+				   cf_expr_unoptimized present) so it is carried in mc_extra for the next round. *)
+				ModuleSignature.compute_and_store m;
 				match make_writer warn with
 				| None ->
 					()

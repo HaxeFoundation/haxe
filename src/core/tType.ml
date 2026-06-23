@@ -65,6 +65,18 @@ type cache_bound_object =
 	| IncludeFile of string * string
 	| Message of Message.t
 
+(* The module-header *diff layer*: a module's public, dependent-observable surface reduced to
+   canonical strings, keyed so the field-dependency edges (dep_field) map onto entries 1:1.
+   Computed (ModuleSignature) at cache time and stored in [m_extra]; see [module_def_extra.m_sig]. *)
+type decl_signature = {
+	ds_struct : string;                    (* non-field structural signature of the declaration *)
+	ds_fields : (string,string) PMap.t;    (* field key ("m:"/"s:"/"c:"/"e:" ^ name) -> field signature *)
+}
+
+type module_signature = {
+	msig_decls : (string,decl_signature) PMap.t;   (* type tail name -> its signature *)
+}
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -484,6 +496,9 @@ and module_def_extra = {
 	(* Field-granular dependency edges (new source of truth; m_deps above is its module-level
 	   projection during migration). Keyed by edge identity so duplicate edges collapse. *)
 	mutable m_field_deps : (string,module_dep_edge) PMap.t;
+	(* The module's header signature (diff layer), computed at cache time. Carried in mc_extra so a
+	   restored module has it without recompute; used to detect signature changes for invalidation. *)
+	mutable m_sig : module_signature option;
 	mutable m_display_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;

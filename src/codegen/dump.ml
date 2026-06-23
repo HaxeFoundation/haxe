@@ -157,7 +157,9 @@ let dump_module_signatures com =
 		| [] -> ()
 		| _ ->
 			let buf,close = create_dumpfile_from_path com m.m_path in
-			Buffer.add_string buf (ModuleSignature.render (ModuleSignature.of_module m));
+			(* Prefer the stored signature (a cache-restored module carries it); recompute otherwise. *)
+			let sg = match m.m_extra.m_sig with Some s -> s | None -> ModuleSignature.of_module m in
+			Buffer.add_string buf (ModuleSignature.render sg);
 			close()
 	in
 	Parallel.run_with_pool com.sctx.pool (fun pool ->
