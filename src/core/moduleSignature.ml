@@ -10,8 +10,12 @@
 	skeleton). Two signatures — including one rebuilt from a previous session — can be diffed entry by
 	entry to decide which dependents observe a change.
 
-	NOTE (increment 1): impl-field bodies (inline/macro/@:generic), which are dependent-observable, are
-	NOT yet captured here; determinism of the type printer is not yet hardened. Both are follow-ups.
+	Impl-field bodies (inline/macro/@:generic) ARE dependent-observable (callers inline/specialize/eval
+	them), so the *unoptimized* body is captured too, rendered with var ids normalized to positional so
+	it depends only on body structure, not on names/ids that drift fresh-vs-restored.
+
+	NOTE: type-printer determinism for monomorphs/lazies is not yet hardened, and the real
+	fresh-vs-cache-restored check (server scenario) is still to come.
 *)
 
 open Globals
@@ -58,11 +62,73 @@ let s_class_flags c =
 		if has_class_flag c fl then Some name else None
 	) observable_class_flags)
 
-(* Signature-affecting meta is rendered by name (sorted, deterministic). Increment 1 ignores args. *)
+(* Optimization-derived meta (DCE @:used/@:directlyUsed/@:valueUsed, purity inference's
+   @:pure(inferredPure)) depends on whole-program analysis and the compiler stage, so it would churn
+   the signature — excluded. Everything else is rendered faithfully WITH ARGS: dropping args would be
+   a false-negative (a meta whose args changed must register as a change). Sorted for determinism. *)
+let is_derived_meta = function
+	| (Meta.Used,_,_) | (Meta.DirectlyUsed,_,_) | (Meta.ValueUsed,_,_) -> true
+	| (Meta.Pure,[(EConst (Ident "inferredPure"),_)],_) -> true
+	| _ -> false
+
 let s_meta meta =
+	let meta = List.filter (fun m -> not (is_derived_meta m)) meta in
 	match meta with
 	| [] -> ""
-	| _ -> String.concat " " (List.sort compare (List.map (fun (m,_,_) -> Meta.to_string m) meta))
+	(* sort_uniq: deterministic order, and collapse metas that render identically (e.g. a source
+	   @:value and the typer-injected one) — indistinguishable to a dependent anyway. *)
+	| _ -> String.concat " " (List.sort_uniq compare (List.map (fun m -> TPrinting.Printer.s_metadata [m]) meta))
+
+(* Implementation fields carry their body into callers, so the body is part of what dependents
+   observe. Local var names/ids are not stable across compiles (dedup suffixes, generated-temp names,
+   fresh id counters), so the rendered body's "name<id>" var tokens are rewritten to a positional
+   "$n" by first appearance of each id — collision-free and dependent only on body structure. *)
+let is_impl_field cf =
+	match cf.cf_kind with
+	| Method (MethInline | MethMacro) -> true
+	| Var { v_read = AccInline } -> true
+	| _ -> has_class_field_flag cf CfGeneric
+
+let normalize_var_tokens s =
+	let n = String.length s in
+	let buf = Buffer.create n in
+	let ids = Hashtbl.create 16 in
+	let next = ref 0 in
+	let is_name_char c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c = '_' || c = '`' in
+	(* If "<digits>" starts at p, return (id, pos after '>'). *)
+	let id_at p =
+		if p < n && s.[p] = '<' then begin
+			let k = ref (p + 1) in
+			while !k < n && s.[!k] >= '0' && s.[!k] <= '9' do incr k done;
+			if !k > p + 1 && !k < n && s.[!k] = '>' then Some (String.sub s (p + 1) (!k - p - 1), !k + 1) else None
+		end else None
+	in
+	let i = ref 0 in
+	while !i < n do
+		let c = s.[!i] in
+		if is_name_char c then begin
+			let j = ref !i in
+			while !j < n && is_name_char s.[!j] do incr j done;
+			(match id_at !j with
+			| Some (id,nx) ->
+				let pos = try Hashtbl.find ids id with Not_found -> let p = !next in incr next; Hashtbl.add ids id p; p in
+				Buffer.add_string buf (Printf.sprintf "$%d" pos);
+				i := nx
+			| None ->
+				Buffer.add_string buf (String.sub s !i (!j - !i)); i := !j)
+		end else begin
+			Buffer.add_char buf c; incr i
+		end
+	done;
+	Buffer.contents buf
+
+let s_field_body s_type cf =
+	if not (is_impl_field cf) then ""
+	else
+		let e = match cf.cf_expr_unoptimized with Some _ as u -> u | None -> cf.cf_expr in
+		match e with
+		| Some e -> normalize_var_tokens (TPrinting.s_expr_pretty true "" false s_type e)
+		| None -> ""
 
 let s_type_params s_type params =
 	match params with
@@ -75,12 +141,13 @@ let s_inst s_type (c,tl) = s_type (TInst(c,tl))
 (* Field + declaration signatures                                         *)
 
 let s_field s_type cf =
-	Printf.sprintf "%s%s:%s|%s|%s"
+	Printf.sprintf "%s%s:%s|%s|%s|%s"
 		(s_field_kind s_type cf.cf_kind)
 		(s_type_params s_type cf.cf_params)
 		(s_type cf.cf_type)
 		(s_field_flags cf)
 		(s_meta cf.cf_meta)
+		(s_field_body s_type cf)
 
 let sep = "\x1f"
 
