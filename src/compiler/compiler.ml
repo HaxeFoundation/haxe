@@ -270,9 +270,17 @@ let header_invalidation_prephase tctx =
 	let com = tctx.Typecore.com in
 	let step = com.sctx.compilation_step in
 	let cc = CommonCache.get_cache com in
+	(* A seed is a module the client explicitly invalidated, or one whose source file changed on disk.
+	   file_time vs the cached m_time mirrors check_file; a spurious mtime-only change just re-types the
+	   seed and finds an empty delta, so its dependents are still spared. *)
+	let file_changed mc =
+		mc.HxbData.mc_extra.m_kind = MCode &&
+		(let file = Path.UniqueKey.lazy_path mc.HxbData.mc_extra.m_file in
+		 try file_time file <> mc.HxbData.mc_extra.m_time with _ -> false)
+	in
 	let is_seed mc = match mc.HxbData.mc_extra.m_cache_state with
 		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
-		| _ -> false
+		| _ -> file_changed mc
 	in
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
 	let loaded = List.fold_left (fun acc path ->
