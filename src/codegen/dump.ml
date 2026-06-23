@@ -148,6 +148,22 @@ let dump_record com =
 		Parallel.ParallelArray.iter pool f (Array.of_list com.types)
 	)
 
+(* `-D dump=signatures`: dump each module's signature (the module-header diff layer) to the dump
+   tree. Goes through the normal dump pipeline, so it honours `-D dump-stage=...` — useful for the
+   module-header work: eyeball the representation and compare it across stages / runs. *)
+let dump_module_signatures com =
+	let f m =
+		match m.m_types with
+		| [] -> ()
+		| _ ->
+			let buf,close = create_dumpfile_from_path com m.m_path in
+			Buffer.add_string buf (ModuleSignature.render (ModuleSignature.of_module m));
+			close()
+	in
+	Parallel.run_with_pool com.sctx.pool (fun pool ->
+		Parallel.ParallelArray.iter pool f (Array.of_list com.modules)
+	)
+
 let dump_position com =
 	let f mt =
 		match mt with
@@ -179,6 +195,7 @@ let dump_types com =
 		| Pretty -> dump_types com true
 		| Record -> dump_record com
 		| Position -> dump_position com
+		| Signatures -> dump_module_signatures com
 		| Ast -> dump_types com false
 
 let dump_dependencies ?(target_override=None) com =

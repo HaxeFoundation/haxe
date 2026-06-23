@@ -141,7 +141,7 @@
 		"define": "dump",
 		"signatureNeutral": true,
 		"doc": "Dump typed AST in dump subdirectory using specified mode or non-prettified default.",
-		"params": ["mode: pretty | record | position | legacy"]
+		"params": ["mode: pretty | record | position | signatures | legacy"]
 	},
 	{
 		"name": "DumpStage",
