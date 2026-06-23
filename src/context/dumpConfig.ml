@@ -4,6 +4,7 @@ type dump_mode =
 	| Pretty
 	| Record
 	| Position
+	| Signatures
 
 
 type dump_stage =
@@ -36,6 +37,7 @@ let update_from_defines conf def =
 		| "pretty" -> Pretty
 		| "record" -> Record
 		| "position" -> Position
+		| "signatures" -> Signatures
 		| _ -> NoDump
 	end;
 	conf.dump_path <- Define.defined_value_safe ~default:"dump" def DumpPath;
