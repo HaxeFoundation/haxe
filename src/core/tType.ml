@@ -77,6 +77,16 @@ type module_signature = {
 	msig_decls : (string,decl_signature) PMap.t;   (* type tail name -> its signature *)
 }
 
+(* How a module's signature changed between two compilations (ModuleSignature.diff). The strings are
+   the type tail name and the field key. *)
+type sig_change =
+	| ScTypeAdded of string
+	| ScTypeRemoved of string
+	| ScStructural of string
+	| ScFieldAdded of string * string
+	| ScFieldRemoved of string * string
+	| ScFieldChanged of string * string
+
 type t =
 	| TMono of tmono
 	| TEnum of tenum * tparams
@@ -499,6 +509,10 @@ and module_def_extra = {
 	(* The module's header signature (diff layer), computed at cache time. Carried in mc_extra so a
 	   restored module has it without recompute; used to detect signature changes for invalidation. *)
 	mutable m_sig : module_signature option;
+	(* Header-invalidation: when this module is re-typed as a seed in the pre-pass, how its signature
+	   changed vs the cached one, tagged with the compilation step so stale entries self-expire. A
+	   dependent observing one of these changes must be re-typed; otherwise it can be spared. *)
+	mutable m_sig_delta : (int * sig_change list) option;
 	mutable m_display_deps : (int,module_dep) PMap.t option;
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;

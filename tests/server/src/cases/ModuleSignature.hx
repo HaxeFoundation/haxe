@@ -61,6 +61,62 @@ class ModuleSignature extends TestCase {
 		Assert.isTrue(measureChangedCount() > 0);
 	}
 
+	// With -D hxb.header_invalidation: invalidating a seed whose header is unchanged (body-only edit)
+	// must SPARE its dependents (they are reused, not re-typed); a signature edit must re-type the
+	// dependents that observe the change.
+	function testHeaderInvalidationSparesDependents() {
+		vfs.putContent("Dep.hx", dep("Int", "v + n"));
+		vfs.putContent("Main.hx", "class Main { static function main() { trace(new Dep().bump(1)); } }");
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.header_invalidation"];
+		runHaxe(args);
+		assertSuccess();
+
+		// Body-only edit on the seed Dep: its header is unchanged, so Main must be spared (reused).
+		vfs.putContent("Dep.hx", dep("Int", "v + n + 7"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+		assertReuse("Main");
+
+		// Signature edit on the seed (return type Int -> Float): Main observes it, so it is re-typed.
+		vfs.putContent("Dep.hx", dep("Float", "v + n + 7"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.isFalse(hasMessage("reusing Main"));
+	}
+
+	// Field-granular precision: Main uses only Dep.b. Changing Dep.a's signature must spare Main;
+	// changing Dep.b's signature must re-type it.
+	function testHeaderInvalidationFieldGranular() {
+		vfs.putContent("Dep.hx", twoFn("Int", "Int"));
+		vfs.putContent("Main.hx", "class Main { static function main() { trace(Dep.b(1)); } }");
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.header_invalidation"];
+		runHaxe(args);
+		assertSuccess();
+
+		// Change only a's signature; Main uses only b -> spared.
+		vfs.putContent("Dep.hx", twoFn("Float", "Int"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+		assertReuse("Main");
+
+		// Change b's signature; Main uses b -> re-typed.
+		vfs.putContent("Dep.hx", twoFn("Int", "Float"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.isFalse(hasMessage("reusing Main"));
+	}
+
+	function twoFn(retA:String, retB:String) {
+		return 'class Dep {
+	public static function a(n:Int):$retA return n;
+	public static function b(n:Int):$retB return n;
+}';
+	}
+
 	function dep(ret:String, body:String) {
 		return 'class Dep {
 	public var v:Int;

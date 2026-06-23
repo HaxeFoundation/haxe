@@ -137,6 +137,7 @@ let get_typing_mode com m_extra =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
 	let cc = CommonCache.get_cache com in
+	let header_invalidation = Define.raw_defined com.defines "hxb.header_invalidation" in
 	let content_changed m_path file =
 		let fkey = com.part_scope.file_keys#get file in
 		try
@@ -225,7 +226,23 @@ let check_module sctx com m_path m_extra p =
 				with Not_found ->
 					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
-				match check mpath m2_extra with
+				(* Header invalidation: if this dependency was re-typed as a seed in the pre-phase, it
+				   carries a step-tagged signature delta. Then this dependent is invalidated only if it
+				   observes one of the changed entries; otherwise it is spared (the dep is already
+				   re-typed and good, so the normal check below would spare it anyway). *)
+				let spared_via_delta = header_invalidation && (match m2_extra.m_sig_delta with
+					| Some (step,delta) when step = start_mark ->
+						let edges = PMap.foldi (fun _ e acc ->
+							if e.dep_tgt_path = mpath then e :: acc else acc
+						) m_extra.m_field_deps [] in
+						if ModuleSignature.dependent_observes_changes delta edges then
+							raise (Dirty (DependencyDirty(mpath,Tainted ServerInvalidate)))
+						else
+							true
+					| _ ->
+						false
+				) in
+				if not spared_via_delta then match check mpath m2_extra with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
 			) m_extra.m_deps

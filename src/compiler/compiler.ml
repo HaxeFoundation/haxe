@@ -261,6 +261,36 @@ let check_defines com =
 			()
 	) com.defines.values
 
+(* Header-invalidation pre-phase (-D hxb.header_invalidation): re-type the modules a client explicitly
+   invalidated (the seeds) NOW, before their dependents are checked, and record each seed's signature
+   delta (vs the cached one) tagged with the compilation step. check_dependencies then spares a
+   dependent of a seed unless it observes one of the changed entries. Re-typing is in-place (the seed
+   is needed regardless); only dependents are spared, so no isolated context is required. *)
+let header_invalidation_prephase tctx =
+	let com = tctx.Typecore.com in
+	let step = com.sctx.compilation_step in
+	let cc = CommonCache.get_cache com in
+	let is_seed mc = match mc.HxbData.mc_extra.m_cache_state with
+		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
+		| _ -> false
+	in
+	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
+	let loaded = List.fold_left (fun acc path ->
+		try (path,tctx.Typecore.g.Typecore.do_load_module tctx path null_pos) :: acc
+		with _ -> acc
+	) [] seeds in
+	Typecore.flush_pass tctx.g PBuildClass "header-invalidation prephase";
+	List.iter (fun (path,m) ->
+		let old_sig = try (cc#get_hxb_module path).HxbData.mc_extra.m_sig with Not_found -> None in
+		let delta = match old_sig with
+			| Some old -> ModuleSignature.diff old (ModuleSignature.of_module m)
+			| None -> []
+		in
+		(* Set on both the live module and whatever find_module_extra will return for it. *)
+		m.m_extra.m_sig_delta <- Some (step,delta);
+		(try (cc#find_module_extra path).m_sig_delta <- Some (step,delta) with Not_found -> ())
+	) loaded
+
 (** Creates the typer context and types [classes] into it. *)
 let do_type com mctx actx display_file_dot_path =
 	let cs = com.cs in
@@ -285,6 +315,7 @@ let do_type com mctx actx display_file_dot_path =
 	DumpConfig.update_from_defines com.part_scope.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
+	if Define.raw_defined com.defines "hxb.header_invalidation" then header_invalidation_prephase tctx;
 	(try begin
 		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
 		run_or_diagnose com (fun () ->
