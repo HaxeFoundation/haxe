@@ -951,9 +951,12 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		let r = make_lazy ctx.g t (fun () ->
 			(* the return type of a from-function must be the abstract, not the underlying type *)
 			if not fctx.is_macro then (try type_eq EqStrict ret ta with Unify_error l -> raise_typing_error_ext (make_error (Unify l) p));
-			match t with
-				| TFun([_,_,t],_) -> t
-				| TFun([(_,_,t1);(_,true,t2)],_) when is_pos_infos t2 -> t1
+			let visible_args = match t with
+				| TFun(args,_) -> strip_implicit_trailing_args args
+				| _ -> []
+			in
+			match visible_args with
+				| [(_,_,t1)] -> t1
 				| _ -> raise_typing_error ("@:from cast functions must accept exactly one argument") p
 		) "@:from" in
 		a.a_from_field <- (TLazy r,cf) :: a.a_from_field;
@@ -961,9 +964,8 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 	let handle_to () =
 		if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "cast function" p;
 		let are_valid_args args =
-			match args with
+			match strip_implicit_trailing_args args with
 			| [_] -> true
-			| [_; (_,true,t)] when is_pos_infos t -> true
 			| _ -> false
 		in
 		(match cf.cf_kind, cf.cf_type with
@@ -1004,7 +1006,10 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 				args
 			end else
 				match cf.cf_type with
-				| TFun([_;(_,true,t)],_) when is_pos_infos t -> [t]
+				| TFun(args,_) ->
+					(match split_implicit_trailing_args args with
+					| ([_],implicit) -> List.map (fun (_,_,t) -> t) implicit
+					| _ -> [])
 				| _ -> []
 			in
 			let t = resolve_m args in
@@ -1026,11 +1031,11 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 			end
 		in
 		begin match follow t with
-			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when is_empty_or_pos_infos args ->
+			| TFun((_,_,t1) :: (_,_,t2) :: args,_) when has_only_implicit_args args ->
 				if a.a_read <> None then display_error ctx.com "Multiple resolve-read methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_read <- Some cf;
-			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when is_empty_or_pos_infos args ->
+			| TFun((_,_,t1) :: (_,_,t2) :: (_,_,t3) :: args,_) when has_only_implicit_args args ->
 				if a.a_write <> None then display_error ctx.com "Multiple resolve-write methods are not supported" cf.cf_pos;
 				check_fun t1 t2;
 				a.a_write <- Some cf;
@@ -1052,10 +1057,8 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 			if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
 			let targ = if fctx.is_abstract_member then tthis else ta in
 			let left_eq,right_eq =
-				match follow t with
-				| TFun([(_,_,t1);(_,_,t2)],_) ->
-					type_iseq targ t1,type_iseq targ t2
-				| TFun([(_,_,t1);(_,_,t2);(_,true,t3)],_) when is_pos_infos t3 ->
+				match (match follow t with TFun(args,_) -> Some (strip_implicit_trailing_args args) | _ -> None) with
+				| Some [(_,_,t1);(_,_,t2)] ->
 					type_iseq targ t1,type_iseq targ t2
 				| _ ->
 					if fctx.is_abstract_member then
@@ -1070,6 +1073,10 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		| EUnop(op,flag,_) ->
 			if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "operator function" p;
 			let targ = if fctx.is_abstract_member then tthis else ta in
+			let t = match follow t with
+				| TFun(args,ret) -> TFun(strip_implicit_trailing_args args,ret)
+				| _ -> t
+			in
 			(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise_error_msg (Unify l) cf.cf_pos);
 			a.a_unops <- (op,flag,cf) :: a.a_unops;
 			allow_no_expr();
@@ -1225,7 +1232,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			let to_dyn p ptp = match ptp.path with
 				| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 				| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
-				| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> raise_typing_error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
+				| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> Some (make_ptp_th (mk_type_path (["haxe"],"PosInfos")) p)
 				| _ -> tdyn
 			in
 			{
@@ -1435,6 +1442,10 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 								make_error (Custom (compl_msg (f2.cf_name ^ ": Accessor method is here"))) f2.cf_pos;
 							] p);
 						| _ -> ());
+					let t2 = match follow t2 with
+						| TFun(args,ret) -> TFun(strip_implicit_trailing_args args,ret)
+						| _ -> t2
+					in
 					unify_raise t2 t f2.cf_pos;
 					if (fctx.is_abstract_member && not (has_class_field_flag f2 CfImpl)) || (has_class_field_flag f2 CfImpl && not (fctx.is_abstract_member)) then
 						display_error ctx.com "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
@@ -1653,6 +1664,44 @@ let create_class_field cctx f  =
 	} in
 	cf
 
+let check_implicit_arg_resolver ctx_c c a =
+	match Meta.get Meta.ImplicitArgResolver a.a_meta with
+	| (_,params,meta_pos) ->
+		let com = ctx_c.com in
+		(match params with
+		| [(EConst(Ident name),_)] ->
+			let static = try Some (PMap.find name c.cl_statics) with Not_found -> None in
+			(match static with
+			| None ->
+				if PMap.mem name c.cl_fields then
+					display_error com (Printf.sprintf "@:implicitArgResolver: resolver function '%s' must be static" name) meta_pos
+				else
+					display_error com (Printf.sprintf "@:implicitArgResolver: resolver function '%s' not found" name) meta_pos
+			| Some cf when has_class_field_flag cf CfImpl ->
+				display_error com (Printf.sprintf "@:implicitArgResolver: resolver function '%s' must be static" name) cf.cf_pos
+			| Some cf ->
+				(match cf.cf_kind with
+				| Method _ -> ()
+				| _ -> display_error com (Printf.sprintf "@:implicitArgResolver: resolver '%s' must be a function" name) cf.cf_pos);
+				let is_macro = cf.cf_kind = Method MethMacro in
+				delay ctx_c.g PForce (fun () ->
+					match follow cf.cf_type with
+					| TFun (args,ret) ->
+						List.iter (fun (aname,opt,_) ->
+							if not opt then
+								display_error com (Printf.sprintf "@:implicitArgResolver: resolver '%s' must not have a required argument ('%s')" name aname) cf.cf_pos
+						) args;
+						if not is_macro then begin
+							let at = TAbstract(a,extract_param_types a.a_params) in
+							if not (does_unify ret at || does_unify ret a.a_this) then
+								display_error com (Printf.sprintf "@:implicitArgResolver: resolver '%s' must return %s" name (s_type_path a.a_path)) cf.cf_pos
+						end
+					| _ ->
+						())
+			)
+		| _ ->
+			display_error com "@:implicitArgResolver expects a single resolver function name" meta_pos)
+
 let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
@@ -1786,6 +1835,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_ops <- List.rev a.a_ops;
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
+			if Meta.has Meta.ImplicitArgResolver a.a_meta then check_implicit_arg_resolver ctx_c c a;
 		| None ->
 			()
 	end;

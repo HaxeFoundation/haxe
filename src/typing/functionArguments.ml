@@ -66,6 +66,26 @@ let type_function_arg_value ctx t c do_display =
 			in
 			loop false e
 
+let is_rest_shallow = function
+	| TAbstract({a_path=["haxe"],"Rest"},_)
+	| TType({t_path=["haxe";"extern"],"Rest"},_) -> true
+	| _ -> false
+
+let canonicalize_rest_order get_type is_implicit args =
+	let is_rest x = is_rest_shallow (get_type x) in
+	match List.rev args with
+	| last :: _ when is_rest last -> args
+	| _ when not (List.exists is_rest args) -> args
+	| rev ->
+		let rec peel impl = function
+			| x :: tl when is_implicit x -> peel (x :: impl) tl
+			| x :: tl when is_rest x -> Some (List.rev tl,x,impl)
+			| _ -> None
+		in
+		(match peel [] rev with
+		| Some (before,rest,impl) -> before @ impl @ [rest]
+		| None -> args)
+
 class function_arguments
 	(com : Common.context)
 	(type_arg : int -> bool -> type_hint option -> pos -> Type.t)
@@ -112,14 +132,20 @@ object(self)
 			l
 		| None ->
 			let l = List.map (fun (n,eo,t) -> n,eo <> None,t) with_default in
+			let l = canonicalize_rest_order
+				(fun (_,_,t) -> t)
+				is_implicit_arg
+				l
+			in
 			type_repr <- Some l;
 			l
 
-	method private check_rest (is_last : bool) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
+	method private check_rest (tail : (string * expr option * Type.t) list) (eo : expr option) (opt : bool) (t : Type.t) (pn : pos) =
 		if ExtType.is_rest (follow t) then begin
 			if opt then raise_typing_error "Rest argument cannot be optional" pn;
 			begin match eo with None -> () | Some (_,p) -> raise_typing_error "Rest argument cannot have default value" p end;
-			if not is_last then raise_typing_error "Rest should only be used for the last function argument" pn;
+			let tail_ok = List.for_all (fun (_,eo,t) -> eo <> None && is_pos_infos t) tail in
+			if not tail_ok then raise_typing_error "Rest should only be used for the last function argument" pn;
 		end
 
 	(* Returns the `(tvar * texpr option) list` for `tf_args`. Also checks the validity of argument names and whether or not
@@ -140,7 +166,7 @@ object(self)
 					v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
-					delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+					delay ctx.g PTypeField (fun() -> self#check_rest typed eo opt t pn);
 					if not is_extern then begin
 						Naming.check_local_variable_name ctx.com name TVOArgument pn;
 						if name <> "_" && List.exists (fun (v,_) -> v.v_name = name) acc then
@@ -159,6 +185,11 @@ object(self)
 					die "" __LOC__
 			in
 			let l = loop [] (abstract_this <> None) syntax with_default in
+			let l = canonicalize_rest_order
+				(fun (v,_) -> v.v_type)
+				(fun (v,eo) -> eo <> None && is_pos_infos v.v_type)
+				l
+			in
 			expr_repr <- Some l;
 			l
 
@@ -168,7 +199,7 @@ object(self)
 			| syntax,(name,_,t) :: typed when is_abstract_this ->
 				loop false syntax typed
 			| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
-				delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
+				delay ctx.g PTypeField (fun() -> self#check_rest typed eo opt t pn);
 				ignore(type_function_arg_value ctx t eo do_display);
 				loop false syntax typed
 			| [],[] ->

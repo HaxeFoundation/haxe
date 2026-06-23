@@ -759,11 +759,18 @@ let rec is_pos_infos = function
 	| _ ->
 		false
 
-let is_empty_or_pos_infos args =
-	match args with
-	| [_,true,t] -> is_pos_infos t
-	| [] -> true
-	| _ -> false
+let is_implicit_arg (_,opt,t) = opt && is_pos_infos t
+
+let split_implicit_trailing_args args =
+	let rec loop implicit = function
+		| x :: rest when is_implicit_arg x -> loop (x :: implicit) rest
+		| rest -> (List.rev rest, implicit)
+	in
+	loop [] (List.rev args)
+
+let strip_implicit_trailing_args args = fst (split_implicit_trailing_args args)
+
+let has_only_implicit_args args = strip_implicit_trailing_args args = []
 
 let get_next_stored_typed_expr_id =
 	let uid = ref 0 in

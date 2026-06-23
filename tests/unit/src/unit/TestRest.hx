@@ -17,6 +17,50 @@ class TestRest extends Test {
 		eq(4, rest(1, 2, 3, 4));
 	}
 
+	function testPosInfos() {
+		// a trailing optional PosInfos may follow a rest argument; it is auto-filled
+		// and never consumes a positional (which all flow into the rest)
+		function log(...rest:Int, ?pos:haxe.PosInfos):String {
+			return rest.length + "@" + pos.methodName;
+		}
+		eq("3@testPosInfos", log(1, 2, 3));
+		eq("0@testPosInfos", log());
+
+		function collect(...rest:Int, ?pos:haxe.PosInfos):Array<Int> {
+			return rest.toArray();
+		}
+		aeq([1, 2, 3], collect(1, 2, 3));
+
+		// fixed argument before the rest
+		function tag(label:String, ...rest:Int, ?pos:haxe.PosInfos):String {
+			return label + rest.length + "/" + (pos != null);
+		}
+		eq("x2/true", tag("x", 1, 2));
+
+		// a Dynamic rest must not greedily unify a positional with PosInfos
+		function dyn(...rest:Dynamic, ?pos:haxe.PosInfos):String {
+			return rest.length + ":" + pos.methodName;
+		}
+		eq("2:testPosInfos", dyn("a", "b"));
+		eq("0:testPosInfos", dyn());
+
+		// @:posInfos explicitly targets the pos slot, so the value is NOT consumed by the
+		// greedy rest and pos is not auto-filled
+		var custom:haxe.PosInfos = {fileName: "X", lineNumber: 1, className: "C", methodName: "manual"};
+		function sr(...rest:String, ?pos:haxe.PosInfos):String {
+			return rest.toArray().join(",") + ":" + pos.methodName;
+		}
+		eq("a,b:manual", sr("a", "b", @:posInfos custom));
+		eq(":testPosInfos", sr()); // auto-fill still applies without the marker
+
+		// works for non-rest too (an explicit override rather than skip-by-mismatch)
+		function nb(?b:Bool, ?pos:haxe.PosInfos):String {
+			return (b == null ? "_" : "" + b) + ":" + pos.methodName;
+		}
+		eq("_:manual", nb(@:posInfos custom));
+		eq("true:manual", nb(true, @:posInfos custom));
+	}
+
 	function testToArray() {
 		function rest(...r:Int):Array<Int> {
 			var a = r.toArray();

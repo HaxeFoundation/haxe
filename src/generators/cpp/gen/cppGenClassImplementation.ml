@@ -318,6 +318,27 @@ let generate_native_class base_ctx tcpp_class =
 
   cpp_file#close
 
+let implicit_accessor_arg_count class_def accessor_name base_arity =
+  let field =
+    try Some (PMap.find accessor_name class_def.cl_fields)
+    with Not_found ->
+      (try Some (PMap.find accessor_name class_def.cl_statics) with Not_found -> None)
+  in
+  match field with
+  | Some cf ->
+    (match follow cf.cf_type with
+    | TFun (args, _) -> max 0 (List.length args - base_arity)
+    | _ -> 0)
+  | None -> 0
+
+let implicit_getter_args class_def field =
+  let n = implicit_accessor_arg_count class_def ("get_" ^ field.cf_name) 0 in
+  String.concat ", " (List.init n (fun _ -> "null()"))
+
+let implicit_setter_args class_def field =
+  let n = implicit_accessor_arg_count class_def ("set_" ^ field.cf_name) 1 in
+  String.concat "" (List.init n (fun _ -> ", null()"))
+
 let generate_managed_class base_ctx tcpp_class =
   let common_ctx = base_ctx.ctx_common in
   let class_def = tcpp_class.tcl_class in
@@ -638,7 +659,7 @@ let generate_managed_class base_ctx tcpp_class =
 
       if var.tcv_has_getter then
         let prop_check = checkPropCall var.tcv_field in
-        let getter     = Printf.sprintf "get_%s()" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
+        let getter     = Printf.sprintf "get_%s(%s)" var.tcv_field.cf_name (implicit_getter_args class_def var.tcv_field) |> get_wrapper var.tcv_field in
 
         (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, get_printer prop_check getter variable) :: acc
       else
@@ -660,7 +681,7 @@ let generate_managed_class base_ctx tcpp_class =
   let print_property printer var acc =
     if var.tcv_has_getter && var.tcv_is_reflective && not (is_abstract_impl class_def) then (
       let prop_check = checkPropCall var.tcv_field in
-      let getter     = Printf.sprintf "get_%s()" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
+      let getter     = Printf.sprintf "get_%s(%s)" var.tcv_field.cf_name (implicit_getter_args class_def var.tcv_field) |> get_wrapper var.tcv_field in
       (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, printer prop_check getter) :: acc)
     else
       acc
@@ -726,7 +747,7 @@ let generate_managed_class base_ctx tcpp_class =
         | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
-          let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); } else { %s }" prop_call setter casted default in
+          let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()%s) ); } else { %s }" prop_call setter casted (implicit_setter_args class_def var.tcv_field) default in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
         | Var { v_write = AccNormal | AccNo | AccNever } ->
@@ -745,7 +766,7 @@ let generate_managed_class base_ctx tcpp_class =
         | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
-          let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()) ); }" prop_call setter casted in
+          let call      = Printf.sprintf "if (%s) { return ::hx::Val( %s(inValue.Cast< %s >()%s) ); }" prop_call setter casted (implicit_setter_args class_def var.tcv_field) in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
         | _ ->
@@ -772,7 +793,7 @@ let generate_managed_class base_ctx tcpp_class =
         | Var { v_write = AccCall | AccPrivateCall } ->
           let prop_call = checkPropCall var.tcv_field in
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
-          let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted var.tcv_name casted in
+          let call      = Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()%s); } else { %s = ioValue.Cast< %s >(); } return true;" prop_call setter casted (implicit_setter_args class_def var.tcv_field) var.tcv_name casted in
 
           (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, call) :: acc
         | Var { v_write = AccNormal | AccNo } ->
@@ -791,7 +812,7 @@ let generate_managed_class base_ctx tcpp_class =
           let setter    = Printf.sprintf "set_%s" var.tcv_field.cf_name |> get_wrapper var.tcv_field in
           let casted    = castable var in
 
-          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()); }" prop_call setter casted) :: acc
+          (var.tcv_field.cf_name, String.length var.tcv_field.cf_name, Printf.sprintf "if (%s) { ioValue = %s(ioValue.Cast< %s >()%s); }" prop_call setter casted (implicit_setter_args class_def var.tcv_field)) :: acc
         | _ ->
           acc
       else

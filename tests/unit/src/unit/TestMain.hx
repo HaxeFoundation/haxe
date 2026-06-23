@@ -63,6 +63,8 @@ function main() {
 		new TestNumericCasts(),
 		new TestHashMap(),
 		new TestRest(),
+		new TestImplicitArgResolver(),
+		new TestAbstractPosInfos(),
 		#if (!php && !lua)
 		/* This is annoying and causes spurious CI failures. Let's just make an effort to
 			not break it! */

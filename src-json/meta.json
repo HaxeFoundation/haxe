@@ -488,6 +488,13 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "ImplicitArgResolver",
+		"metadata": ":implicitArgResolver",
+		"doc": "Marks an abstract whose values auto-fill an omitted optional argument of that type. The named static function (macro or not) resolves the value at each call site.",
+		"params": ["Resolver function name"],
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "ImplicitCast",
 		"metadata": ":implicitCast",
 		"doc": "Generated automatically on the AST when an implicit abstract cast happens.",
@@ -863,6 +870,12 @@
 		"params": ["Position"],
 		"targets": ["TExpr"],
 		"links": ["https://haxe.org/manual/macro-reification.html"]
+	},
+	{
+		"name": "PosInfos",
+		"metadata": ":posInfos",
+		"doc": "Explicitly designates a call argument as the value for an implicit `haxe.PosInfos` parameter, overriding the auto-filled position.",
+		"targets": ["TExpr"]
 	},
 	{
 		"name": "Public",

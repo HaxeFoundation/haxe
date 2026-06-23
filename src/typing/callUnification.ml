@@ -7,6 +7,11 @@ open Error
 open FieldAccess
 open FieldCallCandidate
 
+let implicit_resolver_stack = new_rec_stack()
+
+let mk_implicit_resolver_value_ref : (typer -> tclass -> tclass_field -> t list -> t -> pos -> texpr) ref =
+	ref (fun _ _ _ _ _ _ -> assert false)
+
 let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
@@ -19,23 +24,6 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 		raise_error { e with err_message = (Call_error (Could_not_unify e.err_message)) }
 	in
 
-	let mk_pos_infos t =
-		mk_infos_t ctx callp [] t
-	in
-	let default_value name t =
-		if is_pos_infos t then
-			mk_pos_infos t
-		else
-			null (ctx.t.tnull t) callp
-	in
-	let skipped = ref [] in
-	let invalid_skips = ref [] in
-	let skip name ul t =
-		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
-			invalid_skips := name :: !invalid_skips;
-		skipped := (name,ul) :: !skipped;
-		default_value name t
-	in
 	let handle_errors fn =
 		try
 			fn()
@@ -49,6 +37,58 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			!cast_or_unify_raise_ref ctx t e e.epos
 		)
 	in
+	let pos_override = ref None in
+	let el = List.filter (fun e -> match e with
+		| (EMeta((Meta.PosInfos,_,p),e1),_) ->
+			(match !pos_override with
+			| Some _ -> raise_typing_error "Multiple @:posInfos arguments are not allowed" p
+			| None -> pos_override := Some e1);
+			false
+		| _ ->
+			true
+	) el in
+	let pos_override_used = ref false in
+	let implicit_resolver t =
+		match follow t with
+		| TAbstract(a,pl) when Meta.has Meta.ImplicitArgResolver a.a_meta ->
+			(match Meta.get Meta.ImplicitArgResolver a.a_meta, a.a_impl with
+			| (_,[(EConst(Ident name),_)],_), Some c ->
+				(try Some(a,c,pl,PMap.find name c.cl_statics) with Not_found -> None)
+			| _ -> None)
+		| _ ->
+			None
+	in
+	let is_implicit_value t = is_pos_infos t || implicit_resolver t <> None in
+	let mk_implicit_value t =
+		match !pos_override with
+		| Some e when is_pos_infos t ->
+			pos_override_used := true;
+			(try type_against "pos" t e
+			with WithTypeError err -> arg_error err "pos" true)
+		| _ ->
+			match implicit_resolver t with
+			| Some(a,c,pl,cf) ->
+				if rec_stack_memq c implicit_resolver_stack then
+					raise_typing_error ("Cyclic @:implicitArgResolver for " ^ s_type_path a.a_path) callp;
+				rec_stack_loop implicit_resolver_stack c
+					(fun () -> !mk_implicit_resolver_value_ref ctx c cf pl t callp) ()
+			| None ->
+				mk_infos_t ctx callp [] t
+	in
+	let default_value name t =
+		if is_implicit_value t then
+			mk_implicit_value t
+		else
+			null (ctx.t.tnull t) callp
+	in
+	let skipped = ref [] in
+	let invalid_skips = ref [] in
+	let skip name ul t =
+		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
+			invalid_skips := name :: !invalid_skips;
+		skipped := (name,ul) :: !skipped;
+		default_value name t
+	in
 	let rec loop el args = match el,args with
 		| [],[] ->
 			begin match List.rev !invalid_skips with
@@ -56,6 +96,8 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				| name :: _ -> call_error (Cannot_skip_non_nullable name) callp;
 			end;
 			[]
+		| _,(_,true,t) :: ((_,false,tr) :: _ as args) when is_pos_infos t && ExtType.is_rest (follow tr) ->
+			mk_implicit_value t :: loop el args
 		| _,[name,false,TAbstract({ a_path = ["cpp"],"Rest" },[t])] ->
 			(try List.map (fun e -> type_against name t e) el
 			with WithTypeError e -> arg_error e name false)
@@ -134,7 +176,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				[]
 			end else begin match loop [] args with
 				| [] when not (inline && (ctx.com.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
-					if is_pos_infos t then [mk_pos_infos t]
+					if is_implicit_value t then [mk_implicit_value t]
 					else []
 				| args ->
 					let e_def = default_value name t in
@@ -151,7 +193,6 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				| (s,ul) :: _ -> arg_error ul s true
 			end
 		| e :: el,(name,opt,t) :: args ->
-			let might_skip = List.length el < List.length args in
 			let body_capture = reset_call_arg_body_capture ctx in
 			let restore_monos = monomorph_transaction ctx in
 			let committed = ref false in
@@ -162,22 +203,28 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 					let e = type_against name t e in
 					commit ();
 					e :: loop el args
-				with
-					| WithTypeError ul when opt && might_skip ->
-							drop ();
-							restore_monos();
-							let e_def = skip name ul t in
-							e_def :: loop (e :: el) args
-					| WithTypeError _ when !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) ->
-							commit ();
-							restore_monos();
-							let e_def = default_value name t in
-							e_def :: loop el args
-					| WithTypeError ul ->
-							commit ();
-							match List.rev !skipped with
-							| [] -> arg_error ul name opt
-							| (s,ul) :: _ -> arg_error ul s true
+				with WithTypeError ul ->
+					let might_skip = opt && List.length el < List.length args in
+					let opt_followed_by_rest = opt && match args with
+						| [(_,_,t)] -> ExtType.is_rest (follow t)
+						| _ -> false
+					in
+					if might_skip || opt_followed_by_rest then begin
+						drop ();
+						restore_monos();
+						let e_def = skip name ul t in
+						e_def :: loop (e :: el) args
+					end else if !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+						commit ();
+						restore_monos();
+						let e_def = default_value name t in
+						e_def :: loop el args
+					end else begin
+						commit ();
+						match List.rev !skipped with
+						| [] -> arg_error ul name opt
+						| (s,ul) :: _ -> arg_error ul s true
+					end
 				end
 			with exc ->
 				commit ();
@@ -187,6 +234,10 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 	let restore = enter_call_args ctx ~in_overload in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
+	(match !pos_override with
+	| Some e when not !pos_override_used ->
+		raise_typing_error "@:posInfos argument has no matching haxe.PosInfos parameter" (snd e)
+	| _ -> ());
 	el
 
 type overload_kind =
@@ -728,3 +779,18 @@ let make_static_call_better ctx c cf tl el t p =
 	let fa = FieldAccess.create e1 cf fh false p in
 	let fcc = unify_field_call ctx fa el [] p false in
 	fcc.fc_data()
+
+let () = mk_implicit_resolver_value_ref := (fun ctx c cf tl t p ->
+	if cf.cf_kind = Method MethMacro then
+		let _ = ctx.e.with_type_stack <- (WithType.with_type t) :: ctx.e.with_type_stack in
+		let r = ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p in
+		ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
+		match r with
+		| MSuccess e ->
+			let e = type_expr ctx e (WithType.with_type t) in
+			!cast_or_unify_raise_ref ctx t e p
+		| _ ->
+			type_expr ctx (EConst (Ident "null"),p) WithType.value
+	else
+		make_static_call_better ctx c cf tl [] t p
+)
