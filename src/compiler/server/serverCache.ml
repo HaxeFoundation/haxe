@@ -402,7 +402,11 @@ class hxb_reader_api_server
 		i
 
 	method read_expression_eagerly (cf : tclass_field) =
-		com.is_macro_context || com.display.dms_full_typing || Define.defined com.defines Define.DisableHxbOptimizations
+		(* Header invalidation: never read bodies eagerly, so a restore in the seed re-typing cascade does
+		   not force a body type-ref to a cyclic peer that is not loaded yet. Bodies are deferred (TLazy)
+		   and forced later, once the peers exist. *)
+		not (Define.raw_defined com.defines "hxb.header_invalidation") &&
+		(com.is_macro_context || com.display.dms_full_typing || Define.defined com.defines Define.DisableHxbOptimizations)
 
 	method make_lazy_type t f =
 		let r = make_unforced_lazy t f "server-api" in
