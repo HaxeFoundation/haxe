@@ -282,22 +282,31 @@ let header_invalidation_prephase tctx =
 		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
 		| _ -> file_changed mc
 	in
+	let verbose = Define.raw_defined com.defines "hxb.header_invalidation_verbose" in
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
+	let n_failed = ref 0 in
 	let loaded = List.fold_left (fun acc path ->
 		try (path,tctx.Typecore.g.Typecore.do_load_module tctx path null_pos) :: acc
-		with _ -> acc
+		with e ->
+			incr n_failed;
+			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed load failed %s: %s" (s_type_path path) (Printexc.to_string e));
+			acc
 	) [] seeds in
 	Typecore.flush_pass tctx.g PBuildClass "header-invalidation prephase";
+	let n_empty = ref 0 and n_changed = ref 0 in
 	List.iter (fun (path,m) ->
 		let old_sig = try (cc#get_hxb_module path).HxbData.mc_extra.m_sig with Not_found -> None in
 		let delta = match old_sig with
 			| Some old -> ModuleSignature.diff old (ModuleSignature.of_module m)
 			| None -> []
 		in
+		(if delta = [] then incr n_empty else incr n_changed);
 		(* Set on both the live module and whatever find_module_extra will return for it. *)
 		m.m_extra.m_sig_delta <- Some (step,delta);
 		(try (cc#find_module_extra path).m_sig_delta <- Some (step,delta) with Not_found -> ())
-	) loaded
+	) loaded;
+	print_endline (Printf.sprintf "[header-invalidation] step=%d seeds=%d retyped=%d failed=%d delta_empty=%d delta_changed=%d"
+		step (List.length seeds) (List.length loaded) !n_failed !n_empty !n_changed)
 
 (** Creates the typer context and types [classes] into it. *)
 let do_type com mctx actx display_file_dot_path =
@@ -323,7 +332,10 @@ let do_type com mctx actx display_file_dot_path =
 	DumpConfig.update_from_defines com.part_scope.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
-	if Define.raw_defined com.defines "hxb.header_invalidation" then header_invalidation_prephase tctx;
+	if Define.raw_defined com.defines "hxb.header_invalidation" then begin
+		ServerCache.reset_header_stats ();
+		header_invalidation_prephase tctx
+	end;
 	(try begin
 		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
 		run_or_diagnose com (fun () ->
@@ -337,6 +349,9 @@ let do_type com mctx actx display_file_dot_path =
 	end with TypeloadParse.DisplayInMacroBlock ->
 		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
 	);
+	if Define.raw_defined com.defines "hxb.header_invalidation" then
+		print_endline (Printf.sprintf "[header-invalidation] dependents spared=%d observed=%d stale-step=%d"
+			!ServerCache.header_spared !ServerCache.header_observed !ServerCache.header_stale);
 	enter_stage com CTypingDone;
 	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
