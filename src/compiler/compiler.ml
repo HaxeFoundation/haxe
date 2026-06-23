@@ -293,12 +293,25 @@ let header_invalidation_prephase tctx =
 			(* Force the class structure (fields/signatures) to be built before reading the signature;
 			   class builds are deferred (PBuildClass), so of_module would otherwise see empty classes. *)
 			List.iter (fun mt -> match mt with Type.TClassDecl c -> ignore (c.Type.cl_build ()) | _ -> ()) m.m_types;
-			let new_sig = ModuleSignature.of_module m in
-			let diff = match old_sig with Some old -> ModuleSignature.diff old new_sig | None -> [] in
-			let unchanged = (old_sig <> None) && diff = [] in
-			(if unchanged then incr n_unchanged else incr n_changed);
-			extra.m_time <- (try file_time (Path.UniqueKey.lazy_path extra.m_file) with _ -> extra.m_time);
-			extra.m_cache_state <- (if unchanged then MSGood else MSBad (Tainted ServerInvalidate))
+			let new_time = (try file_time (Path.UniqueKey.lazy_path extra.m_file) with _ -> extra.m_time) in
+			extra.m_time <- new_time;
+			m.m_extra.m_time <- new_time;
+			(match old_sig with
+			| None ->
+				(* No cached signature to diff against: be conservative, treat dependents as observing
+				   the change (re-type them) rather than risk wrongly sparing. *)
+				incr n_changed;
+				extra.m_cache_state <- MSBad (Tainted ServerInvalidate)
+			| Some old ->
+				let diff = ModuleSignature.diff old (ModuleSignature.of_module m) in
+				(if diff = [] then incr n_unchanged else incr n_changed);
+				(* The seed is re-typed and good either way; a non-empty diff is published as a
+				   step-tagged delta so check_dependencies can spare dependents field-granularly. *)
+				let delta = if diff = [] then None else Some (com.sctx.compilation_step, diff) in
+				extra.m_sig_delta <- delta;
+				m.m_extra.m_sig_delta <- delta;
+				extra.m_cache_state <- MSGood;
+				m.m_extra.m_cache_state <- MSGood)
 		with e ->
 			incr n_failed;
 			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed re-type failed %s: %s\n%s" (s_type_path path) (Printexc.to_string e) (Printexc.get_backtrace ()));
