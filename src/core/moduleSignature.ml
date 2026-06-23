@@ -22,15 +22,8 @@ open Globals
 open Ast
 open Type
 
-type decl_signature = {
-	ds_struct : string;                    (* non-field structural signature of the declaration *)
-	ds_fields : (string,string) PMap.t;    (* field key -> canonical field signature *)
-}
-
-type module_signature = {
-	msig_path : path;
-	msig_decls : (string,decl_signature) PMap.t;   (* type tail name -> its signature *)
-}
+(* [decl_signature] / [module_signature] are defined in TType so [module_def_extra] can hold one
+   ([m_sig]); this module computes and diffs them. *)
 
 (* ---------------------------------------------------------------------- *)
 (* Leaf printers                                                          *)
@@ -227,7 +220,13 @@ let of_module m =
 		let (name,decl) = decl_of_module_type s_type mt in
 		PMap.add name decl acc
 	) PMap.empty m.m_types in
-	{ msig_path = m.m_path; msig_decls = decls }
+	{ msig_decls = decls }
+
+(* Compute and store the module's signature in m_extra. Called at cache time (pre-DCE, so the full
+   public surface is present, and cf_expr_unoptimized exists for impl fields). Carried in mc_extra,
+   so a cache-restored module already has it. *)
+let compute_and_store m =
+	m.m_extra.m_sig <- Some (of_module m)
 
 (* ---------------------------------------------------------------------- *)
 (* Diffing                                                                *)
