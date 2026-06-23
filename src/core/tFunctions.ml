@@ -186,6 +186,7 @@ let module_extra file sign time kind added policy =
 		m_deps = PMap.empty;
 		m_field_deps = PMap.empty;
 		m_sig = None;
+		m_sig_delta = None;
 		m_display_deps = None;
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();

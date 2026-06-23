@@ -231,13 +231,7 @@ let compute_and_store m =
 (* ---------------------------------------------------------------------- *)
 (* Diffing                                                                *)
 
-type sig_change =
-	| ScTypeAdded of string
-	| ScTypeRemoved of string
-	| ScStructural of string
-	| ScFieldAdded of string * string
-	| ScFieldRemoved of string * string
-	| ScFieldChanged of string * string
+(* sig_change is defined in TType (so m_extra can carry a delta); the diff/printer live here. *)
 
 let s_sig_change = function
 	| ScTypeAdded s -> "+type " ^ s
