@@ -308,6 +308,10 @@ let get_hxb_module com cc path typing_mode =
 			| FullTyping ->
 				begin match mc.mc_extra.m_cache_state with
 					| MSBad reason when typing_mode = AllowPartialTyping -> BadBinaryModule (mc, reason)
+					(* Header invalidation: a seed being re-typed is referenced by a peer's restore;
+					   restore it (its cached header resolves the reference) rather than dying, so
+					   cycles through the seed close. *)
+					| MSBad Reprocessing -> BadBinaryModule (mc, Reprocessing)
 					| MSBad reason -> BadModule reason
 					| _ -> BinaryModule mc
 				end
@@ -421,7 +425,11 @@ let handle_cache_bound_objects com cbol =
 let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : pos) =
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
-		if m.m_extra.m_cache_state <> MSGood then begin
+		if m.m_extra.m_cache_state = MSBad Reprocessing then
+			(* Header invalidation: a seed being re-typed; leave it (it is handled by the pre-phase /
+			   resolved from cache), do not treat it as a bad module. *)
+			()
+		else if m.m_extra.m_cache_state <> MSGood then begin
 			(match m.m_extra.m_cache_state with
 				| MSBad reason when com.display.dms_full_typing ->
 					failwith (Printf.sprintf "Unexpected bad module %s (%s)" (s_type_path m.m_path) (Printer.s_module_skip_reason reason))
