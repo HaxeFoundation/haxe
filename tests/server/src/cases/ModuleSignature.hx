@@ -1,5 +1,7 @@
 package cases;
 
+import haxe.display.FsPath;
+import haxe.display.Server;
 import haxe.io.Path;
 import TestCase;
 import utest.Assert;
@@ -9,7 +11,8 @@ class ModuleSignature extends TestCase {
 	// dumped when the module was freshly typed. This is the determinism precondition for using module
 	// signatures as the module-header diff layer: in particular, the var ids the hxb reader reassigns
 	// to a restored module's expressions must normalize away (impl-field bodies are rendered with
-	// positional var tokens), and no compiler-stage-derived meta may leak in.
+	// positional var tokens), and no compiler-stage-derived meta may leak in. Also covers persistence:
+	// the restored Dep dumps its stored m_sig, which must equal the freshly-typed one.
 	function testSignatureStableAcrossCacheRestore() {
 		vfs.putContent("Dep.hx", depContent());
 		vfs.putContent("Main.hx", mainContent("// v1"));
@@ -23,12 +26,56 @@ class ModuleSignature extends TestCase {
 
 		// Edit only Main, so on recompile Dep is reused from the cache (restored, not re-typed).
 		vfs.putContent("Main.hx", mainContent("// v2"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
 		runHaxe(args);
 		assertSuccess();
 		assertReuse("Dep");
 		var restored = depSignature();
 
 		Assert.equals(fresh, restored);
+	}
+
+	// The behaviour-neutral measurement (-D hxb.measure_signatures) must classify a re-typed module as
+	// header-unchanged after a body-only edit (its dependents were dragged needlessly) and as
+	// header-changed after a signature edit.
+	function testMeasureSignatureInvalidation() {
+		vfs.putContent("Dep.hx", dep("Int", "v + n"));
+		vfs.putContent("Main.hx", "class Main { static function main() { trace(new Dep().bump(1)); } }");
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.measure_signatures"];
+
+		runHaxe(args);
+		assertSuccess();
+
+		// Body-only edit: Dep's header is unchanged, so nothing should count as header-changed.
+		vfs.putContent("Dep.hx", dep("Int", "v + n + 7"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.equals(0, measureChangedCount());
+
+		// Signature edit (return type Int -> Float): header changed.
+		vfs.putContent("Dep.hx", dep("Float", "v + n + 7"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.isTrue(measureChangedCount() > 0);
+	}
+
+	function dep(ret:String, body:String) {
+		return 'class Dep {
+	public var v:Int;
+	public function new() v = 0;
+	public function bump(n:Int):$ret { return $body; }
+}';
+	}
+
+	// Parses "header changed N" from the last [measure-signatures] line of the current request.
+	function measureChangedCount():Int {
+		var re = ~/header changed (\d+)/;
+		var result = -1;
+		for (m in messages)
+			if (re.match(m)) result = Std.parseInt(re.matched(1));
+		return result;
 	}
 
 	function depContent() {

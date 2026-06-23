@@ -103,6 +103,11 @@ let rec cache_context cs com =
 	let sign = Define.get_signature com.defines in
 
 	let detect_mutations = Define.defined com.defines HxbDetectUnexpectedMutations in
+	(* `-D hxb.measure_signatures`: behaviour-neutral. For each re-typed module, diff its new header
+	   signature against the cached one to gauge how many re-types were header-unchanged (body-only),
+	   i.e. how many dependents were invalidated needlessly. Measurement only; no sparing yet. *)
+	let measure_sigs = Define.raw_defined com.defines "hxb.measure_signatures" in
+	let sig_unchanged = ref 0 and sig_changed = ref 0 and sig_no_baseline = ref 0 in
 	let parallels = DynArray.create () in
 	(* Modules the unchanged-skip heuristic would skip, to be re-serialized and verified (in parallel,
 	   like the real write path) only when `-D hxb.detect_unexpected_mutations` is set. *)
@@ -150,6 +155,14 @@ let rec cache_context cs com =
 				(* Re-typed module: compute its header signature now (pre-DCE — full public surface,
 				   cf_expr_unoptimized present) so it is carried in mc_extra for the next round. *)
 				ModuleSignature.compute_and_store m;
+				if measure_sigs then begin
+					(* The cache still holds the previous round's entry (not yet replaced), so its
+					   mc_extra carries the old signature. *)
+					let old_sig = try (cc#get_hxb_module m.m_path).HxbData.mc_extra.m_sig with Not_found -> None in
+					(match old_sig, m.m_extra.m_sig with
+					| Some old, Some nw -> if ModuleSignature.diff old nw = [] then incr sig_unchanged else incr sig_changed
+					| _ -> incr sig_no_baseline)
+				end;
 				match make_writer warn with
 				| None ->
 					()
@@ -188,6 +201,12 @@ let rec cache_context cs com =
 					()
 			) results
 		) ();
+	if measure_sigs && (!sig_unchanged + !sig_changed + !sig_no_baseline) > 0 then begin
+		let retyped = !sig_unchanged + !sig_changed in
+		let pct = if retyped > 0 then 100. *. float !sig_unchanged /. float retyped else 0. in
+		Printf.printf "[measure-signatures] re-typed with baseline: %d | header unchanged %d (%.1f%%, dependents needlessly invalidated) | header changed %d | no baseline %d\n%!"
+			retyped !sig_unchanged pct !sig_changed !sig_no_baseline
+	end;
 	let written = ref (Array.length a) in
 	begin match com.get_macros() with
 		| None -> ()
