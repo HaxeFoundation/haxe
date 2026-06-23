@@ -660,6 +660,7 @@ module Printer = struct
 			| FileChanged file -> "FileChanged " ^ file
 			| Shadowed file -> "Shadowed " ^ file
 			| LibraryChanged -> "LibraryChanged"
+			| Reprocessing -> "Reprocessing"
 		in
 		loop [] reason
 

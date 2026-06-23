@@ -45,6 +45,10 @@ type module_skip_reason =
 	| FileChanged of string
 	| Shadowed of string
 	| LibraryChanged
+	(* Header invalidation: a seed being re-typed in the pre-phase. Treated as dirty for the module
+	   ITSELF (so any MSBad-aware site re-types it) but clean as a DEPENDENCY (check_dependencies does
+	   not propagate it). Promoted to MSGood once re-typed with an unchanged header. *)
+	| Reprocessing
 
 type module_cache_state =
 	| MSGood

@@ -261,18 +261,18 @@ let check_defines com =
 			()
 	) com.defines.values
 
-(* Header-invalidation pre-phase (-D hxb.header_invalidation): re-type the modules a client explicitly
-   invalidated (the seeds) NOW, before their dependents are checked, and record each seed's signature
-   delta (vs the cached one) tagged with the compilation step. check_dependencies then spares a
-   dependent of a seed unless it observes one of the changed entries. Re-typing is in-place (the seed
-   is needed regardless); only dependents are spared, so no isolated context is required. *)
+(* Header-invalidation pre-phase (-D hxb.header_invalidation): re-type the modules a client invalidated
+   (the seeds) NOW, before any dependent is typed. Each seed is first given the intermediate state
+   MSBad Reprocessing: dirty for ITSELF (so it gets re-typed) but clean as a DEPENDENCY (so its
+   re-typing does not cascade dirtiness into the rest of the program). Once re-typed, the seed is
+   promoted: an unchanged header -> MSGood (its dependents are reused); a changed header -> the
+   conservative invalidated state (its dependents are re-typed). With every seed promoted before the
+   flush, nothing else is dirty when main typing runs. *)
 let header_invalidation_prephase tctx =
 	let com = tctx.Typecore.com in
-	let step = com.sctx.compilation_step in
+	let verbose = Define.raw_defined com.defines "hxb.header_invalidation_verbose" in
 	let cc = CommonCache.get_cache com in
-	(* A seed is a module the client explicitly invalidated, or one whose source file changed on disk.
-	   file_time vs the cached m_time mirrors check_file; a spurious mtime-only change just re-types the
-	   seed and finds an empty delta, so its dependents are still spared. *)
+	(* A seed is a module the client explicitly invalidated, or one whose source file changed on disk. *)
 	let file_changed mc =
 		mc.HxbData.mc_extra.m_kind = MCode &&
 		(let file = Path.UniqueKey.lazy_path mc.HxbData.mc_extra.m_file in
@@ -282,31 +282,29 @@ let header_invalidation_prephase tctx =
 		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
 		| _ -> file_changed mc
 	in
-	let verbose = Define.raw_defined com.defines "hxb.header_invalidation_verbose" in
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
-	let n_failed = ref 0 in
-	let loaded = List.fold_left (fun acc path ->
-		try (path,tctx.Typecore.g.Typecore.do_load_module tctx path null_pos) :: acc
+	let n_unchanged = ref 0 and n_changed = ref 0 and n_failed = ref 0 in
+	List.iter (fun path ->
+		(* Operate on the m_extra that check actually reads for this module. *)
+		let extra = try cc#find_module_extra path with Not_found -> (cc#get_hxb_module path).HxbData.mc_extra in
+		let old_sig = extra.m_sig in
+		extra.m_cache_state <- MSBad Reprocessing;
+		(try
+			let m = tctx.Typecore.g.Typecore.do_load_module tctx path null_pos in
+			let unchanged = match old_sig with Some old -> ModuleSignature.diff old (ModuleSignature.of_module m) = [] | None -> false in
+			(if unchanged then incr n_unchanged else incr n_changed);
+			(* Refresh m_time so a promoted MSGood survives check_file (the file did change on disk). *)
+			extra.m_time <- (try file_time (Path.UniqueKey.lazy_path extra.m_file) with _ -> extra.m_time);
+			extra.m_cache_state <- (if unchanged then MSGood else MSBad (Tainted ServerInvalidate))
 		with e ->
 			incr n_failed;
-			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed load failed %s: %s" (s_type_path path) (Printexc.to_string e));
-			acc
-	) [] seeds in
+			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed re-type failed %s: %s" (s_type_path path) (Printexc.to_string e));
+			extra.m_cache_state <- MSBad (Tainted ServerInvalidate))
+	) seeds;
 	Typecore.flush_pass tctx.g PBuildClass "header-invalidation prephase";
-	let n_empty = ref 0 and n_changed = ref 0 in
-	List.iter (fun (path,m) ->
-		let old_sig = try (cc#get_hxb_module path).HxbData.mc_extra.m_sig with Not_found -> None in
-		let delta = match old_sig with
-			| Some old -> ModuleSignature.diff old (ModuleSignature.of_module m)
-			| None -> []
-		in
-		(if delta = [] then incr n_empty else incr n_changed);
-		(* Set on both the live module and whatever find_module_extra will return for it. *)
-		m.m_extra.m_sig_delta <- Some (step,delta);
-		(try (cc#find_module_extra path).m_sig_delta <- Some (step,delta) with Not_found -> ())
-	) loaded;
-	print_endline (Printf.sprintf "[header-invalidation] step=%d seeds=%d retyped=%d failed=%d delta_empty=%d delta_changed=%d"
-		step (List.length seeds) (List.length loaded) !n_failed !n_empty !n_changed)
+	if Define.raw_defined com.defines "hxb.header_invalidation" then
+		print_endline (Printf.sprintf "[header-invalidation] seeds=%d unchanged=%d changed=%d failed=%d"
+			(List.length seeds) !n_unchanged !n_changed !n_failed)
 
 (** Creates the typer context and types [classes] into it. *)
 let do_type com mctx actx display_file_dot_path =
@@ -332,10 +330,8 @@ let do_type com mctx actx display_file_dot_path =
 	DumpConfig.update_from_defines com.part_scope.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
-	if Define.raw_defined com.defines "hxb.header_invalidation" then begin
-		ServerCache.reset_header_stats ();
-		header_invalidation_prephase tctx
-	end;
+	if Define.raw_defined com.defines "hxb.header_invalidation" && not com.is_macro_context then
+		header_invalidation_prephase tctx;
 	(try begin
 		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
 		run_or_diagnose com (fun () ->
@@ -349,9 +345,6 @@ let do_type com mctx actx display_file_dot_path =
 	end with TypeloadParse.DisplayInMacroBlock ->
 		ignore(DisplayProcessing.load_display_module_in_macro tctx display_file_dot_path true)
 	);
-	if Define.raw_defined com.defines "hxb.header_invalidation" then
-		print_endline (Printf.sprintf "[header-invalidation] dependents spared=%d observed=%d stale-step=%d"
-			!ServerCache.header_spared !ServerCache.header_observed !ServerCache.header_stale);
 	enter_stage com CTypingDone;
 	ServerMessage.compiler_stage com;
 	(* If we are trying to find references, let's syntax-explore everything we know to check for the
