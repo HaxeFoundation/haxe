@@ -135,6 +135,12 @@ let get_typing_mode com m_extra =
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
+(* Header-invalidation diagnostics: how check_dependencies treated seed deltas this compile. *)
+let header_spared = ref 0
+let header_observed = ref 0
+let header_stale = ref 0
+let reset_header_stats () = header_spared := 0; header_observed := 0; header_stale := 0
+
 let check_module sctx com m_path m_extra p =
 	let cc = CommonCache.get_cache com in
 	let header_invalidation = Define.raw_defined com.defines "hxb.header_invalidation" in
@@ -235,11 +241,17 @@ let check_module sctx com m_path m_extra p =
 						let edges = PMap.foldi (fun _ e acc ->
 							if e.dep_tgt_path = mpath then e :: acc else acc
 						) m_extra.m_field_deps [] in
-						if ModuleSignature.dependent_observes_changes delta edges then
+						if ModuleSignature.dependent_observes_changes delta edges then begin
+							incr header_observed;
 							raise (Dirty (DependencyDirty(mpath,Tainted ServerInvalidate)))
-						else
+						end else begin
+							incr header_spared;
 							true
-					| _ ->
+						end
+					| Some _ ->
+						incr header_stale;
+						false
+					| None ->
 						false
 				) in
 				if not spared_via_delta then match check mpath m2_extra with
