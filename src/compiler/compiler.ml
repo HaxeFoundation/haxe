@@ -282,16 +282,31 @@ let header_invalidation_prephase tctx =
 		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
 		| _ -> file_changed mc
 	in
-	ignore verbose;
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
-	(* Q2 experiment: only mark the seeds Reprocessing; let the normal Main typing path re-type EReason
-	   in dependency order (no explicit pre-phase load, no flush). *)
+	let n_unchanged = ref 0 and n_changed = ref 0 and n_failed = ref 0 in
 	List.iter (fun path ->
 		let extra = try cc#find_module_extra path with Not_found -> (cc#get_hxb_module path).HxbData.mc_extra in
-		extra.m_cache_state <- MSBad Reprocessing
+		let old_sig = extra.m_sig in
+		extra.m_cache_state <- MSBad Reprocessing;
+		(try
+			let m = tctx.Typecore.g.Typecore.do_load_module tctx path null_pos in
+			(* Force the class structure (fields/signatures) to be built before reading the signature;
+			   class builds are deferred (PBuildClass), so of_module would otherwise see empty classes. *)
+			List.iter (fun mt -> match mt with Type.TClassDecl c -> ignore (c.Type.cl_build ()) | _ -> ()) m.m_types;
+			let new_sig = ModuleSignature.of_module m in
+			let diff = match old_sig with Some old -> ModuleSignature.diff old new_sig | None -> [] in
+			let unchanged = (old_sig <> None) && diff = [] in
+			(if unchanged then incr n_unchanged else incr n_changed);
+			extra.m_time <- (try file_time (Path.UniqueKey.lazy_path extra.m_file) with _ -> extra.m_time);
+			extra.m_cache_state <- (if unchanged then MSGood else MSBad (Tainted ServerInvalidate))
+		with e ->
+			incr n_failed;
+			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed re-type failed %s: %s\n%s" (s_type_path path) (Printexc.to_string e) (Printexc.get_backtrace ()));
+			extra.m_cache_state <- MSBad (Tainted ServerInvalidate))
 	) seeds;
 	if Define.raw_defined com.defines "hxb.header_invalidation" then
-		print_endline (Printf.sprintf "[header-invalidation] seeds marked Reprocessing=%d" (List.length seeds))
+		print_endline (Printf.sprintf "[header-invalidation] seeds=%d unchanged=%d changed=%d failed=%d"
+			(List.length seeds) !n_unchanged !n_changed !n_failed)
 
 (** Creates the typer context and types [classes] into it. *)
 let do_type com mctx actx display_file_dot_path =
