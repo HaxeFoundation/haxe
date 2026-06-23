@@ -226,6 +226,23 @@ let check_module sctx com m_path m_extra p =
 				with Not_found ->
 					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
+				(* Header invalidation: if this dependency was re-typed as a seed in the pre-phase, it
+				   carries a step-tagged signature delta. The dependent is then invalidated only if it
+				   observes one of the changed entries (field-granular); otherwise it is spared (the dep
+				   is already re-typed and good). *)
+				let spared_via_delta = (match m2_extra.m_sig_delta with
+					| Some (step,delta) when step = start_mark ->
+						let edges = PMap.foldi (fun _ e acc ->
+							if e.dep_tgt_path = mpath then e :: acc else acc
+						) m_extra.m_field_deps [] in
+						if ModuleSignature.dependent_observes_changes delta edges then
+							raise (Dirty (DependencyDirty(mpath,Tainted ServerInvalidate)))
+						else
+							true
+					| _ ->
+						false
+				) in
+				if not spared_via_delta then
 				match check mpath m2_extra with
 				| None -> ()
 				(* Header invalidation: a seed currently being re-typed in the pre-phase (MSBad
