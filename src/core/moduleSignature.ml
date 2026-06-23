@@ -269,6 +269,54 @@ let diff old_sig new_sig =
 	) old_sig.msig_decls acc
 
 (* ---------------------------------------------------------------------- *)
+(* Consuming a diff against a dependent's field-dependency edges           *)
+
+(* The decl_signature field key a dep_field maps to. cl_init (CfrInit) is not part of the signature,
+   so it has no key — the caller treats None as "any change to the declaring type". *)
+let field_key_of_dep_field df =
+	match df.dfd_kind with
+	| CfrStatic -> Some ("s:" ^ df.dfd_field)
+	| CfrMember -> Some ("m:" ^ df.dfd_field)
+	| CfrConstructor -> Some "c:"
+	| CfrInit -> None
+
+(* Does a single dependency edge observe [changes] (the diff of the target module's signature)?
+   - macro-origin edges are implementation dependencies (the dependent ran a macro from the target),
+     which can observe anything the header does not model -> any change is observable.
+   - field edge (dep_tgt = Some df): observable iff that field's own signature changed/was removed,
+     or its declaring type's structure changed (which can shift what the field means).
+   - module-level edge (dep_tgt = None: import, inheritance, structural reference): observes
+     structural changes, type add/remove and field removals, but NOT individual field
+     signature changes/additions. Those are caught by the field-granular edges — every real field
+     use has one (invariant verified by -D hxb.verify_field_deps) — so relying on that keeps imports
+     from invalidating on every edit. *)
+let edge_observes_changes changes edge =
+	match edge.dep_tgt_origin with
+	| MDepFromMacro | MDepFromMacroDefine ->
+		true
+	| _ ->
+	match edge.dep_tgt with
+	| None ->
+		List.exists (function
+			| ScStructural _ | ScTypeAdded _ | ScTypeRemoved _ | ScFieldRemoved _ -> true
+			| ScFieldChanged _ | ScFieldAdded _ -> false
+		) changes
+	| Some df ->
+		let tn = snd df.dfd_path in
+		let key = field_key_of_dep_field df in
+		List.exists (function
+			| ScStructural n | ScTypeRemoved n -> n = tn
+			| ScTypeAdded _ -> false
+			| ScFieldChanged(n,k) | ScFieldAdded(n,k) | ScFieldRemoved(n,k) ->
+				n = tn && (match key with Some key -> key = k | None -> true)
+		) changes
+
+(* Given the target module's signature [changes] and the set of edges from a dependent that point at
+   that target, does the dependent observe any change (=> it must be invalidated)? *)
+let dependent_observes_changes changes edges =
+	changes <> [] && List.exists (edge_observes_changes changes) edges
+
+(* ---------------------------------------------------------------------- *)
 (* Rendering (for the dump diagnostic)                                    *)
 
 let render sg =
