@@ -235,7 +235,15 @@ let check_module sctx com m_path m_extra p =
 						let edges = PMap.foldi (fun _ e acc ->
 							if e.dep_tgt_path = mpath then e :: acc else acc
 						) m_extra.m_field_deps [] in
-						if ModuleSignature.dependent_observes_changes delta edges then
+						let observes = ModuleSignature.dependent_observes_changes delta edges in
+						(if Define.raw_defined com.defines "hxb.header_invalidation_verbose" then
+							print_endline (Printf.sprintf "[hi-probe] %s -> seed %s observes=%b | changes=[%s] | edges=[%s]"
+								(s_type_path m_path) (s_type_path mpath) observes
+								(String.concat "; " (List.map ModuleSignature.s_sig_change delta))
+								(String.concat "; " (List.map (fun e -> match e.dep_tgt with
+									| None -> "MODULE(" ^ (match e.dep_tgt_origin with MDepFromMacro|MDepFromMacroDefine -> "macro" | _ -> "plain") ^ ")"
+									| Some df -> Printf.sprintf "%s.%s" (s_type_path df.dfd_path) df.dfd_field) edges))));
+						if observes then
 							raise (Dirty (DependencyDirty(mpath,Tainted ServerInvalidate)))
 						else
 							true
