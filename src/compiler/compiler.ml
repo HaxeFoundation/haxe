@@ -278,9 +278,17 @@ let header_invalidation_prephase tctx =
 		(let file = Path.UniqueKey.lazy_path mc.HxbData.mc_extra.m_file in
 		 try file_time file <> mc.HxbData.mc_extra.m_time with _ -> false)
 	in
-	let is_seed mc = match mc.HxbData.mc_extra.m_cache_state with
+	(* The module under the display cursor must NOT be re-typed here: the normal display flow owns it and
+	   raises DisplayException at the cursor to return the result. Re-typing it early would swallow that
+	   control-flow exception (caught below as a spurious "re-type failure") and leave a broken result. *)
+	let in_display_file (extra : Type.module_def_extra) =
+		DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key extra.m_file)
+	in
+	let is_seed mc =
+		not (in_display_file mc.HxbData.mc_extra) &&
+		(match mc.HxbData.mc_extra.m_cache_state with
 		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
-		| _ -> file_changed mc
+		| _ -> file_changed mc)
 	in
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
 	let n_unchanged = ref 0 and n_changed = ref 0 and n_failed = ref 0 and n_spared = ref 0 in
@@ -368,6 +376,9 @@ let header_invalidation_prephase tctx =
 			List.iter (fun d ->
 				if not (Hashtbl.mem retyped d) then begin
 					let d_extra = try cc#find_module_extra d with Not_found -> (cc#get_hxb_module d).HxbData.mc_extra in
+					(* Never re-type the display-cursor module early (see is_seed): leave it to the normal
+					   display flow. The backward walk still re-checks it against published deltas. *)
+					if in_display_file d_extra then incr n_spared else begin
 					let edges = PMap.foldi (fun _ (e:Type.module_dep_edge) acc ->
 						if e.dep_tgt_path = mpath then e :: acc else acc
 					) d_extra.m_field_deps [] in
@@ -376,6 +387,7 @@ let header_invalidation_prephase tctx =
 						enqueue d (retype_module d)
 					end else
 						incr n_spared
+					end
 				end
 			) (try Hashtbl.find rev mpath with Not_found -> [])
 		done
