@@ -336,7 +336,56 @@ let header_invalidation_prephase tctx =
 	) seeds;
 	if Define.raw_defined com.defines "hxb.header_invalidation" then
 		print_endline (Printf.sprintf "[header-invalidation] seeds=%d unchanged=%d changed=%d failed=%d"
-			(List.length seeds) !n_unchanged !n_changed !n_failed)
+			(List.length seeds) !n_unchanged !n_changed !n_failed);
+	(* Increment 0 measurement (-D hxb.measure_transitive): without re-typing anything, gauge whether a
+	   forward (reverse-edge) propagation is viable from the in-memory cache. Reports, per seed:
+	   - direct dependents and full transitive module-level closure (= the conservative ceiling);
+	   - whether the in-memory cached dependents carry m_deps AND field-granular m_field_deps edges
+	     (the disk hxb only serializes m_deps imports, but the live binary cache may carry the full,
+	     freshly-typed edges within a server session). This decides if module-level candidates suffice
+	     and whether field edges are already available without persisting them. *)
+	if Define.raw_defined com.defines "hxb.measure_transitive" then begin
+		(* Build the module-level reverse map (target path -> dependent paths) from cached m_deps. *)
+		let rev : (path, path list) Hashtbl.t = Hashtbl.create 0 in
+		let total_deps = ref 0 and modules_with_fielddeps = ref 0 and total_modules = ref 0 in
+		Hashtbl.iter (fun path mc ->
+			incr total_modules;
+			if not (PMap.is_empty mc.HxbData.mc_extra.m_field_deps) then incr modules_with_fielddeps;
+			PMap.iter (fun _ (mdep:Type.module_dep) ->
+				incr total_deps;
+				let l = try Hashtbl.find rev mdep.md_path with Not_found -> [] in
+				Hashtbl.replace rev mdep.md_path (path :: l)
+			) mc.HxbData.mc_extra.m_deps
+		) cc#get_hxb;
+		print_endline (Printf.sprintf "[measure-transitive] cache: %d modules, %d m_deps edges, %d modules carry m_field_deps"
+			!total_modules !total_deps !modules_with_fielddeps);
+		List.iter (fun seed_path ->
+			let direct = try Hashtbl.find rev seed_path with Not_found -> [] in
+			(* Transitive module-level closure (BFS over reverse edges) = what conservative invalidation hits. *)
+			let seen = Hashtbl.create 0 in
+			let q = Queue.create () in
+			List.iter (fun p -> Queue.add p q) direct;
+			while not (Queue.is_empty q) do
+				let p = Queue.pop q in
+				if not (Hashtbl.mem seen p) then begin
+					Hashtbl.add seen p ();
+					List.iter (fun d -> Queue.add d q) (try Hashtbl.find rev p with Not_found -> [])
+				end
+			done;
+			(* For each direct dependent, does its cached m_field_deps pin specific fields of the seed? *)
+			let n_field_edges = ref 0 and n_module_edges = ref 0 and n_no_edges = ref 0 in
+			List.iter (fun d ->
+				let extra = try cc#find_module_extra d with Not_found ->
+					(try (cc#get_hxb_module d).HxbData.mc_extra with Not_found -> raise Exit) in
+				let to_seed = PMap.foldi (fun _ (e:Type.module_dep_edge) acc -> if e.dep_tgt_path = seed_path then e :: acc else acc) extra.m_field_deps [] in
+				if to_seed = [] then incr n_no_edges
+				else if List.exists (fun (e:Type.module_dep_edge) -> e.dep_tgt <> None) to_seed then incr n_field_edges
+				else incr n_module_edges
+			) direct;
+			print_endline (Printf.sprintf "[measure-transitive] seed %s: direct=%d transitive_closure=%d | direct-dependents edges: field=%d module-only=%d none=%d"
+				(s_type_path seed_path) (List.length direct) (Hashtbl.length seen) !n_field_edges !n_module_edges !n_no_edges)
+		) seeds
+	end
 
 (** Creates the typer context and types [classes] into it. *)
 let do_type com mctx actx display_file_dot_path =
