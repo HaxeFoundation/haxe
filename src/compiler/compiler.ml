@@ -314,7 +314,24 @@ let header_invalidation_prephase tctx =
 				m.m_extra.m_cache_state <- MSGood)
 		with e ->
 			incr n_failed;
-			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed re-type failed %s: %s\n%s" (s_type_path path) (Printexc.to_string e) (Printexc.get_backtrace ()));
+			(* A seed that fails to re-type here is handled soundly (conservative fall-through: its
+			   dependents are all re-typed), but the failure must never be silently swallowed -- it
+			   disables sparing for this seed and may be masking a genuine error. Surface the root
+			   message as a warning; verbose additionally dumps sub-errors and the backtrace. *)
+			let err_pos, detail = match e with
+				| Error.Fatal_error err | Error.Error err ->
+					let buf = Buffer.create 64 in
+					Error.recurse_error (fun depth err ->
+						Buffer.add_string buf (Printf.sprintf "%s%s%s"
+							(if depth = 0 then "" else "\n")
+							(String.make (depth*2) ' ')
+							(Error.error_msg err.Error.err_message))
+					) err;
+					err.Error.err_pos, Buffer.contents buf
+				| _ -> null_pos, Printexc.to_string e
+			in
+			com.warning WInfo [] (Printf.sprintf "[header-invalidation] seed %s could not be re-typed early (its dependents are conservatively re-typed): %s" (s_type_path path) detail) err_pos;
+			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed re-type failed %s:\n%s\n%s" (s_type_path path) detail (Printexc.get_backtrace ()));
 			extra.m_cache_state <- MSBad (Tainted ServerInvalidate))
 	) seeds;
 	if Define.raw_defined com.defines "hxb.header_invalidation" then
