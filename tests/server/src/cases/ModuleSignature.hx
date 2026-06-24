@@ -110,6 +110,36 @@ class ModuleSignature extends TestCase {
 		Assert.isFalse(hasMessage("reusing Main"));
 	}
 
+	// Transitive field-granular soundness: a leaf change that propagates through a MID module whose own
+	// signature changes. Chain: Leaf.X -> Mid.getX() (inferred return reads Leaf.X) -> ConsumerA (calls
+	// Mid.getX, observes Mid's delta) ; ConsumerB calls only Mid.other (header-stable, must be spared).
+	// Changing Leaf.X's type re-types Mid (its getX return type changes), cascades to ConsumerA, and
+	// must spare ConsumerB. This exercises the forward worklist computing a delta for a NON-seed (Mid)
+	// and propagating it field-granularly.
+	function testHeaderInvalidationTransitive() {
+		vfs.putContent("Leaf.hx", 'class Leaf { public static var X = true; }');
+		vfs.putContent("Mid.hx", 'class Mid {
+	public static function getX() return Leaf.X;
+	public static function other(n:Int):Int return n;
+}');
+		vfs.putContent("ConsumerA.hx", 'class ConsumerA { public static function use() return Mid.getX(); }');
+		vfs.putContent("ConsumerB.hx", 'class ConsumerB { public static function use():Int return Mid.other(1); }');
+		vfs.putContent("Main.hx", 'class Main { static function main() { ConsumerA.use(); ConsumerB.use(); } }');
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.header_invalidation"];
+		runHaxe(args);
+		assertSuccess();
+
+		// Signature change on the leaf (Bool -> Int). Mid.getX's return type changes; ConsumerA observes
+		// it (re-typed) while ConsumerB uses only Mid.other (header-stable) and must be spared.
+		vfs.putContent("Leaf.hx", 'class Leaf { public static var X = 42; }');
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Leaf.hx")});
+		runHaxe(args);
+		assertSuccess();
+		assertReuse("ConsumerB");
+		Assert.isFalse(hasMessage("reusing Mid"));
+		Assert.isFalse(hasMessage("reusing ConsumerA"));
+	}
+
 	function twoFn(retA:String, retB:String) {
 		return 'class Dep {
 	public static function a(n:Int):$retA return n;
