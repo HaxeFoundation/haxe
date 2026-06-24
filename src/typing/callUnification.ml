@@ -156,29 +156,36 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 			let committed = ref false in
 			let commit () = if not !committed then begin committed := true; commit_captured_messages ctx.com !body_capture end in
 			let drop () = committed := true in
+			let might_skip = opt && List.length el < List.length args in
+			let opt_followed_by_rest = opt && match args with
+					| [(_,_,t)] -> ExtType.is_rest (follow t)
+					| _ -> false
+			in
+			let maybe_raise_captured_error () =
+				if might_skip || opt_followed_by_rest then
+					match (List.find_opt (fun cm -> Message.cm_severity cm = Message.MessageSeverity.Error) !body_capture) with
+					| Some cm -> raise (WithTypeError (make_error (Custom cm.cm_message) cm.cm_pos))
+					| None -> ()
+			in
 			begin try
 				begin try
-					let e = type_against name t e in
-					commit ();
-					e :: loop el args
+					let e_typed = type_against name t e in
+					maybe_raise_captured_error();
+					commit();
+					e_typed :: loop el args
 				with WithTypeError ul ->
-					let might_skip = opt && List.length el < List.length args in
-					let opt_followed_by_rest = opt && match args with
-						| [(_,_,t)] -> ExtType.is_rest (follow t)
-						| _ -> false
-					in
 					if might_skip || opt_followed_by_rest then begin
-						drop ();
+						drop();
 						restore_monos();
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
 					end else if !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
-						commit ();
+						commit();
 						restore_monos();
 						let e_def = default_value name t in
 						e_def :: loop el args
 					end else begin
-						commit ();
+						commit();
 						match List.rev !skipped with
 						| [] -> arg_error ul name opt
 						| (s,ul) :: _ -> arg_error ul s true
