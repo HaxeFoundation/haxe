@@ -367,6 +367,29 @@
 		"doc": "Verify that the field-granular dependency edges cover every cross-module reference in the typed AST; reports field-covered / module-only / uncovered counts."
 	},
 	{
+		"name": "HxbHeaderInvalidation",
+		"define": "hxb.header_invalidation",
+		"doc": "Spare a re-typed module's dependents whose used signatures are unchanged: re-type invalidated seeds in a pre-phase, diff their module signatures, and propagate dirtiness field-granularly only through observed changes (only with compilation server)."
+	},
+	{
+		"name": "HxbHeaderInvalidationVerbose",
+		"define": "hxb.header_invalidation_verbose",
+		"signatureNeutral": true,
+		"doc": "Verbose diagnostics for hxb.header_invalidation: per-dependent observe traces and full seed re-type failures (sub-errors + backtrace)."
+	},
+	{
+		"name": "HxbMeasureSignatures",
+		"define": "hxb.measure_signatures",
+		"signatureNeutral": true,
+		"doc": "Behaviour-neutral measurement: classify each re-typed module as header-changed or header-unchanged after an edit, to gauge how many dependents were dragged needlessly (only with compilation server)."
+	},
+	{
+		"name": "HxbMeasureTransitive",
+		"define": "hxb.measure_transitive",
+		"signatureNeutral": true,
+		"doc": "Behaviour-neutral measurement: per invalidated seed, report its direct dependents, full transitive module-level closure, and whether cached dependents carry field-granular dependency edges (only with compilation server)."
+	},
+	{
 		"name": "HxcppApiLevel",
 		"define": "hxcpp-api-level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",

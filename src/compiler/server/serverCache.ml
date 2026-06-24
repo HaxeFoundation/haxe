@@ -236,7 +236,7 @@ let check_module sctx com m_path m_extra p =
 							if e.dep_tgt_path = mpath then e :: acc else acc
 						) m_extra.m_field_deps [] in
 						let observes = ModuleSignature.dependent_observes_changes delta edges in
-						(if Define.raw_defined com.defines "hxb.header_invalidation_verbose" then
+						(if Define.defined com.defines Define.HxbHeaderInvalidationVerbose then
 							print_endline (Printf.sprintf "[hi-probe] %s -> seed %s observes=%b | changes=[%s] | edges=[%s]"
 								(s_type_path m_path) (s_type_path mpath) observes
 								(String.concat "; " (List.map ModuleSignature.s_sig_change delta))
@@ -430,7 +430,7 @@ class hxb_reader_api_server
 		(* Header invalidation: never read bodies eagerly, so a restore in the seed re-typing cascade does
 		   not force a body type-ref to a cyclic peer that is not loaded yet. Bodies are deferred (TLazy)
 		   and forced later, once the peers exist. *)
-		not (Define.raw_defined com.defines "hxb.header_invalidation") &&
+		not (Define.defined com.defines Define.HxbHeaderInvalidation) &&
 		(com.is_macro_context || com.display.dms_full_typing || Define.defined com.defines Define.DisableHxbOptimizations)
 
 	method make_lazy_type t f =

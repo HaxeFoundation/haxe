@@ -270,7 +270,7 @@ let check_defines com =
    flush, nothing else is dirty when main typing runs. *)
 let header_invalidation_prephase tctx =
 	let com = tctx.Typecore.com in
-	let verbose = Define.raw_defined com.defines "hxb.header_invalidation_verbose" in
+	let verbose = Define.defined com.defines Define.HxbHeaderInvalidationVerbose in
 	let cc = CommonCache.get_cache com in
 	(* A seed is a module the client explicitly invalidated, or one whose source file changed on disk. *)
 	let file_changed mc =
@@ -380,7 +380,7 @@ let header_invalidation_prephase tctx =
 			) (try Hashtbl.find rev mpath with Not_found -> [])
 		done
 	end;
-	if Define.raw_defined com.defines "hxb.header_invalidation" then
+	if Define.defined com.defines Define.HxbHeaderInvalidation then
 		print_endline (Printf.sprintf "[header-invalidation] seeds=%d retyped=%d (unchanged=%d changed=%d failed=%d) frontier-spared=%d"
 			(List.length seeds) (Hashtbl.length retyped) !n_unchanged !n_changed !n_failed !n_spared);
 	(* Increment 0 measurement (-D hxb.measure_transitive): without re-typing anything, gauge whether a
@@ -390,7 +390,7 @@ let header_invalidation_prephase tctx =
 	     (the disk hxb only serializes m_deps imports, but the live binary cache may carry the full,
 	     freshly-typed edges within a server session). This decides if module-level candidates suffice
 	     and whether field edges are already available without persisting them. *)
-	if Define.raw_defined com.defines "hxb.measure_transitive" then begin
+	if Define.defined com.defines Define.HxbMeasureTransitive then begin
 		(* Build the module-level reverse map (target path -> dependent paths) from cached m_deps. *)
 		let rev : (path, path list) Hashtbl.t = Hashtbl.create 0 in
 		let total_deps = ref 0 and modules_with_fielddeps = ref 0 and total_modules = ref 0 in
@@ -457,7 +457,7 @@ let do_type com mctx actx display_file_dot_path =
 	DumpConfig.update_from_defines com.part_scope.dump_config com.defines;
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
-	if Define.raw_defined com.defines "hxb.header_invalidation" && not com.is_macro_context then
+	if Define.defined com.defines Define.HxbHeaderInvalidation && not com.is_macro_context then
 		header_invalidation_prephase tctx;
 	(try begin
 		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
