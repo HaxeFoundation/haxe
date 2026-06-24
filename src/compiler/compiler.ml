@@ -283,8 +283,13 @@ let header_invalidation_prephase tctx =
 		| _ -> file_changed mc
 	in
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
-	let n_unchanged = ref 0 and n_changed = ref 0 and n_failed = ref 0 in
-	List.iter (fun path ->
+	let n_unchanged = ref 0 and n_changed = ref 0 and n_failed = ref 0 and n_spared = ref 0 in
+	let step = com.sctx.compilation_step in
+	(* Re-type [path] in place NOW and, if it carries a cached signature to diff against, publish its
+	   step-tagged delta and promote it to MSGood. Returns the signature changes (possibly empty) when a
+	   delta could be computed, or None when we fall back to conservative invalidation (no cached sig, or
+	   the re-type failed) -- in which case the backward walk re-types its dependents as before. *)
+	let retype_module path : Type.sig_change list option =
 		let extra = try cc#find_module_extra path with Not_found -> (cc#get_hxb_module path).HxbData.mc_extra in
 		let old_sig = extra.m_sig in
 		extra.m_cache_state <- MSBad Reprocessing;
@@ -301,23 +306,25 @@ let header_invalidation_prephase tctx =
 				(* No cached signature to diff against: be conservative, treat dependents as observing
 				   the change (re-type them) rather than risk wrongly sparing. *)
 				incr n_changed;
-				extra.m_cache_state <- MSBad (Tainted ServerInvalidate)
+				extra.m_cache_state <- MSBad (Tainted ServerInvalidate);
+				None
 			| Some old ->
 				let diff = ModuleSignature.diff old (ModuleSignature.of_module m) in
 				(if diff = [] then incr n_unchanged else incr n_changed);
-				(* The seed is re-typed and good either way; a non-empty diff is published as a
-				   step-tagged delta so check_dependencies can spare dependents field-granularly. *)
-				let delta = if diff = [] then None else Some (com.sctx.compilation_step, diff) in
+				(* Re-typed and good either way; a non-empty diff is published as a step-tagged delta so
+				   both the backward walk and the forward worklist below can spare field-granularly. *)
+				let delta = if diff = [] then None else Some (step, diff) in
 				extra.m_sig_delta <- delta;
 				m.m_extra.m_sig_delta <- delta;
 				extra.m_cache_state <- MSGood;
-				m.m_extra.m_cache_state <- MSGood)
+				m.m_extra.m_cache_state <- MSGood;
+				Some diff)
 		with e ->
 			incr n_failed;
-			(* A seed that fails to re-type here is handled soundly (conservative fall-through: its
+			(* A module that fails to re-type here is handled soundly (conservative fall-through: its
 			   dependents are all re-typed), but the failure must never be silently swallowed -- it
-			   disables sparing for this seed and may be masking a genuine error. Surface the root
-			   message as a warning; verbose additionally dumps sub-errors and the backtrace. *)
+			   disables sparing for it and may be masking a genuine error. Surface the root message as a
+			   warning; verbose additionally dumps sub-errors and the backtrace. *)
 			let err_pos, detail = match e with
 				| Error.Fatal_error err | Error.Error err ->
 					let buf = Buffer.create 64 in
@@ -330,13 +337,52 @@ let header_invalidation_prephase tctx =
 					err.Error.err_pos, Buffer.contents buf
 				| _ -> null_pos, Printexc.to_string e
 			in
-			com.warning WInfo [] (Printf.sprintf "[header-invalidation] seed %s could not be re-typed early (its dependents are conservatively re-typed): %s" (s_type_path path) detail) err_pos;
-			if verbose then print_endline (Printf.sprintf "[header-invalidation] seed re-type failed %s:\n%s\n%s" (s_type_path path) detail (Printexc.get_backtrace ()));
-			extra.m_cache_state <- MSBad (Tainted ServerInvalidate))
-	) seeds;
+			com.warning WInfo [] (Printf.sprintf "[header-invalidation] %s could not be re-typed early (its dependents are conservatively re-typed): %s" (s_type_path path) detail) err_pos;
+			if verbose then print_endline (Printf.sprintf "[header-invalidation] re-type failed %s:\n%s\n%s" (s_type_path path) detail (Printexc.get_backtrace ()));
+			extra.m_cache_state <- MSBad (Tainted ServerInvalidate);
+			None)
+	in
+	(* Forward worklist. Re-type the seeds, then transitively any dependent that observes an upstream
+	   delta. Each module is re-typed at most once; propagation continues only through non-empty deltas,
+	   so it dies at the first header-stable module (e.g. one whose body reads a changed field but whose
+	   own signature is unchanged -> empty delta), sparing that module's entire dependent closure. *)
+	let retyped : (path,unit) Hashtbl.t = Hashtbl.create 0 in
+	let queue = Queue.create () in
+	let enqueue path = function
+		| Some ((_ :: _) as changes) -> Queue.add (path,changes) queue
+		| _ -> ()
+	in
+	List.iter (fun path -> Hashtbl.replace retyped path (); enqueue path (retype_module path)) seeds;
+	if not (Queue.is_empty queue) then begin
+		(* Reverse dependency map (target -> dependents) from the live cache's module-level m_deps;
+		   complete in-session (the binary cache carries full m_deps, not just serialized imports). *)
+		let rev : (path, path list) Hashtbl.t = Hashtbl.create 0 in
+		Hashtbl.iter (fun path mc ->
+			PMap.iter (fun _ (mdep:Type.module_dep) ->
+				let l = try Hashtbl.find rev mdep.md_path with Not_found -> [] in
+				Hashtbl.replace rev mdep.md_path (path :: l)
+			) mc.HxbData.mc_extra.m_deps
+		) cc#get_hxb;
+		while not (Queue.is_empty queue) do
+			let (mpath,changes) = Queue.pop queue in
+			List.iter (fun d ->
+				if not (Hashtbl.mem retyped d) then begin
+					let d_extra = try cc#find_module_extra d with Not_found -> (cc#get_hxb_module d).HxbData.mc_extra in
+					let edges = PMap.foldi (fun _ (e:Type.module_dep_edge) acc ->
+						if e.dep_tgt_path = mpath then e :: acc else acc
+					) d_extra.m_field_deps [] in
+					if ModuleSignature.dependent_observes_changes changes edges then begin
+						Hashtbl.replace retyped d ();
+						enqueue d (retype_module d)
+					end else
+						incr n_spared
+				end
+			) (try Hashtbl.find rev mpath with Not_found -> [])
+		done
+	end;
 	if Define.raw_defined com.defines "hxb.header_invalidation" then
-		print_endline (Printf.sprintf "[header-invalidation] seeds=%d unchanged=%d changed=%d failed=%d"
-			(List.length seeds) !n_unchanged !n_changed !n_failed);
+		print_endline (Printf.sprintf "[header-invalidation] seeds=%d retyped=%d (unchanged=%d changed=%d failed=%d) frontier-spared=%d"
+			(List.length seeds) (Hashtbl.length retyped) !n_unchanged !n_changed !n_failed !n_spared);
 	(* Increment 0 measurement (-D hxb.measure_transitive): without re-typing anything, gauge whether a
 	   forward (reverse-edge) propagation is viable from the in-memory cache. Reports, per seed:
 	   - direct dependents and full transitive module-level closure (= the conservative ceiling);
