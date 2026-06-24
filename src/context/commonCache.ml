@@ -106,7 +106,7 @@ let rec cache_context cs com =
 	(* `-D hxb.measure_signatures`: behaviour-neutral. For each re-typed module, diff its new header
 	   signature against the cached one to gauge how many re-types were header-unchanged (body-only),
 	   i.e. how many dependents were invalidated needlessly. Measurement only; no sparing yet. *)
-	let measure_sigs = Define.raw_defined com.defines "hxb.measure_signatures" in
+	let measure_sigs = Define.defined com.defines Define.HxbMeasureSignatures in
 	let sig_unchanged = ref 0 and sig_changed = ref 0 and sig_no_baseline = ref 0 in
 	let parallels = DynArray.create () in
 	(* Modules the unchanged-skip heuristic would skip, to be re-serialized and verified (in parallel,
