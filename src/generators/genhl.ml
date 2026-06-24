@@ -241,7 +241,7 @@ let method_context id t captured hasthis =
 		mregs = new_lookup();
 		mops = DynArray.create();
 		mvars = Hashtbl.create 0;
-		mallocs = PMap.empty;
+		mallocs = PMap.create ttype_compare;
 		mret = t;
 		mbreaks = [];
 		mdeclared = [];
@@ -373,6 +373,100 @@ let fake_tnull =
 
 let is_excluded c =
 	has_class_flag c CExcluded && not (has_class_flag c CInterface)
+
+(*
+	Cycle-safe structural total order on tanon, used as the [anons_cache] PMap key
+	comparator instead of OCaml's polymorphic compare.
+
+	Recursive anonymous structures (e.g. `typedef T = { var node : T; }`) produce
+	tanons that are cyclic in memory. Comparing two *distinct* such cyclic tanons with
+	polymorphic compare loops forever, growing the compare stack until Out_of_memory.
+	We break the cycle at repeated TAnon nodes via De Bruijn levels.
+
+	The comparison only inspects what actually determines the generated HVirtual (see
+	[cfield_type]): each field's name, its type, and whether it is a method (HFun is
+	turned into HMethod). It therefore reports two anons equal exactly when they yield
+	the same virtual, so a wrong cache hit is impossible; at worst a missed match
+	produces a harmless duplicate virtual. The `t1 == t2` fast path mirrors polymorphic
+	compare on physically shared types (interned protos, a reused recursive anon), so
+	non-cyclic inputs keep the same dedup behaviour as before.
+*)
+let tanon_compare a1 a2 =
+	let seen1 = ref [] and seen2 = ref [] and depth = ref 0 in
+	let level seen an =
+		let rec loop = function
+			| [] -> None
+			| (an',d) :: l -> if an' == an then Some d else loop l
+		in
+		loop !seen
+	in
+	let tag = function
+		| TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
+		| TAnon _ -> 5 | TDynamic _ -> 6 | TLazy _ -> 7 | TAbstract _ -> 8
+	in
+	let is_method cf = match cf.cf_kind with Method (MethNormal | MethInline) -> true | _ -> false in
+	(* mirror to_type: see through bound monomorphs and lazy types so that types
+	   to_type would generate identically compare equal (and, crucially, two
+	   distinct lazy/mono types are never wrongly merged). *)
+	let rec reduce t = match t with
+		| TMono { tm_type = Some t } -> reduce t
+		| TLazy f -> reduce (lazy_type f)
+		| _ -> t
+	in
+	let rec cmp_t t1 t2 =
+		let t1 = reduce t1 and t2 = reduce t2 in
+		if t1 == t2 then 0 else
+		match t1, t2 with
+		| TAnon an1, TAnon an2 -> cmp_anon an1 an2
+		| TMono _, TMono _ -> 0 (* both unbound -> to_type maps both to HDyn *)
+		| TInst (c1,tl1), TInst (c2,tl2) -> let c = compare c1.cl_path c2.cl_path in if c <> 0 then c else cmp_tl tl1 tl2
+		| TEnum (e1,tl1), TEnum (e2,tl2) -> let c = compare e1.e_path e2.e_path in if c <> 0 then c else cmp_tl tl1 tl2
+		| TType (d1,tl1), TType (d2,tl2) -> let c = compare d1.t_path d2.t_path in if c <> 0 then c else cmp_tl tl1 tl2
+		| TAbstract (a1,tl1), TAbstract (a2,tl2) -> let c = compare a1.a_path a2.a_path in if c <> 0 then c else cmp_tl tl1 tl2
+		| TFun (args1,ret1), TFun (args2,ret2) -> let c = cmp_args args1 args2 in if c <> 0 then c else cmp_t ret1 ret2
+		| TDynamic d1, TDynamic d2 ->
+			(match d1, d2 with
+			| None, None -> 0
+			| None, _ -> -1
+			| _, None -> 1
+			| Some t1, Some t2 -> cmp_t t1 t2)
+		| _ -> compare (tag t1) (tag t2)
+	and cmp_tl l1 l2 = match l1, l2 with
+		| [], [] -> 0
+		| [], _ -> -1
+		| _, [] -> 1
+		| t1 :: l1, t2 :: l2 -> let c = cmp_t t1 t2 in if c <> 0 then c else cmp_tl l1 l2
+	and cmp_args l1 l2 = match l1, l2 with
+		| [], [] -> 0
+		| [], _ -> -1
+		| _, [] -> 1
+		| (n1,o1,t1) :: l1, (n2,o2,t2) :: l2 ->
+			let c = compare (n1 : string) n2 in if c <> 0 then c else
+			let c = compare (o1 : bool) o2 in if c <> 0 then c else
+			let c = cmp_t t1 t2 in if c <> 0 then c else cmp_args l1 l2
+	and cmp_anon an1 an2 =
+		match level seen1 an1, level seen2 an2 with
+		| Some d1, Some d2 -> compare d1 d2
+		| Some _, None -> -1
+		| None, Some _ -> 1
+		| None, None ->
+			let d = !depth in
+			seen1 := (an1,d) :: !seen1;
+			seen2 := (an2,d) :: !seen2;
+			incr depth;
+			let fields an = List.sort (fun (n1,_) (n2,_) -> compare (n1 : string) n2) (PMap.foldi (fun n cf acc -> (n,cf) :: acc) an.a_fields []) in
+			let rec loop l1 l2 = match l1, l2 with
+				| [], [] -> 0
+				| [], _ -> -1
+				| _, [] -> 1
+				| (n1,cf1) :: l1, (n2,cf2) :: l2 ->
+					let c = compare (n1 : string) n2 in if c <> 0 then c else
+					let c = compare (is_method cf1) (is_method cf2) in if c <> 0 then c else
+					let c = cmp_t cf1.cf_type cf2.cf_type in if c <> 0 then c else loop l1 l2
+			in
+			loop (fields an1) (fields an2)
+	in
+	cmp_anon a1 a2
 
 let get_rec_cache ctx t none_callback not_found_callback =
 	try
@@ -4235,7 +4329,7 @@ let create_context com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = PMap.empty;
+		anons_cache = PMap.create tanon_compare;
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
