@@ -168,6 +168,9 @@ class hxb_reader_api_com
 
 	method make_lazy_type t f =
 		TLazy (make_unforced_lazy t f "com-api")
+
+	method forward_classes = com.hxb_forward_classes
+	method forwarding_enabled = Define.raw_defined com.defines "hxb.lazy_inheritance"
 end
 
 let find_module ~(typing_mode : HxbData.typing_mode) com cc path =

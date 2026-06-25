@@ -357,6 +357,11 @@ and context = {
 	mutable basic : basic_types;
 	memory_marker : float array;
 	mutable hxb_reader_api : HxbReaderApi.hxb_reader_api option;
+	(* Forwarding-class registry (lazy inheritance restore): maps a type path to a
+	   placeholder tclass that carries identity now and fills its contents in place
+	   (via cl_build) only when inspected. Shared across all readers in this context
+	   so the real module read reuses the same object (identity preserved). *)
+	hxb_forward_classes : (path,tclass) Hashtbl.t;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
@@ -811,6 +816,7 @@ let create sctx request_scope part_scope display_mode =
 		overload_cache = new hashtbl_lookup;
 		is_macro_context = false;
 		hxb_reader_api = None;
+		hxb_forward_classes = Hashtbl.create 0;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
 	} in
@@ -961,6 +967,7 @@ let clone com is_macro_context =
 		overload_cache = new hashtbl_lookup; (* ! *)
 		is_macro_context = is_macro_context;
 		hxb_reader_api = None;
+		hxb_forward_classes = Hashtbl.create 0;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
 

@@ -159,6 +159,9 @@ class hxb_reader
 	val mutable doc_pool = Array.make 0 ""
 
 	val mutable classes = Array.make 0 (AtomicLazy.from_val null_class)
+	(* Parallel to [classes]: the (pack,mname,tname) of each class reference, so an inheritance
+	   edge can be resolved to a forwarding placeholder by path without forcing the module. *)
+	val mutable class_ref_paths = Array.make 0 ([],"","")
 	val mutable abstracts = Array.make 0 (AtomicLazy.from_val null_abstract)
 	val mutable enums = Array.make 0 (AtomicLazy.from_val null_enum)
 	val mutable typedefs = Array.make 0 (AtomicLazy.from_val null_typedef)
@@ -1551,8 +1554,13 @@ class hxb_reader
 		self#read_common_module_type (Obj.magic c);
 		c.cl_kind <- self#read_class_kind;
 		let read_relation () =
-			let c = self#read_class_ref in
-			let c = AtomicLazy.force c in
+			let idx = read_uleb128 ch in
+			let c =
+				if typing_mode = AllowPartialTyping && api#forwarding_enabled then
+					self#forward_class idx
+				else
+					AtomicLazy.force classes.(idx)
+			in
 			let tl = self#read_types in
 			(c,tl)
 		in
@@ -1855,8 +1863,9 @@ class hxb_reader
 
 	method read_clr =
 		let l = read_uleb128 ch in
-		classes <- (Array.init l (fun i ->
-			let (pack,mname,tname) = self#read_full_path in
+		let paths = Array.init l (fun _ -> self#read_full_path) in
+		class_ref_paths <- paths;
+		classes <- (Array.map (fun (pack,mname,tname) ->
 			AtomicLazy.from_fun (fun () ->
 				match self#resolve_type pack mname tname with
 				| TClassDecl c ->
@@ -1864,7 +1873,31 @@ class hxb_reader
 				| _ ->
 					error ("Unexpected type where class was expected: " ^ (s_type_path (pack,tname)))
 			)
-		))
+		) paths)
+
+	(* Return a forwarding placeholder tclass for the class reference at [idx]: a real tclass
+	   carrying identity (path) now, whose contents (params/fields/super/...) are filled in place
+	   the first time cl_build is forced -- by reading the real module, which reuses this very
+	   object via the shared registry (so identity is preserved, no duplicate). *)
+	method forward_class idx =
+		let (pack,mname,tname) = class_ref_paths.(idx) in
+		let tpath = (pack,tname) in
+		let tbl = api#forward_classes in
+		begin try
+			Hashtbl.find tbl tpath
+		with Not_found ->
+			let c = mk_class current_module tpath null_pos null_pos in
+			let mpath = (pack,mname) in
+			c.cl_build <- (fun () ->
+				(* Reading the real module reuses this stub in read_mtf and fills it in place.
+				   read_mtf resets cl_build to (fun () -> Built) before any nested read, so this
+				   never recurses. *)
+				ignore (api#resolve_module mpath typing_mode);
+				Built
+			);
+			Hashtbl.add tbl tpath c;
+			c
+		end
 
 	method read_abr =
 		let l = read_uleb128 ch in
@@ -1920,7 +1953,19 @@ class hxb_reader
 			let params = self#read_type_parameters_forward in
 			let mt = match kind with
 			| 0 ->
-				let c = mk_class current_module path pos name_pos in
+				(* Reuse a forwarding placeholder for this path if one was minted (registry), so its
+				   identity is preserved; otherwise create fresh. Either way we now fill it for real,
+				   so clear any forwarding cl_build thunk before any nested read (prevents recursion). *)
+				let c = try
+					let c = Hashtbl.find (api#forward_classes) path in
+					c.cl_module <- current_module;
+					c.cl_pos <- pos;
+					c.cl_name_pos <- name_pos;
+					c.cl_build <- (fun () -> Built);
+					c
+				with Not_found ->
+					mk_class current_module path pos name_pos
+				in
 				c.cl_params <- Array.to_list params;
 				c.cl_flags <- read_uleb128 ch;
 
