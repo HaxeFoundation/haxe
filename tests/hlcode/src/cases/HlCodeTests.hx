@@ -78,7 +78,7 @@ class HlCodeTests {
 	@:hl(<>
 		fun@367(16Fh) ():virtual(node:...)
 		; src/cases/HlCodeTests.hx:82 (cases.HlCodeTests.testTreeA)
-			r0 virtual(node:virtual(node:...))
+			r0 virtual(node:...)
 			r1 virtual(node:...)
 			.82    @0 new 0
 			.82    @1 null 1
