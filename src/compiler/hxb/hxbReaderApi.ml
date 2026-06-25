@@ -10,6 +10,11 @@ class virtual hxb_reader_api = object(self)
 	method virtual get_var_id : int -> int
 	method virtual read_expression_eagerly : tclass_field -> bool
 	method virtual make_lazy_type : Type.t -> (unit -> Type.t) -> Type.t
+	(* Shared forwarding-class registry (lazy inheritance restore). See Common.context.hxb_forward_classes.
+	   Returns an empty table when forwarding is not supported by this api (full restore). *)
+	method forward_classes : (path,tclass) Hashtbl.t = Hashtbl.create 0
+	(* Whether lazy-inheritance forwarding is enabled for this context (gated, default off). *)
+	method forwarding_enabled : bool = false
 end
 
 class hxb_reader_api_null = object(self)

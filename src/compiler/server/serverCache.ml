@@ -437,6 +437,9 @@ class hxb_reader_api_server
 		let r = make_unforced_lazy t f "server-api" in
 		delay PForce (fun () -> ignore(lazy_type r));
 		TLazy r
+
+	method forward_classes = com.hxb_forward_classes
+	method forwarding_enabled = Define.raw_defined com.defines "hxb.lazy_inheritance"
 end
 
 let handle_cache_bound_objects com cbol =
