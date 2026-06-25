@@ -2000,6 +2000,16 @@ class hxb_reader
 		let l = read_uleb128 ch in
 		anons <- Array.init l (fun _ -> { a_fields = PMap.empty; a_status = ref Closed });
 		tmonos <- Array.init (read_uleb128 ch) (fun _ -> mk_mono());
+		(* Restore the modifiers persisted by the writer (see hxbWriter MDF). *)
+		Array.iter (fun t ->
+			let flags = read_byte ch in
+			match t with
+			| TMono mono ->
+				if flags land 1 <> 0 then Monomorph.add_modifier mono (MNullable api#basic_types.tnull);
+				if flags land 2 <> 0 then Monomorph.add_modifier mono MOpenStructure;
+				if flags land 4 <> 0 then Monomorph.add_modifier mono MDynamic;
+			| _ -> ()
+		) tmonos;
 		api#make_module path file
 
 	method private read_chunk_prefix =

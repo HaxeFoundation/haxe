@@ -2258,7 +2258,20 @@ module HxbWriter = struct
 		Chunk.write_string writer.chunk (Path.UniqueKey.lazy_path m.m_extra.m_file);
 		let anons = Pool.finalize writer.anons in
 		Chunk.write_uleb128 writer.chunk (DynArray.length anons);
-		Chunk.write_uleb128 writer.chunk (DynArray.length (IdentityPool.finalize writer.tmonos));
+		(* Unbound monomorphs are written by reference only, but their modifiers carry
+		   meaning that must round-trip (e.g. MNullable: a `null` flowed in, so a later
+		   bind has to wrap in Null<>). Persist them as a per-mono flag byte. *)
+		let monos = IdentityPool.finalize writer.tmonos in
+		Chunk.write_uleb128 writer.chunk (DynArray.length monos);
+		DynArray.iter (fun (mono,_) ->
+			let flag bit f = if Monomorph.has_modifier mono f then bit else 0 in
+			let flags =
+				(flag 1 (function MNullable _ -> true | _ -> false)) lor
+				(flag 2 (function MOpenStructure -> true | _ -> false)) lor
+				(flag 4 (function MDynamic -> true | _ -> false))
+			in
+			Chunk.write_u8 writer.chunk flags
+		) monos;
 
 		let anons_without_context = DynArray.create () in
 		DynArray.iteri (fun i bytes -> match bytes with
