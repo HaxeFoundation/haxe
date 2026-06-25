@@ -755,8 +755,7 @@ class hxb_reader
 			let path = self#read_path in
 			(mk_type_param { null_class with cl_path = path } TPHUnbound None None).ttp_type
 		| 10 ->
-			let c = self#read_class_ref in
-			let c = AtomicLazy.force c in
+			let c = self#resolve_class_ref_lazy in
 			c.cl_type
 		| 11 ->
 			let en = self#read_enum_ref in
@@ -825,24 +824,20 @@ class hxb_reader
 			let ret = self#read_type_instance in
 			TFun(args,ret)
 		| 40 ->
-			let c = self#read_class_ref in
-			let c = AtomicLazy.force c in
+			let c = self#resolve_class_ref_lazy in
 			TInst(c,[])
 		| 41 ->
-			let c = self#read_class_ref in
+			let c = self#resolve_class_ref_lazy in
 			let t1 = self#read_type_instance in
-			let c = AtomicLazy.force c in
 			TInst(c,[t1])
 		| 42 ->
-			let c = self#read_class_ref in
+			let c = self#resolve_class_ref_lazy in
 			let t1 = self#read_type_instance in
 			let t2 = self#read_type_instance in
-			let c = AtomicLazy.force c in
 			TInst(c,[t1;t2])
 		| 49 ->
-			let c = self#read_class_ref in
+			let c = self#resolve_class_ref_lazy in
 			let tl = self#read_types in
-			let c = AtomicLazy.force c in
 			TInst(c,tl)
 		| 50 ->
 			let en = self#read_enum_ref in
@@ -1554,13 +1549,7 @@ class hxb_reader
 		self#read_common_module_type (Obj.magic c);
 		c.cl_kind <- self#read_class_kind;
 		let read_relation () =
-			let idx = read_uleb128 ch in
-			let c =
-				if typing_mode = AllowPartialTyping && api#forwarding_enabled then
-					self#forward_class idx
-				else
-					AtomicLazy.force classes.(idx)
-			in
+			let c = self#resolve_class_ref_lazy in
 			let tl = self#read_types in
 			(c,tl)
 		in
@@ -1898,6 +1887,15 @@ class hxb_reader
 			Hashtbl.add tbl tpath c;
 			c
 		end
+
+	(* Read a class-reference index and resolve it: to a forwarding placeholder when lazy
+	   inheritance is enabled under partial typing, otherwise by forcing the real module now. *)
+	method resolve_class_ref_lazy =
+		let idx = read_uleb128 ch in
+		if typing_mode = AllowPartialTyping && api#forwarding_enabled then
+			self#forward_class idx
+		else
+			AtomicLazy.force classes.(idx)
 
 	method read_abr =
 		let l = read_uleb128 ch in
