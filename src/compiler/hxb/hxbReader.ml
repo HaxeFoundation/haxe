@@ -1563,7 +1563,7 @@ class hxb_reader
 
 	method read_abstract (a : tabstract) =
 		self#read_common_module_type (Obj.magic a);
-		a.a_impl <- self#read_option (fun () -> AtomicLazy.force self#read_class_ref);
+		a.a_impl <- self#read_option (fun () -> self#resolve_class_ref_lazy);
 		begin match read_byte ch with
 			| 0 ->
 				a.a_this <- TAbstract(a,extract_param_types a.a_params)
