@@ -125,8 +125,18 @@ let get_changed_directories sctx com =
 	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
 
 let get_typing_mode com m_extra =
-	let full_typing = com.is_macro_context
-		|| com.display.dms_full_typing
+	(* The macro context historically forces FullTyping unconditionally (since #11866). Under header
+	   invalidation, field bodies are already lazy (read_expression_eagerly = false), so the macro context
+	   can spare header-stable modules just like the display context: restore to EOT, defer bodies, and let
+	   inheritance forwarding collapse the transitive class closure. Gated behind hxb.macro_partial_typing
+	   while we validate soundness against macro execution. *)
+	let macro_partial =
+		com.is_macro_context && Define.raw_defined com.defines "hxb.macro_partial_typing"
+	in
+	let full_typing =
+		(com.is_macro_context && not macro_partial)
+		(* The macro context sets dms_full_typing = true (macroContext.ml), so bypass it too when relaxing. *)
+		|| (com.display.dms_full_typing && not macro_partial)
 		|| Define.defined com.defines Define.DisableHxbCache
 		|| Define.defined com.defines Define.DisableHxbOptimizations
 		|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
@@ -439,7 +449,12 @@ class hxb_reader_api_server
 		TLazy r
 
 	method forward_classes = com.hxb_forward_classes
-	method forwarding_enabled = Define.raw_defined com.defines "hxb.lazy_inheritance"
+	(* Inheritance forwarding mints identity-only placeholder tclasses; that is safe for the display
+	   context (inspect-only) but breaks TInst identity in the macro/eval path, where build macros unify
+	   freshly-built fields against std macro types (e.g. Array<haxe.macro.Field>). Keep it off for the
+	   macro context. *)
+	method forwarding_enabled =
+		Define.raw_defined com.defines "hxb.lazy_inheritance" && not com.is_macro_context
 end
 
 let handle_cache_bound_objects com cbol =
