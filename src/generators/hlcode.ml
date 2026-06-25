@@ -335,12 +335,6 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-(*
-	Structural type equality. Virtuals can be cyclic (recursive anonymous structures),
-	so we carry the set of virtual pairs currently being compared and treat a
-	re-encountered pair as equal (coinductive equality / bisimulation): without this,
-	comparing two distinct cyclic virtuals would recurse forever.
-*)
 let tsame t1 t2 =
 	let rec tsame seen t1 t2 =
 		if t1 == t2 then true else
@@ -369,24 +363,6 @@ let tsame t1 t2 =
 	in
 	tsame [] t1 t2
 
-(*
-	Total order on ttype, cycle-safe, suitable as a PMap key comparator.
-
-	The only ttype constructor that can be cyclic in memory is HVirtual (a virtual
-	whose fields reference itself, generated for recursive anonymous structures).
-	OCaml's polymorphic compare loops forever (growing its compare stack until
-	Out_of_memory) when comparing two *distinct* such cyclic virtuals. We intercept
-	HVirtual (and the transparent wrappers that can hold one) and break the cycle by
-	remembering, per side, the virtuals currently being compared, ordering a back-edge
-	by the depth at which it was first seen (De Bruijn level).
-
-	Every other constructor is delegated to polymorphic compare, which is exactly the
-	behaviour the previous `PMap.empty` maps relied on (class/enum/struct/abstract
-	protos are interned, so it short-circuits on physical equality and never recurses
-	into a cyclic field). This keeps the same equality classes for all non-virtual
-	types -- comparing protos by their name id instead is *not* equivalent, since
-	distinct protos can share a name id.
-*)
 let ttype_compare t1 t2 =
 	let seen1 = ref [] and seen2 = ref [] and depth = ref 0 in
 	let level seen v =
@@ -436,7 +412,6 @@ let ttype_compare t1 t2 =
 	in
 	cmp t1 t2
 
-(* Cycle-safe comparators derived from ttype_compare, for ttype-list / ttype-pair keyed caches. *)
 let rec ttype_list_compare l1 l2 = match l1, l2 with
 	| [], [] -> 0
 	| [], _ -> -1

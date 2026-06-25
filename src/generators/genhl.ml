@@ -28,14 +28,6 @@ open Gctx
 open Hlcode
 open Tanon_identification
 
-(* Unification context for identifying anonymous structures in [anons_cache] (see
-   #12718). Using tanon_identification (which unifies via recursion-guarded stacks)
-   instead of a structural compare avoids looping forever on cyclic recursive anons.
-   - strict already implies null_follow_mode = NeverFollow, so Null<T> and T stay
-     distinct (HL uses a different field type for each)
-   - allow_optional_mismatch: { ?node:T } and { node:T } yield the same virtual
-   - opaque_field_params: treat cf_params as opaque so two uses of the same generic
-     method are equal rather than instantiated against concrete types *)
 let anon_id_uctx = {
 	AnonIdMode.strict with
 	allow_optional_mismatch = true;
@@ -434,9 +426,7 @@ let rec to_type ?tref ctx t =
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
 		let pfm = ctx.anon_id#identify_anon anon_id_uctx a in
-		(try
-			Hashtbl.find ctx.anons_cache pfm.pfm_path
-		with Not_found ->
+		(try Hashtbl.find ctx.anons_cache pfm.pfm_path with Not_found ->
 			let vp = {
 				vfields = [||];
 				vindex = PMap.empty;
