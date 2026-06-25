@@ -436,6 +436,16 @@ let ttype_compare t1 t2 =
 	in
 	cmp t1 t2
 
+(* Cycle-safe comparators derived from ttype_compare, for ttype-list / ttype-pair keyed caches. *)
+let rec ttype_list_compare l1 l2 = match l1, l2 with
+	| [], [] -> 0
+	| [], _ -> -1
+	| _, [] -> 1
+	| t1 :: l1, t2 :: l2 -> let c = ttype_compare t1 t2 in if c <> 0 then c else ttype_list_compare l1 l2
+
+let ttype_pair_compare (a1,b1) (a2,b2) =
+	let c = ttype_compare a1 a2 in if c <> 0 then c else ttype_compare b1 b2
+
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
 		true (* equal types are always compatible *)

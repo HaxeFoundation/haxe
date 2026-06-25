@@ -390,16 +390,6 @@ let fake_tnull =
 let is_excluded c =
 	has_class_flag c CExcluded && not (has_class_flag c CInterface)
 
-(* Cycle-safe comparators for the other ttype-keyed genhl caches (see ttype_compare). *)
-let rec ttype_list_compare l1 l2 = match l1, l2 with
-	| [], [] -> 0
-	| [], _ -> -1
-	| _, [] -> 1
-	| t1 :: l1, t2 :: l2 -> let c = ttype_compare t1 t2 in if c <> 0 then c else ttype_list_compare l1 l2
-
-let ttype_pair_compare (a1,b1) (a2,b2) =
-	let c = ttype_compare a1 a2 in if c <> 0 then c else ttype_compare b1 b2
-
 let get_rec_cache ctx t none_callback not_found_callback =
 	try
 		match !(snd (List.find (fun (t',_) -> fast_eq t' t) ctx.rec_cache)) with
