@@ -3221,31 +3221,37 @@ module Preprocessor = struct
 	   it; scanning non-extern code only keeps classpath noise out. *)
 	let collect_used_functional_interfaces gctx =
 		let used = Hashtbl.create 0 in
-		let rec note_fi_in_type depth t =
-			if depth < 32 then match follow t with
+		(* `seen` guards against recursive types (e.g. a recursive abstract whose
+		   underlying references itself through several fields): without it the walk
+		   branches exponentially and the compiler hangs. depth is a coarse backstop. *)
+		let rec note_fi_in_type seen depth t =
+			if depth < 32 && not (List.exists (fast_eq t) seen) then begin
+			let seen = t :: seen in
+			match follow t with
 			| TInst(c,tl) ->
 				if has_class_flag c CFunctionalInterface then Hashtbl.replace used c.cl_path ();
-				List.iter (note_fi_in_type (depth + 1)) tl
+				List.iter (note_fi_in_type seen (depth + 1)) tl
 			| TFun(args,ret) ->
-				List.iter (fun (_,_,t) -> note_fi_in_type (depth + 1) t) args;
-				note_fi_in_type (depth + 1) ret
+				List.iter (fun (_,_,t) -> note_fi_in_type seen (depth + 1) t) args;
+				note_fi_in_type seen (depth + 1) ret
 			| TAbstract(_,tl) | TEnum(_,tl) | TType(_,tl) ->
-				List.iter (note_fi_in_type (depth + 1)) tl
+				List.iter (note_fi_in_type seen (depth + 1)) tl
 			| TAnon an ->
-				PMap.iter (fun _ cf -> note_fi_in_type (depth + 1) cf.cf_type) an.a_fields
+				PMap.iter (fun _ cf -> note_fi_in_type seen (depth + 1) cf.cf_type) an.a_fields
 			| TDynamic (Some t) ->
-				note_fi_in_type (depth + 1) t
+				note_fi_in_type seen (depth + 1) t
 			| _ ->
 				()
+			end
 		in
 		let rec note_fi_in_expr e =
-			note_fi_in_type 0 e.etype;
+			note_fi_in_type [] 0 e.etype;
 			Type.iter note_fi_in_expr e
 		in
 		let scan_class c =
 			if not (has_class_flag c CExtern) then begin
 				let rec scan cf =
-					note_fi_in_type 0 cf.cf_type;
+					note_fi_in_type [] 0 cf.cf_type;
 					Option.may note_fi_in_expr cf.cf_expr;
 					List.iter scan cf.cf_overloads
 				in
