@@ -153,18 +153,20 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl_rev,el_rev =
-				List.fold_left (fun (args,exprs) (v,value) ->
+			let args_rev,tl_rev,el_rev =
+				List.fold_left (fun (args,tl,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
 						| None -> Meta.has Meta.Optional v.v_meta
 					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
-					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
-				) ([],[]) args
+					let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
+					v'.v_meta <- v.v_meta;
+					(v',value) :: args,(v.v_name,opt,t) :: tl,(mk (TLocal v') v.v_type p) :: exprs
+				) ([],[],[]) args
 			in
 			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
-			(args,Some super_expr,List.rev tl_rev)
+			(List.rev args_rev,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
