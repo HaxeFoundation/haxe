@@ -200,7 +200,18 @@ let collect ctx e_ast e dk with_type p =
 			(* Type parameters can access the fields of their constraints *)
 			List.fold_left (fun acc t -> loop acc t) items (get_constraints ttp)
 		| TInst(c0,tl) ->
-			(* For classes, browse the hierarchy *)
+			(* For classes, browse the hierarchy. Under hxb.lazy_inheritance the receiver and its supers
+			   may be unforced forwarding stubs (empty cl_fields/cl_super), so walk and build the whole
+			   super chain before enumerating. cl_build fills cl_super in place, so we recurse only after
+			   building each level. Gated so the default (non-forwarding) path is unchanged. *)
+			if Define.raw_defined ctx.com.defines "hxb.lazy_inheritance" then begin
+				let rec force_hierarchy c =
+					ignore (c.cl_build());
+					(match c.cl_super with Some (csup,_) -> force_hierarchy csup | None -> ());
+					List.iter (fun (ci,_) -> force_hierarchy ci) c.cl_implements
+				in
+				force_hierarchy c0
+			end;
 			let fields = TClass.get_all_fields c0 tl in
 			Display.merge_core_doc ctx (TClassDecl c0);
 			let acc = PMap.foldi (fun k (c,cf) acc ->
