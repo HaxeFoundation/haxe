@@ -4,10 +4,18 @@ open Memory
 open Genjson
 open Type
 
-let get_memory_json (cs : CompilationCache.t) mreq =
+(* [macro_detail] gates the per-field macro-interpreter breakdown: it costs ~one
+   full-heap Obj.reachable_words traversal PER child (the children reach the shared
+   type graph), so it dominates the request (~180s on mog). Off by default; the
+   macro-interpreter TOTAL is always reported cheaply. *)
+let get_memory_json ?(macro_detail=false) (cs : CompilationCache.t) mreq =
 	begin match mreq with
 	| MCache ->
-		let stat = Gc.quick_stat() in
+		(* full_major first so live_words reflects the actual live set, not
+		   floating garbage; quick_stat after gives heap/top-heap high-water. *)
+		Gc.full_major();
+		let stat = Gc.stat() in
+		let words_to_bytes w = w * (Sys.word_size / 8) in
 		let size = (float_of_int stat.Gc.heap_words) *. (float_of_int (Sys.word_size / 8)) in
 		let cache_mem = cs#get_pointers in
 		let contexts = cs#get_contexts in
@@ -28,7 +36,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"nativeLibCache",jint (mem_size cache_mem.(3));
 				"additionalSizes",jarray (
 					(match !MacroContext.macro_interp_cache with
-					| Some interp ->
+					| Some interp when macro_detail ->
 						let eval = Thread_local_storage.get_exn interp.eval in
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache);"child",jarray [
 							jobject ["name",jstring "builtins";"size",jint (mem_size_2 interp.builtins [Obj.repr interp])];
@@ -74,7 +82,8 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 							jobject ["name",jstring "evals";"size",jint (mem_size_2 interp.evals [Obj.repr interp])];
 							jobject ["name",jstring "exception_stack";"size",jint (mem_size_2 eval.exception_stack [Obj.repr interp])];
 						]];
-					| None ->
+					| _ ->
+						(* No interp, or macro_detail off: report the total only (cheap). *)
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache)];
 					)
 					::
@@ -86,6 +95,13 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 						jobject ["name",jstring "GC heap words";"size",jint (int_of_float size)];
 					]
 				);
+				(* Process-level vs GC-level memory. processRss is what the OS sees;
+				   the gap over gcLiveBytes reveals allocator retention/fragmentation
+				   (i.e. how much a Gc.compact could hand back). *)
+				"processRss",jint (Memory.process_rss ());
+				"gcLiveBytes",jint (words_to_bytes stat.Gc.live_words);
+				"gcHeapBytes",jint (words_to_bytes stat.Gc.heap_words);
+				"gcTopHeapBytes",jint (words_to_bytes stat.Gc.top_heap_words);
 			]
 		]
 	| MContext sign ->
@@ -197,7 +213,9 @@ let display_memory com =
 	Gc.full_major();
 	Gc.compact();
 	let mem = Gc.stat() in
+	print ("Process RSS " ^ fmt_size (process_rss ()));
 	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
+	print ("Live Memory " ^ fmt_size (mem.Gc.live_words * (Sys.word_size asr 8)));
 	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
 	let c = com.cs in
 	print ("Total cache size " ^ size c);

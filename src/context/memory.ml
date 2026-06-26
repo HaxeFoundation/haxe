@@ -7,6 +7,21 @@ type memory_request =
 	| MContext of string
 	| MModule of string * path
 
+(* Resident set size of this process, in bytes (0 if unavailable).
+   Linux: field 2 of /proc/self/statm is RSS in pages. This is the actual
+   memory the OS attributes to us, as opposed to the OCaml GC heap, so the gap
+   between the two reveals allocator retention / fragmentation. *)
+let process_rss () =
+	try
+		let ic = open_in "/proc/self/statm" in
+		let line = input_line ic in
+		close_in ic;
+		match String.split_on_char ' ' line with
+		| _ :: rss_pages :: _ -> (int_of_string rss_pages) * 4096
+		| _ -> 0
+	with _ ->
+		0
+
 let clear_descendants md =
 	List.iter (function
 		| TClassDecl c ->
