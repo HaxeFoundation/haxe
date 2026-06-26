@@ -253,10 +253,6 @@ let type_module_type ctx t p =
 			in
 			loop mt None
 		| TClassDecl c ->
-			(* Under hxb.lazy_inheritance c may be an unforced forwarding stub whose cl_type / cl_statics
-			   are empty, which breaks static field access (e.g. Tooltip.fromItem). Force the build so the
-			   stub fills. Gated so the default (non-forwarding) path is unchanged. *)
-			if Define.raw_defined ctx.com.defines "hxb.lazy_inheritance" then ignore (c.cl_build());
 			mk (TTypeExpr (TClassDecl c)) c.cl_type p
 		| TEnumDecl e ->
 			mk (TTypeExpr (TEnumDecl e)) e.e_type p
