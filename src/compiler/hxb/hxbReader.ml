@@ -1881,7 +1881,45 @@ class hxb_reader
 				(* Reading the real module reuses this stub in read_mtf and fills it in place.
 				   read_mtf resets cl_build to (fun () -> Built) before any nested read, so this
 				   never recurses. *)
-				ignore (api#resolve_module mpath typing_mode);
+				let m = api#resolve_module mpath typing_mode in
+				(* read_mtf reuses/fills this stub in place when it actually re-reads the module. But if the
+				   module was already cached (module_lut hit), resolve_module short-circuits without reading
+				   chunks, so the real class stays a distinct object in m.m_types and the stub is left empty.
+				   This also happens whenever the stub's registry key (the abstract reference's stored path)
+				   does not match the real class path -- e.g. abstract impl classes, whose ref carries an
+				   empty pack while the real class lives in the synthetic "_Module" package. Fill the stub
+				   from the real class in that case. Match by type name within the module (unique there),
+				   mirroring resolve_type, since the pack may legitimately differ. *)
+				begin try
+					match List.find (fun mt -> snd (t_path mt) = tname) m.m_types with
+					| TClassDecl c' when c' != c ->
+						c.cl_path <- c'.cl_path;
+						c.cl_module <- c'.cl_module;
+						c.cl_pos <- c'.cl_pos;
+						c.cl_name_pos <- c'.cl_name_pos;
+						c.cl_private <- c'.cl_private;
+						c.cl_doc <- c'.cl_doc;
+						c.cl_meta <- c'.cl_meta;
+						c.cl_params <- c'.cl_params;
+						c.cl_using <- c'.cl_using;
+						c.cl_restore <- c'.cl_restore;
+						c.cl_type <- c'.cl_type;
+						c.cl_kind <- c'.cl_kind;
+						c.cl_flags <- c'.cl_flags;
+						c.cl_super <- c'.cl_super;
+						c.cl_implements <- c'.cl_implements;
+						c.cl_fields <- c'.cl_fields;
+						c.cl_statics <- c'.cl_statics;
+						c.cl_ordered_statics <- c'.cl_ordered_statics;
+						c.cl_ordered_fields <- c'.cl_ordered_fields;
+						c.cl_dynamic <- c'.cl_dynamic;
+						c.cl_array_access <- c'.cl_array_access;
+						c.cl_constructor <- c'.cl_constructor;
+						c.cl_init <- c'.cl_init;
+						c.cl_descendants <- c'.cl_descendants;
+						c.cl_build <- (fun () -> Built)
+					| _ -> ()
+				with Not_found -> () end;
 				Built
 			);
 			Hashtbl.add tbl tpath c;
