@@ -194,6 +194,14 @@ typedef HaxeMemoryResult = {
 		final directoryCache:Int;
 		final nativeLibCache:Int;
 		final ?additionalSizes:Array<AdditionalSize>;
+		/** Resident set size of the compiler process in bytes (OS view), 0 if unavailable. **/
+		final ?processRss:Int;
+		/** Live (non-garbage) heap in bytes after a full major collection. **/
+		final ?gcLiveBytes:Int;
+		/** Total OCaml GC heap in bytes (live + free). **/
+		final ?gcHeapBytes:Int;
+		/** High-water mark of the OCaml GC heap in bytes. **/
+		final ?gcTopHeapBytes:Int;
 	}
 }
 
@@ -201,6 +209,9 @@ typedef GcCompactResult = {
 	final time:Float;
 	final before:Int;
 	final after:Int;
+	/** Process RSS in bytes before/after the compaction (0 if unavailable). **/
+	final ?rssBefore:Int;
+	final ?rssAfter:Int;
 }
 
 typedef HaxeContextMemoryResult = {

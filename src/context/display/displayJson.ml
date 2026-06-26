@@ -401,13 +401,17 @@ let handler =
 		);
 		"server/gcCompact", (fun hctx ->
 			let t0 = Extc.time() in
+			let rss_before = Memory.process_rss() in
 			let stats_before = Gc.stat() in
 			Gc.compact();
+			let rss_after = Memory.process_rss() in
 			let stats = Gc.quick_stat() in
 			Result (jobject [
 				"time", jfloat (Extc.time() -. t0);
 				"before", jint (stats_before.Gc.heap_words * Sys.word_size / 8);
 				"after", jint (stats.Gc.heap_words * Sys.word_size / 8);
+				"rssBefore", jint rss_before;
+				"rssAfter", jint rss_after;
 			]);
 		);
 		"server/readClassPaths", (fun hctx ->
@@ -555,7 +559,10 @@ let handler =
 			Result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
-			let j = DisplayMemory.get_memory_json hctx.display#get_cs MCache in
+			(* Opt-in: the per-field macro-interpreter breakdown is expensive
+			   (~one full-heap walk per child). Default off keeps the request fast. *)
+			let macro_detail = hctx.jsonrpc#has_params && hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "macroDetail") false in
+			let j = DisplayMemory.get_memory_json ~macro_detail hctx.display#get_cs MCache in
 			Result j
 		);
 		"server/memory/context",(fun hctx ->
