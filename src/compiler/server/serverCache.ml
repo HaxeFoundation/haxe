@@ -454,7 +454,7 @@ class hxb_reader_api_server
 	   freshly-built fields against std macro types (e.g. Array<haxe.macro.Field>). Keep it off for the
 	   macro context. *)
 	method forwarding_enabled =
-		Define.raw_defined com.defines "hxb.lazy_inheritance" && not com.is_macro_context
+		Define.defined com.defines Define.HxbLazyInheritance && not com.is_macro_context
 end
 
 let handle_cache_bound_objects com cbol =

@@ -378,6 +378,11 @@
 		"doc": "Verbose diagnostics for hxb.header_invalidation: per-dependent observe traces and full seed re-type failures (sub-errors + backtrace)."
 	},
 	{
+		"name": "HxbLazyInheritance",
+		"define": "hxb.lazy_inheritance",
+		"doc": "Resolve cross-module class references in restored hxb headers to identity-only forwarding placeholders whose contents fill lazily on cl_build, so a display request stops restoring the whole transitive inheritance closure (only with compilation server)."
+	},
+	{
 		"name": "HxbMeasureSignatures",
 		"define": "hxb.measure_signatures",
 		"signatureNeutral": true,
