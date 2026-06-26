@@ -763,7 +763,7 @@ class hxb_reader_api_typeload
 		TLazy (make_lazy g t f "typeload-api")
 
 	method forward_classes = com.hxb_forward_classes
-	method forwarding_enabled = Define.raw_defined com.defines "hxb.lazy_inheritance"
+	method forwarding_enabled = Define.defined com.defines Define.HxbLazyInheritance
 end
 
 let rec load_hxb_module com g path p =
