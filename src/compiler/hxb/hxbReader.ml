@@ -1962,7 +1962,13 @@ class hxb_reader
 					c.cl_build <- (fun () -> Built);
 					c
 				with Not_found ->
-					mk_class current_module path pos name_pos
+					let c = mk_class current_module path pos name_pos in
+					(* Register the canonical class object by path so a later forward_class reference to the
+					   same path reuses THIS (filled) object instead of minting a separate empty stub. Without
+					   this, reading the defining module before a forward-ref splits identity: the stub the ref
+					   resolves to is never filled (the module is already cached, so it is not re-read). *)
+					if api#forwarding_enabled then Hashtbl.replace (api#forward_classes) path c;
+					c
 				in
 				c.cl_params <- Array.to_list params;
 				c.cl_flags <- read_uleb128 ch;
