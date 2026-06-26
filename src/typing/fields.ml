@@ -434,6 +434,10 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| TAbstract (a,tl) ->
 			(try
 				let c = find_some a.a_impl in
+				(* Under hxb.lazy_inheritance the abstract's impl class may be an unforced forwarding stub
+				   whose cl_statics is empty until cl_build runs. Abstract member access reads cl_statics
+				   directly, so force the build first (also fills a_this); idempotent otherwise. *)
+				if Define.raw_defined ctx.com.defines "hxb.lazy_inheritance" then ignore (c.cl_build());
 				let f = PMap.find i c.cl_statics in
 				if not (has_class_field_flag f CfImpl) then raise Not_found;
 				no_no_lookup f;
