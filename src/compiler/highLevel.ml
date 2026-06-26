@@ -7,8 +7,8 @@ let add_libs timer_ctx (libs,cwd) args cs has_display =
 		raise (Arg.Bad msg)
 	in
 	let call_haxelib() =
-		let cmd = "haxelib" ^ (if global_repo then " --global" else " --cwd " ^ cwd) ^ " path " ^ String.concat " " libs in
-		let pin, pout, perr = Unix.open_process_full cmd (Unix.environment()) in
+		let args = "haxelib" :: (if global_repo then ["--global"] else ["--cwd"; cwd]) @ "path" :: libs in
+		let pin, pout, perr = Unix.open_process_args_full "haxelib" (Array.of_list args) (Unix.environment()) in
 		let lines = Std.input_list pin in
 		let err = Std.input_list perr in
 		let ret = Unix.close_process_full (pin,pout,perr) in
