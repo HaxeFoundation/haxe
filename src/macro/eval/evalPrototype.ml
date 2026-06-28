@@ -289,9 +289,17 @@ let create_instance_prototype ctx c =
 
 let get_object_prototype ctx l =
 	let l = List.sort (fun (i1,_) (i2,_) -> if i1 = i2 then 0 else if i1 < i2 then -1 else 1) l in
+	let name =
+		let ids = List.map fst l in
+		try
+			Hashtbl.find ctx.object_name_cache ids
+		with Not_found ->
+			let sfields = String.concat "," (List.map (fun i -> Printf.sprintf ":%s" (rev_hash i)) ids) in
+			let name = hash (Printf.sprintf "eval.object.Object[%s]" sfields) in
+			Hashtbl.replace ctx.object_name_cache ids name;
+			name
+	in
 	let proto =
-		let sfields = String.concat "," (List.map (fun (i,_) -> (Printf.sprintf ":%s" (rev_hash i))) l) in
-		let name = hash (Printf.sprintf "eval.object.Object[%s]" sfields) in
 		try
 			IntMap.find name ctx.instance_prototypes
 		with Not_found ->

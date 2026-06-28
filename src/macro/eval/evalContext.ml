@@ -285,6 +285,7 @@ and context = {
 	mutable static_prototypes : static_prototypes;
 	mutable constructors : value AtomicLazy.t IntMap.t;
 	file_keys : Common.file_keys;
+	object_name_cache : (int list,int) Hashtbl.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
 	mutable next_thread_id : int Atomic.t;

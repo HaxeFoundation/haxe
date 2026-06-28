@@ -114,6 +114,7 @@ let create com api is_macro args =
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		file_keys = com.part_scope.file_keys;
+		object_name_cache = Hashtbl.create 0;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
 		next_thread_id;
