@@ -77,8 +77,8 @@ Sys.catch_break true;
    sets them independently. *)
 let gc_config =
 	let default = DynamicGc.{
-		min_space_overhead = 100;
-		max_space_overhead = 120;
+		min_space_overhead = 80;
+		max_space_overhead = 100;
 		heap_start_worrying_mb = 4_096;
 		heap_really_worry_mb = 8_192;
 	} in
