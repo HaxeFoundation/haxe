@@ -202,6 +202,8 @@ typedef HaxeMemoryResult = {
 		final ?gcHeapBytes:Int;
 		/** High-water mark of the OCaml GC heap in bytes. **/
 		final ?gcTopHeapBytes:Int;
+		/** Cumulative bytes allocated since startup; deltas reveal per-request churn. **/
+		final ?gcAllocatedBytes:Int;
 	}
 }
 
