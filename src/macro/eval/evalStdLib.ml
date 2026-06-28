@@ -2959,18 +2959,18 @@ module StdTls = struct
 		| _ -> unexpected_value vthis "Thread"
 
 	let get_value = vifun0 (fun vthis ->
-		let this = this vthis in
+		ignore (this vthis);
 		try
 			let eval = get_eval (get_ctx()) in
-			IntMap.find this eval.eval_storage
+			TlsStorage.find eval.eval_storage vthis
 		with Not_found ->
 			vnull
 	)
 
 	let set_value = vifun1 (fun vthis v ->
-		let this = this vthis in
+		ignore (this vthis);
 		let eval = get_eval (get_ctx()) in
-		eval.eval_storage <- IntMap.add this v eval.eval_storage;
+		TlsStorage.replace eval.eval_storage vthis v;
 		v
 	)
 end
