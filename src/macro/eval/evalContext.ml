@@ -284,6 +284,7 @@ and context = {
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
 	mutable constructors : value AtomicLazy.t IntMap.t;
+	fake_proto_cache : (int,vprototype) Hashtbl.t;
 	file_keys : Common.file_keys;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)

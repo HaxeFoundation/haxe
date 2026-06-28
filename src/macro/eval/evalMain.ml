@@ -95,6 +95,7 @@ let create com api is_macro args =
 	let eval = EvalThread.create_eval thread in
 	let evals = ThreadSafeHashtbl.create 1 in
 	ThreadSafeHashtbl.add evals 0 eval;
+	let fake_proto_cache = Hashtbl.create 0 in
 	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
@@ -107,19 +108,20 @@ let create com api is_macro args =
 		had_error = false;
 		args;
 		(* prototypes *)
-		string_prototype = fake_proto key_String;
-		array_prototype = fake_proto key_Array;
-		vector_prototype = fake_proto key_eval_Vector;
+		string_prototype = fake_proto fake_proto_cache key_String;
+		array_prototype = fake_proto fake_proto_cache key_Array;
+		vector_prototype = fake_proto fake_proto_cache key_eval_Vector;
 		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
+		fake_proto_cache = fake_proto_cache;
 		file_keys = com.part_scope.file_keys;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
 		next_thread_id;
 		toplevel = 	vobject {
 			ofields = [||];
-			oproto = OProto (fake_proto key_eval_toplevel);
+			oproto = OProto (fake_proto fake_proto_cache key_eval_toplevel);
 		};
 		eval = Thread_local_storage.create ();
 		evals = evals;
