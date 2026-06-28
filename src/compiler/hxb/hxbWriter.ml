@@ -180,8 +180,7 @@ module SimnBuffer = struct
 	}
 
 	let reset sb =
-		sb.buffer <- Bytes.create sb.buffer_size;
-		sb.buffers <- Queue.create ();
+		Queue.clear sb.buffers;
 		sb.offset <- 0
 
 	let promote_buffer sb =
