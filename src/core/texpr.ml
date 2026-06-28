@@ -91,6 +91,17 @@ let check_expr predicate e =
 			predicate e || List.exists (fun (_,e) -> predicate e) catches
 
 let map_expr f e =
+	let map_opt eo = match eo with
+		| None -> eo
+		| Some e1 -> let e1' = f e1 in if e1' == e1 then eo else Some e1'
+	in
+	let rec map_keep mf l = match l with
+		| [] -> l
+		| x :: xs ->
+			let x' = mf x in
+			let xs' = map_keep mf xs in
+			if x' == x && xs' == xs then l else x' :: xs'
+	in
 	match e.eexpr with
 	| TConst _
 	| TLocal _
@@ -100,66 +111,93 @@ let map_expr f e =
 	| TIdent _ ->
 		e
 	| TArray (e1,e2) ->
-		let e1 = f e1 in
-		{ e with eexpr = TArray (e1,f e2) }
+		let e1' = f e1 in
+		let e2' = f e2 in
+		if e1' == e1 && e2' == e2 then e else { e with eexpr = TArray (e1',e2') }
 	| TBinop (op,e1,e2) ->
-		let e1 = f e1 in
-		{ e with eexpr = TBinop (op,e1,f e2) }
+		let e1' = f e1 in
+		let e2' = f e2 in
+		if e1' == e1 && e2' == e2 then e else { e with eexpr = TBinop (op,e1',e2') }
 	| TWhile (e1,e2,flag) ->
-		let e1 = f e1 in
-		{ e with eexpr = TWhile (e1,f e2,flag) }
+		let e1' = f e1 in
+		let e2' = f e2 in
+		if e1' == e1 && e2' == e2 then e else { e with eexpr = TWhile (e1',e2',flag) }
 	| TThrow e1 ->
-		{ e with eexpr = TThrow (f e1) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TThrow e1' }
 	| TEnumParameter (e1,ef,i) ->
-		{ e with eexpr = TEnumParameter(f e1,ef,i) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TEnumParameter(e1',ef,i) }
 	| TEnumIndex e1 ->
-		{ e with eexpr = TEnumIndex (f e1) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TEnumIndex e1' }
 	| TField (e1,v) ->
-		{ e with eexpr = TField (f e1,v) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TField (e1',v) }
 	| TParenthesis e1 ->
-		{ e with eexpr = TParenthesis (f e1) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TParenthesis e1' }
 	| TUnop (op,pre,e1) ->
-		{ e with eexpr = TUnop (op,pre,f e1) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TUnop (op,pre,e1') }
 	| TArrayDecl el ->
-		{ e with eexpr = TArrayDecl (List.map f el) }
+		let el' = map_keep f el in
+		if el' == el then e else { e with eexpr = TArrayDecl el' }
 	| TNew (t,pl,el) ->
-		{ e with eexpr = TNew (t,pl,List.map f el) }
+		let el' = map_keep f el in
+		if el' == el then e else { e with eexpr = TNew (t,pl,el') }
 	| TBlock el ->
-		{ e with eexpr = TBlock (List.map f el) }
+		let el' = map_keep f el in
+		if el' == el then e else { e with eexpr = TBlock el' }
 	| TObjectDecl el ->
-		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el) }
+		let el' = map_keep (fun ((v,ev) as fld) -> let ev' = f ev in if ev' == ev then fld else (v,ev')) el in
+		if el' == el then e else { e with eexpr = TObjectDecl el' }
 	| TCall (e1,el) ->
-		let e1 = f e1 in
-		{ e with eexpr = TCall (e1, List.map f el) }
+		let e1' = f e1 in
+		let el' = map_keep f el in
+		if e1' == e1 && el' == el then e else { e with eexpr = TCall (e1',el') }
 	| TVar (v,eo) ->
-		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
+		let eo' = map_opt eo in
+		if eo' == eo then e else { e with eexpr = TVar (v,eo') }
 	| TFunction fu ->
-		let map_arg (v,eo) = match eo with
-			| None -> v,eo
-			| Some e -> v,Some (f e)
+		let map_arg ((v,eo) as arg) = match eo with
+			| None -> arg
+			| Some e1 -> let e1' = f e1 in if e1' == e1 then arg else (v,Some e1')
 		in
-		{ e with eexpr = TFunction { fu with tf_args = List.map map_arg fu.tf_args; tf_expr = f fu.tf_expr } }
+		let args' = map_keep map_arg fu.tf_args in
+		let body' = f fu.tf_expr in
+		if args' == fu.tf_args && body' == fu.tf_expr then e
+		else { e with eexpr = TFunction { fu with tf_args = args'; tf_expr = body' } }
 	| TIf (ec,e1,e2) ->
-		let ec = f ec in
-		let e1 = f e1 in
-		{ e with eexpr = TIf (ec,e1,match e2 with None -> None | Some e -> Some (f e)) }
+		let ec' = f ec in
+		let e1' = f e1 in
+		let e2' = map_opt e2 in
+		if ec' == ec && e1' == e1 && e2' == e2 then e else { e with eexpr = TIf (ec',e1',e2') }
 	| TSwitch switch ->
-		let e1 = f switch.switch_subject in
-		let cases = List.map (fun case -> {
-			case_patterns = List.map f case.case_patterns;
-			case_expr = f case.case_expr
-		}) switch.switch_cases in
-		let def = Option.map f switch.switch_default in
-		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
+		let subj' = f switch.switch_subject in
+		let map_case (case as c0) =
+			let pats' = map_keep f case.case_patterns in
+			let ce' = f case.case_expr in
+			if pats' == case.case_patterns && ce' == case.case_expr then c0
+			else { case_patterns = pats'; case_expr = ce' }
+		in
+		let cases' = map_keep map_case switch.switch_cases in
+		let def' = map_opt switch.switch_default in
+		if subj' == switch.switch_subject && cases' == switch.switch_cases && def' == switch.switch_default then e
+		else { e with eexpr = TSwitch {switch with switch_subject = subj';switch_cases = cases';switch_default = def'} }
 	| TTry (e1,catches) ->
-		let e1 = f e1 in
-		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
+		let e1' = f e1 in
+		let catches' = map_keep (fun ((v,ec) as c) -> let ec' = f ec in if ec' == ec then c else (v,ec')) catches in
+		if e1' == e1 && catches' == catches then e else { e with eexpr = TTry (e1',catches') }
 	| TReturn eo ->
-		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
+		let eo' = map_opt eo in
+		if eo' == eo then e else { e with eexpr = TReturn eo' }
 	| TCast (e1,t) ->
-		{ e with eexpr = TCast (f e1,t) }
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TCast (e1',t) }
 	| TMeta (m,e1) ->
-		 {e with eexpr = TMeta(m,f e1)}
+		let e1' = f e1 in
+		if e1' == e1 then e else { e with eexpr = TMeta (m,e1') }
 
 let map_expr_type f ft fv e =
 	match e.eexpr with
