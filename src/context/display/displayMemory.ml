@@ -102,6 +102,8 @@ let get_memory_json ?(macro_detail=false) (cs : CompilationCache.t) mreq =
 				"gcLiveBytes",jint (words_to_bytes stat.Gc.live_words);
 				"gcHeapBytes",jint (words_to_bytes stat.Gc.heap_words);
 				"gcTopHeapBytes",jint (words_to_bytes stat.Gc.top_heap_words);
+				(* Cumulative bytes allocated since start; deltas reveal per-request churn. *)
+				"gcAllocatedBytes",jint (int_of_float (Gc.allocated_bytes ()));
 			]
 		]
 	| MContext sign ->
