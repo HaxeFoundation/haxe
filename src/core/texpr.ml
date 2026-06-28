@@ -318,13 +318,17 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 
 let e_identity e = e
 
+let copy_var v =
+	let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
+	v2.v_meta <- v.v_meta;
+	v2.v_extra <- v.v_extra;
+	v2.v_flags <- v.v_flags;
+	v2
+
 let duplicate_tvars f_this e =
 	let vars = Hashtbl.create 0 in
 	let copy_var v =
-		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
-		v2.v_meta <- v.v_meta;
-		v2.v_extra <- v.v_extra;
-		v2.v_flags <- v.v_flags;
+		let v2 = copy_var v in
 		Hashtbl.add vars v.v_id v2;
 		v2;
 	in

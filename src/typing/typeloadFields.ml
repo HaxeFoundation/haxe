@@ -160,8 +160,7 @@ let get_struct_init_super_info ctx c p =
 						| None -> Meta.has Meta.Optional v.v_meta
 					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
-					let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
-					v'.v_meta <- v.v_meta;
+					let v' = copy_var v in
 					(v',value) :: args,(v.v_name,opt,t) :: tl,(mk (TLocal v') v.v_type p) :: exprs
 				) ([],[],[]) args
 			in
