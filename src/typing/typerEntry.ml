@@ -245,7 +245,7 @@ let create com macros =
 			core_api = None;
 			macros = macros;
 			module_check_policies = [];
-			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []});
+			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
 			delayed_min_index = 0;
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
