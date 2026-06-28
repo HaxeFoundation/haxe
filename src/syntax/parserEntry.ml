@@ -383,7 +383,7 @@ let parse_string config entry s p error inlined =
 		config
 	in
 	let result = try
-		parse config entry lctx (Sedlexing.Utf8.from_string s) p.pfile
+		parse config entry lctx (Lexer.lexbuf_from_utf8_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
