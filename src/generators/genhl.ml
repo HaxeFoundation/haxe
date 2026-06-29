@@ -389,8 +389,6 @@ let rec tanon_level seen an = match seen with
 	| [] -> -1
 	| (an',d) :: l -> if an' == an then d else tanon_level l an
 
-(* The seen lists / depth are threaded as plain arguments (no refs or per-call
-   closures), so a tanon_compare call that mismatches early allocates nothing. *)
 let rec tanon_cmp_t seen1 seen2 depth t1 t2 =
 	let t1 = tanon_reduce t1 and t2 = tanon_reduce t2 in
 	if t1 == t2 then 0 else
@@ -436,27 +434,11 @@ and tanon_cmp_anon seen1 seen2 depth an1 an2 =
 	else if d1 >= 0 then -1
 	else if d2 >= 0 then 1
 	else
-		(* a_fields is a PMap ordered by name, so foldi already yields a stable
-		   (name-ordered) sequence on both sides without an explicit sort. *)
 		let fields an = PMap.foldi (fun n cf acc -> (n,cf) :: acc) an.a_fields [] in
 		tanon_cmp_fields ((an1,depth) :: seen1) ((an2,depth) :: seen2) (depth + 1) (fields an1) (fields an2)
 
-(* Cycle-safe structural total order on tanon. Recursive anonymous structures
-   (e.g. typedef T = { next : T }) are cyclic in memory, so OCaml's polymorphic
-   compare loops forever on two *distinct* such values. We break the cycle by
-   assigning De Bruijn levels to the anons currently being compared: when both
-   sides revisit an already-seen anon, we compare their levels instead of
-   descending again. Behaviour mirrors to_type (we see through bound monomorphs
-   and lazy types, and treat unbound monos like HDyn) so two types to_type would
-   generate identically compare equal, preserving dedup. Used to resolve hash
-   collisions in anons_cache (see anon_fields_hash). *)
 let tanon_compare a1 a2 = tanon_cmp_anon [] [] 0 a1 a2
 
-(* Cheap, cycle-free hash of an anon: the field *names* only (combined with xor so
-   it is order-independent and needs no sort). Distinct structures with the same
-   field-name set collide and are then separated by tanon_compare; this keeps the
-   common anons_cache lookup down to ~one structural comparison instead of the
-   O(log n) a balanced map would require. *)
 let anon_fields_hash a = PMap.foldi (fun n _ acc -> acc lxor Hashtbl.hash (n : string)) a.a_fields 0
 
 let get_rec_cache ctx t none_callback not_found_callback =
@@ -502,9 +484,6 @@ let rec to_type ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
-		(* anons_cache buckets structurally-equal anons by anon_fields_hash; physical
-			comparison is unusable since GC compaction may move addresses. The bucket
-			is resolved with the cycle-safe tanon_compare. *)
 		let key = anon_fields_hash a in
 		let bucket = try Hashtbl.find ctx.anons_cache key with Not_found -> [] in
 		(match List.find_opt (fun (a',_) -> tanon_compare a a' = 0) bucket with
@@ -515,7 +494,6 @@ let rec to_type ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			(* insert before computing fields so a recursive anon resolves to vp *)
 			Hashtbl.replace ctx.anons_cache key ((a,t) :: bucket);
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in

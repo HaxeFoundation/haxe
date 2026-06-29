@@ -337,10 +337,6 @@ let is_dynamic t =
 
 let mk_virtual_proto vfields vindex = { vfields; vindex }
 
-(* Recursive virtuals are cyclic in memory; guard against revisiting a pair of
-   virtual_protos already on the comparison stack so we don't loop forever. The
-   guard list is only consed onto when virtuals are actually compared, and the
-   helper is top-level so a plain `tsame` call allocates nothing. *)
 let rec tsame_rec seen t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
@@ -368,32 +364,10 @@ let rec tsame_rec seen t1 t2 =
 
 let tsame t1 t2 = tsame_rec [] t1 t2
 
-(* Cycle-safe *structural* total order on ttype, used to key every genhl/hl2c
-   cache that may see a recursive (cyclic) virtual: gather_types' type table,
-   mallocs, cached_tuples, method_wrappers and the hl2c maps. Plain polymorphic
-   compare loops forever on two distinct cyclic virtuals; this merges two
-   physically-distinct but structurally-identical virtuals (e.g. an anon
-   `{render}` and an interface with the same field) exactly like the pre-fix
-   polymorphic compare did, keeping the emitted output stable.
-   Cycles are broken by tagging the virtuals currently under comparison with De
-   Bruijn levels; all non-virtual constructors delegate to polymorphic compare
-   (protos are interned, so that short-circuits and never loops).
-
-   The De Bruijn bookkeeping is only needed for the constructors that can carry a
-   (possibly cyclic) virtual: HVirtual itself and the transparent wrappers
-   HFun/HMethod/HArray/HRef/HNull/HPacked. When at least one side is anything else
-   the constructor tags already disambiguate, so we shortcut straight to the fast
-   polymorphic compare without allocating the seen-lists — that keeps this usable
-   as the key comparator for hot caches like mallocs whose keys are overwhelmingly
-   plain types. *)
 let is_virtual_bearing = function
 	| HVirtual _ | HFun _ | HMethod _ | HArray _ | HRef _ | HNull _ | HPacked _ -> true
 	| _ -> false
 
-(* De Bruijn level of a virtual currently under comparison, or -1. The seen
-   lists are threaded as plain arguments (not closures/refs) so ttype_compare
-   itself allocates nothing per call; cons cells only appear when we actually
-   descend through a virtual. *)
 let rec ttype_level seen v = match seen with
 	| [] -> -1
 	| (v',d) :: l -> if v' == v then d else ttype_level l v
@@ -436,8 +410,6 @@ let ttype_compare t1 t2 =
 	if not (is_virtual_bearing t1 && is_virtual_bearing t2) then compare t1 t2 else
 	ttype_cmp [] [] 0 t1 t2
 
-(* ttype_compare lifted to lists / pairs, for the genhl caches keyed on those
-   (cached_tuples on a ttype list, method_wrappers on a (ttype * ttype) pair). *)
 let rec ttype_list_compare l1 l2 = match l1, l2 with
 	| [], [] -> 0
 	| [], _ -> -1
