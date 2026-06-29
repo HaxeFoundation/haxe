@@ -436,16 +436,17 @@ let resident_reader_repoint : (int * path, Common.context -> (TyperPass.typer_pa
    Reuse is validated by module id; a stale/missing binary entry purges the resident. Returns the served wrapper
    or None (caller falls back to a fresh decode). resident_enabled is request-level (display, not full-typing). *)
 let try_serve_resident com cc m_path =
+	let trace tag = if idsplit_is_target (snd m_path) then idsplit_log com "LIFECYCLE" (Printf.sprintf "%s %s" tag (s_type_path m_path)) in
 	let resident_enabled = Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing in
 	match (if resident_enabled then cc#find_resident_module m_path else None) with
-	| None -> None
+	| None -> trace (if resident_enabled then "MISS-notresident" else "DISABLED"); None
 	| Some m ->
 		match (try Some (cc#get_hxb_module m_path) with Not_found -> None) with
-		| None -> cc#remove_resident_module m_path; None
-		| Some mc when mc.mc_id <> m.m_id -> cc#remove_resident_module m_path; None
-		| Some mc when get_typing_mode com mc.mc_extra <> AllowPartialTyping -> None
+		| None -> trace "PURGE-nochunk"; cc#remove_resident_module m_path; None
+		| Some mc when mc.mc_id <> m.m_id -> trace (Printf.sprintf "PURGE-stale(rid=%d bid=%d)" m.m_id mc.mc_id); cc#remove_resident_module m_path; None
+		| Some mc when get_typing_mode com mc.mc_extra <> AllowPartialTyping -> trace "SKIP-fulltyping"; None
 		| Some mc ->
-			Some { m with m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = m.m_extra.m_display_deps } }
+			trace "SERVE"; Some { m with m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = m.m_extra.m_display_deps } }
 
 class hxb_reader_api_server
 	(init_com : Common.context)
@@ -847,6 +848,7 @@ and type_module sctx com delay mpath p =
 					   runs on this same object before the request ends, so the resident copy is the full
 					   restored module. *)
 					idsplit_module com "TOP-DECODE" m; idsplit_tooltip com "TOP-DECODE" m;
+					if idsplit_is_target (snd mpath) then idsplit_log com "LIFECYCLE" (Printf.sprintf "FRESH-DECODE %s mode=%s store=%b" (s_type_path mpath) (match typing_mode with FullTyping -> "FULL" | AllowPartialTyping -> "PARTIAL") (resident_enabled && typing_mode = AllowPartialTyping));
 					if resident_enabled && typing_mode = AllowPartialTyping then
 						cc#cache_resident_module mpath m;
 					add_modules true m;
