@@ -422,7 +422,8 @@ class hxb_reader_api_server
 			   re-decoded next request. Only under AllowPartialTyping (we never persist a full-typing
 			   restore). The stored module is byte-stable: later requests serve a fresh m_extra shell
 			   over its shared m_types and must never force its bodies/cl_build. *)
-			if typing_mode = AllowPartialTyping && Define.defined com.defines Define.HxbHeaderCache then begin
+			if (typing_mode = AllowPartialTyping && Define.defined com.defines Define.HxbHeaderCache)
+				|| (com.is_macro_context && Define.defined com.defines Define.HxbHeaderCacheMacro) then begin
 				cc#cache_decoded_header path m;
 				Hashtbl.replace resident_reader_repoint (cc#get_index, path) (fun c d -> self#set_request c d);
 				incr com.request_scope.stats.s_header_cache_populated
@@ -458,7 +459,8 @@ class hxb_reader_api_server
 	   entry is dropped. We never serve under FullTyping (the entry was only ever populated from a partial
 	   restore) and we do NOT schedule the connect pass — the served header is read-only for this request. *)
 	method private serve_cached_header (m_path : path) =
-		if not (Define.defined com.defines Define.HxbHeaderCache) then None
+		let macro_cache = com.is_macro_context && Define.defined com.defines Define.HxbHeaderCacheMacro in
+		if not (Define.defined com.defines Define.HxbHeaderCache || macro_cache) then None
 		else match cc#find_decoded_header m_path with
 		| None -> None
 		| Some cached ->
@@ -474,7 +476,7 @@ class hxb_reader_api_server
 				(* A FullTyping resolution (e.g. the display file itself) needs the connect pass / bodies the
 				   resident EOT header deliberately omits — fall through to a real decode, but keep the (still
 				   valid) entry for later partial resolutions. *)
-				if get_typing_mode com mc.mc_extra <> AllowPartialTyping then None
+				if get_typing_mode com mc.mc_extra <> AllowPartialTyping && not macro_cache then None
 				else begin
 				(* Re-point the api that decoded this header at the current request before its closures can be
 				   forced during typing, so they resolve through the live com instead of the dead originating one. *)
