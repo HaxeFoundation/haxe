@@ -335,28 +335,117 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-let rec tsame t1 t2 =
+let mk_virtual_proto vfields vindex = { vfields; vindex }
+
+(* Recursive virtuals are cyclic in memory; guard against revisiting a pair of
+   virtual_protos already on the comparison stack so we don't loop forever. The
+   guard list is only consed onto when virtuals are actually compared, and the
+   helper is top-level so a plain `tsame` call allocates nothing. *)
+let rec tsame_rec seen t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
-	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 (tsame_rec seen) args1 args2 && tsame_rec seen ret2 ret1
+	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 (tsame_rec seen) args1 args2 && tsame_rec seen ret2 ret1
 	| HObj p1, HObj p2 -> p1 == p2
 	| HEnum e1, HEnum e2 -> e1 == e2
 	| HStruct p1, HStruct p2 -> p1 == p2
 	| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
 	| HVirtual v1, HVirtual v2 ->
 		if v1 == v2 then true else
+		if List.exists (fun (a,b) -> a == v1 && b == v2) seen then true else
 		if Array.length v1.vfields <> Array.length v2.vfields then false else
+		let seen = (v1,v2) :: seen in
 		let rec loop i =
 			if i = Array.length v1.vfields then true else
 			let _, i1, t1 = v1.vfields.(i) in
 			let _, i2, t2 = v2.vfields.(i) in
-			if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
+			if i1 = i2 && tsame_rec seen t1 t2 then loop (i + 1) else false
 		in
 		loop 0
-	| HNull t1, HNull t2 -> tsame t1 t2
-	| HRef t1, HRef t2 -> tsame t1 t2
+	| HNull t1, HNull t2 -> tsame_rec seen t1 t2
+	| HRef t1, HRef t2 -> tsame_rec seen t1 t2
 	| _ -> false
+
+let tsame t1 t2 = tsame_rec [] t1 t2
+
+(* Cycle-safe *structural* total order on ttype, used to key every genhl/hl2c
+   cache that may see a recursive (cyclic) virtual: gather_types' type table,
+   mallocs, cached_tuples, method_wrappers and the hl2c maps. Plain polymorphic
+   compare loops forever on two distinct cyclic virtuals; this merges two
+   physically-distinct but structurally-identical virtuals (e.g. an anon
+   `{render}` and an interface with the same field) exactly like the pre-fix
+   polymorphic compare did, keeping the emitted output stable.
+   Cycles are broken by tagging the virtuals currently under comparison with De
+   Bruijn levels; all non-virtual constructors delegate to polymorphic compare
+   (protos are interned, so that short-circuits and never loops).
+
+   The De Bruijn bookkeeping is only needed for the constructors that can carry a
+   (possibly cyclic) virtual: HVirtual itself and the transparent wrappers
+   HFun/HMethod/HArray/HRef/HNull/HPacked. When at least one side is anything else
+   the constructor tags already disambiguate, so we shortcut straight to the fast
+   polymorphic compare without allocating the seen-lists — that keeps this usable
+   as the key comparator for hot caches like mallocs whose keys are overwhelmingly
+   plain types. *)
+let is_virtual_bearing = function
+	| HVirtual _ | HFun _ | HMethod _ | HArray _ | HRef _ | HNull _ | HPacked _ -> true
+	| _ -> false
+
+(* De Bruijn level of a virtual currently under comparison, or -1. The seen
+   lists are threaded as plain arguments (not closures/refs) so ttype_compare
+   itself allocates nothing per call; cons cells only appear when we actually
+   descend through a virtual. *)
+let rec ttype_level seen v = match seen with
+	| [] -> -1
+	| (v',d) :: l -> if v' == v then d else ttype_level l v
+
+let rec ttype_cmp seen1 seen2 depth t1 t2 =
+	if t1 == t2 then 0 else
+	match t1, t2 with
+	| HVirtual v1, HVirtual v2 ->
+		let d1 = ttype_level seen1 v1 and d2 = ttype_level seen2 v2 in
+		if d1 >= 0 && d2 >= 0 then compare (d1 : int) d2
+		else if d1 >= 0 then -1
+		else if d2 >= 0 then 1
+		else ttype_cmp_vfields ((v1,depth) :: seen1) ((v2,depth) :: seen2) (depth + 1) v1.vfields v2.vfields
+	| HFun (args1,ret1), HFun (args2,ret2)
+	| HMethod (args1,ret1), HMethod (args2,ret2) ->
+		let c = ttype_cmp_list seen1 seen2 depth args1 args2 in
+		if c <> 0 then c else ttype_cmp seen1 seen2 depth ret1 ret2
+	| (HArray a, HArray b) | (HRef a, HRef b) | (HNull a, HNull b) | (HPacked a, HPacked b) -> ttype_cmp seen1 seen2 depth a b
+	| _ -> compare t1 t2
+and ttype_cmp_list seen1 seen2 depth l1 l2 = match l1, l2 with
+	| [], [] -> 0
+	| [], _ -> -1
+	| _, [] -> 1
+	| x :: l1, y :: l2 -> let c = ttype_cmp seen1 seen2 depth x y in if c <> 0 then c else ttype_cmp_list seen1 seen2 depth l1 l2
+and ttype_cmp_vfields seen1 seen2 depth a b =
+	let c = compare (Array.length a) (Array.length b) in
+	if c <> 0 then c else
+	let rec loop i =
+		if i = Array.length a then 0 else
+		let (n1,i1,t1) = a.(i) and (n2,i2,t2) = b.(i) in
+		let c = compare (n1 : string) n2 in if c <> 0 then c else
+		let c = compare (i1 : int) i2 in if c <> 0 then c else
+		let c = ttype_cmp seen1 seen2 depth t1 t2 in if c <> 0 then c else
+		loop (i + 1)
+	in
+	loop 0
+
+let ttype_compare t1 t2 =
+	if t1 == t2 then 0 else
+	if not (is_virtual_bearing t1 && is_virtual_bearing t2) then compare t1 t2 else
+	ttype_cmp [] [] 0 t1 t2
+
+(* ttype_compare lifted to lists / pairs, for the genhl caches keyed on those
+   (cached_tuples on a ttype list, method_wrappers on a (ttype * ttype) pair). *)
+let rec ttype_list_compare l1 l2 = match l1, l2 with
+	| [], [] -> 0
+	| [], _ -> -1
+	| _, [] -> 1
+	| t1 :: l1, t2 :: l2 -> let c = ttype_compare t1 t2 in if c <> 0 then c else ttype_list_compare l1 l2
+
+let ttype_pair_compare (a1,b1) (a2,b2) =
+	let c = ttype_compare a1 a2 in if c <> 0 then c else ttype_compare b1 b2
 
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
@@ -448,7 +537,7 @@ let resolve_field p fid =
 	loop [] p
 
 let gather_types (code:code) =
-	let types = ref PMap.empty in
+	let types = ref (PMap.create ttype_compare) in
 	let arr = DynArray.create() in
 	let rec get_type t =
 		(match t with
