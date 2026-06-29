@@ -393,6 +393,11 @@
 		"doc": "Verbose diagnostics for hxb.header_cache: per-request hit/miss/populate counts and any attempt to fill (force body/cl_build) a cached EOT header."
 	},
 	{
+		"name": "HxbResidentModules",
+		"define": "hxb.resident_modules",
+		"doc": "Keep restored modules resident in the compilation cache across requests and reuse them at the top-level module load (instead of re-decoding from hxb every request), with source-freshness still gated by the normal check. Decodes only the modules that actually changed. Reuse is validated by module id; stale/changed modules fall back to a fresh decode (only with compilation server)."
+	},
+	{
 		"name": "HxbHeaderCacheMacro",
 		"define": "hxb.header_cache_macro",
 		"doc": "Extend hxb.header_cache to the macro context: persist its full-typing (EOM) module restores across requests so the macro context does not re-decode its module closure every request. The macro context has its own cache signature, so these headers never mix with display ones (only with compilation server)."
