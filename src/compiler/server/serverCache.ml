@@ -151,6 +151,65 @@ let decode_log com tag path =
 		output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path path)); close_out oc
 	end
 
+(* hxb.idsplit diagnostic (resident_modules display identity-split bug): assign a stable physical serial to
+   each target tclass/tabstract object so we can see, per resolution, whether the SAME path yields the SAME
+   physical object across the resident top-level serve path and the cascade cross-ref path. If the cursor's
+   Item (resolved via cascade while typing ItemSlot) gets a different serial than the Item frozen inside the
+   served Tooltip.fromItem param, the corruption is an identity split; if the serial is stable but typing still
+   fails, it is in-place mutation. Physical-eq assoc list (target objects are few). *)
+let idsplit_serials : (Obj.t * int) list ref = ref []
+let idsplit_next = ref 0
+let idsplit_serial (o:Obj.t) =
+	let rec find = function
+		| [] -> let s = !idsplit_next in incr idsplit_next; idsplit_serials := (o,s) :: !idsplit_serials; s
+		| (o',s) :: _ when o' == o -> s
+		| _ :: tl -> find tl
+	in find !idsplit_serials
+
+let idsplit_enabled com = Define.raw_defined com.defines "hxb.idsplit"
+
+let idsplit_log com tag s =
+	if idsplit_enabled com then begin
+		let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/21131929-fa75-4d3d-9952-74b6d66107d9/scratchpad/idsplit.log" in
+		output_string oc (Printf.sprintf "%s %s\n" tag s); close_out oc
+	end
+
+let idsplit_is_target name = match name with
+	| "Item" | "Tooltip" | "TipItemCompare" -> true
+	| _ -> false
+
+(* Log the physical serial of every target decl in a module (its decode/serve identity). *)
+let idsplit_module com tag m =
+	if idsplit_enabled com then
+		List.iter (fun mt -> match mt with
+			| TClassDecl c when idsplit_is_target (snd c.cl_path) ->
+				idsplit_log com tag (Printf.sprintf "class %s #%d" (s_type_path c.cl_path) (idsplit_serial (Obj.repr c)))
+			| TAbstractDecl a when idsplit_is_target (snd a.a_path) ->
+				idsplit_log com tag (Printf.sprintf "abstract %s #%d" (s_type_path a.a_path) (idsplit_serial (Obj.repr a)))
+			| _ -> ()
+		) m.m_types
+
+(* Non-forcing description (with serial) of the class/abstract object embedded in a (param) type. *)
+let rec idsplit_type_obj t = match t with
+	| TAbstract(a, [p]) when snd a.a_path = "Null" -> idsplit_type_obj p
+	| TAbstract(a, _) -> Printf.sprintf "abstract %s #%d" (s_type_path a.a_path) (idsplit_serial (Obj.repr a))
+	| TInst(c, _) -> Printf.sprintf "class %s #%d" (s_type_path c.cl_path) (idsplit_serial (Obj.repr c))
+	| TType(td, _) -> Printf.sprintf "typedef %s" (s_type_path td.t_path)
+	| TLazy _ -> "lazy" | TMono { tm_type = Some t } -> "mono->" ^ idsplit_type_obj t | TMono _ -> "mono" | _ -> "other"
+
+(* For the served Tooltip module, log the physical identity of the Item/st.Item objects frozen inside
+   fromItem's parameter types (the receiver type the cursor must unify its argument against). *)
+let idsplit_tooltip com tag m =
+	if idsplit_enabled com then
+		List.iter (function
+			| TClassDecl c when snd c.cl_path = "Tooltip" ->
+				(try match (PMap.find "fromItem" c.cl_statics).cf_type with
+					| TFun(args,_) -> List.iter (fun (_,_,at) -> idsplit_log com tag ("fromItem-param " ^ idsplit_type_obj at)) args
+					| _ -> ()
+				with Not_found -> ())
+			| _ -> ()
+		) m.m_types
+
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 
@@ -367,6 +426,27 @@ let get_hxb_module com cc path typing_mode =
    instead of the dead originating one. Keyed by (context index, module path). *)
 let resident_reader_repoint : (int * path, Common.context -> (TyperPass.typer_pass -> (unit -> unit) -> unit) -> unit) Hashtbl.t = Hashtbl.create 0
 
+(* hxb.resident_modules: shared resident-serve logic used by BOTH resolution paths — the typer's free top-level
+   load (find_module_in_cache) and the reader's cascade cross-ref load (api#find_module). Serving on a SINGLE
+   path (top-level only) was the identity-split bug: a resident module's frozen cross-module refs (decode-gen
+   objects) never matched what the full-typed display file resolved through the un-served cascade path, so unify
+   collapsed to TMono. Returning the SAME resident m_types on both paths gives one canonical object per path.
+   Hands out a fresh m_extra shell (this request's dep mutations must not pollute the resident object) while
+   preserving the resident module's own m_display_deps (nulling it forces add_modules to walk the full m_deps).
+   Reuse is validated by module id; a stale/missing binary entry purges the resident. Returns the served wrapper
+   or None (caller falls back to a fresh decode). resident_enabled is request-level (display, not full-typing). *)
+let try_serve_resident com cc m_path =
+	let resident_enabled = Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing in
+	match (if resident_enabled then cc#find_resident_module m_path else None) with
+	| None -> None
+	| Some m ->
+		match (try Some (cc#get_hxb_module m_path) with Not_found -> None) with
+		| None -> cc#remove_resident_module m_path; None
+		| Some mc when mc.mc_id <> m.m_id -> cc#remove_resident_module m_path; None
+		| Some mc when get_typing_mode com mc.mc_extra <> AllowPartialTyping -> None
+		| Some mc ->
+			Some { m with m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = m.m_extra.m_display_deps } }
+
 class hxb_reader_api_server
 	(init_com : Common.context)
 	(cc : context_cache)
@@ -408,6 +488,7 @@ class hxb_reader_api_server
 	method resolve_module (path : path) full_restore =
 		match self#find_module path full_restore with
 		| GoodModule m ->
+			idsplit_module com "CASC-GOOD" m; idsplit_tooltip com "CASC-GOOD" m;
 			m
 		| BinaryModule mc ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
@@ -437,6 +518,7 @@ class hxb_reader_api_server
 				Hashtbl.replace resident_reader_repoint (cc#get_index, path) (fun c d -> self#set_request c d);
 				incr com.request_scope.stats.s_header_cache_populated
 			end;
+			idsplit_module com "CASC-DECODE" m; idsplit_tooltip com "CASC-DECODE" m;
 			m
 		| BadBinaryModule (mc, reason) ->
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
@@ -685,6 +767,7 @@ and type_module sctx com delay mpath p =
 		let from_cc_or_binary () =
 			try
 				let m = cc#find_module m_path in
+				idsplit_module com "TOP-GOOD" m; idsplit_tooltip com "TOP-GOOD" m;
 				begin match m.m_extra.m_cache_state with
 					| MSBad reason -> BadModule reason
 					| _ -> GoodModule m
@@ -700,48 +783,21 @@ and type_module sctx com delay mpath p =
 			let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_hits.log" in
 			output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path m_path)); close_out oc
 		end in
-		match (if resident_enabled then cc#find_resident_module m_path else None) with
+		match (if resident_enabled then try_serve_resident com cc m_path else None) with
 		| None ->
 			rlog "MISS"; from_cc_or_binary ()
 		| Some m ->
-			match (try Some (cc#get_hxb_module m_path) with Not_found -> None) with
-			| None ->
-				rlog "NOCHUNK"; cc#remove_resident_module m_path; from_cc_or_binary ()
-			| Some mc when mc.mc_id <> m.m_id ->
-				rlog "STALE"; cc#remove_resident_module m_path; from_cc_or_binary ()
-			| Some mc when get_typing_mode com mc.mc_extra <> AllowPartialTyping ->
-				rlog "FULLTYPING"; from_cc_or_binary ()
-			| Some mc ->
-				rlog "HIT";
-				(* Re-point the shared api (whose closures this resident module captured) at the current
-				   request before its body lazies can be forced during typing. *)
-				ignore(ensure_shared_reader_api com cc delay);
-				(if Define.raw_defined com.defines "hxb.resident_verbose" then begin
-					ignore resident_mutation_diff;
-					List.iter (fun mt -> match mt with
-						| TAbstractDecl a when snd a.a_path = "Item" ->
-							let impl = (match a.a_impl with None -> "noimpl" | Some c -> (match c.cl_build() with Built -> "built" | _ -> "unbuilt")) in
-							let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_mut.log" in
-							output_string oc (Printf.sprintf "serve abstract %s: this=%s from=%d to=%d %s\n" (s_type_path a.a_path) (TPrinting.s_type_kind a.a_this) (List.length a.a_from) (List.length a.a_to) impl);
-							close_out oc
-						| TClassDecl c when snd c.cl_path = "Tooltip" ->
-							(try
-								let cf = PMap.find "fromItem" c.cl_statics in
-								let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_mut.log" in
-								output_string oc (Printf.sprintf "serve Tooltip fromItem.cf_type = %s\n" (TPrinting.s_type_kind cf.cf_type));
-								close_out oc
-							with Not_found -> ())
-						| _ -> ()
-					) m.m_types;
-				end);
-				(* Preserve the resident module's m_display_deps (the lazy subset the reader recorded). Nulling
-				   it forces add_modules to walk the FULL m_deps, pulling in the whole transitive closure (e.g.
-				   every domkit component) a fresh lazy decode never loads. *)
-				let m = { m with m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = m.m_extra.m_display_deps } } in
-				begin match m.m_extra.m_cache_state with
-					| MSBad reason -> BadModule reason
-					| _ -> GoodModule m
-				end
+			rlog "HIT";
+			idsplit_module com "TOPSERVE" m; idsplit_tooltip com "TOPSERVE" m;
+			(* Re-point the shared api (whose closures this resident module captured) at the current request
+			   before its body lazies can be forced during typing. The top-level load may be the first thing
+			   this request does, so set_request has not necessarily run yet (unlike the cascade path, where
+			   self is already active). *)
+			ignore(ensure_shared_reader_api com cc delay);
+			begin match m.m_extra.m_cache_state with
+				| MSBad reason -> BadModule reason
+				| _ -> GoodModule m
+			end
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -790,6 +846,7 @@ and type_module sctx com delay mpath p =
 					   instead of re-decoding. Only AllowPartialTyping (EOT) modules; the deferred EOF connect
 					   runs on this same object before the request ends, so the resident copy is the full
 					   restored module. *)
+					idsplit_module com "TOP-DECODE" m; idsplit_tooltip com "TOP-DECODE" m;
 					if resident_enabled && typing_mode = AllowPartialTyping then
 						cc#cache_resident_module mpath m;
 					add_modules true m;
