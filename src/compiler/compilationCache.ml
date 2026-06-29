@@ -41,6 +41,10 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	   this is NOT cleared per request; it is dropped on cache invalidation and validated by m_sig at
 	   serve time. The stored module is treated as immutable (never filled in place by later requests). *)
 	val decoded_header_cache : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	(* hxb.resident_modules: restored modules kept resident across requests so the typer's top-level load
+	   reuses them instead of re-decoding from hxb. Reuse is validated by module id (and the normal
+	   source-freshness check_module); a changed module is purged on add_binary_cache and re-decoded. *)
+	val resident_modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -99,8 +103,9 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| None -> false
 
 	method add_binary_cache m chunks =
-		(* The chunks just changed; any resident decoded EOT header for this path is now stale. *)
+		(* The chunks just changed; any resident decoded EOT header / resident module for this path is now stale. *)
 		Hashtbl.remove decoded_header_cache m.m_path;
+		Hashtbl.remove resident_modules m.m_path;
 		Hashtbl.replace binary_cache m.m_path {
 			mc_path = m.m_path;
 			mc_id = m.m_id;
@@ -134,12 +139,23 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method remove_decoded_header path =
 		Hashtbl.remove decoded_header_cache path
 
+	(* hxb.resident_modules: resident restored-module tier (see val resident_modules). *)
+	method find_resident_module path =
+		Hashtbl.find_opt resident_modules path
+
+	method cache_resident_module path m =
+		Hashtbl.replace resident_modules path m
+
+	method remove_resident_module path =
+		Hashtbl.remove resident_modules path
+
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
 
 	method clear_cache =
 		Hashtbl.clear modules;
 		Hashtbl.clear decoded_header_cache;
+		Hashtbl.clear resident_modules;
 		self#clear_temp_cache
 
 	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
@@ -147,6 +163,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
 		Hashtbl.clear decoded_header_cache;
+		Hashtbl.clear resident_modules;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->

@@ -143,6 +143,14 @@ let get_typing_mode com m_extra =
 	in
 	if full_typing then FullTyping else AllowPartialTyping
 
+(* hxb.decode_log diagnostic: record every hxb decode with its trigger site (TOP = top-level type_module load,
+   CASC = cascade cross-ref resolution), to diff the decoded module SET between resident on/off. *)
+let decode_log com tag path =
+	if Define.raw_defined com.defines "hxb.decode_log" then begin
+		let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/decoded.log" in
+		output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path path)); close_out oc
+	end
+
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 
@@ -411,6 +419,7 @@ class hxb_reader_api_server
 			in
 
 			let m,chunks = f_next mc.mc_chunks EOT in
+			decode_log com "CASC" path;
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
 				 our current display file if we're in display mode. *)
@@ -538,6 +547,40 @@ class hxb_reader_api_server
 		Define.defined com.defines Define.HxbLazyInheritance && not com.is_macro_context
 end
 
+(* hxb.resident_modules: one shared reader api per (context, is_macro), reused across requests. Resident
+   modules' lazy closures capture THIS api; re-pointing it at the current request's com (set_request) when we
+   decode AND when we serve a resident module makes those closures resolve through the live request instead of
+   the dead one that originally decoded them. *)
+let shared_reader_apis : (int * bool, hxb_reader_api_server) Hashtbl.t = Hashtbl.create 0
+
+let ensure_shared_reader_api com cc delay =
+	let key = (cc#get_index, com.is_macro_context) in
+	let api =
+		try Hashtbl.find shared_reader_apis key
+		with Not_found ->
+			let api = new hxb_reader_api_server com cc delay in
+			Hashtbl.replace shared_reader_apis key api;
+			api
+	in
+	api#set_request com delay;
+	api
+
+(* hxb.resident_verbose diagnostic: re-serialize a resident module and diff its chunks against the original
+   cached chunks, to pin which module/chunk was mutated in-place since it was decoded. *)
+let resident_mutation_diff com cc m mc =
+	try
+		let anon_identification = new Tanon_identification.tanon_identification in
+		let config = match com.hxb_writer_config with
+			| None -> HxbWriterConfig.create_target_config ()
+			| Some config -> if com.is_macro_context then config.macro_config else config.target_config
+		in
+		let writer = HxbWriter.create config (fun _ _ _ -> ()) anon_identification in
+		HxbWriter.write_module writer m;
+		let fresh = HxbWriter.get_chunks writer in
+		CommonCache.unexpected_chunk_diffs mc.HxbData.mc_chunks fresh
+	with e ->
+		Some (Printf.sprintf "diff-exn: %s" (Printexc.to_string e))
+
 let handle_cache_bound_objects com cbol =
 	DynArray.iter (function
 		| Resource(name,data) ->
@@ -629,13 +672,66 @@ and type_module sctx com delay mpath p =
 		Timer.time com.timer_ctx ["server";"module cache";"check"] (check_module sctx com mpath m_extra) p
 	in
 	let find_module_in_cache cc m_path p =
-		try
-			let m = cc#find_module m_path in
-			begin match m.m_extra.m_cache_state with
-				| MSBad reason -> BadModule reason
-				| _ -> GoodModule m
-			end;
-		with Not_found -> get_hxb_module com cc m_path FullTyping
+		let from_cc_or_binary () =
+			try
+				let m = cc#find_module m_path in
+				begin match m.m_extra.m_cache_state with
+					| MSBad reason -> BadModule reason
+					| _ -> GoodModule m
+				end;
+			with Not_found -> get_hxb_module com cc m_path FullTyping
+		in
+		(* hxb.resident_modules: reuse a restored module kept resident from a previous request instead of
+		   re-decoding it. Hand out a fresh m_extra so this request's dep/state mutations don't pollute the
+		   resident object; check_module still validates source freshness afterwards. Only reuse for
+		   AllowPartialTyping (we only ever store those — an EOT resident can't satisfy a FullTyping load).
+		   A changed binary entry (mc_id mismatch) or missing entry purges the stale resident. *)
+		let rlog tag = if Define.raw_defined com.defines "hxb.resident_verbose" then begin
+			let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_hits.log" in
+			output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path m_path)); close_out oc
+		end in
+		match (if Define.defined com.defines Define.HxbResidentModules then cc#find_resident_module m_path else None) with
+		| None ->
+			rlog "MISS"; from_cc_or_binary ()
+		| Some m ->
+			match (try Some (cc#get_hxb_module m_path) with Not_found -> None) with
+			| None ->
+				rlog "NOCHUNK"; cc#remove_resident_module m_path; from_cc_or_binary ()
+			| Some mc when mc.mc_id <> m.m_id ->
+				rlog "STALE"; cc#remove_resident_module m_path; from_cc_or_binary ()
+			| Some mc when get_typing_mode com mc.mc_extra <> AllowPartialTyping ->
+				rlog "FULLTYPING"; from_cc_or_binary ()
+			| Some mc ->
+				rlog "HIT";
+				(* Re-point the shared api (whose closures this resident module captured) at the current
+				   request before its body lazies can be forced during typing. *)
+				ignore(ensure_shared_reader_api com cc delay);
+				(if Define.raw_defined com.defines "hxb.resident_verbose" then begin
+					ignore resident_mutation_diff;
+					List.iter (fun mt -> match mt with
+						| TAbstractDecl a when snd a.a_path = "Item" ->
+							let impl = (match a.a_impl with None -> "noimpl" | Some c -> (match c.cl_build() with Built -> "built" | _ -> "unbuilt")) in
+							let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_mut.log" in
+							output_string oc (Printf.sprintf "serve abstract %s: this=%s from=%d to=%d %s\n" (s_type_path a.a_path) (TPrinting.s_type_kind a.a_this) (List.length a.a_from) (List.length a.a_to) impl);
+							close_out oc
+						| TClassDecl c when snd c.cl_path = "Tooltip" ->
+							(try
+								let cf = PMap.find "fromItem" c.cl_statics in
+								let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_mut.log" in
+								output_string oc (Printf.sprintf "serve Tooltip fromItem.cf_type = %s\n" (TPrinting.s_type_kind cf.cf_type));
+								close_out oc
+							with Not_found -> ())
+						| _ -> ()
+					) m.m_types;
+				end);
+				(* Preserve the resident module's m_display_deps (the lazy subset the reader recorded). Nulling
+				   it forces add_modules to walk the FULL m_deps, pulling in the whole transitive closure (e.g.
+				   every domkit component) a fresh lazy decode never loads. *)
+				let m = { m with m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = m.m_extra.m_display_deps } } in
+				begin match m.m_extra.m_cache_state with
+					| MSBad reason -> BadModule reason
+					| _ -> GoodModule m
+				end
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -655,7 +751,10 @@ and type_module sctx com delay mpath p =
 				| None ->
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 					let typing_mode = get_typing_mode com mc.mc_extra in
-					let api = match com.hxb_reader_api with
+					let api =
+						if Define.defined com.defines Define.HxbResidentModules then
+							(ensure_shared_reader_api com cc delay :> HxbReaderApi.hxb_reader_api)
+						else match com.hxb_reader_api with
 						| Some api ->
 							api
 						| None ->
@@ -669,6 +768,7 @@ and type_module sctx com delay mpath p =
 					in
 
 					let m,chunks = f_next mc.mc_chunks EOT in
+					decode_log com "TOP" mpath;
 
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
@@ -676,6 +776,12 @@ and type_module sctx com delay mpath p =
 					| FullTyping -> ignore(f_next chunks EOM)
 					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 					incr com.request_scope.stats.s_modules_restored;
+					(* hxb.resident_modules: keep this restored module resident so the next request reuses it
+					   instead of re-decoding. Only AllowPartialTyping (EOT) modules; the deferred EOF connect
+					   runs on this same object before the request ends, so the resident copy is the full
+					   restored module. *)
+					if Define.defined com.defines Define.HxbResidentModules && typing_mode = AllowPartialTyping then
+						cc#cache_resident_module mpath m;
 					add_modules true m;
 				| Some reason ->
 					skip mpath reason
