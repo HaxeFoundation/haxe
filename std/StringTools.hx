@@ -45,7 +45,7 @@ class StringTools {
 		#elseif neko
 		return untyped new String(_urlEncode(s.__s));
 		#elseif js
-		return untyped encodeURIComponent(s);
+		return js.Lib.global.encodeURIComponent(s);
 		#elseif cpp
 		return untyped s.__URLEncode();
 		#elseif java
@@ -111,7 +111,7 @@ class StringTools {
 		#elseif neko
 		return untyped new String(_urlDecode(s.__s));
 		#elseif js
-		return untyped decodeURIComponent(s.split("+").join(" "));
+		return js.Lib.global.decodeURIComponent(s.split("+").join(" "));
 		#elseif cpp
 		return untyped s.__URLDecode();
 		#elseif java

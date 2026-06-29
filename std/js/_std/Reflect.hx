@@ -111,7 +111,7 @@
 
 	public static function makeVarArgs<T>(f:Array<Dynamic>->T):Dynamic {
 		return function() {
-			var a = untyped Array.prototype.slice.call(js.Syntax.code("arguments"));
+			var a:Array<Dynamic> = js.Syntax.code("Array.prototype.slice.call(arguments)");
 			return f(a);
 		};
 	}

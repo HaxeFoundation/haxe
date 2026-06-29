@@ -36,7 +36,7 @@ class Selection {
 		if (doc.selectionStart != null)
 			return doc.value.substring(doc.selectionStart, doc.selectionEnd);
 		// IE
-		var range = untyped js.Lib.document.selection.createRange();
+		var range = (js.Lib.document : Dynamic).selection.createRange();
 		if (range.parentElement() != doc)
 			return "";
 		return range.text;
@@ -92,7 +92,7 @@ class Selection {
 			return;
 		}
 		// IE
-		var range = untyped js.Lib.document.selection.createRange();
+		var range = (js.Lib.document : Dynamic).selection.createRange();
 		range.text = left + text + right;
 		range.moveStart('character', -text.length - right.length);
 		range.moveEnd('character', -right.length);

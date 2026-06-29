@@ -26,8 +26,9 @@
 		return isOfType(v, t);
 	}
 
+	@:access(neko.Boot)
 	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
-		return untyped neko.Boot.__instanceof(v, t);
+		return neko.Boot.__instanceof(v, t);
 	}
 
 	public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {

@@ -48,22 +48,22 @@ class File {
 	}
 
 	public static function read(path:String, binary:Bool = true):FileInput {
-		return untyped new FileInput(NativeFile.file_open(path, (if (binary) "rb" else "r")));
+		return @:privateAccess new FileInput(NativeFile.file_open(path, (if (binary) "rb" else "r")));
 	}
 
 	public static function write(path:String, binary:Bool = true):FileOutput {
-		return untyped new FileOutput(NativeFile.file_open(path, (if (binary) "wb" else "w")));
+		return @:privateAccess new FileOutput(NativeFile.file_open(path, (if (binary) "wb" else "w")));
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		return untyped new FileOutput(NativeFile.file_open(path, (if (binary) "ab" else "a")));
+		return @:privateAccess new FileOutput(NativeFile.file_open(path, (if (binary) "ab" else "a")));
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
 		if (!FileSystem.exists(path)) {
 			write(path).close();
 		}
-		return untyped new FileOutput(NativeFile.file_open(path, (if (binary) "rb+" else "r+")));
+		return @:privateAccess new FileOutput(NativeFile.file_open(path, (if (binary) "rb+" else "r+")));
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {

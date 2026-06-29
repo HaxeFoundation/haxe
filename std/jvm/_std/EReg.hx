@@ -59,11 +59,11 @@ using StringTools;
 	}
 
 	public function matchedLeft():String {
-		return untyped cur.substring(0, matcher.start());
+		return cur.substring(0, matcher.start());
 	}
 
 	public function matchedRight():String {
-		return untyped cur.substring(matcher.end(), cur.length);
+		return cur.substring(matcher.end(), cur.length);
 	}
 
 	public function matchedPos():{pos:Int, len:Int} {
@@ -117,7 +117,7 @@ using StringTools;
 			var m = matcher;
 			m.reset(s);
 			if (m.find()) {
-				return untyped [s.substring(0, m.start()), s.substring(m.end(), s.length)];
+				return [s.substring(0, m.start()), s.substring(m.end(), s.length)];
 			} else {
 				return [s];
 			}

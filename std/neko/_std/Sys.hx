@@ -36,15 +36,15 @@ import haxe.SysTools;
 	}
 
 	public static function stdin() : haxe.io.Input {
-		return untyped new sys.io.FileInput(file_stdin());
+		return @:privateAccess new sys.io.FileInput(file_stdin());
 	}
 
 	public static function stdout() : haxe.io.Output {
-		return untyped new sys.io.FileOutput(file_stdout());
+		return @:privateAccess new sys.io.FileOutput(file_stdout());
 	}
 
 	public static function stderr() : haxe.io.Output {
-		return untyped new sys.io.FileOutput(file_stderr());
+		return @:privateAccess new sys.io.FileOutput(file_stderr());
 	}
 
 	public static function args() : Array<String> untyped {

@@ -69,7 +69,7 @@ class Timer {
 		}, time_ms);
 		#elseif js
 		var me = this;
-		id = untyped setInterval(function() me.run(), time_ms);
+		id = js.Lib.global.setInterval(function() me.run(), time_ms);
 		#else
 		event = EventLoop.current.addTimer(() -> this.run(), time_ms/1000.);
 		#end
@@ -90,7 +90,7 @@ class Timer {
 		#if flash
 		untyped __global__["flash.utils.clearInterval"](id);
 		#elseif js
-		untyped clearInterval(id);
+		js.Lib.global.clearInterval(id);
 		#end
 		id = null;
 		#else

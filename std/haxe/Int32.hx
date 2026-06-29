@@ -78,10 +78,13 @@ abstract Int32(Int) from Int to Int {
 	@:op(A * B) inline static function mul(a:Int32, b:Int32):Int32
 		return _mul(a, b);
 
-	static var _mul:Int32->Int32->Int32 = untyped if (Math.imul != null)
-			Math.imul
+	static var _mul:Int32->Int32->Int32 = {
+		final imul:Dynamic = (cast Math : Dynamic).imul;
+		if (imul != null)
+			cast imul
 		else
 			function(a:Int32, b:Int32):Int32 return clamp((a : Int) * ((b : Int) & 0xFFFF) + clamp((a : Int) * ((b : Int) >>> 16) << 16));
+	}
 	#else
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
 		return clamp((a : Int) * ((b : Int) & 0xFFFF) + clamp((a : Int) * ((b : Int) >>> 16) << 16));

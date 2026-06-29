@@ -60,7 +60,7 @@ class Meta {
 		var t:hl.BaseType = t;
 		return t.__meta__;
 		#else
-		return untyped t.__meta__;
+		return t.__meta__;
 		#end
 	}
 

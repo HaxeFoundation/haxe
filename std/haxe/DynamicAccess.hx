@@ -50,7 +50,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	@:arrayAccess
 	public inline function get(key:String):Null<T> {
 		#if js
-		return untyped this[key]; // we know it's an object, so we don't need a check
+		return js.Syntax.code("{0}[{1}]", this, key); // we know it's an object, so we don't need a check
 		#else
 		return Reflect.field(this, key);
 		#end
@@ -68,7 +68,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	@:arrayAccess
 	public inline function set(key:String, value:T):T {
 		#if js
-		return untyped this[key] = value;
+		return js.Syntax.code("{0}[{1}] = {2}", this, key, value);
 		#else
 		Reflect.setField(this, key, value);
 		return value;
