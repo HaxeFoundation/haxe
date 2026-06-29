@@ -36,6 +36,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	(* hxb.header_cache: decoded module headers (restored to EOT) kept resident across display
+	   requests so peer modules are not re-decoded+re-connected every request. Unlike tmp_binary_cache
+	   this is NOT cleared per request; it is dropped on cache invalidation and validated by m_sig at
+	   serve time. The stored module is treated as immutable (never filled in place by later requests). *)
+	val decoded_header_cache : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -94,6 +99,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| None -> false
 
 	method add_binary_cache m chunks =
+		(* The chunks just changed; any resident decoded EOT header for this path is now stale. *)
+		Hashtbl.remove decoded_header_cache m.m_path;
 		Hashtbl.replace binary_cache m.m_path {
 			mc_path = m.m_path;
 			mc_id = m.m_id;
@@ -117,17 +124,29 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method cache_module_in_memory path m =
 		Hashtbl.replace modules path m
 
+	(* hxb.header_cache: resident decoded EOT headers (see val decoded_header_cache). *)
+	method find_decoded_header path =
+		Hashtbl.find_opt decoded_header_cache path
+
+	method cache_decoded_header path m =
+		Hashtbl.replace decoded_header_cache path m
+
+	method remove_decoded_header path =
+		Hashtbl.remove decoded_header_cache path
+
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
 
 	method clear_cache =
 		Hashtbl.clear modules;
+		Hashtbl.clear decoded_header_cache;
 		self#clear_temp_cache
 
 	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
 	method clear_modules =
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
+		Hashtbl.clear decoded_header_cache;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->

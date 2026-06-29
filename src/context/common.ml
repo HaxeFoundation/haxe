@@ -39,6 +39,9 @@ module Stats = struct
 		s_classes_built : int ref;
 		s_methods_typed : int ref;
 		s_macros_called : int ref;
+		(* hxb.header_cache: resident decoded-header serve hits / cache populates. *)
+		s_header_cache_hits : int ref;
+		s_header_cache_populated : int ref;
 	}
 
 	let create () =
@@ -49,6 +52,8 @@ module Stats = struct
 			s_classes_built = ref 0;
 			s_methods_typed = ref 0;
 			s_macros_called = ref 0;
+			s_header_cache_hits = ref 0;
+			s_header_cache_populated = ref 0;
 		}
 end
 
