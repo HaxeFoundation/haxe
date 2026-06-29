@@ -671,6 +671,16 @@ and type_module sctx com delay mpath p =
 	let check_module sctx m_path m_extra p =
 		Timer.time com.timer_ctx ["server";"module cache";"check"] (check_module sctx com mpath m_extra) p
 	in
+	(* hxb.resident_modules is a DISPLAY-request optimization only: it serves/stores AllowPartialTyping (EOT,
+	   body-lazy) modules and routes decoding through a shared cross-request reader api. A full-typing request
+	   (a normal build, or the macro context, both of which set dms_full_typing) must NOT touch the tier — its
+	   modules are FullTyping (resident EOT copies can't satisfy them) and, critically, it must not decode
+	   through the shared api, whose state carries over from the previous display request and would corrupt the
+	   full compile (e.g. type redefinition). Gating the whole tier on a genuine display request keeps resident
+	   state from ever leaking into a full compile. *)
+	let resident_enabled =
+		Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing
+	in
 	let find_module_in_cache cc m_path p =
 		let from_cc_or_binary () =
 			try
@@ -690,7 +700,7 @@ and type_module sctx com delay mpath p =
 			let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_hits.log" in
 			output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path m_path)); close_out oc
 		end in
-		match (if Define.defined com.defines Define.HxbResidentModules then cc#find_resident_module m_path else None) with
+		match (if resident_enabled then cc#find_resident_module m_path else None) with
 		| None ->
 			rlog "MISS"; from_cc_or_binary ()
 		| Some m ->
@@ -752,7 +762,7 @@ and type_module sctx com delay mpath p =
 					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 					let typing_mode = get_typing_mode com mc.mc_extra in
 					let api =
-						if Define.defined com.defines Define.HxbResidentModules then
+						if resident_enabled then
 							(ensure_shared_reader_api com cc delay :> HxbReaderApi.hxb_reader_api)
 						else match com.hxb_reader_api with
 						| Some api ->
@@ -780,7 +790,7 @@ and type_module sctx com delay mpath p =
 					   instead of re-decoding. Only AllowPartialTyping (EOT) modules; the deferred EOF connect
 					   runs on this same object before the request ends, so the resident copy is the full
 					   restored module. *)
-					if Define.defined com.defines Define.HxbResidentModules && typing_mode = AllowPartialTyping then
+					if resident_enabled && typing_mode = AllowPartialTyping then
 						cc#cache_resident_module mpath m;
 					add_modules true m;
 				| Some reason ->
