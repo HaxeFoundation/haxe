@@ -286,7 +286,7 @@ module Monomorph = struct
 
 	let rec bind m t =
 		begin match t with
-		| TAnon _ when List.mem MOpenStructure m.tm_modifiers ->
+		| TAnon _ when has_modifier m (function MOpenStructure -> true | _ -> false) ->
 			(* If we assign an open structure monomorph to another structure, the semantics want us to merge the
 			   fields. This is kinda weird, but that's how it has always worked. *)
 			constrain_to_type m None t;
