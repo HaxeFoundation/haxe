@@ -353,6 +353,12 @@ let get_hxb_module com cc path typing_mode =
 	with Not_found ->
 		NoModule
 
+(* hxb.header_cache: for each resident header we remember how to re-point the api that decoded it at the
+   current request's com/delay. The header's lazy closures captured that api; re-pointing it at serve time
+   (which precedes any force during typing) makes those closures resolve through the live request context
+   instead of the dead originating one. Keyed by (context index, module path). *)
+let resident_reader_repoint : (int * path, Common.context -> (TyperPass.typer_pass -> (unit -> unit) -> unit) -> unit) Hashtbl.t = Hashtbl.create 0
+
 class hxb_reader_api_server
 	(init_com : Common.context)
 	(cc : context_cache)
@@ -418,6 +424,7 @@ class hxb_reader_api_server
 			   over its shared m_types and must never force its bodies/cl_build. *)
 			if typing_mode = AllowPartialTyping && Define.defined com.defines Define.HxbHeaderCache then begin
 				cc#cache_decoded_header path m;
+				Hashtbl.replace resident_reader_repoint (cc#get_index, path) (fun c d -> self#set_request c d);
 				incr com.request_scope.stats.s_header_cache_populated
 			end;
 			m
@@ -468,7 +475,12 @@ class hxb_reader_api_server
 				   resident EOT header deliberately omits — fall through to a real decode, but keep the (still
 				   valid) entry for later partial resolutions. *)
 				if get_typing_mode com mc.mc_extra <> AllowPartialTyping then None
-				else
+				else begin
+				(* Re-point the api that decoded this header at the current request before its closures can be
+				   forced during typing, so they resolve through the live com instead of the dead originating one. *)
+				(match Hashtbl.find_opt resident_reader_repoint (cc#get_index, m_path) with
+					| Some repoint -> repoint com delay
+					| None -> ());
 				let m = {
 					cached with
 					(* Fresh m_extra so this request's dependency mutations cannot pollute the resident
@@ -480,6 +492,7 @@ class hxb_reader_api_server
 				if Define.defined com.defines Define.HxbHeaderCacheVerbose then
 					prerr_endline (Printf.sprintf "[hxb.header_cache] serve %s" (s_type_path m_path));
 				Some m
+				end
 			| Some _ ->
 				(* Chunks changed under us; the resident header is stale. *)
 				cc#remove_decoded_header m_path;
