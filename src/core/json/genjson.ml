@@ -11,6 +11,7 @@ type generation_mode =
 type context = {
 	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
+	generate_minimal : bool;
 }
 
 let jnull = Json.JNull
@@ -598,11 +599,11 @@ let generate_class ctx c =
 		"isInterface",jbool (has_class_flag c CInterface);
 		"superClass",jopt generate_class_relation c.cl_super;
 		"interfaces",jlist generate_class_relation c.cl_implements;
-		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
-		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
-		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
-		"init",jopt (generate_texpr ctx) (TClass.get_cl_init c);
-		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
+		"fields",if ctx.generate_minimal then jarray [] else jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
+		"statics",if ctx.generate_minimal then jarray [] else jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
+		"constructor",if ctx.generate_minimal then jnull else jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
+		"init",if ctx.generate_minimal then jnull else jopt (generate_texpr ctx) (TClass.get_cl_init c);
+		"overrides",if ctx.generate_minimal then jarray [] else jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
 		"isAbstract",jbool (has_class_flag c CAbstract);
@@ -616,7 +617,7 @@ let generate_enum ctx e =
 		) e.e_names)
 	in
 	[
-		"constructors",generate_enum_constructors ();
+		"constructors",if ctx.generate_minimal then jarray [] else generate_enum_constructors ();
 		"isExtern",jbool (has_enum_flag e EnExtern)
 	]
 
@@ -710,6 +711,7 @@ let generate_module modules find_module m =
 let create_context gm = {
 	generation_mode = gm;
 	generate_abstract_impl = false;
+	generate_minimal = false;
 }
 
 let generate timer_ctx types file =
