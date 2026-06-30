@@ -163,7 +163,7 @@ let to_json ctx de =
 			| LocalVariable name -> (2, name)
 			| ImplicitReturn -> die "" __LOC__
 		in
-		let ctx = Genjson.create_context GMFull in
+		let ctx = Genjson.create_full_config () in
 		let generate_name kind =
 			let i,si = named_source_kind kind in
 			jobject [
@@ -207,12 +207,12 @@ let send_module_symbols_raise com s =
 
 let send_hover_raise com item expected p =
 	DisplayPosition.display_position#reset;
-	let ctx = Genjson.create_context GMFull in
+	let ctx = Genjson.create_full_config () in
 	send_json_result_raise com (to_json ctx (DisplayHover({hitem = item;hpos = p;hexpected = expected})))
 
 let send_signatures_raise com sigs isig iarg kind =
 	DisplayPosition.display_position#reset;
-	let ctx = Genjson.create_context GMFull in
+	let ctx = Genjson.create_full_config () in
 	let fsig ((_,signature),doc) =
 		let fl = CompletionType.generate_function' ctx signature in
 		let fl = (match doc with None -> fl | Some d -> ("documentation",jstring (gen_doc_text d)) :: fl) in
