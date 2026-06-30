@@ -143,11 +143,20 @@ let get_typing_mode com m_extra =
 	in
 	if full_typing then FullTyping else AllowPartialTyping
 
+(* Diagnostic logs (idsplit / decode / resident-hits — all stripped before merge). Use a FIXED dir with
+   NO session id, created on demand, so they never embed a dead per-session /tmp path and a missing dir
+   (e.g. after a reboot wipes /tmp) never Sys_error-crashes the compiler. Override with HXB_DIAG_DIR. *)
+let diag_dir =
+	try Sys.getenv "HXB_DIAG_DIR" with Not_found -> "/tmp/haxe-hxb-diag"
+let diag_open name =
+	(try Unix.mkdir diag_dir 0o755 with _ -> ());
+	open_out_gen [Open_append;Open_creat] 0o644 (Filename.concat diag_dir name)
+
 (* hxb.decode_log diagnostic: record every hxb decode with its trigger site (TOP = top-level type_module load,
    CASC = cascade cross-ref resolution), to diff the decoded module SET between resident on/off. *)
 let decode_log com tag path =
 	if Define.raw_defined com.defines "hxb.decode_log" then begin
-		let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/decoded.log" in
+		let oc = diag_open "decoded.log" in
 		output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path path)); close_out oc
 	end
 
@@ -170,7 +179,7 @@ let idsplit_enabled com = Define.raw_defined com.defines "hxb.idsplit"
 
 let idsplit_log com tag s =
 	if idsplit_enabled com then begin
-		let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/21131929-fa75-4d3d-9952-74b6d66107d9/scratchpad/idsplit.log" in
+		let oc = diag_open "idsplit.log" in
 		output_string oc (Printf.sprintf "%s %s\n" tag s); close_out oc
 	end
 
@@ -519,6 +528,15 @@ class hxb_reader_api_server
 				Hashtbl.replace resident_reader_repoint (cc#get_index, path) (fun c d -> self#set_request c d);
 				incr com.request_scope.stats.s_header_cache_populated
 			end;
+			(* hxb.resident_modules canonical registry: register on EVERY first decode, cascade INCLUDED
+			   (the top-level path stored only top-level decodes — the gap that forked st.Item in cont.8).
+			   Same object the deferred EOF-connect (above) fills in-place this request; cross-request its
+			   lazies resolve through the shared api repoint. *)
+			if Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing
+				&& typing_mode = AllowPartialTyping then begin
+				cc#cache_resident_module path m;
+				if idsplit_is_target (snd path) then idsplit_log com "LIFECYCLE" (Printf.sprintf "CASC-FRESH-DECODE %s store=true" (s_type_path path))
+			end;
 			idsplit_module com "CASC-DECODE" m; idsplit_tooltip com "CASC-DECODE" m;
 			m
 		| BadBinaryModule (mc, reason) ->
@@ -599,6 +617,17 @@ class hxb_reader_api_server
 		try
 			GoodModule (com.module_lut#find m_path)
 		with Not_found ->
+			(* hxb.resident_modules canonical registry: the cascade cross-ref path must consult the SAME
+			   registry as the top-level load, and SEED module_lut from it, so a path resolves to ONE
+			   canonical object across both paths (the cont.8 identity-split fix). Without this the cascade
+			   re-decodes a separate generation that a resident module's frozen ref will not unify with. *)
+			let resident_enabled = Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing in
+			match (if resident_enabled then try_serve_resident com cc m_path else None) with
+			| Some m ->
+				com.module_lut#add m_path m;
+				idsplit_module com "CASCSERVE" m; idsplit_tooltip com "CASCSERVE" m;
+				GoodModule m
+			| None ->
 			match self#serve_cached_header m_path with
 			| Some m -> GoodModule m
 			| None -> get_hxb_module com cc m_path typing_mode
@@ -781,7 +810,7 @@ and type_module sctx com delay mpath p =
 		   AllowPartialTyping (we only ever store those — an EOT resident can't satisfy a FullTyping load).
 		   A changed binary entry (mc_id mismatch) or missing entry purges the stale resident. *)
 		let rlog tag = if Define.raw_defined com.defines "hxb.resident_verbose" then begin
-			let oc = open_out_gen [Open_append;Open_creat] 0o644 "/tmp/claude-1000/-git-haxe/aad4e73e-cb82-44b9-bff1-c81681cfd085/scratchpad/resident_hits.log" in
+			let oc = diag_open "resident_hits.log" in
 			output_string oc (Printf.sprintf "%s %s\n" tag (s_type_path m_path)); close_out oc
 		end in
 		match (if resident_enabled then try_serve_resident com cc m_path else None) with
