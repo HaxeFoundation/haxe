@@ -110,6 +110,45 @@ class ModuleSignature extends TestCase {
 		Assert.isFalse(hasMessage("reusing Main"));
 	}
 
+	// An inline static var/method is FOLDED into its callers, so the TField node that would yield a
+	// field-granular dependency edge is erased. A change to the inlined value/body is still part of the
+	// module signature, so the dependent must be re-typed -- otherwise it keeps the stale fold. Const.K's
+	// value (1 -> 2) and inline fn's body both change here; Use folds both and must be re-typed.
+	function testHeaderInvalidationInlineFold() {
+		vfs.putContent("Const.hx", 'class Const {
+	public static inline var K:Int = 1;
+	public static inline function f(n:Int):Int return n + 10;
+}');
+		vfs.putContent("Use.hx", 'class Use {
+	public static function valueK():Int return Const.K + 100;
+	public static function valueF():Int return Const.f(1);
+}');
+		vfs.putContent("Main.hx", "class Main { static function main() { trace(Use.valueK() + Use.valueF()); } }");
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.header_invalidation"];
+		runHaxe(args);
+		assertSuccess();
+
+		// Inline VALUE change (no field added/removed): Use folded K, so it must be re-typed.
+		vfs.putContent("Const.hx", 'class Const {
+	public static inline var K:Int = 2;
+	public static inline function f(n:Int):Int return n + 10;
+}');
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Const.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.isFalse(hasMessage("reusing Use"));
+
+		// Inline BODY change on the inline function: Use inlined f, so it must be re-typed.
+		vfs.putContent("Const.hx", 'class Const {
+	public static inline var K:Int = 2;
+	public static inline function f(n:Int):Int return n + 20;
+}');
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Const.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.isFalse(hasMessage("reusing Use"));
+	}
+
 	// Transitive field-granular soundness: a leaf change that propagates through a MID module whose own
 	// signature changes. Chain: Leaf.X -> Mid.getX() (inferred return reads Leaf.X) -> ConsumerA (calls
 	// Mid.getX, observes Mid's delta) ; ConsumerB calls only Mid.other (header-stable, must be spared).
