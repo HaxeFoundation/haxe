@@ -372,6 +372,11 @@
 		"doc": "Spare a re-typed module's dependents whose used signatures are unchanged: re-type invalidated seeds in a pre-phase, diff their module signatures, and propagate dirtiness field-granularly only through observed changes (only with compilation server)."
 	},
 	{
+		"name": "HxbMacroPartialTyping",
+		"define": "hxb.macro_partial_typing",
+		"doc": "Let the macro/eval context spare header-stable modules on a server recompile instead of always re-typing fully: restore to EOT and defer field bodies, like the display context (requires hxb.header_invalidation; only with compilation server)."
+	},
+	{
 		"name": "HxbHeaderInvalidationVerbose",
 		"define": "hxb.header_invalidation_verbose",
 		"signatureNeutral": true,

@@ -131,7 +131,7 @@ let get_typing_mode com m_extra =
 	   inheritance forwarding collapse the transitive class closure. Gated behind hxb.macro_partial_typing
 	   while we validate soundness against macro execution. *)
 	let macro_partial =
-		com.is_macro_context && Define.raw_defined com.defines "hxb.macro_partial_typing"
+		com.is_macro_context && Define.defined com.defines Define.HxbMacroPartialTyping
 	in
 	let full_typing =
 		(com.is_macro_context && not macro_partial)
