@@ -149,6 +149,37 @@ class ModuleSignature extends TestCase {
 		Assert.isFalse(hasMessage("reusing Use"));
 	}
 
+	// A @:build macro that reads a type via Context.getType has only a coarse module-level dependency
+	// on it (no field-granular edge), so a header change to the read type would be ignored by the
+	// field-granular sparing unless that dependency is recorded as a macro dependency. Editing Data's
+	// header must re-type the build-macro target Generated (the macro could emit different code).
+	function testHeaderInvalidationMacroGetType() {
+		vfs.putContent("BuildMacro.macro.hx", 'import haxe.macro.Context;
+class BuildMacro {
+	public static function build():Array<haxe.macro.Expr.Field> {
+		var fields = Context.getBuildFields();
+		switch (Context.getType("Data")) {
+			case TInst(_, _):
+			case _:
+		}
+		return fields;
+	}
+}');
+		vfs.putContent("Data.hx", "class Data { public var a:Int; public function new() a = 0; }");
+		vfs.putContent("Generated.hx", "@:build(BuildMacro.build()) class Generated { public function new() {} }");
+		vfs.putContent("Main.hx", "class Main { static function main() { new Generated(); new Data(); } }");
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.header_invalidation"];
+		runHaxe(args);
+		assertSuccess();
+
+		// Header change on the macro-read type: Generated must be re-typed, not reused.
+		vfs.putContent("Data.hx", "class Data { public var a:Int; public var b:Int; public function new() { a = 0; b = 0; } }");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Data.hx")});
+		runHaxe(args);
+		assertSuccess();
+		Assert.isFalse(hasMessage("reusing Generated"));
+	}
+
 	// Transitive field-granular soundness: a leaf change that propagates through a MID module whose own
 	// signature changes. Chain: Leaf.X -> Mid.getX() (inferred return reads Leaf.X) -> ConsumerA (calls
 	// Mid.getX, observes Mid's delta) ; ConsumerB calls only Mid.other (header-stable, must be spared).

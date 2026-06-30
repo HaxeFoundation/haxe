@@ -331,8 +331,17 @@ let make_macro_api ctx mctx p =
 						mk_type_path path
 				in
 				try
-					let m = Some (Typeload.load_instance ctx (make_ptp tp p) ParamSpawnMonos LoadAny) in
-					m
+					let t = Typeload.load_instance ctx (make_ptp tp p) ParamSpawnMonos LoadAny in
+					(* load_instance records a plain (MDepFromTyping) module dependency, which header
+					   invalidation treats as observing only structural/field-removal changes — NOT
+					   individual field signature changes (those rely on field-granular edges, which a
+					   macro reading a whole type via Context.getType does not produce). A build macro
+					   can observe anything about the type it read, so the dependency must be a macro
+					   dependency (observe any change), like Context.getModule already records. *)
+					(match module_type_of_type t with
+					| mt -> add_dependency ctx.m.curmod (t_infos mt).mt_module MDepFromMacro
+					| exception Exit -> ());
+					Some t
 				with Error { err_message = Module_not_found _; err_pos = p2 } when p == p2 ->
 					None
 			)
