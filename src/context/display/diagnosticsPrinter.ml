@@ -101,7 +101,7 @@ let make_missing_fields_message mf =
 		]
 	] in
 	let j = jobject [
-		"moduleType",generate_module_type jctx mf.mf_on;
+		"moduleType",generate_module_type { jctx with generate_minimal = true } mf.mf_on;
 		"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mf.mf_on).mt_module.m_extra.m_file);
 		"entry",entry
 	] in
