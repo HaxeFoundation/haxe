@@ -105,6 +105,19 @@ let check_no_closure_meta ctx cf fa mode p =
 	| _ ->
 		()
 
+(* A static/member inline var or inline method is folded into the caller, erasing the TField node
+   that filters.ml's check_body would otherwise turn into a field-granular dependency edge. Without
+   that edge, header-invalidation only sees the caller's module-level dependency on the field's
+   module, which by design ignores single-field signature changes (moduleSignature.edge_observes_changes)
+   — so a change to the inlined value/body (which IS captured in the module signature) would wrongly
+   spare the caller and emit stale code. Record the field-granular edge eagerly here. *)
+let record_inlined_field_dep ctx fh f =
+	let add c kind = add_dependency ~tgt:(dep_field_of_class c f kind) ctx.m.curmod c.cl_module MDepFromTyping in
+	match fh with
+	| FHStatic c | FHAbstract(_,_,c) -> add c CfrStatic
+	| FHInstance(c,_) -> add c CfrMember
+	| FHAnon -> ()
+
 let field_access ctx mode f fh e pfield =
 	let pfull = punion e.epos pfield in
 	let is_set = match mode with MSet _ -> true | _ -> false in
@@ -264,6 +277,7 @@ let field_access ctx mode f fh e pfield =
 		| AccNever ->
 			if ctx.f.untyped then normal false else normal_failure()
 		| AccInline ->
+			record_inlined_field_dep ctx fh f;
 			normal true
 		| AccCtor ->
 			let is_child_of_abstract c =
