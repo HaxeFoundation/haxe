@@ -293,6 +293,28 @@ let header_invalidation_prephase tctx =
 	let seeds = Hashtbl.fold (fun path mc acc -> if is_seed mc then path :: acc else acc) (cc#get_hxb) [] in
 	let n_unchanged = ref 0 and n_changed = ref 0 and n_failed = ref 0 and n_spared = ref 0 in
 	let step = com.sctx.compilation_step in
+	(* The forward worklist re-types dependents IN PLACE, reading their signatures right after cl_build,
+	   before all delayed field-typing has finalized. That is unsafe for a dependent whose body INLINES a
+	   changed impl field (inline var/fn): inlining the new body mid-re-type can leave inferred types with
+	   unbound monomorphs or structuralized recursive types (e.g. a class that should resolve nominally
+	   shows up as a recursive `{ ... Unknown<n> ... }`), and macro-generated fields (hxbit @:rpc) don't
+	   rebind. When a seed change touches an impl field we therefore SKIP the forward worklist and let the
+	   backward arbiter re-type the observing dependents during the main compile, where full finalization
+	   binds everything correctly (a bounded, sound fall-back -- the seed's field-granular delta still
+	   spares non-observing dependents). *)
+	let risky_impl_edit = ref false in
+	let seed_delta_touches_impl_field (m : Type.module_def) diff =
+		let keys = List.fold_left (fun acc mt -> match mt with
+			| Type.TClassDecl c ->
+				let add pre acc cf = if ModuleSignature.is_impl_field cf then (pre ^ cf.cf_name) :: acc else acc in
+				let acc = List.fold_left (fun acc cf -> add "m:" acc cf) acc c.cl_ordered_fields in
+				List.fold_left (fun acc cf -> add "s:" acc cf) acc c.cl_ordered_statics
+			| _ -> acc) [] m.m_types
+		in
+		List.exists (function
+			| Type.ScFieldChanged(_,k) | Type.ScFieldAdded(_,k) -> List.mem k keys
+			| _ -> false) diff
+	in
 	(* Re-type [path] in place NOW and, if it carries a cached signature to diff against, publish its
 	   step-tagged delta and promote it to MSGood. Returns the signature changes (possibly empty) when a
 	   delta could be computed, or None when we fall back to conservative invalidation (no cached sig, or
@@ -319,6 +341,7 @@ let header_invalidation_prephase tctx =
 			| Some old ->
 				let diff = ModuleSignature.diff old (ModuleSignature.of_module m) in
 				(if diff = [] then incr n_unchanged else incr n_changed);
+				if (not !risky_impl_edit) && seed_delta_touches_impl_field m diff then risky_impl_edit := true;
 				(* Re-typed and good either way; a non-empty diff is published as a step-tagged delta so
 				   both the backward walk and the forward worklist below can spare field-granularly. *)
 				let delta = if diff = [] then None else Some (step, diff) in
@@ -361,7 +384,7 @@ let header_invalidation_prephase tctx =
 		| _ -> ()
 	in
 	List.iter (fun path -> Hashtbl.replace retyped path (); enqueue path (retype_module path)) seeds;
-	if not (Queue.is_empty queue) then begin
+	if (not !risky_impl_edit) && not (Queue.is_empty queue) then begin
 		(* Reverse dependency map (target -> dependents) from the live cache's module-level m_deps;
 		   complete in-session (the binary cache carries full m_deps, not just serialized imports). *)
 		let rev : (path, path list) Hashtbl.t = Hashtbl.create 0 in
