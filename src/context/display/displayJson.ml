@@ -470,7 +470,7 @@ let handler =
 						end;
 						let infos = t_infos mt in
 						if snd infos.mt_path = typeName then begin
-							let ctx = Genjson.create_context GMMinimum in
+							let ctx = Genjson.create_context GMFull in
 							Result (Genjson.generate_module_type ctx mt)
 						end else
 							loop mtl
