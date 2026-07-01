@@ -414,8 +414,17 @@ let get_hxb_module com cc path typing_mode =
 		let mc = cc#get_hxb_module path in
 		match get_typing_mode com mc.mc_extra with
 			| AllowPartialTyping ->
-				mc.mc_extra.m_cache_state <- MSGood;
-				BinaryModule mc
+				begin match mc.mc_extra.m_cache_state with
+					(* The macro context EXECUTES field bodies at compile time, so it must not run against
+					   a stale cache: an invalidated module (MSBad, other than a seed currently being re-typed)
+					   is re-typed from source rather than served from the binary cache. A display request never
+					   executes bodies, so for it the header-stable cache stays valid and is served as before. *)
+					| MSBad reason when com.is_macro_context && (match reason with Reprocessing -> false | _ -> true) ->
+						BadModule reason
+					| _ ->
+						mc.mc_extra.m_cache_state <- MSGood;
+						BinaryModule mc
+				end
 			| FullTyping ->
 				begin match mc.mc_extra.m_cache_state with
 					| MSBad reason when typing_mode = AllowPartialTyping -> BadBinaryModule (mc, reason)
@@ -516,6 +525,10 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
+			(* The macro context executes and inlines field bodies, so it cannot defer them: an inline
+			   field restored body-lazy has cf_expr = None at expansion time (calls.ml "Recursive inline").
+			   Read to EOM eagerly like FullTyping; deferral stays a display-only optimization. *)
+			| AllowPartialTyping when com.is_macro_context -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			(* hxb.header_cache: keep this freshly decoded header resident so peer modules are not
@@ -555,6 +568,10 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
+			(* The macro context executes and inlines field bodies, so it cannot defer them: an inline
+			   field restored body-lazy has cf_expr = None at expansion time (calls.ml "Recursive inline").
+			   Read to EOM eagerly like FullTyping; deferral stays a display-only optimization. *)
+			| AllowPartialTyping when com.is_macro_context -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			m
@@ -870,6 +887,10 @@ and type_module sctx com delay mpath p =
 					   our current display file if we're in display mode. *)
 					(match typing_mode with
 					| FullTyping -> ignore(f_next chunks EOM)
+					(* The macro context executes and inlines field bodies, so it cannot defer them: an inline
+					   field restored body-lazy has cf_expr = None at expansion time (calls.ml "Recursive inline").
+					   Read to EOM eagerly like FullTyping; deferral stays a display-only optimization. *)
+					| AllowPartialTyping when com.is_macro_context -> ignore(f_next chunks EOM)
 					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 					incr com.request_scope.stats.s_modules_restored;
 					(* hxb.resident_modules: keep this restored module resident so the next request reuses it
