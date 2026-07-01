@@ -4525,14 +4525,16 @@ let rec type_key ?(seen=[]) t =
 	(HVirtual anons + HAbstract carry pool-string ids -> need value-level re-intern too; kept as-is here,
 	handled by the pool relocation pass. TODO for full cross-compile anon reuse.)
 *)
-let recanon_type ~fstr resolve t =
+let recanon_type ~fstr ~ftuple resolve t =
 	(* memo: physical old virtual_proto -> new HVirtual, to preserve sharing and terminate on recursive anons *)
 	let memo = Hashtbl.create 0 in
 	let rec go t =
 		match t with
-		(* tuples (HEnum ename="") aren't in the current graph -> rebuild structurally, don't resolve by key *)
-		| HEnum ({ ename = "" } as e) ->
-			HEnum { e with efields = Array.map (fun (n,sidx,tl) -> (n, fstr sidx, Array.map go tl)) e.efields }
+		(* tuples (HEnum ename="") aren't in com.types; route through the CURRENT compile's tuple cache so the
+		   result is the identity-shared instance (tsame/HL type checks require HEnum identity). *)
+		| HEnum { ename = "" ; efields } when Array.length efields = 1 ->
+			let (_,_,tl) = efields.(0) in
+			ftuple (List.map go (Array.to_list tl))
 		| HObj _ | HStruct _ | HEnum _ -> (match resolve (type_key t) with Some t' -> t' | None -> t)
 		| HRef t -> HRef (go t)
 		| HNull t -> HNull (go t)
@@ -4572,7 +4574,7 @@ let build_type_resolver ctx =
 *)
 let recanon_all ctx code =
 	let resolve = build_type_resolver ctx in
-	let rc = recanon_type ~fstr:(fun i -> i) resolve in
+	let rc = recanon_type ~fstr:(fun i -> i) ~ftuple:(tuple_type ctx) resolve in
 	let functions = Array.map (fun f ->
 		{ f with
 			ftype = rc f.ftype;
@@ -4639,7 +4641,7 @@ let relocate_fundecls ctx resolve syms funcs =
 	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
 	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
 	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
-	let rc t = recanon_type ~fstr resolve t in
+	let rc t = recanon_type ~fstr ~ftuple:(tuple_type ctx) resolve t in
 	(* named functions re-intern by (name,path); nameless fids (lookup_alloc wrappers) kept identity *)
 	let ffun i = match syms.rs_fids.(i) with
 		| Some (name,pth) -> alloc_fun_path ctx pth name
@@ -4674,7 +4676,7 @@ let relocate_entry ctx resolve syms funcs =
 		| Some (fname,pth) ->
 			let fid = alloc_fun_path ctx pth fname in
 			Hashtbl.replace ctx.defined_funs fid ();
-			let t = recanon_type ~fstr:(fun i -> alloc_string ctx syms.rs_strings.(i)) resolve t in
+			let t = recanon_type ~fstr:(fun i -> alloc_string ctx syms.rs_strings.(i)) ~ftuple:(tuple_type ctx) resolve t in
 			(* re-use the captured cnatives key so a regenerated module's alloc_std/add_native dedups against
 			   this entry instead of adding a duplicate; refresh the fid-part of the key (ki = capfid for hlNative). *)
 			let key = (ks, if ki = capfid then fid else ki) in
@@ -4690,7 +4692,7 @@ let relocate_entry ctx resolve syms funcs =
 		Hashtbl.replace fidmap f.findex newfid
 	) funcs;
 	let fstr i = alloc_string ctx syms.rs_strings.(i) in
-	let rc t = recanon_type ~fstr resolve t in
+	let rc t = recanon_type ~fstr ~ftuple:(tuple_type ctx) resolve t in
 	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
 	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
 	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
@@ -4746,6 +4748,43 @@ let relocate_check ctx code =
 		) orig.code
 	) (Array.to_list code.functions) relocated;
 	Printf.eprintf "[hl_relocate_check] %d functions relocated, %d opcode mismatches%s\n%!" !n !bad (if !bad = 0 then " (OK)" else " (FAIL)")
+
+(*
+	-D hl_stale_proto_check: every named type (HObj/HStruct/HEnum) reachable from the incremental `code`
+	must be the CURRENT graph's instance for that name; a different instance is a stale (capture-compile)
+	proto that recanon_type failed to re-canonicalize -> feeds gather_types a duplicate -> corruption/OOM.
+	Pinpoints exactly which types leak stale, instead of chasing segfaults.
+*)
+let stale_proto_check ctx code =
+	let cur = Hashtbl.create 0 in
+	PMap.iter (fun _ t -> match t with
+		| HObj o | HStruct o -> Hashtbl.replace cur ("C" ^ o.pname) t
+		| HEnum e when e.ename <> "" -> Hashtbl.replace cur ("E" ^ e.ename) t
+		| _ -> ()) ctx.cached_types;
+	let stale = ref 0 and reported = Hashtbl.create 0 and seen_v = ref [] in
+	let flag k name =
+		if not (Hashtbl.mem reported k) then begin
+			Hashtbl.add reported k (); incr stale;
+			if !stale <= 12 then Printf.eprintf "[stale-proto] %s not current-graph instance\n" name
+		end
+	in
+	let rec visit t = match t with
+		| HObj o | HStruct o ->
+			let k = "C" ^ o.pname in
+			(match Hashtbl.find_opt cur k with Some t' when t' == t -> () | _ -> flag k ("HObj " ^ o.pname))
+		| HEnum e when e.ename <> "" ->
+			let k = "E" ^ e.ename in
+			(match Hashtbl.find_opt cur k with Some t' when t' == t -> () | _ -> flag k ("HEnum " ^ e.ename))
+		| HEnum e -> Array.iter (fun (_,_,tl) -> Array.iter visit tl) e.efields
+		| HFun (a,r) | HMethod (a,r) -> List.iter visit a; visit r
+		| HRef t | HNull t | HArray t | HPacked t -> visit t
+		| HVirtual v -> if not (List.memq v !seen_v) then begin seen_v := v :: !seen_v; Array.iter (fun (_,_,t) -> visit t) v.vfields end
+		| _ -> ()
+	in
+	Array.iter (fun f -> visit f.ftype; Array.iter visit f.regs; Array.iter (fun op -> match op with OType (_,t) -> visit t | _ -> ()) f.code) code.functions;
+	Array.iter visit code.globals;
+	Array.iter (fun (_,_,t,_) -> visit t) code.natives;
+	Printf.eprintf "[stale-proto] %d distinct stale named types reachable\n%!" !stale
 
 (*
 	-D hl_typekey_check: verify type_key is INJECTIVE on named types across the whole generated corpus
@@ -4951,6 +4990,7 @@ let generate com =
 
 	let code = if Gctx.raw_defined com "hl_recanon_check" then recanon_all ctx code else code in
 	if Gctx.raw_defined com "hl_relocate_check" then relocate_check ctx code;
+	if Gctx.raw_defined com "hl_stale_proto_check" then stale_proto_check ctx code;
 
 	if genhl_cache && Gctx.raw_defined com "hl_cache_check" then begin
 		(* diagnostic: every findex referenced by a call/closure must own a function or native *)
