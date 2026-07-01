@@ -4664,8 +4664,9 @@ let fork_worker main =
 		rec_cache = []; ct_delayed = []; ct_depth = 0;
 	}
 
-(* Fold one worker's generated bodies + pool deltas into main. Deterministic given a fixed worker order. *)
-let merge_worker main resolve w snap =
+(* Serial phase of the merge: fold one worker's pool deltas into main (order-dependent, hence serial) and
+   return its patch closure + kept (function, module) tasks for the parallel rewrite phase. *)
+let prepare_worker main resolve w snap =
 	(* flat value pools: re-intern delta entries by value; identity below the snapshot boundary *)
 	let mk main_l w_l snap_n =
 		let n = DynArray.length w_l.arr in
@@ -4737,21 +4738,26 @@ let merge_worker main resolve w snap =
 		ignore (lookup main.cnatives key (fun () -> (fstr s1, fstr s2, rct t, mfid)));
 		Hashtbl.replace main.defined_funs mfid ()
 	done;
-	(* patch + append fundecls in worker order *)
+	(* Pre-create every tuple this worker's bodies referenced (worker-local cached_tuples deltas) in main NOW,
+	   serially, so the per-function patch below can recanon in parallel without mutating main.cached_tuples. *)
+	PMap.iter (fun tl _ -> ignore (tuple_type main (List.map rct tl))) w.cached_tuples;
+	(* The pure per-function rewrite (safe to run in parallel: reads shared graph, allocates only local anons). *)
+	let patch f = { f with
+		findex = ffun f.findex;
+		ftype = rct f.ftype;
+		regs = Array.map rct f.regs;
+		code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rct) f.code;
+		debug = Array.map (fun (file,line,pos) -> (fdbg file, line, pos)) f.debug;
+	} in
+	(* collect kept (function, module) tasks; mark defined here (serial, Hashtbl not thread-safe) *)
+	let tasks = ref [] in
 	DynArray.iteri (fun i f ->
 		if not (Hashtbl.mem dropped f.findex) then begin
-			let nf = { f with
-				findex = ffun f.findex;
-				ftype = rct f.ftype;
-				regs = Array.map rct f.regs;
-				code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rct) f.code;
-				debug = Array.map (fun (file,line,pos) -> (fdbg file, line, pos)) f.debug;
-			} in
-			Hashtbl.replace main.defined_funs nf.findex ();
-			DynArray.add main.cfunctions nf;
-			DynArray.add main.cfunction_modules (DynArray.get w.cfunction_modules i)
+			Hashtbl.replace main.defined_funs (ffun f.findex) ();
+			tasks := (patch, f, DynArray.get w.cfunction_modules i) :: !tasks
 		end
-	) w.cfunctions
+	) w.cfunctions;
+	List.rev !tasks
 
 (* Split pending body thunks across workers, run in parallel, merge deterministically. *)
 let parallel_drain main =
@@ -4785,8 +4791,21 @@ let parallel_drain main =
 				) w.cached_types
 		) workers;
 		let resolve = build_type_resolver main in
-		Array.iter (fun w -> merge_worker main resolve w snap) workers;
-		if dbg then Printf.eprintf "[hl_parallel_stats] nw=%d n=%d  parallel-drain=%.3fs  merge=%.3fs\n%!" nw n (t1 -. t0) (Unix.gettimeofday() -. t1)
+		(* serial: re-intern each worker's pools in order + collect per-function rewrite tasks *)
+		let tasks = Array.of_list (List.concat_map (fun w -> prepare_worker main resolve w snap) (Array.to_list workers)) in
+		let t2 = if dbg then Unix.gettimeofday() else 0. in
+		(* parallel: the per-function opcode/type rewrite is pure (reads shared graph, tuples pre-created) *)
+		let nt = Array.length tasks in
+		if nt > 0 then begin
+			let par = Gctx.raw_defined main.com "hl_parallel_merge" in
+			if par then begin
+				let out = Array.make nt (let (p,f,_) = tasks.(0) in p f) in
+				Parallel.run_parallel_for main.num_domains ~chunk_size:64 nt (fun i -> let (p,f,_) = tasks.(i) in out.(i) <- p f);
+				Array.iteri (fun i (_,_,m) -> DynArray.add main.cfunctions out.(i); DynArray.add main.cfunction_modules m) tasks
+			end else
+				Array.iter (fun (p,f,m) -> DynArray.add main.cfunctions (p f); DynArray.add main.cfunction_modules m) tasks
+		end;
+		if dbg then Printf.eprintf "[hl_parallel_stats] nw=%d n=%d  parallel-drain=%.3fs  merge-serial=%.3fs  merge-patch=%.3fs\n%!" nw n (t1 -. t0) (t2 -. t1) (Unix.gettimeofday() -. t2)
 	end
 
 let make_context_sign com =
