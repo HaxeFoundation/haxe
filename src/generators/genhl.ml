@@ -4794,17 +4794,9 @@ let parallel_drain main =
 		(* serial: re-intern each worker's pools in order + collect per-function rewrite tasks *)
 		let tasks = Array.of_list (List.concat_map (fun w -> prepare_worker main resolve w snap) (Array.to_list workers)) in
 		let t2 = if dbg then Unix.gettimeofday() else 0. in
-		(* parallel: the per-function opcode/type rewrite is pure (reads shared graph, tuples pre-created) *)
-		let nt = Array.length tasks in
-		if nt > 0 then begin
-			let par = Gctx.raw_defined main.com "hl_parallel_merge" in
-			if par then begin
-				let out = Array.make nt (let (p,f,_) = tasks.(0) in p f) in
-				Parallel.run_parallel_for main.num_domains ~chunk_size:64 nt (fun i -> let (p,f,_) = tasks.(i) in out.(i) <- p f);
-				Array.iteri (fun i (_,_,m) -> DynArray.add main.cfunctions out.(i); DynArray.add main.cfunction_modules m) tasks
-			end else
-				Array.iter (fun (p,f,m) -> DynArray.add main.cfunctions (p f); DynArray.add main.cfunction_modules m) tasks
-		end;
+		(* the per-function opcode/type rewrite; kept serial -- it is allocation-bound, so running it across
+		   domains just hits the shared-major-heap GC-contention wall and is a net loss (measured ~2x slower). *)
+		Array.iter (fun (p,f,m) -> DynArray.add main.cfunctions (p f); DynArray.add main.cfunction_modules m) tasks;
 		if dbg then Printf.eprintf "[hl_parallel_stats] nw=%d n=%d  parallel-drain=%.3fs  merge-serial=%.3fs  merge-patch=%.3fs\n%!" nw n (t1 -. t0) (t2 -. t1) (Unix.gettimeofday() -. t2)
 	end
 
