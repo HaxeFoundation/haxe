@@ -4465,6 +4465,35 @@ let check ctx =
 	purely-recursive anonymous structure. NOTE: field NAMES in HVirtual keys can themselves reference pool
 	strings at the value level, but the key uses the raw name string (compile-stable), not its pool index.
 *)
+(*
+	Rewrite the GLOBAL-POOL indices embedded in an opcode (string/int/float/bytes pool ids, function
+	ids, global ids, and the embedded type of OType), leaving registers, field indices, jump offsets
+	and everything else untouched. This is the core relocation primitive shared by the incremental-cache
+	(Lever A) and parallel-merge (Lever B) linkers: cached/worker-local bodies carry pool ids from one
+	compile/worker and must be re-pointed to the merged pool. Ops not listed carry no pool index.
+*)
+let map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype op =
+	match op with
+	| OInt (d,i) -> OInt (d, fint i)
+	| OFloat (d,i) -> OFloat (d, ffloat i)
+	| OBytes (d,i) -> OBytes (d, fbytes i)
+	| OString (d,i) -> OString (d, fstr i)
+	| OCall0 (d,f) -> OCall0 (d, ffun f)
+	| OCall1 (d,f,a) -> OCall1 (d, ffun f, a)
+	| OCall2 (d,f,a,b) -> OCall2 (d, ffun f, a, b)
+	| OCall3 (d,f,a,b,c) -> OCall3 (d, ffun f, a, b, c)
+	| OCall4 (d,f,a,b,c,e) -> OCall4 (d, ffun f, a, b, c, e)
+	| OCallN (d,f,rl) -> OCallN (d, ffun f, rl)
+	| OStaticClosure (d,f) -> OStaticClosure (d, ffun f)
+	| OInstanceClosure (d,f,a) -> OInstanceClosure (d, ffun f, a)
+	| OGetGlobal (d,g) -> OGetGlobal (d, fglobal g)
+	| OSetGlobal (g,r) -> OSetGlobal (fglobal g, r)
+	| OCatch g -> OCatch (fglobal g)
+	| ODynGet (d,a,f) -> ODynGet (d, a, fstr f)
+	| ODynSet (a,f,b) -> ODynSet (a, fstr f, b)
+	| OType (d,t) -> OType (d, ftype t)
+	| _ -> op
+
 let rec type_key ?(seen=[]) t =
 	match t with
 	| HVoid -> "v" | HUI8 -> "b" | HUI16 -> "w" | HI32 -> "i" | HI64 -> "l"
@@ -4531,6 +4560,94 @@ let recanon_all ctx code =
 	{ code with functions }
 
 (*
+	A per-module cache entry captures the module's post-opt fundecls plus, indexed by the CAPTURE compile's
+	pool indices, the SYMBOL each references (so it can be re-interned into any later compile's pools):
+	string/int/float/bytes VALUES, global NAME+type, function (name,path). Types (regs/ftype/OType) keep
+	their capture-compile proto instances and are re-canonicalized on reuse via recanon_type/type_key.
+*)
+type reloc_syms = {
+	rs_strings : string array;
+	rs_ints : int32 array;
+	rs_floats : float array;
+	rs_bytes : bytes array;
+	rs_globals : (string option * ttype) array;  (* index -> (Some name | None=constant-backed, type) *)
+	rs_fids : (string * path) option array;       (* index -> Some (fname, class_path) | None=nameless *)
+}
+
+(* Build the capture-compile symbol tables (reverse of the lookup maps) from a finished ctx + code. *)
+let capture_reloc_syms ctx code =
+	(* named globals appear in cglobals.map; constant-backed globals (make_const via lookup_alloc) do not *)
+	let gnames = Array.make (Array.length code.globals) None in
+	PMap.iter (fun n i -> gnames.(i) <- Some n) ctx.cglobals.map;
+	let fnames = Array.make (DynArray.length ctx.cfids.arr) None in
+	PMap.iter (fun np i -> fnames.(i) <- Some np) ctx.cfids.map;
+	{
+		rs_strings = code.strings;
+		rs_ints = code.ints;
+		rs_floats = code.floats;
+		rs_bytes = code.bytes;
+		rs_globals = Array.mapi (fun i t -> (gnames.(i), t)) code.globals;
+		rs_fids = fnames;
+	}
+
+(*
+	Re-point a cached module's fundecls into `ctx`: re-intern every pool reference by its captured symbol
+	(so it lands at ctx's current index) and re-canonicalize type references against ctx's live type graph.
+	This is the reuse-path core (Lever A). `resolve` = ctx's type_key -> proto map.
+*)
+let relocate_fundecls ctx resolve syms funcs =
+	let fstr i = alloc_string ctx syms.rs_strings.(i) in
+	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
+	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
+	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
+	let rc t = recanon_type resolve t in
+	(* named functions re-intern by (name,path); nameless fids (lookup_alloc wrappers) kept identity *)
+	let ffun i = match syms.rs_fids.(i) with
+		| Some (name,pth) -> alloc_fun_path ctx pth name
+		| None -> i
+	in
+	(* named globals re-intern by name; constant-backed globals (None) are tied to their constant and are
+	   relocated with the constants table -- kept identity here (TODO: cross-compile constant-global reuse). *)
+	let fglobal i = match syms.rs_globals.(i) with
+		| (Some name, t) -> alloc_global ctx name (rc t)
+		| (None, _) -> i
+	in
+	List.map (fun f ->
+		{ f with
+			ftype = rc f.ftype;
+			regs = Array.map rc f.regs;
+			code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code }
+	) funcs
+
+(*
+	-D hl_relocate_check: relocate EVERY function's fundecl back into the same ctx via relocate_fundecls
+	(identity: symbols re-intern to their own indices, types resolve to their own protos), and verify the
+	result reproduces the original opcodes + types. Proves relocate_fundecls touches every relocatable
+	operand (completeness) before cross-compile reuse relies on it.
+*)
+let relocate_check ctx code =
+	let resolve = build_type_resolver ctx in
+	let syms = capture_reloc_syms ctx code in
+	let relocated = relocate_fundecls ctx resolve syms (Array.to_list code.functions) in
+	let same_op a b = match a, b with
+		| OType (d1,t1), OType (d2,t2) -> d1 = d2 && type_key t1 = type_key t2
+		| _ -> a = b
+	in
+	let bad = ref 0 and n = ref 0 in
+	List.iter2 (fun orig reloc ->
+		incr n;
+		if Array.length orig.code <> Array.length reloc.code then incr bad
+		else Array.iteri (fun i op ->
+			if not (same_op op reloc.code.(i)) then begin
+				bad := !bad + 1;
+				if !bad <= 10 then Printf.eprintf "[hl_relocate_check] mismatch: %s  ->  %s\n"
+					(Hlcode.ostr string_of_int op) (Hlcode.ostr string_of_int reloc.code.(i))
+			end
+		) orig.code
+	) (Array.to_list code.functions) relocated;
+	Printf.eprintf "[hl_relocate_check] %d functions relocated, %d opcode mismatches%s\n%!" !n !bad (if !bad = 0 then " (OK)" else " (FAIL)")
+
+(*
 	-D hl_typekey_check: verify type_key is INJECTIVE on named types across the whole generated corpus
 	(regs/ftype/OType + cached_types) -- i.e. no two distinct HObj/HStruct/HEnum protos share a key, so
 	pname/ename is a sound cross-compile resolution key. Reports collisions.
@@ -4578,35 +4695,6 @@ let typekey_check ctx =
 		Array.iter (fun op -> match op with OType (_,t) -> visit t | _ -> ()) f.code
 	) ctx.cfunctions;
 	Printf.eprintf "[hl_typekey_check] %d named types keyed, %d collisions%s\n%!" !n !collisions (if !collisions = 0 then " (OK)" else " (FAIL)")
-
-(*
-	Rewrite the GLOBAL-POOL indices embedded in an opcode (string/int/float/bytes pool ids, function
-	ids, global ids, and the embedded type of OType), leaving registers, field indices, jump offsets
-	and everything else untouched. This is the core relocation primitive shared by the incremental-cache
-	(Lever A) and parallel-merge (Lever B) linkers: cached/worker-local bodies carry pool ids from one
-	compile/worker and must be re-pointed to the merged pool. Ops not listed carry no pool index.
-*)
-let map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype op =
-	match op with
-	| OInt (d,i) -> OInt (d, fint i)
-	| OFloat (d,i) -> OFloat (d, ffloat i)
-	| OBytes (d,i) -> OBytes (d, fbytes i)
-	| OString (d,i) -> OString (d, fstr i)
-	| OCall0 (d,f) -> OCall0 (d, ffun f)
-	| OCall1 (d,f,a) -> OCall1 (d, ffun f, a)
-	| OCall2 (d,f,a,b) -> OCall2 (d, ffun f, a, b)
-	| OCall3 (d,f,a,b,c) -> OCall3 (d, ffun f, a, b, c)
-	| OCall4 (d,f,a,b,c,e) -> OCall4 (d, ffun f, a, b, c, e)
-	| OCallN (d,f,rl) -> OCallN (d, ffun f, rl)
-	| OStaticClosure (d,f) -> OStaticClosure (d, ffun f)
-	| OInstanceClosure (d,f,a) -> OInstanceClosure (d, ffun f, a)
-	| OGetGlobal (d,g) -> OGetGlobal (d, fglobal g)
-	| OSetGlobal (g,r) -> OSetGlobal (fglobal g, r)
-	| OCatch g -> OCatch (fglobal g)
-	| ODynGet (d,a,f) -> ODynGet (d, a, fstr f)
-	| ODynSet (a,f,b) -> ODynSet (a, fstr f, b)
-	| OType (d,t) -> OType (d, ftype t)
-	| _ -> op
 
 (*
 	Debug self-check (-D hl_reloc_check): relocating every opcode with IDENTITY maps must reproduce it
@@ -4732,6 +4820,7 @@ let generate com =
 	end;
 
 	let code = if Gctx.raw_defined com "hl_recanon_check" then recanon_all ctx code else code in
+	if Gctx.raw_defined com "hl_relocate_check" then relocate_check ctx code;
 
 	if dump then begin
 		let ch = open_out_bin "dump/hlcode.txt" in
