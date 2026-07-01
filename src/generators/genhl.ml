@@ -121,7 +121,12 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
-	pending_funs : (context -> unit) DynArray.t;
+	pending_funs : (int * (context -> unit)) DynArray.t;
+	(* L5 incremental codegen: m_id of the module whose bodies are currently being generated
+	   (-1 = module-less, e.g. entrypoint/static-init), and a parallel-to-cfunctions record of
+	   the owning m_id per generated function, so functions can be partitioned by module for caching. *)
+	mutable cur_module : int;
+	cfunction_modules : int DynArray.t;
 }
 
 let compare_version v1 v2 =
@@ -235,6 +240,11 @@ let lookup_alloc l v =
 	let id = DynArray.length l.arr in
 	DynArray.add l.arr v;
 	id
+
+(* Append a generated function, tracking the module (m_id) that produced it for L5 partitioning. *)
+let add_cfunction ctx f =
+	DynArray.add ctx.cfunctions f;
+	DynArray.add ctx.cfunction_modules ctx.cur_module
 
 let method_context id t captured hasthis =
 	{
@@ -882,7 +892,7 @@ and enum_class ctx e =
 					} in
 					ctx.m <- old;
 					Hashtbl.add ctx.defined_funs eid ();
-					DynArray.add ctx.cfunctions hlf;
+					add_cfunction ctx hlf;
 					p.pbindings <- (fid, eid) :: p.pbindings
 				| t -> die "" __LOC__);
 		) e.e_constrs;
@@ -3372,7 +3382,7 @@ and gen_method_wrapper ctx rt t p =
 			need_opt = false;
 		} in
 		ctx.m <- old;
-		DynArray.add ctx.cfunctions f;
+		add_cfunction ctx f;
 		fid
 
 and make_fun ?gen_content ctx name fidx f cthis cparent =
@@ -3541,7 +3551,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	DynArray.add ctx.cfunctions hlf;
+	add_cfunction ctx hlf;
 	capt
 
 (*
@@ -3549,17 +3559,21 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	Drained in push order by drain_pending_funs, so single-threaded output is unchanged;
 	this is the seam that later phases parallelize / cache (L5).
 *)
-let defer_fun ctx thunk =
-	DynArray.add ctx.pending_funs thunk
+let defer_fun ctx m_id thunk =
+	DynArray.add ctx.pending_funs (m_id, thunk)
 
 let drain_pending_funs ctx =
 	(* new thunks may be pushed while draining (nested generators); process until empty.
-	   Each thunk takes the context to run against (a worker ctx once parallelized). *)
+	   Each thunk takes the context to run against (a worker ctx once parallelized). cur_module
+	   is set to the thunk's m_id so functions it produces are tagged with their owning module. *)
 	let i = ref 0 in
 	while !i < DynArray.length ctx.pending_funs do
-		(DynArray.get ctx.pending_funs !i) ctx;
+		let m_id, thunk = DynArray.get ctx.pending_funs !i in
+		ctx.cur_module <- m_id;
+		thunk ctx;
 		incr i
 	done;
+	ctx.cur_module <- -1;
 	DynArray.clear ctx.pending_funs
 
 let generate_static ctx c f =
@@ -3602,7 +3616,7 @@ let generate_static ctx c f =
 				| Some { eexpr = TFunction fn } ->
 					let fid = alloc_fid ctx c f in
 					let name = (s_type_path c.cl_path, f.cf_name) in
-					defer_fun ctx (fun wctx -> ignore(make_fun ?gen_content wctx name fid fn None None))
+					defer_fun ctx c.cl_module.m_id (fun wctx -> ignore(make_fun ?gen_content wctx name fid fn None None))
 				| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
 			| _ :: l ->
 				loop l
@@ -3660,7 +3674,7 @@ let generate_member ctx c f =
 		) in
 		let fid = alloc_fid ctx c f in
 		let name = (s_type_path c.cl_path, f.cf_name) in
-		defer_fun ctx (fun wctx -> ignore(make_fun ?gen_content wctx name fid ff (Some c) None));
+		defer_fun ctx c.cl_module.m_id (fun wctx -> ignore(make_fun ?gen_content wctx name fid ff (Some c) None));
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = {f.cf_pos with pmax = f.cf_pos.pmin} in
 			(* function __string() { var str = this.toString(); return if (str == null) null else str.bytes; } *)
@@ -3678,7 +3692,7 @@ let generate_member ctx c f =
 			let fid = alloc_fun_path ctx c.cl_path "__string" in
 			let name = (s_type_path c.cl_path, "__string") in
 			let tf = { tf_expr = efun; tf_args = []; tf_type = cf_bytes.cf_type; } in
-			defer_fun ctx (fun wctx -> ignore(make_fun wctx name fid tf (Some c) None))
+			defer_fun ctx c.cl_module.m_id (fun wctx -> ignore(make_fun wctx name fid tf (Some c) None))
 		end
 
 let generate_type ctx t =
@@ -4331,6 +4345,8 @@ let create_context com =
 		ct_delayed = [];
 		ct_depth = 0;
 		pending_funs = DynArray.create();
+		cur_module = -1;
+		cfunction_modules = DynArray.create();
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");
@@ -4548,6 +4564,17 @@ let generate com =
 	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 	let code = build_code ctx com.types com.main.main_expr in
 	t();
+
+	if Gctx.raw_defined com "hl_partition_stats" then begin
+		let nfuns = DynArray.length ctx.cfunctions and ntags = DynArray.length ctx.cfunction_modules in
+		let per = Hashtbl.create 0 and moduleless = ref 0 in
+		DynArray.iter (fun m ->
+			if m < 0 then incr moduleless
+			else Hashtbl.replace per m (1 + (try Hashtbl.find per m with Not_found -> 0))
+		) ctx.cfunction_modules;
+		Printf.eprintf "[hl_partition_stats] functions=%d tags=%d (lockstep=%b) modules=%d module-less=%d\n%!"
+			nfuns ntags (nfuns = ntags) (Hashtbl.length per) !moduleless
+	end;
 
 	if Gctx.raw_defined com "hl_reloc_check" then reloc_check ctx;
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
