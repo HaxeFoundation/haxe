@@ -4988,7 +4988,9 @@ let generate com =
 			let excluded = Hashtbl.create 0 in
 			let rec loop n =
 				let (ctx, code) = gen_cache_pass com (fun m -> Hashtbl.mem excluded m) in
+				let tv = Timer.start_timer com.timer_ctx ["generate";"hl";"verify"] in
 				let failures = genhl_verify_failures code in
+				tv();
 				if failures = [] then (ctx, code)
 				else begin
 					(* map each failing findex -> owning module (code.functions parallels ctx.cfunction_modules) *)
