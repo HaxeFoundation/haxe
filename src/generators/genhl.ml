@@ -4570,15 +4570,21 @@ type reloc_syms = {
 	rs_ints : int32 array;
 	rs_floats : float array;
 	rs_bytes : bytes array;
-	rs_globals : (string option * ttype) array;  (* index -> (Some name | None=constant-backed, type) *)
-	rs_fids : (string * path) option array;       (* index -> Some (fname, class_path) | None=nameless *)
+	rs_globals : (gsym * ttype) array;      (* index -> (how to re-resolve the global, type) *)
+	rs_fids : (string * path) option array; (* index -> Some (fname, class_path) | None=nameless *)
 }
+and gsym =
+	| GNamed of string    (* a named global -> re-intern by name *)
+	| GConst of string    (* a constant-backed (nameless) global -> re-create via make_const of this string *)
+	| GOther              (* nameless, non-constant (rare) -> kept identity *)
 
 (* Build the capture-compile symbol tables (reverse of the lookup maps) from a finished ctx + code. *)
 let capture_reloc_syms ctx code =
-	(* named globals appear in cglobals.map; constant-backed globals (make_const via lookup_alloc) do not *)
-	let gnames = Array.make (Array.length code.globals) None in
-	PMap.iter (fun n i -> gnames.(i) <- Some n) ctx.cglobals.map;
+	(* classify each global: named (in cglobals.map), constant-backed (its global appears in a CString
+	   constant -> recover the string), or other-nameless (rare). *)
+	let gsym = Array.make (Array.length code.globals) GOther in
+	Array.iter (fun (g,fields) -> if Array.length fields > 0 then gsym.(g) <- GConst code.strings.(fields.(0))) code.constants;
+	PMap.iter (fun n i -> gsym.(i) <- GNamed n) ctx.cglobals.map;
 	let fnames = Array.make (DynArray.length ctx.cfids.arr) None in
 	PMap.iter (fun np i -> fnames.(i) <- Some np) ctx.cfids.map;
 	{
@@ -4586,7 +4592,7 @@ let capture_reloc_syms ctx code =
 		rs_ints = code.ints;
 		rs_floats = code.floats;
 		rs_bytes = code.bytes;
-		rs_globals = Array.mapi (fun i t -> (gnames.(i), t)) code.globals;
+		rs_globals = Array.mapi (fun i t -> (gsym.(i), t)) code.globals;
 		rs_fids = fnames;
 	}
 
@@ -4606,11 +4612,12 @@ let relocate_fundecls ctx resolve syms funcs =
 		| Some (name,pth) -> alloc_fun_path ctx pth name
 		| None -> i
 	in
-	(* named globals re-intern by name; constant-backed globals (None) are tied to their constant and are
-	   relocated with the constants table -- kept identity here (TODO: cross-compile constant-global reuse). *)
+	(* named globals re-intern by name; constant-backed globals re-create their constant (make_const of the
+	   captured string -> the current compile's constant global, deduped by value); other-nameless kept identity. *)
 	let fglobal i = match syms.rs_globals.(i) with
-		| (Some name, t) -> alloc_global ctx name (rc t)
-		| (None, _) -> i
+		| (GNamed name, t) -> alloc_global ctx name (rc t)
+		| (GConst s, _) -> make_const ctx (CString s) null_pos
+		| (GOther, _) -> i
 	in
 	List.map (fun f ->
 		{ f with
