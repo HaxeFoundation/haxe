@@ -4458,6 +4458,83 @@ let check ctx =
 	) ctx.cfids.map
 
 (*
+	Cross-compile-stable canonical key for a type. Named types (HObj/HStruct/HEnum/HAbstract) are keyed by
+	their unique name/path (no recursion into fields -> cycle-safe); structural types recurse into their
+	components. This lets a cached body's type references (regs/ftype/OType) be re-resolved against a
+	freshly-built type graph on reuse (L5 Lever A type re-canonicalization). A `seen` set guards the rare
+	purely-recursive anonymous structure. NOTE: field NAMES in HVirtual keys can themselves reference pool
+	strings at the value level, but the key uses the raw name string (compile-stable), not its pool index.
+*)
+let rec type_key ?(seen=[]) t =
+	match t with
+	| HVoid -> "v" | HUI8 -> "b" | HUI16 -> "w" | HI32 -> "i" | HI64 -> "l"
+	| HF32 -> "f" | HF64 -> "d" | HBool -> "o" | HBytes -> "y" | HDyn -> "D"
+	| HType -> "T" | HDynObj -> "O" | HGUID -> "G"
+	| HObj o -> "C" ^ o.pname
+	| HStruct o -> "S" ^ o.pname
+	| HEnum e -> "E" ^ e.ename
+	| HAbstract (n,_) -> "A" ^ n
+	| HRef t -> "R" ^ type_key ~seen t
+	| HNull t -> "N" ^ type_key ~seen t
+	| HArray t -> "Y" ^ type_key ~seen t
+	| HPacked t -> "P" ^ type_key ~seen t
+	| HFun (args,ret) -> "F(" ^ String.concat "," (List.map (type_key ~seen) args) ^ ")" ^ type_key ~seen ret
+	| HMethod (args,ret) -> "M(" ^ String.concat "," (List.map (type_key ~seen) args) ^ ")" ^ type_key ~seen ret
+	| HVirtual v ->
+		if List.memq v seen then "V@" else
+		let seen = v :: seen in
+		"V{" ^ String.concat "," (Array.to_list (Array.map (fun (n,_,t) -> n ^ ":" ^ type_key ~seen t) v.vfields)) ^ "}"
+
+(*
+	-D hl_typekey_check: verify type_key is INJECTIVE on named types across the whole generated corpus
+	(regs/ftype/OType + cached_types) -- i.e. no two distinct HObj/HStruct/HEnum protos share a key, so
+	pname/ename is a sound cross-compile resolution key. Reports collisions.
+*)
+let typekey_check ctx =
+	let by_key : (string, ttype) Hashtbl.t = Hashtbl.create 0 in
+	let collisions = ref 0 and n = ref 0 in
+	let seen_named = Hashtbl.create 0 in
+	let seen_virt = ref [] in
+	let rec visit t =
+		(match t with
+		| HObj o | HStruct o ->
+			let k = type_key t in
+			if not (Hashtbl.mem seen_named k) then begin
+				Hashtbl.add seen_named k ();
+				incr n;
+				(match Hashtbl.find_opt by_key k with
+				| Some t' when not (t' == t) -> incr collisions;
+					if !collisions <= 10 then Printf.eprintf "[hl_typekey_check] key collision %S (pname=%s)\n" k o.pname
+				| _ -> Hashtbl.replace by_key k t);
+				Array.iter (fun (_,_,ft) -> visit ft) o.pfields
+			end
+		| HEnum e ->
+			let k = type_key t in
+			if not (Hashtbl.mem seen_named k) then begin
+				Hashtbl.add seen_named k (); incr n;
+				(match Hashtbl.find_opt by_key k with
+				| Some t' when not (t' == t) -> incr collisions;
+					if !collisions <= 10 then Printf.eprintf "[hl_typekey_check] key collision %S (ename=%s)\n" k e.ename
+				| _ -> Hashtbl.replace by_key k t);
+				Array.iter (fun (_,_,tl) -> Array.iter visit tl) e.efields
+			end
+		| HFun (a,r) | HMethod (a,r) -> List.iter visit a; visit r
+		| HRef t | HNull t | HArray t | HPacked t -> visit t
+		| HVirtual v ->
+			if not (List.memq v !seen_virt) then begin
+				seen_virt := v :: !seen_virt;
+				Array.iter (fun (_,_,t) -> visit t) v.vfields
+			end
+		| _ -> ())
+	in
+	DynArray.iter (fun f ->
+		visit f.ftype;
+		Array.iter visit f.regs;
+		Array.iter (fun op -> match op with OType (_,t) -> visit t | _ -> ()) f.code
+	) ctx.cfunctions;
+	Printf.eprintf "[hl_typekey_check] %d named types keyed, %d collisions%s\n%!" !n !collisions (if !collisions = 0 then " (OK)" else " (FAIL)")
+
+(*
 	Rewrite the GLOBAL-POOL indices embedded in an opcode (string/int/float/bytes pool ids, function
 	ids, global ids, and the embedded type of OType), leaving registers, field indices, jump offsets
 	and everything else untouched. This is the core relocation primitive shared by the incremental-cache
@@ -4591,6 +4668,7 @@ let generate com =
 	end;
 
 	if Gctx.raw_defined com "hl_reloc_check" then reloc_check ctx;
+	if Gctx.raw_defined com "hl_typekey_check" then typekey_check ctx;
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 
 	if ctx.optimize then begin
