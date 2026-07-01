@@ -4941,7 +4941,7 @@ let generate com =
 				if cache_check then Printf.eprintf "[genhl] P full rebuild (%s)\n%!" (match !saved_ctx with None -> "first compile" | Some _ -> "structural change");
 				let ctx = scratch in
 				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
-				drain_pending_funs ctx;
+				if Gctx.raw_defined com "hxb.genhl_parallel" then parallel_drain ctx else drain_pending_funs ctx;
 				t();
 				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 				let code = build_code ctx com.types com.main.main_expr in
