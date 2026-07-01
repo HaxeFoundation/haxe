@@ -4570,7 +4570,10 @@ let rec type_key ?(seen=[]) t =
    workers, so almost every type is returned as-is and only worker-delta anons/stragglers are rebuilt -- this
    is what keeps the merge cheap (unlike Approach R, which rebuilt the whole graph fresh). *)
 let recanon_type ?memo ~fstr ~ftuple resolve t =
-	let memo = match memo with Some m -> m | None -> Hashtbl.create 0 in
+	(* lazy memo: most types contain no HVirtual, so avoid allocating a Hashtbl per call (recanon runs per reg,
+	   millions of calls on the merge path). Only materialized when a virtual is actually encountered. *)
+	let memo_r = ref memo in
+	let get_memo () = match !memo_r with Some m -> m | None -> let m = Hashtbl.create 0 in memo_r := Some m; m in
 	let rec go t =
 		match t with
 		| HEnum { ename = "" ; efields } when Array.length efields = 1 ->
@@ -4585,6 +4588,7 @@ let recanon_type ?memo ~fstr ~ftuple resolve t =
 		| HMethod (a,r) -> let a' = List.map go a and r' = go r in if r' == r && List.for_all2 (==) a a' then t else HMethod (a',r')
 		| HAbstract (n, sidx) -> let s = fstr sidx in if s = sidx then t else HAbstract (n, s)
 		| HVirtual v ->
+			let memo = get_memo () in
 			(match Hashtbl.find_opt memo v with
 			| Some t' -> t'
 			| None ->
@@ -4661,7 +4665,7 @@ let fork_worker main =
 	}
 
 (* Fold one worker's generated bodies + pool deltas into main. Deterministic given a fixed worker order. *)
-let merge_worker main w snap =
+let merge_worker main resolve w snap =
 	(* flat value pools: re-intern delta entries by value; identity below the snapshot boundary *)
 	let mk main_l w_l snap_n =
 		let n = DynArray.length w_l.arr in
@@ -4679,7 +4683,6 @@ let merge_worker main w snap =
 	let ffloat = mk main.cfloats w.cfloats snap.ss_float in
 	let fbytes = mk main.cbytes w.cbytes snap.ss_bytes in
 	let fdbg = mk main.cdebug_files w.cdebug_files snap.ss_dbg in
-	let resolve = build_type_resolver main in
 	let rct t = recanon_type ~fstr ~ftuple:(tuple_type main) resolve t in
 	(* fids: named entries re-intern by (name,path); nameless wrappers by recanon'd (rt,t), deduping against
 	   main (a wrapper already present in main means this worker's copy is dropped). *)
@@ -4755,7 +4758,8 @@ let parallel_drain main =
 	let all = DynArray.to_array main.pending_funs in
 	DynArray.clear main.pending_funs;
 	let n = Array.length all in
-	let nw = if n = 0 then 0 else min main.num_domains n in
+	let want = try int_of_string (Gctx.defined_value main.com (Define.Custom "hl_parallel_workers")) with _ -> main.num_domains in
+	let nw = if n = 0 then 0 else min want n in
 	if nw <= 1 then begin
 		Array.iter (fun x -> DynArray.add main.pending_funs x) all;
 		drain_pending_funs main
@@ -4780,7 +4784,8 @@ let parallel_drain main =
 					| _ -> ())
 				) w.cached_types
 		) workers;
-		Array.iter (fun w -> merge_worker main w snap) workers;
+		let resolve = build_type_resolver main in
+		Array.iter (fun w -> merge_worker main resolve w snap) workers;
 		if dbg then Printf.eprintf "[hl_parallel_stats] nw=%d n=%d  parallel-drain=%.3fs  merge=%.3fs\n%!" nw n (t1 -. t0) (Unix.gettimeofday() -. t1)
 	end
 
