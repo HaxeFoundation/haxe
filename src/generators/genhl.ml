@@ -4622,6 +4622,168 @@ let recanon_all ctx code =
 	) code.functions in
 	{ code with functions }
 
+(* ---- Approach B: parallel body generation (-D hxb.genhl_parallel) ------------------------------------
+   After the skeleton, body thunks are split across worker contexts run in parallel. A worker COPIES the flat
+   pools + fid/global/native/constant/debug tables (reads hit the shared base; new entries append LOCALLY as a
+   delta) and shares the base type graph by value. The merge folds each worker's deltas back into the main ctx
+   in deterministic pending order -- re-interning pool entries and re-pointing every worker fundecl
+   (map_op_globals for pool ids, recanon_type for embedded types) -- so the result is output-equivalent to the
+   serial drain. Worker-built NAMED types (generic stragglers not in the skeleton) are not yet merged: they are
+   fail-fast (die) so validation surfaces them. *)
+type worker_snapshot = {
+	ss_str : int; ss_int : int; ss_float : int; ss_bytes : int; ss_dbg : int;
+	ss_glob : int; ss_native : int; ss_const : int; ss_fid : int; ss_ctypes : int;
+}
+
+let pmap_size m = PMap.fold (fun _ n -> n + 1) m 0
+
+let take_snapshot main = {
+	ss_str = DynArray.length main.cstrings.arr; ss_int = DynArray.length main.cints.arr;
+	ss_float = DynArray.length main.cfloats.arr; ss_bytes = DynArray.length main.cbytes.arr;
+	ss_dbg = DynArray.length main.cdebug_files.arr; ss_glob = DynArray.length main.cglobals.arr;
+	ss_native = DynArray.length main.cnatives.arr; ss_const = DynArray.length main.cconstants.arr;
+	ss_fid = DynArray.length main.cfids.arr; ss_ctypes = pmap_size main.cached_types;
+}
+
+let fork_worker main =
+	let cp l = { arr = DynArray.copy l.arr; map = l.map } in
+	{ main with
+		m = method_context 0 HVoid null_capture false;
+		cstrings = cp main.cstrings; cints = cp main.cints; cfloats = cp main.cfloats; cbytes = cp main.cbytes;
+		cglobals = cp main.cglobals; cnatives = cp main.cnatives; cconstants = cp main.cconstants;
+		cdebug_files = cp main.cdebug_files; cfids = cp main.cfids;
+		cfunctions = DynArray.create(); cfunction_modules = DynArray.create();
+		pending_funs = DynArray.create();
+		defined_funs = Hashtbl.copy main.defined_funs;
+		anons_cache = Hashtbl.copy main.anons_cache;
+		closure_names = Hashtbl.create 0;
+		rec_cache = []; ct_delayed = []; ct_depth = 0;
+	}
+
+(* Fold one worker's generated bodies + pool deltas into main. Deterministic given a fixed worker order. *)
+let merge_worker main w snap =
+	(* flat value pools: re-intern delta entries by value; identity below the snapshot boundary *)
+	let mk main_l w_l snap_n =
+		let n = DynArray.length w_l.arr in
+		if n = snap_n then (fun i -> i) else begin
+			let rmap = Array.make (n - snap_n) 0 in
+			for i = snap_n to n - 1 do
+				let v = DynArray.get w_l.arr i in
+				rmap.(i - snap_n) <- lookup main_l v (fun () -> v)
+			done;
+			(fun i -> if i < snap_n then i else rmap.(i - snap_n))
+		end
+	in
+	let fstr = mk main.cstrings w.cstrings snap.ss_str in
+	let fint = mk main.cints w.cints snap.ss_int in
+	let ffloat = mk main.cfloats w.cfloats snap.ss_float in
+	let fbytes = mk main.cbytes w.cbytes snap.ss_bytes in
+	let fdbg = mk main.cdebug_files w.cdebug_files snap.ss_dbg in
+	let resolve = build_type_resolver main in
+	let rct t = recanon_type ~fstr ~ftuple:(tuple_type main) resolve t in
+	(* fids: named entries re-intern by (name,path); nameless wrappers by recanon'd (rt,t), deduping against
+	   main (a wrapper already present in main means this worker's copy is dropped). *)
+	let wfid_name = Hashtbl.create 0 and wfid_wrap = Hashtbl.create 0 in
+	PMap.iter (fun key idx -> if idx >= snap.ss_fid then Hashtbl.replace wfid_name idx key) w.cfids.map;
+	PMap.iter (fun key idx -> if idx >= snap.ss_fid then Hashtbl.replace wfid_wrap idx key) w.method_wrappers;
+	let ffun_remap = Hashtbl.create 0 and dropped = Hashtbl.create 0 in
+	for idx = snap.ss_fid to DynArray.length w.cfids.arr - 1 do
+		(match Hashtbl.find_opt wfid_name idx with
+		| Some (name,path) -> Hashtbl.replace ffun_remap idx (lookup main.cfids (name,path) (fun () -> ()))
+		| None ->
+			(match Hashtbl.find_opt wfid_wrap idx with
+			| Some (rt,t) ->
+				let key = (rct rt, rct t) in
+				(match (try Some (PMap.find key main.method_wrappers) with Not_found -> None) with
+				| Some mf -> Hashtbl.replace ffun_remap idx mf; Hashtbl.replace dropped idx ()
+				| None ->
+					let mf = lookup_alloc main.cfids () in
+					main.method_wrappers <- PMap.add key mf main.method_wrappers;
+					Hashtbl.replace ffun_remap idx mf)
+			| None -> failwith (Printf.sprintf "genhl_parallel: nameless non-wrapper fid %d" idx)))
+	done;
+	let ffun i = if i < snap.ss_fid then i else (try Hashtbl.find ffun_remap i with Not_found -> die "" __LOC__) in
+	(* globals: named entries by name; constant-backed (nameless, from make_const) re-interned via the constant *)
+	let wglob_name = Hashtbl.create 0 in
+	PMap.iter (fun name idx -> if idx >= snap.ss_glob then Hashtbl.replace wglob_name idx name) w.cglobals.map;
+	let wcidx_of = Hashtbl.create 0 and wconst_glob = Hashtbl.create 0 in
+	PMap.iter (fun cv idx -> if idx >= snap.ss_const then Hashtbl.replace wcidx_of cv idx) w.cconstants.map;
+	Hashtbl.iter (fun cv cidx -> let (g,_) = DynArray.get w.cconstants.arr cidx in Hashtbl.replace wconst_glob g cv) wcidx_of;
+	let fglob_remap = Hashtbl.create 0 in
+	for idx = snap.ss_glob to DynArray.length w.cglobals.arr - 1 do
+		(match Hashtbl.find_opt wconst_glob idx with
+		| Some cv ->
+			let cidx = lookup main.cconstants cv (fun () ->
+				let (wg, wfields) = DynArray.get w.cconstants.arr (Hashtbl.find wcidx_of cv) in
+				let mg = lookup_alloc main.cglobals (rct (DynArray.get w.cglobals.arr wg)) in
+				mg, Array.mapi (fun j fld -> if j = 0 then fstr fld else fint fld) wfields) in
+			Hashtbl.replace fglob_remap idx (fst (DynArray.get main.cconstants.arr cidx))
+		| None ->
+			(match Hashtbl.find_opt wglob_name idx with
+			| Some name -> let t = DynArray.get w.cglobals.arr idx in Hashtbl.replace fglob_remap idx (lookup main.cglobals name (fun () -> rct t))
+			| None -> failwith (Printf.sprintf "genhl_parallel: unclassified global %d" idx)))
+	done;
+	let fglobal g = if g < snap.ss_glob then g else (try Hashtbl.find fglob_remap g with Not_found -> die "" __LOC__) in
+	(* natives: re-intern delta entries (their fid is a named cfid handled by ffun above) *)
+	let wnat_key = Hashtbl.create 0 in
+	PMap.iter (fun key nid -> if nid >= snap.ss_native then Hashtbl.replace wnat_key nid key) w.cnatives.map;
+	for nid = snap.ss_native to DynArray.length w.cnatives.arr - 1 do
+		let key = Hashtbl.find wnat_key nid in
+		let (s1,s2,t,fid) = DynArray.get w.cnatives.arr nid in
+		let mfid = ffun fid in
+		ignore (lookup main.cnatives key (fun () -> (fstr s1, fstr s2, rct t, mfid)));
+		Hashtbl.replace main.defined_funs mfid ()
+	done;
+	(* patch + append fundecls in worker order *)
+	DynArray.iteri (fun i f ->
+		if not (Hashtbl.mem dropped f.findex) then begin
+			let nf = { f with
+				findex = ffun f.findex;
+				ftype = rct f.ftype;
+				regs = Array.map rct f.regs;
+				code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rct) f.code;
+				debug = Array.map (fun (file,line,pos) -> (fdbg file, line, pos)) f.debug;
+			} in
+			Hashtbl.replace main.defined_funs nf.findex ();
+			DynArray.add main.cfunctions nf;
+			DynArray.add main.cfunction_modules (DynArray.get w.cfunction_modules i)
+		end
+	) w.cfunctions
+
+(* Split pending body thunks across workers, run in parallel, merge deterministically. *)
+let parallel_drain main =
+	let all = DynArray.to_array main.pending_funs in
+	DynArray.clear main.pending_funs;
+	let n = Array.length all in
+	let nw = if n = 0 then 0 else min main.num_domains n in
+	if nw <= 1 then begin
+		Array.iter (fun x -> DynArray.add main.pending_funs x) all;
+		drain_pending_funs main
+	end else begin
+		let snap = take_snapshot main in
+		let workers = Array.init nw (fun _ -> fork_worker main) in
+		let chunk = (n + nw - 1) / nw in
+		Array.iteri (fun j (m_id, thunk) -> DynArray.add workers.(min (nw-1) (j / chunk)).pending_funs (m_id, thunk)) all;
+		let dbg = Gctx.raw_defined main.com "hl_parallel_stats" in
+		let t0 = if dbg then Unix.gettimeofday() else 0. in
+		Parallel.run_parallel_for main.num_domains nw (fun wi -> drain_pending_funs workers.(wi));
+		let t1 = if dbg then Unix.gettimeofday() else 0. in
+		(* unify worker-built NAMED stragglers (generic type-param phantoms) into the shared graph first-wins, so
+		   every worker's recanon resolves its copy to a single instance. Only empty phantom protos are supported. *)
+		Array.iter (fun w ->
+			if pmap_size w.cached_types <> snap.ss_ctypes then
+				PMap.iter (fun k t -> if not (PMap.mem k main.cached_types) then
+					(match t with
+					| (HObj p | HStruct p) when Array.length p.pfields = 0 && Array.length p.pproto = 0 && p.pbindings = [] ->
+						main.cached_types <- PMap.add k t main.cached_types
+					| HObj _ | HStruct _ | HEnum _ -> failwith (Printf.sprintf "genhl_parallel: non-empty straggler %s not yet supported" (tstr t))
+					| _ -> ())
+				) w.cached_types
+		) workers;
+		Array.iter (fun w -> merge_worker main w snap) workers;
+		if dbg then Printf.eprintf "[hl_parallel_stats] nw=%d n=%d  parallel-drain=%.3fs  merge=%.3fs\n%!" nw n (t1 -. t0) (Unix.gettimeofday() -. t1)
+	end
+
 let make_context_sign com =
 	let mhash = Hashtbl.create 0 in
 	List.iter (fun t ->
@@ -4786,7 +4948,7 @@ let generate com =
 				 DynArray.length ctx.cfunctions, count_pmap ctx.cached_types, Hashtbl.length ctx.anons_cache)
 			in
 			let before = snap () in
-			drain_pending_funs ctx;
+			if Gctx.raw_defined com "hxb.genhl_parallel" then parallel_drain ctx else drain_pending_funs ctx;
 			if dbg then begin
 				let (s0,i0,f0,b0,fid0,g0,fn0,ct0,an0) = before in
 				let (s1,i1,f1,b1,fid1,g1,fn1,ct1,an1) = snap () in
