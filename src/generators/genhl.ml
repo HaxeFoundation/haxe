@@ -121,7 +121,7 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
-	pending_funs : (unit -> unit) DynArray.t;
+	pending_funs : (context -> unit) DynArray.t;
 }
 
 let compare_version v1 v2 =
@@ -3526,7 +3526,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			op ctx (ORet r)
 		end;
 	| Some f ->
-		f());
+		f ctx);
 
 	let fargs = (match tthis with None -> [] | Some t -> [t]) @ (match rcapt with None -> [] | Some r -> [rtype ctx r]) @ args in
 	let hlf = {
@@ -3553,10 +3553,11 @@ let defer_fun ctx thunk =
 	DynArray.add ctx.pending_funs thunk
 
 let drain_pending_funs ctx =
-	(* new thunks may be pushed while draining (nested generators); process until empty *)
+	(* new thunks may be pushed while draining (nested generators); process until empty.
+	   Each thunk takes the context to run against (a worker ctx once parallelized). *)
 	let i = ref 0 in
 	while !i < DynArray.length ctx.pending_funs do
-		(DynArray.get ctx.pending_funs !i) ();
+		(DynArray.get ctx.pending_funs !i) ctx;
 		incr i
 	done;
 	DynArray.clear ctx.pending_funs
@@ -3582,7 +3583,7 @@ let generate_static ctx c f =
 				add_native lib f.cf_name
 			| (Meta.HlNative,[(EConst(Float(ver,_)),_)] ,_ ) :: _ ->
 				if compare_version ctx.hl_ver (ver ^ ".0") < 0 then
-					let gen_content() =
+					let gen_content ctx =
 						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ ".0 or higher") null_pos));
 					in
 					(match f.cf_expr with
@@ -3596,11 +3597,12 @@ let generate_static ctx c f =
 			| (Meta.HlNative,_ ,p) :: _ ->
 				abort "Invalid @:hlNative decl" p
 			| [] ->
-				let gen_content = if is_excluded c then Some (fun() -> op ctx (OAssert 0)) else None in
+				let gen_content = if is_excluded c then Some (fun ctx -> op ctx (OAssert 0)) else None in
 				(match f.cf_expr with
 				| Some { eexpr = TFunction fn } ->
 					let fid = alloc_fid ctx c f in
-					defer_fun ctx (fun () -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) fid fn None None))
+					let name = (s_type_path c.cl_path, f.cf_name) in
+					defer_fun ctx (fun wctx -> ignore(make_fun ?gen_content wctx name fid fn None None))
 				| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
 			| _ :: l ->
 				loop l
@@ -3632,7 +3634,7 @@ let generate_member ctx c f =
 				}
 			| _ -> abort "Missing function body" f.cf_pos
 		in
-		let gen_content = if is_excluded c then Some (fun() -> op ctx (OAssert 0)) else if f.cf_name <> "new" then None else Some (fun() ->
+		let gen_content = if is_excluded c then Some (fun ctx -> op ctx (OAssert 0)) else if f.cf_name <> "new" then None else Some (fun ctx ->
 
 			let o = (match class_type ctx c (extract_param_types c.cl_params) false with
 				| HObj o | HStruct o -> o
@@ -3657,7 +3659,8 @@ let generate_member ctx c f =
 			op ctx (ORet (alloc_tmp ctx HVoid))
 		) in
 		let fid = alloc_fid ctx c f in
-		defer_fun ctx (fun () -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) fid ff (Some c) None));
+		let name = (s_type_path c.cl_path, f.cf_name) in
+		defer_fun ctx (fun wctx -> ignore(make_fun ?gen_content wctx name fid ff (Some c) None));
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = {f.cf_pos with pmax = f.cf_pos.pmin} in
 			(* function __string() { var str = this.toString(); return if (str == null) null else str.bytes; } *)
@@ -3673,7 +3676,9 @@ let generate_member ctx c f =
 				mk (TReturn (Some (mk (TIf (econd, mk (TConst TNull) cf_bytes.cf_type p, Some ebytes)) cf_bytes.cf_type p))) cf_bytes.cf_type p
 			]) ctx.com.basic.tvoid p in
 			let fid = alloc_fun_path ctx c.cl_path "__string" in
-			defer_fun ctx (fun () -> ignore(make_fun ctx (s_type_path c.cl_path,"__string") fid { tf_expr = efun; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None))
+			let name = (s_type_path c.cl_path, "__string") in
+			let tf = { tf_expr = efun; tf_args = []; tf_type = cf_bytes.cf_type; } in
+			defer_fun ctx (fun wctx -> ignore(make_fun wctx name fid tf (Some c) None))
 		end
 
 let generate_type ctx t =
@@ -3926,7 +3931,7 @@ let generate_static_init ctx types main =
 	let exprs = List.rev !init_exprs @ List.rev !exprs in
 	let initpos = fake_pos "fun$init" in
 	let f = { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } in
-	let gen_content() = generate_static_content ctx types f in
+	let gen_content ctx = generate_static_content ctx types f in
 	ignore(make_fun ~gen_content ctx ("","") fid f None None);
 	fid
 
