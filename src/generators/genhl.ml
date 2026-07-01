@@ -4414,9 +4414,13 @@ let generate com =
 	end else
 
 	let ctx = create_context com in
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"codegen"] in
 	add_types ctx com.types;
+	t();
 
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 	let code = build_code ctx com.types com.main.main_expr in
+	t();
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 
 	if ctx.optimize then begin
