@@ -4562,6 +4562,66 @@ let rec type_key ?(seen=[]) t =
 		let seen = v :: seen in
 		"V{" ^ String.concat "," (Array.to_list (Array.map (fun (n,_,t) -> n ^ ":" ^ type_key ~seen t) v.vfields)) ^ "}"
 
+(* ---- Approach B groundwork: recanon_type ------------------------------------------------------------
+   Rewrite a ttype so its named components (HObj/HStruct/HEnum) are replaced by the identity-shared proto
+   from a target type graph (via `resolve`), tuples routed through `ftuple`, and string indices remapped by
+   `fstr`. Short-circuits: when every component resolves to the SAME instance it already holds, the original
+   type is returned untouched (physical `==`). On the parallel-merge path the base graph is SHARED across
+   workers, so almost every type is returned as-is and only worker-delta anons/stragglers are rebuilt -- this
+   is what keeps the merge cheap (unlike Approach R, which rebuilt the whole graph fresh). *)
+let recanon_type ?memo ~fstr ~ftuple resolve t =
+	let memo = match memo with Some m -> m | None -> Hashtbl.create 0 in
+	let rec go t =
+		match t with
+		| HEnum { ename = "" ; efields } when Array.length efields = 1 ->
+			let (_,_,tl) = efields.(0) in
+			ftuple (List.map go (Array.to_list tl))
+		| HObj _ | HStruct _ | HEnum _ -> (match resolve (type_key t) with Some t' -> t' | None -> t)
+		| HRef u -> let u' = go u in if u' == u then t else HRef u'
+		| HNull u -> let u' = go u in if u' == u then t else HNull u'
+		| HArray u -> let u' = go u in if u' == u then t else HArray u'
+		| HPacked u -> let u' = go u in if u' == u then t else HPacked u'
+		| HFun (a,r) -> let a' = List.map go a and r' = go r in if r' == r && List.for_all2 (==) a a' then t else HFun (a',r')
+		| HMethod (a,r) -> let a' = List.map go a and r' = go r in if r' == r && List.for_all2 (==) a a' then t else HMethod (a',r')
+		| HAbstract (n, sidx) -> let s = fstr sidx in if s = sidx then t else HAbstract (n, s)
+		| HVirtual v ->
+			(match Hashtbl.find_opt memo v with
+			| Some t' -> t'
+			| None ->
+				let nv = mk_virtual_proto [||] PMap.empty in
+				let t' = HVirtual nv in
+				Hashtbl.replace memo v t';
+				nv.vfields <- Array.map (fun (name,sidx,ft) -> (name, fstr sidx, go ft)) v.vfields;
+				Array.iteri (fun i (n,_,_) -> nv.vindex <- PMap.add n i nv.vindex) nv.vfields;
+				t')
+		| _ -> t
+	in
+	go t
+
+(* Build a type_key -> current-proto resolver from a live type graph. *)
+let build_type_resolver ctx =
+	let h : (string, ttype) Hashtbl.t = Hashtbl.create 0 in
+	PMap.iter (fun _ t -> match t with
+		| HObj _ | HStruct _ | HEnum _ -> Hashtbl.replace h (type_key t) t
+		| _ -> ()
+	) ctx.cached_types;
+	(fun k -> Hashtbl.find_opt h k)
+
+(* -D hl_recanon_check: exercise recanon_type over every function (regs/ftype/OType), resolving through the
+   live type graph, and replace code.functions. Within one compile the resolver returns the SAME protos, so
+   output must stay equivalent -- proving recanon_type is complete (handles all type forms, corrupts nothing)
+   before the parallel merge relies on it. *)
+let recanon_all ctx code =
+	let resolve = build_type_resolver ctx in
+	let rc = recanon_type ~fstr:(fun i -> i) ~ftuple:(tuple_type ctx) resolve in
+	let functions = Array.map (fun f ->
+		{ f with
+			ftype = rc f.ftype;
+			regs = Array.map rc f.regs;
+			code = Array.map (fun op -> match op with OType (d,t) -> OType (d, rc t) | _ -> op) f.code }
+	) code.functions in
+	{ code with functions }
+
 let make_context_sign com =
 	let mhash = Hashtbl.create 0 in
 	List.iter (fun t ->
@@ -4813,6 +4873,10 @@ let generate com =
 		t();
 		Printf.eprintf "[hl_merge_probe] rewrote %d opcodes across %d functions\n%!" !n (Array.length code.functions)
 	end;
+
+	(* -D hl_recanon_check: rebuild every function's types through the live graph and validate the .hl stays
+	   equivalent. Proves recanon_type is complete before the parallel merge relies on it. *)
+	let code = if Gctx.raw_defined com "hl_recanon_check" then recanon_all ctx code else code in
 
 	if genhl_cache && Gctx.raw_defined com "hl_cache_check" then begin
 		(* diagnostic: every findex referenced by a call/closure must own a function or native *)
