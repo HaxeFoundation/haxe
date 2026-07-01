@@ -26,13 +26,6 @@ open Type
 open Error
 open Gctx
 open Hlcode
-open Tanon_identification
-
-let anon_id_uctx = {
-	AnonIdMode.strict with
-	allow_optional_mismatch = true;
-	opaque_field_params = true;
-}
 
 (* compiler *)
 
@@ -112,8 +105,7 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
-	anon_id : ttype tanon_identification;
-	anons_cache : (path, ttype) Hashtbl.t;
+	anons_cache : (int, (tanon * ttype) list) Hashtbl.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -382,6 +374,73 @@ let fake_tnull =
 let is_excluded c =
 	has_class_flag c CExcluded && not (has_class_flag c CInterface)
 
+let tanon_tag = function
+	| TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
+	| TAnon _ -> 5 | TDynamic _ -> 6 | TLazy _ -> 7 | TAbstract _ -> 8
+
+let tanon_is_method cf = match cf.cf_kind with Method (MethNormal | MethInline) -> true | _ -> false
+
+let rec tanon_reduce t = match t with
+	| TMono { tm_type = Some t } -> tanon_reduce t
+	| TLazy f -> tanon_reduce (lazy_type f)
+	| _ -> t
+
+let rec tanon_level seen an = match seen with
+	| [] -> -1
+	| (an',d) :: l -> if an' == an then d else tanon_level l an
+
+let rec tanon_cmp_t seen1 seen2 depth t1 t2 =
+	let t1 = tanon_reduce t1 and t2 = tanon_reduce t2 in
+	if t1 == t2 then 0 else
+	match t1, t2 with
+	| TAnon an1, TAnon an2 -> tanon_cmp_anon seen1 seen2 depth an1 an2
+	| TMono _, TMono _ -> 0
+	| TInst (c1,tl1), TInst (c2,tl2) -> let c = compare c1.cl_path c2.cl_path in if c <> 0 then c else tanon_cmp_tl seen1 seen2 depth tl1 tl2
+	| TEnum (e1,tl1), TEnum (e2,tl2) -> let c = compare e1.e_path e2.e_path in if c <> 0 then c else tanon_cmp_tl seen1 seen2 depth tl1 tl2
+	| TType (d1,tl1), TType (d2,tl2) -> let c = compare d1.t_path d2.t_path in if c <> 0 then c else tanon_cmp_tl seen1 seen2 depth tl1 tl2
+	| TAbstract (a1,tl1), TAbstract (a2,tl2) -> let c = compare a1.a_path a2.a_path in if c <> 0 then c else tanon_cmp_tl seen1 seen2 depth tl1 tl2
+	| TFun (args1,ret1), TFun (args2,ret2) -> let c = tanon_cmp_args seen1 seen2 depth args1 args2 in if c <> 0 then c else tanon_cmp_t seen1 seen2 depth ret1 ret2
+	| TDynamic d1, TDynamic d2 ->
+		(match d1, d2 with
+		| None, None -> 0
+		| None, _ -> -1
+		| _, None -> 1
+		| Some t1, Some t2 -> tanon_cmp_t seen1 seen2 depth t1 t2)
+	| _ -> compare (tanon_tag t1) (tanon_tag t2)
+and tanon_cmp_tl seen1 seen2 depth l1 l2 = match l1, l2 with
+	| [], [] -> 0
+	| [], _ -> -1
+	| _, [] -> 1
+	| t1 :: l1, t2 :: l2 -> let c = tanon_cmp_t seen1 seen2 depth t1 t2 in if c <> 0 then c else tanon_cmp_tl seen1 seen2 depth l1 l2
+and tanon_cmp_args seen1 seen2 depth l1 l2 = match l1, l2 with
+	| [], [] -> 0
+	| [], _ -> -1
+	| _, [] -> 1
+	| (n1,o1,t1) :: l1, (n2,o2,t2) :: l2 ->
+		let c = compare (n1 : string) n2 in if c <> 0 then c else
+		let c = compare (o1 : bool) o2 in if c <> 0 then c else
+		let c = tanon_cmp_t seen1 seen2 depth t1 t2 in if c <> 0 then c else tanon_cmp_args seen1 seen2 depth l1 l2
+and tanon_cmp_fields seen1 seen2 depth l1 l2 = match l1, l2 with
+	| [], [] -> 0
+	| [], _ -> -1
+	| _, [] -> 1
+	| (n1,cf1) :: l1, (n2,cf2) :: l2 ->
+		let c = compare (n1 : string) n2 in if c <> 0 then c else
+		let c = compare (tanon_is_method cf1) (tanon_is_method cf2) in if c <> 0 then c else
+		let c = tanon_cmp_t seen1 seen2 depth cf1.cf_type cf2.cf_type in if c <> 0 then c else tanon_cmp_fields seen1 seen2 depth l1 l2
+and tanon_cmp_anon seen1 seen2 depth an1 an2 =
+	let d1 = tanon_level seen1 an1 and d2 = tanon_level seen2 an2 in
+	if d1 >= 0 && d2 >= 0 then compare (d1 : int) d2
+	else if d1 >= 0 then -1
+	else if d2 >= 0 then 1
+	else
+		let fields an = PMap.foldi (fun n cf acc -> (n,cf) :: acc) an.a_fields [] in
+		tanon_cmp_fields ((an1,depth) :: seen1) ((an2,depth) :: seen2) (depth + 1) (fields an1) (fields an2)
+
+let tanon_compare a1 a2 = tanon_cmp_anon [] [] 0 a1 a2
+
+let anon_fields_hash a = PMap.foldi (fun n _ acc -> acc lxor Hashtbl.hash (n : string)) a.a_fields 0
+
 let get_rec_cache ctx t none_callback not_found_callback =
 	try
 		match !(snd (List.find (fun (t',_) -> fast_eq t' t) ctx.rec_cache)) with
@@ -425,17 +484,17 @@ let rec to_type ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
-		let pfm = ctx.anon_id#identify_anon anon_id_uctx a in
-		(try Hashtbl.find ctx.anons_cache pfm.pfm_path with Not_found ->
-			let vp = {
-				vfields = [||];
-				vindex = PMap.empty;
-			} in
+		let key = anon_fields_hash a in
+		let bucket = try Hashtbl.find ctx.anons_cache key with Not_found -> [] in
+		(match List.find_opt (fun (a',_) -> tanon_compare a a' = 0) bucket with
+		| Some (_,t) -> t
+		| None ->
+			let vp = mk_virtual_proto [||] PMap.empty in
 			let t = HVirtual vp in
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			Hashtbl.add ctx.anons_cache pfm.pfm_path t;
+			Hashtbl.replace ctx.anons_cache key ((a,t) :: bucket);
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
@@ -579,10 +638,7 @@ and class_type ?(tref=None) ctx c pl statics =
 	try
 		PMap.find key_path ctx.cached_types
 	with Not_found when (has_class_flag c CInterface) && not statics ->
-		let vp = {
-			vfields = [||];
-			vindex = PMap.empty;
-		} in
+		let vp = mk_virtual_proto [||] PMap.empty in
 		let t = HVirtual vp in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		let rec loop c =
@@ -613,7 +669,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
 			pnfields = -1;
-			pinterfaces = PMap.empty;
+			pinterfaces = PMap.create ttype_compare;
 			pbindings = [];
 		} in
 		let t = (if Meta.has Meta.Struct c.cl_meta && not statics then HStruct p else HObj p) in
@@ -782,7 +838,7 @@ and enum_class ctx e =
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
 			pnfields = -1;
-			pinterfaces = PMap.empty;
+			pinterfaces = PMap.create ttype_compare;
 			pbindings = [];
 		} in
 		let t = HObj p in
@@ -4240,7 +4296,6 @@ let create_context com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anon_id = new tanon_identification;
 		anons_cache = Hashtbl.create 0;
 		rec_cache = [];
 		method_wrappers = PMap.create ttype_pair_compare;
