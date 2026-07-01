@@ -4388,7 +4388,28 @@ let add_types ctx types =
 			) c.cl_meta;
  		| _ -> ()
 	) types;
-	List.iter (generate_type ctx) types
+	List.iter (generate_type ctx) types;
+	(*
+		Strong skeleton: force-materialize the named-type graph (HObj/HStruct/HEnum) so the deferred
+		body pass only reads it (never mutates cached_types). Named-type construction is not safe to run
+		concurrently (two workers building the same recursive class -> distinct protos -> gather_types
+		compare hang/dup), so pre-building it here is the prerequisite for parallel / cached bodies (L5).
+	*)
+	if Gctx.raw_defined ctx.com "hl_no_strong_skeleton" then () else
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c when has_class_flag c CExtern ->
+			(* extern/special classes (e.g. hl.types array impls) are not body-generated; building
+			   their type here would allocate constructor fids with no matching body. Legit uses route
+			   through array_impl/resolve_class to real generated code. *)
+			()
+		| TClassDecl c ->
+			ignore(to_type ctx (TInst (c, extract_param_types c.cl_params)))
+		| TEnumDecl e ->
+			ignore(to_type ctx (TEnum (e, extract_param_types e.e_params)))
+		| TTypeDecl _ | TAbstractDecl _ ->
+			()
+	) types
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
