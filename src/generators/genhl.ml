@@ -3982,10 +3982,15 @@ let write_index_gen b i =
 		b (i land 0xFF);
 	end
 
-let write_code ch code debug =
+let write_code ch code debug num_domains =
 
 	let all_types, htypes = gather_types code in
-	let byte = IO.write_byte ch in
+	(* All per-output writers (byte/index/type/op/debug + a whole-function serializer) are bound to a given
+	   output channel. This lets the FUNCTIONS section serialize each function into its own buffer in parallel
+	   (each function's encoding is self-contained: table indices + relative jumps, no absolute positions),
+	   then concatenate in order -- deterministic, and identical to the serial path. *)
+	let make_writers out =
+	let byte = IO.write_byte out in
 	let write_index = write_index_gen byte in
 
 	let write_type t =
@@ -4069,6 +4074,72 @@ let write_code ch code debug =
 			| _ ->
 				die "" __LOC__
 	in
+
+	let write_debug_infos debug =
+		let curfile = ref (-1) in
+		let curpos = ref 0 in
+		let rcount = ref 0 in
+		let rec flush_repeat p =
+			if !rcount > 0 then begin
+				if !rcount > 15 then begin
+					byte ((15 lsl 2) lor 2);
+					rcount := !rcount - 15;
+					flush_repeat(p)
+				end else begin
+					let delta = p - !curpos in
+					let delta = (if delta > 0 && delta < 4 then delta else 0) in
+					byte ((delta lsl 6) lor (!rcount lsl 2) lor 2);
+					rcount := 0;
+					curpos := !curpos + delta;
+				end
+			end
+		in
+		Array.iter (fun (f,p,_) ->
+			if f <> !curfile then begin
+				flush_repeat(p);
+				curfile := f;
+				byte ((f lsr 7) lor 1);
+				byte (f land 0xFF);
+			end;
+			if p <> !curpos then flush_repeat(p);
+			if p = !curpos then
+				rcount := !rcount + 1
+			else
+				let delta = p - !curpos in
+				if delta > 0 && delta < 32 then
+					byte ((delta lsl 3) lor 4)
+				else begin
+					byte (p lsl 3);
+					byte (p lsr 5);
+					byte (p lsr 13);
+				end;
+				curpos := p;
+		) debug;
+		flush_repeat(!curpos)
+	in
+
+	(* serialize one whole function (used serially for the header/types sections' channel, and per-buffer in
+	   the parallel functions pass) *)
+	let write_fun f =
+		write_type f.ftype;
+		write_index f.findex;
+		write_index (Array.length f.regs);
+		write_index (Array.length f.code);
+		Array.iter write_type f.regs;
+		Array.iter write_op f.code;
+		if debug then begin
+			write_debug_infos f.debug;
+			write_index (Array.length f.assigns);
+			Array.iter (fun (i,p) ->
+				write_index i;
+				write_index (p + 1);
+			) f.assigns;
+		end;
+	in
+	(byte, write_index, write_type, write_fun)
+	in
+
+	let (byte, write_index, write_type, _write_fun) = make_writers ch in
 
 	IO.nwrite_string ch "HLB";
 	byte code.version;
@@ -4191,49 +4262,6 @@ let write_code ch code debug =
 			byte 23
 	) all_types;
 
-	let write_debug_infos debug =
-		let curfile = ref (-1) in
-		let curpos = ref 0 in
-		let rcount = ref 0 in
-		let rec flush_repeat p =
-			if !rcount > 0 then begin
-				if !rcount > 15 then begin
-					byte ((15 lsl 2) lor 2);
-					rcount := !rcount - 15;
-					flush_repeat(p)
-				end else begin
-					let delta = p - !curpos in
-					let delta = (if delta > 0 && delta < 4 then delta else 0) in
-					byte ((delta lsl 6) lor (!rcount lsl 2) lor 2);
-					rcount := 0;
-					curpos := !curpos + delta;
-				end
-			end
-		in
-		Array.iter (fun (f,p,_) ->
-			if f <> !curfile then begin
-				flush_repeat(p);
-				curfile := f;
-				byte ((f lsr 7) lor 1);
-				byte (f land 0xFF);
-			end;
-			if p <> !curpos then flush_repeat(p);
-			if p = !curpos then
-				rcount := !rcount + 1
-			else
-				let delta = p - !curpos in
-				if delta > 0 && delta < 32 then
-					byte ((delta lsl 3) lor 4)
-				else begin
-					byte (p lsl 3);
-					byte (p lsr 5);
-					byte (p lsr 13);
-				end;
-				curpos := p;
-		) debug;
-		flush_repeat(!curpos)
-	in
-
 	Array.iter write_type code.globals;
 	Array.iter (fun (lib_index, name_index,ttype,findex) ->
 		write_index lib_index;
@@ -4241,22 +4269,17 @@ let write_code ch code debug =
 		write_type ttype;
 		write_index findex;
 	) code.natives;
-	Array.iter (fun f ->
-		write_type f.ftype;
-		write_index f.findex;
-		write_index (Array.length f.regs);
-		write_index (Array.length f.code);
-		Array.iter write_type f.regs;
-		Array.iter write_op f.code;
-		if debug then begin
-			write_debug_infos f.debug;
-			write_index (Array.length f.assigns);
-			Array.iter (fun (i,p) ->
-				write_index i;
-				write_index (p + 1);
-			) f.assigns;
-		end;
-	) code.functions;
+	(* functions: serialize each into its own buffer in parallel (read-only shared htypes/pools), then
+	   concatenate in order -> byte-identical to the serial write. Honors -D disable-parallelism via Parallel. *)
+	let nfuns = Array.length code.functions in
+	let bufs = Array.make nfuns "" in
+	Parallel.run_parallel_for num_domains ~chunk_size:64 nfuns (fun i ->
+		let out = IO.output_string () in
+		let (_,_,_,write_fun) = make_writers out in
+		write_fun code.functions.(i);
+		bufs.(i) <- IO.close_out out
+	);
+	Array.iter (IO.nwrite_string ch) bufs;
 	Array.iter (fun (g,fields) ->
 		write_index g;
 		write_index (Array.length fields);
@@ -4852,7 +4875,7 @@ let generate com =
 		t();
 	end else begin
 		let ch = IO.output_string() in
-		write_code ch code (not (Gctx.raw_defined com "hl_no_debug"));
+		write_code ch code (not (Gctx.raw_defined com "hl_no_debug")) ctx.num_domains;
 		let str = IO.close_out ch in
 		let ch = open_out_bin com.file in
 		output_string ch str;
