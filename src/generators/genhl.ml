@@ -4443,7 +4443,25 @@ let generate com =
 
 	(* emit deferred function bodies after the skeleton (type-building) pass *)
 	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+	let dbg = Gctx.raw_defined com "hl_bodies_stats" in
+	let count_pmap m = PMap.fold (fun _ n -> n + 1) m 0 in
+	let snap () =
+		if not dbg then (0,0,0,0,0,0,0,0,0) else
+		(DynArray.length ctx.cstrings.arr, DynArray.length ctx.cints.arr, DynArray.length ctx.cfloats.arr,
+		 DynArray.length ctx.cbytes.arr, DynArray.length ctx.cfids.arr, DynArray.length ctx.cglobals.arr,
+		 DynArray.length ctx.cfunctions, count_pmap ctx.cached_types, Hashtbl.length ctx.anons_cache)
+	in
+	let before = snap () in
 	drain_pending_funs ctx;
+	if dbg then begin
+		let (s0,i0,f0,b0,fid0,g0,fn0,ct0,an0) = before in
+		let (s1,i1,f1,b1,fid1,g1,fn1,ct1,an1) = snap () in
+		Printf.eprintf "[hl_bodies_stats] deltas during body drain (pre-drain totals in parens):\n";
+		Printf.eprintf "  strings +%d (%d)  ints +%d (%d)  floats +%d (%d)  bytes +%d (%d)\n"
+			(s1-s0) s0 (i1-i0) i0 (f1-f0) f0 (b1-b0) b0;
+		Printf.eprintf "  fids +%d (%d)  globals +%d (%d)  functions +%d (%d)  named/cached_types +%d (%d)  anons +%d (%d)\n%!"
+			(fid1-fid0) fid0 (g1-g0) g0 (fn1-fn0) fn0 (ct1-ct0) ct0 (an1-an0) an0
+	end;
 	t();
 
 	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
