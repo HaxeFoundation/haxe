@@ -4384,7 +4384,12 @@ let create_context ?reuse com =
 	ignore(class_type ctx ctx.base_class [] false);
 	ctx
 
-let add_types ctx types =
+(* `retyped` (Approach P reuse path): when given, generate_type runs ONLY for re-typed modules and the strong
+   skeleton is skipped -- unchanged modules' fids/protos/globals already live in the shared (reused) ctx and
+   their bodies come from saved_all, so re-processing them is pure waste. The per-type PRE-PASS still runs for
+   all types: it mutates the freshly-restored typed AST (extern flags, @:hlNative meta) and populates overrides,
+   which re-typed bodies referencing unchanged classes depend on. *)
+let add_types ?retyped ctx types =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"BytesKeyValueIterator"|"ArrayBytes") } as c) ->
@@ -4440,7 +4445,11 @@ let add_types ctx types =
 			) c.cl_meta;
  		| _ -> ()
 	) types;
-	List.iter (generate_type ctx) types;
+	(match retyped with
+	| Some pred -> List.iter (fun t -> if pred (t_infos t).mt_module.m_id then generate_type ctx t) types
+	| None -> List.iter (generate_type ctx) types);
+	(* strong skeleton is a no-op on the reuse path: every named proto is already in the shared cached_types *)
+	if retyped <> None then () else
 	(*
 		Strong skeleton: force-materialize the named-type graph (HObj/HStruct/HEnum) so the deferred
 		body pass only reads it (never mutates cached_types). Named-type construction is not safe to run
@@ -4639,7 +4648,8 @@ let generate com =
 				let saved = (match !saved_ctx with Some c -> c | None -> assert false) in
 				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
 				let ctx = create_context ~reuse:saved com in
-				add_types ctx com.types;
+				(* reuse path: only generate_type re-typed modules + skip the strong skeleton (protos are shared) *)
+				add_types ~retyped:(fun m -> not (Hashtbl.mem saved_mids m)) ctx com.types;
 				(* functions carried over from saved_all (unchanged modules, enum ctors, graph-tied) are already
 				   "defined" -- mark them so the unresolved-method check (and any defined_funs consumer) sees them.
 				   Natives (shared cnatives, re-used via alloc_std cache-hit without re-marking) likewise. *)
@@ -4667,7 +4677,7 @@ let generate com =
 					end
 				) (List.rev !order);
 				ctx.cur_module <- -1;
-				if cache_check then Printf.eprintf "[genhl] P reuse: %d modules reused, %d regenerated\n%!" !n_reused !n_regen;
+				if cache_check then Printf.eprintf "[genhl] P: %d modules regenerated (rest reused from cache)\n%!" !n_regen;
 				t();
 				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 				let code = build_code ctx com.types com.main.main_expr in
