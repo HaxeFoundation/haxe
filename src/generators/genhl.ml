@@ -4409,9 +4409,12 @@ let add_types ctx types =
 			   through array_impl/resolve_class to real generated code. *)
 			()
 		| TClassDecl c ->
-			ignore(to_type ctx (TInst (c, extract_param_types c.cl_params)))
+			ignore(to_type ctx (TInst (c, extract_param_types c.cl_params)));
+			(* statics type ($Class) is built on static access; pre-build it too (base_class dies on statics) *)
+			if c != ctx.base_class then ignore(class_type ctx c (extract_param_types c.cl_params) true)
 		| TEnumDecl e ->
-			ignore(to_type ctx (TEnum (e, extract_param_types e.e_params)))
+			ignore(to_type ctx (TEnum (e, extract_param_types e.e_params)));
+			ignore(enum_class ctx e)
 		| TTypeDecl _ | TAbstractDecl _ ->
 			()
 	) types
