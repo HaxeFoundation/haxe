@@ -4985,11 +4985,12 @@ let generate com =
 			   drift vs the current graph) is EXCLUDED from reuse and regenerated on the next pass. Converges in a
 			   couple passes; if it can't make progress (unattributable failure), fall back to a full clean regen.
 			   Correctness always wins; the cache is a best-effort fast path for the bit-stable common case. *)
+			let noverify = Gctx.raw_defined com "hl_cache_noverify" in
 			let excluded = Hashtbl.create 0 in
 			let rec loop n =
 				let (ctx, code) = gen_cache_pass com (fun m -> Hashtbl.mem excluded m) in
 				let tv = Timer.start_timer com.timer_ctx ["generate";"hl";"verify"] in
-				let failures = genhl_verify_failures code in
+				let failures = if noverify then [] else genhl_verify_failures code in
 				tv();
 				if failures = [] then (ctx, code)
 				else begin
