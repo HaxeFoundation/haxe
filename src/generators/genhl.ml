@@ -121,6 +121,7 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
+	pending_funs : (unit -> unit) DynArray.t;
 }
 
 let compare_version v1 v2 =
@@ -3543,6 +3544,23 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	DynArray.add ctx.cfunctions hlf;
 	capt
 
+(*
+	Defer a function-body emission so it runs after the type-building (skeleton) pass.
+	Drained in push order by drain_pending_funs, so single-threaded output is unchanged;
+	this is the seam that later phases parallelize / cache (L5).
+*)
+let defer_fun ctx thunk =
+	DynArray.add ctx.pending_funs thunk
+
+let drain_pending_funs ctx =
+	(* new thunks may be pushed while draining (nested generators); process until empty *)
+	let i = ref 0 in
+	while !i < DynArray.length ctx.pending_funs do
+		(DynArray.get ctx.pending_funs !i) ();
+		incr i
+	done;
+	DynArray.clear ctx.pending_funs
+
 let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ ->
@@ -3580,7 +3598,9 @@ let generate_static ctx c f =
 			| [] ->
 				let gen_content = if is_excluded c then Some (fun() -> op ctx (OAssert 0)) else None in
 				(match f.cf_expr with
-				| Some { eexpr = TFunction fn } -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
+				| Some { eexpr = TFunction fn } ->
+					let fid = alloc_fid ctx c f in
+					defer_fun ctx (fun () -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) fid fn None None))
 				| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
 			| _ :: l ->
 				loop l
@@ -3636,7 +3656,8 @@ let generate_member ctx c f =
 			ignore(eval_expr ctx ff.tf_expr);
 			op ctx (ORet (alloc_tmp ctx HVoid))
 		) in
-		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
+		let fid = alloc_fid ctx c f in
+		defer_fun ctx (fun () -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) fid ff (Some c) None));
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = {f.cf_pos with pmax = f.cf_pos.pmin} in
 			(* function __string() { var str = this.toString(); return if (str == null) null else str.bytes; } *)
@@ -3651,7 +3672,8 @@ let generate_member ctx c f =
 				mk (TVar (vtmp,Some tstr)) ctx.com.basic.tvoid p;
 				mk (TReturn (Some (mk (TIf (econd, mk (TConst TNull) cf_bytes.cf_type p, Some ebytes)) cf_bytes.cf_type p))) cf_bytes.cf_type p
 			]) ctx.com.basic.tvoid p in
-			ignore(make_fun ctx (s_type_path c.cl_path,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = efun; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
+			let fid = alloc_fun_path ctx c.cl_path "__string" in
+			defer_fun ctx (fun () -> ignore(make_fun ctx (s_type_path c.cl_path,"__string") fid { tf_expr = efun; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None))
 		end
 
 let generate_type ctx t =
@@ -4303,6 +4325,7 @@ let create_context com =
 		macro_typedefs = Hashtbl.create 0;
 		ct_delayed = [];
 		ct_depth = 0;
+		pending_funs = DynArray.create();
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");
@@ -4414,8 +4437,13 @@ let generate com =
 	end else
 
 	let ctx = create_context com in
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"codegen"] in
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
 	add_types ctx com.types;
+	t();
+
+	(* emit deferred function bodies after the skeleton (type-building) pass *)
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+	drain_pending_funs ctx;
 	t();
 
 	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in

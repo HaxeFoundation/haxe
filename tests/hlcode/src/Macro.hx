@@ -245,6 +245,25 @@ class Macro {
 				return "int " + r.matched(1) + ",@" + getGlobalId("intpool_" + r.matched(2));
 			});
 
+			// Normalize string constant pool references, which are unstable across compilations:
+			//   "string R,@N" (OString), "bytes R,@N" (OBytes),
+			//   "dynset R[@N],R" (ODynSet), "dynget R,R[@N]" (ODynGet)
+			trimmed = ~/\b(string|bytes) (\d+),@(\d+)/.map(trimmed, function(r) {
+				return r.matched(1) + " " + r.matched(2) + ",@" + getGlobalId("strpool_" + r.matched(3));
+			});
+			trimmed = ~/\bdynset (\d+)\[@(\d+)\]/.map(trimmed, function(r) {
+				return "dynset " + r.matched(1) + "[@" + getGlobalId("strpool_" + r.matched(2)) + "]";
+			});
+			trimmed = ~/\bdynget (\d+),(\d+)\[@(\d+)\]/.map(trimmed, function(r) {
+				return "dynget " + r.matched(1) + "," + r.matched(2) + "[@" + getGlobalId("strpool_" + r.matched(3)) + "]";
+			});
+
+			// Normalize anonymous-closure function indices (staticclosure/instanceclosure to a
+			// nameless function print as "fun$N"), unstable across compilations
+			trimmed = ~/\bfun\$(\d+)/.map(trimmed, function(r) {
+				return "fun$" + getGlobalId("fun_" + r.matched(1));
+			});
+
 			result.push(trimmed);
 		}
 
