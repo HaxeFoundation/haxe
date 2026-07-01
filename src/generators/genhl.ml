@@ -3951,7 +3951,10 @@ let generate_static_init ctx types main =
 	(match main with
 	| None -> ()
 	| Some e -> exprs := e :: !exprs);
-	let fid = lookup_alloc ctx.cfids () in
+	(* stable fid for the entrypoint (was lookup_alloc -> a fresh fid each compile, so under Approach P the
+	   prior compile's entrypoint lingered as a dead duplicate -> the whole static-init emitted twice). A fixed
+	   name makes regen reuse the same fid and overwrite it. *)
+	let fid = alloc_function_name ctx "__hl_entrypoint__" in
 	let exprs = List.rev !init_exprs @ List.rev !exprs in
 	let initpos = fake_pos "fun$init" in
 	let f = { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } in
