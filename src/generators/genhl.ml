@@ -4501,6 +4501,9 @@ let rec type_key ?(seen=[]) t =
 	| HType -> "T" | HDynObj -> "O" | HGUID -> "G"
 	| HObj o -> "C" ^ o.pname
 	| HStruct o -> "S" ^ o.pname
+	(* tuples (tuple_type) are HEnum with ename="" -> not in com.types; key structurally by field types *)
+	| HEnum { ename = "" ; efields } ->
+		"ET(" ^ String.concat "," (Array.to_list (Array.map (fun (_,_,tl) -> String.concat "|" (Array.to_list (Array.map (type_key ~seen) tl))) efields)) ^ ")"
 	| HEnum e -> "E" ^ e.ename
 	| HAbstract (n,_) -> "A" ^ n
 	| HRef t -> "R" ^ type_key ~seen t
@@ -4527,6 +4530,9 @@ let recanon_type ~fstr resolve t =
 	let memo = Hashtbl.create 0 in
 	let rec go t =
 		match t with
+		(* tuples (HEnum ename="") aren't in the current graph -> rebuild structurally, don't resolve by key *)
+		| HEnum ({ ename = "" } as e) ->
+			HEnum { e with efields = Array.map (fun (n,sidx,tl) -> (n, fstr sidx, Array.map go tl)) e.efields }
 		| HObj _ | HStruct _ | HEnum _ -> (match resolve (type_key t) with Some t' -> t' | None -> t)
 		| HRef t -> HRef (go t)
 		| HNull t -> HNull (go t)
@@ -4617,9 +4623,10 @@ let capture_reloc_syms ctx code =
 		rs_fids = fnames;
 		rs_debugfiles = code.debugfiles;
 		rs_natives =
-			(let nkeys = Array.make (DynArray.length ctx.cnatives.arr) ("",0) in
-			 PMap.iter (fun k i -> nkeys.(i) <- k) ctx.cnatives.map;
-			 Array.mapi (fun i (li,ni,t,fid) -> let (ks,ki) = nkeys.(i) in (ks, ki, code.strings.(li), code.strings.(ni), t, fid)) code.natives);
+			(* code.natives is sorted by lib (!= cnatives.arr order), so map the cnatives KEY by fid, not index *)
+			(let nkeys = Hashtbl.create 0 in
+			 PMap.iter (fun k i -> let (_,_,_,fid) = DynArray.get ctx.cnatives.arr i in Hashtbl.replace nkeys fid k) ctx.cnatives.map;
+			 Array.map (fun (li,ni,t,fid) -> let (ks,ki) = (try Hashtbl.find nkeys fid with Not_found -> ("",0)) in (ks, ki, code.strings.(li), code.strings.(ni), t, fid)) code.natives);
 	}
 
 (*
@@ -4962,7 +4969,17 @@ let generate com =
 							(fundecl_name f) x (try Hashtbl.find fidname x with Not_found -> "<not-in-cfids>") end
 				| _ -> ()) f.code
 		) code.functions;
-		Printf.eprintf "[hl_cache_check] %d dangling call targets\n%!" !bad
+		Printf.eprintf "[hl_cache_check] %d dangling call targets\n%!" !bad;
+		(* fid holes: cfids entries with no backing function/native -> inflate the findex space *)
+		let nfuns = Array.length code.functions and nnat = Array.length code.natives in
+		let holes = ref 0 and maxfid = ref (-1) in
+		PMap.iter (fun (n,p) fid ->
+			if fid > !maxfid then maxfid := fid;
+			if not (Hashtbl.mem defined fid) then begin incr holes;
+				if !holes <= 6 then Printf.eprintf "[hl_cache_check] HOLE fid %d = %s.%s (no function/native)\n" fid (s_type_path p) n end
+		) ctx.cfids.map;
+		Printf.eprintf "[hl_cache_check] cfids max fid=%d, functions=%d natives=%d (sum=%d), holes=%d\n%!"
+			!maxfid nfuns nnat (nfuns+nnat) !holes
 	end;
 
 	if genhl_cache then begin
