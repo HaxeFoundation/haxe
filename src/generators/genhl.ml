@@ -4601,6 +4601,12 @@ type reloc_syms = {
 	(* (cnatives-key-string, cnatives-key-int, lib, name, type, capture-fid): lazily-registered natives
 	   (alloc_std/hlNative) reused bodies may call. The key-int is -1 (alloc_std) or the fid (hlNative);
 	   re-registering with the same key (fid-part refreshed) dedups against regenerated registrations. *)
+	rs_wrappers : (ttype * ttype) option array;
+	(* fid -> Some (rt,t) if this NAMELESS fid is a method wrapper (gen_method_wrapper). Wrappers are
+	   deduped GLOBALLY by (rt,t) and shared across modules, so a reused body in module B may reference a
+	   wrapper owned by module A's entry. On reuse we re-create it via gen_method_wrapper (recanon rt/t ->
+	   current graph), which dedups against the current compile's method_wrappers -> one instance, no fid
+	   collision. Mirrors the natives cross-module fix. *)
 }
 and gsym =
 	| GNamed of string    (* a named global -> re-intern by name *)
@@ -4616,6 +4622,10 @@ let capture_reloc_syms ctx code =
 	PMap.iter (fun n i -> gsym.(i) <- GNamed n) ctx.cglobals.map;
 	let fnames = Array.make (DynArray.length ctx.cfids.arr) None in
 	PMap.iter (fun np i -> fnames.(i) <- Some np) ctx.cfids.map;
+	(* method wrappers are nameless fids (lookup_alloc) deduped by (rt,t); record their type-pair so a
+	   reused body can re-resolve them via gen_method_wrapper cross-compile (see rs_wrappers). *)
+	let wrappers = Array.make (DynArray.length ctx.cfids.arr) None in
+	PMap.iter (fun (rt,t) fid -> if fid < Array.length wrappers then wrappers.(fid) <- Some (rt,t)) ctx.method_wrappers;
 	{
 		rs_strings = code.strings;
 		rs_ints = code.ints;
@@ -4629,6 +4639,7 @@ let capture_reloc_syms ctx code =
 			(let nkeys = Hashtbl.create 0 in
 			 PMap.iter (fun k i -> let (_,_,_,fid) = DynArray.get ctx.cnatives.arr i in Hashtbl.replace nkeys fid k) ctx.cnatives.map;
 			 Array.map (fun (li,ni,t,fid) -> let (ks,ki) = (try Hashtbl.find nkeys fid with Not_found -> ("",0)) in (ks, ki, code.strings.(li), code.strings.(ni), t, fid)) code.natives);
+		rs_wrappers = wrappers;
 	}
 
 (*
@@ -4683,22 +4694,35 @@ let relocate_entry ctx resolve syms funcs =
 			ignore(lookup ctx.cnatives key (fun () -> (alloc_string ctx lib, alloc_string ctx name, t, fid)))
 		| None -> ()
 	) syms.rs_natives;
+	let fstr i = alloc_string ctx syms.rs_strings.(i) in
+	let rc t = recanon_type ~fstr ~ftuple:(tuple_type ctx) resolve t in
+	(* re-resolve a cached nameless method-wrapper fid to the CURRENT compile's wrapper (creating it if
+	   needed); dedups globally by (rt,t) so cross-module refs share one instance -> no fid collision. *)
+	let resolve_wrapper i = match syms.rs_wrappers.(i) with
+		| Some (rt,t) -> Some (gen_method_wrapper ctx (rc rt) (rc t) null_pos)
+		| None -> None
+	in
 	let fidmap = Hashtbl.create 16 in
 	List.iter (fun f ->
-		let newfid = match syms.rs_fids.(f.findex) with
-			| Some (name,pth) -> alloc_fun_path ctx pth name
-			| None -> lookup_alloc ctx.cfids ()
+		let newfid = match resolve_wrapper f.findex with
+			| Some wid -> wid
+			| None ->
+				(match syms.rs_fids.(f.findex) with
+				| Some (name,pth) -> alloc_fun_path ctx pth name
+				| None -> lookup_alloc ctx.cfids ())
 		in
 		Hashtbl.replace fidmap f.findex newfid
 	) funcs;
-	let fstr i = alloc_string ctx syms.rs_strings.(i) in
-	let rc t = recanon_type ~fstr ~ftuple:(tuple_type ctx) resolve t in
 	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
 	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
 	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
+	(* fid resolution: entry-local closures first (fidmap), then cross-module named fns (name,path), then
+	   cross-module method wrappers (re-created), else keep identity. *)
 	let ffun i = match Hashtbl.find_opt fidmap i with
 		| Some n -> n
-		| None -> (match syms.rs_fids.(i) with Some (name,pth) -> alloc_fun_path ctx pth name | None -> i)
+		| None -> (match syms.rs_fids.(i) with
+			| Some (name,pth) -> alloc_fun_path ctx pth name
+			| None -> (match resolve_wrapper i with Some wid -> wid | None -> i))
 	in
 	let fglobal i = match syms.rs_globals.(i) with
 		| (GNamed name, t) -> alloc_global ctx name (rc t)
@@ -4708,17 +4732,22 @@ let relocate_entry ctx resolve syms funcs =
 	(* re-intern debug file (fundecl.debug carries cdebug_files indices) + assigns var-name strings *)
 	let fdebugfile i = let p = syms.rs_debugfiles.(i) in lookup ctx.cdebug_files p (fun () -> p) in
 	List.iter (fun f ->
-		let nf = { f with
-			findex = Hashtbl.find fidmap f.findex;
-			ftype = rc f.ftype;
-			regs = Array.map rc f.regs;
-			code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code;
-			debug = Array.map (fun (file,line,pos) -> (fdebugfile file, line, pos)) f.debug;
-			assigns = Array.map (fun (s,pos) -> (fstr s, pos)) f.assigns;
-			need_opt = false; (* cache holds post-opt bodies *)
-		} in
-		Hashtbl.replace ctx.defined_funs nf.findex ();
-		add_cfunction ctx nf
+		(* method wrappers were already (re)generated by gen_method_wrapper via resolve_wrapper (deduped
+		   globally); don't append the cached copy — that would double-bind the wrapper's fresh fid. *)
+		match syms.rs_wrappers.(f.findex) with
+		| Some _ -> ()
+		| None ->
+			let nf = { f with
+				findex = Hashtbl.find fidmap f.findex;
+				ftype = rc f.ftype;
+				regs = Array.map rc f.regs;
+				code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code;
+				debug = Array.map (fun (file,line,pos) -> (fdebugfile file, line, pos)) f.debug;
+				assigns = Array.map (fun (s,pos) -> (fstr s, pos)) f.assigns;
+				need_opt = false; (* cache holds post-opt bodies *)
+			} in
+			Hashtbl.replace ctx.defined_funs nf.findex ();
+			add_cfunction ctx nf
 	) funcs
 
 (*
@@ -4870,18 +4899,70 @@ let make_context_sign com =
 
 let prev_sign = ref "" and prev_data = ref ""
 
-(* Verify-or-regen safety net for the incremental cache: run the type checker over the assembled code with
-   an error callback that raises on the first problem. genhl per-module output is NOT guaranteed bit-stable
-   across compiles (e.g. HFun dyn-vs-i32 arg erasure drifts), so a reused body can be type-inconsistent with
-   the current graph. On any check failure the caller discards the cached attempt and regenerates cleanly. *)
-let genhl_verify code =
-	try Hlinterp.check (fun _ _ -> raise Exit) code; true
-	with _ -> false
+(* Verify-or-regen safety net for the incremental cache: run the type checker over the assembled code and
+   COLLECT the findexes of failing functions. genhl per-module output is NOT guaranteed bit-stable across
+   compiles (e.g. HFun dyn-vs-i32 arg erasure drifts), so a reused body can be type-inconsistent with the
+   current graph. The caller maps each failing findex to its owning module, EXCLUDES it from reuse, and
+   regenerates only those modules (per-module verify-or-regen). Empty list = code type-checks. *)
+let genhl_verify_failures code =
+	let fails = ref [] in
+	(* extract the integer that immediately follows `prefix` in `msg`, if present (findex of the failing fn) *)
+	let grab prefix msg =
+		let plen = String.length prefix in
+		if String.length msg >= plen && String.sub msg 0 plen = prefix then begin
+			let i = ref plen and n = String.length msg in
+			while !i < n && (let c = msg.[!i] in c >= '0' && c <= '9') do incr i done;
+			if !i > plen then (try fails := int_of_string (String.sub msg plen (!i - plen)) :: !fails with _ -> ())
+		end
+	in
+	let handle msg =
+		grab "Check failure at fun@" msg;   (* per-function type-check failure (drift) *)
+		grab "Duplicate function bind " msg; (* structural bind conflict *)
+		grab "Invalid function index " msg   (* fid hole *)
+	in
+	(try Hlinterp.check (fun msg _ -> handle msg) code
+	 with Failure msg -> handle msg | _ -> ());
+	!fails
 
 (* L5 incremental body cache (-D hxb.genhl_cache): m_id -> (capture-compile symbols, post-opt fundecls).
    Survives across server compiles. A retyped module gets a new m_id -> miss -> regenerate; unchanged
    modules keep their m_id -> hit -> relocate the cached bodies into the current compile. *)
 let module_cache : (int, reloc_syms * fundecl list) Hashtbl.t = Hashtbl.create 0
+
+(* One cache-aware generation pass: build the type graph (skeleton), then for each pending module either
+   RELOCATE its cached bodies (cached, unchanged m_id, not `excluded`) or REGENERATE them (run its thunks).
+   Returns (ctx, code). Natives can be registered by both a reused entry's re-registration and a regenerated
+   body -> dedup by fid (unique per native, referenced by fid, sorted before write anyway). *)
+let gen_cache_pass com excluded =
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
+	let ctx = create_context com in
+	add_types ctx com.types;
+	t();
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+	let resolve = build_type_resolver ctx in
+	let groups = Hashtbl.create 0 and order = ref [] in
+	DynArray.iter (fun (m_id,thunk) ->
+		if not (Hashtbl.mem groups m_id) then order := m_id :: !order;
+		Hashtbl.replace groups m_id (thunk :: (try Hashtbl.find groups m_id with Not_found -> []))
+	) ctx.pending_funs;
+	DynArray.clear ctx.pending_funs;
+	let n_reused = ref 0 and n_regen = ref 0 in
+	List.iter (fun m_id ->
+		ctx.cur_module <- m_id;
+		match (if m_id >= 0 && not (excluded m_id) then Hashtbl.find_opt module_cache m_id else None) with
+		| Some (syms,funcs) -> incr n_reused; relocate_entry ctx resolve syms funcs
+		| None -> incr n_regen; List.iter (fun th -> th ctx) (List.rev (Hashtbl.find groups m_id))
+	) (List.rev !order);
+	ctx.cur_module <- -1;
+	if Gctx.raw_defined com "hl_cache_check" then Printf.eprintf "[genhl] cache pass: %d modules reused, %d regenerated\n%!" !n_reused !n_regen;
+	t();
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
+	let code = build_code ctx com.types com.main.main_expr in
+	let seen = Hashtbl.create 0 in
+	let natives = Array.of_list (List.filter (fun (_,_,_,fid) -> if Hashtbl.mem seen fid then false else (Hashtbl.add seen fid (); true)) (Array.to_list code.natives)) in
+	let r = (ctx, { code with natives }) in
+	t();
+	r
 
 let generate com =
 	let dump = Gctx.defined com Define.Dump in
@@ -4895,76 +4976,82 @@ let generate com =
 		close_out ch;
 	end else
 
-	let ctx = create_context com in
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
-	add_types ctx com.types;
-	t();
-
-	(* emit deferred function bodies after the skeleton (type-building) pass *)
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
-	let dbg = Gctx.raw_defined com "hl_bodies_stats" in
-	let count_pmap m = PMap.fold (fun _ n -> n + 1) m 0 in
-	let snap () =
-		if not dbg then (0,0,0,0,0,0,0,0,0) else
-		(DynArray.length ctx.cstrings.arr, DynArray.length ctx.cints.arr, DynArray.length ctx.cfloats.arr,
-		 DynArray.length ctx.cbytes.arr, DynArray.length ctx.cfids.arr, DynArray.length ctx.cglobals.arr,
-		 DynArray.length ctx.cfunctions, count_pmap ctx.cached_types, Hashtbl.length ctx.anons_cache)
-	in
-	let before = snap () in
 	let genhl_cache = Gctx.raw_defined com "hxb.genhl_cache" in
-	if genhl_cache then begin
-		(* cache-aware drain: reuse cached modules (relocate), regenerate the rest (run thunks) *)
-		let resolve = build_type_resolver ctx in
-		let groups = Hashtbl.create 0 and order = ref [] in
-		DynArray.iter (fun (m_id,thunk) ->
-			if not (Hashtbl.mem groups m_id) then order := m_id :: !order;
-			Hashtbl.replace groups m_id (thunk :: (try Hashtbl.find groups m_id with Not_found -> []))
-		) ctx.pending_funs;
-		DynArray.clear ctx.pending_funs;
-		List.iter (fun m_id ->
-			ctx.cur_module <- m_id;
-			match (if m_id >= 0 then Hashtbl.find_opt module_cache m_id else None) with
-			| Some (syms,funcs) -> relocate_entry ctx resolve syms funcs
-			| None -> List.iter (fun th -> th ctx) (List.rev (Hashtbl.find groups m_id))
-		) (List.rev !order);
-		ctx.cur_module <- -1
-	end else
-	drain_pending_funs ctx;
-	if dbg then begin
-		let (s0,i0,f0,b0,fid0,g0,fn0,ct0,an0) = before in
-		let (s1,i1,f1,b1,fid1,g1,fn1,ct1,an1) = snap () in
-		Printf.eprintf "[hl_bodies_stats] deltas during body drain (pre-drain totals in parens):\n";
-		Printf.eprintf "  strings +%d (%d)  ints +%d (%d)  floats +%d (%d)  bytes +%d (%d)\n"
-			(s1-s0) s0 (i1-i0) i0 (f1-f0) f0 (b1-b0) b0;
-		Printf.eprintf "  fids +%d (%d)  globals +%d (%d)  functions +%d (%d)  named/cached_types +%d (%d)  anons +%d (%d)\n%!"
-			(fid1-fid0) fid0 (g1-g0) g0 (fn1-fn0) fn0 (ct1-ct0) ct0 (an1-an0) an0
-	end;
-	t();
-
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
-	let code = build_code ctx com.types com.main.main_expr in
-	(* with the incremental cache a native can be registered by both a reused entry's re-registration and a
-	   regenerated body; dedup by fid (unique per native, referenced by fid, sorted before write anyway). *)
-	let code = if genhl_cache then begin
-		let seen = Hashtbl.create 0 in
-		let natives = Array.of_list (List.filter (fun (_,_,_,fid) -> if Hashtbl.mem seen fid then false else (Hashtbl.add seen fid (); true)) (Array.to_list code.natives)) in
-		{ code with natives }
-	end else code in
-	t();
-
-	(* VERIFY-OR-REGEN: if the cache-assembled code doesn't type-check (a reused body drifted vs the current
-	   graph), discard it, invalidate the cache, and regenerate cleanly. Correctness always wins; the cache is
-	   a best-effort fast path for the common bit-stable case. *)
+	let cache_check = genhl_cache && Gctx.raw_defined com "hl_cache_check" in
 	let (ctx, code) =
-		if genhl_cache && not (genhl_verify code) then begin
-			if Gctx.raw_defined com "hl_cache_check" then Printf.eprintf "[genhl] cache verify FAILED -> clean regen\n%!";
-			Hashtbl.clear module_cache;
+		if genhl_cache then begin
+			(* PER-MODULE VERIFY-OR-REGEN: relocate cached modules, verify the assembled code; any module whose
+			   function fails the type-check (genhl output is not bit-stable across compiles -> a reused body can
+			   drift vs the current graph) is EXCLUDED from reuse and regenerated on the next pass. Converges in a
+			   couple passes; if it can't make progress (unattributable failure), fall back to a full clean regen.
+			   Correctness always wins; the cache is a best-effort fast path for the bit-stable common case. *)
+			let excluded = Hashtbl.create 0 in
+			let rec loop n =
+				let (ctx, code) = gen_cache_pass com (fun m -> Hashtbl.mem excluded m) in
+				let failures = genhl_verify_failures code in
+				if failures = [] then (ctx, code)
+				else begin
+					(* map each failing findex -> owning module (code.functions parallels ctx.cfunction_modules) *)
+					let fid_to_module = Hashtbl.create 0 in
+					Array.iteri (fun i f -> Hashtbl.replace fid_to_module f.findex (DynArray.get ctx.cfunction_modules i)) code.functions;
+					let progressed = ref false in
+					List.iter (fun fid -> match Hashtbl.find_opt fid_to_module fid with
+						| Some m when m >= 0 && not (Hashtbl.mem excluded m) -> Hashtbl.replace excluded m (); progressed := true
+						| _ -> ()
+					) failures;
+					if cache_check then Printf.eprintf "[genhl] cache verify: %d failing fns, %d modules excluded (pass %d)\n%!" (List.length failures) (Hashtbl.length excluded) (8-n);
+					if !progressed && n > 0 then loop (n-1)
+					else begin
+						(* unattributable / no progress -> clean whole-compile regen *)
+						if cache_check then Printf.eprintf "[genhl] cache verify unresolved -> clean regen\n%!";
+						Hashtbl.clear module_cache;
+						let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
+						let ctx = create_context com in
+						add_types ctx com.types;
+						t();
+						let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+						drain_pending_funs ctx;
+						t();
+						let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
+						let code = build_code ctx com.types com.main.main_expr in
+						t();
+						(ctx, code)
+					end
+				end
+			in
+			loop 8
+		end else begin
+			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
 			let ctx = create_context com in
 			add_types ctx com.types;
+			t();
+			(* emit deferred function bodies after the skeleton (type-building) pass *)
+			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+			let dbg = Gctx.raw_defined com "hl_bodies_stats" in
+			let count_pmap m = PMap.fold (fun _ n -> n + 1) m 0 in
+			let snap () =
+				if not dbg then (0,0,0,0,0,0,0,0,0) else
+				(DynArray.length ctx.cstrings.arr, DynArray.length ctx.cints.arr, DynArray.length ctx.cfloats.arr,
+				 DynArray.length ctx.cbytes.arr, DynArray.length ctx.cfids.arr, DynArray.length ctx.cglobals.arr,
+				 DynArray.length ctx.cfunctions, count_pmap ctx.cached_types, Hashtbl.length ctx.anons_cache)
+			in
+			let before = snap () in
 			drain_pending_funs ctx;
+			if dbg then begin
+				let (s0,i0,f0,b0,fid0,g0,fn0,ct0,an0) = before in
+				let (s1,i1,f1,b1,fid1,g1,fn1,ct1,an1) = snap () in
+				Printf.eprintf "[hl_bodies_stats] deltas during body drain (pre-drain totals in parens):\n";
+				Printf.eprintf "  strings +%d (%d)  ints +%d (%d)  floats +%d (%d)  bytes +%d (%d)\n"
+					(s1-s0) s0 (i1-i0) i0 (f1-f0) f0 (b1-b0) b0;
+				Printf.eprintf "  fids +%d (%d)  globals +%d (%d)  functions +%d (%d)  named/cached_types +%d (%d)  anons +%d (%d)\n%!"
+					(fid1-fid0) fid0 (g1-g0) g0 (fn1-fn0) fn0 (ct1-ct0) ct0 (an1-an0) an0
+			end;
+			t();
+			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 			let code = build_code ctx com.types com.main.main_expr in
+			t();
 			(ctx, code)
-		end else (ctx, code)
+		end
 	in
 
 	if Gctx.raw_defined com "hl_ctx_memstat" then begin
