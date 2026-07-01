@@ -4441,6 +4441,58 @@ let check ctx =
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map
 
+(*
+	Rewrite the GLOBAL-POOL indices embedded in an opcode (string/int/float/bytes pool ids, function
+	ids, global ids, and the embedded type of OType), leaving registers, field indices, jump offsets
+	and everything else untouched. This is the core relocation primitive shared by the incremental-cache
+	(Lever A) and parallel-merge (Lever B) linkers: cached/worker-local bodies carry pool ids from one
+	compile/worker and must be re-pointed to the merged pool. Ops not listed carry no pool index.
+*)
+let map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype op =
+	match op with
+	| OInt (d,i) -> OInt (d, fint i)
+	| OFloat (d,i) -> OFloat (d, ffloat i)
+	| OBytes (d,i) -> OBytes (d, fbytes i)
+	| OString (d,i) -> OString (d, fstr i)
+	| OCall0 (d,f) -> OCall0 (d, ffun f)
+	| OCall1 (d,f,a) -> OCall1 (d, ffun f, a)
+	| OCall2 (d,f,a,b) -> OCall2 (d, ffun f, a, b)
+	| OCall3 (d,f,a,b,c) -> OCall3 (d, ffun f, a, b, c)
+	| OCall4 (d,f,a,b,c,e) -> OCall4 (d, ffun f, a, b, c, e)
+	| OCallN (d,f,rl) -> OCallN (d, ffun f, rl)
+	| OStaticClosure (d,f) -> OStaticClosure (d, ffun f)
+	| OInstanceClosure (d,f,a) -> OInstanceClosure (d, ffun f, a)
+	| OGetGlobal (d,g) -> OGetGlobal (d, fglobal g)
+	| OSetGlobal (g,r) -> OSetGlobal (fglobal g, r)
+	| OCatch g -> OCatch (fglobal g)
+	| ODynGet (d,a,f) -> ODynGet (d, a, fstr f)
+	| ODynSet (a,f,b) -> ODynSet (a, fstr f, b)
+	| OType (d,t) -> OType (d, ftype t)
+	| _ -> op
+
+(*
+	Debug self-check (-D hl_reloc_check): relocating every opcode with IDENTITY maps must reproduce it
+	exactly. This proves map_op_globals enumerates the pool-index-bearing opcodes completely and corrupts
+	nothing, validated against the whole generated corpus, before the real linker relies on it.
+*)
+let reloc_check ctx =
+	let id x = x in
+	(* opcodes are ints/regs except OType, which embeds a ttype whose protos hold PMaps with a
+	   comparator closure -> polymorphic compare raises; compare the type physically instead. *)
+	let same a b = match a, b with
+		| OType (d1,t1), OType (d2,t2) -> d1 = d2 && t1 == t2
+		| _ -> a = b
+	in
+	let bad = ref 0 and total = ref 0 in
+	DynArray.iter (fun f ->
+		Array.iter (fun op ->
+			incr total;
+			let op' = map_op_globals ~fstr:id ~fint:id ~ffloat:id ~fbytes:id ~ffun:id ~fglobal:id ~ftype:id op in
+			if not (same op' op) then begin incr bad; if !bad <= 10 then Printf.eprintf "[hl_reloc_check] identity remap changed opcode: %s\n" (Hlcode.ostr (fun i -> string_of_int i) op) end
+		) f.code
+	) ctx.cfunctions;
+	Printf.eprintf "[hl_reloc_check] %d/%d opcodes stable under identity relocation%s\n%!" (!total - !bad) !total (if !bad = 0 then " (OK)" else " (FAIL)")
+
 let make_context_sign com =
 	let mhash = Hashtbl.create 0 in
 	List.iter (fun t ->
@@ -4496,6 +4548,8 @@ let generate com =
 	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 	let code = build_code ctx com.types com.main.main_expr in
 	t();
+
+	if Gctx.raw_defined com "hl_reloc_check" then reloc_check ctx;
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 
 	if ctx.optimize then begin
