@@ -4486,6 +4486,51 @@ let rec type_key ?(seen=[]) t =
 		"V{" ^ String.concat "," (Array.to_list (Array.map (fun (n,_,t) -> n ^ ":" ^ type_key ~seen t) v.vfields)) ^ "}"
 
 (*
+	Re-canonicalize a type against a freshly-built graph: named types (HObj/HStruct/HEnum) are resolved
+	by type_key to the current compile's proto instance; structural wrappers are rebuilt around resolved
+	components. On reuse (Lever A), a cached body's regs/ftype/OType carry proto instances from the
+	capture compile; recanon_type maps them to the current graph so they dedup correctly at write.
+	(HVirtual anons + HAbstract carry pool-string ids -> need value-level re-intern too; kept as-is here,
+	handled by the pool relocation pass. TODO for full cross-compile anon reuse.)
+*)
+let rec recanon_type resolve t =
+	match t with
+	| HObj _ | HStruct _ | HEnum _ -> (match resolve (type_key t) with Some t' -> t' | None -> t)
+	| HRef t -> HRef (recanon_type resolve t)
+	| HNull t -> HNull (recanon_type resolve t)
+	| HArray t -> HArray (recanon_type resolve t)
+	| HPacked t -> HPacked (recanon_type resolve t)
+	| HFun (a,r) -> HFun (List.map (recanon_type resolve) a, recanon_type resolve r)
+	| HMethod (a,r) -> HMethod (List.map (recanon_type resolve) a, recanon_type resolve r)
+	| HVirtual _ | HAbstract _ | _ -> t
+
+(* Build a type_key -> current-proto resolver from the live type graph. *)
+let build_type_resolver ctx =
+	let h : (string, ttype) Hashtbl.t = Hashtbl.create 0 in
+	PMap.iter (fun _ t -> match t with
+		| HObj _ | HStruct _ | HEnum _ -> Hashtbl.replace h (type_key t) t
+		| _ -> ()
+	) ctx.cached_types;
+	(fun k -> Hashtbl.find_opt h k)
+
+(*
+	-D hl_recanon_check: exercise recanon_type over every function (regs/ftype/OType) post-opt, resolving
+	through the live type graph, replace code.functions, then run the .hl. Within one compile the resolver
+	returns the SAME protos, so output must stay equivalent -- proving recanon_type is complete (handles
+	all type forms, drops/corrupts nothing) before cross-compile reuse relies on it.
+*)
+let recanon_all ctx code =
+	let resolve = build_type_resolver ctx in
+	let rc = recanon_type resolve in
+	let functions = Array.map (fun f ->
+		{ f with
+			ftype = rc f.ftype;
+			regs = Array.map rc f.regs;
+			code = Array.map (fun op -> match op with OType (d,t) -> OType (d, rc t) | _ -> op) f.code }
+	) code.functions in
+	{ code with functions }
+
+(*
 	-D hl_typekey_check: verify type_key is INJECTIVE on named types across the whole generated corpus
 	(regs/ftype/OType + cached_types) -- i.e. no two distinct HObj/HStruct/HEnum protos share a key, so
 	pname/ename is a sound cross-compile resolution key. Reports collisions.
@@ -4685,6 +4730,8 @@ let generate com =
 		(match dump_out with None -> () | Some ch -> IO.close_out ch);
 		t();
 	end;
+
+	let code = if Gctx.raw_defined com "hl_recanon_check" then recanon_all ctx code else code in
 
 	if dump then begin
 		let ch = open_out_bin "dump/hlcode.txt" in
