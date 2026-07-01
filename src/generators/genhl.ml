@@ -4265,7 +4265,13 @@ let write_code ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let create_context com =
+(* Approach P (incremental codegen cache): when `reuse` is given, the new context SHARES the prior compile's
+   persistent index spaces (pools, fids, globals, natives, debug files) and type graph (cached_types, tuples,
+   method_wrappers, anons) BY REFERENCE, so previously-generated function bodies remain valid verbatim (their
+   embedded indices/protos still resolve). Transient per-compile state (cfunctions, pending_funs, method
+   context, defined_funs, overrides) is always fresh. `com` and the base classes are re-derived from the new
+   compile. New entries APPEND to the shared pools (existing indices never move). *)
+let create_context ?reuse com =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -4285,6 +4291,8 @@ let create_context com =
 		| _ -> die "" __LOC__
 	in
 	let hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer in
+	(* shared-or-fresh selectors for the persistent state (Approach P) *)
+	let lk sel = match reuse with Some r -> sel r | None -> new_lookup() in
 	let ctx = {
 		com = com;
 		hl_ver = hl_ver;
@@ -4292,20 +4300,20 @@ let create_context com =
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 		num_domains = Domain.recommended_domain_count ();
 		m = method_context 0 HVoid null_capture false;
-		cints = new_lookup();
-		cstrings = new_lookup();
-		cbytes = new_lookup();
-		cfloats = new_lookup();
-		cglobals = new_lookup();
-		cnatives = new_lookup();
-		cconstants = new_lookup();
+		cints = lk (fun r -> r.cints);
+		cstrings = lk (fun r -> r.cstrings);
+		cbytes = lk (fun r -> r.cbytes);
+		cfloats = lk (fun r -> r.cfloats);
+		cglobals = lk (fun r -> r.cglobals);
+		cnatives = lk (fun r -> r.cnatives);
+		cconstants = lk (fun r -> r.cconstants);
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
-		cached_types = PMap.empty;
-		cached_tuples = PMap.create ttype_list_compare;
-		cfids = new_lookup();
+		cached_types = (match reuse with Some r -> r.cached_types | None -> PMap.empty);
+		cached_tuples = (match reuse with Some r -> r.cached_tuples | None -> PMap.create ttype_list_compare);
+		cfids = lk (fun r -> r.cfids);
 		defined_funs = Hashtbl.create 0;
-		tstring = HVoid;
+		tstring = (match reuse with Some r -> r.tstring | None -> HVoid);
 		array_impl = {
 			aall = get_class "ArrayAccess";
 			abase = get_class "ArrayBase";
@@ -4337,10 +4345,10 @@ let create_context com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = Hashtbl.create 0;
+		anons_cache = (match reuse with Some r -> r.anons_cache | None -> Hashtbl.create 0);
 		rec_cache = [];
-		method_wrappers = PMap.create ttype_pair_compare;
-		cdebug_files = new_lookup();
+		method_wrappers = (match reuse with Some r -> r.method_wrappers | None -> PMap.create ttype_pair_compare);
+		cdebug_files = lk (fun r -> r.cdebug_files);
 		macro_typedefs = Hashtbl.create 0;
 		ct_delayed = [];
 		ct_depth = 0;
@@ -4525,9 +4533,11 @@ let rec type_key ?(seen=[]) t =
 	(HVirtual anons + HAbstract carry pool-string ids -> need value-level re-intern too; kept as-is here,
 	handled by the pool relocation pass. TODO for full cross-compile anon reuse.)
 *)
-let recanon_type ~fstr ~ftuple resolve t =
-	(* memo: physical old virtual_proto -> new HVirtual, to preserve sharing and terminate on recursive anons *)
-	let memo = Hashtbl.create 0 in
+let recanon_type ?memo ~fstr ~ftuple resolve t =
+	(* memo: physical old virtual_proto -> new HVirtual, to preserve sharing and terminate on recursive anons.
+	   Callers on the hot reuse path pass a SHARED memo (one per module) so we don't allocate a fresh Hashtbl
+	   per reg/type (millions of calls) and so identical anons dedup to one instance. *)
+	let memo = match memo with Some m -> m | None -> Hashtbl.create 0 in
 	let rec go t =
 		match t with
 		(* tuples (HEnum ename="") aren't in com.types; route through the CURRENT compile's tuple cache so the
@@ -4670,84 +4680,6 @@ let relocate_fundecls ctx resolve syms funcs =
 			ftype = rc f.ftype;
 			regs = Array.map rc f.regs;
 			code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code }
-	) funcs
-
-(*
-	Reuse a cached module: relocate its fundecls into `ctx` and APPEND them (with current findex).
-	findex remap per function: named functions -> their skeleton-assigned fid (by name,path); anonymous
-	CLOSURES (nameless capture fid) -> a fresh nameless fid. Body fid refs resolve through this entry-local
-	map first (so intra-module closure references follow), then fall back to (name,path) for cross-module
-	calls. This is the piece single-compile checks can't validate (closures need old!=new fid).
-*)
-let relocate_entry ctx resolve syms funcs =
-	(* re-register the natives the cache saw (lazily set up during body gen): a reused body may call one
-	   whose registration would otherwise be skipped. Idempotent via the cnatives lookup + defined_funs. *)
-	Array.iter (fun (ks,ki,lib,name,t,capfid) ->
-		match syms.rs_fids.(capfid) with
-		| Some (fname,pth) ->
-			let fid = alloc_fun_path ctx pth fname in
-			Hashtbl.replace ctx.defined_funs fid ();
-			let t = recanon_type ~fstr:(fun i -> alloc_string ctx syms.rs_strings.(i)) ~ftuple:(tuple_type ctx) resolve t in
-			(* re-use the captured cnatives key so a regenerated module's alloc_std/add_native dedups against
-			   this entry instead of adding a duplicate; refresh the fid-part of the key (ki = capfid for hlNative). *)
-			let key = (ks, if ki = capfid then fid else ki) in
-			ignore(lookup ctx.cnatives key (fun () -> (alloc_string ctx lib, alloc_string ctx name, t, fid)))
-		| None -> ()
-	) syms.rs_natives;
-	let fstr i = alloc_string ctx syms.rs_strings.(i) in
-	let rc t = recanon_type ~fstr ~ftuple:(tuple_type ctx) resolve t in
-	(* re-resolve a cached nameless method-wrapper fid to the CURRENT compile's wrapper (creating it if
-	   needed); dedups globally by (rt,t) so cross-module refs share one instance -> no fid collision. *)
-	let resolve_wrapper i = match syms.rs_wrappers.(i) with
-		| Some (rt,t) -> Some (gen_method_wrapper ctx (rc rt) (rc t) null_pos)
-		| None -> None
-	in
-	let fidmap = Hashtbl.create 16 in
-	List.iter (fun f ->
-		let newfid = match resolve_wrapper f.findex with
-			| Some wid -> wid
-			| None ->
-				(match syms.rs_fids.(f.findex) with
-				| Some (name,pth) -> alloc_fun_path ctx pth name
-				| None -> lookup_alloc ctx.cfids ())
-		in
-		Hashtbl.replace fidmap f.findex newfid
-	) funcs;
-	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
-	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
-	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
-	(* fid resolution: entry-local closures first (fidmap), then cross-module named fns (name,path), then
-	   cross-module method wrappers (re-created), else keep identity. *)
-	let ffun i = match Hashtbl.find_opt fidmap i with
-		| Some n -> n
-		| None -> (match syms.rs_fids.(i) with
-			| Some (name,pth) -> alloc_fun_path ctx pth name
-			| None -> (match resolve_wrapper i with Some wid -> wid | None -> i))
-	in
-	let fglobal i = match syms.rs_globals.(i) with
-		| (GNamed name, t) -> alloc_global ctx name (rc t)
-		| (GConst s, _) -> make_const ctx (CString s) null_pos
-		| (GOther, _) -> i
-	in
-	(* re-intern debug file (fundecl.debug carries cdebug_files indices) + assigns var-name strings *)
-	let fdebugfile i = let p = syms.rs_debugfiles.(i) in lookup ctx.cdebug_files p (fun () -> p) in
-	List.iter (fun f ->
-		(* method wrappers were already (re)generated by gen_method_wrapper via resolve_wrapper (deduped
-		   globally); don't append the cached copy — that would double-bind the wrapper's fresh fid. *)
-		match syms.rs_wrappers.(f.findex) with
-		| Some _ -> ()
-		| None ->
-			let nf = { f with
-				findex = Hashtbl.find fidmap f.findex;
-				ftype = rc f.ftype;
-				regs = Array.map rc f.regs;
-				code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code;
-				debug = Array.map (fun (file,line,pos) -> (fdebugfile file, line, pos)) f.debug;
-				assigns = Array.map (fun (s,pos) -> (fstr s, pos)) f.assigns;
-				need_opt = false; (* cache holds post-opt bodies *)
-			} in
-			Hashtbl.replace ctx.defined_funs nf.findex ();
-			add_cfunction ctx nf
 	) funcs
 
 (*
@@ -4899,70 +4831,51 @@ let make_context_sign com =
 
 let prev_sign = ref "" and prev_data = ref ""
 
-(* Verify-or-regen safety net for the incremental cache: run the type checker over the assembled code and
-   COLLECT the findexes of failing functions. genhl per-module output is NOT guaranteed bit-stable across
-   compiles (e.g. HFun dyn-vs-i32 arg erasure drifts), so a reused body can be type-inconsistent with the
-   current graph. The caller maps each failing findex to its owning module, EXCLUDES it from reuse, and
-   regenerates only those modules (per-module verify-or-regen). Empty list = code type-checks. *)
-let genhl_verify_failures code =
-	let fails = ref [] in
-	(* extract the integer that immediately follows `prefix` in `msg`, if present (findex of the failing fn) *)
-	let grab prefix msg =
-		let plen = String.length prefix in
-		if String.length msg >= plen && String.sub msg 0 plen = prefix then begin
-			let i = ref plen and n = String.length msg in
-			while !i < n && (let c = msg.[!i] in c >= '0' && c <= '9') do incr i done;
-			if !i > plen then (try fails := int_of_string (String.sub msg plen (!i - plen)) :: !fails with _ -> ())
-		end
-	in
-	let handle msg =
-		grab "Check failure at fun@" msg;   (* per-function type-check failure (drift) *)
-		grab "Duplicate function bind " msg; (* structural bind conflict *)
-		grab "Invalid function index " msg   (* fid hole *)
-	in
-	(try Hlinterp.check (fun msg _ -> handle msg) code
-	 with Failure msg -> handle msg | _ -> ());
-	!fails
+(* ---- Approach P: incremental codegen cache (-D hxb.genhl_cache, default off) ---------------------------
+   Persist the whole codegen context across server compiles. On recompile, function bodies of UNCHANGED
+   modules (same m_id) are reused VERBATIM (no relocation) into a context that SHARES the prior pools/graph
+   (create_context ~reuse), so their embedded indices/protos stay valid. Only re-typed modules regenerate.
+   Because nothing is re-mapped, there is no cross-compile drift (R's failure mode) and no verify needed.
+   Soundness gate: a whole-graph STRUCTURAL DIGEST (proto layouts) must be unchanged; any structural change
+   (field add/remove, super change, ...) that would make a reused body's proto references stale forces a full
+   clean rebuild for that compile. m_id already guarantees a re-typed module's own bodies are regenerated. *)
+let saved_ctx : context option ref = ref None
+let saved_all : (int, fundecl) Hashtbl.t = Hashtbl.create 0  (* findex -> final (post-opt) fundecl, ALL functions *)
+let saved_mids : (int, unit) Hashtbl.t = Hashtbl.create 0    (* m_ids present last compile (unchanged => reuse) *)
+let saved_digest : (string, string) Hashtbl.t ref = ref (Hashtbl.create 0)  (* type_key -> proto layout digest *)
 
-(* L5 incremental body cache (-D hxb.genhl_cache): m_id -> (capture-compile symbols, post-opt fundecls).
-   Survives across server compiles. A retyped module gets a new m_id -> miss -> regenerate; unchanged
-   modules keep their m_id -> hit -> relocate the cached bodies into the current compile. *)
-let module_cache : (int, reloc_syms * fundecl list) Hashtbl.t = Hashtbl.create 0
+(* Structural digest of a named proto, IGNORING baked fids/globals (which renumber across compiles). Captures
+   the layout determinants a reused body depends on: name, super, physical fields (name+type), proto-method
+   names (+virtual-ness). Method SIGNATURES are intentionally omitted -- they don't change proto layout, and a
+   sig change re-types the referencing modules (they regenerate). *)
+let proto_digest t =
+	match t with
+	| HObj o | HStruct o ->
+		let super = match o.psuper with Some s -> s.pname | None -> "" in
+		let fields = Array.to_list (Array.map (fun (n,_,ft) -> n ^ ":" ^ type_key ft) o.pfields) in
+		let protos = Array.to_list (Array.map (fun fp -> fp.fname ^ (match fp.fvirtual with Some _ -> "@v" | None -> "")) o.pproto) in
+		Printf.sprintf "O:%s<%s>#%d|f[%s]|p[%s]" o.pname super o.pnfields (String.concat "," fields) (String.concat "," protos)
+	| HEnum e ->
+		let cons = Array.to_list (Array.map (fun (n,_,tl) -> n ^ "(" ^ String.concat "," (Array.to_list (Array.map type_key tl)) ^ ")") e.efields) in
+		Printf.sprintf "E:%s[%s]" e.ename (String.concat "," cons)
+	| _ -> ""
 
-(* One cache-aware generation pass: build the type graph (skeleton), then for each pending module either
-   RELOCATE its cached bodies (cached, unchanged m_id, not `excluded`) or REGENERATE them (run its thunks).
-   Returns (ctx, code). Natives can be registered by both a reused entry's re-registration and a regenerated
-   body -> dedup by fid (unique per native, referenced by fid, sorted before write anyway). *)
-let gen_cache_pass com excluded =
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
-	let ctx = create_context com in
-	add_types ctx com.types;
-	t();
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
-	let resolve = build_type_resolver ctx in
-	let groups = Hashtbl.create 0 and order = ref [] in
-	DynArray.iter (fun (m_id,thunk) ->
-		if not (Hashtbl.mem groups m_id) then order := m_id :: !order;
-		Hashtbl.replace groups m_id (thunk :: (try Hashtbl.find groups m_id with Not_found -> []))
-	) ctx.pending_funs;
-	DynArray.clear ctx.pending_funs;
-	let n_reused = ref 0 and n_regen = ref 0 in
-	List.iter (fun m_id ->
-		ctx.cur_module <- m_id;
-		match (if m_id >= 0 && not (excluded m_id) then Hashtbl.find_opt module_cache m_id else None) with
-		| Some (syms,funcs) -> incr n_reused; relocate_entry ctx resolve syms funcs
-		| None -> incr n_regen; List.iter (fun th -> th ctx) (List.rev (Hashtbl.find groups m_id))
-	) (List.rev !order);
-	ctx.cur_module <- -1;
-	if Gctx.raw_defined com "hl_cache_check" then Printf.eprintf "[genhl] cache pass: %d modules reused, %d regenerated\n%!" !n_reused !n_regen;
-	t();
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
-	let code = build_code ctx com.types com.main.main_expr in
-	let seen = Hashtbl.create 0 in
-	let natives = Array.of_list (List.filter (fun (_,_,_,fid) -> if Hashtbl.mem seen fid then false else (Hashtbl.add seen fid (); true)) (Array.to_list code.natives)) in
-	let r = (ctx, { code with natives }) in
-	t();
-	r
+(* Build type_key -> proto-digest over all NAMED types in the graph (type_key is injective on named types). *)
+let compute_digest ctx =
+	let h : (string,string) Hashtbl.t = Hashtbl.create 0 in
+	PMap.iter (fun _ t -> match t with
+		| HObj _ | HStruct _ | HEnum _ -> Hashtbl.replace h (type_key t) (proto_digest t)
+		| _ -> ()
+	) ctx.cached_types;
+	h
+
+(* Reuse is safe iff no type PRESENT IN BOTH graphs changed its layout. Types only in `a` (new) are freshly
+   built into the shared graph on demand; types only in `b` (saved) stay harmlessly (a reused body can only
+   reference a type its still-unchanged module used, which therefore is still present). Only a CHANGED layout
+   of a shared type would make a reused body's proto reference stale -> that is the block condition. *)
+let digest_compatible a b =
+	try Hashtbl.iter (fun k v -> match Hashtbl.find_opt b k with Some v' when v' <> v -> raise Exit | _ -> ()) a; true
+	with Exit -> false
 
 let generate com =
 	let dump = Gctx.defined com Define.Dump in
@@ -4978,51 +4891,81 @@ let generate com =
 
 	let genhl_cache = Gctx.raw_defined com "hxb.genhl_cache" in
 	let cache_check = genhl_cache && Gctx.raw_defined com "hl_cache_check" in
+	let reused = ref false in
 	let (ctx, code) =
 		if genhl_cache then begin
-			(* PER-MODULE VERIFY-OR-REGEN: relocate cached modules, verify the assembled code; any module whose
-			   function fails the type-check (genhl output is not bit-stable across compiles -> a reused body can
-			   drift vs the current graph) is EXCLUDED from reuse and regenerated on the next pass. Converges in a
-			   couple passes; if it can't make progress (unattributable failure), fall back to a full clean regen.
-			   Correctness always wins; the cache is a best-effort fast path for the bit-stable common case. *)
-			let noverify = Gctx.raw_defined com "hl_cache_noverify" in
-			let excluded = Hashtbl.create 0 in
-			let rec loop n =
-				let (ctx, code) = gen_cache_pass com (fun m -> Hashtbl.mem excluded m) in
-				let tv = Timer.start_timer com.timer_ctx ["generate";"hl";"verify"] in
-				let failures = if noverify then [] else genhl_verify_failures code in
-				tv();
-				if failures = [] then (ctx, code)
-				else begin
-					(* map each failing findex -> owning module (code.functions parallels ctx.cfunction_modules) *)
-					let fid_to_module = Hashtbl.create 0 in
-					Array.iteri (fun i f -> Hashtbl.replace fid_to_module f.findex (DynArray.get ctx.cfunction_modules i)) code.functions;
-					let progressed = ref false in
-					List.iter (fun fid -> match Hashtbl.find_opt fid_to_module fid with
-						| Some m when m >= 0 && not (Hashtbl.mem excluded m) -> Hashtbl.replace excluded m (); progressed := true
-						| _ -> ()
-					) failures;
-					if cache_check then Printf.eprintf "[genhl] cache verify: %d failing fns, %d modules excluded (pass %d)\n%!" (List.length failures) (Hashtbl.length excluded) (8-n);
-					if !progressed && n > 0 then loop (n-1)
+			(* APPROACH P: reuse UNCHANGED modules' bodies verbatim into a context that shares the prior compile's
+			   pools/graph; regenerate only re-typed (new m_id) modules. Gate: build a fresh scratch skeleton and
+			   compare its whole-graph structural digest to the saved one; if unchanged -> reuse, else full rebuild
+			   (the scratch ctx becomes the rebuild ctx, so it is not wasted). No relocation, no drift, no verify. *)
+			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
+			let scratch = create_context com in
+			add_types scratch com.types;
+			t();
+			let new_digest = compute_digest scratch in
+			let reuse_ok = (match !saved_ctx with Some _ -> true | None -> false) && digest_compatible new_digest !saved_digest in
+			if cache_check && (match !saved_ctx with Some _ -> true | None -> false) && not reuse_ok then begin
+				let sd = !saved_digest in
+				let diffs = ref 0 and only_new = ref 0 and only_old = ref 0 in
+				Hashtbl.iter (fun k v -> match Hashtbl.find_opt sd k with
+					| Some v' when v' = v -> ()
+					| Some v' -> incr diffs; if !diffs <= 3 then Printf.eprintf "[genhl] digest DIFF %s\n  old=%s\n  new=%s\n" k v' v
+					| None -> incr only_new) new_digest;
+				Hashtbl.iter (fun k _ -> if not (Hashtbl.mem new_digest k) then incr only_old) sd;
+				Printf.eprintf "[genhl] digest mismatch: %d changed, %d only-new, %d only-old (sizes new=%d old=%d)\n%!"
+					!diffs !only_new !only_old (Hashtbl.length new_digest) (Hashtbl.length sd)
+			end;
+			if reuse_ok then begin
+				let saved = (match !saved_ctx with Some c -> c | None -> assert false) in
+				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
+				let ctx = create_context ~reuse:saved com in
+				add_types ctx com.types;
+				(* functions carried over from saved_all (unchanged modules, enum ctors, graph-tied) are already
+				   "defined" -- mark them so the unresolved-method check (and any defined_funs consumer) sees them.
+				   Natives (shared cnatives, re-used via alloc_std cache-hit without re-marking) likewise. *)
+				Hashtbl.iter (fun fid _ -> Hashtbl.replace ctx.defined_funs fid ()) saved_all;
+				DynArray.iter (fun (_,_,_,fid) -> Hashtbl.replace ctx.defined_funs fid ()) ctx.cnatives.arr;
+				t();
+				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+				(* Regenerate ONLY re-typed (new m_id) modules' bodies; unchanged modules (m_id present last
+				   compile) are skipped -- their functions are carried over from saved_all in the post-opt
+				   assembly. enum_class/graph-tied functions cache-hit (skip) too and likewise come from
+				   saved_all. So ctx.cfunctions ends up holding just this compile's FRESH functions. *)
+				let groups = Hashtbl.create 0 and order = ref [] in
+				DynArray.iter (fun (m_id,thunk) ->
+					if not (Hashtbl.mem groups m_id) then order := m_id :: !order;
+					Hashtbl.replace groups m_id (thunk :: (try Hashtbl.find groups m_id with Not_found -> []))
+				) ctx.pending_funs;
+				DynArray.clear ctx.pending_funs;
+				let n_reused = ref 0 and n_regen = ref 0 in
+				List.iter (fun m_id ->
+					if m_id >= 0 && Hashtbl.mem saved_mids m_id then incr n_reused
 					else begin
-						(* unattributable / no progress -> clean whole-compile regen *)
-						if cache_check then Printf.eprintf "[genhl] cache verify unresolved -> clean regen\n%!";
-						Hashtbl.clear module_cache;
-						let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
-						let ctx = create_context com in
-						add_types ctx com.types;
-						t();
-						let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
-						drain_pending_funs ctx;
-						t();
-						let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
-						let code = build_code ctx com.types com.main.main_expr in
-						t();
-						(ctx, code)
+						incr n_regen;
+						ctx.cur_module <- m_id;
+						List.iter (fun th -> th ctx) (List.rev (Hashtbl.find groups m_id))
 					end
-				end
-			in
-			loop 8
+				) (List.rev !order);
+				ctx.cur_module <- -1;
+				if cache_check then Printf.eprintf "[genhl] P reuse: %d modules reused, %d regenerated\n%!" !n_reused !n_regen;
+				t();
+				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
+				let code = build_code ctx com.types com.main.main_expr in
+				t();
+				reused := true;
+				(ctx, code)
+			end else begin
+				(* first compile or structural change: full rebuild -- the scratch skeleton IS the ctx, drain it *)
+				if cache_check then Printf.eprintf "[genhl] P full rebuild (%s)\n%!" (match !saved_ctx with None -> "first compile" | Some _ -> "structural change");
+				let ctx = scratch in
+				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"bodies"] in
+				drain_pending_funs ctx;
+				t();
+				let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
+				let code = build_code ctx com.types com.main.main_expr in
+				t();
+				(ctx, code)
+			end
 		end else begin
 			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"skeleton"] in
 			let ctx = create_context com in
@@ -5101,6 +5044,22 @@ let generate com =
 		t();
 	end;
 
+	(* Approach P assembly: on the reuse path code.functions holds ONLY this compile's freshly (re)generated
+	   functions (changed modules + new enum ctors + entrypoint + new closures). Merge them OVER the prior
+	   compile's full function set (saved_all, by findex): fresh entries override same-findex stale ones and
+	   append new fids; everything else (unchanged modules, enum ctors, graph-tied functions) carries over. *)
+	let code =
+		if !reused then begin
+			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"assemble"] in
+			let final = Hashtbl.copy saved_all in
+			Array.iter (fun f -> Hashtbl.replace final f.findex f) code.functions;
+			let functions = Array.of_list (Hashtbl.fold (fun _ f acc -> f :: acc) final []) in
+			Array.sort (fun a b -> compare a.findex b.findex) functions;
+			t();
+			{ code with functions }
+		end else code
+	in
+
 	let code = if Gctx.raw_defined com "hl_recanon_check" then recanon_all ctx code else code in
 	if Gctx.raw_defined com "hl_relocate_check" then relocate_check ctx code;
 	if Gctx.raw_defined com "hl_stale_proto_check" then stale_proto_check ctx code;
@@ -5136,14 +5095,15 @@ let generate com =
 	end;
 
 	if genhl_cache then begin
-		(* refresh the cache from this compile's post-opt output: partition functions by owning module *)
-		let syms = capture_reloc_syms ctx code in
-		let groups = Hashtbl.create 0 in
-		Array.iteri (fun i f ->
-			let m = DynArray.get ctx.cfunction_modules i in
-			if m >= 0 then Hashtbl.replace groups m (f :: (try Hashtbl.find groups m with Not_found -> []))
-		) code.functions;
-		Hashtbl.iter (fun m funcs -> Hashtbl.replace module_cache m (syms, List.rev funcs)) groups
+		(* Approach P: persist this compile's ctx (shared pools/graph), the FULL post-opt function set keyed by
+		   findex (for next compile's assembly), the set of module ids present (unchanged => reuse), and the
+		   whole-graph structural digest (the reuse gate). *)
+		saved_ctx := Some ctx;
+		Hashtbl.clear saved_all;
+		Array.iter (fun f -> Hashtbl.replace saved_all f.findex f) code.functions;
+		Hashtbl.clear saved_mids;
+		List.iter (fun t -> Hashtbl.replace saved_mids (t_infos t).mt_module.m_id ()) com.types;
+		saved_digest := compute_digest ctx
 	end;
 
 	if dump then begin
