@@ -4522,16 +4522,32 @@ let rec type_key ?(seen=[]) t =
 	(HVirtual anons + HAbstract carry pool-string ids -> need value-level re-intern too; kept as-is here,
 	handled by the pool relocation pass. TODO for full cross-compile anon reuse.)
 *)
-let rec recanon_type resolve t =
-	match t with
-	| HObj _ | HStruct _ | HEnum _ -> (match resolve (type_key t) with Some t' -> t' | None -> t)
-	| HRef t -> HRef (recanon_type resolve t)
-	| HNull t -> HNull (recanon_type resolve t)
-	| HArray t -> HArray (recanon_type resolve t)
-	| HPacked t -> HPacked (recanon_type resolve t)
-	| HFun (a,r) -> HFun (List.map (recanon_type resolve) a, recanon_type resolve r)
-	| HMethod (a,r) -> HMethod (List.map (recanon_type resolve) a, recanon_type resolve r)
-	| HVirtual _ | HAbstract _ | _ -> t
+let recanon_type ~fstr resolve t =
+	(* memo: physical old virtual_proto -> new HVirtual, to preserve sharing and terminate on recursive anons *)
+	let memo = Hashtbl.create 0 in
+	let rec go t =
+		match t with
+		| HObj _ | HStruct _ | HEnum _ -> (match resolve (type_key t) with Some t' -> t' | None -> t)
+		| HRef t -> HRef (go t)
+		| HNull t -> HNull (go t)
+		| HArray t -> HArray (go t)
+		| HPacked t -> HPacked (go t)
+		| HFun (a,r) -> HFun (List.map go a, go r)
+		| HMethod (a,r) -> HMethod (List.map go a, go r)
+		| HAbstract (n, sidx) -> HAbstract (n, fstr sidx)
+		| HVirtual v ->
+			(match Hashtbl.find_opt memo v with
+			| Some t' -> t'
+			| None ->
+				let nv = mk_virtual_proto [||] PMap.empty in
+				let t' = HVirtual nv in
+				Hashtbl.replace memo v t';
+				nv.vfields <- Array.map (fun (name,sidx,ft) -> (name, fstr sidx, go ft)) v.vfields;
+				Array.iteri (fun i (n,_,_) -> nv.vindex <- PMap.add n i nv.vindex) nv.vfields;
+				t')
+		| _ -> t
+	in
+	go t
 
 (* Build a type_key -> current-proto resolver from the live type graph. *)
 let build_type_resolver ctx =
@@ -4550,7 +4566,7 @@ let build_type_resolver ctx =
 *)
 let recanon_all ctx code =
 	let resolve = build_type_resolver ctx in
-	let rc = recanon_type resolve in
+	let rc = recanon_type ~fstr:(fun i -> i) resolve in
 	let functions = Array.map (fun f ->
 		{ f with
 			ftype = rc f.ftype;
@@ -4572,6 +4588,11 @@ type reloc_syms = {
 	rs_bytes : bytes array;
 	rs_globals : (gsym * ttype) array;      (* index -> (how to re-resolve the global, type) *)
 	rs_fids : (string * path) option array; (* index -> Some (fname, class_path) | None=nameless *)
+	rs_debugfiles : string array;           (* debug-file index -> path (fundecl.debug references these) *)
+	rs_natives : (string * int * string * string * ttype * int) array;
+	(* (cnatives-key-string, cnatives-key-int, lib, name, type, capture-fid): lazily-registered natives
+	   (alloc_std/hlNative) reused bodies may call. The key-int is -1 (alloc_std) or the fid (hlNative);
+	   re-registering with the same key (fid-part refreshed) dedups against regenerated registrations. *)
 }
 and gsym =
 	| GNamed of string    (* a named global -> re-intern by name *)
@@ -4594,6 +4615,11 @@ let capture_reloc_syms ctx code =
 		rs_bytes = code.bytes;
 		rs_globals = Array.mapi (fun i t -> (gsym.(i), t)) code.globals;
 		rs_fids = fnames;
+		rs_debugfiles = code.debugfiles;
+		rs_natives =
+			(let nkeys = Array.make (DynArray.length ctx.cnatives.arr) ("",0) in
+			 PMap.iter (fun k i -> nkeys.(i) <- k) ctx.cnatives.map;
+			 Array.mapi (fun i (li,ni,t,fid) -> let (ks,ki) = nkeys.(i) in (ks, ki, code.strings.(li), code.strings.(ni), t, fid)) code.natives);
 	}
 
 (*
@@ -4606,7 +4632,7 @@ let relocate_fundecls ctx resolve syms funcs =
 	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
 	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
 	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
-	let rc t = recanon_type resolve t in
+	let rc t = recanon_type ~fstr resolve t in
 	(* named functions re-intern by (name,path); nameless fids (lookup_alloc wrappers) kept identity *)
 	let ffun i = match syms.rs_fids.(i) with
 		| Some (name,pth) -> alloc_fun_path ctx pth name
@@ -4624,6 +4650,66 @@ let relocate_fundecls ctx resolve syms funcs =
 			ftype = rc f.ftype;
 			regs = Array.map rc f.regs;
 			code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code }
+	) funcs
+
+(*
+	Reuse a cached module: relocate its fundecls into `ctx` and APPEND them (with current findex).
+	findex remap per function: named functions -> their skeleton-assigned fid (by name,path); anonymous
+	CLOSURES (nameless capture fid) -> a fresh nameless fid. Body fid refs resolve through this entry-local
+	map first (so intra-module closure references follow), then fall back to (name,path) for cross-module
+	calls. This is the piece single-compile checks can't validate (closures need old!=new fid).
+*)
+let relocate_entry ctx resolve syms funcs =
+	(* re-register the natives the cache saw (lazily set up during body gen): a reused body may call one
+	   whose registration would otherwise be skipped. Idempotent via the cnatives lookup + defined_funs. *)
+	Array.iter (fun (ks,ki,lib,name,t,capfid) ->
+		match syms.rs_fids.(capfid) with
+		| Some (fname,pth) ->
+			let fid = alloc_fun_path ctx pth fname in
+			Hashtbl.replace ctx.defined_funs fid ();
+			let t = recanon_type ~fstr:(fun i -> alloc_string ctx syms.rs_strings.(i)) resolve t in
+			(* re-use the captured cnatives key so a regenerated module's alloc_std/add_native dedups against
+			   this entry instead of adding a duplicate; refresh the fid-part of the key (ki = capfid for hlNative). *)
+			let key = (ks, if ki = capfid then fid else ki) in
+			ignore(lookup ctx.cnatives key (fun () -> (alloc_string ctx lib, alloc_string ctx name, t, fid)))
+		| None -> ()
+	) syms.rs_natives;
+	let fidmap = Hashtbl.create 16 in
+	List.iter (fun f ->
+		let newfid = match syms.rs_fids.(f.findex) with
+			| Some (name,pth) -> alloc_fun_path ctx pth name
+			| None -> lookup_alloc ctx.cfids ()
+		in
+		Hashtbl.replace fidmap f.findex newfid
+	) funcs;
+	let fstr i = alloc_string ctx syms.rs_strings.(i) in
+	let rc t = recanon_type ~fstr resolve t in
+	let fint i = alloc_i32 ctx syms.rs_ints.(i) in
+	let ffloat i = alloc_float ctx syms.rs_floats.(i) in
+	let fbytes i = alloc_bytes ctx syms.rs_bytes.(i) in
+	let ffun i = match Hashtbl.find_opt fidmap i with
+		| Some n -> n
+		| None -> (match syms.rs_fids.(i) with Some (name,pth) -> alloc_fun_path ctx pth name | None -> i)
+	in
+	let fglobal i = match syms.rs_globals.(i) with
+		| (GNamed name, t) -> alloc_global ctx name (rc t)
+		| (GConst s, _) -> make_const ctx (CString s) null_pos
+		| (GOther, _) -> i
+	in
+	(* re-intern debug file (fundecl.debug carries cdebug_files indices) + assigns var-name strings *)
+	let fdebugfile i = let p = syms.rs_debugfiles.(i) in lookup ctx.cdebug_files p (fun () -> p) in
+	List.iter (fun f ->
+		let nf = { f with
+			findex = Hashtbl.find fidmap f.findex;
+			ftype = rc f.ftype;
+			regs = Array.map rc f.regs;
+			code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rc) f.code;
+			debug = Array.map (fun (file,line,pos) -> (fdebugfile file, line, pos)) f.debug;
+			assigns = Array.map (fun (s,pos) -> (fstr s, pos)) f.assigns;
+			need_opt = false; (* cache holds post-opt bodies *)
+		} in
+		Hashtbl.replace ctx.defined_funs nf.findex ();
+		add_cfunction ctx nf
 	) funcs
 
 (*
@@ -4738,6 +4824,11 @@ let make_context_sign com =
 
 let prev_sign = ref "" and prev_data = ref ""
 
+(* L5 incremental body cache (-D hxb.genhl_cache): m_id -> (capture-compile symbols, post-opt fundecls).
+   Survives across server compiles. A retyped module gets a new m_id -> miss -> regenerate; unchanged
+   modules keep their m_id -> hit -> relocate the cached bodies into the current compile. *)
+let module_cache : (int, reloc_syms * fundecl list) Hashtbl.t = Hashtbl.create 0
+
 let generate com =
 	let dump = Gctx.defined com Define.Dump in
 	let hl_check = Gctx.raw_defined com "hl_check" in
@@ -4766,6 +4857,24 @@ let generate com =
 		 DynArray.length ctx.cfunctions, count_pmap ctx.cached_types, Hashtbl.length ctx.anons_cache)
 	in
 	let before = snap () in
+	let genhl_cache = Gctx.raw_defined com "hxb.genhl_cache" in
+	if genhl_cache then begin
+		(* cache-aware drain: reuse cached modules (relocate), regenerate the rest (run thunks) *)
+		let resolve = build_type_resolver ctx in
+		let groups = Hashtbl.create 0 and order = ref [] in
+		DynArray.iter (fun (m_id,thunk) ->
+			if not (Hashtbl.mem groups m_id) then order := m_id :: !order;
+			Hashtbl.replace groups m_id (thunk :: (try Hashtbl.find groups m_id with Not_found -> []))
+		) ctx.pending_funs;
+		DynArray.clear ctx.pending_funs;
+		List.iter (fun m_id ->
+			ctx.cur_module <- m_id;
+			match (if m_id >= 0 then Hashtbl.find_opt module_cache m_id else None) with
+			| Some (syms,funcs) -> relocate_entry ctx resolve syms funcs
+			| None -> List.iter (fun th -> th ctx) (List.rev (Hashtbl.find groups m_id))
+		) (List.rev !order);
+		ctx.cur_module <- -1
+	end else
 	drain_pending_funs ctx;
 	if dbg then begin
 		let (s0,i0,f0,b0,fid0,g0,fn0,ct0,an0) = before in
@@ -4780,6 +4889,13 @@ let generate com =
 
 	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"buildcode"] in
 	let code = build_code ctx com.types com.main.main_expr in
+	(* with the incremental cache a native can be registered by both a reused entry's re-registration and a
+	   regenerated body; dedup by fid (unique per native, referenced by fid, sorted before write anyway). *)
+	let code = if genhl_cache then begin
+		let seen = Hashtbl.create 0 in
+		let natives = Array.of_list (List.filter (fun (_,_,_,fid) -> if Hashtbl.mem seen fid then false else (Hashtbl.add seen fid (); true)) (Array.to_list code.natives)) in
+		{ code with natives }
+	end else code in
 	t();
 
 	if Gctx.raw_defined com "hl_ctx_memstat" then begin
@@ -4828,6 +4944,37 @@ let generate com =
 
 	let code = if Gctx.raw_defined com "hl_recanon_check" then recanon_all ctx code else code in
 	if Gctx.raw_defined com "hl_relocate_check" then relocate_check ctx code;
+
+	if genhl_cache && Gctx.raw_defined com "hl_cache_check" then begin
+		(* diagnostic: every findex referenced by a call/closure must own a function or native *)
+		let defined = Hashtbl.create 0 in
+		Array.iter (fun f -> Hashtbl.replace defined f.findex "fun") code.functions;
+		Array.iter (fun (_,_,_,fid) -> Hashtbl.replace defined fid "native") code.natives;
+		let fidname = Hashtbl.create 0 in
+		PMap.iter (fun (n,p) i -> Hashtbl.replace fidname i (s_type_path p ^ "." ^ n)) ctx.cfids.map;
+		let bad = ref 0 in
+		Array.iter (fun f ->
+			Array.iter (fun op -> match op with
+				| OCall0(_,x)|OCall1(_,x,_)|OCall2(_,x,_,_)|OCall3(_,x,_,_,_)|OCall4(_,x,_,_,_,_)|OCallN(_,x,_)
+				| OStaticClosure(_,x)|OInstanceClosure(_,x,_) ->
+					if not (Hashtbl.mem defined x) then begin incr bad;
+						if !bad <= 4 then Printf.eprintf "[hl_cache_check] fn %s refs undefined findex %d = symbol %S\n"
+							(fundecl_name f) x (try Hashtbl.find fidname x with Not_found -> "<not-in-cfids>") end
+				| _ -> ()) f.code
+		) code.functions;
+		Printf.eprintf "[hl_cache_check] %d dangling call targets\n%!" !bad
+	end;
+
+	if genhl_cache then begin
+		(* refresh the cache from this compile's post-opt output: partition functions by owning module *)
+		let syms = capture_reloc_syms ctx code in
+		let groups = Hashtbl.create 0 in
+		Array.iteri (fun i f ->
+			let m = DynArray.get ctx.cfunction_modules i in
+			if m >= 0 then Hashtbl.replace groups m (f :: (try Hashtbl.find groups m with Not_found -> []))
+		) code.functions;
+		Hashtbl.iter (fun m funcs -> Hashtbl.replace module_cache m (syms, List.rev funcs)) groups
+	end;
 
 	if dump then begin
 		let ch = open_out_bin "dump/hlcode.txt" in
