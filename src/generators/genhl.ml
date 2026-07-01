@@ -127,6 +127,7 @@ type context = {
 	   the owning m_id per generated function, so functions can be partitioned by module for caching. *)
 	mutable cur_module : int;
 	cfunction_modules : int DynArray.t;
+	closure_names : (string, int) Hashtbl.t; (* per-compile: source-pos -> next index, for stable closure fid names *)
 }
 
 let compare_version v1 v2 =
@@ -2820,7 +2821,16 @@ and eval_expr ctx e =
 			(match acc with AArray (a,_,idx) -> free ctx a; free ctx idx | _ -> ());
 			!ret)
 	| TFunction f ->
-		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfids.arr)) in
+		(* Name nested closures by their SOURCE POSITION (+ a per-position counter for generics/macros that emit
+		   several closures at one spot), NOT the global cfids size. Source position is stable across compiles, so
+		   a re-typed module's closures get the SAME fids on regen -> they overwrite their prior versions instead
+		   of leaking as dead duplicates (Approach P), and codegen becomes order-independent here (reproducibility).
+		   Works regardless of enclosing context, incl. static-field-initializer closures (which run in the single
+		   global static-init and so can't be keyed by the enclosing fid). *)
+		let pkey = e.epos.pfile ^ ":" ^ string_of_int e.epos.pmin in
+		let n = (try Hashtbl.find ctx.closure_names pkey with Not_found -> 0) in
+		Hashtbl.replace ctx.closure_names pkey (n + 1);
+		let fid = alloc_function_name ctx ("function#" ^ pkey ^ "#" ^ string_of_int n) in
 		let capt = make_fun ctx ("","") fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
@@ -4378,6 +4388,7 @@ let create_context ?reuse com =
 		pending_funs = DynArray.create();
 		cur_module = -1;
 		cfunction_modules = DynArray.create();
+		closure_names = Hashtbl.create 0; (* always fresh: closure names must be recomputed identically each compile *)
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");
