@@ -4466,13 +4466,33 @@ let check ctx =
 	) ctx.cfids.map
 
 (*
-	Cross-compile-stable canonical key for a type. Named types (HObj/HStruct/HEnum/HAbstract) are keyed by
-	their unique name/path (no recursion into fields -> cycle-safe); structural types recurse into their
-	components. This lets a cached body's type references (regs/ftype/OType) be re-resolved against a
-	freshly-built type graph on reuse (L5 Lever A type re-canonicalization). A `seen` set guards the rare
-	purely-recursive anonymous structure. NOTE: field NAMES in HVirtual keys can themselves reference pool
-	strings at the value level, but the key uses the raw name string (compile-stable), not its pool index.
+	Rewrite the GLOBAL-POOL indices embedded in an opcode (string/int/float/bytes pool ids, function ids,
+	global ids, and the embedded type of OType), leaving registers, field indices, jumps etc. untouched. This
+	is the core of the parallel-merge (Lever B) linker: worker-local bodies carry pool ids from their worker
+	and must be re-pointed to the merged pool. Ops not listed carry no pool index.
 *)
+let map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype op =
+	match op with
+	| OInt (d,i) -> OInt (d, fint i)
+	| OFloat (d,i) -> OFloat (d, ffloat i)
+	| OBytes (d,i) -> OBytes (d, fbytes i)
+	| OString (d,i) -> OString (d, fstr i)
+	| OCall0 (d,f) -> OCall0 (d, ffun f)
+	| OCall1 (d,f,a) -> OCall1 (d, ffun f, a)
+	| OCall2 (d,f,a,b) -> OCall2 (d, ffun f, a, b)
+	| OCall3 (d,f,a,b,c) -> OCall3 (d, ffun f, a, b, c)
+	| OCall4 (d,f,a,b,c,e) -> OCall4 (d, ffun f, a, b, c, e)
+	| OCallN (d,f,rl) -> OCallN (d, ffun f, rl)
+	| OStaticClosure (d,f) -> OStaticClosure (d, ffun f)
+	| OInstanceClosure (d,f,a) -> OInstanceClosure (d, ffun f, a)
+	| OGetGlobal (d,g) -> OGetGlobal (d, fglobal g)
+	| OSetGlobal (g,r) -> OSetGlobal (fglobal g, r)
+	| OCatch g -> OCatch (fglobal g)
+	| ODynGet (d,a,f) -> ODynGet (d, a, fstr f)
+	| ODynSet (a,f,b) -> ODynSet (a, fstr f, b)
+	| OType (d,t) -> OType (d, ftype t)
+	| _ -> op
+
 let rec type_key ?(seen=[]) t =
 	match t with
 	| HVoid -> "v" | HUI8 -> "b" | HUI16 -> "w" | HI32 -> "i" | HI64 -> "l"
@@ -4735,6 +4755,17 @@ let generate com =
 		end else code
 	in
 
+	(* Lever-B feasibility probe: time an identity opcode rewrite over the WHOLE corpus. This is the
+	   unavoidable core cost of the parallel-merge linker (worker-local bodies must be re-pointed to the
+	   merged pool via map_op_globals). If it rivals the sequential body-gen it replaces, B is a wash. *)
+	if Gctx.raw_defined com "hl_merge_probe" then begin
+		let t = Timer.start_timer com.timer_ctx ["generate";"hl";"merge_probe"] in
+		let id i = i in
+		let n = ref 0 in
+		Array.iter (fun f -> ignore(Array.map (map_op_globals ~fstr:id ~fint:id ~ffloat:id ~fbytes:id ~ffun:id ~fglobal:id ~ftype:(fun t -> t)) f.code); n := !n + Array.length f.code) code.functions;
+		t();
+		Printf.eprintf "[hl_merge_probe] rewrote %d opcodes across %d functions\n%!" !n (Array.length code.functions)
+	end;
 
 	if genhl_cache && Gctx.raw_defined com "hl_cache_check" then begin
 		(* diagnostic: every findex referenced by a call/closure must own a function or native *)
