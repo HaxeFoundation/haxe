@@ -4565,6 +4565,20 @@ let generate com =
 	let code = build_code ctx com.types com.main.main_expr in
 	t();
 
+	if Gctx.raw_defined com "hl_ctx_memstat" then begin
+		let mb w = float_of_int (w * (Sys.word_size / 8)) /. 1048576. in
+		(* what Approach P would retain across server compiles: the generated functions + pools (code),
+		   plus the type graph (cached_types) and the symbol tables (cfids/cglobals). Measured together
+		   so shared sub-structures are counted once. *)
+		let retained = (code, ctx.cached_types, ctx.cfids, ctx.cglobals, ctx.cfunction_modules) in
+		Printf.eprintf "[hl_ctx_memstat] retained ~%.1f MB (code=%.1f, +types/symbols=%.1f); functions=%d strings=%d ints=%d globals=%d fids=%d types=%d\n%!"
+			(mb (Obj.reachable_words (Obj.repr retained)))
+			(mb (Obj.reachable_words (Obj.repr code)))
+			(mb (Obj.reachable_words (Obj.repr (ctx.cached_types, ctx.cfids, ctx.cglobals))))
+			(Array.length code.functions) (Array.length code.strings) (Array.length code.ints)
+			(Array.length code.globals) (DynArray.length ctx.cfids.arr) (PMap.fold (fun _ n -> n+1) ctx.cached_types 0)
+	end;
+
 	if Gctx.raw_defined com "hl_partition_stats" then begin
 		let nfuns = DynArray.length ctx.cfunctions and ntags = DynArray.length ctx.cfunction_modules in
 		let per = Hashtbl.create 0 and moduleless = ref 0 in
