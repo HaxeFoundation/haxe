@@ -4870,6 +4870,14 @@ let make_context_sign com =
 
 let prev_sign = ref "" and prev_data = ref ""
 
+(* Verify-or-regen safety net for the incremental cache: run the type checker over the assembled code with
+   an error callback that raises on the first problem. genhl per-module output is NOT guaranteed bit-stable
+   across compiles (e.g. HFun dyn-vs-i32 arg erasure drifts), so a reused body can be type-inconsistent with
+   the current graph. On any check failure the caller discards the cached attempt and regenerates cleanly. *)
+let genhl_verify code =
+	try Hlinterp.check (fun _ _ -> raise Exit) code; true
+	with _ -> false
+
 (* L5 incremental body cache (-D hxb.genhl_cache): m_id -> (capture-compile symbols, post-opt fundecls).
    Survives across server compiles. A retyped module gets a new m_id -> miss -> regenerate; unchanged
    modules keep their m_id -> hit -> relocate the cached bodies into the current compile. *)
@@ -4943,6 +4951,21 @@ let generate com =
 		{ code with natives }
 	end else code in
 	t();
+
+	(* VERIFY-OR-REGEN: if the cache-assembled code doesn't type-check (a reused body drifted vs the current
+	   graph), discard it, invalidate the cache, and regenerate cleanly. Correctness always wins; the cache is
+	   a best-effort fast path for the common bit-stable case. *)
+	let (ctx, code) =
+		if genhl_cache && not (genhl_verify code) then begin
+			if Gctx.raw_defined com "hl_cache_check" then Printf.eprintf "[genhl] cache verify FAILED -> clean regen\n%!";
+			Hashtbl.clear module_cache;
+			let ctx = create_context com in
+			add_types ctx com.types;
+			drain_pending_funs ctx;
+			let code = build_code ctx com.types com.main.main_expr in
+			(ctx, code)
+		end else (ctx, code)
+	in
 
 	if Gctx.raw_defined com "hl_ctx_memstat" then begin
 		let mb w = float_of_int (w * (Sys.word_size / 8)) /. 1048576. in
