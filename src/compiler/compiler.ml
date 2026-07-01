@@ -415,7 +415,7 @@ let header_invalidation_prephase tctx =
 			) (try Hashtbl.find rev mpath with Not_found -> [])
 		done
 	end;
-	if Define.defined com.defines Define.HxbHeaderInvalidation then
+	if Define.defined com.defines Define.HxbHeaderInvalidationVerbose then
 		print_endline (Printf.sprintf "[header-invalidation] seeds=%d retyped=%d (unchanged=%d changed=%d failed=%d) frontier-spared=%d"
 			(List.length seeds) (Hashtbl.length retyped) !n_unchanged !n_changed !n_failed !n_spared);
 	(* Increment 0 measurement (-D hxb.measure_transitive): without re-typing anything, gauge whether a
