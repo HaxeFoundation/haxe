@@ -179,12 +179,19 @@ class module_lut = object(self)
 		try
 			let path2 = type_lut#find t.mt_path in
 			let p = t.mt_pos in
-			if m.m_path <> path2 && String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then Error.raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
-			let m2 = self#find path2 in
-			let hex1 = Digest.to_hex m.m_extra.m_sign in
-			let hex2 = Digest.to_hex m2.m_extra.m_sign in
-			let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
-			Error.raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+			(* A type path already mapped to the SAME module is just that module re-registering its own
+			   types (e.g. hxb.resident_modules seeds module_lut on the cascade cross-ref path, then
+			   add_modules revisits the same module through a dependency walk). This is idempotent — the
+			   type_lut entry already points where it should — so leave it. "Redefined from module X" is
+			   only a real error when X is a genuinely different module claiming this type name. *)
+			if path2 <> m.m_path then begin
+				if String.lowercase_ascii (s_type_path path2) = String.lowercase_ascii (s_type_path m.m_path) then Error.raise_typing_error ("Module " ^ s_type_path path2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+				let m2 = self#find path2 in
+				let hex1 = Digest.to_hex m.m_extra.m_sign in
+				let hex2 = Digest.to_hex m2.m_extra.m_sign in
+				let s = if hex1 = hex2 then hex1 else Printf.sprintf "was %s, is %s" hex2 hex1 in
+				Error.raise_typing_error (Printf.sprintf "Type name %s is redefined from module %s (%s)" (s_type_path t.mt_path)  (s_type_path path2) s) p
+			end
 		with Not_found ->
 			type_lut#add t.mt_path m.m_path
 
