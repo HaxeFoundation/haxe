@@ -27,7 +27,7 @@ depends: [
   "extlib" {>= "1.7.8"}
   "sha"
   "camlp-streams"
-  "ppx_parser" {>= "0.2.0"}
+  "ppx_parser" {>= "0.2.1"}
   "conf-libpcre2-8"
   "conf-zlib"
   "conf-neko"

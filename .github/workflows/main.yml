@@ -6,7 +6,7 @@ on:
   pull_request:
 
 env:
-  OCAML_VERSION: 5.3.0
+  OCAML_VERSION: 5.5.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
