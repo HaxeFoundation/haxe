@@ -383,24 +383,9 @@
 		"doc": "Resolve cross-module class references in restored hxb headers to identity-only forwarding placeholders whose contents fill lazily on cl_build, so a display request stops restoring the whole transitive inheritance closure (only with compilation server)."
 	},
 	{
-		"name": "HxbHeaderCache",
-		"define": "hxb.header_cache",
-		"doc": "Persist decoded module headers (restored to EOT) in the compilation cache across display requests, so peer modules are not re-decoded and re-connected every request. The persisted header is byte-stable (never mutated by later requests) and dropped when its module signature changes (only with compilation server)."
-	},
-	{
-		"name": "HxbHeaderCacheVerbose",
-		"define": "hxb.header_cache_verbose",
-		"doc": "Verbose diagnostics for hxb.header_cache: per-request hit/miss/populate counts and any attempt to fill (force body/cl_build) a cached EOT header."
-	},
-	{
 		"name": "HxbResidentModules",
 		"define": "hxb.resident_modules",
 		"doc": "Keep restored modules resident in the compilation cache across requests and reuse them at the top-level module load (instead of re-decoding from hxb every request), with source-freshness still gated by the normal check. Decodes only the modules that actually changed. Reuse is validated by module id; stale/changed modules fall back to a fresh decode (only with compilation server)."
-	},
-	{
-		"name": "HxbHeaderCacheMacro",
-		"define": "hxb.header_cache_macro",
-		"doc": "Extend hxb.header_cache to the macro context: persist its full-typing (EOM) module restores across requests so the macro context does not re-decode its module closure every request. The macro context has its own cache signature, so these headers never mix with display ones (only with compilation server)."
 	},
 	{
 		"name": "HxbMeasureSignatures",

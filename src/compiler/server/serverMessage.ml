@@ -130,7 +130,7 @@ let stats stats time =
 	if config.print_stats then begin
 		let open Common.Stats in
 		print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
-		print_endline (Printf.sprintf "Restore = %d decoded, %d hdrcache-hit, %d hdrcache-populated" !(stats.s_modules_restored) !(stats.s_header_cache_hits) !(stats.s_header_cache_populated));
+		print_endline (Printf.sprintf "Restore = %d decoded" !(stats.s_modules_restored));
 		print_endline (Printf.sprintf "Time spent : %.3fs" time)
 	end
 
