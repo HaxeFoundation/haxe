@@ -127,7 +127,7 @@ type context = {
 	   the owning m_id per generated function, so functions can be partitioned by module for caching. *)
 	mutable cur_module : int;
 	cfunction_modules : int DynArray.t;
-	closure_names : (string, int) Hashtbl.t; (* per-compile: source-pos -> next index, for stable closure fid names *)
+	closure_names : (string, int) Hashtbl.t; (* per-compile: (enclosing-fid, source-pos) -> next index, for path-independent closure fid names *)
 }
 
 let compare_version v1 v2 =
@@ -2850,13 +2850,20 @@ and eval_expr ctx e =
 			(match acc with AArray (a,_,idx) -> free ctx a; free ctx idx | _ -> ());
 			!ret)
 	| TFunction f ->
-		(* Name nested closures by their SOURCE POSITION (+ a per-position counter for generics/macros that emit
-		   several closures at one spot), NOT the global cfids size. Source position is stable across compiles, so
-		   a re-typed module's closures get the SAME fids on regen -> they overwrite their prior versions instead
-		   of leaking as dead duplicates (Approach P), and codegen becomes order-independent here (reproducibility).
-		   Works regardless of enclosing context, incl. static-field-initializer closures (which run in the single
-		   global static-init and so can't be keyed by the enclosing fid). *)
-		let pkey = e.epos.pfile ^ ":" ^ string_of_int e.epos.pmin in
+		(* Name nested closures by ENCLOSING-FUNCTION fid + source position (+ a per-(fid,pos) counter for the rare
+		   case of several closures at one source spot, e.g. generics/macros). This is independent of both generation
+		   ORDER and PATH: the enclosing fid (ctx.m.mid) is assigned deterministically in the skeleton, and closures
+		   within one body are visited in a fixed order whether that body drains serially or in a parallel worker
+		   (genhl_parallel). So a full/parallel build and a serial incremental (genhl_cache) regen mint the SAME
+		   closure name -> same fid -> same HL f->ref. HashLink hot reload requires this: it pairs closures across
+		   builds by f->ref, so a name that differed between the running image (parallel full build) and the reload
+		   (serial cache regen) patched the wrong function pointer and crashed -- the genhl_cache+genhl_parallel combo.
+		   A pos-ONLY key (the prior scheme) was stable only for the serial path: under genhl_parallel a body can land
+		   in any worker (each worker has its own closure_names counter), so different generic instantiations of a
+		   closure at one position collided/reordered. Adding the enclosing fid separates them without any global
+		   order. Static-field-initializer closures run inside the stable __hl_entrypoint__ body, so ctx.m.mid is
+		   stable for them too; position keeps distinct static fields apart. *)
+		let pkey = string_of_int ctx.m.mid ^ "@" ^ e.epos.pfile ^ ":" ^ string_of_int e.epos.pmin in
 		let n = (try Hashtbl.find ctx.closure_names pkey with Not_found -> 0) in
 		Hashtbl.replace ctx.closure_names pkey (n + 1);
 		let fid = alloc_function_name ctx ("function#" ^ pkey ^ "#" ^ string_of_int n) in
