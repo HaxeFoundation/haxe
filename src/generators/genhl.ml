@@ -108,7 +108,7 @@ type context = {
 	anons_cache : (int, (tanon * ttype) list) Hashtbl.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
-	mutable cached_tuples : (ttype list, ttype) PMap.t;
+	mutable cached_tuples : (string, ttype) PMap.t; (* canonical type_key-based key -> tuple proto *)
 	mutable tstring : ttype;
 	macro_typedefs : (string, ttype) Hashtbl.t;
 	array_impl : array_impl;
@@ -200,9 +200,38 @@ let to_utf8 str p =
 	) u8;
 	u8, !ccount
 
+let rec type_key ?(seen=[]) t =
+	match t with
+	| HVoid -> "v" | HUI8 -> "b" | HUI16 -> "w" | HI32 -> "i" | HI64 -> "l"
+	| HF32 -> "f" | HF64 -> "d" | HBool -> "o" | HBytes -> "y" | HDyn -> "D"
+	| HType -> "T" | HDynObj -> "O" | HGUID -> "G"
+	| HObj o -> "C" ^ o.pname
+	| HStruct o -> "S" ^ o.pname
+	(* tuples (tuple_type) are HEnum with ename="" -> not in com.types; key structurally by field types *)
+	| HEnum { ename = "" ; efields } ->
+		"ET(" ^ String.concat "," (Array.to_list (Array.map (fun (_,_,tl) -> String.concat "|" (Array.to_list (Array.map (type_key ~seen) tl))) efields)) ^ ")"
+	| HEnum e -> "E" ^ e.ename
+	| HAbstract (n,_) -> "A" ^ n
+	| HRef t -> "R" ^ type_key ~seen t
+	| HNull t -> "N" ^ type_key ~seen t
+	| HArray t -> "Y" ^ type_key ~seen t
+	| HPacked t -> "P" ^ type_key ~seen t
+	| HFun (args,ret) -> "F(" ^ String.concat "," (List.map (type_key ~seen) args) ^ ")" ^ type_key ~seen ret
+	| HMethod (args,ret) -> "M(" ^ String.concat "," (List.map (type_key ~seen) args) ^ ")" ^ type_key ~seen ret
+	| HVirtual v ->
+		if List.memq v seen then "V@" else
+		let seen = v :: seen in
+		"V{" ^ String.concat "," (Array.to_list (Array.map (fun (n,_,t) -> n ^ ":" ^ type_key ~seen t) v.vfields)) ^ "}"
+
+(* Tuples (HEnum ename="") aren't in com.types; dedup them by a canonical STRUCTURAL key (type_key of each
+   field) rather than the physical ttype list. Keying by the list (ttype_list_compare) fails across the parallel
+   merge -- recanon rebuilds field types as physically-distinct instances -- yielding DUPLICATE tuple protos
+   that later crash gather_types' polymorphic compare on their cyclic efields (Out_of_memory). type_key is
+   structural + cycle-safe, so structurally-equal tuples always map to ONE instance. *)
 let tuple_type ctx tl =
+	let key = "ET(" ^ String.concat "|" (List.map type_key tl) ^ ")" in
 	try
-		PMap.find tl ctx.cached_tuples
+		PMap.find key ctx.cached_tuples
 	with Not_found ->
 		let ct = HEnum {
 			eglobal = None;
@@ -210,7 +239,7 @@ let tuple_type ctx tl =
 			eid = 0;
 			efields = [|"",0,Array.of_list tl|];
 		} in
-		ctx.cached_tuples <- PMap.add tl ct ctx.cached_tuples;
+		ctx.cached_tuples <- PMap.add key ct ctx.cached_tuples;
 		ct
 
 let new_lookup() =
@@ -4346,7 +4375,7 @@ let create_context ?reuse com =
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
 		cached_types = (match reuse with Some r -> r.cached_types | None -> PMap.empty);
-		cached_tuples = (match reuse with Some r -> r.cached_tuples | None -> PMap.create ttype_list_compare);
+		cached_tuples = (match reuse with Some r -> r.cached_tuples | None -> PMap.create Stdlib.compare);
 		cfids = lk (fun r -> r.cfids);
 		defined_funs = Hashtbl.create 0;
 		tstring = (match reuse with Some r -> r.tstring | None -> HVoid);
@@ -4539,29 +4568,6 @@ let map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype op =
 	| OType (d,t) -> OType (d, ftype t)
 	| _ -> op
 
-let rec type_key ?(seen=[]) t =
-	match t with
-	| HVoid -> "v" | HUI8 -> "b" | HUI16 -> "w" | HI32 -> "i" | HI64 -> "l"
-	| HF32 -> "f" | HF64 -> "d" | HBool -> "o" | HBytes -> "y" | HDyn -> "D"
-	| HType -> "T" | HDynObj -> "O" | HGUID -> "G"
-	| HObj o -> "C" ^ o.pname
-	| HStruct o -> "S" ^ o.pname
-	(* tuples (tuple_type) are HEnum with ename="" -> not in com.types; key structurally by field types *)
-	| HEnum { ename = "" ; efields } ->
-		"ET(" ^ String.concat "," (Array.to_list (Array.map (fun (_,_,tl) -> String.concat "|" (Array.to_list (Array.map (type_key ~seen) tl))) efields)) ^ ")"
-	| HEnum e -> "E" ^ e.ename
-	| HAbstract (n,_) -> "A" ^ n
-	| HRef t -> "R" ^ type_key ~seen t
-	| HNull t -> "N" ^ type_key ~seen t
-	| HArray t -> "Y" ^ type_key ~seen t
-	| HPacked t -> "P" ^ type_key ~seen t
-	| HFun (args,ret) -> "F(" ^ String.concat "," (List.map (type_key ~seen) args) ^ ")" ^ type_key ~seen ret
-	| HMethod (args,ret) -> "M(" ^ String.concat "," (List.map (type_key ~seen) args) ^ ")" ^ type_key ~seen ret
-	| HVirtual v ->
-		if List.memq v seen then "V@" else
-		let seen = v :: seen in
-		"V{" ^ String.concat "," (Array.to_list (Array.map (fun (n,_,t) -> n ^ ":" ^ type_key ~seen t) v.vfields)) ^ "}"
-
 (* ---- Approach B groundwork: recanon_type ------------------------------------------------------------
    Rewrite a ttype so its named components (HObj/HStruct/HEnum) are replaced by the identity-shared proto
    from a target type graph (via `resolve`), tuples routed through `ftuple`, and string indices remapped by
@@ -4738,10 +4744,7 @@ let prepare_worker main resolve w snap =
 		ignore (lookup main.cnatives key (fun () -> (fstr s1, fstr s2, rct t, mfid)));
 		Hashtbl.replace main.defined_funs mfid ()
 	done;
-	(* Pre-create every tuple this worker's bodies referenced (worker-local cached_tuples deltas) in main NOW,
-	   serially, so the per-function patch below can recanon in parallel without mutating main.cached_tuples. *)
-	PMap.iter (fun tl _ -> ignore (tuple_type main (List.map rct tl))) w.cached_tuples;
-	(* The pure per-function rewrite (safe to run in parallel: reads shared graph, allocates only local anons). *)
+	(* The per-function rewrite; runs serially in the caller (tuple_type mutates main.cached_tuples). *)
 	let patch f = { f with
 		findex = ffun f.findex;
 		ftype = rct f.ftype;
