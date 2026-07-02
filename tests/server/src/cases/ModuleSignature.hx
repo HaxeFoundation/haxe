@@ -6,7 +6,11 @@ import haxe.io.Path;
 import TestCase;
 import utest.Assert;
 
+// Module signatures + header invalidation are hxb-cache features: sparing/reuse only happens with the cache
+// on, so these tests are meaningless (and assertReuse fails) under -D disable-hxb-cache. Exclude that variant.
+// (Class kept defined for `addCases`; only its methods are guarded.)
 class ModuleSignature extends TestCase {
+#if !disable_hxb_cache
 	// The signature dumped for a module restored from the hxb cache must be byte-identical to the one
 	// dumped when the module was freshly typed. This is the determinism precondition for using module
 	// signatures as the module-header diff layer: in particular, the var ids the hxb reader reassigns
@@ -256,4 +260,5 @@ class BuildMacro {
 	function depSignature() {
 		return sys.io.File.getContent(Path.join([testDir, "dump", "AfterInlining", "js", "Dep.dump"]));
 	}
+#end
 }
