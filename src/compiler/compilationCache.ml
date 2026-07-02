@@ -36,11 +36,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
-	(* hxb.header_cache: decoded module headers (restored to EOT) kept resident across display
-	   requests so peer modules are not re-decoded+re-connected every request. Unlike tmp_binary_cache
-	   this is NOT cleared per request; it is dropped on cache invalidation and validated by m_sig at
-	   serve time. The stored module is treated as immutable (never filled in place by later requests). *)
-	val decoded_header_cache : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	(* hxb.resident_modules: restored modules kept resident across requests so the typer's top-level load
 	   reuses them instead of re-decoding from hxb. Reuse is validated by module id (and the normal
 	   source-freshness check_module); a changed module is purged on add_binary_cache and re-decoded. *)
@@ -103,8 +98,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		| None -> false
 
 	method add_binary_cache m chunks =
-		(* The chunks just changed; any resident decoded EOT header / resident module for this path is now stale. *)
-		Hashtbl.remove decoded_header_cache m.m_path;
+		(* The chunks just changed; any resident module for this path is now stale. *)
 		Hashtbl.remove resident_modules m.m_path;
 		Hashtbl.replace binary_cache m.m_path {
 			mc_path = m.m_path;
@@ -129,16 +123,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method cache_module_in_memory path m =
 		Hashtbl.replace modules path m
 
-	(* hxb.header_cache: resident decoded EOT headers (see val decoded_header_cache). *)
-	method find_decoded_header path =
-		Hashtbl.find_opt decoded_header_cache path
-
-	method cache_decoded_header path m =
-		Hashtbl.replace decoded_header_cache path m
-
-	method remove_decoded_header path =
-		Hashtbl.remove decoded_header_cache path
-
 	(* hxb.resident_modules: resident restored-module tier (see val resident_modules). *)
 	method find_resident_module path =
 		Hashtbl.find_opt resident_modules path
@@ -154,7 +138,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 	method clear_cache =
 		Hashtbl.clear modules;
-		Hashtbl.clear decoded_header_cache;
 		Hashtbl.clear resident_modules;
 		self#clear_temp_cache
 
@@ -162,7 +145,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method clear_modules =
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
-		Hashtbl.clear decoded_header_cache;
 		Hashtbl.clear resident_modules;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;

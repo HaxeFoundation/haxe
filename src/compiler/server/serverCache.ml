@@ -428,12 +428,6 @@ let get_hxb_module com cc path typing_mode =
 	with Not_found ->
 		NoModule
 
-(* hxb.header_cache: for each resident header we remember how to re-point the api that decoded it at the
-   current request's com/delay. The header's lazy closures captured that api; re-pointing it at serve time
-   (which precedes any force during typing) makes those closures resolve through the live request context
-   instead of the dead originating one. Keyed by (context index, module path). *)
-let resident_reader_repoint : (int * path, Common.context -> (TyperPass.typer_pass -> (unit -> unit) -> unit) -> unit) Hashtbl.t = Hashtbl.create 0
-
 (* hxb.resident_modules: shared resident-serve logic used by BOTH resolution paths — the typer's free top-level
    load (find_module_in_cache) and the reader's cascade cross-ref load (api#find_module). Serving on a SINGLE
    path (top-level only) was the identity-split bug: a resident module's frozen cross-module refs (decode-gen
@@ -464,7 +458,7 @@ class hxb_reader_api_server
 
 	(* The per-request context (com + delay) is held in mutable fields rather than captured, so a single
 	   shared api instance can be re-pointed at the current request via #set_request. This is what lets a
-	   resident decoded header (hxb.header_cache) whose lazy closures captured THIS api be forced soundly by
+	   resident module (hxb.resident_modules) whose lazy closures captured THIS api be forced soundly by
 	   a later request: the closures resolve through whatever com is current, not the originating one.
 	   Within a single request the fields are fixed, so behaviour is identical to direct binding. *)
 	val mutable com = init_com
@@ -521,16 +515,6 @@ class hxb_reader_api_server
 			| AllowPartialTyping when com.is_macro_context -> ignore(f_next chunks EOM)
 			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
-			(* hxb.header_cache: keep this freshly decoded header resident so peer modules are not
-			   re-decoded next request. Only under AllowPartialTyping (we never persist a full-typing
-			   restore). The stored module is byte-stable: later requests serve a fresh m_extra shell
-			   over its shared m_types and must never force its bodies/cl_build. *)
-			if (typing_mode = AllowPartialTyping && Define.defined com.defines Define.HxbHeaderCache)
-				|| (com.is_macro_context && Define.defined com.defines Define.HxbHeaderCacheMacro) then begin
-				cc#cache_decoded_header path m;
-				Hashtbl.replace resident_reader_repoint (cc#get_index, path) (fun c d -> self#set_request c d);
-				incr com.request_scope.stats.s_header_cache_populated
-			end;
 			(* hxb.resident_modules canonical registry: register on EVERY first decode, cascade INCLUDED
 			   (the top-level path stored only top-level decodes — the gap that forked st.Item in cont.8).
 			   Same object the deferred EOF-connect (above) fills in-place this request; cross-request its
@@ -570,56 +554,6 @@ class hxb_reader_api_server
 		| NoModule ->
 			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
 
-	(* hxb.header_cache: try to serve a resident decoded EOT header instead of re-decoding from chunks.
-	   Returns a fresh per-request module shell (new m_extra, shared immutable m_types) and registers it in
-	   the per-request module_lut. Validated against the current cached chunks' module signature/id; a stale
-	   entry is dropped. We never serve under FullTyping (the entry was only ever populated from a partial
-	   restore) and we do NOT schedule the connect pass — the served header is read-only for this request. *)
-	method private serve_cached_header (m_path : path) =
-		let macro_cache = com.is_macro_context && Define.defined com.defines Define.HxbHeaderCacheMacro in
-		if not (Define.defined com.defines Define.HxbHeaderCache || macro_cache) then None
-		else match cc#find_decoded_header m_path with
-		| None -> None
-		| Some cached ->
-			match (try Some (cc#get_hxb_module m_path) with Not_found -> None) with
-			(* Only ever serve an EOT-only header where partial typing is acceptable for THIS module. A
-			   FullTyping resolution (e.g. the display file itself) needs the connect pass / bodies that the
-			   resident header deliberately omits, so fall through to a real decode in that case. *)
-			(* Validate by module id only. mc_id is bumped when a module is re-serialized, and
-			   add_binary_cache also purges the resident header on chunk change, so this catches staleness.
-			   Do NOT structurally compare m_sig: module_signature carries a PMap, whose ExtLib representation
-			   embeds its comparison closure, so polymorphic `=` raises "compare: functional value". *)
-			| Some mc when mc.mc_id = cached.m_id ->
-				(* A FullTyping resolution (e.g. the display file itself) needs the connect pass / bodies the
-				   resident EOT header deliberately omits — fall through to a real decode, but keep the (still
-				   valid) entry for later partial resolutions. *)
-				if get_typing_mode com mc.mc_extra <> AllowPartialTyping && not macro_cache then None
-				else begin
-				(* Re-point the api that decoded this header at the current request before its closures can be
-				   forced during typing, so they resolve through the live com instead of the dead originating one. *)
-				(match Hashtbl.find_opt resident_reader_repoint (cc#get_index, m_path) with
-					| Some repoint -> repoint com delay
-					| None -> ());
-				let m = {
-					cached with
-					(* Fresh m_extra so this request's dependency mutations cannot pollute the resident
-					   header (same reason make_module copies it). m_types stay shared and untouched. *)
-					m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = None };
-				} in
-				com.module_lut#add m_path m;
-				incr com.request_scope.stats.s_header_cache_hits;
-				if Define.defined com.defines Define.HxbHeaderCacheVerbose then
-					prerr_endline (Printf.sprintf "[hxb.header_cache] serve %s" (s_type_path m_path));
-				Some m
-				end
-			| Some _ ->
-				(* Chunks changed under us; the resident header is stale. *)
-				cc#remove_decoded_header m_path;
-				None
-			| None ->
-				cc#remove_decoded_header m_path;
-				None
-
 	method find_module (m_path : path) typing_mode =
 		try
 			GoodModule (com.module_lut#find m_path)
@@ -634,9 +568,6 @@ class hxb_reader_api_server
 				com.module_lut#add m_path m;
 				idsplit_module com "CASCSERVE" m; idsplit_tooltip com "CASCSERVE" m;
 				GoodModule m
-			| None ->
-			match self#serve_cached_header m_path with
-			| Some m -> GoodModule m
 			| None -> get_hxb_module com cc m_path typing_mode
 
 	method basic_types =
