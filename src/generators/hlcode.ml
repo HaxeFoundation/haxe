@@ -364,10 +364,6 @@ let rec tsame_rec seen t1 t2 =
 
 let tsame t1 t2 = tsame_rec [] t1 t2
 
-let is_virtual_bearing = function
-	| HVirtual _ | HFun _ | HMethod _ | HArray _ | HRef _ | HNull _ | HPacked _ -> true
-	| _ -> false
-
 let rec ttype_level seen v = match seen with
 	| [] -> -1
 	| (v',d) :: l -> if v' == v then d else ttype_level l v
@@ -386,7 +382,36 @@ let rec ttype_cmp seen1 seen2 depth t1 t2 =
 		let c = ttype_cmp_list seen1 seen2 depth args1 args2 in
 		if c <> 0 then c else ttype_cmp seen1 seen2 depth ret1 ret2
 	| (HArray a, HArray b) | (HRef a, HRef b) | (HNull a, HNull b) | (HPacked a, HPacked b) -> ttype_cmp seen1 seen2 depth a b
+	(* Named types are identified by their path (pname/ename); tuples (HEnum ename="") are anonymous and compared
+	   structurally. Handle these here rather than falling to polymorphic `compare`, which has NO cycle detection
+	   and infinite-loops on recursive class graphs (OOM) once distinct-but-equal instances exist. *)
+	| HObj a, HObj b -> compare (a.pname : string) b.pname
+	| HStruct a, HStruct b -> compare (a.pname : string) b.pname
+	| HEnum a, HEnum b ->
+		let c = compare (a.ename : string) b.ename in
+		if c <> 0 then c
+		else if a.ename <> "" then 0
+		else ttype_cmp_efields seen1 seen2 depth a.efields b.efields
 	| _ -> compare t1 t2
+and ttype_cmp_efields seen1 seen2 depth a b =
+	let c = compare (Array.length a) (Array.length b) in
+	if c <> 0 then c else
+	let rec loop i =
+		if i = Array.length a then 0 else
+		let (n1,_,ta) = a.(i) and (n2,_,tb) = b.(i) in
+		let c = compare (n1 : string) n2 in if c <> 0 then c else
+		let c = ttype_cmp_arr seen1 seen2 depth ta tb in if c <> 0 then c else
+		loop (i + 1)
+	in
+	loop 0
+and ttype_cmp_arr seen1 seen2 depth a b =
+	let c = compare (Array.length a) (Array.length b) in
+	if c <> 0 then c else
+	let rec loop i =
+		if i = Array.length a then 0 else
+		let c = ttype_cmp seen1 seen2 depth a.(i) b.(i) in if c <> 0 then c else loop (i + 1)
+	in
+	loop 0
 and ttype_cmp_list seen1 seen2 depth l1 l2 = match l1, l2 with
 	| [], [] -> 0
 	| [], _ -> -1
@@ -407,8 +432,12 @@ and ttype_cmp_vfields seen1 seen2 depth a b =
 
 let ttype_compare t1 t2 =
 	if t1 == t2 then 0 else
-	if not (is_virtual_bearing t1 && is_virtual_bearing t2) then compare t1 t2 else
-	ttype_cmp [] [] 0 t1 t2
+	(* Named/enum types can hold recursive graphs; route them through ttype_cmp (name/structural, cycle-safe).
+	   Polymorphic `compare` is used only for flat leaf types (base kinds, HAbstract) where it can't loop. *)
+	match t1 with
+	| HVirtual _ | HFun _ | HMethod _ | HArray _ | HRef _ | HNull _ | HPacked _
+	| HObj _ | HStruct _ | HEnum _ -> ttype_cmp [] [] 0 t1 t2
+	| _ -> compare t1 t2
 
 let rec ttype_list_compare l1 l2 = match l1, l2 with
 	| [], [] -> 0
