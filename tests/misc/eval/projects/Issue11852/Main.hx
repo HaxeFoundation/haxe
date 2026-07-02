@@ -41,6 +41,9 @@ class Main {
 
 			for (line in matches) {
 				if (line.endsWith(":")) line = line.substr(0, line.length - 1);
+				// -D hxb.header_invalidation annotates each dependency with its granularity kind,
+				// e.g. a trailing " [full]" / " [skeleton]" / " [fields: a,b]"; strip it before the path check.
+				line = ~/ \[[^\]]*\]$/.replace(line, "");
 				if (!line.endsWith('tests/misc/eval/projects/Issue11852/$module')) {
 					trace(module, line);
 					throw 'Incorrect path generated for $module';
