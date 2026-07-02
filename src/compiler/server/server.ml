@@ -231,9 +231,30 @@ type request_outcome =
    domain so an incoming request always wins at slice granularity (see Tasks.gc_slice_task). Unset/<=0
    keeps the previous behaviour (rely solely on the automatic allocation-driven collector). *)
 let gc_idle_slice_words =
-	match (try Some (Sys.getenv "HAXE_GC_SLICE_WORDS") with Not_found -> None) with
+	match Sys.getenv_opt "HAXE_GC_SLICE_WORDS" with
 	| Some s -> (try let n = int_of_string s in if n > 0 then Some n else None with _ -> None)
 	| None -> None
+
+(* Deep-idle heap compaction (opt-in). HAXE_GC_COMPACT_IDLE_SECS = seconds with no request before a
+   compaction is considered (unset/<=0 disables). It is a non-interruptible STW pass, so the sustained-idle
+   gate is the whole safety story; HAXE_GC_COMPACT_MIN_MB (default 256) makes it skip unless enough is
+   reclaimable to be worth the pause, and HAXE_GC_COMPACT_MIN_INTERVAL_SECS (default 600) rate-limits it. *)
+let gc_compact_idle_secs =
+	match Sys.getenv_opt "HAXE_GC_COMPACT_IDLE_SECS" with
+	| Some s -> (try let f = float_of_string s in if f > 0. then Some f else None with _ -> None)
+	| None -> None
+
+let gc_compact_min_words =
+	let mb = match Sys.getenv_opt "HAXE_GC_COMPACT_MIN_MB" with
+		| Some s -> (try let n = int_of_string s in if n > 0 then n else 256 with _ -> 256)
+		| None -> 256
+	in
+	mb * 1024 * 1024 / (Sys.word_size / 8)
+
+let gc_compact_min_interval =
+	match Sys.getenv_opt "HAXE_GC_COMPACT_MIN_INTERVAL_SECS" with
+	| Some s -> (try float_of_string s with _ -> 600.)
+	| None -> 600.
 
 module WorkerDomain = struct
 	open RequestQueue
@@ -310,6 +331,12 @@ module WorkerDomain = struct
 			(* Set after any request; consumed once the worker is fully idle (no requests, no other tasks)
 			   to schedule exactly one idle GC drain per activity burst — see gc_idle_slice_words. *)
 			let needs_gc = ref false in
+			(* Compaction bookkeeping: last_activity feeds the sustained-idle gate, last_compact the interval
+			   rate-limit, and compact_evaluated ensures we decide at most once per idle period (the heap does
+			   not change while idle, so re-evaluating on every heartbeat would just re-run Gc.stat). *)
+			let last_activity = ref (Extc.time ()) in
+			let last_compact = ref 0. in
+			let compact_evaluated = ref false in
 			let rec loop () =
 				Semaphore.Counting.acquire rq.semaphore;
 				(* Check for shutdown before doing any work *)
@@ -324,15 +351,25 @@ module WorkerDomain = struct
 							cs#get_task#run;
 							RequestQueue.wake_up rq;
 						end else begin
-							(* Fully idle: maintenance tasks drained. Kick off one interruptible major-GC
-							   drain (itself re-enqueues as tasks, so requests still preempt it). *)
+							(* Fully idle: maintenance tasks drained. Prefer the interruptible major-GC drain
+							   (re-enqueues as tasks, so requests still preempt it); only when no drain is
+							   pending do we consider the non-interruptible deep-idle compaction. *)
 							match gc_idle_slice_words with
 							| Some n when !needs_gc ->
 								needs_gc := false;
 								Tasks.schedule_gc_drain cs n;
 								RequestQueue.wake_up rq
 							| _ ->
-								()
+								(match gc_compact_idle_secs with
+								| Some idle_secs when not !compact_evaluated ->
+									let now = Extc.time () in
+									if now -. !last_activity >= idle_secs && now -. !last_compact >= gc_compact_min_interval then begin
+										compact_evaluated := true;
+										if Tasks.run_idle_compaction ~min_words:gc_compact_min_words then
+											last_compact := Extc.time ()
+									end
+								| _ ->
+									())
 						end;
 						loop()
 					| request :: l ->
@@ -355,8 +392,11 @@ module WorkerDomain = struct
 						ServerCache.cleanup sctx;
 						if sctx.was_compilation then
 							cs#add_task (new Tasks.server_exploration_task cs);
-						(* This request allocated; mark that an idle collection is due once we go quiet. *)
+						(* This request allocated; mark that an idle collection is due once we go quiet, and
+						   restart the sustained-idle clock / re-arm compaction evaluation. *)
 						needs_gc := true;
+						last_activity := Extc.time ();
+						compact_evaluated := false;
 						RequestQueue.wake_up rq;
 						loop()
 				end
@@ -382,6 +422,19 @@ let wait_loop verbose accept =
 	let sctx = setup_server_context verbose true in
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx rq in
+	(* Compaction needs a time-based decision, but the worker sleeps on the semaphore when idle and only a
+	   request would wake it. When compaction is enabled, a heartbeat wakes the worker periodically so it can
+	   observe elapsed idle time. Thread.delay releases the runtime lock, so this systhread is essentially free. *)
+	(match gc_compact_idle_secs with
+	| Some _ ->
+		ignore (Thread.create (fun () ->
+			while not (Atomic.get rq.RequestQueue.shutdown_flag) do
+				Thread.delay 5.0;
+				RequestQueue.wake_up rq
+			done
+		) ())
+	| None ->
+		());
 	(* Main loop: accept connections and enqueue requests for the worker.
 	   The loop exits if the accept function raises an exception (e.g. socket closed). *)
 	begin try

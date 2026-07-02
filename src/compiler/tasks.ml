@@ -101,3 +101,29 @@ let schedule_gc_drain (cs : CompilationCache.t) (slice_words : int) =
 	ServerMessage.gc_task (Printf.sprintf "idle collection start: heap %.1fMB (peak %.1fMB), slice %d words"
 		(gc_words_to_mb st.gcd_heap0) (gc_words_to_mb st.gcd_top0) slice_words);
 	cs#add_task (new gc_slice_task cs st)
+
+(* Deep-idle heap compaction. Unlike the slice drain this is a single stop-the-world pass that cannot be
+   sliced or aborted — so the caller must only invoke it after a sustained-idle gate (server.ml). Here we
+   only decide whether it is WORTH the pause: compact solely when the reclaimable heap (free + fragments,
+   from a full-major Gc.stat — quick_stat cannot see these) clears [min_words]. Returns true iff it
+   compacted, so the caller can start its hysteresis interval only on a real compaction. *)
+let run_idle_compaction ~(min_words : int) : bool =
+	let s = Gc.stat () in (* forces a full major: needed for an accurate live set + free/fragments *)
+	let reclaimable = s.Gc.free_words + s.Gc.fragments in
+	if reclaimable < min_words then begin
+		ServerMessage.gc_task (Printf.sprintf "compaction skipped: %.0fMB reclaimable < %.0fMB threshold (live %.0fMB, heap %.0fMB)"
+			(gc_words_to_mb reclaimable) (gc_words_to_mb min_words) (gc_words_to_mb s.Gc.live_words) (gc_words_to_mb s.Gc.heap_words));
+		false
+	end else begin
+		let before = s.Gc.heap_words and peak = s.Gc.top_heap_words in
+		ServerMessage.gc_task (Printf.sprintf "compaction start: %.0fMB reclaimable, live %.0fMB, heap %.0fMB (peak %.0fMB)"
+			(gc_words_to_mb reclaimable) (gc_words_to_mb s.Gc.live_words) (gc_words_to_mb before) (gc_words_to_mb peak));
+		let t0 = Extc.time () in
+		Gc.compact ();
+		let dt = Extc.time () -. t0 in
+		let s2 = Gc.quick_stat () in
+		ServerMessage.gc_task (Printf.sprintf "compaction done: %.0fms, heap %.0fMB -> %.0fMB (returned %.0fMB), peak %.0fMB"
+			(dt *. 1000.) (gc_words_to_mb before) (gc_words_to_mb s2.Gc.heap_words)
+			(gc_words_to_mb (before - s2.Gc.heap_words)) (gc_words_to_mb s2.Gc.top_heap_words));
+		true
+	end
