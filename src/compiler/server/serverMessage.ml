@@ -28,6 +28,7 @@ type server_message_options = {
 	mutable print_socket_message : bool;
 	mutable print_uncaught_error : bool;
 	mutable print_new_context : bool;
+	mutable print_gc_task : bool;
 }
 
 let config = {
@@ -55,6 +56,7 @@ let config = {
 	print_socket_message = false;
 	print_uncaught_error = false;
 	print_new_context = false;
+	print_gc_task = false;
 }
 
 let sign_string com =
@@ -141,6 +143,11 @@ let socket_message s =
 let uncaught_error s =
 	if config.print_uncaught_error then print_endline ("Uncaught Error : " ^ s)
 
+(* Idle-time incremental major-GC driver (see Tasks.gc_slice_task). Runs on the worker domain between
+   requests; a slice is a cooperative yield point, so an incoming request preempts it at slice granularity. *)
+let gc_task s =
+	if config.print_gc_task then print_endline ("[gc] " ^ s)
+
 let enable_all () =
 	config.print_compiler_stage <- true;
 	config.print_added_directory <- true;
@@ -164,7 +171,8 @@ let enable_all () =
 	config.print_message <- true;
 	config.print_socket_message <- true;
 	config.print_uncaught_error <- true;
-	config.print_new_context <- true
+	config.print_new_context <- true;
+	config.print_gc_task <- true
 
 let set_by_name name value = match name with
 	| "compilerStage" -> config.print_compiler_stage <- value
@@ -190,4 +198,5 @@ let set_by_name name value = match name with
 	| "socketMessage" -> config.print_socket_message <- value;
 	| "uncaughtError" -> config.print_uncaught_error <- value;
 	| "newContext" -> config.print_new_context <- value;
+	| "gcTask" -> config.print_gc_task <- value;
 	| _ -> raise Not_found

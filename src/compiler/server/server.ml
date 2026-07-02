@@ -226,6 +226,15 @@ type request_outcome =
 	| Errored
 	| Oom
 
+(* Idle-time incremental major GC (opt-in). HAXE_GC_SLICE_WORDS = words per Gc.major_slice; when set to a
+   positive value it enables an idle collection after each request, driven slice-by-slice on the worker
+   domain so an incoming request always wins at slice granularity (see Tasks.gc_slice_task). Unset/<=0
+   keeps the previous behaviour (rely solely on the automatic allocation-driven collector). *)
+let gc_idle_slice_words =
+	match (try Some (Sys.getenv "HAXE_GC_SLICE_WORDS") with Not_found -> None) with
+	| Some s -> (try let n = int_of_string s in if n > 0 then Some n else None with _ -> None)
+	| None -> None
+
 module WorkerDomain = struct
 	open RequestQueue
 	open ServerCompilationContext
@@ -298,6 +307,9 @@ module WorkerDomain = struct
 			if mb > 0 then
 				Gc.set { (Gc.get ()) with Gc.minor_heap_size = mb * 1024 * 1024 / (Sys.word_size / 8) };
 			let cs = sctx.cs in
+			(* Set after any request; consumed once the worker is fully idle (no requests, no other tasks)
+			   to schedule exactly one idle GC drain per activity burst — see gc_idle_slice_words. *)
+			let needs_gc = ref false in
 			let rec loop () =
 				Semaphore.Counting.acquire rq.semaphore;
 				(* Check for shutdown before doing any work *)
@@ -311,6 +323,16 @@ module WorkerDomain = struct
 						if cs#has_task then begin
 							cs#get_task#run;
 							RequestQueue.wake_up rq;
+						end else begin
+							(* Fully idle: maintenance tasks drained. Kick off one interruptible major-GC
+							   drain (itself re-enqueues as tasks, so requests still preempt it). *)
+							match gc_idle_slice_words with
+							| Some n when !needs_gc ->
+								needs_gc := false;
+								Tasks.schedule_gc_drain cs n;
+								RequestQueue.wake_up rq
+							| _ ->
+								()
 						end;
 						loop()
 					| request :: l ->
@@ -333,6 +355,8 @@ module WorkerDomain = struct
 						ServerCache.cleanup sctx;
 						if sctx.was_compilation then
 							cs#add_task (new Tasks.server_exploration_task cs);
+						(* This request allocated; mark that an idle collection is due once we go quiet. *)
+						needs_gc := true;
 						RequestQueue.wake_up rq;
 						loop()
 				end
