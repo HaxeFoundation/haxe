@@ -3,63 +3,42 @@ open Globals
 open Message
 open Common
 
-let resolve_source file l1 p1 l2 p2 =
-	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
-	else begin
-		let ch = open_in_bin file in
-		let curline = ref 1 in
-		let lines = ref [] in
-		let rec loop p line =
-			let inc i line =
-				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
-				incr curline;
-				(i, "")
-			in
-
-			let input_char_or_done ch line =
-				try input_char ch with End_of_file -> begin
-					ignore(inc 0 line);
-					raise End_of_file
-				end
-			in
-
-			let read_char line = match input_char_or_done ch line with
-				| '\n' -> inc 1 line
-				| '\r' ->
-					ignore(input_char_or_done ch line);
-					inc 2 line
-				| c -> begin
-					let line = ref (line ^ (String.make 1 c)) in
-					let rec skip n =
-						if n > 0 then begin
-							let c = input_char_or_done ch !line in
-							line := !line ^ (String.make 1 c);
-							skip (n - 1)
-						end
-					in
-
-					let code = int_of_char c in
-					if code < 0xC0 then ()
-					else if code < 0xE0 then skip 1
-					else if code < 0xF0 then skip 2
-					else skip 3;
-
-					(1, !line)
-				end
-			in
-
-			let (delta, line) = read_char line in
-			loop (p + delta) line
-		in
-
-		try loop 0 ""; with End_of_file -> close_in ch;
-		List.rev !lines
-	end
+let read_source_lines file =
+	let ch = open_in_bin file in
+	let lines = DynArray.create () in
+	let buf = Buffer.create 80 in
+	let flush_line () =
+		DynArray.add lines (Buffer.contents buf);
+		Buffer.clear buf
+	in
+	let input_char_or_done () =
+		try input_char ch with End_of_file -> begin
+			flush_line ();
+			raise End_of_file
+		end
+	in
+	begin try
+		while true do
+			match input_char_or_done () with
+			| '\n' ->
+				flush_line ()
+			| '\r' ->
+				ignore(input_char_or_done ());
+				flush_line ()
+			| c ->
+				Buffer.add_char buf c
+		done
+	with End_of_file ->
+		()
+	end;
+	close_in ch;
+	DynArray.to_array lines
 
 let error_printer file line = Printf.sprintf "%s:%d:" file line
 
 type error_context = {
 	absolute_positions : bool;
+	source_lines : (string, string array) Hashtbl.t;
 	mutable last_positions : pos IntMap.t;
 	mutable max_lines : int IntMap.t;
 	mutable gutter : int IntMap.t;
@@ -68,11 +47,28 @@ type error_context = {
 
 let create_error_context absolute_positions = {
 	absolute_positions = absolute_positions;
+	source_lines = Hashtbl.create 0;
 	last_positions = IntMap.empty;
 	max_lines = IntMap.empty;
 	gutter = IntMap.empty;
 	previous = None;
 }
+
+let resolve_source ectx file l1 p1 l2 p2 =
+	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
+	else begin
+		let lines = try
+			Hashtbl.find ectx.source_lines file
+		with Not_found ->
+			let lines = read_source_lines file in
+			Hashtbl.add ectx.source_lines file lines;
+			lines
+		in
+		let rec loop acc i =
+			if i < l1 then acc else loop ((i, lines.(i - 1)) :: acc) (i - 1)
+		in
+		loop [] (min l2 (Array.length lines))
+	end
 
 let compiler_pretty_message_string defines ectx cm =
 	match cm.cm_message with
@@ -90,7 +86,7 @@ let compiler_pretty_message_string defines ectx cm =
 				(-1, -1, -1, -1, epos, [])
 			end else try begin
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-				let lines = resolve_source cm.cm_pos.pfile l1 p1 l2 p2 in
+				let lines = resolve_source ectx cm.cm_pos.pfile l1 p1 l2 p2 in
 				let epos =
 					if lines = [] then cm.cm_pos.pfile
 					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
