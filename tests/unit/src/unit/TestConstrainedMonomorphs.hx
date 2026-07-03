@@ -121,4 +121,15 @@ class TestConstrainedMonomorphs extends Test {
 	}
 	#end
 
+	static function constrainedToSibling<A:B, B>(a:A, b:B):Void {}
+
+	function testUnifyMonoWithItsConstraintTarget() {
+		// unifying A with B replays A's mono-mono constraint onto B itself;
+		// the resulting self-edge sent classify_down_constraints into
+		// unbounded recursion (compiler hang)
+		var x = null;
+		constrainedToSibling(x, x);
+		noAssert();
+	}
+
 }
