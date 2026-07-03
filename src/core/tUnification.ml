@@ -178,24 +178,21 @@ module Monomorph = struct
 
 	(* Note: This function is called by printing and others and should thus not modify state. *)
 
-	let rec classify_down_constraints m =
+	let classify_down_constraints m =
 		let types = DynArray.create () in
 		let fields = ref PMap.empty in
 		let is_open = ref false in
+		let visited = ref [m] in
 		let rec check constr = match constr with
 			| MMono(m2,name) ->
-				begin match m2.tm_type with
-				| None ->
-					let kind = classify_down_constraints m2 in
-					begin match kind with
-					| CUnknown ->
-						()
-					| _ ->
+				if not (List.memq m2 !visited) then begin
+					visited := m2 :: !visited;
+					match m2.tm_type with
+					| None ->
 						(* Recursively inherit constraints. *)
 						List.iter check m2.tm_down_constraints
-					end
-				| Some t ->
-					List.iter (fun constr -> check constr) (constraint_of_type name t)
+					| Some t ->
+						List.iter (fun constr -> check constr) (constraint_of_type name t)
 				end;
 			| MField cf ->
 				fields := PMap.add cf.cf_name cf !fields;
@@ -246,6 +243,7 @@ module Monomorph = struct
 			List.iter (fun constr -> check_down_constraints constr t) l
 
 	let collect_up_constraints m =
+		let visited = ref [m] in
 		let rec collect m acc =
 			List.fold_left (fun acc (t,name) ->
 				match t with
@@ -255,7 +253,12 @@ module Monomorph = struct
 						(match follow t with
 						| TMono _ -> acc
 						| _ -> (t,name) :: acc)
-					| None -> collect m2 acc
+					| None ->
+						if List.memq m2 !visited then acc
+						else begin
+							visited := m2 :: !visited;
+							collect m2 acc
+						end
 					)
 				| _ -> (t,name) :: acc
 			) acc m.tm_up_constraints
@@ -294,8 +297,14 @@ module Monomorph = struct
 		| TMono m2 ->
 			if m != m2 then begin match m2.tm_type with
 			| None ->
-				List.iter (add_down_constraint m2) m.tm_down_constraints;
-				List.iter (add_up_constraint m2) m.tm_up_constraints;
+				List.iter (fun constr -> match constr with
+					| MMono(m3,_) when m3 == m2 -> ()
+					| _ -> add_down_constraint m2 constr
+				) m.tm_down_constraints;
+				List.iter (fun ((t,_) as constr) -> match t with
+					| TMono m3 when m3 == m2 -> ()
+					| _ -> add_up_constraint m2 constr
+				) m.tm_up_constraints;
 				List.iter (fun modi ->
 					add_modifier m2 modi
 				) m.tm_modifiers;
