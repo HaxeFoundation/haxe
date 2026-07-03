@@ -352,10 +352,16 @@ let header_invalidation_prephase tctx =
 				Some diff)
 		with e ->
 			incr n_failed;
-			(* A module that fails to re-type here is handled soundly (conservative fall-through: its
-			   dependents are all re-typed), but the failure must never be silently swallowed -- it
-			   disables sparing for it and may be masking a genuine error. Surface the root message as a
-			   warning; verbose additionally dumps sub-errors and the backtrace. *)
+			extra.m_cache_state <- MSBad (Tainted ServerInvalidate);
+			(* For a compilation or diagnostics request (DMNone), a re-type failure must be reported
+			   exactly as it would be without the prephase: re-raise it (the call site wraps the prephase
+			   in run_or_diagnose, so diagnostics turns it into error diagnostics and a compile fails with
+			   the error). Demoting it to a warning is NOT sound here -- cl_build memoizes a failed build
+			   as Built and type_module leaves the partial module registered in module_lut, so the main
+			   pass silently reuses half-built classes and an erroring program can compile successfully.
+			   Only lenient display requests (hover/completion) keep the conservative fall-through: the
+			   seed stays tainted, its dependents are re-typed, and the failure surfaces as a warning. *)
+			if com.display.dms_kind = DMNone then raise e;
 			let err_pos, detail = match e with
 				| Error.Fatal_error err | Error.Error err ->
 					let buf = Buffer.create 64 in
@@ -370,7 +376,6 @@ let header_invalidation_prephase tctx =
 			in
 			com.warning WInfo [] (Printf.sprintf "[header-invalidation] %s could not be re-typed early (its dependents are conservatively re-typed): %s" (s_type_path path) detail) err_pos;
 			if verbose then print_endline (Printf.sprintf "[header-invalidation] re-type failed %s:\n%s\n%s" (s_type_path path) detail (Printexc.get_backtrace ()));
-			extra.m_cache_state <- MSBad (Tainted ServerInvalidate);
 			None)
 	in
 	(* Forward worklist. Re-type the seeds, then transitively any dependent that observes an upstream
@@ -493,7 +498,9 @@ let do_type com mctx actx display_file_dot_path =
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
 	if Define.defined com.defines Define.HxbHeaderInvalidation && not com.is_macro_context then
-		header_invalidation_prephase tctx;
+		(* run_or_diagnose so a re-raised re-type error becomes error diagnostics on a diagnostics
+		   request instead of failing it (see retype_module's failure handler). *)
+		run_or_diagnose com (fun () -> header_invalidation_prephase tctx);
 	(try begin
 		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
 		run_or_diagnose com (fun () ->
