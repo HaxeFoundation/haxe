@@ -297,14 +297,8 @@ module Monomorph = struct
 		| TMono m2 ->
 			if m != m2 then begin match m2.tm_type with
 			| None ->
-				List.iter (fun constr -> match constr with
-					| MMono(m3,_) when m3 == m2 -> ()
-					| _ -> add_down_constraint m2 constr
-				) m.tm_down_constraints;
-				List.iter (fun ((t,_) as constr) -> match t with
-					| TMono m3 when m3 == m2 -> ()
-					| _ -> add_up_constraint m2 constr
-				) m.tm_up_constraints;
+				List.iter (add_down_constraint m2) m.tm_down_constraints;
+				List.iter (add_up_constraint m2) m.tm_up_constraints;
 				List.iter (fun modi ->
 					add_modifier m2 modi
 				) m.tm_modifiers;
