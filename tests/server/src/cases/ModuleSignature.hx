@@ -214,6 +214,37 @@ class BuildMacro {
 		Assert.isFalse(hasMessage("reusing ConsumerA"));
 	}
 
+	// A seed that fails to re-type in the prephase must fail the compilation with the real error,
+	// exactly as without the prephase. Demoting it to a warning is unsound: cl_build memoizes the
+	// failed build as Built and the partial module stays in module_lut, so the main pass reused
+	// half-built classes and an erroring program compiled successfully (or failed with a bogus
+	// follow-on error like "Class<Dep> has no field f"). The error sits in a field Main does not
+	// even use, which was the fully-silent variant.
+	function testHeaderInvalidationSeedError() {
+		vfs.putContent("Dep.hx", twoFn("Int", "Int"));
+		vfs.putContent("Main.hx", "class Main { static function main() { trace(Dep.b(1)); } }");
+		var args = ["-main", "Main", "-js", "no.js", "--no-output", "-D", "hxb.header_invalidation"];
+		runHaxe(args);
+		assertSuccess();
+
+		vfs.putContent("Dep.hx", twoFn("Unknown", "Int"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertErrorMessage("Type not found : Unknown");
+
+		// Diagnostics must carry it as an error diagnostic (UnresolvedIdentifier), not a WInfo warning.
+		final res = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Dep.hx")});
+		Assert.equals(1, res.length);
+		Assert.equals(1, res[0].diagnostics.length);
+		Assert.equals(haxe.display.Diagnostic.DiagnosticSeverity.Error, res[0].diagnostics[0].severity);
+
+		// The fixed seed must recover cleanly on the next request.
+		vfs.putContent("Dep.hx", twoFn("Int", "Int"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dep.hx")});
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	function twoFn(retA:String, retB:String) {
 		return 'class Dep {
 	public static function a(n:Int):$retA return n;
