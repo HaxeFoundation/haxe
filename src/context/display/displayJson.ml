@@ -91,6 +91,13 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 				pmax = pos;
 			};
 
+			(* Buffer contents identical to the on-disk file carry no information (no unsaved edits):
+			   drop them so the server's mtime-validated caches stay usable — provided contents bypass
+			   them wholesale, which costs a re-parse per request. *)
+			let contents = match contents with
+				| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
+				| c -> c
+			in
 			com.file_contents <- [file_unique, contents];
 		end else begin
 			let file_contents = jsonrpc#get_opt_param (fun () ->
@@ -106,6 +113,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
 						Some s
 					) None in
+					let contents = match contents with
+						| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
+						| c -> c
+					in
 					(file_unique, contents)
 				| _ -> invalid_arg "fileContents"
 			) file_contents in
