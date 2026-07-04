@@ -88,6 +88,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 				pmax = pos;
 			};
 
+			let contents = match contents with
+				| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
+				| c -> c
+			in
 			com.file_contents <- [file_unique, contents];
 		end else begin
 			let file_contents = jsonrpc#get_opt_param (fun () ->
@@ -103,6 +107,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
 						Some s
 					) None in
+					let contents = match contents with
+						| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
+						| c -> c
+					in
 					(file_unique, contents)
 				| _ -> invalid_arg "fileContents"
 			) file_contents in

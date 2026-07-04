@@ -21,7 +21,12 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
 		TypeloadParse.parse_file_from_string com file p stdin
 	| _ when has_request_contents ->
-		TypeloadParse.parse_file com rfile p
+		(try
+			cc#find_tmp_parse fkey
+		with Not_found ->
+			let r = TypeloadParse.parse_file com rfile p in
+			cc#cache_tmp_parse fkey r;
+			r)
 	| _ ->
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
