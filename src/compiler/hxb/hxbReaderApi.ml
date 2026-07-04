@@ -15,6 +15,12 @@ class virtual hxb_reader_api = object(self)
 	method forward_classes : (path,tclass) Hashtbl.t = Hashtbl.create 0
 	(* Whether lazy-inheritance forwarding is enabled for this context (gated, default off). *)
 	method forwarding_enabled : bool = false
+	(* Forwarding support: resolve a class ref to the REAL tclass when its module is already available
+	   without forcing a decode (request lut, resident tier, cached typed module). A stub minted for a
+	   module that later gets SERVED as an already-typed module is never merged by read_mtf (no decode
+	   happens), so its TInst identity splits from the real class and unification against it fails --
+	   in display mode that silently degrades e.g. call results to TMono. *)
+	method peek_class (_ : path) (_ : string) : tclass option = None
 end
 
 class hxb_reader_api_null = object(self)

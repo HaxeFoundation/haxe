@@ -587,9 +587,10 @@ type flag_tclass =
 	| CFunctionalInterface
 	| CUsed (* Marker for DCE *)
 	| CExcluded (* Marker for exclude macro, turned into CExtern during filters *)
+	| CForwardStub (* hxb lazy_inheritance placeholder: contents (cl_super/cl_implements/cl_fields) are empty until cl_build is forced *)
 
 let flag_tclass_names = [
-	"CExtern";"CFinal";"CInterface";"CAbstract";"CFunctionalInterface";"CUsed";"CExcluded";
+	"CExtern";"CFinal";"CInterface";"CAbstract";"CFunctionalInterface";"CUsed";"CExcluded";"CForwardStub";
 ]
 
 type flag_tclass_field =

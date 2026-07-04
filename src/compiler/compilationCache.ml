@@ -44,6 +44,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	   reuses them instead of re-decoding from hxb. Reuse is validated by module id (and the normal
 	   source-freshness check_module); a changed module is purged on add_binary_cache and re-decoded. *)
 	val resident_modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
+	(* hxb.lazy_inheritance + hxb.resident_modules: forwarding-stub registry shared ACROSS requests.
+	   Resident modules freeze stub objects inside their types; a per-request registry would mint a new
+	   stub generation each request that can never merge with the frozen ones (identity split -> display
+	   unification collapses to mono). Same lifetime as resident_modules. *)
+	val forward_classes : (path,tclass) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -137,6 +142,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method remove_resident_module path =
 		Hashtbl.remove resident_modules path
 
+	method hxb_forward_classes = forward_classes
+
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache;
 		Hashtbl.clear tmp_parse_cache
@@ -150,6 +157,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method clear_cache =
 		Hashtbl.clear modules;
 		Hashtbl.clear resident_modules;
+		Hashtbl.clear forward_classes;
 		self#clear_temp_cache
 
 	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
@@ -157,6 +165,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
 		Hashtbl.clear resident_modules;
+		Hashtbl.clear forward_classes;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->

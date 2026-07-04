@@ -836,7 +836,11 @@ let rec unify (uctx : unification_context) a b =
 			if c == c2 then begin
 				unify_type_params uctx a b tl tl2;
 				true
-			end else (match c.cl_super with
+			end else begin
+			(* hxb lazy_inheritance: an unbuilt forwarding stub has empty cl_super/cl_implements; force it
+			   before walking or the hierarchy chain silently dead-ends (display collapses results to mono). *)
+			if has_class_flag c CForwardStub then ignore(c.cl_build());
+			(match c.cl_super with
 				| None -> false
 				| Some (cs,tls) ->
 					loop cs (List.map (apply_params c.cl_params tl) tls)
@@ -852,6 +856,7 @@ let rec unify (uctx : unification_context) a b =
 					| _ -> false
 				) (get_constraints ttp)
 			| _ -> false)
+			end
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->

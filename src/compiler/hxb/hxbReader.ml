@@ -1875,8 +1875,17 @@ class hxb_reader
 		begin try
 			Hashtbl.find tbl tpath
 		with Not_found ->
-			let c = mk_class current_module tpath null_pos null_pos in
 			let mpath = (pack,mname) in
+			match api#peek_class mpath tname with
+			| Some c ->
+				(* The module is available without a decode; use its real class. Minting a stub here would
+				   be unsound: the stub only merges with the real class when the module is DECODED
+				   (read_mtf), which never happens for a module served already-typed. *)
+				Hashtbl.replace tbl tpath c;
+				c
+			| None ->
+			let c = mk_class current_module tpath null_pos null_pos in
+			add_class_flag c CForwardStub;
 			c.cl_build <- (fun () ->
 				(* Reading the real module reuses this stub in read_mtf and fills it in place.
 				   read_mtf resets cl_build to (fun () -> Built) before any nested read, so this
@@ -1920,6 +1929,7 @@ class hxb_reader
 						c.cl_build <- (fun () -> Built)
 					| _ -> ()
 				with Not_found -> () end;
+				remove_class_flag c CForwardStub;
 				Built
 			);
 			Hashtbl.add tbl tpath c;

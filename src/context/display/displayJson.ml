@@ -182,6 +182,18 @@ class hxb_reader_api_com
 
 	method forward_classes = com.hxb_forward_classes
 	method forwarding_enabled = Define.defined com.defines Define.HxbLazyInheritance
+
+	(* Forwarding peek: a module already in the lut or served typed from the cache is never re-decoded,
+	   so a stub minted for one of its classes would never merge (identity split); resolve it for real. *)
+	method peek_class (path : path) (tname : string) =
+		let find_class m =
+			match (try Some (List.find (fun mt -> snd (t_path mt) = tname) m.m_types) with Not_found -> None) with
+			| Some (TClassDecl c) -> Some c
+			| _ -> None
+		in
+		try find_class (com.module_lut#find path) with Not_found ->
+		try find_class (cc#find_module path) with Not_found ->
+			None
 end
 
 let find_module ~(typing_mode : HxbData.typing_mode) com cc path =
