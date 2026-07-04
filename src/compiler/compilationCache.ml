@@ -36,6 +36,10 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	(* Per-request memo for parses of request-provided buffer contents (com.file_contents): those
+	   bypass the persistent parse cache (disk-mtime-keyed), but one request checks them from several
+	   sites (check_module, check_display_file, module typing) — parse once. *)
+	val tmp_parse_cache : (Path.UniqueKey.t,(string list * type_decl list) Parser.parse_result) Hashtbl.t = Hashtbl.create 0
 	(* hxb.resident_modules: restored modules kept resident across requests so the typer's top-level load
 	   reuses them instead of re-decoding from hxb. Reuse is validated by module id (and the normal
 	   source-freshness check_module); a changed module is purged on add_binary_cache and re-decoded. *)
@@ -134,7 +138,14 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.remove resident_modules path
 
 	method clear_temp_cache =
-		Hashtbl.clear tmp_binary_cache
+		Hashtbl.clear tmp_binary_cache;
+		Hashtbl.clear tmp_parse_cache
+
+	method find_tmp_parse key =
+		Hashtbl.find tmp_parse_cache key
+
+	method cache_tmp_parse key r =
+		Hashtbl.replace tmp_parse_cache key r
 
 	method clear_cache =
 		Hashtbl.clear modules;
