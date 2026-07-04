@@ -604,6 +604,32 @@ class hxb_reader_api_server
 	method basic_types =
 		com.basic
 
+	(* Forwarding peek (hxb.lazy_inheritance): resolve a class ref to the REAL tclass when its module
+	   is available without a decode. Tiers mirror what a later load of that module would serve: the
+	   request lut, the resident tier, then the cache's typed module (the compile's in-memory module,
+	   which find_module_in_cache serves to the typer WITHOUT any decode -- the case where a minted
+	   stub would never be merged and TInst identity would split, collapsing display unification to
+	   TMono). Served modules are registered in the lut so subsequent loads converge on them. *)
+	method peek_class (path : path) (tname : string) =
+		let find_class m =
+			match (try Some (List.find (fun mt -> snd (t_path mt) = tname) m.m_types) with Not_found -> None) with
+			| Some (TClassDecl c) -> Some c
+			| _ -> None
+		in
+		try find_class (com.module_lut#find path) with Not_found ->
+			let resident_enabled = Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing in
+			match (if resident_enabled then try_serve_resident com cc path else None) with
+			| Some m ->
+				com.module_lut#add path m;
+				find_class m
+			| None ->
+				match (try Some (cc#find_module path) with Not_found -> None) with
+				| Some m when (match m.m_extra.m_cache_state with MSBad _ -> false | _ -> true) ->
+					com.module_lut#add path m;
+					find_class m
+				| _ ->
+					None
+
 	method get_var_id (i : int) =
 		i
 
@@ -619,7 +645,13 @@ class hxb_reader_api_server
 		delay PForce (fun () -> ignore(lazy_type r));
 		TLazy r
 
-	method forward_classes = com.hxb_forward_classes
+	(* With the resident tier, stubs frozen inside resident modules outlive the request, so the registry
+	   must too (cc lifetime); otherwise a fresh per-request generation can never merge with them. *)
+	method forward_classes =
+		if Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing then
+			cc#hxb_forward_classes
+		else
+			com.hxb_forward_classes
 	(* Inheritance forwarding mints identity-only placeholder tclasses; that is safe for the display
 	   context (inspect-only) but breaks TInst identity in the macro/eval path, where build macros unify
 	   freshly-built fields against std macro types (e.g. Array<haxe.macro.Field>). Keep it off for the
