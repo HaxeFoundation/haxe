@@ -14,9 +14,19 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	let ffile = Path.get_full_path rfile.file
 	and fkey = com.part_scope.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get ffile) in
+	(* Request-provided buffer contents (unsaved editor state) take priority over the parse cache:
+	   the cache is validated by DISK mtime, which does not change while the user types, so a cache
+	   hit here would answer the request against stale disk content (wrong-symbol hovers). Route
+	   through TypeloadParse.parse_file (which reads com.file_contents) and skip caching — a
+	   contents-parse keyed by disk mtime would poison later requests. *)
+	let has_request_contents =
+		com.file_contents <> [] && (try List.assoc fkey com.file_contents <> None with Not_found -> false)
+	in
 	match is_display_file, sctx.ServerCompilationContext.current_stdin with
 	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
 		TypeloadParse.parse_file_from_string com file p stdin
+	| _ when has_request_contents ->
+		TypeloadParse.parse_file com rfile p
 	| _ ->
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
@@ -290,6 +300,21 @@ let check_module sctx com m_path m_extra p =
 				end
 			end
 		in
+		(* Request-provided buffer contents (unsaved editor state) are invisible to the mtime check
+		   above: the disk file does not change while the user types. Compare the parse of the
+		   provided contents (the parse hook prioritizes com.file_contents) against the cached
+		   declarations and invalidate on mismatch — otherwise the stale typed module is served and
+		   the display position resolves against old content (wrong-symbol or empty hovers). This is
+		   not a file-system check, so it is NOT gated by NoFileSystemCheck. *)
+		let check_request_contents () =
+			let file = Path.UniqueKey.lazy_path m_extra.m_file in
+			let fkey = Path.UniqueKey.lazy_key m_extra.m_file in
+			let has_contents = (try List.assoc fkey com.file_contents <> None with Not_found -> false) in
+			if has_contents && content_changed m_path file then begin
+				ServerMessage.not_cached com "" m_path;
+				raise (Dirty (FileChanged file))
+			end
+		in
 		let find_module_extra sign mpath =
 			(com.cs#get_context sign)#find_module_extra mpath
 		in
@@ -340,6 +365,7 @@ let check_module sctx com m_path m_extra p =
 			try
 				check_module_path();
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
+				if com.file_contents <> [] then check_request_contents();
 				if (get_typing_mode com m_extra) = FullTyping then check_dependencies();
 				None
 			with
