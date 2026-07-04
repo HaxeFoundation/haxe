@@ -166,8 +166,18 @@ let check_display_file ctx cs =
 	| Some cc ->
 		begin try
 			let p = DisplayPosition.display_position#get in
-			let cfile = cc#find_file (ctx.com.part_scope.file_keys#get p.pfile) in
+			let fkey = ctx.com.part_scope.file_keys#get p.pfile in
+			let cfile = cc#find_file fkey in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
+			(* The cached parse may predate request-provided buffer contents (unsaved editor state):
+			   the cache is validated by disk mtime, which does not change while the user types, so
+			   typing the cached decls here would resolve the display position against stale content
+			   (wrong-symbol hovers). Re-parse (the server parse hook prioritizes com.file_contents)
+			   and fall back to the fresh-typing path when the declarations differ. *)
+			if (try List.assoc fkey ctx.com.file_contents <> None with Not_found -> false) then begin
+				let _,_,_,decls,_ = TypeloadParse.parse_module' ctx.com path null_pos in
+				if decls <> cfile.c_decls then raise Not_found
+			end;
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
