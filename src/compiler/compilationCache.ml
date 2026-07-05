@@ -49,6 +49,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	   stub generation each request that can never merge with the frozen ones (identity split -> display
 	   unification collapses to mono). Same lifetime as resident_modules. *)
 	val forward_classes : (path,tclass) Hashtbl.t = Hashtbl.create 0
+	(* Pending deferred field-data reads (see Common.context.hxb_pending_field_data). Lives here with
+	   the resident tier for the same reason as forward_classes: a display exception can abort the
+	   PConnectField flush, leaving a resident module's fields as Dynamic placeholders that only a
+	   later request's stub force can complete. *)
+	val pending_field_data : (path,(unit -> unit)) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -143,6 +148,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.remove resident_modules path
 
 	method hxb_forward_classes = forward_classes
+	method hxb_pending_field_data = pending_field_data
 
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache;
@@ -158,6 +164,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.clear modules;
 		Hashtbl.clear resident_modules;
 		Hashtbl.clear forward_classes;
+		Hashtbl.clear pending_field_data;
 		self#clear_temp_cache
 
 	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
@@ -166,6 +173,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.clear binary_cache;
 		Hashtbl.clear resident_modules;
 		Hashtbl.clear forward_classes;
+		Hashtbl.clear pending_field_data;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->

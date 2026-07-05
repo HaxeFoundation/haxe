@@ -1891,6 +1891,10 @@ class hxb_reader
 				   read_mtf resets cl_build to (fun () -> Built) before any nested read, so this
 				   never recurses. *)
 				let m = api#resolve_module mpath typing_mode in
+				(* A build forced mid-expression-typing lands after the PConnectField flush point, so the
+				   module's deferred field-data read may still be pending -- run it now or the fields keep
+				   their null_field Dynamic placeholder types (display shows Dynamic for inherited members). *)
+				api#complete_module_fields mpath;
 				(* read_mtf reuses/fills this stub in place when it actually re-reads the module. But if the
 				   module was already cached (module_lut hit), resolve_module short-circuits without reading
 				   chunks, so the real class stays a distinct object in m.m_types and the stub is left empty.

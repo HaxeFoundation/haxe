@@ -765,6 +765,11 @@ class hxb_reader_api_typeload
 	method forward_classes = com.hxb_forward_classes
 	method forwarding_enabled = Define.defined com.defines Define.HxbLazyInheritance
 
+	method complete_module_fields (path : path) =
+		match Hashtbl.find_opt com.hxb_pending_field_data path with
+		| Some force -> force ()
+		| None -> ()
+
 	(* Forwarding peek: an already-loaded module is never re-decoded, so a stub minted for one of its
 	   classes would never merge (identity split); resolve to the real class instead. *)
 	method peek_class (path : path) (tname : string) =
@@ -783,9 +788,15 @@ let rec load_hxb_module com g path p =
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let read = reader#read api bytes in
 			let m = read EOT in
-			delay g PConnectField (fun () ->
-				ignore(read EOM);
-			);
+			let tbl = com.hxb_pending_field_data in
+			let force () =
+				if Hashtbl.mem tbl path then begin
+					Hashtbl.remove tbl path;
+					ignore(read EOM)
+				end
+			in
+			Hashtbl.replace tbl path force;
+			delay g PConnectField force;
 			m
 		with e ->
 			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
