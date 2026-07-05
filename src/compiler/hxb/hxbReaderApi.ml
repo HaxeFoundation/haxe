@@ -21,6 +21,12 @@ class virtual hxb_reader_api = object(self)
 	   happens), so its TInst identity splits from the real class and unification against it fails --
 	   in display mode that silently degrades e.g. call results to TMono. *)
 	method peek_class (_ : path) (_ : string) : tclass option = None
+	(* Forwarding support: run a module's deferred field-data read (CFD/EXD) NOW if one is pending.
+	   A forwarding stub forced mid-expression-typing decodes its module after the usual
+	   PConnectField flush point; until the deferred read runs, every field carries the null_field
+	   Dynamic placeholder type, which display requests then surface (hover/completion say Dynamic
+	   while compile/diagnostics are fine). *)
+	method complete_module_fields (_ : path) : unit = ()
 end
 
 class hxb_reader_api_null = object(self)

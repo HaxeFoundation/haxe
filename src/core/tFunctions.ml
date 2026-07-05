@@ -910,6 +910,9 @@ let field_type f =
 	| l -> monomorphs l f.cf_type
 
 let rec raw_class_field build_type c tl i =
+	(* hxb lazy_inheritance: an unbuilt forwarding stub has empty cl_fields/cl_super/cl_implements;
+	   force it or the lookup silently misses inherited fields (display recovers with mono/Dynamic). *)
+	if has_class_flag c CForwardStub then ignore(c.cl_build());
 	let apply = apply_params c.cl_params tl in
 	try
 		let f = PMap.find i c.cl_fields in

@@ -183,6 +183,17 @@ class hxb_reader_api_com
 	method forward_classes = com.hxb_forward_classes
 	method forwarding_enabled = Define.defined com.defines Define.HxbLazyInheritance
 
+	method complete_module_fields (path : path) =
+		let tbl =
+			if Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing then
+				cc#hxb_pending_field_data
+			else
+				com.hxb_pending_field_data
+		in
+		match Hashtbl.find_opt tbl path with
+		| Some force -> force ()
+		| None -> ()
+
 	(* Forwarding peek: a module already in the lut or served typed from the cache is never re-decoded,
 	   so a stub minted for one of its classes would never merge (identity split); resolve it for real. *)
 	method peek_class (path : path) (tname : string) =

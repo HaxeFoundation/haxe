@@ -369,6 +369,11 @@ and context = {
 	   (via cl_build) only when inspected. Shared across all readers in this context
 	   so the real module read reuses the same object (identity preserved). *)
 	hxb_forward_classes : (path,tclass) Hashtbl.t;
+	(* Pending deferred field-data reads (partial hxb restore): maps a module path to the
+	   continuation that reads its CFD/EXD chunks. Normally flushed at PConnectField; forcing
+	   a forwarding stub mid-expression-typing must run it eagerly or field types are still
+	   null_field Dynamic placeholders when the display exception is raised. *)
+	hxb_pending_field_data : (path,(unit -> unit)) Hashtbl.t;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
@@ -824,6 +829,7 @@ let create sctx request_scope part_scope display_mode =
 		is_macro_context = false;
 		hxb_reader_api = None;
 		hxb_forward_classes = Hashtbl.create 0;
+		hxb_pending_field_data = Hashtbl.create 0;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
 	} in
@@ -975,6 +981,7 @@ let clone com is_macro_context =
 		is_macro_context = is_macro_context;
 		hxb_reader_api = None;
 		hxb_forward_classes = Hashtbl.create 0;
+		hxb_pending_field_data = Hashtbl.create 0;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
 

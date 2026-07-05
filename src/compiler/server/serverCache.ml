@@ -544,7 +544,7 @@ class hxb_reader_api_server
 			   field restored body-lazy has cf_expr = None at expansion time (calls.ml "Recursive inline").
 			   Read to EOM eagerly like FullTyping; deferral stays a display-only optimization. *)
 			| AllowPartialTyping when com.is_macro_context -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+			| AllowPartialTyping -> self#register_pending_field_data path (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			(* hxb.resident_modules canonical registry: register on EVERY first decode, cascade INCLUDED
 			   (the top-level path stored only top-level decodes — the gap that forked st.Item in cont.8).
@@ -577,7 +577,7 @@ class hxb_reader_api_server
 			   field restored body-lazy has cf_expr = None at expansion time (calls.ml "Recursive inline").
 			   Read to EOM eagerly like FullTyping; deferral stays a display-only optimization. *)
 			| AllowPartialTyping when com.is_macro_context -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+			| AllowPartialTyping -> self#register_pending_field_data path (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadModule reason ->
@@ -644,6 +644,31 @@ class hxb_reader_api_server
 		let r = make_unforced_lazy t f "server-api" in
 		delay PForce (fun () -> ignore(lazy_type r));
 		TLazy r
+
+	(* Pending deferred field-data reads: registered at decode time, run at the PConnectField flush OR
+	   eagerly by a forwarding-stub force (complete_module_fields), whichever comes first. Same table
+	   choice rationale as forward_classes below. *)
+	method private pending_field_data =
+		if Define.defined com.defines Define.HxbResidentModules && not com.display.dms_full_typing then
+			cc#hxb_pending_field_data
+		else
+			com.hxb_pending_field_data
+
+	method private register_pending_field_data (path : path) (read : unit -> unit) =
+		let tbl = self#pending_field_data in
+		let force () =
+			if Hashtbl.mem tbl path then begin
+				Hashtbl.remove tbl path;
+				read ()
+			end
+		in
+		Hashtbl.replace tbl path force;
+		delay PConnectField force
+
+	method complete_module_fields (path : path) =
+		match Hashtbl.find_opt self#pending_field_data path with
+		| Some force -> force ()
+		| None -> ()
 
 	(* With the resident tier, stubs frozen inside resident modules outlive the request, so the registry
 	   must too (cc lifetime); otherwise a fresh per-request generation can never merge with them. *)
