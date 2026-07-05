@@ -435,7 +435,18 @@ module TypeLevel = struct
 			build()
 		in
 		c.cl_build <- make_pass ctx_m build;
-		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
+		(* display.lazy_sibling_build: a per-position request only needs the class under the cursor;
+		   siblings in the display file build on demand through cl_build (a body edit otherwise
+		   re-runs every sibling's @:build macros on the first request after invalidation). *)
+		let lazy_sibling =
+			ctx_m.m.is_display_file
+			&& Common.defined ctx_m.com Define.DisplayLazySiblingBuild
+			&& (match ctx_m.com.display.dms_kind with
+				| DMDefault | DMHover | DMDefinition | DMTypeDefinition | DMSignature | DMPackage -> true
+				| _ -> false)
+			&& not (DisplayPosition.display_position#enclosed_in p)
+		in
+		if not lazy_sibling then delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			delay ctx_m.g PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then

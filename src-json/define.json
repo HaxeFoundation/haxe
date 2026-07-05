@@ -378,6 +378,11 @@
 		"doc": "Verbose diagnostics for hxb.header_invalidation: per-dependent observe traces and full seed re-type failures (sub-errors + backtrace)."
 	},
 	{
+		"name": "DisplayLazySiblingBuild",
+		"define": "display.lazy_sibling_build",
+		"doc": "For per-position display requests (hover/definition/completion/signature), only eagerly build the class enclosing the display position in the display file; sibling classes build on demand through cl_build. Avoids re-running their @:build macros on every request after an edit."
+	},
+	{
 		"name": "HxbLazyInheritance",
 		"define": "hxb.lazy_inheritance",
 		"doc": "Resolve cross-module class references in restored hxb headers to identity-only forwarding placeholders whose contents fill lazily on cl_build, so a display request stops restoring the whole transitive inheritance closure (only with compilation server)."
