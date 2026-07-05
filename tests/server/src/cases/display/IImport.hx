@@ -65,4 +65,44 @@ class IImport extends DisplayTestCase {
 		eq(true, hasPath(fields(1), "Context"));
 		eq(false, hasPath(fields(1), "Context.hl"));
 	}
+
+	/**
+		import Fo{-1-};
+
+		class Main {}
+	**/
+	function testUnqualifiedModule(_) {
+		vfs.putContent("src/pack/to/Foo.hx", "package pack.to;\nclass Foo {}\nclass Bar {}");
+		runHaxeJson(["-cp", "src"], ServerMethods.ReadClassPaths, {wait: true});
+		eq(true, hasFullPath(fields(1), "pack.to", "Foo"));
+	}
+
+	/**
+		import Ba{-1-};
+
+		class Main {}
+	**/
+	function testUnqualifiedSubType(_) {
+		vfs.putContent("src/pack/to/Foo.hx", "package pack.to;\nclass Foo {}\nclass Bar {}");
+		runHaxeJson(["-cp", "src"], ServerMethods.ReadClassPaths, {wait: true});
+		eq(true, hasFullPath(fields(1), "pack.to", "Bar"));
+	}
+
+	/**
+		using Fo{-1-};
+
+		class Main {}
+	**/
+	function testUnqualifiedUsing(_) {
+		vfs.putContent("src/pack/to/Foo.hx", "package pack.to;\nclass Foo {}\nclass Bar {}");
+		runHaxeJson(["-cp", "src"], ServerMethods.ReadClassPaths, {wait: true});
+		eq(true, hasFullPath(fields(1), "pack.to", "Foo"));
+	}
+
+	function hasFullPath<T>(items:Array<DisplayItem<T>>, pack:String, typeName:String):Bool {
+		return items.exists(t -> switch (t.kind) {
+			case Type: t.args.path.typeName == typeName && t.args.path.pack.join(".") == pack;
+			case _: false;
+		});
+	}
 }
