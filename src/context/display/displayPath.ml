@@ -207,6 +207,10 @@ let handle_path_display ctx path p =
 			with Not_found ->
 				()
 			end
+		| (IDKModule([],s),p),DMDefault ->
+			(* Unqualified module completion: offer the whole toplevel so that
+			   `import Fo|` can suggest `pack.to.Foo` (and its sub-types). *)
+			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) p
 		| (IDKModule(sl,s),p),_ ->
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->

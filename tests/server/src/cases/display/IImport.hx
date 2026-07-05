@@ -65,4 +65,53 @@ class IImport extends DisplayTestCase {
 		eq(true, hasPath(fields(1), "Context"));
 		eq(false, hasPath(fields(1), "Context.hl"));
 	}
+
+	/**
+		import Fo{-1-};
+
+		class Main {}
+	**/
+	function testUnqualifiedModule(_) {
+		vfs.putContent("pack/to/Foo.hx", "package pack.to;\nclass Foo {}\nclass Bar {}");
+		var fields1 = fieldsWithClassPath(1);
+		eq(true, hasFullPath(fields1, "pack.to", "Foo"));
+	}
+
+	/**
+		import Ba{-1-};
+
+		class Main {}
+	**/
+	function testUnqualifiedSubType(_) {
+		vfs.putContent("pack/to/Foo.hx", "package pack.to;\nclass Foo {}\nclass Bar {}");
+		var fields1 = fieldsWithClassPath(1);
+		eq(true, hasFullPath(fields1, "pack.to", "Bar"));
+	}
+
+	/**
+		using Fo{-1-};
+
+		class Main {}
+	**/
+	function testUnqualifiedUsing(_) {
+		vfs.putContent("pack/to/Foo.hx", "package pack.to;\nclass Foo {}\nclass Bar {}");
+		var fields1 = fieldsWithClassPath(1);
+		eq(true, hasFullPath(fields1, "pack.to", "Foo"));
+	}
+
+	@:coroutine
+	function fieldsWithClassPath(n:Int):Array<DisplayItem<Dynamic>> {
+		// The implicit "" class path is excluded from toplevel exploration, so pass an explicit
+		// one and force (re-)exploration — the context survives resetState between tests.
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, {wait: true});
+		var result = runHaxeJson(["-cp", "."], DisplayMethods.Completion, {file: file, offset: offset(n), wasAutoTriggered: false});
+		return result.items;
+	}
+
+	function hasFullPath<T>(items:Array<DisplayItem<T>>, pack:String, typeName:String):Bool {
+		return items.exists(t -> switch (t.kind) {
+			case Type: t.args.path.typeName == typeName && t.args.path.pack.join(".") == pack;
+			case _: false;
+		});
+	}
 }
