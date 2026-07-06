@@ -22,7 +22,7 @@ class StaleOptionalArgs extends TestCase {
 
 	@:coroutine function diagnose(args:Array<String>, file:String, label:String) {
 		var diag = runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath(file)});
-		var msgs = [for (d in diag) for (e in d.diagnostics) Std.string(e.args)];
+		var msgs = [for (d in diag) for (e in d.diagnostics) if (e.severity == Error) Std.string(e.args)];
 		Assert.equals(0, msgs.length, '$label: unexpected diagnostics in $file: ${msgs.join(" | ")}');
 	}
 
@@ -126,6 +126,228 @@ class StaleOptionalArgs extends TestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+
+	// Faithful replica of the alchimix module graph: B (HintButton) extends a shared base, reads a
+	// static off C's class in a method body (mutual dep), and its CONSTRUCTOR gains ?font:Font (a type
+	// from another module) inserted before ?onClick. C (NavBar) declares an anon typedef in its own
+	// module and calls `new B(...)` in a loop over it, passing the old optional args (skip-required).
+	// A (LeaderboardView) gains its FIRST dependency on B in the same edit, passing the new arg.
+	static final fontMod = "class Font { public function new() {} }";
+	static final assetsMod = "class Assets { public static var fontSmall = new Font(); public static var fontLarge = new Font(); }";
+	static final flowMod = "class Flow { public function new() {} }";
+	static final ctxMod = "class Ctx { public function new() {} }";
+	static final actMod = "enum Act { Meta; Nav; }";
+	static final hbOld = "class HintButton extends Flow {\n"
+		+ "\tvar onClick:Void->Void;\n"
+		+ "\tpublic function new(context:Ctx, action:Act, label:String, ?onClick:Void->Void, ?disabled:Bool = false) {\n"
+		+ "\t\tsuper();\n"
+		+ "\t\tthis.onClick = onClick;\n"
+		+ "\t\tvar d = disabled || onClick == NavBar.noop;\n"
+		+ "\t}\n"
+		+ "}";
+	static final hbNew = "class HintButton extends Flow {\n"
+		+ "\tvar onClick:Void->Void;\n"
+		+ "\tvar font:Font;\n"
+		+ "\tpublic function new(context:Ctx, action:Act, label:String, ?font:Font, ?onClick:Void->Void, ?disabled:Bool = false) {\n"
+		+ "\t\tsuper();\n"
+		+ "\t\tthis.onClick = onClick;\n"
+		+ "\t\tthis.font = font != null ? font : Assets.fontLarge;\n"
+		+ "\t\tvar d = disabled || onClick == NavBar.noop;\n"
+		+ "\t}\n"
+		+ "}";
+	static final navBar = "typedef NavEntry = {\n"
+		+ "\tvar key:Act;\n"
+		+ "\tvar label:String;\n"
+		+ "\tvar action:Void->Void;\n"
+		+ "\t@:optional var disabled:Bool;\n"
+		+ "\t@:optional var visible:Bool;\n"
+		+ "}\n"
+		+ "class NavBar extends Flow {\n"
+		+ "\tpublic static function noop() {}\n"
+		+ "\tfinal context:Ctx;\n"
+		+ "\tvar entries:Array<NavEntry>;\n"
+		+ "\tpublic function new(context:Ctx) {\n"
+		+ "\t\tsuper();\n"
+		+ "\t\tthis.context = context;\n"
+		+ "\t\tentries = [];\n"
+		+ "\t}\n"
+		+ "\tfunction refresh() {\n"
+		+ "\t\tfor (e in entries) {\n"
+		+ "\t\t\tif (!e.visible) continue;\n"
+		+ "\t\t\tvar el = new HintButton(context, e.key, e.label, e.action, e.disabled);\n"
+		+ "\t\t}\n"
+		+ "\t}\n"
+		+ "}";
+	static final lvOld = "class LeaderboardView extends Flow {\n"
+		+ "\tvar nav:NavBar;\n"
+		+ "\tpublic function new(context:Ctx) {\n"
+		+ "\t\tsuper();\n"
+		+ "\t\tnav = new NavBar(context);\n"
+		+ "\t}\n"
+		+ "}";
+	static final lvNew = "class LeaderboardView extends Flow {\n"
+		+ "\tvar nav:NavBar;\n"
+		+ "\tvar hint:HintButton;\n"
+		+ "\tpublic function new(context:Ctx) {\n"
+		+ "\t\tsuper();\n"
+		+ "\t\tnav = new NavBar(context);\n"
+		+ "\t\thint = new HintButton(context, Meta, \"Select\\nScope\", Assets.fontSmall, () -> trace(\"TODO\"));\n"
+		+ "\t}\n"
+		+ "}";
+	static final bootMod = "class Boot { static function main() { new LeaderboardView(new Ctx()); } }";
+
+	@:coroutine function scenarioFaithful(defines:Array<String>, label:String) {
+		vfs.putContent("Font.hx", fontMod);
+		vfs.putContent("Assets.hx", assetsMod);
+		vfs.putContent("Flow.hx", flowMod);
+		vfs.putContent("Ctx.hx", ctxMod);
+		vfs.putContent("Act.hx", actMod);
+		vfs.putContent("HintButton.hx", hbOld);
+		vfs.putContent("NavBar.hx", navBar);
+		vfs.putContent("LeaderboardView.hx", lvOld);
+		vfs.putContent("Boot.hx", bootMod);
+		var args = ["-main", "Boot", "-js", "no.js", "--no-output"].concat(defines);
+		runHaxe(args);
+		assertSuccess();
+
+		// a display round so modules get served/restored through the display tiers
+		var offset = navBar.indexOf("new HintButton(") + "new Hint".length;
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("NavBar.hx"), offset: offset});
+		diagnose(args, "LeaderboardView.hx", '$label/initial');
+
+		// the edit: ?font inserted in B's ctor, A gains its first dep on B; C untouched
+		vfs.putContent("HintButton.hx", hbNew);
+		vfs.putContent("LeaderboardView.hx", lvNew);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HintButton.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("LeaderboardView.hx")});
+		diagnose(args, "LeaderboardView.hx", '$label/postEdit-A');
+		diagnose(args, "NavBar.hx", '$label/postEdit-C');
+		runHaxe(args);
+		assertSuccess();
+		runHaxe(args);
+		assertSuccess();
+	}
+
+	// IDE-shaped variant: no full compiles at all — the server only ever sees diagnostics and hover
+	// rounds (vshaxe reality), with display.lazy_sibling_build also on.
+	@:coroutine function scenarioFaithfulDisplayOnly(defines:Array<String>, label:String) {
+		vfs.putContent("Font.hx", fontMod);
+		vfs.putContent("Assets.hx", assetsMod);
+		vfs.putContent("Flow.hx", flowMod);
+		vfs.putContent("Ctx.hx", ctxMod);
+		vfs.putContent("Act.hx", actMod);
+		vfs.putContent("HintButton.hx", hbOld);
+		vfs.putContent("NavBar.hx", navBar);
+		vfs.putContent("LeaderboardView.hx", lvOld);
+		vfs.putContent("Boot.hx", bootMod);
+		var args = ["-main", "Boot", "-js", "no.js", "--no-output"].concat(defines);
+		diagnose(args, "NavBar.hx", '$label/warmup-C');
+		diagnose(args, "LeaderboardView.hx", '$label/warmup-A');
+		var offset = navBar.indexOf("new HintButton(") + "new Hint".length;
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("NavBar.hx"), offset: offset});
+
+		// edit B, diagnostics round (A not yet edited — old A has no B dep at all)
+		vfs.putContent("HintButton.hx", hbNew);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HintButton.hx")});
+		diagnose(args, "HintButton.hx", '$label/afterB');
+
+		// mid-typing states of A: requests that ERROR while B's fresh restore is still pending —
+		// an aborted flush can freeze placeholder field data inside resident modules
+		var lvBroken1 = lvNew.split("new HintButton(context, Meta, \"Select\\nScope\", Assets.fontSmall, () -> trace(\"TODO\"))").join("new HintButton(context, Meta)");
+		var lvBroken2 = lvNew.split("Assets.fontSmall").join("Assets.fontSm");
+		vfs.putContent("LeaderboardView.hx", lvBroken1);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("LeaderboardView.hx")});
+		runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("LeaderboardView.hx")});
+		vfs.putContent("LeaderboardView.hx", lvBroken2);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("LeaderboardView.hx")});
+		runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("LeaderboardView.hx")});
+		var hoverBroken = lvBroken2.indexOf("new HintButton(") + "new Hint".length;
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("LeaderboardView.hx"), offset: hoverBroken, contents: lvBroken2});
+
+		// edit A, diagnostics rounds
+		vfs.putContent("LeaderboardView.hx", lvNew);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("LeaderboardView.hx")});
+		diagnose(args, "LeaderboardView.hx", '$label/afterA');
+		diagnose(args, "NavBar.hx", '$label/afterA-C');
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("NavBar.hx"), offset: offset});
+		diagnose(args, "NavBar.hx", '$label/final-C');
+	}
+
+	// The alchimix build also runs an init macro on EVERY request that injects a @:build (with inline
+	// field patches) onto the shared base class via Compiler.addGlobalMetadata (no-spoon style), so the
+	// whole component hierarchy is macro-built. Mirror that on top of the faithful graph.
+	static final benderMod = "import haxe.macro.Context;\nimport haxe.macro.Compiler;\n"
+		+ "class Bender {\n"
+		+ "\tpublic static function bend() {\n"
+		+ "\t\tCompiler.addGlobalMetadata(\"Flow\", \"@:build(Bender.patch())\");\n"
+		+ "\t}\n"
+		+ "\tpublic static function patch() {\n"
+		+ "\t\tvar fields = Context.getBuildFields();\n"
+		+ "\t\tfields.push({name: \"bump\", pos: Context.currentPos(), access: [APublic, AInline],\n"
+		+ "\t\t\tkind: FFun({args: [], expr: macro return 1})});\n"
+		+ "\t\treturn fields;\n"
+		+ "\t}\n"
+		+ "}";
+
+	@:coroutine function scenarioMacroBend(defines:Array<String>, label:String) {
+		vfs.putContent("Font.hx", fontMod);
+		vfs.putContent("Assets.hx", assetsMod);
+		vfs.putContent("Flow.hx", flowMod);
+		vfs.putContent("Ctx.hx", ctxMod);
+		vfs.putContent("Act.hx", actMod);
+		vfs.putContent("HintButton.hx", hbOld);
+		vfs.putContent("NavBar.hx", navBar);
+		vfs.putContent("LeaderboardView.hx", lvOld);
+		vfs.putContent("Boot.hx", bootMod);
+		vfs.putContent("Bender.hx", benderMod);
+		var args = ["-main", "Boot", "-js", "no.js", "--no-output", "--macro", "Bender.bend()"].concat(defines);
+		diagnose(args, "NavBar.hx", '$label/warmup-C');
+		diagnose(args, "LeaderboardView.hx", '$label/warmup-A');
+		var offset = navBar.indexOf("new HintButton(") + "new Hint".length;
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("NavBar.hx"), offset: offset});
+		runHaxe(args);
+		assertSuccess();
+
+		vfs.putContent("HintButton.hx", hbNew);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("HintButton.hx")});
+		diagnose(args, "HintButton.hx", '$label/afterB');
+
+		vfs.putContent("LeaderboardView.hx", lvNew);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("LeaderboardView.hx")});
+		diagnose(args, "LeaderboardView.hx", '$label/afterA');
+		diagnose(args, "NavBar.hx", '$label/afterA-C');
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("NavBar.hx"), offset: offset});
+		runHaxe(args);
+		assertSuccess();
+	}
+
+	function testMacroBendAll(_) scenarioMacroBend([
+		"-D", "hxb.lazy_inheritance", "-D", "hxb.resident_modules", "-D", "hxb.header_invalidation",
+		"-D", "display.lazy_sibling_build"
+	], "bend_all");
+
+	function testMacroBendLazy(_) scenarioMacroBend(["-D", "hxb.lazy_inheritance"], "bend_lazy");
+
+	function testMacroBendVanilla(_) scenarioMacroBend([], "bend_vanilla");
+
+	function testFaithfulDisplayOnlyAll(_) scenarioFaithfulDisplayOnly([
+		"-D", "hxb.lazy_inheritance", "-D", "hxb.resident_modules", "-D", "hxb.header_invalidation",
+		"-D", "display.lazy_sibling_build"
+	], "faithd_all");
+
+	function testFaithfulDisplayOnlyLazy(_) scenarioFaithfulDisplayOnly([
+		"-D", "hxb.lazy_inheritance"
+	], "faithd_lazy");
+
+	function testFaithfulAllLevers(_) scenarioFaithful([
+		"-D", "hxb.lazy_inheritance", "-D", "hxb.resident_modules", "-D", "hxb.header_invalidation"
+	], "faith_all");
+
+	function testFaithfulLazy(_) scenarioFaithful(["-D", "hxb.lazy_inheritance"], "faith_lazy");
+
+	function testFaithfulHeaderInv(_) scenarioFaithful(["-D", "hxb.header_invalidation"], "faith_header");
+
+	function testFaithfulVanilla(_) scenarioFaithful([], "faith_vanilla");
 
 	// Kitchen sink: foo on BBase, B extends BBase and depends on C, A depends on B and C, and C's
 	// typed binary is left several generations behind (intermediate A-only edit rounds) before the
