@@ -99,7 +99,44 @@ class StaleOptionalArgs extends TestCase {
 		assertSuccess();
 	}
 
+	// User hint: B itself DEPENDS on C (mutual dependency). Retyping B then re-enters C while B is
+	// only partially rebuilt, so C may type B.foo against a not-yet-finalized signature.
+	static final bCycOld = "class B { public static function foo(?a:Int, ?b:String) { C.log(); } }";
+	static final bCycNew = "class B { public static function foo(?n:Float, ?a:Int, ?b:String) { C.log(); } }";
+	static final cCyc = "class C { public static function log() {} public static function test() { B.foo(1, \"x\"); } }";
+
+	@:coroutine function scenarioCyclic(defines:Array<String>, label:String) {
+		vfs.putContent("A.hx", aOld);
+		vfs.putContent("B.hx", bCycOld);
+		vfs.putContent("C.hx", cCyc);
+		var args = ["-main", "A", "-js", "no.js", "--no-output"].concat(defines);
+		runHaxe(args);
+		assertSuccess();
+		hoverC(args);
+		diagnose(args, "C.hx", '$label/initial');
+
+		vfs.putContent("B.hx", bCycNew);
+		vfs.putContent("A.hx", aNew);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("B.hx")});
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("A.hx")});
+		diagnose(args, "C.hx", '$label/postInvalidate');
+		runHaxe(args);
+		assertSuccess();
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	function testVanilla(_) scenario([], "vanilla");
+
+	function testCyclicVanilla(_) scenarioCyclic([], "cyc_vanilla");
+
+	function testCyclicHeaderInvalidation(_) scenarioCyclic(["-D", "hxb.header_invalidation"], "cyc_header");
+
+	function testCyclicLazyInheritance(_) scenarioCyclic(["-D", "hxb.lazy_inheritance"], "cyc_lazy");
+
+	function testCyclicAllLevers(_) scenarioCyclic([
+		"-D", "hxb.lazy_inheritance", "-D", "hxb.resident_modules", "-D", "hxb.header_invalidation"
+	], "cyc_all");
 
 	function testInheritedLazy(_) scenarioInherited(["-D", "hxb.lazy_inheritance"], "inh_lazy");
 
