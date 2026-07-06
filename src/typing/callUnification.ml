@@ -10,7 +10,24 @@ open FieldCallCandidate
 let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
+	(* Diagnostics lever (-D optarg.trace / HAXE_OPTARG_TRACE): on any call-argument unification error,
+	   dump the exact signature the typer resolved for the callee — arity, opt flags, param types. Field
+	   reports show servers erroring on calls a clean compile accepts via optional-arg skipping; the dump
+	   tells whether the server saw a stale, truncated, or mono-polluted signature and at which request. *)
+	let trace_arg_error name opt =
+		if Define.raw_defined ctx.com.defines "optarg.trace" || Sys.getenv_opt "HAXE_OPTARG_TRACE" <> None then begin
+			let pctx = print_context() in
+			let sargs = String.concat ", " (List.map (fun (n,o,t) ->
+				Printf.sprintf "%s%s:%s" (if o then "?" else "") n (s_type pctx t)) args) in
+			Printf.eprintf "[optarg-trace] arg_error name=%s opt=%b at %s\n  callee args (%d): (%s)\n  given el: %d, monomorphs in args: %b\n%!"
+				name opt (Printer.s_pos callp)
+				(List.length args) sargs (List.length el)
+				(List.exists (fun (_,_,t) -> match follow t with TMono _ -> true | _ -> false) args)
+		end
+	in
+
 	let arg_error e name opt =
+		trace_arg_error name opt;
 		let msg = ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'") in
 		let e = match e.err_message with
 			| Unify l -> { e with err_message = Unify (l @ [(Unify_custom msg)])}
