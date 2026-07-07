@@ -609,9 +609,20 @@ CAMLprim value sys_filetime( value file ) {
 	ui.HighPart = fp.dwHighDateTime;
 	return caml_copy_double( ((double)ui.QuadPart) / 10000000.0 - EPOCH_DIFF );
 #	else
+	/* On Windows this returns sub-second precision (100ns FILETIME ticks); here plain st_mtime
+	   truncates to whole seconds, so rapid successive writes are indistinguishable. HAXE_MTIME_NS=1
+	   opts into nanosecond precision to reproduce Windows-granularity cache behaviour on POSIX
+	   (diagnostics aid; default stays whole-second to preserve existing behaviour). */
+	static int mtime_ns = -1;
 	struct stat sbuf;
 	if( stat(String_val(file),&sbuf) < 0 )
 		return caml_copy_double(0.);
+	if( mtime_ns == -1 ) {
+		char *e = getenv("HAXE_MTIME_NS");
+		mtime_ns = (e != NULL && *e == '1') ? 1 : 0;
+	}
+	if( mtime_ns )
+		return caml_copy_double( sbuf.st_mtime + sbuf.st_mtim.tv_nsec / 1e9 );
 	return caml_copy_double( sbuf.st_mtime );
 #	endif
 }
