@@ -31,6 +31,13 @@ class Vfs {
 		Fs.writeFileSync(path.toString(), content);
 	}
 
+	public function removeFile(path:String) {
+		var path = getPhysicalPath(path).toString();
+		if (FileSystem.exists(path)) {
+			FileSystem.deleteFile(path);
+		}
+	}
+
 	public function getContent(path:String):String {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);

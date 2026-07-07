@@ -272,7 +272,16 @@ let header_invalidation_prephase tctx =
 	let com = tctx.Typecore.com in
 	let verbose = Define.defined com.defines Define.HxbHeaderInvalidationVerbose in
 	let cc = CommonCache.get_cache com in
-	(* A seed is a module the client explicitly invalidated, or one whose source file changed on disk. *)
+	(* A seed is a module the client explicitly invalidated, or one whose source file changed on disk.
+	   A module whose source file is GONE (deleted/renamed) must never be a seed: re-typing it can only
+	   raise Module_not_found at null_pos, and for a compile that error re-surfaces on every request
+	   (the handler re-taints it) until the server is restarted. Left tainted, the normal invalidation
+	   flow re-types its dependents against the post-rename world. Note that file_time returns 0. for a
+	   missing file rather than raising, so existence needs an explicit check. *)
+	let source_exists mc =
+		mc.HxbData.mc_extra.m_kind <> MCode ||
+		Sys.file_exists (Path.UniqueKey.lazy_path mc.HxbData.mc_extra.m_file)
+	in
 	let file_changed mc =
 		mc.HxbData.mc_extra.m_kind = MCode &&
 		(let file = Path.UniqueKey.lazy_path mc.HxbData.mc_extra.m_file in
@@ -286,6 +295,7 @@ let header_invalidation_prephase tctx =
 	in
 	let is_seed mc =
 		not (in_display_file mc.HxbData.mc_extra) &&
+		source_exists mc &&
 		(match mc.HxbData.mc_extra.m_cache_state with
 		| MSBad (Tainted (ServerInvalidate | ServerInvalidateFiles | ServerInvalidateModule)) -> true
 		| _ -> file_changed mc)
