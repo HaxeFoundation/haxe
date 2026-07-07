@@ -58,7 +58,17 @@ type gc_drain_state = {
 	gcd_top0 : int;             (* top_heap_words when the drain started *)
 	mutable gcd_slices : int;
 	mutable gcd_slice_time : float;
+	mutable gcd_empty_streak : int;
 }
+
+(* A slice that returns in a few µs did no work: this domain has no share of the major cycle left and
+   completion is blocked on the STW rendezvous with other domains, which are idle and not slicing. More
+   slices cannot advance that (observed as a minutes-long busy-wait of millions of no-op slices), so after
+   a sustained streak of empty slices the drain gives up; the cycle completes naturally on the next
+   allocation activity. The streak length keeps the worst-case spin in the low milliseconds while
+   tolerating empty slices interleaved into a cycle that is actually progressing. *)
+let gc_empty_slice_secs = 1e-4
+let gc_max_empty_streak = 256
 
 let gc_words_to_mb w =
 	float_of_int w *. float_of_int (Sys.word_size / 8) /. 1048576.
@@ -82,7 +92,17 @@ class gc_slice_task (cs : CompilationCache.t) (st : gc_drain_state) = object(sel
 			let dt = Extc.time () -. t0 in
 			st.gcd_slices <- st.gcd_slices + 1;
 			st.gcd_slice_time <- st.gcd_slice_time +. dt;
-			cs#add_task (new gc_slice_task cs st)
+			if dt < gc_empty_slice_secs then
+				st.gcd_empty_streak <- st.gcd_empty_streak + 1
+			else
+				st.gcd_empty_streak <- 0;
+			if st.gcd_empty_streak >= gc_max_empty_streak then
+				ServerMessage.gc_task (Printf.sprintf
+					"idle collection stalled (cycle blocked on idle domains), giving up: %d slice(s), %.1fms slicing / %.1fms wall, heap %.1fMB (peak %.1fMB)"
+					st.gcd_slices (st.gcd_slice_time *. 1000.) ((Extc.time () -. st.gcd_started) *. 1000.)
+					(gc_words_to_mb qs.Gc.heap_words) (gc_words_to_mb qs.Gc.top_heap_words))
+			else
+				cs#add_task (new gc_slice_task cs st)
 		end
 end
 
@@ -97,6 +117,7 @@ let schedule_gc_drain (cs : CompilationCache.t) (slice_words : int) =
 		gcd_top0 = qs.Gc.top_heap_words;
 		gcd_slices = 0;
 		gcd_slice_time = 0.;
+		gcd_empty_streak = 0;
 	} in
 	ServerMessage.gc_task (Printf.sprintf "idle collection start: heap %.1fMB (peak %.1fMB), slice %d words"
 		(gc_words_to_mb st.gcd_heap0) (gc_words_to_mb st.gcd_top0) slice_words);
