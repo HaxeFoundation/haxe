@@ -405,6 +405,12 @@
 		"doc": "Behaviour-neutral measurement: per invalidated seed, report its direct dependents, full transitive module-level closure, and whether cached dependents carry field-granular dependency edges (only with compilation server)."
 	},
 	{
+		"name": "OptargTrace",
+		"define": "optarg.trace",
+		"signatureNeutral": true,
+		"doc": "Diagnostics: on any call-argument unification error, dump the resolved callee signature (arity, optional flags, types, mono presence). HAXE_OPTARG_TRACE env is an equivalent switch."
+	},
+	{
 		"name": "HxcppApiLevel",
 		"define": "hxcpp-api-level",
 		"doc": "Provided to allow compatibility between hxcpp versions.",
