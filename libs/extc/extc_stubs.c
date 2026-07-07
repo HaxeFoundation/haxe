@@ -622,7 +622,11 @@ CAMLprim value sys_filetime( value file ) {
 		mtime_ns = (e != NULL && *e == '1') ? 1 : 0;
 	}
 	if( mtime_ns )
+#	ifdef __APPLE__
+		return caml_copy_double( sbuf.st_mtime + sbuf.st_mtimespec.tv_nsec / 1e9 );
+#	else
 		return caml_copy_double( sbuf.st_mtime + sbuf.st_mtim.tv_nsec / 1e9 );
+#	endif
 	return caml_copy_double( sbuf.st_mtime );
 #	endif
 }
