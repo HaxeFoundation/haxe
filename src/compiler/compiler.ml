@@ -360,7 +360,16 @@ let header_invalidation_prephase tctx =
 				extra.m_cache_state <- MSGood;
 				m.m_extra.m_cache_state <- MSGood;
 				Some diff)
-		with e ->
+		with
+		| DisplayException.DisplayException _ | Parser.TypePath _ | DisplayJson.JsonCompleted as e ->
+			(* Re-typing this seed reached the display file and the cursor fired: this is the request's
+			   ANSWER riding a control-flow exception, not a failure. Swallowing it would leave the display
+			   module half-built in the lut, so the main pass never re-types it, the cursor never fires
+			   again, and the request falls back to a bogus bare-ident resolution. Taint the seed
+			   conservatively (its re-type did not finish) and let the answer propagate. *)
+			extra.m_cache_state <- MSBad (Tainted ServerInvalidate);
+			raise e
+		| e ->
 			incr n_failed;
 			extra.m_cache_state <- MSBad (Tainted ServerInvalidate);
 			(* For a compilation or diagnostics request (DMNone), a re-type failure must be reported

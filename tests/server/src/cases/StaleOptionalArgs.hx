@@ -3,6 +3,7 @@ package cases;
 import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
+import TestCase;
 import utest.Assert;
 
 // Field report (alchimix, 2026-07-06): B gains a new optional arg inserted BEFORE its existing
@@ -379,7 +380,14 @@ class StaleOptionalArgs extends TestCase {
 		vfs.putContent("A.hx", aGen3);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BBase.hx")});
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("A.hx")});
-		hoverCSub(args);
+		try {
+			hoverCSub(args);
+		} catch (e:TestException) {
+			haxe.Log.trace('[$label] hoverCSub FAILED: ${e.message}', e.pos);
+			debugMessages();
+			debugErrorMessages();
+			throw e;
+		}
 		diagnose(args, "C.hx", '$label/postEdit');
 		diagnose(args, "A.hx", '$label/postEdit-A');
 		runHaxe(args);
@@ -389,7 +397,8 @@ class StaleOptionalArgs extends TestCase {
 	}
 
 	function testGenerationGapAllLevers(_) scenarioGenerationGap([
-		"-D", "hxb.lazy_inheritance", "-D", "hxb.resident_modules", "-D", "hxb.header_invalidation"
+		"-D", "hxb.lazy_inheritance", "-D", "hxb.resident_modules", "-D", "hxb.header_invalidation",
+		"-D", "hxb.header_invalidation_verbose"
 	], "gen_all");
 
 	function testGenerationGapLazy(_) scenarioGenerationGap(["-D", "hxb.lazy_inheritance"], "gen_lazy");
