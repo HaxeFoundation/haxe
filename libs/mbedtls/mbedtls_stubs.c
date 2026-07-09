@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -284,12 +285,32 @@ CAMLprim value hx_cert_get_notbefore(value chain) {
 
 // Config
 
-#define Config_val(v) (*((mbedtls_ssl_config**) Data_custom_val(v)))
+struct config_wrapper {
+	mbedtls_ssl_config *config;
+	char **alpn_protocols;
+};
+
+#define ConfigWrapper_ptr(v) (*((struct config_wrapper**) Data_custom_val(v)))
+#define Config_val(v) (ConfigWrapper_ptr(v)->config)
+
+static void free_alpn_protocols(char **alpn) {
+	if (alpn != NULL) {
+		for (int i = 0; alpn[i] != NULL; ++i) {
+			free(alpn[i]);
+		}
+		free(alpn);
+	}
+}
 
 static void ml_mbedtls_ssl_config_finalize(value v) {
-	mbedtls_ssl_config* ssl_config = Config_val(v);
-	if (ssl_config != NULL) {
-		mbedtls_ssl_config_free(ssl_config);
+	struct config_wrapper *wrap = ConfigWrapper_ptr(v);
+	if (wrap != NULL) {
+		free_alpn_protocols(wrap->alpn_protocols);
+		if (wrap->config != NULL) {
+			mbedtls_ssl_config_free(wrap->config);
+			free(wrap->config);
+		}
+		free(wrap);
 	}
 }
 
@@ -349,13 +370,14 @@ static int verify_callback(void* param, mbedtls_x509_crt *crt, int depth, uint32
 CAMLprim value ml_mbedtls_ssl_config_init(void) {
 	CAMLparam0();
 	CAMLlocal1(obj);
-	obj = caml_alloc_custom(&ssl_config_ops, sizeof(mbedtls_ssl_config*), 0, 1);
-	mbedtls_ssl_config* ssl_config = malloc(sizeof(mbedtls_ssl_config));
-	mbedtls_ssl_config_init(ssl_config);
+	obj = caml_alloc_custom(&ssl_config_ops, sizeof(struct config_wrapper*), 0, 1);
+	struct config_wrapper *wrap = calloc(1, sizeof(struct config_wrapper));
+	wrap->config = malloc(sizeof(mbedtls_ssl_config));
+	mbedtls_ssl_config_init(wrap->config);
 	#ifdef _WIN32
-	mbedtls_ssl_conf_verify(ssl_config, verify_callback, NULL);
+	mbedtls_ssl_conf_verify(wrap->config, verify_callback, NULL);
 	#endif
-	Config_val(obj) = ssl_config;
+	ConfigWrapper_ptr(obj) = wrap;
 	CAMLreturn(obj);
 }
 
@@ -420,11 +442,13 @@ CAMLprim value ml_mbedtls_pk_parse_key(value ctx, value key, value password, val
 		pwd = Bytes_val(Field(password, 0));
 		pwdlen = caml_string_length(Field(password, 0));
 	}
-	#if MBEDTLS_VERSION_MAJOR >= 3
+	#if MBEDTLS_VERSION_MAJOR >= 4
+	CAMLreturn(Val_int(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen)));
+	#elif MBEDTLS_VERSION_MAJOR >= 3
 	mbedtls_ctr_drbg_context *ctr_drbg = CtrDrbg_val(rng);
-	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen, mbedtls_ctr_drbg_random, NULL));
+	CAMLreturn(Val_int(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen, mbedtls_ctr_drbg_random, ctr_drbg)));
 	#else
-	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen));
+	CAMLreturn(Val_int(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen)));
 	#endif
 }
 
@@ -434,11 +458,13 @@ CAMLprim value ml_mbedtls_pk_parse_keyfile(value ctx, value path, value password
 	if (password != Val_none) {
 		pwd = String_val(Field(password, 0));
 	}
-	#if MBEDTLS_VERSION_MAJOR >= 3
+	#if MBEDTLS_VERSION_MAJOR >= 4
+	CAMLreturn(Val_int(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd)));
+	#elif MBEDTLS_VERSION_MAJOR >= 3
 	mbedtls_ctr_drbg_context *ctr_drbg = CtrDrbg_val(rng);
-	CAMLreturn(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd, mbedtls_ctr_drbg_random, ctr_drbg));
+	CAMLreturn(Val_int(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd, mbedtls_ctr_drbg_random, ctr_drbg)));
 	#else
-	CAMLreturn(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd));
+	CAMLreturn(Val_int(mbedtls_pk_parse_keyfile(PkContext_val(ctx), String_val(path), pwd)));
 	#endif
 }
 
@@ -452,14 +478,56 @@ CAMLprim value ml_mbedtls_pk_parse_public_keyfile(value ctx, value path) {
 	CAMLreturn(mbedtls_pk_parse_public_keyfile(PkContext_val(ctx), String_val(path)));
 }
 
+CAMLprim value ml_mbedtls_ssl_conf_own_cert(value conf, value cert, value pk) {
+	CAMLparam3(conf, cert, pk);
+	CAMLreturn(Val_int(mbedtls_ssl_conf_own_cert(Config_val(conf), X509Crt_val(cert), PkContext_val(pk))));
+}
+
+CAMLprim value ml_mbedtls_ssl_conf_alpn_protocols(value conf, value protocols) {
+	CAMLparam2(conf, protocols);
+#if defined(MBEDTLS_SSL_ALPN)
+	struct config_wrapper *wrap = ConfigWrapper_ptr(conf);
+	int len = Wosize_val(protocols);
+	char **list = malloc((len + 1) * sizeof(char *));
+	for (int i = 0; i < len; ++i) {
+		list[i] = strdup(String_val(Field(protocols, i)));
+	}
+	list[len] = NULL;
+	free_alpn_protocols(wrap->alpn_protocols);
+	wrap->alpn_protocols = list;
+	CAMLreturn(Val_int(mbedtls_ssl_conf_alpn_protocols(Config_val(conf), (const char **)list)));
+#else
+	CAMLreturn(Val_int(MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE));
+#endif
+}
+
 // Ssl
 
-#define SslContext_val(v) (*((mbedtls_ssl_context**) Data_custom_val(v)))
+struct ssl_wrapper {
+	mbedtls_ssl_context *ctx;
+	value *bio_root;
+};
+
+#define SslWrapper_ptr(v) (*((struct ssl_wrapper**) Data_custom_val(v)))
+#define SslContext_val(v) (SslWrapper_ptr(v)->ctx)
+
+static void free_bio_root(struct ssl_wrapper *wrap) {
+	if (wrap != NULL && wrap->bio_root != NULL) {
+		caml_remove_generational_global_root(wrap->bio_root);
+		free(wrap->bio_root);
+		wrap->bio_root = NULL;
+	}
+}
 
 static void ml_mbedtls_ssl_context_finalize(value v) {
-	mbedtls_ssl_context* ssl_context = SslContext_val(v);
-	if (ssl_context != NULL) {
-		mbedtls_ssl_free(ssl_context);
+	struct ssl_wrapper *wrap = SslWrapper_ptr(v);
+	if (wrap != NULL) {
+		free_bio_root(wrap);
+		if (wrap->ctx != NULL) {
+			mbedtls_ssl_free(wrap->ctx);
+			free(wrap->ctx);
+		}
+		free(wrap);
 	}
 }
 
@@ -475,10 +543,11 @@ static struct custom_operations ssl_context_ops = {
 CAMLprim value ml_mbedtls_ssl_init(void) {
 	CAMLparam0();
 	CAMLlocal1(obj);
-	obj = caml_alloc_custom(&ssl_context_ops, sizeof(mbedtls_ssl_context*), 0, 1);
-	mbedtls_ssl_context* ssl_context = malloc(sizeof(mbedtls_ssl_context));
-	mbedtls_ssl_init(ssl_context);
-	SslContext_val(obj) = ssl_context;
+	obj = caml_alloc_custom(&ssl_context_ops, sizeof(struct ssl_wrapper*), 0, 1);
+	struct ssl_wrapper *wrap = calloc(1, sizeof(struct ssl_wrapper));
+	wrap->ctx = malloc(sizeof(mbedtls_ssl_context));
+	mbedtls_ssl_init(wrap->ctx);
+	SslWrapper_ptr(obj) = wrap;
 	CAMLreturn(obj);
 }
 
@@ -507,36 +576,67 @@ CAMLprim value ml_mbedtls_ssl_read(value ssl, value buf, value pos, value len) {
 
 static int bio_write_cb(void* ctx, const unsigned char* buf, size_t len) {
 	CAMLparam0();
-	CAMLlocal3(r, s, vctx);
-	vctx = *(value*)ctx;
-	s = caml_alloc_initialized_string(len, (const char*)buf);
-	r = caml_callback2(Field(vctx, 1), Field(vctx, 0), s);
+	CAMLlocal2(r, b);
+	value vctx = *(value*)ctx;
+	value args[4];
+	b = caml_alloc_initialized_string(len, (const char*)buf);
+	args[0] = Field(vctx, 0);
+	args[1] = b;
+	args[2] = Val_int(0);
+	args[3] = Val_int(len);
+	r = caml_callbackN(Field(vctx, 1), 4, args);
 	CAMLreturn(Int_val(r));
 }
 
 static int bio_read_cb(void* ctx, unsigned char* buf, size_t len) {
 	CAMLparam0();
-	CAMLlocal3(r, s, vctx);
-	vctx = *(value*)ctx;
-	s = caml_alloc_string(len);
-	r = caml_callback2(Field(vctx, 2), Field(vctx, 0), s);
-	memcpy(buf, String_val(s), len);
-	CAMLreturn(Int_val(r));
+	CAMLlocal2(r, b);
+	value vctx = *(value*)ctx;
+	value args[4];
+	int n;
+	b = caml_alloc_string(len);
+	args[0] = Field(vctx, 0);
+	args[1] = b;
+	args[2] = Val_int(0);
+	args[3] = Val_int(len);
+	r = caml_callbackN(Field(vctx, 2), 4, args);
+	n = Int_val(r);
+	if (n > 0) {
+		if ((size_t)n > len) {
+			n = (int)len;
+		}
+		memcpy(buf, Bytes_val(b), n);
+	}
+	CAMLreturn(n);
 }
 
 CAMLprim value ml_mbedtls_ssl_set_bio(value ssl, value p_bio, value f_send, value f_recv) {
 	CAMLparam4(ssl, p_bio, f_send, f_recv);
 	CAMLlocal1(ctx);
+	struct ssl_wrapper *wrap = SslWrapper_ptr(ssl);
+	free_bio_root(wrap);
 	ctx = caml_alloc(3, 0);
 	Store_field(ctx, 0, p_bio);
 	Store_field(ctx, 1, f_send);
 	Store_field(ctx, 2, f_recv);
-	// TODO: this allocation is leaked
-	value *location = malloc(sizeof(value));
-	*location = ctx;
-	caml_register_generational_global_root(location);
-	mbedtls_ssl_set_bio(SslContext_val(ssl), (void*)location, bio_write_cb, bio_read_cb, NULL);
+	wrap->bio_root = malloc(sizeof(value));
+	*wrap->bio_root = ctx;
+	caml_register_generational_global_root(wrap->bio_root);
+	mbedtls_ssl_set_bio(wrap->ctx, (void*)wrap->bio_root, bio_write_cb, bio_read_cb, NULL);
 	CAMLreturn(Val_unit);
+}
+
+CAMLprim value ml_mbedtls_ssl_get_alpn_protocol(value ssl) {
+	CAMLparam1(ssl);
+#if defined(MBEDTLS_SSL_ALPN)
+	const char *proto = mbedtls_ssl_get_alpn_protocol(SslContext_val(ssl));
+	if (proto == NULL) {
+		CAMLreturn(Val_none);
+	}
+	CAMLreturn(Val_some(caml_copy_string(proto)));
+#else
+	CAMLreturn(Val_none);
+#endif
 }
 
 CAMLprim value ml_mbedtls_ssl_set_hostname(value ssl, value hostname) {
@@ -640,5 +740,12 @@ CAMLprim value hx_get_ssl_transport_flags(value unit) {
 	CAMLparam1(unit);
 	const char* names[] = {"SSL_TRANSPORT_STREAM", "SSL_TRANSPORT_DATAGRAM"};
 	int values[] = {MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_TRANSPORT_DATAGRAM};
+	CAMLreturn(build_fields(sizeof(values) / sizeof(values[0]), names, values));
+}
+
+CAMLprim value hx_get_ssl_error_flags(value unit) {
+	CAMLparam1(unit);
+	const char* names[] = {"WANT_READ", "WANT_WRITE", "PEER_CLOSE_NOTIFY"};
+	int values[] = {MBEDTLS_ERR_SSL_WANT_READ, MBEDTLS_ERR_SSL_WANT_WRITE, MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY};
 	CAMLreturn(build_fields(sizeof(values) / sizeof(values[0]), names, values));
 }
