@@ -4,7 +4,6 @@
 	(name mbedtls)
 	(foreign_stubs
 		(language c)
-		(names mbedtls_stubs)
-		(flags (:standard %{env:HAXE_MBEDTLS_CFLAGS=})))
+		(names mbedtls_stubs))
 	(wrapped false)
 )
