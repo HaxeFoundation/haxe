@@ -470,7 +470,7 @@ class StringTools {
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);
 		#end
 		#else
-		return untyped s.cca(index);
+		return s.charCodeAt(index);
 		#end
 	}
 
