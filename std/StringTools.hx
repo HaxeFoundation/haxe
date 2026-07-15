@@ -463,6 +463,10 @@ class StringTools {
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
+		#elseif eval
+		return untyped s.cca(index);
+		#elseif php
+		return untyped s.cca(index);
 		#elseif lua
 		#if lua_vanilla
 		return lua.NativeStringTools.byte(s, index + 1);
