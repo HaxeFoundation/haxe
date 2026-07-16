@@ -41,9 +41,13 @@
 	}
 
 	inline function __expand(need:Int):Void {
-		var nsize = (size * 3) >> 1;
+		var nsize = size + (size >> 1);
+		if (nsize < size)
+			nsize = 0x7FFF0000;
 		if (need > nsize)
 			nsize = need;
+		if (nsize <= size)
+			throw "StringBuf maximum capacity reached";
 		var b2 = new hl.Bytes(nsize);
 		b2.blit(0, b, 0, pos);
 		b = b2;
