@@ -768,4 +768,29 @@ class ServerTests extends TestCase {
 		}
 		// Hover may also succeed in some configurations — that's fine too.
 	}
+
+	function testErrorWhileCheckingModules() {
+		vfs.putContent("Util.hx", "class Util {\n\tpublic static function foo() return 1;\n}");
+		// import.hx modules are kept in the cache by reference, so a stale cache state survives the request
+		vfs.putContent("import.hx", "import Util;");
+		vfs.putContent("Main.hx", "class Main {\n\tstatic function main() {\n\t\ttrace(Util.foo());\n\t}\n}");
+		var args = [
+			"-main", "Main", "--macro",
+			"server.setModuleCheckPolicy(['Util'], [CheckFileContentModification], false)", "--no-output", "-js", "no.js"
+		];
+		runHaxe(args);
+		assertSuccess();
+		// The check policy makes the module check parse Util.hx, which now fails
+		vfs.putContent("Util.hx", "class Util {\n\tpublic static function foo() return 1;\n\t@#$%\n}");
+		vfs.touch("Util.hx");
+		runHaxe(args);
+		assertErrorMessage("Invalid character '#'");
+		// The error must not leave any module in an unknown cache state
+		runHaxe(args);
+		assertErrorMessage("Invalid character '#'");
+		vfs.putContent("Util.hx", "class Util {\n\tpublic static function foo() return 2;\n}");
+		vfs.touch("Util.hx");
+		runHaxe(args);
+		assertSuccess();
+	}
 }
