@@ -229,6 +229,11 @@ class Macro {
 			// Remove source line prefix from instruction lines: ".12    @0" → "@0"
 			trimmed = ~/^\.\d+[ \t]+/.replace(trimmed, "");
 
+			// Normalize dynset constant in "dynset 7[@159],0" → "dynset 7[@0],0"
+			trimmed = ~/\bdynset (\d+)\[@(\d+)\],(\d+)/.map(trimmed, function(r) {
+				return "dynset " + r.matched(1) + "[@" + getGlobalId("str_" + r.matched(2)) + "]," + r.matched(3);
+			});
+
 			// Normalize global IDs in "global R, G" (OGetGlobal): G is the global index
 			trimmed = ~/\bglobal (\d+), (\d+)/.map(trimmed, function(r) {
 				return "global " + r.matched(1) + ", " + getGlobalId(r.matched(2));
