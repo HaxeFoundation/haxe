@@ -67,6 +67,10 @@ type t = {
 
 let cm_severity cm = message_kind_severity cm.cm_message_kind
 
+let cm_is_diagnostics_only cm = match cm.cm_diagnostics_kind with
+	| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> true
+	| _ -> false
+
 let cm_code cm = match cm.cm_message_kind with
 	| MKWarning(w,_) ->
 		let wobj = WarningList.warning_obj w in

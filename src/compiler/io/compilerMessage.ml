@@ -85,11 +85,7 @@ let replay_message com cm =
 	| MKWarning(w, options) ->
 		com.warning ~depth:cm.cm_depth w options cm.cm_message cm.cm_pos
 	| _ ->
-		let is_diagnostics_only = match cm.cm_diagnostics_kind with
-			| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> true
-			| _ -> false
-		in
-		if not is_diagnostics_only || is_diagnostics com then
+		if not (Message.cm_is_diagnostics_only cm) || is_diagnostics com then
 			com.part_scope.messages <- cm :: com.part_scope.messages
 
 (* Default handlers *)

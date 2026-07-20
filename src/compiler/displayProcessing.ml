@@ -190,7 +190,7 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 (* 5. Display processing after typing *)
 
 let handle_display_after_typing com tctx display_file_dot_path =
-	if com.display.dms_kind = DMNone && com.part_scope.has_error then
+	if com.display.dms_kind = DMNone && com.part_scope.has_error && Common.is_compilation com then
 		true
 	else begin
 	begin match com.display.dms_kind,Atomic.get com.part_scope.parser_state.delayed_syntax_completion with

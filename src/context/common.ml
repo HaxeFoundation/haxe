@@ -827,15 +827,15 @@ let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics co
     In display mode, has_error can be set transiently during type resolution
     without producing actual error messages, so we require messages to exist.
     Diagnostics-only messages (DKMissingFields, DKUnresolvedIdentifier) are
-    not counted as reportable errors — they are diagnostics data that should
-    not prevent context caching. *)
+    not counted as reportable errors — they are diagnostics data. *)
 let has_error_to_report com =
 	let has_reportable_message = List.exists (fun cm ->
-		match cm.cm_diagnostics_kind with
-		| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> false
-		| _ -> true
+		not (Message.cm_is_diagnostics_only cm)
 	) com.part_scope.messages in
 	com.part_scope.has_error && (is_compilation com || has_reportable_message)
+
+let can_cache_context com =
+	not (com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> []))
 
 let activate_message_capture com buf =
 	let old_capture = com.part_scope.message_capture in

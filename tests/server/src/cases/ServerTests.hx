@@ -311,44 +311,40 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
-	function testDiagnosticsCacheBoundMissingFields() {
+	function testDiagnosticsMissingFieldsNotCached() {
 		vfs.putContent("MissingFieldsDep.hx", getTemplate("diagnostics/MissingFieldsDep.hx"));
 		vfs.putContent("MissingFieldsMain.hx", getTemplate("diagnostics/MissingFieldsMain.hx"));
 		var args = ["--main", "MissingFieldsMain", "--interp"];
-		// First diagnostics run: types both modules, creates MissingFields on Dep, caches both
 		var res1 = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
 		final diags1 = findDiagnosticsFor(res1, "MissingFieldsDep.hx");
 		Assert.notNull(diags1);
 		Assert.notNull(diags1.find(d -> d.kind == MissingFields));
-		// Invalidate Main only, so Dep stays cached
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MissingFieldsMain.hx")});
-		// Second diagnostics run: Main retyped, Dep reused from cache, MissingFields replayed
 		var res2 = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
-		assertReuse("MissingFieldsDep");
+		// Dep was not invalidated, but the previous run typed it with downgraded errors
+		Assert.isFalse(hasMessage("reusing MissingFieldsDep"));
 		final diags2 = findDiagnosticsFor(res2, "MissingFieldsDep.hx");
 		Assert.notNull(diags2);
 		Assert.notNull(diags2.find(d -> d.kind == MissingFields));
 	}
 
-	function testDiagnosticsCacheBoundFilterOnReplay() {
+	function testDiagnosticsMissingFieldsInCompilation() {
 		vfs.putContent("MissingFieldsDep.hx", getTemplate("diagnostics/MissingFieldsDep.hx"));
 		vfs.putContent("MissingFieldsMain.hx", getTemplate("diagnostics/MissingFieldsMain.hx"));
 		var args = ["--main", "MissingFieldsMain", "--interp"];
-		// Diagnostics run: types both modules, caches Dep with MissingFields cache-bound object
 		var res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
 		final diags = findDiagnosticsFor(res, "MissingFieldsDep.hx");
 		Assert.notNull(diags);
 		Assert.notNull(diags.find(d -> d.kind == MissingFields));
-		// Normal compilation: Dep reused from cache, MissingFields NOT replayed (filtered by RMDiagnostics)
 		runHaxe(args);
-		// No error messages from filtered diagnostics (only normal "Field needed by" errors)
-		Assert.isFalse(hasErrorMessage("unimplemented"));
+		Assert.isFalse(hasMessage("reusing MissingFieldsDep"));
+		assertErrorMessage("Field doSomething needed by IFoo is missing");
 	}
 
 	function testDiagnosticsMultipleOpenFiles() {
