@@ -47,20 +47,38 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	@:hlNative("uv", #if (hl_ver >= version("1.16.0")) "stop_wrap" #else "stop" #end)
 	public function stop():Void {}
 
+	/**
+		Attach a libuv loop to `loop` as its waiting driver and return the UV
+		`Loop` **synchronously**.
+
+		Install uses `swapDriver`: when called from an event callback (`inLoop`)
+		or another thread, apply is deferred until the next `applyPendingSwap`.
+		A pending UV swap counts as external work so `loop()` cannot idle-exit
+		before the driver is published. Idempotent: if a UV driver is already
+		current or pending for this EventLoop, its loop is reused.
+	**/
 	public static function getFromEventLoop(loop:haxe.EventLoop):Loop {
-		if (@:privateAccess loop.nativeLoop == null) {
-			if (loop == haxe.EventLoop.main)
-				@:privateAccess loop.nativeLoop = new LoopWrapper(default_loop());
-			else {
-				#if (hl_ver < version("1.16.0"))
-				throw "Using libUV multithread requires -D hl-ver=1.16.0";
-				#else
-				@:privateAccess loop.nativeLoop = new LoopWrapper(create());
-				#end
-			}
-		}
-		final wrapped:LoopWrapper = cast @:privateAccess loop.nativeLoop;
-		return @:privateAccess wrapped.uvLoop;
+		final current = loop.getDriver();
+		if (Std.isOfType(current, UvEventLoopDriver))
+			return (cast current : UvEventLoopDriver).uvLoop;
+		final pending = loop.getPendingDriver();
+		if (pending != null && Std.isOfType(pending, UvEventLoopDriver))
+			return (cast pending : UvEventLoopDriver).uvLoop;
+
+		final isDefault = loop == haxe.EventLoop.main;
+		final uvLoop = if (isDefault) {
+			default_loop();
+		} else {
+			#if (hl_ver < version("1.16.0"))
+			throw "Using libUV multithread requires -D hl-ver=1.16.0";
+			#else
+			create();
+			#end
+		};
+		final driver = new UvEventLoopDriver(uvLoop, isDefault);
+		// Often deferred when called inside a callback; sync only when rule #5 allows.
+		loop.swapDriver(driver);
+		return uvLoop;
 	}
 
 	public static function getCurrent():Loop {
@@ -82,27 +100,4 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 	}
 	#end
 
-}
-
-private class LoopWrapper {
-	public final allowsReentrancy = false;
-	final uvLoop:Loop;
-
-	public function new(loop:Loop) {
-		this.uvLoop = loop;
-	}
-
-	public function run() {
-		uvLoop.run(NoWait);
-	}
-
-	public function close() {
-		final result = uvLoop.close();
-		if (result != 0)
-			Sys.println("Some async handlers have not been closed");
-	}
-
-	public function isAlive() {
-		return uvLoop.alive() > 0;
-	}
 }

@@ -39,9 +39,10 @@ import haxe.Int64;
 	the child class.
 
 	Notice for threaded targets:
-	`Timer` instances require threads they were created in to run with Haxe's event loops.
-	Main thread of a Haxe program always contains an event loop. For other cases use
-	`sys.thread.Thread.createWithEventLoop` and `sys.thread.Thread.runWithEventLoop` methods.
+	`Timer` instances require the thread they were created on to have a Haxe event loop.
+	The main thread always has one. Threads created with `sys.thread.Thread.create` also
+	get an event loop that runs after the job returns. For a custom loop, construct
+	`haxe.EventLoop` and call `loop()` on that thread.
 **/
 class Timer {
 	#if (flash || js)
