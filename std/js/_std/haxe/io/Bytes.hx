@@ -156,7 +156,7 @@ class Bytes {
 
 	public function toHex():String {
 		var s = new StringBuf();
-		var chars = [];
+		var chars:Array<Int> = [];
 		var str = "0123456789abcdef";
 		for (i in 0...str.length)
 			chars.push(str.charCodeAt(i));
