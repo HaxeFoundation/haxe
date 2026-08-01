@@ -166,4 +166,16 @@ class TestInlineConstructors extends TestBase {
 		var p2 = {v: new PA(5)};
 		return [p2.v.x];
 	}
+
+	@:js('
+		var x = Std.random(0);
+		if(x == null) {x = 0;}
+		TestInlineConstructors.sink.x = x;
+	')
+	static function testDeadFieldInitFusion() {
+		var p = new P(Std.random(0));
+		sink.x = p.x;
+	}
+
+	static var sink:P = new P();
 }
