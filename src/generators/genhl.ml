@@ -47,7 +47,17 @@ type allocator = {
 	mutable a_hold : int list;
 }
 
-type lassign = (string index * int)
+type lassign = {
+	la_name : string index;
+	la_vid : int;
+	la_pos : int;
+	mutable la_scope_end : int;
+}
+
+let make_assigns ?(sorted=false) l =
+	let l = List.rev l in
+	let l = if sorted then List.sort (fun a b -> a.la_pos - b.la_pos) l else l in
+	Array.of_list (List.map (fun a -> (a.la_name, a.la_pos, a.la_scope_end)) l)
 
 type method_context = {
 	mid : int;
@@ -67,6 +77,8 @@ type method_context = {
 	mutable mcaptreg : int;
 	mutable mcurpos : Globals.pos;
 	mutable massign : lassign list;
+	(* lookup into massign by variable id, so we can set the scope end when the block closes *)
+	mvar_assigns : (int, lassign) Hashtbl.t;
 }
 
 type array_impl = {
@@ -254,6 +266,7 @@ let method_context id t captured hasthis =
 		mdebug = DynArray.create();
 		mcurpos = Globals.null_pos;
 		massign = [];
+		mvar_assigns = Hashtbl.create 0;
 	}
 
 let field_name c f =
@@ -815,7 +828,7 @@ and enum_class ctx e =
 						regs = DynArray.to_array ctx.m.mregs.arr;
 						code = DynArray.to_array ctx.m.mops;
 						debug = make_debug ctx ctx.m.mdebug;
-						assigns = Array.of_list (List.rev ctx.m.massign);
+						assigns = make_assigns ctx.m.massign;
 						need_opt = false;
 					} in
 					ctx.m <- old;
@@ -1081,12 +1094,20 @@ let not_debug_var ctx v = match v.v_kind with
 let add_assign ?(force=false) ctx v =
 	if not force && not_debug_var ctx v then () else
 	let name = real_name v in
-	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
+	let a = { la_name = alloc_string ctx name; la_vid = v.v_id; la_pos = current_pos ctx - 1; la_scope_end = -1 } in
+	ctx.m.massign <- a :: ctx.m.massign;
+	if a.la_pos >= 0 then Hashtbl.add ctx.m.mvar_assigns v.v_id a
+
+let close_scopes ctx declared =
+	let pos = current_pos ctx in
+	List.iter (fun vid ->
+		List.iter (fun a -> if a.la_scope_end < 0 then a.la_scope_end <- pos) (Hashtbl.find_all ctx.m.mvar_assigns vid)
+	) declared
 
 let add_capture ctx r =
 	Array.iter (fun v ->
 		let name = real_name v in
-		ctx.m.massign <- (alloc_string ctx name, -(r+2)) :: ctx.m.massign
+		ctx.m.massign <- { la_name = alloc_string ctx name; la_vid = -1; la_pos = -(r+2); la_scope_end = -1 } :: ctx.m.massign
 	) ctx.m.mcaptured.c_vars
 
 let before_return ctx =
@@ -1801,6 +1822,7 @@ and eval_expr ctx e =
 		let old = ctx.m.mdeclared in
 		ctx.m.mdeclared <- [];
 		let r = loop el in
+		close_scopes ctx ctx.m.mdeclared;
 		List.iter (fun vid ->
 			let r = try Hashtbl.find ctx.m.mvars vid with Not_found -> -1 in
 			if r >= 0 then begin
@@ -3306,7 +3328,7 @@ and gen_method_wrapper ctx rt t p =
 			regs = DynArray.to_array ctx.m.mregs.arr;
 			code = DynArray.to_array ctx.m.mops;
 			debug = make_debug ctx ctx.m.mdebug;
-			assigns = Array.of_list (List.rev ctx.m.massign);
+			assigns = make_assigns ctx.m.massign;
 			need_opt = false;
 		} in
 		ctx.m <- old;
@@ -3474,7 +3496,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
-		assigns = Array.of_list (List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev ctx.m.massign));
+		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
 	} in
 	ctx.m <- old;
@@ -4149,9 +4171,10 @@ let write_code ch code debug =
 		if debug then begin
 			write_debug_infos f.debug;
 			write_index (Array.length f.assigns);
-			Array.iter (fun (i,p) ->
+			Array.iter (fun (i,p,scope_end) ->
 				write_index i;
 				write_index (p + 1);
+				if code.version >= 6 then write_index (scope_end + 1);
 			) f.assigns;
 		end;
 	) code.functions;
@@ -4310,7 +4333,7 @@ let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
 	let bytes = DynArray.to_array ctx.cbytes.arr in
 	{
-		version = if Array.length bytes = 0 then 4 else 5;
+		version = if compare_version ctx.hl_ver "2.0.0" >= 0 then 6 else if Array.length bytes = 0 then 4 else 5;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
 		bytes = bytes;

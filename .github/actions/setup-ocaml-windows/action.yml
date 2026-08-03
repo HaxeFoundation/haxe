@@ -33,6 +33,7 @@ runs:
         $ErrorActionPreference = 'Stop'
         # see: https://github.com/aantron/luv/issues/162
         $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
+        opam pin add haxe . --no-action
         opam install haxe --deps-only
         opam list
     env:

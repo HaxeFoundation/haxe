@@ -743,13 +743,14 @@ let inline_constructors (scom : SafeCom.t) original_e =
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv : string list = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
-				begin try
-					let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
-					let iv = List.find is_user_variable io.io_aliases in
-					fname :: (get_pretty_name iv);
-				with Not_found ->
-					fname :: (get_pretty_name (List.hd io.io_aliases));
-				end
+				let is_source_variable iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in
+				let is_inline_variable iv = match iv.iv_var.v_kind with VInlined -> true | _ -> false in
+				let iv =
+					try List.find is_source_variable io.io_aliases with Not_found ->
+					try List.find is_inline_variable io.io_aliases with Not_found ->
+					List.hd io.io_aliases
+				in
+				fname :: (get_pretty_name iv)
 			| _ -> [iv.iv_var.v_name]
 		in
 		let is_user_kind iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in

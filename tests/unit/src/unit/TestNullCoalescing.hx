@@ -193,7 +193,7 @@ class TestNullCoalescing extends Test {
 			eq(arr[i], v);
 
 		final arr = [];
-		function item(n) {
+		function item(n) : Null<Int> {
 			arr.push(n);
 			return null;
 		}

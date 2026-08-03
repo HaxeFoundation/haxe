@@ -37,6 +37,7 @@ using StringTools;
 class Printer {
 	var tabs:String;
 	var tabString:String;
+	var loop : Int = 0;
 
 	public function new(tabString = "\t") {
 		tabs = "";
@@ -125,9 +126,10 @@ class Printer {
 			+ (tp.sub != null ? '.${tp.sub}' : "")
 			+ (tp.params == null ? "" : tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(", ") + ">" : "");
 
-	// TODO: check if this can cause loops
-	public function printComplexType(ct:ComplexType)
-		return switch (ct) {
+	public function printComplexType(ct:ComplexType) {
+		if( loop > 30 ) return "...";
+		loop++;
+		var str = switch (ct) {
 			case TPath(tp): printTypePath(tp);
 			case TFunction(args, ret):
 				var wrapArgumentsInParentheses = switch args {
@@ -153,6 +155,9 @@ class Printer {
 				'{${types}${fields}}';
 			case TIntersection(tl): tl.map(printComplexType).join(" & ");
 		}
+		loop--;
+		return str;
+	}
 
 	public function printMetadata(meta:MetadataEntry)
 		return '@${meta.name}' + ((meta.params != null && meta.params.length > 0) ? '(${printExprs(meta.params, ", ")})' : "");
