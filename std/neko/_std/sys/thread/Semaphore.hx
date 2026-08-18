@@ -12,7 +12,7 @@ package sys.thread;
 	}
 
 	public function tryAcquire(?timeout:Float):Bool {
-		return lock_wait(s, timeout);
+		return lock_wait(s, timeout ?? 0.);
 	}
 
 	public function release():Void {
