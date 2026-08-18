@@ -296,16 +296,10 @@ let check_module sctx com m_path m_extra p =
 let get_hxb_module com cc path typing_mode =
 	try
 		let mc = cc#get_hxb_module path in
-		match get_typing_mode com mc.mc_extra with
-			| AllowPartialTyping ->
-				mc.mc_extra.m_cache_state <- MSGood;
-				BinaryModule mc
-			| FullTyping ->
-				begin match mc.mc_extra.m_cache_state with
-					| MSBad reason when typing_mode = AllowPartialTyping -> BadBinaryModule (mc, reason)
-					| MSBad reason -> BadModule reason
-					| _ -> BinaryModule mc
-				end
+		match mc.mc_extra.m_cache_state with
+			| MSBad reason when typing_mode = AllowPartialTyping -> BadBinaryModule (mc, reason)
+			| MSBad reason -> BadModule reason
+			| _ -> BinaryModule mc
 	with Not_found ->
 		NoModule
 
