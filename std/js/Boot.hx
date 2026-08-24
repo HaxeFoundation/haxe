@@ -107,13 +107,13 @@ class Boot {
 					}
 					var tostr;
 					try {
-						tostr = untyped o.toString;
+						tostr = untyped (o : {toString: () -> String}).toString;
 					} catch (e:Dynamic) {
 						// strange error on IE
 						return "???";
 					}
 					if (tostr != null && tostr != js.Syntax.code("Object.toString") && js.Syntax.typeof(tostr) == "function") {
-						var s2 = o.toString();
+						var s2 = (o : {toString: () -> String}).toString();
 						if (s2 != "[object Object]")
 							return s2;
 					}
