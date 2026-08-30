@@ -66,11 +66,15 @@ class EReg {
 		`this.matchSub`, and then operates on the String of that operation.
 
 		The index `n` corresponds to the n-th set of parentheses in the pattern
-		of `this` EReg. If no such sub-group exists, the result is unspecified.
+		of `this` EReg. If `n` equals 0, the whole matched substring is returned.
 
-		If `n` equals 0, the whole matched substring is returned.
+		If the sub-group `n` was defined in the pattern but did not participate
+		in the match, `null` is returned.
+
+		If no sub-group with index `n` exists in the pattern, the result is
+		unspecified.
 	**/
-	public function matched(n:Int):String {
+	public function matched(n:Int):Null<String> {
 		return null;
 	}
 
