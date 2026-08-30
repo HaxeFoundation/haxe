@@ -503,6 +503,37 @@ class ServerTests extends TestCase {
 		});
 	}
 
+	function testSyntaxCachePlatformSpecificFiles() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		vfs.putContent("EmptyJs.js.hx", "class EmptyJs {}");
+		vfs.putContent("EmptyPy.py.hx", "class EmptyPy {}");
+		var args = ["-cp", ".", "-js", "no.js", "--no-output"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
+		var completion = runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		// EmptyJs.js.hx matches the current platform and must show up as module EmptyJs
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "EmptyJs";
+			case _: false;
+		});
+		// EmptyPy.py.hx belongs to another platform and must not show up
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "EmptyPy";
+			case _: false;
+		});
+	}
+
+	function testSyntaxCacheCustomExtensionFiles() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		vfs.putContent("EmptyCustom.custom.hx", "class EmptyCustom {}");
+		var args = ["-cp", ".", "--custom-extension", "custom", "--interp"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
+		var completion = runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "EmptyCustom";
+			case _: false;
+		});
+	}
+
 	function testVectorInliner() {
 		vfs.putContent("Vector.hx", getTemplate("Vector.hx"));
 		vfs.putContent("VectorInliner.hx", getTemplate("VectorInliner.hx"));
