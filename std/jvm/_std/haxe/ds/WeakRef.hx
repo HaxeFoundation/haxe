@@ -20,38 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package python.lib;
+package haxe.ds;
 
-import python.NativeIterator;
-import python.internal.UBuiltins;
+import java.lang.ref.WeakReference;
 
-@:pythonImport("weakref")
-extern class Weakref {
-	static function ref<T:{}>(object:T):WeakrefCallable<T>;
-}
+@:coreApi
+class WeakRef<T:{}> {
+	var h:WeakReference<T>;
 
-extern class WeakrefCallable<T:{}> {
-	@:selfCall function call():Null<T>;
-}
+	public function new(target:T) {
+		h = new WeakReference(target);
+	}
 
-@:pythonImport("weakref", "finalize")
-extern class PythonFinalizer {
-	function new(obj:{}, func:Dynamic, held:Dynamic);
-	function detach():Bool;
-}
-
-@:pythonImport("weakref", "WeakKeyDictionary")
-extern class WeakKeyDictionary<K:{}, V> {
-	function new():Void;
-
-	@:native("__setitem__") function setItem(key:K, value:V):Void;
-	@:native("__getitem__") function getItem(key:K):V;
-	@:native("__delitem__") function delItem(key:K):Void;
-	@:native("__contains__") function contains(key:K):Bool;
-	@:native("__len__") function len():Int;
-
-	function keys():NativeIterator<K>;
-	function values():NativeIterator<V>;
-
-	function clear():Void;
+	public function get():Null<T> {
+		return h.get();
+	}
 }
