@@ -2,6 +2,8 @@ package unit;
 
 import haxe.ds.HashMap;
 
+using Lambda;
+
 class TestHashMap extends Test {
 	function test() {
 		var grid = new HashMap<Point, String>();
@@ -24,6 +26,8 @@ class TestHashMap extends Test {
 			asserts++;
 		}
 		eq(4, asserts);
+
+		eq(4, grid.count(_ -> true));
 	}
 }
 
