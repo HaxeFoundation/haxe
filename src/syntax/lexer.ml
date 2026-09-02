@@ -31,6 +31,7 @@ type error_msg =
 	| Invalid_escape of char * (string option)
 	| Invalid_option
 	| Unterminated_markup
+	| Unexpected_closing_markup_tag
 
 exception Error of error_msg * pos
 
@@ -90,6 +91,7 @@ let error_msg = function
 	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
 	| Unterminated_markup -> "Unterminated markup literal"
+	| Unexpected_closing_markup_tag -> "Unexpected closing markup tag"
 
 let make_file file =
 	{
@@ -849,6 +851,7 @@ let rec sharp_token ctx lexbuf =
 
 let lex_xml ctx p lexbuf =
 	let name,pmin = match%sedlex lexbuf with
+	| '/' -> error Unexpected_closing_markup_tag p
 	| xml_name -> lexeme lexbuf,lexeme_start lexbuf
 	| _ -> invalid_char ctx lexbuf
 	in
