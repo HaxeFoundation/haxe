@@ -48,6 +48,9 @@ class StringExt {
 	}
 
 	public static function indexOf(me:String, str:String, startIndex:Null<Int>) {
+		if(str == null) {
+			return -1;
+		}
 		if (str.length == 0) {
 			return java.lang.Math.max(0, java.lang.Math.min(startIndex == null ? 0 : startIndex, me.length));
 		}
@@ -55,6 +58,9 @@ class StringExt {
 	}
 
 	public static function lastIndexOf(me:String, str:String, ?startIndex:Int):Int {
+		if(str == null) {
+			return -1;
+		}
 		if (str.length == 0) {
 			return java.lang.Math.max(0, java.lang.Math.min(startIndex == null ? me.length : startIndex, me.length));
 		}
