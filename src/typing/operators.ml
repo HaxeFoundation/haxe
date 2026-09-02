@@ -335,9 +335,14 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		let e1,e2 = try
 			(* we only have to check one type here, because unification fails if one is Void and the other is not *)
 			(match follow e2.etype with TAbstract({a_path=[],"Void"},_) -> raise_typing_error "Cannot compare Void" p | _ -> ());
+			(* Try casting the rhs to the lhs first *)
+			e1,AbstractCast.cast_or_unify_raise ctx e1.etype e2 p
+		with Error ({ err_message = Unify _ } as err) -> try
 			AbstractCast.cast_or_unify_raise ctx e2.etype e1 p,e2
 		with Error { err_message = Unify _ } ->
-			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
+			(* If both fail we want to report the first one because that's more natural *)
+			raise_or_display_error ctx err;
+			e1,e2
 		in
 		begin match e1.eexpr, e2.eexpr with
 		| TConst TNull , _ | _ , TConst TNull -> ()
