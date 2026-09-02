@@ -3900,7 +3900,7 @@ let init_standard_library builtins =
 		"isOfType",StdStd.isOfType;
 		"parseFloat",StdStd.parseFloat;
 		"parseInt",StdStd.parseInt;
-		"string",StdStd.string;
+		"_string",StdStd.string;
 		"random",StdStd.random;
 	] [];
 	init_fields builtins ([],"String") [
