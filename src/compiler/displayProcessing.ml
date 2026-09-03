@@ -135,9 +135,8 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 			let _ = MacroContext.load_macro_module (MacroContext.get_macro_context tctx) tctx.com cpath true p in
 			Finalization.finalize mctx;
 			Some mctx
-		with DisplayException.DisplayException _ | Parser.TypePath _ | DisplayJson.JsonCompleted as exc ->
-			raise exc
-		| _ ->
+		with Error.Fatal_error _ | Error.Error _ | Failure _ | Not_found
+		| Lexer.Error _ | Parser.Error _ | Typecore.Forbid_package _ | Typecore.WithTypeError _ ->
 			None
 		end
 	| None ->

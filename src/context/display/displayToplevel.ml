@@ -49,7 +49,7 @@ let maybe_resolve_macro_field ctx t c cf =
 		let (tl,tr,c,cf) = ctx.g.do_load_macro ctx false c.cl_path cf.cf_name null_pos in
 		let t = perform_type_voodoo t tl tr in
 		t,{cf with cf_type = t}
-	with _ ->
+	with Exit | Not_found | Error.Fatal_error _ | Error.Error _ | Failure _ ->
 		t,cf
 
 let exclude : string list ref = ref []
@@ -157,7 +157,7 @@ let init_or_update_server cs com timer_name =
 		try
 			ignore(cc#find_file file_key);
 		with Not_found ->
-			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
+			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with Lexer.Error _ | Parser.Error _ | Failure _ | Error.Error _ | Error.Fatal_error _ -> ()
 	) removed_files;
 	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
