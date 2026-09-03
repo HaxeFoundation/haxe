@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue8068 extends Test {
-	#if (hl || lua || interp || php || python || jvm)
+	#if (hl || lua || interp || php || js || python || jvm)
 	function test() {
 		var f = "foo";
 		var o = {charAt: f.charAt};
