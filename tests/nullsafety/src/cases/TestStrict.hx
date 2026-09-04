@@ -1571,3 +1571,110 @@ class BinopFlow {
 		shouldFail(dispatcher.scheduler);
 	}
 }
+
+@:build(Validator.checkFields())
+class ConstructorThrowWithElse {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorThrowNoElse {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		}
+		s = "foo";
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorThrowBothBranches {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			throw "also no";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorReturn {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturn {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			// Throw branch: doesn't need to initialize fields
+			throw "error";
+		} else {
+			// Return branch: must initialize all fields
+			s = "three";
+			return;
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturnFail {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			// Throw branch: doesn't need to initialize fields
+			throw "error";
+		} else {
+			// Return branch: must initialize all fields, but doesn't - should fail
+			return;
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorEarlyReturnNoElse {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		}
+		s = "foo";
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorEarlyReturnWithElse {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		} else {
+			s = "foo";
+		}
+	}
+}
