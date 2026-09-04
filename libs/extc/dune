@@ -6,6 +6,7 @@
 	(foreign_stubs
 		(language c)
 		(names extc_stubs))
+        (c_library_flags -lz)
 	(modules extc)
 	(wrapped false)
 )

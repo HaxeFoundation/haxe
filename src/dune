@@ -52,6 +52,5 @@
 	(libraries haxe)
 	(modules haxe)
 	(link_flags (:include libs.sexp))
-	; Uncomment to enable bytecode output for ocamldebug support
-	; (modes byte)
+	(modes byte native)
 )
