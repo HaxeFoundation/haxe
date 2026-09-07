@@ -1,0 +1,16 @@
+Main2.hx:6: characters 16-26 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:7: characters 7-17 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:8: characters 7-17 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:9: characters 7-17 : Warning : (WConditionAssign) Using the result of an assignment as a condition
+Main2.hx:10: characters 13-23 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:12: characters 10-21 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:13: characters 16-27 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:15: characters 8-18 : Warning : (WConditionAssign) Using the result of an assignment as a condition
+Main2.hx:15: characters 24-34 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:16: characters 8-18 : Warning : (WConditionAssign) Using the result of an assignment as a condition
+Main2.hx:16: characters 25-35 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:16: characters 41-51 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
+Main2.hx:20: characters 7-14 : Warning : (WConditionAssign) Using the result of an assignment as a condition
+Main2.hx:21: characters 7-17 : Warning : (WConditionAssign) Using the result of an assignment as a condition
+Main2.hx:22: characters 7-17 : Warning : (WConditionAssign) Using the result of an assignment as a condition
+Main2.hx:23: characters 7-18 : Warning : (WConditionAssignBool) Using the result of an bool assignment as a condition
