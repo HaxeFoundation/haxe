@@ -3,6 +3,7 @@ open EvalValue
 open EvalEncode
 open EvalDecode
 open EvalExceptions
+open EvalMisc
 open Mbedtls
 
 let as_x509_crt vthis = match vthis with
@@ -66,12 +67,21 @@ let init_constructors add =
 		)
 
 let init_fields init_fields builtins =
-	let socket_send socket bytes =
-		Unix.send socket bytes 0 (Bytes.length bytes) []
+	let socket_send socket buf pos len =
+		Unix.send socket buf pos len []
 	in
-	let socket_receive socket bytes =
-		Unix.recv socket bytes 0 (Bytes.length bytes) []
+	let socket_receive socket buf pos len =
+		Unix.recv socket buf pos len []
 	in
+	let bio_bridge fn buf pos len =
+		decode_int (call_value fn [encode_bytes buf; vint pos; vint len])
+	in
+	let make_bio_send send = fun () buf pos len -> bio_bridge send buf pos len in
+	let make_bio_recv recv = fun () buf pos len -> bio_bridge recv buf pos len in
+	let decode_string_array v =
+		Array.of_list (List.map decode_string (decode_array v))
+	in
+	let statics a = List.map (fun (s,i) -> s,vint i) (Array.to_list a) in
 	let native_cert this =
 		as_x509_crt (EvalField.field this (hash "native"))
 	in
@@ -146,7 +156,13 @@ let init_fields init_fields builtins =
 		"rng",vifun1(fun this p_rng ->
 			mbedtls_ssl_config_rng (as_config this) (as_ctr_drbg p_rng);
 			vnull
-		)
+		);
+		"own_cert",vifun2 (fun this cert pk ->
+			vint (mbedtls_ssl_conf_own_cert (as_config this) (as_x509_crt cert) (as_pk_context pk))
+		);
+		"alpn_protocols",vifun1 (fun this protocols ->
+			vint (mbedtls_ssl_conf_alpn_protocols (as_config this) (decode_string_array protocols))
+		);
 	];
 	init_fields builtins (["mbedtls"],"CtrDrbg") [] [
 		"random",vifun2 (fun this output output_len ->
@@ -156,9 +172,11 @@ let init_fields init_fields builtins =
 			vint (mbedtls_ctr_drbg_seed (as_ctr_drbg this) (as_entropy entropy) (match custom with VString s -> Some s.sstring | _ -> None))
 		)
 	];
-	init_fields builtins (["mbedtls"],"Error") [
-		"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
-	] [];
+	init_fields builtins (["mbedtls"],"Error") (
+		(statics (hx_get_ssl_error_flags())) @ [
+			"strerror",vfun1 (fun code -> encode_string (mbedtls_strerror (decode_int code)));
+		]
+	) [];
 	init_fields builtins (["mbedtls"],"PkContext") [] [
 		"parse_key",vifun3 (fun this key password rng ->
 			vint (mbedtls_pk_parse_key (as_pk_context this) (decode_bytes key) (match password with VNull -> None | _ -> Some (decode_string password)) (as_ctr_drbg rng));
@@ -174,6 +192,11 @@ let init_fields init_fields builtins =
 		);
 	];
 	init_fields builtins (["mbedtls"],"Ssl") [] [
+		"get_alpn_protocol",vifun0 (fun this ->
+			match mbedtls_ssl_get_alpn_protocol (as_ssl this) with
+			| None -> vnull
+			| Some proto -> encode_string proto
+		);
 		"get_peer_cert",vifun0 (fun this ->
 			match mbedtls_ssl_get_peer_cert (as_ssl this) with
 			| None -> vnull
@@ -188,6 +211,10 @@ let init_fields init_fields builtins =
 		"set_hostname",vifun1 (fun this hostname ->
 			vint (mbedtls_ssl_set_hostname (as_ssl this) (decode_string hostname));
 		);
+		"set_bio",vifun2 (fun this send recv ->
+			mbedtls_ssl_set_bio (as_ssl this) () (make_bio_send send) (make_bio_recv recv);
+			vnull
+		);
 		"setup",vifun1 (fun this conf ->
 			vint (mbedtls_ssl_setup (as_ssl this) (as_config conf))
 		);
@@ -195,7 +222,6 @@ let init_fields init_fields builtins =
 			vint (mbedtls_ssl_write (as_ssl this) (decode_bytes buf) (decode_int pos) (decode_int len);)
 		);
 	];
-	let statics a = List.map (fun (s,i) -> s,vint i) (Array.to_list a) in
 	init_fields builtins (["mbedtls"],"SslAuthmode") (statics (hx_get_ssl_authmode_flags())) [];
 	init_fields builtins (["mbedtls"],"SslEndpoint") (statics (hx_get_ssl_endpoint_flags())) [];
 	init_fields builtins (["mbedtls"],"SslPreset") (statics (hx_get_ssl_preset_flags())) [];

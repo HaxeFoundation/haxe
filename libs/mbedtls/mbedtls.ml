@@ -27,16 +27,22 @@ external mbedtls_ssl_config_authmode : mbedtls_ssl_config -> int -> unit = "ml_m
 external mbedtls_ssl_config_defaults : mbedtls_ssl_config -> int -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_config_defaults"
 external mbedtls_ssl_config_init : unit -> mbedtls_ssl_config = "ml_mbedtls_ssl_config_init"
 external mbedtls_ssl_config_rng : mbedtls_ssl_config -> 'a -> unit = "ml_mbedtls_ssl_conf_rng"
+external mbedtls_ssl_conf_own_cert :
+	mbedtls_ssl_config -> mbedtls_x509_crt -> mbedtls_pk_context -> mbedtls_result
+	= "ml_mbedtls_ssl_conf_own_cert"
+external mbedtls_ssl_conf_alpn_protocols : mbedtls_ssl_config -> string array -> mbedtls_result
+	= "ml_mbedtls_ssl_conf_alpn_protocols"
 
 external mbedtls_ssl_init : unit -> mbedtls_ssl_context = "ml_mbedtls_ssl_init"
 external mbedtls_ssl_get_peer_cert : mbedtls_ssl_context -> mbedtls_x509_crt option = "ml_mbedtls_ssl_get_peer_cert"
+external mbedtls_ssl_get_alpn_protocol : mbedtls_ssl_context -> string option = "ml_mbedtls_ssl_get_alpn_protocol"
 external mbedtls_ssl_handshake : mbedtls_ssl_context -> mbedtls_result = "ml_mbedtls_ssl_handshake"
 external mbedtls_ssl_read : mbedtls_ssl_context -> bytes -> int -> int -> mbedtls_result = "ml_mbedtls_ssl_read"
 external mbedtls_ssl_set_bio :
 	mbedtls_ssl_context ->
 	'a ->
-	('a -> bytes -> mbedtls_result) ->
-	('a -> bytes -> mbedtls_result) ->
+	('a -> bytes -> int -> int -> mbedtls_result) ->
+	('a -> bytes -> int -> int -> mbedtls_result) ->
 	unit = "ml_mbedtls_ssl_set_bio"
 external mbedtls_ssl_set_hostname : mbedtls_ssl_context -> string -> mbedtls_result = "ml_mbedtls_ssl_set_hostname"
 external mbedtls_ssl_setup : mbedtls_ssl_context -> mbedtls_ssl_config -> mbedtls_result = "ml_mbedtls_ssl_setup"
@@ -67,3 +73,4 @@ external hx_get_ssl_authmode_flags : unit -> (string * int) array = "hx_get_ssl_
 external hx_get_ssl_endpoint_flags : unit -> (string * int) array = "hx_get_ssl_endpoint_flags"
 external hx_get_ssl_preset_flags : unit -> (string * int) array = "hx_get_ssl_preset_flags"
 external hx_get_ssl_transport_flags : unit -> (string * int) array = "hx_get_ssl_transport_flags"
+external hx_get_ssl_error_flags : unit -> (string * int) array = "hx_get_ssl_error_flags"
