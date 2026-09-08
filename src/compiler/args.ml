@@ -253,6 +253,7 @@ let parse_args args =
 					add (IncludeModule arg)));
 			loop rest
 	in
+	let args = List.map Helper.expand_env args in (* TODO: test this *)
 	loop args;
 	DynArray.to_list parsed
 
