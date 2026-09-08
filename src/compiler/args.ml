@@ -253,7 +253,15 @@ let parse_args args =
 					add (IncludeModule arg)));
 			loop rest
 	in
-	let args = List.map Helper.expand_env args in (* TODO: test this *)
+	let rec hack_loop acc args = match args with
+		| "--run" :: _ ->
+			(List.rev acc) @ args
+		| [] ->
+			List.rev acc
+		| arg :: args ->
+			hack_loop (Helper.expand_env arg :: acc) args
+	in
+	let args = hack_loop [] args in (* TODO: test this *)
 	loop args;
 	DynArray.to_list parsed
 
