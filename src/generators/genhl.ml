@@ -830,6 +830,7 @@ and enum_class ctx e =
 						debug = make_debug ctx ctx.m.mdebug;
 						assigns = make_assigns ctx.m.massign;
 						need_opt = false;
+						is_extern = false;
 					} in
 					ctx.m <- old;
 					Hashtbl.add ctx.defined_funs eid ();
@@ -3330,6 +3331,7 @@ and gen_method_wrapper ctx rt t p =
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = make_assigns ctx.m.massign;
 			need_opt = false;
+			is_extern = false;
 		} in
 		ctx.m <- old;
 		DynArray.add ctx.cfunctions f;
@@ -3498,11 +3500,37 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
+		is_extern = false;
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
 	DynArray.add ctx.cfunctions hlf;
 	capt
+
+and make_external_fun ctx name fidx (args, tret) =
+	let tret = to_type ctx tret in
+	let args = List.map (fun (_, _, t) -> to_type ctx t) args in
+	let hlf = {
+		fpath = name;
+		findex = fidx;
+		ftype = HFun (args, tret);
+		regs = [||];
+		code = [||];
+		debug = [||];
+		assigns = [||];
+		need_opt = false;
+		is_extern = true;
+	} in
+	DynArray.add ctx.cfunctions hlf
+
+let generate_external ctx c f =
+	match f.cf_kind, fst c.cl_path with
+	| Var _, _
+	| _, ("haxe" | "hl")::_ -> ()
+	| Method _, _ ->
+		(match f.cf_type with
+		 | TFun s -> make_external_fun ctx (s_type_path c.cl_path, f.cf_name) (alloc_fid ctx c f) s
+		 | _ -> abort "A method which is not a function" f.cf_pos)
 
 let generate_static ctx c f =
 	match f.cf_kind with
@@ -3621,11 +3649,9 @@ let generate_type ctx t =
 		()
 	| TClassDecl c when (has_class_flag c CExtern) ->
 		List.iter (fun f ->
-			List.iter (fun (name,args,pos) ->
-				match name with
-				| Meta.HlNative -> generate_static ctx c f
-				| _ -> ()
-			) f.cf_meta
+			 if List.exists (fun (name, _, _) -> name = Meta.HlNative) f.cf_meta
+			 then generate_static ctx c f
+			 else generate_external ctx c f
 		) c.cl_ordered_statics
 	| TClassDecl c ->
 		List.iter (generate_static ctx c) c.cl_ordered_statics;
