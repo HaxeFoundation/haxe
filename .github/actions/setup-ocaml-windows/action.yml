@@ -20,7 +20,7 @@ runs:
       opam exec -- tar -C / -xvf libmbedtls.tar.xz
 
   - name: Install OCaml libraries
-    uses: nick-fields/retry@v3
+    uses: nick-fields/retry@v4
     with:
       timeout_minutes: 10
       max_attempts: 10
