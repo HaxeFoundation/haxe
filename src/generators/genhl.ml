@@ -387,26 +387,22 @@ let fake_tnull =
 let is_excluded c =
 	has_class_flag c CExcluded && not (has_class_flag c CInterface)
 
-let max_rec_expand = 2
-
 let get_rec_cache ctx t none_callback not_found_callback =
-	let rec loop pending l =
+	let rec loop retried l =
 		match l with
 		| [] ->
-			if pending >= max_rec_expand then none_callback() else begin
-				let tref = ref None in
-				ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
-				let t = not_found_callback tref in
-				ctx.rec_cache <- List.tl ctx.rec_cache;
-				t
-			end
+			let tref = ref None in
+			ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
+			let t = not_found_callback tref in
+			ctx.rec_cache <- List.tl ctx.rec_cache;
+			t
 		| (t',r) :: l ->
-			if not (fast_eq t' t) then loop pending l else
+			if not (fast_eq t' t) then loop retried l else
 			match !r with
 			| Some t -> t
-			| None -> loop (pending + 1) l
+			| None -> if retried then none_callback() else loop true l
 	in
-	loop 0 ctx.rec_cache
+	loop false ctx.rec_cache
 
 let rec to_type ?tref ctx t =
 	match t with
