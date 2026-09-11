@@ -388,16 +388,21 @@ let is_excluded c =
 	has_class_flag c CExcluded && not (has_class_flag c CInterface)
 
 let get_rec_cache ctx t none_callback not_found_callback =
-	try
-		match !(snd (List.find (fun (t',_) -> fast_eq t' t) ctx.rec_cache)) with
-		| None -> none_callback()
-		| Some t -> t
-	with Not_found ->
-		let tref = ref None in
-		ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
-		let t = not_found_callback tref in
-		ctx.rec_cache <- List.tl ctx.rec_cache;
-		t
+	let rec loop retried l =
+		match l with
+		| [] ->
+			let tref = ref None in
+			ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
+			let t = not_found_callback tref in
+			ctx.rec_cache <- List.tl ctx.rec_cache;
+			t
+		| (t',r) :: l ->
+			if not (fast_eq t' t) then loop retried l else
+			match !r with
+			| Some t -> t
+			| None -> if retried then none_callback() else loop true l
+	in
+	loop false ctx.rec_cache
 
 let rec to_type ?tref ctx t =
 	match t with
