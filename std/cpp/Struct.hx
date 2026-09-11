@@ -25,4 +25,5 @@ package cpp;
 /**
 	Wraps external types with a class that integrates with Dynamic.
 **/
+@:semantics(value)
 typedef Struct<T> = T;
