@@ -223,11 +223,12 @@ let parse config entry lctx code file =
 
 	let conds = new condition_handler in
 	let dbc = new dead_block_collector conds in
+	let lexer_token = Lexer.make_token lctx in
 	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token lctx code)) in
 	let preprocessor_error ppe pos tk =
 		syntax_error ctx (Preprocessor_error ppe) ~pos:(Some pos) sraw tk
 	in
-	let rec next_token() = process_token (Lexer.token lctx code)
+	let rec next_token() = process_token (lexer_token code)
 
 	and process_token tk =
 		match fst tk with
@@ -263,7 +264,7 @@ let parse config entry lctx code file =
 		| Sharp "if" ->
 			process_token (enter_macro true (snd tk))
 		| Sharp "error" ->
-			(match Lexer.token lctx code with
+			(match lexer_token code with
 			| (Const (String(s,_)),p) -> error (Custom s) p
 			| _ -> error Unimplemented (snd tk))
 		| Sharp "line" ->
@@ -281,7 +282,7 @@ let parse config entry lctx code file =
 	and enter_macro is_if p =
 		let tk, e = parse_macro_cond ctx sraw in
 		(if is_if then conds#cond_if e else conds#cond_elseif e p);
-		let tk = (match tk with None -> Lexer.token lctx code | Some tk -> tk) in
+		let tk = (match tk with None -> lexer_token code | Some tk -> tk) in
 		if is_true (eval defines e) then begin
 			tk
 		end else begin
@@ -294,7 +295,7 @@ let parse config entry lctx code file =
 		| Sharp "end" ->
 			conds#cond_end (snd tk);
 			dbc#close_dead_block (pos tk);
-			Lexer.token lctx code
+			lexer_token code
 		| Sharp "elseif" when not test ->
 			dbc#close_dead_block (pos tk);
 			let _,(e,pe) = parse_macro_cond ctx sraw in
@@ -309,7 +310,7 @@ let parse config entry lctx code file =
 		| Sharp "else" ->
 			conds#cond_else (snd tk);
 			dbc#close_dead_block (pos tk);
-			Lexer.token lctx code
+			lexer_token code
 		| Sharp "elseif" ->
 			dbc#close_dead_block (pos tk);
 			enter_macro false (snd tk)
@@ -328,7 +329,7 @@ let parse config entry lctx code file =
 		| _ ->
 			skip_tokens p test
 
-	and skip_tokens p test = skip_tokens_loop p test (Lexer.token lctx code)
+	and skip_tokens p test = skip_tokens_loop p test (lexer_token code)
 
 	in
 	let s = Stream.from (fun _ ->
