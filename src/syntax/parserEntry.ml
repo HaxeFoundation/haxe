@@ -209,12 +209,12 @@ class dead_block_collector conds = object(self)
 end
 
 (* parse main *)
-let parse config entry lctx code file =
+let parse ?(skip_header=true) config entry lctx code file =
 	let defines = config.defines in
 	let in_macro = Define.defined defines Define.Macro in
 	let ctx = Parser.create_context lctx config in_macro code in
 	let entry = entry ctx in
-	Lexer.skip_header code;
+	if skip_header then Lexer.skip_header code;
 
 	let sharp_error s p =
 		let line = StringError.string_error ("#" ^ s) ["#if";"#elseif";"#else";"#end";"#error";"#line"] "Unknown token" in
@@ -368,7 +368,7 @@ let parse config entry lctx code file =
 			let last = (match Stream.peek s with None -> last_token ctx s | Some t -> t) in
 			error (Unexpected (fst last)) (pos last)
 
-let parse_string config entry s p error inlined =
+let parse_string ?(offset=0) config entry s p error inlined =
 	let old_display = display_position#get in
 	let restore() =
 		if not inlined then begin
@@ -382,8 +382,13 @@ let parse_string config entry s p error inlined =
 	end else
 		config
 	in
+	let code = Lexer.lexbuf_from_utf8_string s in
+	if offset > 0 then
+		Sedlexing.set_position code {Lexing.pos_fname = p.pfile; pos_lnum = 1; pos_bol = 0; pos_cnum = offset};
 	let result = try
-		parse config entry lctx (Lexer.lexbuf_from_utf8_string s) p.pfile
+		(* A virtual prefix replaces the old spaces, including their prevention of
+		   BOM/shebang handling away from the beginning of the source. *)
+		parse ~skip_header:(offset = 0) config entry lctx code p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
@@ -398,8 +403,9 @@ let parse_string config entry s p error inlined =
 	result
 
 let parse_expr_string config s p error inl =
-	let s = if p.pmin > 0 then (String.make p.pmin ' ') ^ s else s in
-	let result = parse_string config expr s p error inl in
+	(* Source coordinates must not require allocating and lexing a prefix for
+	   every expression, notably each braced string interpolation. *)
+	let result = parse_string ~offset:(max 0 p.pmin) config expr s p error inl in
 	if inl then
 		result
 	else begin
