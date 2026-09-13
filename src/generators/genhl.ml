@@ -31,7 +31,7 @@ open Hlcode
 
 type ('a,'b) lookup = {
 	arr : 'b DynArray.t;
-	mutable map : ('a, int) PMap.t;
+	map : ('a, int) Hashtbl.t;
 }
 
 (* not mutable, might be be shared *)
@@ -221,7 +221,7 @@ let tuple_type ctx tl =
 let new_lookup() =
 	{
 		arr = DynArray.create();
-		map = PMap.empty;
+		map = Hashtbl.create 0;
 	}
 
 let null_capture =
@@ -234,11 +234,11 @@ let null_capture =
 
 let lookup l v fb =
 	try
-		PMap.find v l.map
+		Hashtbl.find l.map v
 	with Not_found ->
 		let id = DynArray.length l.arr in
 		DynArray.add l.arr (Obj.magic 0);
-		l.map <- PMap.add v id l.map;
+		Hashtbl.add l.map v id;
 		DynArray.set l.arr id (fb());
 		id
 
@@ -4347,7 +4347,7 @@ let build_code ctx types main =
 	}
 
 let check ctx =
-	PMap.iter (fun (s,p) fid ->
+	Hashtbl.iter (fun (s,p) fid ->
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map
 
@@ -4426,7 +4426,7 @@ let generate com =
 
 	if Path.file_extension com.file = "c" then begin
 		let gnames = Array.make (Array.length code.globals) "" in
-		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
+		Hashtbl.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Gctx.defined com Define.SourceHeader) then begin
 			let version_major = com.version.major in
 			let version_minor = com.version.minor in
