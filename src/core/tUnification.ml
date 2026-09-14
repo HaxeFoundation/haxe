@@ -237,8 +237,23 @@ module Monomorph = struct
 				| None -> f()
 			) tl
 		| CStructural(fields,is_open) ->
-			let t2 = mk_anon ~fields (ref Closed) in
-			(!unify_ref) (default_unification_context()) t t2
+			let anon_t = mk_anon ~fields (ref Closed) in
+			let uctx = default_unification_context() in
+			begin match t with
+				| TAbstract(ab, tl) when ab.a_from <> [] ->
+					let check_via_from constraint_type =
+						List.exists (fun from_type ->
+							try
+								(!unify_ref) uctx constraint_type from_type;
+								true
+							with Unify_error _ -> false
+						) ab.a_from
+					in
+					if (check_via_from t) then ()
+					else (!unify_ref) uctx t anon_t
+				| _ ->
+					(!unify_ref) uctx t anon_t
+			end
 		| CMixed l ->
 			List.iter (fun constr -> check_down_constraints constr t) l
 
