@@ -173,6 +173,8 @@ class Timer {
 		return untyped __global__.__time_stamp();
 		#elseif python
 		return Sys.cpuTime();
+		#elseif lua
+		return lua.Os.clock();
 		#elseif sys
 		return Sys.time();
 		#else
