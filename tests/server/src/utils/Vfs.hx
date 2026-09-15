@@ -31,6 +31,16 @@ class Vfs {
 		Fs.writeFileSync(path.toString(), content);
 	}
 
+	/**
+		Bumps the modification time of `path` into the future. The server compares file times with
+		second granularity, so a rewrite within the same second is invisible to it otherwise.
+	**/
+	public function touch(path:String) {
+		var path = getPhysicalPath(path).toString();
+		var time = Date.fromTime(Date.now().getTime() + 2000);
+		Fs.utimesSync(path, time, time);
+	}
+
 	public function getContent(path:String):String {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
