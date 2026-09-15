@@ -332,7 +332,7 @@ let rec handle_signature_display ctx e_ast with_type =
 						end
 					| _ ->
 						None
-				) a.a_array in
+				) (a.a_array_read @ a.a_array_write) in
 				DisplayException.send_signatures_raise ctx.com sigs 0 0 SKArrayAccess
 			| _ ->
 				DisplayException.send_signatures_raise ctx.com [] 0 0 SKArrayAccess
