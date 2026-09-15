@@ -24,7 +24,6 @@ private abstract Meters(Float) from Float {
 }
 
 class Issue3345 extends Test {
-	#if !lua
 	function test() {
 		var acc:Meters = .0;
 		for (i in 0...10)
@@ -36,5 +35,4 @@ class Issue3345 extends Test {
 			acc -= 10;
 		eq("-100(m)", acc);
 	}
-	#end
 }
