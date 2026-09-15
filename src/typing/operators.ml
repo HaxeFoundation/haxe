@@ -197,8 +197,8 @@ let make_binop ctx op e1 e2 is_assign_op p =
 	let tstring = ctx.t.tstring in
 	let to_string e =
 		let rec loop t = match classify t with
-			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-				call_to_string ctx e
+			| KAbstract ({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+				call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				Texpr.Builder.resolve_and_make_static_call ctx.com.std "string" [e] e.epos
