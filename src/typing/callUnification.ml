@@ -424,8 +424,9 @@ let unify_field_call ctx fa el_typed el p inline =
 					) known_monos;
 					ctx.e.monomorphs <- current_monos;
 					check_unknown_ident err;
+					let delayed_display = extract_delayed_display() in
 					let candidates,failures = loop candidates in
-					candidates,(cf,err,extract_delayed_display()) :: failures
+					candidates,(cf,err,delayed_display) :: failures
 				end
 		in
 		loop candidates

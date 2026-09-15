@@ -113,7 +113,11 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let e = try
 				f()
 			with
-			| Error { err_message = Unknown_ident n; err_sub = sub } ->
+			| Error ({ err_message = Unknown_ident n; err_sub = sub } as err) ->
+				if ctx.f.in_display && ctx.com.display.dms_kind = DMDefault then begin
+					restore();
+					raise_error err
+				end;
 				restore();
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
