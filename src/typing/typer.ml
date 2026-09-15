@@ -1850,10 +1850,45 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		) ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
-		let locals = save_locals ctx in
-		let e = type_block ctx l with_type p in
-		locals();
-		e
+		let process_block () =
+			let locals = save_locals ctx in
+			let e = type_block ctx l with_type p in
+			locals();
+			e
+		in
+		let is_struct = match with_type with
+			| WithType.WithType(t, _) ->
+				begin match follow t with
+					| TAnon _ -> true
+					| TInst(c,_) when Meta.has Meta.StructInit c.cl_meta -> true
+					| _ -> false
+				end
+			| _ -> false
+		in
+		let has_display = List.exists (fun (e,_) -> match e with EDisplay _ -> true | _ -> false) l in
+		if is_struct && (ctx.f.in_display || has_display) then begin
+			let t = match with_type with WithType.WithType(t,_) -> t | _ -> die "" __LOC__ in
+			try
+				let fl = List.map (fun (e,p) ->
+					match e with
+						| EConst (Ident s) -> ((s,p,NoQuotes), (e,p))
+						| EDisplay((EConst (Ident s),p1),_) -> ((s,p1,NoQuotes), (e,p))
+						| _ -> raise Exit
+				) l in
+				begin match follow t with
+					| TAnon an ->
+						let origin = match t with TType(td,_) -> Self (TTypeDecl td) | _ -> AnonymousStructure an in
+						TyperDisplay.handle_structure_display ctx (EObjectDecl fl,p) (an.a_fields) origin
+					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
+						let fields = Fields.get_struct_init_anon_fields c tl in
+						TyperDisplay.handle_structure_display ctx (EObjectDecl fl,p) fields (Self (TClassDecl c))
+					| _ -> ()
+				end;
+				type_object_decl ctx fl with_type p
+			with Exit ->
+				process_block ()
+		end else
+			process_block ()
 	| EParenthesis e ->
 		let e = type_expr ctx e with_type in
 		mk (TParenthesis e) e.etype p
