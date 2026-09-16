@@ -1,5 +1,6 @@
 import sys.FileSystem;
 import utest.Assert;
+import haxe.io.Path;
 using StringTools;
 
 class TestFileSystem extends utest.Test {
@@ -154,5 +155,28 @@ class TestFileSystem extends utest.Test {
 			p = p.replace("/", "\\");
 		}
 		return p;
+	}
+
+	function testDeleteDirectory() {
+		final path = Path.join([dir, "test"]);
+		FileSystem.createDirectory(path);
+
+		final file = Path.join([path, "file.txt"]);
+		final subDir = Path.join([path, "subdir"]);
+
+		sys.io.File.saveContent(file, "hello");
+		FileSystem.createDirectory(subDir);
+
+		try {
+			// cannot delete if not empty
+			FileSystem.deleteDirectory(path);
+			Assert.isFalse(true);
+		} catch (_) {
+			Assert.isTrue(true);
+		}
+
+		FileSystem.deleteFile(file);
+		FileSystem.deleteDirectory(subDir);
+		FileSystem.deleteDirectory(path);
 	}
 }
