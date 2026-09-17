@@ -31,7 +31,7 @@ open Hlcode
 
 type ('a,'b) lookup = {
 	arr : 'b DynArray.t;
-	mutable map : ('a, int) PMap.t;
+	map : ('a, int) Hashtbl.t;
 }
 
 (* not mutable, might be be shared *)
@@ -221,7 +221,7 @@ let tuple_type ctx tl =
 let new_lookup() =
 	{
 		arr = DynArray.create();
-		map = PMap.empty;
+		map = Hashtbl.create 0;
 	}
 
 let null_capture =
@@ -234,11 +234,11 @@ let null_capture =
 
 let lookup l v fb =
 	try
-		PMap.find v l.map
+		Hashtbl.find l.map v
 	with Not_found ->
 		let id = DynArray.length l.arr in
 		DynArray.add l.arr (Obj.magic 0);
-		l.map <- PMap.add v id l.map;
+		Hashtbl.add l.map v id;
 		DynArray.set l.arr id (fb());
 		id
 
@@ -388,16 +388,25 @@ let is_excluded c =
 	has_class_flag c CExcluded && not (has_class_flag c CInterface)
 
 let get_rec_cache ctx t none_callback not_found_callback =
-	try
-		match !(snd (List.find (fun (t',_) -> fast_eq t' t) ctx.rec_cache)) with
-		| None -> none_callback()
-		| Some t -> t
-	with Not_found ->
-		let tref = ref None in
-		ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
-		let t = not_found_callback tref in
-		ctx.rec_cache <- List.tl ctx.rec_cache;
-		t
+	let rec loop retried l =
+		match l with
+		| [] ->
+			let tref = ref None in
+			ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
+			let t = not_found_callback tref in
+			ctx.rec_cache <- List.tl ctx.rec_cache;
+			t
+		| (t',r) :: l ->
+			if not (fast_eq t' t) then loop retried l else
+			(* Note from Simon: This is unlikely to be the "correct" fix. What this really does is ignore a singular `ref None` lookup
+			   and ultimately (once hitting the `| [] -> ` case above) go through the `not_found_callback`, at which point two entries
+			   with the same `t` key exists in `ctx.rec_cache`. This is not a robust solution to a recursive data problem, but at the
+			   moment it is unclear how to reproduce any actual issue from this. *)
+			match !r with
+			| Some t -> t
+			| None -> if retried then none_callback() else loop true l
+	in
+	loop false ctx.rec_cache
 
 let rec to_type ?tref ctx t =
 	match t with
@@ -4347,7 +4356,7 @@ let build_code ctx types main =
 	}
 
 let check ctx =
-	PMap.iter (fun (s,p) fid ->
+	Hashtbl.iter (fun (s,p) fid ->
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map
 
@@ -4426,7 +4435,7 @@ let generate com =
 
 	if Path.file_extension com.file = "c" then begin
 		let gnames = Array.make (Array.length code.globals) "" in
-		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
+		Hashtbl.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
 		if not (Gctx.defined com Define.SourceHeader) then begin
 			let version_major = com.version.major in
 			let version_minor = com.version.minor in

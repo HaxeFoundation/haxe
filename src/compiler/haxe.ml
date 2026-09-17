@@ -159,6 +159,22 @@ end;
 
 (* We are a normal non-server compilation. *)
 
+(* A command line compilation is short-lived, so trade memory for speed like the
+   server does for its compilation domain (see Server.create): a larger minor heap
+   means fewer stop-the-world minor collections and fewer promotions, a larger
+   space_overhead fewer major collections. *)
+let minor_heap_mb =
+	match (try Some (Sys.getenv "HAXE_MAIN_MINOR_MB") with Not_found -> None) with
+	| None | Some "" -> 8
+	| Some s -> (try int_of_string s with _ -> 8)
+in
+if minor_heap_mb > 0 then
+	Gc.set { (Gc.get ()) with Gc.minor_heap_size = minor_heap_mb * 1024 * 1024 / (Sys.word_size / 8) };
+if (try Sys.getenv "HAXE_SPACE_OVERHEAD" = "" with Not_found -> true) then begin
+	DynamicGc.stop_dynamic_tuning ();
+	DynamicGc.setup_dynamic_tuning DynamicGc.{ gc_config with max_space_overhead = 300 }
+end;
+
 let sctx = Server.setup_server_context false false in
 let io = CompilerIo.create_stdio_io () in
 let request_scope = create_request_scope ~is_server:false io request_args.display_arg in
