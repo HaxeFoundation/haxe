@@ -1,5 +1,6 @@
 package unit.issues;
 
+#if !cppia
 @:keep private abstract class Base {
 	public function new() {}
 	public abstract function f( x : Int, flag : Bool = false ) : Int;
@@ -36,8 +37,10 @@ private class Foo extends BaseFoo {
 		return x + i;
 	}
 }
+#end
 
 class Issue13038 extends Test {
+	#if !cppia
 	@:keep static function callAbstract( b : Base ) {
 		return b.f(1) + b.f(1, true) + b.g(1) + b.g(1, "ab");
 	}
@@ -57,4 +60,5 @@ class Issue13038 extends Test {
 		eq(445, callAbstract2(foo));
 		eq(426, callAbstract3(foo));
 	}
+	#end
 }
