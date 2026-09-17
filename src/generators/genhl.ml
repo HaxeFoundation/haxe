@@ -3564,7 +3564,7 @@ let generate_member ctx c f =
 				in
 				let args = List.map (fun (n,o,t) ->
 					let v = Type.alloc_var VGenerated n t null_pos in
-					(v,if o then Some (mk (TConst TNull) t_dynamic null_pos) else None)
+					(v,if o then Some (mk (TConst TNull) t null_pos) else None)
 				) tl in
 				{
 					tf_args = args;
