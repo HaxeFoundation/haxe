@@ -3571,9 +3571,9 @@ let generate_member ctx c f =
 					| Coro(tl,tr) -> Common.expand_coro_type ctx.com.basic tl tr
 					| _ -> die "" __LOC__
 				in
-				let args = List.map (fun (n,_,t) ->
+				let args = List.map (fun (n,o,t) ->
 					let v = Type.alloc_var VGenerated n t null_pos in
-					(v,None)
+					(v,if o then Some (mk (TConst TNull) t null_pos) else None)
 				) tl in
 				{
 					tf_args = args;
