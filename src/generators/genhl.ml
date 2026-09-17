@@ -398,6 +398,10 @@ let get_rec_cache ctx t none_callback not_found_callback =
 			t
 		| (t',r) :: l ->
 			if not (fast_eq t' t) then loop retried l else
+			(* Note from Simon: This is unlikely to be the "correct" fix. What this really does is ignore a singular `ref None` lookup
+			   and ultimately (once hitting the `| [] -> ` case above) go through the `not_found_callback`, at which point two entries
+			   with the same `t` key exists in `ctx.rec_cache`. This is not a robust solution to a recursive data problem, but at the
+			   moment it is unclear how to reproduce any actual issue from this. *)
 			match !r with
 			| Some t -> t
 			| None -> if retried then none_callback() else loop true l
