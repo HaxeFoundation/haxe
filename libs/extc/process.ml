@@ -35,20 +35,30 @@ let make_null_fd () =
 let unix_error_msg err fn arg =
 	Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err)
 
-let run cmd args =
+let shell_argv cmd args = match args with
+	| None ->
+		if Sys.win32 then
+			let comspec = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
+			comspec, [|comspec; "/C"; cmd|]
+		else
+			"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
+	| Some a ->
+		cmd, Array.append [|cmd|] a
+
+(* comspec on Windows so that .bat/.cmd shims keep resolving, but with the
+   arguments as separate argv entries: folding them into a single string makes
+   cmd.exe pass OCaml's escaping through literally. *)
+let program_argv prog args =
+	if Sys.win32 then
+		let comspec = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
+		comspec, Array.of_list (comspec :: "/C" :: prog :: args)
+	else
+		prog, Array.of_list (prog :: args)
+
+let run_argv (shell,argv) =
 	let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
 	let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
 	let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
-	let shell, argv = match args with
-		| None ->
-			if Sys.win32 then
-				let comspec = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
-				comspec, [|comspec; "/C"; cmd|]
-			else
-				"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
-		| Some a ->
-			cmd, Array.append [|cmd|] a
-	in
 	match
 		try Ok (Unix.create_process shell argv child_stdin_r child_stdout_w child_stderr_w)
 		with Unix.Unix_error _ as e -> Error e
@@ -84,6 +94,23 @@ let run cmd args =
 				make_eof_fd ()
 		in
 		{ pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = stderr_r; exit_code = Some 127 }
+
+let run cmd args = run_argv (shell_argv cmd args)
+
+let run_program prog args = run_argv (program_argv prog args)
+
+(* Sys.command with an argv instead of a command string. *)
+let command prog args =
+	flush stdout;
+	flush stderr;
+	let shell, argv = program_argv prog args in
+	try
+		let pid = Unix.create_process shell argv Unix.stdin Unix.stdout Unix.stderr in
+		let _, status = Unix.waitpid [] pid in
+		(match status with
+		| Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c)
+	with Unix.Unix_error _ ->
+		127
 
 let read_stdout p buf pos len =
 	let n = try

@@ -459,11 +459,11 @@ let generate_source ctx =
 		if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
 		PMap.iter ( fun name value -> match name with
 			| "true" | "sys" | "dce" | "cpp" | "debug" -> ();
-			| _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
+			| _ -> cmd := !cmd @ [Printf.sprintf "-D%s=%s" name value];
 		) common_ctx.defines.values;
 		common_ctx.class_paths#iter (fun path ->
 			let path = path#path in
-			cmd := !cmd @ [Printf.sprintf "-I\"%s\"" (escape_command path)]
+			cmd := !cmd @ [Printf.sprintf "-I%s" path]
 		);
 		CompilerIo.write_out common_ctx.io ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
 		if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";

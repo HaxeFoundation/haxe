@@ -69,6 +69,15 @@ let run_command com cmd =
 let run_command com cmd =
 	Timer.time com.timer_ctx ["command";cmd] (run_command com) cmd
 
+let run_command_args com prog args =
+	let run () =
+		if com.sctx.is_server then
+			PipeThings.run_command_args com.request_scope.io prog args
+		else
+			Process.command prog args
+	in
+	Timer.time com.timer_ctx ["command";String.concat " " (prog :: args)] run ()
+
 module Setup = struct
 	let initialize_target com actx =
 		init_platform com;
@@ -240,6 +249,7 @@ module Setup = struct
 		) (filter_messages false (fun _ -> true))));
 		com.filter_messages <- (fun predicate -> (com.part_scope.messages <- (List.rev (filter_messages true predicate))));
 		com.run_command <- run_command com;
+		com.run_command_args <- run_command_args com;
 		init_std_class_paths com
 
 end

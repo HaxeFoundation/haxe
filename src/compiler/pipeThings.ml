@@ -26,15 +26,14 @@ let rec read_content channel buf f =
 		()
 	end
 
-(** Runs a shell command in server mode, forwarding stdin from the client
+(** Drives a child process in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.
-	Uses {!Process.run} to create the child process so we can connect
-	the child's stdin to the client's forwarded data and properly signal
-	EOF when the client closes its end. *)
-let run_command io cmd =
+	The process comes from {!Process}, so we can connect its stdin to the
+	client's forwarded data and properly signal EOF when the client closes
+	its end. *)
+let run_proc io proc =
 	let write_out = CompilerIo.write_out io in
 	let write_err = CompilerIo.write_err io in
-	let proc = Process.run cmd None in
 	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
 	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
 	let perr = Unix.in_channel_of_descr proc.Process.stderr_fd in
@@ -78,6 +77,9 @@ let run_command io cmd =
 	stop_stdin := true;
 	(match tin with Some t -> Thread.join t | None -> ());
 	code
+
+let run_command io cmd = run_proc io (Process.run cmd None)
+let run_command_args io prog args = run_proc io (Process.run_program prog args)
 
 let ssend sock str =
 	let rec loop pos len =
