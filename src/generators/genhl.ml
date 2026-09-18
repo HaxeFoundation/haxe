@@ -1810,7 +1810,13 @@ and eval_expr ctx e =
 			r) (to_type ctx e.etype) e.epos
 	| TReturn None ->
 		before_return ctx;
-		let r = alloc_tmp ctx HVoid in
+		let r = if ctx.m.mret = HVoid then
+			alloc_tmp ctx HVoid
+		else begin
+			let r = alloc_tmp ctx ctx.m.mret in
+			op ctx (ONull r);
+			r
+		end in
 		op ctx (ORet r);
 		alloc_tmp ctx HDyn
 	| TReturn (Some e) ->
@@ -3477,7 +3483,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		let rec has_final_jump e =
 			(* prevents a jump outside function bounds error *)
 			match e.eexpr with
-			| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> false)
+			| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> true)
 			| TParenthesis e -> has_final_jump e
 			| TReturn _ -> false
 			| _ -> true
