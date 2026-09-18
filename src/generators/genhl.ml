@@ -4695,7 +4695,7 @@ let take_snapshot main = {
 }
 
 let fork_worker main =
-	let cp l = { arr = DynArray.copy l.arr; map = l.map } in
+	let cp l = { arr = DynArray.copy l.arr; map = Hashtbl.copy l.map } in
 	{ main with
 		m = method_context 0 HVoid null_capture false;
 		cstrings = cp main.cstrings; cints = cp main.cints; cfloats = cp main.cfloats; cbytes = cp main.cbytes;
@@ -4717,7 +4717,7 @@ let prepare_worker main resolve w snap =
 		let n = DynArray.length w_l.arr in
 		if n = snap_n then (fun i -> i) else begin
 			let keys = Hashtbl.create 0 in
-			PMap.iter (fun k i -> if i >= snap_n then Hashtbl.replace keys i k) w_l.map;
+			Hashtbl.iter (fun k i -> if i >= snap_n then Hashtbl.replace keys i k) w_l.map;
 			let rmap = Array.make (n - snap_n) 0 in
 			for i = snap_n to n - 1 do
 				let v = DynArray.get w_l.arr i in
@@ -4736,7 +4736,7 @@ let prepare_worker main resolve w snap =
 	(* fids: named entries re-intern by (name,path); nameless wrappers by recanon'd (rt,t), deduping against
 	   main (a wrapper already present in main means this worker's copy is dropped). *)
 	let wfid_name = Hashtbl.create 0 and wfid_wrap = Hashtbl.create 0 in
-	PMap.iter (fun key idx -> if idx >= snap.ss_fid then Hashtbl.replace wfid_name idx key) w.cfids.map;
+	Hashtbl.iter (fun key idx -> if idx >= snap.ss_fid then Hashtbl.replace wfid_name idx key) w.cfids.map;
 	PMap.iter (fun key idx -> if idx >= snap.ss_fid then Hashtbl.replace wfid_wrap idx key) w.method_wrappers;
 	let ffun_remap = Hashtbl.create 0 and dropped = Hashtbl.create 0 in
 	for idx = snap.ss_fid to DynArray.length w.cfids.arr - 1 do
@@ -4757,9 +4757,9 @@ let prepare_worker main resolve w snap =
 	let ffun i = if i < snap.ss_fid then i else (try Hashtbl.find ffun_remap i with Not_found -> die "" __LOC__) in
 	(* globals: named entries by name; constant-backed (nameless, from make_const) re-interned via the constant *)
 	let wglob_name = Hashtbl.create 0 in
-	PMap.iter (fun name idx -> if idx >= snap.ss_glob then Hashtbl.replace wglob_name idx name) w.cglobals.map;
+	Hashtbl.iter (fun name idx -> if idx >= snap.ss_glob then Hashtbl.replace wglob_name idx name) w.cglobals.map;
 	let wcidx_of = Hashtbl.create 0 and wconst_glob = Hashtbl.create 0 in
-	PMap.iter (fun cv idx -> if idx >= snap.ss_const then Hashtbl.replace wcidx_of cv idx) w.cconstants.map;
+	Hashtbl.iter (fun cv idx -> if idx >= snap.ss_const then Hashtbl.replace wcidx_of cv idx) w.cconstants.map;
 	Hashtbl.iter (fun cv cidx -> let (g,_) = DynArray.get w.cconstants.arr cidx in Hashtbl.replace wconst_glob g cv) wcidx_of;
 	let fglob_remap = Hashtbl.create 0 in
 	for idx = snap.ss_glob to DynArray.length w.cglobals.arr - 1 do
@@ -4778,7 +4778,7 @@ let prepare_worker main resolve w snap =
 	let fglobal g = if g < snap.ss_glob then g else (try Hashtbl.find fglob_remap g with Not_found -> die "" __LOC__) in
 	(* natives: re-intern delta entries (their fid is a named cfid handled by ffun above) *)
 	let wnat_key = Hashtbl.create 0 in
-	PMap.iter (fun key nid -> if nid >= snap.ss_native then Hashtbl.replace wnat_key nid key) w.cnatives.map;
+	Hashtbl.iter (fun key nid -> if nid >= snap.ss_native then Hashtbl.replace wnat_key nid key) w.cnatives.map;
 	for nid = snap.ss_native to DynArray.length w.cnatives.arr - 1 do
 		let key = Hashtbl.find wnat_key nid in
 		let (s1,s2,t,fid) = DynArray.get w.cnatives.arr nid in
@@ -4793,7 +4793,7 @@ let prepare_worker main resolve w snap =
 		regs = Array.map rct f.regs;
 		code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rct) f.code;
 		debug = Array.map (fun (file,line,pos) -> (fdbg file, line, pos)) f.debug;
-		assigns = Array.map (fun (name,pos) -> (fstr name, pos)) f.assigns;
+		assigns = Array.map (fun (name,pos,scope_end) -> (fstr name, pos, scope_end)) f.assigns;
 	} in
 	(* collect kept (function, module) tasks; mark defined here (serial, Hashtbl not thread-safe) *)
 	let tasks = ref [] in
@@ -4847,7 +4847,7 @@ let parallel_drain main =
 			| None -> ()
 			| Some _ ->
 				let name = "$" ^ p.pname in
-				(match (try Some (PMap.find name main.cglobals.map) with Not_found -> None) with
+				(match (try Some (Hashtbl.find main.cglobals.map name) with Not_found -> None) with
 				| Some g -> p.pclassglobal <- Some g
 				| None -> failwith (Printf.sprintf "genhl_parallel: straggler %s has no class global in the merged pool" p.pname))
 		) !stragglers;
@@ -5120,7 +5120,7 @@ let generate com =
 		Array.iter (fun f -> Hashtbl.replace defined f.findex "fun") code.functions;
 		Array.iter (fun (_,_,_,fid) -> Hashtbl.replace defined fid "native") code.natives;
 		let fidname = Hashtbl.create 0 in
-		PMap.iter (fun (n,p) i -> Hashtbl.replace fidname i (s_type_path p ^ "." ^ n)) ctx.cfids.map;
+		Hashtbl.iter (fun (n,p) i -> Hashtbl.replace fidname i (s_type_path p ^ "." ^ n)) ctx.cfids.map;
 		let bad = ref 0 in
 		Array.iter (fun f ->
 			Array.iter (fun op -> match op with
@@ -5135,7 +5135,7 @@ let generate com =
 		(* fid holes: cfids entries with no backing function/native -> inflate the findex space *)
 		let nfuns = Array.length code.functions and nnat = Array.length code.natives in
 		let holes = ref 0 and maxfid = ref (-1) in
-		PMap.iter (fun (n,p) fid ->
+		Hashtbl.iter (fun (n,p) fid ->
 			if fid > !maxfid then maxfid := fid;
 			if not (Hashtbl.mem defined fid) then begin incr holes;
 				if !holes <= 6 then Printf.eprintf "[hl_cache_check] HOLE fid %d = %s.%s (no function/native)\n" fid (s_type_path p) n end
