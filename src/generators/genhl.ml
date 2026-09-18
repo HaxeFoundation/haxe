@@ -3595,12 +3595,21 @@ let generate_member ctx c f =
 			List.iter (fun f ->
 				match f.cf_kind with
 				| Method MethDynamic ->
-					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
-					let fid = (try fst (get_index f.cf_name o) with Not_found -> die "" __LOC__) in
-					op ctx (OGetThis (r,fid));
-					op ctx (OJNotNull (r,2));
+					let fid, ft = (try get_index f.cf_name o with Not_found -> die "" __LOC__) in
+					let fr = alloc_tmp ctx ft in
+					op ctx (OGetThis (fr,fid));
+					let jnext = jump ctx (fun n -> OJNotNull (fr,n)) in
+					let rt = to_type ctx f.cf_type in
+					let r = alloc_tmp ctx rt in
 					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
-					op ctx (OSetThis (fid,r));
+					let v = if safe_cast rt ft then r else begin
+						let wid = gen_method_wrapper ctx rt ft f.cf_pos in
+						let wrapped = alloc_tmp ctx ft in
+						op ctx (OInstanceClosure (wrapped,wid,r));
+						wrapped
+					end in
+					op ctx (OSetThis (fid,v));
+					jnext();
 				| _ -> ()
 			) c.cl_ordered_fields;
 			ignore(eval_expr ctx ff.tf_expr);
