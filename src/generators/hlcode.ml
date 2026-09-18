@@ -53,7 +53,7 @@ type ttype =
 
 and class_proto = {
 	pname : string;
-	pid : int;
+	mutable pid : int;
 	mutable pclassglobal : int option;
 	mutable psuper : class_proto option;
 	mutable pvirtuals : int array;

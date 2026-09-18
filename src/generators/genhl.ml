@@ -4712,14 +4712,17 @@ let fork_worker main =
 (* Serial phase of the merge: fold one worker's pool deltas into main (order-dependent, hence serial) and
    return its patch closure + kept (function, module) tasks for the parallel rewrite phase. *)
 let prepare_worker main resolve w snap =
-	(* flat value pools: re-intern delta entries by value; identity below the snapshot boundary *)
+	(* flat value pools: re-intern delta entries by key; identity below the snapshot boundary *)
 	let mk main_l w_l snap_n =
 		let n = DynArray.length w_l.arr in
 		if n = snap_n then (fun i -> i) else begin
+			let keys = Hashtbl.create 0 in
+			PMap.iter (fun k i -> if i >= snap_n then Hashtbl.replace keys i k) w_l.map;
 			let rmap = Array.make (n - snap_n) 0 in
 			for i = snap_n to n - 1 do
 				let v = DynArray.get w_l.arr i in
-				rmap.(i - snap_n) <- lookup main_l v (fun () -> v)
+				let k = (try Hashtbl.find keys i with Not_found -> die "" __LOC__) in
+				rmap.(i - snap_n) <- lookup main_l k (fun () -> v)
 			done;
 			(fun i -> if i < snap_n then i else rmap.(i - snap_n))
 		end
@@ -4790,6 +4793,7 @@ let prepare_worker main resolve w snap =
 		regs = Array.map rct f.regs;
 		code = Array.map (map_op_globals ~fstr ~fint ~ffloat ~fbytes ~ffun ~fglobal ~ftype:rct) f.code;
 		debug = Array.map (fun (file,line,pos) -> (fdbg file, line, pos)) f.debug;
+		assigns = Array.map (fun (name,pos) -> (fstr name, pos)) f.assigns;
 	} in
 	(* collect kept (function, module) tasks; mark defined here (serial, Hashtbl not thread-safe) *)
 	let tasks = ref [] in
@@ -4822,11 +4826,13 @@ let parallel_drain main =
 		let t1 = if dbg then Unix.gettimeofday() else 0. in
 		(* unify worker-built NAMED stragglers (generic type-param phantoms) into the shared graph first-wins, so
 		   every worker's recanon resolves its copy to a single instance. Only empty phantom protos are supported. *)
+		let stragglers = ref [] in
 		Array.iter (fun w ->
 			if pmap_size w.cached_types <> snap.ss_ctypes then
 				PMap.iter (fun k t -> if not (PMap.mem k main.cached_types) then
 					(match t with
 					| (HObj p | HStruct p) when Array.length p.pfields = 0 && Array.length p.pproto = 0 && p.pbindings = [] ->
+						stragglers := p :: !stragglers;
 						main.cached_types <- PMap.add k t main.cached_types
 					| HObj _ | HStruct _ | HEnum _ -> failwith (Printf.sprintf "genhl_parallel: non-empty straggler %s not yet supported" (tstr t))
 					| _ -> ())
@@ -4835,6 +4841,16 @@ let parallel_drain main =
 		let resolve = build_type_resolver main in
 		(* serial: re-intern each worker's pools in order + collect per-function rewrite tasks *)
 		let tasks = Array.of_list (List.concat_map (fun w -> prepare_worker main resolve w snap) (Array.to_list workers)) in
+		List.iter (fun p ->
+			p.pid <- lookup main.cstrings p.pname (fun () -> p.pname);
+			match p.pclassglobal with
+			| None -> ()
+			| Some _ ->
+				let name = "$" ^ p.pname in
+				(match (try Some (PMap.find name main.cglobals.map) with Not_found -> None) with
+				| Some g -> p.pclassglobal <- Some g
+				| None -> failwith (Printf.sprintf "genhl_parallel: straggler %s has no class global in the merged pool" p.pname))
+		) !stragglers;
 		let t2 = if dbg then Unix.gettimeofday() else 0. in
 		(* the per-function opcode/type rewrite; kept serial -- it is allocation-bound, so running it across
 		   domains just hits the shared-major-heap GC-contention wall and is a net loss (measured ~2x slower). *)
