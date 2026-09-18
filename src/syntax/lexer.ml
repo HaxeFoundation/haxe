@@ -51,12 +51,16 @@ let lexbuf_from_utf8_string s =
 		done;
 		!count)
 
+type line_cache = {
+	cmaxline : int;
+	calines : (int * int) array;
+}
+
 type lexer_file = {
 	lfile : string;
 	mutable lline : int;
-	mutable lmaxline : int;
 	mutable llines : (int * int) list;
-	mutable lalines : (int * int) array;
+	mutable lcache : line_cache;
 	mutable llast : int;
 	mutable llastindex : int;
 }
@@ -95,9 +99,8 @@ let make_file file =
 	{
 		lfile = file;
 		lline = 1;
-		lmaxline = 1;
 		llines = [0,1];
-		lalines = [|0,1|];
+		lcache = { cmaxline = 1; calines = [|0,1|] };
 		llast = max_int;
 		llastindex = 0;
 	}
@@ -125,17 +128,16 @@ let newline ctx lexbuf =
 let copy_file source = {
 	lfile = source.lfile;
 	lline = source.lline;
-	lmaxline = source.lmaxline;
 	llines = source.llines;
-	lalines = source.lalines;
+	lcache = source.lcache;
 	llast = source.llast;
 	llastindex = source.llastindex;
 }
 
 let print_file file =
 	let sllines = String.concat ";" (List.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.llines) in
-	let slalines = String.concat ";" (Array.to_list (Array.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.lalines)) in
-	Printf.sprintf "lfile: %s\nlline: %i\nlmaxline: %i\nllines: [%s]\nlalines: [%s]\nllast: %i\nllastindex: %i" file.lfile file.lline file.lmaxline sllines slalines file.llast file.llastindex
+	let slalines = String.concat ";" (Array.to_list (Array.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.lcache.calines)) in
+	Printf.sprintf "lfile: %s\nlline: %i\nlmaxline: %i\nllines: [%s]\nlalines: [%s]\nllast: %i\nllastindex: %i" file.lfile file.lline file.lcache.cmaxline sllines slalines file.llast file.llastindex
 
 let error ctx e pos =
 	raise (Error (e,{ pmin = pos; pmax = pos; pfile = ctx.file.lfile }))
@@ -204,15 +206,20 @@ let split_float_suffix s =
 
 let find_line p f =
 	(* rebuild cache if we have a new line *)
-	if f.lmaxline <> f.lline then begin
-		f.lmaxline <- f.lline;
-		f.lalines <- Array.of_list (List.rev f.llines);
-		f.llast <- max_int;
-		f.llastindex <- 0;
-	end;
+	let cache =
+		let cache = f.lcache in
+		if cache.cmaxline = f.lline then cache else begin
+			let cache = { cmaxline = f.lline; calines = Array.of_list (List.rev f.llines) } in
+			f.lcache <- cache;
+			f.llast <- max_int;
+			f.llastindex <- 0;
+			cache
+		end
+	in
+	let alines = cache.calines in
 	let rec loop min max =
 		let med = (min + max) lsr 1 in
-		let lp, line = Array.unsafe_get f.lalines med in
+		let lp, line = Array.unsafe_get alines med in
 		if med = min then begin
 			f.llast <- p;
 			f.llastindex <- med;
@@ -222,12 +229,13 @@ let find_line p f =
 		else
 			loop med max
 	in
-	if p >= f.llast then begin
-		let lp, line = Array.unsafe_get f.lalines f.llastindex in
-		let lp2 = if f.llastindex = Array.length f.lalines - 1 then max_int else fst(Array.unsafe_get f.lalines (f.llastindex + 1)) in
-		if p >= lp && p < lp2 then line, p - lp else loop 0 (Array.length f.lalines)
+	let li = f.llastindex in
+	if p >= f.llast && li < Array.length alines then begin
+		let lp, line = Array.unsafe_get alines li in
+		let lp2 = if li = Array.length alines - 1 then max_int else fst(Array.unsafe_get alines (li + 1)) in
+		if p >= lp && p < lp2 then line, p - lp else loop 0 (Array.length alines)
 	end else
-		loop 0 (Array.length f.lalines)
+		loop 0 (Array.length alines)
 
 (* resolve a position within a non-haxe file by counting newlines *)
 let resolve_pos f next skip =
