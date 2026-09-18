@@ -414,6 +414,13 @@ let is_interface_var_access c cf =
 		| Var _ | Method MethDynamic -> true
 		| _ -> false
 
+let rec dynamic_field_owner c cf =
+	match c.cl_super with
+	| Some (csup,_) when cf.cf_kind = Method MethDynamic && has_class_field_flag cf CfOverride && PMap.mem cf.cf_name csup.cl_fields ->
+		dynamic_field_owner csup cf
+	| _ ->
+		c
+
 let follow = Abstract.follow_with_abstracts
 
 class haxe_exception gctx (t : Type.t) =
@@ -872,6 +879,7 @@ class texpr_to_jvm
 			let vtobj = self#vtype e1.etype in
 			code#arraylength vtobj;
 		| FInstance(c,tl,cf) | FClosure(Some(c,tl),({cf_kind = Method MethDynamic} as cf)) when not (is_interface_var_access c cf) ->
+			let c = dynamic_field_owner c cf in
 			self#texpr rvalue_any e1;
 			jm#getfield c.cl_path cf.cf_name (self#vtype cf.cf_type);
 			cast();
@@ -930,6 +938,7 @@ class texpr_to_jvm
 			jm#cast jsig_cf;
 			jm#putstatic c.cl_path cf.cf_name jsig_cf;
 		| TField(e1,FInstance(c,tl,cf)) when not (is_interface_var_access c cf) ->
+			let c = dynamic_field_owner c cf in
 			self#texpr rvalue_any e1;
 			let jsig_cf = self#vtype cf.cf_type in
 			if ak <> AKNone then begin
@@ -2563,6 +2572,8 @@ class tclass_to_jvm gctx c = object(self)
 			OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl)
 		in
 		let if_method f cf = match cf.cf_kind with
+			| Method MethDynamic ->
+				()
 			| Method _ ->
 				f cf;
 				List.iter f cf.cf_overloads
@@ -2759,7 +2770,8 @@ class tclass_to_jvm gctx c = object(self)
 		let flags = if mtype = MStatic then FdStatic :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then FdSynthetic :: flags else flags in
 		let flags = if Meta.has Meta.Volatile cf.cf_meta then FdVolatile :: flags else flags in
-		let jm = jc#spawn_field cf.cf_name jsig flags in
+		let jm = if dynamic_field_owner c cf == c then Some (jc#spawn_field cf.cf_name jsig flags) else None in
+		let add_attribute a = Option.may (fun jm -> jm#add_attribute a) jm in
 		let default e =
 			let p = null_pos in
 			let efield = Texpr.Builder.make_static_field c cf p in
@@ -2795,10 +2807,10 @@ class tclass_to_jvm gctx c = object(self)
 					begin match ct with
 					| TInt i32 when not (is_nullable cf.cf_type) ->
 						let offset = jc#get_pool#add (ConstInt i32) in
-						jm#add_attribute (AttributeConstantValue offset);
+						add_attribute (AttributeConstantValue offset);
 					| TString s ->
 						let offset = jc#get_pool#add_const_string s in
-						jm#add_attribute (AttributeConstantValue offset);
+						add_attribute (AttributeConstantValue offset);
 					| _ ->
 						default e;
 					end
@@ -2811,11 +2823,11 @@ class tclass_to_jvm gctx c = object(self)
 			| TObject _ | TArray _ | TTypeParameter _ ->
 				let ssig = generate_signature true jsig in
 				let offset = jc#get_pool#add_string ssig in
-				jm#add_attribute (AttributeSignature offset);
+				add_attribute (AttributeSignature offset);
 			| _ ->
 				()
 		end;
-		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
+		Option.may (fun jm -> AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta) jm;
 
 	method generate_main e =
 		let jsig = method_sig [array_sig string_sig] None in
@@ -2891,7 +2903,7 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		self#generate_signature;
 		if gctx.dynamic_level > 0 && not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then
-			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
+			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) (List.filter (fun cf -> dynamic_field_owner c cf == c) c.cl_ordered_fields)) false;
 		self#generate_annotations;
 		let jc = jc#export_class gctx.default_export_config in
 		write_class gctx c.cl_path jc

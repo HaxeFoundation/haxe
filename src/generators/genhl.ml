@@ -540,7 +540,9 @@ and field_type ctx f p =
 		let creal = resolve_class ctx c pl false in
 		let rec loop c =
 			try
-				PMap.find f.cf_name c.cl_fields
+				let cf = PMap.find f.cf_name c.cl_fields in
+				if cf.cf_kind = Method MethDynamic && has_class_field_flag cf CfOverride then raise Not_found;
+				cf
 			with Not_found ->
 				match c.cl_super with
 				| Some (csup,_) -> loop csup
@@ -3595,12 +3597,15 @@ let generate_member ctx c f =
 			List.iter (fun f ->
 				match f.cf_kind with
 				| Method MethDynamic ->
+					let fid, ft = (try get_index f.cf_name o with Not_found -> die "" __LOC__) in
+					let fr = alloc_tmp ctx ft in
+					op ctx (OGetThis (fr,fid));
+					let jnext = jump ctx (fun n -> OJNotNull (fr,n)) in
 					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
-					let fid = (try fst (get_index f.cf_name o) with Not_found -> die "" __LOC__) in
-					op ctx (OGetThis (r,fid));
-					op ctx (OJNotNull (r,2));
 					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
-					op ctx (OSetThis (fid,r));
+					let v = cast_to ctx r ft f.cf_pos in
+					op ctx (OSetThis (fid,v));
+					jnext();
 				| _ -> ()
 			) c.cl_ordered_fields;
 			ignore(eval_expr ctx ff.tf_expr);
