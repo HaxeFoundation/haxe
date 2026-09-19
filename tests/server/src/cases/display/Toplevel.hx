@@ -323,6 +323,21 @@ class Toplevel extends DisplayTestCase {
 	}
 
 	/**
+		class Main {
+			macro static function mac():haxe.macro.Expr.ExprOf<String> {
+				return macro "";
+			}
+			static function main() {
+				{-1-}
+			}
+		}
+	**/
+	function testMacroFieldCallSiteType(_) {
+		// the merged macro/non-macro type must keep the non-macro (call site) return type (ExprOf<String> -> String)
+		eq(true, hasToplevel(toplevel(1), "static", "mac", "() -> String"));
+	}
+
+	/**
 		class C1<T> {
 			public function f1(t:T) { }
 		}

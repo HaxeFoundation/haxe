@@ -438,7 +438,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				) m.m_types;
 				(* The main module gets added when reading hxb already, so let's not add it again. Note that we
 				   can't set its m_added ahead of time because we want the rest of the logic here to run. *)
-				if not from_binary || m != m then
+				if not from_binary then
 					com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
 				let typing_mode = get_typing_mode com m.m_extra in
