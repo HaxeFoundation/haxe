@@ -92,6 +92,12 @@ class TestReflect extends unit.Test {
 		eq(Reflect.compare(null,null), 0);
 		t(Reflect.compare("abcd",null) != 0);
 		t(Reflect.compare(null, "abcd") != 0);
+		var a = haxe.Int64.make(0x7FFFFFFF, 0xFFFFFFF8); // 9223372036854775800
+		var b = haxe.Int64.make(0x80000000, 0x00000007); // -9223372036854775801
+		t(Reflect.compare(a, b) > 0);
+		var a = 2147483640;
+		var b = -2147483641;
+		t(Reflect.compare(a, b) > 0);
 
 		// compareMethods
 		var x = function(t) return 1;
