@@ -21,7 +21,8 @@
  */
 
 // Can't enable @:coreApi because some fields are now inline getters
-// @:coreApi
+@:coreApi(check = Off)
+@:keepInit
 extern class Math {
 	static var PI(default, null):Float;
 
@@ -70,4 +71,13 @@ extern class Math {
 	@:pure static inline function isNaN(f:Float):Bool {
 		return untyped __global__["isNaN"](f);
 	}
+
+	static function __init__():Void
+		untyped {
+			Math.NaN = __global__["Number"].NaN;
+			Math.NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
+			Math.POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
+			Math.isFinite = function(i) return __global__["isFinite"](i);
+			Math.isNaN = function(i) return __global__["isNaN"](i);
+		}
 }
