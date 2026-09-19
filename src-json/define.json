@@ -502,7 +502,8 @@
 		"name": "JsClassic",
 		"define": "js-classic",
 		"doc": "Don't use a function wrapper and strict mode in JS output.",
-		"platforms": ["js"]
+		"platforms": ["js"],
+		"deprecated": "Use `-D js.module=classic` instead."
 	},
 	{
 		"name": "JsEs",
@@ -523,6 +524,13 @@
 		"define": "js-global",
 		"doc": "Customizes the global object name.",
 		"platforms": ["js"]
+	},
+	{
+		"name": "JsModule",
+		"define": "js.module",
+		"doc": "Customizes the JS module output type. (default: iife)",
+		"platforms": ["js"],
+		"params": ["type: es | iife | classic"]
 	},
 	{
 		"name": "JsUnflatten",
@@ -744,7 +752,7 @@
 	{
 		"name": "ShallowExpose",
 		"define": "shallow-expose",
-		"doc": "Expose types to surrounding scope of Haxe generated closure without writing to window object.",
+		"doc": "Expose types to surrounding scope of Haxe generated closure without writing to window object. Does nothing in ESM mode.",
 		"platforms": ["js"]
 	},
 	{
