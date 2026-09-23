@@ -3603,8 +3603,7 @@ let generate_member ctx c f =
 					let jnext = jump ctx (fun n -> OJNotNull (fr,n)) in
 					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
 					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
-					let v = cast_to ctx r ft f.cf_pos in
-					op ctx (OSetThis (fid,v));
+					op ctx (OSetThis (fid,cast_to ctx r ft f.cf_pos));
 					jnext();
 				| _ -> ()
 			) c.cl_ordered_fields;

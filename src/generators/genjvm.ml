@@ -416,8 +416,8 @@ let is_interface_var_access c cf =
 
 let rec dynamic_field_owner c cf =
 	match c.cl_super with
-	| Some (csup,_) when cf.cf_kind = Method MethDynamic && has_class_field_flag cf CfOverride && PMap.mem cf.cf_name csup.cl_fields ->
-		dynamic_field_owner csup cf
+	| Some (csup,_) when cf.cf_kind = Method MethDynamic && has_class_field_flag cf CfOverride ->
+		dynamic_field_owner csup (try PMap.find cf.cf_name csup.cl_fields with Not_found -> cf)
 	| _ ->
 		c
 
@@ -2646,7 +2646,7 @@ class tclass_to_jvm gctx c = object(self)
 			load();
 			jm_empty_ctor#call_super_ctor ConstructInit jsig_empty
 		end;
-		if c.cl_constructor = None then begin
+		begin
 			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
 			DynArray.iter (fun e ->
 				handler#texpr RVoid e;
@@ -2713,9 +2713,6 @@ class tclass_to_jvm gctx c = object(self)
 			| SCNone ->
 				()
 			end;
-			DynArray.iter (fun e ->
-				handler#texpr RVoid e;
-			) delayed_field_inits;
 		| _ ->
 			()
 		end;
@@ -2764,14 +2761,23 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta
 
+	method private add_field_init c cf e =
+		let tl = extract_param_types c.cl_params in
+		let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
+		let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
+		let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
+		match cf.cf_kind with
+		(* a dynamic method default goes to <init>, where the most derived class assigns last *)
+		| Method MethDynamic -> DynArray.add delayed_field_inits eop
+		| _ -> DynArray.add field_inits eop
+
 	method generate_field gctx (jc : JvmClass.builder) c mtype cf =
 		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = if Meta.has Meta.Private cf.cf_meta then [FdPrivate] else if Meta.has Meta.Protected cf.cf_meta then [FdProtected] else [FdPublic] in
 		let flags = if mtype = MStatic then FdStatic :: flags else flags in
 		let flags = if Meta.has Meta.JvmSynthetic cf.cf_meta then FdSynthetic :: flags else flags in
 		let flags = if Meta.has Meta.Volatile cf.cf_meta then FdVolatile :: flags else flags in
-		let jm = if dynamic_field_owner c cf == c then Some (jc#spawn_field cf.cf_name jsig flags) else None in
-		let add_attribute a = Option.may (fun jm -> jm#add_attribute a) jm in
+		let jm = jc#spawn_field cf.cf_name jsig flags in
 		let default e =
 			let p = null_pos in
 			let efield = Texpr.Builder.make_static_field c cf p in
@@ -2788,29 +2794,17 @@ class tclass_to_jvm gctx c = object(self)
 					default e;
 				end;
 			| Some e when mtype <> MStatic ->
-				let tl = extract_param_types c.cl_params in
-				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
-				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
-				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
-				begin match cf.cf_kind with
-					| Method MethDynamic ->
-						let enull = Texpr.Builder.make_null efield.etype null_pos in
-						let echeck = Texpr.Builder.binop OpEq efield enull gctx.gctx.basic.tbool null_pos in
-						let eif = mk (TIf(echeck,eop,None)) gctx.gctx.basic.tvoid null_pos in
-						DynArray.add delayed_field_inits eif
-					| _ ->
-						DynArray.add field_inits eop
-				end
+				self#add_field_init c cf e
 			| Some e ->
 				match e.eexpr with
 				| TConst ct ->
 					begin match ct with
 					| TInt i32 when not (is_nullable cf.cf_type) ->
 						let offset = jc#get_pool#add (ConstInt i32) in
-						add_attribute (AttributeConstantValue offset);
+						jm#add_attribute (AttributeConstantValue offset);
 					| TString s ->
 						let offset = jc#get_pool#add_const_string s in
-						add_attribute (AttributeConstantValue offset);
+						jm#add_attribute (AttributeConstantValue offset);
 					| _ ->
 						default e;
 					end
@@ -2823,11 +2817,11 @@ class tclass_to_jvm gctx c = object(self)
 			| TObject _ | TArray _ | TTypeParameter _ ->
 				let ssig = generate_signature true jsig in
 				let offset = jc#get_pool#add_string ssig in
-				add_attribute (AttributeSignature offset);
+				jm#add_attribute (AttributeSignature offset);
 			| _ ->
 				()
 		end;
-		Option.may (fun jm -> AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta) jm;
+		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta;
 
 	method generate_main e =
 		let jsig = method_sig [array_sig string_sig] None in
@@ -2854,7 +2848,10 @@ class tclass_to_jvm gctx c = object(self)
 					if not (has_class_field_flag cf CfExtern) && not (is_weird_abstract_field_without_expression) then self#generate_method gctx jc c mtype cf
 				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
-				if not (has_class_flag c CInterface) && is_physical_field cf then self#generate_field gctx jc c mtype cf
+				(* an overriding dynamic method has no field of its own, only a default value to install *)
+				if not (has_class_flag c CInterface) && is_physical_field cf then
+					if dynamic_field_owner c cf == c then self#generate_field gctx jc c mtype cf
+					else Option.may (self#add_field_init c cf) cf.cf_expr
 		in
 		let field mtype cf =
 			run_timed gctx true cf.cf_name (fun () -> field mtype cf)
