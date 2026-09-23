@@ -1731,21 +1731,7 @@ let expression ctx request_type function_args function_type expression_tree forI
       |> CppFilterValueType.filter_value_enum_casting return_type
       |> CppFilterValueType.filter_add_boxed_pointer_construction return_type
   in
-  let final_ctx, cppTree = retype initial_ctx request_type expression_tree in
-  if final_ctx.function_return_type = TCppVoid then cppTree
-  else
-    let rec ends_in_return e =
-      match e.cppexpr with
-      | CppBlock (el,_,_) -> (match List.rev el with e :: _ -> ends_in_return e | [] -> false)
-      | CppReturn _ -> true
-      | _ -> false
-    in
-    match cppTree.cppexpr with
-    | CppBlock (el, closures, gc_stack) when not (ends_in_return cppTree) ->
-        let synthetic_value = { cppexpr = CppNull; cpptype = final_ctx.function_return_type; cpppos = expression_tree.epos } in
-        let synthetic_return = { cppexpr = CppReturn (Some synthetic_value); cpptype = TCppVoid; cpppos = expression_tree.epos } in
-        { cppTree with cppexpr = CppBlock (el @ [synthetic_return], closures, gc_stack) }
-    | _ -> cppTree
+  retype initial_ctx request_type expression_tree |> snd
 
 let get_id path ids =
   let class_name = class_text path in

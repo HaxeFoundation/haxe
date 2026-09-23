@@ -1810,13 +1810,8 @@ and eval_expr ctx e =
 			r) (to_type ctx e.etype) e.epos
 	| TReturn None ->
 		before_return ctx;
-		let r = if ctx.m.mret = HVoid then
-			alloc_tmp ctx HVoid
-		else begin
-			let r = alloc_tmp ctx ctx.m.mret in
-			op ctx (ONull r);
-			r
-		end in
+		let r = alloc_tmp ctx ctx.m.mret in
+		if ctx.m.mret <> HVoid then op ctx (ONull r);
 		op ctx (ORet r);
 		alloc_tmp ctx HDyn
 	| TReturn (Some e) ->

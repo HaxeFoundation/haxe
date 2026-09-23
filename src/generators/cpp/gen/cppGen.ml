@@ -1883,6 +1883,7 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
         if head_code <> "" then output_i (head_code ^ "\n")
   in
 
+  let tail_code = if function_def.tcf_return <> TCppVoid && not (Texpr.DeadEnd.has_dead_end function_def.tcf_func.tf_expr) then tail_code ^ "\treturn null();\n" else tail_code in
   let injection = mk_injection prologue "" tail_code in
   gen_cpp_ast_expression_tree ctx dot_name func_name function_def.tcf_args function_def.tcf_return injection (mk_block function_def.tcf_func.tf_expr)
 
