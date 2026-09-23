@@ -1311,7 +1311,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
-	| (GInt | GFloat), GNull, _, HNull t ->
+	| (GInt | GFloat), GNull, _, HNull t when get_group t <> GBool ->
 		let tmp = alloc_tmp ctx t in
 		(match get_group t with
 		| GFloat -> op ctx (OToSFloat (tmp, r))
