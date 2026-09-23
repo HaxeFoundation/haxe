@@ -2267,10 +2267,10 @@ and eval_expr ctx e =
 		let c = eval_to ctx vt (class_type ctx ctx.base_type [] false) in
 		hold ctx c;
 		let rv = alloc_tmp ctx (to_type ctx e.etype) in
-		let rb = alloc_tmp ctx HBool in
-		op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",c,r));
-		let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
-		op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx r (to_type ctx e.etype) e.epos));
+		let rd = alloc_tmp ctx HDyn in
+		op ctx (OCall2 (rd, alloc_fun_path ctx (["hl"],"BaseType") "downcast",c,r));
+		let jnext = jump ctx (fun n -> OJNull (rd,n)) in
+		op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rd (to_type ctx e.etype) e.epos));
 		let jend = jump ctx (fun n -> OJAlways n) in
 		jnext();
 		op ctx (ONull rv);
@@ -3106,11 +3106,11 @@ and eval_expr ctx e =
 					) in
 					hold ctx rtrap;
 					let r = type_value ctx ct ec.epos in
+					let rd = alloc_tmp ctx HDyn in
 					free ctx rtrap;
-					let rb = alloc_tmp ctx HBool in
-					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
-					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
-					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
+					op ctx (OCall2 (rd, alloc_fun_path ctx (["hl"],"BaseType") "downcast",r,rtrap));
+					let jnext = jump ctx (fun n -> OJNull (rd,n)) in
+					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rd (to_type ctx v.v_type) ec.epos));
 					add_assign ctx v;
 					jnext
 				in
