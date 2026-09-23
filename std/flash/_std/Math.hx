@@ -65,11 +65,11 @@ extern class Math {
 	static function fround(v:Float):Float;
 
 	@:pure static inline function isFinite(f:Float):Bool {
-		return untyped __global__["isFinite"](f);
+		return f > NEGATIVE_INFINITY && f < POSITIVE_INFINITY;
 	}
 
 	@:pure static inline function isNaN(f:Float):Bool {
-		return untyped __global__["isNaN"](f);
+		return f != f;
 	}
 
 	static function __init__():Void
@@ -77,7 +77,7 @@ extern class Math {
 			Math.NaN = __global__["Number"].NaN;
 			Math.NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 			Math.POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
-			Math.isFinite = function(i) return __global__["isFinite"](i);
-			Math.isNaN = function(i) return __global__["isNaN"](i);
+			Math.isFinite = function(i) return i > __global__["Number"].NEGATIVE_INFINITY && i < __global__["Number"].POSITIVE_INFINITY;
+			Math.isNaN = function(i) return i != i;
 		}
 }
