@@ -457,7 +457,7 @@ module IterationKind = struct
 			begin try
 				optimize_for_loop_iterator ctx v e1 e2 p
 			with Exit ->
-				Texpr.for_remap ctx.t v (ctx.t.titerator pt) e1 e2 p
+				Texpr.for_remap ctx.t v e1 e2 p
 			end
 		| IteratorGenericStack c ->
 			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
