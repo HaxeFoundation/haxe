@@ -1070,15 +1070,15 @@ let _optimize (f:fundecl) =
 
 	(* nop *)
 
-	for i=0 to Array.length f.code - 1 do
+	for i = Array.length f.code - 1 downto 0 do
 		(match op i with
-		| OMov (d,r) when not (is_live d (i + 1)) ->
+		| OMov (d,r) when not (is_live d (i + 1)) || read_counts.(d) = 0 ->
 			let n = read_counts.(r) - 1 in
 			read_counts.(r) <- n;
 			write_counts.(d) <- write_counts.(d) - 1;
 			add_reg_moved i d r;
 			set_nop i "unused"
-		| ONull d when not (is_live d (i + 1)) ->
+		| ONull d when not (is_live d (i + 1)) || read_counts.(d) = 0 ->
 			write_counts.(d) <- write_counts.(d) - 1;
 			set_nop i "unused"
 		| OJAlways d when d >= 0 ->

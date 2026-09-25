@@ -54,11 +54,9 @@ class HlNullCheckFoldTests {
 
 	@:hl(<>
 		fun@N(Nh) ():virtual(base:method:():i32)
-		r0 cases._HlNullCheckFoldTests.Impl
-		r1 virtual(base:method:():i32)
+		r0 virtual(base:method:():i32)
 		@0 null 0
-		@1 null 1
-		@2 ret 1
+		@1 ret 0
 	</>)
 	static public function testNullSkipCast():IBase {
 		var x:Impl = null;
