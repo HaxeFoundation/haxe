@@ -1890,8 +1890,8 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
           cpp_abort PromotedStackOnlyValueType field.cf_pos
         | _ ->
           Some (create_variable field))
-      (* Dynamic methods are implemented as a physical field holding a closure *)
-      | Method MethDynamic, Some { eexpr = TFunction func } ->
+      (* Dynamic methods are implemented as a physical field holding a closure, an overriding one shares the field of its parent *)
+      | Method MethDynamic, Some { eexpr = TFunction func } when not (is_override field) ->
         Some (create_dynamic_func_variable field func)
         (* Some (create_variable { field with cf_expr = None; cf_kind = Var ({ v_read = AccNormal; v_write = AccNormal }) }) *)
       (* Below should cause abstracts which have functions with no implementation to be generated as a field *)
