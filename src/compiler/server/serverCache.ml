@@ -208,7 +208,6 @@ let check_module sctx com m_path m_extra p =
 					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m_path;
-					if m_extra.m_kind = MFake then Hashtbl.remove TypeloadCacheHook.fake_modules (m_extra.m_sign,Path.UniqueKey.lazy_key m_extra.m_file);
 					raise (Dirty (FileChanged file))
 				end
 			end
@@ -583,12 +582,8 @@ let cleanup sctx =
 	   change between requests, generating new cache signatures each time. *)
 	if !ServerConfig.stale_context_max_age_seconds > -1 then begin
 		let removed = sctx.cs#remove_stale_contexts !ServerConfig.stale_context_max_age_seconds in
-		if removed <> [] then begin
-			Hashtbl.filter_map_inplace (fun (sign,_) mdep ->
-				if List.mem sign removed then None else Some mdep
-			) TypeloadCacheHook.fake_modules;
-			ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" (List.length removed))
-		end
+		if removed > 0 then
+			ServerMessage.message (Printf.sprintf "Removed %d stale context cache(s)" removed)
 	end
 
 let before_anything sctx ctx =
