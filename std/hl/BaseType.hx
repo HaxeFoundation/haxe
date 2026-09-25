@@ -29,21 +29,27 @@ class BaseType {
 	public var __implementedBy__:NativeArray<Type>;
 
 	public function check(v:Dynamic) {
+		return downcast(v) != null;
+	}
+
+	public function downcast(v:Dynamic):Dynamic {
 		var t = Type.getDynamic(v);
 		if (t.kind == HVirtual) {
 			var v2 = hl.Api.getVirtualValue(v);
-			if (v2 != null)
+			if (v2 != null) {
+				v = v2;
 				t = Type.getDynamic(v2);
+			}
 		}
 		if (__implementedBy__ == null) {
 			if (t.safeCast(__type__))
-				return true;
-			return false;
+				return v;
+			return null;
 		}
 		for (i in __implementedBy__)
 			if (t.safeCast(i))
-				return true;
-		return false;
+				return v;
+		return null;
 	}
 }
 
