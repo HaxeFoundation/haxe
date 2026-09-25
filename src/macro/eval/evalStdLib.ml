@@ -2199,6 +2199,8 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
+		if not Globals.is_windows then
+			catch_unix_error Unix.setsockopt this SO_REUSEADDR true;
 		catch_unix_error Unix.bind this (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
