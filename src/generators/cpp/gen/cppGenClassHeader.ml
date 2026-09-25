@@ -20,14 +20,19 @@ let gen_member_variable ctx is_static var =
 
   Printf.sprintf "%s%s %s;\n" suffix tcpp_str var.tcv_name |> output;
 
-  if var.tcv_is_dynamic_function then
-    Printf.sprintf "%sinline %s& %s_dyn() { return %s; }\n" suffix tcpp_str var.tcv_name var.tcv_name |> output;
-
   if not is_static && var.tcv_is_gc_element then (
     let get_ptr = match var.tcv_type with TCppString -> ".raw_ref()" | _ -> ".mPtr" in
     Printf.sprintf
       "\t\tinline %s _hx_set_%s(::hx::StackContext* _hx_ctx, %s _hx_v) { HX_OBJ_WB(this, _hx_v%s) return %s = _hx_v; }\n"
       tcpp_str var.tcv_name tcpp_str get_ptr var.tcv_name |> output;)
+
+let gen_dynamic_function ctx class_def is_static func =
+  if func.tcf_is_overriding then () else
+  let output    = ctx.ctx_output in
+  let prefix    = if is_static then "\t\tstatic " else "\t\t" in
+  let signature = func_to_callable_string "::hx::Callable" func in
+
+  Printf.sprintf "%sinline %s& %s_dyn() { return %s; }\n" prefix signature func.tcf_name func.tcf_name |> output
 
 let gen_member_function ctx class_def is_static func =
   let output = ctx.ctx_output in
@@ -186,11 +191,17 @@ let generate_native_header base_ctx tcpp_class =
   tcpp_class.tcl_static_functions
   |> List.iter (gen_member_function ctx class_def true);
 
+  tcpp_class.tcl_static_dynamic_functions
+  |> List.iter (gen_dynamic_function ctx class_def true);
+
   tcpp_class.tcl_variables
   |> List.iter (gen_member_variable ctx false);
 
   tcpp_class.tcl_functions
   |> List.iter (gen_member_function ctx class_def false);
+
+  tcpp_class.tcl_dynamic_functions
+  |> List.iter (gen_dynamic_function ctx class_def false);
 
   output_h (get_class_code class_def Meta.HeaderClassCode);
   output_h "};\n\n";
@@ -369,11 +380,17 @@ let generate_managed_header base_ctx tcpp_class =
   tcpp_class.tcl_static_functions
   |> List.iter (gen_member_function ctx class_def true);
 
+  tcpp_class.tcl_static_dynamic_functions
+  |> List.iter (gen_dynamic_function ctx class_def true);
+
   tcpp_class.tcl_static_variables
   |> List.iter (gen_member_variable ctx true);
 
   tcpp_class.tcl_functions
   |> List.iter (gen_member_function ctx class_def false);
+
+  tcpp_class.tcl_dynamic_functions
+  |> List.iter (gen_dynamic_function ctx class_def false);
 
   tcpp_class.tcl_variables
   |> List.iter (fun field -> gen_member_variable ctx false field);
