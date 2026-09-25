@@ -1659,7 +1659,6 @@ let expression ctx request_type function_args function_type expression_tree forI
           (retyper_ctx, CppTry (cppBlock, List.rev cppCatches), TCppVoid)
       | TReturn eo ->
           let retyper_ctx, expr = match eo with
-          | None when retyper_ctx.function_return_type <> TCppVoid -> retyper_ctx, Some (mk_cppexpr CppNull retyper_ctx.function_return_type)
           | None -> retyper_ctx, None
           | Some e -> retype retyper_ctx retyper_ctx.function_return_type e |> (fun (new_ctx, expr) -> new_ctx, Some expr) in
           ( retyper_ctx,
