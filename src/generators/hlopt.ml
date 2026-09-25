@@ -782,7 +782,7 @@ let _optimize (f:fundecl) =
 		let def_of r i =
 			(* nearest write to r, only following straight line code *)
 			let rec loop i =
-				if i < 0 || is_target.(i) then None else
+				if i < 0 || is_target.(i + 1) then None else
 				let op = f.code.(i) in
 				let writes = ref false in
 				opcode_fx (fun r2 read -> if not read && r2 = r then writes := true) op;
