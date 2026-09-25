@@ -1015,7 +1015,14 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 	in
 	let handle_array_access () =
 		if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "array-access function" p;
-		a.a_array <- cf :: a.a_array;
+		begin match follow cf.cf_type with
+			| TFun(_ :: _ :: args,_) when is_empty_or_pos_infos args ->
+				a.a_array_read <- cf :: a.a_array_read;
+			| TFun(_ :: _ :: _ :: args,_) when is_empty_or_pos_infos args ->
+				a.a_array_write <- cf :: a.a_array_write;
+			| _ ->
+				raise_typing_error (cf.cf_name ^ ": Invalid number of arguments for array access function") p
+		end;
 		allow_no_expr();
 	in
 	let handle_resolve () =
@@ -1786,7 +1793,8 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_from_field <- List.rev a.a_from_field;
 			a.a_ops <- List.rev a.a_ops;
 			a.a_unops <- List.rev a.a_unops;
-			a.a_array <- List.rev a.a_array;
+			a.a_array_read <- List.rev a.a_array_read;
+			a.a_array_write <- List.rev a.a_array_write;
 		| None ->
 			()
 	end;
