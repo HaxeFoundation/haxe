@@ -23,6 +23,7 @@ using StringTools;
 	- Source line numbers (`.12    @0` → `@0`)
 	- Source comment lines (`; file:line (Name)`)
 	- Function indices (`fun@23(17h)` → `fun@N(Nh)`)
+	- Generated function names (`fun$123` → `fun$N`)
 	- Global IDs (replaced by sequential `$0`, `$1`, ... per function)
 	- Integer constant pool references (`int R,@19` → `int R,@$N`)
 **/
@@ -225,6 +226,9 @@ class Macro {
 
 			// Normalize function index in declaration: "fun@23(17h) type" → "fun@N(Nh) type"
 			trimmed = ~/^fun@\d+\([0-9A-F]+h\)/.replace(trimmed, "fun@N(Nh)");
+
+			// Normalize generated function names: "fun$123" → "fun$N"
+			trimmed = ~/\bfun\$\d+/g.replace(trimmed, "fun$$N");
 
 			// Remove source line prefix from instruction lines: ".12    @0" → "@0"
 			trimmed = ~/^\.\d+[ \t]+/.replace(trimmed, "");
