@@ -22,6 +22,24 @@ private class ChoiceWheel {
 	}
 }
 
+private interface IDrawable {
+	public function render( engine : Engine ) : Void;
+}
+
+private class App implements IDrawable {
+	public function new() {}
+	public function render( e : Engine ) {}
+}
+
+private class Engine {
+	public function new() {}
+	public function render( obj : { function render( engine : Engine ) : Void; } ) {}
+}
+
+private typedef MiniRef<T> = {
+	public function get():T;
+}
+
 /**
 	Tests that verify correct HL code generation for basic patterns.
 **/
@@ -78,7 +96,7 @@ class HlCodeTests {
 	@:hl(<>
 		fun@367(16Fh) ():virtual(node:...)
 		; src/cases/HlCodeTests.hx:82 (cases.HlCodeTests.testTreeA)
-			r0 virtual(node:virtual(node:...))
+			r0 virtual(node:...)
 			r1 virtual(node:...)
 			.82    @0 new 0
 			.82    @1 null 1
@@ -88,5 +106,51 @@ class HlCodeTests {
 	static public function testTreeA() {
 		var a : TreeA = { node : null };
 		return a;
+	}
+
+	// Passing a class instance where a structural `{ render : ... }` is expected
+	// goes through the same virtual as a plain anonymous structure.
+	@:hl(<>
+		fun@372(174h) ():void
+		; src/cases/HlCodeTests.hx:114 (cases.HlCodeTests.testInterfaceToStructural)
+			r0 void
+			r1 cases._HlCodeTests.Engine
+			r2 cases._HlCodeTests.App
+			r3 virtual(render:method:(cases._HlCodeTests.Engine):void)
+			.114   @0 new 1
+			.114   @1 call 0, cases._HlCodeTests.Engine.new(1)
+			.114   @2 new 2
+			.114   @3 call 0, cases._HlCodeTests.App.new(2)
+			.114   @4 jnotnull 2,2
+			.114   @5 null 3
+			.114   @6 jalways 4
+			.114   @7 field 3,2[0]
+			.114   @8 jnotnull 3,2
+			.114   @9 tovirtual 3,2
+			.114   @A setfield 2[0],3
+			.114   @B call 0, cases._HlCodeTests.Engine.render(1,3)
+			.114   @C ret 0
+	</>)
+	static public function testInterfaceToStructural() {
+		new Engine().render(new App());
+	}
+
+	// An object literal whose field holds a function (`get` is a Var) used where
+	// a method field is expected (`MiniRef.get` is a Method) must NOT be conflated
+	// with the method-bearing virtual: the field stays a plain function value.
+	@:hl(<>
+		fun@373(175h) ():virtual(get:method:():i32)
+		; src/cases/HlCodeTests.hx:121 (cases.HlCodeTests.testVarFieldVsMethod)
+			r0 dynobj
+			r1 ():i32
+			r2 virtual(get:method:():i32)
+			.121   @0 new 0
+			.121   @1 staticclosure 1, fun$374
+			.121   @2 dynset 0[@174],1
+			.121   @3 tovirtual 2,0
+			.121   @4 ret 2
+	</>)
+	static public function testVarFieldVsMethod():MiniRef<Int> {
+		return { get: function() return 1 };
 	}
 }
