@@ -51,6 +51,7 @@ class Issue13051 extends TestCase {
 		// Used to crash: Could not find dependency $DEP.<path>res/dep.dep of Dependency in the cache
 		runHaxe(argsB);
 		assertSuccess();
+		assertReuse("Dependency");
 
 		// Used to crash as a follow-up of the above: modules were left in an unknown cache state
 		runHaxe(argsB);
