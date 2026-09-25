@@ -1311,7 +1311,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
-	| (GInt | GFloat), GNull, _, HNull t ->
+	| (GInt | GFloat), GNull, _, HNull t when get_group t <> GBool ->
 		let tmp = alloc_tmp ctx t in
 		(match get_group t with
 		| GFloat -> op ctx (OToSFloat (tmp, r))
@@ -1810,7 +1810,8 @@ and eval_expr ctx e =
 			r) (to_type ctx e.etype) e.epos
 	| TReturn None ->
 		before_return ctx;
-		let r = alloc_tmp ctx HVoid in
+		let r = alloc_tmp ctx ctx.m.mret in
+		if ctx.m.mret <> HVoid then op ctx (ONull r);
 		op ctx (ORet r);
 		alloc_tmp ctx HDyn
 	| TReturn (Some e) ->
@@ -2267,10 +2268,10 @@ and eval_expr ctx e =
 		let c = eval_to ctx vt (class_type ctx ctx.base_type [] false) in
 		hold ctx c;
 		let rv = alloc_tmp ctx (to_type ctx e.etype) in
-		let rb = alloc_tmp ctx HBool in
-		op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",c,r));
-		let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
-		op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx r (to_type ctx e.etype) e.epos));
+		let rd = alloc_tmp ctx HDyn in
+		op ctx (OCall2 (rd, alloc_fun_path ctx (["hl"],"BaseType") "downcast",c,r));
+		let jnext = jump ctx (fun n -> OJNull (rd,n)) in
+		op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rd (to_type ctx e.etype) e.epos));
 		let jend = jump ctx (fun n -> OJAlways n) in
 		jnext();
 		op ctx (ONull rv);
@@ -3106,11 +3107,11 @@ and eval_expr ctx e =
 					) in
 					hold ctx rtrap;
 					let r = type_value ctx ct ec.epos in
+					let rd = alloc_tmp ctx HDyn in
 					free ctx rtrap;
-					let rb = alloc_tmp ctx HBool in
-					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
-					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
-					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
+					op ctx (OCall2 (rd, alloc_fun_path ctx (["hl"],"BaseType") "downcast",r,rtrap));
+					let jnext = jump ctx (fun n -> OJNull (rd,n)) in
+					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rd (to_type ctx v.v_type) ec.epos));
 					add_assign ctx v;
 					jnext
 				in
@@ -3477,7 +3478,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		let rec has_final_jump e =
 			(* prevents a jump outside function bounds error *)
 			match e.eexpr with
-			| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> false)
+			| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> true)
 			| TParenthesis e -> has_final_jump e
 			| TReturn _ -> false
 			| _ -> true
