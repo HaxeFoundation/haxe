@@ -339,7 +339,6 @@ and context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
@@ -763,7 +762,6 @@ let create sctx request_scope part_scope display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		native_libs = create_native_libs();
@@ -921,7 +919,6 @@ let clone com is_macro_context =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		load_extern_type = []; (* ! *)
 		basic = {
 			tvoid = mk_mono();

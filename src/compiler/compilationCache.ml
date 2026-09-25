@@ -396,7 +396,7 @@ class cache = object(self)
 		let is_stale cc = cc#get_last_access_time < threshold in
 		(* Short-circuit: nothing stale, nothing to do. *)
 		let any_stale = Hashtbl.fold (fun _ cc acc -> acc || is_stale cc) contexts false in
-		if not any_stale then 0
+		if not any_stale then []
 		else begin
 			(* Transitive closure of "kept": start with non-stale contexts, follow
 			   each kept context's children edges. *)
@@ -429,7 +429,7 @@ class cache = object(self)
 				List.iter (fun s -> Hashtbl.replace removed_set s ()) to_remove;
 				context_list <- List.filter (fun cc -> not (Hashtbl.mem removed_set cc#get_sign)) context_list
 			end;
-			List.length to_remove
+			to_remove
 		end
 
 	(* Pointers for memory inspection. *)
