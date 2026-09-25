@@ -74,7 +74,7 @@ class Issue13051 extends TestCase {
 		assertSuccess();
 		Assert.isFalse(hasMessage("reusing Dependency"));
 
-		// Used to never be reused again because the outdated fake module was kept around
+		// Must be reused again once the fake module is replaced
 		runHaxe(args);
 		assertReuse("Dependency");
 	}

@@ -656,7 +656,6 @@ module Printer = struct
 		let rec loop stack = function
 			| DependencyDirty(path,reason) ->
 				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
-			| DependencyMissing path -> "DependencyMissing " ^ (s_type_path path)
 			| Tainted cause -> "Tainted " ^ (s_module_tainting_reason cause)
 			| FileChanged file -> "FileChanged " ^ file
 			| Shadowed file -> "Shadowed " ^ file

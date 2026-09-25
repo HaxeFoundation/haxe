@@ -223,7 +223,7 @@ let check_module sctx com m_path m_extra p =
 				let m2_extra = try
 					find_module_extra sign mpath
 				with Not_found ->
-					raise (Dirty (DependencyMissing mpath))
+					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
 				match check mpath m2_extra with
 				| None -> ()
