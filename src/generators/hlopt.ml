@@ -779,14 +779,14 @@ let _optimize (f:fundecl) =
 			| CSwitch pl -> Array.iter (mark i) pl
 			| _ -> ()
 		) f.code;
-		let def_of r i =
-			(* nearest write to r, only following straight line code *)
+		let rec def_of r i =
+			(* nearest write to r, only following straight line code and movs *)
 			let rec loop i =
 				if i < 0 || is_target.(i + 1) then None else
 				let op = f.code.(i) in
 				let writes = ref false in
 				opcode_fx (fun r2 read -> if not read && r2 = r then writes := true) op;
-				if !writes then Some op
+				if !writes then (match op with OMov (_,s) -> def_of s i | _ -> Some op)
 				else match control op with
 					| CNo -> loop (i - 1)
 					| _ -> None
