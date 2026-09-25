@@ -90,7 +90,7 @@ class NativeStackTrace {
 		for (i in 0...nativeStackTrace.length-1) {
 			if( i < skip ) continue;
 			#if (hl_ver >= version("1.12.0"))
-			var len = maxLen;
+			var len = maxLen >> 1;
 			var bytes = resolveSymbol(nativeStackTrace[i],tmpBuf,len);
 			if( bytes == null ) continue;
 			#else
@@ -101,8 +101,10 @@ class NativeStackTrace {
 				stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(4), Std.parseInt(r.matched(5))));
 			else if (r_fun.match(str))
 				stack.push(FilePos(LocalFunction(Std.parseInt(r_fun.matched(1))), r_fun.matched(2), Std.parseInt(r_fun.matched(3))));
-			else
+			else {
+				str = @:privateAccess String.__alloc__(bytes.sub(0, (str.length + 1) << 1), str.length);
 				stack.push(Module(str));
+			}
 		}
 		return stack;
 	}
