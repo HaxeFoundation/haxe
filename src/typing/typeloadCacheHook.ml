@@ -16,7 +16,7 @@ let type_module_hook : (Common.context -> (typer_pass -> (unit -> unit) -> unit)
 let fake_modules = Hashtbl.create 0
 
 let create_fake_module com file =
-	let key = com.part_scope.file_keys#get file in
+	let key = (Define.get_signature com.defines,com.part_scope.file_keys#get file) in
 	let file = Path.get_full_path file in
 	let mdep = (try Hashtbl.find fake_modules key with Not_found ->
 		let mdep = {

@@ -208,7 +208,7 @@ let check_module sctx com m_path m_extra p =
 					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m_path;
-					if m_extra.m_kind = MFake then Hashtbl.remove TypeloadCacheHook.fake_modules (Path.UniqueKey.lazy_key m_extra.m_file);
+					if m_extra.m_kind = MFake then Hashtbl.remove TypeloadCacheHook.fake_modules (m_extra.m_sign,Path.UniqueKey.lazy_key m_extra.m_file);
 					raise (Dirty (FileChanged file))
 				end
 			end
@@ -259,18 +259,7 @@ let check_module sctx com m_path m_extra p =
 				| MSGood ->
 					(* Otherwise, run the checks *)
 					m_extra.m_cache_state <- MSUnknown;
-					begin try
-						check ()
-					with exc ->
-						List.iter (fun m -> match m.m_cache_state with
-							| MSUnknown ->
-								m.m_checked <- start_mark - 1;
-								m.m_cache_state <- MSGood
-							| MSGood | MSBad _ ->
-								()
-						) (m_extra :: !unknown_state_modules);
-						raise exc
-					end
+					check ()
 			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
 			begin match dirty with
