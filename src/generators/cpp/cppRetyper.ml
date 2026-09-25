@@ -1793,6 +1793,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       tcv_is_stackonly  = has_meta Meta.StackOnly field.cf_meta;
       tcv_is_reflective = reflective class_def field;
       tcv_is_gc_element = is_gc_element ctx tcpp;
+      tcv_is_dynamic_function = false;
     } in
 
   let create_dynamic_func_variable field func =
@@ -1810,6 +1811,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       tcv_is_stackonly  = false;
       tcv_is_reflective = reflective class_def field;
       tcv_is_gc_element = true;
+      tcv_is_dynamic_function = true;
     } in
 
   let filter_functions is_static field =
@@ -1881,9 +1883,12 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       None
   in
 
-  let filter_variables field =
+  let filter_variables is_static field =
     if is_physical_field field then
       match (field.cf_kind, field.cf_expr) with
+      (* static variables with a default function value are also generated as a dynamic function *)
+      | Var _, Some { eexpr = TFunction _ } when is_static ->
+        Some { (create_variable field) with tcv_is_dynamic_function = true }
       | Var _, _ ->
         (match follow field.cf_type with
         | TInst (cls, _) when CppMarshalling.is_stack_only_marshalling_native_value_class cls ->
@@ -1924,7 +1929,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let static_variables =
     class_def.cl_ordered_statics
     |> List.filter (fun field -> field.cf_name <> "__meta__" && field.cf_name <> "__rtti")
-    |> List.filter_map filter_variables in
+    |> List.filter_map (filter_variables true) in
 
   let static_properties =
     class_def.cl_ordered_statics
@@ -1941,7 +1946,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
 
   let variables =
     class_def.cl_ordered_fields
-    |> List.filter_map filter_variables in
+    |> List.filter_map (filter_variables false) in
 
   let properties =
     class_def.cl_ordered_fields
