@@ -47,6 +47,7 @@ type code_module = {
 
 and function_entry = {
 	fe_index : int;
+	mutable fe_cindex : int;
 	mutable fe_name : string;
 	mutable fe_decl : fundecl option;
 	mutable fe_args : ttype list;
@@ -54,6 +55,7 @@ and function_entry = {
 	mutable fe_module : code_module option;
 	mutable fe_called_by : function_entry list;
 	mutable fe_calling : function_entry list;
+	mutable is_extern : bool;
 }
 
 type global_context = {
@@ -66,6 +68,7 @@ type global_context = {
 	dir : string;
 	mutable cfiles : string list;
 	ftable : function_entry array;
+	functions : function_entry list;
 	htypes : (ttype, string) PMap.t;
 	gnames : string array;
 	bytes_names : string array;
@@ -356,8 +359,8 @@ let define_global gctx ctx g =
 	define_type gctx ctx t;
 	define ctx (sprintf "extern %s;" (var_type gctx.gnames.(g) t))
 
-let define_function gctx ctx fid =
-	let ft = gctx.ftable.(fid) in
+let define_function gctx ctx ft =
+	let fid = ft.fe_index in
 	let fid = if ft.fe_decl = None then -1 else fid in
 	if not (Hashtbl.mem ctx.defined_funs fid) then begin
 		Hashtbl.add ctx.defined_funs fid ();
@@ -434,7 +437,7 @@ let generate_reflection gctx ctx =
 			| _ -> ()
 		) f.code
 	) gctx.hlcode.functions;
-	Array.iter (fun f -> add_fun f.fe_args f.fe_ret) gctx.ftable;
+	List.iter (fun f -> add_fun f.fe_args f.fe_ret) gctx.functions;
 	let argsCounts = List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []) in
 	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id t)) core_types));
 	line "";
@@ -567,7 +570,10 @@ let generate_function gctx ctx f =
 
 	let rtype r = f.regs.(r) in
 
-	let funname fid = define_function gctx ctx fid in
+	let funname fid =
+		let f = gctx.ftable.(fid) in
+		define_function gctx ctx f
+	in
 
 	let rcast r t =
 		let rt = (rtype r) in
@@ -1263,8 +1269,8 @@ let make_global_names code gnames =
 	) gids;
 	Array.init (Array.length code.globals) (fun i -> Hashtbl.find gnames i)
 
-let make_function_table code =
-	let new_entry i = { fe_index = i; fe_args = []; fe_ret = HVoid; fe_name = ""; fe_module = None; fe_calling = []; fe_called_by = []; fe_decl = None; } in
+let make_function_table (code : Hlcode.code) =
+	let new_entry i = { fe_index = i; fe_cindex  = -1; fe_args = []; fe_ret = HVoid; fe_name = ""; fe_module = None; fe_calling = []; fe_called_by = []; fe_decl = None; is_extern = false } in
 	let ftable = Array.init (Array.length code.functions + Array.length code.natives) new_entry in
 	Array.iter (fun (lib,name,t,idx) ->
 		let fname =
@@ -1288,6 +1294,7 @@ let make_function_table code =
 		let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
 		let ft = ftable.(f.findex) in
 		ft.fe_name <- fname;
+		ft.is_extern <- f.is_extern;
 		(match f.ftype with
 		| HFun (args,t) ->
 			ft.fe_args <- args;
@@ -1314,7 +1321,19 @@ let make_function_table code =
 				()
 		) f.code;
 	) code.functions;
-	ftable
+	let functions =
+		let fs, _ = Array.fold_left
+			(fun (fs, i) f ->
+				if f.is_extern then
+					(fs, i)
+				else (
+					f.fe_cindex <- i;
+					f::fs, i + 1))
+			([], 0) ftable
+		in
+		List.rev fs
+	in
+	ftable, functions
 
 let make_modules ctx all_types =
 	let modules = Hashtbl.create 0 in
@@ -1381,7 +1400,7 @@ let make_modules ctx all_types =
 				let counter = ref 1 in
 				let rec loop acc = function
 					| [] -> acc
-					| f :: l when f.fe_module = None && List.length f.fe_called_by = 1 && f.fe_decl <> None ->
+					| f :: l when f.fe_module = None && List.length f.fe_called_by = 1 && f.fe_decl <> None && not f.is_extern ->
 						f.fe_name <- fm.fe_name ^ "__$" ^ (string_of_int !counter);
 						incr counter;
 						f.fe_module <- Some m;
@@ -1396,7 +1415,7 @@ let make_modules ctx all_types =
 		m.m_functions <- get_deps [] m.m_functions
 	) !all_modules;
 	let contexts = ref PMap.empty in
-	Array.iter (fun f ->
+	List.iter (fun f ->
 		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> Globals.die "" __LOC__ | Some f -> f.ftype);
 		(* assign context to function module *)
 		match f.fe_args with
@@ -1410,7 +1429,7 @@ let make_modules ctx all_types =
 			with Not_found ->
 				contexts := PMap.add t f.fe_module !contexts)
 		| _ -> ()
-	) ctx.ftable;
+	) ctx.functions;
 	List.iter (fun t ->
 		let m = (try PMap.find t !contexts with Not_found -> None) in
 		let m = (match m with
@@ -1498,6 +1517,7 @@ let write_c com file (code:code) gnames num_domains =
 	let types_ids = make_types_idents htypes in
 	let gnames = make_global_names code gnames in
 	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
+	let ftable, functions = make_function_table code in
 	let gctx = {
 		version = com.Gctx.version.version;
 		hlcode = code;
@@ -1507,7 +1527,8 @@ let write_c com file (code:code) gnames num_domains =
 		hash_cache_list = [];
 		dir = (match Filename.dirname file with "" -> "." | dir -> String.concat "/" (ExtString.String.nsplit dir "\\"));
 		cfiles = [];
-		ftable = make_function_table code;
+		ftable;
+		functions;
 		htypes = types_ids;
 		gnames = gnames;
 		bytes_names = bnames;
@@ -1675,7 +1696,7 @@ let write_c com file (code:code) gnames num_domains =
 		| HObj o | HStruct o ->
 			let name = type_name gctx t in
 			let proto_value p =
-				sprintf "{(const uchar*)%s, %d, %d, %ld}" (string gctx ctx p.fid) p.fmethod (match p.fvirtual with None -> -1 | Some i -> i) (hash gctx p.fid)
+				sprintf "{(const uchar*)%s, %d, %d, %ld}" (string gctx ctx p.fid) (gctx.ftable.(p.fmethod).fe_cindex) (match p.fvirtual with None -> -1 | Some i -> i) (hash gctx p.fid)
 			in
 			let fields =
 				if Array.length o.pfields = 0 then "NULL" else
@@ -1692,7 +1713,7 @@ let write_c com file (code:code) gnames num_domains =
 			let bindings =
 				if o.pbindings = [] then "NULL" else
 				let name = sprintf "bindings%s" name in
-				sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun (fid,fidx) -> string_of_int fid ^ "," ^ string_of_int fidx) o.pbindings));
+				sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun (fid,fidx) -> string_of_int fid ^ "," ^ string_of_int (gctx.ftable.(fidx).fe_cindex)) o.pbindings));
 				name
 			in
 			let ofields = [
@@ -1890,21 +1911,19 @@ let write_c com file (code:code) gnames num_domains =
 	define ctx "#define HLC_BOOT";
 	define ctx "#include <hlc.h>";
 	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat ",\\\n\t" (List.map (fun f ->
-		let name = define_function gctx ctx f.fe_index in
-		if name = "hl_tls_get_w" then "hl_tls_get" else name
-	) (Array.to_list gctx.ftable)));
-	let rec loop i =
-		if i = Array.length gctx.ftable then [] else
-		let ft = gctx.ftable.(i) in
+		let name = define_function gctx ctx f in
+		(if name = "hl_tls_get_w" then "hl_tls_get" else name)
+	) functions));
+	let loop ft =
 		let n = type_name gctx (HFun (ft.fe_args,ft.fe_ret)) in
 		define ctx (sprintf "extern hl_type %s;" n);
-		("&" ^ n) :: loop (i + 1)
+		("&" ^ n)
 	in
-	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat ",\\\n\t" (loop 0));
+	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat ",\\\n\t" (List.map loop functions));
 	line "";
-	Array.iter (fun f ->
+	List.iter (fun f ->
 		if f.fe_module = None then (match f.fe_decl with None -> () | Some f -> generate_function gctx ctx f);
-	) gctx.ftable;
+	) functions;
 	close_file ctx;
 	save_cfile gctx ctx.curfile;
 	);
@@ -1952,7 +1971,7 @@ let write_c com file (code:code) gnames num_domains =
 	expr "hl_init_types(&ctx)";
 	expr "hl_init_hashes()";
 	expr "hl_init_roots()";
-	if code.entrypoint >= 0 then sexpr "%s()" (define_function gctx ctx code.entrypoint);
+	if code.entrypoint >= 0 then sexpr "%s()" (define_function gctx ctx gctx.ftable.(code.entrypoint));
 	unblock ctx;
 	line "}";
 	line "";
