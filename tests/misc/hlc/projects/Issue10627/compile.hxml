@@ -1,0 +1,4 @@
+-cp .
+-lib hlsdl
+-main Main
+-hl bin/out/main.c
