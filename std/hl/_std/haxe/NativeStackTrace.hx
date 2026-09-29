@@ -101,10 +101,8 @@ class NativeStackTrace {
 				stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(4), Std.parseInt(r.matched(5))));
 			else if (r_fun.match(str))
 				stack.push(FilePos(LocalFunction(Std.parseInt(r_fun.matched(1))), r_fun.matched(2), Std.parseInt(r_fun.matched(3))));
-			else {
-				str = @:privateAccess String.__alloc__(bytes.sub(0, (str.length + 1) << 1), str.length);
+			else
 				stack.push(Module(str));
-			}
 		}
 		return stack;
 	}
