@@ -27,6 +27,7 @@ let gen_member_variable ctx is_static var =
       tcpp_str var.tcv_name tcpp_str get_ptr var.tcv_name |> output;)
 
 let gen_dynamic_function ctx class_def is_static func =
+  if func.tcf_is_overriding then () else
   let output    = ctx.ctx_output in
   let prefix    = if is_static then "\t\tstatic " else "\t\t" in
   let signature = func_to_callable_string "::hx::Callable" func in

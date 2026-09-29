@@ -204,12 +204,15 @@ let gen_init_function ctx output_cpp tcpp_class =
   | None ->
     ()
 
+let new_default_closure func obj =
+  Printf.sprintf "%s(new __default_%s(%s))" (func_to_callable_string "::hx::Callable" func) func.tcf_name obj
+
 let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
   match tcpp_class.tcl_dynamic_functions with
   | [] -> ()
   | functions ->
     let mapper func =
-      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }" func.tcf_name func.tcf_name func.tcf_name in
+      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = %s; }" func.tcf_name func.tcf_name (new_default_closure func "_hx_obj") in
     let rec folder acc class_def =
       if has_dynamic_member_functions class_def then
         let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
@@ -554,7 +557,7 @@ let generate_managed_class base_ctx tcpp_class =
   (* Initialise non-static variables *)
   output_cpp (class_name ^ "::" ^ class_name ^ "()\n{\n");
   List.iter
-    (fun func -> output_cpp ("\t" ^ func.tcf_name ^ " = new __default_" ^ func.tcf_name ^ "(this);\n"))
+    (fun func -> output_cpp (Printf.sprintf "\t%s = %s;\n" func.tcf_name (new_default_closure func "this")))
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
@@ -690,10 +693,8 @@ let generate_managed_class base_ctx tcpp_class =
       |> List.fold_right (print_property prop_printer) tcpp_class.tcl_properties
       |> List.fold_right (print_function fun_printer) tcpp_class.tcl_functions in
 
-    if List.length all_fields > 0 then (
-      dump_quick_field_test all_fields;
-      output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
-    );
+    dump_quick_field_test all_fields;
+    output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
 
   if has_tcpp_class_flag tcpp_class StaticGet then (
     Printf.sprintf "bool %s::__GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
