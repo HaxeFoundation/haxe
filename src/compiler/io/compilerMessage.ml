@@ -66,6 +66,8 @@ let add_module_message com (m : module_def) msg p depth message_kind =
 let add_module_diagnostic com (m : module_def) cm =
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
+	if cm_severity cm = MessageSeverity.Error && com.part_scope.message_capture = None then
+		com.part_scope.has_error <- true;
 	if is_diagnostics com then
 		com.part_scope.messages <- cm :: com.part_scope.messages
 

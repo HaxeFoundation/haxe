@@ -87,7 +87,16 @@ let fix_override com c f fd =
 			} in
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> die "" __LOC__ | Some e -> e) in
-			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
+			let e = { fde with eexpr = TFunction fd2 } in
+			let e = if com.config.pf_add_final_return && ExtType.is_void (follow fd.tf_type) && not (ExtType.is_void (follow tret)) then begin
+				let rec loop e = match e.eexpr with
+					| TReturn None -> { e with eexpr = TReturn (Some (mk (TConst TNull) tret e.epos)) }
+					| TFunction _ -> e
+					| _ -> Type.map_expr loop e
+				in
+				AddFinalReturn.add_final_return { e with eexpr = TFunction { fd2 with tf_expr = loop fd2.tf_expr } }
+			end else e in
+			f.cf_expr <- Some e;
 			f.cf_type <- TFun(targs,tret);
 		| Some(f2), None when (has_class_flag c CInterface) ->
 			let targs, tret = 

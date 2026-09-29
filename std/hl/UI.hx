@@ -132,6 +132,9 @@ typedef FileOptions = {
 	var ?filterIndex:Int;
 	var ?fileName:String;
 	var ?title:String;
+#if (hl_ver >= version("2.0.0"))
+	var ?isFolder: Bool;
+#end
 }
 
 /**
@@ -206,6 +209,10 @@ class UI {
 		}
 		if (opts.window != null)
 			out.window = opts.window.h;
+#if (hl_ver >= version("2.0.0"))
+		if (opts.isFolder != null)
+			out.isFolder = opts.isFolder;
+#end
 		var str = _chooseFile(save, out);
 		return str == null ? null : String.fromUCS2(str);
 	}

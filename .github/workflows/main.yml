@@ -22,7 +22,7 @@ jobs:
       MINGW_ARCH: x86_64
       CYG_ROOT: C:\.opam\.cygwin\root
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -54,7 +54,7 @@ jobs:
           ls ./out
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: win${{env.ARCH}}Binaries
           path: out
@@ -71,13 +71,13 @@ jobs:
       PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       OPAMYES: 1
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.opam/
           key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
@@ -122,7 +122,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: out
@@ -141,7 +141,7 @@ jobs:
 
       - name: Upload xmldoc artifact
         if: matrix.arch == 'x86_64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xmldoc
           path: extra/doc
@@ -177,11 +177,11 @@ jobs:
           - target: flash
             arch: arm64
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: linuxBinaries
@@ -249,17 +249,17 @@ jobs:
       PLATFORM: linux64
       HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: linuxBinaries
           path: linuxBinaries
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: xmldoc
           path: xmldoc
@@ -316,13 +316,13 @@ jobs:
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch == 'arm64' && 11.0 || 10.13 }}
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.opam/
           key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
@@ -399,14 +399,14 @@ jobs:
 
       - name: Upload artifact (x64)
         if: matrix.arch == 'x86_64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
         if: matrix.arch == 'arm64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macArmBinaries
           path: out
@@ -425,18 +425,18 @@ jobs:
       matrix:
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
 
       - uses: ./.github/actions/setup-neko
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: matrix.target == 'js'
         with:
           node-version: 24
@@ -515,12 +515,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@main
-      - uses: actions/download-artifact@v4
+        uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: macX64Binaries
           path: macX64Binaries
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: macArmBinaries
           path: macArmBinaries
@@ -538,7 +538,7 @@ jobs:
           otool -L ./haxelib
 
       - name: Upload artifact (universal)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macBinaries
           path: out
@@ -564,11 +564,11 @@ jobs:
 
     runs-on: ${{ matrix.runner || 'macos-latest' }}
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: macBinaries
           path: macBinaries
@@ -621,10 +621,10 @@ jobs:
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
       # would be faster
       - name: Checkout the repository
-        uses: actions/checkout@main
+        uses: actions/checkout@v7
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
 
       - name: Install rclone
         run: |
@@ -738,7 +738,7 @@ jobs:
           sudo apt-get install -qqy libc6
 
       - name: Download Haxe
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linuxBinaries
           path: linuxBinaries
@@ -754,7 +754,7 @@ jobs:
           sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: xmldoc
           path: xmldoc

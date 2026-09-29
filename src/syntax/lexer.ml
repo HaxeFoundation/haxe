@@ -661,12 +661,12 @@ let rec not_xml ctx depth in_open =
 	| _ ->
 		die "" __LOC__
 
-let rec token ctx lexbuf =
+let make_token ctx =
 	let mk = mk ctx in
-	let token = token ctx in
 	let newline = newline ctx in
 	let mk_tok = mk_tok ctx in
 	let mk_keyword = mk_keyword ctx in
+	let rec token lexbuf =
 	match%sedlex lexbuf with
 	| eof -> mk lexbuf Eof
 	| Plus (Chars " \t") -> token lexbuf
@@ -833,6 +833,10 @@ let rec token ctx lexbuf =
 	| ident -> mk_ident ctx lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char ctx lexbuf
+	in
+	token
+
+let token ctx lexbuf = make_token ctx lexbuf
 
 let rec sharp_token ctx lexbuf =
 	match%sedlex lexbuf with

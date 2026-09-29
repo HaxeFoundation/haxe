@@ -768,6 +768,48 @@ let _optimize (f:fundecl) =
 	let nop_count = ref 0 in
 	let set_nop index r = f.code.(index) <- (ONop r); incr nop_count in
 
+	(* an allocating opcode never returns null and ONull is always null *)
+	let fold_null_checks() =
+		let len = Array.length f.code in
+		let is_target = Array.make (len + 1) false in
+		let mark i d = let t = i + 1 + d in if t >= 0 && t <= len then is_target.(t) <- true in
+		Array.iteri (fun i op ->
+			match control op with
+			| CJAlways d | CJCond d | CTry d -> mark i d
+			| CSwitch pl -> Array.iter (mark i) pl
+			| _ -> ()
+		) f.code;
+		let rec def_of r i =
+			(* nearest write to r, only following straight line code and movs *)
+			let rec loop i =
+				if i < 0 || is_target.(i + 1) then None else
+				let op = f.code.(i) in
+				let writes = ref false in
+				opcode_fx (fun r2 read -> if not read && r2 = r then writes := true) op;
+				if !writes then (match op with OMov (_,s) -> def_of s i | _ -> Some op)
+				else match control op with
+					| CNo -> loop (i - 1)
+					| _ -> None
+			in
+			loop (i - 1)
+		in
+		Array.iteri (fun i op ->
+			match op with
+			| OJNotNull (r,d) | OJNull (r,d) ->
+				(match (match def_of r i with
+					| Some (ONew _ | OStaticClosure _ | OInstanceClosure _) -> Some false
+					| Some (ONull _) -> Some true
+					| _ -> None) with
+				| None -> ()
+				| Some is_null ->
+					let taken = (match op with OJNull _ -> is_null | _ -> not is_null) in
+					if taken then f.code.(i) <- OJAlways d else set_nop i "nullcheck"
+				)
+			| _ -> ()
+		) f.code
+	in
+	fold_null_checks();
+
 	let blocks_pos, root = code_graph f in
 
 	let read_counts = Array.make nregs 0 in
@@ -1028,13 +1070,16 @@ let _optimize (f:fundecl) =
 
 	(* nop *)
 
-	for i=0 to Array.length f.code - 1 do
+	for i = Array.length f.code - 1 downto 0 do
 		(match op i with
-		| OMov (d,r) when not (is_live d (i + 1)) ->
+		| OMov (d,r) when not (is_live d (i + 1)) || read_counts.(d) = 0 ->
 			let n = read_counts.(r) - 1 in
 			read_counts.(r) <- n;
 			write_counts.(d) <- write_counts.(d) - 1;
 			add_reg_moved i d r;
+			set_nop i "unused"
+		| ONull d when not (is_live d (i + 1)) || read_counts.(d) = 0 ->
+			write_counts.(d) <- write_counts.(d) - 1;
 			set_nop i "unused"
 		| OJAlways d when d >= 0 ->
 			let rec loop k =

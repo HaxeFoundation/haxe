@@ -339,7 +339,6 @@ and context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
@@ -763,7 +762,6 @@ let create sctx request_scope part_scope display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		native_libs = create_native_libs();
@@ -822,20 +820,8 @@ let is_diagnostics com = match com.part_scope.report_mode with
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
-(** Returns true when there is an error that should be reported/acted upon.
-    In compilation mode, any has_error is significant.
-    In display mode, has_error can be set transiently during type resolution
-    without producing actual error messages, so we require messages to exist.
-    Diagnostics-only messages (DKMissingFields, DKUnresolvedIdentifier) are
-    not counted as reportable errors — they are diagnostics data that should
-    not prevent context caching. *)
 let has_error_to_report com =
-	let has_reportable_message = List.exists (fun cm ->
-		match cm.cm_diagnostics_kind with
-		| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> false
-		| _ -> true
-	) com.part_scope.messages in
-	com.part_scope.has_error && (is_compilation com || has_reportable_message)
+	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])
 
 let activate_message_capture com buf =
 	let old_capture = com.part_scope.message_capture in
@@ -933,7 +919,6 @@ let clone com is_macro_context =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		load_extern_type = []; (* ! *)
 		basic = {
 			tvoid = mk_mono();

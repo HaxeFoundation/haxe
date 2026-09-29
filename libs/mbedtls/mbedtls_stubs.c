@@ -422,7 +422,7 @@ CAMLprim value ml_mbedtls_pk_parse_key(value ctx, value key, value password, val
 	}
 	#if MBEDTLS_VERSION_MAJOR >= 3
 	mbedtls_ctr_drbg_context *ctr_drbg = CtrDrbg_val(rng);
-	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen, mbedtls_ctr_drbg_random, NULL));
+	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen, mbedtls_ctr_drbg_random, ctr_drbg));
 	#else
 	CAMLreturn(mbedtls_pk_parse_key(PkContext_val(ctx), Bytes_val(key), caml_string_length(key) + 1, pwd, pwdlen));
 	#endif
@@ -560,7 +560,9 @@ CAMLprim value hx_cert_load_defaults(value certificate) {
 	CAMLparam1(certificate);
 	int r = 1;
 
+	#if defined(_WIN32) || defined(__APPLE__)
 	mbedtls_x509_crt *chain = X509Crt_val(certificate);
+	#endif
 
 	#ifdef _WIN32
 	HCERTSTORE store;
