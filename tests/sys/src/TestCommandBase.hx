@@ -153,4 +153,14 @@ class TestCommandBase extends utest.Test {
 		var exitCode = run('$native 1 || $native 0');
 		Assert.equals(0, exitCode);
 	}
+
+	#if !(macro || interp)
+	// eval new Process(cmd) broken on Windows
+	function testRawCommandWithQuotes() {
+		// shell quotes in a raw command must be interpreted by the shell: ExitCode must receive 3, not "3"
+		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
+		var exitCode = run('$native "3"');
+		Assert.equals(3, exitCode);
+	}
+	#end
 }
