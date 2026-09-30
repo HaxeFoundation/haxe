@@ -233,6 +233,7 @@ class TestThread extends ThreadTestBase {
 				try {
 					throw "onExit error";
 				} catch (e:Dynamic) {
+					activeThreads.sub(1); // the global onExit callback will not be called because we are throwing since #13056
 					// Release the semaphore even when throwing so we can synchronize
 					sem.release();
 					throw e;

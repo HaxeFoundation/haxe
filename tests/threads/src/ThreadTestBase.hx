@@ -1,15 +1,17 @@
+import sys.thread.ThreadCallback;
 import haxe.atomic.AtomicInt;
 import sys.thread.Semaphore;
 import sys.thread.Condition;
 
 class ThreadTestBase extends utest.Test {
 	var activeThreads:AtomicInt;
+	var callbackHandle:Null<IThreadCallbackHandle>;
 	var semaphore:Semaphore;
 
 	function setup() {
 		activeThreads = new AtomicInt(0);
 		semaphore = new Semaphore(0);
-		Thread.addCallbacks({
+		callbackHandle = Thread.addCallbacks({
 			onCreate: () -> {
 				activeThreads.add(1);
 			},
@@ -23,6 +25,9 @@ class ThreadTestBase extends utest.Test {
 		final activeThreads = activeThreads.load();
 		for (_ in 0...activeThreads) {
 			semaphore.acquire();
+		}
+		if (callbackHandle != null) {
+			callbackHandle.close();
 		}
 	}
 }
