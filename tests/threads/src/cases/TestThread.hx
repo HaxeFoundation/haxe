@@ -218,34 +218,34 @@ class TestThread extends ThreadTestBase {
 		Assert.isTrue(onExitCalled);
 	}
 
-	/* disabled due to #12983 */
-	// function testOnExitExceptionDoesNotCallOnAbort() {
-	// 	// If onExit throws, the custom onAbort callback should NOT be called again
-	// 	final sem = new Semaphore(0);
-	// 	var onAbortCalledCount = 0;
+	function testOnExitExceptionDoesNotCallOnAbort() {
+		// If onExit throws, the custom onAbort callback should NOT be called again
+		final sem = new Semaphore(0);
+		var onAbortCalledCount = 0;
 
-	// 	Thread.create(() -> {
-	// 		throw "job error";
-	// 	}, {
-	// 		onAbort: (_) -> {
-	// 			onAbortCalledCount++;
-	// 		},
-	// 		onExit: () -> {
-	// 			try {
-	// 				throw "onExit error";
-	// 			} catch (e:Dynamic) {
-	// 				// Release the semaphore even when throwing so we can synchronize
-	// 				sem.release();
-	// 				throw e;
-	// 			}
-	// 		}
-	// 	});
+		Thread.create(() -> {
+			throw "job error";
+		}, {
+			onAbort: (_) -> {
+				onAbortCalledCount++;
+			},
+			onExit: () -> {
+				try {
+					throw "onExit error";
+				} catch (e:Dynamic) {
+					activeThreads.sub(1); // the global onExit callback will not be called because we are throwing since #13056
+					// Release the semaphore even when throwing so we can synchronize
+					sem.release();
+					throw e;
+				}
+			}
+		});
 
-	// 	sem.acquire();
-	// 	// onAbort should have been called exactly once (for the job exception),
-	// 	// not again for the onExit exception (which goes to the default handler)
-	// 	Assert.equals(1, onAbortCalledCount);
-	// }
+		sem.acquire();
+		// onAbort should have been called exactly once (for the job exception),
+		// not again for the onExit exception (which goes to the default handler)
+		Assert.equals(1, onAbortCalledCount);
+	}
 
 	function testOnJobDoneNotCalledOnException() {
 		// onJobDone should NOT be called when the thread throws
