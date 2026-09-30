@@ -248,7 +248,7 @@ let collect ctx e_ast e dk with_type p =
 				(* If there's a @:forward, get the fields of the underlying type and filter them. *)
 				let _,el,_ = Meta.get Meta.Forward a.a_meta in
 				let sl = ExtList.List.filter_map (fun e -> match fst e with
-					| EConst(Ident s) -> Some s
+					| EConst(Ident s | String(s,_)) -> Some s
 					| _ -> None
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
