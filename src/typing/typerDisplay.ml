@@ -229,7 +229,7 @@ let rec handle_signature_display ctx e_ast with_type =
 				in
 				loop (if keep t then (t,doc,values) :: acc else acc) tl
 			| [] ->
-				acc
+				List.rev acc
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
 		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
@@ -241,7 +241,11 @@ let rec handle_signature_display ctx e_ast with_type =
 			| Some c -> can_access ctx c cf stat
 			| None -> true
 		in
-		let l = (t,cf) :: List.rev_map (fun cf -> map cf.cf_type,cf) cf.cf_overloads in
+		let l = if is_wacky_overload then
+			(List.map (fun cf' -> map cf'.cf_type,cf') cf.cf_overloads) @ [t,cf]
+		else
+			(t,cf) :: List.rev_map (fun cf' -> map cf'.cf_type,cf') cf.cf_overloads
+		in
 		let l = List.filter (fun (_,cf) -> can_access cf) l in
 		let l = List.map (fun (t,cf') ->
 			(* Ghetto overloads have their documentation on the main field. *)

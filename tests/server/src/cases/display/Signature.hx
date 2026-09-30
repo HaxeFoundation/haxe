@@ -296,4 +296,18 @@ class Signature extends DisplayTestCase {
 		sigEq(0, [["a:Int", "b:Int"]], signature(1));
 		sigEq(1, [["a:Int", "b:Int"]], signature(2));
 	}
+
+	/**
+		class Some {
+			extern inline overload static function foo(a:String, cb:() -> Void) {};
+			extern inline overload static function foo(a:Int, cb:() -> Void) {};
+
+			function main() {
+				foo({-1-}
+			}
+		}
+	**/
+	function testIssueOverloadSignature(_) {
+		sigEq(0, [["a:String", "cb:(() -> Void)"], ["a:Int", "cb:(() -> Void)"]], signature(1));
+	}
 }
