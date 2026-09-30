@@ -30,7 +30,8 @@
 	{
 		"name": "Analyzer",
 		"metadata": ":analyzer",
-		"doc": "Used to configure the static analyzer."
+		"doc": "Used to configure the static analyzer.",
+		"links": ["https://haxe.org/manual/cr-static-analyzer.html"]
 	},
 	{
 		"name": "Annotation",
