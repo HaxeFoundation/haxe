@@ -26,17 +26,17 @@ let rec read_content channel buf f =
 		()
 	end
 
-(** Drives a child process in server mode, forwarding stdin from the client
+(** Runs a shell command in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.
-	The process comes from {!Process}, so we can connect its stdin to the
-	client's forwarded data and properly signal EOF when the client closes
-	its end. *)
-let run_proc io proc =
+	Uses {!Unix.open_process_full}, which hands the command line to the shell
+	as is, like Sys.command: passing it as an argv entry would quote it with
+	backslash escapes, which cmd.exe passes through literally. We still get
+	the child's stdin, so we can connect it to the client's forwarded data and
+	properly signal EOF when the client closes its end. *)
+let run_command io cmd =
 	let write_out = CompilerIo.write_out io in
 	let write_err = CompilerIo.write_err io in
-	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
-	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
-	let perr = Unix.in_channel_of_descr proc.Process.stderr_fd in
+	let (pout,pin,perr) as proc = Unix.open_process_full cmd (Unix.environment ()) in
 	let bout = Bytes.create 1024 in
 	let berr = Bytes.create 1024 in
 	(* Use a flag to signal the stdin-forwarding thread to stop.
@@ -73,13 +73,12 @@ let run_proc io proc =
 	Thread.join terr;
 	close_in_noerr pout;
 	close_in_noerr perr;
-	let code = Process.exit proc in
+	let code = match Unix.close_process_full proc with
+		| Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c
+	in
 	stop_stdin := true;
 	(match tin with Some t -> Thread.join t | None -> ());
 	code
-
-let run_command io cmd = run_proc io (Process.run cmd None)
-let run_command_args io prog args = run_proc io (Process.run_program prog args)
 
 let ssend sock str =
 	let rec loop pos len =

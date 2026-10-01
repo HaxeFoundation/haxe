@@ -1,3 +1,4 @@
 -p src dir
+-D issue13044=a&b
 -m Main
 -cpp out
