@@ -257,10 +257,8 @@ let check_module sctx com m_path m_extra p =
 					(* This should not happen because any MSUnknown module is supposed to have the current m_checked. *)
 					die "" __LOC__
 				| MSGood ->
-					(* Otherwise, run the checks. Register the module before checking it so that its MSUnknown
-					   state is reverted even if the check raises. *)
+					(* Otherwise, run the checks *)
 					m_extra.m_cache_state <- MSUnknown;
-					unknown_state_modules := m_extra :: !unknown_state_modules;
 					check ()
 			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
@@ -270,16 +268,21 @@ let check_module sctx com m_path m_extra p =
 				m_extra.m_cache_state <- MSBad reason;
 			| None ->
 				(* We cannot update if we're clean because at this point it might just be an assumption.
-				   The module stays in unknown_state_modules, which is updated at the end of handling this subgraph. *)
-				()
+				   Instead We add the module to a list which is updated at the end of handling this subgraph. *)
+				unknown_state_modules := m_extra :: !unknown_state_modules;
 			end;
 			dirty
 		end
 	in
-	(* Unknown state modules may or may not be dirty. We didn't check everything eagerly, so we have to make sure
-	   that they are checked again if they appear in a different check. This is achieved by setting m_checked to a
-	   lower value and assuming Good state again. *)
-	let revert_unknown_state_modules () =
+	let state = check m_path m_extra in
+	begin match state with
+	| None ->
+		(* If the entire subgraph is clean, we can set all modules to good state *)
+		List.iter (fun m_extra -> m_extra.m_cache_state <- MSGood) !unknown_state_modules;
+	| Some _ ->
+		(* Otherwise, unknown state module may or may not be dirty. We didn't check everything eagerly, so we have
+		   to make sure that the module is checked again if it appears in a different check. This is achieved by
+		   setting m_checked to a lower value and assuming Good state again. *)
 		List.iter (fun m_extra -> match m_extra.m_cache_state with
 			| MSUnknown ->
 				m_extra.m_checked <- start_mark - 1;
@@ -287,23 +290,6 @@ let check_module sctx com m_path m_extra p =
 			| MSGood | MSBad _ ->
 				()
 		) !unknown_state_modules
-	in
-	let state = try
-		check m_path m_extra
-	with e ->
-		(* Leaving modules in MSUnknown state would violate the m_checked invariant of any later check. *)
-		revert_unknown_state_modules();
-		raise e
-	in
-	begin match state with
-	| None ->
-		(* If the entire subgraph is clean, we can set all modules to good state *)
-		List.iter (fun m_extra -> match m_extra.m_cache_state with
-			| MSUnknown -> m_extra.m_cache_state <- MSGood
-			| MSGood | MSBad _ -> ()
-		) !unknown_state_modules;
-	| Some _ ->
-		revert_unknown_state_modules()
 	end;
 	state
 
