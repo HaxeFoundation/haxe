@@ -322,7 +322,7 @@ let rec needs_temp_var e =
 	| TField (e, _) | TParenthesis e -> needs_temp_var e
 	| _ -> true
 
-let call_to_string ctx ?(resume=false) e =
+let call_to_string ctx ?(resume=false) ?(no_null_check=false) e =
 	if not ctx.allow_transform then
 		{ e with etype = ctx.t.tstring }
 	else
@@ -333,7 +333,7 @@ let call_to_string ctx ?(resume=false) e =
 		ctx.f.meta <- List.tl ctx.f.meta;
 		build_call ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
-	if ctx.com.config.pf_static && not (is_nullable e.etype) then
+	if no_null_check || (ctx.com.config.pf_static && not (is_nullable e.etype)) then
 		gen_to_string e
 	else begin (* generate `if(e == null) 'null' else e.toString()` *)
 		let string_null = mk (TConst (TString "null")) ctx.t.tstring e.epos in
