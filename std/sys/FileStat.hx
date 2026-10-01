@@ -22,6 +22,8 @@
 
 package sys;
 
+import haxe.Int64;
+
 /**
 	File information, as given by `sys.FileSystem.stat`.
 **/
@@ -54,7 +56,7 @@ typedef FileStat = {
 	/** 
 		The size of the file, in bytes.
 	**/
-	var size:Int;
+	var size:Int64;
 
 	/** 
 		The device on which stat resides.
