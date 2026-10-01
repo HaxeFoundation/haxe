@@ -39,6 +39,9 @@ import jvm.annotation.EnumValueReflectionInformation;
 @:keep
 @:native('haxe.jvm.Jvm')
 class Jvm {
+	// https://github.com/HaxeFoundation/haxe/issues/12985
+	static var mainThread:sys.thread.Thread;
+	
 	public static function init():Void {
 		#if std_encoding_utf8
 		try {
@@ -46,6 +49,8 @@ class Jvm {
 			java.lang.System.setErr(new java.io.PrintStream(java.lang.System.err, true, "utf-8"));
 		} catch (e:java.io.UnsupportedEncodingException) {}
 		#end
+		
+		mainThread = sys.thread.Thread.main();
 	}
 
 	static public function getNativeType<T>(obj:T):java.lang.Class<T> {
