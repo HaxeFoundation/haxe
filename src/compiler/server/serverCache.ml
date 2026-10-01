@@ -477,7 +477,7 @@ and type_module sctx com delay mpath p =
 	let t = Timer.start_timer com.timer_ctx ["server";"module cache"] in
 	let cc = CommonCache.get_cache com in
 	let skip m_path reason =
-		ServerMessage.skipping_dep com "" (m_path,(Printer.s_module_skip_reason reason));
+		ServerMessage.skipping_dep com "" (m_path,(fun () -> Printer.s_module_skip_reason reason));
 		BadModule reason
 	in
 	let add_modules from_binary m =
