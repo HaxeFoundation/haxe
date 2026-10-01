@@ -154,8 +154,8 @@ class TestCommandBase extends utest.Test {
 		Assert.equals(0, exitCode);
 	}
 
-	#if !(macro || interp)
-	// eval new Process(cmd) broken on Windows
+	#if !(macro || interp || lua)
+	// eval's Process(cmd) and lua's Process/Sys.command fail on Windows
 	function testRawCommandWithQuotes() {
 		// shell quotes in a raw command must be interpreted by the shell: ExitCode must receive 3, not "3"
 		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
