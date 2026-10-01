@@ -19,35 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
-@:coreApi class Std {
+#if !(core_api || cross || custom_target || eval)
+#error "Please don't add haxe/std to your classpath, instead set HAXE_STD_PATH env var"
+#end
+
+/**
+	The Std class provides standard methods for manipulating basic types.
+**/
+@:coreApi
+class Std {
 	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
-	@:keep public static inline function is(v:Dynamic, t:Dynamic):Bool {
-		return isOfType(v, t);
-	}
+	extern static public function is(v:Dynamic, t:Dynamic):Bool;
 
-	public static function isOfType(v:Dynamic, t:Dynamic):Bool {
-		return untyped __global__.__instanceof(v, t);
-	}
+	extern static public function isOfType(v:Dynamic, t:Dynamic):Bool;
 
-	@:keep public static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
-		return Std.isOfType(value, c) ? cast value : null;
-	}
+	extern static public function downcast<T:{}, S:T>(value:T, c:Class<S>):S;
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	@:keep public static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
-		return inline downcast(value, c);
-	}
+	extern static public function instance<T:{}, S:T>(value:T, c:Class<S>):S;
 
 	static var toStringDepth = 0;
 
-	@:keep public static function string(s:Dynamic):String {
+	static public function string(s:Dynamic):String {
 		if (toStringDepth > haxe.runtime.Config.maxToStringDepth) {
 			return "<...>";
 		}
 		++toStringDepth;
 		try {
-			var s = untyped s == null ? "null" : s.toString();
+			var s = _string(s);
 			--toStringDepth;
 			return s;
 		} catch (e:Dynamic) {
@@ -56,21 +55,13 @@
 		}
 	}
 
-	@:keep public static function int(x:Float):Int {
-		return untyped __global__.__int__(x);
-	}
+	extern static function _string(s:Dynamic):String;
 
-	@:keep public static function parseInt(x:String):Null<Int> {
-		return untyped __global__.__hxcpp_parse_int(x);
-	}
+	extern static public function int(x:Float):Int;
 
-	@:keep public static function parseFloat(x:String):Float {
-		return untyped __global__.__hxcpp_parse_float(x);
-	}
+	extern static public function parseInt(x:String):Null<Int>;
 
-	@:keep public static function random(x:Int):Int {
-		if (x <= 0)
-			return 0;
-		return untyped __global__.__hxcpp_irand(x);
-	}
+	extern static public function parseFloat(x:String):Float;
+
+	extern static public function random(x:Int):Int;
 }
