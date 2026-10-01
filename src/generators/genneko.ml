@@ -800,9 +800,9 @@ let generate neko_lib_paths com =
 		Binast.write ch e;
 		IO.close_out ch;
 	end;
-	if use_nekoc && command "nekoc" (if ctx.version > 1 then ["-version"; (string_of_int ctx.version); neko_file] else [neko_file]) <> 0 then failwith "Neko compilation failure";
+	if use_nekoc && command "nekoc" (if ctx.version > 1 then ["-version"; (string_of_int ctx.version); Filename.quote neko_file] else [Filename.quote neko_file]) <> 0 then failwith "Neko compilation failure";
 	if source then begin
-		if command "nekoc" ["-p"; neko_file] <> 0 then failwith "Failed to print neko code";
+		if command "nekoc" ["-p"; Filename.quote neko_file] <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end
