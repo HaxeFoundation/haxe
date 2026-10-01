@@ -26,4 +26,15 @@ class RunCommandArgs extends TestCase {
 		runHaxe(["-main", "Main", "--interp", "--cmd", 'node -e "process.exit(3)"']);
 		Assert.isTrue(lastResult.hasError);
 	}
+
+	function testSysCommand(_) {
+		vfs.putContent("Main.hx", "class Main { static function main() {
+			Sys.command(\"node\", [\"-e\", \"console.log(process.argv.slice(1).join('|'))\", \"a b\", \"c&d\", 'q\"t']);
+			Sys.println(\"raw exit \" + Sys.command('node -e \"process.exit(3)\"'));
+		} }");
+		runHaxe(["-main", "Main", "--interp"]);
+		assertSuccess();
+		assertHasPrint('a b|c&d|q"t');
+		assertHasPrint("raw exit 3");
+	}
 }

@@ -18,6 +18,7 @@ type process = {
 	stdout_fd : Unix.file_descr;
 	stderr_fd : Unix.file_descr;
 	mutable exit_code : int option;
+	shell : (in_channel * out_channel * in_channel) option;
 }
 
 (** Returns a readable file_descr that immediately yields EOF. *)
@@ -36,16 +37,29 @@ let unix_error_msg err fn arg =
 	Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err)
 
 let run cmd args =
+	match args with
+	| None when Sys.win32 ->
+		(* cmd.exe must get the command line as is, not re-quoted as an argv entry.
+		   The pipes are duplicated so they stay readable after close_process_full. *)
+		let (pout, pin, perr) as shell = Unix.open_process_full cmd (Unix.environment ()) in
+		let dup fd = Unix.dup ~cloexec:true fd in
+		let stdin_fd = dup (Unix.descr_of_out_channel pin) in
+		close_out pin; (* so that close_stdin signals EOF *)
+		{
+			pid = Unix.process_full_pid shell;
+			stdin_fd;
+			stdout_fd = dup (Unix.descr_of_in_channel pout);
+			stderr_fd = dup (Unix.descr_of_in_channel perr);
+			exit_code = None;
+			shell = Some shell;
+		}
+	| _ ->
 	let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
 	let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
 	let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
 	let shell, argv = match args with
 		| None ->
-			if Sys.win32 then
-				let comspec = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
-				comspec, [|comspec; "/C"; cmd|]
-			else
-				"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
+			"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
 		| Some a ->
 			cmd, Array.append [|cmd|] a
 	in
@@ -57,7 +71,7 @@ let run cmd args =
 		Unix.close child_stdin_r;
 		Unix.close child_stdout_w;
 		Unix.close child_stderr_w;
-		{ pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r; exit_code = None }
+		{ pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r; exit_code = None; shell = None }
 	| Error err  ->
 		Unix.close child_stdin_r;
 		Unix.close child_stdin_w;
@@ -83,7 +97,7 @@ let run cmd args =
 				Unix.close child_stderr_w;
 				make_eof_fd ()
 		in
-		{ pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = stderr_r; exit_code = Some 127 }
+		{ pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = stderr_r; exit_code = Some 127; shell = None }
 
 let read_stdout p buf pos len =
 	let n = try
@@ -115,7 +129,10 @@ let exit p =
 	match p.exit_code with
 	| Some c -> c
 	| None ->
-		let _, status = Unix.waitpid [] p.pid in
+		let status = match p.shell with
+			| Some shell -> Unix.close_process_full shell
+			| None -> snd (Unix.waitpid [] p.pid)
+		in
 		let c = match status with
 			| Unix.WEXITED c -> c
 			| Unix.WSIGNALED c -> c
@@ -129,7 +146,13 @@ let pid p = p.pid
 let close p =
 	(try Unix.close p.stdout_fd with Unix.Unix_error _ -> ());
 	(try Unix.close p.stderr_fd with Unix.Unix_error _ -> ());
-	(try Unix.close p.stdin_fd with Unix.Unix_error _ -> ())
+	(try Unix.close p.stdin_fd with Unix.Unix_error _ -> ());
+	match p.shell with
+	(* not reaped by exit: release the original pipes too *)
+	| Some (pout, _, perr) when p.exit_code = None ->
+		close_in_noerr pout;
+		close_in_noerr perr
+	| _ -> ()
 
 let kill p =
 	if p.exit_code = None && p.pid > 0 then
