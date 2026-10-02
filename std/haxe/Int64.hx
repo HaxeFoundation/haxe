@@ -135,6 +135,32 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public function toString():String {
 		var i:Int64 = cast this;
+		#if js
+		if (isSmall(i))
+			return "" + asFloat(i);
+		// work on the unsigned magnitude (-MIN wraps to MIN, which is 2^63 unsigned)
+		var neg = i.isNeg();
+		var a = neg ? -i : i;
+		var hi = asUFloat(a.high), lo = asUFloat(a.low);
+		var str = "";
+		// extract base 1e9 digits, keeping every intermediate below 2^53
+		while (hi != 0) {
+			var qh = Math.ffloor(hi / 1e9), rh = hi - qh * 1e9;
+			var lh = Math.ffloor(lo / 65536), ll = lo - lh * 65536;
+			var t = rh * 65536 + lh;
+			var qt = Math.ffloor(t / 1e9), rt = t - qt * 1e9;
+			var u = rt * 65536 + ll;
+			var qu = Math.ffloor(u / 1e9), ru = u - qu * 1e9;
+			var ql = qt * 65536 + qu;
+			var carry = Math.ffloor(ql / 4294967296.);
+			hi = qh + carry;
+			lo = ql - carry * 4294967296.;
+			var d = "" + ru;
+			str = "000000000".substr(d.length) + d + str;
+		}
+		str = lo + str;
+		return neg ? "-" + str : str;
+		#else
 		if (i == 0)
 			return "0";
 		var str = "";
@@ -157,6 +183,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		if (neg)
 			str = "-" + str;
 		return str;
+		#end
 	}
 
 	public static inline function parseString(sParam:String):Int64 {
@@ -181,6 +208,10 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns `{ quotient : Int64, modulus : Int64 }`.
 	**/
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
+		#if js
+		var quotient = jsDiv(dividend, divisor);
+		return {quotient: quotient, modulus: dividend - quotient * divisor};
+		#else
 		// Handle special cases of 0 and 1
 		if (divisor.high == 0) {
 			switch (divisor.low) {
@@ -225,7 +256,105 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 			quotient: quotient,
 			modulus: modulus
 		};
+		#end
 	}
+
+	#if js
+	static function jsDiv(a:Int64, b:Int64):Int64 {
+		if (isZero(b))
+			throw "divide by zero";
+		if (isSmall(a) && isSmall(b)) {
+			var q = asFloat(a) / asFloat(b);
+			return ofIntFloat(q < 0 ? Math.fceil(q) : Math.ffloor(q));
+		}
+		return divSlow(a, b);
+	}
+
+	static function jsMod(a:Int64, b:Int64):Int64 {
+		if (isZero(b))
+			throw "divide by zero";
+		if (isSmall(a) && isSmall(b))
+			return ofIntFloat(asFloat(a) % asFloat(b));
+		return a - divSlow(a, b) * b;
+	}
+
+	/**
+		Truncated signed division for a non-zero `b`: refines a Float approximation
+		of the quotient instead of doing a bit-by-bit long division
+		(same algorithm as Closure's goog.math.Long).
+	**/
+	static function divSlow(a:Int64, b:Int64):Int64 {
+		if (isMinValue(a)) {
+			if (b == 1 || b == -1)
+				return a; // -MIN wraps to MIN
+			if (isMinValue(b))
+				return 1;
+			// |MIN| is not representable: divide MIN/2 then fix up with the remainder
+			var approx = divSlow(a >> 1, b) << 1;
+			if (approx == 0)
+				return b.isNeg() ? 1 : -1;
+			return approx + divSlow(a - b * approx, b);
+		}
+		if (isMinValue(b))
+			return 0;
+		if (a.isNeg())
+			return b.isNeg() ? divSlow(-a, -b) : -divSlow(-a, b);
+		if (b.isNeg())
+			return -divSlow(a, -b);
+		var res:Int64 = 0;
+		var rem = a;
+		var bf = asFloat(b);
+		while (rem >= b) {
+			var approx = Math.max(1, Math.ffloor(asFloat(rem) / bf));
+			// beyond 2^48 the approximation is coarser: step back by a matching delta
+			var log2 = Math.fceil(Math.log(approx) / 0.6931471805599453);
+			var delta = log2 <= 48 ? 1 : Math.pow(2, log2 - 48);
+			var approxRes = ofIntFloat(approx);
+			var approxRem = approxRes * b;
+			while (approxRem.isNeg() || approxRem > rem) {
+				approx -= delta;
+				approxRes = ofIntFloat(approx);
+				approxRem = approxRes * b;
+			}
+			if (approxRes == 0)
+				approxRes = 1;
+			res += approxRes;
+			rem -= approxRem;
+		}
+		return res;
+	}
+
+	static inline function isMinValue(x:Int64):Bool
+		return x.high == (1 << 31) && x.low == 0;
+
+	/**
+		Whether `x` is in [-2^53, 2^53), so exactly representable as a Float.
+	**/
+	static inline function isSmall(x:Int64):Bool {
+		var h:Int = x.high;
+		return h >= -0x200000 && h < 0x200000;
+	}
+
+	static inline function asUFloat(x:Int):Float
+		return x < 0 ? x + 4294967296. : x;
+
+	/**
+		Converts to Float, exact if `isSmall(x)`.
+	**/
+	static inline function asFloat(x:Int64):Float
+		return x.high * 4294967296. + asUFloat(x.low);
+
+	/**
+		Converts an integer Float in [-2^63, 2^63) without range checks.
+	**/
+	static inline function ofIntFloat(f:Float):Int64 {
+		var neg = f < 0;
+		if (neg)
+			f = -f;
+		var r = make(Std.int(f / 4294967296.), Std.int(f % 4294967296.));
+		return neg ? -r : r;
+	}
+	#end
 
 	/**
 		Returns the negative of `x`.
@@ -272,7 +401,11 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:op(A + B) public static inline function add(a:Int64, b:Int64):Int64 {
 		var high = a.high + b.high;
 		var low = a.low + b.low;
+		#if js
+		if ((low : Int) >>> 0 < (a.low : Int) >>> 0)
+		#else
 		if (Int32.ucompare(low, a.low) < 0)
+		#end
 			high++;
 		return make(high, low);
 	}
@@ -286,7 +419,11 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:op(A - B) public static inline function sub(a:Int64, b:Int64):Int64 {
 		var high = a.high - b.high;
 		var low = a.low - b.low;
+		#if js
+		if ((a.low : Int) >>> 0 < (b.low : Int) >>> 0)
+		#else
 		if (Int32.ucompare(a.low, b.low) < 0)
+		#end
 			high--;
 		return make(high, low);
 	}
@@ -302,6 +439,18 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	**/
 	@:op(A * B)
 	public static #if !lua inline #end function mul(a:Int64, b:Int64):Int64 {
+		#if js
+		var al:Int = a.low, bl:Int = b.low;
+		var a0 = al & 0xFFFF, a1 = al >>> 16;
+		var b0 = bl & 0xFFFF, b1 = bl >>> 16;
+		var p00 = a0 * b0, p01 = a0 * b1, p10 = a1 * b0;
+		var mid = (p00 >>> 16) + (p01 & 0xFFFF) + (p10 & 0xFFFF);
+		var low = (mid << 16) | (p00 & 0xFFFF);
+		// upper 32 bits of al * bl (unsigned), exact as a Float
+		var high:Float = a1 * b1 + (p01 >>> 16) + (p10 >>> 16) + (mid >>> 16);
+		var cross:Int = a.low * b.high + a.high * b.low;
+		return make(Std.int(high + cross), low);
+		#else
 		var mask = 0xFFFF;
 		var al = a.low & mask, ah = a.low >>> 16;
 		var bl = b.low & mask, bh = b.low >>> 16;
@@ -321,6 +470,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 			high++;
 		high += a.low * b.high + a.high * b.low;
 		return make(high, low);
+		#end
 	}
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int64, b:Int):Int64
@@ -330,7 +480,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the quotient of `a` divided by `b`.
 	**/
 	@:op(A / B) public static inline function div(a:Int64, b:Int64):Int64
-		return divMod(a, b).quotient;
+		return #if js jsDiv(a, b) #else divMod(a, b).quotient #end;
 
 	@:op(A / B) private static inline function divInt(a:Int64, b:Int):Int64
 		return div(a, b);
@@ -342,7 +492,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		Returns the modulus of `a` divided by `b`.
 	**/
 	@:op(A % B) public static inline function mod(a:Int64, b:Int64):Int64
-		return divMod(a, b).modulus;
+		return #if js jsMod(a, b) #else divMod(a, b).modulus #end;
 
 	@:op(A % B) private static inline function modInt(a:Int64, b:Int):Int64
 		return mod(a, b).toInt();
