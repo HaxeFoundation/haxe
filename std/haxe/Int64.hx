@@ -402,7 +402,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		var high = a.high + b.high;
 		var low = a.low + b.low;
 		#if js
-		if ((low : Int) >>> 0 < (a.low : Int) >>> 0)
+		if (((low : Int) ^ 0x80000000) < ((a.low : Int) ^ 0x80000000))
 		#else
 		if (Int32.ucompare(low, a.low) < 0)
 		#end
@@ -420,7 +420,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		var high = a.high - b.high;
 		var low = a.low - b.low;
 		#if js
-		if ((a.low : Int) >>> 0 < (b.low : Int) >>> 0)
+		if (((a.low : Int) ^ 0x80000000) < ((b.low : Int) ^ 0x80000000))
 		#else
 		if (Int32.ucompare(a.low, b.low) < 0)
 		#end
