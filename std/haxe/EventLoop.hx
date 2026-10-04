@@ -67,7 +67,15 @@ class Event {
 
 private typedef NativeEventLoop = {
 	final allowsReentrancy:Bool;
-	function run():Void;
+	/**
+		Run one iteration of the native loop.
+		`maxBlock` is seconds until the next Haxe event is due:
+		- `< 0`: do not block (Haxe work is already due)
+		- `0`: block until a native event or wake (no Haxe deadline)
+		- `> 0`: block at most this long for the next Haxe deadline
+	**/
+	function run(maxBlock:Float):Void;
+	function wake():Void;
 	function close():Void;
 	function isAlive():Bool;
 };
@@ -126,7 +134,10 @@ class EventLoop {
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
-		if( nativeLoop != null ) nativeLoop.close();
+		if( nativeLoop != null ) {
+			nativeLoop.close();
+			nativeLoop = null;
+		}
 	}
 
 	/**
@@ -138,14 +149,15 @@ class EventLoop {
 		while (true) {
 			if (hasEvents(true)) {
 				var time = getNextTick();
-				// disable wait if we have our native loop alive
-				if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
-					time = -1;
-				if( time > 0 ) {
+				if( nativeLoop != null && nativeLoop.isAlive() ) {
+					// Sleep inside the native poller (with Haxe deadline / wake), not on lockTime
+					loopOnce(false, time);
+				} else if( time > 0 ) {
 					wait(time);
 					continue;
+				} else {
+					loopOnce(false);
 				}
-				loopOnce(false);
 			} else if (promiseCount > 0 || hasRunningThreadTasks()) {
 				#if target.threaded
 				// wait till we get notified
@@ -186,6 +198,8 @@ class EventLoop {
 	inline function wakeup() {
 		#if target.threaded
 		lockTime.release();
+		if( nativeLoop != null && thread != null && thread != sys.thread.Thread.current() )
+			nativeLoop.wake();
 		#end
 	}
 
@@ -219,8 +233,9 @@ class EventLoop {
 		Perform an update of pending events.
 		By default, an event loop from a thread can only be triggered from this thread.
 		You can set `threadCheck` to false in the rare cases you might want otherwise.
+		`maxBlock` is forwarded to the native loop when present (see `NativeEventLoop.run`).
 	**/
-	public function loopOnce( threadCheck = true ) {
+	public function loopOnce( threadCheck = true, maxBlock = 0. ) {
 		if( threadCheck )
 			checkThread();
 		if( inNative && !nativeLoop.allowsReentrancy ) throw "You cannot call EventLoop.loop() while in an event callback with a non-reentrant native loop";
@@ -233,7 +248,7 @@ class EventLoop {
 
 		if( nativeLoop != null ) {
 			inNative = true;
-			nativeLoop.run();
+			nativeLoop.run(maxBlock);
 			inNative = false;
 		}
 
