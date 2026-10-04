@@ -339,6 +339,15 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		with Error { err_message = Unify _ } ->
 			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
+		let is_enum_constructor_without_args e = match (Texpr.skip e).eexpr with
+			| TField(_, FEnum(_, ef)) ->
+				begin match follow ef.ef_type with
+					| TFun _ -> false
+					| _ -> true
+				end
+			| _ ->
+				false
+		in
 		begin match e1.eexpr, e2.eexpr with
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
@@ -346,7 +355,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 			| TFun _ , _ | _, TFun _ when not ctx.com.config.pf_supports_function_equality ->
 				warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
 			| TEnum(en,_), _ | _, TEnum(en,_) ->
-				if not (Meta.has Meta.FlatEnum en.e_meta) then
+				if not (Meta.has Meta.FlatEnum en.e_meta) && not (is_enum_constructor_without_args e1 || is_enum_constructor_without_args e2) then
 					warning ctx WUnsafeEnumEquality "Equality operations on this enum might lead to unexpected results because some constructors have arguments" p
 			| _ ->
 				()
