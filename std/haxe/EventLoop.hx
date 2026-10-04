@@ -65,14 +65,6 @@ class Event {
 
 }
 
-private typedef NativeEventLoop = {
-	final allowsReentrancy:Bool;
-	function run():Void;
-	function close():Void;
-	function isAlive():Bool;
-};
-
-
 /**
 	Handles async events for all threads
 **/
@@ -90,6 +82,16 @@ class EventLoop {
 	**/
 	public static var current(get,never) : EventLoop;
 
+	/**
+		Factory used when `new EventLoop()` is called without an explicit driver.
+		Must be non-null before any `EventLoop` is constructed (including `main`).
+	**/
+	public static var DEFAULT_DRIVER_FACTORY:(loop:EventLoop)->EventLoopDriver
+		#if !target.threaded
+		= function(_) return new HaxeEventLoopDriver()
+		#end
+	;
+
 	#if target.threaded
 	static var eventsTls:sys.thread.Tls<EventLoop>;
 	static var threadsToEventLoops:IntMap<EventLoop>;
@@ -99,24 +101,27 @@ class EventLoop {
 	var events : Event;
 	var queue : Event;
 	var inLoop : Bool;
+	var inWait : Bool;
 	var hasPendingRemove : Bool;
 	var promiseCount : Int = 0;
+	var driver : EventLoopDriver;
+	var pendingDriver : Null<EventLoopDriver>;
+	var pendingOnSwapped : Null<()->Void>;
 	#if target.threaded
 	var mutex : sys.thread.Mutex;
-	var lockTime : sys.thread.Lock;
 	final numPendingThreadTasks : AtomicInt;
 	/**
 		The reference thread for this loop. If set, the loop can only be run within this thread.
 	**/
 	public var thread : sys.thread.Thread;
 	#end
-	var nativeLoop : Null<NativeEventLoop>;
+	/** True while a non-reentrant driver is inside `wait` (e.g. UV callbacks). **/
 	var inNative : Bool = false;
 
-	public function new() {
+	public function new(?driver:EventLoopDriver) {
+		this.driver = driver ?? DEFAULT_DRIVER_FACTORY(this);
 		#if target.threaded
 		mutex = new sys.thread.Mutex();
-		lockTime = new sys.thread.Lock();
 		numPendingThreadTasks = new AtomicInt(0);
 		#end
 	}
@@ -126,7 +131,101 @@ class EventLoop {
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
-		if( nativeLoop != null ) nativeLoop.close();
+		lock();
+		if( pendingDriver != null ) {
+			pendingDriver.close();
+			pendingDriver = null;
+			pendingOnSwapped = null;
+		}
+		final d = driver;
+		unlock();
+		d.close();
+		// Leave a closed non-null driver so later wakeup() cannot NPE.
+	}
+
+	/**
+		Install a new waiting driver.
+
+		Applied synchronously when called on the loop thread (or when `thread` is
+		unset) and the loop is not inside `wait` / `loopOnce`. Otherwise the
+		driver is pending until `applyPendingSwap` (start of each `loop()`
+		iteration and end of `loopOnce`), and the current driver is woken so a
+		blocked `wait` can progress.
+
+		Last-wins: a new pending swap immediately `close()`s any superseded
+		pending driver and drops its callback.
+
+		`onSwapped` always runs on the loop thread after the new driver is
+		published (never on a foreign caller thread for deferred swaps).
+	**/
+	public function swapDriver(driver:EventLoopDriver, ?onSwapped:()->Void):Void {
+		lock();
+		if( pendingDriver != null ) {
+			pendingDriver.close();
+			pendingDriver = null;
+			pendingOnSwapped = null;
+		}
+		#if target.threaded
+		final onLoopThread = thread == null || sys.thread.Thread.current() == thread;
+		#else
+		final onLoopThread = true;
+		#end
+		if( onLoopThread && !inWait && !inLoop ) {
+			final old = this.driver;
+			this.driver = driver;
+			old.close();
+			unlock();
+			if( onSwapped != null )
+				onSwapped();
+			return;
+		}
+		pendingDriver = driver;
+		pendingOnSwapped = onSwapped;
+		final current = this.driver;
+		unlock();
+		current.wake();
+	}
+
+	/**
+		Currently installed driver (never null).
+	**/
+	public function getDriver():EventLoopDriver {
+		lock();
+		final d = driver;
+		unlock();
+		return d;
+	}
+
+	/**
+		Driver waiting to be applied by `applyPendingSwap`, or `null`.
+	**/
+	public function getPendingDriver():Null<EventLoopDriver> {
+		lock();
+		final d = pendingDriver;
+		unlock();
+		return d;
+	}
+
+	/**
+		Publish a pending `swapDriver` under the mutex: assign the new `driver`,
+		then `close()` the old one. Invokes `onSwapped` on the loop thread.
+	**/
+	function applyPendingSwap() {
+		lock();
+		if( pendingDriver == null ) {
+			unlock();
+			return;
+		}
+		final next = pendingDriver;
+		final cb = pendingOnSwapped;
+		pendingDriver = null;
+		pendingOnSwapped = null;
+		final old = driver;
+		driver = next;
+		old.close();
+		unlock();
+		if( cb != null )
+			cb();
 	}
 
 	/**
@@ -136,27 +235,31 @@ class EventLoop {
 	public function loop() {
 		checkThread();
 		while (true) {
+			applyPendingSwap();
 			if (hasEvents(true)) {
-				var time = getNextTick();
-				// disable wait if we have our native loop alive
-				if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
-					time = -1;
-				if( time > 0 ) {
-					wait(time);
-					continue;
-				}
+				// Derive maxBlock; never pass getNextTick()'s 1e6 sentinel to the driver.
+				wait(deriveMaxBlock(getNextTick()));
 				loopOnce(false);
 			} else if (promiseCount > 0 || hasRunningThreadTasks()) {
-				#if target.threaded
-				// wait till we get notified
-				lockTime.wait();
-				#else
-				// ?
-				#end
+				// wait till we get notified (maxBlock 0 = block until wake)
+				wait(0);
 			} else {
 				break;
 			}
 		}
+	}
+
+	/**
+		Map `getNextTick()` to a driver `maxBlock` value.
+		`getNextTick()` returns `-1` (work due), a positive delta, or the `1e6`
+		idle sentinel when there are no Haxe events — never exact `0`.
+	**/
+	inline function deriveMaxBlock(nextTick:Float):Float {
+		if( nextTick < 0 )
+			return -1;
+		if( nextTick == 1e6 )
+			return 0; // keep-alive only (external work / pending swap)
+		return nextTick;
 	}
 
 	/**
@@ -183,18 +286,28 @@ class EventLoop {
 			wakeup();
 	}
 
-	inline function wakeup() {
-		#if target.threaded
-		lockTime.release();
-		#end
+	function wakeup() {
+		lock();
+		final d = driver;
+		unlock();
+		d.wake();
 	}
 
-	inline function wait( time : Float ) {
-		#if target.threaded
-		lockTime.wait(time);
-		#elseif sys
-		Sys.sleep(time);
-		#end
+	function wait( time : Float ) {
+		lock();
+		inWait = true;
+		final d = driver;
+		unlock();
+		// Guard nested loopOnce while a non-reentrant driver runs callbacks in wait.
+		final guard = !d.allowsReentrancy;
+		if( guard )
+			inNative = true;
+		d.wait(time);
+		if( guard )
+			inNative = false;
+		lock();
+		inWait = false;
+		unlock();
 	}
 
 	inline function lock() {
@@ -223,19 +336,15 @@ class EventLoop {
 	public function loopOnce( threadCheck = true ) {
 		if( threadCheck )
 			checkThread();
-		if( inNative && !nativeLoop.allowsReentrancy ) throw "You cannot call EventLoop.loop() while in an event callback with a non-reentrant native loop";
+		// Waiting (including UV run) lives only in loop() → wait(); loopOnce never blocks.
+		if( inNative && !driver.allowsReentrancy )
+			throw "You cannot call EventLoop.loop() while in an event callback with a non-reentrant driver";
 
 		lock();
 		sortEvents();
 		var current = events; // protect from further add()
 		inLoop = true;
 		unlock();
-
-		if( nativeLoop != null ) {
-			inNative = true;
-			nativeLoop.run();
-			inNative = false;
-		}
 
 		// if inLoop turns false, stop because we had reentrency
 		var time = haxe.Timer.stamp();
@@ -258,6 +367,7 @@ class EventLoop {
 			}
 		}
 		unlock();
+		applyPendingSwap();
 	}
 
 	/**
@@ -318,7 +428,7 @@ class EventLoop {
 			events = e;
 		e.prev = queue;
 		queue = e;
-		wakeup();
+		driver.wake(); // already under mutex
 		unlock();
 	}
 
@@ -347,7 +457,7 @@ class EventLoop {
 		if( queue == e )
 			queue = e.prev;
 		e.prev = null;
-		wakeup();
+		driver.wake(); // already under mutex
 		unlock();
 	}
 
@@ -458,9 +568,16 @@ class EventLoop {
 	/**
 		Tells if the event loop has remaining events.
 		If blocking is set to true, only check if it has remaining blocking events.
+		Also true when a pending `swapDriver` is waiting to apply or the driver
+		reports external work (e.g. libuv handles), so `loop()` cannot idle-exit
+		between UV attach and deferred apply.
 	**/
 	public function hasEvents( blocking : Bool = true ) {
-		if( nativeLoop != null && nativeLoop.isAlive() )
+		lock();
+		final hasPending = pendingDriver != null;
+		final d = driver;
+		unlock();
+		if( hasPending || d.hasExternalWork() )
 			return true;
 		if( !blocking )
 			return events != null;
@@ -537,6 +654,10 @@ class EventLoop {
 	#if target.threaded
 
 	static function __init__() {
+		// Assign before touching `main`: on JVM/Python static field initializers
+		// may run after `__init__`, so the field initializer alone is not enough.
+		DEFAULT_DRIVER_FACTORY = function(_) return new HaxeEventLoopDriver();
+
 		eventsTls = new sys.thread.Tls();
 		threadsToEventLoops = new IntMap();
 		threadsToEventLoopsMutex = new sys.thread.Mutex();
