@@ -48,7 +48,20 @@ function _hx_tostring(obj, depth)
         elseif obj == _G.math.NEGATIVE_INFINITY then return "-Infinity"
         elseif obj == 0 then return "0"
         elseif obj ~= obj then return "NaN"
-        else return _G.tostring(obj)
+        else
+            -- Lua 5.3+ splits numbers into integer/float subtypes, so
+            -- tostring(1.0) == "1.0". Haxe prints whole-valued floats without
+            -- the trailing ".0" on every other target (js/python/neko/eval), so
+            -- strip it back off to keep Std.string consistent. Lua's float
+            -- formatter (%.14g) only ever appends an exact ".0" to
+            -- integer-looking output, so a suffix check is sufficient: scientific
+            -- notation ("1e+15"), fractions ("1.5") and NaN/Infinity are
+            -- untouched, and on Lua 5.1/LuaJIT (no ".0" suffix) this is a no-op.
+            local s = _G.tostring(obj)
+            if _G.string.sub(s, -2) == ".0" then
+                return _G.string.sub(s, 1, -3)
+            end
+            return s
         end
     elseif tstr == "boolean" then return _G.tostring(obj)
     elseif tstr == "userdata" then
