@@ -88,7 +88,7 @@ class Cpp {
 			runCpp("export/cpp/Main");
 
 			changeDirectory(getMiscSubDir("cross", "eventLoop"));
-			runCommand("haxe", ["build-cpp.hxml"]);
+			runCommand("haxe", ["build-cpp.hxml", "--cpp", "cpp"]);
 			// TODO: check output like misc tests do
 			runCpp("cpp/Main");
 
@@ -112,6 +112,15 @@ class Cpp {
 			changeDirectory(sysDir);
 			runCommand("haxe", args.concat(["compile-cppia.hxml"]));
 			runCppia("bin/cppia/Main.cppia", runSysTest);
+
+			changeDirectory(threadsDir);
+			runCommand("haxe", ["build.hxml", "--cppia", "export/cppia/threads.cppia"]);
+			runCppia("export/cppia/threads.cppia");
+
+			changeDirectory(getMiscSubDir("cross", "eventLoop"));
+			runCommand("haxe", ["build-cpp.hxml", "--cppia", "bin/Main.cppia"]);
+			// TODO: check output like misc tests do
+			runCppia("bin/Main.cppia");
 		}
 	}
 }
