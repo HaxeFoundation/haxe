@@ -408,7 +408,9 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
 				ctx.c.get_build_infos <- old;
 				(match r with
-				| MError | MMacroInMacro -> raise_typing_error (Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth) p
+				| MError | MMacroInMacro ->
+					let msg = Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth in
+					if can_recover_in_display ctx.com then display_error ctx.com msg p else raise_typing_error msg p
 				| MSuccess e -> fbuild e)
 			) :: f_build
 		| _ ->
@@ -1777,8 +1779,21 @@ let init_class ctx_c cctx c p herits fields =
 				else
 				TClass.add_field c cf
 			end
-		with Error ({ err_message = Custom _; err_pos = p2 } as err) when p = p2 ->
+		with
+		| Error ({ err_message = Custom _; err_pos = p2 } as err) when p = p2 ->
 			display_error_ext ctx.com err
+		| Error err when can_recover_in_display ctx.com ->
+			display_error_ext ctx.com err;
+			if fctx.is_static then add_class_field_flag cf CfStatic;
+			begin match fctx.field_kind with
+			| CfrConstructor ->
+				if c.cl_constructor = None then c.cl_constructor <- Some cf
+			| CfrInit ->
+				()
+			| CfrStatic | CfrMember ->
+				let fields = if fctx.is_static then c.cl_statics else c.cl_fields in
+				if not (PMap.mem cf.cf_name fields) then TClass.add_field c cf
+			end
 	) fields;
 	begin match cctx.abstract with
 		| Some a ->
