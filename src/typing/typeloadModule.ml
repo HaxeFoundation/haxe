@@ -28,12 +28,6 @@ open Common
 open Typeload
 open Error
 
-let recover_in_display com f =
-	try
-		f ()
-	with Error err when can_recover_in_display com ->
-		display_error_ext com err
-
 let get_policy g mpath =
 	let sl1 = full_dot_path2 mpath mpath in
 	List.fold_left (fun acc (sl2,policy,recursive) -> if match_path recursive sl1 sl2 then policy @ acc else acc) [] g.module_check_policies
@@ -509,15 +503,13 @@ module TypeLevel = struct
 		let index = ref 0 in
 		let is_flat = ref true in
 		List.iter (fun c ->
-			recover_in_display ctx_en.com (fun () ->
-				if PMap.mem (fst c.ec_name) e.e_constrs then raise_typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
-				let f = load_enum_field ctx_en e et is_flat index c in
-				e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
-				incr index;
-				names := (fst c.ec_name) :: !names;
-				if Meta.has Meta.InheritDoc f.ef_meta then
-					delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
-			)
+			if PMap.mem (fst c.ec_name) e.e_constrs then raise_typing_error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
+			let f = load_enum_field ctx_en e et is_flat index c in
+			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
+			incr index;
+			names := (fst c.ec_name) :: !names;
+			if Meta.has Meta.InheritDoc f.ef_meta then
+				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
@@ -713,7 +705,7 @@ let type_types_into_module com g m tdecls p =
 	ModuleLevel.init_type_params ctx_m decls;
 	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
 	(* setup module types *)
-	List.iter (fun decl -> recover_in_display com (fun () -> TypeLevel.init_module_type ctx_m decl)) decls;
+	List.iter (TypeLevel.init_module_type ctx_m) decls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
 	delay ctx_m.g PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
 	ctx_m
