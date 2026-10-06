@@ -20,6 +20,30 @@ class M {
 
 	/**
 		function main() {
+			var u:Util = null;
+		}
+	**/
+	function testCompilationStillFails(_) {
+		putFailingBuildMacro();
+		for (broken in [
+			{code: "class Util { public static function foo(x:Unknown):Int return 1; }", error: "Type not found : Unknown"},
+			{code: "class Util { public function new(x:Unknown) {} }", error: "Type not found : Unknown"},
+			{code: "typedef Css = missing.CssValue;\nclass Util {}", error: "Type not found : missing.CssValue"},
+			{code: "enum Util { A(x:Unknown); B; }", error: "Type not found : Unknown"},
+			{code: "abstract Util(Unknown) {}", error: "Type not found : Unknown"},
+			{code: "@:build(M.build())\nclass Util {}", error: "Build boom"}
+		]) {
+			put("Util.hx", broken.code);
+			runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Util.hx")});
+			runHaxe(["-main", "Main", "--no-output", "-js", "no.js"]);
+			assertErrorMessage(broken.error);
+		}
+	}
+
+	#if !disable_hxb_cache
+
+	/**
+		function main() {
 			Util.f{-1-}oo(1);
 			Util.b{-2-}ar();
 		}
@@ -141,23 +165,33 @@ class Util {
 	}
 
 	/**
+		import Util;
+
 		function main() {
-			var u:Util = null;
+			Util.f{-1-}oo(1);
+			var e = E.{-2-}B;
 		}
 	**/
-	function testCompilationStillFails(_) {
-		putFailingBuildMacro();
-		for (broken in [
-			{code: "class Util { public static function foo(x:Unknown):Int return 1; }", error: "Type not found : Unknown"},
-			{code: "class Util { public function new(x:Unknown) {} }", error: "Type not found : Unknown"},
-			{code: "typedef Css = missing.CssValue;\nclass Util {}", error: "Type not found : missing.CssValue"},
-			{code: "enum Util { A(x:Unknown); B; }", error: "Type not found : Unknown"},
-			{code: "abstract Util(Unknown) {}", error: "Type not found : Unknown"},
-			{code: "@:build(M.build())\nclass Util {}", error: "Build boom"}
-		]) {
-			put("Util.hx", broken.code);
-			runHaxe(["-main", "Main", "--no-output", "-js", "no.js"]);
-			assertErrorMessage(broken.error);
+	function testBreakingAndFixingKeepsCacheIntact(_) {
+		var args = ["-main", "Main", "--no-output", "-js", "no.js"];
+		var util = type -> put("Util.hx", "class Util {
+	public static function {-1-}foo{-2-}(x:" + type + "):Int { return 1; }
+}
+enum E { A(x:" + type + "); {-3-}B{-4-}; }");
+		util("Int");
+		runHaxe(args);
+		assertSuccess();
+		for (_ in 0...2) {
+			var broken = util("Unknown");
+			runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Util.hx")});
+			Assert.same(broken.range(1, 2), position(1));
+			Assert.same(broken.range(3, 4), position(2));
+			var fixed = util("Int");
+			runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Util.hx")});
+			Assert.same(fixed.range(1, 2), position(1));
+			Assert.same(fixed.range(3, 4), position(2));
+			runHaxe(args);
+			assertSuccess();
 		}
 	}
 
@@ -177,4 +211,5 @@ class Util {
 		runHaxe(args.concat(["--no-output", "-js", "no.js"]));
 		assertErrorMessage("Type not found : Unknown");
 	}
+	#end
 }
