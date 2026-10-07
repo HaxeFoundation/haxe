@@ -25,8 +25,11 @@ class M {
 	**/
 	function testCompilationStillFails(_) {
 		putFailingBuildMacro();
+		put("Other.hx", "class Other {}\nprivate class Hidden {}");
 		for (broken in [
 			{code: "class Util { public static function foo(x:Unknown):Int return 1; }", error: "Type not found : Unknown"},
+			{code: "class Util { public static function foo(x:Other.Missing):Int return 1; }", error: "Module Other does not define type Missing"},
+			{code: "class Util { public static function foo(x:Other.Hidden):Int return 1; }", error: "Cannot access private type Hidden in module Other"},
 			{code: "class Util { public function new(x:Unknown) {} }", error: "Type not found : Unknown"},
 			{code: "typedef Css = missing.CssValue;\nclass Util {}", error: "Type not found : missing.CssValue"},
 			{code: "enum Util { A(x:Unknown); B; }", error: "Type not found : Unknown"},
@@ -40,7 +43,24 @@ class M {
 		}
 	}
 
-	#if !disable_hxb_cache
+	/**
+		function main() {
+			Util.foo(1);
+		}
+	**/
+	function testDiagnosticsReportsAllMissingTypes(_) {
+		put("Other.hx", "class Other {}\nprivate class Hidden {}");
+		var util = put("Util.hx", "class Util {
+	public static function foo(x:{-1-}Other.Missing):Int { return 1; }
+	public static function bar(x:{-2-}Other.Hidden):Int { return 1; }
+	public static function baz(x:{-3-}Unknown):Int { return 1; }
+	public static function qux(x:{-4-}missing.Pkg):Int { return 1; }
+}");
+		var files = runHaxeJson(["-main", "Main"], DisplayMethods.Diagnostics, {file: new FsPath("Util.hx")});
+		var starts = [for (f in files) for (d in f.diagnostics) d.range.start];
+		starts.sort((a, b) -> a.line - b.line);
+		Assert.same([for (n in 1...5) util.pos(n)], starts);
+	}
 
 	/**
 		function main() {
@@ -135,11 +155,12 @@ abstract {-1-}Broken{-2-}(Unknown) {
 		function main() {
 			Util.f{-1-}oo();
 			var b = Broken.{-2-}B;
+			var a = Broken.{-3-}A(1);
 		}
 	**/
 	function testFailingEnumInModule(_) {
 		var util = put("Util.hx", "enum Broken {
-	A(x:Unknown);
+	{-5-}A{-6-}(x:Unknown);
 	{-1-}B{-2-};
 }
 
@@ -148,6 +169,54 @@ class Util {
 }");
 		Assert.same(util.range(3, 4), position(1));
 		Assert.same(util.range(1, 2), position(2));
+		Assert.same(util.range(5, 6), position(3));
+	}
+
+	/**
+		function main() {
+			Util.f{-1-}oo(1);
+			Util.b{-2-}ar(1);
+		}
+	**/
+	function testTypeNotDefinedInExistingModule(_) {
+		put("Other.hx", "class Other {}\nprivate class Hidden {}");
+		var util = put("Util.hx", "class Util {
+	public static function {-1-}foo{-2-}(x:Other.Missing):Int { return 1; }
+	public static function {-3-}bar{-4-}(x:Other.Hidden):Int { return 1; }
+}");
+		Assert.same(util.range(1, 2), position(1));
+		Assert.same(util.range(3, 4), position(2));
+	}
+
+	/**
+		function main() {
+			var x = M.pick();
+			x.f{-1-}oo();
+		}
+	**/
+	function testResolveTypeStillFailsInMacro(_) {
+		put("M.hx", "import haxe.macro.Context;
+import haxe.macro.Expr;
+class M {
+	public static macro function pick():Expr {
+		return try {
+			Context.resolveType(macro : Other.Missing, Context.currentPos());
+			macro new A();
+		} catch (e:Dynamic) {
+			macro new B();
+		}
+	}
+}");
+		put("Other.hx", "class Other {}");
+		put("A.hx", "class A {
+	public function new() {}
+	public function foo() {}
+}");
+		var b = put("B.hx", "class B {
+	public function new() {}
+	public function {-1-}foo{-2-}() {}
+}");
+		Assert.same(b.range(1, 2), position(1));
 	}
 
 	/**
@@ -211,5 +280,4 @@ enum E { A(x:" + type + "); {-3-}B{-4-}; }");
 		runHaxe(args.concat(["--no-output", "-js", "no.js"]));
 		assertErrorMessage("Type not found : Unknown");
 	}
-	#end
 }

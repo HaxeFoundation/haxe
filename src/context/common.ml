@@ -397,8 +397,7 @@ let ignore_error com =
 	b
 
 let can_recover_in_display com =
-	com.display.dms_error_policy = EPIgnore && not com.display.dms_full_typing && not com.is_macro_context
-	&& not (Define.defined com.defines Define.DisableHxbCache)
+	com.display.dms_error_policy = EPIgnore && not com.display.dms_full_typing
 
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
