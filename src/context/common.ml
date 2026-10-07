@@ -396,9 +396,6 @@ let ignore_error com =
 	if b then com.part_scope.has_error <- true;
 	b
 
-let can_recover_in_display com =
-	com.display.dms_error_policy = EPIgnore && not com.display.dms_full_typing
-
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
 		let cm = make_message com.is_macro_context msg p 0 (MKWarning(w, options)) in
@@ -822,6 +819,9 @@ let is_diagnostics com = match com.part_scope.report_mode with
 	| _ -> false
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
+
+let can_recover_in_display com =
+	is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context))
 
 let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])

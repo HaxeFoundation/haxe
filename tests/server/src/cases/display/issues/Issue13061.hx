@@ -23,6 +23,22 @@ class M {
 			var u:Util = null;
 		}
 	**/
+	function testFailingBuildMacroDoesNotCascadeInCompilation(_) {
+		putFailingBuildMacro();
+		put("Util.hx", "@:build(M.build())
+class Util {
+	public var x:Unknown;
+}");
+		runHaxe(["-main", "Main", "--no-output", "-js", "no.js"]);
+		assertErrorMessage("Build boom");
+		Assert.isFalse(hasErrorMessage("Type not found : Unknown"));
+	}
+
+	/**
+		function main() {
+			var u:Util = null;
+		}
+	**/
 	function testCompilationStillFails(_) {
 		putFailingBuildMacro();
 		put("Other.hx", "class Other {}\nprivate class Hidden {}");
@@ -30,6 +46,8 @@ class M {
 			{code: "class Util { public static function foo(x:Unknown):Int return 1; }", error: "Type not found : Unknown"},
 			{code: "class Util { public static function foo(x:Other.Missing):Int return 1; }", error: "Module Other does not define type Missing"},
 			{code: "class Util { public static function foo(x:Other.Hidden):Int return 1; }", error: "Cannot access private type Hidden in module Other"},
+			{code: "class Util extends missing.Pkg {}", error: "Type not found : missing.Pkg"},
+			{code: "class Util extends Other.Missing {}", error: "Module Other does not define type Missing"},
 			{code: "class Util { public function new(x:Unknown) {} }", error: "Type not found : Unknown"},
 			{code: "typedef Css = missing.CssValue;\nclass Util {}", error: "Type not found : missing.CssValue"},
 			{code: "enum Util { A(x:Unknown); B; }", error: "Type not found : Unknown"},
@@ -41,6 +59,30 @@ class M {
 			runHaxe(["-main", "Main", "--no-output", "-js", "no.js"]);
 			assertErrorMessage(broken.error);
 		}
+	}
+
+	/**
+		enum Broken {
+			A(x:Unknown);
+		}
+
+		class Dummy {
+			public function f(x:Unknown) {}
+		}
+
+		function main() {
+			new Target();
+		}
+	**/
+	function testDiagnosticsIgnoreMissingTypesInOtherFiles(_) {
+		var target = put("Target.hx", "class Target {
+	public function new() {}
+	function later() {
+		var a:{-1-}QqqLater;
+	}
+}");
+		var files = runHaxeJson(["-main", "Main"], DisplayMethods.Diagnostics, {file: new FsPath("Target.hx")});
+		Assert.same([target.pos(1)], [for (f in files) for (d in f.diagnostics) d.range.start]);
 	}
 
 	/**
@@ -60,6 +102,22 @@ class M {
 		var starts = [for (f in files) for (d in f.diagnostics) d.range.start];
 		starts.sort((a, b) -> a.line - b.line);
 		Assert.same([for (n in 1...5) util.pos(n)], starts);
+	}
+
+	/**
+		function main() {
+			new Child();
+		}
+	**/
+	function testDiagnosticsMissingSuperclassDoesNotCascade(_) {
+		put("Child.hx", "class Child extends missing.Pkg {
+	public function new() {
+		super();
+		super.foo();
+	}
+}");
+		var files = runHaxeJson(["-main", "Main"], DisplayMethods.Diagnostics, {file: new FsPath("Child.hx")});
+		Assert.same(["Type not found : missing.Pkg"], [for (f in files) for (d in f.diagnostics) d.args]);
 	}
 
 	/**
@@ -190,6 +248,32 @@ class Util {
 
 	/**
 		function main() {
+			new Main{-1-}HL();
+		}
+	**/
+	function testBuildMacroHostImportsBrokenModule(_) {
+		put("Obj.hx", "@:build(Init.init())
+@:autoBuild(Init.build())
+interface Obj {}");
+		put("Init.hx", "import Comps.CustomParser;
+class Init {
+	public static function init() { return null; }
+	public static function build() { return null; }
+}");
+		put("Comps.hx", "class CustomParser extends missing.CssValue.ValueParser {}
+#if !macro
+class ObjectComp implements Obj {}
+#end");
+		var hl = put("MainHL.hx", "package;
+class {-1-}MainHL{-2-} {
+	public function new() {}
+	var f : Comps.ObjectComp;
+}");
+		Assert.same(hl.range(1, 2), position(1));
+	}
+
+	/**
+		function main() {
 			var x = M.pick();
 			x.f{-1-}oo();
 		}
@@ -221,16 +305,31 @@ class M {
 
 	/**
 		function main() {
-			var c = new Child();
-			c.hel{-1-}lo();
+			var a = new A();
+			a.hel{-1-}lo();
+			var b = new B();
+			b.hel{-2-}lo();
+			var c = new C();
+			c.hel{-3-}lo();
 		}
 	**/
-	function testBrokenSuperclass(_) {
-		var child = put("Child.hx", "class Child extends Missing {
+	function testSuperclassFromMissingLibrary(_) {
+		put("Other.hx", "class Other {}");
+		var a = put("A.hx", "class A extends missing.Pkg {
 	public function new() {}
 	public function {-1-}hello{-2-}() {}
 }");
-		Assert.same(child.range(1, 2), position(1));
+		var b = put("B.hx", "class B extends Other.Missing {
+	public function new() {}
+	public function {-1-}hello{-2-}() {}
+}");
+		var c = put("C.hx", "class C extends A {
+	public function new() { super(); }
+	public function {-1-}hello{-2-}() {}
+}");
+		Assert.same(a.range(1, 2), position(1));
+		Assert.same(b.range(1, 2), position(2));
+		Assert.same(c.range(1, 2), position(3));
 	}
 
 	/**
