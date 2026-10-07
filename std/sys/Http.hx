@@ -202,7 +202,7 @@ class Http extends haxe.http.HttpBase {
 				b.writeString("?");
 			b.writeString(uri);
 		}
-		b.writeString(" HTTP/1.1\r\nHost: " + host + "\r\n");
+		b.writeString(" HTTP/1.1\r\nHost: " + host + (portString == null ? "" : portString) + "\r\n");
 		if (postData != null) {
 			postBytes = Bytes.ofString(postData);
 			postData = null;
