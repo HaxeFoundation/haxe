@@ -88,7 +88,7 @@ let can_recover_from_missing_type ctx err =
 	can_recover_in_display ctx.com && not (ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in err.err_pos)
 
 let mark_recovered ctx =
-	ctx.m.curmod.m_extra.m_display.m_has_recovered_error <- true
+	ctx.com.part_scope.has_recovered_error <- true
 
 (* raises Type_not_found *)
 let find_type_in_module_raise ctx m tname p =

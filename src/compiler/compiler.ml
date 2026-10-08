@@ -529,6 +529,7 @@ let create_context (sctx : ServerCompilationContext.t) request_scope runtime_arg
 		warned_positions = Hashtbl.create 0;
 		has_next;
 		has_error = false;
+		has_recovered_error = false;
 		messages = [];
 		report_mode = RMNone;
 		message_capture = None;

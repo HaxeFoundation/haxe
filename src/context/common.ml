@@ -254,6 +254,7 @@ type part_scope = {
 	has_next : bool;
 	mutable messages : Message.t list;
 	mutable has_error : bool;
+	mutable has_recovered_error : bool;
 	mutable report_mode : report_mode;
 	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
@@ -1117,12 +1118,7 @@ let display_error_ext com err =
 		) err;
 	end else
 		com.error_ext err;
-	if not (is_compilation com) then begin
-		let key = com.part_scope.file_keys#get err.err_pos.pfile in
-		com.module_lut#iter (fun _ m ->
-			if Path.UniqueKey.lazy_key m.m_extra.m_file = key then m.m_extra.m_display.m_has_recovered_error <- true
-		)
-	end
+	if not (is_compilation com) then com.part_scope.has_recovered_error <- true
 
 let display_error com ?(sub:macro_error list = []) msg pos =
 	display_error_ext com (convert_error {msg; pos; sub})
