@@ -7,6 +7,11 @@ class Issue13061 extends DisplayTestCase {
 		return markers;
 	}
 
+	@:coroutine function completionFieldNames(marker:Int):Array<String> {
+		var r = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(marker), wasAutoTriggered: false});
+		return [for (i in r.items) if (i.kind == ClassField) i.args.field.name];
+	}
+
 	function putFailingBuildMacro() {
 		put("M.hx", "import haxe.macro.Context;
 import haxe.macro.Expr;
@@ -726,5 +731,83 @@ class B {
 		var r = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		var names = [for (i in r.items) if (i.kind == ClassField) i.args.field.name];
 		Assert.contains("read", names);
+	}
+
+	/**
+		function main() {
+			var c = new Child();
+			c.{-1-}
+		}
+	**/
+	function testMacroDoesNotSeeDynamicWhenFieldTypeIsForcedByTheMacro(_) {
+		put("M.hx", "import haxe.macro.Context;
+import haxe.macro.Expr;
+import haxe.macro.Type;
+class M {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		switch Context.getType('Holder') {
+			case TInst(c, _):
+				var name = switch c.get().fields.get()[0].type {
+					case TDynamic(_): 'sawDynamic';
+					default: 'ran';
+				}
+				fields.push({name: name, access: [APublic], pos: Context.currentPos(), kind: FVar(macro : Int)});
+			default:
+		}
+		return fields;
+	}
+}");
+		put("Other.hx", "class Other { public var y:Int; }");
+		put("Child.hx", "@:build(M.build())
+class Child {
+	public var h:Holder;
+	public function new() {}
+}");
+		put("Holder.hx", "class Holder {
+	public var x:Other.Missing;
+	public var c:Child;
+	public function new() {}
+}");
+		Assert.notContains("sawDynamic", completionFieldNames(1));
+	}
+
+	/**
+		function main() {
+			var c = new Child();
+			c.{-1-}
+		}
+	**/
+	function testMacroReadsFieldTypeWithoutErrors(_) {
+		put("M.hx", "import haxe.macro.Context;
+import haxe.macro.Expr;
+import haxe.macro.Type;
+class M {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		switch Context.getType('Holder') {
+			case TInst(c, _):
+				var name = switch c.get().fields.get()[0].type {
+					case TDynamic(_): 'sawDynamic';
+					default: 'ran';
+				}
+				fields.push({name: name, access: [APublic], pos: Context.currentPos(), kind: FVar(macro : Int)});
+			default:
+		}
+		return fields;
+	}
+}");
+		put("Other.hx", "class Other { public var y:Int; }");
+		put("Child.hx", "@:build(M.build())
+class Child {
+	public var h:Holder;
+	public function new() {}
+}");
+		put("Holder.hx", "class Holder {
+	public var x:Int;
+	public var c:Child;
+	public function new() {}
+}");
+		Assert.contains("ran", completionFieldNames(1));
 	}
 }

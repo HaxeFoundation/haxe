@@ -974,7 +974,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.encode_array (List.map Interp.encode_expr el2)]
 	in
 	let call() =
-		match call_macro args with
+		let part_scope = ctx.com.part_scope in
+		part_scope.running_macros <- part_scope.running_macros + 1;
+		let r = try call_macro args with e -> part_scope.running_macros <- part_scope.running_macros - 1; raise e in
+		part_scope.running_macros <- part_scope.running_macros - 1;
+		match r with
 		| None ->
 			MError
 		| Some v ->

@@ -255,6 +255,7 @@ type part_scope = {
 	mutable messages : Message.t list;
 	mutable has_error : bool;
 	mutable has_recovered_error : bool;
+	mutable running_macros : int;
 	mutable report_mode : report_mode;
 	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
@@ -822,7 +823,7 @@ let is_diagnostics com = match com.part_scope.report_mode with
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
 let can_recover_in_display com =
-	is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context))
+	com.part_scope.running_macros = 0 && (is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context)))
 
 let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])

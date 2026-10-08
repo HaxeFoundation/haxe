@@ -530,6 +530,7 @@ let create_context (sctx : ServerCompilationContext.t) request_scope runtime_arg
 		has_next;
 		has_error = false;
 		has_recovered_error = false;
+		running_macros = 0;
 		messages = [];
 		report_mode = RMNone;
 		message_capture = None;
