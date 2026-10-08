@@ -651,7 +651,7 @@ module Inheritance = struct
 				Typeload.mark_recovered ctx;
 				None
 			| Error ({ err_message = Module_not_found _ | Type_not_found _ } as err) when not (is_diagnostics ctx.com) && Typeload.can_recover_from_missing_type ctx err ->
-				Typeload.recover_from_missing_type ctx err;
+				display_error_ext ctx.com err;
 				None
 		) herits in
 		fl

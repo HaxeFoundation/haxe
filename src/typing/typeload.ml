@@ -90,10 +90,6 @@ let can_recover_from_missing_type ctx err =
 let mark_recovered ctx =
 	ctx.m.curmod.m_extra.m_display.m_has_recovered_error <- true
 
-let recover_from_missing_type ctx err =
-	display_error_ext ctx.com err;
-	mark_recovered ctx
-
 (* raises Type_not_found *)
 let find_type_in_module_raise ctx m tname p =
 	try
@@ -654,11 +650,11 @@ and load_complex_type ctx allow_display mode (t,pn) =
 				mark_recovered ctx;
 				delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true)
 			| _ ->
-				recover_from_missing_type ctx err
+				display_error_ext ctx.com err
 			end;
 			t_dynamic
 		end else if can_recover_from_missing_type ctx err then begin
-			recover_from_missing_type ctx err;
+			display_error_ext ctx.com err;
 			t_dynamic
 		end else
 			raise (Error err)

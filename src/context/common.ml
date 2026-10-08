@@ -1116,7 +1116,13 @@ let display_error_ext com err =
 			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError;
 		) err;
 	end else
-		com.error_ext err
+		com.error_ext err;
+	if not (is_compilation com) then begin
+		let key = com.part_scope.file_keys#get err.err_pos.pfile in
+		com.module_lut#iter (fun _ m ->
+			if Path.UniqueKey.lazy_key m.m_extra.m_file = key then m.m_extra.m_display.m_has_recovered_error <- true
+		)
+	end
 
 let display_error com ?(sub:macro_error list = []) msg pos =
 	display_error_ext com (convert_error {msg; pos; sub})
