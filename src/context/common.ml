@@ -254,6 +254,8 @@ type part_scope = {
 	has_next : bool;
 	mutable messages : Message.t list;
 	mutable has_error : bool;
+	mutable has_recovered_error : bool;
+	mutable running_macros : int;
 	mutable report_mode : report_mode;
 	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
@@ -395,9 +397,6 @@ let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
 	if b then com.part_scope.has_error <- true;
 	b
-
-let can_recover_in_display com =
-	com.display.dms_error_policy = EPIgnore && not com.display.dms_full_typing
 
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
@@ -823,6 +822,9 @@ let is_diagnostics com = match com.part_scope.report_mode with
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
+let can_recover_in_display com =
+	com.part_scope.running_macros = 0 && (is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context)))
+
 let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])
 
@@ -1116,7 +1118,8 @@ let display_error_ext com err =
 			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError;
 		) err;
 	end else
-		com.error_ext err
+		com.error_ext err;
+	if not (is_compilation com) then com.part_scope.has_recovered_error <- true
 
 let display_error com ?(sub:macro_error list = []) msg pos =
 	display_error_ext com (convert_error {msg; pos; sub})
