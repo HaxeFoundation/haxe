@@ -87,6 +87,13 @@ let find_type_in_module m tname =
 let can_recover_from_missing_type ctx err =
 	can_recover_in_display ctx.com && not (ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in err.err_pos)
 
+let mark_recovered ctx =
+	ctx.m.curmod.m_extra.m_display.m_has_recovered_error <- true
+
+let recover_from_missing_type ctx err =
+	display_error_ext ctx.com err;
+	mark_recovered ctx
+
 (* raises Type_not_found *)
 let find_type_in_module_raise ctx m tname p =
 	try
@@ -644,13 +651,14 @@ and load_complex_type ctx allow_display mode (t,pn) =
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
 			begin match err.err_message with
 			| Module_not_found ([],name) ->
+				mark_recovered ctx;
 				delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true)
 			| _ ->
-				display_error_ext ctx.com err
+				recover_from_missing_type ctx err
 			end;
 			t_dynamic
 		end else if can_recover_from_missing_type ctx err then begin
-			display_error_ext ctx.com err;
+			recover_from_missing_type ctx err;
 			t_dynamic
 		end else
 			raise (Error err)

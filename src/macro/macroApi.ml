@@ -1100,8 +1100,13 @@ let encode_meta m set =
 		);
 	]
 
+let check_no_recovered_error m =
+	if m.m_extra.m_display.m_has_recovered_error then
+		error_message ("Accessing module " ^ s_type_path m.m_path ^ " which has errors")
+
 let rec encode_mtype t fields =
 	let i = t_infos t in
+	check_no_recovered_error i.mt_module;
 	encode_obj ([
 		"__t", 	encode_tdecl t;
 		"pack", encode_array (List.map encode_string (fst i.mt_path));
@@ -2213,6 +2218,7 @@ let macro_api ccom get_api =
 		);
 		"local_vars", vfun1 (fun as_var ->
 			let as_var = decode_opt_bool as_var in
+			check_no_recovered_error ((get_api()).current_module());
 			let vars = (get_api()).get_local_vars() in
 			encode_string_map (if as_var then encode_tvar else (fun v -> encode_type v.v_type)) vars
 		);

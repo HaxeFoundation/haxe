@@ -648,9 +648,10 @@ module Inheritance = struct
 				Some (check_herit t is_extends ptp.pos_full)
 			with Error { err_message = Module_not_found(([],name)); err_pos = p } when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
+				Typeload.mark_recovered ctx;
 				None
 			| Error ({ err_message = Module_not_found _ | Type_not_found _ } as err) when not (is_diagnostics ctx.com) && Typeload.can_recover_from_missing_type ctx err ->
-				display_error_ext ctx.com err;
+				Typeload.recover_from_missing_type ctx err;
 				None
 		) herits in
 		fl

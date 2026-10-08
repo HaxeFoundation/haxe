@@ -176,6 +176,7 @@ let module_extra file sign time kind added policy =
 			m_inline_calls = [];
 			m_type_hints = [];
 			m_import_positions = PMap.empty;
+			m_has_recovered_error = false;
 		};
 		m_cache_state = MSGood;
 		m_added = added;
