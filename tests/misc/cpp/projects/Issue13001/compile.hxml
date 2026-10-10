@@ -1,0 +1,3 @@
+-main Main
+-D HXCPP_GC_GENERATIONAL
+-cpp out
