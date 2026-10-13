@@ -29,7 +29,7 @@ let completion_item_of_expr ctx e =
 		try
 			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType.with_type t) in
 			Texpr.equal e e'
-		with _ ->
+		with Error.Fatal_error _ | Error.Error _ | Typecore.Forbid_package _ | Failure _ ->
 			false
 	in
 	let tpair ?(values=PMap.empty) t =
@@ -581,7 +581,7 @@ let filter_ctors ctx r =
 						| _ -> false)
 					| _ -> false
 					end
-				with _ ->
+				with Not_found | Error.Fatal_error _ | Error.Error _ | Failure _ ->
 					false
 				end
 			end
