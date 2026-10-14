@@ -1845,6 +1845,9 @@ let rec make_const e =
 **)
 
 let macro_api ccom get_api =
+	let check_no_error () =
+		if ((get_api()).get_com ()).Common.part_scope.has_recovered_error then error_message "Accessing types after an error was reported"
+	in
 	let decode_type v =
 		try decode_type v
 		with Invalid_expr -> (get_api()).exc_string "Invalid expression"
@@ -1953,12 +1956,14 @@ let macro_api ccom get_api =
 			encode_string_map encode_string (Common.defines_for_external (ccom()))
 		);
 		"get_type", vfun1 (fun s ->
+			check_no_error ();
 			let tname = decode_string s in
 			match (get_api()).get_type tname with
 			| None -> failwith ("Type not found '" ^ tname ^ "'")
 			| Some t -> encode_type t
 		);
 		"get_module", vfun1 (fun s ->
+			check_no_error ();
 			encode_array (List.map encode_type ((get_api()).get_module (decode_string s)))
 		);
 		"include_module", vfun1 (fun s ->
@@ -2019,15 +2024,19 @@ let macro_api ccom get_api =
 			vbool (((get_api()).cast_or_unify) (decode_type t2) e1 Globals.null_pos)
 		);
 		"typeof", vfun1 (fun v ->
+			check_no_error ();
 			encode_type ((get_api()).type_expr (decode_expr v)).etype
 		);
 		"type_expr", vfun1 (fun v ->
+			check_no_error ();
 			encode_texpr ((get_api()).type_expr (decode_expr v))
 		);
 		"resolve_type", vfun2 (fun t p ->
+			check_no_error ();
 			encode_type ((get_api()).resolve_type (fst (decode_ctype t)) (decode_pos p));
 		);
 		"resolve_complex_type", vfun2 (fun ct p ->
+			check_no_error ();
 			encode_ctype ((get_api()).resolve_complex_type (fst (decode_ctype ct),decode_pos p))
 		);
 		"s_type", vfun1 (fun v ->
@@ -2188,6 +2197,7 @@ let macro_api ccom get_api =
 			encode_string (s_type_path m.m_path);
 		);
 		"get_local_type", vfun0 (fun() ->
+			check_no_error ();
 			match (get_api()).get_local_type() with
 			| None -> vnull
 			| Some t -> encode_type t
@@ -2206,6 +2216,7 @@ let macro_api ccom get_api =
 			encode_string ((get_api()).get_local_method())
 		);
 		"get_local_using", vfun0 (fun() ->
+			check_no_error ();
 			encode_array (List.map encode_clref ((get_api()).get_local_using()))
 		);
 		"get_local_imports", vfun0 (fun() ->
@@ -2213,6 +2224,7 @@ let macro_api ccom get_api =
 		);
 		"local_vars", vfun1 (fun as_var ->
 			let as_var = decode_opt_bool as_var in
+			check_no_error ();
 			let vars = (get_api()).get_local_vars() in
 			encode_string_map (if as_var then encode_tvar else (fun v -> encode_type v.v_type)) vars
 		);
