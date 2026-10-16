@@ -24,14 +24,20 @@ open Error
 open Gctx
 open JsSourcemap
 
+type js_module_type =
+	| Es
+	| Iife
+	| Classic
+
 type ctx = {
 	com : Gctx.t;
 	buf : Rbuffer.t;
 	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
-	js_modern : bool;
 	js_flatten : bool;
+	js_module_type : js_module_type;
+	mutable es_synthetic_require_generated : bool;
 	has_resolveClass : bool;
 	has_interface_check : bool;
 	es_version : int;
@@ -1005,16 +1011,15 @@ let generate_package_create ctx (p,_) =
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
 			| [] ->
-				if ctx.js_modern then
-					print ctx "var %s = {}" p
-				else
-					print ctx "var %s = %s || {}" p p
+				(match ctx.js_module_type with
+				| Classic -> print ctx "var %s = %s || {}" p p
+				| Iife ->    print ctx "var %s = {}" p
+				| Es ->      print ctx "const %s = {}" p)
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
-				if ctx.js_modern then
-					print ctx "%s = {}" p
-				else
-					print ctx "if(!%s) %s = {}" p p
+				(match ctx.js_module_type with
+				| Classic -> print ctx "if(!%s) %s = {}" p p
+				| _ ->       print ctx "%s = {}" p)
 			);
 			ctx.separator <- true;
 			newline ctx;
@@ -1035,6 +1040,34 @@ let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
 
+let mangle_export_name_es6 ctx ident =
+	if not (ExtString.String.contains ident '.') then
+		ident
+	else if ctx.es_version >= 2022 then
+		(* Keyword: "arbitrary module namespace identifier names" *)
+		Printf.sprintf "\"%s\"" ident
+	else
+		let parts = ExtString.String.nsplit ident "." in
+		String.concat "_" parts
+
+let tmp_export_vars = Atomic.make 0
+let generate_export_statement ctx expr ident =
+	if ctx.js_module_type == Es then
+		let ident = mangle_export_name_es6 ctx ident in
+		let expr_contains_dots = ExtString.String.contains expr '.' in
+		if not expr_contains_dots then
+			if expr = ident then
+				print ctx "export { %s };" ident
+			else
+				print ctx "export { %s as %s };" expr ident
+		else begin
+			let tmp_name = Printf.sprintf "$hx_export_tmp_%d" (Atomic.fetch_and_add tmp_export_vars 1) in
+			print ctx "const %s = %s; export { %s as %s };" tmp_name expr tmp_name ident
+		end
+	else
+		print ctx "$hx_exports%s = %s;" (path_to_brackets ident) expr;
+	newline ctx
+
 let gen_module_fields ctx m c fl =
 	List.iter (fun f ->
 		let name = module_field m f in
@@ -1048,14 +1081,25 @@ let gen_module_fields ctx m c fl =
 			match e.eexpr with
 			| TFunction fn ->
 				ctx.id_counter <- 0;
+
+				let already_exported = ref false in
+				let expose_fallback = module_field_expose_path m.m_path f in
+				if ctx.js_module_type = Es then
+					process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+						if name = (mangle_export_name_es6 ctx s) then begin
+							print ctx "export ";
+							already_exported := true;
+						end
+					);
+
 				print ctx "function %s" name;
 				gen_function ~keyword:"" ctx fn e.epos;
 				ctx.separator <- false;
 				newline ctx;
-				process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s ->
-					print ctx "$hx_exports%s = %s" (path_to_brackets s) name;
-					newline ctx
-				)
+				if not !already_exported then
+					process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+						generate_export_statement ctx name s
+					)
 			| _ ->
 				ctx.statics <- (c,f,e) :: ctx.statics
 	) fl
@@ -1072,12 +1116,14 @@ let gen_class_static_field ctx c cl_path f =
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			ctx.id_counter <- 0;
+			let path = (s_path ctx cl_path) ^ (static_field ctx c f) in
 			print ctx "%s = " path;
-			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
 			gen_value ctx e;
 			newline ctx;
+			process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s ->
+				generate_export_statement ctx path s
+			);
 		| _ ->
 			ctx.statics <- (c,f,e) :: ctx.statics
 
@@ -1142,7 +1188,7 @@ let generate_class_es5 ctx c =
 
 	(* Do not add to $hxClasses on same line as declaration to make sure not to trip js debugger *)
 	(* when it tries to get a string representation of a class. Will be added below *)
-	if ctx.com.debug || ctx.js_modern || not added_to_hxClasses then
+	if ctx.com.debug || ctx.js_module_type <> Classic || not added_to_hxClasses then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p dotp;
@@ -1162,7 +1208,7 @@ let generate_class_es5 ctx c =
 
 	newline ctx;
 
-	if (ctx.js_modern || ctx.com.debug) && added_to_hxClasses then begin
+	if (ctx.js_module_type <> Classic || ctx.com.debug) && added_to_hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" dotp p;
 		newline ctx;
 	end;
@@ -1245,14 +1291,36 @@ let generate_class_es6 ctx c =
 	let cl_path = get_generated_class_path c in
 	let p = s_path ctx cl_path in
 	let dotp = dot_path cl_path in
+	let class_already_exported = ref false in 
 
 	let cls_name =
 		if not ctx.js_flatten && (fst cl_path) <> [] then begin
 			generate_package_create ctx cl_path;
 			print ctx "%s = " p;
 			Path.flat_path cl_path
-		end else
+		end else begin
+
+			if ctx.js_module_type = Es then begin
+				try
+					let (_, args, pos) = Meta.get Meta.Expose c.cl_meta in
+					match args with
+					| [EConst (String(s, _)), _] -> begin
+						if p = s then begin
+							print ctx "export ";
+							class_already_exported := true;
+						end
+					end
+					| [] -> begin
+						print ctx "export ";
+						class_already_exported := true;
+					end
+					| _ -> abort "Invalid @:expose parameters" pos
+				with Not_found ->
+					();
+			end;
+
 			p
+		end
 	in
 	print ctx "class %s" cls_name;
 
@@ -1311,27 +1379,21 @@ let generate_class_es6 ctx c =
 	spr ctx "}";
 	newline ctx;
 
-	List.iter (fun (path,name) ->
-		print ctx "$hx_exports%s = %s.%s;" (path_to_brackets path) p name;
-		newline ctx
+	List.iter (fun (path, name) ->
+		generate_export_statement ctx (Printf.sprintf "%s.%s" p name) path
 	) !exposed_static_methods;
 
 	List.iter (gen_class_static_field ctx c cl_path) nonmethod_statics;
 
 	let is_abstract_impl = is_abstract_impl c in
 
-	begin
-		let added = ref false in
-		if ctx.has_resolveClass && not is_abstract_impl then begin
-			added := true;
-			print ctx "$hxClasses[\"%s\"] = " dotp
-		end;
-		process_expose c.cl_meta (fun () -> dotp) (fun s -> added := true; print ctx "$hx_exports%s = " (path_to_brackets s));
-		if !added then begin
-			spr ctx p;
-			newline ctx;
-		end;
+	if ctx.has_resolveClass && not is_abstract_impl then begin
+		print ctx "$hxClasses[\"%s\"] = %s;" dotp p;
+		newline ctx;
 	end;
+
+	if not !class_already_exported then
+		process_expose c.cl_meta (fun () -> dotp) (fun s -> generate_export_statement ctx p s);
 
 	if not is_abstract_impl then begin
 		generate_class___name__ ctx cl_path;
@@ -1433,7 +1495,7 @@ let generate_enum ctx e =
 	let dotp = dot_path e.e_path in
 	let has_enum_feature = has_feature ctx "has_enum" in
 	if ctx.js_flatten then
-		print ctx "var "
+		print ctx (if ctx.js_module_type = Es then "const " else "var ")
 	else
 		generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
@@ -1525,25 +1587,60 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	begin
+	let already_exported = ref false in
 	match c.cl_kind with
 	| KModuleFields m ->
-		print ctx "var %s = " (module_field m f);
-		process_expose f.cf_meta (fun () -> module_field_expose_path m.m_path f) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
+		
+		let kwd = if ctx.js_module_type = Es then "let" else "var" in
+		let var_name = module_field m f in
+		let expose_fallback = module_field_expose_path m.m_path f in
+
+		if ctx.js_module_type = Es then
+			process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+				if var_name = (mangle_export_name_es6 ctx s) then begin
+					print ctx "export ";
+					already_exported := true;
+				end
+			);
+
+		print ctx "%s %s = " kwd var_name;
+		gen_value ctx e;
+		newline ctx;
+
+		if not !already_exported then
+			process_expose f.cf_meta (fun () -> expose_fallback) (fun s ->
+				generate_export_statement ctx var_name s
+			)
 	| _ ->
 		let cl_path = get_generated_class_path c in
-		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s -> print ctx "$hx_exports%s = " (path_to_brackets s));
-		print ctx "%s%s = " (s_path ctx cl_path) (static_field ctx c f);
-	end;
-	gen_value ctx e;
-	newline ctx
+		let expr = Printf.sprintf "%s%s" (s_path ctx cl_path) (static_field ctx c f) in
+		print ctx "%s = " expr;
+		gen_value ctx e;
+		newline ctx;
+		process_expose f.cf_meta (fun () -> (dot_path cl_path) ^ "." ^ f.cf_name) (fun s ->
+			generate_export_statement ctx expr s
+		)
+
+let generate_create_require_once ctx =
+	if ctx.js_module_type = Es then
+		if (not (Gctx.raw_defined ctx.com "nodejs")) then
+			failwith "Cannot require() in an ES module.\nIf you are using Node.js, use `--define nodejs` to enable CommonJS module loading,\nor use a different `--define js.module` type, like `iife`."
+		else if not ctx.es_synthetic_require_generated then begin
+			ctx.es_synthetic_require_generated <- true;
+			spr ctx "import { createRequire } from \"node:module\"";
+			newline ctx;
+			spr ctx "const require = createRequire(import.meta.url)";
+			newline ctx;
+		end
 
 let generate_require ctx path meta =
 	let _, args, mp = Meta.get Meta.JsRequire meta in
 	let p = (s_path ctx path) in
 
+	generate_create_require_once ctx;
+
 	if ctx.js_flatten then
-		spr ctx "var "
+		spr ctx (if ctx.js_module_type = Es then "const " else "var ")
 	else
 		generate_package_create ctx path;
 
@@ -1614,8 +1711,17 @@ let alloc_ctx com es_version =
 		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
-		js_modern = not (Gctx.defined com Define.JsClassic);
 		js_flatten = not (Gctx.defined com Define.JsUnflatten);
+		js_module_type = begin
+			let fallback = if (Gctx.defined com Define.JsClassic) then "classic" else "iife" in
+			(match Gctx.defined_value_safe ~default:fallback com Define.JsModule with
+				| "es" -> (if es_version >= 6 then Es else failwith "ES modules require targetting ES6 or higher")
+				| "iife" -> Iife
+				| "classic" -> Classic
+				| _ -> failwith "Invalid `js.module` define. Use `es`, `iife`, or `classic`"
+			)	
+		end;
+		es_synthetic_require_generated = false;
 		has_resolveClass = Gctx.has_feature com "Type.resolveClass";
 		has_interface_check = Gctx.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
@@ -1731,6 +1837,9 @@ let generate js_gen com =
 			) (List.rev lines)
 	);
 
+	if has_feature ctx "js.Lib.require" then
+		generate_create_require_once ctx;
+
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
@@ -1814,7 +1923,12 @@ let generate js_gen com =
 
 	let var_global = (
 		"$global",
-		typeof_join (if defined_global then [defined_global_value] else ["window"; "global"; "self"; "this"])
+		typeof_join (if defined_global then
+			[defined_global_value]
+		else if ctx.es_version >= 2020 then
+			["globalThis"]
+		else
+			["globalThis"; "window"; "global"; "self"; "this"])
 	) in
 
 	let closureArgs = [var_global] in
@@ -1827,18 +1941,29 @@ let generate js_gen com =
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
 
-	if (anyExposed && ((Gctx.defined com Define.ShallowExpose) || not ctx.js_modern)) then (
-		print ctx "var %s = %s" (fst var_exports) (snd var_exports);
-		ctx.separator <- true;
-		newline ctx
-	);
+	if anyExposed then begin
+		if (Gctx.defined com Define.ShallowExpose) && ctx.js_module_type <> Es then begin
+			print ctx "var %s = %s || {}" (fst var_exports) (fst var_exports);
+			ctx.separator <- true;
+			newline ctx
+		end else if ctx.js_module_type = Classic then begin
+			print ctx "var %s = %s" (fst var_exports) (snd var_exports);
+			ctx.separator <- true;
+			newline ctx
+		end;
+	end;
 
-	if ctx.js_modern then begin
+	if (ctx.js_module_type = Iife) then begin
 		(* Wrap output in a closure *)
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
 	end;
 
+	(* 
+		If necessary, generate objects for subpackages in the main exports object.
+		For example: `package foo; @:expose class Bar {}`
+		will generate `exports["foo"]["Bar"] = exports["foo"]["Bar"] || {};`.
+	*)
 	let rec print_obj f root = (
 		let path = root ^ (path_to_brackets f.os_name) in
 		print ctx "%s = %s || {}" path path;
@@ -1847,7 +1972,9 @@ let generate js_gen com =
 		concat ctx ";" (fun g -> print_obj g path) f.os_fields
 	)
 	in
-	List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
+
+	if ctx.js_module_type <> Es then
+		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 
 	List.iter (fun file ->
 		match file with
@@ -1858,18 +1985,25 @@ let generate js_gen com =
 		| _ -> ()
 	) include_files;
 
-	if (not ctx.js_modern) then
-		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
+	(* Define global object *)
+	(match ctx.js_module_type with
+	| Es ->
+		print ctx "const %s = %s;\n" (fst var_global) (snd var_global)
+	| Iife ->
+		() (* provided by the closure *)
+	| Classic ->
+		print ctx "var %s = %s;\n" (fst var_global) (snd var_global)
+	);
 
 	let enums_as_objects = not (Gctx.defined com Define.JsEnumsAsArrays) in
 
 	(* TODO: fix $estr *)
 	let vars = [] in
-	let vars = (if ctx.has_resolveClass || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
+	let vars = (if ctx.has_resolveClass || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_module_type <> Classic then "{}" else "$hxClasses || {}")) :: vars else vars) in
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
-	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then "$hxEnums = $hxEnums || {}" :: vars else vars in
+	let vars = if (enums_as_objects && (has_feature ctx "has_enum" || has_feature ctx "Type.resolveEnum")) then ("$hxEnums = " ^ (if ctx.js_module_type = Es then "{}" else "$hxEnums || {}")) :: vars else vars in
 	let vars,has_dollar_underscore =
 		if List.exists (function TEnumDecl e when not (has_enum_flag e EnExtern) -> true | _ -> false) com.types then
 			"$_" :: vars,ref true
@@ -1879,7 +2013,8 @@ let generate js_gen com =
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
-		print ctx "var %s" (String.concat "," vl);
+		let kwd = if ctx.js_module_type = Es then "let" else "var" in
+		print ctx "%s %s" kwd (String.concat ", " vl);
 		ctx.separator <- true;
 		newline ctx
 	);
@@ -1955,7 +2090,8 @@ let generate js_gen com =
 	(match com.main.main_expr with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
-	if ctx.js_modern then begin
+
+	if (ctx.js_module_type = Iife) then begin
 		let closureArgs =
 			if has_feature ctx "js.Lib.global" || defined_global then
 				closureArgs
@@ -1971,7 +2107,7 @@ let generate js_gen com =
 		newline ctx;
 	end;
 
-	if (anyExposed && (Gctx.defined com Define.ShallowExpose)) then (
+	if (anyExposed && (Gctx.defined com Define.ShallowExpose) && ctx.js_module_type <> Es) then (
 		List.iter (fun f ->
 			print ctx "var %s = $hx_exports%s" f.os_name (path_to_brackets f.os_name);
 			ctx.separator <- true;
