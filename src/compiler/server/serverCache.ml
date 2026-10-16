@@ -148,14 +148,27 @@ let check_module sctx com m_path m_extra p =
 		with Not_found ->
 			true
 	in
+	let pack_path = match fst m_path with [] -> "" | pack -> String.concat "/" pack ^ "/" in
+	let contains hay needle =
+		let nl = String.length needle and hl = String.length hay in
+		let rec loop i = i + nl <= hl && (String.sub hay i nl = needle || loop (i + 1)) in
+		nl = 0 || loop 0
+	in
+	let dir_hosts_shadow c_path =
+		pack_path = ""
+		|| String.starts_with ~prefix:pack_path c_path
+		|| contains c_path ("/" ^ pack_path)
+	in
 	let check_module_shadowing paths m_path m_extra =
 		List.iter (fun dir ->
-			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
-			if Sys.file_exists file then begin
-				let time = file_time file in
-				if time > m_extra.m_time then begin
-					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
-					raise (Dirty (Shadowed file))
+			if dir_hosts_shadow dir.c_path then begin
+				let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
+				if Sys.file_exists file then begin
+					let time = file_time file in
+					if time > m_extra.m_time then begin
+						ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
+						raise (Dirty (Shadowed file))
+					end
 				end
 			end
 		) paths
