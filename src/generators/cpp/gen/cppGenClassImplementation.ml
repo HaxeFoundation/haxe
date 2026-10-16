@@ -991,17 +991,33 @@ let generate_managed_class base_ctx tcpp_class =
     in
 
     let script_name = class_name ^ "__scriptable" in
-    let has_funky_toString =
+    let has_funky_toString cls =
       List.exists
         (fun func -> func.tcf_name = "toString")
-        tcpp_class.tcl_static_functions ||
+        cls.tcl_static_functions ||
       List.exists
         (fun func -> func.tcf_name = "toString" && List.length func.tcf_func.tf_args <> 0)
-        tcpp_class.tcl_functions
+        cls.tcl_functions
     in
-    let super_string =
-      if has_funky_toString then class_name ^ "::super" else class_name
+    let has_toString cls =
+      List.exists (fun func -> func.tcf_name = "toString") cls.tcl_functions
     in
+    (* A funky toString hides hx::Object::toString(), also in the classes that inherit it,
+       so look it up from above the nearest one *)
+    let rec find_super_string start cls path =
+      if has_funky_toString cls then
+        let above = path ^ "::super" in
+        match cls.tcl_super with
+        | Some super -> find_super_string above super above
+        | None -> above
+      else if has_toString cls then
+        start
+      else
+        match cls.tcl_super with
+        | Some super -> find_super_string start super (path ^ "::super")
+        | None -> start
+    in
+    let super_string = find_super_string class_name tcpp_class class_name in
 
     Printf.sprintf "class %s : public %s {\n" script_name class_name |> output_cpp;
     Printf.sprintf "\ttypedef %s __ME;\n" script_name |> output_cpp;
