@@ -1,0 +1,4 @@
+--main Main2
+--interp
+-w +WConditionAssignBool
+-D message.reporting=classic
