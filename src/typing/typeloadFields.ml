@@ -734,7 +734,35 @@ module TypeBinding = struct
 		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
 				| None -> ()
 				| Some (csup,_) ->
-					display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+					let error_redefinition () =
+						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path)) cf.cf_name_pos
+					in
+					(try
+						let cf_parent = PMap.find cf.cf_name csup.cl_fields in
+						if (
+							has_class_field_flag cf_parent CfPublic
+							&& not (has_class_field_flag cf CfPublic)
+						) then
+							display_error ctx.com ("Variable " ^ cf.cf_name ^ " has less visibility (public/private) than superclass one") cf.cf_pos
+						else if is_physical_var_field cf_parent then
+							error_redefinition ()
+						else begin
+							let is_narrowing parent_acc child_acc = match parent_acc, child_acc with
+								| AccCall, (AccPrivateCall | AccNever) -> true
+								| AccPrivateCall, AccNever -> true
+								| _ -> false
+							in
+							match cf.cf_kind, cf_parent.cf_kind with
+							| Var child_v, Var parent_v ->
+								if is_narrowing parent_v.v_read child_v.v_read then
+									display_error ctx.com ("Cannot narrow read access of " ^ cf.cf_name ^ " in subclass") cf.cf_name_pos
+								else if is_narrowing parent_v.v_write child_v.v_write then
+									display_error ctx.com ("Cannot narrow write access of " ^ cf.cf_name ^ " in subclass") cf.cf_name_pos
+							| _ ->
+								error_redefinition ()
+						end
+					with Not_found ->
+						error_redefinition ())
 		end
 
 	let bind_var_expression ctx_f cctx fctx cf e =
