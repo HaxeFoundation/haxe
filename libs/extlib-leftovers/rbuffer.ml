@@ -135,36 +135,15 @@ let add_char b c =
   Bytes.set b.buffer pos c;
   b.position <- pos + 1
 
-(* allocates space for [len] bytes and returns the corresponding place
-   (as a string and an offset within that string) *)
-let alloc b len =
-  let n = Bytes.length b.buffer in
-  let pos = b.position in
-  let len' = pos + len in
-  if len' <= n then begin
-    (* fits in the buffer *)
-    b.position <- len';
-    b.buffer, pos
-  end else if len' <= Sys.max_string_length then begin
-    (* buffer and len fit in a new string, allocated in the rope *)
-    let str = Bytes.create len' in
-    Bytes.blit b.buffer 0 str 0 pos;
-    b.rope <- App (b.rope, Str (Bytes.unsafe_to_string str), rope_length b.rope + len');
-    b.position <- 0;
-    str, pos
-  end else begin
-    (* buffer and len require two strings, allocated in the rope *)
-    let str = Bytes.create len in
-    b.rope <- App (b.rope,
-		   App (Str (Bytes.sub_string b.buffer 0 pos), Str (Bytes.unsafe_to_string str), len'),
-		   rope_length b.rope + len');
-    b.position <- 0;
-    str, 0
-  end
-
 let safe_add_substring b s offset len =
-  let str, pos = alloc b len in
-  String.blit s offset str pos len
+  if b.position + len <= Bytes.length b.buffer then begin
+    Bytes.blit_string s offset b.buffer b.position len;
+    b.position <- b.position + len
+  end else begin
+    (* too big for the buffer: a copy of the text goes to the rope, as its own string *)
+    move_buffer_to_rope b;
+    b.rope <- App (b.rope, Str (String.sub s offset len), rope_length b.rope + len)
+  end
 
 let add_substring b s offset len =
   if offset < 0 || len < 0 || offset > String.length s - len
@@ -180,15 +159,15 @@ let add_buffer b b2 =
   b.rope <- App (b.rope, b2.rope, rope_length b.rope + rope_length b2.rope);
   add_substring b (Bytes.unsafe_to_string b2.buffer) 0 b2.position
 
+(* the bytes are read first, and only then given to the rope as a string: a [bytes] must
+   not change after [Bytes.unsafe_to_string] *)
 let rec add_channel b ic len =
-  if len <= Sys.max_string_length then begin
-    let str, pos = alloc b len in
-    really_input ic str pos len
-  end else begin
-    let str, pos = alloc b Sys.max_string_length in
-    really_input ic str pos Sys.max_string_length;
-    add_channel b ic (len - Sys.max_string_length)
-  end
+  let n = min len Sys.max_string_length in
+  let str = Bytes.create n in
+  really_input ic str 0 n;
+  move_buffer_to_rope b;
+  b.rope <- App (b.rope, Str (Bytes.unsafe_to_string str), rope_length b.rope + n);
+  if len > n then add_channel b ic (len - n)
 
 let output_buffer oc b =
   let rec loop wl = match wl with
