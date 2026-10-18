@@ -759,6 +759,12 @@
 		"platforms": ["js"]
 	},
 	{
+		"name": "SourceMapInline",
+		"define": "source-map-inline",
+		"doc": "Write the JS source map into the output as a data: URL, not to a separate .map file. Takes precedence over `-D source-map`, and needs no other source map define.",
+		"platforms": ["js"]
+	},
+	{
 		"name": "Static",
 		"define": "static",
 		"doc": "Defined if the current target is static.",
