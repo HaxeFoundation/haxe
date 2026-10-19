@@ -35,12 +35,8 @@ abstract StringKey(Array<Int>) {
 		return 0;
 }
 
-abstract PrivateLength(Array<Int>) {
-	var length(get, never):Int;
-
-	function get_length()
-		return this.length;
-
+@:forward(length)
+abstract ForwardedLength(Array<Int>) {
 	@:arrayAccess function get(i:Int):Int
 		return this[i];
 }
@@ -65,7 +61,7 @@ class Main {
 			case [a]:
 			case _:
 		}
-		switch (null : PrivateLength) {
+		switch (null : ForwardedLength) {
 			case [a]:
 			case _:
 		}

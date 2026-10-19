@@ -48,6 +48,14 @@ private extern class ArrayLike<T> implements ArrayAccess<T> {
 	function new();
 	function push(v:T):Int;
 }
+
+@:coreType @:arrayAccess
+private abstract CoreArrayLike<T> {
+	public var length(get, never):Int;
+
+	inline function get_length():Int
+		return (cast this : Array<T>).length;
+}
 #end
 
 private enum Wrapper {
@@ -152,6 +160,14 @@ class Issue8012 extends Test {
 		a.push(5);
 		a.push(6);
 		eq(30, switch a {
+			case [a, b]: a * b;
+			case _: 0;
+		});
+	}
+
+	function testCoreType() {
+		var a:CoreArrayLike<Int> = cast [7, 8];
+		eq(56, switch a {
 			case [a, b]: a * b;
 			case _: 0;
 		});

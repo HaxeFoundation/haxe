@@ -69,9 +69,13 @@ let get_sub_subjects mctx e con arg_positions =
 		List.map (fun s -> s,ExprToPattern.type_field_access mctx.ctx e s) sl
 	| ConArray 0 -> []
 	| ConArray i ->
+		let get = match ExprToPattern.get_array_access mctx.ctx e.etype e.epos with
+			| Some aa -> (fun ei -> aa.aa_get e ei aa.aa_type e.epos)
+			| None -> (fun ei -> Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos))
+		in
 		ExtList.List.init i (fun i ->
 			let ei = Texpr.Builder.make_int mctx.ctx.com.basic i e.epos in
-			Printf.sprintf "a%i" i,Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos)
+			Printf.sprintf "a%i" i,get ei
 		)
 	| ConConst _ | ConTypeExpr _ | ConStatic _ ->
 		[]

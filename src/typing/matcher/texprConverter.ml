@@ -158,9 +158,9 @@ let all_ctors ctx e cases =
 			SKValue,Infinite
 	in
 	let kind,finiteness = loop false t in
-	(* Array patterns on values which are not arrays but have a length and an array read access (#8012). *)
-	let kind,finiteness = match kind,cases with
-		| (SKValue | SKEnum),{sc_con = (ConArray _,_)} :: _ when ExprToPattern.get_array_like_element_type ctx t e.epos <> None ->
+	(* Array patterns on values which can be accessed by index (#8012). *)
+	let kind,finiteness = match cases with
+		| {sc_con = (ConArray _,_)} :: _ when ExprToPattern.get_array_access ctx t e.epos <> None ->
 			Compile.ConTable.reset h;
 			SKLength,Infinite
 		| _ ->
@@ -286,7 +286,11 @@ let to_texpr ctx t_switch with_type dt =
 					let e_subject = match kind with
 						| SKValue -> e_subject
 						| SKEnum -> mk_index_call e_subject
-						| SKLength -> ExprToPattern.type_field_access ctx e_subject "length"
+						| SKLength ->
+							begin match ExprToPattern.get_array_access ctx e_subject.etype e_subject.epos with
+								| Some aa -> aa.aa_length e_subject e_subject.epos
+								| None -> ExprToPattern.type_field_access ctx e_subject "length"
+							end
 					in
 					let e = match cases,e_default,with_type with
 						| [case],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->
