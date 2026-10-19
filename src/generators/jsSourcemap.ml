@@ -130,28 +130,44 @@ let handle_newlines smap str =
 		loop 0
 	) smap
 
-let write_mappings (com : Gctx.t) smap source_path_prefix =
+(* The source map as JSON text. *)
+let mappings_json (com : Gctx.t) smap source_path_prefix =
 	let basefile = Filename.basename com.file in
-	let channel = open_out_bin (com.file ^ ".map") in
+	let b = Buffer.create 1024 in
 	let sources = DynArray.to_list smap.sources in
 	let to_url file =
 		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Path.get_full_path file)
 	in
-	output_string channel "{\n";
-	output_string channel "\"version\":3,\n";
-	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"\",\n");
-	output_string channel ("\"sources\":[" ^
+	Buffer.add_string b "{\n";
+	Buffer.add_string b "\"version\":3,\n";
+	Buffer.add_string b ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
+	Buffer.add_string b ("\"sourceRoot\":\"\",\n");
+	Buffer.add_string b ("\"sources\":[" ^
 		(String.concat "," (List.map (fun s -> "\"" ^ source_path_prefix ^ to_url s ^ "\"") sources)) ^
 		"],\n");
 	if Gctx.defined com Define.SourceMapContent then begin
-		output_string channel ("\"sourcesContent\":[" ^
+		Buffer.add_string b ("\"sourcesContent\":[" ^
 			(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
 			"],\n");
 	end;
-	output_string channel "\"names\":[],\n";
-	output_string channel "\"mappings\":\"";
-	Buffer.output_buffer channel smap.mappings;
-	output_string channel "\"\n";
-	output_string channel "}";
+	Buffer.add_string b "\"names\":[],\n";
+	Buffer.add_string b "\"mappings\":\"";
+	Buffer.add_string b (Buffer.sub smap.mappings 0 (Buffer.length smap.mappings));
+	Buffer.add_string b "\"\n";
+	Buffer.add_string b "}";
+	Buffer.contents b
+
+(* The source map, written next to the output as [<output>.map]. *)
+let write_mappings (com : Gctx.t) smap source_path_prefix =
+	let channel = open_out_bin (com.file ^ ".map") in
+	output_string channel (mappings_json com smap source_path_prefix);
 	close_out channel
+
+(* The source map as a data: URL, for a [sourceMappingURL] comment: base64, padded. *)
+let mappings_data_url (com : Gctx.t) smap source_path_prefix =
+	let json = mappings_json com smap source_path_prefix in
+	let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
+	let tbl = Array.init (String.length chars) (fun i -> String.get chars i) in
+	let encoded = Bytes.unsafe_to_string (Base64.str_encode ~tbl json) in
+	let padding = (4 - String.length encoded mod 4) mod 4 in
+	"data:application/json;charset=utf-8;base64," ^ encoded ^ String.make padding '='
