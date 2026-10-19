@@ -539,7 +539,8 @@
 	{
 		"name": "SourceMap",
 		"define": "source-map",
-		"doc": "Generate source map for compiled files. With the value `inline` (`-D source-map=inline`), the JS source map is written into the output as a data: URL instead of a separate .map file; other targets discard the value and write .map files as before.",
+		"doc": "Generate source map for compiled files.",
+		"params": ["mode: inline"],
 		"platforms": ["php", "js"]
 	},
 	{
