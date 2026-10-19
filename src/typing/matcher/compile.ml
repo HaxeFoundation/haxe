@@ -70,7 +70,7 @@ let get_sub_subjects mctx e con arg_positions =
 	| ConArray 0 -> []
 	| ConArray i ->
 		let get = match ExprToPattern.get_array_access mctx.ctx e.etype e.epos with
-			| Some aa -> (fun ei -> aa.aa_get e ei aa.aa_type e.epos)
+			| Some aa -> (fun ei -> TyperBase.make_array_get mctx.ctx aa e ei e.epos)
 			| None -> (fun ei -> Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos))
 		in
 		ExtList.List.init i (fun i ->
