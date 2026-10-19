@@ -18,12 +18,9 @@ class Test {
 			Sys.println('[Testing ${target.getName()}]');
 			collectCases().iter(module -> success = runCase(module, target) && success);
 		}
-		// the same cases with the map inside the JS output, as a data: URL: with -D source-map
-		// too (inline takes precedence), and on its own (it makes the map by itself)
-		Sys.println('[Testing Js with -D source-map and -D source-map-inline]');
-		collectCases().iter(module -> success = runCase(module, Js, ['-D', 'source-map-inline']) && success);
-		Sys.println('[Testing Js with -D source-map-inline alone]');
-		collectCases().iter(module -> success = runCase(module, Js, ['-D', 'source-map-inline'], false) && success);
+		// the same cases with the map inside the JS output, as a data: URL
+		Sys.println('[Testing Js with -D source-map=inline]');
+		collectCases().iter(module -> success = runCase(module, Js, ['-D', 'source-map=inline'], false) && success);
 
 		Sys.exit(success ? 0 : 1);
 	}

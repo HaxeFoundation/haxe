@@ -117,10 +117,10 @@ class Validator {
 		}
 
 		var code = sourceFile.getContent();
-		if(target == Js && Context.defined('source-map-inline')) {
+		if(target == Js && Context.definedValue('source-map') == 'inline') {
 			// the map is the last line's data: URL, and there's no .map file
 			if(sys.FileSystem.exists(mapFile)) {
-				throw new InvalidTargetException('-D source-map-inline also wrote $mapFile', (macro 0).pos);
+				throw new InvalidTargetException('-D source-map=inline also wrote $mapFile', (macro 0).pos);
 			}
 			return {code: code.split('\n'), map: getInlineSourceMap(sourceFile, code)};
 		}

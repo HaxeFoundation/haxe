@@ -539,7 +539,7 @@
 	{
 		"name": "SourceMap",
 		"define": "source-map",
-		"doc": "Generate source map for compiled files.",
+		"doc": "Generate source map for compiled files. With the value `inline` (`-D source-map=inline`), the JS source map is written into the output as a data: URL instead of a separate .map file; other targets discard the value and write .map files as before.",
 		"platforms": ["php", "js"]
 	},
 	{
@@ -756,12 +756,6 @@
 		"name": "SourceMapContent",
 		"define": "source-map-content",
 		"doc": "Include the Haxe sources as part of the JS source map.",
-		"platforms": ["js"]
-	},
-	{
-		"name": "SourceMapInline",
-		"define": "source-map-inline",
-		"doc": "Write the JS source map into the output as a data: URL, not to a separate .map file. Takes precedence over `-D source-map`, and needs no other source map define.",
 		"platforms": ["js"]
 	},
 	{
