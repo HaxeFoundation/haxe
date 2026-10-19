@@ -540,6 +540,7 @@
 		"name": "SourceMap",
 		"define": "source-map",
 		"doc": "Generate source map for compiled files.",
+		"params": ["mode: inline"],
 		"platforms": ["php", "js"]
 	},
 	{

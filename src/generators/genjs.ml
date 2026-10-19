@@ -1985,6 +1985,10 @@ let generate js_gen com =
 	);
 
 	(match ctx.smap with
+	| Some smap when Gctx.defined_value_safe com Define.SourceMap = "inline" ->
+		(* the map inside the output: no .map file, and none left from an earlier build *)
+		(try Sys.remove (com.file ^ ".map") with _ -> ());
+		print ctx "\n//# sourceMappingURL=%s" (mappings_data_url ctx.com smap "file:///");
 	| Some smap ->
 		write_mappings ctx.com smap "file:///";
 		let basefile = Filename.basename com.file in
