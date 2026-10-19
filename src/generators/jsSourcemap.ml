@@ -23,7 +23,7 @@ open Type
 type sourcemap = {
 	sources : (string) DynArray.t;
 	sources_hash : (string, int) Hashtbl.t;
-	mappings : Rbuffer.t;
+	mappings : Buffer.t;
 
 	mutable source_last_pos : sourcemap_pos;
 	mutable print_comma : bool;
@@ -40,7 +40,7 @@ and sourcemap_pos = {
 
 let encode_mapping smap pos =
 	if smap.print_comma then
-		Rbuffer.add_char smap.mappings ','
+		Buffer.add_char smap.mappings ','
 	else
 		smap.print_comma <- true;
 
@@ -67,7 +67,7 @@ let encode_mapping smap pos =
 			let continuation_bit = base in
 			let digit = vlq land mask in
 			let next = vlq asr shift in
-			Rbuffer.add_char smap.mappings (encode_digit (
+			Buffer.add_char smap.mappings (encode_digit (
 				if next > 0 then digit lor continuation_bit else digit));
 			if next > 0 then loop next else ()
 		in
@@ -118,7 +118,7 @@ let handle_newlines smap str =
 		let rec loop from =
 			try begin
 				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char smap.mappings ';';
+				Buffer.add_char smap.mappings ';';
 				smap.output_last_col <- 0;
 				smap.output_current_col <- 0;
 				smap.print_comma <- false;
@@ -152,7 +152,7 @@ let mappings_json (com : Gctx.t) smap source_path_prefix =
 	end;
 	Buffer.add_string b "\"names\":[],\n";
 	Buffer.add_string b "\"mappings\":\"";
-	Buffer.add_string b (Rbuffer.sub smap.mappings 0 (Rbuffer.length smap.mappings));
+	Buffer.add_string b (Buffer.sub smap.mappings 0 (Buffer.length smap.mappings));
 	Buffer.add_string b "\"\n";
 	Buffer.add_string b "}";
 	Buffer.contents b

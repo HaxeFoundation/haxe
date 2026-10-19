@@ -26,7 +26,7 @@ open JsSourcemap
 
 type ctx = {
 	com : Gctx.t;
-	buf : Rbuffer.t;
+	buf : Buffer.t;
 	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
@@ -150,33 +150,33 @@ let flush ctx =
 			ctx.chan <- Some chan;
 			chan
 	in
-	Rbuffer.output_buffer chan ctx.buf;
-	Rbuffer.clear ctx.buf
+	Buffer.output_buffer chan ctx.buf;
+	Buffer.clear ctx.buf
 
 let spr ctx s =
 	ctx.separator <- false;
 	handle_newlines ctx.smap s;
-	Rbuffer.add_string ctx.buf s
+	Buffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
 		handle_newlines ctx.smap s;
-		Rbuffer.add_string ctx.buf s
+		Buffer.add_string ctx.buf s
 	end)
 
 let newline ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' | '{' | ':' | ';' when not ctx.separator -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let newprop ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx "\n%s," ctx.tabs
 
 let semicolon ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
 
@@ -1602,7 +1602,7 @@ let alloc_ctx com es_version =
 				output_current_col = 0;
 				sources = DynArray.create();
 				sources_hash = Hashtbl.create 0;
-				mappings = Rbuffer.create 16;
+				mappings = Buffer.create 16;
 				current_expr = None;
 			}
 		else
@@ -1610,7 +1610,7 @@ let alloc_ctx com es_version =
 	in
 	let ctx = {
 		com = com;
-		buf = Rbuffer.create 16000;
+		buf = Buffer.create 16000;
 		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
@@ -1649,8 +1649,8 @@ let alloc_ctx com es_version =
 
 let gen_single_expr ctx e expr =
 	if expr then gen_expr ctx e else gen_value ctx e;
-	let str = Rbuffer.unsafe_contents ctx.buf in
-	Rbuffer.reset ctx.buf;
+	let str = Buffer.contents ctx.buf in
+	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;
 	str
 
