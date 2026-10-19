@@ -51,6 +51,55 @@ let unify_type_pattern ctx mt t p =
 		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
 		| _ -> die "" __LOC__
 
+let catch_errors ctx p =
+	let old = ctx.com.error_ext in
+	let restore_report_mode = disable_report_mode ctx.com in
+	ctx.com.error_ext <- (fun err ->
+		let ep = err.err_pos in
+		(* The error might not actually come from here, let's check the position (issue #12098). *)
+		if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then
+			old err
+		else
+			raise Exit
+	);
+	(fun () ->
+		restore_report_mode();
+		ctx.com.error_ext <- old
+	)
+
+(* Array patterns also apply to values which have an Int `length` field and an array read access
+   with Int keys (#8012). If values of type `t` qualify, this returns the element type, which is the
+   type of `e[i]`. The matcher switches on `e.length` and reads the elements as `e[i]`, so both are
+   typed here as they are typed there. *)
+let get_array_like_element_type ctx t p =
+	match follow t with
+	| TInst _ | TAbstract _ ->
+		let old_untyped = ctx.f.untyped in
+		ctx.f.untyped <- false;
+		let restore_errors = catch_errors ctx p in
+		let restore () =
+			restore_errors();
+			ctx.f.untyped <- old_untyped
+		in
+		begin try
+			let e = mk (TConst TNull) t p in
+			let e_length = type_field_access ctx ~resume:true e "length" in
+			if not (ExtType.is_int (follow e_length.etype)) then raise Exit;
+			let e_index = Texpr.Builder.make_int ctx.com.basic 0 p in
+			let e_element = Calls.acc_get ctx (Calls.array_access ctx e e_index MGet p) in
+			restore();
+			Some e_element.etype
+		with
+		| Exit | Not_found | Error _ | WithTypeError _ ->
+			restore();
+			None
+		| exc ->
+			restore();
+			raise exc
+		end
+	| _ ->
+		None
+
 let rec make pctx toplevel t e =
 	let ctx = pctx.ctx in
 	let p = pos e in
@@ -141,26 +190,10 @@ let rec make pctx toplevel t e =
 	let display_mode () =
 		if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 	in
-	let catch_errors p =
-		let old = ctx.com.error_ext in
-		let restore_report_mode = disable_report_mode ctx.com in
-		ctx.com.error_ext <- (fun err ->
-			let ep = err.err_pos in
-			(* The error might not actually come from here, let's check the position (issue #12098). *)
-			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then
-				old err
-			else
-				raise Exit
-		);
-		(fun () ->
-			restore_report_mode();
-			ctx.com.error_ext <- old
-		)
-	in
 	let try_typing e =
 		let old = ctx.f.untyped in
 		ctx.f.untyped <- true;
-		let restore = catch_errors (pos e) in
+		let restore = catch_errors ctx (pos e) in
 		let e = try
 			type_expr ctx e (WithType.with_type t)
 		with exc ->
@@ -182,7 +215,7 @@ let rec make pctx toplevel t e =
 			try_typing (EConst (Ident s),p)
 		with
 		| Exit | Bad_pattern _ ->
-			let restore = catch_errors p in
+			let restore = catch_errors ctx p in
 			begin try
 				let mt = module_type_of_type t in
 				let e_mt = TyperBase.type_module_type ctx mt p in
@@ -297,6 +330,12 @@ let rec make pctx toplevel t e =
 				| Bad_pattern s -> raise_typing_error s p
 			end
 		| EArrayDecl el ->
+			let array_pattern t2 =
+				let patterns = ExtList.List.mapi (fun i e ->
+					make pctx false t2 e
+				) el in
+				PatConstructor(con_array (List.length patterns) (pos e),patterns)
+			in
 			let rec pattern seen t = match follow t with
 				| TFun(tl,tr) when tr == fake_tuple_type ->
 					let rec loop el tl = match el,tl with
@@ -308,21 +347,26 @@ let rec make pctx toplevel t e =
 						| (_,p) :: _,[] -> raise_typing_error "Too many arguments" p
 					in
 					let patterns = loop el tl in
-					PatTuple patterns
+					Some (PatTuple patterns)
 				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
-					let patterns = ExtList.List.mapi (fun i e ->
-						make pctx false t2 e
-					) el in
-					PatConstructor(con_array (List.length patterns) (pos e),patterns)
+					Some (array_pattern t2)
 				| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 					begin match TyperBase.get_abstract_froms ctx a tl with
 						| [(_,t2)] -> pattern (t :: seen) t2
-						| _ -> fail()
+						| _ -> None
 					end
 				| _ ->
-					fail()
+					None
 			in
-			pattern [] t
+			begin match pattern [] t with
+			| Some pat ->
+				pat
+			| None ->
+				begin match get_array_like_element_type ctx t p with
+				| Some t2 -> array_pattern t2
+				| None -> fail()
+				end
+			end
 		| EObjectDecl fl ->
 			let known_fields = ref [] in
 			let collect_field cf t filter =	match filter with

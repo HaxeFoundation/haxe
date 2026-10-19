@@ -158,6 +158,14 @@ let all_ctors ctx e cases =
 			SKValue,Infinite
 	in
 	let kind,finiteness = loop false t in
+	(* Array patterns on values which are not arrays but have a length and an array read access (#8012). *)
+	let kind,finiteness = match kind,cases with
+		| (SKValue | SKEnum),{sc_con = (ConArray _,_)} :: _ when ExprToPattern.get_array_like_element_type ctx t e.epos <> None ->
+			Compile.ConTable.reset h;
+			SKLength,Infinite
+		| _ ->
+			kind,finiteness
+	in
 	let compatible_kind con = match fst con with
 		| ConEnum _ -> kind = SKEnum
 		| ConArray _ -> kind = SKLength

@@ -1,0 +1,7 @@
+Main.hx:53: characters 9-12 : Unrecognized pattern: [a]
+Main.hx:57: characters 9-12 : Unrecognized pattern: [a]
+Main.hx:61: characters 9-12 : Unrecognized pattern: [a]
+Main.hx:65: characters 9-12 : Unrecognized pattern: [a]
+Main.hx:69: characters 9-12 : Unrecognized pattern: [a]
+Main.hx:75: characters 4-15 : Incompatible pattern
+Main.hx:78: characters 18-19 : Unmatched patterns: _
