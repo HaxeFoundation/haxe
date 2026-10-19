@@ -79,29 +79,12 @@ module IterationKind = struct
 		it_expr : texpr;
 	}
 
-	(* How values of a type can be accessed by index: the element type, how to read the element at an index and how
-	   to read the length. Array patterns use this as well (#8012). *)
-	type array_access = {
-		aa_type : Type.t;
-		aa_get : texpr -> texpr -> Type.t -> pos -> texpr;
-		aa_length : texpr -> pos -> texpr;
-	}
-
 	let type_field_config = {
 		(Fields.TypeFieldConfig.create true) with
 		allow_resolve = false;
 		allow_dynamic = false;
 		allow_open_mono = false;
 	}
-
-	let get_next_array_element arr iexpr pt p =
-		(mk (TArray (arr,iexpr)) pt p)
-
-	let mk_field e n =
-		TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
-
-	let get_array_length ctx arr p =
-		mk (mk_field arr "length") ctx.com.basic.tint p
 
 	let try_iterator_unification ctx e =
 		let pt = spawn_monomorph ctx e.epos in
@@ -194,43 +177,6 @@ module IterationKind = struct
 			| None ->
 				if resume then raise Not_found;
 				cannot_iterate_on ctx.com e
-
-	let get_array_access ctx t p =
-		match follow t with
-		| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
-			{ aa_type = apply_params c.cl_params pl pt; aa_get = get_next_array_element; aa_length = get_array_length ctx }
-		| TAbstract({a_impl = Some c} as a,tl) ->
-			let cf_length = PMap.find "get_length" c.cl_statics in
-			let get_length e p =
-				CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
-			in
-			(match follow cf_length.cf_type with
-				| TFun(_,tr) ->
-					(match follow tr with
-						| TAbstract({a_path = [],"Int"},_) -> ()
-						| _ -> raise Not_found
-					)
-				| _ ->
-					raise Not_found
-			);
-			(try
-				(* first try: do we have an @:arrayAccess getter field? *)
-				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
-				let get_next e_base e_index t p =
-					CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] r p
-				in
-				{ aa_type = r; aa_get = get_next; aa_length = get_length }
-			with Not_found ->
-				(* second try: do we have @:arrayAccess on the abstract itself? *)
-				if not (Meta.has Meta.ArrayAccess a.a_meta) then raise Not_found;
-				(* let's allow this only for core-type abstracts *)
-				if not (Meta.has Meta.CoreType a.a_meta) then raise Not_found;
-				(* in which case we assume that a singular type parameter is the element type *)
-				let t = match tl with [t] -> t | _ -> raise Not_found in
-				{ aa_type = t; aa_get = get_next_array_element; aa_length = get_length }
-			)
-	 	| _ -> raise Not_found
 
 	let of_texpr_by_array_access ctx e p =
 		let aa = get_array_access ctx e.etype p in
@@ -358,6 +304,9 @@ module IterationKind = struct
 		let e1,pt = iterator.it_expr,iterator.it_type in
 		let t_void = ctx.t.tvoid in
 		let t_int = ctx.t.tint in
+		let mk_field e n =
+			TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
+		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
 			index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;

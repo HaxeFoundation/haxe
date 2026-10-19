@@ -70,7 +70,7 @@ let get_array_access ctx t p =
 	if is_array [] t then
 		None
 	else try
-		Some (ForLoop.IterationKind.get_array_access ctx t p)
+		Some (TyperBase.get_array_access ctx t p)
 	with Not_found ->
 		None
 
