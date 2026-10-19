@@ -4,14 +4,9 @@ open Case
 open Bind
 open MatcherGlobals
 
-type type_finiteness =
-	| Infinite          (* type has inifite constructors (e.g. Int, String) *)
-	| CompileTimeFinite (* type is considered finite only at compile-time but has inifite possible run-time values (enum abstracts) *)
-	| RunTimeFinite     (* type is truly finite (Bool, enums) *)
-
 type t =
 	| Leaf of Case.t
-	| Switch of texpr * switch_case list * dt
+	| Switch of Subject.t * switch_case list * dt
 	| Bind of bind list * dt
 	| Guard of texpr * dt * dt
 	| GuardNull of texpr * dt * dt
@@ -80,8 +75,8 @@ let to_string dt =
 		match dt.dt_t with
 		| Leaf case ->
 			print_case_expr tabs case
-		| Switch(e,cases,dt) ->
-			add_line tabs (Printf.sprintf "switch (%s)" (s_expr tabs e));
+		| Switch(subject,cases,dt) ->
+			add_line tabs (Printf.sprintf "switch %s (%s)" (Subject.s_match_kind subject.s_kind) (s_expr tabs subject.s_expr));
 			List.iter (fun sc ->
 				add_line (tabs ^ tab_string) "case ";
 				add (Constructor.to_string sc.sc_con);
@@ -137,7 +132,8 @@ let equal dt1 dt2 = match dt1,dt2 with
 	| Leaf case1,Leaf case2 ->
 		case1 == case2
 	| Switch(subject1,cases1,dt1),Switch(subject2,cases2,dt2) ->
-		Texpr.equal subject1 subject2 &&
+		(* What the switch makes of the subject follows from its expression and the cases. *)
+		Texpr.equal subject1.s_expr subject2.s_expr &&
 		Ast.safe_for_all2 (fun sc1 sc2 -> Constructor.equal sc1.sc_con sc2.sc_con && sc1.sc_unguarded = sc2.sc_unguarded && equal_dt sc1.sc_dt sc2.sc_dt) cases1 cases2 &&
 		equal_dt dt1 dt2
 	| Bind(l1,dt1),Bind(l2,dt2) ->
@@ -150,4 +146,8 @@ let equal dt1 dt2 = match dt1,dt2 with
 	| _ ->
 		false
 
-let hash = Hashtbl.hash
+let hash dt = match dt with
+	| Switch(subject,cases,dt) ->
+		Hashtbl.hash (subject.s_expr,cases,dt)
+	| _ ->
+		Hashtbl.hash dt

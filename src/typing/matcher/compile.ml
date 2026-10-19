@@ -36,12 +36,12 @@ let hashcons mctx dt p =
 
 let leaf mctx case = hashcons mctx (Leaf case) case.case_pos
 let fail mctx p = hashcons mctx Fail p
-let switch mctx subject cases default = hashcons mctx (Switch(subject,cases,default)) subject.epos
+let switch mctx subject cases default = hashcons mctx (Switch(subject,cases,default)) subject.s_expr.epos
 let bind mctx bindings dt = hashcons mctx (Bind(bindings,dt)) dt.dt_pos
 let guard mctx e dt1 dt2 = hashcons mctx (Guard(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
-let get_sub_subjects mctx e con arg_positions =
+let get_sub_subjects mctx s e con arg_positions =
 	match fst con with
 	| ConEnum(en,ef) ->
 		let tl = Monomorph.spawn_constrained_monos (fun t -> t) en.e_params in
@@ -69,9 +69,9 @@ let get_sub_subjects mctx e con arg_positions =
 		List.map (fun s -> s,ExprToPattern.type_field_access mctx.ctx e s) sl
 	| ConArray 0 -> []
 	| ConArray i ->
-		let get = match ExprToPattern.get_array_access mctx.ctx e.etype e.epos with
-			| Some aa -> (fun ei -> ArrayAccess.make_array_get mctx.ctx aa e ei e.epos)
-			| None -> (fun ei -> Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos))
+		let get = match s#get_index_access mctx.ctx with
+			| IndexAccess aa -> (fun ei -> ArrayAccess.make_array_get mctx.ctx aa e ei e.epos)
+			| IndexArray -> (fun ei -> Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos))
 		in
 		ExtList.List.init i (fun i ->
 			let ei = Texpr.Builder.make_int mctx.ctx.com.basic i e.epos in
@@ -211,12 +211,12 @@ and compile_leaf mctx subjects (case,bindings,patterns) cases =
 	if bindings = [] then dt else bind mctx (List.rev bindings) dt
 
 and compile_switch mctx subjects cases =
-	let subject,subjects = match subjects with
+	let s,subjects = match subjects with
 		| [] -> raise Internal_match_failure
-		| subject :: subjects -> subject,subjects
+		| s :: subjects -> s,subjects
 	in
-	let switch_subject,reset_subject = subject#get_scoped_expr in
-	let subject = subject#get_expr in
+	let switch_subject,reset_subject = s#get_scoped_expr in
+	let subject = s#get_expr in
 	let get_column_sigma cases =
 		let sigma = ConTable.create 0 in
 		let unguarded = ConTable.create 0 in
@@ -246,7 +246,7 @@ and compile_switch mctx subjects cases =
 	let sigma,null = get_column_sigma cases in
 	if mctx.match_debug then print_endline (Printf.sprintf "compile_switch:\n\tsubject: %s\n\ttsubjects: %s\n\tcases: %s" (s_expr_pretty subject) (s_subjects subjects) (s_cases cases));
 	let switch_cases = List.map (fun (con,unguarded,arg_positions) ->
-		let sub_subjects = get_sub_subjects mctx subject con arg_positions in
+		let sub_subjects = get_sub_subjects mctx s subject con arg_positions in
 		let rec loop bindings locals sub_subjects = match sub_subjects with
 			| (name,e) :: sub_subjects ->
 				let v = add_local mctx.ctx VGenerated (Printf.sprintf "%s%s" gen_local_prefix name) e.etype e.epos in
@@ -274,7 +274,7 @@ and compile_switch mctx subjects cases =
 	let (subject_null,subject_switch,subject_default),reset_subject =
 		let subjects = match null with
 			| [] ->
-				if is_explicit_null_or_abstract_over_that subject.etype then
+				if s#is_nullable then
 					switch_subject,subject,subject
 				else begin match switch_cases with
 				| [] ->
@@ -289,13 +289,13 @@ and compile_switch mctx subjects cases =
 	in
 	let default = default subject_default cases in
 	let switch_default = compile mctx subjects default in
-	let dt = if switch_cases = [] then switch_default else switch mctx subject_switch switch_cases switch_default in
+	let dt = if switch_cases = [] then switch_default else switch mctx (Subject.make mctx.ctx s subject_switch (List.map (fun sc -> sc.sc_con) switch_cases)) switch_cases switch_default in
 	let null_guard dt_null =
 		guard_null mctx subject_null dt_null dt
 	in
 	let dt = match null with
 		| [] ->
-			if is_explicit_null_or_abstract_over_that subject.etype then null_guard switch_default else dt
+			if s#is_nullable then null_guard switch_default else dt
 		| cases ->
 			let dt_null = compile mctx subjects (cases @ default) in
 			null_guard dt_null
@@ -410,7 +410,7 @@ let compile ctx match_debug subjects cases p =
 	begin match cases,subjects with
 	| [],(subject :: _) ->
 		let dt_fail = fail mctx subject#get_pos in
-		switch mctx subject#get_expr [] dt_fail
+		switch mctx (Subject.make ctx subject subject#get_expr []) [] dt_fail
 	| _ ->
 		let dt = compile mctx subjects cases in
 		Useless.check mctx.ctx cases;

@@ -53,12 +53,7 @@ let unify_type_pattern ctx mt t p =
 
 (* Array patterns apply to values which can be accessed by index (#8012), and to abstracts with a single `from` type
    leading to an array or to Dynamic, whose patterns are typed against the `from` type. This returns how to access
-   them, or None if values of type `t` can't be accessed by index.
-
-   TODO: this is looked up for each array pattern here, then again for the same subject when compile.ml reads its
-   elements and twice in texprConverter.ml. The decision tree stores a switch subject as a plain texpr, so what the
-   subject is and how it is accessed is lost after pattern typing (which can't keep it: patterns are typed against
-   per-case types). A subject that carries this would avoid the repeated lookups; see the discussion in #13070. *)
+   them, or None if values of type `t` can't be accessed by index. *)
 let get_array_access ctx t p =
 	try
 		Some (ArrayAccess.get_array_access ctx t p)
