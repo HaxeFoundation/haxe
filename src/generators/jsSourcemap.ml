@@ -23,7 +23,7 @@ open Type
 type sourcemap = {
 	sources : (string) DynArray.t;
 	sources_hash : (string, int) Hashtbl.t;
-	mappings : Rbuffer.t;
+	mappings : Buffer.t;
 
 	mutable source_last_pos : sourcemap_pos;
 	mutable print_comma : bool;
@@ -40,7 +40,7 @@ and sourcemap_pos = {
 
 let encode_mapping smap pos =
 	if smap.print_comma then
-		Rbuffer.add_char smap.mappings ','
+		Buffer.add_char smap.mappings ','
 	else
 		smap.print_comma <- true;
 
@@ -67,7 +67,7 @@ let encode_mapping smap pos =
 			let continuation_bit = base in
 			let digit = vlq land mask in
 			let next = vlq asr shift in
-			Rbuffer.add_char smap.mappings (encode_digit (
+			Buffer.add_char smap.mappings (encode_digit (
 				if next > 0 then digit lor continuation_bit else digit));
 			if next > 0 then loop next else ()
 		in
@@ -118,7 +118,7 @@ let handle_newlines smap str =
 		let rec loop from =
 			try begin
 				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char smap.mappings ';';
+				Buffer.add_char smap.mappings ';';
 				smap.output_last_col <- 0;
 				smap.output_current_col <- 0;
 				smap.print_comma <- false;
@@ -151,7 +151,7 @@ let write_mappings (com : Gctx.t) smap source_path_prefix =
 	end;
 	output_string channel "\"names\":[],\n";
 	output_string channel "\"mappings\":\"";
-	Rbuffer.output_buffer channel smap.mappings;
+	Buffer.output_buffer channel smap.mappings;
 	output_string channel "\"\n";
 	output_string channel "}";
 	close_out channel

@@ -385,7 +385,7 @@ let display_messages_from defines messages ~set_error on_message = begin
 
 	if !log_messages then begin
 		try begin
-			let buf = Rbuffer.create 16000 in
+			let buf = Buffer.create 16000 in
 
 			let file = Define.defined_value defines Define.MessageLogFile in
 			let chan =
@@ -396,11 +396,11 @@ let display_messages_from defines messages ~set_error on_message = begin
 			log_message := (Some (fun msg ->
 				match (log_formatter ectx msg) with
 					| None -> ()
-					| Some str -> Rbuffer.add_string buf (str ^ "\n")));
+					| Some str -> Buffer.add_string buf (str ^ "\n")));
 
 			close_logs := (Some (fun () ->
-				Rbuffer.output_buffer chan buf;
-				Rbuffer.clear buf;
+				Buffer.output_buffer chan buf;
+				Buffer.clear buf;
 				close_out chan
 			));
 		end with

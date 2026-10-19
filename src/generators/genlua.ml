@@ -2013,7 +2013,7 @@ let alloc_ctx com =
 				output_current_col = 0;
 				sources = DynArray.create();
 				sources_hash = Hashtbl.create 0;
-				mappings = Rbuffer.create 16;
+				mappings = Buffer.create 16;
 				current_expr = None;
 			}
 		else
