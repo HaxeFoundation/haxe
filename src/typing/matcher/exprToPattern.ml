@@ -54,7 +54,12 @@ let unify_type_pattern ctx mt t p =
 (* Array patterns apply to arrays, Dynamic and abstracts with a single `from` type leading to one of those. Other values
    can be matched by array patterns if they can be accessed by index like in `for` loops, and their length and elements
    are then read the same way (#8012). This returns how to access them, or None for values of the former types and for
-   values which can't be accessed by index. *)
+   values which can't be accessed by index.
+
+   TODO: this is looked up for each array pattern here, then again for the same subject when compile.ml reads its
+   elements and twice in texprConverter.ml. The decision tree stores a switch subject as a plain texpr, so what the
+   subject is and how it is accessed is lost after pattern typing (which can't keep it: patterns are typed against
+   per-case types). A subject that carries this would avoid the repeated lookups; see the discussion in #13070. *)
 let get_array_access ctx t p =
 	let rec is_array seen t = match follow t with
 		| TInst({cl_path=[],"Array"},[_]) | TDynamic _ ->
