@@ -1,6 +1,5 @@
 # Plan phase 3.3: reading another type's metadata without forcing its build
 # returns the declared metadata only; after Context.buildType, the complete one.
-@known-failure Haxe 6 semantics (plan phase 3.3)
 === initial
 @expect-output declared:false built:true
 --- Main.hx
@@ -14,7 +13,7 @@ class Main {
 class Target {}
 --- Builder.hx
 class Builder {
-	public static function addMeta() {
+	public static function addMeta():Array<haxe.macro.Expr.Field> {
 		haxe.macro.Context.getLocalClass().get().meta.add(":built", [], haxe.macro.Context.currentPos());
 		return null;
 	}

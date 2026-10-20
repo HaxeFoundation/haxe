@@ -903,6 +903,18 @@ this compiler). In the corpus, two readers of build-added metadata needed
 `Context.buildType`: hxsl's `loadShader` (`:src`, Heaps) and hide's
 `hrt.shgraph.Macros.loadShader`; the JS output of Heaps and hide is
 identical before and after.
+`ClassField.expr()` on a field whose body is being typed (the field itself,
+or a field on the typing stack) is a cycle error (`Cycle detected while
+typing: a macro reads the body of copy, which is being typed`), instead of
+returning `null`. The functions deciding these views belong to the API of the
+running expansion (`compiler_api`), installed for the duration of each macro
+call, so that a nested expansion (a build macro run by `Context.getType`)
+does not leave its own view behind. Virtual file names of macro-defined
+modules are now the module path alone (`<pack>/<name>`), without the
+compilation step, so that warm and cold compilations report the same file.
+The `tests/incremental` cases `build-macro-cycle`, `meta-read-without-build`,
+`macro-field-expr-cycle` and `define-type-two-owners` pass and are no longer
+marked as known failures.
 
 **Status: `sig` no longer demands `body`.** A field whose type is fully known
 from its declaration (all argument and return types annotated, typed by a
@@ -963,9 +975,9 @@ cycle because reading `addNode` typed its body inside the inference of
     structure, with collisions ordered by stable key.
 
 **Status (first items).**
-- Virtual file names of macro-defined modules are `<pack>/<name>_<step>`:
-  the global counter is removed (a module path is defined at most once per
-  context and compilation step).
+- Virtual file names of macro-defined modules are `<pack>/<name>`: the
+  global counter and the compilation step are removed (a module path is
+  defined at most once per context).
 - `Compiler.include` sorts each directory listing.
 - Monomorphs in messages are already numbered per message (print context).
 - "Did you mean" suggestions only use the fields of a type or the types of a

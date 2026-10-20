@@ -1,5 +1,4 @@
 # Plan phase 3.3: two build macros reading each other's members form a cycle.
-@known-failure Haxe 6 semantics (plan phase 3.3)
 === initial
 @expect-error Cycle detected
 --- Main.hx

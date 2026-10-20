@@ -50,6 +50,15 @@ type 'value compiler_api = {
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> 'value;
+	(* docs/incremental-compilation.md, phase 3: a macro reading a class whose
+	   build is not finished (a cycle error unless it is the class being built),
+	   whether the expansion sees a class's complete metadata, a macro reading
+	   the typed body of a field, and reading the declared metadata of a class
+	   that has build macros (-D macro-meta-check) *)
+	partially_built_class_read : tclass -> unit;
+	class_built_by_expansion : tclass -> bool;
+	field_body_read : tclass_field -> unit;
+	declared_meta_read : tclass -> unit;
 	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
@@ -108,6 +117,10 @@ let null_api () = {
 	get_local_using = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
 	get_local_vars = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
 	get_build_fields = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	partially_built_class_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	class_built_by_expansion = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	field_body_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	declared_meta_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	define_type = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	define_module = (fun _ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	module_dependency = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
@@ -254,22 +267,29 @@ let haxe_float f p =
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
 
-(* Called when a macro reads a class whose build is not finished: a cycle
-   error, unless it is the class being built by the running build macro. *)
-let partially_built_class_read_hook : (tclass -> unit) ref = ref (fun _ -> ())
+(* The functions of the API of the running macro expansion used by the
+   encoders (see compiler_api); [with_current_api] installs them. *)
+let current_partially_built_class_read : (tclass -> unit) ref = ref (fun _ -> ())
+let current_class_built_by_expansion : (tclass -> bool) ref = ref (fun _ -> true)
+let current_field_body_read : (tclass_field -> unit) ref = ref (fun _ -> ())
+let current_declared_meta_read : (tclass -> unit) ref = ref (fun _ -> ())
 
-(* Tells whether the running macro expansion sees the complete metadata of a
-   class (docs/incremental-compilation.md, §3.3): the class it builds, or a
-   class whose build it forced with [Context.buildType]. Other classes expose
-   their declared metadata, whatever has been built so far. *)
-let class_built_by_expansion_hook : (tclass -> bool) ref = ref (fun _ -> true)
+let with_current_api api f =
+	let old = (!current_partially_built_class_read,!current_class_built_by_expansion,!current_field_body_read,!current_declared_meta_read) in
+	current_partially_built_class_read := api.partially_built_class_read;
+	current_class_built_by_expansion := api.class_built_by_expansion;
+	current_field_body_read := api.field_body_read;
+	current_declared_meta_read := api.declared_meta_read;
+	Std.finally (fun () ->
+		let (a,b,c,d) = old in
+		current_partially_built_class_read := a;
+		current_class_built_by_expansion := b;
+		current_field_body_read := c;
+		current_declared_meta_read := d
+	) f ()
 
 (* The classes whose build the running macro expansion forced. *)
 let expansion_built : tclass list ref = ref []
-
-(* Called when a macro reads the declared metadata of a class that has build
-   macros (-D macro-meta-check). *)
-let declared_meta_read_hook : (tclass -> unit) ref = ref (fun _ -> ())
 
 module MacroApiImpl(InterpImpl:InterpApi) = struct
 
@@ -1188,6 +1208,7 @@ and encode_cfield f =
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
+			!current_field_body_read f;
 			force_field_body f;
 			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
 		);
@@ -1251,13 +1272,13 @@ and encode_tclass c =
 	let build () =
 		match c.cl_build() with
 		| Built -> ()
-		| _ -> !partially_built_class_read_hook c
+		| _ -> !current_partially_built_class_read c
 	in
 	let meta = match c.cl_header_meta with
-		| Some declared when not (!class_built_by_expansion_hook c) ->
+		| Some declared when not (!current_class_built_by_expansion c) ->
 			(* additions and removals go to the class's metadata as well *)
 			let view = ref declared in
-			encode_meta ~on_read:(fun () -> !declared_meta_read_hook c) declared (fun m ->
+			encode_meta ~on_read:(fun () -> !current_declared_meta_read c) declared (fun m ->
 				let added = List.filter (fun e -> not (List.memq e !view)) m in
 				let removed = List.filter (fun e -> not (List.memq e m)) !view in
 				let update l = added @ List.filter (fun e -> not (List.memq e removed)) l in
@@ -2292,7 +2313,7 @@ let macro_api ccom get_api =
 					c.cl_build_header ();
 					begin match c.cl_build() with
 					| Built -> ()
-					| _ -> !partially_built_class_read_hook c
+					| _ -> !current_partially_built_class_read c
 					end;
 					expansion_built := c :: !expansion_built
 				| TAbstract({a_impl = Some c},_) ->

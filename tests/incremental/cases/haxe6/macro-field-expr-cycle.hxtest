@@ -1,7 +1,6 @@
 # Plan phase 3.3: `ClassField.expr()` demands the body of the field; reading
 # the body of the field currently being typed is a cycle error, reading
 # another field's body is a dependency.
-@known-failure Haxe 6 semantics (plan phase 3.3)
 === initial
 @expect-output 2
 --- Main.hx

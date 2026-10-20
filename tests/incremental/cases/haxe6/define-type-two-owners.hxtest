@@ -2,7 +2,6 @@
 # The error exists today, but its message contains the name of a virtual file
 # built from a global counter (`generate_virtual`), which differs between warm
 # and cold compilations (plan phase 3.4).
-@known-failure virtual file names of macro-defined modules contain a global counter
 === initial
 @expect-error Cannot redefine module Shared
 --- Main.hx

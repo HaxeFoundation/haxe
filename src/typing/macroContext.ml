@@ -233,6 +233,10 @@ let make_macro_com_api com mcom p =
 		get_build_fields = (fun() ->
 			bad_stage ()
 		);
+		partially_built_class_read = (fun _ -> ());
+		class_built_by_expansion = (fun _ -> true);
+		field_body_read = (fun _ -> ());
+		declared_meta_read = (fun _ -> ());
 		define_type = (fun v mdep ->
 			bad_stage ()
 		);
@@ -312,14 +316,18 @@ let make_macro_api ctx mctx p =
 		| Some (TClassDecl c',_,_) -> c == c'
 		| _ -> c == ctx.c.curclass
 	in
-	MacroApi.partially_built_class_read_hook := (fun c ->
+	let partially_built_class_read c =
 		if not (is_local_class c) then
 			TypeloadCheck.build_cycle_error_reason "a macro reads" c p
-	);
-	MacroApi.class_built_by_expansion_hook := (fun c ->
+	in
+	let class_built_by_expansion c =
 		is_local_class c || List.memq c !MacroApi.expansion_built
-	);
-	MacroApi.declared_meta_read_hook := (fun c ->
+	in
+	let field_body_read cf =
+		if List.exists (fun (_,_,cf',_) -> cf' == cf) !TypeloadFields.TypeBinding.fields_being_inferred then
+			raise_typing_error (Printf.sprintf "Cycle detected while typing: a macro reads the body of %s, which is being typed" cf.cf_name) p
+	in
+	let declared_meta_read c =
 		if Define.defined ctx.com.defines Define.MacroMetaCheck then begin
 			let rec has_build_macros c =
 				c.cl_build_header ();
@@ -330,7 +338,7 @@ let make_macro_api ctx mctx p =
 			if has_build_macros c then
 				warning ctx WTypingOrder (Printf.sprintf "Metadata of %s read before its build; call Context.buildType if build-added metadata is needed" (s_type_path c.cl_path)) p
 		end
-	);
+	in
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string (ParserConfig.default_config mctx.com.defines) Grammar.parse_meta s null_pos raise_typing_error false with
@@ -471,6 +479,10 @@ let make_macro_api ctx mctx p =
 		MacroApi.get_local_vars = (fun () ->
 			ctx.f.locals;
 		);
+		MacroApi.partially_built_class_read;
+		MacroApi.class_built_by_expansion;
+		MacroApi.field_body_read;
+		MacroApi.declared_meta_read;
 		MacroApi.get_build_fields = (fun() ->
 			match ctx.c.get_build_infos() with
 			| None -> Interp.vnull
@@ -844,7 +856,9 @@ let do_call_macro com api cpath name args p =
 	(* the classes whose build this expansion forces (Context.buildType) *)
 	let old_built = !MacroApi.expansion_built in
 	MacroApi.expansion_built := [];
-	let r = Std.finally (fun () -> MacroApi.expansion_built := old_built) (macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f) api in
+	let r = Std.finally (fun () -> MacroApi.expansion_built := old_built) (fun () ->
+		MacroApi.with_current_api api (fun () -> macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f api)
+	) () in
 	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ name);
 	r
 

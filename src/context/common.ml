@@ -117,11 +117,11 @@ class file_keys = object(self)
 			key
 
 	(* The file of a module defined by a macro. A module path is defined at most
-	   once per context and compilation step, so the name does not depend on
-	   the order in which macros define modules. *)
-	method generate_virtual mpath step =
+	   once per context, so the name does not depend on the order in which macros
+	   define modules, nor on the compilation (cold or through the server). *)
+	method generate_virtual mpath (_ : int) =
 		let base = match fst mpath with | [] -> "." | pack -> ExtLib.String.join "/" pack in
-		Printf.sprintf "%s/%s_%i" base (snd mpath) step
+		Printf.sprintf "%s/%s" base (snd mpath)
 
 end
 

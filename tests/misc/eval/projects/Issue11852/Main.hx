@@ -49,8 +49,8 @@ class Main {
 		}
 
 		// Check generated path for macro generated modules
-		check("TopLevelType_1");
-		check("foo/bar/DefinedType_1");
+		check("TopLevelType");
+		check("foo/bar/DefinedType");
 	}
 	#end
 }
