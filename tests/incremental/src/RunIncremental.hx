@@ -33,6 +33,7 @@ using StringTools;
 	  --verbose             print every compilation
 	  --show-known          print the errors of known failures
 	  --real-mtime          keep real modification times for every case (see @real-mtime)
+	  --args "<args>"        extra compiler arguments for every compilation
 **/
 class RunIncremental {
 	public static var haxeCmd = "haxe";
@@ -48,6 +49,7 @@ class RunIncremental {
 	static var verbose = false;
 	static var showKnown = false;
 	static var realMtime = false;
+	static var extraArgs:Array<String> = [];
 	static var root:String;
 	/** Fake clock for modification times, see `touchStep`. **/
 	static var clock:Float = Math.ffloor(Date.now().getTime() / 1000) + 10;
@@ -76,6 +78,8 @@ class RunIncremental {
 					showKnown = true;
 				case "--real-mtime":
 					realMtime = true;
+				case "--args":
+					extraArgs = extraArgs.concat(args[++i].split(" ").filter(s -> s != ""));
 				case other:
 					Sys.println('Unknown option $other');
 					Sys.exit(2);
@@ -277,7 +281,7 @@ class RunIncremental {
 			}
 		}
 		// The build file is regenerated for every step so that `@args` changes apply.
-		File.saveContent(Path.join([dir, "build.hxml"]), tc.hxmlFor(step, target));
+		File.saveContent(Path.join([dir, "build.hxml"]), tc.hxmlFor(step, target) + extraArgs.join("\n") + "\n");
 		return changed;
 	}
 

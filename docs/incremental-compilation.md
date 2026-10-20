@@ -229,8 +229,18 @@ Exit criterion: the harness runs in CI against the current server
 **Status.** Items 3, 4 and 5 are in place (scenario suite in CI, history
 replay, VFS statistics through `server/vfs` and `-v`). Item 1 (in-compiler
 verification mode) is covered by the two external harnesses until fingerprints
-exist (phase 4); item 2 (stale pointer checker) only makes sense with grafting
-(phase 2) and is built with it.
+exist (phase 4). Item 2 is in place: `-D incremental-check-refs`
+(`src/compiler/refCheck.ml`) reports every type, field or enum constructor
+reference that does not point to the object its module currently holds. Note
+that the server's default cache decodes cached modules from hxb on every
+compilation (new objects each time), so the check is meaningful with the
+in-memory cache (`-D disable-hxb-cache`), which is the storage chosen by the
+plan. `tests/incremental` can run in that mode with
+`--args "-D disable-hxb-cache -D incremental-check-refs"`: no stale reference
+is reported, and one pre-existing warm/cold difference appears
+(`macros/add-resource` on js: DCE drops `js.Boot` and every feature-dependent
+`__name__` on a module reused from memory), which belongs to phase 2, item 3
+(DCE flags and features stored in cached entities).
 
 **First replay** (last 30 commits of Heaps, compiled to JS with `include` of
 `h3d`, `h2d`, `hxsl`, `hxd`, with hxbit, domkit, castle and format):
