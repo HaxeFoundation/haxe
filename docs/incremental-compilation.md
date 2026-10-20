@@ -369,44 +369,6 @@ What is and is not a cycle:
     list.
   - Reading the members of the super class or of interfaces is not a cycle:
     it is a regular dependency (`members(Super)` is completed first).
-
-**Metadata is not split.** A type's metadata is a single set: declared
-metadata plus metadata added by its build macros. To guarantee that a macro
-always sees up-to-date metadata, **reading the metadata of another type
-triggers that type's build** (`members(T)`), like reading its fields.
-
-To avoid triggering builds when only header information is needed, the macro
-API's `ClassType` (and `EnumType`, `AbstractType`) becomes lazy:
-
-| Access | Demands |
-|---|---|
-| `Ref.get()`, `Ref.toString()`, `name`, `pack`, `module`, `pos`, `params`, `superClass`, `interfaces`, `kind`, `isInterface`, `isExtern`… | `header(T)` only, never a build |
-| `meta.get()`, `meta.has()`, `meta.extract()` | `members(T)`: the build is triggered and completed first |
-| `fields.get()`, `statics.get()`, `constructor.get()`, `init` | `members(T)` |
-| `cf.type` of a field, `overrides` | `members(T)` and `sig(f)` |
-
-Today `Ref.get()` always forces the build (`encode_tclass` calls `cl_build`
-in `src/macro/macroApi.ml`) but tolerates a type that is still building and
-returns its partial state. With lazy `ClassType`, only the accesses that need
-build output trigger it, and a type still building on the current query stack
-is a cycle error.
-
-`Context.buildType(t)` (or `ClassType.ensureBuilt()`) is added to trigger a
-build explicitly, replacing idioms such as `c.get(); // force build` (domkit)
-or `c.fields.get(); // force the build of the struct` (hlemu), which keep
-working but no longer need to be used for their side effect.
-
-Consequence for macros reading another type's metadata during their own
-build: two types whose build macros read each other's metadata form a cycle.
-For example, hxbit's `isSerializable` checks metadata before interfaces
-(`SERIALIZABLES.exists(path) || getClass(c).meta.has(":isSerializable") ||
-lookupInterface(c, "hxbit.Serializable")`): with `Player` holding
-`@:s var inventory : Inventory` and `Inventory` holding
-`@:s var owner : Player`, Player's build reads Inventory's metadata, which
-builds Inventory, which reads Player's metadata: cycle error. Checking
-interfaces first (header only) avoids it. Such fixes are identified by the
-cycle instrumentation (§ measuring before switching) and applied to the corpus
-libraries.
 - **Inferred signatures**: `sig(f)` demanding `sig(g)` demanding `sig(f)`
   (mutually recursive fields without annotations) is an error asking for an
   annotation on one of them. The only exception is a field referring to itself
@@ -416,6 +378,55 @@ libraries.
   ends (phase 1).
 - **Generic instances, abstracts, typedefs**: same rule, through `header` and
   `members` of the instance or underlying type.
+
+**Metadata is not split, and reading it does not trigger a build.** A type's
+metadata is a single set: declared metadata plus metadata added by its build
+macros. A macro can read another type's metadata without building it, or force
+the build first when it needs the metadata the build adds.
+
+For incremental compilation, a read must give the same answer whatever the
+order in which types happen to be built. "The metadata as it is right now"
+would differ between a cold compilation (the other type not built yet) and a
+warm one (built in a previous run). So the view a macro gets depends only on
+what *that macro* demanded:
+
+- **Without forcing the build**: the declared metadata (`header(T)`), even if
+  the type has already been built for another reason. Never a cycle.
+- **After forcing the build** (`Context.buildType(t)` in the same expansion):
+  the complete metadata, including what the build added (`members(T)`).
+  A type still building on the current query stack is a cycle error.
+
+The macro API's `ClassType` (and `EnumType`, `AbstractType`) becomes lazy so
+that header information never triggers a build:
+
+| Access | Demands |
+|---|---|
+| `Ref.get()`, `Ref.toString()`, `name`, `pack`, `module`, `pos`, `params`, `superClass`, `interfaces`, `kind`, `isInterface`, `isExtern`… | `header(T)` only, never a build |
+| `meta.get()`, `meta.has()`, `meta.extract()` | `header(T)`: declared metadata; complete metadata if the expansion forced the build |
+| `Context.buildType(t)` / `ClassType.ensureBuilt()` | `members(T)`: triggers and completes the build |
+| `fields.get()`, `statics.get()`, `constructor.get()`, `init` | `members(T)` (they need the build output anyway) |
+| `cf.type` of a field, `overrides` | `members(T)` and `sig(f)` |
+
+Behavior change: today `Ref.get()` always forces the build
+(`encode_tclass` calls `cl_build` in `src/macro/macroApi.ml`) and tolerates a
+type still building by returning its partial state. Code that relies on
+`get()` to force a build before reading build-added metadata must call
+`Context.buildType` instead:
+
+- hxsl `loadShader` (`heaps/hxsl/Macros.hx`) reads the `:src` metadata added
+  by the imported shader's build;
+- hxbit reads `:isProxy` (added by a struct's build) on field types;
+- domkit's `c.get(); // force build` before reading its components registry.
+
+Reading only declared metadata needs no change and never cycles: hxbit's
+`isSerializable` check of `:isSerializable` on `Inventory` while building
+`Player` (and the reverse) keeps working.
+
+To help migration, `-D macro-meta-check` warns when a macro reads the
+metadata of a type that has build macros (`@:build`, or `@:autoBuild` on an
+ancestor or interface, known from its header) without having forced its
+build: "metadata of `T` read before its build; call
+`Context.buildType` if build-added metadata is needed".
 
 The cycle error shows the full query stack, for example:
 
