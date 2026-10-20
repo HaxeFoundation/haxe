@@ -126,11 +126,17 @@ let clear () =
 (* File system watching. libuv is not thread-safe, so the watcher loop is only
    used from `begin_compilation`: directories to watch are queued meanwhile. *)
 module Watcher = struct
+	(* On macOS, libuv watches directories with FSEvents, which delivers events
+	   asynchronously with a latency: a change made shortly before a compilation
+	   can be missed by the non-blocking loop runs of [update]. Directories are
+	   revalidated on every compilation there instead (as unwatchable ones). *)
+	let is_macos = Sys.os_type = "Unix" && Sys.file_exists "/System/Library/CoreServices/SystemVersion.plist"
+
 	let loop_state = ref None
 	let get_loop () = match !loop_state with
 		| Some l -> l
 		| None ->
-			let l = match Luv.Loop.init () with
+			let l = if is_macos then None else match Luv.Loop.init () with
 				| Ok loop -> Some loop
 				| Error _ -> None
 			in

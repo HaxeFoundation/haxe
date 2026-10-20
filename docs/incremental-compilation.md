@@ -1148,7 +1148,10 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
 
 #### Virtual file system
 
-**Status (first version, `src/core/vfs.ml`).** Implemented:
+**Status (first version, `src/core/vfs.ml`).** On macOS, directories are revalidated on every
+compilation instead of being watched: FSEvents (used by libuv) delivers events
+asynchronously, and a change made a second before a compilation was missed
+(`Issue13051` server test on the macOS CI). Implemented:
 - server-wide cache of file information (kind, full precision modification
   time, size) and sorted directory listings, keyed by absolute paths;
 - libuv `fs_event` watchers on every directory the compiler reads, started at
