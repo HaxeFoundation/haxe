@@ -3,4 +3,5 @@
 
 .gitattributes export-ignore
 .gitignore export-ignore
-*.sh		eol=lf
+*.sh		eol=lf# third-party patches keep the line endings of the files they patch
+tests/runci/patches/*.patch -text
