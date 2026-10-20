@@ -12,7 +12,11 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Scope | Typing, filters and generation. |
 | Priority targets | **JS** and **HL**. Other targets keep a global generation step but benefit from incremental typing and filters. |
 | Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output, an **aggregation API** (map/reduce) for registries, a warning on non-aggregated static writes. |
-| Compatibility | Breaking changes accepted for Haxe 5, with a warning phase before errors. |
+| Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
+| Compatibility | Breaking changes accepted for Haxe 6, with a warning phase before errors. |
+| Macro context | The macro and target contexts keep **separate query graphs** (different defines, platform and standard library overrides), but **share parsing**: a parsed module is reused by the other context when the defines read during its parsing have the same values in both (phase 3.6). |
+| Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. |
+| Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
 | Storage | **In memory**, preserving the physical identity of objects. hxb is not on the critical path; it remains a persistence format and a verification tool. |
 | Positions in inlined code | The inliner replaces positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint) and self-calling closures (relative positions included). |
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit and domkit, for their heavy use of macros. |
@@ -185,7 +189,7 @@ Exit criterion: the harness runs in CI against the current server
 
 ---
 
-### Phase 1: semantic rules (Haxe 5 breaking change)
+### Phase 1: semantic rules (Haxe 6 breaking change)
 
 Goal: make inference local to the field.
 
@@ -392,6 +396,13 @@ before cycles become errors.
 
 - Query results must not depend on the order in which queries are demanded.
 - Errors and warnings are stored per query and reported sorted by position.
+- A query that raises an error is marked `Failed`. Queries demanding a failed
+  query fail too, without reporting their own cascading error. `program()`
+  keeps going over independent queries. `-D max-errors=<n>` (or a CLI flag)
+  stops early: `program()` stops scheduling new queries once `n` errors are
+  found, finishes the running ones, and reports errors sorted by position.
+  With parallel typing the exact set of errors found before stopping may
+  vary; the default (report everything) is fully deterministic.
 - `com.types`, `m_deps` and any list built during typing are sorted by stable
   key before use.
 - Display requests demand only the queries needed for the cursor position,
@@ -415,6 +426,33 @@ before cycles become errors.
     per-query and deterministic.
 - Output is identical whatever the number of domains (checked by verification
   mode with `-D typer-domains=1` vs `N`).
+
+#### 3.6 Parsing shared between the macro and target contexts
+
+The macro context (`com.get_macros()`) and the target context keep separate
+query graphs: they have different defines, a different platform, and resolve
+different standard library overrides (`std/<platform>/_std`), so their headers,
+members and bodies cannot be shared. Parsing, however, is the same work in both
+contexts whenever conditional compilation evaluates the same way.
+
+1. **Recording define reads.** While parsing a file, the preprocessor
+   (`src/syntax/parserEntry.ml`, evaluation of `#if` conditions through
+   `Define.raw_defined_value`, and the `macro` define read when computing
+   `in_macro`) records every define it reads, with the value it saw (or
+   "undefined"). Short-circuit evaluation is fine: only defines actually read
+   can influence the result.
+2. **Parse cache key.** A parse result is stored under the file's content hash,
+   with its set of `(define, value)` reads. A context can reuse it if every
+   recorded define has the same value in that context. Files without any `#if`
+   are shared unconditionally.
+3. Several parse results may coexist for one file (one per distinct set of
+   values), typically one for macro and one for the target when the file
+   contains `#if macro`.
+4. `Decls` fingerprints (phase 4) are attached to the parse result, so they are
+   shared as well.
+5. This also replaces the current per-signature parse cache (`c_decls` in
+   `CompilationCache`), which is keyed by the full define signature and
+   therefore never shared between contexts with different defines.
 
 Exit criterion: the pass scheduler is removed (`typerPass.ml`, `delay`,
 `flush_pass`, `delay_if_mono`, `make_lazy`'s forcing, `build_state`), all
@@ -572,6 +610,13 @@ handful of identified and justified volatile macros.
    read and the platform configuration. This covers most of `run_safe_filters`
    and `destruction_on_scom`.
 3. **Global passes, rewritten over per-field summaries**:
+   - **Initialization order**: a graph of "static initializer or `__init__`
+     of type A references type B" edges, built from summaries. Types are
+     ordered topologically (ties and cycles broken by path, a cycle being
+     reported as a warning when it involves static var initializers). This
+     order is shared by all generators: types are output in it, all `__init__`
+     blocks run first in this order, then all static var initializers in this
+     order.
    - **DCE** (`src/optimization/dce.ml`): each post-processed field produces a
      summary "referenced fields and types, used features, `@:keep`".
      Reachability is a graph maintained incrementally: add or remove the edges
@@ -600,8 +645,8 @@ handful of identified and justified volatile macros.
    `PostProcessed` nodes of its fields, referenced native names and the global
    set (features).
 2. **Per-fragment source map**, with positions relative to the fragment.
-3. **Linking**: header, type order (inheritance dependencies), static
-   initialization, concatenation, source map offsets. Linear in output size,
+3. **Linking**: header, type order and static initialization in dependency
+   (topological) order with ties broken by path, all `__init__` blocks first, concatenation, source map offsets. Linear in output size,
    without walking any AST.
 4. Only write the file if its content changed (to be shared with other
    targets).
@@ -628,7 +673,9 @@ The heaviest part, because of the global tables in `genhl.ml` (`cglobals`,
    only depends on the symbolic function).
 4. **HL linker**: assigns indices (types, globals, strings, functions, natives)
    in a **deterministic order** (sorted by key), resolves symbols and writes
-   the bytecode and debug information. Linear in code size.
+   the bytecode and debug information. Linear in code size. The generated
+   entry point runs all `__init__` blocks first, then static var initializers,
+   both in the dependency order computed in phase 8.
 5. **HL/C (`hl2c`)**: generates one C file per type from the linked fragments,
    and only writes modified files (avoiding C recompilation).
 6. Risk: index order changes the binary output compared to the current mode.
