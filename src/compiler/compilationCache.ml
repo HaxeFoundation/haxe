@@ -43,6 +43,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val mutable initialized = false
 	val mutable last_access_time = Unix.gettimeofday ()
 	val children : (Digest.t,unit) Hashtbl.t = Hashtbl.create 0
+	val entity_indexes : (path,module_def * (EntityKey.t,EntityKey.entity) Hashtbl.t) Hashtbl.t = Hashtbl.create 0
+	val entity_indexes_mutex = Mutex.create ()
 
 	(* files *)
 
@@ -110,6 +112,23 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method cache_module_in_memory path m =
 		Hashtbl.replace modules path m
 
+	(* entity keys (phase 2) *)
+
+	(* The [entity key -> entity] index of [m], computed on first use and kept
+	   while [m] is the module of its path. It describes the module as typed:
+	   it must be requested while the module's types hold their typed fields,
+	   not their post-processed (e.g. DCE-filtered) state. *)
+	method get_entity_index m =
+		Mutex.protect entity_indexes_mutex (fun () ->
+			match Hashtbl.find_opt entity_indexes m.m_path with
+			| Some (m',index) when m' == m ->
+				index
+			| _ ->
+				let index = EntityKey.index_module m in
+				Hashtbl.replace entity_indexes m.m_path (m,index);
+				index
+		)
+
 	(* fake modules *)
 
 	method find_fake_module key =
@@ -126,11 +145,13 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 	method clear_cache =
 		Hashtbl.clear modules;
+		Hashtbl.clear entity_indexes;
 		self#clear_temp_cache
 
 	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
 	method clear_modules =
 		Hashtbl.clear modules;
+		Hashtbl.clear entity_indexes;
 		Hashtbl.clear binary_cache;
 		Hashtbl.clear fake_modules;
 		self#clear_temp_cache;

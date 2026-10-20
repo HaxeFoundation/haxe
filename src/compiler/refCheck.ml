@@ -6,6 +6,11 @@
 	point to the object that its module currently holds: a reference to an
 	object of an older version of a module is stale. Enabled with
 	`-D incremental-check-refs`; each stale reference is reported as an error.
+
+	Stale references are reported with their entity key (phase 2, item 1), and
+	whether the current version of the module has an entity with the same key
+	(which grafting would remap the reference to). The check also verifies that
+	the entity keys of every module are unique.
 *)
 open Globals
 open Type
@@ -24,6 +29,19 @@ let check com =
 	in
 	let current_module m =
 		try Some (com.module_lut#find m.m_path) with Not_found -> None
+	in
+	let cc = CommonCache.get_cache com in
+	(* key of [e] in module [m], and whether module [m'] has an entity with that key *)
+	let describe m m' e =
+		let key = ref None in
+		EntityKey.iter_module (fun k e' -> if !key = None && EntityKey.same_entity e e' then key := Some k) m;
+		match !key with
+		| None ->
+			"no entity key"
+		| Some k ->
+			let index = try Some (cc#get_entity_index m') with Failure _ -> None in
+			let graftable = match index with Some index -> Hashtbl.mem index k | None -> false in
+			Printf.sprintf "key %s, %s in the current module" (EntityKey.to_string k) (if graftable then "present" else "absent")
 	in
 	(* A module type is valid if its module is the current module of its path
 	   and it is one of that module's types (or its implementation class). *)
@@ -55,7 +73,7 @@ let check com =
 			| None ->
 				()
 			| Some m' when m' != m ->
-				report (Printf.sprintf "%s refers to an older version of module %s" (s_type_path infos.mt_path) (s_type_path m.m_path)) p
+				report (Printf.sprintf "%s refers to an older version of module %s (%s)" (s_type_path infos.mt_path) (s_type_path m.m_path) (describe m m' (EntityKey.EType mt))) p
 			| Some m' ->
 				if not (owns m' mt) then
 					report (Printf.sprintf "%s is not a type of module %s" (s_type_path infos.mt_path) (s_type_path m.m_path)) p
@@ -104,6 +122,7 @@ let check com =
 		List.iter (fun cf -> check_t cf.cf_pos cf.cf_type) cf.cf_overloads
 	in
 	List.iter (fun m ->
+		(try ignore (cc#get_entity_index m) with Failure msg -> report (Printf.sprintf "module %s: %s" (s_type_path m.m_path) msg) null_pos);
 		List.iter (fun mt -> match mt with
 			| TClassDecl c ->
 				Option.may (fun (csup,tl) -> check_module_type (TClassDecl csup) c.cl_pos; List.iter (check_t c.cl_pos) tl) c.cl_super;

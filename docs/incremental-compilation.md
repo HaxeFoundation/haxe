@@ -372,6 +372,23 @@ pointers.
 
 1. **Entity keys** (§3.1) and a per-module `entity_key -> object` index in
    `CompilationCache`.
+
+   **Done.** `src/core/entityKey.ml` defines the key
+   `(module, type path, kind, name, overload index, type parameter index)`,
+   with kinds `type`, `static`, `member`, `constructor`, `enum field`,
+   `structure field` (fields of the structure a typedef declares) and
+   `type parameter` (of a type, a field, an overload or an enum constructor).
+   Abstract implementation classes (`_Impl_`) and module-level fields
+   (`_Fields_`) are types of their module, keyed by their own path.
+   `EntityKey.iter_module` enumerates a module's entities with their keys and
+   `context_cache#get_entity_index` keeps the index of the current version of
+   each module. The index describes the module *as typed*: it must be built
+   while the module's classes hold their typed fields, not their DCE-filtered
+   state (grafting must restore an old module before matching it).
+   `-D incremental-check-refs` checks that keys are unique in every module
+   (no collision on the unit tests for JS, HL and macro, nor on Heaps with
+   hxbit and domkit) and reports each stale reference with its key, and
+   whether the current module has an entity with the same key.
 2. **Entity positions** (`cf_pos`, `cf_name_pos`, `ef_pos`, `mt_pos`/`cl_pos`,
    `e_pos`, `t_pos`, `a_pos`, `*_name_pos` in `src/core/tType.ml`) carry
    anchors (item 6), so a moved declaration only needs its anchor updated;
