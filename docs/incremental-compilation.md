@@ -716,8 +716,7 @@ cycles are errors (§ phase 3.3).
      `TLazy` workaround goes away.
    - **heaps**: `hxsl` stores the parsed shader in a `MacroTypeData` instead of
      re-parsing `:src` on every `@:import`; `hxd/res/DynamicText.hx`
-     `BUILD_CACHE` and `hxd/fs/Convert.hx` `converts` become `MacroCache`s
-     .
+     `BUILD_CACHE` and `hxd/fs/Convert.hx` `converts` become `MacroCache`s.
 10. **Detection during the transition** (Haxe 5.x warnings, before isolation
     becomes the default):
     - cheap mode: eval tags each static with the expansion that last assigned
