@@ -13,8 +13,7 @@
 	counterpart (removed entities) are dropped: references to them are stale,
 	which is a shape change that requires retyping the modules using them.
 
-	Active with the in-memory cache (the server's default cache, the only one
-	that keeps the objects of the previous version, see `-D hxb-cache`).
+	Active in the compilation server, which keeps modules in memory.
 *)
 open Globals
 open Type

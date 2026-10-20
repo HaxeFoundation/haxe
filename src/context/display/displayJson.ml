@@ -439,7 +439,7 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
-			let typing_mode:HxbData.typing_mode = if Define.defined hctx.com.defines Define.DisableHxbOptimizations then FullTyping else AllowPartialTyping in
+			let typing_mode:HxbData.typing_mode = FullTyping in
 			try
 				let m = find_module ~typing_mode hctx.com cc path in
 				Result (generate_module (cc#get_hxb) (find_module ~typing_mode hctx.com cc) m)

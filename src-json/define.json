@@ -82,18 +82,6 @@
 		"doc": "Development mode of the compilation server: only retype modules whose own file changed, not the modules depending on them. Unsound: dependents keep their typed content even if the interface they use changed."
 	},
 	{
-		"name": "HxbCache",
-		"define": "hxb-cache",
-		"signatureNeutral": true,
-		"doc": "Use the hxb powered cache of the compilation server instead of the in-memory cache (the default, docs/incremental-compilation.md)."
-	},
-	{
-		"name": "DisableHxbOptimizations",
-		"define": "disable-hxb-optimizations",
-		"signatureNeutral": true,
-		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
-	},
-	{
 		"name": "DisableParallelism",
 		"define": "disable-parallelism",
 		"signatureNeutral": true,

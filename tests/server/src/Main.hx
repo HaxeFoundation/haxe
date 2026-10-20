@@ -18,7 +18,6 @@ class Main {
 		runner.onComplete.add(_ -> server.stop());
 		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v"], {}, () -> {
 			var defaultArgs = [];
-			#if hxb_cache defaultArgs = defaultArgs.concat(["-D", "hxb-cache"]); #end
 			#if optimistic_display_requests defaultArgs = defaultArgs.concat(["-D", "optimistic-display-requests"]); #end
 			if (defaultArgs.length > 0) server.setDefaultRequestArguments(defaultArgs);
 

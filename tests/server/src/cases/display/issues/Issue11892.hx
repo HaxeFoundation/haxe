@@ -10,8 +10,6 @@ class Issue11892 extends DisplayTestCase {
 		vfs.putContent("Main.hx", transform.source);
 
 		var args = ["--main", "Main", "-D", "analyzer-optimize", "--interp", "--dce=full"];
-		// Needed to repro -4-
-		args = args.concat(["--undefine", "hxb-cache"]);
 		runHaxe(["--no-output"].concat(args));
 
 		// Previously was pointing to @:pure

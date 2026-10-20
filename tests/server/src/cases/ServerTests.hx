@@ -135,25 +135,15 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
-	@:variant("InMemory", true)
-	@:variant("Hxb", false)
-	function testDisplayModuleRecache(inMemory:Bool) {
+	function testDisplayModuleRecache(_) {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
-		if (inMemory)
-			args = args.concat(["--undefine", "hxb-cache"]);
-		else
-			args = args.concat(["-D", "hxb-cache"]);
 
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
 		var displayArgs = ["--main", "HelloWorld", "--interp"];
-		if (inMemory)
-			displayArgs = displayArgs.concat(["--undefine", "hxb-cache"]);
-		else
-			displayArgs = displayArgs.concat(["-D", "hxb-cache"]);
 
 		runHaxeJson(displayArgs, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 64});
 		runHaxe(args);

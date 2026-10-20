@@ -126,14 +126,10 @@ let get_changed_directories sctx com =
 let get_changed_directories sctx com =
 	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
 
+(* Modules are kept in memory, fully typed: partial typing only applied to
+   modules decoded from the hxb cache, which the server no longer uses. *)
 let get_typing_mode com m_extra =
-	let full_typing = com.is_macro_context
-		|| com.display.dms_full_typing
-		|| not (Common.uses_hxb_cache com)
-		|| Define.defined com.defines Define.DisableHxbOptimizations
-		|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
-	in
-	if full_typing then FullTyping else AllowPartialTyping
+	FullTyping
 
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
@@ -415,7 +411,7 @@ class hxb_reader_api_server
 		i
 
 	method read_expression_eagerly (cf : tclass_field) =
-		com.is_macro_context || com.display.dms_full_typing || Define.defined com.defines Define.DisableHxbOptimizations
+		true
 
 	method make_lazy_type t f =
 		let r = make_unforced_lazy t f "server-api" in
