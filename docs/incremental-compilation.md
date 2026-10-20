@@ -24,6 +24,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit, domkit and hide, for their heavy use of macros. |
 | Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
 | Metadata on other types | A macro adding metadata to a type other than the one it builds is allowed, but that metadata is **only visible after typing** (`program()` stages: filters, DCE, generators), never to macros or typing (phase 7, item 6). |
+| Macro-defined types | Owned by the **expansion that defines them** (`defineType`/`defineModule`): replayed and removed with it; a second definition of the same path elsewhere is an error. `onTypeNotFound` callbacks can only be registered by **initialization macros**. |
 | Whole-program macro APIs | `Context.getAllModuleTypes()` and similar APIs are **only allowed in `program()` stages** (`onAfterTyping`, `onGenerate`); calling them during typing is an error. `Context.getModule(path)` stays allowed (it loads one specific module, a normal dependency). |
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
@@ -514,6 +515,29 @@ before cycles become errors.
 - Display requests keep their current semantics for now (display is
   deferred, see decisions).
 
+- Other sources of order dependence found in the compiler, fixed as part of
+  this phase:
+  - **Stored typed expressions** (`Context.storeTypedExpr`, `storeExpr`, and
+    the internal `push_this`) get their id from a global counter
+    (`store_typed_expr`, `src/context/typecore.ml`), and the id ends up in the
+    expansion output (`@:storedTypedExpr N`). Ids become local to the
+    expansion key: `(expansion key, n)`.
+  - **Virtual file names** of types and modules defined by macros contain a
+    global counter (`generate_virtual`, `src/context/common.ml`). They are
+    derived from the defined module path instead, which is unique.
+  - **`Compiler.include`** iterates over `readDirectory` without sorting
+    (`std/haxe/macro/Compiler.hx`): the listing is sorted.
+  - **Error messages**: monomorphs are printed with their global id
+    (`Unknown<12>`, `src/core/tPrinting.ml`) and "did you mean" suggestions
+    depend on the modules loaded so far. Monomorphs are numbered locally to
+    each message (`Unknown<0>`, `Unknown<1>`…), and suggestions are computed
+    from the class path rather than from loaded modules.
+  - **`Hashtbl` iteration** over modules or types anywhere in the compiler,
+    generators included, is replaced by iteration in stable key order.
+  - **Anonymous structure naming** (`Tanon_identification`, used by `genjvm`
+    and hxb) assigns names in encounter order. Names are derived from a hash
+    of the structure, with collisions ordered by stable key.
+
 #### 3.5 Parallel body typing
 
 `body(f)` queries are independent once their signatures are available, so
@@ -776,6 +800,31 @@ cycles are errors (§ phase 3.3).
      - A new node `TypeLateMeta(t)` holds the merged late metadata with its
        fingerprint; post-processing and generation of `t` depend on it
        (phase 8).
+   - **Modules loaded by an expansion** (`getType`, `getModule`, typing
+     triggered by `typeExpr`…) are part of its recorded effects. Replaying a
+     cached expansion demands the same modules again, so that the set of
+     loaded modules, which `program()` types entirely, is identical in cold
+     and warm compilations.
+   - **Types defined by macros** (`Context.defineType`, `defineModule`) are
+     owned by the expansion that defines them:
+     - the type is an output of that expansion; it is replayed with it, and
+       removed if the expansion is re-executed and no longer defines it;
+     - a second expansion defining the same path is an error showing both
+       owners. The common pattern `try getType(p) catch(_) defineType(...)`
+       is only valid within a single owner; a helper type needed by several
+       expansions (e.g. hxbit's `ObjProxy_…` classes) must be defined by a
+       single owner, typically a `MacroCache.getOrCompute` keyed by the type
+       path, whose cache entry is then the owner;
+     - code referencing a macro-defined type by name records a dependency on
+       the owning expansion (`DMacro owner`). A lookup that happens before
+       the owner ran is order-dependent: it is reported by verification mode,
+       and such references must go through the owner (or a `MacroCache`
+       entry) to be deterministic.
+   - **`Context.onTypeNotFound`** callbacks can only be registered during
+     initialization macros (`--macro`), in a fixed order; registering one
+     during an expansion is an error. Two callbacks answering for the same
+     path is an error. The answer for a path is a query keyed by that path,
+     so it is computed once and cached like any other node.
 7. **Volatile macros**: re-executed on every compilation. If their output (and
    effect log) has the same fingerprint, downstream stays green.
 8. **File writes are the macro's responsibility.** The compiler does not
@@ -1014,6 +1063,12 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   metadata reads with and without `Context.buildType`.
 - Static initialization order tests (dependency order, `__init__` first,
   cycle errors).
+- Macro-defined type tests: replay with the owner cached, owner re-executed
+  without the definition (type removed), second definition of the same path
+  (error), `onTypeNotFound` registered outside initialization (error).
+- Determinism tests: stored typed expression ids, virtual file names,
+  `Compiler.include` order, error message texts and anonymous structure names
+  identical between cold, warm and shuffled-order compilations.
 - Macro API restriction tests: `getAllModuleTypes` during typing (error) and in
   `program()` stages, metadata added to other types (invisible during typing,
   merged in `program()` stages, deterministic order).
