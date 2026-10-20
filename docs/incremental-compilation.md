@@ -239,9 +239,11 @@ pointers.
 
 1. **Entity keys** (§3.1) and a per-module `entity_key -> object` index in
    `CompilationCache`.
-2. **Make mutable** `cf_pos`, `cf_name_pos`, `ef_pos`, `mt_pos`/`cl_pos`,
-   `e_pos`, `t_pos`, `a_pos` and the `*_name_pos` fields (`src/core/tType.ml`).
-   `ef_index` stays immutable: an index change is a shape change.
+2. **Entity positions** (`cf_pos`, `cf_name_pos`, `ef_pos`, `mt_pos`/`cl_pos`,
+   `e_pos`, `t_pos`, `a_pos`, `*_name_pos` in `src/core/tType.ml`) carry
+   anchors (item 6), so a moved declaration only needs its anchor updated;
+   they can stay immutable. Grafting copies them when a declaration is
+   retyped. `ef_index` stays immutable: an index change is a shape change.
 3. **External contributions: move them out of entities, or make them
    recomputable.**
    - `cl_descendants`: recomputed by the aggregation pass (phase 8) from the
