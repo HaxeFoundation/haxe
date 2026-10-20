@@ -164,5 +164,11 @@
 		"name": "WPointlessCode",
 		"doc": "Expression or code block has no effect",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WUnresolvedFieldType",
+		"doc": "The type of a field is not fully known at the end of its own typing (it is an error in Haxe 6)",
+		"parent": "WTyper",
+		"enabled": false
 	}
 ]

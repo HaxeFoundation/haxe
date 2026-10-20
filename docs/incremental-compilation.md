@@ -268,6 +268,44 @@ body's typing ends, since no monomorph can be bound later.
 Exit criterion: the whole CI is green with the error enabled, and the impact on
 the corpus is documented.
 
+**Status.** `WUnresolvedFieldType` is implemented
+(`TypeBinding.check_resolved_field_type`, `src/typing/typeloadFields.ml`),
+disabled by default (`-w +WUnresolvedFieldType` to enable), with a test in
+`tests/misc/eval/projects/unresolvedFieldType`. The binding instrumentation
+(item 2) is not needed for the measurement: a monomorph bound by another field
+is necessarily still open at the end of its own field's typing, and is reported
+there. Cross-field cycles resolved through `LProcessing` placeholders are
+measured with the phase 3 cycle instrumentation.
+
+**Measurements** (`-w +WUnresolvedFieldType`):
+
+| Corpus | Fields reported |
+|---|---|
+| `tests/unit` (macro) and the standard library it uses | 33 (5 in `std`) |
+| Heaps, hxbit, domkit, castle, compiled to js (`include` of `h3d`, `h2d`, `hxsl`, `hxd`, `hxbit`) | 43 (5 in `std`) |
+
+What is reported, by kind:
+- **static caches initialized to `null`, `[]` or `new Map()`** and filled
+  later (`hxsl.Checker.GLOBALS`, `hxsl.Serializer.TVECS`,
+  `hxbit.Serializer.CL_BYID`/`CLIDS`, `domkit.Identifier._CACHE`,
+  `haxe.Serializer.BASE64_CODES`, `haxe.Unserializer.CODES`…): about half of
+  the cases;
+- **member fields** of the same kind (`h3d.scene.Scene.tmpPasses`,
+  `prevEngine`);
+- **untyped function arguments** that the body does not constrain
+  (`h3d.scene.CameraController.fov(delta)`, `hxd.res.NanoJpeg.syntax(flag)`,
+  `hxsl.HlslOut.handleMeta`…): the argument stays a monomorph, today bound by
+  the first caller;
+- **return types with an unbound type parameter**:
+  `haxe.coro.SuspensionResult.withError` returns `SuspensionResult<Unknown>`,
+  and `cdb.Types.toGuid` returns `Guid<Unknown>`. Since the field type is
+  shared, the first caller binds it for every other caller: a latent bug today,
+  an error in Haxe 6 (fixed with a type parameter or an annotation).
+
+Every case is fixed with a type annotation. Fixing the standard library ones is
+part of this phase.
+
+
 ---
 
 ### Phase 2: stable identity and content separation

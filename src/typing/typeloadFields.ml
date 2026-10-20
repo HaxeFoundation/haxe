@@ -663,6 +663,36 @@ let check_field_display ctx fctx c cf =
 
 module TypeBinding = struct
 
+	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
+	   known at the end of its own typing. Reports the field types that still
+	   contain an unbound monomorph at that point (docs/incremental-compilation.md,
+	   phase 1). *)
+	let check_resolved_field_type ctx cf =
+		let rec has_mono visited t = match t with
+			| TMono r ->
+				begin match r.tm_type with
+				| None -> true
+				| Some t -> has_mono visited t
+				end
+			| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+				List.exists (has_mono visited) tl
+			| TFun(args,ret) ->
+				has_mono visited ret || List.exists (fun (_,_,t) -> has_mono visited t) args
+			| TAnon an ->
+				if List.memq an !visited then
+					false
+				else begin
+					visited := an :: !visited;
+					PMap.fold (fun cf acc -> acc || has_mono visited cf.cf_type) an.a_fields false
+				end
+			| TDynamic (Some t) ->
+				has_mono visited t
+			| TDynamic None | TLazy _ ->
+				false
+		in
+		if has_mono (ref []) cf.cf_type then
+			warning ctx WUnresolvedFieldType (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+
 	let bind_type ctx cctx fctx cf r p =
 		let c = cctx.tclass in
 		let rec is_full_type t =
@@ -816,6 +846,7 @@ module TypeBinding = struct
 				let e = check_cast e in
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
+				check_resolved_field_type ctx cf;
 				check_field_display ctx fctx c cf;
 			end;
 			t
@@ -882,6 +913,7 @@ module TypeBinding = struct
 					in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
+					check_resolved_field_type ctx cf;
 					check_field_display ctx fctx c cf;
 			end;
 		in
