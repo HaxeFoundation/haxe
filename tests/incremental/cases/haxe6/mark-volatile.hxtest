@@ -1,0 +1,26 @@
+# Plan phase 7: volatility is explicit. A macro calling Context.markVolatile()
+# is re-executed on every compilation even when nothing it depends on changed.
+@known-failure Haxe 6 semantics (plan phase 7)
+=== initial
+@expect-output run 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.counter());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function counter() {
+		haxe.macro.Context.markVolatile();
+		var file = "count.txt";
+		var n = sys.FileSystem.exists(file) ? Std.parseInt(sys.io.File.getContent(file)) + 1 : 1;
+		sys.io.File.saveContent(file, Std.string(n));
+		return macro $v{"run " + n};
+	}
+}
+
+=== unrelated file added
+@expect-success
+--- Other.hx
+class Other {}

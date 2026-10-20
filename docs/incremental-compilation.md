@@ -10,10 +10,10 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Inference unit | **The field.** A field's type must be fully determined at the end of its own typing. A monomorph still open in a field's type (`static var x = []`) is an **error**: a type annotation is required. |
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
-| Priority targets | **JS** and **HL**. Other targets keep a global generation step but benefit from incremental typing and filters. |
-| Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
+| Targets | **JS** and **HL** first (phases 9 and 10). **All other targets** (C++, JVM, Python, Lua, PHP, Neko, Flash) move to the same fragment and linking model afterwards (phase 11); until then they keep a global generation step but benefit from incremental typing, filters, the VFS and parallelism. |
+| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.markVolatile()`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
-| Compatibility | Breaking changes accepted for Haxe 6, with a warning phase before errors. |
+| Compatibility | Breaking changes accepted for Haxe 6. The new rules are **warnings in Haxe 5.x** and **errors in Haxe 6, with no compatibility flag**. |
 | Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
 | Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. A dependency cycle between static initializers is an **error**. |
 | Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
@@ -237,8 +237,7 @@ Goal: make inference local to the field.
    for an unbound `TMono` or an open `TAnon` (mutable `a_status`).
    - Phase 1a: warning `WUnresolvedFieldType`: "The type of `x` is not fully
      inferred, add a type annotation".
-   - Phase 1b: error by default. `-D legacy-field-inference` restores the
-     warning for one release.
+   - Phase 1b (Haxe 6): error, with no compatibility flag.
 2. **Binding instrumentation.** In `Monomorph.do_bind`
    (`src/core/tUnification.ml`), if the monomorph belongs to the signature of
    a field **other** than the one being typed, emit a diagnostic: this is the
@@ -830,8 +829,14 @@ cycles are errors (§ phase 3.3).
      the virtual file system (watched, wherever it is). Reading a file without
      declaring it is the macro's responsibility, like writing files (item 8):
      a cached expansion is not re-run when that file changes;
-   - `Date.now`, `Math.random`, `Sys.getEnv`, `Sys.command`, `Sys.time`,
-     sockets: the expansion is marked **volatile**;
+   - non-deterministic calls (`Date.now`, `Math.random`, `Sys.getEnv`,
+     `Sys.command`, `Sys.time`, sockets) are **not detected**: a macro whose
+     result must be recomputed on every compilation calls
+     `Context.markVolatile()`. Otherwise its cached result is reused, which is
+     the macro's responsibility, like undeclared file reads;
+   - console output (`Sys.println`, `trace`, `Sys.print`) is written
+     immediately, in no guaranteed order when expansions run in parallel, and
+     is **not replayed** when an expansion is reused from the cache;
    - file writes: not tracked (see item 8).
 4. **Static state isolation.** Macro-context static variables no longer carry
    state from one macro call to another.
@@ -910,7 +915,8 @@ cycles are errors (§ phase 3.3).
      `declare`).
 6. **Recorded and replayed effects**: `defineType`, `defineModule`,
    `addMetadata`, `addResource`, `registerModuleDependency`, callbacks
-   (`onGenerate`, `onAfterTyping`, `onTypeNotFound`), messages, and the writes
+   (`onGenerate`, `onAfterTyping`, `onTypeNotFound`), compiler messages
+   (`Context.warning`, `Context.info`, errors; not console output), and the writes
    to the declarations of item 5 are logged per expansion. When the expansion
    is green, the log is replayed instead of running the macro.
    - **Metadata added to another type** (a type other than the one being
@@ -954,8 +960,9 @@ cycles are errors (§ phase 3.3).
      during an expansion is an error. Two callbacks answering for the same
      path is an error. The answer for a path is a query keyed by that path,
      so it is computed once and cached like any other node.
-7. **Volatile macros**: re-executed on every compilation. If their output (and
-   effect log) has the same fingerprint, downstream stays green.
+7. **Volatile macros**: an expansion that called `Context.markVolatile()` is
+   re-executed on every compilation. If its output (and effect log) has the
+   same fingerprint, downstream stays green.
 8. **File writes are the macro's responsibility.** The compiler does not
    track, replay or verify files written by macros, and writing a file does
    not make an expansion volatile. A macro that writes files (heaps resource
@@ -1100,7 +1107,28 @@ between incremental and cold.
 
 ---
 
-### Phase 11: cleanup
+### Phase 11: other targets
+
+After JS and HL, every other target moves to the fragment and linking model,
+in this order: JVM and C++ (already one output file per class, and JVM is
+already generated in parallel), then Python, Lua, PHP, Neko and Flash.
+
+1. **Per-type fragments** cached by `Fragment(target, type)`, depending on
+   the `PostProcessed` nodes of the type's fields and on the global set.
+2. **Linking** per target: concatenation and initialization order (Python,
+   Lua, PHP single or multi-file outputs), class files and manifest (JVM),
+   source files plus build description (C++: hxcpp only recompiles the C++
+   files whose content changed, since unchanged files are not rewritten).
+3. **Symbolic references** wherever a target uses global indices or tables
+   (Neko and Flash bytecode, as for HL in phase 10).
+4. Parallel generation per fragment (§4b) and output writing through the VFS.
+
+Exit criterion per target: the unit tests pass, and the output is identical
+between incremental and cold compilations.
+
+---
+
+### Phase 12: cleanup
 
 - Remove module-level invalidation: `DependencyDirty`, `m_checked`,
   `m_cache_state` (or reduce it to a diagnostic summary), `m_processed`.
@@ -1179,9 +1207,10 @@ and 10 for generation.
 Phase 0 ─┬──────────────────────────────────────────────────────┐
 Phase 1 ─┤                                                      │
          ├─ Phase 2 ─ Phase 3 ─ Phase 4 ─ Phase 5 ─ Phase 6 ─┬─ Phase 8 ─┬─ Phase 9 (JS)
-         │                                                    │           └─ Phase 10 (HL)
+         │                                                    │           ├─ Phase 10 (HL)
+         │                                                    │           └─ Phase 11 (other targets)
          │                                      Phase 7 ──────┘
-         └─ (continuous verification on the whole corpus)                 Phase 11
+         └─ (continuous verification on the whole corpus)                 Phase 12
 ```
 
 The virtual file system (phase 6) only depends on phase 0 and can be built
