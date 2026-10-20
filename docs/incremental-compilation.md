@@ -10,7 +10,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Inference unit | **The field.** A field's type must be fully determined at the end of its own typing. A monomorph still open in a field's type (`static var x = []`) is an **error**: a type annotation is required. |
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
-| Targets | **JS** and **HL** first (phases 9 and 10). **All other targets** (C++, JVM, Python, Lua, PHP, Neko, Flash) move to the same fragment and linking model afterwards (phase 11); until then they keep a global generation step but benefit from incremental typing, filters, the VFS and parallelism. |
+| Targets | **JS and HL only.** Other targets (C++, JVM, Python, Lua, PHP, Neko, Flash) are **out of the scope of this plan**: they must keep compiling with a global generation step, but nothing in this plan makes their generation incremental. |
 | Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.markVolatile()`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6. The new rules are **warnings in Haxe 5.x** and **errors in Haxe 6, with no compatibility flag**. |
@@ -558,11 +558,11 @@ before cycles become errors.
     depend on the modules loaded so far. Monomorphs are numbered locally to
     each message (`Unknown<0>`, `Unknown<1>`…), and suggestions are computed
     from the class path rather than from loaded modules.
-  - **`Hashtbl` iteration** over modules or types anywhere in the compiler,
-    generators included, is replaced by iteration in stable key order.
-  - **Anonymous structure naming** (`Tanon_identification`, used by `genjvm`
-    and hxb) assigns names in encounter order. Names are derived from a hash
-    of the structure, with collisions ordered by stable key.
+  - **`Hashtbl` iteration** over modules or types in the typer, filters and
+    the JS and HL generators is replaced by iteration in stable key order.
+  - **Anonymous structure naming** (`Tanon_identification`, used by hxb)
+    assigns names in encounter order. Names are derived from a hash of the
+    structure, with collisions ordered by stable key.
 
 #### 3.5 Parallel typing
 
@@ -1107,28 +1107,7 @@ between incremental and cold.
 
 ---
 
-### Phase 11: other targets
-
-After JS and HL, every other target moves to the fragment and linking model,
-in this order: JVM and C++ (already one output file per class, and JVM is
-already generated in parallel), then Python, Lua, PHP, Neko and Flash.
-
-1. **Per-type fragments** cached by `Fragment(target, type)`, depending on
-   the `PostProcessed` nodes of the type's fields and on the global set.
-2. **Linking** per target: concatenation and initialization order (Python,
-   Lua, PHP single or multi-file outputs), class files and manifest (JVM),
-   source files plus build description (C++: hxcpp only recompiles the C++
-   files whose content changed, since unchanged files are not rewritten).
-3. **Symbolic references** wherever a target uses global indices or tables
-   (Neko and Flash bytecode, as for HL in phase 10).
-4. Parallel generation per fragment (§4b) and output writing through the VFS.
-
-Exit criterion per target: the unit tests pass, and the output is identical
-between incremental and cold compilations.
-
----
-
-### Phase 12: cleanup
+### Phase 11: cleanup
 
 - Remove module-level invalidation: `DependencyDirty`, `m_checked`,
   `m_cache_state` (or reduce it to a diagnostic summary), `m_processed`.
@@ -1169,7 +1148,7 @@ model for the whole compilation.
    | Fingerprints | node | computed by the query that produces the node |
    | Post-processing (filters, analyzer) | field | already per type today; becomes per `PostProcessed(cf)` node |
    | Global passes (DCE, initialization order, features, descendants, `RenameVars`, purity) | summary / component | summaries are computed in parallel; reachability by parallel frontier; purity per strongly connected component |
-   | Code generation | type (JS fragment), function (HL), class (JVM), C file (HL/C) | already parallel for HL functions, HL/C and JVM |
+   | Code generation | type (JS fragment), function (HL), C file (HL/C) | already parallel for HL functions and HL/C; other targets keep their current generators |
    | Linking | chunk | index assignment is sequential but linear; resolution of symbols and writing of chunks are parallel |
    | Output writing | file | through the VFS, skipping identical content |
 
@@ -1207,10 +1186,9 @@ and 10 for generation.
 Phase 0 ─┬──────────────────────────────────────────────────────┐
 Phase 1 ─┤                                                      │
          ├─ Phase 2 ─ Phase 3 ─ Phase 4 ─ Phase 5 ─ Phase 6 ─┬─ Phase 8 ─┬─ Phase 9 (JS)
-         │                                                    │           ├─ Phase 10 (HL)
-         │                                                    │           └─ Phase 11 (other targets)
+         │                                                    │           └─ Phase 10 (HL)
          │                                      Phase 7 ──────┘
-         └─ (continuous verification on the whole corpus)                 Phase 12
+         └─ (continuous verification on the whole corpus)                 Phase 11
 ```
 
 The virtual file system (phase 6) only depends on phase 0 and can be built
