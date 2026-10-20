@@ -68,8 +68,15 @@ let iter_module f m =
 		let name = if kind = KConstructor then "" else cf.cf_name in
 		List.iteri (fun i cf ->
 			f (mk ty kind name i (-1)) (EField(c,cf));
-			params ty name i cf.cf_params
+			(* "" is the name of the type's own parameters *)
+			params ty (if kind = KConstructor then "new" else name) i cf.cf_params
 		) (cf :: cf.cf_overloads)
+	in
+	(* the declared type of a typedef, without forcing anything *)
+	let rec declared t = match t with
+		| TMono { tm_type = Some t } -> declared t
+		| TLazy r -> (match !r with LAvailable t -> declared t | _ -> t)
+		| _ -> t
 	in
 	List.iter (fun mt ->
 		let ty = (t_infos mt).mt_path in
@@ -88,7 +95,7 @@ let iter_module f m =
 			) en.e_constrs
 		| TTypeDecl td ->
 			params ty "" 0 td.t_params;
-			begin match td.t_type with
+			begin match declared td.t_type with
 			| TAnon an ->
 				PMap.iter (fun _ cf -> f (mk ty KAnonField cf.cf_name 0 (-1)) (EAnonField(td,cf))) an.a_fields
 			| _ ->

@@ -741,12 +741,15 @@ let rec type_type_param ctx host path tp =
 		DisplayEmitter.display_type ctx ttp.ttp_type (pos tp.tp_name);
 	ttp
 
-and type_type_params ctx host path tpl =
+(* [graft], if given, receives each new type parameter with its index and returns the
+   object to use (see graft.ml). *)
+and type_type_params ?graft ctx host path tpl =
 	let names = ref [] in
-	let param_pairs = List.map (fun tp ->
+	let param_pairs = List.mapi (fun i tp ->
 		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx.com ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
-		tp,type_type_param ctx host path tp
+		let ttp = type_type_param ctx host path tp in
+		tp,(match graft with Some f -> f i ttp | None -> ttp)
 	) tpl in
 	let params = List.map snd param_pairs in
 	let ctx = TyperManager.clone_for_type_params ctx (params @ ctx.type_params) in

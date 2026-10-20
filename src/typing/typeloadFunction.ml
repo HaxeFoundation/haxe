@@ -34,7 +34,11 @@ let save_field_state ctx =
 	)
 
 let type_function_params ctx fd host fname =
-	Typeload.type_type_params ctx host ([],fname) fd.f_params
+	let graft = match host with
+		| TPHMethod | TPHConstructor -> Graft.type_params_of_field ctx.c.curclass ctx.f.curfield
+		| _ -> None
+	in
+	Typeload.type_type_params ?graft ctx host ([],fname) fd.f_params
 
 let type_function ctx (args : function_arguments) ret e do_display p =
 	ctx.e.ret <- ret;

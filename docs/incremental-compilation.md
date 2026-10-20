@@ -461,7 +461,8 @@ pointers.
    takes an optional "previous module" and reuses its entities by key (through
    grafting). After phase 3, this becomes the behavior of the `declare` query.
 
-   **Status of items 4 and 5 (first version, `-D incremental-graft`).**
+   **Status of items 4 and 5.** Grafting is active with the in-memory cache
+   (`-D disable-hxb-cache`), and can be disabled with `-D incremental-no-graft`.
    `src/typing/graft.ml` grafts *at creation*, which removes the remapping
    step: when a module whose previous version is in the in-memory cache is
    retyped, each new type (class, enum, typedef, abstract), class field
@@ -474,16 +475,25 @@ pointers.
    statics (`cl_type`), is rebuilt on the old object. The eval interpreter
    recognized a retyped type by a new object; it now compares the module id it
    recorded when it added the type.
-   - Not grafted yet: type parameters (`typed_type_param` and their
-     `KTypeParameter` classes), fields of typedef structures, fields created
-     outside field initialization (property accessors generated for
-     interfaces, `@:generic` instances, fields added by filters).
+   - Type parameters are grafted with their `KTypeParameter` class (both refer
+     to each other, so both references are rebuilt), for types, methods and
+     constructors (from the key the field got when it was grafted) and enum
+     constructors; so are the fields of the structure a typedef declares
+     (`cases/types/graft-params-structures.hxtest`).
+   - Not grafted yet: type parameters of structure fields, local functions
+     and higher-kinded parameters, structures nested in a typedef's structure,
+     fields created outside field initialization (property accessors
+     generated for interfaces, `@:overload` metadata, `@:generic` instances,
+     fields added by filters).
+   - `-D incremental-check-refs` also checks type parameter classes (module
+     of their host) and the fields of a typedef's structure read through a
+     value of that (unparameterized) typedef.
    - `-D incremental-retype-changed-only` (development mode, unsound) makes
      the server retype only the modules whose own file changed, not their
      dependents: it shows which references grafting keeps valid without
      retyping the modules that hold them.
    - Results: `tests/incremental` passes entirely with
-     `-D disable-hxb-cache -D incremental-graft -D incremental-check-refs`
+     `-D disable-hxb-cache -D incremental-check-refs`
      (no stale reference). With `-D incremental-retype-changed-only` in
      addition, the only stale references left are shape changes (a removed,
      renamed or moved field, a removed `@:from` cast, a class that no longer
@@ -492,8 +502,7 @@ pointers.
      the last 13 commits of Heaps with the in-memory cache, grafting and the
      checker gives identical output for every commit and no stale reference.
    - The server statistics (`-v`) print the number of grafted entities.
-   - Next: graft type parameters and typedef structure fields, then enable
-     grafting by default with the in-memory cache.
+   - Next: relative positions (item 6), and `@:generic` instances (item 3).
 6. **Relative positions.** Without them, a field that did not change but moved
    in its file (lines added above it) keeps stale absolute positions in its
    typed AST, since `Decls` fingerprints ignore absolute positions and the

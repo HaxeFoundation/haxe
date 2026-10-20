@@ -318,7 +318,7 @@ module ModuleLevel = struct
 		 List.iter (fun d ->
 			match d with
 			| ((EClass d, p),TClassDecl c) ->
-				c.cl_params <- type_type_params ctx_m TPHType c.cl_path d.d_params;
+				c.cl_params <- type_type_params ?graft:(Graft.type_params_of_type c.cl_module c.cl_path) ctx_m TPHType c.cl_path d.d_params;
 				if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 				if Meta.has Meta.FunctionalInterface c.cl_meta then begin
 					if not (has_class_flag c CInterface) then
@@ -332,11 +332,11 @@ module ModuleLevel = struct
 				end;
 				if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 			| ((EEnum d, p),TEnumDecl e) ->
-				e.e_params <- type_type_params ctx_m TPHType e.e_path d.d_params;
+				e.e_params <- type_type_params ?graft:(Graft.type_params_of_type e.e_module e.e_path) ctx_m TPHType e.e_path d.d_params;
 			| ((ETypedef d, p),TTypeDecl t) ->
-				t.t_params <- type_type_params ctx_m TPHType t.t_path d.d_params;
+				t.t_params <- type_type_params ?graft:(Graft.type_params_of_type t.t_module t.t_path) ctx_m TPHType t.t_path d.d_params;
 			| ((EAbstract d, p),TAbstractDecl a) ->
-				a.a_params <- type_type_params ctx_m TPHType a.a_path d.d_params;
+				a.a_params <- type_type_params ?graft:(Graft.type_params_of_type a.a_module a.a_path) ctx_m TPHType a.a_path d.d_params;
 			| _ ->
 				die "" __LOC__
 		) decls
@@ -345,7 +345,7 @@ end
 module TypeLevel = struct
 	let load_enum_field ctx_en e et is_flat index c =
 		let p = c.ec_pos in
-		let params = type_type_params ctx_en TPHEnumConstructor ([],fst c.ec_name) c.ec_params in
+		let params = type_type_params ?graft:(Graft.type_params_of_enum_field e (fst c.ec_name)) ctx_en TPHEnumConstructor ([],fst c.ec_name) c.ec_params in
 		let ctx_ef = TyperManager.clone_for_enum_field ctx_en (params @ ctx_en.type_params) in
 		let rt = (match c.ec_type with
 			| None -> et
@@ -539,6 +539,9 @@ module TypeLevel = struct
 		TypeloadCheck.check_global_metadata ctx_m t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx_td = TyperManager.clone_for_typedef ctx_m t in
 		let tt = load_complex_type ctx_td true LoadNormal d.d_data in
+		(match tt with
+		| TAnon an -> an.a_fields <- PMap.map (Graft.graft_anon_field t) an.a_fields
+		| _ -> ());
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { path = {tpackage = ["haxe";"macro"]; tname = "MacroType" }} ->

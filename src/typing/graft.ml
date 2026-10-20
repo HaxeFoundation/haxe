@@ -13,7 +13,9 @@
 	counterpart (removed entities) are dropped: references to them are stale,
 	which is a shape change that requires retyping the modules using them.
 
-	Enabled with `-D incremental-graft`.
+	Active with the in-memory cache (`-D disable-hxb-cache`, the only cache that
+	keeps the objects of the previous version); `-D incremental-no-graft`
+	disables it.
 *)
 open Globals
 open Type
@@ -26,6 +28,8 @@ type module_graft = {
 	reused : (EntityKey.t,unit) Hashtbl.t;
 	(* number of fields created so far per (type, kind, name), giving overload indexes *)
 	overloads : (path * kind * string,int) Hashtbl.t;
+	(* keys of the fields created so far, for the keys of their type parameters *)
+	mutable field_keys : (tclass_field * EntityKey.t) list;
 }
 
 (* Grafts of the modules typed by the current compilation, by module id. *)
@@ -48,7 +52,7 @@ let copy_into (old : 'a) (fresh : 'a) =
 (* Registers module [m], about to be typed, for grafting if the previous version
    of its path is in the in-memory cache. *)
 let begin_module com m =
-	if Common.defined com Define.IncrementalGraft then begin
+	if not (Common.defined com Define.IncrementalNoGraft) then begin
 		let cc = CommonCache.get_cache com in
 		match cc#find_module_opt m.m_path with
 		| Some m_old when m_old != m ->
@@ -58,7 +62,7 @@ let begin_module com m =
 			let index = try Some (EntityKey.index_module m_old) with Failure _ -> None in
 			Option.may (fun index ->
 				Mutex.protect mutex (fun () ->
-					Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0 }
+					Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0; field_keys = [] }
 				)
 			) index
 		| _ ->
@@ -121,9 +125,56 @@ let graft_field (c : tclass) kind (cf : tclass_field) =
 				Hashtbl.replace g.overloads k (n + 1);
 				n
 		) in
-		reuse (match find_old m (mk_key m c.cl_path kind name overload) with Some (EField(_,cf')) -> Some cf' | _ -> None) cf
+		let key = mk_key m c.cl_path kind name overload in
+		let cf = reuse (match find_old m key with Some (EField(_,cf')) -> Some cf' | _ -> None) cf in
+		Mutex.protect mutex (fun () ->
+			Option.may (fun g -> g.field_keys <- (cf,key) :: g.field_keys) (Hashtbl.find_opt grafts m.m_id)
+		);
+		cf
 	end
 
 let graft_enum_field (e : tenum) (ef : tenum_field) =
 	let m = e.e_module in
 	reuse (match find_old m (mk_key m e.e_path KEnumField ef.ef_name 0) with Some (EEnumField(_,ef')) -> Some ef' | _ -> None) ef
+
+(* [s] is a field of the structure declared by typedef [td]. *)
+let graft_anon_field (td : tdef) (cf : tclass_field) =
+	let m = td.t_module in
+	reuse (match find_old m (mk_key m td.t_path KAnonField cf.cf_name 0) with Some (EAnonField(_,cf')) -> Some cf' | _ -> None) cf
+
+(* Type parameters. [mk_type_param] makes the parameter and its class refer to
+   each other, so both are grafted together and the references are rebuilt. *)
+let graft_type_param m key (ttp : typed_type_param) =
+	match find_old m key with
+	| Some (ETypeParam old) when old != ttp ->
+		let c_old = old.ttp_class and c_new = ttp.ttp_class in
+		copy_into c_old c_new;
+		copy_into old { ttp with ttp_class = c_old; ttp_type = TInst(c_old,[]) };
+		c_old.cl_kind <- KTypeParameter old;
+		c_old.cl_type <- TType(TFunctions.class_module_type c_old,[]);
+		incr EntityKey.graft_reused;
+		old
+	| _ ->
+		ttp
+
+let param_key m ty name overload index =
+	{ ek_module = m.m_path; ek_type = ty; ek_kind = KTypeParam; ek_name = name; ek_overload = overload; ek_param = index }
+
+(* Graft functions for [Typeload.type_type_params], by host. *)
+let type_params_of_type m path =
+	if not (Hashtbl.mem grafts m.m_id) then None
+	else Some (fun index ttp -> graft_type_param m (param_key m path "" 0 index) ttp)
+
+let type_params_of_enum_field (e : tenum) name =
+	let m = e.e_module in
+	if not (Hashtbl.mem grafts m.m_id) then None
+	else Some (fun index ttp -> graft_type_param m (param_key m e.e_path name 0 index) ttp)
+
+let type_params_of_field (c : tclass) (cf : tclass_field) =
+	let m = c.cl_module in
+	match Mutex.protect mutex (fun () -> Option.map (fun g -> List.assq_opt cf g.field_keys) (Hashtbl.find_opt grafts m.m_id)) with
+	| Some (Some key) ->
+		let name = if key.ek_kind = KConstructor then "new" else key.ek_name in
+		Some (fun index ttp -> graft_type_param m (param_key m key.ek_type name key.ek_overload index) ttp)
+	| _ ->
+		None

@@ -1,0 +1,44 @@
+# Type parameters and typedef structures of a module whose implementation
+# changes: their objects are kept by grafting (phase 2, active with the
+# in-memory cache), so modules using them keep valid references. Run with
+# `--args "-D incremental-retype-changed-only"` to check it without retyping
+# the modules that use them.
+@args -D disable-hxb-cache -D incremental-check-refs
+
+=== initial
+@expect-output 6 3 3
+--- Main.hx
+class Main {
+	static function main() {
+		var b = new Dep.Box(3).map(x -> x * 2);
+		var p:Dep.Point = {x: 3};
+		trace(b.value + " " + Dep.Tools.getX(p) + " " + p.x);
+	}
+}
+--- Dep.hx
+typedef Point = {x:Int}
+
+class Box<T> {
+	public var value:T;
+	public function new(v:T) value = v;
+	public function map<U>(f:T->U):Box<U> return new Box(f(value));
+}
+
+class Tools {
+	public static function getX(p:Point) return p.x;
+}
+
+=== implementation changes
+@expect-output 6 4 3
+--- Dep.hx
+typedef Point = {x:Int}
+
+class Box<T> {
+	public var value:T;
+	public function new(v:T) value = v;
+	public function map<U>(f:T->U):Box<U> return new Box(f(value));
+}
+
+class Tools {
+	public static function getX(p:Point) return p.x + 1;
+}

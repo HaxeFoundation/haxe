@@ -60,6 +60,14 @@ let check com =
 		let infos = t_infos mt in
 		let m = infos.mt_module in
 		match mt with
+		| TClassDecl { cl_kind = KTypeParameter ttp } when m != null_module ->
+			(* a type parameter belongs to the module of its host *)
+			begin match current_module m with
+			| Some m' when m' != m ->
+				report (Printf.sprintf "type parameter %s refers to an older version of module %s (%s)" ttp.ttp_name (s_type_path m.m_path) (describe m m' (EntityKey.ETypeParam ttp))) p
+			| _ ->
+				()
+			end
 		| TClassDecl { cl_kind = KTypeParameter _ | KGenericInstance _ | KExpr _ } ->
 			()
 		| _ when m == null_module ->
@@ -108,6 +116,24 @@ let check com =
 		| TField(_,(FInstance(c,_,cf) | FStatic(c,cf) | FClosure(Some(c,_),cf))) ->
 			check_module_type (TClassDecl c) e.epos;
 			check_class_field c cf e.epos
+		| TField({etype = TType({t_params = []} as td,_)},FAnon cf) ->
+			(* a field of the structure a typedef declares *)
+			let rec declared t = match t with
+				| TMono { tm_type = Some t } -> declared t
+				| TLazy r -> (match !r with LAvailable t -> declared t | _ -> t)
+				| _ -> t
+			in
+			(* the typedef of the current version of its module *)
+			let td = match current_module td.t_module with
+				| Some m' -> (try List.find_map (function TTypeDecl td' when td'.t_path = td.t_path -> Some td' | _ -> None) m'.m_types |> Option.get with _ -> td)
+				| None -> td
+			in
+			begin match declared td.t_type with
+			| TAnon an when PMap.mem cf.cf_name an.a_fields && PMap.find cf.cf_name an.a_fields != cf ->
+				report (Printf.sprintf "field %s is not a field of the structure of %s" cf.cf_name (s_type_path td.t_path)) e.epos
+			| _ ->
+				()
+			end
 		| TField(_,FEnum(en,ef)) ->
 			check_module_type (TEnumDecl en) e.epos;
 			if not (try PMap.find ef.ef_name en.e_constrs == ef with Not_found -> false) then
