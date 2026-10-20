@@ -11,7 +11,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
 | Priority targets | **JS** and **HL**. Other targets keep a global generation step but benefit from incremental typing and filters. |
-| Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File writes from macros are reviewed case by case. |
+| Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File writes are the macro's responsibility (not tracked by the compiler). |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6, with a warning phase before errors. |
 | Macro context | The macro and target contexts keep **separate query graphs** (different defines, platform and standard library overrides), but **share parsing**: a parsed module is reused by the other context when the defines read during its parsing have the same values in both (phase 3.6). |
@@ -616,7 +616,7 @@ cycles are errors (§ phase 3.3).
      `DFile` (content, or sorted listing for a directory);
    - `Date.now`, `Math.random`, `Sys.getEnv`, `Sys.command`, `Sys.time`,
      sockets: the expansion is marked **volatile**;
-   - file writes: see item 8.
+   - file writes: not tracked (see item 8).
 4. **Static state isolation.** Macro-context static variables no longer carry
    state from one macro call to another.
    - **Ordinary statics are reset for every expansion.** During an expansion, a
@@ -693,33 +693,12 @@ cycles are errors (§ phase 3.3).
    is green, the log is replayed instead of running the macro.
 7. **Volatile macros**: re-executed on every compilation. If their output (and
    effect log) has the same fingerprint, downstream stays green.
-8. **File writes: to be reviewed case by case.** A file written during an
-   expansion is not written again when the expansion is reused from the
-   cache. There is no single answer yet; known cases in the corpus:
-   - heaps resource conversion (`hxd/fs/Convert.hx`, `hxd/fs/FileConverter.hx`,
-     triggered by `hxd.res.FileTree` build macros): converted assets and an
-     on-disk conversion cache. These are outputs of a compile-time build step
-     with their own cache, possibly better modeled as a `MacroCache` whose
-     values are files, or as a separate pipeline step outside expansions;
-   - hide `hrt/ui/tests/Macros.hx`: writes generated test files;
-   - hide `hrt/prefab/l3d/modellibrary/ModelLibrary.hx`: creates and deletes
-     files during conversion.
-   File contents are **not replayed**: that would require keeping the
-   written data in memory (or a copy on disk) for every cached expansion.
-   Default mechanism instead:
-   - a write records the file as an **output** of the expansion: path, size,
-     modification time and content hash, never the content;
-   - when the expansion is reused from the cache, each output is checked on
-     disk (size and modification time first, hash only if they differ). If
-     every output is still as written, nothing is done; if one is missing or
-     was modified, the expansion is re-executed;
-   - two expansions writing the same path is an error;
-   - a file written by one expansion and read by another (`DFile`) makes the
-     reader depend on the writer's output.
-   Cases where this is not enough (e.g. writes that are not a function of the
-   expansion's inputs) are decided individually: restricting writes to
-   `program()` stages (`onGenerate`), or marking the expansion volatile.
-
+8. **File writes are the macro's responsibility.** The compiler does not
+   track, replay or verify files written by macros, and writing a file does
+   not make an expansion volatile. A macro that writes files (heaps resource
+   conversion in `hxd/fs/Convert.hx` and `hxd/fs/FileConverter.hx`, hide test
+   generation, hide `ModelLibrary`) manages its own outputs and caches, as it
+   does today. Files it *reads* are still `DFile` dependencies (item 3).
 9. **Corpus migration** (validates the declarations on real cases):
    - **domkit**: `COMPONENTS` (and `COMPONENTS_REMAP_REV`) become a
      `MacroTypeData<MetaComponent>` on the component class; `loadComponent`
@@ -738,7 +717,7 @@ cycles are errors (§ phase 3.3).
    - **heaps**: `hxsl` stores the parsed shader in a `MacroTypeData` instead of
      re-parsing `:src` on every `@:import`; `hxd/res/DynamicText.hx`
      `BUILD_CACHE` and `hxd/fs/Convert.hx` `converts` become `MacroCache`s
-     (subject to the file write review of item 8).
+     .
 10. **Detection during the transition** (Haxe 5.x warnings, before isolation
     becomes the default):
     - cheap mode: eval tags each static with the expansion that last assigned
@@ -759,7 +738,7 @@ phase 3.5).
 
 Exit criterion: Heaps, hxbit, domkit and hide pass history replay with static
 isolation enabled, and at most a handful of identified and justified volatile
-macros (pending file write decisions).
+macros.
 
 ---
 
