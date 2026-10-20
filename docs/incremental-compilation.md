@@ -992,6 +992,11 @@ cycle because reading `addNode` typed its body inside the inference of
 - Resources are generated sorted by name in JS, Lua and HL (they were
   generated in hash table order, which depends on the order in which macros
   added them).
+- Compiler messages are reported sorted by position (file, then offset),
+  each message keeping the related messages that follow it
+  (`MessageReporting.sort_by_position`, stable). The whole `tests/misc`
+  suite and `tests/incremental` with `--strict-order` (messages compared
+  without sorting) pass unchanged.
 - Remaining: stored typed expression ids (local to the expansion key, which
   comes with phase 7), anonymous structure naming for hxb (with the hxb disk
   backup), the other generators' resources, and the remaining `Hashtbl`

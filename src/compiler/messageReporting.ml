@@ -422,9 +422,29 @@ let display_messages_from defines messages ~set_error on_message = begin
 	if !log_messages then (Option.get !close_logs) ();
 end
 
+(* Sorts messages by position, keeping each message with the related messages
+   that follow it (depth > 0), so that the report does not depend on the order
+   in which things were typed (docs/incremental-compilation.md, §3.4). The sort
+   is stable: messages at the same position keep their order. *)
+let sort_by_position messages =
+	let rec groups acc current = function
+		| [] ->
+			List.rev (match current with [] -> acc | _ -> List.rev current :: acc)
+		| m :: l when m.cm_depth = 0 && current <> [] ->
+			groups (List.rev current :: acc) [m] l
+		| m :: l ->
+			groups acc (m :: current) l
+	in
+	let key = function
+		| m :: _ -> (Pos.file m.cm_pos,Pos.min m.cm_pos)
+		| [] -> ("",0)
+	in
+	List.concat (List.stable_sort (fun g1 g2 -> compare (key g1) (key g2)) (groups [] [] messages))
+
 (** Convenience wrapper that extracts defines and messages from a compilation context.
-    Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
+    Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order,
+    then sorts them by position. *)
 let display_messages com on_message =
-	display_messages_from com.defines (List.rev com.part_scope.messages)
+	display_messages_from com.defines (sort_by_position (List.rev com.part_scope.messages))
 		~set_error:(fun () -> com.part_scope.has_error <- true) on_message
 
