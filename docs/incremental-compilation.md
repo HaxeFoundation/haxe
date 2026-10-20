@@ -399,6 +399,22 @@ pointers.
        class instance or `Class<T>` with an anonymous structure (it used to set
        `CfMaybeUsed`, so DCE could not reset it).
 
+     Other DCE state on cached entities, fixed the same way:
+     - `m_features` (the features a module's code uses, recorded by DCE
+       marking) is reset by DCE for every module it processes; a cached module
+       used to keep the features of earlier compilations
+       (`cases/dce/cached-module-features.hxtest`: `$hxEnums` kept in the JS
+       output after the last use of an enum was removed);
+     - `CfOverride`, which DCE removes from a field whose parent field it
+       removed, is now part of the state saved by `save_class_state` and
+       restored when the class is reused; the HL generator reads it to build
+       virtual tables (`cases/dce/cached-override-flag.hxtest`, HL bytecode
+       differed).
+
+     With these fixes, the whole `tests/incremental` suite passes on JS,
+     interp and HL (`--add-target hl`, bytecode compared), with both the hxb
+     and the in-memory cache.
+
      Remaining: `CfStructurallyUsed` is stored on the *target* field by the
      typing of another module. When that module changes and no longer unifies
      the class with a structure, the marker stays, and a warm compilation can

@@ -1,0 +1,41 @@
+# Features (`m_features`) are recorded by DCE on the module of the class whose
+# code uses them. A module reused from the in-memory cache must not keep the
+# features of the previous compilation: here `has_enum` (which makes the JS
+# generator emit `$estr` and `$hxEnums`) is only used by a function that the
+# second step no longer calls.
+@targets js
+@args -D disable-hxb-cache -dce full
+
+=== initial
+@expect-output 1
+@expect-file out/main.js $hxEnums
+--- Main.hx
+class Main {
+	static function main() {
+		Lib.useEnum();
+		js.Syntax.code("console.log({0})", Lib.other());
+	}
+}
+--- Lib.hx
+enum E {
+	A;
+	B;
+}
+
+class Lib {
+	public static function useEnum() {
+		var e = A;
+		js.Syntax.code("void {0}", e);
+	}
+	public static function other() return 1;
+}
+
+=== the enum is no longer used
+@expect-output 1
+@expect-no-file-content out/main.js $hxEnums
+--- Main.hx
+class Main {
+	static function main() {
+		js.Syntax.code("console.log({0})", Lib.other());
+	}
+}

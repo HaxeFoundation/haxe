@@ -25,7 +25,8 @@ using StringTools;
 	Options:
 	  --filter <substring>  only run cases whose path contains the substring
 	  --haxe <path>         compiler to test (default: `haxe` from PATH)
-	  --targets <list>      restrict targets (comma separated: interp,js)
+	  --targets <list>      restrict targets (comma separated: interp,js,hl)
+	  --add-target <target> also run every case on this target (e.g. hl)
 	  --strict-order        compare compiler messages without sorting them
 	  --invalidate          notify the server of changed files (`server/invalidate`)
 	                        instead of relying on modification times
@@ -43,6 +44,7 @@ class RunIncremental {
 	public static var ignoreOrder = false;
 	static var filter:Null<String> = null;
 	static var targetFilter:Null<Array<String>> = null;
+	static var addedTargets:Array<String> = [];
 	static var strictOrder = false;
 	static var invalidate = false;
 	static var keep = false;
@@ -66,6 +68,8 @@ class RunIncremental {
 					haxeCmd = args[++i];
 				case "--targets":
 					targetFilter = args[++i].split(",");
+				case "--add-target":
+					addedTargets.push(args[++i]);
 				case "--strict-order":
 					strictOrder = true;
 				case "--invalidate":
@@ -107,7 +111,8 @@ class RunIncremental {
 				results.push({name: rel, target: "-", outcome: Failed(['parse error: ${e.message}'])});
 				continue;
 			}
-			for (target in tc.targets) {
+			var targets = tc.targets.concat(addedTargets.filter(t -> !tc.targets.contains(t)));
+			for (target in targets) {
 				if (targetFilter != null && !targetFilter.contains(target))
 					continue;
 				var outcome = runCase(tc, target, port++);
@@ -371,13 +376,17 @@ class RunIncremental {
 		p.close();
 		var out = normalize(stdout + stderr, dir);
 		var run = "";
-		var runner = Path.join([dir, "out", "main.js"]);
-		if (runProgram && code == 0 && FileSystem.exists(runner)) {
-			var node = new Process("node", [runner]);
-			run = node.stdout.readAll().toString() + node.stderr.readAll().toString();
-			node.exitCode();
-			node.close();
-			run = normalize(run, dir);
+		if (runProgram && code == 0) {
+			var js = Path.join([dir, "out", "main.js"]);
+			var hl = Path.join([dir, "out", "main.hl"]);
+			var cmd = if (FileSystem.exists(js)) ["node", js] else if (FileSystem.exists(hl) && hasHl()) ["hl", hl] else null;
+			if (cmd != null) {
+				var proc = new Process(cmd[0], cmd.slice(1));
+				run = proc.stdout.readAll().toString() + proc.stderr.readAll().toString();
+				proc.exitCode();
+				proc.close();
+				run = normalize(run, dir);
+			}
 		}
 		return {
 			code: code,
@@ -385,6 +394,15 @@ class RunIncremental {
 			run: run,
 			files: listFiles(outDir, "")
 		};
+	}
+
+	static var hlAvailable:Null<Bool>;
+
+	/** Whether the HashLink VM is available to run `out/main.hl`. **/
+	static function hasHl():Bool {
+		if (hlAvailable == null)
+			hlAvailable = Sys.command("sh", ["-c", "command -v hl > /dev/null"]) == 0;
+		return hlAvailable;
 	}
 
 	static function normalize(s:String, dir:String) {
@@ -505,7 +523,7 @@ class RunIncremental {
 				case NoFsCalls:
 					// Checked separately, see noChangeCompilationCalls.
 				case Output(text):
-					if (target == "interp" || target == "js") {
+					if (target == "interp" || target == "js" || (target == "hl" && hasHl())) {
 						if (output.indexOf(text) < 0)
 							errors.push('expected program output containing "$text", got:\n$output');
 					}

@@ -223,6 +223,8 @@ class TestCase {
 				lines.push("--interp");
 			case "js":
 				lines.push("-js out/main.js");
+			case "hl":
+				lines.push("--hl out/main.hl");
 			case other:
 				throw new ParseError('$name: unknown target $other');
 		}

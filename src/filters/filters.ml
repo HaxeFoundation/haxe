@@ -349,13 +349,15 @@ let save_class_state compilation_step t =
 			Option.may save_vars f.cf_expr;
 			let mk_overload_restore f =
 				add_class_field_flag f CfPostProcessed;
-				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
+				(* DCE removes the override flag of fields whose parent field it removed *)
+				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params,has_class_field_flag f CfOverride
 			in
 			( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
 		in
 		let restore_field (f,res,overloads) =
-			let restore_field (f,(name,kind,expr,t,meta,params)) =
+			let restore_field (f,(name,kind,expr,t,meta,params,override)) =
 				f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
+				if override then add_class_field_flag f CfOverride else remove_class_field_flag f CfOverride;
 				f
 			in
 			let f = restore_field (f,res) in

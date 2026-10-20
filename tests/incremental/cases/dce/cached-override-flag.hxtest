@@ -1,0 +1,35 @@
+# DCE removes the `override` flag of a field whose parent field it removed.
+# A class reused from the in-memory cache must get it back when the parent
+# field is used again: the HL generator reads it to build virtual tables.
+@targets js hl
+@args -D disable-hxb-cache -dce full
+
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Lib.Sub().f());
+	}
+}
+--- Lib.hx
+class Base {
+	public function new() {}
+	public function f() return "base";
+}
+
+class Sub extends Base {
+	override public function f() return "sub";
+}
+
+class Lib {}
+
+=== the parent field is used
+@expect-output sub
+--- Main.hx
+class Main {
+	static function main() {
+		var b:Lib.Base = new Lib.Sub();
+		trace(b.f());
+	}
+}
