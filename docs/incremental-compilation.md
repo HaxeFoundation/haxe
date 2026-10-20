@@ -21,7 +21,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Positions | **Relative to an anchor** (one per field / type declaration). A field that only moved in its file is not retyped: updating its anchor fixes every position in its typed AST, cached errors, macro outputs and `haxe.PosInfos` (phase 2, item 6). |
 | Display / LSP | **Deferred.** No new guarantees for editor requests in this plan; display keeps its current semantics, sped up by incrementality. To be designed once phase 6 is done. |
 | Positions in inlined code | The inliner replaces positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint) and self-calling closures (relative positions included). |
-| Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit and domkit, for their heavy use of macros. |
+| Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit, domkit and hide, for their heavy use of macros. |
 | Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
@@ -96,13 +96,14 @@ The old ↔ new mapping between two typings goes through this key.
 | Node | Content | Fingerprint |
 |---|---|---|
 | `File(f)` | file content | content hash (modification time is only a pre-filter) |
-| `Decls(m)` | parsed AST, split per type and per field | hash of the AST **without absolute positions**, per field |
-| `TypeShape(t)` | path, kind, parameters, constraints, `super`/`implements`, **member set** (names, kinds, access), metadata, `@:using`, abstract underlying type, `from`/`to` | canonical hash |
+| `Decls(m)` | parsed AST, split per type and per field | hash of the AST with positions **relative to the declaration's anchor** (phase 2, item 6), per field |
+| `TypeHeader(t)` | path, kind, parameters, constraints, `super`/`implements`, **declared** metadata, `@:using`, abstract underlying type, typedef target | canonical hash |
+| `TypeMembers(t)` | **member set** after build macros (names, kinds, access, declared hints), complete metadata (including build-added), abstract `from`/`to`/operators | canonical hash |
 | `FieldSig(cf)` | fully resolved type, kind (`var`/`method`, access), `cf_params`, metadata, relevant flags | canonical hash |
 | `FieldInlineBody(cf)` | body of `inline`, `macro` and `@:generic` fields, and of abstract fields used as inline casts/operators | canonical hash of the `texpr` |
-| `FieldBody(cf)` | typed `cf_expr` | canonical hash of the `texpr` (used by post-processing and generation) |
+| `FieldBody(cf)` | typed `cf_expr` | canonical hash of the `texpr`, **including anchor-relative positions** (used by post-processing and generation, where positions matter) |
 | `MacroExpansion(site)` | result of an expansion and its effects | hash of the output |
-| `PostProcessed(cf)` | expression after filters | hash |
+| `PostProcessed(cf)` | expression after filters | hash, including anchor-relative positions |
 | `Fragment(t)` | generated code for a type or a function | hash |
 
 **Canonical hasher** (new module `src/core/tFingerprint.ml`):
@@ -111,8 +112,12 @@ The old ↔ new mapping between two typings goes through this key.
 - anonymous fields are sorted by name;
 - bound monomorphs are followed; an unbound monomorph is forbidden in a
   signature, which phase 1 guarantees;
-- `TLazy` values are forced before hashing (they already are by `PForce`);
-- positions are excluded, except relative positions in the cases listed in §0;
+- there are no `TLazy` values left to force: with demand-driven typing
+  (phase 3), hashing a signature demands the `sig` query;
+- positions are excluded from interface fingerprints (`TypeHeader`,
+  `TypeMembers`, `FieldSig`, `FieldInlineBody`, except in the cases listed in
+  §0) and included, relative to their anchor, in `Decls`, `FieldBody`,
+  `PostProcessed` and `Fragment`;
 - it writes directly into an incremental digest, without intermediate
   serialization.
 
@@ -123,7 +128,8 @@ typed (`ctx.f.curfield`), or a macro expansion. Dependency kinds:
 
 | Kind | Recorded when | Invalidated if |
 |---|---|---|
-| `DShape t` | iterating over or looking up members of `t`, structural unification, `using`, matcher exhaustiveness, override checks, overload resolution | `TypeShape(t)` changes |
+| `DHeader t` | reading the header of `t`: parameters, super class, interfaces, declared metadata (e.g. `is_parent`, unification against an interface, macro `ClassType` header access) | `TypeHeader(t)` changes |
+| `DMembers t` | iterating over or looking up members of `t`, structural unification, `using`, matcher exhaustiveness, override checks, overload resolution, complete metadata after `Context.buildType` | `TypeMembers(t)` changes |
 | `DSig cf` | reading `cf.cf_type` (field access, call) | `FieldSig(cf)` changes |
 | `DInline cf` | inlining, `@:generic` instantiation, macro execution (macro context) | `FieldInlineBody(cf)` or `FieldBody(cf)` changes |
 | `DLookup (path, result)` | resolving a type name, an import, an `import pack.*`, sub-types | the resolution result changes, including a file that **appears** and shadows another type (negative dependency) |
@@ -139,7 +145,8 @@ attached to the cache context (`CompilationCache`):
 type node_key =
   | NFile of Path.UniqueKey.t
   | NDecls of path                       (* module *)
-  | NShape of entity_key
+  | NHeader of entity_key
+  | NMembers of entity_key
   | NSig of entity_key
   | NInline of entity_key
   | NBody of entity_key
@@ -170,7 +177,7 @@ Goal: be able to prove equivalence before optimizing anything.
 
 1. **Verification mode** `-D incremental-verify`: after a server compilation,
    run a cold compilation in a fresh context and compare:
-   - the fingerprints of all `Sig`, `Shape` and `Body` nodes;
+   - the fingerprints of all `Header`, `Members`, `Sig` and `Body` nodes;
    - the generated outputs, byte for byte;
    - the sorted list of errors and warnings.
 2. **Stale pointer checker** `-D incremental-check-refs`: walk all cached
@@ -181,8 +188,8 @@ Goal: be able to prove equivalence before optimizing anything.
    server, takes a repository and a list of commits, compiles each commit
    incrementally in verification mode, and produces a report (timings,
    recomputed nodes, differences).
-   - Corpus: `tests/unit`, `tests/server`, `tests/display`; Heaps, hxbit and
-     domkit (repositories cloned in CI, with replayed commits).
+   - Corpus: `tests/unit`, `tests/server`, `tests/display`; Heaps, hxbit,
+     domkit and hide (repositories cloned in CI, with replayed commits).
 4. **Statistics** (`--times` and `server/stats`): nodes validated, recomputed
    and cut off by early cutoff, per node kind.
 
@@ -217,9 +224,11 @@ Cases to handle explicitly:
 - `var x = null;` and `var a = [];`: error.
 - `function f() return g();` where `g` is not typed yet: allowed; the type of
   `f` depends on `FieldSig(g)` (lazy typing, as today).
-- Cycles of unannotated fields (`f` calls `g`, `g` calls `f`): keep the current
-  behavior ("recursive type"), but record the cycle as a component for
-  invalidation.
+- Cycles of unannotated fields (`f` calls `g`, `g` calls `f`): today they may
+  "work" through `LProcessing` placeholders depending on order. They become an
+  error asking for an annotation once phase 3 lands (§ phase 3.3); phase 1
+  only warns about them. A field referring to itself in its own body stays
+  allowed.
 - Locals and closures: not affected, they are internal to the body.
 
 Consequence: type parameter constraints no longer need a late pass
@@ -252,8 +261,11 @@ pointers.
    - DCE and post-processing flags (`CfUsed`, `CfPostProcessed`, …): moved to
      post-processing data (phase 8), out of `cf_flags`.
    - `m_features`: computed per module from its post-processed AST.
-   - Metadata added by a macro from **another** module (`addMetadata`):
-     recorded as an effect of the expansion (phase 7) and replayed.
+   - Metadata added to a type by a macro other than that type's own build
+     macros (`Compiler.addMetadata`, `addGlobalMetadata`, `meta.add` on a type
+     obtained through `getType`): see the open question in §6; initialization
+     macros (`--macro`) are fine, their effect is part of the declared
+     metadata.
    - `@:generic` instances: attached to the `(generic, type arguments)` node
      rather than to the generic's module (removes the `m_processed = 0`
      mechanism from #10635).
@@ -268,7 +280,7 @@ pointers.
    - unmatched new objects become the new entities.
 5. No `tclass` is ever recreated for a cached module anymore: `typeloadModule`
    takes an optional "previous module" and reuses its entities by key (through
-   grafting).
+   grafting). After phase 3, this becomes the behavior of the `declare` query.
 6. **Relative positions.** Without them, a field that did not change but moved
    in its file (lines added above it) keeps stale absolute positions in its
    typed AST, since `Decls` fingerprints ignore absolute positions and the
@@ -285,8 +297,8 @@ pointers.
      field (generated expressions, macro outputs through
      `Context.currentPos()`, inlined code taking the call site position) use
      the anchor of the position they derive from.
-   - On reparse, each unchanged declaration is matched (by `Decls`
-     fingerprint, which uses positions relative to the anchor) and its
+   - On reparse (phase 6), each unchanged declaration is matched (by `Decls`
+     fingerprint, phase 4, which uses positions relative to the anchor) and its
      shift is applied to its anchor: O(1) per declaration, and every position
      of its typed AST, cached messages and macro expansions is correct again.
    - `pos` becomes an abstract type: the ~350 direct reads of `pmin`/`pmax`
@@ -301,6 +313,8 @@ pointers.
      macro's module, `-D keep_inline_positions`) carry that file's anchors, so
      they follow edits of that file as well.
    - hxb serializes positions relative to their anchor.
+   - Principle 4 still holds: the typed AST is not modified, only the anchors
+     it refers to.
 
 Exit criterion: when fully retyping a modified module with grafting, the stale
 pointer checker reports nothing across the whole corpus.
@@ -324,8 +338,8 @@ An entity is created empty by `declare` and can be referenced by pointer
 |---|---|---|---|
 | `declare(module)` | parse, create empty entities with their stable keys | `File` | `PBuildModule` |
 | `resolve(name, scope)` | type name resolution (imports, `using`, sub-types, class paths) | `declare` of candidates | lookups spread over `Typeload`/`ImportHandling` |
-| `header(T)` | type parameters, constraints, super class, interfaces, abstract underlying type, typedef target | `resolve` of each hint | first half of `PBuildClass` |
-| `members(T)` | member set (names, kinds, access, declared hints) **after build macros**, properties connected to accessors, abstract `from`/`to`/operators | `header(T)`, `members` of ancestors (`@:autoBuild`), build macro expansions | rest of `PBuildClass`, `PConnectField`, `cl_build` |
+| `header(T)` | type parameters, constraints, super class, interfaces, declared metadata, abstract underlying type, typedef target | `resolve` of each hint | first half of `PBuildClass` |
+| `members(T)` | member set (names, kinds, access, declared hints) **after build macros**, complete metadata, properties connected to accessors, abstract `from`/`to`/operators | `header(T)`, `members` of ancestors (`@:autoBuild`), build macro expansions | rest of `PBuildClass`, `PConnectField`, `cl_build` |
 | `sig(f)` | fully resolved field type, constraints checked | hints, or `body(f)` for an inferred type | `TLazy` on `cf_type` |
 | `body(f)` | typed expression, local constraints checked | `sig`/`members` of whatever it touches | `PTypeField` |
 | `checks(T)` | overrides, interface implementation, abstract classes, final vars, overloads, core API, abstract class constraints | `members(T)`, `members(ancestors)`, `sig` of involved fields | `PForce` checks, `delay_late` ordering |
@@ -348,7 +362,8 @@ contains about 1,400 such reads (`cf_type` 423, `cl_super` 186,
 1. `tclass`, `tclass_field`, `tenum`, `tenum_field`, `tabstract` and `tdef`
    become abstract in a module signature (`src/core/tEntity.mli` or similar).
    Contents are only reachable through accessors grouped by query:
-   `Header.super c`, `Members.fields c`, `Sig.field_type cf`, `Body.expr cf`…
+   `Header.super c`, `Header.meta c`, `Members.fields c`, `Sig.field_type cf`,
+   `Body.expr cf`…
 2. Each accessor demands the query (computing it if needed) and records the
    dependency for the current consumer (phase 5).
 3. Writers are restricted to the query implementations (typeload modules) and
@@ -492,8 +507,8 @@ before cycles become errors.
   vary; the default (report everything) is fully deterministic.
 - `com.types`, `m_deps` and any list built during typing are sorted by stable
   key before use.
-- Display requests demand only the queries needed for the cursor position,
-  plus `checks` and `body` of the display file for diagnostics.
+- Display requests keep their current semantics for now (display is
+  deferred, see decisions).
 
 #### 3.5 Parallel body typing
 
@@ -553,12 +568,13 @@ and parallel typing produces the same output as sequential typing.
 
 1. `src/core/tFingerprint.ml`: canonical hasher (§3.2) for `t`,
    `tclass_field`, type shapes and `texpr`.
-2. Compute `FieldSig` and `FieldInlineBody` at the end of each field's typing;
-   `TypeShape` at the end of `PBuildClass` and `PConnectField`; `FieldBody` at
-   the end of `PTypeField`.
+2. Compute fingerprints when the corresponding query completes: `TypeHeader`
+   at the end of `header(T)`, `TypeMembers` at the end of `members(T)`,
+   `FieldSig` and `FieldInlineBody` at the end of `sig(f)`, `FieldBody` at the
+   end of `body(f)`.
 3. **Per-field** `Decls` hash in `TypeloadParse`: split the AST per field and
-   compute relative positions, which tells which fields changed without typing
-   them.
+   compute anchor-relative positions, which tells which fields changed without
+   typing them.
 4. Unit tests for the hasher: stability (two cold typings give the same
    fingerprint), sensitivity (every signature change changes the fingerprint),
    insensitivity to positions.
@@ -567,8 +583,8 @@ and parallel typing produces the same output as sequential typing.
 
 ### Phase 5: dependency recording
 
-Most dependencies are recorded inside the phase 3 accessors: `Header.*` and
-`Members.*` record `DShape`, `Sig.*` records `DSig`, `Body.*` records `DInline`,
+Most dependencies are recorded inside the phase 3 accessors: `Header.*`
+records `DHeader`, `Members.*` records `DMembers`, `Sig.*` records `DSig`, `Body.*` records `DInline`,
 and `resolve` records `DLookup`. The table below lists where each kind
 originates, which is also the checklist for the accessor migration.
 Recording goes through an `Incremental.record dep` that is a no-op outside the
@@ -578,7 +594,8 @@ server:
 |---|---|
 | `DLookup` | `Typeload.load_instance`/`load_type_def`, import resolution (`ImportHandling`, `typeloadModule.ml`), `TyperDotPath`, class path lookup (including **failed** lookups) |
 | `DSig` | `FieldAccess`/`Fields` (field access), `Calls`, `CallUnification`; reading `cf_type` of other modules' fields |
-| `DShape` | field lookup (`Fields.type_field`, `class_field`), `using`, structural unification (`tUnification.ml`, `TAnon` against `TInst`), `OverloadResolution`, `Matcher` (enum constructors), override and interface checks (`TypeloadCheck`), `AbstractCast` (`from`/`to`) |
+| `DHeader` | `is_parent`/`extends` checks, unification against interfaces, type parameter constraints, macro `ClassType` header access and declared metadata reads |
+| `DMembers` | field lookup (`Fields.type_field`, `class_field`), `using`, structural unification (`tUnification.ml`, `TAnon` against `TInst`), `OverloadResolution`, `Matcher` (enum constructors), override and interface checks (`TypeloadCheck`), `AbstractCast` (`from`/`to`) |
 | `DInline` | `Inline`, `Generic`, `MacroContext` (executed code) |
 | `DMacro`, `DFile` | phase 7 |
 
@@ -586,7 +603,7 @@ The current consumer is carried by the typer context (`ctx.f.curfield` and its
 module). Dependencies from a field to its own module are recorded too, since the
 granularity is the field.
 
-Optimization: dependencies are deduplicated per consumer, and `DShape` reads
+Optimization: dependencies are deduplicated per consumer, and `DMembers` reads
 within the own module are grouped.
 
 Exit criterion: verification mode in "trace only" mode (everything is
@@ -606,13 +623,14 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
    fingerprint is compared to the old one.
 2. **Modified file**:
    1. reparse; compute `Decls` fingerprints per field and per type;
-   2. added or removed types, and added or removed members: the `TypeShape`
-      changes;
-   3. fields whose `Decls` fingerprint changed: retype only those fields, in
-      the existing entity (reset `cf_type` and `cf_expr`, rerun the field's
-      typing, then graft);
-   4. the type's build macros are re-executed if their `MacroExpansion` node is
-      invalid. Their output is diffed per field as in 2.3.
+   2. unchanged declarations that moved get their anchor updated (phase 2,
+      item 6);
+   3. added or removed types, and added or removed members: `TypeMembers`
+      changes (and `TypeHeader` if the header changed);
+   4. fields whose `Decls` fingerprint changed: their `sig` and `body` queries
+      are invalidated and recomputed in the existing entity, then grafted;
+   5. the type's build macros are re-executed if their `MacroExpansion` node is
+      invalid. Their output is diffed per field as in 2.4.
 3. **Early cutoff**: if `FieldSig(cf)` is unchanged after retyping, consumers of
    `DSig cf` stay green. Only `FieldBody(cf)`, then post-processing and
    generation of `cf`, are recomputed.
@@ -626,8 +644,11 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
    else.
 6. **Errors and warnings**: stored per node and replayed when the node is
    green, replacing the current handling of modules with errors.
-7. **Initialization macros** (`--macro`) and global callbacks: always executed,
-   last, with early cutoff on what they produce (phase 7).
+7. **Initialization macros** (`--macro`) are always executed **first**; the
+   hash of the `@:persistent` values they produce acts like a define (phase 7,
+   item 4). **Global callbacks** (`onAfterTyping`, `onGenerate`) and
+   `program()` stage reductions are always executed **last**, with early
+   cutoff on what they produce.
 
 Exit criterion: equivalence across the whole corpus in history replay.
 Measurement: number of retyped fields per commit, typing time.
@@ -647,7 +668,7 @@ cycles are errors (§ phase 3.3).
    - build macros: `(built type, macro, hash of input fields)`.
 2. **Tracing** in `src/macro/macroApi.ml`: every API function that reads the
    program records a dependency for the current expansion (`getType` gives
-   `DLookup` + `DShape`, `typeof`/`typeExpr` the dependencies of the triggered
+   `DLookup` + `DHeader`, `typeof`/`typeExpr` the dependencies of the triggered
    typing, `getBuildFields` and `getLocalClass` the context, etc.).
 3. **Interpreter sys primitives** (`src/macro/eval/evalStdLib.ml`):
    - `File.getContent`/`getBytes`, `FileSystem.exists`/`stat`/`readDirectory`:
@@ -721,9 +742,13 @@ cycles are errors (§ phase 3.3).
      typing, before filters). Indices are assigned in sorted key order.
    - **`Context.makeUniqueName(base)`**: deterministic unique names, local to
      the expansion key, instead of static counters.
-   - The aggregation reduction (`gather()` then `defineType` of a registry
-     type in a `program()` stage) is reused from the previous design: it runs
-     on every compilation, with early cutoff on its result.
+   - **Reductions**: a `program()` stage callback that calls `gather()` and,
+     for example, `defineType`s a registry type runs on every compilation,
+     with early cutoff on its result.
+   - Whole-program APIs used during typing (`Context.getAllModuleTypes()`,
+     iteration over loaded modules) have the same constraint as `gather()`:
+     their result depends on what has been loaded so far, so they are only
+     allowed in `program()` stages (see §6).
 6. **Recorded and replayed effects**: `defineType`, `defineModule`,
    `addMetadata`, `addResource`, `registerModuleDependency`, callbacks
    (`onGenerate`, `onAfterTyping`, `onTypeNotFound`), messages, and the writes
@@ -786,9 +811,10 @@ macros.
    `save_class_state`, `cl_restore` and `cf_expr_unoptimized` go away: the
    typed AST remains the source and is used for subsequent inlining.
 2. **Local filters**, which only depend on the field and on interfaces: cached
-   by `PostProcessed(cf)`, depending on `FieldBody(cf)`, the `DSig`/`DShape`
+   by `PostProcessed(cf)`, depending on `FieldBody(cf)`, the `DSig`/`DHeader`/`DMembers`
    read and the platform configuration. This covers most of `run_safe_filters`
-   and `destruction_on_scom`.
+   and `destruction_on_scom`, and the resolution of `haxe.PosInfos` nodes to
+   line numbers (phase 2, item 6), which also depends on the field's anchor.
 3. **Global passes, rewritten over per-field summaries**:
    - **Initialization order**: a graph of "static initializer or `__init__`
      of type A references type B" edges, built from summaries. Types are
@@ -803,7 +829,7 @@ macros.
      of modified fields, then propagate the differences (mark or unmark).
      Acceptable first version: full reachability recomputation over summaries,
      very fast since no AST is walked.
-   - **Descendants** (`add_descendant`): recomputed from shapes.
+   - **Descendants** (`add_descendant`): recomputed from headers.
    - **Features** (`has_feature`): union of the features of reachable fields.
    - **`RenameVars`**: the global part (reserved names and collisions) is
      computed over summaries. Per-function renaming is local, hence cached.
@@ -824,10 +850,14 @@ macros.
    used features). Cached by `Fragment(js, type)`, depending on the
    `PostProcessed` nodes of its fields, referenced native names and the global
    set (features).
-2. **Per-fragment source map**, with positions relative to the fragment.
+2. **Per-fragment source map**, with generated positions relative to the
+   fragment and source positions kept as anchored positions: they are
+   resolved to file lines at link time, so a field that only moved in its
+   source file does not need a new fragment.
 3. **Linking**: header, type order and static initialization in dependency
-   (topological) order with ties broken by path, all `__init__` blocks first, concatenation, source map offsets. Linear in output size,
-   without walking any AST.
+   (topological) order with ties broken by path, all `__init__` blocks first,
+   concatenation, source map offsets. Linear in output size, without walking
+   any AST.
 4. Only write the file if its content changed (to be shared with other
    targets).
 
@@ -848,12 +878,13 @@ The heaviest part, because of the global tables in `genhl.ml` (`cglobals`,
    `SymType hl_type_key`) instead of indices.
 2. **HL types**: a canonical, order-independent `hl_type_key` (today the type
    cache depends on encounter order). Class types and virtual objects
-   (anonymous) are derived from `TypeShape` and `FieldSig`.
+   (anonymous) are derived from `TypeMembers` and `FieldSig`.
 3. **Per-function `hlopt`**: optimization cached with the fragment (the result
    only depends on the symbolic function).
 4. **HL linker**: assigns indices (types, globals, strings, functions, natives)
    in a **deterministic order** (sorted by key), resolves symbols and writes
-   the bytecode and debug information. Linear in code size. The generated
+   the bytecode and debug information (anchored positions resolved to lines
+   here, as for JS source maps). Linear in code size. The generated
    entry point runs all `__init__` blocks first, then static var initializers,
    both in the dependency order computed in phase 8.
 5. **HL/C (`hl2c`)**: generates one C file per type from the linked fragments,
@@ -893,7 +924,9 @@ Phase 3 (demand-driven typing) is useful on its own: it removes order
 dependence and enables parallel typing even without the server. Phase 2 comes
 first because queries create and fill entities through the stable-key index.
 Phase 7 (macros) starts after phase 5 (same recording mechanism) and must be
-complete before enabling phase 6 on Heaps, hxbit and domkit.
+complete before enabling phase 6 on Heaps, hxbit, domkit and hide. Anchors are
+introduced in phase 2, but matching moved declarations on reparse uses the
+phase 4 `Decls` fingerprints and happens in phase 6.
 
 ## 6. Risks and open points
 
@@ -915,17 +948,28 @@ complete before enabling phase 6 on Heaps, hxbit and domkit.
   arrays indexed by entity).
 - **Recording cost** during cold typing: must stay low. Disabled outside the
   server.
-- **Structural unification**: `DShape` is coarse (adding a private field
+- **Structural unification**: `DMembers` is coarse (adding a private field
   invalidates structural consumers). Possible refinement: separate public and
-  private shapes.
+  private member sets.
 - **Macros modifying other types** outside the logged effects (direct mutation
   through the `TypedExpr`/`ClassType` API of an object obtained via
   `getType`): detect it (write to an entity of another module during an
   expansion), and handle it with broad invalidation and a warning.
 - **`@:multiType`, `@:genericBuild`, `onTypeNotFound`**: to be explicitly
   covered by tests.
-- **Display**: check that completion is not slowed down by validation. If it
-  is, validate only on demand.
+- **Display** (deferred): check that completion is not slowed down by
+  validation in the meantime.
+- **Static initialization order** changes compared with the current compiler
+  (dependency order, `__init__` first): a behavior change to document and to
+  test on the corpus.
+- **Open question: metadata and effects applied to other types.** A macro that
+  adds metadata to a type other than the one it builds (`Compiler.addMetadata`
+  from an expansion, `meta.add` on a type obtained through `getType`) makes
+  that type's metadata depend on which expansions ran: it is neither declared
+  metadata nor output of the type's own build.
+- **Open question: whole-program macro APIs during typing**
+  (`Context.getAllModuleTypes()`, `Context.getModule` on not-yet-loaded
+  modules): proposed to be restricted to `program()` stages.
 - **Deterministic HL format**: a visible change for tools reading bytecode
   (debugger, profiler), to be validated with them.
 
@@ -938,7 +982,16 @@ complete before enabling phase 6 on Heaps, hxbit and domkit.
   errors (headers, build macros, recursive inferred types).
 - Order-independence tests for phase 3: compile with queries demanded in
   shuffled order (`-D typer-shuffle=<seed>`) and in parallel, and compare.
-- `tests/incremental`: replay harness (phase 0) on `tests/unit`, Heaps, hxbit
-  and domkit.
+- `tests/incremental`: replay harness (phase 0) on `tests/unit`, Heaps, hxbit,
+  domkit and hide.
+- Position tests: insert lines above unchanged fields and check source maps,
+  HL debug info, `haxe.PosInfos` line numbers and cached error positions.
+- Macro state tests: static isolation (including in-place mutation and nested
+  expansions), `@:persistent` freezing, each `haxe.macro.State` declaration,
+  metadata reads with and without `Context.buildType`.
+- Static initialization order tests (dependency order, `__init__` first,
+  cycles).
+- Parse sharing tests between the macro and target contexts (`#if macro`,
+  defines with different values).
 - Unit tests for the hasher and grafting (old ↔ new mapping, remapping, stale
   pointer checker).
