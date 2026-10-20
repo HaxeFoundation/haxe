@@ -648,7 +648,7 @@ cycles are errors (§ phase 3.3).
    | `@:persistent` static | initialization only | anywhere | frozen after initialization |
    | `MacroArray<T>` | `push`, recorded per expansion | `gather()` | `program()` stages only |
    | `MacroMap<K,V>` | `set`, recorded per expansion | `gather()`, `get`, `keys` | `program()` stages only |
-   | `MacroTypeData<T>`, `MacroModuleData<T>` | the build of the type (or typing of the module) | `get(type)`, which triggers the build | anytime |
+   | `MacroTypeData<T>` | the build macros of the type only | `get(type)`, which triggers the build | anytime |
    | `MacroCache<K,V>` | `getOrCompute(key, fn)` | `getOrCompute(key, fn)` | anytime (pure) |
    | `MacroIndex<K>` | `register(key)` | `indexOf(key)` returns a late-bound `Expr` | resolved after typing |
 
@@ -661,12 +661,16 @@ cycles are errors (§ phase 3.3).
      depend on which expansions already ran.
    - **`MacroMap<K,V>`**: same as `MacroArray`, keyed. Two expansions writing
      the same key is an error unless a merge function is declared.
-   - **`MacroTypeData<T>`** (and `MacroModuleData<T>`): a typed eval value
-     attached to a type (or a module), written by that type's build macro.
-     `data.get(T)` triggers the build of `T`, so it is deterministic and can be
-     used **during typing**. It is the equivalent of metadata without encoding
-     values as `Expr`. It also covers sharing information between a class's
-     build macro and the expression macros of its own bodies.
+   - **`MacroTypeData<T>`**: a typed eval value attached to a type, written
+     by that type's build macros. `data.get(T)` triggers the build of `T`, so
+     it is deterministic and can be used **during typing**. It is the
+     equivalent of metadata without encoding values as `Expr`. Writes are only
+     allowed while the build of `T` runs (`members(T)`, a single query): a
+     write from anywhere else, such as an expression macro in one of `T`'s
+     fields, is an error. Since caching is per field, data contributed by
+     several fields could not be kept consistent; that is also why there is
+     no per-module equivalent. Expression macros of `T`'s own bodies can read
+     what the build stored.
    - **`MacroCache<K,V>`**: pure memoization. `getOrCompute(key, fn)` runs `fn`
      as a sub-expansion recording its dependencies (files read, types
      inspected…); the entry is invalidated when one of them changes. The
@@ -700,11 +704,22 @@ cycles are errors (§ phase 3.3).
    - hide `hrt/ui/tests/Macros.hx`: writes generated test files;
    - hide `hrt/prefab/l3d/modellibrary/ModelLibrary.hx`: creates and deletes
      files during conversion.
-   Candidate mechanisms, to choose per case: a logged `Context.saveFile(path,
-   content)` effect replayed with the expansion; restricting writes to
-   `program()` stages (`onGenerate`); or marking the expansion volatile. Until
-   decided, a direct write during an expansion marks it volatile with a
-   warning.
+   File contents are **not replayed**: that would require keeping the
+   written data in memory (or a copy on disk) for every cached expansion.
+   Default mechanism instead:
+   - a write records the file as an **output** of the expansion: path, size,
+     modification time and content hash, never the content;
+   - when the expansion is reused from the cache, each output is checked on
+     disk (size and modification time first, hash only if they differ). If
+     every output is still as written, nothing is done; if one is missing or
+     was modified, the expansion is re-executed;
+   - two expansions writing the same path is an error;
+   - a file written by one expansion and read by another (`DFile`) makes the
+     reader depend on the writer's output.
+   Cases where this is not enough (e.g. writes that are not a function of the
+   expansion's inputs) are decided individually: restricting writes to
+   `program()` stages (`onGenerate`), or marking the expansion volatile.
+
 9. **Corpus migration** (validates the declarations on real cases):
    - **domkit**: `COMPONENTS` (and `COMPONENTS_REMAP_REV`) become a
      `MacroTypeData<MetaComponent>` on the component class; `loadComponent`
