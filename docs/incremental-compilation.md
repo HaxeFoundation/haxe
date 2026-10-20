@@ -23,7 +23,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Positions in inlined code | The inliner replaces positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint) and self-calling closures (relative positions included). |
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit, domkit and hide, for their heavy use of macros. |
 | Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
-| Metadata on other types | A macro adding metadata to a type other than the one it builds is allowed with a **warning**, and causes a **broad invalidation** of the target type (phase 7, item 6). |
+| Metadata on other types | A macro adding metadata to a type other than the one it builds is allowed, but that metadata is **only visible after typing** (`program()` stages: filters, DCE, generators), never to macros or typing (phase 7, item 6). |
 | Whole-program macro APIs | `Context.getAllModuleTypes()` and similar APIs are **only allowed in `program()` stages** (`onAfterTyping`, `onGenerate`); calling them during typing is an error. `Context.getModule(path)` stays allowed (it loads one specific module, a normal dependency). |
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
@@ -105,6 +105,7 @@ The old ↔ new mapping between two typings goes through this key.
 | `FieldInlineBody(cf)` | body of `inline`, `macro` and `@:generic` fields, and of abstract fields used as inline casts/operators | canonical hash of the `texpr` |
 | `FieldBody(cf)` | typed `cf_expr` | canonical hash of the `texpr`, **including anchor-relative positions** (used by post-processing and generation, where positions matter) |
 | `MacroExpansion(site)` | result of an expansion and its effects | hash of the output |
+| `TypeLateMeta(t)` | metadata added to `t` by other types' macros, merged in expansion key order (phase 7, item 6) | canonical hash |
 | `PostProcessed(cf)` | expression after filters | hash, including anchor-relative positions |
 | `Fragment(t)` | generated code for a type or a function | hash |
 
@@ -265,8 +266,8 @@ pointers.
    - `m_features`: computed per module from its post-processed AST.
    - Metadata added to a type by a macro other than that type's own build
      macros (`Compiler.addMetadata`, `meta.add` on a type obtained through
-     `getType`): allowed with a warning and a broad invalidation of the target
-     (phase 7, item 6). Initialization macros (`--macro`, including
+     `getType`): stored separately as *late metadata*, only visible after
+     typing (phase 7, item 6). Initialization macros (`--macro`, including
      `addGlobalMetadata`) are fine: their effect is part of the declared
      metadata.
    - `@:generic` instances: attached to the `(generic, type arguments)` node
@@ -761,11 +762,20 @@ cycles are errors (§ phase 3.3).
    is green, the log is replayed instead of running the macro.
    - **Metadata added to another type** (a type other than the one being
      built: `Compiler.addMetadata` from an expansion, `meta.add` on a type
-     obtained through `getType`) emits `WMacroForeignMetadata`. Whenever the
-     expansion runs or is replayed, the target type's `TypeHeader` and
-     `TypeMembers` nodes are invalidated, so every consumer of the target is
-     revalidated. The order in which such metadata becomes visible is not
-     guaranteed; verification mode reports differences caused by it as such.
+     obtained through `getType`) is **late metadata**: it is logged as an
+     effect of the expansion (replayed when the expansion is reused) and
+     stored apart from the target's own metadata.
+     - During typing it is **never visible**: macros and the typer only see
+       declared metadata, or complete metadata after the target's build
+       (§ phase 3.3). It therefore never changes `TypeHeader` or
+       `TypeMembers`, and causes no typing invalidation.
+     - After typing (`program()` stages, filters, DCE, generators) it is merged
+       with the target's metadata, in a deterministic order (sorted by
+       expansion key). Typical uses: `@:keep`, `@:native`, `@:expose` decided
+       by a macro.
+     - A new node `TypeLateMeta(t)` holds the merged late metadata with its
+       fingerprint; post-processing and generation of `t` depend on it
+       (phase 8).
 7. **Volatile macros**: re-executed on every compilation. If their output (and
    effect log) has the same fingerprint, downstream stays green.
 8. **File writes are the macro's responsibility.** The compiler does not
@@ -823,7 +833,8 @@ macros.
    `save_class_state`, `cl_restore` and `cf_expr_unoptimized` go away: the
    typed AST remains the source and is used for subsequent inlining.
 2. **Local filters**, which only depend on the field and on interfaces: cached
-   by `PostProcessed(cf)`, depending on `FieldBody(cf)`, the `DSig`/`DHeader`/`DMembers`
+   by `PostProcessed(cf)`, depending on `FieldBody(cf)`, `TypeLateMeta` of its
+   type, the `DSig`/`DHeader`/`DMembers`
    read and the platform configuration. This covers most of `run_safe_filters`
    and `destruction_on_scom`, and the resolution of `haxe.PosInfos` nodes to
    line numbers (phase 2, item 6), which also depends on the field's anchor.
@@ -975,9 +986,11 @@ phase 4 `Decls` fingerprints and happens in phase 6.
 - **Static initialization order** changes compared with the current compiler
   (dependency order, `__init__` first): a behavior change to document and to
   test on the corpus.
-- **Metadata added to other types** stays order-dependent (allowed with a
-  warning and broad invalidation): to be measured on the corpus; frequent uses
-  may call for a dedicated mechanism later.
+- **Metadata added to other types** is invisible during typing: macros that
+  add metadata to another type and expect a later macro to read it during
+  typing will silently stop working. To be detected on the corpus (a read of
+  metadata that only exists as late metadata of that type can be reported in
+  `-D macro-meta-check` mode).
 - **Static initialization cycles** become errors: existing code with circular
   static initializers must be fixed.
 - **Deterministic HL format**: a visible change for tools reading bytecode
@@ -1002,7 +1015,8 @@ phase 4 `Decls` fingerprints and happens in phase 6.
 - Static initialization order tests (dependency order, `__init__` first,
   cycle errors).
 - Macro API restriction tests: `getAllModuleTypes` during typing (error) and in
-  `program()` stages, metadata added to other types (warning, invalidation).
+  `program()` stages, metadata added to other types (invisible during typing,
+  merged in `program()` stages, deterministic order).
 - Parse sharing tests between the macro and target contexts (`#if macro`,
   defines with different values).
 - Unit tests for the hasher and grafting (old ↔ new mapping, remapping, stale
