@@ -443,7 +443,7 @@ class TypeApi {
 
 		If `t1` or `t2` are `null`, the result is unspecified.
 	**/
-	public static function typeEq(t1:CType, t2:CType) {
+	public static function typeEq(t1:CType, t2:CType):Bool {
 		switch (t1) {
 			case CUnknown:
 				return t2 == CUnknown;
