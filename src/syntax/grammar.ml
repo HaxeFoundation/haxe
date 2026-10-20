@@ -100,7 +100,7 @@ let questionable_dollar_ident ctx s =
 		| None ->
 			false,(name,p)
 		| Some p' ->
-			if p.pmin <> p'.pmax then syntax_error ctx (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) s ~pos:(Some p') ();
+			if (Pos.min p) <> (Pos.max p') then syntax_error ctx (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) s ~pos:(Some p') ();
 			true,(name,p)
 
 let question_mark = function%parser
@@ -130,7 +130,7 @@ let rec parse_file (ctx : parser_ctx) s =
 	| [ (Kwd Package,_); parse_package as pack ] ->
 		begin match%parser s with
 		| [ (Const(Ident _),p) ] when pack = [] -> error (Custom "Package name must start with a lowercase character") p
-		| [ [%let psem = semicolon ctx]; [%let l = parse_type_decls ctx TCAfterImport psem.pmax pack []] ] -> pack , l
+		| [ [%let psem = semicolon ctx]; [%let l = parse_type_decls ctx TCAfterImport (Pos.max psem) pack []] ] -> pack , l
 		end
 	| [ [%let l = parse_type_decls ctx TCBeforePackage (-1) [] []] ] -> [] , l
 
@@ -163,13 +163,13 @@ and parse_type_decls ctx mode pmax pack acc s =
 			| EImport _ | EUsing _ -> TCAfterImport
 			| _ -> TCAfterType
 		in
-		parse_type_decls ctx mode p.pmax pack ((td,p) :: acc) s
+		parse_type_decls ctx mode (Pos.max p) pack ((td,p) :: acc) s
 	| End _ ->
 		List.rev acc
 	| Error msg ->
 		handle_stream_error ctx msg s;
 		ignore(resume ctx false false s);
-		parse_type_decls ctx mode (last_pos ctx s).pmax pack acc s
+		parse_type_decls ctx mode (Pos.max (last_pos ctx s)) pack acc s
 
 and parse_abstract ctx doc meta flags p1 = function%parser
 	| [ [%let name = type_name ctx]; [%let tl = parse_constraint_params ctx]; [%let st = parse_abstract_subtype ctx]; [%let sl = plist (parse_abstract_relations ctx)]; [%s s] ] ->
@@ -197,26 +197,26 @@ and parse_class_content ctx doc meta flags n p1 s =
 		in
 		match%parser s with
 		| [ (Kwd Extends,p1); [%let ptp,b = parse_type_path_or_resume ctx p1] ] ->
-			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+			check_display (Pos.with_range p1 ((Pos.max p0)) ((Pos.min p1)));
 			let p0 = ptp.pos_full in
 			(* If we don't have type parameters, we have to offset by one so to not complete `extends`
 				and `implements` after the identifier. *)
-			let p0 = {p0 with pmax = p0.pmax + (if ptp.path.tparams = [] then 1 else 0)} in
+			let p0 = (Pos.with_max p0 ((Pos.max p0) + (if ptp.path.tparams = [] then 1 else 0))) in
 			loop (had_display || b) p0 ((HExtends ptp) :: acc)
 		| [ (Kwd Implements,p1); [%let ptp,b = parse_type_path_or_resume ctx p1] ] ->
-			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+			check_display (Pos.with_range p1 ((Pos.max p0)) ((Pos.min p1)));
 			let p0 = ptp.pos_full in
-			let p0 = {p0 with pmax = p0.pmax + (if ptp.path.tparams = [] then 1 else 0)} in
+			let p0 = (Pos.with_max p0 ((Pos.max p0) + (if ptp.path.tparams = [] then 1 else 0))) in
 			loop (had_display || b) p0 ((HImplements ptp) :: acc)
 		| [ (BrOpen,p1) ] ->
-			check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+			check_display (Pos.with_range p1 ((Pos.max p0)) ((Pos.min p1)));
 			List.rev acc
 		| [ ] ->
 			begin match Stream.peek s with
 			| Some((Const(Ident name),p)) when display_position#enclosed_in p ->
 				syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) (Some name) p
 			| _ ->
-				check_display {p1 with pmin = p0.pmax; pmax = (next_pos ctx s).pmax};
+				check_display (Pos.with_range p1 ((Pos.max p0)) ((Pos.max (next_pos ctx s))));
 				syntax_error ctx (Expected ["extends";"implements";"{"]) s (List.rev acc)
 			end
 	in
@@ -452,7 +452,7 @@ and parse_using ctx s p1 =
 
 and parse_abstract_relations ctx =
 	let check_display p1 (ct,p2) =
-		if ctx.config.in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
+		if ctx.config.in_display_file && (Pos.max p1) < (Pos.min (display_position#get)) && (Pos.min p2) >= (Pos.max (display_position#get)) then
 			(* This means we skipped the display position between the to/from and the type-hint we parsed.
 			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
 			(magic_type_th (display_position#with_pos p2))
@@ -590,7 +590,7 @@ and parse_meta_argument_expr ctx s =
 	end
 
 and parse_meta_params ctx pname s = match%parser s with
-	| [ (POpen,p); [%let params = psep_trailing Comma (parse_meta_argument_expr ctx)]; ] when p.pmin = pname.pmax ->
+	| [ (POpen,p); [%let params = psep_trailing Comma (parse_meta_argument_expr ctx)]; ] when (Pos.min p) = (Pos.max pname) ->
 		ignore(expect_unless_resume_p ctx PClose s);
 		params
 	| [ ] -> []
@@ -609,8 +609,8 @@ and parse_meta ctx = function%parser
 
 and parse_meta_name_2 ctx p1 acc s =
 	let part,p = match%parser s with
-		| [ (Const (Ident i),p) ] when p.pmin = p1.pmax -> i,p
-		| [ (Kwd k,p) ] when p.pmin = p1.pmax -> s_keyword k,p
+		| [ (Const (Ident i),p) ] when (Pos.min p) = (Pos.max p1) -> i,p
+		| [ (Kwd k,p) ] when (Pos.min p) = (Pos.max p1) -> s_keyword k,p
 	in
 	let acc = part :: acc in
 	match%parser s with
@@ -618,7 +618,7 @@ and parse_meta_name_2 ctx p1 acc s =
 	| [ ] -> acc,punion p1 p
 
 and parse_meta_name ctx p1 s = match%parser s with
-	| [ (DblDot,p) ]  when p.pmin = p1.pmax ->
+	| [ (DblDot,p) ]  when (Pos.min p) = (Pos.max p1) ->
 		let meta = check_resume ctx p (fun () -> Some (Meta.HxCompletion,p)) (fun() -> None) in
 		begin match%parser s with
 		| [ [%let name,p2 = parse_meta_name_2 ctx p []] ] -> (Meta.parse (rev_concat "." name)),p2
@@ -1614,15 +1614,15 @@ and expr_next' ctx e1 s = match%parser s with
 		arrow_function ctx (snd e1) [arrow_first_param ctx e1 s] er s
 	| [ (Binop OpGt,p1) ] ->
 		(match%parser s with
-		| [ (Binop OpGt,p2) ] when p1.pmax = p2.pmin ->
+		| [ (Binop OpGt,p2) ] when (Pos.max p1) = (Pos.min p2) ->
 			(match%parser s with
-			| [ (Binop OpGt,p3) ] when p2.pmax = p3.pmin ->
+			| [ (Binop OpGt,p3) ] when (Pos.max p2) = (Pos.min p3) ->
 				(match%parser s with
-				| [ (Binop OpAssign,p4); [%let e2 = expr ctx] ] when p3.pmax = p4.pmin -> make_binop (OpAssignOp OpUShr) e1 e2
+				| [ (Binop OpAssign,p4); [%let e2 = expr ctx] ] when (Pos.max p3) = (Pos.min p4) -> make_binop (OpAssignOp OpUShr) e1 e2
 				| [ [%let e2 = secure_expr ctx] ] -> make_binop OpUShr e1 e2)
-			| [ (Binop OpAssign,p3); [%let e2 = expr ctx] ] when p2.pmax = p3.pmin -> make_binop (OpAssignOp OpShr) e1 e2
+			| [ (Binop OpAssign,p3); [%let e2 = expr ctx] ] when (Pos.max p2) = (Pos.min p3) -> make_binop (OpAssignOp OpShr) e1 e2
 			| [ [%let e2 = secure_expr ctx] ] -> make_binop OpShr e1 e2)
-		| [ (Binop OpAssign,p2) ] when p1.pmax = p2.pmin ->
+		| [ (Binop OpAssign,p2) ] when (Pos.max p1) = (Pos.min p2) ->
 			make_binop OpGte e1 (secure_expr ctx s)
 		| [ [%let e2 = secure_expr ctx] ] ->
 			make_binop OpGt e1 e2)
@@ -1647,17 +1647,17 @@ and expr_next' ctx e1 s = match%parser s with
 and parse_field ctx e1 efk p s =
 	check_resume ctx p (fun () -> (EDisplay (e1,DKDot),p)) (fun () ->
 		begin match%parser s with
-		| [ (Kwd Macro,p2) ] when p.pmax = p2.pmin -> expr_next ctx (EField (e1,"macro",efk) , punion (pos e1) p2) s
-		| [ (Kwd Extern,p2) ] when p.pmax = p2.pmin -> expr_next ctx (EField (e1,"extern",efk) , punion (pos e1) p2) s
-		| [ (Kwd Function,p2) ] when p.pmax = p2.pmin -> expr_next ctx (EField (e1,"function",efk) , punion (pos e1) p2) s
-		| [ (Kwd New,p2) ] when p.pmax = p2.pmin -> expr_next ctx (EField (e1,"new",efk) , punion (pos e1) p2) s
-		| [ (Kwd k,p2) ] when !parsing_macro_cond && p.pmax = p2.pmin -> expr_next ctx (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
-		| [ (Const (Ident f),p2) ] when p.pmax = p2.pmin -> expr_next ctx (EField (e1,f,efk) , punion (pos e1) p2) s
+		| [ (Kwd Macro,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"macro",efk) , punion (pos e1) p2) s
+		| [ (Kwd Extern,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"extern",efk) , punion (pos e1) p2) s
+		| [ (Kwd Function,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"function",efk) , punion (pos e1) p2) s
+		| [ (Kwd New,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"new",efk) , punion (pos e1) p2) s
+		| [ (Kwd k,p2) ] when !parsing_macro_cond && (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
+		| [ (Const (Ident f),p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,f,efk) , punion (pos e1) p2) s
 		| [ (Dollar v,p2) ] -> expr_next ctx (EField (e1,"$"^v,efk) , punion (pos e1) p2) s
 		| [ ] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
-			| (EConst (Int (v, None)),p2) when p2.pmax = p.pmin -> expr_next ctx (EConst (Float (v ^ ".", None)),punion p p2) s
+			| (EConst (Int (v, None)),p2) when (Pos.max p2) = (Pos.min p) -> expr_next ctx (EConst (Float (v ^ ".", None)),punion p p2) s
 			| _ -> serror()
 		end
 	)
@@ -1789,7 +1789,7 @@ and secure_expr ctx = function%parser
 				| Const _ | Kwd _ | Dollar _ -> 1
 				| _ -> 0
 			in
-			let plast = {plast with pmin = plast.pmax + offset} in
+			let plast = (Pos.with_min plast ((Pos.max plast) + offset)) in
 			mk_null_expr (punion_next ctx plast s)
 		)
 
@@ -1809,7 +1809,7 @@ let rec validate_macro_cond ctx s e = match fst e with
 and parse_macro_ident ctx t p s =
 	if t = "display" then begin
 		syntax_warning_with_pos ctx Warning.WIfDisplay p;
-		Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files
+		Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create (Pos.file p)) t) ctx.config.special_identifier_files
 	end;
 	(EConst (Ident t),p)
 

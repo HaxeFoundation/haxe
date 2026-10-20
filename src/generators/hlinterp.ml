@@ -2045,7 +2045,7 @@ let load_native ctx lib name t =
 		| "make_macro_pos" ->
 			(function
 			| [VBytes file;VInt min;VInt max] ->
-				VAbstract (APos { Globals.pfile = String.sub file 0 (String.length file - 1); pmin = Int32.to_int min; pmax = Int32.to_int max })
+				VAbstract (APos (Globals.Pos.make (String.sub file 0 (String.length file - 1)) (Int32.to_int min) (Int32.to_int max)))
 			| _ -> Globals.die "" __LOC__)
 		| "dyn_op" ->
 			let op_names = [|"+";"-";"*";"%";"/";"<<";">>";">>>";"&";"|";"^"|] in

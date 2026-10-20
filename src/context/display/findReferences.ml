@@ -97,7 +97,7 @@ let rec collect_reference_positions com (name,pos,kind) =
 				| [] -> [cf,c]
 				| pairs -> pairs
 			in
-			let full_pos p = if p = null_pos then null_pos else { p with pfile = Path.get_full_path p.pfile } in
+			let full_pos p = if p = null_pos then null_pos else (Pos.with_file p (Path.get_full_path (Pos.file p))) in
 			if find_descendants then
 				let extends child_cls (_,c) = extends child_cls c in
 				List.fold_left (fun acc t ->
@@ -129,8 +129,8 @@ let find_references com with_definition =
 	let usages = find_references com with_definition pos_filters in
 	let usages =
 		List.sort (fun p1 p2 ->
-			let c = compare p1.pfile p2.pfile in
-			if c <> 0 then c else compare p1.pmin p2.pmin
+			let c = compare (Pos.file p1) (Pos.file p2) in
+			if c <> 0 then c else compare (Pos.min p1) (Pos.min p2)
 		) usages
 	in
 	DisplayException.send_positions_raise com usages
@@ -148,8 +148,8 @@ let find_implementations com name pos kind =
 			with Not_found -> acc)
 		) symbols [] in
 		List.sort (fun p1 p2 ->
-			let c = compare p1.pfile p2.pfile in
-			if c <> 0 then c else compare p1.pmin p2.pmin
+			let c = compare (Pos.file p1) (Pos.file p2) in
+			if c <> 0 then c else compare (Pos.min p1) (Pos.min p2)
 		) usages
 	) () in
 	Display.ReferencePosition.reset();

@@ -33,8 +33,8 @@ let collect_statistics com pos_filters with_expressions =
 		List.exists (fun pfilter ->
 			match pfilter with
 			| SFNone -> p <> null_pos
-			| SFPos p1 -> p1.pmin = p.pmin && p1.pmax = p.pmax && path_key p1.pfile = path_key p.pfile
-			| SFFile s -> path_key p.pfile = path_key s
+			| SFPos p1 -> (Pos.min p1) = (Pos.min p) && (Pos.max p1) = (Pos.max p) && path_key (Pos.file p1) = path_key (Pos.file p)
+			| SFFile s -> path_key (Pos.file p) = path_key s
 		) pos_filters
 	in
 	let add_relation p r =
@@ -144,7 +144,7 @@ let collect_statistics com pos_filters with_expressions =
 			| TField(e1,fa) ->
 				(* Check if the sub-expression is actually shorter than the whole one. This should
 					detect cases where it was automatically generated. *)
-				if e1.epos.pmin = e.epos.pmin && e1.epos.pmax <> e.epos.pmax then
+				if (Pos.min e1.epos) = (Pos.min e.epos) && (Pos.max e1.epos) <> (Pos.max e.epos) then
 					loop e1;
 				begin match fa with
 					| FStatic(_,cf) | FClosure(None,cf) ->
@@ -177,7 +177,7 @@ let collect_statistics com pos_filters with_expressions =
 			| TFunction tf ->
 				List.iter (fun (v,_) -> var_decl v) tf.tf_args;
 				loop tf.tf_expr;
-			| TLocal v when e.epos.pmax - e.epos.pmin = String.length v.v_name ->
+			| TLocal v when (Pos.max e.epos) - (Pos.min e.epos) = String.length v.v_name ->
 				add_relation v.v_pos (Referenced,e.epos)
 			| _ ->
 				Type.iter loop e
@@ -226,7 +226,7 @@ let collect_statistics com pos_filters with_expressions =
 			if (has_class_flag c CInterface) then
 				collect_implementations c;
 			let field cf =
-				if cf.cf_pos.pmin > c.cl_name_pos.pmin then declare (SKField (cf,Some c)) cf.cf_name_pos;
+				if (Pos.min cf.cf_pos) > (Pos.min c.cl_name_pos) then declare (SKField (cf,Some c)) cf.cf_name_pos;
 				if with_expressions then begin
 					let _ = follow cf.cf_type in
 					match cf.cf_expr with None -> () | Some e -> collect_references c e
@@ -330,7 +330,7 @@ module Printer = struct
 	let print_statistics (kinds,relations) =
 		let files = Hashtbl.create 0 in
 		Hashtbl.iter (fun p rl ->
-			let file = Path.get_real_path p.pfile in
+			let file = Path.get_real_path (Pos.file p) in
 			try
 				Hashtbl.replace files file ((p,rl) :: Hashtbl.find files file)
 			with Not_found ->
@@ -343,7 +343,7 @@ module Printer = struct
 					let s = relation_to_string r in
 					let jo = JObject [
 						"range",Genjson.generate_pos_as_range p;
-						"file",JString (Path.get_real_path p.pfile);
+						"file",JString (Path.get_real_path (Pos.file p));
 					] in
 					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
 					with Not_found -> Hashtbl.add h s [jo]
@@ -363,7 +363,7 @@ module Printer = struct
 	let json_of_statistics (kinds,relations) =
 		let files = Hashtbl.create 0 in
 		Hashtbl.iter (fun p rl ->
-			let file = Path.get_real_path p.pfile in
+			let file = Path.get_real_path (Pos.file p) in
 			try
 				Hashtbl.replace files file ((p,rl) :: Hashtbl.find files file)
 			with Not_found ->
@@ -376,7 +376,7 @@ module Printer = struct
 					let s = relation_to_string r in
 					let jo = JObject [
 						"range",Genjson.generate_pos_as_range p;
-						"file",JString (Path.get_real_path p.pfile);
+						"file",JString (Path.get_real_path (Pos.file p));
 					] in
 					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
 					with Not_found -> Hashtbl.add h s [jo]

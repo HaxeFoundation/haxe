@@ -41,33 +41,33 @@ let files = Hashtbl.create 0
 let pos ctx p =
 	if ctx.macros then
 		{
-			psource = p.pfile;
-			pline = p.pmin lor ((p.pmax - p.pmin) lsl 20);
+			psource = (Pos.file p);
+			pline = (Pos.min p) lor (((Pos.max p) - (Pos.min p)) lsl 20);
 		}
 	else let file = (match ctx.com.debug with
 		| true -> ctx.curclass ^ "::" ^ ctx.curmethod
 		| false ->
 			try
-				Hashtbl.find files p.pfile
+				Hashtbl.find files (Pos.file p)
 			with Not_found ->
 				let path = (match Gctx.defined ctx.com Define.AbsolutePath with
-				| true -> if (Filename.is_relative p.pfile)
-					then Filename.concat (Sys.getcwd()) p.pfile
-					else p.pfile
+				| true -> if (Filename.is_relative (Pos.file p))
+					then Filename.concat (Sys.getcwd()) (Pos.file p)
+					else (Pos.file p)
 				| false -> try
 					(* lookup relative path *)
-					let len = String.length p.pfile in
+					let len = String.length (Pos.file p) in
 					let base = ctx.com.class_paths#find (fun path ->
 						let path = path#path in
 						let l = String.length path in
-						len > l && String.sub p.pfile 0 l = path
+						len > l && String.sub (Pos.file p) 0 l = path
 					) in
 					let l = String.length base#path in
-					String.sub p.pfile l (len - l)
+					String.sub (Pos.file p) l (len - l)
 
-					with Not_found -> p.pfile
+					with Not_found -> (Pos.file p)
 				) in
-				Hashtbl.add files p.pfile path;
+				Hashtbl.add files (Pos.file p) path;
 				path
 	) in
 	{
@@ -785,7 +785,7 @@ let generate neko_lib_paths com =
 		with Ncompile.Error (msg,pos) ->
 			let pfile = Gctx.find_file com pos.psource in
 			let rec loop p =
-				let pp = { pfile = pfile; pmin = p; pmax = p; } in
+				let pp = (Pos.make (pfile) (p) (p)) in
 				if Lexer.get_error_line pp >= pos.pline then
 					pp
 				else

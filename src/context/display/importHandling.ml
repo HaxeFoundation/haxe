@@ -60,7 +60,7 @@ let mark_import_position ctx p =
 
 let commit_import ctx path mode p =
 	ctx.m.import_statements <- (path,mode) :: ctx.m.import_statements;
-	if Filename.basename p.pfile <> "import.hx" then add_import_position ctx p path
+	if Filename.basename (Pos.file p) <> "import.hx" then add_import_position ctx p path
 
 let init_import ctx path mode p =
 	let rec loop acc = function
@@ -76,7 +76,7 @@ let init_import ctx path mode p =
 		| _ ->
 			(match List.rev path with
 			(* p spans `import |` (to the display position), so we take the pmax here *)
-			| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None {p with pmin = p.pmax})
+			| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRImport (DisplayTypes.make_subject None (Pos.with_min p ((Pos.max p))))
 			| (_,p) :: _ -> Error.raise_typing_error "Module name must start with an uppercase letter" p))
 	| (tname,p2) :: rest ->
 		let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -114,7 +114,7 @@ let init_import ctx path mode p =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 				raise_typing_error "Type aliases must start with an uppercase letter" pname;
 			(* Imports from import.hx should not match display position from current file *)
-			if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pname && (Path.UniqueKey.create pname.pfile) = (Path.UniqueKey.lazy_key ctx.m.curmod.m_extra.m_file) then
+			if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pname && (Path.UniqueKey.create (Pos.file pname)) = (Path.UniqueKey.lazy_key ctx.m.curmod.m_extra.m_file) then
 				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname
 		in
 		let add_static_init t name s =
@@ -264,7 +264,7 @@ let handle_using ctx path p =
 		| (s1,_) :: sl ->
 			mk_type_path (List.rev (List.map fst sl),s1)
 		| [] ->
-			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None {p with pmin = p.pmax});
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRUsing (DisplayTypes.make_subject None (Pos.with_min p ((Pos.max p))));
 	in
 	let types = (match t.tsub with
 		| None ->

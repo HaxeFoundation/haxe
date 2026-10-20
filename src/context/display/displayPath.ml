@@ -97,7 +97,7 @@ module TypePathHandler = struct
 			   does not raise another TypePath exception. However, we still want to have it treated like the
 			   display file, so we just set the position to 0 (#6558). *)
 			let old = display_position#get in
-			display_position#set {old with pmin = 0; pmax = 0};
+			display_position#set (Pos.with_range old (0) (0));
 			let rec lookup p =
 				try
 					ctx.g.do_load_module ctx (p,s_module) null_pos

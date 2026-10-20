@@ -621,7 +621,7 @@ and type_vars ctx vl p =
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
 and format_string ctx s p =
-	FormatString.format_string (ParserConfig.file_parser_config ctx.com p.pfile) s p (fun enext p ->
+	FormatString.format_string (ParserConfig.file_parser_config ctx.com (Pos.file p)) s p (fun enext p ->
 		if ctx.f.in_display && DisplayPosition.display_position#enclosed_in p then
 			Display.preprocess_expr ctx.com (enext,p)
 		else
@@ -844,14 +844,11 @@ and type_new ctx ptp el with_type force_inline p =
 		*)
 		else begin
 			let p = match el with
-				| (_,p1) :: _ when p1.pfile = p.pfile && p.pmin < p1.pmin ->
-					let pmin = p.pmin + (String.length "new ")
-					and pmax = p1.pmin - 2 (* Additional "1" for an opening bracket *)
+				| (_,p1) :: _ when (Pos.file p1) = (Pos.file p) && (Pos.min p) < (Pos.min p1) ->
+					let pmin = (Pos.min p) + (String.length "new ")
+					and pmax = (Pos.min p1) - 2 (* Additional "1" for an opening bracket *)
 					in
-					{ p with
-						pmin = if pmin < pmax then pmin else p.pmin;
-						pmax = pmax;
-					}
+					(Pos.with_range p (if pmin < pmax then pmin else (Pos.min p)) (pmax))
 				| _ ->
 					p
 			in

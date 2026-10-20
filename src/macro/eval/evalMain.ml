@@ -185,10 +185,10 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (IntHashtbl.create 0) 0 0 in
+			let info = create_env_info true (Pos.file p) (ctx.file_keys#get (Pos.file p)) (EKMacro (path_hash path, hash f)) (IntHashtbl.create 0) 0 0 in
 			let env = push_environment ctx info in
-			env.env_leave_pmin <- p.pmin;
-			env.env_leave_pmax <- p.pmax;
+			env.env_leave_pmin <- (Pos.min p);
+			env.env_leave_pmax <- (Pos.max p);
 			let v = call_value_on vtype vfield vl in
 			pop_environment ctx env;
 			v
@@ -650,4 +650,4 @@ let get_api_call_pos () =
 		| None -> env
 		| Some env -> env
 	in
-	{ pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax }
+	(Pos.make (rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax))

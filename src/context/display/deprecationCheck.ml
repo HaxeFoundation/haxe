@@ -18,7 +18,7 @@ let create_context com = {
 }
 
 let warn_deprecation dctx s p_usage =
-	let pkey p = (p.pfile,p.pmin) in
+	let pkey p = ((Pos.file p),(Pos.min p)) in
 	if not (Hashtbl.mem dctx.com.part_scope.warned_positions (pkey p_usage)) then begin
 		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
 		Hashtbl.add dctx.com.part_scope.warned_positions (pkey p_usage) (s,p_usage,options);

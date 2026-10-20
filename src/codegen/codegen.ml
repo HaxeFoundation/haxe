@@ -111,7 +111,7 @@ let interpolate_code error code tl f_string f_expr p =
 	let exprs = Array.of_list tl in
 	let i = ref 0 in
 	let err msg =
-		let pos = { p with pmin = p.pmin + !i } in
+		let pos = (Pos.with_min p ((Pos.min p) + !i)) in
 		error msg pos
 	in
 	let regex = Str.regexp "[{}]" in

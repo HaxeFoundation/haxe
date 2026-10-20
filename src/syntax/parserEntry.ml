@@ -194,14 +194,14 @@ class dead_block_collector conds = object(self)
 	val mutable current_block = []
 
 	method open_dead_block (p : pos) =
-		current_block <- ({p with pmin = p.pmax},conds#get_current_condition) :: current_block
+		current_block <- ((Pos.with_min p ((Pos.max p))),conds#get_current_condition) :: current_block
 
 	method close_dead_block (p : pos) = match current_block with
 		| [] ->
 			error (Custom "Internal error: Trying to close dead block that's not open") p;
 		| (p0,cond) :: pl ->
 			current_block <- pl;
-			DynArray.add dead_blocks ({p0 with pmax = p.pmin},cond)
+			DynArray.add dead_blocks ((Pos.with_max p0 ((Pos.min p))),cond)
 
 	method get_dead_blocks : (pos * expr) list =
 		assert(current_block = []);
@@ -235,16 +235,16 @@ let parse config entry lctx code file =
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let l = String.length s in
-			if l > 0 && s.[0] = '*' then ctx.last_doc <- Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
+			if l > 0 && s.[0] = '*' then ctx.last_doc <- Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (Pos.min (snd tk)));
 			let tk = next_token() in
 			tk
 		| CommentLine s ->
 			if ctx.config.in_display_file then begin
 				let p = pos tk in
 				(* Completion at the / should not pick up the comment (issue #9133) *)
-				let p = if is_completion ctx then {p with pmin = p.pmin + 1} else p in
+				let p = if is_completion ctx then (Pos.with_min p ((Pos.min p) + 1)) else p in
 				(* The > 0 check is to deal with the special case of line comments at the beginning of the file (issue #10322) *)
-				if display_position#enclosed_in p && p.pmin > 0 then syntax_completion SCComment None (pos tk);
+				if display_position#enclosed_in p && (Pos.min p) > 0 then syntax_completion SCComment None (pos tk);
 			end;
 			next_token()
 		| Sharp "end" ->
@@ -376,7 +376,7 @@ let parse_string config entry s p error inlined =
 			display_position#set old_display;
 		end;
 	in
-	let lctx = Lexer.create_temp_ctx p.pfile in
+	let lctx = Lexer.create_temp_ctx (Pos.file p) in
 	let config = if not inlined then begin
 		display_position#reset;
 		{ config with in_display_file = false }
@@ -384,7 +384,7 @@ let parse_string config entry s p error inlined =
 		config
 	in
 	let result = try
-		parse config entry lctx (Lexer.lexbuf_from_utf8_string s) p.pfile
+		parse config entry lctx (Lexer.lexbuf_from_utf8_string s) (Pos.file p)
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)
@@ -399,7 +399,7 @@ let parse_string config entry s p error inlined =
 	result
 
 let parse_expr_string config s p error inl =
-	let s = if p.pmin > 0 then (String.make p.pmin ' ') ^ s else s in
+	let s = if (Pos.min p) > 0 then (String.make (Pos.min p) ' ') ^ s else s in
 	let result = parse_string config expr s p error inl in
 	if inl then
 		result

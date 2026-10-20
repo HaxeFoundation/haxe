@@ -138,7 +138,7 @@ let print_file file =
 	Printf.sprintf "lfile: %s\nlline: %i\nlmaxline: %i\nllines: [%s]\nlalines: [%s]\nllast: %i\nllastindex: %i" file.lfile file.lline file.lmaxline sllines slalines file.llast file.llastindex
 
 let error ctx e pos =
-	raise (Error (e,{ pmin = pos; pmax = pos; pfile = ctx.file.lfile }))
+	raise (Error (e,(Pos.make (ctx.file.lfile) (pos) (pos))))
 
 let keywords =
 	let h = Hashtbl.create 3 in
@@ -296,28 +296,28 @@ let find_file file =
 	)
 
 let find_pos p =
-	find_line p.pmin (find_file p.pfile)
+	find_line (Pos.min p) (find_file (Pos.file p))
 
 let get_error_line p =
 	let l, _ = find_pos p in
 	l
 
 let get_pos_coords p =
-	let file = find_file p.pfile in
-	let l1, p1 = find_line p.pmin file in
-	let l2, p2 = find_line p.pmax file in
+	let file = find_file (Pos.file p) in
+	let l1, p1 = find_line (Pos.min p) file in
+	let l2, p2 = find_line (Pos.max p) file in
 	l1, p1+1, l2, p2+1
 
 let get_error_pos printer p =
-	if p.pmin = -1 then
+	if (Pos.min p) = -1 then
 		"(unknown)"
 	else
 		let l1, p1, l2, p2 = get_pos_coords p in
 		if l1 = l2 then begin
 			let s = (if p1 = p2 then Printf.sprintf " %d" p1 else Printf.sprintf "s %d-%d" p1 p2) in
-			Printf.sprintf "%s character%s" (printer p.pfile l1) s
+			Printf.sprintf "%s character%s" (printer (Pos.file p) l1) s
 		end else
-			Printf.sprintf "%s lines %d-%d" (printer p.pfile l1) l1 l2
+			Printf.sprintf "%s lines %d-%d" (printer (Pos.file p) l1) l1 l2
 ;;
 
 Globals.get_error_pos_ref := get_error_pos
@@ -328,7 +328,7 @@ let store ctx lexbuf = Buffer.add_string ctx.buf (lexeme lexbuf)
 let add ctx c = Buffer.add_string ctx.buf c
 
 let mk_tok ctx t pmin pmax =
-	t , { pfile = ctx.file.lfile; pmin = pmin; pmax = pmax }
+	t , (Pos.make (ctx.file.lfile) (pmin) (pmax))
 
 let mk ctx lexbuf t =
 	mk_tok ctx t (lexeme_start lexbuf) (lexeme_end lexbuf)

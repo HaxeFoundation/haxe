@@ -976,7 +976,7 @@ let is_module_fields_class c =
 	match c.cl_kind with KModuleFields _ -> true | _ -> false
 
 let is_pos_outside_class c p =
-	p.pfile <> c.cl_pos.pfile || p.pmax < c.cl_pos.pmin || p.pmin > c.cl_pos.pmax
+	(Pos.file p) <> (Pos.file c.cl_pos) || (Pos.max p) < (Pos.min c.cl_pos) || (Pos.min p) > (Pos.max c.cl_pos)
 
 let resolve_typedef t =
 	match t with

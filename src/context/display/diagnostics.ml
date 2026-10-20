@@ -13,7 +13,7 @@ let add_replaceable_code ctx reason replacement display_range replace_range =
 	} :: ctx.replaceable_code
 
 let error_in_diagnostics_run com p =
-	let b = DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get p.pfile) in
+	let b = DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get (Pos.file p)) in
 	if b then com.part_scope.has_error <- true;
 	b
 
@@ -22,11 +22,11 @@ let find_unused_variables com e =
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
 		| TVar({v_kind = VUser origin} as v,eo) when v.v_name <> "_" && not (has_var_flag v VUsedByTyper) ->
-			Hashtbl.add pmin_map e.epos.pmin v;
+			Hashtbl.add pmin_map (Pos.min e.epos) v;
 			let p,replacement = match eo with
 			| Some e1 when origin <> TVOPatternVariable ->
 				loop e1;
-				{ e.epos with pmax = e1.epos.pmin },""
+				(Pos.with_max e.epos ((Pos.min e1.epos))),""
 			| _ ->
 				e.epos,"_"
 			in
@@ -38,7 +38,7 @@ let find_unused_variables com e =
 	in
 	loop e;
 	Hashtbl.iter (fun _ (v,p,replacement) ->
-		let p = match (Hashtbl.find_all pmin_map p.pmin) with [_] -> p | _ -> null_pos in
+		let p = match (Hashtbl.find_all pmin_map (Pos.min p)) with [_] -> p | _ -> null_pos in
 		add_replaceable_code com "Unused variable" replacement v.v_pos p
 	) vars
 
@@ -106,7 +106,7 @@ let collect_diagnostics dctx com =
 	let open CompilationCache in
 	let dectx = DeprecationCheck.create_context com in
 	List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get c.cl_pos.pfile) ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get (Pos.file c.cl_pos)) ->
 			let dectx = {dectx with class_meta = c.cl_meta} in
 			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;

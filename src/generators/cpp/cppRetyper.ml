@@ -1459,7 +1459,7 @@ let expression ctx request_type function_args function_type expression_tree forI
       | TBlock expr_list ->
           if return_type <> TCppVoid && not forCppia then
             print_endline
-              ("Value from a block not handled " ^ expr.epos.pfile ^ " "
+              ("Value from a block not handled " ^ (Pos.file expr.epos) ^ " "
               ^ string_of_int (Lexer.get_error_line expr.epos));
 
           let new_ctx = { retyper_ctx with closures = []; injection = false } in

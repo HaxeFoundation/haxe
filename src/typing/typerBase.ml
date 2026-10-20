@@ -294,7 +294,7 @@ let s_field_access tabs fa =
 		"fa_field",fa.fa_field.cf_name;
 		"fa_host",sfa fa.fa_host;
 		"fa_inline",string_of_bool fa.fa_inline;
-		"fa_pos",(Printf.sprintf "%s(%i-%i)" fa.fa_pos.pfile fa.fa_pos.pmin fa.fa_pos.pmax);
+		"fa_pos",(Printf.sprintf "%s(%i-%i)" (Pos.file fa.fa_pos) (Pos.min fa.fa_pos) (Pos.max fa.fa_pos));
 	]
 
 let s_static_extension_access sea =
@@ -330,7 +330,7 @@ let s_dot_path_part part =
 	Printer.s_record_fields "" [
 		"name",part.name;
 		"case",(match part.case with PUppercase -> "PUppercase" | PLowercase -> "PLowercase");
-		"pos",(Printf.sprintf "%s(%i-%i)" part.pos.pfile part.pos.pmin part.pos.pmax);
+		"pos",(Printf.sprintf "%s(%i-%i)" (Pos.file part.pos) (Pos.min part.pos) (Pos.max part.pos));
 	]
 
 let get_constructible_constraint ctx tl p =

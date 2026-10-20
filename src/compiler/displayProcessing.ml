@@ -57,7 +57,7 @@ let process_display_file com actx =
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
 			DPKNone
-		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
+		| DFPOnly when (Pos.file (DisplayPosition.display_position#get)) = file_input_marker ->
 			actx.classes <- [];
 			com.main.main_path <- None;
 			begin match com.file_contents with

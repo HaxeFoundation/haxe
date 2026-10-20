@@ -796,7 +796,7 @@ module Converter = struct
 		let ctx = {
 			type_params = type_param_lut ctx.type_params jf.jf_types;
 		} in
-		let p = {p with pfile = p.pfile ^ "@" ^ jf.jf_name} in
+		let p = (Pos.with_file p ((Pos.file p) ^ "@" ^ jf.jf_name)) in
 		let is_static = AccessFlags.has_flag jf.jf_flags MStatic in
 		let access = ref [] in
 		let meta = ref [] in

@@ -23,7 +23,7 @@ module ReferencePosition = struct
 	let set (s,p,k) =
 		let p =
 			if p = null_pos then p
-			else {p with pfile = Path.get_full_path p.pfile}
+			else (Pos.with_file p (Path.get_full_path (Pos.file p)))
 		in
 		reference_position := (s,p,k)
 	let get () = !reference_position

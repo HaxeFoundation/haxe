@@ -1,8 +1,66 @@
-type pos = {
-	pfile : string;
-	pmin : int;
-	pmax : int;
-}
+(*
+	Positions (docs/incremental-compilation.md, phase 2, item 6).
+
+	A position is relative to an anchor, a shared mutable offset (one per
+	declaration once the parser allocates them): moving a declaration in its
+	file only updates its anchor, and every position created in it (parsed,
+	typed, in cached messages) follows. The type is abstract so that no code
+	reads the offsets without the anchor: [Pos.min] and [Pos.max] return
+	absolute offsets, and positions derived from another one with the
+	[Pos.with_*] functions keep its anchor.
+*)
+module Pos : sig
+	type anchor
+	type t
+
+	(* The anchor of positions that do not belong to a declaration. It is never shifted. *)
+	val no_anchor : anchor
+	val new_anchor : unit -> anchor
+	(* Moves every position of [anchor] by [delta] characters. *)
+	val shift : anchor -> int -> unit
+
+	val make : ?anchor:anchor -> string -> int -> int -> t
+	val file : t -> string
+	val min : t -> int
+	val max : t -> int
+	val anchor : t -> anchor
+
+	(* The [with_*] functions take absolute offsets and keep the anchor. *)
+	val with_file : t -> string -> t
+	val with_min : t -> int -> t
+	val with_max : t -> int -> t
+	val with_range : t -> int -> int -> t
+end = struct
+	type anchor = { mutable delta : int }
+
+	type t = {
+		pfile : string;
+		pmin : int;
+		pmax : int;
+		panchor : anchor;
+	}
+
+	let no_anchor = { delta = 0 }
+	let new_anchor () = { delta = 0 }
+	let shift a d =
+		assert (a != no_anchor);
+		a.delta <- a.delta + d
+
+	let make ?(anchor=no_anchor) file min max =
+		{ pfile = file; pmin = min - anchor.delta; pmax = max - anchor.delta; panchor = anchor }
+
+	let file p = p.pfile
+	let min p = p.pmin + p.panchor.delta
+	let max p = p.pmax + p.panchor.delta
+	let anchor p = p.panchor
+
+	let with_file p file = { p with pfile = file }
+	let with_min p min = { p with pmin = min - p.panchor.delta }
+	let with_max p max = { p with pmax = max - p.panchor.delta }
+	let with_range p min max = { p with pmin = min - p.panchor.delta; pmax = max - p.panchor.delta }
+end
+
+type pos = Pos.t
 
 type path = string list * string
 
@@ -67,8 +125,8 @@ let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
 let version_pre = Some "preview.1"
 
-let file_pos file = { pfile = file; pmin = 0; pmax = 0 }
-let fake_pos p = { pfile = p; pmin = -1; pmax = -1 }
+let file_pos file = Pos.make file 0 0
+let fake_pos p = Pos.make p (-1) (-1)
 let null_pos = fake_pos "?"
 
 let no_color = false
@@ -157,7 +215,7 @@ let platform_list_help = function
 	| [p] -> " (" ^ platform_name p ^ " only)"
 	| pl -> " (for " ^ String.concat "," (List.map platform_name pl) ^ ")"
 
-let mk_zero_range_pos p = { p with pmax = p.pmin }
+let mk_zero_range_pos p = Pos.with_max p (Pos.min p)
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
@@ -165,7 +223,7 @@ let starts_with s c =
 	String.length s > 0 && s.[0] = c
 
 let get_error_pos_ref : ((string -> int -> string) -> pos -> string) ref = ref (fun printer p ->
-	Printf.sprintf "%s: characters %d-%d" p.pfile p.pmin p.pmax
+	Printf.sprintf "%s: characters %d-%d" (Pos.file p) (Pos.min p) (Pos.max p)
 )
 
 let s_version =
@@ -178,7 +236,7 @@ let s_version_full v =
 		| _ -> s_version
 
 
-let patch_string_pos p s = { p with pmin = p.pmax - String.length s }
+let patch_string_pos p s = Pos.with_min p (Pos.max p - String.length s)
 
 let gen_local_prefix = "`"
 

@@ -126,7 +126,7 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 					die "" __LOC__
 			end
 		| [],(_,false,_) :: _ ->
-			let tail_p = { callp with pmin = call_field_p.pmin } in
+			let tail_p = (Pos.with_min callp ((Pos.min call_field_p))) in
 			call_error (Not_enough_arguments args) tail_p
 		| [],(name,true,t) :: args ->
 			if not ctx.allow_transform then begin
@@ -588,7 +588,7 @@ object(self)
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
-			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
+			if (Pos.file ep) <> (Pos.file p) || (Pos.max ep) < (Pos.min p) || (Pos.min ep) > (Pos.max p) then begin
 				if ep = null_pos then
 					old { err with err_pos = p }
 				else

@@ -5,7 +5,7 @@ include WarningList
 
 let parse_options lctx s ps lexbuf =
 	let fail msg p =
-		raise_typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
+		raise_typing_error msg (Pos.with_range p ((Pos.min ps) + (Pos.min p)) ((Pos.min ps) + (Pos.max p)))
 	in
 	let parse_string s p =
 		begin try
@@ -36,7 +36,7 @@ let parse_options lctx s ps lexbuf =
 	next []
 
 let parse_options s ps =
-	let lctx = Lexer.create_temp_ctx ps.pfile in
+	let lctx = Lexer.create_temp_ctx (Pos.file ps) in
 	let lexbuf = Sedlexing.Utf8.from_string s in
 	parse_options lctx s ps lexbuf
 
@@ -44,7 +44,7 @@ let from_meta ml =
 	let parse_arg e = match fst e with
 		| Ast.EConst (String(s,_)) ->
 			let p = snd e in
-			parse_options s {p with pmin = p.pmin + 1; pmax = p.pmax - 1} (* pmin is on the quote *)
+			parse_options s (Pos.with_range p ((Pos.min p) + 1) ((Pos.max p) - 1)) (* pmin is on the quote *)
 		| _ ->
 			raise_typing_error "String expected" (snd e)
 	in

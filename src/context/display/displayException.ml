@@ -100,7 +100,7 @@ let patch_completion_subject subj =
 	let p = Parser.cut_pos_at_display subj.s_insert_pos in
 	match subj.s_name with
 	| Some name ->
-		let delta = p.pmax - p.pmin in
+		let delta = (Pos.max p) - (Pos.min p) in
 		let name = if delta > 0 && delta < ExtString.String.length name then
 			ExtString.String.sub name 0 delta
 		else

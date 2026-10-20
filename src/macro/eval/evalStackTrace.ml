@@ -10,7 +10,7 @@ let make_stack envs =
 	List.iter (fun (pos,kind) ->
 		let file_pos s =
 			let line1,col1,_,_ = Lexer.get_pos_coords pos in
-			encode_enum_value key_haxe_StackItem 2 [|s;create_unknown pos.pfile;vint line1;vint col1|] (Some pos)
+			encode_enum_value key_haxe_StackItem 2 [|s;create_unknown (Pos.file pos);vint line1;vint col1|] (Some pos)
 		in
 		match kind with
 		| EKLocalFunction i ->
@@ -27,7 +27,7 @@ let make_stack envs =
 	encode_array (DynArray.to_list l)
 
 let make_stack_value envs =
-	make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
+	make_stack (List.map (fun env -> (Pos.make (rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax)),env.env_info.kind) envs)
 
 let getCallStack = vfun0 (fun () ->
 	let ctx = get_ctx() in

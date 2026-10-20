@@ -812,7 +812,7 @@ class script_writer ctx filename asciiOut basic =
     method wpos p =
       if debug then
         this#write
-          (this#fileText (Path.get_full_path p.pfile) ^ "\t"
+          (this#fileText (Path.get_full_path (Pos.file p)) ^ "\t"
           ^ string_of_int (Lexer.get_error_line p)
           ^ indent)
 

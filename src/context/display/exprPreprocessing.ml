@@ -22,7 +22,7 @@ let find_before_pos was_auto_triggered dm e =
 		let rec loop el = match el with
 			| [] -> [mk_null pr]
 			| e :: el ->
-				if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
+				if (Pos.min (pos e)) >= (Pos.max pr) then (mk_null pr) :: e :: el
 				else e :: loop el
 		in
 		(* print_endline (Printf.sprintf "%i-%i: PR" pr.pmin pr.pmax);
@@ -32,7 +32,7 @@ let find_before_pos was_auto_triggered dm e =
 		match el with
 		| [] -> [mk_null pr]
 		| e :: el ->
-			if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
+			if (Pos.min (pos e)) >= (Pos.max pr) then (mk_null pr) :: e :: el
 			else loop (e :: el)
 	in
 	let in_pattern = ref false in
@@ -65,7 +65,7 @@ let find_before_pos was_auto_triggered dm e =
 								| Some (_,pt) -> pt
 								| None -> snd v.ev_name
 							in
-							let p = {p0 with pmax = (pos e).pmin} in
+							let p = (Pos.with_max p0 ((Pos.min (pos e)))) in
 							let e = if is_annotated p then annotate_marked e else e in
 							loop2 ({ v with ev_expr = Some e } :: acc) mark vl
 					end
@@ -83,7 +83,7 @@ let find_before_pos was_auto_triggered dm e =
 			(EBinop(op,e1,annotate_marked e2)),(pos e)
 		| EBinop(OpOr,e1,(EIf(_,(EConst(Ident "null"),_),None),p1)) when is_annotated (pos e) && is_completion && !in_pattern ->
 			(* This HAS TO come from an attempted `case pattern | guard:` completion (issue #7068). *)
-			let p = { p1 with pmin = (pos e1).pmax; pmax = p1.pmin } in
+			let p = (Pos.with_range p1 ((Pos.max (pos e1))) ((Pos.min p1))) in
 			EBinop(OpOr,e1,mk_null p),(pos e)
 		| EIf(_,(EConst(Ident "null"),_),None) when is_completion && !in_pattern ->
 			(* This is fine. *)
@@ -100,7 +100,7 @@ let find_before_pos was_auto_triggered dm e =
 			let el = loop_el el in
 			ECall(e1,el),(pos e)
 		| ENew(ptp,el) when is_annotated (pos e) && is_completion ->
-			if is_annotated ptp.pos_full || ptp.pos_full.pmax >= (DisplayPosition.display_position#get).pmax then
+			if is_annotated ptp.pos_full || (Pos.max ptp.pos_full) >= (Pos.max (DisplayPosition.display_position#get)) then
 				annotate_marked e
 			else begin
 				let el = loop_el el in
@@ -132,16 +132,16 @@ let find_before_pos was_auto_triggered dm e =
 			let rec loop cases = match cases with
 				| [el,eg,ec,p1] ->
 					let ec = match def with
-					| None when (pos e).pmax > !display_pos.pmin -> (* this is so we don't trigger if we're on the } *)
+					| None when (Pos.max (pos e)) > (Pos.min !display_pos) -> (* this is so we don't trigger if we're on the } *)
 						mark_case ec p1 (* no default, must be the last case *)
-					| Some (_,p2) when p1.pmax <= !display_pos.pmin && p2.pmin >= !display_pos.pmax ->
+					| Some (_,p2) when (Pos.max p1) <= (Pos.min !display_pos) && (Pos.min p2) >= (Pos.max !display_pos) ->
 						mark_case ec p1 (* default is beyond display position, mark *)
 					| _ ->
 						ec (* default contains display position, don't mark *)
 					in
 					[el,eg,ec,p1]
 				| (el1,eg1,ec1,p1) :: (el2,eg2,ec2,p2) :: cases ->
-					if p1.pmax <= !display_pos.pmin && p2.pmin >= !display_pos.pmax then
+					if (Pos.max p1) <= (Pos.min !display_pos) && (Pos.min p2) >= (Pos.max !display_pos) then
 						(el1,eg1,mark_case ec1 p1,p1) :: (el2,eg2,ec2,p2) :: cases
 					else
 						(el1,eg1,ec1,p1) :: loop ((el2,eg2,ec2,p2) :: cases)
@@ -152,7 +152,7 @@ let find_before_pos was_auto_triggered dm e =
 			let def = if !did_mark then
 				def
 			else match def with
-				| Some(eo,p) when (pos e).pmax > !display_pos.pmin -> Some (mark_case eo p,p)
+				| Some(eo,p) when (Pos.max (pos e)) > (Pos.min !display_pos) -> Some (mark_case eo p,p)
 				| _ -> def
 			in
 			ESwitch(e1,cases,def),pos e

@@ -3,8 +3,8 @@ open Ast
 
 let format_string config s p process_expr =
 	let e = ref None in
-	let pmin = ref p.pmin in
-	let min = ref (p.pmin + 1) in
+	let pmin = ref (Pos.min p) in
+	let min = ref ((Pos.min p) + 1) in
 	let add_expr (enext,p) len =
 		min := !min + len;
 		let enext = process_expr enext p in
@@ -14,7 +14,7 @@ let format_string config s p process_expr =
 			e := Some (EBinop (OpAdd,prev,enext),punion (pos prev) p)
 	in
 	let add enext len =
-		let p = { p with pmin = !min; pmax = !min + len } in
+		let p = (Pos.with_range p (!min) (!min + len)) in
 		add_expr (enext,p) len
 	in
 	let add_sub start pos =
@@ -61,7 +61,7 @@ let format_string config s p process_expr =
 			if i = len then
 				match groups with
 				| [] -> die "" __LOC__
-				| g :: _ -> Error.raise_typing_error ("Unclosed " ^ gname) { p with pmin = !pmin + g + 1; pmax = !pmin + g + 2 }
+				| g :: _ -> Error.raise_typing_error ("Unclosed " ^ gname) (Pos.with_range p (!pmin + g + 1) (!pmin + g + 2))
 			else
 				let c = String.unsafe_get s i in
 				if c = gopen then
@@ -78,7 +78,7 @@ let format_string config s p process_expr =
 		min := !min + 2;
 		begin
 			let e =
-				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
+				let ep = (Pos.with_range p (!pmin + pos + 2) (!pmin + send + 1)) in
 				let error msg pos =
 					if Lexer.string_is_whitespace scode then Error.raise_typing_error "Expression cannot be empty" ep
 					else Error.raise_typing_error msg pos

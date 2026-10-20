@@ -1623,7 +1623,7 @@ module Printer = struct
 		if print_debug_comment then begin
 			let el = List.fold_left (fun acc e ->
 				let line = Lexer.get_error_line e.epos in
-				let debug_line = (Printf.sprintf "# %s:%i" e.epos.pfile line) in
+				let debug_line = (Printf.sprintf "# %s:%i" (Pos.file e.epos) line) in
 				let res = if (!last_debug_comment) <> debug_line then
 					(print_expr pctx e) :: debug_line :: acc
 				else

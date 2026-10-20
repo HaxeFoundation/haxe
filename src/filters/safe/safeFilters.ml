@@ -8,7 +8,7 @@ let fix_return_dynamic_from_void_function _ e =
 			let body = loop is_void fn.tf_expr in
 			{ e with eexpr = TFunction { fn with tf_expr = body } }
 		| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
-			let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
+			let return_pos = (Pos.with_max e.epos ((Pos.min return_expr.epos) - 1)) in
 			let exprs = [
 				loop return_is_void return_expr;
 				{ e with eexpr = TReturn None; epos = return_pos };

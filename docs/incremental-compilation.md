@@ -577,6 +577,24 @@ pointers.
    - Principle 4 still holds: the typed AST is not modified, only the anchors
      it refers to.
 
+   **Status: `pos` is abstract** (`Globals.Pos`, one commit over the whole
+   compiler). Its representation holds the file, the offsets relative to an
+   anchor and the anchor (`{ mutable delta : int }`); `Pos.file`, `Pos.min`
+   and `Pos.max` return absolute values, `Pos.make` builds a position (with
+   the shared `Pos.no_anchor` by default) and `Pos.with_file`,
+   `Pos.with_min`, `Pos.with_max` and `Pos.with_range` derive a position
+   from another one, keeping its anchor and taking absolute offsets. Every
+   position still has `Pos.no_anchor`, so the compiler behaves exactly as
+   before (unit tests for js, macro and hl, server tests in both cache modes,
+   misc, sourcemaps, nullsafety, optimization and incremental suites).
+   Structural equality and hashing of positions compare relative offsets and
+   anchors: identical to absolute comparisons while no anchor is shifted.
+   Next steps: anchors allocated by the parser per declaration (a position
+   map over each declaration's AST), positions of the typer derived with
+   `Pos.with_*`, hxb writing offsets relative to the anchor, `haxe.PosInfos`
+   resolved after typing (phase 8), and comparisons that must stay absolute
+   once anchors move (`Pos.compare`, display, statistics).
+
 Exit criterion: when fully retyping a modified module with grafting, the stale
 pointer checker reports nothing across the whole corpus.
 

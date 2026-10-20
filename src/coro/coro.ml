@@ -582,11 +582,11 @@ let fun_to_coro ctx =
 		let eaccess = continuation_field field field.cf_type in
 		let l1,c1,_,_ = Lexer.get_pos_coords pos in
 		let eargs   = eargs @ [
-			b#string pos.pfile coro_class.name_pos;
+			b#string (Pos.file pos) coro_class.name_pos;
 			b#int l1 coro_class.name_pos;
 			b#int c1 coro_class.name_pos;
-			b#int pos.pmin coro_class.name_pos;
-			b#int pos.pmax coro_class.name_pos;
+			b#int (Pos.min pos) coro_class.name_pos;
+			b#int (Pos.max pos) coro_class.name_pos;
 		] in
 		mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos
 		end

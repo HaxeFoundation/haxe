@@ -104,10 +104,10 @@ let const_char_star s =
 let make_path_absolute path pos =
    try
       if (String.sub path 0 2) = "./" then begin
-         let base = if (Filename.is_relative pos.pfile) then
-            Filename.concat (Sys.getcwd()) pos.pfile
+         let base = if (Filename.is_relative (Pos.file pos)) then
+            Filename.concat (Sys.getcwd()) (Pos.file pos)
          else
-            pos.pfile
+            (Pos.file pos)
          in
          Path.normalize_path (Filename.concat (Filename.dirname base) (String.sub path 2 ((String.length path) -2)))
       end else

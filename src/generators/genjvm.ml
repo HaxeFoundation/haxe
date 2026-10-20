@@ -2058,7 +2058,7 @@ class texpr_to_jvm
 		if not jm#is_terminated then self#texpr' ret e
 
 	method texpr' ret e =
-		if e.epos.pmin >= 0 then
+		if (Pos.min e.epos) >= 0 then
 			code#set_line (Lexer.get_error_line e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
@@ -2890,7 +2890,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method private do_generate =
 		self#set_access_flags;
-		jc#set_source_file c.cl_pos.pfile;
+		jc#set_source_file (Pos.file c.cl_pos);
 		run_timed gctx true "fields" (fun () -> self#generate_fields);
 		self#set_interfaces;
 		if not (has_class_flag c CInterface) then begin

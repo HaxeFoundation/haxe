@@ -531,7 +531,7 @@ let collect ctx tk with_type sort =
 
 let collect_and_raise ctx tk with_type cr (name,pname) pinsert =
 	let fields = match !DisplayException.last_completion_pos with
-	| Some p' when pname.pmin = p'.pmin ->
+	| Some p' when (Pos.min pname) = (Pos.min p') ->
 		Array.to_list (!DisplayException.last_completion_result)
 	| _ ->
 		collect ctx tk with_type (name = "")

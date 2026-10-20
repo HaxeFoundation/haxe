@@ -404,7 +404,7 @@ module CompletionType = struct
 
 	and generate_anon ctx cta =
 		let fields = List.sort (fun ctf1 ctf2 ->
-			compare ctf1.ctf_field.cf_name_pos.pmin ctf2.ctf_field.cf_name_pos.pmin
+			compare (Pos.min ctf1.ctf_field.cf_name_pos) (Pos.min ctf2.ctf_field.cf_name_pos)
 		) cta.ct_fields in
 		jobject [
 			"status",generate_anon_status ctx cta.ct_status;
@@ -556,7 +556,7 @@ let get_index item = match item.ci_kind with
 
 let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITLocal v ->
-		let i = p.pmin - v.v_pos.pmin in
+		let i = (Pos.min p) - (Pos.min v.v_pos) in
 		let i = if i < 0 then 0 else i in
 		let s = Printf.sprintf "%05i" i in
 		let s = match expected_name with

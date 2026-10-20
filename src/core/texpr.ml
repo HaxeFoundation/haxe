@@ -717,7 +717,7 @@ let dump_with_pos tabs e =
 	let add = Buffer.add_string buf in
 	let rec loop' tabs e =
 		let p = e.epos in
-		let add s = add (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs s) in
+		let add s = add (Printf.sprintf "%4i-%4i %s%s\n" (Pos.min p) (Pos.max p) tabs s) in
 		let loop e = loop' (tabs ^ "  ") e in
 		match e.eexpr with
 		| TConst ct -> add (s_const ct)
@@ -747,7 +747,7 @@ let dump_with_pos tabs e =
 		| TObjectDecl fl ->
 			add "TObjectDecl";
 			List.iter (fun ((n,p,_),e1) ->
-				Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+				Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" (Pos.min p) (Pos.max p) tabs n);
 				loop e1
 			) fl;
 		| TArrayDecl el ->
@@ -887,7 +887,7 @@ let punion_el default_pos el =
 			| _ :: el -> loop el
 		in
 		let last = loop el in
-		if first.pfile <> last.pfile then
+		if (Pos.file first) <> (Pos.file last) then
 			default_pos
 		else
 			punion first last

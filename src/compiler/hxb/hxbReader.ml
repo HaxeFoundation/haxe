@@ -51,7 +51,7 @@ module ClassFieldInfos = struct
 
 	let get infos cf =
 		let _,_,p = Meta.get meta cf.cf_meta in
-		DynArray.get infos.infos p.pmin
+		DynArray.get infos.infos (Pos.min p)
 
 	let unset infos cf =
 		cf.cf_meta <- Meta.remove meta cf.cf_meta
@@ -59,7 +59,7 @@ module ClassFieldInfos = struct
 	let set infos info cf =
 		let index = DynArray.length infos.infos in
 		DynArray.add infos.infos info;
-		cf.cf_meta <- (meta,[],{null_pos with pmin = index}) :: cf.cf_meta
+		cf.cf_meta <- (meta,[],(Pos.with_min null_pos (index))) :: cf.cf_meta
 end
 
 module BytesWithPosition = struct
@@ -253,11 +253,7 @@ class hxb_reader
 		let file = self#read_string in
 		let min = read_leb128 ch in
 		let max = read_leb128 ch in
-		let pos = {
-			pfile = file;
-			pmin = min;
-			pmax = max;
-		} in
+		let pos = (Pos.make (file) (min) (max)) in
 		pos
 
 	method read_pos_pair =
@@ -266,16 +262,8 @@ class hxb_reader
 		let max1 = read_leb128 ch in
 		let min2 = read_leb128 ch in
 		let max2 = read_leb128 ch in
-		let pos1 = {
-			pfile = file;
-			pmin = min1;
-			pmax = max1;
-		} in
-		let pos2 = {
-			pos1 with
-			pmin = pos1.pmin + min2;
-			pmax = pos1.pmin + max2;
-		} in
+		let pos1 = (Pos.make (file) (min1) (max1)) in
+		let pos2 = (Pos.with_range pos1 ((Pos.min pos1) + min2) ((Pos.min pos1) + max2)) in
 		pos1,pos2
 
 	method read_metadata_entry : metadata_entry =
@@ -1057,15 +1045,15 @@ class hxb_reader
 			v
 		in
 		let update_pmin () =
-			fctx.pos := {!(fctx.pos) with pmin = read_leb128 ch};
+			fctx.pos := (Pos.with_min (!(fctx.pos)) (read_leb128 ch));
 		in
 		let update_pmax () =
-			fctx.pos := {!(fctx.pos) with pmax = read_leb128 ch};
+			fctx.pos := (Pos.with_max (!(fctx.pos)) (read_leb128 ch));
 		in
 		let update_pminmax () =
 			let pmin = read_leb128 ch in
 			let pmax = read_leb128 ch in
-			fctx.pos := {!(fctx.pos) with pmin; pmax};
+			fctx.pos := Pos.with_range !(fctx.pos) pmin pmax;
 		in
 		let update_p () =
 			fctx.pos := self#read_pos;

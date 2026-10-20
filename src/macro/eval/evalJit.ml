@@ -228,7 +228,7 @@ and jit_expr jit return e =
 		jit.num_closures <- jit.num_closures + 1;
 		let fl,exec = jit_tfunction jit_closure true e.epos tf in
 		let hasret = jit_closure.has_nonfinal_return in
-		let eci = get_env_creation jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
+		let eci = get_env_creation jit_closure false (Pos.file tf.tf_expr.epos) (EKLocalFunction jit.num_closures) in
 		let captures = IntHashtbl.fold (fun vid (i,declared) acc -> (i,vid,declared) :: acc) jit_closure.captures [] in
 		let captures = List.sort (fun (i1,_,_) (i2,_,_) -> Stdlib.compare i1 i2) captures in
 		(* Check if the out-of-scope var is in the outer scope because otherwise we have to promote outwards. *)
@@ -680,7 +680,7 @@ and jit_tfunction jit static pos tf =
 	in
 	let e = match e.eexpr with
 		| TBlock el when ctx.debug.support_debugger && (ExtType.is_void (follow tf.tf_type)) && not (has_final_return el) ->
-			{e with eexpr = TBlock (el @ [mk (TReturn None) t_dynamic {pos with pmin = pos.pmax}])}
+			{e with eexpr = TBlock (el @ [mk (TReturn None) t_dynamic (Pos.with_min pos ((Pos.max pos)))])}
 		| _ ->
 			e
 	in
@@ -703,7 +703,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 		let fl,exec = jit_tfunction jit static pos tf in
 		(* Create the [vfunc] instance depending on the number of arguments. *)
 		let hasret = jit.has_nonfinal_return in
-		let eci = get_env_creation jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
+		let eci = get_env_creation jit static (Pos.file tf.tf_expr.epos) (EKMethod(key_type,key_field)) in
 		if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl
 	in
 	jit_timer ctx f

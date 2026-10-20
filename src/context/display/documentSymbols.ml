@@ -70,7 +70,7 @@ let collect_module_symbols mname with_locals (pack,decls) =
 	let type_decls = Hashtbl.create 0 in
 	List.iter (fun (td,p) ->
 		let get_decl_path d =
-			let module_name = Path.module_name_of_file p.pfile in
+			let module_name = Path.module_name_of_file (Pos.file p) in
 			let type_name = fst d.d_name in
 			let is_primary_type = type_name = module_name in
 			let type_path = if is_primary_type then pack else pack @ [module_name] in

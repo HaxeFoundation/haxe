@@ -169,7 +169,7 @@ let type_function ctx (args : function_arguments) ret e do_display p =
 		print_endline "BEFORE:";
 		let monos = List.mapi (fun i (m,p) ->
 			let s = print_mono i m in
-			let spos = if p.pmin = -1 then
+			let spos = if (Pos.min p) = -1 then
 				"unknown"
 			else begin
 				let l1,p1,_,_ = Lexer.get_pos_coords p in

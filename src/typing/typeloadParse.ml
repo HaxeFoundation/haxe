@@ -302,7 +302,7 @@ let parse_module com m p =
 		if p == null_pos then
 			display_error com ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			display_error com (spack pack ^ " in " ^ rfile.file ^ " should be " ^ spack (fst m)) {p with pmax = p.pmin}
+			display_error com (spack pack ^ " in " ^ rfile.file ^ " should be " ^ spack (fst m)) (Pos.with_max p ((Pos.min p)))
 	end;
 	rfile, (if !remap <> fst m then
 		(* build typedefs to redirect to real package *)

@@ -142,11 +142,11 @@ class sourcemap_writer (generated_file:string) =
 	*)
 	method private get_file_index pos =
 		try
-			Hashtbl.find files_indexes pos.pfile
+			Hashtbl.find files_indexes (Pos.file pos)
 		with Not_found ->
 			let index = (DynArray.length files) in
-			Hashtbl.add files_indexes pos.pfile index;
-			DynArray.add files pos.pfile;
+			Hashtbl.add files_indexes (Pos.file pos) index;
+			DynArray.add files (Pos.file pos);
 			index
 	(**
 		Apply base64 VLQ encoding to `number` and write it to output buffer

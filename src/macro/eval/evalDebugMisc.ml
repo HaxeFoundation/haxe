@@ -13,7 +13,7 @@ exception BreakHere
 let createInstance_ref : value ref = Obj.magic ()
 
 let declared_before vi p =
-	vi.vi_pos.pmin < p.pmin
+	(Pos.min vi.vi_pos) < (Pos.min p)
 
 (* Breakpoints *)
 

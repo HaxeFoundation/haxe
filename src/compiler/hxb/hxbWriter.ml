@@ -338,45 +338,45 @@ module PosWriter = struct
 	}
 
 	let do_write_pos (chunk : Chunk.t) (p : pos) =
-		Chunk.write_string chunk p.pfile;
-		Chunk.write_leb128 chunk p.pmin;
-		Chunk.write_leb128 chunk p.pmax
+		Chunk.write_string chunk (Pos.file p);
+		Chunk.write_leb128 chunk (Pos.min p);
+		Chunk.write_leb128 chunk (Pos.max p)
 
 	let create chunk p =
 		do_write_pos chunk p;
 	{
-		p_file = p.pfile;
-		p_min = p.pmin;
-		p_max = p.pmax;
+		p_file = (Pos.file p);
+		p_min = (Pos.min p);
+		p_max = (Pos.max p);
 	}
 
 	let write_pos pw (chunk : Chunk.t) (write_equal : bool) (offset : int) (p : pos) =
-		if p.pfile != pw.p_file then begin
+		if (Pos.file p) != pw.p_file then begin
 			(* File changed, write full pos *)
 			Chunk.write_u8 chunk (4 + offset);
 			do_write_pos chunk p;
-			pw.p_file <- p.pfile;
-			pw.p_min <- p.pmin;
-			pw.p_max <- p.pmax;
-		end else if p.pmin <> pw.p_min then begin
-			if p.pmax <> pw.p_max then begin
+			pw.p_file <- (Pos.file p);
+			pw.p_min <- (Pos.min p);
+			pw.p_max <- (Pos.max p);
+		end else if (Pos.min p) <> pw.p_min then begin
+			if (Pos.max p) <> pw.p_max then begin
 				(* pmin and pmax changed *)
 				Chunk.write_u8 chunk (3 + offset);
-				Chunk.write_leb128 chunk p.pmin;
-				Chunk.write_leb128 chunk p.pmax;
-				pw.p_min <- p.pmin;
-				pw.p_max <- p.pmax;
+				Chunk.write_leb128 chunk (Pos.min p);
+				Chunk.write_leb128 chunk (Pos.max p);
+				pw.p_min <- (Pos.min p);
+				pw.p_max <- (Pos.max p);
 			end else begin
 				(* pmin changed *)
 				Chunk.write_u8 chunk (1 + offset);
-				Chunk.write_leb128 chunk p.pmin;
-				pw.p_min <- p.pmin;
+				Chunk.write_leb128 chunk (Pos.min p);
+				pw.p_min <- (Pos.min p);
 			end
-		end else if p.pmax <> pw.p_max then begin
+		end else if (Pos.max p) <> pw.p_max then begin
 			(* pmax changed *)
 			Chunk.write_u8 chunk (2 + offset);
-			Chunk.write_leb128 chunk p.pmax;
-			pw.p_max <- p.pmax;
+			Chunk.write_leb128 chunk (Pos.max p);
+			pw.p_max <- (Pos.max p);
 		end else begin
 			if write_equal then
 				Chunk.write_u8 chunk offset;
@@ -518,17 +518,17 @@ module HxbWriter = struct
 			Chunk.write_u8 writer.chunk 0
 
 	let write_pos writer (p : pos) =
-		Chunk.write_string writer.chunk p.pfile;
-		Chunk.write_leb128 writer.chunk p.pmin;
-		Chunk.write_leb128 writer.chunk p.pmax
+		Chunk.write_string writer.chunk (Pos.file p);
+		Chunk.write_leb128 writer.chunk (Pos.min p);
+		Chunk.write_leb128 writer.chunk (Pos.max p)
 
 	let write_pos_pair writer (p1 : pos) (p2 : pos) =
 		(* Write second position offset relative to first position's pmin, which is often within 1 byte range. *)
-		Chunk.write_string writer.chunk p1.pfile;
-		Chunk.write_leb128 writer.chunk p1.pmin;
-		Chunk.write_leb128 writer.chunk p1.pmax;
-		Chunk.write_leb128 writer.chunk (p2.pmin - p1.pmin);
-		Chunk.write_leb128 writer.chunk (p2.pmax - p1.pmin)
+		Chunk.write_string writer.chunk (Pos.file p1);
+		Chunk.write_leb128 writer.chunk (Pos.min p1);
+		Chunk.write_leb128 writer.chunk (Pos.max p1);
+		Chunk.write_leb128 writer.chunk ((Pos.min p2) - (Pos.min p1));
+		Chunk.write_leb128 writer.chunk ((Pos.max p2) - (Pos.min p1))
 
 	let rec write_metadata_entry writer ((meta,el,p) : metadata_entry) =
 		Chunk.write_string writer.chunk (Meta.to_string meta);

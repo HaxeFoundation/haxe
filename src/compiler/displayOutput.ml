@@ -19,7 +19,7 @@ let handle_syntax_completion com kind subj =
 		| SCComment ->
 			[],CRTypeRelation
 		| SCTypeDecl mode ->
-			let in_import_hx = Filename.basename subj.s_insert_pos.pfile = "import.hx" in
+			let in_import_hx = Filename.basename (Pos.file subj.s_insert_pos) = "import.hx" in
 			let l = if in_import_hx then [] else [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = match mode with
 				| TCBeforePackage -> Package :: Import :: Using :: l
@@ -94,7 +94,7 @@ let emit_diagnostics com =
 
 let emit_statistics tctx =
 	let rh = tctx.Common.request_scope.result_handler in
-	let stats = Statistics.collect_statistics tctx [SFFile (DisplayPosition.display_position#get).pfile] true in
+	let stats = Statistics.collect_statistics tctx [SFFile (Pos.file (DisplayPosition.display_position#get))] true in
 	let json = Statistics.Printer.json_of_statistics stats in
 	DisplayPosition.display_position#reset;
 	CompilerOutput.send_result_raise rh json

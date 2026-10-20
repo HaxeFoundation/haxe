@@ -23,7 +23,7 @@ let reify in_macro =
 	let cur_pos = ref None in
 	let mk_enum ename n vl p =
 		(* We don't want the position of the call expression to span the entire call (#6396). *)
-		let pmin = {p with pmax = p.pmin} in
+		let pmin = (Pos.with_max p ((Pos.min p))) in
 		let constr = (EConst (Ident n),pmin) in
 		match vl with
 		| [] -> constr
@@ -156,7 +156,7 @@ let reify in_macro =
 		to_ctype (t,p) p
 	and to_display_kind dk p = mk_enum "DisplayKind" (s_display_kind dk) [] p
 	and to_fun f p =
-		let p = {p with pmax = p.pmin} in
+		let p = (Pos.with_max p ((Pos.min p))) in
 		let farg ((n,_),o,_,t,e) p =
 			let fields = [
 				"name", to_string n p;
@@ -234,9 +234,9 @@ let reify in_macro =
 			if in_macro then
 				(EUntyped (EConst (Ident "$__mk_pos__"),p),p)
 			else begin
-				let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
-				let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
-				let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
+				let file = (EConst (String((Pos.file p),SDoubleQuotes)),p) in
+				let pmin = (EConst (Int ((string_of_int (Pos.min p)), None)),p) in
+				let pmax = (EConst (Int ((string_of_int (Pos.max p)), None)),p) in
 				to_obj [("file",file);("min",pmin);("max",pmax)] p
 			end
 	and to_enc_pos p =

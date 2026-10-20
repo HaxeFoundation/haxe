@@ -175,7 +175,7 @@ let rec make pctx toplevel t e =
 		ctx.com.error_ext <- (fun err ->
 			let ep = err.err_pos in
 			(* The error might not actually come from here, let's check the position (issue #12098). *)
-			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then
+			if (Pos.file ep) <> (Pos.file p) || (Pos.max ep) < (Pos.min p) || (Pos.min ep) > (Pos.max p) then
 				old err
 			else
 				raise Exit

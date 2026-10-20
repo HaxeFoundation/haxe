@@ -121,7 +121,7 @@ let make_macro_com_api com mcom p =
 				| _ :: envs -> envs (* Skip call to getMacroStack() *)
 				| _ -> envs
 			in
-			List.map (fun (env:Interp.env) -> {pfile = EvalHash.rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) envs
+			List.map (fun (env:Interp.env) -> (Pos.make (EvalHash.rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax))) envs
 		);
 		init_macros_done = (fun () -> com.stage >= CInitMacrosDone);
 		get_type = (fun s ->
@@ -175,7 +175,7 @@ let make_macro_com_api com mcom p =
 			let exit() = com.error_ext <- old in
 
 			try
-				let r = match ParserEntry.parse_expr_string (ParserConfig.file_parser_config com p.pfile) s p raise_typing_error inl with
+				let r = match ParserEntry.parse_expr_string (ParserConfig.file_parser_config com (Pos.file p)) s p raise_typing_error inl with
 					| ParseSuccess(data,{pd_was_display_file = true}) when inl -> data (* ignore errors when inline-parsing in display file *)
 					| ParseSuccess(data,_) -> data
 					| ParseError _ -> Interp.exc_string "Invalid expression"
@@ -246,7 +246,7 @@ let make_macro_com_api com mcom p =
 			null_module
 		);
 		format_string = (fun s p ->
-			FormatString.format_string (ParserConfig.file_parser_config com p.pfile) s p (fun e p -> (e,p))
+			FormatString.format_string (ParserConfig.file_parser_config com (Pos.file p)) s p (fun e p -> (e,p))
 		);
 		cast_or_unify = (fun t e p ->
 			bad_stage ()
@@ -477,7 +477,7 @@ let make_macro_api ctx mctx p =
 			let add is_macro ctx =
 				try
 					let m = ctx.com.module_lut#find mpath in
-					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
+					let pos = (Pos.make ((Path.UniqueKey.lazy_path m.m_extra.m_file)) (0) (0)) in
 					Interp.compiler_error (make_error ~sub:[
 						make_error (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
@@ -514,7 +514,7 @@ let make_macro_api ctx mctx p =
 			begin try
 				let m = ctx.com.module_lut#find mpath in
 				if m != ctx.m.curmod then begin
-					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
+					let pos = (Pos.make ((Path.UniqueKey.lazy_path m.m_extra.m_file)) (0) (0)) in
 					Interp.compiler_error (make_error ~sub:[
 						make_error (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
@@ -822,7 +822,7 @@ let load_macro' ctx display cpath f p =
 	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
 let do_call_macro com api cpath name args p =
-	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ name ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
+	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ name ^ " (" ^ (Pos.file p) ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 	incr com.request_scope.stats.s_macros_called;
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in

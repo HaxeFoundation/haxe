@@ -990,7 +990,7 @@ class class_wrapper (cls) =
 		(**
 			Returns hx source file name where this type was declared
 		*)
-		method get_source_file = cls.cl_pos.pfile
+		method get_source_file = (Pos.file cls.cl_pos)
 		(**
 			Returns `Type.module_type` instance for this type
 		*)
@@ -1036,7 +1036,7 @@ class enum_wrapper (enm) =
 		(**
 			Returns hx source file name where this type was declared
 		*)
-		method get_source_file = enm.e_pos.pfile
+		method get_source_file = (Pos.file enm.e_pos)
 		(**
 			Returns `Type.module_type` instance for this type
 		*)
@@ -1056,7 +1056,7 @@ class typedef_wrapper (tdef) =
 		(**
 			Returns hx source file name where this type was declared
 		*)
-		method get_source_file = tdef.t_pos.pfile
+		method get_source_file = (Pos.file tdef.t_pos)
 		(**
 			Returns `Type.module_type` instance for this type
 		*)
@@ -1076,7 +1076,7 @@ class abstract_wrapper (abstr) =
 		(**
 			Returns hx source file name where this type was declared
 		*)
-		method get_source_file = abstr.a_pos.pfile
+		method get_source_file = (Pos.file abstr.a_pos)
 		(**
 			Returns `Type.module_type` instance for this type
 		*)

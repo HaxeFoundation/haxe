@@ -473,11 +473,7 @@ let is_postfix op = match op with
 let base_class_name = snd
 
 let punion p p2 =
-	{
-		pfile = p.pfile;
-		pmin = min p.pmin p2.pmin;
-		pmax = max p.pmax p2.pmax;
-	}
+	(Pos.make ((Pos.file p)) (min (Pos.min p) (Pos.min p2)) (max (Pos.max p) (Pos.max p2)))
 
 let rec punion_el el = match el with
 	| [] ->
@@ -1131,7 +1127,7 @@ module Expr = struct
 		let buf = Buffer.create 0 in
 		let add = Buffer.add_string buf in
 		let rec loop' tabs (e,p) =
-			let add s = add (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs s) in
+			let add s = add (Printf.sprintf "%4i-%4i %s%s\n" (Pos.min p) (Pos.max p) tabs s) in
 			let loop e = loop' (tabs ^ "  ") e in
 			match e with
 			| EConst ct -> add (s_constant ct)
@@ -1152,7 +1148,7 @@ module Expr = struct
 			| EObjectDecl fl ->
 				add "EObjectDecl";
 				List.iter (fun ((n,p,_),e1) ->
-					Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+					Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" (Pos.min p) (Pos.max p) tabs n);
 					loop e1
 				) fl;
 			| EArrayDecl el ->

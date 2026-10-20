@@ -189,7 +189,7 @@ let reset_state () =
 	display_position#reset
 
 let syntax_error_with_pos ctx error_msg p v =
-	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
+	let p = if (Pos.max p) = max_int then (Pos.with_max p ((Pos.min p) + 1)) else p in
 	if not ctx.config.in_display then error error_msg p;
 	ctx.syntax_errors <- (error_msg,p) :: ctx.syntax_errors;
 	v
@@ -199,7 +199,7 @@ let syntax_error ctx error_msg ?(pos=None) s v =
 	syntax_error_with_pos ctx error_msg p v
 
 let syntax_warning_with_pos ctx warning p =
-	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
+	let p = if (Pos.max p) = max_int then (Pos.with_max p ((Pos.min p) + 1)) else p in
 	ctx.syntax_warnings <- (warning,p) :: ctx.syntax_warnings
 
 let syntax_warning ctx warning ?(pos=None) s =
@@ -285,7 +285,7 @@ let type_path sl in_import p = match sl with
 let would_skip_display_position ctx p1 plus_one s =
 	if ctx.config.in_display_file then match Stream.npeek 1 s with
 		| [ (_,p2) ] ->
-			let p2 = {p2 with pmin = p1.pmax + (if plus_one then 1 else 0)} in
+			let p2 = (Pos.with_min p2 ((Pos.max p1) + (if plus_one then 1 else 0))) in
 			display_position#enclosed_in p2
 		| _ -> false
 	else false
@@ -358,19 +358,15 @@ let rec make_meta name params ((v,p2) as e) p1 =
 
 let handle_xml_literal ctx p1 =
 	Lexer.reset ctx.lexer_ctx;
-	let i = Lexer.lex_xml ctx.lexer_ctx p1.pmin ctx.code in
+	let i = Lexer.lex_xml ctx.lexer_ctx (Pos.min p1) ctx.code in
 	let xml = Lexer.contents ctx.lexer_ctx in
-	let e = EConst (String(xml,SDoubleQuotes)),{p1 with pmax = i} in (* STRINGTODO: distinct kind? *)
+	let e = EConst (String(xml,SDoubleQuotes)),(Pos.with_max p1 (i)) in (* STRINGTODO: distinct kind? *)
 	let e = make_meta Meta.Markup [] e p1 in
 	e
 
 let punion_next ctx p1 s =
 	let _,p2 = next_token ctx s in
-	{
-		pfile = p1.pfile;
-		pmin = p1.pmin;
-		pmax = p2.pmax - 1;
-	}
+	(Pos.make ((Pos.file p1)) ((Pos.min p1)) ((Pos.max p2) - 1))
 
 let mk_null_expr p = (EConst(Ident "null"),p)
 
@@ -383,7 +379,7 @@ let is_signature_display ctx =
 	ctx.config.display_mode = DMSignature
 
 let check_resume ctx p fyes fno =
-	if is_completion ctx && ctx.config.in_display_file && p.pmax = (display_position#get).pmin then begin
+	if is_completion ctx && ctx.config.in_display_file && (Pos.max p) = (Pos.min (display_position#get)) then begin
 		ctx.had_resume <- true;
 		fyes()
 	end else
@@ -392,7 +388,7 @@ let check_resume ctx p fyes fno =
 let check_resume_range ctx p s fyes fno =
 	if is_completion ctx && ctx.config.in_display_file then begin
 		let pnext = next_pos ctx s in
-		if p.pmin < (display_position#get).pmin && pnext.pmin >= (display_position#get).pmax then
+		if (Pos.min p) < (Pos.min (display_position#get)) && (Pos.min pnext) >= (Pos.max (display_position#get)) then
 			fyes pnext
 		else
 			fno()
@@ -435,11 +431,11 @@ let check_type_decl_completion ctx mode pmax s =
 	if ctx.config.in_display_file && is_completion ctx then begin
 		let pmin = match Stream.peek s with
 			| Some (Eof,_) | None -> max_int
-			| Some tk -> (pos tk).pmin
+			| Some tk -> (Pos.min (pos tk))
 		in
 		let p = display_position#get in
 		(* print_endline (Printf.sprintf "(%i <= %i) (%i >= %i)" pmax p.pmin pmin p.pmax); *)
-		if pmax <= p.pmin && pmin >= p.pmax then begin
+		if pmax <= (Pos.min p) && pmin >= (Pos.max p) then begin
 			let so,p = match Stream.peek s with
 			| Some((Const(Ident name),p)) when display_position#enclosed_in p -> (Some name),p
 			| Some(e,p) -> None,p
@@ -457,7 +453,7 @@ let check_signature_mark ctx e p1 p2 =
 			if encloses_position_gt display_position#get p then (mk_display_expr e DKMarked)
 			else e
 		end else begin
-			if (display_position#get).pmin = p1.pmax then (mk_display_expr e DKMarked)
+			if (Pos.min (display_position#get)) = (Pos.max p1) then (mk_display_expr e DKMarked)
 			else e
 		end
 	end

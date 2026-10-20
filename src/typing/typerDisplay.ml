@@ -496,12 +496,12 @@ and display_expr ctx e_ast e dk mode with_type p =
 			let l = match so with None -> 0 | Some s -> String.length s in
 			let fields = DisplayFields.collect ctx e_ast e1 dk with_type p in
 			let item = completion_item_of_expr ctx e1 in
-			raise_fields fields (CRField(item,e1.epos,None,None)) (make_subject so ~start_pos:(Some (pos e_ast)) {e.epos with pmin = e.epos.pmax - l;})
+			raise_fields fields (CRField(item,e1.epos,None,None)) (make_subject so ~start_pos:(Some (pos e_ast)) (Pos.with_min e.epos ((Pos.max e.epos) - l)))
 		in
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s,_),TField(e2,_) ->
 				display_fields e1 e2 (Some s)
-			| EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when pe.pmin = -1 ->
+			| EObjectDecl [(name,pn,_),(EConst (Ident "null"),pe)],_ when (Pos.min pe) = -1 ->
 				(* This is what the parser emits for #8651. Bit of a dodgy heuristic but should be fine. *)
 				raise_toplevel ctx dk with_type (name,pn)
 			| _ ->
@@ -666,7 +666,7 @@ let handle_display ctx e_ast dk mode with_type =
 let handle_structure_display ctx e fields origin =
 	let p = pos e in
 	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) fields [] in
-	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
+	let fields = List.sort (fun cf1 cf2 -> -compare (Pos.min cf1.cf_pos) (Pos.min cf2.cf_pos)) fields in
 	let tpair ?(values=PMap.empty) t =
 		let ct = CompletionType.from_type (get_import_status ctx) ~values t in
 		(t,ct)
@@ -693,7 +693,7 @@ let handle_structure_display ctx e fields origin =
 						ignore(handle_display ctx e DKMarked MGet (wt()))
 					else begin
 						(* If we are between the : and the expression, we don't want to use the actual expression as a filter string (issue #10414) *)
-						let p_between = { p with pmin = p.pmax + 1; pmax = (pos e).pmin - 1} in
+						let p_between = (Pos.with_range p ((Pos.max p) + 1) ((Pos.min (pos e)) - 1)) in
 						if DisplayPosition.display_position#enclosed_in p_between then begin
 							let e = (EConst(Ident "null"),p_between) in
 							ignore(handle_display ctx e DKMarked MGet (wt()))

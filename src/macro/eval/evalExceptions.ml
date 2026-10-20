@@ -67,7 +67,7 @@ let uncaught_exception_string v p extra =
 	(Printf.sprintf "%s : Uncaught exception %s%s" (format_pos p) (value_string v) extra)
 
 let get_exc_error_stack ctx stack =
-	let pl = List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax}) stack in
+	let pl = List.map (fun env -> (Pos.make (rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax))) stack in
 	List.filter (fun p -> p <> null_pos) pl
 
 let get_exc_error_message ctx v stack p =
@@ -94,7 +94,7 @@ let build_exception_stack ctx env =
 	| None -> []
 	in
 	ctx.exception_stack <- List.map (fun env ->
-		{pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
+		(Pos.make (rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax)),env.env_info.kind
 	) d
 
 let handle_stack_overflow eval f =
@@ -191,7 +191,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 								and max = match List.assoc key_max fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
 								and file = match List.assoc key_file fields with VString s -> s.sstring | _ -> raise Not_found
 								in
-								{ pmin = min; pmax = max; pfile = file }
+								(Pos.make (file) (min) (max))
 							with Not_found ->
 								null_pos
 							)

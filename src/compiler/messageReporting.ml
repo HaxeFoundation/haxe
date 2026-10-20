@@ -76,25 +76,25 @@ let compiler_pretty_message_string defines ectx cm =
 	| "End of overload failure reasons" -> None
 	| _ -> begin
 		ectx.last_positions <- (IntMap.add cm.cm_depth cm.cm_pos ectx.last_positions);
-		let is_null_pos = cm.cm_pos = null_pos || cm.cm_pos.pmin = -1 in
+		let is_null_pos = cm.cm_pos = null_pos || (Pos.min cm.cm_pos) = -1 in
 		let is_unknown_file f = f = "" || f = "?" in
 
 		(* Extract informations from position *)
 		let l1, p1, l2, p2, epos, lines =
 			if is_null_pos then begin
-				let epos = if is_unknown_file cm.cm_pos.pfile then "(unknown position)" else cm.cm_pos.pfile in
+				let epos = if is_unknown_file (Pos.file cm.cm_pos) then "(unknown position)" else (Pos.file cm.cm_pos) in
 				(-1, -1, -1, -1, epos, [])
 			end else try begin
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-				let lines = resolve_source ectx cm.cm_pos.pfile l1 p1 l2 p2 in
+				let lines = resolve_source ectx (Pos.file cm.cm_pos) l1 p1 l2 p2 in
 				let epos =
-					if lines = [] then cm.cm_pos.pfile
+					if lines = [] then (Pos.file cm.cm_pos)
 					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
 					else Lexer.get_error_pos error_printer cm.cm_pos
 				in
 				(l1, p1, l2, p2, epos, lines)
 			end with Not_found | Sys_error _ ->
-				(1, 1, 1, 1, cm.cm_pos.pfile, [])
+				(1, 1, 1, 1, (Pos.file cm.cm_pos), [])
 			in
 
 		(* If 4 lines or less, display all; if more, crop the middle *)
@@ -126,7 +126,7 @@ let compiler_pretty_message_string defines ectx cm =
 
 		let sev_changed = prev_sev = None || Some (cm_severity cm) <> prev_sev in
 		let pos_changed = (prev_pos = None || cm.cm_pos <> Option.get prev_pos || (cm.cm_depth <> prev_nl && cm.cm_depth <> prev_nl + 1)) && (parent_pos = null_pos || cm.cm_pos <> parent_pos) in
-		let file_changed = prev_pos = None || (pos_changed && match (cm.cm_pos.pfile, (Option.get prev_pos).pfile) with
+		let file_changed = prev_pos = None || (pos_changed && match ((Pos.file cm.cm_pos), (Pos.file (Option.get prev_pos))) with
 			| (f1, f2) when (is_unknown_file f1) && (is_unknown_file f2) -> false
 			| (f1, f2) -> f1 <> f2
 		) in

@@ -243,9 +243,9 @@ let get_meta_string_full_filename meta key =
   let rec loop = function
     | [] -> ""
     | (k, _, pos) :: _ when k = key ->
-        if Filename.is_relative pos.pfile then
-          Path.normalize_path (Filename.concat (Sys.getcwd ()) pos.pfile)
-        else pos.pfile
+        if Filename.is_relative (Pos.file pos) then
+          Path.normalize_path (Filename.concat (Sys.getcwd ()) (Pos.file pos))
+        else (Pos.file pos)
     | _ :: l -> loop l
   in
   loop meta
@@ -283,9 +283,9 @@ let with_debug ctx metadata run =
 
 let hx_stack_push ctx output clazz func_name pos gc_stack =
   if ctx.ctx_debug_level > 0 then (
-    let stripped_file = strip_file ctx.ctx_common pos.pfile in
+    let stripped_file = strip_file ctx.ctx_common (Pos.file pos) in
     let esc_file = StringHelper.s_escape stripped_file in
-    ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
+    ctx.ctx_file_info := PMap.add stripped_file (Pos.file pos) !(ctx.ctx_file_info);
     let full_name =
       clazz ^ "." ^ func_name
       ^

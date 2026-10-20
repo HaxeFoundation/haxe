@@ -39,7 +39,7 @@ let check_field_access ctx cff =
 	let display_access = ref None in
 	let rec loop p0 acc l =
 		let check_display p1 =
-			let pmid = {p0 with pmin = p0.pmax; pmax = p1.pmin} in
+			let pmid = (Pos.with_range p0 ((Pos.max p0)) ((Pos.min p1))) in
 			if DisplayPosition.display_position#enclosed_in pmid then match acc with
 			| access :: _ -> display_access := Some access;
 			| [] -> ()
@@ -74,7 +74,7 @@ let check_field_access ctx cff =
 				| _ ->
 					loop p1 ((access,p1) :: acc) l
 	in
-	let pmin = {cff.cff_pos with pmax = cff.cff_pos.pmin} in
+	let pmin = (Pos.with_max cff.cff_pos ((Pos.min cff.cff_pos))) in
 	loop pmin [] cff.cff_access;
 	!display_access
 
@@ -547,7 +547,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 				| APublic -> ()
 				| APrivate ->
 					let p = pos a in
-					if Filename.basename p.pfile <> "NativeIterable.hx" then (* Terrible workaround for #7436 *)
+					if Filename.basename (Pos.file p) <> "NativeIterable.hx" then (* Terrible workaround for #7436 *)
 						warning ctx WDeprecated "private structure fields are deprecated" p;
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true

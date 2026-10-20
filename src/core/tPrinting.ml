@@ -443,7 +443,7 @@ module Printer = struct
 		Printf.sprintf "%s = %s;" name value
 
 	let s_pos p =
-		Printf.sprintf "%s: %i-%i" p.pfile p.pmin p.pmax
+		Printf.sprintf "%s: %i-%i" (Pos.file p) (Pos.min p) (Pos.max p)
 
 	let s_record_fields tabs fields =
 		let sl = List.map (fun (name,value) -> s_record_field name value) fields in

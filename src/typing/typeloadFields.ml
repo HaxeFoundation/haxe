@@ -269,7 +269,7 @@ let transform_abstract_field com this_t a_t a f =
 			raise_typing_error "Invalid modifier: macro on abstract constructor" p
 		with Not_found -> ());
 		(* We don't want the generated expression positions to shadow the real code. *)
-		let p = { p with pmax = p.pmin } in
+		let p = (Pos.with_max p ((Pos.min p))) in
 		let fu = {
 			fu with
 			f_expr = (match fu.f_expr with

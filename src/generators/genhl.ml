@@ -183,7 +183,7 @@ let is_array_type t =
 
 let max_pos e =
 	let p = e.epos in
-	{ p with pmin = p.pmax }
+	(Pos.with_min p ((Pos.max p)))
 
 let to_utf8 str p =
 	let u8 = try
@@ -351,11 +351,11 @@ let set_curpos ctx p =
 let make_debug ctx arr =
 	let get_relative_path p =
 		match Gctx.defined ctx.com Define.AbsolutePath with
-		| true -> if (Filename.is_relative p.pfile)
-			then Filename.concat (Vfs.getcwd ()) p.pfile
-			else p.pfile
+		| true -> if (Filename.is_relative (Pos.file p))
+			then Filename.concat (Vfs.getcwd ()) (Pos.file p)
+			else (Pos.file p)
 		| false ->
-			ctx.com.class_paths#relative_path p.pfile
+			ctx.com.class_paths#relative_path (Pos.file p)
 	in
 	let pos = ref (0,0,Globals.null_pos) in
 	let cur_file = ref 0 in
@@ -365,7 +365,7 @@ let make_debug ctx arr =
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
-			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> get_relative_path p) in
+			let file = if (Pos.file p) == (Pos.file (!cur)) then !cur_file else lookup ctx.cdebug_files (Pos.file p) (fun() -> get_relative_path p) in
 			let line = Lexer.get_error_line p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
@@ -3613,7 +3613,7 @@ let generate_member ctx c f =
 		) in
 		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) ff (Some c) None);
 		if f.cf_name = "toString" && not (has_class_field_flag f CfOverride) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
-			let p = {f.cf_pos with pmax = f.cf_pos.pmin} in
+			let p = (Pos.with_max f.cf_pos ((Pos.min f.cf_pos))) in
 			(* function __string() { var str = this.toString(); return if (str == null) null else str.bytes; } *)
 			let ethis = mk (TConst TThis) (TInst (c,extract_param_types c.cl_params)) p in
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,extract_param_types c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
@@ -3654,7 +3654,7 @@ let generate_type ctx t =
 							let ei = Type.map_expr loop ei in
 							{ ei with epos = e.epos }
 						in
-						if ei.epos.pmin < e.epos.pmin || ei.epos.pmax > e.epos.pmax then loop ei else ei
+						if (Pos.min ei.epos) < (Pos.min e.epos) || (Pos.max ei.epos) > (Pos.max e.epos) then loop ei else ei
 					in
 					Some { e with eexpr = TFunction({ f with tf_expr = { ef with eexpr = TBlock (List.map merge el) }}) }
 				| _ ->

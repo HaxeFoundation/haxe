@@ -85,14 +85,14 @@ let encode_mapping smap pos =
 let noop () = ()
 
 let add_mapping smap pos =
-	if pos.pmin < 0 then noop else
+	if (Pos.min pos) < 0 then noop else
 
 	let file = try
-		Hashtbl.find smap.sources_hash pos.pfile
+		Hashtbl.find smap.sources_hash (Pos.file pos)
 	with Not_found ->
 		let length = DynArray.length smap.sources in
-		Hashtbl.replace smap.sources_hash pos.pfile length;
-		DynArray.add smap.sources pos.pfile;
+		Hashtbl.replace smap.sources_hash (Pos.file pos) length;
+		DynArray.add smap.sources (Pos.file pos);
 		length
 	in
 

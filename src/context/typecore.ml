@@ -478,7 +478,7 @@ let add_local ctx k n t p =
 			begin try
 				let v' = PMap.find n ctx.f.locals in
 				(* ignore std lib *)
-				if not (List.exists (fun path -> ExtLib.String.starts_with p.pfile (path#path)) ctx.com.class_paths#get_std_paths) then begin
+				if not (List.exists (fun path -> ExtLib.String.starts_with (Pos.file p) (path#path)) ctx.com.class_paths#get_std_paths) then begin
 					warning ctx WVarShadow "This variable shadows a previously declared variable" p;
 					warning ~depth:1 ctx WVarShadow (compl_msg "Previous variable was here") v'.v_pos
 				end
@@ -727,7 +727,7 @@ let mk_infos_t =
 	let className = ("className",null_pos,NoQuotes) in
 	let methodName = ("methodName",null_pos,NoQuotes) in
 	(fun ctx p params t ->
-		let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+		let file = if ctx.com.is_macro_context then (Pos.file p) else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path (Pos.file p) else relative_path ctx (Pos.file p) in
 		let line = Lexer.get_error_line p in
 		let class_name = s_type_path ctx.c.curclass.cl_path in
 		let fields =
@@ -744,7 +744,7 @@ let mk_infos_t =
 	)
 
 let mk_infos ctx p params =
-	let file = if ctx.com.is_macro_context then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path p.pfile else relative_path ctx p.pfile in
+	let file = if ctx.com.is_macro_context then (Pos.file p) else if Common.defined ctx.com Define.AbsolutePath then Path.get_full_path (Pos.file p) else relative_path ctx (Pos.file p) in
 	(EObjectDecl (
 		(("fileName",null_pos,NoQuotes) , (EConst (String(file,SDoubleQuotes)) , p)) ::
 		(("lineNumber",null_pos,NoQuotes) , (EConst (Int (string_of_int (Lexer.get_error_line p), None)),p)) ::

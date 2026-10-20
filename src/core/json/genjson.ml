@@ -80,9 +80,9 @@ let local_ref ctx v = jint v.v_id
 
 let generate_pos ctx p =
 	jobject [
-		"file",jstring p.pfile;
-		"min",jint p.pmin;
-		"max",jint p.pmax;
+		"file",jstring (Pos.file p);
+		"min",jint (Pos.min p);
+		"max",jint (Pos.max p);
 	]
 
 let generate_expr_pos ctx p =
@@ -107,14 +107,14 @@ let pos_to_range p =
 	]
 
 let generate_pos_as_range p =
-	if p.pmin = -1 then jnull
+	if (Pos.min p) = -1 then jnull
 	else jobject (pos_to_range p)
 
 let generate_pos_as_location p =
-	if p.pmin = -1 then
+	if (Pos.min p) = -1 then
 		jnull
 	else
-		jobject [("file",jstring (Path.get_real_path p.pfile));"range",generate_pos_as_range p]
+		jobject [("file",jstring (Path.get_real_path (Pos.file p)));"range",generate_pos_as_range p]
 
 (* AST expr *)
 

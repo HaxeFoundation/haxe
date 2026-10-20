@@ -169,10 +169,10 @@ let output_call_stack ctx eval p =
 		let id = ctx.debug.debug_context#add_stack_frame env in
 		let kind = env.env_info.kind in
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
-		let path = Path.get_real_path p.pfile in
+		let path = Path.get_real_path (Pos.file p) in
 		let artificial,name = match kind with
 			| EKMethod _ | EKLocalFunction _ | EKMacro _ -> false,kind_name eval kind
-			| EKEntrypoint -> true,p.pfile
+			| EKEntrypoint -> true,(Pos.file p)
 		in
 		let source = if Sys.file_exists path then JString path else JNull in
 		JObject [
@@ -187,7 +187,7 @@ let output_call_stack ctx eval p =
 		]
 	in
 	let _,stack = List.fold_left (fun (first,acc) env ->
-		let p = if first then p else {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash env.env_info.pfile} in
+		let p = if first then p else (Pos.make (rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax)) in
 		false,((stack_item env p) :: acc)
 	) (true,[]) envs in
 	JArray (List.rev stack)
@@ -213,7 +213,7 @@ let output_scopes ctx env =
 			if pos <> null_pos then
 				let line1,col1,line2,col2 = Lexer.get_pos_coords pos in
 				("pos",JObject [
-					"source",JString (Path.get_real_path pos.pfile);
+					"source",JString (Path.get_real_path (Pos.file pos));
 					"line",JInt line1;
 					"column",JInt col1;
 					"endLine",JInt line2;
@@ -484,7 +484,7 @@ module ValueCompletion = struct
 		let com = (ctx.curapi.get_com()) in
 		let config = Parser.create_config com.Common.defines true true DMDefault com.part_scope.parser_state.was_auto_triggered None in
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
-		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
+		DisplayPosition.display_position#set (Pos.with_range p (offset) (offset));
 		begin try
 			let e = parse_expr ctx config text p in
 			let e = ExprPreprocessing.find_before_pos com.part_scope.parser_state.was_auto_triggered DMDefault e in

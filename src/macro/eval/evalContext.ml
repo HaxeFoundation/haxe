@@ -401,8 +401,8 @@ let throw v p =
 	match eval.env with
 	| Some env ->
 		if p <> null_pos then begin
-			env.env_leave_pmin <- p.pmin;
-			env.env_leave_pmax <- p.pmax;
+			env.env_leave_pmin <- (Pos.min p);
+			env.env_leave_pmax <- (Pos.max p);
 		end;
 		raise_notrace (RunTimeException(v,call_stack eval,p))
 	| None ->

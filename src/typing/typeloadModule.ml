@@ -243,7 +243,7 @@ module ModuleLevel = struct
 					first_pos := p;
 					field_of_static_definition d p;
 				) statics in
-				let p = let p = !first_pos in { p with pmax = p.pmin } in
+				let p = let p = !first_pos in (Pos.with_max p ((Pos.min p))) in
 				let c_def = {
 					d_name = (snd m.m_path) ^ "_Fields_", null_pos;
 					d_flags = [HPrivate];
@@ -676,7 +676,7 @@ module TypeLevel = struct
 	let init_imports_or_using ctx_m (decl,p) =
 		let com = ctx_m.com in
 		let check_path_display path p =
-			if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
+			if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get (Pos.file p)) then DisplayPath.handle_path_display ctx_m path p
 		in
 		match decl with
 		| EImport (path,mode) ->

@@ -1870,12 +1870,12 @@ let macro_api ccom get_api =
 			let p = decode_pos p in
 			let display_pos = DisplayPosition.display_position in
 			let same_file() =
-				let dfile = display_pos#get.pfile in
-				dfile = p.pfile
+				let dfile = (Pos.file display_pos#get) in
+				dfile = (Pos.file p)
 				|| (
 					let com = ccom() in
-					(Filename.is_relative p.pfile || Filename.is_relative dfile)
-					&& (com.part_scope.file_keys#get dfile = com.part_scope.file_keys#get p.pfile)
+					(Filename.is_relative (Pos.file p) || Filename.is_relative dfile)
+					&& (com.part_scope.file_keys#get dfile = com.part_scope.file_keys#get (Pos.file p))
 				)
 			in
 			vbool (display_pos#enclosed_in p && same_file())
@@ -2170,10 +2170,10 @@ let macro_api ccom get_api =
 		);
 		"get_pos_infos", vfun1 (fun p ->
 			let p = decode_pos p in
-			encode_obj ["min",vint p.Globals.pmin;"max",vint p.Globals.pmax;"file",encode_string p.Globals.pfile]
+			encode_obj ["min",vint (Pos.min p);"max",vint (Pos.max p);"file",encode_string (Pos.file p)]
 		);
 		"make_position", vfun3 (fun min max file ->
-			encode_pos { Globals.pmin = decode_int min; Globals.pmax = decode_int max; Globals.pfile = decode_string file }
+			encode_pos (Pos.make (decode_string file) (decode_int min) (decode_int max))
 		);
 		"add_resource", vfun2 (fun name data ->
 			let name = decode_string name in
@@ -2324,7 +2324,7 @@ let macro_api ccom get_api =
 			if p = Globals.null_pos then
 				vnull
 			else
-				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
+				encode_obj ["file",encode_string (Pos.file p);"pos",vint (Pos.min p)]
 		);
 		"get_display_mode", vfun0 (fun() ->
 			encode_display_mode (ccom()).display.dms_kind;
@@ -2468,7 +2468,7 @@ let macro_api ccom get_api =
 				"end",pos_end;
 			] in
 			let location = encode_obj [
-				"file",encode_string p.Globals.pfile;
+				"file",encode_string (Pos.file p);
 				"range",range
 			] in
 			location

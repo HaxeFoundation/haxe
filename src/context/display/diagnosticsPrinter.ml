@@ -133,7 +133,7 @@ let json_of_diagnostics com dctx =
 	let current = ref None in
 	let add append diag =
 		let p = diag.diag_pos in
-		let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
+		let file = if p = null_pos then (Pos.file p) else Path.get_real_path (Pos.file p) in
 		let fdiag = try
 			Hashtbl.find diagnostics file
 		with Not_found ->
@@ -158,7 +158,7 @@ let json_of_diagnostics com dctx =
 			| DKMissingFields ->
 				true
 		in
-		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then begin
+		if p = null_pos || is_diagnostics_file com (file_keys#get (Pos.file p)) then begin
 			let diag = make_diagnostic dk p sev code args in
 			current := Some diag;
 			add append diag
