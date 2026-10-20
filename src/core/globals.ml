@@ -30,6 +30,11 @@ module Pos : sig
 	val with_min : t -> int -> t
 	val with_max : t -> int -> t
 	val with_range : t -> int -> int -> t
+
+	(* Gives [anchor] to every position of file [file] in [v] (a parsed
+	   declaration) that does not have an anchor yet. The anchor's delta must
+	   be 0, so that absolute offsets do not change. *)
+	val anchor_all : string -> anchor -> 'a -> unit
 end = struct
 	type anchor = { mutable delta : int }
 
@@ -37,7 +42,8 @@ end = struct
 		pfile : string;
 		pmin : int;
 		pmax : int;
-		panchor : anchor;
+		(* only set once, by [anchor_all], to an anchor of delta 0 *)
+		mutable panchor : anchor;
 	}
 
 	let no_anchor = { delta = 0 }
@@ -58,6 +64,27 @@ end = struct
 	let with_min p min = { p with pmin = min - p.panchor.delta }
 	let with_max p max = { p with pmax = max - p.panchor.delta }
 	let with_range p min max = { p with pmin = min - p.panchor.delta; pmax = max - p.panchor.delta }
+
+	(* Generic walk: parsed declarations are plain data (records, variants,
+	   lists, strings). A position is the only block of tag 0 and size 4 whose
+	   last field is [no_anchor]. *)
+	let anchor_all file anchor v =
+		assert (anchor.delta = 0);
+		let no_anchor = Obj.repr no_anchor in
+		let rec walk v =
+			if Obj.is_block v then begin
+				let tag = Obj.tag v in
+				if tag < Obj.no_scan_tag && tag <> Obj.closure_tag && tag <> Obj.infix_tag && tag <> Obj.lazy_tag && tag <> Obj.forward_tag && tag <> Obj.object_tag then begin
+					let size = Obj.size v in
+					if tag = 0 && size = 4 && Obj.field v 3 == no_anchor && Obj.is_block (Obj.field v 0) && Obj.tag (Obj.field v 0) = Obj.string_tag then begin
+						let p : t = Obj.obj v in
+						if p.pfile = file then p.panchor <- anchor
+					end else
+						for i = 0 to size - 1 do walk (Obj.field v i) done
+				end
+			end
+		in
+		walk (Obj.repr v)
 end
 
 type pos = Pos.t

@@ -614,11 +614,22 @@ pointers.
    misc, sourcemaps, nullsafety, optimization and incremental suites).
    Structural equality and hashing of positions compare relative offsets and
    anchors: identical to absolute comparisons while no anchor is shifted.
-   Next steps: anchors allocated by the parser per declaration (a position
-   map over each declaration's AST), positions of the typer derived with
-   `Pos.with_*`, hxb writing offsets relative to the anchor, `haxe.PosInfos`
-   resolved after typing (phase 8), and comparisons that must stay absolute
-   once anchors move (`Pos.compare`, display, statistics).
+
+   **Status: anchors allocated per declaration.** After parsing a file,
+   `TypeloadParse.anchor_declarations` gives one anchor to each field and
+   enum constructor, one to each type declaration header and module-level
+   field, and one shared anchor to the module's imports and usings
+   (`Pos.anchor_all`, a walk over the declaration's parsed AST setting the
+   anchor of the positions of that file that have none yet). Anchors are
+   created with a delta of 0, so absolute offsets are unchanged. Cost on
+   Heaps (h3d, 1295 files): parsing goes from about 0.59s to 0.68s (about 2%
+   of the compilation); allocating the anchors in the parser itself would
+   remove the walk. Positions of the typer derived with `Pos.with_*` keep the
+   anchor of the position they derive from.
+   Next steps: hxb writing offsets relative to the anchor, `haxe.PosInfos`
+   resolved after typing (phase 8), comparisons that must stay absolute once
+   anchors move (`Pos.compare`, display, statistics), and shifting anchors on
+   reparse (phase 6).
 
 Exit criterion: when fully retyping a modified module with grafting, the stale
 pointer checker reports nothing across the whole corpus.

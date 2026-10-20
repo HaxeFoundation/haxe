@@ -30,6 +30,25 @@ open Error
 
 exception DisplayInMacroBlock
 
+(* Gives an anchor to each declaration of a parsed file (docs/incremental-compilation.md,
+   phase 2, item 6): one per type declaration header, one per field and enum
+   constructor, one per module-level field, and one for the module's imports and
+   usings. Moving a declaration in its file then only means shifting its anchor. *)
+let anchor_declarations file decls =
+	let anchor v = Pos.anchor_all file (Pos.new_anchor ()) v in
+	let module_anchor = Pos.new_anchor () in
+	List.iter (fun ((d,_) as decl) ->
+		begin match d with
+		| EClass c -> List.iter anchor c.d_data
+		| EAbstract a -> List.iter anchor a.d_data
+		| EEnum e -> List.iter anchor e.d_data
+		| ETypedef _ | EStatic _ | EImport _ | EUsing _ -> ()
+		end;
+		match d with
+		| EImport _ | EUsing _ -> Pos.anchor_all file module_anchor decl
+		| _ -> anchor decl
+	) decls
+
 let parse_file_from_lexbuf com file p lexbuf =
 	incr com.request_scope.stats.s_files_parsed;
 	let parse_result = try
@@ -40,6 +59,9 @@ let parse_file_from_lexbuf com file p lexbuf =
 		| e ->
 			raise e
 	in
+	begin match parse_result with
+		| ParseSuccess((_,decls),_) | ParseError((_,decls),_,_) -> anchor_declarations file decls
+	end;
 	begin match com.display.dms_kind,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
 		| DMModuleSymbols filter,(ParseSuccess(data,_)) when filter = None && DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get file) ->
