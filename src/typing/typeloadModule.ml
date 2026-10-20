@@ -290,7 +290,7 @@ module ModuleLevel = struct
 				if mimport.m_extra.m_kind <> MFake then add_dependency m mimport MDepFromImport;
 				r
 			with Not_found ->
-				if Sys.file_exists path then begin
+				if Vfs.file_exists path then begin
 					let (_,r),warnings = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
 						| ParseSuccess(data,pdi) -> data,pdi.pd_warnings
 						| ParseError(_,(msg,p),_) -> Parser.error msg p

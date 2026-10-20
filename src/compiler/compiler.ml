@@ -212,7 +212,7 @@ module Setup = struct
 
 	let init_std_class_paths com =
 		List.iter (fun (s,scope) ->
-			try if Sys.is_directory s then
+			try if Vfs.is_directory s then
 				let cp = new ClassPath.directory_class_path (Path.add_trailing_slash s) scope in
 				com.class_paths#add cp
 			with Sys_error _ -> ()

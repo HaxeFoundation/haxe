@@ -352,7 +352,7 @@ let make_debug ctx arr =
 	let get_relative_path p =
 		match Gctx.defined ctx.com Define.AbsolutePath with
 		| true -> if (Filename.is_relative p.pfile)
-			then Filename.concat (Sys.getcwd()) p.pfile
+			then Filename.concat (Vfs.getcwd ()) p.pfile
 			else p.pfile
 		| false ->
 			ctx.com.class_paths#relative_path p.pfile
@@ -4455,9 +4455,7 @@ let generate com =
 		let ch = IO.output_string() in
 		write_code ch code (not (Gctx.raw_defined com "hl_no_debug"));
 		let str = IO.close_out ch in
-		let ch = open_out_bin com.file in
-		output_string ch str;
-		close_out ch;
+		ignore (Vfs.write_file com.file str);
 		prev_sign := sign;
 		prev_data := str;
 	end;

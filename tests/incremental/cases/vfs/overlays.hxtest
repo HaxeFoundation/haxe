@@ -1,0 +1,43 @@
+# Unsaved editor contents (overlays) take precedence over the disk, including
+# for a file that does not exist on disk yet.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.get());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get() return 1;
+}
+
+=== unsaved change of Dep
+@expect-output 42
+--- overlay Dep.hx
+class Dep {
+	public static function get() return 42;
+}
+
+=== unsaved new file used by an unsaved Main
+@expect-output 42 new
+--- overlay New.hx
+class New {
+	public static function name() return "new";
+}
+--- overlay Main.hx
+class Main {
+	static function main() {
+		trace(Dep.get() + " " + New.name());
+	}
+}
+
+=== Dep overlay dropped (back to the disk content)
+@expect-output 1 new
+--- remove-overlay Dep.hx
+
+=== all overlays dropped
+@expect-output 1
+--- remove-overlay New.hx
+--- remove-overlay Main.hx

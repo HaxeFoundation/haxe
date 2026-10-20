@@ -344,12 +344,9 @@ let close_file ctx =
 	Hashtbl.clear ctx.defined_funs;
 	Buffer.reset ctx.out;
 	let fpath = ctx.dir ^ "/" ^ ctx.curfile in
-	let fcontent = (try Std.input_file ~bin:true fpath with _ -> "") in
-	if fcontent <> str then begin
-		let ch = open_out_bin fpath in
-		output_string ch str;
-		close_out ch;
-	end
+	(* Unchanged files are not rewritten, so that the C compiler does not
+	   rebuild them. *)
+	ignore (Vfs.write_file fpath str)
 
 let define_global gctx ctx g =
 	let t = gctx.hlcode.globals.(g) in

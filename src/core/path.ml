@@ -65,6 +65,10 @@ let parse_type_path s =
    tracks it without a system call per query. *)
 let getcwd = ref Unix.getcwd
 
+(* Called after the compiler creates a directory; set by the virtual file
+   system to keep its view up to date. *)
+let on_directory_created : (string -> unit) ref = ref (fun _ -> ())
+
 let path_regex = Str.regexp "[/\\]+"
 let normalize_path path =
 	let rec normalize acc m =
@@ -335,7 +339,7 @@ let rec create_file bin ext acc = function
 		ch
 	| d :: l ->
 		let dir = String.concat "/" (List.rev (d :: acc)) in
-		Mutex.protect mkdir_mutex (fun () -> if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755);
+		Mutex.protect mkdir_mutex (fun () -> if not (Sys.file_exists (remove_trailing_slash dir)) then begin Unix.mkdir dir 0o755; !on_directory_created dir end);
 		create_file bin ext (d :: acc) l
 
 let rec mkdir_recursive base dir_list =
@@ -355,8 +359,10 @@ let rec mkdir_recursive base dir_list =
 				path
 		in
 		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
-			if not (Sys.file_exists path) then
+			if not (Sys.file_exists path) then begin
 				Unix.mkdir path 0o755;
+				!on_directory_created path
+			end;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
 
 (**

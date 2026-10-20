@@ -39,12 +39,22 @@ let mutex = Mutex.create ()
 let infos : (string,info) Hashtbl.t = Hashtbl.create 0
 let listings : (string,string array option) Hashtbl.t = Hashtbl.create 0
 
+(* Overlays: contents sent by an editor for unsaved buffers. They take
+   precedence over the file system until they are removed. Each overlay has its
+   own modification time (negative, decreasing on every change), so that a
+   new overlay content is seen as a change. *)
+let overlays : (string,string * float) Hashtbl.t = Hashtbl.create 0
+let overlay_clock = ref 0.
+
 (* Number of file system calls made by the VFS since the last `reset_stats`. *)
 let syscalls = Atomic.make 0
 let trace_syscalls = Sys.getenv_opt "HAXE_VFS_TRACE" <> None
 let count_syscall ?(what="") () =
 	if trace_syscalls then prerr_endline ("vfs: " ^ what);
 	Atomic.incr syscalls
+(* Number of calls of the last finished compilation (see `end_compilation`). *)
+let last_compilation_syscalls = Atomic.make 0
+
 let reset_stats () = Atomic.set syscalls 0
 
 let cwd = Atomic.make None
@@ -104,6 +114,8 @@ let invalidate_unlocked path =
 let invalidate path =
 	let path = full_path path in
 	Mutex.protect mutex (fun () -> invalidate_unlocked path)
+
+let () = Path.on_directory_created := invalidate
 
 let clear () =
 	Mutex.protect mutex (fun () ->
@@ -201,6 +213,9 @@ let begin_compilation () =
 		Watcher.update ();
 		Watcher.revalidate_unwatchable ()
 
+let end_compilation () =
+	Atomic.set last_compilation_syscalls (Atomic.get syscalls)
+
 let stat_uncached path =
 	count_syscall ~what:("stat " ^ path) ();
 	try
@@ -214,6 +229,10 @@ let stat_uncached path =
 		{ kind = Missing; mtime = 0.; size = 0 }
 
 let rec stat_full path =
+	match Mutex.protect mutex (fun () -> Hashtbl.find_opt overlays path) with
+	| Some (content,mtime) ->
+		{ kind = File; mtime; size = String.length content }
+	| None ->
 	match Mutex.protect mutex (fun () -> Hashtbl.find_opt infos path) with
 	| Some info ->
 		info
@@ -257,6 +276,14 @@ let readdir path =
 				count_syscall ~what:("readdir " ^ path) ();
 				try
 					let entries = Sys.readdir path in
+					(* Overlays of files that do not exist on disk yet. *)
+					let extra = Mutex.protect mutex (fun () ->
+						Hashtbl.fold (fun file _ acc ->
+							let name = Filename.basename file in
+							if Filename.dirname file = path && not (Array.mem name entries) then name :: acc else acc
+						) overlays []
+					) in
+					let entries = Array.append entries (Array.of_list extra) in
 					Array.sort compare entries;
 					Some entries
 				with Sys_error _ ->
@@ -269,3 +296,62 @@ let readdir path =
 			Hashtbl.replace listings path listing
 		);
 		listing
+
+(* Files written through `write_file`: digest of the content and file
+   information right after the write. *)
+let written : (string,Digest.t * info) Hashtbl.t = Hashtbl.create 0
+
+(* Writes [content] to [path], unless the file already has this content. The
+   check uses the digest of the previous write when the file has not changed
+   since, and reads the file otherwise. Keeps the VFS up to date, so that the
+   file is immediately visible to the next lookup. Returns true if the file was
+   written. *)
+let write_file path content =
+	let path = full_path path in
+	let digest = Digest.string content in
+	let current = stat_full path in
+	let unchanged = match Mutex.protect mutex (fun () -> Hashtbl.find_opt written path) with
+		| Some (d,info) ->
+			d = digest && info = current
+		| None when current.kind = File && current.size = String.length content ->
+			count_syscall ~what:("read " ^ path) ();
+			(try Std.input_file ~bin:true path = content with Sys_error _ -> false)
+		| None ->
+			false
+	in
+	if unchanged then
+		false
+	else begin
+		count_syscall ~what:("write " ^ path) ();
+		let ch = open_out_bin path in
+		Std.finally (fun () -> close_out ch) (output_string ch) content;
+		Mutex.protect mutex (fun () -> invalidate_unlocked path);
+		let info = stat_full path in
+		Mutex.protect mutex (fun () -> Hashtbl.replace written path (digest,info));
+		true
+	end
+
+let set_overlay path content =
+	let path = full_path path in
+	Mutex.protect mutex (fun () ->
+		overlay_clock := !overlay_clock -. 1.;
+		Hashtbl.replace overlays path (content,!overlay_clock);
+		invalidate_unlocked path
+	)
+
+let remove_overlay path =
+	let path = full_path path in
+	Mutex.protect mutex (fun () ->
+		Hashtbl.remove overlays path;
+		invalidate_unlocked path
+	)
+
+(* Content of [path]: its overlay if it has one, the file otherwise. *)
+let read_file path =
+	let full = full_path path in
+	match Mutex.protect mutex (fun () -> Hashtbl.find_opt overlays full) with
+	| Some (content,_) ->
+		content
+	| None ->
+		count_syscall ~what:("read " ^ full) ();
+		Std.input_file ~bin:true path

@@ -5,6 +5,8 @@ class ParseError extends haxe.Exception {}
 enum FileOp {
 	Write(path:String, content:String);
 	Delete(path:String);
+	Overlay(path:String, content:String);
+	RemoveOverlay(path:String);
 }
 
 enum Expectation {
@@ -12,6 +14,7 @@ enum Expectation {
 	Error(text:String);
 	Warning(text:String);
 	NoWarning;
+	NoFsCalls;
 	Output(text:String);
 	CompilerOutput(text:String);
 	NoOutput(text:String);
@@ -43,6 +46,9 @@ typedef Step = {
 	--- Main.hx                 then file blocks: content until the next
 	class Main { ... }          `--- ` or `=== ` line
 	--- delete Old.hx           removes a file
+	--- overlay Foo.hx          unsaved editor content (server/overlay); the
+	                            cold compilation sees it as the file content
+	--- remove-overlay Foo.hx   drops the overlay
 
 	=== change something        every following section is an edit step
 	@args -D bar                replaces the extra arguments from this step on
@@ -52,7 +58,7 @@ typedef Step = {
 	```
 
 	Step expectations: `@expect-success`, `@expect-error <text>`,
-	`@expect-warning <text>`, `@expect-no-warning`, `@expect-output <text>`,
+	`@expect-warning <text>`, `@expect-no-warning`, `@expect-no-fs-calls`, `@expect-output <text>`,
 	`@expect-no-output <text>`, `@expect-compiler-output <text>`,
 	`@expect-file <path> <text>`,
 	`@expect-no-file-content <path> <text>`.
@@ -122,6 +128,8 @@ class CaseParser {
 							step.expectations.push(Warning(d.rest));
 						case "expect-no-warning":
 							step.expectations.push(NoWarning);
+						case "expect-no-fs-calls":
+							step.expectations.push(NoFsCalls);
 						case "expect-output":
 							step.expectations.push(Output(d.rest));
 						case "expect-compiler-output":
@@ -153,6 +161,12 @@ class CaseParser {
 				}
 				if (header.startsWith("delete ")) {
 					step.ops.push(Delete(header.substr(7).trim()));
+				} else if (header.startsWith("remove-overlay ")) {
+					step.ops.push(RemoveOverlay(header.substr(15).trim()));
+				} else if (header.startsWith("overlay ")) {
+					while (content.length > 0 && content[content.length - 1].trim() == "")
+						content.pop();
+					step.ops.push(Overlay(header.substr(8).trim(), content.join("\n") + "\n"));
 				} else {
 					while (content.length > 0 && content[content.length - 1].trim() == "")
 						content.pop();

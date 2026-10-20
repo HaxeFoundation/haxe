@@ -188,7 +188,7 @@ class RunIncremental {
 				var changed = [];
 				clock += 2;
 				for (dir in [warmDir, coldDir]) {
-					changed = applyOps(dir, step, tc, target);
+					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir);
 					if (!tc.realMtime && !realMtime)
 						touchStep(dir, changed);
 				}
@@ -207,6 +207,11 @@ class RunIncremental {
 					errors.push('$label: $e');
 				for (e in checkExpectations(step.expectations, warm, warmDir, target))
 					errors.push('$label: $e');
+				if (step.expectations.contains(NoFsCalls)) {
+					var calls = noChangeCompilationCalls(warmDir, port);
+					if (calls != 0)
+						errors.push('$label: a compilation without changes made $calls file system calls, expected 0');
+				}
 				if (errors.length > 0)
 					break;
 			}
@@ -224,7 +229,13 @@ class RunIncremental {
 		}
 	}
 
-	static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String):Array<String> {
+	/**
+		Applies the file operations of a step to [dir]. Overlays are sent to the
+		server for the warm directory ([port] given), and written to disk for the
+		cold one; removing an overlay restores the cold file from the warm
+		directory's disk content.
+	**/
+	static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String):Array<String> {
 		var changed = [];
 		for (op in step.ops) {
 			switch (op) {
@@ -238,6 +249,27 @@ class RunIncremental {
 					if (FileSystem.exists(full))
 						FileSystem.deleteFile(full);
 					changed.push(path);
+				case Overlay(path, content):
+					var full = Path.join([dir, path]);
+					if (port != null) {
+						sendOverlay(port, full, content);
+					} else {
+						FileSystem.createDirectory(Path.directory(full));
+						File.saveContent(full, content);
+						changed.push(path);
+					}
+				case RemoveOverlay(path):
+					var full = Path.join([dir, path]);
+					if (port != null) {
+						sendOverlay(port, full, null);
+					} else {
+						var disk = Path.join([warmDir, path]);
+						if (FileSystem.exists(disk))
+							File.saveContent(full, File.getContent(disk));
+						else if (FileSystem.exists(full))
+							FileSystem.deleteFile(full);
+						changed.push(path);
+					}
 			}
 		}
 		// The build file is regenerated for every step so that `@args` changes apply.
@@ -273,6 +305,37 @@ class RunIncremental {
 		p.close();
 	}
 
+	/**
+		Compiles the warm project again without any change, until the watches of
+		the virtual file system are active (a few compilations), and returns the
+		number of file system calls of the last compilation (`server/vfs`).
+	**/
+	static function noChangeCompilationCalls(dir:String, port:Int):Int {
+		var calls = -1;
+		for (_ in 0...5) {
+			compile(dir, port, false);
+			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/vfs", params: {}});
+			var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
+			var out = p.stderr.readAll().toString();
+			p.exitCode();
+			p.close();
+			calls = try haxe.Json.parse(out).result.result.fileSystemCalls catch (_) -1;
+			if (calls == 0)
+				break;
+		}
+		return calls;
+	}
+
+	static function sendOverlay(port:Int, file:String, content:Null<String>) {
+		var params:Dynamic = {file: file};
+		if (content != null)
+			params.contents = content;
+		var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/overlay", params: params});
+		var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
+		p.exitCode();
+		p.close();
+	}
+
 	static function notifyInvalidate(port:Int, dir:String, file:String) {
 		var request = haxe.Json.stringify({
 			jsonrpc: "2.0",
@@ -285,10 +348,12 @@ class RunIncremental {
 		p.close();
 	}
 
-	static function compile(dir:String, port:Null<Int>):CompileResult {
+	static function compile(dir:String, port:Null<Int>, clean = true):CompileResult {
 		var outDir = Path.join([dir, "out"]);
-		removeDir(outDir);
-		FileSystem.createDirectory(outDir);
+		if (clean) {
+			removeDir(outDir);
+			FileSystem.createDirectory(outDir);
+		}
 		var args = port == null ? [] : ["--connect", Std.string(port)];
 		args = args.concat(["--cwd", dir, "build.hxml"]);
 		var p = new Process(haxeCmd, args);
@@ -418,6 +483,8 @@ class RunIncremental {
 				case NoWarning:
 					if (r.out.indexOf("Warning") >= 0 || r.out.indexOf("warning") >= 0)
 						errors.push('expected no warning, got:\n${r.out}');
+				case NoFsCalls:
+					// Checked separately, see noChangeCompilationCalls.
 				case Output(text):
 					if (target == "interp" || target == "js") {
 						if (output.indexOf(text) < 0)

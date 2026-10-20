@@ -391,7 +391,7 @@ let handler =
 		"server/setCwd", (fun hctx ->
 			let dir = hctx.jsonrpc#get_string_param "dir" in
 			let dir = Path.get_full_path dir in
-			if not (Sys.file_exists dir && Sys.is_directory dir) then
+			if not (Vfs.is_directory dir) then
 				raise (Api_error (jstring ("Invalid directory: " ^ dir)));
 			hctx.com.sctx.persistent_cwd <- Some dir;
 			Result jnull
@@ -525,6 +525,26 @@ let handler =
 				]
 			) files in
 			Result (jarray files)
+		);
+		"server/vfs", (fun hctx ->
+			(* Statistics of the virtual file system for the previous request. *)
+			Result (jobject [
+				"fileSystemCalls",jint (Atomic.get Vfs.last_compilation_syscalls);
+			])
+		);
+		"server/overlay", (fun hctx ->
+			(* Sets the content of an unsaved editor buffer, or removes it when
+			   [contents] is not given. *)
+			let file = hctx.jsonrpc#get_string_param "file" in
+			begin match hctx.jsonrpc#get_opt_param (fun () -> Some (hctx.jsonrpc#get_string_param "contents")) None with
+			| Some contents -> Vfs.set_overlay file contents
+			| None -> Vfs.remove_overlay file
+			end;
+			let fkey = hctx.com.part_scope.file_keys#get file in
+			let cs = hctx.display#get_cs in
+			cs#taint_modules fkey ServerInvalidate;
+			cs#remove_files fkey;
+			Result jnull
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in

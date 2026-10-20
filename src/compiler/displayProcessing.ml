@@ -94,7 +94,7 @@ let process_display_file com actx =
 					in
 					dpk
 				| None ->
-					if not (Sys.file_exists real) then failwith "Display file does not exist";
+					if not (Vfs.exists real) then failwith "Display file does not exist";
 					(match List.rev (ExtString.String.nsplit real Path.path_sep) with
 					| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 					| _ -> ());

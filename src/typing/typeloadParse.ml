@@ -81,8 +81,7 @@ let parse_file com rfile p =
 		match rfile.class_path#file_kind with
 		| FFile ->
 			let file = rfile.file in
-			let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
-			let s = Std.finally (fun() -> close_in ch) (fun ch -> really_input_string ch (in_channel_length ch)) ch in
+			let s = try Vfs.read_file file with Sys_error _ -> raise_typing_error ("Could not open " ^ file) p in
 			parse_file_from_string com file p s
 
 let parse_hook = ref parse_file
@@ -107,7 +106,7 @@ let resolve_module_file com m remap p =
 		| FFile -> (match ExtString.String.lowercase (snd m) with
 			| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 				(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
-				if (try (Unix.stat rfile.file).Unix.st_size with _ -> 0) > 0 then () else raise Not_found
+				if (Vfs.stat rfile.file).Vfs.size > 0 then () else raise Not_found
 			| _ ->
 				())
 	end;

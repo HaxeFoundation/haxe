@@ -65,12 +65,12 @@ class explore_class_path_task com checked recursive f_pack f_module dir pack = o
 			()
 		else try
 			Hashtbl.add checked unique_dir true;
-			let entries = Sys.readdir dir in
+			let entries = match Vfs.readdir dir with Some entries -> entries | None -> raise (Sys_error dir) in
 			Array.iter (fun file ->
 				match file with
 					| "." | ".." ->
 						()
-					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+					| _ when Vfs.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
 						begin try
 							begin match PMap.find file com.package_rules with
 								| Forbidden | Remap _ -> ()

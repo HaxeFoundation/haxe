@@ -59,7 +59,7 @@ end
 
 
 let create_hxb_lib com file_path =
-	let file = if Sys.file_exists file_path then
+	let file = if Vfs.exists file_path then
 		file_path
 	else try
 		Common.find_file com file_path

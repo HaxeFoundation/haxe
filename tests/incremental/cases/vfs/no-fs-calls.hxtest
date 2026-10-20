@@ -1,0 +1,47 @@
+# Once the watches of the virtual file system are active, a compilation without
+# changes makes no file system call, including after edits, new files, new
+# directories and deletions.
+@args -cp lib -cp src
+@main Main
+=== initial
+@expect-output 1 a
+@expect-no-fs-calls
+--- src/Main.hx
+class Main {
+	static function main() {
+		trace(Dep.get() + " " + pack.Tool.name());
+	}
+}
+--- src/Dep.hx
+class Dep {
+	public static function get() return 1;
+}
+--- lib/pack/Tool.hx
+package pack;
+
+class Tool {
+	public static function name() return "a";
+}
+
+=== body edited
+@expect-output 2 a
+@expect-no-fs-calls
+--- src/Dep.hx
+class Dep {
+	public static function get() return 2;
+}
+
+=== new file in a new directory, shadowing a library type
+@expect-output 2 b
+@expect-no-fs-calls
+--- src/pack/Tool.hx
+package pack;
+
+class Tool {
+	public static function name() return "b";
+}
+
+=== shadowing file deleted
+@expect-output 2 a
+@expect-no-fs-calls
+--- delete src/pack/Tool.hx

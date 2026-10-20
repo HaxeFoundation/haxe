@@ -34,9 +34,9 @@ module TypePathHandler = struct
 		com.class_paths#iter (fun path ->
 			let path = path#path in
 			let dir = path ^ String.concat "/" p in
-			let r = (try Sys.readdir dir with _ -> [||]) in
+			let r = Option.default [||] (Vfs.readdir dir) in
 			Array.iter (fun f ->
-				if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
+				if Vfs.is_directory (dir ^ "/" ^ f) then begin
 					if f.[0] >= 'a' && f.[0] <= 'z' then begin
 						if p = ["."] then
 							match read_type_path com [f] with

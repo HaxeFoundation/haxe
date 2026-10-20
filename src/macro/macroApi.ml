@@ -2399,7 +2399,7 @@ let macro_api ccom get_api =
 		"include_file", vfun2 (fun file position ->
 			let file = decode_string file in
 			let position = decode_string position in
-			let file = if Sys.file_exists file then
+			let file = if Vfs.exists file then
 				file
 			else try Common.find_file (ccom()) file with
 				| Not_found ->
