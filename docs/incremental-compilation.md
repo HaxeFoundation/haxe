@@ -360,13 +360,53 @@ What is and is not a cycle:
     while it is running.
   - `@:autoBuild` on a super class whose macro reads the members of the
     subclass being built: error.
-  - Inside its own build macro, a type only exposes its `header` (path,
-    parameters, super class, interfaces, metadata) through
-    `getLocalClass()`. Its fields are only available through
-    `Context.getBuildFields()`; reading `getLocalClass().get().fields` is an
-    error instead of returning a partial list.
+  - Inside its own build macro, a type exposes its `header` (path,
+    parameters, super class, interfaces) and its metadata as being built
+    (declared metadata plus what the running build macros added so far,
+    readable and writable) through `getLocalClass()`. Its fields are only
+    available through `Context.getBuildFields()`; reading
+    `getLocalClass().get().fields` is an error instead of returning a partial
+    list.
   - Reading the members of the super class or of interfaces is not a cycle:
     it is a regular dependency (`members(Super)` is completed first).
+
+**Metadata is not split.** A type's metadata is a single set: declared
+metadata plus metadata added by its build macros. To guarantee that a macro
+always sees up-to-date metadata, **reading the metadata of another type
+triggers that type's build** (`members(T)`), like reading its fields.
+
+To avoid triggering builds when only header information is needed, the macro
+API's `ClassType` (and `EnumType`, `AbstractType`) becomes lazy:
+
+| Access | Demands |
+|---|---|
+| `Ref.get()`, `Ref.toString()`, `name`, `pack`, `module`, `pos`, `params`, `superClass`, `interfaces`, `kind`, `isInterface`, `isExtern`… | `header(T)` only, never a build |
+| `meta.get()`, `meta.has()`, `meta.extract()` | `members(T)`: the build is triggered and completed first |
+| `fields.get()`, `statics.get()`, `constructor.get()`, `init` | `members(T)` |
+| `cf.type` of a field, `overrides` | `members(T)` and `sig(f)` |
+
+Today `Ref.get()` always forces the build (`encode_tclass` calls `cl_build`
+in `src/macro/macroApi.ml`) but tolerates a type that is still building and
+returns its partial state. With lazy `ClassType`, only the accesses that need
+build output trigger it, and a type still building on the current query stack
+is a cycle error.
+
+`Context.buildType(t)` (or `ClassType.ensureBuilt()`) is added to trigger a
+build explicitly, replacing idioms such as `c.get(); // force build` (domkit)
+or `c.fields.get(); // force the build of the struct` (hlemu), which keep
+working but no longer need to be used for their side effect.
+
+Consequence for macros reading another type's metadata during their own
+build: two types whose build macros read each other's metadata form a cycle.
+For example, hxbit's `isSerializable` checks metadata before interfaces
+(`SERIALIZABLES.exists(path) || getClass(c).meta.has(":isSerializable") ||
+lookupInterface(c, "hxbit.Serializable")`): with `Player` holding
+`@:s var inventory : Inventory` and `Inventory` holding
+`@:s var owner : Player`, Player's build reads Inventory's metadata, which
+builds Inventory, which reads Player's metadata: cycle error. Checking
+interfaces first (header only) avoids it. Such fixes are identified by the
+cycle instrumentation (§ measuring before switching) and applied to the corpus
+libraries.
 - **Inferred signatures**: `sig(f)` demanding `sig(g)` demanding `sig(f)`
   (mutually recursive fields without annotations) is an error asking for an
   annotation on one of them. The only exception is a field referring to itself
