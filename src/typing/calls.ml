@@ -50,7 +50,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				)
 		end;
 		let config = Inline.inline_config cl f params t in
-		ignore(follow f.cf_type); (* force evaluation *)
+		force_field_body f; (* force evaluation *)
 		(match cl, ctx.c.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.c.curclass ->
 				if
@@ -91,7 +91,9 @@ let make_call ctx e params t ?(force_inline=false) p =
 	with Exit ->
 		mk (TCall (e,params)) t p
 
-let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
+let mk_array_get_call ctx (cf,tf,r,e1) c ebase p =
+	force_field_body cf;
+	match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
 		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
@@ -101,6 +103,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 		make_call ctx ef [ebase;e1] r p
 
 let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
+	force_field_body cf;
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
@@ -135,7 +138,7 @@ let rec acc_get ctx g =
 			| _ ->
 				die "" __LOC__
 		in
-		ignore(follow cf.cf_type); (* force computing *)
+		force_field_body cf; (* force computing *)
 		begin match cf.cf_kind,cf.cf_expr with
 		| _ when not (ctx.com.display.dms_inline) ->
 			FieldAccess.get_field_expr fa FRead

@@ -741,7 +741,7 @@ class hxb_reader_api_typeload
 			| Var _ ->
 				true
 			| Method _ ->
-				delay g PTypeField (fun () -> ignore(follow cf.cf_type));
+				delay g PTypeField (fun () -> force_field_body cf);
 				false
 
 	method make_lazy_type t f =

@@ -798,7 +798,16 @@ module TypeBinding = struct
 			if fctx.is_macro && not ctx.com.is_macro_context then
 				force_macro false
 			else begin
-				cf.cf_type <- TLazy r;
+				(* A field whose type is fully known from its declaration exposes that
+				   type: reading it does not type the body (docs/incremental-compilation.md,
+				   §3.3, [sig]), which is typed later or by [force_field_body]. Inline and
+				   generic fields stay lazy, since reading them needs their body, and so do
+				   fields of the macro context, whose bodies are run on demand. *)
+				let body_needed = fctx.is_inline || fctx.is_generic || ctx.com.is_macro_context in
+				if body_needed || not (is_full_type cf.cf_type) then
+					cf.cf_type <- TLazy r
+				else
+					cf.cf_type <- TLazy (ref (LPendingBody(cf.cf_type,(fun () -> lazy_type r))));
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
@@ -1123,7 +1132,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 				in
 				args
 			end else
-				match cf.cf_type with
+				match follow_lazy cf.cf_type with
 				| TFun([_;(_,true,t)],_) when is_pos_infos t -> [t]
 				| _ -> []
 			in

@@ -335,7 +335,7 @@ let build_generic_class ctx c p tl =
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos; cf_expr_unoptimized = None} in (* copy *)
 			cf_new.cf_params <- List.map (fun (_,ttp) -> ttp) params;
 			let f () =
-				ignore(follow cf_old.cf_type);
+				force_field_body cf_old;
 				(* We update here because the follow could resolve some TLazy things that end up modifying flags, such as
 				   the inferred CfOverride from #11010. *)
 				cf_new.cf_flags <- cf_old.cf_flags;
@@ -487,7 +487,7 @@ let type_generic_function ctx fa fcc with_type p =
 			error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
 	with Not_found ->
 		let finalize_field c cf2 =
-			ignore(follow cf.cf_type);
+			force_field_body cf;
 			let rec check e = match e.eexpr with
 				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 					display_error_ext ctx.com (make_error (Custom "Only generic type parameters can be constructed") ~sub:([

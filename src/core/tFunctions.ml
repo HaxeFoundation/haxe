@@ -356,6 +356,20 @@ let lazy_type f =
 	| LAvailable t -> t
 	| LProcessing t -> !lazy_processing_read_hook f; t
 	| LWait f -> !lazy_force_hook f
+	| LPendingBody(t,_) -> t
+
+(* Types the body of field [cf] if it is still pending (a field whose type is
+   known from its declaration is typed later, see [LPendingBody]). *)
+let force_field_body cf =
+	match cf.cf_type with
+	| TLazy r ->
+		begin match !r with
+		| LPendingBody(_,f) -> ignore(f ())
+		| LWait _ | LProcessing _ -> ignore(lazy_type r)
+		| LAvailable _ -> ()
+		end
+	| _ ->
+		()
 
 let lazy_available t = LAvailable t
 let lazy_processing t = LProcessing t
@@ -591,7 +605,7 @@ let rec follow t =
 		| _ -> t)
 	| TLazy f ->
 		(match !f with
-		| LAvailable t -> follow t
+		| LAvailable t | LPendingBody(t,_) -> follow t
 		| _ -> follow (lazy_type f)
 		)
 	| TType (t,tl) ->
@@ -604,7 +618,7 @@ let rec follow_lazy t =
 	match t with
 	| TLazy f ->
 		(match !f with
-		| LAvailable t -> follow_lazy t
+		| LAvailable t | LPendingBody(t,_) -> follow_lazy t
 		| _ -> follow_lazy (lazy_type f)
 		)
 	| _ -> t
@@ -684,7 +698,7 @@ let rec is_nullable ?(no_lazy=false) = function
 		true
 	| TLazy f ->
 		(match !f with
-		| LAvailable t -> is_nullable ~no_lazy t
+		| LAvailable t | LPendingBody(t,_) -> is_nullable ~no_lazy t
 		| _ when no_lazy -> raise Exit
 		| _ -> is_nullable (lazy_type f)
 		)
@@ -715,7 +729,7 @@ let rec is_null ?(no_lazy=false) = function
 		not (is_nullable ~no_lazy (follow t))
 	| TLazy f ->
 		(match !f with
-		| LAvailable t -> is_null ~no_lazy t
+		| LAvailable t | LPendingBody(t,_) -> is_null ~no_lazy t
 		| _ when no_lazy -> raise Exit
 		| _ -> is_null (lazy_type f)
 		)

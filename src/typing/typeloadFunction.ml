@@ -207,8 +207,8 @@ let add_constructor ctx_c c force_constructor p =
 		let t = spawn_monomorph ctx_c p in
 		let r = make_lazy ctx_c.g t (fun () ->
 			let ctx = TyperManager.clone_for_field ctx_c cf cf.cf_params in
-			ignore (follow cfsup.cf_type); (* make sure it's typed *)
-			List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads;
+			force_field_body cfsup; (* make sure it's typed *)
+			List.iter (fun cf -> force_field_body cf) cf.cf_overloads;
 			let map_arg (v,def) =
 				(*
 					let's optimize a bit the output by not always copying the default value

@@ -772,6 +772,8 @@ and type_object_decl ctx fl with_type p =
 		no_abstract_constructor c p;
 		let fa = FieldAccess.get_constructor_access c tl p in
 		let ctor = fa.fa_field in
+		(* the default values of the constructor's arguments are in its body *)
+		force_field_body ctor;
 		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
 			| TFun(args,_) ->
 				begin match ctor.cf_expr with

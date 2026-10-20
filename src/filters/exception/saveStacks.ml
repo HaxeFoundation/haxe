@@ -95,7 +95,7 @@ let patch_constructors ectx =
 						make_call ectx.scom efield [] rt p
 					| _ -> raise_typing_error "haxe.Exception.__shiftStack is expected to be an instance method" p
 				in
-				Option.may (fun cf -> ignore(follow cf.cf_type)) cls.cl_constructor;
+				Option.may (fun cf -> force_field_body cf) cls.cl_constructor;
 				(match cls.cl_constructor with
 				| Some ({ cf_expr = Some e_ctor } as ctor) ->
 					let rec add e =

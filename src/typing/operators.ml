@@ -413,6 +413,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
+		force_field_body cf;
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
 			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
@@ -744,6 +745,8 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
 			let et = type_module_type ctx (TClassDecl c) p in
+			force_field_body cf_set;
+			force_field_body cf_get;
 			let e = match cf_set.cf_expr,cf_get.cf_expr with
 				(* | None,None ->
 					let ea = mk (TArray(ebase,ekey)) r_get p in
@@ -880,7 +883,7 @@ let type_unop ctx op flag e with_type p =
 					loop opl
 			in
 			let fcc = loop a.a_unops in
-			ignore(follow fcc.fc_field.cf_type);
+			force_field_body fcc.fc_field;
 			begin match fcc.fc_field.cf_expr with
 			| None ->
 				mk (TUnop(op,flag,e)) fcc.fc_ret p

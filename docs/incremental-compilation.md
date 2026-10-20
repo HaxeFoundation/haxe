@@ -876,9 +876,31 @@ which is being built)` (`tests/misc/eval/projects/buildCycle`). The only case
 in the corpus was `h2d.domkit` with hide: domkit's `buildObject` forced the
 build of every preloaded base component from the first component built, which
 could be one of them; the `haxe6-annotations` branch of domkit only preloads
-from a component that is not in the list. A macro reading a class that is
-being built (`getLocalClass().get().fields` of another class on the stack)
-is still only the `WTypingOrder` warning.
+from a component that is not in the list. A macro reading another class
+that is being built (a class on the build stack other than the class whose
+build macro runs) is a cycle error as well, for example `Cycle detected while
+building types: A -> B -> A (a macro reads A, which is being built)`
+(`tests/misc/eval/projects/buildCycle`, `compile2-fail.hxml`); none in the
+corpus. Reading the fields of the class being built through `getLocalClass()`
+is still allowed: it becomes an error with the lazy macro `ClassType`.
+
+**Status: `sig` no longer demands `body`.** A field whose type is fully known
+from its declaration (all argument and return types annotated, typed by a
+literal default value, or a syntactic `Void` return) exposes that type
+without typing its body: its `cf_type` is a `TLazy` in the new
+`LPendingBody(t, body)` state, which `follow` and `lazy_type` read as `t`.
+The body is typed later (`PTypeField`), or on demand by
+`TFunctions.force_field_body` where another field's body is needed while
+typing: the default values of a super constructor's arguments, abstract
+operator and array access methods (their `cf_expr` tells whether they are
+being typed), the macro API's `ClassField.expr()`, display. Inline and
+`@:generic` fields, whose bodies are needed by their callers, and fields of
+the macro context keep the previous behaviour. This removes order-dependent
+inference cycle errors: a constructor calling `addNodes` (inferred), which
+calls `addNode` (fully typed), whose body calls `addNodes`, used to report a
+cycle because reading `addNode` typed its body inside the inference of
+`addNodes` (hxparse's `LexEngine`); the cycle errors of hxtemplo's
+`Converter` disappear the same way.
 
 
 #### 3.4 Determinism

@@ -1168,7 +1168,7 @@ and encode_cfield f =
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
-			ignore (follow f.cf_type);
+			force_field_body f;
 			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
 		);
 		"kind", encode_field_kind f.cf_kind;
@@ -1331,12 +1331,12 @@ and encode_lazy_type t =
 			| _ -> encode_type t)
 		| TLazy f ->
 			(match !f with
-			| LAvailable t ->
+			| LAvailable t | LPendingBody(t,_) ->
 				encode_type t
 			| _ ->
 				encode_enum IType 7 [encode_lazytype f (fun() ->
 					(match !f with
-					| LAvailable t ->
+					| LAvailable t | LPendingBody(t,_) ->
 						encode_type t
 					| LWait _ ->
 						encode_type (lazy_type f)

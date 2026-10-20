@@ -65,7 +65,7 @@ let actually_check_display_field ctx c cff p =
 	let cf = TypeloadFields.create_class_field cctx cff in
 	TypeloadFields.init_field (ctx,cctx,fctx) cff cf;
 	flush_pass ctx.g PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
-	ignore(follow cf.cf_type)
+	force_field_body cf
 
 let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
