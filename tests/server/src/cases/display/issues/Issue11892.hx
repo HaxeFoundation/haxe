@@ -11,7 +11,7 @@ class Issue11892 extends DisplayTestCase {
 
 		var args = ["--main", "Main", "-D", "analyzer-optimize", "--interp", "--dce=full"];
 		// Needed to repro -4-
-		args = args.concat(["-D", "disable-hxb-cache"]);
+		args = args.concat(["--undefine", "hxb-cache"]);
 		runHaxe(["--no-output"].concat(args));
 
 		// Previously was pointing to @:pure

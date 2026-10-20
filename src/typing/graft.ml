@@ -14,8 +14,7 @@
 	which is a shape change that requires retyping the modules using them.
 
 	Active with the in-memory cache (the server's default cache, the only one
-	that keeps the objects of the previous version, see `-D hxb-cache`);
-	`-D incremental-no-graft` disables it.
+	that keeps the objects of the previous version, see `-D hxb-cache`).
 *)
 open Globals
 open Type
@@ -52,22 +51,20 @@ let copy_into (old : 'a) (fresh : 'a) =
 (* Registers module [m], about to be typed, for grafting if the previous version
    of its path is in the in-memory cache. *)
 let begin_module com m =
-	if not (Common.defined com Define.IncrementalNoGraft) then begin
-		let cc = CommonCache.get_cache com in
-		match cc#find_module_opt m.m_path with
-		| Some m_old when m_old != m ->
-			(* Classes of the previous version may hold their post-processed
-			   (e.g. DCE-filtered) state: restore the typed one first. *)
-			List.iter (fun mt -> (t_infos mt).mt_restore ()) m_old.m_types;
-			let index = try Some (EntityKey.index_module m_old) with Failure _ -> None in
-			Option.may (fun index ->
-				Mutex.protect mutex (fun () ->
-					Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0; field_keys = [] }
-				)
-			) index
-		| _ ->
-			()
-	end
+	let cc = CommonCache.get_cache com in
+	match cc#find_module_opt m.m_path with
+	| Some m_old when m_old != m ->
+		(* Classes of the previous version may hold their post-processed
+		   (e.g. DCE-filtered) state: restore the typed one first. *)
+		List.iter (fun mt -> (t_infos mt).mt_restore ()) m_old.m_types;
+		let index = try Some (EntityKey.index_module m_old) with Failure _ -> None in
+		Option.may (fun index ->
+			Mutex.protect mutex (fun () ->
+				Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0; field_keys = [] }
+			)
+		) index
+	| _ ->
+		()
 
 let find_old m key =
 	Mutex.protect mutex (fun () ->

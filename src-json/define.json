@@ -76,22 +76,10 @@
 		"doc": "Check that no type or field reference of the compilation points to an older version of its module (compilation server, in-memory cache)."
 	},
 	{
-		"name": "IncrementalNoGraft",
-		"define": "incremental-no-graft",
-		"signatureNeutral": true,
-		"doc": "Disable grafting: by default, when the compilation server retypes a module kept in the in-memory cache (the default cache, see `-D hxb-cache`), the entities of the new version reuse the objects of the previous version with the same entity key."
-	},
-	{
 		"name": "IncrementalRetypeChangedOnly",
 		"define": "incremental-retype-changed-only",
 		"signatureNeutral": true,
 		"doc": "Development mode of the compilation server: only retype modules whose own file changed, not the modules depending on them. Unsound: dependents keep their typed content even if the interface they use changed."
-	},
-	{
-		"name": "DisableHxbCache",
-		"define": "disable-hxb-cache",
-		"signatureNeutral": true,
-		"doc": "Use the in-memory cache of the compilation server (the default), even if `-D hxb-cache` is defined."
 	},
 	{
 		"name": "HxbCache",

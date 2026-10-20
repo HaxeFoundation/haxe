@@ -17,7 +17,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
 | Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. A dependency cycle between static initializers is an **error**. |
 | Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
-| Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. On the `haxe6-incremental` branch the in-memory cache is the **server's default**; `-D hxb-cache` selects the hxb cache (`-D disable-hxb-cache` is still accepted and forces the in-memory cache). |
+| Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. On the `haxe6-incremental` branch the in-memory cache is the **server's default** (`-D disable-hxb-cache` is removed); `-D hxb-cache` still selects the current hxb cache, which only keeps hxb chunks in the server's memory and persists nothing. A hxb cache is only worth having as an **on-disk cache file** (see §6, persistence). |
 | Positions | **Relative to an anchor** (one per field / type declaration). A field that only moved in its file is not retyped: updating its anchor fixes every position in its typed AST, cached errors, macro outputs and `haxe.PosInfos` (phase 2, item 6). |
 | Display / LSP | **Deferred.** No new guarantees for editor requests in this plan; display keeps its current semantics, sped up by incrementality. To be designed once phase 6 is done. |
 | Positions in inlined code | The inliner replaces expression positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint), self-calling closures (relative positions included), and **`haxe.PosInfos` inside an inline body** (e.g. `trace`), which keeps the callee's position: with anchored positions (phase 2, item 6), a moved inline function changes its callers' output through its anchor, without changing its fingerprint (`tests/incremental/cases/positions/inline-positions.hxtest`). |
@@ -501,7 +501,7 @@ pointers.
    grafting). After phase 3, this becomes the behavior of the `declare` query.
 
    **Status of items 4 and 5.** Grafting is active with the in-memory cache
-   (the default cache), and can be disabled with `-D incremental-no-graft`.
+   (the default cache); it is unconditional (no define).
    `src/typing/graft.ml` grafts *at creation*, which removes the remapping
    step: when a module whose previous version is in the in-memory cache is
    retyped, each new type (class, enum, typedef, abstract), class field
@@ -1562,6 +1562,18 @@ introduced in phase 2, but matching moved declarations on reparse uses the
 phase 4 `Decls` fingerprints and happens in phase 6.
 
 ## 6. Risks and open points
+
+- **Persistence (hxb on disk).** The current hxb cache (`-D hxb-cache`) is not
+  a persistent cache: it serializes modules into hxb chunks kept in the
+  server's memory, decoded again on every compilation. A hxb cache is only
+  useful as a **cache file** (`cache.hxb` by default, or
+  `-D hxb-cache=<file>`) holding a complete state, written **asynchronously**
+  after a compilation, and reloaded when a server (or a plain compilation)
+  starts. To reload into a state that is ready for incremental compilation,
+  it has to hold the incremental data as well (entity keys, fingerprints,
+  dependency graph, VFS hashes), not only the typed modules. Whether it pays
+  off must be measured on large codebases: reload time against a cold
+  compilation. Until then, `-D hxb-cache` (memory) is a candidate for removal.
 
 - **Size of the phase 3 refactor.** About 1,400 direct reads of entity
   contents to migrate behind abstract types. Mitigation: mechanical, module by

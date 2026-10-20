@@ -141,7 +141,7 @@ class ServerTests extends TestCase {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
 		if (inMemory)
-			args = args.concat(["-D", "disable-hxb-cache"]);
+			args = args.concat(["--undefine", "hxb-cache"]);
 		else
 			args = args.concat(["-D", "hxb-cache"]);
 
@@ -151,7 +151,7 @@ class ServerTests extends TestCase {
 
 		var displayArgs = ["--main", "HelloWorld", "--interp"];
 		if (inMemory)
-			displayArgs = displayArgs.concat(["-D", "disable-hxb-cache"]);
+			displayArgs = displayArgs.concat(["--undefine", "hxb-cache"]);
 		else
 			displayArgs = displayArgs.concat(["-D", "hxb-cache"]);
 

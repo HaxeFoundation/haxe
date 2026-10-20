@@ -1046,7 +1046,7 @@ let is_directly_used com meta =
 (* Whether the compilation server caches modules as hxb instead of keeping them
    in memory (the default). *)
 let uses_hxb_cache com =
-	defined com HxbCache && not (defined com DisableHxbCache)
+	defined com HxbCache
 
 let rec has_feature com f =
 	try

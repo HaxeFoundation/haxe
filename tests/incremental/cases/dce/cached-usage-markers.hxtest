@@ -3,7 +3,7 @@
 # not keep the markers of the previous compilation. Before the fix, the enum
 # below was already marked as used, so the `has_enum` feature was missing and
 # `js.Boot.__string_rec` was removed.
-@args -D disable-hxb-cache -dce full
+@args -dce full
 
 === initial
 @expect-output A(1)

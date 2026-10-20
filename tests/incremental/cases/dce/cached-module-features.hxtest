@@ -4,7 +4,7 @@
 # generator emit `$estr` and `$hxEnums`) is only used by a function that the
 # second step no longer calls.
 @targets js
-@args -D disable-hxb-cache -dce full
+@args -dce full
 
 === initial
 @expect-output 1

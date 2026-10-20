@@ -2,7 +2,7 @@
 # A class reused from the in-memory cache must get it back when the parent
 # field is used again: the HL generator reads it to build virtual tables.
 @targets js hl
-@args -D disable-hxb-cache -dce full
+@args -dce full
 
 === initial
 @expect-success

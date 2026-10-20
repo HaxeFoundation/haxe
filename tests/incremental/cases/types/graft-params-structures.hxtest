@@ -3,7 +3,7 @@
 # in-memory cache), so modules using them keep valid references. Run with
 # `--args "-D incremental-retype-changed-only"` to check it without retyping
 # the modules that use them.
-@args -D disable-hxb-cache -D incremental-check-refs
+@args -D incremental-check-refs
 
 === initial
 @expect-output 6 3 3
