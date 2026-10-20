@@ -1,0 +1,31 @@
+diff --git a/src/hxparse/ParserBuilderImpl.macro.hx b/src/hxparse/ParserBuilderImpl.macro.hx
+index d65cc5b..8a6b966 100644
+--- a/src/hxparse/ParserBuilderImpl.macro.hx
++++ b/src/hxparse/ParserBuilderImpl.macro.hx
+@@ -40,7 +40,7 @@ class ParserBuilderImpl {
+ 		});
+ 	}
+ 
+-	static function map(e:Expr) {
++	static function map(e:Expr):Expr {
+ 		return switch(e.expr) {
+ 			case ESwitch({expr: EConst(CIdent("stream"))}, cl, edef):
+ 				transformSwitch(cl, edef);
+@@ -117,7 +117,7 @@ class ParserBuilderImpl {
+ 		}
+ 	}
+ 
+-	static function makeInner(c:ParserCase) {
++	static function makeInner(c:ParserCase):Case {
+ 		var last = c.tail.pop();
+ 		if (last == null) {
+ 			return {values:[c.head], guard:null, expr: c.expr};
+@@ -128,7 +128,7 @@ class ParserBuilderImpl {
+ 		return {values: [c.head], guard: null, expr: elast};
+ 	}
+ 
+-	static function makePattern(pat:Expr, e:Expr, def:Expr) {
++	static function makePattern(pat:Expr, e:Expr, def:Expr):Expr {
+ 		return switch(pat.expr) {
+ 			case EBinop(OpAssign, {expr: EConst(CIdent(s))}, e2):
+ 				if (def == unexpected || def == noMatch) {

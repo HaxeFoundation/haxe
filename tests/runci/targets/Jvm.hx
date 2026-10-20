@@ -11,6 +11,8 @@ class Jvm {
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
 		haxelibInstallGit("HaxeFoundation", "format", "jvm", "--always");
+		// patches/format.patch applies to the jvm branch of format
+		patchLibrary("format");
 		runCommand("javac", ["-version"]);
 	}
 

@@ -174,8 +174,29 @@ class System {
 			return;
 		if (dir == null)
 			dir = StringTools.trim(commandResult("haxelib", ["libpath", library]).stdout);
-		// -N: skip a patch that is already applied (local runs)
-		runCommand("patch", ["-p1", "-N", "-d", dir, "-i", patch]);
+		// patch does not apply LF hunks to CRLF files (git checkouts on Windows):
+		// give each file's hunks the line endings of that file
+		final lines = sys.io.File.getContent(patch).split("\r\n").join("\n").split("\n");
+		if (lines[lines.length - 1] == "")
+			lines.pop();
+		final out = new StringBuf();
+		final target = ~/^\+\+\+ b\/(.+)$/;
+		var eol = "\n";
+		for (line in lines) {
+			if (StringTools.startsWith(line, "diff --git "))
+				eol = "\n";
+			else if (target.match(line)) {
+				final file = haxe.io.Path.join([dir, target.matched(1)]);
+				eol = sys.FileSystem.exists(file) && sys.io.File.getContent(file).indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+			}
+			out.add(line + eol);
+		}
+		final converted = haxe.io.Path.join([Sys.getCwd(), library + ".converted.patch"]);
+		sys.io.File.saveContent(converted, out.toString());
+		// skip a patch that is already applied (local runs)
+		if (!commandSucceed("patch", ["-p1", "-R", "--dry-run", "--binary", "-d", dir, "-i", converted]))
+			runCommand("patch", ["-p1", "-N", "--binary", "-d", dir, "-i", converted]);
+		sys.FileSystem.deleteFile(converted);
 	}
 
 	static public function haxelibInstall(library:String):Void {

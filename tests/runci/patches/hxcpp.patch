@@ -1,0 +1,13 @@
+diff --git a/tools/hxcpp/Linker.hx b/tools/hxcpp/Linker.hx
+index 78436a4..9e277cd 100644
+--- a/tools/hxcpp/Linker.hx
++++ b/tools/hxcpp/Linker.hx
+@@ -67,7 +67,7 @@ class Linker
+ 
+       return mNamePrefix + inTarget.mOutput + ext;
+    }
+-   public function getUnstrippedFilename(inObjDir, inTarget:Target)
++   public function getUnstrippedFilename(inObjDir:String, inTarget:Target)
+    {
+       if (inTarget.mFullUnstrippedName!=null)
+       {

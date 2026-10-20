@@ -1,0 +1,67 @@
+diff --git a/src/templo/Parser.hx b/src/templo/Parser.hx
+index 736f8e0..cb01000 100644
+--- a/src/templo/Parser.hx
++++ b/src/templo/Parser.hx
+@@ -38,7 +38,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 		}
+ 	}
+ 
+-	function parseElement() {
++	function parseElement():Elt {
+ 		return switch stream {
+ 			case [{tok:Data(str), pos: p}]: {def: XData(str), pos:p}
+ 			case [{tok:Comment(n), pos: p}]: {def: XComment(n), pos:p}
+@@ -49,7 +49,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 		}
+ 	}
+ 
+-	function parseCData() {
++	function parseCData():Content {
+ 		stream.ruleset = Lexer.cdata;
+ 		var e = null;
+ 		var acc = [];
+@@ -63,7 +63,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 		return acc;
+ 	}
+ 
+-	function parseNode(n,p1) {
++	function parseNode(n:String,p1:hxparse.Position):Elt {
+ 		var n = {
+ 			node: n,
+ 			attributes: [],
+@@ -173,7 +173,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 		}
+ 	}
+ 
+-	function parseMacro() {
++	function parseMacro():Array<Content> {
+ 		var old = stream.ruleset;
+ 		stream.ruleset = Lexer.macros;
+ 		var el = switch stream {
+@@ -241,7 +241,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 		}
+ 	}
+ 
+-	function parseMacroDef(p1) {
++	function parseMacroDef(p1:hxparse.Position):Elt {
+ 		stream.ruleset = Lexer.attributes;
+ 		var data = switch stream {
+ 			case [{tok:Ident("name")}, {tok:Op(OpAssign)}, {tok:Quote(b)}]:
+@@ -320,7 +320,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 		}
+ 	}
+ 
+-	function parseExpr() {
++	function parseExpr():Expr {
+ 		return switch stream {
+ 			case [{tok:Int(i), pos:p}]: parseExprNext({expr:VConst(CInt(i)),pos:p});
+ 			case [{tok:Float(f), pos:p}]: parseExprNext({expr:VConst(CFloat(f)),pos:p});
+@@ -440,7 +440,7 @@ class Parser extends hxparse.Parser<LexerTokenSource<Token>, Token> implements h
+ 
+ 	// Helper
+ 
+-	static inline function error(msg,pos):Dynamic {
++	static inline function error(msg:ParserErrorMsg,pos:hxparse.Position):Dynamic {
+ 		throw {
+ 			msg: msg,
+ 			pos: pos

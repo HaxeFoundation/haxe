@@ -1,0 +1,55 @@
+diff --git a/format/jvm/Reader.hx b/format/jvm/Reader.hx
+index d3b8e69..f79355f 100644
+--- a/format/jvm/Reader.hx
++++ b/format/jvm/Reader.hx
+@@ -122,7 +122,7 @@ class Reader {
+ 
+ 	// Annotation
+ 
+-	function readElementValue() {
++	function readElementValue():ElementValue {
+ 		var tag = i.readByte();
+ 		var value = switch (tag) {
+ 			case 'B'.code | 'C'.code | 'D'.code | 'F'.code | 'I'.code | 'J'.code | 'S'.code | 'Z'.code | 's'.code:
+@@ -144,28 +144,28 @@ class Reader {
+ 		}
+ 	}
+ 
+-	function readElementValuePairs() {
++	function readElementValuePairs():Array<{elementName:String, elementValue:ElementValue}> {
+ 		return readUInt16Array(() -> {
+ 			elementName: expectUtf8(readConstantPoolIndex()),
+ 			elementValue: readElementValue()
+ 		});
+ 	}
+ 
+-	function readParameterAnnotations() {
++	function readParameterAnnotations():Array<Array<Annotation>> {
+ 		return [
+ 			for (_ in 0...i.readByte())
+ 				readUInt16Array(readAnnotation)
+ 		];
+ 	}
+ 
+-	function readAnnotation() {
++	function readAnnotation():Annotation {
+ 		return {
+ 			type: expectUtf8(readConstantPoolIndex()),
+ 			elementValuePairs: readElementValuePairs()
+ 		}
+ 	}
+ 
+-	function readAnnotations() {
++	function readAnnotations():Array<Annotation> {
+ 		return readUInt16Array(readAnnotation);
+ 	}
+ 
+@@ -309,7 +309,7 @@ class Reader {
+ 		}
+ 	}
+ 
+-	function readAttributes() {
++	function readAttributes():Array<Attribute> {
+ 		return readUInt16Array(readAttribute);
+ 	}
+ 

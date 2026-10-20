@@ -1,7 +1,7 @@
 import haxe.macro.Expr;
 
-final calls = [];
-final builds = [];
+final calls:Array<String> = [];
+final builds:Array<String> = [];
 
 macro function getCalls() {
 	return macro $v{calls};
@@ -27,12 +27,12 @@ function UpperCase() {
 	c("UpperCase");
 }
 
-function build() {
+function build():Array<Field> {
 	b("build");
 	return [];
 }
 
-function Build() {
+function Build():Array<Field> {
 	b("Build");
 	return [];
 }
@@ -46,12 +46,12 @@ class Macro {
 		c("Macro.UpperCase");
 	}
 
-	static function build() {
+	static function build():Array<Field> {
 		b("Macro.build");
 		return [];
 	}
 
-	static function Build() {
+	static function Build():Array<Field> {
 		b("Macro.Build");
 		return [];
 	}

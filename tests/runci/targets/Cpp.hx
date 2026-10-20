@@ -27,6 +27,7 @@ class Cpp {
 			infoMsg('hxcpp has already been installed in $path.');
 		} catch(e:Dynamic) {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+			patchLibrary("hxcpp", getHaxelibPath("hxcpp"));
 			runCommand("haxe", [
 				"--cwd", getHaxelibPath("hxcpp") + "tools/hxcpp/",
 				"-D", "source-header=''",
