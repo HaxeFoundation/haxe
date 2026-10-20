@@ -350,6 +350,30 @@ What is reported, by kind:
 Every case is fixed with a type annotation. Fixing the standard library ones is
 part of this phase.
 
+**Corpus libraries.** Annotation patches are on a `haxe6-annotations` branch of
+each library: Heaps, hxbit, domkit, castle and hscript (they also compile with
+the current Haxe nightly). With them, a JS build of Heaps including `h3d`,
+`h2d`, `hxsl`, `hxd`, `hxbit`, `domkit` and `cdb` reports no
+`WUnresolvedFieldType` nor `WTypingOrder` warning. (`cdb.SqlParser` does not
+compile outside Neko, independently of this plan: `#if neko c != null #end &&`.)
+
+**hide** (`hide.hxml`, first target, with the patched libraries): 100 warnings.
+- 75 `WUnresolvedFieldType` in hide itself (`hide`, `hrt`), mostly fields
+  initialized to `null` (44) or `[]` (14), plus one in `format` and one in the
+  `hashlink` library: annotations, to be done in hide when it moves to Haxe 6.
+- 9 inference cycles in hide.
+- **15 build order warnings in `h2d.domkit.BaseComponents`**: the domkit
+  component build macro of each component reads its parent component class
+  while it is being built (`A macro reads class h2d.domkit.DrawableComp while
+  it is being built`), and builds are retried (`Build of
+  h2d.domkit.BitmapComp is retried later because it depends on
+  h2d.domkit.DrawableComp, which is being built`). With the Haxe 6 rule
+  (every query cycle is an error, including build macro cycles), this is the
+  main breaking point of the corpus: `domkit.Macros` must demand `members` of
+  the parent component (a regular dependency, completed first) instead of
+  reading its partially built class, which phase 3 makes possible. To be
+  designed with domkit's `preload` mechanism.
+
 **Rules applied to typing.** Three rules that make a field's signature known
 from its declaration are applied by the typer of this branch (not only
 measured): a function without `return <expr>` and without return type hint
