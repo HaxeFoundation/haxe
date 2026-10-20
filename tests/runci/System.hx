@@ -174,29 +174,81 @@ class System {
 			return;
 		if (dir == null)
 			dir = StringTools.trim(commandResult("haxelib", ["libpath", library]).stdout);
-		// patch does not apply LF hunks to CRLF files (git checkouts on Windows):
-		// give each file's hunks the line endings of that file
-		final lines = sys.io.File.getContent(patch).split("\r\n").join("\n").split("\n");
-		if (lines[lines.length - 1] == "")
-			lines.pop();
-		final out = new StringBuf();
+		infoMsg('Patching $library in $dir with $patch');
+		applyPatch(sys.io.File.getContent(patch), dir);
+	}
+
+	/**
+		Applies a unified diff to the files of `dir`, without the `patch` tool,
+		whose behaviour with line endings differs between platforms: each hunk is
+		matched ignoring line endings, and the patched file keeps its own. A hunk
+		whose result is already in the file is skipped, so that a patch can be
+		applied again (local runs).
+	**/
+	static function applyPatch(patch:String, dir:String):Void {
+		final lines = patch.split("\r\n").join("\n").split("\n");
 		final target = ~/^\+\+\+ b\/(.+)$/;
-		var eol = "\n";
-		for (line in lines) {
-			if (StringTools.startsWith(line, "diff --git "))
-				eol = "\n";
-			else if (target.match(line)) {
-				final file = haxe.io.Path.join([dir, target.matched(1)]);
-				eol = sys.FileSystem.exists(file) && sys.io.File.getContent(file).indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+		final header = ~/^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@/;
+		var i = 0;
+		while (i < lines.length) {
+			if (!target.match(lines[i])) {
+				i++;
+				continue;
 			}
-			out.add(line + eol);
+			final file = haxe.io.Path.join([dir, target.matched(1)]);
+			final content = sys.io.File.getContent(file);
+			final eol = content.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+			final fileLines = content.split("\r\n").join("\n").split("\n");
+			i++;
+			while (i < lines.length && header.match(lines[i])) {
+				final start = Std.parseInt(header.matched(1)) - 1;
+				final before = [];
+				final after = [];
+				i++;
+				while (i < lines.length && lines[i] != "" && "+- \\".indexOf(lines[i].charAt(0)) >= 0) {
+					final line = lines[i].substr(1);
+					switch (lines[i].charAt(0)) {
+						case " ":
+							before.push(line);
+							after.push(line);
+						case "-":
+							before.push(line);
+						case "+":
+							after.push(line);
+						case _: // "\ No newline at end of file"
+					}
+					i++;
+				}
+				function find(block:Array<String>) {
+					function at(pos:Int) {
+						if (pos < 0 || pos + block.length > fileLines.length)
+							return false;
+						for (k in 0...block.length)
+							if (fileLines[pos + k] != block[k])
+								return false;
+						return true;
+					}
+					if (at(start))
+						return start;
+					for (d in 1...fileLines.length) {
+						if (at(start - d))
+							return start - d;
+						if (at(start + d))
+							return start + d;
+					}
+					return -1;
+				}
+				final pos = find(before);
+				if (pos >= 0) {
+					fileLines.splice(pos, before.length);
+					for (k in 0...after.length)
+						fileLines.insert(pos + k, after[k]);
+				} else if (find(after) < 0) {
+					throw 'Patch does not apply to $file (hunk at line ${start + 1})';
+				}
+			}
+			sys.io.File.saveContent(file, fileLines.join(eol));
 		}
-		final converted = haxe.io.Path.join([Sys.getCwd(), library + ".converted.patch"]);
-		sys.io.File.saveContent(converted, out.toString());
-		// skip a patch that is already applied (local runs)
-		if (!commandSucceed("patch", ["-p1", "-R", "--dry-run", "--binary", "-d", dir, "-i", converted]))
-			runCommand("patch", ["-p1", "-N", "--binary", "-d", dir, "-i", converted]);
-		sys.FileSystem.deleteFile(converted);
 	}
 
 	static public function haxelibInstall(library:String):Void {
