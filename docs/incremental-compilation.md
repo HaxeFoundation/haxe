@@ -350,6 +350,20 @@ What is reported, by kind:
 Every case is fixed with a type annotation. Fixing the standard library ones is
 part of this phase.
 
+**Rules applied to typing.** Three rules that make a field's signature known
+from its declaration are applied by the typer of this branch (not only
+measured): a function without `return <expr>` and without return type hint
+has a `Void` return type (syntactic `Void`), an argument without hint whose
+default value is a literal determining its whole type (`""`, `0`, `1.5`,
+`false`, `-1`) has that literal's type, and a variable initialized with a
+`Dynamic` expression is `Dynamic` (`setup_args_ret` and
+`bind_var_expression` in `src/typing/typeloadFields.ml`, test in
+`tests/misc/eval/projects/haxe6FieldRules`). The unit tests (js, macro, hl),
+the server and misc tests, the incremental suite and Heaps compile
+unchanged; the only visible difference is a more precise error message
+(`() -> Void` instead of `() -> Unknown<0>`, `Issue6796`). Macro functions are
+not affected (their signature is rewritten to `Expr` or `Dynamic`).
+
 **Standard library: done.** All reported fields of the standard library are
 annotated, for every target compiled by `tests/unit` (macro, js, hl, hlc, cpp,
 php, lua, jvm, neko): 7 common fields (`Serializer.BASE64_CODES`,

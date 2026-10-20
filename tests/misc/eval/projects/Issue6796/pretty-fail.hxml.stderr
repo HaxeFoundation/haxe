@@ -2,7 +2,7 @@
 
  3 |         Sys.println(main["foo"]);
    |                     ^^^^
-   | Array access is not allowed on () -> Unknown<0>
+   | Array access is not allowed on () -> Void
 
       | For function argument 'v'
 

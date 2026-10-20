@@ -107,8 +107,6 @@ object(self)
 	val mutable expr_repr = None
 
 	(* Returns the `(string * bool * Type.t) list` requires by `TFun` .*)
-	method syntax = syntax
-
 	method for_type = match type_repr with
 		| Some l ->
 			l

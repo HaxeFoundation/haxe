@@ -710,13 +710,14 @@ module TypeBinding = struct
 
 	(* An argument without type hint whose default value is a literal that
 	   determines its whole type (`""`, `0`, `1.5`, `true`, `-1`) is typed by
-	   that literal without typing the body (Haxe 6 rule, phase 3.3). A literal
-	   that only determines part of the type (`null`, `[]`) leaves the rest to
-	   the body, so the function's type is still inferred from it. *)
-	let rec is_typing_literal e = match fst e with
-		| EConst (Int _ | Float _ | String _) | EConst (Ident ("true" | "false")) -> true
-		| EUnop (Neg,Prefix,e) | EParenthesis e -> is_typing_literal e
-		| _ -> false
+	   that literal at its declaration (Haxe 6 rule, phase 3.3). A literal that
+	   only determines part of the type (`null`, `[]`) leaves the rest to the
+	   body, so the function's type is still inferred from it. *)
+	let rec literal_type basic e = match fst e with
+		| EConst (Int (_,None) | Float (_,None) | String _ | Ident ("true" | "false") as c) ->
+			(try Some (Texpr.type_constant basic c (snd e)).etype with _ -> None)
+		| EUnop (Neg,Prefix,e) | EParenthesis e -> literal_type basic e
+		| _ -> None
 
 	let while_inferring r ctx cf ~inferred f =
 		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
@@ -906,6 +907,11 @@ module TypeBinding = struct
 					e
 				) in
 				let e = check_cast e in
+				(* a variable initialized with a Dynamic expression is Dynamic (Haxe 6 rule) *)
+				begin match t, follow e.etype with
+				| TMono r, TDynamic _ when r.tm_type = None -> Monomorph.bind r t_dynamic
+				| _ -> ()
+				end;
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
 				check_resolved_field_type ctx cf;
@@ -981,15 +987,9 @@ module TypeBinding = struct
 			end;
 		in
 		let self = ref None in
-		let literal_typed = List.filter_map (fun ((name,_),_,_,th,eo) -> match th,eo with
-			| None,Some e when is_typing_literal e -> Some name
-			| _ -> None
-		) args#syntax in
-		let inferred = not (is_full_type t) && match t, e with
-			| TFun(args,_), Some e when not (returns_value e) ->
-				not (List.for_all (fun (name,_,t) -> is_full_type t || List.mem name literal_typed) args)
-			| _ -> true
-		in
+		(* arguments typed by a literal default value and syntactic Void return
+		   types are known from the declaration (see [setup_args_ret]) *)
+		let inferred = not (is_full_type t) in
 		let r = make_unforced_lazy t (fun () ->
 			while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 				if not ctx.g.return_partial_type then bind ();
@@ -1276,8 +1276,12 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let ret = if fctx.field_kind = CfrConstructor then
 		ctx.t.tvoid
 	else begin
-		let def () =
-			type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
+		let def () = match fd.f_type,fd.f_expr with
+			| None,Some e when not fctx.is_macro && not (TypeBinding.returns_value e) ->
+				(* syntactic Void (Haxe 6 rule): no `return <expr>` in the body *)
+				ctx.t.tvoid
+			| _ ->
+				type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
 		in
 		maybe_use_property_type fd.f_type (fun () -> match AtomicLazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
@@ -1289,8 +1293,15 @@ let setup_args_ret ctx cctx fctx name fd p =
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.c.curclass CExtern in
 	let type_arg i opt cto p =
-		let def () =
-			type_opt (ctx,cctx,fctx) p LoadNormal cto
+		let def () = match cto,(try let (_,_,_,_,eo) = List.nth fd.f_args i in eo with _ -> None) with
+			| None,Some e when not fctx.is_macro ->
+				(* an argument typed by its literal default value (Haxe 6 rule) *)
+				begin match TypeBinding.literal_type ctx.t e with
+				| Some t -> t
+				| None -> type_opt (ctx,cctx,fctx) p LoadNormal cto
+				end
+			| _ ->
+				type_opt (ctx,cctx,fctx) p LoadNormal cto
 		in
 		if i = 0 then maybe_use_property_type cto (fun () -> match AtomicLazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
