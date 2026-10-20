@@ -16,6 +16,11 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Storage | **In memory**, preserving the physical identity of objects. hxb is not on the critical path; it remains a persistence format and a verification tool. |
 | Positions in inlined code | The inliner replaces positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint) and self-calling closures (relative positions included). |
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit and domkit, for their heavy use of macros. |
+| Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
+| Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
+| Build macro cycles | **Hard error.** Requesting the member set of a type whose build macro is running (directly or through another build macro) is an error; there is no partial view. |
+| Enforcing queries | Entity contents become **abstract types** behind accessors, so that the OCaml compiler rejects any read that bypasses a query. Post-typing stages use a frozen view. |
+| Parallelism | **Design goal.** Body queries must be safe to run in parallel (OCaml 5 domains, `src/context/parallel.ml`), with deterministic results. |
 
 ## 1. Current state (starting point)
 
@@ -34,6 +39,11 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
   `RenameVars`, `add_descendant`, `has_feature` and the analyzer's purity
   inference all operate on the whole program. Filters mutate the typed AST
   **in place**, then `save_class_state` and `cl_restore` restore it.
+- Typing is scheduled by passes (`src/context/typerPass.ml`): work is queued
+  with `delay`/`delay_late` and run in pass order by `flush_pass`
+  (`src/context/typecore.ml`). Typing is already partly lazy (`cl_build` with
+  `Building`/`BuildMacro` states, `TLazy` field types), and `PForce` forces all
+  remaining lazies. Many results depend on the order in which this happens.
 - Generators regenerate the whole output. `genhl` maintains global index
   tables (`cglobals`, `cfunctions`, `cstrings`, `cached_types`…).
 
@@ -52,6 +62,10 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
    copy, only for what changed.
 5. **Determinism**: no result may depend on typing order. A verification mode
    systematically compares incremental and cold results.
+6. **Demand-driven typing.** There are no global phases: every piece of typing
+   is a query, computed when first demanded and memoized. The query engine is
+   both the scheduler of a cold compilation and the validator of an incremental
+   one.
 
 ## 3. Data model
 
@@ -202,6 +216,11 @@ Cases to handle explicitly:
   invalidation.
 - Locals and closures: not affected, they are internal to the body.
 
+Consequence: type parameter constraints no longer need a late pass
+(`PCheckConstraint`, `delay_if_mono`). Constraints on a field's signature are
+checked when the field's typing ends, and constraints on local types when the
+body's typing ends, since no monomorph can be bound later.
+
 Exit criterion: the whole CI is green with the error enabled, and the impact on
 the corpus is documented.
 
@@ -219,14 +238,14 @@ pointers.
    `ef_index` stays immutable: an index change is a shape change.
 3. **External contributions: move them out of entities, or make them
    recomputable.**
-   - `cl_descendants`: recomputed by the aggregation pass (phase 7) from the
+   - `cl_descendants`: recomputed by the aggregation pass (phase 8) from the
      `cl_super` and `cl_implements` of all types; no longer stored
      persistently.
    - DCE and post-processing flags (`CfUsed`, `CfPostProcessed`, …): moved to
-     post-processing data (phase 7), out of `cf_flags`.
+     post-processing data (phase 8), out of `cf_flags`.
    - `m_features`: computed per module from its post-processed AST.
    - Metadata added by a macro from **another** module (`addMetadata`):
-     recorded as an effect of the expansion (phase 6) and replayed.
+     recorded as an effect of the expansion (phase 7) and replayed.
    - `@:generic` instances: attached to the `(generic, type arguments)` node
      rather than to the generic's module (removes the `m_processed = 0`
      mechanism from #10635).
@@ -248,7 +267,113 @@ pointer checker reports nothing across the whole corpus.
 
 ---
 
-### Phase 3: fingerprints
+### Phase 3: demand-driven typing
+
+Goal: replace the pass scheduler with queries. This is the largest refactor of
+the plan, and the foundation of phases 4 to 6: the queries defined here are the
+nodes of the incremental graph, and dependency recording (phase 5) happens
+inside their accessors.
+
+#### 3.1 Queries
+
+The key idea is to **separate declaring an entity from defining its contents**.
+An entity is created empty by `declare` and can be referenced by pointer
+(`TInst(c, …)`) immediately; only *inspecting* its contents demands work.
+
+| Query | Computes | Demands | Replaces |
+|---|---|---|---|
+| `declare(module)` | parse, create empty entities with their stable keys | `File` | `PBuildModule` |
+| `resolve(name, scope)` | type name resolution (imports, `using`, sub-types, class paths) | `declare` of candidates | lookups spread over `Typeload`/`ImportHandling` |
+| `header(T)` | type parameters, constraints, super class, interfaces, abstract underlying type, typedef target | `resolve` of each hint | first half of `PBuildClass` |
+| `members(T)` | member set (names, kinds, access, declared hints) **after build macros**, properties connected to accessors, abstract `from`/`to`/operators | `header(T)`, `members` of ancestors (`@:autoBuild`), build macro expansions | rest of `PBuildClass`, `PConnectField`, `cl_build` |
+| `sig(f)` | fully resolved field type, constraints checked | hints, or `body(f)` for an inferred type | `TLazy` on `cf_type` |
+| `body(f)` | typed expression, local constraints checked | `sig`/`members` of whatever it touches | `PTypeField` |
+| `checks(T)` | overrides, interface implementation, abstract classes, final vars, overloads, core API, abstract class constraints | `members(T)`, `members(ancestors)`, `sig` of involved fields | `PForce` checks, `delay_late` ordering |
+| `program()` | root driver: `body` and `checks` of every field and type of every loaded module, then the post-typing callbacks | everything | `PForce`, `PFinal` |
+
+Every query has a **state**: `NotStarted | Running | Done | Failed`. Demanding a
+query that is `Running` is a cycle (§3.3).
+
+`program()` keeps today's semantics: all fields of every loaded module are
+typed, so errors in unused code are still reported. Loading a module (through
+`resolve`) adds it to the set `program()` will process, until a fixed point.
+
+#### 3.2 Enforcing queries with abstract types
+
+All direct reads of entity contents are replaced by accessors. Today `src/`
+contains about 1,400 such reads (`cf_type` 423, `cl_super` 186,
+`cl_ordered_fields` 139, `cl_ordered_statics` 127, `cl_fields` 117,
+`cl_statics` 112, `cl_constructor` 110, `cl_implements` 86, `e_constrs` 58…).
+
+1. `tclass`, `tclass_field`, `tenum`, `tenum_field`, `tabstract` and `tdef`
+   become abstract in a module signature (`src/core/tEntity.mli` or similar).
+   Contents are only reachable through accessors grouped by query:
+   `Header.super c`, `Members.fields c`, `Sig.field_type cf`, `Body.expr cf`…
+2. Each accessor demands the query (computing it if needed) and records the
+   dependency for the current consumer (phase 5).
+3. Writers are restricted to the query implementations (typeload modules) and
+   to grafting (phase 2).
+4. **Frozen view**: once `program()` is done, filters, analyzer and generators
+   use a read-only view without demand or recording overhead (still through
+   abstract types, so that post-typing code cannot mutate typed entities —
+   principle 4).
+5. Migration is mechanical but large: done module by module, with a temporary
+   escape hatch (`Unsafe.cl_fields`) whose uses are tracked and must reach zero.
+
+#### 3.3 Cycles
+
+Cycles are resolved by explicit rules, never by evaluation order:
+
+- **Declarations**: references to a declared entity never cycle
+  (`class A extends B<A>` only needs `declare`).
+- **Headers**: `header(A)` demanding `header(A)` (e.g. `class A extends A`, or
+  through typedefs) is an error, as today.
+- **Members and build macros**: demanding `members(T)` while `members(T)` is
+  running is a **hard error**, including through another type's build macro
+  (A's build reads B's fields, B's build reads A's fields). There is no partial
+  view. Inside its own build macro, a type's fields are only available through
+  `Context.getBuildFields()`.
+- **Signatures**: mutually recursive inferred field types keep the current
+  "recursive type" error.
+- The error message shows the full query stack of the cycle.
+
+#### 3.4 Determinism
+
+- Query results must not depend on the order in which queries are demanded.
+- Errors and warnings are stored per query and reported sorted by position.
+- `com.types`, `m_deps` and any list built during typing are sorted by stable
+  key before use.
+- Display requests demand only the queries needed for the cursor position,
+  plus `checks` and `body` of the display file for diagnostics.
+
+#### 3.5 Parallel body typing
+
+`body(f)` queries are independent once their signatures are available, so
+`program()` can run them in parallel on the `Parallel` pool. Requirements:
+
+- Query states and memoization are thread-safe (a `Running` query demanded
+  from another domain waits; demanded from the same domain, it is a cycle).
+- Shared mutable state is turned into queries or protected:
+  - module loading (`declare`) and the module table;
+  - `@:generic` instance creation (query keyed by generic and type arguments);
+  - `a_status` of anonymous structures (closed per phase 1, so read-only after
+    the defining field is done);
+  - the eval macro interpreter (single domain at first: macro expansions are
+    serialized);
+  - counters used for naming (generated locals, anonymous types) become
+    per-query and deterministic.
+- Output is identical whatever the number of domains (checked by verification
+  mode with `-D typer-domains=1` vs `N`).
+
+Exit criterion: the pass scheduler is removed (`typerPass.ml`, `delay`,
+`flush_pass`, `delay_if_mono`, `make_lazy`'s forcing, `build_state`), all
+tests pass, compilation output is unchanged compared with the pass-based
+compiler on the whole corpus (modulo the documented phase 1 and cycle errors),
+and parallel typing produces the same output as sequential typing.
+
+---
+
+### Phase 4: fingerprints
 
 1. `src/core/tFingerprint.ml`: canonical hasher (§3.2) for `t`,
    `tclass_field`, type shapes and `texpr`.
@@ -264,10 +389,14 @@ pointer checker reports nothing across the whole corpus.
 
 ---
 
-### Phase 4: dependency recording
+### Phase 5: dependency recording
 
-Instrumentation points (all go through an `Incremental.record dep` that is a
-no-op outside the server):
+Most dependencies are recorded inside the phase 3 accessors: `Header.*` and
+`Members.*` record `DShape`, `Sig.*` records `DSig`, `Body.*` records `DInline`,
+and `resolve` records `DLookup`. The table below lists where each kind
+originates, which is also the checklist for the accessor migration.
+Recording goes through an `Incremental.record dep` that is a no-op outside the
+server:
 
 | Dependency | Where |
 |---|---|
@@ -275,7 +404,7 @@ no-op outside the server):
 | `DSig` | `FieldAccess`/`Fields` (field access), `Calls`, `CallUnification`; reading `cf_type` of other modules' fields |
 | `DShape` | field lookup (`Fields.type_field`, `class_field`), `using`, structural unification (`tUnification.ml`, `TAnon` against `TInst`), `OverloadResolution`, `Matcher` (enum constructors), override and interface checks (`TypeloadCheck`), `AbstractCast` (`from`/`to`) |
 | `DInline` | `Inline`, `Generic`, `MacroContext` (executed code) |
-| `DMacro`, `DFile` | phase 6 |
+| `DMacro`, `DFile` | phase 7 |
 
 The current consumer is carried by the typer context (`ctx.f.curfield` and its
 module). Dependencies from a field to its own module are recorded too, since the
@@ -291,7 +420,7 @@ that proves dependencies are complete.
 
 ---
 
-### Phase 5: per-field validation and retyping (server core)
+### Phase 6: per-field validation and retyping (server core)
 
 Replaces `check_module` and `type_module` (`serverCache.ml`).
 
@@ -311,23 +440,29 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
 3. **Early cutoff**: if `FieldSig(cf)` is unchanged after retyping, consumers of
    `DSig cf` stay green. Only `FieldBody(cf)`, then post-processing and
    generation of `cf`, are recomputed.
-4. **On-demand module typing** (`Typeload` requesting a module): if the module
-   is cached, validate the required `Shape` and `Sig` nodes rather than the
-   whole module. Lazy field typing (`TLazy`) becomes "validate
-   `FieldSig(cf)`".
+4. **Same queries, cold or warm**: the phase 3 queries check the graph before
+   computing. If a cached node can be validated green, its stored result is
+   used; otherwise the query recomputes it. There is no separate "cached
+   module" path anymore.
 5. **Display and completion**: the displayed file is always retyped (current
    `AllowPartialTyping`), but benefits from early cutoff for everything else.
 6. **Errors and warnings**: stored per node and replayed when the node is
    green, replacing the current handling of modules with errors.
 7. **Initialization macros** (`--macro`) and global callbacks: always executed,
-   last, with early cutoff on what they produce (phase 6).
+   last, with early cutoff on what they produce (phase 7).
 
 Exit criterion: equivalence across the whole corpus in history replay.
 Measurement: number of retyped fields per commit, typing time.
 
 ---
 
-### Phase 6: macros
+### Phase 7: macros
+
+With demand-driven typing (phase 3), macros run when their result is demanded,
+not at a fixed pass. Macros relying on "all classes are built when I run" or on
+a static registry being complete must move to the aggregation API (item 8) or
+to `program()` stage callbacks (`onAfterTyping`, `onGenerate`). Build macro
+cycles are errors (§ phase 3.3).
 
 1. **Expansion key**:
    - expression macros: `(called macro field, hash of AST arguments, consumer field, call index in the body)`;
@@ -375,7 +510,7 @@ handful of identified and justified volatile macros.
 
 ---
 
-### Phase 7: incremental filters
+### Phase 8: incremental filters
 
 1. **Post-processed copy**: filters work on a copy of `cf_expr`
    (`PostProcessed(cf)`) and no longer mutate the typed AST.
@@ -404,7 +539,7 @@ handful of identified and justified volatile macros.
 
 ---
 
-### Phase 8: JS generation
+### Phase 9: JS generation
 
 `src/generators/genjs.ml` is split into:
 
@@ -425,7 +560,7 @@ JS, source maps included).
 
 ---
 
-### Phase 9: HL generation
+### Phase 10: HL generation
 
 The heaviest part, because of the global tables in `genhl.ml` (`cglobals`,
 `cstrings`, `cfunctions`, `cnatives`, `cached_types`, `anons_cache`,
@@ -454,7 +589,7 @@ between incremental and cold.
 
 ---
 
-### Phase 10: cleanup
+### Phase 11: cleanup
 
 - Remove module-level invalidation: `DependencyDirty`, `m_checked`,
   `m_cache_state` (or reduce it to a diagnostic summary), `m_processed`.
@@ -466,24 +601,37 @@ between incremental and cold.
 ## 5. Phase ordering and dependencies
 
 ```
-Phase 0 ─┬─────────────────────────────────────────────┐
-Phase 1 ─┤                                             │
-         ├─ Phase 2 ─ Phase 3 ─ Phase 4 ─ Phase 5 ─┬─ Phase 7 ─┬─ Phase 8 (JS)
-         │                                         │           └─ Phase 9 (HL)
-         │                           Phase 6 ──────┘
-         └─ (continuous verification on the whole corpus)      Phase 10
+Phase 0 ─┬──────────────────────────────────────────────────────┐
+Phase 1 ─┤                                                      │
+         ├─ Phase 2 ─ Phase 3 ─ Phase 4 ─ Phase 5 ─ Phase 6 ─┬─ Phase 8 ─┬─ Phase 9 (JS)
+         │                                                    │           └─ Phase 10 (HL)
+         │                                      Phase 7 ──────┘
+         └─ (continuous verification on the whole corpus)                 Phase 11
 ```
 
-Phase 6 (macros) starts after phase 4 (same recording mechanism) and must be
-complete before enabling phase 5 on Heaps, hxbit and domkit.
+Phase 3 (demand-driven typing) is useful on its own: it removes order
+dependence and enables parallel typing even without the server. Phase 2 comes
+first because queries create and fill entities through the stable-key index.
+Phase 7 (macros) starts after phase 5 (same recording mechanism) and must be
+complete before enabling phase 6 on Heaps, hxbit and domkit.
 
 ## 6. Risks and open points
 
+- **Size of the phase 3 refactor.** About 1,400 direct reads of entity
+  contents to migrate behind abstract types. Mitigation: mechanical, module by
+  module migration with a tracked escape hatch, and the cold-compilation
+  equivalence check on the corpus after each step.
+- **Macro code depending on pass order.** Macros that assume every class is
+  built when they run will break with demand-driven typing. To be measured on
+  the corpus early in phase 3 (instrument the current compiler to detect a
+  build macro reading another type's members while that type is not built).
+- **Parallel typing and the macro interpreter.** Macro expansions are
+  serialized at first; this can limit parallel speedups on macro-heavy code.
 - **Dependency completeness.** The main risk: a missing dependency yields a
-  silently wrong result. Mitigation: the "trace only" mode of phase 4 and
+  silently wrong result. Mitigation: the "trace only" mode of phase 5 and
   history replay in CI.
 - **Memory cost** of the graph: estimated at a few tens of bytes per edge. To
-  be measured in phase 4 on Heaps; if needed, compact per module (integer
+  be measured in phase 5 on Heaps; if needed, compact per module (integer
   arrays indexed by entity).
 - **Recording cost** during cold typing: must stay low. Disabled outside the
   server.
@@ -506,7 +654,10 @@ complete before enabling phase 5 on Heaps, hxbit and domkit.
 - `tests/server`: one case per dependency kind (signature change, body change,
   inline body change, shape change, file shadowing a type, changed define,
   file read by a macro…), checking recomputed nodes through server statistics.
-- `tests/misc`: phase 1 errors (non-inferred field types).
+- `tests/misc`: phase 1 errors (non-inferred field types) and phase 3 cycle
+  errors (headers, build macros, recursive inferred types).
+- Order-independence tests for phase 3: compile with queries demanded in
+  shuffled order (`-D typer-shuffle=<seed>`) and in parallel, and compare.
 - `tests/incremental`: replay harness (phase 0) on `tests/unit`, Heaps, hxbit
   and domkit.
 - Unit tests for the hasher and grafting (old ↔ new mapping, remapping, stale
