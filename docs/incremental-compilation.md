@@ -18,7 +18,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit and domkit, for their heavy use of macros. |
 | Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
-| Build macro cycles | **Hard error.** Requesting the member set of a type whose build macro is running (directly or through another build macro) is an error; there is no partial view. |
+| Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
 | Enforcing queries | Entity contents become **abstract types** behind accessors, so that the OCaml compiler rejects any read that bypasses a query. Post-typing stages use a frozen view. |
 | Parallelism | **Design goal.** Body queries must be safe to run in parallel (OCaml 5 domains, `src/context/parallel.ml`), with deterministic results. |
 
@@ -322,20 +322,71 @@ contains about 1,400 such reads (`cf_type` 423, `cl_super` 186,
 
 #### 3.3 Cycles
 
-Cycles are resolved by explicit rules, never by evaluation order:
+**Rule: every cycle is an error.** The query engine detects cycles generically:
+demanding a query that is `Running` on the same query stack raises a cycle
+error. No query ever returns a partial or placeholder result, and nothing is
+retried later in the hope that the cycle resolves itself.
 
-- **Declarations**: references to a declared entity never cycle
-  (`class A extends B<A>` only needs `declare`).
-- **Headers**: `header(A)` demanding `header(A)` (e.g. `class A extends A`, or
-  through typedefs) is an error, as today.
-- **Members and build macros**: demanding `members(T)` while `members(T)` is
-  running is a **hard error**, including through another type's build macro
-  (A's build reads B's fields, B's build reads A's fields). There is no partial
-  view. Inside its own build macro, a type's fields are only available through
-  `Context.getBuildFields()`.
-- **Signatures**: mutually recursive inferred field types keep the current
-  "recursive type" error.
-- The error message shows the full query stack of the cycle.
+This removes the current order-dependent mechanisms:
+
+- `Build_canceled` and the rebuild loop (`typeloadModule.ml`,
+  `typeloadCheck.ml`): today a class whose super class is still building
+  cancels its build and retries in a late `PBuildClass` task, and an error is
+  only raised when no progress is made ("Loop in class building prevent
+  compiler termination"). With queries, `members(Child)` simply demands
+  `members(Super)` first; a real cycle is reported immediately.
+- `BuildMacro` pending lists and the `Building` state in `cl_build`.
+- `LProcessing` placeholders (`make_lazy`, `src/context/typecore.ml`): today a
+  field whose type is being inferred exposes its placeholder monomorph to
+  whoever demands it, which allows cross-field inference cycles to "work"
+  depending on order.
+
+What is and is not a cycle:
+
+- **Declarations** never cycle: `class A extends B<A>` only needs `declare(A)`,
+  not `header(A)`.
+- **Headers**: `header(A)` demanding `header(A)` (`class A extends A`, typedef
+  loops) is an error, as today.
+- **Build macros** (the main case):
+  - A's build macro reads B's members (`getType("B")` then fields,
+    `typeExpr` of code touching B's fields…) while B's build macro reads A's
+    members: error.
+  - A's build macro types an expression that accesses a field of A itself
+    (e.g. `typeExpr(macro A.foo)`): error, because it demands `members(A)`
+    while it is running.
+  - `@:autoBuild` on a super class whose macro reads the members of the
+    subclass being built: error.
+  - Inside its own build macro, a type only exposes its `header` (path,
+    parameters, super class, interfaces, metadata) through
+    `getLocalClass()`. Its fields are only available through
+    `Context.getBuildFields()`; reading `getLocalClass().get().fields` is an
+    error instead of returning a partial list.
+  - Reading the members of the super class or of interfaces is not a cycle:
+    it is a regular dependency (`members(Super)` is completed first).
+- **Inferred signatures**: `sig(f)` demanding `sig(g)` demanding `sig(f)`
+  (mutually recursive fields without annotations) is an error asking for an
+  annotation on one of them. The only exception is a field referring to itself
+  inside its own body (`function fact(n) return n <= 1 ? 1 : n * fact(n - 1)`):
+  this is not a query re-entry but the same inference unit, so the body sees
+  its own signature monomorph, which must be closed when the field's typing
+  ends (phase 1).
+- **Generic instances, abstracts, typedefs**: same rule, through `header` and
+  `members` of the instance or underlying type.
+
+The cycle error shows the full query stack, for example:
+
+```
+Cycle detected while building types:
+  members(game.Hero)      build macro game.Macros.build (Hero.hx:3)
+  members(game.Inventory) build macro game.Macros.build (Inventory.hx:5)
+  members(game.Hero)      <- cycle
+```
+
+**Measuring before switching.** Early in phase 3, the current compiler is
+instrumented to detect these situations (a build cancellation, a read of a
+`Building` class, a `LProcessing` placeholder demanded from another field) and
+report them as warnings. Running it on the corpus gives the list of code to fix
+before cycles become errors.
 
 #### 3.4 Determinism
 
@@ -622,9 +673,9 @@ complete before enabling phase 6 on Heaps, hxbit and domkit.
   module migration with a tracked escape hatch, and the cold-compilation
   equivalence check on the corpus after each step.
 - **Macro code depending on pass order.** Macros that assume every class is
-  built when they run will break with demand-driven typing. To be measured on
-  the corpus early in phase 3 (instrument the current compiler to detect a
-  build macro reading another type's members while that type is not built).
+  built when they run, or that rely on cycles currently resolved by retries,
+  will break with demand-driven typing. To be measured on the corpus early in
+  phase 3 with the cycle instrumentation described in phase 3.3.
 - **Parallel typing and the macro interpreter.** Macro expansions are
   serialized at first; this can limit parallel speedups on macro-heavy code.
 - **Dependency completeness.** The main risk: a missing dependency yields a
