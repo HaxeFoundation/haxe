@@ -23,6 +23,6 @@ class Main {
 		walkA(3);
 		indentA(2);
 		partialA(2, 1);
-		trace(even(4), even2(4), fact(3), A.count() + B.count());
+		trace(even(4), even2(4), fact(3));
 	}
 }

@@ -41,18 +41,22 @@ let with_class_building c f =
 	building_classes := c :: old;
 	Std.finally (fun () -> building_classes := old) f ()
 
-(* [c] needs [csup] built while [csup] is being built: every such cycle is an error. *)
-let build_cycle_error c csup p =
+(* [csup] is needed while it is being built: every such cycle is an error.
+   [reason] says what needs it. *)
+let build_cycle_error_reason reason csup p =
 	let rec take acc = function
 		| [] -> acc
 		| c' :: l -> if c' == csup then c' :: acc else take (c' :: acc) l
 	in
 	let cycle = take [] !building_classes @ [csup] in
-	raise_typing_error (Printf.sprintf "Cycle detected while building types: %s (%s needs %s, which is being built)"
+	raise_typing_error (Printf.sprintf "Cycle detected while building types: %s (%s %s, which is being built)"
 		(String.concat " -> " (List.map (fun c -> s_type_path c.cl_path) cycle))
-		(s_type_path c.cl_path)
+		reason
 		(s_type_path csup.cl_path)
 	) p
+
+let build_cycle_error c csup p =
+	build_cycle_error_reason (s_type_path c.cl_path ^ " needs") csup p
 
 let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)

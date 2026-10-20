@@ -1,0 +1,2 @@
+B.hx:1: characters 1-8 : Cycle detected while building types: A -> B -> A (a macro reads A, which is being built)
+B.hx:1: characters 1-8 : ... For function argument 'v'

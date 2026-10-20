@@ -307,14 +307,14 @@ let make_macro_com_api com mcom p =
 
 let make_macro_api ctx mctx p =
 	(* Reading a class whose build is not finished, other than the class being
-	   built, depends on typing order (a cycle error in Haxe 6). *)
+	   built, would depend on typing order: it is a cycle error. *)
 	MacroApi.partially_built_class_read_hook := (fun c ->
 		let is_local_class = match ctx.c.get_build_infos() with
 			| Some (TClassDecl c',_,_) -> c == c'
 			| _ -> c == ctx.c.curclass
 		in
 		if not is_local_class then
-			warning ctx WTypingOrder (Printf.sprintf "A macro reads class %s while it is being built" (s_type_path c.cl_path)) p
+			TypeloadCheck.build_cycle_error_reason "a macro reads" c p
 	);
 	let parse_metadata s p =
 		try
