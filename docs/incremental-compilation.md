@@ -11,7 +11,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
 | Priority targets | **JS** and **HL**. Other targets keep a global generation step but benefit from incremental typing and filters. |
-| Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output, an **aggregation API** (map/reduce) for registries, a warning on non-aggregated static writes. |
+| Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File writes from macros are reviewed case by case. |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6, with a warning phase before errors. |
 | Macro context | The macro and target contexts keep **separate query graphs** (different defines, platform and standard library overrides), but **share parsing**: a parsed module is reused by the other context when the defines read during its parsing have the same values in both (phase 3.6). |
@@ -600,8 +600,8 @@ Measurement: number of retyped fields per commit, typing time.
 
 With demand-driven typing (phase 3), macros run when their result is demanded,
 not at a fixed pass. Macros relying on "all classes are built when I run" or on
-a static registry being complete must move to the aggregation API (item 8) or
-to `program()` stage callbacks (`onAfterTyping`, `onGenerate`). Build macro
+a static registry being complete must move to the declarations of item 5 or to
+`program()` stage callbacks (`onAfterTyping`, `onGenerate`). Build macro
 cycles are errors (§ phase 3.3).
 
 1. **Expansion key**:
@@ -615,38 +615,136 @@ cycles are errors (§ phase 3.3).
    - `File.getContent`/`getBytes`, `FileSystem.exists`/`stat`/`readDirectory`:
      `DFile` (content, or sorted listing for a directory);
    - `Date.now`, `Math.random`, `Sys.getEnv`, `Sys.command`, `Sys.time`,
-     sockets, file writes: the expansion is marked **volatile**.
-4. **Static writes**: the eval interpreter instruments writes to a static field
-   of a macro-context class **during** an expansion. The expansion is then
-   marked volatile, and a `WMacroStaticState` warning is emitted ("this macro
-   modifies static state: use the aggregation API to make it incremental").
-5. **Recorded and replayed effects**: `defineType`, `defineModule`,
+     sockets: the expansion is marked **volatile**;
+   - file writes: see item 8.
+4. **Static state isolation.** Macro-context static variables no longer carry
+   state from one macro call to another.
+   - **Ordinary statics are reset for every expansion.** During an expansion, a
+     static starts from its initial value; everything written is discarded when
+     the expansion ends. Restoring the reference is not enough (a
+     `static var cache = new Map()` is usually mutated in place), so the
+     interpreter **re-runs the static's initializer on first access in each
+     expansion**, lazily: statics an expansion does not touch cost nothing.
+   - **Nested expansions** (a `typeExpr` or `getType` triggering another build
+     or expression macro) get their own state, and the caller's state is
+     restored on return (stack discipline).
+   - **`@:persistent` means initialization value.** A `@:persistent` static can
+     only be written during initialization macros (`--macro`). After
+     initialization it is **frozen**, deeply: eval `Array`, `Map` and objects
+     reachable from it get a frozen flag, and any mutation is an error. A deep
+     hash of all `@:persistent` values after initialization acts like a define:
+     if it changes, every expansion is invalidated. Functions (e.g. a
+     `dynamic function` overridden by user configuration) are hashed by field
+     reference, plus a `DInline` dependency on their body.
+   - This changes the meaning of `@:persistent`, which today means "survives
+     across server compilations". Existing uses as caches or registries become
+     write errors after initialization, which forces their migration (item 9).
+5. **Dedicated declarations** for state that must outlive an expansion (new
+   module `haxe.macro.State`, names to be finalized):
+
+   | Declaration | Write | Read | When it can be read |
+   |---|---|---|---|
+   | ordinary static | in the expansion | in the expansion | reset on every call |
+   | `@:persistent` static | initialization only | anywhere | frozen after initialization |
+   | `MacroArray<T>` | `push`, recorded per expansion | `gather()` | `program()` stages only |
+   | `MacroMap<K,V>` | `set`, recorded per expansion | `gather()`, `get`, `keys` | `program()` stages only |
+   | `MacroTypeData<T>`, `MacroModuleData<T>` | the build of the type (or typing of the module) | `get(type)`, which triggers the build | anytime |
+   | `MacroCache<K,V>` | `getOrCompute(key, fn)` | `getOrCompute(key, fn)` | anytime (pure) |
+   | `MacroIndex<K>` | `register(key)` | `indexOf(key)` returns a late-bound `Expr` | resolved after typing |
+
+   - **`MacroArray<T>`**: each `push` is recorded under the key of the
+     expansion that made it, and replayed when that expansion is reused from
+     the cache. `gather()` returns the union in a deterministic order (sorted
+     by expansion key, then push order). It may only be called once all
+     contributors are known: in a `program()` stage callback or in a
+     reduction. Calling it during typing is an error, since the result would
+     depend on which expansions already ran.
+   - **`MacroMap<K,V>`**: same as `MacroArray`, keyed. Two expansions writing
+     the same key is an error unless a merge function is declared.
+   - **`MacroTypeData<T>`** (and `MacroModuleData<T>`): a typed eval value
+     attached to a type (or a module), written by that type's build macro.
+     `data.get(T)` triggers the build of `T`, so it is deterministic and can be
+     used **during typing**. It is the equivalent of metadata without encoding
+     values as `Expr`. It also covers sharing information between a class's
+     build macro and the expression macros of its own bodies.
+   - **`MacroCache<K,V>`**: pure memoization. `getOrCompute(key, fn)` runs `fn`
+     as a sub-expansion recording its dependencies (files read, types
+     inspected…); the entry is invalidated when one of them changes. The
+     engine may evict entries at any time, and reading an entry creates no
+     dependency on the expansion that filled it.
+   - **`MacroIndex<K>`**: global, stable indices needed inside generated code
+     (index of a class in a registry, program-wide message ids…).
+     `register(key)` records the key; `indexOf(key)` returns a placeholder
+     `Expr` replaced by the integer constant once all keys are gathered (end of
+     typing, before filters). Indices are assigned in sorted key order.
+   - **`Context.makeUniqueName(base)`**: deterministic unique names, local to
+     the expansion key, instead of static counters.
+   - The aggregation reduction (`gather()` then `defineType` of a registry
+     type in a `program()` stage) is reused from the previous design: it runs
+     on every compilation, with early cutoff on its result.
+6. **Recorded and replayed effects**: `defineType`, `defineModule`,
    `addMetadata`, `addResource`, `registerModuleDependency`, callbacks
-   (`onGenerate`, `onAfterTyping`, `onTypeNotFound`) and messages are logged per
-   expansion. When the expansion is green, the log is replayed instead of
-   running the macro.
-6. **Volatile macros**: re-executed on every compilation. If their output (and
+   (`onGenerate`, `onAfterTyping`, `onTypeNotFound`), messages, and the writes
+   to the declarations of item 5 are logged per expansion. When the expansion
+   is green, the log is replayed instead of running the macro.
+7. **Volatile macros**: re-executed on every compilation. If their output (and
    effect log) has the same fingerprint, downstream stays green.
-7. **Macro code**: the expansion depends on `DInline` (body) of every macro
-   context function it executes. Simple first version: depend on the bodies of
-   all macro-context modules reached during execution, as recorded by the
-   interpreter.
-8. **Aggregation API** (new, `haxe.macro.Context` or `haxe.macro.Aggregate`):
+8. **File writes: to be reviewed case by case.** A file written during an
+   expansion is not written again when the expansion is reused from the
+   cache. There is no single answer yet; known cases in the corpus:
+   - heaps resource conversion (`hxd/fs/Convert.hx`, `hxd/fs/FileConverter.hx`,
+     triggered by `hxd.res.FileTree` build macros): converted assets and an
+     on-disk conversion cache. These are outputs of a compile-time build step
+     with their own cache, possibly better modeled as a `MacroCache` whose
+     values are files, or as a separate pipeline step outside expansions;
+   - hide `hrt/ui/tests/Macros.hx`: writes generated test files;
+   - hide `hrt/prefab/l3d/modellibrary/ModelLibrary.hx`: creates and deletes
+     files during conversion.
+   Candidate mechanisms, to choose per case: a logged `Context.saveFile(path,
+   content)` effect replayed with the expansion; restricting writes to
+   `program()` stages (`onGenerate`); or marking the expansion volatile. Until
+   decided, a direct write during an expansion marks it volatile with a
+   warning.
+9. **Corpus migration** (validates the declarations on real cases):
+   - **domkit**: `COMPONENTS` (and `COMPONENTS_REMAP_REV`) become a
+     `MacroTypeData<MetaComponent>` on the component class; `loadComponent`
+     becomes `getType` then `data.get(t)`; `preload` and the
+     `// force build` idiom disappear. `componentsSearchPath` and
+     `defaultParserPath` stay `@:persistent` configuration, which requires
+     `h2d.domkit.InitComponents.init` to run as an initialization macro
+     (`--macro`) rather than as a `@:build` on `h2d.domkit.Object`.
+   - **hxbit**: `SERIALIZABLES`/`UNSERIALIZABLES` are replaced by header
+     information (interfaces, declared metadata, `@:native`);
+     `markAsSerializable`/`markAsUnserializable` become initialization-time
+     configuration. `IGNORED_META`, `VISIBILITY_VALUES`, `CUSTOM_GETTERS` and
+     `wrapRPC` stay `@:persistent` configuration. The struct `isProxy`
+     information becomes a `MacroTypeData`. The `PartialResolution` /
+     `TLazy` workaround goes away.
+   - **heaps**: `hxsl` stores the parsed shader in a `MacroTypeData` instead of
+     re-parsing `:src` on every `@:import`; `hxd/res/DynamicText.hx`
+     `BUILD_CACHE` and `hxd/fs/Convert.hx` `converts` become `MacroCache`s
+     (subject to the file write review of item 8).
+10. **Detection during the transition** (Haxe 5.x warnings, before isolation
+    becomes the default):
+    - cheap mode: eval tags each static with the expansion that last assigned
+      it; reading a static assigned by another expansion emits
+      `WMacroStaticState`;
+    - `-D macro-state-check`: deep hash of everything reachable from macro
+      statics before and after each expansion, which also catches in-place
+      mutation (`map.set`); for CI and corpus audits;
+    - history replay (phase 0) as the final safety net.
+11. **Macro code**: the expansion depends on `DInline` (body) of every macro
+    context function it executes. Simple first version: depend on the bodies of
+    all macro-context modules reached during execution, as recorded by the
+    interpreter.
 
-   ```haxe
-   // Contribution, cached with the node that emits it (a type, an expansion).
-   Aggregate.contribute("hxbit.serializable", macro $v{cl.name});
-   // Reduction: executed on every compilation over all contributions
-   // (cached and new), with early cutoff on its result.
-   Aggregate.reduce("hxbit.serializable", (all:Array<Expr>) -> defineRegistryType(all));
-   ```
+Isolation makes expansions independent of each other, which is the
+prerequisite for running macros in parallel later (they are serialized in
+phase 3.5).
 
-   Migrate hxbit (registry of `Serializable` classes), domkit (components) and
-   Heaps (shader and resource registries) during this phase, to validate the
-   API on real cases.
-
-Exit criterion: Heaps, hxbit and domkit pass history replay with at most a
-handful of identified and justified volatile macros.
+Exit criterion: Heaps, hxbit, domkit and hide pass history replay with static
+isolation enabled, and at most a handful of identified and justified volatile
+macros (pending file write decisions).
 
 ---
 
@@ -744,7 +842,7 @@ between incremental and cold.
   `m_cache_state` (or reduce it to a diagnostic summary), `m_processed`.
 - hxb: used only for on-disk persistence (server restart) and in verification
   mode. Loading from hxb must restore fingerprints and the graph.
-- User documentation: new errors (field types), aggregation API, macro
+- User documentation: new errors (field types), macro state declarations, macro
   warnings, `incremental-verify` and `incremental-check-refs` defines.
 
 ## 5. Phase ordering and dependencies
