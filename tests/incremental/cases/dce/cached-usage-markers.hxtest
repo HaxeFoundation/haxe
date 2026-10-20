@@ -1,0 +1,59 @@
+# DCE usage markers (`:used` on enums and abstracts, maybe-used fields) are
+# recomputed by every compilation: types reused from the in-memory cache must
+# not keep the markers of the previous compilation. Before the fix, the enum
+# below was already marked as used, so the `has_enum` feature was missing and
+# `js.Boot.__string_rec` was removed.
+@args -D disable-hxb-cache -dce full
+
+=== initial
+@expect-output A(1)
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Std.string(Lib.make(1)));
+	}
+}
+--- Lib.hx
+enum E {
+	A(i:Int);
+	B;
+}
+
+abstract Wrap(Int) {
+	public inline function new(i) this = i;
+	public inline function get() return this;
+}
+
+class Base {
+	public function new() {}
+	public function name() return "base";
+}
+
+class Sub extends Base {
+	override public function name() return "sub";
+}
+
+class Lib {
+	public static function make(i:Int):E return A(new Wrap(i).get());
+	public static function base():Base return new Sub();
+}
+
+=== only Main changes
+@expect-output A(2)
+@expect-output sub
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Std.string(Lib.make(2)));
+		trace(Lib.base().name());
+	}
+}
+
+=== back to the first program
+@expect-output A(3)
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Std.string(Lib.make(3)));
+	}
+}

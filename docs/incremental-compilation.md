@@ -237,10 +237,10 @@ compilation (new objects each time), so the check is meaningful with the
 in-memory cache (`-D disable-hxb-cache`), which is the storage chosen by the
 plan. `tests/incremental` can run in that mode with
 `--args "-D disable-hxb-cache -D incremental-check-refs"`: no stale reference
-is reported, and one pre-existing warm/cold difference appears
-(`macros/add-resource` on js: DCE drops `js.Boot` and every feature-dependent
-`__name__` on a module reused from memory), which belongs to phase 2, item 3
-(DCE flags and features stored in cached entities).
+is reported. The one pre-existing warm/cold difference of that mode
+(`macros/add-resource` on js: DCE dropped `js.Boot` and every feature-dependent
+`__name__` on a module reused from memory) is fixed by the first step of
+phase 2, item 3 (see "DCE markers" there).
 
 **First replay** (last 30 commits of Heaps, compiled to JS with `include` of
 `h3d`, `h2d`, `hxsl`, `hxd`, with hxbit, domkit, castle and format):
@@ -384,6 +384,27 @@ pointers.
      persistently.
    - DCE and post-processing flags (`CfUsed`, `CfPostProcessed`, …): moved to
      post-processing data (phase 8), out of `cf_flags`.
+
+     **DCE markers (done, first step).** Every marker that DCE sets is now
+     reset by DCE itself when it collects its entry points, instead of relying
+     on the restore functions of cached types: `:used` and `:directlyUsed` on
+     enums and abstracts, `:valueUsed` on abstracts, and `CfMaybeUsed`. Enums
+     reused from memory kept the `:used` of the previous compilation, so
+     `mark_enum` did nothing and the `has_enum` feature (which keeps
+     `js.Boot.__string_rec`) was lost. Typing-time and DCE-time markers are
+     now distinct:
+     - `EnUsed` (enum flag) replaces the `:used` metadata on enums;
+     - `CfMaybeUsed` is DCE-only (a field that is kept if its class is kept);
+     - `CfStructurallyUsed` is the typer's marker: structural unification of a
+       class instance or `Class<T>` with an anonymous structure (it used to set
+       `CfMaybeUsed`, so DCE could not reset it).
+
+     Remaining: `CfStructurallyUsed` is stored on the *target* field by the
+     typing of another module. When that module changes and no longer unifies
+     the class with a structure, the marker stays, and a warm compilation can
+     keep more fields than a cold one. It becomes a fact of the using field's
+     `body` result, aggregated in phase 8. Abstracts keep their markers as
+     metadata (no flag field) until phase 8.
    - `m_features`: computed per module from its post-processed AST.
    - Metadata added to a type by a macro other than that type's own build
      macros (`Compiler.addMetadata`, `meta.add` on a type obtained through

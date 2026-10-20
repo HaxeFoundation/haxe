@@ -528,18 +528,20 @@ type flag_tclass_field =
 	| CfDefault (* Interface field with default implementation (only valid on Java) *)
 	| CfPostProcessed (* Marker to indicate the field has been post-processed *)
 	| CfUsed (* Marker for DCE *)
-	| CfMaybeUsed (* Marker for DCE *)
+	| CfMaybeUsed (* Marker for DCE: kept if its class is kept. Set and reset by each DCE run. *)
 	| CfNoLookup (* Field cannot be accessed by-name. *)
 	| CfAbstractConstructor
+	| CfStructurallyUsed (* Set by the typer when the field unifies with a structure: DCE keeps it if its class is kept. *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor";"CfStructurallyUsed"
 ]
 
 type flag_tenum =
 	| EnExtern
 	| EnExcluded (* Marker for exclude macro, turned into EnExtern during filters *)
+	| EnUsed (* Marker for DCE. Set and reset by each DCE run. *)
 
 type flag_tvar =
 	| VCaptured

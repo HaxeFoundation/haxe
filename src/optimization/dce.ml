@@ -225,14 +225,17 @@ and mark_field dce c cf kind =
 				| None -> ()
 				| Some ctor -> mark_field dce c ctor CfrConstructor
 
-let rec update_marked_class_fields dce c =
+and is_maybe_used cf =
+	has_class_field_flag cf CfMaybeUsed || has_class_field_flag cf CfStructurallyUsed
+
+and update_marked_class_fields dce c =
 	let dce = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
-		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrStatic
+		if is_maybe_used cf then mark_field dce c cf CfrStatic
 	) c.cl_ordered_statics;
 	List.iter (fun cf ->
-		if has_class_field_flag cf CfMaybeUsed then mark_field dce c cf CfrMember
+		if is_maybe_used cf then mark_field dce c cf CfrMember
 	) c.cl_ordered_fields;
 	(* we always have to keep super classes and implemented interfaces *)
 	(match TClass.get_cl_init c with None -> () | Some init -> dce.follow_expr dce init);
@@ -251,10 +254,10 @@ and mark_class dce c = if not (has_class_flag c CUsed) then begin
 		Mutex.unlock dce.used_mutex;
 end
 
-let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
+let rec mark_enum dce e = if not (has_enum_flag e EnUsed) then begin
 	Mutex.lock dce.used_mutex;
-	if not (Meta.has Meta.Used e.e_meta) then begin
-		e.e_meta <- (mk_used_meta e.e_pos) :: e.e_meta;
+	if not (has_enum_flag e EnUsed) then begin
+		add_enum_flag e EnUsed;
 		Mutex.unlock dce.used_mutex;
 		check_and_add_feature dce "has_enum";
 		check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
@@ -815,6 +818,11 @@ let extract_if_feature meta =
 	in
 	loop meta
 
+(* Usage markers are computed by each DCE run: types reused by the compilation
+   server still carry the ones of the previous compilation. *)
+let remove_usage_meta meta =
+	List.filter (fun (m,_,_) -> m <> Meta.Used && m <> Meta.DirectlyUsed) meta
+
 let collect_entry_points dce types =
 	let delayed = ref [] in
 	let check_feature cf_ref meta =
@@ -834,6 +842,7 @@ let collect_entry_points dce types =
 			let keep_class = keep_whole_class dce c && (not (has_class_flag c CExtern) || (has_class_flag c CInterface)) in
 			let is_struct = dce.scom.platform = Hl && Meta.has Meta.Struct c.cl_meta in
 			let loop kind cf =
+				remove_class_field_flag cf CfMaybeUsed;
 				let cf_ref = mk_class_field_ref c cf kind dce.scom.is_macro_context in
 				let cf_if_feature = extract_if_feature cf.cf_meta in
 				check_feature cf_ref (cl_if_feature @ cf_if_feature);
@@ -854,11 +863,17 @@ let collect_entry_points dce types =
 					()
 			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
-			en.e_meta <- Meta.remove Meta.Used en.e_meta;
+			remove_enum_flag en EnUsed;
+			en.e_meta <- remove_usage_meta en.e_meta;
 			delayed := (fun () ->
 				let dce = push_class dce {null_class with cl_module = en.e_module} in
 				mark_enum dce en;
 			) :: !delayed;
+		| TEnumDecl en ->
+			remove_enum_flag en EnUsed;
+			en.e_meta <- remove_usage_meta en.e_meta
+		| TAbstractDecl a ->
+			a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) (remove_usage_meta a.a_meta)
 		| _ ->
 			()
 	) types;
@@ -964,7 +979,7 @@ let sweep dce types =
 					if dce.debug then print_endline ("[DCE] Removed class " ^ (s_type_path c.cl_path));
 					loop acc l)
 			end
- 		| (TEnumDecl en) as mt :: l when Meta.has Meta.Used en.e_meta || (has_enum_flag en EnExtern) || keep_whole_enum dce en ->
+ 		| (TEnumDecl en) as mt :: l when has_enum_flag en EnUsed || (has_enum_flag en EnExtern) || keep_whole_enum dce en ->
 			loop (mt :: acc) l
 		| TEnumDecl e :: l ->
 			if dce.debug then print_endline ("[DCE] Removed enum " ^ (s_type_path e.e_path));
