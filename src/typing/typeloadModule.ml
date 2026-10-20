@@ -399,47 +399,22 @@ module TypeLevel = struct
 				add_class_flag c CFinal;
 			end
 		) d.d_meta;
-		let prev_build_count = ref (ctx_m.g.build_count - 1) in
 		let cctx = TypeloadFields.create_class_context c p in
 		let ctx_c = TypeloadFields.create_typer_context_for_class ctx_m cctx p in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
-			let fl = TypeloadCheck.Inheritance.set_heritance ctx_c c herits p in
-			let rec build() =
-				c.cl_build <- (fun()-> Building [c]);
+			TypeloadCheck.with_class_building c (fun () ->
 				try
+					let fl = TypeloadCheck.Inheritance.set_heritance ctx_c c herits p in
 					List.iter (fun f -> f()) fl;
 					TypeloadFields.init_class ctx_c cctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);
-					ctx_c.g.build_count <- ctx_c.g.build_count + 1;
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
-				with TypeloadCheck.Build_canceled state ->
-					let reason = match state with
-						| Building cl -> "it depends on " ^ String.concat ", " (List.map (fun c -> s_type_path c.cl_path) cl) ^ ", which is being built"
-						| BuildMacro _ -> "a build macro is pending"
-						| Built -> "of an unexpected state"
-					in
-					warning ctx_c WTypingOrder (Printf.sprintf "Build of %s is retried later because %s" (s_type_path c.cl_path) reason) c.cl_name_pos;
-					c.cl_build <- make_pass ctx_c build;
-					let rebuild() =
-						delay_late ctx_c.g PBuildClass (fun() -> ignore(c.cl_build()));
-					in
-					(match state with
-					| Built -> die "" __LOC__
-					| Building cl ->
-						if ctx_c.g.build_count = !prev_build_count then raise_typing_error ("Loop in class building prevent compiler termination (" ^ String.concat "," (List.map (fun c -> s_type_path c.cl_path) cl) ^ ")") c.cl_pos;
-						prev_build_count := ctx_c.g.build_count;
-						rebuild();
-						Building (c :: cl)
-					| BuildMacro f ->
-						f := rebuild :: !f;
-						state);
-				| exn ->
+				with exn ->
 					c.cl_build <- (fun()-> Built);
 					raise exn
-			in
-			build()
+			)
 		in
 		c.cl_build <- make_pass ctx_m build;
 		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));

@@ -254,7 +254,6 @@ let create com macros =
 			type_hints = [];
 			load_only_cached_modules = false;
 			return_partial_type = false;
-			build_count = 0;
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
 			do_macro = MacroContext.type_macro;

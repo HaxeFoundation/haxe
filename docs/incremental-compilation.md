@@ -836,7 +836,7 @@ before cycles become errors.
 
 **Status.** Implemented as the `WTypingOrder` warning, disabled by default
 (`-w +WTypingOrder`), with a test in `tests/misc/eval/projects/typingOrder`:
-build retries (`Build_canceled`, `typeloadModule.ml`), a macro reading a class
+build retries (now errors, see below), a macro reading a class
 whose build is not finished other than the class being built
 (`MacroApi.partially_built_class_read_hook`, set in `macroContext.ml`), and a
 field reading the placeholder type of another field whose type is being
@@ -866,6 +866,19 @@ a return value (`hxsl.Printer.toString`, `hxsl.Checker.makeVar`,
 (`hxsl.Printer.addVar(…, ?parent)`). With the standard library annotations of
 phase 1 and the Heaps patch (`haxe6-annotations` branch of Heaps), Heaps reports
 none.
+
+**Status: build cycles are errors.** `Build_canceled` and the rebuild loop are
+removed. A class whose super class or interface is still being built (its
+build, or one of its build macros, is running higher on the stack) is a cycle
+error showing the classes being built, for example
+`Cycle detected while building types: Base -> Child -> Base (Child needs Base,
+which is being built)` (`tests/misc/eval/projects/buildCycle`). The only case
+in the corpus was `h2d.domkit` with hide: domkit's `buildObject` forced the
+build of every preloaded base component from the first component built, which
+could be one of them; the `haxe6-annotations` branch of domkit only preloads
+from a component that is not in the list. A macro reading a class that is
+being built (`getLocalClass().get().fields` of another class on the stack)
+is still only the `WTypingOrder` warning.
 
 
 #### 3.4 Determinism

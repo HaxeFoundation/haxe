@@ -115,7 +115,6 @@ type typer_globals = {
 	mutable type_hints : (module_def_display * pos * t) list;
 	mutable load_only_cached_modules : bool;
 	mutable return_partial_type : bool;
-	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
 	mutable call_arg_context : call_arg_context option;

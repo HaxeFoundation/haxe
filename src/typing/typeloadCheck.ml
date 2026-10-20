@@ -33,7 +33,26 @@ open CompletionResultKind
 open Common
 open Error
 
-exception Build_canceled of build_state
+(* The classes being built, innermost first (docs/incremental-compilation.md, §3.3). *)
+let building_classes : tclass list ref = ref []
+
+let with_class_building c f =
+	let old = !building_classes in
+	building_classes := c :: old;
+	Std.finally (fun () -> building_classes := old) f ()
+
+(* [c] needs [csup] built while [csup] is being built: every such cycle is an error. *)
+let build_cycle_error c csup p =
+	let rec take acc = function
+		| [] -> acc
+		| c' :: l -> if c' == csup then c' :: acc else take (c' :: acc) l
+	in
+	let cycle = take [] !building_classes @ [csup] in
+	raise_typing_error (Printf.sprintf "Cycle detected while building types: %s (%s needs %s, which is being built)"
+		(String.concat " -> " (List.map (fun c -> s_type_path c.cl_path) cycle))
+		(s_type_path c.cl_path)
+		(s_type_path csup.cl_path)
+	) p
 
 let is_generic_parameter ctx c =
 	(* first check field parameters, then class parameters *)
@@ -543,7 +562,6 @@ module Inheritance = struct
 
 	let set_heritance ctx c herits p =
 		let is_lib = Meta.has Meta.LibType c.cl_meta in
-		let old_meta = c.cl_meta in
 		let process_meta csup =
 			List.iter (fun m ->
 				match m with
@@ -553,14 +571,10 @@ module Inheritance = struct
 			if has_class_flag csup CFinal && not (((has_class_flag csup CExtern) && Meta.has Meta.Hack c.cl_meta) || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
 				raise_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
-		let check_cancel_build csup =
+		let check_cancel_build csup p =
 			match csup.cl_build() with
 			| Built -> ()
-			| state ->
-				(* for macros reason, our super class is not yet built - see #2177 *)
-				(* let's reset our build and delay it until we are done *)
-				c.cl_meta <- old_meta;
-				raise (Build_canceled state)
+			| _ -> build_cycle_error c csup p
 		in
 		let has_interf = ref false in
 		let herits = ExtList.List.filter_map (function
@@ -598,7 +612,7 @@ module Inheritance = struct
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
-					check_cancel_build csup;
+					check_cancel_build csup p;
 					process_meta csup;
 				)
 			end else begin match follow t with
@@ -616,7 +630,7 @@ module Inheritance = struct
 						has_interf := true;
 					end;
 					(fun () ->
-						check_cancel_build intf;
+						check_cancel_build intf p;
 						process_meta intf;
 					)
 				| TDynamic t ->
