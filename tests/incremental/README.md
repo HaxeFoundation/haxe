@@ -35,6 +35,19 @@ In CI, the suite runs on Linux as part of the `js` target of `tests/RunCi.hx`
 Targets: `interp` (`--interp`, program output is the compiler output) and `js`
 (`out/main.js`, run with node). Running the js output requires `node` in `PATH`.
 
+## Replaying a repository history
+
+`Replay.hx` compiles every commit of a range of a git repository, warm and
+cold, with the same comparison:
+
+```
+haxe replay.hxml --repo ../path/to/heaps --hxml heaps.hxml --commits 30 [--ignore-order] [--run]
+```
+
+The build file is copied into each checkout (`$DIR` is replaced with the
+checkout directory) and must write its outputs to `out/`. `--ignore-order`
+compares generated text files as sorted lines.
+
 ## Writing a case
 
 A case is a `.hxtest` file under `cases/`:

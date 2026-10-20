@@ -35,7 +35,11 @@ using StringTools;
 	  --real-mtime          keep real modification times for every case (see @real-mtime)
 **/
 class RunIncremental {
-	static var haxeCmd = "haxe";
+	public static var haxeCmd = "haxe";
+	/** Whether `compile` runs `out/main.js` with node. **/
+	public static var runProgram = true;
+	/** Compares generated text files as sorted lines (differences of order only are ignored). **/
+	public static var ignoreOrder = false;
 	static var filter:Null<String> = null;
 	static var targetFilter:Null<Array<String>> = null;
 	static var strictOrder = false;
@@ -348,7 +352,7 @@ class RunIncremental {
 		p.close();
 	}
 
-	static function compile(dir:String, port:Null<Int>, clean = true):CompileResult {
+	public static function compile(dir:String, port:Null<Int>, clean = true):CompileResult {
 		var outDir = Path.join([dir, "out"]);
 		if (clean) {
 			removeDir(outDir);
@@ -364,7 +368,7 @@ class RunIncremental {
 		var out = normalize(stdout + stderr, dir);
 		var run = "";
 		var runner = Path.join([dir, "out", "main.js"]);
-		if (code == 0 && FileSystem.exists(runner)) {
+		if (runProgram && code == 0 && FileSystem.exists(runner)) {
 			var node = new Process("node", [runner]);
 			run = node.stdout.readAll().toString() + node.stderr.readAll().toString();
 			node.exitCode();
@@ -409,7 +413,7 @@ class RunIncremental {
 		return l;
 	}
 
-	static function compare(warm:CompileResult, cold:CompileResult, warmDir:String, coldDir:String):Array<String> {
+	public static function compare(warm:CompileResult, cold:CompileResult, warmDir:String, coldDir:String):Array<String> {
 		var errors = [];
 		if (warm.code != cold.code)
 			errors.push('exit code differs: warm ${warm.code}, cold ${cold.code}');
@@ -427,8 +431,19 @@ class RunIncremental {
 				if (isText(f)) {
 					// Generated text may contain the absolute path of the project
 					// (e.g. source maps), which differs between warm and cold.
-					a = haxe.io.Bytes.ofString(a.toString().replace(warmDir, "<dir>"));
-					b = haxe.io.Bytes.ofString(b.toString().replace(coldDir, "<dir>"));
+					var sa = a.toString().replace(warmDir, "<dir>");
+					var sb = b.toString().replace(coldDir, "<dir>");
+					if (ignoreOrder) {
+						function sorted(s:String) {
+							var l = s.split("\n");
+							l.sort(Reflect.compare);
+							return l.join("\n");
+						}
+						sa = sorted(sa);
+						sb = sorted(sb);
+					}
+					a = haxe.io.Bytes.ofString(sa);
+					b = haxe.io.Bytes.ofString(sb);
 				}
 				if (a.compare(b) != 0) {
 					var detail = "";

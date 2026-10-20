@@ -214,7 +214,7 @@ Goal: be able to prove equivalence before optimizing anything.
    Haxe 6 semantics (`cases/haxe6/`) are marked `@known-failure`; the runner
    flags them as soon as they pass. Each phase adds cases for what it changes
    and removes the markers it fixes.
-4. **History replay tool** (`tests/incremental/replay/`): a Haxe harness that starts a
+4. **History replay tool** (`tests/incremental/src/Replay.hx`, in place): a Haxe harness that starts a
    server, takes a repository and a list of commits, compiles each commit
    incrementally in verification mode, and produces a report (timings,
    recomputed nodes, differences).
@@ -225,6 +225,24 @@ Goal: be able to prove equivalence before optimizing anything.
 
 Exit criterion: the harness runs in CI against the current server
 (module granularity) and reports no difference. This gives a timing baseline.
+
+**Status.** Items 3, 4 and 5 are in place (scenario suite in CI, history
+replay, VFS statistics through `server/vfs` and `-v`). Item 1 (in-compiler
+verification mode) is covered by the two external harnesses until fingerprints
+exist (phase 4); item 2 (stale pointer checker) only makes sense with grafting
+(phase 2) and is built with it.
+
+**First replay** (last 30 commits of Heaps, compiled to JS with `include` of
+`h3d`, `h2d`, `hxsl`, `hxd`, with hxbit, domkit, castle and format):
+- 29 of 30 commits produce a JS file **identical in content but not in type
+  order** between the warm server and a cold compilation; the same happens
+  with the current nightly compiler, so this is pre-existing: the output order
+  of the JS generator depends on the order in which modules are typed or
+  restored from the cache. This is the deterministic output order required by
+  the plan (§0, static initialization and output order; §3.4);
+- with `--ignore-order`, all 30 commits are identical;
+- warm compilations take 82 s in total against 181 s cold (module-level
+  caching of the current server).
 
 ---
 
