@@ -15,7 +15,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6, with a warning phase before errors. |
 | Macro context | The macro and target contexts keep **separate query graphs** (different defines, platform and standard library overrides), but **share parsing**: a parsed module is reused by the other context when the defines read during its parsing have the same values in both (phase 3.6). |
-| Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. |
+| Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. A dependency cycle between static initializers is an **error**. |
 | Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
 | Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. |
 | Positions | **Relative to an anchor** (one per field / type declaration). A field that only moved in its file is not retyped: updating its anchor fixes every position in its typed AST, cached errors, macro outputs and `haxe.PosInfos` (phase 2, item 6). |
@@ -23,6 +23,8 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Positions in inlined code | The inliner replaces positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint) and self-calling closures (relative positions included). |
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit, domkit and hide, for their heavy use of macros. |
 | Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
+| Metadata on other types | A macro adding metadata to a type other than the one it builds is allowed with a **warning**, and causes a **broad invalidation** of the target type (phase 7, item 6). |
+| Whole-program macro APIs | `Context.getAllModuleTypes()` and similar APIs are **only allowed in `program()` stages** (`onAfterTyping`, `onGenerate`); calling them during typing is an error. `Context.getModule(path)` stays allowed (it loads one specific module, a normal dependency). |
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
 | Enforcing queries | Entity contents become **abstract types** behind accessors, so that the OCaml compiler rejects any read that bypasses a query. Post-typing stages use a frozen view. |
@@ -262,9 +264,10 @@ pointers.
      post-processing data (phase 8), out of `cf_flags`.
    - `m_features`: computed per module from its post-processed AST.
    - Metadata added to a type by a macro other than that type's own build
-     macros (`Compiler.addMetadata`, `addGlobalMetadata`, `meta.add` on a type
-     obtained through `getType`): see the open question in §6; initialization
-     macros (`--macro`) are fine, their effect is part of the declared
+     macros (`Compiler.addMetadata`, `meta.add` on a type obtained through
+     `getType`): allowed with a warning and a broad invalidation of the target
+     (phase 7, item 6). Initialization macros (`--macro`, including
+     `addGlobalMetadata`) are fine: their effect is part of the declared
      metadata.
    - `@:generic` instances: attached to the `(generic, type arguments)` node
      rather than to the generic's module (removes the `m_processed = 0`
@@ -745,15 +748,24 @@ cycles are errors (§ phase 3.3).
    - **Reductions**: a `program()` stage callback that calls `gather()` and,
      for example, `defineType`s a registry type runs on every compilation,
      with early cutoff on its result.
-   - Whole-program APIs used during typing (`Context.getAllModuleTypes()`,
-     iteration over loaded modules) have the same constraint as `gather()`:
-     their result depends on what has been loaded so far, so they are only
-     allowed in `program()` stages (see §6).
+   - Whole-program APIs (`Context.getAllModuleTypes()`, iteration over loaded
+     modules) have the same constraint as `gather()`: their result depends on
+     what has been loaded so far, so calling them during typing is an error;
+     they are allowed in `program()` stages. `Context.getModule(path)` stays
+     allowed during typing: it loads one specific module (`DLookup` and
+     `declare`).
 6. **Recorded and replayed effects**: `defineType`, `defineModule`,
    `addMetadata`, `addResource`, `registerModuleDependency`, callbacks
    (`onGenerate`, `onAfterTyping`, `onTypeNotFound`), messages, and the writes
    to the declarations of item 5 are logged per expansion. When the expansion
    is green, the log is replayed instead of running the macro.
+   - **Metadata added to another type** (a type other than the one being
+     built: `Compiler.addMetadata` from an expansion, `meta.add` on a type
+     obtained through `getType`) emits `WMacroForeignMetadata`. Whenever the
+     expansion runs or is replayed, the target type's `TypeHeader` and
+     `TypeMembers` nodes are invalidated, so every consumer of the target is
+     revalidated. The order in which such metadata becomes visible is not
+     guaranteed; verification mode reports differences caused by it as such.
 7. **Volatile macros**: re-executed on every compilation. If their output (and
    effect log) has the same fingerprint, downstream stays green.
 8. **File writes are the macro's responsibility.** The compiler does not
@@ -818,8 +830,9 @@ macros.
 3. **Global passes, rewritten over per-field summaries**:
    - **Initialization order**: a graph of "static initializer or `__init__`
      of type A references type B" edges, built from summaries. Types are
-     ordered topologically (ties and cycles broken by path, a cycle being
-     reported as a warning when it involves static var initializers). This
+     ordered topologically, ties broken by path. A cycle between static var
+     initializers is an **error** showing the cycle; it must be broken
+     explicitly (lazy initialization, `__init__`). This
      order is shared by all generators: types are output in it, all `__init__`
      blocks run first in this order, then all static var initializers in this
      order.
@@ -962,14 +975,11 @@ phase 4 `Decls` fingerprints and happens in phase 6.
 - **Static initialization order** changes compared with the current compiler
   (dependency order, `__init__` first): a behavior change to document and to
   test on the corpus.
-- **Open question: metadata and effects applied to other types.** A macro that
-  adds metadata to a type other than the one it builds (`Compiler.addMetadata`
-  from an expansion, `meta.add` on a type obtained through `getType`) makes
-  that type's metadata depend on which expansions ran: it is neither declared
-  metadata nor output of the type's own build.
-- **Open question: whole-program macro APIs during typing**
-  (`Context.getAllModuleTypes()`, `Context.getModule` on not-yet-loaded
-  modules): proposed to be restricted to `program()` stages.
+- **Metadata added to other types** stays order-dependent (allowed with a
+  warning and broad invalidation): to be measured on the corpus; frequent uses
+  may call for a dedicated mechanism later.
+- **Static initialization cycles** become errors: existing code with circular
+  static initializers must be fixed.
 - **Deterministic HL format**: a visible change for tools reading bytecode
   (debugger, profiler), to be validated with them.
 
@@ -990,7 +1000,9 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   expansions), `@:persistent` freezing, each `haxe.macro.State` declaration,
   metadata reads with and without `Context.buildType`.
 - Static initialization order tests (dependency order, `__init__` first,
-  cycles).
+  cycle errors).
+- Macro API restriction tests: `getAllModuleTypes` during typing (error) and in
+  `program()` stages, metadata added to other types (warning, invalidation).
 - Parse sharing tests between the macro and target contexts (`#if macro`,
   defines with different values).
 - Unit tests for the hasher and grafting (old ↔ new mapping, remapping, stale
