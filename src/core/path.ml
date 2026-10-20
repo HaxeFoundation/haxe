@@ -61,6 +61,10 @@ let parse_type_path s =
 	check_uppercase name;
 	pack,name
 
+(* Provides the current directory; replaced by the virtual file system, which
+   tracks it without a system call per query. *)
+let getcwd = ref Unix.getcwd
+
 let path_regex = Str.regexp "[/\\]+"
 let normalize_path path =
 	let rec normalize acc m =
@@ -144,8 +148,8 @@ let get_full_path =
 			in
 			let absolute_path =
 				if length > 0 && String.unsafe_get f 0 = '/' then f
-				else if length = 0 then Unix.getcwd()
-				else (Unix.getcwd()) ^ "/" ^ f
+				else if length = 0 then !getcwd ()
+				else (!getcwd ()) ^ "/" ^ f
 			in
 			let has_trailing_slash =
 				length > 0 && String.unsafe_get f (length - 1) = '/'

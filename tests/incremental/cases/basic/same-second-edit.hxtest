@@ -1,8 +1,7 @@
 # Two edits of the same file within one second. The server compares
 # modification times with a one second precision (`sys_filetime`,
-# libs/extc/extc_stubs.c), so the second edit is not detected.
+# libs/extc/extc_stubs.c); fixed by the virtual file system.
 @real-mtime
-@known-failure modification times are compared with a one second precision
 === initial
 @expect-output value 1
 --- Main.hx

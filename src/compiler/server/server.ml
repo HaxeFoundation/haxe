@@ -173,11 +173,13 @@ let create_request_scope ~is_server io display_arg =
 
 let process sctx request_scope request_args =
 	let t0 = Extc.time() in
-	let curdir = Unix.getcwd () in
+	let curdir = Vfs.getcwd () in
 	ServerMessage.arguments (Args.string_of_request_args request_args);
 	ServerCompilationContext.reset sctx;
-	Option.may (fun dir -> try Unix.chdir dir with _ -> ()) sctx.persistent_cwd;
-	ignore (Std.finally (fun () -> Unix.chdir curdir) (HighLevel.entry sctx request_scope) request_args);
+	Vfs.reset_stats ();
+	Vfs.begin_compilation ();
+	Option.may (fun dir -> try Vfs.chdir dir with _ -> ()) sctx.persistent_cwd;
+	ignore (Std.finally (fun () -> Vfs.chdir curdir) (HighLevel.entry sctx request_scope) request_args);
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
@@ -355,6 +357,12 @@ let setup_server_context verbose is_server =
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop verbose accept =
+	(* The server keeps file system information across compilations, kept up to
+	   date by a watcher. HAXE_VFS=uncached disables it (every compilation reads
+	   the file system again). *)
+	Vfs.mode := (match Sys.getenv_opt "HAXE_VFS" with
+		| Some "uncached" -> Vfs.Uncached
+		| _ -> Vfs.Watched);
 	let sctx = setup_server_context verbose true in
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx rq in

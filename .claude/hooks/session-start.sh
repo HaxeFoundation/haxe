@@ -1,8 +1,8 @@
 #!/bin/bash
 # Prepares a Claude Code cloud session for working on the Haxe compiler:
 # OCaml toolchain and libraries (opam), the compiler build, and the tools
-# used by tests/incremental and tests/unit (haxelib with utest; node is
-# preinstalled in cloud containers).
+# used by tests/incremental, tests/unit and tests/server (haxelib and its
+# libraries; node and java are preinstalled in cloud containers).
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
@@ -52,9 +52,18 @@ export HAXE_STD_PATH="$CLAUDE_PROJECT_DIR/std"
 HAXELIB_REPO="$HOME/haxelib"
 mkdir -p "$HAXELIB_REPO"
 ./haxelib setup "$HAXELIB_REPO" >/dev/null
-if ! ./haxelib path utest >/dev/null 2>&1; then
-	./haxelib git utest https://github.com/haxe-utest/utest >/dev/null
-fi
+# Libraries for tests/unit (utest) and tests/server (haxeserver, hxcoro,
+# hxnodejs, hxjava), installed from git as in tests/runci.
+install_git_lib() {
+	if ! ./haxelib path "$1" >/dev/null 2>&1; then
+		./haxelib git "$1" "$2" ${3:-} >/dev/null
+	fi
+}
+install_git_lib utest https://github.com/haxe-utest/utest
+install_git_lib haxeserver https://github.com/Simn/haxeserver
+install_git_lib hxcoro https://github.com/HaxeFoundation/hxcoro master
+install_git_lib hxnodejs https://github.com/HaxeFoundation/hxnodejs
+install_git_lib hxjava https://github.com/HaxeFoundation/hxjava
 
 # Make the OCaml environment and the freshly built compiler available to the
 # session's shell commands.

@@ -405,7 +405,7 @@ let process_args (com : Common.context) =
 			(* Re-apply chdir: process_params applies it eagerly for hxml resolution,
 			   but entry restores the original cwd before execute_ctx, so we must
 			   re-apply here to compile in the right directory. *)
-			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
+			(try Vfs.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			actx.did_something <- true
 		| HxmlFile _ ->
 			(* hxml files should have been expanded before reaching process_args *)
@@ -578,7 +578,7 @@ let expand_args args =
 			each := List.rev current;
 			loop [] rest
 		| Cwd dir :: rest ->
-			(try Unix.chdir dir with _ -> ());
+			(try Vfs.chdir dir with _ -> ());
 			loop (Cwd dir :: current) rest
 		| Connect hp :: rest ->
 			connect_arg := Some hp;
@@ -601,7 +601,7 @@ let expand_args args =
 			let libs, rest = find_subsequent_libs [name] rest in
 			let ex = {
 				original = List.map (fun name -> AddLib name) libs;
-				state = NotYetExpanded (AddLibs (libs, Unix.getcwd ()))
+				state = NotYetExpanded (AddLibs (libs, Vfs.getcwd ()))
 			} in
 			loop (Expand ex :: current) rest
 		| HxmlFile path :: rest ->
@@ -633,8 +633,8 @@ let expand_args args =
 	}
 
 let expand_args args =
-	let curdir = Unix.getcwd () in
-	Std.finally (fun () -> Unix.chdir curdir) expand_args args
+	let curdir = Vfs.getcwd () in
+	Std.finally (fun () -> Vfs.chdir curdir) expand_args args
 
 let string_of_request_args (req : request_args) : string =
 	let quote s =

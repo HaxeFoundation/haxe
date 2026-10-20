@@ -32,6 +32,7 @@ using StringTools;
 	  --keep                keep the work directories
 	  --verbose             print every compilation
 	  --show-known          print the errors of known failures
+	  --real-mtime          keep real modification times for every case (see @real-mtime)
 **/
 class RunIncremental {
 	static var haxeCmd = "haxe";
@@ -42,6 +43,7 @@ class RunIncremental {
 	static var keep = false;
 	static var verbose = false;
 	static var showKnown = false;
+	static var realMtime = false;
 	static var root:String;
 	/** Fake clock for modification times, see `touchStep`. **/
 	static var clock:Float = Math.ffloor(Date.now().getTime() / 1000) + 10;
@@ -68,6 +70,8 @@ class RunIncremental {
 					verbose = true;
 				case "--show-known":
 					showKnown = true;
+				case "--real-mtime":
+					realMtime = true;
 				case other:
 					Sys.println('Unknown option $other');
 					Sys.exit(2);
@@ -185,7 +189,7 @@ class RunIncremental {
 				clock += 2;
 				for (dir in [warmDir, coldDir]) {
 					changed = applyOps(dir, step, tc, target);
-					if (!tc.realMtime)
+					if (!tc.realMtime && !realMtime)
 						touchStep(dir, changed);
 				}
 				if (invalidate) {

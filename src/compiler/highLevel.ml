@@ -78,7 +78,7 @@ let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope 
 	com
 
 let entry sctx request_scope (request_args : Args.request_args) =
-	let curdir = Unix.getcwd () in
+	let curdir = Vfs.getcwd () in
 	let has_display = request_args.display_arg <> None in
 	let rec loop = function
 		| [] ->
@@ -86,12 +86,12 @@ let entry sctx request_scope (request_args : Args.request_args) =
 		| part :: rest ->
 			let com = create_context_from_part sctx request_scope has_display (rest <> []) part in
 			let code = Compiler.compile_ctx sctx com in
-			Unix.chdir curdir;
+			Vfs.chdir curdir;
 			if code = 0 && rest <> [] && not has_display then
 				loop rest
 			else
 				code
 	in
 	let code = loop request_args.parts in
-	Unix.chdir curdir;
+	Vfs.chdir curdir;
 	code

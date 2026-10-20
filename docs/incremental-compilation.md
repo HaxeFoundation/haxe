@@ -776,6 +776,45 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
 
 #### Virtual file system
 
+**Status (first version, `src/core/vfs.ml`).** Implemented:
+- server-wide cache of file information (kind, full precision modification
+  time, size) and sorted directory listings, keyed by absolute paths;
+- libuv `fs_event` watchers on every directory the compiler reads, started at
+  the beginning of the next compilation (libuv is used from the compilation
+  thread only); entries read before their directory was watched are re-read
+  once the watch is active; directories that cannot be watched are
+  revalidated on every compilation;
+- events applied at the start of each compilation (`Vfs.begin_compilation`),
+  then a stable view; `server/invalidate` also invalidates the VFS;
+- the current directory tracked by the VFS (`Vfs.chdir`, used by every
+  directory change of the compiler and of the eval `Sys.setCwd`), so that
+  relative paths do not cost a `getcwd`;
+- users: `file_time` (module and parse cache times, now with full precision),
+  class path directory listings and absolute path lookups;
+- module checks in the server re-resolve the module path through the class
+  paths (`check_module_resolution` in `serverCache.ml`) instead of looking for
+  shadowing files in changed directories: this detects files shadowing a
+  module from a class path with a higher priority and new platform-specific
+  files;
+- `File system calls (VFS)` in the server statistics (`-v`), and
+  `HAXE_VFS_TRACE=1` to log every call; `HAXE_VFS=uncached` disables caching
+  across compilations.
+
+Results: the four change detection bugs of the current server reproduced by
+`tests/incremental` are fixed (edits within the same second, two shadowing
+cases, platform-specific file), and the whole suite passes with real
+modification times (`--real-mtime`). On a small project, compilations
+without changes make **0** file system calls from the fourth compilation on
+(the first ones re-read entries as watches start). `tests/unit` and
+`tests/server` pass.
+
+Not done yet: overlays, write-through for files written by the compiler and
+by macros, the eval file API served by the VFS, content hashes, a resolution
+index kept across compilations (class path lookup caches are still rebuilt per
+compilation, on top of VFS listings), the remaining direct file system
+accesses (display, native libraries, hxb), and a check of the system call
+count in `tests/incremental`.
+
 Today, every compilation creates new class path objects, so the directory
 listings (`readdir_cache` in `src/core/classPath.ml`) and resolved paths
 (`file_lookup_cache` in `src/core/classPaths.ml`) are rebuilt with `readdir`

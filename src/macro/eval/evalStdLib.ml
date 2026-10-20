@@ -2818,7 +2818,7 @@ module StdSys = struct
 	)
 
 	let setCwd = vfun1 (fun s ->
-		catch_unix_error Unix.chdir (decode_string s);
+		catch_unix_error Vfs.chdir (decode_string s);
 		vnull
 	)
 

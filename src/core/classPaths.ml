@@ -137,7 +137,7 @@ class class_paths = object(self)
 			file_lookup_cache#find f
 		with
 		| Not_found when Path.is_absolute_path f ->
-			let r = if Sys.file_exists f then
+			let r = if Vfs.exists f then
 				Some (create_resolved_file f absolute_class_path, SpecificityNormal)
 			else
 				None

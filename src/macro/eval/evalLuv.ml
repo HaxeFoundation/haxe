@@ -2213,7 +2213,10 @@ let path_fields = [
 		encode_result vnative_string (Path.cwd())
 	);
 	"chdir", vfun1 (fun v ->
-		encode_unit_result (Path.chdir (decode_native_string v))
+		let dir = decode_native_string v in
+		let result = Path.chdir dir in
+		Vfs.forget_cwd ();
+		encode_unit_result result
 	);
 	"homedir", vfun0 (fun() ->
 		encode_result vnative_string (Path.homedir())

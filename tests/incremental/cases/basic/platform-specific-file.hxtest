@@ -1,7 +1,6 @@
 # A platform-specific file (Name.js.hx / Name.macro.hx style) appears next to
 # the generic one and takes precedence for that platform.
 @targets js
-@known-failure the server does not detect a new platform-specific file next to an already loaded module
 === initial
 @expect-output generic
 --- Main.hx

@@ -1,6 +1,5 @@
 # A new file in a class path with higher priority shadows an existing type.
 # Unlike shadowing.hxtest, the high priority directory exists from the start.
-@known-failure the server does not detect a new file shadowing an already loaded type from a higher priority class path
 @args -cp low -cp high
 === initial
 @expect-output low

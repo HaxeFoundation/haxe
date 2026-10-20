@@ -56,7 +56,9 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 open ServerCompilationContext
 
 let stat dir =
-	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
+	match Vfs.stat (Path.remove_trailing_slash dir) with
+	| { Vfs.kind = Vfs.Missing } -> raise (Unix.Unix_error (Unix.ENOENT,"stat",dir))
+	| info -> info.Vfs.mtime
 
 (* Gets a list of changed directories for the current compilation. *)
 let get_changed_directories sctx com =
@@ -160,6 +162,26 @@ let check_module sctx com m_path m_extra p =
 			end
 		) paths
 	in
+	(* The module's path must still resolve to the module's file: a new file in a
+	   class path with a higher priority, or a more specific file (`Foo.js.hx`
+	   next to `Foo.hx`), shadows it. Resolution goes through the virtual file
+	   system, so this makes no system call for known directories. *)
+	let check_module_resolution com m_path m_extra =
+		match m_path with
+		| _,name when String.length name > 0 && name.[0] = '_' ->
+			(* Private module paths (e.g. `_Foo`) are not resolved from files. *)
+			()
+		| _ ->
+			try
+				let rfile = TypeloadParse.resolve_module_file com m_path (ref []) p in
+				let key = com.part_scope.file_keys#get rfile.ClassPaths.file in
+				if key <> Path.UniqueKey.lazy_key m_extra.m_file then begin
+					ServerMessage.module_path_changed com "" (m_path,m_extra,file_time rfile.file,rfile.file);
+					raise (Dirty (Shadowed rfile.file))
+				end
+			with Not_found ->
+				()
+	in
 	let start_mark = sctx.compilation_step in
 	let unknown_state_modules = ref [] in
 	let rec check m_path m_extra =
@@ -186,15 +208,15 @@ let check_module sctx com m_path m_extra p =
 				in
 				loop com.load_extern_type
 			| MCode ->
-				check_module_shadowing directories m_path m_extra
+				check_module_resolution com m_path m_extra
 			| MMacro when com.is_macro_context ->
-				check_module_shadowing directories m_path m_extra
+				check_module_resolution com m_path m_extra
 			| MMacro ->
 				begin match com.get_macros() with
 					| None ->
 						()
 					| Some mcom ->
-						check_module_shadowing (get_changed_directories sctx mcom) m_path m_extra
+						check_module_resolution mcom m_path m_extra
 				end
 		in
 		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with

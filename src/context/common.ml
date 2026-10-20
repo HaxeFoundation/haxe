@@ -952,7 +952,7 @@ let clone com is_macro_context =
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
 
-let file_time file = Extc.filetime file
+let file_time file = Vfs.mtime file
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in

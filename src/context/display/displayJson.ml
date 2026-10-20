@@ -528,6 +528,7 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
+			Vfs.invalidate file;
 			let fkey = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey ServerInvalidate;

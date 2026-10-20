@@ -454,7 +454,7 @@ let generate_source ctx =
    if ( not (Gctx.defined common_ctx Define.NoCompilation) ) then begin
       Timer.time common_ctx.timer_ctx ["generate";"cpp";"native compilation"] (fun () ->
 		let old_dir = Sys.getcwd() in
-		Sys.chdir common_ctx.file;
+		Vfs.chdir common_ctx.file;
 		let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
 		if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
 		PMap.iter ( fun name value -> match name with
@@ -467,7 +467,7 @@ let generate_source ctx =
 		);
 		CompilerIo.write_out common_ctx.io ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
 		if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
-		Sys.chdir old_dir;
+		Vfs.chdir old_dir;
 	  ) ()
    end
 

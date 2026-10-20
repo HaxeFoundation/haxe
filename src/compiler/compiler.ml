@@ -53,7 +53,7 @@ let run_command com cmd =
 	let len = String.length cmd in
 	let result =
 		if len > 3 && String.sub cmd 0 3 = "cd " then begin
-			Sys.chdir (String.sub cmd 3 (len - 3));
+			Vfs.chdir (String.sub cmd 3 (len - 3));
 			0
 		end else if not com.sctx.is_server then
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
