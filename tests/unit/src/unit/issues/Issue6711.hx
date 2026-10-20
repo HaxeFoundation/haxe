@@ -18,7 +18,7 @@ class Issue6711 extends unit.Test {
 		return new V2(0, 1);
 	}
 
-	inline static public function iteration(func) {
+	inline static public function iteration(func:() -> Void) {
 		func();
 		func();
 		func();

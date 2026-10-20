@@ -3,5 +3,5 @@ class Main {
 		foo(12);
 	}
 
-	inline static function foo( b ) { foo(b); }
+	inline static function foo( b : Int ) { foo(b); }
 }

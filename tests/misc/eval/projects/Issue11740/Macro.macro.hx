@@ -1,7 +1,7 @@
 import haxe.macro.Context;
 
 class Macro {
-	public static function build() {
+	public static function build():Array<haxe.macro.Expr.Field> {
 		trace("build FooData");
 
 		Context.defineType({

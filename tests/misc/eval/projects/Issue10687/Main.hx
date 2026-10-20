@@ -2,7 +2,7 @@ class Main {
 	var foo = new Foo();
 	var fooExtern = new Foo();
 	var fooAb = new FooExtern();
-	var vector = new haxe.ds.Vector(1);
+	var vector:haxe.ds.Vector<Int> = new haxe.ds.Vector(1);
 	var vector2 = new haxe.ds.Vector(1, 0);
 	static function main() {}
 }

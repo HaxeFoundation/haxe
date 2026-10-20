@@ -5,7 +5,7 @@ import haxe.display.Protocol;
 class Issue12807 extends TestCase {
 	static final BUILD_MACRO = "
 		class BuildMacro {
-			public static function build() return null;
+			public static function build():Array<haxe.macro.Expr.Field> return null;
 		}
 	";
 

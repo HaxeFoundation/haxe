@@ -6,7 +6,7 @@ class Issue10018 extends unit.Test {
 	}
 
 	@:pure(false)
-	function rest(?arg, ...args:Int):Int {
+	function rest(?arg:Dynamic, ...args:Int):Int {
 		return args.length;
 	}
 }

@@ -8,8 +8,8 @@ using haxe.io.Path;
 class Php {
 	static final windowsPhpIni = cwd + 'PHP.ini';
 
-	static var windowsPhpExtPath(get, null) = null;
-	static function get_windowsPhpExtPath() {
+	static var windowsPhpExtPath(get, null):Null<String> = null;
+	static function get_windowsPhpExtPath():Null<String> {
 		if (windowsPhpExtPath != null)
 			return windowsPhpExtPath;
 

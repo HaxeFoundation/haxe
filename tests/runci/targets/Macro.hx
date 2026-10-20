@@ -54,6 +54,9 @@ class Macro {
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
 		runCommand("haxelib", ["dev", "tink_core", "."]);
+		for (lib in ["tink_macro", "tink_unittest", "deep_equal"])
+			patchLibrary(lib);
+		patchLibrary("tink_core", ".");
 		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 
 		changeDirectory(partyDir);
@@ -61,6 +64,7 @@ class Macro {
 		changeDirectory("hxcoro");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);
+		patchLibrary("utest");
 		runCommand("haxelib", ["dev", "hxcoro", "."]);
 		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml"]);
 		runCommand("haxe", ["--cwd", "tests", "build-eval.hxml", "--hxb", "bin/test.hxb"]);

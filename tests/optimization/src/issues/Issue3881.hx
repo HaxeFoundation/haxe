@@ -24,5 +24,5 @@ class Issue3881 {
         call(plusFoo(a));
 	}
 
-	@:pure(false) static function call(d) { }
+	@:pure(false) static function call(d:Dynamic) { }
 }

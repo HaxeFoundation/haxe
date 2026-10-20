@@ -7,7 +7,7 @@ typedef Measurable = {
 
 private abstract A<T>(Int) {
 	public function new(i) this = i;
-	@:from static public inline function fromT<T:Measurable>(t:T) {
+	@:from static public inline function fromT<T:Measurable>(t:T):A<T> {
 		return new A(t.length);
 	}
 

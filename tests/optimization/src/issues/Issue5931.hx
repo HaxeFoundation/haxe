@@ -1,7 +1,7 @@
 package issues;
 
 class Issue5931 {
-	inline function something(arg:Int, func) {
+	inline function something(arg:Int, func:Int->Void) {
 		var func1 = func;
 		func1(arg);
 	}

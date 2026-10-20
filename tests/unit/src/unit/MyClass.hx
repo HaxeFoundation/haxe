@@ -122,7 +122,7 @@ class InitBase {
 class InitChild extends InitBase { }
 
 class InitChildWithCtor extends InitBase {
-	public function new(_) {
+	public function new(_:Dynamic) {
 		super();
 	}
 }

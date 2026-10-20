@@ -109,7 +109,7 @@ class Issue1827 extends Test {
 		return 0;
 	}
 
-	extern static inline function callInline(i1:Int, _) {
+	extern static inline function callInline(i1:Int, _:Dynamic) {
 		return i1;
 	}
 }

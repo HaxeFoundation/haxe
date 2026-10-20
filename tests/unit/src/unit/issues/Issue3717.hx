@@ -25,7 +25,7 @@ class Issue3717 extends unit.Test {
 
 @:forward
 private abstract Metric (MetricCore) from MetricCore to MetricCore {
-	@:from static function fromFloat(v:Float) {
+	@:from static function fromFloat(v:Float):Metric {
 		var m = new MetricCore();
 		m.dip = v;
 		return cast m;

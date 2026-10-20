@@ -10,5 +10,5 @@ class Issue7187 extends unit.Test {
 		return f(5);
 	}
 
-	@:pure(false) static function whatever(x) { }
+	@:pure(false) static function whatever(x:Dynamic) { }
 }

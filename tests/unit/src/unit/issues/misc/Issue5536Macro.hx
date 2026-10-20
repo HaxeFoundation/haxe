@@ -3,7 +3,7 @@ package unit.issues.misc;
 import haxe.macro.Expr;
 
 class Issue5536Macro {
-	static var built = [];
+	static var built:Array<String> = [];
 
 	static macro function build():Array<Field> {
 		built.push(haxe.macro.Context.getLocalClass().toString());

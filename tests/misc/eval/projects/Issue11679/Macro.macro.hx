@@ -1,6 +1,6 @@
 import haxe.macro.Context;
 
-function build() {
+function build():Array<haxe.macro.Expr.Field> {
 	switch (Context.getLocalClass().get().name) {
 		case "Foo":
 			switch Context.getType("Bar") {

@@ -1,0 +1,69 @@
+diff --git a/src/tink/core/Callback.hx b/src/tink/core/Callback.hx
+index 8599b0e..eff0495 100644
+--- a/src/tink/core/Callback.hx
++++ b/src/tink/core/Callback.hx
+@@ -204,7 +204,7 @@ class CallbackList<T> extends SimpleDisposable {
+       return used;
+ 
+   var used:Int = 0;
+-  var queue = [];
++  var queue:Array<Void->Void> = [];
+ 
+   public var busy(default, null):Bool = false;
+ 
+diff --git a/src/tink/core/Progress.hx b/src/tink/core/Progress.hx
+index c283f84..48ccfc2 100644
+--- a/src/tink/core/Progress.hx
++++ b/src/tink/core/Progress.hx
+@@ -63,14 +63,14 @@ abstract Progress<T>(ProgressObject<T>) from ProgressObject<T> {
+       v.handle(p -> inner.link = p.changed.handle(fire)) & inner;
+     });
+ 
+-  public inline function next(f) {
++  public inline function next<R>(f:tink.core.Promise.Next<T, R>):Promise<R> {
+     return asFuture().next(f);
+   }
+ }
+ 
+ private class SuspendableProgress<T> extends ProgressObject<T> {
+ 
+-  function noop(_, _b) return null;
++  function noop(_:Dynamic, _b:Dynamic):Dynamic return null;
+   public function new(wakeup:(fire:ProgressStatus<T>->Void)->CallbackLink, ?status) {
+     if (status == null)
+       status = InProgress(ProgressValue.ZERO);
+@@ -123,7 +123,7 @@ private class ProgressObject<T> {
+ final class ProgressTrigger<T> extends ProgressObject<T> {
+ 
+   var _status:ProgressStatus<T>;
+-  var _changed = null;
++  var _changed:Null<SignalTrigger<ProgressStatus<T>>> = null;
+ 
+   public function new(?status) {
+     if (status == null)
+diff --git a/src/tink/core/Signal.hx b/src/tink/core/Signal.hx
+index 76a8947..8d0c888 100644
+--- a/src/tink/core/Signal.hx
++++ b/src/tink/core/Signal.hx
+@@ -129,7 +129,7 @@ abstract Signal<T>(SignalObject<T>) from SignalObject<T> {
+    * An alternative to `new Signal()` if you have no `CallbackLink` to return.
+    * Other than that, it behaves exactly the same.
+    */
+-  static public function generate<T>(generator:(T->Void)->Void, ?init):Signal<T> {
++  static public function generate<T>(generator:(T->Void)->Void, ?init:Dynamic):Signal<T> {
+     var create:Null<(T->Void)->Void> = generator;
+     return new Signal<T>(fire -> switch create {
+       case null: null;
+diff --git a/tests/Annexes.hx b/tests/Annexes.hx
+index 0f78a16..83967fa 100644
+--- a/tests/Annexes.hx
++++ b/tests/Annexes.hx
+@@ -6,7 +6,7 @@ using tink.CoreApi;
+ 
+ @:asserts
+ class Annexes extends Base {
+-  public function testAll() {
++  public function testAll():tink.testrunner.Assertion {
+     final car = new Car();
+     return assert(car.parts.get(Engine) == car.parts.get(Engine));
+   }

@@ -9,6 +9,6 @@ class Issue352 extends Test {
 		foo( haxe.io.Float32Array.fromBytes(haxe.io.Bytes.ofData(data)) );
 	}
 
-	static function foo(d) { }
+	static function foo(d:Dynamic) { }
 	#end
 }

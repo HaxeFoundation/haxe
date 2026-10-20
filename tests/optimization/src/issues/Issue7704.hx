@@ -21,5 +21,5 @@ class Issue7704 {
 		use(a);
 	}
 
-	@:pure(false) static function use(a) { }
+	@:pure(false) static function use(a:Dynamic) { }
 }

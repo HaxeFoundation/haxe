@@ -1,3 +1,4 @@
+MainFoo.hx:6: characters 18-21 : The type of foo is not fully inferred (() -> Null<Unknown<0>>), add a type annotation
 MainFoo.hx:6: characters 18-21 : Field foo has different type than in Foo
 MainFoo.hx:2: characters 11-14 : ... Interface field is defined here
 MainFoo.hx:6: characters 18-21 : ... error: Null<Unknown<0>> should be foo.T

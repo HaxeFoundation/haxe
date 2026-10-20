@@ -9,7 +9,7 @@ class Macro {
 		Context.onAfterGenerate(afterGenerate);
 	}
 
-	static function afterTyping(_) {
+	static function afterTyping(_:Array<haxe.macro.Type.ModuleType>) {
 		var nbMessages = Context.getMessages().length;
 		Context.filterMessages(_ -> false);
 		Context.warning('There were $nbMessages messages on after typing', Context.currentPos());

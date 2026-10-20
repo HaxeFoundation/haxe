@@ -1,6 +1,5 @@
 # Plan phase 3.3: mutually recursive fields without annotations are an error;
 # a field referring to itself stays allowed.
-@known-failure Haxe 6 semantics (plan phase 3.3)
 === initial
 @expect-error annotation
 --- Main.hx

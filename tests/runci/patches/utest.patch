@@ -1,0 +1,39 @@
+diff --git a/src/utest/ui/text/HtmlReport.hx b/src/utest/ui/text/HtmlReport.hx
+index c43775d..6d96fbd 100644
+--- a/src/utest/ui/text/HtmlReport.hx
++++ b/src/utest/ui/text/HtmlReport.hx
+@@ -83,7 +83,7 @@ class HtmlReport implements IReport<HtmlReport> {
+   }
+ 
+   var startTime : Float;
+-  function start(e)
++  function start(e:Runner)
+     startTime = Timer.stamp();
+ 
+   function cls(stats : ResultStats) {
+diff --git a/src/utest/ui/text/PlainTextReport.hx b/src/utest/ui/text/PlainTextReport.hx
+index 81c90c1..a35909d 100644
+--- a/src/utest/ui/text/PlainTextReport.hx
++++ b/src/utest/ui/text/PlainTextReport.hx
+@@ -32,7 +32,7 @@ class PlainTextReport implements IReport<PlainTextReport> {
+     this.handler = handler;
+ 
+   var startTime : Float;
+-  function start(e) {
++  function start(e:Runner) {
+     startTime = getTime();
+   }
+ 
+diff --git a/src/utest/utils/TestBuilder.hx b/src/utest/utils/TestBuilder.hx
+index 26e0a27..58592a5 100644
+--- a/src/utest/utils/TestBuilder.hx
++++ b/src/utest/utils/TestBuilder.hx
+@@ -343,7 +343,7 @@ class TestBuilder {
+ 		return ancestorHasInitializeUtest(superClass);
+ 	}
+ 
+-	static function prepareSpec(expr:Expr) {
++	static function prepareSpec(expr:Expr):Expr {
+ 		return switch(expr.expr) {
+ 			case EBinop(op, left, right):
+ 				parseSpecBinop(expr, op, left, right);

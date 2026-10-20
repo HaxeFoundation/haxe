@@ -14,7 +14,7 @@ class Macro {
 
 		if (!hasMacros)
 			fields = (macro class A {
-				public static var macros = [];
+				public static var macros:Array<String> = [];
 			}).fields.concat(fields);
 
 		var id = '_' + id++;

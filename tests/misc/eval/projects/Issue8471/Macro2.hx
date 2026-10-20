@@ -8,7 +8,7 @@ class Macro2 {
 		Context.onAfterTyping(afterTyping);
 	}
 
-	static function afterTyping(_) {
+	static function afterTyping(_:Array<haxe.macro.Type.ModuleType>) {
 		Context.info("Info", Context.currentPos());
 		Context.warning(("1" :DeprecatedType), Context.currentPos());
 		Context.warning("2", Context.currentPos());

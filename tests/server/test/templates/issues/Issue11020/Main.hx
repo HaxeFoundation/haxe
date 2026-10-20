@@ -5,7 +5,7 @@ class Main {
 }
 
 #if macro
-function error() {
+function error():Array<haxe.macro.Expr.Field> {
 	var fields = haxe.macro.Context.getBuildFields();
 	haxe.macro.Context.info("Context.info", fields[0].pos);
 	haxe.macro.Context.warning("Context.warning", fields[0].pos);

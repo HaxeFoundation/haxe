@@ -26,7 +26,7 @@ class Issue9617 {
 		}
 	}
 
-	@:pure(false) static function process(e) {
+	@:pure(false) static function process<T>(e:T):T {
 		return e;
 	}
 

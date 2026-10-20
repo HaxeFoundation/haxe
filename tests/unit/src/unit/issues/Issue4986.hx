@@ -9,5 +9,5 @@ class Issue4986 extends Test {
 		noAssert();
 	}
 
-	function foo(_) {}
+	function foo(_:Dynamic) {}
 }

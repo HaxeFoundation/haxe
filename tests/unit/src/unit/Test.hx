@@ -43,7 +43,7 @@ class Test implements utest.ITest {
 		Assert.raises(f, /* type */ null, pos);
 	}
 
-	function unspec( f : () -> Void, ?pos ) {
+	function unspec( f : () -> Void, ?pos : haxe.PosInfos ) {
 		try {
 			f();
 		} catch( e : Dynamic ) {

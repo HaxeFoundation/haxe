@@ -12,5 +12,5 @@ class Issue5073 extends Test {
 		noAssert();
 	}
 
-	static function pretendToRun(_) { }
+	static function pretendToRun(_:Dynamic) { }
 }

@@ -10,7 +10,7 @@ private class Data<T> {
 }
 
 private class ExtensionA {
-	public static function defaultUsing<D>(d:D) {
+	public static function defaultUsing<D>(d:D):Dynamic {
 		return null;
 	}
 }

@@ -25,7 +25,7 @@ class Issue6972 extends unit.Test {
 
 	function f1(x:Int) f(n(x));
 	function f2(x:Null<Int>) t(n(x));
-	function f3(x = null) t(n(x));
+	function f3(x:Null<Dynamic> = null) t(n(x));
 	function f4(x = 1) f(n(x));
 	function f5(x:Int = null) t(n(x));
 	function f6(x:Int = 1) f(n(x));
@@ -34,7 +34,7 @@ class Issue6972 extends unit.Test {
 
 	function f11(?x:Int) t(n(x));
 	function f12(?x:Null<Int>) t(n(x));
-	function f13(?x = null) t(n(x));
+	function f13(?x:Null<Dynamic> = null) t(n(x));
 	function f14(?x = 1) t(n(x));
 	function f15(?x:Int = null) t(n(x));
 	function f16(?x:Int = 1) t(n(x));

@@ -4,7 +4,7 @@ import haxe.macro.Context;
 
 class BuildMacro {
 	#if macro
-	static var builtTypes = [];
+	static var builtTypes:Array<String> = [];
 	#end
 
 	static public function build():Array<haxe.macro.Expr.Field> {

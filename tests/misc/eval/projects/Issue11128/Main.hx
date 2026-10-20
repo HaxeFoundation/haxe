@@ -22,7 +22,7 @@ function setupHxTestTarget() {
 }
 
 // Ensure custom target can be detected.
-function printTargetName(phase) {
+function printTargetName(phase:String) {
 	Sys.println('[$phase] Target name: ' + (switch(Compiler.getConfiguration().platform) {
 		case CustomTarget(name): name;
 		case _: "Not custom target";

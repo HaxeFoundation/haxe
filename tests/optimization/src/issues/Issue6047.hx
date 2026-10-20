@@ -19,5 +19,5 @@ class Issue6047 {
 		call(r2);
 	}
 
-	@:pure(false) static function call(d) { }
+	@:pure(false) static function call(d:Dynamic) { }
 }

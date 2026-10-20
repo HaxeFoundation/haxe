@@ -26,7 +26,7 @@ private interface IReactContext<T> {
 }
 
 private class Context<T> implements IReactContext<T> {
-	public var Consumer = null;
+	public var Consumer:ReactContext<T> = null;
 
 	public function new() {}
 }

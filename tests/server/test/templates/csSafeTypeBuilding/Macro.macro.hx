@@ -4,7 +4,7 @@ import haxe.macro.Type;
 import haxe.macro.TypeTools;
 
 class Macro {
-	public static function logBuild() {
+	public static function logBuild():Array<haxe.macro.Expr.Field> {
 		Sys.println('Building ${Context.getLocalClass().toString()}.');
 		return null;
 	}

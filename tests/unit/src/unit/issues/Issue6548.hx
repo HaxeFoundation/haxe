@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue6548 extends unit.Test {
 
-	static function obj(_) return { pos: 12 };
+	static function obj(_:Dynamic) return { pos: 12 };
 
 	function test() {
 		switch 1 {

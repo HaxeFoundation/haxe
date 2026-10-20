@@ -7,7 +7,7 @@ typedef FutureAlias<T> = Future<T>;
 
 class Main {
   static function main() req([1, '{"baz":"baz"}']);
-  static public function req(?arr, ?body:Source) {}
+  static public function req(?arr:Array<Int>, ?body:Source) {}
 }
 
 abstract Source(Int) from Int to Int {

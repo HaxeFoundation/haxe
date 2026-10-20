@@ -6,9 +6,9 @@ abstract Vector<T>(Array<T>) {
 		return new Vector<T>();
 	}
 
-	@:to static function toIntVector(t:Array<Int>)
+	@:to static function toIntVector(t:Array<Int>):Dynamic
 		return null;
 
-	@:to static function toObjectVector<T>(t:Array<T>)
+	@:to static function toObjectVector<T>(t:Array<T>):Dynamic
 		return null;
 }

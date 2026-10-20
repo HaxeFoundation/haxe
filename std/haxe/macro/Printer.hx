@@ -114,7 +114,7 @@ class Printer {
 			case CRegexp(s, opt): '~/$s/$opt';
 		}
 
-	public function printTypeParam(param:TypeParam)
+	public function printTypeParam(param:TypeParam):String
 		return switch (param) {
 			case TPType(ct): printComplexType(ct);
 			case TPExpr(e): printExpr(e);

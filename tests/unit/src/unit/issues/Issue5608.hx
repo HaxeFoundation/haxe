@@ -9,5 +9,5 @@ class Issue5608 extends unit.Test {
 		t(true);
 	}
 
-	public function resolve(_) return true;
+	public function resolve(_:Dynamic) return true;
 }

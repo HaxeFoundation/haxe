@@ -35,7 +35,7 @@ class Main {
 	}
 
 	public var notAllowed(private get, private set):Int; // err
-	function set_notAllowed(v):Int return 0;
+	function set_notAllowed(v:Int):Int return 0;
 	function get_notAllowed():Int return 0;
 
 	public function new() {

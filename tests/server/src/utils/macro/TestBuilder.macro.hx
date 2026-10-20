@@ -90,6 +90,14 @@ class TestBuilder {
 	}
 
 	static function makeAsyncTest(field:Field) {
+		// The argument of a test (`_` or `async`) receives the test's utest.Async.
+		switch (field.kind) {
+			case FFun(f):
+				for (arg in f.args)
+					if (arg.type == null)
+						arg.type = macro:utest.Async;
+			case _:
+		}
 		field.meta.push({name: ":coroutine", params: [], pos: field.pos});
 		field.meta.push({name: ":timeout", params: [macro 20000], pos: field.pos});
 	}

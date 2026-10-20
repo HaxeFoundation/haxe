@@ -1,5 +1,4 @@
 # Plan phase 1: `var x = null` cannot be inferred from other fields.
-@known-failure Haxe 6 semantics (plan phase 1)
 === initial
 @expect-error cache
 --- Main.hx

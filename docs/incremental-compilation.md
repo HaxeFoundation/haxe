@@ -313,7 +313,33 @@ body's typing ends, since no monomorph can be bound later.
 Exit criterion: the whole CI is green with the error enabled, and the impact on
 the corpus is documented.
 
-**Status.** `WUnresolvedFieldType` is implemented
+**Status: errors (phase 1b done).** A field whose type is not fully known at
+the end of its own typing, and a field reading the type of another field
+while that one is being inferred (inference cycle), are **errors**; the
+`WUnresolvedFieldType` warning is removed. Build order problems (build
+retries, partially built classes read by macros) stay `WTypingOrder`
+warnings until demand-driven typing (phase 3) makes them cycle errors, since
+`h2d.domkit` relies on them. No cascading error: a field whose typing
+reported an error is not also reported as unresolved (`Common.reported_errors`).
+- The repository's tests, the CI runner and the standard library are
+  annotated (unit tests on every target, misc, server, optimization, sys);
+  tests whose subject is an unresolved type expect the new error.
+- The server test builder types the argument of test methods (`_`) as
+  `utest.Async`.
+- Third-party code compiled by the CI is annotated: hxcoro on its
+  `haxe6-annotations` branch (`Config.hxcoroVersion`); utest, tink_core,
+  tink_macro, tink_unittest and deep_equal through patches in
+  `tests/runci/patches`, applied by `System.patchLibrary` after installation
+  until upstream has them.
+- The most frequent case in user code is a build macro without return type
+  that returns `null` (`function build() { ...; return null; }`): its type
+  is `Null<Unknown>`, an error that asks for `:Array<Field>`.
+- Two regressions of the deterministic output order (phase 0) were found on
+  the way and fixed: `Finalization.sort_type_list` identified types by path,
+  so a type renamed by `@:native` to the path of another type was dropped
+  (`tests/misc/jvm/projects/Issue10280`, `tests/misc/neko/projects/Issue4679`).
+
+**History.** `WUnresolvedFieldType` was first implemented
 (`TypeBinding.check_resolved_field_type`, `src/typing/typeloadFields.ml`),
 disabled by default (`-w +WUnresolvedFieldType` to enable), with a test in
 `tests/misc/eval/projects/unresolvedFieldType`. The binding instrumentation

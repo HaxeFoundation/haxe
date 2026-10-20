@@ -7,7 +7,7 @@ import haxe.macro.Type;
 using haxe.macro.Tools;
 
 class Issue3183Macro {
-	static var tupleMap = new Map();
+	static var tupleMap:Map<Int, TypePath> = new Map();
 
 	macro static public function buildTuple():ComplexType {
 		switch (Context.getLocalType()) {

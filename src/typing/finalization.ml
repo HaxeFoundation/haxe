@@ -205,20 +205,29 @@ let sort_types com (modules : module_lut) =
    expressions, so the order is the same whatever the cache state
    (docs/incremental-compilation.md: deterministic output order). *)
 let sort_type_list com types =
-	let present = Hashtbl.create (List.length types) in
+	(* Types are identified physically, grouped by module: after the filters,
+	   @:native paths can make two types share a path. *)
+	let by_module = Hashtbl.create 0 in
 	let modules = Hashtbl.create 0 in
 	List.iter (fun t ->
-		Hashtbl.replace present (t_path t) ();
 		let m = (t_infos t).mt_module in
-		Hashtbl.replace modules m.m_path m
+		Hashtbl.replace modules m.m_path m;
+		Hashtbl.replace by_module m.m_path (t :: (try Hashtbl.find by_module m.m_path with Not_found -> []))
 	) types;
+	let mem t tbl =
+		let infos = t_infos t in
+		List.exists (fun t' -> t_infos t' == infos) (try Hashtbl.find tbl infos.mt_module.m_path with Not_found -> [])
+	in
 	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
-	let sorted = sort_modules_types com ~keep:(fun t -> Hashtbl.mem present (t_path t)) ~warn:false sorted_modules in
+	let sorted = sort_modules_types com ~keep:(fun t -> mem t by_module) ~warn:false sorted_modules in
 	(* Types that are not in the type list of their module (if any) keep their
 	   relative order, at the end. *)
 	let sorted_set = Hashtbl.create (List.length sorted) in
-	List.iter (fun t -> Hashtbl.replace sorted_set (t_path t) ()) sorted;
-	sorted @ List.filter (fun t -> not (Hashtbl.mem sorted_set (t_path t))) types
+	List.iter (fun t ->
+		let k = (t_infos t).mt_module.m_path in
+		Hashtbl.replace sorted_set k (t :: (try Hashtbl.find sorted_set k with Not_found -> []))
+	) sorted;
+	sorted @ List.filter (fun t -> not (mem t sorted_set)) types
 
 let generate ctx main_path =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in

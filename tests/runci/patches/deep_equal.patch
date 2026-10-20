@@ -1,0 +1,17 @@
+diff --git a/src/deepequal/DeepEqual.hx b/src/deepequal/DeepEqual.hx
+index 764a857..8ac7f99 100644
+--- a/src/deepequal/DeepEqual.hx
++++ b/src/deepequal/DeepEqual.hx
+@@ -229,10 +229,10 @@ private class Compare {
+ 		}
+ 	}
+ 	
+-	function success()
++	function success():Result
+ 		return Success(Noise);
+ 	
+-	function fail(msg:String)
++	function fail(msg:String):Result
+ 		return Failure({message: msg, path: path});
+ 		
+ 	function mismatch(e:Dynamic, a:Dynamic) 

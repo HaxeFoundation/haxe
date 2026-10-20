@@ -1,3 +1,4 @@
+MainBar.hx:6: characters 18-21 : The type of bar is not fully inferred (() -> Null<Unknown<0>>), add a type annotation
 MainBar.hx:6: characters 18-21 : Field bar has different type than in Foo
 MainBar.hx:2: characters 11-14 : ... Interface field is defined here
 MainBar.hx:6: characters 18-21 : ... error: Null<Unknown<0>> should be bar.T

@@ -1,6 +1,6 @@
 #if macro
 class Foo {
-	public static function build(f:() -> Void)
+	public static function build(f:() -> Void):Array<haxe.macro.Expr.Field>
 		return [];
 
 	public static function other():Void {}

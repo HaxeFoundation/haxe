@@ -2,7 +2,7 @@ import haxe.macro.Context;
 
 class FinalDisplayBuilder {
 	#if macro
-	public static function build() {
+	public static function build():Array<haxe.macro.Expr.Field> {
 		var cls = Context.getLocalClass().get();
 		if (!cls.isFinal) {
 			Context.fatalError('class needs to be final', cls.pos);

@@ -27,3 +27,10 @@
  24 |  $type(foo.doWithBar); // () -> Unknown<0>
     |        ^^^^^^^^^^^^^
     | () -> Unknown<0>
+
+[ERROR] Main2.hx:16: characters 10-22
+
+ 16 | function doThingsImpl(foo) {
+    |          ^^^^^^^^^^^^
+    | The type of doThingsImpl is not fully inferred ((foo : Null<{ test : () -> Unknown<1>, doWithBar : () -> Unknown<0> }>) -> Void), add a type annotation
+

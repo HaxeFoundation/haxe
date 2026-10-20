@@ -16,7 +16,7 @@ private typedef Float32 = Float;
 private typedef Float64 = Float;
 #end
 private class CastHelper {
-	static public var nullOr0 = #if target.static 0 #else null #end;
+	static public var nullOr0 : #if target.static Int #else Null<Int> #end = #if target.static 0 #else null #end;
 }
 class TestNumericCasts extends unit.Test {
 	static function Int8_Int16(v:Int8):Int16 return cast v;

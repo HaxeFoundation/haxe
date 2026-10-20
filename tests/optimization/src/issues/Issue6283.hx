@@ -14,7 +14,7 @@ abstract From<T>(T) from T to T {
 class Issue6283 {
 	@:js('TestJs.use(3);')
 	@:analyzer(no_local_dce)
-	static function f(a, b) {
+	static function f(a:Dynamic, b:Dynamic) {
 		#if !macro
 		use(foo({}));
 		#end

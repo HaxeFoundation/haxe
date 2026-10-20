@@ -31,5 +31,5 @@ class Issue5646 {
         }
 	}
 
-	@:pure(false) static function use(a) { }
+	@:pure(false) static function use(a:Dynamic) { }
 }

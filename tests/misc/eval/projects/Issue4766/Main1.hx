@@ -1,5 +1,5 @@
 class C {
-    public function new(_) {}
+    public function new(_:Dynamic) {}
     public function f() {}
 }
 

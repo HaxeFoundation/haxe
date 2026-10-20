@@ -18,7 +18,7 @@ class Issue6198 {
         }
 	}
 
-	static function getNull() { return null; }
+	static function getNull():Null<E> { return null; }
 
-	@:pure(false) static function use(a) { }
+	@:pure(false) static function use(a:Dynamic) { }
 }

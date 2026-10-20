@@ -3,7 +3,7 @@ class Main {
         throw invalidChar(65);
     }
 
-    static public function invalidChar(_) {
+    static public function invalidChar(_:Int) {
         throw "error";
     }
 }

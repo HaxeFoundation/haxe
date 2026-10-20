@@ -13,7 +13,7 @@ class Issue3138 extends Test
 }
 
 private class A {
-	public function new(_) {}
+	public function new(_:Dynamic) {}
 }
 
 private class B extends A {
@@ -25,7 +25,7 @@ private class B extends A {
 #if jvm
 
 private class C {
-	public function new(a) {}
+	public function new(a:Dynamic) {}
 }
 
 private class D extends C {

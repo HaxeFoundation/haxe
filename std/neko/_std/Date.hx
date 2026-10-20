@@ -130,7 +130,7 @@ import neko.Lib;
 	static var date_get_hour:Dynamic->{h: Int, m: Int, s: Int} = Lib.load("std", "date_get_hour", 1);
 	static var date_get_utc_day:Dynamic->{y: Int, m: Int, d: Int} = Lib.load("std", "date_get_utc_day", 1);
 	static var date_get_utc_hour:Dynamic->{h: Int, m: Int, s: Int} = Lib.load("std", "date_get_utc_hour", 1);
-	static var date_get_tz = Lib.load("std", "date_get_tz", 1);
+	static var date_get_tz:Dynamic->Int = Lib.load("std", "date_get_tz", 1);
 	static var int32_to_float = Lib.load("std", "int32_to_float", 1);
 	static var int32_add = Lib.load("std", "int32_add", 2);
 	static var int32_shl = Lib.load("std", "int32_shl", 2);

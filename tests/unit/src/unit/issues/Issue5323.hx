@@ -7,7 +7,7 @@ class Issue5323 extends Test{
         eq(actual, expected);
     }
 
-    function doStuff(_) {
+    function doStuff(_:Dynamic) {
         return doOtherStuff();
     }
 

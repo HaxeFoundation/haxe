@@ -162,6 +162,22 @@ class System {
 			runCommand("haxelib", args);
 	}
 
+	/**
+		Applies `runci/patches/<library>.patch`, if it exists, to `library`
+		(installed with haxelib, or cloned in `dir`): third-party code annotated
+		for the Haxe 6 field typing rules (docs/incremental-compilation.md,
+		phase 1) until the library has them.
+	**/
+	static public function patchLibrary(library:String, ?dir:String):Void {
+		final patch = haxe.io.Path.join([cwd, "runci", "patches", library + ".patch"]);
+		if (!sys.FileSystem.exists(patch))
+			return;
+		if (dir == null)
+			dir = StringTools.trim(commandResult("haxelib", ["libpath", library]).stdout);
+		// -N: skip a patch that is already applied (local runs)
+		runCommand("patch", ["-p1", "-N", "-d", dir, "-i", patch]);
+	}
+
 	static public function haxelibInstall(library:String):Void {
 		// It could only be installed already if we're on a local machine
 		if (!isCi() && isLibraryInstalled(library))

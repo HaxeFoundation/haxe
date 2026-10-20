@@ -1,0 +1,15 @@
+diff --git a/src/tink/unit/TestBuilder.hx b/src/tink/unit/TestBuilder.hx
+index 3e5d1f2..698642f 100644
+--- a/src/tink/unit/TestBuilder.hx
++++ b/src/tink/unit/TestBuilder.hx
+@@ -13,8 +13,8 @@ using tink.MacroApi;
+ 
+ class TestBuilder {
+ 	
+-	static var cache = new TypeMap();
+-	static var infos = new TypeMap();
++	static var cache:TypeMap<Dynamic> = new TypeMap();
++	static var infos:TypeMap<Dynamic> = new TypeMap();
+ 	static var counter = 0;
+ 	
+ 	public static function build() {

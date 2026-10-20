@@ -64,7 +64,7 @@ class TestCase implements ITest implements ITestCase {
 	var testDir:String;
 	var lastResult:HaxeServerRequestResult;
 	var messages:Array<String> = [];
-	var errorMessages = [];
+	var errorMessages:Array<String> = [];
 	var notifications:Array<JsonRpcNotification> = [];
 
 	static var i:Int = 0;

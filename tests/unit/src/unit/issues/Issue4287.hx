@@ -10,7 +10,7 @@ class Issue4287 extends unit.Test {
 		eq(None, local());
 	}
 
-	static function getNone(t = None) {
+	static function getNone<T>(t:Option<T> = None):Option<T> {
 		return t;
 	}
 }

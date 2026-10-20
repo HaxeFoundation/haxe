@@ -688,7 +688,7 @@ module TypeBinding = struct
 			| Some (_,_,cf_read,true) when not (List.mem (ctx.com.part_scope.compilation_step,cf_reader.cf_name_pos,cf_read.cf_name) !reported_cycles) ->
 				let step = ctx.com.part_scope.compilation_step in
 				reported_cycles := (step,cf_reader.cf_name_pos,cf_read.cf_name) :: List.filter (fun (step',_,_) -> step' = step) !reported_cycles;
-				warning ctx WTypingOrder (Printf.sprintf "%s reads the type of %s while it is being inferred (inference cycle between fields)" cf_reader.cf_name cf_read.cf_name) cf_reader.cf_name_pos
+				display_error ctx.com (Printf.sprintf "%s reads the type of %s while it is being inferred (inference cycle between fields): add a type annotation to one of them" cf_reader.cf_name cf_read.cf_name) cf_reader.cf_name_pos
 			| _ ->
 				()
 			end
@@ -719,9 +719,16 @@ module TypeBinding = struct
 		| EUnop (Neg,Prefix,e) | EParenthesis e -> literal_type basic e
 		| _ -> None
 
+	(* Number of reported errors when the typing of each field of [fields_being_inferred] started. *)
+	let errors_at_start : int list ref = ref []
+
 	let while_inferring r ctx cf ~inferred f =
 		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
-		Std.finally (fun () -> fields_being_inferred := List.tl !fields_being_inferred) f ()
+		errors_at_start := Atomic.get Common.reported_errors :: !errors_at_start;
+		Std.finally (fun () ->
+			fields_being_inferred := List.tl !fields_being_inferred;
+			errors_at_start := List.tl !errors_at_start
+		) f ()
 
 	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
 	   known at the end of its own typing. Reports the field types that still
@@ -757,8 +764,13 @@ module TypeBinding = struct
 			| TMono _, Var _, Some e -> (match follow e.etype with TDynamic _ -> true | _ -> false)
 			| _ -> false
 		in
-		if not dynamic_initializer && has_mono (ref []) cf.cf_type then
-			warning ctx WUnresolvedFieldType (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+		(* a field whose typing reported an error is not reported again *)
+		let failed = match !errors_at_start with
+			| n :: _ -> Atomic.get Common.reported_errors > n
+			| [] -> false
+		in
+		if not dynamic_initializer && not failed && has_mono (ref []) cf.cf_type then
+			display_error ctx.com (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
 
 	let bind_type ctx cctx fctx cf r p =
 		let c = cctx.tclass in

@@ -82,7 +82,7 @@ class Main {
 		return new haxe.Template(s).execute(context, macros);
 	}
 
-	static function normPath(_, p:String, escape:String = "false"):String {
+	static function normPath(_:Dynamic, p:String, escape:String = "false"):String {
 		var escape = escape != "false";
 
 		if (Sys.systemName() == "Windows") {

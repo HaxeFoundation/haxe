@@ -1,5 +1,4 @@
 # Plan phase 1: a field type must be fully known at the end of its own typing.
-@known-failure Haxe 6 semantics (plan phase 1)
 === initial
 @expect-error items
 --- Main.hx

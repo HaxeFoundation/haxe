@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue6674 extends unit.Test {
-	var someArray = [];
+	var someArray:Array<Int> = [];
 
 	function test() {
 		load(function(response) {

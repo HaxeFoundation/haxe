@@ -10,9 +10,9 @@ class Main {
 }
 --- A.hx
 class A {
-	public static var x = B.y + 1;
+	public static var x:Int = B.y + 1;
 }
 --- B.hx
 class B {
-	public static var y = A.x + 1;
+	public static var y:Int = A.x + 1;
 }

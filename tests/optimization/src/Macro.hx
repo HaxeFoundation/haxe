@@ -5,7 +5,7 @@ import haxe.macro.Type;
 using StringTools;
 
 class Macro {
-	static var classes = [];
+	static var classes:Array<String> = [];
 	static var output:String;
 	static var lines:Array<String>;
 	static var tests = 0;

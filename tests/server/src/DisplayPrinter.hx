@@ -37,7 +37,7 @@ class DisplayPrinter {
 		}
 	}
 
-	public function printType<T>(t:JsonType<T>) {
+	public function printType<T>(t:JsonType<T>):String {
 		return switch t.kind {
 			case TMono: "Unknown<0>";
 			case TInst | TEnum | TType | TAbstract: printPathWithParams(t.args);

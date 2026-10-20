@@ -17,7 +17,7 @@ abstract MyArray<T>(Array<T>) from Array<T> to Iterable<T> {}
 
 class MyMacro {
 	#if macro
-	static function build() {
+	static function build():Array<haxe.macro.Expr.Field> {
 		switch (Context.getLocalType()) {
 			case TInst(_.get() => type, _):
 				switch (type.kind) {

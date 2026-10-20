@@ -1,0 +1,123 @@
+diff --git a/src/tink/macro/BuildCache.hx b/src/tink/macro/BuildCache.hx
+index 7664655..b66f942 100644
+--- a/src/tink/macro/BuildCache.hx
++++ b/src/tink/macro/BuildCache.hx
+@@ -33,7 +33,7 @@ typedef BuildContext3 = {>BuildContext2,
+ 
+ class BuildCache {
+ 
+-  @:persistent static var cache = new Map();
++  @:persistent static var cache:Map<String, Group> = new Map();
+ 
+   static public function getType3(name, ?types, ?pos:Position, build:BuildContext3->TypeDefinition, ?normalizer:Type->Type) {
+      if (types == null)
+diff --git a/src/tink/macro/Exprs.hx b/src/tink/macro/Exprs.hx
+index b146296..013a818 100644
+--- a/src/tink/macro/Exprs.hx
++++ b/src/tink/macro/Exprs.hx
+@@ -116,7 +116,7 @@ class Exprs {
+   static public function getPrivate(e:Expr, field:String, ?pos:Position)
+     return macro @:pos(pos.sanitize()) @:privateAccess $e.$field;
+ 
+-  static public function substitute(source:Expr, vars:Dict<Expr>, ?pos)
++  static public function substitute(source:Expr, vars:Dict<Expr>, ?pos:Position)
+     return
+       transform(source, function (e:Expr) {
+         return switch e {
+@@ -189,7 +189,7 @@ class Exprs {
+     );
+   }
+ 
+-  static public function transform(source:Expr, transformer:Expr->Expr, ?pos):Expr {
++  static public function transform(source:Expr, transformer:Expr->Expr, ?pos:Position):Expr {
+     function apply(e:Expr)
+       return switch e {
+         case null | { expr: null }: e;
+diff --git a/src/tink/macro/Functions.hx b/src/tink/macro/Functions.hx
+index bbe1946..691b64c 100644
+--- a/src/tink/macro/Functions.hx
++++ b/src/tink/macro/Functions.hx
+@@ -34,7 +34,7 @@ class Functions {
+     }
+   }
+ 
+-  static public function mapSignature(f:Function, transform):Function
++  static public function mapSignature(f:Function, transform:ComplexType->ComplexType):Function
+     return {
+       ret: Types.map(f.ret, transform),
+       args: [for (a in f.args) {
+diff --git a/src/tink/macro/Sisyphus.hx b/src/tink/macro/Sisyphus.hx
+index fba3fb9..063d734 100644
+--- a/src/tink/macro/Sisyphus.hx
++++ b/src/tink/macro/Sisyphus.hx
+@@ -138,7 +138,7 @@ class Sisyphus {
+     }
+   }
+ 
+-  static function exactBase<T:BaseType>(r:Ref<T>, params:Array<Type>) {
++  static function exactBase<T:BaseType>(r:Ref<T>, params:Array<Type>):String {
+     var t = r.get();
+     var isMain = !t.isPrivate && switch t.pack {
+       case []: t.module == t.name || t.module == 'StdTypes';
+@@ -183,7 +183,7 @@ class Sisyphus {
+   static function exactSig(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type, sep:String)
+     return '(${[for (a in args) (if (a.opt) '?' else '') + a.name + ':' + toExactString(a.t)].join(', ')})$sep${toExactString(ret)}';
+ 
+-  static public function toExactString(t:Type)
++  static public function toExactString(t:Type):String
+     return switch t {
+       case TMono(t): t.toString();
+       case TEnum(r, params): exactBase(r, params);
+diff --git a/src/tink/macro/TypedExprs.hx b/src/tink/macro/TypedExprs.hx
+index 4e3db6d..079d084 100644
+--- a/src/tink/macro/TypedExprs.hx
++++ b/src/tink/macro/TypedExprs.hx
+@@ -54,6 +54,6 @@ class TypedExprs {
+   static public function contains(t:TypedExpr, f:TypedExpr->Bool):Bool
+     return find(t, f) != None;
+ 
+-  static inline function collect(f)
++  static inline function collect<T>(f:T->Bool):T->Option<T>
+     return function (t) return if (f(t)) Some(t) else None;
+ }
+\ No newline at end of file
+diff --git a/src/tink/macro/Types.hx b/src/tink/macro/Types.hx
+index 86c85ab..cafbfa5 100644
+--- a/src/tink/macro/Types.hx
++++ b/src/tink/macro/Types.hx
+@@ -73,7 +73,7 @@ class Types {
+       getDeclaredFields(t.superClass.t.get(), out, marker);
+   }
+ 
+-  static public function mapTypeParams(a:Array<TypeParam>, f)
++  static public function mapTypeParams(a:Array<TypeParam>, f:ComplexType->ComplexType):Array<TypeParam>
+     return
+       if (a == null) null;
+       else [for (p in a) switch p {
+@@ -102,7 +102,7 @@ class Types {
+       params: mapTypeParams(p.params, transform),
+     }
+ 
+-  static public function map(ct:ComplexType, transform:ComplexType->ComplexType) {
++  static public function map(ct:ComplexType, transform:ComplexType->ComplexType):ComplexType {
+     if (ct == null)
+       return null;
+     inline function rec(ct)
+@@ -146,7 +146,7 @@ class Types {
+     });
+   }
+ 
+-  static var fieldsCache = new Map();
++  static var fieldsCache:Map<String, tink.core.Outcome<Array<ClassField>, tink.core.Error>> = new Map();
+   static public function getFields(t:Type, ?substituteParams = true)
+     return
+       switch (reduce(t)) {
+@@ -225,7 +225,7 @@ class Types {
+   }
+ 
+   /// like haxe.macro.TypeTools.toString, but not lossy
+-  static public function toExactString(t:Type)
++  static public function toExactString(t:Type):String
+     return Sisyphus.toExactString(t);
+ 
+   static public function toString(t:ComplexType)
