@@ -1,0 +1,36 @@
+# A macro hands out ids from a static counter. The ids depend on which
+# expansions ran in the current compilation, so a warm compilation that does
+# not re-expand everything differs from a cold one. Haxe 6 resets macro statics
+# for every expansion (plan phase 7, item 4).
+@known-failure macro static state is shared between expansions and compilations
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.id() + " " + B.id());
+	}
+}
+--- A.hx
+class A {
+	public static function id() return Macro.nextId();
+}
+--- B.hx
+class B {
+	public static function id() return Macro.nextId();
+}
+--- Macro.hx
+class Macro {
+	static var counter = 0;
+	public static macro function nextId() {
+		return macro $v{counter++};
+	}
+}
+
+=== only B is edited
+@expect-success
+--- B.hx
+class B {
+	// edited
+	public static function id() return Macro.nextId();
+}

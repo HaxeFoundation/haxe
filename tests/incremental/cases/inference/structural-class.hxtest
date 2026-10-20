@@ -1,0 +1,31 @@
+# A class instance is passed where a structure is expected, and the class changes.
+=== initial
+@expect-output ok
+--- Main.hx
+class Main {
+	static function main() {
+		var n:{function name():String;} = new Thing();
+		trace(n.name());
+	}
+}
+--- Thing.hx
+class Thing {
+	public function new() {}
+	public function name() return "ok";
+}
+
+=== method made private
+@expect-error name
+--- Thing.hx
+class Thing {
+	public function new() {}
+	function name() return "ok";
+}
+
+=== public again
+@expect-output ok
+--- Thing.hx
+class Thing {
+	public function new() {}
+	public function name() return "ok";
+}

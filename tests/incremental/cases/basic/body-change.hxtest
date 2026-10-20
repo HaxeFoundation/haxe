@@ -1,0 +1,25 @@
+# Changing a function body in a dependency must update the program.
+=== initial
+@expect-success
+@expect-output value 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace("value " + Dep.get());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get() {
+		return 1;
+	}
+}
+
+=== change body
+@expect-output value 2
+--- Dep.hx
+class Dep {
+	public static function get() {
+		return 2;
+	}
+}

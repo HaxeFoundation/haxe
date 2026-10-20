@@ -1,0 +1,20 @@
+# A @:generic method instantiated from another module changes.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Tools.double(1));
+	}
+}
+--- Tools.hx
+class Tools {
+	@:generic public static function double<T:Float>(v:T):Float return v * 2;
+}
+
+=== body changes
+@expect-output 3
+--- Tools.hx
+class Tools {
+	@:generic public static function double<T:Float>(v:T):Float return v * 3;
+}

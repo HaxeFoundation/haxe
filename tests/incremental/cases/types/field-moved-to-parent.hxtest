@@ -1,0 +1,27 @@
+# A field moves from a class to its parent class.
+=== initial
+@expect-output 7
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Child().value());
+	}
+}
+--- Base.hx
+class Base {
+	public function new() {}
+}
+--- Child.hx
+class Child extends Base {
+	public function value() return 7;
+}
+
+=== moved to the parent
+@expect-output 7
+--- Base.hx
+class Base {
+	public function new() {}
+	public function value() return 7;
+}
+--- Child.hx
+class Child extends Base {}

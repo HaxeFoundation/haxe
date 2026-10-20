@@ -1,0 +1,24 @@
+# Plan phase 3.3: mutually recursive fields without annotations are an error;
+# a field referring to itself stays allowed.
+@known-failure Haxe 6 semantics (plan phase 3.3)
+=== initial
+@expect-error annotation
+--- Main.hx
+class Main {
+	static function even(n:Int) return n == 0 ? true : odd(n - 1);
+	static function odd(n:Int) return n == 0 ? false : even(n - 1);
+	static function main() {
+		trace(even(4));
+	}
+}
+
+=== one side annotated
+@expect-output true
+--- Main.hx
+class Main {
+	static function even(n:Int):Bool return n == 0 ? true : odd(n - 1);
+	static function odd(n:Int) return n == 0 ? false : even(n - 1);
+	static function main() {
+		trace(even(4));
+	}
+}

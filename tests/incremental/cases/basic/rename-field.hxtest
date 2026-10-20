@@ -1,0 +1,33 @@
+# Renaming a field and updating its user in the same step.
+=== initial
+@expect-output 10
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.value);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static var value = 10;
+}
+
+=== rename both sides
+@expect-output 10
+--- Dep.hx
+class Dep {
+	public static var amount = 10;
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.amount);
+	}
+}
+
+=== rename only the definition
+@expect-error has no field amount
+--- Dep.hx
+class Dep {
+	public static var total = 10;
+}

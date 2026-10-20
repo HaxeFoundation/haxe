@@ -1,0 +1,65 @@
+# A @:genericBuild type whose macro changes.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Tools.size(new Tuple<Int, String>()));
+	}
+}
+--- Tools.hx
+class Tools {
+	public static function size(t:{var size(default, null):Int;}) return t.size;
+}
+--- Tuple.hx
+@:genericBuild(TupleMacro.build())
+class Tuple<T, U> {}
+--- TupleMacro.hx
+import haxe.macro.Context;
+
+class TupleMacro {
+	public static function build() {
+		var size = switch Context.getLocalType() {
+			case TInst(_, params): params.length;
+			case _: 0;
+		}
+		var name = "Tuple" + size;
+		try {
+			return Context.getType(name);
+		} catch (_:Dynamic) {
+			var td = macro class Dummy {
+				public var size(default, null):Int = $v{size};
+				public function new() {}
+			};
+			td.name = name;
+			Context.defineType(td);
+			return Context.getType(name);
+		}
+	}
+}
+
+=== macro changes the generated value
+@expect-output 20
+--- TupleMacro.hx
+import haxe.macro.Context;
+
+class TupleMacro {
+	public static function build() {
+		var size = switch Context.getLocalType() {
+			case TInst(_, params): params.length * 10;
+			case _: 0;
+		}
+		var name = "Tuple" + size;
+		try {
+			return Context.getType(name);
+		} catch (_:Dynamic) {
+			var td = macro class Dummy {
+				public var size(default, null):Int = $v{size};
+				public function new() {}
+			};
+			td.name = name;
+			Context.defineType(td);
+			return Context.getType(name);
+		}
+	}
+}

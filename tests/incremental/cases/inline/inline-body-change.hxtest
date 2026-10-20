@@ -1,0 +1,20 @@
+# The body of an inline function in another module changes: callers embed it.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.twice(1));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static inline function twice(x:Int) return x * 2;
+}
+
+=== inline body changes, signature does not
+@expect-output 3
+--- Dep.hx
+class Dep {
+	public static inline function twice(x:Int) return x * 3;
+}

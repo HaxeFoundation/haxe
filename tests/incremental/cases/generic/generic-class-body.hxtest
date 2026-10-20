@@ -1,0 +1,27 @@
+# The body of a @:generic class changes: its instances must be regenerated.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var b = new Box<Int>(1);
+		trace(b.get());
+	}
+}
+--- Box.hx
+@:generic
+class Box<T> {
+	var v:T;
+	public function new(v:T) this.v = v;
+	public function get() return v;
+}
+
+=== body changes
+@expect-output [1]
+--- Box.hx
+@:generic
+class Box<T> {
+	var v:T;
+	public function new(v:T) this.v = v;
+	public function get() return "[" + v + "]";
+}

@@ -1,0 +1,29 @@
+# A field used by another module is removed, then added back.
+=== initial
+@expect-output a=1
+--- Main.hx
+class Main {
+	static function main() {
+		trace("a=" + Dep.a);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static var a = 1;
+	public static var b = 2;
+}
+
+=== remove used field
+@expect-error has no field a
+--- Dep.hx
+class Dep {
+	public static var b = 2;
+}
+
+=== add it back
+@expect-output a=1
+--- Dep.hx
+class Dep {
+	public static var a = 1;
+	public static var b = 2;
+}

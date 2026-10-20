@@ -1,0 +1,30 @@
+# Code that requires a runtime feature (Std.isOfType / js boot helpers) is
+# added and removed in a module other than Main.
+@targets js
+@args -dce full
+=== initial
+@expect-output plain
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.check(1));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function check(v:Dynamic) return "plain";
+}
+
+=== feature used
+@expect-output true
+--- Dep.hx
+class Dep {
+	public static function check(v:Dynamic) return Std.string(Std.isOfType(v, Int));
+}
+
+=== feature no longer used
+@expect-output plain
+--- Dep.hx
+class Dep {
+	public static function check(v:Dynamic) return "plain";
+}

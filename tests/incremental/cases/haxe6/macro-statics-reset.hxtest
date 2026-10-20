@@ -1,0 +1,17 @@
+# Plan phase 7, item 4: macro statics are reset for every expansion.
+@known-failure Haxe 6 semantics (plan phase 7)
+=== initial
+@expect-output 0 0
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.next() + " " + Macro.next());
+	}
+}
+--- Macro.hx
+class Macro {
+	static var counter = 0;
+	public static macro function next() {
+		return macro $v{counter++};
+	}
+}

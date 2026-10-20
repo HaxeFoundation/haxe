@@ -1,0 +1,45 @@
+# A build macro reads the declared metadata of another class, which changes.
+=== initial
+@expect-output first
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Target.label());
+	}
+}
+--- Config.hx
+@:label("first")
+class Config {}
+--- Target.hx
+@:build(Builder.build())
+class Target {}
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		var label = switch Context.getType("Config") {
+			case TInst(c, _):
+				var m = c.get().meta.extract(":label");
+				m.length > 0 ? haxe.macro.ExprTools.getValue(m[0].params[0]) : "none";
+			case _: "none";
+		}
+		fields.push((macro class X {
+			public static function label() return $v{label};
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== metadata changes
+@expect-output second
+--- Config.hx
+@:label("second")
+class Config {}
+
+=== metadata removed
+@expect-output none
+--- Config.hx
+class Config {}

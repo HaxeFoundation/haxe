@@ -1,0 +1,44 @@
+# The inferred return type of a function changes: users must be re-typed.
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		var x:Int = Dep.get() + 1;
+		trace(x);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get() {
+		return 2;
+	}
+}
+
+=== inferred type becomes String
+@expect-error String should be Int
+--- Dep.hx
+class Dep {
+	public static function get() {
+		return "2";
+	}
+}
+
+=== inferred type becomes Float
+@expect-error Float should be Int
+--- Dep.hx
+class Dep {
+	public static function get() {
+		return 2.5;
+	}
+}
+
+=== back to Int with another body
+@expect-output 11
+--- Dep.hx
+class Dep {
+	public static function get() {
+		var a = 4;
+		return a + 6;
+	}
+}

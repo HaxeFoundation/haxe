@@ -1,0 +1,27 @@
+# Error positions in a field that did not change but moved.
+=== initial
+@expect-error Dep.hx:3
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.run();
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function run() {
+		var x:Int = "not an int";
+	}
+}
+
+=== lines added above the broken field
+@expect-error Dep.hx:6
+--- Dep.hx
+class Dep {
+	static var a = 1;
+	static var b = 2;
+
+	public static function run() {
+		var x:Int = "not an int";
+	}
+}

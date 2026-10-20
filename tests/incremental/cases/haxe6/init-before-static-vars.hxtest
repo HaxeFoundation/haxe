@@ -1,0 +1,28 @@
+# Plan decisions: all __init__ blocks run before any static var initializer.
+@known-failure [interp] Haxe 6 semantics (plan phase 8); the JS target already runs __init__ first
+=== initial
+@expect-output order: init A, init B, var A
+--- Main.hx
+class Main {
+	static function main() {
+		trace("order: " + Log.lines.join(", "));
+		A.touch();
+		B.touch();
+	}
+}
+--- Log.hx
+class Log {
+	public static var lines:Array<String>;
+	static function __init__() lines = [];
+}
+--- A.hx
+class A {
+	static var v = { Log.lines.push("var A"); 1; };
+	static function __init__() Log.lines.push("init A");
+	public static function touch() {}
+}
+--- B.hx
+class B {
+	static function __init__() Log.lines.push("init B");
+	public static function touch() {}
+}

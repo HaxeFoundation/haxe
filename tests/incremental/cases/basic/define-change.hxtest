@@ -1,0 +1,21 @@
+# Conditional compilation depends on a define that changes between steps.
+=== initial
+@expect-output off
+--- Main.hx
+class Main {
+	static function main() {
+		#if feature
+		trace("on");
+		#else
+		trace("off");
+		#end
+	}
+}
+
+=== define added
+@args -D feature
+@expect-output on
+
+=== define removed
+@args
+@expect-output off

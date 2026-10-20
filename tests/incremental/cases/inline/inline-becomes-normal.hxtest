@@ -1,0 +1,27 @@
+# A function stops being inline, then becomes inline again.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.f(1));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static inline function f(x:Int) return x + 1;
+}
+
+=== no longer inline
+@expect-output 2
+--- Dep.hx
+class Dep {
+	public static function f(x:Int) return x + 1;
+}
+
+=== inline again with another body
+@expect-output 11
+--- Dep.hx
+class Dep {
+	public static inline function f(x:Int) return x + 10;
+}

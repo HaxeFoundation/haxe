@@ -1,0 +1,43 @@
+# Lines inserted above an unchanged function: trace positions (haxe.PosInfos)
+# must follow, both in the edited module and for calls into it.
+=== initial
+@expect-output Dep.hx:3: in dep
+@expect-output Main.hx:3: in main
+--- Main.hx
+class Main {
+	static function main() {
+		trace("in main");
+		Dep.run();
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function run() {
+		trace("in dep");
+	}
+}
+
+=== insert lines above the function
+@expect-output Dep.hx:7: in dep
+--- Dep.hx
+class Dep {
+	static var a = 1;
+	static var b = 2;
+	static var c = 3;
+
+	public static function run() {
+		trace("in dep");
+	}
+}
+
+=== insert lines in Main above the trace
+@expect-output Main.hx:5: in main
+--- Main.hx
+class Main {
+	static function main() {
+
+		// moved down
+		trace("in main");
+		Dep.run();
+	}
+}

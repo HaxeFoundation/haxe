@@ -1,0 +1,45 @@
+# Positions inside inlined code. Expressions take the call site position, but
+# haxe.PosInfos (trace) refers to the inline function's own position, so a
+# moved inline function changes the output of its callers.
+=== initial
+@expect-output Dep.hx:3: inlined
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.log();
+	}
+}
+--- Dep.hx
+class Dep {
+	public static inline function log() {
+		trace("inlined");
+	}
+}
+
+=== inline function moved down
+@expect-output Dep.hx:5: inlined
+--- Dep.hx
+class Dep {
+
+
+	public static inline function log() {
+		trace("inlined");
+	}
+}
+
+=== keep inline positions
+@args -D keep_inline_positions
+@expect-output Dep.hx:5: inlined
+
+=== inline function moved again
+@expect-output Dep.hx:7: inlined
+--- Dep.hx
+class Dep {
+
+
+
+
+	public static inline function log() {
+		trace("inlined");
+	}
+}

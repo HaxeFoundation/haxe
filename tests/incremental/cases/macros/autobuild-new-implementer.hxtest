@@ -1,0 +1,44 @@
+# @:autoBuild on an interface; a new implementing class is added, then edited.
+=== initial
+@expect-output A
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.kind());
+	}
+}
+--- Named.hx
+@:autoBuild(Builder.build())
+interface Named {}
+--- A.hx
+class A implements Named {}
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		var name = Context.getLocalClass().get().name;
+		fields.push((macro class X {
+			public static function kind() return $v{name};
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== new implementer
+@expect-output A B
+--- B.hx
+class B implements Named {}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.kind() + " " + B.kind());
+	}
+}
+
+=== implementer no longer implements the interface
+@expect-error kind
+--- B.hx
+class B {}

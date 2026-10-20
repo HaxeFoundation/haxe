@@ -1,0 +1,66 @@
+# A build macro records classes in a @:persistent registry, reported by an
+# onAfterTyping callback. When a class stops being compiled, the warm
+# compilation still has it in the registry. Haxe 6 restricts @:persistent to
+# initialization values and provides MacroArray/MacroTypeData (plan phase 7).
+@known-failure @:persistent registries keep entries of classes that are no longer compiled
+@args --macro Macro.init()
+=== initial
+@expect-compiler-output registry: A
+--- Main.hx
+class Main {
+	static function main() {
+		A.touch();
+	}
+}
+--- Registered.hx
+@:autoBuild(Macro.register())
+interface Registered {}
+--- A.hx
+class A implements Registered {
+	public static function touch() {}
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	@:persistent static var seen:Array<String> = [];
+
+	public static function init() {
+		Context.onAfterTyping(function(_) {
+			var l = seen.copy();
+			l.sort(Reflect.compare);
+			Sys.println("registry: " + l.join(","));
+		});
+	}
+
+	public static function register() {
+		var name = Context.getLocalClass().get().name;
+		if (!seen.contains(name))
+			seen.push(name);
+		return null;
+	}
+}
+
+=== class B added and used
+@expect-compiler-output registry: A,B
+--- B.hx
+class B implements Registered {
+	public static function touch() {}
+}
+--- Main.hx
+class Main {
+	static function main() {
+		A.touch();
+		B.touch();
+	}
+}
+
+=== class B removed
+@expect-compiler-output registry: A
+--- delete B.hx
+--- Main.hx
+class Main {
+	static function main() {
+		A.touch();
+	}
+}

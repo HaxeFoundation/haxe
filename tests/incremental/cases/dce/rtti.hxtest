@@ -1,0 +1,25 @@
+# A class with @:rtti changes its fields.
+@targets interp
+=== initial
+@expect-output a
+--- Main.hx
+class Main {
+	static function main() {
+		var rtti = haxe.rtti.Rtti.getRtti(Dep);
+		trace([for (f in rtti.fields) f.name].join(","));
+	}
+}
+--- Dep.hx
+@:rtti
+class Dep {
+	public var a:Int;
+}
+
+=== field added
+@expect-output a,b
+--- Dep.hx
+@:rtti
+class Dep {
+	public var a:Int;
+	public var b:Int;
+}

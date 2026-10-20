@@ -1,0 +1,24 @@
+# A macro embeds the content of a data file without registering a dependency.
+# Haxe 6 tracks files read by macros automatically (plan phase 7, item 3).
+@known-failure files read by macros are not tracked unless registered
+=== initial
+@expect-output data v1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.load());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function load() {
+		return macro $v{StringTools.trim(sys.io.File.getContent("data.txt"))};
+	}
+}
+--- data.txt
+data v1
+
+=== data file changes
+@expect-output data v2
+--- data.txt
+data v2

@@ -1,0 +1,35 @@
+# With full DCE, a field becomes used and then unused from another module.
+@targets js
+@args -dce full
+=== initial
+@expect-no-file-content out/main.js extraFeature
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.base();
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function base() trace("base");
+	public static function extraFeature() trace("extra");
+}
+
+=== field becomes used
+@expect-file out/main.js extraFeature
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.base();
+		Dep.extraFeature();
+	}
+}
+
+=== field unused again
+@expect-no-file-content out/main.js extraFeature
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.base();
+	}
+}

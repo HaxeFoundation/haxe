@@ -1,0 +1,22 @@
+# Enum constructors are reordered: indices change, users must be regenerated.
+=== initial
+@expect-output 0 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Type.enumIndex(Color.Red) + " " + Type.enumIndex(Color.Green));
+	}
+}
+--- Color.hx
+enum Color {
+	Red;
+	Green;
+}
+
+=== reordered
+@expect-output 1 0
+--- Color.hx
+enum Color {
+	Green;
+	Red;
+}

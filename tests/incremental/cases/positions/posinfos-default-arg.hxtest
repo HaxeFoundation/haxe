@@ -1,0 +1,39 @@
+# A function with a haxe.PosInfos argument in another module: the position
+# is the call site, which moves when lines are added above the call.
+=== initial
+@expect-output called from Main.hx:3
+--- Main.hx
+class Main {
+	static function main() {
+		Log.where();
+	}
+}
+--- Log.hx
+class Log {
+	public static function where(?p:haxe.PosInfos) {
+		trace("called from " + p.fileName + ":" + p.lineNumber);
+	}
+}
+
+=== call moved down
+@expect-output called from Main.hx:6
+--- Main.hx
+class Main {
+	static function main() {
+
+
+		// the call moved
+		Log.where();
+	}
+}
+
+=== Log moved down, call unchanged
+@expect-output called from Main.hx:6
+--- Log.hx
+// header comment
+
+class Log {
+	public static function where(?p:haxe.PosInfos) {
+		trace("called from " + p.fileName + ":" + p.lineNumber);
+	}
+}

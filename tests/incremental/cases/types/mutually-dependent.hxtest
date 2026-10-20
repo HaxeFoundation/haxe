@@ -1,0 +1,35 @@
+# Two modules referencing each other; each is edited in turn.
+=== initial
+@expect-output A->B
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.name());
+	}
+}
+--- A.hx
+class A {
+	public static function name() return "A->" + B.short();
+	public static function short() return "A";
+}
+--- B.hx
+class B {
+	public static function name() return "B->" + A.short();
+	public static function short() return "B";
+}
+
+=== edit A
+@expect-output A2->B
+--- A.hx
+class A {
+	public static function name() return "A2->" + B.short();
+	public static function short() return "A";
+}
+
+=== edit B
+@expect-output A2->BB
+--- B.hx
+class B {
+	public static function name() return "B->" + A.short();
+	public static function short() return "BB";
+}

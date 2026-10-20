@@ -1,0 +1,54 @@
+# onAfterTyping lists all module types; the program gains and loses a class.
+@args --macro Report.init()
+=== initial
+@expect-compiler-output count 1
+--- Main.hx
+class Main {
+	static function main() {
+		A.run();
+	}
+}
+--- A.hx
+@:tracked
+class A {
+	public static function run() {}
+}
+--- Report.hx
+import haxe.macro.Context;
+
+class Report {
+	public static function init() {
+		Context.onAfterTyping(function(types) {
+			var n = 0;
+			for (t in types) switch t {
+				case TClassDecl(c) if (c.get().meta.has(":tracked")): n++;
+				case _:
+			}
+			Sys.println("count " + n);
+		});
+	}
+}
+
+=== tracked class added
+@expect-compiler-output count 2
+--- B.hx
+@:tracked
+class B {
+	public static function run() {}
+}
+--- Main.hx
+class Main {
+	static function main() {
+		A.run();
+		B.run();
+	}
+}
+
+=== tracked class no longer used
+@expect-compiler-output count 1
+--- Main.hx
+class Main {
+	static function main() {
+		A.run();
+	}
+}

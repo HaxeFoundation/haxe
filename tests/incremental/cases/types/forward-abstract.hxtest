@@ -1,0 +1,35 @@
+# An abstract forwards the fields of its underlying type, which change.
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		var w = new Wrapper(new Inner());
+		trace(w.get());
+	}
+}
+--- Inner.hx
+class Inner {
+	public function new() {}
+	public function get() return 3;
+}
+--- Wrapper.hx
+@:forward
+abstract Wrapper(Inner) {
+	public function new(i:Inner) this = i;
+}
+
+=== forwarded method changes
+@expect-output 4
+--- Inner.hx
+class Inner {
+	public function new() {}
+	public function get() return 4;
+}
+
+=== forwarded method removed
+@expect-error get
+--- Inner.hx
+class Inner {
+	public function new() {}
+}

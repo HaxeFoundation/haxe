@@ -1,0 +1,31 @@
+# Positions produced by a macro (Context.currentPos) when the call site moves.
+=== initial
+@expect-output line 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace("line " + Macro.line());
+	}
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function line() {
+		var p = Context.getPosInfos(Context.currentPos());
+		var content = sys.io.File.getContent(p.file);
+		var line = content.substr(0, p.min).split("\n").length;
+		return macro $v{line};
+	}
+}
+
+=== call site moved down
+@expect-output line 5
+--- Main.hx
+class Main {
+	static function main() {
+
+		// moved
+		trace("line " + Macro.line());
+	}
+}

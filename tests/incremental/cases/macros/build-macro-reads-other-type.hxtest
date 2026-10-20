@@ -1,0 +1,41 @@
+# A build macro generates a field from the fields of another class, which changes.
+=== initial
+@expect-output a
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Target.names());
+	}
+}
+--- Config.hx
+class Config {
+	public var a:Int;
+}
+--- Target.hx
+@:build(Builder.build())
+class Target {}
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		var names = switch Context.getType("Config") {
+			case TInst(c, _): [for (f in c.get().fields.get()) f.name].join(",");
+			case _: "";
+		}
+		fields.push((macro class X {
+			public static function names() return $v{names};
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== the other class gains a field
+@expect-output a,b
+--- Config.hx
+class Config {
+	public var a:Int;
+	public var b:Int;
+}

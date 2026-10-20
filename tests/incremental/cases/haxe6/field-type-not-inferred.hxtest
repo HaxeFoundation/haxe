@@ -1,0 +1,21 @@
+# Plan phase 1: a field type must be fully known at the end of its own typing.
+@known-failure Haxe 6 semantics (plan phase 1)
+=== initial
+@expect-error items
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.items.push(1);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static var items = [];
+}
+
+=== annotated
+@expect-success
+--- Dep.hx
+class Dep {
+	public static var items:Array<Int> = [];
+}

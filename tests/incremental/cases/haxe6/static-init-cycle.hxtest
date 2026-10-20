@@ -1,0 +1,18 @@
+# Plan decisions: a dependency cycle between static initializers is an error.
+@known-failure Haxe 6 semantics (plan phase 8)
+=== initial
+@expect-error cycle
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.x);
+	}
+}
+--- A.hx
+class A {
+	public static var x = B.y + 1;
+}
+--- B.hx
+class B {
+	public static var y = A.x + 1;
+}

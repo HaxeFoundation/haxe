@@ -1,0 +1,37 @@
+# Plan phase 3.3: two build macros reading each other's members form a cycle.
+@known-failure Haxe 6 semantics (plan phase 3.3)
+=== initial
+@expect-error Cycle detected
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.count() + B.count());
+	}
+}
+--- A.hx
+@:build(Builder.build("B"))
+class A {
+	public var a:Int;
+}
+--- B.hx
+@:build(Builder.build("A"))
+class B {
+	public var b:Int;
+}
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build(other:String):Array<Field> {
+		var fields = Context.getBuildFields();
+		var n = switch Context.getType(other) {
+			case TInst(c, _): c.get().fields.get().length;
+			case _: 0;
+		}
+		fields.push((macro class X {
+			public static function count() return $v{n};
+		}).fields[0]);
+		return fields;
+	}
+}

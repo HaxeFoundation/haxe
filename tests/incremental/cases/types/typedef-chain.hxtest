@@ -1,0 +1,19 @@
+# A chain of typedefs whose final target changes.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var v:Outer = 1;
+		trace(v);
+	}
+}
+--- Outer.hx
+typedef Outer = Middle;
+--- Middle.hx
+typedef Middle = Int;
+
+=== the end of the chain becomes String
+@expect-error Int should be
+--- Middle.hx
+typedef Middle = String;

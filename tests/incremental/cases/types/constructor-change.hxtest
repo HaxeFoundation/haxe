@@ -1,0 +1,41 @@
+# A constructor gains an argument; a subclass and a caller must follow.
+=== initial
+@expect-output 0
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Child().x);
+	}
+}
+--- Base.hx
+class Base {
+	public var x:Int;
+	public function new() {
+		x = 0;
+	}
+}
+--- Child.hx
+class Child extends Base {
+	public function new() {
+		super();
+	}
+}
+
+=== base constructor takes an argument
+@expect-error Not enough arguments
+--- Base.hx
+class Base {
+	public var x:Int;
+	public function new(x:Int) {
+		this.x = x;
+	}
+}
+
+=== subclass updated
+@expect-output 5
+--- Child.hx
+class Child extends Base {
+	public function new() {
+		super(5);
+	}
+}

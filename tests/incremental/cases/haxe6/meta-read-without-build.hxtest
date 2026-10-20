@@ -1,0 +1,34 @@
+# Plan phase 3.3: reading another type's metadata without forcing its build
+# returns the declared metadata only; after Context.buildType, the complete one.
+@known-failure Haxe 6 semantics (plan phase 3.3)
+=== initial
+@expect-output declared:false built:true
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Reader.check());
+	}
+}
+--- Target.hx
+@:build(Builder.addMeta())
+class Target {}
+--- Builder.hx
+class Builder {
+	public static function addMeta() {
+		haxe.macro.Context.getLocalClass().get().meta.add(":built", [], haxe.macro.Context.currentPos());
+		return null;
+	}
+}
+--- Reader.hx
+import haxe.macro.Context;
+
+class Reader {
+	public static macro function check() {
+		var t = Context.getType("Target");
+		var c = switch t { case TInst(c, _): c; case _: null; };
+		var declared = c.get().meta.has(":built");
+		Context.buildType(t);
+		var built = c.get().meta.has(":built");
+		return macro $v{"declared:" + declared + " built:" + built};
+	}
+}

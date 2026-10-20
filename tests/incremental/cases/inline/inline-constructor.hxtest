@@ -1,0 +1,31 @@
+# An inline constructor whose fields change.
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		var p = new Point(1, 2);
+		trace(p.x + p.y);
+	}
+}
+--- Point.hx
+class Point {
+	public var x:Int;
+	public var y:Int;
+	public inline function new(x:Int, y:Int) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+=== constructor body changes
+@expect-output 30
+--- Point.hx
+class Point {
+	public var x:Int;
+	public var y:Int;
+	public inline function new(x:Int, y:Int) {
+		this.x = x * 10;
+		this.y = y * 10;
+	}
+}

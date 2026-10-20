@@ -1,0 +1,33 @@
+# A plain variable becomes a property with a getter, then read-only.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var t = new Thing();
+		t.value = 1;
+		trace(t.value);
+	}
+}
+--- Thing.hx
+class Thing {
+	public var value:Int = 0;
+	public function new() {}
+}
+
+=== property with a getter
+@expect-output 10
+--- Thing.hx
+class Thing {
+	public var value(get, default):Int = 0;
+	public function new() {}
+	function get_value() return value * 10;
+}
+
+=== read-only
+@expect-error value
+--- Thing.hx
+class Thing {
+	public var value(default, null):Int = 0;
+	public function new() {}
+}

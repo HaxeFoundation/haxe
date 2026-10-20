@@ -1,0 +1,24 @@
+# A self-recursive function with an inferred return type.
+=== initial
+@expect-output 120
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.fact(5));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function fact(n:Int) {
+		return n <= 1 ? 1 : n * fact(n - 1);
+	}
+}
+
+=== body changed
+@expect-output 720
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.fact(6));
+	}
+}

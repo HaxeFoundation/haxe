@@ -1,0 +1,32 @@
+# An implicit cast (@:from) is added then removed in another module.
+=== initial
+@expect-error Int should be Meters
+--- Main.hx
+class Main {
+	static function main() {
+		var m:Meters = 5;
+		trace(m.toString());
+	}
+}
+--- Meters.hx
+abstract Meters(Float) {
+	public function new(v:Float) this = v;
+	public function toString() return this + "m";
+}
+
+=== add @:from Int
+@expect-output 5m
+--- Meters.hx
+abstract Meters(Float) {
+	public function new(v:Float) this = v;
+	@:from static function fromInt(v:Int) return new Meters(v);
+	public function toString() return this + "m";
+}
+
+=== remove it again
+@expect-error Int should be Meters
+--- Meters.hx
+abstract Meters(Float) {
+	public function new(v:Float) this = v;
+	public function toString() return this + "m";
+}

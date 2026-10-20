@@ -1,0 +1,27 @@
+# The argument of an initialization macro changes in the build arguments.
+@args --macro Config.set("one")
+=== initial
+@expect-output one
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Config.get());
+	}
+}
+--- Config.hx
+class Config {
+	#if macro
+	static var value:String;
+	public static function set(v:String) {
+		value = v;
+		haxe.macro.Compiler.define("config_value", v);
+	}
+	#end
+	public static macro function get() {
+		return macro $v{haxe.macro.Context.definedValue("config_value")};
+	}
+}
+
+=== argument changes
+@args --macro Config.set("two")
+@expect-output two

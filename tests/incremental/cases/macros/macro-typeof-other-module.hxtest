@@ -1,0 +1,29 @@
+# A macro inspects the type of a function from another module.
+=== initial
+@expect-output Int
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.typeName(Dep.get()));
+	}
+}
+--- Macro.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Macro {
+	public static macro function typeName(e:Expr) {
+		return macro $v{haxe.macro.TypeTools.toString(Context.typeof(e))};
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get() return 1;
+}
+
+=== inferred type changes
+@expect-output String
+--- Dep.hx
+class Dep {
+	public static function get() return "1";
+}

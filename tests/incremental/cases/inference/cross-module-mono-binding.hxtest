@@ -1,0 +1,35 @@
+# The type of an empty array field is inferred from a use in another module.
+# Haxe 6 makes this an error (plan phase 1). With the current server, the type
+# bound by a previous compilation stays on the cached Dep module.
+@known-failure a monomorph bound by a previous compilation stays bound on the cached module
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.items.push(1);
+		trace(Dep.items.length);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static var items = [];
+}
+
+=== the binding use changes
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.items.push("a");
+		trace(Dep.items.length);
+	}
+}
+
+=== Dep is edited, Main is not
+@expect-output 1
+--- Dep.hx
+class Dep {
+	// edited
+	public static var items = [];
+}

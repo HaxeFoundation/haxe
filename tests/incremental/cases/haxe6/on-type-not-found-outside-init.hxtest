@@ -1,0 +1,17 @@
+# Plan phase 7: onTypeNotFound can only be registered by initialization macros.
+@known-failure Haxe 6 semantics (plan phase 7)
+=== initial
+@expect-error onTypeNotFound
+--- Main.hx
+class Main {
+	static function main() {
+		Macro.setup();
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function setup() {
+		haxe.macro.Context.onTypeNotFound(_ -> null);
+		return macro null;
+	}
+}

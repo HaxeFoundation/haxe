@@ -1,0 +1,34 @@
+# A wildcard import gains a new type.
+=== initial
+@expect-output one
+--- Main.hx
+import pack.*;
+
+class Main {
+	static function main() {
+		trace(One.name());
+	}
+}
+--- pack/One.hx
+package pack;
+
+class One {
+	public static function name() return "one";
+}
+
+=== add a type in the package and use it
+@expect-output two
+--- pack/Two.hx
+package pack;
+
+class Two {
+	public static function name() return "two";
+}
+--- Main.hx
+import pack.*;
+
+class Main {
+	static function main() {
+		trace(Two.name());
+	}
+}

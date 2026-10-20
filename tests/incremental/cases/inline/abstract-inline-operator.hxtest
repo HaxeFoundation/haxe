@@ -1,0 +1,22 @@
+# An inline operator overload of an abstract changes.
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		var a:Num = 1;
+		var b:Num = 2;
+		trace((a + b : Int));
+	}
+}
+--- Num.hx
+abstract Num(Int) from Int to Int {
+	@:op(A + B) static inline function add(a:Num, b:Num):Num return (a : Int) + (b : Int);
+}
+
+=== operator changes
+@expect-output -1
+--- Num.hx
+abstract Num(Int) from Int to Int {
+	@:op(A + B) static inline function add(a:Num, b:Num):Num return (a : Int) - (b : Int);
+}

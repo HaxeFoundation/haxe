@@ -1,0 +1,28 @@
+# The type of a variable inferred from its initializer changes.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		var x:Int = Dep.value + 1;
+		trace(x);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static var value = 1;
+}
+
+=== initializer becomes a Float
+@expect-error Float should be Int
+--- Dep.hx
+class Dep {
+	public static var value = 1.5;
+}
+
+=== initializer back to Int
+@expect-output 6
+--- Dep.hx
+class Dep {
+	public static var value = 5;
+}

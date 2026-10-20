@@ -1,0 +1,16 @@
+# Plan phase 7: whole-program APIs are only allowed in program() stages.
+@known-failure Haxe 6 semantics (plan phase 7)
+=== initial
+@expect-error getAllModuleTypes
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.count());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function count() {
+		return macro $v{haxe.macro.Context.getAllModuleTypes().length};
+	}
+}

@@ -1,0 +1,27 @@
+# A new file in a class path with higher priority shadows an existing type.
+# The class path given last has the highest priority.
+@known-failure the server does not detect a new file shadowing an already loaded type from a higher priority class path
+@args -cp low -cp high
+=== initial
+@expect-output low
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Thing.where());
+	}
+}
+--- low/Thing.hx
+class Thing {
+	public static function where() return "low";
+}
+
+=== shadowing file appears in the high priority class path
+@expect-output high
+--- high/Thing.hx
+class Thing {
+	public static function where() return "high";
+}
+
+=== shadowing file removed again
+@expect-output low
+--- delete high/Thing.hx

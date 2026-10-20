@@ -1,0 +1,27 @@
+# A macro embeds a resource read from a file.
+=== initial
+@expect-output res v1
+--- Main.hx
+class Main {
+	static function main() {
+		Macro.embed();
+		trace(haxe.Resource.getString("res"));
+	}
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function embed() {
+		Context.registerModuleDependency(Context.getLocalModule(), "res.txt");
+		Context.addResource("res", haxe.io.Bytes.ofString(StringTools.trim(sys.io.File.getContent("res.txt"))));
+		return macro null;
+	}
+}
+--- res.txt
+res v1
+
+=== resource file changes
+@expect-output res v2
+--- res.txt
+res v2

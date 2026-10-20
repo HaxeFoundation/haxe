@@ -1,0 +1,32 @@
+# A sub-type is moved from one module to its own module.
+=== initial
+@expect-output helper
+--- Main.hx
+import Tools.Helper;
+
+class Main {
+	static function main() {
+		trace(Helper.name());
+	}
+}
+--- Tools.hx
+class Tools {}
+
+class Helper {
+	public static function name() return "helper";
+}
+
+=== move Helper to its own module
+@expect-output helper
+--- Tools.hx
+class Tools {}
+--- Helper.hx
+class Helper {
+	public static function name() return "helper";
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Helper.name());
+	}
+}

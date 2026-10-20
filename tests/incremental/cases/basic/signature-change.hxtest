@@ -1,0 +1,35 @@
+# Changing a return type must re-type the users of the function.
+=== initial
+@expect-success
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		var v:Int = Dep.get() + 1;
+		trace(v);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get():Int {
+		return 2;
+	}
+}
+
+=== return type becomes String
+@expect-error String should be Int
+--- Dep.hx
+class Dep {
+	public static function get():String {
+		return "2";
+	}
+}
+
+=== back to Int
+@expect-output 3
+--- Dep.hx
+class Dep {
+	public static function get():Int {
+		return 2;
+	}
+}

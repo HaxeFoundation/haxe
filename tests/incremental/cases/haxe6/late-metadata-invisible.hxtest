@@ -1,0 +1,40 @@
+# Plan phase 7, item 6: metadata added to another type is invisible during
+# typing and applied afterwards (here: @:native in the generated code).
+@targets js
+@known-failure Haxe 6 semantics (plan phase 7)
+=== initial
+@expect-output seen during typing: false
+@expect-file out/main.js Renamed
+--- Main.hx
+class Main {
+	static var trigger:Trigger;
+	static function main() {
+		trace("seen during typing: " + Reader.seen());
+		Target.f();
+	}
+}
+--- Target.hx
+class Target {
+	public static function f() {}
+}
+--- Trigger.hx
+@:build(Adder.build())
+class Trigger {}
+--- Adder.hx
+class Adder {
+	public static function build() {
+		haxe.macro.Compiler.addMetadata("@:native('Renamed')", "Target");
+		return null;
+	}
+}
+--- Reader.hx
+import haxe.macro.Context;
+
+class Reader {
+	public static macro function seen() {
+		var t = Context.getType("Target");
+		Context.buildType(t);
+		var c = switch t { case TInst(c, _): c; case _: null; };
+		return macro $v{c.get().meta.has(":native")};
+	}
+}

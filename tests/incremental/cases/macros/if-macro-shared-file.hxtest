@@ -1,0 +1,36 @@
+# A file used by both the macro and the target context, with #if macro.
+=== initial
+@expect-output target:1 macro:1
+--- Main.hx
+class Main {
+	static function main() {
+		trace("target:" + Shared.value() + " macro:" + Shared.atCompileTime());
+	}
+}
+--- Shared.hx
+class Shared {
+	public static function value() return 1;
+
+	#if macro
+	public static function compute() return value();
+	#end
+
+	public static macro function atCompileTime() {
+		return macro $v{compute()};
+	}
+}
+
+=== shared function changes
+@expect-output target:2 macro:2
+--- Shared.hx
+class Shared {
+	public static function value() return 2;
+
+	#if macro
+	public static function compute() return value();
+	#end
+
+	public static macro function atCompileTime() {
+		return macro $v{compute()};
+	}
+}

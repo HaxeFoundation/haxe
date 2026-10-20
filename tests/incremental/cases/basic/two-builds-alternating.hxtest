@@ -1,0 +1,37 @@
+# The same server alternates between two configurations (different defines).
+=== initial
+@expect-output debug=false
+--- Main.hx
+class Main {
+	static function main() {
+		trace("debug=" + Dep.isDebug());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function isDebug() {
+		#if mydebug
+		return true;
+		#else
+		return false;
+		#end
+	}
+}
+
+=== other configuration
+@args -D mydebug
+@expect-output debug=true
+
+=== back to the first configuration with an edit
+@args
+@expect-output debug=false!
+--- Main.hx
+class Main {
+	static function main() {
+		trace("debug=" + Dep.isDebug() + "!");
+	}
+}
+
+=== other configuration again
+@args -D mydebug
+@expect-output debug=true!

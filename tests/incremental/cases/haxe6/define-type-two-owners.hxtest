@@ -1,0 +1,24 @@
+# Plan phase 7: a type defined by macros has a single owner expansion.
+# The error exists today, but its message contains the name of a virtual file
+# built from a global counter (`generate_virtual`), which differs between warm
+# and cold compilations (plan phase 3.4).
+@known-failure virtual file names of macro-defined modules contain a global counter
+=== initial
+@expect-error Cannot redefine module Shared
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.define("a") + Macro.define("b"));
+	}
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function define(v:String) {
+		Context.defineType(macro class Shared {
+			public static function value() return $v{v};
+		});
+		return macro Shared.value();
+	}
+}
