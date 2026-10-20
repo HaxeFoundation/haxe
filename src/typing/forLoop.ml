@@ -180,7 +180,7 @@ module IterationKind = struct
 
 	let of_texpr_by_array_access ctx e p =
 		let aa = get_array_access ctx e.etype p in
-		IteratorCustom(aa.aa_get,aa.aa_length),e,aa.aa_type
+		IteratorCustom((fun e_base e_index _ p -> make_array_get ctx aa e_base e_index p),make_array_length ctx aa),e,aa.aa_type
 
 	let map_unroll_params ctx unroll_params i = match unroll_params with
 		| None ->

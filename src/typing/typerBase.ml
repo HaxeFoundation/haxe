@@ -403,9 +403,17 @@ let get_abstract_froms ctx a pl =
    to read the length. For loops and array patterns use this (#8012). *)
 type array_access = {
 	aa_type : Type.t;
-	aa_get : texpr -> texpr -> Type.t -> pos -> texpr;
-	aa_length : texpr -> pos -> texpr;
+	aa_get : array_get;
+	aa_length : array_length;
 }
+
+and array_get =
+	| AGIndex (* e[i] *)
+	| AGCall of tclass * tclass_field * tparams (* a call of the abstract's @:arrayAccess getter *)
+
+and array_length =
+	| ALField (* the class's length field *)
+	| ALCall of tclass * tclass_field * tparams (* a call of the abstract's get_length *)
 
 let get_next_array_element arr iexpr pt p =
 	(mk (TArray (arr,iexpr)) pt p)
@@ -417,12 +425,9 @@ let get_array_length ctx arr p =
 let get_array_access ctx t p =
 	match follow t with
 	| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
-		{ aa_type = apply_params c.cl_params pl pt; aa_get = get_next_array_element; aa_length = get_array_length ctx }
+		{ aa_type = apply_params c.cl_params pl pt; aa_get = AGIndex; aa_length = ALField }
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		let cf_length = PMap.find "get_length" c.cl_statics in
-		let get_length e p =
-			CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
-		in
 		(match follow cf_length.cf_type with
 			| TFun(_,tr) ->
 				(match follow tr with
@@ -436,10 +441,7 @@ let get_array_access ctx t p =
 			(* first try: do we have an @:arrayAccess getter field? *)
 			let todo = mk (TConst TNull) ctx.t.tint p in
 			let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
-			let get_next e_base e_index t p =
-				CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] r p
-			in
-			{ aa_type = r; aa_get = get_next; aa_length = get_length }
+			{ aa_type = r; aa_get = AGCall(c,cf,tl); aa_length = ALCall(c,cf_length,tl) }
 		with Not_found ->
 			(* second try: do we have @:arrayAccess on the abstract itself? *)
 			if not (Meta.has Meta.ArrayAccess a.a_meta) then raise Not_found;
@@ -447,9 +449,17 @@ let get_array_access ctx t p =
 			if not (Meta.has Meta.CoreType a.a_meta) then raise Not_found;
 			(* in which case we assume that a singular type parameter is the element type *)
 			let t = match tl with [t] -> t | _ -> raise Not_found in
-			{ aa_type = t; aa_get = get_next_array_element; aa_length = get_length }
+			{ aa_type = t; aa_get = AGIndex; aa_length = ALCall(c,cf_length,tl) }
 		)
 	| _ -> raise Not_found
+
+let make_array_get ctx aa e_base e_index p = match aa.aa_get with
+	| AGIndex -> get_next_array_element e_base e_index aa.aa_type p
+	| AGCall(c,cf,tl) -> CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] aa.aa_type p
+
+let make_array_length ctx aa e p = match aa.aa_length with
+	| ALField -> get_array_length ctx e p
+	| ALCall(c,cf,tl) -> CallUnification.make_static_call_better ctx c cf tl [e] ctx.com.basic.tint p
 
 let safe_nav_branch ctx sn f_then =
 	(* generate null-check branching for the safe navigation chain *)

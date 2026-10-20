@@ -288,7 +288,7 @@ let to_texpr ctx t_switch with_type dt =
 						| SKEnum -> mk_index_call e_subject
 						| SKLength ->
 							begin match ExprToPattern.get_array_access ctx e_subject.etype e_subject.epos with
-								| Some aa -> aa.aa_length e_subject e_subject.epos
+								| Some aa -> TyperBase.make_array_length ctx aa e_subject e_subject.epos
 								| None -> ExprToPattern.type_field_access ctx e_subject "length"
 							end
 					in
