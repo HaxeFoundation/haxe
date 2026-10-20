@@ -319,6 +319,9 @@ let make_macro_api ctx mctx p =
 	let partially_built_class_read c =
 		if not (is_local_class c) then
 			TypeloadCheck.build_cycle_error_reason "a macro reads" c p
+		else
+			(* its own fields are not built yet: the build macro has them *)
+			raise_typing_error (Printf.sprintf "The fields of %s are read during its own build: use Context.getBuildFields()" (s_type_path c.cl_path)) p
 	in
 	let class_built_by_expansion c =
 		is_local_class c || List.memq c !MacroApi.expansion_built

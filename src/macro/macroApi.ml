@@ -1176,16 +1176,32 @@ and encode_tenum e =
 	]
 
 and encode_tabstract a =
+	(* casts, operators, array access and resolve come from the fields of the
+	   implementation class: reading them builds it (members(T),
+	   docs/incremental-compilation.md, §3.3) *)
+	let members f = encode_lazy (AtomicLazy.from_fun (fun () ->
+		begin match a.a_impl with
+		| Some c ->
+			c.cl_build_header ();
+			begin match c.cl_build() with
+			| Built -> ()
+			| _ -> !current_partially_built_class_read c
+			end
+		| None ->
+			()
+		end;
+		f ()
+	)) in
 	encode_mtype (TAbstractDecl a) [
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
-		"binops", encode_array (List.map (fun (op,cf) -> encode_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
-		"unops", encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "postFix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
-		"from", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
-		"to", encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
-		"array", encode_array (List.map encode_cfield a.a_array);
-		"resolve", (match a.a_read with None -> vnull | Some cf -> encode_cfref cf);
-		"resolveWrite", (match a.a_write with None -> vnull | Some cf -> encode_cfref cf);
+		"binops", members (fun () -> encode_array (List.map (fun (op,cf) -> encode_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops));
+		"unops", members (fun () -> encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "postFix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops));
+		"from", members (fun () -> encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field)));
+		"to", members (fun () -> encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field)));
+		"array", members (fun () -> encode_array (List.map encode_cfield a.a_array));
+		"resolve", members (fun () -> match a.a_read with None -> vnull | Some cf -> encode_cfref cf);
+		"resolveWrite", members (fun () -> match a.a_write with None -> vnull | Some cf -> encode_cfref cf);
 	]
 
 and encode_efield f =

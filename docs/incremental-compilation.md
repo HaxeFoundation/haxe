@@ -912,6 +912,13 @@ call, so that a nested expansion (a build macro run by `Context.getType`)
 does not leave its own view behind. Virtual file names of macro-defined
 modules are now the module path alone (`<pack>/<name>`), without the
 compilation step, so that warm and cold compilations report the same file.
+Reading the fields (`fields`, `statics`, `constructor`, `init`,
+`overrides`) of the class being built from its own build macro is an error
+pointing to `Context.getBuildFields()` (`buildType/compile-local-fields-fail`).
+`AbstractType`'s casts, operators, array access and resolve fields come from
+the implementation class's fields: reading them builds that class instead of
+returning whatever it holds so far. Neither change affects the corpus (same
+JS output for Heaps and hide).
 The `tests/incremental` cases `build-macro-cycle`, `meta-read-without-build`,
 `macro-field-expr-cycle` and `define-type-two-owners` pass and are no longer
 marked as known failures.
