@@ -1,0 +1,81 @@
+# The output order stays the same over many warm compilations editing
+# different modules (no change of the dependency structure).
+@targets js
+=== initial
+@expect-output A:1 B:2 red 3
+--- Main.hx
+class Main {
+	static function main() {
+		var box = new Box<Int>(3);
+		trace(new A().name() + " " + new B().name() + " " + Colors.name(Red) + " " + box.get());
+	}
+}
+--- Base.hx
+class Base {
+	public static var registry = new Map<String, Int>();
+	public function new() {}
+	public function name() return "base";
+}
+--- A.hx
+class A extends Base {
+	public static var id_ = 1;
+	static var id = id_;
+	override public function name() return "A:" + id;
+}
+--- B.hx
+class B extends Base {
+	static var id = A.id_ + 1;
+	override public function name() return "B:" + id;
+}
+--- Colors.hx
+enum Color { Red; Green; }
+
+class Colors {
+	public static var names = [Red => "red", Green => "green"];
+	public static function name(c:Color) return names.get(c);
+}
+--- Box.hx
+@:generic
+class Box<T> {
+	var v:T;
+	public function new(v:T) this.v = v;
+	public function get() return v;
+}
+
+=== edit A
+@expect-output A:1! B:2 red 3
+--- A.hx
+class A extends Base {
+	public static var id_ = 1;
+	static var id = id_;
+	override public function name() return "A:" + id + "!";
+}
+
+=== edit Colors
+@expect-output A:1! B:2 rouge 3
+--- Colors.hx
+enum Color { Red; Green; }
+
+class Colors {
+	public static var names = [Red => "rouge", Green => "vert"];
+	public static function name(c:Color) return names.get(c);
+}
+
+=== edit Main
+@expect-output A:1! B:2 rouge 4
+--- Main.hx
+class Main {
+	static function main() {
+		var box = new Box<Int>(4);
+		trace(new A().name() + " " + new B().name() + " " + Colors.name(Red) + " " + box.get());
+	}
+}
+
+=== edit Base
+@expect-output A:1! B:2 rouge 4
+--- Base.hx
+class Base {
+	public static var registry = new Map<String, Int>();
+	public function new() {}
+	public function name() return "base!";
+}

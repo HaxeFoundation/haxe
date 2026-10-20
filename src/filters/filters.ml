@@ -264,7 +264,7 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 		);
 		all_types
 	) in
-	com.types <- all_types;
+	com.types <- Finalization.sort_type_list com all_types;
 
 	with_timer scom.timer_ctx detail_times "type 4" None (fun () ->
 		SafeCom.run_with_scom com scom (fun () ->

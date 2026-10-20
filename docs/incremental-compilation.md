@@ -241,6 +241,17 @@ exist (phase 4); item 2 (stale pointer checker) only makes sense with grafting
   restored from the cache. This is the deterministic output order required by
   the plan (§0, static initialization and output order; §3.4);
 - with `--ignore-order`, all 30 commits are identical;
+- **cause and fix**: `Finalization.sort_types` orders types by walking static
+  initializers, before the filters. A module reused from the server's cache
+  holds post-processed expressions (principle 4 is not met yet), e.g.
+  `new haxe.ds.StringMap()` instead of the abstract `Map` constructor, so the
+  walk found dependency edges that a cold compilation does not see. The order
+  is now computed again after the filters (`Finalization.sort_type_list`,
+  called by `Filters.destruction`), when every type has post-processed
+  expressions, as the plan prescribes for the initialization order (phase 8).
+  The replay is then identical in strict mode (30 of 30 commits), and
+  `tests/incremental/cases/ordering/` reproduces the bug (both cases fail with
+  the previous compiler);
 - warm compilations take 82 s in total against 181 s cold (module-level
   caching of the current server).
 

@@ -1,0 +1,39 @@
+# The output order of types must be the same in warm and cold compilations.
+# A cached module whose static initializer uses `new Map()` holds the
+# post-processed expression (`new haxe.ds.StringMap()`), which used to add a
+# dependency edge that a cold compilation does not see before the filters,
+# moving haxe.ds.StringMap and haxe.IMap in the JS output.
+@targets js
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		Cache.cache.set("a", 1);
+		trace(Cache.cache.get("a"));
+	}
+}
+--- Cache.hx
+class Cache {
+	public static var cache = new Map<String, Int>();
+}
+
+=== Main edited, Cache reused from the cache
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		Cache.cache.set("a", 2);
+		trace(Cache.cache.get("a"));
+	}
+}
+
+=== edited again
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		Cache.cache.set("b", 3);
+		trace(Cache.cache.get("b"));
+	}
+}

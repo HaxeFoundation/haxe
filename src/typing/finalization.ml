@@ -96,7 +96,10 @@ type state =
 	| Done
 	| NotYet
 
-let sort_types com (modules : module_lut) =
+(* Orders the types of [sorted_modules] so that a type comes after the types its
+   static initialization depends on. [keep] restricts the result to a set of
+   types (e.g. after DCE). *)
+let sort_modules_types com ?(keep=fun _ -> true) ?(warn=true) sorted_modules =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -104,10 +107,11 @@ let sort_types com (modules : module_lut) =
 
 	let rec loop t =
 		let p = t_path t in
+		if not (keep t) then () else
 		match state p with
 		| Done -> ()
 		| Generating ->
-			module_warning com (t_infos t).mt_module WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			if warn then module_warning com (t_infos t).mt_module WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with
@@ -187,9 +191,34 @@ let sort_types com (modules : module_lut) =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (modules#fold (fun _ m acc -> m :: acc) []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
-	List.rev !types, sorted_modules
+	List.rev !types
+
+let sort_types com (modules : module_lut) =
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (modules#fold (fun _ m acc -> m :: acc) []) in
+	sort_modules_types com sorted_modules, sorted_modules
+
+(* Orders [types] again once post-processing is done. The order computed during
+   typing depends on the expressions it walks, which may already be
+   post-processed for modules reused from the compilation server's cache and
+   not for the others; after the filters, every type has its post-processed
+   expressions, so the order is the same whatever the cache state
+   (docs/incremental-compilation.md: deterministic output order). *)
+let sort_type_list com types =
+	let present = Hashtbl.create (List.length types) in
+	let modules = Hashtbl.create 0 in
+	List.iter (fun t ->
+		Hashtbl.replace present (t_path t) ();
+		let m = (t_infos t).mt_module in
+		Hashtbl.replace modules m.m_path m
+	) types;
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
+	let sorted = sort_modules_types com ~keep:(fun t -> Hashtbl.mem present (t_path t)) ~warn:false sorted_modules in
+	(* Types that are not in the type list of their module (if any) keep their
+	   relative order, at the end. *)
+	let sorted_set = Hashtbl.create (List.length sorted) in
+	List.iter (fun t -> Hashtbl.replace sorted_set (t_path t) ()) sorted;
+	sorted @ List.filter (fun t -> not (Hashtbl.mem sorted_set (t_path t))) types
 
 let generate ctx main_path =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in
