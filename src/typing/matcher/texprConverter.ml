@@ -197,8 +197,7 @@ let to_texpr ctx t_switch with_type dt =
 					let e_subject = match scrutinee.scr_kind with
 						| SKValue -> e_subject
 						| SKEnum -> mk_index_call e_subject
-						| SKLength IndexArray -> ExprToPattern.type_field_access ctx e_subject "length"
-						| SKLength (IndexAccess aa) -> ArrayAccess.make_array_length ctx aa e_subject e_subject.epos
+						| SKLength aa -> ArrayAccess.make_array_length ctx aa e_subject e_subject.epos
 					in
 					let e = match cases,e_default,with_type with
 						| [case],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->

@@ -9,16 +9,11 @@ type type_finiteness =
 	| CompileTimeFinite (* type is considered finite only at compile-time but has inifite possible run-time values (enum abstracts) *)
 	| RunTimeFinite     (* type is truly finite (Bool, enums) *)
 
-(* How array patterns read the elements and the length of a value. *)
-type index_access =
-	| IndexArray                            (* like those of an array *)
-	| IndexAccess of ArrayAccess.array_access (* the way for loops read them (#8012) *)
-
 (* How a switch tests its scrutinee. *)
 type match_kind =
-	| SKValue                  (* against constants, statics and types *)
-	| SKEnum                   (* by the index of its enum constructor *)
-	| SKLength of index_access (* by its length *)
+	| SKValue                            (* against constants, statics and types *)
+	| SKEnum                             (* by the index of its enum constructor *)
+	| SKLength of ArrayAccess.array_access (* by its length, read the way this says (#8012) *)
 
 (* What a switch examines: a subject's expression and what the switch makes of it, see Subject.make_scrutinee. *)
 type scrutinee = {

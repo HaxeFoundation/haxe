@@ -5,10 +5,21 @@ open MatcherGlobals
 open Constructor
 open DecisionTree
 
+(* Array patterns also apply to abstracts with a single `from` type leading to an array or to Dynamic when they can't
+   be accessed by index (see ExprToPattern.get_array_access). For those, this reports what the typer reports for
+   `e[i]` and `e.length`, the latter first if [length_first]. If the typer only displays its error, the matcher goes
+   on like the typer does, reading the subject as Dynamic. *)
+let no_array_access ctx e length_first =
+	let element () = ignore(Calls.acc_get ctx (Calls.array_access ctx e (Texpr.Builder.make_int ctx.com.basic 0 e.epos) MGet e.epos)) in
+	let length () = ignore(ExprToPattern.type_field_access ctx e "length") in
+	if length_first then begin length (); element () end else begin element (); length () end;
+	if not ctx.com.part_scope.has_error then Error.raise_typing_error ("Array access is not allowed on " ^ s_type e.etype) e.epos;
+	{ ArrayAccess.aa_type = t_dynamic; aa_get = AGDynamic; aa_length = ALForward(t_dynamic,ALField) }
+
 (* A value the matcher still has to match: its expression, a constant or a local, and the binding of that local if the
    matcher introduced it. A switch on it keeps a DecisionTree.scrutinee, see [make_scrutinee]. *)
 class subject (e : texpr) (bind : Bind.bind option) = object (self)
-	val mutable index_access : index_access option = None
+	val mutable array_access : ArrayAccess.array_access option = None
 
 	method get_expr =
 		begin match bind with
@@ -47,17 +58,18 @@ class subject (e : texpr) (bind : Bind.bind option) = object (self)
 	method is_nullable =
 		is_explicit_null_or_abstract_over_that e.etype
 
-	(* How array patterns read this subject, looked up when they first do. *)
-	method get_index_access ctx = match index_access with
-		| Some access ->
-			access
+	(* How array patterns read this subject, looked up when they first do: for its length if [length_first], else for
+	   an element. *)
+	method get_array_access ctx length_first = match array_access with
+		| Some aa ->
+			aa
 		| None ->
-			let access = match ExprToPattern.get_array_access ctx e.etype e.epos with
-				| Some aa -> IndexAccess aa
-				| None -> IndexArray
+			let aa = match ExprToPattern.get_array_access ctx e.etype e.epos with
+				| Some aa -> aa
+				| None -> no_array_access ctx e length_first
 			in
-			index_access <- Some access;
-			access
+			array_access <- Some aa;
+			aa
 
 	method to_string =
 		s_expr_pretty e
@@ -120,8 +132,8 @@ let make_scrutinee ctx (subject : subject) e_switch cons =
 		| TInst({cl_path=[],"String"},_)
 		| TInst({cl_kind = KTypeParameter _ },_) ->
 			SKValue,Infinite
-		| TInst({cl_path=[],"Array"},_) ->
-			SKLength IndexArray,Infinite
+		| TInst({cl_path=[],"Array"},_) as t ->
+			SKLength (ArrayAccess.get_array_access ctx t e_switch.epos),Infinite
 		| TEnum(en,pl) ->
 			if not deep then
 				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
@@ -134,16 +146,13 @@ let make_scrutinee ctx (subject : subject) e_switch cons =
 			SKValue,Infinite
 	in
 	let kind,finiteness = loop false t in
-	(* Array patterns on values which can be accessed by index (#8012). *)
-	let kind,finiteness = match cons with
-		| (ConArray _,_) :: _ ->
-			begin match subject#get_index_access ctx with
-				| IndexAccess _ as access ->
-					constructors := [];
-					SKLength access,Infinite
-				| IndexArray ->
-					kind,finiteness
-			end
+	(* Array patterns, and switches without cases on an array or an abstract over one, test the subject's length (#8012). *)
+	let kind,finiteness = match kind,cons with
+		| _,(ConArray _,_) :: _ ->
+			constructors := [];
+			SKLength (subject#get_array_access ctx true),Infinite
+		| SKLength _,[] ->
+			SKLength (subject#get_array_access ctx true),finiteness
 		| _ ->
 			kind,finiteness
 	in
