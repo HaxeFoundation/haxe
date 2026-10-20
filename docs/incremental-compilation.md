@@ -14,7 +14,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Macros | Automatic dependency tracing, *volatile* macros re-executed with early cutoff on their output. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File writes are the macro's responsibility (not tracked by the compiler). |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6, with a warning phase before errors. |
-| Macro context | The macro and target contexts keep **separate query graphs** (different defines, platform and standard library overrides), but **share parsing**: a parsed module is reused by the other context when the defines read during its parsing have the same values in both (phase 3.6). |
+| Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
 | Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. A dependency cycle between static initializers is an **error**. |
 | Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
 | Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. |
@@ -29,7 +29,8 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
 | Enforcing queries | Entity contents become **abstract types** behind accessors, so that the OCaml compiler rejects any read that bypasses a query. Post-typing stages use a frozen view. |
-| Parallelism | **Design goal.** Body queries must be safe to run in parallel (OCaml 5 domains, `src/context/parallel.ml`), with deterministic results. |
+| Parallelism | Body queries run in parallel (OCaml 5 domains, `src/context/parallel.ml`), **enabled by default** with one domain per available core; `-D typer-domains=1` disables it. Output must be identical whatever the number of domains (checked in CI). |
+| File change detection | A **file system watcher** on class path directories and read files, plus **editor notifications** (`server/invalidate`). A full scan only happens at server startup, or for a directory the watcher cannot watch (phase 6, item 8). |
 
 ## 1. Current state (starting point)
 
@@ -110,7 +111,7 @@ The old ↔ new mapping between two typings goes through this key.
 
 | Node | Content | Fingerprint |
 |---|---|---|
-| `File(f)` | file content | content hash. Modification time (with full precision, `st_mtim`, not seconds) is only a pre-filter; a file whose modification time is within the last second of its previous check is always hashed, as edits within the same clock tick are otherwise missed |
+| `File(f)` | file content | content hash. Changes are signaled by the file system watcher and editor notifications (phase 6, item 8); when a scan is needed, modification time (with full precision, `st_mtim`, not seconds) is only a pre-filter, and a file whose modification time is within the last second of its previous check is always hashed |
 | `Decls(m)` | parsed AST, split per type and per field | hash of the AST with positions **relative to the declaration's anchor** (phase 2, item 6), per field |
 | `TypeHeader(t)` | path, kind, parameters, constraints, `super`/`implements`, **declared** metadata, `@:using`, abstract underlying type, typedef target | canonical hash |
 | `TypeMembers(t)` | **member set** after build macros (names, kinds, access, declared hints), complete metadata (including build-added), abstract `from`/`to`/operators | canonical hash |
@@ -483,6 +484,7 @@ that header information never triggers a build:
 | `Context.buildType(t)` / `ClassType.ensureBuilt()` | `members(T)`: triggers and completes the build |
 | `fields.get()`, `statics.get()`, `constructor.get()`, `init` | `members(T)` (they need the build output anyway) |
 | `cf.type` of a field, `overrides` | `members(T)` and `sig(f)` |
+| `cf.expr()` (typed body of another field) | `body(f)`: triggers the typing of the body and records a dependency on it; reading the body of a field being typed on the current query stack (its own, or through a cycle) is a cycle error |
 
 Behavior change: today `Ref.get()` always forces the build
 (`encode_tclass` calls `cl_build` in `src/macro/macroApi.ml`) and tolerates a
@@ -577,14 +579,18 @@ before cycles become errors.
     per-query and deterministic.
 - Output is identical whatever the number of domains (checked by verification
   mode with `-D typer-domains=1` vs `N`).
+- Parallel typing is **enabled by default**, with one domain per available
+  core. `-D typer-domains=<n>` sets the number of domains, `1` disables it.
 
-#### 3.6 Parsing shared between the macro and target contexts
+#### 3.6 Parsing shared between contexts
 
-The macro context (`com.get_macros()`) and the target context keep separate
-query graphs: they have different defines, a different platform, and resolve
-different standard library overrides (`std/<platform>/_std`), so their headers,
-members and bodies cannot be shared. Parsing, however, is the same work in both
-contexts whenever conditional compilation evaluates the same way.
+Every context on a server keeps its own query graph: the macro context
+(`com.get_macros()`) and the target context, but also other configurations
+compiled by the same server (js and hl, debug and release…). They have
+different defines, possibly a different platform, and resolve different
+standard library overrides (`std/<platform>/_std`), so their headers, members
+and bodies cannot be shared. Parsing, however, is the same work in all of them
+whenever conditional compilation evaluates the same way.
 
 1. **Recording define reads.** While parsing a file, the preprocessor
    (`src/syntax/parserEntry.ml`, evaluation of `#if` conditions through
@@ -597,7 +603,7 @@ contexts whenever conditional compilation evaluates the same way.
    recorded define has the same value in that context. Files without any `#if`
    are shared unconditionally.
 3. Several parse results may coexist for one file (one per distinct set of
-   values), typically one for macro and one for the target when the file
+   values), for example one for macro and one for the target when the file
    contains `#if macro`.
 4. `Decls` fingerprints (phase 4) are attached to the parse result, so they are
    shared as well.
@@ -698,6 +704,25 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
    item 4). **Global callbacks** (`onAfterTyping`, `onGenerate`) and
    `program()` stage reductions are always executed **last**, with early
    cutoff on what they produce.
+
+8. **File change detection**: the server learns about changes from two
+   sources, never from a per-compilation scan of the whole project:
+   - a **file system watcher** (inotify, FSEvents, ReadDirectoryChangesW,
+     through libuv `fs_event`, already linked for the eval `Luv` API in
+     `src/macro/eval/evalLuv.ml`) on every class path directory, every
+     directory of a module file and every file read by a macro (`DFile`). File
+     creations, deletions and renames invalidate the `File` and `DLookup`
+     nodes concerned, which also covers a new file shadowing a loaded type
+     from a higher priority class path;
+   - **editor notifications** (`server/invalidate`, already part of the
+     protocol), applied immediately, which also cover unsaved changes sent by
+     the editor;
+   - a **full scan** (modification times with full precision, then content
+     hashes) only at server startup, and for a directory the watcher cannot
+     watch (network file systems, some container mounts, watch limits),
+     reported once with a warning;
+   - events are coalesced: a compilation starts by draining the pending
+     events, so that a burst of changes (git checkout) is applied at once.
 
 Exit criterion: equivalence across the whole corpus in history replay.
 Measurement: number of retyped fields per commit, typing time.
@@ -1088,6 +1113,13 @@ phase 4 `Decls` fingerprints and happens in phase 6.
 - Macro-defined type tests: replay with the owner cached, owner re-executed
   without the definition (type removed), second definition of the same path
   (error), `onTypeNotFound` registered outside initialization (error).
+- File change detection tests: edits within the same second, new files
+  shadowing a loaded type, deletions and renames, bursts of changes, unwatchable
+  directories (scan fallback); the `tests/incremental` cases marked
+  `@real-mtime` and the shadowing cases must pass without the runner's
+  modification time adjustment.
+- Parallel typing tests: identical output with `-D typer-domains=1` and with
+  several domains, on the whole `tests/incremental` suite.
 - Determinism tests: stored typed expression ids, virtual file names,
   `Compiler.include` order, error message texts and anonymous structure names
   identical between cold, warm and shuffled-order compilations.

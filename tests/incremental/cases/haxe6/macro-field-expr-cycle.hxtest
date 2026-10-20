@@ -1,0 +1,48 @@
+# Plan phase 3.3: `ClassField.expr()` demands the body of the field; reading
+# the body of the field currently being typed is a cycle error, reading
+# another field's body is a dependency.
+@known-failure Haxe 6 semantics (plan phase 3.3)
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.copy());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function source() return 1 + 1;
+	public static function copy() return Macro.bodyOf("source");
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function bodyOf(name:String) {
+		var c = Context.getLocalClass().get();
+		for (f in c.statics.get())
+			if (f.name == name)
+				switch f.expr().expr {
+					case TFunction(fn): return Context.getTypedExpr(fn.expr);
+					case _:
+				}
+		return macro null;
+	}
+}
+
+=== source body changes
+@expect-output 6
+--- Dep.hx
+class Dep {
+	public static function source() return 2 * 3;
+	public static function copy() return Macro.bodyOf("source");
+}
+
+=== a field reads its own body
+@expect-error Cycle detected
+--- Dep.hx
+class Dep {
+	public static function source() return 2 * 3;
+	public static function copy() return Macro.bodyOf("copy");
+}
