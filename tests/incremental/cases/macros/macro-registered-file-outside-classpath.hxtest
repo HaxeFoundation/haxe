@@ -1,0 +1,43 @@
+# A macro reads a data file outside the class path and declares it with
+# registerModuleDependency: changes to the file must be picked up.
+@args -cp src
+@main Main
+=== initial
+@expect-output asset v1
+--- src/Main.hx
+class Main {
+	static function main() {
+		trace(Macro.load());
+	}
+}
+--- src/Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function load() {
+		var file = "assets/data.txt";
+		Context.registerModuleDependency(Context.getLocalModule(), file);
+		return macro $v{StringTools.trim(sys.io.File.getContent(file))};
+	}
+}
+--- assets/data.txt
+asset v1
+
+=== asset changes
+@expect-output asset v2
+--- assets/data.txt
+asset v2
+
+=== asset deleted, macro handles it
+@expect-output missing
+--- delete assets/data.txt
+--- src/Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function load() {
+		var file = "assets/data.txt";
+		Context.registerModuleDependency(Context.getLocalModule(), file);
+		return macro $v{sys.FileSystem.exists(file) ? StringTools.trim(sys.io.File.getContent(file)) : "missing"};
+	}
+}

@@ -80,6 +80,15 @@ edits made within the same second as the previous compilation are not detected
 runner gives every step its own modification time, two seconds after the
 previous one, on changed files and their directories.
 
+## Macro file dependencies
+
+Files read by macros are not tracked automatically: a macro whose result
+depends on a file must declare it with `Context.registerModuleDependency`
+(see `cases/macros/macro-reads-file-registered.hxtest` and
+`macro-registered-file-outside-classpath.hxtest`). Cases must not read
+undeclared files from macros, since warm and cold compilations can then
+legitimately differ.
+
 ## Known failures
 
 `@known-failure` marks cases that fail with the current compiler. The runner
