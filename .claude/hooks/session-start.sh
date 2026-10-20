@@ -1,7 +1,8 @@
 #!/bin/bash
 # Prepares a Claude Code cloud session for working on the Haxe compiler:
 # OCaml toolchain and libraries (opam), the compiler build, and the tools
-# used by tests/incremental (node is preinstalled in cloud containers).
+# used by tests/incremental and tests/unit (haxelib with utest; node is
+# preinstalled in cloud containers).
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
@@ -14,9 +15,10 @@ OCAML_VERSION=5.3.0
 export OPAMYES=1 OPAMROOTISOK=1 OPAMCOLOR=never
 
 # System packages (same list as the Linux job of .github/workflows/main.yml,
-# plus neko for conf-neko and opam's own build requirements).
+# plus neko and its headers for conf-neko and haxelib, and opam's own build
+# requirements).
 missing=""
-for pkg in opam libpcre2-dev zlib1g-dev libmbedtls-dev neko pkg-config m4 unzip; do
+for pkg in opam libpcre2-dev zlib1g-dev libmbedtls-dev neko neko-dev pkg-config m4 unzip git; do
 	dpkg -s "$pkg" >/dev/null 2>&1 || missing="$missing $pkg"
 done
 if [ -n "$missing" ]; then
@@ -37,8 +39,22 @@ eval "$(opam env --switch="$OCAML_VERSION" --set-switch)"
 opam pin add haxe . --no-action --kind=path >/dev/null
 opam install haxe --deps-only --assume-depexts
 
-# Build the compiler (incremental through dune, fast when up to date).
+# Build the compiler (incremental through dune, fast when up to date) and
+# haxelib.
 make -s -j"$(nproc)" haxe
+git submodule update --init --recursive extra/haxelib_src
+make -s haxelib
+
+# haxelib repository with the libraries needed by tests/unit (as in
+# tests/RunCi.hx).
+export PATH="$CLAUDE_PROJECT_DIR:$PATH"
+export HAXE_STD_PATH="$CLAUDE_PROJECT_DIR/std"
+HAXELIB_REPO="$HOME/haxelib"
+mkdir -p "$HAXELIB_REPO"
+./haxelib setup "$HAXELIB_REPO" >/dev/null
+if ! ./haxelib path utest >/dev/null 2>&1; then
+	./haxelib git utest https://github.com/haxe-utest/utest >/dev/null
+fi
 
 # Make the OCaml environment and the freshly built compiler available to the
 # session's shell commands.
