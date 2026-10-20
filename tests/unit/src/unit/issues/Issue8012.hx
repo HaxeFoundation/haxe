@@ -41,6 +41,39 @@ private abstract NoLength(Array<Int>) {
 		return this[i];
 }
 
+// Since #13071, `for` loops and array patterns index abstracts the way the typer does: these can now be iterated
+// and matched, see testForwarded.
+@:forward(length)
+private abstract ForwardedLength(Array<Int>) {
+	public inline function new(a:Array<Int>)
+		this = a;
+
+	@:arrayAccess inline function get(i:Int):Int
+		return this[i];
+}
+
+@:forward(length) @:arrayAccess
+private abstract ForwardedIndex(Array<String>) {
+	public inline function new(a:Array<String>)
+		this = a;
+}
+
+private abstract ToArray(Array<Int>) to Array<Int> {
+	public inline function new(a:Array<Int>)
+		this = a;
+
+	public var length(get, never):Int;
+
+	inline function get_length()
+		return this.length;
+}
+
+@:forward(length)
+private abstract ToArrayForwarded<T>(Array<T>) to Array<T> {
+	public inline function new(a:Array<T>)
+		this = a;
+}
+
 #if js
 @:native("Array")
 private extern class ArrayLike<T> implements ArrayAccess<T> {
@@ -152,6 +185,36 @@ class Issue8012 extends Test {
 			case [a]: a;
 			case _: "";
 		});
+	}
+
+	function testForwarded() {
+		var a = new ForwardedLength([2, 3]);
+		eq(6, switch a {
+			case [x, y]: x * y;
+			case _: 0;
+		});
+		var sum = 0;
+		for (x in a)
+			sum += x;
+		eq(5, sum);
+		var b = new ForwardedIndex(["a", "b"]);
+		eq("b", switch b {
+			case [_, s]: s;
+			case _: "";
+		});
+		eq("ab", [for (s in b) s].join(""));
+		var c = new ToArray([4]);
+		eq(4, switch c {
+			case [x]: x;
+			case _: 0;
+		});
+		eq(4, [for (x in c) x][0]);
+		var d = new ToArrayForwarded(["x", "y", "z"]);
+		eq("z", switch d {
+			case [_, _, s]: s;
+			case _: "";
+		});
+		eq("xyz", [for (s in d) s].join(""));
 	}
 
 	#if js
