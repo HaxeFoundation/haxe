@@ -1,0 +1,27 @@
+# A platform-specific file (Name.js.hx / Name.macro.hx style) appears next to
+# the generic one and takes precedence for that platform.
+@targets js
+@known-failure the server does not detect a new platform-specific file next to an already loaded module
+=== initial
+@expect-output generic
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Impl.name());
+	}
+}
+--- Impl.hx
+class Impl {
+	public static function name() return "generic";
+}
+
+=== js-specific file added
+@expect-output js
+--- Impl.js.hx
+class Impl {
+	public static function name() return "js";
+}
+
+=== js-specific file removed
+@expect-output generic
+--- delete Impl.js.hx
