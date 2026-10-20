@@ -29,7 +29,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
 | Enforcing queries | Entity contents become **abstract types** behind accessors, so that the OCaml compiler rejects any read that bypasses a query. Post-typing stages use a frozen view. |
-| Parallelism | Body queries run in parallel (OCaml 5 domains, `src/context/parallel.ml`), **enabled by default** with one domain per available core; `-D typer-domains=1` disables it. Output must be identical whatever the number of domains (checked in CI). |
+| Parallelism | **Every compilation operation runs in parallel**, not only typing: file system events and hashing, parsing, every typing query, macro expansions, fingerprints, post-processing, global passes, code generation and output writing (§4b). The query engine is the scheduler, on a persistent pool of OCaml 5 domains (`src/context/parallel.ml`). **Enabled by default** with one domain per available core; `-D compilation-domains=<n>` sets the number, `1` disables it. Output must be identical whatever the number of domains and the scheduling order (checked in CI). |
 | File system | A server-wide **virtual file system** (phase 6) holds directory listings, file hashes and contents, kept up to date by a **file system watcher**, **editor notifications** (`server/invalidate`, overlays) and the compiler's own writes. Path resolution and file reads make **no system call** once an entry is known; a compilation works on a frozen snapshot. A full scan only happens at server startup, or for a directory the watcher cannot watch. |
 
 ## 1. Current state (starting point)
@@ -89,6 +89,9 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
    is a query, computed when first demanded and memoized. The query engine is
    both the scheduler of a cold compilation and the validator of an incremental
    one.
+7. **Parallel by default.** Every operation of a compilation is a task on the
+   same scheduler (§4b); results never depend on the number of domains or on
+   the scheduling order.
 
 ## 3. Data model
 
@@ -562,26 +565,22 @@ before cycles become errors.
     and hxb) assigns names in encounter order. Names are derived from a hash
     of the structure, with collisions ordered by stable key.
 
-#### 3.5 Parallel body typing
+#### 3.5 Parallel typing
 
-`body(f)` queries are independent once their signatures are available, so
-`program()` can run them in parallel on the `Parallel` pool. Requirements:
+All typing queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`,
+`checks`) run on the parallel scheduler described in §4b, which also covers
+the rest of the compilation. For typing specifically:
 
-- Query states and memoization are thread-safe (a `Running` query demanded
-  from another domain waits; demanded from the same domain, it is a cycle).
-- Shared mutable state is turned into queries or protected:
+- `body(f)` queries are independent once their signatures are available, and
+  are the bulk of the work; `header`, `members` and `sig` queries of
+  independent types also run in parallel.
+- Shared mutable state of the typer is turned into queries or protected:
   - module loading (`declare`) and the module table;
   - `@:generic` instance creation (query keyed by generic and type arguments);
   - `a_status` of anonymous structures (closed per phase 1, so read-only after
     the defining field is done);
-  - the eval macro interpreter (single domain at first: macro expansions are
-    serialized);
   - counters used for naming (generated locals, anonymous types) become
     per-query and deterministic.
-- Output is identical whatever the number of domains (checked by verification
-  mode with `-D typer-domains=1` vs `N`).
-- Parallel typing is **enabled by default**, with one domain per available
-  core. `-D typer-domains=<n>` sets the number of domains, `1` disables it.
 
 #### 3.6 Parsing shared between contexts
 
@@ -997,8 +996,7 @@ cycles are errors (§ phase 3.3).
     interpreter.
 
 Isolation makes expansions independent of each other, which is the
-prerequisite for running macros in parallel later (they are serialized in
-phase 3.5).
+prerequisite for running them in parallel (§4b, item 3).
 
 Exit criterion: Heaps, hxbit, domkit and hide pass history replay with static
 isolation enabled, and at most a handful of identified and justified volatile
@@ -1113,6 +1111,68 @@ between incremental and cold.
 - User documentation: new errors (field types), macro state declarations, macro
   warnings, `incremental-verify` and `incremental-check-refs` defines.
 
+## 4b. Parallel compilation
+
+Parallelism is not limited to typing: every operation of a compilation runs on
+the same scheduler. Today, parallelism exists in isolated places (filters and
+analyzer per type, DCE marking, `genhl` function compilation, `hl2c` modules,
+`genjvm` classes) and the pool is released while macros run
+(`Parallel.ManagedPool.release` in `macroContext.ml`). The target is a single
+model for the whole compilation.
+
+1. **The query engine is the scheduler.** Every query is a task on a
+   persistent work-stealing pool (Domainslib), kept by the server across
+   compilations. Demanding a query that is not computed starts it; demanding a
+   query running on another domain awaits it, and the awaiting domain runs
+   other tasks in the meantime.
+2. **Cycle detection across domains.** Each task carries its chain of
+   demanding queries; awaiting a query that transitively awaits the current
+   one is reported as the cycle error of phase 3.3, whatever the domains
+   involved (wait-for graph).
+3. **Operations and their unit of parallelism:**
+
+   | Operation | Unit | Notes |
+   |---|---|---|
+   | File system events, scans, hashing (VFS, phase 6) | file / directory | events are drained before the compilation snapshot |
+   | Parsing and `Decls` fingerprints | file | pure function of the content and of the defines read |
+   | `declare`, `resolve`, `header`, `members` | module / type | build macros run inside `members` |
+   | `sig`, `body`, `checks` | field / type | §3.5 |
+   | Macro expansions | expansion | static isolation (phase 7, item 4) makes expansions independent; the eval interpreter keeps its compiled code shared and read-only, and its mutable state (static layers, call stacks, caches) per domain. Until this is done, macro expansions run on a single lane while other queries keep running |
+   | Fingerprints | node | computed by the query that produces the node |
+   | Post-processing (filters, analyzer) | field | already per type today; becomes per `PostProcessed(cf)` node |
+   | Global passes (DCE, initialization order, features, descendants, `RenameVars`, purity) | summary / component | summaries are computed in parallel; reachability by parallel frontier; purity per strongly connected component |
+   | Code generation | type (JS fragment), function (HL), class (JVM), C file (HL/C) | already parallel for HL functions, HL/C and JVM |
+   | Linking | chunk | index assignment is sequential but linear; resolution of symbols and writing of chunks are parallel |
+   | Output writing | file | through the VFS, skipping identical content |
+
+4. **Rules for shared state:**
+   - inputs of a query are immutable for its duration (VFS snapshot, results of
+     the queries it demanded);
+   - a query only writes its own result and the entities it owns (grafting is
+     done by the owning `declare`/`members`/`sig`/`body` query);
+   - global tables (module table, generic instances, resolution index, macro
+     state declarations of phase 7, item 5) are concurrent maps with atomic
+     insert-if-absent, so that two domains demanding the same key get the
+     same result;
+   - no global counter: identifiers are derived from stable keys (§3.4);
+   - messages, lists and outputs built from several tasks are merged in stable
+     key order, never in completion order.
+5. **Determinism checks.** Output, messages and fingerprints must be identical
+   with one domain, several domains, and a randomized scheduling order
+   (`-D compilation-shuffle=<seed>`, which randomizes task order and
+   work-stealing); CI runs `tests/incremental` and the unit tests in these
+   modes.
+6. **Configuration.** Enabled by default with one domain per available core.
+   `-D compilation-domains=<n>` sets the number of domains, `1` runs
+   everything on a single domain (same results).
+7. **Measurement.** The scheduler reports per compilation the busy time per
+   domain, the critical path (longest chain of dependent queries) and the time
+   spent waiting, per operation, in `--times` and `server/stats`.
+
+Each phase applies these rules to what it introduces: phase 3 for typing,
+phase 6 for the VFS, phase 7 for macros, phase 8 for post-processing, phases 9
+and 10 for generation.
+
 ## 5. Phase ordering and dependencies
 
 ```
@@ -1146,8 +1206,12 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   built when they run, or that rely on cycles currently resolved by retries,
   will break with demand-driven typing. To be measured on the corpus early in
   phase 3 with the cycle instrumentation described in phase 3.3.
-- **Parallel typing and the macro interpreter.** Macro expansions are
-  serialized at first; this can limit parallel speedups on macro-heavy code.
+- **Parallel macro execution.** The eval interpreter must become safe to run
+  on several domains (§4b, item 3); until then macro expansions run on a
+  single lane, which limits speedups on macro-heavy code.
+- **Parallel speedup.** Dependencies between queries bound the achievable
+  parallelism (critical path); to be measured per phase with the scheduler
+  statistics.
 - **Dependency completeness.** The main risk: a missing dependency yields a
   silently wrong result. Mitigation: the "trace only" mode of phase 5 and
   history replay in CI.
@@ -1210,8 +1274,10 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   (system call counter); the `tests/incremental` cases marked
   `@real-mtime` and the shadowing cases must pass without the runner's
   modification time adjustment.
-- Parallel typing tests: identical output with `-D typer-domains=1` and with
-  several domains, on the whole `tests/incremental` suite.
+- Parallel compilation tests: identical output with `-D compilation-domains=1`,
+  with several domains, and with a randomized scheduling order
+  (`-D compilation-shuffle=<seed>`), on the whole `tests/incremental` suite;
+  cross-domain cycle detection.
 - Determinism tests: stored typed expression ids, virtual file names,
   `Compiler.include` order, error message texts and anonymous structure names
   identical between cold, warm and shuffled-order compilations.
