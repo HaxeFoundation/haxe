@@ -408,7 +408,7 @@ An entity is created empty by `declare` and can be referenced by pointer
 | `resolve(name, scope)` | type name resolution (imports, `using`, sub-types, class paths) | `declare` of candidates | lookups spread over `Typeload`/`ImportHandling` |
 | `header(T)` | type parameters, constraints, super class, interfaces, declared metadata, abstract underlying type, typedef target | `resolve` of each hint | first half of `PBuildClass` |
 | `members(T)` | member set (names, kinds, access, declared hints) **after build macros**, complete metadata, properties connected to accessors, abstract `from`/`to`/operators | `header(T)`, `members` of ancestors (`@:autoBuild`), build macro expansions | rest of `PBuildClass`, `PConnectField`, `cl_build` |
-| `sig(f)` | fully resolved field type, constraints checked | hints, or `body(f)` for an inferred type | `TLazy` on `cf_type` |
+| `sig(f)` | fully resolved field type, constraints checked | hints; for a function whose body has no `return <expr>`, a syntactic `Void` return type; otherwise `body(f)` for an inferred type | `TLazy` on `cf_type` |
 | `body(f)` | typed expression, local constraints checked | `sig`/`members` of whatever it touches | `PTypeField` |
 | `checks(T)` | overrides, interface implementation, abstract classes, final vars, overloads, core API, abstract class constraints | `members(T)`, `members(ancestors)`, `sig` of involved fields | `PForce` checks, `delay_late` ordering |
 | `program()` | root driver: `body` and `checks` of every field and type of every loaded module, then the post-typing callbacks | everything | `PForce`, `PFinal` |
@@ -490,7 +490,11 @@ What is and is not a cycle:
     it is a regular dependency (`members(Super)` is completed first).
 - **Inferred signatures**: `sig(f)` demanding `sig(g)` demanding `sig(f)`
   (mutually recursive fields without annotations) is an error asking for an
-  annotation on one of them. The only exception is a field referring to itself
+  annotation on one of them. A function whose body contains no
+  `return <expr>` (nested functions excluded) has a **syntactic `Void` return
+  type**: its `sig` only depends on its argument hints, never on its body, so
+  it takes no part in such cycles, and editing its body never changes its
+  signature. The only exception is a field referring to itself
   inside its own body (`function fact(n) return n <= 1 ? 1 : n * fact(n - 1)`):
   this is not a query re-entry but the same inference unit, so the body sees
   its own signature monomorph, which must be closed when the field's typing
@@ -580,10 +584,11 @@ self recursion are not reported).
 | `tests/unit` (macro), standard library, utest | 27 (22 in `std`, 18 of them in `haxe.macro.Printer`) | 0 |
 | Heaps, hxbit, domkit, castle (js, without `h2d.domkit`) | 53 | 0 |
 
-Of the 66 distinct cycles, about 40% go through a function that never returns
-a value (no `return <expr>` in its body): its `Void` return type could be known
-without typing the body, which would remove those cycles without any
-annotation (open question, see §6). The others need one annotation per cycle.
+Of these 66 distinct cycles, 27 go through a function that never returns a
+value. With the syntactic `Void` rule (decided, §3.3, and applied by the
+instrumentation), **39 cycles remain** (22 in `tests/unit`, the standard library
+and utest; 29 in Heaps, hxbit, domkit and castle, some shared), each fixed with
+one annotation.
 
 
 #### 3.4 Determinism
@@ -1307,11 +1312,10 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   typing will silently stop working. To be detected on the corpus (a read of
   metadata that only exists as late metadata of that type can be reported in
   `-D macro-meta-check` mode).
-- **Open question: inference cycles.** Mutually recursive fields without
-  annotations are frequent (66 distinct cycles in the corpus, phase 3.3
-  measurements). About 40% would disappear if a function whose body contains
-  no `return <expr>` had its `Void` return type determined syntactically,
-  without typing its body.
+- **Inference cycles** between fields without annotations remain frequent
+  even with the syntactic `Void` rule (39 distinct cycles in the corpus, phase
+  3.3 measurements): one annotation each, to be fixed in the standard library
+  and announced to library authors with the Haxe 5.x warning.
 - **Static initialization cycles** become errors: existing code with circular
   static initializers must be fixed.
 - **Deterministic HL format**: a visible change for tools reading bytecode

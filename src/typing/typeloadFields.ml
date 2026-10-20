@@ -695,6 +695,18 @@ module TypeBinding = struct
 			()
 	)
 
+	(* A function body without `return <expr>` (outside nested functions) has a
+	   Void return type that can be known without typing the body (Haxe 6
+	   rule, docs/incremental-compilation.md phase 3.3): such a function does
+	   not take part in inference cycles through its return type. *)
+	let returns_value e =
+		let rec loop e = match fst e with
+			| EReturn (Some _) -> raise Exit
+			| EFunction _ -> ()
+			| _ -> Ast.iter_expr loop e
+		in
+		try loop e; false with Exit -> true
+
 	let while_inferring r ctx cf ~inferred f =
 		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
 		Std.finally (fun () -> fields_being_inferred := List.tl !fields_being_inferred) f ()
@@ -951,7 +963,10 @@ module TypeBinding = struct
 			end;
 		in
 		let self = ref None in
-		let inferred = not (is_full_type t) in
+		let inferred = not (is_full_type t) && match t, e with
+			| TFun(args,_), Some e when not (returns_value e) -> not (List.for_all (fun (_,_,t) -> is_full_type t) args)
+			| _ -> true
+		in
 		let r = make_unforced_lazy t (fun () ->
 			while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 				if not ctx.g.return_partial_type then bind ();
