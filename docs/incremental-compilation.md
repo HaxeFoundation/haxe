@@ -17,7 +17,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
 | Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. A dependency cycle between static initializers is an **error**. |
 | Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
-| Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. |
+| Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. On the `haxe6-incremental` branch the in-memory cache is the **server's default**; `-D hxb-cache` selects the hxb cache (`-D disable-hxb-cache` is still accepted and forces the in-memory cache). |
 | Positions | **Relative to an anchor** (one per field / type declaration). A field that only moved in its file is not retyped: updating its anchor fixes every position in its typed AST, cached errors, macro outputs and `haxe.PosInfos` (phase 2, item 6). |
 | Display / LSP | **Deferred.** No new guarantees for editor requests in this plan; display keeps its current semantics, sped up by incrementality. To be designed once phase 6 is done. |
 | Positions in inlined code | The inliner replaces expression positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint), self-calling closures (relative positions included), and **`haxe.PosInfos` inside an inline body** (e.g. `trace`), which keeps the callee's position: with anchored positions (phase 2, item 6), a moved inline function changes its callers' output through its anchor, without changing its fingerprint (`tests/incremental/cases/positions/inline-positions.hxtest`). |
@@ -234,9 +234,10 @@ exist (phase 4). Item 2 is in place: `-D incremental-check-refs`
 reference that does not point to the object its module currently holds. Note
 that the server's default cache decodes cached modules from hxb on every
 compilation (new objects each time), so the check is meaningful with the
-in-memory cache (`-D disable-hxb-cache`), which is the storage chosen by the
-plan. `tests/incremental` can run in that mode with
-`--args "-D disable-hxb-cache -D incremental-check-refs"`: no stale reference
+in-memory cache, which is the storage chosen by the plan and, on this branch,
+the server's default cache (`-D hxb-cache` selects the hxb cache; see the
+storage decision). `tests/incremental` can run in that mode with
+`--args "-D incremental-check-refs"`: no stale reference
 is reported. The one pre-existing warm/cold difference of that mode
 (`macros/add-resource` on js: DCE dropped `js.Boot` and every feature-dependent
 `__name__` on a module reused from memory) is fixed by the first step of
@@ -462,7 +463,7 @@ pointers.
    grafting). After phase 3, this becomes the behavior of the `declare` query.
 
    **Status of items 4 and 5.** Grafting is active with the in-memory cache
-   (`-D disable-hxb-cache`), and can be disabled with `-D incremental-no-graft`.
+   (the default cache), and can be disabled with `-D incremental-no-graft`.
    `src/typing/graft.ml` grafts *at creation*, which removes the remapping
    step: when a module whose previous version is in the in-memory cache is
    retyped, each new type (class, enum, typedef, abstract), class field
@@ -493,7 +494,7 @@ pointers.
      dependents: it shows which references grafting keeps valid without
      retyping the modules that hold them.
    - Results: `tests/incremental` passes entirely with
-     `-D disable-hxb-cache -D incremental-check-refs`
+     `-D incremental-check-refs`
      (no stale reference). With `-D incremental-retype-changed-only` in
      addition, the only stale references left are shape changes (a removed,
      renamed or moved field, a removed `@:from` cast, a class that no longer

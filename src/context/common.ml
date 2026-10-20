@@ -1043,6 +1043,11 @@ let has_dce com =
 let is_directly_used com meta =
 	not (has_dce com) || Meta.has Meta.DirectlyUsed meta
 
+(* Whether the compilation server caches modules as hxb instead of keeping them
+   in memory (the default). *)
+let uses_hxb_cache com =
+	defined com HxbCache && not (defined com DisableHxbCache)
+
 let rec has_feature com f =
 	try
 		Hashtbl.find com.features f

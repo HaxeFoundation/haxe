@@ -130,9 +130,9 @@ class Js {
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
-		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-optimizations"]);
+		runCommand("haxe", ["build.hxml", "-D", "hxb-cache", "-D", "disable-hxb-optimizations"]);
 		runCommand("node", ["test.js"]);
-		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-cache"]);
+		runCommand("haxe", ["build.hxml", "-D", "hxb-cache"]);
 		runCommand("node", ["test.js"]);
 
 		// The runner sets modification times with GNU touch.

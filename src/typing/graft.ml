@@ -13,9 +13,9 @@
 	counterpart (removed entities) are dropped: references to them are stale,
 	which is a shape change that requires retyping the modules using them.
 
-	Active with the in-memory cache (`-D disable-hxb-cache`, the only cache that
-	keeps the objects of the previous version); `-D incremental-no-graft`
-	disables it.
+	Active with the in-memory cache (the server's default cache, the only one
+	that keeps the objects of the previous version, see `-D hxb-cache`);
+	`-D incremental-no-graft` disables it.
 *)
 open Globals
 open Type

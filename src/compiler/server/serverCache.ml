@@ -129,7 +129,7 @@ let get_changed_directories sctx com =
 let get_typing_mode com m_extra =
 	let full_typing = com.is_macro_context
 		|| com.display.dms_full_typing
-		|| Define.defined com.defines Define.DisableHxbCache
+		|| not (Common.uses_hxb_cache com)
 		|| Define.defined com.defines Define.DisableHxbOptimizations
 		|| DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m_extra.m_file)
 	in

@@ -143,7 +143,7 @@ class ServerTests extends TestCase {
 		if (inMemory)
 			args = args.concat(["-D", "disable-hxb-cache"]);
 		else
-			args = args.concat(["--undefine", "disable-hxb-cache"]);
+			args = args.concat(["-D", "hxb-cache"]);
 
 		runHaxe(args);
 		runHaxe(args);
@@ -153,7 +153,7 @@ class ServerTests extends TestCase {
 		if (inMemory)
 			displayArgs = displayArgs.concat(["-D", "disable-hxb-cache"]);
 		else
-			displayArgs = displayArgs.concat(["--undefine", "disable-hxb-cache"]);
+			displayArgs = displayArgs.concat(["-D", "hxb-cache"]);
 
 		runHaxeJson(displayArgs, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 64});
 		runHaxe(args);

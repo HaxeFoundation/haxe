@@ -87,7 +87,7 @@ let rec cache_context cs com =
 
 	let parallels = DynArray.create () in
 	let cache_module m =
-		if Define.defined com.defines DisableHxbCache then
+		if not (Common.uses_hxb_cache com) then
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
 			cc#cache_module_in_memory m.m_path m;

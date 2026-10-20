@@ -25,7 +25,8 @@ haxe run.hxml --show-known --verbose  # details of known failures, every compila
 ```
 
 Options: `--haxe <path>` (compiler to test), `--args "<args>"` (extra compiler
-arguments, e.g. `-D disable-hxb-cache` for the in-memory cache), `--strict-order` (do not sort
+arguments, e.g. `-D hxb-cache` for the hxb cache instead of the in-memory
+cache, the server's default), `--strict-order` (do not sort
 compiler messages before comparing), `--invalidate` (notify the server with
 `server/invalidate` instead of relying on modification times), `--keep` (keep
 the `work` directory).
