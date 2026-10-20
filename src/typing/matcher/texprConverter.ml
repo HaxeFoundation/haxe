@@ -6,7 +6,6 @@ open Common
 open Error
 open MatcherGlobals
 open DecisionTree
-open Subject
 open Constructor
 open Case
 open Texpr.Builder
@@ -68,13 +67,13 @@ let unify_constructor ctx params t con =
 	| _ ->
 		Some(con,params)
 
-(* The constructors of the subject's type which the cases leave unmatched. *)
-let unmatched_ctors subject cases =
+(* The constructors of the scrutinee's type which the cases leave unmatched. *)
+let unmatched_ctors scrutinee cases =
 	let h = Compile.ConTable.create 0 in
 	List.iter (fun constructor ->
 		Compile.ConTable.replace h constructor true
-	) subject.s_constructors;
-	let compatible_kind con = match fst con,subject.s_kind with
+	) scrutinee.scr_constructors;
+	let compatible_kind con = match fst con,scrutinee.scr_kind with
 		| ConEnum _,SKEnum -> true
 		| ConEnum _,_ -> false
 		| ConArray _,SKLength _ -> true
@@ -137,21 +136,21 @@ let to_texpr ctx t_switch with_type dt =
 						| Some e -> Some e
 						| None -> Some (mk (TBlock []) ctx.t.tvoid case.case_pos)
 					end
-				| Switch(subject,[{sc_con = (ConFields _,_)} as sc],_) -> (* TODO: Can we improve this by making it more general? *)
+				| Switch(scrutinee,[{sc_con = (ConFields _,_)} as sc],_) -> (* TODO: Can we improve this by making it more general? *)
 					begin match loop dt_rec params sc.sc_dt with
 						| None ->
 							None
 						| Some e ->
-							Some (concat subject.s_expr e)
+							Some (concat scrutinee.scr_expr e)
 					end
-				| Switch(subject,cases,default) ->
+				| Switch(scrutinee,cases,default) ->
 					let dt_rec',toplevel = match dt_rec with
 						| Toplevel -> AfterSwitch,true
 						| AfterSwitch | Deep -> Deep,false
 					in
-					let e_subject = subject.s_expr in
-					let unmatched = unmatched_ctors subject cases in
-					let finiteness = subject.s_finiteness in
+					let e_subject = scrutinee.scr_expr in
+					let unmatched = unmatched_ctors scrutinee cases in
+					let finiteness = scrutinee.scr_finiteness in
 					let unmatched = ExtList.List.filter_map (unify_constructor ctx params e_subject.etype) unmatched in
 					let loop params dt = match loop dt_rec' params dt with
 						| None ->
@@ -194,8 +193,8 @@ let to_texpr ctx t_switch with_type dt =
 							| Some e -> Some {case_patterns = List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons);case_expr = e}
 						end
 					) cases in
-					let is_nullable_subject = subject.s_nullable in
-					let e_subject = match subject.s_kind with
+					let is_nullable_subject = scrutinee.scr_nullable in
+					let e_subject = match scrutinee.scr_kind with
 						| SKValue -> e_subject
 						| SKEnum -> mk_index_call e_subject
 						| SKLength IndexArray -> ExprToPattern.type_field_access ctx e_subject "length"

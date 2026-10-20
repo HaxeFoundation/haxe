@@ -3,33 +3,10 @@ open Type
 open Typecore
 open MatcherGlobals
 open Constructor
+open DecisionTree
 
-type type_finiteness =
-	| Infinite          (* type has inifite constructors (e.g. Int, String) *)
-	| CompileTimeFinite (* type is considered finite only at compile-time but has inifite possible run-time values (enum abstracts) *)
-	| RunTimeFinite     (* type is truly finite (Bool, enums) *)
-
-(* How array patterns read the elements and the length of a subject. *)
-type index_access =
-	| IndexArray                            (* like those of an array *)
-	| IndexAccess of ArrayAccess.array_access (* the way for loops read them (#8012) *)
-
-(* How a switch tests its subject. *)
-type match_kind =
-	| SKValue                  (* against constants, statics and types *)
-	| SKEnum                   (* by the index of its enum constructor *)
-	| SKLength of index_access (* by its length *)
-
-(* A switch's subject: its expression and what the switch makes of it, which [make] decides from the subject's type
-   and the switch's constructors. *)
-type t = {
-	s_expr : texpr;
-	s_kind : match_kind;
-	s_finiteness : type_finiteness;
-	s_constructors : Constructor.t list; (* the constructors of the subject's type *)
-	s_nullable : bool;
-}
-
+(* A value the matcher still has to match: its expression, a constant or a local, and the binding of that local if the
+   matcher introduced it. A switch on it keeps a DecisionTree.scrutinee, see [make_scrutinee]. *)
 class subject (e : texpr) (bind : Bind.bind option) = object (self)
 	val mutable index_access : index_access option = None
 
@@ -86,21 +63,10 @@ class subject (e : texpr) (bind : Bind.bind option) = object (self)
 		s_expr_pretty e
 end
 
-let s_match_kind = function
-	| SKValue -> "value"
-	| SKEnum -> "enum"
-	| SKLength _ -> "length"
-
-let rec extract_ctor e = match e.eexpr with
-	| TConst ct -> Some (ConConst ct)
-	| TField(_,FEnum(en,ef)) -> Some (ConEnum(en,ef))
-	| TCast(e1,None) -> extract_ctor e1
-	| _ -> None
-
-(* The subject of a switch on [subject] which uses it as [e] and has the constructors [cons], in the order of its
-   cases. *)
-let make ctx (subject : subject) e cons =
-	let t = match follow e.etype,cons with
+(* The scrutinee of a switch on [subject] with the constructors [cons], in the order of its cases. The switch uses
+   the subject's expression as [e_switch], which assigns the subject's deferred binding if the switch comes first. *)
+let make_scrutinee ctx (subject : subject) e_switch cons =
+	let t = match follow e_switch.etype,cons with
 		| (TDynamic _ | TMono _),con :: _ ->
 			let fail() =
 				(* error "Could not determine switch kind, make sure the type is known" e.epos; *)
@@ -118,11 +84,11 @@ let make ctx (subject : subject) e cons =
 						| _ -> fail()
 					end
 				| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,extract_param_types a.a_params))
-				| ConTypeExpr mt -> ExprToPattern.get_general_module_type ctx mt e.epos
+				| ConTypeExpr mt -> ExprToPattern.get_general_module_type ctx mt e_switch.epos
 				| ConFields _ | ConStatic _ -> fail()
 			end
 		| _ ->
-			e.etype
+			e_switch.etype
 	in
 	let constructors = ref [] in
 	let add constructor =
@@ -182,9 +148,9 @@ let make ctx (subject : subject) e cons =
 			kind,finiteness
 	in
 	{
-		s_expr = e;
-		s_kind = kind;
-		s_finiteness = finiteness;
-		s_constructors = List.rev !constructors;
-		s_nullable = subject#is_nullable;
+		scr_expr = e_switch;
+		scr_kind = kind;
+		scr_finiteness = finiteness;
+		scr_constructors = List.rev !constructors;
+		scr_nullable = subject#is_nullable;
 	}

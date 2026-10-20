@@ -4,9 +4,34 @@ open Case
 open Bind
 open MatcherGlobals
 
+type type_finiteness =
+	| Infinite          (* type has inifite constructors (e.g. Int, String) *)
+	| CompileTimeFinite (* type is considered finite only at compile-time but has inifite possible run-time values (enum abstracts) *)
+	| RunTimeFinite     (* type is truly finite (Bool, enums) *)
+
+(* How array patterns read the elements and the length of a value. *)
+type index_access =
+	| IndexArray                            (* like those of an array *)
+	| IndexAccess of ArrayAccess.array_access (* the way for loops read them (#8012) *)
+
+(* How a switch tests its scrutinee. *)
+type match_kind =
+	| SKValue                  (* against constants, statics and types *)
+	| SKEnum                   (* by the index of its enum constructor *)
+	| SKLength of index_access (* by its length *)
+
+(* What a switch examines: a subject's expression and what the switch makes of it, see Subject.make_scrutinee. *)
+type scrutinee = {
+	scr_expr : texpr;
+	scr_kind : match_kind;
+	scr_finiteness : type_finiteness;
+	scr_constructors : Constructor.t list; (* the constructors of its type *)
+	scr_nullable : bool;
+}
+
 type t =
 	| Leaf of Case.t
-	| Switch of Subject.t * switch_case list * dt
+	| Switch of scrutinee * switch_case list * dt
 	| Bind of bind list * dt
 	| Guard of texpr * dt * dt
 	| GuardNull of texpr * dt * dt
@@ -34,6 +59,11 @@ let make_bind_gen v p e s = {
 }
 
 let make_bind v p e = make_bind_gen v p e BindUsed
+
+let s_match_kind = function
+	| SKValue -> "value"
+	| SKEnum -> "enum"
+	| SKLength _ -> "length"
 
 let tab_string = "    "
 
@@ -75,8 +105,8 @@ let to_string dt =
 		match dt.dt_t with
 		| Leaf case ->
 			print_case_expr tabs case
-		| Switch(subject,cases,dt) ->
-			add_line tabs (Printf.sprintf "switch %s (%s)" (Subject.s_match_kind subject.s_kind) (s_expr tabs subject.s_expr));
+		| Switch(scrutinee,cases,dt) ->
+			add_line tabs (Printf.sprintf "switch %s (%s)" (s_match_kind scrutinee.scr_kind) (s_expr tabs scrutinee.scr_expr));
 			List.iter (fun sc ->
 				add_line (tabs ^ tab_string) "case ";
 				add (Constructor.to_string sc.sc_con);
@@ -131,9 +161,9 @@ let equal_bind_expr e1 e2 =
 let equal dt1 dt2 = match dt1,dt2 with
 	| Leaf case1,Leaf case2 ->
 		case1 == case2
-	| Switch(subject1,cases1,dt1),Switch(subject2,cases2,dt2) ->
-		(* What the switch makes of the subject follows from its expression and the cases. *)
-		Texpr.equal subject1.s_expr subject2.s_expr &&
+	| Switch(scrutinee1,cases1,dt1),Switch(scrutinee2,cases2,dt2) ->
+		(* What the switch makes of its scrutinee follows from the expression and the cases. *)
+		Texpr.equal scrutinee1.scr_expr scrutinee2.scr_expr &&
 		Ast.safe_for_all2 (fun sc1 sc2 -> Constructor.equal sc1.sc_con sc2.sc_con && sc1.sc_unguarded = sc2.sc_unguarded && equal_dt sc1.sc_dt sc2.sc_dt) cases1 cases2 &&
 		equal_dt dt1 dt2
 	| Bind(l1,dt1),Bind(l2,dt2) ->
@@ -147,7 +177,7 @@ let equal dt1 dt2 = match dt1,dt2 with
 		false
 
 let hash dt = match dt with
-	| Switch(subject,cases,dt) ->
-		Hashtbl.hash (subject.s_expr,cases,dt)
+	| Switch(scrutinee,cases,dt) ->
+		Hashtbl.hash (scrutinee.scr_expr,cases,dt)
 	| _ ->
 		Hashtbl.hash dt

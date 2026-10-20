@@ -47,3 +47,9 @@ let compare con1 con2 = match fst con1,fst con2 with
 	| _ -> -1 (* Could assert... *)
 
 let hash con = Hashtbl.hash (fst con)
+
+let rec extract_ctor e = match e.eexpr with
+	| TConst ct -> Some (ConConst ct)
+	| TField(_,FEnum(en,ef)) -> Some (ConEnum(en,ef))
+	| TCast(e1,None) -> extract_ctor e1
+	| _ -> None
