@@ -60,6 +60,7 @@ module ModuleLevel = struct
 		Build module structure : should be atomic - no type loading is possible
 	*)
 	let create_module_types ctx_m m tdecls loadp =
+		Graft.begin_module ctx_m.com m;
 		let com = ctx_m.com in
 		let imports_and_usings = DynArray.create () in
 		let module_types = DynArray.create () in
@@ -102,7 +103,7 @@ module ModuleLevel = struct
 			has_declaration := true;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv d.d_meta (snd d.d_name) in
-			let c = mk_class m path p (pos d.d_name) in
+			let c = Graft.graft_class m (mk_class m path p (pos d.d_name)) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
 			c.cl_module <- m;
@@ -140,7 +141,7 @@ module ModuleLevel = struct
 					has_declaration := true;
 					let priv = List.mem EPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
-					let e = {
+					let e = Graft.graft_enum m {
 						(mk_enum m path p (pos d.d_name)) with
 						e_doc = d.d_doc;
 						e_meta = d.d_meta;
@@ -154,7 +155,7 @@ module ModuleLevel = struct
 					has_declaration := true;
 					let priv = List.mem TDPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
-					let t = {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
+					let t = Graft.graft_typedef m {(mk_typedef m path p (pos d.d_name) (mk_mono())) with
 						t_doc = d.d_doc;
 						t_private = priv;
 						t_meta = d.d_meta;
@@ -172,7 +173,7 @@ module ModuleLevel = struct
 					let priv = List.mem AbPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
 					let p_enum_meta = Meta.maybe_get_pos Meta.Enum d.d_meta in
-					let a = {
+					let a = Graft.graft_abstract m {
 						a_path = path;
 						a_private = priv;
 						a_module = m;
@@ -370,7 +371,7 @@ module TypeLevel = struct
 					s, opt, load_type_hint ~opt ctx_ef p LoadNormal (Some (t,tp))
 				) l, rt)
 		) in
-		let f = {
+		let f = Graft.graft_enum_field e {
 			ef_name = fst c.ec_name;
 			ef_type = t;
 			ef_pos = p;
@@ -809,6 +810,9 @@ and load_module' com g m p =
 		(* Check cache *)
 		match !TypeloadCacheHook.type_module_hook com (delay g) m p with
 		| GoodModule m ->
+			let mine,others = List.partition (fun (com',_) -> com' == com) !TypeloadCacheHook.dirty_dependencies in
+			TypeloadCacheHook.dirty_dependencies := others;
+			List.iter (fun (_,path) -> ignore(load_module' com g path p)) (List.rev mine);
 			m
 		| BinaryModule _ ->
 			die "" __LOC__ (* The server builds those *)

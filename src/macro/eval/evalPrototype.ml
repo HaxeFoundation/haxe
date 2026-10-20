@@ -330,15 +330,15 @@ let add_types ctx types ready =
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in
 		try
-			let inf' = t_infos (IntMap.find key ctx.type_cache) in
-			if inf'.mt_module.m_id <> inf.mt_module.m_id then raise Not_found;
+			let _,m_id = IntMap.find key ctx.type_cache in
+			if m_id <> inf.mt_module.m_id then raise Not_found;
 			false
 		with Not_found ->
 			ctx.instance_prototypes <- IntMap.remove key ctx.instance_prototypes;
 			ctx.static_prototypes#remove key;
 			ctx.constructors <- IntMap.remove key ctx.constructors;
 			ready mt;
-			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
+			ctx.type_cache <- IntMap.add key (mt,inf.mt_module.m_id) ctx.type_cache;
 			if ctx.debug.support_debugger then begin
 				let file_key = hash (Path.UniqueKey.lazy_path inf.mt_module.m_extra.m_file) in
 				if not (IntHashtbl.mem ctx.debug.breakpoints file_key) then begin

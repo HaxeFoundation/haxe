@@ -11,6 +11,11 @@ type find_module_result =
 	| BinaryModule of HxbData.module_cache
 	| NoModule
 
+(* Development mode `-D incremental-retype-changed-only`: dirty dependencies of
+   modules reused from the cache, to be retyped by the typer (with the
+   compilation context that found them). *)
+let dirty_dependencies : (Common.context * path) list ref = ref []
+
 let type_module_hook : (Common.context -> (typer_pass -> (unit -> unit) -> unit) -> path -> pos -> find_module_result) ref = ref (fun _ _ _ _ -> NoModule)
 
 let create_fake_module com file =

@@ -76,6 +76,18 @@
 		"doc": "Check that no type or field reference of the compilation points to an older version of its module (compilation server, in-memory cache)."
 	},
 	{
+		"name": "IncrementalGraft",
+		"define": "incremental-graft",
+		"signatureNeutral": true,
+		"doc": "When the compilation server retypes a module kept in the in-memory cache, reuse the objects of its previous version (types, fields, enum constructors) for the entities with the same key."
+	},
+	{
+		"name": "IncrementalRetypeChangedOnly",
+		"define": "incremental-retype-changed-only",
+		"signatureNeutral": true,
+		"doc": "Development mode of the compilation server: only retype modules whose own file changed, not the modules depending on them. Unsound: dependents keep their typed content even if the interface they use changed."
+	},
+	{
 		"name": "DisableHxbCache",
 		"define": "disable-hxb-cache",
 		"signatureNeutral": true,

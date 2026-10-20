@@ -178,6 +178,7 @@ let process sctx request_scope request_args =
 	ServerCompilationContext.reset sctx;
 	Vfs.reset_stats ();
 	Vfs.begin_compilation ();
+	Graft.reset ();
 	Option.may (fun dir -> try Vfs.chdir dir with _ -> ()) sctx.persistent_cwd;
 	ignore (Std.finally (fun () -> Vfs.chdir curdir) (HighLevel.entry sctx request_scope) request_args);
 	Vfs.end_compilation ();

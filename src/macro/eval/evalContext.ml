@@ -279,7 +279,9 @@ and context = {
 	debug : debug;
 	mutable had_error : bool;
 	mutable curapi : value MacroApi.compiler_api;
-	mutable type_cache : Type.module_type IntMap.t;
+	(* with the id of the module the type had when added: the compilation server can
+	   reuse the same object for a retyped module (grafting) *)
+	mutable type_cache : (Type.module_type * int) IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;
 	timer_ctx : Timer.timer_context;
 	mutable args : string list;

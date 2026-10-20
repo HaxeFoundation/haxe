@@ -130,7 +130,8 @@ let stats stats time =
 		let open Common.Stats in
 		print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
 		print_endline (Printf.sprintf "Time spent : %.3fs" time);
-		print_endline (Printf.sprintf "File system calls (VFS) : %d" (Atomic.get Vfs.syscalls))
+		print_endline (Printf.sprintf "File system calls (VFS) : %d" (Atomic.get Vfs.syscalls));
+		print_endline (Printf.sprintf "Grafted entities : %d reused, %d created" !EntityKey.graft_reused !EntityKey.graft_created)
 	end
 
 let message s =

@@ -460,6 +460,40 @@ pointers.
 5. No `tclass` is ever recreated for a cached module anymore: `typeloadModule`
    takes an optional "previous module" and reuses its entities by key (through
    grafting). After phase 3, this becomes the behavior of the `declare` query.
+
+   **Status of items 4 and 5 (first version, `-D incremental-graft`).**
+   `src/typing/graft.ml` grafts *at creation*, which removes the remapping
+   step: when a module whose previous version is in the in-memory cache is
+   retyped, each new type (class, enum, typedef, abstract), class field
+   (members, statics, constructors, overloads by declaration order) and enum
+   constructor is copied into the object of the previous version with the same
+   entity key as soon as it is created, before anything refers to it, and the
+   old object is used from then on. The previous version is first restored
+   (`mt_restore`) so that fields removed by DCE are matched too. The only
+   self-reference created before grafting, the `Class<T>` type of a class's
+   statics (`cl_type`), is rebuilt on the old object. The eval interpreter
+   recognized a retyped type by a new object; it now compares the module id it
+   recorded when it added the type.
+   - Not grafted yet: type parameters (`typed_type_param` and their
+     `KTypeParameter` classes), fields of typedef structures, fields created
+     outside field initialization (property accessors generated for
+     interfaces, `@:generic` instances, fields added by filters).
+   - `-D incremental-retype-changed-only` (development mode, unsound) makes
+     the server retype only the modules whose own file changed, not their
+     dependents: it shows which references grafting keeps valid without
+     retyping the modules that hold them.
+   - Results: `tests/incremental` passes entirely with
+     `-D disable-hxb-cache -D incremental-graft -D incremental-check-refs`
+     (no stale reference). With `-D incremental-retype-changed-only` in
+     addition, the only stale references left are shape changes (a removed,
+     renamed or moved field, a removed `@:from` cast, a class that no longer
+     implements an `@:autoBuild` interface), which phase 5 handles by retyping
+     the dependents, and `@:generic` method instances (item 3). A replay of
+     the last 13 commits of Heaps with the in-memory cache, grafting and the
+     checker gives identical output for every commit and no stale reference.
+   - The server statistics (`-v`) print the number of grafted entities.
+   - Next: graft type parameters and typedef structure fields, then enable
+     grafting by default with the in-memory cache.
 6. **Relative positions.** Without them, a field that did not change but moved
    in its file (lines added above it) keeps stale absolute positions in its
    typed AST, since `Decls` fingerprints ignore absolute positions and the

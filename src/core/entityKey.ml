@@ -108,6 +108,12 @@ let index_module m =
 	) m;
 	h
 
+(* Statistics of grafting (src/typing/graft.ml) for the current compilation:
+   entities that reused the object of the previous version of their module,
+   and entities created as new objects. *)
+let graft_reused = ref 0
+let graft_created = ref 0
+
 let same_entity e1 e2 = match e1,e2 with
 	| EType mt1,EType mt2 -> (t_infos mt1) == (t_infos mt2)
 	| EField(_,cf1),EField(_,cf2) | EAnonField(_,cf1),EAnonField(_,cf2) -> cf1 == cf2

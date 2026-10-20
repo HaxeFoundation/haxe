@@ -455,7 +455,7 @@ let compiler_error (err : Error.error) =
 
 let rec value_to_expr v p =
 	let path i =
-		let mt = IntMap.find i (get_ctx()).type_cache in
+		let mt,_ = IntMap.find i (get_ctx()).type_cache in
 		let make_path t =
 			let rec loop = function
 				| [] -> die "" __LOC__

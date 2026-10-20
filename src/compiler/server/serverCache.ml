@@ -256,7 +256,7 @@ let check_module sctx com m_path m_extra p =
 			try
 				check_module_path();
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if (get_typing_mode com m_extra) = FullTyping then check_dependencies();
+				if (get_typing_mode com m_extra) = FullTyping && not (Define.defined com.defines Define.IncrementalRetypeChangedOnly) then check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -482,6 +482,9 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 								None
 							| BadBinaryModule (_, reason) ->
 								failwith (Printf.sprintf "Unexpected bad hxb module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
+							| BadModule _ when Define.defined com.defines Define.IncrementalRetypeChangedOnly ->
+								TypeloadCacheHook.dirty_dependencies := (com,mpath) :: !TypeloadCacheHook.dirty_dependencies;
+								None
 							| BadModule reason ->
 								failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
 						in

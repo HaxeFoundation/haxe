@@ -237,7 +237,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 			tf_expr = mk (TBlock el) ctx.t.tvoid p
 		} in
 		let e = mk (TFunction tf) (TFun(tl @ super_tl,ctx.t.tvoid)) p in
-		let cf = mk_field "new" e.etype p null_pos in
+		let cf = Graft.graft_field c EntityKey.KConstructor (mk_field "new" e.etype p null_pos) in
 		cf.cf_doc <- doc_from_string (Buffer.contents doc_buf);
 		cf.cf_expr <- Some e;
 		cf.cf_type <- e.etype;
@@ -1819,6 +1819,12 @@ let init_class ctx_c cctx c p herits fields =
 		let display_modifier = Typeload.check_field_access ctx_c f in
 		let fctx = create_field_context ctx_c cctx f ctx_c.m.is_display_file display_modifier in
 		let cf = create_class_field cctx f in
+		let cf = match fctx.field_kind with
+			| CfrConstructor -> Graft.graft_field c EntityKey.KConstructor cf
+			| CfrStatic -> Graft.graft_field c EntityKey.KStatic cf
+			| CfrMember -> Graft.graft_field c EntityKey.KMember cf
+			| CfrInit -> cf
+		in
 		let ctx = create_typer_context_for_field ctx_c cctx fctx f cf in
 		try
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
