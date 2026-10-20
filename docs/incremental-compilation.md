@@ -17,7 +17,9 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Macro context | The macro and target contexts keep **separate query graphs** (different defines, platform and standard library overrides), but **share parsing**: a parsed module is reused by the other context when the defines read during its parsing have the same values in both (phase 3.6). |
 | Static initialization order | Types are output and static vars initialized in **dependency (topological) order**, ties broken by path. All `__init__` blocks run in a **first pass**, before any static var initializer, in the same order. |
 | Error reporting | **Configurable.** By default every independent error is reported: a failed query is marked failed, its dependents are skipped without reporting cascading errors, and typing continues. A flag stops after the first (or N) errors, in deterministic order. |
-| Storage | **In memory**, preserving the physical identity of objects. hxb is not on the critical path; it remains a persistence format and a verification tool. |
+| Storage | **In memory only** at first, preserving the physical identity of objects, with no memory limit and no on-disk persistence: the graph size is measured before deciding on eviction or persistence. hxb is not on the critical path; it remains a verification tool and a candidate persistence format. |
+| Positions | **Relative to an anchor** (one per field / type declaration). A field that only moved in its file is not retyped: updating its anchor fixes every position in its typed AST, cached errors, macro outputs and `haxe.PosInfos` (phase 2, item 6). |
+| Display / LSP | **Deferred.** No new guarantees for editor requests in this plan; display keeps its current semantics, sped up by incrementality. To be designed once phase 6 is done. |
 | Positions in inlined code | The inliner replaces positions with the call site's (`map_pos`, `src/optimization/inline.ml`), so they are excluded from fingerprints. Exceptions: `-D keep_inline_positions` (already part of the define signature; relative positions are then included in the body fingerprint) and self-calling closures (relative positions included). |
 | Validation corpus | Repository tests (`tests/unit`, `tests/server`, `tests/display`); Heaps, hxbit and domkit, for their heavy use of macros. |
 | Typing order | **Fully demand-driven.** The typer passes (`PBuildModule` … `PFinal`) and the `delay`/`flush_pass` scheduler are removed. Typing is a set of queries (`declare`, `resolve`, `header`, `members`, `sig`, `body`, `checks`) that are the same nodes as the incremental graph. |
@@ -265,6 +267,38 @@ pointers.
 5. No `tclass` is ever recreated for a cached module anymore: `typeloadModule`
    takes an optional "previous module" and reuses its entities by key (through
    grafting).
+6. **Relative positions.** Without them, a field that did not change but moved
+   in its file (lines added above it) keeps stale absolute positions in its
+   typed AST, since `Decls` fingerprints ignore absolute positions and the
+   field is not retyped. This breaks source maps and debug information, cached
+   errors and warnings, positions in macro outputs, and line numbers baked
+   into the code (`trace`, `haxe.PosInfos`, which today is a `TConst (TInt line)`
+   in the typed AST, read back by generators such as `genjs.ml`).
+   - `pos` (`src/core/globals.ml`, `{ pfile; pmin; pmax }`) gets an
+     **anchor**: a shared mutable object `{ mutable delta : int }`, one per
+     field, per type declaration header and per module top level. The absolute
+     offset is `pmin + anchor.delta`.
+   - The parser allocates one anchor per declaration and creates every
+     position inside it with that anchor. Positions created while typing a
+     field (generated expressions, macro outputs through
+     `Context.currentPos()`, inlined code taking the call site position) use
+     the anchor of the position they derive from.
+   - On reparse, each unchanged declaration is matched (by `Decls`
+     fingerprint, which uses positions relative to the anchor) and its
+     shift is applied to its anchor: O(1) per declaration, and every position
+     of its typed AST, cached messages and macro expansions is correct again.
+   - `pos` becomes an abstract type: the ~350 direct reads of `pmin`/`pmax`
+     in `src/` go through `Pos.min`/`Pos.max`. Structural comparison and
+     hashing of positions (`p1 = p2`, hashtables keyed by `pos` in display
+     and statistics) use absolute values.
+   - Line and column numbers stay computed lazily from absolute offsets.
+     `haxe.PosInfos` is no longer baked as an integer constant during typing:
+     it becomes a position-carrying node resolved to `lineNumber` during
+     post-processing (phase 8), from the anchored position.
+   - Positions pointing into another file (macro reification positions in the
+     macro's module, `-D keep_inline_positions`) carry that file's anchors, so
+     they follow edits of that file as well.
+   - hxb serializes positions relative to their anchor.
 
 Exit criterion: when fully retyping a modified module with grafting, the stale
 pointer checker reports nothing across the whole corpus.
@@ -584,8 +618,10 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
    computing. If a cached node can be validated green, its stored result is
    used; otherwise the query recomputes it. There is no separate "cached
    module" path anymore.
-5. **Display and completion**: the displayed file is always retyped (current
-   `AllowPartialTyping`), but benefits from early cutoff for everything else.
+5. **Display and completion**: deferred (see decisions). In the meantime the
+   current semantics are kept: the displayed file is always retyped (current
+   `AllowPartialTyping`), and it benefits from early cutoff for everything
+   else.
 6. **Errors and warnings**: stored per node and replayed when the node is
    green, replacing the current handling of modules with errors.
 7. **Initialization macros** (`--macro`) and global callbacks: always executed,
@@ -833,8 +869,10 @@ between incremental and cold.
 
 - Remove module-level invalidation: `DependencyDirty`, `m_checked`,
   `m_cache_state` (or reduce it to a diagnostic summary), `m_processed`.
-- hxb: used only for on-disk persistence (server restart) and in verification
-  mode. Loading from hxb must restore fingerprints and the graph.
+- hxb: used in verification mode. On-disk persistence (server restart, warm
+  CLI compilation) and memory limits with eviction are decided after measuring
+  the graph size (phase 5); if adopted, loading from hxb must restore
+  fingerprints, anchors and the graph.
 - User documentation: new errors (field types), macro state declarations, macro
   warnings, `incremental-verify` and `incremental-check-refs` defines.
 
