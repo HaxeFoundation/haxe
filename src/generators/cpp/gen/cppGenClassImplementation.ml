@@ -950,7 +950,7 @@ let generate_managed_class base_ctx tcpp_class =
       let ret         = if return_type = "Void" || return_type = "void" then " " else "return " in
       let vtable      = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
 
-      Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
+      Printf.sprintf "\t%s %s(%s) override {\n" return_type func.tcf_name args |> output_cpp;
       Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
       output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
       output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
