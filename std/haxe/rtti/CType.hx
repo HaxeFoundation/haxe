@@ -503,7 +503,7 @@ class TypeApi {
 
 		If `f1` or `f2` are `null`, the result is unspecified.
 	**/
-	public static function fieldEq(f1:ClassField, f2:ClassField) {
+	public static function fieldEq(f1:ClassField, f2:ClassField):Bool {
 		if (f1.name != f2.name)
 			return false;
 		if (!typeEq(f1.type, f2.type))

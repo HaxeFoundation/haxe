@@ -120,5 +120,5 @@
 		});
 	}
 
-	static var same_closure = try neko.Lib.load("std", "same_closure", 2) catch (e:Dynamic) function(f1, f2) return f1 == f2;
+	static var same_closure:Dynamic = try neko.Lib.load("std", "same_closure", 2) catch (e:Dynamic) function(f1:Dynamic, f2:Dynamic) return f1 == f2;
 }

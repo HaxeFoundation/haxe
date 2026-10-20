@@ -25,7 +25,7 @@ package neko;
 @:dox(hide)
 @:keep
 class Boot {
-	private static function __tmp_str() {
+	private static function __tmp_str():Dynamic {
 		return untyped "<...>".__s;
 	}
 
@@ -88,7 +88,7 @@ class Boot {
 		}
 	}
 
-	private static function __serialize(o) {
+	private static function __serialize(o:Dynamic):Dynamic {
 		untyped {
 			if (o.__class__ != null) {
 				var n = o.__class__.__name__;

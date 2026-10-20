@@ -71,7 +71,7 @@ class Socket {
 	var _socket:LuaSocket;
 
 	var blocking = false;
-	var timeout = null;
+	var timeout:Null<Float> = null;
 
 	public function new():Void {}
 

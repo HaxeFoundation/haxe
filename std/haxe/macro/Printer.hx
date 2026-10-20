@@ -120,13 +120,13 @@ class Printer {
 			case TPExpr(e): printExpr(e);
 		}
 
-	public function printTypePath(tp:TypePath)
+	public function printTypePath(tp:TypePath):String
 		return (tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 			+ tp.name
 			+ (tp.sub != null ? '.${tp.sub}' : "")
 			+ (tp.params == null ? "" : tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(", ") + ">" : "");
 
-	public function printComplexType(ct:ComplexType) {
+	public function printComplexType(ct:ComplexType):String {
 		if( loop > 30 ) return "...";
 		loop++;
 		var str = switch (ct) {
@@ -159,7 +159,7 @@ class Printer {
 		return str;
 	}
 
-	public function printMetadata(meta:MetadataEntry)
+	public function printMetadata(meta:MetadataEntry):String
 		return '@${meta.name}' + ((meta.params != null && meta.params.length > 0) ? '(${printExprs(meta.params, ", ")})' : "");
 
 	public function printAccess(access:Access)
@@ -248,7 +248,7 @@ class Printer {
 		return '${printObjectFieldKey(of)} : ${printExpr(of.expr)}';
 	}
 
-	public function printExpr(e:Expr)
+	public function printExpr(e:Expr):String
 		return e == null ? "#NULL" : switch (e.expr) {
 			case EConst(c): printConstant(c);
 			case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
@@ -308,7 +308,7 @@ class Printer {
 			case EMeta(meta, e1): printMetadata(meta) + " " + printExpr(e1);
 		}
 
-	public function printExprs(el:Array<Expr>, sep:String) {
+	public function printExprs(el:Array<Expr>, sep:String):String {
 		return el.map(printExpr).join(sep);
 	}
 

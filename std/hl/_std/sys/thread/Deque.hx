@@ -47,7 +47,7 @@ abstract Deque<T>(hl.Abstract<"hl_deque">) {
 		return null;
 	}
 
-	static function alloc() {
+	static function alloc():hl.Abstract<"hl_deque"> {
 		return null;
 	}
 }

@@ -68,7 +68,7 @@ class Template {
 	public static var globals:Dynamic = {};
 
 	// To avoid issues with DCE, keep the array iterator.
-	@:ifFeature("haxe.Template.run") static var hxKeepArrayIterator = [].iterator();
+	@:ifFeature("haxe.Template.run") static var hxKeepArrayIterator:haxe.iterators.ArrayIterator<Dynamic> = [].iterator();
 
 	var expr:TemplateExpr;
 	var context:Dynamic;
@@ -181,7 +181,7 @@ class Template {
 		return tokens;
 	}
 
-	function parseBlock(tokens:List<Token>) {
+	function parseBlock(tokens:List<Token>):TemplateExpr {
 		var l = new List();
 		while (true) {
 			var t = tokens.first();
@@ -342,7 +342,7 @@ class Template {
 		}, l);
 	}
 
-	function makeExpr(l) {
+	function makeExpr(l:List<ExprToken>):Void->Dynamic {
 		return makePath(makeExpr2(l), l);
 	}
 

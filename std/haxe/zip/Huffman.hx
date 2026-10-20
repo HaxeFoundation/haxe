@@ -44,7 +44,7 @@ class HuffTools {
 		}
 	}
 
-	function treeCompress(t) {
+	function treeCompress(t:Huffman):Huffman {
 		var d = treeDepth(t);
 		if (d == 0)
 			return t;

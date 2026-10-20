@@ -61,8 +61,8 @@ class SuspensionResult<T> {
 	/**
 		Creates a new `SuspensionResult` instance with error `error`.
 	**/
-	static public function withError<T>(error:Exception) {
-		final res = new SuspensionResult(Thrown);
+	static public function withError<T>(error:Exception):SuspensionResult<T> {
+		final res = new SuspensionResult<T>(Thrown);
 		res.error = error;
 		return res;
 	}

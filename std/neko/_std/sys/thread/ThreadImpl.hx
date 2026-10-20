@@ -36,11 +36,11 @@ abstract ThreadImpl(Dynamic) {
 		return thread_current();
 	}
 
-	public static function create( job ) {
+	public static function create( job : () -> Void ) : ThreadImpl {
 		return thread_create((_) -> job(),null);
 	}
 
-	public static function getName( t : ThreadImpl ) {
+	public static function getName( t : ThreadImpl ) : Null<String> {
 		return null;
 	}
 

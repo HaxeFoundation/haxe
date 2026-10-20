@@ -738,7 +738,14 @@ module TypeBinding = struct
 			| TDynamic None | TLazy _ ->
 				false
 		in
-		if has_mono (ref []) cf.cf_type then
+		(* A variable initialized with a Dynamic expression is Dynamic (Haxe 6
+		   rule): its type is not reported even though it is still a monomorph
+		   today, until its first use binds it. *)
+		let dynamic_initializer = match follow cf.cf_type, cf.cf_kind, cf.cf_expr with
+			| TMono _, Var _, Some e -> (match follow e.etype with TDynamic _ -> true | _ -> false)
+			| _ -> false
+		in
+		if not dynamic_initializer && has_mono (ref []) cf.cf_type then
 			warning ctx WUnresolvedFieldType (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
 
 	let bind_type ctx cctx fctx cf r p =

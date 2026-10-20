@@ -280,6 +280,11 @@ Goal: make inference local to the field.
 
 Cases to handle explicitly:
 - `var x = null;` and `var a = [];`: error.
+- `var x = dynamicExpr;` (an initializer of type `Dynamic`, e.g.
+  `neko.Lib.load(...)`): the field is `Dynamic`. Today its monomorph stays
+  open and is bound by its first use (often to a function type); in Haxe 6 it
+  is bound to `Dynamic` at the end of the field's typing. This removes 168 of
+  the 175 cases of the Neko standard library.
 - `function f() return g();` where `g` is not typed yet: allowed; the type of
   `f` depends on `FieldSig(g)` (lazy typing, as today).
 - Cycles of unannotated fields (`f` calls `g`, `g` calls `f`): today they may
@@ -333,6 +338,19 @@ What is reported, by kind:
 
 Every case is fixed with a type annotation. Fixing the standard library ones is
 part of this phase.
+
+**Standard library: done.** All reported fields of the standard library are
+annotated, for every target compiled by `tests/unit` (macro, js, hl, hlc, cpp,
+php, lua, jvm, neko): 7 common fields (`Serializer.BASE64_CODES`,
+`Unserializer.CODES`, `InflateImpl.FIXED_HUFFMAN`,
+`Template.hxKeepArrayIterator`, `SuspensionResult.withError`, eval
+`ThreadImpl.getName`, `js.Boot.__resolveNativeClass`), 9 target-specific ones
+(HL `Tls`, `Deque`, `Mutex` natives, Lua `Boot.clampInt32` and
+`Socket.timeout`, PHP `Boot.__get`, JVM `Enum._hx_getParameters`) and 7 Neko
+ones, plus the return types breaking the inference cycles of
+`haxe.macro.Printer`, `haxe.Template`, `haxe.rtti.CType` and
+`haxe.zip.Huffman`. `-w +WUnresolvedFieldType -w +WTypingOrder` reports
+nothing in `std` on these targets.
 
 
 ---
