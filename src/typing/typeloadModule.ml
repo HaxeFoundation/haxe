@@ -401,11 +401,26 @@ module TypeLevel = struct
 		) d.d_meta;
 		let cctx = TypeloadFields.create_class_context c p in
 		let ctx_c = TypeloadFields.create_typer_context_for_class ctx_m cctx p in
+		(* [header] resolves the super class and interfaces, without building the
+		   class: macros read them through [cl_build_header]. The checks that need
+		   the super class and interfaces built are run by the build. *)
+		let header_checks = ref None in
+		let header () = match !header_checks with
+			| Some fl ->
+				fl
+			| None ->
+				header_checks := Some [];
+				let fl = TypeloadCheck.Inheritance.set_heritance ctx_c c herits p in
+				header_checks := Some fl;
+				c.cl_header_meta <- Some c.cl_meta;
+				fl
+		in
+		c.cl_build_header <- (fun () -> ignore(header ()));
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
 			TypeloadCheck.with_class_building c (fun () ->
 				try
-					let fl = TypeloadCheck.Inheritance.set_heritance ctx_c c herits p in
+					let fl = header () in
 					List.iter (fun f -> f()) fl;
 					TypeloadFields.init_class ctx_c cctx c p d.d_flags d.d_data;
 					c.cl_build <- (fun()-> Built);

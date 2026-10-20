@@ -418,7 +418,7 @@ let emit_anon_field_read exec proto i name p env =
 	| VObject o ->
 		begin match o.oproto with
 		| OProto proto' when proto' == proto ->
-			o.ofields.(i)
+			object_field_at o i
 		| _ ->
 			object_field o name
 		end
@@ -624,11 +624,11 @@ let emit_vector_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
 
 (* Ops *)
 
-let emit_eq_null exec env = match exec env with
+let emit_eq_null exec env = match vresolve (exec env) with
 	| VNull -> VTrue
 	| _ -> VFalse
 
-let emit_not_eq_null exec env = match exec env with
+let emit_not_eq_null exec env = match vresolve (exec env) with
 	| VNull -> VFalse
 	| _ -> VTrue
 

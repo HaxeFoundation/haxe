@@ -254,9 +254,22 @@ let haxe_float f p =
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
 
-(* Called when a macro reads a class whose build is not finished
-   (instrumentation of order-dependent typing, see WTypingOrder). *)
+(* Called when a macro reads a class whose build is not finished: a cycle
+   error, unless it is the class being built by the running build macro. *)
 let partially_built_class_read_hook : (tclass -> unit) ref = ref (fun _ -> ())
+
+(* Tells whether the running macro expansion sees the complete metadata of a
+   class (docs/incremental-compilation.md, §3.3): the class it builds, or a
+   class whose build it forced with [Context.buildType]. Other classes expose
+   their declared metadata, whatever has been built so far. *)
+let class_built_by_expansion_hook : (tclass -> bool) ref = ref (fun _ -> true)
+
+(* The classes whose build the running macro expansion forced. *)
+let expansion_built : tclass list ref = ref []
+
+(* Called when a macro reads the declared metadata of a class that has build
+   macros (-D macro-meta-check). *)
+let declared_meta_read_hook : (tclass -> unit) ref = ref (fun _ -> ())
 
 module MacroApiImpl(InterpImpl:InterpApi) = struct
 
@@ -1076,10 +1089,11 @@ let vopt f v = match v with
 	| None -> vnull
 	| Some v -> f v
 
-let encode_meta m set =
+let encode_meta ?(on_read=(fun () -> ())) m set =
 	let meta = ref m in
 	encode_obj [
 		"get", vfun0 (fun() ->
+			on_read ();
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
@@ -1089,6 +1103,7 @@ let encode_meta m set =
 			vnull
 		);
 		"extract", vfun1 (fun k ->
+			on_read ();
 			let k = Meta.from_string (decode_string k) in
 			encode_and_map_array encode_meta_entry (List.filter (fun (m,_,_) -> m = k) (!meta))
 		);
@@ -1099,13 +1114,18 @@ let encode_meta m set =
 			vnull
 		);
 		"has", vfun1 (fun k ->
+			on_read ();
 			let k = Meta.from_string (decode_string k) in
 			vbool (List.exists (fun (m,_,_) -> m = k) (!meta));
 		);
 	]
 
-let rec encode_mtype t fields =
+let rec encode_mtype ?meta t fields =
 	let i = t_infos t in
+	let meta = match meta with
+		| Some meta -> meta
+		| None -> encode_meta i.mt_meta (fun m -> i.mt_meta <- m)
+	in
 	encode_obj ([
 		"__t", 	encode_tdecl t;
 		"pack", encode_array (List.map encode_string (fst i.mt_path));
@@ -1113,7 +1133,7 @@ let rec encode_mtype t fields =
 		"pos", encode_pos i.mt_pos;
 		"module", encode_string (s_type_path i.mt_module.m_path);
 		"isPrivate", vbool i.mt_private;
-		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
+		"meta", meta;
 		"doc", null encode_string (get_own_doc_opt i.mt_doc);
 		"params", encode_type_params i.mt_params;
 	] @ fields)
@@ -1225,11 +1245,31 @@ and encode_class_kind k =
 	encode_enum IClassKind tag pl
 
 and encode_tclass c =
-	begin match c.cl_build() with
-	| Built -> ()
-	| _ -> !partially_built_class_read_hook c
-	end;
-	encode_mtype (TClassDecl c) [
+	(* the header (super class, interfaces, declared metadata) never builds the
+	   class; its members do (docs/incremental-compilation.md, §3.3) *)
+	c.cl_build_header ();
+	let build () =
+		match c.cl_build() with
+		| Built -> ()
+		| _ -> !partially_built_class_read_hook c
+	in
+	let meta = match c.cl_header_meta with
+		| Some declared when not (!class_built_by_expansion_hook c) ->
+			(* additions and removals go to the class's metadata as well *)
+			let view = ref declared in
+			encode_meta ~on_read:(fun () -> !declared_meta_read_hook c) declared (fun m ->
+				let added = List.filter (fun e -> not (List.memq e !view)) m in
+				let removed = List.filter (fun e -> not (List.memq e m)) !view in
+				let update l = added @ List.filter (fun e -> not (List.memq e removed)) l in
+				c.cl_meta <- update c.cl_meta;
+				c.cl_header_meta <- Option.map update c.cl_header_meta;
+				view := m
+			)
+		| _ ->
+			encode_meta c.cl_meta (fun m -> c.cl_meta <- m)
+	in
+	let members f = encode_lazy (AtomicLazy.from_fun (fun () -> build (); f ())) in
+	encode_mtype ~meta (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
 		"exclude", vfun0 (fun() -> add_class_flag c CExcluded; c.cl_init <- None; vnull);
@@ -1241,11 +1281,11 @@ and encode_tclass c =
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
 		);
 		"interfaces", encode_array (List.map (fun (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
-		"fields", encode_ref c.cl_ordered_fields (encode_and_map_array encode_cfield) (fun() -> "class fields");
-		"statics", encode_ref c.cl_ordered_statics (encode_and_map_array encode_cfield) (fun() -> "class fields");
-		"constructor", (match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
-		"init", (match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
-		"overrides", (encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
+		"fields", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield c.cl_ordered_fields) (fun() -> "class fields");
+		"statics", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield c.cl_ordered_statics) (fun() -> "class fields");
+		"constructor", members (fun () -> match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
+		"init", members (fun () -> match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
+		"overrides", members (fun () -> encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
 and encode_ttype t =
@@ -2245,6 +2285,29 @@ let macro_api ccom get_api =
 		"follow", vfun2 (fun v once ->
 			let t = decode_type v in
 			encode_type (if decode_opt_bool once then follow_once t else follow t)
+		);
+		"build_type", vfun1 (fun v ->
+			let rec loop t = match t with
+				| TInst(c,_) ->
+					c.cl_build_header ();
+					begin match c.cl_build() with
+					| Built -> ()
+					| _ -> !partially_built_class_read_hook c
+					end;
+					expansion_built := c :: !expansion_built
+				| TAbstract({a_impl = Some c},_) ->
+					loop (TInst(c,[]))
+				| TType(td,tl) ->
+					loop (apply_typedef td tl)
+				| TMono {tm_type = Some t} ->
+					loop t
+				| TLazy f ->
+					loop (lazy_type f)
+				| _ ->
+					()
+			in
+			loop (decode_type v);
+			vnull
 		);
 		"get_build_fields", vfun0 (fun() ->
 			(get_api()).get_build_fields()

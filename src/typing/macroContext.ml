@@ -308,13 +308,28 @@ let make_macro_com_api com mcom p =
 let make_macro_api ctx mctx p =
 	(* Reading a class whose build is not finished, other than the class being
 	   built, would depend on typing order: it is a cycle error. *)
+	let is_local_class c = match ctx.c.get_build_infos() with
+		| Some (TClassDecl c',_,_) -> c == c'
+		| _ -> c == ctx.c.curclass
+	in
 	MacroApi.partially_built_class_read_hook := (fun c ->
-		let is_local_class = match ctx.c.get_build_infos() with
-			| Some (TClassDecl c',_,_) -> c == c'
-			| _ -> c == ctx.c.curclass
-		in
-		if not is_local_class then
+		if not (is_local_class c) then
 			TypeloadCheck.build_cycle_error_reason "a macro reads" c p
+	);
+	MacroApi.class_built_by_expansion_hook := (fun c ->
+		is_local_class c || List.memq c !MacroApi.expansion_built
+	);
+	MacroApi.declared_meta_read_hook := (fun c ->
+		if Define.defined ctx.com.defines Define.MacroMetaCheck then begin
+			let rec has_build_macros c =
+				c.cl_build_header ();
+				Meta.has Meta.Build c.cl_meta
+				|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) c.cl_implements
+				|| (match c.cl_super with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
+			in
+			if has_build_macros c then
+				warning ctx WTypingOrder (Printf.sprintf "Metadata of %s read before its build; call Context.buildType if build-added metadata is needed" (s_type_path c.cl_path)) p
+		end
 	);
 	let parse_metadata s p =
 		try
@@ -826,7 +841,10 @@ let do_call_macro com api cpath name args p =
 	incr com.request_scope.stats.s_macros_called;
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
-	let r = macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f api in
+	(* the classes whose build this expansion forces (Context.buildType) *)
+	let old_built = !MacroApi.expansion_built in
+	MacroApi.expansion_built := [];
+	let r = Std.finally (fun () -> MacroApi.expansion_built := old_built) (macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f) api in
 	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ name);
 	r
 

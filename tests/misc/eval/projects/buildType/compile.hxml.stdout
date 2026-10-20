@@ -1,0 +1,2 @@
+Main.hx:3: Child extends Base
+Main.hx:4: before buildType: false, after: true

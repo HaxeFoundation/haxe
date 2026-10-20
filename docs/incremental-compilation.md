@@ -884,6 +884,26 @@ building types: A -> B -> A (a macro reads A, which is being built)`
 corpus. Reading the fields of the class being built through `getLocalClass()`
 is still allowed: it becomes an error with the lazy macro `ClassType`.
 
+**Status: class headers and the lazy macro `ClassType`.** A class's header
+(super class, interfaces, declared metadata) is computed separately from its
+build (`cl_build_header`, `TypeloadModule`): the build computes the header
+first, and macros compute it alone. In the macro API, `Ref.get()` on a class
+no longer builds it: `name`, `pack`, `params`, `superClass`, `interfaces`,
+`kind` and the other header fields come from the header; `fields`,
+`statics`, `constructor`, `init` and `overrides` build the class when read.
+`meta` is the declared metadata (`cl_header_meta`: before build macros and
+inherited `@:autoBuild`) unless the class is the one being built by the
+running build macro or the running expansion built it with the new
+`Context.buildType(t)`; additions and removals still apply to the class.
+The view no longer depends on whether something else happened to build the
+class first (`tests/misc/eval/projects/buildType`). `-D macro-meta-check`
+warns when a macro reads the declared metadata of a class that has build
+macros. Libraries guard the call with `#if haxe6` (a new reserved define of
+this compiler). In the corpus, two readers of build-added metadata needed
+`Context.buildType`: hxsl's `loadShader` (`:src`, Heaps) and hide's
+`hrt.shgraph.Macros.loadShader`; the JS output of Heaps and hide is
+identical before and after.
+
 **Status: `sig` no longer demands `body`.** A field whose type is fully known
 from its declaration (all argument and return types annotated, typed by a
 literal default value, or a syntactic `Void` return) exposes that type

@@ -162,6 +162,8 @@ let mk_class m path pos name_pos =
 		cl_constructor = None;
 		cl_init = None;
 		cl_build = (fun() -> Built);
+		cl_build_header = (fun() -> ());
+		cl_header_meta = None;
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
 	} in

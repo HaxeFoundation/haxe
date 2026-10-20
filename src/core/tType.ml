@@ -314,6 +314,14 @@ and tclass = {
 	mutable cl_init : tclass_field option;
 
 	mutable cl_build : unit -> build_state;
+	(* Computes the header of the class (super class, interfaces, declared
+	   metadata) without building it (docs/incremental-compilation.md, phase 3,
+	   [header]). *)
+	mutable cl_build_header : unit -> unit;
+	(* The declared metadata, as set by [cl_build_header]: without the metadata
+	   added by the class's build macros. [None] if the class has no header
+	   computation, in which case [cl_meta] is its declared metadata. *)
+	mutable cl_header_meta : metadata option;
 	(*
 		These are classes which directly extend or directly implement this class.
 		Populated automatically in post-processing step (Filters.run)

@@ -603,6 +603,24 @@ class Context {
 	}
 
 	/**
+		Builds type `t` (runs its build macros and creates its fields) if it is
+		not built yet.
+
+		Reading a class through `Ref.get()` does not build it: its name, package,
+		parameters, super class, interfaces and declared metadata are available
+		without building it, and reading its fields builds it. Its metadata is the
+		declared metadata unless the current macro called `buildType` on it first,
+		in which case it includes the metadata added by its build macros.
+
+		A type that is being built (its build is running higher on the stack)
+		cannot be built: this is a cycle error.
+	**/
+	public static function buildType(t:Type):Void {
+		assertInitMacrosDone();
+		load("build_type", 1)(t);
+	}
+
+	/**
 		Follows a type, including abstracts' underlying implementation
 
 		See `haxe.macro.TypeTools.followWithAbstracts` for details.

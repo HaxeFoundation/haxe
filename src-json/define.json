@@ -309,6 +309,13 @@
 		"reserved": true
 	},
 	{
+		"name": "Haxe6",
+		"define": "haxe6",
+		"doc": "The compiler has the Haxe 6 typing rules (fields typed from their declarations, cycle errors, `Context.buildType`).",
+		"default": "1",
+		"reserved": true
+	},
+	{
 		"name": "HaxeNext",
 		"define": "haxe-next",
 		"doc": "Enable experimental features that are meant to be released on next Haxe version."
@@ -594,6 +601,11 @@
 		"doc": "Defined when code is compiled in the macro context.",
 		"links": ["https://haxe.org/manual/macro.html"],
 		"reserved": true
+	},
+	{
+		"name": "MacroMetaCheck",
+		"define": "macro-meta-check",
+		"doc": "Warn when a macro reads the metadata of a class that has build macros without having built it with `Context.buildType`: it only sees the declared metadata."
 	},
 	{
 		"name": "MacroTimes",

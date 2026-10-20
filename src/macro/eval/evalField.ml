@@ -37,9 +37,18 @@ let rec proto_field_raise proto name =
 let instance_field vi name =
 	vi.ifields.(get_instance_field_index_raise vi.iproto name)
 
+(* Reads field [i] of object [o], forcing it (once) if its value is lazy. *)
+let object_field_at o i = match o.ofields.(i) with
+	| VLazy f ->
+		let v = AtomicLazy.force f in
+		o.ofields.(i) <- v;
+		v
+	| v ->
+		v
+
 let object_field_raise o name = match o.oproto with
 	| OProto proto ->
-		o.ofields.(get_instance_field_index_raise proto name)
+		object_field_at o (get_instance_field_index_raise proto name)
 	| ODictionary l ->
 		IntMap.find name l
 
