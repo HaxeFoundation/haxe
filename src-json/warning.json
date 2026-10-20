@@ -166,6 +166,12 @@
 		"parent": "WTyper"
 	},
 	{
+		"name": "WTypingOrder",
+		"doc": "Typing depends on the order in which types and fields are processed (build retries, partially built classes, placeholder types); these become cycle errors in Haxe 6",
+		"parent": "WTyper",
+		"enabled": false
+	},
+	{
 		"name": "WUnresolvedFieldType",
 		"doc": "The type of a field is not fully known at the end of its own typing (it is an error in Haxe 6)",
 		"parent": "WTyper",

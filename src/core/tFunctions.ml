@@ -347,9 +347,14 @@ let add_descendant c descendant =
 
 let lazy_force_hook : ((unit -> t) -> t) ref = ref (fun f -> f())
 
+(* Called when the placeholder type of a lazy being computed is read
+   (instrumentation of order-dependent typing, see WTypingOrder). *)
+let lazy_processing_read_hook : (tlazy ref -> unit) ref = ref (fun _ -> ())
+
 let lazy_type f =
 	match !f with
-	| LAvailable t | LProcessing t -> t
+	| LAvailable t -> t
+	| LProcessing t -> !lazy_processing_read_hook f; t
 	| LWait f -> !lazy_force_hook f
 
 let lazy_available t = LAvailable t

@@ -1,0 +1,2 @@
+Main.hx:4: characters 18-21 : Warning : (WTypingOrder) odd reads the type of even while it is being inferred (inference cycle between fields)
+B.hx:1: characters 1-8 : Warning : (WTypingOrder) A macro reads class A while it is being built

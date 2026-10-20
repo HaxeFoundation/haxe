@@ -663,6 +663,42 @@ let check_field_display ctx fctx c cf =
 
 module TypeBinding = struct
 
+	(* Fields whose type is being inferred, innermost first. A field reading the
+	   placeholder type of another field of this stack is part of a cross-field
+	   inference cycle, resolved today by typing order (a cycle error in Haxe 6).
+	   A field reading its own placeholder (self recursion) is fine. *)
+	let fields_being_inferred : (tlazy ref * typer * tclass_field * bool) list ref = ref []
+
+	let rec is_full_type t =
+		match t with
+		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
+		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
+		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+
+	(* Pairs already reported, for the current compilation. *)
+	let reported_cycles : (int * pos * string) list ref = ref []
+
+	let () = TFunctions.lazy_processing_read_hook := (fun r ->
+		match !fields_being_inferred with
+		| (r_top,ctx,cf_reader,_) :: rest when r_top != r ->
+			(* Only fields whose type is inferred from their body form an inference
+			   cycle: an annotated field's type is known from its declaration. *)
+			begin match List.find_opt (fun (r',_,_,_) -> r' == r) rest with
+			| Some (_,_,cf_read,true) when not (List.mem (ctx.com.part_scope.compilation_step,cf_reader.cf_name_pos,cf_read.cf_name) !reported_cycles) ->
+				let step = ctx.com.part_scope.compilation_step in
+				reported_cycles := (step,cf_reader.cf_name_pos,cf_read.cf_name) :: List.filter (fun (step',_,_) -> step' = step) !reported_cycles;
+				warning ctx WTypingOrder (Printf.sprintf "%s reads the type of %s while it is being inferred (inference cycle between fields)" cf_reader.cf_name cf_read.cf_name) cf_reader.cf_name_pos
+			| _ ->
+				()
+			end
+		| _ ->
+			()
+	)
+
+	let while_inferring r ctx cf ~inferred f =
+		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
+		Std.finally (fun () -> fields_being_inferred := List.tl !fields_being_inferred) f ()
+
 	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
 	   known at the end of its own typing. Reports the field types that still
 	   contain an unbound monomorph at that point (docs/incremental-compilation.md,
@@ -695,12 +731,6 @@ module TypeBinding = struct
 
 	let bind_type ctx cctx fctx cf r p =
 		let c = cctx.tclass in
-		let rec is_full_type t =
-			match t with
-			| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
-			| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
-			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
-		in
 		let force_macro display =
 			(* force macro system loading of this class in order to get completion *)
 			delay ctx.g PTypeField (fun() ->
@@ -786,7 +816,9 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_unforced_lazy t (fun () ->
+		let self = ref None in
+		let inferred = not (is_full_type t) in
+		let r = make_unforced_lazy t (fun () -> while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -850,7 +882,8 @@ module TypeBinding = struct
 				check_field_display ctx fctx c cf;
 			end;
 			t
-		) "bind_var" in
+		)) "bind_var" in
+		self := Some r;
 		if not fctx.is_static then cctx.force_constructor <- true;
 		bind_type ctx cctx fctx cf r (snd e)
 
@@ -917,11 +950,15 @@ module TypeBinding = struct
 					check_field_display ctx fctx c cf;
 			end;
 		in
-		let maybe_bind () =
-			if not ctx.g.return_partial_type then bind ();
-			t
-		in
-		let r = make_unforced_lazy t maybe_bind "type_fun" in
+		let self = ref None in
+		let inferred = not (is_full_type t) in
+		let r = make_unforced_lazy t (fun () ->
+			while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
+				if not ctx.g.return_partial_type then bind ();
+				t
+			)
+		) "type_fun" in
+		self := Some r;
 		bind_type ctx cctx fctx cf r p
 end
 

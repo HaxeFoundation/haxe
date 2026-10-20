@@ -414,6 +414,12 @@ module TypeLevel = struct
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with TypeloadCheck.Build_canceled state ->
+					let reason = match state with
+						| Building cl -> "it depends on " ^ String.concat ", " (List.map (fun c -> s_type_path c.cl_path) cl) ^ ", which is being built"
+						| BuildMacro _ -> "a build macro is pending"
+						| Built -> "of an unexpected state"
+					in
+					warning ctx_c WTypingOrder (Printf.sprintf "Build of %s is retried later because %s" (s_type_path c.cl_path) reason) c.cl_name_pos;
 					c.cl_build <- make_pass ctx_c build;
 					let rebuild() =
 						delay_late ctx_c.g PBuildClass (fun() -> ignore(c.cl_build()));

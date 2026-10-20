@@ -254,6 +254,10 @@ let haxe_float f p =
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
 
+(* Called when a macro reads a class whose build is not finished
+   (instrumentation of order-dependent typing, see WTypingOrder). *)
+let partially_built_class_read_hook : (tclass -> unit) ref = ref (fun _ -> ())
+
 module MacroApiImpl(InterpImpl:InterpApi) = struct
 
 open InterpImpl
@@ -1221,7 +1225,10 @@ and encode_class_kind k =
 	encode_enum IClassKind tag pl
 
 and encode_tclass c =
-	ignore(c.cl_build());
+	begin match c.cl_build() with
+	| Built -> ()
+	| _ -> !partially_built_class_read_hook c
+	end;
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);

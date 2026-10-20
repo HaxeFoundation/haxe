@@ -563,6 +563,29 @@ instrumented to detect these situations (a build cancellation, a read of a
 report them as warnings. Running it on the corpus gives the list of code to fix
 before cycles become errors.
 
+**Status.** Implemented as the `WTypingOrder` warning, disabled by default
+(`-w +WTypingOrder`), with a test in `tests/misc/eval/projects/typingOrder`:
+build retries (`Build_canceled`, `typeloadModule.ml`), a macro reading a class
+whose build is not finished other than the class being built
+(`MacroApi.partially_built_class_read_hook`, set in `macroContext.ml`), and a
+field reading the placeholder type of another field whose type is being
+inferred (`TFunctions.lazy_processing_read_hook`,
+`TypeBinding.fields_being_inferred` in `typeloadFields.ml`; annotated fields and
+self recursion are not reported).
+
+**Measurements** (`-w +WTypingOrder`, distinct reader/read pairs):
+
+| Corpus | Inference cycles between fields | Build retries / partial class reads |
+|---|---|---|
+| `tests/unit` (macro), standard library, utest | 27 (22 in `std`, 18 of them in `haxe.macro.Printer`) | 0 |
+| Heaps, hxbit, domkit, castle (js, without `h2d.domkit`) | 53 | 0 |
+
+Of the 66 distinct cycles, about 40% go through a function that never returns
+a value (no `return <expr>` in its body): its `Void` return type could be known
+without typing the body, which would remove those cycles without any
+annotation (open question, see §6). The others need one annotation per cycle.
+
+
 #### 3.4 Determinism
 
 - Query results must not depend on the order in which queries are demanded.
@@ -1284,6 +1307,11 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   typing will silently stop working. To be detected on the corpus (a read of
   metadata that only exists as late metadata of that type can be reported in
   `-D macro-meta-check` mode).
+- **Open question: inference cycles.** Mutually recursive fields without
+  annotations are frequent (66 distinct cycles in the corpus, phase 3.3
+  measurements). About 40% would disappear if a function whose body contains
+  no `return <expr>` had its `Void` return type determined syntactically,
+  without typing its body.
 - **Static initialization cycles** become errors: existing code with circular
   static initializers must be fixed.
 - **Deterministic HL format**: a visible change for tools reading bytecode
