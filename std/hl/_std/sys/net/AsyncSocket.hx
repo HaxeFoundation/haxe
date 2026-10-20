@@ -148,7 +148,7 @@ class AsyncSocket {
 		write(buf, 0, buf.length);
 	}
 
-	public static function startServer( host, port, ?ssl, onClient ) {
+	public static function startServer( host : String, port : Int, ?ssl : { hostname : String, cert : sys.ssl.Certificate, key : sys.ssl.Key }, onClient : Null<AsyncSocket> -> Void ) : AsyncSocket {
 		var s = new AsyncSocket();
 		s.onDisconnect = function() {
 			onClient(null);

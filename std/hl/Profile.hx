@@ -65,7 +65,7 @@ class Profile {
 	public static var threadBits(get, set):haxe.EnumFlags<TrackKind>;
 	public static var globalBits(get, set):haxe.EnumFlags<TrackKind>;
 
-	static var KINDS = null;
+	static var KINDS : Array<TrackKind> = null;
 
 	public static function getData(sortBySize = false, reset = true) {
 		var old = globalBits;

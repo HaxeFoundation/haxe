@@ -101,7 +101,7 @@ class Check {
 		}
 	}
 
-	static function check(x:Xml, r:Rule) {
+	static function check(x:Xml, r:Rule):CheckResult {
 		switch (r) {
 			// check the node validity
 			case RNode(name, attribs, childs):
