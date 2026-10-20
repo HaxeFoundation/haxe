@@ -7,7 +7,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 
 | Topic | Decision |
 |---|---|
-| Inference unit | **The field.** A field's type must be fully determined at the end of its own typing. A monomorph still open in a field's type (`static var x = []`) is an **error**: a type annotation is required. |
+| Inference unit | **The field.** A field's type must be fully determined at the end of its own typing. A monomorph still open in a field's type (`static var x = []`) is an **error**: a type annotation is required. A function's signature is known without typing its body when every argument is annotated or **typed by a literal default value**, and its return type is annotated or a syntactic `Void` (§3.3). |
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
 | Targets | **JS and HL only.** Other targets (C++, JVM, Python, Lua, PHP, Neko, Flash) are **out of the scope of this plan**: they must keep compiling with a global generation step, but nothing in this plan makes their generation incremental. |
@@ -605,7 +605,13 @@ What is and is not a cycle:
   `return <expr>` (nested functions excluded) has a **syntactic `Void` return
   type**: its `sig` only depends on its argument hints, never on its body, so
   it takes no part in such cycles, and editing its body never changes its
-  signature. The only exception is a field referring to itself
+  signature. Likewise, an argument without hint whose **default value is a
+  literal** that determines its whole type (`tabs = ""`, `n = 0`, `x = 1.5`,
+  `b = false`, `n = -1`) is typed by that literal, without typing the body.
+  A default value that only determines part of the type (`v = null` gives
+  `Null<?>`, `a = []` gives `Array<?>`), like an optional argument without
+  hint (`?parent`), fixes that part, and the rest is inferred from the body:
+  the signature then depends on the body. The only exception is a field referring to itself
   inside its own body (`function fact(n) return n <= 1 ? 1 : n * fact(n - 1)`):
   this is not a query re-entry but the same inference unit, so the body sees
   its own signature monomorph, which must be closed when the field's typing
@@ -700,6 +706,16 @@ value. With the syntactic `Void` rule (decided, §3.3, and applied by the
 instrumentation), **39 cycles remain** (22 in `tests/unit`, the standard library
 and utest; 29 in Heaps, hxbit, domkit and castle, some shared), each fixed with
 one annotation.
+
+With the literal default value rule (decided, §3.3) and the instrumentation
+counting a partially known type (`Null<?>`) as inferred, Heaps `master`
+(js, `h3d`, `h2d`, `hxsl`, `hxd`) goes from 10 to 8 cycles: the two lifted ones
+only depended on `tabs = ""`-like arguments, and the remaining ones go through
+a return value (`hxsl.Printer.toString`, `hxsl.Checker.makeVar`,
+`hxd.fmt.fbx.Parser.parseNodes`) or an optional argument without hint
+(`hxsl.Printer.addVar(…, ?parent)`). With the standard library annotations of
+phase 1 and the Heaps patch (`haxe6-annotations` branch of Heaps), Heaps reports
+none.
 
 
 #### 3.4 Determinism

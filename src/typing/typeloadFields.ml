@@ -673,7 +673,8 @@ module TypeBinding = struct
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
 		| TMono r -> (match r.tm_type with None -> false | Some t -> is_full_type t)
-		| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+		| TAbstract(_,tl) | TInst(_,tl) | TEnum(_,tl) | TType(_,tl) -> List.for_all is_full_type tl
+		| TLazy _ | TDynamic _ | TAnon _ -> true
 
 	(* Pairs already reported, for the current compilation. *)
 	let reported_cycles : (int * pos * string) list ref = ref []
@@ -706,6 +707,16 @@ module TypeBinding = struct
 			| _ -> Ast.iter_expr loop e
 		in
 		try loop e; false with Exit -> true
+
+	(* An argument without type hint whose default value is a literal that
+	   determines its whole type (`""`, `0`, `1.5`, `true`, `-1`) is typed by
+	   that literal without typing the body (Haxe 6 rule, phase 3.3). A literal
+	   that only determines part of the type (`null`, `[]`) leaves the rest to
+	   the body, so the function's type is still inferred from it. *)
+	let rec is_typing_literal e = match fst e with
+		| EConst (Int _ | Float _ | String _) | EConst (Ident ("true" | "false")) -> true
+		| EUnop (Neg,Prefix,e) | EParenthesis e -> is_typing_literal e
+		| _ -> false
 
 	let while_inferring r ctx cf ~inferred f =
 		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
@@ -970,8 +981,13 @@ module TypeBinding = struct
 			end;
 		in
 		let self = ref None in
+		let literal_typed = List.filter_map (fun ((name,_),_,_,th,eo) -> match th,eo with
+			| None,Some e when is_typing_literal e -> Some name
+			| _ -> None
+		) args#syntax in
 		let inferred = not (is_full_type t) && match t, e with
-			| TFun(args,_), Some e when not (returns_value e) -> not (List.for_all (fun (_,_,t) -> is_full_type t) args)
+			| TFun(args,_), Some e when not (returns_value e) ->
+				not (List.for_all (fun (name,_,t) -> is_full_type t || List.mem name literal_typed) args)
 			| _ -> true
 		in
 		let r = make_unforced_lazy t (fun () ->
