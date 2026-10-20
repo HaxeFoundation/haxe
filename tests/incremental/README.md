@@ -29,6 +29,9 @@ compiler messages before comparing), `--invalidate` (notify the server with
 `server/invalidate` instead of relying on modification times), `--keep` (keep
 the `work` directory).
 
+In CI, the suite runs on Linux as part of the `js` target of `tests/RunCi.hx`
+(after the server tests); the runner sets modification times with GNU `touch`.
+
 Targets: `interp` (`--interp`, program output is the compiler output) and `js`
 (`out/main.js`, run with node). Running the js output requires `node` in `PATH`.
 
