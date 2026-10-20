@@ -116,12 +116,12 @@ class file_keys = object(self)
 			Hashtbl.add cache file key;
 			key
 
-	val virtual_counter = ref 0
-
+	(* The file of a module defined by a macro. A module path is defined at most
+	   once per context and compilation step, so the name does not depend on
+	   the order in which macros define modules. *)
 	method generate_virtual mpath step =
-		incr virtual_counter;
 		let base = match fst mpath with | [] -> "." | pack -> ExtLib.String.join "/" pack in
-		Printf.sprintf "%s/%s_%i_%i" base (snd mpath) step !virtual_counter
+		Printf.sprintf "%s/%s_%i" base (snd mpath) step
 
 end
 

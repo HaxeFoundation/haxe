@@ -2162,7 +2162,7 @@ and eval_expr ctx e =
 		| "$resources", [] ->
 			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> die "" __LOC__) in
 			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> die "" __LOC__) [] false in
-			let res = Hashtbl.fold (fun k v acc -> (k,v) :: acc) ctx.com.resources [] in
+			let res = List.sort compare (Hashtbl.fold (fun k v acc -> (k,v) :: acc) ctx.com.resources []) in
 			let size = reg_int ctx (List.length res) in
 			let arr = alloc_array ctx size HBytes in
 			let ro = alloc_tmp ctx t in

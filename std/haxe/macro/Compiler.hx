@@ -191,7 +191,10 @@ class Compiler {
 				if (!sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path))
 					continue;
 				found = true;
-				for (file in sys.FileSystem.readDirectory(path)) {
+				// sorted, so that the include order does not depend on the file system
+				var files = sys.FileSystem.readDirectory(path);
+				files.sort(Reflect.compare);
+				for (file in files) {
 					if (StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0) {
 						if (file == "import.hx")
 							continue;

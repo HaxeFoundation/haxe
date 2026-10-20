@@ -463,6 +463,12 @@ pointers.
    - `cl_descendants`: recomputed by the aggregation pass (phase 8) from the
      `cl_super` and `cl_implements` of all types; no longer stored
      persistently.
+
+     **Status.** Already the case: the filters rebuild `cl_descendants` from
+     every type of the compilation (`Filters.run`), and restoring a cached
+     class (`cl_restore`) empties it; a grafted class gets the empty list of
+     its new version. The only read during typing (`Calls`, forced inline
+     calls) is delayed to the filters.
    - DCE and post-processing flags (`CfUsed`, `CfPostProcessed`, …): moved to
      post-processing data (phase 8), out of `cf_flags`.
 
@@ -512,6 +518,14 @@ pointers.
    - `@:generic` instances: attached to the `(generic, type arguments)` node
      rather than to the generic's module (removes the `m_processed = 0`
      mechanism from #10635).
+
+     **Status.** Moved to phase 3: an instance is a query keyed by the generic
+     entity and its type arguments (§3.5), whose result is stored outside the
+     host class and added to it by post-processing (phase 8). Until then, a
+     generic method instance is a field added to the host class by the typing
+     of the calling module; it is dropped when the host's module is retyped,
+     which is sound because the calling module depends on the host's module
+     and is retyped as well.
 4. **Grafting** (`src/compiler/incremental/graft.ml`):
    - input: the old and new entity sets of a module;
    - entities are matched by key. If matching fails (entity added or removed),
@@ -892,6 +906,22 @@ none.
   - **Anonymous structure naming** (`Tanon_identification`, used by hxb)
     assigns names in encounter order. Names are derived from a hash of the
     structure, with collisions ordered by stable key.
+
+**Status (first items).**
+- Virtual file names of macro-defined modules are `<pack>/<name>_<step>`:
+  the global counter is removed (a module path is defined at most once per
+  context and compilation step).
+- `Compiler.include` sorts each directory listing.
+- Monomorphs in messages are already numbered per message (print context).
+- "Did you mean" suggestions only use the fields of a type or the types of a
+  module, never the set of loaded modules.
+- Resources are generated sorted by name in JS, Lua and HL (they were
+  generated in hash table order, which depends on the order in which macros
+  added them).
+- Remaining: stored typed expression ids (local to the expansion key, which
+  comes with phase 7), anonymous structure naming for hxb (with the hxb disk
+  backup), the other generators' resources, and the remaining `Hashtbl`
+  iterations, which only feed unordered tables or error reporting.
 
 #### 3.5 Parallel typing
 

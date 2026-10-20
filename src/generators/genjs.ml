@@ -370,7 +370,7 @@ let rec gen_call ctx e el in_value =
 			spr ctx ", data : ";
 			gen_constant ctx e.epos (TString (Codegen.bytes_serialize data));
 			spr ctx "}"
-		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
+		) (List.sort compare (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []));
 		spr ctx "]";
 	| TIdent "`trace", [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
