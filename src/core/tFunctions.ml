@@ -349,6 +349,7 @@ let rec extends c csup =
    interfaces, computed when read so that they do not depend on the order in
    which types are built (docs/incremental-compilation.md, phase 3). *)
 let rec type_usings mt =
+	TAccess.force_usings (t_infos mt);
 	let own = (t_infos mt).mt_using in
 	match mt with
 	| TClassDecl c ->

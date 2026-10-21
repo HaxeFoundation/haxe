@@ -455,9 +455,10 @@ let build_module_def ctx mt meta fvars fbuild =
 	| [] ->
 		()
 	| pending ->
-		schedule_late ctx.g StageMembers (fun () ->
+		TAccess.set_pending_usings ti (fun () ->
 			List.iter (fun resolve -> ti.mt_using <- resolve () @ ti.mt_using) (List.rev pending)
-		)
+		);
+		schedule_late ctx.g StageMembers (fun () -> TAccess.force_usings ti)
 	end;
 	(match f_enum with None -> () | Some f -> f())
 

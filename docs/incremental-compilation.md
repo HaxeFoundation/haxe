@@ -857,7 +857,11 @@ documentation, constraints): without it, `hxcoro` and Heaps' domkit macros
 fail. A class whose module
 is being created (before its build is set up) reads as empty instead of
 failing (`TAccess.not_ready`), as display requests do. A build cycle between
-two classes is reported on the first declaration again (`Issue4671`).
+two classes is reported on the first declaration again (`Issue4671`). The
+`@:using` metadata of a type is resolved when its usings are first read
+(`TAccess.force_usings`, from `TFunctions.type_usings`), no longer only by the
+structure stage: a static extension of a type loaded while typing a field was
+not found otherwise (`eval.luv.Result.resolve` in hxcoro).
 Not done: making the entity records abstract (item 1), which would turn the
 convention into a compile-time rule, and the recording of dependencies by the
 accessors (item 2), which is phase 5's job; the accessors are the places

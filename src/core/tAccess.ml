@@ -8,6 +8,26 @@
 *)
 open TType
 
+(* The @:using metadata of a module type, resolved when the type's usings are
+   first read (or at the end of the structure stage, whichever comes first). *)
+let pending_usings : (Globals.path,(tinfos * (unit -> unit)) list) Hashtbl.t = Hashtbl.create 0
+
+let set_pending_usings (ti : tinfos) f =
+	let l = try Hashtbl.find pending_usings ti.mt_path with Not_found -> [] in
+	Hashtbl.replace pending_usings ti.mt_path ((ti,f) :: l)
+
+let force_usings (ti : tinfos) =
+	match Hashtbl.find_opt pending_usings ti.mt_path with
+	| None ->
+		()
+	| Some l ->
+		match List.partition (fun (ti',_) -> ti' == ti) l with
+		| [],_ ->
+			()
+		| fl,rest ->
+			if rest = [] then Hashtbl.remove pending_usings ti.mt_path else Hashtbl.replace pending_usings ti.mt_path rest;
+			List.iter (fun (_,f) -> f ()) fl
+
 (* Members of a module type read from a .hxb file are read with the rest of
    its module. *)
 let complete_module m = m.m_extra.m_complete ()
