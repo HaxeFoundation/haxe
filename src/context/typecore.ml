@@ -55,7 +55,6 @@ type typer_module = {
 	curmod : module_def;
 	import_resolution : resolution_list;
 	mutable own_resolution : resolution_list option;
-	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	(* `using` statements to resolve, newest first (see ImportHandling.init_using) *)
 	mutable pending_usings : (unit -> (tclass * pos) list) list;
@@ -276,7 +275,11 @@ module TyperManager = struct
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
-		create ctx ctx.m ctx.c f ctx.e StageTypes params
+		(* a field has its own expression context: the monomorphs created for its
+		   arguments and return type are its own, also when fields are typed on
+		   several domains (phase 3.5) *)
+		let e = { ctx.e with monomorphs = [] } in
+		create ctx ctx.m ctx.c f e StageTypes params
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
@@ -420,6 +423,13 @@ let monomorph_transaction ctx =
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
+
+(* The enum whose constructors are being resolved without qualification (the
+   expected type of an expression), for the dynamic extent of its typing in the
+   current domain: the fields of a module can be typed by several domains. *)
+let enum_with_types : (typer_module,module_type) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
+
+let enum_with_type ctx = DomainLocal.Scoped.find enum_with_types ctx.m
 
 (* The call arguments being typed, for the dynamic extent of their typing in the
    current domain. *)
@@ -573,6 +583,14 @@ let pop_unit q = match !typer_shuffle with
 (* Runs the parallel units of a stage: the units of each module in order, the
    modules on several domains when bodies are typed in parallel and no domain
    is doing so already. *)
+(* How many units the current domain is running: parallel units only start
+   from a domain that runs none, never in the middle of the typing of a unit. *)
+let unit_depth = DomainLocal.make (fun () -> 0)
+
+let in_unit f =
+	DomainLocal.set unit_depth (DomainLocal.get unit_depth + 1);
+	Std.finally (fun () -> DomainLocal.set unit_depth (DomainLocal.get unit_depth - 1)) f ()
+
 let run_parallel_units g s =
 	let units = with_queues (fun () ->
 		let units = List.of_seq (Queue.to_seq s.ps_parallel) in
@@ -585,9 +603,9 @@ let run_parallel_units g s =
 			let mine,others = List.partition (fun (m',_) -> m' == m) l in
 			group ((f :: List.map snd mine) :: acc) others
 	in
-	let tasks = Array.of_list (List.map (fun fl -> (fun () -> List.iter (fun f -> f ()) fl)) (group [] units)) in
+	let tasks = Array.of_list (List.map (fun fl -> (fun () -> in_unit (fun () -> List.iter (fun f -> f ()) fl))) (group [] units)) in
 	match g.run_parallel with
-	| Some run when not !TypingLock.active && Array.length tasks > 1 ->
+	| Some run when not !TypingLock.active && DomainLocal.get unit_depth = 0 && Array.length tasks > 1 ->
 		TypingLock.active := true;
 		Std.finally (fun () -> TypingLock.active := false) run tasks
 	| _ ->
@@ -615,7 +633,7 @@ let rec run_stages g (p : stage) where =
 			) in
 			match next with
 			| `Run f ->
-				f ();
+				in_unit f;
 				loop g.program_min_stage
 			| `Parallel ->
 				run_parallel_units g s;

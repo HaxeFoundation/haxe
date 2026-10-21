@@ -360,7 +360,7 @@ let rec type_usings mt =
 		own
 
 let add_descendant c descendant =
-	c.cl_descendants <- descendant :: c.cl_descendants
+	TypingLock.protect_leaf (fun () -> c.cl_descendants <- descendant :: c.cl_descendants)
 
 (* Wraps the forcing of a lazy type, for the dynamic extent of a computation
    of the current domain (see [Common.activate_message_capture]). *)
@@ -369,37 +369,6 @@ let lazy_force_hook : ((unit -> t) -> t) DomainLocal.t = DomainLocal.make (fun (
 (* Called when the placeholder type of a lazy being computed is read
    (instrumentation of order-dependent typing, see WTypingOrder). *)
 let lazy_processing_read_hook : (tlazy ref -> unit) ref = ref (fun _ -> ())
-
-(* Claims of the domains typing in parallel (docs/incremental-compilation.md,
-   phase 3.5): a lazy type or a field body is computed by the domain that claimed
-   it, the others wait for it. A domain does not wait when that would close a
-   cycle of waiting domains: as on one domain, it then sees the placeholder of
-   what is being computed. *)
-module Claims = struct
-	let mutex = Mutex.create ()
-	let done_ = Condition.create ()
-
-	(* the domains waiting, with the domain they wait for *)
-	let waiting : (Domain.id * Domain.id) list ref = ref []
-
-	(* Waits, with [mutex] held, until [cond ()] holds, unless the domain [owner]
-	   waits (transitively) for the current one. Tells whether it waited. *)
-	let wait ~owner cond =
-		let me = Domain.self () in
-		let rec reaches d = d = me || (match List.assoc_opt d !waiting with Some d' -> reaches d' | None -> false) in
-		if reaches owner then
-			false
-		else begin
-			waiting := (me,owner) :: !waiting;
-			while not (cond ()) do Condition.wait done_ mutex done;
-			waiting := List.remove_assoc me !waiting;
-			true
-		end
-
-	(* Waits outside of the typing lock, which the owner may need. *)
-	let wait_unlocked ~owner cond =
-		TypingLock.without (fun () -> Mutex.protect mutex (fun () -> ignore(wait ~owner cond)))
-end
 
 (* The lazy types being forced, with the domain forcing them. *)
 let forcing_lazies : (tlazy ref * Domain.id) list ref = ref []

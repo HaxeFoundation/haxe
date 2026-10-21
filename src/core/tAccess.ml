@@ -41,12 +41,72 @@ let complete_module m =
 	if m.m_extra.m_complete != module_complete then
 		TypingLock.protect (fun () -> m.m_extra.m_complete ())
 
+(* While typing on several domains, classes are built under the typing lock:
+   building them in parallel made build cycles split between domains, whose
+   outcome depends on timing (phase 3.5). A build can still release the lock
+   while it waits for another domain: a domain that then needs the class waits
+   for the build to end instead of reading it partially. *)
+(* the classes being built, with their builder and when the build started: in
+   a cycle of builds split between domains, the build that started first is
+   read partially, as the outermost build of a cycle on one domain is *)
+let builders : (tclass * (Domain.id * int)) list ref = ref []
+let build_seq = ref 0
+
+let builder_of c =
+	let rec loop = function
+		| [] -> None
+		| (c',d) :: l -> if c' == c then Some d else loop l
+	in
+	loop !builders
+
+let build_started c =
+	if !TypingLock.active then
+		Mutex.protect Claims.mutex (fun () ->
+			incr build_seq;
+			builders := (c,(Domain.self (),!build_seq)) :: !builders
+		)
+
+let build_done c =
+	if !TypingLock.active || !builders <> [] then
+		Mutex.protect Claims.mutex (fun () ->
+			builders := List.filter (fun (c',_) -> c' != c) !builders;
+			Condition.broadcast Claims.done_
+		)
+
+let with_class_claim c f =
+	if not !TypingLock.active then
+		f ()
+	else begin
+		let me = Domain.self () in
+		let rec go () =
+			let r = TypingLock.protect (fun () ->
+				match Mutex.protect Claims.mutex (fun () -> builder_of c) with
+				| Some (d,seq) when d <> me -> `Wait (d,seq)
+				| _ -> `Done (f ())
+			) in
+			match r with
+			| `Done v ->
+				v
+			| `Wait (owner,seq) ->
+				let built = TypingLock.without (fun () -> Mutex.protect Claims.mutex (fun () ->
+					Claims.wait ~kind:Claims.WaitClass ~seq ~owner (fun () -> builder_of c = None)
+				)) in
+				if built then go () else TypingLock.protect f
+		in
+		(* a build may run macros: it starts with the claim of the macros, so
+		   that a macro running on another domain gets the class built itself
+		   instead of finding it started (the order of the macros then is the
+		   one of a single domain) *)
+		Claims.in_order ();
+		Claims.with_macro_claim go
+	end
+
 module Header = struct
 	(* The header of a class: type parameters, super class, interfaces,
 	   declared metadata. *)
 	let demand c =
 		if c.cl_build_header != header_done then
-			TypingLock.protect (fun () -> c.cl_build_header ())
+			with_class_claim c (fun () -> c.cl_build_header ())
 
 	let super c = demand c; c.cl_super
 	let implements c = demand c; c.cl_implements
@@ -59,13 +119,13 @@ let not_ready : tclass list ref = ref []
 (* Builds class [c] (its [members] query) and gives its build state. *)
 let build c =
 	if c.cl_build == built then Built
-	else TypingLock.protect (fun () -> c.cl_build ())
+	else with_class_claim c (fun () -> c.cl_build ())
 
 module Members = struct
 	(* The members of a class, after its build macros, connected. *)
 	let demand c =
 		if c.cl_build != built then
-			TypingLock.protect (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
+			with_class_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
 
 	let fields c = demand c; c.cl_fields
 	let ordered_fields c = demand c; c.cl_ordered_fields

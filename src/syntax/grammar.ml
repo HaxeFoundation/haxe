@@ -123,7 +123,8 @@ let check_redundant_var ctx p1 = function%parser
 	| [ ] ->
 		()
 
-let parsing_macro_cond = ref false
+(* local to the domain parsing: files can be parsed on several domains *)
+let parsing_macro_cond_key = Domain.DLS.new_key (fun () -> false)
 
 let rec parse_file (ctx : parser_ctx) s =
 	match%parser s with
@@ -1421,7 +1422,7 @@ and expr (ctx : parser_ctx) s = match%parser s with
 		| [ ] ->
 			check_resume ctx p1 (fun() -> (EDisplay ((EObjectDecl [],p1),DKStructure),p1)) serror;
 		)
-	| [ (Kwd k,p) ] when !parsing_macro_cond ->
+	| [ (Kwd k,p) ] when (Domain.DLS.get parsing_macro_cond_key) ->
 		expr_next ctx (EConst (Ident (s_keyword k)), p) s
 	| [ (Kwd Macro,p) ] ->
 		begin match%parser s with
@@ -1651,7 +1652,7 @@ and parse_field ctx e1 efk p s =
 		| [ (Kwd Extern,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"extern",efk) , punion (pos e1) p2) s
 		| [ (Kwd Function,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"function",efk) , punion (pos e1) p2) s
 		| [ (Kwd New,p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,"new",efk) , punion (pos e1) p2) s
-		| [ (Kwd k,p2) ] when !parsing_macro_cond && (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
+		| [ (Kwd k,p2) ] when (Domain.DLS.get parsing_macro_cond_key) && (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
 		| [ (Const (Ident f),p2) ] when (Pos.max p) = (Pos.min p2) -> expr_next ctx (EField (e1,f,efk) , punion (pos e1) p2) s
 		| [ (Dollar v,p2) ] -> expr_next ctx (EField (e1,"$"^v,efk) , punion (pos e1) p2) s
 		| [ ] ->
@@ -1814,7 +1815,7 @@ and parse_macro_ident ctx t p s =
 	(EConst (Ident t),p)
 
 let rec parse_macro_cond ctx s =
-	parsing_macro_cond := true;
+	Domain.DLS.set parsing_macro_cond_key true;
 	try
 		let cond = (match%parser s with
 			| [ (Const (Ident t),p) ] ->
@@ -1831,8 +1832,8 @@ let rec parse_macro_cond ctx s =
 				tk, make_unop op e p
 			| [ (POpen,p1); [%let (e,p) = expr ctx]; (PClose,p2) ] ->
 				None, (EParenthesis(validate_macro_cond ctx s (e,p)),punion p1 p2)) in
-		parsing_macro_cond := false;
+		Domain.DLS.set parsing_macro_cond_key false;
 		cond
 	with e ->
-		parsing_macro_cond := false;
+		Domain.DLS.set parsing_macro_cond_key false;
 		raise e

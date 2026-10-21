@@ -204,14 +204,38 @@ module PendingConstructors = Hashtbl.Make(struct
 	let hash c = Hashtbl.hash c.cl_path
 end)
 
-let pending_constructors : (unit -> unit) PendingConstructors.t = PendingConstructors.create 0
+type pending_constructor =
+	| CtorPending of (unit -> unit)
+	| CtorAdding of Domain.id
+
+(* changed under [Claims.mutex]: the domain adding a constructor claims it, the
+   others wait for it (phase 3.5) *)
+let pending_constructors : pending_constructor PendingConstructors.t = PendingConstructors.create 0
+
+let set_pending_constructor c f =
+	Mutex.protect Claims.mutex (fun () -> PendingConstructors.replace pending_constructors c (CtorPending f))
 
 let run_pending_constructor c =
-	match PendingConstructors.find_opt pending_constructors c with
-	| Some f ->
-		PendingConstructors.remove pending_constructors c;
-		f ()
-	| None ->
+	let me = Domain.self () in
+	let claim = Mutex.protect Claims.mutex (fun () ->
+		match PendingConstructors.find_opt pending_constructors c with
+		| Some (CtorPending f) ->
+			PendingConstructors.replace pending_constructors c (CtorAdding me);
+			`Add f
+		| Some (CtorAdding d) when d <> me ->
+			`Wait d
+		| _ ->
+			`None
+	) in
+	match claim with
+	| `Add f ->
+		Std.finally (fun () -> Mutex.protect Claims.mutex (fun () ->
+			PendingConstructors.remove pending_constructors c;
+			Condition.broadcast Claims.done_
+		)) f ()
+	| `Wait owner ->
+		Claims.wait_unlocked ~owner (fun () -> not (PendingConstructors.mem pending_constructors c))
+	| `None ->
 		()
 
 let add_constructor ctx_c c force_constructor p =

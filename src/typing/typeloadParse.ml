@@ -181,10 +181,10 @@ let resolve_module_file com m remap p =
 
 let resolve_module_file com m remap p =
 	try
-		com.module_to_file#find m
+		TypingLock.protect_leaf (fun () -> com.module_to_file#find m)
 	with Not_found ->
 		let rfile = resolve_module_file com m remap p in
-		com.module_to_file#add m rfile;
+		TypingLock.protect_leaf (fun () -> com.module_to_file#add m rfile);
 		rfile
 
 module ConditionDisplay = struct
@@ -382,3 +382,34 @@ let parse_module com m p =
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else
 		decls), warnings
+
+(* Modules parsed before the typing lock is taken, while bodies are typed in
+   parallel (phase 3.5): parsing is the part of loading a module that needs no
+   shared state, so it is done by the domain asking for the module, without
+   the lock; loading it then takes the parse result. *)
+let preparsed : (path,(Common.context * (ClassPaths.resolved_file * type_decl list * (Warning.warning * pos) list)) list) Hashtbl.t = Hashtbl.create 0
+
+let preparse com m p =
+	let known = TypingLock.protect_leaf (fun () -> Hashtbl.mem preparsed m) in
+	if not known then begin
+		match (try Some (parse_module com m p) with _ -> None) with
+		| Some r ->
+			TypingLock.protect_leaf (fun () ->
+				let l = try Hashtbl.find preparsed m with Not_found -> [] in
+				if not (List.exists (fun (com',_) -> com' == com) l) then Hashtbl.replace preparsed m ((com,r) :: l)
+			)
+		| None ->
+			()
+	end
+
+let take_preparsed com m =
+	TypingLock.protect_leaf (fun () ->
+		match Hashtbl.find_opt preparsed m with
+		| None -> None
+		| Some l ->
+			match List.partition (fun (com',_) -> com' == com) l with
+			| (_,r) :: _,others ->
+				if others = [] then Hashtbl.remove preparsed m else Hashtbl.replace preparsed m others;
+				Some r
+			| [],_ -> None
+	)

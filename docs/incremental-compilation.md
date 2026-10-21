@@ -1285,8 +1285,7 @@ forces it, the others wait for it. A domain never waits when the domain it
 would wait for waits (transitively) for it (`TFunctions.Claims`): it then sees
 the placeholder of what is being computed, as a cycle on one domain does. A
 cross-module inference cycle split between two domains is therefore not
-reported as an inference cycle in parallel mode. The parallel mode is also
-enabled for the macro context. Messages, features, caches and the flags set
+reported as an inference cycle in parallel mode. Messages, features, caches and the flags set
 by unification use a leaf mutex instead of the typing lock
 (`TypingLock.protect_leaf`), class path lookups have their own mutex, and a
 module that no class path, cache, `.hxb` library or extern loader can provide
@@ -1296,6 +1295,55 @@ Measured (4 cores, sequential → parallel, identical output): Heaps 7.1 s →
 → 3.3 s. What remains under the lock is mostly macro calls and the first
 lookups of modules; the class builds stage (`StageTypes`, 1.2 s on Heaps,
 2.4 s on hide) is still sequential.
+
+**Status: step 6, the order of effects.** Typing on several domains must give
+the output of one domain, also when macros keep state between calls (domkit
+numbers its properties and registers its components in the order its build
+macros run). What has such effects is serialized and ordered:
+- **Classes are built under the typing lock**, never in parallel (building
+  them in parallel split build cycles between domains, with an outcome
+  depending on timing). A build can still release the lock while it waits for
+  another domain: a domain that needs a class being built by another one waits
+  for the build to end (`TAccess.with_class_claim`, `build_started`,
+  `build_done`) instead of reading it partially. The class builds stage
+  (`StageTypes`) stays sequential.
+- **The macros run on one domain at a time** (`Claims.with_macro_claim`), even
+  while the domain running them waits for another one; the claim is only
+  taken by releasing the typing lock when another domain holds it. A class
+  build starts with that claim, so that a macro running on another domain
+  builds the class itself instead of finding its build started.
+- **The tasks of a parallel batch are started in their order** (one worker per
+  domain takes the next task, `Claims.next_task`), and the effects that
+  follow the order of the tasks on one domain wait for the tasks before them to
+  be done (`Claims.in_order`): building a class, calling a macro, creating a
+  module. The bodies of a batch are typed in parallel up to their first such
+  effect.
+- **Waits form a graph** (`src/core/claims.ml`): a domain that would close a
+  cycle of waiting domains lets one of them go on, choosing in this order the
+  wait for the order of the tasks (the effect then happens out of order), the
+  macro claim (taken over by the domain let through, so macros still run one at
+  a time), a value (a lazy type, a body, a constructor: the placeholder is
+  seen, as in a cycle on one domain), and a class being built, the one whose
+  build started first.
+- The modules are parsed outside of the lock before being created
+  (`TypeloadParse.preparse`). The parallel mode is disabled again in the macro
+  context.
+Found and fixed on the way: a batch started from a lazy forced inside a task
+(batches only start outside of units, `Typecore.unit_depth`); the monomorphs
+of the arguments and return types of fields kept in the expression state of
+their module, shared by the domains typing it (each field gets its own); the
+table of pending constructors (claimed like bodies); the conditional
+compilation state of the parser shared by domains parsing in parallel; a
+genericBuild macro run twice while the lock was released (`Cannot redefine
+module`); two domains let through the macro claim at once (domkit handlers
+missing); the search of a cycle looping on a cycle without the current
+domain.
+Measured (4 cores, sequential → parallel): the generated JS of Heaps and hide
+is identical in every run (hide: 10 out of 10, previously about 1 run in 6
+differed or failed), `tests/unit` (macro) passes 40 times out of 40; Heaps
+5.0 s → 4.6–4.9 s, hide 19 s → 15–16.5 s. Most of the typing time left on
+one domain is in macros (3.7 s on hide, 1.5 s on Heaps), which have to keep
+their order.
 
 #### 3.6 Parsing shared between contexts
 

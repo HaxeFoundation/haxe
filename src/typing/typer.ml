@@ -107,9 +107,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 					raise Exit
 			in
 			let is_enum,path,fields,mt = loop [] t in
-			let old = ctx.m.enum_with_type in
-			let restore () = ctx.m.enum_with_type <- old in
-			ctx.m.enum_with_type <- Some mt;
+			let restore = DomainLocal.Scoped.push enum_with_types ctx.m mt in
 			let e = try
 				f()
 			with
@@ -195,7 +193,7 @@ let resolve_against_expected_enum ctx i =
 			let ef = PMap.find i (TAccess.Members.enum_constructors en) in
 			enum_constructor_resolution en ef None null_pos
 	in
-	match ctx.m.enum_with_type with
+	match enum_with_type ctx with
 	| None ->
 		raise Not_found
 	| Some mt ->

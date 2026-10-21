@@ -797,7 +797,6 @@ let load_macro_module mctx com cpath display p =
 		curmod = mloaded;
 		import_resolution = new resolution_list ["import";s_type_path cpath];
 		own_resolution = None;
-		enum_with_type = None;
 		module_using = [];
 		pending_usings = [];
 		import_statements = [];

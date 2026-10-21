@@ -2075,7 +2075,7 @@ let init_class ctx_c cctx c p herits fields =
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not com.config.pf_overload then begin
-			TypeloadFunction.PendingConstructors.replace TypeloadFunction.pending_constructors c (fun () -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
+			TypeloadFunction.set_pending_constructor c (fun () -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
 			Queue.push (fun() -> TypeloadFunction.run_pending_constructor c) cctx.late_connections
 		end;
 	finalize_class ctx_c cctx

@@ -33,6 +33,15 @@ module ParallelArray = struct
 			a_out
 end
 
+(* Runs [f] on each domain of the pool (at most once on each). *)
+let on_each_domain pool f =
+	match pool with
+	| None ->
+		f ()
+	| Some pool ->
+		let n = Domainslib.Task.get_num_domains pool in
+		Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(n - 1) ~body:(fun _ -> f ())
+
 module ParallelSeq = struct
 	let iter pool f seq =
 		ParallelArray.iter pool f (Array.of_seq seq)

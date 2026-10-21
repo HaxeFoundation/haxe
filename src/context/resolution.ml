@@ -72,6 +72,10 @@ class resolution_list (id : string list) = object(self)
 	val mutable resolved_lazies = true
 	val mutable cached_type_imports = true
 	val mutable type_import_cache = StringMap.empty
+	(* the resolution of a module can be used by several domains typing in
+	   parallel: the lazy entries and the cache are computed by one of them *)
+	val lock = ReentrantLock.create ()
+	val mutable resolving_lazies = false
 
 	method add (res : resolution) =
 		l <- res :: l;
@@ -102,9 +106,16 @@ class resolution_list (id : string list) = object(self)
 			| [] ->
 				List.rev acc
 		in
-		if not resolved_lazies then begin
-			resolved_lazies <- true;
-			l <- loop [] l;
+		if not resolved_lazies || resolving_lazies then begin
+			let resolve () =
+				(* a resolution started by the current domain is not started again *)
+				if not resolved_lazies && not resolving_lazies then begin
+					resolving_lazies <- true;
+					resolved_lazies <- true;
+					Std.finally (fun () -> resolving_lazies <- false) (fun () -> l <- loop [] l) ()
+				end
+			in
+			if !TypingLock.active then ReentrantLock.protect lock resolve else resolve ()
 		end
 
 	method resolve' (i : string) : resolution =
@@ -205,9 +216,14 @@ class resolution_list (id : string list) = object(self)
 				()
 		in
 		if not cached_type_imports then begin
-			cached_type_imports <- true;
-			type_import_cache <- StringMap.empty;
-			loop l
+			let cache () =
+				if not cached_type_imports then begin
+					type_import_cache <- StringMap.empty;
+					loop l;
+					cached_type_imports <- true
+				end
+			in
+			if !TypingLock.active then ReentrantLock.protect lock cache else cache ()
 		end;
 
 	method find_type_import alias =

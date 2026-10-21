@@ -108,7 +108,7 @@ end
 class file_keys = object(self)
 	val cache = Hashtbl.create 0
 
-	method get file =
+	method get file = TypingLock.protect_leaf @@ fun () ->
 		try
 			Hashtbl.find cache file
 		with Not_found ->

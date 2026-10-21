@@ -422,6 +422,7 @@ module TypeLevel = struct
 		let members_query = Query.make (Query.Members c.cl_path) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
+			TAccess.build_started c;
 			let r = Query.run members_query (fun () ->
 				try
 					let fl = header () in
@@ -434,11 +435,12 @@ module TypeLevel = struct
 				with exn ->
 					c.cl_build <- (fun () -> Built);
 					TypeloadFields.delay_connections ctx_c.g cctx;
+					TAccess.build_done c;
 					raise exn
 			) in
 			(* the members are connected once the class is built: whoever gets
 			   the class built gets its members complete *)
-			TypeloadFields.run_connections cctx;
+			Std.finally (fun () -> TAccess.build_done c) TypeloadFields.run_connections cctx;
 			c.cl_build <- TAccess.built;
 			r
 		in
@@ -710,7 +712,6 @@ let make_curmod com g m =
 		curmod = m;
 		import_resolution = rl;
 		own_resolution = None;
-		enum_with_type = None;
 		module_using = [];
 		pending_usings = [];
 		import_statements = [];
@@ -861,7 +862,10 @@ and load_module' com g m p =
 			let is_extern = ref false in
 			let file, decls, warnings = try
 				(* Try parsing *)
-				let rfile,decls,warnings = TypeloadParse.parse_module com m p in
+				let rfile,decls,warnings = match TypeloadParse.take_preparsed com m with
+					| Some r -> r
+					| None -> TypeloadParse.parse_module com m p
+				in
 				rfile.file,decls,warnings
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
@@ -901,6 +905,11 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 		add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 		m2
 	| None ->
+		if !TypingLock.active && not !TypeloadCacheHook.server_active && not (ctx.com.module_lut#mem m) then begin
+			TypeloadParse.preparse ctx.com m p;
+			(* the modules are created in the order of the tasks *)
+			Claims.in_order ()
+		end;
 		TypingLock.protect (fun () ->
 			let m2 = load_module' ctx.com ctx.g m p in
 			add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
