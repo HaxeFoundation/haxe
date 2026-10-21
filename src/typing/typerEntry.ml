@@ -265,10 +265,10 @@ let create com macros =
 			program = Array.init ProgramStage.stage_count (fun _ -> make_program_stage ());
 			program_min_stage = 0;
 			(* with -D fail-fast, the first error stops typing: sequential *)
-			run_parallel = if Common.defined com Define.ParallelTyping && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
+			run_parallel = (if Common.defined com Define.ParallelTyping && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
 				Some (run_parallel_tasks com)
 			else
-				None;
+				None);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			global_using = [];
 			complete = false;

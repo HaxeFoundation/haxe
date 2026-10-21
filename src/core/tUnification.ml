@@ -937,13 +937,13 @@ let rec unify (uctx : unification_context) a b =
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
 				if not (has_class_field_flag f1 CfStructurallyUsed) then begin
-					TypingLock.protect (fun () -> add_class_field_flag f1 CfStructurallyUsed);
+					TypingLock.protect_leaf (fun () -> add_class_field_flag f1 CfStructurallyUsed);
 					match f2.cf_kind with
 					| Var vk ->
 						let check name =
 							try
 								let _,_,cf = raw_class_field make_type c tl name in
-								TypingLock.protect (fun () -> add_class_field_flag cf CfStructurallyUsed)
+								TypingLock.protect_leaf (fun () -> add_class_field_flag cf CfStructurallyUsed)
 							with Not_found ->
 								()
 						in
@@ -1098,7 +1098,7 @@ and unify_anons uctx a b a1 a2 =
 			)
 		| ClassStatics c1,_ ->
 			unify_fields (TAccess.Members.statics c1) (fun f1 ->
-				TypingLock.protect (fun () -> add_class_field_flag f1 CfStructurallyUsed)
+				TypingLock.protect_leaf (fun () -> add_class_field_flag f1 CfStructurallyUsed)
 			) (fun _ -> false)
 		| _ ->
 			unify_fields a1.a_fields (fun _ -> ()) (fun _ -> false)

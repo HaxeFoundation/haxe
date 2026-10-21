@@ -370,23 +370,97 @@ let lazy_force_hook : ((unit -> t) -> t) DomainLocal.t = DomainLocal.make (fun (
    (instrumentation of order-dependent typing, see WTypingOrder). *)
 let lazy_processing_read_hook : (tlazy ref -> unit) ref = ref (fun _ -> ())
 
-(* Forces a lazy type without locking: for a lazy that only the current domain
-   can force (a field body it claimed). *)
+(* Claims of the domains typing in parallel (docs/incremental-compilation.md,
+   phase 3.5): a lazy type or a field body is computed by the domain that claimed
+   it, the others wait for it. A domain does not wait when that would close a
+   cycle of waiting domains: as on one domain, it then sees the placeholder of
+   what is being computed. *)
+module Claims = struct
+	let mutex = Mutex.create ()
+	let done_ = Condition.create ()
+
+	(* the domains waiting, with the domain they wait for *)
+	let waiting : (Domain.id * Domain.id) list ref = ref []
+
+	(* Waits, with [mutex] held, until [cond ()] holds, unless the domain [owner]
+	   waits (transitively) for the current one. Tells whether it waited. *)
+	let wait ~owner cond =
+		let me = Domain.self () in
+		let rec reaches d = d = me || (match List.assoc_opt d !waiting with Some d' -> reaches d' | None -> false) in
+		if reaches owner then
+			false
+		else begin
+			waiting := (me,owner) :: !waiting;
+			while not (cond ()) do Condition.wait done_ mutex done;
+			waiting := List.remove_assoc me !waiting;
+			true
+		end
+
+	(* Waits outside of the typing lock, which the owner may need. *)
+	let wait_unlocked ~owner cond =
+		TypingLock.without (fun () -> Mutex.protect mutex (fun () -> ignore(wait ~owner cond)))
+end
+
+(* The lazy types being forced, with the domain forcing them. *)
+let forcing_lazies : (tlazy ref * Domain.id) list ref = ref []
+
+let lazy_owner f =
+	let rec loop = function
+		| [] -> None
+		| (f',d) :: l -> if f' == f then Some d else loop l
+	in
+	loop !forcing_lazies
+
+(* Forces a lazy type without claiming it: for a lazy that only the current
+   domain can force (a field body it claimed). *)
 let force_lazy_unlocked f =
 	match !f with
 	| LAvailable t | LProcessing t -> t
 	| LWait g -> (DomainLocal.get lazy_force_hook) g
 
+(* The forcing of a lazy type while typing on several domains: the domain that
+   claims it forces it, the others wait for it. *)
+let rec lazy_type_parallel f =
+	let me = Domain.self () in
+	let claim = Mutex.protect Claims.mutex (fun () ->
+		match lazy_owner f, !f with
+		| _, LAvailable t ->
+			`Done t
+		| Some d, LProcessing t when d <> me ->
+			`Wait (d,t)
+		| Some d, LWait _ when d <> me ->
+			(* the owner has not started it yet *)
+			`Wait (d,t_dynamic)
+		| _, LProcessing t ->
+			`Processing t
+		| _, LWait g ->
+			forcing_lazies := (f,me) :: !forcing_lazies;
+			`Force g
+	) in
+	match claim with
+	| `Done t ->
+		t
+	| `Processing t ->
+		!lazy_processing_read_hook f;
+		t
+	| `Force g ->
+		let finish () = Mutex.protect Claims.mutex (fun () ->
+			forcing_lazies := List.filter (fun (f',_) -> f' != f) !forcing_lazies;
+			Condition.broadcast Claims.done_
+		) in
+		Std.finally finish (DomainLocal.get lazy_force_hook) g
+	| `Wait (owner,t) ->
+		let waited = TypingLock.without (fun () -> Mutex.protect Claims.mutex (fun () ->
+			Claims.wait ~owner (fun () -> lazy_owner f = None)
+		)) in
+		if waited then lazy_type_parallel f else t
+
 let lazy_type f =
 	match !f with
 	| LAvailable t -> t
+	| _ when !TypingLock.active -> lazy_type_parallel f
 	| LProcessing t -> !lazy_processing_read_hook f; t
-	| LWait _ ->
-		(* another domain may be forcing it *)
-		TypingLock.protect (fun () -> match !f with
-			| LAvailable t | LProcessing t -> t
-			| LWait g -> (DomainLocal.get lazy_force_hook) g
-		)
+	| LWait g -> (DomainLocal.get lazy_force_hook) g
 
 (* Fields whose type is known from their declaration and whose body is not
    typed yet, with the function typing it (docs/incremental-compilation.md,
@@ -399,22 +473,19 @@ module PendingBodies = Hashtbl.Make(struct
 end)
 
 (* The bodies of fields not typed yet: pending, or being typed by a domain.
-   Changed under [TypingLock] (docs/incremental-compilation.md, phase 3.5). *)
+   Changed under [Claims.mutex]. *)
 type pending_body =
 	| BodyPending of (unit -> unit)
 	| BodyTyping of Domain.id
 
 let pending_bodies : pending_body PendingBodies.t = PendingBodies.create 0
-(* protects [pending_bodies]: claims are frequent, they do not take the typing lock *)
-let bodies_mutex = Mutex.create ()
-let bodies_done = Condition.create ()
 
 let set_pending_body cf f =
-	Mutex.protect bodies_mutex (fun () -> PendingBodies.replace pending_bodies cf (BodyPending f))
+	Mutex.protect Claims.mutex (fun () -> PendingBodies.replace pending_bodies cf (BodyPending f))
 
 (* The typing of the body of [cf] starts, whatever demanded it. *)
 let body_started cf =
-	Mutex.protect bodies_mutex (fun () ->
+	Mutex.protect Claims.mutex (fun () ->
 		match PendingBodies.find_opt pending_bodies cf with
 		| Some (BodyPending _) -> PendingBodies.replace pending_bodies cf (BodyTyping (Domain.self ()))
 		| _ -> ()
@@ -422,36 +493,32 @@ let body_started cf =
 
 (* The typing of the body of [cf] by the current domain ended. *)
 let body_done cf =
-	Mutex.protect bodies_mutex (fun () ->
+	Mutex.protect Claims.mutex (fun () ->
 		match PendingBodies.find_opt pending_bodies cf with
 		| Some (BodyTyping d) when d = Domain.self () ->
 			PendingBodies.remove pending_bodies cf;
-			Condition.broadcast bodies_done
+			Condition.broadcast Claims.done_
 		| _ -> ()
 	)
 
 (* Types the body of field [cf] if it is still pending, or waits for the domain
-   typing it (without the typing lock, which that domain may need). *)
+   typing it. *)
 let force_field_body cf =
-	let claim = Mutex.protect bodies_mutex (fun () ->
+	let claim = Mutex.protect Claims.mutex (fun () ->
 		match PendingBodies.find_opt pending_bodies cf with
 		| Some (BodyPending f) ->
 			PendingBodies.replace pending_bodies cf (BodyTyping (Domain.self ()));
 			`Type f
 		| Some (BodyTyping d) when d <> Domain.self () ->
-			`Wait
+			`Wait d
 		| _ ->
 			`None
 	) in
 	match claim with
 	| `Type f ->
 		f ()
-	| `Wait ->
-		TypingLock.without (fun () ->
-			Mutex.protect bodies_mutex (fun () ->
-				while PendingBodies.mem pending_bodies cf do Condition.wait bodies_done bodies_mutex done
-			)
-		)
+	| `Wait owner ->
+		Claims.wait_unlocked ~owner (fun () -> not (PendingBodies.mem pending_bodies cf))
 	| `None ->
 		match cf.cf_type with
 		| TLazy r ->

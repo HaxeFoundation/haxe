@@ -631,5 +631,6 @@ let after_save sctx com =
 
 let enable_cache_mode sctx =
 	type_module_hook := type_module sctx;
+	server_active := true;
 	ensure_macro_setup sctx;
 	TypeloadParse.parse_hook := parse_file sctx

@@ -27,6 +27,8 @@ class class_paths = object(self)
 	val mutable custom_ext = None
 	val mutable platform_ext = ""
 	val mutable is_loading_core_api = false
+	(* lookups can come from several domains typing in parallel *)
+	val lookup_mutex = Mutex.create ()
 
 	method lock_context (custom_extension : string option) (platform_name : string) (core_api : bool) : unit =
 		custom_ext <- Option.map (fun ext -> "." ^ ext) custom_extension;
@@ -132,7 +134,7 @@ class class_paths = object(self)
 		Array.iter prepare_file dir_listing;
 		!found
 
-	method find_file_noraise (f : string) =
+	method find_file_noraise (f : string) = Mutex.protect lookup_mutex @@ fun () ->
 		try
 			file_lookup_cache#find f
 		with

@@ -632,23 +632,25 @@ let rec run_stages g (p : stage) where =
 (* Adds the typing of the bodies of the fields of a class of module [m] whose type
    is declared to [program]: they can be typed in parallel with those of other
    modules (phase 3.5). *)
-let add_program_body_unit g m f =
+let add_parallel_unit g stage m f =
 	match g.run_parallel with
 	| None ->
-		schedule g StageBodies f
+		schedule g stage f
 	| Some _ ->
 		with_queues (fun () ->
-			let i = Obj.magic StageBodies in
+			let i = Obj.magic stage in
 			Queue.push (m,f) g.program.(i).ps_parallel;
 			if i < g.program_min_stage then
 				g.program_min_stage <- i
 		)
 
+let add_program_body_unit g m f = add_parallel_unit g StageBodies m f
+
 (* Adds the typing of the fields of a class whose type is inferred from their
    body to [program]: all of them are typed before any field body whose type
    is declared, which then cannot change the type of another field. *)
-let add_program_sig_unit g f =
-	schedule g StageSigs f
+let add_program_sig_unit g m f =
+	add_parallel_unit g StageSigs m f
 
 (* Adds the typing of the bodies of a class, or another field typing unit, to
    [program]. *)
@@ -899,7 +901,7 @@ let make_stored_id_expr id p =
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
-	TypingLock.protect (fun () -> com.part_scope.stored_typed_exprs#add id te);
+	TypingLock.protect_leaf (fun () -> com.part_scope.stored_typed_exprs#add id te);
 	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
@@ -908,7 +910,7 @@ let push_this ctx e = match e.eexpr with
 	(EConst (tconst_to_const ct),e.epos),fun () -> ()
 | _ ->
 	let id,er = store_typed_expr ctx.com e e.epos in
-	er,fun () -> TypingLock.protect (fun () -> ctx.com.part_scope.stored_typed_exprs#remove id)
+	er,fun () -> TypingLock.protect_leaf (fun () -> ctx.com.part_scope.stored_typed_exprs#remove id)
 
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
@@ -919,10 +921,10 @@ let create_deprecation_context ctx = {
 
 let get_overloads (com : Common.context) c i =
 	try
-		com.overload_cache#find (c.cl_path,i)
+		TypingLock.protect_leaf (fun () -> com.overload_cache#find (c.cl_path,i))
 	with Not_found ->
 		let l = Overloads.collect_overloads (fun t -> t) c i in
-		TypingLock.protect (fun () -> com.overload_cache#add (c.cl_path,i) l);
+		TypingLock.protect_leaf (fun () -> com.overload_cache#add (c.cl_path,i) l);
 		l
 
 

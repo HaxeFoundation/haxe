@@ -20,7 +20,7 @@ open Type
     (errors, warnings, info messages).
 
     Sets [com.part_scope.has_error] when severity is [Error]. *)
-let add_message com msg p depth message_kind = TypingLock.protect @@ fun () ->
+let add_message com msg p depth message_kind = TypingLock.protect_leaf @@ fun () ->
 	let cm = make_message com.is_macro_context msg p depth message_kind in
 	match (Common.message_capture com) with
 	| Some buf ->
@@ -39,7 +39,7 @@ let add_message com msg p depth message_kind = TypingLock.protect @@ fun () ->
     Use this instead of {!add_message} when the message originates from
     processing a specific module and should be preserved across
     compilations. *)
-let add_module_message com (m : module_def) msg p depth message_kind = TypingLock.protect @@ fun () ->
+let add_module_message com (m : module_def) msg p depth message_kind = TypingLock.protect_leaf @@ fun () ->
 	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
 	let cm = make_message com.is_macro_context msg p depth message_kind in
 	if com.display.dms_full_typing then
@@ -63,7 +63,7 @@ let add_module_message com (m : module_def) msg p depth message_kind = TypingLoc
     Use this for diagnostics-specific messages (MissingFields,
     UnresolvedIdentifier) that originate from module typing and should
     survive across server compilations. *)
-let add_module_diagnostic com (m : module_def) cm = TypingLock.protect @@ fun () ->
+let add_module_diagnostic com (m : module_def) cm = TypingLock.protect_leaf @@ fun () ->
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
 	if cm_severity cm = MessageSeverity.Error && (Common.message_capture com) = None then
@@ -99,7 +99,7 @@ let replay_message com cm =
 exception Abort
 
 let default_error_handler com =
-	(fun (err : Error.error) -> TypingLock.protect @@ fun () ->
+	(fun (err : Error.error) ->
 		Error.recurse_error (fun depth err ->
 			add_message com (Error.error_msg err.err_message) err.err_pos depth MKError
 		) err;

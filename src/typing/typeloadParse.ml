@@ -108,6 +108,25 @@ let parse_file com rfile p =
 
 let parse_hook = ref parse_file
 
+(* Whether a module may have a source file, without loading it: false only when
+   no class path has a file for it (used without the typing lock, phase 3.5). *)
+let module_may_have_file com m =
+	match m with
+	| "std" :: _, _ ->
+		true
+	| pack,name ->
+		let rec remap = function
+			| [] -> Some []
+			| x :: l ->
+				match (try Some (PMap.find x com.package_rules) with Not_found -> None) with
+				| Some Forbidden -> None
+				| Some (Remap d) -> Some (d :: l)
+				| None -> Some (x :: l)
+		in
+		match remap pack with
+		| None -> true
+		| Some pack -> com.class_paths#find_file_noraise (String.concat "/" (pack @ [name]) ^ ".hx") <> None
+
 let resolve_module_file com m remap p =
 	let forbid = ref false in
 	let compose_path =

@@ -1870,7 +1870,7 @@ let finalize_class ctx cctx =
 	let sigs,bodies = List.partition (fun (_,_,_,is_sig) -> is_sig) (List.rev cctx.delayed_expr) in
 	begin match List.filter_map (fun (_,_,r,_) -> r) sigs with
 		| [] -> ()
-		| rl -> add_program_sig_unit ctx.g (fun () -> List.iter (fun r -> ignore(lazy_type r)) rl)
+		| rl -> add_program_sig_unit ctx.g cctx.tclass.cl_module (fun () -> List.iter (fun r -> ignore(lazy_type r)) rl)
 	end;
 	match List.filter_map (fun (_,cf,r,_) -> Option.map (fun r -> (cf,r)) r) bodies with
 	| [] ->

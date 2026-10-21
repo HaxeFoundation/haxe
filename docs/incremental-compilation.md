@@ -1277,6 +1277,26 @@ what still runs under the lock while bodies are typed (classes built and
 modules loaded on demand, macros) and by the stages that stay sequential
 (structure, signatures, macros, filters, generation).
 
+**Status: step 5, signatures in parallel.** The signatures stage has
+parallel units too (the fields of each class whose type is inferred, by
+module). Lazy types are claimed like bodies instead of being forced under the
+typing lock (`TFunctions.lazy_type_parallel`): the domain that claims a lazy
+forces it, the others wait for it. A domain never waits when the domain it
+would wait for waits (transitively) for it (`TFunctions.Claims`): it then sees
+the placeholder of what is being computed, as a cycle on one domain does. A
+cross-module inference cycle split between two domains is therefore not
+reported as an inference cycle in parallel mode. The parallel mode is also
+enabled for the macro context. Messages, features, caches and the flags set
+by unification use a leaf mutex instead of the typing lock
+(`TypingLock.protect_leaf`), class path lookups have their own mutex, and a
+module that no class path, cache, `.hxb` library or extern loader can provide
+is reported missing without the lock.
+Measured (4 cores, sequential → parallel, identical output): Heaps 7.1 s →
+5.5 s; hide (main compilation) 19.8 s → 15.4–16.4 s, its bodies stage 7.4 s
+→ 3.3 s. What remains under the lock is mostly macro calls and the first
+lookups of modules; the class builds stage (`StageTypes`, 1.2 s on Heaps,
+2.4 s on hide) is still sequential.
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context

@@ -36,3 +36,5 @@ let create_fake_module com file =
 	) in
 	com.module_lut#add mdep.m_path mdep;
 	mdep
+(* Whether the compilation server provides cached modules. *)
+let server_active = ref false

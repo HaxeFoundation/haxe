@@ -888,7 +888,13 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let loaded = if not !TypingLock.active then None else match ctx.com.module_lut#find_opt m with
 		| Some m2 when Atomic.get m2.m_extra.m_ready -> Some m2
 		| Some _ -> None
-		| None -> if ctx.com.module_nonexistent_lut#mem m then raise_error_msg (Module_not_found m) p else None
+		| None ->
+			let missing = ctx.com.module_nonexistent_lut#mem m || (
+				(* nothing could provide it: no file, no cache, no .hxb, no extern loader *)
+				not !TypeloadCacheHook.server_active && ctx.com.hxb_libs = [] && ctx.com.load_extern_type = []
+				&& not (TypeloadParse.module_may_have_file ctx.com m)
+			) in
+			if missing then raise_error_msg (Module_not_found m) p else None
 	in
 	match loaded with
 	| Some m2 ->

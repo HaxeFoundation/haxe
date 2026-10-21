@@ -25,3 +25,10 @@ let without f =
 		| exception e -> ReentrantLock.reacquire lock n; raise e
 	end else
 		f ()
+
+(* A lock for the shared tables that typing only adds to (messages, features,
+   caches, flags): taken for short operations that never take a lock again, so
+   that they do not wait for the typing lock. *)
+let leaf = Mutex.create ()
+
+let protect_leaf f = if !active then Mutex.protect leaf f else f ()
