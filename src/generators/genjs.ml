@@ -1676,6 +1676,7 @@ let alloc_ctx com es_version =
 				sources_hash = Hashtbl.create 0;
 				mappings = Buffer.create 16;
 				current_expr = None;
+				last_file = None;
 			}
 		else
 			None

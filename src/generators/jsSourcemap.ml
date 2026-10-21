@@ -30,6 +30,8 @@ type sourcemap = {
 	mutable output_last_col : int;
 	mutable output_current_col : int;
 	mutable current_expr : sourcemap_pos option;
+	(* the file of the last mapping, its index in [sources] and its lines *)
+	mutable last_file : (string * int * Lexer.lexer_file) option;
 }
 
 and sourcemap_pos = {
@@ -38,6 +40,8 @@ and sourcemap_pos = {
 	col : int;
 }
 
+let base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
 let encode_mapping smap pos =
 	if smap.print_comma then
 		Buffer.add_char smap.mappings ','
@@ -45,15 +49,7 @@ let encode_mapping smap pos =
 		smap.print_comma <- true;
 
 	let base64_vlq number =
-		let encode_digit digit =
-			let chars = [|
-				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-			|] in
-			Array.unsafe_get chars digit
-		in
+		let encode_digit digit = String.unsafe_get base64_chars digit in
 		let to_vlq number =
 			if number < 0 then
 				((-number) lsl 1) + 1
@@ -87,22 +83,31 @@ let noop () = ()
 let add_mapping smap pos =
 	if (Pos.min pos) < 0 then noop else
 
-	let file = try
-		Hashtbl.find smap.sources_hash (Pos.file pos)
-	with Not_found ->
-		let length = DynArray.length smap.sources in
-		Hashtbl.replace smap.sources_hash (Pos.file pos) length;
-		DynArray.add smap.sources (Pos.file pos);
-		length
+	let file_name = Pos.file pos in
+	let file,lexer_file = match smap.last_file with
+		| Some (name,file,lexer_file) when name == file_name -> file,lexer_file
+		| _ ->
+			let file = try
+				Hashtbl.find smap.sources_hash file_name
+			with Not_found ->
+				let length = DynArray.length smap.sources in
+				Hashtbl.replace smap.sources_hash file_name length;
+				DynArray.add smap.sources file_name;
+				length
+			in
+			let lexer_file = Lexer.find_file file_name in
+			smap.last_file <- Some (file_name,file,lexer_file);
+			file,lexer_file
 	in
 
 	let pos =
-		let line, col = Lexer.find_pos pos in
+		let line, col = Lexer.find_line (Pos.min pos) lexer_file in
 		let line = line - 1 in
 		{ file = file; line = line; col = col }
 	in
 
-	if smap.source_last_pos <> pos then begin
+	let last = smap.source_last_pos in
+	if last.file <> pos.file || last.line <> pos.line || last.col <> pos.col then begin
 		let old_current_expr = smap.current_expr in
 		smap.current_expr <- Some pos;
 		encode_mapping smap pos;
@@ -116,15 +121,15 @@ let add_mapping smap e =
 let handle_newlines smap str =
 	Option.may (fun smap ->
 		let rec loop from =
-			try begin
-				let next = String.index_from str from '\n' + 1 in
+			match String.index_from_opt str from '\n' with
+			| Some i ->
 				Buffer.add_char smap.mappings ';';
 				smap.output_last_col <- 0;
 				smap.output_current_col <- 0;
 				smap.print_comma <- false;
 				Option.may (encode_mapping smap) smap.current_expr;
-				loop next
-			end with Not_found ->
+				loop (i + 1)
+			| None ->
 				smap.output_current_col <- smap.output_current_col + (String.length str - from);
 		in
 		loop 0

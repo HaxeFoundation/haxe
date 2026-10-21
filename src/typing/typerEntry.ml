@@ -249,6 +249,7 @@ let run_parallel_tasks com stage tasks =
 	let order0 = Array.copy Claims.order_waited and norder0 = Array.copy Claims.order_waits in
 	let claims0 = Array.copy Claims.waited and nclaims0 = Array.copy Claims.waits and breaks0 = Array.copy Claims.breaks in
 	Claims.start_tasks (Array.length tasks);
+	let stage_name = ProgramStage.stage_name stage ^ ": " in
 	Timer.time timer_ctx ["typing";"parallel";ProgramStage.stage_name stage] (fun () ->
 		Parallel.run_with_pool com.sctx.pool (fun pool ->
 			Parallel.on_each_domain pool (fun () ->
@@ -263,15 +264,15 @@ let run_parallel_tasks com stage tasks =
 			)
 		)
 	) ();
-	Timer.add_extra timer_ctx "wait: typing lock" (lock.waited -. waited0) (lock.waits - waits0);
+	Timer.add_extra timer_ctx (stage_name ^ "wait: typing lock") (lock.waited -. waited0) (lock.waits - waits0);
 	Array.iteri (fun k name ->
-		Timer.add_extra timer_ctx ("wait: " ^ name) (Claims.waited.(k) -. claims0.(k)) (Claims.waits.(k) - nclaims0.(k));
-		Timer.add_extra timer_ctx ("cycles broken: " ^ name) 0. (Claims.breaks.(k) - breaks0.(k))
+		Timer.add_extra timer_ctx (stage_name ^ "wait: " ^ name) (Claims.waited.(k) -. claims0.(k)) (Claims.waits.(k) - nclaims0.(k));
+		Timer.add_extra timer_ctx (stage_name ^ "cycles broken: " ^ name) 0. (Claims.breaks.(k) - breaks0.(k))
 	) Claims.kind_names;
-	Timer.add_extra timer_ctx "macros out of order" 0. (Atomic.get Claims.speculations - spec0);
-	Timer.add_extra timer_ctx "macros out of order, done so" 0. (Atomic.get Claims.speculations_done - spec_done0);
+	Timer.add_extra timer_ctx (stage_name ^ "macros out of order") 0. (Atomic.get Claims.speculations - spec0);
+	Timer.add_extra timer_ctx (stage_name ^ "macros out of order, done so") 0. (Atomic.get Claims.speculations_done - spec_done0);
 	Array.iteri (fun k name ->
-		Timer.add_extra timer_ctx ("wait: order before " ^ name) (Claims.order_waited.(k) -. order0.(k)) (Claims.order_waits.(k) - norder0.(k))
+		Timer.add_extra timer_ctx (stage_name ^ "wait: order before " ^ name) (Claims.order_waited.(k) -. order0.(k)) (Claims.order_waits.(k) - norder0.(k))
 	) Claims.order_reasons;
 	Array.iter (function
 		| Some (exc,bt) -> Printexc.raise_with_backtrace exc bt
