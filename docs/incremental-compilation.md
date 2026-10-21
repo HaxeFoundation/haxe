@@ -1345,6 +1345,39 @@ differed or failed), `tests/unit` (macro) passes 40 times out of 40; Heaps
 one domain is in macros (3.7 s on hide, 1.5 s on Heaps), which have to keep
 their order.
 
+**Status: step 7, cheaper order, parallel class builds.**
+- `--times` reports the wall time of each parallel batch (`typing.parallel.<stage>`)
+  and, below the timers, the time the domains waited (summed over them) for the
+  typing lock, for each kind of claim and for the order of the tasks (by what
+  waited: a build, a macro, a module), with the cycles broken by kind.
+- **Each task of a batch has its own queues** (`Typecore.task_queues`, only
+  for the `program` of the batch, not for the one of the macro context): the
+  units it adds to earlier stages run after each of its units, the others are
+  added to `program` in the order of the tasks once the batch is done. Before,
+  another task could run them, out of order (a domkit component built after
+  the others), and most of the cycles broken (500 to 5000 per compilation of
+  hide) came from there: 2 are left.
+- **Only builds that run build macros wait for the order of the tasks**
+  (`TAccess.has_build_macros`: the class's own `@:build`, or an `@:autoBuild`
+  of a super class or interface), with the macro claim, under the typing lock.
+- **The class builds stage has parallel units** (by module): a class without
+  build macros is built without the typing lock by the domain that claims it
+  (`TAccess.with_unlocked_build`), the others wait for the build to end.
+- The worker domains of the pool get a 32 MB minor heap
+  (`Parallel.set_worker_minor_heap`, `HAXE_WORKER_MINOR_MB`): a new domain gets
+  the default size whatever its creator uses, and the minor collections stop
+  every domain. hide: about 19.4 s → 17.3 s.
+- genjs generates the types in parallel, each on its own buffer, then puts the
+  code in order, creating the packages there (without a source map only: a
+  replay of the source map in order cost more than it saved). Heaps: 0.23 s →
+  0.11 s.
+What stays: the macros of field bodies wait for the order of the tasks (on
+hide about 9 s summed over the domains, 230 waits: `EditContext2.build` and
+`hxsl.Macros.buildShader` are 2.4 s of macro execution), and run one at a time
+anyway, their interpreter state being shared; the parallel filters and
+analyzer scale by about 2 on 4 domains, limited by the minor collections that
+stop every domain and by the allocation of the major heap (sampled stacks).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context
