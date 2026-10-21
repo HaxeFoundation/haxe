@@ -1185,6 +1185,18 @@ whenever conditional compilation evaluates the same way.
    `CompilationCache`), which is keyed by the full define signature and
    therefore never shared between contexts with different defines.
 
+**Status: done (items 1, 2, 3 and 5).** The preprocessor records the defines
+it reads, with the value seen (`pd_define_reads` in the parse result): the
+`#if`/`#elseif` conditions, and `macro`, now read only when a reification
+needs it. The server keeps the parse results of every context
+(`CompilationCache.cache#find_shared_parse`), keyed by file and modification
+time (the VFS gives a stable modification time per compilation), several per
+file; a context parses a file only when no result has the same values for the
+defines it read, then also keeps it in its own cache. A file without
+conditional compilation is parsed once for the macro context and every
+target. Display files are never shared. `tests/server` (`testSharedParse`,
+`testSharedParseConditional`) checks both cases. Item 4 comes with phase 4.
+
 Exit criterion: the pass scheduler is removed (`typerPass.ml`, `delay`,
 `flush_pass`, `delay_if_mono`, `make_lazy`'s forcing, `build_state`), all
 tests pass, compilation output is unchanged compared with the pass-based

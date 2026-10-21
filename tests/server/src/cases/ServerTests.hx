@@ -32,6 +32,25 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
+	function testSharedParse() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxe(["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"]);
+		// another context (other defines): the file reads no define, its parse is shared
+		runHaxe(["-main", "HelloWorld.hx", "--no-output", "-js", "no.js", "-D", "some_define"]);
+		Assert.isTrue(hasMessage("HelloWorld.hx (shared with another context)"));
+	}
+
+	function testSharedParseConditional() {
+		vfs.putContent("Main.hx", "class Main { static function main() { #if foo trace(1); #end } }");
+		runHaxe(["-main", "Main", "--no-output", "-js", "no.js", "-D", "foo"]);
+		// foo is read while parsing and has another value: parsed again
+		runHaxe(["-main", "Main", "--no-output", "-js", "no.js"]);
+		Assert.isFalse(hasMessage("Main.hx (shared with another context)"));
+		// same value of foo, other defines: shared
+		runHaxe(["-main", "Main", "--no-output", "-js", "no.js", "-D", "foo", "-D", "bar"]);
+		Assert.isTrue(hasMessage("Main.hx (shared with another context)"));
+	}
+
 	function testModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];

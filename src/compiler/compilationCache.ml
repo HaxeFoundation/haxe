@@ -13,6 +13,25 @@ type cached_file = {
 	mutable c_pdi : Parser.parser_display_information;
 }
 
+(* A parse result shared between contexts (docs/incremental-compilation.md,
+   phase 3.6): it can be used by any context where the defines read while
+   parsing ([pd_define_reads]) have the same values. *)
+type shared_parse = {
+	sp_time : float;
+	sp_data : string list * type_decl list;
+	sp_pdi : Parser.parser_display_information;
+}
+
+(* whether two parse results of the same file saw the same values for the
+   defines they read; they then read the same defines *)
+let define_reads_match_reads reads1 reads2 =
+	List.sort compare reads1 = List.sort compare reads2
+
+let define_reads_match defines reads =
+	List.for_all (fun (k,v) ->
+		(try Some (Define.raw_defined_value defines k) with Not_found -> None) = v
+	) reads
+
 type cached_directory = {
 	c_path : string;
 	mutable c_mtime : float;
@@ -224,9 +243,11 @@ class cache = object(self)
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
+	val shared_parses : (Path.UniqueKey.t,shared_parse list) Hashtbl.t = Hashtbl.create 0
 
 	method clear =
 		Hashtbl.clear contexts;
+		Hashtbl.clear shared_parses;
 		context_list <- [];
 		Hashtbl.clear haxelib;
 		Hashtbl.clear directories;
@@ -281,7 +302,20 @@ class cache = object(self)
 	(* files *)
 
 	method remove_files file =
+		Hashtbl.remove shared_parses file;
 		Hashtbl.iter (fun _ cc-> cc#remove_file file) contexts
+
+	(* shared parse results *)
+
+	method find_shared_parse key time defines =
+		let l = try Hashtbl.find shared_parses key with Not_found -> [] in
+		List.find_opt (fun sp -> sp.sp_time = time && define_reads_match defines sp.sp_pdi.pd_define_reads) l
+
+	method add_shared_parse key time data pdi =
+		let l = try Hashtbl.find shared_parses key with Not_found -> [] in
+		(* results of an older version of the file are dropped *)
+		let l = List.filter (fun sp -> sp.sp_time = time && not (define_reads_match_reads sp.sp_pdi.pd_define_reads pdi.Parser.pd_define_reads)) l in
+		Hashtbl.replace shared_parses key ({ sp_time = time; sp_data = data; sp_pdi = pdi } :: l)
 
 	method get_context_files signs =
 		Hashtbl.fold (fun sign cc acc ->

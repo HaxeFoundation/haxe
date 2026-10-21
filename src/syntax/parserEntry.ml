@@ -67,10 +67,12 @@ let cmp v1 v2 =
 		raise (Invalid_argument ("Cannot compare " ^ (s_value v1) ^ " and " ^ (s_value v2)))
 	| _ -> raise Exit (* always false *)
 
-let rec eval ctx (e,p) =
+(* [lookup] gives the value of a define, or raises [Not_found] *)
+let rec eval_lookup lookup (e,p) =
+	let eval = eval_lookup and ctx = lookup in
 	match e with
 	| EConst (Ident i) ->
-		(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
+		(try TString (lookup i) with Not_found -> TNull)
 	| EConst (String(s,_)) -> TString s
 	| EConst (Int (i, _)) -> TFloat (float_of_string i)
 	| EConst (Float (f, _)) -> TFloat (float_of_string f)
@@ -97,7 +99,7 @@ let rec eval ctx (e,p) =
 		begin try
 			let sl = string_list_of_expr_path_raise (e,p) in
 			let i = String.concat "." (List.rev sl) in
-			(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
+			(try TString (lookup i) with Not_found -> TNull)
 		with Exit ->
 			error (Custom "Invalid condition expression") p
 		end
@@ -108,7 +110,7 @@ let rec eval ctx (e,p) =
 	Attempt to auto-cast operands to a common type
 *)
 and eval_binop_exprs ctx e1 e2 =
-	match eval ctx e1, eval ctx e2 with
+	match eval_lookup ctx e1, eval_lookup ctx e2 with
 	| (TString s1 as v1), (TFloat _ as v2) ->
 		(try TFloat (float_of_string s1), v2
 		with Failure _ -> v1, v2)
@@ -118,6 +120,8 @@ and eval_binop_exprs ctx e1 e2 =
 	| (TVersion _ as v1), TString s -> (v1, parse_version s (snd e2))
 	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
 	| v1, v2 -> (v1, v2)
+
+let eval ctx e = eval_lookup (Define.raw_defined_value ctx) e
 
 class condition_handler = object(self)
 	val mutable conditional_expressions = []
@@ -210,8 +214,15 @@ end
 
 (* parse main *)
 let parse config entry lctx code file =
-	let defines = config.defines in
-	let in_macro = Define.defined defines Define.Macro in
+	(* The defines read while parsing, with the value seen (docs/incremental-compilation.md,
+	   phase 3.6): the result can be reused by any context where they have the same values. *)
+	let define_reads = ref [] in
+	let lookup k =
+		let v = try Some (Define.raw_defined_value config.defines k) with Not_found -> None in
+		if not (List.mem_assoc k !define_reads) then define_reads := (k,v) :: !define_reads;
+		match v with Some v -> v | None -> raise Not_found
+	in
+	let in_macro () = (try ignore(lookup (Define.get_define_key Define.Macro)); true with Not_found -> false) in
 	let ctx = Parser.create_context lctx config in_macro code in
 	let entry = entry ctx in
 	Lexer.skip_header code;
@@ -283,7 +294,7 @@ let parse config entry lctx code file =
 		let tk, e = parse_macro_cond ctx sraw in
 		(if is_if then conds#cond_if e else conds#cond_elseif e p);
 		let tk = (match tk with None -> lexer_token code | Some tk -> tk) in
-		if is_true (eval defines e) then begin
+		if is_true (eval_lookup lookup e) then begin
 			tk
 		end else begin
 			dbc#open_dead_block (pos e);
@@ -356,6 +367,7 @@ let parse config entry lctx code file =
 			pd_was_display_file = was_display_file;
 			pd_had_resume = ctx.had_resume;
 			pd_delayed_syntax_completion = ctx.delayed_syntax_completion;
+			pd_define_reads = List.rev !define_reads;
 		} in
 		if was_display_file then
 			ParseSuccess(l,pdi)

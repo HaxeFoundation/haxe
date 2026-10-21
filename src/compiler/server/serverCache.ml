@@ -24,7 +24,13 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 				let cfile = cc#find_file fkey in
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
-			with Not_found ->
+			with Not_found -> match (if is_display_file then None else sctx.cs#find_shared_parse fkey ftime com.defines) with
+			| Some sp ->
+				(* parsed by another context where the defines read have the same values *)
+				cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime sp.sp_data sp.sp_pdi;
+				ServerMessage.parsed com "" (ffile,"shared with another context");
+				Parser.ParseSuccess(sp.sp_data,sp.sp_pdi)
+			| None ->
 				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
@@ -45,6 +51,7 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
 							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
+							sctx.cs#add_shared_parse fkey ftime data pdi;
 							"cached",false
 						end
 				in

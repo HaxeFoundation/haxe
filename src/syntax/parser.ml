@@ -86,7 +86,7 @@ type parser_ctx = {
 	mutable syntax_errors : (error_msg * pos) list;
 	mutable syntax_warnings : (Warning.warning * pos) list;
 	mutable last_doc : (string * int) option;
-	in_macro : bool;
+	in_macro : unit -> bool;
 	code : Sedlexing.lexbuf;
 	mutable had_resume : bool;
 	mutable delayed_syntax_completion : syntax_completion_on option;
@@ -125,6 +125,8 @@ type parser_display_information = {
 	pd_was_display_file : bool;
 	pd_had_resume : bool;
 	pd_delayed_syntax_completion : syntax_completion_on option;
+	(* the defines read by conditional compilation, with the value seen *)
+	pd_define_reads : (string * string option) list;
 }
 
 type 'a parse_result =
