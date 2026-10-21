@@ -193,8 +193,17 @@ module Members = struct
 		if !DepRecord.enabled then DepRecord.record_field c cf "sig";
 		cf
 
-	let find_field c name = found c (PMap.find name (fields c))
-	let find_static c name = found c (PMap.find name (statics c))
+	(* a field found by name reads its signature only; a field not found reads
+	   the members (a field added there would be found) *)
+	let find_in c map name =
+		if c.cl_build != built then
+			with_build_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()));
+		match PMap.find name (map c) with
+		| cf -> found c cf
+		| exception Not_found -> if !DepRecord.enabled then DepRecord.record_type c.cl_path "members"; raise Not_found
+
+	let find_field c name = find_in c (fun c -> c.cl_fields) name
+	let find_static c name = find_in c (fun c -> c.cl_statics) name
 
 	(* The constructors of an enum. *)
 	let enum_constructors e = if !DepRecord.enabled then DepRecord.record_type e.e_path "members"; complete_module e.e_module; e.e_constrs

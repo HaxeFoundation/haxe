@@ -50,7 +50,7 @@ let dump com file =
 		match Hashtbl.find_opt modules c.DepRecord.c_module.m_id with
 		| Some m when m == c.c_module ->
 			let file = Path.UniqueKey.lazy_path m.m_extra.m_file in
-			dep c (file ^ ":" ^ c.c_decl) "decls";
+			dep c (file ^ ":" ^ c.c_decl) (if c.c_node = "declared sig" then "decl signature" else "decls");
 			dep c (file ^ ":(imports)") "decls";
 			dep c (s_type_path m.m_path) "module";
 			dep c "(defines)" "signature";

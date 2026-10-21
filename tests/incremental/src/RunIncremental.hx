@@ -473,6 +473,8 @@ class RunIncremental {
 						return null;
 					var base = key.substr(0, paren);
 					var type = key.endsWith("(constructor)") ? base : base.substr(0, base.lastIndexOf("."));
+					if (deps.exists(key + "\tdeclared sig"))
+						return key + "\tdeclared sig";
 					if (deps.exists(type + "\tmembers"))
 						return type + "\tmembers";
 				case _:

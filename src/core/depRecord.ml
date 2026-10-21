@@ -59,6 +59,12 @@ let field_key c cf =
 		let static = cf.cf_flags land (1 lsl (Obj.magic CfStatic : int)) <> 0 in
 		Printf.sprintf "%s.%s (%s)" base cf.cf_name (if static then "static" else "member")
 
+(* The key of field [name] of the class at [path], as [field_key] gives it. *)
+let field_key_of path name ~constructor ~static =
+	let base = s_type_path path in
+	if constructor then base ^ " (constructor)"
+	else Printf.sprintf "%s.%s (%s)" base name (if static then "static" else "member")
+
 let record key node =
 	match DomainLocal.get current with
 	| Some c -> Hashtbl.replace c.c_deps (key ^ "\t" ^ node) ()

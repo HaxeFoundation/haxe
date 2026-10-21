@@ -1804,7 +1804,10 @@ let init_field (ctx,cctx,fctx) f cf =
 			);
 		| None -> ()
 	end;
-	let cf =
+	(* the signature the field declares: a node of its own, which only reads
+	   the declaration without its body (docs/incremental-compilation.md, phase 6) *)
+	let key = DepRecord.field_key_of c.cl_path name ~constructor:(fctx.field_kind = CfrConstructor) ~static:(fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) in
+	let cf = DepRecord.with_consumer key "declared sig" c.cl_module (DepRecord.field_decl c cf) cf.cf_pos (fun () ->
 		match f.cff_kind with
 		| (FVar _ | FProp _) when fctx.field_kind = CfrConstructor ->
 			raise_typing_error "A constructor must be a function" p
@@ -1815,7 +1818,7 @@ let init_field (ctx,cctx,fctx) f cf =
 			create_method (ctx,cctx,fctx) c f cf fd p
 		| FProp (get,set,t,eo) ->
 			create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p
-	in
+	) in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
 		schedule ctx.g StageSigs (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)

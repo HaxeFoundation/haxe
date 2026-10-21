@@ -1665,6 +1665,11 @@ signatures, enum constructors, typedef targets). Cycles in the graph are
 handled like module cycles (valid results under assumption are forgotten
 when the module turns out invalid).
 
+The signature a field declares is a computation of its own (`declared sig`,
+in `init_field`), which reads the declaration without its body; finding a
+field by name reads its signature, not finding it reads the members of the
+class.
+
 Consequences: a change in the body of a function whose signature is declared
 types again its module only; lines added in a file type again its module only;
 a field added or a signature changed types again the modules that read the
@@ -1675,8 +1680,8 @@ members or that signature. Measured on Heaps (1534 modules, JS, 4 domains):
 | none | 0 | 0.67 s (was 0.42 s: validating the graph) |
 | body of `h3d.scene.Object.getMaterialByName` | 1 (was 378) | 0.62 s (was 2.88 s) |
 | lines added at the top of `Object.hx` | 1 (was 378) | 0.67 s (was 2.88 s) |
-| field added to `Object` | 93 | 1.29 s |
-| declared return type changed | 93 | 1.57 s |
+| field added to `Object` | 79 (subclasses, readers of members) | 1.22 s |
+| declared return type changed | 89 | 1.60 s |
 | lines added in `hxsl.Printer` (used by the shader macros) | 299 | 2.90 s |
 
 Every warm output is identical to a cold compilation (generated JS and

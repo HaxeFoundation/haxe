@@ -111,7 +111,7 @@ let producer_of g key =
 					if String.length k > 13 && String.sub k (String.length k - 13) 13 = "(constructor)" then base
 					else match String.rindex_opt base '.' with Some j -> String.sub base 0 j | None -> base
 				in
-				find [k ^ "\tsig";tkey ^ "\tmembers"]
+				find [k ^ "\tsig";k ^ "\tdeclared sig";tkey ^ "\tmembers"]
 			| _ ->
 				None
 			end
@@ -192,7 +192,9 @@ let store com resolve decls_of is_typed =
 		let keys = ref (try Hashtbl.find g.module_keys m.m_path with Not_found -> []) in
 		List.iter (fun c ->
 			let macro = ref false in
-			let edges = ref [leaf c.DepRecord.c_decl "decls";leaf "(imports)" "decls";leaf "(types)" "types"] in
+			(* a declared signature reads the declaration without its body *)
+			let decl_node = if c.DepRecord.c_node = "declared sig" then "decl signature" else "decls" in
+			let edges = ref [leaf c.c_decl decl_node;leaf "(imports)" "decls";leaf "(types)" "types"] in
 			if c.c_node = "members" then begin
 				edges := leaf c.c_decl "fields" :: !edges;
 				match decls with
