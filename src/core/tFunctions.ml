@@ -706,6 +706,8 @@ let apply_params ?stack cparams params t =
 	loop t
 
 let apply_typedef td tl =
+	(* the target of a typedef is in its header *)
+	if !DepRecord.enabled then DepRecord.record_type td.t_path "header";
 	apply_params td.t_params tl td.t_type
 
 let monomorphs eparams t =
@@ -1006,7 +1008,7 @@ let field_type f =
 let rec raw_class_field build_type c tl i =
 	let apply = apply_params c.cl_params tl in
 	try
-		let f = PMap.find i (TAccess.Members.fields c) in
+		let f = TAccess.Members.find_field c i in
 		Some (c,tl), build_type f , f
 	with Not_found -> try (match TAccess.Members.constructor c with
 		| Some ctor when i = "new" -> Some (c,tl), build_type ctor,ctor

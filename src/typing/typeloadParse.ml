@@ -96,7 +96,7 @@ let record_decl_fingerprints file decls =
 			| Some (_,fl) -> fl
 			| None -> compute_decl_fingerprints decls
 		in
-		Hashtbl.replace decl_fingerprints file fl
+		Hashtbl.replace decl_fingerprints (Path.get_full_path file) fl
 	)
 
 let parse_file_from_lexbuf com file p lexbuf =

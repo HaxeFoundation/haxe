@@ -1,0 +1,24 @@
+# A static extension whose signature changes.
+@targets interp
+
+=== initial
+@expect-output 3
+--- Main.hx
+using Ext;
+
+class Main {
+	static function main() {
+		trace(1.plus(2));
+	}
+}
+--- Ext.hx
+class Ext {
+	public static function plus(a:Int, b:Int):Int return a + b;
+}
+
+=== extension changed
+@expect-output 3.5
+--- Ext.hx
+class Ext {
+	public static function plus(a:Int, b:Float):Float return a + b + 0.5;
+}

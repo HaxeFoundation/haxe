@@ -51,6 +51,7 @@ class RunIncremental {
 	static var verbose = false;
 	static var showKnown = false;
 	static var realMtime = false;
+	static var checkDeps = false;
 	static var extraArgs:Array<String> = [];
 	static var root:String;
 	/** Fake clock for modification times, see `touchStep`. **/
@@ -82,6 +83,8 @@ class RunIncremental {
 					showKnown = true;
 				case "--real-mtime":
 					realMtime = true;
+				case "--check-deps":
+					checkDeps = true;
 				case "--args":
 					extraArgs = extraArgs.concat(args[++i].split(" ").filter(s -> s != ""));
 				case other:
@@ -195,7 +198,8 @@ class RunIncremental {
 		}
 
 		// with fingerprint expectations, the cold compilations dump their fingerprints
-		var fingerprints = Lambda.exists(tc.steps, step -> Lambda.exists(step.expectations, e -> e.match(FingerprintSame(_, _) | FingerprintChanged(_, _))));
+		var fingerprints = checkDeps || Lambda.exists(tc.steps, step -> Lambda.exists(step.expectations, e -> e.match(FingerprintSame(_, _) | FingerprintChanged(_, _))));
+		var previousDeps:Null<Map<String, Array<String>>> = null;
 		var dumpFile = Path.join([base, "fingerprints.txt"]);
 		var previousFingerprints:Null<Map<String, String>> = null;
 		try {
@@ -231,7 +235,11 @@ class RunIncremental {
 						case _:
 					}
 				}
+				if (checkDeps && previousFingerprints != null && previousDeps != null && currentFingerprints != null)
+					for (e in missingDependencies(previousFingerprints, previousDeps, currentFingerprints))
+						errors.push('$label: $e');
 				previousFingerprints = currentFingerprints;
+				previousDeps = fingerprints && FileSystem.exists(dumpFile) ? readDependencies(dumpFile) : null;
 				if (verbose) {
 					Sys.println('--- ${tc.name} [$target] $label');
 					Sys.println('warm exit ${warm.code}\n${warm.out}');
@@ -383,7 +391,7 @@ class RunIncremental {
 	}
 
 	/** The fingerprints of a dump of `-D dump-fingerprints`: `key\tnode` to fingerprint. **/
-	static function readFingerprints(file:String):Map<String, String> {
+	public static function readFingerprints(file:String):Map<String, String> {
 		var m = new Map();
 		for (line in File.getContent(file).split("\n")) {
 			var parts = line.split("\t");
@@ -391,6 +399,75 @@ class RunIncremental {
 				m[parts[0] + "\t" + parts[1]] = parts[2];
 		}
 		return m;
+	}
+
+	/** The dependencies of a dump of `-D dump-fingerprints`: `key\tnode` to the `key\tnode` it read. **/
+	public static function readDependencies(file:String):Map<String, Array<String>> {
+		var m = new Map<String, Array<String>>();
+		for (line in File.getContent(file).split("\n")) {
+			var parts = line.split("\t");
+			if (parts.length == 5 && parts[2] == "dep") {
+				var k = parts[0] + "\t" + parts[1];
+				var l = m[k];
+				if (l == null)
+					m[k] = l = [];
+				l.push(parts[3] + "\t" + parts[4]);
+			}
+		}
+		return m;
+	}
+
+	/**
+		The nodes whose fingerprint changed from [before] to [after] although none
+		of the nodes they read did (`--check-deps`, docs/incremental-compilation.md,
+		phase 5): a dependency that is not recorded.
+	**/
+	public static function missingDependencies(before:Map<String, String>, deps:Map<String, Array<String>>, after:Map<String, String>):Array<String> {
+		var errors = [];
+		// the node that computes [k]: itself, the body of a field for its inline
+		// body, the members of its type for a declared signature
+		function computedBy(k:String):Null<String> {
+			// (recursive local function)
+			if (deps.exists(k))
+				return k;
+			var parts = k.split("\t");
+			var key = parts[0], node = parts[1];
+			// the messages of a node are computed with it
+			if (node.endsWith(" messages"))
+				return computedBy(key + "\t" + node.substr(0, node.length - " messages".length));
+			switch (node) {
+				case "inline":
+					for (n in ["body", "sig"])
+						if (deps.exists(key + "\t" + n))
+							return key + "\t" + n;
+				case "sig":
+					var paren = key.lastIndexOf(" (");
+					if (paren < 0)
+						return null;
+					var base = key.substr(0, paren);
+					var type = key.endsWith("(constructor)") ? base : base.substr(0, base.lastIndexOf("."));
+					if (deps.exists(type + "\tmembers"))
+						return type + "\tmembers";
+				case _:
+			}
+			return null;
+		}
+		var keys = [for (k in before.keys()) k];
+		keys.sort(Reflect.compare);
+		for (k in keys) {
+			var b = before[k], a = after[k];
+			if (b == null || a == null || a == b)
+				continue;
+			var by = computedBy(k);
+			if (by == null)
+				continue;
+			var inputs = deps[by];
+			// a node without a fingerprint (a macro expansion) counts as changed
+			var changed = Lambda.exists(inputs, d -> before[d] == null || before[d] != after[d]);
+			if (!changed)
+				errors.push('missing dependency: ${k.replace("\t", " ")} changed, none of what ${by.replace("\t", " ")} read did (${inputs.length} nodes)');
+		}
+		return errors;
 	}
 
 	/** The fingerprint of [node] of [key], or of a declaration whose file ends with [key]'s. **/

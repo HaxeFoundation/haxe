@@ -1,0 +1,28 @@
+# A class implementing an interface whose method signature changes.
+@targets interp
+
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var s:Shape = new Square();
+		trace(s.sides() - 3);
+	}
+}
+--- Shape.hx
+interface Shape {
+	function sides():Int;
+}
+--- Square.hx
+class Square implements Shape {
+	public function new() {}
+	public function sides():Int return 4;
+}
+
+=== interface method changed
+@expect-error sides
+--- Shape.hx
+interface Shape {
+	function sides():String;
+}

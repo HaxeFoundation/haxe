@@ -412,7 +412,7 @@ module TypeLevel = struct
 				fl
 			| None ->
 				header_checks := Some [];
-				let fl = Query.run header_query (fun () -> TypeloadCheck.Inheritance.set_heritance ctx_c c herits p) in
+				let fl = Query.run header_query (fun () -> DepRecord.with_consumer (DepRecord.type_key c.cl_path) "header" c.cl_module (DepRecord.type_decl c) c.cl_pos (fun () -> TypeloadCheck.Inheritance.set_heritance ctx_c c herits p)) in
 				header_checks := Some fl;
 				c.cl_header_meta <- Some c.cl_meta;
 				c.cl_build_header <- TAccess.header_done;
@@ -423,7 +423,7 @@ module TypeLevel = struct
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
 			TAccess.build_started c;
-			let r = Query.run members_query (fun () ->
+			let r = Query.run members_query (fun () -> DepRecord.with_consumer (DepRecord.type_key c.cl_path) "members" c.cl_module (DepRecord.type_decl c) c.cl_pos @@ fun () ->
 				try
 					let fl = header () in
 					List.iter (fun f -> f()) fl;
@@ -919,6 +919,8 @@ let load_module_now origin ctx m p =
 		)
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
+	(* what the lookup finds (or not) *)
+	DepRecord.record_lookup m;
 	try
 		load_module_now origin ctx m p
 	with Error { err_message = Module_not_found _ } when Claims.is_speculating () ->

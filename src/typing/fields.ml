@@ -264,6 +264,10 @@ let field_access ctx mode f fh e pfield =
 		| AccNever ->
 			if ctx.f.untyped then normal false else normal_failure()
 		| AccInline ->
+			(* the value of the variable is inlined *)
+			(match fh with
+			| FHStatic c | FHInstance(c,_) | FHAbstract(_,_,c) -> DepRecord.record_field c f "inline"
+			| FHAnon -> ());
 			normal true
 		| AccCtor ->
 			let is_child_of_abstract c =

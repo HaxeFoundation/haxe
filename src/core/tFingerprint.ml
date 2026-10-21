@@ -498,3 +498,13 @@ let field_body cf = with_state ~origin:cf.cf_pos ~positions:true (fun h -> add_b
 (* [Decls]: a parsed declaration (a field, or a type without its fields) at
    position [p], with positions relative to it. *)
 let decl p v = with_state ~origin:p ~positions:true (fun h -> add_data h v)
+
+(* Whether [e] contains line numbers of its file ([haxe.PosInfos]): they are
+   constants of the typed body until positions are resolved after typing
+   (docs/incremental-compilation.md, phase 2, item 6, and phase 8). *)
+let uses_line_numbers e =
+	let rec loop e = match e.eexpr with
+		| TObjectDecl fl when List.exists (fun ((n,_,_),_) -> n = "lineNumber") fl -> raise Exit
+		| _ -> Type.iter loop e
+	in
+	try loop e; false with Exit -> true

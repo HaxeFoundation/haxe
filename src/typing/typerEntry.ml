@@ -308,6 +308,8 @@ let create com macros =
 				(* an expression macro already loaded can run before the tasks before
 				   this one are done: it waits for them at its first access to what the
 				   macros share (Claims.speculating) *)
+				(* expansions are not fingerprinted yet (phase 7): a node that expands a macro depends on it *)
+				if !DepRecord.enabled then DepRecord.record ("macro " ^ s_type_path cpath ^ "." ^ f) "expansion";
 				let speculate = mode = MExpr && Claims.ahead_of_order () && MacroContext.is_macro_loaded ctx cpath f in
 				if not speculate then Claims.in_order Claims.OrderMacro;
 				Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->

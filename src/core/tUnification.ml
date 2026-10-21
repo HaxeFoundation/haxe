@@ -648,11 +648,11 @@ let rec type_eq uctx a b =
 		type_eq_params uctx a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
 		rec_stack uctx.eq_stack (a,b) (fast_eq_pair (a,b))
-			(fun() -> try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (fun a -> type_eq uctx a b))
+			(fun() -> if !DepRecord.enabled then DepRecord.record_type t.t_path "header"; try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (fun a -> type_eq uctx a b))
 			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) when can_follow b ->
 		rec_stack uctx.eq_stack (a,b) (fast_eq_pair (a,b))
-			(fun() -> try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (type_eq uctx a))
+			(fun() -> if !DepRecord.enabled then DepRecord.record_type t.t_path "header"; try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (type_eq uctx a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
@@ -792,12 +792,12 @@ let rec unify (uctx : unification_context) a b =
 	| TType (t,tl) , _ ->
 		rec_stack uctx.unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq_unbound_mono a a2 && fast_eq b b2)
-			(fun() -> try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (fun a -> unify uctx a b))
+			(fun() -> if !DepRecord.enabled then DepRecord.record_type t.t_path "header"; try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (fun a -> unify uctx a b))
 			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) ->
 		rec_stack uctx.unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq a a2 && fast_eq_unbound_mono b b2)
-			(fun() -> try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (unify uctx a))
+			(fun() -> if !DepRecord.enabled then DepRecord.record_type t.t_path "header"; try_apply_params_rec uctx.apply_params_stack t.t_params tl t.t_type (unify uctx a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];

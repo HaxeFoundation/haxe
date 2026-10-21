@@ -32,6 +32,7 @@ class Replay {
 		var commits = 10;
 		var range:Null<String> = null;
 		var keep = false;
+		var checkDeps = false;
 		RunIncremental.runProgram = false;
 		var i = 0;
 		while (i < args.length) {
@@ -44,6 +45,7 @@ class Replay {
 				case "--run": RunIncremental.runProgram = true;
 				case "--keep": keep = true;
 				case "--ignore-order": RunIncremental.ignoreOrder = true;
+				case "--check-deps": checkDeps = true;
 				case other:
 					Sys.println('Unknown option $other');
 					Sys.exit(2);
@@ -69,6 +71,9 @@ class Replay {
 		Sys.sleep(1);
 
 		var failures = 0;
+		var dumpFile = Path.join([work, "fingerprints.txt"]);
+		var previousFingerprints:Null<Map<String, String>> = null;
+		var previousDeps:Null<Map<String, Array<String>>> = null;
 		var warmTime = 0.;
 		var coldTime = 0.;
 		Sys.println('Replaying ${list.length} commits of $repo');
@@ -81,11 +86,18 @@ class Replay {
 			var t0 = Sys.time();
 			var warm = RunIncremental.compile(warmDir, port);
 			var t1 = Sys.time();
-			var cold = RunIncremental.compile(coldDir, null);
+			var cold = RunIncremental.compile(coldDir, null, true, checkDeps ? ["-D", "dump-fingerprints=" + dumpFile] : []);
 			var t2 = Sys.time();
 			warmTime += t1 - t0;
 			coldTime += t2 - t1;
 			var errors = RunIncremental.compare(warm, cold, warmDir, coldDir);
+			if (checkDeps && FileSystem.exists(dumpFile)) {
+				var fingerprints = RunIncremental.readFingerprints(dumpFile);
+				if (previousFingerprints != null)
+					errors = errors.concat(RunIncremental.missingDependencies(previousFingerprints, previousDeps, fingerprints));
+				previousFingerprints = fingerprints;
+				previousDeps = RunIncremental.readDependencies(dumpFile);
+			}
 			var subject = git(warmDir, ["log", "-1", "--format=%s", commit]).trim();
 			var summary = '${commit.substr(0, 10)} warm ${Math.round((t1 - t0) * 1000)}ms cold ${Math.round((t2 - t1) * 1000)}ms exit ${warm.code}';
 			if (errors.length == 0) {

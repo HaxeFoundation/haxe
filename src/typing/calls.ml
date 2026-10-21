@@ -51,6 +51,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		end;
 		let config = Inline.inline_config cl f params t in
 		force_field_body f; (* force evaluation *)
+		(* the inlined body is read *)
+		(match cl with Some c -> DepRecord.record_field c f "inline" | None -> ());
 		(match cl, ctx.c.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.c.curclass ->
 				if

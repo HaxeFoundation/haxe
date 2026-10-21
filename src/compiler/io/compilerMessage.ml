@@ -27,6 +27,7 @@ let add_message com msg p depth message_kind = TypingLock.protect_leaf @@ fun ()
 		buf := cm :: !buf
 	| None ->
 		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
+		DepRecord.record_message msg (Obj.magic (message_kind_severity message_kind)) p;
 		com.part_scope.messages <- cm :: com.part_scope.messages
 
 (** Add a compiler message that is bound to a specific module's cache.
@@ -44,6 +45,7 @@ let add_module_message com (m : module_def) msg p depth message_kind = TypingLoc
 	let cm = make_message com.is_macro_context msg p depth message_kind in
 	if com.display.dms_full_typing then
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm);
+	DepRecord.record_message msg (Obj.magic (message_kind_severity message_kind)) p;
 	com.part_scope.messages <- cm :: com.part_scope.messages
 
 (** Add a pre-built diagnostic message bound to a specific module's cache.

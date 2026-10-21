@@ -773,7 +773,9 @@ module TypeBinding = struct
 			DomainLocal.set fields_being_inferred (List.tl (DomainLocal.get fields_being_inferred));
 			DomainLocal.set errors_at_start (List.tl (DomainLocal.get errors_at_start));
 			body_done cf
-		) (fun () -> Query.run q f) ()
+		) (fun () -> Query.run q (fun () ->
+			DepRecord.with_consumer ~field:cf (DepRecord.field_key ctx.c.curclass cf) (if inferred then "sig" else "body") ctx.c.curclass.cl_module (DepRecord.field_decl ctx.c.curclass cf) cf.cf_pos f
+		)) ()
 
 	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
 	   known at the end of its own typing. Reports the field types that still

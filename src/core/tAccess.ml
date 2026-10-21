@@ -110,6 +110,7 @@ module Header = struct
 	(* The header of a class: type parameters, super class, interfaces,
 	   declared metadata. *)
 	let demand c =
+		if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
 		if c.cl_build_header != header_done then
 			with_class_claim c (fun () -> c.cl_build_header ())
 
@@ -167,12 +168,14 @@ let with_build_claim c f =
 
 (* Builds class [c] (its [members] query) and gives its build state. *)
 let build c =
+	if !DepRecord.enabled then DepRecord.record_type c.cl_path "members";
 	if c.cl_build == built then Built
 	else with_build_claim c (fun () -> c.cl_build ())
 
 module Members = struct
 	(* The members of a class, after its build macros, connected. *)
 	let demand c =
+		if !DepRecord.enabled then DepRecord.record_type c.cl_path "members";
 		if c.cl_build != built then
 			with_build_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
 
@@ -180,18 +183,27 @@ module Members = struct
 	let ordered_fields c = demand c; c.cl_ordered_fields
 	let statics c = demand c; c.cl_statics
 	let ordered_statics c = demand c; c.cl_ordered_statics
-	let constructor c = demand c; c.cl_constructor
+	let constructor c =
+		demand c;
+		(match c.cl_constructor with Some cf when !DepRecord.enabled -> DepRecord.record_field c cf "sig" | _ -> ());
+		c.cl_constructor
 
-	let find_field c name = PMap.find name (fields c)
-	let find_static c name = PMap.find name (statics c)
+	(* a field found by name: its signature is read *)
+	let found c cf =
+		if !DepRecord.enabled then DepRecord.record_field c cf "sig";
+		cf
+
+	let find_field c name = found c (PMap.find name (fields c))
+	let find_static c name = found c (PMap.find name (statics c))
 
 	(* The constructors of an enum. *)
-	let enum_constructors e = complete_module e.e_module; e.e_constrs
-	let enum_names e = complete_module e.e_module; e.e_names
+	let enum_constructors e = if !DepRecord.enabled then DepRecord.record_type e.e_path "members"; complete_module e.e_module; e.e_constrs
+	let enum_names e = if !DepRecord.enabled then DepRecord.record_type e.e_path "members"; complete_module e.e_module; e.e_names
 	let find_enum_constructor e name = PMap.find name (enum_constructors e)
 
 	(* The members of an abstract: its implementation class, casts and operators. *)
 	let abstract a =
+		if !DepRecord.enabled then DepRecord.record_type a.a_path "members";
 		complete_module a.a_module;
 		(match a.a_impl with Some c -> demand c | None -> ());
 		a
