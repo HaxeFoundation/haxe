@@ -37,7 +37,7 @@ abstract StringKey(Array<Int>) {
 
 @:forward(length)
 abstract ForwardedLength(Array<Int>) {
-	@:arrayAccess function get(i:Int):Int
+	function get(i:Int):Int
 		return this[i];
 }
 

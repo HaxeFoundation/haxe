@@ -3,7 +3,7 @@ open Ast
 open Type
 open Common
 open Typecore
-open TyperBase
+open ArrayAccess
 open Fields
 open Calls
 open Error
@@ -410,7 +410,7 @@ module IterationKind = struct
 			) el in
 			mk (TBlock el) t_void p
 		| IteratorArray ->
-			gen_int_iter e1 pt get_next_array_element (get_array_length ctx)
+			gen_int_iter e1 pt Texpr.Builder.make_array_access (get_array_length ctx)
 		| IteratorCustom(f_next,f_length) ->
 			gen_int_iter e1 pt f_next f_length
 		| IteratorIterator ->
