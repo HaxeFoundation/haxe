@@ -535,8 +535,14 @@ let make_program_stage () = {
    any stage, including earlier ones, which then run first: [run_stages]
    always runs the earliest stage with units left. *)
 
+(* The queues of the stages are changed under this mutex while bodies are typed
+   in parallel, without the typing lock: units are added often. *)
+let program_mutex = Mutex.create ()
+
+let with_queues f = if !TypingLock.active then Mutex.protect program_mutex f else f ()
+
 (* Adds a unit to stage [p]. *)
-let schedule g (p : stage) f = TypingLock.protect @@ fun () ->
+let schedule g (p : stage) f = with_queues @@ fun () ->
 	let i = Obj.magic p in
 	Queue.push f g.program.(i).ps_units;
 	if i < g.program_min_stage then
@@ -544,7 +550,7 @@ let schedule g (p : stage) f = TypingLock.protect @@ fun () ->
 
 (* Adds a late unit to stage [p]: it runs once the stage has no
    other unit left. *)
-let schedule_late g (p : stage) f = TypingLock.protect @@ fun () ->
+let schedule_late g (p : stage) f = with_queues @@ fun () ->
 	let i = Obj.magic p in
 	Queue.push f g.program.(i).ps_late;
 	if i < g.program_min_stage then
@@ -568,8 +574,11 @@ let pop_unit q = match !typer_shuffle with
    modules on several domains when bodies are typed in parallel and no domain
    is doing so already. *)
 let run_parallel_units g s =
-	let units = List.of_seq (Queue.to_seq s.ps_parallel) in
-	Queue.clear s.ps_parallel;
+	let units = with_queues (fun () ->
+		let units = List.of_seq (Queue.to_seq s.ps_parallel) in
+		Queue.clear s.ps_parallel;
+		units
+	) in
 	let rec group acc = function
 		| [] -> List.rev acc
 		| (m,f) :: l ->
@@ -590,20 +599,31 @@ let rec run_stages g (p : stage) where =
 	let rec loop i =
 		if i <= last then begin
 			let s = g.program.(i) in
-			if not (Queue.is_empty s.ps_units) then begin
-				(pop_unit s.ps_units) ();
+			let next = with_queues (fun () ->
+				if not (Queue.is_empty s.ps_units) then
+					`Run (pop_unit s.ps_units)
+				else if not (Queue.is_empty s.ps_parallel) then
+					`Parallel
+				else if not (Queue.is_empty s.ps_late) then begin
+					Queue.transfer s.ps_late s.ps_units;
+					`Again
+				end else begin
+					(* Done with this stage (for now) *)
+					g.program_min_stage <- i + 1;
+					`Next
+				end
+			) in
+			match next with
+			| `Run f ->
+				f ();
 				loop g.program_min_stage
-			end else if not (Queue.is_empty s.ps_parallel) then begin
+			| `Parallel ->
 				run_parallel_units g s;
 				loop g.program_min_stage
-			end else if not (Queue.is_empty s.ps_late) then begin
-				Queue.transfer s.ps_late s.ps_units;
+			| `Again ->
 				loop i
-			end else begin
-				(* Done with this stage (for now) *)
-				g.program_min_stage <- i + 1;
+			| `Next ->
 				loop (i + 1)
-			end
 		end
 	in
 	(* units can run from a domain typing bodies in parallel *)
@@ -612,15 +632,17 @@ let rec run_stages g (p : stage) where =
 (* Adds the typing of the bodies of the fields of a class of module [m] whose type
    is declared to [program]: they can be typed in parallel with those of other
    modules (phase 3.5). *)
-let add_program_body_unit g m f = TypingLock.protect @@ fun () ->
+let add_program_body_unit g m f =
 	match g.run_parallel with
 	| None ->
 		schedule g StageBodies f
 	| Some _ ->
-		let i = Obj.magic StageBodies in
-		Queue.push (m,f) g.program.(i).ps_parallel;
-		if i < g.program_min_stage then
-			g.program_min_stage <- i
+		with_queues (fun () ->
+			let i = Obj.magic StageBodies in
+			Queue.push (m,f) g.program.(i).ps_parallel;
+			if i < g.program_min_stage then
+				g.program_min_stage <- i
+		)
 
 (* Adds the typing of the fields of a class whose type is inferred from their
    body to [program]: all of them are typed before any field body whose type

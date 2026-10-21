@@ -1254,7 +1254,11 @@ and with `-D fail-fast`. Reading what is final needs no lock: a built class
 (`TAccess.built`), a computed header, a completed `.hxb` module, a created
 module (`m_ready`), a known missing module. The claims of bodies use their
 own mutex, and a domain waiting for a body releases the typing lock
-(`TypingLock.without`).
+(`TypingLock.without`). The stage queues have their own mutex as well
+(`Typecore.program_mutex`): adding units, the most frequent operation under
+the lock while bodies are typed (late argument checks, constraint checks,
+lazy type forcing), no longer waits for the typing lock. On Heaps, the
+domains then wait for the typing lock about 400 times in a compilation.
 Found and fixed on the way:
 - reading a class's build closure before taking the lock ran a build that
   another domain had just done (`Duplicate class field declaration`);
