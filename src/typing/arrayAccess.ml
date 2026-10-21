@@ -23,9 +23,6 @@ and array_length =
 	| ALCall of tclass * tclass_field * tparams (* a call of the abstract's get_length *)
 	| ALForward of Type.t * array_length (* the length of the abstract's underlying type, which @:forward forwards *)
 
-let get_next_array_element arr iexpr pt p =
-	(mk (TArray (arr,iexpr)) pt p)
-
 let get_array_length ctx arr p =
 	let fa = try quick_field arr.etype "length" with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field length on %s" (s_type_kind arr.etype)) arr.epos in
 	let t = match fa with
@@ -132,8 +129,8 @@ let get_array_access ctx t p =
 	| _ -> raise Not_found
 
 let make_array_get ctx aa e_base e_index p = match aa.aa_get with
-	| AGIndex -> get_next_array_element e_base e_index aa.aa_type p
-	| AGDynamic -> get_next_array_element e_base e_index (spawn_monomorph ctx p) p
+	| AGIndex -> Texpr.Builder.make_array_access e_base e_index aa.aa_type p
+	| AGDynamic -> Texpr.Builder.make_array_access e_base e_index (spawn_monomorph ctx p) p
 	| AGCall(c,cf,tl) -> CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] aa.aa_type p
 
 let make_array_length ctx aa e p =
