@@ -88,11 +88,6 @@ type macro_result =
 	| MError
 	| MMacroInMacro
 
-type typer_pass_tasks = {
-	mutable tasks : (unit -> unit) list;
-	mutable tasks_late : (unit -> unit) list;
-}
-
 type function_mode =
 	| FunFunction
 	| FunCoroutine
@@ -103,26 +98,20 @@ type call_arg_context = {
 	mutable cac_body_capture : Message.t list ref;
 }
 
-(* A stage of [program]: a queue of units, run in the order they were added by
-   a single task of pass [ps_pass]. *)
+(* A stage of [program] (docs/incremental-compilation.md, phase 3.1): the
+   units of one typer pass, run in the order they were added, then its late
+   units (those that must run once the others are done), in the order they
+   were added. *)
 type program_stage = {
-	ps_pass : typer_pass;
-	ps_queue : (unit -> unit) Queue.t;
-	mutable ps_scheduled : bool;
+	ps_units : (unit -> unit) Queue.t;
+	ps_late : (unit -> unit) Queue.t;
 }
 
 type typer_globals = {
-	mutable delayed : typer_pass_tasks Array.t;
-	(* The units of [program] (docs/incremental-compilation.md, phase 3.1): the
-	   function typing the bodies of a class, in the order classes were built. *)
-	program_units : program_stage;
-	(* the type parameter constraint checks of [program], run after the bodies *)
-	program_constraints : program_stage;
-	(* the checks of [program] (the [checks] queries of the plan) and the
-	   forcing of the remaining lazy types, run after the constraints *)
-	program_checks : program_stage;
-	mutable delayed_min_index : int;
-	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
+	(* the stages of [program], one per typer pass, in pass order *)
+	program : program_stage array;
+	(* stages before this one have no unit left *)
+	mutable program_min_stage : int;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
@@ -521,98 +510,85 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
+let make_program_stage () = {
+	ps_units = Queue.create ();
+	ps_late = Queue.create ();
+}
+
+(* [program] (docs/incremental-compilation.md, phase 3.1) types the program by
+   stages, one per typer pass: the structure of modules and types
+   ([PBuildModule], [PBuildClass], [PConnectField]), the bodies of fields
+   ([PTypeField]), the type parameter constraint checks ([PCheckConstraint]),
+   then the per-type checks and the forcing of lazy types ([PForce]). Each
+   stage runs its units in the order they were added. A unit can add units to
+   any stage, including earlier ones, which then run first: [flush_pass]
+   always runs the earliest stage with units left. *)
+
+(* Adds a unit to the stage of pass [p]. *)
 let delay g (p : typer_pass) f =
-	let p = Obj.magic p in
-	let tasks = g.delayed.(p) in
-	tasks.tasks <- f :: tasks.tasks;
-	if p < g.delayed_min_index then
-		g.delayed_min_index <- p
+	let i = Obj.magic p in
+	Queue.push f g.program.(i).ps_units;
+	if i < g.program_min_stage then
+		g.program_min_stage <- i
 
+(* Adds a late unit to the stage of pass [p]: it runs once the stage has no
+   other unit left. *)
 let delay_late g (p : typer_pass) f =
-	let p = Obj.magic p in
-	let tasks = g.delayed.(p) in
-	tasks.tasks_late <- f :: tasks.tasks_late;
-	if p < g.delayed_min_index then
-		g.delayed_min_index <- p
+	let i = Obj.magic p in
+	Queue.push f g.program.(i).ps_late;
+	if i < g.program_min_stage then
+		g.program_min_stage <- i
 
-(* -D typer-shuffle=<seed>: the tasks of a pass run in a random order, to check
+(* -D typer-shuffle=<seed>: the units of a stage run in a random order, to check
    that typing does not depend on it (docs/incremental-compilation.md, phase 3). *)
 let typer_shuffle : Random.State.t option ref = ref None
 
+let pop_unit q = match !typer_shuffle with
+	| Some st when Queue.length q > 1 ->
+		let l = List.of_seq (Queue.to_seq q) in
+		let n = Random.State.int st (List.length l) in
+		Queue.clear q;
+		List.iteri (fun i f -> if i <> n then Queue.push f q) l;
+		List.nth l n
+	| _ ->
+		Queue.pop q
+
+(* Runs the stages of [program] up to the one of pass [p], until none of them
+   has a unit left. *)
 let rec flush_pass g (p : typer_pass) where =
+	let last = Obj.magic p in
 	let rec loop i =
-		if i > (Obj.magic p) then
-			()
-		else begin
-			let tasks = g.delayed.(i) in
-			begin match tasks.tasks with
-			| _ :: _ :: _ as l when !typer_shuffle <> None ->
-				let n = Random.State.int (Option.get !typer_shuffle) (List.length l) in
-				let f = List.nth l n in
-				tasks.tasks <- List.filteri (fun i _ -> i <> n) l;
-				f();
-				flush_pass g p where
-			| f :: l ->
-				tasks.tasks <- l;
-				f();
-				flush_pass g p where
-			| [] ->
-				begin match tasks.tasks_late with
-				| _ :: _ ->
-					tasks.tasks <- List.rev tasks.tasks_late;
-					tasks.tasks_late <- [];
-					flush_pass g p where
-				| [] ->
-					(* Done with this pass (for now), update min index to next one *)
-					let i = i + 1 in
-					g.delayed_min_index <- i;
-					loop i
-				end
+		if i <= last then begin
+			let s = g.program.(i) in
+			if not (Queue.is_empty s.ps_units) then begin
+				(pop_unit s.ps_units) ();
+				loop g.program_min_stage
+			end else if not (Queue.is_empty s.ps_late) then begin
+				Queue.transfer s.ps_late s.ps_units;
+				loop i
+			end else begin
+				(* Done with this stage (for now) *)
+				g.program_min_stage <- i + 1;
+				loop (i + 1)
 			end
 		end
 	in
-	loop g.delayed_min_index
+	loop g.program_min_stage
 
 let make_pass ctx f = f
 
-let make_program_stage pass = {
-	ps_pass = pass;
-	ps_queue = Queue.create ();
-	ps_scheduled = false;
-}
-
-(* [program] (docs/incremental-compilation.md, phase 3.1) is run by stages: each
-   stage runs its units in the order they were added, including those added
-   meanwhile, until there are none left. A stage runs as one task of its pass:
-   - the bodies of every class built so far, in the order the classes were
-     built ([PTypeField]);
-   - the type parameter constraint checks ([PCheckConstraint]);
-   - the per-type checks (overrides, interfaces, accessors, abstract
-     classes...) and the forcing of lazy types ([PForce]). *)
-let rec run_program_stage s =
-	s.ps_scheduled <- false;
-	while not (Queue.is_empty s.ps_queue) do
-		(Queue.pop s.ps_queue) ()
-	done
-
-and add_to_program_stage g s f =
-	Queue.push f s.ps_queue;
-	if not s.ps_scheduled then begin
-		s.ps_scheduled <- true;
-		delay g s.ps_pass (fun () -> run_program_stage s)
-	end
-
-(* Adds the typing of the bodies of a class to [program]. *)
+(* Adds the typing of the bodies of a class, or another field typing unit, to
+   [program]. *)
 let add_program_unit g f =
-	add_to_program_stage g g.program_units f
+	delay g PTypeField f
 
 (* Adds a type parameter constraint check to [program]. *)
 let add_program_constraint g f =
-	add_to_program_stage g g.program_constraints f
+	delay g PCheckConstraint f
 
 (* Adds a check to [program]. *)
 let add_program_check g f =
-	add_to_program_stage g g.program_checks f
+	delay g PForce f
 
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
@@ -872,165 +848,5 @@ let get_overloads (com : Common.context) c i =
 		com.overload_cache#add (c.cl_path,i) l;
 		l
 
-(* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
-
-(*
-let delay_tabs = ref ""
-
-let context_ident com =
-	if Common.defined com Common.Define.CoreApi then
-		" core "
-	else if Common.defined com Common.Define.Macro then
-		"macro "
-	else
-		"  out "
-
-let debug_paths = [
-	(* ["Main"] *)
-]
-
-let debug com (path : string list) str =
-	if Common.raw_defined com "cdebug" then begin
-		let emit () =
-			let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-			if com.sctx.is_server then
-				DynArray.add com.part_scope.pass_debug_messages s
-			else
-				print_endline s
-		in
-		match debug_paths,path with
-		| [],_
-		| _,[] ->
-			emit()
-		| l ->
-			if List.exists (Ast.match_path false path) debug_paths then emit();
-	end
-
-let ctx_pos ctx =
-	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
-	let inf = (match snd ctx.c.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
-	let inf = (match ctx.f.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
-	inf
-
-let pass_infos ctx p =
-	let path = ctx_pos ctx in
-	let inf = pass_name p ^ " ("  ^ String.concat "." path ^ ")" in
-	let inf = if ctx.pass > p then inf ^ " ??CURPASS=" ^ pass_name ctx.pass else inf in
-	inf,path
-
-let delay ctx p f =
-	let inf = pass_infos ctx p in
-	let rec loop = function
-		| [] -> [p,[f,inf,ctx]]
-		| (p2,l) :: rest ->
-			if p2 = p then
-				(p, (f,inf,ctx) :: l) :: rest
-			else if p2 < p then
-				(p2,l) :: loop rest
-			else
-				(p,[f,inf,ctx]) :: (p2,l) :: rest
-	in
-	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx.com (snd inf) ("add " ^ (fst inf))
-
-let delay_late ctx p f =
-	let inf = pass_infos ctx p in
-	let rec loop = function
-		| [] -> [p,[f,inf,ctx]]
-		| (p2,l) :: rest ->
-			if p2 <= p then
-				(p2,l) :: loop rest
-			else
-				(p,[f,inf,ctx]) :: (p2,l) :: rest
-	in
-	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx.com (snd inf) ("add late " ^ (fst inf))
-
-let pending_passes ctx =
-	let rec loop acc = function
-		| (p,l) :: pl when p < ctx.pass -> loop (acc @ l) pl
-		| _ -> acc
-	in
-	match loop [] ctx.g.debug_delayed with
-	| [] -> ""
-	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,(i,_),_) -> i) l) ^ "]"
-
-let display_error com ?(depth=0) msg p =
-	debug com [] ("ERROR " ^ msg);
-	display_error com ~depth msg p
-
-let display_error_ext com err =
-	debug com [] ("ERROR " ^ (error_msg err.err_message));
-	display_error_ext com err
-
-let make_pass ?inf ctx f =
-	let inf,path = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
-	(fun v ->
-		debug ctx.com path ("run " ^ inf ^ pending_passes ctx);
-		let old = !delay_tabs in
-		delay_tabs := !delay_tabs ^ "\t";
-		let t = (try
-			f v
-		with
-			| Fatal_error _ as exc ->
-				delay_tabs := old;
-				raise exc
-			| exc when not (Common.raw_defined ctx.com "stack") ->
-				debug ctx.com path ("FATAL " ^ Printexc.to_string exc);
-				delay_tabs := old;
-				raise exc
-		) in
-		delay_tabs := old;
-		t
-	)
-
-let rec flush_pass ctx p where =
-	let rec loop() =
-		match ctx.g.debug_delayed with
-		| (p2,l) :: rest when p2 <= p ->
-			(match l with
-			| [] ->
-				ctx.g.debug_delayed <- rest
-			| (f,inf,ctx2) :: l ->
-				ctx.g.debug_delayed <- (p2,l) :: rest;
-				match p2 with
-				| PTypeField | PBuildClass -> f()
-				| _ -> (make_pass ~inf ctx f)());
-			loop()
-		| _ ->
-			()
-	in
-	match ctx.g.debug_delayed with
-	| (p2,_) :: _ when p2 <= p ->
-		let old = !delay_tabs in
-		debug ctx.com (snd where) ("flush " ^ pass_name p ^ "(" ^ (fst where) ^ ")");
-		delay_tabs := !delay_tabs ^ "\t";
-		loop();
-		delay_tabs := old;
-		debug ctx.com (snd where) "flush-done";
-	| _ ->
-		()
-
-let make_where ctx where =
-	let inf = ctx_pos ctx in
-	where ^ " (" ^ String.concat "." inf ^ ")",inf
-
-let make_lazy ctx t f (where:string) =
-	let r = ref (lazy_available t_dynamic) in
-	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
-		try
-			r := lazy_processing t;
-			let t = f () in
-			r := lazy_available t;
-			t
-		with
-			| Error e ->
-				raise (Fatal_error e)
-	));
-	delay ctx PForce (fun () -> ignore(lazy_type r));
-	r
-
-*)
-(* --------------------------------------------------- *)
 
 

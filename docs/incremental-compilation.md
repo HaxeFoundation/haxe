@@ -755,18 +755,37 @@ implementation, final variables, recursive abstract underlying types) are
 reported on the first abstract of the cycle by position, whichever check
 finds it.
 
-`program` now runs by stages (`Typecore.program_stage`), each a queue run in
-the order its units were added, by a single task of its pass: the bodies
-(field typing pass), the type parameter constraint checks (constraint pass),
-then the per-type checks and the forcing of the remaining lazy types (force
-pass). The other field typing tasks are units of the bodies stage: the
-checks of extern function arguments, the late checks of arguments typed
-`haxe.extern.Rest` and of variables whose type may be inferred as `Void`, the
-bodies of methods read from `.hxb` files and the JVM strict metadata. What
-remains scheduled by the passes is the structure of types (class builds,
-connection tasks such as interface checks on built classes, accessors,
-`@:using`, import resolution, inherited documentation), which belongs to the
-`members` query, and display requests.
+**Status: `program()` driver.** The typer passes are no longer lists of
+delayed tasks run last-in first-out: they are the stages of `program()`
+(`Typecore.program_stage`), one per pass, each a queue run in the order its
+units were added (then its late units, in the order they were added). The
+stages are, in order: the structure of modules and types (module build, class
+builds, connection of fields: accessors, interface checks on classes built
+while their build macro was running, `@:using`, import resolution, inherited
+documentation, pending default constructors), the bodies of fields (one unit
+per class, in the order classes were built, plus the checks of extern
+function arguments, the late checks of `haxe.extern.Rest` arguments and of
+variables whose type may be inferred as `Void`, the bodies of methods read
+from `.hxb` files and the JVM strict metadata), the type parameter constraint
+checks, then the per-type checks and the forcing of the remaining lazy types.
+A unit can add units to any stage; the earliest stage with units left always
+runs first (`flush_pass`), so loading a module while typing a field runs the
+structure of its types first: that is the demand of their `members` queries
+until accessors demand them one by one (§3.2). `-D typer-shuffle` now picks
+the units of a stage at random.
+
+Running the units in the order they were added instead of the reverse order
+changed which of two entities is processed first where the outcome depends on
+it: a build cycle between two classes (`Recursive class`) is now reported on
+the second declaration of the cycle, the one processed while the first is
+being built, a recursive constraint between two type parameters on the
+constraint of the first one, and two classes with the same `@:autoBuild`
+macro are built in declaration order (`Issue4671`, `Issue11870`,
+`Issue9381`). In hide, domkit numbers CSS properties with a
+macro static counter in the order components are built, so the generated
+handler registrations changed order (declaration order now); this is a
+macro static shared between expansions (phase 7). The output is identical
+with any `typer-shuffle` seed.
 
 #### 3.2 Enforcing queries with abstract types
 
