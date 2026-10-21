@@ -33,6 +33,35 @@ module ParallelArray = struct
 			a_out
 end
 
+(* The minor heap of the worker domains of a pool, in MB: allocation-heavy work
+   on several domains (typing, filters, the analyzer) otherwise spends its time
+   in the minor collections, which stop every domain. A new domain gets the
+   default size whatever the domain that creates it uses, so each worker sets
+   its own. HAXE_WORKER_MINOR_MB overrides it (0 keeps the default). *)
+let worker_minor_heap_mb () =
+	match Sys.getenv_opt "HAXE_WORKER_MINOR_MB" with
+	| None | Some "" -> 32
+	| Some s -> (try int_of_string s with _ -> 32)
+
+let set_worker_minor_heap pool =
+	let mb = worker_minor_heap_mb () in
+	if mb > 0 then begin
+		let words = mb * 1024 * 1024 / (Sys.word_size / 8) in
+		let n = Domainslib.Task.get_num_domains pool in
+		let arrived = Atomic.make 0 in
+		(* every domain of the pool takes one of the [n] tasks: each waits for the
+		   others (for a while) so that no domain takes two *)
+		Domainslib.Task.run pool (fun () ->
+			Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(n - 1) ~body:(fun _ ->
+				if (Gc.get ()).Gc.minor_heap_size < words then
+					Gc.set { (Gc.get ()) with Gc.minor_heap_size = words };
+				Atomic.incr arrived;
+				let t = Unix.gettimeofday () in
+				while Atomic.get arrived < n && Unix.gettimeofday () -. t < 0.5 do Domain.cpu_relax () done
+			)
+		)
+	end
+
 (* Runs [f] on each domain of the pool (at most once on each). *)
 let on_each_domain pool f =
 	match pool with
