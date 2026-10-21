@@ -787,6 +787,22 @@ handler registrations changed order (declaration order now); this is a
 macro static shared between expansions (phase 7). The output is identical
 with any `typer-shuffle` seed.
 
+**Status: `members(T)` of classes.** The connection of the members of a class
+(accessor checks, which also generate the accessors of interface properties,
+the statics of the class type, inherited documentation and the default
+constructor inherited from the super class) is no longer a set of connection
+tasks run whenever that stage is flushed: it runs when the build of the class
+ends, as the end of its `members` query, so whoever gets a class built gets
+its members complete. Classes read from `.hxb` files follow the same rule:
+building one reads the fields of its module, which was a connection task
+before (a class inheriting its constructor from a class of an `--hxb-lib`
+got an incomplete constructor once the inheritance ran at build end,
+`tests/misc/hl/projects/Issue12357`). What stays in the connection stage is
+what is not attached to the build of a class: the module-level import and
+`@:using` resolution, the documentation of enums and abstracts, the forcing of
+type parameter constraints, the interface checks of classes whose build
+macro is running, and display requests.
+
 #### 3.2 Enforcing queries with abstract types
 
 All direct reads of entity contents are replaced by accessors. Today `src/`

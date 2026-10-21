@@ -420,7 +420,7 @@ module TypeLevel = struct
 		let members_query = Query.make (Query.Members c.cl_path) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
-			Query.run members_query (fun () ->
+			let r = Query.run members_query (fun () ->
 				try
 					let fl = header () in
 					List.iter (fun f -> f()) fl;
@@ -430,13 +430,18 @@ module TypeLevel = struct
 					Built;
 				with exn ->
 					c.cl_build <- (fun()-> Built);
+					TypeloadFields.delay_connections ctx_c.g cctx;
 					raise exn
-			)
+			) in
+			(* the members are connected once the class is built: whoever gets
+			   the class built gets its members complete *)
+			TypeloadFields.run_connections cctx;
+			r
 		in
 		c.cl_build <- make_pass ctx_m build;
 		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
-			delay ctx_m.g PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
+			Queue.push (fun() -> InheritDoc.build_class_doc ctx_m c) cctx.connections;
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
 			add_program_unit ctx_m.g (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_m c.cl_meta in
@@ -781,9 +786,21 @@ let rec load_hxb_module com g path p =
 			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
 			let read = reader#read api bytes in
 			let m = read EOT in
-			delay g PConnectField (fun () ->
-				ignore(read EOM);
-			);
+			(* The fields of the types are read with the rest of the module: like
+			   building a class from source, building a class read from a .hxb file
+			   reads them (its [members] query). *)
+			let completed = ref false in
+			let complete () =
+				if not !completed then begin
+					completed := true;
+					ignore(read EOM)
+				end
+			in
+			List.iter (function
+				| TClassDecl c -> c.cl_build <- (fun () -> complete (); Built)
+				| _ -> ()
+			) m.m_types;
+			delay g PConnectField complete;
 			m
 		with e ->
 			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;

@@ -41,6 +41,12 @@ type class_init_ctx = {
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
 	mutable uninitialized_final : tclass_field list;
+	(* the connection of the members of the class (accessor checks, statics of
+	   the class type, default constructor), run when the build of the class
+	   ends: they are part of its [members] query *)
+	connections : (unit -> unit) Queue.t;
+	(* connections run after the others *)
+	late_connections : (unit -> unit) Queue.t;
 }
 
 type field_init_ctx = {
@@ -478,8 +484,32 @@ let create_class_context c p =
 		uninitialized_final = [];
 		delayed_expr = [];
 		has_display_field = false;
+		connections = Queue.create ();
+		late_connections = Queue.create ();
 	} in
 	cctx
+
+(* Runs the connections of a class whose build ended, in the order they were
+   added, then its late connections. *)
+let run_connections cctx =
+	let rec loop () =
+		if not (Queue.is_empty cctx.connections) then begin
+			(Queue.pop cctx.connections) ();
+			loop ()
+		end else if not (Queue.is_empty cctx.late_connections) then begin
+			Queue.transfer cctx.late_connections cctx.connections;
+			loop ()
+		end
+	in
+	loop ()
+
+(* Hands the connections of a class whose build failed to the connection
+   stage of [program], as they were before. *)
+let delay_connections g cctx =
+	Queue.iter (fun f -> delay g PConnectField f) cctx.connections;
+	Queue.iter (fun f -> delay_late g PConnectField f) cctx.late_connections;
+	Queue.clear cctx.connections;
+	Queue.clear cctx.late_connections
 
 let create_typer_context_for_class ctx cctx p =
 	incr ctx.com.request_scope.stats.s_classes_built;
@@ -1664,7 +1694,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 		with Not_found ->
 			()
 	in
-	let delay_check = delay ctx.g PConnectField in
+	let delay_check f = Queue.push f cctx.connections in
 	let get = (match get with
 		| "null",_ -> AccNo
 		| "dynamic",_ -> AccCall
@@ -1981,12 +2011,12 @@ let init_class ctx_c cctx c p herits fields =
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	delay ctx_c.g PConnectField (fun () -> match follow c.cl_type with
+	Queue.push (fun () -> match follow c.cl_type with
 		| TAnon an ->
 			an.a_fields <- c.cl_statics
 		| _ ->
 			die "" __LOC__
-	);
+	) cctx.connections;
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
@@ -2025,6 +2055,6 @@ let init_class ctx_c cctx c p herits fields =
 		(* add_constructor does not deal with overloads correctly *)
 		if not com.config.pf_overload then begin
 			TypeloadFunction.PendingConstructors.replace TypeloadFunction.pending_constructors c (fun () -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
-			delay_late ctx_c.g PConnectField (fun() -> TypeloadFunction.run_pending_constructor c)
+			Queue.push (fun() -> TypeloadFunction.run_pending_constructor c) cctx.late_connections
 		end;
 	finalize_class ctx_c cctx
