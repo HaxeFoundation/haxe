@@ -266,7 +266,6 @@ let create com macros =
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
-			call_arg_context = None;
 			root_typer = ctx;
 		};
 		m = {

@@ -361,7 +361,9 @@ let rec type_usings mt =
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
-let lazy_force_hook : ((unit -> t) -> t) ref = ref (fun f -> f())
+(* Wraps the forcing of a lazy type, for the dynamic extent of a computation
+   of the current domain (see [Common.activate_message_capture]). *)
+let lazy_force_hook : ((unit -> t) -> t) DomainLocal.t = DomainLocal.make (fun () -> (fun f -> f()))
 
 (* Called when the placeholder type of a lazy being computed is read
    (instrumentation of order-dependent typing, see WTypingOrder). *)
@@ -371,7 +373,7 @@ let lazy_type f =
 	match !f with
 	| LAvailable t -> t
 	| LProcessing t -> !lazy_processing_read_hook f; t
-	| LWait f -> !lazy_force_hook f
+	| LWait f -> (DomainLocal.get lazy_force_hook) f
 
 (* Fields whose type is known from their declaration and whose body is not
    typed yet, with the function typing it (docs/incremental-compilation.md,

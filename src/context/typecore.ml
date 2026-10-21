@@ -124,7 +124,6 @@ type typer_globals = {
 	mutable return_partial_type : bool;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
-	mutable call_arg_context : call_arg_context option;
 	root_typer : typer;
 	(* api *)
 	mutable continuation_api : ContTypes.continuation_api option;
@@ -416,25 +415,30 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
+(* The call arguments being typed, for the dynamic extent of their typing in the
+   current domain. *)
+let call_arg_contexts : (typer_globals,call_arg_context) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
+
+let call_arg_context ctx = DomainLocal.Scoped.find call_arg_contexts ctx.g
+
 let enter_call_args ctx ~in_overload =
 	let old_in_call_args = ctx.f.in_call_args in
-	let old_context = ctx.g.call_arg_context in
 	ctx.f.in_call_args <- true;
-	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_capture = ref [] };
+	let restore = DomainLocal.Scoped.push call_arg_contexts ctx.g { cac_in_overload = in_overload; cac_body_capture = ref [] } in
 	(fun () ->
 		ctx.f.in_call_args <- old_in_call_args;
-		ctx.g.call_arg_context <- old_context;
+		restore ()
 	)
 
-let in_overload_call_args ctx = match ctx.g.call_arg_context with
+let in_overload_call_args ctx = match call_arg_context ctx with
 	| Some cac -> cac.cac_in_overload
 	| None -> false
 
-let reset_call_arg_body_capture ctx = match ctx.g.call_arg_context with
+let reset_call_arg_body_capture ctx = match call_arg_context ctx with
 	| Some cac -> let buf = ref [] in cac.cac_body_capture <- buf; buf
 	| None -> ref []
 
-let call_arg_body_capture ctx = match ctx.g.call_arg_context with
+let call_arg_body_capture ctx = match call_arg_context ctx with
 	| Some cac -> Some cac.cac_body_capture
 	| None -> None
 
@@ -813,8 +817,8 @@ let is_empty_or_pos_infos args =
 	| _ -> false
 
 let get_next_stored_typed_expr_id =
-	let uid = ref 0 in
-	(fun() -> incr uid; !uid)
+	let uid = Atomic.make 0 in
+	(fun() -> Atomic.fetch_and_add uid 1 + 1)
 
 let make_stored_id_expr id p =
 	(EConst (Int (string_of_int id, None))), p

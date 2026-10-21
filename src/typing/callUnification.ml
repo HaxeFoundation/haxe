@@ -584,8 +584,8 @@ object(self)
 		in
 		ctx.e.macro_depth <- ctx.e.macro_depth - 1;
 		ctx.e.with_type_stack <- List.tl ctx.e.with_type_stack;
-		let old = ctx.com.error_ext in
-		ctx.com.error_ext <- (fun err ->
+		let old = (Common.error_ext ctx.com) in
+		let restore_error_ext = Common.push_error_ext ctx.com (fun err ->
 			let ep = err.err_pos in
 			(* display additional info in the case the error is not part of our original call *)
 			if (Pos.file ep) <> (Pos.file p) || (Pos.max ep) < (Pos.min p) || (Pos.min ep) > (Pos.max p) then begin
@@ -594,16 +594,16 @@ object(self)
 				else
 					old { err with err_sub = (make_error (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
 			end else
-				old err;
-		);
+				old err
+		) in
 		let e = try
 			f()
 		with exc ->
-			ctx.com.error_ext <- old;
+			restore_error_ext ();
 			!ethis_f();
 			raise exc
 		in
-		ctx.com.error_ext <- old;
+		restore_error_ext ();
 		!ethis_f();
 		e
 

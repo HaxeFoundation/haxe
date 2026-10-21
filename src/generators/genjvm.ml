@@ -473,7 +473,7 @@ let associate_functional_interfaces gctx f t =
 			let cf_monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 			try
 				Mutex.protect gctx.mutexes.unify (fun () ->
-					Type.unify_custom native_unification_context t (apply_params cf.cf_params cf_monos (map cf.cf_type));
+					Type.unify_custom (native_unification_context ()) t (apply_params cf.cf_params cf_monos (map cf.cf_type));
 					ignore(List.map follow cf_monos);
 					f#add_functional_interface jfi (List.map (jsignature_of_type gctx) c_monos)
 				);

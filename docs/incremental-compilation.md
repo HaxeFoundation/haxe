@@ -1195,6 +1195,21 @@ the rest of the compilation. For typing specifically:
   - counters used for naming (generated locals, anonymous types) become
     per-query and deterministic.
 
+**Status: step 1, domain-local typing state.** The state that follows the
+call stack of typing is local to the domain typing (`DomainLocal`,
+`src/core/ds/domainLocal.ml`): the query stack, the stack of fields being
+inferred and their error counts, the implicit cast and native unification
+recursion stacks, the hook wrapping lazy type forcing, and the call
+argument context. The settings that typing overrides for a while (the
+error handler of speculative typing and macro calls, the disabled report
+mode, the message capture of overload resolution) are no longer swapped in
+the shared `Common.context`: they are bound to the context for the dynamic
+extent of the computation in the current domain (`Common.push_error_ext`,
+`Common.error_ext`, `report_mode`, `message_capture`). The counters for
+stored typed expressions and generic short names are atomic, the set of
+reported inference cycles is protected by a mutex. No change of behavior
+(typing still runs on one domain).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context

@@ -4,7 +4,7 @@ open Common
 open ParsedArg
 
 let error_ext com (err : Error.error) =
-	com.error_ext err
+	(Common.error_ext com) err
 
 let error com msg p =
 	error_ext com (Error.make_error (Custom msg) p)
@@ -15,7 +15,7 @@ let has_error com =
 let handle_diagnostics com ?(diagnostics_kind = MessageKind.DKCompilerMessage) msg p message_kind =
 	com.part_scope.has_error <- true;
 	add_diagnostics_message ~diagnostics_kind com msg p message_kind;
-	match com.part_scope.report_mode with
+	match (Common.report_mode com) with
 	| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 	| _ -> die "" __LOC__
 
@@ -28,7 +28,7 @@ let run_or_diagnose com f =
 			Error.recurse_error (fun depth err ->
 				add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError
 			) err;
-			(match com.part_scope.report_mode with
+			(match (Common.report_mode com) with
 			| RMDiagnostics _ -> DisplayOutput.emit_diagnostics com
 			| _ -> die "" __LOC__)
 		| Parser.Error(msg,p) ->
@@ -171,7 +171,7 @@ module Setup = struct
 		) com.defines.values;
 		Buffer.truncate buffer (Buffer.length buffer - 1);
 		Common.log com (Buffer.contents buffer);
-		com.callbacks#run com.error_ext com.callbacks#get_before_typer_create;
+		com.callbacks#run (Common.error_ext com) com.callbacks#get_before_typer_create;
 		TyperEntry.create com macros
 
 	let executable_path() =
@@ -227,7 +227,7 @@ module Setup = struct
 		com.info <- CompilerMessage.default_info_handler com;
 		com.warning <- CompilerMessage.default_warning_handler com;
 		com.error_ext <- CompilerMessage.default_error_handler com;
-		com.error <- (fun msg p -> com.error_ext (Error.make_error (Custom msg) p));
+		com.error <- (fun msg p -> (Common.error_ext com) (Error.make_error (Custom msg) p));
 		let filter_messages = (fun keep_errors predicate -> (List.filter (fun cm ->
 			(match cm_severity cm with
 			| MessageSeverity.Error -> keep_errors;
@@ -286,7 +286,7 @@ let do_type com mctx actx display_file_dot_path =
 	CommonCache.lock_signature com "after_init_macros";
 	Option.may (fun mctx -> MacroContext.finalize_macro_api tctx mctx) mctx;
 	(try begin
-		com.callbacks#run com.error_ext com.callbacks#get_after_init_macros;
+		com.callbacks#run (Common.error_ext com) com.callbacks#get_after_init_macros;
 		run_or_diagnose com (fun () ->
 			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 			List.iter (fun cpath ->
@@ -394,7 +394,7 @@ let compile com actx sctx =
 		ServerMessage.compiler_stage com;
 	end;
 	Sys.catch_break false;
-	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
+	com.callbacks#run (Common.error_ext com) com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
 			let r = run_command com c in
@@ -468,7 +468,7 @@ let finalize com =
 
 module ContextFlush = struct
 	let flush_context com =
-		match com.part_scope.report_mode with
+		match (Common.report_mode com) with
 		| RMDiagnostics _ ->
 			(* In diagnostics mode, messages are already in the unified buffer.
 			   Output happens via DisplayOutput.emit_diagnostics, not flush_messages. *)

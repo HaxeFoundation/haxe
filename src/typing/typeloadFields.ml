@@ -698,7 +698,7 @@ module TypeBinding = struct
 	   placeholder type of another field of this stack is part of a cross-field
 	   inference cycle, resolved today by typing order (a cycle error in Haxe 6).
 	   A field reading its own placeholder (self recursion) is fine. *)
-	let fields_being_inferred : (tlazy ref * typer * tclass_field * bool) list ref = ref []
+	let fields_being_inferred : (tlazy ref * typer * tclass_field * bool) list DomainLocal.t = DomainLocal.make (fun () -> [])
 
 	let rec is_full_type t =
 		match t with
@@ -709,16 +709,21 @@ module TypeBinding = struct
 
 	(* Pairs already reported, for the current compilation. *)
 	let reported_cycles : (int * pos * string) list ref = ref []
+	let reported_cycles_mutex = Mutex.create ()
 
 	let () = TFunctions.lazy_processing_read_hook := (fun r ->
-		match !fields_being_inferred with
+		match DomainLocal.get fields_being_inferred with
 		| (r_top,ctx,cf_reader,_) :: rest when r_top != r ->
 			(* Only fields whose type is inferred from their body form an inference
 			   cycle: an annotated field's type is known from its declaration. *)
 			begin match List.find_opt (fun (r',_,_,_) -> r' == r) rest with
-			| Some (_,_,cf_read,true) when not (List.mem (ctx.com.part_scope.compilation_step,cf_reader.cf_name_pos,cf_read.cf_name) !reported_cycles) ->
+			| Some (_,_,cf_read,true) when Mutex.protect reported_cycles_mutex (fun () ->
 				let step = ctx.com.part_scope.compilation_step in
-				reported_cycles := (step,cf_reader.cf_name_pos,cf_read.cf_name) :: List.filter (fun (step',_,_) -> step' = step) !reported_cycles;
+				let key = (step,cf_reader.cf_name_pos,cf_read.cf_name) in
+				not (List.mem key !reported_cycles) && begin
+					reported_cycles := key :: List.filter (fun (step',_,_) -> step' = step) !reported_cycles;
+					true
+				end) ->
 				display_error ctx.com (Printf.sprintf "%s reads the type of %s while it is being inferred (inference cycle between fields): add a type annotation to one of them" cf_reader.cf_name cf_read.cf_name) cf_reader.cf_name_pos
 			| _ ->
 				()
@@ -751,19 +756,19 @@ module TypeBinding = struct
 		| _ -> None
 
 	(* Number of reported errors when the typing of each field of [fields_being_inferred] started. *)
-	let errors_at_start : int list ref = ref []
+	let errors_at_start : int list DomainLocal.t = DomainLocal.make (fun () -> [])
 
 	(* The typing of a field runs as its [sig] query when its type is inferred
 	   from its body, and as its [body] query when its type is declared
 	   (docs/incremental-compilation.md, §3.1). *)
 	let while_inferring r ctx cf ~inferred f =
-		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
-		errors_at_start := Atomic.get Common.reported_errors :: !errors_at_start;
+		DomainLocal.set fields_being_inferred ((r,ctx,cf,inferred) :: DomainLocal.get fields_being_inferred);
+		DomainLocal.set errors_at_start (DomainLocal.get Common.reported_errors :: DomainLocal.get errors_at_start);
 		let path = ctx.c.curclass.cl_path in
 		let q = Query.make (if inferred then Query.Sig(path,cf.cf_name) else Query.Body(path,cf.cf_name)) in
 		Std.finally (fun () ->
-			fields_being_inferred := List.tl !fields_being_inferred;
-			errors_at_start := List.tl !errors_at_start
+			DomainLocal.set fields_being_inferred (List.tl (DomainLocal.get fields_being_inferred));
+			DomainLocal.set errors_at_start (List.tl (DomainLocal.get errors_at_start))
 		) (fun () -> Query.run q f) ()
 
 	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
@@ -801,8 +806,8 @@ module TypeBinding = struct
 			| _ -> false
 		in
 		(* a field whose typing reported an error is not reported again *)
-		let failed = match !errors_at_start with
-			| n :: _ -> Atomic.get Common.reported_errors > n
+		let failed = match DomainLocal.get errors_at_start with
+			| n :: _ -> DomainLocal.get Common.reported_errors > n
 			| [] -> false
 		in
 		if failed then begin
@@ -1880,7 +1885,7 @@ let init_class ctx_c cctx c p herits fields =
 			try init_core_api ctx_c c
 			with
 			| Error { err_message = Module_not_found _ | Type_not_found _ } -> ()
-			| Error err -> com.error_ext err
+			| Error err -> (Common.error_ext com) err
 		)
 	| CoreApiConfig.Off -> ()
 	end;

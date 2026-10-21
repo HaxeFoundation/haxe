@@ -35,13 +35,14 @@ let s_kind = function
 	| Sig(path,name) -> Printf.sprintf "sig(%s.%s)" (s_type_path path) name
 	| Body(path,name) -> Printf.sprintf "body(%s.%s)" (s_type_path path) name
 
-(* The queries being computed, innermost first. Typing runs on one domain. *)
-let stack : t list ref = ref []
+(* The queries being computed by the current domain, innermost first. *)
+let stack_key : t list DomainLocal.t = DomainLocal.make (fun () -> [])
+let stack () = DomainLocal.get stack_key
 
 let is_running q = q.q_state = Running
 
 (* Tells whether a query of kind [kind] is running. *)
-let is_kind_running kind = List.exists (fun q -> q.q_kind = kind) !stack
+let is_kind_running kind = List.exists (fun q -> q.q_kind = kind) (stack ())
 
 (* Raises the cycle error for demanding a query of kind [kind] that is running:
    the chain goes from that query to the innermost one, and back to it.
@@ -51,20 +52,20 @@ let cycle_error kind reason p =
 		| [] -> acc
 		| q :: l -> if q.q_kind = kind then q :: acc else take (q :: acc) l
 	in
-	let chain = List.map (fun q -> s_kind q.q_kind) (take [] !stack) @ [s_kind kind] in
+	let chain = List.map (fun q -> s_kind q.q_kind) (take [] (stack ())) @ [s_kind kind] in
 	Error.raise_typing_error (Printf.sprintf "Cycle detected while building types: %s (%s)" (String.concat " -> " chain) reason) p
 
 (* Runs [f] as the computation of query [q]. *)
 let run q f =
-	let old = !stack in
+	let old = stack () in
 	q.q_state <- Running;
-	stack := q :: old;
+	DomainLocal.set stack_key (q :: old);
 	match f () with
 	| v ->
-		stack := old;
+		DomainLocal.set stack_key old;
 		q.q_state <- Done;
 		v
 	| exception e ->
-		stack := old;
+		DomainLocal.set stack_key old;
 		q.q_state <- Failed;
 		raise e

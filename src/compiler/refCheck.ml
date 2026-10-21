@@ -24,7 +24,7 @@ let check com =
 			Hashtbl.add reported (what,p) ();
 			incr count;
 			if !count <= 20 then
-				com.error_ext (Error.make_error (Error.Custom ("Stale reference: " ^ what)) p)
+				(Common.error_ext com) (Error.make_error (Error.Custom ("Stale reference: " ^ what)) p)
 		end
 	in
 	let current_module m =
@@ -166,7 +166,7 @@ let check com =
 		) m.m_types
 	) com.modules;
 	if !count > 20 then
-		com.error_ext (Error.make_error (Error.Custom (Printf.sprintf "Stale reference: %d more" (!count - 20))) null_pos)
+		(Common.error_ext com) (Error.make_error (Error.Custom (Printf.sprintf "Stale reference: %d more" (!count - 20))) null_pos)
 
 let check com =
 	if Common.defined com Define.IncrementalCheckRefs then

@@ -824,7 +824,32 @@ let create sctx request_scope part_scope display_mode =
 	} in
 	com
 
-let is_diagnostics com = match com.part_scope.report_mode with
+(* Settings overridden for the dynamic extent of a computation, local to the
+   domain running it (docs/incremental-compilation.md, phase 3.5). *)
+
+let error_ext_overrides : (context,Error.error -> unit) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
+
+(* The error handler in effect for [com] in the current domain. *)
+let error_ext com = match DomainLocal.Scoped.find error_ext_overrides com with
+	| Some f -> f
+	| None -> com.error_ext
+
+(* Handles the errors of [com] with [f] until the returned function is called. *)
+let push_error_ext com f = DomainLocal.Scoped.push error_ext_overrides com f
+
+let report_mode_overrides : (part_scope,report_mode) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
+
+let report_mode com = match DomainLocal.Scoped.find report_mode_overrides com.part_scope with
+	| Some m -> m
+	| None -> com.part_scope.report_mode
+
+let message_capture_overrides : (part_scope,Message.t list ref option) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
+
+let message_capture com = match DomainLocal.Scoped.find message_capture_overrides com.part_scope with
+	| Some c -> c
+	| None -> com.part_scope.message_capture
+
+let is_diagnostics com = match report_mode com with
 	| RMDiagnostics _ -> true
 	| _ -> false
 
@@ -834,24 +859,21 @@ let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])
 
 let activate_message_capture com buf =
-	let old_capture = com.part_scope.message_capture in
-	let old_hook = !lazy_force_hook in
-	com.part_scope.message_capture <- Some buf;
-	lazy_force_hook := (fun f ->
-		let saved = com.part_scope.message_capture in
-		com.part_scope.message_capture <- None;
-		let r = (try f () with exc -> com.part_scope.message_capture <- saved; raise exc) in
-		com.part_scope.message_capture <- saved;
-		r
+	let restore_capture = DomainLocal.Scoped.push message_capture_overrides com.part_scope (Some buf) in
+	let old_hook = DomainLocal.get lazy_force_hook in
+	(* forcing a lazy type types another field: its messages are not captured *)
+	DomainLocal.set lazy_force_hook (fun f ->
+		let restore = DomainLocal.Scoped.push message_capture_overrides com.part_scope None in
+		Std.finally restore f ()
 	);
 	(fun () ->
-		com.part_scope.message_capture <- old_capture;
-		lazy_force_hook := old_hook
+		restore_capture ();
+		DomainLocal.set lazy_force_hook old_hook
 	)
 
 let commit_captured_messages com (buf : Message.t list) =
 	List.iter (fun cm ->
-		match com.part_scope.message_capture with
+		match message_capture com with
 		| Some parent ->
 			parent := cm :: !parent
 		| None ->
@@ -860,9 +882,7 @@ let commit_captured_messages com (buf : Message.t list) =
 	) (List.rev buf)
 
 let disable_report_mode com =
-	let old = com.part_scope.report_mode in
-	com.part_scope.report_mode <- RMNone;
-	(fun () -> com.part_scope.report_mode <- old)
+	DomainLocal.Scoped.push report_mode_overrides com.part_scope RMNone
 
 let log com str =
 	if com.verbose then CompilerIo.write_out com.request_scope.io (str ^ "\n")
@@ -1112,26 +1132,26 @@ let hash f =
 
 let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
 	let cm = make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind in
-	match com.part_scope.message_capture with
+	match message_capture com with
 	| Some buf ->
 		buf := cm :: !buf
 	| None ->
 		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
 		com.part_scope.messages <- cm :: com.part_scope.messages
 
-(* Number of errors reported so far (all compilations), to tell whether a step
-   reported an error: e.g. a field whose typing failed is not also reported as
-   having an unresolved type (no cascading errors). *)
-let reported_errors = Atomic.make 0
+(* Number of errors reported so far by the current domain (all compilations),
+   to tell whether a step reported an error: e.g. a field whose typing failed
+   is not also reported as having an unresolved type (no cascading errors). *)
+let reported_errors = DomainLocal.make (fun () -> 0)
 
 let display_error_ext com err =
-	Atomic.incr reported_errors;
+	DomainLocal.set reported_errors (DomainLocal.get reported_errors + 1);
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
 			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError;
 		) err;
 	end else
-		com.error_ext err
+		error_ext com err
 
 let display_error com ?(sub:macro_error list = []) msg pos =
 	display_error_ext com (convert_error {msg; pos; sub})

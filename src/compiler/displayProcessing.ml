@@ -269,7 +269,7 @@ let handle_display_after_finalization com tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	process_global_display_mode com tctx;
-	begin match com.part_scope.report_mode with
+	begin match (Common.report_mode com) with
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->
