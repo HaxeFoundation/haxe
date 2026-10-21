@@ -59,6 +59,11 @@ let is_const_int_pattern case =
 
 open EvalJitContext
 
+(* [exec] reading or changing a static variable (see [EvalValue.on_shared_state]) *)
+let shared_state exec env =
+	!on_shared_state ();
+	exec env
+
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 	| TLocal var ->
 		let exec = jit_expr jit false e2 in
@@ -73,7 +78,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 				emit_bytes_length_write exec1 exec2
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
-				emit_proto_field_write proto (get_proto_field_index proto name) exec2
+				shared_state (emit_proto_field_write proto (get_proto_field_index proto name) exec2)
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
@@ -120,7 +125,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 		begin match fa with
 			| FStatic({cl_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
-				emit_proto_field_read_write proto (get_proto_field_index proto name) exec2 op prefix
+				shared_state (emit_proto_field_read_write proto (get_proto_field_index proto name) exec2 op prefix)
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
@@ -531,7 +536,14 @@ and jit_expr jit return e =
 			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1) e1.epos
 			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1) e1.epos
 			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1) e1.epos
-			| FStatic({cl_path=path},_) | FEnum({e_path=path},_)
+			| FStatic({cl_path=path},cf) ->
+				let proto = get_static_prototype ctx (path_hash path) e1.epos in
+				let exec = emit_proto_field_read proto (get_proto_field_index proto name) in
+				begin match cf.cf_kind with
+					| Method (MethNormal | MethInline | MethMacro) -> exec
+					| _ -> shared_state exec
+				end
+			| FEnum({e_path=path},_)
 			| FInstance({cl_path=path},_,{cf_kind = Method (MethNormal | MethInline)}) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in
 				emit_proto_field_read proto (get_proto_field_index proto name)

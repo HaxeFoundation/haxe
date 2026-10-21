@@ -886,7 +886,7 @@ and load_module' com g m p =
 			List.iter (fun (w, p) -> module_warning com m WIfDisplay [] (Warning.warning_obj WIfDisplay).w_doc p) warnings;
 			m
 
-let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
+let load_module_now origin ctx m p =
 	(* while bodies are typed in parallel, a module already loaded (or known not to
 	   exist) is found without the lock: the tables only grow, under the lock *)
 	let loaded = if not !TypingLock.active then None else match ctx.com.module_lut#find_opt m with
@@ -915,5 +915,13 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 			add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 			m2
 		)
+
+let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
+	try
+		load_module_now origin ctx m p
+	with Error { err_message = Module_not_found _ } when Claims.is_speculating () ->
+		(* a macro before in the order of the tasks may define it *)
+		Claims.in_order Claims.OrderMacro;
+		load_module_now origin ctx m p
 
 ;;

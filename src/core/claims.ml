@@ -29,8 +29,8 @@ let rank = function
 let kind_names = [|"order";"macros";"value";"class"|]
 
 (* the domains waiting, with the domain they wait for, what they wait for and,
-   for a class, when its build started *)
-let waiting : (Domain.id * (Domain.id * wait_kind * int)) list ref = ref []
+   for a class, when its build started, and the condition they wait for *)
+let waiting : (Domain.id * (Domain.id * wait_kind * int * (unit -> bool))) list ref = ref []
 
 (* the time domains spent waiting, and how many times, by kind *)
 let waited = Array.make 4 0.
@@ -51,12 +51,14 @@ let wait ?(kind=WaitValue) ?(seq=0) ~owner cond =
 		(* a cycle without the current domain: its domains break it *)
 		else if List.mem_assoc d acc then None
 		else match List.assoc_opt d !waiting with
-			| Some (d',k,n) -> chain d' ((d,(k,n)) :: acc)
+			(* a domain whose condition holds, or let through, is about to go on *)
+			| Some (_,_,_,cond') when cond' () || List.mem d !let_through -> None
+			| Some (d',k,n,_) -> chain d' ((d,(k,n)) :: acc)
 			| None -> None
 	in
 	let through () = List.mem me !let_through in
 	let block () =
-		waiting := (me,(owner,kind,seq)) :: !waiting;
+		waiting := (me,(owner,kind,seq,cond)) :: !waiting;
 		if not (cond () || through ()) then begin
 			let t = Unix.gettimeofday () in
 			while not (cond () || through ()) do Condition.wait done_ mutex done;
@@ -213,24 +215,94 @@ let order_reasons = [|"build";"macro";"module"|]
 let order_waited = Array.make 3 0.
 let order_waits = Array.make 3 0
 
+(* A macro of a task can run before the tasks before it are done, while it
+   touches nothing that the macros share (the state of the interpreter, what a
+   macro changes in the compilation): it then waits for the order of the tasks
+   at its first such access ([in_order]), releasing the claim of the macros
+   meanwhile, and goes on in order. *)
+let speculating : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)
+
+let is_speculating () = Domain.DLS.get speculating
+
+(* Called when a speculating domain waits for the order of the tasks, which
+   lets other macros run: gives what puts its state back (the macro API). *)
+let speculation_resume = ref (fun () -> (fun () -> ()))
+
+(* Whether the current domain would have to wait for the order of the tasks. *)
+let ahead_of_order () =
+	let i = Domain.DLS.get current_task in
+	i > 0 && !TypingLock.active && Mutex.protect mutex (fun () -> !task_prefix < i)
+
+(* how many macros started speculating, and how many of them were done
+   without waiting for the order of the tasks *)
+let speculations = Atomic.make 0
+let speculations_done = Atomic.make 0
+
+(* Runs [f] speculating if [b] (see [speculating]). *)
+let speculate b f =
+	let old = Domain.DLS.get speculating in
+	if b then begin
+		Atomic.incr speculations;
+		Domain.DLS.set speculating true
+	end;
+	Std.finally (fun () ->
+		(* once in order, the macros around are in order as well *)
+		if Domain.DLS.get speculating then begin
+			if b && not old then Atomic.incr speculations_done;
+			Domain.DLS.set speculating old
+		end
+	) f ()
+
+(* Releases the claim of the macros of the current domain, with [mutex] held:
+   the record to take back. *)
+let suspend_macro_claim () =
+	let me = Domain.self () in
+	match List.find_opt (fun o -> o.mo_domain = me) !macro_owners with
+	| None ->
+		None
+	| Some o ->
+		macro_owners := List.filter (fun o' -> o' != o) !macro_owners;
+		Condition.broadcast done_;
+		Some o
+
+(* Takes back the claim of the macros, with [mutex] held. *)
+let rec resume_macro_claim o =
+	match !macro_owners with
+	| [] ->
+		macro_owners := [o]
+	| o' :: _ ->
+		let changed () = match !macro_owners with o'' :: _ -> o'' != o' | [] -> true in
+		if wait ~kind:WaitMacros ~seq:o'.mo_seq ~owner:o'.mo_domain changed then resume_macro_claim o
+		else macro_owners := o :: !macro_owners
+
+(* Waits, with [mutex] held, until the tasks before task [i] are done (or until
+   let through to break a cycle). *)
+let wait_for_tasks_before i =
+	let rec loop () =
+		let p = !task_prefix in
+		if p < i then begin
+			ignore (wait ~kind:WaitOrder ~seq:p ~owner:!task_runners.(p) (fun () -> !task_prefix <> p));
+			(* else: let through to break a cycle *)
+			if !task_prefix <> p then loop ()
+		end
+	in
+	loop ()
+
 let in_order reason =
 	let why = order_index reason in
 	let i = Domain.DLS.get current_task in
-	if i > 0 && !TypingLock.active && Mutex.protect mutex (fun () -> !task_prefix < i) then
-		TypingLock.without (fun () -> Mutex.protect mutex (fun () ->
+	let spec = Domain.DLS.get speculating in
+	if spec then Domain.DLS.set speculating false;
+	if i > 0 && !TypingLock.active && Mutex.protect mutex (fun () -> !task_prefix < i) then begin
+		(* a speculating macro lets the macros run meanwhile, then gets its state back *)
+		let resume = if spec then !speculation_resume () else (fun () -> ()) in
+		Std.finally resume TypingLock.without (fun () -> Mutex.protect mutex (fun () ->
+			let suspended = if spec then suspend_macro_claim () else None in
 			let t = Unix.gettimeofday () in
 			Std.finally (fun () ->
 				order_waited.(why) <- order_waited.(why) +. (Unix.gettimeofday () -. t);
-				order_waits.(why) <- order_waits.(why) + 1
-			) (fun () ->
-			let rec loop () =
-				let p = !task_prefix in
-				if p < i then begin
-					ignore (wait ~kind:WaitOrder ~seq:p ~owner:!task_runners.(p) (fun () -> !task_prefix <> p));
-					(* else: let through to break a cycle *)
-					if !task_prefix <> p then loop ()
-				end
-			in
-			loop ()
-			) ()
+				order_waits.(why) <- order_waits.(why) + 1;
+				match suspended with Some o -> resume_macro_claim o | None -> ()
+			) wait_for_tasks_before i
 		))
+	end

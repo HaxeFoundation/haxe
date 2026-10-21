@@ -408,6 +408,12 @@ module ValueHashtbl = Hashtbl.Make(struct
 	let hash _ = 0
 end)
 
+(* Called before a value shared by the macros (a static variable, an effect of
+   the macro API or of the standard library) is read or changed: a macro
+   running out of the order of the tasks typing in parallel waits for it there
+   (see [Claims.speculating]). *)
+let on_shared_state = ref (fun () -> ())
+
 let vnull = VNull
 let vtrue = VTrue
 let vfalse = VFalse

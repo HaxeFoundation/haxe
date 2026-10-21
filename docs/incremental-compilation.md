@@ -1378,6 +1378,30 @@ anyway, their interpreter state being shared; the parallel filters and
 analyzer scale by about 2 on 4 domains, limited by the minor collections that
 stop every domain and by the allocation of the major heap (sampled stacks).
 
+**Status: step 8, macros out of order.** An expression macro already loaded
+(its first call loads and types its module, in order) starts without waiting
+for the tasks before its own (`Claims.speculate`): it waits for them at its
+first access to what the macros share, releasing the claim of the macros
+meanwhile so that the macros before it run, then goes on in order with its
+macro API state back (`Claims.speculation_resume`). What is shared
+(`EvalValue.on_shared_state`): the static variables of the interpreter (read
+or written, directly or by reflection), the macro API except the functions
+that read the compilation or type (`EvalMain.speculative_api`: typing waits
+for the order itself when it has an effect that follows it), changing
+metadata or excluding a type, the output, files, processes, the environment,
+random numbers and resources of the standard library, and a module that is
+not found (a macro before it may define it). Waits whose condition already
+holds, or let through, are not part of a cycle any more: they made most of
+the cycles broken once macros could go further (none are left on hide).
+On hide 1416 of the 1425 macros started out of order are done without
+waiting, the bodies stage goes from 5.3–6.7 s to 2.7–3.7 s and the main
+compilation from 17.4–21 s to 14.6–16.2 s (sequential: 17.9–18.8 s); the
+output stays identical. A macro that reads typing state that an expression
+macro before it changes through the API without the change being one of the
+effects above (reading metadata that it adds, for example) would read it
+early: build macros are not affected (builds that run macros wait for the
+order before they start).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context

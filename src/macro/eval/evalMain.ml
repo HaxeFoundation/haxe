@@ -391,10 +391,59 @@ let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
 
+(* The functions of the macro API that a macro running out of the order of the
+   tasks typing in parallel can call: they read the compilation, or type, which
+   waits for the order itself when it has an effect that follows it (building a
+   class with build macros, creating a module). The others read or change what
+   the macros share (messages, defined types and modules, metadata, defines,
+   resources, callbacks, the output...): the macro waits for the order of the
+   tasks first (see [Claims.speculating]). *)
+let speculative_api = [
+	"contains_display_position"; "current_pos"; "get_macro_stack"; "class_path"; "resolve_path";
+	"defined"; "defined_value"; "get_defines"; "get_type"; "get_module"; "do_parse"; "make_expr";
+	"signature"; "to_complex_type"; "unify"; "typeof"; "type_expr"; "resolve_type";
+	"resolve_complex_type"; "s_type"; "s_expr"; "format_string"; "get_pos_infos";
+	"make_position"; "get_local_module"; "get_local_type"; "get_expected_type";
+	"get_call_arguments"; "get_local_method"; "get_local_using"; "get_local_imports";
+	"local_vars"; "follow_with_abstracts"; "follow"; "build_type"; "make_monomorph";
+	"get_typed_expr"; "register_module_dependency"; "get_display_pos"; "get_display_mode";
+	"get_configuration"; "get_module_types"; "type_to_module_type"; "module_type_to_type";
+	"apply_params"; "position_to_range"; "position_to_zero_range"; "map_anon_ref";
+	"init_macros_done"; "get_output"; "get_main_expr"; "with_imports"; "with_options";
+]
+
+let shared_state_api n v =
+	if List.mem n speculative_api then v
+	else match v with
+		| VFunction (f,static) -> VFunction ((fun vl -> !on_shared_state (); f vl),static)
+		| _ -> v
+
+(* Waits for the order of the tasks typing in parallel, from a macro running
+   out of it. *)
+let wait_for_order () =
+	if Claims.is_speculating () then Claims.in_order Claims.OrderMacro
+
 let setup get_api =
+	on_shared_state := wait_for_order;
+	(* other macros run while a macro waits for the order: it gets its API back *)
+	Claims.speculation_resume := (fun () ->
+		let ctx = get_ctx () in
+		let api = ctx.curapi in
+		let open MacroApi in
+		let a,b,c,d = !current_partially_built_class_read,!current_class_built_by_expansion,!current_field_body_read,!current_declared_meta_read in
+		let built = !expansion_built in
+		(fun () ->
+			ctx.curapi <- api;
+			current_partially_built_class_read := a;
+			current_class_built_by_expansion := b;
+			current_field_body_read := c;
+			current_declared_meta_read := d;
+			expansion_built := built
+		)
+	);
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) ->
-		Hashtbl.replace GlobalState.macro_lib n v
+		Hashtbl.replace GlobalState.macro_lib n (shared_state_api n v)
 	) api
 
 let do_reuse ctx api args =

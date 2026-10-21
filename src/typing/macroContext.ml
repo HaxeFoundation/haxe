@@ -842,6 +842,12 @@ let load_macro'' com mctx display cpath fname p =
 		in
 		macro_timer com.timer_ctx timer_level ["typing";s_type_path cpath ^ "." ^ fname] None f ()
 
+(* Whether macro [cpath.f] was loaded (its first call loads and types its module). *)
+let is_macro_loaded ctx cpath f =
+	match ctx.g.macros with
+	| None -> false
+	| Some (_,mctx) -> (try ignore (mctx.com.part_scope.cached_macros#find (cpath,f)); true with Not_found -> false)
+
 let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
 	   that typer.di_load_macro wants, and the only reason THAT exists is the stupid

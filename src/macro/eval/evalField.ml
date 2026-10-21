@@ -59,7 +59,11 @@ let field_raise v f =
 	match vresolve v with
 	| VObject o -> object_field_raise o f
 	| VInstance {ikind = IBytes s} when f = key_length -> vint (Bytes.length s)
-	| VPrototype proto -> proto_field_raise proto f
+	| VPrototype proto ->
+		begin match proto_field_raise proto f with
+		| VFunction _ | VFieldClosure _ as v -> v
+		| _ -> !on_shared_state (); proto_field_raise proto f
+		end
 	| VArray va ->
 		if f = key_length then vint (va.alength)
 		else proto_field_direct (get_ctx()).array_prototype f

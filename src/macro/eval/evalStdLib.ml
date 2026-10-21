@@ -3372,7 +3372,24 @@ module StdNativeString = struct
 	)
 end
 
+(* the classes whose static functions read or change what the macros share
+   (output, files, processes, the environment, random numbers, resources) *)
+let shared_state_paths = [
+	(["haxe"],"Log"); ([],"Sys"); (["sys";"io"],"File"); (["sys"],"FileSystem");
+	(["haxe"],"Resource"); ([],"Math"); ([],"Std");
+]
+
+let shared_state_function path name v =
+	let shared = List.mem path shared_state_paths && match path with
+		| ([],("Math" | "Std")) -> name = "random"
+		| _ -> true
+	in
+	match v with
+	| VFunction (f,static) when shared -> VFunction ((fun vl -> !on_shared_state (); f vl),static)
+	| _ -> v
+
 let init_fields builtins path static_fields instance_fields =
+	let static_fields = List.map (fun (name,v) -> name,shared_state_function path name v) static_fields in
 	let map (name,v) = (hash name,v) in
 	let path = path_hash path in
 	builtins.static_builtins <- IntMap.add path (List.map map static_fields) builtins.static_builtins;
@@ -3490,6 +3507,7 @@ let init_constructors builtins =
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
 			| [cmd;args] ->
+				!on_shared_state ();
 				let cmd = decode_string cmd in
 				let args = match args with
 					| VNull -> None

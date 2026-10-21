@@ -245,6 +245,7 @@ let run_parallel_tasks com stage tasks =
 	let timer_ctx = com.timer_ctx in
 	let lock = TypingLock.lock in
 	let waited0 = lock.waited and waits0 = lock.waits in
+	let spec0 = Atomic.get Claims.speculations and spec_done0 = Atomic.get Claims.speculations_done in
 	let order0 = Array.copy Claims.order_waited and norder0 = Array.copy Claims.order_waits in
 	let claims0 = Array.copy Claims.waited and nclaims0 = Array.copy Claims.waits and breaks0 = Array.copy Claims.breaks in
 	Claims.start_tasks (Array.length tasks);
@@ -267,6 +268,8 @@ let run_parallel_tasks com stage tasks =
 		Timer.add_extra timer_ctx ("wait: " ^ name) (Claims.waited.(k) -. claims0.(k)) (Claims.waits.(k) - nclaims0.(k));
 		Timer.add_extra timer_ctx ("cycles broken: " ^ name) 0. (Claims.breaks.(k) - breaks0.(k))
 	) Claims.kind_names;
+	Timer.add_extra timer_ctx "macros out of order" 0. (Atomic.get Claims.speculations - spec0);
+	Timer.add_extra timer_ctx "macros out of order, done so" 0. (Atomic.get Claims.speculations_done - spec_done0);
 	Array.iteri (fun k name ->
 		Timer.add_extra timer_ctx ("wait: order before " ^ name) (Claims.order_waited.(k) -. order0.(k)) (Claims.order_waits.(k) - norder0.(k))
 	) Claims.order_reasons;
@@ -300,10 +303,17 @@ let create com macros =
 			return_partial_type = false;
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
-			do_macro = (fun ctx mode cpath f el p -> Claims.in_order Claims.OrderMacro; Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
-				if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
-				MacroContext.type_macro ctx mode cpath f el p
-			)));
+			do_macro = (fun ctx mode cpath f el p ->
+				(* an expression macro already loaded can run before the tasks before
+				   this one are done: it waits for them at its first access to what the
+				   macros share (Claims.speculating) *)
+				let speculate = mode = MExpr && Claims.ahead_of_order () && MacroContext.is_macro_loaded ctx cpath f in
+				if not speculate then Claims.in_order Claims.OrderMacro;
+				Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
+					if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
+					Claims.speculate speculate (fun () -> MacroContext.type_macro ctx mode cpath f el p)
+				))
+			);
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
 			do_load_type_def = Typeload.load_type_def;
