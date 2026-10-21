@@ -1,0 +1,23 @@
+# Access granted with @:allow is removed.
+@targets interp
+
+=== initial
+@expect-output 7
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Secret.value());
+	}
+}
+--- Secret.hx
+@:allow(Main)
+class Secret {
+	static function value() return 7;
+}
+
+=== access removed
+@expect-error value
+--- Secret.hx
+class Secret {
+	static function value() return 7;
+}

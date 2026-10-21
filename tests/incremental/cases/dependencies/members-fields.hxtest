@@ -1,0 +1,41 @@
+# The members of a type depend on the list of its fields and on their declared
+# signatures, not on their bodies.
+@targets interp
+
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.a());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function a():Int return 1;
+}
+
+=== field added
+@expect-output 1
+@expect-fingerprint-changed members Dep
+--- Dep.hx
+class Dep {
+	public static function a():Int return 1;
+	public static function b():Int return 2;
+}
+
+=== declared signature changed
+@expect-output 1
+--- Dep.hx
+class Dep {
+	public static function a():Float return 1;
+	public static function b():Int return 2;
+}
+
+=== field removed
+@expect-output 1
+@expect-fingerprint-changed members Dep
+--- Dep.hx
+class Dep {
+	public static function a():Float return 1;
+}

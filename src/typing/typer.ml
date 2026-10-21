@@ -177,7 +177,7 @@ let enum_field_access ctx en ef mode p pt =
 let resolve_against_expected_enum ctx i =
 	let rec loop mt = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-			let cf = PMap.find i (TAccess.Members.statics c) in
+			let cf = TAccess.Members.find_static c i in
 			if not (has_class_field_flag cf CfEnum) then
 				raise Not_found;
 			static_abstract_field_resolution a c cf None null_pos
@@ -333,7 +333,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
-		let f = PMap.find i (TAccess.Members.statics ctx.c.curclass) in
+		let f = TAccess.Members.find_static ctx.c.curclass i in
 		let is_impl = has_class_field_flag f CfImpl in
 		let is_enum = has_class_field_flag f CfEnum in
 		if is_impl && not (has_class_field_flag ctx.f.curfield CfImpl) && not is_enum then
@@ -797,7 +797,7 @@ and type_object_decl ctx fl with_type p =
 			let f = mk_field n t parg parg in
 			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
 			(try
-				let cf = PMap.find n (TAccess.Members.fields c) in
+				let cf = TAccess.Members.find_field c n in
 				f.cf_doc <- cf.cf_doc
 			with Not_found -> ());
 			PMap.add n f acc

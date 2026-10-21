@@ -25,6 +25,8 @@ type state = {
 	(* with positions: relative to this one in its file, absolute in other files *)
 	positions : bool;
 	mutable origin : pos;
+	(* positions outside of the origin hash as their file only *)
+	mutable within_origin : bool;
 	(* the local variables declared so far, by id, and the unbound monomorphs *)
 	mutable vars : int IntMap.t;
 	mutable nvars : int;
@@ -38,6 +40,7 @@ let create ~positions = {
 	h2 = 0x1B873593C2B2AE35;
 	positions;
 	origin = null_pos;
+	within_origin = false;
 	vars = IntMap.empty;
 	nvars = 0;
 	monos = [];
@@ -93,7 +96,9 @@ let add_path h (pack,name) =
 let add_pos h p =
 	if h.positions then begin
 		let file = Pos.file p in
-		if file = Pos.file h.origin then begin
+		if h.within_origin && not (file = Pos.file h.origin && Pos.min p >= Pos.min h.origin && Pos.max p <= Pos.max h.origin) then
+			add_string h file
+		else if file = Pos.file h.origin then begin
 			let origin = Pos.min h.origin in
 			add_int h (Pos.min p - origin);
 			add_int h (Pos.max p - origin)
@@ -367,9 +372,10 @@ and add_function h tf =
 
 (* Fingerprints of the nodes of §3.2 *)
 
-let with_state ?(origin=null_pos) ~positions f =
+let with_state ?(origin=null_pos) ?(within_origin=false) ~positions f =
 	let h = create ~positions in
 	h.origin <- origin;
+	h.within_origin <- within_origin;
 	f h;
 	finish h
 
@@ -492,8 +498,10 @@ let add_body h cf = add_option h add_expr cf.cf_expr
 let field_inline_body cf = with_state ~positions:false (fun h -> add_body h cf)
 
 (* [FieldBody]: the typed body, with positions relative to the field's: they
-   move with the field (its anchor). *)
-let field_body cf = with_state ~origin:cf.cf_pos ~positions:true (fun h -> add_body h cf)
+   move with the field (its anchor). The positions of the code inlined from
+   other declarations move with these declarations (their anchors): only their
+   file is hashed, what the code is comes from the inline bodies read. *)
+let field_body cf = with_state ~origin:cf.cf_pos ~within_origin:true ~positions:true (fun h -> add_body h cf)
 
 (* [Decls]: a parsed declaration (a field, or a type without its fields) at
    position [p], with positions relative to it. *)

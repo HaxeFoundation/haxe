@@ -225,9 +225,9 @@ let find_field c name kind =
 	| CfrConstructor ->
 		begin match (TAccess.Members.constructor c) with Some cf -> cf | None -> raise Not_found end
 	| CfrStatic ->
-		PMap.find name (TAccess.Members.statics c)
+		TAccess.Members.find_static c name
 	| CfrMember ->
-		PMap.find name (TAccess.Members.fields c)
+		TAccess.Members.find_field c name
 	| CfrInit ->
 		begin match c.cl_init with Some cf -> cf | None -> raise Not_found end
 
@@ -1075,11 +1075,11 @@ let quick_field t n =
 			let ef = PMap.find n (TAccess.Members.enum_constructors e) in
 			FEnum(e,ef)
 		| ClassStatics c ->
-			FStatic (c,PMap.find n (TAccess.Members.statics c))
+			FStatic (c,TAccess.Members.find_static c n)
 		| AbstractStatics a ->
 			begin match a.a_impl with
 				| Some c ->
-					let cf = PMap.find n (TAccess.Members.statics c) in
+					let cf = TAccess.Members.find_static c n in
 					FStatic(c,cf) (* is that right? *)
 				| _ ->
 					raise Not_found

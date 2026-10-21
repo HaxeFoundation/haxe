@@ -438,7 +438,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| TAbstract (a,tl) ->
 			(try
 				let c = find_some a.a_impl in
-				let f = PMap.find i (TAccess.Members.statics c) in
+				let f = TAccess.Members.find_static c i in
 				if not (has_class_field_flag f CfImpl) then raise Not_found;
 				no_no_lookup f;
 				field_access f (FHAbstract (a,tl,c))
@@ -454,7 +454,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| _ -> e
 		in
 		let loop = type_field_by_list (fun (c,pc) ->
-			let cf0 = PMap.find i (TAccess.Members.statics c) in
+			let cf0 = TAccess.Members.find_static c i in
 			let rec check cfl = match cfl with
 				| [] ->
 					raise Not_found
@@ -591,7 +591,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			(* TODO: This duplicates some code from typerDotPath.ml *)
 			begin match infos.mt_module.m_statics with
 			| Some c when PMap.mem i (TAccess.Members.statics c) ->
-				let cf = PMap.find i (TAccess.Members.statics c) in
+				let cf = TAccess.Members.find_static c i in
 				(* We cannot use e here because in the case of module statics the type could be different (issue #11385). *)
 				let e = type_module_type ctx (TClassDecl c) e.epos in
 				field_access e cf (FHStatic c)
@@ -683,7 +683,7 @@ let get_struct_init_anon_fields c tl =
 							(fun (name,opt,t) ->
 								let t = apply_params c.cl_params tl t in
 								try
-									let cf = PMap.find name (TAccess.Members.fields c) in
+									let cf = TAccess.Members.find_field c name in
 									name,opt,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
 									name,opt,t,cf.cf_name_pos,extract_param_info name

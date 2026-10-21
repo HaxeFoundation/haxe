@@ -316,7 +316,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	   and thunk paths, so the constructor can assign them in one place. *)
 	let hoisted_args = List.filter_map (fun (v, _) ->
 		let field_name = Printf.sprintf "_hx_hoisted%i" (CoroTypes.local_id ctx v) in
-		match (try Some (PMap.find field_name (TAccess.Members.fields coro_class.ContinuationClassBuilder.cls)) with Not_found -> None) with
+		match (try Some (TAccess.Members.find_field coro_class.ContinuationClassBuilder.cls field_name) with Not_found -> None) with
 		| Some field -> Some (v.v_name, b#local v v.v_pos, field)
 		| None -> None
 	) args in
@@ -373,7 +373,7 @@ let rewrite_super_field ctx egthis e =
 	let make_super_helper super_field_expr super_cl super_cf p =
 		let helper_name = Printf.sprintf "_hx_super_%s" super_cf.cf_name in
 		begin try
-			PMap.find helper_name (TAccess.Members.fields curclass)
+			TAccess.Members.find_field curclass helper_name
 		with Not_found ->
 			(* Helper has same Coro type as the super method, so expr_to_coro will
 				recognize it as a coroutine call and add the completion arg. *)

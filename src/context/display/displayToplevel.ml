@@ -397,7 +397,7 @@ let collect ctx tk with_type sort =
 				try
 					let is_qualified = is_qualified cctx name in
 					let class_import c =
-						let cf = PMap.find s (TAccess.Members.statics c) in
+						let cf = TAccess.Members.find_static c s in
 						let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 						let decl,make = match c.cl_kind with
 							| KAbstractImpl a -> TAbstractDecl a,

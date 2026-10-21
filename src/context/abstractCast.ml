@@ -364,7 +364,7 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 							(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 							match follow m with
 							| TAbstract({a_impl = Some c},pl) ->
-								let cf = PMap.find fname (TAccess.Members.statics c) in
+								let cf = TAccess.Members.find_static c fname in
 								ExceptionFunctions.make_static_call scom c cf  (e2 :: el) e.etype e.epos
 							| _ -> raise Not_found
 						end

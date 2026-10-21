@@ -102,7 +102,7 @@ let find_accessor_for_field host cf t mode = match cf.cf_kind with
 				begin match host with
 				| FHStatic c ->
 					begin try
-						AccessorFound (forward (PMap.find name (TAccess.Members.statics c)) host)
+						AccessorFound (forward (TAccess.Members.find_static c name) host)
 					with Not_found ->
 						(* TODO: Check if this is correct, there's a case in hxcpp's VirtualArray *)
 						AccessorAnon
@@ -125,7 +125,7 @@ let find_accessor_for_field host cf t mode = match cf.cf_kind with
 					end
 				| FHAbstract(a,tl,c) ->
 					begin try
-						AccessorFound (forward (PMap.find name (TAccess.Members.statics c)) host)
+						AccessorFound (forward (TAccess.Members.find_static c name) host)
 					with Not_found ->
 						AccessorAnon
 					end

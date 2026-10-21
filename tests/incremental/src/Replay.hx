@@ -12,7 +12,7 @@ using StringTools;
 	(exit code, messages, program output, generated files).
 
 	Usage (from `tests/incremental`):
-	  haxe replay.hxml -- --repo <path> --hxml <file> [options]
+	  haxe replay.hxml --repo <path> --hxml <file> [options]
 	Options:
 	  --repo <path>         local git repository (its history must contain the range)
 	  --hxml <file>         build file; `$DIR` is replaced with the checkout directory,
@@ -86,6 +86,9 @@ class Replay {
 			var t0 = Sys.time();
 			var warm = RunIncremental.compile(warmDir, port);
 			var t1 = Sys.time();
+			// a compilation aborted before the end of typing writes no fingerprints
+			if (FileSystem.exists(dumpFile))
+				FileSystem.deleteFile(dumpFile);
 			var cold = RunIncremental.compile(coldDir, null, true, checkDeps ? ["-D", "dump-fingerprints=" + dumpFile] : []);
 			var t2 = Sys.time();
 			warmTime += t1 - t0;
@@ -97,6 +100,9 @@ class Replay {
 					errors = errors.concat(RunIncremental.missingDependencies(previousFingerprints, previousDeps, fingerprints));
 				previousFingerprints = fingerprints;
 				previousDeps = RunIncremental.readDependencies(dumpFile);
+			} else {
+				previousFingerprints = null;
+				previousDeps = null;
 			}
 			var subject = git(warmDir, ["log", "-1", "--format=%s", commit]).trim();
 			var summary = '${commit.substr(0, 10)} warm ${Math.round((t1 - t0) * 1000)}ms cold ${Math.round((t2 - t1) * 1000)}ms exit ${warm.code}';

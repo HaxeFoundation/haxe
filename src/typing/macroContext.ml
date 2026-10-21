@@ -823,7 +823,7 @@ let load_macro'' com mctx display cpath fname p =
 					| None -> raise Not_found
 					| Some c ->
 						Finalization.finalize mctx;
-						c, PMap.find fname (TAccess.Members.statics c)
+						c, TAccess.Members.find_static c fname
 				with Not_found ->
 					let name = Option.default (snd mpath) sub in
 					let path = fst mpath, name in
@@ -831,7 +831,7 @@ let load_macro'' com mctx display cpath fname p =
 					match mt with
 					| TClassDecl c ->
 						Finalization.finalize mctx;
-						c, (try PMap.find fname (TAccess.Members.statics c) with Not_found -> raise_typing_error ("Method " ^ fname ^ " not found on class " ^ s_type_path cpath) p)
+						c, (try TAccess.Members.find_static c fname with Not_found -> raise_typing_error ("Method " ^ fname ^ " not found on class " ^ s_type_path cpath) p)
 					| _ -> raise_typing_error "Macro should be called on a class" p
 			in
 			let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> raise_typing_error "Macro call should be a method" p) in

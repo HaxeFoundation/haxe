@@ -1,0 +1,25 @@
+# The underlying type of an abstract changes.
+@targets interp
+
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var m:Meters = new Meters(1);
+		trace(m.value());
+	}
+}
+--- Meters.hx
+abstract Meters(Int) {
+	public inline function new(v:Int) this = v;
+	public inline function value() return this;
+}
+
+=== underlying type changed
+@expect-output 1.5
+--- Meters.hx
+abstract Meters(Float) {
+	public inline function new(v:Int) this = v + 0.5;
+	public inline function value() return this;
+}

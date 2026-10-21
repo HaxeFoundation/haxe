@@ -266,7 +266,7 @@ let check_call_super com rctx e =
 				false
 			| Some (csup, _) ->
 				try
-					let cf = PMap.find name (TAccess.Members.fields csup) in
+					let cf = TAccess.Members.find_field csup name in
 					is_active csup cf
 				with Not_found ->
 					false
@@ -314,7 +314,7 @@ let check_overriding ctx c f =
 
 let class_field_no_interf c i =
 	try
-		let f = PMap.find i (TAccess.Members.fields c) in
+		let f = TAccess.Members.find_field c i in
 		(fun t -> t),f.cf_type , f
 	with Not_found ->
 		match (TAccess.Header.super c) with

@@ -29,8 +29,15 @@ let dump com file =
 				()
 		) m
 	) modules_list;
+	(* the fields declared by each type, by "file:Type" *)
+	let declared_fields = Hashtbl.create 0 in
 	Hashtbl.iter (fun file l ->
-		List.iter (fun (name,fp) -> add (file ^ ":" ^ name) "decls" fp) l
+		List.iter (fun (name,node,fp) ->
+			add (file ^ ":" ^ name) node fp;
+			if node = "decl signature" then match String.rindex_opt name '.' with
+				| Some i -> Hashtbl.add declared_fields (file ^ ":" ^ String.sub name 0 i) name
+				| None -> ()
+		) l
 	) TypeloadParse.decl_fingerprints;
 	(* the dependencies of the nodes of the modules of the compilation, with
 	   what they always depend on: their declaration, the imports of their
@@ -47,6 +54,12 @@ let dump com file =
 			dep c (file ^ ":(imports)") "decls";
 			dep c (s_type_path m.m_path) "module";
 			dep c "(defines)" "signature";
+			(* the members of a type: its fields and their declared signatures *)
+			if c.c_node = "members" then begin
+				let tkey = file ^ ":" ^ c.c_decl in
+				dep c tkey "fields";
+				List.iter (fun name -> dep c (file ^ ":" ^ name) "decl signature") (Hashtbl.find_all declared_fields tkey)
+			end;
 			(* the messages reported while computing the node, positions relative to it *)
 			add c.c_key (c.c_node ^ " messages") (TFingerprint.with_state ~origin:c.c_pos ~positions:true (fun h ->
 				List.iter (fun (msg,severity,p) -> TFingerprint.add_string h msg; TFingerprint.add_int h severity; TFingerprint.add_pos h p) (List.rev c.c_messages)
@@ -54,9 +67,7 @@ let dump com file =
 			(* line numbers in the body depend on where the field is *)
 			begin match c.c_field with
 			| Some cf when (match cf.cf_expr with Some e -> TFingerprint.uses_line_numbers e | None -> false) ->
-				let key = file ^ ":" ^ c.c_decl in
-				dep c key "position";
-				add key "position" (TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_int h (Pos.min cf.cf_pos)))
+				dep c (file ^ ":" ^ c.c_decl) "position"
 			| _ ->
 				()
 			end;
@@ -64,7 +75,7 @@ let dump com file =
 				match String.split_on_char '\t' k with
 				| [key;node] ->
 					if node = "lookup" then Hashtbl.replace lookups key ();
-					dep c key node
+					if key <> c.c_key || node <> c.c_node then dep c key node
 				| _ -> ()
 			) c.c_deps
 		| _ ->

@@ -64,7 +64,14 @@ let record key node =
 	| Some c -> Hashtbl.replace c.c_deps (key ^ "\t" ^ node) ()
 	| None -> ()
 
-let record_type path node = if !enabled then record (type_key path) node
+(* The typedef of the statics of a type ([Class<T>], [Enum<T>], [Abstract<T>])
+   is made of its members. *)
+let record_type path node = if !enabled then match path with
+	| [],name when String.length name > 2 && name.[String.length name - 1] = '>' && (match String.index_opt name '<' with Some i -> List.mem (String.sub name 0 i) ["Class";"Enum";"Abstract"] | None -> false) ->
+		let i = String.index name '<' in
+		record (String.sub name (i + 1) (String.length name - i - 2)) "members"
+	| _ ->
+		record (type_key path) node
 let record_field c cf node = if !enabled then record (field_key c cf) node
 let record_lookup path = if !enabled then record (s_type_path path) "lookup"
 
@@ -75,6 +82,8 @@ let record_message msg severity p =
 	if !enabled then match DomainLocal.get current with
 		| Some c -> c.c_messages <- (msg,severity,p) :: c.c_messages
 		| None -> ()
+
+let reset () = consumers := []
 
 let with_consumer ?field key node m decl pos f =
 	if not !enabled then f ()

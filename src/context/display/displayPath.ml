@@ -166,7 +166,7 @@ let resolve_position_by_path ctx path p =
 let handle_path_display ctx path p =
 	let class_field c name =
 		ignore((TAccess.build c));
-		let cf = PMap.find name (TAccess.Members.statics c) in
+		let cf = TAccess.Members.find_static c name in
 		let origin = match c.cl_kind with
 			| KAbstractImpl a -> Self (TAbstractDecl a)
 			| _ -> Self (TClassDecl c)

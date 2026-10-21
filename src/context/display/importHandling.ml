@@ -121,11 +121,11 @@ let init_import ctx path mode p =
 			match resolve_typedef t with
 			| TClassDecl c ->
 				ignore((TAccess.build c));
-				let cf = PMap.find s (TAccess.Members.statics c) in
+				let cf = TAccess.Members.find_static c s in
 				static_field_resolution c cf name p
 			| TAbstractDecl ({a_impl = Some c} as a) ->
 				ignore((TAccess.build c));
-				let cf = PMap.find s (TAccess.Members.statics c) in
+				let cf = TAccess.Members.find_static c s in
 				static_abstract_field_resolution a c cf name p
 			| TEnumDecl en ->
 				let ef = PMap.find s (TAccess.Members.enum_constructors en) in

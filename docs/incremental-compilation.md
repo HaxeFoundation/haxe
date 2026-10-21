@@ -1555,6 +1555,46 @@ recomputed, and compared with what the graph would have invalidated) shows that
 **no node that changed would have been considered valid**. This is the test
 that proves dependencies are complete.
 
+**Status: done, recorded on demand (`-D dump-fingerprints`, until the server
+uses it in phase 6).** `src/core/depRecord.ml` holds the current consumer per
+domain: the header and members queries of a type (`typeloadModule.ml`) and the
+signature and body queries of a field (`typeloadFields.ml`) run under
+`DepRecord.with_consumer`, which keeps the set of what they read, deduplicated.
+The accessors record it: `Header.demand` and the typedef expansions
+(`apply_typedef`, unification) record `DHeader`; `Members.demand`, enum
+constructors and abstracts record `DMembers`; `find_field`, `find_static` and
+the constructor record `DSig`; inlining (`calls.ml`, `AccInline`) records
+`DInline`; `load_module` records `DLookup` (failed lookups included); macro
+calls record their expansion (phase 7 will make it a node). Implicit
+dependencies are added when the dump is written: the `Decls` of the
+declaration and the imports of its file, the module's types, the define
+signature, and the position of the declaration when the body uses line
+numbers (`PosInfos`). The members of a type depend on the list of its fields
+and on the **declared signature** of each field (its declaration without the
+body of a function whose return type is declared, nor the value of a variable
+whose type is declared), not on their bodies: the signatures the members
+declare are computed with them. The messages reported while a node is computed are a
+node of their own (`<node> messages`), so that they can be replayed.
+
+The fingerprints of bodies hash the positions inside their declaration
+relative to it, and only the file of the positions outside of it (the code
+inlined from other declarations): these positions move with the anchor of
+their declaration, without retyping.
+
+Verification (`tests/incremental --check-deps`, `Replay.hx --check-deps`): from
+one step to the next, a node whose fingerprint changed while none of the
+nodes it read did is a missing dependency. The incremental cases pass
+(`cases/dependencies/` covers structural unification, super class signatures,
+static extensions, forward and `from` abstracts, underlying types, enum
+arguments, `@:allow`, type parameter constraints, interface checks, moved
+inline functions and added or removed fields), and so does the replay of 20
+Heaps commits. A node reading itself is not a dependency (it would always
+count as changed and hide a missing one).
+
+Cost: recording takes about 0.3 s of the 1.2 s of typing Heaps (keys are
+built as strings); phase 6 records it in every server compilation and keys
+it by entity.
+
 ---
 
 ### Phase 6: per-field validation and retyping (server core)

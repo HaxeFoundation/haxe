@@ -265,7 +265,9 @@ let check_defines com =
 let do_type com mctx actx display_file_dot_path =
 	let cs = com.cs in
 	(* the dependencies are dumped with the fingerprints *)
+	DepRecord.reset ();
 	DepRecord.enabled := Common.defined com Define.DumpFingerprints;
+	TypeloadParse.record_fingerprints := !DepRecord.enabled;
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;

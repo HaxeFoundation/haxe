@@ -1,0 +1,27 @@
+# The arguments of an enum constructor matched by a switch change.
+@targets interp
+
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(switch (Shape.Rect(1, 2)) {
+			case Rect(w, h): w + h;
+			case Circle(r): r;
+		});
+	}
+}
+--- Shape.hx
+enum Shape {
+	Rect(w:Int, h:Int);
+	Circle(r:Int);
+}
+
+=== constructor arguments changed
+@expect-error Rect
+--- Shape.hx
+enum Shape {
+	Rect(size:Int);
+	Circle(r:Int);
+}

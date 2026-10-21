@@ -218,6 +218,8 @@ class RunIncremental {
 						notifyInvalidate(port, warmDir, file);
 				}
 				var warm = compile(warmDir, port);
+				if (FileSystem.exists(dumpFile))
+					FileSystem.deleteFile(dumpFile);
 				var cold = compile(coldDir, null, true, fingerprints ? ["-D", "dump-fingerprints=" + dumpFile] : []);
 				var currentFingerprints = fingerprints && FileSystem.exists(dumpFile) ? readFingerprints(dumpFile) : null;
 				for (e in step.expectations) {
@@ -492,8 +494,9 @@ class RunIncremental {
 		if (extra != null)
 			args = args.concat(extra);
 		var p = new Process(haxeCmd, args);
+		var stderr = readInBackground(p.stderr);
 		var stdout = p.stdout.readAll().toString();
-		var stderr = p.stderr.readAll().toString();
+		var stderr = stderr();
 		var code = p.exitCode();
 		p.close();
 		var out = normalize(stdout + stderr, dir);
@@ -504,7 +507,8 @@ class RunIncremental {
 			var cmd = if (FileSystem.exists(js)) ["node", js] else if (FileSystem.exists(hl) && hasHl()) ["hl", hl] else null;
 			if (cmd != null) {
 				var proc = new Process(cmd[0], cmd.slice(1));
-				run = proc.stdout.readAll().toString() + proc.stderr.readAll().toString();
+				var err = readInBackground(proc.stderr);
+				run = proc.stdout.readAll().toString() + err();
 				proc.exitCode();
 				proc.close();
 				run = normalize(run, dir);
@@ -515,6 +519,21 @@ class RunIncremental {
 			out: out,
 			run: run,
 			files: listFiles(outDir, "")
+		};
+	}
+
+	/** Reads [input] to its end in a thread, so that a process filling both its
+		stdout and stderr pipes cannot block. Returns a function waiting for the content. **/
+	public static function readInBackground(input:haxe.io.Input):() -> String {
+		var result:Null<String> = null;
+		var done = new sys.thread.Lock();
+		sys.thread.Thread.create(() -> {
+			result = try input.readAll().toString() catch (_:Dynamic) "";
+			done.release();
+		});
+		return () -> {
+			done.wait();
+			result;
 		};
 	}
 

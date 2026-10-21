@@ -88,7 +88,7 @@ let resolve_instance_overload is_ctor map_type c name el =
 			let cf = if is_ctor then
 				(match (TAccess.Members.constructor c) with Some cf -> cf | None -> raise Not_found)
 			else
-				PMap.find name (TAccess.Members.fields c)
+				TAccess.Members.find_field c name
 			in
 			begin match find_overload map_type c cf el with
 			| [] -> raise Not_found

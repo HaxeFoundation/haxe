@@ -337,7 +337,7 @@ class unificator =
 			PMap.iter
 				(fun name b_field ->
 					let a_field =
-						try Some (PMap.find name (TAccess.Members.fields a))
+						try Some (TAccess.Members.find_field a name)
 						with Not_found -> None
 					in
 					match a_field with

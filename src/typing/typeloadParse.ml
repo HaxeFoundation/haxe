@@ -52,52 +52,110 @@ let anchor_declarations file decls =
 (* The [Decls] fingerprints of the parsed files, by file, with -D dump-fingerprints
    (docs/incremental-compilation.md, phase 4, item 3): of each field, of each
    type without its fields, and of the imports and usings. *)
-let decl_fingerprints : (string,(string * TFingerprint.t) list) Hashtbl.t = Hashtbl.create 0
+let decl_fingerprints : (string,(string * string * TFingerprint.t) list) Hashtbl.t = Hashtbl.create 0
 let decl_fingerprints_mutex = Mutex.create ()
 
 (* The fingerprints of declarations, computed when they are parsed: typing
    changes the parsed declarations (the values of enum abstracts), which the
    contexts share. *)
-let parsed_fingerprints : (string,(type_decl list * (string * TFingerprint.t) list) list) Hashtbl.t = Hashtbl.create 0
+let parsed_fingerprints : (string,(type_decl list * (string * string * TFingerprint.t) list) list) Hashtbl.t = Hashtbl.create 0
 
+(* What the members of a type read from the declaration of a field: the field
+   without the body of a function whose return type is declared, nor the value
+   of a variable whose type is declared (typed with the body, or inline: the
+   signature query of the field, or its inline body, read the whole
+   declaration). *)
+let declared_signature (f : class_field) =
+	let kind = match f.cff_kind with
+		| FFun fd when fd.f_type <> None -> FFun { fd with f_expr = None }
+		| FVar (Some t,Some _) -> FVar (Some t,None)
+		| FProp (get,set,Some t,Some _) -> FProp (get,set,Some t,None)
+		| k -> k
+	in
+	{ f with cff_kind = kind }
+
+(* Declaration fingerprints: (name, node, fingerprint). Each field has its
+   declaration ("decls") and its declared signature ("decl signature", without
+   positions); each type has its declaration without its fields ("decls") and
+   the list of the names of its fields ("fields"). *)
 let compute_decl_fingerprints decls =
 	let l = ref [] in
 	(* positions relative to the start of the declaration *)
-	let add name p v = l := (name,TFingerprint.decl p v) :: !l in
-	let fields tname name_of fl = List.iter (fun f -> let name,p = name_of f in add (tname ^ "." ^ name) p f) fl in
+	let add name p v = l := (name,"decls",TFingerprint.decl p v) :: !l in
+	let add_signature name v = l := (name,"decl signature",TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_data h v)) :: !l in
+	let add_names tname names = l := (tname,"fields",TFingerprint.with_state ~positions:false (fun h -> List.iter (TFingerprint.add_string h) names)) :: !l in
+	let add_position name p = l := (name,"position",TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_int h (Pos.min p))) :: !l in
+	let class_fields tname fl =
+		add_names tname (List.map (fun f -> fst f.cff_name) fl);
+		List.iter (fun f ->
+			let name = tname ^ "." ^ fst f.cff_name in
+			add name f.cff_pos f;
+			add_signature name (declared_signature f);
+			add_position name f.cff_pos
+		) fl
+	in
+	(* the types the module declares *)
+	l := ("(types)","types",TFingerprint.with_state ~positions:false (fun h ->
+		List.iter (fun (d,_) -> match d with
+			| EClass d -> TFingerprint.add_string h (fst d.d_name)
+			| EEnum d -> TFingerprint.add_string h (fst d.d_name)
+			| ETypedef d -> TFingerprint.add_string h (fst d.d_name)
+			| EAbstract d -> TFingerprint.add_string h (fst d.d_name)
+			| EStatic d -> TFingerprint.add_string h ("static " ^ fst d.d_name)
+			| EImport _ | EUsing _ -> ()
+		) decls
+	)) :: !l;
 	List.iter (fun ((d,p) as decl) ->
 		match d with
-		| EClass c -> add (fst c.d_name) p (EClass { c with d_data = [] },p); fields (fst c.d_name) (fun f -> fst f.cff_name,f.cff_pos) c.d_data
-		| EAbstract a -> add (fst a.d_name) p (EAbstract { a with d_data = [] },p); fields (fst a.d_name) (fun f -> fst f.cff_name,f.cff_pos) a.d_data
-		| EEnum e -> add (fst e.d_name) p (EEnum { e with d_data = [] },p); fields (fst e.d_name) (fun f -> fst f.ec_name,f.ec_pos) e.d_data
+		| EClass c -> add (fst c.d_name) p (EClass { c with d_data = [] },p); class_fields (fst c.d_name) c.d_data
+		| EAbstract a -> add (fst a.d_name) p (EAbstract { a with d_data = [] },p); class_fields (fst a.d_name) a.d_data
+		| EEnum e ->
+			let tname = fst e.d_name in
+			add tname p (EEnum { e with d_data = [] },p);
+			add_names tname (List.map (fun f -> fst f.ec_name) e.d_data);
+			List.iter (fun f ->
+				let name = tname ^ "." ^ fst f.ec_name in
+				add name f.ec_pos f;
+				add_signature name f;
+				add_position name f.ec_pos
+			) e.d_data
 		| ETypedef t -> add (fst t.d_name) p decl
 		| EStatic s -> add (fst s.d_name) p decl
 		| EImport _ | EUsing _ -> add "(imports)" p decl
 	) decls;
 	(* imports and usings are one declaration *)
-	let imports,others = List.partition (fun (n,_) -> n = "(imports)") (List.rev !l) in
+	let imports,others = List.partition (fun (n,_,_) -> n = "(imports)") (List.rev !l) in
 	let imports = match imports with
 		| [] -> []
-		| _ -> ["(imports)",TFingerprint.with_state ~positions:false (fun h -> List.iter (fun (_,(a,b)) -> TFingerprint.add_int h a; TFingerprint.add_int h b) imports)]
+		| _ -> ["(imports)","decls",TFingerprint.with_state ~positions:false (fun h -> List.iter (fun (_,_,(a,b)) -> TFingerprint.add_int h a; TFingerprint.add_int h b) imports)]
 	in
 	imports @ others
 
+(* Whether declaration fingerprints are computed (-D dump-fingerprints, and the
+   compilation server). *)
+let record_fingerprints = ref false
+
 let remember_decl_fingerprints file decls =
+	let file = Path.get_full_path file in
 	let fl = compute_decl_fingerprints decls in
 	Mutex.protect decl_fingerprints_mutex (fun () ->
 		let l = try Hashtbl.find parsed_fingerprints file with Not_found -> [] in
+		(* the last parses of a file (several contexts can parse it differently) *)
+		let l = List.filteri (fun i _ -> i < 7) l in
 		Hashtbl.replace parsed_fingerprints file ((decls,fl) :: l)
 	)
 
+(* The fingerprints of declarations [decls] of [file], computed when they were parsed. *)
+let find_decl_fingerprints file decls =
+	let file = Path.get_full_path file in
+	match List.find_opt (fun (decls',_) -> decls' == decls) (Mutex.protect decl_fingerprints_mutex (fun () -> try Hashtbl.find parsed_fingerprints file with Not_found -> [])) with
+	| Some (_,fl) -> fl
+	| None -> compute_decl_fingerprints decls
+
 (* Records the fingerprints of the declarations of [file] that a module is typed from. *)
 let record_decl_fingerprints file decls =
-	Mutex.protect decl_fingerprints_mutex (fun () ->
-		let fl = match List.find_opt (fun (decls',_) -> decls' == decls) (try Hashtbl.find parsed_fingerprints file with Not_found -> []) with
-			| Some (_,fl) -> fl
-			| None -> compute_decl_fingerprints decls
-		in
-		Hashtbl.replace decl_fingerprints (Path.get_full_path file) fl
-	)
+	let fl = find_decl_fingerprints file decls in
+	Mutex.protect decl_fingerprints_mutex (fun () -> Hashtbl.replace decl_fingerprints (Path.get_full_path file) fl)
 
 let parse_file_from_lexbuf com file p lexbuf =
 	incr com.request_scope.stats.s_files_parsed;
@@ -112,7 +170,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	begin match parse_result with
 		| ParseSuccess((_,decls),_) | ParseError((_,decls),_,_) ->
 			anchor_declarations file decls;
-			if Common.defined com Define.DumpFingerprints then remember_decl_fingerprints file decls
+			if !record_fingerprints then remember_decl_fingerprints file decls
 	end;
 	begin match com.display.dms_kind,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()

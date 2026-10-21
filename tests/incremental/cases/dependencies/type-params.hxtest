@@ -1,0 +1,25 @@
+# A class used by another one gains a type parameter.
+@targets interp
+
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var b = new Box(1);
+		trace(b.v);
+	}
+}
+--- Box.hx
+class Box {
+	public var v:Int;
+	public function new(v:Int) this.v = v;
+}
+
+=== type parameter added
+@expect-output 1
+--- Box.hx
+class Box<T> {
+	public var v:T;
+	public function new(v:T) this.v = v;
+}
