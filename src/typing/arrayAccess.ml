@@ -35,7 +35,9 @@ let get_array_length ctx arr p =
    through @:arrayAccess on an abstract to its underlying type, or by unifying with an array. *)
 let rec get_array_element ctx t p =
 	match follow t with
-	| TInst({cl_path=[],"Array"},[pt]) ->
+	| TInst({cl_path=[],("Array" | "ArrayAccess")},[pt]) ->
+		(* This case is not technically needed because the default case would handle it, but it avoids the monomorph
+		   creation and unification there. *)
 		AGIndex,pt
 	| TDynamic None ->
 		AGDynamic,t_dynamic
@@ -44,8 +46,6 @@ let rec get_array_element ctx t p =
 	| TInst({ cl_super = Some (c,stl); cl_params = pl },tl) ->
 		let get,t = get_array_element ctx (TInst (c,stl)) p in
 		get,apply_params pl tl t
-	| TInst({ cl_path = [],"ArrayAccess" },[t]) ->
-		AGIndex,t
 	| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta && not (Meta.has Meta.CoreType a.a_meta) ->
 		get_array_element ctx (apply_params a.a_params tl a.a_this) p
 	| _ ->
