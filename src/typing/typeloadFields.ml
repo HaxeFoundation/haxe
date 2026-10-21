@@ -38,7 +38,8 @@ type class_init_ctx = {
 	extends_public : bool;
 	abstract : tabstract option;
 	mutable has_display_field : bool;
-	mutable delayed_expr : (typer * tlazy ref option) list;
+	(* the fields to type, with whether their type is inferred from their body *)
+	mutable delayed_expr : (typer * tlazy ref option * bool) list;
 	mutable force_constructor : bool;
 	mutable uninitialized_final : tclass_field list;
 	(* the connection of the members of the class (accessor checks, statics of
@@ -250,7 +251,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos; Meta.InheritDoc,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf;
-		schedule ctx.g StageBodies (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
+		schedule ctx.g StageSigs (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in
@@ -858,7 +859,7 @@ module TypeBinding = struct
 				force_macro true
 			else begin
 				cf.cf_type <- TLazy r;
-				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+				cctx.delayed_expr <- (ctx,Some r,true) :: cctx.delayed_expr;
 			end
 		in
 		if ctx.com.display.dms_full_typing then begin
@@ -870,11 +871,13 @@ module TypeBinding = struct
 				   §3.3, [sig]), which is typed later or by [force_field_body]. Inline and
 				   generic fields stay lazy, since reading them needs their body. *)
 				let body_needed = fctx.is_inline || fctx.is_generic in
-				if body_needed || not (is_full_type cf.cf_type) then
+				(* a generic field's body is read by its instances, created by other bodies *)
+				let is_sig = fctx.is_inline || not (is_full_type cf.cf_type) in
+				if body_needed || is_sig then
 					cf.cf_type <- TLazy r
 				else
 					set_pending_body cf (fun () -> ignore(lazy_type r));
-				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+				cctx.delayed_expr <- (ctx,Some r,is_sig) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
 			force_macro true
@@ -883,7 +886,7 @@ module TypeBinding = struct
 				handle_display_field()
 			end else begin
 				if not (is_full_type cf.cf_type) then begin
-					cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
+					cctx.delayed_expr <- (ctx, None, true) :: cctx.delayed_expr;
 					cf.cf_type <- TLazy r;
 				end else if fctx.expr_presence_matters then
 					cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
@@ -1811,7 +1814,7 @@ let init_field (ctx,cctx,fctx) f cf =
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
-		schedule ctx.g StageBodies (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
+		schedule ctx.g StageSigs (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let check_overload ctx f fs is_extern_class =
 	try
@@ -1858,13 +1861,17 @@ let check_overloads ctx c =
 	List.iter check_field c.cl_ordered_statics;
 	Option.may check_field c.cl_constructor
 
-(* The bodies of the class are typed by [program], in declaration order. *)
+(* The fields of the class are typed by [program], in declaration order: those
+   whose type is inferred from their body first, with those of every other
+   class, then the bodies of those whose type is declared. *)
 let finalize_class ctx cctx =
-	match List.filter_map snd (List.rev cctx.delayed_expr) with
-	| [] ->
-		()
-	| bodies ->
-		add_program_unit ctx.g (fun () -> List.iter (fun r -> ignore(lazy_type r)) bodies)
+	let sigs,bodies = List.partition (fun (_,_,is_sig) -> is_sig) (List.rev cctx.delayed_expr) in
+	let force l = match List.filter_map (fun (_,r,_) -> r) l with
+		| [] -> None
+		| rl -> Some (fun () -> List.iter (fun r -> ignore(lazy_type r)) rl)
+	in
+	Option.may (add_program_sig_unit ctx.g) (force sigs);
+	Option.may (add_program_unit ctx.g) (force bodies)
 
 let create_class_field cctx f  =
 	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with

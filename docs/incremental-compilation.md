@@ -1210,6 +1210,19 @@ stored typed expressions and generic short names are atomic, the set of
 reported inference cycles is protected by a mutex. No change of behavior
 (typing still runs on one domain).
 
+**Status: step 2, signatures before bodies.** `program()` has a stage for
+the fields whose type is inferred from their body (`StageSigs`, before
+`StageBodies`): a class adds the typing of those fields (and of inline
+fields, whose body is read by their callers) to it, and the typing of the
+bodies of its fields whose type is declared to the bodies stage. All the
+signatures known when the bodies stage starts are computed, so a body whose
+field has a declared type can only demand other bodies, never change the
+type of another field. Generic fields stay with the bodies (their instances
+are created by the bodies that use them; typing one before its users made a
+macro-context instance of `Pull11784` fail). The documentation inherited by
+fields is built in the signatures stage, before any display request typed
+there needs it.
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context

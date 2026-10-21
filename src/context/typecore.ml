@@ -182,6 +182,7 @@ let stage_name = function
 	| StageModules -> "modules"
 	| StageTypes -> "types"
 	| StageMembers -> "members"
+	| StageSigs -> "sigs"
 	| StageBodies -> "bodies"
 	| StageConstraints -> "constraints"
 	| StageChecks -> "checks"
@@ -577,6 +578,12 @@ let rec run_stages g (p : stage) where =
 		end
 	in
 	loop g.program_min_stage
+
+(* Adds the typing of the fields of a class whose type is inferred from their
+   body to [program]: all of them are typed before any field body whose type
+   is declared, which then cannot change the type of another field. *)
+let add_program_sig_unit g f =
+	schedule g StageSigs f
 
 (* Adds the typing of the bodies of a class, or another field typing unit, to
    [program]. *)
