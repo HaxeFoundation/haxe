@@ -62,8 +62,10 @@ let builder_of c =
 let build_started c =
 	if !TypingLock.active then
 		Mutex.protect Claims.mutex (fun () ->
-			incr build_seq;
-			builders := (c,(Domain.self (),!build_seq)) :: !builders
+			if builder_of c = None then begin
+				incr build_seq;
+				builders := (c,(Domain.self (),!build_seq)) :: !builders
+			end
 		)
 
 let build_done c =
@@ -127,9 +129,41 @@ let rec has_build_macros c =
 	|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (Header.implements c)
 	|| (match Header.super c with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
 
+(* Builds a class that runs no build macro without the typing lock: the domain
+   that claims it builds it, the others wait for the build to end. *)
+let with_unlocked_build c f =
+	let me = Domain.self () in
+	let rec go () =
+		let r = Mutex.protect Claims.mutex (fun () ->
+			match builder_of c with
+			| Some (d,seq) when d <> me ->
+				`Wait (d,seq)
+			| Some _ ->
+				`Run
+			| None when c.cl_build == built ->
+				`Run
+			| None ->
+				incr build_seq;
+				builders := (c,(me,!build_seq)) :: !builders;
+				`Claimed
+		) in
+		match r with
+		| `Run ->
+			f ()
+		| `Claimed ->
+			Std.finally (fun () -> build_done c) f ()
+		| `Wait (owner,seq) ->
+			let built = TypingLock.without (fun () -> Mutex.protect Claims.mutex (fun () ->
+				Claims.wait ~kind:Claims.WaitClass ~seq ~owner (fun () -> builder_of c = None)
+			)) in
+			if built then go () else f ()
+	in
+	go ()
+
 let with_build_claim c f =
 	if not !TypingLock.active then f ()
-	else with_class_claim ~ordered:(has_build_macros c) c f
+	else if has_build_macros c then with_class_claim ~ordered:true c f
+	else with_unlocked_build c f
 
 (* Builds class [c] (its [members] query) and gives its build state. *)
 let build c =

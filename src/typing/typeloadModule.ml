@@ -446,7 +446,7 @@ module TypeLevel = struct
 		in
 		c.cl_build <- build;
 		TAccess.not_ready := List.filter (fun c' -> c' != c) !TAccess.not_ready;
-		schedule ctx_m.g StageTypes (fun() -> ignore((TAccess.build c)));
+		add_parallel_unit ctx_m.g StageTypes ctx_m.m.curmod (fun() -> ignore((TAccess.build c)));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			Queue.push (fun() -> InheritDoc.build_class_doc ctx_m c) cctx.connections;
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
