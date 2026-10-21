@@ -4,9 +4,12 @@ type t = {
 	c : Condition.t;
 	mutable owner : Domain.id option;
 	mutable count : int;
+	(* the time domains spent waiting to take the lock, and how many times *)
+	mutable waited : float;
+	mutable waits : int;
 }
 
-let create () = { m = Mutex.create (); c = Condition.create (); owner = None; count = 0 }
+let create () = { m = Mutex.create (); c = Condition.create (); owner = None; count = 0; waited = 0.; waits = 0 }
 
 let lock l =
 	let me = Domain.self () in
@@ -14,7 +17,12 @@ let lock l =
 	if l.owner = Some me then
 		l.count <- l.count + 1
 	else begin
-		while l.owner <> None do Condition.wait l.c l.m done;
+		if l.owner <> None then begin
+			let t = Unix.gettimeofday () in
+			while l.owner <> None do Condition.wait l.c l.m done;
+			l.waited <- l.waited +. (Unix.gettimeofday () -. t);
+			l.waits <- l.waits + 1
+		end;
 		l.owner <- Some me;
 		l.count <- 1
 	end;

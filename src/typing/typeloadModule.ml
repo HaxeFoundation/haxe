@@ -908,7 +908,7 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 		if !TypingLock.active && not !TypeloadCacheHook.server_active && not (ctx.com.module_lut#mem m) then begin
 			TypeloadParse.preparse ctx.com m p;
 			(* the modules are created in the order of the tasks *)
-			Claims.in_order ()
+			Claims.in_order Claims.OrderModule
 		end;
 		TypingLock.protect (fun () ->
 			let m2 = load_module' ctx.com ctx.g m p in

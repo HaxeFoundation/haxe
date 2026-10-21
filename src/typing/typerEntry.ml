@@ -240,21 +240,36 @@ let load_coro ctx =
 (* Runs typing tasks on the domains of the compilation's pool, re-raising the
    exception of the first failed task (in task order) once all are done. The
    tasks are started in their order (see [Claims.in_order]). *)
-let run_parallel_tasks com tasks =
+let run_parallel_tasks com stage tasks =
 	let results = Array.make (Array.length tasks) None in
+	let timer_ctx = com.timer_ctx in
+	let lock = TypingLock.lock in
+	let waited0 = lock.waited and waits0 = lock.waits in
+	let order0 = Array.copy Claims.order_waited and norder0 = Array.copy Claims.order_waits in
+	let claims0 = Array.copy Claims.waited and nclaims0 = Array.copy Claims.waits and breaks0 = Array.copy Claims.breaks in
 	Claims.start_tasks (Array.length tasks);
-	Parallel.run_with_pool com.sctx.pool (fun pool ->
-		Parallel.on_each_domain pool (fun () ->
-			let rec loop () = match Claims.next_task () with
-				| None ->
-					()
-				| Some i ->
-					(try Claims.run_task i tasks.(i) with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ()));
-					loop ()
-			in
-			loop ()
+	Timer.time timer_ctx ["typing";"parallel";ProgramStage.stage_name stage] (fun () ->
+		Parallel.run_with_pool com.sctx.pool (fun pool ->
+			Parallel.on_each_domain pool (fun () ->
+				let rec loop () = match Claims.next_task () with
+					| None ->
+						()
+					| Some i ->
+						(try Claims.run_task i tasks.(i) with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ()));
+						loop ()
+				in
+				loop ()
+			)
 		)
-	);
+	) ();
+	Timer.add_extra timer_ctx "wait: typing lock" (lock.waited -. waited0) (lock.waits - waits0);
+	Array.iteri (fun k name ->
+		Timer.add_extra timer_ctx ("wait: " ^ name) (Claims.waited.(k) -. claims0.(k)) (Claims.waits.(k) - nclaims0.(k));
+		Timer.add_extra timer_ctx ("cycles broken: " ^ name) 0. (Claims.breaks.(k) - breaks0.(k))
+	) Claims.kind_names;
+	Array.iteri (fun k name ->
+		Timer.add_extra timer_ctx ("wait: order before " ^ name) (Claims.order_waited.(k) -. order0.(k)) (Claims.order_waits.(k) - norder0.(k))
+	) Claims.order_reasons;
 	Array.iter (function
 		| Some (exc,bt) -> Printexc.raise_with_backtrace exc bt
 		| None -> ()
@@ -271,8 +286,7 @@ let create com macros =
 			core_api = None;
 			macros = macros;
 			module_check_policies = [];
-			program = Array.init ProgramStage.stage_count (fun _ -> make_program_stage ());
-			program_min_stage = 0;
+			program = make_program_queues ();
 			(* with -D fail-fast, the first error stops typing: sequential *)
 			run_parallel = (if Common.defined com Define.ParallelTyping && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
 				Some (run_parallel_tasks com)
@@ -286,7 +300,7 @@ let create com macros =
 			return_partial_type = false;
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
-			do_macro = (fun ctx mode cpath f el p -> Claims.in_order (); Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
+			do_macro = (fun ctx mode cpath f el p -> Claims.in_order Claims.OrderMacro; Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
 				if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
 				MacroContext.type_macro ctx mode cpath f el p
 			)));

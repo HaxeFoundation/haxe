@@ -26,9 +26,17 @@ let rank = function
 	| WaitValue -> 1
 	| WaitClass -> 2
 
+let kind_names = [|"order";"macros";"value";"class"|]
+
 (* the domains waiting, with the domain they wait for, what they wait for and,
    for a class, when its build started *)
 let waiting : (Domain.id * (Domain.id * wait_kind * int)) list ref = ref []
+
+(* the time domains spent waiting, and how many times, by kind *)
+let waited = Array.make 4 0.
+let waits = Array.make 4 0
+(* the cycles broken, by kind of the wait let through *)
+let breaks = Array.make 4 0
 
 (* the waiting domains let through to break a cycle *)
 let let_through : Domain.id list ref = ref []
@@ -49,7 +57,13 @@ let wait ?(kind=WaitValue) ?(seq=0) ~owner cond =
 	let through () = List.mem me !let_through in
 	let block () =
 		waiting := (me,(owner,kind,seq)) :: !waiting;
-		while not (cond () || through ()) do Condition.wait done_ mutex done;
+		if not (cond () || through ()) then begin
+			let t = Unix.gettimeofday () in
+			while not (cond () || through ()) do Condition.wait done_ mutex done;
+			let k = rank kind + 1 in
+			waited.(k) <- waited.(k) +. (Unix.gettimeofday () -. t);
+			waits.(k) <- waits.(k) + 1
+		end;
 		waiting := List.remove_assoc me !waiting;
 		let_through := List.filter (fun d -> d <> me) !let_through
 	in
@@ -63,6 +77,8 @@ let wait ?(kind=WaitValue) ?(seq=0) ~owner cond =
 		   of a cycle on one domain is the one read partially *)
 		let better (k,n) (k',n') = rank k' < rank k || (rank k' = rank k && n' < n) in
 		let best = List.fold_left (fun (d,kn) (d',kn') -> if better kn kn' then (d',kn') else (d,kn)) (me,(kind,seq)) cycle in
+		let k = rank (fst (snd best)) + 1 in
+		breaks.(k) <- breaks.(k) + 1;
 		if fst best = me then
 			false
 		else begin
@@ -182,10 +198,31 @@ let run_task i f =
 	| v -> finish (); v
 	| exception e -> finish (); raise e
 
-let in_order () =
+(* what waits for the order of the tasks, the time it waited and how many times *)
+type order_reason =
+	| OrderBuild
+	| OrderMacro
+	| OrderModule
+
+let order_index = function
+	| OrderBuild -> 0
+	| OrderMacro -> 1
+	| OrderModule -> 2
+
+let order_reasons = [|"build";"macro";"module"|]
+let order_waited = Array.make 3 0.
+let order_waits = Array.make 3 0
+
+let in_order reason =
+	let why = order_index reason in
 	let i = Domain.DLS.get current_task in
 	if i > 0 && !TypingLock.active && Mutex.protect mutex (fun () -> !task_prefix < i) then
 		TypingLock.without (fun () -> Mutex.protect mutex (fun () ->
+			let t = Unix.gettimeofday () in
+			Std.finally (fun () ->
+				order_waited.(why) <- order_waited.(why) +. (Unix.gettimeofday () -. t);
+				order_waits.(why) <- order_waits.(why) + 1
+			) (fun () ->
 			let rec loop () =
 				let p = !task_prefix in
 				if p < i then begin
@@ -195,4 +232,5 @@ let in_order () =
 				end
 			in
 			loop ()
+			) ()
 		))

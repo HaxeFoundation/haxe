@@ -16,3 +16,13 @@ let all_stages = [
 ]
 
 let stage_count = List.length all_stages
+
+let stage_name = function
+	| StageModules -> "modules"
+	| StageTypes -> "types"
+	| StageMembers -> "members"
+	| StageSigs -> "sigs"
+	| StageBodies -> "bodies"
+	| StageConstraints -> "constraints"
+	| StageChecks -> "checks"
+	| StageFinal -> "final"

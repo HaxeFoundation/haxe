@@ -17,6 +17,8 @@ type timer_context = {
 	start_time : float;
 	timer_lut : (string list,timer) Hashtbl.t;
 	domain_id : Domain.id;
+	(* measures reported apart from the timers: name, time, count *)
+	extra : (string,float * int) Hashtbl.t;
 }
 
 let make id = {
@@ -34,6 +36,7 @@ let make_context root_timer =
 		measure_times = Maybe;
 		start_time = Extc.time();
 		domain_id = Domain.self ();
+		extra = Hashtbl.create 0;
 	} in
 	Hashtbl.add ctx.timer_lut root_timer.id root_timer;
 	ctx
@@ -68,6 +71,13 @@ let start_timer ctx id = match id,ctx.measure_times with
 		start_timer ctx id
 	| _ ->
 		(fun () -> ())
+
+(* Adds [t] and [n] to the extra measure [name]. *)
+let add_extra ctx name t n =
+	if ctx.measure_times <> No then begin
+		let (t0,n0) = try Hashtbl.find ctx.extra name with Not_found -> (0.,0) in
+		Hashtbl.replace ctx.extra name (t0 +. t,n0 + n)
+	end
 
 let time ctx id f arg =
 	let close = start_timer ctx id in
@@ -174,6 +184,7 @@ let build_times_tree ctx =
 
 let report_times ctx print =
 	let max_name,max_calls,root = build_times_tree ctx in
+	let max_name = Hashtbl.fold (fun name _ m -> max m (String.length name)) ctx.extra max_name in
 	let max_calls = String.length (string_of_int max_calls) in
 	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" max_name "name" "time(s)" max_calls "#");
 	let sep = String.make (max_name + max_calls + 27) '-' in
@@ -189,4 +200,12 @@ let report_times ctx print =
 	in
 	List.iter (loop 0) root.children;
 	print sep;
-	print_time "total" root
+	print_time "total" root;
+	(* the waits of the domains typing in parallel, summed over the domains *)
+	if Hashtbl.length ctx.extra > 0 then begin
+		let l = List.sort compare (Hashtbl.fold (fun name v acc -> (name,v) :: acc) ctx.extra []) in
+		List.iter (fun (name,(t,n)) ->
+			print (Printf.sprintf "%-*s | %7.3f |         | %*i |" max_name name t max_calls n)
+		) l;
+		print sep
+	end

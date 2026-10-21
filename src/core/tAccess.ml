@@ -73,7 +73,7 @@ let build_done c =
 			Condition.broadcast Claims.done_
 		)
 
-let with_class_claim c f =
+let with_class_claim ?(ordered=false) c f =
 	if not !TypingLock.active then
 		f ()
 	else begin
@@ -93,12 +93,15 @@ let with_class_claim c f =
 				)) in
 				if built then go () else TypingLock.protect f
 		in
-		(* a build may run macros: it starts with the claim of the macros, so
-		   that a macro running on another domain gets the class built itself
-		   instead of finding it started (the order of the macros then is the
-		   one of a single domain) *)
-		Claims.in_order ();
-		Claims.with_macro_claim go
+		(* a build that runs macros starts in the order of the tasks, with the
+		   claim of the macros: a macro running on another domain then gets the
+		   class built itself instead of finding its build started (the order
+		   of the macros is the one of a single domain) *)
+		if ordered then begin
+			Claims.in_order Claims.OrderBuild;
+			Claims.with_macro_claim go
+		end else
+			go ()
 	end
 
 module Header = struct
@@ -116,16 +119,28 @@ end
    reading their members gives what is there (nothing). *)
 let not_ready : tclass list ref = ref []
 
+(* Whether the build of [c] runs build macros: its own, or those that its
+   super classes and interfaces add with @:autoBuild. *)
+let rec has_build_macros c =
+	Meta.has Meta.Build c.cl_meta
+	|| (match c.cl_kind with KAbstractImpl a -> Meta.has Meta.Build a.a_meta | _ -> false)
+	|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (Header.implements c)
+	|| (match Header.super c with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
+
+let with_build_claim c f =
+	if not !TypingLock.active then f ()
+	else with_class_claim ~ordered:(has_build_macros c) c f
+
 (* Builds class [c] (its [members] query) and gives its build state. *)
 let build c =
 	if c.cl_build == built then Built
-	else with_class_claim c (fun () -> c.cl_build ())
+	else with_build_claim c (fun () -> c.cl_build ())
 
 module Members = struct
 	(* The members of a class, after its build macros, connected. *)
 	let demand c =
 		if c.cl_build != built then
-			with_class_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
+			with_build_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
 
 	let fields c = demand c; c.cl_fields
 	let ordered_fields c = demand c; c.cl_ordered_fields
