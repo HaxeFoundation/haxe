@@ -1170,6 +1170,7 @@ and encode_type_params tl =
 	) tl)
 
 and encode_tenum e =
+	if !DepRecord.enabled then DepRecord.record_type e.e_path "members";
 	encode_mtype (TEnumDecl e) [
 		"isExtern", vbool (has_enum_flag e EnExtern);
 		"exclude", vfun0 (fun() -> !EvalValue.on_shared_state (); add_enum_flag e EnExcluded; vnull);
@@ -1194,6 +1195,7 @@ and encode_tabstract a =
 		end;
 		f ()
 	)) in
+	if !DepRecord.enabled then DepRecord.record_type a.a_path "header";
 	encode_mtype (TAbstractDecl a) [
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
@@ -1292,11 +1294,14 @@ and encode_tclass c =
 	(* the header (super class, interfaces, declared metadata) never builds the
 	   class; its members do (docs/incremental-compilation.md, §3.3) *)
 	c.cl_build_header ();
+	if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
 	let build () =
 		match (TAccess.build c) with
 		| Built -> ()
 		| _ -> !current_partially_built_class_read c
 	in
+	(* the signatures of the fields given to the macro *)
+	let fields l = if !DepRecord.enabled then List.iter (fun cf -> DepRecord.record_field c cf "sig") l; l in
 	let meta = match c.cl_header_meta with
 		| Some declared when not (!current_class_built_by_expansion c) ->
 			(* additions and removals go to the class's metadata as well *)
@@ -1325,14 +1330,15 @@ and encode_tclass c =
 			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
 		);
 		"interfaces", encode_array (List.map (fun (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
-		"fields", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield c.cl_ordered_fields) (fun() -> "class fields");
-		"statics", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield c.cl_ordered_statics) (fun() -> "class fields");
-		"constructor", members (fun () -> match c.cl_constructor with None -> vnull | Some cf -> encode_cfref cf);
+		"fields", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield (fields c.cl_ordered_fields)) (fun() -> "class fields");
+		"statics", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield (fields c.cl_ordered_statics)) (fun() -> "class fields");
+		"constructor", members (fun () -> match c.cl_constructor with None -> vnull | Some cf -> ignore (fields [cf]); encode_cfref cf);
 		"init", members (fun () -> match TClass.get_cl_init c with None -> vnull | Some e -> encode_texpr e);
 		"overrides", members (fun () -> encode_array (List.map encode_cfref (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields)))
 	]
 
 and encode_ttype t =
+	if !DepRecord.enabled then DepRecord.record_type t.t_path "header";
 	encode_mtype (TTypeDecl t) [
 		"isExtern", vbool false;
 		"exclude", vfun0 (fun() -> vnull);

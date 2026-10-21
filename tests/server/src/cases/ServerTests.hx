@@ -68,10 +68,24 @@ class ServerTests extends TestCase {
 		runHaxe(args);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
 		runHaxe(args);
-		assertSkipping("WithDependency", DependencyDirty("Dependency - Tainted server/invalidate"));
-		// assertNotCacheModified("Dependency");
+		// typed again, but what WithDependency read from it did not change
+		assertSkipping("Dependency", Tainted("server/invalidate"));
+		assertReuse("WithDependency");
 		runHaxe(args);
 		assertReuse("Dependency");
+		assertReuse("WithDependency");
+		// the inferred signature of get is computed with its body
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx").replace("Hello World", "Hello"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		assertSkipping("WithDependency", ReadChanged("Dependency\tmembers"));
+		// with a declared return type, a body change stays in its module
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx").replace("get()", "get():String"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
+		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx").replace("get()", "get():String").replace("Hello World", "Hello"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Dependency.hx")});
+		runHaxe(args);
 		assertReuse("WithDependency");
 	}
 
@@ -130,7 +144,8 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		assertSkipping("BuiltClass", DependencyDirty("BuildMacro - Tainted server/invalidate"));
+		// its members ran the macro, whose module is invalid
+		assertSkipping("BuiltClass", ReadChanged("BuiltClass\tmembers"));
 		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 

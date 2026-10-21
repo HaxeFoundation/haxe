@@ -457,6 +457,8 @@ let type_generic_function ctx fa fcc with_type p =
 		| _ -> die "" __LOC__
 	in
 	let cf = fcc.fc_field in
+	(* the instance is a field of the host class, dropped when its module is typed again *)
+	if !DepRecord.enabled then DepRecord.record (s_type_path c.cl_module.m_path) "generic";
 	if cf.cf_params = [] then raise_typing_error "Function has no type parameters and cannot be generic" p;
 	begin match with_type with
 		| WithType.WithType(t,_) ->

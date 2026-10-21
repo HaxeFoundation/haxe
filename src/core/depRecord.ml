@@ -85,6 +85,9 @@ let record_message msg severity p =
 
 let reset () = consumers := []
 
+(* The modules typed by the last compilation of the server, for `server/retyped`. *)
+let last_typed : string list ref = ref []
+
 let with_consumer ?field key node m decl pos f =
 	if not !enabled then f ()
 	else begin

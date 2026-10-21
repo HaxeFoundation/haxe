@@ -100,6 +100,7 @@ class TestCase implements ITest implements ITestCase {
 			case FileChanged(file): 'FileChanged $file';
 			case Shadowed(file): 'Shadowed $file';
 			case LibraryChanged: 'LibraryChanged';
+			case ReadChanged(node): 'ReadChanged $node';
 		}
 	}
 

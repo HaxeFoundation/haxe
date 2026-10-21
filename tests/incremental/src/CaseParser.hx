@@ -22,6 +22,7 @@ enum Expectation {
 	FileNotContains(path:String, text:String);
 	FingerprintSame(node:String, key:String);
 	FingerprintChanged(node:String, key:String);
+	Retyped(modules:Array<String>);
 }
 
 typedef Step = {
@@ -64,7 +65,9 @@ typedef Step = {
 	`@expect-no-output <text>`, `@expect-compiler-output <text>`,
 	`@expect-file <path> <text>`,
 	`@expect-no-file-content <path> <text>`,
-	`@expect-fingerprint-same <node> <key>`, `@expect-fingerprint-changed <node> <key>`
+	`@expect-fingerprint-same <node> <key>`, `@expect-fingerprint-changed <node> <key>`,
+	`@expect-retyped <module>...` (the modules of the case the warm compilation
+	typed again, none if empty)
 	(compared with the previous step, in the cold compilation: node is one of
 	header, members, sig, inline, body, decls; key is an entity as
 	`-D dump-fingerprints` prints it, e.g. `Dep.get (static)`, or `Dep.hx:Dep.get`
@@ -155,6 +158,8 @@ class CaseParser {
 						case "expect-fingerprint-changed":
 							var p = firstWord(d.rest);
 							step.expectations.push(FingerprintChanged(p.word, p.rest));
+						case "expect-retyped":
+							step.expectations.push(Retyped(d.rest.split(" ").filter(s -> s != "")));
 						case other:
 							throw new ParseError('$name: unknown step directive @$other in step "${step.name}"');
 					}

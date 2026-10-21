@@ -45,6 +45,8 @@ type module_skip_reason =
 	| FileChanged of string
 	| Shadowed of string
 	| LibraryChanged
+	(* what a computation of the module read changed (phase 6) *)
+	| ReadChanged of string
 
 type module_cache_state =
 	| MSGood

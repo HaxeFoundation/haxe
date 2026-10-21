@@ -673,6 +673,7 @@ module Printer = struct
 			| FileChanged file -> Buffer.add_string buf ("FileChanged " ^ file)
 			| Shadowed file -> Buffer.add_string buf ("Shadowed " ^ file)
 			| LibraryChanged -> Buffer.add_string buf "LibraryChanged"
+			| ReadChanged node -> Buffer.add_string buf ("ReadChanged " ^ node)
 		in
 		loop true reason;
 		Buffer.contents buf

@@ -264,9 +264,10 @@ let check_defines com =
 (** Creates the typer context and types [classes] into it. *)
 let do_type com mctx actx display_file_dot_path =
 	let cs = com.cs in
-	(* the dependencies are dumped with the fingerprints *)
+	(* the dependencies are dumped with the fingerprints, and kept by the
+	   compilation server (docs/incremental-compilation.md, phase 6) *)
 	DepRecord.reset ();
-	DepRecord.enabled := Common.defined com Define.DumpFingerprints;
+	DepRecord.enabled := Common.defined com Define.DumpFingerprints || !TypeloadCacheHook.server_active;
 	TypeloadParse.record_fingerprints := !DepRecord.enabled;
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
@@ -370,6 +371,8 @@ let compile com actx sctx =
 		let (tctx,display_file_dot_path) = Timer.time com.timer_ctx ["typing"] (do_type com mctx actx) display_file_dot_path in
 		(* also when typing reported errors, which stop the compilation here *)
 		FingerprintDump.maybe_dump com;
+		ServerCache.store_graph com;
+		DepRecord.reset ();
 		if DisplayProcessing.handle_display_after_typing com tctx display_file_dot_path then raise CompilerMessage.Abort;
 		let ectx = ExceptionInit.create_exception_context tctx in
 		finalize_typing com tctx;

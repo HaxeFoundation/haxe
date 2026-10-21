@@ -1638,6 +1638,62 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
    never scans the project on each compilation, and resolving a path never
    makes a system call.
 
+**Status: red/green validation of cached modules (first step).** The server
+keeps a query graph per context (`src/compiler/server/nodeGraph.ml`), recorded
+at the end of typing for the modules typed by the compilation: the fingerprint
+of every node they produce (header and members of their types, signature and
+inline body of their fields, phase 4) and, for every computation (phase 5),
+what it read with the fingerprint it saw: declarations of its file (the
+declaration, the imports, the module's types, the list of fields and declared
+signatures for members, the position when line numbers are used), lookups
+(the file the module path resolves to), nodes of other modules, `@:generic`
+host modules, and the module of the macros that ran. `check_module` validates
+a module of the cache whose file did not change through the graph instead of
+its module dependencies: a node read is valid when its fingerprint is the
+one seen and the computation producing it is valid in turn (its inputs did
+not change, so it would compute the same value: what phase 5 checks), down to
+the declarations of changed files, which are parsed again (the parse is then
+reused to type them). Module dependencies are still checked for what the
+graph does not cover (other contexts, macro modules, files declared by
+macros). A module that is valid while a module it depends on is not is
+reused, and the other one is typed again after it; grafting keeps the
+references between them valid. A computation that ran a macro depends on
+every declaration of its file, on its own module (the files its macros
+declared) and on the macro's module in the macro context; the macro API
+records what it reads of the types it gives to macros (header, field
+signatures, enum constructors, typedef targets). Cycles in the graph are
+handled like module cycles (valid results under assumption are forgotten
+when the module turns out invalid).
+
+Consequences: a change in the body of a function whose signature is declared
+types again its module only; lines added in a file type again its module only;
+a field added or a signature changed types again the modules that read the
+members or that signature. Measured on Heaps (1534 modules, JS, 4 domains):
+
+| Change | Modules typed again | Warm compilation |
+|---|---|---|
+| none | 0 | 0.67 s (was 0.42 s: validating the graph) |
+| body of `h3d.scene.Object.getMaterialByName` | 1 (was 378) | 0.62 s (was 2.88 s) |
+| lines added at the top of `Object.hx` | 1 (was 378) | 0.67 s (was 2.88 s) |
+| field added to `Object` | 93 | 1.29 s |
+| declared return type changed | 93 | 1.57 s |
+| lines added in `hxsl.Printer` (used by the shader macros) | 299 | 2.90 s |
+
+Every warm output is identical to a cold compilation (generated JS and
+messages), and so is the whole `tests/incremental` suite; `@expect-retyped
+<modules>` checks which modules of a case are typed again (`server/retyped`
+gives them), `HAXE_GRAPH=off` restores the module dependency check and
+`HAXE_GRAPH_TRACE=1` prints why a computation is invalid.
+
+Not done yet: retyping a field instead of its module (item 2.4), early
+cutoff after recomputing a node (an inferred signature whose body changed
+invalidates its readers even when the type stays the same), the shift of
+anchors of declarations that moved (item 2.2: a module whose file changed is
+typed again), messages replayed per node (item 6), macros traced precisely
+(phase 7: a change in a module used by macros types again every module that
+ran them), and the cost of recording (about 25% of typing, with string keys).
+A compilation with errors caches nothing, as before.
+
 #### Virtual file system
 
 **Status (first version, `src/core/vfs.ml`).** On macOS, directories are revalidated on every

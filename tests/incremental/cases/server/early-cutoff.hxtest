@@ -1,0 +1,59 @@
+# The server only types again the modules that read what changed (plan phase
+# 6): a body change stays in its module, a signature change reaches the
+# modules that read the signature, and a field added changes the members of
+# its class.
+@targets interp
+
+=== initial
+@expect-output 1 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.a() + " " + Other.b());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function a():Int return 1;
+}
+--- Other.hx
+class Other {
+	public static function b():Int return 2;
+}
+
+=== body changed
+@expect-output 3 2
+@expect-retyped Dep
+--- Dep.hx
+class Dep {
+	public static function a():Int return 3;
+}
+
+=== signature changed
+@expect-output 3.5 2
+@expect-retyped Dep Main
+--- Dep.hx
+class Dep {
+	public static function a():Float return 3.5;
+}
+
+=== other body changed
+@expect-output 3.5 4
+@expect-retyped Other
+--- Other.hx
+class Other {
+	public static function b():Int return 4;
+}
+
+=== field added
+@expect-output 3.5 4
+@expect-retyped Dep Main
+--- Dep.hx
+class Dep {
+	public static function a():Float return 3.5;
+	public static function c():Int return 0;
+}
+
+=== nothing changed
+@expect-output 3.5 4
+@expect-retyped

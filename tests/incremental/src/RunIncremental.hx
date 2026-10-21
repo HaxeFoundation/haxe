@@ -218,6 +218,15 @@ class RunIncremental {
 						notifyInvalidate(port, warmDir, file);
 				}
 				var warm = compile(warmDir, port);
+				for (e in step.expectations)
+					switch (e) {
+						case Retyped(expected):
+							var retyped = retypedModules(warmDir, port);
+							expected.sort(Reflect.compare);
+							if (retyped.join(" ") != expected.join(" "))
+								errors.push('$label: expected the modules [${expected.join(" ")}] to be typed again, got [${retyped.join(" ")}]');
+						case _:
+					}
 				if (FileSystem.exists(dumpFile))
 					FileSystem.deleteFile(dumpFile);
 				var cold = compile(coldDir, null, true, fingerprints ? ["-D", "dump-fingerprints=" + dumpFile] : []);
@@ -354,6 +363,22 @@ class RunIncremental {
 		the virtual file system are active (a few compilations), and returns the
 		number of file system calls of the last compilation (`server/vfs`).
 	**/
+	/** The modules of the case (files of [dir]) that the previous compilation of the server typed. **/
+	static function retypedModules(dir:String, port:Int):Array<String> {
+		var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/retyped", params: {}});
+		var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
+		var out = p.stderr.readAll().toString();
+		p.exitCode();
+		p.close();
+		var modules:Array<String> = try haxe.Json.parse(out).result.result catch (_) [];
+		var l = [];
+		for (m in modules)
+			if (!l.contains(m) && FileSystem.exists(Path.join([dir, m.split(".").join("/") + ".hx"])))
+				l.push(m);
+		l.sort(Reflect.compare);
+		return l;
+	}
+
 	static function noChangeCompilationCalls(dir:String, port:Int):Int {
 		var calls = -1;
 		for (_ in 0...5) {
@@ -686,6 +711,8 @@ class RunIncremental {
 						errors.push('expected file $path not to contain "$text"');
 				case FingerprintSame(_) | FingerprintChanged(_):
 					// Checked on the cold compilation, see runCase.
+				case Retyped(_):
+					// Checked after the warm compilation, see runCase.
 			}
 		}
 		return errors;

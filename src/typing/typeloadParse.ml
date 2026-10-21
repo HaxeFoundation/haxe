@@ -106,12 +106,14 @@ let compute_decl_fingerprints decls =
 		) decls
 	)) :: !l;
 	List.iter (fun ((d,p) as decl) ->
+		(* a type without its fields: the end of its declaration moves with them *)
+		let start = Pos.with_max p (Pos.min p) in
 		match d with
-		| EClass c -> add (fst c.d_name) p (EClass { c with d_data = [] },p); class_fields (fst c.d_name) c.d_data
-		| EAbstract a -> add (fst a.d_name) p (EAbstract { a with d_data = [] },p); class_fields (fst a.d_name) a.d_data
+		| EClass c -> add (fst c.d_name) p (EClass { c with d_data = [] },start); class_fields (fst c.d_name) c.d_data
+		| EAbstract a -> add (fst a.d_name) p (EAbstract { a with d_data = [] },start); class_fields (fst a.d_name) a.d_data
 		| EEnum e ->
 			let tname = fst e.d_name in
-			add tname p (EEnum { e with d_data = [] },p);
+			add tname p (EEnum { e with d_data = [] },start);
 			add_names tname (List.map (fun f -> fst f.ec_name) e.d_data);
 			List.iter (fun f ->
 				let name = tname ^ "." ^ fst f.ec_name in

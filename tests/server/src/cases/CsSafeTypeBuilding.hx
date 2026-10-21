@@ -86,6 +86,11 @@ class CsSafeTypeBuilding extends TestCase {
 		}
 	}
 
+	function assertNotBuilt(modules:Array<String>) {
+		for (m in modules)
+			Assert.isFalse(hasMessage('Haxe print: Building $m.'));
+	}
+
 	function assertBuilt(modules:Array<String>, ?macroInvalidated:Bool = false) {
 		#if debug trace('Invalidated ${modules.join(",")} (macro invalidated: ${macroInvalidated ? "true" : "false"})'); #end
 		#if debug var assertHasPrint = _assertHasPrint; #end
@@ -148,14 +153,17 @@ class CsSafeTypeBuilding extends TestCase {
 		assertBuilt(["Main", "Bar"]);
 		assertResult(target);
 
+		// Main reads nothing that changed in Bar (its content is the same), Baz
+		// uses the type generated for Bar
 		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Bar.hx")});
 		runHaxe(args);
-		assertBuilt(["Main", "Bar", "Baz"]);
+		assertBuilt(["Bar", "Baz"]);
+		assertNotBuilt(["Main"]);
 		assertResult(target);
 
 		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Foo.hx")});
 		runHaxe(args);
-		assertBuilt(["Main", "Bar", "Baz"]);
+		assertNotBuilt(["Main", "Bar", "Baz"]);
 		assertResult(target);
 
 		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("Macro.macro.hx")});

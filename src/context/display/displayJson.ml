@@ -528,6 +528,10 @@ let handler =
 				"fileSystemCalls",jint (Atomic.get Vfs.last_compilation_syscalls);
 			])
 		);
+		"server/retyped", (fun hctx ->
+			(* The modules typed by the previous compilation (phase 6). *)
+			Result (jarray (List.map jstring (List.sort compare !DepRecord.last_typed)))
+		);
 		"server/overlay", (fun hctx ->
 			(* Sets the content of an unsaved editor buffer, or removes it when
 			   [contents] is not given. *)

@@ -138,6 +138,11 @@ let get_changed_directories sctx com =
 let get_typing_mode com m_extra =
 	FullTyping
 
+(* The file a lookup of module [path] finds, "" if none (query graph, phase 6). *)
+let resolve_for_graph com path =
+	try Path.get_full_path (TypeloadParse.resolve_module_file com path (ref (fst path)) null_pos).ClassPaths.file
+	with _ -> ""
+
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
@@ -187,6 +192,43 @@ let check_module sctx com m_path m_extra p =
 	in
 	let start_mark = sctx.compilation_step in
 	let unknown_state_modules = ref [] in
+	(* the query graph of this context (phase 6), for the modules it traces *)
+	let own_sign = CommonCache.get_cache_sign com in
+	let graph = if NodeGraph.disabled then None else NodeGraph.find_opt own_sign in
+	let module_valid = ref (fun _ -> true) in
+	let macro_module_valid = ref (fun _ _ -> true) in
+	let validation = Option.map (fun g ->
+		NodeGraph.begin_validation g start_mark;
+		let decls = Hashtbl.create 0 in
+		let current_decls file =
+			try Hashtbl.find decls file with Not_found ->
+				let r = match Hashtbl.find_opt g.NodeGraph.files file with
+					| Some fi when file_time file = fi.fi_time ->
+						Some fi.fi_decls
+					| Some fi ->
+						(* changed: parsed again, the parse is cached for typing *)
+						begin try
+							let rfile,_,_,parsed,_ = TypeloadParse.parse_module' com fi.fi_module p in
+							Some (NodeGraph.decl_table rfile.ClassPaths.file parsed)
+						with _ ->
+							None
+						end
+					| None ->
+						None
+				in
+				Hashtbl.add decls file r;
+				r
+		in
+		{
+			NodeGraph.v_graph = g;
+			v_decl = (fun file key -> match current_decls file with Some h -> Hashtbl.find_opt h key | None -> None);
+			v_resolve = resolve_for_graph com;
+			v_module_valid = (fun path -> !module_valid path);
+			v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);
+			v_provisional = [];
+			v_failed = None;
+		}
+	) graph in
 	let rec check m_path m_extra =
 		let check_module_path () =
 			let directories = get_changed_directories sctx com in
@@ -242,6 +284,17 @@ let check_module sctx com m_path m_extra p =
 			(com.cs#get_context sign)#find_module_extra mpath
 		in
 		let check_dependencies () =
+			(* A module traced by the graph is valid when what it read did not
+			   change: its dependencies on the code of its context are covered. *)
+			let traced = match validation with
+				| Some v when m_extra.m_sign = own_sign && m_extra.m_kind = MCode && NodeGraph.is_traced v.v_graph m_path ->
+					v.v_failed <- None;
+					if not (NodeGraph.module_valid v m_path) then
+						raise (Dirty (ReadChanged (Option.default "?" v.v_failed)));
+					true
+				| _ ->
+					false
+			in
 			PMap.iter (fun _ mdep ->
 				let sign = mdep.md_sign in
 				let mpath = mdep.md_path in
@@ -250,7 +303,9 @@ let check_module sctx com m_path m_extra p =
 				with Not_found ->
 					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
-				match check mpath m2_extra with
+				if traced && sign = own_sign && m2_extra.m_kind = MCode then
+					()
+				else match check mpath m2_extra with
 				| None -> ()
 				| Some reason -> raise (Dirty (DependencyDirty(mpath,reason)))
 			) m_extra.m_deps
@@ -299,7 +354,14 @@ let check_module sctx com m_path m_extra p =
 			dirty
 		end
 	in
+	module_valid := (fun path ->
+		try check path ((com.cs#get_context own_sign)#find_module_extra path) = None with Not_found -> false
+	);
+	macro_module_valid := (fun sign path ->
+		try check path ((com.cs#get_context sign)#find_module_extra path) = None with Not_found -> false
+	);
 	let state = check m_path m_extra in
+	Option.may (fun v -> if state = None then v.NodeGraph.v_provisional <- [] else NodeGraph.forget_provisional v) validation;
 	begin match state with
 	| None ->
 		(* If the entire subgraph is clean, we can set all modules to good state *)
@@ -485,11 +547,12 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 								None
 							| BadBinaryModule (_, reason) ->
 								failwith (Printf.sprintf "Unexpected bad hxb module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
-							| BadModule _ when Define.defined com.defines Define.IncrementalRetypeChangedOnly ->
+							| BadModule _ ->
+								(* a module can be valid although a module it depends on is not,
+								   when what it read from it did not change (phase 6): that one
+								   is typed again after it *)
 								TypeloadCacheHook.dirty_dependencies := (com,mpath) :: !TypeloadCacheHook.dirty_dependencies;
 								None
-							| BadModule reason ->
-								failwith (Printf.sprintf "Unexpected bad module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
 						in
 						Option.may (fun m2 -> add_modules (tabs ^ "  ") m0 m2) m2
 					end
@@ -624,6 +687,26 @@ let after_target_init sctx com =
 	with Not_found ->
 		Hashtbl.add sctx.class_paths sign class_path_strings;
 		()
+
+(* Stores the query graph of the modules typed in this compilation (phase 6). *)
+let store_graph com =
+	if !server_active && com.display.dms_full_typing && com.display.dms_populate_cache && not (Common.has_error_to_report com) then begin
+		let store com =
+			let cc = CommonCache.get_cache com in
+			let decls_of m =
+				try Some (cc#find_file (com.part_scope.file_keys#get (Path.UniqueKey.lazy_path m.m_extra.m_file))).c_decls
+				with Not_found -> None
+			in
+			(* the version in the cache is the previous one, until the end of the compilation *)
+			let is_typed m = match cc#find_module_opt m.m_path with Some m' -> m' != m | None -> true in
+			NodeGraph.store com (resolve_for_graph com) decls_of is_typed
+		in
+		DepRecord.last_typed := [];
+		Timer.time com.timer_ctx ["server";"query graph"] (fun () ->
+			store com;
+			Option.may store (com.get_macros())
+		) ()
+	end
 
 let after_save sctx com =
 	if sctx.is_server && not (Common.has_error_to_report com) then

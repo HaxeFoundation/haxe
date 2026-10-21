@@ -5,4 +5,5 @@ enum SkipReason {
 	FileChanged(file:String);
 	Shadowed(file:String);
 	LibraryChanged;
+	ReadChanged(node:String);
 }
