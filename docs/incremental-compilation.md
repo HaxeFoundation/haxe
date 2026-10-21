@@ -1705,7 +1705,10 @@ Nodes are records updated in place when their module is typed again, and
 edges point to them: validating all of Heaps takes about 0.1 s.
 
 Every warm output is identical to a cold compilation (generated JS and
-messages), and so is the whole `tests/incremental` suite; `@expect-retyped
+messages), and so is the whole `tests/incremental` suite, the replay of 20
+Heaps commits, and 85 random edits of Heaps (moved lines, changed literals,
+added fields, changed inferred return types, errors and their fixes), each
+compared with a cold compilation; `@expect-retyped
 <modules>` checks which modules of a case are typed again (`server/retyped`
 gives them), `HAXE_GRAPH=off` restores the module dependency check and
 `HAXE_GRAPH_TRACE=1` prints why a computation is invalid.
@@ -1715,7 +1718,13 @@ anchors of declarations that moved (item 2.2: a module whose file changed is
 typed again), messages replayed per node (item 6), macros traced precisely
 (phase 7: a change in a module used by macros types again every module that
 ran them), and the cost of recording (about 25% of typing, with string keys).
-A compilation with errors caches nothing, as before.
+A compilation with errors caches nothing, as before: typing stops before
+post-processing, so the modules typed by that compilation have no restore
+point (`save_class_state` is part of the filters, and marks fields as
+post-processed), and grafting already wrote their content into the objects
+of their previous version, which `mt_restore` brings back when that version
+is reused. Keeping the modules without errors needs post-processing per node
+(phase 8).
 
 #### Virtual file system
 
