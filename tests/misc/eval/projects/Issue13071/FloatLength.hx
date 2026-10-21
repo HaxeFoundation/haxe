@@ -1,6 +1,6 @@
-// #13071: array patterns read a value by index the way `for` loops do (TyperBase.get_array_access), which
+// #13071: array patterns read a value by index the way `for` loops do (ArrayAccess.get_array_access), which
 // requires an Int length. An abstract with a single `from` type leading to an array, whose `length` is a Float,
-// was matched before by typing `e.length` and `e[i]`; it now fails.
+// was matched before by typing `e.length` and `e[i]`; the array pattern now reports the missing Int length.
 abstract FloatLengthArray(Array<Int>) from Array<Int> {
 	public var length(get, never):Float;
 

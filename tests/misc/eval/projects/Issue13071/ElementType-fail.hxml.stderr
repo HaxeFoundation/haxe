@@ -1,0 +1,1 @@
+ElementType.hx:19: characters 10-11 : Array patterns are not allowed on Opaque: it has no length field of type Int

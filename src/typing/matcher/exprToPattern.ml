@@ -51,14 +51,29 @@ let unify_type_pattern ctx mt t p =
 		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
 		| _ -> die "" __LOC__
 
-(* Array patterns apply to values which can be accessed by index (#8012), and to abstracts with a single `from` type
-   leading to an array or to Dynamic, whose patterns are typed against the `from` type. This returns how to access
-   them, or None if values of type `t` can't be accessed by index. *)
+(* Array patterns apply to values which can be accessed by index (#8012). Abstracts with a single `from` type leading
+   to an array or to Dynamic have their patterns typed against the `from` type, but are read by their own access too.
+   This returns how to access values of type `t`, or None if they can't be accessed by index. *)
 let get_array_access ctx t p =
 	try
 		Some (ArrayAccess.get_array_access ctx t p)
 	with Not_found ->
 		None
+
+(* The error for array patterns on values of type `t`, which can't be accessed by index. For an abstract, this says
+   which half of ArrayAccess.get_array_access it lacks: an Int length, or a way to read an element. *)
+let no_array_access t p =
+	let reason = match follow t with
+		| TAbstract(a,tl) ->
+			let has_length = match a.a_impl with
+				| Some c -> (try ignore(ArrayAccess.get_abstract_length a c tl); true with Not_found -> false)
+				| None -> false
+			in
+			if has_length then ": it can't be read by index" else ": it has no length field of type Int"
+		| _ ->
+			""
+	in
+	raise_typing_error ("Array patterns are not allowed on " ^ s_type (print_context()) t ^ reason) p
 
 let rec make pctx toplevel t e =
 	let ctx = pctx.ctx in
@@ -316,6 +331,10 @@ let rec make pctx toplevel t e =
 				| Some aa -> array_pattern aa.aa_type
 				| None -> fail()
 			in
+			let from_pattern t2 = match get_array_access ctx t p with
+				| Some _ -> array_pattern t2
+				| None -> no_array_access t p
+			in
 			let rec pattern seen t = match follow t with
 				| TFun(tl,tr) when tr == fake_tuple_type ->
 					let rec loop el tl = match el,tl with
@@ -329,7 +348,7 @@ let rec make pctx toplevel t e =
 					let patterns = loop el tl in
 					PatTuple patterns
 				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
-					array_pattern t2
+					if seen = [] then array_pattern t2 else from_pattern t2
 				| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 					begin match TyperBase.get_abstract_froms ctx a tl with
 						| [(_,t2)] -> pattern (t :: seen) t2

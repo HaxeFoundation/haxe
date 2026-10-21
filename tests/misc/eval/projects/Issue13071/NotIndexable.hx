@@ -1,7 +1,12 @@
-// #13071: an abstract with a single `from` type leading to an array, which has neither an @:arrayAccess function
-// nor a length, can't be read by index. The errors are the typer's for `e[i]` and `e.length` as before, but the
-// matcher now reports the one for `e[i]` once per subject instead of once per element read.
-abstract Opaque(Array<Int>) from Array<Int> {}
+// #13071: an abstract with a single `from` type leading to an array, which has a length but neither an @:arrayAccess
+// function nor a conversion to an array, can't be read by index. The typer's error for `e[i]` used to be reported at
+// the switch subject, once per element read; the array pattern now reports that the elements can't be read.
+abstract Opaque(Array<Int>) from Array<Int> {
+	public var length(get, never):Int;
+
+	function get_length():Int
+		return this.length;
+}
 
 class NotIndexable {
 	static function main() {

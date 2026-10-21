@@ -1,2 +1,1 @@
-NotIndexable.hx:9: characters 10-11 : Array access is not allowed on Opaque
-NotIndexable.hx:9: characters 10-11 : Opaque has no field length
+NotIndexable.hx:15: characters 9-15 : Array patterns are not allowed on Opaque: it can't be read by index

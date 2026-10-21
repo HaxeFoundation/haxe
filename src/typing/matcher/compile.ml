@@ -70,7 +70,7 @@ let get_sub_subjects mctx subject con arg_positions =
 		List.map (fun s -> s,ExprToPattern.type_field_access mctx.ctx e s) sl
 	| ConArray 0 -> []
 	| ConArray i ->
-		let aa = subject#get_array_access mctx.ctx false in
+		let aa = subject#get_array_access mctx.ctx in
 		ExtList.List.init i (fun i ->
 			let ei = Texpr.Builder.make_int mctx.ctx.com.basic i e.epos in
 			Printf.sprintf "a%i" i,ArrayAccess.make_array_get mctx.ctx aa e ei e.epos
