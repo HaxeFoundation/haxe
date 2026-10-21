@@ -1134,10 +1134,15 @@ cycle because reading `addNode` typed its body inside the inference of
   (`MessageReporting.sort_by_position`, stable). The whole `tests/misc`
   suite and `tests/incremental` with `--strict-order` (messages compared
   without sorting) pass unchanged.
-- Remaining: stored typed expression ids (local to the expansion key, which
-  comes with phase 7), anonymous structure naming for hxb (with the hxb disk
-  backup), the other generators' resources, and the remaining `Hashtbl`
-  iterations, which only feed unordered tables or error reporting.
+- The resources given to every generator are inserted in name order
+  (`Common.to_gctx`), so no generator depends on the order in which macros
+  added them.
+- The remaining `Hashtbl` iterations only feed unordered tables or error
+  reporting (now sorted by position).
+- Moved to the phases they depend on: stored typed expression ids, local to
+  the expansion key (phase 7: a stored expression can be kept in a macro
+  static and returned by another expansion), and anonymous structure naming
+  for hxb (with the hxb disk backup).
 
 #### 3.5 Parallel typing
 

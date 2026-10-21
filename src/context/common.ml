@@ -377,7 +377,14 @@ let to_gctx com = {
 	modules = com.modules;
 	main = com.main;
 	types = com.types;
-	resources = com.resources;
+	(* inserted in name order, so that iterating over them does not depend on
+	   the order in which macros added them (docs/incremental-compilation.md, phase 3.4) *)
+	resources = (
+		let l = List.sort compare (Hashtbl.fold (fun k v acc -> (k,v) :: acc) com.resources []) in
+		let h = Hashtbl.create (List.length l) in
+		List.iter (fun (k,v) -> Hashtbl.add h k v) l;
+		h
+	);
 	native_libs = (match com.platform with
 		| Jvm -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
 		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
