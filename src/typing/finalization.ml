@@ -74,7 +74,7 @@ let get_main ctx main_module types =
 		Some main,Some (Path.UniqueKey.lazy_path main_module.m_extra.m_file)
 
 let finalize ctx =
-	flush_pass ctx.g PFinal ("final",[]);
+	run_stages ctx.g StageFinal ("final",[]);
 	match ctx.com.callbacks#get_after_typing with
 		| [] ->
 			()
@@ -86,7 +86,7 @@ let finalize ctx =
 					()
 				| new_types ->
 					List.iter (fun f -> f new_types) fl;
-					flush_pass ctx.g PFinal ("final",[]);
+					run_stages ctx.g StageFinal ("final",[]);
 					loop all_types
 			in
 			loop []

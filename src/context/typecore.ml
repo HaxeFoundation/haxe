@@ -21,7 +21,7 @@ open Globals
 open Ast
 open Common
 open Type
-open TyperPass
+open ProgramStage
 open Error
 open Resolution
 open FieldCallCandidate
@@ -98,8 +98,8 @@ type call_arg_context = {
 	mutable cac_body_capture : Message.t list ref;
 }
 
-(* A stage of [program] (docs/incremental-compilation.md, phase 3.1): the
-   units of one typer pass, run in the order they were added, then its late
+(* A stage of [program] (docs/incremental-compilation.md, phase 3.1): its
+   units, run in the order they were added, then its late
    units (those that must run once the others are done), in the order they
    were added. *)
 type program_stage = {
@@ -108,7 +108,7 @@ type program_stage = {
 }
 
 type typer_globals = {
-	(* the stages of [program], one per typer pass, in pass order *)
+	(* the stages of [program], in [ProgramStage] order *)
 	program : program_stage array;
 	(* stages before this one have no unit left *)
 	mutable program_min_stage : int;
@@ -171,7 +171,7 @@ and typer = {
 	c : typer_class;
 	f : typer_field;
 	e : typer_expr;
-	pass : typer_pass;
+	stage : stage;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
@@ -179,18 +179,18 @@ and typer = {
 	memory_marker : float array;
 }
 
-let pass_name = function
-	| PBuildModule -> "build-module"
-	| PBuildClass -> "build-class"
-	| PConnectField -> "connect-field"
-	| PTypeField -> "type-field"
-	| PCheckConstraint -> "check-constraint"
-	| PForce -> "force"
-	| PFinal -> "final"
+let stage_name = function
+	| StageModules -> "modules"
+	| StageTypes -> "types"
+	| StageMembers -> "members"
+	| StageBodies -> "bodies"
+	| StageConstraints -> "constraints"
+	| StageChecks -> "checks"
+	| StageFinal -> "final"
 
 module TyperManager = struct
-	let create ctx m c f e pass params =
-		if pass < ctx.pass then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (pass_name ctx.pass) (s_type_path m.curmod.m_path) (pass_name pass)) __LOC__;
+	let create ctx m c f e stage params =
+		if stage < ctx.stage then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (stage_name ctx.stage) (s_type_path m.curmod.m_path) (stage_name stage)) __LOC__;
 		let new_ctx = {
 			com = ctx.com;
 			g = ctx.g;
@@ -199,7 +199,7 @@ module TyperManager = struct
 			c = c;
 			f = f;
 			e = e;
-			pass = pass;
+			stage = stage;
 			allow_inline = ctx.allow_inline;
 			allow_transform = ctx.allow_transform;
 			type_params = params;
@@ -247,7 +247,7 @@ module TyperManager = struct
 		}
 
 	let clone_for_module ctx m =
-		let ctx = create ctx m ctx.c ctx.f ctx.e PBuildModule [] in
+		let ctx = create ctx m ctx.c ctx.f ctx.e StageModules [] in
 		ctx.allow_transform <- true;
 		ctx.allow_inline <- true;
 		ctx
@@ -255,27 +255,27 @@ module TyperManager = struct
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass params
+		create ctx ctx.m c ctx.f ctx.e StageTypes params
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass en.e_params
+		create ctx ctx.m c ctx.f ctx.e StageTypes en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass td.t_params
+		create ctx ctx.m c ctx.f ctx.e StageTypes td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass a.a_params
+		create ctx ctx.m c ctx.f ctx.e StageTypes a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
-		create ctx ctx.m ctx.c f ctx.e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e StageTypes params
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
-		create ctx ctx.m ctx.c f ctx.e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e StageTypes params
 
 	let clone_for_expr ctx curfun in_function =
 		let e = create_ctx_e curfun in_function in
@@ -291,15 +291,15 @@ module TyperManager = struct
 			   earlier there. *)
 			()
 		end;
-		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
+		create ctx ctx.m ctx.c ctx.f e StageBodies ctx.type_params
 
 	let clone_for_type_params ctx params =
-		create ctx ctx.m ctx.c ctx.f ctx.e ctx.pass params
+		create ctx ctx.m ctx.c ctx.f ctx.e ctx.stage params
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
 		let e = create_ctx_e ctx.e.curfun FunNotFunction in
-		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
+		create ctx ctx.m ctx.c f e StageBodies ctx.type_params
 
 	let is_coroutine_context ctx =
 		ctx.e.function_mode = FunCoroutine
@@ -516,24 +516,24 @@ let make_program_stage () = {
 }
 
 (* [program] (docs/incremental-compilation.md, phase 3.1) types the program by
-   stages, one per typer pass: the structure of modules and types
-   ([PBuildModule], [PBuildClass], [PConnectField]), the bodies of fields
-   ([PTypeField]), the type parameter constraint checks ([PCheckConstraint]),
-   then the per-type checks and the forcing of lazy types ([PForce]). Each
+   stages ([ProgramStage]): the structure of modules and types
+   ([StageModules], [StageTypes], [StageMembers]), the bodies of fields
+   ([StageBodies]), the type parameter constraint checks ([StageConstraints]),
+   then the per-type checks and the forcing of lazy types ([StageChecks]). Each
    stage runs its units in the order they were added. A unit can add units to
-   any stage, including earlier ones, which then run first: [flush_pass]
+   any stage, including earlier ones, which then run first: [run_stages]
    always runs the earliest stage with units left. *)
 
-(* Adds a unit to the stage of pass [p]. *)
-let delay g (p : typer_pass) f =
+(* Adds a unit to stage [p]. *)
+let schedule g (p : stage) f =
 	let i = Obj.magic p in
 	Queue.push f g.program.(i).ps_units;
 	if i < g.program_min_stage then
 		g.program_min_stage <- i
 
-(* Adds a late unit to the stage of pass [p]: it runs once the stage has no
+(* Adds a late unit to stage [p]: it runs once the stage has no
    other unit left. *)
-let delay_late g (p : typer_pass) f =
+let schedule_late g (p : stage) f =
 	let i = Obj.magic p in
 	Queue.push f g.program.(i).ps_late;
 	if i < g.program_min_stage then
@@ -553,9 +553,8 @@ let pop_unit q = match !typer_shuffle with
 	| _ ->
 		Queue.pop q
 
-(* Runs the stages of [program] up to the one of pass [p], until none of them
-   has a unit left. *)
-let rec flush_pass g (p : typer_pass) where =
+(* Runs the stages of [program] up to [p], until none of them has a unit left. *)
+let rec run_stages g (p : stage) where =
 	let last = Obj.magic p in
 	let rec loop i =
 		if i <= last then begin
@@ -575,23 +574,23 @@ let rec flush_pass g (p : typer_pass) where =
 	in
 	loop g.program_min_stage
 
-let make_pass ctx f = f
-
 (* Adds the typing of the bodies of a class, or another field typing unit, to
    [program]. *)
 let add_program_unit g f =
-	delay g PTypeField f
+	schedule g StageBodies f
 
 (* Adds a type parameter constraint check to [program]. *)
 let add_program_constraint g f =
-	delay g PCheckConstraint f
+	schedule g StageConstraints f
 
 (* Adds a check to [program]. *)
 let add_program_check g f =
-	delay g PForce f
+	schedule g StageChecks f
 
-let enter_field_typing_pass g info =
-	flush_pass g PConnectField info
+(* Completes the structure of the types loaded so far: what loading a module
+   while typing a field demands. *)
+let complete_structure g info =
+	run_stages g StageMembers info
 
 let make_lazy ctx t_proc f where =
 	let r = make_unforced_lazy t_proc f where in

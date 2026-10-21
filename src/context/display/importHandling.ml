@@ -301,7 +301,7 @@ let init_using ctx path p =
 	   runs first, so that the later ones take precedence whatever the order of
 	   the tasks (docs/incremental-compilation.md, phase 3). *)
 	ctx.m.pending_usings <- (fun () -> filter_classes types) :: ctx.m.pending_usings;
-	delay_late ctx.g PConnectField (fun () ->
+	schedule_late ctx.g StageMembers (fun () ->
 		let pending = List.rev ctx.m.pending_usings in
 		ctx.m.pending_usings <- [];
 		List.iter (fun resolve -> ctx.m.module_using <- resolve () @ ctx.m.module_using) pending

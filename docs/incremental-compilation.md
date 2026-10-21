@@ -769,7 +769,7 @@ variables whose type may be inferred as `Void`, the bodies of methods read
 from `.hxb` files and the JVM strict metadata), the type parameter constraint
 checks, then the per-type checks and the forcing of the remaining lazy types.
 A unit can add units to any stage; the earliest stage with units left always
-runs first (`flush_pass`), so loading a module while typing a field runs the
+runs first (`run_stages`), so loading a module while typing a field runs the
 structure of its types first: that is the demand of their `members` queries
 until accessors demand them one by one (§3.2). `-D typer-shuffle` now picks
 the units of a stage at random.
@@ -1202,6 +1202,17 @@ Exit criterion: the pass scheduler is removed (`typerPass.ml`, `delay`,
 tests pass, compilation output is unchanged compared with the pass-based
 compiler on the whole corpus (modulo the documented phase 1 and cycle errors),
 and parallel typing produces the same output as sequential typing.
+
+**Status of the exit criterion.** The pass scheduler is gone: `typerPass.ml`
+is `programStage.ml` (the stages of `program()`: `StageModules`,
+`StageTypes`, `StageMembers`, `StageBodies`, `StageConstraints`,
+`StageChecks`, `StageFinal`), `delay`/`delay_late`/`flush_pass` are
+`schedule`/`schedule_late`/`run_stages` over FIFO stage queues, the typer
+context records the stage it was created for (`ctx.stage`), `delay_if_mono`
+and `make_pass` are removed, and `make_lazy`'s forcing is a unit of the checks
+stage. `build_state` stays as the state of the `members` query of a class
+(`cl_build`). The output of the corpus (Heaps, hide) is unchanged except for
+the documented order of domkit handlers. Parallel typing (§3.5) is not done.
 
 ---
 

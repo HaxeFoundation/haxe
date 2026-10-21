@@ -250,7 +250,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos; Meta.InheritDoc,[],null_pos];
 		cf.cf_kind <- Method MethNormal;
 		c.cl_constructor <- Some cf;
-		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
+		schedule ctx.g StageBodies (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in
@@ -455,7 +455,7 @@ let build_module_def ctx mt meta fvars fbuild =
 	| [] ->
 		()
 	| pending ->
-		delay_late ctx.g PConnectField (fun () ->
+		schedule_late ctx.g StageMembers (fun () ->
 			List.iter (fun resolve -> ti.mt_using <- resolve () @ ti.mt_using) (List.rev pending)
 		)
 	end;
@@ -506,8 +506,8 @@ let run_connections cctx =
 (* Hands the connections of a class whose build failed to the connection
    stage of [program], as they were before. *)
 let delay_connections g cctx =
-	Queue.iter (fun f -> delay g PConnectField f) cctx.connections;
-	Queue.iter (fun f -> delay_late g PConnectField f) cctx.late_connections;
+	Queue.iter (fun f -> schedule g StageMembers f) cctx.connections;
+	Queue.iter (fun f -> schedule_late g StageMembers f) cctx.late_connections;
 	Queue.clear cctx.connections;
 	Queue.clear cctx.late_connections
 
@@ -837,7 +837,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let force_macro display =
 			(* force macro system loading of this class in order to get completion *)
-			delay ctx.g PTypeField (fun() ->
+			schedule ctx.g StageBodies (fun() ->
 				try
 					ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p)
 				with
@@ -933,7 +933,7 @@ module TypeBinding = struct
 		let r = make_unforced_lazy t (fun () -> PendingBodies.remove pending_bodies cf; while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
-				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
+				complete_structure ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 				let maybe_run_analyzer e = match e.eexpr with
@@ -1187,7 +1187,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 					| None ->
 						raise_typing_error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 				in
-				(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
+				(* delay ctx StageFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 				let args = match follow (monomorphs a.a_params ctor.cf_type) with
 					| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
 					| _ -> die "" __LOC__
@@ -1566,7 +1566,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 		TypeBinding.bind_method ctx cctx fctx fmode cf t args ret fd.f_expr function_mode (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
 		if fctx.is_display_field then begin
-			delay ctx.g PTypeField (fun () ->
+			schedule ctx.g StageBodies (fun () ->
 				(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
 				let ctx = TyperManager.clone_for_expr ctx fmode function_mode in
 				ignore(args#for_expr ctx)
@@ -1627,7 +1627,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 				| _ -> acc
 			) f2.cf_meta f.cff_meta;
 			(* Now that we know there is a field, we have to delay the actual unification even further. The reason is that unification could resolve
-			   TLazy, which would then cause field typing before we're done with our PConnectField pass. This could cause interface fields to not
+			   TLazy, which would then cause field typing before we're done with our StageMembers pass. This could cause interface fields to not
 			   be generated in time. *)
 			add_program_check ctx.g (fun () ->
 				try
@@ -1702,12 +1702,12 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "get",pget ->
 			let get = "get_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then schedule ctx.g StageMembers (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccCall
 		| "private get",pget ->
 			let get = "get_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx.g PConnectField (fun () -> display_accessor get pget);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then schedule ctx.g StageMembers (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get true);
 			AccPrivateCall
 		| _,pget ->
@@ -1726,12 +1726,12 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "set",pset ->
 			let set = "set_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then schedule ctx.g StageMembers (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccCall
 		| "private set",pset ->
 			let set = "set_" ^ name in
-			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx.g PConnectField (fun () -> display_accessor set pset);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then schedule ctx.g StageMembers (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set false);
 			AccPrivateCall
 		| _,pset ->
@@ -1805,7 +1805,7 @@ let init_field (ctx,cctx,fctx) f cf =
 	in
 	(if (fctx.is_static || fctx.is_macro && ctx.com.is_macro_context) then add_class_field_flag cf CfStatic);
 	if Meta.has Meta.InheritDoc cf.cf_meta then
-		delay ctx.g PTypeField (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
+		schedule ctx.g StageBodies (fun() -> InheritDoc.build_class_field_doc ctx (Some c) cf)
 
 let check_overload ctx f fs is_extern_class =
 	try

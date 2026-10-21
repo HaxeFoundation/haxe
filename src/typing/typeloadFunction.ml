@@ -43,7 +43,7 @@ let type_function_params ctx fd host fname =
 let type_function ctx (args : function_arguments) ret e do_display p =
 	ctx.e.ret <- ret;
 	ctx.e.opened <- [];
-	enter_field_typing_pass ctx.g ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
+	complete_structure ctx.g ("type_function",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 	args#bring_into_context ctx;
 	let e = match e with
 		| None ->

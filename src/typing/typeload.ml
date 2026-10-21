@@ -620,7 +620,7 @@ and load_complex_type' ctx allow_display mode (t,p) =
 		| None ->
 			()
 		| Some cf ->
-			delay ctx.g PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
+			schedule ctx.g StageTypes (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
 		end;
 		TAnon a
 	| CTFunction (args,r) ->
@@ -641,7 +641,7 @@ and load_complex_type ctx allow_display mode (t,pn) =
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
 			begin match err.err_message with
 			| Module_not_found ([],name) ->
-				delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true)
+				schedule ctx.g StageChecks (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true)
 			| _ ->
 				display_error_ext ctx.com err
 			end;
@@ -793,14 +793,14 @@ and type_type_params ?graft ctx host path tpl =
 					| TInst (c2,_) when ttp.ttp_class == c2 ->
 						raise_typing_error "Recursive constraint parameter is not allowed" (pos th)
 					| TInst ({ cl_kind = KTypeParameter ttp },_) ->
-						delay ctx.g PConnectField (fun () -> List.iter loop (get_constraints ttp))
+						schedule ctx.g StageMembers (fun () -> List.iter loop (get_constraints ttp))
 					| _ ->
 						()
 				in
 				List.iter loop constr;
 				constr
 			) in
-			delay ctx.g PConnectField (fun () -> ignore (AtomicLazy.force constraints));
+			schedule ctx.g StageMembers (fun () -> ignore (AtomicLazy.force constraints));
 			ttp.ttp_constraints <- Some constraints;
 	) param_pairs;
 	params
@@ -837,7 +837,7 @@ let load_core_class ctx c =
 		| _ -> c.cl_path
 	in
 	let t = load_type_def' ctx2 (fst c.cl_module.m_path) (snd c.cl_module.m_path) (snd tpath) null_pos in
-	flush_pass ctx2.g PFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
+	run_stages ctx2.g StageFinal ("core_final",(fst c.cl_path @ [snd c.cl_path]));
 	match t with
 	| TClassDecl ccore | TAbstractDecl {a_impl = Some ccore} ->
 		ccore

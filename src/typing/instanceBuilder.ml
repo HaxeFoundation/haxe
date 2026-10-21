@@ -71,7 +71,7 @@ let build_macro_build ctx c pl cfl p =
 let get_build_info ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
-		if ctx.pass > PBuildClass then ignore(c.cl_build());
+		if ctx.stage > StageTypes then ignore(c.cl_build());
 		let build f s tl =
 			let t = spawn_monomorph ctx p in
 			let r = make_lazy ctx.g t (fun () ->

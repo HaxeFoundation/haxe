@@ -14,7 +14,7 @@ let rec is_flash_native_basic t = match follow t with
 
 let type_function_arg com t e opt p =
 	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
-	(* delay ctx PTypeField (fun() ->
+	(* delay ctx StageBodies (fun() ->
 		if ExtType.is_void (follow t) then
 			error "Arguments of type Void are not allowed" p
 	); *)

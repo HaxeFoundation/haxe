@@ -291,7 +291,7 @@ let do_type com mctx actx display_file_dot_path =
 			if com.display.dms_kind <> DMNone then DisplayTexpr.check_display_file tctx cs;
 			List.iter (fun cpath ->
 				ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos);
-				Typecore.flush_pass tctx.g PBuildClass "actx.classes"
+				Typecore.run_stages tctx.g StageTypes "actx.classes"
 			) (List.rev actx.classes);
 			Finalization.finalize tctx;
 		);

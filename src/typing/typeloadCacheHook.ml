@@ -1,6 +1,6 @@
 open Globals
 open TType
-open TyperPass
+open ProgramStage
 open Common
 open TFunctions
 
@@ -16,7 +16,7 @@ type find_module_result =
    compilation context that found them). *)
 let dirty_dependencies : (Common.context * path) list ref = ref []
 
-let type_module_hook : (Common.context -> (typer_pass -> (unit -> unit) -> unit) -> path -> pos -> find_module_result) ref = ref (fun _ _ _ _ -> NoModule)
+let type_module_hook : (Common.context -> (stage -> (unit -> unit) -> unit) -> path -> pos -> find_module_result) ref = ref (fun _ _ _ _ -> NoModule)
 
 let create_fake_module com file =
 	let sign = Define.get_signature com.defines in

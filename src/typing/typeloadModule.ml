@@ -161,7 +161,7 @@ module ModuleLevel = struct
 						t_meta = d.d_meta;
 					} in
 					(* failsafe in case the typedef is not initialized (see #3933) *)
-					delay ctx_m.g PBuildModule (fun () ->
+					schedule ctx_m.g StageModules (fun () ->
 						match t.t_type with
 						| TMono r -> (match r.tm_type with None -> Monomorph.bind r com.basic.tvoid | _ -> ())
 						| _ -> ()
@@ -438,8 +438,8 @@ module TypeLevel = struct
 			TypeloadFields.run_connections cctx;
 			r
 		in
-		c.cl_build <- make_pass ctx_m build;
-		delay ctx_m.g PBuildClass (fun() -> ignore(c.cl_build()));
+		c.cl_build <- build;
+		schedule ctx_m.g StageTypes (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			Queue.push (fun() -> InheritDoc.build_class_doc ctx_m c) cctx.connections;
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
@@ -513,13 +513,13 @@ module TypeLevel = struct
 			incr index;
 			names := (fst c.ec_name) :: !names;
 			if Meta.has Meta.InheritDoc f.ef_meta then
-				delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
+				schedule ctx_en.g StageMembers (fun() -> InheritDoc.build_enum_field_doc ctx_en f);
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		unify ctx_en (TType(enum_module_type e,[])) e.e_type p;
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],null_pos) :: e.e_meta;
 		if Meta.has Meta.InheritDoc e.e_meta then
-			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
+			schedule ctx_en.g StageMembers (fun() -> InheritDoc.build_enum_doc ctx_en e);
 		if (ctx_en.com.platform = Jvm) && not (has_enum_flag e EnExtern) then
 			add_program_unit ctx_en.g (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
@@ -654,7 +654,7 @@ module TypeLevel = struct
 				raise_typing_error "Abstract is missing underlying type declaration" a.a_pos
 		end;
 		if Meta.has Meta.InheritDoc a.a_meta then
-			delay ctx_a.g PConnectField (fun() -> InheritDoc.build_abstract_doc ctx_a a)
+			schedule ctx_a.g StageMembers (fun() -> InheritDoc.build_abstract_doc ctx_a a)
 
 	(*
 		In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -723,7 +723,7 @@ let type_types_into_module com g m tdecls p =
 	(* setup module types *)
 	List.iter (TypeLevel.init_module_type ctx_m) decls;
 	(* Make sure that we actually init the context at some point (issue #9012) *)
-	delay ctx_m.g PConnectField (fun () -> ctx_m.m.import_resolution#resolve_lazies);
+	schedule ctx_m.g StageMembers (fun () -> ctx_m.m.import_resolution#resolve_lazies);
 	ctx_m
 
 (*
@@ -800,7 +800,7 @@ let rec load_hxb_module com g path p =
 				| TClassDecl c -> c.cl_build <- (fun () -> complete (); Built)
 				| _ -> ()
 			) m.m_types;
-			delay g PConnectField complete;
+			schedule g StageMembers complete;
 			m
 		with e ->
 			Printf.eprintf "\x1b[30;41mError loading %s from %s\x1b[0m\n" (snd path) file;
@@ -829,7 +829,7 @@ and load_module' com g m p =
 		com.module_lut#find m
 	with Not_found ->
 		(* Check cache *)
-		match !TypeloadCacheHook.type_module_hook com (delay g) m p with
+		match !TypeloadCacheHook.type_module_hook com (schedule g) m p with
 		| GoodModule m ->
 			let mine,others = List.partition (fun (com',_) -> com' == com) !TypeloadCacheHook.dirty_dependencies in
 			TypeloadCacheHook.dirty_dependencies := others;
@@ -870,7 +870,7 @@ and load_module' com g m p =
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
-	if ctx.pass = PTypeField then flush_pass ctx.g PConnectField ("load_module",fst m @ [snd m]);
+	if ctx.stage = StageBodies then run_stages ctx.g StageMembers ("load_module",fst m @ [snd m]);
 	m2
 
 ;;

@@ -350,8 +350,8 @@ let build_generic_class ctx c p tl =
 						update_expr e
 					| None ->
 						(* There can be cases like #11152 where cf_expr isn't ready yet. It should be safe to delay this to the end
-						   of the PTypeField pass. *)
-						delay_late ctx.g PTypeField (fun () -> match cf_old.cf_expr with
+						   of the StageBodies pass. *)
+						schedule_late ctx.g StageBodies (fun () -> match cf_old.cf_expr with
 							| Some e ->
 								update_expr e
 							| None ->

@@ -337,7 +337,7 @@ let get_hxb_module com cc path typing_mode =
 class hxb_reader_api_server
 	(com : Common.context)
 	(cc : context_cache)
-	(delay : TyperPass.typer_pass -> (unit -> unit) -> unit)
+	(delay : ProgramStage.stage -> (unit -> unit) -> unit)
 = object(self)
 
 	method make_module (path : path) (file : string) =
@@ -379,7 +379,7 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+			| AllowPartialTyping -> delay StageMembers (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
@@ -398,7 +398,7 @@ class hxb_reader_api_server
 				 our current display file if we're in display mode. *)
 			(match typing_mode with
 			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+			| AllowPartialTyping -> delay StageMembers (fun () -> ignore(f_next chunks EOF)));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadModule reason ->
@@ -422,7 +422,7 @@ class hxb_reader_api_server
 
 	method make_lazy_type t f =
 		let r = make_unforced_lazy t f "server-api" in
-		delay PForce (fun () -> ignore(lazy_type r));
+		delay StageChecks (fun () -> ignore(lazy_type r));
 		TLazy r
 end
 
@@ -561,7 +561,7 @@ and type_module sctx com delay mpath p =
 					   our current display file if we're in display mode. *)
 					(match typing_mode with
 					| FullTyping -> ignore(f_next chunks EOM)
-					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+					| AllowPartialTyping -> delay StageMembers (fun () -> ignore(f_next chunks EOF)));
 					incr com.request_scope.stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->
