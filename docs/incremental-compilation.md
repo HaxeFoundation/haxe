@@ -691,9 +691,9 @@ sig(MixedB.f) -> members(MixedA) (field x is read while MixedA is being built)`
 `MixedA` types `MixedB.f()`, whose body reads a field of `MixedA`; this used to
 report `Class<MixedA> has no field x`). Running as queries: the header and the
 build of classes (`TypeloadModule`), and the typing of fields (`sig` when the
-type is inferred from the body, `body` when it is declared). The typing is
-still scheduled by the passes; replacing them with a `program()` driver that
-demands queries is the next step.
+type is inferred from the body, `body` when it is declared). The typing was
+then still scheduled by the passes; the `program()` driver below replaces
+them.
 
 **Status: order-independence check.** `-D typer-shuffle=<seed>` runs the
 delayed tasks of each pass in a random order (seeded), so that every
@@ -802,6 +802,13 @@ what is not attached to the build of a class: the module-level import and
 `@:using` resolution, the documentation of enums and abstracts, the forcing of
 type parameter constraints, the interface checks of classes whose build
 macro is running, and display requests.
+
+This completes §3.1: every piece of typing is a query (`header`, `members`,
+`sig`, `body`) or a unit of a `program()` stage run in a deterministic order.
+Two things are left to §3.2, where reads go through accessors: loading a module
+while typing a field still runs the whole structure stage (instead of the
+`members` query of each type when it is read), and the queries of enums,
+abstracts and typedefs are still their build tasks.
 
 #### 3.2 Enforcing queries with abstract types
 
