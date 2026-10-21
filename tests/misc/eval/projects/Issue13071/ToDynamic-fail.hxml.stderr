@@ -1,1 +1,1 @@
-ToDynamic.hx:10: characters 9-12 : Array patterns are not allowed on DynamicValue: it has no length field of type Int
+ToDynamic.hx:10: characters 9-12 : Array patterns are not allowed on DynamicValue

@@ -60,20 +60,9 @@ let get_array_access ctx t p =
 	with Not_found ->
 		None
 
-(* The error for array patterns on values of type `t`, which can't be accessed by index. For an abstract, this says
-   which half of ArrayAccess.get_array_access it lacks: an Int length, or a way to read an element. *)
+(* The error for array patterns on values of type `t`, which can't be accessed by index. *)
 let no_array_access t p =
-	let reason = match follow t with
-		| TAbstract(a,tl) ->
-			let has_length = match a.a_impl with
-				| Some c -> (try ignore(ArrayAccess.get_abstract_length a c tl); true with Not_found -> false)
-				| None -> false
-			in
-			if has_length then ": it can't be read by index" else ": it has no length field of type Int"
-		| _ ->
-			""
-	in
-	raise_typing_error ("Array patterns are not allowed on " ^ s_type (print_context()) t ^ reason) p
+	raise_typing_error ("Array patterns are not allowed on " ^ s_type (print_context()) t) p
 
 let rec make pctx toplevel t e =
 	let ctx = pctx.ctx in

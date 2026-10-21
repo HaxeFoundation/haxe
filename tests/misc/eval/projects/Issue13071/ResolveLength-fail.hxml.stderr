@@ -1,1 +1,1 @@
-ResolveLength.hx:16: characters 9-15 : Array patterns are not allowed on Indexed: it has no length field of type Int
+ResolveLength.hx:16: characters 9-15 : Array patterns are not allowed on Indexed

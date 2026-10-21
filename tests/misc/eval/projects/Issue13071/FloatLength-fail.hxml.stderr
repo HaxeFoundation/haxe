@@ -1,1 +1,1 @@
-FloatLength.hx:18: characters 9-15 : Array patterns are not allowed on FloatLengthArray: it has no length field of type Int
+FloatLength.hx:18: characters 9-15 : Array patterns are not allowed on FloatLengthArray

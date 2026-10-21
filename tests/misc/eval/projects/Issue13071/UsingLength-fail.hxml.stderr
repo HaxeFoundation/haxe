@@ -1,1 +1,1 @@
-UsingLength.hx:20: characters 9-15 : Array patterns are not allowed on Indexed: it has no length field of type Int
+UsingLength.hx:20: characters 9-15 : Array patterns are not allowed on Indexed
