@@ -106,6 +106,7 @@ module ModuleLevel = struct
 			let c = Graft.graft_class m (mk_class m path p (pos d.d_name)) in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> raise_typing_error (s_type_path c.cl_path ^ " is not ready to be accessed, separate your type declarations in several files") p);
+			TAccess.not_ready := c :: !TAccess.not_ready;
 			c.cl_module <- m;
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
@@ -439,6 +440,7 @@ module TypeLevel = struct
 			r
 		in
 		c.cl_build <- build;
+		TAccess.not_ready := List.filter (fun c' -> c' != c) !TAccess.not_ready;
 		schedule ctx_m.g StageTypes (fun() -> ignore(c.cl_build()));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			Queue.push (fun() -> InheritDoc.build_class_doc ctx_m c) cctx.connections;
@@ -796,6 +798,7 @@ let rec load_hxb_module com g path p =
 					ignore(read EOM)
 				end
 			in
+			m.m_extra.m_complete <- complete;
 			List.iter (function
 				| TClassDecl c -> c.cl_build <- (fun () -> complete (); Built)
 				| _ -> ()
@@ -870,7 +873,6 @@ and load_module' com g m p =
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in
 	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
-	if ctx.stage = StageBodies then run_stages ctx.g StageMembers ("load_module",fst m @ [snd m]);
 	m2
 
 ;;

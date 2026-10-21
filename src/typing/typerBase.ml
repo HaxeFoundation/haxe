@@ -397,7 +397,7 @@ let get_abstract_froms ctx a pl =
 				acc)
 		| _ ->
 			acc
-	) l a.a_from_field
+	) l (TAccess.Members.abstract a).a_from_field
 
 (* How values of a type can be accessed by index: the element type, how to read the element at an index and how
    to read the length. For loops and array patterns use this (#8012). *)
@@ -416,10 +416,10 @@ let get_array_length ctx arr p =
 
 let get_array_access ctx t p =
 	match follow t with
-	| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
+	| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" (TAccess.Members.fields c)).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" (TAccess.Members.fields c)) ->
 		{ aa_type = apply_params c.cl_params pl pt; aa_get = get_next_array_element; aa_length = get_array_length ctx }
 	| TAbstract({a_impl = Some c} as a,tl) ->
-		let cf_length = PMap.find "get_length" c.cl_statics in
+		let cf_length = PMap.find "get_length" (TAccess.Members.statics c) in
 		let get_length e p =
 			CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
 		in

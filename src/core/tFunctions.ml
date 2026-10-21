@@ -134,7 +134,7 @@ let mk_typedef m path pos name_pos t =
 
 let class_module_type c =
 	let path = ([],"Class<" ^ (s_type_path c.cl_path) ^ ">") in
-	let t = mk_anon ~fields:c.cl_statics (ref (ClassStatics c)) in
+	let t = mk_anon ~fields:(TAccess.Members.statics c) (ref (ClassStatics c)) in
 	{ (mk_typedef c.cl_module path c.cl_pos null_pos t) with t_private = true}
 
 let mk_class m path pos name_pos =
@@ -189,6 +189,7 @@ let module_extra file sign time kind added policy =
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
 		m_features = Hashtbl.create 0;
+		m_complete = (fun () -> ());
 		m_check_policy = policy;
 	}
 
@@ -221,11 +222,11 @@ let mk_field name ?(public = true) ?(static = false) t p name_pos = {
 let find_field c name kind =
 	match kind with
 	| CfrConstructor ->
-		begin match c.cl_constructor with Some cf -> cf | None -> raise Not_found end
+		begin match (TAccess.Members.constructor c) with Some cf -> cf | None -> raise Not_found end
 	| CfrStatic ->
-		PMap.find name c.cl_statics
+		PMap.find name (TAccess.Members.statics c)
 	| CfrMember ->
-		PMap.find name c.cl_fields
+		PMap.find name (TAccess.Members.fields c)
 	| CfrInit ->
 		begin match c.cl_init with Some cf -> cf | None -> raise Not_found end
 
@@ -338,9 +339,9 @@ let t_path t = (t_infos t).mt_path
 let t_name t = snd (t_path t)
 
 let rec extends c csup =
-	if c == csup || List.exists (fun (i,_) -> extends i csup) c.cl_implements then
+	if c == csup || List.exists (fun (i,_) -> extends i csup) (TAccess.Header.implements c) then
 		true
-	else match c.cl_super with
+	else match (TAccess.Header.super c) with
 		| None -> false
 		| Some (c,_) -> extends c csup
 
@@ -352,7 +353,7 @@ let rec type_usings mt =
 	match mt with
 	| TClassDecl c ->
 		let inherited (c,_) = type_usings (TClassDecl c) in
-		own @ (match c.cl_super with Some csup -> inherited csup | None -> []) @ List.concat_map inherited c.cl_implements
+		own @ (match (TAccess.Header.super c) with Some csup -> inherited csup | None -> []) @ List.concat_map inherited (TAccess.Header.implements c)
 	| _ ->
 		own
 
@@ -910,13 +911,13 @@ let field_type f =
 let rec raw_class_field build_type c tl i =
 	let apply = apply_params c.cl_params tl in
 	try
-		let f = PMap.find i c.cl_fields in
+		let f = PMap.find i (TAccess.Members.fields c) in
 		Some (c,tl), build_type f , f
-	with Not_found -> try (match c.cl_constructor with
+	with Not_found -> try (match TAccess.Members.constructor c with
 		| Some ctor when i = "new" -> Some (c,tl), build_type ctor,ctor
 		| _ -> raise Not_found)
 	with Not_found -> try
-		match c.cl_super with
+		match TAccess.Header.super c with
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
@@ -962,7 +963,7 @@ let rec raw_class_field build_type c tl i =
 					with
 						Not_found -> loop l
 			in
-			loop c.cl_implements
+			loop (TAccess.Header.implements c)
 
 let class_field = raw_class_field field_type
 
@@ -974,14 +975,14 @@ let quick_field t n =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics e ->
-			let ef = PMap.find n e.e_constrs in
+			let ef = PMap.find n (TAccess.Members.enum_constructors e) in
 			FEnum(e,ef)
 		| ClassStatics c ->
-			FStatic (c,PMap.find n c.cl_statics)
+			FStatic (c,PMap.find n (TAccess.Members.statics c))
 		| AbstractStatics a ->
 			begin match a.a_impl with
 				| Some c ->
-					let cf = PMap.find n c.cl_statics in
+					let cf = PMap.find n (TAccess.Members.statics c) in
 					FStatic(c,cf) (* is that right? *)
 				| _ ->
 					raise Not_found
@@ -1000,13 +1001,13 @@ let quick_field_dynamic t s =
 	with Not_found -> FDynamic s
 
 let rec get_constructor_class c tl =
-	match c.cl_constructor, c.cl_super with
+	match (TAccess.Members.constructor c), (TAccess.Header.super c) with
 	| Some cf, _ -> (cf,c,tl)
 	| None, None -> raise Not_found
 	| None, Some (csup,tlsup) -> get_constructor_class csup (List.map (apply_params c.cl_params tl) tlsup)
 
 let rec get_constructor c =
-	match c.cl_constructor, c.cl_super with
+	match (TAccess.Members.constructor c), (TAccess.Header.super c) with
 	| Some c, _ -> c
 	| None, None -> raise Not_found
 	| None, Some (csup,_) -> get_constructor csup

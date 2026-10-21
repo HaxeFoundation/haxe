@@ -122,11 +122,11 @@ let rec make pctx toplevel t e =
 	let con_fields fl p = ConFields fl,p in
 	let get_enumerable_idents () = match follow t with
 		| TEnum(en,_) ->
-			en.e_names
+			(TAccess.Members.enum_names en)
 		| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 			ExtList.List.filter_map (fun cf ->
 				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then Some cf.cf_name else None
-			) c.cl_ordered_statics
+			) (TAccess.Members.ordered_statics c)
 		| _ ->
 			[]
 	in
@@ -369,13 +369,13 @@ let rec make pctx toplevel t e =
 					PMap.iter (fun _ cf -> collect_field cf cf.cf_type filter) an.a_fields
 				| TInst(c,tl) ->
 					let rec loop c tl =
-						(match c.cl_super with
+						(match (TAccess.Header.super c) with
 							| Some (csup,tlsup) -> loop csup (List.map (apply_params c.cl_params tl) tlsup)
 							| _ -> ());
 						List.iter (fun cf ->
 							if Typecore.can_access ctx c cf false then
 								collect_field cf (apply_params c.cl_params tl cf.cf_type) filter
-						) c.cl_ordered_fields
+						) (TAccess.Members.ordered_fields c)
 					in
 					loop c tl
 				| TAbstract({a_impl = Some c} as a,tl) ->
@@ -393,7 +393,7 @@ let rec make pctx toplevel t e =
 					List.iter (fun cf ->
 						if has_class_field_flag cf CfImpl then
 							collect_field cf (apply_params a.a_params tl cf.cf_type) filter
-					) c.cl_ordered_statics;
+					) (TAccess.Members.ordered_statics c);
 				| _ ->
 					raise_typing_error (Printf.sprintf "Cannot field-match against %s" (s_type (print_context()) t)) (pos e)
 			in

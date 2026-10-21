@@ -450,6 +450,9 @@ and module_def_extra = {
 	mutable m_kind : module_kind;
 	mutable m_cache_bound_objects : cache_bound_object DynArray.t;
 	mutable m_features : (string,bool) Hashtbl.t;
+	(* completes the types of the module: reads the rest of a module read from a
+	   .hxb file (docs/incremental-compilation.md, phase 3.2) *)
+	mutable m_complete : unit -> unit;
 }
 
 and class_field_ref_kind =

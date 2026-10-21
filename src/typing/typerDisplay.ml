@@ -332,7 +332,7 @@ let rec handle_signature_display ctx e_ast with_type =
 						end
 					| _ ->
 						None
-				) a.a_array in
+				) (TAccess.Members.abstract a).a_array in
 				DisplayException.send_signatures_raise ctx.com sigs 0 0 SKArrayAccess
 			| _ ->
 				DisplayException.send_signatures_raise ctx.com [] 0 0 SKArrayAccess
@@ -340,7 +340,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		| _ -> raise_typing_error "Call expected" p
 
 and display_expr ctx e_ast e dk mode with_type p =
-	let get_super_constructor () = match ctx.c.curclass.cl_super with
+	let get_super_constructor () = match (TAccess.Header.super ctx.c.curclass) with
 		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = get_constructor_access c params p in
@@ -419,7 +419,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				()
 			end
 		| TConst TSuper ->
-			begin match ctx.c.curclass.cl_super with
+			begin match (TAccess.Header.super ctx.c.curclass) with
 				| None -> ()
 				| Some (c,_) -> Display.ReferencePosition.set (snd c.cl_path,c.cl_name_pos,SKClass c);
 			end
@@ -437,7 +437,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		| TField(_,FEnum(_,ef)) -> [ef.ef_name_pos]
 		| TField(_,(FStatic (c,cf))) when Meta.has Meta.CoreApi c.cl_meta ->
 			let c' = ctx.g.do_load_core_class ctx c in
-			cf.cf_name_pos :: (try [(PMap.find cf.cf_name c'.cl_statics).cf_name_pos] with Not_found -> [])
+			cf.cf_name_pos :: (try [(PMap.find cf.cf_name (TAccess.Members.statics c')).cf_name_pos] with Not_found -> [])
 		| TField(_,(FInstance (c,tl,cf) | FClosure (Some(c,tl),cf))) when Meta.has Meta.CoreApi c.cl_meta ->
 			let c' = ctx.g.do_load_core_class ctx c in
 			let l = try
@@ -459,7 +459,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				let cf = fa.fa_field in
 				if Meta.has Meta.CoreApi c.cl_meta then begin
 					let c' = ctx.g.do_load_core_class ctx c in
-					begin match c'.cl_constructor with
+					begin match (TAccess.Members.constructor c') with
 					| Some cf' -> [cf.cf_name_pos;cf'.cf_name_pos]
 					| None -> [cf.cf_name_pos]
 					end
@@ -476,7 +476,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 				[]
 			end
 		| TConst TSuper ->
-			begin match ctx.c.curclass.cl_super with
+			begin match (TAccess.Header.super ctx.c.curclass) with
 				| None -> []
 				| Some (c,_) -> [c.cl_name_pos]
 			end
@@ -563,7 +563,7 @@ let filter_ctors ctx r =
 						let path = (mt.pack,mt.name) in
 						let rec loop c =
 							if c.cl_path = path then true
-							else match c.cl_super with
+							else match (TAccess.Header.super c) with
 								| Some(c,_) -> loop c
 								| None -> false
 						in
@@ -577,7 +577,7 @@ let filter_ctors ctx r =
 					| TClassDecl c -> has_constructor c
 					| TAbstractDecl a -> (match Abstract.follow_with_forward_ctor ~build:true (TAbstract(a,extract_param_types a.a_params)) with
 						| TInst(c,_) -> has_constructor c
-						| TAbstract(a,_) -> a.a_constructor <> None
+						| TAbstract(a,_) -> (TAccess.Members.abstract a).a_constructor <> None
 						| _ -> false)
 					| _ -> false
 					end

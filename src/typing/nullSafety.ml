@@ -337,7 +337,7 @@ class unificator =
 			PMap.iter
 				(fun name b_field ->
 					let a_field =
-						try Some (PMap.find name a.cl_fields)
+						try Some (PMap.find name (TAccess.Members.fields a))
 						with Not_found -> None
 					in
 					match a_field with
@@ -1671,9 +1671,9 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 			end in
 			if is_safe_class then
 				Option.may ((self#get_checker (get_safety_mode cls_meta))#check_root_expr) (TClass.get_cl_init cls);
-			Option.may (check_field false) cls.cl_constructor;
-			List.iter (check_field false) cls.cl_ordered_fields;
-			List.iter (check_field true) cls.cl_ordered_statics;
+			Option.may (check_field false) (TAccess.Members.constructor cls);
+			List.iter (check_field false) (TAccess.Members.ordered_fields cls);
+			List.iter (check_field true) (TAccess.Members.ordered_statics cls);
 		(**
 			Check if a getter/setter for non-nullable property return safe values.
 			E.g.
@@ -1685,7 +1685,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 		method private check_accessors is_static field =
 			match field.cf_kind with
 				| Var { v_read = read_access; v_write = write_access } when not (is_nullable_type field.cf_type) ->
-					let fields = if is_static then cls.cl_statics else cls.cl_fields in
+					let fields = if is_static then (TAccess.Members.statics cls) else (TAccess.Members.fields cls) in
 					let check_accessor prefix =
 						let accessor =
 							try Some (PMap.find (prefix ^ field.cf_name) fields)
@@ -1763,8 +1763,8 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 								("Cannot set nullable initial value for not-nullable field \"" ^ field.cf_name ^ "\".") [field.cf_pos]
 						| None -> ()
 			in
-			List.iter (check_field false) cls.cl_ordered_fields;
-			List.iter (check_field true) cls.cl_ordered_statics;
+			List.iter (check_field false) (TAccess.Members.ordered_fields cls);
+			List.iter (check_field true) (TAccess.Members.ordered_statics cls);
 
 			self#check_statics_initialization ();
 			self#check_fields_initialization_in_constructor ()
@@ -1782,7 +1782,7 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							| Some _ -> ()
 							| None -> Hashtbl.add fields_to_initialize f.cf_name f
 				)
-				cls.cl_ordered_statics;
+				(TAccess.Members.ordered_statics cls);
 
 			begin match TClass.get_cl_init cls with
 				| Some init_expr ->
@@ -1818,9 +1818,9 @@ class class_checker cls immediate_execution report (main_expr : texpr option) =
 							| Some _ -> ()
 							| None -> Hashtbl.add fields_to_initialize f.cf_name f
 				)
-				cls.cl_ordered_fields;
+				(TAccess.Members.ordered_fields cls);
 
-			(match cls.cl_constructor with
+			(match (TAccess.Members.constructor cls) with
 				| Some ({ cf_meta = ctor_meta; cf_expr = Some { eexpr = TFunction { tf_expr = e } } }) ->
 					(* Get the safety mode for the constructor *)
 					let ctor_mode = get_safety_mode (cls_meta @ ctor_meta) in

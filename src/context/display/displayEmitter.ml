@@ -172,7 +172,7 @@ let check_display_metadata ctx meta =
 let check_field_modifiers ctx c cf override display_modifier =
 	match override,display_modifier with
 		| Some p,_ when display_position#enclosed_in p && ctx.com.display.dms_kind = DMDefinition ->
-			begin match c.cl_super with
+			begin match (TAccess.Header.super c) with
 			| Some(c,tl) ->
 				let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
 				display_field ctx (Parent(TClassDecl c)) CFSMember cf p
@@ -181,7 +181,7 @@ let check_field_modifiers ctx c cf override display_modifier =
 			end
 		| Some _,_ when ctx.com.display.dms_kind = DMDefault ->
 			let all_fields = TClass.get_all_super_fields c in
-			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
+			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields (TAccess.Members.ordered_fields c) in
 			let l = PMap.fold (fun (c,cf) fields ->
 				let origin = Parent (TClassDecl c) in
 				force_field_body cf;

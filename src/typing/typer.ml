@@ -90,11 +90,11 @@ let maybe_type_against_enum ctx f with_type iscall p =
 		| WithType.WithType(t,_) ->
 			let rec loop stack t = match follow t with
 				| TEnum (en,_) ->
-					true,en.e_path,en.e_names,TEnumDecl en
+					true,en.e_path,(TAccess.Members.enum_names en),TEnumDecl en
 				| TAbstract ({a_impl = Some c} as a,_) when a.a_enum ->
 					let fields = ExtList.List.filter_map (fun cf ->
 						if has_class_field_flag cf CfEnum then Some cf.cf_name else None
-					) c.cl_ordered_statics in
+					) (TAccess.Members.ordered_statics c) in
 					false,a.a_path,fields,TAbstractDecl a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms ctx a pl with
@@ -179,7 +179,7 @@ let enum_field_access ctx en ef mode p pt =
 let resolve_against_expected_enum ctx i =
 	let rec loop mt = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-			let cf = PMap.find i c.cl_statics in
+			let cf = PMap.find i (TAccess.Members.statics c) in
 			if not (has_class_field_flag cf CfEnum) then
 				raise Not_found;
 			static_abstract_field_resolution a c cf None null_pos
@@ -192,7 +192,7 @@ let resolve_against_expected_enum ctx i =
 				| _ -> raise Not_found
 			end
 		| TEnumDecl en ->
-			let ef = PMap.find i en.e_constrs in
+			let ef = PMap.find i (TAccess.Members.enum_constructors en) in
 			enum_constructor_resolution en ef None null_pos
 	in
 	match ctx.m.enum_with_type with
@@ -272,7 +272,7 @@ let rec type_ident_raise ctx i p mode with_type =
 				raise_typing_error "Property 'abstract' is reserved and only available in abstracts" p
 		end
 	| "super" ->
-		let t = (match ctx.c.curclass.cl_super with
+		let t = (match (TAccess.Header.super ctx.c.curclass) with
 			| None -> raise_typing_error "Current class does not have a superclass" p
 			| Some (c,params) -> TInst(c,params)
 		) in
@@ -335,7 +335,7 @@ let rec type_ident_raise ctx i p mode with_type =
 		field_access ctx mode f (match c with None -> FHAnon | Some (c,tl) -> FHInstance (c,tl)) (get_this ctx p) p
 	with Not_found -> try
 		(* static variable lookup *)
-		let f = PMap.find i ctx.c.curclass.cl_statics in
+		let f = PMap.find i (TAccess.Members.statics ctx.c.curclass) in
 		let is_impl = has_class_field_flag f CfImpl in
 		let is_enum = has_class_field_flag f CfEnum in
 		if is_impl && not (has_class_field_flag ctx.f.curfield CfImpl) && not is_enum then
@@ -390,7 +390,7 @@ and type_ident ctx i p mode with_type =
 					let t = mk_mono() in
 					AKExpr ((mk (TIdent i)) t p)
 			end else begin
-				if ctx.e.curfun = FunStatic && PMap.mem i ctx.c.curclass.cl_fields then raise_typing_error ("Cannot access " ^ i ^ " in static function") p;
+				if ctx.e.curfun = FunStatic && PMap.mem i (TAccess.Members.fields ctx.c.curclass) then raise_typing_error ("Cannot access " ^ i ^ " in static function") p;
 				if !resolved_to_type_parameter then begin
 					display_error ctx.com ("Only @:const type parameters on @:generic classes can be used as value") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
@@ -799,7 +799,7 @@ and type_object_decl ctx fl with_type p =
 			let f = mk_field n t parg parg in
 			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
 			(try
-				let cf = PMap.find n c.cl_fields in
+				let cf = PMap.find n (TAccess.Members.fields c) in
 				f.cf_doc <- cf.cf_doc
 			with Not_found -> ());
 			PMap.add n f acc
@@ -1107,7 +1107,7 @@ and type_map_declaration ctx e1 el with_type p =
 			raise_typing_error (Printf.sprintf "Module haxe.ds.Map is expected to contain an abstract type with an implementation, but found [%s]" s_mt) p
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
-	let cf = PMap.find "set" c.cl_statics in
+	let cf = PMap.find "set" (TAccess.Members.statics c) in
 	let v = gen_local ctx tmap p in
 	let ev = mk (TLocal v) tmap p in
 	let ec = type_module_type ctx (TClassDecl c) p in
@@ -1543,7 +1543,7 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.ToString,_,_) ->
 			let e = e() in
 			(match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
+				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" (TAccess.Members.statics c) -> call_to_string ctx e
 				| _ -> e)
 		| (Meta.Markup,_,_) ->
 			raise_typing_error "Markup literals must be processed by a macro" p
@@ -1682,7 +1682,7 @@ and type_call_builtin ctx e el mode with_type p =
 			if ExtType.is_void (follow e.etype) then raise_typing_error "Cannot use Void as value" e.epos;
 			let infos = type_expr ctx infos WithType.value in
 			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" (TAccess.Members.statics c) ->
 					call_to_string ctx e
 				| _ ->
 					e
@@ -1723,7 +1723,7 @@ and type_call_builtin ctx e el mode with_type p =
 			| TEnum _ -> true
 			| TAbstract (a,tl) when (Meta.has Meta.Forward a.a_meta) && not (Meta.has Meta.CoreType a.a_meta) ->
 				(match a.a_impl with
-					| Some c when (PMap.exists "match" c.cl_statics) && (has_class_field_flag (PMap.find "match" c.cl_statics) CfImpl) -> false
+					| Some c when (PMap.exists "match" (TAccess.Members.statics c)) && (has_class_field_flag (PMap.find "match" (TAccess.Members.statics c)) CfImpl) -> false
 					| _ -> has_enum_match (Abstract.get_underlying_type ~return_first:true a tl))
 			| _ -> false
 		in
@@ -1743,7 +1743,7 @@ and type_call_builtin ctx e el mode with_type p =
 		TyperDisplay.handle_display ctx (ECall(e1,el),p) dk mode with_type
 	| (EConst (Ident "super"),sp) , el ->
 		if ctx.e.curfun <> FunConstructor then raise_typing_error "Cannot call super constructor outside class constructor" p;
-		let el, t = (match ctx.c.curclass.cl_super with
+		let el, t = (match (TAccess.Header.super ctx.c.curclass) with
 		| None -> raise_typing_error "Current class does not have a super" p
 		| Some (c,params) ->
 			let fa = FieldAccess.get_constructor_access c params p in

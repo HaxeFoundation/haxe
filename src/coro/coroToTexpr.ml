@@ -213,7 +213,7 @@ let build_call_stack ctx cont econtinuation p =
 		b#void_block_at [] p
 	else begin
 		let basic = ctx.typer.t in
-		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+		let build_cf = PMap.find "buildCallStack" (TAccess.Members.fields cont.base_continuation_class) in
 		let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
 		mk (TCall (eaccess, [])) basic.tvoid p
 	end
@@ -382,7 +382,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 	let get_caught,unwrap_exception = match com.basic.texception with
 		| TInst(c,_) ->
 			let unwrap =
-				let cf = PMap.find "unwrap" c.cl_fields in
+				let cf = PMap.find "unwrap" (TAccess.Members.fields c) in
 				(fun e ->
 					let e = b#instance_field e c [] cf cf.cf_type in
 					b#call e [] com.basic.tany

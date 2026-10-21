@@ -88,7 +88,7 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_to
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-					let cf = match TClass.get_singular_interface_field c.cl_ordered_fields with
+					let cf = match TClass.get_singular_interface_field (TAccess.Members.ordered_fields c) with
 						| None -> raise Not_found
 						| Some cf -> cf
 					in
@@ -164,7 +164,7 @@ let find_array_read_access_raise ctx a pl e1 p =
 				end
 			| _ -> loop cfl
 	in
-	loop a.a_array
+	loop (TAccess.Members.abstract a).a_array
 
 let find_array_write_access_raise ctx a pl e1 e2  p =
 	let rec loop cfl =
@@ -185,7 +185,7 @@ let find_array_write_access_raise ctx a pl e1 e2  p =
 				end
 			| _ -> loop cfl
 	in
-	loop a.a_array
+	loop (TAccess.Members.abstract a).a_array
 
 let find_array_read_access ctx a tl e1 p =
 	try
@@ -231,7 +231,7 @@ let find_to_field uctx b ab tl =
 				loop cfl
 			end
 	in
-	loop ab.a_to_field
+	loop (TAccess.Members.abstract ab).a_to_field
 
 let find_multitype_specialization' platform a pl p =
 	let uctx = default_unification_context () in
@@ -281,7 +281,7 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 			begin match follow e1.etype with
 				| TAbstract({a_impl = Some c},tl) ->
 					begin try
-						let cf = PMap.find "toString" c.cl_statics in
+						let cf = PMap.find "toString" (TAccess.Members.statics c) in
 						let call() = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
 						if not (is_nullable e1.etype) then
 							call()
@@ -362,7 +362,7 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 							(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
 							match follow m with
 							| TAbstract({a_impl = Some c},pl) ->
-								let cf = PMap.find fname c.cl_statics in
+								let cf = PMap.find fname (TAccess.Members.statics c) in
 								ExceptionFunctions.make_static_call scom c cf  (e2 :: el) e.etype e.epos
 							| _ -> raise Not_found
 						end

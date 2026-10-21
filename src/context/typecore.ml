@@ -672,11 +672,11 @@ let can_access ctx c cf ?(check_prop=false) ?(is_setter=false) stat =
 	let cur_paths = ref [fst module_path @ [snd module_path], false] in
 	let rec loop c is_current_path =
 		cur_paths := (make_path c ctx.f.curfield, is_current_path) :: !cur_paths;
-		begin match c.cl_super with
+		begin match (TAccess.Header.super c) with
 			| Some (csup,_) -> loop csup false
 			| None -> ()
 		end;
-		List.iter (fun (c,_) -> loop c false) c.cl_implements;
+		List.iter (fun (c,_) -> loop c false) (TAccess.Header.implements c);
 	in
 	loop ctx.c.curclass true;
 	let is_constr = cf.cf_name = "new" in
@@ -687,17 +687,17 @@ let can_access ctx c cf ?(check_prop=false) ?(is_setter=false) stat =
 				(* if our common ancestor declare/override the field, then we can access it *)
 				let allowed f = extends ctx.c.curclass c || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr then (
-					match c.cl_constructor with
+					match (TAccess.Members.constructor c) with
 					| Some cf ->
 						if allowed cf then true
 						else if has_class_field_flag cf CfInheritedConstructor then false (* the access of the inherited one applies *)
 						else raise Not_found
 					| _ -> false
 				) else
-					try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields))
+					try allowed (PMap.find cf.cf_name (if stat then (TAccess.Members.statics c) else (TAccess.Members.fields c)))
 					with Not_found -> false
 			)
-			|| (match c.cl_super with
+			|| (match (TAccess.Header.super c) with
 			| Some (csup,_) -> loop csup
 			| None -> false)
 		with Not_found -> false
@@ -738,9 +738,9 @@ let merge_core_doc ctx mt =
 		let maybe_merge cf_map cf =
 			if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
 		in
-		List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
-		List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
-		begin match c.cl_constructor,c_core.cl_constructor with
+		List.iter (maybe_merge (TAccess.Members.fields c_core)) (TAccess.Members.ordered_fields c);
+		List.iter (maybe_merge (TAccess.Members.statics c_core)) (TAccess.Members.ordered_statics c);
+		begin match (TAccess.Members.constructor c),(TAccess.Members.constructor c_core) with
 			| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
 			| _ -> ()
 		end

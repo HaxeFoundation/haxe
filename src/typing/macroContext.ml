@@ -335,8 +335,8 @@ let make_macro_api ctx mctx p =
 			let rec has_build_macros c =
 				c.cl_build_header ();
 				Meta.has Meta.Build c.cl_meta
-				|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) c.cl_implements
-				|| (match c.cl_super with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
+				|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (TAccess.Header.implements c)
+				|| (match (TAccess.Header.super c) with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
 			in
 			if has_build_macros c then
 				warning ctx WTypingOrder (Printf.sprintf "Metadata of %s read before its build; call Context.buildType if build-added metadata is needed" (s_type_path c.cl_path)) p
@@ -668,9 +668,9 @@ and flush_macro_context mint mctx =
 				in
 				let meta = c.cl_meta
 				and path = c.cl_path
-				and field_restores = List.map mk_field_restore c.cl_ordered_fields
-				and static_restores = List.map mk_field_restore c.cl_ordered_statics
-				and ctor_restore = Option.map mk_field_restore c.cl_constructor
+				and field_restores = List.map mk_field_restore (TAccess.Members.ordered_fields c)
+				and static_restores = List.map mk_field_restore (TAccess.Members.ordered_statics c)
+				and ctor_restore = Option.map mk_field_restore (TAccess.Members.constructor c)
 				in
 				c.cl_restore <- (fun() ->
 					c.cl_meta <- meta;
@@ -827,7 +827,7 @@ let load_macro'' com mctx display cpath fname p =
 					| None -> raise Not_found
 					| Some c ->
 						Finalization.finalize mctx;
-						c, PMap.find fname c.cl_statics
+						c, PMap.find fname (TAccess.Members.statics c)
 				with Not_found ->
 					let name = Option.default (snd mpath) sub in
 					let path = fst mpath, name in
@@ -835,7 +835,7 @@ let load_macro'' com mctx display cpath fname p =
 					match mt with
 					| TClassDecl c ->
 						Finalization.finalize mctx;
-						c, (try PMap.find fname c.cl_statics with Not_found -> raise_typing_error ("Method " ^ fname ^ " not found on class " ^ s_type_path cpath) p)
+						c, (try PMap.find fname (TAccess.Members.statics c) with Not_found -> raise_typing_error ("Method " ^ fname ^ " not found on class " ^ s_type_path cpath) p)
 					| _ -> raise_typing_error "Macro should be called on a class" p
 			in
 			let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> raise_typing_error "Macro call should be a method" p) in

@@ -40,7 +40,7 @@ let resolve_module_field ctx m path p mode with_type =
 	| [], _ | _, None ->
 		raise Not_found
 	| {name = name; pos = p} :: path_rest, Some c ->
-		let f = PMap.find name c.cl_statics in (* raises Not_found *)
+		let f = PMap.find name (TAccess.Members.statics c) in (* raises Not_found *)
 		let e = type_module_type ctx (TClassDecl c) p in
 		field_access ctx mode f (FHStatic c) e p, path_rest
 

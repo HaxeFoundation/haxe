@@ -136,7 +136,7 @@ let all_ctors ctx e cases =
 						| None -> add (ConStatic(c,cf),null_pos)
 						end;
 					| _ -> add (ConStatic(c,cf),null_pos)
-			) c.cl_ordered_statics;
+			) (TAccess.Members.ordered_statics c);
 			let real_kind,_ = loop true (Abstract.get_underlying_type a pl) in
 			real_kind,CompileTimeFinite
 		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -148,7 +148,7 @@ let all_ctors ctx e cases =
 			SKLength,Infinite
 		| TEnum(en,pl) ->
 			if not deep then
-				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
+				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) (TAccess.Members.enum_constructors en);
 			SKEnum,RunTimeFinite
 		| TAnon _ ->
 			SKValue,Infinite
@@ -191,7 +191,7 @@ let report_not_exhaustive v_lookup e_subject unmatched =
 							| None -> false
 							end
 						| _ -> false
-					) c.cl_ordered_statics in
+					) (TAccess.Members.ordered_statics c) in
 					cf.cf_name
 				| _ ->
 					Constructor.to_string con

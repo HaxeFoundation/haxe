@@ -316,11 +316,11 @@ module TClass = struct
 					PMap.add cf.cf_name (c,cf) acc
 				end else acc
 			in
-			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
+			let acc = if self_too || c != c0 then List.fold_left maybe_add acc (TAccess.Members.ordered_fields c) else acc in
 			if (has_class_flag c CInterface) then
-				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
+				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc (TAccess.Header.implements c)
 			else
-				match c.cl_super with
+				match (TAccess.Header.super c) with
 				| Some(c,tl) -> loop acc c (List.map apply tl)
 				| None -> acc
 		in
@@ -333,12 +333,12 @@ module TClass = struct
 		get_member_fields' true c tl
 
 	let get_overridden_fields c cf =
-		let rec loop acc c = match c.cl_super with
+		let rec loop acc c = match (TAccess.Header.super c) with
 			| None ->
 				acc
 			| Some(c,_) ->
 				begin try
-					let cf' = PMap.find cf.cf_name c.cl_fields in
+					let cf' = PMap.find cf.cf_name (TAccess.Members.fields c) in
 					loop (cf' :: acc) c
 				with Not_found ->
 					loop acc c
@@ -349,15 +349,15 @@ module TClass = struct
 	let add_field c cf =
 		let is_static = has_class_field_flag cf CfStatic in
 		if is_static then begin
-			c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
-			c.cl_ordered_statics <- cf :: c.cl_ordered_statics;
+			c.cl_statics <- PMap.add cf.cf_name cf (TAccess.Members.statics c);
+			c.cl_ordered_statics <- cf :: (TAccess.Members.ordered_statics c);
 		end else begin
-			c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+			c.cl_fields <- PMap.add cf.cf_name cf (TAccess.Members.fields c);
+			c.cl_ordered_fields <- cf :: (TAccess.Members.ordered_fields c);
 		end
 
 	let get_map_function c tl =
-		let rec loop map c = match c.cl_super with
+		let rec loop map c = match (TAccess.Header.super c) with
 			| Some(csup,tl) ->
 				let map t = map (apply_params csup.cl_params tl t) in
 				loop map csup

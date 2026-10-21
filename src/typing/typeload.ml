@@ -907,9 +907,9 @@ let init_core_api ctx c =
 			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (has_class_field_flag f CfOverride) then raise_typing_error ("Public field " ^ i ^ " is not part of core type") p;
 		) fl;
 	in
-	check_fields ccore.cl_fields c.cl_fields;
-	check_fields ccore.cl_statics c.cl_statics;
-	(match ccore.cl_constructor, c.cl_constructor with
+	check_fields (TAccess.Members.fields ccore) (TAccess.Members.fields c);
+	check_fields (TAccess.Members.statics ccore) (TAccess.Members.statics c);
+	(match (TAccess.Members.constructor ccore), (TAccess.Members.constructor c) with
 	| None, None -> ()
 	| Some cf, _ when not (has_class_field_flag cf CfPublic) -> ()
 	| Some f, Some f2 -> compare_fields f f2

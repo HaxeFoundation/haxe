@@ -108,9 +108,9 @@ let collect_diagnostics dctx com =
 	List.iter (function
 		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get (Pos.file c.cl_pos)) ->
 			let dectx = {dectx with class_meta = c.cl_meta} in
-			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
-			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx dectx com cf);
+			List.iter (prepare_field dctx dectx com) (TAccess.Members.ordered_fields c);
+			List.iter (prepare_field dctx dectx com) (TAccess.Members.ordered_statics c);
+			(match (TAccess.Members.constructor c) with None -> () | Some cf -> prepare_field dctx dectx com cf);
 		| _ ->
 			()
 	) com.types;

@@ -690,7 +690,7 @@ let rec type_eq uctx a b =
 			| _ -> ()
 			);
 			let fields = match !(a1.a_status) with
-				| ClassStatics c -> c.cl_statics
+				| ClassStatics c -> (TAccess.Members.statics c)
 				| _ -> a1.a_fields
 			in
 			PMap.iter (fun n f1 ->
@@ -839,13 +839,13 @@ let rec unify (uctx : unification_context) a b =
 			if c == c2 then begin
 				unify_type_params uctx a b tl tl2;
 				true
-			end else (match c.cl_super with
+			end else (match (TAccess.Header.super c) with
 				| None -> false
 				| Some (cs,tls) ->
 					loop cs (List.map (apply_params c.cl_params tl) tls)
 			) || List.exists (fun (cs,tls) ->
 				loop cs (List.map (apply_params c.cl_params tl) tls)
-			) c.cl_implements
+			) (TAccess.Header.implements c)
 			|| (match c.cl_kind with
 			| KTypeParameter ttp ->
 				List.exists (fun t ->
@@ -1094,7 +1094,7 @@ and unify_anons uctx a b a1 a2 =
 					false
 			)
 		| ClassStatics c1,_ ->
-			unify_fields c1.cl_statics (fun f1 ->
+			unify_fields (TAccess.Members.statics c1) (fun f1 ->
 				add_class_field_flag f1 CfStructurallyUsed
 			) (fun _ -> false)
 		| _ ->
@@ -1329,8 +1329,8 @@ module UnifyMinT = struct
 				List.iter (fun (ic, ip) ->
 					let t = apply_params cl.cl_params params (TInst (ic,ip)) in
 					loop t
-				) cl.cl_implements;
-				(match cl.cl_super with None -> () | Some (csup, pl) ->
+				) (TAccess.Header.implements cl);
+				(match (TAccess.Header.super cl) with None -> () | Some (csup, pl) ->
 					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
 					loop t);
 				tl := t :: !tl;

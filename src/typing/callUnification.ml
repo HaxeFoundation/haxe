@@ -247,7 +247,7 @@ let wrap_with_resolve_to com ecall econt p =
 	let b = new CoroElsewhere.texpr_builder basic p in
 	let suspension_result_class = AtomicLazy.force basic.tcoro.suspension_result_class in
 	let t_param = match follow ecall.etype with TInst(_, [t]) -> t | _ -> die "Expected SuspensionResult with one type parameter for coroutine call result" __LOC__ in
-	let resolve_to_cf = PMap.find "resolveTo" suspension_result_class.cl_fields in
+	let resolve_to_cf = PMap.find "resolveTo" (TAccess.Members.fields suspension_result_class) in
 	let resolve_to_type = apply_params suspension_result_class.cl_params [t_param] resolve_to_cf.cf_type in
 	let make_resolve_call ecall econt =
 		let efield = b#instance_field ecall suspension_result_class [t_param] resolve_to_cf resolve_to_type in
@@ -565,7 +565,7 @@ object(self)
 			(match follow ethis.etype with
 			| TInst (c,_) ->
 				let rec loop c =
-					if PMap.mem cf.cf_name c.cl_fields then
+					if PMap.mem cf.cf_name (TAccess.Members.fields c) then
 						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
@@ -575,7 +575,7 @@ object(self)
 						in
 						e
 					else
-						match c.cl_super with
+						match (TAccess.Header.super c) with
 						| None -> die "" __LOC__
 						| Some (csup,_) -> loop csup
 				in
@@ -652,7 +652,7 @@ object(self)
 				else
 					default t
 				in
-			begin match a.a_call,a.a_impl with
+			begin match (TAccess.Members.abstract a).a_call,a.a_impl with
 			| Some cf,Some c ->
 				let e_static = Builder.make_static_this c e.epos in
 				let fa = FieldAccess.create e_static cf (FHAbstract(a,tl,c)) false e.epos in

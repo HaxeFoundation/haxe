@@ -420,7 +420,7 @@ module IterationKind = struct
 				Texpr.for_remap ctx.t v (ctx.t.titerator pt) e1 e2 p
 			end
 		| IteratorGenericStack c ->
-			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> die "" __LOC__) in
+			let tcell = (try (PMap.find "head" (TAccess.Members.fields c)).cf_type with Not_found -> die "" __LOC__) in
 			let cell = gen_local ctx tcell p in
 			let cexpr = mk (TLocal cell) tcell p in
 			let evar = mk (TVar (v,Some (mk (mk_field cexpr "elt") pt p))) t_void v.v_pos in

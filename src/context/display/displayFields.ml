@@ -97,7 +97,7 @@ let collect_static_extensions ctx blocked_items items e p =
 					acc
 				else
 					List.fold_left (fun acc f -> handle_field c f acc) acc (f :: f.cf_overloads)
-			) acc c.cl_ordered_statics in
+			) acc (TAccess.Members.ordered_statics c) in
 			loop acc l
 	in
 	match follow e.etype with
@@ -170,9 +170,9 @@ let collect ctx e_ast e dk with_type p =
 						PMap.add cf.cf_name item acc
 					end else
 						acc
-				) acc c.cl_ordered_fields in
-				List.fold_left (fun acc (c,_) -> browse_interfaces c acc) acc c.cl_implements
-			) acc c.cl_implements
+				) acc (TAccess.Members.ordered_fields c) in
+				List.fold_left (fun acc (c,_) -> browse_interfaces c acc) acc (TAccess.Header.implements c)
+			) acc (TAccess.Header.implements c)
 		in
 		match follow t with
 		| TMono m ->
@@ -222,7 +222,7 @@ let collect ctx e_ast e dk with_type p =
 			begin match t with
 			| TAbstractDecl ({a_impl = Some c} as a) ->
 				begin try
-					let cf = PMap.find "match" c.cl_statics in
+					let cf = PMap.find "match" (TAccess.Members.statics c) in
 					let item = make_class_field (Self(TAbstractDecl a)) cf in
 					PMap.add "match" item items
 				with Not_found ->
@@ -243,7 +243,7 @@ let collect ctx e_ast e dk with_type p =
 					PMap.add cf.cf_name item acc
 				end else
 					acc
-			) items c.cl_ordered_statics in
+			) items (TAccess.Members.ordered_statics c) in
 			begin try
 				(* If there's a @:forward, get the fields of the underlying type and filter them. *)
 				let _,el,_ = Meta.get Meta.Forward a.a_meta in
@@ -253,7 +253,7 @@ let collect ctx e_ast e dk with_type p =
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
 				let abstract_has_own_field field_name =
-					PMap.mem field_name c.cl_fields || PMap.mem field_name c.cl_statics
+					PMap.mem field_name (TAccess.Members.fields c) || PMap.mem field_name (TAccess.Members.statics c)
 				in
 				PMap.foldi (fun name item acc ->
 					if (sl = [] || List.mem name sl) && is_new_item acc name && not (abstract_has_own_field name) then
@@ -277,7 +277,7 @@ let collect ctx e_ast e dk with_type p =
 								PMap.add cf.cf_name item acc
 							end else
 								acc
-						) items c.cl_ordered_statics in
+						) items (TAccess.Members.ordered_statics c) in
 						PMap.foldi (fun name item acc ->
 							if is_new_item acc name then
 								PMap.add name item acc
@@ -311,21 +311,21 @@ let collect ctx e_ast e dk with_type p =
 						else
 							make_ci_class_field ccf
 					in
-					iter_fields (Self (TClassDecl c)) c.cl_statics f_allow f_make
+					iter_fields (Self (TClassDecl c)) (TAccess.Members.statics c) f_allow f_make
 				| ClassStatics c ->
 					Display.merge_core_doc ctx (TClassDecl c);
 					let f_allow cf = should_access c cf true in
-					iter_fields (Self (TClassDecl c)) c.cl_statics f_allow make_ci_class_field
+					iter_fields (Self (TClassDecl c)) (TAccess.Members.statics c) f_allow make_ci_class_field
 				| AbstractStatics ({a_impl = Some c} as a) ->
 					Display.merge_core_doc ctx (TAbstractDecl a);
 					let f_allow cf = should_access c cf true in
-					iter_fields (Self (TAbstractDecl a)) c.cl_statics f_allow make_ci_class_field
+					iter_fields (Self (TAbstractDecl a)) (TAccess.Members.statics c) f_allow make_ci_class_field
 				| EnumStatics en ->
 					PMap.fold (fun ef acc ->
 						let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta ef.ef_meta) ef.ef_type in
 						let cef = CompletionEnumField.make ef (Self (TEnumDecl en)) true in
 						PMap.add ef.ef_name (make_ci_enum_field cef (ef.ef_type,ct)) acc
-					) en.e_constrs items
+					) (TAccess.Members.enum_constructors en) items
 				| _ ->
 					let origin = match t with
 						| TType(td,_) -> Self (TTypeDecl td)

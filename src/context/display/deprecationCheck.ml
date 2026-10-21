@@ -75,7 +75,7 @@ let run_on_expr com e =
 		| TNew(c,_,el) ->
 			List.iter expr el;
 			check_class com c e.epos;
-			begin match c.cl_constructor with
+			begin match (TAccess.Members.constructor c) with
 				(* The AST doesn't carry the correct overload for TNew, so let's ignore this case... (#8557). *)
 				| Some cf when cf.cf_overloads = [] -> check_cf com cf e.epos
 				| _ -> ()
@@ -102,10 +102,10 @@ let run com types =
 	List.iter (fun t -> match t with
 		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
 			let dctx = {dctx with class_meta = c.cl_meta; curmod = c.cl_module} in
-			(match c.cl_constructor with None -> () | Some cf -> run_on_field dctx cf);
+			(match (TAccess.Members.constructor c) with None -> () | Some cf -> run_on_field dctx cf);
 			(match TClass.get_cl_init c with None -> () | Some e -> run_on_expr dctx e);
-			List.iter (run_on_field dctx) c.cl_ordered_statics;
-			List.iter (run_on_field dctx) c.cl_ordered_fields;
+			List.iter (run_on_field dctx) (TAccess.Members.ordered_statics c);
+			List.iter (run_on_field dctx) (TAccess.Members.ordered_fields c);
 		| _ ->
 			()
 	) types

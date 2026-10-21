@@ -261,12 +261,12 @@ let check_call_super com rctx e =
 			| [(EConst (Ident "false"), _)] -> false
 			| _ -> true)
 		with Not_found ->
-			match c.cl_super with
+			match (TAccess.Header.super c) with
 			| None ->
 				false
 			| Some (csup, _) ->
 				try
-					let cf = PMap.find name csup.cl_fields in
+					let cf = PMap.find name (TAccess.Members.fields csup) in
 					is_active csup cf
 				with Not_found ->
 					false
@@ -275,7 +275,7 @@ let check_call_super com rctx e =
 		display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
 
 let check_overriding ctx c f =
-	match c.cl_super with
+	match (TAccess.Header.super c) with
 	| None ->
 		if has_class_field_flag f CfOverride then
 			display_error ctx.com ("Field " ^ f.cf_name ^ " is declared 'override' but doesn't override any field") f.cf_pos;
@@ -314,10 +314,10 @@ let check_overriding ctx c f =
 
 let class_field_no_interf c i =
 	try
-		let f = PMap.find i c.cl_fields in
+		let f = PMap.find i (TAccess.Members.fields c) in
 		(fun t -> t),f.cf_type , f
 	with Not_found ->
-		match c.cl_super with
+		match (TAccess.Header.super c) with
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
@@ -396,7 +396,7 @@ module Inheritance = struct
 		let uctx = default_unification_context () in
 		List.iter (fun (i2,p2) ->
 			check_interface com g missing c i2 (List.map (apply_params intf.cl_params params) p2)
-		) intf.cl_implements;
+		) (TAccess.Header.implements intf);
 		let p = c.cl_name_pos in
 		let check_field f =
 			let t = (apply_params intf.cl_params params f.cf_type) in
@@ -404,7 +404,7 @@ module Inheritance = struct
 			let make_implicit_field () =
 				let cf = {f with cf_overloads = []; cf_type = apply_params intf.cl_params params f.cf_type} in
 				begin try
-					let cf' = PMap.find cf.cf_name c.cl_fields in
+					let cf' = PMap.find cf.cf_name (TAccess.Members.fields c) in
 					com.overload_cache#remove (c.cl_path,f.cf_name);
 					cf'.cf_overloads <- cf :: cf'.cf_overloads
 				with Not_found ->
@@ -479,7 +479,7 @@ module Inheritance = struct
 			if has_class_field_flag cf CfOverload then
 				List.iter check_field (List.rev cf.cf_overloads)
 		in
-		PMap.iter check_field intf.cl_fields
+		PMap.iter check_field (TAccess.Members.fields intf)
 
 	let check_interfaces ctx c =
 		match c.cl_path with
@@ -498,14 +498,14 @@ module Inheritance = struct
 				let cm = DiagnosticsPrinter.make_missing_fields_message diag in
 				CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 			end
-		) c.cl_implements
+		) (TAccess.Header.implements c)
 
 	let check_abstract_class ctx c csup params =
 		let missing = ref [] in
 		let map = apply_params csup.cl_params params in
 		let check_abstract_class_field cf1 t1 =
 			try
-				let cf2 = PMap.find cf1.cf_name c.cl_fields in
+				let cf2 = PMap.find cf1.cf_name (TAccess.Members.fields c) in
 				if not (List.exists (fun cf2 ->
 					Overloads.same_overload_args t1 cf2.cf_type cf1 cf2
 				) (cf2 :: cf2.cf_overloads)) then
@@ -586,11 +586,11 @@ module Inheritance = struct
 					()
 			in
 			if is_extends then begin
-				if c.cl_super <> None then raise_typing_error "Cannot extend several classes" p;
+				if (TAccess.Header.super c) <> None then raise_typing_error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
 				if (has_class_flag c CInterface) then begin
 					if not (has_class_flag csup CInterface) then raise_typing_error (Printf.sprintf "Cannot extend by using a class (%s extends %s)" (s_type_path c.cl_path) (s_type_path csup.cl_path)) p;
-					c.cl_implements <- (csup,params) :: c.cl_implements;
+					c.cl_implements <- (csup,params) :: (TAccess.Header.implements c);
 					if not !has_interf then begin
 						if not is_lib then schedule ctx.g StageMembers check_interfaces_or_delay;
 						has_interf := true;
@@ -612,7 +612,7 @@ module Inheritance = struct
 					if extends intf c then raise_typing_error "Recursive class" p;
 					if (has_class_flag c CInterface) then raise_typing_error "Interfaces cannot implement another interface (use extends instead)" p;
 					if not (has_class_flag intf CInterface) then raise_typing_error "You can only implement an interface" p;
-					c.cl_implements <- (intf, params) :: c.cl_implements;
+					c.cl_implements <- (intf, params) :: (TAccess.Header.implements c);
 					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 						schedule ctx.g StageMembers check_interfaces_or_delay;
 						has_interf := true;
@@ -665,8 +665,8 @@ let check_final_vars ctx e =
 				DynArray.add ordered_fields (c,cf)
 			| _ ->
 				()
-		) c.cl_ordered_fields;
-		match c.cl_super with
+		) (TAccess.Members.ordered_fields c);
+		match (TAccess.Header.super c) with
 		| Some(c,_) when has_class_flag c CAbstract && not (has_constructor c) ->
 			loop c
 		| _ ->

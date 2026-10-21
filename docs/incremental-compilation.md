@@ -776,12 +776,12 @@ the units of a stage at random.
 
 Running the units in the order they were added instead of the reverse order
 changed which of two entities is processed first where the outcome depends on
-it: a build cycle between two classes (`Recursive class`) is now reported on
-the second declaration of the cycle, the one processed while the first is
-being built, a recursive constraint between two type parameters on the
+it: a recursive constraint between two type parameters is now reported on the
 constraint of the first one, and two classes with the same `@:autoBuild`
-macro are built in declaration order (`Issue4671`, `Issue11870`,
-`Issue9381`). In hide, domkit numbers CSS properties with a
+macro are built in declaration order (`Issue11870`, `Issue9381`). (A build
+cycle between two classes, `Issue4671`, was then reported on the second
+declaration; since the accessors of §3.2 demand headers, it is reported on the
+first one again.) In hide, domkit numbers CSS properties with a
 macro static counter in the order components are built, so the generated
 handler registrations changed order (declaration order now); this is a
 macro static shared between expansions (phase 7). The output is identical
@@ -805,10 +805,8 @@ macro is running, and display requests.
 
 This completes §3.1: every piece of typing is a query (`header`, `members`,
 `sig`, `body`) or a unit of a `program()` stage run in a deterministic order.
-Two things are left to §3.2, where reads go through accessors: loading a module
-while typing a field still runs the whole structure stage (instead of the
-`members` query of each type when it is read), and the queries of enums,
-abstracts and typedefs are still their build tasks.
+Loading a module while typing a field no longer runs the whole structure
+stage: since §3.2, reading the members of a type demands them.
 
 #### 3.2 Enforcing queries with abstract types
 
@@ -832,6 +830,38 @@ contains about 1,400 such reads (`cf_type` 423, `cl_super` 186,
    principle 4).
 5. Migration is mechanical but large: done module by module, with a temporary
    escape hatch (`Unsafe.cl_fields`) whose uses are tracked and must reach zero.
+
+**Status: accessors that demand the queries.** `src/core/tAccess.ml` groups
+the accessors by query: `Header.super`, `Header.implements` (demand the
+header of a class), `Members.fields`, `statics`, `ordered_fields`,
+`ordered_statics`, `constructor`, `find_field`, `find_static` (demand the
+build of a class, its `members` query), `Members.enum_constructors`,
+`enum_names` and `Members.abstract` (the members of an abstract: its
+operators, array access, casts and constructor, from its implementation class
+and, for a module read from a `.hxb` file, from the rest of the module, which
+`m_extra.m_complete` reads). Every read of these contents by the typing code
+that consumes types goes through them (`src/typing`, `src/context`,
+`src/coro`, and `TFunctions.raw_class_field`, `TUnification`), about 230
+reads migrated by a script and the few patterns by hand. The query
+implementations (`TypeloadFields`, `TypeloadModule`, `TypeloadFunction`,
+`Generic`, `Graft`) read the type they compute directly, and so does the code
+running after typing (filters, generators, statistics): that is the frozen
+view of item 4, for now by convention.
+With the reads demanding the queries, loading a module while typing a field no
+longer runs the whole structure stage (`complete_structure`, removed from
+`load_module`): the types are built when they are read. The structure stage
+still runs before a function body is typed (`TypeloadFunction`, the
+initialization of variables, macro calls), for the connection units not
+attached to a type (import and `@:using` resolution, enum and abstract
+documentation, constraints): without it, `hxcoro` and Heaps' domkit macros
+fail. A class whose module
+is being created (before its build is set up) reads as empty instead of
+failing (`TAccess.not_ready`), as display requests do. A build cycle between
+two classes is reported on the first declaration again (`Issue4671`).
+Not done: making the entity records abstract (item 1), which would turn the
+convention into a compile-time rule, and the recording of dependencies by the
+accessors (item 2), which is phase 5's job; the accessors are the places
+where it goes.
 
 #### 3.3 Cycles
 

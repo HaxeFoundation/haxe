@@ -116,7 +116,7 @@ class resolution_list (id : string list) = object(self)
 				| RClassStatics c ->
 					ignore(c.cl_build());
 					begin try
-						let cf = PMap.find i c.cl_statics in
+						let cf = PMap.find i (TAccess.Members.statics c) in
 						begin match as_importable_static c cf res.r_pos with
 						| None ->
 							loop l
@@ -128,7 +128,7 @@ class resolution_list (id : string list) = object(self)
 					end
 				| REnumStatics en ->
 					begin try
-						let ef = PMap.find i en.e_constrs in
+						let ef = PMap.find i (TAccess.Members.enum_constructors en) in
 						if not (has_meta Meta.NoImportGlobal ef.ef_meta) then
 							enum_constructor_resolution en ef None res.r_pos
 						else
@@ -235,7 +235,7 @@ class resolution_list (id : string list) = object(self)
 					| _ ->
 						acc
 					end
-				) acc c.cl_ordered_statics
+				) acc (TAccess.Members.ordered_statics c)
 			| _ ->
 				acc
 		) PMap.empty l in

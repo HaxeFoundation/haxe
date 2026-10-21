@@ -197,7 +197,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 	let tstring = ctx.t.tstring in
 	let to_string e =
 		let rec loop t = match classify t with
-			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" (TAccess.Members.statics c) ->
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
@@ -518,12 +518,12 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	in
 	let find loop =
 		if left then
-			loop a.a_ops
+			loop (TAccess.Members.abstract a).a_ops
 		else
 			let not_impl_or_is_commutative (_, cf) =
 				not (has_class_field_flag cf CfImpl) || Meta.has Meta.Commutative cf.cf_meta
 			in
-			loop (List.filter not_impl_or_is_commutative a.a_ops)
+			loop (List.filter not_impl_or_is_commutative (TAccess.Members.abstract a).a_ops)
 	in
 	if is_assign_op then
 		try find (loop (OpAssignOp op))
@@ -627,7 +627,7 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 		| WithType.WithType(t,_) ->
 			begin match follow t with
 				| TAbstract(a,_) ->
-					begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
+					begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) (TAccess.Members.abstract a).a_ops with
 						| [_] -> with_type
 						| _ -> WithType.value
 					end
@@ -641,7 +641,7 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	let e1 = match wt with
 		| WithType.WithType(t,_) ->
 			let has_matching_op a =
-				List.exists (fun (o,_) -> o = op) a.a_ops
+				List.exists (fun (o,_) -> o = op) (TAccess.Members.abstract a).a_ops
 			in
 			begin match follow e1.etype with
 				| TAbstract(a,tl) when has_matching_op a ->
@@ -882,7 +882,7 @@ let type_unop ctx op flag e with_type p =
 				| (_,_,cf) :: opl ->
 					loop opl
 			in
-			let fcc = loop a.a_unops in
+			let fcc = loop (TAccess.Members.abstract a).a_unops in
 			force_field_body fcc.fc_field;
 			begin match fcc.fc_field.cf_expr with
 			| None ->

@@ -73,11 +73,11 @@ let rec collect_reference_positions com (name,pos,kind) =
 				let cf,c =
 					if find_base then
 						let rec loop c =
-							match c.cl_super with
-							| None -> (PMap.find cf.cf_name c.cl_fields),c
+							match (TAccess.Header.super c) with
+							| None -> (PMap.find cf.cf_name (TAccess.Members.fields c)),c
 							| Some (csup,_) ->
 								try loop csup
-								with Not_found -> (PMap.find cf.cf_name c.cl_fields),c
+								with Not_found -> (PMap.find cf.cf_name (TAccess.Members.fields c)),c
 						in
 						try loop c
 						with Not_found -> cf,c
@@ -89,11 +89,11 @@ let rec collect_reference_positions com (name,pos,kind) =
 					try loop i @ acc
 					with Not_found -> acc
 				and loop c =
-					match List.fold_left fold_interface [] c.cl_implements with
-					| [] -> [(PMap.find cf.cf_name c.cl_fields),c]
+					match List.fold_left fold_interface [] (TAccess.Header.implements c) with
+					| [] -> [(PMap.find cf.cf_name (TAccess.Members.fields c)),c]
 					| pairs -> pairs
 				in
-				match List.fold_left fold_interface [] c.cl_implements with
+				match List.fold_left fold_interface [] (TAccess.Header.implements c) with
 				| [] -> [cf,c]
 				| pairs -> pairs
 			in
@@ -104,7 +104,7 @@ let rec collect_reference_positions com (name,pos,kind) =
 					match t with
 					| TClassDecl child_cls when List.exists (extends child_cls) field_class_pairs ->
 						(try
-							let cf = PMap.find cf.cf_name child_cls.cl_fields in
+							let cf = PMap.find cf.cf_name (TAccess.Members.fields child_cls) in
 							(name,full_pos cf.cf_name_pos,SKField (cf,Some child_cls)) :: acc
 						with Not_found -> acc
 						)

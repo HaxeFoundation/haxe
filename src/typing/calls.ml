@@ -43,7 +43,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 				(* Delay this to filters because that's when cl_descendants is set. *)
 				ctx.com.callbacks#add_before_save (fun () ->
 					let rec has_override c =
-						PMap.mem f.cf_name c.cl_fields
+						PMap.mem f.cf_name (TAccess.Members.fields c)
 						|| List.exists has_override c.cl_descendants
 					in
 					if List.exists has_override c.cl_descendants then raise_typing_error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
@@ -161,11 +161,11 @@ let rec acc_get ctx g =
 						c2
 				in
 				let cf = try
-					PMap.find cf.cf_name c2.cl_statics
+					PMap.find cf.cf_name (TAccess.Members.statics c2)
 				with Not_found ->
 					let cf = {cf with cf_kind = Method MethNormal} in
-					c2.cl_statics <- PMap.add cf.cf_name cf c2.cl_statics;
-					c2.cl_ordered_statics <- cf :: c2.cl_ordered_statics;
+					c2.cl_statics <- PMap.add cf.cf_name cf (TAccess.Members.statics c2);
+					c2.cl_ordered_statics <- cf :: (TAccess.Members.ordered_statics c2);
 					cf
 				in
 				let e_t = type_module_type ctx (TClassDecl c2) p in
@@ -450,7 +450,7 @@ let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in
 	try
 		(match follow e1.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
+		| TAbstract ({a_impl = Some c} as a,pl) when (TAccess.Members.abstract a).a_array <> [] ->
 			begin match mode with
 			| MSet _ ->
 				(* resolve later *)
@@ -473,7 +473,8 @@ let array_access ctx e1 e2 mode p =
 			match skip_abstract,follow et with
 			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
 				apply_params pl tl t
-			| _, TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
+			| _, TInst ({ cl_params = pl } as c,tl) when TAccess.Header.super c <> None ->
+				let c,stl = Option.get (TAccess.Header.super c) in
 				apply_params pl tl (loop (TInst (c,stl)))
 			| _, TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t

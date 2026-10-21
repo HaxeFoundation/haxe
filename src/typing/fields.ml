@@ -337,7 +337,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			(* It should be fine to just add the field to our class to make future lookups a bit faster. *)
 			TClass.add_field c f;
 			acc
-		) c.cl_implements
+		) (TAccess.Header.implements c)
 	in
 	let no_no_lookup cf =
 		if has_class_field_flag cf CfNoLookup then display_error ctx.com "This field cannot be accessed explicitly" pfield
@@ -364,7 +364,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			begin match !(a.a_status) with
 				| ClassStatics c ->
 					begin try
-						let cf = PMap.find i c.cl_statics in
+						let cf = TAccess.Members.find_static c i in
 						if has_class_field_flag cf CfImpl && not (has_class_field_flag cf CfEnum) then display_error ctx.com "Cannot access non-static abstract field statically" pfield;
 						no_no_lookup cf;
 						field_access cf (FHStatic c)
@@ -381,7 +381,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 						end
 					end
 				| EnumStatics en ->
-					let c = PMap.find i en.e_constrs in
+					let c = TAccess.Members.find_enum_constructor en i in
 					let fmode = FEnum (en,c) in
 					let t = enum_field_type ctx en c p in
 					AKExpr (mk (TField (e,fmode)) t p)
@@ -434,7 +434,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		| TAbstract (a,tl) ->
 			(try
 				let c = find_some a.a_impl in
-				let f = PMap.find i c.cl_statics in
+				let f = PMap.find i (TAccess.Members.statics c) in
 				if not (has_class_field_flag f CfImpl) then raise Not_found;
 				no_no_lookup f;
 				field_access f (FHAbstract (a,tl,c))
@@ -450,7 +450,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| _ -> e
 		in
 		let loop = type_field_by_list (fun (c,pc) ->
-			let cf0 = PMap.find i c.cl_statics in
+			let cf0 = PMap.find i (TAccess.Members.statics c) in
 			let rec check cfl = match cfl with
 				| [] ->
 					raise Not_found
@@ -555,11 +555,12 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			(try
 				let rec loop c tl = match c with
 					| { cl_dynamic = Some t } -> AKExpr (mk (TField (e,FDynamic i)) (apply_params c.cl_params tl t) p)
-					| { cl_super = Some (c,tl) } -> loop c tl
-					| _ -> raise Not_found
+					| _ -> match TAccess.Header.super c with
+						| Some (c,tl) -> loop c tl
+						| None -> raise Not_found
 				in
 				loop c tl
-			with Not_found when PMap.mem i c.cl_statics ->
+			with Not_found when PMap.mem i (TAccess.Members.statics c) ->
 				raise_typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
 		| TDynamic t when cfg.allow_dynamic ->
@@ -568,12 +569,12 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			(try
 				if not cfg.allow_resolve then raise Not_found;
 				let c = find_some a.a_impl in
-				let f = find_some (if is_set then a.a_write else a.a_read) in
+				let f = find_some (if is_set then (TAccess.Members.abstract a).a_write else (TAccess.Members.abstract a).a_read) in
 				let sea = make_abstract_static_extension_access a tl c f e false p in
 				AKResolve(sea,i)
 			with Not_found -> try
 				type_field_by_forward_member type_field_by_fallback e a tl
-			with Not_found when not (has_class_field_flag (PMap.find i (find_some a.a_impl).cl_statics) CfImpl) ->
+			with Not_found when not (has_class_field_flag (TAccess.Members.find_static (find_some a.a_impl) i) CfImpl) ->
 				raise_typing_error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 			)
 		| _ -> raise Not_found
@@ -585,8 +586,8 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			if snd infos.mt_path <> snd infos.mt_module.m_path then raise Not_found;
 			(* TODO: This duplicates some code from typerDotPath.ml *)
 			begin match infos.mt_module.m_statics with
-			| Some c when PMap.mem i c.cl_statics ->
-				let cf = PMap.find i c.cl_statics in
+			| Some c when PMap.mem i (TAccess.Members.statics c) ->
+				let cf = PMap.find i (TAccess.Members.statics c) in
 				(* We cannot use e here because in the case of module statics the type could be different (issue #11385). *)
 				let e = type_module_type ctx (TClassDecl c) e.epos in
 				field_access e cf (FHStatic c)
@@ -619,9 +620,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		end;
 		if not ctx.f.untyped then begin
 			let has_special_field a =
-				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
-				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
-				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
+				List.exists (fun (_,cf) -> cf.cf_name = i) (TAccess.Members.abstract a).a_ops
+				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) (TAccess.Members.abstract a).a_unops
+				|| List.exists (fun cf -> cf.cf_name = i) (TAccess.Members.abstract a).a_array
 			in
 			match follow t with
 			| TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a } } }
@@ -629,7 +630,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			| TAbstract (a,_) when has_special_field a ->
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
-			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i c.cl_fields ->
+			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i (TAccess.Members.fields c) ->
 				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
 				let tthis = e.etype in
@@ -649,7 +650,7 @@ let type_field_default_cfg = type_field TypeFieldConfig.default
 *)
 let get_struct_init_anon_fields c tl =
 	let args =
-		match c.cl_constructor with
+		match (TAccess.Members.constructor c) with
 		| Some cf ->
 			let javadoc = match gen_doc_text_opt cf.cf_doc with
 				| None -> None
@@ -678,7 +679,7 @@ let get_struct_init_anon_fields c tl =
 							(fun (name,opt,t) ->
 								let t = apply_params c.cl_params tl t in
 								try
-									let cf = PMap.find name c.cl_fields in
+									let cf = PMap.find name (TAccess.Members.fields c) in
 									name,opt,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
 									name,opt,t,cf.cf_name_pos,extract_param_info name
@@ -704,4 +705,4 @@ let get_struct_init_anon_fields c tl =
 			PMap.add cf.cf_name cf fields
 		| _ ->
 			fields
-	) c.cl_fields PMap.empty
+	) (TAccess.Members.fields c) PMap.empty

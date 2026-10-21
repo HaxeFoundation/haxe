@@ -85,7 +85,7 @@ let check_display_class ctx decls c =
 	| KAbstractImpl a ->
 		let sa = find_abstract_by_position decls c.cl_name_pos in
 		let check_field = check_field sa in
-		List.iter check_field c.cl_ordered_statics;
+		List.iter check_field (TAccess.Members.ordered_statics c);
 	| _ ->
 		let sc = find_class_by_position decls c.cl_name_pos in
 		ignore(Typeload.type_type_params ctx TPHType c.cl_path sc.d_params);
@@ -96,9 +96,9 @@ let check_display_class ctx decls c =
 				()
 		) sc.d_flags;
 		let check_field = check_field sc in
-		List.iter check_field c.cl_ordered_statics;
-		List.iter check_field c.cl_ordered_fields;
-		Option.may check_field c.cl_constructor
+		List.iter check_field (TAccess.Members.ordered_statics c);
+		List.iter check_field (TAccess.Members.ordered_fields c);
+		Option.may check_field (TAccess.Members.constructor c)
 
 let check_display_enum ctx decls en =
 	let se = find_enum_by_position decls en.e_name_pos in
@@ -108,7 +108,7 @@ let check_display_enum ctx decls en =
 			let sef = find_enum_field_by_position se ef.ef_name_pos in
 			ignore(TypeloadModule.TypeLevel.load_enum_field ctx en (TEnum (en,extract_param_types en.e_params)) (ref false) (ref 0) sef)
 		end
-	) en.e_constrs
+	) (TAccess.Members.enum_constructors en)
 
 let check_display_typedef ctx decls td =
 	let st = find_typedef_by_position decls td.t_name_pos in
@@ -133,7 +133,7 @@ let check_display_module_fields ctx decls m =
 				actually_check_display_field ctx c (TypeloadModule.field_of_static_definition cff cf.cf_pos) cf.cf_pos;
 			end;
 			DisplayEmitter.check_display_metadata ctx cf.cf_meta
-		) c.cl_ordered_statics
+		) (TAccess.Members.ordered_statics c)
 	) m.m_statics
 
 let check_display_module ctx decls m =

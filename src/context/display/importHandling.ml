@@ -91,7 +91,7 @@ let init_import ctx path mode p =
 		let fail_usefully name p =
 			let target_kind,candidates = match String.get name 0 with
 				(* TODO: cleaner way to get module fields? *)
-				| 'a'..'z' -> "field", PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
+				| 'a'..'z' -> "field", PMap.foldi (fun n _ acc -> n :: acc) (try TAccess.Members.statics (Option.get md.m_statics) with | _ -> PMap.empty) []
 				| _ -> "type", List.map (fun mt -> snd (t_infos mt).mt_path) types
 			in
 			raise_typing_error (StringError.string_error name
@@ -121,14 +121,14 @@ let init_import ctx path mode p =
 			match resolve_typedef t with
 			| TClassDecl c ->
 				ignore(c.cl_build());
-				let cf = PMap.find s c.cl_statics in
+				let cf = PMap.find s (TAccess.Members.statics c) in
 				static_field_resolution c cf name p
 			| TAbstractDecl ({a_impl = Some c} as a) ->
 				ignore(c.cl_build());
-				let cf = PMap.find s c.cl_statics in
+				let cf = PMap.find s (TAccess.Members.statics c) in
 				static_abstract_field_resolution a c cf name p
 			| TEnumDecl en ->
-				let ef = PMap.find s en.e_constrs in
+				let ef = PMap.find s (TAccess.Members.enum_constructors en) in
 				enum_constructor_resolution en ef name p
 			| _ ->
 				raise Not_found
@@ -180,20 +180,20 @@ let init_import ctx path mode p =
 									| TClassDecl c ->
 										"Class<" ^ (s_type_path c.cl_path) ^ ">",
 										"field",
-										PMap.foldi (fun name _ acc -> name :: acc) c.cl_statics []
+										PMap.foldi (fun name _ acc -> name :: acc) (TAccess.Members.statics c) []
 									| TAbstractDecl {a_impl = Some c} ->
 										"Abstract<" ^ (s_type_path md.m_path) ^ ">",
 										"field",
-										PMap.foldi (fun name _ acc -> name :: acc) c.cl_statics []
+										PMap.foldi (fun name _ acc -> name :: acc) (TAccess.Members.statics c) []
 									| TEnumDecl e ->
 										"Enum<" ^ s_type_path md.m_path ^ ">",
 										"field",
-										PMap.foldi (fun name _ acc -> name :: acc) e.e_constrs []
+										PMap.foldi (fun name _ acc -> name :: acc) (TAccess.Members.enum_constructors e) []
 									| _ ->
 										"Module " ^ s_type_path md.m_path,
 										"field or subtype",
 										(* TODO: cleaner way to get module fields? *)
-										PMap.foldi (fun n _ acc -> n :: acc) (try (Option.get md.m_statics).cl_statics with | _ -> PMap.empty) []
+										PMap.foldi (fun n _ acc -> n :: acc) (try TAccess.Members.statics (Option.get md.m_statics) with | _ -> PMap.empty) []
 								in
 								display_error ctx.com (StringError.string_error tsub candidates (parent ^ " has no " ^ target_kind ^ " " ^ tsub)) p;
 								None
@@ -218,7 +218,7 @@ let init_import ctx path mode p =
 										else
 											loop rest
 								in
-								loop c.cl_ordered_statics
+								loop (TAccess.Members.ordered_statics c)
 							with Not_found ->
 								find_main_type_static ())
 						| None ->

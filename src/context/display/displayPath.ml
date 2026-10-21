@@ -145,13 +145,13 @@ module TypePathHandler = struct
 			in
 			let fields = match !statics with
 				| None -> types
-				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> has_class_field_flag cf CfPublic) c.cl_ordered_statics))
+				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> has_class_field_flag cf CfPublic) (TAccess.Members.ordered_statics c)))
 			in
 			let fields = match !enum_statics with
 				| None -> fields
 				| Some en -> PMap.fold (fun ef acc ->
 					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (tpair ef.ef_type) :: acc
-				) en.e_constrs fields
+				) (TAccess.Members.enum_constructors en) fields
 			in
 			Some fields
 		with _ ->
@@ -166,7 +166,7 @@ let resolve_position_by_path ctx path p =
 let handle_path_display ctx path p =
 	let class_field c name =
 		ignore(c.cl_build());
-		let cf = PMap.find name c.cl_statics in
+		let cf = PMap.find name (TAccess.Members.statics c) in
 		let origin = match c.cl_kind with
 			| KAbstractImpl a -> Self (TAbstractDecl a)
 			| _ -> Self (TClassDecl c)

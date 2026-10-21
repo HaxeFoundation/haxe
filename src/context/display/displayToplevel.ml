@@ -348,9 +348,9 @@ let collect ctx tk with_type sort =
 						end
 					end else
 						maybe_add_field CFSStatic origin cf
-				) c.cl_ordered_statics
+				) (TAccess.Members.ordered_statics c)
 			| _ ->
-				List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.c.curclass))) ctx.c.curclass.cl_ordered_statics
+				List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.c.curclass))) (TAccess.Members.ordered_statics ctx.c.curclass)
 			end;
 		) ();
 
@@ -364,7 +364,7 @@ let collect ctx tk with_type sort =
 						let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
 						if (has_class_field_flag cf CfEnum) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
 							add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
-					) c.cl_ordered_statics
+					) (TAccess.Members.ordered_statics c)
 				| TTypeDecl t ->
 					begin match follow t.t_type with
 						| TEnum (e,_) -> enum_ctors (TEnumDecl e)
@@ -376,7 +376,7 @@ let collect ctx tk with_type sort =
 					PMap.iter (fun _ ef ->
 						let is_qualified = is_qualified cctx ef.ef_name in
 						add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some ef.ef_name)
-					) e.e_constrs;
+					) (TAccess.Members.enum_constructors e);
 				| _ ->
 					()
 			in
@@ -397,7 +397,7 @@ let collect ctx tk with_type sort =
 				try
 					let is_qualified = is_qualified cctx name in
 					let class_import c =
-						let cf = PMap.find s c.cl_statics in
+						let cf = PMap.find s (TAccess.Members.statics c) in
 						let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 						let decl,make = match c.cl_kind with
 							| KAbstractImpl a -> TAbstractDecl a,
@@ -412,7 +412,7 @@ let collect ctx tk with_type sort =
 					match resolve_typedef mt with
 						| TClassDecl c -> class_import c;
 						| TEnumDecl en ->
-							let ef = PMap.find s en.e_constrs in
+							let ef = PMap.find s (TAccess.Members.enum_constructors en) in
 							let ef = if name = ef.ef_name then ef else {ef with ef_name = name} in
 							let origin = StaticImport (TEnumDecl en) in
 							add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some s)
@@ -432,7 +432,7 @@ let collect ctx tk with_type sort =
 				| FunMember | FunConstructor | FunMemberClassLocal ->
 					let t = TInst(ctx.c.curclass,extract_param_types ctx.c.curclass.cl_params) in
 					add (make_ci_literal "this" (tpair t)) (Some "this");
-					begin match ctx.c.curclass.cl_super with
+					begin match (TAccess.Header.super ctx.c.curclass) with
 						| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
 						| None -> ()
 					end

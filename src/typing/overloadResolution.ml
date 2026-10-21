@@ -13,7 +13,7 @@ open FieldCallCandidate
 let try_functional_interface_match t_param t_arg =
 	match follow t_param, follow t_arg with
 	| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-		begin match TClass.get_singular_interface_field c.cl_ordered_fields with
+		begin match TClass.get_singular_interface_field (TAccess.Members.ordered_fields c) with
 		| None -> false
 		| Some cf ->
 			let map = apply_params c.cl_params tl in
@@ -86,9 +86,9 @@ let resolve_instance_overload is_ctor map_type c name el =
 	let rec loop map_type c =
 		begin try
 			let cf = if is_ctor then
-				(match c.cl_constructor with Some cf -> cf | None -> raise Not_found)
+				(match (TAccess.Members.constructor c) with Some cf -> cf | None -> raise Not_found)
 			else
-				PMap.find name c.cl_fields
+				PMap.find name (TAccess.Members.fields c)
 			in
 			begin match find_overload map_type c cf el with
 			| [] -> raise Not_found
@@ -100,8 +100,8 @@ let resolve_instance_overload is_ctor map_type c name el =
 			if has_class_field_flag cf CfOverload || cf.cf_overloads <> [] then raise Not_found
 		with Not_found ->
 			if (has_class_flag c CInterface) then
-				List.iter (fun (c,tl) -> loop (apply_params c.cl_params (List.map map_type tl)) c) c.cl_implements
-			else match c.cl_super with
+				List.iter (fun (c,tl) -> loop (apply_params c.cl_params (List.map map_type tl)) c) (TAccess.Header.implements c)
+			else match (TAccess.Header.super c) with
 			| None -> ()
 			| Some(c,tl) -> loop (apply_params c.cl_params (List.map map_type tl)) c
 		end;

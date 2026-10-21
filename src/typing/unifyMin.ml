@@ -122,7 +122,7 @@ let rec unify_min_raise basic el =
 			let common_types = UnifyMinT.collect_base_types t in
 			let dyn_types = List.fold_left (fun acc t ->
 				let rec loop c =
-					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
+					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match (TAccess.Header.super c) with None -> false | Some (c,_) -> loop c)
 				in
 				match t with
 				| TInst (c,params) when params <> [] && loop c ->
