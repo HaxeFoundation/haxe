@@ -614,13 +614,21 @@ module TypeLevel = struct
 				if a.a_impl = None then raise_typing_error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then raise_typing_error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx_a true LoadNormal t in
-				delay ctx_a.g PForce (fun () ->
+				add_program_check ctx_a.g (fun () ->
 					let rec loop stack t =
 						match follow t with
 						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
-							if List.memq a stack then
-								raise_typing_error "Abstract underlying type cannot be recursive" a.a_pos
-							else
+							if List.memq a stack then begin
+								(* reported on the first abstract of the cycle by position, whichever
+								   check finds it (docs/incremental-compilation.md, phase 3) *)
+								let rec cycle acc = function
+									| a' :: l -> if a' == a then a' :: acc else cycle (a' :: acc) l
+									| [] -> acc
+								in
+								let key a = (Pos.file a.a_pos,Pos.min a.a_pos) in
+								let first = List.fold_left (fun a1 a2 -> if compare (key a2) (key a1) < 0 then a2 else a1) a (cycle [] stack) in
+								raise_typing_error "Abstract underlying type cannot be recursive" first.a_pos
+							end else
 								loop (a :: stack) a.a_this
 						| _ -> ()
 					in

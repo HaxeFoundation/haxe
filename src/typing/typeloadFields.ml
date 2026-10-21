@@ -1599,7 +1599,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 			(* Now that we know there is a field, we have to delay the actual unification even further. The reason is that unification could resolve
 			   TLazy, which would then cause field typing before we're done with our PConnectField pass. This could cause interface fields to not
 			   be generated in time. *)
-			delay ctx.g PForce (fun () ->
+			add_program_check ctx.g (fun () ->
 				try
 					(match f2.cf_kind with
 						| Method MethMacro ->
@@ -1843,9 +1843,9 @@ let init_class ctx_c cctx c p herits fields =
 	let fields = build_fields (ctx_c,cctx) c fields in
 	begin match cctx.core_api_check with
 	| CoreApiConfig.On ->
-		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c)
+		if com.display.dms_check_core_api then add_program_check ctx_c.g (fun() -> init_core_api ctx_c c)
 	| CoreApiConfig.Implied ->
-		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() ->
+		if com.display.dms_check_core_api then add_program_check ctx_c.g (fun() ->
 			try init_core_api ctx_c c
 			with
 			| Error { err_message = Module_not_found _ | Type_not_found _ } -> ()
@@ -1854,11 +1854,11 @@ let init_class ctx_c cctx c p herits fields =
 	| CoreApiConfig.Off -> ()
 	end;
 	if not cctx.is_lib then begin
-		delay ctx_c.g PForce (fun() -> check_overloads ctx_c c);
+		add_program_check ctx_c.g (fun() -> check_overloads ctx_c c);
 		begin match c.cl_super with
 		| Some(csup,tl) ->
 			if (has_class_flag csup CAbstract) && not (has_class_flag c CAbstract) then
-				delay ctx_c.g PForce (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx_c c csup tl);
+				add_program_check ctx_c.g (fun () -> TypeloadCheck.Inheritance.check_abstract_class ctx_c c csup tl);
 		| None ->
 			()
 		end

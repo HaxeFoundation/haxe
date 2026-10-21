@@ -251,6 +251,8 @@ let create com macros =
 			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
 			program_units = Queue.create ();
 			program_scheduled = false;
+			program_checks = Queue.create ();
+			program_checks_scheduled = false;
 			delayed_min_index = 0;
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;

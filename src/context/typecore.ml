@@ -109,6 +109,9 @@ type typer_globals = {
 	   function typing the bodies of a class, in the order classes were built. *)
 	program_units : (unit -> unit) Queue.t;
 	mutable program_scheduled : bool;
+	(* the checks of [program] (the [checks] queries of the plan), run after the bodies *)
+	program_checks : (unit -> unit) Queue.t;
+	mutable program_checks_scheduled : bool;
 	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	retain_meta : bool;
@@ -585,6 +588,22 @@ and add_program_unit g f =
 	if not g.program_scheduled then begin
 		g.program_scheduled <- true;
 		delay g PTypeField (fun () -> program g)
+	end
+
+(* Runs the checks added so far (overrides, interfaces, accessors, abstract
+   classes...), in the order they were added, until there are none left. *)
+let rec program_checks g =
+	g.program_checks_scheduled <- false;
+	while not (Queue.is_empty g.program_checks) do
+		(Queue.pop g.program_checks) ()
+	done
+
+(* Adds a check to [program_checks]. *)
+and add_program_check g f =
+	Queue.push f g.program_checks;
+	if not g.program_checks_scheduled then begin
+		g.program_checks_scheduled <- true;
+		delay g PForce (fun () -> program_checks g)
 	end
 
 let enter_field_typing_pass g info =

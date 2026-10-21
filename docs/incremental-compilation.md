@@ -747,6 +747,13 @@ change of schedule revealed three more order dependences, now fixed:
   of 30 `tests/misc` cases changed order only).
 A stored typed expression id printed by `Issue11004` changed: these ids are
 still a global counter (phase 3.4, with phase 7).
+The per-type checks run after the bodies (`checks(T)` in §3.1: property
+accessors, core API, overloads, abstract class implementation, interface
+implementation, final variables, recursive abstract underlying types) are
+`program` checks, run in the order they were added
+(`Typecore.add_program_check`). A recursive abstract underlying type is now
+reported on the first abstract of the cycle by position, whichever check
+finds it.
 
 #### 3.2 Enforcing queries with abstract types
 

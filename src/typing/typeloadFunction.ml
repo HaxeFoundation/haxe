@@ -114,7 +114,7 @@ let type_function ctx (args : function_arguments) ret e do_display p =
 	let e = if ctx.e.curfun <> FunConstructor then
 		e
 	else begin
-		delay ctx.g PForce (fun () -> TypeloadCheck.check_final_vars ctx e);
+		add_program_check ctx.g (fun () -> TypeloadCheck.check_final_vars ctx e);
 		match has_super_constr() with
 		| Some (was_forced,t_super) ->
 			(try

@@ -426,7 +426,7 @@ module Inheritance = struct
 					else
 						t2, f2
 				in
-				delay g PForce (fun () ->
+				add_program_check g (fun () ->
 					ignore(follow f2.cf_type); (* force evaluation *)
 					let p = f2.cf_name_pos in
 					let mkind = function
