@@ -415,6 +415,7 @@ module TypeLevel = struct
 				let fl = Query.run header_query (fun () -> TypeloadCheck.Inheritance.set_heritance ctx_c c herits p) in
 				header_checks := Some fl;
 				c.cl_header_meta <- Some c.cl_meta;
+				c.cl_build_header <- TAccess.header_done;
 				fl
 		in
 		c.cl_build_header <- (fun () -> ignore(header ()));
@@ -426,22 +427,24 @@ module TypeLevel = struct
 					let fl = header () in
 					List.iter (fun f -> f()) fl;
 					TypeloadFields.init_class ctx_c cctx c p d.d_flags d.d_data;
-					c.cl_build <- (fun()-> Built);
+					(* not [TAccess.built] yet: its members are not connected *)
+					c.cl_build <- (fun () -> Built);
 					List.iter (fun tp -> ignore(follow tp.ttp_type)) c.cl_params;
 					Built;
 				with exn ->
-					c.cl_build <- (fun()-> Built);
+					c.cl_build <- (fun () -> Built);
 					TypeloadFields.delay_connections ctx_c.g cctx;
 					raise exn
 			) in
 			(* the members are connected once the class is built: whoever gets
 			   the class built gets its members complete *)
 			TypeloadFields.run_connections cctx;
+			c.cl_build <- TAccess.built;
 			r
 		in
 		c.cl_build <- build;
 		TAccess.not_ready := List.filter (fun c' -> c' != c) !TAccess.not_ready;
-		schedule ctx_m.g StageTypes (fun() -> ignore(c.cl_build()));
+		schedule ctx_m.g StageTypes (fun() -> ignore((TAccess.build c)));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			Queue.push (fun() -> InheritDoc.build_class_doc ctx_m c) cctx.connections;
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
@@ -738,6 +741,7 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
 	incr com.request_scope.stats.s_modules_typed;
+	Atomic.set m.m_extra.m_ready true;
 	m
 
 class hxb_reader_api_typeload
@@ -795,7 +799,12 @@ let rec load_hxb_module com g path p =
 			let complete () =
 				if not !completed then begin
 					completed := true;
-					ignore(read EOM)
+					ignore(read EOM);
+					m.m_extra.m_complete <- TAccess.module_complete;
+					List.iter (function
+						| TClassDecl c -> c.cl_build <- TAccess.built
+						| _ -> ()
+					) m.m_types
 				end
 			in
 			m.m_extra.m_complete <- complete;
@@ -837,11 +846,14 @@ and load_module' com g m p =
 			let mine,others = List.partition (fun (com',_) -> com' == com) !TypeloadCacheHook.dirty_dependencies in
 			TypeloadCacheHook.dirty_dependencies := others;
 			List.iter (fun (_,path) -> ignore(load_module' com g path p)) (List.rev mine);
+			Atomic.set m.m_extra.m_ready true;
 			m
 		| BinaryModule _ ->
 			die "" __LOC__ (* The server builds those *)
 		| NoModule | BadModule _ | BadBinaryModule _ -> try
-			load_hxb_module com g m p
+			let m = load_hxb_module com g m p in
+			Atomic.set m.m_extra.m_ready true;
+			m
 		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if com.module_nonexistent_lut#mem m then raise_not_found();
@@ -871,10 +883,22 @@ and load_module' com g m p =
 			m
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
-	TypingLock.protect (fun () ->
-		let m2 = load_module' ctx.com ctx.g m p in
+	(* while bodies are typed in parallel, a module already loaded (or known not to
+	   exist) is found without the lock: the tables only grow, under the lock *)
+	let loaded = if not !TypingLock.active then None else match ctx.com.module_lut#find_opt m with
+		| Some m2 when Atomic.get m2.m_extra.m_ready -> Some m2
+		| Some _ -> None
+		| None -> if ctx.com.module_nonexistent_lut#mem m then raise_error_msg (Module_not_found m) p else None
+	in
+	match loaded with
+	| Some m2 ->
 		add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 		m2
-	)
+	| None ->
+		TypingLock.protect (fun () ->
+			let m2 = load_module' ctx.com ctx.g m p in
+			add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
+			m2
+		)
 
 ;;

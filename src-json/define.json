@@ -710,6 +710,11 @@
 		"deprecated": "OldErrorFormat has been removed in Haxe 5"
 	},
 	{
+		"name": "ParallelTyping",
+		"define": "parallel-typing",
+		"doc": "Type the bodies of fields whose type is declared on several domains (docs/incremental-compilation.md, phase 3.5, experimental)."
+	},
+	{
 		"name": "PhpPrefix",
 		"define": "php-prefix",
 		"doc": "Root namespace for generated php classes. E.g. if compiled with`-D php-prefix=some.sub`, then all classes will be generated in `\\some\\sub` namespace.",
@@ -863,7 +868,7 @@
 	{
 		"name": "TyperShuffle",
 		"define": "typer-shuffle",
-		"doc": "Run the delayed typing tasks of each pass in a random order, from the given seed, to check that typing does not depend on order (docs/incremental-compilation.md, phase 3).",
+		"doc": "Run the units of each stage of typing in a random order, from the given seed, to check that typing does not depend on order (docs/incremental-compilation.md, phase 3).",
 		"params": ["seed"]
 	},
 	{

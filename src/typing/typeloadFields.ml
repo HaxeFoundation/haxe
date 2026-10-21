@@ -39,7 +39,7 @@ type class_init_ctx = {
 	abstract : tabstract option;
 	mutable has_display_field : bool;
 	(* the fields to type, with whether their type is inferred from their body *)
-	mutable delayed_expr : (typer * tlazy ref option * bool) list;
+	mutable delayed_expr : (typer * tclass_field * tlazy ref option * bool) list;
 	mutable force_constructor : bool;
 	mutable uninitialized_final : tclass_field list;
 	(* the connection of the members of the class (accessor checks, statics of
@@ -862,7 +862,7 @@ module TypeBinding = struct
 				force_macro true
 			else begin
 				cf.cf_type <- TLazy r;
-				cctx.delayed_expr <- (ctx,Some r,true) :: cctx.delayed_expr;
+				cctx.delayed_expr <- (ctx,cf,Some r,true) :: cctx.delayed_expr;
 			end
 		in
 		if ctx.com.display.dms_full_typing then begin
@@ -879,8 +879,9 @@ module TypeBinding = struct
 				if body_needed || is_sig then
 					cf.cf_type <- TLazy r
 				else
-					set_pending_body cf (fun () -> ignore(lazy_type r));
-				cctx.delayed_expr <- (ctx,Some r,is_sig) :: cctx.delayed_expr;
+					(* the domain typing it claimed it: no need to lock *)
+					set_pending_body cf (fun () -> ignore(force_lazy_unlocked r));
+				cctx.delayed_expr <- (ctx,cf,Some r,is_sig) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
 			force_macro true
@@ -889,7 +890,7 @@ module TypeBinding = struct
 				handle_display_field()
 			end else begin
 				if not (is_full_type cf.cf_type) then begin
-					cctx.delayed_expr <- (ctx, None, true) :: cctx.delayed_expr;
+					cctx.delayed_expr <- (ctx, cf, None, true) :: cctx.delayed_expr;
 					cf.cf_type <- TLazy r;
 				end else if fctx.expr_presence_matters then
 					cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
@@ -1866,13 +1867,19 @@ let check_overloads ctx c =
    whose type is inferred from their body first, with those of every other
    class, then the bodies of those whose type is declared. *)
 let finalize_class ctx cctx =
-	let sigs,bodies = List.partition (fun (_,_,is_sig) -> is_sig) (List.rev cctx.delayed_expr) in
-	let force l = match List.filter_map (fun (_,r,_) -> r) l with
-		| [] -> None
-		| rl -> Some (fun () -> List.iter (fun r -> ignore(lazy_type r)) rl)
-	in
-	Option.may (add_program_sig_unit ctx.g) (force sigs);
-	Option.may (add_program_unit ctx.g) (force bodies)
+	let sigs,bodies = List.partition (fun (_,_,_,is_sig) -> is_sig) (List.rev cctx.delayed_expr) in
+	begin match List.filter_map (fun (_,_,r,_) -> r) sigs with
+		| [] -> ()
+		| rl -> add_program_sig_unit ctx.g (fun () -> List.iter (fun r -> ignore(lazy_type r)) rl)
+	end;
+	match List.filter_map (fun (_,cf,r,_) -> Option.map (fun r -> (cf,r)) r) bodies with
+	| [] ->
+		()
+	| l ->
+		(* when bodies are typed in parallel, each body is claimed by the domain typing it *)
+		add_program_body_unit ctx.g cctx.tclass.cl_module (fun () -> List.iter (fun (cf,r) ->
+			if !TypingLock.active then force_field_body cf else ignore(lazy_type r)
+		) l)
 
 let create_class_field cctx f  =
 	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with

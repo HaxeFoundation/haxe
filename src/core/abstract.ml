@@ -6,7 +6,7 @@ open TUnification
 open Error
 
 let build_abstract a = match a.a_impl with
-	| Some c -> ignore(c.cl_build())
+	| Some c -> ignore((TAccess.build c))
 	| None -> ()
 
 let find_cast_field uctx find =

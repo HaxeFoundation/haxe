@@ -1688,7 +1688,7 @@ class hxb_reader
 					| CfrStatic ->
 						let name = Option.get name in
 						begin try
-							ignore(c.cl_build());
+							ignore((TAccess.build c));
 							PMap.find name c.cl_statics
 						with Not_found ->
 							raise (HxbFailure (Printf.sprintf "Could not read static field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))
@@ -1696,7 +1696,7 @@ class hxb_reader
 					| CfrMember ->
 						let name = Option.get name in
 						begin try
-							ignore(c.cl_build());
+							ignore((TAccess.build c));
 							PMap.find name c.cl_fields
 						with Not_found ->
 							raise (HxbFailure (Printf.sprintf "Could not read instance field %s on %s while hxbing %s" name (s_type_path c.cl_path) (s_type_path current_module.m_path)))

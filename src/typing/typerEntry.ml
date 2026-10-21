@@ -237,6 +237,20 @@ let load_coro ctx =
 			()
 	) m.m_types
 
+(* Runs typing tasks on the domains of the compilation's pool, re-raising the
+   exception of the first failed task (in task order) once all are done. *)
+let run_parallel_tasks com tasks =
+	let results = Array.make (Array.length tasks) None in
+	Parallel.run_with_pool com.sctx.pool (fun pool ->
+		Parallel.ParallelArray.iter pool (fun i ->
+			try tasks.(i) () with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ())
+		) (Array.init (Array.length tasks) (fun i -> i))
+	);
+	Array.iter (function
+		| Some (exc,bt) -> Printexc.raise_with_backtrace exc bt
+		| None -> ()
+	) results
+
 let create com macros =
 	Typecore.typer_shuffle := (match Define.defined_value_safe com.defines Define.TyperShuffle with
 		| "" -> None
@@ -250,6 +264,11 @@ let create com macros =
 			module_check_policies = [];
 			program = Array.init ProgramStage.stage_count (fun _ -> make_program_stage ());
 			program_min_stage = 0;
+			(* with -D fail-fast, the first error stops typing: sequential *)
+			run_parallel = if Common.defined com Define.ParallelTyping && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
+				Some (run_parallel_tasks com)
+			else
+				None;
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			global_using = [];
 			complete = false;
@@ -258,7 +277,10 @@ let create com macros =
 			return_partial_type = false;
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
-			do_macro = (fun ctx mode cpath f el p -> TypingLock.protect (fun () -> MacroContext.type_macro ctx mode cpath f el p));
+			do_macro = (fun ctx mode cpath f el p -> TypingLock.protect (fun () ->
+				if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
+				MacroContext.type_macro ctx mode cpath f el p
+			));
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
 			do_load_type_def = Typeload.load_type_def;

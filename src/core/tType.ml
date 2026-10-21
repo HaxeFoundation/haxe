@@ -453,6 +453,9 @@ and module_def_extra = {
 	(* completes the types of the module: reads the rest of a module read from a
 	   .hxb file (docs/incremental-compilation.md, phase 3.2) *)
 	mutable m_complete : unit -> unit;
+	(* the module and its types are created: domains typing bodies in parallel can
+	   use it without the typing lock (docs/incremental-compilation.md, phase 3.5) *)
+	m_ready : bool Atomic.t;
 }
 
 and class_field_ref_kind =

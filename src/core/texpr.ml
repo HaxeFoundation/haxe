@@ -562,7 +562,7 @@ module Builder = struct
 		mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) basic.tint p)) t p
 
 	let resolve_and_make_static_call c name args p =
-		ignore(c.cl_build());
+		ignore((TAccess.build c));
 		let cf = try
 			PMap.find name c.cl_statics
 		with Not_found ->

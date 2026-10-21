@@ -105,6 +105,9 @@ type call_arg_context = {
 type program_stage = {
 	ps_units : (unit -> unit) Queue.t;
 	ps_late : (unit -> unit) Queue.t;
+	(* the units that can run in parallel, with their module: the units of a
+	   module run in order on one domain (phase 3.5) *)
+	ps_parallel : (module_def * (unit -> unit)) Queue.t;
 }
 
 type typer_globals = {
@@ -112,6 +115,8 @@ type typer_globals = {
 	program : program_stage array;
 	(* stages before this one have no unit left *)
 	mutable program_min_stage : int;
+	(* runs tasks on several domains, with -D parallel-typing *)
+	mutable run_parallel : ((unit -> unit) array -> unit) option;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
@@ -518,6 +523,7 @@ let is_gen_local v = match v.v_kind with
 let make_program_stage () = {
 	ps_units = Queue.create ();
 	ps_late = Queue.create ();
+	ps_parallel = Queue.create ();
 }
 
 (* [program] (docs/incremental-compilation.md, phase 3.1) types the program by
@@ -558,6 +564,26 @@ let pop_unit q = match !typer_shuffle with
 	| _ ->
 		Queue.pop q
 
+(* Runs the parallel units of a stage: the units of each module in order, the
+   modules on several domains when bodies are typed in parallel and no domain
+   is doing so already. *)
+let run_parallel_units g s =
+	let units = List.of_seq (Queue.to_seq s.ps_parallel) in
+	Queue.clear s.ps_parallel;
+	let rec group acc = function
+		| [] -> List.rev acc
+		| (m,f) :: l ->
+			let mine,others = List.partition (fun (m',_) -> m' == m) l in
+			group ((f :: List.map snd mine) :: acc) others
+	in
+	let tasks = Array.of_list (List.map (fun fl -> (fun () -> List.iter (fun f -> f ()) fl)) (group [] units)) in
+	match g.run_parallel with
+	| Some run when not !TypingLock.active && Array.length tasks > 1 ->
+		TypingLock.active := true;
+		Std.finally (fun () -> TypingLock.active := false) run tasks
+	| _ ->
+		Array.iter (fun f -> f ()) tasks
+
 (* Runs the stages of [program] up to [p], until none of them has a unit left. *)
 let rec run_stages g (p : stage) where =
 	let last = Obj.magic p in
@@ -566,6 +592,9 @@ let rec run_stages g (p : stage) where =
 			let s = g.program.(i) in
 			if not (Queue.is_empty s.ps_units) then begin
 				(pop_unit s.ps_units) ();
+				loop g.program_min_stage
+			end else if not (Queue.is_empty s.ps_parallel) then begin
+				run_parallel_units g s;
 				loop g.program_min_stage
 			end else if not (Queue.is_empty s.ps_late) then begin
 				Queue.transfer s.ps_late s.ps_units;
@@ -577,7 +606,21 @@ let rec run_stages g (p : stage) where =
 			end
 		end
 	in
-	loop g.program_min_stage
+	(* units can run from a domain typing bodies in parallel *)
+	TypingLock.protect (fun () -> loop g.program_min_stage)
+
+(* Adds the typing of the bodies of the fields of a class of module [m] whose type
+   is declared to [program]: they can be typed in parallel with those of other
+   modules (phase 3.5). *)
+let add_program_body_unit g m f = TypingLock.protect @@ fun () ->
+	match g.run_parallel with
+	| None ->
+		schedule g StageBodies f
+	| Some _ ->
+		let i = Obj.magic StageBodies in
+		Queue.push (m,f) g.program.(i).ps_parallel;
+		if i < g.program_min_stage then
+			g.program_min_stage <- i
 
 (* Adds the typing of the fields of a class whose type is inferred from their
    body to [program]: all of them are typed before any field body whose type
@@ -601,7 +644,9 @@ let add_program_check g f =
 (* Completes the structure of the types loaded so far: what loading a module
    while typing a field demands. *)
 let complete_structure g info =
-	run_stages g StageMembers info
+	(* nothing to do when the structure stages have no unit left (read without the lock) *)
+	if g.program_min_stage <= Obj.magic StageMembers then
+		run_stages g StageMembers info
 
 let make_lazy ctx t_proc f where =
 	let r = make_unforced_lazy t_proc f where in

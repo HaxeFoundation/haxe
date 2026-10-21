@@ -1183,7 +1183,7 @@ and encode_tabstract a =
 		begin match a.a_impl with
 		| Some c ->
 			c.cl_build_header ();
-			begin match c.cl_build() with
+			begin match (TAccess.build c) with
 			| Built -> ()
 			| _ -> !current_partially_built_class_read c
 			end
@@ -1291,7 +1291,7 @@ and encode_tclass c =
 	   class; its members do (docs/incremental-compilation.md, §3.3) *)
 	c.cl_build_header ();
 	let build () =
-		match c.cl_build() with
+		match (TAccess.build c) with
 		| Built -> ()
 		| _ -> !current_partially_built_class_read c
 	in
@@ -2332,7 +2332,7 @@ let macro_api ccom get_api =
 			let rec loop t = match t with
 				| TInst(c,_) ->
 					c.cl_build_header ();
-					begin match c.cl_build() with
+					begin match (TAccess.build c) with
 					| Built -> ()
 					| _ -> !current_partially_built_class_read c
 					end;

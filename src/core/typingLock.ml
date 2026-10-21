@@ -15,3 +15,13 @@ let protect f = if !active then ReentrantLock.protect lock f else f ()
 let notify () = if !active then ReentrantLock.notify lock
 
 let wait_until cond = if !active then ReentrantLock.wait_until lock cond
+
+(* Runs [f] without the lock, taking it back as it was afterwards. *)
+let without f =
+	if !active then begin
+		let n = ReentrantLock.release_all lock in
+		match f () with
+		| v -> ReentrantLock.reacquire lock n; v
+		| exception e -> ReentrantLock.reacquire lock n; raise e
+	end else
+		f ()

@@ -120,11 +120,11 @@ let init_import ctx path mode p =
 		let add_static_init t name s =
 			match resolve_typedef t with
 			| TClassDecl c ->
-				ignore(c.cl_build());
+				ignore((TAccess.build c));
 				let cf = PMap.find s (TAccess.Members.statics c) in
 				static_field_resolution c cf name p
 			| TAbstractDecl ({a_impl = Some c} as a) ->
-				ignore(c.cl_build());
+				ignore((TAccess.build c));
 				let cf = PMap.find s (TAccess.Members.statics c) in
 				static_abstract_field_resolution a c cf name p
 			| TEnumDecl en ->
@@ -205,7 +205,7 @@ let init_import ctx path mode p =
 						match md.m_statics with
 						| Some c ->
 							(try
-								ignore(c.cl_build());
+								ignore((TAccess.build c));
 								let rec loop fl =
 									match fl with
 									| [] -> raise Not_found

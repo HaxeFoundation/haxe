@@ -315,7 +315,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	   into continuation fields.  These become constructor parameters for both the inline
 	   and thunk paths, so the constructor can assign them in one place. *)
 	let hoisted_args = List.filter_map (fun (v, _) ->
-		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
+		let field_name = Printf.sprintf "_hx_hoisted%i" (CoroTypes.local_id ctx v) in
 		match (try Some (PMap.find field_name (TAccess.Members.fields coro_class.ContinuationClassBuilder.cls)) with Not_found -> None) with
 		| Some field -> Some (v.v_name, b#local v v.v_pos, field)
 		| None -> None
@@ -576,7 +576,8 @@ let fun_to_coro ctx =
 					(* Placeholder values for ClassFunction-only parameters. *)
 					b#string "" coro_class.name_pos;
 					b#string "" coro_class.name_pos;
-					b#int v.v_id coro_class.name_pos;
+					(* deterministic: the position of the local function *)
+					b#int (Pos.min v.v_pos) coro_class.name_pos;
 				]
 		in
 		let eaccess = continuation_field field field.cf_type in
@@ -689,6 +690,7 @@ let create_coro_context typer config coro_type =
 		coro_type;
 		class_name_pos;
 		deferred_exprs = Hashtbl.create 0;
+		local_ids = Hashtbl.create 0;
 		has_capture_vars = false;
 		captures_this = false;
 		next_block_id = 0;

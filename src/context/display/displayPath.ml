@@ -117,7 +117,7 @@ module TypePathHandler = struct
 				let is_module_type = snd tinfos.mt_path = c in
 				if is_import && is_module_type then begin match t with
 					| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
-						ignore(c.cl_build());
+						ignore((TAccess.build c));
 						statics := Some c
 					| TEnumDecl en ->
 						enum_statics := Some en
@@ -165,7 +165,7 @@ let resolve_position_by_path ctx path p =
 
 let handle_path_display ctx path p =
 	let class_field c name =
-		ignore(c.cl_build());
+		ignore((TAccess.build c));
 		let cf = PMap.find name (TAccess.Members.statics c) in
 		let origin = match c.cl_kind with
 			| KAbstractImpl a -> Self (TAbstractDecl a)

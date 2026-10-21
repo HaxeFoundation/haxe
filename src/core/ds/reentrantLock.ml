@@ -67,3 +67,27 @@ let wait_until l cond =
 	in
 	loop ();
 	Mutex.unlock l.m
+
+(* Releases the lock if the current domain holds it, giving what [reacquire]
+   needs to take it back as it was. *)
+let release_all l =
+	let me = Domain.self () in
+	Mutex.lock l.m;
+	let n = if l.owner = Some me then l.count else 0 in
+	if n > 0 then begin
+		l.owner <- None;
+		l.count <- 0;
+		Condition.broadcast l.c
+	end;
+	Mutex.unlock l.m;
+	n
+
+let reacquire l n =
+	if n > 0 then begin
+		let me = Domain.self () in
+		Mutex.lock l.m;
+		while l.owner <> None do Condition.wait l.c l.m done;
+		l.owner <- Some me;
+		l.count <- n;
+		Mutex.unlock l.m
+	end

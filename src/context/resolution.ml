@@ -114,7 +114,7 @@ class resolution_list (id : string list) = object(self)
 			| res :: l ->
 				begin match res.r_kind with
 				| RClassStatics c ->
-					ignore(c.cl_build());
+					ignore((TAccess.build c));
 					begin try
 						let cf = PMap.find i (TAccess.Members.statics c) in
 						begin match as_importable_static c cf res.r_pos with

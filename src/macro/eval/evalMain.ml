@@ -651,3 +651,17 @@ let get_api_call_pos () =
 		| Some env -> env
 	in
 	(Pos.make (rev_hash env.env_info.pfile) (env.env_leave_pmin) (env.env_leave_pmax))
+
+(* Gives the current thread the evaluation state of the macro interpreter, when
+   a macro is called from a domain typing bodies in parallel
+   (docs/incremental-compilation.md, phase 3.5). *)
+let ensure_thread_eval () =
+	if !GlobalState.initialized then begin
+		let ctx = get_ctx() in
+		match Thread_local_storage.get_opt ctx.eval with
+		| Some _ ->
+			()
+		| None ->
+			let thread = EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())) in
+			Thread_local_storage.set ctx.eval (EvalThread.create_eval thread)
+	end

@@ -319,7 +319,7 @@ let rec handle_signature_display ctx e_ast with_type =
 				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
 				DisplayException.send_signatures_raise ctx.com [res,doc_from_string "The array index"] 0 0 SKCall
 			| TAbstract(a,tl) ->
-				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
+				(match a.a_impl with Some c -> ignore((TAccess.build c)) | _ -> ());
 				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
 					| TFun(_ :: args,r) ->
 						if ExtType.is_void (follow r) && (match with_type with WithType.NoValue -> false | _ -> true) then

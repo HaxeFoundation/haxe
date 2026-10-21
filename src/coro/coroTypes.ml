@@ -73,6 +73,9 @@ type coro_ctx = {
 	coro_type : coro_for;
 	class_name_pos : pos;
 	deferred_exprs : (int, unit -> texpr) Hashtbl.t;
+	(* the numbers naming the hoisted variables, given in order of appearance so
+	   that the names do not depend on global variable ids (phase 3.4) *)
+	local_ids : (int,int) Hashtbl.t;
 	mutable has_capture_vars : bool;
 	mutable captures_this : bool;
 	mutable next_block_id : int;
@@ -94,3 +97,11 @@ type coro_scope = {
 type coro_gen_mode =
 	| GenThunk of tclass_field
 	| GenInline of (texpr * tclass_field) option
+(* The number naming variable [v] in the code generated for a coroutine. *)
+let local_id ctx v =
+	match Hashtbl.find_opt ctx.local_ids v.v_id with
+	| Some i -> i
+	| None ->
+		let i = Hashtbl.length ctx.local_ids in
+		Hashtbl.add ctx.local_ids v.v_id i;
+		i

@@ -294,7 +294,7 @@ and build_generic_class' ctx c p tl =
 				print_endline (Printf.sprintf "[GENERIC]   %s: %s%s" name (s_type_kind t2) expr);
 			) gctx.subst
 		end;
-		ignore(c.cl_build()); (* make sure the super class is already setup *)
+		ignore((TAccess.build c)); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);

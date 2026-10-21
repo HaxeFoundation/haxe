@@ -882,7 +882,7 @@ let rec unify (uctx : unification_context) a b =
 				(* one of the constraints must unify with { } *)
 				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) (get_constraints ttp)) then error [cannot_unify a b]
 			| _ -> ());
-		ignore(c.cl_build());
+		ignore((TAccess.build c));
 		(try
 			PMap.iter (fun n f2 ->
 				(*

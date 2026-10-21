@@ -110,7 +110,7 @@ let default_error_handler com =
 	)
 
 let default_warning_handler com =
-	(fun ?(depth=0) w options msg p -> TypingLock.protect @@ fun () ->
+	(fun ?(depth=0) w options msg p ->
 		match Warning.get_mode w (options @ com.warning_options) with
 		| WMEnable ->
 			let wobj = Warning.warning_obj w in

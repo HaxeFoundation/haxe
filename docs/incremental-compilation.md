@@ -1238,6 +1238,41 @@ types a pending body, returns when the current domain is typing it, and
 waits (releasing the lock) when another domain is
 (`TFunctions.body_started`, `body_done`).
 
+**Status: step 4, parallel bodies (`-D parallel-typing`, experimental).**
+The bodies stage has parallel units: the typing of the bodies of the fields
+with a declared type of each class, grouped by module (the classes of a
+module share its typer and import resolution, so a module is typed by one
+domain, in order). When the bodies stage reaches them, `run_stages` runs the
+modules on the domains of the compilation's pool, with the typing lock
+active; units added meanwhile run afterwards, and nested stage runs (from a
+domain, or while typing on several domains) run sequentially under the lock.
+A domain claims each body it types; a body demanded by another domain is
+typed by it if still pending, or waited for. Macros called from another
+domain get their own evaluation state (`EvalMain.ensure_thread_eval`); they
+run under the lock. Not enabled in display requests, in the macro context
+and with `-D fail-fast`. Reading what is final needs no lock: a built class
+(`TAccess.built`), a computed header, a completed `.hxb` module, a created
+module (`m_ready`), a known missing module. The claims of bodies use their
+own mutex, and a domain waiting for a body releases the typing lock
+(`TypingLock.without`).
+Found and fixed on the way:
+- reading a class's build closure before taking the lock ran a build that
+  another domain had just done (`Duplicate class field declaration`);
+- a module was visible to other domains before its types were created;
+- coroutine code was named after global variable ids
+  (`_hx_hoisted<v_id>`, `setStackItem` ids of local functions) and its
+  hoisted fields were in hash table order: names now come from a numbering
+  local to each coroutine, in order of appearance, and the id of a local
+  function is its position (the output no longer depends on how many
+  variables were allocated before).
+The generated JS of `tests/unit`, Heaps and hide is identical to sequential
+typing; `tests/unit` (macro) and `tests/misc` pass with it, and the macro CI
+job runs `tests/unit` with it. Measured on 4 cores: `tests/unit` (JS) 3.2 s
+→ 3.0 s, Heaps 5.1 s → 4.6 s, hide 18.5 s → 17.5 s. The gain is limited by
+what still runs under the lock while bodies are typed (classes built and
+modules loaded on demand, macros) and by the stages that stay sequential
+(structure, signatures, macros, filters, generation).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context

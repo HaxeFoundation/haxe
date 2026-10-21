@@ -95,13 +95,13 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
+			let field = mk_field (Printf.sprintf "_hx_hoisted%i" (CoroTypes.local_id ctx v)) v.v_type v.v_pos v.v_pos in
 
 			Hashtbl.replace fields v.v_id field;
 			(* Create a fresh restored var rather than reusing the original argument variable.
 			   This prevents the same v_id appearing as both an outer function parameter and
 			   a TVar declaration inside the state machine body (which confuses renameVars). *)
-			let restored_var = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+			let restored_var = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" (CoroTypes.local_id ctx v)) v.v_type v.v_pos in
 			Hashtbl.replace fst_state.cs_mapped_local v.v_id restored_var;
 			Hashtbl.replace force_hoisted_ids v.v_id ();
 		end) tf_args;
@@ -112,7 +112,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			match Hashtbl.find_opt state.cs_mapped_local v.v_id with
 			| Some v -> v
 			| None ->
-				let new_v = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+				let new_v = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" (CoroTypes.local_id ctx v)) v.v_type v.v_pos in
 				Hashtbl.replace state.cs_mapped_local v.v_id new_v;
 				new_v
 		in
@@ -123,7 +123,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				if Option.is_some eo then
 					state.cs_writes <- IntSet.add v.v_id state.cs_writes;
 
-				let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
+				let field = mk_field (Printf.sprintf "_hx_hoisted%i" (CoroTypes.local_id ctx v)) v.v_type v.v_pos v.v_pos in
 
 				Hashtbl.replace fields v.v_id field;
 				Hashtbl.replace state.cs_mapped_local v.v_id v;
@@ -203,9 +203,12 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		state.cs_el <- restoring @ state.cs_el @ saving @ tail)
 		states;
 
+	(* in the order of their names' numbers, not of the hash table *)
 	fields
-	|> Hashtbl.to_seq_values
+	|> Hashtbl.to_seq
 	|> List.of_seq
+	|> List.sort (fun (id1,_) (id2,_) -> compare (Hashtbl.find ctx.local_ids id1) (Hashtbl.find ctx.local_ids id2))
+	|> List.map snd
 
 let build_call_stack ctx cont econtinuation p =
 	let b = ctx.builder in

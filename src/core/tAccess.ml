@@ -16,7 +16,7 @@ let set_pending_usings (ti : tinfos) f =
 	let l = try Hashtbl.find pending_usings ti.mt_path with Not_found -> [] in
 	Hashtbl.replace pending_usings ti.mt_path ((ti,f) :: l)
 
-let force_usings (ti : tinfos) = TypingLock.protect @@ fun () ->
+let force_usings (ti : tinfos) = if Hashtbl.length pending_usings > 0 then TypingLock.protect @@ fun () ->
 	match Hashtbl.find_opt pending_usings ti.mt_path with
 	| None ->
 		()
@@ -28,14 +28,25 @@ let force_usings (ti : tinfos) = TypingLock.protect @@ fun () ->
 			if rest = [] then Hashtbl.remove pending_usings ti.mt_path else Hashtbl.replace pending_usings ti.mt_path rest;
 			List.iter (fun (_,f) -> f ()) fl
 
+(* The final states of the queries: once a closure is one of these, reading the
+   contents needs no lock (phase 3.5). *)
+let built () = Built
+let header_done () = ()
+let module_complete () = ()
+
 (* Members of a module type read from a .hxb file are read with the rest of
-   its module. *)
-let complete_module m = TypingLock.protect m.m_extra.m_complete
+   its module. The closures are read under the lock: another domain may change
+   them meanwhile. *)
+let complete_module m =
+	if m.m_extra.m_complete != module_complete then
+		TypingLock.protect (fun () -> m.m_extra.m_complete ())
 
 module Header = struct
 	(* The header of a class: type parameters, super class, interfaces,
 	   declared metadata. *)
-	let demand c = TypingLock.protect c.cl_build_header
+	let demand c =
+		if c.cl_build_header != header_done then
+			TypingLock.protect (fun () -> c.cl_build_header ())
 
 	let super c = demand c; c.cl_super
 	let implements c = demand c; c.cl_implements
@@ -45,9 +56,16 @@ end
    reading their members gives what is there (nothing). *)
 let not_ready : tclass list ref = ref []
 
+(* Builds class [c] (its [members] query) and gives its build state. *)
+let build c =
+	if c.cl_build == built then Built
+	else TypingLock.protect (fun () -> c.cl_build ())
+
 module Members = struct
 	(* The members of a class, after its build macros, connected. *)
-	let demand c = TypingLock.protect (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
+	let demand c =
+		if c.cl_build != built then
+			TypingLock.protect (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
 
 	let fields c = demand c; c.cl_fields
 	let ordered_fields c = demand c; c.cl_ordered_fields

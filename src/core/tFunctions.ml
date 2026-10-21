@@ -161,8 +161,8 @@ let mk_class m path pos name_pos =
 		cl_array_access = None;
 		cl_constructor = None;
 		cl_init = None;
-		cl_build = (fun() -> Built);
-		cl_build_header = (fun() -> ());
+		cl_build = TAccess.built;
+		cl_build_header = TAccess.header_done;
 		cl_header_meta = None;
 		cl_restore = (fun() -> ());
 		cl_descendants = [];
@@ -189,7 +189,8 @@ let module_extra file sign time kind added policy =
 		m_kind = kind;
 		m_cache_bound_objects = DynArray.create ();
 		m_features = Hashtbl.create 0;
-		m_complete = (fun () -> ());
+		m_complete = TAccess.module_complete;
+		m_ready = Atomic.make false;
 		m_check_policy = policy;
 	}
 
@@ -369,6 +370,13 @@ let lazy_force_hook : ((unit -> t) -> t) DomainLocal.t = DomainLocal.make (fun (
    (instrumentation of order-dependent typing, see WTypingOrder). *)
 let lazy_processing_read_hook : (tlazy ref -> unit) ref = ref (fun _ -> ())
 
+(* Forces a lazy type without locking: for a lazy that only the current domain
+   can force (a field body it claimed). *)
+let force_lazy_unlocked f =
+	match !f with
+	| LAvailable t | LProcessing t -> t
+	| LWait g -> (DomainLocal.get lazy_force_hook) g
+
 let lazy_type f =
 	match !f with
 	| LAvailable t -> t
@@ -397,13 +405,16 @@ type pending_body =
 	| BodyTyping of Domain.id
 
 let pending_bodies : pending_body PendingBodies.t = PendingBodies.create 0
+(* protects [pending_bodies]: claims are frequent, they do not take the typing lock *)
+let bodies_mutex = Mutex.create ()
+let bodies_done = Condition.create ()
 
 let set_pending_body cf f =
-	TypingLock.protect (fun () -> PendingBodies.replace pending_bodies cf (BodyPending f))
+	Mutex.protect bodies_mutex (fun () -> PendingBodies.replace pending_bodies cf (BodyPending f))
 
 (* The typing of the body of [cf] starts, whatever demanded it. *)
 let body_started cf =
-	TypingLock.protect (fun () ->
+	Mutex.protect bodies_mutex (fun () ->
 		match PendingBodies.find_opt pending_bodies cf with
 		| Some (BodyPending _) -> PendingBodies.replace pending_bodies cf (BodyTyping (Domain.self ()))
 		| _ -> ()
@@ -411,17 +422,18 @@ let body_started cf =
 
 (* The typing of the body of [cf] by the current domain ended. *)
 let body_done cf =
-	TypingLock.protect (fun () ->
+	Mutex.protect bodies_mutex (fun () ->
 		match PendingBodies.find_opt pending_bodies cf with
-		| Some (BodyTyping d) when d = Domain.self () -> PendingBodies.remove pending_bodies cf
+		| Some (BodyTyping d) when d = Domain.self () ->
+			PendingBodies.remove pending_bodies cf;
+			Condition.broadcast bodies_done
 		| _ -> ()
-	);
-	TypingLock.notify ()
+	)
 
 (* Types the body of field [cf] if it is still pending, or waits for the domain
-   typing it. *)
+   typing it (without the typing lock, which that domain may need). *)
 let force_field_body cf =
-	let claim = TypingLock.protect (fun () ->
+	let claim = Mutex.protect bodies_mutex (fun () ->
 		match PendingBodies.find_opt pending_bodies cf with
 		| Some (BodyPending f) ->
 			PendingBodies.replace pending_bodies cf (BodyTyping (Domain.self ()));
@@ -435,7 +447,11 @@ let force_field_body cf =
 	| `Type f ->
 		f ()
 	| `Wait ->
-		TypingLock.wait_until (fun () -> not (PendingBodies.mem pending_bodies cf))
+		TypingLock.without (fun () ->
+			Mutex.protect bodies_mutex (fun () ->
+				while PendingBodies.mem pending_bodies cf do Condition.wait bodies_done bodies_mutex done
+			)
+		)
 	| `None ->
 		match cf.cf_type with
 		| TLazy r ->

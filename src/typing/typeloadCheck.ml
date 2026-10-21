@@ -560,7 +560,7 @@ module Inheritance = struct
 				raise_typing_error ("Cannot extend a final " ^ if (has_class_flag c CInterface) then "interface" else "class") p;
 		in
 		let check_cancel_build csup p =
-			match csup.cl_build() with
+			match (TAccess.build csup) with
 			| Built -> ()
 			| _ -> build_cycle_error c csup p
 		in
@@ -573,7 +573,7 @@ module Inheritance = struct
 		(* Pass 1: Check and set relations *)
 		let check_herit t is_extends p =
 			let rec check_interfaces_or_delay () =
-				match c.cl_build() with
+				match (TAccess.build c) with
 				| BuildMacro pending ->
 					(* Ok listen... we're still building this class, which means we can't check its interfaces yet. However,
 					   we do want to check them at SOME point. So we use this pending list which was maybe designed for this
