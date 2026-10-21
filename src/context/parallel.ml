@@ -1,5 +1,7 @@
 let enable = ref true
 
+let is_enabled () = !enable
+
 let run_parallel_for num_domains ?(chunk_size=0) length f =
 	if not !enable then begin
 		for i = 0 to length - 1 do
