@@ -111,9 +111,6 @@ and tlazy =
 	| LAvailable of t
 	| LProcessing of t
 	| LWait of (unit -> t)
-	(* The type is known from the declaration; the function types the body
-	   (docs/incremental-compilation.md, phase 3: [sig] does not demand [body]). *)
-	| LPendingBody of t * (unit -> t)
 
 and tsignature = (string * bool * t) list * t
 

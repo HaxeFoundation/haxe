@@ -422,37 +422,37 @@ let build_module_def ctx mt meta fvars fbuild =
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
 			)
-		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
-			(* Go for @:using in parents and interfaces *)
-			let inherit_using (c,_) =
-				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
-			in
-			delay_late ctx.g PConnectField (fun () ->
-				Option.may inherit_using csup;
-				List.iter inherit_using interfaces;
-			);
+		| TClassDecl _ ->
+			(* @:using of parents and interfaces: see [TFunctions.type_usings] *)
 			None
 		| _ ->
 			None
 	in
 	List.iter (fun f -> f()) (List.rev f_build);
-	let apply_using = function
+	let apply_using acc = function
 		| Meta.Using,el,p ->
-			List.iter (fun e ->
+			List.fold_left (fun acc e ->
 				try
 					let path = List.rev (string_pos_list_of_expr_path_raise e) in
 					let types,filter_classes = ImportHandling.handle_using ctx path (pos e) in
-					(* Delay for #10107, but use delay_late to make sure base classes run before their children do. *)
-					delay_late ctx.g PConnectField (fun () ->
-						ti.mt_using <- (filter_classes types) @ ti.mt_using
-					)
+					(fun () -> filter_classes types) :: acc
 				with Exit ->
 					raise_typing_error "dot path expected" (pos e)
-			) el;
+			) acc el
 		| _ ->
-			()
+			acc
 	in
-	List.iter apply_using ti.mt_meta;
+	(* Delayed for #10107; all the @:using of the type are resolved by the same
+	   task, in declaration order. Inherited ones are added when read (see
+	   [TFunctions.type_usings]). *)
+	begin match List.fold_left apply_using [] ti.mt_meta with
+	| [] ->
+		()
+	| pending ->
+		delay_late ctx.g PConnectField (fun () ->
+			List.iter (fun resolve -> ti.mt_using <- resolve () @ ti.mt_using) (List.rev pending)
+		)
+	end;
 	(match f_enum with None -> () | Some f -> f())
 
 let create_class_context c p =
@@ -838,7 +838,7 @@ module TypeBinding = struct
 				if body_needed || not (is_full_type cf.cf_type) then
 					cf.cf_type <- TLazy r
 				else
-					cf.cf_type <- TLazy (ref (LPendingBody(cf.cf_type,(fun () -> lazy_type r))));
+					set_pending_body cf (fun () -> ignore(lazy_type r));
 				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
@@ -901,7 +901,7 @@ module TypeBinding = struct
 		in
 		let self = ref None in
 		let inferred = not (is_full_type t) in
-		let r = make_unforced_lazy t (fun () -> while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
+		let r = make_unforced_lazy t (fun () -> PendingBodies.remove pending_bodies cf; while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -1043,6 +1043,8 @@ module TypeBinding = struct
 		   types are known from the declaration (see [setup_args_ret]) *)
 		let inferred = not (is_full_type t) in
 		let r = make_unforced_lazy t (fun () ->
+			(* the body is being typed, whatever demanded it *)
+			PendingBodies.remove pending_bodies cf;
 			while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 				if not ctx.g.return_partial_type then bind ();
 				t
@@ -2010,5 +2012,8 @@ let init_class ctx_c cctx c p herits fields =
 	end;
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
-		if not com.config.pf_overload then delay_late ctx_c.g PConnectField (fun() -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
+		if not com.config.pf_overload then begin
+			TypeloadFunction.PendingConstructors.replace TypeloadFunction.pending_constructors c (fun () -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
+			delay_late ctx_c.g PConnectField (fun() -> TypeloadFunction.run_pending_constructor c)
+		end;
 	finalize_class cctx

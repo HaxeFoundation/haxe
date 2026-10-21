@@ -695,6 +695,23 @@ type is inferred from the body, `body` when it is declared). The typing is
 still scheduled by the passes; replacing them with a `program()` driver that
 demands queries is the next step.
 
+**Status: order-independence check.** `-D typer-shuffle=<seed>` runs the
+delayed tasks of each pass in a random order (seeded), so that every
+remaining dependence on task order shows up before the passes are replaced by
+demanded queries. On `tests/unit` (macro), it found and fixed:
+- inherited `@:using`: copied from the parents by a task that had to run
+  after theirs; now computed when read (`TFunctions.type_usings`);
+- `@:using` metadata and module `using` statements: one task per entry,
+  each prepending to the list, so the precedence (the latest one wins)
+  depended on task order; each type or module now resolves its pending ones
+  together, in declaration order;
+- default constructors inherited through several classes (`Issue4557`): a
+  class now adds its super class's pending constructor first;
+- pending field bodies (see above): the declared type is used directly.
+With twelve seeds, the only remaining failure is `Issue3914`, two fields
+whose macros communicate through a macro static, which is phase 7 (macro
+statics isolation).
+
 #### 3.2 Enforcing queries with abstract types
 
 All direct reads of entity contents are replaced by accessors. Today `src/`
@@ -940,8 +957,11 @@ marked as known failures.
 **Status: `sig` no longer demands `body`.** A field whose type is fully known
 from its declaration (all argument and return types annotated, typed by a
 literal default value, or a syntactic `Void` return) exposes that type
-without typing its body: its `cf_type` is a `TLazy` in the new
-`LPendingBody(t, body)` state, which `follow` and `lazy_type` read as `t`.
+without typing its body: its `cf_type` is the declared type itself, and the
+function typing its body is kept aside (`TFunctions.pending_bodies`). A first
+version wrapped the type in a lazy state; code matching a type without
+following it (`??` checking for `Null<T>`) then saw a different type depending
+on whether the body had been typed, which `-D typer-shuffle` revealed.
 The body is typed later (`PTypeField`), or on demand by
 `TFunctions.force_field_body` where another field's body is needed while
 typing: the default values of a super constructor's arguments, abstract

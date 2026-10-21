@@ -75,7 +75,7 @@ let iter_module f m =
 	(* the declared type of a typedef, without forcing anything *)
 	let rec declared t = match t with
 		| TMono { tm_type = Some t } -> declared t
-		| TLazy r -> (match !r with LAvailable t | LPendingBody(t,_) -> declared t | _ -> t)
+		| TLazy r -> (match !r with LAvailable t -> declared t | _ -> t)
 		| _ -> t
 	in
 	List.iter (fun mt ->

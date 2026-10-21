@@ -296,5 +296,13 @@ let init_using ctx path p =
 	List.iter (fun mt ->
 		ctx.m.import_resolution#add (module_type_resolution mt None p)
 	) (List.rev types);
-	(* delay the using since we need to resolve typedefs *)
-	delay_late ctx.g PConnectField (fun () -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using)
+	(* Delay the using since we need to resolve typedefs. The pending usings of
+	   the module are resolved together, in declaration order, by whichever task
+	   runs first, so that the later ones take precedence whatever the order of
+	   the tasks (docs/incremental-compilation.md, phase 3). *)
+	ctx.m.pending_usings <- (fun () -> filter_classes types) :: ctx.m.pending_usings;
+	delay_late ctx.g PConnectField (fun () ->
+		let pending = List.rev ctx.m.pending_usings in
+		ctx.m.pending_usings <- [];
+		List.iter (fun resolve -> ctx.m.module_using <- resolve () @ ctx.m.module_using) pending
+	)

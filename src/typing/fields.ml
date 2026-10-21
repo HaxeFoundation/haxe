@@ -503,7 +503,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		if is_set then raise Not_found;
 		let type_field_by_extension () = type_field_by_extension (fun loop ->
 			let mt = try module_type_of_type t with Exit -> raise Not_found in
-			loop (t_infos mt).mt_using
+			loop (type_usings mt)
 		) t e in
 		match t with
 		| TType (td,tl) ->

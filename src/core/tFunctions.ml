@@ -344,6 +344,18 @@ let rec extends c csup =
 		| None -> false
 		| Some (c,_) -> extends c csup
 
+(* The @:using classes of a type: its own, then those of its super class and
+   interfaces, computed when read so that they do not depend on the order in
+   which types are built (docs/incremental-compilation.md, phase 3). *)
+let rec type_usings mt =
+	let own = (t_infos mt).mt_using in
+	match mt with
+	| TClassDecl c ->
+		let inherited (c,_) = type_usings (TClassDecl c) in
+		own @ (match c.cl_super with Some csup -> inherited csup | None -> []) @ List.concat_map inherited c.cl_implements
+	| _ ->
+		own
+
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
@@ -358,20 +370,37 @@ let lazy_type f =
 	| LAvailable t -> t
 	| LProcessing t -> !lazy_processing_read_hook f; t
 	| LWait f -> !lazy_force_hook f
-	| LPendingBody(t,_) -> t
 
-(* Types the body of field [cf] if it is still pending (a field whose type is
-   known from its declaration is typed later, see [LPendingBody]). *)
+(* Fields whose type is known from their declaration and whose body is not
+   typed yet, with the function typing it (docs/incremental-compilation.md,
+   phase 3: [sig] does not demand [body]). Their [cf_type] is the declared type
+   itself, so that reading it never depends on whether the body was typed. *)
+module PendingBodies = Hashtbl.Make(struct
+	type t = tclass_field
+	let equal = (==)
+	let hash cf = Hashtbl.hash (cf.cf_name,Globals.Pos.min cf.cf_pos)
+end)
+
+let pending_bodies : (unit -> unit) PendingBodies.t = PendingBodies.create 0
+
+let set_pending_body cf f =
+	PendingBodies.replace pending_bodies cf f
+
+(* Types the body of field [cf] if it is still pending. *)
 let force_field_body cf =
-	match cf.cf_type with
-	| TLazy r ->
-		begin match !r with
-		| LPendingBody(_,f) -> ignore(f ())
-		| LWait _ | LProcessing _ -> ignore(lazy_type r)
-		| LAvailable _ -> ()
-		end
-	| _ ->
-		()
+	match PendingBodies.find_opt pending_bodies cf with
+	| Some f ->
+		PendingBodies.remove pending_bodies cf;
+		f ()
+	| None ->
+		match cf.cf_type with
+		| TLazy r ->
+			begin match !r with
+			| LWait _ | LProcessing _ -> ignore(lazy_type r)
+			| LAvailable _ -> ()
+			end
+		| _ ->
+			()
 
 let lazy_available t = LAvailable t
 let lazy_processing t = LProcessing t
@@ -607,7 +636,7 @@ let rec follow t =
 		| _ -> t)
 	| TLazy f ->
 		(match !f with
-		| LAvailable t | LPendingBody(t,_) -> follow t
+		| LAvailable t -> follow t
 		| _ -> follow (lazy_type f)
 		)
 	| TType (t,tl) ->
@@ -620,7 +649,7 @@ let rec follow_lazy t =
 	match t with
 	| TLazy f ->
 		(match !f with
-		| LAvailable t | LPendingBody(t,_) -> follow_lazy t
+		| LAvailable t -> follow_lazy t
 		| _ -> follow_lazy (lazy_type f)
 		)
 	| _ -> t
@@ -700,7 +729,7 @@ let rec is_nullable ?(no_lazy=false) = function
 		true
 	| TLazy f ->
 		(match !f with
-		| LAvailable t | LPendingBody(t,_) -> is_nullable ~no_lazy t
+		| LAvailable t -> is_nullable ~no_lazy t
 		| _ when no_lazy -> raise Exit
 		| _ -> is_nullable (lazy_type f)
 		)
@@ -731,7 +760,7 @@ let rec is_null ?(no_lazy=false) = function
 		not (is_nullable ~no_lazy (follow t))
 	| TLazy f ->
 		(match !f with
-		| LAvailable t | LPendingBody(t,_) -> is_null ~no_lazy t
+		| LAvailable t -> is_null ~no_lazy t
 		| _ when no_lazy -> raise Exit
 		| _ -> is_null (lazy_type f)
 		)

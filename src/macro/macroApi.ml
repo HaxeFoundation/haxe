@@ -1408,12 +1408,12 @@ and encode_lazy_type t =
 			| _ -> encode_type t)
 		| TLazy f ->
 			(match !f with
-			| LAvailable t | LPendingBody(t,_) ->
+			| LAvailable t ->
 				encode_type t
 			| _ ->
 				encode_enum IType 7 [encode_lazytype f (fun() ->
 					(match !f with
-					| LAvailable t | LPendingBody(t,_) ->
+					| LAvailable t ->
 						encode_type t
 					| LWait _ ->
 						encode_type (lazy_type f)

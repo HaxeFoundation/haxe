@@ -238,6 +238,9 @@ let load_coro ctx =
 	) m.m_types
 
 let create com macros =
+	Typecore.typer_shuffle := (match Define.defined_value_safe com.defines Define.TyperShuffle with
+		| "" -> None
+		| seed -> Some (Random.State.make [|Hashtbl.hash seed|]));
 	let rec ctx = {
 		com = com;
 		t = com.basic;
@@ -273,6 +276,7 @@ let create com macros =
 			own_resolution = None;
 			enum_with_type = None;
 			module_using = [];
+			pending_usings = [];
 			import_statements = [];
 			is_display_file = false;
 		};

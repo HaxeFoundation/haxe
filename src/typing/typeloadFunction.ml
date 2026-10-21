@@ -195,7 +195,27 @@ let type_function ctx args ret e do_display p =
 	let save = save_field_state ctx in
 	Std.finally save (type_function ctx args ret e do_display) p
 
+(* Classes whose default constructor is still to be added, with the function
+   adding it: a class adds its super class's first, so that the result does not
+   depend on the order of the tasks (docs/incremental-compilation.md, phase 3). *)
+module PendingConstructors = Hashtbl.Make(struct
+	type t = tclass
+	let equal = (==)
+	let hash c = Hashtbl.hash c.cl_path
+end)
+
+let pending_constructors : (unit -> unit) PendingConstructors.t = PendingConstructors.create 0
+
+let run_pending_constructor c =
+	match PendingConstructors.find_opt pending_constructors c with
+	| Some f ->
+		PendingConstructors.remove pending_constructors c;
+		f ()
+	| None ->
+		()
+
 let add_constructor ctx_c c force_constructor p =
+	Option.may (fun (csup,_) -> run_pending_constructor csup) c.cl_super;
 	if c.cl_constructor <> None then () else
 	let constructor = try Some (Type.get_constructor_class c (extract_param_types c.cl_params)) with Not_found -> None in
 	match constructor with

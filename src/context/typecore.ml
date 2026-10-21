@@ -57,6 +57,8 @@ type typer_module = {
 	mutable own_resolution : resolution_list option;
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
+	(* `using` statements to resolve, newest first (see ImportHandling.init_using) *)
+	mutable pending_usings : (unit -> (tclass * pos) list) list;
 	mutable import_statements : import list;
 	mutable is_display_file : bool;
 }
@@ -523,6 +525,10 @@ let delay_if_mono g p t f = match follow t with
 	| _ ->
 		f()
 
+(* -D typer-shuffle=<seed>: the tasks of a pass run in a random order, to check
+   that typing does not depend on it (docs/incremental-compilation.md, phase 3). *)
+let typer_shuffle : Random.State.t option ref = ref None
+
 let rec flush_pass g (p : typer_pass) where =
 	let rec loop i =
 		if i > (Obj.magic p) then
@@ -530,6 +536,12 @@ let rec flush_pass g (p : typer_pass) where =
 		else begin
 			let tasks = g.delayed.(i) in
 			begin match tasks.tasks with
+			| _ :: _ :: _ as l when !typer_shuffle <> None ->
+				let n = Random.State.int (Option.get !typer_shuffle) (List.length l) in
+				let f = List.nth l n in
+				tasks.tasks <- List.filteri (fun i _ -> i <> n) l;
+				f();
+				flush_pass g p where
 			| f :: l ->
 				tasks.tasks <- l;
 				f();

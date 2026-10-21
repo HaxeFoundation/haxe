@@ -802,6 +802,7 @@ let load_macro_module mctx com cpath display p =
 		own_resolution = None;
 		enum_with_type = None;
 		module_using = [];
+		pending_usings = [];
 		import_statements = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mloaded.m_extra.m_file));
 	}; *)

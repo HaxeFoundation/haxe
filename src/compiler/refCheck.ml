@@ -120,7 +120,7 @@ let check com =
 			(* a field of the structure a typedef declares *)
 			let rec declared t = match t with
 				| TMono { tm_type = Some t } -> declared t
-				| TLazy r -> (match !r with LAvailable t | LPendingBody(t,_) -> declared t | _ -> t)
+				| TLazy r -> (match !r with LAvailable t -> declared t | _ -> t)
 				| _ -> t
 			in
 			(* the typedef of the current version of its module *)
