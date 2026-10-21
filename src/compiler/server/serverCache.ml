@@ -199,29 +199,20 @@ let check_module sctx com m_path m_extra p =
 	let macro_module_valid = ref (fun _ _ -> true) in
 	let validation = Option.map (fun g ->
 		NodeGraph.begin_validation g start_mark;
-		let decls = Hashtbl.create 0 in
-		let current_decls file =
-			try Hashtbl.find decls file with Not_found ->
-				let r = match Hashtbl.find_opt g.NodeGraph.files file with
-					| Some fi when file_time file = fi.fi_time ->
-						Some fi.fi_decls
-					| Some fi ->
-						(* changed: parsed again, the parse is cached for typing *)
-						begin try
-							let rfile,_,_,parsed,_ = TypeloadParse.parse_module' com fi.fi_module p in
-							Some (NodeGraph.decl_table rfile.ClassPaths.file parsed)
-						with _ ->
-							None
-						end
-					| None ->
-						None
-				in
-				Hashtbl.add decls file r;
-				r
+		let current_decls f =
+			if file_time f.NodeGraph.f_path = f.f_time then
+				f.f_decls
+			else
+				(* changed: parsed again, the parse is cached for typing *)
+				try
+					let rfile,_,_,parsed,_ = TypeloadParse.parse_module' com f.f_module p in
+					Some (NodeGraph.decl_table rfile.ClassPaths.file parsed)
+				with _ ->
+					None
 		in
 		{
 			NodeGraph.v_graph = g;
-			v_decl = (fun file key -> match current_decls file with Some h -> Hashtbl.find_opt h key | None -> None);
+			v_decls = current_decls;
 			v_resolve = resolve_for_graph com;
 			v_module_valid = (fun path -> !module_valid path);
 			v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);

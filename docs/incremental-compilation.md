@@ -1677,12 +1677,15 @@ members or that signature. Measured on Heaps (1534 modules, JS, 4 domains):
 
 | Change | Modules typed again | Warm compilation |
 |---|---|---|
-| none | 0 | 0.67 s (was 0.42 s: validating the graph) |
-| body of `h3d.scene.Object.getMaterialByName` | 1 (was 378) | 0.62 s (was 2.88 s) |
-| lines added at the top of `Object.hx` | 1 (was 378) | 0.67 s (was 2.88 s) |
-| field added to `Object` | 79 (subclasses, readers of members) | 1.22 s |
-| declared return type changed | 89 | 1.60 s |
-| lines added in `hxsl.Printer` (used by the shader macros) | 299 | 2.90 s |
+| none | 0 | 0.48 s (was 0.42 s) |
+| body of `h3d.scene.Object.getMaterialByName` | 1 (was 378) | 0.55 s (was 2.88 s) |
+| lines added at the top of `Object.hx` | 1 (was 378) | 0.52 s (was 2.88 s) |
+| field added to `Object` | 79 (subclasses, readers of members) | 1.06 s |
+| declared return type changed | 89 | 1.20 s |
+| lines added in `hxsl.Printer` (used by the shader macros) | 294 | 2.74 s |
+
+Nodes are records updated in place when their module is typed again, and
+edges point to them: validating all of Heaps takes about 0.1 s.
 
 Every warm output is identical to a cold compilation (generated JS and
 messages), and so is the whole `tests/incremental` suite; `@expect-retyped
