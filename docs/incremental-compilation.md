@@ -1670,6 +1670,22 @@ in `init_field`), which reads the declaration without its body; finding a
 field by name reads its signature, not finding it reads the members of the
 class.
 
+**Early cutoff** (item 3): a node read whose computation is invalid (its
+module is typed again) but whose fingerprint is the one seen is assumed to
+keep it. After typing, the stored fingerprints are compared with the
+assumptions; if one changed, or if typing reported an error while
+assumptions were made, the compilation is done again without assumptions
+(`NodeGraph.Retry`, caught by `HighLevel.entry`; console output of macros
+can then appear twice). A function whose return type is inferred can
+therefore change its body without typing its readers again, as long as the
+type stays the same.
+
+Work that a computation schedules (interface checks, field connections,
+constraint checks) runs as part of it (`DepRecord.capture` in
+`Typecore.schedule`), and reading all the fields of a class reads their
+signatures. Recording and the graph are only active in the compilation
+server.
+
 Consequences: a change in the body of a function whose signature is declared
 types again its module only; lines added in a file type again its module only;
 a field added or a signature changed types again the modules that read the
@@ -1677,12 +1693,13 @@ members or that signature. Measured on Heaps (1534 modules, JS, 4 domains):
 
 | Change | Modules typed again | Warm compilation |
 |---|---|---|
-| none | 0 | 0.48 s (was 0.42 s) |
-| body of `h3d.scene.Object.getMaterialByName` | 1 (was 378) | 0.55 s (was 2.88 s) |
+| none | 0 | 0.42 s (was 0.42 s) |
+| body of `h3d.scene.Object.getMaterialByName` | 1 (was 378) | 0.44 s (was 2.88 s) |
 | lines added at the top of `Object.hx` | 1 (was 378) | 0.52 s (was 2.88 s) |
-| field added to `Object` | 79 (subclasses, readers of members) | 1.06 s |
-| declared return type changed | 89 | 1.20 s |
-| lines added in `hxsl.Printer` (used by the shader macros) | 294 | 2.74 s |
+| field added to `Object` | 94 (subclasses, readers of members) | 1.51 s |
+| declared return type changed | 94 | 1.55 s |
+| lines added in `hxsl.Printer` (used by the shader macros) | 166 | 1.77 s |
+| lines added in `hxsl.Macros` | 109 | 1.39 s |
 
 Nodes are records updated in place when their module is typed again, and
 edges point to them: validating all of Heaps takes about 0.1 s.
@@ -1693,9 +1710,7 @@ messages), and so is the whole `tests/incremental` suite; `@expect-retyped
 gives them), `HAXE_GRAPH=off` restores the module dependency check and
 `HAXE_GRAPH_TRACE=1` prints why a computation is invalid.
 
-Not done yet: retyping a field instead of its module (item 2.4), early
-cutoff after recomputing a node (an inferred signature whose body changed
-invalidates its readers even when the type stays the same), the shift of
+Not done yet: retyping a field instead of its module (item 2.4), the shift of
 anchors of declarations that moved (item 2.2: a module whose file changed is
 typed again), messages replayed per node (item 6), macros traced precisely
 (phase 7: a change in a module used by macros types again every module that

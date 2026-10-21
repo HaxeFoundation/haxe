@@ -103,3 +103,15 @@ let with_consumer ?field key node m decl pos f =
 		DomainLocal.set current (Some c);
 		Std.finally (fun () -> DomainLocal.set current old) f ()
 	end
+
+(* [f], to run later as part of the current computation: work a computation
+   schedules (checks, connections, constraints) reads for it. *)
+let capture f =
+	if not !enabled then f
+	else match DomainLocal.get current with
+	| None -> f
+	| Some _ as c ->
+		(fun () ->
+			let old = DomainLocal.get current in
+			DomainLocal.set current c;
+			Std.finally (fun () -> DomainLocal.set current old) f ())

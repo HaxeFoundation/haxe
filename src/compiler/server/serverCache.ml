@@ -218,6 +218,7 @@ let check_module sctx com m_path m_extra p =
 			v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);
 			v_provisional = [];
 			v_failed = None;
+			v_assume = not !NodeGraph.retrying && com.display.dms_kind = DMNone;
 		}
 	) graph in
 	let rec check m_path m_extra =
@@ -351,8 +352,16 @@ let check_module sctx com m_path m_extra p =
 	macro_module_valid := (fun sign path ->
 		try check path ((com.cs#get_context sign)#find_module_extra path) = None with Not_found -> false
 	);
+	let assumptions = Option.map (fun v -> v.NodeGraph.v_graph.assumptions) validation in
 	let state = check m_path m_extra in
-	Option.may (fun v -> if state = None then v.NodeGraph.v_provisional <- [] else NodeGraph.forget_provisional v) validation;
+	Option.may (fun v ->
+		if state = None then v.NodeGraph.v_provisional <- []
+		else begin
+			NodeGraph.forget_provisional v;
+			(* the assumptions made for modules that are typed again anyway *)
+			Option.may (fun l -> v.v_graph.assumptions <- l) assumptions
+		end
+	) validation;
 	begin match state with
 	| None ->
 		(* If the entire subgraph is clean, we can set all modules to good state *)
@@ -679,9 +688,25 @@ let after_target_init sctx com =
 		Hashtbl.add sctx.class_paths sign class_path_strings;
 		()
 
-(* Stores the query graph of the modules typed in this compilation (phase 6). *)
+(* Stores the query graph of the modules typed in this compilation (phase 6),
+   and checks the assumptions of early cutoff: if one does not hold, the
+   compilation is done again (raises [NodeGraph.Retry]). *)
+let assumed_graphs com =
+	List.filter (fun (g : NodeGraph.graph) -> g.assumptions <> []) (List.filter_map NodeGraph.find_opt
+		(CommonCache.get_cache_sign com :: (match com.get_macros () with Some mcom -> [CommonCache.get_cache_sign mcom] | None -> [])))
+
+(* Typing stopped on an error: it can come from a false assumption. *)
+let retry_if_assumed com =
+	let assumed = assumed_graphs com in
+	if assumed <> [] then begin
+		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
+		raise NodeGraph.Retry
+	end
+
 let store_graph com =
-	if !server_active && com.display.dms_full_typing && com.display.dms_populate_cache && not (Common.has_error_to_report com) then begin
+	if Common.has_error_to_report com then retry_if_assumed com;
+	let assumed = assumed_graphs com in
+	if com.sctx.is_server && com.display.dms_full_typing && com.display.dms_populate_cache && not (Common.has_error_to_report com) then begin
 		let store com =
 			let cc = CommonCache.get_cache com in
 			let decls_of m =
@@ -696,8 +721,10 @@ let store_graph com =
 		Timer.time com.timer_ctx ["server";"query graph"] (fun () ->
 			store com;
 			Option.may store (com.get_macros())
-		) ()
-	end
+		) ();
+		if not (List.for_all NodeGraph.check_assumptions assumed) then raise NodeGraph.Retry
+	end else
+		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed
 
 let after_save sctx com =
 	if sctx.is_server && not (Common.has_error_to_report com) then

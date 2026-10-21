@@ -583,11 +583,13 @@ let push_unit q i push =
 
 (* Adds a unit to stage [p]. *)
 let schedule g (p : stage) f = with_program g @@ fun q ->
+	let f = DepRecord.capture f in
 	push_unit q (Obj.magic p) (fun s -> Queue.push f s.ps_units)
 
 (* Adds a late unit to stage [p]: it runs once the stage has no
    other unit left. *)
 let schedule_late g (p : stage) f = with_program g @@ fun q ->
+	let f = DepRecord.capture f in
 	push_unit q (Obj.magic p) (fun s -> Queue.push f s.ps_late)
 
 (* -D typer-shuffle=<seed>: the units of a stage run in a random order, to check

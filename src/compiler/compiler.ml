@@ -267,7 +267,7 @@ let do_type com mctx actx display_file_dot_path =
 	(* the dependencies are dumped with the fingerprints, and kept by the
 	   compilation server (docs/incremental-compilation.md, phase 6) *)
 	DepRecord.reset ();
-	DepRecord.enabled := Common.defined com Define.DumpFingerprints || !TypeloadCacheHook.server_active;
+	DepRecord.enabled := Common.defined com Define.DumpFingerprints || com.sctx.is_server;
 	TypeloadParse.record_fingerprints := !DepRecord.enabled;
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";
 	enter_stage com CInitMacrosStart;
@@ -368,7 +368,12 @@ let compile com actx sctx =
 		if actx.cmds = [] && not actx.did_something then actx.raise_usage();
 	end else begin
 		(* Actual compilation starts here *)
-		let (tctx,display_file_dot_path) = Timer.time com.timer_ctx ["typing"] (do_type com mctx actx) display_file_dot_path in
+		let (tctx,display_file_dot_path) = try
+			Timer.time com.timer_ctx ["typing"] (do_type com mctx actx) display_file_dot_path
+		with e when e != NodeGraph.Retry ->
+			ServerCache.retry_if_assumed com;
+			raise e
+		in
 		(* also when typing reported errors, which stop the compilation here *)
 		FingerprintDump.maybe_dump com;
 		ServerCache.store_graph com;
@@ -456,7 +461,7 @@ with
 		error com ("Error: No completion point was found") null_pos
 	| DisplayException.DisplayException dex ->
 		DisplayOutput.handle_display_exception com dex
-	| CompilerMessage.Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayJson.JsonCompleted as exc ->
+	| CompilerMessage.Abort | Out_of_memory | EvalTypes.Sys_exit _ | Hlinterp.Sys_exit _ | DisplayJson.JsonCompleted | NodeGraph.Retry as exc ->
 		(* We don't want these to be caught by the catchall below *)
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) && not Helper.is_debug_run ->

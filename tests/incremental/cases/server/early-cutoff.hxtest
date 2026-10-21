@@ -57,3 +57,33 @@ class Dep {
 === nothing changed
 @expect-output 3.5 4
 @expect-retyped
+
+=== inferred return type, body changed
+@expect-output 3.5 4 1
+@expect-retyped Main Inferred
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.a() + " " + Other.b() + " " + Inferred.c());
+	}
+}
+--- Inferred.hx
+class Inferred {
+	public static function c() return 1;
+}
+
+=== inferred type unchanged
+@expect-output 3.5 4 2
+@expect-retyped Inferred
+--- Inferred.hx
+class Inferred {
+	public static function c() return 1 + 1;
+}
+
+=== inferred type changed
+@expect-output 3.5 4 two
+@expect-retyped Inferred Main
+--- Inferred.hx
+class Inferred {
+	public static function c() return "two";
+}

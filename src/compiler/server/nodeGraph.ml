@@ -37,6 +37,8 @@ type node = {
 	(* validity in the current compilation *)
 	mutable n_step : int;
 	mutable n_valid : bool;
+	(* the compilation (validation step) that last stored the node *)
+	mutable n_stored : int;
 }
 
 and edge =
@@ -76,7 +78,16 @@ type graph = {
 	files : (string,file) Hashtbl.t;
 	lookups : (path,lookup) Hashtbl.t;
 	mutable step : int;
+	(* the nodes assumed to keep their fingerprint in the current compilation,
+	   although their module is typed again (early cutoff), with that fingerprint *)
+	mutable assumptions : (node * TFingerprint.t option) list;
 }
+
+(* A compilation made assumptions that turned out false: it is done again,
+   without assumptions. *)
+exception Retry
+
+let retrying = ref false
 
 let graphs : (string,graph) Hashtbl.t = Hashtbl.create 0
 
@@ -88,6 +99,7 @@ let get sign =
 			files = Hashtbl.create 0;
 			lookups = Hashtbl.create 0;
 			step = -1;
+			assumptions = [];
 		} in
 		Hashtbl.add graphs sign g;
 		g
@@ -98,7 +110,7 @@ let clear () = Hashtbl.reset graphs
 
 let node g key =
 	try Hashtbl.find g.nodes key with Not_found ->
-		let n = { n_key = key; n_owner = ([],""); n_fp = None; n_edges = None; n_by = None; n_step = -1; n_valid = false } in
+		let n = { n_key = key; n_owner = ([],""); n_fp = None; n_edges = None; n_by = None; n_step = -1; n_valid = false; n_stored = -1 } in
 		Hashtbl.add g.nodes key n;
 		n
 
@@ -175,11 +187,12 @@ let store com resolve decls_of is_typed =
 	DepRecord.last_typed := List.fold_left (fun acc (m,_) -> s_type_path m.m_path :: acc) !DepRecord.last_typed modules;
 	(* their nodes: the previous ones are emptied, the records stay *)
 	List.iter (fun (m,cl) ->
-		List.iter (fun n -> n.n_fp <- None; n.n_edges <- None; n.n_by <- None) (try Hashtbl.find g.module_nodes m.m_path with Not_found -> []);
+		List.iter (fun n -> n.n_fp <- None; n.n_edges <- None; n.n_by <- None; n.n_stored <- g.step) (try Hashtbl.find g.module_nodes m.m_path with Not_found -> []);
 		let nodes = ref [] in
 		let add key =
 			let n = node g key in
 			n.n_owner <- m.m_path;
+			n.n_stored <- g.step;
 			if not (List.memq n !nodes) then nodes := n :: !nodes;
 			n
 		in
@@ -303,6 +316,8 @@ type validation = {
 	mutable v_provisional : node list;
 	(* the first computation found invalid *)
 	mutable v_failed : string option;
+	(* whether nodes whose module is typed again can be assumed to keep their fingerprint *)
+	v_assume : bool;
 }
 
 let trace = Sys.getenv_opt "HAXE_GRAPH_TRACE" <> None
@@ -363,8 +378,7 @@ and valid_computation v n =
 		n.n_valid <- true;
 		let b = List.for_all (valid_edge v) edges in
 		n.n_valid <- b;
-		if b then v.v_provisional <- n :: v.v_provisional
-		else if v.v_failed = None then v.v_failed <- Some n.n_key;
+		if b then v.v_provisional <- n :: v.v_provisional;
 		b
 	end
 
@@ -375,14 +389,43 @@ and valid_edge v e =
 		| Lookup (l,seen) ->
 			current_lookup v l = seen
 		| Node (n,seen) ->
-			n.n_fp = seen && valid_node v n
+			n.n_fp = seen && (valid_node v n || assume v n seen)
 		| Module path ->
 			v.v_module_valid path
 		| MacroModule (sign,path) ->
 			v.v_macro_module_valid sign path
 	in
-	if not b && trace then prerr_endline ("[graph] changed: " ^ s_edge v e);
+	if not b then begin
+		if trace then prerr_endline ("[graph] changed: " ^ s_edge v e);
+		if v.v_failed = None then v.v_failed <- Some (match e with
+			| Leaf (f,key,_) -> Filename.basename f.f_path ^ ":" ^ key
+			| Lookup (l,_) -> "lookup " ^ s_type_path l.l_path
+			| Node (n,_) -> n.n_key
+			| Module path -> "module " ^ s_type_path path
+			| MacroModule (_,path) -> "macro module " ^ s_type_path path)
+	end;
 	b
+
+(* Early cutoff: node [n] keeps fingerprint [seen] if its computation, which
+   is not valid, computes the same value again when its module is typed
+   again. This is checked after typing ([check_assumptions]). *)
+and assume v n seen =
+	v.v_assume && (match n.n_by with Some p -> is_computation p | None -> false) && begin
+		if trace then prerr_endline ("[graph] assumed unchanged: " ^ n.n_key);
+		v.v_graph.assumptions <- (n,seen) :: v.v_graph.assumptions;
+		true
+	end
+
+(* Whether the assumptions of this compilation hold: the nodes were stored
+   again with the fingerprints assumed. *)
+let check_assumptions g =
+	let ok = List.for_all (fun (n,seen) ->
+		let b = n.n_stored = g.step && n.n_fp = seen in
+		if not b && trace then prerr_endline ("[graph] assumption failed: " ^ n.n_key);
+		b
+	) g.assumptions in
+	g.assumptions <- [];
+	ok
 
 (* Whether module [path] is traced by the graph: its computations are known. *)
 let is_traced g path =
@@ -391,7 +434,10 @@ let is_traced g path =
 	| Some nodes -> List.exists is_computation nodes
 
 let begin_validation g step =
-	g.step <- step
+	if g.step <> step then begin
+		g.step <- step;
+		g.assumptions <- []
+	end
 
 (* Whether the computations of module [path] are valid. *)
 let module_valid v path =

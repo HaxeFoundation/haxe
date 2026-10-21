@@ -179,10 +179,15 @@ module Members = struct
 		if c.cl_build != built then
 			with_build_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
 
-	let fields c = demand c; c.cl_fields
-	let ordered_fields c = demand c; c.cl_ordered_fields
-	let statics c = demand c; c.cl_statics
-	let ordered_statics c = demand c; c.cl_ordered_statics
+	(* all the fields of a class: their signatures are read too (the
+	   fingerprint of the members does not include them) *)
+	let all_sigs c l =
+		if !DepRecord.enabled then List.iter (fun cf -> DepRecord.record_field c cf "sig") l
+
+	let fields c = demand c; all_sigs c c.cl_ordered_fields; c.cl_fields
+	let ordered_fields c = demand c; all_sigs c c.cl_ordered_fields; c.cl_ordered_fields
+	let statics c = demand c; all_sigs c c.cl_ordered_statics; c.cl_statics
+	let ordered_statics c = demand c; all_sigs c c.cl_ordered_statics; c.cl_ordered_statics
 	let constructor c =
 		demand c;
 		(match c.cl_constructor with Some cf when !DepRecord.enabled -> DepRecord.record_field c cf "sig" | _ -> ());
