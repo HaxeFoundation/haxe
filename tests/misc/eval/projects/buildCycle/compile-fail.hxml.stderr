@@ -1,1 +1,1 @@
-Child.hx:1: characters 21-30 : Cycle detected while building types: Base -> Child -> Base (Child needs Base, which is being built)
+Child.hx:1: characters 21-30 : Cycle detected while building types: members(Base) -> members(Child) -> members(Base) (Child needs Base, which is being built)

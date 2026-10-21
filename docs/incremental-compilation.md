@@ -681,6 +681,20 @@ query that is `Running` is a cycle (§3.3).
 typed, so errors in unused code are still reported. Loading a module (through
 `resolve`) adds it to the set `program()` will process, until a fixed point.
 
+**Status: query engine (first step).** `src/context/query.ml` defines
+queries (`header(T)`, `members(T)`, `sig(f)`, `body(f)`), their state
+(`NotStarted | Running | Done | Failed`) and the query stack. Demanding a query
+that is running raises a cycle error showing the chain of queries, for
+example `Cycle detected while building types: members(MixedA) ->
+sig(MixedB.f) -> members(MixedA) (field x is read while MixedA is being built)`
+(`tests/misc/eval/projects/buildCycle/compile3-fail.hxml`: a build macro of
+`MixedA` types `MixedB.f()`, whose body reads a field of `MixedA`; this used to
+report `Class<MixedA> has no field x`). Running as queries: the header and the
+build of classes (`TypeloadModule`), and the typing of fields (`sig` when the
+type is inferred from the body, `body` when it is declared). The typing is
+still scheduled by the passes; replacing them with a `program()` driver that
+demands queries is the next step.
+
 #### 3.2 Enforcing queries with abstract types
 
 All direct reads of entity contents are replaced by accessors. Today `src/`

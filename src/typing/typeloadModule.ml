@@ -405,20 +405,22 @@ module TypeLevel = struct
 		   class: macros read them through [cl_build_header]. The checks that need
 		   the super class and interfaces built are run by the build. *)
 		let header_checks = ref None in
+		let header_query = Query.make (Query.Header c.cl_path) in
 		let header () = match !header_checks with
 			| Some fl ->
 				fl
 			| None ->
 				header_checks := Some [];
-				let fl = TypeloadCheck.Inheritance.set_heritance ctx_c c herits p in
+				let fl = Query.run header_query (fun () -> TypeloadCheck.Inheritance.set_heritance ctx_c c herits p) in
 				header_checks := Some fl;
 				c.cl_header_meta <- Some c.cl_meta;
 				fl
 		in
 		c.cl_build_header <- (fun () -> ignore(header ()));
+		let members_query = Query.make (Query.Members c.cl_path) in
 		let build() =
 			c.cl_build <- (fun()-> Building [c]);
-			TypeloadCheck.with_class_building c (fun () ->
+			Query.run members_query (fun () ->
 				try
 					let fl = header () in
 					List.iter (fun f -> f()) fl;

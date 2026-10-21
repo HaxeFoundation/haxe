@@ -609,6 +609,14 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 	with Not_found -> try
 		type_field_by_module e t
 	with Not_found when not cfg.do_resume ->
+		(* a field missing from a class whose members are being built may be one
+		   that is not created yet: it is a cycle (docs/incremental-compilation.md, §3.3) *)
+		begin match follow t with
+		| TAnon { a_status = { contents = ClassStatics c } } | TInst (c,_) when Query.is_kind_running (Query.Members c.cl_path) ->
+			Query.cycle_error (Query.Members c.cl_path) (Printf.sprintf "field %s is read while %s is being built" i (s_type_path c.cl_path)) pfield
+		| _ ->
+			()
+		end;
 		if not ctx.f.untyped then begin
 			let has_special_field a =
 				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops

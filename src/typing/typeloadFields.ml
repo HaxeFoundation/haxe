@@ -722,13 +722,18 @@ module TypeBinding = struct
 	(* Number of reported errors when the typing of each field of [fields_being_inferred] started. *)
 	let errors_at_start : int list ref = ref []
 
+	(* The typing of a field runs as its [sig] query when its type is inferred
+	   from its body, and as its [body] query when its type is declared
+	   (docs/incremental-compilation.md, §3.1). *)
 	let while_inferring r ctx cf ~inferred f =
 		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
 		errors_at_start := Atomic.get Common.reported_errors :: !errors_at_start;
+		let path = ctx.c.curclass.cl_path in
+		let q = Query.make (if inferred then Query.Sig(path,cf.cf_name) else Query.Body(path,cf.cf_name)) in
 		Std.finally (fun () ->
 			fields_being_inferred := List.tl !fields_being_inferred;
 			errors_at_start := List.tl !errors_at_start
-		) f ()
+		) (fun () -> Query.run q f) ()
 
 	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
 	   known at the end of its own typing. Reports the field types that still

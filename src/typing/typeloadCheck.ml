@@ -33,27 +33,11 @@ open CompletionResultKind
 open Common
 open Error
 
-(* The classes being built, innermost first (docs/incremental-compilation.md, §3.3). *)
-let building_classes : tclass list ref = ref []
-
-let with_class_building c f =
-	let old = !building_classes in
-	building_classes := c :: old;
-	Std.finally (fun () -> building_classes := old) f ()
-
-(* [csup] is needed while it is being built: every such cycle is an error.
-   [reason] says what needs it. *)
+(* The members of [csup] are needed while they are being built: every such
+   cycle is an error (docs/incremental-compilation.md, §3.3). [reason] says what
+   needs them. *)
 let build_cycle_error_reason reason csup p =
-	let rec take acc = function
-		| [] -> acc
-		| c' :: l -> if c' == csup then c' :: acc else take (c' :: acc) l
-	in
-	let cycle = take [] !building_classes @ [csup] in
-	raise_typing_error (Printf.sprintf "Cycle detected while building types: %s (%s %s, which is being built)"
-		(String.concat " -> " (List.map (fun c -> s_type_path c.cl_path) cycle))
-		reason
-		(s_type_path csup.cl_path)
-	) p
+	Query.cycle_error (Query.Members csup.cl_path) (Printf.sprintf "%s %s, which is being built" reason (s_type_path csup.cl_path)) p
 
 let build_cycle_error c csup p =
 	build_cycle_error_reason (s_type_path c.cl_path ^ " needs") csup p
