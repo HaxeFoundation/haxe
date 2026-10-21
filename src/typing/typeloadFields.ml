@@ -769,7 +769,33 @@ module TypeBinding = struct
 			| n :: _ -> Atomic.get Common.reported_errors > n
 			| [] -> false
 		in
-		if not dynamic_initializer && not failed && has_mono (ref []) cf.cf_type then
+		if failed then begin
+			(* The field failed (docs/incremental-compilation.md, §3.4): the parts of its
+			   type that its typing could not determine become Dynamic, so that the
+			   fields using it do not report cascading errors. *)
+			let rec close visited t = match t with
+				| TMono r ->
+					begin match r.tm_type with
+					| None -> Monomorph.do_bind r t_dynamic
+					| Some t -> close visited t
+					end
+				| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+					List.iter (close visited) tl
+				| TFun(args,ret) ->
+					List.iter (fun (_,_,t) -> close visited t) args;
+					close visited ret
+				| TAnon an ->
+					if not (List.memq an !visited) then begin
+						visited := an :: !visited;
+						PMap.iter (fun _ cf -> close visited cf.cf_type) an.a_fields
+					end
+				| TDynamic (Some t) ->
+					close visited t
+				| TDynamic None | TLazy _ ->
+					()
+			in
+			close (ref []) cf.cf_type
+		end else if not dynamic_initializer && has_mono (ref []) cf.cf_type then
 			display_error ctx.com (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
 
 	let bind_type ctx cctx fctx cf r p =
