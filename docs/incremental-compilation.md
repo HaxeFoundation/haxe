@@ -755,6 +755,19 @@ implementation, final variables, recursive abstract underlying types) are
 reported on the first abstract of the cycle by position, whichever check
 finds it.
 
+`program` now runs by stages (`Typecore.program_stage`), each a queue run in
+the order its units were added, by a single task of its pass: the bodies
+(field typing pass), the type parameter constraint checks (constraint pass),
+then the per-type checks and the forcing of the remaining lazy types (force
+pass). The other field typing tasks are units of the bodies stage: the
+checks of extern function arguments, the late checks of arguments typed
+`haxe.extern.Rest` and of variables whose type may be inferred as `Void`, the
+bodies of methods read from `.hxb` files and the JVM strict metadata. What
+remains scheduled by the passes is the structure of types (class builds,
+connection tasks such as interface checks on built classes, accessors,
+`@:using`, import resolution, inherited documentation), which belongs to the
+`members` query, and display requests.
+
 #### 3.2 Enforcing queries with abstract types
 
 All direct reads of entity contents are replaced by accessors. Today `src/`

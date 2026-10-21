@@ -385,7 +385,7 @@ let rec load_params ctx info params p =
 			let t = apply_params info.build_params params t in
 			maybe_build_instance ctx t ParamNormal p;
 		in
-		delay ctx.g PCheckConstraint (fun () ->
+		add_program_constraint ctx.g (fun () ->
 			DynArray.iter (fun (t,c,p) ->
 				check_param_constraints ctx t map c p
 			) checks

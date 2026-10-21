@@ -438,7 +438,7 @@ module TypeLevel = struct
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			delay ctx_m.g PConnectField (fun() -> InheritDoc.build_class_doc ctx_m c);
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
-			delay ctx_m.g PTypeField (fun () ->
+			add_program_unit ctx_m.g (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_m c.cl_meta in
 				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
 				let rec run_field cf =
@@ -516,7 +516,7 @@ module TypeLevel = struct
 		if Meta.has Meta.InheritDoc e.e_meta then
 			delay ctx_en.g PConnectField (fun() -> InheritDoc.build_enum_doc ctx_en e);
 		if (ctx_en.com.platform = Jvm) && not (has_enum_flag e EnExtern) then
-			delay ctx_en.g PTypeField (fun () ->
+			add_program_unit ctx_en.g (fun () ->
 				let metas = StrictMeta.check_strict_meta ctx_en e.e_meta in
 				e.e_meta <- metas @ e.e_meta;
 				PMap.iter (fun _ ef ->
@@ -767,7 +767,7 @@ class hxb_reader_api_typeload
 			| Var _ ->
 				true
 			| Method _ ->
-				delay g PTypeField (fun () -> force_field_body cf);
+				add_program_unit g (fun () -> force_field_body cf);
 				false
 
 	method make_lazy_type t f =

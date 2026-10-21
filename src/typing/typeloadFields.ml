@@ -1543,7 +1543,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			);
 			check_field_display ctx fctx c cf;
 		end else
-			delay ctx.g PTypeField (fun () ->
+			add_program_unit ctx.g (fun () ->
 				let ctx = TyperManager.clone_for_expr ctx fmode function_mode in
 				args#verify_extern ctx
 			);

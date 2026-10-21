@@ -249,10 +249,9 @@ let create com macros =
 			macros = macros;
 			module_check_policies = [];
 			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
-			program_units = Queue.create ();
-			program_scheduled = false;
-			program_checks = Queue.create ();
-			program_checks_scheduled = false;
+			program_units = make_program_stage PTypeField;
+			program_constraints = make_program_stage PCheckConstraint;
+			program_checks = make_program_stage PForce;
 			delayed_min_index = 0;
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;

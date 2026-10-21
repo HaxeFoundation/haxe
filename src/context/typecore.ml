@@ -103,15 +103,24 @@ type call_arg_context = {
 	mutable cac_body_capture : Message.t list ref;
 }
 
+(* A stage of [program]: a queue of units, run in the order they were added by
+   a single task of pass [ps_pass]. *)
+type program_stage = {
+	ps_pass : typer_pass;
+	ps_queue : (unit -> unit) Queue.t;
+	mutable ps_scheduled : bool;
+}
+
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	(* The units of [program] (docs/incremental-compilation.md, phase 3.1): the
 	   function typing the bodies of a class, in the order classes were built. *)
-	program_units : (unit -> unit) Queue.t;
-	mutable program_scheduled : bool;
-	(* the checks of [program] (the [checks] queries of the plan), run after the bodies *)
-	program_checks : (unit -> unit) Queue.t;
-	mutable program_checks_scheduled : bool;
+	program_units : program_stage;
+	(* the type parameter constraint checks of [program], run after the bodies *)
+	program_constraints : program_stage;
+	(* the checks of [program] (the [checks] queries of the plan) and the
+	   forcing of the remaining lazy types, run after the constraints *)
+	program_checks : program_stage;
 	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	retain_meta : bool;
@@ -526,12 +535,6 @@ let delay_late g (p : typer_pass) f =
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
-let delay_if_mono g p t f = match follow t with
-	| TMono _ ->
-		delay g p f
-	| _ ->
-		f()
-
 (* -D typer-shuffle=<seed>: the tasks of a pass run in a random order, to check
    that typing does not depend on it (docs/incremental-compilation.md, phase 3). *)
 let typer_shuffle : Random.State.t option ref = ref None
@@ -572,46 +575,51 @@ let rec flush_pass g (p : typer_pass) where =
 
 let make_pass ctx f = f
 
-(* [program] (docs/incremental-compilation.md, phase 3.1): types the bodies of
-   every class built so far, in the order the classes were built, then those
-   of the classes built meanwhile, until there are none left. It runs as one
-   task of the field typing pass. *)
-let rec program g =
-	g.program_scheduled <- false;
-	while not (Queue.is_empty g.program_units) do
-		(Queue.pop g.program_units) ()
+let make_program_stage pass = {
+	ps_pass = pass;
+	ps_queue = Queue.create ();
+	ps_scheduled = false;
+}
+
+(* [program] (docs/incremental-compilation.md, phase 3.1) is run by stages: each
+   stage runs its units in the order they were added, including those added
+   meanwhile, until there are none left. A stage runs as one task of its pass:
+   - the bodies of every class built so far, in the order the classes were
+     built ([PTypeField]);
+   - the type parameter constraint checks ([PCheckConstraint]);
+   - the per-type checks (overrides, interfaces, accessors, abstract
+     classes...) and the forcing of lazy types ([PForce]). *)
+let rec run_program_stage s =
+	s.ps_scheduled <- false;
+	while not (Queue.is_empty s.ps_queue) do
+		(Queue.pop s.ps_queue) ()
 	done
+
+and add_to_program_stage g s f =
+	Queue.push f s.ps_queue;
+	if not s.ps_scheduled then begin
+		s.ps_scheduled <- true;
+		delay g s.ps_pass (fun () -> run_program_stage s)
+	end
 
 (* Adds the typing of the bodies of a class to [program]. *)
-and add_program_unit g f =
-	Queue.push f g.program_units;
-	if not g.program_scheduled then begin
-		g.program_scheduled <- true;
-		delay g PTypeField (fun () -> program g)
-	end
+let add_program_unit g f =
+	add_to_program_stage g g.program_units f
 
-(* Runs the checks added so far (overrides, interfaces, accessors, abstract
-   classes...), in the order they were added, until there are none left. *)
-let rec program_checks g =
-	g.program_checks_scheduled <- false;
-	while not (Queue.is_empty g.program_checks) do
-		(Queue.pop g.program_checks) ()
-	done
+(* Adds a type parameter constraint check to [program]. *)
+let add_program_constraint g f =
+	add_to_program_stage g g.program_constraints f
 
-(* Adds a check to [program_checks]. *)
-and add_program_check g f =
-	Queue.push f g.program_checks;
-	if not g.program_checks_scheduled then begin
-		g.program_checks_scheduled <- true;
-		delay g PForce (fun () -> program_checks g)
-	end
+(* Adds a check to [program]. *)
+let add_program_check g f =
+	add_to_program_stage g g.program_checks f
 
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
 
 let make_lazy ctx t_proc f where =
 	let r = make_unforced_lazy t_proc f where in
-	delay ctx PForce (fun () -> ignore(lazy_type r));
+	add_program_check ctx (fun () -> ignore(lazy_type r));
 	r
 
 let is_forced_inline c cf =
