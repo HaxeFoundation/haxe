@@ -832,9 +832,8 @@ module TypeBinding = struct
 				(* A field whose type is fully known from its declaration exposes that
 				   type: reading it does not type the body (docs/incremental-compilation.md,
 				   §3.3, [sig]), which is typed later or by [force_field_body]. Inline and
-				   generic fields stay lazy, since reading them needs their body, and so do
-				   fields of the macro context, whose bodies are run on demand. *)
-				let body_needed = fctx.is_inline || fctx.is_generic || ctx.com.is_macro_context in
+				   generic fields stay lazy, since reading them needs their body. *)
+				let body_needed = fctx.is_inline || fctx.is_generic in
 				if body_needed || not (is_full_type cf.cf_type) then
 					cf.cf_type <- TLazy r
 				else
@@ -1623,9 +1622,21 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 					cf
 				in
 				if (has_class_flag c CInterface) then begin
-					let cf = generate_field () in
-					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+					let cf_accessor = generate_field () in
+					c.cl_fields <- PMap.add cf_accessor.cf_name cf_accessor c.cl_fields;
+					(* right after the property, the getter before the setter, whatever the
+					   order in which they are generated (docs/incremental-compilation.md, phase 3) *)
+					let rec insert = function
+						| f1 :: f2 :: l when f1 == cf && not is_getter && f2.cf_name = "get_" ^ cf.cf_name ->
+							f1 :: f2 :: cf_accessor :: l
+						| f1 :: l when f1 == cf ->
+							f1 :: cf_accessor :: l
+						| f1 :: l ->
+							f1 :: insert l
+						| [] ->
+							[cf_accessor]
+					in
+					c.cl_ordered_fields <- insert c.cl_ordered_fields;
 				end else if Diagnostics.error_in_diagnostics_run ctx.com f.cff_pos then begin
 					let cf_accessor = generate_field() in
 					remove_class_field_flag cf_accessor CfPublic;

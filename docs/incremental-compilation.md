@@ -711,6 +711,22 @@ demanded queries. On `tests/unit` (macro), it found and fixed:
 With twelve seeds, the only remaining failure is `Issue3914`, two fields
 whose macros communicate through a macro static, which is phase 7 (macro
 statics isolation).
+On the corpus (Heaps with hxsl, hxbit and domkit macros, and hide), it also
+found:
+- inference cycle errors in the macro context depending on the order
+  (`hxsl.Eval.handleReturn`, `domkit.CssParser`): fields of the macro
+  context still typed their body when their declared type was read; they now
+  follow the same `sig`/`body` separation (the macro context is typed before
+  any macro runs, so bodies are available when needed);
+- the order of the accessors generated for interface properties, now placed
+  right after their property (getter, then setter);
+- the order of `@:generic` method instances, now placed after their generic
+  method, sorted by name.
+The generated JS of Heaps and hide is now identical with eight seeds and
+without shuffling. (A tempting fix, flushing only the structure of loaded
+modules while a field is inferred, broke default constructors inherited from
+a private constructor in hide: the connection tasks are needed as soon as a
+loaded type is used.)
 
 #### 3.2 Enforcing queries with abstract types
 

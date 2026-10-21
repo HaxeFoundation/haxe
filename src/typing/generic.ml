@@ -431,6 +431,23 @@ let extract_type_parameters tl =
 	List.iter loop tl;
 	DynArray.to_list params
 
+(* Places instance [cf2] of generic method [cf] in a field list: after [cf]
+   and the instances that sort before it by name, so that the order does not
+   depend on the order in which call sites are typed (docs/incremental-compilation.md,
+   phase 3). Without [cf] in the list, the list is kept sorted by name. *)
+let insert_instance cf cf2 fields =
+	let is_instance f = Meta.has Meta.GenericInstance f.cf_meta in
+	let rec after_origin = function
+		| f :: l when is_instance f && f.cf_name < cf2.cf_name -> f :: after_origin l
+		| l -> cf2 :: l
+	in
+	let rec loop = function
+		| f :: l when f == cf -> f :: after_origin l
+		| f :: l -> f :: loop l
+		| [] -> raise Not_found
+	in
+	try loop fields with Not_found -> List.merge (fun f1 f2 -> compare f1.cf_name f2.cf_name) [cf2] fields
+
 let type_generic_function ctx fa fcc with_type p =
 	let c,stat = match fa.fa_host with
 		| FHInstance(c,tl) -> c,false
@@ -536,8 +553,8 @@ let type_generic_function ctx fa fcc with_type p =
 				with Not_found ->
 					let cf2 = mk_cf2 cf.cf_name in
 					c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
-					c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 					finalize_field c cf2;
+					c.cl_ordered_statics <- insert_instance cf cf2 c.cl_ordered_statics;
 					cf2
 				in
 				{fa with fa_host = FHStatic c;fa_field = cf2;fa_on = Builder.make_static_this c p}
@@ -545,8 +562,8 @@ let type_generic_function ctx fa fcc with_type p =
 				set_type_parameter_dependencies c.cl_module monos;
 				let cf2 = mk_cf2 name in
 				c.cl_statics <- PMap.add cf2.cf_name cf2 c.cl_statics;
-				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics;
 				finalize_field c cf2;
+				c.cl_ordered_statics <- insert_instance cf cf2 c.cl_ordered_statics;
 				{fa with fa_field = cf2}
 			end
 		end else begin
@@ -554,8 +571,8 @@ let type_generic_function ctx fa fcc with_type p =
 			let cf2 = mk_cf2 name in
 			if has_class_field_flag cf CfOverride then add_class_field_flag cf2 CfOverride;
 			c.cl_fields <- PMap.add cf2.cf_name cf2 c.cl_fields;
-			c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields;
 			finalize_field c cf2;
+			c.cl_ordered_fields <- insert_instance cf cf2 c.cl_ordered_fields;
 			{fa with fa_field = cf2}
 		end
 	in
