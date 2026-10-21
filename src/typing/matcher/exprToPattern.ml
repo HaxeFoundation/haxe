@@ -61,7 +61,7 @@ let unify_type_pattern ctx mt t p =
    per-case types). A subject that carries this would avoid the repeated lookups; see the discussion in #13070. *)
 let get_array_access ctx t p =
 	try
-		Some (TyperBase.get_array_access ctx t p)
+		Some (ArrayAccess.get_array_access ctx t p)
 	with Not_found ->
 		None
 

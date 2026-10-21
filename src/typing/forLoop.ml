@@ -3,7 +3,7 @@ open Ast
 open Type
 open Common
 open Typecore
-open TyperBase
+open ArrayAccess
 open Fields
 open Calls
 open Error
