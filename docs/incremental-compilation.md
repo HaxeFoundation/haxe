@@ -1402,6 +1402,19 @@ effects above (reading metadata that it adds, for example) would read it
 early: build macros are not affected (builds that run macros wait for the
 order before they start).
 
+Found by sampling the stacks of a compilation of hide on one domain (gdb):
+- string interpolation parsed each `${...}` group after as many spaces as its
+  position in the file, lexing the start of the file again for every group:
+  the lexer now starts at that offset (`ParserEntry.parse_expr_string`).
+  hide: typing 5.3 s → 2.6 s, its main compilation 17–19 s → about 10 s;
+- JS source maps looked the file of each expression up in a locked table,
+  built an array for each base64 digit, compared positions polymorphically and
+  found newlines with an exception: generation with `-debug` 1.55 s → 0.6 s.
+What is left is spread out: the GC (about 30 %: marking, sweeping, the
+initialization of new pools of the major heap, promotion), the filters and
+the analyzer, typing and macros. Typing being shorter, parallel typing now
+saves 0.3–0.5 s on hide and about 0.1 s on Heaps.
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context
