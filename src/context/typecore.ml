@@ -530,7 +530,7 @@ let make_program_stage () = {
    always runs the earliest stage with units left. *)
 
 (* Adds a unit to stage [p]. *)
-let schedule g (p : stage) f =
+let schedule g (p : stage) f = TypingLock.protect @@ fun () ->
 	let i = Obj.magic p in
 	Queue.push f g.program.(i).ps_units;
 	if i < g.program_min_stage then
@@ -538,7 +538,7 @@ let schedule g (p : stage) f =
 
 (* Adds a late unit to stage [p]: it runs once the stage has no
    other unit left. *)
-let schedule_late g (p : stage) f =
+let schedule_late g (p : stage) f = TypingLock.protect @@ fun () ->
 	let i = Obj.magic p in
 	Queue.push f g.program.(i).ps_late;
 	if i < g.program_min_stage then
@@ -832,7 +832,7 @@ let make_stored_id_expr id p =
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
-	com.part_scope.stored_typed_exprs#add id te;
+	TypingLock.protect (fun () -> com.part_scope.stored_typed_exprs#add id te);
 	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
@@ -841,7 +841,7 @@ let push_this ctx e = match e.eexpr with
 	(EConst (tconst_to_const ct),e.epos),fun () -> ()
 | _ ->
 	let id,er = store_typed_expr ctx.com e e.epos in
-	er,fun () -> ctx.com.part_scope.stored_typed_exprs#remove id
+	er,fun () -> TypingLock.protect (fun () -> ctx.com.part_scope.stored_typed_exprs#remove id)
 
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
@@ -855,7 +855,7 @@ let get_overloads (com : Common.context) c i =
 		com.overload_cache#find (c.cl_path,i)
 	with Not_found ->
 		let l = Overloads.collect_overloads (fun t -> t) c i in
-		com.overload_cache#add (c.cl_path,i) l;
+		TypingLock.protect (fun () -> com.overload_cache#add (c.cl_path,i) l);
 		l
 
 

@@ -767,9 +767,12 @@ module TypeBinding = struct
 		DomainLocal.set errors_at_start (DomainLocal.get Common.reported_errors :: DomainLocal.get errors_at_start);
 		let path = ctx.c.curclass.cl_path in
 		let q = Query.make (if inferred then Query.Sig(path,cf.cf_name) else Query.Body(path,cf.cf_name)) in
+		(* the body is being typed, whatever demanded it *)
+		body_started cf;
 		Std.finally (fun () ->
 			DomainLocal.set fields_being_inferred (List.tl (DomainLocal.get fields_being_inferred));
-			DomainLocal.set errors_at_start (List.tl (DomainLocal.get errors_at_start))
+			DomainLocal.set errors_at_start (List.tl (DomainLocal.get errors_at_start));
+			body_done cf
 		) (fun () -> Query.run q f) ()
 
 	(* Haxe 6 makes the field the unit of inference: a field's type must be fully
@@ -939,7 +942,7 @@ module TypeBinding = struct
 		in
 		let self = ref None in
 		let inferred = not (is_full_type t) in
-		let r = make_unforced_lazy t (fun () -> PendingBodies.remove pending_bodies cf; while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
+		let r = make_unforced_lazy t (fun () -> while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				complete_structure ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -1067,7 +1070,7 @@ module TypeBinding = struct
 						| _ -> TClass.set_cl_init c e);
 					let e = mk (TFunction tf) t p in
 					let e = match get_coro_config ctx cf.cf_meta with
-						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.ClassField(c, cf, tf, p)))
+						| Some config -> TypingLock.protect (fun () -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.ClassField(c, cf, tf, p))))
 						| None -> e
 					in
 					cf.cf_expr <- Some e;
@@ -1081,8 +1084,6 @@ module TypeBinding = struct
 		   types are known from the declaration (see [setup_args_ret]) *)
 		let inferred = not (is_full_type t) in
 		let r = make_unforced_lazy t (fun () ->
-			(* the body is being typed, whatever demanded it *)
-			PendingBodies.remove pending_bodies cf;
 			while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 				if not ctx.g.return_partial_type then bind ();
 				t

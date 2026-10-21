@@ -373,7 +373,12 @@ let lazy_type f =
 	match !f with
 	| LAvailable t -> t
 	| LProcessing t -> !lazy_processing_read_hook f; t
-	| LWait f -> (DomainLocal.get lazy_force_hook) f
+	| LWait _ ->
+		(* another domain may be forcing it *)
+		TypingLock.protect (fun () -> match !f with
+			| LAvailable t | LProcessing t -> t
+			| LWait g -> (DomainLocal.get lazy_force_hook) g
+		)
 
 (* Fields whose type is known from their declaration and whose body is not
    typed yet, with the function typing it (docs/incremental-compilation.md,
@@ -385,18 +390,53 @@ module PendingBodies = Hashtbl.Make(struct
 	let hash cf = Hashtbl.hash (cf.cf_name,Globals.Pos.min cf.cf_pos)
 end)
 
-let pending_bodies : (unit -> unit) PendingBodies.t = PendingBodies.create 0
+(* The bodies of fields not typed yet: pending, or being typed by a domain.
+   Changed under [TypingLock] (docs/incremental-compilation.md, phase 3.5). *)
+type pending_body =
+	| BodyPending of (unit -> unit)
+	| BodyTyping of Domain.id
+
+let pending_bodies : pending_body PendingBodies.t = PendingBodies.create 0
 
 let set_pending_body cf f =
-	PendingBodies.replace pending_bodies cf f
+	TypingLock.protect (fun () -> PendingBodies.replace pending_bodies cf (BodyPending f))
 
-(* Types the body of field [cf] if it is still pending. *)
+(* The typing of the body of [cf] starts, whatever demanded it. *)
+let body_started cf =
+	TypingLock.protect (fun () ->
+		match PendingBodies.find_opt pending_bodies cf with
+		| Some (BodyPending _) -> PendingBodies.replace pending_bodies cf (BodyTyping (Domain.self ()))
+		| _ -> ()
+	)
+
+(* The typing of the body of [cf] by the current domain ended. *)
+let body_done cf =
+	TypingLock.protect (fun () ->
+		match PendingBodies.find_opt pending_bodies cf with
+		| Some (BodyTyping d) when d = Domain.self () -> PendingBodies.remove pending_bodies cf
+		| _ -> ()
+	);
+	TypingLock.notify ()
+
+(* Types the body of field [cf] if it is still pending, or waits for the domain
+   typing it. *)
 let force_field_body cf =
-	match PendingBodies.find_opt pending_bodies cf with
-	| Some f ->
-		PendingBodies.remove pending_bodies cf;
+	let claim = TypingLock.protect (fun () ->
+		match PendingBodies.find_opt pending_bodies cf with
+		| Some (BodyPending f) ->
+			PendingBodies.replace pending_bodies cf (BodyTyping (Domain.self ()));
+			`Type f
+		| Some (BodyTyping d) when d <> Domain.self () ->
+			`Wait
+		| _ ->
+			`None
+	) in
+	match claim with
+	| `Type f ->
 		f ()
-	| None ->
+	| `Wait ->
+		TypingLock.wait_until (fun () -> not (PendingBodies.mem pending_bodies cf))
+	| `None ->
 		match cf.cf_type with
 		| TLazy r ->
 			begin match !r with

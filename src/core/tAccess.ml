@@ -16,7 +16,7 @@ let set_pending_usings (ti : tinfos) f =
 	let l = try Hashtbl.find pending_usings ti.mt_path with Not_found -> [] in
 	Hashtbl.replace pending_usings ti.mt_path ((ti,f) :: l)
 
-let force_usings (ti : tinfos) =
+let force_usings (ti : tinfos) = TypingLock.protect @@ fun () ->
 	match Hashtbl.find_opt pending_usings ti.mt_path with
 	| None ->
 		()
@@ -30,12 +30,12 @@ let force_usings (ti : tinfos) =
 
 (* Members of a module type read from a .hxb file are read with the rest of
    its module. *)
-let complete_module m = m.m_extra.m_complete ()
+let complete_module m = TypingLock.protect m.m_extra.m_complete
 
 module Header = struct
 	(* The header of a class: type parameters, super class, interfaces,
 	   declared metadata. *)
-	let demand c = c.cl_build_header ()
+	let demand c = TypingLock.protect c.cl_build_header
 
 	let super c = demand c; c.cl_super
 	let implements c = demand c; c.cl_implements
@@ -47,7 +47,7 @@ let not_ready : tclass list ref = ref []
 
 module Members = struct
 	(* The members of a class, after its build macros, connected. *)
-	let demand c = if not (List.memq c !not_ready) then ignore (c.cl_build ())
+	let demand c = TypingLock.protect (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()))
 
 	let fields c = demand c; c.cl_fields
 	let ordered_fields c = demand c; c.cl_ordered_fields

@@ -1223,6 +1223,21 @@ macro-context instance of `Pull11784` fail). The documentation inherited by
 fields is built in the signatures stage, before any display request typed
 there needs it.
 
+**Status: step 3, the typing lock.** `TypingLock` (`src/core/typingLock.ml`)
+is a reentrant lock, only taken while bodies are typed in parallel. It
+protects the operations of body typing that change shared state: loading a
+module, demanding the header or the members of a type (and completing a
+module read from `.hxb`, resolving `@:using`), calling a macro, creating a
+generic instance or a coroutine class, inlining an extern into its
+implementation class, forcing a lazy type, scheduling `program()` units,
+reporting messages (the default handlers and the module and diagnostics
+messages), features, the overload cache, stored typed expressions, the
+`CfStructurallyUsed` flags set by unification and the temporary closing of
+constant structures. The bodies of fields are claimed: `force_field_body`
+types a pending body, returns when the current domain is typing it, and
+waits (releasing the lock) when another domain is
+(`TFunctions.body_started`, `body_done`).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context

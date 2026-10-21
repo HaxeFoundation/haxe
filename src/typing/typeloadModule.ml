@@ -871,8 +871,10 @@ and load_module' com g m p =
 			m
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
-	let m2 = load_module' ctx.com ctx.g m p in
-	add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
-	m2
+	TypingLock.protect (fun () ->
+		let m2 = load_module' ctx.com ctx.g m p in
+		add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
+		m2
+	)
 
 ;;

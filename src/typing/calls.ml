@@ -155,14 +155,14 @@ let rec acc_get ctx g =
 							| [] -> raise Not_found
 						in
 						loop c.cl_module.m_types
-					with Not_found ->
+					with Not_found -> TypingLock.protect @@ fun () ->
 						let c2 = mk_class c.cl_module mpath c.cl_pos null_pos in
 						c.cl_module.m_types <- (TClassDecl c2) :: c.cl_module.m_types;
 						c2
 				in
 				let cf = try
 					PMap.find cf.cf_name (TAccess.Members.statics c2)
-				with Not_found ->
+				with Not_found -> TypingLock.protect @@ fun () ->
 					let cf = {cf with cf_kind = Method MethNormal} in
 					c2.cl_statics <- PMap.add cf.cf_name cf (TAccess.Members.statics c2);
 					c2.cl_ordered_statics <- cf :: (TAccess.Members.ordered_statics c2);

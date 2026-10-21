@@ -406,7 +406,7 @@ let ignore_error com =
 let can_recover_in_display com =
 	com.display.dms_error_policy = EPIgnore && not com.display.dms_full_typing
 
-let module_warning com m w options msg p =
+let module_warning com m w options msg p = TypingLock.protect @@ fun () ->
 	if com.display.dms_full_typing then begin
 		let cm = make_message com.is_macro_context msg p 0 (MKWarning(w, options)) in
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
@@ -1054,7 +1054,7 @@ let set_custom_target com name path =
 		raise (Arg.Bad (Printf.sprintf "--custom-target name %s may only contain alphanumeric or underscore characters" name))
 
 let add_feature com f =
-	Hashtbl.replace com.features f true
+	TypingLock.protect (fun () -> Hashtbl.replace com.features f true)
 
 let has_dce com =
 	(try defined_value com Define.Dce <> "no" with Not_found -> false)
@@ -1130,7 +1130,7 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
-let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
+let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind = TypingLock.protect @@ fun () ->
 	let cm = make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind in
 	match message_capture com with
 	| Some buf ->
