@@ -1,3 +1,17 @@
+[ERROR] Main.hx:6: characters 35-38
+
+  6 |   doThings = (foo -> doThingsImpl(foo));
+    |                                   ^^^
+    | error: (?bar : Null<Bar>) -> Void should be () -> Unknown<0>
+    | have: { doWithBar: (?...) -> ... }
+    | want: { doWithBar: () -> ... }
+
+[ERROR] Main.hx:10: characters 18-30
+
+ 10 |  static function doThingsImpl(foo) {
+    |                  ^^^^^^^^^^^^
+    | The type of doThingsImpl is not fully inferred ((foo : Null<{ doWithBar : () -> Unknown<0> }>) -> Void), add a type annotation
+
 [WARNING] Main.hx:12: characters 9-12
 
  12 |   $type(foo);
@@ -21,18 +35,3 @@
  17 |   $type(foo.doWithBar);
     |         ^^^^^^^^^^^^^
     | () -> Unknown<0>
-
-[ERROR] Main.hx:10: characters 18-30
-
- 10 |  static function doThingsImpl(foo) {
-    |                  ^^^^^^^^^^^^
-    | The type of doThingsImpl is not fully inferred ((foo : Null<{ doWithBar : () -> Unknown<0> }>) -> Void), add a type annotation
-
-[ERROR] Main.hx:6: characters 35-38
-
-  6 |   doThings = (foo -> doThingsImpl(foo));
-    |                                   ^^^
-    | error: (?bar : Null<Bar>) -> Void should be () -> Unknown<0>
-    | have: { doWithBar: (?...) -> ... }
-    | want: { doWithBar: () -> ... }
-

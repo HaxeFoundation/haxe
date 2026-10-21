@@ -1822,13 +1822,13 @@ let check_overloads ctx c =
 	List.iter check_field c.cl_ordered_statics;
 	Option.may check_field c.cl_constructor
 
-let finalize_class cctx =
-	(* push delays in reverse order so they will be run in correct order *)
-	List.iter (fun (ctx,r) ->
-		(match r with
-		| None -> ()
-		| Some r -> delay ctx.g PTypeField (fun() -> ignore(lazy_type r)))
-	) cctx.delayed_expr
+(* The bodies of the class are typed by [program], in declaration order. *)
+let finalize_class ctx cctx =
+	match List.filter_map snd (List.rev cctx.delayed_expr) with
+	| [] ->
+		()
+	| bodies ->
+		add_program_unit ctx.g (fun () -> List.iter (fun r -> ignore(lazy_type r)) bodies)
 
 let create_class_field cctx f  =
 	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with
@@ -2027,4 +2027,4 @@ let init_class ctx_c cctx c p herits fields =
 			TypeloadFunction.PendingConstructors.replace TypeloadFunction.pending_constructors c (fun () -> TypeloadFunction.add_constructor ctx_c c cctx.force_constructor p);
 			delay_late ctx_c.g PConnectField (fun() -> TypeloadFunction.run_pending_constructor c)
 		end;
-	finalize_class cctx
+	finalize_class ctx_c cctx

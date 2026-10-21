@@ -1,6 +1,9 @@
 Main.hx:9: characters 7-26 : error: Cannot unify final and non-final fields
 Main.hx:9: characters 7-26 : ... have: { foo: Dynamic }
 Main.hx:9: characters 7-26 : ... want: { final foo: Int }
+Main.hx:18: characters 7-12 : This class extends abstract class Foo but doesn't implement the following method
+Main.hx:18: characters 7-12 : Implement it or make Main2 abstract as well
+Main.hx:34: characters 20-21 : ... d(val:Int)
 Main.hx:20: characters 3-55 : error: Optional attribute of argument infos differs
 Main.hx:20: characters 3-55 : ... have: (..., haxe.PosInfos) -> ...
 Main.hx:20: characters 3-55 : ... want: (..., ?haxe.PosInfos) -> ...
@@ -29,6 +32,3 @@ Main.hx:47: characters 11-14 : ... Interface field is defined here
 Main.hx:38: characters 18-21 : ... error: Int should be Null<Int>
 Main.hx:38: characters 18-21 : ... have: (Int) -> ...
 Main.hx:38: characters 18-21 : ... want: (Null<Int>) -> ...
-Main.hx:18: characters 7-12 : This class extends abstract class Foo but doesn't implement the following method
-Main.hx:18: characters 7-12 : Implement it or make Main2 abstract as well
-Main.hx:34: characters 20-21 : ... d(val:Int)

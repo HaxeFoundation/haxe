@@ -728,6 +728,26 @@ modules while a field is inferred, broke default constructors inherited from
 a private constructor in hide: the connection tasks are needed as soon as a
 loaded type is used.)
 
+**Status: `program()`, first step.** The bodies of a class are no longer
+one field typing task each: when its build ends, a class adds a program unit
+(the typing of its field bodies, in declaration order) to a queue, and
+`Typecore.program`, a single task of the field typing pass, types the units
+in the order the classes were built until none is left (classes loaded while
+typing add theirs). The other delayed tasks are not migrated yet. This
+change of schedule revealed three more order dependences, now fixed:
+- the access check of constructors treated a constructor whose body was not
+  typed yet as an inherited one (`Issue5871`); inherited constructors are
+  now marked (`CfInheritedConstructor`);
+- macros reading `ClassField.type` got an unforced lazy type for fields not
+  typed yet, and `null` instead of the type (hide's prefab properties):
+  reading `type` now demands the field's signature (a type being inferred
+  keeps its lazy encoding);
+- compiler messages were not sorted after all: the CLI and server output
+  paths did not use the sorting function; they do now (the expected output
+  of 30 `tests/misc` cases changed order only).
+A stored typed expression id printed by `Issue11004` changed: these ids are
+still a global counter (phase 3.4, with phase 7).
+
 #### 3.2 Enforcing queries with abstract types
 
 All direct reads of entity contents are replaced by accessors. Today `src/`

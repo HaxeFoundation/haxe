@@ -1219,7 +1219,12 @@ and encode_efield f =
 and encode_cfield f =
 	encode_obj [
 		"name", encode_string f.cf_name;
-		"type", encode_lazy_type f.cf_type;
+		(* reading the type demands the field's signature (docs/incremental-compilation.md,
+		   §3.3); a type being inferred keeps its lazy encoding *)
+		"type", encode_lazy (AtomicLazy.from_fun (fun () -> match f.cf_type with
+			| TLazy r when (match !r with LWait _ -> true | _ -> false) -> encode_lazy_type (lazy_type r)
+			| t -> encode_lazy_type t
+		));
 		"isPublic", vbool (has_class_field_flag f CfPublic);
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);

@@ -540,6 +540,7 @@ type flag_tclass_field =
 	| CfNoLookup (* Field cannot be accessed by-name. *)
 	| CfAbstractConstructor
 	| CfStructurallyUsed (* Set by the typer when the field unifies with a structure: DCE keeps it if its class is kept. *)
+	| CfInheritedConstructor (* A constructor generated to call the super class's one (see TypeloadFunction.add_constructor). *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [

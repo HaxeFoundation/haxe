@@ -105,6 +105,10 @@ type call_arg_context = {
 
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
+	(* The units of [program] (docs/incremental-compilation.md, phase 3.1): the
+	   function typing the bodies of a class, in the order classes were built. *)
+	program_units : (unit -> unit) Queue.t;
+	mutable program_scheduled : bool;
 	mutable delayed_min_index : int;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	retain_meta : bool;
@@ -565,6 +569,24 @@ let rec flush_pass g (p : typer_pass) where =
 
 let make_pass ctx f = f
 
+(* [program] (docs/incremental-compilation.md, phase 3.1): types the bodies of
+   every class built so far, in the order the classes were built, then those
+   of the classes built meanwhile, until there are none left. It runs as one
+   task of the field typing pass. *)
+let rec program g =
+	g.program_scheduled <- false;
+	while not (Queue.is_empty g.program_units) do
+		(Queue.pop g.program_units) ()
+	done
+
+(* Adds the typing of the bodies of a class to [program]. *)
+and add_program_unit g f =
+	Queue.push f g.program_units;
+	if not g.program_scheduled then begin
+		g.program_scheduled <- true;
+		delay g PTypeField (fun () -> program g)
+	end
+
 let enter_field_typing_pass g info =
 	flush_pass g PConnectField info
 
@@ -666,7 +688,7 @@ let can_access ctx c cf ?(check_prop=false) ?(is_setter=false) stat =
 					match c.cl_constructor with
 					| Some cf ->
 						if allowed cf then true
-						else if cf.cf_expr = None then false (* maybe it's an inherited auto-generated constructor *)
+						else if has_class_field_flag cf CfInheritedConstructor then false (* the access of the inherited one applies *)
 						else raise Not_found
 					| _ -> false
 				) else

@@ -221,6 +221,7 @@ let add_constructor ctx_c c force_constructor p =
 	match constructor with
 	| Some(cfsup,csup,cparams) when not (has_class_flag c CExtern) ->
 		let cf = mk_field "new" cfsup.cf_type p null_pos in
+		add_class_field_flag cf CfInheritedConstructor;
 		cf.cf_kind <- cfsup.cf_kind;
 		cf.cf_params <- cfsup.cf_params;
 		cf.cf_meta <- List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
