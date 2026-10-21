@@ -367,6 +367,7 @@ let compile com actx sctx =
 		if DisplayProcessing.handle_display_after_typing com tctx display_file_dot_path then raise CompilerMessage.Abort;
 		let ectx = ExceptionInit.create_exception_context tctx in
 		finalize_typing com tctx;
+		FingerprintDump.maybe_dump com;
 		Dump.maybe_generate_dump com AfterTyping;
 		let is_compilation = is_compilation com in
 		com.callbacks#add_after_save (fun () ->

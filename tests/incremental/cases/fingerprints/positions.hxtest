@@ -1,0 +1,66 @@
+# Fingerprints do not depend on where a declaration is in its file: moving
+# fields keeps their fingerprints, including those of their bodies and parsed
+# declarations (positions relative to their anchor).
+@targets interp
+
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.add(1, 2));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function add(a:Int, b:Int):Int {
+		return a + b;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 2;
+	}
+}
+
+=== lines and a comment added above the fields
+@expect-output 3
+@expect-fingerprint-same header Dep
+@expect-fingerprint-same members Dep
+@expect-fingerprint-same sig Dep.add (static)
+@expect-fingerprint-same body Dep.add (static)
+@expect-fingerprint-same inline Dep.twice (static)
+@expect-fingerprint-same body Dep.twice (static)
+@expect-fingerprint-same decls Dep.hx:Dep.add
+@expect-fingerprint-same decls Dep.hx:Dep.twice
+--- Dep.hx
+class Dep {
+	// a comment
+
+	public static function add(a:Int, b:Int):Int {
+		return a + b;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 2;
+	}
+}
+
+=== a field moved below another
+@expect-output 3
+@expect-fingerprint-same sig Dep.add (static)
+@expect-fingerprint-same body Dep.add (static)
+@expect-fingerprint-same decls Dep.hx:Dep.add
+@expect-fingerprint-same decls Dep.hx:Dep.twice
+@expect-fingerprint-changed members Dep
+--- Dep.hx
+class Dep {
+	// a comment
+
+	public static inline function twice(a:Int):Int {
+		return a * 2;
+	}
+
+	public static function add(a:Int, b:Int):Int {
+		return a + b;
+	}
+}

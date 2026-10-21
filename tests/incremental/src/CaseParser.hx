@@ -20,6 +20,8 @@ enum Expectation {
 	NoOutput(text:String);
 	FileContains(path:String, text:String);
 	FileNotContains(path:String, text:String);
+	FingerprintSame(node:String, key:String);
+	FingerprintChanged(node:String, key:String);
 }
 
 typedef Step = {
@@ -61,7 +63,12 @@ typedef Step = {
 	`@expect-warning <text>`, `@expect-no-warning`, `@expect-no-fs-calls`, `@expect-output <text>`,
 	`@expect-no-output <text>`, `@expect-compiler-output <text>`,
 	`@expect-file <path> <text>`,
-	`@expect-no-file-content <path> <text>`.
+	`@expect-no-file-content <path> <text>`,
+	`@expect-fingerprint-same <node> <key>`, `@expect-fingerprint-changed <node> <key>`
+	(compared with the previous step, in the cold compilation: node is one of
+	header, members, sig, inline, body, decls; key is an entity as
+	`-D dump-fingerprints` prints it, e.g. `Dep.get (static)`, or `Dep.hx:Dep.get`
+	for a declaration).
 	Program output is the `--interp` output, or the output of running
 	`out/main.js` with node for the js target.
 **/
@@ -142,6 +149,12 @@ class CaseParser {
 						case "expect-no-file-content":
 							var p = firstWord(d.rest);
 							step.expectations.push(FileNotContains(p.word, p.rest));
+						case "expect-fingerprint-same":
+							var p = firstWord(d.rest);
+							step.expectations.push(FingerprintSame(p.word, p.rest));
+						case "expect-fingerprint-changed":
+							var p = firstWord(d.rest);
+							step.expectations.push(FingerprintChanged(p.word, p.rest));
 						case other:
 							throw new ParseError('$name: unknown step directive @$other in step "${step.name}"');
 					}

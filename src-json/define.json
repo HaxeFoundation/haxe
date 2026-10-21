@@ -166,6 +166,13 @@
 		"doc": "Dump the classes dependencies in a dump subdirectory."
 	},
 	{
+		"name": "DumpFingerprints",
+		"define": "dump-fingerprints",
+		"signatureNeutral": true,
+		"doc": "Write the fingerprints of the typed entities and of the parsed declarations to a file, after typing (see docs/incremental-compilation.md, phase 4).",
+		"params": ["file"]
+	},
+	{
 		"name": "DumpIgnoreVarIds",
 		"define": "dump-ignore-var-ids",
 		"signatureNeutral": true,

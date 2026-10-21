@@ -49,6 +49,56 @@ let anchor_declarations file decls =
 		| _ -> anchor decl
 	) decls
 
+(* The [Decls] fingerprints of the parsed files, by file, with -D dump-fingerprints
+   (docs/incremental-compilation.md, phase 4, item 3): of each field, of each
+   type without its fields, and of the imports and usings. *)
+let decl_fingerprints : (string,(string * TFingerprint.t) list) Hashtbl.t = Hashtbl.create 0
+let decl_fingerprints_mutex = Mutex.create ()
+
+(* The fingerprints of declarations, computed when they are parsed: typing
+   changes the parsed declarations (the values of enum abstracts), which the
+   contexts share. *)
+let parsed_fingerprints : (string,(type_decl list * (string * TFingerprint.t) list) list) Hashtbl.t = Hashtbl.create 0
+
+let compute_decl_fingerprints decls =
+	let l = ref [] in
+	(* positions relative to the start of the declaration *)
+	let add name p v = l := (name,TFingerprint.decl p v) :: !l in
+	let fields tname name_of fl = List.iter (fun f -> let name,p = name_of f in add (tname ^ "." ^ name) p f) fl in
+	List.iter (fun ((d,p) as decl) ->
+		match d with
+		| EClass c -> add (fst c.d_name) p (EClass { c with d_data = [] },p); fields (fst c.d_name) (fun f -> fst f.cff_name,f.cff_pos) c.d_data
+		| EAbstract a -> add (fst a.d_name) p (EAbstract { a with d_data = [] },p); fields (fst a.d_name) (fun f -> fst f.cff_name,f.cff_pos) a.d_data
+		| EEnum e -> add (fst e.d_name) p (EEnum { e with d_data = [] },p); fields (fst e.d_name) (fun f -> fst f.ec_name,f.ec_pos) e.d_data
+		| ETypedef t -> add (fst t.d_name) p decl
+		| EStatic s -> add (fst s.d_name) p decl
+		| EImport _ | EUsing _ -> add "(imports)" p decl
+	) decls;
+	(* imports and usings are one declaration *)
+	let imports,others = List.partition (fun (n,_) -> n = "(imports)") (List.rev !l) in
+	let imports = match imports with
+		| [] -> []
+		| _ -> ["(imports)",TFingerprint.with_state ~positions:false (fun h -> List.iter (fun (_,(a,b)) -> TFingerprint.add_int h a; TFingerprint.add_int h b) imports)]
+	in
+	imports @ others
+
+let remember_decl_fingerprints file decls =
+	let fl = compute_decl_fingerprints decls in
+	Mutex.protect decl_fingerprints_mutex (fun () ->
+		let l = try Hashtbl.find parsed_fingerprints file with Not_found -> [] in
+		Hashtbl.replace parsed_fingerprints file ((decls,fl) :: l)
+	)
+
+(* Records the fingerprints of the declarations of [file] that a module is typed from. *)
+let record_decl_fingerprints file decls =
+	Mutex.protect decl_fingerprints_mutex (fun () ->
+		let fl = match List.find_opt (fun (decls',_) -> decls' == decls) (try Hashtbl.find parsed_fingerprints file with Not_found -> []) with
+			| Some (_,fl) -> fl
+			| None -> compute_decl_fingerprints decls
+		in
+		Hashtbl.replace decl_fingerprints file fl
+	)
+
 let parse_file_from_lexbuf com file p lexbuf =
 	incr com.request_scope.stats.s_files_parsed;
 	let parse_result = try
@@ -60,7 +110,9 @@ let parse_file_from_lexbuf com file p lexbuf =
 			raise e
 	in
 	begin match parse_result with
-		| ParseSuccess((_,decls),_) | ParseError((_,decls),_,_) -> anchor_declarations file decls
+		| ParseSuccess((_,decls),_) | ParseError((_,decls),_,_) ->
+			anchor_declarations file decls;
+			if Common.defined com Define.DumpFingerprints then remember_decl_fingerprints file decls
 	end;
 	begin match com.display.dms_kind,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()

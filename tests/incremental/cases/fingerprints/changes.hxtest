@@ -1,0 +1,107 @@
+# Fingerprints change with what consumers of a declaration can observe.
+@targets interp
+
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.add(1, 2));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function add(a:Int, b:Int):Int {
+		return a + b;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 2;
+	}
+}
+
+=== body changed
+@expect-output 4
+@expect-fingerprint-same sig Dep.add (static)
+@expect-fingerprint-changed body Dep.add (static)
+@expect-fingerprint-changed decls Dep.hx:Dep.add
+@expect-fingerprint-same decls Dep.hx:Dep.twice
+@expect-fingerprint-same members Dep
+--- Dep.hx
+class Dep {
+	public static function add(a:Int, b:Int):Int {
+		return a + b + 1;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 2;
+	}
+}
+
+=== inline body changed
+@expect-output 4
+@expect-fingerprint-same sig Dep.twice (static)
+@expect-fingerprint-changed inline Dep.twice (static)
+@expect-fingerprint-same body Dep.add (static)
+--- Dep.hx
+class Dep {
+	public static function add(a:Int, b:Int):Int {
+		return a + b + 1;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 3;
+	}
+}
+
+=== signature changed
+@expect-output 4
+@expect-fingerprint-changed sig Dep.add (static)
+@expect-fingerprint-same header Dep
+--- Dep.hx
+class Dep {
+	public static function add(a:Int, b:Int, c:Int = 0):Int {
+		return a + b + 1;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 3;
+	}
+}
+
+=== field added
+@expect-output 4
+@expect-fingerprint-changed members Dep
+@expect-fingerprint-same header Dep
+@expect-fingerprint-same sig Dep.add (static)
+--- Dep.hx
+class Dep {
+	public static function add(a:Int, b:Int, c:Int = 0):Int {
+		return a + b + 1;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 3;
+	}
+
+	public static var count = 0;
+}
+
+=== interface added
+@expect-output 4
+@expect-fingerprint-changed header Dep
+@expect-fingerprint-same members Dep
+--- Dep.hx
+class Dep implements IDep {
+	public static function add(a:Int, b:Int, c:Int = 0):Int {
+		return a + b + 1;
+	}
+
+	public static inline function twice(a:Int):Int {
+		return a * 3;
+	}
+
+	public static var count = 0;
+}
+
+interface IDep {}

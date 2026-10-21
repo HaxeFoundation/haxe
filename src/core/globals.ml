@@ -24,6 +24,8 @@ module Pos : sig
 	val min : t -> int
 	val max : t -> int
 	val anchor : t -> anchor
+	(* The position that [v] is, if it is one: for walks over parsed data. *)
+	val of_obj : Obj.t -> t option
 
 	(* The [with_*] functions take absolute offsets and keep the anchor. *)
 	val with_file : t -> string -> t
@@ -59,6 +61,14 @@ end = struct
 	let min p = p.pmin + p.panchor.delta
 	let max p = p.pmax + p.panchor.delta
 	let anchor p = p.panchor
+
+	let of_obj v =
+		if Obj.is_block v && Obj.tag v = 0 && Obj.size v = 4 && Obj.is_block (Obj.field v 0) && Obj.tag (Obj.field v 0) = Obj.string_tag
+			&& Obj.is_int (Obj.field v 1) && Obj.is_int (Obj.field v 2) then begin
+			let a = Obj.field v 3 in
+			if Obj.is_block a && Obj.tag a = 0 && Obj.size a = 1 && Obj.is_int (Obj.field a 0) then Some (Obj.obj v : t) else None
+		end else
+			None
 
 	let with_file p file = { p with pfile = file }
 	let with_min p min = { p with pmin = min - p.panchor.delta }

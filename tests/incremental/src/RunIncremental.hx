@@ -194,6 +194,10 @@ class RunIncremental {
 			return Failed(['could not start compilation server on port $port']);
 		}
 
+		// with fingerprint expectations, the cold compilations dump their fingerprints
+		var fingerprints = Lambda.exists(tc.steps, step -> Lambda.exists(step.expectations, e -> e.match(FingerprintSame(_, _) | FingerprintChanged(_, _))));
+		var dumpFile = Path.join([base, "fingerprints.txt"]);
+		var previousFingerprints:Null<Map<String, String>> = null;
 		try {
 			for (stepIndex in 0...tc.steps.length) {
 				var step = tc.steps[stepIndex];
@@ -210,7 +214,24 @@ class RunIncremental {
 						notifyInvalidate(port, warmDir, file);
 				}
 				var warm = compile(warmDir, port);
-				var cold = compile(coldDir, null);
+				var cold = compile(coldDir, null, true, fingerprints ? ["-D", "dump-fingerprints=" + dumpFile] : []);
+				var currentFingerprints = fingerprints && FileSystem.exists(dumpFile) ? readFingerprints(dumpFile) : null;
+				for (e in step.expectations) {
+					switch (e) {
+						case FingerprintSame(node, key) | FingerprintChanged(node, key):
+							var same = e.match(FingerprintSame(_, _));
+							var before = previousFingerprints == null ? null : findFingerprint(previousFingerprints, node, key);
+							var after = currentFingerprints == null ? null : findFingerprint(currentFingerprints, node, key);
+							if (before == null || after == null)
+								errors.push('$label: no $node fingerprint of $key' + (before == null ? " in the previous step" : ""));
+							else if (same && before != after)
+								errors.push('$label: expected the $node fingerprint of $key to stay the same');
+							else if (!same && before == after)
+								errors.push('$label: expected the $node fingerprint of $key to change');
+						case _:
+					}
+				}
+				previousFingerprints = currentFingerprints;
 				if (verbose) {
 					Sys.println('--- ${tc.name} [$target] $label');
 					Sys.println('warm exit ${warm.code}\n${warm.out}');
@@ -361,7 +382,29 @@ class RunIncremental {
 		p.close();
 	}
 
-	public static function compile(dir:String, port:Null<Int>, clean = true):CompileResult {
+	/** The fingerprints of a dump of `-D dump-fingerprints`: `key\tnode` to fingerprint. **/
+	static function readFingerprints(file:String):Map<String, String> {
+		var m = new Map();
+		for (line in File.getContent(file).split("\n")) {
+			var parts = line.split("\t");
+			if (parts.length == 3)
+				m[parts[0] + "\t" + parts[1]] = parts[2];
+		}
+		return m;
+	}
+
+	/** The fingerprint of [node] of [key], or of a declaration whose file ends with [key]'s. **/
+	static function findFingerprint(m:Map<String, String>, node:String, key:String):Null<String> {
+		var fp = m[key + "\t" + node];
+		if (fp != null)
+			return fp;
+		for (k => v in m)
+			if (k.endsWith("/" + key + "\t" + node))
+				return v;
+		return null;
+	}
+
+	public static function compile(dir:String, port:Null<Int>, clean = true, ?extra:Array<String>):CompileResult {
 		var outDir = Path.join([dir, "out"]);
 		if (clean) {
 			removeDir(outDir);
@@ -369,6 +412,8 @@ class RunIncremental {
 		}
 		var args = port == null ? [] : ["--connect", Std.string(port)];
 		args = args.concat(["--cwd", dir, "build.hxml"]);
+		if (extra != null)
+			args = args.concat(extra);
 		var p = new Process(haxeCmd, args);
 		var stdout = p.stdout.readAll().toString();
 		var stderr = p.stderr.readAll().toString();
@@ -543,6 +588,8 @@ class RunIncremental {
 					var full = Path.join([dir, path]);
 					if (FileSystem.exists(full) && File.getContent(full).indexOf(text) >= 0)
 						errors.push('expected file $path not to contain "$text"');
+				case FingerprintSame(_) | FingerprintChanged(_):
+					// Checked on the cold compilation, see runCase.
 			}
 		}
 		return errors;

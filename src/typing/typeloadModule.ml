@@ -866,6 +866,8 @@ and load_module' com g m p =
 					| Some r -> r
 					| None -> TypeloadParse.parse_module com m p
 				in
+				if Common.defined com Define.DumpFingerprints && not com.is_macro_context then
+					TypeloadParse.record_decl_fingerprints rfile.file decls;
 				rfile.file,decls,warnings
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)

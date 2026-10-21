@@ -1490,6 +1490,39 @@ the documented order of domkit handlers. Parallel typing (§3.5) is not done.
    fingerprint), sensitivity (every signature change changes the fingerprint),
    insensitivity to positions.
 
+**Status: done (items 1–4), computed on demand.** `src/core/tFingerprint.ml`
+hashes into two 63-bit multiplicative lanes, without serializing: module
+types by path, type parameters by host and class path, local variables by
+order of declaration, unbound monomorphs by order of appearance, structure
+fields sorted by name (cycles through monomorphs cut by a back reference),
+statics of classes, enums and abstracts by path; parsed data (metadata,
+declarations) by a walk over its blocks that recognizes positions
+(`Pos.of_obj`). Interface fingerprints exclude positions; body and `Decls`
+fingerprints include them relative to the position of their declaration, so
+that they do not change when it moves (anchors keep a delta only: a base in
+the anchor would make positions with the same offsets in two declarations
+compare as different). `TypeHeader` (path, kind, flags, parameters with
+constraints, super class, interfaces, `@:using`, `implements Dynamic`, array
+access, declared metadata, typedef target, abstract underlying type),
+`TypeMembers` (complete metadata, members in order with kind, flags and
+overload count, constructor, `__init__`; enum constructors with their type;
+abstract implementation, `from`/`to`, operators, array and resolve fields),
+`FieldSig`, `FieldInlineBody` (inline, macro and generic fields, abstract
+casts and operators) and `FieldBody` are computed once typing is done, in one
+pass: the hash forces nothing, so it cannot change the order of typing and
+is the same in parallel. `Decls` fingerprints are computed when a file is
+parsed (typing changes parsed declarations, the values of enum abstracts,
+and the contexts share them), per field, per type without its fields and for
+the imports. They are only computed with `-D dump-fingerprints=<file>`, which
+writes them sorted (about 0.6 s on Heaps, 83 000 nodes); the server will
+compute them per node (phase 6). Checks: two cold compilations of Heaps, and
+a parallel one, give the same 83 000 fingerprints; `tests/incremental` cases
+can expect a fingerprint to change or stay the same from one step to the next
+(`@expect-fingerprint-same <node> <key>`, `@expect-fingerprint-changed`,
+on the cold compilation), and `cases/fingerprints/` covers moved fields,
+body, inline body, signature, member, interface, typedef, enum, abstract,
+metadata and access changes.
+
 ---
 
 ### Phase 5: dependency recording
