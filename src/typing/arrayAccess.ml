@@ -104,7 +104,7 @@ let get_array_access ctx t p =
 		{ aa_type = pt; aa_get = AGIndex; aa_length = ALField }
 	| TDynamic None ->
 		{ aa_type = t_dynamic; aa_get = AGDynamic; aa_length = ALField }
-	| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
+	| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) ->
 		{ aa_type = apply_params c.cl_params pl pt; aa_get = AGIndex; aa_length = ALField }
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		let aa_length = get_abstract_length a c tl in
