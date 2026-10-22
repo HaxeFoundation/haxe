@@ -845,7 +845,10 @@ module TypeBinding = struct
 		end else if not dynamic_initializer && has_mono (ref []) cf.cf_type then
 			display_error ctx.com (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
 
-	let bind_type ctx cctx fctx cf r p =
+	(* [reused] runs instead of the typing of the body when the body of the
+	   previous compilation is kept: the effects of the typing on the field
+	   that are not in the body *)
+	let bind_type ?(reused=(fun () -> ())) ctx cctx fctx cf r p =
 		let c = cctx.tclass in
 		let force_macro display =
 			(* force macro system loading of this class in order to get completion *)
@@ -881,12 +884,13 @@ module TypeBinding = struct
 				if body_needed || is_sig then begin
 					cf.cf_type <- TLazy r;
 					cctx.delayed_expr <- (ctx,cf,Some r,is_sig) :: cctx.delayed_expr
-				end else match (if has_class_field_flag cf CfOverload then None else !DepRecord.reuse_body c cf) with
+				end else match (if has_class_field_flag cf CfOverload || fctx.field_kind = CfrInit then None else !DepRecord.reuse_body c cf) with
 				| Some paths ->
 					(* the body typed by the previous compilation is still valid
 					   (docs/incremental-compilation.md, phase 6): the module
 					   depends on what it read *)
 					schedule ctx.g StageBodies (fun () ->
+						reused ();
 						List.iter (fun path ->
 							try add_dependency ctx.m.curmod (ctx.g.do_load_module ctx path p) MDepFromTyping with _ -> ()
 						) paths
@@ -1042,6 +1046,18 @@ module TypeBinding = struct
 	let bind_method ctx_f cctx fctx fmode cf t args ret e function_mode p =
 		let c = cctx.tclass in
 		let ctx = TyperManager.clone_for_expr ctx_f fmode function_mode in
+		(* the override check sets [CfOverride] on the implementation of an abstract method *)
+		let check_overriding ctx = match fctx.field_kind with
+			| CfrMember -> TypeloadCheck.check_overriding ctx c cf
+			| _ -> TypeloadCheck.NothingToDo
+		in
+		let check_override = function
+			| TypeloadCheck.NothingToDo -> ()
+			| TypeloadCheck.NormalOverride rctx ->
+				TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
+			| TypeloadCheck.OverloadOverride f ->
+				f ()
+		in
 		let bind () =
 			incr ctx_f.com.request_scope.stats.s_methods_typed;
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
@@ -1053,17 +1069,8 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let check_result = match fctx.field_kind with
-						| CfrMember -> TypeloadCheck.check_overriding ctx c cf
-						| _ -> NothingToDo
-					in
-					let f_check () = match check_result with
-						| NothingToDo -> ()
-						| NormalOverride rctx ->
-							TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
-						| OverloadOverride f ->
-							f ()
-					in
+					let check_result = check_overriding ctx in
+					let f_check () = check_override check_result in
 					let e = TypeloadFunction.type_function ctx args ret e fctx.is_display_field p in
 					f_check();
 					(match check_result with
@@ -1104,7 +1111,7 @@ module TypeBinding = struct
 			)
 		) "type_fun" in
 		self := Some r;
-		bind_type ctx cctx fctx cf r p
+		bind_type ~reused:(fun () -> check_override (check_overriding ctx)) ctx cctx fctx cf r p
 end
 
 let load_variable_type_hint ctx fctx eo p = function

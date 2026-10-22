@@ -775,6 +775,7 @@ and type_object_decl ctx fl with_type p =
 		let ctor = fa.fa_field in
 		(* the default values of the constructor's arguments are in its body *)
 		force_field_body ctor;
+		DepRecord.record_field c ctor "inline";
 		let args = match follow (FieldAccess.get_map_function fa ctor.cf_type) with
 			| TFun(args,_) ->
 				begin match ctor.cf_expr with

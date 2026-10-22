@@ -164,7 +164,8 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	cached_types : (string list, ttype) Hashtbl.t;
 	mutable m : method_context;
-	mutable anons_cache : (tanon, ttype) PMap.t;
+	(* structures, by fingerprint, then by [same_anon] *)
+	anons_cache : (TFingerprint.t, tanon * ttype) Hashtbl.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -359,6 +360,34 @@ let efield_name e f =
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
+(* Structural equality, as [compare] gives it, with the closures (of lazy
+   types) equal: two structures typed alike are, whatever the state of the
+   lazy types they reach. The structures of the modules a server keeps from
+   its previous compilation meet those typed again, where [compare] fails. *)
+let same_anon (a : tanon) (b : tanon) =
+	let rec eq a b =
+		a == b ||
+		Obj.is_block a && Obj.is_block b &&
+		let ta = Obj.tag a in
+		ta = Obj.tag b &&
+		if ta = Obj.closure_tag || ta = Obj.infix_tag then true
+		else if ta < Obj.no_scan_tag && ta <> Obj.forward_tag && ta <> Obj.lazy_tag && ta <> Obj.object_tag then begin
+			let n = Obj.size a in
+			n = Obj.size b &&
+			let rec loop i = i >= n || (eq (Obj.field a i) (Obj.field b i) && loop (i + 1)) in
+			loop 0
+		end else
+			(try compare a b = 0 with Invalid_argument _ -> false)
+	in
+	eq (Obj.repr a) (Obj.repr b)
+
+let find_anon cache key a =
+	let rec loop = function
+		| [] -> raise Not_found
+		| (a',t) :: l -> if same_anon a a' then t else loop l
+	in
+	loop (Hashtbl.find_all cache key)
+
 let is_overridden ctx c f =
 	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
@@ -529,10 +558,9 @@ and to_type_raw ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
+		let key = TFingerprint.anon a in
 		(try
-			(* can't use physical comparison in PMap since addresses might change in GC compact,
-				maybe add an uid to tanon if too slow ? *)
-			PMap.find a ctx.anons_cache
+			find_anon ctx.anons_cache key a
 		with Not_found ->
 			let vp = {
 				vfields = [||];
@@ -542,7 +570,7 @@ and to_type_raw ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			ctx.anons_cache <- PMap.add a t ctx.anons_cache;
+			Hashtbl.add ctx.anons_cache key (a,t);
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
@@ -4022,7 +4050,7 @@ end)
 
 type type_key =
 	| KPath of string list
-	| KAnon of tanon
+	| KAnon of TFingerprint.t * tanon
 	| KTuple of ttype list
 
 (* from the previous context to the current one *)
@@ -4058,7 +4086,7 @@ let create_mapper old_ctx old_files new_ctx =
 			let h = PhysType.create 0 in
 			let add t k = if not (PhysType.mem h t) then PhysType.add h t k in
 			Hashtbl.iter (fun k t -> add t (KPath k)) old_ctx.cached_types;
-			PMap.iter (fun a t -> add t (KAnon a)) old_ctx.anons_cache;
+			Hashtbl.iter (fun k (a,t) -> add t (KAnon (k,a))) old_ctx.anons_cache;
 			PMap.iter (fun tl t -> add t (KTuple tl)) old_ctx.cached_tuples;
 			h
 		);
@@ -4124,7 +4152,7 @@ let rec map_type m t =
 and map_type_keyed m t =
 			(match PhysType.find_opt (Stdlib.Lazy.force m.type_keys) t with
 			| Some (KPath k) -> (try Hashtbl.find m.new_ctx.cached_types k with Not_found -> memo_fail "type")
-			| Some (KAnon a) -> (try PMap.find a m.new_ctx.anons_cache with Not_found -> memo_fail "structure")
+			| Some (KAnon (k,a)) -> (try find_anon m.new_ctx.anons_cache k a with Not_found -> memo_fail "structure")
 			| Some (KTuple tl) -> (try PMap.find (List.map (map_type m) tl) m.new_ctx.cached_tuples with Not_found -> memo_fail "tuple")
 			| None -> memo_fail "unknown type")
 
@@ -4897,7 +4925,7 @@ let create_context com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = PMap.empty;
+		anons_cache = Hashtbl.create 0;
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();

@@ -494,17 +494,31 @@ let rec add_field_sig h cf =
 let field_sig cf = with_state ~positions:false (fun h -> add_field_sig h cf)
 
 (* Whether consumers read the body of [cf]: inline fields, macros, generic
-   fields and the casts and operators of an abstract. *)
+   fields, the constructors of [@:structInit] classes and the casts and
+   operators of an abstract. *)
 let has_inline_body c cf =
 	match cf.cf_kind with
 	| Method (MethInline | MethMacro) | Var { v_read = AccInline } -> true
 	| _ when has_class_field_flag cf CfGeneric -> true
+	(* the default values of the arguments of the constructor of a
+	   [@:structInit] class are copied where a structure declares an instance *)
+	| _ when (match c.cl_constructor with Some cf' -> cf' == cf | None -> false) && Meta.has Meta.StructInit c.cl_meta -> true
 	| _ -> (match c.cl_kind with KAbstractImpl _ -> Meta.has Meta.From cf.cf_meta || Meta.has Meta.To cf.cf_meta || Meta.has Meta.Op cf.cf_meta | _ -> false)
 
 let add_body h cf = add_option h add_expr cf.cf_expr
 
-(* [FieldInlineBody]: the body of a field its consumers read, without positions. *)
-let field_inline_body cf = with_state ~positions:false (fun h -> add_body h cf)
+(* A structure, as the generators type it: its fields, their kinds and their
+   types. *)
+let anon an = with_state ~positions:false (fun h -> add_anon h an)
+
+(* [FieldInlineBody]: the body of a field its consumers read. Its positions
+   end up in their code (default values, [haxe.PosInfos], debug information
+   of the targets keeping inlined positions): they are hashed relative to the
+   field, like in [field_body]. A field that only moves keeps its
+   fingerprint, its anchor moves the positions copied into its consumers; a
+   field whose positions change within it (its lines end differently, code
+   added before an expression) is read again by them. *)
+let field_inline_body cf = with_state ~origin:cf.cf_pos ~within_origin:true ~positions:true (fun h -> add_body h cf)
 
 (* [FieldBody]: the typed body, with positions relative to the field's: they
    move with the field (its anchor). The positions of the code inlined from

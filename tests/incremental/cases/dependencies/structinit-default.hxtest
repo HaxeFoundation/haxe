@@ -1,0 +1,51 @@
+# A structure declaring an instance of a @:structInit class copies the default
+# values of the constructor's arguments, read from its body, with their
+# positions: they move in the source map when they move in the constructor.
+@targets js
+@args -D source-map
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		var s : Dep = { a : 0 };
+		trace(s.b);
+	}
+}
+--- Dep.hx
+@:structInit
+class Dep {
+	public var a : Int;
+	public var b : Int;
+	public function new( a : Int, b = "x" ) {
+		this.a = a;
+		this.b = b.length;
+	}
+}
+
+=== default value moved in the constructor
+@expect-success
+--- Dep.hx
+@:structInit
+class Dep {
+	public var a : Int;
+	public var b : Int;
+	public function new( a : Int,
+			b = "x" ) {
+		this.a = a;
+		this.b = b.length;
+	}
+}
+
+=== default value changed
+@expect-output Main.hx:4: 2
+--- Dep.hx
+@:structInit
+class Dep {
+	public var a : Int;
+	public var b : Int;
+	public function new( a : Int, b = "xy" ) {
+		this.a = a;
+		this.b = b.length;
+	}
+}
