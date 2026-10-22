@@ -305,7 +305,7 @@ let check_module sctx com m_path m_extra p =
 		let check () =
 			try
 				check_module_path();
-				if List.mem VolatileMacro m_extra.m_check_policy then raise (Dirty (ReadChanged "volatile macro"));
+				if List.mem VolatileMacro m_extra.m_check_policy && Common.volatile_changed m_path m_extra then raise (Dirty (ReadChanged "volatile macro"));
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
 				if (get_typing_mode com m_extra) = FullTyping && not (Define.defined com.defines Define.IncrementalRetypeChangedOnly) then check_dependencies();
 				None

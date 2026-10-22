@@ -11,7 +11,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
 | Targets | **JS and HL only.** Other targets (C++, JVM, Python, Lua, PHP, Neko, Flash) are **out of the scope of this plan**: they must keep compiling with a global generation step, but nothing in this plan makes their generation incremental. |
-| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.markVolatile()`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` statics are **caches** (pure memoization, which the compiler may empty at any time); data attached to types uses **`haxe.macro.TypeCache<T>`**, given by the build of the type or computed by a pure function of it. File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
+| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.setVolatile(?check)`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` statics are **caches** (pure memoization, which the compiler may empty at any time); data attached to types uses **`haxe.macro.TypeCache<T>`**, given by the build of the type or computed by a pure function of it. File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6. The new rules are **warnings in Haxe 5.x** and **errors in Haxe 6, with no compatibility flag**. |
 | Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
@@ -1949,8 +1949,8 @@ cycles are errors (§ phase 3.3).
      a cached expansion is not re-run when that file changes;
    - non-deterministic calls (`Date.now`, `Math.random`, `Sys.getEnv`,
      `Sys.command`, `Sys.time`, sockets) are **not detected**: a macro whose
-     result must be recomputed on every compilation calls
-     `Context.markVolatile()`. Otherwise its cached result is reused, which is
+     result must be recomputed calls `Context.setVolatile(?check)` (item 7).
+     Otherwise its cached result is reused, which is
      the macro's responsibility, like undeclared file reads;
    - console output (`Sys.println`, `trace`, `Sys.print`) is written
      immediately, in no guaranteed order when expansions run in parallel, and
@@ -2083,9 +2083,14 @@ cycles are errors (§ phase 3.3).
      during an expansion is an error. Two callbacks answering for the same
      path is an error. The answer for a path is a query keyed by that path,
      so it is computed once and cached like any other node.
-7. **Volatile macros**: an expansion that called `Context.markVolatile()` is
-   re-executed on every compilation. If its output (and effect log) has the
-   same fingerprint, downstream stays green.
+7. **Volatile macros**: `Context.setVolatile(?check:Void->Bool)`. An
+   expansion that called it without a check is re-executed on every
+   compilation; with a check, the server calls it before the next
+   compilation and re-executes the expansion only if it returns `true` (or
+   throws). The check runs before typing: system APIs only (files,
+   environment, time), not the other `Context` functions. If the output (and
+   effect log) of the re-executed expansion has the same fingerprint,
+   downstream stays green.
 8. **File writes are the macro's responsibility.** The compiler does not
    track, replay or verify files written by macros, and writing a file does
    not make an expansion volatile. A macro that writes files (heaps resource
@@ -2163,15 +2168,18 @@ prerequisite for running them in parallel (§4b, item 3).
 - Whole-program APIs: `Context.getAllModuleTypes()` is an error until typing
   is done (like `TypeCache.all()`), and `Context.onTypeNotFound` can only be
   called from an initialization macro.
-- `Context.markVolatile()` gives the current module the `VolatileMacro` check
-  policy: the server types it again on every compilation (`ReadChanged
-  "volatile macro"`), and the early cutoff of the graph keeps its dependents
-  when the result is the same.
+- `Context.setVolatile(?check)` gives the current module the `VolatileMacro`
+  check policy and registers the check for that version of the module
+  (`Common.volatile_checks`): the server types the module again when an
+  expansion gave no check or a check returns `true` (`ReadChanged "volatile
+  macro"`), and the early cutoff of the graph keeps its dependents when the
+  result is the same (`cases/haxe6/set-volatile.hxtest`,
+  `cases/macros/volatile-check.hxtest`).
 - Tests: the `misc` projects that kept state between expansions use
   `@:persistent` (Issue11373, Issue3864, `resolution/modulestatics`) or a name
   derived from the build fields (Issue11582); the `haxe6` cases
   `all-module-types-during-typing`, `on-type-not-found-outside-init`,
-  `mark-volatile` pass, and `persistent-frozen` became
+  `set-volatile` pass, and `persistent-frozen` became
   `persistent-cache-writable` (a cache can be written by any macro).
 - `-D macro-state-check` (`WMacroStateCheck` warnings): the signature of a
   `TypeCache` value is taken when the build gives it and compared once

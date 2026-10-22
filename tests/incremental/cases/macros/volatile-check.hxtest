@@ -1,0 +1,36 @@
+# Context.setVolatile with a check: the module is reused while the check
+# returns false (plan phase 7, item 7).
+=== initial
+@expect-output stamp a
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Stamped.get());
+	}
+}
+--- Stamped.hx
+class Stamped {
+	public static function get() return Macro.stamp();
+}
+--- stamp.txt
+a
+--- Macro.hx
+class Macro {
+	public static macro function stamp() {
+		var seen = StringTools.trim(sys.io.File.getContent("stamp.txt"));
+		haxe.macro.Context.setVolatile(() -> StringTools.trim(sys.io.File.getContent("stamp.txt")) != seen);
+		return macro $v{"stamp " + seen};
+	}
+}
+
+=== unrelated file added
+@expect-output stamp a
+@expect-retyped
+--- Other.hx
+class Other {}
+
+=== the file the check reads changed
+@expect-output stamp b
+@expect-retyped Stamped
+--- stamp.txt
+b

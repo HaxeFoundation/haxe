@@ -1,0 +1,39 @@
+# Plan phase 7, item 7: volatility is explicit. A macro calling
+# Context.setVolatile() is run again on every compilation, even when nothing
+# it depends on changed; with a check, only when the check returns true.
+=== initial
+@expect-output run 1 / stamp a
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.counter() + " / " + Macro.stamp());
+	}
+}
+--- stamp.txt
+a
+--- Macro.hx
+class Macro {
+	public static macro function counter() {
+		haxe.macro.Context.setVolatile();
+		var file = "count.txt";
+		var n = sys.FileSystem.exists(file) ? Std.parseInt(sys.io.File.getContent(file)) + 1 : 1;
+		sys.io.File.saveContent(file, Std.string(n));
+		return macro $v{"run " + n};
+	}
+
+	public static macro function stamp() {
+		var seen = StringTools.trim(sys.io.File.getContent("stamp.txt"));
+		haxe.macro.Context.setVolatile(() -> StringTools.trim(sys.io.File.getContent("stamp.txt")) != seen);
+		return macro $v{"stamp " + seen};
+	}
+}
+
+=== unrelated file added
+@expect-output run 2 / stamp a
+--- Other.hx
+class Other {}
+
+=== the file the check reads changed
+@expect-output run 3 / stamp b
+--- stamp.txt
+b

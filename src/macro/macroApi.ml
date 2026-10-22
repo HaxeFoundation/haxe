@@ -2542,9 +2542,14 @@ let macro_api ccom get_api =
 			NativeLibraryHandler.add_native_lib com lib ();
 			vnull
 		);
-		"mark_volatile", vfun0 (fun () ->
+		"set_volatile", vfun1 (fun check ->
 			let m = (get_api()).current_module() in
 			if not (List.mem VolatileMacro m.m_extra.m_check_policy) then m.m_extra.m_check_policy <- VolatileMacro :: m.m_extra.m_check_policy;
+			let check = if check = vnull then None else begin
+				let f = prepare_callback check 0 in
+				Some (fun () -> decode_bool (f []))
+			end in
+			Common.add_volatile_check m check;
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->

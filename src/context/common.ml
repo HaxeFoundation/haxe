@@ -843,6 +843,31 @@ let report_mode com = match DomainLocal.Scoped.find report_mode_overrides com.pa
 	| Some m -> m
 	| None -> com.part_scope.report_mode
 
+(* Context.setVolatile (phase 7, item 7): the checks of the volatile macros
+   expanded in a module (None: always typed again), for the version of the
+   module that registered them (its extra). *)
+let volatile_checks : (path,(module_def_extra * (unit -> bool) option list)) Hashtbl.t = Hashtbl.create 0
+let volatile_checks_mutex = Mutex.create ()
+
+let add_volatile_check m check =
+	Mutex.protect volatile_checks_mutex (fun () ->
+		let l = match Hashtbl.find_opt volatile_checks m.m_path with
+			| Some (extra,l) when extra == m.m_extra -> l
+			| _ -> []
+		in
+		Hashtbl.replace volatile_checks m.m_path (m.m_extra,check :: l)
+	)
+
+(* Whether the volatile macros of the module of [extra] must run again: a
+   macro without check, or a check that says so (or fails). *)
+let volatile_changed path extra =
+	let checks = Mutex.protect volatile_checks_mutex (fun () ->
+		match Hashtbl.find_opt volatile_checks path with
+		| Some (extra',l) when extra' == extra -> l
+		| _ -> [None]
+	) in
+	List.exists (function None -> true | Some f -> (try f () with _ -> true)) checks
+
 let message_capture_overrides : (part_scope,Message.t list ref option) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
 
 let message_capture com = match DomainLocal.Scoped.find message_capture_overrides com.part_scope with

@@ -207,14 +207,21 @@ class Context {
 		Returns the current module path in/on which the macro was called.
 	**/
 	/**
-		Marks the result of the current macro as not a function of what it
-		read (the time, a random number, a file it did not declare with
-		`Context.registerModuleDependency`...): the compilation server types
-		the current module again on every compilation, instead of reusing it
-		while what it read is unchanged.
+		Marks the result of the current macro as not a function of what the
+		compiler sees it read (the time, an environment variable, the output of
+		a command, files it cannot list for `Context.registerModuleDependency`):
+		the compilation server types the current module again on the next
+		compilation, instead of reusing it while what it read is unchanged.
+
+		If `check` is given, it is called by the server before the next
+		compilation, and the module is typed again only if it returns `true`
+		(or throws). It runs before typing: it can only use the system APIs
+		(files, environment, time), not the other `Context` functions.
+		When the module is typed again, the macro runs again and gives its new
+		check.
 	**/
-	public static function markVolatile():Void {
-		load("mark_volatile", 0)();
+	public static function setVolatile(?check:Void->Bool):Void {
+		load("set_volatile", 1)(check);
 	}
 
 	public static function getLocalModule():String {
