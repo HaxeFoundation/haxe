@@ -320,7 +320,10 @@ let rec make pctx toplevel t e =
 				| Some aa -> array_pattern aa.aa_type
 				| None -> fail()
 			in
-			let from_pattern t2 = match get_array_access ctx t p with
+			(* Patterns on an array or Dynamic are typed against its element type `t2`, and so are patterns on an
+			   abstract whose single `from` types lead to one. The matched values are still read by the array access of
+			   their own type `t` (see compile.ml), which an abstract may lack, and so does Dynamic<T>. *)
+			let indexed_pattern t2 = match get_array_access ctx t p with
 				| Some _ -> array_pattern t2
 				| None -> no_array_access t p
 			in
@@ -337,7 +340,7 @@ let rec make pctx toplevel t e =
 					let patterns = loop el tl in
 					PatTuple patterns
 				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
-					if seen = [] then array_pattern t2 else from_pattern t2
+					indexed_pattern t2
 				| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 					begin match TyperBase.get_abstract_froms ctx a tl with
 						| [(_,t2)] -> pattern (t :: seen) t2
