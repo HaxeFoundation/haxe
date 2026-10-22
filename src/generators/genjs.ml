@@ -236,6 +236,24 @@ let is_iterator_field_access fa = match field_name fa with
 	| "iterator" | "keyValueIterator" -> true
 	| _ -> false
 
+(* Returns true if `e` has a structural/dynamic type that may hold a String at runtime,
+   and `fname` is a String instance method name. Used to detect dynamic accesses that
+   need special binding to avoid losing `this` on string primitives. *)
+let is_possible_string_field e fname =
+	let structural_type = match follow e.etype with
+		| TAnon a -> (match !(a.a_status) with
+			| ClassStatics _ | EnumStatics _ | AbstractStatics _ -> false
+			| _ -> true)
+		| TDynamic _ | TMono _ -> true
+		| _ -> false
+	in
+	if not structural_type then false
+	else match fname with
+		| "toUpperCase" | "toLowerCase" | "charAt" | "indexOf"
+		| "lastIndexOf" | "split" | "toString" | "substring"
+		| "substr" | "charCodeAt" -> true
+		| _ -> false
+
 let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
@@ -403,6 +421,15 @@ let rec gen_call ctx e el in_value =
 		print ctx "$getKeyValueIterator(";
 		gen_value ctx x;
 		print ctx ")";
+	(* For dynamic/structural field access to potential string methods in call context,
+	   generate a direct method call (JavaScript auto-binds `this` for dot-notation calls).
+	   This avoids the overhead of the $sbind wrapper needed only in value context. *)
+	| TField (x,f), el when is_possible_string_field x (field_name f) && not apply ->
+		gen_value ctx x;
+		spr ctx (field (field_name f));
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"
 	| _ ->
 		if apply then
 			gen_call_with_apply ctx e el
@@ -535,6 +562,21 @@ and gen_expr ctx e =
 		gen_value ctx x;
 	| TField (_,FStatic ({ cl_kind = KModuleFields m },f)) ->
 		spr ctx (module_field m f)
+	(* Dynamic/structural field access to a potential string method in value context:
+	   wrap with $sbind so that when the value is a string primitive the method gets
+	   properly bound (avoids "Cannot create property 'hx__closures__' on string" and
+	   "called on null or undefined" errors in JS strict mode). *)
+	| TField (x, ef) when is_possible_string_field x (field_name ef) ->
+		add_feature ctx "use.$sbind";
+		(match x.eexpr with
+		| TConst _ | TLocal _ ->
+			print ctx "$sbind(";
+			gen_value ctx x;
+			print ctx ",\"%s\")" (field_name ef)
+		| _ ->
+			print ctx "($_=";
+			gen_value ctx x;
+			print ctx ",$sbind($_,\"%s\"))" (field_name ef))
 	| TField (x,f) ->
 		let rec skip e = match e.eexpr with
 			| TCast(e1,None) | TMeta(_,e1) -> skip e1
@@ -1934,7 +1976,22 @@ let generate js_gen com =
 			newline ctx;
 			has_dollar_underscore := true
 		end;
-		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }";
+		(* Handle non-object values (string/number/boolean primitives) by skipping the
+		   hx__closures__ cache (setting properties on primitives throws in strict mode). *)
+		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( typeof o !== \"object\" || o === null ) return m.bind(o); if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }";
+		newline ctx;
+	end;
+	if has_feature ctx "use.$sbind" then begin
+		if not !has_dollar_underscore then begin
+			print ctx "var $_";
+			newline ctx;
+			has_dollar_underscore := true
+		end;
+		(* $sbind(o,f): extract field f from o as a properly-bound callable.
+		   We use m.bind(o) unconditionally (no $bind caching) so that we do not
+		   add hx__closures__ as an own property on arbitrary objects, which
+		   would corrupt serialization (js.Boot.__string_rec, etc.). *)
+		print ctx "function $sbind(o,f) { var m = o[f]; if( typeof m !== \"function\" ) return m; return m.bind(o); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPush" then begin
