@@ -39,8 +39,21 @@
 		return inline downcast(value, c);
 	}
 
+	static var toStringDepth = 0;
+
 	@:keep public static function string(s:Dynamic):String {
-		return untyped s == null ? "null" : s.toString();
+		if (toStringDepth > haxe.runtime.Config.maxToStringDepth) {
+			return "<...>";
+		}
+		++toStringDepth;
+		try {
+			var s = untyped s == null ? "null" : s.toString();
+			--toStringDepth;
+			return s;
+		} catch (e:Dynamic) {
+			--toStringDepth;
+			throw e;
+		}
 	}
 
 	@:keep public static function int(x:Float):Int {
