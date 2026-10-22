@@ -4401,7 +4401,7 @@ let generate com =
 		Parallel.run_parallel_for ctx.num_domains ~chunk_size:16 (DynArray.length ctx.cfunctions) (fun idx ->
 			let f = DynArray.get ctx.cfunctions idx in
 			if f.need_opt then begin
-				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f "todosign" in
+				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f in
 				(match dump_out with None -> () | Some ch -> IO.nwrite_string ch dumpstr);
 				code.functions.(idx) <- f;
 			end;

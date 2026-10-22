@@ -2354,6 +2354,28 @@ The heaviest part, because of the global tables in `genhl.ml` (`cglobals`,
 Exit criterion: `tests/unit` on HL (JIT and HL/C) passes, with identical output
 between incremental and cold.
 
+**Status: item 3, first step (optimization memo).** The cache that `Hlopt`
+already had for this (keyed by a signature never computed, so disabled) is
+active: the key is a digest of what `_optimize` reads of the function, that
+is its code with the indexes of constants, functions, globals and types
+replaced by zero, the number of arguments, and for each register the part of
+its type the optimizer inspects (object or struct with the packed flags of
+its fields, super classes included, function with a dynamic return,
+abstract, `Dynamic`). The optimizer only rewrites registers in place and
+replaces instructions by `nop`s, never moves one, so a hit patches the
+current indexes back into a copy of the cached code at the same positions and
+replays the remapping (`remap_fun`) on the current function: the registers,
+debug information and assigns come from the current compilation, never from
+a previous one (types of a previous compilation are structurally equal but
+cyclic, and the writer looks them up by structural comparison). An entry not
+used by the last three generations is dropped, as before. On Heaps
+(`-D apicheck`, 4 domains), a body edit takes the `opt` step from 1.05 s to
+about 0.45 s, the rest being the key (a `Marshal` and a digest per function,
+about 0.1 s) and the remapping; a cold build pays the key, about 0.1 s. The
+bytecode is identical to the cold one and to the previous compiler. The
+next step is item 1, so that the code generation itself (1 s of the 1.6 s
+left) is per function.
+
 ---
 
 ### Phase 11: cleanup

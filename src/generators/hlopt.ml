@@ -1121,69 +1121,122 @@ type cache_elt = {
 	mutable c_last_used : int;
 }
 
-let opt_cache = ref PMap.empty
+(* the optimizations of the functions, kept for the next compilations of the
+   server: the key is everything [_optimize] reads, except the indexes of
+   constants, functions, globals and types, which are patched back *)
+let opt_cache : (string, cache_elt) Hashtbl.t = Hashtbl.create 0
+let opt_mutex = Mutex.create ()
 let used_mark = ref 0
 
-let optimize dump get_str (f:fundecl) (hxf:string) =
+let has_index = function
+	| OInt _ | OFloat _ | OBytes _ | OString _
+	| OCall0 _ | OCall1 _ | OCall2 _ | OCall3 _ | OCall4 _ | OCallN _ | OStaticClosure _
+	| OInstanceClosure _ | OGetGlobal _	| OSetGlobal _ | ODynGet _ | ODynSet _	| OType _ -> true
+	| _ -> false
+
+let patch_index cached op =
+	match cached, op with
+	| OInt (r,_), OInt (_,idx) -> OInt (r,idx)
+	| OFloat (r,_), OFloat (_,idx) -> OFloat (r,idx)
+	| OBytes (r,_), OBytes (_,idx) -> OBytes (r,idx)
+	| OString (r,_), OString (_,idx) -> OString (r,idx)
+	| OCall0 (r,_), OCall0 (_,idx) -> OCall0 (r,idx)
+	| OCall1 (r,_,a), OCall1 (_,idx,_) -> OCall1 (r,idx,a)
+	| OCall2 (r,_,a,b), OCall2 (_,idx,_,_) -> OCall2 (r,idx,a,b)
+	| OCall3 (r,_,a,b,c), OCall3 (_,idx,_,_,_) -> OCall3 (r,idx,a,b,c)
+	| OCall4 (r,_,a,b,c,d), OCall4 (_,idx,_,_,_,_) -> OCall4 (r,idx,a,b,c,d)
+	| OCallN (r,_,pl), OCallN (_,idx,_) -> OCallN (r,idx,pl)
+	| OStaticClosure (r,_), OStaticClosure (_,idx) -> OStaticClosure (r,idx)
+	| OInstanceClosure (r,_,v), OInstanceClosure (_,idx,_) -> OInstanceClosure (r,idx,v)
+	| OGetGlobal (r,_), OGetGlobal (_,g) -> OGetGlobal (r,g)
+	| OSetGlobal (_,v), OSetGlobal (g,_) -> OSetGlobal (g,v)
+	| ODynGet (r,o,_), ODynGet (_,_,idx) -> ODynGet (r,o,idx)
+	| ODynSet (o,_,v), ODynSet (_,idx,_) -> ODynSet (o,idx,v)
+	| OType (r,_), OType (_,t) -> OType (r,t)
+	| _ -> raise Exit
+
+(* what [_optimize] reads of a register type *)
+let type_key t =
+	match t with
+	| HObj p | HStruct p ->
+		let b = Buffer.create 16 in
+		Buffer.add_char b (match t with HObj _ -> 'o' | _ -> 's');
+		let rec loop p =
+			(match p.psuper with None -> () | Some p -> loop p);
+			Array.iter (fun (_,_,t) -> Buffer.add_char b (match t with HPacked _ -> 'p' | _ -> '-')) p.pfields
+		in
+		loop p;
+		Buffer.contents b
+	| HFun (_,rt) | HMethod (_,rt) -> if is_dynamic rt then "fd" else "f"
+	| HAbstract _ -> "a"
+	| HDyn -> "d"
+	| _ -> "-"
+
+let cache_key f =
+	let code = Array.map (fun op -> if has_index op then (match op with
+		| OInt (r,_) -> OInt (r,0)
+		| OFloat (r,_) -> OFloat (r,0)
+		| OBytes (r,_) -> OBytes (r,0)
+		| OString (r,_) -> OString (r,0)
+		| OCall0 (r,_) -> OCall0 (r,0)
+		| OCall1 (r,_,a) -> OCall1 (r,0,a)
+		| OCall2 (r,_,a,b) -> OCall2 (r,0,a,b)
+		| OCall3 (r,_,a,b,c) -> OCall3 (r,0,a,b,c)
+		| OCall4 (r,_,a,b,c,d) -> OCall4 (r,0,a,b,c,d)
+		| OCallN (r,_,pl) -> OCallN (r,0,pl)
+		| OStaticClosure (r,_) -> OStaticClosure (r,0)
+		| OInstanceClosure (r,_,v) -> OInstanceClosure (r,0,v)
+		| OGetGlobal (r,_) -> OGetGlobal (r,0)
+		| OSetGlobal (_,v) -> OSetGlobal (0,v)
+		| ODynGet (r,o,_) -> ODynGet (r,o,0)
+		| ODynSet (o,_,v) -> ODynSet (o,0,v)
+		| OType (r,_) -> OType (r,HVoid)
+		| op -> op) else op
+	) f.code in
+	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> -1) in
+	Digest.string (Marshal.to_string (code,Array.map type_key f.regs,nargs) [Marshal.No_sharing])
+
+let optimize dump get_str (f:fundecl) =
+	let key = if dump then "" else cache_key f in
+	let cached = if dump then None else Mutex.protect opt_mutex (fun () -> Hashtbl.find_opt opt_cache key) in
+	let hit = (match cached with
+		| Some c when Array.length f.code = Array.length c.c_code ->
+			c.c_last_used <- !used_mark;
+			let code = Array.copy c.c_code in
+			(try
+				Array.iter (fun i -> Array.unsafe_set code i (patch_index (Array.unsafe_get code i) (Array.unsafe_get f.code i))) c.c_remap_indexes;
+				Some (remap_fun c.c_rctx { f with code = code } dump get_str code)
+			with Exit ->
+				None)
+		| _ -> None
+	) in
+	match hit with
+	| Some r -> r
+	| None ->
 	let old_code = if dump then Array.copy f.code else f.code in
-	try
-		let c = PMap.find hxf (!opt_cache) in
-		c.c_last_used <- !used_mark;
-		if Array.length f.code <> Array.length c.c_code then Globals.die "" __LOC__;
-		let code = c.c_code in
-		Array.iter (fun i ->
-			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
-			| OInt (r,_), OInt (_,idx) -> OInt (r,idx)
-			| OFloat (r,_), OFloat (_,idx) -> OFloat (r,idx)
-			| OBytes (r,_), OBytes (_,idx) -> OBytes (r,idx)
-			| OString (r,_), OString (_,idx) -> OString (r,idx)
-			| OCall0 (r,_), OCall0 (_,idx) -> OCall0 (r,idx)
-			| OCall1 (r,_,a), OCall1 (_,idx,_) -> OCall1 (r,idx,a)
-			| OCall2 (r,_,a,b), OCall2 (_,idx,_,_) -> OCall2 (r,idx,a,b)
-			| OCall3 (r,_,a,b,c), OCall3 (_,idx,_,_,_) -> OCall3 (r,idx,a,b,c)
-			| OCall4 (r,_,a,b,c,d), OCall4 (_,idx,_,_,_,_) -> OCall4 (r,idx,a,b,c,d)
-			| OCallN (r,_,pl), OCallN (_,idx,_) -> OCallN (r,idx,pl)
-			| OStaticClosure (r,_), OStaticClosure (_,idx) -> OStaticClosure (r,idx)
-			| OInstanceClosure (r,_,v), OInstanceClosure (_,idx,_) -> OInstanceClosure (r,idx,v)
-			| OGetGlobal (r,_), OGetGlobal (_,g) -> OGetGlobal (r,g)
-			| OSetGlobal (_,v), OSetGlobal (g,_) -> OSetGlobal (g,v)
-			| ODynGet (r,o,_), ODynGet (_,_,idx) -> ODynGet (r,o,idx)
-			| ODynSet (o,_,v), ODynSet (_,idx,_) -> ODynSet (o,idx,v)
-			| OType (r,_), OType (_,t) -> OType (r,t)
-			| _ -> Globals.die "" __LOC__) in
-			Array.unsafe_set code i op
-		) c.c_remap_indexes;
-		remap_fun c.c_rctx { f with code = code } dump get_str old_code
-	with Not_found ->
-		let rctx = _optimize f in
-		let old_ops = f.code in
-		let fopt = remap_fun rctx f dump get_str old_code in
-		Hashtbl.iter (fun _ b ->
-			b.bstate <- None;
-			if not dump then begin
-				b.bneed <- ISet.empty;
-				b.bneed_all <- None;
-			end;
-		) rctx.r_blocks_pos;
+	let rctx = _optimize f in
+	let old_ops = f.code in
+	let fopt = remap_fun rctx f dump get_str old_code in
+	Hashtbl.iter (fun _ b ->
+		b.bstate <- None;
+		if not dump then begin
+			b.bneed <- ISet.empty;
+			b.bneed_all <- None;
+		end;
+	) rctx.r_blocks_pos;
+	if not dump then begin
 		let idxs = DynArray.create() in
-		Array.iteri (fun i op ->
-			match op with
-			| OInt _ | OFloat _ | OBytes _ | OString _
-			| OCall0 _ | OCall1 _ | OCall2 _ | OCall3 _ | OCall4 _ | OCallN _ | OStaticClosure _
-			| OInstanceClosure _ | OGetGlobal _	| OSetGlobal _ | ODynGet _ | ODynSet _	| OType _ ->
-				DynArray.add idxs i
-			| _ -> ()
-		) old_ops;
-		(*opt_cache := PMap.add hxf {
-			c_code = old_ops;
+		Array.iteri (fun i op -> if has_index op then DynArray.add idxs i) old_ops;
+		let c = {
+			c_code = Array.copy old_ops;
 			c_rctx = rctx;
 			c_last_used = !used_mark;
 			c_remap_indexes = DynArray.to_array idxs;
-		} (!opt_cache);*)
-		fopt
+		} in
+		Mutex.protect opt_mutex (fun () -> Hashtbl.replace opt_cache key c)
+	end;
+	fopt
 
 let clean_cache() =
-	PMap.iter (fun k c ->
-		if !used_mark - c.c_last_used > 3 then opt_cache := PMap.remove k !opt_cache;
-	) (!opt_cache);
+	Hashtbl.filter_map_inplace (fun _ c -> if !used_mark - c.c_last_used > 3 then None else Some c) opt_cache;
 	incr used_mark
