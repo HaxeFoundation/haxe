@@ -76,9 +76,11 @@ and file = {
 	mutable f_module : path;
 	mutable f_time : float;
 	mutable f_decls : (string,TFingerprint.t) Hashtbl.t option;
-	(* the current declarations, in the current compilation *)
+	(* the current declarations, in the current compilation, and whether they
+	   are the ones stored (the file did not change) *)
 	mutable f_step : int;
 	mutable f_current : (string,TFingerprint.t) Hashtbl.t option;
+	mutable f_unchanged : bool;
 	(* the keys of the leaves of the file, shared by the edges *)
 	f_keys : (string,string) Hashtbl.t;
 }
@@ -157,7 +159,7 @@ let node g key =
 
 let file g path =
 	try Hashtbl.find g.files path with Not_found ->
-		let f = { f_path = path; f_module = ([],""); f_time = 0.; f_decls = None; f_step = -1; f_current = None; f_keys = Hashtbl.create 0 } in
+		let f = { f_path = path; f_module = ([],""); f_time = 0.; f_decls = None; f_step = -1; f_current = None; f_unchanged = false; f_keys = Hashtbl.create 0 } in
 		Hashtbl.add g.files path f;
 		f
 
@@ -482,7 +484,8 @@ let disabled = Sys.getenv_opt "HAXE_GRAPH" = Some "off"
 let current_decls v f =
 	if f.f_step <> v.v_graph.step then begin
 		f.f_step <- v.v_graph.step;
-		f.f_current <- v.v_decls f
+		f.f_current <- v.v_decls f;
+		f.f_unchanged <- (match f.f_current,f.f_decls with Some h,Some h' -> h == h' | _ -> false)
 	end;
 	f.f_current
 
@@ -545,7 +548,10 @@ and valid_computation v n =
 and valid_edge v e =
 	let b = match e with
 		| Leaf (f,key,a,b) ->
-			same_fp (match current_decls v f with Some h -> Hashtbl.find_opt h key | None -> None) a b
+			(* the leaves of a file are the ones of the computations typed from it:
+			   built again when it changes *)
+			let current = current_decls v f in
+			f.f_unchanged || same_fp (match current with Some h -> Hashtbl.find_opt h key | None -> None) a b
 		| Lookup (l,seen) ->
 			current_lookup v l = seen
 		| Node (n,a,b) ->
