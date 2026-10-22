@@ -1665,6 +1665,15 @@ signatures, enum constructors, typedef targets). Cycles in the graph are
 handled like module cycles (valid results under assumption are forgotten
 when the module turns out invalid).
 
+The validation visits every computation once per compilation (pull). Its cost
+per edge is kept low: the nodes known to have changed are only looked up when
+there are some, and a lookup keeps the file it found until a directory of the
+class paths, or the class paths themselves, changed (the graph's directory
+epoch, from the changed directories the server computes anyway). hide, a
+body edit: 0.09 s for the 1629 modules traced, instead of 0.2–0.28 s. A
+push-based validation (from the changed declarations to their readers) would
+make it proportional to the change.
+
 The signature a field declares is a computation of its own (`declared sig`,
 in `init_field`), which reads the declaration without its body; finding a
 field by name reads its signature, not finding it reads that the class has
@@ -2321,6 +2330,10 @@ fingerprint, and the fragment is generated again.
 - hide, a body edit in a view: generation 0.85 s before, 0.5–0.65 s now
   (merging the source maps is most of what is left); Heaps (no source map):
   0.18 s before, 0.09–0.14 s.
+- The transcoded mappings of a fragment (when the indices of its sources
+  are not only shifted) are kept with the indices they were encoded for, and
+  reused while they are the same: hide, merging the source maps takes 0.045 s
+  instead of 0.18 s, the generation 0.2–0.3 s.
 
 ---
 
