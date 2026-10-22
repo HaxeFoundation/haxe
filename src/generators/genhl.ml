@@ -115,7 +115,7 @@ type context = {
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
-	mutable cached_types : (string list, ttype) PMap.t;
+	cached_types : (string list, ttype) Hashtbl.t;
 	mutable m : method_context;
 	mutable anons_cache : (tanon, ttype) PMap.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
@@ -596,14 +596,14 @@ and class_type ?(tref=None) ctx c pl statics =
 	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
 	try
-		PMap.find key_path ctx.cached_types
+		Hashtbl.find ctx.cached_types key_path
 	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let vp = {
 			vfields = [||];
 			vindex = PMap.empty;
 		} in
 		let t = HVirtual vp in
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		let rec loop c =
 			let rec concat_uniq fields pfields =
 				match pfields with
@@ -640,7 +640,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		| None -> ()
 		| Some r -> r := Some t);
 		ctx.ct_depth <- ctx.ct_depth + 1;
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		if c.cl_path = ([],"Array") then die "" __LOC__;
 		if c == ctx.base_class then begin
 			if statics then die "" __LOC__;
@@ -758,7 +758,7 @@ and class_type ?(tref=None) ctx c pl statics =
 and enum_type ?(tref=None) ctx e =
 	let key_path = snd e.e_path :: fst e.e_path in
 	try
-		PMap.find key_path ctx.cached_types
+		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
@@ -771,7 +771,7 @@ and enum_type ?(tref=None) ctx e =
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
@@ -787,7 +787,7 @@ and enum_type ?(tref=None) ctx e =
 and enum_class ctx e =
 	let key_path = ("$" ^ snd e.e_path) :: fst e.e_path in
 	try
-		PMap.find key_path ctx.cached_types
+		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
 		let pname = s_type_path (List.tl key_path, List.hd key_path) in
 		let p = {
@@ -805,7 +805,7 @@ and enum_class ctx e =
 			pbindings = [];
 		} in
 		let t = HObj p in
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		let psuper = (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__) in
 		let start_field = psuper.pnfields in
 		let fa = DynArray.create() in
@@ -881,7 +881,7 @@ and resolve_class_global ctx cpath =
 	lookup ctx.cglobals ("$" ^ cpath) (fun() -> die "" __LOC__)
 
 and resolve_type ctx path =
-	PMap.find path ctx.cached_types
+	Hashtbl.find ctx.cached_types path
 
 and alloc_std ctx name args ret =
 	let lib = "std" in
@@ -4236,7 +4236,7 @@ let create_context com =
 		cconstants = new_lookup();
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
-		cached_types = PMap.empty;
+		cached_types = Hashtbl.create 0;
 		cached_tuples = PMap.empty;
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
