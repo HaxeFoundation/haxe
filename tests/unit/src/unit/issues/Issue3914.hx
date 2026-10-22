@@ -2,7 +2,8 @@ package unit.issues;
 
 class Issue3914 extends Test {
 	#if macro
-	static var storedExpr:haxe.macro.Expr;
+	// read by another expansion: macro statics are reset for every expansion
+	@:persistent static var storedExpr:haxe.macro.Expr;
 	#end
 
 	function test() {

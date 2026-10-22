@@ -166,6 +166,8 @@ module PrototypeBuilder = struct
 			pparent = pctx.parent;
 			pkind = pctx.kind;
 			pvalue = vnull;
+			pepoch = 0;
+			pinit = [];
 		} in
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
@@ -214,9 +216,18 @@ let create_static_prototype ctx mt =
 				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_val vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				let persistent = is_persistent cf in
+				let field_path = s_type_path path ^ "." ^ cf.cf_name in
 				DynArray.add delays (persistent,(fun proto ->
-					proto.pfields.(i) <- (match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull)
+					let old = DomainLocal.get DepRecord.current_static in
+					DomainLocal.set DepRecord.current_static (Some field_path);
+					proto.pfields.(i) <- Std.finally (fun () -> DomainLocal.set DepRecord.current_static old) (fun () ->
+						match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull
+					) ()
 				))
+			| Var _,None when is_physical_field cf ->
+				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
+				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
+				DynArray.add delays (is_persistent cf,(fun proto -> proto.pfields.(i) <- vnull))
 			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
 			|  _ ->
@@ -390,6 +401,8 @@ let add_types ctx types ready =
 			DynArray.add fl_static_init (proto,delays);
 			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
 			ctx.static_prototypes#add_init proto non_persistent_delays;
+			(* static isolation is for macros only, not for the interpreted program *)
+			if ctx.is_macro then proto.pinit <- non_persistent_delays;
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init

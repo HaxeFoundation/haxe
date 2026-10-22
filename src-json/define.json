@@ -615,6 +615,11 @@
 		"doc": "Warn when a macro reads the metadata of a class that has build macros without having built it with `Context.buildType`: it only sees the declared metadata."
 	},
 	{
+		"name": "MacroIsolation",
+		"define": "macro-isolation",
+		"doc": "Reset the static variables of macros for every expansion (Haxe 6 semantics, docs/incremental-compilation.md phase 7; temporary, until the corpus is migrated)."
+	},
+	{
 		"name": "MacroTimes",
 		"define": "times.macro",
 		"deprecatedDefine": "macro-times",

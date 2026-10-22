@@ -1,8 +1,7 @@
-# A build macro records classes in a @:persistent registry, reported by an
-# onAfterTyping callback. When a class stops being compiled, the warm
-# compilation still has it in the registry. Haxe 6 restricts @:persistent to
-# initialization values and provides MacroArray/MacroTypeData (plan phase 7).
-@known-failure @:persistent registries keep entries of classes that are no longer compiled
+# A build macro records classes in a registry, reported by an onAfterTyping
+# callback. A @:persistent registry kept the entries of classes that are no
+# longer compiled; a haxe.macro.TypeCache gives the types of the compilation
+# (plan phase 7, item 5).
 @args --macro Macro.init()
 === initial
 @expect-compiler-output registry: A
@@ -21,22 +20,19 @@ class A implements Registered {
 }
 --- Macro.hx
 import haxe.macro.Context;
+import haxe.macro.TypeCache;
 
 class Macro {
-	@:persistent static var seen:Array<String> = [];
+	static var seen = new TypeCache<String>();
 
 	public static function init() {
 		Context.onAfterTyping(function(_) {
-			var l = seen.copy();
-			l.sort(Reflect.compare);
-			Sys.println("registry: " + l.join(","));
+			Sys.println("registry: " + [for (e in seen.all()) e.value].join(","));
 		});
 	}
 
-	public static function register() {
-		var name = Context.getLocalClass().get().name;
-		if (!seen.contains(name))
-			seen.push(name);
+	public static function register():Array<haxe.macro.Expr.Field> {
+		seen.setCurrent(Context.getLocalClass().get().name);
 		return null;
 	}
 }

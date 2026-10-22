@@ -151,3 +151,23 @@ let capture f =
 			let old = DomainLocal.get current in
 			DomainLocal.set current c;
 			Std.finally (fun () -> DomainLocal.set current old) f ())
+
+(* Runs [f] and gives the dependencies it recorded (recorded for the current
+   computation too), to record them again where the result is reused. *)
+let collect f =
+	match DomainLocal.get current with
+	| Some c when !enabled ->
+		let c' = { c with c_deps = DepTbl.create 8 } in
+		DomainLocal.set current (Some c');
+		let r = Std.finally (fun () -> DomainLocal.set current (Some c)) f () in
+		let deps = DepTbl.fold (fun d () acc -> d :: acc) c'.c_deps [] in
+		List.iter add deps;
+		r,deps
+	| _ ->
+		f (),[]
+
+let replay deps = List.iter add deps
+
+(* The static variable whose initializer runs (macro context): the identity
+   of a [haxe.macro.TypeCache] (phase 7). *)
+let current_static : string option DomainLocal.t = DomainLocal.make (fun () -> None)

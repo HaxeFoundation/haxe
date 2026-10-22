@@ -50,6 +50,8 @@ type 'value compiler_api = {
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> 'value;
+	(* whether a build macro of the local type runs *)
+	is_building : unit -> bool;
 	(* docs/incremental-compilation.md, phase 3: a macro reading a class whose
 	   build is not finished (a cycle error unless it is the class being built),
 	   whether the expansion sees a class's complete metadata, a macro reading
@@ -117,6 +119,7 @@ let null_api () = {
 	get_local_using = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
 	get_local_vars = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
 	get_build_fields = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	is_building = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
 	partially_built_class_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	class_built_by_expansion = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	field_body_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
@@ -287,6 +290,10 @@ let with_current_api api f =
 		current_field_body_read := c;
 		current_declared_meta_read := d
 	) f ()
+
+(* Typing is done: the onAfterTyping callbacks run (whole-program reads,
+   such as [TypeCache.all], are allowed). *)
+let typing_done = ref false
 
 (* The classes whose build the running macro expansion forced. *)
 let expansion_built : tclass list ref = ref []
@@ -1941,6 +1948,27 @@ let rec make_const e =
 
 **)
 
+(* haxe.macro.TypeCache (docs/incremental-compilation.md, phase 7, item 5): by
+   cache identity and type path, the value given by the build of the type
+   (with the module of the type then: a later version of the module, typed
+   again, must give it again), and the values computed in this compilation
+   with the dependencies of their computation *)
+type type_cache_entry = {
+	tc_module : module_def;
+	tc_type : module_type;
+	tc_value : value;
+	tc_step : int;
+}
+let type_caches : (string,(string,type_cache_entry) Hashtbl.t) Hashtbl.t = Hashtbl.create 0
+let type_caches_computed : (string * string,int * value * DepRecord.dep list) Hashtbl.t = Hashtbl.create 0
+let type_caches_mutex = Mutex.create ()
+
+let type_cache id =
+	try Hashtbl.find type_caches id with Not_found ->
+		let h = Hashtbl.create 0 in
+		Hashtbl.add type_caches id h;
+		h
+
 let macro_api ccom get_api =
 	let decode_type v =
 		try decode_type v
@@ -2335,6 +2363,79 @@ let macro_api ccom get_api =
 		"follow", vfun2 (fun v once ->
 			let t = decode_type v in
 			encode_type (if decode_opt_bool once then follow_once t else follow t)
+		);
+		"type_cache_id", vfun0 (fun () ->
+			match DomainLocal.get DepRecord.current_static with
+			| Some s -> encode_string s
+			| None -> vnull
+		);
+		"type_cache_set", vfun2 (fun id v ->
+			let api = get_api() in
+			if not (api.is_building ()) then api.exc_string "TypeCache.setCurrent can only be called by a build macro";
+			let mt = match api.get_local_type () with
+				| Some t -> (try module_type_of_type t with Exit -> api.exc_string "TypeCache.setCurrent: no type is being built")
+				| None -> api.exc_string "TypeCache.setCurrent: no type is being built"
+			in
+			let infos = t_infos mt in
+			let path = s_type_path infos.mt_path in
+			let step = (ccom()).part_scope.compilation_step in
+			Mutex.protect type_caches_mutex (fun () ->
+				let h = type_cache (decode_string id) in
+				begin match Hashtbl.find_opt h path with
+				| Some e when e.tc_module == infos.mt_module && e.tc_step = step -> api.exc_string ("TypeCache.setCurrent called twice for " ^ path)
+				| _ -> ()
+				end;
+				Hashtbl.replace h path { tc_module = infos.mt_module; tc_type = mt; tc_value = v; tc_step = step }
+			);
+			vnull
+		);
+		"type_cache_get", vfun2 (fun id t ->
+			let api = get_api() in
+			let mt = try module_type_of_type (decode_type t) with Exit -> api.exc_string "TypeCache: not a type with a path" in
+			(* the value is given by the build of the type *)
+			begin match mt with
+			| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
+				c.cl_build_header ();
+				begin match TAccess.build c with
+				| Built -> ()
+				| _ -> !current_partially_built_class_read c
+				end
+			| _ -> ()
+			end;
+			let infos = t_infos mt in
+			let path = s_type_path infos.mt_path in
+			(* until the computation of the value is a node of its own, its
+			   readers depend on the module of the type *)
+			DepRecord.record_type infos.mt_path "members";
+			DepRecord.record (s_type_path infos.mt_module.m_path) "generic";
+			let id = decode_string id in
+			let step = (ccom()).part_scope.compilation_step in
+			Mutex.protect type_caches_mutex (fun () ->
+				match Hashtbl.find_opt (type_cache id) path with
+				| Some e when e.tc_module == infos.mt_module -> Some e.tc_value
+				| _ ->
+					match Hashtbl.find_opt type_caches_computed (id,path) with
+					| Some (step',v,deps) when step' = step -> DepRecord.replay deps; Some v
+					| _ -> None
+			) |> (function Some v -> encode_obj ["value",v] | None -> vnull)
+		);
+		"type_cache_compute", vfun3 (fun id t f ->
+			let mt = try module_type_of_type (decode_type t) with Exit -> (get_api()).exc_string "TypeCache: not a type with a path" in
+			let path = s_type_path (t_infos mt).mt_path in
+			let f = prepare_callback f 1 in
+			let v,deps = DepRecord.collect (fun () -> f [t]) in
+			let step = (ccom()).part_scope.compilation_step in
+			Mutex.protect type_caches_mutex (fun () -> Hashtbl.replace type_caches_computed (decode_string id,path) (step,v,deps));
+			v
+		);
+		"type_cache_all", vfun1 (fun id ->
+			let com = (get_api()).get_com () in
+			if not !typing_done && com.stage < CTypingDone then (get_api()).exc_string "TypeCache.all can only be called once typing is done (onAfterTyping, onGenerate)";
+			let l = Mutex.protect type_caches_mutex (fun () -> Hashtbl.fold (fun path e acc -> (path,e) :: acc) (type_cache (decode_string id)) []) in
+			(* the types of this compilation *)
+			let l = List.filter (fun (_,e) -> match com.module_lut#find_opt e.tc_module.m_path with Some m -> m == e.tc_module | None -> false) l in
+			let l = List.sort (fun (p1,_) (p2,_) -> compare p1 p2) l in
+			encode_array (List.map (fun (_,e) -> encode_obj ["type",encode_type (type_of_module_type e.tc_type);"value",e.tc_value]) l)
 		);
 		"build_type", vfun1 (fun v ->
 			let rec loop t = match t with

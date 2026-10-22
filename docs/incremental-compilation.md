@@ -2107,6 +2107,34 @@ cycles are errors (§ phase 3.3).
 Isolation makes expansions independent of each other, which is the
 prerequisite for running them in parallel (§4b, item 3).
 
+**Status: static isolation and `TypeCache` (first step).**
+- Isolation (item 4), with `-D macro-isolation` until the corpus is migrated,
+  then by default: every expansion (`EvalMain.call_path` in the macro
+  interpreter, and every callback of a macro such as `onAfterTyping`) gets an
+  epoch of its own; a class's static variables are initialized again
+  (initializers and `__init__`, `null` without initializer) on the first
+  access of an expansion to one of them (`EvalValue.fresh_statics`, from the
+  JIT and the reflection paths), and the classes an expansion initialized
+  again get their previous state back when it ends, so a nested expansion
+  leaves its caller's state as it was. `@:persistent` statics are not reset.
+  The interpreted program (`--interp`) is not affected. Accesses to statics
+  already wait for the order of expansions (speculative macros), so they do
+  not race.
+- `haxe.macro.TypeCache<T>` (item 5): identity from the static variable whose
+  initializer creates it; values by type path with the module of the type
+  (a module typed again must give them again), `get` builds the type and
+  records a dependency on its members and its module, `compute` is
+  memoized for the compilation and its dependencies are recorded again for
+  each reader, `all()` only once typing is done (`onAfterTyping`).
+- The values are not frozen yet, and `-D macro-state-check` is to do.
+- `tests/unit`: the tests that kept state between expansions in ordinary
+  statics use `@:persistent` (or `Context.getType` for a type defined once);
+  `cases/macros/type-cache.hxtest`; `persistent-registry` and
+  `macro-static-counter` pass.
+- Heaps and hide give the same output with isolation: their registries are
+  `@:persistent` already, which becomes a cache; `COMPONENTS` (domkit) and
+  `SERIALIZABLES` (hxbit) move to `TypeCache` (item 9).
+
 Exit criterion: Heaps, hxbit, domkit and hide pass history replay with static
 isolation enabled, and at most a handful of identified and justified volatile
 macros.

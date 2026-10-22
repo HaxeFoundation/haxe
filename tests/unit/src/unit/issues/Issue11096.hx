@@ -12,6 +12,8 @@ private class Macro {
 class Issue11096 extends Test {
 	function test() {
 		eq("null", Macro.foo(5));
-		eq("5", Macro.foo(2));
+		// Haxe 6: the statics of macros, local ones included, are reset for
+		// every expansion (docs/incremental-compilation.md, phase 7)
+		eq(#if macro_isolation "null" #else "5" #end, Macro.foo(2));
 	}
 }

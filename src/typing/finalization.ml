@@ -79,6 +79,7 @@ let finalize ctx =
 		| [] ->
 			()
 		| fl ->
+			MacroApi.typing_done := true;
 			let rec loop handled_types =
 				let all_types = ctx.com.module_lut#fold (fun _ m acc -> m.m_types @ acc) [] in
 				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with

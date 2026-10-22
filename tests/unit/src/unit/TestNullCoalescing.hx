@@ -358,7 +358,8 @@ class TestNullCoalescing extends Test {
 		#end
 	}
 
-	static var mutI = 0;
+	// counted across expansions: macro statics are reset for every expansion
+	@:persistent static var mutI = 0;
 
 	static function getObj<T>():{field:Null<T>} {
 		return {field: null}

@@ -1,0 +1,75 @@
+# haxe.macro.TypeCache (plan phase 7, item 5): a value given by the build of a
+# type, read by an expression macro of another module, a value computed from a
+# type without build, and the values of the compilation after typing.
+@args --macro Macro.init()
+=== initial
+@expect-output A:2 B:1 C:computed
+@expect-compiler-output all: A=2,B=1
+--- Macro.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+import haxe.macro.TypeCache;
+
+class Macro {
+	#if macro
+	static var infos = new TypeCache<{name:String, fields:Int}>(t -> {name: "computed", fields: -1});
+
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		infos.setCurrent({name: Context.getLocalClass().get().name, fields: fields.length});
+		return null;
+	}
+
+	#end
+
+	public static macro function info(path:String):Expr {
+		var i = infos.getByPath(path);
+		return macro $v{i.fields < 0 ? i.name : i.fields + ""};
+	}
+
+	#if macro
+	public static function init() {
+		Context.onAfterTyping(_ -> {
+			Sys.println("all: " + [for (e in infos.all()) e.value.name + "=" + e.value.fields].join(","));
+		});
+	}
+	#end
+}
+--- A.hx
+@:build(Macro.build())
+class A {
+	var x:Int;
+	var y:Int;
+}
+--- B.hx
+@:build(Macro.build())
+class B {
+	var z:Int;
+}
+--- C.hx
+class C {}
+--- Main.hx
+class Main {
+	static function main() {
+		trace("A:" + Macro.info("A") + " B:" + Macro.info("B") + " C:" + Macro.info("C"));
+	}
+}
+
+=== a field added to A
+@expect-output A:3 B:1 C:computed
+@expect-compiler-output all: A=3,B=1
+--- A.hx
+@:build(Macro.build())
+class A {
+	var x:Int;
+	var y:Int;
+	var w:Int;
+}
+
+=== B no longer built
+@expect-output A:3 B:computed C:computed
+@expect-compiler-output all: A=3
+--- B.hx
+class B {
+	var z:Int;
+}

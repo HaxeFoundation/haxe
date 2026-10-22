@@ -7,8 +7,6 @@ import haxe.macro.Type;
 using haxe.macro.Tools;
 
 class Issue3183Macro {
-	static var tupleMap:Map<Int, TypePath> = new Map();
-
 	macro static public function buildTuple():ComplexType {
 		switch (Context.getLocalType()) {
 			case TInst(c, args):
@@ -22,10 +20,15 @@ class Issue3183Macro {
 						return null;
 					}
 				}
-				if (!tupleMap.exists(arity)) {
-					tupleMap[arity] = buildTupleType(c.get(), Context.getBuildFields(), arity);
-				}
-				var ct = tupleMap[arity];
+				// the tuple type of an arity is defined once (macro statics are reset
+				// for every expansion)
+				var cl = c.get();
+				var name = cl.name + "_" + arity;
+				var defined = try {
+					Context.getType(cl.pack.concat([name]).join("."));
+					true;
+				} catch (_:Dynamic) false;
+				var ct = defined ? {pack: cl.pack, name: name, params: [], sub: null} : buildTupleType(cl, Context.getBuildFields(), arity);
 				ct.params = [
 					for (t in args) {
 						switch (t) {

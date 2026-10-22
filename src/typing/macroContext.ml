@@ -230,6 +230,7 @@ let make_macro_com_api com mcom p =
 		get_build_fields = (fun() ->
 			bad_stage ()
 		);
+		is_building = (fun () -> false);
 		partially_built_class_read = (fun _ -> ());
 		class_built_by_expansion = (fun _ -> true);
 		field_body_read = (fun _ -> ());
@@ -488,6 +489,7 @@ let make_macro_api ctx mctx p =
 			| None -> Interp.vnull
 			| Some (_,_,fields) -> Interp.encode_array (List.map Interp.encode_field fields)
 		);
+		MacroApi.is_building = (fun () -> ctx.c.get_build_infos() <> None);
 		MacroApi.define_type = (fun v mdep ->
 			let cttype = mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr") in
 			let mctx = (match ctx.g.macros with None -> die "" __LOC__ | Some (_,mctx) -> mctx) in
@@ -717,6 +719,7 @@ and flush_macro_context mint mctx =
 
 let create_macro_interp api mctx =
 	let com2 = mctx.com in
+	EvalValue.isolation := Common.defined com2 Define.MacroIsolation;
 	let mint, init = (match !macro_interp_cache with
 		| None ->
 			let mint = Interp.create com2 api true (Args.to_raw_args com2.parsed_args) in

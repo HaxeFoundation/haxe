@@ -181,7 +181,7 @@ let call_path ctx path f vl api =
 			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
-		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
+		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () -> (if ctx.is_macro then with_expansion else (fun f -> f ())) @@ fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in

@@ -267,6 +267,7 @@ let do_type com mctx actx display_file_dot_path =
 	(* the dependencies are dumped with the fingerprints, and kept by the
 	   compilation server (docs/incremental-compilation.md, phase 6) *)
 	DepRecord.reset ();
+	MacroApi.typing_done := false;
 	DepRecord.enabled := Common.defined com Define.DumpFingerprints || (com.sctx.is_server && Sys.getenv_opt "HAXE_RECORD" <> Some "off");
 	TypeloadParse.record_fingerprints := !DepRecord.enabled;
 	CommonCache.maybe_add_context_sign cs com "before_init_macros";

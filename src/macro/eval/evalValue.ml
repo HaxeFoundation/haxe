@@ -240,6 +240,11 @@ and vprototype = {
 	pkind : vprototype_kind;
 	(* The value of this prototype, i.e. VPrototype self. *)
 	mutable pvalue : value;
+	(* Static isolation (docs/incremental-compilation.md, phase 7): the
+	   expansion for which the static variables were last initialized, and
+	   their initializers (variables without one are set to null). *)
+	mutable pepoch : int;
+	mutable pinit : (vprototype -> unit) list;
 }
 
 and vinstance_kind =
@@ -413,6 +418,49 @@ end)
    running out of the order of the tasks typing in parallel waits for it there
    (see [Claims.speculating]). *)
 let on_shared_state = ref (fun () -> ())
+
+(* Static isolation (docs/incremental-compilation.md, phase 7, item 4): the
+   static variables of the macro context start from their initial value in
+   every expansion, and an expansion's writes are discarded when it ends (so
+   that a nested expansion leaves its caller's state as it was). Statics are
+   initialized again lazily, on the first access in an expansion. *)
+let isolation = ref false
+let epoch_counter = Atomic.make 0
+let current_epoch : int DomainLocal.t = DomainLocal.make (fun () -> 0)
+(* the prototypes initialized again by the current expansion, with their previous state *)
+let restore_log : (vprototype * value array * int) list DomainLocal.t = DomainLocal.make (fun () -> [])
+
+let rec fresh_statics proto =
+	if !isolation then begin
+		if proto.pinit <> [] then begin
+			let e = DomainLocal.get current_epoch in
+			if proto.pepoch <> e then begin
+				DomainLocal.set restore_log ((proto,Array.copy proto.pfields,proto.pepoch) :: DomainLocal.get restore_log);
+				proto.pepoch <- e;
+				List.iter (fun f -> f proto) proto.pinit
+			end
+		end;
+		match proto.pparent with
+		| Some p -> fresh_statics p
+		| None -> ()
+	end
+
+(* Runs [f] as an expansion of its own. *)
+let with_expansion f =
+	if not !isolation then f ()
+	else begin
+		let old_epoch = DomainLocal.get current_epoch and old_log = DomainLocal.get restore_log in
+		DomainLocal.set current_epoch (Atomic.fetch_and_add epoch_counter 1 + 1);
+		DomainLocal.set restore_log [];
+		Std.finally (fun () ->
+			List.iter (fun (proto,fields,epoch) ->
+				Array.blit fields 0 proto.pfields 0 (Array.length fields);
+				proto.pepoch <- epoch
+			) (DomainLocal.get restore_log);
+			DomainLocal.set current_epoch old_epoch;
+			DomainLocal.set restore_log old_log
+		) f ()
+	end
 
 let vnull = VNull
 let vtrue = VTrue

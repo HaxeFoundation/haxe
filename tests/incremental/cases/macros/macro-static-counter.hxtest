@@ -2,7 +2,7 @@
 # expansions ran in the current compilation, so a warm compilation that does
 # not re-expand everything differs from a cold one. Haxe 6 resets macro statics
 # for every expansion (plan phase 7, item 4).
-@known-failure macro static state is shared between expansions and compilations
+@args -D macro-isolation
 === initial
 @expect-success
 --- Main.hx

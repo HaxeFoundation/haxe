@@ -594,6 +594,7 @@ let emit_field_read_write exec1 p1 name exec2 fop prefix env =
 		instance_field_read_write vi i exec2 fop prefix env
 	| VPrototype proto ->
 		!on_shared_state ();
+		fresh_statics proto;
 		let i = get_proto_field_index proto name in
 		emit_proto_field_read_write proto i exec2 fop prefix env
 	| _ ->

@@ -1,5 +1,5 @@
 # Plan phase 7, item 4: macro statics are reset for every expansion.
-@known-failure Haxe 6 semantics (plan phase 7)
+@args -D macro-isolation
 === initial
 @expect-output 0 0
 --- Main.hx
