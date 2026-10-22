@@ -80,32 +80,24 @@ let encode_mapping smap pos =
 
 let noop () = ()
 
-let add_mapping smap pos =
-	if (Pos.min pos) < 0 then noop else
+(* The index of [file_name] in the sources (in their order of first use), and its lines. *)
+let source_file smap file_name =
+	match smap.last_file with
+	| Some (name,file,lexer_file) when name == file_name -> file,lexer_file
+	| _ ->
+		let file = try
+			Hashtbl.find smap.sources_hash file_name
+		with Not_found ->
+			let length = DynArray.length smap.sources in
+			Hashtbl.replace smap.sources_hash file_name length;
+			DynArray.add smap.sources file_name;
+			length
+		in
+		let lexer_file = Lexer.find_file file_name in
+		smap.last_file <- Some (file_name,file,lexer_file);
+		file,lexer_file
 
-	let file_name = Pos.file pos in
-	let file,lexer_file = match smap.last_file with
-		| Some (name,file,lexer_file) when name == file_name -> file,lexer_file
-		| _ ->
-			let file = try
-				Hashtbl.find smap.sources_hash file_name
-			with Not_found ->
-				let length = DynArray.length smap.sources in
-				Hashtbl.replace smap.sources_hash file_name length;
-				DynArray.add smap.sources file_name;
-				length
-			in
-			let lexer_file = Lexer.find_file file_name in
-			smap.last_file <- Some (file_name,file,lexer_file);
-			file,lexer_file
-	in
-
-	let pos =
-		let line, col = Lexer.find_line (Pos.min pos) lexer_file in
-		let line = line - 1 in
-		{ file = file; line = line; col = col }
-	in
-
+let add_source_mapping smap pos =
 	let last = smap.source_last_pos in
 	if last.file <> pos.file || last.line <> pos.line || last.col <> pos.col then begin
 		let old_current_expr = smap.current_expr in
@@ -115,25 +107,179 @@ let add_mapping smap pos =
 	end else
 		noop
 
+let add_mapping smap pos =
+	if (Pos.min pos) < 0 then noop else begin
+		let file,lexer_file = source_file smap (Pos.file pos) in
+		let line, col = Lexer.find_line (Pos.min pos) lexer_file in
+		add_source_mapping smap { file = file; line = line - 1; col = col }
+	end
+
 let add_mapping smap e =
 	Option.map_default (fun smap -> add_mapping smap e.epos) noop smap
 
+(* The text [str] from [from] to [upto] is output. *)
+let handle_newlines_sub smap str from upto =
+	let rec loop from =
+		match String.index_from_opt str from '\n' with
+		| Some i when i < upto ->
+			Buffer.add_char smap.mappings ';';
+			smap.output_last_col <- 0;
+			smap.output_current_col <- 0;
+			smap.print_comma <- false;
+			Option.may (encode_mapping smap) smap.current_expr;
+			loop (i + 1)
+		| _ ->
+			smap.output_current_col <- smap.output_current_col + (upto - from);
+	in
+	loop from
+
 let handle_newlines smap str =
-	Option.may (fun smap ->
-		let rec loop from =
-			match String.index_from_opt str from '\n' with
-			| Some i ->
-				Buffer.add_char smap.mappings ';';
-				smap.output_last_col <- 0;
-				smap.output_current_col <- 0;
-				smap.print_comma <- false;
-				Option.may (encode_mapping smap) smap.current_expr;
-				loop (i + 1)
-			| None ->
-				smap.output_current_col <- smap.output_current_col + (String.length str - from);
-		in
-		loop 0
-	) smap
+	Option.may (fun smap -> handle_newlines_sub smap str 0 (String.length str)) smap
+
+let create () = {
+	source_last_pos = { file = 0; line = 0; col = 0};
+	print_comma = false;
+	output_last_col = 0;
+	output_current_col = 0;
+	sources = DynArray.create();
+	sources_hash = Hashtbl.create 0;
+	mappings = Buffer.create 16;
+	current_expr = None;
+	last_file = None;
+}
+
+(* The mappings of a fragment, encoded from an empty state with its own sources. *)
+type encoded_fragment = {
+	ef_mappings : string;
+	ef_sources : string array;
+	(* the final state *)
+	ef_last_pos : sourcemap_pos option;
+	ef_output_last_col : int;
+	ef_output_current_col : int;
+	ef_print_comma : bool;
+	ef_has_newline : bool;
+}
+
+let encoded_fragment smap = {
+	ef_mappings = Buffer.contents smap.mappings;
+	ef_sources = DynArray.to_array smap.sources;
+	ef_last_pos = (if DynArray.length smap.sources = 0 then None else Some smap.source_last_pos);
+	ef_output_last_col = smap.output_last_col;
+	ef_output_current_col = smap.output_current_col;
+	ef_print_comma = smap.print_comma;
+	ef_has_newline = Buffer.length smap.mappings > 0 && String.contains (Buffer.contents smap.mappings) ';';
+}
+
+let decode_vlq s i =
+	let rec loop i shift acc =
+		let c = String.unsafe_get s i in
+		let digit = String.index base64_chars c in
+		let acc = acc lor ((digit land 31) lsl shift) in
+		if digit land 32 <> 0 then loop (i + 1) (shift + 5) acc
+		else i + 1,(if acc land 1 = 1 then - (acc lsr 1) else acc lsr 1)
+	in
+	loop i 0 0
+
+(* Puts the mappings of a fragment, whose text was just output, in [smap]
+   (the state before the text is [col0], [last_col0], [comma0]): the
+   encoded mappings are transcoded, the indices of their sources becoming
+   those of [smap], and the first one encoded relatively to the previous
+   mapping. Only when the state is the one of the fragment's start (no
+   current expression, the first mapping not the same position as the
+   previous one, which would not have been output): false otherwise, and
+   nothing done. *)
+let splice_fragment smap ef col0 last_col0 comma0 =
+	if smap.current_expr <> None then false
+	else if ef.ef_last_pos = None then begin
+		(* no mapping: only newlines and columns *)
+		if ef.ef_has_newline then begin
+			Buffer.add_string smap.mappings ef.ef_mappings;
+			smap.output_last_col <- ef.ef_output_last_col;
+			smap.output_current_col <- ef.ef_output_current_col;
+			smap.print_comma <- ef.ef_print_comma
+		end else
+			smap.output_current_col <- col0 + ef.ef_output_current_col;
+		true
+	end else begin
+		let m = ef.ef_mappings in
+		let len = String.length m in
+		(* the leading newlines, then the first mapping *)
+		let i = ref 0 in
+		while !i < len && m.[!i] = ';' do incr i done;
+		let newlines = !i in
+		let i1,dcol = decode_vlq m !i in
+		let i2,dfile = decode_vlq m i1 in
+		let i3,dline = decode_vlq m i2 in
+		let i4,dscol = decode_vlq m i3 in
+		let index name = try Some (Hashtbl.find smap.sources_hash name) with Not_found -> None in
+		let first_file = match index ef.ef_sources.(dfile) with Some i -> i | None -> DynArray.length smap.sources in
+		let last = smap.source_last_pos in
+		if last.file = first_file && last.line = dline && last.col = dscol then false
+		else begin
+			(* the sources, in their order of first use *)
+			let globals = Array.map (fun name -> match index name with
+				| Some i -> i
+				| None ->
+					let i = DynArray.length smap.sources in
+					Hashtbl.replace smap.sources_hash name i;
+					DynArray.add smap.sources name;
+					i
+			) ef.ef_sources in
+			smap.last_file <- None;
+			(* the state where the first mapping is encoded *)
+			for _ = 1 to newlines do Buffer.add_char smap.mappings ';' done;
+			let col = if newlines = 0 then col0 + dcol else dcol in
+			smap.output_last_col <- (if newlines = 0 then last_col0 else 0);
+			smap.print_comma <- (if newlines = 0 then comma0 else false);
+			smap.output_current_col <- col;
+			encode_mapping smap { file = globals.(dfile); line = dline; col = dscol };
+			(* the others: the same deltas, but the one of their source *)
+			let b = smap.mappings in
+			let add_vlq number =
+				let vlq = if number < 0 then ((-number) lsl 1) + 1 else number lsl 1 in
+				let rec loop vlq =
+					let digit = vlq land 31 and next = vlq asr 5 in
+					Buffer.add_char b (String.unsafe_get base64_chars (if next > 0 then digit lor 32 else digit));
+					if next > 0 then loop next
+				in
+				loop vlq
+			in
+			let local = ref dfile in
+			(* the sources keep their order: the same deltas *)
+			let shifted = (try Array.iteri (fun i g -> if g - globals.(0) <> i then raise Exit) globals; true with Exit -> false) in
+			let rec loop i =
+				if i < len then match String.unsafe_get m i with
+					| ';' | ',' as c -> Buffer.add_char b c; loop (i + 1)
+					| _ ->
+						(* a segment: column, source, line, column in the source *)
+						let i1,dcol = decode_vlq m i in
+						let i2,dfile = decode_vlq m i1 in
+						let i3,dline = decode_vlq m i2 in
+						let i4,dscol = decode_vlq m i3 in
+						let previous = globals.(!local) in
+						local := !local + dfile;
+						add_vlq dcol;
+						add_vlq (globals.(!local) - previous);
+						add_vlq dline;
+						add_vlq dscol;
+						loop i4
+			in
+			if shifted then Buffer.add_substring b m i4 (len - i4) else loop i4;
+			(* the final state *)
+			let fl = match ef.ef_last_pos with Some p -> p | None -> assert false in
+			smap.source_last_pos <- { fl with file = globals.(fl.file) };
+			if ef.ef_has_newline then begin
+				smap.output_last_col <- ef.ef_output_last_col;
+				smap.output_current_col <- ef.ef_output_current_col;
+				smap.print_comma <- ef.ef_print_comma
+			end else begin
+				smap.output_last_col <- col0 + ef.ef_output_last_col;
+				smap.output_current_col <- col0 + ef.ef_output_current_col;
+				smap.print_comma <- true
+			end;
+			true
+		end
+	end
 
 (* The source map as JSON text. *)
 let mappings_json (com : Gctx.t) smap source_path_prefix =

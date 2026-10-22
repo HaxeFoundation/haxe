@@ -134,7 +134,9 @@ let run_expression_filters_safe ?(ignore_processed_status=false) scom detail_tim
 				(match cf.cf_expr with
 				| Some e when not (FilterContext.is_removable_field scom.is_macro_context cf) ->
 					let identifier = Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name in
-					cf.cf_expr <- Some (run scom (Some identifier) e);
+					let e' = run scom (Some identifier) e in
+					(* the same option when nothing changed: what reads it can tell *)
+					if e' != e then cf.cf_expr <- Some e';
 				| _ -> ());
 			end;
 			List.iter process_field cf.cf_overloads

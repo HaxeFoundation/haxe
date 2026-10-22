@@ -52,6 +52,8 @@ type ctx = {
 	(* the features read while generating a type in parallel: they do not
 	   change then (those added are read once all types are generated) *)
 	feature_cache : (string,bool) Hashtbl.t option;
+	(* the features added while generating a type in parallel *)
+	features_added : string list ref option;
 }
 
 type object_store = {
@@ -155,7 +157,9 @@ let has_feature ctx f = match ctx.feature_cache with
 	| None ->
 		Mutex.protect features_mutex (fun () -> Gctx.has_feature ctx.com f)
 
-let add_feature ctx f = Mutex.protect features_mutex (fun () -> Gctx.add_feature ctx.com f)
+let add_feature ctx f =
+	Option.may (fun r -> r := f :: !r) ctx.features_added;
+	Mutex.protect features_mutex (fun () -> Gctx.add_feature ctx.com f)
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
@@ -1053,11 +1057,172 @@ and generate_package_create_now ctx p =
 (* Generates [types] with [generate_type], each on its own buffer and on several
    domains, then puts their code in order, creating the packages where the
    first type of each creates them, as when they are generated in order. *)
+(* The JS code of a type (docs/incremental-compilation.md, phase 9), kept by
+   the compilation server: reused while what generating it read is the same,
+   the same objects (the type, its fields and their post-processed
+   expressions, which the server keeps for a module that is not typed again),
+   the same metadata, and the same answers for the features it read. *)
+type fragment = {
+	fr_key : string;
+	fr_inputs : Obj.t array;
+	(* the expressions (post-processed) and types of the fields: the same
+	   object, or the same fingerprint (some filters build them again on every
+	   compilation, such as the field initializations of the constructor) *)
+	fr_fuzzy : (Obj.t * (unit -> TFingerprint.t)) array;
+	fr_fuzzy_fps : TFingerprint.t option array;
+	fr_names : string list;
+	fr_kinds : field_kind list;
+	fr_flags : int array;
+	fr_meta : metadata list;
+	fr_features : (string * bool) list;
+	fr_added : string list;
+	fr_code : string;
+	fr_marks : (int * string list) list;
+	(* the mappings of the source map, encoded from an empty state *)
+	fr_encoded : encoded_fragment option;
+	fr_separator : bool;
+	fr_statics : (tclass * tclass_field * texpr) list;
+	fr_inits : texpr list;
+	fr_found_expose : bool;
+}
+
+let fragments : (string,fragment) Hashtbl.t = Hashtbl.create 0
+
+type fragment_inputs = {
+	fi_objs : Obj.t array;
+	fi_fuzzy : (Obj.t * (unit -> TFingerprint.t)) array;
+	fi_names : string list;
+	fi_kinds : field_kind list;
+	fi_flags : int array;
+	fi_meta : metadata list;
+}
+
+(* the flags that the generator does not read (markers of the filters and of DCE) *)
+let field_flags_mask = lnot (List.fold_left (fun acc f -> acc lor (1 lsl (Obj.magic f : int))) 0 [CfPostProcessed;CfUsed;CfMaybeUsed;CfStructurallyUsed])
+let class_flags_mask = lnot (1 lsl (Obj.magic CUsed : int))
+let enum_flags_mask = lnot (1 lsl (Obj.magic EnUsed : int))
+
+(* What generating [mt] reads of it: its objects, the fields (their names,
+   kinds, flags, metadata, types and expressions). *)
+let fragment_inputs mt =
+	let objs = ref [] and fuzzy = ref [] and names = ref [] and kinds = ref [] and flags = ref [] and meta = ref [] in
+	let obj o = objs := Obj.repr o :: !objs in
+	(* the expression itself: the option can be built again around it *)
+	let expr eo = fuzzy := ((match eo with Some e -> Obj.repr e | None -> Obj.repr 0),(fun () -> TFingerprint.with_state ~positions:true (fun h -> TFingerprint.add_option h TFingerprint.add_expr eo))) :: !fuzzy in
+	let field cf =
+		names := cf.cf_name :: !names;
+		fuzzy := (Obj.repr cf.cf_type,(fun () -> TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_type h cf.cf_type))) :: !fuzzy;
+		expr cf.cf_expr;
+		kinds := cf.cf_kind :: !kinds;
+		flags := (cf.cf_flags land field_flags_mask) :: !flags;
+		meta := cf.cf_meta :: !meta
+	in
+	begin match mt with
+	| TClassDecl c ->
+		obj c; obj c.cl_kind; obj c.cl_super; obj c.cl_implements;
+		expr (TClass.get_cl_init c);
+		flags := (c.cl_flags land class_flags_mask) :: List.length c.cl_ordered_fields :: List.length c.cl_ordered_statics :: !flags;
+		meta := c.cl_meta :: !meta;
+		List.iter field c.cl_ordered_fields;
+		names := "" :: !names;
+		List.iter field c.cl_ordered_statics;
+		names := "" :: !names;
+		(match c.cl_constructor with Some cf -> field cf | None -> ())
+	| TEnumDecl e ->
+		obj e; obj e.e_constrs; obj e.e_names;
+		flags := (e.e_flags land enum_flags_mask) :: !flags;
+		meta := e.e_meta :: !meta
+	| TTypeDecl _ | TAbstractDecl _ ->
+		obj mt
+	end;
+	{ fi_objs = Array.of_list !objs; fi_fuzzy = Array.of_list !fuzzy; fi_names = !names; fi_kinds = !kinds; fi_flags = Array.of_list !flags; fi_meta = !meta }
+
+(* the same metadata: the same entries, or entries equal (filters build some
+   lists again; an entry can hold a big expression, such as the source of a
+   shader) *)
+let same_meta l1 l2 =
+	let rec entries a b = match a,b with
+		| [],[] -> true
+		| e1 :: a,e2 :: b -> (e1 == e2 || e1 = e2) && entries a b
+		| _ -> false
+	in
+	let rec loop a b = match a,b with
+		| [],[] -> true
+		| m1 :: a,m2 :: b -> (m1 == m2 || entries m1 m2) && loop a b
+		| _ -> false
+	in
+	loop l1 l2
+
+
+let same_inputs fi fr =
+	Array.length fi.fi_objs = Array.length fr.fr_inputs && Array.length fi.fi_fuzzy = Array.length fr.fr_fuzzy &&
+	(try Array.iteri (fun i o -> if o != fr.fr_inputs.(i) then raise Exit) fi.fi_objs; true with Exit -> false) &&
+	fi.fi_names = fr.fr_names && fi.fi_flags = fr.fr_flags && fi.fi_kinds = fr.fr_kinds && same_meta fi.fi_meta fr.fr_meta &&
+	begin
+		(* the fingerprint of the previous object, computed once *)
+		let old_fp i = match fr.fr_fuzzy_fps.(i) with
+			| Some fp -> fp
+			| None -> let fp = (snd fr.fr_fuzzy.(i)) () in fr.fr_fuzzy_fps.(i) <- Some fp; fp
+		in
+		try
+			Array.iteri (fun i (o,fp) ->
+				if o != fst fr.fr_fuzzy.(i) && fp () <> old_fp i then raise Exit
+			) fi.fi_fuzzy;
+			true
+		with Exit -> false
+	end
+
 let generate_types_parallel ctx generate_type types =
 	let types = Array.of_list types in
-	let subs = Array.map (fun _ -> {
+	(* what the fragments depend on besides their type *)
+	let key = String.concat "," [
+		Digest.to_hex (Digest.string (Define.get_signature ctx.com.defines));
+		string_of_int ctx.es_version; string_of_bool ctx.js_modern; string_of_bool ctx.js_flatten;
+		string_of_bool ctx.has_resolveClass; string_of_bool ctx.has_interface_check;
+		string_of_int ctx.id_counter; string_of_int (Hashtbl.length kwds2);
+		string_of_bool (ctx.smap <> None)
+	] in
+	let tm name = Timer.start_timer ctx.com.timer_ctx ["generate";"js";"types";name] in
+	let t = tm "inputs" in
+	let inputs = Array.map fragment_inputs types in
+	t ();
+	let t = tm "check" in
+	(* the features, read once *)
+	let features = Hashtbl.create 0 in
+	let has_feature f = try Hashtbl.find features f with Not_found ->
+		let b = Mutex.protect features_mutex (fun () -> Gctx.has_feature ctx.com f) in
+		Hashtbl.add features f b;
+		b
+	in
+	let reused = Array.mapi (fun i mt ->
+		match Hashtbl.find_opt fragments (s_type_path (t_path mt)) with
+		| Some fr when fr.fr_key = key && same_inputs inputs.(i) fr && List.for_all (fun (f,b) -> has_feature f = b) fr.fr_features ->
+			Some fr
+		| Some fr when Sys.getenv_opt "HAXE_JS_FRAGMENTS_TRACE" <> None ->
+			let fi = inputs.(i) in
+			let why =
+				if fr.fr_key <> key then "key"
+				else if Array.length fi.fi_objs <> Array.length fr.fr_inputs then "objects count"
+				else if fi.fi_flags <> fr.fr_flags then "flags"
+				else if fi.fi_names <> fr.fr_names then "names"
+				else if fi.fi_kinds <> fr.fr_kinds then "kinds"
+				else if not (same_meta fi.fi_meta fr.fr_meta) then "meta"
+				else if not (same_inputs fi fr) then (let k = ref (-1) in Array.iteri (fun j o -> if !k < 0 && o != fr.fr_inputs.(j) then k := j) fi.fi_objs; if !k >= 0 then "object " ^ string_of_int !k else "fingerprint")
+				else "features " ^ String.concat " " (List.filter_map (fun (f,b) -> if Gctx.has_feature ctx.com f <> b then Some f else None) fr.fr_features)
+			in
+			prerr_endline ("js fragment " ^ s_type_path (t_path mt) ^ ": " ^ why);
+			None
+		| _ ->
+			None
+	) types in
+	t ();
+	let t = tm "generate" in
+	let new_sub () =
+		let buf = Buffer.create 1024 in
+		{
 		ctx with
-		buf = Buffer.create 1024;
+		buf = buf;
+		smap = Option.map (fun _ -> JsSourcemap.create ()) ctx.smap;
 		statics = [];
 		inits = [];
 		separator = false;
@@ -1065,36 +1230,99 @@ let generate_types_parallel ctx generate_type types =
 		catch_vars = [];
 		package_marks = Some (ref []);
 		feature_cache = Some (Hashtbl.create 16);
-	}) types in
+		features_added = Some (ref []);
+	} in
+	let subs = Array.map (fun fr -> if fr = None then Some (new_sub ()) else None) reused in
+	let sub i = match subs.(i) with Some sub -> sub | None -> die "" __LOC__ in
+	let todo = List.filter (fun i -> reused.(i) = None) (List.init (Array.length types) (fun i -> i)) in
+	if Sys.getenv_opt "HAXE_JS_FRAGMENTS_TRACE" <> None then prerr_endline (Printf.sprintf "js fragments: %d reused, %d generated" (Array.length types - List.length todo) (List.length todo));
 	Parallel.run_with_pool ctx.com.pool (fun pool ->
-		Parallel.ParallelArray.iter pool (fun i -> generate_type subs.(i) types.(i)) (Array.init (Array.length types) (fun i -> i))
+		Parallel.ParallelArray.iter pool (fun i -> generate_type (sub i) types.(i)) (Array.of_list todo)
 	);
-	Array.iter (fun sub ->
-		let marks = ref (match sub.package_marks with Some r -> List.rev !r | None -> []) in
-		let code = Buffer.contents sub.buf in
-		let pos = ref 0 in
-		let append upto =
-			if upto > !pos then begin
-				Buffer.add_substring ctx.buf code !pos (upto - !pos);
-				pos := upto;
-				true
-			end else
-				false
+	t ();
+	let t = tm "merge" in
+	let fragment_of i =
+		match reused.(i) with
+		| Some fr ->
+			List.iter (add_feature ctx) (List.rev fr.fr_added);
+			fr
+		| None ->
+			let sub = sub i in
+			let fi = inputs.(i) in
+			let fr = {
+				fr_key = key;
+				fr_inputs = fi.fi_objs;
+				fr_fuzzy = fi.fi_fuzzy;
+				fr_fuzzy_fps = Array.make (Array.length fi.fi_fuzzy) None;
+				fr_names = fi.fi_names;
+				fr_kinds = fi.fi_kinds;
+				fr_flags = fi.fi_flags;
+				fr_meta = fi.fi_meta;
+				fr_features = (match sub.feature_cache with Some h -> Hashtbl.fold (fun k v acc -> (k,v) :: acc) h [] | None -> []);
+				fr_added = (match sub.features_added with Some r -> !r | None -> []);
+				fr_code = Buffer.contents sub.buf;
+				fr_marks = (match sub.package_marks with Some r -> List.rev !r | None -> []);
+				fr_encoded = Option.map encoded_fragment sub.smap;
+				fr_separator = sub.separator;
+				fr_statics = sub.statics;
+				fr_inits = sub.inits;
+				fr_found_expose = sub.found_expose;
+			} in
+			Hashtbl.replace fragments (s_type_path (t_path types.(i))) fr;
+			fr
+	in
+	let splice_fails = ref 0 in
+	Array.iteri (fun i mt ->
+		let fr = fragment_of i in
+		let code = fr.fr_code in
+		let output fr =
+			ctx.statics <- fr.fr_statics @ ctx.statics;
+			ctx.inits <- fr.fr_inits @ ctx.inits;
+			if fr.fr_found_expose then ctx.found_expose <- true
 		in
-		let package () = match !marks with
-			| (offset,p) :: l ->
-				marks := l;
-				ignore (append offset);
-				generate_package_create_now ctx p
-			| [] ->
-				die "" __LOC__
-		in
-		while !marks <> [] do package () done;
-		if append (String.length code) then ctx.separator <- sub.separator;
-		ctx.statics <- sub.statics @ ctx.statics;
-		ctx.inits <- sub.inits @ ctx.inits;
-		if sub.found_expose then ctx.found_expose <- true
-	) subs
+		match ctx.smap,fr.fr_encoded with
+		| Some sm,Some ef when List.for_all (fun (offset,_) -> offset = 0) fr.fr_marks ->
+			(* the packages first, then the text and its mappings; generated
+			   again here when they cannot be put after the previous ones *)
+			List.iter (fun (_,p) -> generate_package_create_now ctx p) fr.fr_marks;
+			let col0 = sm.output_current_col and last_col0 = sm.output_last_col and comma0 = sm.print_comma in
+			if splice_fragment sm ef col0 last_col0 comma0 then begin
+				Buffer.add_string ctx.buf code;
+				if code <> "" then ctx.separator <- fr.fr_separator;
+				output fr
+			end else begin
+				incr splice_fails;
+				generate_type ctx mt
+			end
+		| Some _,_ ->
+			(* a package created in the middle of the type *)
+			incr splice_fails;
+			generate_type ctx mt
+		| None,_ ->
+			let marks = ref fr.fr_marks in
+			let pos = ref 0 in
+			let append upto =
+				if upto > !pos then begin
+					Buffer.add_substring ctx.buf code !pos (upto - !pos);
+					pos := upto;
+					true
+				end else
+					false
+			in
+			let package () = match !marks with
+				| (offset,p) :: l ->
+					marks := l;
+					ignore (append offset);
+					generate_package_create_now ctx p
+				| [] ->
+					die "" __LOC__
+			in
+			while !marks <> [] do package () done;
+			if append (String.length code) then ctx.separator <- fr.fr_separator;
+			output fr
+	) types;
+	if Sys.getenv_opt "HAXE_JS_FRAGMENTS_TRACE" <> None then prerr_endline (Printf.sprintf "splice fails %d" !splice_fails);
+	t ()
 
 let check_field_name c f =
 	match f.cf_name with
@@ -1705,6 +1933,7 @@ let alloc_ctx com es_version =
 		catch_vars = [];
 		package_marks = None;
 		feature_cache = None;
+		features_added = None;
 	} in
 
 	ctx.type_accessor <- (fun t ->
@@ -1739,6 +1968,7 @@ let generate js_gen com =
 	if es_version >= 6 then
 		ES6Ctors.rewrite_ctors com;
 
+	let t_prep = Timer.start_timer com.timer_ctx ["generate";"js";"prepare"] in
 	let ctx = alloc_ctx com es_version in
 	Gctx.map_source_header com.defines (fun s -> print ctx "// %s\n" s);
 
@@ -1970,10 +2200,11 @@ let generate js_gen com =
 		spr ctx extend_code
 	end;
 	(* not with a source map, whose positions follow the output *)
-	if ctx.smap = None && Parallel.is_enabled () then
-		generate_types_parallel ctx generate_type com.types
-	else
-		List.iter (generate_type ctx) com.types;
+	t_prep ();
+	let t_types = Timer.start_timer com.timer_ctx ["generate";"js";"types"] in
+	generate_types_parallel ctx generate_type com.types;
+	t_types ();
+	let t_rest = Timer.start_timer com.timer_ctx ["generate";"js";"inits and statics"] in
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with
@@ -2063,6 +2294,8 @@ let generate js_gen com =
 		) !toplevelExposed
 	);
 
+	t_rest ();
+	let t_write = Timer.start_timer com.timer_ctx ["generate";"js";"write"] in
 	(match ctx.smap with
 	| Some smap when Gctx.defined_value_safe com Define.SourceMap = "inline" ->
 		(* the map inside the output: no .map file, and none left from an earlier build *)
@@ -2074,6 +2307,7 @@ let generate js_gen com =
 		print ctx "\n//# sourceMappingURL=%s.map" (StringHelper.url_encode_s basefile);
 	| None -> try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
-	Option.may (fun chan -> close_out chan) ctx.chan
+	Option.may (fun chan -> close_out chan) ctx.chan;
+	t_write ()
 	)
 

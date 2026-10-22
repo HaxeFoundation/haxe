@@ -2276,6 +2276,40 @@ macros.
 Exit criterion: output byte-for-byte identical to cold mode (`tests/unit` on
 JS, source maps included).
 
+**Status: fragments per type (first step, before phase 8).** The types are
+generated apart (in parallel, `Genjs.generate_types_parallel`, now with
+source maps too), each in a fragment: its code, the packages it creates
+(at their offset), its statics and `__init__`, the features it read (with
+their value) and added, and its source map, encoded from an empty state with
+its own sources. The server keeps the fragments
+(`Genjs.fragments`), and a fragment is reused while what generating it read
+is the same: the type, its kind, super class and interfaces (the same
+objects), the names, kinds, flags (but the markers of the filters and DCE) and
+metadata of its fields, and their types and post-processed expressions (the
+same objects, or the same fingerprint: some filters build them again on
+every compilation, such as the field initializations of the constructor),
+plus the defines, the configuration of the generator and the features read.
+This works because a module that is not typed again keeps its objects
+(the in-memory cache restores its post-processed state); without phase 8, a
+filter that changes an expression of a cached module produces a new
+fingerprint, and the fragment is generated again.
+- Linking (item 3): fragments are put in the order of the types; the
+  packages, then the code; the source map of a fragment is transcoded (the
+  indices of its sources become those of the output, which a copy keeps when
+  they are only shifted) and its first mapping encoded relatively to the
+  previous one. When the state does not allow it (a current expression, the
+  first mapping at the previous position, a package created inside the
+  type), the type is generated again directly in the output.
+- `run_expression_filters_safe` keeps the same option of `cf_expr` when a
+  filter returns the same expression (the expression filters run again on
+  every type with `-debug`, and every field looked changed).
+- Output identical to the sequential generation, source maps included:
+  `tests/unit` on JS (default, ES6, `-debug`, classic, unflatten, source
+  maps), hide with `-debug`.
+- hide, a body edit in a view: generation 0.85 s before, 0.5–0.65 s now
+  (merging the source maps is most of what is left); Heaps (no source map):
+  0.18 s before, 0.09–0.14 s.
+
 ---
 
 ### Phase 10: HL generation
