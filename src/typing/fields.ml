@@ -136,6 +136,10 @@ let field_access ctx mode f fh e pfield =
 			| _ ->
 				normal()
 		in
+		let check_no_expr a =
+			if Meta.has Meta.NoExpr f.cf_meta && not (Meta.has Meta.CoreType a.a_meta) then
+				display_error ctx.com ("Field " ^ f.cf_name ^ " cannot be called directly because it has no expression") pfield
+		in
 		begin match fh with
 		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then begin match mode with
@@ -153,11 +157,16 @@ let field_access ctx mode f fh e pfield =
 			end;
 			default();
 		| FHStatic c ->
+			begin match c.cl_kind with
+				| KAbstractImpl a -> check_no_expr a
+				| _ -> ()
+			end;
 			maybe_check_visibility c true;
 			default()
 		| FHAnon ->
 			default()
 		| FHAbstract(a,tl,c) ->
+			check_no_expr a;
 			maybe_check_visibility c true;
 			let sea = make_abstract_static_extension_access a tl c f e false pfull in
 			AKUsingField sea
@@ -610,17 +619,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_module e t
 	with Not_found when not cfg.do_resume ->
 		if not ctx.f.untyped then begin
-			let has_special_field a =
-				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
-				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
-				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
-			in
 			match follow t with
-			| TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a } } }
-			| TInst ({ cl_kind = KAbstractImpl a },_)
-			| TAbstract (a,_) when has_special_field a ->
-				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i c.cl_fields ->
 				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
