@@ -5,8 +5,12 @@ open TPrinting
 open TUnification
 open Error
 
-let build_abstract a = match a.a_impl with
-	| Some c -> ignore((TAccess.build c))
+(* The casts and operators of an abstract come from the fields of its
+   implementation: they are its members. *)
+let build_abstract a =
+	if !DepRecord.enabled then DepRecord.record_type a.a_path "members";
+	match a.a_impl with
+	| Some c -> TAccess.Members.demand c
 	| None -> ()
 
 let find_cast_field uctx find =

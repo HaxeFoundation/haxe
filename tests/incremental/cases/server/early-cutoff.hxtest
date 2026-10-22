@@ -1,7 +1,7 @@
 # The server only types again the modules that read what changed (plan phase
 # 6): a body change stays in its module, a signature change reaches the
 # modules that read the signature, and a field added changes the members of
-# its class.
+# its class, which a module reading other fields by name does not read.
 @targets interp
 
 === initial
@@ -47,7 +47,7 @@ class Other {
 
 === field added
 @expect-output 3.5 4
-@expect-retyped Dep Main
+@expect-retyped Dep
 --- Dep.hx
 class Dep {
 	public static function a():Float return 3.5;

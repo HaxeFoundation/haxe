@@ -218,7 +218,7 @@ let check_module sctx com m_path m_extra p =
 			v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);
 			v_provisional = [];
 			v_failed = None;
-			v_assume = not !NodeGraph.retrying && com.display.dms_kind = DMNone;
+			v_assume = not !NodeGraph.no_assumptions && !NodeGraph.attempts < 3 && com.display.dms_kind = DMNone;
 		}
 	) graph in
 	let rec check m_path m_extra =
@@ -696,11 +696,13 @@ let assumed_graphs com =
 	List.filter (fun (g : NodeGraph.graph) -> g.assumptions <> []) (List.filter_map NodeGraph.find_opt
 		(CommonCache.get_cache_sign com :: (match com.get_macros () with Some mcom -> [CommonCache.get_cache_sign mcom] | None -> [])))
 
-(* Typing stopped on an error: it can come from a false assumption. *)
+(* Typing stopped on an error: it can come from a false assumption, which one
+   is not known. *)
 let retry_if_assumed com =
 	let assumed = assumed_graphs com in
 	if assumed <> [] then begin
 		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
+		NodeGraph.no_assumptions := true;
 		raise NodeGraph.Retry
 	end
 
@@ -716,17 +718,26 @@ let store_graph com =
 			in
 			(* the version in the cache is the previous one, until the end of the compilation *)
 			let is_typed m = match cc#find_module_opt m.m_path with Some m' -> m' != m | None -> true in
-			NodeGraph.store com (resolve_for_graph com) decls_of is_typed
+			NodeGraph.prepare_store com (resolve_for_graph com) decls_of is_typed
 		in
 		DepRecord.last_typed := [];
 		Timer.time com.timer_ctx ["server";"query graph"] (fun () ->
-			store com;
-			Option.may store (com.get_macros())
+			let prepared = store com :: (match com.get_macros() with Some mcom -> [store mcom] | None -> []) in
+			(* the graph is stored only if the assumptions held: otherwise the
+			   compilation is done again, knowing the new fingerprints of the
+			   nodes that changed, with the graph of the previous compilation *)
+			let failed = List.concat_map (fun (failed,_) -> failed ()) prepared in
+			if failed <> [] then begin
+				List.iter (fun (key,fp) -> Hashtbl.replace NodeGraph.known_changed key fp) failed;
+				List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
+				incr NodeGraph.attempts;
+				raise NodeGraph.Retry
+			end;
+			List.iter (fun (_,apply) -> apply ()) prepared
 		) ();
 		(* the edges, once the server answered (before the maintenance tasks,
 		   which empty the expressions of cached fields) *)
-		com.cs#add_task (new arbitrary_task ["query graph"] 10 NodeGraph.flush);
-		if not (List.for_all NodeGraph.check_assumptions assumed) then raise NodeGraph.Retry
+		com.cs#add_task (new arbitrary_task ["query graph"] 10 NodeGraph.flush)
 	end else
 		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed
 

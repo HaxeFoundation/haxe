@@ -85,18 +85,16 @@ let entry sctx request_scope (request_args : Args.request_args) =
 			0
 		| part :: rest ->
 			let com = create_context_from_part sctx request_scope has_display (rest <> []) part in
-			let code = try
-				Compiler.compile_ctx sctx com
-			with NodeGraph.Retry ->
-				(* early cutoff assumed a signature unchanged, and it changed *)
-				ServerMessage.message "Compiling again: a node assumed unchanged changed";
-				Vfs.chdir curdir;
-				NodeGraph.retrying := true;
-				Std.finally (fun () -> NodeGraph.retrying := false) (fun () ->
-					let com = create_context_from_part sctx request_scope has_display (rest <> []) part in
+			let rec compile com =
+				try
 					Compiler.compile_ctx sctx com
-				) ()
+				with NodeGraph.Retry ->
+					(* early cutoff assumed a node unchanged, and it changed *)
+					ServerMessage.message "Compiling again: a node assumed unchanged changed";
+					Vfs.chdir curdir;
+					compile (create_context_from_part sctx request_scope has_display (rest <> []) part)
 			in
+			let code = Std.finally NodeGraph.end_compilation compile com in
 			Vfs.chdir curdir;
 			if code = 0 && rest <> [] && not has_display then
 				loop rest

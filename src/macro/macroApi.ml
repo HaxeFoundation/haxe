@@ -1202,10 +1202,12 @@ and encode_tabstract a =
 			begin match (TAccess.build c) with
 			| Built -> ()
 			| _ -> !current_partially_built_class_read c
-			end
+			end;
+			if !DepRecord.enabled then DepRecord.record_type c.cl_path "members"
 		| None ->
 			()
 		end;
+		if !DepRecord.enabled then DepRecord.record_type a.a_path "members";
 		f ()
 	)) in
 	if !DepRecord.enabled then DepRecord.record_type a.a_path "header";
@@ -1308,10 +1310,14 @@ and encode_tclass c =
 	   class; its members do (docs/incremental-compilation.md, §3.3) *)
 	c.cl_build_header ();
 	if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
+	(* what the macro reads of the class after building it: all its fields,
+	   the constructor... (its members) *)
 	let build () =
-		match (TAccess.build c) with
+		begin match (TAccess.build c) with
 		| Built -> ()
 		| _ -> !current_partially_built_class_read c
+		end;
+		if !DepRecord.enabled then DepRecord.record_type c.cl_path "members"
 	in
 	(* the signatures of the fields given to the macro *)
 	let fields l = if !DepRecord.enabled then List.iter (fun cf -> DepRecord.record_field c cf "sig") l; l in

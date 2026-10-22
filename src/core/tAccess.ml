@@ -166,11 +166,22 @@ let with_build_claim c f =
 	else if has_build_macros c then with_class_claim ~ordered:true c f
 	else with_unlocked_build c f
 
-(* Builds class [c] (its [members] query) and gives its build state. *)
-let build c =
-	if !DepRecord.enabled then DepRecord.record_type c.cl_path "members";
+let build_state c =
 	if c.cl_build == built then Built
 	else with_build_claim c (fun () -> c.cl_build ())
+
+(* Builds class [c] (its [members] query) and gives its build state: the
+   caller reads its members. *)
+let build c =
+	if !DepRecord.enabled then DepRecord.record_type c.cl_path "members";
+	build_state c
+
+(* Builds class [c] for a caller that reads its members through [Members] only
+   (a field found or not by name, all of them), which records what it reads:
+   building reads the header (an instance of the class in a type). *)
+let build_header c =
+	if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
+	build_state c
 
 module Members = struct
 	(* The members of a class, after its build macros, connected. *)
@@ -188,9 +199,14 @@ module Members = struct
 	let ordered_fields c = demand c; all_sigs c c.cl_ordered_fields; c.cl_ordered_fields
 	let statics c = demand c; all_sigs c c.cl_ordered_statics; c.cl_statics
 	let ordered_statics c = demand c; all_sigs c c.cl_ordered_statics; c.cl_ordered_statics
+	(* the constructor reads its signature, or that the class has none (one
+	   added would be found) *)
 	let constructor c =
-		demand c;
-		(match c.cl_constructor with Some cf when !DepRecord.enabled -> DepRecord.record_field c cf "sig" | _ -> ());
+		if c.cl_build != built then
+			with_build_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()));
+		if !DepRecord.enabled then (match c.cl_constructor with
+			| Some cf -> DepRecord.record_field c cf "sig"
+			| None -> DepRecord.record_absent c.cl_path "new" false);
 		c.cl_constructor
 
 	(* a field found by name: its signature is read *)
@@ -199,16 +215,16 @@ module Members = struct
 		cf
 
 	(* a field found by name reads its signature only; a field not found reads
-	   the members (a field added there would be found) *)
-	let find_in c map name =
+	   that the class has no field of that name (one added would be found) *)
+	let find_in c map static name =
 		if c.cl_build != built then
 			with_build_claim c (fun () -> if not (List.memq c !not_ready) then ignore (c.cl_build ()));
 		match PMap.find name (map c) with
 		| cf -> found c cf
-		| exception Not_found -> if !DepRecord.enabled then DepRecord.record_type c.cl_path "members"; raise Not_found
+		| exception Not_found -> if !DepRecord.enabled then DepRecord.record_absent c.cl_path name static; raise Not_found
 
-	let find_field c name = find_in c (fun c -> c.cl_fields) name
-	let find_static c name = find_in c (fun c -> c.cl_statics) name
+	let find_field c name = find_in c (fun c -> c.cl_fields) false name
+	let find_static c name = find_in c (fun c -> c.cl_statics) true name
 
 	(* The constructors of an enum. *)
 	let enum_constructors e = if !DepRecord.enabled then DepRecord.record_type e.e_path "members"; complete_module e.e_module; e.e_constrs

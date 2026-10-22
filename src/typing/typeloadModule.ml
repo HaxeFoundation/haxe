@@ -446,7 +446,7 @@ module TypeLevel = struct
 		in
 		c.cl_build <- build;
 		TAccess.not_ready := List.filter (fun c' -> c' != c) !TAccess.not_ready;
-		add_parallel_unit ctx_m.g StageTypes ctx_m.m.curmod (fun() -> ignore((TAccess.build c)));
+		add_parallel_unit ctx_m.g StageTypes ctx_m.m.curmod (fun() -> ignore((TAccess.build_header c)));
 		if Meta.has Meta.InheritDoc c.cl_meta then
 			Queue.push (fun() -> InheritDoc.build_class_doc ctx_m c) cctx.connections;
 		if (ctx_m.com.platform = Jvm) && not (has_class_flag c CExtern) then
@@ -723,7 +723,7 @@ let make_curmod com g m =
 *)
 let type_types_into_module com g m tdecls p =
 	let ctx_m = TyperManager.clone_for_module g.root_typer (make_curmod com g m) in
-	let imports_and_usings,decls = ModuleLevel.create_module_types ctx_m m tdecls p in
+	let imports_and_usings,decls = DepRecord.untracked (fun () -> ModuleLevel.create_module_types ctx_m m tdecls p) in
 	ModuleLevel.init_type_params ctx_m decls;
 	List.iter (TypeLevel.init_imports_or_using ctx_m) imports_and_usings;
 	(* setup module types *)

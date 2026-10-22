@@ -236,7 +236,7 @@ let ensure_coro_availability com =
 	(* In cases where we never actually built a coro state machine, the SuspensionResult structure might
 	   not have been initialized yet. This would normally be handled via the pass flushing in `load_module`,
 	   but because all coro data is loaded from a `build-module` pass, this doesn't trigger in time. *)
-	ignore ((TAccess.build (AtomicLazy.force com.basic.tcoro.suspension_result_class)))
+	ignore ((TAccess.build_header (AtomicLazy.force com.basic.tcoro.suspension_result_class)))
 
 (* Wrap a coroutine call expression from a non-coroutine context with a `.resolveTo(cont)` call.
    This ensures that if the coroutine completes synchronously, its result or error is propagated

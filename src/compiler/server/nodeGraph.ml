@@ -65,6 +65,9 @@ and edge =
 	| Module of path
 	(* the module of a macro that ran, in the macro context (its signature) *)
 	| MacroModule of string * path
+	(* the members of a class (its node) have no field of a name (a member,
+	   or a static): a field looked up and not found there *)
+	| Absent of node * string * bool
 
 and file = {
 	f_path : string;
@@ -94,14 +97,38 @@ type graph = {
 	mutable step : int;
 	(* the nodes assumed to keep their fingerprint in the current compilation,
 	   although their module is typed again (early cutoff), with that fingerprint *)
-	mutable assumptions : (node * TFingerprint.t option) list;
+	mutable assumptions : assumption list;
 }
+
+(* Early cutoff: a node keeps its fingerprint, the members of a class still
+   have no field of a name. *)
+and assumption =
+	| ANode of node * TFingerprint.t option
+	| AAbsent of node * string * bool
 
 (* A compilation made assumptions that turned out false: it is done again,
    without assumptions. *)
 exception Retry
 
-let retrying = ref false
+(* The nodes known to have changed in the current compilation: an assumption
+   about them failed in a previous attempt, which found their new fingerprint.
+   They cannot be assumed again, and an edge to them is checked against that
+   fingerprint (the graph keeps the previous compilation's until a compilation
+   succeeds). *)
+let known_changed : (string,TFingerprint.t option) Hashtbl.t = Hashtbl.create 0
+
+let absent_key n name static = n.n_key ^ "\t" ^ DepRecord.absent_node name static
+
+(* The number of attempts of the current compilation that failed an
+   assumption, and whether the next one makes none (a compilation that stopped
+   on an error, which a false assumption may have caused). *)
+let attempts = ref 0
+let no_assumptions = ref false
+
+let end_compilation () =
+	attempts := 0;
+	no_assumptions := false;
+	Hashtbl.reset known_changed
 
 let graphs : (string,graph) Hashtbl.t = Hashtbl.create 0
 
@@ -192,11 +219,13 @@ let decl_table file decls =
 	List.iter (fun (name,node,fp) -> Hashtbl.replace h (name ^ "\t" ^ node) fp) (TypeloadParse.find_decl_fingerprints file decls);
 	h
 
-(* Stores the nodes of the modules of [com] that were typed in this compilation
-   (the computations recorded by [DepRecord]). [resolve path] is the file a
-   lookup of [path] finds ("" if none), [decls_of m] the declarations [m] was
-   typed from, [is_typed m] whether [m] was typed by this compilation. *)
-let store com resolve decls_of is_typed =
+(* Prepares the storage of the nodes of the modules of [com] that were typed in
+   this compilation (the computations recorded by [DepRecord]). [resolve path]
+   is the file a lookup of [path] finds ("" if none), [decls_of m] the
+   declarations [m] was typed from, [is_typed m] whether [m] was typed by this
+   compilation. The result checks the assumptions of the compilation (the
+   nodes that failed, with their new fingerprint), and stores. *)
+let prepare_store com resolve decls_of is_typed =
 	flush ();
 	let sign = CommonCache.get_cache_sign com in
 	let g = get sign in
@@ -239,6 +268,45 @@ let store com resolve decls_of is_typed =
 		) (Array.of_list modules) ([],"",None)
 	) in
 	t_fps ();
+	(* the assumptions that do not hold: the node is not produced again by a
+	   module typed in this compilation, or with another fingerprint *)
+	let failed_assumptions () =
+		if g.assumptions = [] then []
+		else begin
+			let fps = Hashtbl.create 0 and typed_paths = Hashtbl.create 0 in
+			List.iteri (fun i (m,_) ->
+				Hashtbl.replace typed_paths m.m_path ();
+				let l,_,_ = computed.(i) in
+				List.iter (fun (key,fp) -> Hashtbl.replace fps key fp) l
+			) modules;
+			(* the classes of the typed modules, for the absences *)
+			let classes = Hashtbl.create 0 in
+			List.iter (fun (m,_) -> List.iter (function
+				| TClassDecl c -> Hashtbl.replace classes (s_type_path c.cl_path ^ "\tmembers") c
+				| _ -> ()
+			) m.m_types) modules;
+			List.filter_map (function
+				| ANode (n,seen) ->
+					let now = Hashtbl.find_opt fps n.n_key in
+					if Hashtbl.mem typed_paths n.n_owner && now = seen then None
+					else begin
+						if trace then trace_line ("[graph] assumption failed: " ^ n.n_key);
+						Some (n.n_key,now)
+					end
+				| AAbsent (n,name,static) ->
+					match Hashtbl.find_opt classes n.n_key with
+					| Some c when (if name = "new" && not static then
+							(* a constructor inherited from the parent (added after typing it) is what
+							   the computation found: the one of the parent *)
+							(match c.cl_constructor with None -> true | Some cf -> has_class_field_flag cf CfInheritedConstructor)
+						else not (PMap.mem name (if static then c.cl_statics else c.cl_fields))) -> None
+					| _ ->
+						if trace then trace_line ("[graph] assumption failed: " ^ absent_key n name static);
+						Some (absent_key n name static,None)
+			) g.assumptions
+		end
+	in
+	let apply () =
 	(* their nodes: the previous ones are emptied, the records stay *)
 	List.iteri (fun i (m,cl) ->
 		let fps,file_path,decls = computed.(i) in
@@ -349,6 +417,11 @@ let store com resolve decls_of is_typed =
 				List.iter (fun e -> edges := e :: !edges) !all_decls
 			end;
 			DepRecord.iter_raw_deps (fun d ->
+				match d with
+				| DepRecord.DAbsent (path,name,static) ->
+					let n = node g (s_type_path path ^ "\tmembers") in
+					if n.n_key <> self then edges := Absent (n,name,static) :: !edges
+				| _ ->
 				match DepRecord.DepTbl.find_opt dep_nodes d with
 				| Some (Some n) -> if n.n_key <> self then begin let a,b = fp_lanes n.n_fp in edges := Node (n,a,b) :: !edges end
 				| Some None -> ()
@@ -376,8 +449,11 @@ let store com resolve decls_of is_typed =
 	) modules;
 	in
 	pending := build_edges :: !pending;
+	g.assumptions <- [];
 	if trace then
 		trace_line (Printf.sprintf "[graph] stored %d modules, %d nodes" (List.length modules) (Hashtbl.length g.nodes))
+	in
+	failed_assumptions,apply
 
 (* Validation, before typing *)
 
@@ -431,6 +507,8 @@ let s_edge v = function
 		"module " ^ s_type_path path
 	| MacroModule (_,path) ->
 		"macro module " ^ s_type_path path
+	| Absent (n,name,static) ->
+		absent_key n name static
 
 let rec valid_node v n =
 	if not n.n_by_known then begin
@@ -471,11 +549,16 @@ and valid_edge v e =
 		| Lookup (l,seen) ->
 			current_lookup v l = seen
 		| Node (n,a,b) ->
-			same_fp n.n_fp a b && (valid_node v n || assume v n n.n_fp)
+			begin match Hashtbl.find_opt known_changed n.n_key with
+			| Some now -> same_fp now a b && valid_node v n
+			| None -> same_fp n.n_fp a b && rescued v (fun () -> valid_node v n) (fun () -> assume v n n.n_fp)
+			end
 		| Module path ->
 			v.v_module_valid path
 		| MacroModule (sign,path) ->
 			v.v_macro_module_valid sign path
+		| Absent (n,name,static) ->
+			not (Hashtbl.mem known_changed (absent_key n name static)) && rescued v (fun () -> valid_node v n) (fun () -> assume_absent v n name static)
 	in
 	if not b then begin
 		if trace then trace_line ("[graph] changed: " ^ s_edge v e);
@@ -484,30 +567,57 @@ and valid_edge v e =
 			| Lookup (l,_) -> "lookup " ^ s_type_path l.l_path
 			| Node (n,_,_) -> n.n_key
 			| Module path -> "module " ^ s_type_path path
-			| MacroModule (_,path) -> "macro module " ^ s_type_path path)
+			| MacroModule (_,path) -> "macro module " ^ s_type_path path
+			| Absent (n,name,static) -> absent_key n name static)
 	end;
 	b
+
+(* [valid ()], or an assumption ([assumed ()]) makes the edge valid: then
+   what was found invalid while checking it is not the reason why the module
+   is typed again. *)
+and rescued v valid assumed =
+	let failed = v.v_failed in
+	valid () || (assumed () && (v.v_failed <- failed; true))
+
+(* Early cutoff for an absence: the class keeps having no field [name], checked
+   after typing. *)
+and assume_absent v n name static =
+	v.v_assume && (match n.n_by with Some p -> is_computation p | None -> false) && begin
+		if trace then trace_line ("[graph] assumed absent: " ^ absent_key n name static);
+		v.v_graph.assumptions <- AAbsent (n,name,static) :: v.v_graph.assumptions;
+		true
+	end
+
+and is_members n =
+	let l = String.length n.n_key in
+	l > 8 && String.sub n.n_key (l - 8) 8 = "\tmembers"
+
+(* The names of the fields of a type, which computation [p] reads (its
+   members), changed: what it produces changes too, it is not assumed to keep
+   its fingerprint (which would only cost a compilation done again). A declared
+   signature does not tell as much: it holds the body of a function whose type
+   is inferred. *)
+and declaration_changed v p =
+	match p.n_edges with
+	| None -> false
+	| Some edges ->
+		Array.exists (function
+			| Leaf (f,key,a,b) ->
+				let len = String.length key in
+				let ends s = let l = String.length s in len >= l && String.sub key (len - l) l = s in
+				ends "\tfields" && not (same_fp (match current_decls v f with Some h -> Hashtbl.find_opt h key | None -> None) a b)
+			| _ -> false
+		) edges
 
 (* Early cutoff: node [n] keeps fingerprint [seen] if its computation, which
    is not valid, computes the same value again when its module is typed
    again. This is checked after typing ([check_assumptions]). *)
 and assume v n seen =
-	v.v_assume && (match n.n_by with Some p -> is_computation p | None -> false) && begin
+	v.v_assume && (match n.n_by with Some p -> is_computation p && not (is_members n && declaration_changed v p) | None -> false) && begin
 		if trace then trace_line ("[graph] assumed unchanged: " ^ n.n_key);
-		v.v_graph.assumptions <- (n,seen) :: v.v_graph.assumptions;
+		v.v_graph.assumptions <- ANode (n,seen) :: v.v_graph.assumptions;
 		true
 	end
-
-(* Whether the assumptions of this compilation hold: the nodes were stored
-   again with the fingerprints assumed. *)
-let check_assumptions g =
-	let ok = List.for_all (fun (n,seen) ->
-		let b = n.n_stored = g.step && n.n_fp = seen in
-		if not b && trace then trace_line ("[graph] assumption failed: " ^ n.n_key);
-		b
-	) g.assumptions in
-	g.assumptions <- [];
-	ok
 
 (* Whether module [path] is traced by the graph: its computations are known. *)
 let is_traced g path =

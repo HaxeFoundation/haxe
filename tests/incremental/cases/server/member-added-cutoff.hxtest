@@ -1,0 +1,53 @@
+# A field added to a class only retypes the modules that read what changed:
+# using the class as a value (Class<T>) reads its header, a field found by name
+# reads that field, a field looked up and not found reads that the class has
+# no field of that name (phase 6, finer dependencies).
+=== initial
+@expect-output 1 2 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Users.asValue() + " " + Users.inherited() + " " + Users.own());
+	}
+}
+--- Base.hx
+class Base {
+	public function new() {}
+	public function f() return 2;
+}
+--- Child.hx
+class Child extends Base {
+	public var y = 3;
+}
+--- Users.hx
+class Users {
+	public static function asValue() {
+		var c:Class<Child> = Child;
+		return c != null ? 1 : 0;
+	}
+	public static function inherited() {
+		return new Child().f();
+	}
+	public static function own() {
+		return new Child().y;
+	}
+}
+
+=== field added to the subclass
+@expect-output 1 2 3
+@expect-retyped Child
+--- Child.hx
+class Child extends Base {
+	public var y = 3;
+	public var z = 4;
+}
+
+=== override added: the inherited lookup finds it
+@expect-output 1 5 3
+@expect-retyped Child Users
+--- Child.hx
+class Child extends Base {
+	public var y = 3;
+	public var z = 4;
+	override public function f() return 5;
+}

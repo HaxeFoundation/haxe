@@ -71,7 +71,7 @@ let build_macro_build ctx c pl cfl p =
 let get_build_info ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
-		if ctx.stage > StageTypes then ignore((TAccess.build c));
+		if ctx.stage > StageTypes then ignore((TAccess.build_header c));
 		let build f s tl =
 			let t = spawn_monomorph ctx p in
 			let r = make_lazy ctx.g t (fun () ->
@@ -79,7 +79,7 @@ let get_build_info ctx mtype p =
 				unify_raise tf t p;
 				link_dynamic t tf;
 				(match tf with
-					| TInst (c, _) -> ignore((TAccess.build c))
+					| TInst (c, _) -> ignore((TAccess.build_header c))
 					| TAbstract (a, _) -> Abstract.build_abstract a
 					| _ -> ()
 				);

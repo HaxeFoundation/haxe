@@ -1667,18 +1667,41 @@ when the module turns out invalid).
 
 The signature a field declares is a computation of its own (`declared sig`,
 in `init_field`), which reads the declaration without its body; finding a
-field by name reads its signature, not finding it reads the members of the
-class.
+field by name reads its signature, not finding it reads that the class has
+no field of that name (`DAbsent`, the `Absent` edge: valid while the members
+are, or assumed and checked after typing; a constructor inherited from the
+parent counts as absent), an instance of a class in a type
+(`TAccess.build_header`) or the class used as a value (`Class<T>`) reads its
+header, and creating the types of a module from its
+declarations reads for no computation (`DepRecord.untracked`). Reading all
+the members (iterating the fields, a structural unification with the
+statics) reads the members node.
 
 **Early cutoff** (item 3): a node read whose computation is invalid (its
 module is typed again) but whose fingerprint is the one seen is assumed to
-keep it. After typing, the stored fingerprints are compared with the
-assumptions; if one changed, or if typing reported an error while
-assumptions were made, the compilation is done again without assumptions
-(`NodeGraph.Retry`, caught by `HighLevel.entry`; console output of macros
-can then appear twice). A function whose return type is inferred can
+keep it, except the members of a type whose list of field names changed
+(they change). After typing, the fingerprints computed for the typed modules
+are compared with the assumptions before anything is stored: if one does not
+hold, the graph stays the previous compilation's (consistent with the cache,
+which is only updated at the end), the nodes that changed are remembered
+with their new fingerprint (`NodeGraph.known_changed`: an edge to them is
+checked against it, they are not assumed again) and the compilation is done
+again with assumptions about the other nodes (`NodeGraph.Retry`, caught by
+`HighLevel.entry`, at most 3 attempts; console output of macros can then
+appear twice). If typing reported an error while assumptions were made, the
+next attempt makes none. A function whose return type is inferred can
 therefore change its body without typing its readers again, as long as the
 type stays the same.
+
+Measured on hide (a field added to `hrt.prefab.Object3D`, the base class of
+the prefabs, whose build macros serialize the fields): 498 modules typed
+again in 6.7 s before (one false assumption, then a compilation without
+any), 67 modules in 3.3–3.8 s now, where filters and generation take
+half of the time (phases 8 and 9); Heaps, a field added to
+`h3d.scene.Object`: 94 modules in 1.4 s before, about 30 in 0.75 s. The dependency
+keys of a constructor reached through a copy (inherited, with the type
+parameters applied) were those of a member named `new`, a node never
+produced, whose assumption always failed.
 
 Work that a computation schedules (interface checks, field connections,
 constraint checks) runs as part of it (`DepRecord.capture` in

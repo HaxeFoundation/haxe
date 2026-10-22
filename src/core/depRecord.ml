@@ -21,6 +21,9 @@ type dep =
 	| DType of path * string
 	| DField of tclass * tclass_field * string
 	| DKey of string * string
+	(* a field looked up by name and not found in class [path] (a member, or
+	   a static): only a field of that name added there changes the lookup *)
+	| DAbsent of path * string * bool
 
 module DepTbl = Hashtbl.Make(struct
 	type t = dep
@@ -28,11 +31,13 @@ module DepTbl = Hashtbl.Make(struct
 		| DType(p1,n1),DType(p2,n2) -> n1 = n2 && p1 = p2
 		| DField(c1,f1,n1),DField(c2,f2,n2) -> f1 == f2 && c1 == c2 && n1 = n2
 		| DKey(k1,n1),DKey(k2,n2) -> n1 = n2 && k1 = k2
+		| DAbsent(p1,n1,s1),DAbsent(p2,n2,s2) -> n1 = n2 && s1 = s2 && p1 = p2
 		| _ -> false
 	let hash = function
 		| DType((_,name),n) -> Hashtbl.hash name * 31 + Hashtbl.hash n
 		| DField(c,f,n) -> (Hashtbl.hash (snd c.cl_path) * 31 + Hashtbl.hash f.cf_name) * 31 + Hashtbl.hash n
 		| DKey(k,n) -> Hashtbl.hash k * 31 + Hashtbl.hash n
+		| DAbsent((_,name),n,_) -> Hashtbl.hash name * 31 + Hashtbl.hash n + 7
 end)
 
 type consumer = {
@@ -66,20 +71,25 @@ let type_decl c = match c.cl_kind with
 	| KAbstractImpl a -> snd a.a_path
 	| _ -> snd c.cl_path
 
-let field_decl c cf =
+let is_static cf = cf.cf_flags land (1 lsl (Obj.magic CfStatic : int)) <> 0
+
+(* A member field cannot be named [new]: the constructor, or a copy of it (an
+   inherited constructor, with the type parameters of the class applied). *)
+let is_constructor c cf =
 	match c.cl_constructor with
-	| Some cf' when cf' == cf -> type_decl c ^ ".new"
-	| _ -> type_decl c ^ "." ^ cf.cf_name
+	| Some cf' when cf' == cf -> true
+	| _ -> cf.cf_name = "new" && not (is_static cf)
+
+let field_decl c cf =
+	if is_constructor c cf then type_decl c ^ ".new"
+	else type_decl c ^ "." ^ cf.cf_name
 
 (* The key of field [cf] of [c], as [EntityKey.to_string] prints it (main
    field, not an overload). *)
 let field_key c cf =
 	let base = s_type_path c.cl_path in
-	match c.cl_constructor with
-	| Some cf' when cf' == cf -> base ^ " (constructor)"
-	| _ ->
-		let static = cf.cf_flags land (1 lsl (Obj.magic CfStatic : int)) <> 0 in
-		Printf.sprintf "%s.%s (%s)" base cf.cf_name (if static then "static" else "member")
+	if is_constructor c cf then base ^ " (constructor)"
+	else Printf.sprintf "%s.%s (%s)" base cf.cf_name (if is_static cf then "static" else "member")
 
 (* The key of field [name] of the class at [path], as [field_key] gives it. *)
 let field_key_of path name ~constructor ~static =
@@ -95,21 +105,30 @@ let add d =
 let record key node = if !enabled && DomainLocal.get current <> None then add (DKey(key,node))
 
 (* The typedef of the statics of a type ([Class<T>], [Enum<T>], [Abstract<T>])
-   is made of its members. *)
+   is made of its members. Reading the statics of a class goes through
+   [TAccess.Members] (a static found or not by name, all of them for a
+   structural unification), so following [Class<T>] only reads the header of
+   [T]. *)
 let record_type path node = if !enabled && DomainLocal.get current <> None then match path with
 	| [],name when String.length name > 2 && name.[String.length name - 1] = '>' && (match String.index_opt name '<' with Some i -> List.mem (String.sub name 0 i) ["Class";"Enum";"Abstract"] | None -> false) ->
 		let i = String.index name '<' in
-		add (DKey(String.sub name (i + 1) (String.length name - i - 2),"members"))
+		let kind = String.sub name 0 i in
+		add (DKey(String.sub name (i + 1) (String.length name - i - 2),if kind = "Class" then "header" else "members"))
 	| _ ->
 		add (DType(path,node))
 let record_field c cf node = if !enabled && DomainLocal.get current <> None then add (DField(c,cf,node))
 let record_lookup path = if !enabled && DomainLocal.get current <> None then add (DType(path,"lookup"))
+let record_absent path name static = if !enabled && DomainLocal.get current <> None then add (DAbsent(path,name,static))
+
+(* The node of an absence: "absent name" or "absent static name". *)
+let absent_node name static = (if static then "absent static " else "absent ") ^ name
 
 (* The key and the node of a dependency. *)
 let dep_key = function
 	| DType(path,node) -> type_key path,node
 	| DField(cl,cf,node) -> field_key cl cf,node
 	| DKey(key,node) -> key,node
+	| DAbsent(path,name,static) -> type_key path,absent_node name static
 
 (* The dependencies of [c], as keys and nodes. *)
 let iter_deps f c =
@@ -137,6 +156,17 @@ let with_consumer ?field key node m decl pos f =
 		Mutex.protect mutex (fun () -> consumers := c :: !consumers);
 		let old = DomainLocal.get current in
 		DomainLocal.set current (Some c);
+		Std.finally (fun () -> DomainLocal.set current old) f ()
+	end
+
+(* [f], which reads for no computation (the creation of the types of a module
+   from its declarations: the computation that demanded the module read its
+   lookup, and reads what it uses of the types). *)
+let untracked f =
+	if not !enabled then f ()
+	else begin
+		let old = DomainLocal.get current in
+		DomainLocal.set current None;
 		Std.finally (fun () -> DomainLocal.set current old) f ()
 	end
 
