@@ -37,6 +37,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val tmp_parse_cache : (Path.UniqueKey.t,(string list * type_decl list) Parser.parse_result) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
@@ -122,7 +123,14 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.remove fake_modules key
 
 	method clear_temp_cache =
-		Hashtbl.clear tmp_binary_cache
+		Hashtbl.clear tmp_binary_cache;
+		Hashtbl.clear tmp_parse_cache
+
+	method find_tmp_parse key =
+		Hashtbl.find tmp_parse_cache key
+
+	method cache_tmp_parse key r =
+		Hashtbl.replace tmp_parse_cache key r
 
 	method clear_cache =
 		Hashtbl.clear modules;
