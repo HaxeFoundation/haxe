@@ -1685,6 +1685,20 @@ Two fixes on the way: the fingerprints no longer hash the markers that the
 typer and the analyzer set on local variables (`VUsedByTyper`, `VAnalyzed`),
 and an assumption about a node that no module produces (no fingerprint
 before or after) holds.
+A body is kept only when its positions are still right: the field did not
+move, and the positions in other files point into files that were not lexed
+again. A kept body still runs the override check of its field (it marks the
+implementation of an abstract method `override`, which the HL virtual tables
+read). Warm and cold outputs are compared by random edits of Heaps (HL, with
+debug information) and hide (JS, with source maps); they found two older
+holes, fixed too: the constructor of a `@:structInit` class is an inline
+body (a structure declaring an instance copies the default values of its
+arguments, with their positions), and the fingerprint of an inline body
+hashes its positions relative to the field (positions that change within it,
+for example its line endings, move in its consumers). The HL generator
+caches structures by fingerprint, then by a structural equality that holds
+the closures of lazy types equal (`compare` failed on the structures of kept
+modules meeting those typed again).
 Heaps: a field added to `h3d.scene.Object` 0.70 s instead of 0.89 s, its
 signature changed 0.77 s instead of 0.97 s, `hxsl.Macros` moved 1.13 s
 instead of 1.38 s; hide, a field added to `hrt.prefab.Object3D`: 2.6–2.7 s
