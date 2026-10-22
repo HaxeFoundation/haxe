@@ -11,7 +11,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
 | Targets | **JS and HL only.** Other targets (C++, JVM, Python, Lua, PHP, Neko, Flash) are **out of the scope of this plan**: they must keep compiling with a global generation step, but nothing in this plan makes their generation incremental. |
-| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.markVolatile()`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` is reserved for initialization values (frozen afterwards); state that must outlive an expansion uses dedicated declarations (`MacroArray`, `MacroMap`, `MacroTypeData`, `MacroCache`, `MacroIndex`). File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
+| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.markVolatile()`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` statics are **caches** (pure memoization, which the compiler may empty at any time); data attached to types uses **`haxe.macro.TypeCache<T>`**, given by the build of the type or computed by a pure function of it. File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6. The new rules are **warnings in Haxe 5.x** and **errors in Haxe 6, with no compatibility flag**. |
 | Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
@@ -1628,9 +1628,9 @@ Replaces `check_module` and `type_module` (`serverCache.ml`).
    else.
 6. **Errors and warnings**: stored per node and replayed when the node is
    green, replacing the current handling of modules with errors.
-7. **Initialization macros** (`--macro`) are always executed **first**; the
-   hash of the `@:persistent` values they produce acts like a define (phase 7,
-   item 4). **Global callbacks** (`onAfterTyping`, `onGenerate`) and
+7. **Initialization macros** (`--macro`) are always executed **first**, so
+   that the configuration they put in `@:persistent` caches is rebuilt on
+   every compilation (phase 7, item 4). **Global callbacks** (`onAfterTyping`, `onGenerate`) and
    `program()` stage reductions are always executed **last**, with early
    cutoff on what they produce.
 
@@ -1935,66 +1935,71 @@ cycles are errors (§ phase 3.3).
    - **Nested expansions** (a `typeExpr` or `getType` triggering another build
      or expression macro) get their own state, and the caller's state is
      restored on return (stack discipline).
-   - **`@:persistent` means initialization value.** A `@:persistent` static can
-     only be written during initialization macros (`--macro`). After
-     initialization it is **frozen**, deeply: eval `Array`, `Map` and objects
-     reachable from it get a frozen flag, and any mutation is an error. A deep
-     hash of all `@:persistent` values after initialization acts like a define:
-     if it changes, every expansion is invalidated. Functions (e.g. a
-     `dynamic function` overridden by user configuration) are hashed by field
-     reference, plus a `DInline` dependency on their body.
+   - **`@:persistent` means cache.** A `@:persistent` static survives
+     expansions and compilations, as pure memoization: its content must be a
+     function of what is put in it, reading it records no dependency, and the
+     compiler may empty it at any time (at least when the macro code changes).
+     It can be written anytime. Configuration written by initialization
+     macros is a cache too: they run first on every compilation and rebuild
+     it. Outside of macros it is an ordinary static, so the same code also
+     works at run time.
+   - `-D macro-state-check` empties the caches before each expansion and
+     compares the fingerprint of its result with the one obtained with the
+     caches: a difference shows an impure use (e.g. a registry that depends
+     on the order of expansions).
    - This changes the meaning of `@:persistent`, which today means "survives
-     across server compilations". Existing uses as caches or registries become
-     write errors after initialization, which forces their migration (item 9).
-5. **Dedicated declarations** for state that must outlive an expansion (new
-   module `haxe.macro.State`, names to be finalized):
+     across server compilations" with no contract: registries kept in it
+     move to `TypeCache` (item 9).
+5. **Type data: `haxe.macro.TypeCache<T>`.** Data attached to types by macros,
+   given by the build of a type or computed on demand by a pure function of
+   the type:
 
-   | Declaration | Write | Read | When it can be read |
-   |---|---|---|---|
-   | ordinary static | in the expansion | in the expansion | reset on every call |
-   | `@:persistent` static | initialization only | anywhere | frozen after initialization |
-   | `MacroArray<T>` | `push`, recorded per expansion | `gather()` | `program()` stages only |
-   | `MacroMap<K,V>` | `set`, recorded per expansion | `gather()`, `get`, `keys` | `program()` stages only |
-   | `MacroTypeData<T>` | the build macros of the type only | `get(type)`, which triggers the build | anytime |
-   | `MacroCache<K,V>` | `getOrCompute(key, fn)` | `getOrCompute(key, fn)` | anytime (pure) |
-   | `MacroIndex<K>` | `register(key)` | `indexOf(key)` returns a late-bound `Expr` | resolved after typing |
+   ```haxe
+   package haxe.macro;
 
-   - **`MacroArray<T>`**: each `push` is recorded under the key of the
-     expansion that made it, and replayed when that expansion is reused from
-     the cache. `gather()` returns the union in a deterministic order (sorted
-     by expansion key, then push order). It may only be called once all
-     contributors are known: in a `program()` stage callback or in a
-     reduction. Calling it during typing is an error, since the result would
-     depend on which expansions already ran.
-   - **`MacroMap<K,V>`**: same as `MacroArray`, keyed. Two expansions writing
-     the same key is an error unless a merge function is declared.
-   - **`MacroTypeData<T>`**: a typed eval value attached to a type, written
-     by that type's build macros. `data.get(T)` triggers the build of `T`, so
-     it is deterministic and can be used **during typing**. It is the
-     equivalent of metadata without encoding values as `Expr`. Writes are only
-     allowed while the build of `T` runs (`members(T)`, a single query): a
-     write from anywhere else, such as an expression macro in one of `T`'s
-     fields, is an error. Since caching is per field, data contributed by
-     several fields could not be kept consistent; that is also why there is
-     no per-module equivalent. Expression macros of `T`'s own bodies can read
-     what the build stored.
-   - **`MacroCache<K,V>`**: pure memoization. `getOrCompute(key, fn)` runs `fn`
-     as a sub-expansion recording its dependencies (registered files, types
-     inspected…); the entry is invalidated when one of them changes. The
-     engine may evict entries at any time, and reading an entry creates no
-     dependency on the expansion that filled it.
-   - **`MacroIndex<K>`**: global, stable indices needed inside generated code
-     (index of a class in a registry, program-wide message ids…).
-     `register(key)` records the key; `indexOf(key)` returns a placeholder
-     `Expr` replaced by the integer constant once all keys are gathered (end of
-     typing, before filters). Indices are assigned in sorted key order.
+   class TypeCache<T> {
+   	/** `compute` is called for a type whose build did not give a value;
+   	    its reads are recorded, its result kept until one of them changes. **/
+   	public function new(?compute:Type->T);
+   	/** The value of the type being built: only during its build, once. **/
+   	public function setCurrent(value:T):Void;
+   	/** Builds `t` if needed, then its value (from its build, else
+   	    `compute`); records a dependency on that value. **/
+   	public function get(t:Type):T;
+   	/** Same as `get` without `compute`: null if the build gave no value. **/
+   	public function tryGet(t:Type):Null<T>;
+   	/** `get` by type path ("pack.Name"). **/
+   	public function getByPath(path:String):T;
+   	/** Every type with a value, sorted by path: only in `program()` stages
+   	    (`onAfterTyping`, `onGenerate`), once every build ran. **/
+   	public function all():Array<{type:Type, value:T}>;
+   }
+   ```
+
+   - **Identity**: a `TypeCache` is declared as a static field, which is its
+     identity: resetting statics recreates the object, not its content,
+     which the compiler keeps in its graph.
+   - **One producer per type**: the build of the type (`setCurrent`) or
+     `compute`, never both; `compute` is not called for a type whose build
+     gave a value.
+   - **Values are frozen deeply** when stored: mutating a value obtained by
+     `get` is an error, so that no data depends on the order of typing.
+   - **Incremental**: a value given by a build is valid while that build is;
+     a computed value while what `compute` read is unchanged; a reader
+     depends on the fingerprint of the value only.
+   - **Errors**: `setCurrent` outside of the build of a type or twice, `get`
+     of a type without value when there is no `compute`, `all()` during
+     typing.
+   - `-D macro-state-check` also computes the values again and compares their
+     fingerprints.
+   - **Registries for generation** (indices of classes, program-wide ids):
+     each build gives its entry, and `all()` reads them in an `onAfterTyping`
+     callback, which can `defineType` the registry. Such a callback runs on
+     every compilation, with early cutoff on what it produces.
    - **`Context.makeUniqueName(base)`**: deterministic unique names, local to
      the expansion key, instead of static counters.
-   - **Reductions**: a `program()` stage callback that calls `gather()` and,
-     for example, `defineType`s a registry type runs on every compilation,
-     with early cutoff on its result.
    - Whole-program APIs (`Context.getAllModuleTypes()`, iteration over loaded
-     modules) have the same constraint as `gather()`: their result depends on
+     modules) have the same constraint as `all()`: their result depends on
      what has been loaded so far, so calling them during typing is an error;
      they are allowed in `program()` stages. `Context.getModule(path)` stays
      allowed during typing: it loads one specific module (`DLookup` and
@@ -2034,13 +2039,13 @@ cycles are errors (§ phase 3.3).
        owners. The common pattern `try getType(p) catch(_) defineType(...)`
        is only valid within a single owner; a helper type needed by several
        expansions (e.g. hxbit's `ObjProxy_…` classes) must be defined by a
-       single owner, typically a `MacroCache.getOrCompute` keyed by the type
-       path, whose cache entry is then the owner;
+       single owner, typically the `compute` of a `TypeCache` keyed by the
+       type the helper is made for, whose value is then the owner;
      - code referencing a macro-defined type by name records a dependency on
        the owning expansion (`DMacro owner`). A lookup that happens before
        the owner ran is order-dependent: it is reported by verification mode,
-       and such references must go through the owner (or a `MacroCache`
-       entry) to be deterministic.
+       and such references must go through the owner (or a `TypeCache`
+       value) to be deterministic.
    - **`Context.onTypeNotFound`** callbacks can only be registered during
      initialization macros (`--macro`), in a fixed order; registering one
      during an expansion is an error. Two callbacks answering for the same
@@ -2058,22 +2063,24 @@ cycles are errors (§ phase 3.3).
    `registerModuleDependency` (item 3).
 9. **Corpus migration** (validates the declarations on real cases):
    - **domkit**: `COMPONENTS` (and `COMPONENTS_REMAP_REV`) become a
-     `MacroTypeData<MetaComponent>` on the component class; `loadComponent`
-     becomes `getType` then `data.get(t)`; `preload` and the
-     `// force build` idiom disappear. `componentsSearchPath` and
-     `defaultParserPath` stay `@:persistent` configuration, which requires
+     `TypeCache<MetaComponent>` filled by the build of each component;
+     `loadComponent` becomes `getByPath`; `preload` and the `// force build`
+     idiom disappear. `componentsSearchPath` and `defaultParserPath` stay
+     `@:persistent` configuration, which requires
      `h2d.domkit.InitComponents.init` to run as an initialization macro
      (`--macro`) rather than as a `@:build` on `h2d.domkit.Object`.
-   - **hxbit**: `SERIALIZABLES`/`UNSERIALIZABLES` are replaced by header
-     information (interfaces, declared metadata, `@:native`);
+   - **hxbit**: `SERIALIZABLES`/`UNSERIALIZABLES` become a `TypeCache` (or
+     header information: interfaces, declared metadata, `@:native`);
      `markAsSerializable`/`markAsUnserializable` become initialization-time
      configuration. `IGNORED_META`, `VISIBILITY_VALUES`, `CUSTOM_GETTERS` and
      `wrapRPC` stay `@:persistent` configuration. The struct `isProxy`
-     information becomes a `MacroTypeData`. The `PartialResolution` /
-     `TLazy` workaround goes away.
-   - **heaps**: `hxsl` stores the parsed shader in a `MacroTypeData` instead of
-     re-parsing `:src` on every `@:import`; `hxd/res/DynamicText.hx`
-     `BUILD_CACHE` and `hxd/fs/Convert.hx` `converts` become `MacroCache`s.
+     information becomes a `TypeCache`. The `PartialResolution` / `TLazy`
+     workaround goes away.
+   - **heaps**: `hxsl` keeps the parsed shader in a `TypeCache` (given by the
+     shader's build, computed from `:src` for a shader built elsewhere)
+     instead of re-parsing `:src` on every `@:import`;
+     `hxd/res/DynamicText.hx` `BUILD_CACHE` and `hxd/fs/Convert.hx`
+     `converts` stay `@:persistent` caches, checked by `-D macro-state-check`.
 10. **Detection during the transition** (Haxe 5.x warnings, before isolation
     becomes the default):
     - cheap mode: eval tags each static with the expansion that last assigned
@@ -2370,7 +2377,8 @@ phase 4 `Decls` fingerprints and happens in phase 6.
 - Position tests: insert lines above unchanged fields and check source maps,
   HL debug info, `haxe.PosInfos` line numbers and cached error positions.
 - Macro state tests: static isolation (including in-place mutation and nested
-  expansions), `@:persistent` freezing, each `haxe.macro.State` declaration,
+  expansions), `@:persistent` caches emptied between expansions
+  (`-D macro-state-check`), `TypeCache` (build or `compute`, errors, `all()`),
   metadata reads with and without `Context.buildType`.
 - Static initialization order tests (dependency order, `__init__` first,
   cycle errors).
