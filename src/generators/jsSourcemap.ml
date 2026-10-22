@@ -158,6 +158,10 @@ type encoded_fragment = {
 	ef_output_current_col : int;
 	ef_print_comma : bool;
 	ef_has_newline : bool;
+	(* the mappings after the first one, encoded for the global indexes of the
+	   sources when they are not only shifted (the same in the next
+	   compilations, as long as the sources keep their indexes) *)
+	mutable ef_spliced : (int array * string) option;
 }
 
 let encoded_fragment smap = {
@@ -168,6 +172,7 @@ let encoded_fragment smap = {
 	ef_output_current_col = smap.output_current_col;
 	ef_print_comma = smap.print_comma;
 	ef_has_newline = Buffer.length smap.mappings > 0 && String.contains (Buffer.contents smap.mappings) ';';
+	ef_spliced = None;
 }
 
 let decode_vlq s i =
@@ -234,7 +239,7 @@ let splice_fragment smap ef col0 last_col0 comma0 =
 			smap.output_current_col <- col;
 			encode_mapping smap { file = globals.(dfile); line = dline; col = dscol };
 			(* the others: the same deltas, but the one of their source *)
-			let b = smap.mappings in
+			let b = Buffer.create (len - i4) in
 			let add_vlq number =
 				let vlq = if number < 0 then ((-number) lsl 1) + 1 else number lsl 1 in
 				let rec loop vlq =
@@ -264,7 +269,15 @@ let splice_fragment smap ef col0 last_col0 comma0 =
 						add_vlq dscol;
 						loop i4
 			in
-			if shifted then Buffer.add_substring b m i4 (len - i4) else loop i4;
+			if shifted then Buffer.add_substring smap.mappings m i4 (len - i4) else begin
+				match ef.ef_spliced with
+				| Some (g,tail) when g = globals -> Buffer.add_string smap.mappings tail
+				| _ ->
+					loop i4;
+					let tail = Buffer.contents b in
+					ef.ef_spliced <- Some (globals,tail);
+					Buffer.add_string smap.mappings tail
+			end;
 			(* the final state *)
 			let fl = match ef.ef_last_pos with Some p -> p | None -> assert false in
 			smap.source_last_pos <- { fl with file = globals.(fl.file) };
