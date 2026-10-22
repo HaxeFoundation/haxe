@@ -79,6 +79,17 @@
 		"parent": "WTyper"
 	},
 	{
+		"name": "WConditionAssign",
+		"doc": "Using the result of an assignment as a condition",
+		"parent": "WTyper"
+	},
+	{
+		"name": "WConditionAssignBool",
+		"doc": "Using the result of an bool assignment as a condition",
+		"parent": "WTyper",
+		"enabled": false
+	},
+	{
 		"name": "WVarShadow",
 		"doc": "A local variable hides another by using the same name",
 		"parent": "WTyper",
