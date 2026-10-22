@@ -23,17 +23,28 @@
 open Globals
 open Type
 
+let trace = Sys.getenv_opt "HAXE_GRAPH_TRACE" <> None
+
+(* HAXE_GRAPH_TRACE=/path/to/file appends the trace to that file *)
+let trace_line =
+	match Sys.getenv_opt "HAXE_GRAPH_TRACE" with
+	| Some file when String.length file > 0 && file.[0] = '/' ->
+		let ch = open_out_gen [Open_append;Open_creat] 0o644 file in
+		(fun s -> output_string ch s; output_char ch '\n'; Stdlib.flush ch)
+	| _ -> prerr_endline
+
 type node = {
 	n_key : string;
 	mutable n_owner : path;
 	(* the fingerprint of the node, None if its module does not produce it *)
 	mutable n_fp : TFingerprint.t option;
 	(* what the node read, when it is a computation *)
-	mutable n_edges : edge list option;
+	mutable n_edges : edge array option;
 	(* the computation that produces the node: itself, the body (or inferred
 	   signature) of a field for its inline body, the declared signature or the
-	   members for a signature *)
+	   members for a signature (found on first use) *)
 	mutable n_by : node option;
+	mutable n_by_known : bool;
 	(* validity in the current compilation *)
 	mutable n_step : int;
 	mutable n_valid : bool;
@@ -42,12 +53,13 @@ type node = {
 }
 
 and edge =
-	(* a declaration of a file ("name\tnode") and the fingerprint seen, if it existed *)
-	| Leaf of file * string * TFingerprint.t option
+	(* a declaration of a file ("name\tnode") and the fingerprint seen
+	   (both lanes, [no_fp] if it did not exist): unboxed, the graph is big *)
+	| Leaf of file * string * int * int
 	(* the lookup of a module path, and the file it found ("" if none) *)
 	| Lookup of lookup * string
-	(* a node and the fingerprint seen, if it had one *)
-	| Node of node * TFingerprint.t option
+	(* a node and the fingerprint seen *)
+	| Node of node * int * int
 	(* a module that must not be typed again (it holds instances of @:generic
 	   methods made for the computation, or it ran macros) *)
 	| Module of path
@@ -64,6 +76,8 @@ and file = {
 	(* the current declarations, in the current compilation *)
 	mutable f_step : int;
 	mutable f_current : (string,TFingerprint.t) Hashtbl.t option;
+	(* the keys of the leaves of the file, shared by the edges *)
+	f_keys : (string,string) Hashtbl.t;
 }
 
 and lookup = {
@@ -110,13 +124,13 @@ let clear () = Hashtbl.reset graphs
 
 let node g key =
 	try Hashtbl.find g.nodes key with Not_found ->
-		let n = { n_key = key; n_owner = ([],""); n_fp = None; n_edges = None; n_by = None; n_step = -1; n_valid = false; n_stored = -1 } in
+		let n = { n_key = key; n_owner = ([],""); n_fp = None; n_edges = None; n_by = None; n_by_known = false; n_step = -1; n_valid = false; n_stored = -1 } in
 		Hashtbl.add g.nodes key n;
 		n
 
 let file g path =
 	try Hashtbl.find g.files path with Not_found ->
-		let f = { f_path = path; f_module = ([],""); f_time = 0.; f_decls = None; f_step = -1; f_current = None } in
+		let f = { f_path = path; f_module = ([],""); f_time = 0.; f_decls = None; f_step = -1; f_current = None; f_keys = Hashtbl.create 0 } in
 		Hashtbl.add g.files path f;
 		f
 
@@ -126,12 +140,25 @@ let lookup g path =
 		Hashtbl.add g.lookups path l;
 		l
 
+(* The edges to build, of the previous stores (see [store]). *)
+let pending : (unit -> unit) list ref = ref []
+
+let flush () =
+	let l = List.rev !pending in
+	pending := [];
+	List.iter (fun f -> f ()) l
+
 let path_of_key key =
 	match List.rev (String.split_on_char '.' key) with
 	| name :: pack -> List.rev pack,name
 	| [] -> [],key
 
 let is_computation n = n.n_edges <> None
+
+(* a fingerprint that may not exist, as two ints *)
+let no_fp = min_int
+let fp_lanes = function Some (a,b) -> a,b | None -> no_fp,no_fp
+let same_fp o a b = match o with Some (a',b') -> a = a' && b = b' | None -> a = no_fp
 
 (* The computation that produces node [key], among the computations of its module. *)
 let producer_of g key =
@@ -170,6 +197,7 @@ let decl_table file decls =
    lookup of [path] finds ("" if none), [decls_of m] the declarations [m] was
    typed from, [is_typed m] whether [m] was typed by this compilation. *)
 let store com resolve decls_of is_typed =
+	flush ();
 	let sign = CommonCache.get_cache_sign com in
 	let g = get sign in
 	(* the modules typed in this compilation, with their computations *)
@@ -185,102 +213,148 @@ let store com resolve decls_of is_typed =
 	) !DepRecord.consumers;
 	let modules = Hashtbl.fold (fun path cl acc -> (com.module_lut#find path,cl) :: acc) typed [] in
 	DepRecord.last_typed := List.fold_left (fun acc (m,_) -> s_type_path m.m_path :: acc) !DepRecord.last_typed modules;
+	let t_fps = Timer.start_timer com.timer_ctx ["server";"query graph";"fingerprints"] in
+	(* the fingerprints of their nodes and declarations, in parallel: the
+	   types are only read once typing is done *)
+	let computed = Parallel.run_with_pool com.sctx.pool (fun pool ->
+		Parallel.ParallelArray.map pool (fun (m,_) ->
+			let fps = ref [] in
+			EntityKey.iter_module (fun key e ->
+				let k = EntityKey.to_string key in
+				let set node fp = fps := (k ^ "\t" ^ node,fp) :: !fps in
+				match e with
+				| EntityKey.EType mt ->
+					set "header" (TFingerprint.type_header mt);
+					set "members" (TFingerprint.type_members mt)
+				| EntityKey.EField (c,cf) ->
+					set "sig" (TFingerprint.field_sig cf);
+					if TFingerprint.has_inline_body c cf then set "inline" (TFingerprint.field_inline_body cf)
+				| EntityKey.EAnonField (_,cf) ->
+					set "sig" (TFingerprint.field_sig cf)
+				| EntityKey.EEnumField _ | EntityKey.ETypeParam _ ->
+					()
+			) m;
+			let file = Path.get_full_path (Path.UniqueKey.lazy_path m.m_extra.m_file) in
+			List.rev !fps,file,Option.map (decl_table file) (decls_of m)
+		) (Array.of_list modules) ([],"",None)
+	) in
+	t_fps ();
 	(* their nodes: the previous ones are emptied, the records stay *)
-	List.iter (fun (m,cl) ->
-		List.iter (fun n -> n.n_fp <- None; n.n_edges <- None; n.n_by <- None; n.n_stored <- g.step) (try Hashtbl.find g.module_nodes m.m_path with Not_found -> []);
+	List.iteri (fun i (m,cl) ->
+		let fps,file_path,decls = computed.(i) in
+		List.iter (fun n -> n.n_fp <- None; n.n_edges <- None; n.n_by <- None; n.n_by_known <- false; n.n_stored <- g.step) (try Hashtbl.find g.module_nodes m.m_path with Not_found -> []);
 		let nodes = ref [] in
+		let seen = Hashtbl.create 16 in
 		let add key =
 			let n = node g key in
 			n.n_owner <- m.m_path;
 			n.n_stored <- g.step;
-			if not (List.memq n !nodes) then nodes := n :: !nodes;
+			if not (Hashtbl.mem seen key) then begin
+				Hashtbl.add seen key ();
+				nodes := n :: !nodes
+			end;
 			n
 		in
-		EntityKey.iter_module (fun key e ->
-			let k = EntityKey.to_string key in
-			let set node fp = (add (k ^ "\t" ^ node)).n_fp <- Some fp in
-			match e with
-			| EntityKey.EType mt ->
-				set "header" (TFingerprint.type_header mt);
-				set "members" (TFingerprint.type_members mt)
-			| EntityKey.EField (c,cf) ->
-				set "sig" (TFingerprint.field_sig cf);
-				if TFingerprint.has_inline_body c cf then set "inline" (TFingerprint.field_inline_body cf)
-			| EntityKey.EAnonField (_,cf) ->
-				set "sig" (TFingerprint.field_sig cf)
-			| EntityKey.EEnumField _ | EntityKey.ETypeParam _ ->
-				()
-		) m;
+		List.iter (fun (key,fp) -> (add key).n_fp <- Some fp) fps;
 		(* the computations are known before their edges are, for [producer_of] *)
-		List.iter (fun c -> (add (c.DepRecord.c_key ^ "\t" ^ c.c_node)).n_edges <- Some []) cl;
+		List.iter (fun c -> (add (c.DepRecord.c_key ^ "\t" ^ c.c_node)).n_edges <- Some [||]) cl;
 		Hashtbl.replace g.module_nodes m.m_path !nodes;
-		let f = file g (Path.get_full_path (Path.UniqueKey.lazy_path m.m_extra.m_file)) in
+		let f = file g file_path in
 		f.f_module <- m.m_path;
 		f.f_time <- m.m_extra.m_time;
-		f.f_decls <- Option.map (decl_table f.f_path) (decls_of m);
+		f.f_decls <- decls;
 		f.f_step <- -1
 	) modules;
-	List.iter (fun (m,_) ->
-		List.iter (fun n -> n.n_by <- producer_of g n.n_key) (Hashtbl.find g.module_nodes m.m_path)
-	) modules;
-	(* what their computations read *)
+
+	(* line numbers in an inline body: read by the modules inlining it (the body
+	   of another field is only read by its own module); known now, before the
+	   filters change the expressions *)
+	let uses_position = Hashtbl.create 0 in
+	List.iter (fun (_,cl) -> List.iter (fun c ->
+		match c.DepRecord.c_field with
+		| Some cf when (match cf.cf_kind with Method MethInline | Var { v_read = AccInline } -> true | _ -> false) && (match cf.cf_expr with Some e -> TFingerprint.uses_line_numbers e | None -> false) ->
+			Hashtbl.replace uses_position (c.c_key ^ "\t" ^ c.c_node) ()
+		| _ -> ()
+	) cl) modules;
+	(* the lookups, resolved now: in the compilation's directory and class paths *)
 	let lookups = Hashtbl.create 0 in
-	let resolve path =
-		try Hashtbl.find lookups path with Not_found ->
-			let r = resolve path in
-			Hashtbl.add lookups path r;
-			r
-	in
+	List.iter (fun (_,cl) -> List.iter (fun c ->
+		DepRecord.iter_raw_deps (function
+			| DepRecord.DType(path,"lookup") when not (Hashtbl.mem lookups (path_of_key (s_type_path path))) ->
+				let path = path_of_key (s_type_path path) in
+				Hashtbl.add lookups path (resolve path)
+			| _ -> ()
+		) c
+	) cl) modules;
+	(* The edges are built later (once the server answered, or before the next
+	   compilation uses the graph): they only need the fingerprints, computed
+	   above, and the computations. *)
+	let build_edges () =
+	(* each dependency read is converted once *)
+	let dep_nodes = DepRecord.DepTbl.create 0 in
+	(* what their computations read *)
+	let resolve path = try Hashtbl.find lookups path with Not_found -> "" in
 	List.iter (fun (m,cl) ->
 		let f = file g (Path.get_full_path (Path.UniqueKey.lazy_path m.m_extra.m_file)) in
-		let leaf name node =
-			let key = name ^ "\t" ^ node in
-			match f.f_decls with
-			| Some h -> Leaf (f,key,Hashtbl.find_opt h key)
-			| None -> Leaf (f,key,Some (0,0))
+		(* the leaves of the file, shared by its computations *)
+		let leaves = Hashtbl.create 16 in
+		let leaf_key key =
+			try Hashtbl.find leaves key with Not_found ->
+				let key = try Hashtbl.find f.f_keys key with Not_found -> Hashtbl.add f.f_keys key key; key in
+				let e = match f.f_decls with
+					| Some h -> let a,b = fp_lanes (Hashtbl.find_opt h key) in Leaf (f,key,a,b)
+					| None -> Leaf (f,key,0,0)
+				in
+				Hashtbl.add leaves key e;
+				e
 		in
+		let leaf name node = leaf_key (name ^ "\t" ^ node) in
+		(* the declared signatures of the fields of each type, and every declaration *)
+		let signatures = Hashtbl.create 16 in
+		let all_decls = ref [] in
+		begin match f.f_decls with
+		| Some h ->
+			Hashtbl.iter (fun k _ ->
+				match String.index_opt k '\t' with
+				| Some i ->
+					let name = String.sub k 0 i and node = String.sub k (i + 1) (String.length k - i - 1) in
+					if node = "decls" then all_decls := leaf_key k :: !all_decls
+					else if node = "decl signature" then begin match String.index_opt name '.' with
+						| Some j when not (String.contains_from name (j + 1) '.') ->
+							let tname = String.sub name 0 j in
+							Hashtbl.replace signatures tname (leaf_key k :: (try Hashtbl.find signatures tname with Not_found -> []))
+						| _ -> ()
+					end
+				| None -> ()
+			) h
+		| None -> ()
+		end;
 		List.iter (fun c ->
 			(* a declared signature reads the declaration without its body *)
 			let decl_node = if c.DepRecord.c_node = "declared sig" then "decl signature" else "decls" in
 			let edges = ref [leaf c.c_decl decl_node;leaf "(imports)" "decls";leaf "(types)" "types"] in
 			if c.c_node = "members" then begin
 				edges := leaf c.c_decl "fields" :: !edges;
-				match f.f_decls with
-				| Some h ->
-					let prefix = c.c_decl ^ "." in
-					let n = String.length prefix in
-					Hashtbl.iter (fun k _ ->
-						match String.index_opt k '\t' with
-						| Some i when i > n && String.sub k 0 n = prefix && String.sub k i (String.length k - i) = "\tdecl signature" ->
-							let name = String.sub k 0 i in
-							if not (String.contains (String.sub name n (i - n)) '.') then edges := leaf name "decl signature" :: !edges
-						| _ ->
-							()
-					) h
-				| None -> ()
+				List.iter (fun e -> edges := e :: !edges) (try Hashtbl.find signatures c.c_decl with Not_found -> [])
 			end;
-			begin match c.c_field with
-			| Some cf when (match cf.cf_expr with Some e -> TFingerprint.uses_line_numbers e | None -> false) ->
-				edges := leaf c.c_decl "position" :: !edges
-			| _ ->
-				()
-			end;
+			if Hashtbl.mem uses_position (c.c_key ^ "\t" ^ c.c_node) then edges := leaf c.c_decl "position" :: !edges;
 			let self = c.c_key ^ "\t" ^ c.c_node in
 			(* a macro can read every declaration of the file (build macros read
 			   the bodies of the fields), and what the module depends on besides
 			   code: the files the macros declared (registerModuleDependency) *)
-			if Hashtbl.fold (fun k () acc -> acc || String.ends_with ~suffix:"\texpansion" k) c.c_deps false then begin
+			let expansion = ref false in
+			DepRecord.iter_raw_deps (function DepRecord.DKey(_,"expansion") -> expansion := true | _ -> ()) c;
+			if !expansion then begin
 				edges := Module m.m_path :: !edges;
-				match f.f_decls with
-				| Some h -> Hashtbl.iter (fun k _ -> match String.index_opt k '\t' with
-					| Some i when String.sub k i (String.length k - i) = "\tdecls" -> edges := leaf (String.sub k 0 i) "decls" :: !edges
-					| _ -> ()) h
-				| None -> ()
+				List.iter (fun e -> edges := e :: !edges) !all_decls
 			end;
-			Hashtbl.iter (fun k () ->
-				match String.index_opt k '\t' with
-				| Some i ->
-					let key = String.sub k 0 i and node_kind = String.sub k (i + 1) (String.length k - i - 1) in
+			DepRecord.iter_raw_deps (fun d ->
+				match DepRecord.DepTbl.find_opt dep_nodes d with
+				| Some (Some n) -> if n.n_key <> self then begin let a,b = fp_lanes n.n_fp in edges := Node (n,a,b) :: !edges end
+				| Some None -> ()
+				| None ->
+					let key,node_kind = DepRecord.dep_key d in
+					let k = key ^ "\t" ^ node_kind in
 					begin match node_kind with
 					| "lookup" -> let path = path_of_key key in edges := Lookup (lookup g path,resolve path) :: !edges
 					| "generic" -> edges := Module (path_of_key key) :: !edges
@@ -290,16 +364,20 @@ let store com resolve decls_of is_typed =
 						let mcom = match com.get_macros () with Some mcom -> mcom | None -> com in
 						let mpath = try (mcom.module_lut#find_by_type tpath).m_path with Not_found -> tpath in
 						edges := MacroModule (CommonCache.get_cache_sign mcom,mpath) :: !edges
-					| "signature" when key = "(defines)" -> ()
-					| _ when k = self -> ()
-					| _ -> let n = node g k in edges := Node (n,n.n_fp) :: !edges
+					| "signature" when key = "(defines)" -> DepRecord.DepTbl.add dep_nodes d None
+					| _ ->
+						let n = node g k in
+						DepRecord.DepTbl.add dep_nodes d (Some n);
+						if k <> self then begin let a,b = fp_lanes n.n_fp in edges := Node (n,a,b) :: !edges end
 					end
-				| None ->
-					()
-			) c.c_deps;
-			(node g self).n_edges <- Some !edges
+			) c;
+			(node g self).n_edges <- Some (Array.of_list !edges)
 		) cl
-	) modules
+	) modules;
+	in
+	pending := build_edges :: !pending;
+	if trace then
+		trace_line (Printf.sprintf "[graph] stored %d modules, %d nodes" (List.length modules) (Hashtbl.length g.nodes))
 
 (* Validation, before typing *)
 
@@ -320,7 +398,7 @@ type validation = {
 	v_assume : bool;
 }
 
-let trace = Sys.getenv_opt "HAXE_GRAPH_TRACE" <> None
+
 
 (* HAXE_GRAPH=off: modules are checked through their module dependencies only *)
 let disabled = Sys.getenv_opt "HAXE_GRAPH" = Some "off"
@@ -342,19 +420,23 @@ let current_lookup v l =
 let s_fp = function Some fp -> TFingerprint.to_string fp | None -> "none"
 
 let s_edge v = function
-	| Leaf (f,key,seen) ->
+	| Leaf (f,key,a,b) ->
 		let cur = match current_decls v f with Some h -> Hashtbl.find_opt h key | None -> None in
-		Printf.sprintf "%s:%s (%s, now %s)" f.f_path key (s_fp seen) (s_fp cur)
+		Printf.sprintf "%s:%s (%s, now %s)" f.f_path key (s_fp (if a = no_fp then None else Some (a,b))) (s_fp cur)
 	| Lookup (l,seen) ->
 		Printf.sprintf "lookup %s (%s, now %s)" (s_type_path l.l_path) seen (current_lookup v l)
-	| Node (n,seen) ->
-		Printf.sprintf "node %s (%s, now %s)" n.n_key (s_fp seen) (s_fp n.n_fp)
+	| Node (n,a,b) ->
+		Printf.sprintf "node %s (%s, now %s)" n.n_key (s_fp (if a = no_fp then None else Some (a,b))) (s_fp n.n_fp)
 	| Module path ->
 		"module " ^ s_type_path path
 	| MacroModule (_,path) ->
 		"macro module " ^ s_type_path path
 
 let rec valid_node v n =
+	if not n.n_by_known then begin
+		n.n_by <- producer_of v.v_graph n.n_key;
+		n.n_by_known <- true
+	end;
 	match n.n_by with
 	| Some p when is_computation p ->
 		valid_computation v p
@@ -362,7 +444,7 @@ let rec valid_node v n =
 		if n.n_fp = None then true
 		else begin
 			let b = v.v_module_valid n.n_owner in
-			if trace then prerr_endline (Printf.sprintf "[graph] %s: owner %s %s" n.n_key (s_type_path n.n_owner) (if b then "valid" else "changed"));
+			if trace then trace_line (Printf.sprintf "[graph] %s: owner %s %s" n.n_key (s_type_path n.n_owner) (if b then "valid" else "changed"));
 			b
 		end
 
@@ -371,12 +453,12 @@ and valid_computation v n =
 		if not n.n_valid && v.v_failed = None then v.v_failed <- Some n.n_key;
 		n.n_valid
 	end else begin
-		let edges = match n.n_edges with Some l -> l | None -> [] in
-		if trace then prerr_endline (Printf.sprintf "[graph] check %s (%d edges): %s" n.n_key (List.length edges) (String.concat ", " (List.map (s_edge v) edges)));
+		let edges = match n.n_edges with Some l -> l | None -> [||] in
+		if trace then trace_line (Printf.sprintf "[graph] check %s (%d edges): %s" n.n_key (Array.length edges) (String.concat ", " (Array.to_list (Array.map (s_edge v) edges))));
 		(* assumed valid while it is checked *)
 		n.n_step <- v.v_graph.step;
 		n.n_valid <- true;
-		let b = List.for_all (valid_edge v) edges in
+		let b = Array.for_all (valid_edge v) edges in
 		n.n_valid <- b;
 		if b then v.v_provisional <- n :: v.v_provisional;
 		b
@@ -384,23 +466,23 @@ and valid_computation v n =
 
 and valid_edge v e =
 	let b = match e with
-		| Leaf (f,key,seen) ->
-			(match current_decls v f with Some h -> Hashtbl.find_opt h key | None -> None) = seen
+		| Leaf (f,key,a,b) ->
+			same_fp (match current_decls v f with Some h -> Hashtbl.find_opt h key | None -> None) a b
 		| Lookup (l,seen) ->
 			current_lookup v l = seen
-		| Node (n,seen) ->
-			n.n_fp = seen && (valid_node v n || assume v n seen)
+		| Node (n,a,b) ->
+			same_fp n.n_fp a b && (valid_node v n || assume v n n.n_fp)
 		| Module path ->
 			v.v_module_valid path
 		| MacroModule (sign,path) ->
 			v.v_macro_module_valid sign path
 	in
 	if not b then begin
-		if trace then prerr_endline ("[graph] changed: " ^ s_edge v e);
+		if trace then trace_line ("[graph] changed: " ^ s_edge v e);
 		if v.v_failed = None then v.v_failed <- Some (match e with
-			| Leaf (f,key,_) -> Filename.basename f.f_path ^ ":" ^ key
+			| Leaf (f,key,_,_) -> Filename.basename f.f_path ^ ":" ^ key
 			| Lookup (l,_) -> "lookup " ^ s_type_path l.l_path
-			| Node (n,_) -> n.n_key
+			| Node (n,_,_) -> n.n_key
 			| Module path -> "module " ^ s_type_path path
 			| MacroModule (_,path) -> "macro module " ^ s_type_path path)
 	end;
@@ -411,7 +493,7 @@ and valid_edge v e =
    again. This is checked after typing ([check_assumptions]). *)
 and assume v n seen =
 	v.v_assume && (match n.n_by with Some p -> is_computation p | None -> false) && begin
-		if trace then prerr_endline ("[graph] assumed unchanged: " ^ n.n_key);
+		if trace then trace_line ("[graph] assumed unchanged: " ^ n.n_key);
 		v.v_graph.assumptions <- (n,seen) :: v.v_graph.assumptions;
 		true
 	end
@@ -421,7 +503,7 @@ and assume v n seen =
 let check_assumptions g =
 	let ok = List.for_all (fun (n,seen) ->
 		let b = n.n_stored = g.step && n.n_fp = seen in
-		if not b && trace then prerr_endline ("[graph] assumption failed: " ^ n.n_key);
+		if not b && trace then trace_line ("[graph] assumption failed: " ^ n.n_key);
 		b
 	) g.assumptions in
 	g.assumptions <- [];
@@ -434,6 +516,7 @@ let is_traced g path =
 	| Some nodes -> List.exists is_computation nodes
 
 let begin_validation g step =
+	flush ();
 	if g.step <> step then begin
 		g.step <- step;
 		g.assumptions <- []
@@ -443,7 +526,7 @@ let begin_validation g step =
 let module_valid v path =
 	let nodes = try Hashtbl.find v.v_graph.module_nodes path with Not_found -> [] in
 	let b = List.for_all (fun n -> not (is_computation n) || valid_computation v n) nodes in
-	if trace then prerr_endline (Printf.sprintf "[graph] module %s: %s" (s_type_path path) (if b then "valid" else "changed"));
+	if trace then trace_line (Printf.sprintf "[graph] module %s: %s" (s_type_path path) (if b then "valid" else "changed"));
 	b
 
 (* The module being checked turned out invalid: the computations found valid

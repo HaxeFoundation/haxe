@@ -722,6 +722,9 @@ let store_graph com =
 			store com;
 			Option.may store (com.get_macros())
 		) ();
+		(* the edges, once the server answered (before the maintenance tasks,
+		   which empty the expressions of cached fields) *)
+		com.cs#add_task (new arbitrary_task ["query graph"] 10 NodeGraph.flush);
 		if not (List.for_all NodeGraph.check_assumptions assumed) then raise NodeGraph.Retry
 	end else
 		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed

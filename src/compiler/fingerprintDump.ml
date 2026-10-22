@@ -71,13 +71,10 @@ let dump com file =
 			| _ ->
 				()
 			end;
-			Hashtbl.iter (fun k () ->
-				match String.split_on_char '\t' k with
-				| [key;node] ->
-					if node = "lookup" then Hashtbl.replace lookups key ();
-					if key <> c.c_key || node <> c.c_node then dep c key node
-				| _ -> ()
-			) c.c_deps
+			DepRecord.iter_deps (fun key node ->
+				if node = "lookup" then Hashtbl.replace lookups key ();
+				if key <> c.c_key || node <> c.c_node then dep c key node
+			) c
 		| _ ->
 			()
 	) !DepRecord.consumers;

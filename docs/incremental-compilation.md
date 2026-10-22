@@ -1704,6 +1704,15 @@ members or that signature. Measured on Heaps (1534 modules, JS, 4 domains):
 Nodes are records updated in place when their module is typed again, and
 edges point to them: validating all of Heaps takes about 0.1 s.
 
+Cost of the first compilation in the server (Heaps, 1231 modules, 52 000
+computations, 340 000 dependencies, 530 000 edges): 6.0–6.5 s, against
+5.3 s without recording (`HAXE_RECORD=off`). Dependencies are recorded as
+the entity read (`DepRecord.dep`), keys are built when the graph is stored;
+the fingerprints of the nodes are computed in parallel after typing; the
+edges are built once the server answered (a server task, before the
+maintenance tasks) or before the next compilation uses the graph, from
+lookups resolved at the end of typing (in the compilation's directory).
+
 Every warm output is identical to a cold compilation (generated JS and
 messages), and so is the whole `tests/incremental` suite, the replay of 20
 Heaps commits, and 85 random edits of Heaps (moved lines, changed literals,
@@ -2268,6 +2277,18 @@ model for the whole compilation.
 7. **Measurement.** The scheduler reports per compilation the busy time per
    domain, the critical path (longest chain of dependent queries) and the time
    spent waiting, per operation, in `--times` and `server/stats`.
+
+8. **Allocation.** With OCaml 5, a minor collection stops every domain: the
+   more a domain allocates, the more the others wait, so allocation limits
+   how far parallel work scales. To do: a global search for avoidable
+   allocations in the compiler (strings built only to be compared or hashed,
+   such as `s_type_path` keys, intermediate lists and tuples in hot paths,
+   closures allocated per call, `Printf.sprintf` in non-error paths, options
+   wrapping values that are always present), measured with the minor
+   collection counts of `--times` and the gdb sampler, starting with typing,
+   filters, the analyzer and the macro interpreter. Example: the dependency
+   recording of phase 6 built a string key per read; recording the entity
+   instead (keys built when the graph is stored) cut its cost by a third.
 
 Each phase applies these rules to what it introduces: phase 3 for typing,
 phase 6 for the VFS, phase 7 for macros, phase 8 for post-processing, phases 9
