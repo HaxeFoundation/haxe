@@ -42,10 +42,10 @@ class JsonParser {
 		If `str` is null, the result is unspecified.
 	**/
 	static public inline function parse(str:String):Dynamic {
-		#if lua_vanilla
-		return new JsonParser(str).doParse();
-		#else
+		#if lua_simdjson
 		return lua.lib.hxluasimdjson.Json.parse(str);
+		#else
+		return new JsonParser(str).doParse();
 		#end
 	}
 
