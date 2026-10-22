@@ -8,8 +8,9 @@ typedef ExpectedMessage = {type:String, symbol:String, pos:Position}
 
 class Validator {
 #if macro
-	static var expectedErrors:Array<ExpectedMessage> = [];
-	static var expectedWarnings:Array<ExpectedMessage> = [];
+	// filled by the build of each class, read after typing: macro statics are reset for every expansion
+	@:persistent static var expectedErrors:Array<ExpectedMessage> = [];
+	@:persistent static var expectedWarnings:Array<ExpectedMessage> = [];
 
 	static dynamic function onNullSafetyReport(callback:(errors:Array<SafetyMessage>)->Void):Void {
 	}
