@@ -878,12 +878,23 @@ module TypeBinding = struct
 				let body_needed = fctx.is_inline || fctx.is_generic in
 				(* a generic field's body is read by its instances, created by other bodies *)
 				let is_sig = fctx.is_inline || not (is_full_type cf.cf_type) in
-				if body_needed || is_sig then
-					cf.cf_type <- TLazy r
-				else
+				if body_needed || is_sig then begin
+					cf.cf_type <- TLazy r;
+					cctx.delayed_expr <- (ctx,cf,Some r,is_sig) :: cctx.delayed_expr
+				end else match (if has_class_field_flag cf CfOverload then None else !DepRecord.reuse_body c cf) with
+				| Some paths ->
+					(* the body typed by the previous compilation is still valid
+					   (docs/incremental-compilation.md, phase 6): the module
+					   depends on what it read *)
+					schedule ctx.g StageBodies (fun () ->
+						List.iter (fun path ->
+							try add_dependency ctx.m.curmod (ctx.g.do_load_module ctx path p) MDepFromTyping with _ -> ()
+						) paths
+					)
+				| None ->
 					(* the domain typing it claimed it: no need to lock *)
 					set_pending_body cf (fun () -> ignore(force_lazy_unlocked r));
-				cctx.delayed_expr <- (ctx,cf,Some r,is_sig) :: cctx.delayed_expr;
+					cctx.delayed_expr <- (ctx,cf,Some r,is_sig) :: cctx.delayed_expr
 			end
 		end else if ctx.com.display.dms_force_macro_typing && fctx.is_macro && not ctx.com.is_macro_context then
 			force_macro true

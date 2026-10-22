@@ -37,6 +37,11 @@ type state = {
 	mutable var_flags : int;
 }
 
+(* the flags of local variables that the typer or the analyzer set as markers
+   (looked up, analyzed, written by hxb) are not hashed: they change when the
+   expression is read again *)
+let default_var_flags = lnot (List.fold_left (fun acc f -> acc lor (1 lsl (Obj.magic f : int))) 0 [VAnalyzed;VUsedByTyper;VHxb])
+
 let create ~positions = {
 	h1 = 0x2545F4914F6CDD1D;
 	h2 = 0x1B873593C2B2AE35;
@@ -47,7 +52,7 @@ let create ~positions = {
 	nvars = 0;
 	monos = [];
 	anons = [];
-	var_flags = -1;
+	var_flags = default_var_flags;
 }
 
 let add_int h x =
@@ -375,7 +380,7 @@ and add_function h tf =
 
 (* Fingerprints of the nodes of §3.2 *)
 
-let with_state ?(origin=null_pos) ?(within_origin=false) ?(var_flags=(-1)) ~positions f =
+let with_state ?(origin=null_pos) ?(within_origin=false) ?(var_flags=default_var_flags) ~positions f =
 	let h = create ~positions in
 	h.origin <- origin;
 	h.within_origin <- within_origin;

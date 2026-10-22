@@ -134,7 +134,11 @@ let absent_key n name static = n.n_key ^ "\t" ^ DepRecord.absent_node name stati
 let attempts = ref 0
 let no_assumptions = ref false
 
+let clear_current = ref (fun () -> ())
+
 let end_compilation () =
+	DepRecord.reused := [];
+	!clear_current ();
 	attempts := 0;
 	no_assumptions := false;
 	Hashtbl.reset known_changed
@@ -299,9 +303,10 @@ let prepare_store com resolve decls_of is_typed =
 			List.filter_map (function
 				| ANode (n,seen) ->
 					let now = Hashtbl.find_opt fps n.n_key in
-					if Hashtbl.mem typed_paths n.n_owner && now = seen then None
+					(* a node no module produces (no fingerprint before or after) keeps it *)
+					if (Hashtbl.mem typed_paths n.n_owner || seen = None) && now = seen then None
 					else begin
-						if trace then trace_line ("[graph] assumption failed: " ^ n.n_key);
+						if trace then trace_line (Printf.sprintf "[graph] assumption failed: %s (seen %s, now %s, owner %s typed %b)" n.n_key (match seen with Some fp -> TFingerprint.to_string fp | None -> "none") (match now with Some fp -> TFingerprint.to_string fp | None -> "none") (s_type_path n.n_owner) (Hashtbl.mem typed_paths n.n_owner));
 						Some (n.n_key,now)
 					end
 				| AAbsent (n,name,static) ->
@@ -317,13 +322,24 @@ let prepare_store com resolve decls_of is_typed =
 			) g.assumptions
 		end
 	in
+	(* the computations kept from the previous compilation (bodies not typed
+	   again): they keep what they read *)
+	let reused = Hashtbl.create 0 in
+	List.iter (fun key -> Hashtbl.replace reused key ()) !DepRecord.reused;
+	DepRecord.reused := [];
 	let apply () =
 	(* their nodes: the previous ones are emptied, the records stay *)
 	List.iteri (fun i (m,cl) ->
 		let fps,file_path,decls = computed.(i) in
-		List.iter (fun n -> n.n_fp <- None; n.n_edges <- None; n.n_by <- None; n.n_by_known <- false; n.n_stored <- g.step) (try Hashtbl.find g.module_nodes m.m_path with Not_found -> []);
-		let nodes = ref [] in
+		let kept = ref [] in
+		List.iter (fun n ->
+			if Hashtbl.mem reused n.n_key && n.n_edges <> None then kept := n :: !kept
+			else begin n.n_fp <- None; n.n_edges <- None; n.n_by <- None; n.n_by_known <- false end;
+			n.n_stored <- g.step
+		) (try Hashtbl.find g.module_nodes m.m_path with Not_found -> []);
+		let nodes = ref !kept in
 		let seen = Hashtbl.create 16 in
+		List.iter (fun n -> Hashtbl.replace seen n.n_key ()) !kept;
 		let add key =
 			let n = node g key in
 			n.n_owner <- m.m_path;
@@ -642,6 +658,65 @@ and assume v n seen =
 		v.v_graph.assumptions <- ANode (n,seen) :: v.v_graph.assumptions;
 		true
 	end
+
+(* The validation of the current compilation, with the signature of its
+   context, for [reusable]. *)
+let current : (string * validation * (string,bool) Hashtbl.t) option ref = ref None
+let reuse_mutex = Mutex.create ()
+let () = clear_current := (fun () -> current := None)
+
+(* Whether computation [n] is valid without assumptions, with its own memo
+   (the one of the validation holds results made under assumptions, which are
+   checked after typing): what it read did not change, the nodes produced by
+   valid computations or by modules found valid. *)
+let rec strictly_valid v memo n =
+	match Hashtbl.find_opt memo n.n_key with
+	| Some b -> b
+	| None ->
+		(* a cycle is not valid *)
+		Hashtbl.replace memo n.n_key false;
+		let edges = match n.n_edges with Some l -> l | None -> [||] in
+		let valid_produced n' =
+			if not n'.n_by_known then begin
+				n'.n_by <- producer_of v.v_graph n'.n_key;
+				n'.n_by_known <- true
+			end;
+			match n'.n_by with
+			| Some p when is_computation p -> strictly_valid v memo p
+			| _ -> n'.n_fp = None || v.v_module_valid n'.n_owner
+		in
+		let b = Hashtbl.length known_changed = 0 && Array.for_all (fun e -> let r = (match e with
+			| Leaf (f,key,a,b) ->
+				let current = current_decls v f in
+				f.f_unchanged || same_fp (match current with Some h -> Hashtbl.find_opt h key | None -> None) a b
+			| Lookup (l,seen) -> current_lookup v l = seen
+			| Node (n',a,b) -> same_fp n'.n_fp a b && valid_produced n'
+			| Absent (n',_,_) -> valid_produced n'
+			| Module _ | MacroModule _ -> false) in
+			if not r && trace then trace_line ("[reuse] " ^ n.n_key ^ ": " ^ s_edge v e);
+			r
+		) edges in
+		Hashtbl.replace memo n.n_key b;
+		b
+
+(* Computation [n], which the module being typed again had, is still valid and
+   can be kept: the paths of the modules it read, else None. A computation that
+   ran a macro or made instances of a @:generic is typed again. *)
+let reusable v memo n =
+	match n.n_edges with
+	| None -> None
+	| Some edges ->
+		if Array.exists (function Module _ | MacroModule _ -> true | _ -> false) edges then None else begin
+			if not (strictly_valid v memo n) then None else begin
+				let paths = Hashtbl.create 8 in
+				Array.iter (function
+					| Node (n',_,_) | Absent (n',_,_) -> if n'.n_owner <> n.n_owner then Hashtbl.replace paths n'.n_owner ()
+					| Lookup (l,seen) -> if seen <> "" then Hashtbl.replace paths l.l_path ()
+					| Leaf _ | Module _ | MacroModule _ -> ()
+				) edges;
+				Some (Hashtbl.fold (fun p () acc -> p :: acc) paths [])
+			end
+		end
 
 (* Whether module [path] is traced by the graph: its computations are known. *)
 let is_traced g path =

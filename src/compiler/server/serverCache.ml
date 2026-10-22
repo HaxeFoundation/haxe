@@ -139,6 +139,30 @@ let get_typing_mode com m_extra =
 	FullTyping
 
 (* The file a lookup of module [path] finds, "" if none (query graph, phase 6). *)
+(* Phase 6: a body that the previous compilation typed, of a module typed
+   again, is kept when its computation is still valid. *)
+let () = DepRecord.reuse_body := (fun c cf ->
+	match !NodeGraph.current with
+	| Some (sign,v,memo) when c.cl_module.m_extra.m_sign = sign && not (TFingerprint.has_inline_body c cf) ->
+		begin match Graft.old_body c cf with
+		| None -> None
+		| Some e ->
+			let key = DepRecord.field_key c cf ^ "\tbody" in
+			match Hashtbl.find_opt v.NodeGraph.v_graph.NodeGraph.nodes key with
+			| None -> None
+			| Some n ->
+				match Mutex.protect NodeGraph.reuse_mutex (fun () -> NodeGraph.reusable v memo n) with
+				| None -> None
+				| Some paths ->
+					cf.cf_expr <- Some e;
+					add_class_field_flag cf CfPostProcessed;
+					Mutex.protect DepRecord.mutex (fun () -> DepRecord.reused := key :: !DepRecord.reused);
+					Some paths
+		end
+	| _ ->
+		None
+)
+
 let resolve_for_graph com path =
 	try Path.get_full_path (TypeloadParse.resolve_module_file com path (ref (fst path)) null_pos).ClassPaths.file
 	with _ -> ""
@@ -221,6 +245,18 @@ let check_module sctx com m_path m_extra p =
 			v_assume = not !NodeGraph.no_assumptions && !NodeGraph.attempts < 3 && com.display.dms_kind = DMNone;
 		}
 	) graph in
+	(* for the bodies kept while typing (phase 6): a module is valid when this
+	   compilation found it valid, without checking it again from there *)
+	Option.may (fun v ->
+		let checked sign path =
+			try
+				let m_extra = (com.cs#get_context sign)#find_module_extra path in
+				m_extra.m_checked = start_mark && m_extra.m_cache_state = MSGood
+			with Not_found ->
+				false
+		in
+		NodeGraph.current := Some (own_sign,{ v with NodeGraph.v_module_valid = checked own_sign; v_macro_module_valid = checked },Hashtbl.create 0)
+	) validation;
 	let rec check m_path m_extra =
 		let check_module_path () =
 			let directories = get_changed_directories sctx com in

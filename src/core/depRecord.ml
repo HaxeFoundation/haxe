@@ -63,6 +63,15 @@ let current : consumer option DomainLocal.t = DomainLocal.make (fun () -> None)
 let consumers : consumer list ref = ref []
 let mutex = Mutex.create ()
 
+(* Phase 6: the body of field [cf] of [c], typed by the previous compilation
+   of the server, is still valid: it is given back (post-processed), and the
+   result is the paths of the modules it read, which the module depends on;
+   None if it must be typed. Set by the server. *)
+let reuse_body : (tclass -> tclass_field -> path list option) ref = ref (fun _ _ -> None)
+
+(* The keys of the computations kept from the previous compilation ("key\tnode"). *)
+let reused : string list ref = ref []
+
 let type_key path = s_type_path path
 
 (* The name of the declaration of type [c]: the fields of the implementation

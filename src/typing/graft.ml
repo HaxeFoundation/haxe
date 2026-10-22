@@ -28,6 +28,9 @@ type module_graft = {
 	overloads : (path * kind * string,int) Hashtbl.t;
 	(* keys of the fields created so far, for the keys of their type parameters *)
 	mutable field_keys : (tclass_field * EntityKey.t) list;
+	(* the post-processed expressions of the old fields reused, before grafting
+	   gives them the new content *)
+	mutable old_bodies : (tclass_field * texpr) list;
 }
 
 (* Grafts of the modules typed by the current compilation, by module id. *)
@@ -59,7 +62,7 @@ let begin_module com m =
 		let index = try Some (EntityKey.index_module m_old) with Failure _ -> None in
 		Option.may (fun index ->
 			Mutex.protect mutex (fun () ->
-				Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0; field_keys = [] }
+				Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0; field_keys = []; old_bodies = [] }
 			)
 		) index
 	| _ ->
@@ -122,12 +125,28 @@ let graft_field (c : tclass) kind (cf : tclass_field) =
 				n
 		) in
 		let key = mk_key m c.cl_path kind name overload in
-		let cf = reuse (match find_old m key with Some (EField(_,cf')) -> Some cf' | _ -> None) cf in
+		let found = match find_old m key with Some (EField(_,cf')) -> Some cf' | _ -> None in
+		(match found with
+		| Some cf' when has_class_field_flag cf' CfPostProcessed ->
+			Option.may (fun e -> Mutex.protect mutex (fun () ->
+				Option.may (fun g -> g.old_bodies <- (cf',e) :: g.old_bodies) (Hashtbl.find_opt grafts m.m_id)
+			)) cf'.cf_expr
+		| _ -> ());
+		let cf = reuse found cf in
 		Mutex.protect mutex (fun () ->
 			Option.may (fun g -> g.field_keys <- (cf,key) :: g.field_keys) (Hashtbl.find_opt grafts m.m_id)
 		);
 		cf
 	end
+
+(* The post-processed expression that field [cf] of [c] had before it was
+   grafted, if it had one. *)
+let old_body (c : tclass) (cf : tclass_field) =
+	Mutex.protect mutex (fun () ->
+		match Hashtbl.find_opt grafts c.cl_module.m_id with
+		| Some g -> List.assq_opt cf g.old_bodies
+		| None -> None
+	)
 
 let graft_enum_field (e : tenum) (ef : tenum_field) =
 	let m = e.e_module in

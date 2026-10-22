@@ -1665,6 +1665,33 @@ signatures, enum constructors, typedef targets). Cycles in the graph are
 handled like module cycles (valid results under assumption are forgotten
 when the module turns out invalid).
 
+**Status: item 2.4, first step (bodies kept when a module is typed again).**
+A module is still typed again as a whole, but the body of a field is not: when
+its computation is still valid, the expression the previous compilation
+typed and post-processed is given back (`DepRecord.reuse_body`, set by the
+server; grafting keeps the old expression of each field it reuses,
+`Graft.old_body`), marked post-processed so that the filters skip it, and
+the module depends again on the modules the body read (taken from its
+edges). Its node keeps what it read in the graph. The validity is strict:
+what the computation read did not change, the nodes it read are produced by
+valid computations or by modules this compilation found valid, without the
+assumptions of early cutoff (made by the validation of modules, they are
+only checked after typing, and an assumption made for a body would compile
+again for nothing when it fails). Not kept: fields whose type is inferred
+from their body, inline and `@:generic` fields and the operators and casts
+of abstracts (their body is read by others), overloads, and bodies that ran
+a macro or made instances of a `@:generic`.
+Two fixes on the way: the fingerprints no longer hash the markers that the
+typer and the analyzer set on local variables (`VUsedByTyper`, `VAnalyzed`),
+and an assumption about a node that no module produces (no fingerprint
+before or after) holds.
+Heaps: a field added to `h3d.scene.Object` 0.70 s instead of 0.89 s, its
+signature changed 0.77 s instead of 0.97 s, `hxsl.Macros` moved 1.13 s
+instead of 1.38 s; hide, a field added to `hrt.prefab.Object3D`: 2.6–2.7 s
+instead of 2.7–3.1 s (most bodies of the prefabs read signatures of
+`Object3D`, whose members are computed again: without assumptions they are
+typed again).
+
 The validation visits every computation once per compilation (pull). Its cost
 per edge is kept low: the nodes known to have changed are only looked up when
 there are some, and a lookup keeps the file it found until a directory of the
