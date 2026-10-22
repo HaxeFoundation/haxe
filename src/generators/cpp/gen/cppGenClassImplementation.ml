@@ -86,16 +86,24 @@ let gen_function ctx tcpp_class is_static func =
   output "\n\n";
 
   (* generate dynamic version too ... *)
-  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && not (is_native_gen_class tcpp_class.tcl_class) then
     let callable_name = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
     let signature     = func_to_callable_string "::hx::Callable" func in
     if is_static then
-      Printf.sprintf
-        "%s %s::%s_dyn() { return _hx_alloc%s; }\n\n"
-        signature
-        tcpp_class.tcl_name
-        func.tcf_name
-        callable_name |> output
+      if func.tcf_is_reflective then
+        Printf.sprintf
+          "%s %s::%s_dyn() { return _hx_alloc%s; }\n\n"
+          signature
+          tcpp_class.tcl_name
+          func.tcf_name
+          callable_name |> output
+      else
+        Printf.sprintf
+          "%s %s::%s_dyn() { return new %s(); }\n\n"
+          signature
+          tcpp_class.tcl_name
+          func.tcf_name
+          callable_name |> output
     else
       Printf.sprintf
         "%s %s::%s_dyn() { return new %s(this); }\n\n"
@@ -105,7 +113,7 @@ let gen_function ctx tcpp_class is_static func =
         callable_name |> output
 
 let gen_function_closures ctx tcpp_class is_static func =
-  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
+  if (not func.tcf_is_virtual || not func.tcf_is_overriding) && not (is_native_gen_class tcpp_class.tcl_class) then
     let output          = ctx.ctx_output in
     let return_type_str = type_to_string ctx.ctx_common.basic func.tcf_func.tf_type in
     let return_type     = cpp_type_of ctx.ctx_common.basic func.tcf_func.tf_type in
@@ -125,7 +133,7 @@ let gen_function_closures ctx tcpp_class is_static func =
 
     write_callable_trailer captures output;
 
-    if is_static then
+    if is_static && func.tcf_is_reflective then
       let signature = func_to_callable_string "::hx::Callable" func in
       Printf.sprintf "%s _hx_alloc%s;\n\n" signature callable_name |> output
 
