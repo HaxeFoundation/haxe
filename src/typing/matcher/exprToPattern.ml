@@ -51,19 +51,18 @@ let unify_type_pattern ctx mt t p =
 		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
 		| _ -> die "" __LOC__
 
-(* Array patterns apply to values which can be accessed by index (#8012), and to abstracts with a single `from` type
-   leading to an array or to Dynamic, whose patterns are typed against the `from` type. This returns how to access
-   them, or None if values of type `t` can't be accessed by index.
-
-   TODO: this is looked up for each array pattern here, then again for the same subject when compile.ml reads its
-   elements and twice in texprConverter.ml. The decision tree stores a switch subject as a plain texpr, so what the
-   subject is and how it is accessed is lost after pattern typing (which can't keep it: patterns are typed against
-   per-case types). A subject that carries this would avoid the repeated lookups; see the discussion in #13070. *)
+(* Array patterns apply to values which can be accessed by index (#8012). Abstracts with a single `from` type leading
+   to an array or to Dynamic have their patterns typed against the `from` type, but are read by their own access too.
+   This returns how to access values of type `t`, or None if they can't be accessed by index. *)
 let get_array_access ctx t p =
 	try
 		Some (ArrayAccess.get_array_access ctx t p)
 	with Not_found ->
 		None
+
+(* The error for array patterns on values of type `t`, which can't be accessed by index. *)
+let no_array_access t p =
+	raise_typing_error ("Array patterns are not allowed on " ^ s_type (print_context()) t) p
 
 let rec make pctx toplevel t e =
 	let ctx = pctx.ctx in
@@ -321,6 +320,13 @@ let rec make pctx toplevel t e =
 				| Some aa -> array_pattern aa.aa_type
 				| None -> fail()
 			in
+			(* Patterns on an array or Dynamic are typed against its element type `t2`, and so are patterns on an
+			   abstract whose single `from` types lead to one. The matched values are still read by the array access of
+			   their own type `t` (see compile.ml), which an abstract may lack, and so does Dynamic<T>. *)
+			let indexed_pattern t2 = match get_array_access ctx t p with
+				| Some _ -> array_pattern t2
+				| None -> no_array_access t p
+			in
 			let rec pattern seen t = match follow t with
 				| TFun(tl,tr) when tr == fake_tuple_type ->
 					let rec loop el tl = match el,tl with
@@ -334,7 +340,7 @@ let rec make pctx toplevel t e =
 					let patterns = loop el tl in
 					PatTuple patterns
 				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
-					array_pattern t2
+					indexed_pattern t2
 				| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 					begin match TyperBase.get_abstract_froms ctx a tl with
 						| [(_,t2)] -> pattern (t :: seen) t2
