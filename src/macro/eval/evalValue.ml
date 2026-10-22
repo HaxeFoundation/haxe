@@ -426,7 +426,6 @@ let on_shared_state = ref (fun () -> ())
    every expansion, and an expansion's writes are discarded when it ends (so
    that a nested expansion leaves its caller's state as it was). Statics are
    initialized again lazily, on the first access in an expansion. *)
-let isolation = ref false
 let epoch_counter = Atomic.make 0
 let current_epoch : int DomainLocal.t = DomainLocal.make (fun () -> 0)
 (* the prototypes initialized again by the current expansion, with the previous
@@ -445,46 +444,41 @@ let value_signature : (value -> string) ref = ref (fun _ -> "")
 let lost_write : (vprototype -> int -> unit) ref = ref (fun _ _ -> ())
 
 let rec fresh_statics proto =
-	if !isolation then begin
-		if proto.pinit <> [] then begin
-			let e = DomainLocal.get current_epoch in
-			if proto.pepoch <> e then begin
-				let old = Array.map (fun i -> proto.pfields.(i)) proto.preset and old_epoch = proto.pepoch in
-				proto.pepoch <- e;
-				List.iter (fun f -> f proto) proto.pinit;
-				let sigs = if DomainLocal.get check_writes then Some (Array.map (fun i -> !value_signature proto.pfields.(i)) proto.preset) else None in
-				DomainLocal.set restore_log ((proto,old,old_epoch,sigs) :: DomainLocal.get restore_log)
-			end
-		end;
-		match proto.pparent with
-		| Some p -> fresh_statics p
-		| None -> ()
-	end
+	if proto.pinit <> [] then begin
+		let e = DomainLocal.get current_epoch in
+		if proto.pepoch <> e then begin
+			let old = Array.map (fun i -> proto.pfields.(i)) proto.preset and old_epoch = proto.pepoch in
+			proto.pepoch <- e;
+			List.iter (fun f -> f proto) proto.pinit;
+			let sigs = if DomainLocal.get check_writes then Some (Array.map (fun i -> !value_signature proto.pfields.(i)) proto.preset) else None in
+			DomainLocal.set restore_log ((proto,old,old_epoch,sigs) :: DomainLocal.get restore_log)
+		end
+	end;
+	match proto.pparent with
+	| Some p -> fresh_statics p
+	| None -> ()
 
 (* Runs [f] as an expansion of its own. *)
 let with_expansion f =
-	if not !isolation then f ()
-	else begin
-		let old_epoch = DomainLocal.get current_epoch and old_log = DomainLocal.get restore_log in
-		let old_check = DomainLocal.get check_writes in
-		DomainLocal.set check_writes (DomainLocal.get init_macro_call);
-		DomainLocal.set init_macro_call false;
-		DomainLocal.set current_epoch (Atomic.fetch_and_add epoch_counter 1 + 1);
-		DomainLocal.set restore_log [];
-		Std.finally (fun () ->
-			List.iter (fun (proto,fields,epoch,sigs) ->
-				Option.may (fun sigs ->
-					Array.iteri (fun k i -> if !value_signature proto.pfields.(i) <> sigs.(k) then !lost_write proto i) proto.preset
-				) sigs;
-				(* the @:persistent slots keep the writes of the expansion *)
-				Array.iteri (fun k i -> proto.pfields.(i) <- fields.(k)) proto.preset;
-				proto.pepoch <- epoch
-			) (DomainLocal.get restore_log);
-			DomainLocal.set current_epoch old_epoch;
-			DomainLocal.set check_writes old_check;
-			DomainLocal.set restore_log old_log
-		) f ()
-	end
+	let old_epoch = DomainLocal.get current_epoch and old_log = DomainLocal.get restore_log in
+	let old_check = DomainLocal.get check_writes in
+	DomainLocal.set check_writes (DomainLocal.get init_macro_call);
+	DomainLocal.set init_macro_call false;
+	DomainLocal.set current_epoch (Atomic.fetch_and_add epoch_counter 1 + 1);
+	DomainLocal.set restore_log [];
+	Std.finally (fun () ->
+		List.iter (fun (proto,fields,epoch,sigs) ->
+			Option.may (fun sigs ->
+				Array.iteri (fun k i -> if !value_signature proto.pfields.(i) <> sigs.(k) then !lost_write proto i) proto.preset
+			) sigs;
+			(* the @:persistent slots keep the writes of the expansion *)
+			Array.iteri (fun k i -> proto.pfields.(i) <- fields.(k)) proto.preset;
+			proto.pepoch <- epoch
+		) (DomainLocal.get restore_log);
+		DomainLocal.set current_epoch old_epoch;
+		DomainLocal.set check_writes old_check;
+		DomainLocal.set restore_log old_log
+	) f ()
 
 let vnull = VNull
 let vtrue = VTrue

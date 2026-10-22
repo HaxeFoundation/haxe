@@ -1,0 +1,25 @@
+# Plan phase 7, item 4: a @:persistent static is a cache, which any macro can
+# write (an expression macro here); ordinary statics are reset for every
+# expansion.
+=== initial
+@expect-output 2 0
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.record() + " " + Macro.count());
+	}
+}
+--- Macro.hx
+class Macro {
+	@:persistent static var seen:Array<String> = [];
+	static var counter = 0;
+	public static macro function record() {
+		seen.push("x");
+		seen.push("y");
+		counter++;
+		return macro $v{seen.length};
+	}
+	public static macro function count() {
+		return macro $v{counter};
+	}
+}

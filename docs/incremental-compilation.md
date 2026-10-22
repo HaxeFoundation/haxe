@@ -2108,8 +2108,8 @@ Isolation makes expansions independent of each other, which is the
 prerequisite for running them in parallel (§4b, item 3).
 
 **Status: static isolation and `TypeCache` (first step).**
-- Isolation (item 4), with `-D macro-isolation` until the corpus is migrated,
-  then by default: every expansion (`EvalMain.call_path` in the macro
+- Isolation (item 4), always on (the temporary `-D macro-isolation` is
+  gone once the corpus passed with it): every expansion (`EvalMain.call_path` in the macro
   interpreter, and every callback of a macro such as `onAfterTyping`) gets an
   epoch of its own; a class's static variables are initialized again
   (initializers and `__init__`, `null` without initializer) on the first
@@ -2137,6 +2137,19 @@ prerequisite for running them in parallel (§4b, item 3).
   expansion is checked (its nested expansions are not), and a static left as
   it was initialized (a scratch counter) is not reported
   (`cases/macros/init-macro-static-reset.hxtest`).
+- Whole-program APIs: `Context.getAllModuleTypes()` is an error until typing
+  is done (like `TypeCache.all()`), and `Context.onTypeNotFound` can only be
+  called from an initialization macro.
+- `Context.markVolatile()` gives the current module the `VolatileMacro` check
+  policy: the server types it again on every compilation (`ReadChanged
+  "volatile macro"`), and the early cutoff of the graph keeps its dependents
+  when the result is the same.
+- Tests: the `misc` projects that kept state between expansions use
+  `@:persistent` (Issue11373, Issue3864, `resolution/modulestatics`) or a name
+  derived from the build fields (Issue11582); the `haxe6` cases
+  `all-module-types-during-typing`, `on-type-not-found-outside-init`,
+  `mark-volatile` pass, and `persistent-frozen` became
+  `persistent-cache-writable` (a cache can be written by any macro).
 - The values are not frozen yet, and `-D macro-state-check` is to do.
 - `tests/unit`: the tests that kept state between expansions in ordinary
   statics use `@:persistent` (or `Context.getType` for a type defined once);

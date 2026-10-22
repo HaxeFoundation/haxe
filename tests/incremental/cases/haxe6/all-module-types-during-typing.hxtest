@@ -1,5 +1,4 @@
 # Plan phase 7: whole-program APIs are only allowed in program() stages.
-@known-failure Haxe 6 semantics (plan phase 7)
 === initial
 @expect-error getAllModuleTypes
 --- Main.hx

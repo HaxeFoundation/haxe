@@ -2,7 +2,7 @@
 # after it. With static isolation, an ordinary static is reset for every
 # expansion, so the configuration it holds is lost: a warning tells to declare
 # it @:persistent (plan phase 7, item 4). Writes in place (a map) are seen too.
-@args -D macro-isolation --macro Macro.init()
+@args --macro Macro.init()
 === ordinary statics
 @expect-warning Macro.prefix is written by this initialization macro but reset for every macro expansion
 @expect-warning Macro.names is written by this initialization macro but reset for every macro expansion

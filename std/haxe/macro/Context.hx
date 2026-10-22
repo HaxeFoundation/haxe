@@ -206,6 +206,17 @@ class Context {
 	/**
 		Returns the current module path in/on which the macro was called.
 	**/
+	/**
+		Marks the result of the current macro as not a function of what it
+		read (the time, a random number, a file it did not declare with
+		`Context.registerModuleDependency`...): the compilation server types
+		the current module again on every compilation, instead of reusing it
+		while what it read is unchanged.
+	**/
+	public static function markVolatile():Void {
+		load("mark_volatile", 0)();
+	}
+
 	public static function getLocalModule():String {
 		assertInitMacrosDone(false);
 		return load("get_local_module", 0)();
@@ -367,14 +378,12 @@ class Context {
 	/**
 		Returns an array of module types to be generated in the output.
 
-		This list may change depending on the phase of compilation and
-		should not be treated as conclusive until the generation phase.
+		The types loaded during typing depend on the order of typing: this can
+		only be called once typing is done (`Context.onAfterTyping`,
+		`Context.onGenerate`). Data attached to types by their build macros is
+		kept with `haxe.macro.TypeCache` instead.
 
 		Modifying the returned array has no effect on the compilation.
-
-		Usage of this function from initialization macros is deprecated and may
-		cause compilation server issues. Use `Context.onAfterInitMacros` to
-		run your code once typer is ready to be used.
 	**/
 	public static function getAllModuleTypes():Array<haxe.macro.Type.ModuleType> {
 		assertInitMacrosDone();
@@ -499,6 +508,9 @@ class Context {
 		The callback may return a type definition, which is then used for the
 		expected type. If it returns `null`, the type is considered to still not
 		exist.
+
+		This can only be called from an initialization macro: a type generated
+		on demand must be the same whatever the order of typing.
 	**/
 	public static function onTypeNotFound(callback:String->TypeDefinition) {
 		load("on_type_not_found", 1)(callback);

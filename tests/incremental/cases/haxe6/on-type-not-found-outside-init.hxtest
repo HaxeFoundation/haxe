@@ -1,5 +1,4 @@
 # Plan phase 7: onTypeNotFound can only be registered by initialization macros.
-@known-failure Haxe 6 semantics (plan phase 7)
 === initial
 @expect-error onTypeNotFound
 --- Main.hx

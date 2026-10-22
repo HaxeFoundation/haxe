@@ -30,6 +30,10 @@ type module_check_policy =
 	| NoFileSystemCheck
 	| CheckFileModificationTime
 	| CheckFileContentModification
+	(* a macro expanded in the module called Context.markVolatile: its result
+	   is not a function of what it read, the module is typed again on every
+	   compilation (phase 7) *)
+	| VolatileMacro
 
 type module_tainting_reason =
 	| CheckDisplayFile

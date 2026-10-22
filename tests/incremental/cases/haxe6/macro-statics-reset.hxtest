@@ -1,5 +1,4 @@
 # Plan phase 7, item 4: macro statics are reset for every expansion.
-@args -D macro-isolation
 === initial
 @expect-output 0 0
 --- Main.hx

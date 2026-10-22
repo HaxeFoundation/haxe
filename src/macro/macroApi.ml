@@ -295,6 +295,8 @@ let with_current_api api f =
    such as [TypeCache.all], are allowed). *)
 let typing_done = ref false
 
+let is_typing_done com = !typing_done || com.Common.stage >= Common.CTypingDone
+
 (* The classes whose build the running macro expansion forced. *)
 let expansion_built : tclass list ref = ref []
 
@@ -2111,6 +2113,9 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"on_type_not_found", vfun1 (fun f ->
+			(* a type generated on demand is the same in every compilation: only the
+			   initialization macros, which run first, can register the generator *)
+			if (get_api()).init_macros_done () then (get_api()).exc_string "Context.onTypeNotFound can only be called from an initialization macro";
 			let f = prepare_callback f 1 in
 			(get_api()).on_type_not_found (fun path -> f [encode_string path]);
 			vnull
@@ -2430,7 +2435,7 @@ let macro_api ccom get_api =
 		);
 		"type_cache_all", vfun1 (fun id ->
 			let com = (get_api()).get_com () in
-			if not !typing_done && com.stage < CTypingDone then (get_api()).exc_string "TypeCache.all can only be called once typing is done (onAfterTyping, onGenerate)";
+			if not (is_typing_done com) then (get_api()).exc_string "TypeCache.all can only be called once typing is done (onAfterTyping, onGenerate)";
 			let l = Mutex.protect type_caches_mutex (fun () -> Hashtbl.fold (fun path e acc -> (path,e) :: acc) (type_cache (decode_string id)) []) in
 			(* the types of this compilation *)
 			let l = List.filter (fun (_,e) -> match com.module_lut#find_opt e.tc_module.m_path with Some m -> m == e.tc_module | None -> false) l in
@@ -2502,6 +2507,11 @@ let macro_api ccom get_api =
 			NativeLibraryHandler.add_native_lib com lib ();
 			vnull
 		);
+		"mark_volatile", vfun0 (fun () ->
+			let m = (get_api()).current_module() in
+			if not (List.mem VolatileMacro m.m_extra.m_check_policy) then m.m_extra.m_check_policy <- VolatileMacro :: m.m_extra.m_check_policy;
+			vnull
+		);
 		"register_module_dependency", vfun2 (fun m file ->
 			(get_api()).module_dependency (decode_string m) (decode_string file);
 			vnull
@@ -2566,6 +2576,8 @@ let macro_api ccom get_api =
 			match (ccom()).main.main_expr with None -> vnull | Some e -> encode_texpr e
 		);
 		"get_module_types", vfun0 (fun() ->
+			(* the types loaded so far depend on the order of typing *)
+			if not (is_typing_done (ccom())) then (get_api()).exc_string "Context.getAllModuleTypes can only be called once typing is done (onAfterTyping, onGenerate)";
 			encode_array (List.map encode_module_type (ccom()).types)
 		);
 		"type_to_module_type", vfun1 (fun(t) ->

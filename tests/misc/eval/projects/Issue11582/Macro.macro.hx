@@ -1,5 +1,4 @@
 class Macro {
-	static var id = 0;
 	static function build(i:String) {
 		if (haxe.macro.Context.getLocalClass().get().isInterface) return null;
 
@@ -17,7 +16,8 @@ class Macro {
 				public static var macros:Array<String> = [];
 			}).fields.concat(fields);
 
-		var id = '_' + id++;
+		// one field per build of the class (macro statics are reset for every expansion)
+		var id = '_' + [for (f in fields) if (StringTools.startsWith(f.name, "_")) f].length;
 		fields.push((macro class A {
 			 static var $id = {macros.push($v{i}); 0;};
 		}).fields[0]);

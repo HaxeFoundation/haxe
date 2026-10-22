@@ -1,7 +1,8 @@
 import haxe.macro.Expr;
 
-final calls:Array<String> = [];
-final builds:Array<String> = [];
+// read by other expansions: macro statics are reset for every expansion
+@:persistent final calls:Array<String> = [];
+@:persistent final builds:Array<String> = [];
 
 macro function getCalls() {
 	return macro $v{calls};

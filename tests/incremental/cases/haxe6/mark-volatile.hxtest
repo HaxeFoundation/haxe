@@ -1,6 +1,5 @@
 # Plan phase 7: volatility is explicit. A macro calling Context.markVolatile()
 # is re-executed on every compilation even when nothing it depends on changed.
-@known-failure Haxe 6 semantics (plan phase 7)
 === initial
 @expect-output run 1
 --- Main.hx
@@ -21,6 +20,6 @@ class Macro {
 }
 
 === unrelated file added
-@expect-success
+@expect-output run 2
 --- Other.hx
 class Other {}

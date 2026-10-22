@@ -4,7 +4,8 @@ import haxe.macro.Expr;
 using haxe.macro.Tools;
 
 class Macro {
-	static var counter = 0;
+	// macro statics are reset for every expansion
+	@:persistent static var counter = 0;
 
 	static public function apply() {
 		var local = Context.getLocalType();

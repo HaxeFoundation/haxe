@@ -4,7 +4,8 @@ import haxe.macro.Context;
 
 class BuildMacro {
 	#if macro
-	static var builtTypes:Array<String> = [];
+	// read by another expansion: macro statics are reset for every expansion
+	@:persistent static var builtTypes:Array<String> = [];
 	#end
 
 	static public function build():Array<haxe.macro.Expr.Field> {

@@ -2,7 +2,6 @@
 # discarded when it ends, but its writes to @:persistent statics are kept: here
 # a build macro of an interface, run from the build of its implementer, gives
 # the configuration that the implementer's build reads (as domkit does).
-@args -D macro-isolation
 === initial
 @expect-output parser: CustomParser, counter: 0
 --- Main.hx
