@@ -1,0 +1,77 @@
+# -D macro-state-check: a TypeCache value modified after the build of its type
+# gave it, and a compute function that is not a function of the type, are
+# reported (plan phase 7, items 4 and 5).
+@args -D macro-state-check
+=== modified value and impure compute
+@expect-warning The value of Macro.fields for A was modified after the build of the type gave it
+@expect-warning The compute function of Macro.names gives a different value for A when called again
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.count() + B.name());
+	}
+}
+--- A.hx
+@:build(Macro.build())
+class A {
+	var x:Int;
+	var y:Int;
+	public static function count() return 2;
+}
+--- B.hx
+@:build(Macro.reader())
+class B {}
+--- Macro.hx
+import haxe.macro.Context;
+import haxe.macro.TypeCache;
+
+class Macro {
+	static var fields = new TypeCache<Array<String>>();
+	@:persistent static var calls = 0;
+	static var names = new TypeCache<String>(t -> "name" + (calls++));
+
+	public static function build():Array<haxe.macro.Expr.Field> {
+		var fl = Context.getBuildFields();
+		fields.setCurrent([for (f in fl) f.name]);
+		return fl;
+	}
+
+	public static function reader():Array<haxe.macro.Expr.Field> {
+		var fl = Context.getBuildFields();
+		var a = fields.getByPath("A");
+		a.push("extra");
+		var n = names.get(Context.getType("A"));
+		fl.push((macro class {
+			public static function name() return $v{n};
+		}).fields[0]);
+		return fl;
+	}
+}
+
+=== pure
+@expect-no-warning
+--- Macro.hx
+import haxe.macro.Context;
+import haxe.macro.TypeCache;
+
+class Macro {
+	static var fields = new TypeCache<Array<String>>();
+	static var names = new TypeCache<String>(t -> "name");
+
+	public static function build():Array<haxe.macro.Expr.Field> {
+		var fl = Context.getBuildFields();
+		fields.setCurrent([for (f in fl) f.name]);
+		return fl;
+	}
+
+	public static function reader():Array<haxe.macro.Expr.Field> {
+		var fl = Context.getBuildFields();
+		var a = fields.getByPath("A").copy();
+		a.push("extra");
+		var n = names.get(Context.getType("A"));
+		fl.push((macro class {
+			public static function name() return $v{n};
+		}).fields[0]);
+		return fl;
+	}
+}

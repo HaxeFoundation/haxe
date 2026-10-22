@@ -615,6 +615,11 @@
 		"doc": "Warn when a macro reads the metadata of a class that has build macros without having built it with `Context.buildType`: it only sees the declared metadata."
 	},
 	{
+		"name": "MacroStateCheck",
+		"define": "macro-state-check",
+		"doc": "Check the state kept by macros: TypeCache values must not be modified once given, and their compute functions must be functions of the type (docs/incremental-compilation.md, phase 7)."
+	},
+	{
 		"name": "MacroTimes",
 		"define": "times.macro",
 		"deprecatedDefine": "macro-times",

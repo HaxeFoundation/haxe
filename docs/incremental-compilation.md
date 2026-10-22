@@ -2150,7 +2150,16 @@ prerequisite for running them in parallel (§4b, item 3).
   `all-module-types-during-typing`, `on-type-not-found-outside-init`,
   `mark-volatile` pass, and `persistent-frozen` became
   `persistent-cache-writable` (a cache can be written by any macro).
-- The values are not frozen yet, and `-D macro-state-check` is to do.
+- `-D macro-state-check` (`WMacroStateCheck` warnings): the signature of a
+  `TypeCache` value is taken when the build gives it and compared once
+  typing is done (a reader that changed a shared value), and a `compute`
+  function is called a second time and must give the same value. Heaps, hide
+  and the domkit sample pass it. The values are not frozen (an error at the
+  write would need a frozen flag on every mutable value of the interpreter),
+  and emptying the `@:persistent` caches before each expansion is not done:
+  a cache filled by one expansion and read by the next one is legitimate
+  (configuration), and the order-independence of the program is checked by
+  `-D typer-shuffle` (phase 3.4).
 - `tests/unit`: the tests that kept state between expansions in ordinary
   statics use `@:persistent` (or `Context.getType` for a type defined once);
   `cases/macros/type-cache.hxtest`; `persistent-registry` and

@@ -75,6 +75,7 @@ let get_main ctx main_module types =
 
 let finalize ctx =
 	run_stages ctx.g StageFinal ("final",[]);
+	if not ctx.com.is_macro_context then !MacroApi.check_type_caches ctx.com;
 	match ctx.com.callbacks#get_after_typing with
 		| [] ->
 			()

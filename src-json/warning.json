@@ -166,6 +166,11 @@
 		"parent": "WTyper"
 	},
 	{
+		"name": "WMacroStateCheck",
+		"doc": "-D macro-state-check found a TypeCache value modified after it was given, or a compute function that is not a function of the type",
+		"parent": "WTyper"
+	},
+	{
 		"name": "WMacroStaticReset",
 		"doc": "An initialization macro writes a static variable of the macro context that is reset for every expansion (Haxe 6): the configuration it gives is lost, the variable should be @:persistent",
 		"parent": "WTyper"

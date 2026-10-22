@@ -297,6 +297,10 @@ let typing_done = ref false
 
 let is_typing_done com = !typing_done || com.Common.stage >= Common.CTypingDone
 
+(* -D macro-state-check: the values of the type caches given in this
+   compilation are unchanged once typing is done *)
+let check_type_caches : (Common.context -> unit) ref = ref (fun _ -> ())
+
 (* The classes whose build the running macro expansion forced. *)
 let expansion_built : tclass list ref = ref []
 
@@ -1960,10 +1964,31 @@ type type_cache_entry = {
 	tc_type : module_type;
 	tc_value : value;
 	tc_step : int;
+	(* -D macro-state-check: the signature of the value when it was given, until checked *)
+	mutable tc_sig : string option;
 }
 let type_caches : (string,(string,type_cache_entry) Hashtbl.t) Hashtbl.t = Hashtbl.create 0
 let type_caches_computed : (string * string,int * value * DepRecord.dep list) Hashtbl.t = Hashtbl.create 0
 let type_caches_mutex = Mutex.create ()
+
+let state_check com = Common.defined com Define.MacroStateCheck
+
+let () = check_type_caches := (fun com ->
+	let step = com.part_scope.compilation_step in
+	let modified = Mutex.protect type_caches_mutex (fun () ->
+		Hashtbl.fold (fun id h acc ->
+			Hashtbl.fold (fun path e acc -> match e.tc_sig with
+				| Some s when e.tc_step = step ->
+					e.tc_sig <- None;
+					if value_signature e.tc_value <> s then (id,path,e) :: acc else acc
+				| _ -> acc
+			) h acc
+		) type_caches []
+	) in
+	List.iter (fun (id,path,e) ->
+		com.warning WMacroStateCheck [] (Printf.sprintf "The value of %s for %s was modified after the build of the type gave it: TypeCache values are shared, copy a value before changing it" id path) (t_infos e.tc_type).mt_pos
+	) (List.sort (fun (id1,p1,_) (id2,p2,_) -> compare (id1,p1) (id2,p2)) modified)
+)
 
 let type_cache id =
 	try Hashtbl.find type_caches id with Not_found ->
@@ -2390,7 +2415,8 @@ let macro_api ccom get_api =
 				| Some e when e.tc_module == infos.mt_module && e.tc_step = step -> api.exc_string ("TypeCache.setCurrent called twice for " ^ path)
 				| _ -> ()
 				end;
-				Hashtbl.replace h path { tc_module = infos.mt_module; tc_type = mt; tc_value = v; tc_step = step }
+				let tc_sig = if state_check (ccom()) then Some (value_signature v) else None in
+				Hashtbl.replace h path { tc_module = infos.mt_module; tc_type = mt; tc_value = v; tc_step = step; tc_sig }
 			);
 			vnull
 		);
@@ -2429,6 +2455,9 @@ let macro_api ccom get_api =
 			let path = s_type_path (t_infos mt).mt_path in
 			let f = prepare_callback f 1 in
 			let v,deps = DepRecord.collect (fun () -> f [t]) in
+			(* a compute function is pure: computing again gives the same value *)
+			if state_check (ccom()) && value_signature (f [t]) <> value_signature v then
+				(get_api()).warning WMacroStateCheck (Printf.sprintf "The compute function of %s gives a different value for %s when called again: it must be a function of the type" (decode_string id) path) (get_api()).pos;
 			let step = (ccom()).part_scope.compilation_step in
 			Mutex.protect type_caches_mutex (fun () -> Hashtbl.replace type_caches_computed (decode_string id,path) (step,v,deps));
 			v
