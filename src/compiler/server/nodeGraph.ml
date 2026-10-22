@@ -89,6 +89,8 @@ and lookup = {
 	l_path : path;
 	mutable l_step : int;
 	mutable l_current : string;
+	(* the directory epoch of the graph when [l_current] was resolved *)
+	mutable l_epoch : int;
 }
 
 type graph = {
@@ -100,6 +102,11 @@ type graph = {
 	(* the nodes assumed to keep their fingerprint in the current compilation,
 	   although their module is typed again (early cutoff), with that fingerprint *)
 	mutable assumptions : assumption list;
+	(* incremented when a file may have been added or removed in the class
+	   paths (a directory changed, or the class paths did): until then the
+	   lookups find the same files *)
+	mutable dirs_epoch : int;
+	mutable class_paths : string list;
 }
 
 (* Early cutoff: a node keeps its fingerprint, the members of a class still
@@ -143,6 +150,8 @@ let get sign =
 			lookups = Hashtbl.create 0;
 			step = -1;
 			assumptions = [];
+			dirs_epoch = 0;
+			class_paths = [];
 		} in
 		Hashtbl.add graphs sign g;
 		g
@@ -165,7 +174,7 @@ let file g path =
 
 let lookup g path =
 	try Hashtbl.find g.lookups path with Not_found ->
-		let l = { l_path = path; l_step = -1; l_current = "" } in
+		let l = { l_path = path; l_step = -1; l_current = ""; l_epoch = -1 } in
 		Hashtbl.add g.lookups path l;
 		l
 
@@ -492,7 +501,10 @@ let current_decls v f =
 let current_lookup v l =
 	if l.l_step <> v.v_graph.step then begin
 		l.l_step <- v.v_graph.step;
-		l.l_current <- v.v_resolve l.l_path
+		if l.l_epoch <> v.v_graph.dirs_epoch then begin
+			l.l_epoch <- v.v_graph.dirs_epoch;
+			l.l_current <- v.v_resolve l.l_path
+		end
 	end;
 	l.l_current
 
@@ -555,16 +567,22 @@ and valid_edge v e =
 		| Lookup (l,seen) ->
 			current_lookup v l = seen
 		| Node (n,a,b) ->
-			begin match Hashtbl.find_opt known_changed n.n_key with
+			(* [known_changed] is empty but when a compilation is done again *)
+			begin match (if Hashtbl.length known_changed = 0 then None else Hashtbl.find_opt known_changed n.n_key) with
 			| Some now -> same_fp now a b && valid_node v n
-			| None -> same_fp n.n_fp a b && rescued v (fun () -> valid_node v n) (fun () -> assume v n n.n_fp)
+			| None ->
+				same_fp n.n_fp a b &&
+				let failed = v.v_failed in
+				valid_node v n || (assume v n n.n_fp && (v.v_failed <- failed; true))
 			end
 		| Module path ->
 			v.v_module_valid path
 		| MacroModule (sign,path) ->
 			v.v_macro_module_valid sign path
 		| Absent (n,name,static) ->
-			not (Hashtbl.mem known_changed (absent_key n name static)) && rescued v (fun () -> valid_node v n) (fun () -> assume_absent v n name static)
+			(Hashtbl.length known_changed = 0 || not (Hashtbl.mem known_changed (absent_key n name static))) &&
+			let failed = v.v_failed in
+			valid_node v n || (assume_absent v n name static && (v.v_failed <- failed; true))
 	in
 	if not b then begin
 		if trace then trace_line ("[graph] changed: " ^ s_edge v e);
@@ -631,9 +649,16 @@ let is_traced g path =
 	| None -> false
 	| Some nodes -> List.exists is_computation nodes
 
-let begin_validation g step =
+(* [dirs_changed]: whether a directory of the class paths changed since the
+   previous compilation *)
+let begin_validation g step dirs_changed class_paths =
 	flush ();
 	if g.step <> step then begin
+		let class_paths = class_paths () in
+		if dirs_changed () || class_paths <> g.class_paths then begin
+			g.dirs_epoch <- g.dirs_epoch + 1;
+			g.class_paths <- class_paths
+		end;
 		g.step <- step;
 		g.assumptions <- []
 	end

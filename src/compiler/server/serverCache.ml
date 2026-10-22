@@ -198,7 +198,7 @@ let check_module sctx com m_path m_extra p =
 	let module_valid = ref (fun _ -> true) in
 	let macro_module_valid = ref (fun _ _ -> true) in
 	let validation = Option.map (fun g ->
-		NodeGraph.begin_validation g start_mark;
+		NodeGraph.begin_validation g start_mark (fun () -> get_changed_directories sctx com <> []) (fun () -> com.class_paths#as_string_list);
 		let current_decls f =
 			if file_time f.NodeGraph.f_path = f.f_time then
 				f.f_decls
@@ -281,7 +281,7 @@ let check_module sctx com m_path m_extra p =
 			let traced = match validation with
 				| Some v when m_extra.m_sign = own_sign && m_extra.m_kind = MCode && NodeGraph.is_traced v.v_graph m_path ->
 					v.v_failed <- None;
-					if not (NodeGraph.module_valid v m_path) then
+					if not (Timer.time com.timer_ctx ["server";"module cache";"graph"] (NodeGraph.module_valid v) m_path) then
 						raise (Dirty (ReadChanged (Option.default "?" v.v_failed)));
 					true
 				| _ ->
