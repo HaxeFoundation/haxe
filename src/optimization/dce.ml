@@ -764,6 +764,400 @@ and expr dce e =
 	| _ ->
 		Type.iter (expr dce) e
 
+
+(* The marking that the expression of a field does (phase 8): computed once
+   as a list of effects, applied by each DCE run, and kept while the expression
+   is the same (the server keeps the post-processed expressions of the modules
+   that are not typed again). The summary mirrors [expr]. *)
+type dce_effect =
+	| EMarkT of pos * t
+	| EMarkClass of tclass
+	| EMarkDirectlyUsedClass of tclass
+	| EMarkDirectlyUsedT of pos * t
+	| EMarkMt of module_type
+	| EMarkDirectlyUsedMt of module_type
+	| EField of tclass * string * class_field_ref_kind
+	| EMarkField of tclass * tclass_field * class_field_ref_kind
+	| ECheckFeature of string
+	| ECheckAndAddFeature of string
+	| EDefineFeature of string
+	| EToString of t
+	(* what [EMarkT] marks, found when the summary is made *)
+	| EMarkEnum of tenum
+	| EMarkAbstract of tabstract
+	| EMarkTypeParameter of tclass
+
+type summary_state = {
+	platform : platform;
+	mutable effects : dce_effect list;
+}
+
+let add st e = st.effects <- e :: st.effects
+
+let rec s_expr_field st e fa is_call_expr =
+	let do_default = fun () ->
+		let n = field_name fa in
+			(match fa with
+			| FAnon cf ->
+				if Meta.has Meta.Optional cf.cf_meta then begin
+					add st (ECheckAndAddFeature "anon_optional_read");
+					add st (ECheckAndAddFeature ("anon_optional_read." ^ n));
+				end else begin
+					add st (ECheckAndAddFeature "anon_read");
+					add st (ECheckAndAddFeature ("anon_read." ^ n));
+				end
+			| FDynamic _ ->
+				add st (ECheckAndAddFeature "dynamic_read");
+				add st (ECheckAndAddFeature ("dynamic_read." ^ n));
+			| FClosure _ ->
+				add st (ECheckAndAddFeature "closure_read");
+				add st (ECheckAndAddFeature ("closure_read." ^ n));
+			| _ -> ());
+			begin match follow e.etype, fa with
+				| TInst(c,_), _
+				| _, FClosure (Some (c, _), _) ->
+					add st (EMarkClass c);
+					add st (EField (c,n,CfrMember));
+				| TAnon a, _ ->
+					(match !(a.a_status) with
+					| ClassStatics c ->
+						add st (EMarkClass c);
+						add st (EField (c,n,CfrStatic));
+					| _ -> ())
+
+
+				| _ -> ()
+			end
+	in
+	let mark_instance_field_access c cf =
+		if (not is_call_expr && st.platform = Python) then begin
+			if c.cl_path = ([], "Array") then begin
+				add st (ECheckAndAddFeature "closure_Array");
+				add st (ECheckAndAddFeature ("python.internal.ArrayImpl." ^ cf.cf_name));
+				add st (ECheckAndAddFeature ("python.internal.ArrayImpl"))
+			end
+			else if c.cl_path = ([], "String") then begin
+				add st (ECheckAndAddFeature "closure_String");
+				add st (ECheckAndAddFeature ("python.internal.StringImpl." ^ cf.cf_name));
+				add st (ECheckAndAddFeature ("python.internal.StringImpl"))
+			end
+		end;
+	in
+	begin match fa with
+		| FStatic(c,cf) ->
+			add st (EMarkClass c);
+			add st (EMarkField (c,cf,CfrStatic));
+		| FInstance(c,_,cf) ->
+			(*mark_instance_field_access c cf;*)
+			add st (EMarkClass c);
+			add st (EMarkField (c,cf,CfrMember))
+		| FClosure (Some(c, _), cf) ->
+		 	mark_instance_field_access c cf;
+			do_default()
+		| FClosure _ ->
+			do_default()
+		| _ ->
+			do_default()
+	end;
+	s_expr st e;
+
+and s_check_dynamic_write st fa =
+	let n = field_name fa in
+	add st (ECheckAndAddFeature "dynamic_write");
+	add st (ECheckAndAddFeature ("dynamic_write." ^ n))
+
+and s_check_anon_optional_write st fa =
+	let n = field_name fa in
+	add st (ECheckAndAddFeature "anon_optional_write");
+	add st (ECheckAndAddFeature ("anon_optional_write." ^ n))
+
+and s_check_anon_write st fa =
+	let n = field_name fa in
+	add st (ECheckAndAddFeature "anon_write");
+	add st (ECheckAndAddFeature ("anon_write." ^ n))
+
+and s_check_op st op = match op with
+	| OpMod ->
+		add st (ECheckAndAddFeature "binop_%");
+	| OpUShr ->
+		add st (ECheckAndAddFeature "binop_>>>");
+	| OpAssignOp op ->
+		s_check_op st op
+	| _ ->
+		()
+
+and s_expr st e =
+	add st (EMarkT (e.epos,e.etype));
+	match e.eexpr with
+	| TNew(c,pl,el) ->
+		add st (EMarkClass c);
+		add st (EMarkDirectlyUsedClass c);
+		add st (EField (c,"new",CfrConstructor));
+		List.iter (s_expr st) el;
+		List.iter (fun t -> add st (EMarkT (e.epos,t))) pl;
+	| TVar (v,e1) ->
+		opt (s_expr st) e1;
+		add st (EMarkT (e.epos,v.v_type));
+	| TCast(e, Some mt) ->
+		add st (ECheckFeature "typed_cast");
+		add st (EMarkMt mt);
+		add st (EMarkDirectlyUsedMt mt);
+		s_expr st e;
+	| TObjectDecl(vl) ->
+		add st (ECheckAndAddFeature "has_anon");
+		List.iter (fun (_,e) -> s_expr st e) vl;
+	| TTypeExpr mt ->
+		add st (EMarkMt mt);
+		add st (EMarkDirectlyUsedMt mt);
+	| TTry(e, vl) ->
+		s_expr st e;
+		List.iter (fun (v,e) ->
+			if v.v_type != t_dynamic then begin
+				add st (ECheckFeature "typed_catch");
+				add st (EMarkDirectlyUsedT (v.v_pos,v.v_type));
+			end;
+			s_expr st e;
+			add st (EMarkT (e.epos,v.v_type));
+		) vl;
+	| TCall ({eexpr = TIdent "`trace"},[p;{ eexpr = TObjectDecl(v)}]) ->
+		add st (ECheckAndAddFeature "has_anon_trace");
+		List.iter (fun (_,e) -> s_expr st e) v;
+		s_expr st p;
+	| TCall ({eexpr = TIdent "__define_feature__"},[{eexpr = TConst (TString ft)};e]) ->
+		add st (EDefineFeature ft);
+		add st (ECheckFeature ft);
+		s_expr st e;
+
+	(* keep toString method of T when array<T>.join() or array<T>.toString() is called *)
+	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join" | "toString"}))} as ef, args) ->
+		List.iter (fun t -> add st (EToString t)) pl;
+		s_expr st ef;
+		List.iter (s_expr st) args;
+
+	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
+	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
+		add st (EMarkClass c);
+		add st (EToString e2.etype);
+		begin match el with
+			| [{eexpr = TObjectDecl fl}] ->
+				begin try
+					begin match Expr.field_assoc "customParams" fl with
+						| {eexpr = TArrayDecl el} ->
+							List.iter (fun e -> add st (EToString e.etype)) el
+						| _ ->
+							()
+					end
+				with Not_found ->
+					()
+				end
+			| _ ->
+				()
+		end;
+		s_expr st ef;
+		List.iter (s_expr st) args;
+	| TCall ({eexpr = TConst TSuper} as e,el) ->
+		add st (EMarkT (e.epos,e.etype));
+		List.iter (s_expr st) el;
+	| TUnop((Increment | Decrement),_,({eexpr = TArray _} as e1)) ->
+		add st (ECheckAndAddFeature "array_write");
+		add st (ECheckAndAddFeature "array_read");
+		s_expr st e1;
+	| TBinop((OpAdd | OpAssignOp(OpAdd)),e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
+		add st (ECheckAndAddFeature "add_dynamic");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop( (OpAdd | (OpAssignOp OpAdd)) as op,e1,e2) when ((is_string e1.etype || is_string e2.etype) && not ( is_const_string e1 && is_const_string e2)) ->
+
+		(* add array_write if we're doing += to an array element, since this pattern comes before the array_write one *)
+		(match op, e1 with (OpAssignOp _, {eexpr = TArray({etype = t},_)}) when is_array t -> add st (ECheckAndAddFeature "array_write") | _ -> ());
+
+		add st (ECheckAndAddFeature "unsafe_string_concat");
+		s_expr st e1;
+		s_expr st e2;
+	| TArray(({etype = TDynamic None} as e1),e2) ->
+		add st (ECheckAndAddFeature "dynamic_array_read");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpAssign, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		add st (ECheckAndAddFeature "dynamic_array_write");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpAssignOp op, ({eexpr = TArray({etype = TDynamic None},_)} as e1), e2) ->
+		s_check_op st op;
+		add st (ECheckAndAddFeature "dynamic_array_write");
+		s_expr st e1;
+		s_expr st e2;
+	| TArray(({etype = t} as e1),e2) when is_array t ->
+		add st (ECheckAndAddFeature "array_read");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = t},_)} as e1), e2) when is_array t ->
+		add st (ECheckAndAddFeature "array_write");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpAssign,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		s_check_dynamic_write st fa;
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpAssign,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		if Meta.has Meta.Optional cf.cf_meta then
+			s_check_anon_optional_write st fa
+		else
+			s_check_anon_write st fa;
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpAssignOp op,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		s_check_op st op;
+		s_check_dynamic_write st fa;
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		s_check_op st op;
+		if Meta.has Meta.Optional cf.cf_meta then
+			s_check_anon_optional_write st fa
+		else
+			s_check_anon_write st fa;
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
+		add st (ECheckAndAddFeature "dynamic_binop_==");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		add st (ECheckAndAddFeature "type_param_binop_==");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
+		add st (ECheckAndAddFeature "dynamic_binop_!=");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when ExtType.is_type_param (follow t1) || ExtType.is_type_param (follow t2) ->
+		add st (ECheckAndAddFeature "type_param_binop_!=");
+		s_expr st e1;
+		s_expr st e2;
+	| TBinop(op,e1,e2) ->
+		s_check_op st op;
+		s_expr st e1;
+		s_expr st e2;
+	| TCall(({ eexpr = TField(ef, fa) } as e2), el ) ->
+		add st (EMarkT (e2.epos,e2.etype));
+		s_expr_field st ef fa true;
+		List.iter (s_expr st) el;
+	| TField(e,fa) ->
+		s_expr_field st e fa false;
+	| TThrow e ->
+		add st (ECheckAndAddFeature "has_throw");
+		s_expr st e;
+		let rec loop e =
+			add st (EToString e.etype);
+			Type.iter loop e
+		in
+		loop e
+	| _ ->
+		Type.iter (s_expr st) e
+
+(* What [mark_t] marks for [t], without the state of the run: the same
+   result, as marking a type twice marks it once. *)
+let flatten_t platform p t add =
+	let rec loop stack t =
+		if not (List.exists (fun t2 -> Type.fast_eq t t2) stack) then begin
+			let stack = t :: stack in
+			match follow t with
+			| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
+				add (EMarkTypeParameter c);
+				List.iter (loop stack) (get_constraints ttp);
+				List.iter (loop stack) pl
+			| TInst(c,pl) ->
+				add (EMarkClass c);
+				List.iter (loop stack) pl
+			| TFun(args,ret) ->
+				List.iter (fun (_,_,t) -> loop stack t) args;
+				loop stack ret
+			| TEnum(e,pl) ->
+				add (EMarkEnum e);
+				List.iter (loop stack) pl
+			| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
+				begin try
+					loop stack (snd (AbstractCast.find_multitype_specialization platform a pl p))
+				with Error.Error _ ->
+					()
+				end
+			| TAbstract(a,pl) ->
+				add (EMarkAbstract a);
+				List.iter (loop stack) pl;
+				if not (Meta.has Meta.CoreType a.a_meta) then
+					loop stack (Abstract.get_underlying_type a pl)
+			| TLazy _ | TDynamic _ | TType _ | TAnon _ | TMono _ ->
+				()
+		end
+	in
+	loop [] t
+
+let summarize platform e =
+	let st = { platform = platform; effects = [] } in
+	s_expr st e;
+	(* each effect once, in the order of their first occurrence *)
+	let seen = Hashtbl.create 16 in
+	let seen_params = ref [] in
+	let out = ref [] in
+	let once key eff = if not (Hashtbl.mem seen key) then begin Hashtbl.add seen key (); out := eff :: !out end in
+	let rec add eff = match eff with
+		| EMarkT (p,t) -> flatten_t platform p t add
+		| EMarkClass c -> once ("c " ^ s_type_path c.cl_path) eff
+		| EMarkEnum en -> once ("e " ^ s_type_path en.e_path) eff
+		| EMarkAbstract a -> once ("a " ^ s_type_path a.a_path) eff
+		| EMarkTypeParameter c -> if not (List.memq c !seen_params) then begin seen_params := c :: !seen_params; out := eff :: !out end
+		| ECheckFeature s -> once ("f " ^ s) eff
+		| ECheckAndAddFeature s -> once ("F " ^ s) eff
+		| EField (c,n,kind) -> once (Printf.sprintf "x %s %s %d" (s_type_path c.cl_path) n (Obj.magic kind : int)) eff
+		| EMarkField (c,cf,kind) -> once (Printf.sprintf "m %s %s %d" (s_type_path c.cl_path) cf.cf_name (Obj.magic kind : int)) eff
+		| EMarkDirectlyUsedClass c -> once ("dc " ^ s_type_path c.cl_path) eff
+		| EMarkMt mt -> once ("mt " ^ s_type_path (t_path mt)) eff
+		| EMarkDirectlyUsedMt mt -> once ("dmt " ^ s_type_path (t_path mt)) eff
+		| EDefineFeature s -> once ("d " ^ s) eff
+		| EMarkDirectlyUsedT _ | EToString _ -> out := eff :: !out
+	in
+	List.iter add (List.rev st.effects);
+	List.rev !out
+
+let apply_effect dce = function
+	| EMarkT (p,t) -> mark_t dce p t
+	| EMarkClass c -> mark_class dce c
+	| EMarkDirectlyUsedClass c -> mark_directly_used_class dce c
+	| EMarkDirectlyUsedT (p,t) -> mark_directly_used_t dce p t
+	| EMarkMt mt -> mark_mt dce mt
+	| EMarkDirectlyUsedMt mt -> mark_directly_used_mt dce mt
+	| EField (c,n,kind) -> field dce c n kind
+	| EMarkField (c,cf,kind) -> mark_field dce c cf kind
+	| ECheckFeature s -> check_feature dce s
+	| ECheckAndAddFeature s -> check_and_add_feature dce s
+	| EDefineFeature ft -> Hashtbl.replace dce.curclass.cl_module.m_extra.m_features ft true
+	| EToString t -> to_string dce [] t
+	| EMarkEnum e -> mark_enum dce e
+	| EMarkAbstract a -> mark_abstract dce a
+	| EMarkTypeParameter c -> if not (has_class_flag c CUsed) then add_class_flag c CUsed
+
+(* the summaries of the expressions of the fields, with the expression *)
+let summaries : (string,(texpr * dce_effect list)) Hashtbl.t = Hashtbl.create 0
+let summaries_mutex = Mutex.create ()
+
+let summary_hits = Atomic.make 0
+let summary_misses = Atomic.make 0
+
+let expr_of_field dce c cf kind e =
+	if not dce.scom.is_server then expr dce e else
+	let key = Printf.sprintf "%s %s.%s %d" (platform_name dce.scom.platform) (s_type_path c.cl_path) cf.cf_name (Obj.magic kind : int) in
+	let effects = match Mutex.protect summaries_mutex (fun () -> Hashtbl.find_opt summaries key) with
+		| Some (e',effects) when e' == e -> Atomic.incr summary_hits; effects
+		| _ ->
+			Atomic.incr summary_misses;
+			let effects = summarize dce.scom.platform e in
+			Mutex.protect summaries_mutex (fun () -> Hashtbl.replace summaries key (e,effects));
+			effects
+	in
+	List.iter (apply_effect dce) effects
+
 let fix_accessors types =
 	List.iter (fun mt -> match mt with
 		(* filter empty abstract implementation classes (issue #1885). *)
@@ -903,7 +1297,8 @@ let mark pool dce =
 				mark_field dce c cf stat;
 				mark_t dce cf.cf_pos cf.cf_type;
 				if not (has_class_flag c CExtern) then begin
-					opt (expr dce) cf.cf_expr;
+					opt (expr_of_field dce c cf stat) cf.cf_expr;
+					(* overloads: not kept *)
 					List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
 				end
 			) cfl;
@@ -911,6 +1306,11 @@ let mark pool dce =
 		end
 	in
 	loop ()
+
+let report_summaries () =
+	if Sys.getenv_opt "HAXE_DCE_TRACE" <> None then prerr_endline (Printf.sprintf "dce summaries: %d reused, %d computed" (Atomic.get summary_hits) (Atomic.get summary_misses));
+	Atomic.set summary_hits 0;
+	Atomic.set summary_misses 0
 
 let sweep dce types =
 	let rec loop acc types =
@@ -1019,6 +1419,7 @@ let run pool scom mscom main mode std_paths types =
 
 	(* second step: initiate DCE passes and keep going until no new fields were added *)
 	Timer.time scom.timer_ctx ["filters";"dce";"mark"] (mark pool) dce;
+	report_summaries ();
 
 	(* third step: filter types *)
 	let types = if mode <> DceNo then

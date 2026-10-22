@@ -2251,6 +2251,18 @@ macros.
 4. Phase output: for each reachable field, a `PostProcessed` node, and a global
    set (kept types, features, descendants) with its fingerprint.
 
+**Status: DCE summaries (first step of item 3).** In the compilation server,
+the marking that the expression of a field does (`Dce.expr`) is computed as
+a list of effects (`Dce.summarize`, which mirrors `expr`): the types it marks
+already flattened (what `mark_t` reaches is a function of the type), each
+effect once. The summaries are kept by field with their expression, and a
+DCE run applies them while the expression is the same object, which it is
+for a module that is not typed again. Reachability is still computed by
+every run, from the summaries (no expression is walked). hide, a body edit:
+the marking takes 0.06 s instead of 0.14 s; the output is identical
+(`tests/unit` on JS and HL, Heaps, hide). Outside of the server, DCE walks
+the expressions as before.
+
 ---
 
 ### Phase 9: JS generation

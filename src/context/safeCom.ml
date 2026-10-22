@@ -18,6 +18,8 @@ type t = {
 	platform_config : platform_config;
 	debug : bool;
 	is_macro_context : bool;
+	(* in the compilation server: what is computed can be kept for the next compilation *)
+	is_server : bool;
 	foptimize : bool;
 	doinline : bool;
 	dump_config : DumpConfig.t;
@@ -41,6 +43,7 @@ let of_com (com : Common.context) = {
 	platform_config = com.config;
 	debug = com.debug;
 	is_macro_context = com.is_macro_context;
+	is_server = com.sctx.is_server;
 	foptimize = com.foptimize;
 	doinline = com.doinline;
 	dump_config = com.part_scope.dump_config;
