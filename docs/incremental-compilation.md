@@ -2129,6 +2129,14 @@ prerequisite for running them in parallel (§4b, item 3).
   records a dependency on its members and its module, `compute` is
   memoized for the compilation and its dependencies are recorded again for
   each reader, `all()` only once typing is done (`onAfterTyping`).
+- Detection: with isolation, an initialization macro (`--macro`) that leaves a
+  static it reset with a value different from its initial one (compared by
+  value signature, so writes in place to a map count) gets a
+  `WMacroStaticReset` warning: the configuration it gives is lost and the
+  static should be `@:persistent`. Only the initialization macro's own
+  expansion is checked (its nested expansions are not), and a static left as
+  it was initialized (a scratch counter) is not reported
+  (`cases/macros/init-macro-static-reset.hxtest`).
 - The values are not frozen yet, and `-D macro-state-check` is to do.
 - `tests/unit`: the tests that kept state between expansions in ordinary
   statics use `@:persistent` (or `Context.getType` for a type defined once);

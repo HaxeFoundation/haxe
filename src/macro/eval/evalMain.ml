@@ -387,6 +387,8 @@ let value_signature v =
 	loop v;
 	Digest.string (Buffer.contents buf)
 
+let () = EvalValue.value_signature := value_signature
+
 let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()

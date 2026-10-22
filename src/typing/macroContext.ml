@@ -1116,6 +1116,22 @@ let call_init_macro com mctx e =
 	in
 
 	let mctx, (margs,_,mclass,mfield), call = load_macro mctx com mctx api false path meth p in
+	let call args =
+		if not !EvalValue.isolation then call args
+		else begin
+			(* what the initialization macro writes to statics that are reset is lost *)
+			let old_lost = !EvalValue.lost_write in
+			EvalValue.lost_write := (fun proto i ->
+				let name = IntMap.fold (fun name j acc -> if i = j then EvalHash.rev_hash name else acc) proto.EvalValue.pnames "?" in
+				com.warning WMacroStaticReset [] (Printf.sprintf "%s.%s is written by this initialization macro but reset for every macro expansion: declare it @:persistent to keep its value" (EvalHash.rev_hash proto.EvalValue.ppath) name) p
+			);
+			DomainLocal.set EvalValue.init_macro_call true;
+			Std.finally (fun () ->
+				DomainLocal.set EvalValue.init_macro_call false;
+				EvalValue.lost_write := old_lost
+			) call args
+		end
+	in
 	ignore(call_macro mctx args margs call p);
 	mctx
 

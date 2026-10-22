@@ -1,0 +1,63 @@
+# An initialization macro gives a configuration to the build macros that run
+# after it. With static isolation, an ordinary static is reset for every
+# expansion, so the configuration it holds is lost: a warning tells to declare
+# it @:persistent (plan phase 7, item 4). Writes in place (a map) are seen too.
+@args -D macro-isolation --macro Macro.init()
+=== ordinary statics
+@expect-warning Macro.prefix is written by this initialization macro but reset for every macro expansion
+@expect-warning Macro.names is written by this initialization macro but reset for every macro expansion
+@expect-output prefix: null, names: 0
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.info());
+	}
+}
+--- A.hx
+@:build(Macro.build())
+class A {}
+--- Macro.hx
+class Macro {
+	static var prefix:String = null;
+	static var names = new Map<String, Bool>();
+	static var scratch = 0;
+
+	public static function init() {
+		prefix = "my";
+		names.set("a", true);
+		scratch++;
+		scratch--;
+	}
+
+	public static function build():Array<haxe.macro.Expr.Field> {
+		var fields = haxe.macro.Context.getBuildFields();
+		var s = "prefix: " + prefix + ", names: " + [for (k in names.keys()) k].length;
+		fields.push((macro class {
+			public static function info() return $v{s};
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== persistent statics
+@expect-no-warning
+@expect-output prefix: my, names: 1
+--- Macro.hx
+class Macro {
+	@:persistent static var prefix:String = null;
+	@:persistent static var names = new Map<String, Bool>();
+
+	public static function init() {
+		prefix = "my";
+		names.set("a", true);
+	}
+
+	public static function build():Array<haxe.macro.Expr.Field> {
+		var fields = haxe.macro.Context.getBuildFields();
+		var s = "prefix: " + prefix + ", names: " + [for (k in names.keys()) k].length;
+		fields.push((macro class {
+			public static function info() return $v{s};
+		}).fields[0]);
+		return fields;
+	}
+}

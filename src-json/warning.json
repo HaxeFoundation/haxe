@@ -166,6 +166,11 @@
 		"parent": "WTyper"
 	},
 	{
+		"name": "WMacroStaticReset",
+		"doc": "An initialization macro writes a static variable of the macro context that is reset for every expansion (Haxe 6): the configuration it gives is lost, the variable should be @:persistent",
+		"parent": "WTyper"
+	},
+	{
 		"name": "WTypingOrder",
 		"doc": "Building a type depends on the order in which types are built (build retries, partially built classes read by macros); these become cycle errors with demand-driven typing",
 		"parent": "WTyper",
