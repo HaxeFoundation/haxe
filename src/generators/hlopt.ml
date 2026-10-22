@@ -631,7 +631,7 @@ let remap_fun ctx f dump get_str old_code =
 		let new_assigns = List.filter (fun a ->
 			if Hashtbl.mem seen a then false else begin Hashtbl.add seen a (); true end
 		) new_assigns in
-		assigns := Array.of_list new_assigns;
+		assigns := LargeArray.of_list new_assigns;
 	end;
 
 	(* done *)
@@ -698,7 +698,7 @@ let remap_fun ctx f dump get_str old_code =
 		let jumps = ref [] in
 		let out_pos = ref 0 in
 		let out_code = Array.make (Array.length f.code - ctx.r_nop_count) (ONop "") in
-		let new_debug = Array.make (Array.length f.code - ctx.r_nop_count) (0,0,Globals.null_pos) in
+		let new_debug = Array.make (Array.length f.code - ctx.r_nop_count) null_debug in
 		Array.iteri (fun i op ->
 			Array.unsafe_set new_pos i !out_pos;
 			match op with
@@ -843,7 +843,7 @@ let _optimize (f:fundecl) =
 	let read_count r = read_counts.(r) <- read_counts.(r) + 1 in
 	let write_count r = write_counts.(r) <- write_counts.(r) + 1 in
 
-	let empty_state() = Array.init nregs (fun i ->
+	let empty_state() = LargeArray.init nregs (fun i ->
 		let r = { rindex = i; ralias = Obj.magic 0; rbind = []; rnullcheck = false } in
 		r.ralias <- r;
 		r
@@ -1173,7 +1173,7 @@ let type_key t =
 	| _ -> "-"
 
 let cache_key f =
-	let code = Array.map (fun op -> if has_index op then (match op with
+	let code = LargeArray.map (fun op -> if has_index op then (match op with
 		| OInt (r,_) -> OInt (r,0)
 		| OFloat (r,_) -> OFloat (r,0)
 		| OBytes (r,_) -> OBytes (r,0)
@@ -1194,7 +1194,7 @@ let cache_key f =
 		| op -> op) else op
 	) f.code in
 	let nargs = (match f.ftype with HFun (args,_) -> List.length args | _ -> -1) in
-	Digest.string (Marshal.to_string (code,Array.map type_key f.regs,nargs) [Marshal.No_sharing])
+	Digest.string (Marshal.to_string (code,LargeArray.map type_key f.regs,nargs) [Marshal.No_sharing])
 
 let optimize dump get_str (f:fundecl) =
 	let key = if dump then "" else cache_key f in

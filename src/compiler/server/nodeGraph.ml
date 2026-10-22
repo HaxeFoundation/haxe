@@ -267,7 +267,7 @@ let prepare_store com resolve decls_of is_typed =
 			) m;
 			let file = Path.get_full_path (Path.UniqueKey.lazy_path m.m_extra.m_file) in
 			List.rev !fps,file,Option.map (decl_table file) (decls_of m)
-		) (Array.of_list modules) ([],"",None)
+		) (LargeArray.of_list modules) ([],"",None)
 	) in
 	t_fps ();
 	(* the assumptions that do not hold: the node is not produced again by a
@@ -446,7 +446,7 @@ let prepare_store com resolve decls_of is_typed =
 						if k <> self then begin let a,b = fp_lanes n.n_fp in edges := Node (n,a,b) :: !edges end
 					end
 			) c;
-			(node g self).n_edges <- Some (Array.of_list !edges)
+			(node g self).n_edges <- Some (LargeArray.of_list !edges)
 		) cl
 	) modules;
 	in

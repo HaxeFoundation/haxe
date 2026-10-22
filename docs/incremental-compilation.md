@@ -2372,9 +2372,10 @@ used by the last three generations is dropped, as before. On Heaps
 (`-D apicheck`, 4 domains), a body edit takes the `opt` step from 1.05 s to
 about 0.45 s, the rest being the key (a `Marshal` and a digest per function,
 about 0.1 s) and the remapping; a cold build pays the key, about 0.1 s. The
-bytecode is identical to the cold one and to the previous compiler. The
-next step is item 1, so that the code generation itself (1 s of the 1.6 s
-left) is per function.
+bytecode is identical to the cold one and to the previous compiler. Without
+the forced minor collections (section 4b, item 8), the step takes 0.12 s.
+The next step is item 1, so that the code generation itself (`generate;hl;
+functions` in `--times`, 0.9 s of the 1.3 s left) is per function.
 
 ---
 
@@ -2458,6 +2459,24 @@ model for the whole compilation.
    filters, the analyzer and the macro interpreter. Example: the dependency
    recording of phase 6 built a string key per read; recording the entity
    instead (keys built when the graph is stored) cut its cost by a third.
+
+   **Status: forced minor collections.** `Array.make` of an array larger
+   than 256 words whose initial value is a block of the minor heap first
+   empties the minor heap (the runtime does not want the new major block to
+   point into it), a stop-the-world collection of every domain; `Array.init`,
+   `Array.map`, `Array.of_list`, `DynArray.to_array` and `Hashtbl.copy` go
+   through it with a freshly allocated first element. A gdb breakpoint on
+   that line of `runtime/array.c` counts them: Heaps on HL forced 964 of them
+   in a cold compilation and about 1000 per warm compilation of the server
+   (the debug arrays of `make_debug` and `Hlopt.remap_fun`, the key of the
+   optimization cache, the edges of the node graph), hide on JS 153 (the
+   copies of `RenameVars` overlap sets, the inputs of the JS fragments).
+   `LargeArray` (`src/core/ds/largeArray.ml`) creates such arrays with an
+   immediate value and sets the elements after; the debug arrays start from
+   a constant tuple. Two forced collections are left per compilation. Heaps
+   on HL: the generation takes 1.9 s instead of 2.5 s cold (the optimizer
+   0.77 s instead of 1.07 s), and a warm body edit 1.2–1.4 s instead of
+   1.6–1.9 s; the output is identical.
 
 Each phase applies these rules to what it introduces: phase 3 for typing,
 phase 6 for the VFS, phase 7 for macros, phase 8 for post-processing, phases 9

@@ -94,7 +94,9 @@ module Overlaps = struct
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
-		ov_lut = IntHashtbl.copy ov.ov_lut;
+		(* a set: copied by iteration, since [Hashtbl.copy] of a large table
+		   empties the minor heap (see [LargeArray]) *)
+		ov_lut = (let h = IntHashtbl.create (IntHashtbl.length ov.ov_lut) in IntHashtbl.iter (fun k v -> IntHashtbl.replace h k v) ov.ov_lut; h);
 		ov_name_cache = ov.ov_name_cache;
 	}
 

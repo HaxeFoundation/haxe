@@ -57,7 +57,7 @@ type lassign = {
 let make_assigns ?(sorted=false) l =
 	let l = List.rev l in
 	let l = if sorted then List.sort (fun a b -> a.la_pos - b.la_pos) l else l in
-	Array.of_list (List.map (fun a -> (a.la_name, a.la_pos, a.la_scope_end)) l)
+	LargeArray.of_list (List.map (fun a -> (a.la_name, a.la_pos, a.la_scope_end)) l)
 
 type method_context = {
 	mid : int;
@@ -361,7 +361,7 @@ let make_debug ctx arr =
 	let cur_file = ref 0 in
 	let cur_line = ref 0 in
 	let cur = ref Globals.null_pos in
-	let out = Array.make (DynArray.length arr) !pos in
+	let out = Array.make (DynArray.length arr) null_debug in
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
@@ -836,8 +836,8 @@ and enum_class ctx e =
 						fpath = "", "";
 						findex = eid;
 						ftype = HFun (fargs, tret);
-						regs = DynArray.to_array ctx.m.mregs.arr;
-						code = DynArray.to_array ctx.m.mops;
+						regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+						code = LargeArray.of_dynarray ctx.m.mops;
 						debug = make_debug ctx ctx.m.mdebug;
 						assigns = make_assigns ctx.m.massign;
 						need_opt = false;
@@ -3337,8 +3337,8 @@ and gen_method_wrapper ctx rt t p =
 			fpath = "","";
 			findex = fid;
 			ftype = HFun (rt :: targs, tret);
-			regs = DynArray.to_array ctx.m.mregs.arr;
-			code = DynArray.to_array ctx.m.mops;
+			regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+			code = LargeArray.of_dynarray ctx.m.mops;
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = make_assigns ctx.m.massign;
 			need_opt = false;
@@ -3505,8 +3505,8 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		fpath = name;
 		findex = fidx;
 		ftype = HFun (fargs, tret);
-		regs = DynArray.to_array ctx.m.mregs.arr;
-		code = DynArray.to_array ctx.m.mops;
+		regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+		code = LargeArray.of_dynarray ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
@@ -4341,7 +4341,9 @@ let add_types ctx types =
 			) c.cl_meta;
  		| _ -> ()
 	) types;
-	List.iter (generate_type ctx) types
+	let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hl";"functions"] in
+	List.iter (generate_type ctx) types;
+	t()
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
@@ -4392,7 +4394,9 @@ let generate com =
 	let ctx = create_context com in
 	add_types ctx com.types;
 
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"init"] in
 	let code = build_code ctx com.types com.main.main_expr in
+	t();
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 
 	if ctx.optimize then begin

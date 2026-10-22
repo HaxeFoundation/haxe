@@ -1135,7 +1135,7 @@ let fragment_inputs mt =
 	| TTypeDecl _ | TAbstractDecl _ ->
 		obj mt
 	end;
-	{ fi_objs = Array.of_list !objs; fi_fuzzy = Array.of_list !fuzzy; fi_names = !names; fi_kinds = !kinds; fi_flags = Array.of_list !flags; fi_meta = !meta }
+	{ fi_objs = LargeArray.of_list !objs; fi_fuzzy = LargeArray.of_list !fuzzy; fi_names = !names; fi_kinds = !kinds; fi_flags = Array.of_list !flags; fi_meta = !meta }
 
 (* the same metadata: the same entries, or entries equal (filters build some
    lists again; an entry can hold a big expression, such as the source of a
@@ -1184,7 +1184,7 @@ let generate_types_parallel ctx generate_type types =
 	] in
 	let tm name = Timer.start_timer ctx.com.timer_ctx ["generate";"js";"types";name] in
 	let t = tm "inputs" in
-	let inputs = Array.map fragment_inputs types in
+	let inputs = LargeArray.map fragment_inputs types in
 	t ();
 	let t = tm "check" in
 	(* the features, read once *)
@@ -1194,7 +1194,7 @@ let generate_types_parallel ctx generate_type types =
 		Hashtbl.add features f b;
 		b
 	in
-	let reused = Array.mapi (fun i mt ->
+	let reused = LargeArray.init (Array.length types) (fun i -> let mt = types.(i) in
 		match Hashtbl.find_opt fragments (s_type_path (t_path mt)) with
 		| Some fr when fr.fr_key = key && same_inputs inputs.(i) fr && List.for_all (fun (f,b) -> has_feature f = b) fr.fr_features ->
 			Some fr
@@ -1214,7 +1214,7 @@ let generate_types_parallel ctx generate_type types =
 			None
 		| _ ->
 			None
-	) types in
+	) in
 	t ();
 	let t = tm "generate" in
 	let new_sub () =
@@ -1232,7 +1232,7 @@ let generate_types_parallel ctx generate_type types =
 		feature_cache = Some (Hashtbl.create 16);
 		features_added = Some (ref []);
 	} in
-	let subs = Array.map (fun fr -> if fr = None then Some (new_sub ()) else None) reused in
+	let subs = LargeArray.map (fun fr -> if fr = None then Some (new_sub ()) else None) reused in
 	let sub i = match subs.(i) with Some sub -> sub | None -> die "" __LOC__ in
 	let todo = List.filter (fun i -> reused.(i) = None) (List.init (Array.length types) (fun i -> i)) in
 	if Sys.getenv_opt "HAXE_JS_FRAGMENTS_TRACE" <> None then prerr_endline (Printf.sprintf "js fragments: %d reused, %d generated" (Array.length types - List.length todo) (List.length todo));

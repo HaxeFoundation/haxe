@@ -492,6 +492,11 @@ let lookup_type types t =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)
 
+(* the initial value of the debug arrays: a block of the major heap, since
+   [Array.make] of a large array with a young block first empties the minor
+   heap (a stop-the-world collection of all the domains) *)
+let null_debug = (0,0,Globals.null_pos)
+
 let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
 	| HVoid -> "void"

@@ -1284,7 +1284,7 @@ let collect_entry_points dce types =
 let mark pool dce =
 	let rec loop () =
 		if DynArray.length dce.added_fields > 0 then begin
-			let cfl = DynArray.to_array dce.added_fields in
+			let cfl = LargeArray.of_dynarray dce.added_fields in
 			DynArray.clear dce.added_fields;
 			Hashtbl.iter (fun k _ -> Hashtbl.remove dce.features k) dce.checked_features;
 			Hashtbl.clear dce.checked_features;
