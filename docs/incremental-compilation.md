@@ -2116,7 +2116,10 @@ prerequisite for running them in parallel (§4b, item 3).
   access of an expansion to one of them (`EvalValue.fresh_statics`, from the
   JIT and the reflection paths), and the classes an expansion initialized
   again get their previous state back when it ends, so a nested expansion
-  leaves its caller's state as it was. `@:persistent` statics are not reset.
+  leaves its caller's state as it was. `@:persistent` statics are not reset,
+  and keep the writes of a nested expansion (only the other slots are
+  restored: a build macro of an interface run from the build of its
+  implementer may give the configuration, as in domkit).
   The interpreted program (`--interp`) is not affected. Accesses to statics
   already wait for the order of expansions (speculative macros), so they do
   not race.
@@ -2132,8 +2135,17 @@ prerequisite for running them in parallel (§4b, item 3).
   `cases/macros/type-cache.hxtest`; `persistent-registry` and
   `macro-static-counter` pass.
 - Heaps and hide give the same output with isolation: their registries are
-  `@:persistent` already, which becomes a cache; `COMPONENTS` (domkit) and
-  `SERIALIZABLES` (hxbit) move to `TypeCache` (item 9).
+  `@:persistent` already, which becomes a cache.
+- Corpus migration (item 9):
+  - domkit: `COMPONENTS` is a `TypeCache` (given by the build of each
+    component class, `all()` for `checkCSS` once typing is done), with a class
+    of the same API for Haxe 5; the preload of the base components uses
+    `Context.buildType` (reading a `ClassType` no longer builds the class);
+  - hxbit: the configuration written by initialization macros
+    (`IGNORED_META`, `VISIBILITY_VALUES`, `CUSTOM_GETTERS`) is `@:persistent`;
+    the classes registered by `buildNetworkSerializable` were redundant with
+    the `Serializable` interface, so `SERIALIZABLES` only keeps
+    `markAsSerializable`.
 
 Exit criterion: Heaps, hxbit, domkit and hide pass history replay with static
 isolation enabled, and at most a handful of identified and justified volatile

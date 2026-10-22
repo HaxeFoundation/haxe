@@ -245,6 +245,8 @@ and vprototype = {
 	   their initializers (variables without one are set to null). *)
 	mutable pepoch : int;
 	mutable pinit : (vprototype -> unit) list;
+	(* the slots initialized again by [pinit] (not @:persistent) *)
+	mutable preset : int array;
 }
 
 and vinstance_kind =
@@ -427,7 +429,8 @@ let on_shared_state = ref (fun () -> ())
 let isolation = ref false
 let epoch_counter = Atomic.make 0
 let current_epoch : int DomainLocal.t = DomainLocal.make (fun () -> 0)
-(* the prototypes initialized again by the current expansion, with their previous state *)
+(* the prototypes initialized again by the current expansion, with the previous
+   values of their [preset] slots *)
 let restore_log : (vprototype * value array * int) list DomainLocal.t = DomainLocal.make (fun () -> [])
 
 let rec fresh_statics proto =
@@ -435,7 +438,7 @@ let rec fresh_statics proto =
 		if proto.pinit <> [] then begin
 			let e = DomainLocal.get current_epoch in
 			if proto.pepoch <> e then begin
-				DomainLocal.set restore_log ((proto,Array.copy proto.pfields,proto.pepoch) :: DomainLocal.get restore_log);
+				DomainLocal.set restore_log ((proto,Array.map (fun i -> proto.pfields.(i)) proto.preset,proto.pepoch) :: DomainLocal.get restore_log);
 				proto.pepoch <- e;
 				List.iter (fun f -> f proto) proto.pinit
 			end
@@ -454,7 +457,8 @@ let with_expansion f =
 		DomainLocal.set restore_log [];
 		Std.finally (fun () ->
 			List.iter (fun (proto,fields,epoch) ->
-				Array.blit fields 0 proto.pfields 0 (Array.length fields);
+				(* the @:persistent slots keep the writes of the expansion *)
+				Array.iteri (fun k i -> proto.pfields.(i) <- fields.(k)) proto.preset;
 				proto.pepoch <- epoch
 			) (DomainLocal.get restore_log);
 			DomainLocal.set current_epoch old_epoch;

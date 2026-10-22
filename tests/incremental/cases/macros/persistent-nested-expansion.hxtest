@@ -1,0 +1,42 @@
+# With static isolation, a nested expansion's writes to ordinary statics are
+# discarded when it ends, but its writes to @:persistent statics are kept: here
+# a build macro of an interface, run from the build of its implementer, gives
+# the configuration that the implementer's build reads (as domkit does).
+@args -D macro-isolation
+=== initial
+@expect-output parser: CustomParser, counter: 0
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.info());
+	}
+}
+--- Configured.hx
+@:build(Macro.configure())
+interface Configured {}
+--- A.hx
+@:build(Macro.build())
+class A {}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	@:persistent static var parser:String = null;
+	static var counter = 0;
+
+	public static function configure():Array<haxe.macro.Expr.Field> {
+		parser = "CustomParser";
+		counter++;
+		return null;
+	}
+
+	public static function build():Array<haxe.macro.Expr.Field> {
+		Context.buildType(Context.getType("Configured"));
+		var fields = Context.getBuildFields();
+		var s = "parser: " + parser + ", counter: " + counter;
+		fields.push((macro class {
+			public static function info() return $v{s};
+		}).fields[0]);
+		return fields;
+	}
+}

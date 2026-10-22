@@ -168,6 +168,7 @@ module PrototypeBuilder = struct
 			pvalue = vnull;
 			pepoch = 0;
 			pinit = [];
+			preset = [||];
 		} in
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
@@ -217,17 +218,21 @@ let create_static_prototype ctx mt =
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				let persistent = is_persistent cf in
 				let field_path = s_type_path path ^ "." ^ cf.cf_name in
-				DynArray.add delays (persistent,(fun proto ->
+				let init proto =
 					let old = DomainLocal.get DepRecord.current_static in
 					DomainLocal.set DepRecord.current_static (Some field_path);
 					proto.pfields.(i) <- Std.finally (fun () -> DomainLocal.set DepRecord.current_static old) (fun () ->
 						match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull
 					) ()
-				))
+				in
+				DynArray.add delays (persistent,i,init,init)
 			| Var _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
-				DynArray.add delays (is_persistent cf,(fun proto -> proto.pfields.(i) <- vnull))
+				(* initialized again to its initial value, which the native part of
+				   the standard library may have given *)
+				let initial = ref vnull in
+				DynArray.add delays (is_persistent cf,i,(fun proto -> initial := proto.pfields.(i)),(fun proto -> proto.pfields.(i) <- !initial))
 			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
 			|  _ ->
@@ -235,7 +240,9 @@ let create_static_prototype ctx mt =
 		) fields;
 		begin match TClass.get_cl_init c with
 			| None -> ()
-			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx (EKMethod(key,key___init__)) e)))
+			| Some e ->
+				let init _ = ignore(eval_expr ctx (EKMethod(key,key___init__)) e) in
+				DynArray.add delays (false,-1,init,init)
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
 	| TEnumDecl en ->
@@ -399,13 +406,16 @@ let add_types ctx types ready =
 		| [] -> ()
 		| _ ->
 			DynArray.add fl_static_init (proto,delays);
-			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
+			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,_,_,f) -> if not persistent then Some f else None) delays in
 			ctx.static_prototypes#add_init proto non_persistent_delays;
 			(* static isolation is for macros only, not for the interpreted program *)
-			if ctx.is_macro then proto.pinit <- non_persistent_delays;
+			if ctx.is_macro then begin
+				proto.pinit <- non_persistent_delays;
+				proto.preset <- Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent || i < 0 then None else Some i) delays)
+			end
 	) fl_static;
 	(* 4. Initialize static fields. *)
-	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init
+	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,_,first,_) -> first proto) delays) fl_static_init
 
 let add_types ctx types ready =
 	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"add_types"] (add_types ctx types) ready
