@@ -2377,6 +2377,56 @@ the forced minor collections (section 4b, item 8), the step takes 0.12 s.
 The next step is item 1, so that the code generation itself (`generate;hl;
 functions` in `--times`, 0.9 s of the 1.3 s left) is per function.
 
+**Status: item 1, first step (generation memo, server only).** Instead of
+symbolic operands, the generation of each class is recorded and replayed
+(`genhl.ml`, "generation memo"):
+
+- *Recording.* While a class is generated, every call that reads or changes
+  the tables of the context (HL types, constants, functions, globals,
+  natives, method wrappers, the closures of enum constructors, the names of
+  local functions, warnings) is an event holding typed AST values and HL
+  values; the functions it emits are kept with the positions of their
+  instructions. A call made inside an event is part of it, and the same type
+  or key again in the same class is not recorded (it only reads what the
+  first call created).
+- *Validity.* The memo is used when the declarations that the generator reads
+  are the same as in the previous compilation (for every type: path, flags,
+  kind, super class and interfaces, metadata without positions, and for each
+  field its name, kind, flags, metadata, type and whether it has an
+  expression; for enums, typedefs and abstracts their constructors, target or
+  underlying type, casts and operators), with the same defines and resources;
+  then a class is replayed when its expressions are the same: its module was
+  not typed again (the filters build the expressions again in every
+  compilation, from the same typed AST), or they have the same fingerprint
+  (positions included; the flags of the local variables that the generator
+  does not read are masked, since the analyzer marks the variables, which
+  the compilations share).
+- *Replay.* The events are replayed in order in the new context, so that the
+  indexes are allocated exactly as by a full generation; the functions are
+  remapped: constants by value, functions and globals by key or by the
+  results of the replayed events (local functions, wrappers, constant
+  strings), HL types by their key in the caches of the context (path,
+  structure, tuple), the debug information built again by `make_debug`
+  (lines kept when the lexer did not read their file again). A failure of the
+  remapping generates everything again without the memo.
+- *Checks.* `-D hl-memo-check` compares every warm generation with a
+  generation without the memo (dumps on a difference), `-D hl-memo-trace`
+  says why the memo is not used. A fuzzing of random edits of Heaps on HL with
+  the check found no difference, and the bytecode is identical to the
+  previous compiler.
+- Found on the way: `RenameVars` added a `:realPath` to a variable every
+  time it renamed it, so the metadata of the variables grew with each
+  compilation of the server; the previous name now replaces it.
+
+Heaps (`-D apicheck`), a body edit of `h3d.scene.Object`: 1119 of the 1121
+classes are replayed, `generate;hl;functions` takes 0.4–0.6 s instead of
+0.8–0.9 s, the compilation 1.1–1.35 s instead of 1.5–1.7 s. A compilation
+where the declarations changed (a field added) generates everything and
+records it, about 0.35 s more than without the memo. The rest of the replay
+is the replayed calls and the remapping (half each); symbolic operands
+(item 1 proper) would remove the remapping, and the post-processed copy of
+phase 8 the fingerprints of the modules typed again.
+
 ---
 
 ### Phase 11: cleanup

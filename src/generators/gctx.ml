@@ -35,6 +35,9 @@ type t = {
 	std : tclass; (* TODO: I would prefer to not have this here, have to check default_cast *)
 	timer_ctx : Timer.timer_context;
 	pool : Parallel.ManagedPool.t;
+	(* whether the generator runs in the compilation server, where it can keep
+	   its output for the next compilations *)
+	is_server : bool;
 }
 
 let defined com s =

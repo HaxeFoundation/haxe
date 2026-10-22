@@ -354,7 +354,10 @@ and collect_ignore_block ?(in_block=false) rc scope e =
 let trailing_numbers = Str.regexp "[0-9]+$"
 let maybe_rename_var rc reserved (v,overlaps) =
 	let commit name =
-		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
+		(* the previous name replaces the one of a previous renaming, which
+		   would otherwise pile up: the variables are renamed again by each
+		   compilation of the server *)
+		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: List.filter (fun (m,_,_) -> m <> Meta.RealPath) v.v_meta;
 		v.v_name <- name
 	in
 	(* chop escape char for all local variables generated *)

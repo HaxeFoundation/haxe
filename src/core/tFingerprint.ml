@@ -33,6 +33,8 @@ type state = {
 	mutable monos : tmono list;
 	(* the structures being hashed, against cycles through monomorphs *)
 	mutable anons : tanon list;
+	(* the flags of the local variables that are hashed *)
+	mutable var_flags : int;
 }
 
 let create ~positions = {
@@ -45,6 +47,7 @@ let create ~positions = {
 	nvars = 0;
 	monos = [];
 	anons = [];
+	var_flags = -1;
 }
 
 let add_int h x =
@@ -290,7 +293,7 @@ let add_var_decl h v =
 	add_var_ref h v;
 	add_string h v.v_name;
 	add_type h v.v_type;
-	add_int h v.v_flags;
+	add_int h (v.v_flags land h.var_flags);
 	add_meta h v.v_meta;
 	add_pos h v.v_pos
 
@@ -372,10 +375,11 @@ and add_function h tf =
 
 (* Fingerprints of the nodes of §3.2 *)
 
-let with_state ?(origin=null_pos) ?(within_origin=false) ~positions f =
+let with_state ?(origin=null_pos) ?(within_origin=false) ?(var_flags=(-1)) ~positions f =
 	let h = create ~positions in
 	h.origin <- origin;
 	h.within_origin <- within_origin;
+	h.var_flags <- var_flags;
 	f h;
 	finish h
 

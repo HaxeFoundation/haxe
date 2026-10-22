@@ -98,6 +98,53 @@ type array_impl = {
 type constval =
 	| CString of string
 
+(* The generation of a class, kept by the compilation server for the next
+   compilations (docs/incremental-compilation.md, phase 10): the calls it made
+   that read or change the tables of the context, in order, and the functions
+   it emitted. Replaying the calls allocates the indexes as a full generation
+   does; the functions are then remapped to them. An event only holds values
+   of the typed AST, or HL values that are remapped when it is replayed. *)
+type memo_event =
+	| EvToType of Type.t
+	| EvClassType of tclass * tparams * bool
+	| EvEnumType of tenum
+	| EvEnumClass of tenum
+	| EvTuple of ttype list
+	| EvFloat of float
+	| EvInt of int32
+	| EvString of string
+	| EvBytes of bytes
+	| EvFunPath of path * string
+	| EvGlobal of string * ttype
+	| EvStd of string * ttype list * ttype
+	| EvConst of constval * pos
+	| EvWrapper of ttype * ttype * pos
+	| EvClosureName
+	| EvEnumClosure of tenum * int * texpr
+	| EvNative of tclass * tclass_field * string * string
+	| EvWarning of string * pos
+	| EvEmit of int
+
+module PhysHaxeType = Hashtbl.Make(struct
+	type t = Type.t
+	let equal = (==)
+	let hash = Hashtbl.hash
+end)
+
+type memo_record = {
+	r_events : memo_event DynArray.t;
+	(* the types and keys of the events already recorded: the same call again
+	   only reads what the first one created *)
+	r_seen_types : unit PhysHaxeType.t;
+	r_seen : (memo_event,unit) Hashtbl.t;
+	(* the result of each event: the function or global it allocated *)
+	r_results : int DynArray.t;
+	(* the functions emitted, with the positions of their instructions *)
+	r_funs : (fundecl * pos array) DynArray.t;
+	(* inside an event: what it calls is replayed with it *)
+	mutable r_depth : int;
+}
+
 type context = {
 	com : Gctx.t;
 	num_domains : int;
@@ -133,6 +180,8 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
+	(* the generation of a class being recorded *)
+	mutable mrec : memo_record option;
 }
 
 let compare_version v1 v2 =
@@ -205,7 +254,39 @@ let to_utf8 str p =
 	) u8;
 	u8, !ccount
 
-let tuple_type ctx tl =
+let is_recording ctx = match ctx.mrec with Some r -> r.r_depth = 0 | None -> false
+
+(* [f ()] as the event [ev] of the generation being recorded *)
+let in_event ctx ev f res =
+	match ctx.mrec with
+	| Some r when r.r_depth = 0 ->
+		r.r_depth <- 1;
+		let v = (try f () with e -> r.r_depth <- 0; raise e) in
+		r.r_depth <- 0;
+		DynArray.add r.r_events ev;
+		DynArray.add r.r_results (res v);
+		v
+	| _ ->
+		f ()
+
+(* whether [ev] (holding only scalar values) was already recorded *)
+let seen_event ctx ev =
+	match ctx.mrec with
+	| Some r when r.r_depth = 0 -> if Hashtbl.mem r.r_seen ev then true else (Hashtbl.add r.r_seen ev (); false)
+	| _ -> false
+
+let seen_type ctx t =
+	match ctx.mrec with
+	| Some r when r.r_depth = 0 -> if PhysHaxeType.mem r.r_seen_types t then true else (PhysHaxeType.add r.r_seen_types t (); false)
+	| _ -> false
+
+let no_result _ = 0
+let index_result (i : int) = i
+
+let rec tuple_type ctx tl =
+	if is_recording ctx then in_event ctx (EvTuple tl) (fun () -> tuple_type_raw ctx tl) no_result else tuple_type_raw ctx tl
+
+and tuple_type_raw ctx tl =
 	try
 		PMap.find tl ctx.cached_tuples
 	with Not_found ->
@@ -282,16 +363,20 @@ let is_overridden ctx c f =
 	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
-	lookup ctx.cfloats f (fun() -> f)
+	if is_recording ctx && not (seen_event ctx (EvFloat f)) then in_event ctx (EvFloat f) (fun () -> lookup ctx.cfloats f (fun() -> f)) no_result
+	else lookup ctx.cfloats f (fun() -> f)
 
 let alloc_i32 ctx i =
-	lookup ctx.cints i (fun() -> i)
+	if is_recording ctx && not (seen_event ctx (EvInt i)) then in_event ctx (EvInt i) (fun () -> lookup ctx.cints i (fun() -> i)) no_result
+	else lookup ctx.cints i (fun() -> i)
 
 let alloc_string ctx s =
-	lookup ctx.cstrings s (fun() -> s)
+	if is_recording ctx && not (seen_event ctx (EvString s)) then in_event ctx (EvString s) (fun () -> lookup ctx.cstrings s (fun() -> s)) no_result
+	else lookup ctx.cstrings s (fun() -> s)
 
 let alloc_bytes ctx s =
-	lookup ctx.cbytes s (fun() -> s)
+	if is_recording ctx && not (seen_event ctx (EvBytes s)) then in_event ctx (EvBytes s) (fun () -> lookup ctx.cbytes s (fun() -> s)) no_result
+	else lookup ctx.cbytes s (fun() -> s)
 
 let array_class ctx t =
 	match t with
@@ -348,7 +433,8 @@ let rec get_const e =
 let set_curpos ctx p =
 	ctx.m.mcurpos <- p
 
-let make_debug ctx arr =
+(* [line i p]: the line of the position [p] of the instruction [i] *)
+let make_debug ?(line=fun _ p -> Lexer.get_error_line p) ctx arr =
 	let get_relative_path p =
 		match Gctx.defined ctx.com Define.AbsolutePath with
 		| true -> if (Filename.is_relative (Pos.file p))
@@ -366,7 +452,7 @@ let make_debug ctx arr =
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
 			let file = if (Pos.file p) == (Pos.file (!cur)) then !cur_file else lookup ctx.cdebug_files (Pos.file p) (fun() -> get_relative_path p) in
-			let line = Lexer.get_error_line p in
+			let line = line i p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
 				cur_line := line;
@@ -409,6 +495,10 @@ let get_rec_cache ctx t none_callback not_found_callback =
 	loop false ctx.rec_cache
 
 let rec to_type ?tref ctx t =
+	if tref = None && is_recording ctx && not (seen_type ctx t) then in_event ctx (EvToType t) (fun () -> to_type_raw ctx t) no_result
+	else to_type_raw ?tref ctx t
+
+and to_type_raw ?tref ctx t =
 	match t with
 	| TMono r ->
 		(match r.tm_type with
@@ -593,6 +683,10 @@ and real_type ctx e =
 	to_type ctx (loop e)
 
 and class_type ?(tref=None) ctx c pl statics =
+	if tref = None && is_recording ctx then in_event ctx (EvClassType (c,pl,statics)) (fun () -> class_type_raw ctx c pl statics) no_result
+	else class_type_raw ~tref ctx c pl statics
+
+and class_type_raw ?(tref=None) ctx c pl statics =
 	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
 	try
@@ -756,6 +850,10 @@ and class_type ?(tref=None) ctx c pl statics =
 		t
 
 and enum_type ?(tref=None) ctx e =
+	if tref = None && is_recording ctx then in_event ctx (EvEnumType e) (fun () -> enum_type_raw ctx e) no_result
+	else enum_type_raw ~tref ctx e
+
+and enum_type_raw ?(tref=None) ctx e =
 	let key_path = snd e.e_path :: fst e.e_path in
 	try
 		Hashtbl.find ctx.cached_types key_path
@@ -785,6 +883,10 @@ and enum_type ?(tref=None) ctx e =
 		t
 
 and enum_class ctx e =
+	if is_recording ctx then in_event ctx (EvEnumClass e) (fun () -> enum_class_raw ctx e) no_result
+	else enum_class_raw ctx e
+
+and enum_class_raw ctx e =
 	let key_path = ("$" ^ snd e.e_path) :: fst e.e_path in
 	try
 		Hashtbl.find ctx.cached_types key_path
@@ -854,7 +956,8 @@ and enum_class ctx e =
 		t
 
 and alloc_fun_path ctx path name =
-	lookup ctx.cfids (name, path) (fun() -> ())
+	if is_recording ctx && not (seen_event ctx (EvFunPath (path,name))) then in_event ctx (EvFunPath (path,name)) (fun () -> lookup ctx.cfids (name, path) (fun() -> ())) index_result
+	else lookup ctx.cfids (name, path) (fun() -> ())
 
 and alloc_fid ctx c f =
 	match f.cf_kind with
@@ -868,7 +971,8 @@ and alloc_function_name ctx f =
 	alloc_fun_path ctx ([],"") f
 
 and alloc_global ctx name t =
-	lookup ctx.cglobals name (fun() -> t)
+	if is_recording ctx then in_event ctx (EvGlobal (name,t)) (fun () -> lookup ctx.cglobals name (fun() -> t)) index_result
+	else lookup ctx.cglobals name (fun() -> t)
 
 and class_global ?(resolve=true) ctx c =
 	let static = c != ctx.base_class in
@@ -884,6 +988,10 @@ and resolve_type ctx path =
 	Hashtbl.find ctx.cached_types path
 
 and alloc_std ctx name args ret =
+	if is_recording ctx then in_event ctx (EvStd (name,args,ret)) (fun () -> alloc_std_raw ctx name args ret) index_result
+	else alloc_std_raw ctx name args ret
+
+and alloc_std_raw ctx name args ret =
 	let lib = "std" in
 	(* different from :hlNative to prevent mismatch *)
 	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib, -1) (fun() ->
@@ -1655,8 +1763,10 @@ and jump_expr ctx e jcond =
 			->
 			let ti1 = get_inner_type t1 in
 			let ti2 = get_inner_type t2 in
-			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then
-				ctx.com.warning WGenerator [] (Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2)) e.epos;
+			if ctx.w_null_compare && (is_nullt t1 || is_nullt t2) then begin
+				let msg = Printf.sprintf "Null compare: %s %s %s" (tstr t1) (s_binop jop) (tstr t2) in
+				in_event ctx (EvWarning (msg,e.epos)) (fun () -> ctx.com.warning WGenerator [] msg e.epos) no_result
+			end;
 			let r1 = eval_expr ctx e1 in
 			hold ctx r1;
 			let jnull1 = if is_nullt t1 then jump ctx (fun i -> OJNull (r1, i)) else (fun i -> ()) in
@@ -1726,6 +1836,10 @@ and eval_null_check ctx e =
 	r
 
 and make_const ctx c p =
+	if is_recording ctx then in_event ctx (EvConst (c,p)) (fun () -> make_const_raw ctx c p) index_result
+	else make_const_raw ctx c p
+
+and make_const_raw ctx c p =
 	let cidx = lookup ctx.cconstants c (fun() ->
 		let fields, t = (match c with
 		| CString s ->
@@ -2389,23 +2503,7 @@ and eval_expr ctx e =
 			let robj = eval_null_check ctx ethis in
 			op ctx (ODynGet (r,robj,f))
 		| AEnum (en,index) ->
-			let cur_fid = DynArray.length ctx.cfids.arr in
-			let name = List.nth en.e_names index in
-			let fid = alloc_fun_path ctx en.e_path name in
-			if fid = cur_fid then begin
-				let ef = PMap.find name en.e_constrs in
-				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
-				let ct = ctx.com.basic in
-				let p = ef.ef_pos in
-				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some (mk (TConst TNull) t_dynamic null_pos) else None) eargs in
-				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
-				let f = {
-					tf_args = eargs;
-					tf_type = et;
-					tf_expr = mk (TReturn (Some ecall)) ct.tvoid p;
-				} in
-				ignore(make_fun ctx ("","") fid f None None);
-			end;
+			let fid = if is_recording ctx then in_event ctx (EvEnumClosure (en,index,e)) (fun () -> enum_closure ctx en index e) index_result else enum_closure ctx en index e in
 			op ctx (OStaticClosure (r,fid));
 		| ANone | ALocal _ | AArray _ | ACaptured _ | ACArray _ ->
 			abort "Invalid access" e.epos);
@@ -2782,7 +2880,7 @@ and eval_expr ctx e =
 			(match acc with AArray (a,_,idx) -> free ctx a; free ctx idx | _ -> ());
 			!ret)
 	| TFunction f ->
-		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfids.arr)) in
+		let fid = closure_fid ctx in
 		let capt = make_fun ctx ("","") fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
@@ -3311,7 +3409,37 @@ and build_capture_vars ctx f =
 		c_group = group;
 	}
 
+(* the function of an enum constructor used as a value, generated by its first use *)
+and enum_closure ctx en index e =
+	let cur_fid = DynArray.length ctx.cfids.arr in
+	let name = List.nth en.e_names index in
+	let fid = alloc_fun_path ctx en.e_path name in
+	if fid = cur_fid then begin
+		let ef = PMap.find name en.e_constrs in
+		let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> die "" __LOC__) in
+		let ct = ctx.com.basic in
+		let p = ef.ef_pos in
+		let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some (mk (TConst TNull) t_dynamic null_pos) else None) eargs in
+		let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
+		let f = {
+			tf_args = eargs;
+			tf_type = et;
+			tf_expr = mk (TReturn (Some ecall)) ct.tvoid p;
+		} in
+		ignore(make_fun ctx ("","") fid f None None);
+	end;
+	fid
+
+(* the function of a local function, named after the number of functions *)
+and closure_fid ctx =
+	let alloc () = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfids.arr)) in
+	if is_recording ctx then in_event ctx EvClosureName alloc index_result else alloc ()
+
 and gen_method_wrapper ctx rt t p =
+	if is_recording ctx then in_event ctx (EvWrapper (rt,t,p)) (fun () -> gen_method_wrapper_raw ctx rt t p) index_result
+	else gen_method_wrapper_raw ctx rt t p
+
+and gen_method_wrapper_raw ctx rt t p =
 	try
 		PMap.find (rt,t) ctx.method_wrappers
 	with Not_found ->
@@ -3511,10 +3639,25 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
 	} in
+	let mdebug = ctx.m.mdebug in
 	ctx.m <- old;
+	(match ctx.mrec with
+	| Some r when r.r_depth = 0 ->
+		DynArray.add r.r_events (EvEmit (DynArray.length r.r_funs));
+		DynArray.add r.r_results 0;
+		(* the optimizer changes the code in place *)
+		DynArray.add r.r_funs ({ hlf with code = Array.copy hlf.code }, LargeArray.of_dynarray mdebug)
+	| _ -> ());
 	Hashtbl.add ctx.defined_funs fidx ();
 	DynArray.add ctx.cfunctions hlf;
 	capt
+
+let add_native ctx c f lib name =
+	let fid = alloc_fid ctx c f in
+	ignore(lookup ctx.cnatives (name ^ "@" ^ lib,fid) (fun() ->
+		Hashtbl.add ctx.defined_funs fid ();
+		(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
+	))
 
 let generate_static ctx c f =
 	match f.cf_kind with
@@ -3524,11 +3667,8 @@ let generate_static ctx c f =
 		()
 	| Method m ->
 		let add_native lib name =
-			let fid = alloc_fid ctx c f in
-			ignore(lookup ctx.cnatives (name ^ "@" ^ lib,fid) (fun() ->
-				Hashtbl.add ctx.defined_funs fid ();
-				(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
-			));
+			if is_recording ctx then in_event ctx (EvNative (c,f,lib,name)) (fun () -> add_native ctx c f lib name) no_result
+			else add_native ctx c f lib name
 		in
 		let rec loop = function
 			| (Meta.HlNative,[(EConst(String(lib,_)),_);(EConst(String(name,_)),_)] ,_ ) :: _ ->
@@ -3664,6 +3804,491 @@ let generate_type ctx t =
 		List.iter (generate_member ctx c) c.cl_ordered_fields;
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
+
+
+(* ---------------------------------------------------------------------- *)
+(* GENERATION MEMO (phase 10) *)
+
+exception Memo_failed of string
+
+type memo_entry = {
+	(* the class and the expressions of its fields: physically the same, or
+	   with the same fingerprint (the filters build the expressions again in
+	   every compilation of the server) *)
+	e_body : Obj.t array;
+	e_fps : TFingerprint.t option array;
+	(* the module of the class: when it was not typed again, the filters built
+	   the same expressions again (the declarations they read are compared) *)
+	e_module : module_def;
+	e_events : memo_event array;
+	e_results : int array;
+	e_funs : (fundecl * pos array) array;
+}
+
+(* What the generation of any class reads of the declarations: the memo is
+   used only when they are the same as in the previous compilation. A value is
+   compared physically, structurally, or as metadata; a fuzzy item is the same
+   when its values are physically the same or have the same fingerprint (the
+   fingerprint only reads the values captured, not the entities, which grafting
+   updates in place). *)
+type struct_item =
+	| SPhys of Obj.t
+	| SValue of Obj.t
+	| SMeta of metadata
+	| SFuzzy of Obj.t array * (unit -> TFingerprint.t)
+
+type memo_state = {
+	m_ctx : context;
+	m_sign : string;
+	m_resources : (string * string) list;
+	m_struct : struct_item array;
+	m_fps : TFingerprint.t option array;
+	m_entries : (string, memo_entry) Hashtbl.t;
+	(* the files of the debug information, as the lexer knew them *)
+	m_files : (string, Lexer.lexer_file) Hashtbl.t;
+}
+
+let memo_prev : memo_state option ref = ref None
+
+(* -D hl-memo-trace: why the memo is not used *)
+let memo_trace = ref false
+
+(* the flags that the generator does not read (markers of the filters and of DCE) *)
+let memo_field_flags_mask = lnot (List.fold_left (fun acc f -> acc lor (1 lsl (Obj.magic f : int))) 0 [CfPostProcessed;CfUsed;CfMaybeUsed;CfStructurallyUsed])
+let memo_class_flags_mask = lnot (1 lsl (Obj.magic CUsed : int))
+let memo_enum_flags_mask = lnot (1 lsl (Obj.magic EnUsed : int))
+
+(* the same entries, or entries equal but for their positions (an entry can
+   hold a big expression, such as the source of a shader) *)
+let memo_same_meta l1 l2 =
+	let rec entries a b = match a,b with
+		| [],[] -> true
+		| e1 :: a,e2 :: b -> (e1 == e2 || e1 = e2) && entries a b
+		| _ -> false
+	in
+	l1 == l2 || entries l1 l2 ||
+	(* the positions in the entries are not read by the generator *)
+	let fp l = TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_meta h l) in
+	fp l1 = fp l2
+
+let fp_types tl = TFingerprint.with_state ~positions:false (fun h -> List.iter (TFingerprint.add_type h) tl)
+
+let struct_items types =
+	let items = DynArray.create () in
+	let add i = DynArray.add items i in
+	let value v = add (SValue (Obj.repr v)) in
+	let fuzzy_type t = add (SFuzzy ([|Obj.repr t|],(fun () -> fp_types [t]))) in
+	let field cf =
+		value cf.cf_name;
+		value cf.cf_kind;
+		value (cf.cf_flags land memo_field_flags_mask);
+		add (SMeta cf.cf_meta);
+		fuzzy_type cf.cf_type;
+		value (List.length cf.cf_params);
+		value (List.length cf.cf_overloads);
+		match cf.cf_expr with
+		| None -> value 0
+		| Some e -> value 1; fuzzy_type e.etype
+	in
+	List.iter (fun mt ->
+		value (t_infos mt).mt_path;
+		match mt with
+		| TClassDecl c ->
+			value (c.cl_flags land memo_class_flags_mask);
+			add (SMeta c.cl_meta);
+			let kind = c.cl_kind and sup = c.cl_super and impl = c.cl_implements and dyn = c.cl_dynamic and acc = c.cl_array_access in
+			add (SFuzzy ([|Obj.repr kind;Obj.repr sup;Obj.repr impl;Obj.repr dyn;Obj.repr acc|],(fun () ->
+				TFingerprint.with_state ~positions:false (fun h ->
+					TFingerprint.add_class_kind h kind;
+					TFingerprint.add_option h (fun h (c,tl) -> TFingerprint.add_path h c.cl_path; TFingerprint.add_params h tl) sup;
+					TFingerprint.add_list h (fun h (c,tl) -> TFingerprint.add_path h c.cl_path; TFingerprint.add_params h tl) impl;
+					TFingerprint.add_option h TFingerprint.add_type dyn;
+					TFingerprint.add_option h TFingerprint.add_type acc
+				)
+			)));
+			value (List.length c.cl_params);
+			value (c.cl_init <> None);
+			List.iter field c.cl_ordered_statics;
+			value "";
+			List.iter field c.cl_ordered_fields;
+			value "";
+			(match c.cl_constructor with Some cf -> field cf | None -> value 0)
+		| TEnumDecl e ->
+			value (e.e_flags land memo_enum_flags_mask);
+			add (SMeta e.e_meta);
+			value e.e_names;
+			List.iter (fun name ->
+				let ef = PMap.find name e.e_constrs in
+				value ef.ef_index;
+				fuzzy_type ef.ef_type;
+				add (SMeta ef.ef_meta);
+				value (List.length ef.ef_params)
+			) e.e_names
+		| TTypeDecl td ->
+			add (SMeta td.t_meta);
+			fuzzy_type td.t_type;
+			value (List.length td.t_params)
+		| TAbstractDecl a ->
+			add (SMeta a.a_meta);
+			value (a.a_enum,a.a_extern,List.length a.a_params);
+			let this = a.a_this and from = a.a_from and to_ = a.a_to and fromf = a.a_from_field and tof = a.a_to_field and impl = a.a_impl in
+			let names = (List.map (fun (_,cf) -> cf.cf_name) a.a_ops,List.map (fun (_,_,cf) -> cf.cf_name) a.a_unops,List.map (fun cf -> cf.cf_name) a.a_array,
+				List.map (Option.map (fun cf -> cf.cf_name)) [a.a_read;a.a_write;a.a_call;a.a_constructor]) in
+			value names;
+			add (SFuzzy ([|Obj.repr this;Obj.repr from;Obj.repr to_;Obj.repr fromf;Obj.repr tof;Obj.repr impl|],(fun () ->
+				TFingerprint.with_state ~positions:false (fun h ->
+					TFingerprint.add_type h this;
+					TFingerprint.add_params h from;
+					TFingerprint.add_params h to_;
+					TFingerprint.add_list h (fun h (t,cf) -> TFingerprint.add_type h t; TFingerprint.add_string h cf.cf_name) fromf;
+					TFingerprint.add_list h (fun h (t,cf) -> TFingerprint.add_type h t; TFingerprint.add_string h cf.cf_name) tof;
+					TFingerprint.add_option h (fun h c -> TFingerprint.add_path h c.cl_path) impl
+				)
+			)))
+	) types;
+	DynArray.to_array items
+
+let same_struct prev items =
+	Array.length prev.m_struct = Array.length items &&
+	try
+		Array.iteri (fun i item ->
+			let same = match prev.m_struct.(i), item with
+				| SPhys a, SPhys b -> a == b
+				| SValue a, SValue b -> a == b || a = b
+				| SMeta a, SMeta b -> memo_same_meta a b
+				| SFuzzy (ka,fa), SFuzzy (kb,fb) ->
+					(Array.length ka = Array.length kb && (try Array.iteri (fun j o -> if o != kb.(j) then raise Exit) ka; true with Exit -> false)) ||
+					(let old = match prev.m_fps.(i) with Some fp -> fp | None -> let fp = fa () in prev.m_fps.(i) <- Some fp; fp in old = fb ())
+				| _ -> false
+			in
+			if not same then begin
+				if !memo_trace then begin
+					let rec path j = if j < 0 then "?" else match items.(j) with SValue v when Obj.is_block v && Obj.tag v = 0 && Obj.size v = 2 && (try ignore (s_type_path (Obj.obj v)); true with _ -> false) -> s_type_path (Obj.obj v) | _ -> path (j - 1) in
+					prerr_endline (Printf.sprintf "hl memo: declarations differ at %d (%s) near %s" i (match item with SPhys _ -> "object" | SValue _ -> "value" | SMeta _ -> "meta" | SFuzzy _ -> "fuzzy") (path i))
+				end;
+				raise Exit
+			end
+		) items;
+		true
+	with Exit ->
+		false
+
+(* the expressions the generation of a class reads *)
+let class_body c =
+	let l = ref [Obj.repr c] in
+	let expr cf = l := (match cf.cf_expr with Some e -> Obj.repr e | None -> Obj.repr 0) :: !l in
+	l := (match TClass.get_cl_init c with Some e -> Obj.repr e | None -> Obj.repr 0) :: !l;
+	List.iter expr c.cl_ordered_statics;
+	List.iter expr c.cl_ordered_fields;
+	Option.may expr c.cl_constructor;
+	Array.of_list !l
+
+(* the flags of the local variables that the generator reads (the analyzer
+   marks the variables, which are shared by the compilations of the server) *)
+let memo_var_flags = List.fold_left (fun acc f -> acc lor (1 lsl (Obj.magic f : int))) 0 [VCaptured;VCaught]
+
+let body_fp o =
+	if Obj.is_int o then TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_int h 0)
+	else TFingerprint.with_state ~var_flags:memo_var_flags ~positions:true (fun h -> TFingerprint.add_expr h (Obj.obj o : texpr))
+
+
+
+(* the fingerprints of [body] that were computed, or None *)
+let same_body e c body =
+	let n = Array.length body in
+	if Array.length e.e_body <> n || e.e_body.(n - 1) != body.(n - 1) then None else
+	if e.e_module == c.cl_module then Some e.e_fps else
+	let fps = Array.make n None in
+	try
+		for i = 0 to n - 2 do
+			let o = body.(i) in
+			if o != e.e_body.(i) then begin
+				let old = match e.e_fps.(i) with Some fp -> fp | None -> let fp = body_fp e.e_body.(i) in e.e_fps.(i) <- Some fp; fp in
+				let fp = body_fp o in
+				if fp <> old then raise Exit;
+				fps.(i) <- Some fp
+			end else
+				fps.(i) <- e.e_fps.(i)
+		done;
+		Some fps
+	with Exit ->
+		None
+
+module PhysType = Hashtbl.Make(struct
+	type t = ttype
+	let equal = (==)
+	let hash = Hashtbl.hash
+end)
+
+type type_key =
+	| KPath of string list
+	| KAnon of tanon
+	| KTuple of ttype list
+
+(* from the previous context to the current one *)
+type memo_mapper = {
+	old_ctx : context;
+	new_ctx : context;
+	fid_pairs : (int,int) Hashtbl.t;
+	global_pairs : (int,int) Hashtbl.t;
+	fid_keys : (string * path) option array Stdlib.Lazy.t;
+	global_keys : string option array Stdlib.Lazy.t;
+	type_keys : type_key PhysType.t Stdlib.Lazy.t;
+	type_map : ttype PhysType.t;
+	(* the class types, by the index of their name *)
+	obj_map : (int,ttype) Hashtbl.t;
+	old_files : (string, Lexer.lexer_file) Hashtbl.t;
+	same_files : (string, bool) Hashtbl.t;
+}
+
+let create_mapper old_ctx old_files new_ctx =
+	let keys l =
+		let a = Array.make (DynArray.length l.arr) None in
+		Hashtbl.iter (fun k i -> a.(i) <- Some k) l.map;
+		a
+	in
+	{
+		old_ctx = old_ctx;
+		new_ctx = new_ctx;
+		fid_pairs = Hashtbl.create 0;
+		global_pairs = Hashtbl.create 0;
+		fid_keys = lazy (keys old_ctx.cfids);
+		global_keys = lazy (keys old_ctx.cglobals);
+		type_keys = lazy (
+			let h = PhysType.create 0 in
+			let add t k = if not (PhysType.mem h t) then PhysType.add h t k in
+			Hashtbl.iter (fun k t -> add t (KPath k)) old_ctx.cached_types;
+			PMap.iter (fun a t -> add t (KAnon a)) old_ctx.anons_cache;
+			PMap.iter (fun tl t -> add t (KTuple tl)) old_ctx.cached_tuples;
+			h
+		);
+		type_map = PhysType.create 0;
+		obj_map = Hashtbl.create 0;
+		old_files = old_files;
+		same_files = Hashtbl.create 0;
+	}
+
+let memo_fail what = raise (Memo_failed what)
+
+let pair tbl old v =
+	match Hashtbl.find_opt tbl old with
+	| Some v2 when v2 <> v -> memo_fail "pair"
+	| Some _ -> ()
+	| None -> Hashtbl.add tbl old v
+
+let map_pool (old_l : ('a,'a) lookup) (new_l : ('a,'a) lookup) i =
+	try Hashtbl.find new_l.map (DynArray.get old_l.arr i) with Not_found -> memo_fail "constant"
+
+let map_string m i = map_pool m.old_ctx.cstrings m.new_ctx.cstrings i
+let map_int m i = map_pool m.old_ctx.cints m.new_ctx.cints i
+let map_float m i = map_pool m.old_ctx.cfloats m.new_ctx.cfloats i
+let map_bytes m i = map_pool m.old_ctx.cbytes m.new_ctx.cbytes i
+
+let map_fid m i =
+	try Hashtbl.find m.fid_pairs i with Not_found ->
+	match (Stdlib.Lazy.force m.fid_keys).(i) with
+	| Some k -> (try Hashtbl.find m.new_ctx.cfids.map k with Not_found -> memo_fail "function")
+	| None -> memo_fail "function"
+
+let map_global m i =
+	try Hashtbl.find m.global_pairs i with Not_found ->
+	match (Stdlib.Lazy.force m.global_keys).(i) with
+	| Some k -> (try Hashtbl.find m.new_ctx.cglobals.map k with Not_found -> memo_fail "global")
+	| None -> memo_fail "global"
+
+let rec map_type m t =
+	match t with
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID -> t
+	| HObj p | HStruct p ->
+		(try Hashtbl.find m.obj_map p.pid with Not_found ->
+			let t2 = map_type_keyed m t in
+			Hashtbl.add m.obj_map p.pid t2;
+			t2)
+	| _ ->
+	try PhysType.find m.type_map t with Not_found ->
+	let t2 = match t with
+		| HFun (args,ret) -> HFun (List.map (map_type m) args,map_type m ret)
+		| HMethod (args,ret) -> HMethod (List.map (map_type m) args,map_type m ret)
+		| HArray t -> HArray (map_type m t)
+		| HRef t -> HRef (map_type m t)
+		| HNull t -> HNull (map_type m t)
+		| HPacked t -> HPacked (map_type m t)
+		| HAbstract (name,sid) -> HAbstract (name,map_string m sid)
+		| HObj _ | HStruct _ | HVirtual _ | HEnum _ ->
+			map_type_keyed m t
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID -> t
+	in
+	PhysType.add m.type_map t t2;
+	t2
+
+and map_type_keyed m t =
+			(match PhysType.find_opt (Stdlib.Lazy.force m.type_keys) t with
+			| Some (KPath k) -> (try Hashtbl.find m.new_ctx.cached_types k with Not_found -> memo_fail "type")
+			| Some (KAnon a) -> (try PMap.find a m.new_ctx.anons_cache with Not_found -> memo_fail "structure")
+			| Some (KTuple tl) -> (try PMap.find (List.map (map_type m) tl) m.new_ctx.cached_tuples with Not_found -> memo_fail "tuple")
+			| None -> memo_fail "unknown type")
+
+let map_op m op =
+	match op with
+	| OInt (r,i) -> OInt (r,map_int m i)
+	| OFloat (r,i) -> OFloat (r,map_float m i)
+	| OBytes (r,i) -> OBytes (r,map_bytes m i)
+	| OString (r,i) -> OString (r,map_string m i)
+	| OCall0 (r,f) -> OCall0 (r,map_fid m f)
+	| OCall1 (r,f,a) -> OCall1 (r,map_fid m f,a)
+	| OCall2 (r,f,a,b) -> OCall2 (r,map_fid m f,a,b)
+	| OCall3 (r,f,a,b,c) -> OCall3 (r,map_fid m f,a,b,c)
+	| OCall4 (r,f,a,b,c,d) -> OCall4 (r,map_fid m f,a,b,c,d)
+	| OCallN (r,f,rl) -> OCallN (r,map_fid m f,rl)
+	| OStaticClosure (r,f) -> OStaticClosure (r,map_fid m f)
+	| OInstanceClosure (r,f,o) -> OInstanceClosure (r,map_fid m f,o)
+	| OGetGlobal (r,g) -> OGetGlobal (r,map_global m g)
+	| OSetGlobal (g,r) -> OSetGlobal (map_global m g,r)
+	| OCatch g -> OCatch (map_global m g)
+	| ODynGet (r,o,s) -> ODynGet (r,o,map_string m s)
+	| ODynSet (o,s,v) -> ODynSet (o,map_string m s,v)
+	| OType (r,t) -> OType (r,map_type m t)
+	| _ -> op
+
+(* whether the lexer knows [file] as when the previous debug information was built *)
+let same_file m file =
+	try Hashtbl.find m.same_files file with Not_found ->
+	let b = match Hashtbl.find_opt m.old_files file with
+		| Some lf -> (try ThreadSafeHashtbl.find Lexer.all_files file == lf with Not_found -> false)
+		| None -> false
+	in
+	Hashtbl.add m.same_files file b;
+	b
+
+(* the debug information, built again from the positions of the instructions;
+   the lines are kept when the files did not change *)
+let remap_debug m debug mdebug =
+	let cur = ref "" and same = ref true in
+	Array.iter (fun (_,_,p) -> let file = Pos.file p in if file != !cur then begin cur := file; if not (same_file m file) then same := false end) debug;
+	if not !same then make_debug m.new_ctx (DynArray.of_array mdebug)
+	else make_debug ~line:(fun i _ -> let _,line,_ = debug.(i) in line) m.new_ctx (DynArray.of_array mdebug)
+
+let remap_fundecl m (f,mdebug) =
+	let ctx = m.new_ctx in
+	ignore ctx;
+	let f = {
+		fpath = f.fpath;
+		findex = map_fid m f.findex;
+		ftype = map_type m f.ftype;
+		regs = LargeArray.map (map_type m) f.regs;
+		code = LargeArray.map (map_op m) f.code;
+		debug = remap_debug m f.debug mdebug;
+		assigns = LargeArray.map (fun (s,p,e) -> (map_string m s,p,e)) f.assigns;
+		need_opt = f.need_opt;
+	} in
+	f
+
+(* replays the generation [e] of a class in the context of [m], and returns
+   it for the next compilation *)
+let replay_entry m e =
+	let ctx = m.new_ctx in
+	let events = Array.copy e.e_events in
+	let results = Array.copy e.e_results in
+	let funs = Array.copy e.e_funs in
+	Array.iteri (fun i ev ->
+		let res = match ev with
+			| EvToType t -> ignore (to_type ctx t); 0
+			| EvClassType (c,pl,statics) -> ignore (class_type ctx c pl statics); 0
+			| EvEnumType en -> ignore (enum_type ctx en); 0
+			| EvEnumClass en -> ignore (enum_class ctx en); 0
+			| EvTuple tl ->
+				let tl = List.map (map_type m) tl in
+				events.(i) <- EvTuple tl;
+				ignore (tuple_type ctx tl); 0
+			| EvFloat f -> ignore (alloc_float ctx f); 0
+			| EvInt v -> ignore (alloc_i32 ctx v); 0
+			| EvString s -> ignore (alloc_string ctx s); 0
+			| EvBytes b -> ignore (alloc_bytes ctx b); 0
+			| EvFunPath (path,name) -> alloc_fun_path ctx path name
+			| EvGlobal (name,t) ->
+				let t = map_type m t in
+				events.(i) <- EvGlobal (name,t);
+				alloc_global ctx name t
+			| EvStd (name,args,ret) ->
+				let args = List.map (map_type m) args and ret = map_type m ret in
+				events.(i) <- EvStd (name,args,ret);
+				alloc_std ctx name args ret
+			| EvConst (c,p) -> make_const ctx c p
+			| EvWrapper (rt,t,p) ->
+				let rt = map_type m rt and t = map_type m t in
+				events.(i) <- EvWrapper (rt,t,p);
+				gen_method_wrapper ctx rt t p
+			| EvClosureName -> closure_fid ctx
+			| EvEnumClosure (en,index,e) -> enum_closure ctx en index e
+			| EvNative (c,f,lib,name) -> add_native ctx c f lib name; 0
+			| EvWarning (msg,p) -> ctx.com.warning WGenerator [] msg p; 0
+			| EvEmit k ->
+				let f = remap_fundecl m e.e_funs.(k) in
+				funs.(k) <- ({ f with code = Array.copy f.code },snd e.e_funs.(k));
+				Hashtbl.add ctx.defined_funs f.findex ();
+				DynArray.add ctx.cfunctions f;
+				0
+		in
+		(match ev with
+		| EvFunPath _ | EvStd _ | EvWrapper _ | EvClosureName | EvEnumClosure _ -> pair m.fid_pairs e.e_results.(i) res
+		| EvGlobal _ | EvConst _ -> pair m.global_pairs e.e_results.(i) res
+		| _ -> ());
+		results.(i) <- res
+	) e.e_events;
+	{ e with e_events = events; e_results = results; e_funs = funs }
+
+(* the memo of the current generation: the mapper from the previous context
+   (when the declarations are the same), the previous entries, and the entries
+   of this generation *)
+type memo_current = {
+	mc_mapper : memo_mapper option;
+	mc_prev : (string, memo_entry) Hashtbl.t;
+	mc_entries : (string, memo_entry) Hashtbl.t;
+	mutable mc_hits : int;
+	(* the fingerprints of the body of the class being replayed *)
+	mutable mc_fps : TFingerprint.t option array;
+}
+
+let generate_type_memo ctx mc t =
+	match t with
+	| TClassDecl c ->
+		let key = s_type_path c.cl_path in
+		let body = class_body c in
+		let same e =
+			let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hl";"functions";"memo check"] in
+			let r = same_body e c body in
+			t();
+			match r with Some fps -> mc.mc_fps <- fps; true | None -> false
+		in
+		let replay m e =
+			let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hl";"functions";"memo replay"] in
+			let e = replay_entry m e in
+			t();
+			e
+		in
+		let replayed = match mc.mc_mapper, Hashtbl.find_opt mc.mc_prev key with
+			| Some m, Some e when same e -> Some (replay m e)
+			| _ -> None
+		in
+		(match replayed with
+		| Some e ->
+			mc.mc_hits <- mc.mc_hits + 1;
+			Hashtbl.replace mc.mc_entries key { e with e_body = body; e_fps = mc.mc_fps; e_module = c.cl_module }
+		| None ->
+			let r = { r_events = DynArray.create (); r_seen_types = PhysHaxeType.create 0; r_seen = Hashtbl.create 0; r_results = DynArray.create (); r_funs = DynArray.create (); r_depth = 0 } in
+			ctx.mrec <- Some r;
+			(try generate_type ctx t with exc -> ctx.mrec <- None; raise exc);
+			ctx.mrec <- None;
+			Hashtbl.replace mc.mc_entries key {
+				e_body = body;
+				e_fps = Array.make (Array.length body) None;
+				e_module = c.cl_module;
+				e_events = LargeArray.of_dynarray r.r_events;
+				e_results = DynArray.to_array r.r_results;
+				e_funs = LargeArray.of_dynarray r.r_funs;
+			})
+	| _ ->
+		generate_type ctx t
 
 let generate_static_content ctx types f =
 	let is_init = alloc_tmp ctx HBool in
@@ -4279,13 +4904,14 @@ let create_context com =
 		macro_typedefs = Hashtbl.create 0;
 		ct_delayed = [];
 		ct_depth = 0;
+		mrec = None;
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");
 	ignore(class_type ctx ctx.base_class [] false);
 	ctx
 
-let add_types ctx types =
+let add_types ?mc ctx types =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl ({ cl_path = ["hl";"types"], ("BytesIterator"|"BytesKeyValueIterator"|"ArrayBytes") } as c) ->
@@ -4341,9 +4967,13 @@ let add_types ctx types =
 			) c.cl_meta;
  		| _ -> ()
 	) types;
+	let mc = match mc with Some f -> Some (f ()) | None -> None in
 	let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hl";"functions"] in
-	List.iter (generate_type ctx) types;
-	t()
+	(match mc with
+	| Some (mc,_) -> List.iter (generate_type_memo ctx mc) types
+	| None -> List.iter (generate_type ctx) types);
+	t();
+	mc
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
@@ -4391,12 +5021,72 @@ let generate com =
 		close_out ch;
 	end else
 
-	let ctx = create_context com in
-	add_types ctx com.types;
-
-	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"init"] in
-	let code = build_code ctx com.types com.main.main_expr in
-	t();
+	(* in the server, the generation of the classes is kept for the next
+	   compilations (phase 10) *)
+	let memo = com.is_server && not dump in
+	memo_trace := Gctx.raw_defined com "hl_memo_trace";
+	let memo_sign = Define.get_signature com.defines and memo_resources = Hashtbl.fold (fun k v acc -> (k,v) :: acc) com.resources [] in
+	let build ctx =
+		let t = Timer.start_timer com.timer_ctx ["generate";"hl";"init"] in
+		let code = build_code ctx com.types com.main.main_expr in
+		t();
+		code
+	in
+	let gen use_memo =
+		let ctx = create_context com in
+		let mc () =
+			let t = Timer.start_timer com.timer_ctx ["generate";"hl";"functions";"memo declarations"] in
+			let items = struct_items com.types in
+			let mapper = match !memo_prev with
+				| Some prev when use_memo && prev.m_sign = memo_sign && prev.m_resources = memo_resources && same_struct prev items ->
+					Some (create_mapper prev.m_ctx prev.m_files ctx)
+				| _ ->
+					None
+			in
+			t();
+			let prev_entries = match !memo_prev with Some prev -> prev.m_entries | None -> Hashtbl.create 0 in
+			{ mc_mapper = mapper; mc_prev = prev_entries; mc_entries = Hashtbl.create 0; mc_hits = 0; mc_fps = [||] }, items
+		in
+		let mc = if memo then add_types ~mc ctx com.types else add_types ctx com.types in
+		ctx, build ctx, mc
+	in
+	let ctx, code, mc = (try
+		gen true
+	with Memo_failed what ->
+		if !memo_trace then prerr_endline ("hl memo failed: " ^ what);
+		memo_prev := None;
+		gen false
+	) in
+	let ctx, code = match mc with
+		| Some (mc,items) ->
+			let files = Hashtbl.create 0 in
+			Hashtbl.iter (fun file _ -> try Hashtbl.replace files file (ThreadSafeHashtbl.find Lexer.all_files file) with Not_found -> ()) ctx.cdebug_files.map;
+			memo_prev := Some { m_ctx = ctx; m_sign = memo_sign; m_resources = memo_resources; m_struct = items; m_fps = Array.make (Array.length items) None; m_entries = mc.mc_entries; m_files = files };
+			if !memo_trace then prerr_endline (Printf.sprintf "hl memo: %d classes replayed, mapper %b" mc.mc_hits (mc.mc_mapper <> None));
+			if mc.mc_hits > 0 && Gctx.raw_defined com "hl_memo_check" then begin
+				(* the same generation without the memo *)
+				let ctx2 = create_context com in
+				ignore (add_types ctx2 com.types);
+				let code2 = build_code ctx2 com.types com.main.main_expr in
+				let dump code =
+					let b = Buffer.create 0 in
+					Hlcode.dump (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') code;
+					Buffer.contents b
+				in
+				let d1 = dump code and d2 = dump code2 in
+				if d1 <> d2 then begin
+					let write f s = let ch = open_out_bin f in output_string ch s; close_out ch in
+					write (com.file ^ ".memo.txt") d1;
+					write (com.file ^ ".cold.txt") d2;
+					prerr_endline ("hl memo check: the generation differs, see " ^ com.file ^ ".memo.txt and .cold.txt");
+					ctx2, code2
+				end else
+					ctx, code
+			end else
+				ctx, code
+		| None ->
+			ctx, code
+	in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 
 	if ctx.optimize then begin
