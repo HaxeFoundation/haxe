@@ -45,19 +45,27 @@ class Js {
 		getJSDependencies();
 
 		final jsOutputs = [
-			for (es_ver in    [[], ["-D", "js-es=6"]])
-			for (unflatten in [[], ["-D", "js-unflatten"]])
-			for (classic in   [[], ["-D", "js-classic"]])
+			for (es_ver in           [[], ["-D", "js-es=6"], ["-D", "js-es=2022" /* the newest Node v18 supports */]])
+			for (unflatten in        [[], ["-D", "js-unflatten"]])
+			for (moduleType in       [[], ["-D", "js.module=es"], ["-D", "js.module=classic"]])
 			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
 			{
-				final extras = args.concat(es_ver).concat(unflatten).concat(classic).concat(enums_as_objects);
+				final esm = moduleType.length == 2 && moduleType[1].endsWith("es");
+
+				// Skip ESM tests for ES5
+				if (es_ver.length == 0 && esm) {
+					continue;
+				}
+
+				final extras = args.concat(es_ver).concat(unflatten).concat(moduleType).concat(enums_as_objects);
 
 				runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
+				final extension = esm ? "mjs" : "js"; // Node v18 and below cannot automatically detect module type
 				final output = if (extras.length > 0) {
-					"bin/js/" + extras.join("") + "/unit.js";
+					"bin/js/" + extras.join("") + '/unit.${extension}';
 				} else {
-					"bin/js/default/unit.js";
+					'bin/js/default/unit.${extension}';
 				}
 				final outputDir = Path.directory(output);
 				if (!FileSystem.exists(outputDir))
