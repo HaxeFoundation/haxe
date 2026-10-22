@@ -11,8 +11,8 @@ type type_finiteness =
 
 (* How a switch tests its scrutinee. *)
 type match_kind =
-	| SKValue                            (* against constants, statics and types *)
-	| SKEnum                             (* by the index of its enum constructor *)
+	| SKValue                              (* against constants, statics and types *)
+	| SKEnum                               (* by the index of its enum constructor *)
 	| SKLength of ArrayAccess.array_access (* by its length, read the way this says (#8012) *)
 
 (* What a switch examines: a subject's expression and what the switch makes of it, see Subject.make_scrutinee. *)
