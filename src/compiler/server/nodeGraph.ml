@@ -136,9 +136,15 @@ let no_assumptions = ref false
 
 let clear_current = ref (fun () -> ())
 
+(* The files of the lexer at the end of the previous compilation: a position
+   in a file the lexer did not read again is still right. *)
+let lexer_files : (string,Lexer.lexer_file) Hashtbl.t = Hashtbl.create 0
+
 let end_compilation () =
 	DepRecord.reused := [];
 	!clear_current ();
+	Hashtbl.reset lexer_files;
+	ignore (ThreadSafeHashtbl.fold (fun file lf () -> Hashtbl.replace lexer_files file lf) Lexer.all_files ());
 	attempts := 0;
 	no_assumptions := false;
 	Hashtbl.reset known_changed

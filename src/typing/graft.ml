@@ -30,7 +30,7 @@ type module_graft = {
 	mutable field_keys : (tclass_field * EntityKey.t) list;
 	(* the post-processed expressions of the old fields reused, before grafting
 	   gives them the new content *)
-	mutable old_bodies : (tclass_field * texpr) list;
+	mutable old_bodies : (tclass_field * (texpr * pos)) list;
 }
 
 (* Grafts of the modules typed by the current compilation, by module id. *)
@@ -129,7 +129,7 @@ let graft_field (c : tclass) kind (cf : tclass_field) =
 		(match found with
 		| Some cf' when has_class_field_flag cf' CfPostProcessed ->
 			Option.may (fun e -> Mutex.protect mutex (fun () ->
-				Option.may (fun g -> g.old_bodies <- (cf',e) :: g.old_bodies) (Hashtbl.find_opt grafts m.m_id)
+				Option.may (fun g -> g.old_bodies <- (cf',(e,cf'.cf_pos)) :: g.old_bodies) (Hashtbl.find_opt grafts m.m_id)
 			)) cf'.cf_expr
 		| _ -> ());
 		let cf = reuse found cf in
@@ -140,7 +140,7 @@ let graft_field (c : tclass) kind (cf : tclass_field) =
 	end
 
 (* The post-processed expression that field [cf] of [c] had before it was
-   grafted, if it had one. *)
+   grafted, with the position of the field then, if it had one. *)
 let old_body (c : tclass) (cf : tclass_field) =
 	Mutex.protect mutex (fun () ->
 		match Hashtbl.find_opt grafts c.cl_module.m_id with

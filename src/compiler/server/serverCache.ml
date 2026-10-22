@@ -144,9 +144,30 @@ let get_typing_mode com m_extra =
 let () = DepRecord.reuse_body := (fun c cf ->
 	match !NodeGraph.current with
 	| Some (sign,v,memo) when c.cl_module.m_extra.m_sign = sign && not (TFingerprint.has_inline_body c cf) ->
+		(* the positions of the expression are still right: in the field, which
+		   did not move, or in a file that did not change *)
+		let positions_kept e old_pos =
+			let file = Pos.file old_pos and pmin = Pos.min old_pos and pmax = Pos.max old_pos in
+			Pos.file cf.cf_pos = file && Pos.min cf.cf_pos = pmin && Pos.max cf.cf_pos = pmax &&
+			let same = Hashtbl.create 4 in
+			let rec loop e =
+				let p = e.epos in
+				let f = Pos.file p in
+				if f = file then begin
+					if Pos.min p < pmin || Pos.max p > pmax then raise Exit
+				end else if not (Hashtbl.mem same f) then begin
+					match Hashtbl.find_opt NodeGraph.lexer_files f, (try Some (ThreadSafeHashtbl.find Lexer.all_files f) with Not_found -> None) with
+					| Some lf, Some lf' when lf == lf' -> Hashtbl.add same f ()
+					| _ -> if f <> Pos.file null_pos then raise Exit
+				end;
+				Type.iter loop e
+			in
+			try loop e; true with Exit -> false
+		in
 		begin match Graft.old_body c cf with
+		| Some (e,old_pos) when not (positions_kept e old_pos) -> ignore e; None
 		| None -> None
-		| Some e ->
+		| Some (e,_) ->
 			let key = DepRecord.field_key c cf ^ "\tbody" in
 			match Hashtbl.find_opt v.NodeGraph.v_graph.NodeGraph.nodes key with
 			| None -> None
