@@ -1203,8 +1203,46 @@ let make_types_idents htypes =
 				td
 	in
 	let hashes = Hashtbl.create 0 in
+	(* the description written out canonically: a marshaled description
+	   depends on the sharing of its values (types shared or not by the
+	   optimization of functions run in parallel), not only on what it says *)
+	let canonical d =
+		let b = Buffer.create 64 in
+		let str s = Buffer.add_string b (string_of_int (String.length s)); Buffer.add_char b ':'; Buffer.add_string b s in
+		let rec ser stack d =
+			match d with
+			| DSimple (HArray t) -> Buffer.add_char b 'A'; ser stack (make_desc t)
+			| DSimple (HRef t) -> Buffer.add_char b 'R'; ser stack (make_desc t)
+			| DSimple (HNull t) -> Buffer.add_char b 'N'; ser stack (make_desc t)
+			| DSimple t -> Buffer.add_char b 'S'; str (tstr t)
+			| DFun (tl,r,closure) ->
+				Buffer.add_char b (if closure then 'F' else 'M');
+				Buffer.add_string b (string_of_int (List.length tl));
+				List.iter (ser stack) tl;
+				ser stack r
+			| DNamed n -> Buffer.add_char b 'T'; str n
+			| DVirtual arr ->
+				let rec index i = function
+					| [] -> None
+					| a :: l -> if a == arr then Some i else index (i + 1) l
+				in
+				begin match index 0 stack with
+				| Some i -> Buffer.add_char b '^'; Buffer.add_string b (string_of_int i)
+				| None ->
+					Buffer.add_char b 'V';
+					Buffer.add_string b (string_of_int (Array.length arr));
+					Array.iter (fun (f,d) -> str f; ser (arr :: stack) d) arr
+				end
+			| DContext arr ->
+				Buffer.add_char b 'C';
+				Buffer.add_string b (string_of_int (Array.length arr));
+				Array.iter (ser stack) arr
+		in
+		ser [] d;
+		Buffer.contents b
+	in
 	let make_sign d =
-		let dig = Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Closures])) in
+		let dig = Digest.to_hex (Digest.string (canonical d)) in
 		let h = String.sub dig 0 7 in
 		let h = if Hashtbl.mem hashes h then dig else h in
 		Hashtbl.add hashes h ();
@@ -1851,7 +1889,8 @@ let write_c com file (code:code) gnames num_domains =
 		(* add cfiles in deterministic order *)
 		if m.m_functions <> [] then save_cfile gctx (m.m_name ^ ".c")
 	) modules;
-	Parallel.run_parallel_for num_domains (Array.length modules) (fun idx ->
+	ignore num_domains;
+	Parallel.run_with_pool com.Gctx.pool (fun pool -> Parallel.ParallelArray.iter pool (fun idx ->
 		let m = modules.(idx) in
 		let defined_types = ref PMap.empty in
 		if m.m_types <> [] then begin
@@ -1878,7 +1917,7 @@ let write_c com file (code:code) gnames num_domains =
 			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function gctx ctx f) funcs;
 			close_file ctx;
 		end;
-	);
+	) (Array.init (Array.length modules) (fun i -> i)));
 	);
 
 	(
@@ -1914,7 +1953,13 @@ let write_c com file (code:code) gnames num_domains =
 	line "";
 	line "void hl_init_hashes() {";
 	block ctx;
-	List.iter (fun i -> sexpr "hl_hash((vbyte*)%s)" (string gctx ctx i)) (List.rev gctx.hash_cache_list);
+	(* in the order of the strings, which does not depend on the order in
+	   which the modules generated in parallel asked for them; when two hashes
+	   collided, the values depend on the order they were given in, which the
+	   initialization must follow *)
+	let collided = Hashtbl.length gctx.hash_mem <> List.length gctx.hash_cache_list || Hashtbl.fold (fun sid h acc -> acc || h <> hl_hash gctx.hlcode.strings.(sid)) gctx.hash_cache false in
+	let sids = if collided then List.rev gctx.hash_cache_list else List.sort compare gctx.hash_cache_list in
+	List.iter (fun i -> sexpr "hl_hash((vbyte*)%s)" (string gctx ctx i)) sids;
 	unblock ctx;
 	line "}";
 	close_file ctx;

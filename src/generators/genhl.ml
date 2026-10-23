@@ -5120,14 +5120,25 @@ let generate com =
 	if ctx.optimize then begin
 		let t = Timer.start_timer com.timer_ctx ["generate";"hl";"opt"] in
 		let dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None in
-		Parallel.run_parallel_for ctx.num_domains ~chunk_size:16 (DynArray.length ctx.cfunctions) (fun idx ->
+		(* on the pool of the compilation: its domains are kept, with their
+		   larger minor heaps (a new pool per generation pays both) *)
+		let opt idx =
 			let f = DynArray.get ctx.cfunctions idx in
 			if f.need_opt then begin
 				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f in
 				(match dump_out with None -> () | Some ch -> IO.nwrite_string ch dumpstr);
 				code.functions.(idx) <- f;
-			end;
-		);
+			end
+		in
+		let n = DynArray.length ctx.cfunctions in
+		if dump_out <> None then
+			for idx = 0 to n - 1 do opt idx done
+		else
+			Parallel.run_with_pool com.pool (fun pool ->
+				match pool with
+				| None -> for idx = 0 to n - 1 do opt idx done
+				| Some pool -> Domainslib.Task.parallel_for pool ~chunk_size:16 ~start:0 ~finish:(n - 1) ~body:opt
+			);
 		(match dump_out with None -> () | Some ch -> IO.close_out ch);
 		t();
 	end;
