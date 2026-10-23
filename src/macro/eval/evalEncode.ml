@@ -256,7 +256,10 @@ let encode_string_map convert m =
 	PMap.iter (fun key value -> RuntimeStringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
+let fake_proto_mutex = Mutex.create ()
+
 let fake_proto cache path =
+	Mutex.protect fake_proto_mutex @@ fun () ->
 	try Hashtbl.find cache path
 	with Not_found ->
 		let proto = {

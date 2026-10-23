@@ -323,8 +323,13 @@ let create_instance_prototype ctx c =
 	) fields;
 	PrototypeBuilder.finalize pctx
 
+(* The prototypes of the anonymous objects are created by the domains running
+   macros: their cache is protected. *)
+let object_mutex = Mutex.create ()
+
 let get_object_prototype ctx l =
 	let l = List.sort (fun (i1,_) (i2,_) -> if i1 = i2 then 0 else if i1 < i2 then -1 else 1) l in
+	Mutex.protect object_mutex @@ fun () ->
 	let name =
 		let ids = List.map fst l in
 		try

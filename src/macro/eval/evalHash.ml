@@ -17,13 +17,21 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
+(* The names of the hashes, shared by the domains running macros: [hash] only
+   takes the lock for a name the current domain has not registered yet. *)
 let reverse_map = Hashtbl.create 0
+let reverse_mutex = Mutex.create ()
+let registered : (int,unit) Hashtbl.t Domain.DLS.key = Domain.DLS.new_key (fun () -> Hashtbl.create 0)
 
-let rev_hash i = Hashtbl.find reverse_map i
+let rev_hash i = Mutex.protect reverse_mutex (fun () -> Hashtbl.find reverse_map i)
 
 let hash f =
 	let i = Hashtbl.hash f in
-	Hashtbl.replace reverse_map i f;
+	let known = Domain.DLS.get registered in
+	if not (Hashtbl.mem known i) then begin
+		Mutex.protect reverse_mutex (fun () -> Hashtbl.replace reverse_map i f);
+		Hashtbl.replace known i ()
+	end;
 	i
 
 let path_hash path = hash (Globals.s_type_path path)
