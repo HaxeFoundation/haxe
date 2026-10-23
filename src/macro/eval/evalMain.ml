@@ -706,6 +706,10 @@ let get_api_call_pos () =
 (* Gives the current thread the evaluation state of the macro interpreter, when
    a macro is called from a domain typing bodies in parallel
    (docs/incremental-compilation.md, phase 3.5). *)
+let () = EvalContext.create_thread_eval := (fun ctx ->
+	EvalThread.create_eval (EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())))
+)
+
 let ensure_thread_eval () =
 	if !GlobalState.initialized then begin
 		let ctx = get_ctx() in

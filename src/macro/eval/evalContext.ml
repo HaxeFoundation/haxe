@@ -333,8 +333,18 @@ let s_debug_state = function
 
 (* Misc *)
 
+(* Creates the evaluation state of the current thread (set by EvalMain): a
+   context created by a domain typing in parallel is also used by the others
+   (docs/incremental-compilation.md, phase 3.5). *)
+let create_thread_eval : (context -> eval) ref = ref (fun _ -> raise Not_found)
+
 let get_eval ctx =
-	Thread_local_storage.get_exn ctx.eval
+	match Thread_local_storage.get_opt ctx.eval with
+	| Some eval -> eval
+	| None ->
+		let eval = !create_thread_eval ctx in
+		Thread_local_storage.set ctx.eval eval;
+		eval
 
 let current_thread_id ctx =
 	(get_eval ctx).thread.thread_id
