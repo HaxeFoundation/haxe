@@ -95,15 +95,26 @@ class CsSafeTypeBuilding extends TestCase {
 		#if debug trace('Invalidated ${modules.join(",")} (macro invalidated: ${macroInvalidated ? "true" : "false"})'); #end
 		#if debug var assertHasPrint = _assertHasPrint; #end
 
+		// Bar and Baz both use Foo<Bar>: when both are built, the one typed
+		// first generates it and the other reuses it (typing does not follow
+		// the order of the modules)
+		var barGenerator = modules.contains("Baz") && !modules.contains("Bar") ? null
+			: modules.contains("Baz") && hasMessage('Haxe print: [Baz] Generating type for Foo__Bar__Bar.') ? "Baz"
+			: "Bar";
+
 		for (m in modules) {
 			assertHasPrint('Building $m.');
 
 			var t = 'Foo__${m}__${m}';
-			if (!macroInvalidated) assertHasPrint('[$m] Previously generated type for $t has been discarded.');
-			assertHasPrint('[$m] Generating type for $t.');
+			var generator = m == "Bar" ? barGenerator : m;
+			if (!macroInvalidated) assertHasPrint('[$generator] Previously generated type for $t has been discarded.');
+			assertHasPrint('[$generator] Generating type for $t.');
 
-			if (m == "Baz") {
+			if (m == "Baz" && barGenerator != "Baz") {
 				assertHasPrint('[$m] Reusing previously generated type for Foo__Bar__Bar.');
+			}
+			if (m == "Bar" && barGenerator == "Baz") {
+				assertHasPrint('[Bar] Reusing previously generated type for Foo__Bar__Bar.');
 			}
 		}
 	}
