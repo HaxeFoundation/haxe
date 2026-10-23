@@ -416,11 +416,15 @@ let speculative_api = [
 	"init_macros_done"; "get_output"; "get_main_expr"; "with_imports"; "with_options";
 ]
 
+(* The functions of the API run under the typing lock: a speculating macro
+   runs without it (see [MacroContext.do_call_macro]). *)
 let shared_state_api n v =
-	if List.mem n speculative_api then v
-	else match v with
-		| VFunction (f,static) -> VFunction ((fun vl -> !on_shared_state (); f vl),static)
-		| _ -> v
+	match v with
+	| VFunction (f,static) ->
+		let locked vl = TypingLock.protect (fun () -> f vl) in
+		if List.mem n speculative_api then VFunction (locked,static)
+		else VFunction ((fun vl -> !on_shared_state (); locked vl),static)
+	| _ -> v
 
 (* Waits for the order of the tasks typing in parallel, from a macro running
    out of it. *)

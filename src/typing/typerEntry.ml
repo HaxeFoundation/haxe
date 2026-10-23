@@ -313,10 +313,14 @@ let create com macros =
 				if !DepRecord.enabled then DepRecord.record ("macro " ^ s_type_path cpath ^ "." ^ f) "expansion";
 				let speculate = mode = MExpr && Claims.ahead_of_order () && MacroContext.is_macro_loaded ctx cpath f in
 				if not speculate then Claims.in_order Claims.OrderMacro;
-				Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
+				let run () = TypingLock.protect (fun () ->
 					if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
 					Claims.speculate speculate (fun () -> MacroContext.type_macro ctx mode cpath f el p)
-				))
+				) in
+				(* a speculating macro touches nothing the macros share until it waits
+				   for the order of the tasks: it runs without the claim of the macros,
+				   on several domains at once (docs/incremental-compilation.md, §4b) *)
+				if speculate then run () else Claims.with_macro_claim run
 			);
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;
