@@ -1279,6 +1279,7 @@ let generate_types_parallel ctx generate_type types =
 	in
 	(* the mappings of the fragments transcoded in parallel for the global
 	   indices their sources will get, then spliced in order *)
+	let t_tails = tm "tails" in
 	(match ctx.smap with
 	| Some sm ->
 		let all = Array.init (Array.length types) (fun i -> match reused.(i) with Some fr -> fr.fr_encoded | None -> encoded.(i)) in
@@ -1291,6 +1292,7 @@ let generate_types_parallel ctx generate_type types =
 		)
 	| None ->
 		());
+	t_tails ();
 	let splice_fails = ref 0 in
 	Array.iteri (fun i mt ->
 		let fr = fragment_of i in
