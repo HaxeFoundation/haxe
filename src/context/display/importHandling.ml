@@ -290,6 +290,42 @@ let handle_using ctx path p =
 	in
 	types,filter_classes
 
+(* Resolves the pending `using` statements of the module of [ctx]. In
+   parallel typing, they are resolved by the task that loaded the module, and
+   also by any domain about to read them (a body of the module typed by
+   another task): each one resolves them without waiting for the others (a
+   resolution can wait for another domain), the first one done publishes
+   them. A domain reading them while it resolves them sees those resolved so
+   far, as on one domain. *)
+let resolve_pending_usings ctx =
+	if not !TypingLock.active then begin
+		let pending = List.rev ctx.m.pending_usings in
+		ctx.m.pending_usings <- [];
+		List.iter (fun resolve -> ctx.m.module_using <- resolve () @ ctx.m.module_using) pending
+	end else TypingLock.protect (fun () ->
+		let me = Domain.self () in
+		match ctx.m.pending_usings with
+		| [] -> ()
+		| _ when List.memq me ctx.m.usings_resolvers -> ()
+		| pending ->
+			ctx.m.usings_resolvers <- me :: ctx.m.usings_resolvers;
+			Std.finally (fun () ->
+				ctx.m.usings_resolvers <- List.filter (fun d -> d != me) ctx.m.usings_resolvers
+			) (fun () ->
+				let resolved = List.fold_left (fun acc resolve -> resolve () @ acc) ctx.m.module_using (List.rev pending) in
+				(* not resolved by another domain meanwhile *)
+				if ctx.m.pending_usings == pending then begin
+					ctx.m.module_using <- resolved;
+					ctx.m.pending_usings <- []
+				end
+			) ()
+	)
+
+(* The `using` of the module of [ctx], for reading. *)
+let module_using ctx =
+	if !TypingLock.active && ctx.m.pending_usings <> [] then resolve_pending_usings ctx;
+	ctx.m.module_using
+
 let init_using ctx path p =
 	let types,filter_classes = handle_using ctx path p in
 	(* do the import first *)
@@ -301,8 +337,4 @@ let init_using ctx path p =
 	   runs first, so that the later ones take precedence whatever the order of
 	   the tasks (docs/incremental-compilation.md, phase 3). *)
 	ctx.m.pending_usings <- (fun () -> filter_classes types) :: ctx.m.pending_usings;
-	schedule_late ctx.g StageMembers (fun () ->
-		let pending = List.rev ctx.m.pending_usings in
-		ctx.m.pending_usings <- [];
-		List.iter (fun resolve -> ctx.m.module_using <- resolve () @ ctx.m.module_using) pending
-	)
+	schedule_late ctx.g StageMembers (fun () -> resolve_pending_usings ctx)

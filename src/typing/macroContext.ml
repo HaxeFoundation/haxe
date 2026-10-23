@@ -496,7 +496,7 @@ let make_macro_api ctx mctx p =
 			ctx.f.curfield.cf_name;
 		);
 		MacroApi.get_local_using = (fun() ->
-			List.map fst ctx.m.module_using;
+			List.map fst (ImportHandling.module_using ctx);
 		);
 		MacroApi.get_local_imports = (fun() ->
 			ctx.m.import_statements;
@@ -825,6 +825,7 @@ let load_macro_module mctx com cpath display p =
 		own_resolution = None;
 		module_using = [];
 		pending_usings = [];
+		usings_resolvers = [];
 		import_statements = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mloaded.m_extra.m_file));
 	}; *)

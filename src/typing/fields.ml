@@ -529,7 +529,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		if is_set then raise Not_found;
 		let type_field_by_extension () = type_field_by_extension (fun loop ->
 			try
-				loop ctx.m.module_using
+				loop (ImportHandling.module_using ctx)
 			with Not_found ->
 				match loop ctx.g.global_using with
 				| AKUsingField { se_access = { fa_host = FHStatic c } } as acc ->

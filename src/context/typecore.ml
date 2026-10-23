@@ -58,6 +58,8 @@ type typer_module = {
 	mutable module_using : (tclass * pos) list;
 	(* `using` statements to resolve, newest first (see ImportHandling.init_using) *)
 	mutable pending_usings : (unit -> (tclass * pos) list) list;
+	(* the domains resolving them, in parallel typing *)
+	mutable usings_resolvers : Domain.id list;
 	mutable import_statements : import list;
 	mutable is_display_file : bool;
 }

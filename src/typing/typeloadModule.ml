@@ -714,6 +714,7 @@ let make_curmod com g m =
 		own_resolution = None;
 		module_using = [];
 		pending_usings = [];
+		usings_resolvers = [];
 		import_statements = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 	}

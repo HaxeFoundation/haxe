@@ -332,6 +332,7 @@ let create com macros =
 			own_resolution = None;
 				module_using = [];
 			pending_usings = [];
+			usings_resolvers = [];
 			import_statements = [];
 			is_display_file = false;
 		};
