@@ -1460,6 +1460,27 @@ domain needs the class.
 Found on the way: the array access of a class (`implements ArrayAccess<T>`)
 was read without demanding its header (`TAccess.Header.array_access`).
 
+**Status: step 11, no order between the tasks.** The output must not depend
+on the order in which the effects of the tasks happen, so the tasks no longer
+wait for the ones before them (`Claims.in_order` is gone): what remains is
+mutual exclusion. A class whose build runs build macros is built by the
+domain that claims it, like the others; an expression or build macro already
+loaded runs without the claim of the macros, its interpretation without the
+typing lock, and takes the claim at its first access to what the macros share
+(`Claims.end_speculation`), keeping it until it is done; a macro that loads
+its module, or that is not loaded yet, runs with the claim. A module not
+found while speculating is looked up again with the claim (a macro holding it
+may define it). Checked with `-D typer-shuffle` on one domain (hide, Heaps JS
+and HL: identical for every seed) and by comparing parallel runs with the
+sequential output. What depended on the order: domkit emitted the handlers of
+a component in the order of the property ids, which are given by the first
+component built that uses the property (now emitted by name); the server test
+`CsSafeTypeBuilding` expected `Foo<Bar>` to be generated from Bar rather than
+from Baz, both using it (either is accepted). hide: 578 of the 604 build
+macros are done without the claim, the class builds stage waits 0.01 s for
+it instead of 1.9 s. Cold (4 cores, median of 5, Haxe 5 → 6): Heaps JS 4.7 s
+→ 3.6 s, Heaps HL 6.2 s → 4.6 s, hide 16.2 s → 7.0 s (8.4 s at step 10).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context
