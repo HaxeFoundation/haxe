@@ -1440,6 +1440,29 @@ identical in every run. On hide the domains still wait mostly for the order
 of the class builds that run macros, and the macros themselves (2.4 s)
 stay on one domain at a time.
 
+**Status: step 10, expression macros on several domains (§4b, item 3).**
+The state of the macro interpreter that an expansion changes is local to the
+domain running it: the compiler API of the expansion (`curapi`, the functions
+of the encoders), and the static variables reset for every expansion, kept by
+domain slot on their prototype (`get_static`, `set_static`; the `@:persistent`
+slots and the statics of the interpreted program stay shared). The tables the
+macros share at run time (the names of the hashes, the prototypes of
+anonymous objects, the fake prototypes of the encoders) have locks. An
+expression macro started out of the order of the tasks (speculating) then
+runs without the claim of the macros, its interpretation without the typing
+lock, which every function of the macro API takes: other domains type and
+run their own macros meanwhile; it still waits for the order of the tasks at
+its first access to what the macros share. hide: the bodies stage 1.0 s →
+0.7 s, the output identical in every run; cold (4 cores, median of 5): Heaps
+JS 4.8 s (Haxe 5) → 3.9 s, Heaps HL 6.1 s → 4.7 s, hide 14–16.7 s → 8.4 s.
+What is left: the classes whose build runs build macros are built in the
+order of the tasks (the domains wait for it about 5 s summed on hide, in the
+class builds stage); running their macros speculatively needs them to run
+before the build is marked started, or the build to be given up when another
+domain needs the class.
+Found on the way: the array access of a class (`implements ArrayAccess<T>`)
+was read without demanding its header (`TAccess.Header.array_access`).
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context
