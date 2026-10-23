@@ -479,7 +479,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 let run com ectx before_destruction =
 	let scom = SafeCom.of_com com in
 	let detail_times = Timer.level_from_define com.defines Define.FilterTimes in
-	let new_types = List.filter (fun t ->
+	let new_types = with_timer com.timer_ctx detail_times "descendants" None (fun () -> List.filter (fun t ->
 		let cached = is_cached com t in
 		begin match t with
 			| TClassDecl cls ->
@@ -504,7 +504,7 @@ let run com ectx before_destruction =
 			| _ -> ()
 		end;
 		not cached
-	) com.types in
+	) com.types) in
 	let new_types_array = Array.of_list new_types in
 	let all_types_array = Array.of_list com.types in
 
@@ -517,12 +517,12 @@ let run com ectx before_destruction =
 		This is mostly covered by run_expression_filters_safe already, but any new additions which don't utilize that have
 		to be aware of this.
 	*)
-	DeprecationCheck.run com new_types;
+	with_timer com.timer_ctx detail_times "deprecation" None (fun () -> DeprecationCheck.run com new_types);
 	NullSafety.run com new_types;
-	let rename_locals_config = RenameVars.init scom.SafeCom.platform_config com.types in
-	SafeCom.run_with_scom com scom (fun () ->
+	let rename_locals_config = with_timer com.timer_ctx detail_times "RenameVars init" None (fun () -> RenameVars.init scom.SafeCom.platform_config com.types) in
+	with_timer com.timer_ctx detail_times "safe filters" None (fun () -> SafeCom.run_with_scom com scom (fun () ->
 		run_safe_filters ectx com scom all_types_array new_types_array rename_locals_config
-	);
+	));
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
 		com.callbacks#run (Common.error_ext com) com.callbacks#get_before_save;
 	);
