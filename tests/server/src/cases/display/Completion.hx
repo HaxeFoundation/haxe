@@ -103,6 +103,52 @@ class Completion extends DisplayTestCase {
 
 	/**
 		class Main {
+			extern inline overload static function foo(a:haxe.ds.Option<Bool>, cb:() -> {}) {};
+			extern inline overload static function foo(a:Int, cb:() -> {}) {};
+
+			extern inline overload static function foo2(a:Int, cb:() -> {}) {};
+			extern inline overload static function foo2(a:haxe.ds.Option<Bool>, cb:() -> {}) {};
+
+			static function main() {
+				foo({-1-}
+				foo(R{-2-}
+				foo2({-3-}
+				foo2(R{-4-}
+			}
+		}
+	**/
+	function testIssueOverloadCompletion(_) {
+		eq(true, hasField(fields(1), "Some", null, "enum"));
+		eq(true, hasField(fields(1), "None", null, "enum"));
+		eq(true, hasField(fields(2), "Some", null, "enum"));
+		eq(true, hasField(fields(2), "None", null, "enum"));
+
+		eq(false, hasField(fields(3), "Some", null, "enum"));
+		eq(false, hasField(fields(3), "None", null, "enum"));
+		eq(false, hasField(fields(4), "Some", null, "enum"));
+		eq(false, hasField(fields(4), "None", null, "enum"));
+	}
+
+	/**
+		class Main {
+			@:overload(function(a:Int, cb:() -> {}):Void {})
+			static function foo(a:haxe.ds.Option<Bool>, cb:() -> {}) {};
+
+			static function main() {
+				foo({-1-}
+				foo(R{-2-}
+			}
+		}
+	**/
+	function testIssueMetadataOverloadCompletion(_) {
+		eq(true, hasField(fields(1), "Some", null, "enum"));
+		eq(true, hasField(fields(1), "None", null, "enum"));
+		eq(true, hasField(fields(2), "Some", null, "enum"));
+		eq(true, hasField(fields(2), "None", null, "enum"));
+	}
+
+	/**
+		class Main {
 			static function main() {
 				var s = { foo: 1 };
 				"foo".
