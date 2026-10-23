@@ -75,7 +75,7 @@ let build_done c =
 			Condition.broadcast Claims.done_
 		)
 
-let with_class_claim ?(ordered=false) c f =
+let with_class_claim c f =
 	if not !TypingLock.active then
 		f ()
 	else begin
@@ -95,15 +95,7 @@ let with_class_claim ?(ordered=false) c f =
 				)) in
 				if built then go () else TypingLock.protect f
 		in
-		(* a build that runs macros starts in the order of the tasks, with the
-		   claim of the macros: a macro running on another domain then gets the
-		   class built itself instead of finding its build started (the order
-		   of the macros is the one of a single domain) *)
-		if ordered then begin
-			Claims.in_order Claims.OrderBuild;
-			Claims.with_macro_claim go
-		end else
-			go ()
+		go ()
 	end
 
 module Header = struct
@@ -165,7 +157,7 @@ let with_unlocked_build c f =
 
 let with_build_claim c f =
 	if not !TypingLock.active then f ()
-	else if has_build_macros c then with_class_claim ~ordered:true c f
+	else if has_build_macros c then with_class_claim c f
 	else with_unlocked_build c f
 
 let build_state c =

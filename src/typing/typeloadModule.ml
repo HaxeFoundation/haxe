@@ -923,8 +923,8 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	try
 		load_module_now origin ctx m p
 	with Error { err_message = Module_not_found _ } when Claims.is_speculating () ->
-		(* a macro before in the order of the tasks may define it *)
-		Claims.in_order Claims.OrderMacro;
+		(* a macro holding the claim of the macros may define it *)
+		Claims.end_speculation ();
 		load_module_now origin ctx m p
 
 ;;

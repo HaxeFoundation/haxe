@@ -239,14 +239,13 @@ let load_coro ctx =
 
 (* Runs typing tasks on the domains of the compilation's pool, re-raising the
    exception of the first failed task (in task order) once all are done. The
-   tasks are started in their order (see [Claims.in_order]). *)
+   tasks are started in their order. *)
 let run_parallel_tasks com stage tasks =
 	let results = Array.make (Array.length tasks) None in
 	let timer_ctx = com.timer_ctx in
 	let lock = TypingLock.lock in
 	let waited0 = lock.waited and waits0 = lock.waits in
 	let spec0 = Atomic.get Claims.speculations and spec_done0 = Atomic.get Claims.speculations_done in
-	let order0 = Array.copy Claims.order_waited and norder0 = Array.copy Claims.order_waits in
 	let claims0 = Array.copy Claims.waited and nclaims0 = Array.copy Claims.waits and breaks0 = Array.copy Claims.breaks in
 	Claims.start_tasks (Array.length tasks);
 	let stage_name = ProgramStage.stage_name stage ^ ": " in
@@ -257,7 +256,7 @@ let run_parallel_tasks com stage tasks =
 					| None ->
 						()
 					| Some i ->
-						(try Claims.run_task i tasks.(i) with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ()));
+						(try tasks.(i) () with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ()));
 						loop ()
 				in
 				loop ()
@@ -269,11 +268,8 @@ let run_parallel_tasks com stage tasks =
 		Timer.add_extra timer_ctx (stage_name ^ "wait: " ^ name) (Claims.waited.(k) -. claims0.(k)) (Claims.waits.(k) - nclaims0.(k));
 		Timer.add_extra timer_ctx (stage_name ^ "cycles broken: " ^ name) 0. (Claims.breaks.(k) - breaks0.(k))
 	) Claims.kind_names;
-	Timer.add_extra timer_ctx (stage_name ^ "macros out of order") 0. (Atomic.get Claims.speculations - spec0);
-	Timer.add_extra timer_ctx (stage_name ^ "macros out of order, done so") 0. (Atomic.get Claims.speculations_done - spec_done0);
-	Array.iteri (fun k name ->
-		Timer.add_extra timer_ctx (stage_name ^ "wait: order before " ^ name) (Claims.order_waited.(k) -. order0.(k)) (Claims.order_waits.(k) - norder0.(k))
-	) Claims.order_reasons;
+	Timer.add_extra timer_ctx (stage_name ^ "macros speculating") 0. (Atomic.get Claims.speculations - spec0);
+	Timer.add_extra timer_ctx (stage_name ^ "macros speculating, done so") 0. (Atomic.get Claims.speculations_done - spec_done0);
 	Array.iter (function
 		| Some (exc,bt) -> Printexc.raise_with_backtrace exc bt
 		| None -> ()
@@ -306,20 +302,19 @@ let create com macros =
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
 			do_macro = (fun ctx mode cpath f el p ->
-				(* an expression macro already loaded can run before the tasks before
-				   this one are done: it waits for them at its first access to what the
-				   macros share (Claims.speculating) *)
+				(* an expression macro already loaded runs without the claim of the
+				   macros until its first access to what the macros share
+				   (Claims.speculating) *)
 				(* expansions are not fingerprinted yet (phase 7): a node that expands a macro depends on it *)
 				if !DepRecord.enabled then DepRecord.record ("macro " ^ s_type_path cpath ^ "." ^ f) "expansion";
-				let speculate = mode = MExpr && Claims.ahead_of_order () && MacroContext.is_macro_loaded ctx cpath f in
-				if not speculate then Claims.in_order Claims.OrderMacro;
+				let speculate = (mode = MExpr || mode = MBuild) && !TypingLock.active && MacroContext.is_macro_loaded ctx cpath f in
 				let run () = TypingLock.protect (fun () ->
 					if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
 					Claims.speculate speculate (fun () -> MacroContext.type_macro ctx mode cpath f el p)
 				) in
-				(* a speculating macro touches nothing the macros share until it waits
-				   for the order of the tasks: it runs without the claim of the macros,
-				   on several domains at once (docs/incremental-compilation.md, §4b) *)
+				(* a speculating macro touches nothing the macros share until it takes
+				   the claim of the macros: it runs on several domains at once
+				   (docs/incremental-compilation.md, §4b) *)
 				if speculate then run () else Claims.with_macro_claim run
 			);
 			do_load_macro = MacroContext.load_macro';

@@ -1309,18 +1309,15 @@ macros run). What has such effects is serialized and ordered:
   (`StageTypes`) stays sequential.
 - **The macros run on one domain at a time** (`Claims.with_macro_claim`), even
   while the domain running them waits for another one; the claim is only
-  taken by releasing the typing lock when another domain holds it. A class
-  build starts with that claim, so that a macro running on another domain
-  builds the class itself instead of finding its build started.
+  taken by releasing the typing lock when another domain holds it. A macro
+  already loaded only takes it at its first access to what the macros share
+  (step 10, 11).
 - **The tasks of a parallel batch are started in their order** (one worker per
-  domain takes the next task, `Claims.next_task`), and the effects that
-  follow the order of the tasks on one domain wait for the tasks before them to
-  be done (`Claims.in_order`): building a class, calling a macro, creating a
-  module. The bodies of a batch are typed in parallel up to their first such
-  effect.
+  domain takes the next task, `Claims.next_task`); their effects do not wait
+  for the tasks before them (step 11): the output must not depend on the
+  order in which they happen, which `-D typer-shuffle` checks on one domain.
 - **Waits form a graph** (`src/core/claims.ml`): a domain that would close a
   cycle of waiting domains lets one of them go on, choosing in this order the
-  wait for the order of the tasks (the effect then happens out of order), the
   macro claim (taken over by the domain let through, so macros still run one at
   a time), a value (a lazy type, a body, a constructor: the placeholder is
   seen, as in a cycle on one domain), and a class being built, the one whose

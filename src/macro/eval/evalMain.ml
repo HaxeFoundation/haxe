@@ -395,13 +395,12 @@ let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
 
-(* The functions of the macro API that a macro running out of the order of the
-   tasks typing in parallel can call: they read the compilation, or type, which
-   waits for the order itself when it has an effect that follows it (building a
-   class with build macros, creating a module). The others read or change what
-   the macros share (messages, defined types and modules, metadata, defines,
-   resources, callbacks, the output...): the macro waits for the order of the
-   tasks first (see [Claims.speculating]). *)
+(* The functions of the macro API that a macro running without the claim of
+   the macros can call: they read the compilation, or type, which takes the
+   claim itself when it runs other macros. The others read or change what the
+   macros share (messages, defined types and modules, metadata, defines,
+   resources, callbacks, the output...): the macro takes the claim first (see
+   [Claims.speculating]). *)
 let speculative_api = [
 	"contains_display_position"; "current_pos"; "get_macro_stack"; "class_path"; "resolve_path";
 	"defined"; "defined_value"; "get_defines"; "get_type"; "get_module"; "do_parse"; "make_expr";
@@ -427,13 +426,8 @@ let shared_state_api n v =
 		else VFunction ((fun vl -> !on_shared_state (); locked vl),static)
 	| _ -> v
 
-(* Waits for the order of the tasks typing in parallel, from a macro running
-   out of it. *)
-let wait_for_order () =
-	if Claims.is_speculating () then Claims.in_order Claims.OrderMacro
-
 let setup get_api =
-	on_shared_state := wait_for_order;
+	on_shared_state := Claims.end_speculation;
 	let api = get_api (fun() -> (EvalContext.curapi (get_ctx())).get_com()) (fun() -> (EvalContext.curapi (get_ctx()))) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n (shared_state_api n v)
