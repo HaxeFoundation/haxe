@@ -116,6 +116,8 @@ module Header = struct
 
 	let super c = demand c; c.cl_super
 	let implements c = demand c; c.cl_implements
+	(* set with the interfaces: [ArrayAccess<T>] *)
+	let array_access c = demand c; c.cl_array_access
 end
 
 (* Classes whose module is being created: their build is not set up yet, and

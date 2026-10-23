@@ -473,8 +473,8 @@ let array_access ctx e1 e2 mode p =
 		let base_ok = ref true in
 		let rec loop ?(skip_abstract=false) et =
 			match skip_abstract,follow et with
-			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
-				apply_params pl tl t
+			| _, TInst ({ cl_params = pl } as c,tl) when TAccess.Header.array_access c <> None ->
+				apply_params pl tl (Option.get (TAccess.Header.array_access c))
 			| _, TInst ({ cl_params = pl } as c,tl) when TAccess.Header.super c <> None ->
 				let c,stl = Option.get (TAccess.Header.super c) in
 				apply_params pl tl (loop (TInst (c,stl)))

@@ -416,8 +416,8 @@ let get_array_length ctx arr p =
 
 let get_array_access ctx t p =
 	match follow t with
-	| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" (TAccess.Members.fields c)).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" (TAccess.Members.fields c)) ->
-		{ aa_type = apply_params c.cl_params pl pt; aa_get = get_next_array_element; aa_length = get_array_length ctx }
+	| TInst(c,pl) when TAccess.Header.array_access c <> None && (try match follow (PMap.find "length" (TAccess.Members.fields c)).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" (TAccess.Members.fields c)) ->
+		{ aa_type = apply_params c.cl_params pl (Option.get (TAccess.Header.array_access c)); aa_get = get_next_array_element; aa_length = get_array_length ctx }
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		let cf_length = PMap.find "get_length" (TAccess.Members.statics c) in
 		let get_length e p =
