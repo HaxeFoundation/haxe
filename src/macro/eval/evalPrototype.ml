@@ -169,6 +169,9 @@ module PrototypeBuilder = struct
 			pepoch = 0;
 			pinit = [];
 			preset = [||];
+			presettable = [||];
+			pdomain = [||];
+			pdomain_epoch = [||];
 		} in
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
@@ -218,21 +221,22 @@ let create_static_prototype ctx mt =
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				let persistent = is_persistent cf in
 				let field_path = s_type_path path ^ "." ^ cf.cf_name in
-				let init proto =
+				(* when the types are added, then again for every expansion *)
+				let init set proto =
 					let old = DomainLocal.get DepRecord.current_static in
 					DomainLocal.set DepRecord.current_static (Some field_path);
-					proto.pfields.(i) <- Std.finally (fun () -> DomainLocal.set DepRecord.current_static old) (fun () ->
+					set proto i (Std.finally (fun () -> DomainLocal.set DepRecord.current_static old) (fun () ->
 						match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull
-					) ()
+					) ())
 				in
-				DynArray.add delays (persistent,i,init,init)
+				DynArray.add delays (persistent,i,init (fun proto i v -> proto.pfields.(i) <- v),init set_static)
 			| Var _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				(* initialized again to its initial value, which the native part of
 				   the standard library may have given *)
 				let initial = ref vnull in
-				DynArray.add delays (is_persistent cf,i,(fun proto -> initial := proto.pfields.(i)),(fun proto -> proto.pfields.(i) <- !initial))
+				DynArray.add delays (is_persistent cf,i,(fun proto -> initial := proto.pfields.(i)),(fun proto -> set_static proto i !initial))
 			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (AtomicLazy.from_val vnull);
 			|  _ ->
@@ -411,7 +415,7 @@ let add_types ctx types ready =
 			(* static isolation is for macros only, not for the interpreted program *)
 			if ctx.is_macro then begin
 				proto.pinit <- non_persistent_delays;
-				proto.preset <- Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent || i < 0 then None else Some i) delays)
+				set_isolated_statics proto (Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent || i < 0 then None else Some i) delays))
 			end
 	) fl_static;
 	(* 4. Initialize static fields. *)

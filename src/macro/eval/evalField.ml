@@ -26,7 +26,7 @@ let no_field =
 	vnull
 
 let proto_field_direct proto name =
-	proto.pfields.(get_proto_field_index_raise proto name)
+	get_static proto (get_proto_field_index_raise proto name)
 
 let rec proto_field_raise proto name =
 	try proto_field_direct proto name

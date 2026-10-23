@@ -247,6 +247,13 @@ and vprototype = {
 	mutable pinit : (vprototype -> unit) list;
 	(* the slots initialized again by [pinit] (not @:persistent) *)
 	mutable preset : int array;
+	(* During an expansion, the values of the [preset] slots are those of the
+	   domain running it (macros can run on several domains): by domain slot
+	   (see [domain_slot]), the values and the expansion they were initialized
+	   for. [presettable] tells which slots they are. *)
+	mutable presettable : bool array;
+	mutable pdomain : value array array;
+	mutable pdomain_epoch : int array;
 }
 
 and vinstance_kind =
@@ -431,7 +438,7 @@ let current_epoch : int DomainLocal.t = DomainLocal.make (fun () -> 0)
 (* the prototypes initialized again by the current expansion, with the previous
    values of their [preset] slots, and the signatures of their initial values
    when the writes of the expansion are checked *)
-let restore_log : (vprototype * value array * int * string array option) list DomainLocal.t = DomainLocal.make (fun () -> [])
+let restore_log : (vprototype * int * value array * int * string array option) list DomainLocal.t = DomainLocal.make (fun () -> [])
 
 (* An initialization macro configures the macros that run after it: what it
    writes to a static that is reset is lost, which [lost_write] reports (the
@@ -443,20 +450,68 @@ let check_writes : bool DomainLocal.t = DomainLocal.make (fun () -> false)
 let value_signature : (value -> string) ref = ref (fun _ -> "")
 let lost_write : (vprototype -> int -> unit) ref = ref (fun _ _ -> ())
 
-let rec fresh_statics proto =
+(* The slot of the current domain in [pdomain] (slots are reused once their
+   domain exits). *)
+let max_domain_slots = 256
+let slot_mutex = Mutex.create ()
+let next_slot = ref 0
+let free_slots = ref []
+let domain_slot : int Domain.DLS.key = Domain.DLS.new_key (fun () ->
+	let s = Mutex.protect slot_mutex (fun () -> match !free_slots with
+		| s :: l -> free_slots := l; s
+		| [] -> let s = !next_slot in incr next_slot; s
+	) in
+	if s >= max_domain_slots then failwith "Too many domains running macros";
+	Domain.at_exit (fun () -> Mutex.protect slot_mutex (fun () -> free_slots := s :: !free_slots));
+	s
+)
+
+(* Gives [proto] the storage of its isolated static variables. *)
+let set_isolated_statics proto slots =
+	proto.preset <- slots;
+	proto.presettable <- Array.make (Array.length proto.pfields) false;
+	Array.iter (fun i -> proto.presettable.(i) <- true) slots;
+	proto.pdomain <- Array.make max_domain_slots [||];
+	proto.pdomain_epoch <- Array.make max_domain_slots (-1)
+
+(* The values of the isolated static variables of [proto] for the running
+   expansion, initialized on first access. *)
+let rec isolated_values proto e =
+	let s = Domain.DLS.get domain_slot in
+	if Array.unsafe_get proto.pdomain_epoch s <> e then begin
+		let old = proto.pdomain.(s) and old_epoch = proto.pdomain_epoch.(s) in
+		proto.pdomain.(s) <- Array.copy proto.pfields;
+		proto.pdomain_epoch.(s) <- e;
+		List.iter (fun f -> f proto) proto.pinit;
+		let sigs = if DomainLocal.get check_writes then Some (Array.map (fun i -> !value_signature proto.pdomain.(s).(i)) proto.preset) else None in
+		DomainLocal.set restore_log ((proto,s,old,old_epoch,sigs) :: DomainLocal.get restore_log)
+	end;
+	Array.unsafe_get proto.pdomain s
+
+and fresh_statics proto =
 	if proto.pinit <> [] then begin
 		let e = DomainLocal.get current_epoch in
-		if proto.pepoch <> e then begin
-			let old = Array.map (fun i -> proto.pfields.(i)) proto.preset and old_epoch = proto.pepoch in
-			proto.pepoch <- e;
-			List.iter (fun f -> f proto) proto.pinit;
-			let sigs = if DomainLocal.get check_writes then Some (Array.map (fun i -> !value_signature proto.pfields.(i)) proto.preset) else None in
-			DomainLocal.set restore_log ((proto,old,old_epoch,sigs) :: DomainLocal.get restore_log)
-		end
+		if e <> 0 then ignore (isolated_values proto e)
 	end;
 	match proto.pparent with
 	| Some p -> fresh_statics p
 	| None -> ()
+
+(* The static variable at slot [i] of [proto]: during an expansion, an
+   isolated one is the running expansion's. *)
+let get_static proto i =
+	if Array.length proto.presettable > 0 && Array.unsafe_get proto.presettable i then begin
+		let e = DomainLocal.get current_epoch in
+		if e <> 0 then Array.unsafe_get (isolated_values proto e) i else proto.pfields.(i)
+	end else
+		proto.pfields.(i)
+
+let set_static proto i v =
+	if Array.length proto.presettable > 0 && Array.unsafe_get proto.presettable i then begin
+		let e = DomainLocal.get current_epoch in
+		if e <> 0 then Array.unsafe_set (isolated_values proto e) i v else proto.pfields.(i) <- v
+	end else
+		proto.pfields.(i) <- v
 
 (* Runs [f] as an expansion of its own. *)
 let with_expansion f =
@@ -467,13 +522,13 @@ let with_expansion f =
 	DomainLocal.set current_epoch (Atomic.fetch_and_add epoch_counter 1 + 1);
 	DomainLocal.set restore_log [];
 	Std.finally (fun () ->
-		List.iter (fun (proto,fields,epoch,sigs) ->
+		List.iter (fun (proto,s,old,epoch,sigs) ->
 			Option.may (fun sigs ->
-				Array.iteri (fun k i -> if !value_signature proto.pfields.(i) <> sigs.(k) then !lost_write proto i) proto.preset
+				Array.iteri (fun k i -> if !value_signature proto.pdomain.(s).(i) <> sigs.(k) then !lost_write proto i) proto.preset
 			) sigs;
-			(* the @:persistent slots keep the writes of the expansion *)
-			Array.iteri (fun k i -> proto.pfields.(i) <- fields.(k)) proto.preset;
-			proto.pepoch <- epoch
+			(* the values of the caller (the @:persistent slots are not isolated) *)
+			proto.pdomain.(s) <- old;
+			proto.pdomain_epoch.(s) <- epoch
 		) (DomainLocal.get restore_log);
 		DomainLocal.set current_epoch old_epoch;
 		DomainLocal.set check_writes old_check;

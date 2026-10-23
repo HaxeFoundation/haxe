@@ -52,7 +52,7 @@ let call_value v vl =
 (* Field setters *)
 
 let set_proto_field proto name v2 =
-	proto.pfields.(get_proto_field_index_raise proto name) <- v2
+	set_static proto (get_proto_field_index_raise proto name) v2
 
 let set_instance_field vi name v2 =
 	vi.ifields.(get_instance_field_index_raise vi.iproto name) <- v2

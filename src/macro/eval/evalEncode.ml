@@ -271,6 +271,9 @@ let fake_proto cache path =
 			pepoch = 0;
 			pinit = [];
 			preset = [||];
+			presettable = [||];
+			pdomain = [||];
+			pdomain_epoch = [||];
 		} in
 		proto.pvalue <- vprototype proto;
 		Hashtbl.replace cache path proto;
@@ -317,6 +320,9 @@ let ref_proto =
 		pepoch = 0;
 		pinit = [];
 		preset = [||];
+		presettable = [||];
+		pdomain = [||];
+		pdomain_epoch = [||];
 	} in
 	proto.pvalue <- vprototype proto;
 	proto
