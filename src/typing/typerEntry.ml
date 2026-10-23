@@ -292,7 +292,8 @@ let create com macros =
 			module_check_policies = [];
 			program = make_program_queues ();
 			(* with -D fail-fast, the first error stops typing: sequential *)
-			run_parallel = (if Common.defined com Define.ParallelTyping && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
+			(* on by default, off with -D parallel-typing=0 *)
+			run_parallel = (if Parallel.is_enabled () && Define.defined_value_safe com.defines Define.ParallelTyping <> "0" && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
 				Some (run_parallel_tasks com)
 			else
 				None);

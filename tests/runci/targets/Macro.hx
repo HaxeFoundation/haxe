@@ -7,8 +7,8 @@ class Macro {
 	static public function run(args:Array<String>) {
 		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
 		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
-		// parallel typing of bodies (docs/incremental-compilation.md, phase 3.5)
-		runCommand("haxe", ["compile-macro.hxml", "-D", "parallel-typing"].concat(args));
+		// typing on one domain (parallel typing is the default, docs/incremental-compilation.md, phase 3.5)
+		runCommand("haxe", ["compile-macro.hxml", "-D", "parallel-typing=0"].concat(args));
 
 		haxelibInstallGit("Simn", "haxeserver");
 

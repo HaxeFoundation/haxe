@@ -724,7 +724,8 @@
 	{
 		"name": "ParallelTyping",
 		"define": "parallel-typing",
-		"doc": "Type the bodies of fields whose type is declared on several domains (docs/incremental-compilation.md, phase 3.5, experimental)."
+		"doc": "Type on several domains (docs/incremental-compilation.md, phase 3.5): on by default, `-D parallel-typing=0` types on one domain.",
+		"params": ["0"]
 	},
 	{
 		"name": "PhpPrefix",

@@ -1415,6 +1415,31 @@ initialization of new pools of the major heap, promotion), the filters and
 the analyzer, typing and macros. Typing being shorter, parallel typing now
 saves 0.3–0.5 s on hide and about 0.1 s on Heaps.
 
+**Status: step 9, on by default.** Parallel typing is the default,
+`-D parallel-typing=0` types on one domain (the macro CI job runs
+`tests/unit` that way). Found by running every test suite in parallel:
+- the evaluation state of the macro interpreter is per thread: a context
+  created by a domain typing in parallel and read from another thread (the
+  main one, flushing the macro context of an `--interp` compilation) failed
+  with `Thread_local_storage.Not_set`; it is now created on first use;
+- the `using` of a module were resolved by a late unit of the task that
+  loaded it, and a body of the module typed meanwhile by another domain saw
+  none (a static extension of hxcoro not found, about one compilation of
+  `tests/server` in four): a domain about to read them resolves them, the
+  first one done publishes them.
+Also: the modules of `Compiler.include` are parsed in parallel before being
+included in order (`preparse_modules`), the caches of the server (also used
+without server) being read and written under the leaf lock; the HL
+optimization runs on the pool of the compilation (0.47 s → 0.26 s on Heaps);
+the mappings of the JS fragments are transcoded in parallel (hide: merge
+0.38 s → 0.07 s); HL/C names its structural types from a canonical
+description and lists its hashes in string order (both depended on the
+scheduling). Measured cold (4 cores, median of 5): Heaps JS 4.8 s (Haxe 5)
+→ 3.8 s, Heaps HL 6.0 s → 4.8–5.0 s, hide 16–16.7 s → 8.8 s, the output
+identical in every run. On hide the domains still wait mostly for the order
+of the class builds that run macros, and the macros themselves (2.4 s)
+stay on one domain at a time.
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context
