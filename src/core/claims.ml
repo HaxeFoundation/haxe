@@ -204,16 +204,14 @@ let run_task i f =
 type order_reason =
 	| OrderBuild
 	| OrderMacro
-	| OrderModule
 
 let order_index = function
 	| OrderBuild -> 0
 	| OrderMacro -> 1
-	| OrderModule -> 2
 
-let order_reasons = [|"build";"macro";"module"|]
-let order_waited = Array.make 3 0.
-let order_waits = Array.make 3 0
+let order_reasons = [|"build";"macro"|]
+let order_waited = Array.make 2 0.
+let order_waits = Array.make 2 0
 
 (* A macro of a task can run before the tasks before it are done, while it
    touches nothing that the macros share (the state of the interpreter, what a
@@ -223,10 +221,6 @@ let order_waits = Array.make 3 0
 let speculating : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)
 
 let is_speculating () = Domain.DLS.get speculating
-
-(* Called when a speculating domain waits for the order of the tasks, which
-   lets other macros run: gives what puts its state back (the macro API). *)
-let speculation_resume = ref (fun () -> (fun () -> ()))
 
 (* Whether the current domain would have to wait for the order of the tasks. *)
 let ahead_of_order () =
@@ -294,9 +288,9 @@ let in_order reason =
 	let spec = Domain.DLS.get speculating in
 	if spec then Domain.DLS.set speculating false;
 	if i > 0 && !TypingLock.active && Mutex.protect mutex (fun () -> !task_prefix < i) then begin
-		(* a speculating macro lets the macros run meanwhile, then gets its state back *)
-		let resume = if spec then !speculation_resume () else (fun () -> ()) in
-		Std.finally resume TypingLock.without (fun () -> Mutex.protect mutex (fun () ->
+		(* a speculating macro lets the macros run meanwhile (its state, the
+		   macro API, is local to its domain) *)
+		TypingLock.without (fun () -> Mutex.protect mutex (fun () ->
 			let suspended = if spec then suspend_macro_claim () else None in
 			let t = Unix.gettimeofday () in
 			Std.finally (fun () ->

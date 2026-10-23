@@ -1527,7 +1527,7 @@ let generate_module_types gctx ctx m =
 	line "#endif";
 	line ""
 
-let write_c com file (code:code) gnames num_domains =
+let write_c com file (code:code) gnames =
 
 	let all_types, htypes = gather_types code in
 	let types_ids = make_types_idents htypes in
@@ -1889,7 +1889,6 @@ let write_c com file (code:code) gnames num_domains =
 		(* add cfiles in deterministic order *)
 		if m.m_functions <> [] then save_cfile gctx (m.m_name ^ ".c")
 	) modules;
-	ignore num_domains;
 	Parallel.run_with_pool com.Gctx.pool (fun pool -> Parallel.ParallelArray.iter pool (fun idx ->
 		let m = modules.(idx) in
 		let defined_types = ref PMap.empty in

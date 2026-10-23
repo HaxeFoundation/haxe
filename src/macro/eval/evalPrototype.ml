@@ -166,10 +166,10 @@ module PrototypeBuilder = struct
 			pparent = pctx.parent;
 			pkind = pctx.kind;
 			pvalue = vnull;
-			pepoch = 0;
 			pinit = [];
 			preset = [||];
 			presettable = [||];
+			pshared = [||];
 			pdomain = [||];
 			pdomain_epoch = [||];
 		} in
@@ -420,7 +420,9 @@ let add_types ctx types ready =
 			(* static isolation is for macros only, not for the interpreted program *)
 			if ctx.is_macro then begin
 				proto.pinit <- non_persistent_delays;
-				set_isolated_statics proto (Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent || i < 0 then None else Some i) delays))
+				set_isolated_statics proto
+					(Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent || i < 0 then None else Some i) delays))
+					(Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent && i >= 0 then Some i else None) delays))
 			end
 	) fl_static;
 	(* 4. Initialize static fields. *)

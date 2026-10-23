@@ -241,9 +241,8 @@ and vprototype = {
 	(* The value of this prototype, i.e. VPrototype self. *)
 	mutable pvalue : value;
 	(* Static isolation (docs/incremental-compilation.md, phase 7): the
-	   expansion for which the static variables were last initialized, and
-	   their initializers (variables without one are set to null). *)
-	mutable pepoch : int;
+	   initializers of the static variables (variables without one are set to
+	   null). *)
 	mutable pinit : (vprototype -> unit) list;
 	(* the slots initialized again by [pinit] (not @:persistent) *)
 	mutable preset : int array;
@@ -252,6 +251,8 @@ and vprototype = {
 	   (see [domain_slot]), the values and the expansion they were initialized
 	   for. [presettable] tells which slots they are. *)
 	mutable presettable : bool array;
+	(* the @:persistent slots, shared by the expansions *)
+	mutable pshared : bool array;
 	mutable pdomain : value array array;
 	mutable pdomain_epoch : int array;
 }
@@ -467,7 +468,9 @@ let domain_slot : int Domain.DLS.key = Domain.DLS.new_key (fun () ->
 )
 
 (* Gives [proto] the storage of its isolated static variables. *)
-let set_isolated_statics proto slots =
+let set_isolated_statics proto slots shared =
+	proto.pshared <- Array.make (Array.length proto.pfields) false;
+	Array.iter (fun i -> proto.pshared.(i) <- true) shared;
 	proto.preset <- slots;
 	proto.presettable <- Array.make (Array.length proto.pfields) false;
 	Array.iter (fun i -> proto.presettable.(i) <- true) slots;
@@ -496,6 +499,19 @@ and fresh_statics proto =
 	match proto.pparent with
 	| Some p -> fresh_statics p
 	| None -> ()
+
+(* Whether the static variable at slot [i] of [proto] is shared by the
+   expansions (@:persistent; not the isolated ones, the methods and the
+   natives of the standard library): reading or changing it is an access to
+   what the macros share (see [on_shared_state]). *)
+let is_shared_static proto i =
+	Array.length proto.pshared > 0 && Array.unsafe_get proto.pshared i
+
+(* The same, by name. *)
+let is_shared_static_name proto name =
+	match IntMap.find_opt name proto.pnames with
+	| Some i -> is_shared_static proto i
+	| None -> true
 
 (* The static variable at slot [i] of [proto]: during an expansion, an
    isolated one is the running expansion's. *)

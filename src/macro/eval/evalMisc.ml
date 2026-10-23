@@ -102,7 +102,7 @@ let set_bytes_length_field v1 v2 =
 
 let set_field v1 name v2 = match vresolve v1 with
 	| VObject o -> set_object_field o name v2
-	| VPrototype proto -> !on_shared_state (); fresh_statics proto; set_proto_field proto name v2
+	| VPrototype proto -> if is_shared_static_name proto name then !on_shared_state (); fresh_statics proto; set_proto_field proto name v2
 	| VArray va ->
 		(* Vector.new does this *)
 		if name = key_length then begin

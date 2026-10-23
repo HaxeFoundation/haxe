@@ -175,45 +175,6 @@ if (try Sys.getenv "HAXE_SPACE_OVERHEAD" = "" with Not_found -> true) then begin
 	DynamicGc.setup_dynamic_tuning DynamicGc.{ gc_config with max_space_overhead = 300 }
 end;
 
-(* HAXE_MEMPROF=<rate>: samples the allocations (Gc.Memprof) and prints, at
-   exit, the functions that allocate the most, with their callers. *)
-let memprof_report = match Sys.getenv_opt "HAXE_MEMPROF" with
-	| None | Some "" -> (fun () -> ())
-	| Some rate ->
-		let samples = ref [] and m = Mutex.create () in
-		let record (a : Gc.Memprof.allocation) =
-			Mutex.protect m (fun () -> samples := (a.n_samples,a.callstack) :: !samples);
-			None
-		in
-		ignore (Gc.Memprof.start ~sampling_rate:(float_of_string rate) ~callstack_size:30 { Gc.Memprof.null_tracker with alloc_minor = record; alloc_major = record });
-		(fun () ->
-			Gc.Memprof.stop ();
-			let self = Hashtbl.create 0 and site = Hashtbl.create 0 and byfile = Hashtbl.create 0 and total = ref 0 in
-			let add h k n = Hashtbl.replace h k (n + try Hashtbl.find h k with Not_found -> 0) in
-			List.iter (fun (n,cs) ->
-				total := !total + n;
-				let frames = match Printexc.backtrace_slots cs with
-					| None -> []
-					| Some a -> List.filter_map (fun s -> match Printexc.Slot.location s with
-						| Some l -> Some (Printf.sprintf "%s:%d" (Filename.basename l.Printexc.filename) l.Printexc.line_number)
-						| None -> None) (Array.to_list a)
-				in
-				let ours = List.filter (fun f -> not (String.length f > 6 && (String.sub f 0 6 = "stdlib" || String.sub f 0 4 = "hash" || String.sub f 0 4 = "list" || String.sub f 0 5 = "array"))) frames in
-				(match frames with f :: _ -> add self f n | [] -> ());
-				(match ours with f :: _ -> add byfile (try String.sub f 0 (String.index f ':') with Not_found -> f) n | [] -> ());
-				add site (String.concat " < " (List.filteri (fun i _ -> i < 4) ours)) n
-			) !samples;
-			let top h k = List.filteri (fun i _ -> i < k) (List.sort (fun (_,a) (_,b) -> Stdlib.compare (b:int) a) (Hashtbl.fold (fun k v acc -> (k,v) :: acc) h [])) in
-			prerr_endline (Printf.sprintf "memprof: %d samples" !total);
-			prerr_endline "-- first frame of the compiler, by file:";
-			List.iter (fun (k,v) -> prerr_endline (Printf.sprintf "%5.1f%% %s" (100. *. float v /. float (max 1 !total)) k)) (top byfile 40);
-			prerr_endline "-- allocating frame:";
-			List.iter (fun (k,v) -> prerr_endline (Printf.sprintf "%5.1f%% %s" (100. *. float v /. float (max 1 !total)) k)) (top self 40);
-			prerr_endline "-- sites (first 4 frames of the compiler):";
-			List.iter (fun (k,v) -> prerr_endline (Printf.sprintf "%5.1f%% %s" (100. *. float v /. float (max 1 !total)) k)) (top site 60)
-		)
-in
-
 let sctx = Server.setup_server_context false false in
 let io = CompilerIo.create_stdio_io () in
 let request_scope = create_request_scope ~is_server:false io request_args.display_arg in
@@ -224,5 +185,4 @@ if code = 0 then begin
 		CompilerOutput.send_timer_report io timer_ctx
 end;
 ServerCompilationContext.dispose sctx;
-memprof_report ();
 exit code;

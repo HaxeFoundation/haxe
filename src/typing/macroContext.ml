@@ -236,6 +236,7 @@ let make_macro_com_api com mcom p =
 		is_building = (fun () -> false);
 		partially_built_class_read = (fun _ -> ());
 		class_built_by_expansion = (fun _ -> true);
+		is_local_class = (fun _ -> false);
 		field_body_read = (fun _ -> ());
 		declared_meta_read = (fun _ -> ());
 		define_type = (fun v mdep ->
@@ -506,6 +507,7 @@ let make_macro_api ctx mctx p =
 		);
 		MacroApi.partially_built_class_read;
 		MacroApi.class_built_by_expansion;
+		MacroApi.is_local_class;
 		MacroApi.field_body_read;
 		MacroApi.declared_meta_read;
 		MacroApi.get_build_fields = (fun() ->

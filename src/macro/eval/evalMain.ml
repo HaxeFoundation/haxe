@@ -414,6 +414,7 @@ let speculative_api = [
 	"get_configuration"; "get_module_types"; "type_to_module_type"; "module_type_to_type";
 	"apply_params"; "position_to_range"; "position_to_zero_range"; "map_anon_ref";
 	"init_macros_done"; "get_output"; "get_main_expr"; "with_imports"; "with_options";
+	"get_build_fields";
 ]
 
 (* The functions of the API run under the typing lock: a speculating macro
@@ -433,22 +434,6 @@ let wait_for_order () =
 
 let setup get_api =
 	on_shared_state := wait_for_order;
-	(* other macros run while a macro waits for the order: it gets its API back *)
-	Claims.speculation_resume := (fun () ->
-		let ctx = get_ctx () in
-		let api = (EvalContext.curapi ctx) in
-		let open MacroApi in
-		let a,b,c,d = (DomainLocal.get current_partially_built_class_read),(DomainLocal.get current_class_built_by_expansion),(DomainLocal.get current_field_body_read),(DomainLocal.get current_declared_meta_read) in
-		let built = (DomainLocal.get expansion_built) in
-		(fun () ->
-			EvalContext.set_curapi ctx api;
-			DomainLocal.set current_partially_built_class_read (a);
-			DomainLocal.set current_class_built_by_expansion (b);
-			DomainLocal.set current_field_body_read (c);
-			DomainLocal.set current_declared_meta_read (d);
-			DomainLocal.set expansion_built (built)
-		)
-	);
 	let api = get_api (fun() -> (EvalContext.curapi (get_ctx())).get_com()) (fun() -> (EvalContext.curapi (get_ctx()))) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n (shared_state_api n v)

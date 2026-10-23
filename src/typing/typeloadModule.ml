@@ -908,13 +908,9 @@ let load_module_now origin ctx m p =
 		add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 		m2
 	| None ->
-		if !TypingLock.active && not (ctx.com.module_lut#mem m) then begin
-			TypeloadParse.preparse ctx.com m p;
-			(* the modules are created in the order of the tasks, except with the
-			   cache of the server (every compilation, also without server): the
-			   types are ordered by module path afterwards *)
-			if not !TypeloadCacheHook.server_active then Claims.in_order Claims.OrderModule
-		end;
+		(* parsed outside of the lock; the modules are created in no particular
+		   order, the types being ordered by module path afterwards *)
+		if !TypingLock.active && not (ctx.com.module_lut#mem m) then TypeloadParse.preparse ctx.com m p;
 		TypingLock.protect (fun () ->
 			let m2 = load_module' ctx.com ctx.g m p in
 			add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;

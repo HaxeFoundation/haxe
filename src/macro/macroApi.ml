@@ -60,6 +60,8 @@ type 'value compiler_api = {
 	   that has build macros (-D macro-meta-check) *)
 	partially_built_class_read : tclass -> unit;
 	class_built_by_expansion : tclass -> bool;
+	(* the class being built by the expansion *)
+	is_local_class : tclass -> bool;
 	field_body_read : tclass_field -> unit;
 	declared_meta_read : tclass -> unit;
 	define_type : 'value -> string option -> unit;
@@ -124,6 +126,7 @@ let null_api () = {
 	is_building = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
 	partially_built_class_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	class_built_by_expansion = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	is_local_class = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	field_body_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	declared_meta_read = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	define_type = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
@@ -276,6 +279,7 @@ let haxe_float f p =
    encoders (see compiler_api); [with_current_api] installs them. *)
 let current_partially_built_class_read : (tclass -> unit) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> ()))
 let current_class_built_by_expansion : (tclass -> bool) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> true))
+let current_is_local_class : (tclass -> bool) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> false))
 let current_field_body_read : (tclass_field -> unit) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> ()))
 let current_declared_meta_read : (tclass -> unit) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> ()))
 
@@ -283,12 +287,15 @@ let with_current_api api f =
 	let old = ((DomainLocal.get current_partially_built_class_read),(DomainLocal.get current_class_built_by_expansion),(DomainLocal.get current_field_body_read),(DomainLocal.get current_declared_meta_read)) in
 	DomainLocal.set current_partially_built_class_read (api.partially_built_class_read);
 	DomainLocal.set current_class_built_by_expansion (api.class_built_by_expansion);
+	let old_local = DomainLocal.get current_is_local_class in
+	DomainLocal.set current_is_local_class api.is_local_class;
 	DomainLocal.set current_field_body_read (api.field_body_read);
 	DomainLocal.set current_declared_meta_read (api.declared_meta_read);
 	Std.finally (fun () ->
 		let (a,b,c,d) = old in
 		DomainLocal.set current_partially_built_class_read (a);
 		DomainLocal.set current_class_built_by_expansion (b);
+		DomainLocal.set current_is_local_class old_local;
 		DomainLocal.set current_field_body_read (c);
 		DomainLocal.set current_declared_meta_read (d)
 	) f ()
@@ -1124,7 +1131,9 @@ let vopt f v = match v with
 	| None -> vnull
 	| Some v -> f v
 
-let encode_meta ?(on_read=(fun () -> ())) m set =
+(* [local]: whether the metadata belongs to what the running expansion builds
+   (changing it then touches nothing the macros share) *)
+let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 	let meta = ref m in
 	encode_obj [
 		"get", vfun0 (fun() ->
@@ -1132,7 +1141,7 @@ let encode_meta ?(on_read=(fun () -> ())) m set =
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
-			!EvalValue.on_shared_state ();
+			if not (local ()) then (!EvalValue.on_shared_state ());
 			let el = List.map decode_expr (decode_array vl) in
 			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
 			set (!meta);
@@ -1144,7 +1153,7 @@ let encode_meta ?(on_read=(fun () -> ())) m set =
 			encode_and_map_array encode_meta_entry (List.filter (fun (m,_,_) -> m = k) (!meta))
 		);
 		"remove", vfun1 (fun k ->
-			!EvalValue.on_shared_state ();
+			if not (local ()) then (!EvalValue.on_shared_state ());
 			let k = Meta.from_string (decode_string k) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
@@ -1327,7 +1336,7 @@ and encode_tclass c =
 		| Some declared when not ((DomainLocal.get current_class_built_by_expansion) c) ->
 			(* additions and removals go to the class's metadata as well *)
 			let view = ref declared in
-			encode_meta ~on_read:(fun () -> (DomainLocal.get current_declared_meta_read) c) declared (fun m ->
+			encode_meta ~on_read:(fun () -> (DomainLocal.get current_declared_meta_read) c) ~local:(fun () -> (DomainLocal.get current_is_local_class) c) declared (fun m ->
 				let added = List.filter (fun e -> not (List.memq e !view)) m in
 				let removed = List.filter (fun e -> not (List.memq e m)) !view in
 				let update l = added @ List.filter (fun e -> not (List.memq e removed)) l in
@@ -1336,7 +1345,7 @@ and encode_tclass c =
 				view := m
 			)
 		| _ ->
-			encode_meta c.cl_meta (fun m -> c.cl_meta <- m)
+			encode_meta ~local:(fun () -> (DomainLocal.get current_is_local_class) c) c.cl_meta (fun m -> c.cl_meta <- m)
 	in
 	let members f = encode_lazy (AtomicLazy.from_fun (fun () -> build (); f ())) in
 	encode_mtype ~meta (TClassDecl c) [

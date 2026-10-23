@@ -64,9 +64,9 @@ let shared_state exec env =
 	!on_shared_state ();
 	exec env
 
-(* [exec] reading or changing a static variable of [proto] *)
-let static_state proto exec env =
-	!on_shared_state ();
+(* [exec] reading or changing the static variable at slot [i] of [proto] *)
+let static_state proto i exec env =
+	if is_shared_static proto i then !on_shared_state ();
 	fresh_statics proto;
 	exec env
 
@@ -84,7 +84,8 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 				emit_bytes_length_write exec1 exec2
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
-				static_state proto (emit_proto_field_write proto (get_proto_field_index proto name) exec2)
+				let i = get_proto_field_index proto name in
+				static_state proto i (emit_proto_field_write proto i exec2)
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
@@ -131,7 +132,8 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 		begin match fa with
 			| FStatic({cl_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
-				static_state proto (emit_proto_field_read_write proto (get_proto_field_index proto name) exec2 op prefix)
+				let i = get_proto_field_index proto name in
+				static_state proto i (emit_proto_field_read_write proto i exec2 op prefix)
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
@@ -544,10 +546,11 @@ and jit_expr jit return e =
 			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1) e1.epos
 			| FStatic({cl_path=path},cf) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in
-				let exec = emit_proto_field_read proto (get_proto_field_index proto name) in
+				let i = get_proto_field_index proto name in
+				let exec = emit_proto_field_read proto i in
 				begin match cf.cf_kind with
 					| Method (MethNormal | MethInline | MethMacro) -> exec
-					| _ -> static_state proto exec
+					| _ -> static_state proto i exec
 				end
 			| FEnum({e_path=path},_)
 			| FInstance({cl_path=path},_,{cf_kind = Method (MethNormal | MethInline)}) ->

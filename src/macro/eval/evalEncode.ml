@@ -271,10 +271,10 @@ let fake_proto cache path =
 			pparent = None;
 			pkind = PInstance;
 			pvalue = vnull;
-			pepoch = 0;
 			pinit = [];
 			preset = [||];
 			presettable = [||];
+			pshared = [||];
 			pdomain = [||];
 			pdomain_epoch = [||];
 		} in
@@ -320,10 +320,10 @@ let ref_proto =
 		pparent = None;
 		pkind = PInstance;
 		pvalue = vnull;
-		pepoch = 0;
 		pinit = [];
 		preset = [||];
 		presettable = [||];
+		pshared = [||];
 		pdomain = [||];
 		pdomain_epoch = [||];
 	} in
