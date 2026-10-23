@@ -94,10 +94,14 @@ class Int64Helper {
 			throw "Conversion underflow";
 		}
 
-		var result = Int64.ofInt(0);
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
 
+		#if js
+		// rest < 2^53: split it directly in two 32-bit words
+		var result = Int64.make(Std.int(rest / 4294967296.), Std.int(rest % 4294967296.));
+		#else
+		var result = Int64.ofInt(0);
 		var i = 0;
 		while (rest >= 1) {
 			var curr = rest % 2;
@@ -107,6 +111,7 @@ class Int64Helper {
 			}
 			i++;
 		}
+		#end
 
 		if (neg) {
 			result = Int64.neg(result);
