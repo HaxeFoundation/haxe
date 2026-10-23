@@ -1236,8 +1236,14 @@ let generate_types_parallel ctx generate_type types =
 	let sub i = match subs.(i) with Some sub -> sub | None -> die "" __LOC__ in
 	let todo = List.filter (fun i -> reused.(i) = None) (List.init (Array.length types) (fun i -> i)) in
 	if Sys.getenv_opt "HAXE_JS_FRAGMENTS_TRACE" <> None then prerr_endline (Printf.sprintf "js fragments: %d reused, %d generated" (Array.length types - List.length todo) (List.length todo));
+	(* the mappings of each type, encoded by the domain generating it *)
+	let encoded = Array.make (Array.length types) None in
 	Parallel.run_with_pool ctx.com.pool (fun pool ->
-		Parallel.ParallelArray.iter pool (fun i -> generate_type (sub i) types.(i)) (Array.of_list todo)
+		Parallel.ParallelArray.iter pool (fun i ->
+			let sub = sub i in
+			generate_type sub types.(i);
+			encoded.(i) <- Option.map encoded_fragment sub.smap
+		) (Array.of_list todo)
 	);
 	t ();
 	let t = tm "merge" in
@@ -1262,7 +1268,7 @@ let generate_types_parallel ctx generate_type types =
 				fr_added = (match sub.features_added with Some r -> !r | None -> []);
 				fr_code = Buffer.contents sub.buf;
 				fr_marks = (match sub.package_marks with Some r -> List.rev !r | None -> []);
-				fr_encoded = Option.map encoded_fragment sub.smap;
+				fr_encoded = encoded.(i);
 				fr_separator = sub.separator;
 				fr_statics = sub.statics;
 				fr_inits = sub.inits;
@@ -1271,6 +1277,20 @@ let generate_types_parallel ctx generate_type types =
 			Hashtbl.replace fragments (s_type_path (t_path types.(i))) fr;
 			fr
 	in
+	(* the mappings of the fragments transcoded in parallel for the global
+	   indices their sources will get, then spliced in order *)
+	(match ctx.smap with
+	| Some sm ->
+		let all = Array.init (Array.length types) (fun i -> match reused.(i) with Some fr -> fr.fr_encoded | None -> encoded.(i)) in
+		let globals = JsSourcemap.predict_globals sm all in
+		Parallel.run_with_pool ctx.com.pool (fun pool ->
+			Parallel.ParallelArray.iter pool (fun i -> match all.(i),globals.(i) with
+				| Some ef,Some g when not (JsSourcemap.shifted g) -> ignore (JsSourcemap.spliced_tail ef g)
+				| _ -> ()
+			) (Array.init (Array.length types) (fun i -> i))
+		)
+	| None ->
+		());
 	let splice_fails = ref 0 in
 	Array.iteri (fun i mt ->
 		let fr = fragment_of i in

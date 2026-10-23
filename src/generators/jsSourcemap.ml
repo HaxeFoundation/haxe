@@ -193,6 +193,84 @@ let decode_vlq s i =
    current expression, the first mapping not the same position as the
    previous one, which would not have been output): false otherwise, and
    nothing done. *)
+(* Where the mappings after the first one start, and the source of the
+   first one. *)
+let first_mapping m =
+	let len = String.length m in
+	let i = ref 0 in
+	while !i < len && m.[!i] = ';' do incr i done;
+	let i1,_ = decode_vlq m !i in
+	let i2,dfile = decode_vlq m i1 in
+	let i3,_ = decode_vlq m i2 in
+	let i4,_ = decode_vlq m i3 in
+	i4,dfile
+
+(* Whether the sources of a fragment keep their order once global: the
+   deltas of the mappings are then the same. *)
+let shifted globals =
+	try Array.iteri (fun i g -> if g - globals.(0) <> i then raise Exit) globals; true with Exit -> false
+
+(* The mappings after the first one of fragment [ef], its sources having
+   the global indices [globals]: the same deltas, but the one of their
+   source. Kept with the fragment for these indices. *)
+let spliced_tail ef globals =
+	match ef.ef_spliced with
+	| Some (g,tail) when g = globals -> tail
+	| _ ->
+		let m = ef.ef_mappings in
+		let len = String.length m in
+		let i4,dfile = first_mapping m in
+		let b = Buffer.create (len - i4) in
+		let add_vlq number =
+			let vlq = if number < 0 then ((-number) lsl 1) + 1 else number lsl 1 in
+			let rec loop vlq =
+				let digit = vlq land 31 and next = vlq asr 5 in
+				Buffer.add_char b (String.unsafe_get base64_chars (if next > 0 then digit lor 32 else digit));
+				if next > 0 then loop next
+			in
+			loop vlq
+		in
+		let local = ref dfile in
+		let rec loop i =
+			if i < len then match String.unsafe_get m i with
+				| ';' | ',' as c -> Buffer.add_char b c; loop (i + 1)
+				| _ ->
+					(* a segment: column, source, line, column in the source *)
+					let i1,dcol = decode_vlq m i in
+					let i2,dfile = decode_vlq m i1 in
+					let i3,dline = decode_vlq m i2 in
+					let i4,dscol = decode_vlq m i3 in
+					let previous = globals.(!local) in
+					local := !local + dfile;
+					add_vlq dcol;
+					add_vlq (globals.(!local) - previous);
+					add_vlq dline;
+					add_vlq dscol;
+					loop i4
+		in
+		loop i4;
+		let tail = Buffer.contents b in
+		ef.ef_spliced <- Some (globals,tail);
+		tail
+
+(* The global indices that the sources of the fragments [efs] get when they
+   are spliced in this order into [smap] (without changing it): their
+   mappings are transcoded for them in parallel, before being spliced in
+   order. A fragment that cannot be spliced (generated again) may use its
+   sources in another order: the tails computed for the fragments after it
+   are then not used. *)
+let predict_globals smap efs =
+	let known = Hashtbl.copy smap.sources_hash in
+	let n = ref (DynArray.length smap.sources) in
+	Array.map (function
+		| Some ef when ef.ef_last_pos <> None ->
+			Some (Array.map (fun name -> match Hashtbl.find_opt known name with
+				| Some i -> i
+				| None -> let i = !n in Hashtbl.replace known name i; incr n; i
+			) ef.ef_sources)
+		| _ -> None
+	) efs
+
 let splice_fragment smap ef col0 last_col0 comma0 =
 	if smap.current_expr <> None then false
 	else if ef.ef_last_pos = None then begin
@@ -239,45 +317,8 @@ let splice_fragment smap ef col0 last_col0 comma0 =
 			smap.output_current_col <- col;
 			encode_mapping smap { file = globals.(dfile); line = dline; col = dscol };
 			(* the others: the same deltas, but the one of their source *)
-			let b = Buffer.create (len - i4) in
-			let add_vlq number =
-				let vlq = if number < 0 then ((-number) lsl 1) + 1 else number lsl 1 in
-				let rec loop vlq =
-					let digit = vlq land 31 and next = vlq asr 5 in
-					Buffer.add_char b (String.unsafe_get base64_chars (if next > 0 then digit lor 32 else digit));
-					if next > 0 then loop next
-				in
-				loop vlq
-			in
-			let local = ref dfile in
-			(* the sources keep their order: the same deltas *)
-			let shifted = (try Array.iteri (fun i g -> if g - globals.(0) <> i then raise Exit) globals; true with Exit -> false) in
-			let rec loop i =
-				if i < len then match String.unsafe_get m i with
-					| ';' | ',' as c -> Buffer.add_char b c; loop (i + 1)
-					| _ ->
-						(* a segment: column, source, line, column in the source *)
-						let i1,dcol = decode_vlq m i in
-						let i2,dfile = decode_vlq m i1 in
-						let i3,dline = decode_vlq m i2 in
-						let i4,dscol = decode_vlq m i3 in
-						let previous = globals.(!local) in
-						local := !local + dfile;
-						add_vlq dcol;
-						add_vlq (globals.(!local) - previous);
-						add_vlq dline;
-						add_vlq dscol;
-						loop i4
-			in
-			if shifted then Buffer.add_substring smap.mappings m i4 (len - i4) else begin
-				match ef.ef_spliced with
-				| Some (g,tail) when g = globals -> Buffer.add_string smap.mappings tail
-				| _ ->
-					loop i4;
-					let tail = Buffer.contents b in
-					ef.ef_spliced <- Some (globals,tail);
-					Buffer.add_string smap.mappings tail
-			end;
+			if shifted globals then Buffer.add_substring smap.mappings m i4 (len - i4) else
+				Buffer.add_string smap.mappings (spliced_tail ef globals);
 			(* the final state *)
 			let fl = match ef.ef_last_pos with Some p -> p | None -> assert false in
 			smap.source_last_pos <- { fl with file = globals.(fl.file) };
