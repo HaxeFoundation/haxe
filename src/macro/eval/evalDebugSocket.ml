@@ -116,7 +116,7 @@ let var_to_json name value vio env =
 			jv type_s value_s (Array.length ve.eargs)
 		| VObject o ->
 			begin try
-				let e = (get_ctx()).curapi.MacroApi.decode_expr v in
+				let e = (EvalContext.curapi (get_ctx())).MacroApi.decode_expr v in
 				jv "Expr" (Ast.Printer.s_expr e) 2
 			with _ ->
 				let fields = object_fields o in
@@ -481,7 +481,7 @@ module ValueCompletion = struct
 				DisplayPosition.display_position#set old;
 			)
 		in
-		let com = (ctx.curapi.get_com()) in
+		let com = ((EvalContext.curapi ctx).get_com()) in
 		let config = Parser.create_config com.Common.defines true true DMDefault com.part_scope.parser_state.was_auto_triggered None in
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
 		DisplayPosition.display_position#set (Pos.with_range p (offset) (offset));
@@ -544,7 +544,7 @@ let expect_env hctx env = match env with
 
 let handler =
 	let parse_expr ctx p =
-		parse_expr ctx (ParserConfig.default_config (ctx.curapi.get_com()).Common.defines) p
+		parse_expr ctx (ParserConfig.default_config ((EvalContext.curapi ctx).get_com()).Common.defines) p
 	in
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
@@ -645,7 +645,7 @@ let handler =
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let bps = hctx.jsonrpc#get_array_param "breakpoints" in
 			let bps = List.map (parse_breakpoint hctx) bps in
-			let hash = hash (Path.UniqueKey.to_string (hctx.ctx.file_keys#get (Common.find_file (hctx.ctx.curapi.get_com()) file))) in
+			let hash = hash (Path.UniqueKey.to_string (hctx.ctx.file_keys#get (Common.find_file ((EvalContext.curapi hctx.ctx).get_com()) file))) in
 			let h =
 				try
 					let h = IntHashtbl.find hctx.ctx.debug.breakpoints hash in

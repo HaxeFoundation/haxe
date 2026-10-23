@@ -278,7 +278,12 @@ and context = {
 	builtins : builtins;
 	debug : debug;
 	mutable had_error : bool;
-	mutable curapi : value MacroApi.compiler_api;
+	(* the API of the expansion running on each domain (macros can run on
+	   several domains), the last one set for a domain that has none, and the
+	   generation of the values (see [clear_curapi]) *)
+	mutable curapi_default : value MacroApi.compiler_api;
+	curapi_local : (int * value MacroApi.compiler_api) option DomainLocal.t;
+	mutable curapi_generation : int;
 	(* with the id of the module the type had when added: the compilation server can
 	   reuse the same object for a retyped module (grafting) *)
 	mutable type_cache : (Type.module_type * int) IntMap.t;
@@ -330,6 +335,21 @@ let s_debug_state = function
 	| DbgStep -> "DbgStep"
 	| DbgNext _ -> "DbgNext"
 	| DbgFinish _ -> "DbgFinish"
+
+let curapi ctx =
+	match DomainLocal.get ctx.curapi_local with
+	| Some (g,api) when g = ctx.curapi_generation -> api
+	| _ -> ctx.curapi_default
+
+let set_curapi ctx api =
+	DomainLocal.set ctx.curapi_local (Some (ctx.curapi_generation,api));
+	ctx.curapi_default <- api
+
+(* The API of every domain becomes [api] (the values of the other domains are
+   left as they are, but not used any more). *)
+let clear_curapi ctx api =
+	ctx.curapi_generation <- ctx.curapi_generation + 1;
+	ctx.curapi_default <- api
 
 (* Misc *)
 

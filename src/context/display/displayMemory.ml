@@ -33,7 +33,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 						jobject ["name",jstring "macro interpreter";"size",jint (mem_size MacroContext.macro_interp_cache);"child",jarray [
 							jobject ["name",jstring "builtins";"size",jint (mem_size_2 interp.builtins [Obj.repr interp])];
 							jobject ["name",jstring "debug";"size",jint (mem_size_2 interp.debug [Obj.repr interp])];
-							jobject ["name",jstring "curapi";"size",jint (mem_size_2 interp.curapi [Obj.repr interp])];
+							jobject ["name",jstring "curapi";"size",jint (mem_size_2 (EvalContext.curapi interp) [Obj.repr interp])];
 							jobject ["name",jstring "type_cache";"size",jint (mem_size_2 interp.type_cache [Obj.repr interp])];
 							jobject ["name",jstring "overrides";"size",jint (mem_size_2 interp.overrides [Obj.repr interp])];
 							jobject ["name",jstring "array_prototype";"size",jint (mem_size_2 interp.array_prototype [Obj.repr interp])];

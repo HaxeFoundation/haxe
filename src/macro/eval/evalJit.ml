@@ -690,7 +690,7 @@ and jit_tfunction jit static pos tf =
 	let fl = if static then fl else (execute_set_local 0) :: fl in
 	let e = List.fold_right (fun (v,cto) e -> match cto with
 		| None -> e
-		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
+		| Some ct -> concat (Texpr.set_default ((EvalContext.curapi ctx).MacroApi.get_com()).Common.basic v ct e.epos) e
 	) tf.tf_args tf.tf_expr in
 	let has_final_return el = match List.rev el with
 		| {eexpr = TReturn _} :: _ -> true

@@ -721,7 +721,7 @@ let cleanup sctx =
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Replace it with a
 		   null API so all references to the compilation context are released and it can be garbage collected. *)
-		interp.curapi <- MacroApi.null_api ()
+		EvalContext.clear_curapi interp (MacroApi.null_api ())
 	| None ->
 		()
 	end;

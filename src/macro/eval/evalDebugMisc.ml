@@ -43,7 +43,7 @@ let iter_breakpoints ctx f =
 	) ctx.debug.breakpoints
 
 let add_breakpoint ctx file line column condition =
-	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file (ctx.curapi.get_com()) file))) in
+	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file ((EvalContext.curapi ctx).get_com()) file))) in
 	let h = try
 		IntHashtbl.find ctx.debug.breakpoints hash
 	with Not_found ->
@@ -56,7 +56,7 @@ let add_breakpoint ctx file line column condition =
 	breakpoint
 
 let delete_breakpoint ctx file line =
-	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file (ctx.curapi.get_com()) file))) in
+	let hash = hash (Path.UniqueKey.to_string (ctx.file_keys#get (Common.find_file ((EvalContext.curapi ctx).get_com()) file))) in
 	let h = IntHashtbl.find ctx.debug.breakpoints hash in
 	IntHashtbl.remove h line
 

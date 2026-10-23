@@ -1506,7 +1506,7 @@ module StdLog = struct
 					| _ -> [s]
 				in
 				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
-		CompilerIo.write_out ((get_ctx()).curapi.MacroApi.get_com()).request_scope.io s;
+		CompilerIo.write_out ((EvalContext.curapi (get_ctx())).MacroApi.get_com()).request_scope.io s;
 		vnull
 	)
 end
@@ -2161,15 +2161,15 @@ module StdResource = struct
 	open Common
 
 	let listNames = vfun0 (fun () ->
-		encode_array (List.map create_unknown (hashtbl_keys ((get_ctx()).curapi.MacroApi.get_com()).resources))
+		encode_array (List.map create_unknown (hashtbl_keys ((EvalContext.curapi (get_ctx())).MacroApi.get_com()).resources))
 	)
 
 	let getString = vfun1 (fun name ->
-		try ((create_unknown (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name)))) with Not_found -> vnull
+		try ((create_unknown (Hashtbl.find ((EvalContext.curapi (get_ctx())).MacroApi.get_com()).resources (decode_string name)))) with Not_found -> vnull
 	)
 
 	let getBytes = vfun1 (fun name ->
-		try encode_bytes (Bytes.unsafe_of_string (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
+		try encode_bytes (Bytes.unsafe_of_string (Hashtbl.find ((EvalContext.curapi (get_ctx())).MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
 	)
 end
 
@@ -2747,7 +2747,7 @@ module StdSys = struct
 
 	let _command = vfun1 (fun cmd ->
 		let cmd = decode_string cmd in
-		vint (((get_ctx()).curapi.get_com()).run_command cmd)
+		vint (((EvalContext.curapi (get_ctx())).get_com()).run_command cmd)
 	)
 
 	let cpuTime = vfun0 (fun () -> vfloat (Sys.time()))
@@ -2769,7 +2769,7 @@ module StdSys = struct
 	let getChar = vfun1 (fun echo ->
 		let echo = decode_bool echo in
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		vint (CompilerIo.getch com.request_scope.io echo)
 	)
 
@@ -2792,21 +2792,21 @@ module StdSys = struct
 
 	let print = vfun1 (fun v ->
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		CompilerIo.write_out com.request_scope.io (value_string v);
 		vnull
 	)
 
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		CompilerIo.write_out com.request_scope.io (value_string v ^ lineEnd);
 		vnull
 	)
 
 	let programPath = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		match com.main.main_file with
 		| Some file ->
 			create_unknown (Extc.get_full_path file)
@@ -2839,19 +2839,19 @@ module StdSys = struct
 
 	let stderr = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel (CompilerIo.get_stderr com.request_scope.io))
 	)
 
 	let stdin = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		encode_instance key_sys_io_FileInput ~kind:(IInChannel (CompilerIo.get_stdin com.request_scope.io,ref false))
 	)
 
 	let stdout = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let com = ctx.curapi.get_com() in
+		let com = (EvalContext.curapi ctx).get_com() in
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel (CompilerIo.get_stdout com.request_scope.io))
 	)
 

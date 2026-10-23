@@ -274,23 +274,23 @@ let haxe_float f p =
 
 (* The functions of the API of the running macro expansion used by the
    encoders (see compiler_api); [with_current_api] installs them. *)
-let current_partially_built_class_read : (tclass -> unit) ref = ref (fun _ -> ())
-let current_class_built_by_expansion : (tclass -> bool) ref = ref (fun _ -> true)
-let current_field_body_read : (tclass_field -> unit) ref = ref (fun _ -> ())
-let current_declared_meta_read : (tclass -> unit) ref = ref (fun _ -> ())
+let current_partially_built_class_read : (tclass -> unit) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> ()))
+let current_class_built_by_expansion : (tclass -> bool) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> true))
+let current_field_body_read : (tclass_field -> unit) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> ()))
+let current_declared_meta_read : (tclass -> unit) DomainLocal.t = DomainLocal.make (fun () -> (fun _ -> ()))
 
 let with_current_api api f =
-	let old = (!current_partially_built_class_read,!current_class_built_by_expansion,!current_field_body_read,!current_declared_meta_read) in
-	current_partially_built_class_read := api.partially_built_class_read;
-	current_class_built_by_expansion := api.class_built_by_expansion;
-	current_field_body_read := api.field_body_read;
-	current_declared_meta_read := api.declared_meta_read;
+	let old = ((DomainLocal.get current_partially_built_class_read),(DomainLocal.get current_class_built_by_expansion),(DomainLocal.get current_field_body_read),(DomainLocal.get current_declared_meta_read)) in
+	DomainLocal.set current_partially_built_class_read (api.partially_built_class_read);
+	DomainLocal.set current_class_built_by_expansion (api.class_built_by_expansion);
+	DomainLocal.set current_field_body_read (api.field_body_read);
+	DomainLocal.set current_declared_meta_read (api.declared_meta_read);
 	Std.finally (fun () ->
 		let (a,b,c,d) = old in
-		current_partially_built_class_read := a;
-		current_class_built_by_expansion := b;
-		current_field_body_read := c;
-		current_declared_meta_read := d
+		DomainLocal.set current_partially_built_class_read (a);
+		DomainLocal.set current_class_built_by_expansion (b);
+		DomainLocal.set current_field_body_read (c);
+		DomainLocal.set current_declared_meta_read (d)
 	) f ()
 
 (* Typing is done: the onAfterTyping callbacks run (whole-program reads,
@@ -304,7 +304,7 @@ let is_typing_done com = !typing_done || com.Common.stage >= Common.CTypingDone
 let check_type_caches : (Common.context -> unit) ref = ref (fun _ -> ())
 
 (* The classes whose build the running macro expansion forced. *)
-let expansion_built : tclass list ref = ref []
+let expansion_built : tclass list DomainLocal.t = DomainLocal.make (fun () -> [])
 
 module MacroApiImpl(InterpImpl:InterpApi) = struct
 
@@ -1203,7 +1203,7 @@ and encode_tabstract a =
 			c.cl_build_header ();
 			begin match (TAccess.build c) with
 			| Built -> ()
-			| _ -> !current_partially_built_class_read c
+			| _ -> (DomainLocal.get current_partially_built_class_read) c
 			end;
 			if !DepRecord.enabled then DepRecord.record_type c.cl_path "members"
 		| None ->
@@ -1250,7 +1250,7 @@ and encode_cfield f =
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
-			!current_field_body_read f;
+			(DomainLocal.get current_field_body_read) f;
 			force_field_body f;
 			(match f.cf_expr with None -> vnull | Some e -> encode_texpr e)
 		);
@@ -1317,17 +1317,17 @@ and encode_tclass c =
 	let build () =
 		begin match (TAccess.build c) with
 		| Built -> ()
-		| _ -> !current_partially_built_class_read c
+		| _ -> (DomainLocal.get current_partially_built_class_read) c
 		end;
 		if !DepRecord.enabled then DepRecord.record_type c.cl_path "members"
 	in
 	(* the signatures of the fields given to the macro *)
 	let fields l = if !DepRecord.enabled then List.iter (fun cf -> DepRecord.record_field c cf "sig") l; l in
 	let meta = match c.cl_header_meta with
-		| Some declared when not (!current_class_built_by_expansion c) ->
+		| Some declared when not ((DomainLocal.get current_class_built_by_expansion) c) ->
 			(* additions and removals go to the class's metadata as well *)
 			let view = ref declared in
-			encode_meta ~on_read:(fun () -> !current_declared_meta_read c) declared (fun m ->
+			encode_meta ~on_read:(fun () -> (DomainLocal.get current_declared_meta_read) c) declared (fun m ->
 				let added = List.filter (fun e -> not (List.memq e !view)) m in
 				let removed = List.filter (fun e -> not (List.memq e m)) !view in
 				let update l = added @ List.filter (fun e -> not (List.memq e removed)) l in
@@ -2441,7 +2441,7 @@ let macro_api ccom get_api =
 				c.cl_build_header ();
 				begin match TAccess.build c with
 				| Built -> ()
-				| _ -> !current_partially_built_class_read c
+				| _ -> (DomainLocal.get current_partially_built_class_read) c
 				end
 			| _ -> ()
 			end;
@@ -2489,9 +2489,9 @@ let macro_api ccom get_api =
 					c.cl_build_header ();
 					begin match (TAccess.build c) with
 					| Built -> ()
-					| _ -> !current_partially_built_class_read c
+					| _ -> (DomainLocal.get current_partially_built_class_read) c
 					end;
-					expansion_built := c :: !expansion_built
+					DomainLocal.set expansion_built (c :: (DomainLocal.get expansion_built))
 				| TAbstract({a_impl = Some c},_) ->
 					loop (TInst(c,[]))
 				| TType(td,tl) ->

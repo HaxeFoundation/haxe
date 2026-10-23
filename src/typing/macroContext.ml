@@ -325,7 +325,7 @@ let make_macro_api ctx mctx p =
 			raise_typing_error (Printf.sprintf "The fields of %s are read during its own build: use Context.getBuildFields()" (s_type_path c.cl_path)) p
 	in
 	let class_built_by_expansion c =
-		is_local_class c || List.memq c !MacroApi.expansion_built
+		is_local_class c || List.memq c (DomainLocal.get MacroApi.expansion_built)
 	in
 	let field_body_read cf =
 		if List.exists (fun (_,_,cf',_) -> cf' == cf) (DomainLocal.get TypeloadFields.TypeBinding.fields_being_inferred) then
@@ -887,9 +887,9 @@ let do_call_macro com api cpath name args p =
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
 	(* the classes whose build this expansion forces (Context.buildType) *)
-	let old_built = !MacroApi.expansion_built in
-	MacroApi.expansion_built := [];
-	let r = Std.finally (fun () -> MacroApi.expansion_built := old_built) (fun () ->
+	let old_built = (DomainLocal.get MacroApi.expansion_built) in
+	DomainLocal.set MacroApi.expansion_built ([]);
+	let r = Std.finally (fun () -> DomainLocal.set MacroApi.expansion_built (old_built)) (fun () ->
 		MacroApi.with_current_api api (fun () -> macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f api)
 	) () in
 	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ name);
@@ -1160,7 +1160,7 @@ let finalize_macro_api tctx mctx =
 	let api = make_macro_api tctx mctx null_pos in
 	match !macro_interp_cache with
 		| None -> ignore(create_macro_interp api mctx)
-		| Some mint -> mint.curapi <- api
+		| Some mint -> EvalContext.set_curapi mint api
 
 let interpret ctx args =
 	Parallel.ManagedPool.release ctx.com.sctx.pool;

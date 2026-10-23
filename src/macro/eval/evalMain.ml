@@ -101,7 +101,9 @@ let create com api is_macro args =
 		is_macro = is_macro;
 		debug = debug;
 		detail_times = detail_times;
-		curapi = api;
+		curapi_default = api;
+		curapi_local = DomainLocal.make (fun () -> None);
+		curapi_generation = 0;
 		builtins = builtins;
 		type_cache = IntMap.empty;
 		overrides = Hashtbl.create 0;
@@ -158,7 +160,7 @@ let create com api is_macro args =
 						Error.recurse_error (fun depth err ->
 							messages := (Message.make_message is_macro (Error.error_msg err.err_message) err.err_pos depth MKError) :: !messages;
 						) err;
-						MessageReporting.format_messages ((get_ctx()).curapi.MacroApi.get_com()).Common.defines !messages
+						MessageReporting.format_messages ((EvalContext.curapi (get_ctx())).MacroApi.get_com()).Common.defines !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -175,13 +177,13 @@ let call_path ctx path f vl api =
 	if ctx.had_error then
 		None
 	else begin
-		let old = ctx.curapi in
-		ctx.curapi <- api;
+		let old = (EvalContext.curapi ctx) in
+		EvalContext.set_curapi ctx api;
 		let path = match List.rev path with
 			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
-		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () -> (if ctx.is_macro then with_expansion else (fun f -> f ())) @@ fun () ->
+		catch_exceptions ctx ~final:(fun () -> EvalContext.set_curapi ctx old) (fun () -> (if ctx.is_macro then with_expansion else (fun f -> f ())) @@ fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
@@ -430,26 +432,26 @@ let setup get_api =
 	(* other macros run while a macro waits for the order: it gets its API back *)
 	Claims.speculation_resume := (fun () ->
 		let ctx = get_ctx () in
-		let api = ctx.curapi in
+		let api = (EvalContext.curapi ctx) in
 		let open MacroApi in
-		let a,b,c,d = !current_partially_built_class_read,!current_class_built_by_expansion,!current_field_body_read,!current_declared_meta_read in
-		let built = !expansion_built in
+		let a,b,c,d = (DomainLocal.get current_partially_built_class_read),(DomainLocal.get current_class_built_by_expansion),(DomainLocal.get current_field_body_read),(DomainLocal.get current_declared_meta_read) in
+		let built = (DomainLocal.get expansion_built) in
 		(fun () ->
-			ctx.curapi <- api;
-			current_partially_built_class_read := a;
-			current_class_built_by_expansion := b;
-			current_field_body_read := c;
-			current_declared_meta_read := d;
-			expansion_built := built
+			EvalContext.set_curapi ctx api;
+			DomainLocal.set current_partially_built_class_read (a);
+			DomainLocal.set current_class_built_by_expansion (b);
+			DomainLocal.set current_field_body_read (c);
+			DomainLocal.set current_declared_meta_read (d);
+			DomainLocal.set expansion_built (built)
 		)
 	);
-	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
+	let api = get_api (fun() -> (EvalContext.curapi (get_ctx())).get_com()) (fun() -> (EvalContext.curapi (get_ctx()))) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n (shared_state_api n v)
 	) api
 
 let do_reuse ctx api args =
-	ctx.curapi <- api;
+	EvalContext.set_curapi ctx api;
 	ctx.args <- args;
 	ctx.had_error <- false;
 	ctx.static_prototypes#reset
