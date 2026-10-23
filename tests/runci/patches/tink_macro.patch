@@ -1,8 +1,21 @@
-diff --git a/src/tink/macro/BuildCache.hx b/src/tink/macro/BuildCache.hx
-index 7664655..b66f942 100644
+--- a/src/tink/macro/Bouncer.hx
++++ b/src/tink/macro/Bouncer.hx
+@@ -9,9 +9,9 @@
+ #end
+ @:exclude class Bouncer {
+   #if macro
+-    static var idCounter = 0;
+-    static var bounceMap = new Map<Int,Void->Expr>();
+-    static var outerMap = new Map<Int,Expr->Expr>();
++    @:persistent static var idCounter = 0;
++    @:persistent static var bounceMap = new Map<Int,Void->Expr>();
++    @:persistent static var outerMap = new Map<Int,Expr->Expr>();
+     static public function bounceExpr(e:Expr, transform:Expr->Expr) {
+       var id = idCounter++,
+         pos = e.pos;
 --- a/src/tink/macro/BuildCache.hx
 +++ b/src/tink/macro/BuildCache.hx
-@@ -33,7 +33,7 @@ typedef BuildContext3 = {>BuildContext2,
+@@ -33,7 +33,7 @@
  
  class BuildCache {
  
@@ -11,11 +24,9 @@ index 7664655..b66f942 100644
  
    static public function getType3(name, ?types, ?pos:Position, build:BuildContext3->TypeDefinition, ?normalizer:Type->Type) {
       if (types == null)
-diff --git a/src/tink/macro/Exprs.hx b/src/tink/macro/Exprs.hx
-index b146296..013a818 100644
 --- a/src/tink/macro/Exprs.hx
 +++ b/src/tink/macro/Exprs.hx
-@@ -116,7 +116,7 @@ class Exprs {
+@@ -116,7 +116,7 @@
    static public function getPrivate(e:Expr, field:String, ?pos:Position)
      return macro @:pos(pos.sanitize()) @:privateAccess $e.$field;
  
@@ -24,7 +35,7 @@ index b146296..013a818 100644
      return
        transform(source, function (e:Expr) {
          return switch e {
-@@ -189,7 +189,7 @@ class Exprs {
+@@ -189,7 +189,7 @@
      );
    }
  
@@ -33,11 +44,9 @@ index b146296..013a818 100644
      function apply(e:Expr)
        return switch e {
          case null | { expr: null }: e;
-diff --git a/src/tink/macro/Functions.hx b/src/tink/macro/Functions.hx
-index bbe1946..691b64c 100644
 --- a/src/tink/macro/Functions.hx
 +++ b/src/tink/macro/Functions.hx
-@@ -34,7 +34,7 @@ class Functions {
+@@ -34,7 +34,7 @@
      }
    }
  
@@ -46,11 +55,9 @@ index bbe1946..691b64c 100644
      return {
        ret: Types.map(f.ret, transform),
        args: [for (a in f.args) {
-diff --git a/src/tink/macro/Sisyphus.hx b/src/tink/macro/Sisyphus.hx
-index fba3fb9..063d734 100644
 --- a/src/tink/macro/Sisyphus.hx
 +++ b/src/tink/macro/Sisyphus.hx
-@@ -138,7 +138,7 @@ class Sisyphus {
+@@ -138,7 +138,7 @@
      }
    }
  
@@ -59,7 +66,7 @@ index fba3fb9..063d734 100644
      var t = r.get();
      var isMain = !t.isPrivate && switch t.pack {
        case []: t.module == t.name || t.module == 'StdTypes';
-@@ -183,7 +183,7 @@ class Sisyphus {
+@@ -183,7 +183,7 @@
    static function exactSig(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type, sep:String)
      return '(${[for (a in args) (if (a.opt) '?' else '') + a.name + ':' + toExactString(a.t)].join(', ')})$sep${toExactString(ret)}';
  
@@ -68,11 +75,9 @@ index fba3fb9..063d734 100644
      return switch t {
        case TMono(t): t.toString();
        case TEnum(r, params): exactBase(r, params);
-diff --git a/src/tink/macro/TypedExprs.hx b/src/tink/macro/TypedExprs.hx
-index 4e3db6d..079d084 100644
 --- a/src/tink/macro/TypedExprs.hx
 +++ b/src/tink/macro/TypedExprs.hx
-@@ -54,6 +54,6 @@ class TypedExprs {
+@@ -54,6 +54,6 @@
    static public function contains(t:TypedExpr, f:TypedExpr->Bool):Bool
      return find(t, f) != None;
  
@@ -81,11 +86,20 @@ index 4e3db6d..079d084 100644
      return function (t) return if (f(t)) Some(t) else None;
  }
 \ No newline at end of file
-diff --git a/src/tink/macro/Types.hx b/src/tink/macro/Types.hx
-index 86c85ab..cafbfa5 100644
 --- a/src/tink/macro/Types.hx
 +++ b/src/tink/macro/Types.hx
-@@ -73,7 +73,7 @@ class Types {
+@@ -23,8 +23,8 @@
+         if (Std.string(e) == 'Type not found \'$typeName\'') None;
+         else tink.core.Error.rethrow(e);
+ 
+-  static var types = new Map<Int,Void->Type>();
+-  static var idCounter = 0;
++  @:persistent static var types = new Map<Int,Void->Type>();
++  @:persistent static var idCounter = 0;
+   static public function getID(t:Type, ?reduced = true)
+     return
+       if (reduced)
+@@ -73,7 +73,7 @@
        getDeclaredFields(t.superClass.t.get(), out, marker);
    }
  
@@ -94,7 +108,7 @@ index 86c85ab..cafbfa5 100644
      return
        if (a == null) null;
        else [for (p in a) switch p {
-@@ -102,7 +102,7 @@ class Types {
+@@ -102,7 +102,7 @@
        params: mapTypeParams(p.params, transform),
      }
  
@@ -103,7 +117,7 @@ index 86c85ab..cafbfa5 100644
      if (ct == null)
        return null;
      inline function rec(ct)
-@@ -146,7 +146,7 @@ class Types {
+@@ -146,7 +146,7 @@
      });
    }
  
@@ -112,7 +126,7 @@ index 86c85ab..cafbfa5 100644
    static public function getFields(t:Type, ?substituteParams = true)
      return
        switch (reduce(t)) {
-@@ -225,7 +225,7 @@ class Types {
+@@ -225,7 +225,7 @@
    }
  
    /// like haxe.macro.TypeTools.toString, but not lossy

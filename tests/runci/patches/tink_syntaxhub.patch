@@ -1,0 +1,46 @@
+--- a/src/tink/SyntaxHub.hx
++++ b/src/tink/SyntaxHub.hx
+@@ -14,8 +14,8 @@
+ 
+ class SyntaxHub {
+ 
+-  static var MAIN:Null<String> = null;
+-  static var registered = false;
++  @:persistent static var MAIN:Null<String> = null;
++  @:persistent static var registered = false;
+   static function use() {
+     if (registered) return;
+     registered = true;
+@@ -53,9 +53,9 @@
+         default: null;
+       }
+ 
+-  static public var classLevel(default, null) = new Queue<ClassBuilder->Bool>();
+-  static public var exprLevel(default, null) = new ExprLevelSyntax('tink.SyntaxHub::exprLevel');
+-  static public var transformMain(default, null) = new Queue<Expr->Expr>();
++  @:persistent static public var classLevel(default, null) = new Queue<ClassBuilder->Bool>();
++  @:persistent static public var exprLevel(default, null) = new ExprLevelSyntax('tink.SyntaxHub::exprLevel');
++  @:persistent static public var transformMain(default, null) = new Queue<Expr->Expr>();
+ 
+   static public var frontends(get, never):Queue<FrontendPlugin>;
+ 
+--- a/src/tink/syntaxhub/FrontendContext.hx
++++ b/src/tink/syntaxhub/FrontendContext.hx
+@@ -73,7 +73,7 @@
+       kind: KUsing(name.asTypePath())
+     });
+ 
+-  static public var plugins(default, null) = new Queue<FrontendPlugin>();
++  @:persistent static public var plugins(default, null) = new Queue<FrontendPlugin>();
+ 
+   static function buildModule(pack:Array<String>, name:String) {
+     var ret = new FrontendContext(name, pack);
+@@ -147,7 +147,7 @@
+     }
+   }
+ 
+-  static var cache:Map<String,TypeDefinition>;
++  @:persistent static var cache:Map<String,TypeDefinition>;
+   static public function resetCache()
+     cache = new Map();
+ 
