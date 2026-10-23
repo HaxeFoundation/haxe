@@ -803,7 +803,7 @@ and gen_field_access_name ctx fa =
         print ctx "'%s'" efld.ef_name
 
 and gen_expr ?(local=true) ctx e = begin
-    let clear_mapping = add_mapping ctx.smap e in
+    let mapping = add_mapping ctx.smap e in
     match e.eexpr with
       TConst c ->
         gen_constant ctx e.epos c;
@@ -1245,14 +1245,14 @@ and gen_expr ?(local=true) ctx e = begin
     | TIdent s ->
         spr ctx s;
 
-    clear_mapping ()
+    clear_mapping ctx.smap mapping
 end;
 
     (* gen_block_element handles expressions that map to "statements" in lua. *)
     (* It handles no-op situations, and ensures that expressions are formatted with newlines *)
 and gen_block_element ctx e  =
     ctx.iife_assign <- false;
-    let clear_mapping = add_mapping ctx.smap e in
+    let mapping = add_mapping ctx.smap e in
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
@@ -1316,7 +1316,7 @@ and gen_block_element ctx e  =
             gen_expr ctx e;
             semicolon ctx;
     end;
-    clear_mapping ()
+    clear_mapping ctx.smap mapping
 
     (* values generated in anon structures can get modified.  Functions are bind-ed *)
     (* and include a dummy "self" leading variable so they can be called like normal *)
@@ -1341,7 +1341,7 @@ and gen_anon_value ctx e =
         gen_value ctx e
 
 and gen_value ctx e =
-    let clear_mapping = add_mapping ctx.smap e in
+    let mapping = add_mapping ctx.smap e in
     let assign e =
         mk (TBinop (Ast.OpAssign,
                     mk (TLocal (match ctx.in_value with None -> Globals.die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -1472,7 +1472,7 @@ and gen_value ctx e =
                                          List.map (fun (v,e) -> v, block (assign e)) catchs
                                         )) e.etype e.epos);
         v();
-    clear_mapping ()
+    clear_mapping ctx.smap mapping
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with

@@ -42,39 +42,25 @@ and sourcemap_pos = {
 
 let base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
+(* Adds [number] to [b] as a base64 VLQ. *)
+let rec add_vlq_digits b vlq =
+	let digit = vlq land 31 and next = vlq asr 5 in
+	Buffer.add_char b (String.unsafe_get base64_chars (if next > 0 then digit lor 32 else digit));
+	if next > 0 then add_vlq_digits b next
+
+let add_base64_vlq b number =
+	add_vlq_digits b (if number < 0 then ((-number) lsl 1) + 1 else number lsl 1)
+
 let encode_mapping smap pos =
 	if smap.print_comma then
 		Buffer.add_char smap.mappings ','
 	else
 		smap.print_comma <- true;
-
-	let base64_vlq number =
-		let encode_digit digit = String.unsafe_get base64_chars digit in
-		let to_vlq number =
-			if number < 0 then
-				((-number) lsl 1) + 1
-			else
-				number lsl 1
-		in
-		let rec loop vlq =
-			let shift = 5 in
-			let base = 1 lsl shift in
-			let mask = base - 1 in
-			let continuation_bit = base in
-			let digit = vlq land mask in
-			let next = vlq asr shift in
-			Buffer.add_char smap.mappings (encode_digit (
-				if next > 0 then digit lor continuation_bit else digit));
-			if next > 0 then loop next else ()
-		in
-		loop (to_vlq number)
-	in
-
-	base64_vlq (smap.output_current_col - smap.output_last_col);
-	base64_vlq (pos.file - smap.source_last_pos.file);
-	base64_vlq (pos.line - smap.source_last_pos.line);
-	base64_vlq (pos.col - smap.source_last_pos.col);
-
+	let b = smap.mappings and last = smap.source_last_pos in
+	add_base64_vlq b (smap.output_current_col - smap.output_last_col);
+	add_base64_vlq b (pos.file - last.file);
+	add_base64_vlq b (pos.line - last.line);
+	add_base64_vlq b (pos.col - last.col);
 	smap.source_last_pos <- pos;
 	smap.output_last_col <- smap.output_current_col
 
@@ -97,25 +83,39 @@ let source_file smap file_name =
 		smap.last_file <- Some (file_name,file,lexer_file);
 		file,lexer_file
 
+(* What [add_mapping] gives when the mapping did not change: nothing to put
+   back. *)
+let unchanged = Some { file = -2; line = 0; col = 0 }
+
+(* Maps the output that follows to [pos]: gives the mapping to put back with
+   [clear_mapping] once the expression is output (no closure, no option is
+   allocated for it). *)
 let add_source_mapping smap pos =
 	let last = smap.source_last_pos in
 	if last.file <> pos.file || last.line <> pos.line || last.col <> pos.col then begin
 		let old_current_expr = smap.current_expr in
 		smap.current_expr <- Some pos;
 		encode_mapping smap pos;
-		(fun () -> smap.current_expr <- old_current_expr)
+		old_current_expr
 	end else
-		noop
+		unchanged
 
 let add_mapping smap pos =
-	if (Pos.min pos) < 0 then noop else begin
+	if (Pos.min pos) < 0 then unchanged else begin
 		let file,lexer_file = source_file smap (Pos.file pos) in
 		let line, col = Lexer.find_line (Pos.min pos) lexer_file in
 		add_source_mapping smap { file = file; line = line - 1; col = col }
 	end
 
 let add_mapping smap e =
-	Option.map_default (fun smap -> add_mapping smap e.epos) noop smap
+	match smap with
+	| Some smap -> add_mapping smap e.epos
+	| None -> unchanged
+
+let clear_mapping smap old =
+	if old != unchanged then match smap with
+		| Some smap -> smap.current_expr <- old
+		| None -> ()
 
 (* The text [str] from [from] to [upto] is output. *)
 let handle_newlines_sub smap str from upto =

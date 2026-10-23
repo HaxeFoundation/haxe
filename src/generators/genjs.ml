@@ -469,7 +469,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	let clear_mapping = add_mapping ctx.smap e in
+	let mapping = add_mapping ctx.smap e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -743,7 +743,7 @@ and gen_expr ctx e =
 	| TIdent s ->
 		spr ctx s
 	);
-	clear_mapping ()
+	clear_mapping ctx.smap mapping
 
 and gen_function ?(keyword="function") ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
@@ -810,7 +810,7 @@ and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 		if newline_after then newline ctx
 
 and gen_value ctx e =
-	let clear_mapping = add_mapping ctx.smap e in
+	let mapping = add_mapping ctx.smap e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -926,7 +926,7 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	clear_mapping ()
+	clear_mapping ctx.smap mapping
 
 and gen_syntax ctx meth args pos =
 	match meth, args with
