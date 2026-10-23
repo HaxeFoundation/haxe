@@ -1,3 +1,4 @@
+diff --git a/src/tink/SyntaxHub.hx b/src/tink/SyntaxHub.hx
 --- a/src/tink/SyntaxHub.hx
 +++ b/src/tink/SyntaxHub.hx
 @@ -14,8 +14,8 @@
@@ -24,6 +25,7 @@
  
    static public var frontends(get, never):Queue<FrontendPlugin>;
  
+diff --git a/src/tink/syntaxhub/FrontendContext.hx b/src/tink/syntaxhub/FrontendContext.hx
 --- a/src/tink/syntaxhub/FrontendContext.hx
 +++ b/src/tink/syntaxhub/FrontendContext.hx
 @@ -73,7 +73,7 @@

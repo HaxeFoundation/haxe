@@ -1,3 +1,4 @@
+diff --git a/src/tink/macro/Bouncer.hx b/src/tink/macro/Bouncer.hx
 --- a/src/tink/macro/Bouncer.hx
 +++ b/src/tink/macro/Bouncer.hx
 @@ -9,9 +9,9 @@
@@ -13,6 +14,7 @@
      static public function bounceExpr(e:Expr, transform:Expr->Expr) {
        var id = idCounter++,
          pos = e.pos;
+diff --git a/src/tink/macro/BuildCache.hx b/src/tink/macro/BuildCache.hx
 --- a/src/tink/macro/BuildCache.hx
 +++ b/src/tink/macro/BuildCache.hx
 @@ -33,7 +33,7 @@
@@ -24,6 +26,7 @@
  
    static public function getType3(name, ?types, ?pos:Position, build:BuildContext3->TypeDefinition, ?normalizer:Type->Type) {
       if (types == null)
+diff --git a/src/tink/macro/Exprs.hx b/src/tink/macro/Exprs.hx
 --- a/src/tink/macro/Exprs.hx
 +++ b/src/tink/macro/Exprs.hx
 @@ -116,7 +116,7 @@
@@ -44,6 +47,7 @@
      function apply(e:Expr)
        return switch e {
          case null | { expr: null }: e;
+diff --git a/src/tink/macro/Functions.hx b/src/tink/macro/Functions.hx
 --- a/src/tink/macro/Functions.hx
 +++ b/src/tink/macro/Functions.hx
 @@ -34,7 +34,7 @@
@@ -55,6 +59,7 @@
      return {
        ret: Types.map(f.ret, transform),
        args: [for (a in f.args) {
+diff --git a/src/tink/macro/Sisyphus.hx b/src/tink/macro/Sisyphus.hx
 --- a/src/tink/macro/Sisyphus.hx
 +++ b/src/tink/macro/Sisyphus.hx
 @@ -138,7 +138,7 @@
@@ -75,6 +80,7 @@
      return switch t {
        case TMono(t): t.toString();
        case TEnum(r, params): exactBase(r, params);
+diff --git a/src/tink/macro/TypedExprs.hx b/src/tink/macro/TypedExprs.hx
 --- a/src/tink/macro/TypedExprs.hx
 +++ b/src/tink/macro/TypedExprs.hx
 @@ -54,6 +54,6 @@
@@ -86,6 +92,7 @@
      return function (t) return if (f(t)) Some(t) else None;
  }
 \ No newline at end of file
+diff --git a/src/tink/macro/Types.hx b/src/tink/macro/Types.hx
 --- a/src/tink/macro/Types.hx
 +++ b/src/tink/macro/Types.hx
 @@ -23,8 +23,8 @@
