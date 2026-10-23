@@ -138,6 +138,9 @@ let make_macro_com_api com mcom p =
 		include_module = (fun s ->
 			bad_stage ()
 		);
+		preparse_modules = (fun _ ->
+			bad_stage ()
+		);
 		after_init_macros = (fun f ->
 			com.callbacks#add_after_init_macros (fun () ->
 				macro_timer com.timer_ctx timer_level ["afterInitMacros"] None f ();
@@ -439,6 +442,27 @@ let make_macro_api ctx mctx p =
 				let path = parse_path s in
 				ignore(TypeloadModule.load_module ~origin:MDepFromMacroInclude ctx path p)
 			)
+		);
+		(* the modules that the next calls will include are parsed in parallel
+		   (parsing is a function of the file and of the defines): their
+		   creation, in the order of the calls, then finds them parsed *)
+		MacroApi.preparse_modules = (fun l ->
+			if Parallel.is_enabled () && not !TypingLock.active then begin
+				(* a package can be in several class paths *)
+				let seen = Hashtbl.create 0 in
+				let ms = Array.of_list (List.filter_map (fun s ->
+					let m = parse_path s in
+					if ctx.com.module_lut#mem m || Hashtbl.mem seen m then None else (Hashtbl.add seen m (); Some m)
+				) l) in
+				if Array.length ms > 1 then begin
+					TypingLock.active := true;
+					Std.finally (fun () -> TypingLock.active := false) (Timer.time ctx.com.timer_ctx ["parsing";"in parallel"] (fun () ->
+						Parallel.run_with_pool ctx.com.sctx.pool (fun pool ->
+							Parallel.ParallelArray.iter pool (fun m -> TypeloadParse.preparse ctx.com m p) ms
+						)
+					)) ()
+				end
+			end
 		);
 		MacroApi.type_expr = (fun e ->
 			typing_timer ctx true (fun ctx -> type_expr ctx e WithType.value)

@@ -29,6 +29,7 @@ type 'value compiler_api = {
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	include_module : string -> unit;
+	preparse_modules : string list -> unit;
 	after_init_macros : (unit -> unit) -> unit;
 	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> bool -> unit;
@@ -98,6 +99,7 @@ let null_api () = {
 	get_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	get_module = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	include_module = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	preparse_modules = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	after_init_macros = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	after_typing = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
 	on_generate = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
@@ -2121,6 +2123,10 @@ let macro_api ccom get_api =
 		);
 		"include_module", vfun1 (fun s ->
 			(get_api()).include_module (decode_string s);
+			vnull
+		);
+		"preparse_modules", vfun1 (fun a ->
+			(get_api()).preparse_modules (List.map decode_string (decode_array a));
 			vnull
 		);
 		"on_after_init_macros", vfun1 (fun f ->

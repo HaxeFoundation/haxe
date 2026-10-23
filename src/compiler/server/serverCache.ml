@@ -8,8 +8,10 @@ open TypeloadCacheHook
 exception Dirty of module_skip_reason
 exception ServerError of string
 
+(* Files are parsed in parallel ([TypeloadParse.preparse]): the caches are
+   read and written under the leaf lock, the parsing itself runs outside. *)
 let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
-	let cc = CommonCache.get_cache com in
+	let cc = TypingLock.protect_leaf (fun () -> CommonCache.get_cache com) in
 	let file = rfile.file in
 	let ffile = Path.get_full_path rfile.file
 	and fkey = com.part_scope.file_keys#get file in
@@ -20,16 +22,22 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	| _ ->
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
-			try
-				let cfile = cc#find_file fkey in
-				if cfile.c_time <> ftime then raise Not_found;
-				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
-			with Not_found -> match (if is_display_file then None else sctx.cs#find_shared_parse fkey ftime com.defines) with
-			| Some sp ->
-				(* parsed by another context where the defines read have the same values *)
-				cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime sp.sp_data sp.sp_pdi;
-				ServerMessage.parsed com "" (ffile,"shared with another context");
-				Parser.ParseSuccess(sp.sp_data,sp.sp_pdi)
+			let cached = TypingLock.protect_leaf (fun () ->
+				try
+					let cfile = cc#find_file fkey in
+					if cfile.c_time <> ftime then raise Not_found;
+					Some (Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi))
+				with Not_found -> match (if is_display_file then None else sctx.cs#find_shared_parse fkey ftime com.defines) with
+				| Some sp ->
+					(* parsed by another context where the defines read have the same values *)
+					cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime sp.sp_data sp.sp_pdi;
+					ServerMessage.parsed com "" (ffile,"shared with another context");
+					Some (Parser.ParseSuccess(sp.sp_data,sp.sp_pdi))
+				| None ->
+					None
+			) in
+			match cached with
+			| Some r -> r
 			| None ->
 				let parse_result = TypeloadParse.parse_file com rfile p in
 				let info,is_unusual = match parse_result with
@@ -39,7 +47,7 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 							if pdi.pd_errors <> [] then
 								"not cached, is display file with parse errors",true
 							else if com.display.dms_per_file then begin
-								cc#cache_file fkey rfile ftime data pdi;
+								TypingLock.protect_leaf (fun () -> cc#cache_file fkey rfile ftime data pdi);
 								"cached, is intact display file",true
 							end else
 								"not cached, is display file",true
@@ -50,8 +58,10 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 							let ident = ThreadSafeHashtbl.find com.part_scope.parser_state.special_identifier_files fkey in
 							Printf.sprintf "not cached, using \"%s\" define" ident,true
 						with Not_found ->
-							cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
-							sctx.cs#add_shared_parse fkey ftime data pdi;
+							TypingLock.protect_leaf (fun () ->
+								cc#cache_file fkey (ClassPaths.create_resolved_file ffile rfile.class_path) ftime data pdi;
+								sctx.cs#add_shared_parse fkey ftime data pdi
+							);
 							"cached",false
 						end
 				in

@@ -140,6 +140,8 @@ class Compiler {
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
+		// the modules to include, in order: they are parsed in parallel before being included
+		var modules = [];
 		function include(pack:String, ?rec = true, ?ignore:Array<String>, ?classPaths:Array<String>, strict = false) {
 			var ignoreWildcard:Array<String> = [];
 			var ignoreString:Array<String> = [];
@@ -201,7 +203,7 @@ class Compiler {
 						var cl = prefix + file.substr(0, file.length - 3);
 						if (skip(cl))
 							continue;
-						load("include_module", 1)(cl);
+						modules.push(cl);
 					} else if (rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file))
 						include(prefix + file, true, ignore, classPaths);
 				}
@@ -211,7 +213,12 @@ class Compiler {
 		}
 
 		Context.assertInitMacro();
-		Context.onAfterInitMacros(() -> include(pack, rec, ignore, classPaths, strict));
+		Context.onAfterInitMacros(() -> {
+			include(pack, rec, ignore, classPaths, strict);
+			load("preparse_modules", 1)(modules);
+			for (cl in modules)
+				load("include_module", 1)(cl);
+		});
 	}
 
 	/**

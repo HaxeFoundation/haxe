@@ -907,7 +907,7 @@ let load_module_now origin ctx m p =
 		add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 		m2
 	| None ->
-		if !TypingLock.active && not !TypeloadCacheHook.server_active && not (ctx.com.module_lut#mem m) then begin
+		if !TypingLock.active && not (ctx.com.module_lut#mem m) then begin
 			TypeloadParse.preparse ctx.com m p;
 			(* the modules are created in the order of the tasks *)
 			Claims.in_order Claims.OrderModule
