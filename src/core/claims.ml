@@ -114,6 +114,11 @@ let take_macro_claim () =
 		incr claim_seq;
 		let o = { mo_domain = me; mo_count = 1; mo_seq = !claim_seq } in
 		macro_owners := o :: !macro_owners;
+		(* the domains waiting for the claim wait for its owner to change: a
+		   domain let through to break a cycle that takes it over must wake
+		   them, or the one whose condition now holds sleeps on while the cycle
+		   search of the others takes it for running *)
+		Condition.broadcast done_;
 		o
 	in
 	let rec claim () =
