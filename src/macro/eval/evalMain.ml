@@ -416,10 +416,21 @@ let speculative_api = [
 	"get_build_fields";
 ]
 
+(* The functions of the API that read nothing of the compilation (their
+   arguments, the position of the running expansion, a flag): they run
+   without the typing lock. They are called very often (SpaceCraft: 150000
+   calls), and taking the lock for each made the macros, which are the
+   critical path of typing, wait for the domains typing bodies. *)
+let lock_free_api = [
+	"init_macros_done"; "make_expr"; "current_pos"; "get_pos_infos"; "make_position";
+]
+
 (* The functions of the API run under the typing lock: a speculating macro
    runs without it (see [MacroContext.do_call_macro]). *)
 let shared_state_api n v =
 	match v with
+	| VFunction _ when List.mem n lock_free_api ->
+		v
 	| VFunction (f,static) ->
 		let locked vl = TypingLock.protect (fun () -> f vl) in
 		if List.mem n speculative_api then VFunction (locked,static)
