@@ -1394,14 +1394,59 @@ let setup_args_ret ctx cctx fctx name fd p =
 			None
 	in
 	let is_extern = fctx.is_extern || has_class_flag ctx.c.curclass CExtern in
+	(* The arguments of the field this method overrides or implements (Haxe 6
+	   rule): an argument without type hint has the type of the same argument
+	   there, known before the body is typed. Only for a field of the same arity
+	   and without type parameters of its own. *)
+	let inherits = not (fctx.is_static || fctx.is_macro || fctx.field_kind = CfrConstructor || cctx.abstract <> None || fd.f_params <> []) in
+	let nargs = List.length fd.f_args in
+	(* The declared arguments of the field overridden or implemented, from the
+	   super class then the interfaces: read through [declared_args], never by
+	   typing its body (its signature can depend on it). *)
+	let inherited_args = AtomicLazy.from_fun (fun () ->
+		if not inherits then
+			None
+		else begin
+			let parents = (match TAccess.Header.super c with Some st -> [st] | None -> []) @ TAccess.Header.implements c in
+			let rec loop = function
+				| [] -> None
+				| (cp,tl) :: l ->
+					match (try Some (raw_class_field (fun f -> f.cf_type) cp tl name) with Not_found -> None) with
+					| Some (Some (c2,tl2),_,cf) when cf.cf_params = [] ->
+						begin match find_declared_args c2 cf.cf_name with
+						| Some (n,f) when n = nargs -> Some (fun i -> Option.map (apply_params c2.cl_params tl2) (f i))
+						| _ -> loop l
+						end
+					| _ -> loop l
+			in
+			loop parents
+		end
+	) in
+	let inherited_arg i = match AtomicLazy.force inherited_args with
+		| Some f -> f i
+		| None -> None
+	in
+	(* registers the declared types of the arguments of this method *)
+	if inherits then begin
+		let declared = Array.init nargs (fun i -> AtomicLazy.from_fun (fun () ->
+			let (_,_,_,cto,eo) = List.nth fd.f_args i in
+			match cto,eo with
+			| Some _,_ -> Some (type_opt (ctx,cctx,fctx) p LoadNormal cto)
+			| None,Some e when TypeBinding.literal_type ctx.t e <> None -> TypeBinding.literal_type ctx.t e
+			| None,_ -> inherited_arg i
+		)) in
+		set_declared_args c name nargs (fun i -> AtomicLazy.force declared.(i))
+	end;
 	let type_arg i opt cto p =
 		let def () = match cto,(try let (_,_,_,_,eo) = List.nth fd.f_args i in eo with _ -> None) with
 			| None,Some e when not fctx.is_macro ->
 				(* an argument typed by its literal default value (Haxe 6 rule) *)
 				begin match TypeBinding.literal_type ctx.t e with
 				| Some t -> t
-				| None -> type_opt (ctx,cctx,fctx) p LoadNormal cto
+				| None -> (match inherited_arg i with Some t -> t | None -> type_opt (ctx,cctx,fctx) p LoadNormal cto)
 				end
+			| None,_ ->
+				(match inherited_arg i with Some t -> t | None -> type_opt (ctx,cctx,fctx) p LoadNormal cto)
 			| _ ->
 				type_opt (ctx,cctx,fctx) p LoadNormal cto
 		in

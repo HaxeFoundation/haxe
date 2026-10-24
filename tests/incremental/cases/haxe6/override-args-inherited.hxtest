@@ -1,0 +1,36 @@
+# An argument without type hint of an override or of an implementation of an
+# interface has the declared type of the same argument of the parent field,
+# known before the body is typed (Haxe 6 rule).
+=== initial
+@expect-output 3 interface 2
+--- Main.hx
+class Main {
+	static function main() {
+		var b:Base = new Child();
+		var s:Source = new Child();
+		trace(b.add(1, 2) + " " + s.describe("interface", 2));
+	}
+}
+--- Base.hx
+class Base {
+	public function new() {}
+	public function add(a:Int, b:Int):Int return a + b;
+}
+--- Source.hx
+interface Source {
+	function describe(name:String, n:Int):String;
+}
+--- Child.hx
+class Child extends Base implements Source {
+	override function add(a, b) return a + b;
+	public function describe(name, n) return name + " " + n;
+}
+
+=== the argument of a static function is still unresolved
+@expect-error unused
+--- Child.hx
+class Child extends Base implements Source {
+	override function add(a, b) return a + b;
+	public function describe(name, n) return name + " " + n;
+	static function unused(x) return x;
+}

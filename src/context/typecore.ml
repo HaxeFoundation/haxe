@@ -561,6 +561,36 @@ let make_program_queues () = {
    in parallel, without the typing lock: units are added often. *)
 let program_mutex = Mutex.create ()
 
+(* The types of the arguments of the methods as declared (Haxe 6 rule), by
+   class and name: the number of arguments, and for argument [i] its type hint,
+   the type of its literal default value or the declared type of the same
+   argument of the method it overrides or implements, if any. Known without
+   typing the body of the method: an override or implementation reads them for
+   its arguments without type hint (see [TypeloadFields.setup_args_ret]). *)
+(* by class (the macro context has its own classes, and those of a previous
+   compilation of a server are released with them), then by name *)
+module ClassTbl = Ephemeron.K1.Make(struct
+	type t = tclass
+	let equal = (==)
+	let hash c = Hashtbl.hash c.cl_path
+end)
+let declared_args : (string, int * (int -> t option)) Hashtbl.t ClassTbl.t = ClassTbl.create 0
+let declared_args_mutex = Mutex.create ()
+
+let set_declared_args c name n f =
+	Mutex.protect declared_args_mutex (fun () ->
+		let h = match ClassTbl.find_opt declared_args c with
+			| Some h -> h
+			| None -> let h = Hashtbl.create 0 in ClassTbl.replace declared_args c h; h
+		in
+		Hashtbl.replace h name (n,f))
+
+let find_declared_args c name =
+	Mutex.protect declared_args_mutex (fun () ->
+		match ClassTbl.find_opt declared_args c with
+		| Some h -> Hashtbl.find_opt h name
+		| None -> None)
+
 let with_queues f = if !TypingLock.active then Mutex.protect program_mutex f else f ()
 
 (* The queues of the task of a parallel batch that the current domain runs: the
