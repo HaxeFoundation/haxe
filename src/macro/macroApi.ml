@@ -1250,9 +1250,13 @@ and encode_cfield f =
 	encode_obj [
 		"name", encode_string f.cf_name;
 		(* reading the type demands the field's signature (docs/incremental-compilation.md,
-		   §3.3); a type being inferred keeps its lazy encoding *)
+		   §3.3); a type being inferred keeps its lazy encoding, unless another domain
+		   infers it: the macro waits for it, as on one domain it would not run meanwhile *)
 		"type", encode_lazy (AtomicLazy.from_fun (fun () -> match f.cf_type with
-			| TLazy r when (match !r with LWait _ -> true | _ -> false) -> encode_lazy_type (lazy_type r)
+			| TLazy r when (match !r with
+				| LWait _ -> true
+				| LProcessing _ -> !TypingLock.active && Mutex.protect Claims.mutex (fun () -> match lazy_owner r with Some d -> d <> Domain.self () | None -> false)
+				| LAvailable _ -> false) -> encode_lazy_type (lazy_type r)
 			| t -> encode_lazy_type t
 		));
 		"isPublic", vbool (has_class_field_flag f CfPublic);

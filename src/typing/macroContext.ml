@@ -891,9 +891,11 @@ let do_call_macro com api cpath name args p =
 	(* the classes whose build this expansion forces (Context.buildType) *)
 	let old_built = (DomainLocal.get MacroApi.expansion_built) in
 	DomainLocal.set MacroApi.expansion_built ([]);
-	(* a speculating macro runs without the typing lock, which its calls to the
-	   API take: other domains type and run their macros meanwhile *)
-	let run f api = if Claims.is_speculating () && !TypingLock.active then TypingLock.without (fun () -> f api) else f api in
+	(* a macro runs without the typing lock, which its calls to the API take:
+	   other domains type meanwhile. What the macros share is ordered by the
+	   claim of the macros: a speculating macro takes it at its first access
+	   to it, the others run with it. *)
+	let run f api = if !TypingLock.active then TypingLock.without (fun () -> f api) else f api in
 	let r = Std.finally (fun () -> DomainLocal.set MacroApi.expansion_built (old_built)) (fun () ->
 		MacroApi.with_current_api api (fun () -> macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None (run f) api)
 	) () in
