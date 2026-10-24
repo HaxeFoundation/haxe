@@ -1,0 +1,36 @@
+# Mutually recursive fields without annotations are not an inference cycle
+# when the type of the field read is already fully determined at that point:
+# a first `return` set its return type before the recursive call.
+=== initial
+@expect-output { { 1 }, { 2 } }
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.objToString([1, 2]));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function objToString(o:Dynamic) {
+		if (o == null) return "null";
+		return "{ " + colToString(o) + " }";
+	}
+	static function colToString(v:Dynamic) {
+		if (Std.isOfType(v, Array)) return [for (x in (v:Array<Dynamic>)) objToString(x)].join(", ");
+		return Std.string(v);
+	}
+}
+
+=== the type is not known yet at the recursive call: still a cycle
+@expect-error annotation
+--- Dep.hx
+class Dep {
+	public static function objToString(o:Dynamic) {
+		if (o != null) return "{ " + colToString(o) + " }";
+		return "null";
+	}
+	static function colToString(v:Dynamic) {
+		if (Std.isOfType(v, Array)) return [for (x in (v:Array<Dynamic>)) objToString(x)].join(", ");
+		return Std.string(v);
+	}
+}

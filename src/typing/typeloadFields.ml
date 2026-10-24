@@ -716,9 +716,14 @@ module TypeBinding = struct
 		match DomainLocal.get fields_being_inferred with
 		| (r_top,ctx,cf_reader,_) :: rest when r_top != r ->
 			(* Only fields whose type is inferred from their body form an inference
-			   cycle: an annotated field's type is known from its declaration. *)
+			   cycle: an annotated field's type is known from its declaration. A
+			   type already fully determined when it is read is not one either
+			   (a recursive function whose return type was set by a first `return`
+			   before the recursive call): what is bound does not change, the
+			   reader sees the final type. *)
+			let complete = match !r with LProcessing t -> is_full_type t | _ -> false in
 			begin match List.find_opt (fun (r',_,_,_) -> r' == r) rest with
-			| Some (_,_,cf_read,true) when Mutex.protect reported_cycles_mutex (fun () ->
+			| Some (_,_,cf_read,true) when not complete && Mutex.protect reported_cycles_mutex (fun () ->
 				let step = ctx.com.part_scope.compilation_step in
 				let key = (step,cf_reader.cf_name_pos,cf_read.cf_name) in
 				not (List.mem key !reported_cycles) && begin

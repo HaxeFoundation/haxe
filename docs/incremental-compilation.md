@@ -422,7 +422,12 @@ abstract without type parameters) returns the abstract, also without typing
 its body, and a `switch` over an enum abstract reads its values only: both
 made false inference cycles between the inferred methods of an abstract (the
 search of its casts or of its values read the types of all its fields; test
-`tests/incremental/cases/haxe6/abstract-fields-no-false-cycle.hxtest`). A variable initialized with a
+`tests/incremental/cases/haxe6/abstract-fields-no-false-cycle.hxtest`). Reading a field
+whose type is being inferred is not an inference cycle when that type is
+already fully determined at that point (a first `return` set the return type
+before the recursive call): what is bound does not change, the reader sees the
+final type (test `tests/incremental/cases/haxe6/recursion-type-already-known.hxtest`;
+castle: `Sheet.objToString` / `colToString`, `Database.valToString`). A variable initialized with a
 `Dynamic` expression is not given the type `Dynamic`: it is an unresolved
 type like the others (a first version of this branch made it `Dynamic`). The unit tests (js, macro, hl),
 the server and misc tests, the incremental suite and Heaps compile
