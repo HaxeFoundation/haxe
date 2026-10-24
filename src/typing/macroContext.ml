@@ -335,7 +335,7 @@ let make_macro_api ctx mctx p =
 	let declared_meta_read c =
 		if Define.defined ctx.com.defines Define.MacroMetaCheck then begin
 			let rec has_build_macros c =
-				c.cl_build_header ();
+				TAccess.Header.demand c;
 				Meta.has Meta.Build c.cl_meta
 				|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (TAccess.Header.implements c)
 				|| (match (TAccess.Header.super c) with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)

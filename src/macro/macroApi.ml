@@ -1209,7 +1209,7 @@ and encode_tabstract a =
 	let members f = encode_lazy (AtomicLazy.from_fun (fun () ->
 		begin match a.a_impl with
 		| Some c ->
-			c.cl_build_header ();
+			TAccess.Header.demand c;
 			begin match (TAccess.build c) with
 			| Built -> ()
 			| _ -> (DomainLocal.get current_partially_built_class_read) c
@@ -1319,7 +1319,7 @@ and encode_class_kind k =
 and encode_tclass c =
 	(* the header (super class, interfaces, declared metadata) never builds the
 	   class; its members do (docs/incremental-compilation.md, §3.3) *)
-	c.cl_build_header ();
+	TAccess.Header.demand c;
 	if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
 	(* what the macro reads of the class after building it: all its fields,
 	   the constructor... (its members) *)
@@ -2447,7 +2447,7 @@ let macro_api ccom get_api =
 			(* the value is given by the build of the type *)
 			begin match mt with
 			| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
-				c.cl_build_header ();
+				TAccess.Header.demand c;
 				begin match TAccess.build c with
 				| Built -> ()
 				| _ -> (DomainLocal.get current_partially_built_class_read) c
@@ -2495,7 +2495,7 @@ let macro_api ccom get_api =
 		"build_type", vfun1 (fun v ->
 			let rec loop t = match t with
 				| TInst(c,_) ->
-					c.cl_build_header ();
+					TAccess.Header.demand c;
 					begin match (TAccess.build c) with
 					| Built -> ()
 					| _ -> (DomainLocal.get current_partially_built_class_read) c

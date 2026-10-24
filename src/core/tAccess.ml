@@ -75,58 +75,9 @@ let build_done c =
 			Condition.broadcast Claims.done_
 		)
 
-let with_class_claim c f =
-	if not !TypingLock.active then
-		f ()
-	else begin
-		let me = Domain.self () in
-		let rec go () =
-			let r = TypingLock.protect (fun () ->
-				match Mutex.protect Claims.mutex (fun () -> builder_of c) with
-				| Some (d,seq) when d <> me -> `Wait (d,seq)
-				| _ -> `Done (f ())
-			) in
-			match r with
-			| `Done v ->
-				v
-			| `Wait (owner,seq) ->
-				let built = TypingLock.without (fun () -> Mutex.protect Claims.mutex (fun () ->
-					Claims.wait ~kind:Claims.WaitClass ~seq ~owner (fun () -> builder_of c = None)
-				)) in
-				if built then go () else TypingLock.protect f
-		in
-		go ()
-	end
-
-module Header = struct
-	(* The header of a class: type parameters, super class, interfaces,
-	   declared metadata. *)
-	let demand c =
-		if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
-		if c.cl_build_header != header_done then
-			with_class_claim c (fun () -> c.cl_build_header ())
-
-	let super c = demand c; c.cl_super
-	let implements c = demand c; c.cl_implements
-	(* set with the interfaces: [ArrayAccess<T>] *)
-	let array_access c = demand c; c.cl_array_access
-end
-
-(* Classes whose module is being created: their build is not set up yet, and
-   reading their members gives what is there (nothing). *)
-let not_ready : tclass list ref = ref []
-
-(* Whether the build of [c] runs build macros: its own, or those that its
-   super classes and interfaces add with @:autoBuild. *)
-let rec has_build_macros c =
-	Meta.has Meta.Build c.cl_meta
-	|| (match c.cl_kind with KAbstractImpl a -> Meta.has Meta.Build a.a_meta | _ -> false)
-	|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (Header.implements c)
-	|| (match Header.super c with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
-
-(* Builds a class that runs no build macro without the typing lock: the domain
-   that claims it builds it, the others wait for the build to end. *)
-let with_unlocked_build c f =
+(* Runs [f] (a build or the header of class [c]) without the typing lock: the
+   domain that claims [c] runs it, the others wait for it to end. *)
+let with_unlocked_claim ~is_done c f =
 	let me = Domain.self () in
 	let rec go () =
 		let r = Mutex.protect Claims.mutex (fun () ->
@@ -135,7 +86,7 @@ let with_unlocked_build c f =
 				`Wait (d,seq)
 			| Some _ ->
 				`Run
-			| None when c.cl_build == built ->
+			| None when is_done () ->
 				`Run
 			| None ->
 				incr build_seq;
@@ -155,9 +106,40 @@ let with_unlocked_build c f =
 	in
 	go ()
 
+module Header = struct
+	(* The header of a class: type parameters, super class, interfaces,
+	   declared metadata. *)
+	let demand c =
+		if !DepRecord.enabled then DepRecord.record_type c.cl_path "header";
+		if c.cl_build_header != header_done then begin
+			if !TypingLock.active then
+				with_unlocked_claim ~is_done:(fun () -> c.cl_build_header == header_done) c (fun () -> c.cl_build_header ())
+			else
+				c.cl_build_header ()
+		end
+
+	let super c = demand c; c.cl_super
+	let implements c = demand c; c.cl_implements
+	(* set with the interfaces: [ArrayAccess<T>] *)
+	let array_access c = demand c; c.cl_array_access
+end
+
+(* Classes whose module is being created: their build is not set up yet, and
+   reading their members gives what is there (nothing). *)
+let not_ready : tclass list ref = ref []
+
+(* Whether the build of [c] runs build macros: its own, or those that its
+   super classes and interfaces add with @:autoBuild. *)
+let rec has_build_macros c =
+	Meta.has Meta.Build c.cl_meta
+	|| (match c.cl_kind with KAbstractImpl a -> Meta.has Meta.Build a.a_meta | _ -> false)
+	|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (Header.implements c)
+	|| (match Header.super c with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
+
+let with_unlocked_build c f = with_unlocked_claim ~is_done:(fun () -> c.cl_build == built) c f
+
 let with_build_claim c f =
 	if not !TypingLock.active then f ()
-	else if has_build_macros c then with_class_claim c f
 	else with_unlocked_build c f
 
 let build_state c =
