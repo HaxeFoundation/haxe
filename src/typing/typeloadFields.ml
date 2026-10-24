@@ -1383,7 +1383,7 @@ let type_opt (ctx,cctx,fctx) p mode t =
 	| _ ->
 		Typeload.load_type_hint ctx p mode t
 
-let setup_args_ret ctx cctx fctx name fd p =
+let setup_args_ret ?(from_cast=false) ctx cctx fctx name fd p =
 	let c = cctx.tclass in
 	let mk = AtomicLazy.from_fun (fun () ->
 		if String.length name < 4 then
@@ -1426,6 +1426,12 @@ let setup_args_ret ctx cctx fctx name fd p =
 			| None,Some e when not fctx.is_macro && not (TypeBinding.returns_value e) ->
 				(* syntactic Void (Haxe 6 rule): no `return <expr>` in the body *)
 				ctx.t.tvoid
+			| None,_ when from_cast && not fctx.is_macro && (match cctx.abstract with Some a -> a.a_params = [] | None -> false) ->
+				(* a @:from cast function returns the abstract: known without typing
+				   its body, which the search of the casts of the abstract would
+				   otherwise do for every unification with it (false inference
+				   cycles) *)
+				(match cctx.abstract with Some a -> TAbstract(a,[]) | None -> die "" __LOC__)
 			| _ ->
 				type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
 		in
@@ -1577,7 +1583,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	end;
 
 	ctx.type_params <- params @ ctx.type_params;
-	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
+	let args,ret = setup_args_ret ~from_cast:(Meta.has Meta.From f.cff_meta) ctx cctx fctx (fst f.cff_name) fd p in
 	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
 	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
 	let targs = args#for_type in

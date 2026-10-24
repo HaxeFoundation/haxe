@@ -127,8 +127,9 @@ let all_ctors ctx e cases =
 			SKValue,RunTimeFinite
 		| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 			if not deep then List.iter (fun cf ->
-				force_field_body cf;
-				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
+				(* only the values: forcing the body of the other fields of the
+				   abstract (its methods) made false inference cycles *)
+				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match force_field_body cf; cf.cf_expr with
 					| Some e ->
 						begin match extract_ctor e with
 						| Some (ConConst TNull) -> ()

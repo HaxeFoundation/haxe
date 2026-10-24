@@ -1,0 +1,51 @@
+# A switch over an enum abstract reads its values only, not the types of its
+# other fields, and a @:from cast function returns the abstract without typing
+# its body: no inference cycle between the inferred methods of an abstract
+# (Haxe 6, field inference).
+=== initial
+@expect-output false jump 3
+--- Main.hx
+class Main {
+	static function main() {
+		var k:Kind = 3;
+		trace(Anim.isLoop(Crouch) + " " + Anim.blend(Jump) + " " + k.toInt());
+	}
+}
+--- Anim.hx
+enum abstract Anim(String) {
+	var Crouch;
+	var Walk;
+	var Jump;
+	public inline function isCrouching() {
+		return switch (abstract) {
+			case Crouch: true;
+			default: false;
+		}
+	}
+	public static function blend(a:Anim):String {
+		return switch (a) {
+			case Jump: "jump";
+			default: null;
+		}
+	}
+	public static function isLoop(a:Anim):Bool {
+		return switch (a) {
+			case Jump: false;
+			default: !a.isCrouching();
+		}
+	}
+}
+--- Kind.hx
+abstract Kind(Int) from Int to Int {
+	public inline function new(v:Int) {
+		this = cached(v);
+	}
+	static function cached(v:Int):Kind {
+		var k:Kind = v;
+		return k;
+	}
+	@:from public static inline function fromString(s:String) {
+		return new Kind(Std.parseInt(s));
+	}
+	public function toInt() return this;
+}

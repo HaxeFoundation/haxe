@@ -417,7 +417,12 @@ determined and that appears nowhere else in its signature is `Void`: the
 method only calls it for its effect (`f()`, `onDone(result)`; test
 `tests/incremental/cases/haxe6/callback-return-void.hxtest`). It removes
 most of the annotations of callbacks, and those of the result callbacks that
-hxbit adds to the RPCs. A variable initialized with a
+hxbit adds to the RPCs. A `@:from` cast function without return type hint (of an
+abstract without type parameters) returns the abstract, also without typing
+its body, and a `switch` over an enum abstract reads its values only: both
+made false inference cycles between the inferred methods of an abstract (the
+search of its casts or of its values read the types of all its fields; test
+`tests/incremental/cases/haxe6/abstract-fields-no-false-cycle.hxtest`). A variable initialized with a
 `Dynamic` expression is not given the type `Dynamic`: it is an unresolved
 type like the others (a first version of this branch made it `Dynamic`). The unit tests (js, macro, hl),
 the server and misc tests, the incremental suite and Heaps compile
