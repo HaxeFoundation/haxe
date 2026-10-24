@@ -1331,9 +1331,9 @@ macros run). What has such effects is serialized and ordered:
   (`StageTypes`) stays sequential.
 - **The macros run on one domain at a time** (`Claims.with_macro_claim`), even
   while the domain running them waits for another one; the claim is only
-  taken by releasing the typing lock when another domain holds it. A macro
-  already loaded only takes it at its first access to what the macros share
-  (step 10, 11).
+  taken by releasing the typing lock when another domain holds it. An
+  expression or build macro only takes it at its first access to what the
+  macros share (step 10, 11); its first call loads it with the claim.
 - **The tasks of a parallel batch are started in their order** (one worker per
   domain takes the next task, `Claims.next_task`); their effects do not wait
   for the tasks before them (step 11): the output must not depend on the
@@ -1490,7 +1490,11 @@ domain that claims it, like the others; an expression or build macro already
 loaded runs without the claim of the macros, its interpretation without the
 typing lock, and takes the claim at its first access to what the macros share
 (`Claims.end_speculation`), keeping it until it is done; a macro that loads
-its module, or that is not loaded yet, runs with the claim. A module not
+its module runs with the claim: the first call of a macro loads it with
+the claim, then runs speculating. Reading files (`sys.FileSystem.exists`,
+`stat`, `readDirectory`..., `sys.io.File.getContent` / `getBytes`) or the
+environment (`Sys.getEnv`, `Sys.time`...) is not an access to what the macros
+share; writing files, running processes and printing are. A module not
 found while speculating is looked up again with the claim (a macro holding it
 may define it). Checked with `-D typer-shuffle` on one domain (hide, Heaps JS
 and HL: identical for every seed) and by comparing parallel runs with the

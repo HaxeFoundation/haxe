@@ -3382,6 +3382,10 @@ let shared_state_paths = [
 let shared_state_function path name v =
 	let shared = List.mem path shared_state_paths && match path with
 		| ([],("Math" | "Std")) -> name = "random"
+		(* reading files or the environment does not change what another macro sees *)
+		| (["sys"],"FileSystem") -> not (List.mem name ["exists";"stat";"fullPath";"absolutePath";"isDirectory";"readDirectory"])
+		| (["sys";"io"],"File") -> not (List.mem name ["getContent";"getBytes"])
+		| ([],"Sys") -> not (List.mem name ["getEnv";"environment";"systemName";"getCwd";"time";"cpuTime";"programPath";"executablePath";"args"])
 		| _ -> true
 	in
 	match v with

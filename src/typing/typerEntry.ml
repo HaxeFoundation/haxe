@@ -317,12 +317,19 @@ let create com macros =
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
 			do_macro = (fun ctx mode cpath f el p ->
-				(* an expression macro already loaded runs without the claim of the
+				(* an expression or build macro runs without the claim of the
 				   macros until its first access to what the macros share
 				   (Claims.speculating) *)
 				(* expansions are not fingerprinted yet (phase 7): a node that expands a macro depends on it *)
 				if !DepRecord.enabled then DepRecord.record ("macro " ^ s_type_path cpath ^ "." ^ f) "expansion";
-				let speculate = (mode = MExpr || mode = MBuild) && !TypingLock.active && MacroContext.is_macro_loaded ctx cpath f in
+				let speculate = (mode = MExpr || mode = MBuild) && !TypingLock.active in
+				(* its first call loads it with the claim: loading types its module
+				   and initializes its classes, which the macros share *)
+				if speculate && not (MacroContext.is_macro_loaded ctx cpath f) then
+					Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
+						MacroContext.Interp.ensure_thread_eval ();
+						ignore (MacroContext.load_macro' ctx false cpath f p)
+					));
 				let run () = TypingLock.protect (fun () ->
 					if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
 					Claims.speculate speculate (fun () -> MacroContext.type_macro ctx mode cpath f el p)
