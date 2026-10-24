@@ -835,8 +835,52 @@ module TypeBinding = struct
 					()
 			in
 			close (ref []) cf.cf_type
-		end else if has_mono (ref []) cf.cf_type then
-			display_error ctx.com (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+		end else begin
+			(* Haxe 6 rule: the return type of a function argument (a callback) that
+			   nothing determined, and that appears nowhere else in the signature,
+			   is Void: the method only calls it for its effect (`f()`,
+			   `onDone(result)`). *)
+			let rec count r visited t = match t with
+				| TMono r' ->
+					if r' == r then 1 else (match r'.tm_type with Some t -> count r visited t | None -> 0)
+				| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+					List.fold_left (fun acc t -> acc + count r visited t) 0 tl
+				| TFun(args,ret) ->
+					List.fold_left (fun acc (_,_,t) -> acc + count r visited t) (count r visited ret) args
+				| TAnon an ->
+					if List.memq an !visited then 0 else begin
+						visited := an :: !visited;
+						PMap.fold (fun cf acc -> acc + count r visited cf.cf_type) an.a_fields 0
+					end
+				| TDynamic (Some t) ->
+					count r visited t
+				| TDynamic None | TLazy _ ->
+					0
+			in
+			let rec callback_ret t = match t with
+				| TMono { tm_type = Some t } -> callback_ret t
+				| TAbstract ({ a_path = [],"Null" },[t]) -> callback_ret t
+				| TFun (_,ret) ->
+					let rec unbound t = match t with
+						| TMono ({ tm_type = None } as r) -> Some r
+						| TMono { tm_type = Some t } -> unbound t
+						| _ -> None
+					in
+					unbound ret
+				| _ -> None
+			in
+			begin match cf.cf_kind,cf.cf_type with
+			| Method _,TFun (args,_) ->
+				List.iter (fun (_,_,t) -> match callback_ret t with
+					| Some r when count r (ref []) cf.cf_type = 1 -> Monomorph.do_bind r ctx.t.tvoid
+					| _ -> ()
+				) args
+			| _ ->
+				()
+			end;
+			if has_mono (ref []) cf.cf_type then
+				display_error ctx.com (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+		end
 
 	(* [reused] runs instead of the typing of the body when the body of the
 	   previous compilation is kept: the effects of the typing on the field

@@ -399,7 +399,7 @@ compile outside Neko, independently of this plan: `#if neko c != null #end &&`.)
   reading its partially built class, which phase 3 makes possible. To be
   designed with domkit's `preload` mechanism.
 
-**Rules applied to typing.** Three rules that make a field's signature known
+**Rules applied to typing.** Four rules that make a field's signature known
 from its declaration are applied by the typer of this branch (not only
 measured): a function without `return <expr>` and without return type hint
 has a `Void` return type (syntactic `Void`), an argument without hint
@@ -411,7 +411,13 @@ what its own parent declares; never by typing the parent's body, the table
 `Typecore.declared_args`) (`setup_args_ret` in
 `src/typing/typeloadFields.ml`, tests in
 `tests/misc/eval/projects/haxe6FieldRules` and
-`tests/incremental/cases/haxe6/override-args-inherited.hxtest`). A variable initialized with a
+`tests/incremental/cases/haxe6/override-args-inherited.hxtest`). At the end of the typing of a
+method, the return type of a function argument (a callback) that nothing
+determined and that appears nowhere else in its signature is `Void`: the
+method only calls it for its effect (`f()`, `onDone(result)`; test
+`tests/incremental/cases/haxe6/callback-return-void.hxtest`). It removes
+most of the annotations of callbacks, and those of the result callbacks that
+hxbit adds to the RPCs. A variable initialized with a
 `Dynamic` expression is not given the type `Dynamic`: it is an unresolved
 type like the others (a first version of this branch made it `Dynamic`). The unit tests (js, macro, hl),
 the server and misc tests, the incremental suite and Heaps compile

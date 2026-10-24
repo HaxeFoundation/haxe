@@ -1,0 +1,38 @@
+# The return type of a function argument that nothing determined, and that
+# appears nowhere else in the signature, is Void (Haxe 6 rule): the method only
+# calls the callback for its effect.
+=== initial
+@expect-output done 3
+--- Main.hx
+class Main {
+	static function main() {
+		var log = [];
+		Dep.run(function() log.push("done"));
+		Dep.withResult(1, function(v) log.push(Std.string(v + 2)));
+		trace(log.join(" "));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function run(f) {
+		f();
+	}
+	public static function withResult(x:Int, ?onResult) {
+		if (onResult != null) onResult(x);
+	}
+}
+
+=== the same monomorph in the return type is still unresolved
+@expect-error pass
+--- Dep.hx
+class Dep {
+	public static function run(f) {
+		f();
+	}
+	public static function withResult(x:Int, ?onResult) {
+		if (onResult != null) onResult(x);
+	}
+	public static function pass(f) {
+		return f();
+	}
+}
