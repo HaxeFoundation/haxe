@@ -291,10 +291,10 @@ Goal: make inference local to the field.
 Cases to handle explicitly:
 - `var x = null;` and `var a = [];`: error.
 - `var x = dynamicExpr;` (an initializer of type `Dynamic`, e.g.
-  `neko.Lib.load(...)`): the field is `Dynamic`. Today its monomorph stays
-  open and is bound by its first use (often to a function type); in Haxe 6 it
-  is bound to `Dynamic` at the end of the field's typing. This removes 168 of
-  the 175 cases of the Neko standard library.
+  `neko.Lib.load(...)`): error like any other unresolved type. Today its
+  monomorph stays open and is bound by its first use (often to a function
+  type); in Haxe 6 it needs an annotation (`: Dynamic`). The Neko standard
+  library is annotated (222 fields).
 - `function f() return g();` where `g` is not typed yet: allowed; the type of
   `f` depends on `FieldSig(g)` (lazy typing, as today).
 - Cycles of unannotated fields (`f` calls `g`, `g` calls `f`): today they may
@@ -399,15 +399,16 @@ compile outside Neko, independently of this plan: `#if neko c != null #end &&`.)
   reading its partially built class, which phase 3 makes possible. To be
   designed with domkit's `preload` mechanism.
 
-**Rules applied to typing.** Three rules that make a field's signature known
+**Rules applied to typing.** Two rules that make a field's signature known
 from its declaration are applied by the typer of this branch (not only
 measured): a function without `return <expr>` and without return type hint
-has a `Void` return type (syntactic `Void`), an argument without hint whose
-default value is a literal determining its whole type (`""`, `0`, `1.5`,
-`false`, `-1`) has that literal's type, and a variable initialized with a
-`Dynamic` expression is `Dynamic` (`setup_args_ret` and
-`bind_var_expression` in `src/typing/typeloadFields.ml`, test in
-`tests/misc/eval/projects/haxe6FieldRules`). The unit tests (js, macro, hl),
+has a `Void` return type (syntactic `Void`), and an argument without hint
+whose default value is a literal determining its whole type (`""`, `0`,
+`1.5`, `false`, `-1`) has that literal's type (`setup_args_ret` in
+`src/typing/typeloadFields.ml`, test in
+`tests/misc/eval/projects/haxe6FieldRules`). A variable initialized with a
+`Dynamic` expression is not given the type `Dynamic`: it is an unresolved
+type like the others (a first version of this branch made it `Dynamic`). The unit tests (js, macro, hl),
 the server and misc tests, the incremental suite and Heaps compile
 unchanged; the only visible difference is a more precise error message
 (`() -> Void` instead of `() -> Unknown<0>`, `Issue6796`). Macro functions are
@@ -421,7 +422,7 @@ php, lua, jvm, neko): 7 common fields (`Serializer.BASE64_CODES`,
 `ThreadImpl.getName`, `js.Boot.__resolveNativeClass`), 9 target-specific ones
 (HL `Tls`, `Deque`, `Mutex` natives, Lua `Boot.clampInt32` and
 `Socket.timeout`, PHP `Boot.__get`, JVM `Enum._hx_getParameters`) and 7 Neko
-ones, plus the return types breaking the inference cycles of
+ones (and the 222 Neko natives loaded with `neko.Lib.load`, `: Dynamic`), plus the return types breaking the inference cycles of
 `haxe.macro.Printer`, `haxe.Template`, `haxe.rtti.CType` and
 `haxe.zip.Huffman`. `-w +WUnresolvedFieldType -w +WTypingOrder` reports
 nothing in `std` on these targets.

@@ -1,3 +1,2 @@
-Main.hx:21: characters 9-12 : Warning : Dynamic
-Main.hx:22: characters 9-17 : Warning : () -> Void
-Main.hx:23: characters 9-17 : Warning : (?tabs : String, ?n : Int, ?f : Float, ?b : Bool, ?neg : Int, ?v : Null<Int>) -> Void
+Main.hx:16: characters 9-17 : Warning : () -> Void
+Main.hx:17: characters 9-17 : Warning : (?tabs : String, ?n : Int, ?f : Float, ?b : Bool, ?neg : Int, ?v : Null<Int>) -> Void

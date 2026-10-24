@@ -31,6 +31,6 @@ class Md5 {
 		return haxe.io.Bytes.ofData(make_md5(b.getData()));
 	}
 
-	static var base_encode = neko.Lib.load("std", "base_encode", 2);
-	static var make_md5 = neko.Lib.load("std", "make_md5", 1);
+	static var base_encode : Dynamic = neko.Lib.load("std", "base_encode", 2);
+	static var make_md5 : Dynamic = neko.Lib.load("std", "make_md5", 1);
 }

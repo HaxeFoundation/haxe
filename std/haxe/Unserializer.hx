@@ -499,7 +499,7 @@ class Unserializer {
 	}
 
 	#if neko
-	static var base_decode = neko.Lib.load("std", "base_decode", 2);
+	static var base_decode : Dynamic = neko.Lib.load("std", "base_decode", 2);
 	#end
 
 	static inline function fastLength(s:String):Int {

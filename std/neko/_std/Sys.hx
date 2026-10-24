@@ -147,18 +147,18 @@ import haxe.SysTools;
 		return h;
 	}
 
-	private static var get_env = neko.Lib.load("std","get_env",1);
-	private static var put_env = neko.Lib.load("std","put_env",2);
-	private static var _sleep = neko.Lib.load("std","sys_sleep",1);
-	private static var set_time_locale = neko.Lib.load("std","set_time_locale",1);
-	private static var get_cwd = neko.Lib.load("std","get_cwd",0);
-	private static var set_cwd = neko.Lib.load("std","set_cwd",1);
-	private static var sys_string = neko.Lib.load("std","sys_string",0);
-	private static var sys_command = neko.Lib.load("std","sys_command",1);
-	private static var sys_exit = neko.Lib.load("std","sys_exit",1);
-	private static var sys_time = neko.Lib.load("std","sys_time",0);
-	private static var sys_cpu_time = neko.Lib.load("std","sys_cpu_time",0);
-	private static var sys_exe_path = neko.Lib.load("std","sys_exe_path",0);
+	private static var get_env : Dynamic = neko.Lib.load("std","get_env",1);
+	private static var put_env : Dynamic = neko.Lib.load("std","put_env",2);
+	private static var _sleep : Dynamic = neko.Lib.load("std","sys_sleep",1);
+	private static var set_time_locale : Dynamic = neko.Lib.load("std","set_time_locale",1);
+	private static var get_cwd : Dynamic = neko.Lib.load("std","get_cwd",0);
+	private static var set_cwd : Dynamic = neko.Lib.load("std","set_cwd",1);
+	private static var sys_string : Dynamic = neko.Lib.load("std","sys_string",0);
+	private static var sys_command : Dynamic = neko.Lib.load("std","sys_command",1);
+	private static var sys_exit : Dynamic = neko.Lib.load("std","sys_exit",1);
+	private static var sys_time : Dynamic = neko.Lib.load("std","sys_time",0);
+	private static var sys_cpu_time : Dynamic = neko.Lib.load("std","sys_cpu_time",0);
+	private static var sys_exe_path : Dynamic = neko.Lib.load("std","sys_exe_path",0);
 	#if interp
 	private static var sys_program_path = neko.Lib.load("std","sys_program_path",0);
 	#elseif !macro
@@ -190,11 +190,11 @@ import haxe.SysTools;
 		}
 	}
 	#end
-	private static var sys_env = neko.Lib.load("std","sys_env",0);
+	private static var sys_env : Dynamic = neko.Lib.load("std","sys_env",0);
 
-	private static var file_stdin = neko.Lib.load("std","file_stdin",0);
-	private static var file_stdout = neko.Lib.load("std","file_stdout",0);
-	private static var file_stderr = neko.Lib.load("std","file_stderr",0);
-	private static var getch = neko.Lib.load("std","sys_getch",1);
+	private static var file_stdin : Dynamic = neko.Lib.load("std","file_stdin",0);
+	private static var file_stdout : Dynamic = neko.Lib.load("std","file_stdout",0);
+	private static var file_stderr : Dynamic = neko.Lib.load("std","file_stderr",0);
+	private static var getch : Dynamic = neko.Lib.load("std","sys_getch",1);
 
 }

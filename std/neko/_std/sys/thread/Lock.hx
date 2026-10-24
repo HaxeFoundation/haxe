@@ -38,7 +38,7 @@ class Lock {
 		lock_release(l);
 	}
 
-	static var lock_create = neko.Lib.load("std", "lock_create", 0);
-	static var lock_release = neko.Lib.load("std", "lock_release", 1);
-	static var lock_wait = neko.Lib.load("std", "lock_wait", 2);
+	static var lock_create : Dynamic = neko.Lib.load("std", "lock_create", 0);
+	static var lock_release : Dynamic = neko.Lib.load("std", "lock_release", 1);
+	static var lock_wait : Dynamic = neko.Lib.load("std", "lock_wait", 2);
 }

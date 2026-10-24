@@ -72,6 +72,6 @@ enum FileHandle {}
 		d.close();
 	}
 
-	private static var file_contents = neko.Lib.load("std", "file_contents", 1);
-	private static var file_open = neko.Lib.load("std", "file_open", 2);
+	private static var file_contents : Dynamic = neko.Lib.load("std", "file_contents", 1);
+	private static var file_open : Dynamic = neko.Lib.load("std", "file_open", 2);
 }

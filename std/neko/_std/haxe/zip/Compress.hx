@@ -53,9 +53,9 @@ class Compress {
 		return out.sub(0, r.write);
 	}
 
-	static var _deflate_init = neko.Lib.load("zlib", "deflate_init", 1);
-	static var _deflate_bound = neko.Lib.load("zlib", "deflate_bound", 2);
-	static var _deflate_buffer = neko.Lib.load("zlib", "deflate_buffer", 5);
-	static var _deflate_end = neko.Lib.load("zlib", "deflate_end", 1);
-	static var _set_flush_mode = neko.Lib.load("zlib", "set_flush_mode", 2);
+	static var _deflate_init : Dynamic = neko.Lib.load("zlib", "deflate_init", 1);
+	static var _deflate_bound : Dynamic = neko.Lib.load("zlib", "deflate_bound", 2);
+	static var _deflate_buffer : Dynamic = neko.Lib.load("zlib", "deflate_buffer", 5);
+	static var _deflate_end : Dynamic = neko.Lib.load("zlib", "deflate_end", 1);
+	static var _set_flush_mode : Dynamic = neko.Lib.load("zlib", "set_flush_mode", 2);
 }

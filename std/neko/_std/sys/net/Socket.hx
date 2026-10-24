@@ -65,9 +65,9 @@ private class SocketOutput extends haxe.io.Output {
 			socket_close(__s);
 	}
 
-	private static var socket_close = neko.Lib.load("std", "socket_close", 1);
-	private static var socket_send_char = neko.Lib.load("std", "socket_send_char", 2);
-	private static var socket_send = neko.Lib.load("std", "socket_send", 4);
+	private static var socket_close : Dynamic = neko.Lib.load("std", "socket_close", 1);
+	private static var socket_send_char : Dynamic = neko.Lib.load("std", "socket_send_char", 2);
+	private static var socket_send : Dynamic = neko.Lib.load("std", "socket_send", 4);
 }
 
 private class SocketInput extends haxe.io.Input {
@@ -111,9 +111,9 @@ private class SocketInput extends haxe.io.Input {
 			socket_close(__s);
 	}
 
-	private static var socket_recv = neko.Lib.load("std", "socket_recv", 4);
-	private static var socket_recv_char = neko.Lib.load("std", "socket_recv_char", 1);
-	private static var socket_close = neko.Lib.load("std", "socket_close", 1);
+	private static var socket_recv : Dynamic = neko.Lib.load("std", "socket_recv", 4);
+	private static var socket_recv_char : Dynamic = neko.Lib.load("std", "socket_recv_char", 1);
+	private static var socket_close : Dynamic = neko.Lib.load("std", "socket_close", 1);
 }
 
 @:coreApi
@@ -266,19 +266,19 @@ class Socket {
 		};
 	}
 
-	private static var socket_new = neko.Lib.load("std", "socket_new", 1);
-	private static var socket_close = neko.Lib.load("std", "socket_close", 1);
-	private static var socket_write = neko.Lib.load("std", "socket_write", 2);
-	private static var socket_read = neko.Lib.load("std", "socket_read", 1);
-	private static var socket_connect = neko.Lib.load("std", "socket_connect", 3);
-	private static var socket_listen = neko.Lib.load("std", "socket_listen", 2);
-	private static var socket_select = neko.Lib.load("std", "socket_select", 4);
-	private static var socket_bind = neko.Lib.load("std", "socket_bind", 3);
-	private static var socket_accept = neko.Lib.load("std", "socket_accept", 1);
-	private static var socket_peer = neko.Lib.load("std", "socket_peer", 1);
-	private static var socket_host = neko.Lib.load("std", "socket_host", 1);
-	private static var socket_set_timeout = neko.Lib.load("std", "socket_set_timeout", 2);
-	private static var socket_shutdown = neko.Lib.load("std", "socket_shutdown", 3);
-	private static var socket_set_blocking = neko.Lib.load("std", "socket_set_blocking", 2);
-	private static var socket_set_fast_send = neko.Lib.loadLazy("std", "socket_set_fast_send", 2);
+	private static var socket_new : Dynamic = neko.Lib.load("std", "socket_new", 1);
+	private static var socket_close : Dynamic = neko.Lib.load("std", "socket_close", 1);
+	private static var socket_write : Dynamic = neko.Lib.load("std", "socket_write", 2);
+	private static var socket_read : Dynamic = neko.Lib.load("std", "socket_read", 1);
+	private static var socket_connect : Dynamic = neko.Lib.load("std", "socket_connect", 3);
+	private static var socket_listen : Dynamic = neko.Lib.load("std", "socket_listen", 2);
+	private static var socket_select : Dynamic = neko.Lib.load("std", "socket_select", 4);
+	private static var socket_bind : Dynamic = neko.Lib.load("std", "socket_bind", 3);
+	private static var socket_accept : Dynamic = neko.Lib.load("std", "socket_accept", 1);
+	private static var socket_peer : Dynamic = neko.Lib.load("std", "socket_peer", 1);
+	private static var socket_host : Dynamic = neko.Lib.load("std", "socket_host", 1);
+	private static var socket_set_timeout : Dynamic = neko.Lib.load("std", "socket_set_timeout", 2);
+	private static var socket_shutdown : Dynamic = neko.Lib.load("std", "socket_shutdown", 3);
+	private static var socket_set_blocking : Dynamic = neko.Lib.load("std", "socket_set_blocking", 2);
+	private static var socket_set_fast_send : Dynamic = neko.Lib.loadLazy("std", "socket_set_fast_send", 2);
 }

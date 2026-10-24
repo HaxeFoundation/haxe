@@ -1,0 +1,1 @@
+DynamicInit.hx:4: characters 13-16 : The type of dyn is not fully inferred (Unknown<0>), add a type annotation

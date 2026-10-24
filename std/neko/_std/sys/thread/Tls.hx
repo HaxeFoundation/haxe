@@ -41,7 +41,7 @@ class Tls<T> {
 		return v;
 	}
 
-	static var tls_create = neko.Lib.load("std", "tls_create", 0);
-	static var tls_get = neko.Lib.load("std", "tls_get", 1);
-	static var tls_set = neko.Lib.load("std", "tls_set", 2);
+	static var tls_create : Dynamic = neko.Lib.load("std", "tls_create", 0);
+	static var tls_get : Dynamic = neko.Lib.load("std", "tls_get", 1);
+	static var tls_set : Dynamic = neko.Lib.load("std", "tls_set", 2);
 }

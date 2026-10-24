@@ -1,10 +1,6 @@
 // Haxe 6 field typing rules (docs/incremental-compilation.md, phases 1 and 3.3):
 // a field's signature is known from its declaration when it can be.
 class Main {
-	// A variable initialized with a Dynamic expression is Dynamic: its first
-	// use (a call below) no longer binds its type.
-	static var dyn = (null : Dynamic);
-
 	// No `return <expr>`: the return type is Void without typing the body.
 	static function noReturn() {
 		var x = 1;
@@ -17,8 +13,6 @@ class Main {
 	}
 
 	static function main() {
-		if (dyn != null) dyn(1);
-		$type(dyn);
 		$type(noReturn);
 		$type(defaults);
 	}

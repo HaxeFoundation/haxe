@@ -136,7 +136,7 @@ class BaseCode {
 	}
 
 	#if neko
-	private static var base_encode = neko.Lib.load("std", "base_encode", 2);
-	private static var base_decode = neko.Lib.load("std", "base_decode", 2);
+	private static var base_encode : Dynamic = neko.Lib.load("std", "base_encode", 2);
+	private static var base_decode : Dynamic = neko.Lib.load("std", "base_decode", 2);
 	#end
 }

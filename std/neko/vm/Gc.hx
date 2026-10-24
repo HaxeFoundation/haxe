@@ -41,6 +41,6 @@ class Gc {
 		return _stats();
 	}
 
-	static var _run = neko.Lib.load("std", "run_gc", 1);
-	static var _stats = neko.Lib.load("std", "gc_stats", 0);
+	static var _run : Dynamic = neko.Lib.load("std", "run_gc", 1);
+	static var _stats : Dynamic = neko.Lib.load("std", "gc_stats", 0);
 }

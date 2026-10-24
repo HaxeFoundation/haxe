@@ -199,6 +199,6 @@ class Lib {
 		return untyped new haxe.io.Bytes(s.length, s.__s);
 	}
 
-	static var __serialize = load("std", "serialize", 1);
-	static var __unserialize = load("std", "unserialize", 2);
+	static var __serialize : Dynamic = load("std", "serialize", 1);
+	static var __unserialize : Dynamic = load("std", "unserialize", 2);
 }

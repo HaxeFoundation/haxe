@@ -111,13 +111,13 @@ class FileSystem {
 		}
 	}
 
-	private static var sys_exists = neko.Lib.load("std", "sys_exists", 1);
-	private static var file_delete = neko.Lib.load("std", "file_delete", 1);
-	private static var sys_rename = neko.Lib.load("std", "sys_rename", 2);
-	private static var sys_stat = neko.Lib.load("std", "sys_stat", 1);
-	private static var sys_file_type = neko.Lib.load("std", "sys_file_type", 1);
-	private static var sys_create_dir = neko.Lib.load("std", "sys_create_dir", 2);
-	private static var sys_remove_dir = neko.Lib.load("std", "sys_remove_dir", 1);
-	private static var sys_read_dir = neko.Lib.load("std", "sys_read_dir", 1);
-	private static var file_full_path = neko.Lib.load("std", "file_full_path", 1);
+	private static var sys_exists : Dynamic = neko.Lib.load("std", "sys_exists", 1);
+	private static var file_delete : Dynamic = neko.Lib.load("std", "file_delete", 1);
+	private static var sys_rename : Dynamic = neko.Lib.load("std", "sys_rename", 2);
+	private static var sys_stat : Dynamic = neko.Lib.load("std", "sys_stat", 1);
+	private static var sys_file_type : Dynamic = neko.Lib.load("std", "sys_file_type", 1);
+	private static var sys_create_dir : Dynamic = neko.Lib.load("std", "sys_create_dir", 2);
+	private static var sys_remove_dir : Dynamic = neko.Lib.load("std", "sys_remove_dir", 1);
+	private static var sys_read_dir : Dynamic = neko.Lib.load("std", "sys_read_dir", 1);
+	private static var file_full_path : Dynamic = neko.Lib.load("std", "file_full_path", 1);
 }

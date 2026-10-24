@@ -30,7 +30,7 @@
 class DateTools {
 	#if php
 	#elseif (neko && !(macro || interp))
-	static var date_format = neko.Lib.load("std", "date_format", 2);
+	static var date_format : Dynamic = neko.Lib.load("std", "date_format", 2);
 	#else
 	static var DAY_SHORT_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 	static var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

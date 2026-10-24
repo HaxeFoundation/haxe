@@ -114,10 +114,10 @@ class FPHelper {
 	#else
 	static var helperf = new sys.thread.Tls<neko.NativeString>();
 	static var helperd = new sys.thread.Tls<neko.NativeString>();
-	static var _float_of_bytes = neko.Lib.load("std", "float_of_bytes", 2);
-	static var _double_of_bytes = neko.Lib.load("std", "double_of_bytes", 2);
-	static var _float_bytes = neko.Lib.load("std", "float_bytes", 2);
-	static var _double_bytes = neko.Lib.load("std", "double_bytes", 2);
+	static var _float_of_bytes : Dynamic = neko.Lib.load("std", "float_of_bytes", 2);
+	static var _double_of_bytes : Dynamic = neko.Lib.load("std", "double_of_bytes", 2);
+	static var _float_bytes : Dynamic = neko.Lib.load("std", "float_bytes", 2);
+	static var _double_bytes : Dynamic = neko.Lib.load("std", "double_bytes", 2);
 	#end
 	#elseif flash
 	static var helper = {

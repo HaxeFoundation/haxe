@@ -804,13 +804,6 @@ module TypeBinding = struct
 			| TDynamic None | TLazy _ ->
 				false
 		in
-		(* A variable initialized with a Dynamic expression is Dynamic (Haxe 6
-		   rule): its type is not reported even though it is still a monomorph
-		   today, until its first use binds it. *)
-		let dynamic_initializer = match follow cf.cf_type, cf.cf_kind, cf.cf_expr with
-			| TMono _, Var _, Some e -> (match follow e.etype with TDynamic _ -> true | _ -> false)
-			| _ -> false
-		in
 		(* a field whose typing reported an error is not reported again *)
 		let failed = match DomainLocal.get errors_at_start with
 			| n :: _ -> DomainLocal.get Common.reported_errors > n
@@ -842,7 +835,7 @@ module TypeBinding = struct
 					()
 			in
 			close (ref []) cf.cf_type
-		end else if not dynamic_initializer && has_mono (ref []) cf.cf_type then
+		end else if has_mono (ref []) cf.cf_type then
 			display_error ctx.com (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
 
 	(* [reused] runs instead of the typing of the body when the body of the
@@ -1018,11 +1011,6 @@ module TypeBinding = struct
 					e
 				) in
 				let e = check_cast e in
-				(* a variable initialized with a Dynamic expression is Dynamic (Haxe 6 rule) *)
-				begin match t, follow e.etype with
-				| TMono r, TDynamic _ when r.tm_type = None -> Monomorph.bind r t_dynamic
-				| _ -> ()
-				end;
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
 				check_resolved_field_type ctx cf;

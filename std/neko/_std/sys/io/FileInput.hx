@@ -72,12 +72,12 @@ package sys.io;
 		return file_eof(__f);
 	}
 
-	private static var file_eof = neko.Lib.load("std", "file_eof", 1);
+	private static var file_eof : Dynamic = neko.Lib.load("std", "file_eof", 1);
 
-	private static var file_read = neko.Lib.load("std", "file_read", 4);
-	private static var file_read_char = neko.Lib.load("std", "file_read_char", 1);
+	private static var file_read : Dynamic = neko.Lib.load("std", "file_read", 4);
+	private static var file_read_char : Dynamic = neko.Lib.load("std", "file_read_char", 1);
 
-	private static var file_close = neko.Lib.load("std", "file_close", 1);
-	private static var file_seek = neko.Lib.load("std", "file_seek", 3);
-	private static var file_tell = neko.Lib.load("std", "file_tell", 1);
+	private static var file_close : Dynamic = neko.Lib.load("std", "file_close", 1);
+	private static var file_seek : Dynamic = neko.Lib.load("std", "file_seek", 3);
+	private static var file_tell : Dynamic = neko.Lib.load("std", "file_tell", 1);
 }

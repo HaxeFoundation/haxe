@@ -597,8 +597,8 @@ class StringTools {
 	#end
 
 	#if neko
-	private static var _urlEncode = neko.Lib.load("std", "url_encode", 1);
-	private static var _urlDecode = neko.Lib.load("std", "url_decode", 1);
+	private static var _urlEncode : Dynamic = neko.Lib.load("std", "url_encode", 1);
+	private static var _urlDecode : Dynamic = neko.Lib.load("std", "url_decode", 1);
 	#end
 
 	#if utf16

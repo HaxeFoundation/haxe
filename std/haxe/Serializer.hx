@@ -608,6 +608,6 @@ class Serializer {
 	}
 
 	#if neko
-	static var base_encode = neko.Lib.load("std", "base_encode", 2);
+	static var base_encode : Dynamic = neko.Lib.load("std", "base_encode", 2);
 	#end
 }

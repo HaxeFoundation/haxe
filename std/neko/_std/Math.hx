@@ -26,8 +26,8 @@ import neko.Lib;
 @:keep
 private class MathImpl {
 	static var __rnd:Dynamic;
-	static var _rand_float = Lib.load("std", "random_float", 1);
-	static var _rand_int = Lib.load("std", "random_int", 2);
+	static var _rand_float : Dynamic = Lib.load("std", "random_float", 1);
+	static var _rand_int : Dynamic = Lib.load("std", "random_int", 2);
 
 	public static function min(a:Float, b:Float):Float {
 		return if (a < b) a else if (untyped $isnan(a)) a else b;

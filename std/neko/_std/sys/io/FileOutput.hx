@@ -61,11 +61,11 @@ package sys.io;
 		return file_tell(__f);
 	}
 
-	private static var file_close = neko.Lib.load("std", "file_close", 1);
-	private static var file_seek = neko.Lib.load("std", "file_seek", 3);
-	private static var file_tell = neko.Lib.load("std", "file_tell", 1);
+	private static var file_close : Dynamic = neko.Lib.load("std", "file_close", 1);
+	private static var file_seek : Dynamic = neko.Lib.load("std", "file_seek", 3);
+	private static var file_tell : Dynamic = neko.Lib.load("std", "file_tell", 1);
 
-	private static var file_flush = neko.Lib.load("std", "file_flush", 1);
-	private static var file_write = neko.Lib.load("std", "file_write", 4);
-	private static var file_write_char = neko.Lib.load("std", "file_write_char", 2);
+	private static var file_flush : Dynamic = neko.Lib.load("std", "file_flush", 1);
+	private static var file_write : Dynamic = neko.Lib.load("std", "file_write", 4);
+	private static var file_write_char : Dynamic = neko.Lib.load("std", "file_write_char", 2);
 }
