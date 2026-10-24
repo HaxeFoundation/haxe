@@ -37,13 +37,12 @@ let build_macro_type ctx pl p =
 		| _ ->
 			raise_typing_error "MacroType requires a single expression call parameter" p
 	) in
-	let old = ctx.e.ret in
-	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx p
-		| MSuccess _ -> ctx.e.ret
-	) in
-	ctx.e.ret <- old;
-	t
+	(* the expansion gets its own expression state: the result is passed through
+	   [ret], which another expansion running meanwhile must not overwrite *)
+	let ctx = { ctx with e = { ctx.e with ret = ctx.e.ret } } in
+	match ctx.g.do_macro ctx MMacroType path field args p with
+	| MError | MMacroInMacro -> spawn_monomorph ctx p
+	| MSuccess _ -> ctx.e.ret
 
 let build_macro_build ctx c pl cfl p =
 	let path, field, args =
@@ -55,15 +54,18 @@ let build_macro_build ctx c pl cfl p =
 		| _,[ECall(e,args),_],_ -> get_macro_path ctx e args p
 		| _ -> raise_typing_error "genericBuild requires a single expression call parameter" p
 	in
-	let old = ctx.e.ret,ctx.c.get_build_infos in
-	ctx.c.get_build_infos <- (fun() -> Some (TClassDecl c, pl, cfl));
-	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| MError | MMacroInMacro -> spawn_monomorph ctx p
-		| MSuccess _ -> ctx.e.ret
-	) in
-	ctx.e.ret <- fst old;
-	ctx.c.get_build_infos <- snd old;
-	t
+	(* the expansion gets its own class and expression states instead of
+	   changing those of [ctx]: another expansion running meanwhile on the same
+	   context would otherwise read this one's local type (getLocalType) or
+	   result ([ret]) *)
+	let ctx = {
+		ctx with
+		c = { ctx.c with get_build_infos = (fun() -> Some (TClassDecl c, pl, cfl)) };
+		e = { ctx.e with ret = ctx.e.ret };
+	} in
+	match ctx.g.do_macro ctx MMacroType path field args p with
+	| MError | MMacroInMacro -> spawn_monomorph ctx p
+	| MSuccess _ -> ctx.e.ret
 
 (* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
