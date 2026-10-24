@@ -237,10 +237,23 @@ let load_coro ctx =
 			()
 	) m.m_types
 
-(* Runs typing tasks on the domains of the compilation's pool, re-raising the
+(* The number of domains typing in parallel (-D parallel-typing=<n>, 0 or 1
+   types on one domain). By default at most 4: the macros run on one domain at
+   a time and their API calls take the typing lock, which the domains typing
+   bodies take often too; beyond a few domains, the macros, which are the
+   critical path, wait for it more than the other domains gain (SpaceCraft:
+   typing 8.8s on 4 domains, 18s on 22). *)
+let default_typing_domains = 4
+
+let typing_domains com =
+	match Define.defined_value_safe com.defines Define.ParallelTyping with
+	| "" -> min default_typing_domains (Domain.recommended_domain_count ())
+	| s -> (try int_of_string s with _ -> min default_typing_domains (Domain.recommended_domain_count ()))
+
+(* Runs typing tasks on [n] domains of the compilation's pool, re-raising the
    exception of the first failed task (in task order) once all are done. The
    tasks are started in their order. *)
-let run_parallel_tasks com stage tasks =
+let run_parallel_tasks com n stage tasks =
 	let results = Array.make (Array.length tasks) None in
 	let timer_ctx = com.timer_ctx in
 	let lock = TypingLock.lock in
@@ -251,6 +264,8 @@ let run_parallel_tasks com stage tasks =
 	let stage_name = ProgramStage.stage_name stage ^ ": " in
 	Timer.time timer_ctx ["typing";"parallel";ProgramStage.stage_name stage] (fun () ->
 		Parallel.run_with_pool com.sctx.pool (fun pool ->
+			(* the first [n] domains of the pool to start take the tasks *)
+			let started = Atomic.make 0 in
 			Parallel.on_each_domain pool (fun () ->
 				let rec loop () = match Claims.next_task () with
 					| None ->
@@ -259,7 +274,7 @@ let run_parallel_tasks com stage tasks =
 						(try tasks.(i) () with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ()));
 						loop ()
 				in
-				loop ()
+				if Atomic.fetch_and_add started 1 < n then loop ()
 			)
 		)
 	) ();
@@ -288,9 +303,9 @@ let create com macros =
 			module_check_policies = [];
 			program = make_program_queues ();
 			(* with -D fail-fast, the first error stops typing: sequential *)
-			(* on by default, off with -D parallel-typing=0 *)
-			run_parallel = (if Parallel.is_enabled () && Define.defined_value_safe com.defines Define.ParallelTyping <> "0" && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
-				Some (run_parallel_tasks com)
+			(* on by default, off with -D parallel-typing=0 (see [typing_domains]) *)
+			run_parallel = (let n = typing_domains com in if Parallel.is_enabled () && n > 1 && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
+				Some (run_parallel_tasks com n)
 			else
 				None);
 			retain_meta = Common.defined com Define.RetainUntypedMeta;

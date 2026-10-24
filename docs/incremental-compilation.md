@@ -29,7 +29,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Typing root | `program()` types **all fields of all loaded modules**, as today: errors in unused code are still reported. On-demand changes the order, not what gets typed. |
 | Cycles | **Every query cycle is an error**, detected generically by the query engine, with no partial view, placeholder or retry. Main case: build macros (requesting the member set of a type whose build macro is running, directly or through another build macro). Only exception: a field referring to itself inside its own body. |
 | Enforcing queries | Entity contents become **abstract types** behind accessors, so that the OCaml compiler rejects any read that bypasses a query. Post-typing stages use a frozen view. |
-| Parallelism | **Every compilation operation runs in parallel**, not only typing: file system events and hashing, parsing, every typing query, macro expansions, fingerprints, post-processing, global passes, code generation and output writing (§4b). The query engine is the scheduler, on a persistent pool of OCaml 5 domains (`src/context/parallel.ml`). **Enabled by default** with one domain per available core; `-D compilation-domains=<n>` sets the number, `1` disables it. Output must be identical whatever the number of domains and the scheduling order (checked in CI). |
+| Parallelism | **Every compilation operation runs in parallel**, not only typing: file system events and hashing, parsing, every typing query, macro expansions, fingerprints, post-processing, global passes, code generation and output writing (§4b). The query engine is the scheduler, on a persistent pool of OCaml 5 domains (`src/context/parallel.ml`). **Enabled by default** with one domain per available core; typing uses at most 4 of them by default (`-D parallel-typing=<n>`, `0` types on one domain, see phase 3.5), `-D disable-parallelism` disables all of it. Output must be identical whatever the number of domains and the scheduling order (checked in CI). |
 | File system | A server-wide **virtual file system** (phase 6) holds directory listings, file hashes and contents, kept up to date by a **file system watcher**, **editor notifications** (`server/invalidate`, overlays) and the compiler's own writes. Path resolution and file reads make **no system call** once an entry is known; a compilation works on a frozen snapshot. A full scan only happens at server startup, or for a directory the watcher cannot watch. |
 
 ## 1. Current state (starting point)
@@ -2628,8 +2628,10 @@ model for the whole compilation.
    work-stealing); CI runs `tests/incremental` and the unit tests in these
    modes.
 6. **Configuration.** Enabled by default with one domain per available core.
-   `-D compilation-domains=<n>` sets the number of domains, `1` runs
-   everything on a single domain (same results).
+   `-D parallel-typing=<n>` sets the number of domains typing (4 by default), `0` types
+   on a single domain (same results). Beyond a few domains, the macros (one
+   at a time, the critical path of typing) wait for the typing lock more than
+   the other domains gain.
 7. **Measurement.** The scheduler reports per compilation the busy time per
    domain, the critical path (longest chain of dependent queries) and the time
    spent waiting, per operation, in `--times` and `server/stats`.
@@ -2788,7 +2790,7 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   (system call counter); the `tests/incremental` cases marked
   `@real-mtime` and the shadowing cases must pass without the runner's
   modification time adjustment.
-- Parallel compilation tests: identical output with `-D compilation-domains=1`,
+- Parallel compilation tests: identical output with `-D parallel-typing=0`,
   with several domains, and with a randomized scheduling order
   (`-D compilation-shuffle=<seed>`), on the whole `tests/incremental` suite;
   cross-domain cycle detection.

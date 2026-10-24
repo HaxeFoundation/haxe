@@ -245,7 +245,8 @@ module Setup = struct
 end
 
 let check_defines com =
-	if defined com Define.DisableParallelism then Parallel.enable := false;
+	(* applies to each compilation of a server, not to the ones after it *)
+	Parallel.enable := not (defined com Define.DisableParallelism);
 	PMap.iter (fun k v ->
 		try
 			let reason = Hashtbl.find Define.deprecation_lut k in

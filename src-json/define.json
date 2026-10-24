@@ -724,8 +724,8 @@
 	{
 		"name": "ParallelTyping",
 		"define": "parallel-typing",
-		"doc": "Type on several domains (docs/incremental-compilation.md, phase 3.5): on by default, `-D parallel-typing=0` types on one domain.",
-		"params": ["0"]
+		"doc": "The number of domains typing in parallel (docs/incremental-compilation.md, phase 3.5): 4 by default (or the number of cores if lower), `-D parallel-typing=0` types on one domain.",
+		"params": ["domains"]
 	},
 	{
 		"name": "PhpPrefix",
