@@ -542,6 +542,20 @@ class script_writer ctx filename asciiOut basic =
     val mutable just_finished_block = false
     val mutable classCount = 0
     val mutable return_type = TMono (Monomorph.create ())
+    (* Maps original field names to backing names for physical vars that redefine
+       a parent's non-physical var - e.g. "scheduler" -> "_hxb_scheduler".
+       Set per class in generate_script_class. *)
+    val mutable backing_field_remap : (string * string) list = []
+
+    method set_backing_remap remap = backing_field_remap <- remap
+
+    (* Returns the backing field name to use in CPPIA for "this.fieldname" accesses.
+       Returns the mangled backing name if the field is being remapped, otherwise
+       returns the original name unchanged. *)
+    method remap_field_name name =
+      match List.assoc_opt name backing_field_remap with
+      | Some mangled -> mangled
+      | None -> name
     val buffer = Buffer.create 0
     val identTable = Hashtbl.create 0
     val fileTable = Hashtbl.create 0
@@ -1160,10 +1174,11 @@ class script_writer ctx filename asciiOut basic =
                 ^ this#stringText field.cf_name
                 ^ this#commentOf field.cf_name)
           | FInstance (_, _, field) when is_this obj ->
+              let name = this#remap_field_name field.cf_name in
               this#write
                 (this#op IaFThisInst ^ typeText ^ " "
-                ^ this#stringText field.cf_name
-                ^ this#commentOf field.cf_name)
+                ^ this#stringText name
+                ^ this#commentOf name)
           | FInstance (_, _, field) ->
               this#write
                 (this#op IaFLink ^ typeText ^ " "
@@ -1817,16 +1832,59 @@ let generate_script_class common_ctx script class_def =
   let ordered_statics =
     List.filter (non_dodgy_function false) class_def.cl_ordered_statics
   in
-  let ordered_fields =
+  let all_ordered_fields =
     List.filter (non_dodgy_function true) class_def.cl_ordered_fields
   in
+  (* Check whether a class field redefines a non-physical var from the parent class.
+     This can happen when a subclass has a property with the same name as a parent
+     non-physical property. The parent has no physical backing slot for the field, so
+     both the parent and child would emit CPPIA metadata for the same name, causing a
+     "duplicate member var" error at runtime. *)
+  let redefines_parent_non_physical cf =
+    match cf.cf_kind with
+    | Var _ -> (
+        match class_def.cl_super with
+        | None -> false
+        | Some (parent, _) -> (
+            try
+              let parent_cf = PMap.find cf.cf_name parent.cl_fields in
+              (match parent_cf.cf_kind with
+              | Var _ -> not (is_physical_var_field parent_cf)
+              | _ -> false)
+            with Not_found -> false))
+    | _ -> false
+  in
+  (* Build a remap from original name to backing name for physical vars that
+     redefine a parent's non-physical var. These get renamed to "_hxb_<name>" in
+     the CPPIA metadata so they don't conflict with the parent's accessor-based
+     definition. The parent's IaAccessCall mechanism remains in place for external
+     access; internal "this.field" accesses within the class are remapped to use
+     the backing name directly via IaFThisInst. *)
+  let physical_backing_remap =
+    List.filter_map
+      (fun cf ->
+        if redefines_parent_non_physical cf && is_physical_var_field cf then
+          Some (cf.cf_name, "_hxb_" ^ cf.cf_name)
+        else None)
+      all_ordered_fields
+  in
+  (* Non-physical vars that redefine a parent's non-physical var can be skipped
+     entirely in CPPIA. There is no physical storage to register, and the overridden
+     accessor methods (get_/set_) handle all dispatch naturally. *)
+  let ordered_fields =
+    List.filter
+      (fun cf ->
+        not (redefines_parent_non_physical cf && not (is_physical_var_field cf)))
+      all_ordered_fields
+  in
+  script#set_backing_remap physical_backing_remap;
   script#write
     (string_of_int
        (List.length ordered_fields
        + List.length ordered_statics
        + (match class_def.cl_constructor with Some _ -> 1 | _ -> 0)
        + match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0)
-    ^ "\n");
+     ^ "\n");
 
   let generate_field isStatic field =
     match (field.cf_kind, follow field.cf_type) with
@@ -1848,9 +1906,17 @@ let generate_script_class common_ctx script class_def =
           | AccInline -> IaAccessNormal
           | AccRequire (_, _) -> IaAccessNormal
         in
-        let isExtern = not (is_physical_field field) in
-        script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic
-          field.cf_name field.cf_type field.cf_expr
+        let backing_name = script#remap_field_name field.cf_name in
+        if backing_name <> field.cf_name then
+          (* Physical var redefining parent's non-physical: emit with direct-access
+             backing name so the CPPIA runtime doesn't see a duplicate. *)
+          script#var IaAccessNormal IaAccessNormal false isStatic
+            backing_name field.cf_type None
+        else begin
+          let isExtern = not (is_physical_field field) in
+          script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic
+            field.cf_name field.cf_type field.cf_expr
+        end
     | Method MethDynamic, TFun (args, ret) ->
         script#func isStatic true field.cf_name ret args
           (has_class_flag class_def CInterface)
@@ -1878,6 +1944,7 @@ let generate_script_class common_ctx script class_def =
 
   List.iter (generate_field false) ordered_fields;
   List.iter (generate_field true) ordered_statics;
+  script#set_backing_remap [];
   script#write "\n"
 
 let generate_script_enum script enum_def meta =
