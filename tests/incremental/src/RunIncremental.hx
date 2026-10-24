@@ -178,6 +178,10 @@ class RunIncremental {
 		FileSystem.createDirectory(coldDir);
 
 		var server = new Process(haxeCmd, ["--wait", Std.string(port)]);
+		// what the server prints, shown when the case fails (a server that dies
+		// during a compilation gives the client an empty output and exit code 0)
+		var serverOut = readInBackground(server.stdout);
+		var serverErr = readInBackground(server.stderr);
 		// Give the server time to listen.
 		var errors = [];
 		var connected = false;
@@ -271,7 +275,22 @@ class RunIncremental {
 		} catch (e:haxe.Exception) {
 			errors.push('runner error: ${e.message}');
 		}
+		if (errors.length > 0) {
+			var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
+			if (probe.exitCode() != 0)
+				errors.push('the compilation server no longer answers');
+			probe.close();
+		}
 		server.kill();
+		if (errors.length > 0) {
+			var output = (serverOut() + serverErr()).trim();
+			if (output != "") {
+				var lines = output.split("\n");
+				if (lines.length > 40)
+					lines = ["..."].concat(lines.slice(lines.length - 40));
+				errors.push('server output:\n' + lines.join("\n"));
+			}
+		}
 		server.close();
 
 		return switch [errors.length, tc.knownFailureFor(target)] {
