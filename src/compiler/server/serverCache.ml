@@ -175,9 +175,9 @@ let () = DepRecord.reuse_body := (fun c cf ->
 			try loop e; true with Exit -> false
 		in
 		begin match Graft.old_body c cf with
-		| Some (e,old_pos) when not (positions_kept e old_pos) -> ignore e; None
+		| Some (e,old_pos,_) when not (positions_kept e old_pos) -> ignore e; None
 		| None -> None
-		| Some (e,_) ->
+		| Some (e,_,unoptimized) ->
 			let key = DepRecord.field_key c cf ^ "\tbody" in
 			match Hashtbl.find_opt v.NodeGraph.v_graph.NodeGraph.nodes key with
 			| None -> None
@@ -186,6 +186,9 @@ let () = DepRecord.reuse_body := (fun c cf ->
 				| None -> None
 				| Some paths ->
 					cf.cf_expr <- Some e;
+					(* the typed body, which inlining reads (an inline call of a
+					   method that is not inline keeps it at the first inlining) *)
+					if unoptimized <> None then cf.cf_expr_unoptimized <- unoptimized;
 					add_class_field_flag cf CfPostProcessed;
 					Mutex.protect DepRecord.mutex (fun () -> DepRecord.reused := key :: !DepRecord.reused);
 					Some paths
