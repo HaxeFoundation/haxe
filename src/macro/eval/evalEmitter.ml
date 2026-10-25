@@ -75,50 +75,68 @@ let check_stack_depth max_depth env =
 let apply env exec =
 	exec env
 
+(* An operand: a local that is not captured (or [this]), a constant or an
+   expression. Locals and constants are read without calling a closure. *)
+type operand =
+	| OLocal of int
+	| OConst of value
+	| OExec of (env -> value)
+
+let eval_operand op env = match op with
+	| OLocal slot -> env.env_locals.(slot)
+	| OConst v -> v
+	| OExec exec -> exec env
+[@@inline]
+
+let emit_operand op = match op with
+	| OLocal slot -> (fun env -> env.env_locals.(slot))
+	| OConst v -> (fun _ -> v)
+	| OExec exec -> exec
+
 (* The arguments of a call, evaluated from left to right. *)
-let emit_args execs = match execs with
+let emit_args ops = match ops with
 	| [] ->
 		(fun _ -> [])
-	| [exec1] ->
-		(fun env -> [exec1 env])
-	| [exec1;exec2] ->
+	| [op1] ->
+		(fun env -> [eval_operand op1 env])
+	| [op1;op2] ->
 		(fun env ->
-			let v1 = exec1 env in
-			let v2 = exec2 env in
+			let v1 = eval_operand op1 env in
+			let v2 = eval_operand op2 env in
 			[v1;v2]
 		)
-	| [exec1;exec2;exec3] ->
+	| [op1;op2;op3] ->
 		(fun env ->
-			let v1 = exec1 env in
-			let v2 = exec2 env in
-			let v3 = exec3 env in
+			let v1 = eval_operand op1 env in
+			let v2 = eval_operand op2 env in
+			let v3 = eval_operand op3 env in
 			[v1;v2;v3]
 		)
-	| [exec1;exec2;exec3;exec4] ->
+	| [op1;op2;op3;op4] ->
 		(fun env ->
-			let v1 = exec1 env in
-			let v2 = exec2 env in
-			let v3 = exec3 env in
-			let v4 = exec4 env in
+			let v1 = eval_operand op1 env in
+			let v2 = eval_operand op2 env in
+			let v3 = eval_operand op3 env in
+			let v4 = eval_operand op4 env in
 			[v1;v2;v3;v4]
 		)
 	| _ ->
-		let rec loop env execs = match execs with
+		let rec loop env ops = match ops with
 			| [] -> []
-			| exec :: execs ->
-				let v = exec env in
-				v :: loop env execs
+			| op :: ops ->
+				let v = eval_operand op env in
+				v :: loop env ops
 		in
-		(fun env -> loop env execs)
+		(fun env -> loop env ops)
 
-(* The values of [execs], evaluated in order. *)
-let eval_array execs env =
-	let n = Array.length execs in
+(* The values of [ops], evaluated in order. *)
+let eval_operands ops env =
+	let n = Array.length ops in
 	if n = 0 then [||]
 	else begin
 		let a = make_null_array n in
 		for i = 0 to n - 1 do
-			Array.unsafe_set a i ((Array.unsafe_get execs i) env)
+			Array.unsafe_set a i (eval_operand (Array.unsafe_get ops i) env)
 		done;
 		a
 	end
@@ -130,6 +148,11 @@ let emit_null _ = vnull
 let emit_local_declaration i exec = fun env ->
 	env.env_locals.(i) <- exec env;
 	vnull
+
+let emit_local_declaration_operand i op = match op with
+	| OLocal slot -> (fun env -> env.env_locals.(i) <- env.env_locals.(slot); vnull)
+	| OConst v -> (fun env -> env.env_locals.(i) <- v; vnull)
+	| OExec exec -> emit_local_declaration i exec
 
 let emit_capture_declaration i exec = fun env ->
 	env.env_captures.(i) <- exec env;
@@ -164,8 +187,8 @@ let emit_new_vector exec p = fun env ->
 	let i = decode_int_p (exec env) p in
 	new_vector i p
 
-let emit_special_instance f execs =
-	let args = emit_args execs in
+let emit_special_instance f ops =
+	let args = emit_args ops in
 	(fun env -> f (args env))
 
 let emit_object_declaration proto fa =
@@ -175,7 +198,7 @@ let emit_object_declaration proto fa =
 	(fun env ->
 		let a = Array.make n vnull in
 		for k = 0 to n - 1 do
-			a.(Array.unsafe_get slots k) <- (Array.unsafe_get execs k) env
+			a.(Array.unsafe_get slots k) <- eval_operand (Array.unsafe_get execs k) env
 		done;
 		vobject {
 			ofields = a;
@@ -184,16 +207,16 @@ let emit_object_declaration proto fa =
 		}
 	)
 
-let emit_array_declaration execs = fun env ->
-	encode_array_instance (EvalArray.create (eval_array execs env))
+let emit_array_declaration ops = fun env ->
+	encode_array_instance (EvalArray.create (eval_operands ops env))
 
 let emit_type_expr proto = fun env -> proto
 
 let emit_mk_pos p = fun env ->
 	encode_pos p
 
-let emit_enum_construction key i execs p = fun env ->
-	encode_enum_value key i (eval_array execs env) p
+let emit_enum_construction key i ops p = fun env ->
+	encode_enum_value key i (eval_operands ops env) p
 
 (* Branching *)
 
@@ -235,6 +258,19 @@ let emit_string_switch_map exec cases exec_def p = fun env -> match exec env wit
 		exec_def env
 	| v ->
 		unexpected_value_p v "string" p
+
+(* A switch on the index of an enum value (the cases are shifted by [shift]). *)
+let enum_switch_array shift p cases exec_def v env =
+	let i = (as_enum_value p v).eindex + shift in
+	if i >= Array.length cases || i < 0 then exec_def env
+	else (Array.unsafe_get cases i) env
+[@@inline]
+
+let emit_enum_switch_array shift exec p cases exec_def = fun env ->
+	enum_switch_array shift p cases exec_def (exec env) env
+
+let emit_local_enum_switch_array shift slot p cases exec_def = fun env ->
+	enum_switch_array shift p cases exec_def env.env_locals.(slot) env
 
 let emit_int_switch_array shift exec cases exec_def p = fun env -> match exec env with
 	| VInt i ->
@@ -286,9 +322,6 @@ let emit_try exec catches = fun env ->
 
 (* Control flow *)
 
-let emit_value exec = fun env ->
-	exec env
-
 let emit_seq2 exec1 exec2 = fun env ->
 	ignore(exec1 env);
 	exec2 env
@@ -339,8 +372,8 @@ let force_function cache v = match !cache with
 
 (* super.call() - immediate *)
 
-let emit_super_field_call max_depth slot proto i execs p =
-	let args = emit_args execs in
+let emit_super_field_call max_depth slot proto i ops p =
+	let args = emit_args ops in
 	(fun env ->
 		check_stack_depth max_depth env;
 		let vthis = env.env_locals.(slot) in
@@ -351,8 +384,8 @@ let emit_super_field_call max_depth slot proto i execs p =
 
 (* Type.call() - immediate *)
 
-let emit_proto_field_call max_depth v execs p =
-	let args = emit_args execs in
+let emit_proto_field_call max_depth v ops p =
+	let args = emit_args ops in
 	let fcache = ref None in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
@@ -389,8 +422,8 @@ let rec find_method proto name =
 		| Some proto -> find_method proto name
 		| None -> raise Not_found
 
-let emit_method_call max_depth exec name execs p =
-	let args = emit_args execs in
+let emit_method_call max_depth exec name ops p =
+	let args = emit_args ops in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	let cache = ref None in
 	let lookup proto =
@@ -414,8 +447,8 @@ let emit_method_call max_depth exec name execs p =
 
 (* instance.call() where call is not a method - lookup + this-binding *)
 
-let emit_field_call max_depth exec name execs p =
-	let args = emit_args execs in
+let emit_field_call max_depth exec name ops p =
+	let args = emit_args ops in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
 		check_stack_depth max_depth env;
@@ -428,8 +461,8 @@ let emit_field_call max_depth exec name execs p =
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_call max_depth proto v execs p =
-	let args = emit_args execs in
+let emit_constructor_call max_depth proto v ops p =
+	let args = emit_args ops in
 	let fcache = ref None in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
@@ -445,8 +478,8 @@ let emit_constructor_call max_depth proto v execs p =
 
 (* super() - immediate + this-binding *)
 
-let emit_special_super_call max_depth fnew execs =
-	let args = emit_args execs in
+let emit_special_super_call max_depth fnew ops =
+	let args = emit_args ops in
 	(fun env ->
 		check_stack_depth max_depth env;
 		let vl = args env in
@@ -460,8 +493,8 @@ let emit_special_super_call max_depth fnew execs =
 		vnull
 	)
 
-let emit_super_call max_depth v execs p =
-	let args = emit_args execs in
+let emit_super_call max_depth v ops p =
+	let args = emit_args ops in
 	let fcache = ref None in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
@@ -477,8 +510,8 @@ let emit_super_call max_depth v execs p =
 
 (* unknown call - full lookup *)
 
-let emit_call max_depth exec execs p =
-	let args = emit_args execs in
+let emit_call max_depth exec ops p =
+	let args = emit_args ops in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
 		check_stack_depth max_depth env;

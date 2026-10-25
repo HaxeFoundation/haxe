@@ -199,7 +199,46 @@ calls, `StringMap`), the jit, and compiler work done by API calls
 the calling convention (arguments as an array, the evaluation state passed
 along) and fused emitters for whole statements.
 
-## 6. Constraints and verification
+## 6. Next phase: where macro time goes now
+
+Heaps `-D apicheck` with parallel typing (the default configuration): all
+macro time 0.89 s -> 0.61 s, macro execution 0.28 s -> 0.20 s (medians of
+7). Execution is now a third of macro time; the rest is loading the macro
+modules (parsing and typing hxsl, domkit, hxbit... in the macro context, its
+filters and its flush into the interpreter), compiler work outside eval.
+
+In the eval part of the profile (one domain): the closure tree 41%, the
+standard library 15% (StringMap, strings, arrays), calls 6%, the macro API
+5%, field lookups 5%, GC 4%, jit 2%. Parsing seen during execution is
+`Context.getType` loading modules of the main context (typing, not eval).
+
+Steps, by expected gain over effort:
+
+1. **Fewer nodes for frequent shapes.**
+   - `return e` in tail position is `e` itself, not a wrapper node.
+   - A `switch` on an enum (`TSwitch` on `TEnumIndex`) reads the index of
+     the value directly, without building an `Int`; with a local subject, without
+     calling a closure.
+   - Call arguments that are locals or constants are read directly.
+   - `var x = e` with a local or constant `e`.
+   Done: the tail `return`, the enum switches, call and enum-constructor
+   arguments, array and object literals and `var x = e` take locals and
+   constants as operands. About 4% on Heaps macro execution (0.542 s ->
+   0.519 s, median of 9, within the noise of this machine), 1.02x on the
+   micro benchmarks.
+2. **Standard library.** `StringMap` keeps a sorted map (its iteration order is
+   observable and must not change). Not done: map operations are 1.7% of eval
+   time on Heaps and most maps are small, where a hash table (plus sorting
+   the keys when iterating, and an O(n) `copy`) is not cheaper than the
+   balanced tree.
+3. **Calling convention.** Arguments in an array and the evaluation state
+   passed along: about 6% of eval time on Heaps, a change of `vfunc` across
+   the standard library. Only if 1 and 2 leave calls as the next hotspot.
+4. **Outside eval (not in this plan's scope).** Typing the macro modules is
+   now the larger part of macro time on a cold build; it is the typer's work
+   (and the claim of the macros, `docs/incremental-compilation.md` §3.5).
+
+## 7. Constraints and verification
 
 - **Semantics.**
   - `Int` keeps 32-bit wrapping semantics, and `haxe.Int64` stays boxed.

@@ -59,11 +59,6 @@ let is_const_int_pattern case =
 
 open EvalJitContext
 
-type operand =
-	| OLocal of int
-	| OConst of value
-	| OExec of (env -> value)
-
 (* The slot of [e] when it reads a local variable that is not captured. *)
 let local_slot jit e = match e.eexpr with
 	| TLocal var when not (has_var_flag var VCaptured) -> Some (get_slot jit var.v_id e.epos)
@@ -331,28 +326,27 @@ and jit_expr jit return e =
 	(* objects and values *)
 	| TVar(var,eo) ->
 		let varacc = declare_local jit var in
-		let exec = match eo with
-			| None -> emit_null
-			| Some e -> jit_expr jit false e
+		let op = match eo with
+			| None -> OConst vnull
+			| Some e -> jit_operand jit e
 		in
 		begin match varacc with
-			| Local slot -> emit_local_declaration slot exec
-			| Env slot -> emit_capture_declaration slot exec
+			| Local slot -> emit_local_declaration_operand slot op
+			| Env slot -> emit_capture_declaration slot (emit_operand op)
 		end
 	| TConst TThis ->
 		emit_local_read (get_slot jit 0 e.epos)
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
-		let fl = List.map (fun ((s,_,_),e) -> hash s,jit_expr jit false e) fl in
+		let fl = List.map (fun ((s,_,_),e) -> hash s,jit_operand jit e) fl in
 		let proto,_ = ctx.get_object_prototype ctx fl in
 		let fl = List.map (fun (s,exec) -> get_instance_field_index proto s e.epos,exec) fl in
 		let fa = Array.of_list fl in
 		emit_object_declaration proto fa
 	| TArrayDecl el ->
-		let execs = List.map (jit_expr jit false) el in
-		let execs = Array.of_list execs in
-		emit_array_declaration execs
+		let ops = List.map (jit_operand jit) el in
+		emit_array_declaration (Array.of_list ops)
 	| TTypeExpr mt ->
 		let key = path_hash (t_infos mt).mt_path in
 		let proto = get_static_prototype_as_value jit.ctx key e.epos in
@@ -383,7 +377,20 @@ and jit_expr jit return e =
 		in
 		emit_if_cond cond exec_then exec_else
 	| TSwitch switch when is_int switch.switch_subject.etype && List.for_all is_const_int_pattern switch.switch_cases ->
-		let exec = jit_expr jit false switch.switch_subject in
+		let rec skip e = match e.eexpr with
+			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> skip e1
+			| _ -> e
+		in
+		(* a switch on an enum reads the index of the value, without an Int *)
+		let subject = match (skip switch.switch_subject).eexpr with
+			| TEnumIndex e1 ->
+				begin match local_slot jit e1 with
+				| Some slot -> `EnumLocal(slot,e1.epos)
+				| None -> `Enum(jit_expr jit false e1,e1.epos)
+				end
+			| _ ->
+				`Int (jit_expr jit false switch.switch_subject)
+		in
 		let h = ref IntMap.empty in
 		let max = ref 0 in
 		let min = ref max_int in
@@ -404,9 +411,18 @@ and jit_expr jit return e =
 		let l = !max - !min + 1 in
 		if l > 0 && l < 256 then begin
 			let cases = Array.init l (fun i -> try IntMap.find (i + !min) !h with Not_found -> exec_def) in
-			emit_int_switch_array (- !min) exec cases exec_def switch.switch_subject.epos
-		end else
+			match subject with
+			| `Int exec -> emit_int_switch_array (- !min) exec cases exec_def switch.switch_subject.epos
+			| `Enum(exec,p) -> emit_enum_switch_array (- !min) exec p cases exec_def
+			| `EnumLocal(slot,p) -> emit_local_enum_switch_array (- !min) slot p cases exec_def
+		end else begin
+			let exec = match subject with
+				| `Int exec -> exec
+				| `Enum(exec,p) -> emit_enum_index exec p
+				| `EnumLocal(slot,p) -> emit_local_enum_index slot p
+			in
 			emit_int_switch_map exec !h exec_def switch.switch_subject.epos
+		end
 	(* | TSwitch(e1,cases,def) when is_string e1.etype ->
 		let exec = jit_expr jit false e1 in
 		let h = ref PMap.empty in
@@ -511,7 +527,7 @@ and jit_expr jit return e =
 	| TReturn (Some e1) ->
 		let exec = jit_expr jit false e1 in
 		if return && not jit.ctx.debug.support_debugger then
-			emit_value exec
+			exec
 		else begin
 			jit.has_nonfinal_return <- true;
 			emit_return_value exec
@@ -535,11 +551,12 @@ and jit_expr jit return e =
 			let name = hash cf.cf_name in
 			let i = get_proto_field_index proto name in
 			let slot = get_slot jit 0 pv in
-			let execs = List.map (jit_expr jit false) el in
-			emit_super_field_call ctx.max_stack_depth slot proto i execs e.epos
+			let ops = List.map (jit_operand jit) el in
+			emit_super_field_call ctx.max_stack_depth slot proto i ops e.epos
 		| TField(ef,fa) ->
 			let name = hash (field_name fa) in
-			let execs = List.map (jit_expr jit false) el in
+			let ops = List.map (jit_operand jit) el in
+			let execs = List.map emit_operand ops in
 			let is_final c cf =
 				has_class_flag c CFinal || (has_class_field_flag cf CfFinal) ||
 				(* In interp mode we can assume that a field is final if it is not overridden.
@@ -569,11 +586,11 @@ and jit_expr jit return e =
 				let exec = jit_with_null_check ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let v = lazy_proto_field proto in
-				emit_proto_field_call ctx.max_stack_depth v (exec :: execs) e.epos
+				emit_proto_field_call ctx.max_stack_depth v (OExec exec :: ops) e.epos
 			in
 			let default () =
 				let exec = jit_with_null_check ef in
-				emit_method_call ctx.max_stack_depth exec name execs e.epos
+				emit_method_call ctx.max_stack_depth exec name ops e.epos
 			in
 			begin match fa with
 				| FStatic({cl_path=[],"StringTools"},{cf_name="fastCodeAt"}) ->
@@ -589,11 +606,11 @@ and jit_expr jit return e =
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
 					let pos = Some e.epos in
-					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
+					emit_enum_construction key ef.ef_index (Array.of_list ops) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let v = lazy_proto_field proto in
-					emit_proto_field_call ctx.max_stack_depth v execs e.epos
+					emit_proto_field_call ctx.max_stack_depth v ops e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
 					if not (is_final c cf) then
 						default()
@@ -609,27 +626,27 @@ and jit_expr jit return e =
 						default()
 				| _ ->
 					let exec = jit_with_null_check ef in
-					emit_field_call ctx.max_stack_depth exec name execs e.epos
+					emit_field_call ctx.max_stack_depth exec name ops e.epos
 			end
 		| TConst TSuper ->
 			begin match follow e1.etype with
 			| TInst(c,_) ->
 				let key = (path_hash c.cl_path) in
-				let execs = List.map (jit_expr jit false) el in
+				let ops = List.map (jit_operand jit) el in
 				begin try
 					let f = get_special_instance_constructor_raise ctx key in
-					emit_special_super_call ctx.max_stack_depth f execs
+					emit_special_super_call ctx.max_stack_depth f ops
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
 					let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
-					emit_super_call ctx.max_stack_depth v execs e.epos
+					emit_super_call ctx.max_stack_depth v ops e.epos
 				end
 			| _ -> die "" __LOC__
 			end
 		| _ ->
 			let exec = jit_expr jit false e1 in
-			let execs = List.map (jit_expr jit false) el in
-			emit_call ctx.max_stack_depth exec execs e.epos
+			let ops = List.map (jit_operand jit) el in
+			emit_call ctx.max_stack_depth exec ops e.epos
 		end
 	| TNew({cl_path=[],"Array"},_,_) ->
 		emit_new_array
@@ -642,16 +659,16 @@ and jit_expr jit return e =
 				emit_new_vector exec1 e1.epos
 		end
 	| TNew(c,_,el) ->
-		let execs = List.map (jit_expr jit false) el in
+		let ops = List.map (jit_operand jit) el in
 		let key = path_hash c.cl_path in
 		begin try
 			let f = get_special_instance_constructor_raise ctx key in
-			emit_special_instance f execs
+			emit_special_instance f ops
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
 			let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
-			emit_constructor_call ctx.max_stack_depth proto v execs e.epos
+			emit_constructor_call ctx.max_stack_depth proto v ops e.epos
 		end
 	(* read *)
 	| TLocal var ->
