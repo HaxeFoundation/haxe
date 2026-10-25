@@ -653,7 +653,11 @@ and jit_expr jit return e =
 	| TField(e1,fa) ->
 		let name = hash (field_name fa) in
 		begin match fa with
-			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1) e1.epos
+			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) ->
+				begin match local_slot jit e1 with
+				| Some slot -> emit_local_array_length_read slot e1.epos
+				| None -> emit_array_length_read (jit_expr jit false e1) e1.epos
+				end
 			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1) e1.epos
 			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1) e1.epos
 			| FStatic({cl_path=path},cf) ->
@@ -684,7 +688,10 @@ and jit_expr jit return e =
 						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name e1.epos in
-						emit_anon_field_read (jit_expr jit false e1) proto i name e1.epos
+						begin match local_slot jit e1 with
+						| Some slot -> emit_local_anon_field_read slot proto i name e1.epos
+						| None -> emit_anon_field_read (jit_expr jit false e1) proto i name e1.epos
+						end
 					| _ ->
 						emit_field_read (jit_expr jit false e1) name e1.epos
 				end
@@ -702,9 +709,17 @@ and jit_expr jit return e =
 				let exec2 = jit_expr jit false e2 in
 				emit_vector_read exec1 e1.epos exec2 e2.epos
 			| _ ->
-				let exec1 = jit_expr jit false e1 in
-				let exec2 = jit_expr jit false e2 in
-				emit_array_read exec1 e1.epos exec2 e2.epos
+				begin match local_slot jit e1 with
+				| Some slot1 ->
+					begin match local_slot jit e2 with
+					| Some slot2 -> emit_array_read_ll slot1 e1.epos slot2 e2.epos
+					| None -> emit_array_read_le slot1 e1.epos (jit_expr jit false e2) e2.epos
+					end
+				| None ->
+					let exec1 = jit_expr jit false e1 in
+					let exec2 = jit_expr jit false e2 in
+					emit_array_read exec1 e1.epos exec2 e2.epos
+				end
 		end
 	| TEnumParameter(e1,_,i) ->
 		begin match local_slot jit e1 with

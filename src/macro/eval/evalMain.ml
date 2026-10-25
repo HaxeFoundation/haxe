@@ -578,7 +578,7 @@ let rec value_to_expr v p =
 
 let encode_obj = encode_obj_s
 
-let field v f = field v (EvalHash.hash f)
+let field v f = field v (EvalHash.hash_literal f)
 
 let value_string = value_string
 

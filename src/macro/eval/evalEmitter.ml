@@ -522,6 +522,8 @@ let emit_capture_read i = fun env -> env.env_captures.(i)
 
 let emit_array_length_read exec p = fun env -> vint (as_array p (exec env)).alength
 
+let emit_local_array_length_read slot p = fun env -> vint (as_array p env.env_locals.(slot)).alength
+
 let emit_vector_length_read exec p = fun env -> vint (Array.length (as_vector p (exec env)))
 
 let emit_bytes_length_read exec p = fun env -> vint (Bytes.length (as_bytes p (exec env)))
@@ -549,8 +551,7 @@ let emit_field_closure exec name = fun env ->
 	let v = exec env in
 	dynamic_field v name
 
-let emit_anon_field_read exec proto i name p = fun env ->
-	match vresolve (exec env) with
+let anon_field_read proto i name p v = match vresolve v with
 	| VObject o ->
 		begin match o.oproto with
 		| OProto proto' when proto' == proto ->
@@ -560,6 +561,13 @@ let emit_anon_field_read exec proto i name p = fun env ->
 		end
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
+[@@inline]
+
+let emit_anon_field_read exec proto i name p = fun env ->
+	anon_field_read proto i name p (exec env)
+
+let emit_local_anon_field_read slot proto i name p = fun env ->
+	anon_field_read proto i name p env.env_locals.(slot)
 
 let emit_field_read exec name p = fun env -> match exec env with
 	| VNull -> throw_string "field access on null" p
@@ -567,6 +575,18 @@ let emit_field_read exec name p = fun env -> match exec env with
 
 let emit_array_read exec1 p1 exec2 p2 = fun env ->
 	let a = as_array p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
+	if i < 0 then vnull
+	else EvalArray.get a i
+
+let emit_array_read_ll slot1 p1 slot2 p2 = fun env ->
+	let a = as_array p1 env.env_locals.(slot1) in
+	let i = as_int p2 env.env_locals.(slot2) in
+	if i < 0 then vnull
+	else EvalArray.get a i
+
+let emit_array_read_le slot1 p1 exec2 p2 = fun env ->
+	let a = as_array p1 env.env_locals.(slot1) in
 	let i = as_int p2 (exec2 env) in
 	if i < 0 then vnull
 	else EvalArray.get a i

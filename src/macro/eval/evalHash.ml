@@ -58,6 +58,28 @@ let hash f =
 	end;
 	i
 
+(* [hash] of a name the macro API gives again and again (a string literal of
+   its encoders and decoders): a direct-mapped cache per domain, by the
+   identity of the string. A string moved by the GC is only a miss. *)
+let literal_size = 1024
+
+let literals : (string * int) array Domain.DLS.key = Domain.DLS.new_key (fun () ->
+	(* a string of its own, which no caller can give *)
+	let none = Bytes.to_string (Bytes.make 1 '\000') in
+	Array.make literal_size (none,Hashtbl.hash none)
+)
+
+let hash_literal (s : string) =
+	let cache = Domain.DLS.get literals in
+	let k = ((Obj.magic s : int) lsr 2) land (literal_size - 1) in
+	let (s',i) = Array.unsafe_get cache k in
+	if s' == s then i
+	else begin
+		let i = hash s in
+		Array.unsafe_set cache k (s,i);
+		i
+	end
+
 let path_hash path = hash (Globals.s_type_path path)
 
 let key_length = hash "length"
