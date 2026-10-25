@@ -92,7 +92,8 @@ let create com api is_macro args =
 	let detail_times = Common.defined com Define.EvalTimes in
 	let next_thread_id = Atomic.make 0 in
 	let thread = EvalThread.create_thread_info next_thread_id (Thread (Thread.self ())) in
-	let eval = EvalThread.create_eval thread in
+	let max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth) in
+	let eval = EvalThread.create_eval ~stack_limit:max_stack_depth thread in
 	let evals = ThreadSafeHashtbl.create 1 in
 	ThreadSafeHashtbl.add evals 0 eval;
 	let fake_proto_cache = Hashtbl.create 0 in
@@ -129,7 +130,7 @@ let create com api is_macro args =
 		eval = Thread_local_storage.create ();
 		evals = evals;
 		timer_ctx = com.timer_ctx;
-		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
+		max_stack_depth = max_stack_depth;
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
 			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
@@ -707,7 +708,7 @@ let get_api_call_pos () =
    a macro is called from a domain typing bodies in parallel
    (docs/incremental-compilation.md, phase 3.5). *)
 let () = EvalContext.create_thread_eval := (fun ctx ->
-	EvalThread.create_eval (EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())))
+	EvalThread.create_eval ~stack_limit:ctx.max_stack_depth (EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())))
 )
 
 let ensure_thread_eval () =
@@ -718,5 +719,5 @@ let ensure_thread_eval () =
 			()
 		| None ->
 			let thread = EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())) in
-			Thread_local_storage.set ctx.eval (EvalThread.create_eval thread)
+			Thread_local_storage.set ctx.eval (EvalThread.create_eval ~stack_limit:ctx.max_stack_depth thread)
 	end

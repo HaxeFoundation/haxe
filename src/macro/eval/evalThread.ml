@@ -41,7 +41,7 @@ module Deque = struct
 		Mutex.unlock this.dmutex
 end
 
-let create_eval tthread =
+let create_eval ~stack_limit tthread =
 	let eval = {
 		env = None;
 		thread = tthread;
@@ -53,11 +53,12 @@ let create_eval tthread =
 		last_return = None;
 		caught_exception = vnull;
 		eval_storage = TlsStorage.create 0;
+		stack_limit;
 	} in
 	eval
 
 let run ctx tthread f =
-	let new_eval = create_eval tthread in
+	let new_eval = create_eval ~stack_limit:ctx.max_stack_depth tthread in
 	let id = tthread.thread_id in
 	let maybe_send_thread_event reason = match ctx.debug.debug_socket with
 		| Some socket ->

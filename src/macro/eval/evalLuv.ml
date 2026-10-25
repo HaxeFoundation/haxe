@@ -1978,7 +1978,7 @@ let prepare_luv_callback v =
 					()
 				| None ->
 					let thread = EvalThread.create_thread_info ctx.next_thread_id (LuvThread (Thread.self())) in
-					let eval = EvalThread.create_eval thread in
+					let eval = EvalThread.create_eval ~stack_limit:ctx.max_stack_depth thread in
 					Thread_local_storage.set ctx.eval eval
 			end;
 			ignore(catch_exceptions ctx (fun() -> call_value v []) null_pos)

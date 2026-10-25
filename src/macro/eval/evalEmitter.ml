@@ -67,7 +67,7 @@ let decode_int_p v p = match v with
 	| _ -> unexpected_value_p v "int" p
 
 let check_stack_depth env =
-	if env.env_stack_depth > (get_ctx()).max_stack_depth then
+	if env.env_stack_depth > env.env_eval.stack_limit then
 		exc_string "Stack overflow"
 
 (* Emitter *)

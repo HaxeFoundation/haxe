@@ -129,6 +129,8 @@ and eval = {
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
 	eval_storage : value TlsStorage.t;
+	(* [max_stack_depth] of the context, for [EvalEmitter.check_stack_depth] *)
+	stack_limit : int;
 }
 
 and debug_state =
@@ -359,9 +361,10 @@ let clear_curapi ctx api =
 let create_thread_eval : (context -> eval) ref = ref (fun _ -> raise Not_found)
 
 let get_eval ctx =
-	match Thread_local_storage.get_opt ctx.eval with
-	| Some eval -> eval
-	| None ->
+	(* [get_exn]: [get_opt] would allocate *)
+	try
+		Thread_local_storage.get_exn ctx.eval
+	with Thread_local_storage.Not_set ->
 		let eval = !create_thread_eval ctx in
 		Thread_local_storage.set ctx.eval eval;
 		eval
