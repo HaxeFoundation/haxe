@@ -231,16 +231,29 @@ replay, VFS statistics through `server/vfs` and `-v`). Item 1 (in-compiler
 verification mode) is covered by the two external harnesses until fingerprints
 exist (phase 4). Item 2 is in place: `-D incremental-check-refs`
 (`src/compiler/refCheck.ml`) reports every type, field or enum constructor
-reference that does not point to the object its module currently holds. Note
-that the server's default cache decodes cached modules from hxb on every
-compilation (new objects each time), so the check is meaningful with the
-in-memory cache, which is the storage chosen by the plan and, on this branch,
-the server's only cache (see the storage decision). `tests/incremental` can run in that mode with
+reference that does not point to the object its module currently holds. The
+check is meaningful because the server keeps its modules in memory (the
+storage chosen by the plan); the former hxb cache, which decoded the cached
+modules on every compilation, and its code are removed. `tests/incremental` can run in that mode with
 `--args "-D incremental-check-refs"`: no stale reference
 is reported. The one pre-existing warm/cold difference of that mode
 (`macros/add-resource` on js: DCE dropped `js.Boot` and every feature-dependent
 `__name__` on a module reused from memory) is fixed by the first step of
 phase 2, item 3 (see "DCE markers" there).
+
+**Warm/cold fuzzing** (`tests/fuzz/fuzz.py`, see `CLAUDE.md`). Random edits
+of a project (comments, literals, added fields, inferred return values), each
+followed by a compilation through the server and one from scratch, compared
+(exit code, messages, output). The cold compilations vary the typing order
+(`-D typer-shuffle`) and the number of domains, the server uses a random
+number of domains for the run. Part of the edits (`--errors`) introduce an
+error at a given level (syntax, unknown type in a signature, field
+initialization, method body, unknown identifier, argument of a macro, error
+raised by a macro), undone after the compilation: the errors must be the same,
+and the output too once the error is undone. With `--mem`, the memory kept
+alive by the server (`server/gcCompact`, field `live`) is measured after each
+compilation, and a growth is reported as a leak. Run on Heaps (JS and HL) and
+hide, it found the bugs fixed in phase 6 ("Status: fuzzing", below).
 
 **First replay** (last 30 commits of Heaps, compiled to JS with `include` of
 `h3d`, `h2d`, `hxsl`, `hxd`, with hxbit, domkit, castle and format):
@@ -1688,7 +1701,9 @@ context records the stage it was created for (`ctx.stage`), `delay_if_mono`
 and `make_pass` are removed, and `make_lazy`'s forcing is a unit of the checks
 stage. `build_state` stays as the state of the `members` query of a class
 (`cl_build`). The output of the corpus (Heaps, hide) is unchanged except for
-the documented order of domkit handlers. Parallel typing (§3.5) is not done.
+the documented order of domkit handlers, now sorted by domkit itself (the
+output no longer depends on the typing order). Parallel typing (§3.5) is done
+and on by default.
 
 ---
 
@@ -2070,6 +2085,43 @@ Leads, by expected gain:
    with the number of nodes found changed; cache the validity of nodes across
    the two rounds of lead 1.
 4. HL generation follows the number of classes typed again (leads 1 and 2).
+
+**Status: fuzzing (warm/cold, errors, memory).** What the fuzzer of phase 0
+found on Heaps, fixed:
+
+- *Inline constructors.* `InlineConstructors` inlines the instance variables
+  of the class and of its parents, with their initial values, where the
+  constructor is inlined; only the constructor's body was a dependency, so
+  adding a variable to `h3d.col.Sphere` left the callers of `new Sphere` (or
+  of the inline `Bounds.toSphere`) without it. A use of an inline constructor
+  now records the members of the class and of its parents and the initial
+  value of each instance variable (an `inline` node, which instance variables
+  now have), also for the `new` of an inlined body
+  (`tests/incremental/cases/inline/inline-constructor-fields.hxtest`).
+- *Errors of a failed compilation.* A computation the graph finds valid can
+  fail when typed again through what it does not record: the hxsl build macro
+  of a shader fails on the code of the shader, the shader loses its fields,
+  and the cold compilation reports the errors of the modules reading them,
+  which the server kept as valid (the assumptions on the nodes of a module
+  typed again are dropped, so the retry on an error did not happen either). A
+  compilation that checked modules through the graph and stops on an error
+  is done again with the modules checked through their module dependencies
+  only (`NodeGraph.modules_only`, as with `HAXE_GRAPH=off`), which also makes
+  no assumption; not for display requests, which can send their result before
+  typing is done. Only failed compilations pay for it.
+- *Failed compilations kept alive* (parallel typing; ~165 MB each on Heaps,
+  out of memory after about 12): the API of the macros was kept per domain in
+  a domain-local key created per macro context (a domain keeps the value of
+  every key ever created); the declared argument types of methods
+  (`Typecore.declared_args`, by class) were lazies holding the typing context;
+  and the modules parsed in advance by the domains typing in parallel
+  (`TypeloadParse.preparsed`), with the context of the compilation, stayed in
+  their table when the compilation stopped before loading them. After
+  failed compilations of Heaps in parallel mode, the live heap of the server
+  stays at ~175 MB (~770 MB with the first two fixes only, unbounded before).
+  The last one was found from the global data of the program
+  (`caml_globals`), with a search of the paths reaching the typers of the
+  previous compilations.
 
 #### Virtual file system
 
