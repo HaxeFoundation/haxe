@@ -41,7 +41,16 @@ subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD"], check=True
 warm_domains = random.choice(DOMAINS)
 warm_args = ["-D", "parallel-typing=" + warm_domains]
 server = subprocess.Popen([H, "--wait", args.port], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-time.sleep(1)
+# wait until the server answers (the port of a previous run may still be bound)
+for _ in range(100):
+	if subprocess.run([H, "--connect", args.port, "--version"], capture_output=True).returncode == 0: break
+	if server.poll() is not None:
+		time.sleep(0.5)
+		server = subprocess.Popen([H, "--wait", args.port], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+	time.sleep(0.1)
+else:
+	server.kill()
+	sys.exit("the compilation server does not answer on port " + args.port)
 excluded = [e for e in args.exclude.split(",") if e]
 files = [os.path.join(r, f) for d in args.src.split(",") for r, _, fs in os.walk(os.path.join(D, d)) for f in fs
 	if f.endswith(".hx") and not any(e in os.path.join(r, f) for e in excluded)]
@@ -136,6 +145,7 @@ try:
 			if not same: fails += 1
 finally:
 	server.kill()
+	server.wait()
 	subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD"])
 print("fails", fails)
 sys.exit(1 if fails else 0)
