@@ -146,7 +146,7 @@ class TestLocalDce {
 	@:js('TestJs.use(5.);')
 	static function testLoopUnrollDavid() {
 		var s = 0.0;
-		inline function foo(r)
+		inline function foo(r:Float)
 			return 2.0 + r;
 		inline for ( r in [0.0,1.0] )
 			s+=foo(r);
