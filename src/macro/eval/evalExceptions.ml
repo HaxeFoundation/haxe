@@ -32,7 +32,7 @@ let s_value_kind = function
 	| VNull -> "VNull"
 	| VTrue -> "VTrue"
 	| VFalse -> "VFalse"
-	| VInt32 _ -> "VInt32"
+	| VInt _ -> "VInt32"
 	| VInt64 _ -> "VInt64"
 	| VUInt64 _ -> "VUInt64"
 	| VFloat _ -> "VFloat"
@@ -187,8 +187,8 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 						| VObject o ->
 							(try
 								let fields = object_fields o in
-								let min = match List.assoc key_min fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
-								and max = match List.assoc key_max fields with VInt32 i -> Int32.to_int i | _ -> raise Not_found
+								let min = match List.assoc key_min fields with VInt i -> i | _ -> raise Not_found
+								and max = match List.assoc key_max fields with VInt i -> i | _ -> raise Not_found
 								and file = match List.assoc key_file fields with VString s -> s.sstring | _ -> raise Not_found
 								in
 								(Pos.make (file) (min) (max))

@@ -239,10 +239,10 @@ let value_signature v =
 		| VNull -> addc 'n'
 		| VTrue -> addc 't'
 		| VFalse -> addc 'f'
-		| VInt32 i when i = Int32.zero -> addc 'z'
-		| VInt32 i ->
+		| VInt 0 -> addc 'z'
+		| VInt i ->
 			addc 'i';
-			add (Int32.to_string i)
+			add (string_of_int i)
 		| VInt64 i ->
 			add "i64";
 			add (Signed.Int64.to_string i)
@@ -521,7 +521,7 @@ let rec value_to_expr v p =
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)
-	| VInt32 i -> (EConst (Int (Int32.to_string i,None)),p)
+	| VInt i -> (EConst (Int (string_of_int i,None)),p)
 	| VFloat f -> haxe_float f p
 	| VString s -> (EConst (String(s.sstring,SDoubleQuotes)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
@@ -639,7 +639,7 @@ let handle_decoding_error f v t =
 			end
 		| TAbstract({a_path=[],("Int" | "Float")},_) ->
 			begin match v with
-				| VInt32 _ | VFloat _ -> f (value_string v)
+				| VInt _ | VFloat _ -> f (value_string v)
 				| _ -> error "expected Bool" v
 			end
 		| TType(t,tl) ->

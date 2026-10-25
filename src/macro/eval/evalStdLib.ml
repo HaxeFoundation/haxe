@@ -1795,7 +1795,7 @@ module StdMath = struct
 
 	let abs = vfun1 (fun v ->
 		match v with
-		| VInt32 i -> vint32 (Int32.abs i)
+		| VInt i -> vint (abs i)
 		| VFloat f -> vfloat (abs_float f)
 		| _ -> unexpected_value v "number"
 	)
@@ -1804,15 +1804,15 @@ module StdMath = struct
 	let asin = vfun1 (fun v -> vfloat (asin (num v)))
 	let atan = vfun1 (fun v -> vfloat (atan (num v)))
 	let atan2 = vfun2 (fun a b -> vfloat (atan2 (num a) (num b)))
-	let ceil = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (ceil (num v))))
+	let ceil = vfun1 (fun v -> match v with VInt _ -> v | _ -> vint32 (to_int (ceil (num v))))
 	let cos = vfun1 (fun v -> vfloat (cos (num v)))
 	let exp = vfun1 (fun v -> vfloat (exp (num v)))
 	let fceil = vfun1 (fun v -> vfloat (Stdlib.ceil (num v)))
 	let ffloor = vfun1 (fun v -> vfloat (Stdlib.floor (num v)))
-	let floor = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (floor (num v))))
+	let floor = vfun1 (fun v -> match v with VInt _ -> v | _ -> vint32 (to_int (floor (num v))))
 	let fround = vfun1 (fun v -> vfloat (Stdlib.floor (num v +. 0.5)))
 	let isFinite = vfun1 (fun v -> vbool (match v with VFloat f -> f <> infinity && f <> neg_infinity && f = f | _ -> true))
-	let isNaN = vfun1 (fun v -> vbool (match v with VFloat f -> f <> f | VInt32 _ -> false | _ -> true))
+	let isNaN = vfun1 (fun v -> vbool (match v with VFloat f -> f <> f | VInt _ -> false | _ -> true))
 	let log = vfun1 (fun v -> vfloat (Stdlib.log (num v)))
 
 	let max = vfun2 (fun a b ->
@@ -1829,7 +1829,7 @@ module StdMath = struct
 
 	let pow = vfun2 (fun a b -> vfloat ((num a) ** (num b)))
 	let random = vfun0 (fun () -> vfloat (Random.State.float random 1.))
-	let round = vfun1 (fun v -> match v with VInt32 _ -> v | _ -> vint32 (to_int (Stdlib.floor (num v +. 0.5))))
+	let round = vfun1 (fun v -> match v with VInt _ -> v | _ -> vint32 (to_int (Stdlib.floor (num v +. 0.5))))
 	let sin = vfun1 (fun v -> vfloat (sin (num v)))
 
 	let sqrt = vfun1 (fun v ->
@@ -2279,7 +2279,7 @@ module StdSocket = struct
 		let read = List.map pair (decode_optional_array read) in
 		let write = List.map pair (decode_optional_array write) in
 		let others = List.map pair (decode_optional_array others) in
-		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = match timeout with VNull -> 0. | VInt i -> float_of_int i | VFloat f -> f | _ -> unexpected_value timeout "number" in
 		let read',write',others' = catch_unix_error Unix.select (List.map fst read) (List.map fst write) (List.map fst others) timeout in
 		let read = List.map (fun sock -> List.assq sock read) read' in
 		let write = List.map (fun sock -> List.assq sock write) write' in
@@ -2322,7 +2322,7 @@ module StdSocket = struct
 
 	let setTimeout = vifun1 (fun vthis timeout ->
 		let this = this vthis in
-		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = match timeout with VNull -> 0. | VInt i -> float_of_int i | VFloat f -> f | _ -> unexpected_value timeout "number" in
 		let timeout = timeout *. 1000. in
 		catch_unix_error (fun () ->
 			Unix.setsockopt_float this SO_RCVTIMEO timeout;
@@ -2500,7 +2500,7 @@ module StdString = struct
 			begin
 				let c_len = match len with
 					| VNull -> (cl_this - c_pos)
-					| VInt32 i -> Int32.to_int i
+					| VInt i -> i
 					| _ -> unexpected_value len "int"
 				in
 				let c_len =
@@ -2581,7 +2581,7 @@ module StdStringBuf = struct
 		let c_pos = decode_int pos in
 		let c_len = match len with
 			| VNull -> s.slength - c_pos
-			| VInt32 i -> Int32.to_int i
+			| VInt i -> i
 			| _ -> unexpected_value len "int"
 		in
 		if c_len > 0 then begin
@@ -3186,7 +3186,7 @@ module StdType = struct
 		let ctx = (get_ctx()) in
 		let rec loop v = match v with
 			| VNull -> 0,[||]
-			| VInt32 _ -> 1,[||]
+			| VInt _ -> 1,[||]
 			| VInt64 _ | VUInt64 _ -> 2,[||]
 			| VFloat _ -> 3,[||]
 			| VTrue | VFalse -> 4,[||]

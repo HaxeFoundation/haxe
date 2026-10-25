@@ -50,7 +50,7 @@ let as_enum_value p = function
 	| v -> unexpected_value_p v "enum value" p
 
 let as_int p = function
-	| VInt32 i -> Int32.to_int i
+	| VInt i -> i
 	| VFloat f -> int_of_float f
 	| v -> unexpected_value_p v "int" p
 
@@ -62,7 +62,7 @@ let cannot_call v p =
 	throw (EvalString.create_unknown ("Cannot call " ^ (value_string v))) p
 
 let decode_int_p v p = match v with
-	| VInt32 i -> Int32.to_int i
+	| VInt i -> i
 	| VFloat f -> int_of_float f
 	| _ -> unexpected_value_p v "int" p
 
@@ -209,8 +209,7 @@ let emit_switch exec execs patterns exec_def = fun env ->
 	loop v1 0
 
 let emit_int_switch_map exec cases exec_def p = fun env -> match exec env with
-	| VInt32 i32 ->
-		let i = Int32.to_int i32 in
+	| VInt i ->
 		begin try
 			(IntMap.find i cases) env
 		with Not_found ->
@@ -234,8 +233,8 @@ let emit_string_switch_map exec cases exec_def p = fun env -> match exec env wit
 		unexpected_value_p v "string" p
 
 let emit_int_switch_array shift exec cases exec_def p = fun env -> match exec env with
-	| VInt32 i32 ->
-		let i = Int32.to_int i32 + shift in
+	| VInt i ->
+		let i = i + shift in
 		if i >= Array.length cases || i < 0 then exec_def env
 		else (Array.unsafe_get cases i) env
 	| VNull ->
@@ -643,7 +642,7 @@ let emit_vector_write exec1 p1 exec2 p2 exec3 p = fun env ->
 (* Read + write *)
 
 let do_incr v p = match v with
-	| VInt32 i32 -> vint32 (Int32.succ i32)
+	| VInt i -> vint (i + 1)
 	| VInt64 i64 -> vint64 (Int64.succ i64)
 	| VFloat f -> vfloat (f +. 1.)
 	| v -> unexpected_value_p v "number" p
@@ -848,7 +847,7 @@ let emit_bool_or exec1 exec2 = fun env ->
 
 let emit_neg exec p = fun env -> match exec env with
 	| VFloat f -> vfloat (-.f)
-	| VInt32 i -> vint32 (Int32.neg i)
+	| VInt i -> vint (-i)
 	| VInt64 i -> vint64 (Int64.neg i)
 	| _ -> throw_string "Invalid operation" p
 

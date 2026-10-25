@@ -121,18 +121,18 @@ let set_field_runtime v1 name v2 = match vresolve v1 with
 
 let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else if a > b then CSup else CUndef
 
-let icmp (a:int32) b = let l = Int32.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup
+let icmp (a:int) b = if a = b then CEq else if a < b then CInf else CSup
 
 let i64cmp (a:int64) b = let l = Int64.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup
 
 let rec compare a b =
 	match a, b with
 	| VNull,VNull -> CEq
-	| VInt32 a,VInt32 b -> icmp a b
+	| VInt a,VInt b -> icmp a b
 	| VInt64 a,VInt64 b -> i64cmp a b
 	| VFloat a,VFloat b -> fcmp a b
-	| VFloat a,VInt32 b -> fcmp a (Int32.to_float b)
-	| VInt32 a,VFloat b -> fcmp (Int32.to_float a) b
+	| VFloat a,VInt b -> fcmp a (float_of_int b)
+	| VInt a,VFloat b -> fcmp (float_of_int a) b
 	| VTrue,VTrue | VFalse,VFalse -> CEq
 	| VFalse,VTrue -> CInf
 	| VTrue,VFalse -> CSup
@@ -177,11 +177,11 @@ let rec arrays_equal cmp a1 a2 =
 
 and equals_structurally a b =
 	match a,b with
-	| VInt32 a,VInt32 b -> Int32.compare a b = 0
+	| VInt a,VInt b -> a = b
 	| VInt64 a,VInt64 b -> Int64.compare a b = 0
 	| VFloat a,VFloat b -> a = b
-	| VFloat a,VInt32 b -> a = (Int32.to_float b)
-	| VInt32 a,VFloat b -> (Int32.to_float a) = b
+	| VFloat a,VInt b -> a = (float_of_int b)
+	| VInt a,VFloat b -> (float_of_int a) = b
 	| VString s1,VString s2 -> s1.sstring = s2.sstring (* STODO *)
 	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
 	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
@@ -197,14 +197,14 @@ let is_true v = match v with
 	| _ -> false
 
 let op_add p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
+	| VInt i1,VInt i2 -> vint (i1 + i2)
 	| VInt64 i1,VInt64 i2 -> vint64 (Int64.add i1 i2)
 	(* These two cases should technically not exist, but the analyzer emits code like this because
 	   our TConst only knows Int32 at the moment. *)
-	| VInt64 i1,VInt32 i2 -> vint64 (Int64.add i1 (Int64.of_int32 i2))
-	| VInt32 i1,VInt64 i2 -> vint64 (Int64.add (Int64.of_int32 i1) i2)
+	| VInt64 i1,VInt i2 -> vint64 (Int64.add i1 (Int64.of_int i2))
+	| VInt i1,VInt64 i2 -> vint64 (Int64.add (Int64.of_int i1) i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
-	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
+	| VInt i,VFloat f | VFloat f,VInt i -> vfloat ((float_of_int i) +. f)
 	| VNativeString s1,VNativeString s2 -> vnative_string (s1 ^ s2)
 	| VString s1,VString s2 -> vstring (concat s1 s2)
 	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
@@ -212,28 +212,28 @@ let op_add p v1 v2 = match v1,v2 with
 	| v1,v2 -> invalid_binop OpAdd v1 v2 p
 
 let op_mult p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)
+	| VInt i1,VInt i2 -> vint (i1 * i2)
 	| VInt64 i1,VInt64 i2 -> vint64 (Int64.mul i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 *. f2)
-	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) *. f)
+	| VInt i,VFloat f | VFloat f,VInt i -> vfloat ((float_of_int i) *. f)
 	| _ -> invalid_binop OpMult v1 v2 p
 
 let op_div p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vfloat ((Int32.to_float i1) /. (Int32.to_float i2))
+	| VInt i1,VInt i2 -> vfloat ((float_of_int i1) /. (float_of_int i2))
 	| VFloat f1,VFloat f2 -> vfloat (f1 /. f2)
-	| VInt32 i1,VFloat f2 -> vfloat ((Int32.to_float i1) /. f2)
-	| VFloat f1,VInt32 i2 -> vfloat (f1 /. (Int32.to_float i2))
+	| VInt i1,VFloat f2 -> vfloat ((float_of_int i1) /. f2)
+	| VFloat f1,VInt i2 -> vfloat (f1 /. (float_of_int i2))
 	| _ -> invalid_binop OpDiv v1 v2 p
 
 let op_sub p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.sub i1 i2)
+	| VInt i1,VInt i2 -> vint (i1 - i2)
 	| VInt64 i1,VInt64 i2 -> vint64 (Int64.sub i1 i2)
 	(* See op_add remark. *)
-	| VInt64 i1,VInt32 i2 -> vint64 (Int64.sub i1 (Int64.of_int32 i2))
-	| VInt32 i1,VInt64 i2 -> vint64 (Int64.sub (Int64.of_int32 i1) i2)
+	| VInt64 i1,VInt i2 -> vint64 (Int64.sub i1 (Int64.of_int i2))
+	| VInt i1,VInt64 i2 -> vint64 (Int64.sub (Int64.of_int i1) i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 -. f2)
-	| VInt32 i1,VFloat f2 -> vfloat ((Int32.to_float i1) -. f2)
-	| VFloat f1,VInt32 i2 -> vfloat (f1 -. (Int32.to_float i2))
+	| VInt i1,VFloat f2 -> vfloat ((float_of_int i1) -. f2)
+	| VFloat f1,VInt i2 -> vfloat (f1 -. (float_of_int i2))
 	| _ -> invalid_binop OpSub v1 v2 p
 
 let op_eq v1 v2 = vbool (equals v1 v2)
@@ -249,43 +249,37 @@ let op_lt v1 v2 = vbool (compare v1 v2 = CInf)
 let op_lte v1 v2 = vbool (match compare v1 v2 with CInf | CEq -> true | _ -> false)
 
 let op_and p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.logand i1 i2)
+	| VInt i1,VInt i2 -> VInt (i1 land i2)
 	| _ -> invalid_binop OpAnd v1 v2 p
 
 let op_or p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.logor i1 i2)
+	| VInt i1,VInt i2 -> VInt (i1 lor i2)
 	| _ -> invalid_binop OpOr v1 v2 p
 
 let op_xor p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.logxor i1 i2)
+	| VInt i1,VInt i2 -> VInt (i1 lxor i2)
 	| _ -> invalid_binop OpXor v1 v2 p
 
 let op_shl p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 ->
-		let i2 = Int32.logand i2 i32_31 in
-		let i2 = Int32.to_int i2 in
-		vint32 (Int32.shift_left i1 i2)
+	| VInt i1,VInt i2 ->
+		vint (i1 lsl (i2 land 31))
 	| _ -> invalid_binop OpShl v1 v2 p
 
 let op_shr p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 ->
-		let i2 = Int32.logand i2 i32_31 in
-		let i2 = Int32.to_int i2 in
-		vint32 (Int32.shift_right i1 i2)
+	| VInt i1,VInt i2 ->
+		VInt (i1 asr (i2 land 31))
 	| _ -> invalid_binop OpShr v1 v2 p
 
 let op_ushr p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 ->
-		let i2 = Int32.logand i2 i32_31 in
-		let i2 = Int32.to_int i2 in
-		vint32 (Int32.shift_right_logical i1 i2)
+	| VInt i1,VInt i2 ->
+		vint ((i1 land 0xFFFFFFFF) lsr (i2 land 31))
 	| _ -> invalid_binop OpUShr v1 v2 p
 
 let op_mod p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> (try vint32 (Int32.rem i1 i2) with Division_by_zero -> vfloat nan)
+	| VInt i1,VInt i2 -> if i2 = 0 then vfloat nan else vint (i1 mod i2)
 	| VFloat f1,VFloat f2 -> vfloat (mod_float f1 f2)
-	| VInt32 i1,VFloat f2 -> vfloat (mod_float (Int32.to_float i1) f2)
-	| VFloat f1,VInt32 i2 -> vfloat (mod_float f1 (Int32.to_float i2))
+	| VInt i1,VFloat f2 -> vfloat (mod_float (float_of_int i1) f2)
+	| VFloat f1,VInt i2 -> vfloat (mod_float f1 (float_of_int i2))
 	| _ -> invalid_binop OpMod v1 v2 p
 
 let get_binop_fun op p = match op with

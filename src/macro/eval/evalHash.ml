@@ -21,16 +21,40 @@
    takes the lock for a name the current domain has not registered yet. *)
 let reverse_map = Hashtbl.create 0
 let reverse_mutex = Mutex.create ()
-let registered : (int,unit) Hashtbl.t Domain.DLS.key = Domain.DLS.new_key (fun () -> Hashtbl.create 0)
+(* the hashes are already well spread: no polymorphic hash of them *)
+module HashSet = Hashtbl.Make(struct
+	type t = int
+	let equal = Int.equal
+	let hash i = i
+end)
+
+(* the hashes the domain registered, with a direct-mapped cache of the
+   recent ones in front of them (hashing runs at every field access by name
+   from the macro API) *)
+type registered = {
+	known : unit HashSet.t;
+	recent : int array;
+}
+
+let recent_size = 4096
+
+let registered : registered Domain.DLS.key = Domain.DLS.new_key (fun () -> {
+	known = HashSet.create 0;
+	recent = Array.make recent_size (-1);
+})
 
 let rev_hash i = Mutex.protect reverse_mutex (fun () -> Hashtbl.find reverse_map i)
 
 let hash f =
 	let i = Hashtbl.hash f in
-	let known = Domain.DLS.get registered in
-	if not (Hashtbl.mem known i) then begin
-		Mutex.protect reverse_mutex (fun () -> Hashtbl.replace reverse_map i f);
-		Hashtbl.replace known i ()
+	let r = Domain.DLS.get registered in
+	let k = i land (recent_size - 1) in
+	if Array.unsafe_get r.recent k <> i then begin
+		if not (HashSet.mem r.known i) then begin
+			Mutex.protect reverse_mutex (fun () -> Hashtbl.replace reverse_map i f);
+			HashSet.replace r.known i ()
+		end;
+		Array.unsafe_set r.recent k i
 	end;
 	i
 
