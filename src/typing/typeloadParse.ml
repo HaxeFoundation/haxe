@@ -195,6 +195,24 @@ let parse_file_from_lexbuf com file p lexbuf =
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Lexer.lexbuf_from_utf8_string string)
 
+(* The digest of the content of the files read to be parsed, with the time of
+   the file then, by file key: the server compares it to tell a file written
+   again with the same content (a checkout, a copy) from a change. The parsed
+   declarations cannot tell: typing changes some of them in place (enum
+   abstracts, inherited documentation). The validation of the graph parses the
+   changed files again before their module is checked: the digests of the last
+   times are kept. *)
+let file_digests : (Path.UniqueKey.t,(float * Digest.t) list) Hashtbl.t = Hashtbl.create 0
+
+(* the last few contents read, a time and a digest each *)
+let add_file_digest key time digest =
+	let l = try Hashtbl.find file_digests key with Not_found -> [] in
+	let l = (time,digest) :: List.filter (fun (t,_) -> t <> time) l in
+	Hashtbl.replace file_digests key (List.filteri (fun i _ -> i < 4) l)
+
+let find_file_digest key time =
+	try List.assoc_opt time (Hashtbl.find file_digests key) with Not_found -> None
+
 let parse_file com rfile p =
 	let file_key = com.part_scope.file_keys#get rfile.ClassPaths.file in
 	let contents = match com.file_contents with
@@ -215,7 +233,10 @@ let parse_file com rfile p =
 		match rfile.class_path#file_kind with
 		| FFile ->
 			let file = rfile.file in
+			let time = (try Vfs.mtime file with _ -> 0.) in
 			let s = try Vfs.read_file file with Sys_error _ -> raise_typing_error ("Could not open " ^ file) p in
+			let digest = Digest.string s in
+			TypingLock.protect_leaf (fun () -> add_file_digest file_key time digest);
 			parse_file_from_string com file p s
 
 let parse_hook = ref parse_file

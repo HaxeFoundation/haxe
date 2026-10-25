@@ -205,8 +205,13 @@ let resolve_for_graph com path =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
 	let cc = CommonCache.get_cache com in
-	let content_changed m_path file =
+	let content_changed ?m_time m_path file =
 		let fkey = com.part_scope.file_keys#get file in
+		match (match m_time with Some t -> TypingLock.protect_leaf (fun () -> TypeloadParse.find_file_digest fkey t) | None -> None) with
+		| Some digest ->
+			(* the content the module was typed from *)
+			(try Digest.string (Vfs.read_file file) <> digest with Sys_error _ -> true)
+		| None ->
 		try
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
@@ -333,9 +338,19 @@ let check_module sctx com m_path m_extra p =
 		in
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
-			if file_time file <> m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
+			let time = file_time file in
+			if time <> m_extra.m_time then begin
+				(* a file written again with the same content (a checkout, a copy, a
+				   save without change) is not a change: the digest of its content is
+				   compared to the one of the content the module was typed from *)
+				if (has_policy CheckFileContentModification || (match m_extra.m_kind with MCode | MMacro | MImport -> true | _ -> false)) && not (content_changed ~m_time:m_extra.m_time m_path file) then begin
 					ServerMessage.unchanged_content com "" file;
+					(* the module is the one of the content at this time *)
+					let fkey = com.part_scope.file_keys#get file in
+					TypingLock.protect_leaf (fun () -> match TypeloadParse.find_file_digest fkey m_extra.m_time with
+						| Some digest -> TypeloadParse.add_file_digest fkey time digest
+						| None -> ());
+					m_extra.m_time <- time
 				end else begin
 					ServerMessage.not_cached com "" m_path;
 					if m_extra.m_kind = MFake then (com.cs#get_context m_extra.m_sign)#remove_fake_module (Path.UniqueKey.lazy_key m_extra.m_file);
