@@ -116,7 +116,7 @@ let eval_array execs env =
 	let n = Array.length execs in
 	if n = 0 then [||]
 	else begin
-		let a = Array.make n vnull in
+		let a = make_null_array n in
 		for i = 0 to n - 1 do
 			Array.unsafe_set a i ((Array.unsafe_get execs i) env)
 		done;
@@ -197,16 +197,20 @@ let emit_if exec_cond exec_then exec_else = fun env ->
 	| VTrue -> exec_then env
 	| _ -> exec_else env
 
+let rec switch_case_matches v1 patterns env = match patterns with
+	| [] -> false
+	| exec :: patterns -> equals v1 (exec env) || switch_case_matches v1 patterns env
+
+let rec switch_from v1 execs patterns exec_def i env =
+	if i >= Array.length patterns then exec_def env
+	else if switch_case_matches v1 (Array.unsafe_get patterns i) env then
+		execs.(i) env
+	else
+		switch_from v1 execs patterns exec_def (i + 1) env
+
 let emit_switch exec execs patterns exec_def = fun env ->
 	let v1 = exec env in
-	let rec loop v1 i =
-		if i >= Array.length patterns then exec_def env
-		else if List.exists (fun exec -> equals v1 (exec env)) patterns.(i) then
-			execs.(i) env
-		else
-			loop v1 (i + 1)
-	in
-	loop v1 0
+	switch_from v1 execs patterns exec_def 0 env
 
 let emit_int_switch_map exec cases exec_def p = fun env -> match exec env with
 	| VInt i ->
@@ -271,14 +275,16 @@ let emit_do_while_break_continue exec_cond exec_body = fun env ->
 let emit_try exec catches = fun env ->
 	let ctx = get_ctx() in
 	let eval = env.env_eval in
-	if ctx.debug.support_debugger then begin
+	(* the caught types are only registered for the debugger *)
+	let debugger = ctx.debug.support_debugger in
+	if debugger then begin
 		List.iter (fun (_,path,_) -> IntHashtbl.add eval.caught_types path true) catches
 	end;
 	let restore () =
-		List.iter (fun (_,path,_) -> IntHashtbl.remove eval.caught_types path) catches
+		if debugger then List.iter (fun (_,path,_) -> IntHashtbl.remove eval.caught_types path) catches
 	in
 	let v = try
-		let v = handle_stack_overflow eval (fun() -> exec env) in
+		let v = try exec env with Stack_overflow -> exc_string "Stack overflow" in
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->
@@ -347,6 +353,16 @@ let emit_safe_cast exec t p = fun env ->
 
 (* Calls *)
 
+(* The function [v] gives, forced once by the call site (the cache is only
+   written with the forced value, which never changes). *)
+let force_function cache v = match !cache with
+	| Some f -> f
+	| None ->
+		let f = AtomicLazy.force v in
+		cache := Some f;
+		f
+[@@inline]
+
 (* super.call() - immediate *)
 
 let emit_super_field_call max_depth slot proto i execs p =
@@ -363,10 +379,11 @@ let emit_super_field_call max_depth slot proto i execs p =
 
 let emit_proto_field_call max_depth v execs p =
 	let args = emit_args execs in
+	let fcache = ref None in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
 		check_stack_depth max_depth env;
-		let f = AtomicLazy.force v in
+		let f = force_function fcache v in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;
 		env.env_leave_pmax <- pmax;
@@ -439,10 +456,11 @@ let emit_field_call max_depth exec name execs p =
 
 let emit_constructor_call max_depth proto v execs p =
 	let args = emit_args execs in
+	let fcache = ref None in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
 		check_stack_depth max_depth env;
-		let f = AtomicLazy.force v in
+		let f = force_function fcache v in
 		let vthis = create_instance_direct proto INormal in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;
@@ -470,10 +488,11 @@ let emit_special_super_call max_depth fnew execs =
 
 let emit_super_call max_depth v execs p =
 	let args = emit_args execs in
+	let fcache = ref None in
 	let pmin = Pos.min p and pmax = Pos.max p in
 	(fun env ->
 		check_stack_depth max_depth env;
-		let f = AtomicLazy.force v in
+		let f = force_function fcache v in
 		let vthis = env.env_locals.(0) in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;
@@ -511,6 +530,12 @@ let emit_proto_field_read proto i = fun env ->
 	get_static proto i
 
 let emit_instance_field_read exec p i = fun env -> match exec env with
+	| VInstance vi -> vi.ifields.(i)
+	| VString s -> vint (s.slength)
+	| VNull -> throw_string "field access on null" p
+	| v -> unexpected_value_p v "instance" p
+
+let emit_local_instance_field_read slot p i = fun env -> match env.env_locals.(slot) with
 	| VInstance vi -> vi.ifields.(i)
 	| VString s -> vint (s.slength)
 	| VNull -> throw_string "field access on null" p
@@ -555,7 +580,13 @@ let emit_vector_read exec1 p1 exec2 p2 = fun env ->
 let emit_enum_index exec p = fun env -> vint (as_enum_value p (exec env)).eindex
 
 let emit_enum_parameter_read exec i = fun env -> match exec env with
-	| VEnumValue ev -> (try ev.eargs.(i) with Not_found -> vnull)
+	| VEnumValue ev -> ev.eargs.(i)
+	| v1 -> unexpected_value v1 "enum value"
+
+let emit_local_enum_index slot p = fun env -> vint (as_enum_value p env.env_locals.(slot)).eindex
+
+let emit_local_enum_parameter_read slot i = fun env -> match env.env_locals.(slot) with
+	| VEnumValue ev -> ev.eargs.(i)
 	| v1 -> unexpected_value v1 "enum value"
 
 let emit_string_cca exec1 exec2 p = fun env ->
@@ -748,90 +779,363 @@ let emit_not_eq_null exec = fun env -> match vresolve (exec env) with
 	| VNull -> VFalse
 	| _ -> VTrue
 
+(* Arithmetic, with the same operand variants as the conditions (below). *)
+
+let arith_add p v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> vint (a + b)
+	| VFloat a,VFloat b -> vfloat (a +. b)
+	| _ -> op_add p v1 v2
+[@@inline]
+
 let emit_op_add p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_add p v1 v2
+	arith_add p v1 v2
 
-let emit_op_mult p exec1 exec2 = fun env ->
-	let v1 = exec1 env in
+let emit_op_add_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
 	let v2 = exec2 env in
-	op_mult p v1 v2
+	arith_add p v1 v2
 
-let emit_op_div p exec1 exec2 = fun env ->
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	op_div p v1 v2
+let emit_op_add_lc p slot v2 = fun env ->
+	arith_add p env.env_locals.(slot) v2
+
+let emit_op_add_ll p slot1 slot2 = fun env ->
+	arith_add p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_add_ec p exec1 v2 = fun env ->
+	arith_add p (exec1 env) v2
+
+(* [local op= exec] *)
+let emit_local_assign_add p slot exec = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec env in
+	let v = arith_add p v1 v2 in
+	env.env_locals.(slot) <- v;
+	v
+
+let arith_sub p v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> vint (a - b)
+	| VFloat a,VFloat b -> vfloat (a -. b)
+	| _ -> op_sub p v1 v2
+[@@inline]
 
 let emit_op_sub p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_sub p v1 v2
+	arith_sub p v1 v2
 
-let emit_op_eq exec1 exec2 = fun env ->
+let emit_op_sub_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_sub p v1 v2
+
+let emit_op_sub_lc p slot v2 = fun env ->
+	arith_sub p env.env_locals.(slot) v2
+
+let emit_op_sub_ll p slot1 slot2 = fun env ->
+	arith_sub p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_sub_ec p exec1 v2 = fun env ->
+	arith_sub p (exec1 env) v2
+
+(* [local op= exec] *)
+let emit_local_assign_sub p slot exec = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec env in
+	let v = arith_sub p v1 v2 in
+	env.env_locals.(slot) <- v;
+	v
+
+let arith_mult p v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> vint (a * b)
+	| VFloat a,VFloat b -> vfloat (a *. b)
+	| _ -> op_mult p v1 v2
+[@@inline]
+
+let emit_op_mult p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	vbool (equals v1 v2)
+	arith_mult p v1 v2
 
-let emit_op_not_eq exec1 exec2 = fun env ->
+let emit_op_mult_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_mult p v1 v2
+
+let emit_op_mult_lc p slot v2 = fun env ->
+	arith_mult p env.env_locals.(slot) v2
+
+let emit_op_mult_ll p slot1 slot2 = fun env ->
+	arith_mult p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_mult_ec p exec1 v2 = fun env ->
+	arith_mult p (exec1 env) v2
+
+(* [local op= exec] *)
+let emit_local_assign_mult p slot exec = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec env in
+	let v = arith_mult p v1 v2 in
+	env.env_locals.(slot) <- v;
+	v
+
+let arith_div p v1 v2 = match v1,v2 with
+	| _ -> op_div p v1 v2
+[@@inline]
+
+let emit_op_div p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	vbool  (not (equals v1 v2))
+	arith_div p v1 v2
 
-let emit_op_gt exec1 exec2 = fun env ->
-	let v1 = exec1 env in
+let emit_op_div_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
 	let v2 = exec2 env in
-	vbool (compare v1 v2 = CSup)
+	arith_div p v1 v2
 
-let emit_op_gte exec1 exec2 = fun env ->
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	vbool (match compare v1 v2 with CSup | CEq -> true | _ -> false)
+let emit_op_div_lc p slot v2 = fun env ->
+	arith_div p env.env_locals.(slot) v2
 
-let emit_op_lt exec1 exec2 = fun env ->
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	vbool (compare v1 v2 = CInf)
+let emit_op_div_ll p slot1 slot2 = fun env ->
+	arith_div p env.env_locals.(slot1) env.env_locals.(slot2)
 
-let emit_op_lte exec1 exec2 = fun env ->
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	vbool (match compare v1 v2 with CInf | CEq -> true | _ -> false)
+let emit_op_div_ec p exec1 v2 = fun env ->
+	arith_div p (exec1 env) v2
+
+let arith_and p v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> VInt (a land b)
+	| _ -> op_and p v1 v2
+[@@inline]
 
 let emit_op_and p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_and p v1 v2
+	arith_and p v1 v2
+
+let emit_op_and_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_and p v1 v2
+
+let emit_op_and_lc p slot v2 = fun env ->
+	arith_and p env.env_locals.(slot) v2
+
+let emit_op_and_ll p slot1 slot2 = fun env ->
+	arith_and p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_and_ec p exec1 v2 = fun env ->
+	arith_and p (exec1 env) v2
+
+(* [local op= exec] *)
+let emit_local_assign_and p slot exec = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec env in
+	let v = arith_and p v1 v2 in
+	env.env_locals.(slot) <- v;
+	v
+
+let arith_or p v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> VInt (a lor b)
+	| _ -> op_or p v1 v2
+[@@inline]
 
 let emit_op_or p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_or p v1 v2
+	arith_or p v1 v2
+
+let emit_op_or_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_or p v1 v2
+
+let emit_op_or_lc p slot v2 = fun env ->
+	arith_or p env.env_locals.(slot) v2
+
+let emit_op_or_ll p slot1 slot2 = fun env ->
+	arith_or p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_or_ec p exec1 v2 = fun env ->
+	arith_or p (exec1 env) v2
+
+(* [local op= exec] *)
+let emit_local_assign_or p slot exec = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec env in
+	let v = arith_or p v1 v2 in
+	env.env_locals.(slot) <- v;
+	v
+
+let arith_xor p v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> VInt (a lxor b)
+	| _ -> op_xor p v1 v2
+[@@inline]
 
 let emit_op_xor p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_xor p v1 v2
+	arith_xor p v1 v2
+
+let emit_op_xor_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_xor p v1 v2
+
+let emit_op_xor_lc p slot v2 = fun env ->
+	arith_xor p env.env_locals.(slot) v2
+
+let emit_op_xor_ll p slot1 slot2 = fun env ->
+	arith_xor p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_xor_ec p exec1 v2 = fun env ->
+	arith_xor p (exec1 env) v2
+
+(* [local op= exec] *)
+let emit_local_assign_xor p slot exec = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec env in
+	let v = arith_xor p v1 v2 in
+	env.env_locals.(slot) <- v;
+	v
+
+let arith_shl p v1 v2 = match v1,v2 with
+	| _ -> op_shl p v1 v2
+[@@inline]
 
 let emit_op_shl p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_shl p v1 v2
+	arith_shl p v1 v2
+
+let emit_op_shl_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_shl p v1 v2
+
+let emit_op_shl_lc p slot v2 = fun env ->
+	arith_shl p env.env_locals.(slot) v2
+
+let emit_op_shl_ll p slot1 slot2 = fun env ->
+	arith_shl p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_shl_ec p exec1 v2 = fun env ->
+	arith_shl p (exec1 env) v2
+
+let arith_shr p v1 v2 = match v1,v2 with
+	| _ -> op_shr p v1 v2
+[@@inline]
 
 let emit_op_shr p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_shr p v1 v2
+	arith_shr p v1 v2
+
+let emit_op_shr_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_shr p v1 v2
+
+let emit_op_shr_lc p slot v2 = fun env ->
+	arith_shr p env.env_locals.(slot) v2
+
+let emit_op_shr_ll p slot1 slot2 = fun env ->
+	arith_shr p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_shr_ec p exec1 v2 = fun env ->
+	arith_shr p (exec1 env) v2
+
+let arith_ushr p v1 v2 = match v1,v2 with
+	| _ -> op_ushr p v1 v2
+[@@inline]
 
 let emit_op_ushr p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_ushr p v1 v2
+	arith_ushr p v1 v2
+
+let emit_op_ushr_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_ushr p v1 v2
+
+let emit_op_ushr_lc p slot v2 = fun env ->
+	arith_ushr p env.env_locals.(slot) v2
+
+let emit_op_ushr_ll p slot1 slot2 = fun env ->
+	arith_ushr p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_ushr_ec p exec1 v2 = fun env ->
+	arith_ushr p (exec1 env) v2
+
+let arith_mod p v1 v2 = match v1,v2 with
+	| _ -> op_mod p v1 v2
+[@@inline]
 
 let emit_op_mod p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_mod p v1 v2
+	arith_mod p v1 v2
+
+let emit_op_mod_le p slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	arith_mod p v1 v2
+
+let emit_op_mod_lc p slot v2 = fun env ->
+	arith_mod p env.env_locals.(slot) v2
+
+let emit_op_mod_ll p slot1 slot2 = fun env ->
+	arith_mod p env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_op_mod_ec p exec1 v2 = fun env ->
+	arith_mod p (exec1 env) v2
+
+let emit_op_eq exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	match v1,v2 with
+	| VInt a,VInt b -> vbool (a = b)
+	| _ -> vbool (equals v1 v2)
+
+let emit_op_not_eq exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	match v1,v2 with
+	| VInt a,VInt b -> vbool (a <> b)
+	| _ -> vbool  (not (equals v1 v2))
+
+let emit_op_gt exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	match v1,v2 with
+	| VInt a,VInt b -> vbool (a > b)
+	| VFloat a,VFloat b -> vbool (a > b)
+	| _ -> vbool (compare v1 v2 = CSup)
+
+let emit_op_gte exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	match v1,v2 with
+	| VInt a,VInt b -> vbool (a >= b)
+	| VFloat a,VFloat b -> vbool (a >= b)
+	| _ -> vbool (match compare v1 v2 with CSup | CEq -> true | _ -> false)
+
+let emit_op_lt exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	match v1,v2 with
+	| VInt a,VInt b -> vbool (a < b)
+	| VFloat a,VFloat b -> vbool (a < b)
+	| _ -> vbool (compare v1 v2 = CInf)
+
+let emit_op_lte exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	match v1,v2 with
+	| VInt a,VInt b -> vbool (a <= b)
+	| VFloat a,VFloat b -> vbool (a <= b)
+	| _ -> vbool (match compare v1 v2 with CInf | CEq -> true | _ -> false)
 
 let emit_not exec = fun env -> match exec env with
 	| VNull | VFalse -> VTrue
@@ -851,29 +1155,238 @@ let emit_neg exec p = fun env -> match exec env with
 	| VInt64 i -> vint64 (Int64.neg i)
 	| _ -> throw_string "Invalid operation" p
 
+(* Conditions
+
+   A condition is compiled to a closure giving a bool: [cond e] is
+   [is_true (exec e)], with the same evaluation, without building and matching
+   a Bool value. Comparisons have variants for a local operand ([l]) and a
+   constant one ([c]), read without calling a closure. *)
+
+let emit_cond_value exec = fun env -> is_true (exec env)
+
+let emit_cond_not exec = fun env -> match exec env with
+	| VNull | VFalse -> true
+	| _ -> false
+
+let emit_cond_not_cond cond = fun env -> not (cond env)
+
+let emit_cond_and cond1 cond2 = fun env -> cond1 env && cond2 env
+
+let emit_cond_or cond1 cond2 = fun env -> cond1 env || cond2 env
+
+let emit_cond_eq_null exec = fun env -> match vresolve (exec env) with
+	| VNull -> true
+	| _ -> false
+
+let emit_cond_not_eq_null exec = fun env -> match vresolve (exec env) with
+	| VNull -> false
+	| _ -> true
+
+let emit_cond_local_eq_null slot = fun env -> match vresolve env.env_locals.(slot) with
+	| VNull -> true
+	| _ -> false
+
+let emit_cond_local_not_eq_null slot = fun env -> match vresolve env.env_locals.(slot) with
+	| VNull -> false
+	| _ -> true
+
+let cond_lt v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> a < b
+	| VFloat a,VFloat b -> a < b
+	| _ -> compare v1 v2 = CInf
+[@@inline]
+
+let emit_cond_lt exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	cond_lt v1 v2
+
+let emit_cond_lt_le slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	cond_lt v1 v2
+
+let emit_cond_lt_lc slot v2 = fun env ->
+	cond_lt env.env_locals.(slot) v2
+
+let emit_cond_lt_ll slot1 slot2 = fun env ->
+	cond_lt env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_cond_lt_ec exec1 v2 = fun env ->
+	cond_lt (exec1 env) v2
+
+let cond_lte v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> a <= b
+	| VFloat a,VFloat b -> a <= b
+	| _ -> (match compare v1 v2 with CInf | CEq -> true | _ -> false)
+[@@inline]
+
+let emit_cond_lte exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	cond_lte v1 v2
+
+let emit_cond_lte_le slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	cond_lte v1 v2
+
+let emit_cond_lte_lc slot v2 = fun env ->
+	cond_lte env.env_locals.(slot) v2
+
+let emit_cond_lte_ll slot1 slot2 = fun env ->
+	cond_lte env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_cond_lte_ec exec1 v2 = fun env ->
+	cond_lte (exec1 env) v2
+
+let cond_gt v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> a > b
+	| VFloat a,VFloat b -> a > b
+	| _ -> compare v1 v2 = CSup
+[@@inline]
+
+let emit_cond_gt exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	cond_gt v1 v2
+
+let emit_cond_gt_le slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	cond_gt v1 v2
+
+let emit_cond_gt_lc slot v2 = fun env ->
+	cond_gt env.env_locals.(slot) v2
+
+let emit_cond_gt_ll slot1 slot2 = fun env ->
+	cond_gt env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_cond_gt_ec exec1 v2 = fun env ->
+	cond_gt (exec1 env) v2
+
+let cond_gte v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> a >= b
+	| VFloat a,VFloat b -> a >= b
+	| _ -> (match compare v1 v2 with CSup | CEq -> true | _ -> false)
+[@@inline]
+
+let emit_cond_gte exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	cond_gte v1 v2
+
+let emit_cond_gte_le slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	cond_gte v1 v2
+
+let emit_cond_gte_lc slot v2 = fun env ->
+	cond_gte env.env_locals.(slot) v2
+
+let emit_cond_gte_ll slot1 slot2 = fun env ->
+	cond_gte env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_cond_gte_ec exec1 v2 = fun env ->
+	cond_gte (exec1 env) v2
+
+let cond_eq v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> a = b
+	| _ -> equals v1 v2
+[@@inline]
+
+let emit_cond_eq exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	cond_eq v1 v2
+
+let emit_cond_eq_le slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	cond_eq v1 v2
+
+let emit_cond_eq_lc slot v2 = fun env ->
+	cond_eq env.env_locals.(slot) v2
+
+let emit_cond_eq_ll slot1 slot2 = fun env ->
+	cond_eq env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_cond_eq_ec exec1 v2 = fun env ->
+	cond_eq (exec1 env) v2
+
+let cond_neq v1 v2 = match v1,v2 with
+	| VInt a,VInt b -> a <> b
+	| _ -> not (equals v1 v2)
+[@@inline]
+
+let emit_cond_neq exec1 exec2 = fun env ->
+	let v1 = exec1 env in
+	let v2 = exec2 env in
+	cond_neq v1 v2
+
+let emit_cond_neq_le slot exec2 = fun env ->
+	let v1 = env.env_locals.(slot) in
+	let v2 = exec2 env in
+	cond_neq v1 v2
+
+let emit_cond_neq_lc slot v2 = fun env ->
+	cond_neq env.env_locals.(slot) v2
+
+let emit_cond_neq_ll slot1 slot2 = fun env ->
+	cond_neq env.env_locals.(slot1) env.env_locals.(slot2)
+
+let emit_cond_neq_ec exec1 v2 = fun env ->
+	cond_neq (exec1 env) v2
+
+let emit_if_cond cond exec_then exec_else = fun env ->
+	if cond env then exec_then env else exec_else env
+
+let rec run_while_cond_continue cond exec_body env =
+	try
+		while cond env do ignore(exec_body env) done;
+	with Continue ->
+		run_while_cond_continue cond exec_body env
+
+let emit_while_cond cond exec_body = fun env ->
+	(try run_while_cond_continue cond exec_body env with Break -> ());
+	vnull
+
+let emit_do_while_cond cond exec_body = fun env ->
+	begin try
+		ignore(exec_body env); run_while_cond_continue cond exec_body env
+	with
+		| Break -> ()
+		| Continue -> try run_while_cond_continue cond exec_body env with Break -> ()
+	end;
+	vnull
+
 (* Function *)
 
-let execute_set_local i = fun env v ->
-	env.env_locals.(i) <- v
+(* The parameters of a function are the slots of its arguments: a local slot,
+   or [-1 - slot] for a captured one. *)
+let param_local slot = slot
+let param_capture slot = -1 - slot
 
-let execute_set_capture i = fun env v ->
-	env.env_captures.(i) <- v
+(* (top-level functions: local ones would be closures allocated at every call) *)
+let set_argument params k env v =
+	let slot = Array.unsafe_get params k in
+	if slot >= 0 then env.env_locals.(slot) <- v
+	else env.env_captures.(-1 - slot) <- v
 
-let process_arguments fl vl env =
-	let rec loop fl vl = match fl,vl with
-		| f :: fl,v :: vl ->
-			f env v;
-			loop fl vl
-		| f :: fl,[] ->
-			f env vnull;
-			loop fl []
-		| [],[] ->
-			()
-		| l1,l2 ->
-			exc_string (Printf.sprintf "Bad number of arguments: %i vs. %i" (List.length l1) (List.length l2))
-	in
-	loop fl vl
-[@@inline]
+let rec set_arguments params n k vl env =
+	if k < n then begin match vl with
+		| v :: vl ->
+			set_argument params k env v;
+			set_arguments params n (k + 1) vl env
+		| [] ->
+			set_argument params k env vnull;
+			set_arguments params n (k + 1) [] env
+	end else match vl with
+		| [] -> ()
+		| _ -> exc_string (Printf.sprintf "Bad number of arguments: %i vs. %i" 0 (List.length vl))
+
+let process_arguments params vl env =
+	set_arguments params (Array.length params) 0 vl env
 
 (* The functions run their body in an environment of their own, popped however
    the body ends (without allocating a closure for it, as [Std.finally] does). *)

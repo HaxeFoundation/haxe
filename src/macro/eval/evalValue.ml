@@ -553,6 +553,20 @@ let with_expansion f =
 	) f ()
 
 let vnull = VNull
+
+(* An array of [n] nulls: small ones are allocated inline (Array.make is a C
+   call). *)
+let make_null_array n = match n with
+	| 0 -> [||]
+	| 1 -> [|VNull|]
+	| 2 -> [|VNull;VNull|]
+	| 3 -> [|VNull;VNull;VNull|]
+	| 4 -> [|VNull;VNull;VNull;VNull|]
+	| 5 -> [|VNull;VNull;VNull;VNull;VNull|]
+	| 6 -> [|VNull;VNull;VNull;VNull;VNull;VNull|]
+	| 7 -> [|VNull;VNull;VNull;VNull;VNull;VNull;VNull|]
+	| 8 -> [|VNull;VNull;VNull;VNull;VNull;VNull;VNull;VNull|]
+	| n -> Array.make n VNull
 let vtrue = VTrue
 let vfalse = VFalse
 let vbool b = if b then VTrue else VFalse

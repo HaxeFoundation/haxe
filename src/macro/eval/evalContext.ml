@@ -504,11 +504,7 @@ let push_environment ctx info =
 	else
 		no_debug
 	in
-	let locals = if info.num_locals = 0 then
-		empty_array
-	else
-		Array.make info.num_locals vnull
-	in
+	let locals = make_null_array info.num_locals in
 	let captures = if info.num_captures = 0 then
 		empty_array
 	else
