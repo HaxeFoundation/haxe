@@ -486,6 +486,92 @@ let gather_types (code:code) =
 	) code.functions;
 	DynArray.to_array arr, !types
 
+(* The types by their shape: the same constructors, with the same class,
+   virtual and enum records (physically). Two types of the same shape are the
+   same type of the output. *)
+let rec same_shape a b =
+	a == b ||
+	match a, b with
+	| HFun (args1,r1), HFun (args2,r2) | HMethod (args1,r1), HMethod (args2,r2) ->
+		(try List.for_all2 same_shape args1 args2 with Invalid_argument _ -> false) && same_shape r1 r2
+	| HObj p1, HObj p2 | HStruct p1, HStruct p2 -> p1 == p2
+	| HVirtual v1, HVirtual v2 -> v1 == v2
+	| HEnum e1, HEnum e2 -> e1 == e2
+	| HArray t1, HArray t2 | HRef t1, HRef t2 | HNull t1, HNull t2 | HPacked t1, HPacked t2 -> same_shape t1 t2
+	| HAbstract (n1,s1), HAbstract (n2,s2) -> s1 = s2 && n1 = n2
+	| _ -> false
+
+let rec shape_hash depth t =
+	let mix h k = h * 65599 + k in
+	match t with
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID -> Hashtbl.hash t
+	| HObj p -> mix 1 p.pid
+	| HStruct p -> mix 2 p.pid
+	| _ when depth = 0 -> Obj.tag (Obj.repr t)
+	| HFun (args,ret) -> List.fold_left (fun h t -> mix h (shape_hash (depth - 1) t)) (mix 3 (shape_hash (depth - 1) ret)) args
+	| HMethod (args,ret) -> List.fold_left (fun h t -> mix h (shape_hash (depth - 1) t)) (mix 4 (shape_hash (depth - 1) ret)) args
+	| HArray t -> mix 5 (shape_hash (depth - 1) t)
+	| HRef t -> mix 6 (shape_hash (depth - 1) t)
+	| HNull t -> mix 7 (shape_hash (depth - 1) t)
+	| HPacked t -> mix 8 (shape_hash (depth - 1) t)
+	| HAbstract (_,s) -> mix 9 s
+	| HVirtual v -> Array.fold_left (fun h (_,s,t) -> mix (mix h s) (shape_hash (depth - 1) t)) 10 v.vfields
+	| HEnum e -> if e.eid <> 0 then mix 11 e.eid else Array.fold_left (fun h (_,_,tl) -> Array.fold_left (fun h t -> mix h (shape_hash (depth - 1) t)) h tl) 12 e.efields
+
+module ShapeTbl = Hashtbl.Make(struct
+	type t = ttype
+	let equal = same_shape
+	let hash t = (shape_hash 3 t) land max_int
+end)
+
+(* [gather_types], with the index of a type found by its shape first (the
+   structural comparison of the map only once per shape) *)
+let gather_types_by_shape (code:code) =
+	let types = ref PMap.empty in
+	let shapes = ShapeTbl.create 0 in
+	let arr = DynArray.create() in
+	let rec get_type t =
+		if not (ShapeTbl.mem shapes t) then begin
+			(match t with
+			| HObj { psuper = Some p } -> get_type (HObj p)
+			| HStruct { psuper = Some p } -> get_type (HStruct p)
+			| HNull t | HRef t -> get_type t
+			| _ -> ());
+			match (try Some (PMap.find t !types) with Not_found -> None) with
+			| Some index ->
+				ShapeTbl.add shapes t index
+			| None ->
+				let index = DynArray.length arr in
+				DynArray.add arr t;
+				types := PMap.add t index !types;
+				ShapeTbl.add shapes t index;
+				match t with
+				| HFun (args, ret) | HMethod (args, ret) ->
+					List.iter get_type args;
+					get_type ret
+				| HObj p | HStruct p ->
+					Array.iter (fun (_,n,t) -> get_type t) p.pfields
+				| HVirtual v ->
+					Array.iter (fun (_,_,t) -> get_type t) v.vfields
+				| HEnum e ->
+					Array.iter (fun (_,_,tl) -> Array.iter get_type tl) e.efields
+				| _ ->
+					()
+		end
+	in
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	Array.iter (fun g -> get_type g) code.globals;
+	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
+	Array.iter (fun f ->
+		get_type f.ftype;
+		Array.iter (fun r -> get_type r) f.regs;
+		Array.iter (function
+			| OType (_,t) -> get_type t
+			| _ -> ()
+		) f.code;
+	) code.functions;
+	DynArray.to_array arr, (fun t -> try ShapeTbl.find shapes t with Not_found -> PMap.find t !types)
+
 let lookup_type types t =
 	try PMap.find t types with Not_found -> Globals.die "" __LOC__
 
