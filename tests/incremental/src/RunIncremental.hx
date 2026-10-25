@@ -170,6 +170,19 @@ class RunIncremental {
 		}
 	}
 
+	static var version:Null<String> = null;
+
+	/** What `haxe --version` prints. **/
+	static function compilerVersion() {
+		if (version == null) {
+			var p = new Process(haxeCmd, ["--version"]);
+			version = (p.stdout.readAll().toString() + p.stderr.readAll().toString()).trim();
+			p.exitCode();
+			p.close();
+		}
+		return version;
+	}
+
 	static function runCase(tc:CaseParser.TestCase, target:String, port:Int):Outcome {
 		var base = Path.join([workRoot, tc.name.replace("/", "_").replace(".hxtest", ""), target]);
 		var warmDir = Path.join([base, "warm"]);
@@ -177,29 +190,42 @@ class RunIncremental {
 		FileSystem.createDirectory(warmDir);
 		FileSystem.createDirectory(coldDir);
 
-		var server = new Process(haxeCmd, ["--wait", Std.string(port)]);
-		// what the server prints, shown when the case fails (a server that dies
-		// during a compilation gives the client an empty output and exit code 0)
-		var serverOut = readInBackground(server.stdout);
-		var serverErr = readInBackground(server.stderr);
-		// Give the server time to listen.
+		var server = null;
+		var serverOut = null;
+		var serverErr = null;
 		var errors = [];
 		var connected = false;
-		for (_ in 0...50) {
-			var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
-			var code = probe.exitCode();
-			probe.close();
-			if (code == 0) {
-				connected = true;
-				break;
+		// A port may be taken (by another program, which can answer the probe
+		// with an empty output and exit code 0): the probe must get the version of
+		// the compiler, otherwise the server is stopped and another port tried.
+		for (attempt in 0...5) {
+			if (attempt > 0)
+				port += 1000;
+			server = new Process(haxeCmd, ["--wait", Std.string(port)]);
+			// what the server prints, shown when the case fails (a server that dies
+			// during a compilation gives the client an empty output and exit code 0)
+			serverOut = readInBackground(server.stdout);
+			serverErr = readInBackground(server.stderr);
+			// Give the server time to listen.
+			for (_ in 0...50) {
+				var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
+				var out = probe.stdout.readAll().toString() + probe.stderr.readAll().toString();
+				var code = probe.exitCode();
+				probe.close();
+				if (code == 0 && out.trim() == compilerVersion()) {
+					connected = true;
+					break;
+				}
+				Sys.sleep(0.1);
 			}
-			Sys.sleep(0.1);
-		}
-		if (!connected) {
+			if (connected)
+				break;
 			server.kill();
+			server.exitCode();
 			server.close();
-			return Failed(['could not start compilation server on port $port']);
 		}
+		if (!connected)
+			return Failed(['could not start compilation server on port $port']);
 
 		// with fingerprint expectations, the cold compilations dump their fingerprints
 		var fingerprints = checkDeps || Lambda.exists(tc.steps, step -> Lambda.exists(step.expectations, e -> e.match(FingerprintSame(_, _) | FingerprintChanged(_, _))));
@@ -282,6 +308,8 @@ class RunIncremental {
 			probe.close();
 		}
 		server.kill();
+		// waited for: a later case may listen on its port
+		server.exitCode();
 		if (errors.length > 0) {
 			var output = (serverOut() + serverErr()).trim();
 			if (output != "") {
