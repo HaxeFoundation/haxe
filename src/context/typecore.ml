@@ -706,7 +706,7 @@ let rec run_stages_upto g (p : stage) =
 			()
 	in
 	(* units can run from a domain typing bodies in parallel *)
-	TypingLock.protect loop
+	TypingLock.protect ~site:"stages" loop
 
 (* Runs the parallel units of a stage: the units of each module in order, the
    modules on several domains when bodies are typed in parallel and no domain

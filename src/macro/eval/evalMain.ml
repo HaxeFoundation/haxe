@@ -431,13 +431,14 @@ let shared_state_api n v =
 	| VFunction _ when List.mem n lock_free_api ->
 		v
 	| VFunction (f,static) ->
-		let locked vl = TypingLock.protect (fun () -> f vl) in
+		let site = "api " ^ n in
+		let locked vl = TypingLock.protect ~site (fun () -> f vl) in
 		if List.mem n speculative_api then VFunction (locked,static)
-		else VFunction ((fun vl -> !on_shared_state (); locked vl),static)
+		else VFunction ((fun vl -> !on_shared_state (fun () -> site); locked vl),static)
 	| _ -> v
 
 let setup get_api =
-	on_shared_state := Claims.end_speculation;
+	on_shared_state := (fun reason -> Claims.end_speculation ~reason ());
 	let api = get_api (fun() -> (EvalContext.curapi (get_ctx())).get_com()) (fun() -> (EvalContext.curapi (get_ctx()))) in
 	List.iter (fun (n,v) ->
 		Hashtbl.replace GlobalState.macro_lib n (shared_state_api n v)

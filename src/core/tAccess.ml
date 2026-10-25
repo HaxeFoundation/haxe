@@ -16,7 +16,7 @@ let set_pending_usings (ti : tinfos) f =
 	let l = try Hashtbl.find pending_usings ti.mt_path with Not_found -> [] in
 	Hashtbl.replace pending_usings ti.mt_path ((ti,f) :: l)
 
-let force_usings (ti : tinfos) = if Hashtbl.length pending_usings > 0 then TypingLock.protect @@ fun () ->
+let force_usings (ti : tinfos) = if Hashtbl.length pending_usings > 0 then TypingLock.protect ~site:"usings" @@ fun () ->
 	match Hashtbl.find_opt pending_usings ti.mt_path with
 	| None ->
 		()
@@ -39,7 +39,7 @@ let module_complete () = ()
    them meanwhile. *)
 let complete_module m =
 	if m.m_extra.m_complete != module_complete then
-		TypingLock.protect (fun () -> m.m_extra.m_complete ())
+		TypingLock.protect ~site:"complete module" (fun () -> m.m_extra.m_complete ())
 
 (* While typing on several domains, a class is built (and its header computed)
    by the domain that claims it, without the typing lock (phase 3.5): a domain

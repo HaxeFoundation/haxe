@@ -909,7 +909,7 @@ let load_module_now origin ctx m p =
 		(* parsed outside of the lock; the modules are created in no particular
 		   order, the types being ordered by module path afterwards *)
 		if !TypingLock.active && not (ctx.com.module_lut#mem m) then TypeloadParse.preparse ctx.com m p;
-		TypingLock.protect (fun () ->
+		TypingLock.protect ~site:"module" (fun () ->
 			let m2 = load_module' ctx.com ctx.g m p in
 			add_dependency ~skip_postprocess:true ctx.m.curmod m2 origin;
 			m2
@@ -922,7 +922,7 @@ let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 		load_module_now origin ctx m p
 	with Error { err_message = Module_not_found _ } when Claims.is_speculating () ->
 		(* a macro holding the claim of the macros may define it *)
-		Claims.end_speculation ();
+		Claims.end_speculation ~reason:(fun () -> "module not found") ();
 		load_module_now origin ctx m p
 
 ;;

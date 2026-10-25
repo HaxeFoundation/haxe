@@ -62,7 +62,7 @@ let field_raise v f =
 	| VPrototype proto ->
 		begin match proto_field_raise proto f with
 		| VFunction _ | VFieldClosure _ as v -> v
-		| _ -> if is_shared_static_name proto f then !on_shared_state (); fresh_statics proto; proto_field_raise proto f
+		| _ -> if is_shared_static_name proto f then !on_shared_state (fun () -> EvalHash.rev_hash proto.ppath ^ "." ^ EvalHash.rev_hash f); fresh_statics proto; proto_field_raise proto f
 		end
 	| VArray va ->
 		if f = key_length then vint (va.alength)

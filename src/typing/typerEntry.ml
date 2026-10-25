@@ -258,6 +258,7 @@ let run_parallel_tasks com n stage tasks =
 	let timer_ctx = com.timer_ctx in
 	let lock = TypingLock.lock in
 	let waited0 = lock.waited and waits0 = lock.waits in
+	let held0 = ReentrantLock.held lock and claim_held0 = Claims.held () in
 	let spec0 = Atomic.get Claims.speculations and spec_done0 = Atomic.get Claims.speculations_done in
 	let claims0 = Array.copy Claims.waited and nclaims0 = Array.copy Claims.waits and breaks0 = Array.copy Claims.breaks in
 	Claims.start_tasks (Array.length tasks);
@@ -283,6 +284,23 @@ let run_parallel_tasks com n stage tasks =
 		Timer.add_extra timer_ctx (stage_name ^ "wait: " ^ name) (Claims.waited.(k) -. claims0.(k)) (Claims.waits.(k) - nclaims0.(k));
 		Timer.add_extra timer_ctx (stage_name ^ "cycles broken: " ^ name) 0. (Claims.breaks.(k) - breaks0.(k))
 	) Claims.kind_names;
+	(* how long the typing lock and the claim of the macros were held, by
+	   what they were taken for *)
+	let report what l0 l n =
+		let total = ref 0. in
+		List.iter (fun (site,d) ->
+			let d0 = try List.assoc site l0 with Not_found -> 0. in
+			if d -. d0 > 0. then begin
+				total := !total +. d -. d0;
+				Timer.add_extra timer_ctx (stage_name ^ "held: " ^ what ^ ": " ^ site) (d -. d0) (n site)
+			end
+		) l;
+		Timer.add_extra timer_ctx (stage_name ^ "held: " ^ what) !total 0
+	in
+	report "typing lock" held0 (ReentrantLock.held lock) (fun _ -> 0);
+	let claim_held = Claims.held () in
+	report "macros" (List.map (fun (r,(d,_)) -> r,d) claim_held0) (List.map (fun (r,(d,_)) -> r,d) claim_held) (fun r ->
+		(try snd (List.assoc r claim_held) with Not_found -> 0) - (try snd (List.assoc r claim_held0) with Not_found -> 0));
 	Timer.add_extra timer_ctx (stage_name ^ "macros speculating") 0. (Atomic.get Claims.speculations - spec0);
 	Timer.add_extra timer_ctx (stage_name ^ "macros speculating, done so") 0. (Atomic.get Claims.speculations_done - spec_done0);
 	Array.iter (function
@@ -326,11 +344,11 @@ let create com macros =
 				(* its first call loads it with the claim: loading types its module
 				   and initializes its classes, which the macros share *)
 				if speculate && not (MacroContext.is_macro_loaded ctx cpath f) then
-					Claims.with_macro_claim (fun () -> TypingLock.protect (fun () ->
+					Claims.with_macro_claim ~reason:"macro load" (fun () -> TypingLock.protect ~site:"macro load" (fun () ->
 						MacroContext.Interp.ensure_thread_eval ();
 						ignore (MacroContext.load_macro' ctx false cpath f p)
 					));
-				let run () = TypingLock.protect (fun () ->
+				let run () = TypingLock.protect ~site:"macro" (fun () ->
 					if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
 					Claims.speculate speculate (fun () -> MacroContext.type_macro ctx mode cpath f el p)
 				) in

@@ -107,17 +107,30 @@ type macro_owner = {
 	mo_domain : Domain.id;
 	mutable mo_count : int;
 	mo_seq : int;
+	(* what the claim was taken for, and when *)
+	mo_reason : string;
+	mo_since : float;
 }
+
+(* the time the claim of the macros was held, by what it was taken for, and
+   how many times (with [mutex]) *)
+let claim_held : (string, (float * int)) Hashtbl.t = Hashtbl.create 0
+
+let add_held tbl reason d =
+	let (t,n) = try Hashtbl.find tbl reason with Not_found -> (0.,0) in
+	Hashtbl.replace tbl reason (t +. d,n + 1)
 
 let macro_owners : macro_owner list ref = ref []
 let claim_seq = ref 0
 
+let held () = Mutex.protect mutex (fun () -> Hashtbl.fold (fun r v acc -> (r,v) :: acc) claim_held [])
+
 (* Takes the claim of the macros (see [macro_owner]), giving what to release. *)
-let take_macro_claim () =
+let take_macro_claim ?(reason="macro") () =
 	let me = Domain.self () in
 	let take () =
 		incr claim_seq;
-		let o = { mo_domain = me; mo_count = 1; mo_seq = !claim_seq } in
+		let o = { mo_domain = me; mo_count = 1; mo_seq = !claim_seq; mo_reason = reason; mo_since = Unix.gettimeofday () } in
 		macro_owners := o :: !macro_owners;
 		(* the domains waiting for the claim wait for its owner to change: a
 		   domain let through to break a cycle that takes it over must wake
@@ -152,14 +165,15 @@ let release_macro_claim o =
 	Mutex.protect mutex (fun () ->
 		o.mo_count <- o.mo_count - 1;
 		if o.mo_count = 0 then begin
+			add_held claim_held o.mo_reason (Unix.gettimeofday () -. o.mo_since);
 			macro_owners := List.filter (fun o' -> o' != o) !macro_owners;
 			Condition.broadcast done_
 		end
 	)
 
-let with_macro_claim f =
+let with_macro_claim ?reason f =
 	if not !TypingLock.active then f () else begin
-		let o = take_macro_claim () in
+		let o = take_macro_claim ?reason () in
 		match f () with
 		| v -> release_macro_claim o; v
 		| exception e -> release_macro_claim o; raise e
@@ -201,11 +215,12 @@ let is_speculating () = Domain.DLS.get speculating
 let speculations = Atomic.make 0
 let speculations_done = Atomic.make 0
 
-(* Ends the speculation of the current domain: takes the claim of the macros. *)
-let end_speculation () =
+(* Ends the speculation of the current domain: takes the claim of the macros.
+   [reason]: what the macro accesses, reported by --times. *)
+let end_speculation ?(reason=(fun () -> "other")) () =
 	if Domain.DLS.get speculating then begin
 		Domain.DLS.set speculating false;
-		if !TypingLock.active then Domain.DLS.set speculation_claim (Some (take_macro_claim ()))
+		if !TypingLock.active then Domain.DLS.set speculation_claim (Some (take_macro_claim ~reason:("speculation ended: " ^ reason ()) ()))
 	end
 
 (* Runs [f] speculating if [b] (see [speculating]), within the speculation

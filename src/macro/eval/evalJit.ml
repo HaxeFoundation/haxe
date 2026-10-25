@@ -72,12 +72,12 @@ let local_slot jit e = match e.eexpr with
 
 (* [exec] reading or changing a static variable (see [EvalValue.on_shared_state]) *)
 let shared_state exec env =
-	!on_shared_state ();
+	!on_shared_state (fun () -> "static");
 	exec env
 
 (* [exec] reading or changing the static variable at slot [i] of [proto] *)
 let static_state proto i exec env =
-	if is_shared_static proto i then !on_shared_state ();
+	if is_shared_static proto i then !on_shared_state (fun () -> static_name proto i);
 	fresh_statics proto;
 	exec env
 

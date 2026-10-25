@@ -251,7 +251,7 @@ let clone_type_parameter gctx mg path ttp =
 	ttp.ttp_class.cl_module <- mg;
 	ttp
 
-let rec build_generic_class ctx c p tl = TypingLock.protect (fun () -> build_generic_class' ctx c p tl)
+let rec build_generic_class ctx c p tl = TypingLock.protect ~site:"generic" (fun () -> build_generic_class' ctx c p tl)
 
 and build_generic_class' ctx c p tl =
 	let pack = fst c.cl_path in
@@ -587,4 +587,4 @@ let type_generic_function ctx fa fcc with_type p =
 	dispatch#field_call fa el []
 
 ;;
-Typecore.type_generic_function_ref := (fun ctx fa fcc with_type p -> TypingLock.protect (fun () -> type_generic_function ctx fa fcc with_type p))
+Typecore.type_generic_function_ref := (fun ctx fa fcc with_type p -> TypingLock.protect ~site:"generic" (fun () -> type_generic_function ctx fa fcc with_type p))

@@ -10,7 +10,8 @@ let active = ref false
 
 let lock = ReentrantLock.create ()
 
-let protect f = if !active then ReentrantLock.protect lock f else f ()
+(* [site]: what the lock is taken for, reported by --times *)
+let protect ?site f = if !active then ReentrantLock.protect ?site lock f else f ()
 
 let notify () = if !active then ReentrantLock.notify lock
 

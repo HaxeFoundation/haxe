@@ -1141,7 +1141,7 @@ let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
-			if not (local ()) then (!EvalValue.on_shared_state ());
+			if not (local ()) then (!EvalValue.on_shared_state (fun () -> "metadata"));
 			let el = List.map decode_expr (decode_array vl) in
 			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
 			set (!meta);
@@ -1153,7 +1153,7 @@ let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 			encode_and_map_array encode_meta_entry (List.filter (fun (m,_,_) -> m = k) (!meta))
 		);
 		"remove", vfun1 (fun k ->
-			if not (local ()) then (!EvalValue.on_shared_state ());
+			if not (local ()) then (!EvalValue.on_shared_state (fun () -> "metadata"));
 			let k = Meta.from_string (decode_string k) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
@@ -1197,7 +1197,7 @@ and encode_tenum e =
 	if !DepRecord.enabled then DepRecord.record_type e.e_path "members";
 	encode_mtype (TEnumDecl e) [
 		"isExtern", vbool (has_enum_flag e EnExtern);
-		"exclude", vfun0 (fun() -> !EvalValue.on_shared_state (); add_enum_flag e EnExcluded; vnull);
+		"exclude", vfun0 (fun() -> !EvalValue.on_shared_state (fun () -> "exclude"); add_enum_flag e EnExcluded; vnull);
 		"constructs", encode_string_map encode_efield e.e_constrs;
 		"names", encode_array (List.map encode_string e.e_names);
 	]
@@ -1355,7 +1355,7 @@ and encode_tclass c =
 	encode_mtype ~meta (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
-		"exclude", vfun0 (fun() -> !EvalValue.on_shared_state (); add_class_flag c CExcluded; c.cl_init <- None; vnull);
+		"exclude", vfun0 (fun() -> !EvalValue.on_shared_state (fun () -> "exclude"); add_class_flag c CExcluded; c.cl_init <- None; vnull);
 		"isInterface", vbool (has_class_flag c CInterface);
 		"isFinal", vbool (has_class_flag c CFinal);
 		"isAbstract", vbool (has_class_flag c CAbstract);

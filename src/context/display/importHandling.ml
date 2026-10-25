@@ -302,7 +302,7 @@ let resolve_pending_usings ctx =
 		let pending = List.rev ctx.m.pending_usings in
 		ctx.m.pending_usings <- [];
 		List.iter (fun resolve -> ctx.m.module_using <- resolve () @ ctx.m.module_using) pending
-	end else TypingLock.protect (fun () ->
+	end else TypingLock.protect ~site:"usings" (fun () ->
 		let me = Domain.self () in
 		match ctx.m.pending_usings with
 		| [] -> ()

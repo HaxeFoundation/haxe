@@ -33,7 +33,7 @@ end
 (*
 	temporally remove the constant flag from structures to allow larger unification
 *)
-let remove_constant_flag t callb = TypingLock.protect @@ fun () ->
+let remove_constant_flag t callb = TypingLock.protect ~site:"constant flag" @@ fun () ->
 	let tmp = ref [] in
 	let rec loop t =
 		match follow t with

@@ -3389,7 +3389,7 @@ let shared_state_function path name v =
 		| _ -> true
 	in
 	match v with
-	| VFunction (f,static) when shared -> VFunction ((fun vl -> !on_shared_state (); f vl),static)
+	| VFunction (f,static) when shared -> VFunction ((fun vl -> !on_shared_state (fun () -> "std " ^ s_type_path path ^ "." ^ name); f vl),static)
 	| _ -> v
 
 let init_fields builtins path static_fields instance_fields =
@@ -3511,7 +3511,7 @@ let init_constructors builtins =
 	add key_sys_io__Process_NativeProcess
 		(fun vl -> match vl with
 			| [cmd;args] ->
-				!on_shared_state ();
+				!on_shared_state (fun () -> "process");
 				let cmd = decode_string cmd in
 				let args = match args with
 					| VNull -> None

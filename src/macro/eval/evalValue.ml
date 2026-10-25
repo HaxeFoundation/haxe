@@ -428,7 +428,12 @@ end)
    the macro API or of the standard library) is read or changed: a macro
    running out of the order of the tasks typing in parallel waits for it there
    (see [Claims.speculating]). *)
-let on_shared_state = ref (fun () -> ())
+let on_shared_state : ((unit -> string) -> unit) ref = ref (fun _ -> ())
+
+(* The name of the static variable at slot [i] of [proto], for reports. *)
+let static_name proto i =
+	let name = IntMap.fold (fun n j acc -> if j = i then EvalHash.rev_hash n else acc) proto.pnames "?" in
+	EvalHash.rev_hash proto.ppath ^ "." ^ name
 
 (* Static isolation (docs/incremental-compilation.md, phase 7, item 4): the
    static variables of the macro context start from their initial value in
